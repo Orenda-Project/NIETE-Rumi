@@ -28,6 +28,7 @@
  *   GET  /lib/:code             the video library from a quiz: subjects (grade strip), then chapters
  *   GET  /lib/h/:token          the same from the kid's hub
  *   GET  /videos/dl/:code       302 to a 1-hour link that saves a bank video
+ *   GET  /stories/shelf  GET /stories/shelf/h/:token  GET /stories/book/:id/h/:token  POST /stories/event/h/:token   storybooks (web-quiz-stories.js; web_quiz_stories, off -> 404 stories_off)
  *   POST /hub/:token            the same, from the page with this phone's device_ref (names only for a trusted phone)
  *   POST /hubdoor               the results card's door: {href: /h/<token>} for this session's child, bound to its phone
  *   GET  /cl/:code  POST /cl/*  the standing class link /j/<code> (web-quiz-class-link.routes.js)
@@ -211,6 +212,12 @@ const ql = (v) => (v === 'en' || v === 'ur' ? v : undefined);
 router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l), device: req.get('x-wq-device') })));
 router.get('/lib/:code', handle((req) => WebQuizLibrary.lib(req.params.code, { st: q1(req.query.st), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l) })));
 router.get('/videos/dl/:code', handle((req) => WebQuizLibrary.download(req.params.code, { st: q1(req.query.st), vid: q1(req.query.vid) })));
+// Storybooks (web-quiz-stories.js; web_quiz_stories, fails closed). x-wq-device: this phone's device_ref, as for the library.
+const Stories = () => require('../services/quiz/web-quiz-stories');
+router.get('/stories/shelf', handle((req) => Stories().shelfPublic({ g: q1(req.query.g), l: q1(req.query.l) })));
+router.get('/stories/shelf/h/:token', handle((req) => Stories().shelf(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), l: q1(req.query.l), t: q1(req.query.t), device: req.get('x-wq-device') })));
+router.get('/stories/book/:id/h/:token', handle((req) => Stories().book(req.params.id, req.params.token, { kid: q1(req.query.kid), device: req.get('x-wq-device') })));
+router.post('/stories/event/h/:token', handle((req) => Stories().event(req.params.token, req.body || {}, { device: req.get('x-wq-device') })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
 router.post('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang })));
