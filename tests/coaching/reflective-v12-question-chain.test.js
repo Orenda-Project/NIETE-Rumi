@@ -147,9 +147,11 @@ describe('_generateReflectiveQuestionV12 — guardrails ladder', () => {
     // Romanised Urdu — almost all Latin letters. Triggers roman_script.
     mockRouter.callReflective
       .mockResolvedValueOnce(mockCall('Asha, lesson ke bare mein aap kya sochti hain ab?'))
-      .mockResolvedValueOnce(mockCall('سوال صاف لکھا گیا ہے بغیر کسی غلطی کے۔'));
+      // The clean retry must pass every gate. It used to read «…بغیر کسی غلطی کے», and
+      // «غلطی» trips bd-6fdy3's judgemental_language gate, so the chain fell back.
+      .mockResolvedValueOnce(mockCall('اس لمحے بچوں نے کیا کہا؟'));
     const q = await GPT5MiniService._generateReflectiveQuestionV12(CORPUS, [], 1, 'ur', 'Asha');
-    expect(q).toBe('سوال صاف لکھا گیا ہے بغیر کسی غلطی کے۔');
+    expect(q).toBe('اس لمحے بچوں نے کیا کہا؟');
     expect(mockRouter.callReflective).toHaveBeenCalledTimes(2);
   });
 

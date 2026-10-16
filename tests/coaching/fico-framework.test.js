@@ -2,7 +2,7 @@
  * FICO Framework Module Tests (module-interface contract)
  *
  * The FICO framework now carries the canonical ICT rubric (Sections B/C/D/F,
- * 26 indicators, max 104). Detailed shape assertions live in
+ * 37 indicators, max 148 — FICO V3, bd-2345). Detailed shape assertions live in
  * `fico-framework-ict.test.js`. This file locks the generic framework-module
  * interface contract that every framework in the registry must satisfy.
  */
@@ -31,7 +31,7 @@ describe('FICO Framework Module', () => {
     });
 
     test('SCENARIO: FICO max marks matches indicator count × scale', () => {
-      // ICT canonical rubric: 26 × 4 = 104.
+      // ICT canonical rubric: 37 × 4 = 148 (FICO V3, bd-2345).
       expect(ficoFramework.maxMarks).toBe(ficoFramework.getScoringConstants().totalIndicators * 4);
     });
 
@@ -124,12 +124,12 @@ describe('FICO Framework Module', () => {
       expect(prompt).not.toMatch(/Swahili|Kiswahili/i);
     });
 
-    test('SCENARIO: FICO 1-4 / 26-indicator / B-C-D-F contract stays intact alongside focus_area', () => {
+    test('SCENARIO: FICO 1-4 / 37-indicator / B-C-D-F contract stays intact alongside focus_area', () => {
       const prompt = ficoFramework.buildAnalysisPrompt(
         'Transcript', { teacherFirstName: 'Nadia', language: 'en' }, null
       );
-      // 26 indicators still requested, and the four FICO section keys present.
-      expect(prompt).toContain('Score all 26 FICO indicators (1-4 scale)');
+      // 37 indicators still requested, and the four FICO section keys present.
+      expect(prompt).toContain('Score all 37 FICO indicators (1-4 scale)');
       expect(prompt).toContain('lesson_plan_fidelity');
       expect(prompt).toContain('high_leverage_practices');
       expect(prompt).toContain('student_engagement');
