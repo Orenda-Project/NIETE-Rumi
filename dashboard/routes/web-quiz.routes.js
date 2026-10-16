@@ -764,7 +764,8 @@ function createWebQuizRouter(opts = {}) {
     // The language the page that sent the child here was in (?lang=, only en|ur): the bot decides whether it wins.
     const lang = req.query.lang === 'en' || req.query.lang === 'ur' ? `${kid || src ? '&' : '?'}lang=${req.query.lang}` : '';
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
-    const flush = lastFast && req.query.nf !== '1'
+    // (never on a link-preview fetch: a crawler gets today's page)
+    const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
       ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi })
       : null;
     if (flush) {

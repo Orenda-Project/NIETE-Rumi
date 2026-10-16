@@ -243,6 +243,20 @@ describe('fast first page: GET /h/:token', () => {
     expect(fix).toBeLessThan(res.body.indexOf('<script src="/wq/hub.js'));
   });
 
+  it('switch on, a link-preview fetch of a hub link: today\'s hub render, byte for byte (no early head)', async () => {
+    const bot = heldBot([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true }))]);
+    srv = await start(build(bot.fetchImpl));
+    await get(srv, `/h/${TOKEN}`);
+    const res = await new Promise((resolve, reject) => {
+      const r = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'GET', path: `/h/${TOKEN}`,
+        headers: { host: 'portal.example', 'user-agent': 'WhatsApp/2.23.20.0 A' } }, (rs) => {
+        let b = ''; rs.setEncoding('utf8'); rs.on('data', (c) => { b += c; }); rs.on('end', () => resolve({ status: rs.statusCode, body: b }));
+      });
+      r.on('error', reject); r.end();
+    });
+    expect(res.body).toBe(renderHubPage({ payload: HUB({ fast: true }), token: TOKEN, origin: 'http://portal.example', assetV: hubVer(res.body) }));
+  });
+
   it('switch on, the link has expired (401 after the head went): the page asks again the old way, which answers 401', async () => {
     const bot = heldBot([jsonRes(200, HUB({ fast: true })), jsonRes(401, { error: 'bad_token' }), jsonRes(401, { error: 'bad_token' })]);
     srv = await start(build(bot.fetchImpl));
