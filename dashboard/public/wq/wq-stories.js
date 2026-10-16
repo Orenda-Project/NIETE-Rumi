@@ -426,7 +426,7 @@
       return '<div class="wqs-stage" data-stage><div class="wqs-cam" data-cam style="width:' + im.w + 'px;height:' + im.h + 'px">' + inner +
         (bx ? img(tb.url, tb.w, tb.h, 'wqs-lens', ' style="left:' + bx[0] + 'px;top:' + bx[1] + 'px;width:' + bx[2] + 'px;height:' + bx[3] + 'px"') : '') +
         (own() ? '<i class="wqs-mk" data-mk></i>' : '') + '</div>' +
-        (sm === 'z' || sm === 'l' ? '<button class="wqs-whole" data-whole data-tap="cam" aria-pressed="false">🖼 ' + esc(t.whole) + '</button>' : '') + '</div>';
+        (sm === 'z' || sm === 'l' ? '<button class="wqs-whole" data-whole data-tap="cam" aria-pressed="false">' + esc(t.whole) + '</button>' : '') + '</div>';
     }
     function own() { return sm && (sm !== 'z' || !sp.boxes_ok); }
     R.stage = stage;

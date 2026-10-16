@@ -122,6 +122,7 @@ function env(opt = {}) {
       mount(el, o) { const c = { el, o, log: [], stop(w) { c.log.push('stop:' + w); }, destroy() { c.log.push('destroy'); }, view: () => ({ heard: 2, total: 5 }) }; calls.lr.push(c); return c; },
       askMic: opt.noAsk ? undefined : (el, o) => { el.innerHTML = '<button class="lr-go">go</button>'; calls.ask.push(o); calls.askEl = el; },
       glowLevel: () => 2,
+      ...(opt.doneHtml ? { COPY: { en: { done: 'X' }, ur: { done: 'Y' } }, doneHtml: (c) => '<span class="lr-done-ok">' + c.done + '</span>' } : {}),
     };
   }
   if (opt.wqj) win.WQJ = { tap() { calls.juice.push('tap'); }, finish(o) { calls.juice.push('finish:' + o.stars); }, correct() {}, wrong() {}, muted: () => calls.juice.includes('mute:true'), mute(b) { calls.juice.push('mute:' + b); } };
@@ -235,6 +236,16 @@ describe('the reader state machine (pure, fake clock)', () => {
 });
 
 // ---- the shelf ----------------------------------------------------------------------------------------------------
+describe('the Done label', () => {
+  test('when the live reader offers its Done label, the reading screen uses it (one implementation)', async () => {
+    const e = env({ doneHtml: true });
+    const root = await openReader(e);
+    toMic(e, root);
+    e.calls.ask[0].onStream({});
+    expect(root.innerHTML).toContain('<span class="lr-done-ok">X</span>');
+  });
+});
+
 describe('the shelf', () => {
   test('one primary: none at all when the host screen already has its own (ctx.primary === false)', async () => {
     const e = env(); const el = fakeEl('shelf');
