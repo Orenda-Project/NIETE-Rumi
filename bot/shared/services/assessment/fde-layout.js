@@ -545,17 +545,18 @@ function printable(slot, q) {
 // English: a Q1(a) MCQ whose stem or options carry one of Q4's words hands the child that
 // word's meaning or a sentence to copy («What does the word 'invisible' mean?» above «Use any
 // five of the following words…: invisible»). Social Studies: a Q5 or Q7 item that asks the
-// fact a Q1 MCQ already tests (the MCQ's key is inside one of the item's keys, or one of the
-// item's keys is inside the MCQ's stem, AND the two ask about the same thing). The held item takes no place: the next item in
-// reply order does (on a re-ask, the second reply's), and with none left the slot is short.
-// The other slot is never touched.
+// fact a Q1 MCQ already tests: its one-line answer, or marking points worth at least half its
+// marks, are given away by a Q1 MCQ (the MCQ's key is inside them, or they are printed in the
+// MCQ's stem, AND the two ask about the same thing). The held item takes no place: the next
+// item in reply order does (on a re-ask, the second reply's), and with none left the slot is
+// short. The other slot is never touched.
 const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const textsOf = (...values) => values.flat().filter((t) => typeof t === 'string');
 
 function q4Words(q4s) {
   const words = q4s.flatMap((q) => (Array.isArray(q.words) ? q.words : []))
     .map((w) => (typeof w === 'string' ? w.replace(/^[\s"'“‘(]+|[\s"'”’).,;:!?]+$/g, '') : ''))
-    .filter(Boolean)
+    .filter((w) => w.length >= 3) // a stray letter would match every option label
     .map((w) => new RegExp(`(?<![A-Za-z])${escapeRe(w)}(?![A-Za-z])`, 'i'));
   if (!words.length) return null;
   return (q) => {
@@ -585,7 +586,7 @@ function tokensOf(text) {
 }
 
 const keyText = (q) => (typeof q.answer === 'string' ? q.answer.replace(OPTION_HEAD, '') : '');
-// An answer of one line (ten words or fewer, function words aside) is a key in itself.
+// An answer of one line (ten words or fewer, function words aside) is judged whole.
 const ONE_LINE = 10;
 // Same thing asked: at least three of the MCQ's own words, and at least half of them.
 const SAME_WORDS = 3;
@@ -597,32 +598,48 @@ function sameFact(q1s) {
   if (!mcqs.length) return null;
   return (q) => {
     const scheme = q.scheme && typeof q.scheme === 'object' ? q.scheme : {};
-    const points = Array.isArray(scheme.points) ? scheme.points.map((p) => p && p.text) : [];
-    const accept = Array.isArray(scheme.accept) ? scheme.accept : [];
-    const said = new Set(tokensOf(textsOf(q.question, q.answer, points, accept).join(' ')));
-    // The item's keys: each marking point and accepted answer, and the answer when it is one line or
-    // the item has no points (never its stem, and never a long answer that only mentions the
-    // MCQ's key on the way to its own).
-    const marked = textsOf(points, accept);
-    const keys = textsOf(marked, !marked.length || tokensOf(q.answer).length <= ONE_LINE ? [q.answer] : [])
-      .map((t) => new Set(tokensOf(t))).filter((k) => k.size);
+    const points = Array.isArray(scheme.points) ? scheme.points.filter((p) => p && typeof p.text === 'string') : [];
+    const accept = textsOf(Array.isArray(scheme.accept) ? scheme.accept : []);
+    const said = new Set(tokensOf(textsOf(q.question, q.answer, points.map((p) => p.text), accept).join(' ')));
     // What the MCQ asks (its stem, the shared key taken out) is what the item says too.
     const asksSame = (asks) => {
       const both = asks.filter((w) => said.has(w)).length;
       return both >= SAME_WORDS && both / asks.length >= SAME_SHARE;
     };
-    return mcqs.some((m) => {
-      const stem = [...m.stem].filter((w) => !m.key.has(w));
-      if (keys.some((k) => [...m.key].every((w) => k.has(w))) && asksSame(stem)) return true;
-      // The item's key printed in the MCQ's stem: a name both carry is not by itself the same question.
-      return keys.some((k) => [...k].every((w) => m.stem.has(w)) && asksSame(stem.filter((w) => !k.has(w))));
-    });
+    // A key an MCQ gives away: it holds the MCQ's key, or it is printed in the MCQ's stem (a name
+    // both carry is not by itself the same question), and the two ask the same thing.
+    const given = (text) => {
+      const k = new Set(tokensOf(text));
+      if (!k.size) return false;
+      return mcqs.some((m) => {
+        const stem = [...m.stem].filter((w) => !m.key.has(w));
+        if ([...m.key].every((w) => k.has(w)) && asksSame(stem)) return true;
+        return [...k].every((w) => m.stem.has(w)) && asksSame(stem.filter((w) => !k.has(w)));
+      });
+    };
+    // A one-line answer (or an item with no marking points) is given whole, with its accepted answers.
+    if (!points.length || tokensOf(q.answer).length <= ONE_LINE) {
+      if (textsOf(q.answer, accept).some(given)) return true;
+    }
+    // Otherwise the points the MCQs give must carry at least half the item's marks: one point of
+    // three cued is a hint, not the answer.
+    const marks = points.map((p) => (Number(p.marks) > 0 ? Number(p.marks) : 1));
+    const total = marks.reduce((a, b) => a + b, 0);
+    const got = points.reduce((sum, p, i) => sum + (given(p.text) ? marks[i] : 0), 0);
+    return total > 0 && got * 2 >= total;
   };
 }
 
+// `spare`: how many items a slot may lose to the hold. Social Studies holds at most a slot's spare
+// choices (Q5 any 6 of 9: three; Q7 any 6 of 8: two), the first in reply order, so a re-ask can
+// always refill it and a narrow chapter whose facts all sit in Q1 still gets a paper. English
+// Q1(a) has twenty MCQs and a Q4 word is a plain giveaway: every one is held.
 const CROSS_HOLD = {
-  english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words },
-  social_studies: { held: ['social_studies.C.Q5', 'social_studies.D.Q7'], against: 'social_studies.A.Q1', rule: sameFact },
+  english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words, spare: () => Infinity },
+  social_studies: {
+    held: ['social_studies.C.Q5', 'social_studies.D.Q7'], against: 'social_studies.A.Q1', rule: sameFact,
+    spare: (slot) => Math.max(0, slot.generate - slot.attempt),
+  },
 };
 
 /**
@@ -670,7 +687,14 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const cross = CROSS_HOLD[P.key];
   const against = cross && slots.find((s) => s.slot === cross.against);
   const rule = against && cross.rule(bySlot.get(against.slot).slice());
-  if (rule) place((slot, q) => cross.held.includes(slot.slot) && rule(q));
+  if (rule) {
+    const lost = new Map();
+    place((slot, q) => {
+      if (!cross.held.includes(slot.slot) || (lost.get(slot.slot) || 0) >= cross.spare(slot) || !rule(q)) return false;
+      lost.set(slot.slot, (lost.get(slot.slot) || 0) + 1);
+      return true;
+    });
+  }
   spreadKeys(slots, bySlot);
 
   // Marks, lines and the canonical tag come from the pattern, never the model.
