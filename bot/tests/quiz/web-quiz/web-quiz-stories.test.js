@@ -80,6 +80,10 @@ describe('the switch: off is closed everywhere', () => {
     seed({ on: false });
     fake.db.app_settings.push({ key: 'web_quiz_stories', value: 'yes' });
     expect(await Stories.storiesOn()).toBe(false);
+    Stories._reset();
+    fake.db.app_settings = [{ key: 'web_quiz_stories', value: false }];
+    expect(await Stories.storiesOn()).toBe(false);
+    expect(await status(Stories.shelf(TOKEN, { kid: 'a' }))).toBe(404);
   });
   test('hubBits: {} off, {stories:{on:1}} on', async () => {
     seed({ on: false });
@@ -185,7 +189,7 @@ describe('the book', () => {
   test('pages in order with words × the current voice timings merged by i, boxes kept, audio signed', async () => {
     seed({ band: true });
     const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
-    expect(out).toEqual(expect.objectContaining({ id: F.BOOK(1), title: 'Book 1 Testwala', lang: 'en', dir: 'ltr', grade: 2 }));
+    expect(out).toEqual(expect.objectContaining({ id: F.BOOK(1), title: 'Book 1 Testwala', lang: 'en', dir: 'ltr', grade: 2, cover: `/s/${F.BOOK(1)}/cover-aaaa0001.webp` }));
     expect(out.pages.map((p) => p.n)).toEqual([1, 2, 3]);
     const p1 = out.pages[0];
     expect(p1.image).toEqual({ url: `/s/${F.BOOK(1)}/p01-bbbb0001.webp`, w: 720, h: 1080 });
@@ -212,10 +216,17 @@ describe('the book', () => {
     seed();
     const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
     expect(out.questions).toEqual([
-      { n: 1, kind: 'literal', q: 'What does Sami Testwala see?', options: [{ t: 'A kite' }, { t: 'A cat' }, { t: 'A bus' }], page_ref: 1 },
-      { n: 2, kind: 'inference', q: 'Where does the kite go?', options: [{ t: 'Down' }, { t: 'Up high', img: `/s/${F.BOOK(1)}/q2o1-eeee0001.webp` }, { t: 'Home' }], page_ref: 2 },
+      { n: 1, kind: 'literal', q: 'What does Sami Testwala see?', options: [{ t: 'A kite' }, { t: 'A cat' }, { t: 'A bus' }], page_ref: 1, audio: null },
+      { n: 2, kind: 'inference', q: 'Where does the kite go?', options: [{ t: 'Down' }, { t: 'Up high', img: `/s/${F.BOOK(1)}/q2o1-eeee0001.webp` }, { t: 'Home' }], page_ref: 2, audio: null },
     ]);
     expect(JSON.stringify(out)).not.toMatch(/answer_i|review_status|"answer"/);
+  });
+  test('question audio: {q, o[]} on the /s/ route when the clips exist, null otherwise', async () => {
+    seed();
+    fake.db.story_questions[0].audio = { q: 'q1-ffff0001.webp'.replace('webp', 'ogg'), o: ['q1o1-ffff0002.ogg', 'q1o2-ffff0003.ogg', 'q1o3-ffff0004.ogg'] };
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out.questions[0].audio).toEqual({ q: `/s/${F.BOOK(1)}/q1-ffff0001.ogg`, o: [`/s/${F.BOOK(1)}/q1o1-ffff0002.ogg`, `/s/${F.BOOK(1)}/q1o2-ffff0003.ogg`, `/s/${F.BOOK(1)}/q1o3-ffff0004.ogg`] });
+    expect(out.questions[1].audio).toBeNull();
   });
   test('a draft book, an unknown id and a junk id are 404 not_found', async () => {
     seed();
@@ -286,7 +297,7 @@ describe('events', () => {
   test('story_questions_done is checked on the server: correct, total and effort stars back', async () => {
     seed();
     const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_questions_done', data: { answers: [0, 2] } });
-    expect(out).toEqual({ ok: true, correct: 1, total: 2, stars: expect.any(Number) });
+    expect(out).toEqual({ ok: true, correct: 1, total: 2, stars: expect.any(Number), by_kind: { literal: [1, 1], inference: [0, 1] } });
     expect(fake.db.story_events[0].data).toEqual(expect.objectContaining({ correct: 1, total: 2, stars: out.stars }));
   });
   test('story_answer checks one tap (for "Look back") and keeps no row; the answer itself never comes back', async () => {
@@ -296,11 +307,15 @@ describe('events', () => {
     expect(await status(Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_answer', data: { n: 3, pick: 2 } }))).toBe(400); // a draft question
     expect(fake.db.story_events).toHaveLength(0);
   });
-  test('story_questions_done keeps by_kind for the teacher\'s report, and the child\'s response has no per-kind numbers', async () => {
+  test('story_questions_done returns by_kind as [right, total] per kind (the teacher\'s report reads it; the child screen never shows it)', async () => {
     seed();
     const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_questions_done', data: { answers: [0, 0] } });
-    expect(out).not.toHaveProperty('by_kind');
-    expect(fake.db.story_events[0].data.by_kind).toEqual({ literal: { correct: 1, total: 1 }, inference: { correct: 0, total: 1 } });
+    expect(out.by_kind).toEqual({ literal: [1, 1], inference: [0, 1] });
+    expect(fake.db.story_events[0].data.by_kind).toEqual({ literal: [1, 1], inference: [0, 1] });
+  });
+  test('story_answer accepts the contract\'s {n, i} as well as {n, pick}', async () => {
+    seed();
+    expect(await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_answer', data: { n: 1, i: 0 } })).toEqual({ ok: true, right: true });
   });
   test('effort stars: one for listening, one for reading aloud, one for answering — never for being right', () => {
     expect(Stories.effortStars({ listened: 0, read: 0, answered: false })).toBe(0);

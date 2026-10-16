@@ -34,23 +34,23 @@ describe('/api/wq/stories/*', () => {
   afterEach(() => new Promise((r) => srv.close(r)));
 
   test('the shelf: forwarded with its query and the phone\'s device, never cached', async () => {
-    const r = await call('GET', `/api/wq/stories/shelf/h/${TOKEN}?kid=0123456789abcdef&g=2&l=ur`, { headers: { cookie: 'wq_dv=AAAAAAAAAAAAAAAAAAAAAA' } });
+    const r = await call('GET', `/api/wq/stories/shelf/h/${TOKEN}?kid=kidchipabcdefghi&g=2&l=ur`, { headers: { cookie: 'wq_dv=AAAAAAAAAAAAAAAAAAAAAA' } });
     expect(r.status).toBe(200);
     expect(r.cache).toBe('no-store');
-    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/stories/shelf/h/${TOKEN}?kid=0123456789abcdef&g=2&l=ur`);
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/stories/shelf/h/${TOKEN}?kid=kidchipabcdefghi&g=2&l=ur`);
     expect(calls[0].opts.headers['x-wq-device']).toBe('AAAAAAAAAAAAAAAAAAAAAA');
   });
   test('the book: forwarded', async () => {
-    const r = await call('GET', `/api/wq/stories/book/${BOOK}/h/${TOKEN}?kid=0123456789abcdef`);
+    const r = await call('GET', `/api/wq/stories/book/${BOOK}/h/${TOKEN}?kid=kidchipabcdefghi`);
     expect(r.status).toBe(200);
-    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/stories/book/${BOOK}/h/${TOKEN}?kid=0123456789abcdef`);
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/stories/book/${BOOK}/h/${TOKEN}?kid=kidchipabcdefghi`);
   });
   test('an event: POSTed with its body', async () => {
-    const r = await call('POST', `/api/wq/stories/event/h/${TOKEN}`, { body: { kid: '0123456789abcdef', book_id: BOOK, event: 'story_opened', data: { shelf_position: 2 } } });
+    const r = await call('POST', `/api/wq/stories/event/h/${TOKEN}`, { body: { kid: 'kidchipabcdefghi', book_id: BOOK, event: 'story_opened', data: { shelf_position: 2 } } });
     expect(r.status).toBe(200);
     expect(calls[0].url).toBe(`${BOT}/api/internal/wq/stories/event/h/${TOKEN}`);
     expect(calls[0].opts.method).toBe('POST');
-    expect(JSON.parse(calls[0].opts.body)).toEqual({ kid: '0123456789abcdef', book_id: BOOK, event: 'story_opened', data: { shelf_position: 2 } });
+    expect(JSON.parse(calls[0].opts.body)).toEqual({ kid: 'kidchipabcdefghi', book_id: BOOK, event: 'story_opened', data: { shelf_position: 2 } });
   });
   test('the switch off (the bot\'s 404 stories_off) reaches the page as it is', async () => {
     answer = { status: 404, body: { error: 'stories_off' } };

@@ -247,6 +247,13 @@ function bandOf(bookId, row) {
   return { url, w: Number(band.w), h: Number(band.h), box: band.box.map(Number) };
 }
 
+/** The spoken question + options ({q, o[]} file names under the book): urls, or null until every clip exists. */
+function qAudio(bookId, a) {
+  if (!a || typeof a !== 'object' || !Array.isArray(a.o)) return null;
+  const q = fileUrl(bookId, a.q); const o = a.o.map((f) => fileUrl(bookId, f));
+  return q && o.length && o.every(Boolean) ? { q, o } : null;
+}
+
 function optionOf(bookId, o) {
   if (o && typeof o === 'object') {
     const img = fileUrl(bookId, o.img);
@@ -256,7 +263,7 @@ function optionOf(bookId, o) {
 }
 
 async function reviewedQuestions(bookId) {
-  const { data } = await supabase.from('story_questions').select('n, kind, q, options, answer_i, page_ref, review_status').eq('book_id', bookId).eq('review_status', 'reviewed');
+  const { data } = await supabase.from('story_questions').select('*').eq('book_id', bookId).eq('review_status', 'reviewed');
   return (data || []).slice().sort((a, b) => a.n - b.n);
 }
 
@@ -295,7 +302,7 @@ async function bookData(id) {
   const wpms = (voiceRows || []).map((v) => Number(v.wpm)).filter((n) => Number.isFinite(n) && n > 0);
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
   return {
-    id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade,
+    id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
     pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null,
     pages: pages.map((p, i) => {
       const v = voiceOf.get(p.id);
@@ -307,7 +314,7 @@ async function bookData(id) {
     }),
     // page_ref: the page that answers it ("Look back" after a miss); it says where to look, not which option is right.
     questions: questions.map((q) => ({ n: q.n, kind: q.kind, q: q.q, options: (Array.isArray(q.options) ? q.options : []).map((o) => optionOf(b.id, o)),
-      ...(Number.isFinite(Number(q.page_ref)) && q.page_ref != null ? { page_ref: Number(q.page_ref) } : {}) })),
+      ...(Number.isFinite(Number(q.page_ref)) && q.page_ref != null ? { page_ref: Number(q.page_ref) } : {}), audio: qAudio(b.id, q.audio) })),
   };
 }
 
@@ -336,7 +343,7 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   if (name === 'story_answer') {
     const q = (await reviewedQuestions(b.id)).find((x) => x.n === int(data && data.n));
     if (!q) fail(400, 'bad_question');
-    const right = int(data.pick) === Number(q.answer_i);
+    const right = int(data.i != null ? data.i : data.pick) === Number(q.answer_i);
     logEvent('web_quiz.story_answer', { n: q.n, kind: q.kind, right });
     return { ok: true, right };
   }
@@ -350,9 +357,10 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
     const correct = qs.filter((q, i) => picks[i] !== null && picks[i] === Number(q.answer_i)).length;
     const stars = effortOf(await childEvents(who.studentId, b.id), true);
     Object.assign(out, { correct, total: qs.length, stars });
-    // Per kind ("finds facts / works out why") for the teacher's report only: kept, never answered to the child.
+    // Per kind as [right, total] ("finds facts / works out why") for the teacher's report; the child screen never shows it.
     const byKind = {};
-    qs.forEach((q, i) => { const k = byKind[q.kind] || (byKind[q.kind] = { correct: 0, total: 0 }); k.total += 1; if (picks[i] !== null && picks[i] === Number(q.answer_i)) k.correct += 1; });
+    qs.forEach((q, i) => { const k = byKind[q.kind] || (byKind[q.kind] = [0, 0]); k[1] += 1; if (picks[i] !== null && picks[i] === Number(q.answer_i)) k[0] += 1; });
+    out.by_kind = byKind;
     kept = { correct, total: qs.length, stars, by_kind: byKind };
   }
   if (name === 'story_done') {
