@@ -9,7 +9,7 @@
  *
  * emptyLine() → true when it answered (showList then sends nothing); false = today's reply, sent by today's code:
  *   - the switch off (no event, nothing read but the switch);
- *   - the ledger refused `maker_reply` (over the per-phone cap, or the trigger not yet in its closed list): a known
+ *   - the ledger refused `maker_reply` (over the per-phone cap): a known
  *     teacher is never left with no reply, so today's string goes out, unledgered, as today;
  *   - nothing went out (the cta and its fallback both failed).
  * Never throws. Emits onboard.quiz_door{ door:'empty', reply:'maker'|'fallback'|'today', ukey? } when the switch is on.
