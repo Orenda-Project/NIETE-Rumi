@@ -250,8 +250,9 @@ function bandOf(bookId, row) {
 
 /** The printed lines ({i0, i1, box} in 720-px page px): the reader zooms to a line even where word boxes are unsure. */
 function linesOf(lines) {
-  const ok = (Array.isArray(lines) ? lines : []).filter((l) => l && Number.isInteger(l.i0) && Number.isInteger(l.i1) && l.i1 >= l.i0 && Array.isArray(l.box) && l.box.length === 4)
-    .map((l) => ({ i0: l.i0, i1: l.i1, box: l.box.map(Number) }));
+  // A line with no reliable box keeps its word range: the reader sweeps it without zooming.
+  const ok = (Array.isArray(lines) ? lines : []).filter((l) => l && Number.isInteger(l.i0) && Number.isInteger(l.i1) && l.i1 >= l.i0)
+    .map((l) => ({ i0: l.i0, i1: l.i1, ...(Array.isArray(l.box) && l.box.length === 4 ? { box: l.box.map(Number) } : {}) }));
   return ok.length ? { lines: ok } : {};
 }
 

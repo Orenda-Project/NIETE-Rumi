@@ -223,9 +223,10 @@ describe('the book', () => {
   });
   test('per-line boxes pass through when the page has them ({i0, i1, box}); absent or junk → no key', async () => {
     seed();
-    fake.db.story_pages.find((p) => p.n === 2).lines = [{ i0: 0, i1: 3, box: [80, 890, 400, 50] }, { i0: 'x' }];
+    fake.db.story_pages.find((p) => p.n === 2).lines = [{ i0: 0, i1: 1, box: [80, 890, 400, 50], src: 'words' }, { i0: 2, i1: 3, src: 'ocr' }, { i0: 'x' }, { i0: 1, i1: 2, box: [1, 2] }];
     const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
-    expect(out.pages[1].lines).toEqual([{ i0: 0, i1: 3, box: [80, 890, 400, 50] }]);
+    // a line with no reliable box keeps its word range (the reader sweeps it without zooming)
+    expect(out.pages[1].lines).toEqual([{ i0: 0, i1: 1, box: [80, 890, 400, 50] }, { i0: 2, i1: 3 }, { i0: 1, i1: 2 }]);
     expect(out.pages[0]).not.toHaveProperty('lines');
   });
   test('the questions sprite: {url, clips} on /s/ when the book has one; absent otherwise', async () => {
