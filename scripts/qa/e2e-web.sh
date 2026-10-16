@@ -190,7 +190,7 @@ if [ -n "$PARALLEL" ]; then
     wait "$pid"; frc=$?; [ "$frc" -ne 0 ] && rc=1
     f="${NAMES[$i]}"
     echo "── $f (slot ${SLOTS[$i]}, exit $frc)"
-    grep -E '^  (ok|FAIL) |^ {7}|row appended|did not start|NOT' "$LOGDIR/$f.log" | sed 's/^\[e2e-web\] //'
+    grep -E '^  (ok|FAIL|BLOCK) |^ {7}|row appended|did not start|NOT' "$LOGDIR/$f.log" | sed 's/^\[e2e-web\] //'
     i=$((i + 1))
   done
   log "parallel run done in $(( $(date +%s) - started ))s — per-feature logs: $LOGDIR"
@@ -262,7 +262,11 @@ printf '%s' "$want" > "$DIST/.portal-tree" 2>/dev/null || true
 EVIDENCE="$REPO/$EVIDENCE_REL"; mkdir -p "$EVIDENCE"
 PGB="$(pg_bin)"
 read -r RUN_MOCK_PORT _rest < "$RUN_DIR/ports" 2>/dev/null || RUN_MOCK_PORT="$MOCK_PORT"
-WEB_MOCK_URL="http://127.0.0.1:$RUN_MOCK_PORT" \
+# The bot behind this run and its internal key (dev-portal.sh writes both into the run dir), so a driver can mint the bot's
+# own tokens (a hub link, a teacher's preview link, a challenge code) the way the bot does — never a copy of its crypto.
+read -r _m RUN_BOT_PORT _rest2 < "$RUN_DIR/ports" 2>/dev/null || RUN_BOT_PORT="$E2E_BOT_PORT"
+WEB_MOCK_URL="http://127.0.0.1:$RUN_MOCK_PORT" WEB_BOT_URL="http://127.0.0.1:$RUN_BOT_PORT" WEB_RUN_DIR="$RUN_DIR" \
+WEB_INTERNAL_KEY="$(cat "$RUN_DIR/internal-key" 2>/dev/null)" \
 WEB_FEATURE="$FEATURE" WEB_BASE_URL="$BASE_URL" WEB_EVIDENCE="$EVIDENCE" WEB_ONLY="$ONLY" \
 WEB_PSQL="${PGB:+$PGB/}psql" WEB_PG_PORT="${LOCAL_DB_PG_PORT:-54329}" WEB_DB_NAME="$(cat "$RUN_DIR/db/db.name" 2>/dev/null)" \
   node "$REPO/.claude/qa/web/web-runner.cjs"

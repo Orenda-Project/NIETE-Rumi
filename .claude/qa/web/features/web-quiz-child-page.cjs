@@ -1,201 +1,292 @@
-// web-quiz-child-page — web-lane driver for tests/features/web/web-quiz-child-page.feature. Runs the @WQnn scenarios: the
-// child's quiz page at /q/<code>, on the demo seed's quizzes (bot/scripts/e2e/portal-demo-seed.js): AB12CD and SM34EF are
-// open in English, QZCLOSED is switched off in Urdu. The page is dashboard/public/wq/wq.js, served by
-// dashboard/routes/web-quiz.routes.js and fed by the bot's /api/internal/wq/* (web-quiz.service.js) over the stack's
-// internal key. No roster or identity switch is set on the run database, so a child plays today's path: Play → I'm new →
-// a first name. Controls are the page's own ids and classes; what the child reads is asserted by its visible words
-// (wq.js's T copy). Scenarios without a @WQ tag are not driven yet.
+// web-quiz-child-page — web-lane driver for tests/features/web/web-quiz-child-page.feature: the child's quiz page at
+// /q/<code> and everything that hangs off it (identity, items and voices, the league tables, sharing, the hub, the Challenge).
+// The spec is the source of the TABLE below: one row per scenario, in spec order, id + title verbatim (W10 / validate_specs
+// E-WEB-NOCODE hold the two together). The code lives in web-quiz-child-page/*.cjs, one part per area, each exporting
+// `runs: { WQnnn: async (page, ctx) => evidence }`. A run may return { blocked: '<why>' } when THIS lane cannot prove the
+// scenario (a microphone, a live vendor, a WhatsApp token) — reported as BLOCKED, never hidden. A scenario with no code in
+// any part is BLOCKED as 'no driver code yet', so the suite always shows the whole spec. Regenerate the table from the spec
+// with: python3 .claude/qa/web/features/web-quiz-child-page/table.py
 'use strict';
-const { expect, watch } = require('../lib.cjs');
+const fs = require('fs');
+const path = require('path');
 
-const OPEN = 'AB12CD';      // Parts of a Plant, 5 questions
-const NEXT = 'SM34EF';      // States of Matter: "a new quiz" for the remembered-child scenario
-const CLOSED = 'QZCLOSED';  // active = false, language ur
-const TOPIC = 'Parts of a Plant';
-const WAIT = 15000;
-
-// The identity switches live in app_settings and ride in from the seed snapshot (the sandbox's values: identity v2 is ON
-// there). The @WQ02–@WQ04 scenarios are written for today's path (Play → I'm new → a first name), so every scenario pins
-// both switches OFF on this run's database before its first page load; the bot reads them on that load (30 s cache), so
-// pinning first keeps every later scenario consistent too. The name-first (v2) and roll-number scenarios are their own
-// @T360+ rows, not driven yet.
-async function todaysPath(ctx) {
-  await ctx.sql("delete from app_settings where key in ('web_quiz_identity', 'web_quiz_roster_id')");
-}
-
-const text = (page) => page.evaluate(() => document.body.innerText);
-const inner = (page, sel) => page.$eval(sel, (el) => el.innerText.trim());
-const boot = (page) => page.evaluate(() => JSON.parse(document.getElementById('boot').textContent));
-// The page's screen marker: render(h, m) writes it on <main id="wq"> (M3 landing, M6 question, M7 feedback, M9 results …).
-const onScreen = (sel) => '#wq[data-m="' + sel + '"]';
-
-function healthy(w, where) {
-  expect(!w.errors.length, where + ': uncaught page error — ' + w.errors[0]);
-  expect(!w.fivexx.length, where + ': API returned ' + [...new Set(w.fivexx)].join(', '));
-}
-
-// Open /q/<code> and wait for whichever first screen the phone's state gives: the landing, the resume
-// screen, the scorecard, or the closed page.
-async function openQuiz(page, ctx, code) {
-  const w = watch(page);
-  w.errors.length = 0; w.fivexx.length = 0;
-  await page.goto(ctx.baseUrl + '/q/' + code, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('#wq-play, #wq-play-as, #wq-cont, .wq-scorecard, .wq-closed', { state: 'visible', timeout: WAIT });
-  return w;
-}
-
-// A child this phone has never seen: Play → I'm new → a first name → Start. Resolves on question 1 with the boot payload.
-async function startAsNew(page, ctx, code, name) {
-  await todaysPath(ctx);
-  await openQuiz(page, ctx, code);
-  const b = await boot(page);
-  await page.click('#wq-play');
-  await page.waitForSelector('#wq-new', { state: 'visible', timeout: WAIT });
-  await page.click('#wq-new');
-  await page.fill('#wq-name', name);
-  await page.click('#wq-start');
-  await page.waitForSelector(onScreen('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
-  return b;
-}
-
-// The question on screen, found by its stem among the boot questions (works on the first pass and the retry pass).
-async function current(page, questions) {
-  const item = await inner(page, '.wq-item');
-  const q = questions.find((x) => item.includes(x.text));
-  expect(q, 'the question on screen matches none of the quiz: "' + item.slice(0, 80) + '"');
-  return q;
-}
-const wrongSlot = (q) => q.options.map((o) => o.slot).find((s) => s !== q.correct_slot);
-// Tap an option, wait for Jugnu's feedback, tap Next.
-async function tapAndNext(page, slot) {
-  await page.click('.wq-opt[data-slot="' + slot + '"]');
-  await page.waitForSelector('#wq-next', { state: 'visible', timeout: WAIT });
-  await page.click('#wq-next');
-}
-// Answer `count` questions of the first pass, all right except the one at `wrongAt` (an index into the quiz, or -1).
-async function play(page, questions, count, wrongAt) {
-  for (let n = 0; n < count; n++) {
-    await page.waitForSelector(onScreen('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
-    const q = await current(page, questions);
-    await tapAndNext(page, questions.indexOf(q) === wrongAt ? wrongSlot(q) : q.correct_slot);
+const PARTS_DIR = path.join(__dirname, 'web-quiz-child-page');
+const runs = {}, modes = {};
+for (const f of fs.readdirSync(PARTS_DIR).filter((x) => x.endsWith('.cjs') && x !== 'lib.cjs').sort()) {
+  const part = require(path.join(PARTS_DIR, f));
+  for (const [id, fn] of Object.entries(part.runs || {})) {
+    if (runs[id]) throw new Error('web-quiz-child-page: ' + id + ' is implemented twice (' + f + ')');
+    runs[id] = fn; modes[id] = (part.modes || {})[id] || 'off';
   }
 }
+// The identity switches (app_settings) are read by the bot with a 30 s cache, so scenarios run grouped by the mode they
+// need (today's path, the roll pad, name-first) — each switch costs one wait, not one per scenario. Spec order inside.
+const MODE_RANK = { off: 0, roster: 1, v2: 2 };
+const notYet = (id) => async () => ({ blocked: 'no driver code yet for ' + id });
 
-const scenarios = [
-  { id: 'WQ01', title: 'The link opens the quiz page with a link preview', run: async (page, ctx) => {
-    await todaysPath(ctx);
-    const r = await page.request.get(ctx.baseUrl + '/q/' + OPEN);
-    expect(r.status() === 200, '/q/' + OPEN + ' answered ' + r.status());
-    const h = r.headers();
-    expect(/no-cache/.test(h['cache-control'] || ''), 'Cache-Control is "' + h['cache-control'] + '", not no-cache');
-    expect(/noindex/.test(h['x-robots-tag'] || ''), 'X-Robots-Tag is "' + h['x-robots-tag'] + '", not noindex');
-    const w = await openQuiz(page, ctx, OPEN);
-    const b = await boot(page);
-    expect(b && b.quiz && b.quiz.topic === TOPIC, 'boot data names topic "' + (b && b.quiz && b.quiz.topic) + '"');
-    expect(b.code === OPEN && b.view === 'quiz', 'boot data is for ' + b.code + ' / ' + b.view);
-    expect(Array.isArray(b.quiz.questions) && b.quiz.questions.length === 5, 'boot carries ' + (b.quiz.questions || []).length + ' questions, not 5');
-    const meta = await page.evaluate(() => Object.fromEntries(['og:title', 'og:description', 'og:image'].map((p) => {
-      const m = document.querySelector('meta[property="' + p + '"]'); return [p, m ? m.getAttribute('content') : null];
-    })));
-    for (const k of Object.keys(meta)) expect(meta[k], 'no ' + k + ' tag');
-    expect(/^https?:\/\/.+\.jpg/.test(meta['og:image']), 'og:image is not a picture URL: ' + meta['og:image']);
-    const robots = await page.$eval('meta[name="robots"]', (m) => m.getAttribute('content'));
-    expect(/noindex/.test(robots || ''), 'meta robots is "' + robots + '"');
-    expect((await inner(page, '#wq h1')) === TOPIC, 'the landing does not head with the topic');
-    healthy(w, 'landing');
-    return { status: r.status(), og: meta, questions: b.quiz.questions.length };
-  } },
-
-  { id: 'WQ02', title: 'A new child plays to the class league table', run: async (page, ctx) => {
-    const b = await startAsNew(page, ctx, OPEN, 'Zara');
-    const w = watch(page);
-    const qs = b.quiz.questions;
-    expect(qs.length === 5, qs.length + ' questions');
-    await play(page, qs, 5, 2);                                  // one wrong: the third
-    await page.waitForSelector('#wq-fix', { state: 'visible', timeout: WAIT });
-    expect((await text(page)).includes('1 tricky one'), 'the tricky screen does not count 1 tricky one');
-    await page.click('#wq-fix');
-    await page.waitForSelector(onScreen('M9-fix') + ' .wq-opt', { state: 'visible', timeout: WAIT });
-    const again = await current(page, qs);
-    expect(qs.indexOf(again) === 2, 'the retry shows question ' + (qs.indexOf(again) + 1) + ', not the one got wrong');
-    await tapAndNext(page, again.correct_slot);
-    await page.waitForSelector(onScreen('M9') + ' h1', { state: 'visible', timeout: WAIT });
-    const got = await inner(page, onScreen('M9') + ' h1');
-    expect(got === 'You got 4 out of 5', 'the result says "' + got + '"');
-    const stars = await page.$eval(onScreen('M9') + ' .wq-stars', (el) => el.getAttribute('aria-label'));
-    expect(stars === '4/5', stars + ' stars, not 4/5');
-    expect((await text(page)).includes('fixed 1 tricky one'), 'the result does not say the tricky one was fixed');
-    await page.click('#wq-class');
-    await page.waitForSelector('tr.wq-you', { state: 'visible', timeout: WAIT });
-    const you = await inner(page, 'tr.wq-you');
-    expect(you.includes('YOU') && you.includes('Zara'), 'the league table\'s own row reads "' + you + '"');
-    expect(/league table/.test(await inner(page, '#wq h2')), 'no league table heading');
-    // This phone has finished: opening the link again lands on the scorecard.
-    await openQuiz(page, ctx, OPEN);
-    await page.waitForSelector('.wq-scorecard', { state: 'visible', timeout: WAIT });
-    const card = await inner(page, '.wq-scorecard');
-    expect(card.includes('Zara'), 'the scorecard does not name Zara');
-    expect(card.includes(TOPIC), 'the scorecard does not name the topic');
-    expect(/4\s*\/\s*5|4 out of 5/.test(card), 'the scorecard does not show 4/5');
-    const cardStars = await page.$eval('.wq-scorecard .wq-stars', (el) => el.getAttribute('aria-label'));
-    expect(cardStars === '4/5', 'the scorecard shows ' + cardStars + ' stars');
-    healthy(w, 'play-through');
-    return { result: got, stars, league: you.split('\n')[0] };
-  } },
-
-  // Scenarios share the run's database (a fresh browser each, not a fresh DB): a name a scenario already created for this
-  // teacher would be met with "Are you …?" on a second phone, so every scenario types a name of its own.
-  { id: 'WQ03', title: 'A returning child is remembered on this phone', run: async (page, ctx) => {
-    const b = await startAsNew(page, ctx, OPEN, 'Hira');
-    await play(page, b.quiz.questions, 5, -1);                   // all right: straight to the result
-    await page.waitForSelector(onScreen('M9') + ' h1', { state: 'visible', timeout: WAIT });
-    expect((await inner(page, onScreen('M9') + ' h1')) === 'You got 5 out of 5', 'the first quiz did not finish 5/5');
-    const w = await openQuiz(page, ctx, NEXT);                   // a new quiz, same phone
-    await page.waitForSelector('#wq-play-as', { state: 'visible', timeout: WAIT });
-    const offer = await inner(page, '#wq-play-as');
-    expect(offer === 'Play as Hira', 'the landing offers "' + offer + '"');
-    expect(!(await page.$('#wq-play')), 'the landing also shows a plain Play');
-    healthy(w, 'second landing');
-    return { offer };
-  } },
-
-  { id: 'WQ04', title: 'A reload mid-quiz resumes', run: async (page, ctx) => {
-    const b = await startAsNew(page, ctx, OPEN, 'Omar');
-    const qs = b.quiz.questions;
-    await play(page, qs, 3, -1);                                 // 3 of 5 answered, question 4 on screen
-    await page.waitForSelector(onScreen('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    const w = watch(page);
-    await page.waitForSelector('#wq-cont', { state: 'visible', timeout: WAIT });
-    const cont = await inner(page, '#wq-cont');
-    expect(cont === 'Go on: question 4 of 5', 'the resume button reads "' + cont + '"');
-    expect((await text(page)).includes('Welcome back, Omar'), 'the resume screen does not welcome Omar back');
-    await page.click('#wq-cont');
-    await page.waitForSelector(onScreen('M6') + ' .wq-qof', { state: 'visible', timeout: WAIT });
-    const qof = await inner(page, '.wq-qof');
-    expect(qof === 'Question 4 of 5', 'after Continue the page shows "' + qof + '"');
-    // The saved answers are kept: finishing the last two scores all five.
-    await play(page, qs, 2, -1);
-    await page.waitForSelector(onScreen('M9') + ' h1', { state: 'visible', timeout: WAIT });
-    const got = await inner(page, onScreen('M9') + ' h1');
-    expect(got === 'You got 5 out of 5', 'after the resume the result says "' + got + '" — the saved answers were not kept');
-    healthy(w, 'resume');
-    return { cont, qof, result: got };
-  } },
-
-  { id: 'WQ05', title: 'A closed quiz explains itself in the quiz language', run: async (page, ctx) => {
-    await todaysPath(ctx);
-    const r = await page.request.get(ctx.baseUrl + '/q/' + CLOSED);
-    expect(r.status() === 410, '/q/' + CLOSED + ' answered ' + r.status() + ', not 410');
-    const w = await openQuiz(page, ctx, CLOSED);
-    const lang = await page.$eval('html', (el) => el.getAttribute('lang'));
-    expect(lang === 'ur', 'the closed page is in "' + lang + '", not the quiz\'s Urdu');
-    const h1 = await inner(page, '.wq-closed h1');
-    expect(h1 === 'یہ کوئز بند ہو چکا ہے', 'the closed page heads with "' + h1 + '"');
-    expect(!(await page.$('#boot')), 'a closed quiz still ships boot data');
-    healthy(w, 'closed page');
-    return { status: r.status(), lang, h1 };
-  } },
+// ── the table: spec order, id and title verbatim ─────────────────────────────────────────────────────────────────────
+const TABLE = [
+  { id: 'WQ01', title: 'The link opens the quiz page with a link preview' },
+  { id: 'WQ02', title: 'A new child plays to the class league table' },
+  { id: 'WQ03', title: 'A returning child is remembered on this phone' },
+  { id: 'WQ04', title: 'A reload mid-quiz resumes' },
+  { id: 'WQ005', title: 'A typed name that matches a class name asks \'Is this you?\'' },
+  { id: 'WQ05', title: 'A closed quiz explains itself in the quiz language' },
+  { id: 'WQ007', title: 'Sharing works when the browser has no share menu' },
+  { id: 'WQ008', title: 'A recorded clip that cannot play falls back to the phone\'s voice' },
+  { id: 'WQ009', title: 'The landing names the teacher and the class as the teacher\'s own texts do' },
+  { id: 'WQ010', title: 'A quick tap never brings back the old line' },
+  { id: 'WQ011', title: 'A child remembered on this phone is listed once' },
+  { id: 'WQ012', title: 'The teacher\'s report counts the first finish of a web quiz' },
+  { id: 'WQ013', title: 'The answer buttons come in the same order as the WhatsApp quiz and the teacher\'s answer key' },
+  { id: 'WQ014', title: 'A figure question shows the drawing, not the WhatsApp card' },
+  { id: 'WQ015', title: 'A question with long options shows no picture at all' },
+  { id: 'WQ016', title: 'Picture options are drawings, never emoji' },
+  { id: 'WQ017', title: 'A \'whose sound is this?\' question plays its own sound on the page' },
+  { id: 'WQ018', title: 'Picture answers are named by what they show' },
+  { id: 'WQ019', title: 'A match picture names its rows P, Q, R, never the answer letters' },
+  { id: 'WQ020', title: 'Letter answers are set as large page text so their marks are never cut off' },
+  { id: 'WQ021', title: 'A question that points at a picture it does not have is not served' },
+  { id: 'WQ022', title: 'A question that points at its own picture is served with it' },
+  { id: 'WQ023', title: 'The recorded voice says the words written for the voice, never maths code' },
+  { id: 'WQ024', title: 'A wrong answer is voiced as \'not yet\', never as praise' },
+  { id: 'WQ025', title: 'Closing the page or leaving it silences every sound' },
+  { id: 'WQ026', title: 'The sound button silences every sound, and a missing clip never means silence without words' },
+  { id: 'WQ027', title: 'A teacher with a class list: the child gives a roll number, not a name from a list' },
+  { id: 'WQ028', title: 'A roll number is confirmed with the child\'s first name and animal' },
+  { id: 'WQ029', title: 'A wrong or unknown roll number never starts a quiz as someone else' },
+  { id: 'WQ030', title: 'A quiz plays against ONE class list' },
+  { id: 'WQ031', title: 'The quiz\'s grade does not pick a class list, so the child picks the class first' },
+  { id: 'WQ032', title: 'Never two green \'Yes\' buttons on one screen' },
+  { id: 'WQ033', title: 'Two children of the class share a first name' },
+  { id: 'WQ034', title: 'A child who does not know their roll number types a name, and a near name is found' },
+  { id: 'WQ035', title: 'Name first: the child types the name they are called by and confirms ONE card' },
+  { id: 'WQ036', title: 'Two children share the typed name: the page asks, it never shows them' },
+  { id: 'WQ037', title: 'A child who does not know the answers still plays, as a new child of this class' },
+  { id: 'WQ038', title: '\'Not <first>?\' on a phone holding one child\'s open quiz never continues it as another child' },
+  { id: 'WQ039', title: 'A link from the child\'s quiz hub plays as that child with no picking' },
+  { id: 'WQ040', title: 'A link that already names the child never asks \'Who is playing?\' while the quiz opens' },
+  { id: 'WQ041', title: 'Replaying under the same typed name on the same phone is the same child, not a new one' },
+  { id: 'WQ042', title: 'An invited friend only types a name' },
+  { id: 'WQ043', title: 'The class is asked only when the hand-out could not tell' },
+  { id: 'WQ044', title: 'Remembered children are big cards on this phone, with \'Someone else\'' },
+  { id: 'WQ045', title: 'A phone passed around a class puts \'Someone else\' first and lets a wrong card be undone' },
+  { id: 'WQ046', title: 'Siblings on one phone can undo a wrong card on the first question' },
+  { id: 'WQ047', title: 'The first finish of a class-list child counts once, on any phone' },
+  { id: 'WQ048', title: 'The Urdu page shows the roll-number pad in Urdu digits' },
+  { id: 'WQ049', title: 'The teacher fixes a child who typed a name instead of a roll number' },
+  { id: 'WQ050', title: 'The teacher\'s own link is a page for the teacher' },
+  { id: 'WQ051', title: '\'Who played?\' opens with what the teacher needs first' },
+  { id: 'WQ052', title: 'A practice round\'s card says so' },
+  { id: 'WQ053', title: 'Feedback is spoken by recorded voices that every quiz shares' },
+  { id: 'WQ054', title: 'A quiz gets its own read-aloud clips the first time its page is opened' },
+  { id: 'WQ055', title: 'A wrong pick on a video-bank question shows only the mix-up and the reason' },
+  { id: 'WQ056', title: 'A wrong true/false answer says which the sentence is' },
+  { id: 'WQ057', title: 'Numbers a child could misread are written out' },
+  { id: 'WQ058', title: 'A child remembered on this phone whom the quiz\'s class list does not know is asked again, never shown an error' },
+  { id: 'WQ059', title: 'A friend who plays a challenge learns who won' },
+  { id: 'WQ060', title: 'A challenge link carries no child\'s name' },
+  { id: 'WQ061', title: 'Jugnu gives a hint on a tap, never the answer' },
+  { id: 'WQ062', title: 'A child who sits stuck is nudged once' },
+  { id: 'WQ063', title: 'A hint that would give the answer away is thrown out and the question still plays' },
+  { id: 'WQ064', title: 'The school league ranks every school that played this week by points that reward taking part' },
+  { id: 'WQ065', title: 'A child\'s own school is always in view, with its move since yesterday and what this finish added' },
+  { id: 'WQ066', title: 'A school with no points yet is invited, never ranked last' },
+  { id: 'WQ067', title: 'Caps keep the league fair' },
+  { id: 'WQ068', title: 'The school league has its own link, in English and in Urdu' },
+  { id: 'WQ069', title: 'A word picture that hides a letter the question does not ask about is not shown' },
+  { id: 'WQ070', title: 'Every line a child hears in a quiz is in one voice per language' },
+  { id: 'WQ071', title: 'A clip the voice could not record is never recorded in another voice' },
+  { id: 'WQ072', title: 'A slow clip is waited for, not swapped for the phone\'s voice' },
+  { id: 'WQ073', title: 'Quiz audio is stored in the configured bucket under a name that says what it is' },
+  { id: 'WQ074', title: 'Recording quiz audio can be switched off and is capped per day' },
+  { id: 'WQ075', title: 'A child who loses the internet at the end still sees their score' },
+  { id: 'WQ076', title: 'The result is sent by itself when the connection comes back' },
+  { id: 'WQ077', title: 'A tab closed before the result was sent sends it on the next open' },
+  { id: 'WQ078', title: 'A flapping or very slow connection loses no answer and records none twice' },
+  { id: 'WQ079', title: 'The next questions\' pictures and voice are fetched ahead of time' },
+  { id: 'WQ080', title: 'A practice round that beats the child\'s best says so' },
+  { id: 'WQ081', title: 'A classmate\'s right answer shows as one quiet line while a child plays' },
+  { id: 'WQ082', title: 'Only right answers, only first names, and a friend stays nameless' },
+  { id: 'WQ083', title: 'A child thinking on one question still sees classmates play' },
+  { id: 'WQ084', title: 'No peer line for grades 1 and 2, in the teacher\'s preview or on a quiet page' },
+  { id: 'WQ085', title: 'The peer line costs no extra database reads' },
+  { id: 'WQ086', title: 'The landing says when classmates are playing right now' },
+  { id: 'WQ087', title: 'The card says the child\'s place among today\'s class finishers' },
+  { id: 'WQ088', title: 'A picture question whose picture cannot be drawn for one option plays as words' },
+  { id: 'WQ089', title: 'Every item shape the quiz engine can write renders on a phone' },
+  { id: 'WQ090', title: 'Maths from real questions is typeset, never spelled out' },
+  { id: 'WQ091', title: 'A column sum option is shown as a column sum' },
+  { id: 'WQ092', title: 'A picture file that does not arrive never shows a broken picture' },
+  { id: 'WQ093', title: 'A label question whose answer rings fall outside its picture offers its parts as words' },
+  { id: 'WQ094', title: 'The render check sees both answers and every real kind of maths' },
+  { id: 'WQ095', title: 'The Challenge menu shows only the exercises that are built' },
+  { id: 'WQ096', title: 'A child outside grades 2 to 5 is not offered the Challenge' },
+  { id: 'WQ097', title: 'The hub shows the Challenge tile only to a child the Challenge accepts' },
+  { id: 'WQ098', title: '\'Which is bigger?\' is scored again on the server with the 4-in-a-row stop' },
+  { id: 'WQ099', title: 'Read aloud records 60 seconds and shows words per minute' },
+  { id: 'WQ100', title: 'Words per minute count only the time used when the child finishes the story early' },
+  { id: 'WQ101', title: 'A child with nothing right in line 1 is stopped and encouraged, never shown 0' },
+  { id: 'WQ102', title: 'WhatsApp\'s browser cannot give the microphone' },
+  { id: 'WQ103', title: 'A child\'s recording is scored and forgotten; slow scoring is polled' },
+  { id: 'WQ104', title: 'A reading where nothing was heard is never praised' },
+  { id: 'WQ105', title: 'Under the record rule the first scored attempt is the child\'s record and the menu shows no number' },
+  { id: 'WQ106', title: 'Under the read guard the microphone is checked on the phone before the minute' },
+  { id: 'WQ107', title: 'Under the read guard the minute has no Done and no countdown, and \'too hard\' opens after the first line\'s window' },
+  { id: 'WQ108', title: 'A reading the child ended early is stored as incomplete, never as words per minute' },
+  { id: 'WQ109', title: 'Silence after a passed microphone check is a stopped reading, not \'unheard\'' },
+  { id: 'WQ110', title: 'A reading\'s length is its own audio, never the last reading\'s' },
+  { id: 'WQ111', title: 'With items on, the row keeps per-item verdicts and timings, numbers only' },
+  { id: 'WQ112', title: 'With keep on, a reading is kept private under one dated prefix and its row says where' },
+  { id: 'WQ113', title: 'Kept readings leave by one purge command, dry run first' },
+  { id: 'WQ114', title: 'The trail and Missing number stay off without the record rule' },
+  { id: 'WQ115', title: 'The trail shows each stop with a finish badge for its first play, whatever the score' },
+  { id: 'WQ116', title: 'Missing number is typed on a keypad and scored two ways on the server' },
+  { id: 'WQ117', title: 'A stop played again is a practice round' },
+  { id: 'WQ118', title: 'A phone without a microphone sees those stops waiting, never failed' },
+  { id: 'WQ119', title: '\'On your own, or with help?\' is asked once per sitting' },
+  { id: 'WQ120', title: 'Numbers on the trail are Western digits in Urdu too' },
+  { id: 'WQ121', title: 'Listen and answer reads each answer option aloud, with a play button that never answers' },
+  { id: 'WQ122', title: 'With the Urdu polish on, the old challenge menu writes Western digits too' },
+  { id: 'WQ123', title: 'Today\'s read-aloud cap leaves \'Which is bigger?\' only' },
+  { id: 'WQ124', title: 'Read aloud live: the words light up as the child reads and the words-a-minute bar moves' },
+  { id: 'WQ125', title: 'Read aloud live: the result shows the moment the reading ends, and the checked count follows' },
+  { id: 'WQ126', title: 'Read aloud live falls back to today\'s reading whenever the live stream cannot run' },
+  { id: 'WQ127', title: 'A live key is one per run and counts toward today\'s readings' },
+  { id: 'WQ128', title: 'Questions after Read aloud, only about the part the child read' },
+  { id: 'WQ129', title: 'Each tap is checked by the server and the total is shown' },
+  { id: 'WQ130', title: 'Every tap is kept even when the checked score lands between two taps' },
+  { id: 'WQ131', title: 'Questions are off unless switched on' },
+  { id: 'WQ132', title: 'Listen and answer plays the story twice and never shows its text' },
+  { id: 'WQ133', title: 'Listen and answer is offered only when the story can be heard' },
+  { id: 'WQ134', title: 'Only listening questions a person has reviewed as taps are asked' },
+  { id: 'WQ135', title: 'A shared phone reopened on a finished child\'s card lets the next child play' },
+  { id: 'WQ136', title: 'An invited friend never sees the class through the peer line' },
+  { id: 'WQ137', title: 'No peer line in the early years' },
+  { id: 'WQ138', title: 'A friend opening a challenge sees the challenger, never the challenger\'s class' },
+  { id: 'WQ139', title: 'A child\'s shared card arrives in the group as a picture, even from WhatsApp\'s own browser' },
+  { id: 'WQ140', title: 'A browser that can share files sends the picture with the message' },
+  { id: 'WQ141', title: 'A challenge link previews as the invite' },
+  { id: 'WQ142', title: 'The class picture never names a classmate' },
+  { id: 'WQ143', title: 'A video quiz ends on the scorecard with \'Watch more\' first' },
+  { id: 'WQ144', title: 'The next video of the chapter waits on the scorecard' },
+  { id: 'WQ145', title: 'The school league share arrives as this hour\'s board' },
+  { id: 'WQ146', title: 'A link a teacher forwards to remind the class previews as the class filling up' },
+  { id: 'WQ147', title: 'The invited friend\'s page shows the picture their link previewed as' },
+  { id: 'WQ148', title: 'A child typing /quiz on WhatsApp gets one Open button to their hub when the hub is on' },
+  { id: 'WQ149', title: 'A phone with siblings asks \'Who is playing?\' with only its own children' },
+  { id: 'WQ150', title: 'Siblings who play in different languages each get their hub in their own language' },
+  { id: 'WQ151', title: 'The hub shows the newest quiz from the child\'s teacher, or a warm empty state' },
+  { id: 'WQ152', title: 'The hub\'s teacher card puts the quiz handed to the child\'s own class first' },
+  { id: 'WQ153', title: 'Play again shows the child\'s best score and keeps the first score for the teacher' },
+  { id: 'WQ154', title: 'Three recommended video quizzes follow the child\'s last topic' },
+  { id: 'WQ155', title: 'An expired or tampered hub link shows a closed page that tells the child what to do' },
+  { id: 'WQ156', title: 'A forwarded hub link shows no child\'s name on another phone' },
+  { id: 'WQ157', title: 'A challenger who scored nothing is not a score to beat' },
+  { id: 'WQ158', title: 'A friend who played a challenge never reaches the challenger\'s class table' },
+  { id: 'WQ159', title: 'The invite picture and its link title never guess the friend\'s gender, and never dare a zero' },
+  { id: 'WQ160', title: 'An English quiz that quotes an Urdu word keeps one voice' },
+  { id: 'WQ161', title: '\'Watch another video\' opens the quiz\'s own subject as chapters, at once' },
+  { id: 'WQ162', title: 'Subjects with pictures and a grade strip' },
+  { id: 'WQ163', title: 'A lesson the class already has opens without waiting' },
+  { id: 'WQ164', title: 'A class\'s first play of a lesson still gets its own code' },
+  { id: 'WQ165', title: 'A child downloads a lesson\'s video' },
+  { id: 'WQ166', title: 'The library is off' },
+  { id: 'WQ167', title: 'The library in Urdu' },
+  { id: 'WQ168', title: 'The library from the kid\'s hub' },
+  { id: 'WQ169', title: 'The scorecard of a video quiz names the next lesson' },
+  { id: 'WQ170', title: 'A child\'s link on the platform\'s default domain opens on the quiz\'s own address, so the phone still remembers the child' },
+  { id: 'WQ171', title: 'A library link from the hub opened on another phone says whose link it is' },
+  { id: 'WQ172', title: 'A hub quiz link plays as the child on the family phone even for a teacher with many players' },
+  { id: 'WQ173', title: 'A shared phone that one sibling played on sees only that sibling from the family\'s hub link' },
+  { id: 'WQ174', title: 'A shared card or challenge link shows its picture in the WhatsApp message before the child taps send' },
+  { id: 'WQ175', title: 'A link-preview fetch is answered fast and a child\'s browser still gets the live quiz' },
+  { id: 'WQ176', title: 'The first child to open a quiz whose voice is still being recorded hears the recorded voice as soon as it exists' },
+  { id: 'WQ177', title: 'The results card opens the child\'s own quizzes, videos and challenges' },
+  { id: 'WQ178', title: 'Every portal worker answers a link preview fast, whichever one the phone reaches' },
+  { id: 'WQ179', title: 'The hub door is on the first screen of the card, and a forwarded door link says how to get your own' },
+  { id: 'WQ180', title: 'A child who taps Share the moment the scorecard appears still sends the picture' },
+  { id: 'WQ181', title: 'A teacher whose stored name already carries a title is named once, without the title' },
+  { id: 'WQ182', title: 'With the hub door, a class child\'s card opens on the score, the name notice, \'Share to class group\' and the door' },
+  { id: 'WQ183', title: 'The card picture is drawn straight after the finish answers, without slowing the finish' },
+  { id: 'WQ184', title: 'Every share picture a phone fetches leaves a trace in the logs' },
+  { id: 'WQ185', title: 'A library question plays the bank\'s own recorded voice, and each option has its own tap-to-hear' },
+  { id: 'WQ186', title: 'A listen-and-identify item never plays its options before the child answers' },
+  { id: 'WQ187', title: 'Only what the bank does not already voice is recorded, and a voice never misreads a letter or a blank' },
+  { id: 'WQ188', title: 'The class table\'s shared link previews with its picture already drawn' },
+  { id: 'WQ189', title: 'The class table\'s preview picture is drawn when a child finishes, before anyone opens the table' },
+  { id: 'WQ190', title: 'Opening the quiz page logs which app\'s browser opened it' },
+  { id: 'WQ191', title: 'A question or option with a word too long for the phone wraps inside the screen' },
+  { id: 'WQ192', title: 'A sound item shows sound tiles: the tile plays the sound, \'This one\' answers' },
+  { id: 'WQ193', title: 'A library question can reopen its lesson video without losing the question' },
+  { id: 'WQ194', title: 'The bank\'s \'answer\' clip plays before the answer only when the question is about that sound' },
+  { id: 'WQ195', title: 'A library lesson\'s page speaks the lesson\'s language, not the class\'s' },
+  { id: 'WQ196', title: 'Playing a lesson in another language does not change the child\'s own language' },
+  { id: 'WQ197', title: 'An old WhatsApp link from a phone the bot already knows opens the web page as that same child' },
+  { id: 'WQ198', title: 'Siblings on one phone pick themselves; a name typed on that phone that is one of them is confirmed, never duplicated' },
+  { id: 'WQ199', title: 'A forwarded button is spent by its first tap; the owner is simply asked their name' },
+  { id: 'WQ200', title: 'With the handset link off, nothing changes' },
+  { id: 'WQ201', title: 'A figure\'s \'look at\' line is spoken from the shared recorded voices' },
+  { id: 'WQ202', title: 'A library question recorded end to end gives its reason in the same recorded voice' },
+  { id: 'WQ203', title: 'A sum that ends in \'= ?\' or a blank is read with a word in the gap' },
+  { id: 'WQ204', title: 'An answer\'s right or wrong reaches the log' },
+  { id: 'WQ205', title: 'With page-session telemetry on, a page load can be replayed in order without a name' },
+  { id: 'WQ206', title: 'A Home button is always at the top of the child\'s own quiz, and leaving through it loses nothing' },
+  { id: 'WQ207', title: 'The video library and the Challenge opened from the home page have the same Home button' },
+  { id: 'WQ208', title: 'Back on a question shows the previous question as it was answered, and the first answer still counts' },
+  { id: 'WQ209', title: 'The phone\'s Back button steps back through the quiz instead of closing it' },
+  { id: 'WQ210', title: 'The challenge is asked as \'Who can beat your score?\' right under the class-group share' },
+  { id: 'WQ211', title: 'A low score asks to play with someone at home, with no score to beat' },
+  { id: 'WQ212', title: 'Split mode gives each phone one arm, so the panel can be compared with today\'s button' },
+  { id: 'WQ213', title: 'The polished Urdu look is one switch and one class on the page root' },
+  { id: 'WQ214', title: 'On the hub the polish class follows the child\'s language, not the boot' },
+  { id: 'WQ215', title: 'Under the polished Urdu look the copy is a child\'s — shorter, Western digits, the name first' },
+  { id: 'WQ216', title: 'Under the polished Urdu look the share pictures read at WhatsApp\'s preview size' },
+  { id: 'WQ217', title: 'Under web_quiz_identity_canon a merged loose child folds to the child it was merged into, one hop only' },
+  { id: 'WQ218', title: 'Under web_quiz_identity_canon the hub shows a merged loose child as the class-list child, once' },
+  { id: 'WQ219', title: 'Under web_quiz_identity_canon a typed new name on one phone is one child across a teacher\'s codes' },
+  { id: 'WQ220', title: 'The \'Keep your place on WhatsApp\' card shows once per view on a chosen child\'s hub, never on a practice hub' },
+  { id: 'WQ221', title: 'The confirm sheet names the child, says what is kept and how to remove it, with nothing preselected' },
+  { id: 'WQ222', title: 'Back from WhatsApp the page says Saved and offers Undo' },
+  { id: 'WQ223', title: 'A deep link to a scored route on a phone with two children and no tap asks \'Whose turn?\' first' },
+  { id: 'WQ224', title: 'Two chips with the same first name are told apart, or both picks are written low' },
+  { id: 'WQ225', title: 'Three remembered children on one phone: results for the tapped child only' },
+  { id: 'WQ226', title: 'A class child\'s own scorecard offers Jugnu\'s challenge first, and the page counts that it was seen' },
+  { id: 'WQ227', title: 'Tapping Jugnu\'s card asks whose turn it is before any run' },
+  { id: 'WQ228', title: 'With the Jugnu card switched off the scorecard is today\'s' },
+  { id: 'WQ229', title: 'A teacher\'s quiz link opened again by the child who finished it lands on that child\'s hub' },
+  { id: 'WQ230', title: 'The old link keeps today\'s quiz page whenever it is not one finished, remembered child' },
+  { id: 'WQ231', title: 'The Jugnu card comes first on the hub once the last quiz is finished' },
+  { id: 'WQ232', title: 'The lantern names the one next thing the server chose, never a count or a future title' },
+  { id: 'WQ233', title: 'The Story Time shelf tags NEW only a story the child has never met' },
+  { id: 'WQ234', title: 'The hub\'s doors are counted once per view, only with the new events on' },
+  { id: 'WQ235', title: 'The hub can be added to the home screen without an install card' },
+  { id: 'WQ236', title: 'Jugnu\'s Book lamps come only from the child\'s rung rows' },
+  { id: 'WQ237', title: 'The class lights stay hidden until five children of the class have lit one this term' },
+  { id: 'WQ238', title: 'Days this week are lit dots only and a new week starts empty' },
+  { id: 'WQ239', title: 'A new lamp is shown once, only when the server says one was lit this period' },
+  { id: 'WQ240', title: 'A 0-word first read still earns the read stop\'s Trail sticker' },
+  { id: 'WQ241', title: 'With the Book off the hub is today\'s, byte for byte' },
+  { id: 'WQ242', title: 'With the Trail v2 switch off the Challenge page and its payloads are today\'s' },
+  { id: 'WQ243', title: 'The mic notice shows once per child per phone, before the microphone is asked for, with one control' },
+  { id: 'WQ244', title: 'The help question is asked once per sitting before the first scored stop' },
+  { id: 'WQ245', title: 'The serve decides a stop opened by URL' },
+  { id: 'WQ246', title: 'Trail v2 end cards say what was done, never a number about the child' },
+  { id: 'WQ247', title: 'A grade-1 child counts the dots and taps the number, and never sees a score' },
+  { id: 'WQ248', title: 'Story Time plays the story its link names, as a practice run with nothing counted' },
+  { id: 'WQ249', title: 'A standing class link opens on the teacher\'s name, never on the class list' },
+  { id: 'WQ250', title: 'A phone that played in the class gets \'Whose turn?\' with only its own children' },
+  { id: 'WQ251', title: 'The class link\'s preview and every closed state say nothing about the class' },
+  { id: 'WQ252', title: 'The teacher forwards the class link from the report, and their own visit is practice' },
+  { id: 'WQ253', title: 'The teacher whose class was drawn this term sees the class round card and starts the round' },
+  { id: 'WQ254', title: 'Absent is marked, never skipped, and the next child needs a long press' },
+  { id: 'WQ255', title: 'The child\'s screens never lead back to the teacher\'s and remember nothing' },
+  { id: 'WQ256', title: 'With the class round off nothing changes' },
+  { id: 'WQ257', title: 'The class round follows the term\'s draw: ten counted turns, a child\'s \'not today\', pause, and \'Not this term\'' },
 ];
+
+const scenarios = TABLE.map(({ id, title }, i) => ({ id, title, run: runs[id] || notYet(id), _i: i }))
+  .sort((a, b) => (MODE_RANK[modes[a.id] || 'off'] - MODE_RANK[modes[b.id] || 'off']) || (a._i - b._i))
+  .map(({ id, title, run }) => ({ id, title, run }));
 
 module.exports = { feature: 'web-quiz-child-page', spec: 'tests/features/web/web-quiz-child-page.feature', scenarios };
