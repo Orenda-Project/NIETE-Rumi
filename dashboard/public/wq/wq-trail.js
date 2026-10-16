@@ -276,7 +276,7 @@
         document.head.appendChild(s);
       } catch (e) { /* the line-lit read-along stays */ }
     }
-    // the ask screen is the LISTEN screen (RULING #C6.5): its clip may preload (one request, no decode, never a play)
+    // the ask screen is where the story is listened to: its clip may preload (one request, no decode, never a play)
     // so the child's tap starts the voice at once; once per timing object, and only while the ask is on screen
     function warm() {
       var d = h.S.data;

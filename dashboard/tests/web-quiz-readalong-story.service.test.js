@@ -259,7 +259,7 @@ async function toQaDoneFromPlay(p) {
 }
 const URDU_SHOW_WORDS = 'الفاظ دکھائیں';
 
-// The first sound: on the ask screen (the LISTEN screen of RULING #C6.5) the mounted item's clip is warmed once the
+// The first sound: on the ask screen (where the story is listened to) the mounted item's clip is warmed once the
 // player script is here — WQReadAlong.preload(timing): one request, no decode, no play. Nothing else preloads.
 const PRE_STUB = STUB + 'window.__pre = []; window.WQReadAlong.preload = function (d) { window.__pre.push(d); return {}; };';
 describe('the first sound: the clip is warmed on the ask screen, never played', () => {
