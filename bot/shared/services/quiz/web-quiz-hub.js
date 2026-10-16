@@ -446,6 +446,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   // Events v2 (web_quiz_events_v2): hub_open gains the envelope and the phone's key (kid only once a child is picked).
   // src is the route the caller passed (the hub URL's from=), only from the known set; the return mark (ret) is not known here.
   const openEv = (base, studentId) => (f.hub && f.eventsV2 ? require('./web-quiz-measure-events').hubOpen(base, { studentId, device, src }) : base);
+  // ...and the page's event batches carry the hub token and the picked chip (hub.js, wq-tel.js setIds). Off: no key.
+  if (f.hub && f.eventsV2) out.ev2 = true;
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
   await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src });
   if (!chosen) {

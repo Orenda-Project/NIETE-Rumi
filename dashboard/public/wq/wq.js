@@ -630,10 +630,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
       pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right ✓'; },
       liveNow: function (n) { return n + ' classmates are playing right now — join them!'; },
+      // how many children of the class finished today (the child's own finish counts them all); never a place
       nth: function (n) {
-        if (n === 1) return "You're the first in your class to finish today!";
-        var t = n % 100, u = n % 10, sfx = t >= 11 && t <= 13 ? 'th' : u === 1 ? 'st' : u === 2 ? 'nd' : u === 3 ? 'rd' : 'th';
-        return ["You're the ", '<bdi>' + n + sfx + '</bdi>', ' in your class to finish today'];
+        if (n === 1) return 'You finished this quiz today!';
+        return ['', '<bdi>' + n + '</bdi>', ' children in your class finished this quiz today.'];
       }
     },
     ur: {
@@ -702,8 +702,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + n + ' ٹھیک کیا ✓'; },
       liveNow: function (n) { return 'ابھی ' + n + ' ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!'; },
       nth: function (n) {
-        if (n === 1) return 'آج آپ کی کلاس میں سب سے پہلے آپ نے مکمل کیا!';
-        return ['آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر ', '<bdi>' + n + '</bdi>', ' ہے'];
+        if (n === 1) return 'آج آپ نے یہ کوئز مکمل کر لیا۔';
+        return ['آج آپ کی کلاس میں ', '<bdi>' + urDigits(n) + '</bdi>', ' بچوں نے یہ کوئز مکمل کیا۔'];
       }
     }
   }[LANG];
@@ -803,7 +803,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function flushEv(beacon) {
     if (window.WQT && window.WQT.on) window.WQT.flush(beacon);
     if (!evq.length) return;
-    var body = JSON.stringify({ events: evq.splice(0, 20) });
+    // The hub token and the chip when the Jugnu card set them (wq-card.js, events v2): on the body, never an event.
+    var body = { events: evq.splice(0, 20) }, x = window.WQT && window.WQT.batchIds ? window.WQT.batchIds() : {}, k;
+    for (k in x) body[k] = x[k];
+    body = JSON.stringify(body);
     try {
       if (beacon && navigator.sendBeacon && navigator.sendBeacon('/api/wq/e', new Blob([body], { type: 'application/json' }))) return;
     } catch (e) {}
@@ -2385,7 +2388,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   /* ---------------- M10 scorecard ---------------- */
-  // "You're the 6th in your class to finish today": the copy's text escaped, the number isolated (<bdi>).
+  // "6 children in your class finished this quiz today.": the copy's text escaped, the number isolated (<bdi>).
   function nthHtml(n) {
     var t = T.nth(Number(n));
     return typeof t === 'string' ? esc(t) : esc(t[0]) + t[1] + esc(t[2]);

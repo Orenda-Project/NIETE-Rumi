@@ -10,6 +10,7 @@
  *                                     the rows are computed once per teacher per few minutes; a 'same' / 'no' takes
  *                                     its pair out of it (the rest of the TTL kept), an undo puts it back
  *   precisionByTier()                 per tier: the teachers' decisions so far, precision, Wilson lower bound, held
+ *                                     (a configured test teacher's decisions count for nothing)
  *   servedTiers()                     the tiers served right now ([] when the switch is off)
  *   decide({teacherUserId, looseId, candidateId, decision})   'same' | 'no' | 'undo': the only queue write
  *   linkClassCodes({teacherUserId, classId})  the teacher's unbound quiz codes → this class (never a bound one)
@@ -67,7 +68,9 @@ const HOLD_LOWER = 0.85;
 const PRECISION_TTL_MS = 60 * 1000;
 const DECISIONS = new Set(['same', 'no', 'undo']);
 const CAP = 5000;
-const QUEUE_TTL_S = 10 * 60;      // a teacher's computed queue is kept this long (the tab and every tap read it)
+// a teacher's computed queue is kept this long; a request (a reload or a decision's own read) slides it, and the tab
+// itself makes no request
+const QUEUE_TTL_S = 30 * 60;
 const QUEUE_MAX_AGE_S = 60 * 60;  // a read renews it for QUEUE_TTL_S, but never past this age from its compute
 const QUEUE_PREFIX = 'wq:jq:t:';  // + sha256(teacher id)[0:16]: ids and hashes only in a key
 const JOB_PAGE = 200;   // a page of loose ids goes into one `.in()`: at most IN_CHUNK (web-quiz-in-chunks)
@@ -355,8 +358,8 @@ async function cachedCompute(t) {
     try {
       const v = await r.get(key);
       const hit = v && typeof v === 'string' ? JSON.parse(v) : v;
-      // a hit within the hour cap is served and its key slides another QUEUE_TTL_S (an open tab keeps its queue
-      // warm for the next tap); an older one is worked out afresh
+      // a hit within the hour cap is served and its key slides another QUEUE_TTL_S on this request (a reload or a
+      // decision's own redirect read; the tab pages make no request of their own); an older one is worked out afresh
       if (hit && Array.isArray(hit.rows) && withinCap(hit, now)) {
         if (typeof r.expire === 'function') { try { await r.expire(key, QUEUE_TTL_S); } catch (_) { /* served all the same */ } }
         return hit.rows;
@@ -471,15 +474,34 @@ async function restoreToQueue(t, looseId, candidateId, tier) {
   });
 }
 
-async function countDecisions(tier, decision) {
-  const { count, error } = await supabase.from('merge_log').select('id', { count: 'exact', head: true })
+/** The configured test teachers (the one fixture helper); empty when the key is absent, unreadable or the helper is missing. */
+async function fixtureTeachers() {
+  try { const F = require('./web-quiz-fixture'); const c = F && typeof F.fixtureConfig === 'function' ? await F.fixtureConfig() : null; return c && c.teachers instanceof Set ? c.teachers : new Set(); } catch (_) { return new Set(); }
+}
+// The set is kept PRECISION_TTL_MS on its own clock: a tap clears precisionCache, and the tap after it reads merge_log
+// only (no app_settings read per tap). A changed key applies within a minute.
+let fixtureCache = null; // {at, teachers}
+async function excludedTeachers() {
+  if (fixtureCache && Date.now() - fixtureCache.at < PRECISION_TTL_MS) return fixtureCache.teachers;
+  const teachers = await fixtureTeachers();
+  fixtureCache = { at: Date.now(), teachers };
+  return teachers;
+}
+
+// `excluded`: the deciding teachers left out (the configured test teachers): one neq each, a bounded chain (the
+// configured key's own list).
+async function countDecisions(tier, decision, excluded = new Set()) {
+  let q = supabase.from('merge_log').select('id', { count: 'exact', head: true })
     .eq('source', 'queue').eq('tier', tier).eq('decision', decision);
+  for (const id of excluded) q = q.neq('teacher_id', id);
+  const { count, error } = await q;
   if (error) throw new Error(error.message || 'read failed');
   return count || 0;
 }
 
 /**
- * Per tier, from the teachers' queue decisions (merge_log source 'queue', tier set): an undo reverses a same, so
+ * Per tier, from the teachers' queue decisions (merge_log source 'queue', tier set; a decision by a configured test
+ * teacher, web-quiz-fixture.js fixtureConfig().teachers, counts for nothing): an undo reverses a same, so
  * same_net = same - undo, n = same_net + no, `precision` = same_net / n (null when n = 0). NOTE: this is the
  * TEACHER-ACCEPTED SHARE (a tap is a judgement, not a label); the labelled precision is queue_truth.json's. The strip
  * prints it as "teacher-accepted share". wilson_lower_95 is its 95% Wilson lower bound, held = n >= 50 and
@@ -490,10 +512,11 @@ async function precisionByTier() {
   if (precisionCache && Date.now() - precisionCache.at < PRECISION_TTL_MS) return precisionCache.value.map((x) => ({ ...x }));
   try {
     const value = [];
+    const excluded = await excludedTeachers(); // read at most once per computation
     for (const tier of TIERS) {
-      const same = await countDecisions(tier, 'same');
-      const no = await countDecisions(tier, 'no');
-      const undo = await countDecisions(tier, 'undo');
+      const same = await countDecisions(tier, 'same', excluded);
+      const no = await countDecisions(tier, 'no', excluded);
+      const undo = await countDecisions(tier, 'undo', excluded);
       const sameNet = Math.max(0, same - undo);
       const n = sameNet + no;
       const lower = wilsonLower(sameNet, n);
@@ -583,11 +606,8 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       await log('no', pair.evidence.tier);
       return { ok: true, decision };
     }
-    // Not a served pair (or an undo): today's full checks, unchanged.
-    const roster = await teacherRoster(teacherUserId);
-    if (!roster.has(candidateId)) return { ok: false, reason: 'not_your_roster' };
-    if (decision === 'same') return { ok: false, reason: 'not_served' };
     if (decision === 'undo') {
+      // the teacher's own latest decision on the pair is the 'same' being reversed: no roster read is needed (the update is guarded by merged_into)
       if (last !== 'same') return { ok: false, reason: 'nothing_to_undo' };
       const back = await rows(supabase.from('students').update({ merged_into: null, status: 'active', is_active: true, updated_at: now })
         .eq('id', looseId).eq('merged_into', candidateId).is('list_id', null).select('id'));
@@ -595,6 +615,10 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       await log('undo', await sameTier(teacherUserId, looseId, candidateId));
       return { ok: true, decision };
     }
+    // Not a served pair: today's full checks, unchanged.
+    const roster = await teacherRoster(teacherUserId);
+    if (!roster.has(candidateId)) return { ok: false, reason: 'not_your_roster' };
+    if (decision === 'same') return { ok: false, reason: 'not_served' };
     const loose = await teacherLoose(teacherUserId);
     if (!loose.has(looseId)) return { ok: false, reason: 'not_loose' };
     if (decision === 'no') {
@@ -739,6 +763,6 @@ module.exports = {
   computeCandidates, candidatesFor, serveTiers, decide, linkClassCodes, runBackwardJoin, precisionByTier, servedTiers, queueAge,
   TIERS, TIERS_SERVED, HOLD_MIN_N, HOLD_LOWER, norm, wilsonLower,
   _serveForTest: (tiers) => { served = tiers ? Object.freeze([...tiers]) : TIERS_SERVED; precisionCache = null; },
-  _resetPrecisionCache: () => { precisionCache = null; }, _resetQueueCache: () => { localQueue.clear(); }, QUEUE_TTL_S, QUEUE_MAX_AGE_S,
+  _resetPrecisionCache: () => { precisionCache = null; fixtureCache = null; }, _resetQueueCache: () => { localQueue.clear(); }, QUEUE_TTL_S, QUEUE_MAX_AGE_S,
   tokset, words, canonFirst, gradeOf, firstName, route,
 };

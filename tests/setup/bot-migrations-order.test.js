@@ -5,13 +5,28 @@
  *   - a migration that uses a table another migration creates (ALTER TABLE, an index, a policy or trigger on it,
  *     a REFERENCES) requires that migration, directly or through another.
  * The last rule came after the order had been typed by hand once and was wrong. The files that predate it are in
- * bot-migrations-order.allowlist.json, one line per use; that list may only shrink (an entry that no longer
- * applies fails until it is removed).
+ * bot-migrations-order.allowlist.json, one line per use; that list may only shrink: a use not on it fails; a listed
+ * use that no longer applies prints a CLEAN: warning, and one naming a migration not in this tree a GONE: warning, and
+ * both pass (the list is pruned on the branch that owns it).
  */
 const L = require('./bot-migrations-lib');
 const ALLOW = require('./bot-migrations-order.allowlist.json');
 
+const { listVerdict, report } = require('./ratchet-verdict-lib');
+
 const key = (u) => `${u.file} uses ${u.table} (${u.creator})`;
+
+/** Undeclared uses found vs allowed: a new one fails; a listed one no longer found warns (GONE when a file is absent). */
+function orderVerdict(found, allowed, presentFiles) {
+  return listVerdict(found, allowed, {
+    what: 'is undeclared: add the -- requires: header',
+    list: 'bot-migrations-order.allowlist.json',
+    gone: (k) => {
+      const m = /^(\S+) uses \S+ \((\S+)\)$/.exec(k);
+      return !m || !presentFiles.has(m[1]) || !presentFiles.has(m[2]);
+    },
+  });
+}
 
 describe('bot migrations: the -- requires: order', () => {
   const migrations = L.readMigrations();
@@ -41,15 +56,39 @@ describe('bot migrations: the -- requires: order', () => {
     for (const m of migrations) for (const r of L.requiresOf(m.sql)) expect(at.get(r)).toBeLessThan(at.get(m.file));
   });
 
-  test('a migration that uses a table another migration creates requires it (legacy allowlist aside)', () => {
+  test('a migration that uses a table another migration creates requires it (legacy allowlist aside; a fixed or absent entry warns)', () => {
     const found = L.undeclaredUses(migrations).map(key);
-    const fresh = found.filter((k) => !ALLOW.undeclared.includes(k));
-    expect(fresh).toEqual([]);
+    expect(report(orderVerdict(found, ALLOW.undeclared, files))).toEqual([]);
+  });
+});
+
+describe('a header the order gate cannot infer: a column, not a table', () => {
+  test('the sampling migration requires the runs v2 migration (it reads the record column that file adds)', () => {
+    const m = L.readMigrations().find((x) => x.file === 'web_quiz_challenge_runs_sampling.sql');
+    expect(m).toBeDefined();
+    expect(L.requiresOf(m.sql)).toEqual(expect.arrayContaining(['web_quiz_challenge.sql', 'web_quiz_challenge_runs_v2.sql']));
+    const order = L.applyOrder(L.readMigrations());
+    expect(order.indexOf('web_quiz_challenge_runs_v2.sql')).toBeLessThan(order.indexOf('web_quiz_challenge_runs_sampling.sql'));
+  });
+});
+
+describe('the order verdict, on a seeded allowlist', () => {
+  const listed = ['a.sql uses t (t.sql)', 'b.sql uses t (t.sql)', 'gone.sql uses t (t.sql)'];
+  const present = new Set(['a.sql', 'b.sql', 't.sql']);
+
+  test('a listed use that now has its header (below the list): CLEAN warning, pass', () => {
+    const v = orderVerdict(['a.sql uses t (t.sql)'], listed.slice(0, 2), present);
+    expect(v).toEqual({ failures: [], warnings: ['CLEAN: b.sql uses t (t.sql) is fixed. Remove it from bot-migrations-order.allowlist.json.'] });
   });
 
-  test('the allowlist only shrinks: every entry still applies', () => {
-    const found = new Set(L.undeclaredUses(migrations).map(key));
-    expect(ALLOW.undeclared.filter((k) => !found.has(k))).toEqual([]);
+  test('a listed use whose migration is not in this tree: GONE warning, pass', () => {
+    const v = orderVerdict(listed.slice(0, 2), listed, present);
+    expect(v).toEqual({ failures: [], warnings: ['GONE: gone.sql uses t (t.sql) names a file not in this tree. Remove it from bot-migrations-order.allowlist.json.'] });
+  });
+
+  test('a new undeclared use fails', () => {
+    const v = orderVerdict([...listed.slice(0, 2), 'c.sql uses t (t.sql)'], listed.slice(0, 2), present);
+    expect(v.failures).toEqual(['NEW: c.sql uses t (t.sql) is undeclared: add the -- requires: header.']);
   });
 });
 

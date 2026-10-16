@@ -51,6 +51,20 @@ describe('bands per fixed grade', () => {
     expect(D.isLine1OrZero({ exercise: 'read', status: 'scored', score: { stopped: false, correct: 40 }, meta: {} })).toBe(false);
   });
 
+  test('an implausible silent row is not the newest counted read (the band holds); a counted silent-ended unheard row is a zero read', () => {
+    const at = (h) => `2026-11-03T1${h}:00:00Z`;
+    const read = (over) => ({ exercise: 'read', status: 'scored', mode: 'check', record: true, score: { stopped: false, correct: 30 }, wcpm: 30, meta: {}, ...over });
+    const before = read({ id: 'r1', created_at: at(0) });
+    const fan = read({ id: 'r2', created_at: at(1), record: false, score: { correct: 0, attempted: 0, stopped: false }, wcpm: null,
+      meta: { ended: 'silent', mic_check: 'level_ok', quality: 'implausible', record_lost: 'implausible', counted: false } });
+    expect(D.lastCountedRead([before, fan])).toBe(before);
+    expect(D.drawBand({ fixedGrade: 5, openBand: 2, lastCountedRead: D.lastCountedRead([before, fan]) })).toEqual({ band: 2, band_reason: 'entry_grade', open_band: 2 });
+    const unheard = read({ id: 'r3', created_at: at(2), status: 'failed', score: null, wcpm: null, meta: { ended: 'silent', mic_check: 'level_ok', reason: 'unheard' } });
+    expect(D.lastCountedRead([before, fan, unheard])).toBe(unheard);
+    expect(D.isLine1OrZero(unheard)).toBe(true);
+    expect(D.drawBand({ fixedGrade: 5, openBand: 2, lastCountedRead: D.lastCountedRead([before, fan, unheard]) })).toEqual({ band: 1, band_reason: 'line1_drop', open_band: 2 });
+  });
+
   test('micHeard: the level check passed, in either spelling', () => {
     expect(D.micHeard('level_ok')).toBe(true);
     expect(D.micHeard('pass')).toBe(true);
@@ -296,5 +310,33 @@ describe('trailStateFor: this period\'s record rows, one implementation for the 
     Object.assign(supabase, { from: () => ({ insert: () => Promise.resolve({ error: { code: '42P01', message: 'relation "challenge_draws" does not exist' } }) }) });
     await expect(D.logDraw({ draw_id: 'x' })).resolves.toBe(false);
     expect(logError).toHaveBeenCalledWith('web_quiz.ch_draw_log_failed', expect.objectContaining({ code: '42P01' }));
+  });
+});
+
+describe('a designated reference may be reviewed', () => {
+  // a reviewer-levelled designated reference: calibrated by designation, so its status stays 'reviewed'
+  const REF_REVIEWED = { ...REF, status: 'reviewed', is_reference: true, provenance: 'reviewer_levelled' };
+  const elig = (rows, extra = {}) => D.eligible({ rows, seenIds: new Set(), kind: 'read', lang: 'ur', band: 2, now: NOW, ...extra }).map((r) => r.passage_id);
+
+  test('a reviewed designated reference (released, not withdrawn) is in E, first, in the counted pool too', () => {
+    const rows = [REF_REVIEWED, P('c1', { provenance: 'reviewer_levelled' }), P('c2', { provenance: 'reviewer_levelled' })];
+    expect(elig(rows)).toEqual(['ur.read.2.setA', 'c1', 'c2']);
+    expect(elig(rows, { counted: true })).toEqual(['ur.read.2.setA', 'c1', 'c2']);
+    expect(elig([{ ...REF_REVIEWED, released_at: '2026-12-01T00:00:00Z' }])).toEqual([]);
+    expect(elig([{ ...REF_REVIEWED, withdrawn_at: '2026-11-01T00:00:00Z' }])).toEqual([]);
+  });
+
+  test('it weighs as the reference: 0.35 / 0.325 / 0.325 beside two calibrated passages', () => {
+    const E = D.eligible({ rows: [REF_REVIEWED, P('c1'), P('c2')], seenIds: new Set(), kind: 'read', lang: 'ur', band: 2, now: NOW });
+    const list = D.weigh(E);
+    expect(list.map((x) => x.id)).toEqual(['ur.read.2.setA', 'c1', 'c2']);
+    expect(list.map((x) => x.w)).toEqual([expect.closeTo(0.35, 12), expect.closeTo(0.325, 12), expect.closeTo(0.325, 12)]);
+  });
+
+  test('golden: a reviewed check row that is not the designated reference stays out of E', () => {
+    expect(elig([REF, P('ur.read.2.rev', { status: 'reviewed' }), P('c1')])).toEqual(['ur.read.2.setA', 'c1']);
+    expect(elig([P('ur.read.2.rev', { status: 'reviewed' })])).toEqual([]);
+    // a reviewed reference in the practice pool is not a check row
+    expect(elig([{ ...REF_REVIEWED, pool: 'practice' }])).toEqual([]);
   });
 });

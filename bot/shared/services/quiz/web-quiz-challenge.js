@@ -1302,10 +1302,12 @@ function biggerItems(items, taps, served) {
 const BIGGER_FAST_MS = 500;
 // the speed floor: all 10 right AND the median per-item ms under 1500 (a reading child cannot be that fast; a script can)
 const RAPID_PERFECT_MS = 1500;
-function rapidPerfect(rows) {
+// or the server's own clock from the serve under 25 s (that clock also holds ~10 s of the page's own pacing before and between items)
+const RAPID_PERFECT_ELAPSED_S = 25;
+function rapidPerfect(rows, elapsedS) {
   if (!Array.isArray(rows) || rows.length !== 10 || !rows.every((r) => r.ok === true && r.ms != null)) return false;
   const ms = rows.map((r) => Number(r.ms)).sort((a, b) => a - b);
-  return (ms[4] + ms[5]) / 2 < RAPID_PERFECT_MS;
+  return (ms[4] + ms[5]) / 2 < RAPID_PERFECT_MS || (Number.isFinite(elapsedS) && elapsedS < RAPID_PERFECT_ELAPSED_S);
 }
 // A run is rapid when three or more items were FAST AND WRONG (fast and right is fluency); abandoned when the stop
 // came from items never touched.
@@ -1368,9 +1370,19 @@ const ENDED_BY_CHILD = new Set(['stuck', 'home', 'hidden']);
 //   low_story_confidence   the house confidence is under 0.5 while the model credits ≥ 90% (a 220 Hz tone: 0.44 with 60/60)
 // Never the confidence alone. The reason rides meta.flags; the row reads quality 'implausible' (EVENTS §11) and, like a row the
 // sweeper abandons, record=false with meta.record_lost='implausible' (the month stays open). Null = believed (today's rows).
+// A read the page ended on silence with nothing credited is judged first by the words the speech service heard (silentFloor):
+// at least max(3, 10% of the story's tokens) is real speech that aligns to nothing — unheard, the record kept; fewer is not a
+// reading at all — implausible, no_speech when nothing was heard, else no_aligned_words. A silent room is never a reader of 0.
 const IMPLAUSIBLE_CONF = 0.5;
 const IMPLAUSIBLE_SHARE = 0.9;
 const IMPLAUSIBLE_STT_SUPPORT = 0.25;   // heard words must be at least a quarter of the credited count
+const SILENT_FLOOR_MIN = 3;
+const SILENT_FLOOR_SHARE = 0.1;
+const heardFloor = (m, tokensN) => (Number(m && m.stt_words) || 0) >= Math.max(SILENT_FLOOR_MIN, Math.ceil(SILENT_FLOOR_SHARE * tokensN));
+function silentFloor(m, tokensN) {
+  if (heardFloor(m, tokensN)) return null;
+  return (Number(m && m.stt_words) || 0) === 0 ? 'no_speech' : 'no_aligned_words';
+}
 function readQuality(m, score, tokensN) {
   if (m && m.stt_words === 0) return 'no_speech';
   const correct = score.correct || 0;
@@ -1422,11 +1434,17 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
       ...(m.stt_words == null ? {} : { stt_words: m.stt_words }), ...(m.align_correct == null ? {} : { align_correct: m.align_correct }),
       ...(rules.items ? { items: (m.items || []).map((x) => ({ i: x.i, v: x.verdict })) } : {}),
     } : {};
-    // The microphone was proven working and not one word came: the child was silent — EGRA's discontinue, a 0 —
-    // not "unheard" (which would send them round again).
-    if (rules.record && Draw().micHeard(ctx.micCheck) && ctx.ended === 'silent' && !stopped && score.attempted === 0) {
-      const s = { ...score, stopped: true, finished_early: false, time_left: 0 };
-      return { score: s, wcpm: 0, ended: 'silent', meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, ended: 'silent' } };
+    const tokensN = (spec.story && spec.story.tokens && spec.story.tokens.length) || 0;
+    // numbers that cannot be believed are not a reading: zeroed, wcpm null, the raw counts kept, no items; record as served
+    const implausibleRow = (doubt, rate) => {
+      const { items, ...rest } = extra;
+      return { score: { correct: 0, attempted: 0, stopped: false, finished_early: false, time_left: 0 }, wcpm: null, ended: ctx.ended || null, implausible: doubt,
+        meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: [...(m.flags || []), doubt], ...rest, quality: 'implausible', raw: { correct: score.correct, attempted: score.attempted, wcpm: rate } } };
+    };
+    // Ended on silence with nothing credited: the floor on the words heard runs first (enough of them falls through to unheard)
+    if (rules.record && ctx.ended === 'silent' && !stopped && score.attempted === 0) {
+      const floor = silentFloor(m, tokensN);
+      if (floor) return implausibleRow(floor, wcpm(score.correct, score.time_left));
     }
     // Not one word of the story was heard: that is not a reading of 0 words — no score, no ✓, no growth baseline,
     // nothing in the class results; the child is asked to try again.
@@ -1441,13 +1459,12 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
       return { failed: true, reason, words: score.correct, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, words: score.correct } };
     }
     const rate = stopped ? 0 : wcpm(score.correct, score.time_left);
-    // the noise floor: numbers that cannot be believed are not a reading: zeroed, wcpm null, the raw counts kept, no items; record as served
-    const doubt = rules.record ? readQuality(m, score, (spec.story && spec.story.tokens && spec.story.tokens.length) || 0) : null;
-    if (doubt) {
-      const { items, ...rest } = extra;
-      return { score: { correct: 0, attempted: 0, stopped: false, finished_early: false, time_left: 0 }, wcpm: null, ended: ctx.ended || null, implausible: doubt,
-        meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: [...(m.flags || []), doubt], ...rest, quality: 'implausible', raw: { correct: score.correct, attempted: score.attempted, wcpm: rate } } };
-    }
+    // the noise floor
+    const doubt = rules.record ? readQuality(m, score, tokensN) : null;
+    if (doubt) return implausibleRow(doubt, rate);
+    // Speech that aligns to nothing (enough words heard, not one of them the passage's) is not a reading of this text, whatever
+    // the marker credited: unheard, the record kept. A first-line stop keeps its 0 (the discontinue is the child's own result).
+    if (rules.record && !stopped && m.align_correct === 0 && heardFloor(m, tokensN)) return { failed: true, reason: 'unheard', meta: { cost_usd: cost, duration_s: durationS, ...extra } };
     return { score, wcpm: rate, ended: ctx.ended || null, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra } };
   } catch (e) {
     return { failed: true, reason: 'internal_error', meta: { error: String(e && e.message || e).slice(0, 120) } };
@@ -1759,7 +1776,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     let meta = { ms: Number(body.ms) || null, ...(await provenance(c.sid, 'missing', null, run)), helped: helpedOf(body.helped), clock: 'row_paint', elapsed_s: Math.round(elapsedMs / 100) / 10, too_fast: elapsedMs < typed };
     if (rules.items) meta = { ...meta, items: rows, ...itemFlags(reached, { fastMs: missingFastMs, stopped: score.stopped }) };
     // the speed floor: a record warm-up with every item right and a median item time under the floor is a scripted 10/10
-    if (rules.items && run.v2 && run.mode === 'check' && run.record === true && run.anchor_block && rapidPerfect(rows)) meta = { ...meta, quality: 'rapid_perfect' };
+    if (rules.items && run.v2 && run.mode === 'check' && run.record === true && run.anchor_block && rapidPerfect(rows, meta.elapsed_s)) meta = { ...meta, quality: 'rapid_perfect' };
     if (sv && sv.tryout) meta = { ...meta, tryout: tryoutAnswer(sv.tryout, body.tryout, Bank) };
     const stored = await writeRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta, ...helpedV2 });
     if (stored === 'duplicate') fail(409, 'already_done');

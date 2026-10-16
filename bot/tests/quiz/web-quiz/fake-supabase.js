@@ -1,7 +1,7 @@
 'use strict';
 /**
  * An in-memory stand-in for the Supabase client — the network boundary — that
- * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/order/limit; select/insert/update/delete; is/not also on a
+ * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/order/limit/range; select/insert/update/delete; is/not also on a
  * `col->>key` path), so a test fails when a query forgets one. Tables are plain arrays in `db`.
  */
 const crypto = require('crypto');
@@ -52,6 +52,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       lt(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) < String(v)); return b; },
       order(c, o = {}) { st.order.push([c, o.ascending !== false]); return b; },
       limit(n) { st.limit = n; return b; },
+      range(from, to) { st.range = [from, to]; return b; },
       insert(row) { st.op = 'insert'; st.payload = Array.isArray(row) ? row : [row]; return b; },
       update(patch) { st.op = 'update'; st.payload = patch; return b; },
       delete() { st.op = 'delete'; return b; },
@@ -104,6 +105,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
         return asc ? x.localeCompare(y) : y.localeCompare(x);
       });
     }
+    if (st.range) hit = hit.slice(st.range[0], st.range[1] + 1);
     if (st.limit != null) hit = hit.slice(0, st.limit);
     if (st.count) return { data: st.head ? null : hit, count: hit.length, error: null };
     if (st.single) return { data: hit[0] ? { ...hit[0] } : null, error: null };

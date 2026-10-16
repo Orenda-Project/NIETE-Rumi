@@ -288,6 +288,15 @@ describe('the noise floor: a counted read with no believable speech is implausib
   });
 });
 
+// the server's clock: Date.now moved forward by `secs` (cumulative within a test), so the submit sees that much time since the serve
+const REAL_NOW = Date.now;
+let shiftMs = 0;
+const later = (secs) => {
+  shiftMs += secs * 1000;
+  if (!jest.isMockFunction(Date.now)) jest.spyOn(Date, 'now').mockImplementation(() => REAL_NOW() + shiftMs);
+};
+afterEach(() => { shiftMs = 0; if (jest.isMockFunction(Date.now)) Date.now.mockRestore(); });
+
 describe('the speed floor: a perfect warm-up needs a floor', () => {
   const fastRight = (items, ms) => items.map((it, i) => ({ i, value: String(it.answer), ms, first_key_ms: Math.min(ms - 100, 400), keys: String(it.answer).length }));
   test('a record A1 warm-up, 10/10 with median item ms 900: meta.quality rapid_perfect (the row keeps its score)', async () => {
@@ -305,6 +314,7 @@ describe('the speed floor: a perfect warm-up needs a floor', () => {
   test('the same 10/10 at 3000 ms an item, and a 9/10 at 900 ms: no quality key (today\'s rows)', async () => {
     on(V2, ...CANON_ON, PERIOD, POOL, 'web_quiz_challenge_items');
     const a = await Ch.exercise(hub(K5), 'missing', D);
+    later(40);
     await Ch.submit({ ct: a.ct, answers: fastRight(a.items, 3000), ms: 30000 });
     expect(rowOf(a.ct).meta.quality).toBeUndefined();
     const b = await Ch.exercise(hub(K3), 'missing', D);
@@ -322,6 +332,212 @@ describe('the speed floor: a perfect warm-up needs a floor', () => {
     expect(rowOf(b.ct)).toMatchObject({ mode: 'practice', record: false });
     await Ch.submit({ ct: b.ct, answers: fastRight(b.items, 900), ms: 9000 });
     expect(rowOf(b.ct).meta.quality).toBeUndefined();
+  });
+});
+
+describe('the speed floor on the server clock', () => {
+  const rightAt = (items, ms) => items.map((it, i) => ({ i, value: String(it.answer), ms, first_key_ms: Math.min(ms - 100, 400), keys: String(it.answer).length }));
+  const flags = () => on(V2, ...CANON_ON, PERIOD, POOL, 'web_quiz_challenge_items');
+  test('a record A1 warm-up, 10/10 at 1600 ms an item, submitted 18 s after the serve: rapid_perfect (the page pacing alone is ~10 s)', async () => {
+    flags();
+    const ex = await Ch.exercise(hub(K5), 'missing', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true, anchor_block: 'A1' });
+    later(18);
+    await Ch.submit({ ct: ex.ct, answers: rightAt(ex.items, 1600), ms: 16000 });
+    const row = rowOf(ex.ct);
+    expect(row.status).toBe('scored');
+    expect(row.score.correct).toBe(10);
+    expect(row.meta.elapsed_s).toBeGreaterThanOrEqual(18);
+    expect(row.meta.elapsed_s).toBeLessThan(19.5);
+    expect(row.meta.quality).toBe('rapid_perfect');
+    expect(R.computeRung('numbers', [row])).toBeLessThanOrEqual(2);
+  });
+
+  test('the forged-clock shape: 10/10 at 1600 ms an item, submitted 23.8 s after the serve: rapid_perfect', async () => {
+    flags();
+    const ex = await Ch.exercise(hub(K5), 'missing', D);
+    later(23.8);
+    await Ch.submit({ ct: ex.ct, answers: rightAt(ex.items, 1600), ms: 16000 });
+    const row = rowOf(ex.ct);
+    expect(row.score.correct).toBe(10);
+    expect(row.meta.elapsed_s).toBeGreaterThanOrEqual(23.8);
+    expect(row.meta.elapsed_s).toBeLessThan(25);
+    expect(row.meta.quality).toBe('rapid_perfect');
+  });
+
+  test('golden: the same 10/10 at 1600 ms, submitted 40 s after the serve: no quality key', async () => {
+    flags();
+    const ex = await Ch.exercise(hub(K5), 'missing', D);
+    later(40);
+    await Ch.submit({ ct: ex.ct, answers: rightAt(ex.items, 1600), ms: 16000 });
+    const row = rowOf(ex.ct);
+    expect(row.score.correct).toBe(10);
+    expect(row.meta.elapsed_s).toBeGreaterThanOrEqual(40);
+    expect(row.meta).not.toHaveProperty('quality');
+  });
+
+  test('a 10/10 at 900 ms an item, submitted 40 s after the serve: rapid_perfect (the page floor alone still marks)', async () => {
+    flags();
+    const ex = await Ch.exercise(hub(K5), 'missing', D);
+    later(40);
+    await Ch.submit({ ct: ex.ct, answers: rightAt(ex.items, 900), ms: 9000 });
+    expect(rowOf(ex.ct).meta.quality).toBe('rapid_perfect');
+  });
+
+  test('a 9/10 at 1600 ms, submitted 18 s after the serve: no quality key', async () => {
+    flags();
+    const ex = await Ch.exercise(hub(K5), 'missing', D);
+    const nine = rightAt(ex.items, 1600); nine[0].value = String(Number(nine[0].value) + 1);
+    later(18);
+    await Ch.submit({ ct: ex.ct, answers: nine, ms: 16000 });
+    expect(rowOf(ex.ct).score.correct).toBe(9);
+    expect(rowOf(ex.ct).meta).not.toHaveProperty('quality');
+  });
+
+  test('a practice replay, 10/10 submitted 18 s after its serve: no quality key (only a record row is measured)', async () => {
+    flags();
+    const a = await Ch.exercise(hub(K5), 'missing', D);
+    later(40);
+    await Ch.submit({ ct: a.ct, answers: rightAt(a.items, 3000), ms: 30000 });
+    const b = await Ch.exercise(hub(K5), 'missing', D);
+    expect(rowOf(b.ct)).toMatchObject({ mode: 'practice', record: false });
+    later(18);
+    await Ch.submit({ ct: b.ct, answers: rightAt(b.items, 1600), ms: 16000 });
+    expect(rowOf(b.ct).score.correct).toBe(10);
+    expect(rowOf(b.ct).meta).not.toHaveProperty('quality');
+  });
+});
+
+describe('the silent-ended read: the floor runs before the door', () => {
+  // the page ended the reading on silence after 10 s; the microphone check measured a level (not speech)
+  const readSilent = async (ct, transcript, right, tried) => {
+    const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
+    r2.downloadFromR2.mockResolvedValue(clip(10));
+    AudioService.transcribe.mockResolvedValue(transcript);
+    llm.__create.mockResolvedValue(marks(right, tried));
+    return Ch.submit({ ct, key, ms: 10000, lang: 'en', ended: 'silent', mic_check: 'level_ok', read_s: 10 }, { waitMs: 60000 });
+  };
+  const UR = ['ایک', 'دن', 'ہم', 'سکول', 'گئے', 'وہاں', 'بہت', 'بچے', 'تھے', 'اور'];
+  const urdu = (n) => ({ text: '', tokens: Array.from({ length: n }, (_, k) => ({ text: ` ${UR[k % UR.length]}`, start_ms: Math.round((0.4 + k * 0.33) * 1000), end_ms: Math.round((0.4 + k * 0.33 + 0.28) * 1000), speaker: 1 })) });
+  const serve = async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
+    return ex;
+  };
+
+  test('29 Urdu words heard on an English passage, none credited: failed/unheard, no quality key, the record kept (the next read is practice)', async () => {
+    const ex = await serve();
+    await readSilent(ex.ct, urdu(29), 0, 0);
+    const row = rowOf(ex.ct);
+    expect(row.meta.stt_words).toBe(29);
+    expect(row.status).toBe('failed');
+    expect(row.meta.reason).toBe('unheard');
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.meta).not.toHaveProperty('record_lost');
+    expect(row.record).toBe(true);
+    const again = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false });
+  });
+
+  test('nothing heard at all: implausible (no_speech), record cleared, wcpm null; the next read is a fresh check', async () => {
+    const ex = await serve();
+    await readSilent(ex.ct, { text: '', tokens: [] }, 0, 0);
+    const row = rowOf(ex.ct);
+    expect(row.status).toBe('scored');
+    expect(row.meta.quality).toBe('implausible');
+    expect(row.meta.flags).toEqual(expect.arrayContaining(['no_speech']));
+    expect(row.record).toBe(false);
+    expect(row.meta.record_lost).toBe('implausible');
+    expect(row.wcpm).toBeNull();
+    expect(row.score.correct).toBe(0);
+    const again = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(again.ct)).toMatchObject({ mode: 'check', record: true });
+  });
+
+  test('one garbled word then silence, none credited: implausible (no_aligned_words), record cleared, no reading rung', async () => {
+    const ex = await serve();
+    await readSilent(ex.ct, garbled(1), 0, 0);
+    const row = rowOf(ex.ct);
+    expect(row.meta.stt_words).toBe(1);
+    expect(row.status).toBe('scored');
+    expect(row.meta.quality).toBe('implausible');
+    expect(row.meta.flags).toEqual(expect.arrayContaining(['no_aligned_words']));
+    expect(row.record).toBe(false);
+    expect(row.meta.record_lost).toBe('implausible');
+    expect(row.wcpm).toBeNull();
+    expect(R.computeRung('reading', [row])).toBe(0);
+  });
+
+  test('golden: a timer-ended read that stops on the first line stays scored, stopped, no quality key', async () => {
+    const ex = await serve();
+    await readWith(ex.ct, heard(50, 1.1), 0, 50);
+    const row = rowOf(ex.ct);
+    expect(row.status).toBe('scored');
+    expect(row.score.stopped).toBe(true);
+    expect(row.wcpm).toBe(0);
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.record).toBe(true);
+  });
+});
+
+describe('speech that aligns to nothing is never a scored read', () => {
+  const UR = ['ایک', 'دن', 'ہم', 'سکول', 'گئے', 'وہاں', 'بہت', 'بچے', 'تھے', 'اور'];
+  const urdu = (n) => ({ text: '', tokens: Array.from({ length: n }, (_, k) => ({ text: ` ${UR[k % UR.length]}`, start_ms: Math.round((0.9 + k * 1.1) * 1000), end_ms: Math.round((0.9 + k * 1.1 + 0.8) * 1000), speaker: 1 })) });
+  const serve = async (...more) => {
+    on(V2, ...CANON_ON, PERIOD, POOL, ...more);
+    const ex = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
+    return ex;
+  };
+
+  test('50 Urdu words on an English passage, the marker credits 5 of 50: failed/unheard, no quality key, the record kept (the next read is practice)', async () => {
+    const ex = await serve();
+    await readWith(ex.ct, urdu(50), 5, 50);
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 50, align_correct: 0 });
+    expect(row.status).toBe('failed');
+    expect(row.meta.reason).toBe('unheard');
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.meta).not.toHaveProperty('record_lost');
+    expect(row.wcpm == null).toBe(true);
+    expect(row.record).toBe(true);
+    const again = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false });
+  });
+
+  test('golden: the same transcript credited 90% or more stays implausible (no_aligned_words), record cleared', async () => {
+    const ex = await serve();
+    const n = enTokens().length;
+    await readWith(ex.ct, urdu(50), n, n);
+    const row = rowOf(ex.ct);
+    expect(row.status).toBe('scored');
+    expect(row.meta.quality).toBe('implausible');
+    expect(row.meta.flags).toEqual(expect.arrayContaining(['no_aligned_words']));
+    expect(row.record).toBe(false);
+    expect(row.meta.record_lost).toBe('implausible');
+  });
+
+  test('golden: an ordinary read with words aligned stays scored with its rate', async () => {
+    const ex = await serve();
+    await readAloud(ex.ct);
+    const row = rowOf(ex.ct);
+    expect(row.meta.align_correct).toBeGreaterThan(0);
+    expect(row).toMatchObject({ status: 'scored', record: true });
+    expect(row.wcpm).toBeGreaterThan(0);
+    expect(row.meta).not.toHaveProperty('quality');
+  });
+
+  test('golden: 3 Urdu words heard (under the floor), nothing aligned, the marker credits 2: scored at its rate as today', async () => {
+    const ex = await serve();
+    await readWith(ex.ct, urdu(3), 2, 3);
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 3, align_correct: 0 });
+    expect(row.status).toBe('scored');
+    expect(row.score).toMatchObject({ correct: 2, attempted: 3, stopped: false });
+    expect(row.wcpm).toBe(2);
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.record).toBe(true);
   });
 });
 

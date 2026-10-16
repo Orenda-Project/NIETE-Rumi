@@ -1606,7 +1606,7 @@ async function classFinishersToday(shareCodeId) {
   }
 }
 
-/** "You're the 6th in your class to finish today": this session's place among them ({} when it is not one). Pure. */
+/** The card's "6 children in your class finished this quiz today.": how many finished up to and including this session ({} when it is not one). Pure. */
 function placeToday(rows, sessionId) {
   const mine = rows.find((r) => r.id === sessionId);
   return mine ? { nth: rows.filter((r) => String(r.completed_at) <= String(mine.completed_at)).length } : {};
@@ -1918,7 +1918,31 @@ function cleanProbe(p) {
   return JSON.stringify(out).length <= PROBE_MAX ? out : null;
 }
 
-function events(body = {}) {
+// The page's doors (door_shown / door_tap): with events v2 on each line is keyed (EVENTS §1-2, §6).
+const DOOR_NAMES = new Set(Object.keys(NAME_PROPS).filter((n) => NAME_PROPS[n] === DOOR_PROPS));
+
+/**
+ * A batch's keys for its door lines: dk from the phone's device (the edge's x-wq-device; the body's `dr` only when no
+ * device header came), kid from the page's signed hub token `ht` and the picked child's `chip` (a genuine, unexpired
+ * hub token whose ids name that chip, as the hub resolves a picked chip); anything else is kid null. Never throws;
+ * the token and the chip are never logged.
+ */
+function doorKeys(body, device) {
+  const K = require('./web-quiz-kid');
+  const ref = typeof device === 'string' && device ? device : body.dr;
+  let studentId = null;
+  if (typeof body.ht === 'string' && typeof body.chip === 'string' && body.chip) {
+    const tok = T.verify(body.ht, 'h');
+    if (tok && Array.isArray(tok.ids)) studentId = tok.ids.map(String).find((id) => T.chipId('h', id) === body.chip) || null;
+  }
+  return { kid: studentId ? K.kid(studentId) : null, dk: K.dk(ref) };
+}
+
+/**
+ * The page's events, relayed. `device`: this phone's device_ref from the request's x-wq-device (the edge's wq_dv
+ * cookie); it keys the door lines only.
+ */
+function events(body = {}, { device = null } = {}) {
   const all = Array.isArray(body.events) ? body.events : [];
   const list = all.slice(0, BATCH_MAX);
   const rich = Tel.on();
@@ -1930,10 +1954,16 @@ function events(body = {}) {
   const forged = v2 ? list.filter(serverOnly).length : 0;
   if (forged) logEvent('web_quiz.ev_dropped', require('./web-quiz-kid').envelope({ n: forged, why: 'server_only' }));
   let logged = 0;
+  let keys = null;
   for (const e of list) {
     const c = cleanEvent(e, { rich, v2 });
     if (!c) continue;
-    logEvent(`web_quiz.${c.name}`, { ...c.props, ...ids });
+    if (v2 && DOOR_NAMES.has(c.name)) {
+      // A door line: the child's and the phone's keys; never the share code, the session or the unkeyed device hash.
+      if (!keys) keys = doorKeys(body, device);
+      const K = require('./web-quiz-kid');
+      logEvent(`web_quiz.${c.name}`, K.envelope({ ...K.stripIds({ ...c.props, ...ids }), kid: keys.kid, dk: keys.dk }));
+    } else logEvent(`web_quiz.${c.name}`, { ...c.props, ...ids });
     // The old-link re-offer stands down once the page has opened on that code (web-quiz-old-link.js).
     if (c.name === 'page_open' && c.props.code) require('./web-quiz-old-link').noteOpen(c.props.code);
     logged += 1;

@@ -227,21 +227,24 @@ describe('record: a reading the child ended early is not a words-per-minute', ()
     expect(row.meta.attempt_no).toBeUndefined();
   });
 
-  test('silence after a passed microphone check is a stopped reading (0), never "unheard"; without the check it is unheard as today', async () => {
+  test('silence with no word heard is never a reading of 0, whatever the microphone check said: implausible (no_speech), wcpm null', async () => {
     on(RECORD, GUARD);
     const a = await read({ secs: 12, n: 0, right: 0, tried: 0, body: { ended: 'silent', read_s: 12, mic_check: 'level_ok' } });
-    expect(a.r).toMatchObject({ score: { correct: 0, attempted: 0, stopped: true }, wcpm: 0, ended: 'silent' });
-    expect(a.row).toMatchObject({ status: 'scored', wcpm: 0 });
-    expect(a.row.meta).toMatchObject({ ended: 'silent', mic_check: 'level_ok' });
+    expect(a.r).toMatchObject({ score: { correct: 0, attempted: 0, stopped: false }, wcpm: null });
+    expect(a.row).toMatchObject({ status: 'scored', wcpm: null });
+    expect(a.row.meta).toMatchObject({ ended: 'silent', mic_check: 'level_ok', quality: 'implausible' });
+    expect(a.row.meta.flags).toEqual(expect.arrayContaining(['no_speech']));
     const b = await read({ secs: 12, n: 0, right: 0, tried: 0, body: { ended: 'silent', read_s: 12, mic_check: 'none' } });
-    expect(b.r).toMatchObject({ failed: true, reason: 'unheard' });
+    expect(b.row).toMatchObject({ status: 'scored', wcpm: null });
+    expect(b.row.meta).toMatchObject({ quality: 'implausible' });
   });
 
-  test('the older spelling of the same check (\'pass\', on rows and pages from before) is the same fact: silence → a stopped reading (0)', async () => {
+  test('the older spelling of the same check (\'pass\', on rows and pages from before) is the same fact: silence with no word heard → implausible', async () => {
     on(RECORD, GUARD);
     const a = await read({ secs: 12, n: 0, right: 0, tried: 0, body: { ended: 'silent', read_s: 12, mic_check: 'pass' } });
-    expect(a.r).toMatchObject({ score: { correct: 0, attempted: 0, stopped: true }, wcpm: 0, ended: 'silent' });
-    expect(a.row).toMatchObject({ status: 'scored', wcpm: 0 });
+    expect(a.r).toMatchObject({ score: { correct: 0, attempted: 0, stopped: false }, wcpm: null });
+    expect(a.row).toMatchObject({ status: 'scored', wcpm: null });
+    expect(a.row.meta).toMatchObject({ ended: 'silent', mic_check: 'pass', quality: 'implausible' });
   });
 
   test('with items on, the read row keeps the scorer\'s per-word verdicts and doubt, never what was heard', async () => {

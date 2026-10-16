@@ -104,7 +104,7 @@ test('English sheet: the recordings sentence between the save line and the STOP 
   expect(html).toContain('<p>' + line + '</p>');
   const save = html.indexOf('Jugnu will save this phone number with Zara');
   const readings = html.indexOf(line);
-  const stop = html.indexOf('A grown-up can undo this');
+  const stop = html.indexOf('A grown-up can remove this phone number');
   expect(save).toBeGreaterThan(-1);
   expect(readings).toBeGreaterThan(save);
   expect(stop).toBeGreaterThan(readings);
@@ -118,9 +118,10 @@ test('Urdu sheet: the readings line between the save line and the STOP line, byt
   m.els.keep.click();
   const html = m.innerHTML;
   expect(html).toContain('<p>' + UR_READINGS + '</p>');
-  const save = html.indexOf('جگنو اس فون نمبر کو');
-  const readings = html.indexOf(UR_READINGS);
-  const stop = html.indexOf('گھر کے بڑے');
+  // read inside the notice: «گھر کے بڑے» is also in the who-sends line, which sits above the notice
+  const save = notice(html).indexOf('جگنو اس فون نمبر کو');
+  const readings = notice(html).indexOf(UR_READINGS);
+  const stop = notice(html).indexOf('گھر کے بڑے');
   expect(save).toBeGreaterThan(-1);
   expect(readings).toBeGreaterThan(save);
   expect(stop).toBeGreaterThan(readings);

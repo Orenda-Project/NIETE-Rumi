@@ -6,7 +6,8 @@
  *                the open band rises with the reading rung (child_rungs); the DRAW band is one lower after a line-1
  *                stop or a 0-word read on the last counted read (never below 1)
  *   the draw     random within band × language × kind over the check pool's released, not-withdrawn, calibrated or
- *                provisional passages the child has never had a run row for (twins excluded together); weights w1:
+ *                provisional passages, and the cell's designated reference while still reviewed (calibrated by
+ *                designation, not by n), the child has never had a run row for (twins excluded together); weights w1:
  *                the reference 0.35, each provisional 0.15 (at most two), calibrated passages share the rest; one band
  *                lower when the cell is exhausted, then "on its way" (no passage, no run row)
  *   the record   decided at serve: one record per canonical child × stop × period (a PKT calendar month read from
@@ -199,7 +200,7 @@ function eligible({ rows, seenIds, kind, lang, band, now = new Date(), counted =
   const t = ms(now);
   return all
     .filter((r) => r.pool === 'check' && r.kind === kind && r.lang === lang && Number(r.band) === Number(band)
-      && DRAWABLE.has(r.status) && ms(r.released_at) <= t && r.withdrawn_at == null && !out.has(r.passage_id)
+      && (DRAWABLE.has(r.status) || (r.is_reference === true && r.status === 'reviewed')) && ms(r.released_at) <= t && r.withdrawn_at == null && !out.has(r.passage_id)
       && (!counted || isCountedSource(r)))
     .sort((a, b) => (Number(!!b.is_reference) - Number(!!a.is_reference)) || String(a.passage_id).localeCompare(String(b.passage_id)));
 }

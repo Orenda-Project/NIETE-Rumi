@@ -1,9 +1,9 @@
 'use strict';
 /**
- * The teacher join queue's kept queue slides while the tab is open (web-quiz-join-queue.js cachedCompute): a read of a
- * kept queue renews its key for another QUEUE_TTL_S, so a tap after more than 10 minutes on the tab still reads it, but
- * never past QUEUE_MAX_AGE_S from its compute (an older entry is worked out afresh). Redis down: the local copy's
- * 10-minute expiry counts from its last read, its hour cap from its compute.
+ * The teacher join queue's kept queue slides on every request (web-quiz-join-queue.js cachedCompute): a read of a
+ * kept queue (a reload or a decision's own read; the tab pages make no request of their own) renews its key for another
+ * QUEUE_TTL_S, but never past QUEUE_MAX_AGE_S from its compute (an older entry is worked out afresh). Redis down: the
+ * local copy's QUEUE_TTL_S expiry counts from its last read, its hour cap from its compute.
  * Supabase (in-memory, filters applied, every call recorded) and Redis (a Map whose keys expire on a fake clock) are the
  * faked boundaries; the module runs for real. The seed is the cache-filter suite's (two served pairs: Omar, Bilal).
  */
@@ -100,9 +100,9 @@ describe('a read slides the kept queue', () => {
     redis.set.mockClear();
     expect(await tap(PAIR1, 'no')).toEqual({ ok: true, decision: 'no' });
     expect(computeReads(before11)).toBe(0);
-    // the decision's own cache read slid the key again (to 21 min); its edit keeps that remaining TTL (600 s)
+    // the decision's own cache read slid the key again (another QUEUE_TTL_S); its edit keeps that remaining TTL
     expect(redis.expire).toHaveBeenLastCalledWith(key, Queue.QUEUE_TTL_S);
-    expect(redis.set.mock.calls[redis.set.mock.calls.length - 1][2]).toBe(600);
+    expect(redis.set.mock.calls[redis.set.mock.calls.length - 1][2]).toBe(Queue.QUEUE_TTL_S);
     expect(redis.delete).not.toHaveBeenCalled();
   });
 
@@ -126,7 +126,7 @@ describe('a read slides the kept queue', () => {
     expect(Queue.QUEUE_MAX_AGE_S).toBe(60 * 60);
   });
 
-  test('Redis down: the local copy\'s 10-min expiry counts from the last read, its 60-min cap from the compute', async () => {
+  test('Redis down: the local copy\'s QUEUE_TTL_S expiry counts from the last read, its 60-min cap from the compute', async () => {
     redis._state.up = false;
     await Queue.candidatesFor(T1);
     for (const m of [9, 18, 27, 36, 45, 54]) {
@@ -140,8 +140,8 @@ describe('a read slides the kept queue', () => {
     const b61 = calls();
     await Queue.candidatesFor(T1);
     expect(computeReads(b61)).toBeGreaterThan(0);
-    // and a copy left unread for more than 10 min expires as before
-    at(72);
+    // and a copy left unread for more than QUEUE_TTL_S expires as before
+    at(61 + Queue.QUEUE_TTL_S / 60 + 1);
     const b72 = calls();
     await Queue.candidatesFor(T1);
     expect(computeReads(b72)).toBeGreaterThan(0);

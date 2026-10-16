@@ -34,6 +34,11 @@
  *   provenance_drift / homonym_missed       the week's v2 rows written homonym_in_list = false whose child's list holds
  *                                           ANOTHER active child with the same canonical first name (canonFirst, the
  *                                           page's rule); n = the same v2 rows. Should read 0
+ *                                           A period that is not a full month labels both (PERIOD_NOTES, in `notes`):
+ *                                           2026-10 reads "October (from 17 Oct; v3 forms; no pool)"
+ *   period_missing                          the week's check runs written with no period (no period row on the tier),
+ *                                           so a month-to-date 0 is not "no children"; n = the week's check runs.
+ *                                           Written (with its note) only when above 0
  *   no_class_first_finishes                 scored first exposures with no class
  *   classes_link_eligible                   D5's denominator (a state, not a week): active classes with an active
  *                                           class_teachers row and an active class_enrollments row, the class-link
@@ -65,10 +70,22 @@
  *                                           no daily rows (value 0)
  *   recognised_without_typing / <first|le7|gt7>  children with a scored check run, by days from their previous run
  *                                           (any mode, 35-day look-back) to their latest: value = latest run recognised
- *                                           without typing; n = the bucket's children (web-quiz-strip-lines.js)
+ *                                           without typing; n = the bucket's children (web-quiz-strip-lines.js).
+ *                                           Printed beside it (LINE_NOTES): homonym picks through the class link
+ *                                           read as high until the class-link pick fix lands
  *   kept_audio_all                          scored check / practice readings in 90 days naming a kept object; n = those
  *                                           with a recording (meta.audio_key, audio_kept, audio_purged_on)
- * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, students) skips its lines, logged.
+ *   sent / capped                           the week's replies refused at the per-phone cap (Σ message_ledger.capped);
+ *                                           n = the week's sends (Σ count). Red line: > 0 is looked at
+ *   bind_funnel / codes                     save codes minted in the week (child_bind_codes) that were used; n = minted
+ *   bind_funnel / bound                     of the same codes, those whose binding is active at the week's cut;
+ *                                           n = minted (the denominator is codes, never events)
+ *   implausible / <lang>[|<reason>]          scored check reads (any record) the scorer marked implausible; n = the
+ *                                           language's scored check reads; one cell per reason (meta.flags). Red > 5 %
+ *   cold_clips                              not measured: no store (the clip warm's last run is an event only); named
+ *                                           in `skipped` with its note, no row
+ * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, child_bind_codes, students) skips its
+ * lines, logged.
  *
  * The reply cap counts in Redis, `wq:reply_cap:<PKT day>:<hash>` = the day's replies for one phone, 24-h TTL from
  * the day's first reply. Counts only: the keys never leave the Redis service (scanValues), and nothing here writes or
@@ -90,7 +107,13 @@ const PAGE = 1000;
 // The caveat a reader of a line must see beside it (returned with the week's result as `notes`).
 const LINE_NOTES = {
   sends: "message_ledger counts the switched replies only; it is not the bill (Meta's billable count is the cost total)",
+  recognised_without_typing: 'homonym picks through the class link read as high until the class-link pick fix lands',
+  cold_clips: require('./web-quiz-strip-lines').COLD_CLIPS_NOTE,
 };
+// The label of a period that is not a full month, on every month-to-date line (cells_n30, anchor_retest_gap).
+// October 2026 opened on 17 Oct, on the v3 forms, with no item pool yet.
+const PERIOD_NOTES = { '2026-10': 'October (from 17 Oct; v3 forms; no pool)' };
+const MONTH_LINES = ['cells_n30', 'anchor_retest_gap'];
 const WEEK_RX = /^(\d{4})-W(\d{2})$/;
 const COLS = 'id, student_id, canonical_id, exercise, grade, lang, status, created_at, scored_at, meta, score, mode, form, band, record, '
   + 'class_id, helped, exposure_no, bank_version, period_id, id_src, id_confidence, homonym_in_list, anchor_exposure_no, anchor_block, audio_consent, audio_keep_until';
@@ -147,8 +170,11 @@ const childOf = (r) => r.canonical_id || r.student_id || null;
 const cellOf = (r, ...more) => [fixedBand(r), r.lang || 'unknown', ...more].join('|');
 const share = (a, b) => (b ? a / b : null);
 
-/** Every row a query gives, a page at a time on `col` (created_at; no silent cap). `build()` returns a fresh query. */
-async function allRows(build, what, col = 'created_at') {
+/**
+ * Every row a query gives, a page at a time on `col` (created_at; no silent cap). `build()` returns a fresh query.
+ * `keyOf` names a row once across pages (its id; a table with no id column passes its own key).
+ */
+async function allRows(build, what, col = 'created_at', keyOf = (r) => r.id) {
   const out = [];
   const seen = new Set();
   let cursor = null;
@@ -160,8 +186,8 @@ async function allRows(build, what, col = 'created_at') {
       if (!isMissingTable(error)) logError('web_quiz.strip_read_failed', { what, code: error.code || null, error: String(error.message || error).slice(0, 120) });
       return { rows: out, error };
     }
-    const fresh = (data || []).filter((r) => !seen.has(r.id));
-    fresh.forEach((r) => { seen.add(r.id); out.push(r); });
+    const fresh = (data || []).filter((r) => !seen.has(keyOf(r)));
+    fresh.forEach((r) => { seen.add(keyOf(r)); out.push(r); });
     if (!data || data.length < PAGE || !fresh.length) return { rows: out, error: null };
     cursor = data[data.length - 1][col];
   }
@@ -364,7 +390,11 @@ function rungAt(list, at) {
 }
 
 /** Compute the week's lines and write them (replace per week × line × cell). Returns { week, lines }. */
-async function weeklyStrip({ week, now = Date.now() } = {}) {
+/**
+ * `sink` (default: writeLines) receives the exact rows and `now`; a caller passing its own sink (the by-hand dry run,
+ * scripts/web-quiz/strip-dry.js) gets the rows and nothing is written to any table. The reads are the same either way.
+ */
+async function weeklyStrip({ week, now = Date.now(), sink = writeLines } = {}) {
   const { start, end } = weekBounds(week);
   const lines = [];
   const put = (line, cell, value, n) => lines.push({ week, line, cell: cell || '', value: value == null ? null : value, n: n == null ? null : n });
@@ -465,6 +495,15 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
     anchors.get(c)[Number(r.anchor_exposure_no) === 1 ? 'first' : 'back'].push(okOf(r));
   });
   for (const [c, g] of anchors) put('anchor_retest_gap', c, gap(g.first, g.back), g.first.length + g.back.length);
+  // a short or partial period says so on every month-to-date line that was computed (never compared as a full month)
+  if (PERIOD_NOTES[month]) MONTH_LINES.filter((l) => !skipped.includes(l)).forEach((l) => { notes[l] = PERIOD_NOTES[month]; });
+  // check runs served where the tier had no period row: no month-to-date line can count them, so a 0 there is not
+  // "no children" (counts only; only when there are any)
+  const noPeriod = check.filter((r) => r.period_id == null).length;
+  if (noPeriod) {
+    put('period_missing', '', noPeriod, check.length);
+    notes.period_missing = `period missing: ${noPeriod} runs written without a period`;
+  }
 
   // ── provenance drift (the week's v2 rows; each should read 0). An unreadable students table was logged above ──
   const drift = students ? await driftCounts(rows) : null;
@@ -535,10 +574,12 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   // ── identity: the reply cap and the teacher-accepted share (each only when its input exists) ──
   if (!(await replyCapLines({ week, start, now, put }))) skipped.push('reply_cap');
   if (!(await acceptedShareLines({ put }))) skipped.push('teacher_accepted_share');
-  // ── recognised without typing, kept readings under keep-all (web-quiz-strip-lines.js) ──
-  await require('./web-quiz-strip-lines').moreLines({ rows, start, end, now, put, skipped, allRows });
+  // ── recognised without typing, kept readings under keep-all, sent / capped, the save-code funnel, implausible reads,
+  //    cold clips (web-quiz-strip-lines.js) ──
+  await require('./web-quiz-strip-lines').moreLines({ rows, start, end, now, put, skipped, notes, allRows });
+  if (lines.some((l) => l.line === 'recognised_without_typing')) notes.recognised_without_typing = LINE_NOTES.recognised_without_typing;
 
-  await writeLines(lines, now);
+  await sink(lines, now);
   if (skipped.length) logToFile('Challenge weekly numbers: lines skipped (table not there yet or unreadable)', { week, skipped });
   return { week, lines: lines.length, skipped, notes };
 }
@@ -558,4 +599,4 @@ async function writeLines(lines, now) {
   }
 }
 
-module.exports = { weeklyStrip, replyCapSnapshot, settledSnapshot, linkEligibleClasses, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES };
+module.exports = { weeklyStrip, replyCapSnapshot, settledSnapshot, linkEligibleClasses, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES, PERIOD_NOTES };
