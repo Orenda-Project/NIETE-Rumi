@@ -29,6 +29,7 @@ const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
+const Stream = require('./web-quiz-stream');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
@@ -90,6 +91,10 @@ const API_ROUTES = [
   // M4c challenge (audio goes browser → R2 by presigned PUT, never through this body cap)
   // (limits per challenge token, so one carrier IP's classroom is not throttled as one child; a loose IP ceiling too)
   { method: 'get', path: '/api/wq/ch/result/:ct', limiter: 'read', token: true },
+  // the read-along on practice runs: a practice listen's words after its questions (by the run token); a grown-up's
+  // preview of a practice story from the hub (#listen/<pid>); the bot refuses both while web_quiz_readalong is off
+  { method: 'get', path: '/api/wq/ch/words/:ct', limiter: 'read', token: true },
+  { method: 'get', path: '/api/wq/listen/h/:token/:pid', limiter: 'read', token: true },
   { method: 'post', path: '/api/wq/ch/upload', limiter: ['challenge', 'challengeIp'] },
   { method: 'post', path: '/api/wq/ch/result', limiter: ['challenge', 'challengeIp'] },
   // read aloud, live: a one-run speech-to-text key (the bot mints it; counted by the same per-run limiter)
@@ -207,6 +212,13 @@ function ogText(payload, view, brand) {
       desc: ur ? 'ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے۔' : 'Not played yet? Same link, still open.',
     };
   }
+  // A storybook the teacher sent (boot `story`, web_quiz_stories_teacher): a story to listen to and read, never "0 questions".
+  if (payload && payload.story) {
+    return {
+      title: ur ? `${q.topic || ''} · ${label} کے لیے کہانی` : `${q.topic || ''} · a story for ${label}`,
+      desc: ur ? `${brand.mascot.ur} کے ساتھ سنیں اور پڑھیں` : `Listen and read along with ${brand.mascot.en}`,
+    };
+  }
   return {
     title: ur ? `${q.topic || ''} · ${label} کا کوئز` : `${q.topic || ''} · ${label} quiz`,
     desc: ur ? `${n} سوال · ${brand.mascot.ur} کے ساتھ پڑھیں` : `${n} questions · ${brand.mascot.en} reads it with you`,
@@ -288,7 +300,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 ${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-lib.js?v=${assetV}" defer></script>
-<script src="/wq/wq.js?v=${assetV}" defer></script>
+${payload && payload.story ? `<script src="/wq/wq-story-link.js?v=${challengeVersion('wq-story-link.js')}" defer></script>\n` : ''}<script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };
@@ -365,6 +377,17 @@ function renderCardPage({ facts, token, origin, url, brandKey }) {
 }
 
 /**
+ * The streamed page's wire (web-quiz-stream.js): compressed, the head sent at once. Always a 200: a revisit gets the
+ * head at once too (an early paint beats a 304 that waits for the bot). `page(tail)` ends with the quiz/hub,
+ * `again()` with FLUSH_AGAIN.
+ */
+function flushWire(req, res, top) {
+  const out = Stream.open(req, res);
+  out.write(top);
+  return { again: () => out.end(FLUSH_AGAIN), page: (tail) => out.end(tail) };
+}
+
+/**
  * A link-preview fetch's answer: the quiz page's own head (og tags, lang, dir) from the facts the edge
  * remembered, and an empty body. A crawler reads only the head; no quiz payload travels in it.
  */
@@ -395,6 +418,22 @@ function homeTags(payload, assetV) {
   return `<link rel="stylesheet" href="/wq/wq-home.css?v=${assetV}">\n<script src="/wq/wq-home.js?v=${assetV}" defer></script>\n`;
 }
 
+// The read-along preview (#listen/<pid>): its script, before hub.js, only when the bot's hub JSON says `listen: true`
+// (web_quiz_readalong on, the hub's own phone). Its own version (the preview and the player it loads), so the hub's
+// version and page stay today's while the switch is off.
+let listenV = null;
+function listenVersion() {
+  if (listenV) return listenV;
+  const h = crypto.createHash('sha256');
+  for (const f of ['wq-readalong-listen.js', 'wq-readalong.js']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
+  return (listenV = h.digest('hex').slice(0, 10));
+}
+function listenTag(payload) {
+  return payload && payload.listen === true ? `<script src="/wq/wq-readalong-listen.js?v=${listenVersion()}" defer></script>\n` : '';
+}
+
 // The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
 // renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
 function hubPageParts({ payload, token, origin, assetV }) {
@@ -410,7 +449,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
+${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };
@@ -751,18 +790,15 @@ function createWebQuizRouter(opts = {}) {
     const flush = lastFast && view === 'quiz' && !p && !preview && req.query.nf !== '1'
       ? renderQuizFlushTop({ facts: ogKnown.get(upper), code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v, k: req.query.k })
       : null;
-    if (flush) {
-      res.status(200).type('html');
-      res.write(flush.html);
-    }
+    const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
-      if (flush) return res.end(FLUSH_AGAIN);
+      if (flush) return wire.again();
       return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
-    if (flush && !(out.status === 200 && out.body && out.body.quiz)) return res.end(FLUSH_AGAIN);
+    if (flush && !(out.status === 200 && out.body && out.body.quiz)) return wire.again();
     // A friend's challenge code has no class page: the class table is the challenger's classmates'.
     if (view === 'class' && out.status === 200 && out.body && out.body.invited) {
       return res.status(404).type('html').send(renderClosedPage({ lang: out.body.quiz && out.body.quiz.lang === 'ur' ? 'ur' : 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
@@ -773,7 +809,7 @@ function createWebQuizRouter(opts = {}) {
       lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
       lastFast = out.body.fast === true;
       if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
-      if (flush) return res.end(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }
@@ -821,24 +857,21 @@ function createWebQuizRouter(opts = {}) {
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
       ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi })
       : null;
-    if (flush) {
-      res.status(200).type('html');
-      res.write(flush.html);
-    }
+    const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
-      if (flush) return res.end(FLUSH_AGAIN);
+      if (flush) return wire.again();
       return closed(502, 'off');
     }
-    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return res.end(FLUSH_AGAIN);
+    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return wire.again();
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
       lastFast = out.body.fast === true;
-      if (flush) return res.end(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
+      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
       return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
     }
     if (out.status === 401) return closed(401, 'hub');

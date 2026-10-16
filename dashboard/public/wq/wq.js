@@ -1380,6 +1380,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (im && im.addEventListener) im.addEventListener('error', function () { if (im.parentNode) im.parentNode.removeChild(im); });
   }
 
+  // A storybook the teacher sent (wq-story-link.js, loaded only then): the landing names a story.
+  if (B.story && window.WQSTORYLINK) T = window.WQSTORYLINK.copy(T, LANG);
+
   function landing() {
     var here = kids();
     var classChips = {};
@@ -1762,7 +1765,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rememberKid(child);
       if (ID) ID.started(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
-      if (wantsVideo()) video(); else nextQuestion();
+      if (B.story && window.WQSTORYLINK) window.WQSTORYLINK.open({ st: S.st, story: B.story, preview: Boolean(B.preview), lang: LANG, T: T, api: api, flushQueue: flushQueue, ev: ev, flushEv: flushEv, toast: toast, landing: landing, withLang: withLang, go: function (u) { location.assign(u); } }); else if (wantsVideo()) video(); else nextQuestion();
     }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset') landing(); });
   }
 

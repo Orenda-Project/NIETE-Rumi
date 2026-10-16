@@ -177,7 +177,9 @@ describe('the board (loaded through Supabase)', () => {
   const T1 = '11111111-1111-4111-8111-111111111111';
   const T2 = '11111111-1111-4111-8111-222222222222';
   const T3 = '11111111-1111-4111-8111-333333333333';
-  const future = new Date(NOW + 10 * 86400000).toISOString();
+  // the codes' expiry is read by resolveCode on the real clock, so it must not hang off the fixed NOW (NOW + 10 days
+  // expired them on 17 Oct 05:00Z); a far date keeps them live on any clock.
+  const future = '2099-12-31T00:00:00.000Z';
   let fake;
   const sess = (id, sc, kid, pct, at, extra = {}) => ({
     id, share_code_id: sc, student_id: kid, mastery_percentage: pct, completed_at: at, status: 'completed', user_id: null, ...extra,

@@ -59,6 +59,8 @@ function ogFacts(p) {
     art: (p && p.art) || {},
     brand: p && p.brand,
     invited: Boolean(p && p.invited),
+    // A storybook the teacher sent (web_quiz_stories_teacher): its preview names a story, not "0 questions". Absent otherwise.
+    ...(p && p.story ? { story: true } : {}),
   };
 }
 

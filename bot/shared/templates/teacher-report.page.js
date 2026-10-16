@@ -599,6 +599,8 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
   const blocks = g ? keys.filter((k) => g[k]).map((k) => `<div class="g"><div class="gk">${L(C.guidance[k])}</div>${K(g[k], 'div')}</div>`).join('') : '';
   const reteach = `<section class="card" id="reteach"><h2>${L(C.reteach)}</h2>${blocks || `<p class="muted">${L(C.guidanceMissing)}</p>`}</section>`;
 
+  // A storybook the teacher sent: its own tiles and rows (story-teacher-report.js); the class follow-up as for a quiz.
+  if (r.story) return { header, main: `${notice}${require('../services/quiz/story-teacher-report').pageSections(r.story, { lang, L, K, esc })}${follow}` };
   return { header, main: `${tiles}${notice}${extra}${follow}${provisional}${scores}${questions}${reteach}` };
 }
 

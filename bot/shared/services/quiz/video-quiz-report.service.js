@@ -576,6 +576,9 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     logToFile('⚠️ video-quiz report: could not read quiz digest (non-fatal)', { error: e.message });
   }
 
+  // A storybook the teacher sent: its own report (story-teacher-report.js), same trigger, same teacher, same stamp.
+  if (quizRow && quizRow.quiz_source === 'story') return require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: all, quizRow, reason, stamp, send: (to, text) => WhatsAppService.sendMessage(to, text), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel });
+
   if (!all.length) {
     await WhatsAppService.sendMessage(teacher.phone_number,
       resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } }));
