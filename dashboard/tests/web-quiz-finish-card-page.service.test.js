@@ -227,8 +227,8 @@ describe('switch on: the class share never goes without a link (the card link on
     return { p, answer };
   }
   const lines = (p) => (waText(p) || '').split('\n');
-  test('a tap before the card link is in: the button waits (soft), then sends the class link after at most 2 s', async () => {
-    const { p } = slowPage('en');
+  test.each(['en', 'ur'])('%s: a tap before the card link is in waits, then sends the class link after at most 2 s (no digits)', async (lang) => {
+    const { p } = slowPage(lang);
     await flush();
     p.els['#wq-share'].fire('click');
     await flush();
@@ -237,7 +237,8 @@ describe('switch on: the class share never goes without a link (the card link on
     p.runTimers(2000);
     await flush();
     const l = lines(p);
-    expect(l[0]).toBe(`⭐ ${FC.DEEDS.en.quiz_done}`);
+    expect(l[0]).toBe(`⭐ ${FC.DEEDS[lang].quiz_done}`);
+    expect(l.filter((x) => !/^https?:/.test(x)).join(' ')).not.toMatch(/[0-9\u06F0-\u06F9]/);
     // the class link (today's, with its class picture key) — never a card token
     expect(l.filter((x) => /^https:\/\/example\.test\/q\/TEST(\?a=[\w.-]+)?$/.test(x)).length).toBe(1);
     expect(waText(p)).not.toMatch(/[?&]k=/);
