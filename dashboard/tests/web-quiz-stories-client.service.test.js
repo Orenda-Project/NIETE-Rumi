@@ -236,6 +236,12 @@ describe('the reader state machine (pure, fake clock)', () => {
 
 // ---- the shelf ----------------------------------------------------------------------------------------------------
 describe('the shelf', () => {
+  test('an Urdu page asks for the Urdu shelf even before the child picks a language', async () => {
+    const e = env(); const el = fakeEl('shelf');
+    e.S.shelf(el, e.ctx({ lang: 'ur' }));
+    await flush();
+    expect(e.calls.gets[0]).toContain('&l=ur');
+  });
   test('server order kept, the teacher book as ONE full-width primary card, done tick, lazy sized covers, a home link', async () => {
     const e = env(); const el = fakeEl('shelf');
     e.S.shelf(el, e.ctx());
@@ -244,7 +250,7 @@ describe('the shelf', () => {
     const h = el.innerHTML;
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('stories-shelf');
-    expect(e.calls.gets[0]).toBe(`/api/wq/stories/shelf/h/${TOKEN}?kid=${KID}`);
+    expect(e.calls.gets[0]).toBe(`/api/wq/stories/shelf/h/${TOKEN}?kid=${KID}&l=en`);
     const order = ['Zed Testwala', 'Mina Testwala', 'Apple Testwala'].map((t) => h.indexOf(t));
     expect(order[0]).toBeGreaterThan(0); expect(order[0]).toBeLessThan(order[1]); expect(order[1]).toBeLessThan(order[2]);
     expect(h).toMatch(/class="wqs-tcard"[^>]*data-primary/);

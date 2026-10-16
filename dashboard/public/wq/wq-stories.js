@@ -132,7 +132,7 @@
     });
     el.innerHTML = '<div class="wqs wqs-shelf" aria-busy="true"><div class="wqs-grid">' + new Array(5).join('<i class="wqs-skel"></i>') + '</div></div>';
     function fail() { el.innerHTML = retryHtml(l, '<a class="wqs-ic" href="#" data-home data-tap="home" aria-label="' + esc(T[l].home) + '">🏠</a>'); }
-    req('GET', '/api/wq/stories/shelf/h/' + enc(ctx.token) + '?kid=' + enc(ctx.kid) + (q.g ? '&g=' + enc(q.g) : '') + (q.l ? '&l=' + enc(q.l) : '') + (ids ? '&t=' + enc(ids) : '')).then(function (r) {
+    req('GET', '/api/wq/stories/shelf/h/' + enc(ctx.token) + '?kid=' + enc(ctx.kid) + (q.g ? '&g=' + enc(q.g) : '') + '&l=' + l + (ids ? '&t=' + enc(ids) : '')).then(function (r) {
       if (r.status === 404) { el.innerHTML = ''; el.hidden = true; return; }
       if (!r.ok) return fail();
       el._d = r.body; el._open = false;
