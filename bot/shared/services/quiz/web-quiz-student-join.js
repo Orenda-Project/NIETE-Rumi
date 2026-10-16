@@ -13,7 +13,7 @@
  *   gradeTap({ t, grade, device })   → { ok, prefetch[] } | { off } | { stale }   the grade chip: join_grade, the home's warm list
  *   join({ t, grade, name, device, same, force })   the ONE write (below) → { next } | { ask } | { refused, next? } | { stale } | { off }
  *   practiceJoinUrl({ uid, lang, back })  the coach's "Try it as a student": a practice j token (no nonce) → its URL
- *   siblingJoinToken({ phoneNorm, userId, lang })  "Someone new?" on a phone's child home: a fresh join token, minted
+ *   siblingJoinToken({ phoneNorm, userId?, lang })  "Someone new?" on a phone's child home: a fresh join token, minted
  *                                    by the home at render (never carried in a URL)
  *   pageInfo({ t })                  the join page's shell answer (the switch, the token): { lang, practice } | { stale } | { off }
  *   autoBind({ n })                  the `/quiz` landing of a phone with children but no binding: never
@@ -108,13 +108,26 @@ function signJoin({ n = null, lang = 'en', mode = null, back = null } = {}) {
   return T.sign({ k: 'j', ...(practice ? { m: 'practice' } : { n }), l: langOf(lang), ...bk, exp: nowS() + JOIN_TTL_S });
 }
 
+/** The bot's user row for this phone (the sender of its `/quiz`), when the caller holds only the phone. */
+async function userIdForPhone(phoneNorm) {
+  try {
+    const { data, error } = await supabase.from('users').select('id').in('phone_number', [String(phoneNorm), `+${phoneNorm}`]).limit(1);
+    return !error && data && data[0] && data[0].id ? String(data[0].id) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /**
  * "Someone new?" on a phone's child home: a join link of its OWN (a fresh nonce for the same phone, so a brother's
- * join never meets the first child's single-use link). → the j token (the home links /quiz/join/<it>) | null.
+ * join never meets the first child's single-use link). `userId` is optional: the home holds only the phone, and the
+ * phone's own user row is read. → the j token (the home links /quiz/join/<it>) | null.
  */
-async function siblingJoinToken({ phoneNorm, userId, lang = 'en' } = {}) {
-  if (!(await flags()).bind || !phoneNorm || !userId) return null;
-  const n = await GoNonce.mint({ phoneNorm, userId });
+async function siblingJoinToken({ phoneNorm, userId = null, lang = 'en' } = {}) {
+  if (!(await flags()).bind || !phoneNorm) return null;
+  const uid = userId || (await userIdForPhone(phoneNorm));
+  if (!uid) return null;
+  const n = await GoNonce.mint({ phoneNorm, userId: uid });
   return n ? signJoin({ n, lang }) : null;
 }
 

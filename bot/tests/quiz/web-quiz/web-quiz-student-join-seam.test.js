@@ -265,6 +265,19 @@ describe('the guards before the row', () => {
     expect(inserts('students')).toHaveLength(1);
   });
 
+  test('a fresh phone typing a classmate\'s name sees no name: no "Are you…?", a new child of its own', async () => {
+    const OTHER = fixturePhone(722);
+    seed({ students: [{ ...chatKid(0, 'Sara Testwala'), phone: OTHER },
+      { id: KIDS[1], student_name: 'Sara Testwala', phone: null, parent_phone: `+${OTHER}`, list_id: 'list-1', school_id: 'sch-1', is_active: true, status: 'active', merged_into: null }],
+    lists: [{ id: 'list-1', user_id: 'u-t1', is_active: true, created_at: iso(Date.now() - 86400000) }] });
+    const { t } = await landing();
+    const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    expect(out.ask).toBeUndefined();
+    expect(out.next).toMatch(/^\/h\//);
+    expect(JSON.stringify(out)).not.toContain('Testwala');
+    expect(inserts('students')).toHaveLength(1);
+  });
+
   test('a phone with 4 children → refused max_kids with the way home, no row', async () => {
     seed({ students: [chatKid(0, 'Ali Testwala'), chatKid(1, 'Bina Testwala'), chatKid(2, 'Chand Testwala'), chatKid(3, 'Dua Testwala')] });
     const { t } = await landing();
@@ -332,6 +345,18 @@ describe('"Someone new?" on the same phone', () => {
     expect(fake.db.child_phone_bindings.map((x) => x.via)).toEqual(['guest', 'guest']);
     // the home of the second child names both children of the phone
     expect(T.verify(b.next.slice(3).split('?')[0], 'h').ids).toHaveLength(2);
+  });
+
+  test('siblingJoinToken with the phone only (what the home holds): the phone\'s own user is found, the token joins a second child; an unknown phone → null', async () => {
+    const { t } = await landing();
+    await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    fake.db.users[0].phone_number = PHONE;
+    expect(await Join.siblingJoinToken({ phoneNorm: '920000000999', lang: 'ur' })).toBeNull();
+    const jn = await Join.siblingJoinToken({ phoneNorm: PHONE, lang: 'ur' });
+    expect(T.verify(jn, 'j')).toEqual(expect.objectContaining({ k: 'j', l: 'ur' }));
+    const b = await Join.join({ t: jn, grade: 1, name: 'Bilal', device: DEVICE });
+    expect(b.next).toMatch(/^\/h\//);
+    expect(fake.db.child_phone_bindings.map((x) => x.via)).toEqual(['guest', 'guest']);
   });
 
   test('siblingJoinToken: off → null; on → a fresh token for that phone', async () => {
