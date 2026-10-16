@@ -298,13 +298,14 @@ async function loadActiveQuizSummary(userId) {
   // only quizzes still in flight
   const { data: quizzes } = await supabase
     .from('quizzes')
-    .select('id, topic, status, list_id, total_students_sent, created_at')
+    .select('id, topic, status, list_id, total_students_sent, created_at, quiz_source')
     .eq('teacher_id', userId)
     .in('status', ACTIVE_STATUSES)
     .order('created_at', { ascending: false })
     .limit(10);
 
-  const list = quizzes || [];
+  // A storybook the teacher sent is not a quiz in flight (nothing to cancel or wait for).
+  const list = (quizzes || []).filter((q) => q.quiz_source !== 'story');
 
   if (list.length === 0) {
     return {

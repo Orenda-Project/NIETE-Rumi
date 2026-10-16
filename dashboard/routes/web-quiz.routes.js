@@ -201,6 +201,13 @@ function ogText(payload, view, brand) {
       desc: ur ? 'ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے۔' : 'Not played yet? Same link, still open.',
     };
   }
+  // A storybook the teacher sent (boot `story`, web_quiz_stories_teacher): a story to listen to and read, never "0 questions".
+  if (payload && payload.story) {
+    return {
+      title: ur ? `${q.topic || ''} · ${label} کے لیے کہانی` : `${q.topic || ''} · a story for ${label}`,
+      desc: ur ? `${brand.mascot.ur} کے ساتھ سنیں اور پڑھیں` : `Listen and read along with ${brand.mascot.en}`,
+    };
+  }
   return {
     title: ur ? `${q.topic || ''} · ${label} کا کوئز` : `${q.topic || ''} · ${label} quiz`,
     desc: ur ? `${n} سوال · ${brand.mascot.ur} کے ساتھ پڑھیں` : `${n} questions · ${brand.mascot.en} reads it with you`,
@@ -282,7 +289,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 ${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-lib.js?v=${assetV}" defer></script>
-<script src="/wq/wq.js?v=${assetV}" defer></script>
+${payload && payload.story ? `<script src="/wq/wq-story-link.js?v=${challengeVersion('wq-story-link.js')}" defer></script>\n` : ''}<script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };

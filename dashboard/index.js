@@ -182,6 +182,10 @@ app.use(createCoachingReportRouter());
 // The coach card /cv/:token, the link in a C/D teacher's coach ping (bd-v0toag.38.9). Same rules as /cr.
 const { createCoachCardRouter } = require('./routes/coach-card.routes');
 app.use(createCoachCardRouter());
+// A teacher sends a storybook to the class (/api/teacher/stories, /api/teacher/story/share, /quiz/teacher/:th/stories);
+// the bot answers 404 while web_quiz_stories_teacher is off and the page falls through.
+const { createTeacherStoriesRouter } = require('./routes/teacher-stories.routes');
+app.use(createTeacherStoriesRouter());
 // ── first touch: the maker page ──
 app.use(require('./routes/first-touch.routes').createFirstTouchRouter());   // /m/:token, /f/:token, /api/ft/... (switch off at the bot → falls through)
 // ── end first touch ──
