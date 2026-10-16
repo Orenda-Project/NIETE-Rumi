@@ -44,7 +44,13 @@ function makerUrl({ uid, lang, tour = 0, pf, via, uk } = {}) {
 }
 
 /** The body and button for the reply's language: `bi` → the one bilingual value; else the clamp's language. */
-function copyFor(lang) {
+function copyFor(lang, ids = {}) {
+  // ── first touch: a caller's own ids (the empty line's maker.empty.body / maker.empty.btn) ──
+  if (ids.body || ids.button) {
+    const text = (id) => { try { return str(id, lang); } catch (_) { return require('./maker.fallback.strings').str(id, lang); } };
+    return { body: text(ids.body || 'maker.body'), buttonText: text(ids.button || 'maker.btn') };
+  }
+  // ── end first touch ──
   if (lang === 'bi') return { body: str('maker.body.bi', 'en'), buttonText: str('maker.btn.bi', 'en') };
   return { body: str('maker.body', lang), buttonText: str('maker.btn', lang) };
 }
@@ -63,7 +69,7 @@ async function prefillOf(uid) {
   }
 }
 
-async function makerCta({ uid, lang, who = 'unknown', via = 'door', phone, tour = 0, pf } = {}) {
+async function makerCta({ uid, lang, who = 'unknown', via = 'door', phone, tour = 0, pf, body = null, button = null } = {}) {
   const allowed = await Ledger.record({ trigger: TRIGGER, phone, reason: via, initiated: 'user', recipient: 'teacher' });
   if (!allowed) {
     if (!Ledger.TRIGGERS.includes(TRIGGER)) logEvent('web_quiz.reply_capped', { trigger: TRIGGER, w: 's' });
@@ -76,7 +82,11 @@ async function makerCta({ uid, lang, who = 'unknown', via = 'door', phone, tour 
     logToFile('⚠️ maker cta: no page URL (base URL or signing secret missing) — nothing sent', { via, who });
     return { sent: false };
   }
-  const sent = await WhatsAppService.sendCtaUrl(phone, { ...copyFor(l), url });
+  const sent = await WhatsAppService.sendCtaUrl(phone, { ...copyFor(l, { body, button }), url });
+  // ── first touch: on the empty line only, a refused cta_url → the 3-button fallback, the SAME counted reply (no second
+  // ledger row). On the door and menu paths the door owns that fallback and reads { sent:false } from here. ──
+  if (!sent && via === 'empty') return { sent: await require('./maker.fallback').sendFallback({ phone, lang: l, who }), fallback: true };
+  // ── end first touch ──
   return { sent: Boolean(sent) };
 }
 

@@ -72,6 +72,26 @@ test('English and Urdu bodies and buttons; a failed send → { sent:false }', as
   expect(out).toEqual({ sent: false });
 });
 
+// One owner for a refused cta: the door on door and menu paths; this module only on the empty line.
+test.each(['door', 'menu'])('via %s: a refused send returns { sent:false } and sends NO buttons (the door owns that fallback)', async (via) => {
+  jest.spyOn(Ledger, 'record').mockResolvedValue(true);
+  WhatsAppService.sendCtaUrl.mockResolvedValueOnce(false);
+  const out = await Cta.makerCta({ uid: TEACHER.id, lang: 'en', who: 'unknown', via, phone: PHONE });
+  expect(out).toEqual({ sent: false });
+  expect(WhatsAppService.sendInteractiveButtons || jest.fn()).not.toHaveBeenCalled();
+  expect(Ledger.record).toHaveBeenCalledTimes(1);
+});
+
+test('via empty: a refused send → the 3 reply buttons in the same turn, still ONE ledger row', async () => {
+  jest.spyOn(Ledger, 'record').mockResolvedValue(true);
+  WhatsAppService.sendCtaUrl.mockResolvedValueOnce(false);
+  const out = await Cta.makerCta({ uid: TEACHER.id, lang: 'en', who: 'known', via: 'empty', phone: PHONE,
+    body: 'maker.empty.body', button: 'maker.empty.btn' });
+  expect(out).toEqual({ sent: true, fallback: true });
+  expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+  expect(Ledger.record).toHaveBeenCalledTimes(1);
+});
+
 test('makerUrl: the public base + /m/ + a maker token; no base → null', () => {
   const u = Cta.makerUrl({ uid: TEACHER.id, lang: 'en', tour: 1, via: 'empty', pf: 'grade_4|maths' });
   expect(u.startsWith(`${BASE}/m/`)).toBe(true);

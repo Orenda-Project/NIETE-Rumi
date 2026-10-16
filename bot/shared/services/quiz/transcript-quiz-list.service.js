@@ -300,6 +300,14 @@ async function showList(user, phone, language, page = 1) {
     ({ rows, from, to } = buildRows(sessions, quizzes, lang, { page: 1, lessons }));
   }
   if (!rows.length) {
+    // ── first touch: the empty line → the maker (quiz_maker_page; off → today's reply below) ──
+    try {
+      if (await require('../first-touch/maker.empty').emptyLine({ user, phone, lang })) {
+        logEvent('transcript_quiz.list_empty', { userId: user.id });
+        return true;
+      }
+    } catch (_) { /* today's reply */ }
+    // ── end first touch ──
     await WhatsAppService.sendMessage(phone, resolveUx(QuizMenuFlags.lessonRows() ? 'tqListEmptyPlans' : 'tqListEmpty', { language: lang }));
     logEvent('transcript_quiz.list_empty', { userId: user.id });
     return true;

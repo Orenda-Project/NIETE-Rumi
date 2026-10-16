@@ -753,6 +753,16 @@ app.post('/webhook', async (req, res) => {
         if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
       }
 
+      // ── first touch: the maker fallback's three buttons (quiz_maker_page; off or a throw → today's chain) ──
+      if (buttonId.startsWith('ft_fb_')) {
+        try {
+          if (await require('./shared/services/first-touch/maker.fallback').handleFallbackButton({ user, phone: from, id: buttonId, lang: user && user.preferred_language })) return;
+        } catch (err) {
+          logToFile('⚠️ first touch: the fallback tap failed — today\'s handling', { error: err && err.message });
+        }
+      }
+      // ── end first touch ──
+
       // Child test (bd-s1oo0.4): every ctst_ button (offer, Present/Absent/Refused, Stop, Menu,
       // No strip photo) belongs to the child test. Inert unless CHILD_TEST_ENABLED; false → the
       // chain below runs as before.
