@@ -164,7 +164,9 @@ function horizonExp(link, remembered) {
 async function remember(code, d, studentId, exp) {
   const ttl = exp - nowS();
   if (!d || ttl <= 0) return;
-  // The hub's device record too (hub ?k= chips and "Whose turn?"), for the same time.
+  // The hub's device record too (hub ?k= chips and "Whose turn?"), for the same time. HubDevice.rememberKids
+  // (web-quiz-hub-device.js) is a hard dependency of this module on every tier: a branch that takes this file
+  // must take web-quiz-hub-device.js with it, or a high pick throws here.
   await HubDevice.rememberKids([studentId], d, ttl);
   try {
     const redis = redisUp();

@@ -48,6 +48,8 @@ function bindPage(api) {
   };
   ctx.window.window = ctx.window;
   vm.createContext(ctx);
+  // wq-tel.js first, as on the hub page (its WQT.nowrap holds «واٹس ایپ» on one line).
+  vm.runInContext(src('wq-tel.js'), ctx);
   vm.runInContext(src('wq-bind.js'), ctx);
   return ctx.window.WQBIND;
 }
@@ -80,6 +82,11 @@ const LIFTS = [
   ['jg.who.someone_else', 'wq.js TW.someone (wq-identity.js)', () => table('wq.js', 'var TW = ('), 'someone'],
   ['jg.lib.lock_say', 'wq-lib.js T.lockSay', () => table('wq-lib.js', 'var T = '), 'lockSay'],
   ['jg.lib.lock_say', 'hub.js COPY.lockSay', () => table('hub.js', 'var COPY = '), 'lockSay'],
+  ['jg.trail.welcome_back', 'wq-trail.js T.welcomeBack', () => trailT(), 'welcomeBack'],
+  ['jg.who.turn', 'wq-trail.js T.whoTurn', () => trailT(), 'whoTurn'],
+  ['jg.who.turn', 'wq-card.js W.whoTurn', () => table('wq-card.js', 'var W = '), 'whoTurn'],
+  ['jg.who.turn', 'class-link.js COPY.turn', () => table('class-link.js', 'var COPY = '), 'turn'],
+  ['jg.link.is_here', 'class-link.js COPY.is_here', () => table('class-link.js', 'var COPY = '), 'is_here'],
 ];
 
 describe('deck v2.3 lifts: byte-equal to bot/shared/config/copy.v2.json', () => {

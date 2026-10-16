@@ -20,6 +20,14 @@ const BOOTS = require('./fixtures/hub-play-boots.json');
 
 const CHROME_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36';
 const WA_UA = 'Mozilla/5.0 (Linux; Android 14; SM-A145F Build/UP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0 Mobile Safari/537.36 WhatsApp/2.24.21.80 WA4A/2.24.21.80';
+// The page's clock, fixed: the boots' teacher card says how many days ago its quiz was sent (sent_at 6 Oct 10:00Z), so a
+// golden taken against the real clock moves every day. 15 Oct 21:00Z is when the goldens were taken (9 days).
+const NOW = Date.parse('2026-10-15T21:00:00Z');
+class FixedDate extends Date {
+  constructor(...a) { super(...(a.length ? a : [NOW])); }
+  static now() { return NOW; }
+}
+
 function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = false } = {}) {
   const assigned = [];
   const beacons = [];
@@ -56,7 +64,7 @@ function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = fals
     fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve('{}') }),
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
     setTimeout: (fn) => { timers.push(fn); return timers.length; },
-    Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
+    Date: FixedDate, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
   };
   vm.createContext(ctx);
   // wq-tel.js first, as on every page the edge renders (the pages' link helper WQT.withLang).
@@ -189,6 +197,36 @@ describe('lantern + shelf', () => {
     const p = page({ ...BOOTS.done, lang: 'ur', play: play({ kind: 'trail', stops: 1 }, [{ id: 'numbers', nx: 'seen' }]) });
     expect(p.html()).toContain('جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔');
     expect(p.html()).toContain('آج جگنو کے ساتھ');
+  });
+
+  // The story tile names the story when the server gives it a title (bot titleFor, the one title home); the page
+  // renders whatever title a tile carries and decides nothing. No title: today's label, byte for byte.
+  const TILE_BASE = '<a class="wqp-tile" data-shelf="1" data-pid="p-1" data-nx="new" href="/c/abc?kid=0000000000000001&amp;room=story&amp;pid=p-1">' +
+    '<span class="wqp-new">NEW</span><i aria-hidden="true">📖</i><span>This week&#39;s story</span></a>';
+  const tileOf = (h) => (/<a class="wqp-tile" data-shelf="1"[\s\S]*?<\/a>/.exec(h) || [])[0];
+
+  test('a story tile with a title: the tile names it (EN), escaped; the lantern names it too', () => {
+    const p = page({ ...BOOTS.done, play: play({ kind: 'story', title: 'The Kite', pid: 'p-1' }, [{ id: 'week_story', pid: 'p-1', nx: 'new', title: 'The Kite' }]) });
+    expect(tileOf(p.html())).toContain('<span>The Kite</span>');
+    expect(tileOf(p.html())).not.toContain('This week');
+    expect(p.html()).toContain('A new story is here: The Kite');
+    const x = page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'seen', title: '<b>Kite & "Co"</b>' }]) });
+    expect(tileOf(x.html())).toContain('<span>&lt;b&gt;Kite &amp; &quot;Co&quot;&lt;/b&gt;</span>');
+  });
+
+  test('UR: the tile\'s title isolated as the deck\'s {title} (U+2068 … U+2069), like the lantern line', () => {
+    const p = page({ ...BOOTS.done, lang: 'ur', play: play({ kind: 'story', title: 'لال پتنگ', pid: 'p-1' }, [{ id: 'week_story', pid: 'p-1', nx: 'new', title: 'لال پتنگ' }]) });
+    expect(tileOf(p.html())).toContain('<span>\u2068لال پتنگ\u2069</span>');
+    expect(tileOf(p.html())).not.toContain('اس ہفتے کی کہانی');
+    expect(p.html()).toContain('ایک نئی کہانی آ گئی ہے: \u2068لال پتنگ\u2069');
+  });
+
+  test('GOLDEN: no title (absent or null) -> the tile is today\'s label, byte for byte', () => {
+    const chHref = (/href="([^"]*)&amp;room=story/.exec(page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new' }]) }).html()) || [])[1];
+    const want = TILE_BASE.replace('/c/abc?kid=0000000000000001', chHref);
+    expect(tileOf(page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new' }]) }).html())).toBe(want);
+    const none = page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new', title: null }]) }).html();
+    expect(none).toBe(page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new' }]) }).html());
   });
 
   const INST = { first: true, lantern: null, shelf: [{ id: 'numbers', nx: 'seen' }], install: true, doors: ['hub_first', 'install'] };
@@ -389,6 +427,15 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     await p.flush();
     expect(p.html()).toContain('data-shelf="1"');
     expect(p.html()).toContain('&amp;room=story&amp;pid=en.read.1.story01');
+  });
+  // fresh profile: no wq_dv cookie, nothing stored; the unlock's `play` carries a titled story tile.
+  test('fresh profile (no cookie, no storage): the story tile from the unlock names the story', async () => {
+    const titled = { ...PLAY, shelf: [{ id: 'week_story', nx: 'new', pid: 'en.read.1.story01', title: 'The Kite' }, { id: 'numbers', nx: 'seen' }] };
+    const p = firstOpen({ ...BOOTS.done, play: titled }, { playLoaded: true });
+    await p.flush();
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(p.html()).toContain('<span>The Kite</span>');
+    expect(p.html()).not.toContain('This week&#39;s story');
   });
   test('hub-play.js already on the page: drawn at once, nothing loaded', async () => {
     const p = firstOpen({ ...BOOTS.done, play: PLAY }, { playLoaded: true });

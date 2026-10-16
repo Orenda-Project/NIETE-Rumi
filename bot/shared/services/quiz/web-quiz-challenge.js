@@ -701,7 +701,8 @@ async function menu(token, { kid, lang, device } = {}) {
     lang: w.lang,
     exercises: (rules.pool ? TRAIL_ORDER.map(byId) : EXERCISES).filter((e) => !w.round || ROUND_GAMES.includes(e.id)).filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk) && (e.id !== 'missing' || rules.missing)).map((e) => {
       const last = runs.find((r) => r.exercise === e.id) || null;
-      const done = trailNow ? trailNow.find((t) => t.stop === e.id).record_row_final : !!last;
+      // a round turn: done = stored for THIS turn (the round state), never a home run
+      const done = w.round ? (w.roundGames || []).includes(e.id) : (trailNow ? trailNow.find((t) => t.stop === e.id).record_row_final : !!last);
       // the record rule: done from the first counted run, and the menu is not a report — no number on it.
       // On the trail that same first counted run, of any outcome (stopped, incomplete), is the stop's badge.
       return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done, last: rules.record ? null : lastOf(last),
@@ -711,6 +712,8 @@ async function menu(token, { kid, lang, device } = {}) {
     }),
     ...(rules.record ? { record: true } : {}),
     ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang) } : {}),
+    // a round turn is served only under _v2 (exercise() refuses it 409 without), so the hand-back card is drawn only then
+    ...(w.round && rules.v2 ? { round_turn: true } : {}),
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await Tel.flag(),
     ...((await require('./web-quiz-ur-polish').ui()) ? { ui: { ur2: true } } : {}),
@@ -767,7 +770,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
   const practiceRound = !w.round && ((rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice'));
   const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
-    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload) : {}), ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload, token) : {}), ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
     // a teacher's own visit through the class link (played as practice): the page's banner says nothing counts on their phone
     ...(w.cl && w.cl.m === 'practice' ? { teacher_preview: true } : {}) };
   if (ex === 'missing' && v2 && v2.items) {
@@ -1467,10 +1470,15 @@ async function roundGame(c, rules) {
 }
 // A round turn's page: nothing on it marks the counted cut (no practice banner, no mode), and it carries the same
 // warm line for after every item.
-function roundPayload(w, payload) {
+// round_turn: a round run is no voluntary counted stop (the sampling design's NC4), so its end card prints no sticker line and
+// its one button hands the phone back (jg.round.c_handback) via the turn's own /c/<token>/back (round_back), which the
+// server answers with the round page the teacher opened; the teacher's report token never reaches the child's page.
+function roundPayload(w, payload, token) {
   if (!w.round) return payload;
   const { practice_round: _p, mode: _m, ...rest } = payload;
-  return { ...rest, round_say: require('../../templates/class-round.page').T[clampLanguage(w.lang, ['en', 'ur'])].cNextSay };
+  const l = clampLanguage(w.lang, ['en', 'ur']);
+  const C = require('../../templates/class-round.page').T[l];
+  return { ...rest, round_say: C.cNextSay, round_turn: true, round_handback: C.cHandback, round_back: `/c/${encodeURIComponent(token)}/back?lang=${l}` };
 }
 // ── end class round ──
 

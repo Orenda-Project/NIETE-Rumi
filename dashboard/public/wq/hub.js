@@ -91,6 +91,8 @@
   /* ---------------- helpers ---------------- */
   // The pages' one link helper (wq-tel.js WQT.withLang, loaded first on every page): a link into another page carries lang=.
   function withLang(h, l) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l || LANG) : h; }
+  // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
+  function nowrap(h) { return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h; }
   // The hub's own address, with the language it was opened in when it was opened with one (else today's).
   function selfUrl(h) { return URL_LANG ? withLang(h, URL_LANG) : h; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -149,6 +151,7 @@
   }
   // This phone's device_ref: the same key the quiz page keeps it under (wq.js sget 'wq_d', JSON), so a
   // phone that opens the hub and then plays is one phone to the server. Minted here when there is none.
+  // With no stored ref, a valid wq_dv cookie the server already gave this phone is adopted, never minted over.
   // The same ref goes into the wq_dv cookie, so the pages a hub link opens next (the challenge, the library)
   // reach the server as this phone too: their server render and API calls carry it as x-wq-device.
   function keepCookie(d) {
@@ -161,6 +164,8 @@
     var d = null;
     try { d = JSON.parse(localStorage.getItem('wq_d') || 'null'); } catch (e) { d = null; }
     if (typeof d === 'string' && /^[A-Za-z0-9_-]{22}$/.test(d)) return keepCookie(d);
+    // No stored ref: a valid wq_dv the server already gave this phone is adopted (and kept), never minted over.
+    try { var m = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/.exec(document.cookie || ''); if (m) { try { localStorage.setItem('wq_d', JSON.stringify(m[1])); } catch (e) {} return keepCookie(m[1]); } } catch (e) {}
     var ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
     var bytes = [];
     try { var a = new Uint8Array(22); window.crypto.getRandomValues(a); bytes = Array.prototype.slice.call(a); } catch (e) { bytes = []; }
@@ -225,13 +230,13 @@
     B = { lang: LANG, token: TOKEN, brand: BR, locked: true, kids: [] };
     render(bar() + jug('thinking', T.lockSay) + '<h2>' + esc(T.lockT) + '</h2>' +
       '<p class="wq-sub">' + esc(T.mineDoor) + '</p>' +
-      '<p class="wq-sub">' + esc(T.mine) + '</p>' +
+      '<p class="wq-sub">' + nowrap(esc(T.mine)) + '</p>' +
       '<button class="wq-btn wq-ghost" id="wq-h-new">' + esc(T.someone) + '</button>', 'H-lock');
     on('#wq-h-new', function () { newPlayer(); });
   }
   function newPlayer() {
     ev('hub_pick', { src: 'new' });
-    render(bar() + jug('hello', T.newSay) + '<h2>' + esc(T.newT) + '</h2>', 'H-new');
+    render(bar() + nowrap(jug('hello', T.newSay)) + '<h2>' + esc(T.newT) + '</h2>', 'H-new');
   }
   // The server render has no device: ask again as this phone, then show what the bot allows.
   function unlock() {

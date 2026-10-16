@@ -3,7 +3,8 @@
 /**
  * fixture-students — the web quiz's test children, as JSON, for a reader outside the bot (a statement built from an
  * offline pull). The same rule the weekly numbers use (bot/shared/services/quiz/web-quiz-fixture.js), checked in order:
- * meta.test on a run row, a "Testwala" name, a configured seed list, a configured test teacher's class.
+ * meta.test on a run row, a "Testwala" name, a configured seed list, a configured test teacher's class or a child
+ * that teacher created.
  *
  *   node scripts/web-quiz/fixture-students.js                    # the whole population
  *   node scripts/web-quiz/fixture-students.js --runs runs.json   # also rule 1 over an offline pull of run rows

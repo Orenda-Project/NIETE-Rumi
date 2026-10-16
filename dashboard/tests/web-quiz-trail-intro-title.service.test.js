@@ -4,8 +4,7 @@
  *       (Urdu child: ur → en → the stop's name; English child: en → the stop's name); no title ⇒ no line. Whether a
  *       listen stop has a title is the server's call (it withholds one that would give an answer away): the page has
  *       no listen branch.
- *   (B) `reopened: true` → "Welcome back! Let's carry on." in place of the intro line, no hear button (English only:
- *       no Urdu line exists yet, an Urdu child sees today's intro).
+ *   (B) `reopened: true` → the deck's jg.trail.welcome_back (EN and UR) in place of the intro line, no hear button.
  *   (C) `teacher_preview: true` → the practice banner is the teacher line (jg.t.practice), never the replay banner.
  * Every intro test runs on a fresh profile: no localStorage, no sessionStorage.
  * Golden: with none of the new fields the intro and banner are the base page's, string-equal (captured from the base
@@ -126,12 +125,20 @@ describe('(B) a re-served record (reopened: true): "Welcome back"', () => {
     expect(h).not.toMatch(/you left/i);
     expect(h).toContain('id="wqc-go"');
   });
-  test('Urdu: no Urdu line exists yet → today\'s intro unchanged (its line and its hear button)', async () => {
-    const h = (await introOf(READ({ reopened: true }), { lang: 'ur' })).html();
+  test('Urdu: the deck\'s Urdu welcome-back line in place of the intro line, no hear button for it', async () => {
+    const p = await introOf(READ({ reopened: true }), { lang: 'ur' });
+    const h = p.html();
+    expect(h).toContain(`<div class="wq-say" id="wqc-say">${DECK['jg.trail.welcome_back'].ur}</div>`);
+    expect(h).not.toContain('Intro line');
+    expect(h).not.toContain('id="wqc-hear"');
+    expect(p.played).not.toContain('https://r2.test/intro.ogg');
+    expect(T().ur.welcomeBack).toBe(DECK['jg.trail.welcome_back'].ur);
+    expect(T().en.welcomeBack).toBe(DECK['jg.trail.welcome_back'].en);
+  });
+  test('Urdu, not reopened: today\'s intro unchanged (its line and its hear button)', async () => {
+    const h = (await introOf(READ(), { lang: 'ur' })).html();
     expect(h).toContain('<div class="wq-say" id="wqc-say">Intro line</div>');
     expect(h).toContain('id="wqc-hear"');
-    expect(T().ur).not.toHaveProperty('welcomeBack');
-    expect(T().en.welcomeBack).toBe('Welcome back! Let\'s carry on.');
   });
 });
 
