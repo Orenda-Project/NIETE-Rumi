@@ -2207,3 +2207,8 @@ module.exports.rapidPerfect = rapidPerfect;
 module.exports.scoreRead = scoreRead;
 module.exports.passageFor = passageFor;
 module.exports.childTest = childTest;
+// the v3 home's door screens (web-quiz-hub-doors.js): a listening story opens only once its clip is recorded, and a
+// row's words in the quiz voice (the clips' own scheme and recorder; a missing one is recorded in the background, so
+// the row has it on a later open, under the same daily cap as every clip)
+module.exports.storyClip = storyClip;
+module.exports.sayClip = (text, lang) => (text ? clipUrl(clipKey('door', 'say', lang, String(text)), String(text), lang) : Promise.resolve(null));

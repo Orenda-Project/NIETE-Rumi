@@ -12,8 +12,8 @@
  * The page decides nothing about what is next: the Next tile is `out.next` (web_quiz_next_offer) when the server sent it,
  * else the hub's own lantern / teacher card, in that order (wq-home.js). The doors carry ids and hrefs only; the
  * storybook shelf is a stub the stories reader fills (web_quiz_stories). Never a tile the server would answer "on its
- * way": the Trail's "more stories" list and an empty shelf are left out; the Videos door is empty for a child with
- * no class quiz (videos/start answers 409 no_class without one).
+ * way": the Trail's "more stories" list and an empty shelf are left out; a child with no class quiz gets the Videos
+ * door too (`watch: true`: videos/start answers a watch-only start under this switch, not 409 no_class).
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -78,7 +78,8 @@ function doorsOf({ out = {}, stories = false, hasRoot = false } = {}) {
   if (out.challenge && out.challenge.on) games.push({ kind: 'numbers' });
   const again = out.last && out.last.state === 'done' && out.last.again ? [{ code: out.last.code, k: out.last.k, topic: out.last.topic, subject: out.last.subject }] : [];
   again.concat(out.again || []).forEach((a) => { if (a && a.code) games.push({ kind: 'quiz', code: a.code, k: a.k, topic: a.topic || '', subject: a.subject || '', done: true, ...(a.art ? { art: a.art } : {}) }); });
-  const videos = out.lib && out.lib.href && hasRoot ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}) } : null;
+  // Every child with a library: one with no class quiz yet WATCHES (videos/start's watch-only answer, same switch).
+  const videos = out.lib && out.lib.href ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}), ...(hasRoot ? {} : { watch: true }) } : null;
   return { stories: story, games, videos };
 }
 

@@ -2,7 +2,7 @@
 /**
  * The v3 child home's keys on the hub boot JSON (web-quiz-hub-home.js through the real web-quiz-hub.js): the golden
  * (web_quiz_home_v3 off or absent -> the payload deep-equal to today's, no new key), the three doors always present
- * (an empty door is [] / null, never missing), the Videos door only with a class quiz, the day-dots as a count, the jar
+ * (an empty door is [] / null, never missing), the Videos door for every child with a library (no class: a watch), the day-dots as a count, the jar
  * only with the Book, and fail-closed reads. Supabase and Redis are the boundaries and are faked. Invented children only.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
@@ -114,14 +114,18 @@ describe('web_quiz_home_v3 on: the doors and the header', () => {
     expect(JSON.stringify(out.doors)).not.toMatch(/"(best|score|tries)"/);
   });
 
-  test('Videos: the library href for a child with a class quiz; null (door shown empty) for a child with none', async () => {
+  test('Videos: the library href for every child — a child with no class quiz watches (videos/start answers a watch, not 409)', async () => {
     seed(HOME_ON);
     const withRoot = await Hub.hub(T.signHub([KID]), A);
     expect(withRoot.doors.videos).toEqual(expect.objectContaining({ href: expect.stringMatching(/^\/lib\//) }));
     seed(HOME_ON, { quiz_share_codes: [], quiz_sessions: [] });
     const none = await Hub.hub(T.signHub([KID]), A);
-    expect(none.doors).toHaveProperty('videos', null);
+    expect(none.doors.videos).toEqual(expect.objectContaining({ href: expect.stringMatching(/^\/lib\//) }));
     expect(none.doors.stories).toEqual([]);
+  });
+  test('Videos: null (the door says so) only when there is no library to open', async () => {
+    seed(HOME_ON.filter((r) => r.key !== 'web_quiz_library'), { quiz_share_codes: [], quiz_sessions: [] });
+    expect((await Hub.hub(T.signHub([KID]), A)).doors).toHaveProperty('videos', null);
   });
 
   test('Stories: the storybook shelf stub only with web_quiz_stories on', async () => {

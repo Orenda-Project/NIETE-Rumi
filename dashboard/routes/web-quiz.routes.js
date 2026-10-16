@@ -94,6 +94,8 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/hub/:token', limiter: 'read' },
   // M4b library
   { method: 'get', path: '/api/wq/lib/h/:token', limiter: 'read', token: true },
+  // the v3 home's door screens (Stories / Games rows; the bot answers 404 while web_quiz_home_v3 is off)
+  { method: 'get', path: '/api/wq/doors/h/:token', limiter: 'read', token: true },
   // Jugnu's Book from the kid's hub (the bot answers 503 while web_quiz_challenge_book is off)
   { method: 'get', path: '/api/wq/book/h/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
