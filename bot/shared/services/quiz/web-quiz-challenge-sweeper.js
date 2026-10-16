@@ -245,7 +245,8 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   // The class sample windows (web-quiz-sample-window.js daily, shipped with the class round): scheduled here, its own
   // switches decide. Absent ⇒ nothing, no log.
   const Win = optional('./web-quiz-sample-window');
-  const hasWin = !!Win && typeof Win.daily === 'function';
+  // Its own switches off ⇒ not scheduled at all (no day claimed for it, nothing written).
+  const hasWin = !!Win && typeof Win.daily === 'function' && typeof Win.switchesOn === 'function' && await Win.switchesOn();
   if (!anyOn && !hasExpiry && !hasCal && !hasSettle && !hasWin) return { ran: false, reason: 'off' };
   const claim = await claimDay(now);
   if (!claim.ok) return { ran: false, reason: claim.reason };
