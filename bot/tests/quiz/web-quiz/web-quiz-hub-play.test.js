@@ -236,10 +236,11 @@ describe('lantern + shelf (web_quiz_challenge_v2 / web_quiz_challenge_story)', (
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.play.lantern.kind).toBe('numbers');
     expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'p-untitled', nx: 'seen' });
-    // A NEW tag on the shelf and a story on the lantern always come together.
+    // The lantern names only this week's story (the tile under it): untitled there -> the day line, never the listen
+    // story; the listen story's NEW stays on its own tile.
     seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [passage('p-untitled', 'read', 2, { title_en: null }), passage('p-titled', 'listen', 3)] });
     const both = await Hub.hub(T.signHub([KID]), A);
-    expect(both.play.lantern).toEqual({ kind: 'story', title: 'Title p-titled', pid: 'p-titled' });
+    expect(both.play.lantern.kind).toBe('numbers');
     expect(both.play.shelf.filter((t) => t.nx === 'new').map((t) => t.pid)).toEqual(['p-titled']);
   });
 
