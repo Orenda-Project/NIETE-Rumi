@@ -201,6 +201,13 @@ describe('the book', () => {
     expect(mockPresign.mock.calls.some((c) => String(c[0]).includes('old.ogg'))).toBe(false);
     expect(out.pace_wpm).toBe(94);
   });
+  test('a voice marked quality "low" (word times not trusted) reaches the page so the player sweeps the line instead', async () => {
+    seed();
+    fake.db.story_page_voices[0].quality = 'low';
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out.pages[0].quality).toBe('low');
+    expect(out.pages[1]).not.toHaveProperty('quality');
+  });
   test('a page with no voice yet has audio null and words without times; a word with no box has no box key', async () => {
     seed();
     const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });

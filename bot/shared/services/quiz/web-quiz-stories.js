@@ -315,7 +315,7 @@ async function bookData(id) {
     .select('*').eq('book_id', b.id);
   const pages = (pageRows || []).slice().sort((x, y) => x.n - y.n);
   const { data: voiceRows } = pages.length
-    ? await supabase.from('story_page_voices').select('page_id, audio_key, ms, timings, wpm, is_current').in('page_id', pages.map((p) => p.id)).eq('is_current', true)
+    ? await supabase.from('story_page_voices').select('*').in('page_id', pages.map((p) => p.id)).eq('is_current', true)
     : { data: [] };
   const voiceOf = new Map((voiceRows || []).map((v) => [v.page_id, v]));
   const urls = await Promise.all(pages.map((p) => (voiceOf.get(p.id) ? signAudio(voiceOf.get(p.id).audio_key, b.id) : null)));
@@ -332,6 +332,8 @@ async function bookData(id) {
         text: p.text || '', words: mergeWords(p.words, v && urls[i] ? v.timings : []),
         audio: v && urls[i] ? { url: urls[i], ms: Number(v.ms) || 0 } : null, boxes_ok: Boolean(p.boxes_ok), is_picture: Boolean(p.is_picture),
         ...linesOf(p.lines),
+        // the voice's word times are not trusted on this page: the player sweeps the line instead of a word box
+        ...(v && urls[i] && v.quality === 'low' ? { quality: 'low' } : {}),
       };
     }),
     // page_ref: the page that answers it ("Look back" after a miss); it says where to look, not which option is right.
