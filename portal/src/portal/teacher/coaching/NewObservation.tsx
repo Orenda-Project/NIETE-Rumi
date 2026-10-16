@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { Check, ChevronDown, Mic, Pause, Square, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
-import { acceptFor, checkFile, DC_MAX_PHOTOS, readAudioDuration } from '../../lib/coachingUpload';
+import { acceptFor, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
 import { SendError, sendLesson } from '../../lib/coachingSend';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
@@ -229,7 +229,9 @@ export function NewObservationPage() {
     }
     : undefined;
 
-  const ready = !!cls && !!audio;
+  // At least 15 minutes (bd-fgj73x.7): a shorter recording cannot be submitted. An unknown length is not held back.
+  const tooShort = !!audio && audio.durationMs != null && audio.durationMs < DC_MIN_SECONDS * 1000;
+  const ready = !!cls && !!audio && !tooShort;
   const after = !!sessionId || !!sending;
   // Reloaded mid-upload: that upload is gone, and there is nothing to show; the main page lists what did arrive.
   const reloadedMidUpload = useRef(sentParam === UPLOADING);
@@ -240,7 +242,7 @@ export function NewObservationPage() {
   // Lesson plan before the recording (operator, 16 Oct): both open once a class is picked; the plan is optional, so it
   // never holds the recording back.
   const s2 = !cls ? 'upcoming' : plan ? 'done' : 'now';
-  const s3 = !cls ? 'upcoming' : audio ? 'done' : 'now';
+  const s3 = !cls ? 'upcoming' : audio && !tooShort ? 'done' : 'now';
   const s4 = !ready ? 'upcoming' : photos.length ? 'done' : 'now';
   const micLine = micBlockedLine({ browserBlocked, retried: micTries > 0, inApp: isInAppBrowser() }, C);
   const progress = report.state.progress;
@@ -303,7 +305,7 @@ export function NewObservationPage() {
             </>
           ) : null}
 
-          <FlowStep n={3} state={s3}>{C.recording}</FlowStep>
+          <FlowStep n={3} state={s3} chips={[C.atLeastMinutes]}>{C.recording}</FlowStep>
           {cls && !audio && phase === 'recording' ? (
             <section aria-label={C.recording} className={cn(CARD, 'flex flex-col items-center gap-4 border-2 border-[#c8331f] px-4 py-5')}>
               <span className={cn('inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold', session?.paused ? 'bg-[#fef3c7] text-[#b45309]' : 'bg-[#fee4e2] text-[#c8331f]')}>
@@ -360,6 +362,9 @@ export function NewObservationPage() {
           ) : null}
           {audio && cls ? (
             <RecordingCard audio={audio} onRedo={() => { void redo(); }} onChangeFile={() => audioInput.current?.click()} />
+          ) : null}
+          {audio && cls && tooShort ? (
+            <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.tooShort}</p>
           ) : null}
           {audioProblem ? (
             <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{audioProblem === 'too_large' ? C.tooLarge : C.notAudio}</p>
