@@ -118,3 +118,50 @@ describe('the daily settle (the rung job\'s settleDeferred) runs only under the 
     expect(await S.switches()).toMatchObject({ rungs: true, sweeper: false, purge: false });
   });
 });
+
+describe('the daily settle\'s count is kept: one lamps_settled_day row per PKT day, only when the settle ran', () => {
+  const RUNG_KEYS = ['web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_challenge_rungs'];
+  // the sweeper requires the strip module lazily: after a registry reset above it gets the current registry's Supabase,
+  // so the same fake is installed on both
+  const installWith = (keys) => {
+    db = { app_settings: keys.map(ON), [RUNS]: fixture(), web_quiz_strip_weekly: [] };
+    const f = makeFake(db, { uniques: { web_quiz_strip_weekly: ['week', 'line', 'cell'] } });
+    Object.assign(supabase, f);
+    Object.assign(require('../../../shared/config/supabase'), f);
+  };
+  const dayRows = () => db.web_quiz_strip_weekly.filter((r) => r.line === 'lamps_settled_day');
+
+  test('rung switch on, settle { checked: 4, settled: 1 }: one row (value 1, n 4); a second run the same day adds nothing', async () => {
+    installWith(RUNG_KEYS);
+    mockSettleDeferred.mockImplementation(async () => ({ checked: 4, settled: 1 }));
+    await S.dailyJob({ now: NOW });
+    expect(dayRows()).toEqual([expect.objectContaining({ week: '2026-W42', cell: '2026-10-15', value: 1, n: 4 })]);
+    mockSettleDeferred.mockImplementation(async () => ({ checked: 9, settled: 9 }));
+    const again = await S.dailyJob({ now: NOW + 60 * 60 * 1000 });
+    expect(again).toMatchObject({ ran: false, reason: 'already_ran_today' });
+    expect(dayRows()).toEqual([expect.objectContaining({ value: 1, n: 4 })]);
+    mockSettleDeferred.mockImplementation(async () => ({ checked: 0, settled: 0 }));
+  });
+
+  test('rung switch off: no lamps_settled_day row', async () => {
+    installWith(['web_quiz_challenge', 'web_quiz_challenge_sweeper']);
+    await S.dailyJob({ now: NOW });
+    expect(mockSettleDeferred).not.toHaveBeenCalled();
+    expect(dayRows()).toEqual([]);
+  });
+
+  test('a failing write is one logged line and the job goes on', async () => {
+    installWith(RUNG_KEYS);
+    mockSettleDeferred.mockImplementation(async () => ({ checked: 2, settled: 1 }));
+    const Strip = require('../../../shared/services/quiz/web-quiz-strip');
+    const spy = jest.spyOn(Strip, 'settledSnapshot').mockImplementation(async () => { throw new Error('strip down'); });
+    try {
+      const out = await S.dailyJob({ now: NOW });
+      expect(out).toMatchObject({ ran: true, settled: { checked: 2, settled: 1 } });
+      expect(logError).toHaveBeenCalledWith('web_quiz.strip_settled_failed', expect.objectContaining({ error: expect.any(String) }));
+    } finally {
+      spy.mockRestore();
+      mockSettleDeferred.mockImplementation(async () => ({ checked: 0, settled: 0 }));
+    }
+  });
+});

@@ -21,7 +21,19 @@
  *   anchor_retest_gap / band|lang|ladder|block  (returners' mean − first-timers' mean) ÷ pooled SD of score.correct, month
  *                                           to date (period_id of the week's Monday), self-run, high confidence,
  *                                           finished blocks (score.reached, else score.n, ≥ 10) only
+ *                                           High confidence on these two is PROVEN from the student row (on a roster
+ *                                           list, or merged into a roster row; web-quiz-provenance.js provenHigh),
+ *                                           not read from id_confidence: a hub-route row is written 'high' even for
+ *                                           a child on no list. Unreadable `students` proves nothing (no cell counts)
+ *   provenance_drift / high_unproven        the week's v2 rows (id_src set) written 'high' whose child is on no list
+ *                                           and not merged; n = those v2 rows. Should read 0
+ *   provenance_drift / homonym_missed       the week's v2 rows written homonym_in_list = false whose child's list holds
+ *                                           ANOTHER active child with the same canonical first name (canonFirst, the
+ *                                           page's rule); n = the same v2 rows. Should read 0
  *   no_class_first_finishes                 scored first exposures with no class
+ *   classes_link_eligible                   D5's denominator (a state, not a week): active classes with an active
+ *                                           class_teachers row and an active class_enrollments row, the class-link
+ *                                           mint's own rule (web-quiz-class-link.js teachesEnrolled); n = active classes
  *   kept_audio_keys                         value = runs naming a kept reading; n = kept_ok runs inside their 90 days
  *   kept_audio_match                        1 when the two are equal, else 0
  *   kept_audio_oldest_d                     days since the oldest kept reading was scored (reported only: the
@@ -38,7 +50,16 @@
  *   teacher_accepted_share / <tier>         the teacher-accepted share of the join queue's tier (its Wilson 95% lower
  *                                           bound; a teacher's tap is a judgement, not a label, so never "precision")
  *   teacher_accepted_held / <tier>          1 when the tier is auto-held on that share, else 0
- * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings) skips its lines, logged.
+ *   record_duplicates                       runs created in the week with meta.record_lost = 'duplicate' (a second
+ *                                           record of the stop this period, stored as practice); n = the attempts at
+ *                                           a record: the week's record rows plus those duplicates (above 0 every
+ *                                           week is a double-open in the page, not a race)
+ *   lamps_settled_unanswered                Reading lamps the daily settle lit in the week without answers: the sum
+ *                                           of the week's `lamps_settled_day / <PKT day>` rows (settledSnapshot,
+ *                                           value = settled, n = checked); n = the week's scored record readings.
+ *                                           The settle runs only with the rung switch on: a week with it off has
+ *                                           no daily rows (value 0)
+ * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, students) skips its lines, logged.
  *
  * The reply cap counts in Redis, `wq:reply_cap:<PKT day>:<hash>` = the day's replies for one phone, 24-h TTL from
  * the day's first reply. Counts only: the keys never leave the Redis service (scanValues), and nothing here writes or
@@ -49,6 +70,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile, logError } = require('../../utils/logger');
+const { loadStudents, provenHigh, driftCounts } = require('./web-quiz-provenance');
 
 const TABLE = 'web_quiz_challenge_runs';
 const STRIP_TABLE = 'web_quiz_strip_weekly';
@@ -137,6 +159,39 @@ async function allRows(build, what, col = 'created_at') {
 
 function count(map, key, by = 1) { map.set(key, (map.get(key) || 0) + by); }
 
+/** The distinct values of `col` over a table's active rows, paged on `col` itself; null when it cannot be read. */
+async function distinctActive(table, col) {
+  const out = new Set();
+  let cursor = null;
+  for (;;) {
+    let q = supabase.from(table).select(col).eq('is_active', true);
+    if (cursor !== null) q = q.gt(col, cursor);
+    const { data, error } = await q.order(col, { ascending: true }).limit(PAGE);
+    if (error) {
+      if (!isMissingTable(error)) logError('web_quiz.strip_read_failed', { what: table, code: error.code || null });
+      return null;
+    }
+    (data || []).forEach((r) => { if (r[col] != null) out.add(r[col]); });
+    if (!data || data.length < PAGE) return out;
+    cursor = data[data.length - 1][col];
+  }
+}
+
+/**
+ * D5's denominator, defined here once: the classes a teacher can get a class link for. The mint's own rule
+ * (web-quiz-class-link.js teachesEnrolled): the class is active, has an active class_teachers row, and has at least
+ * one active class_enrollments row. { eligible, active } (active = active classes), or null when a table cannot be read.
+ */
+async function linkEligibleClasses() {
+  const classes = await distinctActive('classes', 'id');
+  const taught = classes && await distinctActive('class_teachers', 'class_id');
+  const enrolled = taught && await distinctActive('class_enrollments', 'class_id');
+  if (!classes || !taught || !enrolled) return null;
+  let eligible = 0;
+  for (const c of classes) if (taught.has(c) && enrolled.has(c)) eligible += 1;
+  return { eligible, active: classes.size };
+}
+
 /** A module that may not be deployed yet (another change ships it): the module, or null. */
 function optional(name) {
   try { return require(name); } catch (_) { return null; }
@@ -194,6 +249,16 @@ async function replyCapSnapshot({ now = Date.now() } = {}) {
   const week = isoWeekOf(Date.parse(`${day}T07:00:00Z`));
   await writeLines([...got.bins].map(([b, k]) => ({ week, line: 'reply_cap_day', cell: `${day}|${b}`, value: k, n: got.phones })), now);
   return { day, phones: got.phones, hits: got.bins.get('capped') || 0 };
+}
+
+/**
+ * The daily job's record of its rung settle (web-quiz-rungs.js settleDeferred, run only with the rung switch on):
+ * one `lamps_settled_day / <PKT day>` row in that day's week, value = lamps lit without answers, n = readings checked.
+ */
+async function settledSnapshot({ day, settled, checked, now = Date.now() } = {}) {
+  const week = isoWeekOf(Date.parse(`${day}T07:00:00Z`));
+  await writeLines([{ week, line: 'lamps_settled_day', cell: day, value: Number(settled) || 0, n: Number(checked) || 0 }], now);
+  return { day, settled: Number(settled) || 0 };
 }
 
 /** The week's reply-cap lines: the daily snapshots, plus a live read of a day still in Redis and not snapshotted. */
@@ -320,6 +385,10 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   const firsts = counted.filter((r) => Number(r.exposure_no) === 1);
   put('no_class_first_finishes', '', share(firsts.filter((r) => r.class_id == null).length, firsts.length), firsts.length);
 
+  // record duplicates: a second record of the stop this period, stored as practice; n = the attempts at a record
+  const dups = rows.filter((r) => r.meta && r.meta.record_lost === 'duplicate').length;
+  put('record_duplicates', '', dups, rows.filter((r) => r.record === true).length + dups);
+
   // lost readings: attempted = scored + failed (a swept run is a failed run with meta.swept_at)
   const attempted = check.filter((r) => r.exercise === 'read' && (r.status === 'scored' || r.status === 'failed'));
   const att = new Map(); const lost = new Map(); const swept = new Map(); const attD = new Map(); const lostD = new Map();
@@ -355,9 +424,12 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   const month = pktDay(start).slice(0, 7);
   const mo = await allRows(() => supabase.from(TABLE).select(COLS).eq('period_id', month).eq('mode', 'check').eq('status', 'scored')
     .lt('created_at', end), 'month_runs');
+  // high confidence is proven from the student row (on a list, or merged), not read from the column: one read
+  const students = mo.rows.length ? await loadStudents(mo.rows.map(childOf)) : new Map();
+  if (!students) skipped.push('cells_n30', 'anchor_retest_gap');
   // children, not rows: a child with usable self-run, high-confidence, record first exposures (or anchor rows) counts once
   const usable = new Map();
-  mo.rows.filter((r) => r.helped === 'self' && r.id_confidence === 'high' && r.record === true
+  mo.rows.filter((r) => r.helped === 'self' && provenHigh(r, students) && r.record === true
     && (Number(r.exposure_no) === 1 || r.anchor_block != null))
     .forEach((r) => {
       const c = cellOf(r, ladderOf(r.exercise));
@@ -368,13 +440,24 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   // the statement's gate: self-run, high confidence, an anchor row, a finished block; first-timers (exposure 1) vs
   // returners (≥ 2), on score.correct
   const anchors = new Map();
-  mo.rows.filter((r) => r.helped === 'self' && r.id_confidence === 'high' && r.anchor_block != null
+  mo.rows.filter((r) => r.helped === 'self' && provenHigh(r, students) && r.anchor_block != null
     && Number(r.anchor_exposure_no) >= 1 && finishedBlock(r) && okOf(r) != null).forEach((r) => {
     const c = cellOf(r, ladderOf(r.exercise), r.anchor_block);
     if (!anchors.has(c)) anchors.set(c, { first: [], back: [] });
     anchors.get(c)[Number(r.anchor_exposure_no) === 1 ? 'first' : 'back'].push(okOf(r));
   });
   for (const [c, g] of anchors) put('anchor_retest_gap', c, gap(g.first, g.back), g.first.length + g.back.length);
+
+  // ── provenance drift (the week's v2 rows; each should read 0). An unreadable students table was logged above ──
+  const drift = students ? await driftCounts(rows) : null;
+  if (drift) {
+    put('provenance_drift', 'high_unproven', drift.high_unproven, drift.n);
+    put('provenance_drift', 'homonym_missed', drift.homonym_missed, drift.n);
+  } else skipped.push('provenance_drift');
+
+  // ── D5's denominator (a state, not a week): the link-eligible classes ──
+  const d5 = await linkEligibleClasses();
+  if (d5) put('classes_link_eligible', '', d5.eligible, d5.active); else skipped.push('classes_link_eligible');
 
   // ── kept audio (a state, not a week): every run naming a kept reading vs every kept_ok run inside its 90 days ──
   const keyed = await allRows(() => supabase.from(TABLE).select('id, created_at, scored_at, meta').not('meta->>audio_key', 'is', null), 'kept_keys');
@@ -423,6 +506,14 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
     }
   }
 
+  // ── Reading lamps the daily settle lit without answers (the week's daily rows; none with the rung switch off) ──
+  const recordReads = counted.filter((r) => r.exercise === 'read' && r.record === true).length;
+  const { data: setl, error: sErr } = await supabase.from(STRIP_TABLE).select('cell, value').eq('week', week).eq('line', 'lamps_settled_day');
+  if (sErr) {
+    skipped.push('lamps_settled_unanswered');
+    if (!isMissingTable(sErr)) logError('web_quiz.strip_read_failed', { what: 'lamps_settled_day', code: sErr.code || null });
+  } else put('lamps_settled_unanswered', '', (setl || []).reduce((s, r) => s + (Number(r.value) || 0), 0), recordReads);
+
   // ── identity: the reply cap and the teacher-accepted share (each only when its input exists) ──
   if (!(await replyCapLines({ week, start, now, put }))) skipped.push('reply_cap');
   if (!(await acceptedShareLines({ put }))) skipped.push('teacher_accepted_share');
@@ -447,4 +538,4 @@ async function writeLines(lines, now) {
   }
 }
 
-module.exports = { weeklyStrip, replyCapSnapshot, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES };
+module.exports = { weeklyStrip, replyCapSnapshot, settledSnapshot, linkEligibleClasses, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES };
