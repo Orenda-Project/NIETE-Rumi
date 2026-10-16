@@ -100,11 +100,13 @@
   // Which number a card may show, from the source alone (a quiz's own screen keeps its score; a story counts pages up).
   function numbersFor(source) { return source === 'quiz' ? 'score' : source === 'story' ? 'deed' : 'none'; }
   // A read that certifies nothing (no sticker, the try card): no result, a failed recording, not scored yet, ended silent,
-  // nothing heard, or under a tenth of the story's words. words: the page's count; heard: the live read's.
+  // nothing heard, or under a tenth of the story's words. words: the page's count; heard: the live read's. A live
+  // read's own result (wq:liveread:result: words_read of words_total) carries both.
   function unheard(r, words, heard, len) {
     if (!r || r.failed || r.later || r.ended === 'silent') return true;
-    var n = heard != null ? heard : words != null ? words : (r.score ? (r.score.attempted != null ? r.score.attempted : r.score.correct) : 0);
+    var n = heard != null ? heard : words != null ? words : r.words_read != null ? r.words_read : (r.score ? (r.score.attempted != null ? r.score.attempted : r.score.correct) : 0);
     n = Number(n) || 0;
+    if (!(len > 0) && r.words_total > 0) len = r.words_total;
     return n <= 0 || (len > 0 && n < 0.1 * len);
   }
   // The one result object (quiz, read or story) as the card's {kind, deed} and its screen lines.
@@ -122,8 +124,11 @@
     }
     if (o.source === 'quiz') return { kind: 'quiz', deed: 'quiz_done' };
     if (o.source === 'read') {
-      var t = unheard(o.result || o, null, null, 0);
-      return { kind: 'read', deed: t ? 'read_tried' : (o.whole ? 'read_all' : 'read_some'), tried: t };
+      var rr = o.result || o;
+      var t = unheard(rr, null, null, 0);
+      // the whole story: the host says so, or the live read heard nine words in ten (the Trail's own line)
+      var whole = o.whole || (rr.words_total > 0 && rr.words_read >= 0.9 * rr.words_total);
+      return { kind: 'read', deed: t ? 'read_tried' : (whole ? 'read_all' : 'read_some'), tried: t };
     }
     return null;
   }
@@ -294,8 +299,11 @@
       o = { kind: f.kind, deed: f.deed, lang: l, title: o.title, next: o.next, home: o.home, auth: o.auth, ev: o.ev, top: top, count: f.count };
     }
     if (!stack || typeof stack.insertAdjacentHTML !== 'function' || !o || !KIND_DEEDS[o.kind] || KIND_DEEDS[o.kind].indexOf(o.deed) < 0) return false;
-    prime(o);
+    // drawn first, then the one request for its link: a card never waits for the network (a live read leaves it
+    // ~250 ms of its 3 s in Urdu)
+    css();
     stack.insertAdjacentHTML('beforebegin', html(o));
+    prime(o);
     if (o.count && o.count.n > 1) countUp(o.count);
     var ev = typeof o.ev === 'function' ? o.ev : function () {};
     var a = document.getElementById('wqfc-share');
@@ -323,11 +331,13 @@
 
   // The Jugnu page's end cards (wq-trail.js, one guarded line per card): the card's block above the host's buttons,
   // the host's Home soft (green is Share only), the plain "Next: …" line given way to the tile. o = {name, line, r, t,
-  // story}: the deed comes from the outcome the host already drew (r.tried: a read that certified nothing).
+  // story}: the deed comes from the outcome the host already drew (r.tried: a read that certified nothing). A live
+  // read's held card (r.hold: the server's check not back yet) is the card at once, from the words heard — no sticker
+  // (the host's), no button the check could change (the host's); the settled card later mounts the same card again.
   function trailEnd(h, o) {
     var d = h.S.data || {};
     var r = o.r || {};
-    if (!(h.md() || {}).card_v3 || d.round_turn || d.practice_round || r.hold || !d.ct) return false;
+    if (!(h.md() || {}).card_v3 || d.round_turn || d.practice_round || !d.ct) return false;
     var t = o.t || {};
     var kind, deed;
     if (o.name === 'read-result' && !o.story) {

@@ -212,7 +212,8 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = false, href = 'http
   const ctx = {
     location: { origin: 'https://portal.example', hash: '', href }, navigator: {}, URL,
     sessionStorage: { getItem: () => null, setItem() {} }, localStorage: { getItem: () => null, setItem() {} },
-    fetch: (url, init) => { fetches.push({ url, init }); return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[lang] })) }); },
+    // painted: the card was already on the screen when the request went out (the card never waits for the network)
+    fetch: (url, init) => { fetches.push({ url, init, painted: screen.indexOf('id="wqfc-share"') >= 0 }); return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[lang] })) }); },
     document: {
       getElementById: (id) => (screen.indexOf(`id="${id}"`) >= 0 ? el(id) : null),
       querySelector: (sel) => (sel === '#wq .wq-stack' && screen.indexOf('<div class="wq-stack">') >= 0
@@ -386,7 +387,7 @@ describe('WQFC.mount({source}) — the result object the reader hands over', () 
   function mountWith(o) {
     let out = '';
     const fetches = [];
-    const fc = fcAlone({ fetch: (url, init) => { fetches.push({ url, init }); return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[o.lang || 'en'] })) }); },
+    const fc = fcAlone({ fetch: (url, init) => { fetches.push({ url, init, painted: out.indexOf('id="wqfc-share"') >= 0 }); return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[o.lang || 'en'] })) }); },
       document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
     const events = [];
     const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { auth: { hub: 'H', kid: 'K' }, ev: (n, p) => events.push({ n, ...p }), ...o });
@@ -512,5 +513,106 @@ describe('a card that certified nothing: the Next tile is the one primary, Share
     const fc = fcAlone({ document: { getElementById: (id) => (id === 'wqfc-next' ? { addEventListener() {} } : null), createElement: () => ({}), head: { appendChild() {} } } });
     fc.mount({ insertAdjacentHTML() {} }, { kind: 'read', deed: 'read_tried', lang: 'en', next: NEXT, auth: { ct: 'c' }, ev: (n, p) => events.push({ n, ...p }) });
     expect(events).toContainEqual(expect.objectContaining({ n: 'next_shown', ctx: 'after_read_tried', offer: 'o9' }));
+  });
+});
+
+/* ---------------- a live read's card paints from the hand-off, never after the server's check ---------------- */
+describe('switch on: a live read\'s held card is the card at once (the hand-off payload, not the server\'s check)', () => {
+  const TWELVE = { tokens: 'a b c d e f g h i j k l'.split(' ') };
+  const on = (o = {}) => trail({ withFc: true, menu: { card_v3: true }, ...o, data: { story: TWELVE, ...(o.data || {}) } });
+  const mintOf = (t) => JSON.parse(t.fetches.find((f) => f.url === '/api/wq/card').init.body);
+  // the page's hand-off under live reading v3: readHold({score: {attempted}, noSticker: true}, null, heardOk)
+  test.each([
+    ['all 12 heard', 12, 'read_all'],
+    ['5 of 12 heard', 5, 'read_some'],
+  ])('%s: Send to class + the Next tile under the listening line, no sticker yet', async (_, heard, deed) => {
+    const NEXT = { kind: 'story', href: '/c/tok?kid=k1#read', title: 'Read a story with Jugnu', minutes: 2 };
+    const t = on({ data: { next_offer: NEXT } });
+    expect(t.TR.readHold({ score: { attempted: heard }, noSticker: true }, null, heard)).toBe(true);
+    const h = t.html();
+    expect(h).toContain('id="wqc-listening"');
+    expect(h).toContain('id="wqfc-share"');
+    expect(h).toContain('id="wqfc-next"');
+    expect(h).not.toContain('wqc-sticker');
+    expect(h).not.toContain('data-sticker');
+    // still no button the server's result could change
+    expect(h).not.toContain('wqc-again');
+    expect(h).not.toContain('wqc-qa');
+    await flush();
+    expect(mintOf(t)).toMatchObject({ kind: 'read', deed });
+    expect(t.events).toContainEqual(expect.objectContaining({ n: 'card_shown', source: 'read' }));
+  });
+  test('the card is on the screen before its one request goes out', async () => {
+    const t = on();
+    t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    const mint = t.fetches.filter((f) => f.url === '/api/wq/card');
+    expect(mint.length).toBe(1);
+    expect(mint[0].painted).toBe(true);
+  });
+  test('the settled card after the hold: the sticker arrives, the card stays, one card_shown, one request', async () => {
+    const t = on();
+    t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    t.TR.readEnd({ score: { attempted: 12 } }, null, 12);
+    await flush();
+    expect(t.html()).toContain('wqc-sticker');
+    expect(t.html()).toContain('id="wqfc-share"');
+    expect(t.events.filter((e) => e.n === 'card_shown').length).toBe(1);
+    expect(t.fetches.filter((f) => f.url === '/api/wq/card').length).toBe(1);
+  });
+  test('a held read that heard nothing is the try card at once, like its settled card', async () => {
+    const t = on();
+    t.TR.readHold({ score: { attempted: 0 }, noSticker: true }, null, 0);
+    expect(t.html()).toContain('Let&#39;s read it together');
+    expect(t.html()).toContain('id="wqfc-share"');
+    await flush();
+    expect(mintOf(t).deed).toBe('read_tried');
+  });
+  test('a class round turn or a practice round still gets no card while held', () => {
+    for (const data of [{ round_turn: true, round_handback: 'Back' }, { practice_round: true }]) {
+      const t = on({ data });
+      t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+      expect(t.html()).not.toContain('wqfc-share');
+    }
+  });
+});
+
+describe('WQFC.mount({source: \'read\'}) — the live read\'s own result (wq:liveread:result)', () => {
+  function mountWith(o) {
+    let out = '';
+    const fetches = [];
+    const fc = fcAlone({ fetch: (url, init) => { fetches.push({ url, init, painted: out.indexOf('id="wqfc-share"') >= 0 }); return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[o.lang || 'en'] })) }); },
+      document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
+    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { auth: { ct: 'CT1' }, ...o });
+    return { ok, out, fetches };
+  }
+  // WQLiveRead.result(): {v, source, lang, words_total, words_read, correct, skipped, wpm: null, ended, marks, counted, live}
+  const R = (words_read, words_total, ended) => ({ v: 1, source: 'passage', lang: 'en', words_total, words_read, correct: words_read, skipped: 0, wpm: null, ended, marks: [], counted: true, live: true });
+  test.each([
+    ['the last word read (24 of 26)', R(24, 26, 'last_word'), 'read_all'],
+    ['a quiet finish at 21 of 26', R(21, 26, 'quiet'), 'read_some'],
+    ['Done at 3 of 26', R(3, 26, 'done_tap'), 'read_some'],
+    ['Done at 2 of 26 (under a tenth)', R(2, 26, 'done_tap'), 'read_tried'],
+    ['nothing heard', R(0, 26, 'done_tap'), 'read_tried'],
+  ])('%s', async (_, r, deed) => {
+    for (const o of [{ source: 'read', result: r, lang: 'en' }, { ...r, source: 'read' }]) {
+      const m = mountWith(o);
+      expect(m.ok).toBe(true);
+      await flush();
+      expect(JSON.parse(m.fetches[0].init.body)).toMatchObject({ kind: 'read', deed });
+    }
+  });
+  test('the card is drawn before the request for its link goes out', async () => {
+    const m = mountWith({ source: 'read', result: R(24, 26, 'last_word'), lang: 'en' });
+    await flush();
+    expect(m.fetches[0].painted).toBe(true);
+  });
+  test('Urdu: the deed and the share in Urdu, no digit on the card', async () => {
+    const m = mountWith({ source: 'read', result: { ...R(50, 61, 'quiet'), lang: 'ur' }, lang: 'ur' });
+    expect(m.out).toContain('dir="rtl"');
+    expect(m.out.replace(/<[^>]*>/g, '')).not.toMatch(/[0-9۰-۹]/);
+    await flush();
+    expect(JSON.parse(m.fetches[0].init.body)).toMatchObject({ kind: 'read', deed: 'read_some', lang: 'ur' });
   });
 });
