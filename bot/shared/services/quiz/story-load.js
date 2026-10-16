@@ -281,4 +281,27 @@ function supabaseStore(db) {
   };
 }
 
-module.exports = { planBook, applyPlan, supabaseStore, voiceFor, cleanWords, webpSize, MAX_PAGE_BYTES, MAX_COVER_BYTES, MAX_WER, MAX_DRIFT_MS };
+/**
+ * The pages children opened while they had no voice yet: the book API logs story_page_listened with {miss:true}
+ * for a page it served with audio:null. → {until, pages:[{book_id, source_id, n}]} (distinct, oldest first), so the
+ * voice build can voice exactly those pages and the next load picks them up. Reads only.
+ */
+async function missedPages(db, { since = null, now = () => new Date() } = {}) {
+  const until = now().toISOString();
+  let q = db.from('story_events').select('book_id, page_n, at').eq('event', 'story_page_listened').eq('data->>miss', 'true').lte('at', until);
+  if (since) q = q.gt('at', since);
+  const { data, error } = await q.order('at', { ascending: true }).limit(5000);
+  if (error) throw new Error(`${error.code || ''} ${error.message}`);
+  const seen = new Map();
+  for (const r of data || []) if (r.book_id && Number.isInteger(r.page_n)) seen.set(`${r.book_id}/${r.page_n}`, { book_id: r.book_id, n: r.page_n });
+  const ids = [...new Set([...seen.values()].map((p) => p.book_id))];
+  const src = new Map();
+  if (ids.length) {
+    const { data: books, error: e2 } = await db.from('story_books').select('id, source_id').in('id', ids);
+    if (e2) throw new Error(`${e2.code || ''} ${e2.message}`);
+    (books || []).forEach((b) => src.set(b.id, b.source_id));
+  }
+  return { since, until, pages: [...seen.values()].map((p) => ({ ...p, source_id: src.get(p.book_id) || null })) };
+}
+
+module.exports = { missedPages, planBook, applyPlan, supabaseStore, voiceFor, cleanWords, webpSize, MAX_PAGE_BYTES, MAX_COVER_BYTES, MAX_WER, MAX_DRIFT_MS };

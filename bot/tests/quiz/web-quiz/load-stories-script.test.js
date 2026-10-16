@@ -67,3 +67,21 @@ test('a real run refuses without the expected database', async () => {
   const o2 = io();
   expect(await main({ argv: base(), env: {}, io: o2 })).toBe(2);
 });
+
+test('--misses: the pages opened without a voice since the last run, distinct, with their source ids; reads only', async () => {
+  const calls = [];
+  const rows = {
+    story_events: [{ book_id: 'b1', page_n: 2, at: '2026-10-16T18:00:00Z' }, { book_id: 'b1', page_n: 2, at: '2026-10-16T18:01:00Z' }, { book_id: 'b2', page_n: 1, at: '2026-10-16T18:02:00Z' }],
+    story_books: [{ id: 'b1', source_id: 'src-1' }, { id: 'b2', source_id: 'src-2' }],
+  };
+  const db = { from: (t) => { const b = { _t: t }; ['select', 'eq', 'lte', 'gt', 'in', 'order', 'limit'].forEach((m) => { b[m] = (...a) => { calls.push([t, m, ...a]); return b; }; }); b.then = (res) => res({ data: rows[t], error: null }); return b; } };
+  const file = path.join(dir, 'misses.json');
+  fs.writeFileSync(file, JSON.stringify({ until: '2026-10-16T17:59:00Z' }));
+  const o = io();
+  expect(await main({ argv: ['--misses', file], db, io: o, now: () => new Date('2026-10-16T18:05:00Z') })).toBe(0);
+  expect(JSON.parse(o.o.out)).toEqual({ misses: 2, books: 2, since: '2026-10-16T17:59:00Z', until: '2026-10-16T18:05:00.000Z' });
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).pages).toEqual([{ book_id: 'b1', n: 2, source_id: 'src-1' }, { book_id: 'b2', n: 1, source_id: 'src-2' }]);
+  expect(calls).toContainEqual(['story_events', 'eq', 'data->>miss', 'true']);
+  expect(calls).toContainEqual(['story_events', 'gt', 'at', '2026-10-16T17:59:00Z']);
+  expect(calls.some((c) => ['upsert', 'update', 'delete', 'insert'].includes(c[1]))).toBe(false);
+});

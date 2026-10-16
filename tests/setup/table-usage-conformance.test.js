@@ -23,11 +23,6 @@ const SCHEMA_PATH = path.join(ROOT, 'infrastructure/supabase/00_complete-schema.
 
 // Tables intentionally defined but not yet referenced by code — each justified.
 const ALLOWLIST = new Set([
-  // The storybook event log (web_quiz_stories.sql): created with the storybook tables so the shelf, the reader and
-  // the retention analysis share one schema; its writer is the storybook reader's own change. Remove this entry when
-  // that code lands.
-  'story_events',
-
   // Curriculum page-level capture table; part of the textbooks / textbook_toc /
   // pre_generated_lps set. Populated by a curriculum-ingestion path not yet in
   // the OSS tree (the OSS curriculum-LP path serves pre_generated_lps + toc).

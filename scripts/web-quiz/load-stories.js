@@ -19,6 +19,9 @@
  *        [--out <csv>]             loaded.csv: one line per book (source_id, book_id, grade, lang, pages, voiced,
  *                                  questions, status, why, at), merged by source_id
  *        [--dry-run]               plan and print; write and store nothing (no env needed)
+ *        [--misses <json>]         instead of loading: write the pages children opened without a voice since the
+ *                                  file's last `until` ({since, until, pages:[{book_id, source_id, n}]}) and stop;
+ *                                  the voice build voices those books' missing pages, then a normal run loads them
  *
  * Idempotent: ids are uuid v5 of the catalogue id and files are named by their content hash, so a re-run updates the
  * same rows and stores only new files. A book is 'ready' only when every gate passes (story-load.js), else 'draft'.
@@ -39,11 +42,30 @@ function readCsv(p) {
 }
 const csvCell = (v) => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 
-async function main({ argv = process.argv.slice(2), env = process.env, io = process, now = () => new Date() } = {}) {
+async function main({ argv = process.argv.slice(2), env = process.env, io = process, now = () => new Date(), db = null } = {}) {
   const say = (s) => io.stderr.write(`${s}\n`);
   const manifestPath = arg(argv, '--manifest');
   const target = arg(argv, '--env');
   const dryRun = argv.includes('--dry-run');
+  const missesPath = arg(argv, '--misses');
+  const connect = () => {
+    if (db) return db;
+    const ref = arg(argv, '--expect-ref');
+    if (!ref || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) { say('load-stories: --expect-ref, SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required; refusing to run'); return null; }
+    if (!String(env.SUPABASE_URL).includes(ref)) { say('load-stories: SUPABASE_URL is not the expected database; refusing to run'); return null; }
+    // The bot's own client library (the repo root has no node_modules of its own).
+    const { createClient } = require(require.resolve('@supabase/supabase-js', { paths: [path.join(__dirname, '..', '..', 'bot')] }));
+    return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  };
+  if (missesPath) {
+    const client = connect();
+    if (!client) return 2;
+    const prior = fs.existsSync(missesPath) ? JSON.parse(fs.readFileSync(missesPath, 'utf8')) : {};
+    const out = await require('../../bot/shared/services/quiz/story-load').missedPages(client, { since: prior.until || null, now });
+    fs.writeFileSync(missesPath, JSON.stringify(out, null, 1));
+    io.stdout.write(`${JSON.stringify({ misses: out.pages.length, books: new Set(out.pages.map((p) => p.book_id)).size, since: out.since, until: out.until })}\n`);
+    return 0;
+  }
   if (!manifestPath || !target) { say('usage: load-stories.js --manifest <file> --env <name> --expect-ref <ref> [--dry-run] …'); return 2; }
   const Load = require('../../bot/shared/services/quiz/story-load');
   const Store = require('../../bot/shared/services/quiz/story-store');
@@ -78,12 +100,9 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
   let store = null;
   let upload = null;
   if (!dryRun) {
-    const ref = arg(argv, '--expect-ref');
-    if (!ref || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) { say('load-stories: --expect-ref, SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required; refusing to run'); return 2; }
-    if (!String(env.SUPABASE_URL).includes(ref)) { say('load-stories: SUPABASE_URL is not the expected database; refusing to run'); return 2; }
-    // The bot's own client library (the repo root has no node_modules of its own).
-    const { createClient } = require(require.resolve('@supabase/supabase-js', { paths: [require('path').join(__dirname, '..', '..', 'bot')] }));
-    store = Load.supabaseStore(createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } }));
+    const client = connect();
+    if (!client) return 2;
+    store = Load.supabaseStore(client);
     const r2 = require('../../bot/shared/storage/r2');
     const bucket = Store.storyBucket(env) || undefined;
     upload = async (buf, { key, contentType }) => {
