@@ -7077,7 +7077,8 @@ GRANT SELECT ON public.niete_lp_taken TO service_role;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Challenge content registry: passages, maths items, periods, equating links, draws
--- (mirror of bot/database/migrations/web_quiz_challenge_registry.sql + web_quiz_challenge_passages_provenance.sql)
+-- (mirror of bot/database/migrations/web_quiz_challenge_registry.sql + web_quiz_challenge_passages_provenance.sql
+--  + web_quiz_challenge_passages_licence_calib.sql)
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS challenge_passages (
   passage_id        text PRIMARY KEY,
@@ -7104,7 +7105,13 @@ CREATE TABLE IF NOT EXISTS challenge_passages (
   title_ur          text,
   source_ref        text,
   licence           text CONSTRAINT challenge_passages_licence_check
-                    CHECK (licence IN ('textbook', 'cc_by', 'cc_by_sa', 'generated', 'published_instrument')),
+                    CHECK (licence IN ('textbook', 'cc_by', 'cc_by_sa', 'generated', 'published_instrument', 'partner_instrument', 'public_domain')),
+  -- web_quiz_challenge_passages_licence_calib.sql: the credits line, the adaptation, the published difficulty data, the review record
+  attribution       text,
+  adapted           boolean NOT NULL DEFAULT false,
+  adaptation_note   text,
+  calib             jsonb,
+  review            jsonb,
   -- web_quiz_challenge_passages_provenance.sql: only published_calibrated / reviewer_levelled are drawn for a counted serve
   provenance        text NOT NULL DEFAULT 'generated' CONSTRAINT challenge_passages_provenance_check
                     CHECK (provenance IN ('published_calibrated', 'reviewer_levelled', 'generated')),

@@ -64,7 +64,7 @@ const FIRST_PERSON = {
   ur: new Set(['ہم', 'ہمارا', 'ہماری', 'ہمارے', 'میرا', 'میری', 'میرے', 'مجھے', 'مجھ', 'ہمیں']),
 };
 const ABBREV = /\b(mr|mrs|ms|dr|st|sr|jr|etc|vs)\.(?=\s|$)/i;
-const LICENCES = new Set(['textbook', 'cc_by', 'cc_by_sa', 'generated']);
+const LICENCES = new Set(['textbook', 'cc_by', 'cc_by_sa', 'generated', 'partner_instrument', 'public_domain']);
 const ID = /^(en|ur)\.(read|listen)\.([123])\.([A-Za-z0-9]+)$/;
 
 // Urdu text loses its diacritics before anything is counted; other scripts pass through.
