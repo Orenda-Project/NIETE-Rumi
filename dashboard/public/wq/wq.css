@@ -100,8 +100,8 @@ html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
 .wq-kids-big{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .wq-kid-big{min-height:72px;font-size:21px;padding:8px 12px 8px 8px;overflow:hidden}
 .wq-kid-big bdi{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* A teacher's name on the class link wraps (two names sharing a long prefix never cut to the same chip); Urdu keeps its own rule */
-html:not([lang=ur]) .wq-kid-big[data-tk] bdi{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+/* A teacher's name on the class link wraps, EN and UR (two names sharing a long prefix never cut to the same chip); the <bdi> keeps a Latin name's direction in the RTL chip */
+.wq-kid-big[data-tk] bdi{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 .wq-nw{white-space:nowrap}
 .wq-kids-small .wq-kid-big{min-height:56px;font-size:18px}
 .wq-undo{position:fixed;left:16px;right:16px;bottom:16px;width:auto;z-index:50;background:#fff;color:var(--navy);border:2px solid var(--navy);box-shadow:0 6px 18px rgba(0,0,0,.18)}

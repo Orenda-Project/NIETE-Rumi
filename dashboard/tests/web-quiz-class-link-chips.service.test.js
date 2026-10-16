@@ -28,6 +28,9 @@ const PROPS = ['white-space', 'text-overflow', 'overflow', 'overflow-wrap'];
 const INHERITED = new Set(['white-space', 'overflow-wrap']);
 const INITIAL = { 'white-space': 'normal', 'text-overflow': 'clip', overflow: 'visible', 'overflow-wrap': 'normal' };
 
+// the Urdu short-name teacher step as the page draws it at sandbox (captured on the unchanged CSS; markup never depends on it)
+const UR_SHORT = '<section class="wq-screen"><img class="wq-jugnu" src="/wq/jugnu/hello.webp" alt="" width="96" height="96"><h1>ٹیچر کا نام دبائیں</h1>'
+  + '<div class="wq-kids-big"><button class="wq-kid wq-kid-big" data-tk="tk-a"><bdi>Amna</bdi></button></div></section>';
 const TWO = [{ tk: 'tk-a', name: 'Samina Testwala — Teacher A' }, { tk: 'tk-b', name: 'Samina Testwala — Teacher B' }];
 
 // ---- the edge, with the bot faked ----
@@ -244,7 +247,7 @@ describe('the teacher step on a fresh profile', () => {
   });
 });
 
-describe('golden: everything but the English teacher chip keeps its style', () => {
+describe('golden: everything but the teacher chip keeps its style', () => {
   const BEFORE_CHILD = { 'white-space': 'nowrap', 'text-overflow': 'ellipsis', overflow: 'hidden', 'overflow-wrap': 'normal' };
   test('child chips ("Whose turn?" and "Is your name here?") keep the one-line ellipsis', async () => {
     const who = await openLink({ lang: 'en', arrive: { step: 'who', s: 'st1', kids: [{ chip: 'c1', first: 'Asha', animal: 'owl' }] } });
@@ -256,13 +259,32 @@ describe('golden: everything but the English teacher chip keeps its style', () =
     }
   });
 
-  test('Urdu teacher chips are untouched: the polished look keeps its wrap, the plain look its old style', async () => {
+  test('golden: a short teacher name\'s chip markup in Urdu is unchanged', async () => {
+    const v = await openLink({ lang: 'ur', arrive: { step: 'teacher', s: 'st1', teachers: [{ tk: 'tk-a', name: 'Amna' }] } });
+    expect(v.html).toBe(UR_SHORT);
+  });
+});
+
+describe('the teacher step in Urdu (lang=ur, dir=rtl)', () => {
+  test('two teachers sharing a long prefix: the plain and the polished Urdu chip both wrap, never one ellipsis line', async () => {
     const v = await openLink({ lang: 'ur', arrive: { step: 'teacher', s: 'st1', teachers: TWO } });
     expect(v.htmlTag).toContain('lang="ur"');
     expect(v.htmlTag).toContain('dir="rtl"');
     const plain = chipNames(v, (b) => 'data-tk' in b.attrs);
-    plain.forEach((bdi) => expect(computed(bdi)).toEqual(BEFORE_CHILD));
     const polished = chipNames({ ...v, htmlTag: ' lang="ur" dir="rtl" class="wq-ur2"' }, (b) => 'data-tk' in b.attrs);
-    polished.forEach((bdi) => expect(computed(bdi)).toEqual({ 'white-space': 'normal', 'text-overflow': 'clip', overflow: 'visible', 'overflow-wrap': 'normal' }));
+    for (const bdis of [plain, polished]) {
+      // the Latin name stays inside its own <bdi> (direction isolated in the RTL chip), as the child chips do
+      expect(bdis.map(textOf)).toEqual(TWO.map((t) => t.name));
+      for (const bdi of bdis) {
+        expect(computed(bdi)).toEqual({ 'white-space': 'normal', 'text-overflow': 'clip', overflow: 'visible', 'overflow-wrap': 'anywhere' });
+      }
+    }
+  });
+
+  test('Urdu child chips keep the one-line ellipsis (plain look)', async () => {
+    const who = await openLink({ lang: 'ur', arrive: { step: 'who', s: 'st1', kids: [{ chip: 'c1', first: 'Asha', animal: 'owl' }] } });
+    const bdis = chipNames(who, (b) => 'data-chip' in b.attrs);
+    expect(bdis).toHaveLength(1);
+    expect(computed(bdis[0])).toEqual({ 'white-space': 'nowrap', 'text-overflow': 'ellipsis', overflow: 'hidden', 'overflow-wrap': 'normal' });
   });
 });
