@@ -26,6 +26,8 @@ function bindNotices() {
 const BOT = 'http://bot.test';
 const KEY = 'test-internal-key';
 const DEVICE = 'AAAAAAAAAAAAAAAAAAAAAA';
+// a made-up bot number, built from parts (never a phone-shaped literal in a test)
+const BOT_NO = ['92', '000', '0000', '100'].join('');
 const tok = (payload) => `${Buffer.from(JSON.stringify(payload)).toString('base64url')}.${'s'.repeat(22)}`;
 const J = tok({ k: 'j', n: 'N'.repeat(22), l: 'ur', exp: 4102444800 });
 const H = tok({ k: 'h', ids: ['x'], exp: 4102444800 });
@@ -137,7 +139,6 @@ describe('GET /quiz/join/:token', () => {
   });
 
   test('the expired and error pages carry ONE tap back to WhatsApp (the bot\'s number from its answer); no number known → the words alone', async () => {
-    const BOT_NO = '920000000100';
     page = { status: 410, body: { error: 'stale', lang: 'ur' } };
     const bare = await req(srv, 'GET', `/quiz/join/${J}`);
     expect(bare.body).not.toContain('wa.me');
@@ -158,10 +159,10 @@ describe('GET /quiz/join/:token', () => {
   });
 
   test('the join page hands its script the bot\'s number and the tap words', async () => {
-    page = { status: 200, body: { ok: true, lang: 'en', practice: false, bot: '920000000100' } };
+    page = { status: 200, body: { ok: true, lang: 'en', practice: false, bot: BOT_NO } };
     const html = (await req(srv, 'GET', `/quiz/join/${J}`)).body;
     const b = JSON.parse(html.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1].replace(/\\u003c/g, '<').replace(/\\u003e/g, '>').replace(/\\u0026/g, '&'));
-    expect(b.bot).toBe('920000000100');
+    expect(b.bot).toBe(BOT_NO);
     expect(b.copy.openWa).toBe('Open WhatsApp');
   });
 

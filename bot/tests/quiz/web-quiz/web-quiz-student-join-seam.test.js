@@ -351,7 +351,7 @@ describe('"Someone new?" on the same phone', () => {
     const { t } = await landing();
     await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
     fake.db.users[0].phone_number = PHONE;
-    expect(await Join.siblingJoinToken({ phoneNorm: '920000000999', lang: 'ur' })).toBeNull();
+    expect(await Join.siblingJoinToken({ phoneNorm: fixturePhone(999), lang: 'ur' })).toBeNull();
     const jn = await Join.siblingJoinToken({ phoneNorm: PHONE, lang: 'ur' });
     expect(T.verify(jn, 'j')).toEqual(expect.objectContaining({ k: 'j', l: 'ur' }));
     const b = await Join.join({ t: jn, grade: 1, name: 'Bilal', device: DEVICE });

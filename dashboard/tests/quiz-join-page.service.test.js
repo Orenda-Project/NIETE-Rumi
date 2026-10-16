@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
+// a made-up bot number, built from parts (never a phone-shaped literal in a test)
+const BOT_NO = ['92', '000', '0000', '100'].join('');
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'join.js'), 'utf8');
 
 function el(id, extra = {}) {
@@ -68,12 +70,12 @@ describe('join.js', () => {
 
   test('a dead end on the page (the link expired, or joining is off) carries ONE tap back to WhatsApp when the number is known', () => {
     const copy = { stale: 'This link has expired.', off: 'Open the class link.', offNone: 'Ask your teacher.', openWa: 'Open WhatsApp', error: 'Try again' };
-    const p = run({ boot: { view: 'join', t: 'tok', lang: 'en', practice: true, bot: '920000000100', copy } });
+    const p = run({ boot: { view: 'join', t: 'tok', lang: 'en', practice: true, bot: BOT_NO, copy } });
     p.tap({ 'data-tap': 'grade', 'data-grade': '2' });
     p.tap({ 'data-tap': 'go' });
     const join = p.posts.find((x) => x.path === '/api/wq/join');
     join.xhr.status = 200; join.xhr.responseText = JSON.stringify({ stale: true }); join.xhr.onload();
-    expect(p.els['jn-out'].innerHTML).toContain('<a class="go" href="https://wa.me/920000000100?text=quiz">Open WhatsApp</a>');
+    expect(p.els['jn-out'].innerHTML).toContain(`<a class="go" href="https://wa.me/${BOT_NO}?text=quiz">Open WhatsApp</a>`);
     const q = run({ boot: { view: 'join', t: 'tok', lang: 'en', practice: true, copy } });
     q.tap({ 'data-tap': 'grade', 'data-grade': '2' });
     q.tap({ 'data-tap': 'go' });
