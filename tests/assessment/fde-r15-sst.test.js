@@ -126,6 +126,24 @@ describe('1. the point-set hold is a list: Q6 ← Q5, Q7 ← Q5 / Q6, Q6 ← Q6'
   });
 });
 
+describe('2. D\'s first prompt names C\'s Q5 topics and asks for other topics', () => {
+  const CH1 = paper('chapters_1');
+  const tree = JSON.parse(replyOf(CH1, 'C'));
+
+  test('the note lists the topics as nouns and the rule', () => {
+    const note = firstAskNote(SST, tree);
+    expect(note).toContain('Every Q6 situation must need a DIFFERENT topic');
+    expect(note).toContain('ماس میڈیا اور سوشل میڈیا');
+    expect(note).toContain('ڈیجیٹل شہری');
+    // A topic is a noun phrase, not the question.
+    expect(note).not.toMatch(/Q5 topics:[^\n]*کیا فرق ہے/);
+  });
+
+  test('no other subject is told anything', () => {
+    for (const key of ['science', 'english', 'maths', 'urdu']) expect(firstAskNote(ALL[key], tree)).toBeNull();
+  });
+});
+
 describe('the eight local papers: what the new rows hold', () => {
   test('full scope holds no D item that the round-14 head kept', () => {
     // Recorded on the round-14 head: full_1–4 were clean by the by-points test; a hold there is a false flag.

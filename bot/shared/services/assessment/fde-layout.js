@@ -1145,9 +1145,30 @@ function q5Note(list) {
     return `- ${q.question.trim()}${points.length ? `\n  points: ${points.join('; ')}` : ''}`;
   });
   if (!lines.length) return null;
+  const topics = [...new Set(list.map((q) => q && topicOf(q.question)).filter(Boolean))];
   return `Q5 of this paper asks these questions (under each, the points a full answer gives):\n${lines.join('\n')}\n`
     + 'A child who answers these has already answered them. No Q6 or Q7 item you write may ask anything a child answering these '
-    + 'would already have answered, in any wording or with another person, place or object: set every item on a different case.';
+    + 'would already have answered, in any wording or with another person, place or object: set every item on a different case.'
+    + (topics.length ? `\nQ5 topics: ${topics.join('; ')}.\nEvery Q6 situation must need a DIFFERENT topic from every Q5 topic above, `
+      + 'not only different words, people or places: a story about one of these topics restates a Q5 item.' : '');
+}
+// What a Q5 item is about, as a noun phrase: its first sentence up to the question word or the
+// instruction («ماس میڈیا اور سوشل میڈیا میں کیا فرق ہے؟» → «ماس میڈیا اور سوشل میڈیا»), case
+// markers, pronouns and «فرق» / «نام» off its tail. Eight words at most; none when nothing is left.
+const TOPIC_ENDS = new Set(['کیا', 'کیوں', 'کون', 'کونسا', 'کونسی', 'کس', 'کسے', 'کب', 'کہاں', 'کیسے', 'کتنا', 'کتنی', 'کتنے', 'کن',
+  'لکھیں', 'بیان', 'وضاحت', 'واضح', 'بتائیں', 'دیں', 'کریں', 'what', 'why', 'how', 'which', 'who', 'when', 'where', 'explain', 'write', 'name', 'give']);
+const TOPIC_TAIL = new Set(['میں', 'کے', 'کی', 'کا', 'کو', 'سے', 'لیے', 'ہمیں', 'ہم', 'آپ', 'اور', 'پر', 'نے', 'فرق', 'نام', 'in', 'of', 'the', 'a', 'and', 'for', 'to', 'is', 'are']);
+function topicOf(stem) {
+  const first = String(stem == null ? '' : stem).split(/[؟?۔.!]/)[0];
+  const words = [];
+  for (const w of first.trim().split(/\s+/)) {
+    if (!w || TOPIC_ENDS.has(plain(w))) break;
+    words.push(w.replace(/[،,:؛;]+$/, ''));
+  }
+  words.splice(8);
+  while (words.length && TOPIC_TAIL.has(plain(words[words.length - 1]))) words.pop();
+  const out = words.join(' ').trim();
+  return out || null;
 }
 
 /**
