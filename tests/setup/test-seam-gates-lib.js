@@ -3,7 +3,8 @@
  *   repo-mocks-partial.test.js, repo-spy-failure-only.test.js, repo-seam-tests.test.js,
  *   virtual-mock-of-existing-module.test.js (its jest.doMock scan), fresh-profile-pages.test.js, copy-deck-lift.test.js,
  *   select-columns-exist.test.js, unresolved-requires.test.js (its later-merge rule), grade-form-one-home.test.js,
- *   copy-deck-urdu-joiners.test.js, copy-deck-quoted-labels.test.js, copy-deck-readers.test.js; repo-mocks-partial.test.js also reads jest.doMock, copy-deck-lift.test.js also
+ *   copy-deck-urdu-joiners.test.js, copy-deck-quoted-labels.test.js, copy-deck-readers.test.js,
+ *   content-changes-trace.test.js; repo-mocks-partial.test.js also reads jest.doMock, copy-deck-lift.test.js also
  *   reads the child pages (dashboard/public/wq).
  *
  * Every reader takes source text (or plain objects) and returns plain data, so each gate's rule is executed on
@@ -1001,6 +1002,40 @@ function rawDeckReaders(files) {
   return out.sort();
 }
 
+// ------------------------------------------------------------------------- a content file's changes trace
+
+const TRACE_FIELDS = ['at', 'field', 'what', 'why', 'text_hash_before'];
+const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+/**
+ * The problems (strings, `<where>: <what>`) of every `changes` array in a parsed content file: each entry has the
+ * five fields as non-empty strings, `at` is an ISO time, `text_hash_before` is 32 lowercase hex (the files' own
+ * text_hash format) and, when the holding object records a `text_hash`, differs from it. [] when the file has none.
+ */
+function changesTraceProblems(doc) {
+  const out = [];
+  const visit = (o, where) => {
+    if (Array.isArray(o)) { o.forEach((x, i) => visit(x, `${where}[${i}]`)); return; }
+    if (!o || typeof o !== 'object') return;
+    for (const [k, v] of Object.entries(o)) {
+      const at = where ? `${where}.${k}` : k;
+      if (k !== 'changes') { visit(v, at); continue; }
+      if (!Array.isArray(v)) { out.push(`${at}: not an array`); continue; }
+      v.forEach((e, i) => {
+        const w = `${at}[${i}]`;
+        for (const f of TRACE_FIELDS) if (!e || typeof e[f] !== 'string' || !e[f]) out.push(`${w}: ${f} is missing or empty`);
+        if (!e) return;
+        if (typeof e.at === 'string' && e.at && (!ISO_TIME.test(e.at) || Number.isNaN(Date.parse(e.at)))) out.push(`${w}: at is not an ISO time`);
+        const h = e.text_hash_before;
+        if (typeof h === 'string' && h && !/^[0-9a-f]{32}$/.test(h)) out.push(`${w}: text_hash_before is not 32 lowercase hex`);
+        else if (typeof h === 'string' && h === o.text_hash) out.push(`${w}: text_hash_before is the current text_hash`);
+      });
+    }
+  };
+  visit(doc, '');
+  return out;
+}
+
 // --------------------------------------------------------------------------- the deck's Urdu no-break rules
 
 const NBSP = '\u00a0';
@@ -1082,6 +1117,7 @@ module.exports = {
   copyGapVerdict,
   quotedLabelGaps,
   rawDeckReaders,
+  changesTraceProblems,
   urduOrphans,
   whatsappWithoutJoiner,
 };
