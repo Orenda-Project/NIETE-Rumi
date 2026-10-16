@@ -591,6 +591,11 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       else await removeFromQueue(teacherUserId, looseId, candidateId, d);
       return x;
     });
+    // A 'same' also needs the loose child's enrolment check (mergeLoose): start it now, beside the idempotency read, so
+    // the two independent reads cost one round trip, not two (a rejection is caught into a value, never unhandled).
+    const enrolledP = decision === 'same'
+      ? rows(supabase.from('class_enrollments').select('student_id').eq('student_id', looseId).eq('is_active', true)).catch((e) => ({ error: e }))
+      : null;
     // Idempotent: the same tap again (a 303-and-refresh double submit) writes nothing and answers as the first did.
     const last = (await lastDecisions(teacherUserId, [looseId])).get(`${looseId}|${candidateId}`);
     if (last === decision) {
@@ -609,7 +614,7 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
     const shown = tiers.length ? serveTiers(await cachedCompute(teacherUserId), tiers) : [];
     const pair = shown.find((x) => x.loose_id === looseId && x.candidate_id === candidateId) || null;
     if (pair && decision === 'same') {
-      if (!(await mergeLoose(looseId, candidateId, now))) { await dropQueue(teacherUserId); return { ok: false, reason: 'not_loose' }; }
+      if (!(await mergeLoose(looseId, candidateId, now, enrolledP))) { await dropQueue(teacherUserId); return { ok: false, reason: 'not_loose' }; }
       await log('same', pair.evidence.tier);
       logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged', ...kidFor(candidateId) });
       return { ok: true, decision };
@@ -653,9 +658,13 @@ async function sameTier(t, looseId, candidateId) {
   return (last[0] && last[0].tier) || null;
 }
 
-/** The loose row → merged into the roster record, only if it is still loose and active (mergeTypedInto's guard). */
-async function mergeLoose(looseId, candidateId, now) {
-  const enr = await rows(supabase.from('class_enrollments').select('student_id').eq('student_id', looseId).eq('is_active', true));
+/** The loose row → merged into the roster record, only if it is still loose and active (mergeTypedInto's guard).
+ *  `enrolledP`: the enrolment read already started by the caller (decide); a failed read throws, as its own read would. */
+async function mergeLoose(looseId, candidateId, now, enrolledP = null) {
+  const enr = enrolledP
+    ? await enrolledP
+    : await rows(supabase.from('class_enrollments').select('student_id').eq('student_id', looseId).eq('is_active', true));
+  if (enr && enr.error) throw enr.error;
   if (enr.length) return false;
   const done = await rows(supabase.from('students').update({ status: 'merged', merged_into: candidateId, is_active: false, updated_at: now })
     .eq('id', looseId).is('list_id', null).eq('status', 'active').is('merged_into', null).select('id'));
