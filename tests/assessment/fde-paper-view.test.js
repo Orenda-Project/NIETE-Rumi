@@ -1,5 +1,5 @@
 /**
- * A board-pattern paper on the portal's paper page and in her list of papers.
+ * A board-pattern paper on the portal's paper page and in the teacher's list of papers.
  *
  * The paper page reads the same laid-out tree the PDF prints from: one section per slot, the
  * section's own heading on its first slot, and the slot's instruction with the SAME choice line

@@ -270,7 +270,7 @@ describe('POST /assessment/create — a board-pattern paper', () => {
     recent = [
       { id: 'req-ready', question_types: [{ slot: 'maths.A.Q1a' }], assessment_papers: [{ status: 'ready', edited_from: null }, { status: 'generating', edited_from: 'p-1' }] },
       { id: 'req-failed', question_types: [{ slot: 'maths.A.Q1a' }], assessment_papers: [{ status: 'failed', edited_from: null }] },
-      // Her own paper (no pattern) still being made is not a pattern paper.
+      // The teacher's own paper (no pattern) still being made is not a pattern paper.
       { id: 'req-own', question_types: [{ id: 'MCQs', count: 10 }], assessment_papers: [] },
     ];
     const { statusCode } = await invoke('/assessment/create', { ...PATTERN, scope: 'fde' });
@@ -354,7 +354,7 @@ describe('findGenerating', () => {
     recent = [{ id: 'req-fresh', created_at: '2026-10-15T11:59:00Z', question_types: [{ slot: 'maths.A.Q1a' }], assessment_papers: [] }];
     expect(await findGenerating({ userId: 'u', grade: 5, subject: 'maths', now })).toEqual({ id: 'req-fresh' });
     // Eight minutes and still no paper row: its job never reached a worker (the enqueue failed
-    // after the row was written). It must not lock her out for the rest of ten minutes.
+    // after the row was written). It must not lock the teacher out for the rest of ten minutes.
     recent = [{ id: 'req-orphan', created_at: '2026-10-15T11:52:00Z', question_types: [{ slot: 'maths.A.Q1a' }], assessment_papers: [] }];
     expect(await findGenerating({ userId: 'u', grade: 5, subject: 'maths', now })).toBeNull();
   });

@@ -164,7 +164,7 @@ const BUSY_STATUSES = ['queued', 'generating'];
 /**
  * How long a request with no paper row yet still counts as waiting in the queue. A worker opens
  * the row within seconds of picking the job up; one with no row after this long never reached a
- * worker (its enqueue failed after the row was written), and must not lock her out.
+ * worker (its enqueue failed after the row was written), and must not lock the teacher out.
  */
 const QUEUED_BUSY_MS = 3 * 60 * 1000;
 

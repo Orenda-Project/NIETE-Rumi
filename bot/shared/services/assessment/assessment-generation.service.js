@@ -1059,7 +1059,7 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '' }
   // questions below") sits on the held pages AND in the lessons the paper is set from. Only
   // what the held lessons alone contain marks an item as quoting them; a shared phrase never
   // drops a good item and fails the paper as a short slot.
-  // The held pages themselves never count as allowed, even when her chapters reach into them.
+  // The held pages themselves never count as allowed, even when the teacher's chapters reach into them.
   const pages = _splitPages(allowedText);
   const kept = pages ? pages.filter((pg) => !_inRanges(pg.page, HELD_PAGES)).map((pg) => pg.text).join(' ') : allowedText;
   // The pattern's own Urdu (instructions, closed lists, rules) is what the model is told to

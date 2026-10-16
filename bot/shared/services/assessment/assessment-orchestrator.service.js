@@ -276,8 +276,8 @@ async function _buildPatternPaper({ job, user, paperId }) {
 
   // A board-pattern paper is two files: the paper and the marking scheme the
   // teacher marks forty copies with. Unlike a plain paper's key, a scheme that
-  // cannot be made fails the paper (RENDER_FAILED) rather than leaving her a
-  // rehearsal she cannot mark the way the board will.
+  // cannot be made fails the paper (RENDER_FAILED) rather than leaving the teacher a
+  // rehearsal they cannot mark the way the board will.
   let schemePages = null;
   const answerKey = await _storeAnswerKey({
     paperId, requestId, userId, examJson, grade, subject,
