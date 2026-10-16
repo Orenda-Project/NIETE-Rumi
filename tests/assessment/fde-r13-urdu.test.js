@@ -102,6 +102,20 @@ describe('Section A never gives Section C away', () => {
     expect(q1Stems(applyLayout(exam, U, FDE, { reasked: false }).examJson)).toContain('کون سا لفظ مرض کا ہم معنی ہے؟');
   });
 
+  // A model can mis-tag a slot («urdo.C.Q4»): the layout places it by its tail, so the hold must
+  // read the slot it was placed in, not the raw tag.
+  test.each(Object.keys(HELD))('%s: Section C tagged «urdo.C.Qn» holds the same Q1 items', (name) => {
+    const exam = clone(papers[name]);
+    for (const types of Object.values(exam.unseen)) for (const list of Object.values(types)) list.forEach((q) => { if (/^urdu\.C\./.test(q.slot)) q.slot = q.slot.replace(/^urdu/, 'urdo'); });
+    expect(q1Stems(applyLayout(exam, U, FDE, { reasked: false }).examJson).sort()).toEqual(q1Stems(laid(name)).sort());
+  });
+
+  test('a Q4 tagged «urdo.C.Q4» still holds the Q1 item that prints its sentence', () => {
+    const exam = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', 'r11-urdu-sandbox-full_1.json'), 'utf8'));
+    for (const types of Object.values(exam.unseen)) for (const list of Object.values(types)) list.forEach((q) => { if (q.slot === 'urdu.C.Q4') q.slot = 'urdo.C.Q4'; });
+    expect(q1Stems(applyLayout(exam, U, FDE, { reasked: false }).examJson)).not.toContain('جملہ «اگر محنت کرو گے تو کامیاب ہو گے» میں حرفِ جزا کون سا ہے؟');
+  });
+
   test('Q3, Q4, Q5 and Q6 are untouched', () => {
     for (const name of Object.keys(papers)) {
       const out = laid(name);
