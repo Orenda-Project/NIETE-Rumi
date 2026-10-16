@@ -7,7 +7,9 @@
  *                                            after_game | after_story); never on {pending}; one offer per run
  *
  * The candidates are the hub's own (web-quiz-next-offer-sources.js) for this child, read through a snapshot of the
- * hub's per-child reads with a hub token minted for the child and bound to this phone (as the card's hub door does).
+ * hub's per-child reads with a hub token minted for the child and bound to this phone — only when this phone is
+ * already the child's (it played as them, or a hub of theirs was opened on it), checked read-only before anything is
+ * minted or written: a challenge token forwarded to another phone never turns into a hub link there.
  * A result is never held up: the whole field races a deadline (DEADLINE_MS) and gives up quietly.
  */
 const crypto = require('crypto');
@@ -24,18 +26,23 @@ const { candidatesOf, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words,
 
 /**
  * A child's snapshot for a result card: the hub's own reads for one child (teacher card, the quiz left open, play
- * again, the library, the Jugnu corner), with a hub token minted for this child and bound to this phone (as the
- * card's hub door does). Null when the phone cannot be bound or anything fails.
+ * again, the library, the Jugnu corner), with a hub token minted for this child and bound to this phone. Null — with
+ * nothing minted or written — when this phone is not already the child's (never played as them, no hub of theirs
+ * opened on it), when the caller's deadline has passed (`live`), or when anything fails.
  */
-async function snapshot({ studentId, device, lang: asked = null, watch = false }) {
+async function snapshot({ studentId, device, lang: asked = null, watch = false, live = null }) {
   const Hub = require('./web-quiz-hub');
   const f = await Hub.flags();
   if (!f.hub) return null;
   const canonical = (await require('./web-quiz-identity-flags').flags()).canon
     ? await require('./web-quiz-identity-roster').canonicalStudentId(studentId) : studentId;
+  const Device = require('./web-quiz-hub-device');
+  // read-only first: the run's child or the id they are known by, on THIS phone; a stranger phone gets nothing
+  if (!(await Device.deviceMayName([...new Set([String(studentId), String(canonical)])], device))) return null;
+  if (live && live.on === false) return null;   // past the deadline: nothing minted, nothing bound
   const token = T.signHub([canonical]);
   if (!token) return null;
-  const bound = await require('./web-quiz-hub-device').deviceTrusted(token, device);
+  const bound = await Device.deviceTrusted(token, device);
   if (!bound.ok) return null;
   const parts = Hub._parts;
   const ctx = await parts.kidContext(canonical);
@@ -68,7 +75,7 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false }
 async function resultField({ studentId, device, lang: asked = null, ctx, extra = [], drop = () => false, live = null }) {
   const sw = await NO.switches();
   if (!studentId || !sw.on) return {};
-  const snap = await snapshot({ studentId, device, lang: asked, watch: sw.watch });
+  const snap = await snapshot({ studentId, device, lang: asked, watch: sw.watch, live });
   if (!snap) return {};
   const { canonical, token, out, history, collect, grade, lang } = snap;
   const [{ quizIds, storyCodes, unsentCodes, known, covers }, books, onItsWay] = await Promise.all([
@@ -200,4 +207,4 @@ async function challengeField(result, ct, opts) {
   return (await withDeadline((live) => challengeInner(result, ct, opts, live), DEADLINE_MS)) || {};
 }
 
-module.exports = { finishField, challengeField, offerFor, challengeCtx, passageWords, DEADLINE_MS, WEAK_SHARE };
+module.exports = { finishField, challengeField, offerFor, challengeCtx, passageWords, DEADLINE_MS, WEAK_SHARE, _snapshot: snapshot };

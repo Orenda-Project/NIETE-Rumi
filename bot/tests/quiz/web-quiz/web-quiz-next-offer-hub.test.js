@@ -72,7 +72,7 @@ function seed(settings, over = {}) {
     student_lists: [{ id: LIST, user_id: TEACHER, class_name: '3', section: 'A', is_active: true }],
     quizzes: [{ id: 'q-1', topic: 'Fractions quiz', subject: 'Maths', language: 'en', grade: '3', video_id: null }],
     quiz_share_codes: [{ id: 'sc-1', code: 'MATH01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(30) }],
-    quiz_sessions: [{ id: 's1', share_code_id: 'sc-1', quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 8, total_questions_answered: 10, mastery_percentage: 80, completed_at: ago(20), created_at: ago(20), student_class: '3' }],
+    quiz_sessions: [{ id: 's1', share_code_id: 'sc-1', quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 8, total_questions_answered: 10, mastery_percentage: 80, completed_at: ago(20), created_at: ago(20), student_class: '3', device_ref: A.device }],
     ...over,
   };
   filesFor(db.challenge_passages || []);
@@ -238,6 +238,24 @@ describe('switch on: rule 2 — the month\'s stop in the first two home opens', 
   });
 });
 
+describe('the ctrl arm\'s lantern is the one the child is shown (a same-titled twin never takes it)', () => {
+  test('through the Jugnu corner\'s own reads: a newer listen story titled like this week\'s read story -> ctrl offers this week\'s', async () => {
+    withArm('ctrl');
+    const period = (() => { const d = new Date(Date.now() + 5 * 3600000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; })();
+    const run = (exercise) => ({ student_id: KID, exercise, mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null });
+    const passage = (id, kind, releasedH, title) => ({ passage_id: id, lang: 'en', band: 1, kind, pool: 'practice', status: 'reviewed', released_at: ago(releasedH), title_en: title, title_ur: null });
+    seed([...NEXT_ON, ...STORY_ON], {
+      web_quiz_challenge_runs: [run('read'), run('bigger')],
+      // this week's story is the newest READ one (p-week); its twin by title is a newer LISTEN one, ranked first among unseen
+      challenge_passages: [passage('p-week', 'read', 5, 'The Kite'), passage('p-twin', 'listen', 1, 'The Kite')],
+    });
+    Challenge.__reset();
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern).toMatchObject({ kind: 'story', pid: 'p-week' });
+    expect(out.next).toMatchObject({ id: 'p-week', rank_src: 'ctrl', source: 'fallback' });
+  });
+});
+
 describe('the next_set line (events v3)', () => {
   test('events v3 on -> one next_set with the same offer, keyed, no name, phone, token or quiz id', async () => {
     process.env.WEB_QUIZ_KID_KEY = KEY32;
@@ -341,6 +359,50 @@ describe('the quiz finish: next_offer', () => {
   });
 });
 
+describe('B1: a result card never mints or binds a hub token for a phone that is not the child\'s', () => {
+  const ct = (ex) => T.signChallenge({ studentId: KID, ex, runId: `run-${ex}-${Math.random()}` });
+  const B = { device: 'BBBBBBBBBBBBBBBBBBBBBB' };
+  const C = { device: 'CCCCCCCCCCCCCCCCCCCCCC' };
+  const hubKeys = () => [...redis._store.keys()].filter((k) => /^wq:hub:(dev|kid|devkids):/.test(k));
+  const tokensIn = (n) => [n, ...(n.alts || [])].map((x) => (/\/(?:h|c|lib)\/([^/?#]+)/.exec(x.href) || [])[1]).filter(Boolean);
+
+  test('phone B holding the child\'s challenge token (never played as them, no hub of theirs opened there) -> {} and nothing written', async () => {
+    seed([...NEXT_ON, ON('web_quiz_events_v3'), ON('web_quiz_library')], pending());
+    redis._store.clear();
+    expect(await Sources.challengeField({ score: {} }, ct('bigger'), { device: B.device })).toEqual({});
+    expect(hubKeys()).toEqual([]);
+    expect(logEvent.mock.calls.filter(([nm]) => nm === 'web_quiz.next_set')).toHaveLength(0);
+  });
+
+  test('the child\'s own phone (it played as them) -> the offer, and every hub token in it is bound to THAT phone', async () => {
+    seed([...NEXT_ON, ON('web_quiz_library')], pending());
+    redis._store.clear();
+    const { next_offer: n } = await Sources.challengeField({ score: {} }, ct('bigger'), { device: A.device });
+    expect(n).toBeTruthy();
+    const Dev = require('../../../shared/services/quiz/web-quiz-hub-device');
+    for (const tok of tokensIn(n)) {
+      expect((await Dev.deviceTrusted(decodeURIComponent(tok), B.device)).ok).toBe(false);
+      expect((await Dev.deviceTrusted(decodeURIComponent(tok), A.device)).ok).toBe(true);
+    }
+  });
+
+  test('a phone the child\'s hub was opened on (no play there) is the child\'s too -> the offer', async () => {
+    seed([...NEXT_ON], pending());
+    redis._store.clear();
+    const Dev = require('../../../shared/services/quiz/web-quiz-hub-device');
+    expect((await Dev.deviceTrusted(T.signHub([KID]), C.device)).ok).toBe(true);
+    const { next_offer: n } = await Sources.challengeField({ score: {} }, ct('bigger'), { device: C.device });
+    expect(n).toBeTruthy();
+  });
+
+  test('past the deadline before the mint (live off): no token, no bind, no state written', async () => {
+    seed([...NEXT_ON], pending());
+    redis._store.clear();
+    expect(await Sources._snapshot({ studentId: KID, device: A.device, live: { on: false } })).toBeNull();
+    expect(hubKeys()).toEqual([]);
+  });
+});
+
 describe('a Jugnu stop\'s result: next_offer', () => {
   const ct = (ex) => T.signChallenge({ studentId: KID, ex, runId: `run-${ex}-${Math.random()}` });
 
@@ -438,6 +500,8 @@ describe('a child with no class quiz and the v3 home\'s watch-only player', () =
     expect(v).toMatchObject({ variant: 'recommended', id: VID, sub: 'Where water goes' });
     expect(v.href).toMatch(new RegExp(`^/h/[^?]+\\?kid=[^&]+&lang=en#watch/${VID}$`));
     expect(all.filter((x) => x.id === 'library')).toEqual([]);
+    // both switches on: the v3 home's doors and the ranked Next ride the same payload (neither replaces the other)
+    expect(out).toMatchObject({ home_v3: 1, doors: expect.objectContaining({ games: expect.any(Array) }), next: expect.objectContaining({ ctx: 'home' }) });
   });
 
   test('home v3 off -> no video at all for a class-less child (409 no_class)', async () => {
@@ -483,7 +547,7 @@ describe('nextFor with another surface\'s key', () => {
     expect(n).toBeTruthy();
     expect(spy.mock.calls[0][0]).toBe('abcdef0123456789');
     expect(redis._store.has('wq:next:o:abcdef0123456789')).toBe(true);   // its own prefix: never a child's state key
-    for (const bad of ['not a key!', ['92', '300', '123', '4567'].join(''), 'abcdef01', 'abcdef0123456789ab', 'ABCDEF0123456789']) {
+    for (const bad of ['not a key!', '000000000000', 'abcdef01', 'abcdef0123456789ab', 'ABCDEF0123456789']) {
       expect(await NO.nextFor({ ctx: 'teacher_home', studentId: null, candidates: c, key: bad })).toBeNull();
     }
   });
