@@ -2580,6 +2580,18 @@ Feature: NIETE (ICT) Teacher Training
     And the tier's result says how many of its taps came from the configured test teachers (excluded_n; unit: teacher-join-queue-excluded-count.test.js)
     # web-quiz-join-queue.js QUEUE_TTL_S + precisionByTier decider filter; unit: teacher-join-queue-decider-filter.test.js
 
+  @quiz @config-gated @wip @draft @P2 @T964
+  Scenario: The hub's lantern names the story of the tile under it
+    Given app_settings "web_quiz_challenge_v2" and "web_quiz_challenge_story" are true
+    And this week's read story and a newer listen story are both new to me
+    When I open my hub
+    Then the lantern says "A new story is here:" with this week's read story, the story on the tile just under it
+    And the listen story keeps its NEW mark on its own tile
+    When I have already opened this week's read story
+    Then the lantern names no other story and shows its numbers or next-day line instead
+    And a game waiting on my Trail still comes first in the lantern
+    # web-quiz-hub-play.js playFor (ownTile, newestOf) + shelfOf; unit: web-quiz-hub-lantern-tile.test.js, web-quiz-hub-play.test.js
+
   # ── Challenge clip warm job (app_settings web_quiz_challenge_clip_warm, off by default) ──────────────────
 
   @quiz @config-gated @wip @draft @P2 @T850

@@ -8,7 +8,7 @@ const { page } = require('./wq-page-harness');
 describe('landing: classmates playing right now', () => {
   test('five or more: a line on the landing, EN and UR', () => {
     expect(page({ lang: 'en', live: { now: 5 } }).html()).toContain('5 classmates are playing right now — join them!');
-    expect(page({ lang: 'ur', live: { now: 5 } }).html()).toContain('ابھی 5 ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!');
+    expect(page({ lang: 'ur', live: { now: 5 } }).html()).toContain('ابھی ۵ ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!');
   });
   // no class count under 5 on a child's page (the server sends none; an old payload still prints none)
   test.each([2, 4])('%i playing now: no line, EN and UR', (n) => {
@@ -21,7 +21,7 @@ describe('landing: classmates playing right now', () => {
   });
   test('5 in the class played today: the line, EN and UR', () => {
     expect(page({ lang: 'en', live: { class_today: 5 } }).html()).toContain('5 in your class played today');
-    expect(page({ lang: 'ur', live: { class_today: 5 } }).html()).toContain('آج آپ کی کلاس میں 5 نے کھیلا');
+    expect(page({ lang: 'ur', live: { class_today: 5 } }).html()).toContain('آج آپ کی کلاس میں ۵ نے کھیلا');
   });
   test('the Urdu line uses no gendered verb form (no رہے/رہی progressive)', () => {
     const line = /<p class="wq-proof">[^<]*ابھی[^<]*<\/p>/.exec(page({ lang: 'ur', live: { now: 5 } }).html())[0];
@@ -87,5 +87,20 @@ describe('card: how many children of the class finished today, never a place', (
     const now = { en6: strip(cardWith('en', 6)), ur6: strip(cardWith('ur', 6)), enNone: cardWith('en', null), urNone: cardWith('ur', null) };
     if (process.env.WRITE_CARD_GOLDEN === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify(now, null, 2)}\n`);
     expect(now).toEqual(JSON.parse(fs.readFileSync(GOLDEN, 'utf8')));
+  });
+});
+
+// An Urdu page writes its class counts in Urdu digits (the polished copy keeps its isolated digits).
+describe('Urdu digits in the Urdu landing\'s count lines', () => {
+  const landing = () => page({ lang: 'ur', live: { class_today: 12, now: 7, ict_today_floor: 1234 } }).html();
+  test('class today, playing now, the ICT-wide count', () => {
+    const h = landing();
+    expect(h).toContain('آج آپ کی کلاس میں ۱۲ نے کھیلا');
+    expect(h).toContain('ابھی ۷ ہم جماعت کھیل میں شامل ہیں');
+    expect(h).toMatch(/آج [^<]*۱,۲۳۴ بچوں نے کھیلا/);
+    expect(h).not.toMatch(/(کلاس میں|ابھی|آج) (12|7|1,234) /);
+  });
+  test('English keeps Western digits', () => {
+    expect(page({ lang: 'en', live: { class_today: 12 } }).html()).toContain('12 in your class played today');
   });
 });

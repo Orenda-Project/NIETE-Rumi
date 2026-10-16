@@ -7591,4 +7591,32 @@ BEGIN
   END IF;
 END $$;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Web quiz direct ping (mirror of bot/database/migrations/web_quiz_sample_ping.sql)
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists sample_ping_consents (   -- unqualified like the other tables here (public)
+  binding_id   uuid        primary key references public.child_phone_bindings(id) on delete cascade,
+  consent_v    smallint    not null check (consent_v >= 1),
+  consented_at timestamptz not null default now()
+);
+
+create table if not exists sample_pings (
+  id         uuid        primary key default gen_random_uuid(),
+  term_code  text        not null,                  -- '2026-27b' (the sampler's term)
+  phone_tomb text        not null,                  -- the binding's tombstone (a keyed hash), never the phone
+  class_id   uuid,
+  state      text        not null check (state in ('reserved','sent','failed')),
+  created_at timestamptz not null default now(),
+  sent_at    timestamptz,
+  constraint sample_pings_once_a_term unique (term_code, phone_tomb)
+);
+
+alter table public.sample_ping_consents enable row level security;
+alter table public.sample_pings enable row level security;
+
+comment on table public.sample_ping_consents is
+  'web quiz direct ping: the consent version a live binding agreed to (no phone, no name); service role only';
+comment on table public.sample_pings is
+  'web quiz direct ping: one row per phone tombstone per term (no phone, no child id); written by the bot (service role)';
+
 NOTIFY pgrst, 'reload schema';
