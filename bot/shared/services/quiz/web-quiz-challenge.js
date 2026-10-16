@@ -407,6 +407,19 @@ function formFor(grade, { g1 = false } = {}) {
   return null;
 }
 
+/**
+ * The ONE eligibility rule every Jugnu door uses (the serve's who(), the hub tile, the scorecard card): the form for
+ * a child's grade, the grade-1 switches read here so no caller can leave them out. Off, or unreadable ⇒ today's
+ * formFor(grade): grade 1 has no form. Never throws.
+ */
+async function formForChild(grade) {
+  let g1 = false;
+  if (grade === 1) {
+    try { g1 = (await Grade1.on()) === true; } catch (_) { g1 = false; }
+  }
+  return formFor(grade, { g1 });
+}
+
 async function languageOf(entry, asked) {
   const l = langOf(asked);
   if (l) return l;
@@ -427,8 +440,8 @@ async function who(token, { kid, lang, device } = {}) {
   if (!(await challengeOn())) fail(503, 'challenge_off');
   const entry = await entryOf(token, kid, device);
   const gi = await gradeInfo(entry);
-  // grade-1 form: the switches are read only for a grade-1 child (off ⇒ formFor(1) is null ⇒ not_eligible, as today)
-  const form = formFor(gi.grade, { g1: gi.grade === 1 && (await Grade1.on()) });
+  // grade-1 form: formForChild reads its switches for a grade-1 child only (off ⇒ null ⇒ not_eligible, as today)
+  const form = await formForChild(gi.grade);
   if (!form) fail(403, 'not_eligible');
   return { ...entry, grade: gi.grade, gradeSource: gi.source, test: isTestName(gi.name), form, lang: await languageOf(entry, lang) };
 }
@@ -2093,7 +2106,7 @@ const clipsLeft = () => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecorded);
 
 module.exports = {
   menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
-  scoreBigger, wcpm, formFor, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
+  scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job

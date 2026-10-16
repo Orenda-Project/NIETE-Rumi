@@ -484,6 +484,25 @@ describe('hub(): challenge and library', () => {
 
   // The tile and the challenge page decide eligibility with ONE grade rule (the challenge's), so a tile is never a dead end.
   const CH_ON = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: 'true' }];
+
+  test('a grade-1 child gets the challenge tile only with the grade-1 form on (v2 + g1), as the serve decides', async () => {
+    const grade1 = (extra) => {
+      seed({ app_settings: [...CH_ON, ...extra] });
+      Object.assign(db.students[0], { self_reported_class: '1' });
+      db.student_lists.forEach((l) => { l.class_name = '1'; });
+      db.quizzes.forEach((q) => { q.grade = '1'; });
+      db.quiz_sessions.forEach((x) => { x.student_class = '1'; });
+      Hub._resetCache();
+      require('../../../shared/services/quiz/web-quiz-challenge').__reset();   // its settings cache
+    };
+    grade1([{ key: 'web_quiz_challenge_v2', value: true }, { key: 'web_quiz_challenge_g1', value: true }]);
+    expect((await Hub.hub(T.signHub([KID]), A)).challenge).toMatchObject({ on: true });
+    // either grade-1 switch off: no tile, as today (the serve refuses that child too)
+    for (const extra of [[{ key: 'web_quiz_challenge_g1', value: true }], [{ key: 'web_quiz_challenge_v2', value: true }], []]) {
+      grade1(extra);
+      expect((await Hub.hub(T.signHub([KID]), A)).challenge).toBeNull();
+    }
+  });
   function bandOnly(extra = {}) {
     seed({ app_settings: CH_ON, ...extra });
     // A loose child: no class list, no class given, and only quizzes for a band of grades.

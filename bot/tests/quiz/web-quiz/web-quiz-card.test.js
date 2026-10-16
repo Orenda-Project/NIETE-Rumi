@@ -107,6 +107,21 @@ describe('field(): the scorecard is told it may offer Jugnu\'s card', () => {
     expect(await cardModule().field(sess({ invited_by_student_id: FRIEND }))).toEqual({});
     expect(await cardModule().field(sess({ user_id: TEACHER, student_id: null }))).toEqual({});
   });
+  test('grade 1 with the grade-1 form on (web_quiz_challenge_v2 + _g1): the card, the same eligibility rule the serve uses', async () => {
+    // the challenge module caches its settings for a while: start from a clean read
+    const resetCh = () => require('../../../shared/services/quiz/web-quiz-challenge').__reset();
+    resetCh(); seed({ grade: '1', on: { ...ALL_ON, web_quiz_challenge_v2: true, web_quiz_challenge_g1: true } });
+    expect(await cardModule().field(sess())).toEqual({ jugnu_card: true, jugnu_ev: true });
+    // and the serve's own door agrees: the same rule, one home (formForChild)
+    const Challenge = require('../../../shared/services/quiz/web-quiz-challenge');
+    expect(await Challenge.formForChild(1)).toBe('1');
+  });
+  test('grade 1 with only one of the two grade-1 switches: {} (as today)', async () => {
+    for (const on of [{ ...ALL_ON, web_quiz_challenge_g1: true }, { ...ALL_ON, web_quiz_challenge_v2: true }]) {
+      cardModule()._resetCache(); require('../../../shared/services/quiz/web-quiz-challenge').__reset(); seed({ grade: '1', on });
+      expect(await cardModule().field(sess())).toEqual({});
+    }
+  });
   test('app_settings unreadable: fail closed', async () => {
     seed();
     supabase.from = () => { throw new Error('down'); };

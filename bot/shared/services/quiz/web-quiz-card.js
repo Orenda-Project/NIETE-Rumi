@@ -53,11 +53,11 @@ function ownRun(s) {
   return Boolean(s && s.student_id && !s.user_id && !(s.invited_by_student_id && s.invited_by_student_id !== s.student_id));
 }
 
-// The challenge's grade rule (web-quiz-hub.js challengeGrade): grades 2-5 have a form; required on use.
+// The challenge's grade rule (web-quiz-hub.js challengeGrade, formForChild): grades 2-5 have a form, grade 1 with its switches; required on use.
 async function challengeGrade(studentId) {
   try {
     const Challenge = require('./web-quiz-challenge');
-    return Boolean(Challenge.formFor(await Challenge.gradeOf({ studentId })));
+    return Boolean(await Challenge.formForChild(await Challenge.gradeOf({ studentId })));
   } catch (err) {
     logToFile('⚠️ web quiz card: challenge grade unavailable', { error: err.message });
     return false;
