@@ -96,7 +96,7 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
   const clipWpm = num(j.wpm) != null ? j.wpm : (num(qa.wpm_clip) != null ? qa.wpm_clip : num(qa.wpm));
   if (clipWpm == null || clipWpm > maxWpm(grade)) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm`);
   const spanWpm = num(j.pace_wpm) != null ? j.pace_wpm : num(qa.pace_wpm);
-  if (spanWpm != null && spanWpm > maxSpanWpm(grade)) why.push(`voice span pace ${spanWpm} wpm`);
+  if (spanWpm == null || spanWpm > maxSpanWpm(grade)) why.push(`voice span pace ${spanWpm == null ? 'unknown' : spanWpm} wpm`);
   if (j.ok === false || qa.ok === false) why.push(`voice failed its own checks${Array.isArray(j.fails) && j.fails.length ? ` (${j.fails.slice(0, 2).join(', ')})` : ''}`);
   const clip = readBytes(`${stem}.ogg`);
   const remoteKey = j.audio && typeof j.audio.key === 'string' ? j.audio.key : null;

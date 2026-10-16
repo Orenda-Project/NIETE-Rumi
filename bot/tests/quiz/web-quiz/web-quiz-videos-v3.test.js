@@ -89,8 +89,8 @@ describe('language', () => {
     F.seed(supabase, ON);
     const out = await Lib.lib('AB12CD', { l: 'ur' });
     expect(counts(out)).toEqual({
-      grades: [['KG', 1], ['3', 9]],
-      subjects: [['English', 1], ['Maths', 3], ['Science', 2], ['Urdu', 3]],
+      grades: [['KG', 1], ['3', 11], ['4', 1]],
+      subjects: [['English', 1], ['Maths', 5], ['Science', 2], ['Urdu', 3]],
     });
     expect(titles(await Lib.lib('AB12CD', { s: 'Science', l: 'ur' }))).toEqual([
       ['Animals', ['Life Cycle of a Hen']], ['Plants', ['Parts of a Flower']],
@@ -101,25 +101,83 @@ describe('language', () => {
     F.seed(supabase, ON);
     const out = await Lib.lib('AB12CD', { l: 'en' });
     expect(counts(out)).toEqual({
-      grades: [['KG', 1], ['3', 7], ['4', 1]],
-      subjects: [['English', 1], ['Maths', 4], ['Science', 2]],
+      grades: [['KG', 1], ['3', 10], ['4', 1]],
+      subjects: [['English', 1], ['Maths', 4], ['Science', 2], ['Urdu', 3]],
     });
     expect(titles(await Lib.lib('AB12CD', { s: 'Science', l: 'en' }))).toEqual([['Plants', ['Leaves', 'Parts of a Flower']]]);
   });
 
+  test('a subject with no video in the child\'s language is shown as it is: no subject disappears', async () => {
+    F.seed(supabase, ON);
+    // Grade 4 Science has only an English video: an Urdu child still sees it (no Urdu one to prefer).
+    expect(titles(await Lib.lib('AB12CD', { g: '4', s: 'Science', l: 'ur' }))).toEqual([['Energy', ['Grade four video']]]);
+    // The Urdu subject has only Urdu videos: an English child still sees all three.
+    expect(titles(await Lib.lib('AB12CD', { s: 'Urdu', l: 'en' })).map(([, t]) => t.length).reduce((a, b) => a + b, 0)).toBe(3);
+    // Subjects with videos in the child's language come first; none is dropped.
+    expect(counts(await Lib.lib('AB12CD', { g: '4', l: 'ur' })).subjects).toEqual([['Science', 1]]);
+    expect(counts(await Lib.lib('AB12CD', { l: 'en' })).subjects.map((x) => x[0])).toEqual(['English', 'Maths', 'Science', 'Urdu']);
+    // Where the child's language exists in the subject, the other language is left out.
+    expect(titles(await Lib.lib('AB12CD', { s: 'Science', l: 'ur' })).flatMap(([, t]) => t)).not.toContain('Leaves');
+  });
+
+  test('a subject shown only in another language is listed after the child\'s own subjects (Urdu first for an Urdu child)', async () => {
+    F.seed(supabase, ON);
+    await supabase.from('student_videos').insert({ id: F.V(20), grade: '3', subject: 'Art', clean_chapter: 'Colours', clean_title: 'Red', language: 'en',
+      migration_status: 'done', superseded_by: null, r2_url: 'https://acct.r2.example.com/test-bucket/student-videos/v20.mp4' });
+    await supabase.from('quizzes').insert({ id: F.VQ(20), video_id: F.V(20), quiz_source: 'video', status: 'ready', topic: 'Video quiz 20', grade: '3', subject: 'Art' });
+    expect(counts(await Lib.lib('AB12CD', { l: 'ur' })).subjects).toEqual([['English', 1], ['Maths', 5], ['Science', 2], ['Urdu', 3], ['Art', 1]]);
+    expect(counts(await Lib.lib('AB12CD', { l: 'en' })).subjects).toEqual([['Art', 1], ['English', 1], ['Maths', 4], ['Science', 2], ['Urdu', 3]]);
+  });
+
+  // A grade 3 subject of `n` videos, the last `own` of them in Urdu and the rest in English, one per chapter.
+  const cell = async (subject, n, own) => {
+    for (let i = 0; i < n; i += 1) {
+      const id = 30 + i + (subject === 'Art' ? 0 : subject === 'Islamiyat' ? 20 : 40);
+      await supabase.from('student_videos').insert({ id: F.V(id), grade: '3', subject, clean_chapter: `Lesson ${i + 1}`, clean_title: `${subject} ${i + 1}`,
+        language: i >= n - own ? 'ur' : 'en', migration_status: 'done', superseded_by: null, r2_url: `https://acct.r2.example.com/test-bucket/student-videos/v${id}.mp4` });
+      await supabase.from('quizzes').insert({ id: F.VQ(id), video_id: F.V(id), quiz_source: 'video', status: 'ready', topic: `Video quiz ${id}`, grade: '3', subject });
+    }
+  };
+
+  test('a subject counts as in the child\'s language only with 3 or more of its videos, or 25 % of them, in it', async () => {
+    F.seed(supabase, ON);
+    await cell('Islamiyat', 11, 2); // 2 of 11: too thin, the whole subject is shown
+    await cell('Art', 12, 3); // 3 of 12: filtered
+    await cell('Geography', 4, 1); // 1 of 4 is 25 %: filtered
+    const out = counts(await Lib.lib('AB12CD', { l: 'ur' }));
+    expect(out.subjects).toEqual([['Art', 3], ['English', 1], ['Geography', 1], ['Islamiyat', 11], ['Maths', 5], ['Science', 2], ['Urdu', 3]]);
+    // An English child: every one of these subjects has 3+ English videos.
+    expect(counts(await Lib.lib('AB12CD', { l: 'en' })).subjects).toEqual([['Art', 9], ['English', 1], ['Geography', 3], ['Islamiyat', 9], ['Maths', 4], ['Science', 2], ['Urdu', 3]]);
+  });
+
+  test('a thin subject is shown whole with the child\'s language first, then the rest in their usual order', async () => {
+    F.seed(supabase, ON);
+    await cell('Islamiyat', 11, 2);
+    const t = titles(await Lib.lib('AB12CD', { s: 'Islamiyat', l: 'ur' })).flatMap(([, x]) => x);
+    expect(t).toEqual(['Islamiyat 10', 'Islamiyat 11', 'Islamiyat 1', 'Islamiyat 2', 'Islamiyat 3', 'Islamiyat 4', 'Islamiyat 5', 'Islamiyat 6', 'Islamiyat 7', 'Islamiyat 8', 'Islamiyat 9']);
+    // The fixture's Maths: 1 Urdu video of 5, so the Urdu child sees all five, the Urdu one first, then chapter order.
+    expect(titles(await Lib.lib('AB12CD', { s: 'Maths', l: 'ur' }))).toEqual([
+      ['Chapter 2', ['Taking away', 'Adding']], ['Chapter 10', ['Big numbers']], ['Unit 3 Part 2', ['Lines']], ['Unit 3 Part 12', ['Shapes']],
+    ]);
+  });
+
   test('no language from the page, or one that is not en|ur: the quiz code\'s language', async () => {
     F.seed(supabase, ON);
-    expect(counts(await Lib.lib('UR12CD', {})).subjects).toEqual([['English', 1], ['Maths', 3], ['Science', 2], ['Urdu', 3]]);
-    expect(counts(await Lib.lib('UR12CD', { l: 'fr' })).subjects).toEqual([['English', 1], ['Maths', 3], ['Science', 2], ['Urdu', 3]]);
-    expect(counts(await Lib.lib('AB12CD', {})).subjects).toEqual([['English', 1], ['Maths', 4], ['Science', 2]]);
+    expect(counts(await Lib.lib('UR12CD', {})).subjects).toEqual([['English', 1], ['Maths', 5], ['Science', 2], ['Urdu', 3]]);
+    expect(counts(await Lib.lib('UR12CD', { l: 'fr' })).subjects).toEqual([['English', 1], ['Maths', 5], ['Science', 2], ['Urdu', 3]]);
+    expect(counts(await Lib.lib('AB12CD', {})).subjects).toEqual([['English', 1], ['Maths', 4], ['Science', 2], ['Urdu', 3]]);
+    expect(titles(await Lib.lib('AB12CD', { s: 'Science' })).flatMap(([, t]) => t)).toEqual(['Leaves', 'Parts of a Flower']);
   });
 
   test('from the hub: the child\'s own language wins over the page\'s; without one, the page\'s', async () => {
     F.seed(supabase, ON);
+    const science = async (q) => titles(await Lib.libHub('hubtoken', { kid: 'chip-1', s: 'Science', ...q })).flatMap(([, t]) => t);
     kid('ur');
-    expect(counts(await Lib.libHub('hubtoken', { kid: 'chip-1', l: 'en' })).subjects.map((x) => x[0])).toContain('Urdu');
+    expect(await science({ l: 'en' })).toContain('Life Cycle of a Hen');
+    expect(await science({ l: 'en' })).not.toContain('Leaves');
     kid(null);
-    expect(counts(await Lib.libHub('hubtoken', { kid: 'chip-1', l: 'en' })).subjects.map((x) => x[0])).not.toContain('Urdu');
+    expect(await science({ l: 'en' })).toContain('Leaves');
+    expect(await science({ l: 'en' })).not.toContain('Life Cycle of a Hen');
     expect(titles(await Lib.libHub('hubtoken', { kid: 'chip-1', s: 'Science', l: 'ur' }))).toEqual([
       ['Animals', ['Life Cycle of a Hen']], ['Plants', ['Parts of a Flower']],
     ]);
