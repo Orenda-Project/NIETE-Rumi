@@ -30,6 +30,7 @@ const Store = require('./field-form.store');
 const { heardLevels } = require('./rules');
 const { checkQuotes } = require('./quote-check');
 const { checkLabels } = require('./label-check');
+const { JOB } = require('./llm-reply');
 const { observe2Strings } = require('./strings');
 const { clampLanguage } = require('../../../config/ux-strings');
 const { getLanguage } = require('../../../config/languages');
@@ -171,9 +172,11 @@ function normalise(raw) {
 // tokens, the median call uses ~12,000 (prod, 5-15 Oct).
 const MAX_TOKENS = 16000;
 
-async function defaultLlm(prompt, { maxTokens = MAX_TOKENS, label = 'observe2.moments' } = {}) {
+// Both calls (the moments and the label check) go out as their own job, observe2.moments (llm-reply.js), so the
+// app_settings row can move them alone. With no move it is today's model with today's request.
+async function defaultLlm(prompt, { maxTokens = MAX_TOKENS, label = 'observe2.moments', job = JOB } = {}) {
   const GPT5MiniService = require('../../gpt5-mini.service');
-  return GPT5MiniService.completeJson(prompt, { maxTokens, label });
+  return GPT5MiniService.completeJson(prompt, { maxTokens, label, job });
 }
 
 // A reply as completeJson gives it ({result, usage}); a seam that hands back the bare JSON has no usage.
@@ -191,7 +194,7 @@ function unwrap(reply) {
 async function readMoments(prompt, form, llm) {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     // eslint-disable-next-line no-await-in-loop
-    const { result, usage } = unwrap(await llm(prompt, { maxTokens: MAX_TOKENS }));
+    const { result, usage } = unwrap(await llm(prompt, { maxTokens: MAX_TOKENS, job: JOB }));
     const used = usage ? Number(usage.completion_tokens) : NaN;
     if (!(used >= MAX_TOKENS)) return result;
     logToFile('[observe2] moments reply cut off at the output limit', {
