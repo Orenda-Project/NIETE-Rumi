@@ -103,7 +103,9 @@ async function reply({ phone, reason, code = null, row, user = null, asked = nul
     const lang = clampLanguage(asked || named || (user && (user.personaLanguage || user.preferred_language)) || 'en');
     const Ledger = require('./message-ledger');
     const recipient = trigger === 'teacher_refusal' ? 'teacher' : 'family';
-    if (await Ledger.record({ trigger, recipient, phone, reason, now })) await send(phone, key, lang, await pageFor(r, now));
+    // ownReply: the bot answering the family's own message (a separate pool only once the one-door ledger lands; until
+    // then ignored, and the shared per-phone cap applies exactly as today)
+    if (await Ledger.record({ trigger, recipient, phone, reason, ownReply: true, now })) await send(phone, key, lang, await pageFor(r, now));
     return true;
   } catch (err) {
     logToFile('⚠️ keep my place way back: reply threw', { error: err.message });
@@ -149,7 +151,7 @@ async function alreadySaved({ phone, norm, row, resolveChild, user = null, asked
     const kids = await Bindings.childrenForPhone(phone);
     const lang = await languageFor(child, user, asked);
     const Ledger = require('./message-ledger');
-    if (await Ledger.record({ trigger: 'bind_reply', phone, reason: 'already', now })) await sendSaved(phone, kids.length ? kids : [{ id: child.id }], child, lang);
+    if (await Ledger.record({ trigger: 'bind_reply', phone, reason: 'already', ownReply: true, now })) await sendSaved(phone, kids.length ? kids : [{ id: child.id }], child, lang);
     return true;
   } catch (err) {
     logToFile('⚠️ keep my place way back: already-saved reply threw', { error: err.message });
