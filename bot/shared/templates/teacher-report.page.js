@@ -35,6 +35,7 @@ const fs = require('fs');
 const path = require('path');
 const { wrapLatinRuns } = require('./latin-runs');
 const { PALETTE, FONTS, TYPE_FLOOR, scriptOf, dirOf, diamondSvg } = require('./niete-brand');
+const V21 = require('./teacher-report-v21.parts');
 // Maths in a stem or an option is inline TeX ($…$): typeset server-side, never shown raw.
 const { mathHtml, mathCss, usesMath } = require('../services/quiz/quiz-math');
 
@@ -506,10 +507,11 @@ ${srcLabel ? `<span class="chip-src">${L(esc(srcLabel))}</span>` : ''}
   const onListN = played.filter((p) => p.onList).length;
   const offListN = played.length - onListN;
   const ringP = of ? Math.min(100, Math.round((100 * onListN) / of)) : 0;
-  const tiles = `<div class="tiles">
+  const doneTile = V21.completionTile(summary.completion, lang);
+  const tiles = `<div class="tiles${doneTile ? ' tiles-4' : ''}">
 <div class="tile">${of ? `<div class="ring" style="--p:${ringP}"><i class="num">${ringP}%</i></div><div class="t">${L(C.tilePlayedOf(onListN, of))}</div>${offListN ? `<div class="t muted">${L(C.offList(offListN))}</div>` : ''}` : `<div class="v num">${playedN}</div><div class="k">${L(C.playedLabel)}</div>`}</div>
 <div class="tile"><div class="k">${L(C.average)}</div><div class="v num">${avg != null ? `${avg}%` : esc(C.none)}</div></div>
-<div class="tile"><div class="k">${L(C.hardest)}</div><div class="v num">${summary.hardestN ? `Q${num(summary.hardestN)}` : esc(C.none)}</div></div>
+${doneTile}<div class="tile"><div class="k">${L(C.hardest)}</div><div class="v num">${summary.hardestN ? `Q${num(summary.hardestN)}` : esc(C.none)}</div></div>
 </div>`;
 
   // Reserved lines, shown only when their data is present: the school's place
@@ -577,7 +579,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
   const offList = (p) => known && p.onList === false;
   const rows = played.map((p) => {
     const pc = num(p.pct) || 0;
-    return `<li class="band-${band(pc)}"><span class="nm">${K(p.first)}${offList(p) ? `<span class="tag">${L(C.notOnList)}</span>` : (num(listNumber(p)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(p))))}</span>` : '')}</span><span class="bar"><i style="width:${Math.max(2, pc)}%"></i></span><span class="s num">${num(p.correct) || 0}/${num(p.total) || 0}</span></li>`;
+    return `<li class="band-${band(pc)}"><span class="nm">${K(p.first)}${offList(p) ? `<span class="tag">${L(C.notOnList)}</span>` : (num(listNumber(p)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(p))))}</span>` : '')}${V21.triesTag(p.attempts, lang)}</span><span class="bar"><i style="width:${Math.max(2, pc)}%"></i></span><span class="s num">${num(p.correct) || 0}/${num(p.total) || 0}</span></li>`;
   }).join('');
   const scores = `<section class="card" id="scores"><h2>${L(C.scores)}</h2>${played.length ? `<ul class="sc">${rows}</ul>` : `<p class="muted">${L(C.noPlayers)}</p>`}</section>`;
 
@@ -587,7 +589,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
     const head = p == null ? C.qNone(num(q.n)) : C.qRight(num(q.n), p);
     const w = q.wrongTop && num(q.wrongTop.pct) >= 25 && p !== 100
       ? `<div class="wrong">${L(C.mostChose(`<span class="num">${esc(q.wrongTop.option)}</span>`))} ${M(q.wrongTop.text)}</div>` : '';
-    return `<li class="band-${band(p)}"><div class="qh"><span class="pc">${L(head)}</span></div><div class="bar"><i style="width:${p == null ? 0 : Math.max(2, p)}%"></i></div>${M(q.text, 'div', 'stem')}${w}</li>`;
+    return `<li class="band-${band(p)}"><div class="qh"><span class="pc">${L(head)}</span>${V21.codeChip(q.code)}</div><div class="bar"><i style="width:${p == null ? 0 : Math.max(2, p)}%"></i></div>${M(q.text, 'div', 'stem')}${w}</li>`;
   }).join('');
   const questions = qrows ? `<section class="card" id="questions"><h2>${L(C.questions)}</h2><ul class="qs">${qrows}</ul></section>` : '';
 
@@ -691,7 +693,8 @@ function renderPage(data, opts = {}) {
   const upd = `<div class="upd">${L(C.updated(esc(timeLabel(opts.now || Date.now()))))}</div>`;
   const needUrdu = rtl || scriptOf(JSON.stringify(data || {})) === 'ur';
   const title = tab === 'quiz' ? `${(data.quiz.quiz && data.quiz.quiz.topic) || C.title} · ${C.title}` : C.classTitle;
-  const css = usesMath(parts.main) ? `${extraCss}\n${mathCss()}` : extraCss;
+  const pageCss = V21.usedIn(parts.main) ? `${extraCss}${V21.CSS}` : extraCss; // v21 pieces (bd-v0toag.9/.10), switch on only
+  const css = usesMath(parts.main) ? `${pageCss}\n${mathCss()}` : pageCss;
   return shell({ lang, rtl, print, needUrdu, extraCss: css, title, body: `${parts.header}<main class="wrap">${roundCard}${parts.main}${foot}${upd}</main>` });
 }
 

@@ -2017,6 +2017,12 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // bd-v0toag.10 — a child's "who helped?" tap after a lesson quiz (vqh_<n|c|t|f>_<lang>_<session>).
+      if (listId.startsWith('vqh_')) {
+        const QuizHelpedBy = require('./shared/services/quiz/quiz-helped-by');
+        if (await QuizHelpedBy.handleTap(from, listId)) { ack(); return; }
+      }
+
       if (listId.startsWith('vq_')) {
         const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
         if (await VideoQuizService.handleAnswer(from, listId, { messageId: message.id })) return;
