@@ -126,7 +126,9 @@ async function go(body = {}, Err = Error) {
   if (!(await challengeGrade(s.student_id))) fail(404, 'no_door');
   // The one id this child is known by (web-quiz-identity-roster, the one fold writer); the raw id on any failure.
   const id = await canonicalId(s.student_id);
-  const token = T.signHub([id]);
+  // The card's own source rides the SIGNED token (src 'cd'), so the run it opens is via quiz_card (EVENTS §2): the
+  // serve reads the source from the signature only, never from the link's ?via= (a page hint anyone can append).
+  const token = T.sign({ k: 'h', ids: [id], exp: Math.floor(Date.now() / 1000) + T.HUB_TTL_S, src: 'cd' });
   if (!token) fail(404, 'no_door');
   const bound = await Device.deviceTrusted(token, tok.d);
   if (!bound.ok) fail(404, 'no_door');

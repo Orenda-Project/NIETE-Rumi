@@ -127,6 +127,8 @@ describe('POST /hubdoor {st, jugnu:1}: the Jugnu card\'s link', () => {
     const m = /^\/c\/([A-Za-z0-9._-]+)\?kid=([A-Za-z0-9_-]+)&via=quiz_card$/.exec(out.href);
     expect(m).not.toBeNull();
     expect(T.verify(m[1], 'h').ids).toEqual([KID]);
+    // the card's own source, signed into the hub token, so its run is via quiz_card (EVENTS §2) with no client say
+    expect(T.verify(m[1], 'h').src).toBe('cd');
     expect(m[2]).toBe(T.chipId('h', KID));
     expect(out.href).not.toMatch(/Zara|Testwala/);
     expect(out.animal).toBe(T.animalFor(KID));
@@ -139,7 +141,9 @@ describe('POST /hubdoor {st, jugnu:1}: the Jugnu card\'s link', () => {
     const FOLDED = '44444444-4444-4444-8444-666666666666';
     seed();
     const raw = await cardModule().go({ st: st() }, WQ.WqError);
-    expect(raw.href).toBe(`/c/${T.signHub([KID])}?kid=${T.chipId('h', KID)}&via=quiz_card`);
+    const r = /^\/c\/([A-Za-z0-9._-]+)\?kid=([A-Za-z0-9_-]+)&via=quiz_card$/.exec(raw.href);
+    expect(T.verify(r[1], 'h')).toMatchObject({ ids: [KID], src: 'cd' });
+    expect(r[2]).toBe(T.chipId('h', KID));
     redis._store.clear(); cardModule()._resetCache(); seed();
     const spy = jest.spyOn(Roster, 'canonicalStudentId').mockResolvedValue(FOLDED);
     const out = await cardModule().go({ st: st() }, WQ.WqError);
