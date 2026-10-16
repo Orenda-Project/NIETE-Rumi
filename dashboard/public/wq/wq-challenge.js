@@ -605,6 +605,8 @@
         var right = v === p.answer;
         var el = q(id);
         if (el) el.className += right ? ' wqc-ok' : ' wqc-no';
+        // the sound + motion kit (web_quiz_juice): the chime or the soft bup on the tapped tile
+        if (window.WQJ) window.WQJ[right ? 'correct' : 'wrong']({ el: el });
         var s = q('wqc-say');
         if (s) s.textContent = right ? t.yes(p.answer) : t.notQuite(p.answer);
         setTimeout(function () { bigger.practice(k + 1); }, 1600);

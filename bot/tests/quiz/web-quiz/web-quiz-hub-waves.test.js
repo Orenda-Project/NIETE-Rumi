@@ -228,7 +228,8 @@ const overCeiling = (what, got, max) => `${what}: ${got} serial round trips, the
 
 describe('the hub\'s round-trip ceiling (every child switch on, fast page on)', () => {
   test(`at most ${HUB_CEILING.warm} waves warm, ${HUB_CEILING.stale} stale (31 s, every 30 s cache expired)`, async () => {
-    boot({ fast: true, every: true });
+    // JSON true rows (as the flips write them): a switch read that takes JSON true only is on here too
+    boot({ fast: true, every: true, json: true });
     askedKeys.clear();
     const tok = tokenOne();
     await measure(tok, { device: DEVICE });
@@ -266,7 +267,7 @@ describe('the hub\'s parallel branches (HUB_BRANCHES)', () => {
     expect(after.perTable.students).toBe(before.perTable.students + 1);
     expect(after.waves).toBe(before.waves);
     expect(() => S.Hub.addHubBranch({ name: 'probe', run: () => null })).toThrow(/already/);
-    expect(S.Hub.HUB_BRANCHES.map((b) => b.name)).toEqual(['extras', 'teacher', 'answered', 'recs', 'play', 'bits', 'home', 'bound', 'probe']);
+    expect(S.Hub.HUB_BRANCHES.map((b) => b.name)).toEqual(['extras', 'teacher', 'answered', 'recs', 'play', 'bits', 'home', 'bound', 'stories', 'probe']);
   });
 });
 
@@ -280,12 +281,13 @@ describe('a stale switch (30 s cache)', () => {
     ['book flags', () => require('../../../shared/services/quiz/web-quiz-book').flags(), (v) => v.book],
     ['home v3 flags', () => require('../../../shared/services/quiz/web-quiz-hub-home').flags(), (v) => v.home],
     ['student join flags', () => require('../../../shared/services/quiz/web-quiz-student-join').flags(), (v) => v.on],
+    ['stories flags', () => require('../../../shared/services/quiz/web-quiz-stories').storiesOn(), (v) => v],
     ['Urdu polish', () => require('../../../shared/services/quiz/web-quiz-ur-polish').ui(), (v) => Boolean(v && v.ur2)],
   ];
   const timed = async (fn) => { S.reads = []; S.doneMax = 0; const v = await fn(); return { v, waves: S.doneMax }; };
 
   test.each(FLAG_MODULES)('%s, switch on: answered from the cache at once; a failed background read keeps the value', async (_, read, pick) => {
-    boot({ fast: true, every: true });
+    boot({ fast: true, every: true, json: true });
     await require('../../../shared/services/quiz/web-quiz-fast').on();
     await settle();
     expect(pick((await timed(read)).v)).toBe(true);                 // cold: waited for, as today
@@ -308,7 +310,7 @@ describe('a stale switch (30 s cache)', () => {
   });
 
   test.each(FLAG_MODULES)('%s, switch off: a stale cache waits for its read, as today', async (_, read, pick) => {
-    boot({ fast: false, every: true });
+    boot({ fast: false, every: true, json: true });
     await require('../../../shared/services/quiz/web-quiz-fast').on();
     await settle();
     expect(pick((await timed(read)).v)).toBe(true);

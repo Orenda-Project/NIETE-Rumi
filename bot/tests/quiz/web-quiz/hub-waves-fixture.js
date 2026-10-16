@@ -44,7 +44,8 @@ const ON_KEYS = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_library', 'web_
 // The wave ceiling's case: every child-facing switch the hub reads, on (the ceiling test checks this list is complete).
 const CEILING_KEYS = [...ON_KEYS, 'web_quiz_back_nav', 'web_quiz_hub_door', 'web_quiz_challenge_rungs', 'web_quiz_challenge_trail',
   'web_quiz_rich_telemetry', 'web_quiz_bind_way_back', 'web_quiz_guest_home', 'quiz_first_door', 'quiz_maker_page',
-  'web_quiz_home_v3', 'web_quiz_stories', 'quiz_student_join'];
+  'web_quiz_home_v3', 'web_quiz_stories', 'quiz_student_join', 'web_quiz_readalong', 'web_quiz_stories_band', 'web_quiz_live_read_v3',
+  'web_quiz_challenge_realtime'];
 // Keys the hub S.reads that are not on/off switches of the child's page.
 const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity'];
 
@@ -217,8 +218,9 @@ const tokenTwo = () => S.T.signHub([KID, SIB]);
  *   switches: keys set to 'false' (present, off); fast: web_quiz_fast; every: all ceiling switches present (else ON_KEYS);
  *   loose: the usual quiz child (no class list); stale: false skips the stale request.
  */
-async function hubWaves({ switches = [], fast = true, every = true, loose = false, stale = true } = {}) {
-  boot({ fast, every, loose, off: switches });
+// json: the rows as the flips write them (JSON true / false), so a switch read that takes JSON true only is measured too.
+async function hubWaves({ switches = [], fast = true, every = true, loose = false, stale = true, json = true } = {}) {
+  boot({ fast, every, loose, off: switches, json });
   const tok = tokenOne();
   await measure(tok, { device: DEVICE });
   const warm = await measure(tok, { device: DEVICE });

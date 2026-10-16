@@ -460,5 +460,5 @@
     try { d = JSON.parse(localStorage.getItem('wq_d') || 'null'); } catch (e) { d = null; }
     return Boolean(c) && d === c;
   }
-  if (LOCKED_BOOT && seenLocked()) { deviceRef(); locked(); } else if (LOCKED_BOOT) unlock(); else boot();
+  if (LOCKED_BOOT && seenLocked()) { deviceRef(); locked(); } else if (LOCKED_BOOT) unlock(); else if (!(window.WQLISTEN && WQLISTEN.take(boot, render, bar))) boot();
 })();

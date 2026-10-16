@@ -149,7 +149,7 @@ describe('a switch reads the same through the seam as through its own read', () 
     expect(S.reads.filter((r) => r.t === 'app_settings').length).toBe(1);
     const primed = {};
     for (const e of Seam().entries()) primed[e.name] = noAt(e.peek());
-    expect(Object.keys(primed).length).toBe(12);  // the 13 reads of a stale hub but the fast switch's own (challenge: 3 switches)
+    expect(Object.keys(primed).length).toBe(13);  // every module the hub reads a switch through, but the fast switch itself (challenge: 3 switches; stories: 4 keys)
     // The same cache, but where the module's own read reads nothing (keep my place's way back with its parent off:
     // it answers false before its cache; primed, its cache holds what its read would hold).
     const skipped = Object.keys(own).filter((n) => own[n] === null);

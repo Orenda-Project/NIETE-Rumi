@@ -785,6 +785,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   // One switch for every sound on the page (the voice and the tap tones), remembered on this phone; on by default.
   var SOUND = sget('wq_sound', true) !== false;
+  if (window.WQJ && WQJ.muted()) SOUND = false; // the kit (web_quiz_juice): one sound switch with the home's key
 
   /* ---------------- analytics (E8) ---------------- */
   var evq = [];
@@ -1195,6 +1196,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       this.setAttribute('aria-pressed', SOUND); this.textContent = SOUND ? '🔔' : '🔕';
       if (!SOUND) stopAll(); // silent at once; nothing starts again until the next screen with sound on
     });
+    if (window.WQJ) WQJ.skin($('#wq-snd')); // the kit draws this button as SVG (web_quiz_juice)
     on('#wq-home', function () { homeTap(); });
   }
   /* ---------------- mascot (Jugnu): a still pose that comes alive ----------------
@@ -1379,6 +1381,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var im = ROOT.querySelector && ROOT.querySelector('.wq-chpic');
     if (im && im.addEventListener) im.addEventListener('error', function () { if (im.parentNode) im.parentNode.removeChild(im); });
   }
+
+  // A storybook the teacher sent (wq-story-link.js, loaded only then): the landing names a story.
+  if (B.story && window.WQSTORYLINK) T = window.WQSTORYLINK.copy(T, LANG);
 
   function landing() {
     var here = kids();
@@ -1762,7 +1767,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rememberKid(child);
       if (ID) ID.started(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
-      if (wantsVideo()) video(); else nextQuestion();
+      if (B.story && window.WQSTORYLINK) window.WQSTORYLINK.open({ st: S.st, story: B.story, preview: Boolean(B.preview), lang: LANG, T: T, api: api, flushQueue: flushQueue, ev: ev, flushEv: flushEv, toast: toast, landing: landing, withLang: withLang, go: function (u) { location.assign(u); } }); else if (wantsVideo()) video(); else nextQuestion();
     }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset') landing(); });
   }
 
@@ -2057,7 +2062,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   function feedback(q, i, slot, ok, retry) {
-    sfx(ok ? 'right' : 'notyet');
+    if (!window.WQJ) sfx(ok ? 'right' : 'notyet');
     var right = { text: WQI.rightText(q, LANG) };
     var picked = (q.options || []).filter(function (o) { return o.slot === slot; })[0] || {};
     // Right: the reason (why), so the child hears WHY it is right; a praise-only fb_right is the fallback.
@@ -2088,9 +2093,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (cheer ? '<p class="wq-proof">🎉 ' + esc(cheer.text) + '</p>' : '') +
       '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
     ROOT.setAttribute('data-m', 'M7');
+    // The sound + motion kit (web_quiz_juice): its chime or soft bup, the picked option's pop or wobble, the run strip.
+    if (window.WQJ) WQJ[ok ? 'correct' : 'wrong']({ el: ROOT.querySelector('.wq-opt[data-slot="' + slot + '"]'), panel: fb, at: ROOT.querySelector('.wq-dotrow') || ROOT.querySelector('.wq-bar') });
     ev('feedback_view', { qid: q.qid, ok: ok ? 1 : 0 });
     var reasonPart = reason && speakable(WQI.say(reason, LANG)) ? [{ text: WQI.say(reason, LANG), url: (q.audio && q.audio.why) || null }] : [];
-    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(reasonPart, cheer ? [cheer] : []), null);
+    // With the kit, a right answer moves on by itself 900 ms after Jugnu has said why; a wrong one waits for the tap.
+    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(reasonPart, cheer ? [cheer] : []), ok && window.WQJ ? WQJ.autoNext(ROOT, retry ? nextRetry : nextQuestion) : null);
     var nx = $('#wq-next');
     try { nx.scrollIntoView({ block: 'nearest' }); } catch (e) {}
     nx.addEventListener('click', function () {
@@ -2245,7 +2253,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       render(h, 'M9');
       libPrefetch();
       wireBar();
-      sfx('done');
+      if (window.WQJ) WQJ.finish({ el: ROOT.querySelector('.wq-card'), kind: 'quiz' }); else sfx('done');
       speak(done.text, done.url, null);
       on('#wq-card', card);
       on('#wq-class', board);
@@ -2367,12 +2375,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     fallback(full, what, text, url, art);
   }
   // The preview shows the link on its own left-to-right line: inside an Urdu message it would wrap backwards.
-  function fallback(full, what, text, url, art) {
+  // blank: the finish card's share (web_quiz_card_v3) — WhatsApp opens in a new window, so the child keeps this page.
+  function fallback(full, what, text, url, art, blank) {
     var pic = art && ART[art];
     var h = bar() + '<h2>' + nowrap(esc(T.fbT)) + '</h2><p class="wq-sub">' + nowrap(esc(T.fbSub)) + '</p>' +
       (pic ? '<img class="wq-artprev" src="' + esc(artUrl(art)) + '" alt="">' : '') +
       '<div class="wq-card"><p>' + esc(text != null ? text : full) + '</p>' + (url ? '<p class="wq-url" dir="ltr">' + esc(url) + '</p>' : '') + '</div>' +
-      '<a class="wq-btn wq-go" id="wq-wa" href="https://wa.me/?text=' + encodeURIComponent(full) + '">' + nowrap(esc(T.fbWa)) + '</a>' +
+      '<a class="wq-btn wq-go" id="wq-wa"' + (blank ? ' target="_blank" rel="noopener"' : '') + ' href="https://wa.me/?text=' + encodeURIComponent(full) + '">' + nowrap(esc(T.fbWa)) + '</a>' +
       '<button class="wq-btn wq-soft" id="wq-copy">' + esc(T.fbCopy) + '</button>' +
       (pic ? '<a class="wq-btn wq-soft" id="wq-save" href="' + esc(artUrl(art, 'sq')) + '" download="' + esc(pic.kind + '-' + CODE) + '.jpg">' + esc(T.saveArt) + '</a>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
@@ -2484,7 +2493,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(), function (full) { fallback(full, 'card', full, null, null); }));
+    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
     // A tile shares the challenge in its own first-person words; the first name is the card's (c.first), never a full name.
@@ -2508,15 +2517,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       flushEv(true);
       location.assign('/q/' + encodeURIComponent(nx.code));
     });
-    if (res.card_v3 && !friend) finishCard();
+    if (res.card_v3 && !friend) finishCard(classUrl);
   }
   /* ---------------- the finish card (wq-finish-card.js; app_settings web_quiz_card_v3, finish's card_v3) ---------------- */
   // Last in card(): the card's token is asked for as the card opens (the share never waits); the file is asked for
   // only when finish sends card_v3, and the card is drawn again once it loads.
   var fcAsked = false;
-  function fcOpts() { return { lang: LANG, topic: Q.topic, st: S.st, ev: ev }; }
-  function finishCard() {
-    if (window.WQFC) { window.WQFC.primeQuiz(fcOpts()); return; }
+  // url: the class link, shared until the card's own link is in (a slow phone taps before it is)
+  function fcOpts(url) { return { lang: LANG, topic: Q.topic, st: S.st, ev: ev, url: url }; }
+  function finishCard(url) {
+    if (window.WQFC) { window.WQFC.primeQuiz(fcOpts(url)); return; }
     if (fcAsked) return;
     fcAsked = true;
     try {

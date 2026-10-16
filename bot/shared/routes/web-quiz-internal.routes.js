@@ -28,9 +28,11 @@
  *   GET  /lib/:code             the video library from a quiz: subjects (grade strip), then chapters
  *   GET  /lib/h/:token          the same from the kid's hub
  *   GET  /videos/dl/:code       302 to a 1-hour link that saves a bank video
+ *   GET  /stories/shelf  GET /stories/shelf/h/:token  GET /stories/book/:id/h/:token  POST /stories/event/h/:token   storybooks (web-quiz-stories.js; web_quiz_stories, off -> 404 stories_off)
  *   POST /hub/:token            the same, from the page with this phone's device_ref (names only for a trusted phone)
  *   POST /hubdoor               the results card's door: {href: /h/<token>} for this session's child, bound to its phone
  *   GET  /cl/:code  POST /cl/*  the standing class link /j/<code> (web-quiz-class-link.routes.js)
+ *   GET  /juice                 {on}: whether the sound + motion kit is on (the edge's demo page asks)
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -79,6 +81,8 @@ router.get('/quiz/:code', handle(async (req) => {
 }));
 // A shared link's preview facts (web-quiz-og.js): from memory, so a portal worker answers a link preview fast.
 router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => WebQuiz.getQuiz(c))));
+// Whether the sound + motion kit is on (web_quiz_juice): the edge serves the kit's demo page only then.
+router.get('/juice', handle(async () => ({ on: await require('../services/quiz/web-quiz-juice').flag() })));
 router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
 // An old, finished class link opened again on the phone that finished it: that child's hub, or {home: null}.
 router.post('/linkhome', handle((req) => require('../services/quiz/web-quiz-link-home').home(req.body || {}, WebQuiz.resolveCode)));
@@ -149,7 +153,10 @@ router.post('/ch/qs', challenge((C, req) => C.questions(req.body || {})));
 router.post('/ch/qa', challenge((C, req) => C.answer(req.body || {})));
 // x-wq-device on a result: the phone the mic notice was shown on (marked seen for that child on that phone)
 router.post('/ch/result', challenge((C, req) => C.submit(req.body || {}, { device: req.get('x-wq-device') })));
+// the read-along on practice runs: a practice listen's words after its questions; a grown-up's preview of a practice story
+router.get('/ch/words/:ct', challenge((C, req) => C.listenWords({ ct: req.params.ct, lang: req.query.lang })));
 // x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
+router.get('/listen/h/:token/:pid', challenge((C, req) => C.listenPreview(req.params.token, req.params.pid, { lang: req.query.lang, device: req.get('x-wq-device') })));
 router.get('/ch/:token', challenge(async (C, req) => Object.assign(await C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') }), await CardImage.field())));
 // Story Time (?room=story&pid=<passage id>, read and listen only): passed on only with web_quiz_challenge_story on; off, ignored.
 const storyAsk = async (C, req) => (req.query.room === 'story' && (req.params.exercise === 'read' || req.params.exercise === 'listen') && typeof C.storyOn === 'function' && (await C.storyOn())
@@ -210,6 +217,12 @@ const ql = (v) => (v === 'en' || v === 'ur' ? v : undefined);
 router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l), device: req.get('x-wq-device') })));
 router.get('/lib/:code', handle((req) => WebQuizLibrary.lib(req.params.code, { st: q1(req.query.st), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l) })));
 router.get('/videos/dl/:code', handle((req) => WebQuizLibrary.download(req.params.code, { st: q1(req.query.st), vid: q1(req.query.vid) })));
+// Storybooks (web-quiz-stories.js; web_quiz_stories, fails closed). x-wq-device: this phone's device_ref, as for the library.
+const Stories = () => require('../services/quiz/web-quiz-stories');
+router.get('/stories/shelf', handle((req) => Stories().shelfPublic({ g: q1(req.query.g), l: q1(req.query.l) })));
+router.get('/stories/shelf/h/:token', handle((req) => Stories().shelf(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), l: q1(req.query.l), t: q1(req.query.t), device: req.get('x-wq-device') })));
+router.get('/stories/book/:id/h/:token', handle((req) => Stories().book(req.params.id, req.params.token, { kid: q1(req.query.kid), device: req.get('x-wq-device') })));
+router.post('/stories/event/h/:token', handle((req) => Stories().event(req.params.token, req.body || {}, { device: req.get('x-wq-device') })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
 router.post('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang })));

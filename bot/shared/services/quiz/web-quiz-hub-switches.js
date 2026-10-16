@@ -51,6 +51,7 @@ const MODULES = [
   () => require('./web-quiz-ur-polish'),
   () => require('./web-quiz-db-deadline'),
   () => require('../../config/web-quiz-brand'),
+  () => require('./web-quiz-stories'),
 ];
 
 let list = null;

@@ -457,6 +457,8 @@ const HUB_BRANCHES = [
   { name: 'home', run: (s) => require('./web-quiz-hub-home').homeReads({ chosenId: s.chosen.id, history: s.history, lang: s.lang }) },
   // a place saved on a phone with no code hides the "keep my place" card (quiz_student_join); applied after keep my place
   { name: 'bound', run: (s) => require('./web-quiz-student-join').guestBound(s.chosen.id, { canon: s.canon }) },
+  // Stories (web_quiz_stories): keyed on the child
+  { name: 'stories', run: (s) => require('./web-quiz-stories').hubBits({ studentId: s.chosen.id }) },
 ];
 
 /** Adds one parallel branch to the hub ({ name, run(s) }; a name is used once). */
@@ -599,9 +601,18 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await take('bits')); // Jugnu's Book: {} while web_quiz_challenge_book is off
-  // the v3 home's doors + header: {} while web_quiz_home_v3 is off (fast: its reads ran with the branches above)
-  if (par) Object.assign(out, require('./web-quiz-hub-home').homeFrom({ out, history, reads: await take('home') }));
-  else Object.assign(out, await require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history }));
+  // Stories and the v3 home are independent fields: read side by side, so Stories adds no serial wave.
+  // (fast: both ran with the branches above; the home's doors are drawn from `out` here, with no read)
+  if (par) {
+    const [storyBits, homeReads] = await Promise.all([take('stories'), take('home')]);
+    Object.assign(out, storyBits, require('./web-quiz-hub-home').homeFrom({ out, history, reads: homeReads }));
+  } else {
+    const [storyBits, homeBits] = await Promise.all([
+      require('./web-quiz-stories').hubBits({ studentId: chosen.id }), // Stories: {} while web_quiz_stories is off
+      require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history }), // the v3 home's doors + header: {} while web_quiz_home_v3 is off
+    ]);
+    Object.assign(out, storyBits, homeBits);
+  }
   return out;
 }
 
@@ -615,7 +626,11 @@ async function hub(token, opts = {}) {
   const ui = await require('./web-quiz-ur-polish').ui();
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
-  return { ...(await hubPayload(token, opts)), rt: await (rt || Tel.flag()), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}) };
+  const out = await hubPayload(token, opts);
+  // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
+  // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
+  const listen = !out.locked && (await Flags.flags()).readalong;
+  return { ...out, rt: await (rt || Tel.flag()), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
 }
 
 module.exports = {

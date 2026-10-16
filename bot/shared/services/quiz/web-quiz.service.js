@@ -485,7 +485,10 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     quizP || quizRead(),
   ]);
   mark('questions');
-  if (!questions.length) fail(404, 'no_questions');
+  // A storybook the teacher sent (story-teacher.service, web_quiz_stories_teacher) has no questions: the page joins the
+  // child and opens the book. Any other quiz with none is the 404 it always was.
+  const story = questions.length ? null : await require('./story-teacher.service').storyForQuiz(quizRow, ctx);
+  if (!questions.length && !story) fail(404, 'no_questions');
   // The language the quiz's clips are recorded in (the row's, else its questions' script).
   const voiceLang = clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions));
   // A library lesson's page speaks the lesson's language, never its class code's: a lesson code minted in
@@ -528,7 +531,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
   // Until they are recorded the page is told (audio_pending): it asks again and takes them as they land.
   let audioPending = false;
-  try {
+  if (!story) try {
     const Publish = require('./web-quiz-publish.service');
     audioPending = !Publish.isCurrent(((quizRow && quizRow.meta) || {}).web);
     Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
@@ -604,6 +607,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // The Urdu polish (web-quiz-ur-polish.js): one class on the page root when on; absent when off.
   const ui = await got('ui', () => require('./web-quiz-ur-polish').ui());
   if (ui) out.ui = ui;
+  // The sound + motion kit (web-quiz-juice.js): named only when on, so a switched-off payload is today's.
+  if (await require('./web-quiz-juice').field()) out.juice = true;
   // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
   const ask = await got('ask', () => require('./web-quiz-invite-ask').mode());
   if (ask !== 'off') out.invite_ask = ask;
@@ -611,6 +616,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await got('linkHome', () => require('./web-quiz-link-home').field(ctx, { preview }))) out.link_home = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
+  if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
   return out;
 }
 
