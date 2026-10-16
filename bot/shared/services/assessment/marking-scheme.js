@@ -364,8 +364,12 @@ function normaliseSituationPoints(sub, each, slot, where, log) {
 function normaliseSituationParts(q, slot, label, log, ctx) {
   const each = toNumber(slot.item_parts && slot.item_parts.marks_each);
   if (!(each > 0) || !Array.isArray(q.questions)) return;
-  q.questions.forEach((sub, k) => {
+  q.questions.forEach((given, k) => {
+    // A part the model wrote as a bare string is the same question: it becomes an object
+    // so it can carry its points (the paper prints either shape the same way).
+    const sub = typeof given === 'string' ? { question: given } : given;
     if (!isObject(sub)) return;
+    if (sub !== given) q.questions[k] = sub;
     const where = `${label} part ${String.fromCharCode(97 + k)}`;
     // Marks come from the pattern, never the model: a sub-question's own number is
     // removed, so its row prints the part marks (2.5) and the item still counts as its
