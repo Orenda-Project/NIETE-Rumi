@@ -827,8 +827,8 @@ const FILLED_BY_CODE = {
     ? '1 marking row was written from the answer. Check it before marking.'
     : `${n} marking rows were written from the answer. Check them before marking.`),
   ur: (n) => (n === 1 // needs fluent-Urdu review
-    ? '1 مارکنگ قطار جواب سے لکھی گئی۔ نمبر دینے سے پہلے اسے جانچ لیں۔'
-    : `${n} مارکنگ قطاریں جواب سے لکھی گئیں۔ نمبر دینے سے پہلے انہیں جانچ لیں۔`),
+    ? 'مارکنگ اسکیم کی 1 سطر جواب سے بنائی گئی ہے۔ نمبر دینے سے پہلے اسے جانچ لیں۔'
+    : `مارکنگ اسکیم کی ${n} سطریں جواب سے بنائی گئی ہیں۔ نمبر دینے سے پہلے انہیں جانچ لیں۔`),
 };
 
 // `item` is the index in the model's own type list (seen/unseen → category →
