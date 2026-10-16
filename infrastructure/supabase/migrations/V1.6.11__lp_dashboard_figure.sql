@@ -15,8 +15,8 @@
 -- Everything else is as it was, taken from the live definition: the other two parts of the view, its columns,
 -- order and types, its unique index, its grants, and mv_view_refresh_status (which reads it), dropped and
 -- recreated verbatim. Created WITH DATA: the portal's REFRESH ... CONCURRENTLY needs it populated and indexed.
--- Needs V1.6.4 (lesson_plan_requests.source, delivered_at) and refuses without it, changing nothing — the file is
--- one exec_sql call, so any error undoes all of it. Idempotent. Rollback: ROLLBACK_V1.6.11__lp_dashboard_figure.sql.
+-- Needs V1.6.4 (lesson_plan_requests.source, delivered_at) and refuses without it, changing nothing — the runner
+-- sends the file as one statement, so any error undoes all of it. Idempotent. Rollback: ROLLBACK_V1.6.11__lp_dashboard_figure.sql.
 
 DO $$
 BEGIN
