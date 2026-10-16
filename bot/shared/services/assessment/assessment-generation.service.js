@@ -906,13 +906,15 @@ const RULE = {
   mathsQ2Families: (extra) => `Each Q2 family keeps its word problem; set ${extra} more of the families' number-sense or computation items as such word problems, keeping the skill they test.`,
   mathsQ1bWords: (n, total) => `In Q1(b), at least ${n} of the ${total} items are one-step word problems set in a situation a Grade 5 child knows (shopping, measuring, time, sharing, travel), in which the child decides which operation to use.`,
   // English on chosen chapters or pages: FDE's Q1(a)/(b) topic list is not given; the points come from the pages.
-  pagesPoints: 'Q1(a) and Q1(b) test only the grammar and word-study points these pages teach. Before writing, list those points from the pages.',
+  pagesPoints: 'Q1(a) and Q1(b) test only the grammar and word-study points these pages teach. Before writing, list those points to yourself; the reply is still the JSON only.',
   pagesRest: 'If the pages teach fewer points than there are items, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.',
   noAnagram: 'Never set an item that asks the child to rearrange, unscramble or reorder letters to make a word.',
 };
 
-// Maths Q1(b): this many of its one-step items are word problems.
-const MATHS_Q1B_WORDS = 3;
+// The model lands one or two short of a counted word-problem rule (round-4 local papers: Q2
+// 5, 8, 5 of 12 asked for 6), so each count sits one above the floor the ToS needs.
+// Maths Q1(b): this many of its one-step items are word problems (floor 3).
+const MATHS_Q1B_WORDS = 4;
 // English on chosen pages: the slot fields that carry FDE's model-paper topic list, and what replaces them.
 const ENGLISH_PAGES_SLOTS = Object.freeze({
   'english.A.Q1a': { prompt_rule: 'Twenty four-option MCQs, one point each. Never refer to an underline the paper cannot show; quote the word instead.' },
@@ -1059,7 +1061,8 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     if (q1b) rules.push(RULE.mathsQ1bWords(Math.min(MATHS_Q1B_WORDS, q1b.generate), q1b.generate));
     const q2 = list.find((s) => s.slot === 'maths.B.Q2');
     if (q2) {
-      const need = Math.ceil(q2.generate / 2);
+      // Half of Q2, rounded up, is the floor; ask for one more.
+      const need = Math.ceil(q2.generate / 2) + 1;
       rules.push(RULE.mathsQ2Words(need, q2.generate));
       // FDE's families carry one word problem each; the rest of the count comes from their other items.
       const extra = Array.isArray(q2.families) ? need - q2.families.length : 0;
