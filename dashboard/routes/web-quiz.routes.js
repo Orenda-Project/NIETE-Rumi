@@ -28,6 +28,7 @@ const express = require('express');
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
+const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
@@ -172,7 +173,15 @@ function lockupHtml(brand, lang) {
   return `<span class="wq-brand">${markHtml(brand)}<span class="wq-lock"><b>${esc(brand.label[lang])}</b><small>${esc(brand.sub[lang])}</small></span></span>`;
 }
 
+// An Urdu preview counts in Urdu digits while the finish card's switch is on (the bot carries `card_v3: true`): the
+// teacher's link and a child's card link sit side by side in one class group, one digit system. Off: today's text.
 function ogText(payload, view, brand) {
+  const og = ogTextOf(payload, view, brand);
+  const ur = ((payload && payload.quiz) || {}).lang === 'ur';
+  return ur && payload.card_v3 === true ? { ...og, title: urDigits(og.title), desc: urDigits(og.desc) } : og;
+}
+
+function ogTextOf(payload, view, brand) {
   const q = (payload && payload.quiz) || {};
   const cls = (payload && payload.cls) || {};
   const ur = q.lang === 'ur';
