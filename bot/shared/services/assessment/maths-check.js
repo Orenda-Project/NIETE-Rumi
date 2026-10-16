@@ -114,6 +114,7 @@ const mul = (a, b) => frac(a.num * b.num, a.den * b.den);
 const div = (a, b) => (b.num === 0n ? null : frac(a.num * b.den, a.den * b.num));
 const same = (a, b) => a.num === b.num && a.den === b.den;
 const pow10 = (k) => 10n ** BigInt(k);
+const HUNDRED = { num: 100n, den: 1n };
 
 function twosAndFives(den) {
   let d = den;
@@ -712,10 +713,11 @@ function checkWorking(q, answer, exam, index) {
   if (units.size > 1) return null;
   if (stageUnits && !/^\s*[.!]?\s*$/.test(last.slice(stated[0].index + stated[0].raw.length).replace(KEY_UNITS, ' '))) return null;
   if (agrees(value, target)) return 'ok';
-  // "4 × 250 = 1000 = 1 kg": the result names a unit the working never did, and the
-  // stage before it only restates a number, so the result converts it. Left unchecked.
+  // "4 × 250 = 1000 = 1 kg", "3 × 12 = 36 = 3 dozen": the stage before the result only
+  // restates a number, and the result differs from it, so the result converts it into
+  // some other measure, whatever word names it. Left unchecked.
   const restated = stageTokens(parts[parts.length - 1]);
-  if (unitsIn(last).size > 0 && !stageUnits && restated && !restated.some((t) => t.op)) return null;
+  if (!stageUnits && restated && !restated.some((t) => t.op)) return null;
   const all = numbersIn(answer);
   // A result rounded to the places it shows: right for a recurring value ("10 ÷ 3 = 3.3");
   // for one that ends, the question may have asked to round, so it is left unchecked.
@@ -733,7 +735,36 @@ function checkWorking(q, answer, exam, index) {
   return replaceKey(q, exam, answer, target.index, target.raw, computed, index);
 }
 
+// "68,970 ÷ 45 = 1,532 remainder 10": a whole-number division with its quotient and remainder.
+const WHOLE = String.raw`(\d{1,3}(?:,\d{2,3})+|\d+)`;
+const QUOTIENT_REMAINDER = new RegExp(String.raw`${WHOLE}\s*÷\s*${WHOLE}\s*=\s*${WHOLE}\s*,?\s*(?:remainder|rem\.?|\bR\b)\s*[=:]?\s*${WHOLE}`, 'gi');
+const wholeOf = (raw) => (/^\d{1,3}(?:,\d{2,3})*$|^\d+$/.test(raw) ? BigInt(raw.replace(/,/g, '')) : null);
+
+/**
+ * Board-pattern papers: the last "a ÷ b = q remainder r" in a key. The remainder is
+ * corrected when the quotient is right; a wrong quotient is left unchecked (the slip
+ * could be in either number). Returns undefined when the key has no such stage.
+ */
+function checkRemainder(q, answer, exam, index) {
+  const all = [...answer.matchAll(QUOTIENT_REMAINDER)];
+  if (!all.length) return undefined;
+  const m = all[all.length - 1];
+  const [a, b, quotient, remainder] = [m[1], m[2], m[3], m[4]].map(wholeOf);
+  if ([a, b, quotient, remainder].some((v) => v === null) || b === 0n) return null;
+  if (quotient !== a / b) return null;
+  const right = a % b;
+  if (remainder === right) return 'ok';
+  const raw = m[4];
+  const at = m.index + m[0].length - raw.length;
+  const computed = raw.includes(',') ? Number(right).toLocaleString('en-US') : String(right);
+  return replaceKey(q, exam, answer, at, raw, computed, index);
+}
+
 function checkQuestion(q, exam, index) {
+  if (isObject(exam._layout) && typeof q.answer === 'string' && q.answer.length <= MAX_TEXT) {
+    const verdict = checkRemainder(q, q.answer, exam, index);
+    if (verdict !== undefined) return verdict;
+  }
   const form = parseForm(q.question);
   if (!form) {
     // Board-pattern papers only: a plain paper's checks stay exactly as they were.
@@ -760,6 +791,13 @@ function checkQuestion(q, exam, index) {
       target = earlier;
       if (agrees(form.value, target)) return 'ok';
     }
+  }
+  // Board-pattern papers: a stem that asks for a decimal "and then a percentage" ends on
+  // the percentage (3/4 = 0.75 = 75%). A key with its own % sign on a stem read as a
+  // decimal agrees when it is the value written as a percent, and is otherwise left
+  // unchecked: it is never rewritten to the decimal with a % ("0.75%").
+  if (isObject(exam._layout) && (form.form === 'fraction-decimal' || form.form === 'percent-decimal') && PERCENT_SIGN.test(answer.slice(target.index + target.raw.length))) {
+    return same(mul(form.value, HUNDRED), target.value) ? 'ok' : null;
   }
   const computed = formatLike(form.value, target, form, all);
   if (computed === target.raw) return 'ok';
@@ -829,6 +867,13 @@ function mathsCheck(examJson, options = {}) {
     for (const { q, index } of writtenQuestions(exam)) {
       // A key the model gave no scheme is still a key a child is marked against.
       if (!isObject(q.scheme)) q.scheme = {};
+      // A board-pattern key already checked keeps its verdict: a second pass must not turn
+      // "replaced" into "ok" (normaliseScheme resets it to null before the first pass).
+      const before = q.scheme.checked;
+      if (isObject(exam._layout) && (before === 'ok' || before === 'replaced')) {
+        counts[before === 'ok' ? 'checked' : 'replaced'] += 1;
+        continue;
+      }
       let verdict = null;
       try {
         verdict = checkQuestion(q, exam, index);

@@ -153,7 +153,7 @@ function mcqExam(slot, type, make) {
 
 describe('layout: key spreading', () => {
   // FINDING: True/False and Yes/No pairs are turned round ("a) False b) True").
-  test.failing('keeps True/False (and درست/غلط) options in their order', () => {
+  it('keeps True/False (and درست/غلط) options in their order', () => {
     const en = applyLayout(mcqExam('english.A.Q1a', 'MCQs', (i) => ({ question: `Statement ${i + 1} is a sentence.`, options: ['True', 'False'], answer: 'a' })), P.english, FDE, { now: NOW }).examJson;
     en.unseen.objective.MCQs.forEach((q) => expect(q.options).toEqual(['True', 'False']));
     const ur = applyLayout(mcqExam('urdu.A.Q1', 'MCQs', (i) => ({ question: `جملہ ${i + 1} درست ہے؟`, options: ['درست', 'غلط'], answer: 'الف' })), P.urdu, FDE, { now: NOW }).examJson;
@@ -166,7 +166,7 @@ describe('layout: key spreading', () => {
   });
 
   // FINDING: "degrees" (and any Urdu unit word) is not a unit the order check knows, so an in-order set is turned.
-  test.failing('keeps ordered numeric options in order when the unit word is "degrees" or Urdu', () => {
+  it('keeps ordered numeric options in order when the unit word is "degrees" or Urdu', () => {
     const en = applyLayout(mcqExam('english.A.Q1a', 'MCQs', (i) => ({ question: `Angle ${i + 1}?`, options: ['a) 0 degrees', 'b) 90 degrees', 'c) 180 degrees', 'd) 360 degrees'], answer: 'b) 90 degrees' })), P.english, FDE, { now: NOW }).examJson;
     en.unseen.objective.MCQs.forEach((q) => expect(q.options).toEqual(['a) 0 degrees', 'b) 90 degrees', 'c) 180 degrees', 'd) 360 degrees']));
     const ur = applyLayout(mcqExam('social_studies.A.Q1', 'MCQs', (i) => ({ question: `زاویہ ${i + 1}؟`, options: ['0 درجے', '90 درجے', '180 درجے', '360 درجے'], answer: 'ب' })), P.social_studies, FDE, { now: NOW }).examJson;
@@ -236,7 +236,7 @@ describe('renderer', () => {
   });
 
   // FINDING (fix-r5-paper idea 170307): other free model fields still print wherever they appear.
-  test.failing('prints no `topics` on a slot whose pattern data does not name them (Science Q3a)', () => {
+  it('prints no `topics` on a slot whose pattern data does not name them (Science Q3a)', () => {
     const raw = clone(scienceFull);
     const q3 = Object.values(raw.unseen.subjective).flat().find((q) => q.slot === 'science.C.Q3a');
     q3.topics = ['STRAYTOPICONE'];
@@ -291,7 +291,7 @@ describe('renderer', () => {
   });
 
   // FINDING: "5kg" written without a space is read as a Latin token and keeps Western digits on an Urdu paper.
-  test.failing('Urdu: a number glued to a unit (5kg, 10cm) still takes Urdu digits', () => {
+  it('Urdu: a number glued to a unit (5kg, 10cm) still takes Urdu digits', () => {
     const raw = { unseen: { subjective: { 'Short Questions': [{ slot: 'social_studies.C.Q5', question: 'ایک تھیلے میں 5kg چاول اور 10cm لمبی رسی ہے۔', answer: '5', marks: 4 }] } } };
     const { paper } = chain(raw, 'social_studies');
     expect(paper).not.toMatch(/<bdi[^>]*>5kg<\/bdi>/);
@@ -318,7 +318,7 @@ describe('renderer', () => {
   });
 
   // FINDING: a situation whose parent answer carries no a)/b)/c) letters reaches the scheme as three empty rows.
-  test.failing('situation rows: a parent answer with no letters still reaches the scheme somewhere', () => {
+  it('situation rows: a parent answer with no letters still reaches the scheme somewhere', () => {
     const raw = { unseen: { subjective: { 'Logical Reasoning': [{
       slot: 'science.B.Q2b', main_question: 'Read the situation.', question: 'A class sprayed glitter water to stand for germs.',
       questions: [{ question: 'Why did glitter spread?' }, { question: 'What did soap do?' }, { question: 'Suggest one habit.' }],
