@@ -11,7 +11,7 @@
  *
  * The listed copies: bot/shared/services/quiz/teacher-report-list.service.js (PR #2662),
  * bot/shared/services/first-touch/teacher-home.routes.js (PR #2655), bot/shared/services/quiz/web-quiz-join-queue.js
- * (PR #2653).
+ * (PR #2653), bot/shared/services/first-touch/maker.fallback.js (its two log lines, in the PR that adds it).
  */
 const fs = require('fs');
 const path = require('path');
