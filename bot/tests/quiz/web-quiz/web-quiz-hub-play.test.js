@@ -43,6 +43,23 @@ const REGISTRY_COLS = (() => {
   return new Set(body.split('\n').map((l) => (/^\s{2}([a-z_0-9]+)\s/.exec(l) || [])[1]).filter((c) => c && c !== 'constraint'));
 })();
 
+// One title home: the lantern names a story by its passage FILE's title. A fixture registry row whose id
+// has no shipped file gets a file here carrying that row's titles; the shipped files are loaded as they are.
+const Bank = require('../../../shared/services/child-test/item-bank');
+const SHIPPED = require('path').join(__dirname, '../../../shared/data/child-test/passages');
+const PDIR = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'wqplay-'));
+function filesFor(rows) {
+  const fs = require('fs');
+  const at = (id) => require('path').join(PDIR, `${id}.json`);
+  fs.readdirSync(PDIR).forEach((f) => fs.rmSync(require('path').join(PDIR, f)));
+  fs.readdirSync(SHIPPED).filter((f) => f.endsWith('.json')).forEach((f) => fs.copyFileSync(require('path').join(SHIPPED, f), require('path').join(PDIR, f)));
+  rows.filter((r) => !fs.existsSync(at(r.passage_id))).forEach((r) => fs.writeFileSync(at(r.passage_id), JSON.stringify({
+    passage_id: r.passage_id, lang: r.lang, kind: r.kind, band: r.band, pool: r.pool, title_en: r.title_en == null ? null : r.title_en, title_ur: r.title_ur == null ? null : r.title_ur,
+  })));
+  Bank._loadPassagesFrom(PDIR);
+}
+afterAll(() => { Bank._loadPassagesFrom(); require('fs').rmSync(PDIR, { recursive: true, force: true }); });
+
 let db;
 function seed(settings, over = {}) {
   db = {
@@ -54,6 +71,7 @@ function seed(settings, over = {}) {
     quiz_sessions: [{ id: 's1', share_code_id: 'sc-1', quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 8, total_questions_answered: 10, mastery_percentage: 80, completed_at: ago(20), created_at: ago(20), student_class: '3' }],
     ...over,
   };
+  filesFor(db.challenge_passages || []);
   const fake = makeFake(db);
   // challenge_passages answers like PostgREST: a select naming a column the registry migration does not create is 42703.
   const from = (t) => {
@@ -363,5 +381,39 @@ describe('hub_open route value (opts.src)', () => {
     expect(Play.srcOf('hs')).toBe('hs');
     expect(Play.srcOf('evil<')).toBeUndefined();
     expect(Play.srcOf(undefined)).toBeUndefined();
+  });
+});
+
+// One title home. The lantern names a story by its passage FILE's title (web-quiz-challenge.js
+// passageTitle), never the registry row's; a file with no title (a Set A pointer) gives no title and no "null".
+describe('the lantern\'s title is the passage file\'s (one title home)', () => {
+  const STORY_ON = [...BASE_ON, ON('web_quiz_challenge_v2'), ON('web_quiz_challenge_story'), ON('web_quiz_events_v2')];
+  const period = (() => { const d = new Date(Date.now() + 5 * 3600000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; })();
+  const done = [
+    { student_id: KID, exercise: 'read', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null },
+    { student_id: KID, exercise: 'bigger', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null },
+  ];
+  const reg = (id, lang, over = {}) => ({ passage_id: id, lang, band: 1, kind: 'read', pool: 'practice', status: 'reviewed', released_at: ago(2), title_en: 'Registry Title', title_ur: 'رجسٹری عنوان', ...over });
+
+  test('a passage whose file has a title and whose registry row has another: the child sees the file\'s', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('en.read.1.ref01', 'en')] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern).toEqual({ kind: 'story', title: 'The Pink Kite', pid: 'en.read.1.ref01' });
+    expect(JSON.stringify(out.play)).not.toContain('Registry Title');
+  });
+
+  test('an Urdu child: the file\'s Urdu title', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('ur.read.1.ref01', 'ur')] });
+    const out = await Hub.hub(T.signHub([KID]), { ...A, lang: 'ur' });
+    expect(out.play.lantern).toEqual({ kind: 'story', title: 'لال پتنگ', pid: 'ur.read.1.ref01' });
+    expect(JSON.stringify(out.play)).not.toContain('رجسٹری عنوان');
+  });
+
+  test('a Set A pointer (file titles null) with a registry title: no title, never "null"; the lantern takes its next branch', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('en.read.2.setA', 'en')] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern.kind).toBe('numbers');
+    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'en.read.2.setA', nx: 'seen' });
+    expect(JSON.stringify(out.play)).not.toMatch(/null"|"null|Registry Title|undefined/);
   });
 });

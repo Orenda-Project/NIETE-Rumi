@@ -303,22 +303,20 @@ describe('stickers', () => {
     expect(out.lamps.reading).toBe(0);
   });
   test('practice rows and last month\'s rows give no Trail sticker; a story finish gives one story sticker per passage', async () => {
-    db.challenge_passages = [{ passage_id: 'p-st-1', title_en: 'The kite', title_ur: 'پتنگ' }];
+    db.challenge_passages = [{ passage_id: 'en.read.1.story03', title_en: 'The Toy Car', title_ur: null }];
     db.web_quiz_challenge_runs.push(
       run({ exercise: 'bigger', mode: 'practice', record: false, item_set_id: 'x' }),
       run({ exercise: 'listen', period_id: '2026-10', created_at: OCT, scored_at: OCT }),
-      run({ mode: 'practice', record: false, passage_id: 'p-st-1' }),
-      run({ mode: 'practice', record: false, passage_id: 'p-st-1', exposure_no: 2 }),
+      run({ mode: 'practice', record: false, passage_id: 'en.read.1.story03' }),
+      run({ mode: 'practice', record: false, passage_id: 'en.read.1.story03', exposure_no: 2 }),
     );
     const out = await book();
     expect(out.trail_stickers).toEqual([]);
-    expect(out.story_stickers).toEqual([{ passage_id: 'p-st-1', title: 'The kite' }]);
+    expect(out.story_stickers).toEqual([{ passage_id: 'en.read.1.story03', title: 'The Toy Car' }]);
   });
-  test('a story sticker carries the title in the child\'s language (registry title_en / title_ur)', async () => {
-    db.challenge_passages = [{ passage_id: 'p-st-2', title_en: 'The mango tree', title_ur: 'آم کا درخت' }];
-    db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'p-st-2' }));
-    expect((await book()).story_stickers).toEqual([{ passage_id: 'p-st-2', title: 'The mango tree' }]);
-    expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'p-st-2', title: 'آم کا درخت' }]);
+  test('a story sticker carries the title in the child\'s language (the passage file\'s title_en / title_ur)', async () => {
+    db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'ur.read.1.story01' }));
+    expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'ur.read.1.story01', title: 'گاجر کا حلوہ' }]);
   });
   test('first name only, in the page language', async () => {
     expect((await book()).name).toBe('Zara');
@@ -406,5 +404,30 @@ describe('class_wall_shown passes the page-event allow-list (NAME_PROPS, web_qui
   });
   test('v2 off: the relay is today\'s (no wall props)', () => {
     expect(cleanEvent({ n: 'class_wall_shown', shown: 'total', term_total: 41, week_n: 7 }).props).toEqual({});
+  });
+});
+
+// One title home. A story sticker names the passage by its FILE's title (web-quiz-challenge.js
+// passageTitle: Urdu ur → en, English en), never the registry row's; no file title ⇒ '' (the Book prints its generic).
+describe('a story sticker\'s title is the passage file\'s (one title home)', () => {
+  test('a passage whose file has a title and whose registry row has another: the child sees the file\'s', async () => {
+    db.challenge_passages = [{ passage_id: 'en.read.1.ref01', title_en: 'Registry Title', title_ur: 'رجسٹری عنوان' }];
+    db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'en.read.1.ref01' }));
+    expect((await book()).story_stickers).toEqual([{ passage_id: 'en.read.1.ref01', title: 'The Pink Kite' }]);
+    // an Urdu child on a passage whose file has only an English title: ur → en
+    expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'en.read.1.ref01', title: 'The Pink Kite' }]);
+  });
+  test('an Urdu passage: the file\'s Urdu title for an Urdu child; an English child gets no Urdu ("" → the generic)', async () => {
+    db.challenge_passages = [{ passage_id: 'ur.read.1.ref01', title_en: 'Registry Title', title_ur: 'رجسٹری عنوان' }];
+    db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'ur.read.1.ref01' }));
+    expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'ur.read.1.ref01', title: 'لال پتنگ' }]);
+    expect((await book()).story_stickers).toEqual([{ passage_id: 'ur.read.1.ref01', title: '' }]);
+  });
+  test('a Set A pointer (file titles null) with a registry title: "" (the generic), never "null"', async () => {
+    db.challenge_passages = [{ passage_id: 'en.read.2.setA', title_en: 'Registry Title', title_ur: null }];
+    db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'en.read.2.setA' }));
+    const out = await book();
+    expect(out.story_stickers).toEqual([{ passage_id: 'en.read.2.setA', title: '' }]);
+    expect(JSON.stringify(out.story_stickers)).not.toMatch(/null|undefined|Registry/);
   });
 });

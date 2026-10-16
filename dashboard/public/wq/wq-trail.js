@@ -14,6 +14,10 @@
  *   end cards  what was done (read all / read some / tried / listened / answered), the same sticker line for every
  *              first counted run, the next thing when the server names it — never words a minute, never a count.
  *   warm-up    a stop whose payload carries anchor_block is the Number warm-up (its own title and line).
+ *   intro      a read or listen stop whose payload carries `title` {en, ur} names the passage in one line (Urdu: ur → en
+ *              → the stop's name; English: en → the stop's name); the server withholds a title that would give an answer
+ *              away, so the page draws whatever the serve sends; `reopened: true` says "Welcome back" in place of the
+ *              intro line (English only, no hear button); `teacher_preview: true` makes the practice banner the teacher's.
  *   story time ?room=story&pid=<id> with the menu's v2.story: the read (or listen, ex=listen) is asked for with
  *              room=story&pid=<id> (that request only) and served as a practice run: its banner on every screen; a read
  *              first asks "hear it from me first, or read it yourself" (read along = the story clip with the line lit,
@@ -39,6 +43,10 @@
       storyBanner: 'Story Time: just for fun',
       storyAsk: 'Hear it from me first, or read it yourself.', storyReadAlong: 'Read along with Jugnu', storyAgain: 'Read this story again any time.',
       warmupTitle: 'Number warm-up', warmupSay: "Let's start with some numbers.", warmupDone: 'Warm-up done!',
+      // jg.trail.welcome_back (the lead's posted EN): the intro line of a re-served record (reopened: true)
+      welcomeBack: "Welcome back! Let's carry on.",
+      // jg.t.practice (bot/shared/config/copy.v2.json): the practice banner of a teacher's own visit (teacher_preview)
+      teacherPractice: "Practice: nothing counts on a teacher's phone.",
     },
     ur: {
       helpQ: 'کیا آج آپ کو کسی کی مدد مل رہی ہے؟', helpAlone: 'نہیں، اپنے آپ', helpWith: 'جی ہاں، کسی کی مدد سے', helpNote: 'اسٹیکر دونوں طرح ملے گا۔',
@@ -56,6 +64,9 @@
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
       storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
       warmupTitle: 'گنتی کا کھیل', warmupSay: 'چلیں، پہلے گنتی سے شروع کریں۔', warmupDone: 'گنتی کا کھیل مکمل!',
+      // no welcomeBack: jg.trail.welcome_back has no Urdu line on this page yet, so an Urdu child sees today's intro
+      // jg.t.practice (deck bytes, bot/shared/config/copy.v2.json)
+      teacherPractice: 'مشق: ٹیچر کے فون پر کچھ بھی شمار نہیں ہوتا۔',
     },
   };
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
@@ -297,12 +308,26 @@
     // the map's line under the title: no count (one vs many stops still waiting), nothing when none waits
     // the trail's server lines that say «پڑاؤ» or a count, replaced under v2 by the ruled copy (jg.trail.*)
     var TRAIL_OVER = { practice: 'trailPractice', micWait: 'trailMicWait', other: 'trailOther', stopDone: 'trailStopDone' };
-    // a story run's practice banner is Story Time's own
-    function trailCopy(k) { if (k === 'practice' && isStory()) return t.storyBanner; return TRAIL_OVER[k] ? t[TRAIL_OVER[k]] : null; }
+    // a teacher's own visit (teacher_preview) says nothing counts on their phone; a story run's practice banner is Story Time's own
+    function trailCopy(k) {
+      if (k === 'practice' && h.S.data && h.S.data.teacher_preview) return t.teacherPractice;
+      if (k === 'practice' && isStory()) return t.storyBanner;
+      return TRAIL_OVER[k] ? t[TRAIL_OVER[k]] : null;
+    }
     function trailSub(xs) {
       var waiting = xs.filter(function (x) { return !x.badge; }).length;
       return waiting === 0 ? '' : (waiting === 1 ? t.lanternTrailOne : t.lanternTrailMany);
     }
+    // ── the stop's intro ──
+    // the passage's title on a read or listen stop, one line; no title object ⇒ no line (today's intro)
+    function introTitle(d) {
+      if (!d || (d.ex !== 'read' && d.ex !== 'listen') || !d.title || typeof d.title !== 'object') return '';
+      var pick = function (v) { return typeof v === 'string' && v.trim() ? v : null; };
+      var line = (L === 'ur' ? pick(d.title.ur) || pick(d.title.en) : pick(d.title.en)) || pick(d.name);
+      return line ? '<p class="wq-sub" id="wqc-ptitle">' + esc(line) + '</p>' : '';
+    }
+    // a re-served record: the welcome-back line in place of the intro line; null ⇒ today's intro (and in Urdu)
+    function introLine(d) { return d && d.reopened === true && t.welcomeBack ? t.welcomeBack : null; }
     function stops(xs) {
       return xs.map(function (x) { return x.anchor_block ? Object.assign({}, x, { name: t.warmupTitle }) : x; });
     }
@@ -393,7 +418,7 @@
     }
 
     return { opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
-      readEnd: readEnd, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, T: T };
+      readEnd: readEnd, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, introTitle: introTitle, introLine: introLine, T: T };
   }
 
   window.WQTRAIL = { init: init, T: T };
