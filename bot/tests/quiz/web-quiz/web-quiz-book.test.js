@@ -423,11 +423,20 @@ describe('a story sticker\'s title is the passage file\'s (one title home)', () 
     expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'ur.read.1.ref01', title: 'لال پتنگ' }]);
     expect((await book()).story_stickers).toEqual([{ passage_id: 'ur.read.1.ref01', title: '' }]);
   });
-  test('a Set A pointer (file titles null) with a registry title: "" (the generic), never "null"', async () => {
-    db.challenge_passages = [{ passage_id: 'en.read.2.setA', title_en: 'Registry Title', title_ur: null }];
-    db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'en.read.2.setA' }));
-    const out = await book();
-    expect(out.story_stickers).toEqual([{ passage_id: 'en.read.2.setA', title: '' }]);
-    expect(JSON.stringify(out.story_stickers)).not.toMatch(/null|undefined|Registry/);
+  test('a passage whose file has no title (a registry title only): "" (the generic), never "null"', async () => {
+    // a bank of the shipped files plus one passage whose file carries no title in either language
+    const Bank = require('../../../shared/services/child-test/item-bank');
+    const shipped = path.join(__dirname, '../../../shared/data/child-test/passages');
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'wqbook-'));
+    fs.readdirSync(shipped).filter((f) => f.endsWith('.json')).forEach((f) => fs.copyFileSync(path.join(shipped, f), path.join(dir, f)));
+    fs.writeFileSync(path.join(dir, 'en.read.1.plain01.json'), JSON.stringify({ passage_id: 'en.read.1.plain01', lang: 'en', kind: 'read', band: 1, pool: 'practice', title_en: null, title_ur: null }));
+    Bank._loadPassagesFrom(dir);
+    try {
+      db.challenge_passages = [{ passage_id: 'en.read.1.plain01', title_en: 'Registry Title', title_ur: null }];
+      db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'en.read.1.plain01' }));
+      const out = await book();
+      expect(out.story_stickers).toEqual([{ passage_id: 'en.read.1.plain01', title: '' }]);
+      expect(JSON.stringify(out.story_stickers)).not.toMatch(/null|undefined|Registry/);
+    } finally { Bank._loadPassagesFrom(); fs.rmSync(dir, { recursive: true, force: true }); }
   });
 });

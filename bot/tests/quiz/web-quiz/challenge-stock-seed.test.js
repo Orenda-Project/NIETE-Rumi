@@ -32,7 +32,7 @@ describe('passage stock seed', () => {
     expect(sql).not.toMatch(/\bDELETE\b|\bDROP\b/);
     // the only UPDATEs are the pointer-title lines, each guarded so it never overwrites a title already set
     for (const u of sql.split('\n').filter((l) => /\bUPDATE\b/.test(l))) {
-      expect(u).toMatch(/^UPDATE public\.challenge_passages SET title_(ur|en) = '[^']+', updated_at = now\(\) WHERE passage_id = '[a-z]{2}\.(read|listen)\.2\.setA' AND title_\1 IS NULL;$/);
+      expect(u).toMatch(/^UPDATE public\.challenge_passages SET title_(ur|en) = '(?:[^']|'')+', updated_at = now\(\) WHERE passage_id = '[a-z]{2}\.(read|listen)\.2\.setA' AND title_\1 IS NULL;$/);
     }
   });
 
@@ -60,12 +60,14 @@ describe('passage stock seed', () => {
 
   test('a pointer file with a title gets one guarded UPDATE for it, and no INSERT (ruling 15)', () => {
     const p = JSON.parse(fs.readFileSync(path.join(PASSAGES, 'ur.listen.2.setA.json'), 'utf8'));
-    expect(p.title_ur).toBe('صفائی کا دن');
+    expect(p.title_ur).toBe('عائشہ کا اسکول');
     expect([...p.title_ur].length).toBeLessThanOrEqual(24);
     const sql = fs.readFileSync(SQL, 'utf8');
     const lines = sql.split('\n').filter((l) => l.includes("'ur.listen.2.setA'"));
+    const sqlLit = (v) => `'${String(v).replace(/'/g, "''")}'`;   // the file's title, quoted as the script quotes it
     expect(lines).toEqual([
-      "UPDATE public.challenge_passages SET title_ur = 'صفائی کا دن', updated_at = now() WHERE passage_id = 'ur.listen.2.setA' AND title_ur IS NULL;",
+      `UPDATE public.challenge_passages SET title_ur = ${sqlLit(p.title_ur)}, updated_at = now() WHERE passage_id = 'ur.listen.2.setA' AND title_ur IS NULL;`,
+      `UPDATE public.challenge_passages SET title_en = ${sqlLit(p.title_en)}, updated_at = now() WHERE passage_id = 'ur.listen.2.setA' AND title_en IS NULL;`,
     ]);
     expect(sql).not.toMatch(/INSERT[^;]*'ur\.listen\.2\.setA'/);
   });

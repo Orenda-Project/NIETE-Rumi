@@ -9,9 +9,16 @@
  *   titleFor(id, lang)      the line a child sees: Urdu ur → en, English en; null when the file gives none
  */
 
+// The counted-listen title gate: while the title gate (challenge-title-leak.test.js) is red for the check pool's listening
+// stories, a counted LISTEN passage carries no title on any surface (the child would see it before hearing the story); the
+// day the gate is green this constant goes and the titles appear everywhere at once. Read stops and practice stories carry
+// theirs (the text is on screen). One condition, read here by every surface: the payload, the menu, the shelf, the Book.
+const LISTEN_TITLE_GATE_RED = true;
+
 /** The child-facing title of a passage as the page renders it (ITEMS §1 title_en/title_ur): { en, ur } or null when it has none. */
 function titleOf(p) {
   if (!p || (p.title_en == null && p.title_ur == null)) return null;
+  if (LISTEN_TITLE_GATE_RED && p.kind === 'listen' && p.pool === 'check') return null;   // the counted-listen title gate: one condition, every surface
   return { en: p.title_en == null ? null : String(p.title_en), ur: p.title_ur == null ? null : String(p.title_ur) };
 }
 
@@ -30,4 +37,4 @@ function titleFor(passageId, lang) {
   return t ? (lang === 'ur' ? pick(t.ur) || pick(t.en) : pick(t.en)) : null;
 }
 
-module.exports = { titleOf, passageTitle, titleFor };
+module.exports = { titleOf, passageTitle, titleFor, LISTEN_TITLE_GATE_RED };
