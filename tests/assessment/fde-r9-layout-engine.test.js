@@ -101,3 +101,27 @@ test('English: the Q1(a) MCQs carrying Q4 words are held, Section A is asked aga
   }
   expect(q1a.filter((q) => fresh.some((f) => f.question === q.question))).toHaveLength(3);
 });
+
+test('Social Studies: when the re-asked section writes the same questions again, the paper is still made, with no question twice', async () => {
+  const src = fixture('r9-sst-full2');
+  let dCalls = 0;
+  mockCreate.mockImplementation(async (req) => {
+    const prompt = req.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
+    const isD = prompt.includes('"slot": "social_studies.D.Q7"');
+    if (isD) dCalls += 1;
+    if (!isD || dCalls === 1) return sectionReply(src, prompt, () => []);
+    // The blind re-ask: every Q7 stem again, each answer worded a little differently.
+    const again = JSON.parse(JSON.stringify(src));
+    for (const types of Object.values(again.unseen)) {
+      for (const list of Object.values(types)) list.forEach((q) => { if (q.slot === 'social_studies.D.Q7') q.answer = `${q.answer} (دوبارہ)`; });
+    }
+    return sectionReply(again, prompt, () => []);
+  });
+  const out = await Gen.generatePatternExam(ARGS('social_studies'));
+  expect(dCalls).toBe(2);
+  const q7 = slotItems(out.examJson, 'social_studies.D.Q7').map((q) => q.question);
+  expect(q7).toHaveLength(8);
+  expect(new Set(q7).size).toBe(8);
+  // Nothing new came back, so the one repeat fills its own place again: a paper with a repeat beats no paper.
+  expect(q7.filter((t) => t.includes('دنیا کی دوسری بڑی نمک کی کان'))).toHaveLength(1);
+});

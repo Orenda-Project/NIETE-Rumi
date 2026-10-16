@@ -170,15 +170,46 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(q7).toEqual(expect.arrayContaining(['پاکستان کا قومی پھول کون سا ہے؟', 'قائد اعظم کس شہر میں پیدا ہوئے؟']));
   });
 
-  test('a slot loses at most its spare choices (Q7 any 6 of 8: two), the first repeats in reply order', () => {
+  test('on the first reply every repeat is held; after the re-ask clean items fill first and a repeat comes back only for a place nothing else takes', () => {
     // The recorded round-7 paper's Q7 re-asks three Q1 facts word for word.
     const exam = fixture('r7-sst-item-text');
-    const out = lay(exam, 'social_studies');
-    const q7 = slotItems(out.examJson, 'social_studies.D.Q7').map((q) => q.question);
-    expect(out.shortfall).toEqual(expect.arrayContaining([{ slot: 'social_studies.D.Q7', missing: 2 }]));
-    expect(q7).not.toContain('پاکستان کی سب سے بڑی عدالت کون سی ہے اور کہاں واقع ہے؟');
-    expect(q7).not.toContain('پاکستان میں اس وقت کون سا آئین نافذ ہے؟');
-    expect(q7).toContain('بیگم رعنا لیاقت علی خان نے 1949ء میں کون سا ادارہ قائم کیا؟');
+    const REPEATS = ['پاکستان کی سب سے بڑی عدالت کون سی ہے اور کہاں واقع ہے؟', 'پاکستان میں اس وقت کون سا آئین نافذ ہے؟', 'بیگم رعنا لیاقت علی خان نے 1949ء میں کون سا ادارہ قائم کیا؟'];
+    const first = lay(exam, 'social_studies');
+    const q7First = slotItems(first.examJson, 'social_studies.D.Q7').map((q) => q.question);
+    expect(first.shortfall).toEqual(expect.arrayContaining([{ slot: 'social_studies.D.Q7', missing: 3 }]));
+    REPEATS.forEach((t) => expect(q7First).not.toContain(t));
+    // The re-asked Section D brings two new items and one of the repeats again.
+    const extra = [
+      { question: 'پاکستان کا قومی پھول کون سا ہے؟', answer: 'چنبیلی۔' },
+      { question: 'پاکستان کی سب سے بڑی عدالت کون سی ہے؟', answer: 'سپریم کورٹ آف پاکستان۔' },
+      { question: 'پاکستان کا قومی کھیل کون سا ہے؟', answer: 'ہاکی۔' },
+    ];
+    const after = lay(withExtra(exam, 'social_studies.D.Q7', extra), 'social_studies');
+    const q7 = slotItems(after.examJson, 'social_studies.D.Q7').map((q) => q.question);
+    expect(after.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toBeUndefined();
+    expect(q7).toHaveLength(8);
+    expect(q7).toEqual(expect.arrayContaining(['پاکستان کا قومی پھول کون سا ہے؟', 'پاکستان کا قومی کھیل کون سا ہے؟']));
+    // One place is left after the two clean items: the first repeat in reply order takes it.
+    expect(q7.filter((t) => REPEATS.includes(t))).toEqual([REPEATS[0]]);
+    expect(q7.indexOf(REPEATS[0])).toBe(7);
+  });
+
+  test('one question once per slot: a re-asked item with the same stem, or the same options, key and nearly the same stem, is not placed again', () => {
+    const exam = fixture('r9-english-giveaway');
+    const extra = [
+      { question: 'Which noun is a proper noun?', options: ['a) city', 'b) Lahore', 'c) river', 'd) teacher'], answer: 'b) Lahore' },
+      { question: 'Which word is a countable noun?', options: ['a) water', 'b) chair', 'c) milk', 'd) sand'], answer: 'b) chair' },
+      { question: 'Pick the plural of box.', options: ['a) boxs', 'b) boxes', 'c) boxies', 'd) box'], answer: 'b) boxes' },
+      { question: 'Which word is a verb?', options: ['a) jump', 'b) table', 'c) green', 'd) slowly'], answer: 'a) jump' },
+      { question: 'Which word is an adjective?', options: ['a) run', 'b) tall', 'c) chair', 'd) quickly'], answer: 'b) tall' },
+    ];
+    const q1a = slotItems(lay(withExtra(exam, 'english.A.Q1a', extra), 'english').examJson, 'english.A.Q1a').map((q) => q.question);
+    expect(q1a).toHaveLength(20);
+    expect(q1a).not.toContain('Which noun is a proper noun?');
+    expect(q1a.filter((t) => t === 'Which word is a countable noun?')).toHaveLength(1);
+    expect(q1a).toEqual(expect.arrayContaining(['Pick the plural of box.', 'Which word is a verb?', 'Which word is an adjective?']));
+    // Two article items with the same options and key are two questions: both stay.
+    expect(q1a.filter((t) => t.startsWith('Which article completes the sentence'))).toHaveLength(2);
   });
 
   test('a three-point Q5 item with one point cued by Q1 is kept; one whose points are all in a Q1 stem is held', () => {
