@@ -145,8 +145,9 @@ function schemaColumns(sql) {
   }
   // idempotent reconcile section
   // The reconcile section writes `ALTER TABLE public.x\n    ADD COLUMN IF NOT EXISTS y` — schema-qualified and
-  // over two lines — so the name and the column are matched across whitespace, not on one line.
-  const alterRe = /ALTER TABLE (?:public\.)?(\w+)\s+ADD COLUMN\s+(?:IF NOT EXISTS\s+)?([a-z_][a-z0-9_]*)/gi;
+  // over two lines — so the name and the column are matched across whitespace, not on one line. A migration's own
+  // `alter table if exists x add column …` (copied into the mirror as written) names a column just the same.
+  const alterRe = /ALTER TABLE (?:IF EXISTS\s+)?(?:ONLY\s+)?(?:public\.)?(\w+)\s+ADD COLUMN\s+(?:IF NOT EXISTS\s+)?([a-z_][a-z0-9_]*)/gi;
   let a;
   while ((a = alterRe.exec(sql)) !== null) {
     const name = a[1].toLowerCase();
