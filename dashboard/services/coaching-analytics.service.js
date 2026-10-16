@@ -31,9 +31,17 @@
  *                   ("coaches assigned"). A coach covering two regions counts in both region
  *                   cards; the overview counts distinct coaches.
  *   schoolsVisited  distinct counted schools with at least one counted visit.
+ *   schools         (regions only; v7, bd-97x22y.5) counted schools in the sector, visited or not —
+ *                   her sector card's "Schools". Not window-dependent.
+ *   coachNames      (regions only; v7, bd-97x22y.5) the users.name of each of the sector's coaches
+ *                   above, trimmed, sorted ignoring case — her "Coaches by sector" (views.py
+ *                   CoachingView: sorted(d['coaches'])). One entry per coach, so two coaches with one
+ *                   name are both listed; a coach in two sectors is in both lists; a coach with no
+ *                   name on file is counted in `coaches` and listed nowhere (no name is invented).
  * Visits and schools visited SUM from school to region to overview; coaches do not (a coach
  * is one person in many places), so they are counted as distinct sets at each level. Counts
- * are never null. No coach or teacher identity leaves the server.
+ * are never null. Coaches are staff, and from v7 their NAMES are shown (her Coaching tab, 1 to 1),
+ * in regions[].coachNames only; no coach id and no teacher identity leaves the server.
  */
 
 const {
@@ -42,6 +50,10 @@ const {
 } = require('./schools-analytics.service');
 
 const count = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+/** A coach's name as shown: trimmed, inner spaces collapsed; blank is no name. */
+const nameOf = (v) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '');
+const byName = (a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }) || (a < b ? -1 : a > b ? 1 : 0);
 
 /** The school's sector when it is counted (active, not a probable test, in the six), else null. */
 function countedBucket(s) {
@@ -54,7 +66,7 @@ function countedBucket(s) {
 /**
  * @param {{
  *   schools?: Array<{id, name, emis, region, is_active, is_probable_test, coach_visits}>,
- *   coachSchools?: Array<{coach_id, school_id}>
+ *   coachSchools?: Array<{coach_id, school_id, coach_name}>
  * }} rows  coachSchools already holds only non-test coaches; a missing number is 0
  * @param {{region?: string|null}} [opts] a bucket name from parseRegionFilter, or null for all
  * @returns {{overview: object, regions: object[], schools: object[]}}
@@ -64,7 +76,7 @@ function summarizeCoachingAnalytics(rows = {}, opts = {}) {
   const src = rows || {};
 
   const bucketBySchool = new Map();
-  const regionAcc = new Map(REGION_BUCKETS.map((b) => [b, { coaches: new Set(), coachVisits: 0, schoolsVisited: 0 }]));
+  const regionAcc = new Map(REGION_BUCKETS.map((b) => [b, { coaches: new Map(), coachVisits: 0, schoolsVisited: 0, schools: 0 }]));
   const schools = [];
 
   for (const s of src.schools || []) {
@@ -73,6 +85,7 @@ function summarizeCoachingAnalytics(rows = {}, opts = {}) {
     bucketBySchool.set(s.id, bucket);
     const visits = count(s.coach_visits);
     const acc = regionAcc.get(bucket);
+    acc.schools += 1;
     acc.coachVisits += visits;
     if (visits > 0) acc.schoolsVisited += 1;
     if (filter && bucket !== filter) continue;
@@ -91,7 +104,8 @@ function summarizeCoachingAnalytics(rows = {}, opts = {}) {
     if (!p || p.coach_id == null) continue;
     const bucket = bucketBySchool.get(p.school_id);
     if (!bucket) continue;
-    regionAcc.get(bucket).coaches.add(p.coach_id);
+    const named = regionAcc.get(bucket).coaches;
+    if (!named.has(p.coach_id) || !named.get(p.coach_id)) named.set(p.coach_id, nameOf(p.coach_name));
     if (!filter || bucket === filter) overviewCoaches.add(p.coach_id);
   }
 
@@ -101,7 +115,14 @@ function summarizeCoachingAnalytics(rows = {}, opts = {}) {
 
   const regions = REGION_BUCKETS.map((b) => {
     const acc = regionAcc.get(b);
-    return { region: b, coaches: acc.coaches.size, coachVisits: acc.coachVisits, schoolsVisited: acc.schoolsVisited };
+    return {
+      region: b,
+      coaches: acc.coaches.size,
+      coachVisits: acc.coachVisits,
+      schoolsVisited: acc.schoolsVisited,
+      schools: acc.schools,
+      coachNames: [...acc.coaches.values()].filter(Boolean).sort(byName),
+    };
   });
   const inScope = regions.filter((r) => !filter || r.region === filter);
 
@@ -164,14 +185,16 @@ function schoolsSql(range) {
 // de-duplicates a school matched both ways or by two of a coach's ext ids. No window:
 // coaches are "assigned", not active.
 const COACH_WHERE = countedCoach('u');
+// v7 (bd-97x22y.5): with the coach's users.name, for her "Coaches by sector". The name is a
+// function of coach_id, so the UNION still de-duplicates (coach, school) pairs exactly as before.
 const COACH_SCHOOLS_SQL = `
-  SELECT lsch.leader_user_id AS coach_id, sch.id AS school_id
+  SELECT lsch.leader_user_id AS coach_id, sch.id AS school_id, u.name AS coach_name
     FROM leader_schools lsch
     JOIN users u ON u.id = lsch.leader_user_id
     JOIN schools sch ON sch.id = lsch.school_id
    WHERE ${COACH_WHERE}
   UNION
-  SELECT lsch.leader_user_id AS coach_id, sch.id AS school_id
+  SELECT lsch.leader_user_id AS coach_id, sch.id AS school_id, u.name AS coach_name
     FROM leader_schools lsch
     JOIN users u ON u.id = lsch.leader_user_id
     JOIN schools sch ON 'niete:' || sch.emis = lsch.school_ext_id
