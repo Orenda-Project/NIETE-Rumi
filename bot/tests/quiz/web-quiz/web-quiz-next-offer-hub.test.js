@@ -256,6 +256,16 @@ describe('the ctrl arm\'s lantern is the one the child is shown (a same-titled t
   });
 });
 
+describe('Stories, the v3 home and the Next side by side on one payload', () => {
+  test('all three switches on: stories, doors and next each on the hub payload (none replaces another)', async () => {
+    seed([...NEXT_ON, ON('web_quiz_home_v3'), ON('web_quiz_stories')], { ...pending(), story_events: [] });
+    const S = require('../../../shared/services/quiz/web-quiz-stories');
+    S._reset();
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out).toMatchObject({ stories: { on: 1 }, home_v3: 1, doors: expect.any(Object), next: expect.objectContaining({ ctx: 'home', rank_src: 'pinned' }) });
+  });
+});
+
 describe('the next_set line (events v3)', () => {
   test('events v3 on -> one next_set with the same offer, keyed, no name, phone, token or quiz id', async () => {
     process.env.WEB_QUIZ_KID_KEY = KEY32;
