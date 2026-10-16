@@ -1,14 +1,21 @@
 'use strict';
 /**
  * The Trail page, v2 (app_settings `web_quiz_challenge_v2`, parent `web_quiz_challenge`): which v2 screens the
- * Challenge page may show, and the grown-up's "keep this reading?" answer.
+ * Challenge page may show, and the mic NOTICE (RULING #96(4): the keep question became a one-time notice; every
+ * reading is kept).
  *
- *   bits()             → { v2: { pool, story, consent } } for the menu and exercise payloads, or {} when v2 is off
- *                        (the payload is then today's, byte for byte).
- *   consentFor(body)   → 'kept_ok' | 'kept_no' | 'not_asked' when `web_quiz_challenge_audio_consent` is on (with v2),
- *                        else null (today's rule: the keep switch alone decides).
- *   allowsKeep(c)      → may this reading be kept? null (switch off) → yes, as today; else only 'kept_ok'.
- *   columns(c)         → the run row's consent columns (audio_consent, _at, _by) or {} when the switch is off.
+ *   bits({studentId, device, lang})
+ *                      → { v2: { pool, story, consent, notice?, name? } } for the menu and exercise payloads, or {}
+ *                        when v2 is off (the payload is then today's, byte for byte). `consent` = the notice switch is
+ *                        on (with the keep switch); `notice` = the wording version (NOTICE_V) and `name` the child's first
+ *                        name, only while this child has not seen that version on this phone (the hub's device record,
+ *                        per canonical child; no device or a failed read ⇒ shown: fail toward disclosure).
+ *   consentFor(body)   → 'notice_shown' | 'not_asked' (and a legacy 'kept_ok' | 'kept_no' from an old cached page) when
+ *                        `web_quiz_challenge_audio_consent` is on (with v2), else null (the keep switch alone decides).
+ *   allowsKeep(c)      → may this reading be kept? Keep-all: yes, except a legacy 'kept_no', which is honoured.
+ *   noteNoticeShown(studentId, device) → this child has seen NOTICE_V on this phone (a run wrote 'notice_shown').
+ *   columns(c)         → the run row's consent columns (audio_consent, _at, _by: notice_tap on a notice row) or {} when
+ *                        the switch is off.
  *   writeConsent(r,c)  → writes them after the row is final, apart from it; a failure is logged, never thrown.
  *   noteConsent(run,c) → web_quiz.ch_audio_consent {run, v}, once per run.
  *
@@ -18,6 +25,10 @@
 const supabase = require('../../config/supabase');
 const { logToFile, logError } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const HubDevice = require('./web-quiz-hub-device');
+
+// The notice's wording version (jg.keep.notice): a new wording is shown again to every child on every phone.
+const NOTICE_V = 1;
 
 const KEYS = {
   challenge: 'web_quiz_challenge',
@@ -53,16 +64,52 @@ async function flags(now = Date.now()) {
   }
 }
 
-/** What the page may show under v2; {} when v2 is off. `consent` = the keep screen is shown (needs the keep switch). */
-async function bits() {
+/**
+ * What the page may show under v2; {} when v2 is off. `consent` = the notice switch is on (needs the keep switch:
+ * nothing kept, nothing to disclose); `notice` + `name` while this child has not seen this wording on this phone.
+ */
+async function bits({ studentId = null, device = null, lang = null } = {}) {
   const f = await flags();
   if (!f.v2) return {};
-  return { v2: { pool: !!f.pool, story: !!f.story, consent: !!(f.consent && f.keep) } };
+  const consent = !!(f.consent && f.keep);
+  return { v2: { pool: !!f.pool, story: !!f.story, consent, ...(consent && studentId ? await noticeFor(studentId, device, lang) : {}) } };
 }
 
-const CONSENT = new Set(['kept_ok', 'kept_no']);
+const canonicalOf = async (studentId) => (await require('./web-quiz-identity-roster').canonicalStudentId(studentId)) || studentId;
+const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
 
-/** The grown-up's answer as the row keeps it, or null when the consent switch is off (today's rule). */
+async function nameOf(studentId, lang) {
+  try {
+    const { data } = await supabase.from('students').select('id, student_name, student_name_urdu').eq('id', studentId).maybeSingle();
+    if (!data) return '';
+    return firstName(lang === 'ur' && data.student_name_urdu && String(data.student_name_urdu).trim() ? data.student_name_urdu : data.student_name);
+  } catch (_) {
+    return '';
+  }
+}
+
+/** {notice, name} while this child has not seen NOTICE_V on this phone; {} once seen. A failed read shows it. */
+async function noticeFor(studentId, device, lang) {
+  let seen = null;
+  try { seen = await HubDevice.noticeSeen(await canonicalOf(studentId), device); } catch (_) { seen = null; }
+  if (seen === NOTICE_V) return {};
+  const name = await nameOf(studentId, lang);
+  return { notice: NOTICE_V, ...(name ? { name } : {}) };
+}
+
+/** A run wrote 'notice_shown': this child has seen NOTICE_V on this phone. Best effort, never throws. */
+async function noteNoticeShown(studentId, device) {
+  try {
+    return await HubDevice.noteNoticeSeen(await canonicalOf(studentId), device, NOTICE_V);
+  } catch (_) {
+    return false;
+  }
+}
+
+// notice_shown: the run the notice was shown on; kept_ok / kept_no: the retired keep question, from an old cached page
+const CONSENT = new Set(['notice_shown', 'kept_ok', 'kept_no']);
+
+/** The run's consent value as the row keeps it, or null when the consent switch is off (today's rule). */
 async function consentFor(body = {}) {
   const f = await flags();
   if (!f.consent) return null;
@@ -70,11 +117,14 @@ async function consentFor(body = {}) {
   return CONSENT.has(v) ? v : 'not_asked';
 }
 
-/** A kept key only with 'kept_ok'; null (switch off) keeps today's behaviour. */
-const allowsKeep = (consent) => consent == null || consent === 'kept_ok';
+/** Keep-all (OPERATOR DECISION 021325): every reading is kept, except a legacy 'kept_no', which is honoured. */
+const allowsKeep = (consent) => consent !== 'kept_no';
 
-/** The run row's consent columns (M1 adds them), only under the switch. */
-const columns = (consent, now = new Date()) => (consent == null ? {} : { audio_consent: consent, audio_consent_at: now.toISOString(), audio_consent_by: 'grownup_tap' });
+/**
+ * The run row's consent columns (M1 adds them), only under the switch. A notice row says the child tapped the
+ * notice (`notice_tap`): nobody answered a question, so it never says a grown-up did.
+ */
+const columns = (consent, now = new Date()) => (consent == null ? {} : { audio_consent: consent, audio_consent_at: now.toISOString(), audio_consent_by: consent === 'notice_shown' ? 'notice_tap' : 'grownup_tap' });
 
 /**
  * The consent columns, written AFTER the run row is final and apart from it (M1 adds the columns): a failed write
@@ -104,4 +154,4 @@ function noteConsent(runId, consent) {
   logEvent('web_quiz.ch_audio_consent', { run: runId, v: consent });
 }
 
-module.exports = { flags, bits, consentFor, allowsKeep, columns, writeConsent, noteConsent, KEYS, _reset: () => { cache = null; noted.clear(); } };
+module.exports = { flags, bits, consentFor, allowsKeep, columns, writeConsent, noteConsent, noteNoticeShown, NOTICE_V, KEYS, _reset: () => { cache = null; noted.clear(); } };
