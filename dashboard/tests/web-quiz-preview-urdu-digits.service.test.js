@@ -18,7 +18,7 @@ const facts = (lang, extra = {}) => ({ quiz: { lang, topic: lang === 'ur' ? 'پ�
 
 function req(srv, path, { ua = 'Mozilla/5.0 (Linux; Android 13) Chrome/129 Mobile' } = {}) {
   return new Promise((resolve, reject) => {
-    const r = http.request({ host: '127.0.0.1', port: srv.address().port, path, method: 'GET', headers: { host: 'portal.example', 'user-agent': ua, 'x-forwarded-proto': 'https' } }, (res) => {
+    const r = http.request({ host: '127.0.0.1', port: srv.address().port, path, method: 'GET', agent: false, headers: { host: 'portal.example', 'user-agent': ua, 'x-forwarded-proto': 'https' } }, (res) => {
       const chunks = [];
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString('utf8') }));
@@ -74,6 +74,16 @@ describe('switch on (the bot carries card_v3: true): an Urdu preview counts in U
     page = quiz('ur', { card_v3: true, challenge: { first: 'امل', correct: 3, total: 5 }, art: { class: null, invite: 'i.x', schools: null } });
     const r = await req(srv, '/q/AB12CD');
     expect(meta(r.body, 'title')).toBe('امل کے \u2066۳/۵\u2069 سے آگے نکلیں! · پودے کے حصے');
+    expect(meta(r.body, 'description')).toBe('وہی کوئز کھیلیں اور اپنا اسکور دیکھیں!');
+  });
+  test.each([
+    ['the class table (no masculine form)', '/q/AB12CD/class', 'پودے کے حصے · جماعتیں ۱، ۳، ۵ کی لیگ ٹیبل', 'کھیلنا باقی ہے؟ وہی لنک ابھی کھلا ہے۔'],
+    ['the schools league (the native phrasing)', '/q/AB12CD/schools', 'اس ہفتے اسکولوں کی لیگ', 'کھیلنے کے ۱۰ پوائنٹس، اسکور کے مطابق مزید ۱۰ تک۔ کھیلیں اور اپنے اسکول کو اوپر لے جائیں!'],
+  ])('one row per view: %s', async (_, path, t, d) => {
+    page = quiz('ur', { card_v3: true });
+    const r = await req(srv, path);
+    expect(meta(r.body, 'title')).toBe(t);
+    expect(meta(r.body, 'description')).toBe(d);
   });
   test('an English preview keeps its digits', async () => {
     page = quiz('en', { card_v3: true });
@@ -92,6 +102,13 @@ describe('switch off: today\'s preview', () => {
     og = facts('ur', extra);
     const b = await req(srv, '/q/AB12CD', { ua: WA });
     expect(meta(b.body, 'title')).toBe('پودے کے حصے · جماعتیں 1، 3، 5 کا کوئز');
+  });
+  test('the schools, class and challenge lines are today\'s while off', async () => {
+    page = quiz('ur');
+    expect(meta((await req(srv, '/q/AB12CD/schools')).body, 'description')).toBe('کھیلنے کے 10 پوائنٹس، اسکور کے 10 تک۔ کھیلیں اور اپنے اسکول کو اوپر لے جائیں!');
+    expect(meta((await req(srv, '/q/AB12CD/class')).body, 'description')).toBe('ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے۔');
+    page = quiz('ur', { challenge: { first: 'امل', correct: 3, total: 5 }, art: { class: null, invite: 'i.x', schools: null } });
+    expect(meta((await req(srv, '/q/AB12CD')).body, 'description')).toBe('وہی کوئز کھیلیں اور دیکھیں!');
   });
   test('the facts a preview keeps say nothing new while off', () => {
     const Preview = require('../routes/web-quiz-preview');
