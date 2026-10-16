@@ -333,7 +333,9 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   if (name === 'story_done') {
     const before = await supabase.from('story_events').select('id').eq('child_id', who.studentId).eq('book_id', b.id).eq('event', 'story_done').limit(1);
     const first = !before.error && !(before.data || []).length;
-    out.sticker = first && (await bookOn());
+    // A sticker is for a story the child listened to or read: a finish with no page heard or read earns none.
+    const tried = first && effortOf(await childEvents(who.studentId, b.id), false) > 0;
+    out.sticker = tried && (await bookOn());
   }
   const { error } = await supabase.from('story_events').insert({ child_id: who.studentId, book_id: b.id, page_n: page, event: name, data: kept });
   if (error) logToFile('⚠️ web quiz stories: event not kept', { event: name, error: error.message });
