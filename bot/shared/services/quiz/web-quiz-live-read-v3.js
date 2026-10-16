@@ -26,6 +26,8 @@ const FLAG_KEY = 'web_quiz_live_read_v3';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
 const TABLE = 'web_quiz_live_read_keys';
 const FINISH_PCT = 0.8;
+// Urdu: real-time speech drops ~2 of 50 spoken Urdu words, so the quiet finish starts at 75 % (Done on a counted read stays 80 %)
+const FINISH_PCT_UR = 0.75;
 const QUIET_MS = 4000;   // every oral-reading protocol allows 3 s a word, and the stream adds lag
 const TAIL_MS = 1000;
 // a story page is 5-15 s of audio, a passage read ~60 s: in the day's read budget (money) a story key is a quarter of a read
@@ -62,10 +64,10 @@ const on = () => settingOn(FLAG_KEY);
 const liveOn = async () => (await settingOn(LIVE_FLAG_KEY)) && (await on());
 
 /** The read exercise's extra field: {} off; on, how the reading finishes itself (never the quiet end on a counted read). */
-async function forRead({ counted } = {}) {
+async function forRead({ counted, lang } = {}) {
   if (!(await on())) return {};
   const isCounted = typeof counted === 'function' ? !!(await counted()) : !!counted;
-  return { lr3: { meter: 'glow', done: true, done_from: isCounted ? FINISH_PCT : 0, counted: isCounted, finish: { pct: FINISH_PCT, quiet_ms: QUIET_MS, tail_ms: TAIL_MS, quiet: !isCounted } } };
+  return { lr3: { meter: 'glow', done: true, done_from: isCounted ? FINISH_PCT : 0, counted: isCounted, finish: { pct: lang === 'ur' ? FINISH_PCT_UR : FINISH_PCT, quiet_ms: QUIET_MS, tail_ms: TAIL_MS, quiet: !isCounted } } };
 }
 
 /** What a reading's row keeps from the page under v3: the UI version and how it ended; {} off. Never a number. */
@@ -95,4 +97,4 @@ async function keysSince(sinceIso) {
 
 function _reset() { cache.clear(); }
 
-module.exports = { FLAG_KEY, LIVE_FLAG_KEY, TABLE, STORY_KEY_WEIGHT, FINISH_PCT, QUIET_MS, TAIL_MS, UI_V, on, liveOn, settingOn, forRead, forMenu, metaFor, keysSince, _reset };
+module.exports = { FLAG_KEY, LIVE_FLAG_KEY, TABLE, STORY_KEY_WEIGHT, FINISH_PCT, FINISH_PCT_UR, QUIET_MS, TAIL_MS, UI_V, on, liveOn, settingOn, forRead, forMenu, metaFor, keysSince, _reset };

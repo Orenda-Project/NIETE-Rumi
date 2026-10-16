@@ -719,6 +719,7 @@ async function menu(token, { kid, lang, device } = {}) {
     rt: Fast.early(Tel.flag()),
     ui: Fast.early(require('./web-quiz-ur-polish').ui()),
     bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    lr3: Fast.early(LiveReadV3().forMenu()),
   } : null;
   const got = (key, start) => (pre ? pre[key] : start());
   const runs = await got('runs', async () => (rules.record ? countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored')));
@@ -751,7 +752,7 @@ async function menu(token, { kid, lang, device } = {}) {
     rt: await got('rt', () => Tel.flag()),
     ...((await got('ui', () => require('./web-quiz-ur-polish').ui())) ? { ui: { ur2: true } } : {}),
     ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
-    ...(await LiveReadV3().forMenu()),   // live reading v3: the page loads its component (off ⇒ nothing)
+    ...(await got('lr3', () => LiveReadV3().forMenu())),   // live reading v3: the page loads its component (off ⇒ nothing)
   };
 }
 
@@ -868,7 +869,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await got('questions', () => questionsOn()), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
     ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}),
     // live reading v3 (web_quiz_live_read_v3, read only when real-time is on; off ⇒ nothing): how the reading finishes itself
-    ...(live && await LiveReadV3().forRead({ counted: async () => (v2 ? v2.mem.record === true : !!rules.record && !w.round && (await attemptInfo(w.studentId, 'read', w.lang)).attempt_no === 1) })) };
+    ...(live && await LiveReadV3().forRead({ lang: w.lang, counted: async () => (v2 ? v2.mem.record === true : !!rules.record && !w.round && (await attemptInfo(w.studentId, 'read', w.lang)).attempt_no === 1) })) };
 }
 
 // ── challenge v2: the draw, the record decided at serve, the period (web_quiz_challenge_v2 / _period / _pool) ──────

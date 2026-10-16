@@ -11,6 +11,8 @@
  *     language; nothing else), so the caps hold across restarts and replicas.
  *   - the same page again soon (read one sentence at a time, or a retry): a fresh key (a key opens one stream) but
  *     no new count, up to REPEAT_MAX times within REPEAT_MS; held in this process, so a restart only ever counts more.
+ * Soniox refusing the key ⇒ 503 and nothing counted (the key is minted before the row). Two keys asked at once at one
+ * below the cap: the day's first `cap` rows keep their keys, a later row is deleted and rests (429).
  * → { api_key, expires_at, ws, model, lang, run }. Never logs a key. A table that cannot be read or written ⇒ no key (503).
  */
 const crypto = require('crypto');
@@ -79,6 +81,14 @@ async function pageReadable(book, page, now = Date.now()) {
 }
 
 /** This child's story keys since Pakistan midnight; throws when the table cannot be read. */
+/** Is this key's row among the child's first `cap` rows today (oldest first, id breaks a tie)? A read error keeps the key. */
+async function withinCap(studentId, run, cap, now = Date.now()) {
+  const { data, error } = await supabase.from('web_quiz_live_read_keys').select('id, created_at').eq('student_id', studentId).gte('created_at', pkMidnightIso(now))
+    .order('created_at', { ascending: true }).order('id', { ascending: true }).limit(cap);
+  if (error || !Array.isArray(data)) return true;
+  return data.some((r) => r.id === run);
+}
+
 async function keysToday(studentId, now = Date.now()) {
   const { count, error } = await supabase.from('web_quiz_live_read_keys').select('id', { count: 'exact', head: true }).eq('student_id', studentId).gte('created_at', pkMidnightIso(now));
   if (error) throw new Error(error.message || 'count failed');
@@ -113,22 +123,29 @@ async function storyKey({ st, kid, book, page, lang, device } = {}) {
   const Live = require('./web-quiz-soniox-live');
   if (!Live.configured()) fail(503, 'live_unavailable');
   const run = crypto.randomUUID();
-  // the row first: a key is never handed out that the caps did not count (a repeat was counted with its page)
+  // the key first: a key Soniox refuses costs the child nothing (no row, no count, no budget)
+  const minted = await Live.mintTempKey(run);
+  if (!minted.ok) {
+    logError('web_quiz.lr_key_failed', { status: minted.status, reason: minted.reason });
+    fail(503, 'live_unavailable');
+  }
+  // then the row, before the key is handed out: a key is never given that the caps did not count (a repeat was counted with its page)
   if (!repeat) {
     const { error } = await supabase.from('web_quiz_live_read_keys').insert({ id: run, student_id: entry.studentId, src: 'story_page', lang: l, created_at: new Date().toISOString() });
     if (error) {
       logError('web_quiz.lr_keys_write_failed', { error: String(error.message || error).slice(0, 120) });
       fail(503, 'live_unavailable');
     }
+    // two keys asked at once at one below the cap both pass the count: the day's first `cap` rows keep their keys, a later one rests
+    if (!(await withinCap(entry.studentId, run, cap))) {
+      await supabase.from('web_quiz_live_read_keys').delete().eq('id', run);
+      logEvent('web_quiz.lr_key_rest', { src: 'story_page', n: mine, cap });
+      fail(429, 'enough_for_today');
+    }
     if (counted.size > 5000) counted.clear();
     counted.set(pk, { at: Date.now(), free: 0 });
   } else {
     seen.free += 1;
-  }
-  const minted = await Live.mintTempKey(run);
-  if (!minted.ok) {
-    logError('web_quiz.lr_key_failed', { status: minted.status, reason: minted.reason });
-    fail(502, 'live_unavailable');
   }
   if (!repeat) Budget.noteStarted(LR.STORY_KEY_WEIGHT);
   // n = this child's counted story keys today, this one included: the cap is set from that spread, not a guess

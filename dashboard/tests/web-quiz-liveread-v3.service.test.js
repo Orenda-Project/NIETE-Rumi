@@ -456,6 +456,56 @@ describe('mount(): a story page reads itself (the component alone, a fake DOM an
     expect(s.sent.filter((x) => typeof x !== 'string').length).toBe(4);
   });
 
+  test('the component: a counted mount whose key is refused shows "I\'m done" at once', async () => {
+    const E = env(); const D = dom();
+    E.L.mount(D.el, { words: PAGE, lang: 'en', counted: true, getKey: () => Promise.resolve({ error: 'live_unavailable' }), stream: {} });
+    expect(D.el.innerHTML).toMatch(/class="[^"]*lr-done[^"]*" type="button" hidden/);
+    await E.flush();
+    expect(D.el.querySelector('.lr-done').hidden).toBe(false);
+  });
+  test('the component: an Urdu mount without its own finish rule ends on the quiet from 75 % (English stays 80 %)', async () => {
+    const run = async (lang) => {
+      const E = env(); const D = dom();
+      let got = null;
+      const W4 = ['a', 'b', 'c', 'd'].map((t) => ({ t }));
+      E.L.mount(D.el, { words: W4, lang, getKey: () => Promise.resolve({ ws: 'wss://x', api_key: 'k', model: 'm', lang }), stream: {}, onResult: (r) => { got = r; } });
+      await E.flush();
+      const s = E.socks[0]; s.onopen({});
+      const t0 = Date.now();
+      const now = jest.spyOn(Date, 'now').mockReturnValue(t0);
+      try {
+        s.onmessage({ data: JSON.stringify({ tokens: toks(['a', 'b', 'c']) }) });
+        now.mockReturnValue(t0 + 4100);
+        E.timers.filter((x) => x.ms === 4020).forEach((x) => x.fn());
+        E.timers.filter((x) => x.ms === 400).forEach((x) => x.fn());   // the recorder's last slice, then finalize
+        s.onmessage({ data: JSON.stringify({ tokens: [], finished: true }) });
+        await E.flush();
+      } finally { now.mockRestore(); }
+      return got;
+    };
+    expect(await run('ur')).toMatchObject({ ended: 'quiet', lang: 'ur' });
+    expect(await run('en')).toBeNull();
+  });
+  test('the result\'s ms is first word → finish on the audio clock (the component)', async () => {
+    // the component: words heard 2.0 s → 4.8 s into the stream ⇒ 2,800 ms
+    const E = env(); const D = dom();
+    let got = null;
+    E.L.mount(D.el, { words: PAGE, lang: 'en', getKey: () => Promise.resolve({ ws: 'wss://x', api_key: 'k', model: 'm', lang: 'en' }), stream: {}, onResult: (r) => { got = r; } });
+    await E.flush();
+    const s = E.socks[0]; s.onopen({});
+    const t0 = Date.now();
+    const now = jest.spyOn(Date, 'now').mockReturnValue(t0);
+    try {
+      s.onmessage({ data: JSON.stringify({ tokens: toks(['the', 'kite', 'flew'], { from: 2 }) }) });
+      now.mockReturnValue(t0 + 1100);
+      E.timers.filter((x) => x.ms === 1020).forEach((x) => x.fn());
+      E.timers.filter((x) => x.ms === 400).forEach((x) => x.fn());
+      s.onmessage({ data: JSON.stringify({ tokens: [], finished: true }) });
+      await E.flush();
+    } finally { now.mockRestore(); }
+    expect(got).toMatchObject({ ended: 'last_word', ms: 2800 });
+  });
+
   test('a counted mount: no tink, a quiet Stop from the first second, "I\'m done" only from 80 % lit', async () => {
     const E = env(); const D = dom();
     const calls = [];
@@ -803,5 +853,50 @@ describe('a held card, the settled result, and "hear this word" after a practice
     el.l.click({ target: { getAttribute: () => '0' } });   // a read word: nothing
     expect(said).toEqual([1]);
     expect(L.wordTaps(el, ['skipped'], null)).toBe(false);   // no player ⇒ nothing to tap
+  });
+});
+
+describe('the finish controls on the paths a real reading takes', () => {
+  const PLAIN = { ex: 'read', ct: 'CT1', secs: 60, clips: CLIPS, story: STORY, record: true, live: true };
+  // a counted Trail read, the read guard off; o.ws false = no WebSocket in this browser, o.live = the key route's answer
+  const countedRead = async (o = {}) => {
+    const p = H.page({ clock: { t: 1000000 }, menu: { ...H.MENU, lr3: true }, pre: [LIVE_SRC, ...(o.ws === false ? [] : [WS]), LR_SRC], routes: { 'ch/HUB.TOKEN/read': ok({ ...PLAIN, lr3: LR3(false) }), 'ch/live': o.live || ok(KEY) }, micLevel: 200 });
+    await p.click('wqc-ex-read'); await p.click('wqc-go');
+    await p.flush();
+    return p;
+  };
+  test('a counted read in a browser without WebSocket: "I\'m done" from the first second (no word can light)', async () => {
+    const p = await countedRead({ ws: false });
+    expect(p.screen()).toBe('read-rec');
+    expect(p.has('wqc-stop')).toBe(true);
+    expect(p.has('wqc-stuck')).toBe(true);
+  });
+  test('a counted read whose key is refused (503): "I\'m done" from the first second', async () => {
+    const p = await countedRead({ live: () => ({ status: 503, body: { error: 'live_unavailable' } }) });
+    expect(p.screen()).toBe('read-rec');
+    expect(p.has('wqc-stop')).toBe(true);
+  });
+  test('a counted read whose live words drop after 3 words: the screen repaints with "I\'m done"', async () => {
+    const p = await countedRead();
+    const s = p.ctx.__socks[0]; s.onopen({});
+    s.onmessage({ data: JSON.stringify({ tokens: toks(STORY.tokens.slice(0, 3)) }) });
+    expect(p.has('wqc-stop')).toBe(false);
+    s.onclose({ code: 1006 });
+    await p.flush();
+    expect(p.has('wqc-stop')).toBe(true);
+    expect(p.has('wqc-stuck')).toBe(true);
+  });
+  test('the Trail\'s result: ms is first word → finish on the audio clock', async () => {
+    // the Trail (Story Time): the 10 words heard 2.0 s → 11.8 s ⇒ 9,800 ms
+    const clock = { t: 1000000 };
+    const p = room({ clock, routes: ROUTES(SREAD({ lr3: LR3() })) });
+    await startRead(p);
+    const t = sock(p); t.onopen({});
+    t.onmessage({ data: JSON.stringify({ tokens: toks(STORY.tokens, { from: 2 }) }) });
+    clock.t += 1100;
+    await p.runTimers((x) => x.ms === 1000);
+    t.onmessage({ data: JSON.stringify({ tokens: [], finished: true }) });
+    await p.flush();
+    expect(p.ctx.__evs.find((e) => e.type === 'wq:liveread:result').detail).toMatchObject({ ended: 'last_word', ms: 9800 });
   });
 });

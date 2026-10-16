@@ -146,6 +146,16 @@ describe('switch on: the read says how it finishes itself', () => {
     expect(JSON.stringify(rest)).toBe(JSON.stringify(off));
   });
 
+  test('an Urdu read finishes on the quiet at 75 % (real speech drops ~2 of 50 Urdu words); English stays 80 %; Done still from 80 % on a counted read', async () => {
+    db.app_settings.push(LR3, RT);
+    const ur = await Ch.exercise(hub(), 'read', { ...D, lang: 'ur' });
+    expect(ur.lr3.finish.pct).toBe(0.75);
+    expect(LR.FINISH_PCT_UR).toBe(0.75);
+    expect((await LR.forRead({ counted: true, lang: 'ur' })).lr3).toMatchObject({ done_from: 0.8, finish: { pct: 0.75, quiet: false } });
+    expect((await LR.forRead({ counted: false, lang: 'en' })).lr3.finish.pct).toBe(0.8);
+    expect((await LR.forRead({ counted: false })).lr3.finish.pct).toBe(0.8);
+  });
+
   test('a counted read (the record rule, first attempt): never the quiet end', async () => {
     db.app_settings.push(LR3, RT, { key: 'web_quiz_challenge_record', value: true });
     const out = await Ch.exercise(hub(), 'read', { ...D, lang: 'en' });
@@ -153,6 +163,27 @@ describe('switch on: the read says how it finishes itself', () => {
     expect(out.lr3.counted).toBe(true);
     expect(out.lr3.done_from).toBe(0.8);
     expect(out.lr3.done).toBe(true);
+  });
+
+  test('fast pages: the menu asks for the component switch with its first wave of reads, not after the runs read', async () => {
+    db.app_settings.push(LR3, RT, { key: 'web_quiz_fast', value: true });
+    const Fast = require('../../../shared/services/quiz/web-quiz-fast');
+    Fast._reset(); Fast.on();
+    for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r));
+    expect(Fast.on()).toBe(true);
+    await Ch.menu(hub(), { ...D, lang: 'en' });   // binds the link; warms nothing in LR (reset below)
+    LR._reset(); Ch.__reset();
+    const spy = jest.spyOn(LR, 'forMenu');
+    let release; const gate = new Promise((r) => { release = r; });
+    const from = supabase.from.bind(supabase);
+    supabase.from = (t) => { const q = from(t); if (t !== 'web_quiz_challenge_runs') return q; const then = q.then.bind(q); q.then = (res, rej) => gate.then(() => then(res, rej)); return q; };
+    try {
+      const pending = Ch.menu(hub(), { ...D, lang: 'en' });
+      for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r));
+      expect(spy).toHaveBeenCalled();
+      release();
+      expect((await pending).lr3).toBe(true);
+    } finally { supabase.from = from; spy.mockRestore(); Fast._reset(); }
   });
 
   test('only the read carries it; the menu says to load the component', async () => {
@@ -321,11 +352,34 @@ describe('storyKey: a temporary key for one story-page reading', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test('Soniox refusing ⇒ 502 live_unavailable (logged with its status only)', async () => {
-    db.app_settings.push(LR3, RT);
+  test('Soniox refusing ⇒ 503 live_unavailable (logged with its status only), and the refused key costs the child nothing', async () => {
+    db.app_settings.push(LR3, RT, { key: 'web_quiz_challenge_daily_reads', value: 100 });
+    const Budget = require('../../../shared/services/quiz/web-quiz-challenge-budget');
+    Budget._reset();
     global.fetch = jest.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }));
-    await expect(K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV })).rejects.toMatchObject({ status: 502, body: { error: 'live_unavailable' } });
+    await expect(K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV })).rejects.toMatchObject({ status: 503, body: { error: 'live_unavailable' } });
     expect(logger.logError).toHaveBeenCalledWith('web_quiz.lr_key_failed', expect.objectContaining({ status: 401 }));
+    // no row, no budget: the next try of the same page is a first try, not a free repeat
+    expect(db.web_quiz_live_read_keys || []).toEqual([]);
+    expect(await Budget.readsToday()).toBe(0);
+    global.fetch = jest.fn(async () => okMint());
+    await K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV });
+    expect(db.web_quiz_live_read_keys).toHaveLength(1);
+  });
+
+  test('two keys asked at the same moment at one below the cap: exactly one is handed out, the other rests', async () => {
+    db.app_settings.push(LR3, RT, { key: 'web_quiz_live_read_story_keys_per_day', value: 3 });
+    const today = new Date().toISOString();
+    db.web_quiz_live_read_keys = [0, 1].map((k) => ({ id: `00000000-0000-4000-8000-00000000000${k}`, student_id: KID, src: 'story_page', lang: 'en', created_at: today }));
+    await K.storyKey({ st: hub(), book: 'b1', page: 9, lang: 'en', device: DEV });   // binds the link
+    db.web_quiz_live_read_keys.pop();
+    const got = await Promise.allSettled([
+      K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV }),
+      K.storyKey({ st: hub(), book: 'b1', page: 2, lang: 'en', device: DEV }),
+    ]);
+    expect(got.map((g) => g.status).sort()).toEqual(['fulfilled', 'rejected']);
+    expect(got.find((g) => g.status === 'rejected').reason).toMatchObject({ status: 429, body: { error: 'enough_for_today' } });
+    expect(db.web_quiz_live_read_keys).toHaveLength(3);
   });
 });
 

@@ -256,7 +256,7 @@
     var m = matcher(items.map(function (x) { return x.t; }));
     var img = o.image && o.image.w > 0 && o.image.h > 0 && items.every(function (x) { return x.box && x.box.length === 4; }) ? o.image : null;
     var pc = function (v, of) { return Math.round(1000 * v / of) / 10 + '%'; };
-    var fin = o.finish || { pct: 0.8, quiet_ms: QUIET_MS, tail_ms: TAIL_MS, quiet: !o.counted };
+    var fin = o.finish || { pct: lang === 'ur' ? 0.75 : 0.8, quiet_ms: QUIET_MS, tail_ms: TAIL_MS, quiet: !o.counted };
     // a counted reading: Done only once this share of the words is lit (an early Done would lose the reading)
     var doneFrom = o.counted ? (typeof o.doneFrom === 'number' ? o.doneFrom : 0.8) : 0;
     var maxMs = o.maxMs || 60000;
@@ -275,7 +275,8 @@
     var doneBtn = el.querySelector('.lr-done');
     function paint() {
       for (var i = 0; i < spans.length; i += 1) spans[i].className = 'lr-w ' + (img ? 'lr-box ' : '') + 'lr-' + s.v.states[i];
-      if (doneBtn && doneFrom > 0) doneBtn.hidden = !(s.v.total > 0 && s.v.heard / s.v.total >= doneFrom);
+      // a counted read: Done from doneFrom lit, or at once when the live words stopped (none can light any more)
+      if (doneBtn && doneFrom > 0) doneBtn.hidden = !(s.sock === false || (s.v.total > 0 && s.v.heard / s.v.total >= doneFrom));
       var glow = el.querySelector('.lr-glow');
       if (glow) glow.className = 'lr-glow lr-glow-' + glowLevel(s.v);
       if (nudge) nudge.textContent = s.rest ? t.rest : Date.now() - s.lastAt > 5000 && s.v.heard > 0 ? t.keepGoing : t.readNow;
@@ -290,6 +291,7 @@
       s.v = m.push(tokens);
       juiceWords(m.words, was, s.v.states, o.counted);
       if (s.v.heard > before) {
+        tokSpan(s, tokens);
         s.lastAt = Date.now();
         clearTimeout(s.quietT);
         s.quietT = setTimeout(check, (s.v.lastHeard ? (fin.tail_ms || TAIL_MS) : (fin.quiet_ms || QUIET_MS)) + 20);
@@ -300,6 +302,7 @@
     function fallback(why) {
       if (!s.live && s.sock === false) return;
       s.live = false; s.sock = false;
+      if (!s.ended) paint();
       if (o.onFallback) o.onFallback(why);
     }
     // the recorder: 250-ms slices to the socket (queued until it opens: the first carries the webm header)
@@ -346,7 +349,7 @@
       if (s.live && s.sock) {
         // the recorder's last slice goes out BEFORE "finalize" (the socket drops audio once it is ending)
         var fin = false;
-        var close = function () { if (fin) return; fin = true; s.sock.finish(function () { s.v = m.end(); deliver(result(s.v, Object.assign(base, { ms: s.v.endMs || ms, live: true }))); }); };
+        var close = function () { if (fin) return; fin = true; s.sock.finish(function () { s.v = m.end(); deliver(result(s.v, Object.assign(base, { ms: spanMs(s.firstMs, s.lastMs, why, ms), live: true }))); }); };
         if (s.mr && s.mr.state !== 'inactive') {
           s.mr.onstop = close;
           setTimeout(close, 400);
@@ -378,5 +381,106 @@
     };
   }
 
-  window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, wordTaps: wordTaps, COPY: COPY };
+  // ── first word → finish on the audio clock (LIVEREAD §6 `ms`) ─────────────────────────────────────
+  // o.firstMs / o.lastMs: the first heard word's start and the last heard word's end, from the tokens of each batch that lit a word
+  function tokSpan(o, tokens) {
+    (tokens || []).forEach(function (tk) {
+      if (!tk || !String(tk.text || '').trim()) return;
+      if (typeof tk.start_ms === 'number' && (o.firstMs == null || tk.start_ms < o.firstMs)) o.firstMs = tk.start_ms;
+      if (typeof tk.end_ms === 'number' && !(tk.end_ms <= (o.lastMs || 0))) o.lastMs = tk.end_ms;
+    });
+  }
+  // ended on the last word or the quiet: the reading stopped at the last word heard; else at the tap or the timer
+  function spanMs(first, last, ended, elapsed) {
+    if (first == null) return Math.max(0, Math.round(elapsed || 0));
+    var end = ended === 'last_word' || ended === 'quiet' ? (last || 0) : Math.max(last || 0, elapsed || 0);
+    return Math.max(0, Math.round(end - first));
+  }
+
+  // ── the Trail's read (wq-challenge.js) under v3: its live-reading logic lives here, so a child without the switch never
+  //    downloads it. h = { d(), live(), rec, lang(), q(id), screen(), paint(), stop(why), later(), liveOk(), guard(), stuck() }
+  function trail(h) {
+    var C = function () { return COPY[h.lang() === 'ur' ? 'ur' : 'en']; };
+    var cfg = function () { return h.d().lr3; };
+    var counted = function () { return !!cfg().counted; };
+    function view() { var l = h.live(); var v = l && l.v; return v ? { heard: v.heardOk, total: v.marks.length, lastHeard: !!v.lastHeard } : { heard: 0, total: 0, lastHeard: false }; }
+    // Done always on a practice read; on a counted read once done_from of the words are lit, or whenever the live words
+    // are not working (none can light: the child must still be able to say "I'm done")
+    function doneOpen() {
+      var from = Number(cfg().done_from) || 0;
+      if (!from || !h.liveOk()) return true;
+      var v = view();
+      return v.total > 0 && v.heard / v.total >= from;
+    }
+    // a new word lit: the glow, the counted read's Done at 80 %, and the finish check after the tail / the quiet
+    function heard(before, tokens) {
+      tokSpan(h.live(), tokens);
+      var f = cfg().finish || {};
+      var v = view();
+      var g = h.q('wqc-lr-glow');
+      if (g) g.className = 'lr-glow lr-glow-' + glowLevel(v);
+      var from = Number(cfg().done_from) || 0;
+      if (from && before / v.total < from && v.heard / v.total >= from && h.screen() === 'read-live') h.paint();
+      setTimeout(function () {
+        var l = h.live();
+        if (!l || !l.v || h.screen() !== 'read-live') return;
+        var now = view();
+        var why = shouldFinish(now, Date.now(), l.lastWordAt, f);
+        if (why) { h.stop(why); return; }
+        // a counted read never ends on the quiet: past the share the Done button pulses once and the line asks "Done?"
+        var btn = h.q('wqc-stop');
+        if (counted() && btn && now.heard / now.total >= (f.pct || 0.8) && Date.now() - l.lastWordAt >= (f.quiet_ms || QUIET_MS) && btn.className.indexOf('lr-pulse') < 0) {
+          btn.className += ' lr-pulse';
+          h.rec.lrAsk = true;
+          var n = h.q('wqc-nudge');
+          if (n) n.textContent = C().doneAsk;
+        }
+      }, v.lastHeard ? (f.tail_ms || TAIL_MS) : (f.quiet_ms || QUIET_MS));
+    }
+    // the result handed to the card (wq:liveread:result): the live words when there are some, else what is known
+    function hand(isLive) {
+      var d = h.d(); var l = h.live(); var v = l && l.v; var rec = h.rec;
+      var st = v ? v.marks.map(function (m) { return m === 'ok' || m === 'okp' ? 'read' : (m === 'miss' ? 'skipped' : 'ahead'); }) : [];
+      var vw = { states: st, read: v ? v.correct : 0, heard: v ? v.heardOk : 0, skipped: st.filter(function (x) { return x === 'skipped'; }).length, total: v ? v.marks.length : ((d.story && d.story.tokens) || []).length };
+      emit(result(vw, { source: 'passage', id: d.passage_id || null, lang: h.lang(), counted: counted(), ended: rec.ended, ms: isLive && l ? spanMs(l.firstMs, l.lastMs, rec.ended, rec.ms) : rec.ms, live: isLive }));
+    }
+    // a reading that could not go live: "Listening…" for at most 10 s, then the card (the check still lands on the Book)
+    function check() {
+      setTimeout(function () {
+        var s = h.screen();
+        if (h.rec.gaveUp || (s !== 'read-send' && s !== 'read-wait')) return;
+        h.later();
+        h.rec.gaveUp = true;
+        hand(false);
+      }, CHECK_MS);
+    }
+    // a practice reading that has ended: a skipped word says itself when tapped, in the read-along voice (a hidden player
+    // mounted on the first tap); no timing file, or one whose word times are not trusted (quality "low") ⇒ nothing to tap
+    function sayWords() {
+      var d = h.d(); var l = h.live();
+      if (counted() || !d.readalong || d.readalong.quality === 'low' || !window.WQReadAlong || !l || !l.v) return;
+      var marks = l.v.marks.map(function (m) { return m === 'miss' ? 'skipped' : m; });
+      var player = null;
+      wordTaps(h.q('wqc-live-story'), marks, function (i) {
+        if (!player) {
+          var box = document.createElement('div');
+          box.hidden = true;
+          document.body.appendChild(box);
+          player = window.WQReadAlong.mount(box, d.readalong, {});
+        }
+        player.playWord(i);
+      });
+    }
+    // one Done label ("I'm done" + a drawn tick). Counted: Done per doneOpen() and a quiet "Stop for now" from the first
+    // second (stored as today's "too hard"). Practice: Done from the first second; under the read guard "too hard" still
+    // opens after the first line's window
+    function sticky() {
+      var c = C();
+      if (counted()) return '<div class="wqc-sticky">' + (doneOpen() ? '<button class="wq-btn wq-navy" id="wqc-stop" type="button">' + doneHtml(c) + '</button>' : '') + '<button class="wq-btn wq-soft lr-stop" id="wqc-stuck" type="button">' + esc(c.stop) + '</button></div>';
+      return '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">' + doneHtml(c) + '</button>' + (h.guard() && h.rec.stuckOpen ? '<button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(h.stuck()) + '</button>' : '') + '</div>';
+    }
+    return { copy: C, counted: counted, view: view, doneOpen: doneOpen, heard: heard, hand: hand, check: check, sayWords: sayWords, sticky: sticky };
+  }
+
+  window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, wordTaps: wordTaps, spanMs: spanMs, trail: trail, COPY: COPY };
 })();
