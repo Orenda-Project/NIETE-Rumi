@@ -44,6 +44,13 @@ const LOGIN = 'portal/src/portal/pages/PortalLogin.tsx';
 const RESET = 'portal/src/portal/pages/PortalPasswordReset.tsx';
 const VERIFY = 'portal/src/portal/pages/PortalPasswordResetVerify.tsx';
 const ROUTES = 'dashboard/routes/portal.routes.js';
+// bd-fmf24g.64 (2026-10-12) moved the auth pages' words into one copy file and
+// their inputs into shared AuthField / CodeSlots components, so the placeholder
+// and 03XX checks below follow a page's `c.phoneHint` into COPY.
+const COPY = 'portal/src/portal/auth/copy.ts';
+const FIELD = 'portal/src/portal/auth/AuthField.tsx';
+const SLOTS = 'portal/src/portal/auth/CodeSlots.tsx';
+const phoneHints = () => [...code(COPY).matchAll(/phoneHint:\s*'([^']*)'/g)].map((m) => m[1]);
 
 // Strip comments so we assert on real code, not on explanatory prose that
 // happens to quote the very string we are banning.
@@ -63,18 +70,21 @@ describe('bd-2509 — placeholders read as instructions, not as pre-filled value
 
   it('the phone placeholder tells the user what to do', () => {
     for (const f of [LOGIN, RESET]) {
-      const m = code(f).match(/placeholder\s*=\s*"([^"]*)"/g) || [];
-      const phoneish = m.find((p) => /phone|03X|enter/i.test(p));
-      expect(phoneish).toBeTruthy();
+      expect(code(f)).toMatch(/placeholder=\{[^}]*c\.phoneHint\}/);
+    }
+    const hints = phoneHints();
+    expect(hints.length).toBeGreaterThan(0);
+    for (const h of hints) {
+      expect(h).toMatch(/03X/);
       // Must not be a run of digits masquerading as a value.
-      expect(phoneish).not.toMatch(/"\s*\d[\d\s-]*"/);
+      expect(h).not.toMatch(/^\s*\d[\d\s-]*$/);
     }
   });
 
-  it('the OTP placeholder does not look like an already-delivered code', () => {
-    const m = code(VERIFY).match(/id="code"[\s\S]{0,400}?placeholder\s*=\s*"([^"]*)"/);
-    expect(m).toBeTruthy();
-    expect(m[1]).not.toMatch(/^\s*\d+\s*$/);
+  it('the OTP field does not show a placeholder that looks like an already-delivered code', () => {
+    expect(code(VERIFY)).toMatch(/<CodeSlots\s+id="code"/);
+    const m = code(SLOTS).match(/placeholder\s*=\s*["{]([^"}]*)["}]/);
+    if (m) expect(m[1]).not.toMatch(/^\s*\d+\s*$/);
   });
 });
 
@@ -104,8 +114,9 @@ describe('bd-2510 — the UI asks for the format Pakistanis actually use', () =>
 
   it('the local 03XX form is what the user is shown', () => {
     for (const f of [LOGIN, RESET]) {
-      expect(code(f)).toMatch(/03X{2}|0336/);
+      expect(code(f)).toMatch(/c\.phoneHint/);
     }
+    for (const h of phoneHints()) expect(h).toMatch(/03X{2}|0336/);
   });
 });
 
@@ -149,8 +160,11 @@ describe('bd-2512 — the phone survives the hop from login into reset (P1)', ()
 
   it('the field stays editable — a pre-fill is a default, not a lock', () => {
     const src = code(RESET);
-    expect(src).toMatch(/onChange=\{\(e\)\s*=>\s*setPhoneNumber/);
+    expect(src).toMatch(/onChange=\{\(v\)\s*=>\s*\{?\s*setPhoneNumber\(v\)/);
     expect(src).not.toMatch(/id="phoneNumber"[\s\S]{0,300}?readOnly/);
+    // AuthField hands every keystroke back and never locks the input.
+    expect(code(FIELD)).toMatch(/onChange=\{\(e\)\s*=>\s*onChange\(e\.target\.value\)\}/);
+    expect(code(FIELD)).not.toMatch(/readOnly/);
   });
 
   it('arriving at reset directly still works (no state, empty field)', () => {
