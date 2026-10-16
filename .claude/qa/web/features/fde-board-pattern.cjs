@@ -79,6 +79,9 @@ const scenarios = [
     await page.getByRole('button', { name: /Select grade and subject/ }).click();
     await page.getByRole('button', { name: /^Grade 5 · Science/ }).click();
     await page.getByTestId('step-next').waitFor({ state: 'visible', timeout: 15000 });
+    // Count the finished page: Make shows before the pattern's rows load, and a count taken then passed headless
+    // with words still missing (a slowed --headed run counted 55).
+    await page.getByTestId('fde-row-inside').waitFor({ state: 'visible', timeout: 15000 });
     // Words above Make my paper: everything the teacher reads before the button.
     const above = await page.evaluate(() => {
       const btn = document.querySelector('[data-testid="step-next"]');
