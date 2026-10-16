@@ -924,6 +924,7 @@
     if (!live || !live.v) return;
     var el = q('wqc-live-story');
     if (el) el.innerHTML = liveStoryHtml(live.v.marks);
+    if (trailOn()) return;   // the Trail has no speed meter to paint
     var r = liveWpm(live.v);
     var n = q('wqc-wpm-n');
     if (n) n.textContent = r.wpm == null ? '…' : ud(r.wpm);
@@ -1113,7 +1114,15 @@
   function paintRead() {
     var d = S.data;
     var g = guardOn();
-    if (liveOk()) {
+    // the clock line of a read without live words (Story Time shows no clock: no number on a story screen)
+    var clockHtml = g || (TR && TR.isStory()) ? '' : '<div class="wqc-clock"><span class="wqc-dot" aria-hidden="true"></span><span id="wqc-left">' + clock(rec.left) + '</span></div>';
+    if (liveOk() && trailOn()) {
+      // the Trail never shows a reading speed: no running number, no bar, no "Last time"; the words still light up
+      show('read-live', clockHtml + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
+        + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
+        + stickyHtml());
+      livePaint();
+    } else if (liveOk()) {
       var prev = d.previous_wcpm;
       show('read-live', '<div class="wqc-wpm" id="wqc-wpm"><div class="wqc-wpm-top"><b id="wqc-wpm-n">…</b><span>' + esc(t.liveWpm) + '</span>'
         + (g ? '' : '<span class="wqc-wpm-left"><span class="wqc-dot" aria-hidden="true"></span> <span id="wqc-left">' + clock(rec.left) + '</span></span>') + '</div>'
@@ -1124,8 +1133,7 @@
         + stickyHtml());
       livePaint();
     } else {
-      // Story Time shows no clock (no number on a story screen)
-      show('read-rec', (g || (TR && TR.isStory()) ? '' : '<div class="wqc-clock"><span class="wqc-dot" aria-hidden="true"></span><span id="wqc-left">' + clock(rec.left) + '</span></div>')
+      show('read-rec', clockHtml
         + '<p class="wq-sub">' + esc(t.readNow) + '</p>' + storyHtml(d.story)
         + stickyHtml());
     }
