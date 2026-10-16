@@ -34,6 +34,11 @@
  *   provenance_drift / homonym_missed       the week's v2 rows written homonym_in_list = false whose child's list holds
  *                                           ANOTHER active child with the same canonical first name (canonFirst, the
  *                                           page's rule); n = the same v2 rows. Should read 0
+ *                                           A period that is not a full month labels both (PERIOD_NOTES, in `notes`):
+ *                                           2026-10 reads "October (from 17 Oct; v3 forms; no pool)"
+ *   period_missing                          the week's check runs written with no period (no period row on the tier),
+ *                                           so a month-to-date 0 is not "no children"; n = the week's check runs.
+ *                                           Written (with its note) only when above 0
  *   no_class_first_finishes                 scored first exposures with no class
  *   classes_link_eligible                   D5's denominator (a state, not a week): active classes with an active
  *                                           class_teachers row and an active class_enrollments row, the class-link
@@ -105,6 +110,10 @@ const LINE_NOTES = {
   recognised_without_typing: 'homonym picks through the class link read as high until the class-link pick fix lands',
   cold_clips: require('./web-quiz-strip-lines').COLD_CLIPS_NOTE,
 };
+// The label of a period that is not a full month, on every month-to-date line (cells_n30, anchor_retest_gap).
+// October 2026 opened on 17 Oct, on the v3 forms, with no item pool yet.
+const PERIOD_NOTES = { '2026-10': 'October (from 17 Oct; v3 forms; no pool)' };
+const MONTH_LINES = ['cells_n30', 'anchor_retest_gap'];
 const WEEK_RX = /^(\d{4})-W(\d{2})$/;
 const COLS = 'id, student_id, canonical_id, exercise, grade, lang, status, created_at, scored_at, meta, score, mode, form, band, record, '
   + 'class_id, helped, exposure_no, bank_version, period_id, id_src, id_confidence, homonym_in_list, anchor_exposure_no, anchor_block, audio_consent, audio_keep_until';
@@ -482,6 +491,15 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
     anchors.get(c)[Number(r.anchor_exposure_no) === 1 ? 'first' : 'back'].push(okOf(r));
   });
   for (const [c, g] of anchors) put('anchor_retest_gap', c, gap(g.first, g.back), g.first.length + g.back.length);
+  // a short or partial period says so on every month-to-date line that was computed (never compared as a full month)
+  if (PERIOD_NOTES[month]) MONTH_LINES.filter((l) => !skipped.includes(l)).forEach((l) => { notes[l] = PERIOD_NOTES[month]; });
+  // check runs served where the tier had no period row: no month-to-date line can count them, so a 0 there is not
+  // "no children" (counts only; only when there are any)
+  const noPeriod = check.filter((r) => r.period_id == null).length;
+  if (noPeriod) {
+    put('period_missing', '', noPeriod, check.length);
+    notes.period_missing = `period missing: ${noPeriod} runs written without a period`;
+  }
 
   // ── provenance drift (the week's v2 rows; each should read 0). An unreadable students table was logged above ──
   const drift = students ? await driftCounts(rows) : null;
@@ -577,4 +595,4 @@ async function writeLines(lines, now) {
   }
 }
 
-module.exports = { weeklyStrip, replyCapSnapshot, settledSnapshot, linkEligibleClasses, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES };
+module.exports = { weeklyStrip, replyCapSnapshot, settledSnapshot, linkEligibleClasses, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES, PERIOD_NOTES };
