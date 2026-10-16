@@ -20,6 +20,14 @@ const BOOTS = require('./fixtures/hub-play-boots.json');
 
 const CHROME_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36';
 const WA_UA = 'Mozilla/5.0 (Linux; Android 14; SM-A145F Build/UP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0 Mobile Safari/537.36 WhatsApp/2.24.21.80 WA4A/2.24.21.80';
+// The page's clock, fixed: the boots' teacher card says how many days ago its quiz was sent (sent_at 6 Oct 10:00Z), so a
+// golden taken against the real clock moves every day. 15 Oct 21:00Z is when the goldens were taken (9 days).
+const NOW = Date.parse('2026-10-15T21:00:00Z');
+class FixedDate extends Date {
+  constructor(...a) { super(...(a.length ? a : [NOW])); }
+  static now() { return NOW; }
+}
+
 function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = false } = {}) {
   const assigned = [];
   const beacons = [];
@@ -56,7 +64,7 @@ function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = fals
     fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve('{}') }),
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
     setTimeout: (fn) => { timers.push(fn); return timers.length; },
-    Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
+    Date: FixedDate, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
   };
   vm.createContext(ctx);
   // wq-tel.js first, as on every page the edge renders (the pages' link helper WQT.withLang).
