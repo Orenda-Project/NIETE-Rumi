@@ -176,6 +176,7 @@ async function sentQuizzesOn() {
 }
 
 const newestFirst = (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''));
+const CODES_MAX = 1000; // PostgREST's default row cap, made explicit
 const IN_CHUNK = 300; // well under the ~390 ids where a PostgREST .in() overflows its header cap
 
 /**
@@ -202,17 +203,25 @@ async function sentQuizzes(teacherId, { since = null } = {}) {
   let q = supabase.from('quiz_share_codes').select('id, quiz_id, created_at')
     .eq('teacher_user_id', teacherId).is('invited_by_student_id', null);
   if (since) q = q.gte('created_at', since);
-  const { data: codes, error } = await q;
+  // Newest first and bounded: a capped read drops only the oldest codes, never a random few.
+  const { data: codes, error } = await q.order('created_at', { ascending: false }).limit(CODES_MAX);
   if (error) throw new Error(error.message);
   const ids = [...new Set((codes || []).map((c) => c.quiz_id))];
-  const rows = [];
+  // Who made each quiz first (two columns); the full rows only for the ones the teacher did not make.
+  const notMine = [];
   for (let i = 0; i < ids.length; i += IN_CHUNK) {
-    const { data, error: qErr } = await supabase.from('quizzes').select(QUIZ_COLS).in('id', ids.slice(i, i + IN_CHUNK));
+    const { data, error: qErr } = await supabase.from('quizzes').select('id, teacher_id').in('id', ids.slice(i, i + IN_CHUNK));
     if (qErr) throw new Error(qErr.message);
-    rows.push(...(data || []));
+    // The teacher's own quizzes are read by teacher_id as always; a NULL author (the bank) is not theirs.
+    notMine.push(...(data || []).filter((r) => r.teacher_id !== teacherId).map((r) => r.id));
   }
-  // The teacher's own quizzes are read by teacher_id as always; a NULL author (the bank) is not theirs.
-  const theirs = rows.filter((r) => r.teacher_id !== teacherId);
+  if (!notMine.length) return [];
+  const theirs = [];
+  for (let i = 0; i < notMine.length; i += IN_CHUNK) {
+    const { data, error: qErr } = await supabase.from('quizzes').select(QUIZ_COLS).in('id', notMine.slice(i, i + IN_CHUNK));
+    if (qErr) throw new Error(qErr.message);
+    theirs.push(...(data || []).filter((r) => r.teacher_id !== teacherId));
+  }
   if (!theirs.length) return [];
   const sentCodes = await notPrepared((codes || []).filter((c) => theirs.some((r) => r.id === c.quiz_id)));
   const sentAt = new Map();

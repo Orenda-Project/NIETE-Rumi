@@ -65,6 +65,7 @@ const SC_BF = '33333333-3333-4333-8333-3333333333b3'; // an invited friend's cod
 const SC_X = '33333333-3333-4333-8333-3333333333c1'; // a stranger's invited-friend code on the bank quiz
 const LIST_A = 'a0000000-0000-4000-8000-0000000000a3';
 const LIST_B = 'a0000000-0000-4000-8000-0000000000b3';
+const CLS_A = 'c1000000-0000-4000-8000-0000000000a3';
 const kidA = (n) => `b0000000-0000-4000-8000-0000000000a${n}`;
 const kidB = (n) => `b0000000-0000-4000-8000-0000000000b${n}`;
 const BASE = 'https://portal.example.test';
@@ -78,7 +79,7 @@ const session = (id, scId, quizId, studentId, name, correct, h, extra = {}) => (
   completed_at: at(h), created_at: at(h + 0.1), invited_by_student_id: null, device_ref: `dev-${id}`, ...extra,
 });
 
-function seed({ home = true, web = true } = {}) {
+function seed({ home = true, web = true, authorClass = false } = {}) {
   const fake = makeFake({
     app_settings: [
       ...(home === null ? [] : [{ key: 'quiz_teacher_home', value: home ? 'true' : 'false' }]),
@@ -110,8 +111,11 @@ function seed({ home = true, web = true } = {}) {
       { id: SC_X, code: 'XXXXXX', quiz_id: VQ, teacher_user_id: STRANGER, teacher_name: 'C', topic: 'Shapes', language: 'en',
         report_sent_at: null, invited_by_student_id: kidB(2), active: true, expires_at: null, created_at: at(10) },
     ],
+    // authorClass: the author's list stands on an identity-v2 class (the quiz's list_id is that list)
+    classes: authorClass ? [{ id: CLS_A, grade_code: '3', section: 'A', shift_code: null, is_active: true }] : [],
+    class_teachers: authorClass ? [{ class_id: CLS_A, teacher_user_id: AUTHOR, is_active: true }] : [],
     student_lists: [
-      { id: LIST_A, user_id: AUTHOR, class_name: '3', section: 'A', is_active: true },
+      { id: LIST_A, user_id: AUTHOR, class_name: '3', section: 'A', is_active: true, ...(authorClass ? { class_id: CLS_A } : {}) },
       { id: LIST_B, user_id: SENDER, class_name: '3', section: 'B', is_active: true },
     ],
     students: [
@@ -238,6 +242,28 @@ describe('a library code the home only PREPARED (minted to show its message, nev
     await Sent.markSent(SC_BV);
     const after = await Data.classReport(SENDER, { now: NOW });
     expect(after.quizzes.map((q) => q.id)).toEqual([VQ, LQ]);
+  });
+});
+
+describe('the author\'s class never stands in for the sender\'s (identity v2 binds a quiz by its own list)', () => {
+  test('on: the sender\'s report and the class resolver never pick the author\'s class; the author\'s still do', async () => {
+    seed({ authorClass: true });
+    const r = await Data.quizReport(SENDER, LQ);
+    expect(r.roster).toMatchObject({ state: 'known', className: '3-B' });
+    expect(JSON.stringify(r)).not.toMatch(/Aamir/);
+    const Identity = require('../../../shared/services/quiz/web-quiz-identity');
+    const forSender = await Identity.resolveQuizClass({ teacherUserId: SENDER, quizId: LQ, shareCodeId: SC_B });
+    expect(forSender.bound).not.toBe('quiz');
+    expect(JSON.stringify(forSender)).not.toContain(CLS_A);
+    const forAuthor = await Identity.resolveQuizClass({ teacherUserId: AUTHOR, quizId: LQ, shareCodeId: SC_A });
+    expect(forAuthor).toMatchObject({ state: 'known', bound: 'quiz', class: { id: CLS_A } });
+  });
+
+  test('off: the class resolver is today\'s for the same codes', async () => {
+    seed({ home: false, authorClass: true });
+    const Identity = require('../../../shared/services/quiz/web-quiz-identity');
+    const forSender = await Identity.resolveQuizClass({ teacherUserId: SENDER, quizId: LQ, shareCodeId: SC_B });
+    expect(forSender).toMatchObject({ bound: 'quiz', class: { id: CLS_A } }); // today's reading, kept while off
   });
 });
 
