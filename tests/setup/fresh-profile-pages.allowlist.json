@@ -4,10 +4,8 @@
     "renderChallengePage",
     "renderClassLinkPage",
     "renderClosedPage",
-    "renderHubPage",
     "renderLibPage",
     "renderPreviewPage",
-    "renderQuizPage",
     "teacher-jugnu.page",
     "teacher-report.page"
   ]
