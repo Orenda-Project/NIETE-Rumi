@@ -873,7 +873,12 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     rules.push(`Across the whole paper the marks split by thinking level is ${split} (FDE's table of specification). `
       + `Tag each item: ${RULE.r1}${key === 'english' ? `; ${RULE.r1English}` : ''}.`);
   }
-  if (hasMcq) rules.push(`In this section, ${RULE.recall}.`, RULE.oneKey, RULE.unequalOptions, RULE.spreadKeys);
+  if (hasMcq) {
+    rules.push(`In this section, ${RULE.recall}.`, RULE.spreadKeys);
+    // Word MCQs (anagram, homophone, spelling) on the language papers; number options on Maths and Science.
+    if (key === 'english' || key === 'urdu') rules.push(RULE.oneKey);
+    if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
+  }
   rules.push(RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept);
   if (fde && key === 'maths' && list.some((s) => (Array.isArray(s.families) && s.families.length) || (Array.isArray(s.kinds) && s.kinds.length))) {
     rules.push(RULE.families);

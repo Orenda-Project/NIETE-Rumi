@@ -121,7 +121,7 @@ describe('A. an MCQ with two options of the same value', () => {
   }));
 
   it('two options equal in value → item dropped, slot short', () => {
-    for (const options of [['a) 2/5', 'b) 6/15', 'c) 3/4', 'd) 1/3'], ['a) 0.5', 'b) 1/3', 'c) 50%', 'd) 0.25'], ['a) 1/2 kg', 'b) 2 kg', 'c) 0.5 kg', 'd) 3 kg']]) {
+    for (const options of [['a) 2/5', 'b) 6/15', 'c) 3/4', 'd) 1/3'], ['a) 0.5', 'b) 1/3', 'c) 50%', 'd) 0.25'], ['a) 1/2 kg', 'b) 2 kg', 'c) 0.5 kg', 'd) 3 kg'], ['a) Rs. 50', 'b) 50 rupees', 'c) Rs. 5', 'd) Rs. 500'], ['a) 2 minutes', 'b) 2 min', 'c) 20 min', 'd) 12 min']]) {
       const raw = maths({ question: 'Which fraction is the shaded part?', options, answer: 'a) 2/5' });
       const out = applyLayout(raw, P.maths, FDE, { now: NOW });
       expect(out.placed).toBe(19);

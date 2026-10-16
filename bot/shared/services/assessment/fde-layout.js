@@ -222,12 +222,23 @@ function bare(text) {
     .trim();
 }
 
+// One name for a unit written several ways ("Rs." and "rupees", "min" and "minutes").
+const UNIT_SAME = {
+  rs: 'rs', rupee: 'rs', rupees: 'rs',
+  min: 'min', mins: 'min', minute: 'min', minutes: 'min',
+  hr: 'h', hrs: 'h', hour: 'h', hours: 'h',
+  sec: 's', secs: 's', second: 's', seconds: 's',
+  day: 'day', days: 'day', week: 'week', weeks: 'week', year: 'year', years: 'year',
+  litre: 'l', litres: 'l', liter: 'l', liters: 'l',
+  metre: 'm', metres: 'm', meter: 'm', meters: 'm',
+};
+
 // An option that is only a number ("Rs. 30", "84 cm2", "1 1/2", "75%", "90 degrees", «۹۰ درجے»):
 // its value and the unit around it; value NaN when it is not.
 function measureOf(text) {
   const raw = bare(text).replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
   const scale = /%/.test(raw) ? 100 : 1;
-  const unit = raw.replace(/[\d.,/%\s]+/g, ' ').trim().toLowerCase();
+  const unit = raw.replace(/[\d.,/%\s]+/g, ' ').trim().toLowerCase().split(' ').map((w) => UNIT_SAME[w] || w).join(' ');
   // A unit is whatever follows the number, in any script.
   const s = raw.replace(UNIT_WORDS, '').replace(/[%°²³]/g, '').replace(/,/g, '').replace(/^(.*\d)\D*$/u, '$1').trim();
   let value = NaN;
