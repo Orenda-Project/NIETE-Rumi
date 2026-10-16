@@ -146,7 +146,7 @@ describe('fast first page: the hub', () => {
     expect(n.student_lists).toBe(1);
   });
 
-  test('switch on: the hub payload is exactly the switch-off payload', async () => {
+  test('switch on: the hub payload is the switch-off payload plus `fast: true`', async () => {
     require('../../../shared/services/quiz/web-quiz-fast')._reset();
     const off = stable(await Hub.hub(T.signHub([KID]), A));
     Hub._resetCache();
@@ -157,6 +157,9 @@ describe('fast first page: the hub', () => {
     Hub._resetCache();
     redis._store.clear();
     const on = stable(await Hub.hub(T.signHub([KID]), A));
+    expect(off.fast).toBeUndefined();
+    expect(on.fast).toBe(true);
+    delete on.fast;
     expect(on).toEqual(off);
   });
 });

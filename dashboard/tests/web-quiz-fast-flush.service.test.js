@@ -173,3 +173,66 @@ describe('fast first page: GET /q/:code', () => {
     expect(res.body).toBe(want);
   });
 });
+
+// ── the kid hub /h/<token> ────────────────────────────────────────────────────────────────────────────────────────
+const { renderHubPage } = require('../routes/web-quiz.routes');
+const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
+const HUB = (extra = {}) => ({
+  lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
+  teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, ...extra,
+});
+const hubVer = (body) => body.match(/wq\.css\?v=([0-9a-f]+)/)[1];
+
+describe('fast first page: GET /h/:token', () => {
+  let srv;
+  afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
+
+  it('switch off: the hub is today\'s server render, byte for byte', async () => {
+    const bot = heldBot([jsonRes(200, HUB()), jsonRes(200, HUB())]);
+    srv = await start(build(bot.fetchImpl));
+    await get(srv, `/h/${TOKEN}`);
+    const res = await get(srv, `/h/${TOKEN}`);
+    expect(res.body).toBe(renderHubPage({ payload: HUB(), token: TOKEN, origin: 'http://portal.example', assetV: hubVer(res.body) }));
+  });
+
+  it('switch on: the head and the Jugnu frame reach the phone before the bot answers; the scripts are today\'s, in order', async () => {
+    const bot = heldBot([jsonRes(200, HUB({ fast: true })), { hold: true, res: jsonRes(200, HUB({ fast: true, bind: true })) }]);
+    srv = await start(build(bot.fetchImpl));
+    await get(srv, `/h/${TOKEN}`);
+    let answered = false; let answeredAtFirstChunk = null; let early = null;
+    const answer = () => { if (!answered) { answered = true; bot.release(); } };
+    const fallback = setTimeout(answer, 400);
+    const res = await get(srv, `/h/${TOKEN}`, { onFirstChunk: (c) => { early = c; answeredAtFirstChunk = answered; answer(); } });
+    clearTimeout(fallback);
+    expect(answeredAtFirstChunk).toBe(false);
+    expect(early).toMatch(/<link rel="preload" href="\/wq\/hub\.js\?v=[0-9a-f]+" as="script">/);
+    expect(early).toMatch(/<main id="wq" class="wq-app wq-hub"/);
+    expect(early).not.toMatch(/id="boot"/);
+    const today = renderHubPage({ payload: HUB({ fast: true, bind: true }), token: TOKEN, origin: 'http://portal.example', assetV: hubVer(res.body) });
+    const tags = (s) => s.match(/<script src="[^"]+" defer><\/script>|<link rel="stylesheet" href="[^"]+">/g);
+    expect(tags(res.body)).toEqual(tags(today));
+    const boot = JSON.parse(res.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+    expect(boot.view).toBe('hub');
+  });
+
+  it('switch on, an Urdu hub guessed as English: set to Urdu before its scripts run', async () => {
+    const bot = heldBot([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true, lang: 'ur' }))]);
+    srv = await start(build(bot.fetchImpl));
+    await get(srv, `/h/${TOKEN}`);
+    const res = await get(srv, `/h/${TOKEN}`);
+    const fix = res.body.indexOf('h.lang="ur"');
+    expect(fix).toBeGreaterThan(-1);
+    expect(fix).toBeLessThan(res.body.indexOf('<script src="/wq/hub.js'));
+  });
+
+  it('switch on, the link has expired (401 after the head went): the page asks again the old way, which answers 401', async () => {
+    const bot = heldBot([jsonRes(200, HUB({ fast: true })), jsonRes(401, { error: 'bad_token' }), jsonRes(401, { error: 'bad_token' })]);
+    srv = await start(build(bot.fetchImpl));
+    await get(srv, `/h/${TOKEN}`);
+    const res = await get(srv, `/h/${TOKEN}`);
+    expect(res.body).toMatch(/nf=1/);
+    expect(res.body).not.toMatch(/id="boot"/);
+    const again = await get(srv, `/h/${TOKEN}?nf=1`);
+    expect(again.status).toBe(401);
+  });
+});

@@ -496,7 +496,9 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
 /** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
 async function hub(token, opts = {}) {
   const ui = await require('./web-quiz-ur-polish').ui();
-  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}) };
+  // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
+  const fast = require('./web-quiz-fast').on();
+  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}) };
 }
 
 module.exports = {
