@@ -274,3 +274,7 @@ async function playField(input) {
 function srcOf(v) { return typeof v === 'string' && SRC_VALUES.includes(v) ? v : undefined; }
 
 module.exports = { playFor, playField, trailWaiting, openBands, nextThing, dayOf, switches, srcOf, SRC_VALUES, KEYS, _resetCache: () => { cache = null; } };
+// the v3 home's Stories door (web-quiz-hub-doors.js) lists the same passages by the same rules
+module.exports.passagesOf = passagesOf;
+module.exports.seenPassages = seenPassages;
+module.exports.readingRungOf = readingRungOf;
