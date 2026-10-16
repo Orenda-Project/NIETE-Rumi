@@ -110,6 +110,18 @@ test('the library from the hub and a hub video start take the device from x-wq-d
   } finally { lib.mockRestore(); start.mockRestore(); }
 });
 
+test('a Challenge result takes the device from x-wq-device (the mic notice is marked seen per phone), never from the body', async () => {
+  const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
+  const submit = jest.spyOn(Ch, 'submit').mockResolvedValue({ pending: true });
+  try {
+    const body = { ct: 'x.y', key: 'k', audio_consent: 'notice_shown', device: 'BodyRefBodyRefBodyRef_' };
+    expect((await fetch(`${base}/ch/result`, { method: 'POST', headers: { ...KEY, 'x-wq-device': 'DevRefDevRefDevRef_-01' }, body: JSON.stringify(body) })).status).toBe(200);
+    expect(submit).toHaveBeenCalledWith(body, { device: 'DevRefDevRefDevRef_-01' });
+    await fetch(`${base}/ch/result`, { method: 'POST', headers: KEY, body: JSON.stringify(body) });
+    expect(submit.mock.calls[1][1].device).toBeUndefined();
+  } finally { submit.mockRestore(); }
+});
+
 test("the results card's hub door is mounted behind the key and keeps the service's refusals", async () => {
   const r = await fetch(`${base}/hubdoor`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: 'not-a-token' }) });
   expect(r.status).toBe(401);

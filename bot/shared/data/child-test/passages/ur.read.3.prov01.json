@@ -1,0 +1,257 @@
+{
+  "passage_id": "ur.read.3.prov01",
+  "lang": "ur",
+  "kind": "read",
+  "band": 3,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 64,
+  "sentences": 8,
+  "mean_sent_len": 8.0,
+  "max_word_len": 6,
+  "readability": 0.949,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "text_hash": "f84c718dbeeaf993fc28dcba37ff5eb7",
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "دادا کے نام خط",
+  "text": "دانیال نے کوئٹہ میں رہنے والے دادا کو خط لکھا۔ اس نے خط میں اپنی جماعت کے بارے میں لکھا۔ ابو نے وہ خط بھیج دیا۔ کچھ وقت بعد خط واپس آ گیا۔ ابو نے دیکھا کہ خط پر پتا ہی نہیں تھا۔ دانیال نے خط پر صاف پتا لکھا۔ اس بار خط دادا تک پہنچ گیا۔ دادا نے خوش ہو کر جواب لکھا۔",
+  "lines": [
+    [
+      0,
+      9
+    ],
+    [
+      10,
+      19
+    ],
+    [
+      20,
+      25
+    ],
+    [
+      26,
+      32
+    ],
+    [
+      33,
+      42
+    ],
+    [
+      43,
+      49
+    ],
+    [
+      50,
+      56
+    ],
+    [
+      57,
+      63
+    ]
+  ],
+  "tokens_list": [
+    "دانیال",
+    "نے",
+    "کوئٹہ",
+    "میں",
+    "رہنے",
+    "والے",
+    "دادا",
+    "کو",
+    "خط",
+    "لکھا",
+    "اس",
+    "نے",
+    "خط",
+    "میں",
+    "اپنی",
+    "جماعت",
+    "کے",
+    "بارے",
+    "میں",
+    "لکھا",
+    "ابو",
+    "نے",
+    "وہ",
+    "خط",
+    "بھیج",
+    "دیا",
+    "کچھ",
+    "وقت",
+    "بعد",
+    "خط",
+    "واپس",
+    "آ",
+    "گیا",
+    "ابو",
+    "نے",
+    "دیکھا",
+    "کہ",
+    "خط",
+    "پر",
+    "پتا",
+    "ہی",
+    "نہیں",
+    "تھا",
+    "دانیال",
+    "نے",
+    "خط",
+    "پر",
+    "صاف",
+    "پتا",
+    "لکھا",
+    "اس",
+    "بار",
+    "خط",
+    "دادا",
+    "تک",
+    "پہنچ",
+    "گیا",
+    "دادا",
+    "نے",
+    "خوش",
+    "ہو",
+    "کر",
+    "جواب",
+    "لکھا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "دانیال کے دادا کہاں رہتے ہیں؟",
+      "right": "کوئٹہ میں",
+      "wrong": [
+        "کراچی میں",
+        "لاہور میں"
+      ],
+      "accept": [
+        "کوئٹہ میں",
+        "کوئٹہ"
+      ],
+      "reject": [
+        "کراچی میں",
+        "لاہور میں"
+      ],
+      "rubric": "Correct if the child says in Quetta (کوئٹہ)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "دانیال نے دادا کو کیا لکھا؟",
+      "right": "خط",
+      "wrong": [
+        "کارڈ",
+        "نظم"
+      ],
+      "accept": [
+        "خط",
+        "ایک خط"
+      ],
+      "reject": [
+        "کارڈ",
+        "نظم"
+      ],
+      "rubric": "Correct if the child says a letter (خط)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "دانیال نے خط میں کس کے بارے میں لکھا؟",
+      "right": "جماعت کے بارے میں",
+      "wrong": [
+        "موسم کے بارے میں",
+        "کھانے کے بارے میں"
+      ],
+      "accept": [
+        "جماعت کے بارے میں",
+        "اپنی جماعت کے بارے میں",
+        "جماعت"
+      ],
+      "reject": [
+        "موسم کے بارے میں",
+        "کھانے کے بارے میں"
+      ],
+      "rubric": "Correct if the child says about his class (جماعت)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 5,
+      "type": "inferential",
+      "tap_ok": false,
+      "prompt": "خط پر کیا لکھنا رہ گیا تھا؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "پتا",
+        "گھر کا پتا",
+        "دادا کا پتا"
+      ],
+      "reject": [],
+      "rubric": "Inferential turn. Correct if the child says the address (پتا) had not been written on the letter."
+    },
+    {
+      "id": "q5",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "خط کس نے بھیجا؟",
+      "right": "ابو نے",
+      "wrong": [
+        "دانیال نے",
+        "امی نے"
+      ],
+      "accept": [
+        "ابو نے",
+        "ابو"
+      ],
+      "reject": [
+        "دانیال نے",
+        "امی نے"
+      ],
+      "rubric": "Correct if the child says his father (ابو)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 8,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "دادا نے خوش ہو کر کیا لکھا؟",
+      "right": "جواب",
+      "wrong": [
+        "کہانی",
+        "نظم"
+      ],
+      "accept": [
+        "جواب",
+        "خط کا جواب"
+      ],
+      "reject": [
+        "کہانی",
+        "نظم"
+      ],
+      "rubric": "Correct if the child says a reply (جواب)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "دانیال"
+  ]
+}

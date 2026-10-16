@@ -1,0 +1,219 @@
+{
+  "passage_id": "ur.read.1.sparrow",
+  "lang": "ur",
+  "kind": "read",
+  "band": 1,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 39,
+  "sentences": 6,
+  "mean_sent_len": 6.5,
+  "max_word_len": 4,
+  "readability": 0.933,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.967,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 5,
+  "text_hash": "bcae53c65119e451f1a2e6e64aa3aba9",
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "چھوٹی چڑیا",
+  "text": "ایک چھوٹی چڑیا نمرہ کو نظر آئی۔ چڑیا کو بہت بھوک لگی تھی۔ نمرہ نے اسے کچھ کھانا دیا۔ چڑیا پہلے دور ہی رہی۔ پھر وہ آگے آ کر کھانے لگی۔ اب وہ روز نمرہ کے پاس آنے لگی۔",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      12
+    ],
+    [
+      13,
+      18
+    ],
+    [
+      19,
+      23
+    ],
+    [
+      24,
+      30
+    ],
+    [
+      31,
+      38
+    ]
+  ],
+  "tokens_list": [
+    "ایک",
+    "چھوٹی",
+    "چڑیا",
+    "نمرہ",
+    "کو",
+    "نظر",
+    "آئی",
+    "چڑیا",
+    "کو",
+    "بہت",
+    "بھوک",
+    "لگی",
+    "تھی",
+    "نمرہ",
+    "نے",
+    "اسے",
+    "کچھ",
+    "کھانا",
+    "دیا",
+    "چڑیا",
+    "پہلے",
+    "دور",
+    "ہی",
+    "رہی",
+    "پھر",
+    "وہ",
+    "آگے",
+    "آ",
+    "کر",
+    "کھانے",
+    "لگی",
+    "اب",
+    "وہ",
+    "روز",
+    "نمرہ",
+    "کے",
+    "پاس",
+    "آنے",
+    "لگی"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "نمرہ کو کیا نظر آئی؟",
+      "right": "چڑیا",
+      "wrong": [
+        "مرغی",
+        "تتلی"
+      ],
+      "accept": [
+        "چڑیا",
+        "چھوٹی چڑیا"
+      ],
+      "reject": [
+        "مرغی",
+        "تتلی"
+      ],
+      "rubric": "Correct if the child says a sparrow (چڑیا)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "چڑیا کیسی تھی؟",
+      "right": "چھوٹی",
+      "wrong": [
+        "بڑی",
+        "موٹی"
+      ],
+      "accept": [
+        "چھوٹی"
+      ],
+      "reject": [
+        "بڑی",
+        "موٹی"
+      ],
+      "rubric": "Correct if the child says small (چھوٹی)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "چڑیا کو کیا لگی تھی؟",
+      "right": "بھوک",
+      "wrong": [
+        "پیاس",
+        "سردی"
+      ],
+      "accept": [
+        "بھوک",
+        "بہت بھوک"
+      ],
+      "reject": [
+        "پیاس",
+        "سردی"
+      ],
+      "rubric": "Correct if the child says hunger (بھوک)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "نمرہ نے چڑیا کو کیا دیا؟",
+      "right": "کھانا",
+      "wrong": [
+        "پانی",
+        "کھلونا"
+      ],
+      "accept": [
+        "کھانا",
+        "کچھ کھانا"
+      ],
+      "reject": [
+        "پانی",
+        "کھلونا"
+      ],
+      "rubric": "Correct if the child says food (کھانا)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": false,
+      "prompt": "اب چڑیا کب نمرہ کے پاس آنے لگی؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "روز",
+        "ہر روز"
+      ],
+      "reject": [
+        "کبھی کبھی",
+        "کبھی نہیں"
+      ],
+      "rubric": "Correct if the child says every day (روز)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "نمرہ"
+  ],
+  "changes": [
+    {
+      "at": "2026-10-16",
+      "field": "text",
+      "what": "sentence 1: 'ایک چھوٹی چڑیا نمرہ کے پاس آ گئی۔' -> 'ایک چھوٹی چڑیا نمرہ کو نظر آئی۔'",
+      "why": "sentence 1 said the sparrow came right up to the child while sentence 4 says it first kept its distance; the reviewer's replacement word is a word-task item the gate bans, so the sentence says the sparrow came into view",
+      "text_hash_before": "cf7320656d516694cb13d39dd13f0815"
+    },
+    {
+      "at": "2026-10-16",
+      "field": "questions.q1.prompt",
+      "what": "'نمرہ کے پاس کیا آ گئی؟' -> 'نمرہ کو کیا نظر آئی؟'",
+      "why": "the q1 prompt follows the new sentence 1",
+      "text_hash_before": "cf7320656d516694cb13d39dd13f0815"
+    }
+  ]
+}

@@ -31,6 +31,9 @@ const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 // A page session id (wq-tel.js): 8-16 lower-case letters and digits.
 const PS_RX = /^[a-z0-9]{8,16}$/;
+// hub_open.src's route values (EVENTS row 3). Mirrors SRC_VALUES in bot/shared/services/quiz/web-quiz-hub-play.js:
+// the edge cannot load the bot's modules, so keep the two lists the same.
+const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend)$/;
 // A signed hub token (bot web-quiz-token.js): base64url payload "." 22-char signature.
 const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
@@ -67,6 +70,10 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/who', limiter: 'read' },
   { method: 'post', path: '/api/wq/who/fix', limiter: 'session' },
   { method: 'post', path: '/api/wq/who/class', limiter: 'session' },
+  // keep my place (the bot answers {off:true} with web_quiz_phone_bind off)
+  { method: 'post', path: '/api/wq/bind/mint', limiter: 'session' },
+  { method: 'get', path: '/api/wq/bind/status', limiter: 'read' },
+  { method: 'post', path: '/api/wq/bind/undo', limiter: 'session' },
   { method: 'get', path: '/api/wq/videos/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/videos/start', limiter: 'session' },
   { method: 'post', path: '/api/wq/e', limiter: ['events', 'eventsPs'] },
@@ -86,11 +93,15 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/hub/:token', limiter: 'read' },
   // M4b library
   { method: 'get', path: '/api/wq/lib/h/:token', limiter: 'read', token: true },
+  // Jugnu's Book from the kid's hub (the bot answers 503 while web_quiz_challenge_book is off)
+  { method: 'get', path: '/api/wq/book/h/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
   { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
   // the results card's door to the child's hub (a session token in the body)
   { method: 'post', path: '/api/wq/hubdoor', limiter: 'session' },
+  // an old, finished class link opened again: the child's hub, for one remembered child on this phone
+  { method: 'post', path: '/api/wq/linkhome', limiter: 'session' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
@@ -115,7 +126,14 @@ function bootJson(obj) {
 
 function assetVersion() {
   const h = crypto.createHash('sha256');
-  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js']) {
+  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js', 'wq-bind.js', 'wq-bind.css', 'wq-card.js']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
+  // The hub's Jugnu corner (hub-play.js): its own line, so a change to it busts the cached hub page too.
+  try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, 'hub-play.js'))); } catch (_) { /* absent in some tests */ }
+  // Jugnu's Book (hub.js loads wq-book.js / .css at its own ?v=): a change to either busts the hub's version too.
+  // wq-tel.js (on every page at this ?v=) holds the pages' link helper WQT.withLang: a change to it busts it too.
+  for (const f of ['wq-book.js', 'wq-book.css', 'wq-tel.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -269,17 +287,25 @@ function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v }) {
 const HUB_TITLE = { en: 'Your quizzes and videos', ur: 'آپ کے کوئز اور ویڈیوز' };
 const HUB_BOOT = { en: 'Opening…', ur: 'کھل رہا ہے…' };
 
+// keep my place: the card's script and styles, only when the bot's hub JSON carries `bind` (web_quiz_phone_bind on).
+function bindTags(payload, assetV) {
+  if (!payload || !payload.bind) return '';
+  return `<link rel="stylesheet" href="/wq/wq-bind.css?v=${assetV}">\n<script src="/wq/wq-bind.js?v=${assetV}" defer></script>\n`;
+}
+
 function renderHubPage({ payload, token, origin, assetV }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const boot = { ...payload, token, view: 'hub', brand };
+  // The Jugnu corner (bot web-quiz-hub-play.js): its script, and the install manifest, only when the bot sent `play`.
+  const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
   return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui })}
-</head>
+${play && play.install ? `<link rel="manifest" href="/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}">\n` : ''}</head>
 <body>
 <main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-<script src="/wq/hub.js?v=${assetV}" defer></script>
+${bindTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`;
 }
@@ -329,7 +355,7 @@ function clientIp(req) {
  * timeout, redirects never followed. Shared by the child quiz and the teacher report.
  * Returns { status, body, location } (JSON parsed), or { status, bytes, contentType,
  * location } for a 2xx picture — or for ANY answer when `raw` is set (an HTML page, a
- * PDF). Throws { unreachable: true } when the bot cannot be reached.
+ * PDF; with `timing` when the bot sent its timing headers). Throws { unreachable: true } when the bot cannot be reached.
  */
 const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/;
 function deviceCookie(req) {
@@ -344,6 +370,15 @@ function botRouteOf(pathname) {
   return `/${parts.slice(0, 4).join('/')}${parts.length > 4 ? '/:x' : ''}`;
 }
 
+// The bot's own timing on a teacher report page (x-render-ms, x-queue-age; sent only with web_quiz_events_v2 on):
+// whole numbers only, else not passed on. null when the bot sent neither.
+const TIMING_RX = /^\d{1,7}$/;
+function timingOf(res) {
+  const one = (h) => { const v = res.headers && res.headers.get ? res.headers.get(h) : null; return typeof v === 'string' && TIMING_RX.test(v) ? v : null; };
+  const t = { render: one('x-render-ms'), queue: one('x-queue-age') };
+  return t.render != null || t.queue != null ? t : null;
+}
+
 const defaultLogEvent = (e, p) => { try { require('../services/telemetry.service').logEvent(e, p); } catch (_) { /* never decides a response */ } };
 
 function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent, now = Date.now, timeoutMs = BOT_TIMEOUT_MS }) {
@@ -351,7 +386,7 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
   const record = (method, route, t0, fields) => {
     try { logEvent('web_quiz.bot_call', { route, method, ms: now() - t0, ...fields }); } catch (_) { /* never decides a response */ }
   };
-  return async function callBot(method, pathname, req, body, { raw = false, route = null } = {}) {
+  return async function callBot(method, pathname, req, body, { raw = false, route = null, device = null } = {}) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
     const t0 = now();
@@ -361,7 +396,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       const ua = req.get('user-agent');
       if (ua) headers['user-agent'] = ua.slice(0, 300);
       // This phone's device_ref (the wq_dv cookie the hub page writes): a hub link opens nothing as a child on another phone.
-      const dv = deviceCookie(req);
+      // (`device`: a ref the caller just gave this phone, before its cookie comes back)
+      const dv = device || deviceCookie(req);
       if (dv) headers['x-wq-device'] = dv;
       const init = { method, headers, redirect: 'manual' };
       if (controller) init.signal = controller.signal;
@@ -377,7 +413,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
       const type = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
       if ((raw || (res.status >= 200 && res.status < 300 && /^image\//i.test(type))) && res.arrayBuffer) {
-        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location };
+        const timing = timingOf(res);
+        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location, ...(timing ? { timing } : {}) };
       }
       const text = await res.text();
       let json = null;
@@ -419,12 +456,15 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
-<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
+${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
 }
 
-function renderChallengeNote({ lang, why, origin, assetV, brandKey, ui = null }) {
+// The pick_kid note's way back: the Challenge page's own Home label (wq-challenge.js homeBtn), to the hub of the token.
+const CH_HOME = { en: 'Home', ur: 'ہوم' };
+
+function renderChallengeNote({ lang, why, origin, assetV, brandKey, ui = null, hub = null }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey);
   const title = CH_COPY[l].title(brand.mascot[l]);
@@ -435,7 +475,7 @@ function renderChallengeNote({ lang, why, origin, assetV, brandKey, ui = null })
 <img class="wq-jugnu" src="/wq/jugnu/hello.webp" alt="" width="160" height="160">
 <h1>${esc(title)}</h1>
 <p class="wq-sub">${esc(CH_COPY[l][why] || '')}</p>
-</section></main>
+${hub ? `<a class="wq-home" href="/h/${encodeURIComponent(hub)}"><span aria-hidden="true">🏠</span><span class="wq-homet">${esc(CH_HOME[l])}</span></a>\n` : ''}</section></main>
 </body>
 </html>`;
 }
@@ -530,6 +570,15 @@ function createWebQuizRouter(opts = {}) {
       }
     });
   }
+  // ── standing class link /j/<code> (web_quiz_class_link, decided by the bot): web-quiz-class-link.js ──
+  let clV = null;
+  const pageHeadersCl = (res) => res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
+  require('./web-quiz-class-link').registerClassLink(router, {
+    callBot, limiters, unknownCode, jsonBody, noStore, configured, ready: () => Boolean(botUrl && apiKey), pageHeaders: pageHeadersCl, originOf,
+    version, jsVersion: () => clV || (clV = challengeVersion('class-link.js')), brand: () => brandOf(lastBrand), ui: () => lastUi, head, esc, bootJson, isPreviewFetch: (req) => Preview.isPreviewFetch(req),
+    closedPage: (req, res, status, kind) => res.status(status).type('html').send(renderClosedPage({ lang: 'en', kind, origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi })),
+  });
+  // ── end standing class link ──
   router.all('/api/wq/*', (req, res) => res.status(404).json({ error: 'not_found' }));
 
   // Body over the cap (or malformed JSON) on /api/wq: answer in JSON, never the HTML error page.
@@ -598,6 +647,17 @@ function createWebQuizRouter(opts = {}) {
 
   router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));
   // M4a hub — GET /h/:token, the kid hub (WhatsApp /quiz link), server-rendered like /q/:code.
+  // The hub's web manifest (linked only when the bot's hub JSON has the install prompt on): the installed icon opens
+  // this child's own hub, marked ?from=hs so the hub open carries the home-screen route (hub_open.src).
+  router.get('/h/:token/manifest.webmanifest', limiters.read, (req, res) => {
+    const token = String(req.params.token || '');
+    if (!HUB_TOKEN_RX.test(token)) return res.status(404).end();
+    const kid = typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid) ? `&kid=${req.query.kid}` : '';
+    let base = {};
+    try { base = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'manifest.webmanifest'), 'utf8')); } catch (_) { base = { name: 'Jugnu' }; }
+    res.set('Cache-Control', 'private, max-age=300');
+    return res.status(200).type('application/manifest+json').send(JSON.stringify({ ...base, start_url: `/h/${token}?from=hs${kid}`, scope: '/' }));
+  });
   router.get('/h/:token', limiters.read, async (req, res) => {
     pageHeaders(res);
     const origin = originOf(req);
@@ -608,9 +668,13 @@ function createWebQuizRouter(opts = {}) {
     if (!HUB_TOKEN_RX.test(token)) return closed(401, 'hub');
     if (!botUrl || !apiKey) return closed(503, 'off');
     const kid = typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid) ? `?kid=${req.query.kid}` : '';
+    // The route that brought the child (?from=…) rides to the bot as `src` (hub_open.src, read as opts.src).
+    const src = typeof req.query.from === 'string' && HUB_SRC_RX.test(req.query.from) ? `${kid ? '&' : '?'}src=${req.query.from}` : '';
+    // The language the page that sent the child here was in (?lang=, only en|ur): the bot decides whether it wins.
+    const lang = req.query.lang === 'en' || req.query.lang === 'ur' ? `${kid || src ? '&' : '?'}lang=${req.query.lang}` : '';
     let out;
     try {
-      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}`, req);
+      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
       return closed(502, 'off');
     }
@@ -628,6 +692,22 @@ function createWebQuizRouter(opts = {}) {
 
   // M4c challenge: the kid's Challenge page, opened from the hub (or a quiz session token while testing).
   router.get('/c/:token', limiters.read, (req, res) => challengePage(req, res));
+  // The class round's hand-back (the round end card's one button): the bot keeps the teacher's round page token
+  // server-side and names it here; 303 there, else 303 to the turn's own page (Home). Never an error page.
+  router.get('/c/:token/back', limiters.read, async (req, res) => {
+    const token = String(req.params.token || '');
+    const lang = req.query.lang === 'ur' ? 'ur' : 'en';
+    res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' });
+    if (!TOKEN_RX.test(token)) return res.status(404).type('html').send(renderClosedPage({ lang, kind: 'closed', origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    const home = `/c/${encodeURIComponent(token)}?lang=${lang}`;
+    if (!botUrl || !apiKey) return res.redirect(303, home);
+    let to = null;
+    try {
+      const out = await callBot('GET', `/api/internal/wq/ch/${encodeURIComponent(token)}/back?lang=${lang}`, req, null, { route: '/api/internal/wq/ch/:token/back' });
+      to = out.status === 200 && out.body && typeof out.body.to === 'string' ? out.body.to : null;
+    } catch (_) { to = null; }
+    return res.redirect(303, to && /^\/r\/[A-Za-z0-9_.%-]{8,900}\/round\?lang=(?:en|ur)$/.test(to) ? to : home);
+  });
 
   async function challengePage(req, res) {
     pageHeaders(res);
@@ -652,7 +732,10 @@ function createWebQuizRouter(opts = {}) {
     }
     const err = out.body && out.body.error;
     if (err === 'not_eligible' || err === 'pick_kid' || err === 'other_device') {
-      return res.status(out.status).type('html').send(renderChallengeNote({ lang: lang0 || 'en', why: err, origin, assetV: version(), brandKey, ui: lastUi }));
+      // pick_kid (a deep link with no tap on this visit): the note links to the hub of this token (a hub token only),
+      // where the child picks; never a dead end.
+      const hub = err === 'pick_kid' && HUB_TOKEN_RX.test(token) ? token : null;
+      return res.status(out.status).type('html').send(renderChallengeNote({ lang: lang0 || 'en', why: err, origin, assetV: version(), brandKey, ui: lastUi, hub }));
     }
     const kind = out.status === 401 ? 'closed' : 'off';
     return res.status(out.status === 401 ? 410 : 503).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind, origin, assetV: version(), brandKey, ui: lastUi }));
@@ -721,4 +804,4 @@ function createWebQuizRouter(opts = {}) {
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderChallengePage, renderLibPage, bootJson, renderHubPage };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, assetVersion };

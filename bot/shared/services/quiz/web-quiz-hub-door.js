@@ -13,9 +13,11 @@
  * A sibling on the same phone gets their own door from their own card: the token never names the phone's other children.
  * Err is web-quiz.service's WqError, passed in by the route: this module never requires the service (whose finish()
  * requires it), so there is no require cycle.
+ * Events v2 (web_quiz_events_v2, read fail-closed): the server `web_quiz.hub_door` event carries the writer mark
+ * `w:'s'` so a count of server door events reads `w=='s'`; with the switch off the event is today's, byte for byte.
  */
 const { read: dbRead } = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
-const { logEvent } = require('../../utils/structured-logger');
+const K = require('./web-quiz-kid');   // the one home for the v2 event rule (kind 'mark' here)
 const T = require('./web-quiz-token');
 const Flags = require('./web-quiz-hub-flags');
 const Device = require('./web-quiz-hub-device');
@@ -39,26 +41,27 @@ async function field(s) {
 }
 
 async function door(body = {}, Err = Error) {
-  const fail = (status, error, why) => {
-    logEvent('web_quiz.hub_door', { ok: false, reason: why || error });
+  const fail = async (status, error, why) => {
+    await K.emit('web_quiz.hub_door', { ok: false, reason: why || error }, { kind: 'mark' });
     const e = new Err(status, { error });
     if (!(e.status && e.body)) Object.assign(e, { status, body: { error } });
     throw e;
   };
   const tok = T.verify(body.st, 's');
-  if (!tok || !tok.sid || !tok.d) fail(401, 'bad_token');
+  if (!tok || !tok.sid || !tok.d) await fail(401, 'bad_token');
   const { data: s } = await dbRead('door:quiz_sessions:1', (db) => db.from('quiz_sessions')
     .select('id, student_id, user_id, invited_by_student_id, status, share_code_id').eq('id', tok.sid).maybeSingle());
-  if (!s || s.share_code_id !== tok.sc) fail(401, 'bad_token');
+  if (!s || s.share_code_id !== tok.sc) await fail(401, 'bad_token');
   const f = await Flags.flags();
   const home = Boolean(body.home) && f.hub && f.homeButton;
-  if (!home && !(await isOn())) fail(404, 'no_door', 'off');
-  if (!ownRun(s) || (s.status !== 'completed' && !(home && s.status === 'in_progress'))) fail(404, 'no_door', 'not_own_finished_run');
-  const token = T.signHub([s.student_id]);
-  if (!token) fail(404, 'no_door', 'no_secret');
+  if (!home && !(await isOn())) await fail(404, 'no_door', 'off');
+  if (!ownRun(s) || (s.status !== 'completed' && !(home && s.status === 'in_progress'))) await fail(404, 'no_door', 'not_own_finished_run');
+  // child identity store (web_quiz_identity_canon): the hub link names the child by the id they are known by.
+  const token = T.signHub([(await require('./web-quiz-identity-flags').flags()).canon ? await require('./web-quiz-identity-roster').canonicalStudentId(s.student_id) : s.student_id]);
+  if (!token) await fail(404, 'no_door', 'no_secret');
   const bound = await Device.deviceTrusted(token, tok.d);
-  if (!bound.ok) fail(404, 'no_door', bound.why);
-  logEvent('web_quiz.hub_door', { ok: true, sessionId: s.id, reason: bound.why, ...(home ? { home: true } : {}) });
+  if (!bound.ok) await fail(404, 'no_door', bound.why);
+  await K.emit('web_quiz.hub_door', { ok: true, sessionId: s.id, reason: bound.why, ...(home ? { home: true } : {}) }, { kind: 'mark' });
   return { href: `/h/${token}` };
 }
 

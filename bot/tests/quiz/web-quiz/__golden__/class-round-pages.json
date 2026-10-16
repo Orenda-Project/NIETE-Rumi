@@ -1,0 +1,74 @@
+{
+  "en/card": {
+    "sha256": "b02879299e76e65d9dd2b1676a22221a2482506115158f0c4947220ca3d5b641",
+    "bytes": 837
+  },
+  "en/card-started": {
+    "sha256": "9e5c07074104efe0d7e8d732239b0f772303e641ef745372b8269553d5609a5c",
+    "bytes": 570
+  },
+  "en/card-early": {
+    "sha256": "f6e216b24761d62bcd87b4b1416158094ac685e7d3bbc4b965414bf45124067f",
+    "bytes": 572
+  },
+  "en/start": {
+    "sha256": "4db3ae0d1fe3e96ea81200befdea4ebad4161ff4d831966036585df89d0b53da",
+    "bytes": 3152
+  },
+  "en/teacher": {
+    "sha256": "1dd74c83b7bdb5c8deac6282320c4d88788e7db289eac862b8df76535a14565e",
+    "bytes": 5542
+  },
+  "en/teacher-paused": {
+    "sha256": "261e18d7815fb935aa8c77e0b1458a6edcc19468f1606bf8270176e694a66388",
+    "bytes": 5250
+  },
+  "en/child": {
+    "sha256": "a20ead3023ebd97454be680bb29bd5218dbcbd7109bde9c8dbccf2858bb569ca",
+    "bytes": 3985
+  },
+  "en/handback": {
+    "sha256": "86f9170d8f8e0e035368175358026512527551fc7cd34cf2aef2516283cf0f38",
+    "bytes": 3908
+  },
+  "en/thanks": {
+    "sha256": "6c1bf8b50ba4f57bb3f7feecf920bb1021ae74726ddc4f2a5d5fbe37c367030c",
+    "bytes": 2673
+  },
+  "ur/card": {
+    "sha256": "26bae554402ec5add90b5abab66199dcafec4dfd887c1a297ea8993dcca452a0",
+    "bytes": 1014
+  },
+  "ur/card-started": {
+    "sha256": "6b45ffeb76c250049071211656e54e3125c3fcdbbd635cc6785f5af1d9c296be",
+    "bytes": 740
+  },
+  "ur/card-early": {
+    "sha256": "0f3b7676bcafe5ec9bcdb972abbadc5af0876fd5026482272dfe2ab5d0286d20",
+    "bytes": 736
+  },
+  "ur/start": {
+    "sha256": "8ea2e4ecf4259e11de9fa1d5f2df145fa26d0556957b8745bd9075245fb15ffe",
+    "bytes": 3449
+  },
+  "ur/teacher": {
+    "sha256": "9eb049d563b2f4fbf4d5acb923067031f04c32a7c658c47f50ae68cc505dcea4",
+    "bytes": 5675
+  },
+  "ur/teacher-paused": {
+    "sha256": "e29181dc4a4692ce2114e0c212aa1a1955a413d7757ea482c07da64a2e8594d1",
+    "bytes": 5366
+  },
+  "ur/child": {
+    "sha256": "be7d61e8405857f69363568e5aafef317216bf99676b4e4c1893bb0a9c08c731",
+    "bytes": 4067
+  },
+  "ur/handback": {
+    "sha256": "a7a44188be5f3fd24d886595ebb704ff4b9f17ad018bc571f48b12d5d022ab2c",
+    "bytes": 3952
+  },
+  "ur/thanks": {
+    "sha256": "5ab43ba78b56b7a19b16021fbb217f1651ae361b41733e55509a0a773125ad02",
+    "bytes": 2705
+  }
+}

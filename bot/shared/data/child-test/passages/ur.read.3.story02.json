@@ -1,0 +1,239 @@
+{
+  "passage_id": "ur.read.3.story02",
+  "lang": "ur",
+  "kind": "read",
+  "band": 3,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 65,
+  "sentences": 8,
+  "mean_sent_len": 8.1,
+  "max_word_len": 5,
+  "readability": 0.976,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 5,
+  "text_hash": "01a9a5282264207c0b0efe3197910246",
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "ڈرامے کی تیاری",
+  "text": "شایان کی جماعت میں ایک ڈرامے کی تیاری تھی۔ شایان کو اس میں کسان کا کردار ملا۔ ڈرامے کے وقت شایان کو اپنا جملہ یاد نہ رہا۔ سب اس کی طرف دیکھ رہے تھے۔ پھر ایک ساتھی نے پہلا لفظ بتا دیا۔ شایان کو باقی جملہ یاد آ گیا۔ آخر میں سب نے ڈرامے کی تعریف کی۔ شایان نے اپنے ساتھی کا شکریہ ادا کیا۔",
+  "lines": [
+    [
+      0,
+      8
+    ],
+    [
+      9,
+      16
+    ],
+    [
+      17,
+      26
+    ],
+    [
+      27,
+      33
+    ],
+    [
+      34,
+      41
+    ],
+    [
+      42,
+      48
+    ],
+    [
+      49,
+      56
+    ],
+    [
+      57,
+      64
+    ]
+  ],
+  "tokens_list": [
+    "شایان",
+    "کی",
+    "جماعت",
+    "میں",
+    "ایک",
+    "ڈرامے",
+    "کی",
+    "تیاری",
+    "تھی",
+    "شایان",
+    "کو",
+    "اس",
+    "میں",
+    "کسان",
+    "کا",
+    "کردار",
+    "ملا",
+    "ڈرامے",
+    "کے",
+    "وقت",
+    "شایان",
+    "کو",
+    "اپنا",
+    "جملہ",
+    "یاد",
+    "نہ",
+    "رہا",
+    "سب",
+    "اس",
+    "کی",
+    "طرف",
+    "دیکھ",
+    "رہے",
+    "تھے",
+    "پھر",
+    "ایک",
+    "ساتھی",
+    "نے",
+    "پہلا",
+    "لفظ",
+    "بتا",
+    "دیا",
+    "شایان",
+    "کو",
+    "باقی",
+    "جملہ",
+    "یاد",
+    "آ",
+    "گیا",
+    "آخر",
+    "میں",
+    "سب",
+    "نے",
+    "ڈرامے",
+    "کی",
+    "تعریف",
+    "کی",
+    "شایان",
+    "نے",
+    "اپنے",
+    "ساتھی",
+    "کا",
+    "شکریہ",
+    "ادا",
+    "کیا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "کس چیز کی تیاری تھی؟",
+      "right": "ڈرامے کی",
+      "wrong": [
+        "مقابلے کی",
+        "سیر کی"
+      ],
+      "accept": [
+        "ڈرامے کی",
+        "ڈرامے",
+        "ڈراما"
+      ],
+      "reject": [
+        "مقابلے کی",
+        "سیر کی"
+      ],
+      "rubric": "Correct if the child says a play (ڈرامے کی)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ڈرامے کی تیاری کہاں تھی؟",
+      "right": "جماعت میں",
+      "wrong": [
+        "محلے میں",
+        "پارک میں"
+      ],
+      "accept": [
+        "جماعت میں",
+        "شایان کی جماعت میں",
+        "جماعت"
+      ],
+      "reject": [
+        "محلے میں",
+        "پارک میں"
+      ],
+      "rubric": "Correct if the child says in his class (جماعت)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "شایان کو کس کا کردار ملا؟",
+      "right": "کسان کا",
+      "wrong": [
+        "درزی کا",
+        "ڈاکٹر کا"
+      ],
+      "accept": [
+        "کسان کا",
+        "کسان"
+      ],
+      "reject": [
+        "درزی کا",
+        "ڈاکٹر کا"
+      ],
+      "rubric": "Correct if the child says a farmer (کسان)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "شایان کو پہلا لفظ کس نے بتایا؟",
+      "right": "ساتھی نے",
+      "wrong": [
+        "امی نے",
+        "دادا نے"
+      ],
+      "accept": [
+        "ساتھی نے",
+        "اس کے ساتھی نے",
+        "ساتھی"
+      ],
+      "reject": [
+        "امی نے",
+        "دادا نے"
+      ],
+      "rubric": "Correct if the child says his classmate (ساتھی)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 8,
+      "type": "inferential",
+      "tap_ok": false,
+      "prompt": "شایان نے ساتھی کا شکریہ کیوں ادا کیا؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "ساتھی نے مدد کی",
+        "اس نے لفظ بتایا",
+        "اسے جملہ یاد آ گیا"
+      ],
+      "reject": [],
+      "rubric": "Inferential turn. Correct if the child says the classmate helped him remember his lines."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "شایان"
+  ]
+}

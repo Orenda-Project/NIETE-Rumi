@@ -1,0 +1,365 @@
+{
+ "rows": [
+  {
+   "week": "2026-W46",
+   "line": "fixtures_excluded",
+   "cell": "",
+   "value": 0,
+   "n": 5,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "plays",
+   "cell": "check",
+   "value": 4,
+   "n": 4,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "plays",
+   "cell": "practice",
+   "value": 1,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "provenance_incomplete",
+   "cell": "",
+   "value": 0,
+   "n": 5,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "roster_bound_pct",
+   "cell": "",
+   "value": 0,
+   "n": 3,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "helped_pct",
+   "cell": "G23|ur|read",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "helped_pct",
+   "cell": "G23|ur|bigger",
+   "value": 0,
+   "n": 3,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "no_class_first_finishes",
+   "cell": "",
+   "value": 1,
+   "n": 4,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "record_duplicates",
+   "cell": "",
+   "value": 0,
+   "n": 5,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "lost_readings",
+   "cell": "G23|ur",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "lost_readings_swept",
+   "cell": "G23|ur",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "lost_readings_draw",
+   "cell": "b2|ur",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "b3_bottom_share",
+   "cell": "G23|ur",
+   "value": 1,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "cells_n30",
+   "cell": "G23|ur|reading",
+   "value": 1,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "cells_n30",
+   "cell": "G23|ur|numbers",
+   "value": 3,
+   "n": 3,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "anchor_retest_gap",
+   "cell": "G23|ur|numbers|M2",
+   "value": null,
+   "n": 3,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "provenance_drift",
+   "cell": "high_unproven",
+   "value": 0,
+   "n": 5,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "provenance_drift",
+   "cell": "homonym_missed",
+   "value": 0,
+   "n": 5,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "classes_link_eligible",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "kept_audio_keys",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "kept_audio_match",
+   "cell": "",
+   "value": 1,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "kept_audio_oldest_d",
+   "cell": "",
+   "value": null,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "sends_total",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "sends_usd",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "bot_to_family",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "door_mix_numerator",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "replies_per_bound_child",
+   "cell": "",
+   "value": null,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "lamps_settled_unanswered",
+   "cell": "",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "teacher_accepted_share",
+   "cell": "roster_unique_with_loose",
+   "value": null,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "teacher_accepted_held",
+   "cell": "roster_unique_with_loose",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "teacher_accepted_share",
+   "cell": "probable",
+   "value": null,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "teacher_accepted_held",
+   "cell": "probable",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "recognised_without_typing",
+   "cell": "first",
+   "value": 3,
+   "n": 3,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "recognised_without_typing",
+   "cell": "le7",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "recognised_without_typing",
+   "cell": "gt7",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "kept_audio_all",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "sent",
+   "cell": "capped",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "bind_funnel",
+   "cell": "codes",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "bind_funnel",
+   "cell": "bound",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "implausible",
+   "cell": "ur",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "implausible",
+   "cell": "ur|no_speech",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "implausible",
+   "cell": "ur|low_stt_support",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "implausible",
+   "cell": "ur|no_aligned_words",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W46",
+   "line": "implausible",
+   "cell": "ur|low_story_confidence",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-11-16T06:00:00.000Z"
+  }
+ ],
+ "notes": {
+  "sends": "message_ledger counts the switched replies only; it is not the bill (Meta's billable count is the cost total)",
+  "cold_clips": "not measured: no store (the clip warm run is an event and a log line only; no table holds missing_listen / missing_story)",
+  "recognised_without_typing": "homonym picks through the class link read as high until the class-link pick fix lands"
+ },
+ "skipped": [
+  "reply_cap",
+  "cold_clips"
+ ]
+}

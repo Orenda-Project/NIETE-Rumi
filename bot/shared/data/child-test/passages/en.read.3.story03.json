@@ -1,0 +1,253 @@
+{
+  "passage_id": "en.read.3.story03",
+  "lang": "en",
+  "kind": "read",
+  "band": 3,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Laiba"
+  ],
+  "tokens": 57,
+  "sentences": 7,
+  "mean_sent_len": 8.1,
+  "max_word_len": 9,
+  "readability": 0.917,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "The Next Game",
+  "title_ur": null,
+  "text": "Laiba played football for her school team. In their first game, the other team was very fast. Her team lost the game. Laiba did not feel happy, but she had a plan. Every evening, she practised with her friends in the park. In the next game, her team was ready. This time, her team was the best.",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      16
+    ],
+    [
+      17,
+      21
+    ],
+    [
+      22,
+      31
+    ],
+    [
+      32,
+      41
+    ],
+    [
+      42,
+      49
+    ],
+    [
+      50,
+      56
+    ]
+  ],
+  "tokens_list": [
+    "Laiba",
+    "played",
+    "football",
+    "for",
+    "her",
+    "school",
+    "team",
+    "In",
+    "their",
+    "first",
+    "game",
+    "the",
+    "other",
+    "team",
+    "was",
+    "very",
+    "fast",
+    "Her",
+    "team",
+    "lost",
+    "the",
+    "game",
+    "Laiba",
+    "did",
+    "not",
+    "feel",
+    "happy",
+    "but",
+    "she",
+    "had",
+    "a",
+    "plan",
+    "Every",
+    "evening",
+    "she",
+    "practised",
+    "with",
+    "her",
+    "friends",
+    "in",
+    "the",
+    "park",
+    "In",
+    "the",
+    "next",
+    "game",
+    "her",
+    "team",
+    "was",
+    "ready",
+    "This",
+    "time",
+    "her",
+    "team",
+    "was",
+    "the",
+    "best"
+  ],
+  "text_hash": "be84e66abcc3e4a9f4ed258a2345f634",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What game did Laiba play?",
+      "right": "football",
+      "wrong": [
+        "cricket",
+        "hockey"
+      ],
+      "accept": [
+        "football"
+      ],
+      "reject": [
+        "cricket",
+        "hockey"
+      ],
+      "rubric": "Right if the child says football."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who did Laiba play for?",
+      "right": "her school team",
+      "wrong": [
+        "a city club",
+        "her class"
+      ],
+      "accept": [
+        "her school team",
+        "her school",
+        "the school team"
+      ],
+      "reject": [
+        "a city club",
+        "her class"
+      ],
+      "rubric": "Right if the child says her school team (or her school / the school team)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was the other team like?",
+      "right": "very fast",
+      "wrong": [
+        "very slow",
+        "very small"
+      ],
+      "accept": [
+        "very fast",
+        "fast"
+      ],
+      "reject": [
+        "very slow",
+        "very small"
+      ],
+      "rubric": "Right if the child says very fast (or fast)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What happened in the first game?",
+      "right": "her team lost",
+      "wrong": [
+        "her team won",
+        "it rained"
+      ],
+      "accept": [
+        "her team lost",
+        "they lost",
+        "Laiba’s team lost"
+      ],
+      "reject": [
+        "her team won",
+        "it rained"
+      ],
+      "rubric": "Right if the child says her team lost (or they lost / Laiba’s team lost)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Laiba practise?",
+      "right": "in the park",
+      "wrong": [
+        "in the street",
+        "at school"
+      ],
+      "accept": [
+        "in the park",
+        "the park",
+        "park"
+      ],
+      "reject": [
+        "in the street",
+        "at school"
+      ],
+      "rubric": "Right if the child says in the park (or the park / park)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 7,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why was her team the best this time?",
+      "right": "they practised every evening",
+      "wrong": [
+        "the other team was late",
+        "they had new shoes"
+      ],
+      "accept": [
+        "they practised every evening",
+        "they practised",
+        "Laiba had a plan"
+      ],
+      "reject": [
+        "the other team was late",
+        "they had new shoes"
+      ],
+      "rubric": "Right if the child says they practised every evening (or they practised / Laiba had a plan)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

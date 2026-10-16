@@ -204,13 +204,13 @@ describe('record: the answer\'s side is balanced and the scoring is by value', (
 describe('record: a reading the child ended early is not a words-per-minute', () => {
   test('43 s of audio, the story unfinished ⇒ failed / incomplete with the seconds and the words read; the next reading is attempt 1, exposure 2', async () => {
     on(RECORD, GUARD);
-    const { r, row } = await read({ secs: 43, n: 40, gap: 1.0, right: 35, tried: 40, body: { ended: 'stuck', read_s: 43, mic_check: 'pass' } });
+    const { r, row } = await read({ secs: 43, n: 40, gap: 1.0, right: 35, tried: 40, body: { ended: 'stuck', read_s: 43, mic_check: 'level_ok' } });
     expect(r).toEqual({ failed: true, reason: 'incomplete', words: 35 });
     expect(row).toMatchObject({ status: 'failed' });
     expect(row.wcpm == null).toBe(true);
-    expect(row.meta).toMatchObject({ reason: 'incomplete', ended: 'stuck', mic_check: 'pass', attempt_no: 1, exposure_no: 1 });
+    expect(row.meta).toMatchObject({ reason: 'incomplete', ended: 'stuck', mic_check: 'level_ok', attempt_no: 1, exposure_no: 1 });
     expect(row.meta.read_s).toBeGreaterThanOrEqual(42);
-    const next = await read({ secs: 60, n: 45, right: 42, tried: 45, body: { ended: 'timer', read_s: 60, mic_check: 'pass' } });
+    const next = await read({ secs: 60, n: 45, right: 42, tried: 45, body: { ended: 'timer', read_s: 60, mic_check: 'level_ok' } });
     expect(next.r).toMatchObject({ wcpm: 42, previous: null, ended: 'timer' });
     expect(next.row.meta).toMatchObject({ attempt_no: 1, exposure_no: 2, counted: true, clock: 'inferred', ended: 'timer' });
     expect(next.row.meta.flags).toContain('no_begin_line');
@@ -221,20 +221,30 @@ describe('record: a reading the child ended early is not a words-per-minute', ()
 
   test('a tap inside the first 15 s is abandoned: no words, exposure only', async () => {
     on(RECORD, GUARD);
-    const { r, row } = await read({ secs: 8, n: 6, gap: 1.0, right: 5, tried: 6, body: { ended: 'stuck', read_s: 8, mic_check: 'pass' } });
+    const { r, row } = await read({ secs: 8, n: 6, gap: 1.0, right: 5, tried: 6, body: { ended: 'stuck', read_s: 8, mic_check: 'level_ok' } });
     expect(r).toMatchObject({ failed: true, reason: 'abandoned' });
     expect(row.meta).toMatchObject({ reason: 'abandoned', exposure_no: 1 });
     expect(row.meta.attempt_no).toBeUndefined();
   });
 
-  test('silence after a passed microphone check is a stopped reading (0), never "unheard"; without the check it is unheard as today', async () => {
+  test('silence with no word heard is never a reading of 0, whatever the microphone check said: implausible (no_speech), wcpm null', async () => {
+    on(RECORD, GUARD);
+    const a = await read({ secs: 12, n: 0, right: 0, tried: 0, body: { ended: 'silent', read_s: 12, mic_check: 'level_ok' } });
+    expect(a.r).toMatchObject({ score: { correct: 0, attempted: 0, stopped: false }, wcpm: null });
+    expect(a.row).toMatchObject({ status: 'scored', wcpm: null });
+    expect(a.row.meta).toMatchObject({ ended: 'silent', mic_check: 'level_ok', quality: 'implausible' });
+    expect(a.row.meta.flags).toEqual(expect.arrayContaining(['no_speech']));
+    const b = await read({ secs: 12, n: 0, right: 0, tried: 0, body: { ended: 'silent', read_s: 12, mic_check: 'none' } });
+    expect(b.row).toMatchObject({ status: 'scored', wcpm: null });
+    expect(b.row.meta).toMatchObject({ quality: 'implausible' });
+  });
+
+  test('the older spelling of the same check (\'pass\', on rows and pages from before) is the same fact: silence with no word heard → implausible', async () => {
     on(RECORD, GUARD);
     const a = await read({ secs: 12, n: 0, right: 0, tried: 0, body: { ended: 'silent', read_s: 12, mic_check: 'pass' } });
-    expect(a.r).toMatchObject({ score: { correct: 0, attempted: 0, stopped: true }, wcpm: 0, ended: 'silent' });
-    expect(a.row).toMatchObject({ status: 'scored', wcpm: 0 });
-    expect(a.row.meta).toMatchObject({ ended: 'silent', mic_check: 'pass' });
-    const b = await read({ secs: 12, n: 0, right: 0, tried: 0, body: { ended: 'silent', read_s: 12, mic_check: 'none' } });
-    expect(b.r).toMatchObject({ failed: true, reason: 'unheard' });
+    expect(a.r).toMatchObject({ score: { correct: 0, attempted: 0, stopped: false }, wcpm: null });
+    expect(a.row).toMatchObject({ status: 'scored', wcpm: null });
+    expect(a.row.meta).toMatchObject({ ended: 'silent', mic_check: 'pass', quality: 'implausible' });
   });
 
   test('with items on, the read row keeps the scorer\'s per-word verdicts and doubt, never what was heard', async () => {
@@ -354,14 +364,14 @@ describe('record: a reading the child ended is never scored, whatever the scorer
     on(RECORD, GUARD);
     // the upload scorer marked every word correct on 21 s of audio (seen live on a pure tone: 60/60, finished_early true,
     // wcpm 167); the child had said the rest was too hard — that ending decides, not the scorer's claim
-    const { r, row } = await read({ secs: 21, n: 60, gap: 0.33, right: 60, tried: 60, body: { ended: 'stuck', read_s: 21, mic_check: 'pass' } });
+    const { r, row } = await read({ secs: 21, n: 60, gap: 0.33, right: 60, tried: 60, body: { ended: 'stuck', read_s: 21, mic_check: 'level_ok' } });
     expect(r).toEqual({ failed: true, reason: 'incomplete', words: 60 });
     expect(row.status).toBe('failed');
     expect(row.wcpm == null).toBe(true);
     expect(row.meta).toMatchObject({ reason: 'incomplete', ended: 'stuck' });
-    const home = await read({ secs: 30, n: 60, gap: 0.45, right: 60, tried: 60, body: { ended: 'home', read_s: 30, mic_check: 'pass' } });
+    const home = await read({ secs: 30, n: 60, gap: 0.45, right: 60, tried: 60, body: { ended: 'home', read_s: 30, mic_check: 'level_ok' } });
     expect(home.r).toMatchObject({ failed: true, reason: 'incomplete' });
-    const hidden = await read({ secs: 9, n: 60, gap: 0.14, right: 60, tried: 60, body: { ended: 'hidden', read_s: 9, mic_check: 'pass' } });
+    const hidden = await read({ secs: 9, n: 60, gap: 0.14, right: 60, tried: 60, body: { ended: 'hidden', read_s: 9, mic_check: 'level_ok' } });
     expect(hidden.r).toMatchObject({ failed: true, reason: 'abandoned' });
   });
 });
@@ -387,7 +397,7 @@ describe('a recording with no duration header is measured by decoding it, never 
     r2.downloadFromR2.mockResolvedValue(NO_HEADER);
     AudioService.transcribe.mockResolvedValue(heard(36, 1.0, 2));
     llm.__create.mockResolvedValue(marks(verdicts(33, 36)));
-    const r = await Ch.submit({ ct, key, ms: 10000, lang: 'en', ended: 'stuck', read_s: 10, mic_check: 'pass' }, { waitMs: 60000 });
+    const r = await Ch.submit({ ct, key, ms: 10000, lang: 'en', ended: 'stuck', read_s: 10, mic_check: 'level_ok' }, { waitMs: 60000 });
     const row = db.web_quiz_challenge_runs.find((x) => x.id === T.verify(ct, 'c').r);
     expect(r.reason).not.toBe('abandoned');
     expect(r).toEqual({ failed: true, reason: 'incomplete', words: 33 });
@@ -404,7 +414,7 @@ describe('a recording with no duration header is measured by decoding it, never 
 
   test('a recording with a header keeps the probe and logs no mismatch when the page agrees', async () => {
     on(RECORD, GUARD);
-    await read({ secs: 60, n: 45, right: 42, tried: 45, body: { ended: 'timer', read_s: 60, mic_check: 'pass' } });
+    await read({ secs: 60, n: 45, right: 42, tried: 45, body: { ended: 'timer', read_s: 60, mic_check: 'level_ok' } });
     const len = logEvent.mock.calls.find((x) => x[0] === 'web_quiz.ch_read_len')[1];
     expect(len).toMatchObject({ page_ms: 60000, decoded_s: null, mismatch: false });
     expect(len.probe_s).toBeGreaterThanOrEqual(59);

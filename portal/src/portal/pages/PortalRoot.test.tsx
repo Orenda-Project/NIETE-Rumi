@@ -56,7 +56,8 @@ describe("PortalRoot — '/' honours an existing session (bd-2394)", () => {
   it("shows the login form when there is no session", () => {
     renderWith({ user: null, loading: false });
     expect(navigateSpy).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: /log in/i })).toBeInTheDocument();
+    // bd-x7aprz.3: the login form opens on the WhatsApp code.
+    expect(screen.getByRole("button", { name: /send code/i })).toBeInTheDocument();
   });
 
   it("does not flash the login form while the session check is still in flight", () => {
@@ -65,5 +66,6 @@ describe("PortalRoot — '/' honours an existing session (bd-2394)", () => {
     expect(
       screen.queryByRole("button", { name: /log in/i })
     ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /send code/i })).not.toBeInTheDocument();
   });
 });

@@ -1,0 +1,30 @@
+{
+  "row": {
+    "created_at": "<volatile>",
+    "exercise": "bigger",
+    "grade": 3,
+    "id": "<volatile>",
+    "lang": "en",
+    "meta": [
+      "ms"
+    ],
+    "score": {
+      "correct": 10,
+      "n": 10,
+      "stopped": false
+    },
+    "scored_at": "<volatile>",
+    "status": "scored",
+    "student_id": "44444444-4444-4444-8444-444444444444"
+  },
+  "events": [
+    {
+      "kids": 1,
+      "has_teacher": false,
+      "teacher_src": null,
+      "again_n": 0,
+      "recs_n": 0,
+      "challenge": true
+    }
+  ]
+}

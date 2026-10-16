@@ -1,0 +1,38 @@
+{
+  "passage_id": "ur.read.2.setA",
+  "lang": "ur",
+  "kind": "read",
+  "band": 2,
+  "pool": "check",
+  "is_reference": true,
+  "v3_ref": {
+    "lang": "ur",
+    "kind": "story"
+  },
+  "questions_extra": [
+    {
+      "id": "ur.story.q7",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ہوا کیسی تھی؟",
+      "right": "ٹھنڈی",
+      "wrong": [
+        "گرم",
+        "سوکھی"
+      ],
+      "accept": [
+        "ٹھنڈی",
+        "ٹھنڈی ہوا"
+      ],
+      "reject": [
+        "گرم",
+        "سوکھی"
+      ],
+      "rubric": "Correct if the child says the breeze was cool (ٹھنڈی), line 2 of the story."
+    }
+  ],
+  "bank_version": "child-test-items-v3",
+  "title_en": "Bilal's Day",
+  "title_ur": "بلال کا دن"
+}

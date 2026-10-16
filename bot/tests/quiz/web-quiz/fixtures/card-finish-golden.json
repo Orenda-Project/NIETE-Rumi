@@ -1,0 +1,41 @@
+{
+  "score": {
+    "correct": 2,
+    "total": 2,
+    "pct": 100,
+    "level": "mastered"
+  },
+  "counted": true,
+  "review": [
+    {
+      "qid": "cccccc01-cccc-4ccc-8ccc-cccccccccccc",
+      "picked": "A",
+      "correct_slot": "A",
+      "ok": true,
+      "why": null
+    },
+    {
+      "qid": "cccccc02-cccc-4ccc-8ccc-cccccccccccc",
+      "picked": "A",
+      "correct_slot": "A",
+      "ok": true,
+      "why": null
+    }
+  ],
+  "card": {
+    "first": "",
+    "animal": "elephant",
+    "correct": 2,
+    "total": 2,
+    "stars": 2,
+    "nth": 1
+  },
+  "challenge_code": "<code>",
+  "art": {
+    "card": "c.S1.UZaIFIKdSUEv",
+    "invite": "<invite>",
+    "class": "l.S1.qkfnBgq78BhP",
+    "table": "l.AB12CD.s-OYFAlq34fe"
+  },
+  "hub_door": true
+}

@@ -10,6 +10,10 @@
  * captured without touching the page script. Ids only: never a name, a typed text or an answer's text. The
  * session token and the device ref ride the batch (never an event) so the server can log its own ids for them.
  *
+ * window.WQT.setIds({ht, chip}) (hub.js / wq-card.js, only when the server says events v2 is on: boot ev2, the card's
+ * jugnu_ev) puts the hub token and the picked child's chip on every batch from then on, on or off; a later call
+ * replaces both (a call with ht only: no child picked). window.WQT.batchIds() hands them to a page's own batch.
+ *
  *   screen_enter {scr, from}            a new screen is on show
  *   screen_leave {scr, ms, vis_ms}      it went away: how long it was on, and how much of that was visible
  *   vis {state, ms}                     the page was hidden/shown: how long the previous state lasted
@@ -19,10 +23,40 @@
  *
  * window.WQT.push(e) lets a page script send its own event through this queue (same ps/pseq); it returns
  * false when telemetry is off, and the page then sends it the way it always has.
+ *
+ * window.WQT.withLang(href, lang) is the pages' one link helper, here because this is the one script every page
+ * loads first (the hub page does not load wq-lib.js): every link a page mints into another page carries
+ * lang=<en|ur>, the language the child sees, so the next page opens in it. Always there, switch on or off.
+ *
+ * window.WQT.nowrap(html) is the pages' one helper for «واٹس ایپ» (WhatsApp), here for the same reason: the word is
+ * never broken across a line («واٹس / ایپ»). Always there, switch on or off.
  */
 (function () {
   'use strict';
-  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {} };
+  // The link with lang=<en|ur> set (an existing lang= replaced, a #fragment kept last); any other lang: unchanged.
+  function withLang(href, lang) {
+    var h = String(href == null ? '' : href);
+    if (lang !== 'en' && lang !== 'ur') return h;
+    var i = h.indexOf('#');
+    var frag = i >= 0 ? h.slice(i) : '';
+    if (i >= 0) h = h.slice(0, i);
+    if (/[?&]lang=[^&]*/.test(h)) h = h.replace(/([?&])lang=[^&]*/, '$1lang=' + lang);
+    else h += (h.indexOf('?') < 0 ? '?' : /[?&]$/.test(h) ? '' : '&') + 'lang=' + lang;
+    return h + frag;
+  }
+  // «واٹس ایپ» as one word: in already-escaped HTML each one (a space or a no-break space between) becomes one span
+  // that never wraps (wq.css .wqb-nowrap; a no-break space inside too); one already held is left as it is. Every other byte unchanged.
+  var WA_UR = /<span class="wqb-nowrap">واٹس[ \u00a0]ایپ<\/span>|واٹس[ \u00a0]ایپ/g;
+  function nowrap(html) { return String(html == null ? '' : html).replace(WA_UR, '<span class="wqb-nowrap">واٹس\u00a0ایپ</span>'); }
+  // The hub token and the picked chip (setIds): on the batch, never on an event. None set: no batch changes.
+  var HC = {};
+  function setIds(o) {
+    HC = {};
+    if (o && typeof o.ht === 'string' && o.ht) HC.ht = o.ht;
+    if (HC.ht && typeof o.chip === 'string' && o.chip) HC.chip = o.chip;
+  }
+  function batchIds() { var o = {}, k; for (k in HC) o[k] = HC[k]; return o; }
+  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang, nowrap: nowrap, setIds: setIds, batchIds: batchIds };
   var B;
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return; }
   if (!B || B.rt !== true) return;
@@ -45,12 +79,14 @@
   var PPS;
   try { PPS = sessionStorage.getItem('wq_ps') || undefined; sessionStorage.setItem('wq_ps', PS); } catch (e) { PPS = undefined; }
 
-  // The ids the server turns into its own (it logs neither): this quiz's session token and this phone's device ref.
+  // The ids the server turns into its own (it logs none): this quiz's session token, this phone's device ref, and
+  // (setIds) the hub token and the picked chip.
   function read(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function ids() {
-    var o = {}, s = CODE ? read('wq_s_' + CODE) : null, d = read('wq_d');
+    var o = {}, s = CODE ? read('wq_s_' + CODE) : null, d = read('wq_d'), h = batchIds(), k;
     if (s && typeof s.st === 'string') o.st = s.st;
     if (typeof d === 'string') o.dr = d;
+    for (k in h) o[k] = h[k];
     return o;
   }
 

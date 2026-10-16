@@ -1,0 +1,10 @@
+{
+  "pages": [
+    "class-round.page",
+    "renderClosedPage",
+    "renderLibPage",
+    "renderPreviewPage",
+    "teacher-jugnu.page",
+    "teacher-report.page"
+  ]
+}

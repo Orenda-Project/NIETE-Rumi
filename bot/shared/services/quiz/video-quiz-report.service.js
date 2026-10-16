@@ -29,6 +29,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText, markLines } = require('../../utils/text-format');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
+const SloStamp = require('./quiz-slo-stamp');
 const { excludeSelfTests } = require('./teacher-self-test');
 // A question the author wrote with TeX maths (`$\frac{2}{9}$`) reaches the
 // report flat ("2/9"): the chat lines, the guidance prompt and the report PDF
@@ -602,6 +603,9 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // The tallies read the SAME attempts the report counts — never a dropped one.
   const hardest = (await hardestQuestions(shareCodeId, 3, all.map((s) => s.id)))
     .map((h) => ({ ...h, slo: sloOf(h.external_id) }));
+  // bd-v0toag.9, behind quiz_slo_retest_enabled: the curriculum code beside the goal (display only).
+  const codeOf = await SloStamp.codeReader(quizRow && quizRow.meta).catch(() => null);
+  if (codeOf) hardest.forEach((h) => { const c = h.slo && codeOf(h.external_id); if (c) h.sloCode = c; });
   const unfinished = all.filter((s) => s.status !== 'completed');
 
   // The WhatsApp text fallback (only used when the PDF render fails) is the

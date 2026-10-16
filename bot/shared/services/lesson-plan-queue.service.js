@@ -368,7 +368,9 @@ class LessonPlanQueueService {
         })
         .eq('id', request.id);
 
-      // Queue to SQS
+      // Queue to SQS. A row the grounded path recorded names its curriculum row (artifact_ref): carry it
+      // as sourceLpUuid, the field the worker routes on — without it the job is taken for a freeform one.
+      const grounded = request.source === LIFECYCLE_SOURCE && request.artifact_ref;
       await SQSQueueService.queueCoachingJob(request.id, 'lesson_plan_generation', {
         requestId: request.id,
         userId: request.user_id,
@@ -376,10 +378,11 @@ class LessonPlanQueueService {
         topic: request.topic,
         fullMessage: request.full_message,
         language: request.language,
-        contentType: request.content_type
+        contentType: request.content_type,
+        ...(grounded ? { sourceLpUuid: request.artifact_ref } : {}),
       });
 
-      logToFile('Lesson plan request requeued', { requestId: request.id });
+      logToFile('Lesson plan request requeued', { requestId: request.id, grounded: Boolean(grounded) });
     } catch (error) {
       logToFile('Error requeuing lesson plan request', {
         requestId: request.id,

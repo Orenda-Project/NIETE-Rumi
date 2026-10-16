@@ -180,6 +180,10 @@ function detectFlowType(responseJson) {
 
   // 2. Registration (check BEFORE attendance to prevent flow_token collision)
   // Registration flow_token format: userId:registration:timestamp
+  // v5 (bd-x7aprz.2) names itself in its flat completion payload.
+  if (responseJson.registration_action !== undefined) {
+    return 'registration';
+  }
   const isRegistrationByToken = responseJson.flow_token?.includes(':registration:');
   const hasRegistrationFields = responseJson.full_name !== undefined &&
                                 responseJson.country !== undefined;

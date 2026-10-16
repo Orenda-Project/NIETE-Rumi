@@ -151,9 +151,25 @@ describe('SKIP_REASONS — the closed vocabulary of "we deliberately did not ask
     expect(store.SKIP_REASONS).toEqual([
       'coached_today', 'offered_today', 'sent_today', 'coaching_yes_today', 'window_closed',
       'weekly_cap', 'declined_streak', 'consecutive_day', 'quiet_hours', 'assessment_day',
-      'no_lesson', 'no_quiz_source', 'disabled', 'sector_not_piloted', 'not_school_day', 'in_progress_coaching',
+      'no_lesson', 'no_quiz_source', 'religious_review_pending', 'disabled', 'sector_not_piloted',
+      'not_school_day', 'in_progress_coaching', 'template_not_approved',
     ]);
     expect(Object.isFrozen(store.SKIP_REASONS)).toBe(true);
+  });
+});
+
+describe('KINDS — bd-v0toag.32 adds the weekly usage report (migration V1.6.10 widens the CHECK)', () => {
+  test('three kinds, frozen', () => {
+    expect(store.KINDS).toEqual({
+      COACHING_AFTER_LP: 'coaching_after_lp',
+      LP_QUIZ_OFFER: 'lp_quiz_offer',
+      WEEKLY_USAGE_REPORT: 'weekly_usage_report',
+    });
+    expect(Object.isFrozen(store.KINDS)).toBe(true);
+  });
+
+  test('markSkipped accepts template_not_approved', async () => {
+    await expect(store.markSkipped('n1', 'template_not_approved')).resolves.not.toThrow();
   });
 });
 

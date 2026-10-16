@@ -54,7 +54,8 @@ const WhatsAppService = require('../services/whatsapp.service');
 const { logToFile } = require('../utils/logger');
 const { setUserLanguage } = require('../utils/language-cache');
 const { offerDefaultLanguage } = require('../config/languages');
-const { clampLanguage } = require('../config/ux-strings');
+const { clampLanguage, resolveUx } = require('../config/ux-strings');
+const { roleToWrite } = require('../config/registration-roles');
 
 // Flow IDs - configure via environment variables. Canonical list lives in
 // `bot/scripts/setup/flow-configs.js`; this file only reads the IDs that
@@ -499,8 +500,18 @@ function mapLevelToPassageType(level) {
 }
 
 /**
- * Handle Registration Flow submission
- * Extracts form data and updates user record with full registration info
+ * Handle Registration Flow submission — the terminal payload, after she taps Done.
+ *
+ * Both endpoint versions write each screen to her row as it is submitted, and mark it complete on
+ * the screen that ends the flow (registration-endpoint.js). This writes what the payload carries
+ * on top — never blanking a field the payload dropped — then greets her in the language she chose,
+ * with a button that opens her portal through the signed /go link (app-login-link.js).
+ *
+ * v5's payload is flat and names itself (`registration_action: 'complete'`) and carries no form
+ * fields the endpoint did not already validate and store; v4's carries the form. A role goes
+ * through registration-roles.js — teacher or principal, never over an admin-set coach/AEO.
+ *
+ * Returns false on failure AFTER sending the one apology; the caller sends nothing more.
  *
  * @param {object} message - Flow response message
  * @param {string} phoneNumber - User's phone number
@@ -508,84 +519,55 @@ function mapLevelToPassageType(level) {
  * @returns {Promise<boolean>} Success status
  */
 async function handleRegistrationFlow(message, phoneNumber, userId) {
+  let registrationLanguage = null;
   try {
     logToFile('📝 Processing registration flow submission', { phoneNumber, userId });
 
     const responseJson = JSON.parse(message.interactive?.nfm_reply?.response_json || '{}');
-
     logToFile('📋 Registration flow response:', { responseJson: Object.keys(responseJson) });
 
-    // Extract fields from flow response
-    const fullName = responseJson.full_name || '';
-    const country = responseJson.country || '';
-    const region = responseJson.region || null;
-    const organization = responseJson.organization || null;
+    if (!userId) throw new Error('registration submission without a user id');
+
+    const isV5 = responseJson.registration_action === 'complete';
+    const fullName = String(responseJson.full_name || '').trim();
+    const country = isV5 ? 'PK' : (responseJson.country || '');
+    // v5 asks no organization, school name, grades or subjects here — its screens wrote them.
+    const organization = isV5 ? null : (responseJson.organization || null);
     const organizationOther = responseJson.organization_other || null;
-    const schoolName = responseJson.school_name || null;
-    const grade = responseJson.grade || '';
-    const subjects = responseJson.subjects || [];
-
-    // FEAT-102 bd-2132: self-onboarding role. Only WRITE when a valid role is
-    // picked (Teacher/Coach/Principal/AEO) — never downgrade an existing leader
-    // to teacher on a re-registration that omitted the field.
-    const submittedRole = ['teacher', 'coach', 'principal', 'aeo']
-      .includes(String(responseJson.role || '').toLowerCase())
-      ? String(responseJson.role).toLowerCase() : null;
-
-    // Resolve organization: if "other", use organization_other
     const resolvedOrg = organization === 'other' ? organizationOther : organization;
+    const schoolName = isV5 ? null : (responseJson.school_name || null);
+    const grade = isV5 ? '' : (responseJson.grade || '');
+    const subjects = isV5 ? [] : (responseJson.subjects || []);
+    registrationLanguage = clampLanguage(responseJson.language || offerDefaultLanguage());
 
-    // Extract first name from full name
-    let firstName = fullName.split(/\s+/)[0] || fullName;
+    const { data: existing, error: readError } = await supabase.from('users').select('name, role, school_id').eq('id', userId).maybeSingle();
+    // Her row unreadable → write no role: an unknown current role may be an admin-set coach.
+    const role = existing && !readError ? roleToWrite(responseJson.role, existing.role) : null;
+    const greetName = (fullName || (existing && existing.name) || '').trim().split(/\s+/)[0] || '';
 
-    // The terminal Flow payload loses the earlier screens' values (name/country come
-    // back empty). registration-endpoint.js now persists each screen to the user row as
-    // it is submitted, so here we must NOT overwrite those columns with the payload's
-    // empties: write a field only when the payload actually carries it, and read the
-    // persisted first_name back for the greeting when the payload dropped it.
-    if (!firstName) {
-      try {
-        const { data: existing } = await supabase.from('users').select('name, country').eq('id', userId).single();
-        if (existing) {
-          firstName = existing.name || firstName;
-        }
-      } catch (_) { /* greeting falls back to the payload value */ }
-    }
     const setIf = (v) => (v !== undefined && v !== null && !(typeof v === 'string' && v.trim() === ''));
+    const subjectCount = Array.isArray(subjects) ? subjects.length : (subjects ? 1 : 0);
 
-    // Generate portal token
-    const { v4: uuidv4 } = require('uuid');
-    const portalToken = uuidv4();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    // Update user record
     const { error: updateError } = await supabase
       .from('users')
       .update({
-        // bd-60092: ONE name column, and the FULLEST value wins. The Flow's
-        // full-name screen is authoritative; the first-name field is the
-        // fallback for a payload that only carried one.
-        ...(setIf(fullName) || setIf(firstName) ? { name: fullName || firstName } : {}),
+        // ONE name column; the Flow's full-name screen is authoritative.
+        ...(setIf(fullName) ? { name: fullName } : {}),
         ...(setIf(country) ? { country } : {}),
-        // region is NOT written here: the REGION_INFO per-screen write already persisted it,
-        // as the school's sector when the typed EMIS resolved and as the province otherwise.
-        // The payload's `region` is the province dropdown value and would overwrite the sector.
+        // region is NOT written here: the per-screen write stored the school's sector (bd-z8p96).
         ...(setIf(resolvedOrg) ? { organization: resolvedOrg } : {}),
-        ...(submittedRole ? { role: submittedRole } : {}), // FEAT-102 bd-2132; the per-screen write is the primary source now
+        ...(role ? { role } : {}),
         ...(setIf(schoolName) ? { school_name: schoolName } : {}),
         ...(setIf(grade) ? { grades_taught: grade } : {}),
-        ...((Array.isArray(subjects) ? subjects.length : subjects) ? { subjects_taught: Array.isArray(subjects) ? subjects : [subjects] } : {}),
+        ...(subjectCount ? { subjects_taught: Array.isArray(subjects) ? subjects : [subjects] } : {}),
         registration_completed: true,
         registration_completed_at: new Date().toISOString(),
         registration_pending_name: false,
-        portal_invite_token: portalToken,
-        portal_invite_expires_at: expiresAt.toISOString()
       })
       .eq('id', userId);
 
     if (updateError) {
-      logToFile('❌ Error updating user with registration data', { userId, error: updateError.message });
+      logToFile('❌ Error updating user with registration data', { userId, error: updateError.message }, 'error');
       throw updateError;
     }
 
@@ -593,28 +575,7 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
     // so this adult's next message is never answered as a child's.
     await require('../services/student-ingress-cache').forget(phoneNumber).catch(() => {});
 
-    // Send portal link as WhatsApp message (clickable). Degrades gracefully:
-    // if PORTAL_URL is unset, the message omits the link rather than shipping
-    // a broken placeholder. See bot/shared/config/branding.js.
-    const portalBase = require('../config/branding').portalUrl();
-    const portalUrl = portalBase ? `${portalBase}/portal/setup/${portalToken}` : null;
-
-    // Greet her in the language SHE chose on the first screen.
-    //
-    // This used to read `country === 'PK' ? 'ur' : 'en'`. The country dropdown
-    // supplies ISO codes and every ICT teacher picks PK, so the greeting was
-    // always Urdu — while registration never wrote preferred_language, leaving
-    // her on the schema default of English. She was greeted in Urdu and then
-    // silently answered in English forever. The main bot logged the same pattern
-    // as BUG-071; the fix here is to stop inferring from country at all.
-    const registrationLanguage = clampLanguage(
-      responseJson.language || offerDefaultLanguage()
-    );
-    const userLang = registrationLanguage;
-
-    // Persist it through the ONE writer, LOCKED — she chose this explicitly, and
-    // the lock is what stops a later classroom recording overwriting it. This is
-    // the step that grows the genuinely-chosen population beyond today's 38.
+    // Her language: chosen on the first screen, persisted through the ONE writer, locked.
     const languageStored = await setUserLanguage(userId, registrationLanguage, true);
     logToFile(
       languageStored
@@ -623,27 +584,10 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
       { userId, language: registrationLanguage, rule: 'registration-asked' }
     );
 
-    const confirmMessagesWithPortal = {
-      en: `Thank you for registering, ${firstName}! You're all set to use NIETE.\n\n🔗 *Set up your NIETE Portal:*\n${portalUrl}\n\nThis link expires in 7 days. What would you like to work on?`,
-      ur: `رجسٹریشن کا شکریہ، ${firstName}! آپ اب NIETE استعمال کر سکتے ہیں۔\n\n🔗 *اپنا NIETE پورٹل سیٹ اپ کریں:*\n${portalUrl}\n\nیہ لنک 7 دنوں میں ختم ہو جائے گی۔ آپ کس پر کام کرنا چاہیں گے؟`
-    };
-    const confirmMessagesNoPortal = {
-      en: `Thank you for registering, ${firstName}! You're all set. What would you like to work on?`,
-      ur: `رجسٹریشن کا شکریہ، ${firstName}! آپ اب تیار ہیں۔ آپ کس پر کام کرنا چاہیں گے؟`
-    };
-    const confirmMessages = portalUrl ? confirmMessagesWithPortal : confirmMessagesNoPortal;
+    const schoolLinked = isV5 ? responseJson.school_linked === 'yes' : true;
+    await sendRegistrationWelcome({ userId, phoneNumber, language: registrationLanguage, name: greetName, schoolLinked });
 
-    await WhatsAppService.sendMessage(phoneNumber, confirmMessages[userLang] || confirmMessages.en);
-
-    logToFile('✅ Registration completed via flow', {
-      userId,
-      firstName,
-      country,
-      region,
-      organization: resolvedOrg,
-      portalUrl: portalUrl ? portalUrl.substring(0, 50) + '...' : '(PORTAL_URL not configured)'
-    });
-
+    logToFile('✅ Registration completed via flow', { userId, version: isV5 ? 5 : 4, role, country, organization: resolvedOrg });
     return true;
   } catch (error) {
     logToFile('❌ Error handling registration flow', {
@@ -651,13 +595,59 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
       userId,
       error: error.message,
       stack: error.stack
-    });
+    }, 'error');
 
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      'Sorry, something went wrong with your registration. Please try typing /register to try again.'
-    );
+    await WhatsAppService.sendMessage(phoneNumber, resolveUx('regFailed', { language: registrationLanguage || offerDefaultLanguage() }))
+      .catch(() => {});
 
+    return false;
+  }
+}
+
+/**
+ * The welcome after she taps Done: one cta_url message opening her portal, already signed in, through
+ * the signed /go link (app-login-link.js, bd-fmf24g.35) — a token encrypted for her users.id, 24 h,
+ * bound to this environment. No portal URL or no signing key here → the same welcome without a
+ * link, never a broken one. A send that fails is retried as plain text: the account is already
+ * registered, so a failed greeting must never turn into "something went wrong".
+ */
+async function sendRegistrationWelcome({ userId, phoneNumber, language, name, schoolLinked }) {
+  const params = { name: name || '🙂' };
+  const noSchool = schoolLinked ? '' : `\n\n${resolveUx('regDoneNoSchool', { language })}`;
+  const plain = `${resolveUx('regDoneChatNoLink', { language, params })}${noSchool}`;
+  try {
+    const { signAppLink } = require('../services/app-login-link');
+    const base = String(require('../config/branding').portalUrl() || '').replace(/\/+$/, '');
+    const token = base ? signAppLink(userId, 'menu') : null;
+    if (token) {
+      const sent = await WhatsAppService.sendCtaUrl(phoneNumber, {
+        body: `${resolveUx('regDoneChat', { language, params })}${noSchool}`,
+        buttonText: resolveUx('regDonePortalButton', { language }),
+        url: `${base}/go/${token}`,
+      });
+      if (sent) return;
+      logToFile('⚠️ registration welcome: the portal button did not send — plain welcome instead', { userId }, 'warn');
+    }
+  } catch (e) {
+    logToFile('⚠️ registration welcome: portal link failed — plain welcome instead', { userId, error: e.message }, 'warn');
+  }
+  await WhatsAppService.sendMessage(phoneNumber, plain);
+}
+
+/**
+ * The registration branch of the nfm_reply router (whatsapp-bot.js), in ONE place.
+ * handleRegistrationFlow already apologises once when it fails; the router used to send a second,
+ * near-identical apology on top. This sends at most one, including for a throw the handler did not catch.
+ */
+async function routeRegistrationSubmission(message, from, userId) {
+  try {
+    const ok = await handleRegistrationFlow(message, from, userId);
+    if (!ok) logToFile('❌ Registration flow processing failed', { from }, 'error');
+    else logToFile('✅ Registration flow processed successfully', { from });
+    return ok;
+  } catch (error) {
+    logToFile('❌ Exception in registration flow handler', { from, error: error.message, stack: error.stack }, 'error');
+    await WhatsAppService.sendMessage(from, resolveUx('regFailed', { language: offerDefaultLanguage() })).catch(() => {});
     return false;
   }
 }
@@ -1220,6 +1210,7 @@ module.exports = {
   handleFlowResponse,
   handleReadingAssessmentFlow,
   handleRegistrationFlow,
+  routeRegistrationSubmission,
   handleTeacherTrainingFlow,
   handleObserveVisitFlow,
   handleStatusFlowCompletion,

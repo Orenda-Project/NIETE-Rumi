@@ -104,25 +104,33 @@ async function withVisibilityHeartbeat(receiptHandle, sessionId, jobType, run, {
 // and never passes the webhook, so a whole portal-started chain spent with no teacher on its cost
 // events. These jobs are keyed by the coaching session, and the session row has its teacher: look
 // them up once, before the job runs, and name them on the job's context, so the job's model spend and
-// every job it queues carry them. Never for a job that already names a user or is not keyed by a
-// coaching session. A failed, empty or slow lookup (capped) names nobody and changes nothing else.
-const COACHING_SESSION_JOBS = new Set(['transcription', 'analysis', 'lesson_plan_extraction', 'report_generation']);
-const SESSION_TEACHER_LOOKUP_MS = 2000;
+// every job it queues carry them. Never for a job that is not keyed by a coaching session.
+// bd-oakmee.11.1: the session's owner (coaching_sessions.user_id: the bound teacher, else whoever
+// recorded it) is named even when the envelope names someone else. A coach who records a teacher's
+// lesson queues it under her own id, so the envelope alone split one session between coach and
+// teacher. A failed, empty or slow lookup (capped) leaves the envelope's user and changes nothing else.
+const COACHING_SESSION_JOBS = new Set(['transcription', 'analysis', 'lesson_plan_extraction', 'report_generation',
+  'observe_debrief', 'observe_teacher_report']);
+const SESSION_OWNER_LOOKUP_MS = 2000;
 
-async function nameSessionTeacher(jobType, sessionId) {
-  if (!COACHING_SESSION_JOBS.has(jobType) || !sessionId) return;
-  const sl = require('../shared/utils/structured-logger');
-  if (typeof sl.getCurrentUserId !== 'function' || sl.getCurrentUserId()) return;
+async function nameSessionOwner(sessionId, requester) {
   let timer;
+  let owner;
   try {
     const lookup = supabase.from('coaching_sessions').select('user_id').eq('id', sessionId).maybeSingle();
-    const capped = new Promise((resolve) => { timer = setTimeout(() => resolve({ data: null }), SESSION_TEACHER_LOOKUP_MS); });
+    const capped = new Promise((resolve) => { timer = setTimeout(() => resolve({ data: null }), SESSION_OWNER_LOOKUP_MS); });
     const { data } = (await Promise.race([lookup, capped])) || {};
-    if (data && data.user_id) sl.setCorrelationUser?.(data.user_id); // a non-uuid is dropped there
+    owner = data && data.user_id;
   } catch (_) {
-    // Naming the teacher is for the cost record; it must never cost the job anything.
+    // Naming the owner is for the cost record; it must never cost the job anything.
   } finally {
     clearTimeout(timer);
+  }
+  try {
+    const sl = require('../shared/utils/structured-logger');
+    if (!sl.setCorrelationUser?.(owner)) sl.setCorrelationUser?.(requester); // a non-uuid is refused there
+  } catch (_) {
+    // Same: the cost record only.
   }
 }
 
@@ -425,6 +433,9 @@ class SQSCoachingWorker {
     // envelopes queued before it existed), so the job's model spend names its user. Anything that is
     // not a users.id is dropped by runWithCorrelation, so a phone in a payload never reaches the logs.
     const requester = body.userId || (payload && (payload.userId || payload.user_id));
+    // bd-oakmee.11.1: a coaching-session job is charged to its session's owner, named inside the job
+    // once the row is read; every other job to the user its envelope names.
+    const sessionOwned = COACHING_SESSION_JOBS.has(jobType) && !!sessionId;
 
     logToFile('📋 Job claimed from SQS', {
       workerId: this.workerId,
@@ -439,7 +450,7 @@ class SQSCoachingWorker {
     // Create job promise wrapped with correlation context
     // All logs within the job will automatically include correlationId
     const jobPromise = runWithCorrelation(correlationId, async () => {
-      await nameSessionTeacher(jobType, sessionId);
+      if (sessionOwned) await nameSessionOwner(sessionId, requester);
       return this.executeJob(sessionId, jobType, payload, receiptHandle, sourceQueue, body)
         .then(async () => {
           // Handed back at shutdown: the message may already be another worker's. Deleting it
@@ -487,7 +498,7 @@ class SQSCoachingWorker {
           this.activeJobs.delete(receiptHandle);
           this.stats.lastJobTime = new Date();
         });
-    }, { userId: requester });
+    }, sessionOwned ? {} : { userId: requester });
 
     // Add to active jobs.
     // bd-yd2kb: store sourceQueue alongside the promise so graceful shutdown can
@@ -1746,10 +1757,17 @@ async function runLessonPlanHealth({ health } = {}) {
  */
 function schedulePeriodicChecks({ worker: w = null } = {}) {
   scheduleChallengeVoiceSweep({ worker: w });
+  scheduleCoachVoiceNoteSweep({ worker: w });
   try {
     scheduleLessonPlanHealth({ worker: w });
   } catch (error) {
     logToFile('Error scheduling the lesson-plan health check (non-fatal)', { error: error && error.message }, 'error');
+  }
+  try {
+    // bd-v0toag.10 — day-3 quiz retest; a no-op until app_settings quiz_slo_retest_enabled is on.
+    require('./quiz-retest-schedule').scheduleQuizRetest({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the quiz retest sweep (non-fatal)', { error: error && error.message }, 'error');
   }
 }
 
@@ -1769,11 +1787,17 @@ function scheduleLessonPlanHealth({ worker: w = null, setIntervalFn = setInterva
     }
     return runLessonPlanHealth();
   };
-  const first = setTimeoutFn(tick, LP_HEALTH_FIRST_MS);
+  // The hourly timer starts at the boot run, not at boot. A tick's claim lives 59 minutes: anchored at
+  // boot, the first hourly tick would land 57 minutes after the boot run's claim and be refused on every
+  // replica — one skipped hour after every deploy.
+  let timer = null;
+  const first = setTimeoutFn(() => {
+    timer = setIntervalFn(tick, LP_HEALTH_TICK_MS);
+    return tick();
+  }, LP_HEALTH_FIRST_MS);
   if (first && typeof first.unref === 'function') first.unref();
-  const timer = setIntervalFn(tick, LP_HEALTH_TICK_MS);
   logToFile('Lesson-plan health check scheduled (hourly + boot, main-queue replicas; a no-op until LP_LIFECYCLE_PATHS is set)');
-  return { tick, timer };
+  return { tick, get timer() { return timer; } };
 }
 
 function scheduleChallengeVoiceSweep({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {
@@ -1789,11 +1813,54 @@ function scheduleChallengeVoiceSweep({ worker: w = null, setIntervalFn = setInte
     } catch (error) {
       logToFile('Error in challenge voice orphan sweep (non-fatal)', { error: error.message });
     }
+    // Challenge clip warm (app_settings web_quiz_challenge_clip_warm, off by default): the first tick after boot, then
+    // once a Pakistan day, the coming passages' clips are recorded before a child meets them. Never stops the sweep.
+    try {
+      const ClipWarm = require('../shared/services/quiz/web-quiz-challenge-clip-warm');
+      if (await ClipWarm.switchOn()) await ClipWarm.daily();
+    } catch (error) {
+      logToFile('Error in challenge clip warm (non-fatal)', { error: error.message }, 'error');
+    }
+    try {
+      await require('../shared/services/quiz/web-quiz-challenge-sweeper').tick(); // stuck runs, the daily job (binding expiry always; every other part behind its own switch)
+    } catch (error) {
+      logToFile('Error in challenge housekeeping tick (non-fatal)', { error: error.message });
+    }
   };
   const first = setTimeoutFn(tick, CHALLENGE_VOICE_SWEEP_FIRST_MS);
   if (first && typeof first.unref === 'function') first.unref();
   const timer = setIntervalFn(tick, CHALLENGE_VOICE_SWEEP_INTERVAL_MS);
   logToFile('Periodic Challenge voice orphan sweep enabled (hourly, main-queue replicas)');
+  return { tick, timer };
+}
+
+// bd-v0toag.67: the teacher's voice note for her coach is deleted 30 days after it was saved if the coach has
+// not marked the visit done ("I have visited" still deletes it at once, in the portal). Daily, from the
+// replicas that poll the main queue, with a first pass a few minutes after boot (Class P: each redeploy resets
+// the interval); bounded per run and idempotent across replicas (the key is nulled only after R2 confirms).
+const COACH_VOICE_NOTE_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const COACH_VOICE_NOTE_SWEEP_FIRST_MS = 4 * 60 * 1000;
+function scheduleCoachVoiceNoteSweep({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {
+  if (!SQSCoachingWorker._enabledQueues().has('main')) {
+    logToFile('Coach voice-note sweep not scheduled on this replica', { reason: 'no main queue' });
+    return null;
+  }
+  const tick = async () => {
+    if (w && w.isShuttingDown) {
+      logToFile('Coach voice-note sweep tick', { outcome: 'skipped', reason: 'shutting_down' });
+      return;
+    }
+    try {
+      const res = await require('../shared/services/coach-voice-note-retention.service').sweepExpiredVoiceNotes({ maxAgeDays: 30 });
+      logToFile('🧹 Coach voice-note 30-day sweep', res);
+    } catch (error) {
+      logToFile('Error in coach voice-note sweep (non-fatal)', { error: error.message }, 'error');
+    }
+  };
+  const first = setTimeoutFn(tick, COACH_VOICE_NOTE_SWEEP_FIRST_MS);
+  if (first && typeof first.unref === 'function') first.unref();
+  const timer = setIntervalFn(tick, COACH_VOICE_NOTE_SWEEP_INTERVAL_MS);
+  logToFile('Coach voice-note 30-day sweep enabled (daily + boot, main-queue replicas)');
   return { tick, timer };
 }
 
@@ -1937,6 +2004,9 @@ function startWorker() {
       require('../shared/services/nudges/lp-coaching-ask.service');
       // The 15:00 quiz offer registers its kind (handler + cohort prepare) at load.
       require('../shared/services/nudges/lp-quiz-offer.service');
+      // The v10 group B weekly usage report (Saturday morning PKT) registers its kind at load.
+      // It does nothing until app_settings v10_weekly_report_enabled is true (bd-v0toag.32).
+      require('../shared/services/coaching/weekly-report/job');
       // Same shape as STALE_RECOVERY_INTERVAL_MS above: a value below the
       // one-minute floor is refused rather than clamped, and the default stands.
       const TEACHER_NUDGES_SWEEP_MS = (() => {
@@ -2060,5 +2130,6 @@ if (require.main === module) {
 module.exports = {
   SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
   exitAfterFlush, runQuizFunnelWatch, scheduleChallengeVoiceSweep, challengeVoiceSweepEnabled,
+  scheduleCoachVoiceNoteSweep,
   runLessonPlanHealth, scheduleLessonPlanHealth, schedulePeriodicChecks, recoverStaleLessonPlanRequests,
 };

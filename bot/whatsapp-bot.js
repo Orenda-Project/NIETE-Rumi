@@ -46,6 +46,7 @@ const ExamCheckerHandler = require('./shared/handlers/exam-checker.handler');
 // Import Utils
 const { logToFile, logError, LOGS_DIR } = require('./shared/utils/logger');
 const validators = require('./shared/utils/validators');
+const { handleStatusWebhook } = require('./shared/services/whatsapp-status-pricing');
 const constants = require('./shared/utils/constants');
 const { setUserLanguage } = require('./shared/utils/language-cache');
 
@@ -522,7 +523,7 @@ app.post('/webhook', async (req, res) => {
       // Used for broadcast delivery tracking
       const statusValidation = validators.validateWebhookStatus(req);
       if (statusValidation) {
-        await handleBroadcastStatusWebhook(statusValidation.statuses);
+        await handleStatusWebhook(statusValidation, handleBroadcastStatusWebhook);
         ack();
         return;
       }
@@ -658,7 +659,7 @@ app.post('/webhook', async (req, res) => {
     // everyone else — and every failure — takes the ordinary dispatch.
     const StudentIngress = require('./shared/services/student-ingress');
     if (user) {
-      try { await StudentIngress.attach(user, from); } catch (err) {
+      try { await StudentIngress.attach(user, from, { body: messageBody }); } catch (err) {
         logToFile('⚠️ student-ingress attach failed (non-fatal)', { error: err.message });
       }
     }
@@ -1724,23 +1725,9 @@ app.post('/webhook', async (req, res) => {
           responseFields: Object.keys(responseJson)
         });
 
-        try {
-          const success = await FlowResponseHandler.handleRegistrationFlow(message, from, user?.id);
-
-          if (!success) {
-            logToFile('❌ Registration flow processing failed', { from, responseJson });
-            await WhatsAppService.sendMessage(from, 'Sorry, something went wrong with your registration. Please try /register to try again.');
-          } else {
-            logToFile('✅ Registration flow processed successfully', { from });
-          }
-        } catch (flowError) {
-          logToFile('❌ Exception in registration flow handler', {
-            from,
-            error: flowError.message,
-            stack: flowError.stack
-          });
-          await WhatsAppService.sendMessage(from, 'Sorry, something went wrong with your registration. Please try /register to try again.');
-        }
+        // bd-x7aprz.2: ONE apology at most. The handler already sends it on failure; this branch
+        // used to send a second, near-identical one on top (flow-response.handler.js).
+        await FlowResponseHandler.routeRegistrationSubmission(message, from, user?.id);
       } else if (flowType === 'attendance_setup') {
         // Attendance Setup — endpoint flow's terminal ack. The endpoint at
         // /api/flows/attendance-setup already parsed the roster, created the
@@ -2017,6 +2004,12 @@ app.post('/webhook', async (req, res) => {
         }
         ack();
         return;
+      }
+
+      // bd-v0toag.10 — a child's "who helped?" tap after a lesson quiz (vqh_<n|c|t|f>_<lang>_<session>).
+      if (listId.startsWith('vqh_')) {
+        const QuizHelpedBy = require('./shared/services/quiz/quiz-helped-by');
+        if (await QuizHelpedBy.handleTap(from, listId)) { ack(); return; }
       }
 
       if (listId.startsWith('vq_')) {

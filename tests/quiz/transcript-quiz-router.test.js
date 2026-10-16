@@ -160,3 +160,26 @@ describe('webhook → a lesson-plan row in /quiz (tq_pick_lsn_<source>_<ref>)', 
     expect(WA.sendMessage).toHaveBeenCalledWith(PHONE, resolveUx('tqLpLessonUnavailable', { language: 'en' }));
   });
 });
+
+describe('webhook → a "who helped?" row (vqh_<n|c|t|f>_<lang>_<session>, bd-v0toag.10)', () => {
+  beforeEach(() => jest.resetModules());
+
+  test('reaches quiz-helped-by.handleTap through the real router, never the vq_ answer handler', async () => {
+    mockEverythingBefore();
+    const handleTap = jest.fn().mockResolvedValue(true);
+    const handleAnswer = jest.fn().mockResolvedValue(true);
+    jest.doMock('../../bot/shared/services/quiz/quiz-helped-by', () => ({ handleTap }));
+    jest.doMock('../../bot/shared/services/quiz/video-quiz.service', () => ({ handleAnswer }));
+    const { app } = require('../../bot/whatsapp-bot');
+    const id = 'vqh_c_ur_44444444-4444-4444-8444-444444444444';
+
+    await postWebhook(app, listReplyBody(id));
+    for (let i = 0; i < 20 && !handleTap.mock.calls.length; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 25));
+    }
+
+    expect(handleTap).toHaveBeenCalledWith(PHONE, id);
+    expect(handleAnswer).not.toHaveBeenCalled();
+  });
+});

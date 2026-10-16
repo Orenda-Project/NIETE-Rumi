@@ -1,6 +1,14 @@
 [
   {
     "cycle": [
+      "bot/shared/services/quiz/web-quiz-card.js",
+      "bot/shared/services/quiz/web-quiz-challenge.js",
+      "bot/shared/services/quiz/web-quiz.service.js"
+    ],
+    "reason": "The scorecard's Jugnu card closes this loop through two lazy edges: web-quiz.service.js finishSessionTimed() requires web-quiz-card.js inside the function, and web-quiz-card.js challengeGrade() requires web-quiz-challenge.js inside the function. Only web-quiz-challenge.js -> web-quiz.service.js (WqError) is at load time, so no module ever reads a half-initialised export."
+  },
+  {
+    "cycle": [
       "bot/shared/services/coaching/report-renderers/renderer-registry.js",
       "bot/shared/services/pdf-report.service.js"
     ],
@@ -15,6 +23,13 @@
   },
   {
     "cycle": [
+      "bot/shared/services/quiz/web-quiz-book.js",
+      "bot/shared/services/quiz/web-quiz-hub.js"
+    ],
+    "reason": "Both edges are lazy, inside functions: web-quiz-hub.js hubPayload() requires web-quiz-book.js only to add the Book's hub bits, and web-quiz-book.js bookFor() requires web-quiz-hub.js only to resolve the hub chip (kidFromHub). Neither module touches the other at load time."
+  },
+  {
+    "cycle": [
       "bot/shared/services/training/content-delivery.service.js",
       "bot/shared/services/training/quiz-delivery.service.js"
     ],
@@ -26,5 +41,12 @@
       "bot/shared/services/quiz/transcript-quiz-handoff.service.js"
     ],
     "reason": "The two halves of one send. transcript-quiz-generate finishes authoring and lazy-requires transcript-quiz-handoff to mint the share code, attach the PDF and pace the three messages \u2014 the same routine /quiz \"resend the link\" runs on a quiz that already went out, which is why it lives on the hand-off side. The hand-off in turn lazy-requires generate for studentMessage(), renderPdf(), withFigureSvgs() and pdfFilename() when it has to rebuild a PDF that is no longer on R2. EVERY require on both sides is inside a function body, never at module top level, so neither module can observe the other half-initialised as `{}` \u2014 which is the failure this guard exists to catch. Splitting the four shared renderers into a fourth module is the real fix and is filed; it is a refactor of the authoring path, not something to do inside a cherry-pick onto production."
+  },
+  {
+    "cycle": [
+      "bot/shared/services/quiz/web-quiz-bind.service.js",
+      "bot/shared/services/student-ingress.js"
+    ],
+    "reason": "Both edges are lazy, inside functions: student-ingress.js bindingWords() requires the binder only for a JUGNU- code or a whole-message STOP, and web-quiz-bind.service.js stopForBoundNonChild() requires student-ingress.js only to ask quizInFlight() before a non-child's STOP. Neither module touches the other at load time."
   }
 ]

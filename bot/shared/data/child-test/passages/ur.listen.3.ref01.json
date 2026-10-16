@@ -1,0 +1,262 @@
+{
+  "passage_id": "ur.listen.3.ref01",
+  "lang": "ur",
+  "kind": "listen",
+  "band": 3,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": true,
+  "tokens": 63,
+  "sentences": 8,
+  "mean_sent_len": 7.9,
+  "max_word_len": 6,
+  "readability": 0.911,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "text_hash": "85f33aafb6d89e18c410a359a7b136a0",
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "رانیہ بازار میں",
+  "text": "رانیہ اپنے دادا کے ساتھ سبزی لینے گئی۔ آسمان پر بہت سے بادل تھے۔ تھوڑی دیر میں بارش شروع ہو گئی۔ دونوں کے پاس چھتری نہیں تھی۔ ایک سبزی والے نے انھیں آواز دی۔ اس نے دونوں کو بیٹھنے کے لیے جگہ دی۔ رانیہ نے سبزیاں صاف کرنے میں مدد کی۔ بارش ختم ہوئی تو دادا نے اسی سبزی والے سے سبزی لی۔",
+  "lines": [
+    [
+      0,
+      7
+    ],
+    [
+      8,
+      13
+    ],
+    [
+      14,
+      20
+    ],
+    [
+      21,
+      26
+    ],
+    [
+      27,
+      33
+    ],
+    [
+      34,
+      42
+    ],
+    [
+      43,
+      50
+    ],
+    [
+      51,
+      62
+    ]
+  ],
+  "tokens_list": [
+    "رانیہ",
+    "اپنے",
+    "دادا",
+    "کے",
+    "ساتھ",
+    "سبزی",
+    "لینے",
+    "گئی",
+    "آسمان",
+    "پر",
+    "بہت",
+    "سے",
+    "بادل",
+    "تھے",
+    "تھوڑی",
+    "دیر",
+    "میں",
+    "بارش",
+    "شروع",
+    "ہو",
+    "گئی",
+    "دونوں",
+    "کے",
+    "پاس",
+    "چھتری",
+    "نہیں",
+    "تھی",
+    "ایک",
+    "سبزی",
+    "والے",
+    "نے",
+    "انھیں",
+    "آواز",
+    "دی",
+    "اس",
+    "نے",
+    "دونوں",
+    "کو",
+    "بیٹھنے",
+    "کے",
+    "لیے",
+    "جگہ",
+    "دی",
+    "رانیہ",
+    "نے",
+    "سبزیاں",
+    "صاف",
+    "کرنے",
+    "میں",
+    "مدد",
+    "کی",
+    "بارش",
+    "ختم",
+    "ہوئی",
+    "تو",
+    "دادا",
+    "نے",
+    "اسی",
+    "سبزی",
+    "والے",
+    "سے",
+    "سبزی",
+    "لی"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "رانیہ کس کے ساتھ گئی؟",
+      "right": "دادا کے ساتھ",
+      "wrong": [
+        "امی کے ساتھ",
+        "خالہ کے ساتھ"
+      ],
+      "accept": [
+        "دادا کے ساتھ",
+        "دادا"
+      ],
+      "reject": [
+        "امی کے ساتھ",
+        "خالہ کے ساتھ"
+      ],
+      "rubric": "Correct if the child says with her grandfather (دادا)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "رانیہ کیا لینے گئی؟",
+      "right": "سبزی",
+      "wrong": [
+        "دہی",
+        "چینی"
+      ],
+      "accept": [
+        "سبزی",
+        "سبزیاں"
+      ],
+      "reject": [
+        "دہی",
+        "چینی"
+      ],
+      "rubric": "Correct if the child says vegetables (سبزی)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "آسمان پر کیا تھے؟",
+      "right": "بادل",
+      "wrong": [
+        "تارے",
+        "پرندے"
+      ],
+      "accept": [
+        "بادل",
+        "بہت سے بادل"
+      ],
+      "reject": [
+        "تارے",
+        "پرندے"
+      ],
+      "rubric": "Correct if the child says clouds (بادل)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "تھوڑی دیر میں کیا شروع ہو گئی؟",
+      "right": "بارش",
+      "wrong": [
+        "آندھی",
+        "سردی"
+      ],
+      "accept": [
+        "بارش"
+      ],
+      "reject": [
+        "آندھی",
+        "سردی"
+      ],
+      "rubric": "Correct if the child says the rain (بارش)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "انھیں کس نے آواز دی؟",
+      "right": "سبزی والے نے",
+      "wrong": [
+        "پھل والے نے",
+        "کھلونے والے نے"
+      ],
+      "accept": [
+        "سبزی والے نے",
+        "سبزی والا"
+      ],
+      "reject": [
+        "پھل والے نے",
+        "کھلونے والے نے"
+      ],
+      "rubric": "Correct if the child says the vegetable seller (سبزی والا)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 7,
+      "type": "literal",
+      "tap_ok": false,
+      "prompt": "رانیہ نے کس کام میں مدد کی؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "سبزیاں صاف کرنے میں",
+        "سبزیاں صاف کیں"
+      ],
+      "reject": [],
+      "rubric": "Correct if the child says cleaning the vegetables (سبزیاں صاف کرنے میں)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "رانیہ"
+  ],
+  "changes": [
+    {
+      "at": "2026-10-16",
+      "field": "text",
+      "what": "last sentence (8): 'بارش ختم ہوئی تو دادا نے اس سے سبزی لی۔' -> 'بارش ختم ہوئی تو دادا نے اسی سبزی والے سے سبزی لی۔'",
+      "why": "by ear the last sentence's «اس» could be the vegetable seller or Raniya; fixed before the passage's first exposure on any served tier",
+      "text_hash_before": "896e52ec72935ebb1dcd659c3ab44952"
+    }
+  ]
+}

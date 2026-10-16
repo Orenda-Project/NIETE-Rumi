@@ -630,10 +630,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
       pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right ✓'; },
       liveNow: function (n) { return n + ' classmates are playing right now — join them!'; },
+      // how many children of the class finished today (the child's own finish counts them all); never a place
       nth: function (n) {
-        if (n === 1) return "You're the first in your class to finish today!";
-        var t = n % 100, u = n % 10, sfx = t >= 11 && t <= 13 ? 'th' : u === 1 ? 'st' : u === 2 ? 'nd' : u === 3 ? 'rd' : 'th';
-        return ["You're the ", '<bdi>' + n + sfx + '</bdi>', ' in your class to finish today'];
+        if (n === 1) return 'You finished this quiz today!';
+        return ['', '<bdi>' + n + '</bdi>', ' children in your class finished this quiz today.'];
       }
     },
     ur: {
@@ -702,8 +702,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + n + ' ٹھیک کیا ✓'; },
       liveNow: function (n) { return 'ابھی ' + n + ' ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!'; },
       nth: function (n) {
-        if (n === 1) return 'آج آپ کی کلاس میں سب سے پہلے آپ نے مکمل کیا!';
-        return ['آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر ', '<bdi>' + n + '</bdi>', ' ہے'];
+        if (n === 1) return 'آج آپ نے یہ کوئز مکمل کر لیا۔';
+        return ['آج آپ کی کلاس میں ', '<bdi>' + urDigits(n) + '</bdi>', ' بچوں نے یہ کوئز مکمل کیا۔'];
       }
     }
   }[LANG];
@@ -803,7 +803,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function flushEv(beacon) {
     if (window.WQT && window.WQT.on) window.WQT.flush(beacon);
     if (!evq.length) return;
-    var body = JSON.stringify({ events: evq.splice(0, 20) });
+    // The hub token and the chip when the Jugnu card set them (wq-card.js, events v2): on the body, never an event.
+    var body = { events: evq.splice(0, 20) }, x = window.WQT && window.WQT.batchIds ? window.WQT.batchIds() : {}, k;
+    for (k in x) body[k] = x[k];
+    body = JSON.stringify(body);
     try {
       if (beacon && navigator.sendBeacon && navigator.sendBeacon('/api/wq/e', new Blob([body], { type: 'application/json' }))) return;
     } catch (e) {}
@@ -1110,6 +1113,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   /* ---------------- tiny DOM helpers ---------------- */
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
+  function nowrap(h) { return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h; }
   function $(sel) { return ROOT.querySelector(sel); }
   function on(sel, fn) { var el = $(sel); if (el) el.addEventListener('click', fn); return el; }
   var helpTimer = null;
@@ -1443,7 +1448,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       notYet: function (n) { return 'Not played yet (' + n + ')'; }, allPlayed: 'Everyone on your class list has played.',
       playedT: function (n) { return 'Played (' + n + ')'; }, setRollLink: 'Set roll',
       // identity v2 (wq-identity.js): name first, a collision asked, never shown
-      someone: 'Someone else', opening: 'Opening your quiz…', nameT: 'What is your name?', nameSay: 'Type the name you are called by in class.',
+      someone: "My name isn't here", opening: 'Opening your quiz…', nameT: 'What is your name?', nameSay: 'Type the name you are called by in class.',
       nameFull: 'Type your full name.', namePriv: 'Only your name. No phone number.',
       moreFull: function (f, c) { return 'There is more than one ' + f + (c ? ' in ' + c : ' here') + '. What is your full name?'; },
       fatherT: "What is your father's name?", numT: 'What number does your teacher call you by?', numSay: 'The number on the class list.',
@@ -1471,7 +1476,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       avg: 'اوسط', hard: function (n, m) { return 'سوال ' + n + ' سب سے مشکل رہا (' + m + ' نے غلط کیا)'; },
       notYet: function (n) { return 'ابھی نہیں کھیلا (' + n + ')'; }, allPlayed: 'آپ کی کلاس لسٹ کے سب بچوں نے کھیل لیا۔',
       playedT: function (n) { return 'کھیل لیا (' + n + ')'; }, setRollLink: 'رول نمبر دیں',
-      someone: 'کوئی اور', opening: 'آپ کا کوئز کھل رہا ہے…', nameT: 'آپ کا نام کیا ہے؟', nameSay: 'وہ نام لکھیں جس سے آپ کو کلاس میں پکارا جاتا ہے۔',
+      someone: 'میرا نام یہاں نہیں', opening: 'آپ کا کوئز کھل رہا ہے…', nameT: 'آپ کا نام کیا ہے؟', nameSay: 'وہ نام لکھیں جس سے آپ کو کلاس میں پکارا جاتا ہے۔',
       nameFull: 'اپنا پورا نام لکھیں۔', namePriv: 'صرف نام۔ فون نمبر نہیں۔',
       moreFull: function (f, c) { return (c ? c + ' میں' : 'یہاں') + ' ایک سے زیادہ ' + f + ' ہیں۔ آپ کا پورا نام کیا ہے؟'; },
       fatherT: 'آپ کے والد کا نام کیا ہے؟', numT: 'کلاس لسٹ میں آپ کا نمبر کیا ہے؟', numSay: 'جو نمبر کلاس میں پکارا جاتا ہے۔',
@@ -2356,10 +2361,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // The preview shows the link on its own left-to-right line: inside an Urdu message it would wrap backwards.
   function fallback(full, what, text, url, art) {
     var pic = art && ART[art];
-    var h = bar() + '<h2>' + esc(T.fbT) + '</h2><p class="wq-sub">' + esc(T.fbSub) + '</p>' +
+    var h = bar() + '<h2>' + nowrap(esc(T.fbT)) + '</h2><p class="wq-sub">' + nowrap(esc(T.fbSub)) + '</p>' +
       (pic ? '<img class="wq-artprev" src="' + esc(artUrl(art)) + '" alt="">' : '') +
       '<div class="wq-card"><p>' + esc(text != null ? text : full) + '</p>' + (url ? '<p class="wq-url" dir="ltr">' + esc(url) + '</p>' : '') + '</div>' +
-      '<a class="wq-btn wq-go" id="wq-wa" href="https://wa.me/?text=' + encodeURIComponent(full) + '">' + esc(T.fbWa) + '</a>' +
+      '<a class="wq-btn wq-go" id="wq-wa" href="https://wa.me/?text=' + encodeURIComponent(full) + '">' + nowrap(esc(T.fbWa)) + '</a>' +
       '<button class="wq-btn wq-soft" id="wq-copy">' + esc(T.fbCopy) + '</button>' +
       (pic ? '<a class="wq-btn wq-soft" id="wq-save" href="' + esc(artUrl(art, 'sq')) + '" download="' + esc(pic.kind + '-' + CODE) + '.jpg">' + esc(T.saveArt) + '</a>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
@@ -2383,7 +2388,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   /* ---------------- M10 scorecard ---------------- */
-  // "You're the 6th in your class to finish today": the copy's text escaped, the number isolated (<bdi>).
+  // "6 children in your class finished this quiz today.": the copy's text escaped, the number isolated (<bdi>).
   function nthHtml(n) {
     var t = T.nth(Number(n));
     return typeof t === 'string' ? esc(t) : esc(t[0]) + t[1] + esc(t[2]);
@@ -2405,6 +2410,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The door to this child's own hub (their quizzes, the video library, the challenge), when finish offered it:
     // the second action, right under "Share to class group".
     var doorBtn = res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '';
+    // The Jugnu card (wq-card.js, sent only when finish offers it): first under the score, above the shares.
+    var jc = res.jugnu_card && !friend ? jugnuCard() : '';
     // With the door, a class child's first screen is the score, "Share to class group" and the door (a 360x740 phone,
     // Urdu included): the practice note and the two-line place-in-class note come after them. A video quiz card keeps its own order
     // ("Next in this chapter", "Watch more" first).
@@ -2435,13 +2442,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
+      jc + notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
     render(h, 'M10');
     libPrefetch();
     wireBar();
+    if (jc) window.WQCARD.wire(jcCtx());
     // How the child did (the share ask may depend on it) and whether this was a friend's challenge run.
     var pct = res.score && res.score.pct != null ? res.score.pct : (total ? Math.round(100 * (c.correct || 0) / total) : 0);
     // Once per finished session: the card re-renders on Back from the share screen, the class table or the league,
@@ -2625,6 +2633,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   // The card's door: the server mints this child's hub link for this phone (never a name in it) and the page opens it.
   var hubGoing = false;
+  // The pages' one link helper (wq-tel.js WQT.withLang): a hub opened from here opens in this page's language.
+  function withLang(h) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, LANG) : h; }
   function hubDoor() {
     if (hubGoing) return;
     hubGoing = true;
@@ -2634,13 +2644,35 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // One event per tap, with whether a hub opened (the hub counts its own view as src=door).
       ev('hub_door_tap', { ok: ok });
       flushEv(true);
-      if (ok) { location.assign(href + '?from=door'); return; }
+      if (ok) { location.assign(withLang(href + '?from=door')); return; }
       hubGoing = false;
       if (S.result) { S.result.hub_door = false; save(); }
       var b = $('#wq-hubdoor');
       if (b && b.parentNode) b.parentNode.removeChild(b);
       toast(T.oops);
     }, function () { hubGoing = false; ev('hub_door_tap', { ok: false, err: 'net' }); toast(T.offline); });
+  }
+
+  /* ---------------- the Jugnu card (wq-card.js; app_settings web_quiz_challenge_card) ---------------- */
+  // Its script is asked for the first time finish offers the card; it draws the card again once it arrives.
+  var jcAsked = false;
+  function jugnuCard() {
+    if (window.WQCARD) return window.WQCARD.html(jcCtx());
+    if (jcAsked) return '';
+    jcAsked = true;
+    try {
+      var own = document.querySelector && document.querySelector('script[src*="/wq/wq.js"]');
+      var v = own && /[?&]v=([A-Za-z0-9_-]+)/.exec(own.getAttribute('src') || '');
+      var el = document.createElement('script');
+      el.src = '/wq/wq-card.js' + (v ? '?v=' + v[1] : '');
+      el.onload = function () { if (window.WQCARD && ROOT.getAttribute('data-m') === 'M10') card(); };
+      (document.head || document.body).appendChild(el);
+    } catch (e) {}
+    return '';
+  }
+  function jcCtx() {
+    return { res: S.result || {}, lang: LANG, mascot: MASC, first: S.child && S.child.first, T: { play: T.play, oops: T.oops, offline: T.offline },
+      esc: esc, ani: ani, bar: bar, wireBar: wireBar, render: render, on: on, ev: ev, flushEv: flushEv, api: api, toast: toast, st: S.st, back: card };
   }
 
   /* ---------------- M11 league table ---------------- */
@@ -2913,9 +2945,24 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   if (params.again === '1' && S.result && !S.queue.length && !S.pending) { S = { st: null, child: null, answers: {}, queue: [], seq: 0, wrong: [], result: null }; save(); ev('again', {}); }
   if (params.again) { try { var u = new URLSearchParams(location.search); u.delete('again'); window.history.replaceState(window.history.state, '', location.pathname + (String(u) ? '?' + u : '')); } catch (e) {} }
   var FROM = B.view === 'class' || B.view === 'schools' || S.st ? null : handover();
+  // An old, finished class link opened again on the phone that finished it (boot link_home, app_settings
+  // web_quiz_link_home): the server answers that child's hub (a token for that child only, bound to this phone) or
+  // null, and then today's screen (`rest`). Asked once, only for ONE remembered child; never waits more than 3 s.
+  function linkHome(rest) {
+    var done = false;
+    function fall() { if (!done) { done = true; rest(); } }
+    setTimeout(fall, 3000);
+    api('POST', 'linkhome', { code: CODE, device_ref: sget('wq_d', null) }).then(function (r) {
+      var h = r && r.ok && r.body ? r.body.home : null;
+      if (done || typeof h !== 'string' || !/^\/h\/[A-Za-z0-9._-]+\?from=link$/.test(h)) return fall();
+      done = true;
+      location.replace(withLang(h));
+    }, fall);
+  }
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();
   else if (FROM) { ev('more_arrive', {}); if (FROM.t) ev('more_timing', { nav_ms: Date.now() - FROM.t }); startSession({ from_st: FROM.st }, null, ''); }
+  else if (B.link_home && !B.preview && !B.invited && !B.challenge && !S.queue.length && !S.pending && (S.result ? S.st : !S.st) && kids().length === 1 && sget('wq_d', null)) linkHome(function () { if (S.result) card(); else landing(); });
   else if (S.result && S.st) card();
   else if (S.pending && S.st) results(S.fixed || 0);
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();

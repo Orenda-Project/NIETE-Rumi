@@ -1,0 +1,20 @@
+{
+  "bot/tests": 1,
+  "bot/tests/calls": 50,
+  "bot/tests/coaching": 3,
+  "bot/tests/handlers": 10,
+  "bot/tests/lp-v8": 48,
+  "bot/tests/menu": 2,
+  "bot/tests/observe": 249,
+  "bot/tests/quiz": 288,
+  "bot/tests/quiz/teacher-quiz-menu": 4,
+  "bot/tests/registration": 5,
+  "bot/tests/routes": 12,
+  "bot/tests/services": 28,
+  "bot/tests/unit": 7,
+  "bot/tests/video": 2,
+  "bot/tests/welcome": 2,
+  "bot/tests/whatsapp": 3,
+  "bot/tests/workers": 1,
+  "dashboard/tests": 39
+}

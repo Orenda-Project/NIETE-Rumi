@@ -2,7 +2,9 @@
  * FICO Framework — ICT Canonical Rubric Tests (TDD)
  *
  * Validates bd-2039: FICO framework replaced with the canonical ICT rubric.
- * 4 scored sections (B/C/D/F), 26 indicators, scale 1-4, max 104.
+ * bd-2345 (2026-07-29) moved it to FICO V3: 4 scored sections (B/C/D/F),
+ * 37 indicators (B10 + C12 + D7 + F8), scale 1-4, max 148. These tests still
+ * expected the V2 shape (26 / 104) until bd-v0toag.72 brought them up to V3.
  *
  * Source of truth: Google Sheet 1UZaHrXARlJ2cWiZAGFEuc-_o1zOiC5LNXaz11_XVkFU
  * (authored by Hammad Sarfraz, ICT team).
@@ -26,53 +28,55 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
       expect(sectionLetters).toEqual(['B', 'C', 'D', 'F']);
     });
 
-    test('Section B (Lesson Plan Fidelity) has 7 indicators (B1-B7)', () => {
+    test('Section B (Lesson Plan Fidelity) has 10 indicators (B1-B10)', () => {
       const section = DOMAINS.lesson_plan_fidelity;
       expect(section.key).toBe('B');
-      expect(section.indicatorCount).toBe(7);
-      expect(section.indicators).toHaveLength(7);
+      expect(section.indicatorCount).toBe(10);
+      expect(section.indicators).toHaveLength(10);
       expect(section.indicators.map(i => i.id)).toEqual([
-        'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7',
+        'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9', 'B10',
       ]);
     });
 
-    test('Section C (High-Leverage Practices) has 4 indicators (C1-C4)', () => {
+    test('Section C (High-Leverage Practices) has 12 indicators (C1-C12)', () => {
       const section = DOMAINS.high_leverage_practices;
       expect(section.key).toBe('C');
-      expect(section.indicatorCount).toBe(4);
+      expect(section.indicatorCount).toBe(12);
       expect(section.indicators.map(i => i.id)).toEqual([
-        'C1', 'C2', 'C3', 'C4',
+        'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10', 'C11', 'C12',
       ]);
     });
 
-    test('Section D (Student Engagement) has 5 indicators (D1-D5)', () => {
+    test('Section D (Student Engagement) has 7 indicators (D1-D7)', () => {
       const section = DOMAINS.student_engagement;
       expect(section.key).toBe('D');
-      expect(section.indicatorCount).toBe(5);
+      expect(section.indicatorCount).toBe(7);
       expect(section.indicators.map(i => i.id)).toEqual([
-        'D1', 'D2', 'D3', 'D4', 'D5',
+        'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7',
       ]);
     });
 
-    test('Section F (Teacher Subject Knowledge) has 10 indicators (F1-F10)', () => {
+    test('Section F (Teacher Subject Knowledge) has 8 indicators (F1-F8)', () => {
       const section = DOMAINS.teacher_subject_knowledge;
       expect(section.key).toBe('F');
-      expect(section.indicatorCount).toBe(10);
+      expect(section.indicatorCount).toBe(8);
       expect(section.indicators.map(i => i.id)).toEqual([
-        'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10',
+        'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8',
       ]);
     });
 
-    test('total indicators is 26 (per Scoring Summary tab)', () => {
-      expect(constants.totalIndicators).toBe(26);
+    test('total indicators is 37 (FICO V3)', () => {
+      expect(constants.totalIndicators).toBe(37);
     });
 
-    test('max marks is 104 (26 × 4)', () => {
-      expect(constants.maxMarks).toBe(104);
-      expect(ficoFramework.maxMarks).toBe(104);
+    test('max marks is 148 (37 × 4)', () => {
+      expect(constants.maxMarks).toBe(148);
+      expect(ficoFramework.maxMarks).toBe(148);
     });
 
-    test('every indicator has a scoring method (1-4 levels) + AI detection method', () => {
+    // V3 carries behavioural level descriptors on every indicator; an AI
+    // Detection Method survives only where the sheet still has one (B4, B10).
+    test('every indicator has a scoring method (1-4 levels)', () => {
       for (const section of Object.values(DOMAINS)) {
         for (const ind of section.indicators) {
           // Marks scheme
@@ -81,41 +85,34 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
           expect(ind.levels[2]).toEqual(expect.any(String));
           expect(ind.levels[3]).toEqual(expect.any(String));
           expect(ind.levels[4]).toEqual(expect.any(String));
-          // AI detection method (from sheet, verbatim)
-          expect(ind.aiDetectionMethod).toEqual(expect.any(String));
-          expect(ind.aiDetectionMethod.length).toBeGreaterThan(20);
         }
       }
     });
   });
 
-  // ─── Section F subject grouping (sheet's F1-F3 general / F4-F5 math /
-  //     F6-F7 science / F8-F10 literacy) ────────────────────────────────
+  // ─── Section F subject grouping (V3: F1-F4 + F8 general / F5 math /
+  //     F6 science / F7 literacy) ─────────────────────────────────────────
 
   describe('Section F subject grouping', () => {
     const DOMAINS = ficoFramework.getScoringConstants().domains;
     const F = DOMAINS.teacher_subject_knowledge.indicators;
 
-    test('F1-F3 tagged general', () => {
-      expect(F.find(i => i.id === 'F1').subjectGroup).toBe('general');
-      expect(F.find(i => i.id === 'F2').subjectGroup).toBe('general');
-      expect(F.find(i => i.id === 'F3').subjectGroup).toBe('general');
+    test('F1-F4 and F8 tagged general', () => {
+      for (const id of ['F1', 'F2', 'F3', 'F4', 'F8']) {
+        expect(F.find(i => i.id === id).subjectGroup).toBe('general');
+      }
     });
 
-    test('F4-F5 tagged mathematics', () => {
-      expect(F.find(i => i.id === 'F4').subjectGroup).toBe('mathematics');
-      expect(F.find(i => i.id === 'F5').subjectGroup).toBe('mathematics');
+    test('F5 tagged math', () => {
+      expect(F.find(i => i.id === 'F5').subjectGroup).toBe('math');
     });
 
-    test('F6-F7 tagged science', () => {
+    test('F6 tagged science', () => {
       expect(F.find(i => i.id === 'F6').subjectGroup).toBe('science');
-      expect(F.find(i => i.id === 'F7').subjectGroup).toBe('science');
     });
 
-    test('F8-F10 tagged literacy', () => {
-      expect(F.find(i => i.id === 'F8').subjectGroup).toBe('literacy');
-      expect(F.find(i => i.id === 'F9').subjectGroup).toBe('literacy');
-      expect(F.find(i => i.id === 'F10').subjectGroup).toBe('literacy');
+    test('F7 tagged literacy', () => {
+      expect(F.find(i => i.id === 'F7').subjectGroup).toBe('literacy');
     });
   });
 
@@ -124,10 +121,10 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
   describe("framework-registry: getFramework('fico') returns ICT shape", () => {
     const { getFramework } = require('../../bot/shared/services/coaching/frameworks/framework-registry');
 
-    test('fico framework has name=fico, maxMarks=104', () => {
+    test('fico framework has name=fico, maxMarks=148', () => {
       const fw = getFramework('fico');
       expect(fw.name).toBe('fico');
-      expect(fw.maxMarks).toBe(104);
+      expect(fw.maxMarks).toBe(148);
     });
 
     test('fico framework does NOT expose the legacy 5-domain shape', () => {
@@ -139,7 +136,7 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
       expect(DOMAINS.classroom_climate).toBeUndefined();
       expect(DOMAINS.assessment_feedback).toBeUndefined();
       // The one 'student_engagement' key that appears in BOTH shapes lives
-      // here under the ICT rubric (5 indicators D1-D5), so its indicator IDs
+      // here under the ICT rubric (7 indicators D1-D7), so its indicator IDs
       // must be D-prefixed (not 4.x-prefixed from the legacy shape).
       expect(DOMAINS.student_engagement).toBeDefined();
       expect(DOMAINS.student_engagement.indicators[0].id).toBe('D1');
@@ -163,13 +160,14 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
       expect(prompt).toMatch(/SECTION F/);
     });
 
-    test('uses the sheet\'s "AI Detection Method" text verbatim for at least one indicator', () => {
-      // Sample verbatim strings from the sheet:
-      expect(prompt).toContain("goal-setting phrases");                 // B1
-      expect(prompt).toContain("temporal phase markers");                // B2
-      expect(prompt).toContain("Classify each question as open or closed"); // C1
-      expect(prompt).toContain("reasoning language in student responses");  // D2
-      expect(prompt).toContain('phonics sequence');                      // F8
+    test('bakes in the V3 level descriptors and the global scoring discipline', () => {
+      const D = ficoFramework.getScoringConstants().domains;
+      expect(prompt).toContain(D.lesson_plan_fidelity.indicators[0].levels[4]);     // B1
+      expect(prompt).toContain(D.high_leverage_practices.indicators[11].levels[3]); // C12
+      expect(prompt).toContain(D.teacher_subject_knowledge.indicators[7].levels[2]); // F8
+      expect(prompt).toContain('SCORING DISCIPLINE');
+      expect(prompt).toContain('samajh aa gayi?');
+      expect(prompt).toContain('AI Detection Method:'); // B4 / B10 keep theirs
     });
 
     test('mentions 1-4 scale', () => {
@@ -224,7 +222,7 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
   // ─── computeScores() ────────────────────────────────────────────────
 
   describe('computeScores() sums the new section shape', () => {
-    test('all 4 sections at max → 104 marks', () => {
+    test('all 4 sections at max → 148 marks', () => {
       const DOMAINS = ficoFramework.getScoringConstants().domains;
       const analysis = { domains: {} };
       for (const [key, def] of Object.entries(DOMAINS)) {
@@ -233,12 +231,12 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
         };
       }
       const scored = ficoFramework.computeScores(analysis);
-      expect(scored.scores.overall_marks).toBe(104);
-      expect(scored.scores.overall_max_marks).toBe(104);
+      expect(scored.scores.overall_marks).toBe(148);
+      expect(scored.scores.overall_max_marks).toBe(148);
       expect(scored.scores.overall_percentage).toBe(100);
     });
 
-    test('per-section max: B=28, C=16, D=20, F=40', () => {
+    test('per-section max: B=40, C=48, D=28, F=32', () => {
       const analysis = {
         domains: {
           lesson_plan_fidelity:      { indicators: [{ score: 4 }] },
@@ -248,16 +246,16 @@ describe('FICO Framework — ICT Canonical Rubric (bd-2039)', () => {
         },
       };
       ficoFramework.computeScores(analysis);
-      expect(analysis.domains.lesson_plan_fidelity.domain_max).toBe(28);
-      expect(analysis.domains.high_leverage_practices.domain_max).toBe(16);
-      expect(analysis.domains.student_engagement.domain_max).toBe(20);
-      expect(analysis.domains.teacher_subject_knowledge.domain_max).toBe(40);
+      expect(analysis.domains.lesson_plan_fidelity.domain_max).toBe(40);
+      expect(analysis.domains.high_leverage_practices.domain_max).toBe(48);
+      expect(analysis.domains.student_engagement.domain_max).toBe(28);
+      expect(analysis.domains.teacher_subject_knowledge.domain_max).toBe(32);
     });
 
     test('missing sections do not crash', () => {
       const scored = ficoFramework.computeScores({ domains: {} });
       expect(scored.scores.overall_marks).toBe(0);
-      expect(scored.scores.overall_max_marks).toBe(104);
+      expect(scored.scores.overall_max_marks).toBe(148);
     });
   });
 
@@ -380,13 +378,14 @@ describe('All 4 dispatch touchpoints wire fico (bd-2039 audit)', () => {
     expect(groups[0].max).toBe(28);
   });
 
-  test('renderer-registry: fico → hero renderer (not the pdfkit fallback)', () => {
+  // bd-2453 (2026-08-01) gave fico the NIETE-branded hero renderer, key 'hero-niete'.
+  test('renderer-registry: fico → NIETE hero renderer (not the pdfkit fallback)', () => {
     jest.resetModules();
     const { getReportRenderer } = require(
       '../../bot/shared/services/coaching/report-renderers/renderer-registry'
     );
     const r = getReportRenderer('fico');
     expect(r).toBeDefined();
-    expect(r.key).toBe('hero');
+    expect(r.key).toBe('hero-niete');
   });
 });

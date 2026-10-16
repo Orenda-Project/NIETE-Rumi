@@ -35,7 +35,8 @@ const Hub = require('../../../shared/services/quiz/web-quiz-hub');
 const SQ = require('../../../shared/services/quiz/student-quiz.service');
 const redis = require('../../../shared/services/cache/railway-redis.service');
 
-const PHONE = '923001112223';
+const { fixturePhone } = require('./fixture-phone');
+const PHONE = fixturePhone(1);
 const PORTAL = 'https://portal.example.test';
 const KID = '44444444-4444-4444-8444-000000000001';
 const SIB = '44444444-4444-4444-8444-000000000002';
@@ -68,7 +69,7 @@ function seed(over = {}) {
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, phone: PHONE, created_at: ago(500) },
       { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, phone: PHONE, created_at: ago(400) },
-      { id: OTHER, student_name: 'Other Testwala', self_reported_class: '3', list_id: LIST, is_active: true, phone: '923009999999', created_at: ago(300) },
+      { id: OTHER, student_name: 'Other Testwala', self_reported_class: '3', list_id: LIST, is_active: true, phone: fixturePhone(2), created_at: ago(300) },
     ],
     student_lists: [{ id: LIST, user_id: TEACHER, class_name: '3', section: 'A', is_active: true }],
     quizzes: [
@@ -483,6 +484,25 @@ describe('hub(): challenge and library', () => {
 
   // The tile and the challenge page decide eligibility with ONE grade rule (the challenge's), so a tile is never a dead end.
   const CH_ON = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: 'true' }];
+
+  test('a grade-1 child gets the challenge tile only with the grade-1 form on (v2 + g1), as the serve decides', async () => {
+    const grade1 = (extra) => {
+      seed({ app_settings: [...CH_ON, ...extra] });
+      Object.assign(db.students[0], { self_reported_class: '1' });
+      db.student_lists.forEach((l) => { l.class_name = '1'; });
+      db.quizzes.forEach((q) => { q.grade = '1'; });
+      db.quiz_sessions.forEach((x) => { x.student_class = '1'; });
+      Hub._resetCache();
+      require('../../../shared/services/quiz/web-quiz-challenge').__reset();   // its settings cache
+    };
+    grade1([{ key: 'web_quiz_challenge_v2', value: true }, { key: 'web_quiz_challenge_g1', value: true }]);
+    expect((await Hub.hub(T.signHub([KID]), A)).challenge).toMatchObject({ on: true });
+    // either grade-1 switch off: no tile, as today (the serve refuses that child too)
+    for (const extra of [[{ key: 'web_quiz_challenge_g1', value: true }], [{ key: 'web_quiz_challenge_v2', value: true }], []]) {
+      grade1(extra);
+      expect((await Hub.hub(T.signHub([KID]), A)).challenge).toBeNull();
+    }
+  });
   function bandOnly(extra = {}) {
     seed({ app_settings: CH_ON, ...extra });
     // A loose child: no class list, no class given, and only quizzes for a band of grades.

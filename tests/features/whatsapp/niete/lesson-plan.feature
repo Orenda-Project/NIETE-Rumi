@@ -284,6 +284,18 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And it replies with the curriculum fallback inviting me to type "menu"
     # bd-2540 removed the teacher-triggerable freeform (Gamma) generation.
 
+  # Documentation only — no lane can drive it: it needs the worker to stop mid-render (a deploy, a render
+  # past the stale window), after which the stale-request recovery re-queues the ask. Before, the re-queued
+  # job lost its curriculum row: dropped here, and generated as a freeform plan where freeform generation
+  # still runs. Unit: tests/lesson-plan-lifecycle/requeue-grounded.test.js, stale-recovery-limit.test.js.
+  @P2
+  Scenario: A curriculum plan whose preparation was cut off is prepared again from the topic I asked for
+    Given I asked for a lesson plan on a curriculum topic and it was being prepared
+    And its preparation stopped before the plan was sent to me
+    When the bot picks my request up again
+    Then I am sent the plan for the curriculum topic I asked for
+    And I am never sent a different, generated plan in its place
+
   @e2e @voice @P2 @L05
   Scenario: A voice lesson-plan request is transcribed and answered like the text path
     Given the NIETE bot chat is open

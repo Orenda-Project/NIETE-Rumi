@@ -1,0 +1,264 @@
+{
+  "passage_id": "en.listen.2.story01",
+  "lang": "en",
+  "kind": "listen",
+  "band": 2,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Sadia",
+    "Hina"
+  ],
+  "tokens": 58,
+  "sentences": 9,
+  "mean_sent_len": 6.4,
+  "max_word_len": 10,
+  "readability": 0.882,
+  "readability_list": "fed-cum-g3-2026",
+  "readability_band_above": 0.912,
+  "source_ref": "generated brief v1 (band-2 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "A New Friend",
+  "title_ur": null,
+  "text": "Sadia saw a new student in her class. The new student was sitting alone. She was not talking to anyone. Sadia sat next to her. She asked the student her name. Her name was Hina. Sadia showed Hina the library, then the playground. From that day, both were friends. The next morning, Hina had a smile for Sadia.",
+  "lines": [
+    [
+      0,
+      7
+    ],
+    [
+      8,
+      13
+    ],
+    [
+      14,
+      19
+    ],
+    [
+      20,
+      24
+    ],
+    [
+      25,
+      30
+    ],
+    [
+      31,
+      34
+    ],
+    [
+      35,
+      42
+    ],
+    [
+      43,
+      48
+    ],
+    [
+      49,
+      57
+    ]
+  ],
+  "tokens_list": [
+    "Sadia",
+    "saw",
+    "a",
+    "new",
+    "student",
+    "in",
+    "her",
+    "class",
+    "The",
+    "new",
+    "student",
+    "was",
+    "sitting",
+    "alone",
+    "She",
+    "was",
+    "not",
+    "talking",
+    "to",
+    "anyone",
+    "Sadia",
+    "sat",
+    "next",
+    "to",
+    "her",
+    "She",
+    "asked",
+    "the",
+    "student",
+    "her",
+    "name",
+    "Her",
+    "name",
+    "was",
+    "Hina",
+    "Sadia",
+    "showed",
+    "Hina",
+    "the",
+    "library",
+    "then",
+    "the",
+    "playground",
+    "From",
+    "that",
+    "day",
+    "both",
+    "were",
+    "friends",
+    "The",
+    "next",
+    "morning",
+    "Hina",
+    "had",
+    "a",
+    "smile",
+    "for",
+    "Sadia"
+  ],
+  "text_hash": "bfd561359841bcfbdeda82365e556d73",
+  "q_reach_1": 1,
+  "q_reach_2": 2,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who did Sadia see in her class?",
+      "right": "a new student",
+      "wrong": [
+        "a new teacher",
+        "a doctor"
+      ],
+      "accept": [
+        "a new student",
+        "a new girl",
+        "Hina"
+      ],
+      "reject": [
+        "a new teacher",
+        "a doctor"
+      ],
+      "rubric": "Right if the child says a new student (or a new girl / Hina)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "How was the new student sitting?",
+      "right": "alone",
+      "wrong": [
+        "with friends",
+        "with a teacher"
+      ],
+      "accept": [
+        "alone",
+        "by herself",
+        "on her own"
+      ],
+      "reject": [
+        "with friends",
+        "with a teacher"
+      ],
+      "rubric": "Right if the child says alone (or by herself / on her own)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Sadia sit?",
+      "right": "next to her",
+      "wrong": [
+        "by the door",
+        "by the window"
+      ],
+      "accept": [
+        "next to her",
+        "next to the new student",
+        "next to Hina"
+      ],
+      "reject": [
+        "by the door",
+        "by the window"
+      ],
+      "rubric": "Right if the child says next to her (or next to the new student / next to Hina)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 7,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Sadia show Hina first?",
+      "right": "the library",
+      "wrong": [
+        "the kitchen",
+        "the garden"
+      ],
+      "accept": [
+        "the library",
+        "library"
+      ],
+      "reject": [
+        "the kitchen",
+        "the garden"
+      ],
+      "rubric": "Right if the child says the library (or library)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 9,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Hina have for Sadia the next morning?",
+      "right": "a smile",
+      "wrong": [
+        "a cake",
+        "a book"
+      ],
+      "accept": [
+        "a smile",
+        "smile"
+      ],
+      "reject": [
+        "a cake",
+        "a book"
+      ],
+      "rubric": "Right if the child says a smile (or smile)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 9,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why did Hina smile at Sadia?",
+      "right": "Sadia was kind to her",
+      "wrong": [
+        "Sadia gave her a cake",
+        "it was her birthday"
+      ],
+      "accept": [
+        "Sadia was kind to her",
+        "they were friends",
+        "Sadia helped her"
+      ],
+      "reject": [
+        "Sadia gave her a cake",
+        "it was her birthday"
+      ],
+      "rubric": "Right if the child says Sadia was kind to her (or they were friends / Sadia helped her)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

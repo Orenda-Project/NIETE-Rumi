@@ -100,7 +100,11 @@ html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
 .wq-kids-big{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .wq-kid-big{min-height:72px;font-size:21px;padding:8px 12px 8px 8px;overflow:hidden}
 .wq-kid-big bdi{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* A teacher's name on the class link wraps, EN and UR (two names sharing a long prefix never cut to the same chip); the <bdi> keeps a Latin name's direction in the RTL chip */
+.wq-kid-big[data-tk] bdi{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 .wq-nw{white-space:nowrap}
+/* «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap), on every page that draws it */
+.wqb-nowrap{white-space:nowrap}
 .wq-kids-small .wq-kid-big{min-height:56px;font-size:18px}
 .wq-undo{position:fixed;left:16px;right:16px;bottom:16px;width:auto;z-index:50;background:#fff;color:var(--navy);border:2px solid var(--navy);box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .wq-input{width:100%;min-height:58px;border-radius:16px;border:2px solid var(--line);background:#fff;padding:8px 14px;font-size:22px;font-weight:800;color:var(--navy)}
@@ -230,7 +234,7 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-how{display:grid;gap:8px;list-style:none;padding:0;margin:0}
 .wq-how li{display:flex;gap:10px;align-items:center;font-weight:800;background:var(--card);border-radius:14px;padding:10px 12px}
 .wq-proof{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--green-d);font-size:15px}
-/* The card's "You're the 6th in your class to finish today": one centred line (a single flex item, so the isolated number keeps its spaces). */
+/* The card's "6 children in your class finished this quiz today.": one centred line (a single flex item, so the isolated number keeps its spaces). */
 .wq-nth{justify-content:center;text-align:center}
 .wq-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

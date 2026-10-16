@@ -127,7 +127,9 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     root.setAttribute = function (k, v) { set.call(this, k, v); if (k === 'data-m') obs.forEach((fn) => fn([])); };
   }
   vm.createContext(ctx);
-  if (tel) vm.runInContext(TEL, ctx);
+  // wq-tel.js is on every page the edge renders, before wq.js: its stub (and the link helper WQT.withLang) is always
+  // there; the telemetry itself runs only with `tel` (boot rt).
+  vm.runInContext(TEL, ctx);
   if (lib) vm.runInContext(LIB, ctx);
   vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { who: who, card: card, board: board, video: video, isThisYou: isThisYou, history: history, landing: landing, today: today, results: results, question: question, S: S, finishFirstPass: finishFirstPass, T: T };\n})();'), ctx);
   const tap = () => (dl.click || []).forEach((fn) => fn({}));

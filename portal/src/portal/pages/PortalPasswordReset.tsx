@@ -7,7 +7,8 @@ import { auth } from '../services/api';
 import { AuthFrame, AuthMessage } from '../auth/AuthFrame';
 import { AuthField } from '../auth/AuthField';
 import { AUTH } from '../auth/copy';
-import { resetFailure, statusOf, type AuthError } from '../auth/errors';
+import { RegisterOnWhatsApp } from '../auth/RegisterOnWhatsApp';
+import { resetFailure, serverWhatsapp, statusOf, type AuthError } from '../auth/errors';
 import { useCopy } from '../teacher/i18n';
 
 /**
@@ -23,6 +24,8 @@ const PortalPasswordReset = () => {
   const [phoneNumber, setPhoneNumber] = useState(location.state?.phoneNumber ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
+  // bd-x7aprz.3: a number that is not registered gets the way to register, never "No account found".
+  const [register, setRegister] = useState<{ href: string | null } | null>(null);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,13 +40,16 @@ const PortalPasswordReset = () => {
     }
 
     setError(null);
+    setRegister(null);
     setLoading(true);
     try {
       await auth.requestReset(phoneNumber);
       navigate('/portal/reset-password/verify', { state: { phoneNumber } });
       return;
     } catch (err) {
-      setError(resetFailure(statusOf(err)));
+      const status = statusOf(err);
+      if (status === 404) setRegister({ href: serverWhatsapp(err) });
+      else setError(resetFailure(status));
     }
     setLoading(false);
   };
@@ -60,12 +66,13 @@ const PortalPasswordReset = () => {
           autoComplete="username"
           ltr
           value={phoneNumber}
-          onChange={(v) => { setPhoneNumber(v); setError(null); }}
+          onChange={(v) => { setPhoneNumber(v); setError(null); setRegister(null); }}
           placeholder={c.phoneHint}
           disabled={loading}
           error={error?.field === 'phone' ? c[error.key] : null}
         />
         {error && error.field === 'form' ? <AuthMessage>{c[error.key]}</AuthMessage> : null}
+        {register ? <RegisterOnWhatsApp href={register.href} /> : null}
         <BottomButton type="submit" icon={MessageCircle} busy={loading}>{loading ? c.sending : c.sendCode}</BottomButton>
         <div className="h-3.5" />
       </form>

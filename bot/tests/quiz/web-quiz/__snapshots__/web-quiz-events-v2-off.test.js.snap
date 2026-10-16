@@ -1,0 +1,638 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`web_quiz_events_v2 off: the page relay is byte-identical cleanEvent over the corpus (absent) 1`] = `
+[
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {
+      "v": "a1",
+    },
+  },
+  {
+    "name": "invite_ask",
+    "props": {
+      "v": "a0",
+      "who": "cousin",
+    },
+  },
+  {
+    "name": "invite_ask",
+    "props": {
+      "v": "a1",
+    },
+  },
+  {
+    "name": "invite_ask",
+    "props": {},
+  },
+  {
+    "name": "page_open",
+    "props": {
+      "code": "ABCD12",
+      "code_h": "9b6e4b2b50b8",
+      "iab": 1,
+      "ua": "Mozilla/5.0 WA4A/2.24",
+      "ua_app": "whatsapp",
+    },
+  },
+  {
+    "name": "share",
+    "props": {
+      "band": "mid",
+      "cap": "native",
+      "path": "wa",
+      "to_h": "db91d50dd0c7",
+      "via": "card",
+    },
+  },
+  {
+    "name": "answer",
+    "props": {
+      "i": 3,
+      "ms": 1234,
+      "ok": true,
+      "qid": "0f0f0f0f-aaaa",
+      "slot": "B",
+    },
+  },
+  {
+    "name": "error",
+    "props": {
+      "err": "typeerror: cannot read properties of null _reading _x",
+      "file": "wq.js",
+      "src": "err",
+    },
+  },
+  {
+    "name": "hub_view",
+    "props": {
+      "lang": "ur",
+      "src": "home",
+      "step": "tile",
+    },
+  },
+  {
+    "name": "probe",
+    "props": {
+      "probe": {
+        "ls": true,
+        "share": "yes",
+      },
+    },
+  },
+  null,
+  null,
+  null,
+]
+`;
+
+exports[`web_quiz_events_v2 off: the page relay is byte-identical cleanEvent over the corpus (false) 1`] = `
+[
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {
+      "v": "a1",
+    },
+  },
+  {
+    "name": "invite_ask",
+    "props": {
+      "v": "a0",
+      "who": "cousin",
+    },
+  },
+  {
+    "name": "invite_ask",
+    "props": {
+      "v": "a1",
+    },
+  },
+  {
+    "name": "invite_ask",
+    "props": {},
+  },
+  {
+    "name": "page_open",
+    "props": {
+      "code": "ABCD12",
+      "code_h": "9b6e4b2b50b8",
+      "iab": 1,
+      "ua": "Mozilla/5.0 WA4A/2.24",
+      "ua_app": "whatsapp",
+    },
+  },
+  {
+    "name": "share",
+    "props": {
+      "band": "mid",
+      "cap": "native",
+      "path": "wa",
+      "to_h": "db91d50dd0c7",
+      "via": "card",
+    },
+  },
+  {
+    "name": "answer",
+    "props": {
+      "i": 3,
+      "ms": 1234,
+      "ok": true,
+      "qid": "0f0f0f0f-aaaa",
+      "slot": "B",
+    },
+  },
+  {
+    "name": "error",
+    "props": {
+      "err": "typeerror: cannot read properties of null _reading _x",
+      "file": "wq.js",
+      "src": "err",
+    },
+  },
+  {
+    "name": "hub_view",
+    "props": {
+      "lang": "ur",
+      "src": "home",
+      "step": "tile",
+    },
+  },
+  {
+    "name": "probe",
+    "props": {
+      "probe": {
+        "ls": true,
+        "share": "yes",
+      },
+    },
+  },
+  null,
+  null,
+  null,
+]
+`;
+
+exports[`web_quiz_events_v2 off: the page relay is byte-identical cleanEvent over the corpus (parent off) 1`] = `
+[
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {},
+  },
+  {
+    "name": "ch_helped",
+    "props": {
+      "v": "a1",
+    },
+  },
+  {
+    "name": "invite_ask",
+    "props": {
+      "v": "a0",
+      "who": "cousin",
+    },
+  },
+  {
+    "name": "invite_ask",
+    "props": {
+      "v": "a1",
+    },
+  },
+  {
+    "name": "invite_ask",
+    "props": {},
+  },
+  {
+    "name": "page_open",
+    "props": {
+      "code": "ABCD12",
+      "code_h": "9b6e4b2b50b8",
+      "iab": 1,
+      "ua": "Mozilla/5.0 WA4A/2.24",
+      "ua_app": "whatsapp",
+    },
+  },
+  {
+    "name": "share",
+    "props": {
+      "band": "mid",
+      "cap": "native",
+      "path": "wa",
+      "to_h": "db91d50dd0c7",
+      "via": "card",
+    },
+  },
+  {
+    "name": "answer",
+    "props": {
+      "i": 3,
+      "ms": 1234,
+      "ok": true,
+      "qid": "0f0f0f0f-aaaa",
+      "slot": "B",
+    },
+  },
+  {
+    "name": "error",
+    "props": {
+      "err": "typeerror: cannot read properties of null _reading _x",
+      "file": "wq.js",
+      "src": "err",
+    },
+  },
+  {
+    "name": "hub_view",
+    "props": {
+      "lang": "ur",
+      "src": "home",
+      "step": "tile",
+    },
+  },
+  {
+    "name": "probe",
+    "props": {
+      "probe": {
+        "ls": true,
+        "share": "yes",
+      },
+    },
+  },
+  null,
+  null,
+  null,
+]
+`;
+
+exports[`web_quiz_events_v2 off: the page relay is byte-identical events() with 23 events logs the first 20 and nothing else (absent) 1`] = `
+[
+  {
+    "i": 0,
+    "ok": false,
+  },
+  {
+    "i": 1,
+    "ok": true,
+  },
+  {
+    "i": 2,
+    "ok": false,
+  },
+  {
+    "i": 3,
+    "ok": true,
+  },
+  {
+    "i": 4,
+    "ok": false,
+  },
+  {
+    "i": 5,
+    "ok": true,
+  },
+  {
+    "i": 6,
+    "ok": false,
+  },
+  {
+    "i": 7,
+    "ok": true,
+  },
+  {
+    "i": 8,
+    "ok": false,
+  },
+  {
+    "i": 9,
+    "ok": true,
+  },
+  {
+    "i": 10,
+    "ok": false,
+  },
+  {
+    "i": 11,
+    "ok": true,
+  },
+  {
+    "i": 12,
+    "ok": false,
+  },
+  {
+    "i": 13,
+    "ok": true,
+  },
+  {
+    "i": 14,
+    "ok": false,
+  },
+  {
+    "i": 15,
+    "ok": true,
+  },
+  {
+    "i": 16,
+    "ok": false,
+  },
+  {
+    "i": 17,
+    "ok": true,
+  },
+  {
+    "i": 18,
+    "ok": false,
+  },
+  {
+    "i": 19,
+    "ok": true,
+  },
+]
+`;
+
+exports[`web_quiz_events_v2 off: the page relay is byte-identical events() with 23 events logs the first 20 and nothing else (false) 1`] = `
+[
+  {
+    "i": 0,
+    "ok": false,
+  },
+  {
+    "i": 1,
+    "ok": true,
+  },
+  {
+    "i": 2,
+    "ok": false,
+  },
+  {
+    "i": 3,
+    "ok": true,
+  },
+  {
+    "i": 4,
+    "ok": false,
+  },
+  {
+    "i": 5,
+    "ok": true,
+  },
+  {
+    "i": 6,
+    "ok": false,
+  },
+  {
+    "i": 7,
+    "ok": true,
+  },
+  {
+    "i": 8,
+    "ok": false,
+  },
+  {
+    "i": 9,
+    "ok": true,
+  },
+  {
+    "i": 10,
+    "ok": false,
+  },
+  {
+    "i": 11,
+    "ok": true,
+  },
+  {
+    "i": 12,
+    "ok": false,
+  },
+  {
+    "i": 13,
+    "ok": true,
+  },
+  {
+    "i": 14,
+    "ok": false,
+  },
+  {
+    "i": 15,
+    "ok": true,
+  },
+  {
+    "i": 16,
+    "ok": false,
+  },
+  {
+    "i": 17,
+    "ok": true,
+  },
+  {
+    "i": 18,
+    "ok": false,
+  },
+  {
+    "i": 19,
+    "ok": true,
+  },
+]
+`;
+
+exports[`web_quiz_events_v2 off: the page relay is byte-identical events() with 23 events logs the first 20 and nothing else (parent off) 1`] = `
+[
+  {
+    "i": 0,
+    "ok": false,
+  },
+  {
+    "i": 1,
+    "ok": true,
+  },
+  {
+    "i": 2,
+    "ok": false,
+  },
+  {
+    "i": 3,
+    "ok": true,
+  },
+  {
+    "i": 4,
+    "ok": false,
+  },
+  {
+    "i": 5,
+    "ok": true,
+  },
+  {
+    "i": 6,
+    "ok": false,
+  },
+  {
+    "i": 7,
+    "ok": true,
+  },
+  {
+    "i": 8,
+    "ok": false,
+  },
+  {
+    "i": 9,
+    "ok": true,
+  },
+  {
+    "i": 10,
+    "ok": false,
+  },
+  {
+    "i": 11,
+    "ok": true,
+  },
+  {
+    "i": 12,
+    "ok": false,
+  },
+  {
+    "i": 13,
+    "ok": true,
+  },
+  {
+    "i": 14,
+    "ok": false,
+  },
+  {
+    "i": 15,
+    "ok": true,
+  },
+  {
+    "i": 16,
+    "ok": false,
+  },
+  {
+    "i": 17,
+    "ok": true,
+  },
+  {
+    "i": 18,
+    "ok": false,
+  },
+  {
+    "i": 19,
+    "ok": true,
+  },
+]
+`;
+
+exports[`web_quiz_events_v2 off: the server copies are byte-identical web_quiz.ch_start (absent) 1`] = `
+[
+  {
+    "grade": 3,
+    "run": "<uuid>",
+    "step": "bigger",
+  },
+]
+`;
+
+exports[`web_quiz_events_v2 off: the server copies are byte-identical web_quiz.ch_start (false) 1`] = `
+[
+  {
+    "grade": 3,
+    "run": "<uuid>",
+    "step": "bigger",
+  },
+]
+`;
+
+exports[`web_quiz_events_v2 off: the server copies are byte-identical web_quiz.ch_start (parent off) 1`] = `
+[
+  {
+    "grade": 3,
+    "run": "<uuid>",
+    "step": "bigger",
+  },
+]
+`;
+
+exports[`web_quiz_events_v2 off: the server copies are byte-identical web_quiz.hub_open, picked and unpicked (switch absent) 1`] = `
+[
+  {
+    "again_n": 0,
+    "challenge": true,
+    "has_teacher": false,
+    "kids": 1,
+    "recs_n": 0,
+    "teacher_src": null,
+  },
+  {
+    "kids": 2,
+    "picked": false,
+  },
+]
+`;
+
+exports[`web_quiz_events_v2 off: the server copies are byte-identical web_quiz.hub_open, picked and unpicked (switch false) 1`] = `
+[
+  {
+    "again_n": 0,
+    "challenge": true,
+    "has_teacher": false,
+    "kids": 1,
+    "recs_n": 0,
+    "teacher_src": null,
+  },
+  {
+    "kids": 2,
+    "picked": false,
+  },
+]
+`;

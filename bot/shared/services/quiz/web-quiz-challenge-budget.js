@@ -8,7 +8,7 @@
  *
  * Absent or a failed read = the default; cached 60 s, like web_quiz_audio_daily_cap (web-quiz-audio-store.js).
  * Today's count = rows of web_quiz_challenge_runs with exercise 'read' since Pakistan midnight (every reading that
- * reached scoring), plus the readings this process started since that count. At the cap the Challenge offers
+ * reached scoring; a 'served' or 'abandoned' row was never read), plus the readings this process started since that count. At the cap the Challenge offers
  * "Which is bigger?" only and a read already open gets "enough for today"; logged once per day per process.
  * A failed count lets the reading through (logged): the setting read still bounds a normal day.
  */
@@ -53,7 +53,7 @@ async function readsToday(now = Date.now()) {
   const day = pkDay(now);
   if (!(count && count.day === day && now - count.at < CACHE_MS)) {
     const { count: n, error } = await supabase.from('web_quiz_challenge_runs').select('id', { count: 'exact', head: true })
-      .eq('exercise', 'read').gte('created_at', pkMidnightIso(day));
+      .eq('exercise', 'read').in('status', ['scoring', 'scored', 'failed']).gte('created_at', pkMidnightIso(day));
     if (error) throw new Error(error.message || 'count failed');
     count = { day, at: now, n: Number(n) || 0 };
     started = 0;

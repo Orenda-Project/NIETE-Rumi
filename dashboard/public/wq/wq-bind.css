@@ -1,0 +1,28 @@
+/* "Keep your place on WhatsApp" (wq-bind.js). Linked only when the hub JSON carries `bind`; wq.css is untouched.
+ * Classes another page may reuse with the same script: .wqb-card .wqb-title .wqb-sub .wqb-notice .wqb-row .wqb-stack
+ * .wqb-btn .wqb-go .wqb-ghost .wqb-chip .wqb-saved .wqb-msg .wqb-line2 .wqb-x */
+.wqb-card{background:var(--card,#fff);border:2px solid var(--line,#DCE5DF);border-radius:20px;padding:16px;margin:14px 0;overflow-wrap:anywhere}
+.wqb-title{margin:0 0 6px;font-size:21px;line-height:1.5;color:var(--ink,#2A2D3A)}
+.wqb-sub{margin:6px 0;font-size:17px;line-height:1.6;color:var(--muted,#5F6374)}
+html[lang=ur] .wqb-title{font-size:22px;line-height:2.1}
+html[lang=ur] .wqb-sub,html[lang=ur] .wqb-msg{font-size:20px;line-height:2.1}
+/* The notice: never smaller than 20px in Nastaliq; nothing truncated at 360px. */
+.wqb-notice{background:var(--tint,#ECF4EF);border-radius:14px;padding:10px 12px;margin:8px 0}
+.wqb-notice p{margin:4px 0;font-size:18px;line-height:1.6;color:var(--ink,#2A2D3A)}
+html[lang=ur] .wqb-notice p{font-size:20px;line-height:2.15}
+.wqb-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.wqb-row>.wqb-btn{flex:1 1 140px}
+.wqb-stack{flex-direction:column}
+.wqb-stack>.wqb-btn{flex:none;width:100%}
+.wqb-btn{display:flex;align-items:center;justify-content:center;min-height:var(--tap,48px);border-radius:16px;border:0;font:inherit;font-weight:800;font-size:18px;padding:8px 14px;cursor:pointer;text-decoration:none;text-align:center;white-space:normal}
+html[lang=ur] .wqb-btn{font-weight:700;font-size:20px;line-height:1.9}
+.wqb-go{background:var(--brand,#47BA7D);color:var(--brand-on,#333748);box-shadow:0 4px 0 var(--brand-d,#23794D)}
+.wqb-ghost{background:transparent;color:var(--ink,#2A2D3A);border:2px solid var(--line,#DCE5DF)}
+.wqb-wa{margin-top:8px}
+.wqb-chip{display:inline-block;direction:ltr;unicode-bidi:isolate;font-family:var(--f,system-ui,sans-serif);font-size:.85em;line-height:1.3;padding:1px 7px;margin:0 2px;border-radius:7px;background:var(--tint,#ECF4EF);border:1px solid var(--line,#DCE5DF);word-spacing:normal}
+.wqb-saved{margin:0;font-size:21px;font-weight:800;color:var(--right,#23794D)}
+html[lang=ur] .wqb-saved{font-size:22px;line-height:2}
+.wqb-msg{margin:0;font-size:18px;line-height:1.6;color:var(--ink,#2A2D3A)}
+.wqb-x{min-width:var(--tap,48px);min-height:var(--tap,48px);border:0;background:transparent;font-size:24px;color:var(--muted,#5F6374);cursor:pointer}
+.wq-kid .wqb-line2{display:block;font-size:15px;font-weight:600;color:var(--muted,#5F6374)}
+html[lang=ur] .wq-kid .wqb-line2{font-size:20px}

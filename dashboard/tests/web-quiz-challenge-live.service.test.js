@@ -29,7 +29,7 @@ function fakeEl(id) {
     click() { (this.listeners.click || []).forEach((fn) => fn({})); } };
 }
 
-function page({ lang = 'en', menu = MENU, routes = {}, chunk = 4000, wsMode = 'ok' } = {}) {
+function page({ lang = 'en', menu = MENU, routes = {}, chunk = 4000, wsMode = 'ok', pre = [] } = {}) {
   const els = {};
   const root = { innerHTML: '', querySelector: (sel) => { const id = sel.replace(/^#/, ''); if (!els[id]) els[id] = fakeEl(id); return els[id]; } };
   const fetches = []; const events = []; const timers = []; const recs = []; const sockets = [];
@@ -72,6 +72,7 @@ function page({ lang = 'en', menu = MENU, routes = {}, chunk = 4000, wsMode = 'o
   };
   vm.createContext(ctx);
   vm.runInContext(LIVE_SRC, ctx);
+  pre.forEach((src) => vm.runInContext(src, ctx));
   vm.runInContext(SRC, ctx);
   const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); };
   const runTimers = async (pred = () => true) => { const due = timers.splice(0).filter((x) => { if (pred(x)) return true; timers.push(x); return false; }); due.forEach((x) => x.fn()); await flush(); };
@@ -373,5 +374,176 @@ describe('the challenge shell loads the live module before the page (an HTTP ren
       const csp = res.headers['content-security-policy'];
       if (csp) expect(csp).toMatch(/connect-src[^;]*wss:\/\/stt-rt\.soniox\.com/);
     } finally { srv.close(); }
+  });
+});
+
+// The Trail (v2) read screen shows the words lighting up and "Read now!", never a reading speed: no running
+// number, no bar, no "Last time". With the Trail off, today's live screen is kept byte for byte (the golden).
+describe('the Trail read screen with live words: no reading-speed meter', () => {
+  const GOLDEN = path.join(__dirname, 'fixtures', 'read-live-meter-off.golden.json');
+  const TC = { practice: 'Practice round. Play as much as you like!', stopDone: 'Stop done!', badge: 'Done', next: 'Next', mic: 'uses the microphone' };
+  const TRAIL_MENU = (lang) => ({ ...MENU, lang, record: true, trail: true, trail_copy: TC });
+  const trailRead = (story, lang, extra = {}) => ({ ...READ(story), lang, record: true, trail: true, trail_copy: TC, previous_wcpm: 40, ...extra });
+  const openTrail = async (p) => { p.w.open('read'); await p.flush(); await p.click('wqc-go'); };
+  const METER = /wqc-wpm|words a minute|ایک منٹ میں لفظ|Last time|پچھلی بار/;
+
+  test.each(['en', 'ur'])('%s: a Trail read with live words → no #wqc-wpm, no number, bar or "Last time"; the words still light up', async (lang) => {
+    const story = lang === 'ur' ? UR : EN;
+    const p = page({ lang, menu: TRAIL_MENU(lang), routes: { ...routesFor(story), 'ch/HUB.TOKEN/read': ok(trailRead(story, lang)), 'ch/live': ok({ ...KEY, lang }) } });
+    await openTrail(p);
+    expect(p.w.live()).toBeTruthy();
+    expect(p.screen()).toBe('read-live');
+    expect(p.html()).not.toMatch(METER);
+    expect(p.html()).toContain('id="wqc-live-story"');
+    expect(p.html()).toContain(p.w.T[lang].readNow);
+    const s = p.sockets[0]; s.open();
+    s.msg({ tokens: toks(story.tokens.slice(0, 10), { gap: 1 }) });
+    expect((p.story().match(/wqc-w wqc-ok/g) || [])).toHaveLength(10);
+    expect(p.html()).not.toMatch(METER);
+    expect(p.els['wqc-wpm-n']).toBeUndefined();
+    expect(p.els['wqc-wpm-bar']).toBeUndefined();
+  });
+
+  test('golden: Trail off → the live screen (number, bar, "Last time") is today\'s, string-equal to the base capture', async () => {
+    const shot = async (lang) => {
+      const story = lang === 'ur' ? UR : EN;
+      const p = page({ lang, menu: { ...MENU, lang }, routes: { ...routesFor(story), 'ch/HUB.TOKEN/read': ok({ ...READ(story), lang, previous_wcpm: 40 }), 'ch/live': ok({ ...KEY, lang }) } });
+      await go(p);
+      return p.root.innerHTML;
+    };
+    const now = { en: await shot('en'), ur: await shot('ur') };
+    if (process.env.WRITE_READ_LIVE_GOLDEN === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify(now, null, 2)}\n`);
+    expect(now).toEqual(JSON.parse(fs.readFileSync(GOLDEN, 'utf8')));
+    expect(now.en).toContain('id="wqc-wpm"');
+    expect(now.en).toContain('Last time');
+  });
+});
+
+// The Trail (v2) result card after a live reading: its line comes from the words heard, not from how far the live
+// cursor got (a clip of another passage can drag the cursor to the end with a handful of words heard); a settled
+// "not a reading" from the server redraws the open card as the zero line. Trail off: today's result card (golden).
+describe('the Trail result line after a live reading follows the words heard', () => {
+  const TRAIL_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-trail.js'), 'utf8');
+  const TT = (() => { const c = { window: {}, document: {} }; vm.createContext(c); vm.runInContext(TRAIL_SRC, c); return c.window.WQTRAIL.T; })();
+  const GOLDEN = path.join(__dirname, 'fixtures', 'read-live-result-trail-off.golden.json');
+  const TC = { stopDone: 'Stop done!', badge: 'Done', next: 'Next', mic: 'uses the microphone' };
+  const V2 = { pool: true, story: false };
+  const STORY = (lang) => (lang === 'ur' ? UR : EN);
+  const PENDING = { 'ch/result$': () => ({ status: 200, body: { pending: true } }) };
+  const trailPage = (lang, extra = {}) => {
+    const story = STORY(lang);
+    return page({ lang, pre: [TRAIL_SRC], menu: { ...MENU, lang, record: true, trail: true, trail_copy: TC, v2: V2 },
+      routes: { ...routesFor(story), 'ch/HUB.TOKEN/read': ok({ ...READ(story), lang, record: true, trail: true, trail_copy: TC, v2: V2 }), 'ch/live': ok({ ...KEY, lang }), ...PENDING, ...extra } });
+  };
+  const openTrail = async (p) => { p.w.open('read'); await p.flush(); await p.click('wqc-help-no'); await p.click('wqc-go'); };
+  // a reading that ends with the stop button and the last words
+  const readWords = async (p, words) => {
+    const s = p.sockets[0]; s.open();
+    s.msg({ tokens: toks(words) });
+    await p.click('wqc-stop');
+    s.msg({ tokens: [], finished: true });
+    await p.flush();
+  };
+  // another passage's words: 8 of the 60 land on this story's words, spread so the cursor runs to the last word
+  const EIGHT = [3, 11, 19, 27, 35, 43, 51, 59];
+  const offPassage = (story) => story.tokens.map((w, i) => (EIGHT.includes(i) ? w : (story === UR ? 'نیلا' : 'blue')));
+  const lines = (lang) => [TT[lang].endReadAll, TT[lang].endReadSome, TT[lang].endZeroWords];
+  const lineOn = (p, lang) => lines(lang).filter((x) => p.html().includes(x));
+
+  test.each(['en', 'ur'])('%s: the cursor at the end (attempted 60) but 8 words heard → the some line, never the all line', async (lang) => {
+    const p = trailPage(lang);
+    await openTrail(p);
+    await readWords(p, offPassage(STORY(lang)));
+    const v = p.w.live().v;
+    expect(v.attempted).toBe(60);
+    expect(v.heardOk).toBe(8);
+    expect(p.screen()).toBe('read-result');
+    expect(lineOn(p, lang)).toEqual([TT[lang].endReadSome]);
+  });
+
+  test.each(['en', 'ur'])('%s: 0 words heard → the zero line', async (lang) => {
+    const p = trailPage(lang, { 'ch/result$': ok({ failed: true, reason: 'unheard' }) });
+    await openTrail(p);
+    await readWords(p, STORY(lang).tokens.map(() => (lang === 'ur' ? 'نیلا' : 'blue')));
+    expect(p.w.live().v.heardOk).toBe(0);
+    expect(p.screen()).toBe('read-result');
+    expect(lineOn(p, lang)).toEqual([TT[lang].endZeroWords]);
+  });
+
+  test.each(['en', 'ur'])('%s: 90%% of the story heard (54 of 60, the cursor at 54) → the all line', async (lang) => {
+    const p = trailPage(lang);
+    await openTrail(p);
+    await readWords(p, STORY(lang).tokens.slice(0, 54));
+    expect(p.w.live().v.heardOk).toBe(54);
+    expect(lineOn(p, lang)).toEqual([TT[lang].endReadAll]);
+  });
+
+  test.each(['en', 'ur'])('%s: 53 of 60 heard (under 90%%) → the some line', async (lang) => {
+    const p = trailPage(lang);
+    await openTrail(p);
+    await readWords(p, STORY(lang).tokens.slice(0, 53));
+    expect(lineOn(p, lang)).toEqual([TT[lang].endReadSome]);
+  });
+
+  test.each(['en', 'ur'])('%s: the settled result failed/unheard while the card is open → the line becomes the zero line', async (lang) => {
+    let release;
+    const held = new Promise((res) => { release = res; });
+    const p = trailPage(lang, { 'ch/result$': () => held });
+    await openTrail(p);
+    await readWords(p, STORY(lang).tokens);
+    expect(lineOn(p, lang)).toEqual([TT[lang].endReadAll]);
+    release({ status: 200, body: { failed: true, reason: 'unheard' } });
+    await p.flush();
+    expect(p.screen()).toBe('read-result');
+    expect(lineOn(p, lang)).toEqual([TT[lang].endZeroWords]);
+  });
+
+  test.each(['en', 'ur'])('%s: the settled result a zero (no word attempted) while the card is open → the zero line', async (lang) => {
+    let release;
+    const held = new Promise((res) => { release = res; });
+    const p = trailPage(lang, { 'ch/result$': () => held });
+    await openTrail(p);
+    await readWords(p, offPassage(STORY(lang)));
+    expect(lineOn(p, lang)).toEqual([TT[lang].endReadSome]);
+    release({ status: 200, body: { score: { correct: 0, attempted: 0, stopped: false }, wcpm: 0 } });
+    await p.flush();
+    expect(lineOn(p, lang)).toEqual([TT[lang].endZeroWords]);
+  });
+
+  test('the settled "not a reading" after the child has left the card does not pull them back to it', async () => {
+    let release;
+    const held = new Promise((res) => { release = res; });
+    const p = trailPage('en', { 'ch/result$': () => held });
+    await openTrail(p);
+    await readWords(p, EN.tokens);
+    await p.click('wqc-menu');
+    expect(p.screen()).not.toBe('read-result');
+    release({ status: 200, body: { failed: true, reason: 'unheard' } });
+    await p.flush();
+    expect(p.screen()).not.toBe('read-result');
+  });
+
+  test('golden: Trail off → the live result card (and its checked redraw) is today\'s, string-equal to the base capture', async () => {
+    const shot = async (lang, menuExtra, settle) => {
+      const story = STORY(lang);
+      const p = page({ lang, menu: { ...MENU, lang, ...menuExtra }, routes: { ...routesFor(story), 'ch/HUB.TOKEN/read': ok({ ...READ(story), lang, ...menuExtra }), 'ch/live': ok({ ...KEY, lang }), 'ch/result$': ok(settle) } });
+      await go(p);
+      const s = p.sockets[0]; s.open();
+      s.msg({ tokens: toks(offPassage(story), { gap: 0.5 }) });
+      await p.click('wqc-stop');
+      s.msg({ tokens: [], finished: true });
+      await p.flush();
+      return p.root.innerHTML;
+    };
+    const now = {};
+    for (const lang of ['en', 'ur']) {
+      now[`${lang}_pending`] = await shot(lang, {}, { pending: true });
+      now[`${lang}_unheard`] = await shot(lang, {}, { failed: true, reason: 'unheard' });
+      now[`${lang}_trail_pending`] = await shot(lang, { record: true, trail: true, trail_copy: TC }, { pending: true });
+      now[`${lang}_trail_zero`] = await shot(lang, { record: true, trail: true, trail_copy: TC }, { score: { correct: 0, attempted: 0, stopped: false }, wcpm: 0 });
+    }
+    if (process.env.WRITE_READ_LIVE_RESULT_GOLDEN === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify(now, null, 2)}\n`);
+    expect(now).toEqual(JSON.parse(fs.readFileSync(GOLDEN, 'utf8')));
+    expect(now.en_pending).toContain('data-screen="read-result"');
   });
 });

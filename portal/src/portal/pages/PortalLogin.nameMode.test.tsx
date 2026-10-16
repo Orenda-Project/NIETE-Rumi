@@ -10,6 +10,9 @@ import { tapProblems } from "../newui/checks/rules";
  * (bd-s6qbts.5) could not type its NAME ("admin") unless from a PC. Teachers keep the keypad by default; a small
  * link under the field switches it to a normal keyboard for a name, and a second link switches back. A value that
  * already holds a letter (pasted, autofilled) is a name without the tap. The server and the phone check are as before.
+ *
+ * bd-x7aprz.3: a phone now signs in with a WhatsApp code by default (Send code); its password sign-in, with Forgot
+ * password, is behind "Use password instead". A name still signs in with its password.
  */
 
 const h = vi.hoisted(() => ({ navigate: vi.fn(), login: vi.fn() }));
@@ -40,16 +43,18 @@ const at = () => render(<MemoryRouter initialEntries={["/portal/login"]}><Portal
 const field = () => document.getElementById("phoneNumber") as HTMLInputElement;
 
 describe("the sign-in field: phone keypad by default, a link for a name (bd-gmuk5s)", () => {
-  it("by default it is the phone field, unchanged: tel keypad, phone label, Forgot password", () => {
+  it("by default it is the phone field, unchanged: tel keypad, phone label, Send code (Forgot password with the password)", async () => {
     at();
     const input = screen.getByLabelText("Phone number");
     expect(input).toBe(field());
     expect(input).toHaveAttribute("type", "tel");
     expect(input).toHaveAttribute("inputmode", "tel");
     expect(input).toHaveAttribute("autocomplete", "username");
-    expect(screen.getByRole("button", { name: "Forgot password" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send code" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Use a name instead" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Use phone number" })).toBeNull();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Use password instead" }));
+    expect(screen.getByRole("button", { name: "Forgot password" })).toBeInTheDocument();
   });
 
   it("'Use a name instead' opens a normal keyboard: text, no capitals, no autocorrect, relabelled, focused, no Forgot password", async () => {
@@ -72,7 +77,7 @@ describe("the sign-in field: phone keypad by default, a link for a name (bd-gmuk
     expect(screen.queryByRole("button", { name: "Use a name instead" })).toBeNull();
   });
 
-  it("'Use phone number' brings the keypad back, focused, with Forgot password", async () => {
+  it("'Use phone number' brings the keypad back, focused, with Send code", async () => {
     const user = userEvent.setup();
     at();
     await user.click(screen.getByRole("button", { name: "Use a name instead" }));
@@ -82,7 +87,7 @@ describe("the sign-in field: phone keypad by default, a link for a name (bd-gmuk
     expect(input).toHaveAttribute("inputmode", "tel");
     expect(input).not.toHaveAttribute("autocapitalize");
     expect(document.activeElement).toBe(input);
-    expect(screen.getByRole("button", { name: "Forgot password" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send code" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Use a name instead" })).toBeInTheDocument();
   });
 
@@ -136,6 +141,7 @@ describe("the sign-in field: phone keypad by default, a link for a name (bd-gmuk
   it("the phone check is unchanged: a short number is still caught here", async () => {
     const user = userEvent.setup();
     at();
+    await user.click(screen.getByRole("button", { name: "Use password instead" }));
     await user.type(field(), "0300 123");
     await user.type(screen.getByLabelText("Password"), "madeup123");
     await user.click(screen.getByRole("button", { name: "Log in" }));

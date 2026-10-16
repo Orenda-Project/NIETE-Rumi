@@ -1,0 +1,228 @@
+{
+  "passage_id": "en.listen.1.ref01",
+  "lang": "en",
+  "kind": "listen",
+  "band": 1,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": true,
+  "names": [
+    "Fahad"
+  ],
+  "tokens": 36,
+  "sentences": 6,
+  "mean_sent_len": 6,
+  "max_word_len": 6,
+  "readability": 1,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 1,
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "Fahad Helps Out",
+  "title_ur": null,
+  "text": "Fahad saw a dog on the road. The dog looked very cold. Fahad gave it some water. Then a woman called out a name. The dog went to her with joy. It was her lost dog.",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      11
+    ],
+    [
+      12,
+      16
+    ],
+    [
+      17,
+      23
+    ],
+    [
+      24,
+      30
+    ],
+    [
+      31,
+      35
+    ]
+  ],
+  "tokens_list": [
+    "Fahad",
+    "saw",
+    "a",
+    "dog",
+    "on",
+    "the",
+    "road",
+    "The",
+    "dog",
+    "looked",
+    "very",
+    "cold",
+    "Fahad",
+    "gave",
+    "it",
+    "some",
+    "water",
+    "Then",
+    "a",
+    "woman",
+    "called",
+    "out",
+    "a",
+    "name",
+    "The",
+    "dog",
+    "went",
+    "to",
+    "her",
+    "with",
+    "joy",
+    "It",
+    "was",
+    "her",
+    "lost",
+    "dog"
+  ],
+  "text_hash": "04385631487e5838b2a8c4233da36dbd",
+  "q_reach_1": 1,
+  "q_reach_2": 2,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Fahad see on the road?",
+      "right": "a dog",
+      "wrong": [
+        "a bird",
+        "a goat"
+      ],
+      "accept": [
+        "a dog",
+        "dog"
+      ],
+      "reject": [
+        "a bird",
+        "a goat"
+      ],
+      "rubric": "Right if the child says a dog (or dog)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "How did the dog look?",
+      "right": "very cold",
+      "wrong": [
+        "very hot",
+        "very sleepy"
+      ],
+      "accept": [
+        "very cold",
+        "cold"
+      ],
+      "reject": [
+        "very hot",
+        "very sleepy"
+      ],
+      "rubric": "Right if the child says very cold (or cold)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Fahad give the dog?",
+      "right": "some water",
+      "wrong": [
+        "some bread",
+        "a ball"
+      ],
+      "accept": [
+        "some water",
+        "water"
+      ],
+      "reject": [
+        "some bread",
+        "a ball"
+      ],
+      "rubric": "Right if the child says some water (or water)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who called out a name?",
+      "right": "a woman",
+      "wrong": [
+        "a teacher",
+        "a boy"
+      ],
+      "accept": [
+        "a woman",
+        "the woman",
+        "woman"
+      ],
+      "reject": [
+        "a teacher",
+        "a boy"
+      ],
+      "rubric": "Right if the child says a woman (or the woman / woman)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did the dog go?",
+      "right": "to the woman",
+      "wrong": [
+        "to the school",
+        "to the park"
+      ],
+      "accept": [
+        "to the woman",
+        "to her",
+        "the woman"
+      ],
+      "reject": [
+        "to the school",
+        "to the park"
+      ],
+      "rubric": "Right if the child says to the woman (or to her / the woman)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 6,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why did the dog go to the woman?",
+      "right": "it was her dog",
+      "wrong": [
+        "she had a ball",
+        "she was a doctor"
+      ],
+      "accept": [
+        "it was her dog",
+        "she was its owner",
+        "it was her lost dog"
+      ],
+      "reject": [
+        "she had a ball",
+        "she was a doctor"
+      ],
+      "rubric": "Right if the child says it was her dog (or she was its owner / it was her lost dog)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}
