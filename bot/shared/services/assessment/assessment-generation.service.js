@@ -1952,6 +1952,19 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
           || reviewHits.has(b.section.id) || religiousHits.has(b.section.id)));
       await Promise.all(later.map((b) => reask(b, midLaid, otherShort.concat(midLaid.shortfall), midShort)));
     }
+    // Social Studies: a D item the layout still sets aside is put back below (the paper is laid out
+    // with `reasked`), so before that D is asked once more, a top-up told what was held. An item
+    // still held after it prints: a short choice slot breaks FDE's printed format.
+    if (key === 'social_studies' && iD >= 0) {
+      const preLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
+      const dShort = preLaid.shortfall.filter((f) => f.slot.startsWith('social_studies.D.') && preLaid.held.some((h) => h.slot === f.slot));
+      if (dShort.length) {
+        logToFile('[assessment] D asked once more', {
+          requestId, pattern, shortfall: dShort, held: preLaid.held.filter((h) => dShort.some((f) => f.slot === h.slot)).map((h) => ({ slot: h.slot, rule: h.rule })),
+        });
+        await reask(built[iD], preLaid, dShort, new Set(dShort.map((f) => f.slot)));
+      }
+    }
     const still = _reviewTextHits(results);
     if (still.size) {
       throw fail('REVIEW_TEXT', 'A question carries text that must never print.', { sections: [...still.keys()], examJson: merged(), model });
@@ -1970,6 +1983,17 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   if (dropped.length) {
     laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern, reasked: again.length > 0 });
     examJson = laid.examJson;
+  }
+  // Social Studies: every item the layout set aside, by slot and rule, and how many were put back.
+  if (key === 'social_studies' && laid.held && laid.held.length) {
+    const rows = new Map();
+    for (const h of laid.held) {
+      const row = rows.get(`${h.slot}|${h.rule}`) || { slot: h.slot, rule: h.rule, held: 0, printed: 0 };
+      row.held += 1;
+      if (h.printed) row.printed += 1;
+      rows.set(`${h.slot}|${h.rule}`, row);
+    }
+    logToFile('[assessment] held items', { requestId, pattern, held: [...rows.values()] });
   }
   const layout = { placed: laid.placed, unplaced: firstUnplaced };
   logToFile('[assessment] layout applied', {

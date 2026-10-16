@@ -200,6 +200,57 @@ describe('3. D\'s re-ask is told the held items\' points as never these', () => 
   });
 });
 
+describe('4. one more D-only re-ask before a held D item is put back', () => {
+  const CH1 = paper('chapters_1');
+  const point = (text, marks) => ({ kind: 'K', text, marks });
+  const FRESH_Q7 = [
+    { slot: D7, question: 'پاکستان کا قومی پھول کون سا ہے؟', answer: 'چنبیلی', scheme: { points: [point('چنبیلی', 2)] } },
+    { slot: D7, question: 'پاکستان کا قومی جانور کون سا ہے؟', answer: 'مارخور', scheme: { points: [point('مارخور', 2)] } },
+    { slot: D7, question: 'پاکستان کا قومی پرندہ کون سا ہے؟', answer: 'چکور', scheme: { points: [point('چکور', 2)] } },
+  ];
+
+
+  test('D still holds after its re-ask: it is asked a third time, told what was held, and the paper prints', async () => {
+    const d = replyOf(CH1, 'D');
+    const { asked } = await run([d, d, d]);
+    const ds = dAsks(asked);
+    expect(ds).toHaveLength(3);
+    expect(ds[2].text).toContain('set aside');
+    expect(ds[2].text).toContain(items(CH1, D7)[7].question.trim());
+    const holds = mockLog.mock.calls.filter(([m]) => m === '[assessment] held items');
+    expect(holds.length).toBeGreaterThan(0);
+    const row = holds[holds.length - 1][1];
+    expect(Array.isArray(row.held)).toBe(true);
+    for (const h of row.held) {
+      expect(h).toEqual(expect.objectContaining({ slot: expect.any(String), rule: expect.any(String), held: expect.any(Number) }));
+    }
+  });
+
+  test('a D re-ask that fills the slot with clean items is not asked again', async () => {
+    const d = replyOf(CH1, 'D');
+    // Q6 ۶ (a playground quarrel, Q5 ۵ again) and Q7 ۳ / ۸ (Q5 ۹'s points) are what D's first reply had held.
+    const FRESH_Q6 = { slot: D6, question: 'آپ کے اسکول کے باغ کے پودے گرمیوں میں سوکھ رہے ہیں۔ آپ اور آپ کے ساتھی پانی کی کمی میں انھیں کیسے بچائیں گے؟ دو طریقے اور ان کی وجہ بتائیں۔', answer: 'صبح یا شام پانی دیں تاکہ دھوپ میں پانی نہ اڑے، اور پودوں کے گرد پتے بچھائیں تاکہ مٹی کی نمی باقی رہے۔', scheme: { points: [point('صبح یا شام پانی دینا', 2), point('پتوں سے مٹی کی نمی بچانا', 2), point('ہر طریقے کی وجہ', 2)] } };
+    const clean = withItems(withItems(d, D7, [...items(CH1, D7).filter((_, i) => i !== 1 && i !== 2 && i !== 7), ...FRESH_Q7]),
+      D6, [...items(CH1, D6).filter((_, i) => i !== 5), FRESH_Q6]);
+    const { asked } = await run([d, clean]);
+    expect(dAsks(asked)).toHaveLength(2);
+  });
+
+  test('every other subject is asked as before (no extra section call)', async () => {
+    for (const subject of ['science', 'english', 'maths', 'urdu']) {
+      mockCreate.mockReset();
+      let calls = 0;
+      mockCreate.mockImplementation(async () => {
+        calls += 1;
+        return { choices: [{ message: { content: '{"unseen":{}}' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
+      });
+      await Gen.generatePatternExam({ grade: 5, subject, pattern: 'fde_g5_2027', scope: { kind: 'pages', chapters: null, pages: '10-20' }, pageRanges: '10-20' }).catch(() => null);
+      // One first ask and one re-ask per section, nothing more.
+      expect(calls).toBeLessThanOrEqual(2 * ALL[subject].sections.length);
+    }
+  });
+});
+
 describe('the eight local papers: what the new rows hold', () => {
   test('full scope holds no D item that the round-14 head kept', () => {
     // Recorded on the round-14 head: full_1–4 were clean by the by-points test; a hold there is a false flag.
