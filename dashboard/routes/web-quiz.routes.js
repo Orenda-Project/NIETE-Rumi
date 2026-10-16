@@ -251,7 +251,9 @@ function ogImageFor({ payload, code, view, origin, a, v }) {
     || (view === 'schools' ? pic('schools', artId(art.schools, 'schools')) : null);
 }
 
-function renderQuizPage({ payload, code, view, origin, assetV, url, a, v }) {
+// The quiz page in three parts (the head, the Jugnu boot frame, the boot JSON + scripts): renderQuizPage joins them;
+// the fast first page sends the first two before the bot answers and the third when it does.
+function quizPageParts({ payload, code, view, origin, assetV, url, a, v }) {
   const q = (payload && payload.quiz) || {};
   const lang = q.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
@@ -259,17 +261,63 @@ function renderQuizPage({ payload, code, view, origin, assetV, url, a, v }) {
   const og = ogText(payload, view, brand);
   const boot = { ...payload, code, view, brand };
   const image = ogImageFor({ payload, code, view, origin, a, v });
-  return `${head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui })}
-</head>
-<body>
-<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>
-<script id="boot" type="application/json">${bootJson(boot)}</script>
+  return {
+    lang, dir, ur2: ur2On(payload && payload.ui, lang), title: og.title, bootsay: BOOT_COPY[lang],
+    head: head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui }),
+    frame: `<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>`,
+    tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 ${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-lib.js?v=${assetV}" defer></script>
 <script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
-</html>`;
+</html>`,
+  };
 }
+
+function renderQuizPage(args) {
+  const p = quizPageParts(args);
+  return `${p.head}
+</head>
+<body>
+${p.frame}
+${p.tail}`;
+}
+
+// ── Fast first page (the bot's payload carries `fast: true` while app_settings web_quiz_fast is on) ──────────────
+// The head is drawn from what this edge already knows about the code (its link-preview facts), else English with
+// the last brand; the page's scripts are preloaded so they download while the bot works. When the bot's page is
+// another language/look than the guess, one inline line sets it before any script runs.
+function renderQuizFlushTop({ facts, code, origin, assetV, url, brandKey, ui, a, v }) {
+  const payload = facts ? { ...facts, ui } : { quiz: { lang: 'en' }, cls: {}, art: {}, brand: brandKey, ui };
+  const p = quizPageParts({ payload, code, view: 'quiz', origin, assetV, url, a, v });
+  const preload = ['wq-tel.js', 'wq-lib.js', 'wq.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
+  return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
+}
+
+const jsStr = (s) => JSON.stringify(String(s)).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+
+// What the page the bot answered differs in from the head already sent: one statement each, run before any script.
+function flushFixes(guess, p) {
+  const fix = [];
+  if (p.lang !== guess.lang) fix.push(`h.lang=${jsStr(p.lang)}`);
+  if (p.dir !== guess.dir) fix.push(`h.dir=${jsStr(p.dir)}`);
+  if (p.ur2 !== guess.ur2) fix.push(p.ur2 ? 'h.classList.add("wq-ur2")' : 'h.classList.remove("wq-ur2")');
+  if (p.bootsay !== guess.bootsay) fix.push(`var b=document.querySelector(".wq-bootsay");if(b)b.textContent=${jsStr(p.bootsay)}`);
+  if (p.title !== guess.title) fix.push(`document.title=${jsStr(p.title)}`);
+  return fix;
+}
+
+function renderQuizFlushTail({ guess, payload, code, origin, assetV, url, a, v }) {
+  const p = quizPageParts({ payload, code, view: 'quiz', origin, assetV, url, a, v });
+  const fix = flushFixes(guess, p);
+  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
+}
+
+// Anything but a quiz after the head went (closed, unknown, the bot away): the page asks again the old way (nf=1),
+// which answers with today's status and page.
+const FLUSH_AGAIN = `<script>location.replace(location.pathname+(location.search?location.search+"&":"?")+"nf=1"+location.hash)</script>
+</body>
+</html>`;
 
 /**
  * A link-preview fetch's answer: the quiz page's own head (og tags, lang, dir) from the facts the edge
@@ -296,21 +344,49 @@ function bindTags(payload, assetV) {
   return `<link rel="stylesheet" href="/wq/wq-bind.css?v=${assetV}">\n<script src="/wq/wq-bind.js?v=${assetV}" defer></script>\n`;
 }
 
-function renderHubPage({ payload, token, origin, assetV }) {
+// The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
+// renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
+function hubPageParts({ payload, token, origin, assetV }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const boot = { ...payload, token, view: 'hub', brand };
   // The Jugnu corner (bot web-quiz-hub-play.js): its script, and the install manifest, only when the bot sent `play`.
   const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
-  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui })}
-${play && play.install ? `<link rel="manifest" href="/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}">\n` : ''}</head>
-<body>
-<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>
-<script id="boot" type="application/json">${bootJson(boot)}</script>
+  return {
+    lang, dir: lang === 'ur' ? 'rtl' : 'ltr', ur2: ur2On(payload && payload.ui, lang), title: HUB_TITLE[lang], bootsay: HUB_BOOT[lang],
+    head: head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui }),
+    manifest: play && play.install ? `/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}` : null,
+    frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
+    tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 ${bindTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
-</html>`;
+</html>`,
+  };
+}
+
+function renderHubPage(args) {
+  const p = hubPageParts(args);
+  return `${p.head}
+${p.manifest ? `<link rel="manifest" href="${p.manifest}">\n` : ''}</head>
+<body>
+${p.frame}
+${p.tail}`;
+}
+
+// Fast first page for the hub: the head guessed from the phone's language and the last brand/look, the scripts
+// preloaded, the Jugnu frame; then the corrections (and the install manifest) and today's tail when the bot answers.
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui }) {
+  const p = hubPageParts({ payload: { lang, brand: brandKey, ui }, token, origin, assetV });
+  const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
+  return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
+}
+
+function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
+  const p = hubPageParts({ payload, token, origin, assetV });
+  const fix = flushFixes(guess, p);
+  if (p.manifest) fix.push(`var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
+  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
 }
 
 // M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
@@ -499,6 +575,7 @@ function createWebQuizRouter(opts = {}) {
   // which the edge draws without asking the bot.
   let lastRt = false;
   let lastUi = null;   // the last payload's `ui` (the Urdu polish switch), for the shells that call no bot
+  let lastFast = false; // the last quiz payload's `fast` (app_settings web_quiz_fast): send the page's head first
 
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
   const now = opts.now || Date.now;
@@ -618,12 +695,23 @@ function createWebQuizRouter(opts = {}) {
     if (known && !(view === 'class' && known.invited)) {
       return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
     }
+    // Fast first page: the head and the Jugnu frame now, the quiz when the bot answers (never on a teacher's preview
+    // link, never on a link-preview fetch: a crawler gets the preview page below, never the quiz).
+    const flush = lastFast && view === 'quiz' && !p && !preview && req.query.nf !== '1'
+      ? renderQuizFlushTop({ facts: ogKnown.get(upper), code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v })
+      : null;
+    if (flush) {
+      res.status(200).type('html');
+      res.write(flush.html);
+    }
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
+      if (flush) return res.end(FLUSH_AGAIN);
       return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
+    if (flush && !(out.status === 200 && out.body && out.body.quiz)) return res.end(FLUSH_AGAIN);
     // A friend's challenge code has no class page: the class table is the challenger's classmates'.
     if (view === 'class' && out.status === 200 && out.body && out.body.invited) {
       return res.status(404).type('html').send(renderClosedPage({ lang: out.body.quiz && out.body.quiz.lang === 'ur' ? 'ur' : 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
@@ -632,7 +720,9 @@ function createWebQuizRouter(opts = {}) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
+      lastFast = out.body.fast === true;
       if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
+      if (flush) return res.end(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
       }
@@ -675,16 +765,29 @@ function createWebQuizRouter(opts = {}) {
     const src = typeof req.query.from === 'string' && HUB_SRC_RX.test(req.query.from) ? `${kid ? '&' : '?'}src=${req.query.from}` : '';
     // The language the page that sent the child here was in (?lang=, only en|ur): the bot decides whether it wins.
     const lang = req.query.lang === 'en' || req.query.lang === 'ur' ? `${kid || src ? '&' : '?'}lang=${req.query.lang}` : '';
+    // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
+    // (never on a link-preview fetch: a crawler gets today's page)
+    const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi })
+      : null;
+    if (flush) {
+      res.status(200).type('html');
+      res.write(flush.html);
+    }
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
+      if (flush) return res.end(FLUSH_AGAIN);
       return closed(502, 'off');
     }
+    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return res.end(FLUSH_AGAIN);
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
+      lastFast = out.body.fast === true;
+      if (flush) return res.end(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
       return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
     }
     if (out.status === 401) return closed(401, 'hub');
