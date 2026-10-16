@@ -656,5 +656,5 @@ async function runMonthly({ period_id, now = new Date() } = {}) {
 module.exports = {
   SWITCH, PROPOSED_BY,
   calibrationSample, proposeLink, entryVsPromoted, referenceDrift, redLineGap, stuckShare, itemResponses, raschFloors,
-  isImplausible, runMonthly,
+  isImplausible, runMonthly, enabled,
 };

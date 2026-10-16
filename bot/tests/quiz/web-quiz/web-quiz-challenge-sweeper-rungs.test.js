@@ -43,7 +43,7 @@ const installOn = (sb) => {
 };
 const strip = (rows) => rows.map(({ meta, ...r }) => ({ ...r, meta: { ...meta, swept_at: meta.swept_at ? 'T' : undefined } }));
 
-afterEach(() => { jest.clearAllMocks(); });
+afterEach(() => { jest.clearAllMocks(); S.__reset(); });
 
 test('onRecordFinal is called once per swept run, with the run id; a run not swept is not passed', async () => {
   installOn(supabase);
