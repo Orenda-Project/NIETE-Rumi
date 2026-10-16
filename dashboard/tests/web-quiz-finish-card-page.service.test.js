@@ -561,6 +561,32 @@ describe('switch on: a live read\'s held card is the card at once (the hand-off 
     expect(t.events.filter((e) => e.n === 'card_shown').length).toBe(1);
     expect(t.fetches.filter((f) => f.url === '/api/wq/card').length).toBe(1);
   });
+  test('the settled card keeps the held card\'s deed (one finish, one link) unless the check finds nothing read', async () => {
+    // held from the live words (12 of 12: the whole story); the server's check counts 11 of 12 (#2649 settles with readEnd(r))
+    const t = on();
+    t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    t.TR.readEnd({ score: { attempted: 11 } });
+    await flush();
+    const mints = t.fetches.filter((f) => f.url === '/api/wq/card').map((f) => JSON.parse(f.init.body).deed);
+    expect(mints).toEqual(['read_all']);
+    expect(t.events.filter((e) => e.n === 'card_shown').length).toBe(1);
+    // the check found nothing read: the settled card is the try card (its own deed, said so)
+    const u = on();
+    u.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    u.TR.readEnd({ failed: true, reason: 'unheard' });
+    await flush();
+    expect(u.fetches.filter((f) => f.url === '/api/wq/card').map((f) => JSON.parse(f.init.body).deed)).toEqual(['read_all', 'read_tried']);
+    // and the next read of the same session judges its own deed afresh
+    const v = on();
+    v.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    v.TR.readEnd({ score: { attempted: 12 } });
+    await flush();
+    v.TR.readEnd({ score: { attempted: 5 } }, null, 5);
+    await flush();
+    expect(v.fetches.filter((f) => f.url === '/api/wq/card').map((f) => JSON.parse(f.init.body).deed)).toEqual(['read_all', 'read_some']);
+  });
   test('a held read that heard nothing is the try card at once, like its settled card', async () => {
     const t = on();
     t.TR.readHold({ score: { attempted: 0 }, noSticker: true }, null, 0);

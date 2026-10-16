@@ -333,7 +333,9 @@
   // the host's Home soft (green is Share only), the plain "Next: …" line given way to the tile. o = {name, line, r, t,
   // story}: the deed comes from the outcome the host already drew (r.tried: a read that certified nothing). A live
   // read's held card (r.hold: the server's check not back yet) is the card at once, from the words heard — no sticker
-  // (the host's), no button the check could change (the host's); the settled card later mounts the same card again.
+  // (the host's), no button the check could change (the host's); the settled card later mounts the same card again,
+  // with the held card's deed (one finish, one link) unless the check found nothing read (then the try card).
+  var held = null;
   function trailEnd(h, o) {
     var d = h.S.data || {};
     var r = o.r || {};
@@ -343,6 +345,11 @@
     if (o.name === 'read-result' && !o.story) {
       kind = 'read';
       deed = r.tried || o.line === t.endZeroWords ? 'read_tried' : o.line === t.endReadAll ? 'read_all' : 'read_some';
+      if (r.hold) held = deed === 'read_tried' ? null : { ct: d.ct, deed: deed };
+      else {
+        if (held && held.ct === d.ct && deed !== 'read_tried') deed = held.deed;
+        held = null;
+      }
     } else if (d.ex === 'listen') { kind = 'listen'; deed = 'listen_done'; }
     else if (o.story) { kind = 'story'; deed = 'story_read'; }
     else { kind = 'game'; deed = 'game_done'; }
