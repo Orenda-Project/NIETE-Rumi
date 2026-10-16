@@ -191,14 +191,17 @@ const titleOf = (r, lang) => require('./web-quiz-passage-title').titleFor(r.pass
 /**
  * The Story Time shelf: this week's story, a story to listen to, numbers, more stories. NEW iff the passage is in
  * `unseenPids`, the same set the lantern's resolver reads, so a NEW tag and a story lantern always come together.
+ * This week's story carries its `title` from the same title home as the lantern; a passage with none keeps the
+ * tile as it was ({ id, pid, nx }, the page's generic label).
  */
-function shelfOf(live, unseenPids) {
+function shelfOf(live, unseenPids, lang) {
   const newest = (kind) => live.filter((r) => r.kind === kind).sort((a, b) => Date.parse(b.released_at) - Date.parse(a.released_at))[0] || null;
   const tile = (id, r) => (r ? { id, pid: r.passage_id, nx: unseenPids.has(r.passage_id) ? 'new' : 'seen' } : null);
   const read = newest('read');
+  const named = (t) => { const title = t && titleOf({ passage_id: t.pid }, lang); return title ? { ...t, title } : t; };
   const listen = newest('listen');
   // The warm-up (numbers) and the older stories' list are never new.
-  return [tile('week_story', read), tile('listen', listen), { id: 'numbers', nx: 'seen' },
+  return [named(tile('week_story', read)), tile('listen', listen), { id: 'numbers', nx: 'seen' },
     live.length > 1 ? { id: 'older', nx: 'seen' } : null].filter(Boolean);
 }
 
@@ -244,7 +247,7 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } 
   if (nx.kind === 'trail' || s.story) {
     out.lantern = nx.kind === 'story' ? { ...nx, pid: (unseen.find((u) => u.title === nx.title) || {}).pid || null } : nx;
   }
-  if (seenIds) out.shelf = shelfOf(p.live, new Set(unseen.map((u) => u.pid)));
+  if (seenIds) out.shelf = shelfOf(p.live, new Set(unseen.map((u) => u.pid)), lang);
   return out;
 }
 

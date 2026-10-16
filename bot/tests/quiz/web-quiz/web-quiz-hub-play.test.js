@@ -190,7 +190,7 @@ describe('lantern + shelf (web_quiz_challenge_v2 / web_quiz_challenge_story)', (
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.play.lantern).toEqual({ kind: 'story', title: 'Title p-new', pid: 'p-new' });
     expect(out.play.shelf).toEqual([
-      { id: 'week_story', pid: 'p-new', nx: 'new' },
+      { id: 'week_story', pid: 'p-new', nx: 'new', title: 'Title p-new' },
       { id: 'listen', pid: 'p-old', nx: 'seen' },
       { id: 'numbers', nx: 'seen' },
       { id: 'older', nx: 'seen' },
@@ -223,7 +223,7 @@ describe('lantern + shelf (web_quiz_challenge_v2 / web_quiz_challenge_story)', (
       challenge_passages: [passage('p-served', 'read', 2)],
     });
     const out = await Hub.hub(T.signHub([KID]), A);
-    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'p-served', nx: 'seen' });
+    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'p-served', nx: 'seen', title: 'Title p-served' });
     expect(out.play.lantern.kind).toBe('numbers');
   });
 
@@ -253,7 +253,7 @@ describe('lantern + shelf (web_quiz_challenge_v2 / web_quiz_challenge_story)', (
     });
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.play.lantern).toEqual({ kind: 'story', title: 'Title p-live', pid: 'p-live' });
-    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'p-live', nx: 'new' });
+    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'p-live', nx: 'new', title: 'Title p-live' });
     expect(JSON.stringify(out.play)).not.toContain('reserve01');
   });
 
@@ -369,7 +369,7 @@ describe('band filter: never a passage above the bands open to this child', () =
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.challenge).toMatchObject({ on: true });
     expect(out.play.lantern).toEqual({ kind: 'story', title: 'Title b1', pid: 'b1' });
-    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'b1', nx: 'new' });
+    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'b1', nx: 'new', title: 'Title b1' });
     expect(JSON.stringify(out.play)).not.toMatch(/b2|b3/);
   });
 
@@ -468,5 +468,64 @@ describe('the lantern\'s title is the passage file\'s (one title home)', () => {
     expect(out.play.lantern.kind).toBe('numbers');
     expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'en.read.1.plain01', nx: 'seen' });
     expect(JSON.stringify(out.play)).not.toMatch(/null"|"null|Registry Title|undefined/);
+  });
+});
+
+// The story tile names its story from the same title home as the lantern (titleFor(passageId, lang)); a passage
+// whose file has no title in the child's language keeps the tile exactly as it was: { id, pid, nx }, no title key.
+describe('the story tile names the story (one title home)', () => {
+  const STORY_ON = [...BASE_ON, ON('web_quiz_challenge_v2'), ON('web_quiz_challenge_story'), ON('web_quiz_events_v2')];
+  const period = (() => { const d = new Date(Date.now() + 5 * 3600000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; })();
+  const done = [
+    { student_id: KID, exercise: 'read', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null },
+    { student_id: KID, exercise: 'bigger', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null },
+  ];
+  const reg = (id, lang, over = {}) => ({ passage_id: id, lang, band: 1, kind: 'read', pool: 'practice', status: 'reviewed', released_at: ago(2), title_en: 'Registry Title', title_ur: 'رجسٹری عنوان', ...over });
+
+  test('a released story with a title: the tile and the lantern name it (EN), the file\'s title, never the registry\'s', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('en.read.1.ref01', 'en')] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern).toEqual({ kind: 'story', title: 'The Pink Kite', pid: 'en.read.1.ref01' });
+    expect(out.play.shelf[0]).toStrictEqual({ id: 'week_story', pid: 'en.read.1.ref01', nx: 'new', title: 'The Pink Kite' });
+    expect(JSON.stringify(out.play)).not.toContain('Registry Title');
+  });
+
+  test('after the story is played: the tile still names it (seen), the lantern moves on', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: [...done, { student_id: KID, exercise: 'read', mode: 'practice', record: false, status: 'scored', period_id: period, passage_id: 'en.read.1.ref01' }],
+      challenge_passages: [reg('en.read.1.ref01', 'en')] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern.kind).toBe('numbers');
+    expect(out.play.shelf[0]).toStrictEqual({ id: 'week_story', pid: 'en.read.1.ref01', nx: 'seen', title: 'The Pink Kite' });
+  });
+
+  test('UR: the file\'s Urdu title; a file with no Urdu title gives its English one (ur then en)', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('ur.read.1.ref01', 'ur')] });
+    const ur = await Hub.hub(T.signHub([KID]), { ...A, lang: 'ur' });
+    expect(ur.play.shelf[0]).toStrictEqual({ id: 'week_story', pid: 'ur.read.1.ref01', nx: 'new', title: 'لال پتنگ' });
+    expect(ur.play.lantern).toEqual({ kind: 'story', title: 'لال پتنگ', pid: 'ur.read.1.ref01' });
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('ur.read.1.enonly01', 'ur', { title_en: 'Only English', title_ur: null })] });
+    const en = await Hub.hub(T.signHub([KID]), { ...A, lang: 'ur' });
+    expect(en.play.shelf[0]).toStrictEqual({ id: 'week_story', pid: 'ur.read.1.enonly01', nx: 'new', title: 'Only English' });
+    expect(en.play.lantern).toEqual({ kind: 'story', title: 'Only English', pid: 'ur.read.1.enonly01' });
+  });
+
+  test('GOLDEN: no title in the file -> the tile is today\'s, exactly { id, pid, nx } (no title key)', async () => {
+    // a fixture passage that is never shipped, its file written with no title in either language, so the golden does
+    // not move when real passage files gain titles
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('en.read.1.untitled01', 'en')] });
+    require('fs').writeFileSync(require('path').join(PDIR, 'en.read.1.untitled01.json'), JSON.stringify({ passage_id: 'en.read.1.untitled01', lang: 'en', kind: 'read', band: 1, pool: 'practice', title_en: null, title_ur: null }));
+    Bank._loadPassagesFrom(PDIR);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.shelf[0]).toStrictEqual({ id: 'week_story', pid: 'en.read.1.untitled01', nx: 'seen' });
+    expect(Object.keys(out.play.shelf[0])).toEqual(['id', 'pid', 'nx']);
+  });
+
+  test('GOLDEN: no story released -> the hub payload\'s key set and the play block are today\'s', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: done });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(Object.keys(out).sort()).toEqual(['again', 'brand', 'challenge', 'home_v', 'kid', 'kids', 'lang', 'last', 'lib', 'play', 'recs', 'rt', 'teacher'].sort());
+    expect(Object.keys(out.play)).toEqual(['first', 'lantern', 'shelf', 'install', 'doors']);
+    expect(out.play.shelf).toStrictEqual([{ id: 'numbers', nx: 'seen' }]);
+    expect(JSON.stringify(out.play)).not.toContain('title');
   });
 });
