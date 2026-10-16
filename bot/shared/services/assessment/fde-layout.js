@@ -810,7 +810,7 @@ function verseTwin(q6s) {
   const read = lines.map((l) => ({ tokens: new Set(tokensOf(l)), words: plain(l).split(' ') }));
   return (q) => {
     const key = tokensOf(keyText(q));
-    const stem = tokensOf(q.question).filter((w) => !key.includes(w));
+    const stem = [...new Set(tokensOf(q.question))].filter((w) => !key.includes(w));
     if (key.length && read.some((l) => key.every((w) => l.tokens.has(w)) && stem.filter((w) => l.tokens.has(w)).length >= VERSE_ASKS)) return true;
     return sentencesOf(q, false).some((t) => read.some((l) => printedIn(t, l.words)));
   };
@@ -887,7 +887,7 @@ function sameStemKey(a, b) {
 function sameQuestion(a, b) {
   const [sa, sb] = [plain(a.question), plain(b.question)];
   if (!sa || !sb) return false;
-  const opts =(q) => (Array.isArray(q.options) ? q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).sort().join('|') : '');
+  const opts = (q) => (Array.isArray(q.options) ? q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).sort().join('|') : '');
   if (opts(a) !== opts(b)) return false;
   if (sa === sb) return true;
   if (!opts(a)) { const k = writtenKey(a.question); return Boolean(k) && k === writtenKey(b.question); }
