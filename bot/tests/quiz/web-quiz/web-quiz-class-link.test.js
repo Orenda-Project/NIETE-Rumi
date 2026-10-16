@@ -549,7 +549,7 @@ describe('"Make a new link" asks first (confirm card, signed nonce)', () => {
   const express = require('express');
   const Token = require('../../../shared/services/quiz/teacher-report-token');
   const CONFIRM_EN = 'The old link will stop working for everyone. Forward the new one to the class group.';
-  const CONFIRM_UR = 'پرانا لنک سب کے لیے بند ہو جائے گا۔ نیا لنک کلاس گروپ میں بھیج دیں۔';
+  const CONFIRM_UR = 'پرانا لنک سب کے لیے بند ہو جائے گا۔ نیا لنک کلاس گروپ میں بھیج دیں۔';
   let server;
   let base;
   beforeEach(async () => {
