@@ -167,6 +167,20 @@ d('on Postgres', () => {
     expect(fails(ev('story_page_unvoiced'))).toBeNull();
   });
 
+  test('story_page_unvoiced: the six-name check is replaced whatever name the database gave it (one event check after)', () => {
+    const ev = (name) => `insert into story_events (book_id, page_n, event) values ('${BOOK}', 4, '${name}')`;
+    const eventChecks = "select count(*) from pg_constraint where conrelid = 'public.story_events'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%story_opened%'";
+    apply('web_quiz_story_unvoiced_rollback.sql');
+    psql('alter table story_events rename constraint story_events_event_check to story_events_event_check1');
+    expect(fails(ev('story_page_unvoiced'))).toMatch(/check constraint/);
+    apply('web_quiz_story_unvoiced.sql');
+    expect(fails(ev('story_page_unvoiced'))).toBeNull();
+    expect(fails(ev('story_liked'))).toMatch(/check constraint/);
+    expect(psql(eventChecks)).toBe('1');
+    apply('web_quiz_story_unvoiced.sql');
+    expect(psql(eventChecks)).toBe('1');
+  });
+
   test('the video language: nullable, en or ur only, applies twice', () => {
     apply('web_quiz_student_videos_language.sql');
     apply('web_quiz_student_videos_language.sql');
