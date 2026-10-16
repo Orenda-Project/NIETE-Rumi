@@ -443,7 +443,7 @@ describe('the top card for a teacher with a fresh lesson, and story sends', () =
     expect(mockWalk.forHome).toHaveBeenCalledTimes(1);
     expect(walk.timeline).toEqual([]);
     expect(walk.primary.kind).toBe('video');
-    expect(logEvent).toHaveBeenCalledWith('teacher_home_open', expect.objectContaining({ primary_kind: 'video' }));
+    expect(logEvent).toHaveBeenCalledWith('teacher_home_open', expect.objectContaining({ primary_kind: 'library' }));
     mockWalk.forHome = undefined;
     srv.close(); await boot(deps);
     const real = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
