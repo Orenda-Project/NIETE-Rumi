@@ -56,9 +56,18 @@ function armOf(key, day) {
 
 const offerable = (c) => c && KINDS.includes(c.kind) && c.id && typeof c.href === 'string' && c.href && c.title;
 
-/** The scores row for a candidate in a table: kind + variant, else the kind's variant-less row, else its first row. */
+// The table's names for the same thing in another context (the home's rows name the hub's picks: a teacher quiz is
+// `teacher`, play again is `last`, a library video `library`/`recommended`).
+const VARIANT_ALIAS = Object.freeze({ new: ['new', 'teacher'], again: ['again', 'last'], teacher: ['teacher', 'new'], recommended: ['recommended', 'library'], library: ['library', 'recommended'], chapter: ['chapter', 'recommended', 'library'] });
+
+/** The scores row for a candidate: kind + variant (or its alias), else the kind's variant-less row, else its first. */
 function rowFor(rows, c) {
   const same = rows.filter((r) => r && r.kind === c.kind);
+  const names = c.variant ? (VARIANT_ALIAS[c.variant] || [c.variant]) : [];
+  for (const v of names) {
+    const hit = same.find((r) => r.variant === v);
+    if (hit) return hit;
+  }
   return same.find((r) => (r.variant || null) === (c.variant || null)) || same.find((r) => !r.variant) || same[0] || null;
 }
 
@@ -199,6 +208,7 @@ async function switches(now = Date.now()) {
     return s;
   } catch (err) {
     logToFile('⚠️ web quiz next offer: settings lookup failed — off', { error: err.message });
+    cache = { at: now, s: OFF };   // off for the cache's life: an outage never costs a read per request
     return OFF;
   }
 }
@@ -268,10 +278,10 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
     });
     if (s.events) {
       const pinnedK = candidates.filter((c) => c && c.rule === 'teacher_quiz').length;
-      await require('./web-quiz-events-v3').emit3('web_quiz.next_set', {
+      require('./web-quiz-events-v3').emit3('web_quiz.next_set', {
         ctx, offer: next.offer, kinds: r.meta.kinds.join('|'), rank_src: next.rank_src, arm: r.meta.arm,
         score_v: r.meta.score_v, pinned_k: pinnedK, rule: r.meta.rule, elig: r.meta.elig.join('|'), lang,
-      }, { canonicalId: studentId });
+      }, { canonicalId: studentId }).catch(() => {});
     }
     return next;
   } catch (err) {

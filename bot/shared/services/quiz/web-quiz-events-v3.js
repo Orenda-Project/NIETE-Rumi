@@ -13,9 +13,9 @@
  *   relayed(e)                                 is this page event a v3 line (next_shown, next_tap, home_view, door_tap
  *                                              with a v3 door, door_row_tap, video_open, video_watched)? The relay (web-quiz.service.js events) hands
  *                                              it to `relay` only with `web_quiz_events_v3` on; off, today's path.
- *   relay(e, body, device)                     the page line, cleaned by the v3 rules (EVENTS v3 §2), keyed by the
+ *   relay(e, body, device, { onTap })          the page line, cleaned by the v3 rules (EVENTS v3 §2), keyed by the
  *                                              child (the hub token + chip, else the quiz session), its sitting id, and
- *                                              a next_tap's offer resets that offer's "shown, not tapped" streak.
+ *                                              a next_tap's offer goes to onTap(kid, offer) (the slot's streak reset).
  */
 const crypto = require('crypto');
 const { logEvent } = require('../../utils/structured-logger');
@@ -143,14 +143,15 @@ async function childOf(body = {}) {
 }
 
 /** One page slot line, relayed (fire and forget from the synchronous relay). Never throws. */
-async function relay(e, body = {}, device = null) {
+async function relay(e, body = {}, device = null, { onTap = null } = {}) {
   try {
     const fields = { ...clean3(e), w: 'p' };
     const studentId = await childOf(body);
     const kid = studentId ? K.kid(studentId) : null;
     const sit = await sitOf(kid);
     logEvent(`web_quiz.${e.n}`, envelope3({ ...fields, dk: K.dk(device || body.dr) }, { kid, sit }));
-    if (e.n === 'next_tap' && kid && fields.offer) await require('./web-quiz-next-offer').noteTap(kid, fields.offer);
+    // the caller's tap hook (the next-thing slot's streak): passed in, so this module needs nothing from the slot's
+    if (e.n === 'next_tap' && kid && fields.offer && typeof onTap === 'function') await onTap(kid, fields.offer);
   } catch (_) { /* a lost line, never a lost page */ }
 }
 

@@ -8,7 +8,7 @@
  *
  * The candidates are the hub's own (web-quiz-next-offer-sources.js) for this child, read through a snapshot of the
  * hub's per-child reads with a hub token minted for the child and bound to this phone (as the card's hub door does).
- * A result is never held up: the snapshot races a deadline (DEADLINE_MS) and gives up quietly.
+ * A result is never held up: the whole field races a deadline (DEADLINE_MS) and gives up quietly.
  */
 const crypto = require('crypto');
 const T = require('./web-quiz-token');
@@ -18,7 +18,7 @@ const { logToFile } = require('../../utils/logger');
 
 const DEADLINE_MS = 1200;
 const RESULT_MEMO_S = 15 * 60;
-const { candidatesOf, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf } = S;
+const { candidatesOf, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, withDeadline } = S;
 
 /**
  * A child's snapshot for a result card: the hub's own reads for one child (teacher card, the quiz left open, play
@@ -61,16 +61,12 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false }
   return { canonical, token, out, history, collect, grade, lang };
 }
 
-function withDeadline(p, ms = DEADLINE_MS) {
-  let timer;
-  return Promise.race([p, new Promise((res) => { timer = setTimeout(() => res(null), ms); })]).finally(() => clearTimeout(timer));
-}
 
 /** One result's `{ next_offer }`: the snapshot's candidates + the result's own, ranked for `ctx`. */
 async function resultField({ studentId, device, lang: asked = null, ctx, extra = [], drop = () => false }) {
   const sw = await NO.switches();
   if (!studentId || !sw.on) return {};
-  const snap = await withDeadline(snapshot({ studentId, device, lang: asked, watch: sw.watch }));
+  const snap = await snapshot({ studentId, device, lang: asked, watch: sw.watch });
   if (!snap) return {};
   const { canonical, token, out, history, collect, grade, lang } = snap;
   const [{ quizIds, storyCodes }, books, onItsWay] = await Promise.all([
@@ -85,7 +81,7 @@ async function resultField({ studentId, device, lang: asked = null, ctx, extra =
 }
 
 /** The quiz finish's `{ next_offer }` (the route wraps finishSession). `{}` for a teacher's or a friend's run. */
-async function finishField(body = {}, out = {}, { device = null } = {}) {
+async function finishInner(body = {}, out = {}, { device = null } = {}) {
   try {
     if (!out || !out.score || !(await NO.switches()).on) return {};
     const tok = T.verify(body.st, 's');
@@ -130,7 +126,7 @@ function challengeCtx(ex, result = {}) {
 }
 
 /** A Jugnu stop's final result's `{ next_offer }` (the route wraps submit and poll). `{}` on {pending} or a null. */
-async function challengeField(result, ct, { device = null, lang = null } = {}) {
+async function challengeInner(result, ct, { device = null, lang = null } = {}) {
   try {
     if (!result || result.pending || !(await NO.switches()).on) return {};
     const c = T.verify(ct, 'c');
@@ -143,12 +139,22 @@ async function challengeField(result, ct, { device = null, lang = null } = {}) {
     if (had && typeof had === 'object' && had.href) return { next_offer: had };
     const drop = (x) => x.id === `stop.${c.ex}`;
     const field = await resultField({ studentId: c.sid, device, lang, ctx: challengeCtx(c.ex, result), drop });
-    if (memo && field.next_offer) await redis.set(memo, field.next_offer, RESULT_MEMO_S);
+    if (memo && field.next_offer) redis.set(memo, field.next_offer, RESULT_MEMO_S).catch(() => {});
     return field;
   } catch (err) {
     logToFile('⚠️ web quiz next offer: challenge field unavailable', { error: err.message });
     return {};
   }
+}
+
+/** The quiz finish's `{ next_offer }`, or `{}` past the deadline (the card is never held up). */
+async function finishField(body, out, opts) {
+  return (await withDeadline(finishInner(body, out, opts), DEADLINE_MS)) || {};
+}
+
+/** A Jugnu stop's final result's `{ next_offer }`, or `{}` past the deadline. */
+async function challengeField(result, ct, opts) {
+  return (await withDeadline(challengeInner(result, ct, opts), DEADLINE_MS)) || {};
 }
 
 module.exports = { finishField, challengeField, challengeCtx, DEADLINE_MS };

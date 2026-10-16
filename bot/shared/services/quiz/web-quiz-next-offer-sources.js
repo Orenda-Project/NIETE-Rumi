@@ -23,6 +23,7 @@ const NO = require('./web-quiz-next-offer');
 const { logToFile } = require('../../utils/logger');
 
 const PIN_DAYS = 7;
+const HUB_DEADLINE_MS = 1500;
 const DAY_MS = 86400000;
 const READ_ALOUD = new Set(['read']);
 const GAME_STOPS = new Set(['missing', 'bigger', 'numbers']);
@@ -87,12 +88,13 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
     const t = out.teacher;
     // a storybook the teacher sent rides a quiz row + its code (quiz_source 'story'): the same pin, its own kind
     const story = storyCodes.has(t.code);
-    push({ kind: story ? 'storybook' : 'quiz', variant: story ? 'teacher' : 'new', id: story ? `sb.${t.code}` : qkOf(quizIds.get(t.code), t.code), href: L.quiz(t.code, t.k),
+    push({ kind: story ? 'storybook' : 'quiz', variant: story ? 'teacher' : 'new', id: story ? `sb.${qkOf(quizIds.get(t.code), t.code)}` : qkOf(quizIds.get(t.code), t.code), href: L.quiz(t.code, t.k),
       ...words('quiz'), ...subOf(t.topic || t.subject), minutes: 3, rule: 'teacher_quiz', sent_at: t.sent_at || null });
   }
   if (out.last && out.last.code && out.last.state === 'open') {
     const e = entryOf(out.last.code) || {};
-    const fresh = e.teacherSent && Number.isFinite(Date.parse(e.sentAt)) && nowMs - Date.parse(e.sentAt) <= PIN_DAYS * DAY_MS;
+    // pinned only while never finished (a replay left open on a finished quiz is not "your teacher's quiz" any more)
+    const fresh = e.teacherSent && !e.latest && Number.isFinite(Date.parse(e.sentAt)) && nowMs - Date.parse(e.sentAt) <= PIN_DAYS * DAY_MS;
     push({ kind: 'quiz', variant: 'new', id: qkOf(e.quizId, out.last.code), href: L.quiz(out.last.code, out.last.k), ...words('quizOpen'), ...subOf(out.last.topic || out.last.subject),
       minutes: 3, ...(fresh ? { rule: 'teacher_quiz', sent_at: e.sentAt } : {}) });
   }
@@ -105,7 +107,7 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
     push({ kind: 'quiz', variant: 'again', id: qkOf(e.quizId, a.code), href: L.quiz(a.code, a.k, true), ...words('again'), ...subOf(a.topic || a.subject), minutes: 3 });
   });
   // a video: the library (a recommended video starts by a POST, so the tile opens the library on the child's grade)
-  if (out.lib && out.lib.href && L.lib) push({ kind: 'video', variant: 'library', id: 'library', href: L.lib, ...words('video'), minutes: 3, needs_root: true });
+  if (out.lib && typeof out.lib.href === 'string' && out.lib.href.startsWith('/lib/') && L.lib) push({ kind: 'video', variant: 'library', id: 'library', href: L.lib, ...words('video'), minutes: 3, needs_root: true });
   // a child with no class quiz: the v3 home's own player watches the recommended lesson (nothing minted, no root needed)
   const rec = (out.recs || []).find((r) => r && r.vid);
   if (watch && rec && !hasRootOf(history) && L.watch) {
@@ -127,7 +129,7 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
       released_at: u.released_at, seen: false, read_aloud: !listen, ...(lantern && lantern.kind === 'story' && lantern.pid === u.pid ? { lantern: true } : {}) });
   });
   if (collect.story && L.ch) push({ kind: 'game', id: 'numbers', href: L.ch, ...words('numbers'), minutes: 1, ...(lantern && lantern.kind === 'numbers' ? { lantern: true } : {}) });
-  if (out.book_on && L.book) push({ kind: 'sticker', id: 'book', href: L.book, ...words('sticker'), minutes: 1 });
+  if (watch && out.book_on && L.book) push({ kind: 'sticker', id: 'book', href: L.book, ...words('sticker'), minutes: 1 });
   (extra || []).forEach(push);
   return list;
 }
@@ -167,7 +169,9 @@ async function onItsWayOf(canonicalId, rawId, stops, lang, grade) {
     const s = await NO.switches();
     if (!s.pool) return out;
     const D = require('./web-quiz-challenge-draw');
-    const [rows, periodRows, fixed] = await Promise.all([D.childRows(canonicalId, [rawId]), D.periods(), D.fixedGradeOf(canonicalId, grade)]);
+    // the draw compares grades as numbers (serveV2 passes the visit's number); the hub's grade is a string
+    const g = Number(grade) || null;
+    const [rows, periodRows, fixed] = await Promise.all([D.childRows(canonicalId, [rawId]), D.periods(), D.fixedGradeOf(canonicalId, g)]);
     if (rows.readFailed) { ask.forEach((ex) => { out[ex] = true; }); return out; }
     const periodNow = D.periodIdFor(new Date(), periodRows);
     const registry = await D.registryPassages();
@@ -202,24 +206,37 @@ const hasRootOf = (history) => (history || []).some((e) => e && e.teacherSent);
 
 // ── the call sites ───────────────────────────────────────────────────────────────────────────────────
 
-/** The hub boot's `{ next }` (ctx home), from the payload the hub has just built. `{}` when off or on any failure. */
+/** Resolves to the promise's value, or null past `ms` (the caller then adds nothing). */
+function withDeadline(p, ms) {
+  let timer;
+  return Promise.race([p, new Promise((res) => { timer = setTimeout(() => res(null), ms); })]).finally(() => clearTimeout(timer));
+}
+
+async function hubNext({ out, token, history, collect, lang, chosenId, grade, watch }) {
+  const [{ quizIds, storyCodes }, books, onItsWay] = await Promise.all([
+    quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)]),
+    storybooks({ studentId: chosenId, lang, grade, token, chip: out.kid }),
+    onItsWayOf(chosenId, chosenId, collect.trail, lang, grade),
+  ]);
+  const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, extra: books, watch });
+  const next = await NO.nextFor({ ctx: 'home', studentId: chosenId, candidates, hasRoot: hasRootOf(history), lang });
+  return next ? { next } : {};
+}
+
+/**
+ * The hub boot's `{ next }` (ctx home), from the payload the hub has just built (`chosenId` = the child's known id).
+ * `{}` when off, on any failure, or past the deadline: the hub JSON is fetched after paint, and a slow read here
+ * must never hold it.
+ */
 async function hubField({ out, token, history, collect = {}, lang, chosenId, grade } = {}) {
   try {
     const sw = await NO.switches();
     if (!out || !chosenId || !sw.on) return {};
-    const canonical = chosenId;
-    const [{ quizIds, storyCodes }, books, onItsWay] = await Promise.all([
-      quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)]),
-      storybooks({ studentId: canonical, lang, grade, token, chip: out.kid }),
-      onItsWayOf(canonical, chosenId, collect.trail, lang, grade),
-    ]);
-    const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, extra: books, watch: sw.watch });
-    const next = await NO.nextFor({ ctx: 'home', studentId: canonical, candidates, hasRoot: hasRootOf(history), lang });
-    return next ? { next } : {};
+    return (await withDeadline(hubNext({ out, token, history, collect, lang, chosenId, grade, watch: sw.watch }), HUB_DEADLINE_MS)) || {};
   } catch (err) {
     logToFile('⚠️ web quiz next offer: hub field unavailable', { error: err.message });
     return {};
   }
 }
 
-module.exports = { candidatesOf, hubField, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, COPY };
+module.exports = { candidatesOf, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, COPY };

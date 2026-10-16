@@ -193,3 +193,13 @@ describe('the committed weights file', () => {
     expect(Object.keys(FILE.contexts)).toEqual(expect.arrayContaining(['after_quiz', 'home', 'ftue', 'after_read', 'after_read_weak', 'after_quiz_low', 'after_game', 'after_story', 'after_video']));
   });
 });
+
+describe('the table\'s variant names', () => {
+  test('home: a teacher quiz scores as the `teacher` row, play again as the `last` row', () => {
+    const r = NO.rank('home', [{ ...quizPin({ rule: undefined }), variant: 'new' }, again], base(), FILE);
+    const home = FILE.contexts.home;
+    const all = [r.next, ...r.next.alts];
+    expect(all.find((x) => x.id === 'qk-pin').score).toBe(home.find((x) => x.variant === 'teacher').score);
+    expect(all.find((x) => x.id === 'qk-again').score).toBe(home.find((x) => x.variant === 'last').score);
+  });
+});

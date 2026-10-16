@@ -168,7 +168,8 @@ describe('switch on: rule 1 — the teacher\'s quiz from the last 7 days', () =>
     over.quizzes[1].quiz_source = 'story';
     seed(NEXT_ON, over);
     const out = await Hub.hub(T.signHub([KID]), A);
-    expect(out.next).toMatchObject({ kind: 'storybook', rank_src: 'pinned', id: 'sb.SCI002' });
+    expect(out.next).toMatchObject({ kind: 'storybook', rank_src: 'pinned' });
+    expect(out.next.id).toMatch(/^sb\.[0-9a-f]{10}$/);   // keyed: the share code never rides an event id
     expect(out.next.href).toMatch(/^\/q\/SCI002\?k=/);
   });
 
@@ -421,3 +422,17 @@ describe('a child with no class quiz and the v3 home\'s watch-only player', () =
     if (out.next) expect([out.next, ...out.next.alts].map((x) => x.kind)).not.toContain('video');
   });
 });
+
+describe('the "on its way" check reads the draw as the serve does', () => {
+  test('the grade reaches the draw as a number (the hub\'s grade is a string)', async () => {
+    const D = require('../../../shared/services/quiz/web-quiz-challenge-draw');
+    seed([...NEXT_ON, ...STORY_ON, ON('web_quiz_challenge_pool')], { web_quiz_challenge_runs: [] });
+    Challenge.__reset();
+    const spy = jest.spyOn(D, 'fixedGradeOf');
+    await Sources_onItsWay(KID, ['read'], '3');
+    expect(spy).toHaveBeenCalledWith(KID, 3);
+  });
+});
+async function Sources_onItsWay(id, stops, grade) {
+  return require('../../../shared/services/quiz/web-quiz-next-offer-sources').onItsWayOf(id, id, stops, 'en', grade);
+}

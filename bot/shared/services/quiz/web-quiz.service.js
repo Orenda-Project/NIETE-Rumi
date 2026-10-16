@@ -2022,7 +2022,7 @@ function events(body = {}, { device = null } = {}) {
   for (const e of list) {
     // Events v3 (web_quiz_events_v3): the next-thing slot's lines, keyed and with their sitting id. Off: today's path.
     if (EV3().relayed(e) && require('./web-quiz-next-offer').eventsV3Now()) {
-      EV3().relay(e, body, device).catch(() => {});
+      EV3().relay(e, body, device, { onTap: (kid, offer) => require('./web-quiz-next-offer').noteTap(kid, offer) }).catch(() => {});
       logged += 1;
       continue;
     }
