@@ -8,6 +8,7 @@
 --
 --   story_books.source_id   the catalogue's stable id for the book (the same in every database)
 --   story_books.status      draft (hidden from children) | ready (every quality gate passed) | off
+--   story_books.questions_sprite  {file, clips:{q1:{s_ms,e_ms}, q1o1:{…}}}: every question clip in one file
 --   story_pages.n           1 = the first story page (the cover is the book's cover_file, never a page)
 --   story_pages.words       [{i, t, box:[x,y,w,h]}] in the page picture's pixels; box omitted where none
 --   story_pages.watermark   true until the page is known watermark-free (its book swept and, if cleaned, looked at)
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS story_books (
   minutes       numeric(4,1),
   status        text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'ready', 'off')),
   featured_rank smallint,
+  questions_sprite jsonb,
   created_at    timestamptz DEFAULT now(),
   updated_at    timestamptz DEFAULT now()
 );

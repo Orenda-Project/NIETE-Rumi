@@ -210,6 +210,13 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
       reviewer_note: q.reviewer_note || null, audio,
     });
   }
+  // One file holding every question and option clip, played by time range (one request on a slow line).
+  let sprite = null;
+  const qv = voiceDir ? readJson(path.join(voiceDir, 'questions.voice.json')) : null;
+  if (qv && qv.sprite && qv.sprite.ogg && qv.sprite.clips) {
+    const b = readBytes(path.join(voiceDir, path.basename(qv.sprite.ogg)));
+    if (b) { const f = fileOf(b, 'qs', 'ogg'); files.push(f); sprite = { file: f.name, clips: qv.sprite.clips }; }
+  }
   const reviewed = questions.filter((q) => q.review_status === 'reviewed').length;
   if (reviewed < 3 || reviewed > 5) why.push(`questions: ${reviewed} reviewed`);
 
@@ -221,7 +228,7 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
     slo: extra.slo || book.slo || null, slo_english: book.slo_english || null,
     author: book.author || null, illustrator: book.illustrator || null, pages: pages.length,
     cover_file: cover ? cover.name : null, cover_w: coverSize ? coverSize.w : null, cover_h: coverSize ? coverSize.h : null,
-    pdf_r2_key: extra.pdf_r2_key || book.pdf_r2_key || null,
+    pdf_r2_key: extra.pdf_r2_key || book.pdf_r2_key || null, questions_sprite: sprite,
     minutes: voiced === textPages && voiced ? Math.round(ms / 6000) / 10 : null,
   };
   const uniq = new Map(files.map((f) => [f.name, f]));

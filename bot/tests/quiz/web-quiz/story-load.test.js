@@ -48,6 +48,8 @@ function fixture({ voices = [1, 2], questionsReviewed = 3, band = true, wer = 0.
   }
   fs.writeFileSync(path.join(vdir, 'q1.ogg'), Buffer.from('OggS-q1'));
   fs.writeFileSync(path.join(vdir, 'q1o2.ogg'), Buffer.from('OggS-q1o2'));
+  fs.writeFileSync(path.join(vdir, 'questions.sprite.ogg'), Buffer.from('OggS-sprite'));
+  fs.writeFileSync(path.join(vdir, 'questions.voice.json'), JSON.stringify({ sprite: { ogg: 'questions.sprite.ogg', clips: { q1: { s_ms: 0, e_ms: 2200 }, q1o1: { s_ms: 2350, e_ms: 3100 } } } }));
   const qs = [1, 2, 3, 4].map((n) => ({ n, kind: n === 4 ? 'inference' : 'literal', q: `Who reads ${n}?`, options: [{ t: 'Asad' }, { t: 'Sara' }, { t: 'Ali' }], answer_i: 0, page_ref: 1,
     review_status: n <= questionsReviewed ? 'reviewed' : 'draft', reviewer_note: 'ok' }));
   const qfile = path.join(dir, `${SRC}.json`);
@@ -88,6 +90,7 @@ describe('planBook', () => {
     expect(p.bookRow).toMatchObject({ id: BOOK_ID, source_id: SRC, slug: 'g1-en-asad-testwala', title: 'Asad Testwala', grade: 1, lang: 'en', pages: 2,
       author: 'Sara Testwala', illustrator: 'Ali Testwala', cover_w: 240, cover_h: 357, minutes: 0.1 });
     expect(p.bookRow.cover_file).toMatch(/^cover-[0-9a-f]{8}\.webp$/);
+    expect(p.bookRow.questions_sprite).toEqual({ file: `qs-${h8(Buffer.from('OggS-sprite'))}.ogg`, clips: { q1: { s_ms: 0, e_ms: 2200 }, q1o1: { s_ms: 2350, e_ms: 3100 } } });
     expect(p.pages[0]).toMatchObject({ id: Store.uuidV5(BOOK_ID, 'p01'), n: 1, image_w: 720, image_h: 1083, text: 'Asad Testwala reads.', boxes_ok: true, text_source: 'pdf', confidence: 0.99, is_picture: false });
     expect(p.pages[0].image_file).toBe(`p01-${h8(fs.readFileSync(path.join(f.serveDir, 'p01.webp')))}.webp`);
     expect(p.pages[0].words[0]).toEqual({ i: 0, t: 'Asad', box: [10, 800, 36, 40] });

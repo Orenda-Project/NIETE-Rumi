@@ -7642,6 +7642,7 @@ CREATE TABLE IF NOT EXISTS story_books (
   minutes       numeric(4,1),
   status        text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'ready', 'off')),
   featured_rank smallint,
+  questions_sprite jsonb,
   created_at    timestamptz DEFAULT now(),
   updated_at    timestamptz DEFAULT now()
 );
