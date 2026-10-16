@@ -700,7 +700,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
-      offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
+      offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ ٹیچر تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
       pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + urDigits(n) + ' ٹھیک کیا ✓'; },
@@ -738,7 +738,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       backAgain: 'جواب محفوظ ہیں۔ باہر جانا ہے تو پھر بیک دبائیں۔',
       homeSure: 'ہوم پر جائیں؟ جواب محفوظ ہیں۔', homeSaving: 'ہوم پر جائیں؟ جواب محفوظ ہو رہے ہیں…',
       revSay: function (n) { return 'سوال ⁦' + urDigits(n) + '⁩ دوبارہ۔ پہلا جواب ہی گنا جائے گا۔'; },
-      offWait: 'انٹرنیٹ آتے ہی نتیجہ استاد کو مل جائے گا۔', offline: 'انٹرنیٹ نہیں ہے۔ جواب اس فون پر محفوظ ہیں۔',
+      offWait: 'انٹرنیٹ آتے ہی نتیجہ ٹیچر کو مل جائے گا۔', offline: 'انٹرنیٹ نہیں ہے۔ جواب اس فون پر محفوظ ہیں۔',
       pickAll: 'ہر صحیح جواب دبائیں، پھر «جانچیں»۔',
       liveNow: function (n) { return 'ابھی ⁦' + urDigits(n) + '⁩ ساتھی کھیل رہے ہیں!'; },
       moreSay: 'ایک ویڈیو چنیں۔ پھر اس کا کوئز کھیلیں۔', moreNone: 'ابھی اور ویڈیوز نہیں ہیں۔',
@@ -1497,7 +1497,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       nfT: function (t, c) { return (c ? c + ' میں ' : '') + t + ' کا نام نہیں ملا۔ کیا آپ کا نام ایسے ہی لکھا جاتا ہے؟'; },
       nfYes: 'جی ہاں، یہی میرا نام ہے', nfFix: 'دوبارہ لکھیں',
       nsT: function (t, c, n) { return (c ? c + ' میں ' : '') + t + ' نام کے ' + n + ' بچے ہیں۔'; },
-      nsSay: 'کھیلنے کے لیے جی ہاں دبائیں۔ استاد خود دیکھ لیں گے کہ آپ کون ہیں۔'
+      nsSay: 'کھیلنے کے لیے جی ہاں دبائیں۔ ٹیچر خود دیکھ لیں گے کہ آپ کون ہیں۔'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
   // The roll pad and its lists: 0-9, Urdu included. The roll number is matched to the teacher's
