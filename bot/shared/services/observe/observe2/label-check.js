@@ -28,7 +28,7 @@
 const { TYPES, GROUP_OF, TYPE_GUIDE } = require('./moment-types');
 const { parseTranscript, speakerAllows, rolesOf, contextOf, clock } = require('./quote-check');
 const { clampLanguage } = require('../../../config/ux-strings');
-const { JOB } = require('./llm-reply');
+const { JOB, unwrap, cutOff } = require('./llm-reply');
 const { getLanguage } = require('../../../config/languages');
 
 const MAX_TOKENS = 16000;
@@ -95,12 +95,6 @@ function buildLabelPrompt(moments, lines, { lang } = {}) {
 }
 
 
-// A reply as completeJson gives it ({result, usage}); a seam that hands back the bare JSON has no usage.
-function unwrap(reply) {
-  if (reply && typeof reply === 'object' && 'result' in reply && 'usage' in reply) return reply;
-  return { result: reply, usage: null };
-}
-
 const fresh = (checked) => ({ status: 'ok', checked, kept: 0, relabelled: 0, dropped: 0, relabel_invalid: 0, relabel_speaker: 0, missing: 0 });
 
 /**
@@ -116,9 +110,9 @@ async function checkLabels(moments, { transcript, lang, llm } = {}) {
 
   let result;
   try {
-    const { result: r, usage } = unwrap(await llm(buildLabelPrompt(list, lines, { lang }), { maxTokens: MAX_TOKENS, job: JOB }));
-    if (usage && Number(usage.completion_tokens) >= MAX_TOKENS) return failed('cut_off at the output limit');
-    result = r;
+    const reply = unwrap(await llm(buildLabelPrompt(list, lines, { lang }), { maxTokens: MAX_TOKENS, job: JOB }));
+    if (cutOff(reply, MAX_TOKENS)) return failed(`cut_off at the output limit (${reply.finishReason || 'token count'})`);
+    result = reply.result;
   } catch (err) {
     return failed(`error: ${String((err && err.message) || err).slice(0, 200)}`);
   }
