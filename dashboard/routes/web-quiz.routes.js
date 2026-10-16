@@ -37,7 +37,7 @@ const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 const PS_RX = /^[a-z0-9]{8,16}$/;
 // hub_open.src's route values (EVENTS row 3). Mirrors SRC_VALUES in bot/shared/services/quiz/web-quiz-hub-play.js:
 // the edge cannot load the bot's modules, so keep the two lists the same.
-const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend)$/;
+const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join)$/;
 // A signed hub token (bot web-quiz-token.js): base64url payload "." 22-char signature.
 const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
@@ -114,6 +114,9 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/linkhome', limiter: 'session' },
   // the finish card (web_quiz_card_v3): a card token for this child's finish (the bot answers 404 while it is off)
   { method: 'post', path: '/api/wq/card', limiter: 'session' },
+  // a child joins on their own (quiz_student_join; the bot answers {off:true} with it off): the grade tap, the one write
+  { method: 'post', path: '/api/wq/join/grade', limiter: 'read' },
+  { method: 'post', path: '/api/wq/join', limiter: 'session' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
