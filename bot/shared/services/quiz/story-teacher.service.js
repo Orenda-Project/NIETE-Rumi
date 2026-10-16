@@ -27,6 +27,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 // The book a story send carries (`meta.story.book_id`): one reader for the send and its report.
 const { bookOf } = require('./story-teacher-report');
+const { mustWrite } = require('./must-write');
 
 const FLAG_KEY = 'web_quiz_stories_teacher';
 // The child's side this needs: the reader (stories) and the hub it opens in.
@@ -57,6 +58,8 @@ class StoryError extends Error {
   constructor(status, error) { super(error); this.status = status; this.body = { error }; }
 }
 const fail = (status, error) => { throw new StoryError(status, error); };
+// A write the teacher's "sent" depends on that does not land (must-write.js): this module's own refusal.
+const unavailable = () => new StoryError(503, 'unavailable');
 
 /**
  * The teacher behind a teacher-home token (`{k:'th', uid, lang, via, exp}`); null when not genuine or stale.
@@ -153,11 +156,10 @@ async function rowsFor(uid, bookId) {
 async function rowFor(uid, book, lang) {
   const had = (await rowsFor(uid, book.id))[0];
   if (had) return had;
-  const { data, error } = await supabase.from('quizzes').insert({
+  const data = await mustWrite(supabase.from('quizzes').insert({
     teacher_id: uid, quiz_source: SOURCE, topic: book.title, grade: String(book.grade), language: lang, status: 'ready',
     meta: { story: { book_id: book.id, lang } },
-  }).select('id, meta, status, created_at').single();
-  if (error || !data) { logToFile('❌ story send: could not write the send', { error: error && error.message }, 'error'); fail(503, 'unavailable'); }
+  }).select('id, meta, status, created_at').single(), 'story send: could not write the send', { needRow: true, refuse: unavailable });
   const all = await rowsFor(uid, book.id);
   const keep = all[0] || data;
   if (keep.id !== data.id) {
@@ -264,14 +266,12 @@ async function preview({ uid, storyId, classId = null, ui = null, now = Date.now
 async function markSent(p, now) {
   if (p.held.active === false) {
     // Never a sent row behind a closed code (the class would get "expired"): no open, no send.
-    const { error } = await supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id);
-    if (error) { logToFile('❌ story send: could not open the code', { error: error.message }, 'error'); fail(503, 'unavailable'); }
+    await mustWrite(supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id), 'story send: could not open the code', { refuse: unavailable });
   }
   const meta = { ...(p.quiz.meta || {}), story: { book_id: p.book.id, lang: p.lang }, share_code: p.held.code, share_code_id: p.held.id,
     link: p.out.link, student_message: p.out.class_message, sent_at: new Date(now).toISOString(),
     first_sent_at: (p.quiz.meta && p.quiz.meta.first_sent_at) || new Date(now).toISOString() };
-  const { error } = await supabase.from('quizzes').update({ meta, status: 'sent' }).eq('id', p.quiz.id);
-  if (error) { logToFile('❌ story send: could not mark the send', { error: error.message }, 'error'); fail(503, 'unavailable'); }
+  await mustWrite(supabase.from('quizzes').update({ meta, status: 'sent' }).eq('id', p.quiz.id), 'story send: could not mark the send', { refuse: unavailable });
   logEvent('teacher_story_sent', { book_id: p.book.id, quiz_id: p.quiz.id, share_code_id: p.held.id, class_id: p.held.class_id || null, reused: p.reused });
 }
 

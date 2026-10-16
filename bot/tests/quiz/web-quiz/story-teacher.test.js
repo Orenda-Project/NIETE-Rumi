@@ -689,6 +689,23 @@ describe('a preview never reaches a child, even when the database fails', () => 
     expect(logEvent).not.toHaveBeenCalledWith('teacher_story_sent', expect.anything());
     expect(require('../../../shared/utils/logger').logToFile).toHaveBeenCalledWith(expect.stringContaining('could not mark the send'), expect.anything(), 'error');
   });
+  test.each([
+    ['answers an error', { data: null, error: { message: 'down' } }],
+    ['lands no row', { data: null, error: null }],
+  ])('a send whose row cannot be written (the insert %s) is refused (503) before any code is minted', async (_, answer) => {
+    const real = supabase.from;
+    supabase.from = (t) => {
+      const q = real(t);
+      if (t !== 'quizzes') return q;
+      q.insert = () => ({ select: () => ({ single: async () => answer }) });
+      return q;
+    };
+    try {
+      await expect(Stories.preview({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 503, body: { error: 'unavailable' } });
+    } finally { supabase.from = real; }
+    expect(db.quiz_share_codes).toHaveLength(0);
+    expect(require('../../../shared/utils/logger').logToFile).toHaveBeenCalledWith(expect.stringContaining('could not write the send'), expect.anything(), 'error');
+  });
   test('the sent event says "reused" only when the code was already open before this tap', async () => {
     await Stories.preview({ uid: TEACHER, storyId: B(1) });
     await Stories.send({ uid: TEACHER, storyId: B(1) });
