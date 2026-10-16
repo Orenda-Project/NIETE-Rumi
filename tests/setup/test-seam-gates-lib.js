@@ -3,7 +3,7 @@
  *   repo-mocks-partial.test.js, repo-spy-failure-only.test.js, repo-seam-tests.test.js,
  *   virtual-mock-of-existing-module.test.js (its jest.doMock scan), fresh-profile-pages.test.js, copy-deck-lift.test.js,
  *   select-columns-exist.test.js, unresolved-requires.test.js (its later-merge rule), grade-form-one-home.test.js,
- *   copy-deck-urdu-joiners.test.js, copy-deck-quoted-labels.test.js; repo-mocks-partial.test.js also reads jest.doMock, copy-deck-lift.test.js also
+ *   copy-deck-urdu-joiners.test.js, copy-deck-quoted-labels.test.js, copy-deck-readers.test.js; repo-mocks-partial.test.js also reads jest.doMock, copy-deck-lift.test.js also
  *   reads the child pages (dashboard/public/wq).
  *
  * Every reader takes source text (or plain objects) and returns plain data, so each gate's rule is executed on
@@ -984,6 +984,23 @@ function quotedLabelGaps(deck) {
   return out;
 }
 
+// ------------------------------------------------------------------------------- the deck's raw readers
+
+/**
+ * The files (ids, sorted) that read the copy deck raw: a `require` in code (never a comment or a string) whose path
+ * ends in `copy.v2.json` or `copy.v2`. The file that defines `deckLine` (the one door, '' for a held or retired key)
+ * is not a raw reader. files: [{ id, source }].
+ */
+function rawDeckReaders(files) {
+  const out = [];
+  for (const { id, source } of files) {
+    const mask = codeMask(source);
+    if (/(^|[^\w$.])(?:function\s+deckLine\s*\(|(?:const|let|var)\s+deckLine\s*=)/.test(mask)) continue;
+    if (calls(source, ['require'], mask).some((c) => /(^|\/)copy\.v2(\.json)?$/.test(c.spec || ''))) out.push(id);
+  }
+  return out.sort();
+}
+
 // --------------------------------------------------------------------------- the deck's Urdu no-break rules
 
 const NBSP = '\u00a0';
@@ -1064,6 +1081,7 @@ module.exports = {
   wqEnWithoutUr,
   copyGapVerdict,
   quotedLabelGaps,
+  rawDeckReaders,
   urduOrphans,
   whatsappWithoutJoiner,
 };
