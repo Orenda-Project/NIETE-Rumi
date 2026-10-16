@@ -1,0 +1,9 @@
+{
+  "_about": "English MCQs keyed by option text that starts like a letter («a dog», «A bird»), plus one lettered key.",
+  "unseen": { "objective": { "MCQs": [
+    { "slot": "english.A.Q1a", "question": "Which animal barks?", "options": ["a cat", "a dog", "a cow", "a hen"], "answer": "a dog", "blooms": "Remember" },
+    { "slot": "english.A.Q1a", "question": "Which one can fly?", "options": ["A fish", "A frog", "A bird", "A goat"], "answer": "A bird", "blooms": "Remember" },
+    { "slot": "english.A.Q1a", "question": "Which article goes before \"apple\"?", "options": ["a", "an", "the", "no article"], "answer": "an", "blooms": "Remember" },
+    { "slot": "english.A.Q1a", "question": "Which word is a noun?", "options": ["a) run", "b) garden", "c) quickly", "d) blue"], "answer": "b) garden", "blooms": "Remember" }
+  ] } }
+}

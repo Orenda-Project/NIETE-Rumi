@@ -1,0 +1,269 @@
+{
+ "_about": "Twenty fictional English MCQs, every key on (b), one with a positional option. Used by fde-r5-layout.test.js.",
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "slot": "english.A.Q1a",
+     "question": "Which word is a noun?",
+     "options": [
+      "a) run",
+      "b) garden",
+      "c) quickly",
+      "d) blue"
+     ],
+     "answer": "b) garden",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Choose the plural of \"box\".",
+     "options": [
+      "a) boxs",
+      "b) boxes",
+      "c) boxen",
+      "d) boxies"
+     ],
+     "answer": "b) boxes",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Which word is an adjective?",
+     "options": [
+      "a) sing",
+      "b) bright",
+      "c) slowly",
+      "d) under"
+     ],
+     "answer": "b) bright",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Pick the verb.",
+     "options": [
+      "a) table",
+      "b) jump",
+      "c) green",
+      "d) softly"
+     ],
+     "answer": "b) jump",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Compare the two words \"pen\" and \"ten\": which has more letters?",
+     "options": [
+      "a) pen",
+      "b) Both are equal",
+      "c) ten",
+      "d) Cannot be determined"
+     ],
+     "answer": "b) Both are equal",
+     "marks": 1,
+     "blooms": "Understand"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Which sentence is a question?",
+     "options": [
+      "a) The bus is late.",
+      "b) Is the bus late?",
+      "c) Close the door.",
+      "d) What a fine day!"
+     ],
+     "answer": "b) Is the bus late?",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Choose the opposite of \"early\".",
+     "options": [
+      "a) soon",
+      "b) late",
+      "c) first",
+      "d) near"
+     ],
+     "answer": "b) late",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Which word rhymes with \"cat\"?",
+     "options": [
+      "a) cup",
+      "b) hat",
+      "c) cot",
+      "d) cut"
+     ],
+     "answer": "b) hat",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Pick the correct article: ___ apple.",
+     "options": [
+      "a) a",
+      "b) an",
+      "c) the two",
+      "d) some of"
+     ],
+     "answer": "b) an",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Which word is a pronoun?",
+     "options": [
+      "a) they",
+      "b) basket",
+      "c) happy",
+      "d) river"
+     ],
+     "answer": "b) basket",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Choose the past tense of \"go\".",
+     "options": [
+      "a) goed",
+      "b) went",
+      "c) gone to",
+      "d) going"
+     ],
+     "answer": "b) went",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Which is a proper noun?",
+     "options": [
+      "a) city",
+      "b) Karachi Road",
+      "c) teacher",
+      "d) bridge"
+     ],
+     "answer": "b) Karachi Road",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Pick the synonym of \"big\".",
+     "options": [
+      "a) tiny",
+      "b) large",
+      "c) thin",
+      "d) short"
+     ],
+     "answer": "b) large",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Which word is an adverb?",
+     "options": [
+      "a) kind",
+      "b) kindly",
+      "c) kindness",
+      "d) kinder"
+     ],
+     "answer": "b) kindly",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Choose the correct spelling.",
+     "options": [
+      "a) freind",
+      "b) friend",
+      "c) frend",
+      "d) friand"
+     ],
+     "answer": "b) friend",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Which word is a conjunction?",
+     "options": [
+      "a) and",
+      "b) apple",
+      "c) above",
+      "d) after all"
+     ],
+     "answer": "b) apple",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Choose the collective noun for fish.",
+     "options": [
+      "a) herd",
+      "b) school",
+      "c) flock",
+      "d) pack"
+     ],
+     "answer": "b) school",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Which sentence is in the future tense?",
+     "options": [
+      "a) She sang.",
+      "b) They will sing.",
+      "c) We sing.",
+      "d) He is singing."
+     ],
+     "answer": "b) They will sing.",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Pick the comparative of \"tall\".",
+     "options": [
+      "a) tallest",
+      "b) taller",
+      "c) more tallest",
+      "d) tall"
+     ],
+     "answer": "b) taller",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "question": "Which word is a preposition?",
+     "options": [
+      "a) under",
+      "b) jump",
+      "c) sweet",
+      "d) quietly"
+     ],
+     "answer": "b) jump",
+     "marks": 1,
+     "blooms": "Remember"
+    }
+   ]
+  }
+ }
+}

@@ -22,10 +22,12 @@ const BLOOMS = Object.freeze({
 });
 const KINDS = new Set(['M', 'A', 'U', 'K', 'L']);
 
-const POINT_TEXT_MAX = 160;
+// A cut marking line is a wrong instruction, so the caps only stop a runaway:
+// recorded scheme lines run to ~210 code points (accept), ~175 (point, error).
+const POINT_TEXT_MAX = 240;
 const ACCEPT_MAX = 6;
-const ACCEPT_TEXT_MAX = 80;
-const COMMON_ERROR_MAX = 160;
+const ACCEPT_TEXT_MAX = 240;
+const COMMON_ERROR_MAX = 240;
 const SUM_TOLERANCE = 1e-9;
 
 const TREES = ['unseen', 'seen'];
@@ -214,9 +216,10 @@ function checkPicks(q, parts, pickSpec, slot, label, log, shortfall) {
         log.push(`${label}: pick ${kind} "${word}" is not in the passage, dropped`);
       } else if (kept.includes(word)) {
         log.push(`${label}: pick ${kind} "${word}" listed twice, kept once`);
-      } else {
+      } else if (kept.length < needed) {
         kept.push(word);
       }
+      // A valid word past the number needed is a spare: dropped without a log line.
     }
     if (got) {
       if (key !== null && key !== kind) delete got[key];

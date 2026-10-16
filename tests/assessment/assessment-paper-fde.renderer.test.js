@@ -289,7 +289,7 @@ describe('the Urdu paper', () => {
         'Word Meanings': items(1, 'urdu.C.Q3', () => ({ words: ['سانحہ', 'شاطر', 'بوسیدہ', 'ہول ناک', 'کڑا', 'اعانت', 'تعیناتی'], answer: 'معنی' })),
         'Rewrite Sentences': items(4, 'urdu.C.Q4', (i) => ({ question: `ہدایت ${i + 1}`, answer: 'جواب' })),
         'Word Sentences': items(1, 'urdu.C.Q5', () => ({ words: ['باغ', 'پانی', 'شام', 'دوست', 'آگ بگولا ہونا', 'آنکھ کا تارا', 'ہاتھ بٹانا'], answer: 'جملے' })),
-        'Poem Explanation': items(1, 'urdu.C.Q6', () => ({ question: 'درج ذیل اشعار کا مفہوم واضح کریں۔', passage: 'سطر ایک\nسطر دو', answer: 'مفہوم' })),
+        'Poem Explanation': items(1, 'urdu.C.Q6', () => ({ question: 'درج ذیل اشعار کا مفہوم واضح کریں۔', passage: 'سطر ایک\nسطر دو\nسطر تین\nسطر چار', answer: 'مفہوم' })), // needs fluent-Urdu review (four lines: Q6 prints four verses)
         'Picture Description': items(1, 'urdu.C.Q7', () => ({ question: 'باغ کی سیر', words: ['باغ', 'بچے', 'پھول'], answer: 'تصویر' })),
         'Paragraph Writing': items(2, 'urdu.C.Q8', (i) => ({ question: i ? 'دو دوستوں کے درمیان صفائی پر مکالمہ تحریر کریں۔' : 'میرا وطن', answer: 'خاکہ' })),
         'Story Writing': items(2, 'urdu.C.Q9', (i) => ({ question: i ? 'ایک دن…' : '"اتفاق میں برکت ہے"', answer: 'کہانی' })),
@@ -374,7 +374,8 @@ describe('the marking scheme', () => {
   it('the MCQ strip, ✓ checked on an ok row, and the notes block', () => {
     const html = scheme(mathsPaper());
     const text = visible(html);
-    expect(text).toContain('i b · ii b · iii b');
+    // The layout spreads MCQ keys over the letters, so the strip is no longer all (b).
+    expect(text).toMatch(/Q1 \(a\) i [a-d] · ii [a-d] · iii [a-d]/);
     expect((html.match(/class="chip checked"/g) || []).length).toBeGreaterThan(5);
     expect(text).toContain('Notes');
     expect(text).toContain('Q2 (xii): key corrected by code; the model wrote 44.5.');

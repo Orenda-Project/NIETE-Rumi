@@ -38,6 +38,11 @@ const UNIT_WORD = {
   maths: ['Units', 'ابواب'], science: ['Chapters', 'ابواب'], english: ['Units', 'یونٹ'], // ur: needs fluent-Urdu review
   urdu: ['Lessons', 'اسباق'], social_studies: ['Chapters', 'ابواب'], // ur: needs fluent-Urdu review
 };
+// One chapter in scope: "Unit 3", never "Units 3".
+const UNIT_WORD_ONE = {
+  maths: ['Unit', 'باب'], science: ['Chapter', 'باب'], english: ['Unit', 'یونٹ'], // ur: needs fluent-Urdu review
+  urdu: ['Lesson', 'سبق'], social_studies: ['Chapter', 'باب'], // ur: needs fluent-Urdu review
+};
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -82,9 +87,15 @@ function scopeBlock(P, scope) {
   let coversEn = null;
   let coversUr = null;
   if (chapters && chapters.length) {
-    const [en, ur] = UNIT_WORD[P.key] || UNIT_WORD.maths;
+    const one = new Set(chapters).size === 1;
+    const [en, ur] = (one ? UNIT_WORD_ONE : UNIT_WORD)[P.key] || (one ? UNIT_WORD_ONE : UNIT_WORD).maths;
     coversEn = P.header.covers_partial_en.replace('{units}', `${en} ${runs(chapters)}`);
     coversUr = P.header.covers_partial_ur.replace('{units}', `${ur} ${runs(chapters)}`);
+    if (one) {
+      // The template's own "these units/chapters/lessons" / «انہی ابواب/اسباق» read as one too.
+      coversEn = coversEn.replace(/\bthese (units|chapters|lessons)\b/, `this ${en.toLowerCase()}`);
+      coversUr = coversUr.replace(/انہی (ابواب|اسباق)/, `اسی ${ur}`); // needs fluent-Urdu review
+    }
   } else if (pages) {
     coversEn = P.header.covers_partial_en.replace('{units}', `pp ${pages}`);
     coversUr = P.header.covers_partial_ur.replace('{units}', `ص ${pages}`);
@@ -143,6 +154,227 @@ function suppliesFor(P, bySlot) {
   return out;
 }
 
+// ── Urdu Q6: the four lesson-7 lines ──────────────────────────────────────
+
+const VERSES_NEEDED = 4;
+
+// The lines of a piece of text, and how they were joined (to put a remainder back the same way).
+function verseLines(text) {
+  const s = typeof text === 'string' ? text.trim() : '';
+  if (!s) return { lines: [], joiner: '\n' };
+  const byLine = s.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (byLine.length > 1) return { lines: byLine, joiner: '\n' };
+  // One line of text: verses run on, each ending in «۔», «؟» or «،».
+  return { lines: s.split(/(?<=[۔؟،])\s+/).map((l) => l.trim()).filter(Boolean), joiner: ' ' };
+}
+
+/**
+ * A seen-verses item prints `passage` and nothing else. A reply that put the
+ * lines in `question` has them moved; one with no four lines anywhere cannot
+ * be printed (the child would be asked to explain verses the paper does not
+ * show) and is not placed, so the slot reports short. Returns false for that.
+ */
+function settleVerses(slot, q) {
+  if (!Array.isArray(slot.alternatives) || !slot.alternatives.some((a) => a && a.kind === 'seen_verses')) return true;
+  if (verseLines(q.passage).lines.length >= VERSES_NEEDED) return true;
+  const { lines, joiner } = verseLines(q.question);
+  if (lines.length < VERSES_NEEDED) return false;
+  // The verses are the last four lines; anything above them is the instruction.
+  const lead = lines.slice(0, lines.length - VERSES_NEEDED).join(joiner);
+  q.passage = lines.slice(-VERSES_NEEDED).join('\n');
+  q.question = lead || (typeof q.main_question === 'string' && q.main_question.trim() ? q.main_question : '');
+  return true;
+}
+
+// ── MCQ keys spread over the letters ──────────────────────────────────────
+//
+// A model keys about half its MCQs on (b) and almost none on (d); a child who
+// always ticks (b) passes the section. Each item's options are turned round
+// (their order otherwise kept) so the keys spread evenly across the letters.
+// The key keeps its text and its shape; only the letter changes.
+
+const URDU_LETTERS = ['الف', 'ب', 'ج', 'د'];
+const LATIN_KEY = /^(\s*\(?)([a-dA-D])(\)?(?:[.):\s]|$))/;
+const URDU_KEY = /^(\s*\(?)(الف|ب|ج|د)(\s*[.):۔]|\)?\s*$)/;
+// Options in an order of their own: turning them round would misplace them.
+const POSITIONAL = [
+  /^\s*(both|neither)\b/i,
+  /^\s*(they|the two)( numbers)? are (equal|the same)\b/i,
+  /\b(none|all) of (these|those|them|the above)\b/i,
+  /\b(can ?not|can't) be (determined|found|said)\b/i,
+  /ان میں سے کوئی نہیں/, /^\s*تمام/, /^\s*دونوں/,
+];
+const UNIT_WORDS = /\b(?:rs|rupees?|paisa|cm2?|mm|km|kg|g|ml|l|m2?|sq|units?|hours?|hrs?|minutes?|mins?|seconds?|days?|weeks?|years?|litres?|liters?|metres?|meters?)\b\.?/gi;
+
+// The same reading as the renderer's bareOption: a model's own "a) " / «الف)» removed.
+function bare(text) {
+  return String(text ?? '')
+    .replace(/^\s*\(?[a-dA-D]\)?[.):]\s+/, '')
+    .replace(/^\s*\(?(الف|ب|ج|د)\)?\s*[.):۔]\s*/, '')
+    .trim();
+}
+
+// The value of an option that is only a number ("Rs. 30", "84 cm2", "1 1/2", "75%"), else NaN.
+function numberOf(text) {
+  const raw = bare(text);
+  const scale = /%/.test(raw) ? 100 : 1;
+  const s = raw.replace(UNIT_WORDS, '').replace(/[%°²³]/g, '').replace(/,/g, '').trim();
+  let m = /^(\d+(?:\.\d+)?)$/.exec(s);
+  if (m) return Number(m[1]) / scale;
+  m = /^(\d+)\/(\d+)$/.exec(s);
+  if (m && Number(m[2])) return Number(m[1]) / Number(m[2]) / scale;
+  m = /^(\d+)\s+(\d+)\/(\d+)$/.exec(s);
+  if (m && Number(m[3])) return (Number(m[1]) + Number(m[2]) / Number(m[3])) / scale;
+  return NaN;
+}
+
+// Words with a natural order of their own: roman numerals, ordinals, weekdays, months.
+const ORDINAL_WORDS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
+const URDU_ORDINALS = ['پہلا', 'دوسرا', 'تیسرا', 'چوتھا', 'پانچواں', 'چھٹا', 'ساتواں', 'آٹھواں', 'نواں', 'دسواں'];
+const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const ROMAN = { i: 1, v: 5, x: 10, l: 50, c: 100 };
+
+function romanOf(t) {
+  if (!/^(?:x{0,3})(?:ix|iv|v?i{0,3})$/i.test(t) || !t) return NaN;
+  const d = [...t.toLowerCase()].map((c) => ROMAN[c]);
+  return d.reduce((sum, v, i) => sum + (v < (d[i + 1] || 0) ? -v : v), 0);
+}
+
+const SCALES = [
+  (t) => romanOf(t),
+  (t) => { const m = /^(\d+)(?:st|nd|rd|th)$/i.exec(t); return m ? Number(m[1]) : NaN; },
+  (t) => { const i = ORDINAL_WORDS.indexOf(t.toLowerCase().replace(/[.!]$/, '')); return i < 0 ? NaN : i; },
+  (t) => { const i = URDU_ORDINALS.indexOf(t.replace(/[۔.]$/, '')); return i < 0 ? NaN : i; },
+  (t) => { const i = WEEKDAYS.indexOf(t.toLowerCase().replace(/[.!]$/, '')); return i < 0 ? NaN : i; },
+  (t) => { const i = MONTHS.indexOf(t.toLowerCase().replace(/[.!]$/, '')); return i < 0 ? NaN : i; },
+  numberOf,
+];
+
+// Numbers, or words with an order of their own, printed in order (either way).
+function inNumberOrder(texts) {
+  return SCALES.some((scale) => monotonic(texts.map((t) => scale(t.trim()))));
+}
+
+function monotonic(v) {
+  if (v.some(Number.isNaN)) return false;
+  const up = v.every((x, i) => i === 0 || x > v[i - 1]);
+  const down = v.every((x, i) => i === 0 || x < v[i - 1]);
+  return up || down;
+}
+
+// Where the key points and how to write it again at another letter; null when unsure.
+function readKey(q) {
+  const opts = q.options;
+  if (!Array.isArray(opts) || opts.length < 2 || opts.length > 4) return null;
+  if (!opts.every((o) => typeof o === 'string' && bare(o))) return null;
+  const texts = opts.map(bare);
+  if (new Set(texts).size !== texts.length) return null;
+  if (texts.some((t) => POSITIONAL.some((re) => re.test(t)))) return null;
+  if (inNumberOrder(texts)) return null;
+  const answer = typeof q.answer === 'string' ? q.answer : '';
+  const rest = bare(answer);
+  const latin = LATIN_KEY.exec(answer);
+  const urdu = latin ? null : URDU_KEY.exec(answer);
+  const byText = texts.indexOf(rest);
+  if (latin || urdu) {
+    const m = latin || urdu;
+    const index = latin ? m[2].toLowerCase().charCodeAt(0) - 97 : URDU_LETTERS.indexOf(m[2]);
+    if (index >= texts.length) return null;
+    // "b) text" must name the option at (b); a key whose text and letter disagree is left alone.
+    if (rest && rest !== answer.trim() && rest !== texts[index]) return null;
+    // "A cat" is a text key that starts like a letter, not the letter (a).
+    if (rest === answer.trim() && !/^\s*\(?\S{1,3}\)?\s*$/.test(answer)) return null;
+    // A bare-text key that only looks like a letter ("a cat") is left alone too.
+    if (byText >= 0 && byText !== index) return null;
+    const write = (to) => {
+      const letter = latin
+        ? (m[2] === m[2].toUpperCase() ? 'ABCD' : 'abcd')[to]
+        : URDU_LETTERS[to];
+      return `${m[1]}${letter}${answer.slice(m[1].length + m[2].length)}`;
+    };
+    return { index, write };
+  }
+  if (byText < 0) return null;
+  return { index: byText, write: () => answer };
+}
+
+// The letter a key sits on, for an item that is not turned (it still counts).
+function keyAt(q) {
+  const answer = typeof q.answer === 'string' ? q.answer : '';
+  const latin = LATIN_KEY.exec(answer);
+  if (latin) return latin[2].toLowerCase().charCodeAt(0) - 97;
+  const urdu = URDU_KEY.exec(answer);
+  if (urdu) return URDU_LETTERS.indexOf(urdu[2]);
+  return Array.isArray(q.options) ? q.options.map(bare).indexOf(bare(answer)) : -1;
+}
+
+// Labels a model wrote on its options stay with the position: (a) is still first.
+function turned(options, by) {
+  const n = options.length;
+  const prefix = options.map((o) => { const b = bare(o); return o.slice(0, o.lastIndexOf(b)); });
+  return options.map((_, i) => `${prefix[i]}${bare(options[(i - by + n) % n])}`);
+}
+
+// FNV-1a over the paper's own words, then mulberry32: same paper, same letters.
+function seedOf(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h;
+}
+
+function random(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Spread the keys of every MCQ slot's items; returns how many items were turned. */
+function spreadKeys(slots, bySlot) {
+  const mcqs = [];
+  for (const slot of slots) {
+    if (slot.shape !== 'mcq') continue;
+    for (const q of bySlot.get(slot.slot)) if (Array.isArray(q.options)) mcqs.push(q);
+  }
+  if (!mcqs.length) return 0;
+  const next = random(seedOf(mcqs.map((q) => `${q.question || ''}\u0001${(q.options || []).join('\u0002')}`).join('\u0003')));
+  const counts = [0, 0, 0, 0];
+  const movable = [];
+  for (const q of mcqs) {
+    const key = readKey(q);
+    if (key) movable.push({ q, key });
+    else {
+      const at = keyAt(q);
+      if (at >= 0 && at < 4) counts[at] += 1;
+    }
+  }
+  // Visit in a seeded order; each item goes to the letter with fewest keys so far
+  // that it can reach (ties broken by the seed).
+  const order = movable.map((m, i) => ({ m, r: next(), i })).sort((a, b) => a.r - b.r || a.i - b.i);
+  let moved = 0;
+  for (const { m } of order) {
+    const n = m.q.options.length;
+    const reach = Array.from({ length: n }, (_, i) => i);
+    const least = Math.min(...reach.map((i) => counts[i]));
+    const choices = reach.filter((i) => counts[i] === least);
+    const to = choices[Math.floor(next() * choices.length)];
+    counts[to] += 1;
+    if (to === m.key.index) continue;
+    m.q.options = turned(m.q.options, (to - m.key.index + n) % n);
+    m.q.answer = m.key.write(to);
+    moved += 1;
+  }
+  return moved;
+}
+
 /**
  * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
  *
@@ -167,15 +399,16 @@ function applyLayout(examJson, P, scope, opts = {}) {
       slot = slots.find((s) => slotKey(s.slot).endsWith(tail));
     }
     if (!slot) { untagged.push(entry); continue; }
-    if (room(slot)) bySlot.get(slot.slot).push(entry.q);
+    if (room(slot) && settleVerses(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
     else unplaced += 1;
   }
   for (const entry of untagged) {
     const key = typeKey(entry.type);
     const slot = slots.find((s) => typeKey(s.type) === key && room(s));
-    if (slot) bySlot.get(slot.slot).push(entry.q);
+    if (slot && settleVerses(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
     else unplaced += 1;
   }
+  spreadKeys(slots, bySlot);
 
   // Marks, lines and the canonical tag come from the pattern, never the model.
   const unseen = {};

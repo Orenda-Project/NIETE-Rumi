@@ -1,0 +1,32 @@
+{
+ "_about": "One Urdu Q6 item as a model wrote it: the four lesson-7 lines (from the textbook) in `question`, the instruction in `main_question`, no `passage`. Trimmed from a recorded reply. Used by fde-r5-layout.test.js.",
+ "unseen": {
+  "objective": {},
+  "subjective": {
+   "Poem Explanation": [
+    {
+     "slot": "urdu.C.Q6",
+     "main_question": "درج ذیل اشعار کا مفہوم واضح کریں۔",
+     "question": "یہ گندگی ہے کیسی آئی ہے یہ کہاں سے؟\nشہروں کی یہ غلاظت آئی ہے کیسے بہہ کے؟\nدم گھٹ رہا ہے میرا بدبو ہے جان لیوا\nگرتا ہے مجھ میں آکے شہروں کا گندہ نالہ",
+     "marks": 5,
+     "lines": 6,
+     "answer": "مفہوم: ان اشعار میں ندی اپنی حالت زار بیان کر رہی ہے کہ یہ شہروں کی گندگی اور غلاظت بہہ کر اس میں کہاں سے آ گئی ہے۔ اس گندگی اور گندے نالوں کے گرنے کی وجہ سے ندی کا دم گھٹ رہا ہے اور اس کی جان لیوا بدبو سے اس کا برا حال ہے۔",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "text": "5 marks for a clear and accurate explanation of the verses",
+        "marks": 5,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "Any explanation that captures the river's complaint about pollution"
+      ],
+      "common_error": "Copying the verses without explaining the meaning"
+     }
+    }
+   ]
+  }
+ }
+}
