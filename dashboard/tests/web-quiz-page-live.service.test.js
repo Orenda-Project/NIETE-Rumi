@@ -47,6 +47,16 @@ describe('card: how many children of the class finished today, never a place', (
     expect(line(cardWith('ur', 6))).toBe('آج آپ کی کلاس میں <bdi>۶</bdi> بچوں نے یہ کوئز مکمل کیا۔');
     expect(line(cardWith('ur', 12))).toBe('آج آپ کی کلاس میں <bdi>۱۲</bdi> بچوں نے یہ کوئز مکمل کیا۔');
   });
+  // No class count under 5 (a "2 children finished" line tells a child exactly one classmate did): 2–4 say the
+  // one-finisher line, 5 and up the count.
+  test.each([2, 3, 4])('n = %i: the one-finisher line, EN + UR, no count', (n) => {
+    expect(line(cardWith('en', n))).toBe('You finished this quiz today!');
+    expect(line(cardWith('ur', n))).toBe('آج آپ نے یہ کوئز مکمل کر لیا۔');
+  });
+  test('n = 5: the count, EN + UR', () => {
+    expect(line(cardWith('en', 5))).toBe('<bdi>5</bdi> children in your class finished this quiz today.');
+    expect(line(cardWith('ur', 5))).toBe('آج آپ کی کلاس میں <bdi>۵</bdi> بچوں نے یہ کوئز مکمل کیا۔');
+  });
   test.each(['en', 'ur'])('%s: no place word on the card, any grade', (lang) => {
     for (const n of [1, 2, 3, 6, 11]) for (const g of [1, 3, 5]) expect(cardWith(lang, n, g)).not.toMatch(PLACE);
   });
