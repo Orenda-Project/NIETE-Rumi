@@ -52,7 +52,7 @@ async function loadSentQuizzes(teacherId, needed) {
   if (error) throw new Error(error.message);
   let sent = [];
   try { sent = await Data.sentQuizzes(teacherId); } catch (err) {
-    logToFile('⚠️ quiz reports: sent-quiz read failed — own quizzes only', { userId: teacherId, error: err.message });
+    logToFile('⚠️ quiz reports: sent-quiz read failed — own quizzes only', { error: err.message });
   }
   if (!sent.length) return data || [];
   const at = (q) => String(q.sent_at || q.created_at || '');
@@ -180,7 +180,7 @@ async function handleReportsPick(listId, phone, user) {
   let quiz = own;
   if (!quiz) {
     try { quiz = await Data.sentQuiz(user.id, quizId); } catch (err) {
-      logToFile('⚠️ quiz reports: sent-quiz read failed — not found', { userId: user.id, error: err.message });
+      logToFile('⚠️ quiz reports: sent-quiz read failed — not found', { quizId, error: err.message });
     }
   }
   if (!quiz) {

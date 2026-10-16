@@ -82,7 +82,8 @@ const session = (id, scId, quizId, studentId, name, correct, h, extra = {}) => (
 function seed({ home = true, web = true, authorClass = false } = {}) {
   const fake = makeFake({
     app_settings: [
-      ...(home === null ? [] : [{ key: 'quiz_teacher_home', value: home ? 'true' : 'false' }]),
+      // home: true/false → 'true'/'false'; null → no row; anything else is written as the row's value as it is
+      ...(home === null ? [] : [{ key: 'quiz_teacher_home', value: typeof home === 'boolean' ? (home ? 'true' : 'false') : home }]),
       { key: 'teacher_report_teachers', value: JSON.stringify('all') },
       ...(web ? [{ key: 'web_quiz_enabled', value: 'true' }, { key: 'web_quiz_teachers', value: JSON.stringify('all') }] : []),
     ],
@@ -294,13 +295,57 @@ describe('a failed read on the sender\'s side', () => {
 });
 
 describe('switch off: today\'s, byte for byte', () => {
-  test.each([['false', false], ['absent', null]])('quiz_teacher_home %s: the sender is refused, the class tab has no library sends', async (_, home) => {
-    seed({ home });
+  const offAsToday = async () => {
     expect(await Data.quizReport(SENDER, LQ)).toBeNull();
     expect(await Data.quizReport(SENDER, VQ)).toBeNull();
     const b = await Data.classReport(SENDER, { now: NOW });
     expect(b.quizzes).toEqual([]);
     expect(JSON.stringify(await Data.quizReport(AUTHOR, LQ))).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
+  };
+
+  test.each([['false', false], ['absent', null], ['"yes"', 'yes'], ['1', 1], ['{}', {}]])('quiz_teacher_home %s: the sender is refused, the class tab has no library sends', async (_, home) => {
+    seed({ home });
+    await offAsToday();
+  });
+
+  test('a failed quiz_teacher_home read: the sender is refused, the class tab has no library sends', async () => {
+    const fake = seed();
+    // the switch row is there and true, but reading it throws: off
+    const sb = require('../../../shared/config/supabase');
+    sb.from = (t) => {
+      const b = fake.from(t);
+      if (t !== 'app_settings') return b;
+      const { eq } = b;
+      b.eq = (c, v) => { if (c === 'key' && v === 'quiz_teacher_home') throw new Error('settings down'); return eq.call(b, c, v); };
+      return b;
+    };
+    await offAsToday();
+    const { logToFile } = require('../../../shared/utils/logger');
+    expect(logToFile.mock.calls.some(([m]) => String(m).includes('teacher home: settings lookup failed'))).toBe(true);
+  });
+});
+
+describe('the sender-side log lines', () => {
+  const Log = () => require('../../../shared/utils/logger');
+  const calls = (msg) => Log().logToFile.mock.calls.filter(([m]) => String(m).includes(msg));
+
+  test('a failed sent-quiz read logs the error, never whose it is', async () => {
+    seed();
+    jest.spyOn(Data, 'sentQuizzes').mockRejectedValue(new Error('boom-list'));
+    jest.spyOn(Data, 'sentQuiz').mockRejectedValue(new Error('boom-pick'));
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    await List.showReports({ id: SENDER, preferred_language: 'en' }, '000b', 'en');
+    await List.handleReportsPick(`tqr_${LQ}`, '000b', { id: SENDER, preferred_language: 'en' });
+    const list = calls('sent-quiz read failed — own quizzes only');
+    const pick = calls('sent-quiz read failed — not found');
+    expect(list).toHaveLength(1);
+    expect(pick).toHaveLength(1);
+    expect(list[0][1]).toEqual({ error: 'boom-list' });
+    expect(pick[0][1]).toEqual({ quizId: LQ, error: 'boom-pick' });
+    [...list, ...pick].forEach(([, payload]) => {
+      expect(payload).not.toHaveProperty('userId');
+      expect(JSON.stringify(payload)).not.toContain(SENDER);
+    });
   });
 });
 
