@@ -127,6 +127,12 @@ function shortLabel(label) {
 }
 
 // One line per thing the teacher must bring: a frame to fill, the Naat page.
+function pageOf(value) {
+  const m = /^\s*(?:(?:book\s+)?(?:page|p\.?|pg\.?|ص|صفحہ)\s*)?(\d{1,3})\s*$/i.exec(value === null || value === undefined ? '' : String(value));
+  const n = m ? Number(m[1]) : NaN;
+  return n > 0 ? n : null;
+}
+
 function suppliesFor(P, bySlot) {
   const out = [];
   const S = P.supplies;
@@ -146,8 +152,9 @@ function suppliesFor(P, bySlot) {
       }
       if (!slot.frame || !placed.length) continue;
       const q = placed[0];
-      const book = Number.isFinite(Number(q.book_page)) && q.book_page !== null && q.book_page !== ''
-        ? Number(q.book_page) : slot.frame.book_page;
+      // The page the item names ("168", 168, "Page 7", "p. 7"); one that does not read as a
+      // page prints none, never the pattern's own example page.
+      const book = pageOf(q.book_page);
       const name = String(q.question || '').trim();
       const frameEn = fill(slot.frame.supply_en, { q: name });
       const frameUr = fill(slot.frame.supply_ur, { q: name });

@@ -793,11 +793,12 @@ const FILE_MARK = '\uE000';
 
 /*
  * A frame the teacher fills from the book when no book page is confirmed
- * (the Social Studies map): the scheme names the book's own map and prints no
+ * (the Social Studies map, a Science diagram whose page the item does not give): the scheme names the book's own map and prints no
  * page, rather than a page nobody has checked.
  */
 const BOOK_SOURCE = {
   map: { en: "the book's outline map", ur: 'کتاب کا خاکہ نقشہ' }, // ur: needs fluent-Urdu review
+  diagram: { en: "the book's diagram", ur: 'کتاب کا خاکہ' }, // ur: needs fluent-Urdu review
 };
 
 function beforeExamBox(L, live, ctx, paperFileName, grade) {
