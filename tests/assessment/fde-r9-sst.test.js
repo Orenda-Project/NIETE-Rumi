@@ -69,3 +69,37 @@ describe('round-5 Social Studies prompt rule', () => {
     }
   });
 });
+
+// Social Studies T4: the abstract sstQ56 rule left full papers' Q6 as six book-list explanations
+// (attempt-weighted Apply 7 %); the model follows counted slot rules, as Maths Q2 showed.
+describe('round-5 Social Studies counted situations', () => {
+  const slot = (id) => P.social_studies.sections.flatMap((s) => s.slots).find((s) => s.slot === id);
+  const Q5 = 'Of the 9 Q5 items, at least 5 give a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and ask the child to use a concept from these pages to decide or explain; the rest may explain or compare book facts.';
+  const Q6 = 'Of the 6 Q6 items, at least 3 give a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and ask the child to use a concept from these pages to decide or explain; the rest may explain or compare book facts.';
+
+  test('sst situations: counted Q5 in C and Q6 in D, every scope', () => {
+    // Counts read from the pattern: half of each slot's generated items, rounded up.
+    expect([slot('social_studies.C.Q5').generate, slot('social_studies.D.Q6').generate]).toEqual([9, 6]);
+    for (const scope of ALL_SCOPES) {
+      const c = prompt('social_studies', 'C', scope);
+      const d = prompt('social_studies', 'D', scope);
+      expect(c).toContain(Q5);
+      expect(c).not.toContain(Q6);
+      expect(d).toContain(Q6);
+      expect(d).not.toContain(Q5);
+      for (const id of ['A', 'B']) {
+        expect(prompt('social_studies', id, scope)).not.toContain(Q5);
+        expect(prompt('social_studies', id, scope)).not.toContain(Q6);
+      }
+      // Marks and counts stay as the pattern has them.
+      expect(c).toContain('generate EXACTLY 9 items');
+      expect(d).toContain('generate EXACTLY 6 items');
+    }
+  });
+
+  test('sst situations: no other subject carries them', () => {
+    for (const subject of SUBJECTS.filter((s) => s !== 'social_studies')) {
+      for (const id of sectionIds(subject)) expect(prompt(subject, id, CHAPTERS)).not.toMatch(/Q[56] items, at least/);
+    }
+  });
+});
