@@ -1,0 +1,483 @@
+{
+ "rows": [
+  {
+   "week": "2026-W42",
+   "line": "plays",
+   "cell": "check",
+   "value": 2,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "lamps_settled_day",
+   "cell": "2026-10-13",
+   "value": 2,
+   "n": 5,
+   "computed_at": "2026-10-13T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "fixtures_excluded",
+   "cell": "",
+   "value": 1,
+   "n": 5,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "plays",
+   "cell": "practice",
+   "value": 1,
+   "n": 1,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "provenance_incomplete",
+   "cell": "",
+   "value": 4,
+   "n": 4,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "roster_bound_pct",
+   "cell": "",
+   "value": 0.5,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "helped_pct",
+   "cell": "G23|ur|read",
+   "value": 0.5,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "no_class_first_finishes",
+   "cell": "",
+   "value": 0.5,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "record_duplicates",
+   "cell": "",
+   "value": 0,
+   "n": 4,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "lost_readings",
+   "cell": "G23|ur",
+   "value": 0.3333333333333333,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "lost_readings_swept",
+   "cell": "G23|ur",
+   "value": 0,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "lost_readings_draw",
+   "cell": "b2|ur",
+   "value": 0.3333333333333333,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "b3_bottom_share",
+   "cell": "G23|ur",
+   "value": 1,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "provenance_drift",
+   "cell": "high_unproven",
+   "value": 4,
+   "n": 4,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "provenance_drift",
+   "cell": "homonym_missed",
+   "value": 0,
+   "n": 4,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "classes_link_eligible",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "kept_audio_keys",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "kept_audio_match",
+   "cell": "",
+   "value": 1,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "kept_audio_oldest_d",
+   "cell": "",
+   "value": null,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sends",
+   "cell": "home_reply",
+   "value": 5,
+   "n": 5,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sends",
+   "cell": "bind_reply",
+   "value": 3,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sends_total",
+   "cell": "",
+   "value": 8,
+   "n": 8,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sends_usd",
+   "cell": "",
+   "value": 0.12,
+   "n": 8,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "bot_to_family",
+   "cell": "",
+   "value": 0,
+   "n": 8,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "door_mix_numerator",
+   "cell": "",
+   "value": 5,
+   "n": 5,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "replies_per_bound_child",
+   "cell": "",
+   "value": 8,
+   "n": 1,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "lamps_settled_unanswered",
+   "cell": "",
+   "value": 2,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "teacher_accepted_share",
+   "cell": "roster_unique_with_loose",
+   "value": null,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "teacher_accepted_held",
+   "cell": "roster_unique_with_loose",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "teacher_accepted_share",
+   "cell": "probable",
+   "value": null,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "teacher_accepted_held",
+   "cell": "probable",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "recognised_without_typing",
+   "cell": "first",
+   "value": 2,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "recognised_without_typing",
+   "cell": "le7",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "recognised_without_typing",
+   "cell": "gt7",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "kept_audio_all",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sent",
+   "cell": "capped",
+   "value": 3,
+   "n": 8,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "bind_funnel",
+   "cell": "codes",
+   "value": 1,
+   "n": 1,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "bind_funnel",
+   "cell": "bound",
+   "value": 1,
+   "n": 1,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "implausible",
+   "cell": "ur",
+   "value": 0,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "implausible",
+   "cell": "ur|no_speech",
+   "value": 0,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "implausible",
+   "cell": "ur|low_stt_support",
+   "value": 0,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "implausible",
+   "cell": "ur|no_aligned_words",
+   "value": 0,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "implausible",
+   "cell": "ur|low_story_confidence",
+   "value": 0,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  }
+ ],
+ "queries": [
+  "web_quiz_challenge_runs.select([\"id, student_id, canonical_id, exercise, grade, lang, status, created_at, scored_at, meta, score, mode, form, band, record, class_id, helped, exposure_no, bank_version, period_id, id_src, id_confidence, homonym_in_list, anchor_exposure_no, anchor_block, audio_consent, audio_keep_until\"]).gte([\"created_at\",\"2026-10-11T19:00:00.000Z\"]).lt([\"created_at\",\"2026-10-18T19:00:00.000Z\"]).order([\"created_at\",{\"ascending\":true}]).limit([1000])",
+  "web_quiz_challenge_runs.select([\"id, student_id, canonical_id, exercise, grade, lang, status, created_at, scored_at, meta, score, mode, form, band, record, class_id, helped, exposure_no, bank_version, period_id, id_src, id_confidence, homonym_in_list, anchor_exposure_no, anchor_block, audio_consent, audio_keep_until\"]).eq([\"period_id\",\"2026-10\"]).eq([\"mode\",\"check\"]).eq([\"status\",\"scored\"]).lt([\"created_at\",\"2026-10-18T19:00:00.000Z\"]).order([\"created_at\",{\"ascending\":true}]).limit([1000])",
+  "app_settings.select([\"key, value\"]).eq([\"key\",\"web_quiz_fixture_rule\"])",
+  "students.select([\"id, student_name, list_id\"]).in([\"id\",[\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\",\"dddddddd-dddd-4ddd-8ddd-dddddddddddd\",\"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee\"]]).order([\"id\",{\"ascending\":true}]).limit([1000])",
+  "child_rungs.select([\"canonical_id, ladder, rung, set_at\"]).eq([\"ladder\",\"reading\"]).in([\"canonical_id\",[\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\"]])",
+  "students.select([\"id, list_id, merged_into, status, student_name\"]).in([\"id\",[\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\"]]).order([\"id\",{\"ascending\":true}]).limit([1000])",
+  "students.select([\"id, list_id, merged_into, status, student_name\"]).in([\"id\",[\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\",\"dddddddd-dddd-4ddd-8ddd-dddddddddddd\"]]).order([\"id\",{\"ascending\":true}]).limit([1000])",
+  "classes.select([\"id\"]).eq([\"is_active\",true]).order([\"id\",{\"ascending\":true}]).limit([1000])",
+  "class_teachers.select([\"class_id\"]).eq([\"is_active\",true]).order([\"class_id\",{\"ascending\":true}]).limit([1000])",
+  "class_enrollments.select([\"class_id\"]).eq([\"is_active\",true]).order([\"class_id\",{\"ascending\":true}]).limit([1000])",
+  "web_quiz_challenge_runs.select([\"id, created_at, scored_at, meta\"]).not([\"meta->>audio_key\",\"is\",null]).order([\"created_at\",{\"ascending\":true}]).limit([1000])",
+  "web_quiz_challenge_runs.select([\"id, created_at, audio_keep_until\"]).eq([\"audio_consent\",\"kept_ok\"]).order([\"created_at\",{\"ascending\":true}]).limit([1000])",
+  "message_ledger.select([\"day, trigger, initiated, recipient, count, usd\"]).gte([\"day\",\"2026-10-12\"]).lt([\"day\",\"2026-10-19\"])",
+  "child_phone_bindings.select([\"id, canonical_id, bound_at, expires_at, revoked_at\"]).lt([\"bound_at\",\"2026-10-18T19:00:00.000Z\"]).order([\"bound_at\",{\"ascending\":true}]).limit([1000])",
+  "web_quiz_strip_weekly.select([\"cell, value\"]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"lamps_settled_day\"])",
+  "web_quiz_strip_weekly.select([\"cell, value, n\"]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"reply_cap_day\"])",
+  "app_settings.select([\"key, value\"]).eq([\"key\",\"web_quiz_reply_cap_per_phone\"])",
+  "app_settings.select([\"key, value\"]).eq([\"key\",\"web_quiz_fixture_rule\"])",
+  "merge_log.select([\"id\",{\"count\":\"exact\",\"head\":true}]).eq([\"source\",\"queue\"]).eq([\"tier\",\"roster_unique_with_loose\"]).eq([\"decision\",\"same\"])",
+  "merge_log.select([\"id\",{\"count\":\"exact\",\"head\":true}]).eq([\"source\",\"queue\"]).eq([\"tier\",\"roster_unique_with_loose\"]).eq([\"decision\",\"no\"])",
+  "merge_log.select([\"id\",{\"count\":\"exact\",\"head\":true}]).eq([\"source\",\"queue\"]).eq([\"tier\",\"roster_unique_with_loose\"]).eq([\"decision\",\"undo\"])",
+  "merge_log.select([\"id\",{\"count\":\"exact\",\"head\":true}]).eq([\"source\",\"queue\"]).eq([\"tier\",\"probable\"]).eq([\"decision\",\"same\"])",
+  "merge_log.select([\"id\",{\"count\":\"exact\",\"head\":true}]).eq([\"source\",\"queue\"]).eq([\"tier\",\"probable\"]).eq([\"decision\",\"no\"])",
+  "merge_log.select([\"id\",{\"count\":\"exact\",\"head\":true}]).eq([\"source\",\"queue\"]).eq([\"tier\",\"probable\"]).eq([\"decision\",\"undo\"])",
+  "web_quiz_challenge_runs.select([\"id, student_id, canonical_id, created_at\"]).in([\"canonical_id\",[\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\"]]).gte([\"created_at\",\"2026-09-06T19:00:00.000Z\"]).lt([\"created_at\",\"2026-10-11T19:00:00.000Z\"]).order([\"created_at\",{\"ascending\":true}]).limit([1000])",
+  "web_quiz_challenge_runs.select([\"id, student_id, canonical_id, created_at\"]).in([\"student_id\",[\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\"]]).gte([\"created_at\",\"2026-09-06T19:00:00.000Z\"]).lt([\"created_at\",\"2026-10-11T19:00:00.000Z\"]).order([\"created_at\",{\"ascending\":true}]).limit([1000])",
+  "web_quiz_challenge_runs.select([\"id, created_at, mode, meta\"]).eq([\"exercise\",\"read\"]).eq([\"status\",\"scored\"]).in([\"mode\",[\"check\",\"practice\"]]).gte([\"created_at\",\"2026-07-21T06:00:00.000Z\"]).order([\"created_at\",{\"ascending\":true}]).limit([1000])",
+  "message_ledger.select([\"day, trigger, class_id, initiated, recipient, count, capped\"]).gte([\"day\",\"2026-10-12\"]).lt([\"day\",\"2026-10-19\"]).order([\"day\",{\"ascending\":true}]).order([\"trigger\",{\"ascending\":true}]).order([\"class_id\",{\"ascending\":true}]).order([\"initiated\",{\"ascending\":true}]).order([\"recipient\",{\"ascending\":true}]).range([0,999])",
+  "child_bind_codes.select([\"code, canonical_id, minted_at, used_at\"]).gte([\"minted_at\",\"2026-10-11T19:00:00.000Z\"]).lt([\"minted_at\",\"2026-10-18T19:00:00.000Z\"]).order([\"minted_at\",{\"ascending\":true}]).limit([1000])",
+  "app_settings.select([\"key, value\"]).eq([\"key\",\"web_quiz_fixture_rule\"])",
+  "students.select([\"id, student_name, list_id\"]).in([\"id\",[\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\"]]).order([\"id\",{\"ascending\":true}]).limit([1000])",
+  "child_phone_bindings.select([\"id, code_id, bound_at, expires_at, revoked_at\"]).in([\"code_id\",[\"SAVE-AAAA2\"]]).order([\"bound_at\",{\"ascending\":true}]).limit([1000])",
+  "web_quiz_challenge_runs.select([\"id, student_id, canonical_id, class_id, lang, meta, created_at\"]).eq([\"exercise\",\"read\"]).eq([\"mode\",\"check\"]).eq([\"status\",\"scored\"]).gte([\"created_at\",\"2026-10-11T19:00:00.000Z\"]).lt([\"created_at\",\"2026-10-18T19:00:00.000Z\"]).order([\"created_at\",{\"ascending\":true}]).limit([1000])",
+  "app_settings.select([\"key, value\"]).eq([\"key\",\"web_quiz_fixture_rule\"])",
+  "students.select([\"id, student_name, list_id\"]).in([\"id\",[\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee\"]]).order([\"id\",{\"ascending\":true}]).limit([1000])",
+  "web_quiz_strip_weekly.update([{\"value\":1,\"n\":5,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"fixtures_excluded\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"fixtures_excluded\",\"cell\":\"\",\"value\":1,\"n\":5,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":2,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"plays\"]).eq([\"cell\",\"check\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.update([{\"value\":1,\"n\":1,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"plays\"]).eq([\"cell\",\"practice\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"plays\",\"cell\":\"practice\",\"value\":1,\"n\":1,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":4,\"n\":4,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"provenance_incomplete\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"provenance_incomplete\",\"cell\":\"\",\"value\":4,\"n\":4,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0.5,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"roster_bound_pct\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"roster_bound_pct\",\"cell\":\"\",\"value\":0.5,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0.5,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"helped_pct\"]).eq([\"cell\",\"G23|ur|read\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"helped_pct\",\"cell\":\"G23|ur|read\",\"value\":0.5,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0.5,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"no_class_first_finishes\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"no_class_first_finishes\",\"cell\":\"\",\"value\":0.5,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":4,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"record_duplicates\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"record_duplicates\",\"cell\":\"\",\"value\":0,\"n\":4,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0.3333333333333333,\"n\":3,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"lost_readings\"]).eq([\"cell\",\"G23|ur\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"lost_readings\",\"cell\":\"G23|ur\",\"value\":0.3333333333333333,\"n\":3,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":3,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"lost_readings_swept\"]).eq([\"cell\",\"G23|ur\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"lost_readings_swept\",\"cell\":\"G23|ur\",\"value\":0,\"n\":3,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0.3333333333333333,\"n\":3,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"lost_readings_draw\"]).eq([\"cell\",\"b2|ur\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"lost_readings_draw\",\"cell\":\"b2|ur\",\"value\":0.3333333333333333,\"n\":3,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":1,\"n\":3,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"b3_bottom_share\"]).eq([\"cell\",\"G23|ur\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"b3_bottom_share\",\"cell\":\"G23|ur\",\"value\":1,\"n\":3,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":4,\"n\":4,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"provenance_drift\"]).eq([\"cell\",\"high_unproven\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"provenance_drift\",\"cell\":\"high_unproven\",\"value\":4,\"n\":4,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":4,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"provenance_drift\"]).eq([\"cell\",\"homonym_missed\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"provenance_drift\",\"cell\":\"homonym_missed\",\"value\":0,\"n\":4,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"classes_link_eligible\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"classes_link_eligible\",\"cell\":\"\",\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"kept_audio_keys\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"kept_audio_keys\",\"cell\":\"\",\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":1,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"kept_audio_match\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"kept_audio_match\",\"cell\":\"\",\"value\":1,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":null,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"kept_audio_oldest_d\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"kept_audio_oldest_d\",\"cell\":\"\",\"value\":null,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":5,\"n\":5,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"sends\"]).eq([\"cell\",\"home_reply\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"sends\",\"cell\":\"home_reply\",\"value\":5,\"n\":5,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":3,\"n\":3,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"sends\"]).eq([\"cell\",\"bind_reply\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"sends\",\"cell\":\"bind_reply\",\"value\":3,\"n\":3,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":8,\"n\":8,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"sends_total\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"sends_total\",\"cell\":\"\",\"value\":8,\"n\":8,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0.12,\"n\":8,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"sends_usd\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"sends_usd\",\"cell\":\"\",\"value\":0.12,\"n\":8,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":8,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"bot_to_family\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"bot_to_family\",\"cell\":\"\",\"value\":0,\"n\":8,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":5,\"n\":5,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"door_mix_numerator\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"door_mix_numerator\",\"cell\":\"\",\"value\":5,\"n\":5,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":8,\"n\":1,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"replies_per_bound_child\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"replies_per_bound_child\",\"cell\":\"\",\"value\":8,\"n\":1,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":2,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"lamps_settled_unanswered\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"lamps_settled_unanswered\",\"cell\":\"\",\"value\":2,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":null,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"teacher_accepted_share\"]).eq([\"cell\",\"roster_unique_with_loose\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"teacher_accepted_share\",\"cell\":\"roster_unique_with_loose\",\"value\":null,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"teacher_accepted_held\"]).eq([\"cell\",\"roster_unique_with_loose\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"teacher_accepted_held\",\"cell\":\"roster_unique_with_loose\",\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":null,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"teacher_accepted_share\"]).eq([\"cell\",\"probable\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"teacher_accepted_share\",\"cell\":\"probable\",\"value\":null,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"teacher_accepted_held\"]).eq([\"cell\",\"probable\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"teacher_accepted_held\",\"cell\":\"probable\",\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":2,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"recognised_without_typing\"]).eq([\"cell\",\"first\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"recognised_without_typing\",\"cell\":\"first\",\"value\":2,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"recognised_without_typing\"]).eq([\"cell\",\"le7\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"recognised_without_typing\",\"cell\":\"le7\",\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"recognised_without_typing\"]).eq([\"cell\",\"gt7\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"recognised_without_typing\",\"cell\":\"gt7\",\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"kept_audio_all\"]).eq([\"cell\",\"\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"kept_audio_all\",\"cell\":\"\",\"value\":0,\"n\":0,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":3,\"n\":8,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"sent\"]).eq([\"cell\",\"capped\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"sent\",\"cell\":\"capped\",\"value\":3,\"n\":8,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":1,\"n\":1,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"bind_funnel\"]).eq([\"cell\",\"codes\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"bind_funnel\",\"cell\":\"codes\",\"value\":1,\"n\":1,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":1,\"n\":1,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"bind_funnel\"]).eq([\"cell\",\"bound\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"bind_funnel\",\"cell\":\"bound\",\"value\":1,\"n\":1,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"implausible\"]).eq([\"cell\",\"ur\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"implausible\",\"cell\":\"ur\",\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"implausible\"]).eq([\"cell\",\"ur|no_speech\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"implausible\",\"cell\":\"ur|no_speech\",\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"implausible\"]).eq([\"cell\",\"ur|low_stt_support\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"implausible\",\"cell\":\"ur|low_stt_support\",\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"implausible\"]).eq([\"cell\",\"ur|no_aligned_words\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"implausible\",\"cell\":\"ur|no_aligned_words\",\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"implausible\"]).eq([\"cell\",\"ur|low_story_confidence\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"implausible\",\"cell\":\"ur|low_story_confidence\",\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])"
+ ],
+ "out": {
+  "week": "2026-W42",
+  "lines": 42,
+  "skipped": [
+   "reply_cap",
+   "cold_clips"
+  ],
+  "notes": {
+   "cells_n30": "October (from 17 Oct; v3 forms; no pool)",
+   "anchor_retest_gap": "October (from 17 Oct; v3 forms; no pool)",
+   "sends": "message_ledger counts the switched replies only; it is not the bill (Meta's billable count is the cost total)",
+   "cold_clips": "not measured: no store (the clip warm run is an event and a log line only; no table holds missing_listen / missing_story)",
+   "recognised_without_typing": "homonym picks through the class link read as high until the class-link pick fix lands"
+  }
+ }
+}
