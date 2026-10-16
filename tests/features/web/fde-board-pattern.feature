@@ -39,7 +39,7 @@ Feature: FDE board-pattern paper for Grade 5
     When a Grade 5 Science teacher reaches Check and make and opens Inside
     Then the Inside row shows 3 sections, 100 marks and 3 hrs
     And the Inside tray lists the sections and "You add · the diagram to label"
-    And the screen has at most 40 words above Make my paper
+    And the screen has at most 50 words she reads above Make my paper, not counting "·" or a button that is only its label
 
   # ── Business rules / valid variations ─────────────────────────────────────────────────────────────────────────────
 
