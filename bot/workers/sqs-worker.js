@@ -2020,6 +2020,9 @@ function startWorker() {
       require('../shared/services/nudges/lp-coaching-ask.service');
       // The 15:00 quiz offer registers its kind (handler + cohort prepare) at load.
       require('../shared/services/nudges/lp-quiz-offer.service');
+      // The v10 group B weekly usage report (Saturday morning PKT) registers its kind at load.
+      // It does nothing until app_settings v10_weekly_report_enabled is true (bd-v0toag.32).
+      require('../shared/services/coaching/weekly-report/job');
       // Same shape as STALE_RECOVERY_INTERVAL_MS above: a value below the
       // one-minute floor is refused rather than clamped, and the default stands.
       const TEACHER_NUDGES_SWEEP_MS = (() => {
