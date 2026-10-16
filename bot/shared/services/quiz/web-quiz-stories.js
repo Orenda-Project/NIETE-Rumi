@@ -29,8 +29,8 @@ const { logEvent } = require('../../utils/structured-logger');
 const { WqError } = require('./web-quiz-error');
 
 const FLAG_KEY = 'web_quiz_stories';
-// The 2× crop of the printed words under the picture: held back on its own switch while a reading expert rules on
-// showing the words twice (COS 17:34Z). Off ⇒ every page's text_band is null and the reader shows the picture only.
+// The 2× crop of the printed words: on its own switch, used only as a lens that replaces the print where the words
+// would be too small. Off ⇒ every page's text_band is null and the reader shows the picture only.
 const BAND_KEY = 'web_quiz_stories_band';
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 3600 * 1000;
@@ -287,7 +287,7 @@ async function reviewedQuestions(bookId) {
   return (data || []).slice().sort((a, b) => a.n - b.n);
 }
 
-// The share card's field (m-scorecard's web-quiz-card-image.js, its own switch): {} when absent, off or failing.
+// The share card's field (web-quiz-card-image.js, its own switch): {} when absent, off or failing.
 let cardField = null;
 async function cardBits() {
   try {

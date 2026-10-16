@@ -248,7 +248,7 @@ describe('the book', () => {
     expect(await status(Stories.book('5b0000ff-0000-4000-8000-000000000000', TOKEN, { kid: 'a' }))).toBe(404);
     expect(await status(Stories.book('../../etc', TOKEN, { kid: 'a' }))).toBe(404);
   });
-  test('the text band is held back unless its own switch is on (a reading expert rules on the second copy of the words)', async () => {
+  test('the text band is held back unless its own switch is on (the words are never shown twice)', async () => {
     seed();
     const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
     expect(out.pages[0].text_band).toBeNull();
