@@ -351,6 +351,23 @@ describe('the book', () => {
     expect(out.card_v3).toBe(true);
     Stories._cardField(null);
   });
+  test('mergeWords: a silent word (a stage direction the voice skips) keeps its place and box, carries silent:true and never a timing', () => {
+    const out = Stories.mergeWords(
+      [{ i: 0, t: 'Sami', box: [1, 2, 3, 4] }, { i: 1, t: '(smiling)', silent: true, box: [5, 6, 7, 8] }, { i: 2, t: 'waves.' }, { i: 3, t: 'Testwala', silent: 'yes' }],
+      [{ i: 0, s_ms: 0, e_ms: 300 }, { i: 1, s_ms: 300, e_ms: 600 }, { i: 2, s_ms: 600, e_ms: 900 }, { i: 3, s_ms: 900, e_ms: 1200 }],
+    );
+    // zero-length at the next spoken word's start: the player's times stay in order and the later word is the lit one
+    expect(out).toEqual([
+      { i: 0, t: 'Sami', s_ms: 0, e_ms: 300, box: [1, 2, 3, 4] },
+      { i: 1, t: '(smiling)', silent: true, s_ms: 600, e_ms: 600, box: [5, 6, 7, 8] },
+      { i: 2, t: 'waves.', s_ms: 600, e_ms: 900 },
+      { i: 3, t: 'Testwala', s_ms: 900, e_ms: 1200 },
+    ]);
+    // a silent word last on the page sits at the end of the voice; a page with no timings stays untimed
+    const end = Stories.mergeWords([{ i: 0, t: 'Go.' }, { i: 1, t: '(exits)', silent: true }], [{ i: 0, s_ms: 0, e_ms: 400 }], 1500);
+    expect(end[1]).toEqual({ i: 1, t: '(exits)', silent: true, s_ms: 1500, e_ms: 1500 });
+    expect(Stories.mergeWords([{ i: 0, t: 'Go.' }, { i: 1, t: '(exits)', silent: true }], [])).toEqual([{ i: 0, t: 'Go.' }, { i: 1, t: '(exits)', silent: true }]);
+  });
   test('mergeWords: timings joined by i, not by position', () => {
     const w = Stories.mergeWords([{ i: 0, t: 'a' }, { i: 1, t: 'b', box: [1, 2, 3, 4] }], [{ i: 1, s_ms: 10, e_ms: 20 }, { i: 0, s_ms: 0, e_ms: 5 }]);
     expect(w).toEqual([{ i: 0, t: 'a', s_ms: 0, e_ms: 5 }, { i: 1, t: 'b', s_ms: 10, e_ms: 20, box: [1, 2, 3, 4] }]);

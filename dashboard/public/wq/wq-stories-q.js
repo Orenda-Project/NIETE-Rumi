@@ -48,6 +48,7 @@
       var g = el && el.querySelector('.lr-go');
       if (g) g.setAttribute('data-primary', '');
     }
+    function spoken(ws) { return ws.filter(function (w) { return !w.silent; }); }
     function lrOn(ws, cb) {
       var p = P[m.i], o = {
         words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false,
@@ -77,7 +78,11 @@
         (R.mode() === 'z' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
       var z = R.mode() === 'z';
       if (z) R.camLine(c[0]);
-      try { lrOn(p.words.slice(c[0], c[1] + 1), result); } catch (e) { m.denied(); return; }
+      var ws = p.words.slice(c[0], c[1] + 1), sw = spoken(ws);
+      // the live reader is asked only the spoken words; its marks come back on the page's own word numbers
+      var back = function (r) { var k = 0, mk = (r = r || {}).marks || []; r.marks = ws.map(function (w) { return w.silent ? 'silent' : mk[k++]; }); result(r); };
+      if (!sw.length) return back({ words_total: 0 });
+      try { lrOn(sw, back); } catch (e) { m.denied(); return; }
       R.poll = C.set(function tick() {
         var v = R.lr && R.lr.view && R.lr.view(), g = root.querySelector('[data-jg]'), k = 0, ss = (v && v.states) || [];
         if (v && g && LR.glowLevel) g.className = 'wqs-jg wqs-g' + LR.glowLevel(v);
@@ -112,12 +117,12 @@
     }
     function eBtn() { var e = root.querySelector('[data-main]'); if (e) e.textContent = t[eo.pz ? 'listen' : 'pause']; }
     function eSay() {
-      var x = eo.s[eo.k], ws = P[m.i].words, e = ws[x[1]].e_ms, el = root.querySelector('[data-es]');
+      var x = eo.s[eo.k], sw = spoken(P[m.i].words.slice(x[0], x[1] + 1)), e = (sw[sw.length - 1] || {}).e_ms, el = root.querySelector('[data-es]');
       eo.ph = eo.pz = 0; eBtn();
-      if (el) el.innerHTML = ws.slice(x[0], x[1] + 1).map(function (w) { var q = w.box; return q ? '<i class="wqs-es" style="left:' + q[0] + 'px;top:' + q[1] + 'px;width:' + q[2] + 'px;height:' + q[3] + 'px"></i>' : ''; }).join('');
+      if (el) el.innerHTML = sw.map(function (w) { var q = w.box; return q ? '<i class="wqs-es" style="left:' + q[0] + 'px;top:' + q[1] + 'px;width:' + q[2] + 'px;height:' + q[3] + 'px"></i>' : ''; }).join('');
       R.camLine(x[0]);
       if (!R.pl) return eMic();
-      R.pl.seekToWord(x[0]); R.pl.play();
+      R.pl.seekToWord(sw.length ? P[m.i].words.indexOf(sw[0]) : x[0]); R.pl.play();
       R.poll = C.set(function tk() {
         var a = R.pl && R.pl.audio;
         if (!eo || eo.ph) return;
@@ -130,7 +135,9 @@
       if (R.poll) C.clear(R.poll);
       R.poll = null; eo.ph = 1;
       if (R.pl) R.pl.pause();
-      try { me = lrOn(P[m.i].words.slice(x[0], x[1] + 1), function () { if (eo && !eo.pz && R.lr === me) eNext(); }); } catch (e) { eNext(); }
+      var sw = spoken(P[m.i].words.slice(x[0], x[1] + 1));
+      if (!sw.length) return eNext();
+      try { me = lrOn(sw, function () { if (eo && !eo.pz && R.lr === me) eNext(); }); } catch (e) { eNext(); }
     }
     function eNext() {
       if (R.lr) { try { R.lr.destroy(); } catch (e) {} R.lr = null; }

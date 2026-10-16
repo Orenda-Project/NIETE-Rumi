@@ -1560,6 +1560,43 @@ describe('echo reading on G1-2', () => {
   });
 });
 
+describe('silent words (a stage direction the voice does not read): never asked of the child, never lit', () => {
+  // "(smiling)" is printed on the page but carries silent:true and no timing
+  const play = () => {
+    const bk = book();
+    bk.pages[0].words = [W(0, 'Mina', 100, [110, 810, 40, 50]), { i: 1, t: '(smiling)', silent: true, box: [160, 810, 60, 50] }, W(2, 'runs.', 600, [230, 810, 50, 50]),
+      W(3, 'The', 1100, [110, 870, 30, 50]), W(4, 'kite', 1600, [150, 870, 40, 50]), W(5, 'flies!', 2100, [200, 870, 60, 50])];
+    return bk;
+  };
+  test('Your turn: the live reader gets the words without it; the page\'s marks keep the page\'s own word numbers', async () => {
+    const e = env({ replies: { book: { status: 200, body: play() } } });
+    const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    const c = e.calls.lr[0];
+    expect(c.o.words.map((w) => w.t)).toEqual(['Mina', 'runs.', 'The', 'kite', 'flies!']);
+    c.o.onResult(READ(['read', 'skipped', 'read', 'read', 'read']));
+    const pr = e.calls.posts.filter((x) => x.body.event === 'story_page_read').pop();
+    expect(pr.body.data).toMatchObject({ words_total: 5, words_read: 4, skipped: 1, skipped_words: [2] });
+    expect(root.innerHTML).toMatch(/data-tap="word" data-arg="2"[^>]*>[^<]*(<svg[^>]*>.*?<\/svg>)?\s*runs\.</);
+  });
+  test('Read it together: the sentence holding it is outlined and asked without it; Jugnu still stops at the sentence\'s last spoken word', async () => {
+    const e = env({ replies: { book: { status: 200, body: play() } } });
+    const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({ id: 'st' });
+    e.calls.lr[0].o.onResult(READ(['read', 'ahead', 'ahead', 'ahead', 'ahead']));
+    const nra = e.calls.ra.length;
+    fire(root, 'echo');
+    const p = e.calls.ra[nra];
+    expect(p.log).toEqual(['seek:0', 'play']);
+    const es = root.querySelector('[data-es]').innerHTML;
+    expect((es.match(/class="wqs-es"/g) || []).length).toBe(2);
+    expect(es).not.toContain('left:160px');
+    p.audio.currentTime = 1.0; e.advance(100);
+    expect(e.calls.lr).toHaveLength(2);
+    expect(e.calls.lr[1].o.words.map((w) => w.t)).toEqual(['Mina', 'runs.']);
+  });
+});
+
 describe('Read it together only where the reading key answers', () => {
   const READ20 = ['read', 'ahead', 'ahead', 'ahead', 'ahead'];
   async function readWith(e) {
