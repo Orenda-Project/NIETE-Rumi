@@ -361,6 +361,25 @@ function pagesWithoutFreshProfile(pages, tests) {
   return pages.filter((p) => !tests.some((t) => coversFreshProfile(t, p))).map((p) => p.id).sort();
 }
 
+/**
+ * The gate's verdict. pages: navigablePages(); tests: [text]; allowed: the allowlist's `pages`.
+ * failures: a page neither listed nor tested (NEW), and a listed page that no longer exists (GONE).
+ * cleans: a listed page that now has its test; the gate warns and passes, so the PR adding the test need not edit the list.
+ */
+function freshProfileVerdict(pages, tests, allowed) {
+  const ids = new Set(pages.map((p) => p.id));
+  const without = new Set(pagesWithoutFreshProfile(pages, tests));
+  const a = new Set(allowed);
+  const failures = [];
+  const cleans = [];
+  for (const x of [...without].sort()) if (!a.has(x)) failures.push(`NEW: ${x} has no fresh-profile test. Add one (a test that names the page and says "fresh profile").`);
+  for (const x of [...a].sort()) {
+    if (!ids.has(x)) failures.push(`GONE: ${x} is no longer a page. Remove it from fresh-profile-pages.allowlist.json.`);
+    else if (!without.has(x)) cleans.push(`CLEAN: remove ${x} from fresh-profile-pages.allowlist.json`);
+  }
+  return { failures, cleans };
+}
+
 // -------------------------------------------------------------------------------------------- gate 6: copy gap
 
 const camel = (s) => s.replace(/[_-]+([a-z0-9])/g, (_, c) => c.toUpperCase());
@@ -507,6 +526,7 @@ module.exports = {
   navigablePages,
   coversFreshProfile,
   pagesWithoutFreshProfile,
+  freshProfileVerdict,
   liftNames,
   liftText,
   liftSite,
