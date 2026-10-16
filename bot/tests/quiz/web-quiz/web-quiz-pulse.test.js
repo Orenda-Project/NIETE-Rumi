@@ -220,8 +220,10 @@ describe('live now (distinct classmates with a right answer in the last 2 minute
     const b = await play('Ali Testwala');
     await WQ.recordAnswers({ st: a.st, a: [{ qid: qid(1), slot: 'B' }] });
     await WQ.recordAnswers({ st: b.st, a: [{ qid: qid(2), slot: 'B' }] });
+    // five classmates: a child's page gets no class count under 5
+    for (const name of ['Hina Testwala', 'Omar Testwala', 'Bilal Testwala']) await WQ.recordAnswers({ st: (await play(name)).st, a: [{ qid: qid(1), slot: 'B' }] });
     const out = await WQ.getQuiz('PULSE1');
-    expect(out.live.now).toBe(2);
+    expect(out.live.now).toBe(5);
     expect(JSON.stringify(out.live)).not.toMatch(/Sara|Ali/);
   });
 });
@@ -233,11 +235,17 @@ describe("the card's place among today's class finishers", () => {
     return { k, fin: await WQ.finishSession({ st: k.st }) };
   };
 
-  test('the first finisher today is 1st, the next is 2nd', async () => {
+  test('finishers 1 to 4 today get done_today and no count; the 5th gets nth 5', async () => {
     const one = await finish('Sara Testwala');
-    expect(one.fin.card.nth).toBe(1);
-    const two = await finish('Ali Testwala', 1);
-    expect(two.fin.card.nth).toBe(2);
+    expect(one.fin.card.nth).toBeUndefined();
+    expect(one.fin.card.done_today).toBe(true);
+    for (const name of ['Ali Testwala', 'Hina Testwala']) await finish(name, 1);
+    const four = await finish('Omar Testwala');
+    expect(four.fin.card.nth).toBeUndefined();
+    expect(four.fin.card.done_today).toBe(true);
+    const five = await finish('Bilal Testwala');
+    expect(five.fin.card.nth).toBe(5);
+    expect(five.fin.card.done_today).toBeUndefined();
   });
 
   test('a practice round, an invited friend and the teacher preview get no place', async () => {
@@ -248,6 +256,7 @@ describe("the card's place among today's class finishers", () => {
     const fin2 = await WQ.finishSession({ st: again.st });
     expect(fin2.counted).toBe(false);
     expect(fin2.card.nth).toBeUndefined();
+    expect(fin2.card.done_today).toBeUndefined();
     fake.db.quiz_share_codes.find((c) => c.code === one.fin.challenge_code).active = true;
     const friend = await WQ.startSession({ code: one.fin.challenge_code, new: { name: 'Friend Testwala', force: true } });
     await WQ.recordAnswers({ st: friend.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
@@ -295,7 +304,34 @@ describe('an invited friend never sees classmates through the pulse', () => {
   test("the challenge code's boot carries no live.now (the class's own boot does)", async () => {
     const { b, chal } = await classWithFriend();
     await WQ.recordAnswers({ st: b.st, a: [{ qid: qid(2), slot: 'B' }] });
-    expect((await WQ.getQuiz('PULSE1')).live.now).toBe(2);
+    for (const name of ['Hina Testwala', 'Omar Testwala', 'Bilal Testwala']) await WQ.recordAnswers({ st: (await play(name)).st, a: [{ qid: qid(1), slot: 'B' }] });
+    expect((await WQ.getQuiz('PULSE1')).live.now).toBe(5);
     expect((await WQ.getQuiz(chal)).live.now).toBeUndefined();
+  });
+});
+
+// ─── no class count under 5 on a child's page: the landing's two class lines ───
+// "1 in your class played today" / "2 classmates are playing right now" tell a child how few classmates there are;
+// under 5 the boot sends no number (class_today 0, no now), so the page draws neither line.
+describe('the landing gets a class count only from 5 children up', () => {
+  const kids = (n) => Array.from({ length: n }, (_, i) => `Child${i + 1} Testwala`);
+  const playing = async (n) => { for (const name of kids(n)) { const k = await play(name); await WQ.recordAnswers({ st: k.st, a: [{ qid: qid(1), slot: 'B' }] }); } };
+  const finished = async (n) => { for (const name of kids(n)) { const k = await play(name); await WQ.recordAnswers({ st: k.st, a: [1, 2, 3, 4].map((q) => ({ qid: qid(q), slot: 'B' })) }); await WQ.finishSession({ st: k.st }); } };
+
+  test.each([2, 4])('%i classmates playing now: no live.now', async (n) => {
+    await playing(n);
+    expect((await WQ.getQuiz('PULSE1')).live.now).toBeUndefined();
+  });
+  test('5 classmates playing now: live.now = 5', async () => {
+    await playing(5);
+    expect((await WQ.getQuiz('PULSE1')).live.now).toBe(5);
+  });
+  test.each([1, 4])('%i finished today: class_today 0', async (n) => {
+    await finished(n);
+    expect((await WQ.getQuiz('PULSE1')).live.class_today).toBe(0);
+  });
+  test('5 finished today: class_today = 5', async () => {
+    await finished(5);
+    expect((await WQ.getQuiz('PULSE1')).live.class_today).toBe(5);
   });
 });

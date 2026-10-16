@@ -177,7 +177,7 @@ describe('E2 on a challenge code ships none of the challenger\'s class context',
     // the class code itself is unchanged
     const c = await WQ.getQuiz('AB12CD');
     expect(c.cls.teacher).toBeTruthy();
-    expect(c.live.class_today).toBe(1);
+    expect(c.live.class_today).toBe(0); // one finisher: under 5, no class count on a child's page
   });
 });
 
