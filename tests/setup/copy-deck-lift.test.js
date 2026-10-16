@@ -16,7 +16,13 @@
  *     source; the lift is then read from that template's exported table, else from a template's `T` under
  *     camelCase of the key's last two parts or last part (jg.t.link_renew_go → tLinkRenewGo, jg.round.t_count → tCount);
  *   - EN is always compared; UR when the deck's UR does not say DRAFT. A function lift is called with `{param}`.
- * The child pages' lifts (dashboard/public/wq) are outside this gate.
+ * The child pages (dashboard/public/wq/*.js, browser scripts nothing can require) are read from their source, the
+ * exact rule is wqCopyStates: a live non-`bot.*` key a script claims (a `// <key>` comment, or the key / its starred
+ * area named in the source) is read from that script's `en: {…}` / `ur: {…}` tables under the claimed property, else
+ * under camelCase of the key after its first part, of its last two parts or of its last part, or its last part as is
+ * (jg.who.turn_of → whoTurnOf, jg.keep.notice_ok → noticeOk, jg.link.is_here → is_here). A value is evaluated on its
+ * own (a string, or a self-contained function called with the deck's own {placeholders} in order); a value that is
+ * not self-contained is missing. Those states sit in the same allowlist as `wq:<key>`.
  *
  * copy-deck-lift.allowlist.json: { "<key>": "<state>" } for every key not `same` when this gate landed (key names
  * only). It only shrinks: a key that drifts or goes missing fails; a listed key whose state changed (fixed, or
@@ -25,7 +31,7 @@
 const fs = require('fs');
 const path = require('path');
 const ALLOW = require('./copy-deck-lift.allowlist.json');
-const { REPO, liftNames, liftText, liftSite, copyStates } = require('./test-seam-gates-lib');
+const { REPO, liftNames, liftText, liftSite, copyStates, wqLiftNames, wqCopyStates } = require('./test-seam-gates-lib');
 
 function statesInTree() {
   const deck = JSON.parse(fs.readFileSync(path.join(REPO, 'bot/shared/config/copy.v2.json'), 'utf8'));
@@ -36,7 +42,12 @@ function statesInTree() {
     source: fs.readFileSync(path.join(dir, n), 'utf8'),
     exports: require(path.join(dir, n)),
   }));
-  return copyStates(deck, UX_STRINGS, templates);
+  const wqDir = path.join(REPO, 'dashboard/public/wq');
+  const scripts = fs.readdirSync(wqDir).filter((n) => n.endsWith('.js')).sort()
+    .map((n) => ({ id: n, source: fs.readFileSync(path.join(wqDir, n), 'utf8') }));
+  const wq = {};
+  for (const [k, v] of Object.entries(wqCopyStates(deck, scripts))) wq[`wq:${k}`] = v;
+  return { ...copyStates(deck, UX_STRINGS, templates), ...wq };
 }
 
 function gaps(states, allow) {
@@ -101,6 +112,44 @@ describe('the rule, on in-memory sources', () => {
     });
     const noUr = [{ ...templates[1], exports: { T: { en: { tSaved: 'Saved' }, ur: {} } } }];
     expect(copyStates({ 'jg.t.saved': deck['jg.t.saved'] }, {}, noUr)).toEqual({ 'jg.t.saved': 'missing:ur' });
+  });
+
+  test('a child page script: its en/ur tables are read from source, a function with the deck placeholders', () => {
+    const pageDeck = {
+      _meta: {},
+      'jg.link.is_here': { en: 'Is your name here?', ur: 'کیا آپ کا نام یہاں ہے؟' },
+      'jg.who.turn': { en: 'Whose turn?', ur: 'کس کی باری ہے؟' },
+      'jg.who.turn_of': { en: "{name}'s turn", ur: '⁨{name}⁩ کی باری' },
+      'jg.keep.notice': { en: 'We keep it.', ur: 'ہم رکھتے ہیں۔' },
+      'jg.keep.gone': { en: 'Gone', ur: 'گیا', retired: true },
+      'jg.link.letter_q': { en: 'Tap a letter', ur: 'حرف دبائیں' },
+      'bot.bind.saved': { en: 'Saved.', ur: 'ہو گیا' },
+    };
+    const scripts = [
+      { id: 'class-link.js', source: [
+        '(function () {',
+        '  // copy.v2.json: jg.link.is_here, jg.who.turn, jg.keep.notice, jg.keep.gone, bot.bind.saved',
+        '  var COPY = {',
+        "    en: { is_here: 'Is your name here?', turn: 'Whose turn?', note: 'x, y' },",
+        "    ur: { is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری', note: 'x' },",
+        '  };',
+        '})();',
+      ].join('\n') },
+      { id: 'wq-card.js', source: [
+        '(function () {',
+        '  // Copy: jg.who.turn_of',
+        "  var W = { en: { whoTurnOf: function (n) { return n + '\\'s turn'; } },",
+        "    ur: { whoTurnOf: function (n) { return '⁨' + n + '⁩ کی باری'; } } };",
+        '})();',
+      ].join('\n') },
+    ];
+    expect(wqLiftNames('jg.who.turn_of')).toEqual(['whoTurnOf', 'turnOf', 'turn_of']);
+    expect(wqCopyStates(pageDeck, scripts)).toEqual({
+      'jg.link.is_here': 'same',
+      'jg.who.turn': 'drift:ur',
+      'jg.who.turn_of': 'same',
+      'jg.keep.notice': 'missing',
+    });
   });
 
   test('the allowlist check: a new gap, a changed state and a fixed key all fail; equal passes', () => {

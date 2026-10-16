@@ -1,7 +1,10 @@
 /**
  * Test-seam gates: the pure readers shared by
  *   repo-mocks-partial.test.js, repo-spy-failure-only.test.js, repo-seam-tests.test.js,
- *   virtual-mock-of-existing-module.test.js (its jest.doMock scan), fresh-profile-pages.test.js, copy-deck-lift.test.js.
+ *   virtual-mock-of-existing-module.test.js (its jest.doMock scan), fresh-profile-pages.test.js, copy-deck-lift.test.js,
+ *   select-columns-exist.test.js, unresolved-requires.test.js (its later-merge rule), grade-form-one-home.test.js,
+ *   copy-deck-urdu-joiners.test.js; repo-mocks-partial.test.js also reads jest.doMock, copy-deck-lift.test.js also
+ *   reads the child pages (dashboard/public/wq).
  *
  * Every reader takes source text (or plain objects) and returns plain data, so each gate's rule is executed on
  * in-memory inputs in its own test file before it is run over the tree.
@@ -465,17 +468,7 @@ function liftFrom(exportsObj, site, key) {
  */
 function copyStates(deck, ux, templates) {
   const out = {};
-  const compare = (key, lift) => {
-    if (!lift || lift.en === undefined) return 'missing';
-    const bad = [];
-    if (liftText(lift.en) !== deck[key].en) bad.push('en');
-    const urDeck = deck[key].ur;
-    if (typeof urDeck === 'string' && !/DRAFT/.test(urDeck)) {
-      if (lift.ur === undefined) return bad.length ? `drift:${bad.join('+')}` : 'missing:ur';
-      if (liftText(lift.ur) !== urDeck) bad.push('ur');
-    }
-    return bad.length ? `drift:${bad.join('+')}` : 'same';
-  };
+  const compare = (key, lift) => liftState(deck[key], lift);
   for (const [key, entry] of Object.entries(deck)) {
     if (key === '_meta' || !entry || entry.retired || entry.held) continue;
     if (key.startsWith('bot.')) {
@@ -497,6 +490,344 @@ function copyStates(deck, ux, templates) {
     out[key] = compare(key, lift);
   }
   return out;
+}
+
+// ------------------------------------------------------------------------- gate 7: selected columns exist
+
+/**
+ * `const|let|var NAME = '<a>' + '<b>' …` (string literals and plain templates joined by +, over several lines) →
+ * { NAME: string }. A binding whose value is anything else is not read.
+ */
+const STR_LIT = String.raw`(?:'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|` + '`[^`$]*`' + ')';
+const unquote = (parts) => parts.map((p) => p.slice(1, -1).replace(/\\(.)/g, '$1')).join('');
+
+/** An expression's string value when it is string literals / plain templates joined by +, or a known const; else null. */
+function stringOf(expr, consts = {}) {
+  const e = String(expr || '').trim();
+  if (new RegExp(`^${STR_LIT}(?:\\s*\\+\\s*${STR_LIT})*$`).test(e)) return unquote(e.match(new RegExp(STR_LIT, 'g')));
+  if (/^[A-Za-z_$][\w$]*$/.test(e) && Object.prototype.hasOwnProperty.call(consts, e)) return consts[e];
+  return null;
+}
+
+function constStringExprs(text) {
+  const out = {};
+  const lit = STR_LIT;
+  const rx = new RegExp(String.raw`\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(${lit}(?:\s*\+\s*${lit})*)\s*[;,\n]`, 'g');
+  for (let m = rx.exec(text); m; m = rx.exec(text)) {
+    if (m[1] in out) continue;
+    const parts = m[2].match(new RegExp(lit, 'g')) || [];
+    out[m[1]] = unquote(parts);
+  }
+  return out;
+}
+
+/** The columns a PostgREST select string names: `*`, embedded relations `x(...)` and counts skipped; `a:b` → b; `meta->x` → meta; `c::text` → c. */
+function selectColumns(sel) {
+  const items = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of String(sel)) {
+    if (ch === '(') depth += 1;
+    if (ch === ')') depth -= 1;
+    if (ch === ',' && depth === 0) { items.push(cur); cur = ''; } else cur += ch;
+  }
+  items.push(cur);
+  const out = [];
+  for (let it of items) {
+    it = it.trim();
+    if (!it || it === '*' || it.includes('(') || it.startsWith('...')) continue;
+    if (it.includes(':') && !it.includes('::')) it = it.slice(it.indexOf(':') + 1).trim();
+    else if (/^[A-Za-z_]\w*\s*:[^:]/.test(it)) it = it.slice(it.indexOf(':') + 1).trim();
+    it = it.split('->')[0].split('::')[0].trim().replace(/^"|"$/g, '');
+    if (it && it !== '*') out.push(it);
+  }
+  return out;
+}
+
+/**
+ * Every `.from(<table>)…select(<cols>)` chain in one source (a `.select(` anywhere in the chain that starts at the
+ * `.from(`): [{ table, cols, line }] — table / cols null when not a readable string. A string is readable when it is
+ * a literal, a plain template, a const string (literals joined by +), or a parameter of the enclosing same-file
+ * function every call of which passes a readable string there (one entry per call).
+ */
+function selectsOf(text) {
+  const mask = codeMask(text);
+  const consts = constStringExprs(text);
+  const lineOf = (i) => text.slice(0, i).split('\n').length;
+  const readArg = (open, close) => {
+    const raw = text.slice(open + 1, close);
+    const first = (() => { let d = 0; for (let i = open + 1; i < close; i += 1) { const c = mask[i]; if ('([{'.includes(c)) d += 1; else if (')]}'.includes(c)) d -= 1; else if (c === ',' && d === 0) return text.slice(open + 1, i); } return raw; })().trim();
+    const v = stringOf(first, consts);
+    if (v !== null) return { values: [v] };
+    if (/^[A-Za-z_$][\w$]*$/.test(first)) {
+      const viaParam = paramValues(first, open);
+      if (viaParam) return { values: viaParam };
+    }
+    return { values: null };
+  };
+  // a parameter of the enclosing `function f(…)` / `const f = (…) =>`, read at each same-file call of f
+  const fnRx = /(?:\bfunction\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)|\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>)/g;
+  const fns = [];
+  for (let m = fnRx.exec(mask); m; m = fnRx.exec(mask)) fns.push({ name: m[1] || m[3], params: (m[2] !== undefined ? m[2] : m[4] || "").split(',').map((x) => x.trim().split('=')[0].trim()), at: m.index });
+  function paramValues(name, at) {
+    const owner = fns.filter((f) => f.at < at).pop();
+    if (!owner) return null;
+    const idx = owner.params.indexOf(name);
+    if (idx < 0) return null;
+    const vals = [];
+    const callRx = new RegExp(`(^|[^\\w$.])${owner.name.replace(/\$/g, '\\$')}\\s*\\(`, 'g');
+    for (let m = callRx.exec(mask); m; m = callRx.exec(mask)) {
+      const open = m.index + m[0].length - 1;
+      if (fns.some((f) => f.at <= m.index && m.index < f.at + 40 && f.name === owner.name)) continue; // its own declaration
+      const close = closeParen(mask, open);
+      if (close < 0) return null;
+      const args = []; let d = 0; let start = open + 1;
+      for (let i = open + 1; i <= close; i += 1) {
+        const c = mask[i];
+        if ('([{'.includes(c)) d += 1; else if (')]}'.includes(c) && i !== close) d -= 1;
+        if ((c === ',' && d === 0) || i === close) { args.push(text.slice(start, i).trim()); start = i + 1; }
+      }
+      const v = stringOf(args[idx], consts);
+      if (v === null) return null;
+      vals.push(v);
+    }
+    return vals.length ? vals : null;
+  }
+  const out = [];
+  const fromRx = /\.\s*from\s*\(/g;
+  for (let m = fromRx.exec(mask); m; m = fromRx.exec(mask)) {
+    const open = m.index + m[0].length - 1;
+    const close = closeParen(mask, open);
+    if (close < 0) continue;
+    const t = readArg(open, close).values;
+    const table = t && t.length === 1 ? t[0] : null;
+    // walk the chain: .name(…) segments while the next non-space is a dot
+    let i = close + 1;
+    for (;;) {
+      const seg = /^\s*\.\s*([A-Za-z_$][\w$]*)\s*\(/.exec(mask.slice(i, i + 200));
+      if (!seg) break;
+      const o = i + seg[0].length - 1;
+      const c = closeParen(mask, o);
+      if (c < 0) break;
+      if (seg[1] === 'select') {
+        const v = readArg(o, c).values;
+        if (o + 1 === c) out.push({ table, cols: [], line: lineOf(o) });
+        else if (!v) out.push({ table, cols: null, line: lineOf(o) });
+        else for (const sel of v) out.push({ table, cols: selectColumns(sel), line: lineOf(o) });
+      }
+      i = c + 1;
+    }
+  }
+  return out;
+}
+
+/**
+ * The selected columns the schema does not have: { hits: ['table.column'], dynamic: n }. `columns` is
+ * { table: Set } (the strict-columns parser's output). A select whose table or string cannot be read counts as
+ * dynamic; a table the schema does not create is reported as `table.*` once per select.
+ */
+function missingSelectedColumns(selects, columns) {
+  const hits = [];
+  let dynamic = 0;
+  for (const s of selects) {
+    if (!s.table || s.cols === null) { dynamic += 1; continue; }
+    const have = columns[s.table.toLowerCase()];
+    if (!have) { hits.push(`${s.table}.*`); continue; }
+    for (const c of s.cols) if (!have.has(c)) hits.push(`${s.table}.${c}`);
+  }
+  return { hits, dynamic };
+}
+
+// ----------------------------------------------------------- unresolved-requires: a later-merge entry names its provider
+
+const LATER = /\b(?:later|follow-?up|upcoming|future|next)\s+(?:merge|pr|pull request|change|commit|release)\b|\bships?\s+(?:in\s+|with\s+)?(?:a\s+)?later\b|\blands?\s+later\b/i;
+
+/** A provider written as a PR number or a branch, not as the module that provides. */
+const NOT_A_PROVIDER = /#\d|\bPR\b|pull request|\bbranch\b|\bmerge of\b/i;
+
+/**
+ * The unresolved-requires allowlist entries whose reason says the missing module ships in a later merge and that do
+ * not name its provider: no `provider` field, one under 10 characters, or one that is a PR number / branch rather
+ * than the module. entries: [{ from, spec, reason, provider? }] → those entries.
+ */
+function laterMergeWithoutProvider(entries) {
+  return (entries || [])
+    .filter((e) => LATER.test(String(e.reason || '')))
+    .filter((e) => {
+      const p = typeof e.provider === 'string' ? e.provider.trim() : '';
+      return p.length < 10 || NOT_A_PROVIDER.test(p);
+    });
+}
+
+// -------------------------------------------------------------------- one home for the challenge form (formFor)
+
+/** The lines of every `formFor(` call in code (bare or as a member); the `function formFor(` declaration is not one. */
+function formForCalls(text) {
+  const mask = codeMask(text);
+  const out = [];
+  const rx = /(^|[^\w$])formFor\s*\(/g;
+  for (let m = rx.exec(mask); m; m = rx.exec(mask)) {
+    const at = m.index + m[1].length;
+    if (/\bfunction\s*$/.test(mask.slice(Math.max(0, at - 20), at))) continue;
+    out.push(text.slice(0, at).split('\n').length);
+  }
+  return out;
+}
+
+/** Whether a repo-relative path is the challenge form's home: bot/shared/services/quiz/web-quiz-challenge*.js. */
+const isFormHome = (id) => /^bot\/shared\/services\/quiz\/web-quiz-challenge[\w.-]*\.js$/.test(id);
+
+// ------------------------------------------------------------------------ repo doMocks are partial too
+
+/** The `jest.doMock('<…>.repo', …)` calls in one file whose factory does not hold `jest.requireActual(`: [spec]. */
+function wholeRepoDoMocks(text) {
+  return calls(text, ['jest.doMock'])
+    .filter((c) => isRepoSpec(c.spec))
+    .filter((c) => !/jest\.requireActual\s*\(/.test(c.call))
+    .map((c) => c.spec);
+}
+
+// ------------------------------------------------------------------------ the child pages' copy (dashboard/public/wq)
+
+/** The index of the `}` that closes the `{` at `open`, read on a mask; -1 when unbalanced. */
+function closeBrace(mask, open) {
+  let depth = 0;
+  for (let i = open; i < mask.length; i += 1) {
+    if (mask[i] === '{') depth += 1;
+    else if (mask[i] === '}') { depth -= 1; if (depth === 0) return i; }
+  }
+  return -1;
+}
+
+/** Where a page script keeps a deck key, in order: camelCase after the first part, the bot-side names, the last part as is. */
+function wqLiftNames(key) {
+  const parts = key.split('.');
+  return [...new Set([camel(parts.slice(1).join('_')), ...liftNames(key), parts[parts.length - 1]])];
+}
+
+/** The `<lang>: { … }` table spans of a script: [{ open, close }] (read on the mask). */
+function langTables(mask, lang) {
+  const out = [];
+  const rx = new RegExp(`(^|[^\\w$.])${lang}\\s*:\\s*\\{`, 'g');
+  for (let m = rx.exec(mask); m; m = rx.exec(mask)) {
+    const open = m.index + m[0].length - 1;
+    const close = closeBrace(mask, open);
+    if (close > 0) out.push({ open, close });
+  }
+  return out;
+}
+
+/** The value of property `name` in the first table that has it: evaluated on its own; undefined when absent or not self-contained. */
+function tableValue(text, mask, tables, name) {
+  const vm = require('vm');
+  const rx = new RegExp(`(^|[{,\\s])${name.replace(/\$/g, '\\$')}\\s*:`, 'g');
+  for (const t of tables) {
+    const body = mask.slice(t.open + 1, t.close);
+    rx.lastIndex = 0;
+    let m = rx.exec(body);
+    while (m) {
+      // only the table's own properties (depth 0 inside it)
+      const at = t.open + 1 + m.index + m[0].length;
+      let d = 0;
+      for (let i = t.open + 1; i < at; i += 1) { if ('([{'.includes(mask[i])) d += 1; else if (')]}'.includes(mask[i])) d -= 1; }
+      if (d === 0) {
+        let end = at;
+        let e = 0;
+        for (; end < t.close; end += 1) {
+          const c = mask[end];
+          if ('([{'.includes(c)) e += 1; else if (')]}'.includes(c)) e -= 1;
+          else if (c === ',' && e === 0) break;
+        }
+        try { return vm.runInNewContext(`(${text.slice(at, end)})`, Object.create(null), { timeout: 100 }); } catch (_) { return undefined; }
+      }
+      m = rx.exec(body);
+    }
+  }
+  return undefined;
+}
+
+/** A lift's value as text, a function called with the deck's own {placeholders} (from the deck's EN) in order. */
+function liftTextFor(v, deckEntry) {
+  if (typeof v !== 'function') return liftText(v);
+  const names = [...new Set([...String(deckEntry.en || '').matchAll(/\{(\w+)\}/g)].map((m) => m[1]))];
+  try { return String(v(...names.map((n) => `{${n}}`))); } catch (_) { return null; }
+}
+
+/** One deck key's state against a lift { en, ur } (null = missing): 'same' | 'missing' | 'missing:ur' | 'drift:…'. */
+function liftState(entry, lift, text = liftText) {
+  if (!lift || lift.en === undefined) return 'missing';
+  const bad = [];
+  if (text(lift.en, entry) !== entry.en) bad.push('en');
+  const urDeck = entry.ur;
+  if (typeof urDeck === 'string' && !/DRAFT/.test(urDeck)) {
+    if (lift.ur === undefined) return bad.length ? `drift:${bad.join('+')}` : 'missing:ur';
+    if (text(lift.ur, entry) !== urDeck) bad.push('ur');
+  }
+  return bad.length ? `drift:${bad.join('+')}` : 'same';
+}
+
+/**
+ * The state of every live, non-`bot.*` deck key a child page script claims (liftSite on its source):
+ * { key: state }. The lift is read from the script's `en: {…}` / `ur: {…}` tables under the claimed property, else
+ * under wqLiftNames(key); scripts that claim the key by an explicit comment are read first.
+ * deck: the parsed copy.v2.json; scripts: [{ id, source }].
+ */
+function wqCopyStates(deck, scripts) {
+  const read = scripts.map((s) => {
+    const mask = codeMask(s.source);
+    return { ...s, mask, en: langTables(mask, 'en'), ur: langTables(mask, 'ur') };
+  });
+  const out = {};
+  for (const [key, entry] of Object.entries(deck)) {
+    if (key === '_meta' || !entry || entry.retired || entry.held || key.startsWith('bot.')) continue;
+    const sites = read.map((s) => ({ s, site: liftSite(s.source, key) })).filter((x) => x.site);
+    if (!sites.length) continue;
+    sites.sort((a, b) => Number(Boolean(a.site.guess)) - Number(Boolean(b.site.guess)));
+    let lift = null;
+    for (const { s, site } of sites) {
+      const names = site.prop ? [site.prop] : wqLiftNames(key);
+      for (const n of names) {
+        const en = tableValue(s.source, s.mask, s.en, n);
+        if (en === undefined) continue;
+        const ur = tableValue(s.source, s.mask, s.ur, n);
+        lift = { en, ...(ur !== undefined ? { ur } : {}) };
+        break;
+      }
+      if (lift) break;
+    }
+    out[key] = liftState(entry, lift, liftTextFor);
+  }
+  return out;
+}
+
+// --------------------------------------------------------------------------- the deck's Urdu no-break rules
+
+const NBSP = '\u00a0';
+const ORPHAN_VERBS = new Set(['ہے', 'ہیں', 'گا', 'گی', 'گے']);
+/** What may trail a string's last word: whitespace, punctuation, quotes, bidi isolates and marks. */
+const TRAIL = /[\s\u2066-\u2069\u200e\u200f\u061c۔؟!?.,،:;…"'«»)\]]+$/;
+
+/** The deck keys (sorted) whose Urdu ends on «ہے ہیں گا گی گے» after a plain space (not U+00A0) before it. */
+function urduOrphans(deck) {
+  const out = [];
+  for (const [key, entry] of Object.entries(deck || {})) {
+    if (key === '_meta' || !entry || typeof entry.ur !== 'string') continue;
+    const s = entry.ur.replace(TRAIL, '');
+    const m = /([\s\u00a0]+)([^\s\u00a0]+)$/.exec(s);
+    if (!m || !ORPHAN_VERBS.has(m[2])) continue;
+    if (m[1] !== NBSP) out.push(key);
+  }
+  return out.sort();
+}
+
+/** The deck keys (sorted) whose Urdu has «واٹس ایپ» without exactly U+00A0 between the two words. */
+function whatsappWithoutJoiner(deck) {
+  const out = [];
+  for (const [key, entry] of Object.entries(deck || {})) {
+    if (key === '_meta' || !entry || typeof entry.ur !== 'string') continue;
+    if (/واٹس(?!\u00a0ایپ)\s*ایپ/.test(entry.ur)) out.push(key);
+  }
+  return out.sort();
 }
 
 module.exports = {
@@ -532,4 +863,18 @@ module.exports = {
   liftSite,
   liftFrom,
   copyStates,
+  stringOf,
+  constStringExprs,
+  selectColumns,
+  selectsOf,
+  missingSelectedColumns,
+  laterMergeWithoutProvider,
+  formForCalls,
+  isFormHome,
+  wholeRepoDoMocks,
+  wqLiftNames,
+  liftState,
+  wqCopyStates,
+  urduOrphans,
+  whatsappWithoutJoiner,
 };
