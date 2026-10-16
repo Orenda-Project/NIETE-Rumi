@@ -19,6 +19,12 @@ Feature: FDE board-pattern paper for Grade 5
     And a marking scheme PDF opens with "Teacher: before the exam", lists every question's marks and part marks, and ends with a 40-row class record on its own page
     And the ready screen names "Question paper" and "Marking scheme" with their page counts
 
+  @sandbox @real-paper
+  Scenario: The ready screen says what the teacher adds and the page it goes on
+    Given the board-pattern switch is on
+    When a Grade 5 Social Studies teacher makes a board-pattern paper
+    Then under "Question paper" and "Marking scheme" the ready screen says "You add · the map of Pakistan · p." with the question paper's page
+
   @FB01
   Scenario: The hub offers FDE pattern papers when the switch is on
     Given the board-pattern switch is on
@@ -104,6 +110,28 @@ Feature: FDE board-pattern paper for Grade 5
     When the teacher tries to add a question
     Then the editor says "Board-pattern papers keep their shape" and no new version is made
 
+  @sandbox @real-paper @no-mock-driver
+  # No mock driver: the refusal is decided on a real paper's slot-tagged items, which only a sandbox paper carries.
+  Scenario: Changing a board-pattern question's marks is refused, and sending the same marks back is not an edit
+    Given a ready board-pattern paper
+    When the teacher saves a question with its marks changed
+    Then the editor says "Board-pattern papers fix each question's marks." and no new version is made
+    When the teacher saves an Urdu item worth 1.25 marks with its text changed and the marks left as they were
+    Then a new version is made and the item is still worth 1.25 marks
+
+  @sandbox
+  # No mock driver: three creates must reach the bot at the same instant, which the web driver cannot do through one page.
+  Scenario: Three requests for the same class at the same moment make one paper
+    Given the board-pattern switch is on
+    When three requests for a Grade 5 Maths board-pattern paper arrive for one teacher at the same moment
+    Then one paper is queued and the other two are told "A paper for this class is being made" with that paper's request
+
+  @sandbox
+  Scenario: A reopened wait page still knows it is a board-pattern paper
+    Given a Grade 5 Maths board-pattern paper is being made for this teacher
+    When they close the app and open the paper's link again
+    Then the wait screen shows the board-pattern chip and how long ago the paper was started
+
   # ── Edge cases ────────────────────────────────────────────────────────────────────────────────────────────────────
 
   @FB07
@@ -112,6 +140,22 @@ Feature: FDE board-pattern paper for Grade 5
     And the teacher has asked for 10 papers in the last hour
     When they ask for another paper without the pattern
     Then the request is not refused for the limit
+
+  @FB08
+  Scenario: A board-pattern choice switched off mid-way goes back to today's Chapters step
+    Given the board-pattern switch is on
+    And a Grade 5 English teacher has picked the FDE board pattern card on Chapters or pages
+    When the switch is turned off and the page is reloaded
+    Then Chapters or pages shows the Chapters tab and no FDE board pattern card
+    And Next is off with "Select at least one chapter"
+    And a teacher who entered by the FDE door and reloads Class after the switch went off sees today's Class: no "FDE pattern papers" eyebrow, every grade on offer
+
+  @sandbox
+  Scenario: A failed read on the FDE door keeps the teacher on Class with Try again
+    Given the board-pattern switch is on
+    When the teacher taps Maths on the FDE door and the connection drops before the options come back
+    Then Class says "Could not load" with Try again instead of moving to Chapters or pages
+    And Try again, once the connection is back, goes on to Check and make
 
   @sandbox @real-paper
   Scenario: A paper for any other grade is unchanged

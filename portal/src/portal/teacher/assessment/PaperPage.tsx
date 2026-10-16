@@ -13,8 +13,9 @@ import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
 import { useAssessmentSwitches } from './api';
-import { dayLabel, pkDay, pkToday } from './model';
+import { FDE_EDITING, dayLabel, pkDay, pkToday } from './model';
 import { findPaper } from './paperCache';
+import { openArtifact } from './openArtifact';
 import { ASSESSMENT_V2_BASE, editPath, paperPath, versionsPath } from './paths';
 import { HistoryRow } from '../ui';
 import { PaperBody } from './PaperBody';
@@ -27,9 +28,6 @@ import { SkeletonList } from '../../components/Skeleton';
  * another app), and in the list Download, Answer key (only when the paper has one — has_answer_key) and, when editing is
  * on (GET /config assessmentEditing), Edit and Versions.
  */
-
-/** Board-pattern papers are not edited in the app for now (cut A, 15 Oct 2026): the editor cannot yet keep the board's shape. */
-export const FDE_EDITING = false;
 
 function ActionRow({ to, onPress, icon, label, first }: {
   to?: string; onPress?: () => void; icon: JSX.Element; label: string; first?: boolean;
@@ -60,7 +58,8 @@ export function PaperPage() {
   const canSend = useShareAvailable('paper');
 
   const open = async (artifact: 'paper' | 'answer_key') => {
-    const r: DownloadResult = await downloadArtifact(paperId, artifact);
+    // A board-pattern paper's rows hand their own file off inside WhatsApp's browser (R5-18); a plain paper downloads as today.
+    const r: DownloadResult = await (p?.pattern ? openArtifact : downloadArtifact)(paperId, artifact);
     if (r === 'unavailable') toast({ title: artifact === 'answer_key' ? C.noKey : C.notAvailable });
     if (r === 'failed') toast({ title: C.couldNotOpen, variant: 'destructive' });
   };

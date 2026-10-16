@@ -142,21 +142,22 @@ describe('Class on the door path', () => {
     at(newPaperPath('class'), newPaperPath('class'), <ClassStep />);
     expect(await screen.findByRole('progressbar', { name: C.step(1, 2) })).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.selectGradeSubject) }));
-    fireEvent.click(await screen.findByRole('radio', { name: /^Grade 5/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Maths/ }));
+    // The door's picker opens straight on Grade 5's subjects (no grade step: the grade is fixed).
+    fireEvent.click(await screen.findByRole('button', { name: /^Grade 5 · Maths/ }));
     await waitFor(() => expect(where().path).toBe(newPaperPath('check')));
     expect(where()).toMatchObject({ grade: 5, subject: 'maths', style: 'fde', pattern: 'fde_g5_2027', patternIntent: 'fde_g5_2027', coverBy: 'fde' });
   });
 
-  it('Islamiat on the door path: the note says after review, and the pick falls back to today\'s steps', async () => {
+  it('Islamiat on the door path: the note says after review, and its row is off (DESIGN 2.2)', async () => {
     setPicks(fdePicks({ subject: null, subjectName: null }));
     at(newPaperPath('class'), newPaperPath('class'), <ClassStep />);
     expect(await screen.findByText(C.islamiatHeld)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.selectGradeSubject) }));
-    fireEvent.click(await screen.findByRole('radio', { name: /^Grade 5/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Islamiat/ }));
-    await waitFor(() => expect(where().path).toBe(newPaperPath('cover')));
-    expect(where()).toMatchObject({ subject: 'islamiat', style: null, pattern: null, coverBy: 'chapters' });
+    const islamiat = await screen.findByRole('button', { name: /^Grade 5 · Islamiat/ });
+    expect(islamiat.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(islamiat);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByTestId('where')).toBeNull();
   });
 
   it('golden: a plain New paper\'s Class step shows no note and counts six steps', async () => {
@@ -368,7 +369,8 @@ describe('request page', () => {
     expect(paperRow.textContent).toContain(C.pagesCount(4));
     expect(screen.getByTestId('fde-ready-scheme').textContent).toContain(C.markingScheme);
     expect(screen.getByTestId('fde-ready-scheme').textContent).toContain(C.pagesCount(3));
-    expect(screen.getByText(C.withScheme)).toBeTruthy();
+    // R5-19: no "With marking scheme" chip (the two rows name both files)
+    expect(document.body.textContent).not.toContain('With marking scheme');
     expect(screen.queryByRole('link', { name: C.edit })).toBeNull();
     expect(screen.getByTestId('share-open')).toBeTruthy();
   });

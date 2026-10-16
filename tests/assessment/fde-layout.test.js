@@ -197,7 +197,7 @@ describe('applyLayout', () => {
       subjective: {
         'Comprehension Passage': items(1, 'urdu.B.Q2', 'پیراگراف', { passage: 'ایک دن' }),
         'Word Meanings': items(1, 'urdu.C.Q3', 'الفاظ'),
-        'Poem Explanation': items(1, 'urdu.C.Q6', 'اشعار', { passage: 'سطر' }),
+        'Poem Explanation': items(1, 'urdu.C.Q6', 'اشعار', { passage: 'سطر ایک\nسطر دو\nسطر تین\nسطر چار' }), // needs fluent-Urdu review (four lines: Q6 prints four verses)
         'Rewrite Sentences': items(4, 'urdu.C.Q4', 'قواعد'),
         'Word Sentences': items(1, 'urdu.C.Q5', 'جملے'),
         'Picture Description': items(1, 'urdu.C.Q7', 'منظر', { words: ['باغ', 'بچے'] }),

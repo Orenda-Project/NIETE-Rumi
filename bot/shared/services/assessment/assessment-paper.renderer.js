@@ -332,6 +332,8 @@ function totalMarks(questions) {
 // eslint-disable-next-line no-unused-vars
 function renderPaper({ examJson, grade, subject, schoolName, pageReference,
                        chapterTitle, includeAnswerKey = false, answerLines = true }) {
+  // A board-pattern paper carries its layout and prints by it; read off the paper, never a flag.
+  if (examJson && examJson._layout) return require('./assessment-paper-fde.renderer').renderPaper(arguments[0]);
   const lineMm = lineHeightMm(grade);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
@@ -452,6 +454,8 @@ function questionLabel(question) {
  * stay isolated left-to-right.
  */
 function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, chapterTitle }) {
+  // A board-pattern paper's key is its marking scheme.
+  if (examJson && examJson._layout) return require('./assessment-paper-fde.renderer').renderMarkingScheme(arguments[0]);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
   const dash = '—';

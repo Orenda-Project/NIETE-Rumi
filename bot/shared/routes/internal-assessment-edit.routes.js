@@ -14,10 +14,30 @@ const router = express.Router();
 const STATUS = {
   EDITING_DISABLED: 403, NOT_FOUND: 404, NOT_READY: 409,
   INVALID_CHANGES: 400, EMPTY_SELECTION: 400, NO_CHANGES: 400, EDIT_REJECTED: 400,
+  PATTERN_NO_ADD: 400, PATTERN_EMPTY_SLOT: 400, PATTERN_FIXED_MARKS: 400,
+};
+
+// A board-pattern paper is edited like any other, but nothing is added to it: the pattern fixes
+// how many questions each slot holds. An edit refusal like the rest; the app reads `errorCode`.
+const PATTERN_NO_ADD = 'PATTERN_NO_ADD';
+// Nor is a part of it emptied: a slot with no question left would print "attempt zero".
+const PATTERN_EMPTY_SLOT = 'PATTERN_EMPTY_SLOT';
+// Nor is a question's mark changed: the pattern prints one count per part.
+const PATTERN_FIXED_MARKS = 'PATTERN_FIXED_MARKS';
+const PATTERN_REFUSALS = {
+  [PATTERN_NO_ADD]: { code: 'EDIT_REJECTED', errorCode: PATTERN_NO_ADD, error: 'Board-pattern papers keep their shape.' },
+  [PATTERN_EMPTY_SLOT]: {
+    code: 'EDIT_REJECTED', errorCode: PATTERN_EMPTY_SLOT,
+    error: 'Keep at least one question in every part of a board-pattern paper.',
+  },
+  [PATTERN_FIXED_MARKS]: {
+    code: 'EDIT_REJECTED', errorCode: PATTERN_FIXED_MARKS, error: "Board-pattern papers fix each question's marks.",
+  },
 };
 
 function refuse(res, code, extra = {}) {
-  return res.status(STATUS[code] || 502).json({ success: false, code, ...extra });
+  const more = PATTERN_REFUSALS[code] || {};
+  return res.status(STATUS[code] || 502).json({ success: false, code, ...more, ...extra });
 }
 
 function editRoute(name, handler) {
@@ -62,7 +82,9 @@ router.post('/assessment/edit/validate', requireInternalKey, editRoute('validate
 
 router.post('/assessment/edit/save', requireInternalKey, editRoute('save', async (Editor, b, res) => {
   const out = await Editor.saveVersion({ userId: b.userId, parentId: b.parentId, changes: b.changes || {} });
-  if (out.status !== 'ready') return refuse(res, out.code, out.errors ? { errors: out.errors } : {});
+  if (out.status !== 'ready') {
+    return refuse(res, out.code, { ...(out.errors ? { errors: out.errors } : {}), ...(out.slot ? { slot: out.slot } : {}) });
+  }
   return res.json({ success: true, ...out });
 }));
 

@@ -32,6 +32,12 @@ export function stepsFor(p: Pick<Picks, 'style'>, eligible: boolean): readonly S
   return eligible && p.style === 'fde' ? FDE_STEPS : STEPS;
 }
 
+/**
+ * Edit on a board-pattern paper (the paper page and Versions). Off until the server's editor for those papers is live:
+ * the server refuses to edit one until then (PATTERN_NO_EDIT), and the editor reached by a link says so in the deck's words.
+ */
+export const FDE_EDITING = false;
+
 /** The bot's MAX_TOTAL_MARKS (question-types.js). The server refuses past it either way. */
 export const MAX_TOTAL_MARKS = 1000;
 
@@ -285,6 +291,21 @@ export type AnySpec = {
   pattern?: string | null;
   scope?: 'fde' | null;
 };
+
+/** A board-pattern request (it carries `pattern`), whatever shape the job stored it in. */
+export function isPatternSpec(spec: unknown): boolean {
+  return !!spec && typeof spec === 'object' && !!(spec as { pattern?: string | null }).pattern;
+}
+
+/**
+ * How many questions a request's paper has: a board-pattern request is sent with questionCount 0 (the pattern fixes it),
+ * so it counts the pattern's own total when known, else nothing (never "0 questions").
+ */
+export function questionsOf(spec: unknown, patternTotal: number | null): number | null {
+  if (isPatternSpec(spec)) return patternTotal;
+  const n = spec && typeof spec === 'object' ? (spec as { questionCount?: number | null }).questionCount : null;
+  return typeof n === 'number' ? n : null;
+}
 
 /** Her choices back from a request she sent (Change choices on a paper that failed). */
 export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {

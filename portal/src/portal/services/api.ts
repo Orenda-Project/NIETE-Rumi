@@ -492,7 +492,7 @@ export const portal = {
   },
 
   // ── bd-hb8qs: edit a finished paper (saves a NEW version; the bot owns every rule) ──
-  getAssessmentVersions: async (paperId: string): Promise<{ versions: EditVersion[] }> => {
+  getAssessmentVersions: async (paperId: string): Promise<{ versions: EditVersion[]; pattern?: string | null }> => {
     const response = await api.get(`/assessment/edit/${encodeURIComponent(paperId)}/versions`);
     return response.data;
   },
@@ -767,6 +767,8 @@ export type AssessmentStatus = {
   status: 'queued' | 'generating' | 'ready' | 'failed' | 'not_found';
   paperId?: string | null;
   errorCode?: string | null;
+  /** The board pattern the request was made with (api.md §4.5, R5-16); null/absent for a plain request or an older server. */
+  pattern?: string | null;
 };
 
 export type AssessmentPaper = {
