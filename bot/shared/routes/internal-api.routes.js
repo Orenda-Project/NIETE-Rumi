@@ -1510,7 +1510,7 @@ const PATTERN_CODE = Object.freeze({
  * the count is the slots' sum, the marks are fixed (no budget), every question
  * is new, and the marking scheme always comes with it.
  */
-async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines }) {
+async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines, onQueued = null }) {
   const Patterns = require('../services/assessment/patterns');
   const chapterNumber = picked.length === 1 ? picked[0] : null;
 
@@ -1572,7 +1572,39 @@ async function createPatternRequest({ Browse, res, userId, grade, subject, patte
     scope: { kind, chapters: chapters && chapters.length ? chapters : null, pages },
   });
 
+  if (onQueued) onQueued(requestId);
   return res.status(202).json({ success: true, requestId });
+}
+
+/**
+ * One board-pattern create per class at a time, in this process. Each class key holds the tail of
+ * a promise chain; a create waits for the one before it to answer, then reads. The bot runs as one
+ * container per tier, so this closes the window without a database lock (no DDL for one guard).
+ */
+const classQueue = new Map();
+function onePerClass(key, fn) {
+  const before = classQueue.get(key) || Promise.resolve();
+  const run = before.then(fn, fn);
+  const tail = run.catch(() => {});
+  classQueue.set(key, tail);
+  tail.then(() => {
+    if (classQueue.get(key) !== tail) return;
+    classQueue.delete(key);
+    justQueued.delete(key);
+  });
+  return run;
+}
+
+/**
+ * The request a class was just given, kept only while other creates for that class are still
+ * waiting behind it (and never past a few seconds): those taps arrived while it was being made,
+ * so they are the same paper even if the database read behind the 409 has not caught up. A create
+ * that arrives after the queue has drained is answered by the database alone, as before.
+ */
+const JUST_QUEUED_MS = 2000;
+const justQueued = new Map();
+function rememberQueued(key, id) {
+  justQueued.set(key, { id, at: Date.now() });
 }
 
 /**
@@ -1647,16 +1679,25 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
         success: false, error: 'Board-pattern papers fix their marks.', errorCode: PATTERN_CODE.NO_BUDGET,
       });
     }
-    const AssessmentRequest = require('../services/assessment/assessment-request.service');
-    const busy = await AssessmentRequest.findGenerating({ userId, grade, subject, pattern, withinMinutes: 10 });
-    if (busy) {
-      return res.status(409).json({
-        success: false, error: 'A paper for this class is being made.', errorCode: PATTERN_CODE.ALREADY_GENERATING, requestId: busy.id,
+    // The read and the insert are one step per class: three taps at once (a retry after a
+    // timed-out POST, Check open in two tabs) would otherwise all read "nothing in flight" before
+    // any of them wrote, and make three papers.
+    const classKey = [userId, grade, Patterns.normalise(subject), pattern].join('|');
+    return onePerClass(classKey, async () => {
+      const AssessmentRequest = require('../services/assessment/assessment-request.service');
+      const recent = justQueued.get(classKey);
+      const busy = (recent && Date.now() - recent.at < JUST_QUEUED_MS ? { id: recent.id } : null)
+        || await AssessmentRequest.findGenerating({ userId, grade, subject, pattern, withinMinutes: 10 });
+      if (busy) {
+        return res.status(409).json({
+          success: false, error: 'A paper for this class is being made.', errorCode: PATTERN_CODE.ALREADY_GENERATING, requestId: busy.id,
+        });
+      }
+      return createPatternRequest({
+        Browse, res, userId, grade, subject, pattern, scope: fdeScope ? 'fde' : null,
+        picked, pageRanges, answerLines: body.answerLines,
+        onQueued: (id) => rememberQueued(classKey, id),
       });
-    }
-    return createPatternRequest({
-      Browse, res, userId, grade, subject, pattern, scope: fdeScope ? 'fde' : null,
-      picked, pageRanges, answerLines: body.answerLines,
     });
   }
 
