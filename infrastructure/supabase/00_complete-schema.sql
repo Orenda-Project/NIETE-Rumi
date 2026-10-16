@@ -7476,4 +7476,16 @@ SELECT d.round,
   FROM public.class_round_draws d
   LEFT JOIN public.classes c ON c.id = d.class_id;
 
+
+-- ── quiz_sessions.helped_by (V1.6.13, bd-v0toag.10): the child's one-tap "who helped?" answer
+-- after a lesson quiz (quiz-helped-by.js). Written only while app_settings quiz_slo_retest_enabled is on.
+ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS helped_by text;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'quiz_sessions_helped_by_chk' AND conrelid = 'quiz_sessions'::regclass) THEN
+    ALTER TABLE quiz_sessions ADD CONSTRAINT quiz_sessions_helped_by_chk
+      CHECK (helped_by IN ('no_one', 'classmate', 'teacher', 'family'));
+  END IF;
+END $$;
+
 NOTIFY pgrst, 'reload schema';
