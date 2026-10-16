@@ -11,9 +11,9 @@ describe('the landing count line, singular and plural', () => {
     expect(page({ lang: 'en', live: { ict_today_floor: 1 } }).html()).not.toContain('1 children');
     expect(page({ lang: 'en', live: { ict_today_floor: 2 } }).html()).toMatch(/2 children (in .+ )?played today/);
   });
-  test('UR: 1 بچے نے / 2 بچوں نے', () => {
-    expect(page({ lang: 'ur', live: { ict_today_floor: 1 } }).html()).toContain('1 بچے نے کھیلا');
-    expect(page({ lang: 'ur', live: { ict_today_floor: 1 } }).html()).not.toContain('1 بچوں');
-    expect(page({ lang: 'ur', live: { ict_today_floor: 2 } }).html()).toContain('2 بچوں نے کھیلا');
+  test('UR: ۱ بچے نے / ۲ بچوں نے (Urdu digits)', () => {
+    expect(page({ lang: 'ur', live: { ict_today_floor: 1 } }).html()).toContain('۱ بچے نے کھیلا');
+    expect(page({ lang: 'ur', live: { ict_today_floor: 1 } }).html()).not.toContain('۱ بچوں');
+    expect(page({ lang: 'ur', live: { ict_today_floor: 2 } }).html()).toContain('۲ بچوں نے کھیلا');
   });
 });

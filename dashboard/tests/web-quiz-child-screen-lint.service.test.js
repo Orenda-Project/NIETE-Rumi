@@ -295,11 +295,10 @@ describe('the quiz page finish card: no class count under 5, any count, any grad
 });
 
 // The quiz page's two landings (wq.js M3, and the identity v2 landing wq-identity.js M4-who-v2): "N in your class
-// played today" and "N classmates are playing right now" only from 5 up. Only the class-count rows run here: the
-// landing's other lines are the quiz page's own, outside this lint.
+// played today" and "N classmates are playing right now" only from 5 up, and every row of the table on the whole
+// landing (an Urdu landing writes its numbers in Urdu digits, or in an isolate).
 describe('the quiz page landings: no class count under 5, n = 1…12, EN + UR', () => {
   const QP = require('./wq-page-harness');
-  const COUNT = FORBID.filter((f) => /^class count under 5/.test(f.what));
   const V2 = { label: 'Class 4-A', teacher: '<Name> Testwala', chips: [], identity: { mode: 'v2', class: { state: 'known', label: '4-A', ask: null }, roster: true, invited: false } };
   const landing = (lang, n, v2) => QP.page({ lang, live: { class_today: n, now: n, ict_today_floor: 40 }, ...(v2 ? { cls: V2, ident: true } : {}) }).html();
   test.each([['en', false], ['ur', false], ['en', true], ['ur', true]])('%s, identity v2 %s', (lang, v2) => {
@@ -307,10 +306,10 @@ describe('the quiz page landings: no class count under 5, n = 1…12, EN + UR', 
       const h = landing(lang, n, v2);
       expect(h).toContain(v2 ? 'M4-who-v2' : 'data-m="M3"');
       const v = visible(h);
-      const hits = COUNT.filter((f) => f.rx.exec(v)).map((f) => f.what);
-      if (hits.length) throw new Error(`${lang}:landing${v2 ? '-v2' : ''}-n${n} shows ${hits.join('; ')}\n  visible text: ${v}`);
+      // the page's own English runs (the class label "Class 4-A" in a wq-lat span) are left-to-right text, as an isolate is
+      check(`${lang}:landing${v2 ? '-v2' : ''}-n${n}`, h.replace(/<span class="wq-lat" lang="en">[^<]*<\/span>/g, ' '), lang);
       // from 5 up the class lines are there (the count is shown, not just hidden everywhere)
-      if (n >= 5) expect(v).toMatch(lang === 'en' ? /in your class played today/ : /نے کھیلا/);
+      if (n >= 5) expect(v).toMatch(lang === 'en' ? /in your class played today/ : /آپ کی کلاس میں [۰-۹]+ نے کھیلا/);
     }
   });
 });
