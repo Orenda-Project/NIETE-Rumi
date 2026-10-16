@@ -18,7 +18,10 @@
  *                                   (`cl`: class, id_src, id_confidence, homonym_in_list, practice) to the run row
  *   runColumns(cl, studentId)       the run-row columns a class-link pick writes (web-quiz-challenge insertRun)
  *   mint / forTeacher / forwardHref the teacher's side: the card on the report's class tab and its Forward link
- *   renew({teacherId, classId})     "Make a new link": revokes the class's live link and mints a new one
+ *   renew({teacherId, classId, n})  "Make a new link": revokes the class's live link and mints a new one — only with
+ *                                   the confirm card's nonce `n` (signRenewNonce: kind 'jr', this teacher + this class,
+ *                                   10 minutes); without one nothing is revoked, and a stale one (genuine, this teacher
+ *                                   and class, past 10 minutes) sends the teacher back to the confirm card
  *
  * Step tokens (`s`) are signed by web-quiz-token (kind 'cl', 10 minutes) and name the step the device reached; a
  * chip is HMAC(secret, "cl:<code>" | studentId), never reversible. Events go through the event key module
@@ -38,6 +41,7 @@ const CODE_LEN = 10;
 const CODE_RX = /^[A-HJ-NP-Z2-9]{8,16}$/;
 const STEP_TTL_S = 10 * 60;
 const TEACHER_PREVIEW_TTL_S = 15 * 60;
+const RENEW_NONCE_TTL_S = 10 * 60;
 const TEACHER_CHIPS_MAX = 3;
 const PKT_MS = 5 * 3600 * 1000;
 // The letters a child can tap: the whole alphabet of the roster's script, fixed (never only the letters present).
@@ -131,6 +135,19 @@ const isTeacherPreview = (code, jt) => {
   const p = typeof jt === 'string' ? T.verify(jt, 'jt') : null;
   return Boolean(p && p.c === code);
 };
+
+/**
+ * The confirm card's nonce for "Make a new link": a signed claim that THIS teacher asked to renew THIS class's link
+ * (shown the warning first), good for 10 minutes. Null with no secret.
+ */
+function signRenewNonce({ teacherId, classId } = {}) {
+  if (!teacherId || !classId) return null;
+  return T.sign({ k: 'jr', t: teacherId, c: classId, exp: nowS() + RENEW_NONCE_TTL_S });
+}
+function verifyRenewNonce(n, { teacherId, classId, allowExpired = false } = {}) {
+  const p = typeof n === 'string' && teacherId && classId ? T.verify(n, 'jr', { allowExpired }) : null;
+  return Boolean(p && p.t === teacherId && p.c === classId);
+}
 
 /** The run-row columns a class-link pick writes (the v2 run columns). {} for anything else. */
 function runColumns(cl, studentId) {
@@ -436,12 +453,17 @@ async function forwardHref({ teacherId, classId, how = 'forward', reportBase = n
 }
 
 /**
- * "Make a new link" (the card's POST form): the class's live link is revoked (its code then gets the unknown-code
- * page) and a new one minted. Only the class's own teacher, only with the switch on; null otherwise, and then no
- * row changes. Nothing is sent.
+ * "Make a new link" (the confirm card's POST form): the class's live link is revoked (its code then gets the
+ * unknown-code page) and a new one minted. Only with the switch on (else null, as before); then only with the
+ * confirm card's nonce for this teacher and this class ({refused:'stale_nonce'} when it is genuine but past its 10
+ * minutes, so the teacher is asked again; {refused:'bad_nonce'} otherwise); then only the class's own
+ * teacher (null otherwise). Whenever it is not {code}, no row changes. Nothing is sent.
  */
-async function renew({ teacherId, classId } = {}) {
-  if (!teacherId || !classId || !(await Flags.classLinkOn())) return null;
+async function renew({ teacherId, classId, n = null } = {}) {
+  if (!teacherId || !(await Flags.classLinkOn())) return null;
+  if (!verifyRenewNonce(n, { teacherId, classId })) {
+    return { refused: verifyRenewNonce(n, { teacherId, classId, allowExpired: true }) ? 'stale_nonce' : 'bad_nonce' };
+  }
   const m = await mint({ teacherId, classId, renew: true });
   return m.ok ? { code: m.code } : null;
 }
@@ -449,5 +471,5 @@ async function renew({ teacherId, classId } = {}) {
 module.exports = {
   ClassLinkError, ALPHABET, CODE_LEN, CODE_RX, LETTERS,
   termOf, newCode, firstNameOf, letterOf, runColumns, serveArgs, signTeacherPreview, isTeacherPreview, stripTitle,
-  resolve, arrive, teacher, letter, pick, mint, renew, forTeacher, forwardHref, linkUrl,
+  resolve, arrive, teacher, letter, pick, mint, renew, forTeacher, forwardHref, linkUrl, signRenewNonce, verifyRenewNonce,
 };
