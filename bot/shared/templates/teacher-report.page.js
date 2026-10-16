@@ -662,8 +662,16 @@ function renderPage(data, opts = {}) {
   const tokens = opts.tokens || {};
   const tab = opts.tab === 'class' || !(data && data.quiz) ? 'class' : 'quiz';
   const { rtl, C, L } = kit(lang);
+  const jg = opts.jugnu || null; // the Jugnu tab: { href, label, view? } only when its switch is on
   const base = `${REPORT_PATH}/${encodeURIComponent(tokens.self || '')}`;
   const extraCss = '';
+  // ── Jugnu tab (web_quiz_teacher_jugnu; teacher-jugnu.page renders it). opts.jugnu is absent when the switch is
+  // off, and then nothing below or in the foot changes a byte (golden: teacher-jugnu-golden.test.js). ──
+  if (jg && jg.view && !print) {
+    const v = jg.view;
+    return shell({ lang, rtl, print, needUrdu: rtl || Boolean(v.needUrdu), extraCss: v.css || '', title: v.title, body: `${v.header}<main class="wrap">${v.main}<div class="upd">${L(C.updated(esc(timeLabel(opts.now || Date.now()))))}</div></main>` });
+  }
+  // ── end Jugnu tab ──
   const parts = tab === 'quiz'
     ? quizSections(data.quiz, { lang, print, tokens, slots: data, notice: opts.notice, ok: opts.ok })
     : classSections((data && data.class) || {}, { lang, print, tokens });
@@ -672,7 +680,7 @@ function renderPage(data, opts = {}) {
   tab === 'quiz'
     ? `<a class="btn btn-ghost" href="${base}${qs([['tab', 'class'], ['lang', lang]])}">${L(C.allClasses)}</a>`
     : (opts.scope === 'quiz' ? `<a class="btn btn-ghost" href="${base}${qs([['lang', lang]])}">${L(C.backToQuiz)}</a>` : '')
-}</div></div>`;
+}</div>${jg && jg.href ? `<a class="btn btn-ghost" href="${jg.href}">${L(jg.label)}</a>` : '' /* Jugnu tab link (switch on only) */}</div>`;
   const upd = `<div class="upd">${L(C.updated(esc(timeLabel(opts.now || Date.now()))))}</div>`;
   const needUrdu = rtl || scriptOf(JSON.stringify(data || {})) === 'ur';
   const title = tab === 'quiz' ? `${(data.quiz.quiz && data.quiz.quiz.topic) || C.title} · ${C.title}` : C.classTitle;
@@ -697,4 +705,8 @@ function renderMessagePage({ kind = 'missing', lang = null } = {}) {
   return shell({ lang: first, rtl: RTL_LANGS.has(first), print: false, needUrdu: langs.includes('ur'), title: CHROME[first][`${k}Title`], body: blocks });
 }
 
-module.exports = { renderPage, renderMessagePage, CHROME, REPORT_PATH };
+module.exports = {
+  renderPage, renderMessagePage, CHROME, REPORT_PATH,
+  // The page's own pieces, for the Jugnu tab's renderer (teacher-jugnu.page) to draw in the same chrome.
+  parts: { kit, topBar, qs, esc, urduDigits },
+};

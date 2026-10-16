@@ -7349,6 +7349,25 @@ ALTER TABLE child_bind_codes     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE merge_log            ENABLE ROW LEVEL SECURITY;
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- Web quiz standing class link (mirror of bot/database/migrations/web_quiz_class_link.sql)
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS class_links (
+  code        text PRIMARY KEY CHECK (code ~ '^[A-HJ-NP-Z2-9]{8,16}$'),
+  class_id    uuid NOT NULL REFERENCES public.classes(id),
+  teacher_id  uuid NOT NULL REFERENCES public.users(id),
+  term_code   text NOT NULL CHECK (term_code ~ '^[0-9]{4}-[0-9]{2}[ab]$'),
+  minted_at   timestamptz NOT NULL DEFAULT now(),
+  expires_at  timestamptz NOT NULL,
+  revoked_at  timestamptz
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS class_links_one_active
+  ON public.class_links (class_id, term_code) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS class_links_teacher ON public.class_links (teacher_id);
+
+ALTER TABLE public.class_links ENABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- Web quiz send ledger (mirror of bot/database/migrations/web_quiz_message_ledger.sql)
 -- ─────────────────────────────────────────────────────────────────────────────
 create table if not exists message_ledger (   -- unqualified like the other tables here (public)

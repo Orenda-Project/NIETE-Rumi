@@ -11,6 +11,7 @@
  *   GET /data/:token                                   the report as JSON (tests, QA)
  *   POST /class/:token {quiz, key}                     "Which class was this for?" -> identity v2 whoClass
  *   POST /fix/:token {quiz, ref, add|studentId}        a typed child: add to the class / who it really is -> fixWho
+ *   GET /fwd/:token, POST /queue/:token                the Jugnu tab's (teacher-jugnu-internal.routes; switch off -> 404)
  * The two POSTs answer 303 back to the report (with ?e=1 when nothing was saved).
  *
  * A bad or expired token gets the "link has expired" page (401 / 410); a quiz
@@ -26,6 +27,7 @@ const { clampLanguage } = require('../config/ux-strings');
 const Data = require('../services/quiz/teacher-report.data');
 const Token = require('../services/quiz/teacher-report-token');
 const { renderPage, renderMessagePage, REPORT_PATH } = require('../templates/teacher-report.page');
+const Jugnu = require('./teacher-jugnu-internal.routes'); // the Jugnu tab (web_quiz_teacher_jugnu)
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -108,12 +110,14 @@ router.get('/page/:token', handle(async (req, res) => {
   if (!v) return;
   const b = await build(req, v);
   if (!b) { notFound(req, res, v); return; }
+  const jugnu = await Jugnu.pageExtras(req, v, b.lang); // Jugnu tab: null when its switch is off
   logEvent('teacher_report.opened', {
-    teacherId: v.teacherId, quizId: v.quizId, scope: v.quizId ? 'quiz' : 'all', tab: b.tab, iab: IAB_RX.test(req.get('user-agent') || ''),
+    teacherId: v.teacherId, quizId: v.quizId, scope: v.quizId ? 'quiz' : 'all', tab: jugnu && jugnu.view ? 'jugnu' : b.tab, iab: IAB_RX.test(req.get('user-agent') || ''),
   });
   noStore(res);
   res.status(200).type('html').send(renderPage(b.data, {
     lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: NOTICES[req.query.e] || null, ok: okOf(req.query),
+    ...(jugnu ? { jugnu } : {}),
   }));
 }));
 
@@ -244,5 +248,9 @@ router.post('/fix/:token', handle(async (req, res) => {
   const no = row && Number.isInteger(Number(row.roll)) && row.roll !== null ? Number(row.roll) : null;
   back(req, res, out, { kind: add ? 'added' : 'moved', no });
 }));
+
+// ── Jugnu tab (web_quiz_teacher_jugnu): GET /fwd/:token, POST /queue/:token — 404 while the switch is off ──
+Jugnu.attach(router, { authorise, handle, notFound, noStore, languageFor });
+// ── end Jugnu tab ──
 
 module.exports = router;
