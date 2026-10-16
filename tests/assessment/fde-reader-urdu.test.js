@@ -150,7 +150,10 @@ describe('reader pass ON: a flagged item does not print', () => {
     expect(a).toHaveLength(3);
     expect(a[2].prompt).toContain('never write these again');
     expect(a[2].prompt).toContain('states the rule that answers which sentence is شکیہ');
-    expect(a[2].prompt).toMatch(/Write \d+ new items/);
+    // The top-up asks twice what it lacks, plus spares: the layout holds many of a top-up's items on a
+    // narrow scope (5 asked, 4 held on a local lessons 6-7 paper), and the extras never print.
+    const write = Number((a[2].prompt.match(/Write (\d+) new items/) || [])[1]);
+    expect(write).toBeGreaterThanOrEqual(2 * 1 + 2);
 
     const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
     expect(line).toBeTruthy();
