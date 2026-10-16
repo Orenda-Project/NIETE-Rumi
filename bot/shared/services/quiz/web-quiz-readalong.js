@@ -115,6 +115,8 @@ function createReadAlong({ settingOn, r2, bucket, env = process.env, now = () =>
       audio: { url, ms: Number(d.audio.ms) || 0, mime: d.audio.mime || 'audio/ogg; codecs=opus' },
       // pace_wpm stays in the stored file for the build's evidence; a rate never goes to the child's page
       words: d.words.map((w) => ({ i: w.i, t: w.t, s_ms: w.s_ms, e_ms: w.e_ms })),
+      // a file over the timing bar is marked "low": the player lights lines, and no word slice is ever played from it
+      ...(d.quality === 'low' ? { quality: 'low' } : {}),
     };
   }
 
