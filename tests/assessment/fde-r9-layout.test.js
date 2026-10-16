@@ -230,6 +230,19 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(after).not.toContain('شہریت کسے کہتے ہیں؟ مختصر تعریف کریں۔');
   });
 
+  test('a reworded pair is still the same fact (three of the MCQ\'s eight words), and an answer that is only an MCQ\'s options is held', () => {
+    const exam = fixture('r9-sst-chapters2');
+    const q1 = slotItems(exam, 'social_studies.A.Q1');
+    q1[1].question = '26 جون 1947ء کو پاکستان میں شامل ہونے کا فیصلہ کس کی اسمبلی نے کیا؟';
+    const q7 = slotItems(exam, 'social_studies.D.Q7');
+    q7[0].question = 'حکومت کے تین اعضا کے نام لکھیں۔';
+    q7[0].answer = 'مقننہ، انتظامیہ اور عدلیہ';
+    q7[0].scheme = { accept: [], points: [{ kind: 'K', text: 'تینوں نام', marks: 2 }] };
+    const placed = slotItems(lay(exam, 'social_studies').examJson, 'social_studies.D.Q7').map((q) => q.question);
+    expect(placed).not.toContain('پاکستان میں شامل ہونے والا پہلا صوبہ کون سا تھا؟');
+    expect(placed).not.toContain('حکومت کے تین اعضا کے نام لکھیں۔');
+  });
+
   test('Urdu-Indic digits and option letters match: a key written ۱۰۴ still holds the 104 item', () => {
     const exam = fixture('r9-sst-chapters2');
     for (const q of slotItems(exam, 'social_studies.A.Q1')) {
