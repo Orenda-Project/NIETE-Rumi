@@ -760,7 +760,14 @@ function checkRemainder(q, answer, exam, index) {
   return replaceKey(q, exam, answer, at, raw, computed, index);
 }
 
+// Board-pattern papers: a stem that asks for an estimate is keyed with the estimate
+// ("654,000 - 123,000 = 531,000"), so the exact value is not its answer and the key is
+// never compared with it, let alone rewritten to it. Left unchecked, as written.
+// "about" counts only as an amount ("about how much", "about 500"), not "a problem about a shop".
+const ESTIMATE_STEM = /(?<![a-z])(?:estimat[a-z]*|round(?:s|ed|ing)?|nearest|approx[a-z]*|about(?=\s+(?:how\b|(?:rs\.?\s*)?\d)))(?![a-z])|تخمین|اندازہ|قریب\s*ترین|تقریباً/i;
+
 function checkQuestion(q, exam, index) {
+  if (isObject(exam._layout) && typeof q.question === 'string' && ESTIMATE_STEM.test(q.question)) return null;
   if (isObject(exam._layout) && typeof q.answer === 'string' && q.answer.length <= MAX_TEXT) {
     const verdict = checkRemainder(q, q.answer, exam, index);
     if (verdict !== undefined) return verdict;
