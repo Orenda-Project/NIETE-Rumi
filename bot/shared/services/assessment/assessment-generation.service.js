@@ -1263,9 +1263,13 @@ function patternPoemFor({ P, scope, pageContent }) {
 function _versesReference(P, poem, content) {
   if (!P || P.key !== 'urdu' || !Array.isArray(P.poems) || !P.poems.length) return '';
   if (poem && poem.content) return _lettersOnly(poem.content);
-  const want = new Set(P.poems.flatMap((p) => Patterns.parseRanges(p.pages)
-    .flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i))));
-  return _lettersOnly((_splitPages(content) || []).filter((pg) => want.has(pg.page)).map((pg) => pg.text).join('\n'));
+  // Only a poem whose every page is loaded: on chosen pages that cut a poem in two, the lines on
+  // the missing page would read as not the poem's, so nothing is checked.
+  const pages = _splitPages(content) || [];
+  const have = new Set(pages.map((pg) => pg.page));
+  const pagesOf = (poem) => Patterns.parseRanges(poem.pages).flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i));
+  const want = new Set(P.poems.map(pagesOf).filter((list) => list.every((n) => have.has(n))).flat());
+  return _lettersOnly(pages.filter((pg) => want.has(pg.page)).map((pg) => pg.text).join('\n'));
 }
 function _lettersOnly(text) { return _heldNorm(text).replace(/[^\p{L}]/gu, ''); }
 // A line is the poem's when it is in the poem's text, or when three in four of its four-letter runs
