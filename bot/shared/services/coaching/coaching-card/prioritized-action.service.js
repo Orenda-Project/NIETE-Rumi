@@ -136,15 +136,13 @@ function findWeakestIndicator(analysis) {
  * @param {object} analysis - Framework analysis from GPT
  * @param {string} teacherName - Teacher's first name
  * @param {object} [priorAction] - Previous session's prioritized action (if any)
- * @param {string} [focusId] - The report's selected step (bd-v0toag.1.5); the weakest row when absent or not scored here
  * @returns {Promise<{action: string, example: string, indicator: string}|null>}
  */
-async function generatePrioritizedAction(analysis, teacherName, priorAction = null, focusId = null) {
+async function generatePrioritizedAction(analysis, teacherName, priorAction = null) {
   if (!analysis) return null;
 
   try {
-    const byId = focusId ? (inds) => inds.find((i) => String(i.id) === String(focusId)) || null : null;
-    const weakest = (byId && selectFocusIndicator(extractIndicators(analysis), byId)) || findWeakestIndicator(analysis);
+    const weakest = findWeakestIndicator(analysis);
     if (!weakest) {
       logToFile('No weak indicator found for coaching card', { framework: analysis.framework });
       return {
