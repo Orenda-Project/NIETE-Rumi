@@ -2,7 +2,8 @@
  * The Trail page v2 (public/wq/wq-trail.js, loaded only when the menu says v2) run with the real Challenge page in
  * the harness's vm. With v2 off the page is the base's (goldens captured from the base page code); with v2 on:
  * help asked once per sitting before the first scored stop (never before practice), sent as a string on every result;
- * the keep screen after the microphone, nothing preselected, its answer on the upload and the result; "Whose turn?"
+ * the mic notice once per child per phone BEFORE the microphone is asked for (one control; notice_shown on the upload
+ * and the result; a localStorage mirror per child); "Whose turn?"
  * from the serve's ask; on_its_way closes the stop (no mic, no upload); end cards carry no number about the child;
  * a stop opened by URL is what the serve says; the warm-up's stop_after 0 never stops; a listening story still being
  * recorded is "getting ready", never an error.
@@ -40,6 +41,9 @@ const store = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? 
 const v2page = (o = {}) => page({ menu: TRAIL(), freshEls: true, session: store(), pre: [TRAIL_SRC], ...o });
 const bodies = (p, rx) => p.fetches.filter((f) => rx.test(f.url) && f.init && f.init.body).map((f) => JSON.parse(f.init.body));
 const text = (h) => h.replace(/<[^>]+>/g, ' ');
+// the page's own copy table (wq-trail.js T): the notice words are read from there, never typed twice
+const trailT = () => { const vm = require('vm'); const ctx = { window: {}, document: {} }; vm.createContext(ctx); vm.runInContext(TRAIL_SRC, ctx); return ctx.window.WQTRAIL.T; };
+const DELETION = /delete|deleted|deleting|erase|حذف|مٹا/i;
 
 describe('golden: with v2 off the page and its shell are the base\'s', () => {
   // the base page code is used to (re)capture: WRITE_TRAIL_PAGE_GOLDEN=1 BASE_SRC=<base wq-challenge.js>
@@ -110,17 +114,15 @@ describe('no «پڑاؤ» on a v2 screen (ruled jg.trail.* copy)', () => {
   });
 });
 
-describe('held-back keep lines do not ship', () => {
-  test('the page copy has no 90-day or STOP keep strings, in English or Urdu', () => {
-    const vm = require('vm');
-    const ctx = { window: {}, document: {} };
-    vm.createContext(ctx);
-    vm.runInContext(TRAIL_SRC, ctx);
+describe('held-back keep lines do not ship; the retired keep question is gone', () => {
+  test('the page copy has no 90-day line, no deletion claim and none of the retired keep keys, in English or Urdu', () => {
+    const T = trailT();
     for (const l of ['en', 'ur']) {
-      const T = ctx.window.WQTRAIL.T[l];
-      expect(T).not.toHaveProperty('keepSub');
-      expect(T).not.toHaveProperty('keepStop');
-      expect(JSON.stringify(T)).not.toMatch(/90 days|۹۰ دن|STOP/);
+      for (const k of ['keepSub', 'keepStop', 'keepQ', 'keepYes', 'keepNo', 'keepEither', 'keepAskGrownup', 'keepSubV2']) expect(T[l]).not.toHaveProperty(k);
+      expect(JSON.stringify(T[l])).not.toMatch(/90 days|۹۰ دن/);
+      expect(JSON.stringify(T[l])).not.toMatch(DELETION);
+      // STOP appears only in the notice (it removes the phone link), never in any other line
+      Object.entries(T[l]).filter(([k, v]) => k !== 'noticeT' && typeof v === 'string').forEach(([, v]) => expect(v).not.toContain('STOP'));
     }
   });
 });
@@ -155,29 +157,154 @@ describe('help: once per sitting, before the first scored stop, sent as a string
   });
 });
 
-describe('keep this reading? after the microphone, nothing preselected', () => {
-  test('mic on → keep screen; "No" → audio_consent kept_no on the upload and the result', async () => {
-    const p = v2page({ session: (() => { const s = store(); s.setItem('wqc_helped_v2:', 'self'); return s; })(),
-      routes: { 'ch/HUB.TOKEN/read': ok(READ()), 'ch/upload': ok({ put_url: 'https://r2.test/put', key: 'k', content_type: 'audio/webm' }), 'r2.test': ok({}), 'ch/result': ok({ score: { correct: 30, attempted: 30 }, wcpm: 30 }) } });
+describe('the mic notice: once per child per phone, before the microphone is asked for, one control', () => {
+  const NOTICE = { ...V2, notice: 1, name: 'Zara' };
+  const sat = (kid) => { const s = store(); s.setItem('wqc_helped_v2:' + kid, 'self'); return s; };
+  const READ_ROUTES = (v2) => ({ 'ch/HUB.TOKEN/read': ok(READ({ v2 })), 'ch/upload': ok({ put_url: 'https://r2.test/put', key: 'k', content_type: 'audio/webm' }), 'r2.test': ok({}), 'ch/result': ok({ score: { correct: 30, attempted: 30 }, wcpm: 30 }) });
+  // the read stop opened and "Ready" tapped, with every getUserMedia call counted
+  const toMic = async ({ v2 = NOTICE, kid = 'c1', storage = store(), lang = 'en' } = {}) => {
+    const p = v2page({ kid, lang, storage, session: sat(kid), menu: { ...TRAIL(), lang }, routes: READ_ROUTES(v2) });
+    const real = p.ctx.navigator.mediaDevices.getUserMedia;
+    p.gum = jest.fn(() => real());
+    p.ctx.navigator.mediaDevices.getUserMedia = p.gum;
     await p.click('wqc-ex-read');
     await p.click('wqc-go');
-    expect(p.screen()).toBe('keep-ask');
+    return p;
+  };
+  const send = async (p) => { p.w.rec.chunks = [{ size: 4000 }]; p.w.upload(); await p.flush(); };
+  const buttons = (h) => (h.match(/<button[^>]*>/g) || []);
+
+  test('shown before any getUserMedia call, with one control, no yes / no and nothing preselected', async () => {
+    const p = await toMic();
+    expect(p.screen()).toBe('mic-notice');
+    expect(p.gum).not.toHaveBeenCalled();
+    expect(p.mic.ctx).toBe(0);
     const h = p.html();
-    expect(h).toContain('May Jugnu keep this reading to check that it heard right?');
-    // retention lines held back pending a ruling on retention copy (kept readings are not deleted after 90 days)
-    expect(h).not.toMatch(/90 days|STOP|deleted/);
-    // copy.v2.json v2.1: jg.keep.sub_v2 (no «جانچ», no checker job title), then jg.keep.ask_grownup above the two answers.
-    expect(h).toContain('Kept so one person can listen and confirm Jugnu heard right. A grown-up can say no.');
-    // RULING #62: the two answers side by side at equal width, the same class, nothing preselected
-    expect(h).toMatch(/Ask a grown-up this one\.<\/p><div class="wqc-keep2" id="wqc-keep-pair"><button class="wq-btn wq-go" id="wqc-keep-yes"[^>]*>[^<]*<\/button><button class="wq-btn wq-go" id="wqc-keep-no"/);
-    expect(h).toContain('Jugnu listens either way.');
-    expect(h).not.toMatch(/aria-pressed="true"|checked/);
-    await p.click('wqc-keep-no');
-    p.w.rec.chunks = [{ size: 4000 }];
-    p.w.upload();
+    expect(h).toContain(trailT().en.noticeT.split('{name}').join('Zara'));
+    expect(buttons(h)).toHaveLength(1);
+    expect(h).toContain(`id="wqc-notice-ok" type="button">${trailT().en.noticeOk}</button>`);
+    expect(h).not.toMatch(/wqc-keep-(yes|no)|aria-pressed="true"|checked/);
+  });
+
+  test('the control leads to the microphone exactly as the stop would have', async () => {
+    const p = await toMic();
+    await p.click('wqc-notice-ok');
+    expect(p.gum).toHaveBeenCalledTimes(1);
+    expect(p.events.find((e) => e.n === 'ch_mic')).toMatchObject({ ok: true });
+    expect(p.screen()).toMatch(/^read-(ready|rec)$/);
+  });
+
+  test('the upload and the result that follow carry audio_consent notice_shown (never kept_ok / kept_no)', async () => {
+    const p = await toMic();
+    await p.click('wqc-notice-ok');
+    await send(p);
+    expect(bodies(p, /ch\/upload$/)[0]).toMatchObject({ ct: 'CTR', audio_consent: 'notice_shown' });
+    expect(bodies(p, /ch\/result$/)[0]).toMatchObject({ audio_consent: 'notice_shown', helped: 'self' });
+    expect(JSON.stringify(p.fetches.map((f) => f.init && f.init.body))).not.toMatch(/kept_ok|kept_no/);
+  });
+
+  test('a payload without v2.notice (seen already): no notice, straight to the microphone, no audio_consent sent', async () => {
+    const p = await toMic({ v2: V2 });
+    expect(p.screen()).toMatch(/^read-(ready|rec)$/);
+    expect(p.gum).toHaveBeenCalledTimes(1);
+    await send(p);
+    expect(bodies(p, /ch\/upload$/)[0]).not.toHaveProperty('audio_consent');
+    expect(bodies(p, /ch\/result$/)[0]).not.toHaveProperty('audio_consent');
+  });
+
+  test('the phone\'s mirror (wq_notice_v per child): not shown twice to the same child, still shown to a sibling', async () => {
+    const storage = store();
+    const first = await toMic({ storage });
+    await first.click('wqc-notice-ok');
+    expect(storage.getItem('wq_notice_v:c1')).toBe('1');
+    // the server did not record it (its write failed): the payload still says notice, the phone does not show it again
+    const again = await toMic({ storage });
+    expect(again.screen()).toMatch(/^read-(ready|rec)$/);
+    await send(again);
+    expect(bodies(again, /ch\/upload$/)[0]).not.toHaveProperty('audio_consent');
+    const sibling = await toMic({ storage, kid: 'c2' });
+    expect(sibling.screen()).toBe('mic-notice');
+    expect(sibling.gum).not.toHaveBeenCalled();
+  });
+
+  test('a new wording version is shown again on the same phone', async () => {
+    const storage = store();
+    storage.setItem('wq_notice_v:c1', '1');
+    const p = await toMic({ storage, v2: { ...NOTICE, notice: 2 } });
+    expect(p.screen()).toBe('mic-notice');
+  });
+
+  test('a retry of the microphone check on the same run does not show it again', async () => {
+    const p = await toMic();
+    await p.click('wqc-notice-ok');
+    p.w.micStart();
     await p.flush();
-    expect(bodies(p, /ch\/upload$/)[0]).toMatchObject({ ct: 'CTR', audio_consent: 'kept_no' });
-    expect(bodies(p, /ch\/result$/)[0]).toMatchObject({ audio_consent: 'kept_no', helped: 'self' });
+    expect(p.screen()).not.toBe('mic-notice');
+    expect(p.gum).toHaveBeenCalledTimes(2);
+  });
+
+  test('Urdu: the ruled words with the name isolated, STOP isolated; the control is the ruled label', async () => {
+    const p = await toMic({ lang: 'ur', v2: { ...NOTICE, name: 'زارا' } });
+    const h = p.html();
+    // the deck's Urdu line isolates {name} itself (U+2068…U+2069): the name goes in once, never isolated twice
+    expect(h).toContain(trailT().ur.noticeT.split('{name}').join('زارا'));
+    expect(h).toContain('\u2068زارا\u2069');
+    expect(h).not.toContain('\u2068\u2068');
+    expect(h).toContain('\u2066STOP\u2069');
+    expect(h).toContain(`>${trailT().ur.noticeOk}</button>`);
+  });
+
+  test('the first name never rides into a page event, while the notice is due or after it (EVENTS NAME_PROPS)', async () => {
+    const p = await toMic({ v2: { ...NOTICE, name: 'Zara' } });
+    await p.click('wqc-notice-ok');
+    await send(p);
+    p.w.flushEvents && p.w.flushEvents();
+    await p.flush();
+    expect(p.events.length).toBeGreaterThan(0);
+    expect(JSON.stringify(p.events)).not.toContain('Zara');
+    // and never on the upload or the result call either: the name is for the screen only
+    expect(JSON.stringify(p.fetches.filter((f) => !/\/api\/wq\/ch\/HUB/.test(f.url)).map((f) => f.init && f.init.body))).not.toContain('Zara');
+  });
+
+  test('the name is escaped', async () => {
+    const p = await toMic({ v2: { ...NOTICE, name: '<b>Z</b>' } });
+    expect(p.root.innerHTML).toContain('&lt;b&gt;Z&lt;/b&gt;');
+  });
+
+  test('the switch off (no v2 on the payloads): today\'s page, no notice, no audio_consent', async () => {
+    const p = page({ menu: TRAIL(null), freshEls: true, kid: 'c1', storage: store(), routes: { 'ch/HUB.TOKEN/read': ok(READ({ v2: undefined })), 'ch/upload': ok({ put_url: 'https://r2.test/put', key: 'k', content_type: 'audio/webm' }), 'r2.test': ok({}), 'ch/result': ok({ score: { correct: 30, attempted: 30 }, wcpm: 30 }) } });
+    await p.click('wqc-ex-read');
+    if (p.screen() === 'help-ask') await p.click('wqc-help-no');
+    await p.click('wqc-go');
+    expect(p.screen()).not.toBe('mic-notice');
+    await send(p);
+    expect(bodies(p, /ch\/upload$/)[0]).not.toHaveProperty('audio_consent');
+    expect(bodies(p, /ch\/result$/)[0]).not.toHaveProperty('audio_consent');
+  });
+});
+
+describe('the notice copy (deck v2.2: jg.keep.notice, jg.keep.notice_ok)', () => {
+  test('byte-equal to the deck (bot/shared/config/copy.v2.json), EN and UR', () => {
+    const deck = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'config', 'copy.v2.json'), 'utf8'));
+    const keys = deck.keys || deck;
+    for (const l of ['en', 'ur']) {
+      expect(trailT()[l].noticeT).toBe(keys['jg.keep.notice'][l]);
+      expect(trailT()[l].noticeOk).toBe(keys['jg.keep.notice_ok'][l]);
+    }
+  });
+  test('each notice is at most 200 code points with {name} unfilled (RULING #97 amended); the control at most 12', () => {
+    for (const l of ['en', 'ur']) {
+      expect(trailT()[l].noticeT).toContain('{name}');
+      expect([...trailT()[l].noticeT].length).toBeLessThanOrEqual(200);
+      expect([...trailT()[l].noticeOk].length).toBeLessThanOrEqual(12);
+    }
+  });
+  test('the notice never claims a deletion and never asks a question', () => {
+    for (const l of ['en', 'ur']) {
+      expect(trailT()[l].noticeT).not.toMatch(DELETION);
+      expect(trailT()[l].noticeT).not.toMatch(/[?؟]/);
+    }
+    expect(trailT().ur.noticeT).toContain('\u2066STOP\u2069');
   });
 });
 

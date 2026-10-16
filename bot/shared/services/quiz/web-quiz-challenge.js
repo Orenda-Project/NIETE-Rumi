@@ -693,7 +693,7 @@ async function menu(token, { kid, lang, device } = {}) {
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await Tel.flag(),
     ...((await require('./web-quiz-ur-polish').ui()) ? { ui: { ur2: true } } : {}),
-    ...(await TrailPage.bits()),
+    ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
   };
 }
 
@@ -746,7 +746,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
   const practiceRound = !w.round && ((rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice'));
   const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
-    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload) : {}), ...(await TrailPage.bits()) };
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload) : {}), ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })) };
   if (ex === 'missing' && v2 && v2.items) {
     // the A1 warm-up: the same 10 items in the same order on both forms, no 4-error stop; the try-out after item 10
     const p3 = Bank.getTaskSpec({ grade: 3, set: 'A', task: 'ma.missing' });
@@ -1649,7 +1649,7 @@ function liveCount(v, passageLen) {
   return { correct, attempted, secs, v: 1 };
 }
 
-async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
+async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = null } = {}) {
   const g1Run = Grade1.challengeOf(body.ct);   // grade-1 form: its run token scores there
   if (g1Run) return Grade1.submit(g1Run, body);
   const c = runOf(body.ct);
@@ -1760,10 +1760,12 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
   // the switch now on is still deleted, and the row says so (calibration then knows why there is no audio).
   const audio = isKeptKey(key) ? { audio_key: key } : ((await keepAudioOn()) ? { audio_kept: false } : {});
   const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio };
-  // the grown-up's keep answer (web_quiz_challenge_audio_consent; null with it off): on the row, one event per run
+  // the mic notice (web_quiz_challenge_audio_consent; null with it off): on the row, one event per run; a run that
+  // showed it marks this child's notice seen on this phone (x-wq-device), so it is not shown again
   const consent = await TrailPage.consentFor(body);
   const consentCols = TrailPage.columns(consent);
   TrailPage.noteConsent(c.r, consent);
+  if (consent === 'notice_shown') await TrailPage.noteNoticeShown(c.sid, device);
   if (isLive) {
     // the child may already be answering the questions (the live result shows before this call): keep their answers
     await updateRunMeta(c.r, (cur) => ({ status: 'scoring', meta: { ...servedMeta(cur.meta), ...metaIn, ...(cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {}) } }));

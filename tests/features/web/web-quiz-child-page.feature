@@ -1809,11 +1809,14 @@ Feature: Web child quiz page on the portal
     And the page shell does not load the Trail v2 script
 
   @T786
-  Scenario: A grown-up decides whether a reading is kept, on its own screen after the microphone
+  Scenario: The mic notice shows once per child per phone, before the microphone is asked for, with one control
     Given web_quiz_challenge_v2, web_quiz_challenge_audio_consent and web_quiz_challenge_keep_audio are "on"
-    When the microphone is on and the keep screen shows two answers with neither selected
-    Then "No, don't keep it" or no answer uploads to the deleted prefix and nothing is written under kept/
-    And only "Yes, keep it" uploads under kept/, and the run row carries the answer, its time and grownup_tap
+    And this child has not seen the notice's current wording on this phone
+    When the child opens Read aloud and taps Ready
+    Then before the phone asks for the microphone one card says the reading is kept to see how the child is learning, that one checker may listen and that STOP on WhatsApp removes the phone link, with one "Got it" and nothing to choose
+    And "Got it" goes on to the microphone, every reading is kept, and that run's upload and result say notice_shown, which the run row and the ch_audio_consent event carry
+    And the same child on the same phone does not see it again, while a brother or sister on that phone sees it once, and everyone sees it again when its wording changes
+    But a legacy "kept_no" from an old page is still not kept, and with the switch off no notice shows and no consent is written
 
   @T787
   Scenario: The help question is asked once per sitting before the first scored stop
