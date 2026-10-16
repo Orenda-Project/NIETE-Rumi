@@ -1325,6 +1325,8 @@ module.exports = {
   pdfOptions,
   toUrduDigits,
   framePages,
+  // the generation service re-asks a section whose item text hits this list
+  REFUSED_ITEM,
   // for tests and the paper view
   substitute,
   itemNumber,
