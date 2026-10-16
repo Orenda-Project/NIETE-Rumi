@@ -44,14 +44,19 @@ test('a check that throws is logged at error level and never takes the worker wi
   expect(mockLogToFile).toHaveBeenCalledWith(expect.stringMatching(/lesson-plan health/i), { error: 'boom' }, 'error');
 });
 
-test('a main-queue replica schedules a boot run (3 min) and an hourly tick', () => {
+test('a main-queue replica schedules a boot run (3 min), and the hourly tick starts from that run', async () => {
   process.env.WORKER_QUEUES = 'main,quiz';
-  const setTimeoutFn = jest.fn(() => ({ unref() {} }));
+  let bootRun;
+  const setTimeoutFn = jest.fn((fn) => { bootRun = fn; return { unref() {} }; });
   const setIntervalFn = jest.fn(() => 'timer');
   const out = scheduleLessonPlanHealth({ setTimeoutFn, setIntervalFn });
-  expect(out).toEqual(expect.objectContaining({ timer: 'timer', tick: expect.any(Function) }));
   expect(setTimeoutFn).toHaveBeenCalledWith(expect.any(Function), 3 * 60 * 1000);
-  expect(setIntervalFn).toHaveBeenCalledWith(expect.any(Function), 60 * 60 * 1000);
+  // Not anchored at boot: an hour from boot is inside the boot run's 59-minute claim.
+  expect(setIntervalFn).not.toHaveBeenCalled();
+  expect(out.timer).toBeNull();
+  await bootRun();
+  expect(setIntervalFn).toHaveBeenCalledWith(out.tick, 60 * 60 * 1000);
+  expect(out.timer).toBe('timer');
 });
 
 test('LP_HEALTH_CHECK=off is its own kill switch: not scheduled, and a tick is a no-op', async () => {
