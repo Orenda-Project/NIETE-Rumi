@@ -152,7 +152,7 @@ beforeEach(() => {
   process.env.VIDEO_REPORT_SEND_CLAIM = 'false';
   delete process.env.CLASS_CARD_ENABLED;
   global.GUIDANCE_REPLY = null;
-  process.env.WHATSAPP_BOT_NUMBER = '920000000000';
+  process.env.WHATSAPP_BOT_NUMBER = '+92300FIXTURE1';
   delete process.env.WEB_QUIZ_TOKEN_SECRET;
   Data = require('../../../shared/services/quiz/teacher-report.data');
   Token = require('../../../shared/services/quiz/teacher-report-token');
@@ -192,7 +192,7 @@ describe('the sender\'s report (quiz_teacher_home on)', () => {
   test('the web quiz off for the sender: the reminder carries today\'s chat join link for their own code', async () => {
     seed({ web: false });
     const r = await Data.quizReport(SENDER, VQ);
-    expect(r.quiz.link).toBe('https://wa.me/920000000000?text=QUIZ-VVVVVV');
+    expect(r.quiz.link).toBe('https://wa.me/923001?text=QUIZ-VVVVVV');
     expect(r.reminder.text).toContain('QUIZ-VVVVVV');
   });
 
@@ -206,8 +206,7 @@ describe('the sender\'s report (quiz_teacher_home on)', () => {
     seed();
     const r = await Data.quizReport(AUTHOR, LQ);
     expect(names(r)).toEqual(['Aamir1', 'Aamir2']);
-    // Recorded once on the base (before this change): RECORD_GOLDEN=1 writes it.
-    if (process.env.RECORD_GOLDEN === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify(r)}\n`);
+    // The golden is JSON.stringify of this same call, recorded on the base before this change.
     expect(JSON.stringify(r)).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
   });
 
@@ -239,6 +238,32 @@ describe('a library code the home only PREPARED (minted to show its message, nev
     await Sent.markSent(SC_BV);
     const after = await Data.classReport(SENDER, { now: NOW });
     expect(after.quizzes.map((q) => q.id)).toEqual([VQ, LQ]);
+  });
+});
+
+describe('a failed read on the sender\'s side', () => {
+  test('is today\'s answer: the sender\'s report "not found", the class tab their own quizzes, the chat list no row', async () => {
+    const fake = seed();
+    // every quizzes read by id (the sender's lookups) fails; the teacher's own reads (by teacher_id) still work
+    const sb = require('../../../shared/config/supabase');
+    sb.from = (t) => {
+      const b = fake.from(t);
+      if (t !== 'quizzes') return b;
+      const boom = Promise.resolve({ data: null, error: { message: 'boom' } });
+      let byTeacher = false;
+      const { eq, maybeSingle } = b;
+      const inFilter = b.in;
+      b.eq = (c, v) => { if (c === 'teacher_id') byTeacher = true; return eq.call(b, c, v); };
+      b.maybeSingle = () => (byTeacher ? maybeSingle.call(b) : boom);
+      b.in = (c, v) => (c === 'id' ? { then: (res, rej) => boom.then(res, rej) } : inFilter.call(b, c, v));
+      return b;
+    };
+    await expect(Data.quizReport(SENDER, LQ)).resolves.toBeNull();
+    const b = await Data.classReport(SENDER, { now: NOW });
+    expect(b.quizzes).toEqual([]);
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    await List.showReports({ id: SENDER, preferred_language: 'en' }, '000b', 'en');
+    expect(WA().sendInteractiveMessage).not.toHaveBeenCalled();
   });
 });
 

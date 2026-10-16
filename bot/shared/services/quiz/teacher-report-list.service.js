@@ -50,7 +50,10 @@ async function loadSentQuizzes(teacherId, needed) {
     .order('created_at', { ascending: false })
     .limit(Math.max(1, needed));
   if (error) throw new Error(error.message);
-  const sent = await Data.sentQuizzes(teacherId);
+  let sent = [];
+  try { sent = await Data.sentQuizzes(teacherId); } catch (err) {
+    logToFile('⚠️ quiz reports: sent-quiz read failed — own quizzes only', { userId: teacherId, error: err.message });
+  }
   if (!sent.length) return data || [];
   const at = (q) => String(q.sent_at || q.created_at || '');
   return [...(data || []), ...sent].sort((a, b) => at(b).localeCompare(at(a))).slice(0, Math.max(1, needed));
@@ -174,7 +177,12 @@ async function handleReportsPick(listId, phone, user) {
   const { data: own } = await supabase.from('quizzes').select(QUIZ_COLS)
     .eq('id', quizId).eq('teacher_id', user.id).maybeSingle();
   // …or a library quiz they sent on their own class code (quiz_teacher_home; off → null).
-  const quiz = own || await Data.sentQuiz(user.id, quizId);
+  let quiz = own;
+  if (!quiz) {
+    try { quiz = await Data.sentQuiz(user.id, quizId); } catch (err) {
+      logToFile('⚠️ quiz reports: sent-quiz read failed — not found', { userId: user.id, error: err.message });
+    }
+  }
   if (!quiz) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
     return true;

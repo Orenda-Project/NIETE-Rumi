@@ -232,12 +232,24 @@ async function notPrepared(codes) {
   return codes.filter((c) => !prepared.has(c.id));
 }
 
+/** A sent-quiz read that fails is today's answer (not found / none), never a failed report page. */
+async function softly(read, fallback, ctx = {}) {
+  try {
+    return await read();
+  } catch (err) {
+    logToFile('⚠️ teacher report: sent-quiz read failed — today\'s report', { ...ctx, error: err.message });
+    return fallback;
+  }
+}
+
 /** The children's link for the sender's own code: the web page when it is on for them, else today's chat join link. */
 async function sentLink(teacherId, code) {
   try {
     const WQL = require('./web-quiz-link');
     if (await WQL.webQuizOn(teacherId)) return `${WQL.webBaseUrl()}/q/${code}`;
-    const bot = require('./video-quiz-share.service').botNumber();
+    // The chat join link exactly as video-quiz-share sendClassLink builds it (its botNumber: the same env, no
+    // fallback number). Read here, not required: that module reaches back to this one through the report job.
+    const bot = String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
     return bot ? `https://wa.me/${bot}?text=QUIZ-${code}` : null;
   } catch (err) {
     logToFile('⚠️ teacher report: no link for a sent quiz', { error: err.message });
@@ -387,7 +399,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   if (error) throw new Error(error.message);
   // A library quiz this teacher sent (quiz_teacher_home): their own codes, link and date; the author's
   // forwarded message, lesson date, class list and per-class guidance are not theirs.
-  const sent = own ? null : await sentQuiz(teacherId, quizId);
+  const sent = own ? null : await softly(() => sentQuiz(teacherId, quizId), null, { quizId });
   const quiz = own || sent;
   if (!quiz) return null;
   const meta = quiz.meta || {};
@@ -512,7 +524,7 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   // The library quizzes this teacher sent (quiz_teacher_home), by their send date, among their own.
-  const sentList = await sentQuizzes(teacherId, { since });
+  const sentList = await softly(() => sentQuizzes(teacherId, { since }), []);
   const qs = sentList.length
     ? [...(quizzes || []), ...sentList].sort((a, b) => String(b.sent_at || b.created_at || '').localeCompare(String(a.sent_at || a.created_at || '')))
     : quizzes || [];
