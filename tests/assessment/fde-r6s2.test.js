@@ -84,8 +84,10 @@ describe('1. no appended tags', () => {
 
 describe('2. the covers line of a pages paper', () => {
   test('a pages paper says these pages, not units or chapters', () => {
+    // Science and Urdu list no unit pages. For Maths these pages are exactly
+    // Units 1–2, which name the units instead (fde-r7-render.test.js).
     const scope = { kind: 'pages', chapters: null, pages: '1-12, 14-40' };
-    for (const subject of ['maths', 'science', 'urdu']) {
+    for (const subject of ['science', 'urdu']) {
       const s = applyLayout({ unseen: {} }, P[subject], scope, { now: NOW }).examJson._layout.scope;
       expect(s.covers_en).toBe('Covers pp 1-12, 14-40; every section set from these pages.');
       expect(s.covers_ur).not.toMatch(/ابواب|اسباق/);
