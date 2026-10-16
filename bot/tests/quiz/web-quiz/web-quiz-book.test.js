@@ -168,6 +168,41 @@ describe('class lights (shown only with >= 5 children in the term)', () => {
   });
 });
 
+// The class lights follow the child's VOLUNTARY counted stops only (SAMPLING_RULING NC4; BADGES §3): a run the
+// teacher's class round served (mode 'class_round', via 'class_round') lights nothing.
+describe('class lights ignore the teacher\'s class round', () => {
+  const { lightsOf } = require('../../../shared/services/quiz/web-quiz-book');
+  const id = (i) => `77777777-7777-4777-8777-${String(i).padStart(12, '0')}`;
+  // four other children with one October light each: with the looking child, five in the term
+  const others = () => [1, 2, 3, 4].map((i) => run({ student_id: id(i), class_id: CLASS, passage_id: `p-o-${i}`, created_at: OCT, scored_at: OCT }));
+  const round = (extra = {}) => run({ mode: 'class_round', record: true, via: 'class_round', class_id: CLASS, ...extra });
+
+  test('a round run lights nothing; the child\'s later voluntary check run lights one', () => {
+    const roundOnly = [...others(), round({ passage_id: 'p-round', created_at: OCT, scored_at: OCT })];
+    expect(lightsOf(roundOnly, NOW, KID)).toEqual({ shown: false });
+    const later = [...roundOnly, run({ class_id: CLASS, passage_id: 'p-mine', created_at: MON, scored_at: MON })];
+    expect(lightsOf(later, NOW, KID)).toEqual({ shown: true, term_total: 5 });
+  });
+  test('a row marked only by via (no mode) is a round row too', () => {
+    const rows = [...others(), round({ mode: null, passage_id: 'p-round', created_at: MON, scored_at: MON })];
+    expect(lightsOf(rows, NOW, KID)).toEqual({ shown: false });
+  });
+  test('through the Book: another child\'s round row alone is not "your class is playing too"', async () => {
+    db.app_settings.push({ key: 'web_quiz_class_wall', value: 'true' });
+    db.web_quiz_challenge_runs.push(round({ student_id: id(1), passage_id: 'p-round', created_at: MON, scored_at: MON }), run({ class_id: CLASS, passage_id: 'p-mine' }));
+    const out = await book();
+    expect(out.class_lights).toEqual({ shown: false, none: true });
+  });
+  test('golden: rows without mode or via (legacy) light exactly as before', () => {
+    const legacy = (extra) => { const r = run(extra); delete r.mode; delete r.record; delete r.period_id; delete r.exposure_no; return r; };
+    const rows = [1, 2, 3, 4, 5].map((i) => legacy({ student_id: id(i), class_id: CLASS, passage_id: `p-l-${i}`, created_at: i < 3 ? OCT : MON, scored_at: i < 3 ? OCT : MON }));
+    rows.push(legacy({ student_id: id(6), class_id: CLASS, exercise: 'bigger', created_at: MON, scored_at: MON }));
+    expect(lightsOf(rows, NOW, KID)).toEqual({ shown: true, term_total: 6 });
+    expect(lightsOf(rows.slice(0, 2), NOW, KID)).toEqual({ shown: false });
+    expect(lightsOf([], NOW, KID)).toEqual({ shown: false, none: true });
+  });
+});
+
 describe('days this week: Mon..Sun PKT, lit only', () => {
   test('Monday and Wednesday lit; last week is not shown', async () => {
     db.web_quiz_challenge_runs.push(run({ created_at: MON, scored_at: MON }), run({ exercise: 'bigger', created_at: WED, scored_at: WED }), run({ created_at: THU_LAST, scored_at: THU_LAST }));

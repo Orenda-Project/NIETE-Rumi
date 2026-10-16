@@ -87,7 +87,7 @@ const rowAt = (r) => Date.parse(r.scored_at || r.created_at || '') || 0;
 
 // ─── reads (each fails closed) ────────────────────────────────────────────────────────────────────────
 
-const V2_COLS = 'id, student_id, canonical_id, exercise, status, mode, record, period_id, passage_id, item_set_id, class_id, exposure_no, created_at, scored_at';
+const V2_COLS = 'id, student_id, canonical_id, exercise, status, mode, record, period_id, passage_id, item_set_id, class_id, exposure_no, via, created_at, scored_at';
 const BASE_COLS = 'id, student_id, exercise, status, created_at, scored_at';
 
 /** The child's runs, newest first: the v2 columns when they exist, else today's columns ({rows, v2}). */
@@ -199,13 +199,15 @@ function storyIdsOf(rows) {
 /**
  * The class lights from the class's rows in the term (pure; BADGES §4.1). `self` is the child looking: under 5
  * children the line says "your class is playing too", which is only true when some OTHER child has a light; with
- * nobody else, `none: true` and the page prints nothing.
+ * nobody else, `none: true` and the page prints nothing. A run the teacher's class round served (mode or via
+ * 'class_round') lights nothing: the lights follow the child's voluntary stops only (SAMPLING_RULING NC4).
  */
 function lightsOf(rows, now, self = null) {
   const week = weekStart(now);
   const keys = new Map();
   rows.forEach((r) => {
     if (!FINAL.has(r.status) || (r.exposure_no != null && Number(r.exposure_no) !== 1)) return;
+    if (r.mode === 'class_round' || r.via === 'class_round') return;
     const child = r.canonical_id || r.student_id;
     if (!child) return;
     const thing = r.passage_id || r.item_set_id || (r.exercise ? `${r.exercise}|${r.period_id || periodOf(rowAt(r))}` : null);
