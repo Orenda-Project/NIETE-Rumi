@@ -7407,12 +7407,14 @@ CREATE INDEX IF NOT EXISTS class_links_teacher ON public.class_links (teacher_id
 ALTER TABLE public.class_links ENABLE ROW LEVEL SECURITY;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- Web quiz send ledger (mirror of bot/database/migrations/web_quiz_message_ledger.sql)
+-- Web quiz send ledger (mirror of bot/database/migrations/web_quiz_message_ledger.sql; the trigger names as
+-- web_quiz_message_ledger_first_touch.sql leaves them)
 -- ─────────────────────────────────────────────────────────────────────────────
 create table if not exists message_ledger (   -- unqualified like the other tables here (public)
   day        date          not null,                 -- Pakistan day (UTC+5)
   trigger    text          not null check (trigger in ('home_reply','bind_reply','guest_reply','class_link',
-                                                       'class_round','teacher_queue','teacher_refusal')),
+                                                       'class_round','teacher_queue','teacher_refusal',
+                                                       'door_reply','maker_reply','family_reply')),
   class_id   uuid,
   initiated  text          not null check (initiated in ('user','bot')),
   recipient  text          not null check (recipient in ('family','teacher')),
