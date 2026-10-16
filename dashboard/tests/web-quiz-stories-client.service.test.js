@@ -541,6 +541,9 @@ describe('the reader', () => {
     const root = await openReader(e, { lang: 'ur' });
     checkScreen(root.innerHTML, 'ur');
     expect(root.innerHTML).toContain('سنیں');
+    // In Urdu the next page is to the LEFT: each arrow points outward and is isolated so the browser never mirrors it.
+    expect(root.innerHTML).toMatch(/data-tap="prev"[^>]*><span dir="ltr">›<\/span>/);
+    expect(root.innerHTML).toMatch(/data-tap="next"[^>]*><span dir="ltr">‹<\/span>/);
     toMic(e, root);
     expect(root.innerHTML).toMatch(/data-screen="story-mic" lang="ur" dir="rtl"/);
     expect(e.calls.ask[0].lang).toBe('ur');
