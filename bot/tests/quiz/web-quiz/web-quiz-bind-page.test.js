@@ -33,6 +33,7 @@ jest.mock('../../../shared/services/quiz/web-quiz-identity-roster', () => ({
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
+const { fixturePhone } = require('./fixture-phone');
 const supabase = require('../../../shared/config/supabase');
 const redis = require('../../../shared/services/cache/railway-redis.service');
 const { logEvent } = require('../../../shared/utils/structured-logger');
@@ -58,7 +59,7 @@ let fake;
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.WEB_QUIZ_TOKEN_SECRET = 'bind-page-test-secret';
-  process.env.WHATSAPP_BOT_NUMBER = '+92 300 0000000';
+  process.env.WHATSAPP_BOT_NUMBER = '+92 000 0000000';
   redis._store.clear();
   Hub._resetCache();
   Ch.__reset();
@@ -92,7 +93,7 @@ describe('mint', () => {
     expect(out.prefill.en).toBe('Jugnu ✨ keep my place JUGNU-7KQ2X');
     expect(out.prefill.ur).toBe('جگنو ✨ میری جگہ محفوظ کریں JUGNU-7KQ2X');
     expect(out.prefill.ur.endsWith('JUGNU-7KQ2X')).toBe(true);
-    expect(out.href).toBe(`https://wa.me/923000000000?text=${encodeURIComponent(out.prefill.ur)}`);
+    expect(out.href).toBe(`https://wa.me/${fixturePhone(0)}?text=${encodeURIComponent(out.prefill.ur)}`);
     const ev = logEvent.mock.calls.find((c) => c[0] === 'web_quiz.bind_confirm');
     expect(ev[1]).toEqual({ w: 's' });
     expect(JSON.stringify(logEvent.mock.calls)).not.toContain(DEV);

@@ -508,7 +508,7 @@ describe('the finished grade-1 row: m_result and the phone bindings, as every st
 
   test('one m_result with form G1 and fixed_band G1; a bound child\'s expires_at moves', async () => {
     on(V2, G1, ...CANON_ON, PERIOD, ...['web_quiz_hub', 'web_quiz_events_v2', 'web_quiz_identity_canon', 'web_quiz_phone_bind'].map((key) => ({ key, value: true })));
-    db.child_phone_bindings = [{ id: 'b1', canonical_id: KID, phone_norm: '923001234567', via: 'save', bound_at: '2026-11-01T00:00:00.000Z',
+    db.child_phone_bindings = [{ id: 'b1', canonical_id: KID, phone_norm: '+92300FIXTURE1', via: 'save', bound_at: '2026-11-01T00:00:00.000Z',
       last_played_at: null, expires_at: OLD_EXPIRY, revoked_at: null }];
     const { row } = await play();
     const results = named('web_quiz.m_result');

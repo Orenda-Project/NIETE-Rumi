@@ -21,7 +21,8 @@ const Codes = require('../../../shared/services/quiz/child-bind-codes.repo');
 const Share = require('../../../shared/services/quiz/video-quiz-share.service');
 const StudentIdentity = require('../../../shared/services/quiz/student-identity.service');
 
-const PHONE = '920000000501';
+const { fixturePhone } = require('./fixture-phone');
+const PHONE = fixturePhone(501);
 const KID_A = 'e0000000-0000-4000-8000-00000000000a';
 const KID_B = 'e0000000-0000-4000-8000-00000000000b';
 const KID_C = 'e0000000-0000-4000-8000-00000000000c';
@@ -113,7 +114,7 @@ describe('the binding store', () => {
     expect(row).toMatchObject({ canonical_id: KID_A, code_id: 'JUGNU-AB2CD' });
     const renewed = await Bind.renew(row.id, NEXT_END, new Date('2026-10-20T10:00:00Z'), 'JUGNU-7KQ2X');
     expect(renewed).toMatchObject({ id: row.id, code_id: 'JUGNU-7KQ2X' });
-    const plain = await Bind.insert({ canonicalId: KID_B, phoneNorm: '920000000712', via: 'teacher', expiresAt: NEXT_END });
+    const plain = await Bind.insert({ canonicalId: KID_B, phoneNorm: fixturePhone(712), via: 'teacher', expiresAt: NEXT_END });
     expect(plain.code_id).toBeNull();
   });
 
