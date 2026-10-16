@@ -206,6 +206,9 @@ describe('6. Science Q2(b): every sub-question is marked out of 2.5', () => {
     const ex = run(subs);
     const parts = partsOf(ex);
     expect(parts[2].scheme.points).toEqual([{ text: 'Less sound', marks: 1, kind: 'K' }, { text: 'Reason', marks: 1.5, kind: 'A' }]);
+    // The item still counts as its slot's 5 wherever marks are summed (editor, budget).
+    const Selection = require('../../bot/shared/services/assessment/assessment-selection');
+    expect(Selection.marksOf(Object.values(ex.unseen.subjective).flat()[0])).toBe(5);
     const scheme = visible(R.renderMarkingScheme({ examJson: ex, grade: 5, subject: 'science', allowShort: true }));
     expect(scheme).toContain('a) Hearing and touch. 2.5');
     expect(scheme).toContain('b) To listen better. 2.5');
