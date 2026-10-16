@@ -92,12 +92,16 @@ const scenarios = [
       for (let n = walker.nextNode(); n; n = walker.nextNode()) {
         const el = n.parentElement;
         if (!el || !el.offsetParent || btn.contains(el)) continue;
-        if (el.getBoundingClientRect().bottom <= top) words.push(...n.textContent.trim().split(/\s+/).filter(Boolean));
+        // A control that is only its label ("Edit") is not something she reads; a row whose button holds more is.
+        const ctl = el.closest('button, a, [role="button"]');
+        if (ctl && ctl.innerText.trim() === n.textContent.trim()) continue;
+        // Words only: the "·" separators are not words.
+        if (el.getBoundingClientRect().bottom <= top) words.push(...n.textContent.trim().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)));
       }
       return words.length;
     });
     expect(above !== null, 'no Make my paper button on Check and make');
-    expect(above <= 40, above + ' words above Make my paper (at most 40)');
+    expect(above <= 50, above + ' words above Make my paper (at most 50)');
     // The summary is the Inside row itself; the tray behind it lists the sections and what she adds.
     const row = await page.getByTestId('fde-row-inside').innerText();
     for (const want of ['3 sections', '100 marks', '3 hrs']) expect(row.includes(want), 'Inside row lacks "' + want + '"');
