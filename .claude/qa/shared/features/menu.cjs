@@ -116,19 +116,24 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   }
 
   if (want('M10')) {
-    // M10 — /portal
-    s = t(); r = await api.sendWait('/portal');
-    const portal = /\/portal\/(login|setup)/.test(r.txt || '');
-    rec('M10', '/portal points a teacher to their portal', portal ? 'PASS' : 'FAIL',
-        { matchedPath: (String(r.txt).match(/\/portal\/\w+/) || [null])[0],
-          note: /setup/.test(r.txt || '') ? 'setup link — portal not yet activated for this account' : 'login link',
-          botWaitMs: r.waitedMs }, t() - s);
+    // M10 — /portal: ONE "Open portal" cta_url button whose link is the signed /go/<token> (bd-x7aprz.3).
+    // The link rides the button (cta.url), not the text; a lane that cannot see it (the CDP phone) reports BLOCKED.
+    s = t();
+    if (api.freshReset) await api.freshReset();
+    r = await api.sendWait('/portal');
+    const items10 = api.fresh ? await api.fresh() : [];
+    const cta10 = items10.map((i) => i.cta).find((c) => c && c.url) || null;
+    const ok10 = !!(cta10 && /\/go\/[A-Za-z0-9_-]{40,}$/.test(cta10.url) && !/\/portal\/(setup|login)/.test(cta10.url));
+    rec('M10', '/portal opens the portal already signed in — one "Open portal" button with her own sign-in link',
+        cta10 ? (ok10 ? 'PASS' : 'FAIL') : (api.fresh ? 'FAIL' : 'BLOCKED'),
+        { button: cta10 ? cta10.text : (r.btns || [])[0] || null, link: cta10 ? cta10.url.replace(/\/go\/.*/, '/go/<token>') : null,
+          reply: String(r.txt || '').slice(0, 160), botWaitMs: r.waitedMs }, t() - s);
   }
 
   if (want('M21')) {
-    // M21 — bd-kkpg4t: activated with NO password gets the set-up link, not the login link.
+    // M21 — bd-kkpg4t → bd-x7aprz.3: activated with NO password gets the same signed /go button — no password asked.
     // Seeds the driver's own row, then puts both portal columns back exactly as they were.
-    const NAME21 = '/portal sends the set-up link to an activated teacher who has no password';
+    const NAME21 = '/portal gives an activated teacher with no password the same sign-in link — no password asked';
     const o = api.db('user-get');
     const line = String(o.out || '').trim().split('\n').reverse().find((l) => l.trim().startsWith('{'));
     const before = line ? JSON.parse(line) : null;
@@ -138,10 +143,14 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
       s = t();
       try {
         await api.setUser({ portal_activated: true, portal_password_hash: null });
+        if (api.freshReset) await api.freshReset();
         r = await api.sendWait('/portal');
-        const txt = r.txt || '';
-        rec('M21', NAME21, (/\/portal\/setup\//.test(txt) && !/\/portal\/login/.test(txt)) ? 'PASS' : 'FAIL',
-            { matchedPath: (txt.match(/\/portal\/\w+/) || [null])[0], reply: txt.slice(0, 160), botWaitMs: r.waitedMs }, t() - s);
+        const txt = String(r.txt || '');
+        const items21 = api.fresh ? await api.fresh() : [];
+        const cta21 = items21.map((i) => i.cta).find((c) => c && c.url) || null;
+        const ok21 = !!(cta21 && /\/go\/[A-Za-z0-9_-]{40,}$/.test(cta21.url) && !/\/portal\/(setup|login)/.test(cta21.url + ' ' + txt));
+        rec('M21', NAME21, ok21 ? 'PASS' : 'FAIL',
+            { link: cta21 ? cta21.url.replace(/\/go\/.*/, '/go/<token>') : null, reply: txt.slice(0, 160), botWaitMs: r.waitedMs }, t() - s);
       } finally {
         await api.setUser({ portal_activated: before.portal_activated, portal_password_hash: before.portal_password_hash,
                             portal_invite_token: before.portal_invite_token, portal_invite_expires_at: before.portal_invite_expires_at });

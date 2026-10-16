@@ -4,7 +4,17 @@
  * Handles endpoint-based WhatsApp Flow for user registration.
  * Uses data_api_version 3.0 with encrypted data exchange.
  *
- * Flow screens (split-screen + conditional org):
+ * v5 (docs/flows/registration-flow-v5.json, bd-x7aprz.2) — what new numbers get:
+ *   PERSONAL_INFO {full_name, language} → ROLE_SCHOOL {role, school_query}
+ *   → SCHOOL_PICK {school_id | 'none'} → TEACHING {grade, subjects} → SUCCESS
+ *   Country and organization are set, not asked; the school is chosen from `schools`
+ *   (school-search.service), never typed in. Role: registration-roles.js.
+ *
+ * v4 below stays served, unchanged in shape, until every environment's Flow is republished:
+ * the endpoint ships first, and Meta keeps serving the old asset until the new one is
+ * published. The two are told apart on the first submit — v4 sends a country, v5 does not.
+ *
+ * v4 Flow screens (split-screen + conditional org):
  *   PERSONAL_INFO → REGION_INFO (if PK) → PROFESSIONAL_INFO → SUCCESS (if org != "other")
  *   PERSONAL_INFO → REGION_INFO (if PK) → PROFESSIONAL_INFO → ORG_DETAILS → SUCCESS (if org == "other")
  *   PERSONAL_INFO → PROFESSIONAL_INFO (if not PK) → SUCCESS
@@ -78,14 +88,31 @@ const {
 const REDIS_PREFIX = 'reg_flow:';
 const REDIS_TTL = 3600; // 1 hour
 
-// bd-2404 — valid role ids the registration Flow can submit. Mirrors
-// ROLES_DROPDOWN and maps 1:1 to users.role; the /observe LEADER_ROLES gate
-// accepts coach/principal/aeo. Any unknown/empty value → null (the downstream
-// handler then leaves users.role untouched, defaulting to teacher).
-const VALID_ROLE_IDS = new Set(ROLES_DROPDOWN.map(r => r.id)); // teacher, coach, principal, aeo
-function normalizeRole(raw) {
-  const v = String(raw || '').toLowerCase().trim();
-  return VALID_ROLE_IDS.has(v) ? v : null;
+// Which role the form may write is decided in ONE place,
+// registration-roles.js roleToWrite(): teacher or principal, and never over a coach or AEO an
+// admin set. An unknown/empty value → null (users.role is then left as it is).
+const { roleToWrite, formRole, isAdminRole } = require('../config/registration-roles');
+const { searchSchools, findPickableSchool } = require('../services/schools/school-search.service');
+const { resolveUx, gradeLabelFor, subjectLabelFor } = require('../config/ux-strings');
+
+/** The bits of her row the form pre-fills from and guards on. null when it cannot be read. */
+async function readUser(userId) {
+  if (!userId) return null;
+  try {
+    const supabase = require('../config/supabase');   // lazy: importing this module must stay side-effect-free
+    const { data, error } = await supabase.from('users')
+      .select('id, name, role, preferred_language, language_locked, school_id, organization, grades_taught, subjects_taught')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) {
+      logToFile('⚠️ registration: user read failed', { userId, error: error.message }, 'warn');
+      return null;
+    }
+    return data || null;
+  } catch (e) {
+    logToFile('⚠️ registration: user read threw', { userId, error: e.message }, 'warn');
+    return null;
+  }
 }
 
 /**
@@ -165,9 +192,22 @@ function personalInfoData(currentLanguage) {
 async function handleRegistrationInit(userId) {
   logToFile('📝 Registration flow INIT', { userId });
 
+  // bd-x7aprz.2 — pre-filled from her row, so a teacher we partly know (a roster import, a coach
+  // added her, a form she left half-way) only fills the gaps. Her language is pre-selected only
+  // when SHE chose it (language_locked); the schema default 'en' was never a choice.
+  const user = await readUser(userId);
+  const chosen = user && user.language_locked ? user.preferred_language : null;
+
+  // ONE first screen serves both published versions: v5 binds full_name + language, v4 (still
+  // live on staging/prod until each is republished) binds full_name + country. Meta ignores data
+  // a screen does not declare — production v4 has been receiving `languages` it never declared.
   return {
     screen: 'PERSONAL_INFO',
-    data: personalInfoData()
+    data: {
+      ...personalInfoData(chosen),
+      init_full_name: (user && typeof user.name === 'string' && user.name.trim()) || '',
+      init_country: 'PK',
+    }
   };
 }
 
@@ -198,6 +238,19 @@ async function handleRegistrationDataExchange(userId, screen, screenData, flowTo
     return await handleOrgDetailsSubmit(userId, screenData, flowToken);
   }
 
+  // v5 (bd-x7aprz.2)
+  if (screen === 'ROLE_SCHOOL') {
+    return await handleRoleSchoolSubmit(userId, screenData || {}, flowToken);
+  }
+
+  if (screen === 'SCHOOL_PICK') {
+    return await handleSchoolPickSubmit(userId, screenData || {}, flowToken);
+  }
+
+  if (screen === 'TEACHING') {
+    return await handleTeachingSubmit(userId, screenData || {}, flowToken);
+  }
+
   logToFile('⚠️ Unknown screen in registration flow', { screen });
   return createErrorResponse('Unknown screen');
 }
@@ -214,6 +267,12 @@ async function handlePersonalInfoSubmit(userId, screenData, flowToken) {
     return createErrorResponse('Name is required');
   }
 
+  // v5 asks no country (every NIETE teacher is in Pakistan), so its first screen sends none.
+  // v4 — still published on staging/prod until each is republished — always sends one.
+  if (!Object.prototype.hasOwnProperty.call(screenData, 'country')) {
+    return await handlePersonalInfoV5(userId, fullName, screenData, flowToken);
+  }
+
   if (!country) {
     return createErrorResponse('Country is required');
   }
@@ -226,7 +285,6 @@ async function handlePersonalInfoSubmit(userId, screenData, flowToken) {
 
   // Persist name + country to the account NOW (the terminal payload loses them — bd-2480).
   await persistToUser(userId, {
-    name: fullName.split(/\s+/)[0] || fullName,
     name: fullName,
     country,
   });
@@ -335,6 +393,7 @@ async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
   }
 
   const stored = await getRegData(flowToken);
+  const user = await readUser(userId);
 
   const allData = {
     ...stored,
@@ -342,12 +401,10 @@ async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
     school_name: (screenData.school_name || '').trim() || null,
     grade: screenData.grade || '',
     subjects: screenData.subjects || [],
-    // bd-2404: the PROFESSIONAL_INFO screen serves a `roles` dropdown
-    // (Teacher/Coach/Principal/AEO). The selection MUST be carried into the
-    // completion payload — without it the coach's role is dropped and
-    // /observe is denied (they fall into the teacher DC flow). Validate
-    // against the known ids so only a real role id round-trips.
-    role: normalizeRole(screenData.role)
+    // The selection is carried into the completion payload — only a role the form may
+    // grant, and never over an admin-set coach/AEO (registration-roles.js).
+    // Her row unreadable → write no role: an unknown current role may be an admin-set coach.
+    role: user ? roleToWrite(screenData.role, user.role) : null
   };
 
   // Persist role + professional fields NOW (org="other" adds ORG_DETAILS after this
@@ -524,20 +581,296 @@ async function handleRegistrationBack(userId, screen, flowToken) {
   };
 }
 
+// --- v5 (bd-x7aprz.2): name + language → role + school search → pick → grades + subjects ---
+//
+// The operator, 2026-10-16: no Country or Organization question (set automatically), roles
+// Teacher / Principal only, the school CHOSEN from the schools table (searched, never typed in
+// as free text), and a teacher whose school is not there finishes without one. Every screen
+// writes what it collected to her row as it is submitted, as v4 does, so nothing depends on the
+// terminal payload. Screens after the first speak the language she picked on it.
+
+const NIETE_ORGANIZATION = 'niete';
+const SCHOOL_RESULTS = 10;
+const NONE = 'none';
+
+const GRADE_IDS = GRADES_DROPDOWN.map((g) => g.id);
+const SUBJECT_IDS = SUBJECTS_DROPDOWN.map((s) => s.id);
+
+// Grade/subject option titles: the class catalog's own labels where it has the code, the
+// registration keys where it does not (its codes are the seeded reference set).
+const EXTRA_GRADE_KEYS = { higher_secondary: 'regGradeHigherSecondary' };
+const EXTRA_SUBJECT_KEYS = {
+  islamiat: 'regSubjectIslamiat', physics: 'regSubjectPhysics', chemistry: 'regSubjectChemistry',
+  biology: 'regSubjectBiology', social_studies: 'regSubjectSocialPakStudies',
+  computer_science: 'regSubjectComputerScience', other: 'regSubjectOther',
+};
+
+const ux = (key, language, params) => resolveUx(key, { language, params });
+const cut = (s, n) => { const a = [...String(s || '')]; return a.length <= n ? a.join('') : `${a.slice(0, n - 1).join('')}…`; };
+const firstName = (s) => String(s || '').trim().split(/\s+/)[0] || '';
+
+function gradeOptions(language) {
+  return GRADE_IDS.map((id) => ({
+    id,
+    title: EXTRA_GRADE_KEYS[id] ? ux(EXTRA_GRADE_KEYS[id], language) : (gradeLabelFor(id, language) || id),
+  }));
+}
+
+function subjectOptions(language) {
+  return SUBJECT_IDS.map((id) => ({
+    id,
+    title: EXTRA_SUBJECT_KEYS[id] ? ux(EXTRA_SUBJECT_KEYS[id], language) : (subjectLabelFor(id, language) || id),
+  }));
+}
+
+function roleOptions(language) {
+  const KEY = { teacher: 'regFormRoleTeacher', principal: 'regFormRolePrincipal' };
+  return ROLES_DROPDOWN.map(({ id }) => ({ id, title: KEY[id] ? ux(KEY[id], language) : id }));
+}
+
+/**
+ * A school as a radio option. The SAME fields on every row (the NavigationList lesson, whatsapp-flows
+ * rule 15): title = the name without its level bracket, cut to Meta's 30; description = the full
+ * name, the sector and the EMIS. School names are Latin, so the description is safe from the
+ * Urdu-script list-chrome defect.
+ */
+function schoolOption(s) {
+  const short = String(s.name).replace(/\(\s*[ivxlc]+\s*-\s*[ivxlc]+\s*\)/gi, ' ').replace(/\s+/g, ' ').trim() || s.name;
+  return {
+    id: String(s.id),
+    title: cut(short, 30),
+    description: cut([s.name, s.region, s.emis ? `EMIS ${s.emis}` : null].filter(Boolean).join(' · '), 300),
+  };
+}
+
+/**
+ * The words a v5 screen shows, in her language. Exported so the caps test can measure every string
+ * the endpoint can serve, in both languages, without standing up a Flow.
+ */
+function screenCopy(screen, language, { query = '', name = '', count = 0 } = {}) {
+  const lang = clampLanguage(language);
+  if (screen === 'ROLE_SCHOOL') {
+    return {
+      t_heading: ux('regFormRoleSchoolHeading', lang),
+      t_role_label: ux('regFormRoleLabel', lang),
+      t_search_label: ux('regFormSearchLabel', lang),
+      t_search_help: ux('regFormSearchHelp', lang),
+      t_search: ux('regFormSearchButton', lang),
+      roles: roleOptions(lang),
+    };
+  }
+  if (screen === 'SCHOOL_PICK') {
+    return {
+      t_heading: ux('regFormPickHeading', lang),
+      t_note: ux(count > 0 ? 'regFormPickNote' : 'regFormPickNothing', lang, { query: cut(query, 40) }),
+      t_pick_label: ux('regFormPickLabel', lang),
+      t_next: ux('regFormNext', lang),
+      none_option: [{ id: NONE, title: ux('regFormPickNone', lang) }],
+    };
+  }
+  if (screen === 'TEACHING') {
+    return {
+      t_heading: ux('regFormTeachHeading', lang),
+      t_note: ux('regFormTeachNote', lang),
+      t_grades: ux('regFormGradesLabel', lang),
+      t_subjects: ux('regFormSubjectsLabel', lang),
+      t_finish: ux('regFormFinish', lang),
+      grades: gradeOptions(lang),
+      subjects: subjectOptions(lang),
+    };
+  }
+  if (screen === 'SUCCESS') {
+    return {
+      t_heading: ux('regFormDoneHeading', lang),
+      welcome_message: ux('regFormDoneBody', lang, { name: firstName(name) || '🙂' }),
+      t_done: ux('regFormDoneButton', lang),
+    };
+  }
+  return {};
+}
+
+/** Her language for the screens after the first: what she picked there, else her row. */
+async function screenLanguage(stored, user) {
+  if (stored && stored.language) return clampLanguage(stored.language);
+  return clampLanguage((user && user.language_locked && user.preferred_language) || offerDefaultLanguage());
+}
+
+async function roleSchoolResponse(userId, user, language) {
+  const current = user && user.school_id ? await findPickableSchool(user.school_id) : null;
+  const { roles, ...copy } = screenCopy('ROLE_SCHOOL', language);
+  return {
+    screen: 'ROLE_SCHOOL',
+    data: {
+      ...copy,
+      roles,
+      // An admin-set coach/AEO is not asked: the form cannot change her role, so it does not pretend.
+      show_role: !isAdminRole(user && user.role),
+      init_role: formRole(user && user.role) || 'teacher',
+      // A school already on her row is searched for her, so confirming it is one tap. An initial
+      // value is SENT only when there is one — the shape production v4 already runs on.
+      ...(current ? { init_query: current.name } : {}),
+    },
+  };
+}
+
+async function handlePersonalInfoV5(userId, fullName, screenData, flowToken) {
+  const language = clampLanguage(screenData.language || offerDefaultLanguage());
+  const user = await readUser(userId);
+
+  await persistToUser(userId, {
+    name: fullName,
+    country: 'PK',
+    // Organization is no longer asked: the deployment's own, only where the row has none (an
+    // organization a roster import set is kept).
+    organization: user && user.organization ? undefined : NIETE_ORGANIZATION,
+  });
+
+  // She chose it — through the ONE writer, locked, so a later recording cannot flip it.
+  try {
+    const { setUserLanguage } = require('../utils/language-cache');
+    const ok = await setUserLanguage(userId, language, true);
+    if (!ok) logToFile('⚠️ registration: language write rejected', { userId, language }, 'warn');
+  } catch (e) {
+    logToFile('⚠️ registration: language write threw', { userId, language, error: e.message }, 'warn');
+  }
+
+  await storeRegData(flowToken, { v: 5, full_name: fullName, language });
+  const response = await roleSchoolResponse(userId, user, language);
+  logToFile('📤 PERSONAL_INFO → ROLE_SCHOOL (v5)', { userId, language, showRole: response.data.show_role });
+  return response;
+}
+
+async function handleRoleSchoolSubmit(userId, screenData, flowToken) {
+  const stored = await getRegData(flowToken);
+  const user = await readUser(userId);
+  const language = await screenLanguage(stored, user);
+
+  // Her row unreadable → write no role: an unknown current role may be an admin-set coach.
+  const role = user ? roleToWrite(screenData.role, user.role) : null;
+  if (role) await persistToUser(userId, { role });
+  else if (screenData.role) logToFile('📝 registration: role not written', { userId, submitted: String(screenData.role).slice(0, 20), existing: user && user.role });
+
+  const query = String(screenData.school_query || '').trim().slice(0, 80);
+  const results = await searchSchools(query, { limit: SCHOOL_RESULTS });
+  logToFile('🔎 registration: school search', { userId, query, results: results.length });
+
+  await storeRegData(flowToken, { ...stored, role: role || stored.role || null, school_query: query });
+
+  const { none_option: noneOption, ...copy } = screenCopy('SCHOOL_PICK', language, { query, count: results.length });
+  const schools = [...results.map(schoolOption), ...noneOption];
+  const mine = user && user.school_id && results.some((s) => String(s.id) === String(user.school_id));
+  return {
+    screen: 'SCHOOL_PICK',
+    data: { ...copy, schools, ...(mine ? { init_school: String(user.school_id) } : {}) },
+  };
+}
+
+function idsFrom(value, allowed) {
+  let list = value;
+  if (typeof list === 'string') {
+    try { list = JSON.parse(list); } catch (_) { list = list.split(','); }
+  }
+  if (!Array.isArray(list)) return [];
+  return [...new Set(list.map((x) => String(x == null ? '' : x).trim()).filter((x) => allowed.includes(x)))];
+}
+
+async function handleSchoolPickSubmit(userId, screenData, flowToken) {
+  const stored = await getRegData(flowToken);
+  const user = await readUser(userId);
+  const language = await screenLanguage(stored, user);
+
+  const picked = String(screenData.school_id || '').trim();
+  let schoolId = null;
+  if (picked && picked !== NONE) {
+    // Never trust the id the phone sends: it must be a real, non-test school.
+    const school = await findPickableSchool(picked);
+    if (school) {
+      schoolId = school.id;
+      // The school's sector is what every school-scoped read expects in users.region (bd-z8p96).
+      await persistToUser(userId, { school_id: school.id, region: school.region || undefined });
+    } else {
+      logToFile('⚠️ registration: picked school is not pickable — nothing stored', { userId, picked: picked.slice(0, 40) }, 'warn');
+    }
+  }
+  await storeRegData(flowToken, { ...stored, school_id: schoolId || (picked === NONE ? null : stored.school_id || null) });
+
+  const { grades, subjects, ...copy } = screenCopy('TEACHING', language);
+  const initGrades = idsFrom(user && user.grades_taught, GRADE_IDS);
+  const initSubjects = idsFrom(user && user.subjects_taught, SUBJECT_IDS);
+  return {
+    screen: 'TEACHING',
+    data: {
+      ...copy,
+      grades,
+      subjects,
+      ...(initGrades.length ? { init_grades: initGrades } : {}),
+      ...(initSubjects.length ? { init_subjects: initSubjects } : {}),
+    },
+  };
+}
+
+async function handleTeachingSubmit(userId, screenData, flowToken) {
+  const stored = await getRegData(flowToken);
+  const user = await readUser(userId);
+  const language = await screenLanguage(stored, user);
+
+  const grades = idsFrom(screenData.grade, GRADE_IDS);
+  const subjects = idsFrom(screenData.subjects, SUBJECT_IDS);
+  await persistToUser(userId, {
+    grades_taught: grades.length ? grades : undefined,
+    subjects_taught: subjects.length ? subjects : undefined,
+  });
+
+  // This screen ENDS the flow: the account is complete here, whatever the terminal payload does.
+  await markRegistrationComplete(userId);
+  await deleteRegData(flowToken);
+
+  const fullName = stored.full_name || (user && user.name) || '';
+  const schoolLinked = Boolean(stored.school_id || (user && user.school_id));
+  const response = {
+    screen: 'SUCCESS',
+    data: {
+      ...screenCopy('SUCCESS', language, { name: fullName }),
+      // Flat, as every working completion in this repo is (roster-flow-v1 notes): the chat ack
+      // finds these on the nfm_reply and needs nothing else.
+      registration_action: 'complete',
+      flow_token: String(flowToken || ''),
+      full_name: fullName,
+      language,
+      school_linked: schoolLinked ? 'yes' : 'no',
+    },
+  };
+  logToFile('📤 TEACHING → SUCCESS (v5)', { userId, grades: grades.length, subjects: subjects.length, schoolLinked });
+  return response;
+}
+
 // --- Redis helpers ---
 
 async function storeRegData(flowToken, data) {
   try {
+    // Stored as JSON text; get() hands it back already parsed (see getRegData).
     await redisService.set(`${REDIS_PREFIX}${flowToken}`, JSON.stringify(data), REDIS_TTL);
   } catch (error) {
     logToFile('⚠️ Redis store failed for registration', { flowToken, error: error.message });
   }
 }
 
+/**
+ * The state saved by the earlier screens.
+ *
+ * railway-redis.service get() ALREADY JSON-parses what it reads. This used to parse again, so
+ * JSON.parse(object) threw '"[object Object]" is not valid JSON' and every read returned {} —
+ * 403 times in 30 days in niete-logs, every day: the SUCCESS card greeted "Teacher", BACK lost
+ * the region screen, and the terminal payload arrived with the earlier screens empty (which the
+ * per-screen writes were added to survive). A string is still parsed, for a value written raw.
+ */
 async function getRegData(flowToken) {
   try {
-    const raw = await redisService.get(`${REDIS_PREFIX}${flowToken}`);
-    return raw ? JSON.parse(raw) : {};
+    const value = await redisService.get(`${REDIS_PREFIX}${flowToken}`);
+    if (!value) return {};
+    if (typeof value === 'object') return value;
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : {};
   } catch (error) {
     logToFile('⚠️ Redis get failed for registration', { flowToken, error: error.message });
     return {};
@@ -566,5 +899,6 @@ module.exports = {
   handleRegistrationInit,
   handleRegistrationDataExchange,
   handleRegistrationBack,
-  createErrorResponse
+  createErrorResponse,
+  screenCopy,
 };

@@ -38,6 +38,28 @@ profile to the `users` row and sets the same completion fields. The Flow is iden
 Flow ID configured in env. (For the Flow plumbing itself — endpoint data exchange, init-values, DRAFT vs
 PUBLISHED — see the WhatsApp Flows skill once it lands.)
 
+**v5 form (bd-x7aprz.2, operator decisions 2026-10-16)** —
+[docs/flows/registration-flow-v5.json](../../../docs/flows/registration-flow-v5.json), served by
+[registration-endpoint.js](../../../bot/shared/routes/registration-endpoint.js):
+
+| Screen | Asks | Writes as it is submitted |
+|---|---|---|
+| PERSONAL_INFO | name + language (static, bilingual) | `name`, `country='PK'`, `organization` only if empty, language via `setUserLanguage` (locked) |
+| ROLE_SCHOOL | role (Teacher / Principal) + one school search box | `role` through [registration-roles.js](../../../bot/shared/config/registration-roles.js) `roleToWrite` |
+| SCHOOL_PICK | up to 10 matches + "My school isn't here" | `school_id` + `region` (the school's sector), only for a real non-test school |
+| TEACHING | grades + subjects (optional) | `grades_taught`, `subjects_taught`, `registration_completed` |
+| SUCCESS | — | flat params (`registration_action: 'complete'`) → the chat welcome with an "Open portal" `/go` button |
+
+- **Roles**: the form may grant only `FORM_ROLES` (teacher, principal). An admin-set coach/AEO is not asked
+  and is never overwritten. Change what the form may grant in that one file.
+- **School**: chosen from `schools` by [school-search.service.js](../../../bot/shared/services/schools/school-search.service.js)
+  (case/space/bracket/hyphen/slash-insensitive, prefixes spelled out, EMIS exact first, test rows excluded).
+  She can never add a school; no match → she finishes without one.
+- **v4 still served**: the endpoint keeps the v4 screens (country / region / organization) until every
+  environment's Flow is republished. v4 sends `country` on its first submit; v5 does not — that is the switch.
+- **State between screens** is in Redis (`reg_flow:<token>`). `railway-redis.service get()` already parses
+  JSON — never `JSON.parse` its result again (that returned `{}` on every read until 2026-10-16).
+
 ### The fields that gate registration
 
 ```sql

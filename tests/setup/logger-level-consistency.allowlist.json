@@ -43,18 +43,6 @@
   },
   {
     "file": "bot/shared/handlers/flow-response.handler.js",
-    "line": 586,
-    "snippet": "logToFile('❌ Error updating user with registration data', { userId, error: updateError.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/handlers/flow-response.handler.js",
-    "line": 643,
-    "snippet": "logToFile('❌ Error handling registration flow', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/handlers/flow-response.handler.js",
     "line": 848,
     "snippet": "logToFile('❌ observe-visit completion failed — degrading to plain capture prompt', {",
     "occurrence": 0
@@ -75,18 +63,6 @@
     "file": "bot/shared/handlers/image-message.handler.js",
     "line": 436,
     "snippet": "logToFile('❌ Image analysis failed', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/handlers/portal-command.handler.js",
-    "line": 93,
-    "snippet": "logToFile('❌ Failed to send portal invitation', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/handlers/portal-command.handler.js",
-    "line": 101,
-    "snippet": "logToFile('❌ Error in handlePortalCommand', {",
     "occurrence": 0
   },
   {
@@ -1995,18 +1971,6 @@
     "file": "bot/whatsapp-bot.js",
     "line": 1588,
     "snippet": "logToFile('❌ Exception in reading assessment flow handler', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/whatsapp-bot.js",
-    "line": 1606,
-    "snippet": "logToFile('❌ Registration flow processing failed', { from, responseJson });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/whatsapp-bot.js",
-    "line": 1612,
-    "snippet": "logToFile('❌ Exception in registration flow handler', {",
     "occurrence": 0
   },
   {

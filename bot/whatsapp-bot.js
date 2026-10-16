@@ -1725,23 +1725,9 @@ app.post('/webhook', async (req, res) => {
           responseFields: Object.keys(responseJson)
         });
 
-        try {
-          const success = await FlowResponseHandler.handleRegistrationFlow(message, from, user?.id);
-
-          if (!success) {
-            logToFile('❌ Registration flow processing failed', { from, responseJson });
-            await WhatsAppService.sendMessage(from, 'Sorry, something went wrong with your registration. Please try /register to try again.');
-          } else {
-            logToFile('✅ Registration flow processed successfully', { from });
-          }
-        } catch (flowError) {
-          logToFile('❌ Exception in registration flow handler', {
-            from,
-            error: flowError.message,
-            stack: flowError.stack
-          });
-          await WhatsAppService.sendMessage(from, 'Sorry, something went wrong with your registration. Please try /register to try again.');
-        }
+        // bd-x7aprz.2: ONE apology at most. The handler already sends it on failure; this branch
+        // used to send a second, near-identical one on top (flow-response.handler.js).
+        await FlowResponseHandler.routeRegistrationSubmission(message, from, user?.id);
       } else if (flowType === 'attendance_setup') {
         // Attendance Setup — endpoint flow's terminal ack. The endpoint at
         // /api/flows/attendance-setup already parsed the roster, created the

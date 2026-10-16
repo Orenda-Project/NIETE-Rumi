@@ -131,6 +131,54 @@ const UX_STRINGS = {
     ur: 'مدد درکار',
   },
 
+  // ─── the registration Flow invite (services/registration-invite.service.js) ──
+  // One message, three cases: a new person, a registered teacher fixing her details, and an
+  // unregistered person who reached a feature that needs her school. Header ≤ 60 and button
+  // ≤ 20 CODE POINTS (WhatsApp rejects the whole message otherwise). No footer. The Urdu is
+  // impersonal or the polite imperative, never a second-person verb that picks her gender,
+  // and opens with Urdu so the paragraph lays out right to left.
+  registrationInviteNewHeader: {
+    en: 'Welcome to NIETE',
+    ur: 'خوش آمدید!',
+  },
+  registrationInviteNewBody: {
+    en: 'Let\'s set up your account: your name, your school and the classes you teach. It takes about a minute.',
+    ur: 'آئیے آپ کا اکاؤنٹ بنائیں: آپ کا نام، آپ کا اسکول اور آپ کی جماعتیں۔ اس میں تقریباً ایک منٹ لگے گا۔',
+  },
+  registrationInviteUpdateHeader: {
+    en: 'Update your details',
+    ur: 'اپنی تفصیلات درست کریں',
+  },
+  registrationInviteUpdateBody: {
+    en: 'Correct your name, school or classes. What you send replaces what I have on file.',
+    ur: 'اپنا نام، اسکول یا جماعتیں درست کریں۔ نئی معلومات پرانی کی جگہ لے لیں گی۔',
+  },
+  registrationInviteSchoolHeader: {
+    en: 'First, your school',
+    ur: 'پہلے آپ کا اسکول',
+  },
+  registrationInviteSchoolBody: {
+    en: 'To do this I need to know your school. Pick it in this short form — it takes about a minute.',
+    ur: 'اس کے لیے مجھے آپ کا اسکول معلوم ہونا ضروری ہے۔ اس مختصر فارم میں اپنا اسکول چنیں — اس میں تقریباً ایک منٹ لگے گا۔',
+  },
+  registrationInviteButton: {
+    en: 'Get started',
+    ur: 'شروع کریں',
+  },
+  registrationInviteUpdateButton: {
+    en: 'Update details',
+    ur: 'تفصیلات درست کریں',
+  },
+  // A refused Flow send: never silence. /register is isolated in Urdu so it is not painted "register/".
+  registrationInviteRetry: {
+    en: 'I couldn\'t open the form just now. Please type /register to try again.',
+    ur: 'فارم ابھی نہیں کھل سکا۔ دوبارہ کوشش کے لیے ⁦/register⁩ لکھیں۔',
+  },
+  registrationInviteUnavailable: {
+    en: 'Registration isn\'t available right now. Please try again a little later.',
+    ur: 'رجسٹریشن ابھی دستیاب نہیں۔ براہ کرم کچھ دیر بعد کوشش کریں۔',
+  },
+
   // ─── /roster — the class-register command ─────────────────────────────────
   // Every string on this command was an English literal, including all four
   // Flow chrome fields, on a deployment where the leaders who use it read Urdu
@@ -738,6 +786,78 @@ const UX_STRINGS = {
   appLinkButtonCoachHome: { en: 'Open app', ur: 'ایپ کھولیں' },
   appLinkBodyCoachObserve: { en: 'Take an observation in the app.', ur: 'ایپ میں مشاہدہ لیں۔' },
   appLinkButtonCoachObserve: { en: 'Take observation', ur: 'مشاہدہ لیں' },
+
+  // ─── the registration Flow, v5 (bd-x7aprz.2) ──────────────────────────────
+  // The screens after the first one are served by the endpoint in the language she picked on
+  // the first (registration-endpoint.js screenCopy), so their words live here. Meta's caps, in
+  // code points: an input label 20, a radio/checkbox label or option 30, a footer 35, a heading
+  // 80 (tests/registration/bd-x7aprz2-flow-v5-json.test.js measures both languages). Imperatives
+  // and noun phrases only, so nothing guesses her gender. A Latin atom inside Urdu (IMSG, EMIS,
+  // NIETE, a typed search) is isolated; a placeholder is isolated with FSI…PDI.
+  regFormRoleSchoolHeading: { en: 'Your role and school', ur: 'آپ کا عہدہ اور اسکول' },
+  regFormRoleLabel: { en: 'Your role', ur: 'آپ کا عہدہ' },
+  regFormRoleTeacher: { en: 'Teacher', ur: 'ٹیچر' },
+  regFormRolePrincipal: { en: 'Principal / Head Teacher', ur: 'پرنسپل / ہیڈ ٹیچر' },
+  regFormSearchLabel: { en: 'School name or EMIS', ur: 'اسکول کا نام یا کوڈ' },
+  regFormSearchHelp: {
+    en: 'e.g. IMSG G-9/1, a village name or the EMIS code',
+    ur: 'مثلاً ⁦IMSG G-9/1⁩، گاؤں کا نام یا ⁦EMIS⁩ کوڈ',
+  },
+  regFormSearchButton: { en: 'Search', ur: 'تلاش کریں' },
+  regFormPickHeading: { en: 'Pick your school', ur: 'اپنا اسکول چنیں' },
+  regFormPickNote: {
+    en: 'Schools matching “{query}”. Not in the list? Go back and search again, or choose “My school isn’t here”.',
+    ur: '«⁨{query}⁩» سے ملتے اسکول۔ فہرست میں نہیں؟ پیچھے جا کر دوبارہ تلاش کریں، یا «میرا اسکول یہاں نہیں» چنیں۔',
+  },
+  regFormPickNothing: {
+    en: 'No school matched “{query}”. Go back and try another spelling, a village name or the EMIS code — or finish now without a school.',
+    ur: '«⁨{query}⁩» سے کوئی اسکول نہیں ملا۔ پیچھے جا کر دوسرا نام، گاؤں یا ⁦EMIS⁩ کوڈ آزمائیں — یا ابھی اسکول کے بغیر مکمل کریں۔',
+  },
+  regFormPickLabel: { en: 'Your school', ur: 'آپ کا اسکول' },
+  regFormPickNone: { en: 'My school isn’t here', ur: 'میرا اسکول یہاں نہیں' },
+  regFormNext: { en: 'Next', ur: 'آگے' },
+  regFormTeachHeading: { en: 'Your grades and subjects', ur: 'آپ کی جماعتیں اور مضامین' },
+  regFormTeachNote: {
+    en: 'Pick all that apply. No class of your own? Leave these empty.',
+    ur: 'جو لاگو ہوں سب چنیں۔ اپنی کوئی کلاس نہیں؟ انہیں خالی چھوڑ دیں۔',
+  },
+  regFormGradesLabel: { en: 'Grades', ur: 'جماعتیں' },
+  regFormSubjectsLabel: { en: 'Subjects', ur: 'مضامین' },
+  regFormFinish: { en: 'Finish', ur: 'مکمل کریں' },
+  regFormDoneHeading: { en: 'You’re registered', ur: 'رجسٹریشن مکمل' },
+  regFormDoneBody: {
+    en: 'Welcome, {name}! Tap Done and I’ll send your NIETE portal link in the chat.',
+    ur: 'خوش آمدید، {name}! «ٹھیک ہے» دبائیں، میں چیٹ میں آپ کا ⁦NIETE⁩ پورٹل لنک بھیج دوں گی۔',
+  },
+  regFormDoneButton: { en: 'Done', ur: 'ٹھیک ہے' },
+  // Grade and subject options the class catalog (GRADE_LABELS / SUBJECT_LABELS, seeded codes)
+  // does not carry; the rest come from gradeLabelFor / subjectLabelFor.
+  regGradeHigherSecondary: { en: 'Higher Secondary (11-12)', ur: 'انٹر (⁦۱۱–۱۲⁩)' },
+  regSubjectIslamiat: { en: 'Islamiat', ur: 'اسلامیات' },
+  regSubjectPhysics: { en: 'Physics', ur: 'فزکس' },
+  regSubjectChemistry: { en: 'Chemistry', ur: 'کیمسٹری' },
+  regSubjectBiology: { en: 'Biology', ur: 'بیالوجی' },
+  regSubjectSocialPakStudies: { en: 'Social Studies / Pak St.', ur: 'معاشرتی علوم / مطالعہ پاکستان' },
+  regSubjectComputerScience: { en: 'Computer Science', ur: 'کمپیوٹر سائنس' },
+  regSubjectOther: { en: 'Other', ur: 'دیگر' },
+  // The chat message after she taps Done — a cta_url to the portal through the signed /go link.
+  regDoneChat: {
+    en: 'Thank you for registering, {name}! You’re all set. Open your NIETE portal below, or tell me what to start on.',
+    ur: 'رجسٹریشن کا شکریہ، {name}! آپ تیار ہیں۔ نیچے اپنا ⁦NIETE⁩ پورٹل کھولیں، یا بتائیں کس کام سے شروع کریں۔',
+  },
+  regDoneChatNoLink: {
+    en: 'Thank you for registering, {name}! You’re all set. Tell me what to start on.',
+    ur: 'رجسٹریشن کا شکریہ، {name}! آپ تیار ہیں۔ بتائیں کس کام سے شروع کریں۔',
+  },
+  regDoneNoSchool: {
+    en: 'Your school isn’t linked yet. Your coach can add it, and the school features open then.',
+    ur: 'آپ کا اسکول ابھی منسلک نہیں ہوا۔ کوچ کے ذریعے اسے شامل کیا جا سکتا ہے، اور اسکول والی سہولتوں کے لیے یہ ضروری ہے۔',
+  },
+  regDonePortalButton: { en: 'Open portal', ur: 'پورٹل کھولیں' },
+  regFailed: {
+    en: 'Sorry, something went wrong with your registration. Please type /register to try again.',
+    ur: 'معذرت، رجسٹریشن میں کچھ مسئلہ ہو گیا۔ دوبارہ کوشش کے لیے ⁦/register⁩ ٹائپ کریں۔',
+  },
 
   assessmentNotReady: {
     en: "We're getting the assessment generator ready for you. I'll tell you the moment it's live.",
