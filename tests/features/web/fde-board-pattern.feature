@@ -131,6 +131,21 @@ Feature: FDE board-pattern paper for Grade 5
     Given a Grade 5 Maths board-pattern paper is being made for this teacher
     When they close the app and open the paper's link again
     Then the wait screen shows the board-pattern chip and how long ago the paper was started
+    And the portal's status answer for that request carries the pattern and when it was asked for
+    And a paper made without the pattern gets a status answer with neither
+
+  @sandbox
+  Scenario: A Maths paper whose first draw set aside two MCQs is still made whole
+    Given the board-pattern switch is on
+    When a Grade 5 Maths board-pattern paper's first reply has two MCQs with two options of equal value
+    Then that section is asked once more and the paper is ready with all 20 MCQs in Q1(a)
+    And 18 of them are the first reply's
+
+  @sandbox
+  Scenario: A paper that still fails keeps what was written
+    Given the board-pattern switch is on
+    When a Grade 5 Maths board-pattern paper comes back short twice
+    Then the paper fails "PATTERN_SHORT_SLOT" and its row keeps the paper as written and the model's name
 
   # ── Edge cases ────────────────────────────────────────────────────────────────────────────────────────────────────
 
