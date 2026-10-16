@@ -104,7 +104,7 @@ function dg(n){var s=String(n);return b.dg?s.replace(/[0-9]/g,function(x){return
 function fill(k,o){return String(S[k]||'').replace(/\\{(\\w+)\\}/g,function(m,n){return o&&o[n]!=null?String(o[n]):m})}
 function post(p,o){return fetch(p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(o),credentials:'same-origin'})}
 function getj(p){return fetch(p,{credentials:'same-origin'}).then(function(r){if(r.status===410||r.status===404&&p.indexOf('/api/th/home')===0){location.reload();throw 1}if(!r.ok)throw 0;return r.json()})}
-function step(n,x){try{var o={t:b.t,step:n};if(x){if(x.kind)o.kind=x.kind;if(x.id)o.id=x.id;if(x.origin)o.origin=x.origin}var s=JSON.stringify(o);if(navigator.sendBeacon&&navigator.sendBeacon('/api/th/step',new Blob([s],{type:'application/json'})))return;post('/api/th/step',o).catch(function(){})}catch(e){}}
+function step(n,x){try{var o={t:b.t,step:n};if(x){if(x.kind)o.kind=x.kind;if(x.id)o.id=x.id;if(x.origin)o.origin=x.origin;if(x.c)o.c=x.c}var s=JSON.stringify(o);if(navigator.sendBeacon&&navigator.sendBeacon('/api/th/step',new Blob([s],{type:'application/json'})))return;post('/api/th/step',o).catch(function(){})}catch(e){}}
 function store(k,v){try{if(v==null)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
 function clear(n){while(n&&n.firstChild)n.removeChild(n.firstChild)}
 function topic(t){var x=el('bdi');x.setAttribute('dir','auto');x.textContent=t||'';return x}
@@ -128,21 +128,23 @@ function top(){var c=q('#th-top');clear(c);var p=d.primary||{};c.setAttribute('d
 if(p.kind==='class'){c.appendChild(el('p','th-say',p.played>0?fill('th.played.n',{n:dg(p.played)}):S['th.zero']));
 var t=el('p','th-sub');t.appendChild(topic(p.title));c.appendChild(t);
 if(p.again&&p.again.href)c.appendChild(link('th-go',S['th.again'],p.again.href,'again',true));
-else if(p.send)c.appendChild(btn('th-go',S['th.again'],'again',function(){var s=p.send;sheet({message:s.message,wa:s.wa,sendKind:s.sendKind,id:p.again&&p.again.id,origin:'again'},p.title)},true));
+else if(p.send)c.appendChild(btn('th-go',S['th.again'],'again',function(){var s=p.send;sheet({message:s.message,wa:s.wa,c:s.c,sendKind:s.sendKind,id:p.again&&p.again.id,origin:'again'},p.title)},true));
 if(p.report)c.appendChild(link('th-link',S['th.report'],p.report,'report'));return}
+if(p.kind==='lesson'){var pl=String(S['th.lastlesson']||'').split('{topic}');var hl=el('p','th-say');hl.appendChild(document.createTextNode(pl[0]||''));hl.appendChild(topic(p.title));hl.appendChild(document.createTextNode(pl[1]||''));c.appendChild(hl);
+var lv=btn('th-go',S['th.quiz.this'],'quiz_this',function(){make({kind:p.from,make:p.make,id:p.id,title:p.title},c,lv)},true);c.appendChild(lv);return}
 if(p.kind==='made'){var u0=el('p','th-say');u0.appendChild(topic(p.title));c.appendChild(u0);
 c.appendChild(btn('th-go',S['th.send'],'send',function(){sheet({message:p.send.message,wa:p.send.wa,sendKind:'again',id:p.id,origin:p.origin},p.title)},true));return}
 c.appendChild(el('p','th-say',S['th.primary.lib']));
 if(p.kind==='story'||p.kind==='video'){var u=el('p','th-sub');u.appendChild(topic(p.title));c.appendChild(u);
 if(p.kind==='story')c.appendChild(link('th-go',S['th.send'],p.href,'story_tile',true));
-else if(p.send)c.appendChild(btn('th-go',S['th.send'],'send',function(){sheet({message:p.send.message,wa:p.send.wa,sendKind:'video',id:p.id,origin:'library'},p.title)},true));return}
+else if(p.send)c.appendChild(btn('th-go',S['th.send'],'send',function(){sheet({message:p.send.message,wa:p.send.wa,c:p.send.c,sendKind:'video',id:p.id,origin:'library'},p.title)},true));return}
 if(p.kind==='make'&&p.href){c.appendChild(link('th-go',S['th.make'],p.href,'make',true))}}
 function under(){var ul=q('#th-confirm');clear(ul);(d.confirm||[]).forEach(function(r){var li=el('li','th-row');li.setAttribute('data-row','confirm');var tx=el('div','th-row-t th-row-q');
 tx.appendChild(el('span','th-row-n',fill('th.confirm.q',{name:r.first,name2:r.candidateFirst})));li.appendChild(tx);var bx=el('div','th-row-b');li.appendChild(bx);
 [['same','th.confirm.same'],['no','th.confirm.diff'],['unsure','th.confirm.unsure']].forEach(function(k){bx.appendChild(btn('th-row-v',S[k[1]],'confirm_'+k[0],function(){if(busy)return;busy=true;
 post('/api/th/confirm',{t:b.t,looseId:r.looseId,candidateId:r.candidateId,decision:k[0]}).then(function(x){if(!x.ok&&x.status!==204)throw 0;li.parentNode&&li.parentNode.removeChild(li)}).catch(function(){err(true)}).then(function(){busy=false})}))});ul.appendChild(li)});
 ul.hidden=!(d.confirm&&d.confirm.length);var c=q('#th-children');c.hidden=!d.children;if(d.children)c.setAttribute('href',d.children)}
-var TAG={lp:'th.tag.lp',coach:'th.tag.coach',quiz:'th.tag.quiz'};
+var TAG={lp:'th.tag.lp',coach:'th.tag.coach',quiz:'th.tag.quiz',story:'th.tag.story'};
 function poll(row,box,v){var id=row.quizId,t0=Date.now();if(polls[id])return;polls[id]=1;var note=el('p','th-note',S['th.quiz.making']);note.setAttribute('role','status');box.appendChild(note);if(v)v.hidden=true;
 function tick(){getj('/api/th/quiz/'+encodeURIComponent(id)+'?t='+T+(b.ask?'&lang='+b.ask:'')).then(function(x){if(x&&x.state==='ready'&&x.message){note.textContent='';d.primary={kind:'made',id:id,title:x.title||row.title,send:{message:x.message,wa:x.wa},origin:row.kind==='coach'?'coaching':'lesson_plan'};top();window.scrollTo(0,0);return}
 if(x&&x.state==='failed'){note.textContent=S['th.error'];return}if(Date.now()-t0>180000){note.textContent=S['th.quiz.late'];return}setTimeout(tick,5000)}).catch(function(){if(Date.now()-t0>180000)note.textContent=S['th.quiz.late'];else setTimeout(tick,5000)})}
@@ -167,15 +169,14 @@ function pickGrade(n){if(String(n)===String(grade))return;grade=n;store('th.grad
 getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}).catch(function(e){if(e!==1)err(true)})}
 function foot(){var m=q('#th-make');m.hidden=!d.maker;if(d.maker)m.setAttribute('href',d.maker);
 var cs=q('#th-cards');clear(cs);(d.cards||[]).forEach(function(c){var a=link('th-go2',c.title,c.href,'card');a.setAttribute('data-card',c.card);cs.appendChild(a)});cs.hidden=!(d.cards&&d.cards.length);
-var s=q('#th-try');s.hidden=!d.tryStudent;if(d.tryStudent)s.setAttribute('href',d.tryStudent);q('#th-change').hidden=!(d.change===true);var cl=q('#th-change-go');cl.hidden=typeof d.change!=='string';if(typeof d.change==='string')cl.setAttribute('href',d.change)}
+var s=q('#th-try');s.hidden=!d.tryStudent;if(d.tryStudent)s.setAttribute('href',d.tryStudent);var cl=q('#th-change-go');cl.hidden=typeof d.change!=='string';if(typeof d.change==='string')cl.setAttribute('href',d.change)}
 function render(){hello();top();under();rows();lib(d.library||{grade:2});foot();q('#th-main').setAttribute('data-ready','1')}
 q('#th-more').addEventListener('click',function(){shown+=10;rows();step('more')});
 q('#th-back').addEventListener('click',function(){try{history.back()}catch(e){unsheet()}});
 q('#th-copy').addEventListener('click',copy);
 q('#th-cards').addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('[data-card]'):null;if(a)step('card_'+a.getAttribute('data-card'))});
-q('#th-sheet-go').addEventListener('click',function(){if(cur)step('share_tap',{kind:cur.sendKind,id:cur.id,origin:cur.origin})});
+q('#th-sheet-go').addEventListener('click',function(){if(cur)step('share_tap',{kind:cur.sendKind,id:cur.id,origin:cur.origin,c:cur.c})});
 q('#th-grades').addEventListener('click',function(e){var c=e.target&&e.target.closest?e.target.closest('[data-grade]'):null;if(c)pickGrade(c.getAttribute('data-grade'))});
-q('#th-change').addEventListener('click',function(){if(busy)return;busy=true;post('/api/th/role',{t:b.t,side:'child'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(x){if(x&&typeof x.next==='string')location.href=x.next;else throw 0}).catch(function(){err(true)}).then(function(){busy=false})});
 var g0=store('th.grade');
 getj('/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''))
 .then(function(x){d=x;grade=x.library&&x.library.grade;render()}).catch(function(e){if(e!==1){err(true);q('#th-main').setAttribute('data-ready','err')}});
@@ -255,7 +256,6 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
 <div class="th-cards" id="th-cards" hidden></div>
 <a class="th-link" id="th-try" data-tap="try_student" hidden>${esc(str('th.try.student', l))}</a>
 <a class="th-link" id="th-change-go" data-tap="change" hidden>${esc(str('th.change', l))}</a>
-<button type="button" class="th-link" id="th-change" data-tap="change" hidden>${esc(str('th.change', l))}</button>
 </nav>
 </main>
 <section class="th-sheet" id="th-sheet" data-screen="teacher_send" hidden>

@@ -96,12 +96,12 @@ async function lessons(uid, deps) {
   });
 }
 
-/** The report's own played counts for this teacher's quizzes: Map quizId → { played, of, date, topic }. */
+/** The report's own played counts for this teacher's sent quizzes: Map quizId → { played, of, date, topic, source }. */
 async function playedOwn(uid, deps) {
   const Report = dep(deps, 'Report');
   const r = await Report.classReport(uid, { days: 60 });
   const out = new Map();
-  ((r && r.quizzes) || []).forEach((q) => out.set(q.id, { played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic }));
+  ((r && r.quizzes) || []).forEach((q) => out.set(q.id, { played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null }));
   return out;
 }
 
@@ -123,7 +123,8 @@ async function libraryShares(uid, deps, now = Date.now()) {
   const { data: own, error: e2 } = await supabase.from('quizzes').select('id, teacher_id').in('id', codes.map((c) => c.quiz_id));
   if (e2) throw new Error(e2.message);
   const mine = new Set((own || []).filter((q) => q.teacher_id === uid).map((q) => q.id));
-  const lib = codes.filter((c) => !mine.has(c.quiz_id));
+  const notYet = await require('./teacher-home.sent').prepared(codes.map((c) => c.id));
+  const lib = codes.filter((c) => !mine.has(c.quiz_id) && !notYet.has(c.id));
   if (!lib.length) return [];
   const counted = Report.countedSessions(await Report.sessionsFor(lib.map((c) => c.id)), uid);
   const per = new Map();

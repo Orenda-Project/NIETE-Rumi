@@ -76,7 +76,7 @@ describe('switch OFF', () => {
       get(`/quiz/teacher/${t}`), get('/quiz/teacher/garbage'), get(`/quiz/teacher/${t}/stories`), get(`/api/th/home?t=${t}`), get(`/api/th/library?t=${t}&g=3`),
       get(`/api/th/quiz/${OWN_QUIZ}?t=${t}`), post('/api/th/send', { t, kind: 'video', id: qid(2) }),
       post('/api/th/quiz/make', { t, kind: 'coaching', id: SESSION }), post('/api/th/confirm', { t, looseId: OWN_QUIZ, candidateId: OTHER, decision: 'same' }),
-      post('/api/th/role', { t, side: 'child' }), post('/api/th/step', { t, step: 'more' }),
+      post('/api/th/step', { t, step: 'more' }),
     ]);
     for (const res of answers) {
       expect(res.status).toBe(404);
@@ -151,7 +151,7 @@ describe('the home: a teacher with no lesson plans', () => {
     expect(again.primary.send.message).toBe(home.primary.send.message);
     expect(fake.db.quiz_share_codes).toHaveLength(1); // the held code is reused
     const open = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open');
-    expect(open[0][1]).toMatchObject({ w: 's', has_lp: false, has_coaching: false, primary_kind: 'video', tk: expect.stringMatching(/^[0-9a-f]{16}$/) });
+    expect(open[0][1]).toMatchObject({ w: 's', has_lp: false, has_coaching: false, primary_kind: 'library', tk: expect.stringMatching(/^[0-9a-f]{16}$/) });
     expect(JSON.stringify(open)).not.toContain(TEACHER.id);
   });
 
@@ -303,12 +303,15 @@ describe('the confirm rows and the events', () => {
     expect(logEvent).toHaveBeenCalledWith('teacher_send', expect.objectContaining({ w: 's', kind: 'video', origin: 'library', again: false, id: qid(2) }));
   });
 
-  test('"Not a teacher? Change" is not offered until the one door\'s writer exists', async () => {
+  test('"Not a teacher? Change" is not offered until the one door\'s landing exists; there is no role write here', async () => {
     seed();
     await boot(deps);
     const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
-    expect(home.change).toBe(false);
-    expect((await post('/api/th/role', { t: tokenFor(), side: 'child' })).status).toBe(404);
+    expect(home.change).toBeNull();
+    const before = fake.calls.length;
+    const res = await post('/api/th/role', { t: tokenFor(), side: 'child' });
+    expect(res.status).toBe(404);
+    expect(fake.calls.slice(before).filter((c) => c.op !== 'select')).toEqual([]);
   });
 
   test('the strings the page uses all resolve in both languages', () => {
@@ -360,5 +363,75 @@ describe('the stories shelf and the other seams', () => {
     expect((await post('/api/th/step', { t: tokenFor(), step: 'card_coach' })).status).toBe(204);
     expect(logEvent).toHaveBeenCalledWith('teacher_home.step', expect.objectContaining({ step: 'card_coach', screen: 'home' }));
     expect((await post('/api/th/step', { t: tokenFor(), step: 'anything_else' })).status).toBe(400);
+  });
+});
+
+describe('the top card for a teacher with a fresh lesson (F16) and story sends', () => {
+  const day = (n) => new Date(Date.now() - n * 86400000).toISOString();
+  const lesson = (n, topic) => ({ source: 'lp_v8', lessonRef: `ref${n}`, date: day(n), topic, subject: 'Science', grade: '4' });
+
+  test('an un-quizzed lesson plan of the last 7 days is the top card: "Quiz from your last lesson" + Quiz this', async () => {
+    seed();
+    deps.List = listWith({ lessons: [lesson(2, 'Plants'), lesson(20, 'Old topic')] });
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(home.primary).toMatchObject({ kind: 'lesson', make: 'lesson', title: 'Plants', id: 'lsn_lp_v8_ref2' });
+    expect(home.library.video).toEqual({ id: qid(2), title: 'Fractions' }); // the library card second
+    expect(logEvent.mock.calls.find(([n]) => n === 'teacher_home_open')[1]).toMatchObject({ primary_kind: 'lp_quiz', has_lp: true });
+  });
+
+  test('a lesson older than 7 days does not take the top card (the library pick does)', async () => {
+    seed();
+    deps.List = listWith({ lessons: [lesson(9, 'Old topic')] });
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(home.primary.kind).toBe('video');
+    expect(logEvent.mock.calls.find(([n]) => n === 'teacher_home_open')[1]).toMatchObject({ primary_kind: 'library' });
+  });
+
+  test('a story send (the teacher\'s own quizzes row) is a timeline row with Send again and its report', async () => {
+    seed();
+    const at = day(1);
+    fake.db.quizzes.push({ id: OWN_QUIZ, teacher_id: TEACHER.id, quiz_source: 'story', status: 'sent', topic: 'The Thirsty Crow', created_at: at,
+      meta: { student_message: 'Read with Jugnu: https://portal.example/q/STORY1', share_code_id: OWN_CODE } });
+    fake.db.quiz_share_codes.push({ id: OWN_CODE, code: 'STORY1', quiz_id: OWN_QUIZ, teacher_user_id: TEACHER.id, active: true, expires_at: null, created_at: at, invited_by_student_id: null });
+    fake.db.quiz_sessions = [];
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(home.timeline[0]).toMatchObject({ kind: 'story', title: 'The Thirsty Crow', verb: 'again', id: OWN_QUIZ, sendKind: 'again', played: 0 });
+    expect(home.primary).toMatchObject({ kind: 'class', title: 'The Thirsty Crow', played: 0 });
+    expect(home.primary.send.message).toContain('https://portal.example/q/STORY1');
+  });
+
+  test('a listed test phone walking as "a teacher with no lessons" sees the library first; absent module → today', async () => {
+    seed();
+    fake.db.users[0].phone_number = 'fixture-phone';
+    deps.List = listWith({ lessons: [lesson(1, 'Plants')] });
+    deps.TestPersona = { forHome: async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists) };
+    await boot(deps);
+    const walk = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(walk.timeline).toEqual([]);
+    expect(walk.primary.kind).toBe('video');
+    delete deps.TestPersona;
+    srv.close(); await boot(deps);
+    const real = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(real.primary.kind).toBe('lesson');
+  });
+});
+
+describe('a code minted to show its message is not a send until the tap', () => {
+  test('the library pick minted at render does not become "No one has played — Send again" on the next open; after the tap it does', async () => {
+    seed();
+    await boot(deps);
+    const t = tokenFor();
+    const first = await (await get(`/api/th/home?t=${t}&g=4`)).json();
+    expect(first.primary.kind).toBe('video');
+    const again = await (await get(`/api/th/home?t=${t}&g=4`)).json();
+    expect(again.primary.kind).toBe('video');
+    expect(again.timeline).toEqual([]);
+    expect((await post('/api/th/step', { t, step: 'share_tap', kind: 'video', id: qid(2), c: first.primary.send.c, origin: 'library' })).status).toBe(204);
+    const after = await (await get(`/api/th/home?t=${t}&g=4`)).json();
+    expect(after.primary).toMatchObject({ kind: 'class', played: 0, title: 'Fractions' });
+    expect(after.timeline[0]).toMatchObject({ kind: 'quiz', verb: 'again', sendKind: 'share', id: first.primary.send.c });
   });
 });

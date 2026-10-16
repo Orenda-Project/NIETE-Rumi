@@ -8,7 +8,7 @@
  *   GET  /api/th/home  ?t&g&lang         the home's JSON
  *   GET  /api/th/library ?t&g&lang       the library card for a grade
  *   GET  /api/th/quiz/:id ?t&lang        the "Quiz this" poll
- *   POST /api/th/send | quiz/make | confirm | role | step    JSON in, JSON (or 204) out
+ *   POST /api/th/send | quiz/make | confirm | step    JSON in, JSON (or 204) out
  *
  * Switch quiz_teacher_home OFF: the bot answers 404 {off:true} and this edge calls next(), so the request falls
  * through to exactly today's handling (nothing is set on the response before that). A malformed token also falls
@@ -40,8 +40,7 @@ const FORM = {
   send: { kind: ONE_OF('video', 'share', 'again'), id: (v) => UUID_RX.test(v), lang: LANG },
   'quiz/make': { kind: ONE_OF('lesson', 'coaching'), id: (v) => KEY_RX.test(v), lang: LANG },
   confirm: { looseId: (v) => UUID_RX.test(v), candidateId: (v) => UUID_RX.test(v), decision: ONE_OF('same', 'no', 'unsure') },
-  role: { side: ONE_OF('child') },
-  step: { step: (v) => /^[a-z_]{2,30}$/.test(v), kind: ONE_OF('video', 'share', 'again', 'story'), id: (v) => UUID_RX.test(v), origin: ONE_OF('library', 'again', 'lesson_plan', 'coaching') },
+  step: { step: (v) => /^[a-z_]{2,30}$/.test(v), kind: ONE_OF('video', 'share', 'again', 'story'), id: (v) => UUID_RX.test(v), c: (v) => UUID_RX.test(v), origin: ONE_OF('library', 'again', 'lesson_plan', 'coaching') },
 };
 function formBody(kind, body) {
   const out = {};
@@ -174,7 +173,7 @@ function createQuizTeacherRouter(opts = {}) {
   router.get('/api/th/home', limiter, forwardGetJson('/api/th/home'));
   router.get('/api/th/library', limiter, forwardGetJson('/api/th/library'));
   router.get('/api/th/quiz/:id', limiter, forwardGetJson('/api/th/quiz'));
-  ['send', 'quiz/make', 'confirm', 'role', 'step'].forEach((kind) => router.post(`/api/th/${kind}`, limiter, parse, forwardPost(kind)));
+  ['send', 'quiz/make', 'confirm', 'step'].forEach((kind) => router.post(`/api/th/${kind}`, limiter, parse, forwardPost(kind)));
   return router;
 }
 

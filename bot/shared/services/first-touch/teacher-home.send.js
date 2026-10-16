@@ -55,6 +55,8 @@ async function videoSend({ uid, lang, quizId }, deps) {
   if (!chip) return null;
   const out = await bankOf(deps).make({ uid, lang, grade: chip.grade, subject: chip.subject, quizId });
   if (!out || out.error || typeof out.message !== 'string') return null;
+  // a code minted just to show its message is not a send until the tap (teacher-home.sent.js)
+  if (out.minted) await require('./teacher-home.sent').markPrepared(out.shareCodeId);
   return { ...sendable(out.message, lang), shareCodeId: out.shareCodeId, quizId };
 }
 

@@ -9,10 +9,13 @@
  *   story    else the stories shelf's first book for the class's grade (a link to the stories page's own sheet)
  *   video    else the bank's ready video quiz for that grade, its class message already built ("Send to my class")
  *   make     else the maker page
- * THE TIMELINE: lesson plans, coaching sessions and sent quizzes, newest first; each row ONE verb:
+ * (between class and story: an un-quizzed lesson plan or coaching session of the last 7 days → "Quiz from your last
+ *  lesson: <topic>" with "Quiz this", the library card second)
+ * THE TIMELINE: lesson plans, coaching sessions and sent quizzes (stories too), newest first; each row ONE verb:
  *   quiz_this (a lesson or a session with no quiz yet) · again (a sent quiz) · none (a quiz being made)
  */
 const SEND_WINDOW_MS = 72 * 3600 * 1000;
+const LESSON_WINDOW_MS = 7 * 86400000;
 const FEW = 5;
 const MAX_ROWS = 30;
 const SENT = new Set(['sent', 'report_sent']);
@@ -37,6 +40,20 @@ function lessonRow(r, played, reports) {
   return row;
 }
 
+/** One timeline row from a sent quiz of the teacher's that /quiz's list does not carry (a story send, an older quiz). */
+function ownRow(id, p, reports) {
+  const row = { kind: p.source === 'story' ? 'story' : 'quiz', key: `q_${id}`, title: p.topic || '', date: p.date || null, verb: 'again', id, sendKind: 'again', played: p.played || 0 };
+  const rep = reports.get(id);
+  if (rep) row.report = rep.live;
+  return row;
+}
+
+/** The sent quizzes of the report that the lessons list does not already show. */
+const extraOwn = (lessons, played) => {
+  const shown = new Set(lessons.map((r) => r.quizId).filter(Boolean));
+  return [...played.entries()].filter(([id]) => !shown.has(id));
+};
+
 /** One timeline row from a library send (the maker's). */
 const shareRow = (s) => ({
   kind: 'quiz', key: `sc_${s.shareCodeId}`, title: s.topic || '', date: s.at, verb: 'again', id: s.shareCodeId, sendKind: 'share', played: s.played,
@@ -45,6 +62,7 @@ const shareRow = (s) => ({
 /** The newest send of the window with few children finished, as the class card; or null. */
 function classCard({ lessons, played, shares, reports, now }) {
   const sends = [];
+  extraOwn(lessons, played).forEach(([id, p]) => sends.push({ own: true, id, title: p.topic || '', at: ms(p.date), played: p.played || 0 }));
   lessons.filter((r) => SENT.has(r.state) && r.quizId).forEach((r) => {
     const p = played.get(r.quizId);
     sends.push({ own: true, id: r.quizId, title: r.topic || (p && p.topic) || '', at: ms((p && p.date) || r.date), played: p ? p.played : 0 });
@@ -71,11 +89,12 @@ function buildHome({
   video = null, maker = null, storiesBase = null, children = null, confirm = [], tryStudent = null, change = false,
   now = Date.now(),
 }) {
-  const rows = [...lessons.map((r) => lessonRow(r, played, reports)), ...shares.map(shareRow)]
+  const rows = [...lessons.map((r) => lessonRow(r, played, reports)), ...extraOwn(lessons, played).map(([id, p]) => ownRow(id, p, reports)), ...shares.map(shareRow)]
     .sort((a, b) => ms(b.date) - ms(a.date)).slice(0, MAX_ROWS);
   const books = Array.isArray(stories) && stories.length && storiesBase
     ? stories.map((b) => ({ id: b.id, title: b.title, href: `${storiesBase}?book=${encodeURIComponent(b.id)}` })) : [];
   let primary = classCard({ lessons, played, shares, reports, now });
+  if (!primary) primary = lastLesson(rows, now);
   if (!primary && books.length) primary = { kind: 'story', id: books[0].id, title: books[0].title, href: books[0].href, grade };
   if (!primary && video) primary = { kind: 'video', id: video.quizId, title: video.topic, grade };
   if (!primary && maker) primary = { kind: 'make', href: maker };
@@ -87,9 +106,24 @@ function buildHome({
     maker, children, confirm, tryStudent, change,
     facts: {
       has_lp: lessons.some((r) => r.kind !== 'session'), has_coaching: lessons.some((r) => r.kind === 'session'),
-      zero_kids_open: zeroKidsOpen, primary_kind: primary ? primary.kind : 'none',
+      zero_kids_open: zeroKidsOpen, primary_kind: primaryKind(primary),
     },
   };
 }
 
-module.exports = { buildHome, classCard, lessonRow, shareRow, SEND_WINDOW_MS, FEW, MAX_ROWS };
+/** The newest lesson plan or coaching session of the last 7 days with no quiz yet, as the top card; or null. */
+function lastLesson(rows, now) {
+  const r = rows.find((x) => x.verb === 'quiz_this' && x.date && now - ms(x.date) <= LESSON_WINDOW_MS);
+  return r ? { kind: 'lesson', id: r.id, make: r.make, title: r.title, from: r.kind } : null;
+}
+
+/** The event's name for the top card. */
+function primaryKind(p) {
+  if (!p) return 'none';
+  if (p.kind === 'class') return 'class_line';
+  if (p.kind === 'lesson') return p.make === 'coaching' ? 'coaching_quiz' : 'lp_quiz';
+  if (p.kind === 'story' || p.kind === 'video' || p.kind === 'make') return 'library';
+  return p.kind;
+}
+
+module.exports = { buildHome, classCard, lessonRow, shareRow, ownRow, lastLesson, primaryKind, SEND_WINDOW_MS, LESSON_WINDOW_MS, FEW, MAX_ROWS };

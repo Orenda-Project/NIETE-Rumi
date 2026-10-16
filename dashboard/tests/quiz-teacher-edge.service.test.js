@@ -66,7 +66,6 @@ const ROUTES = [
   ['POST', '/api/th/send', { ...POST_OK, kind: 'video', id: UUID }, true],
   ['POST', '/api/th/quiz/make', { ...POST_OK, kind: 'lesson', id: 'lsn_lp_v8_abc' }, true],
   ['POST', '/api/th/confirm', { ...POST_OK, decision: 'same' }, true],
-  ['POST', '/api/th/role', { ...POST_OK, side: 'child' }, true],
   ['POST', '/api/th/step', { ...POST_OK, step: 'opened' }, true],
 ];
 
@@ -117,7 +116,7 @@ describe('malformed input falls through with zero bot calls', () => {
   });
   test('POST with no valid t or an unreadable body', async () => {
     await boot({ status: 200, bytes: Buffer.from('never') });
-    for (const kind of ['send', 'quiz/make', 'confirm', 'role', 'step']) {
+    for (const kind of ['send', 'quiz/make', 'confirm', 'step']) {
       for (const body of [{}, { t: 'nope' }, { t: 5 }]) {
         const res = await request('POST', `/api/th/${kind}`, { body });
         expect(res.body).toBe(SPA);
@@ -186,13 +185,11 @@ describe('POST bodies are allow-listed', () => {
     c = await post('confirm', { t: TOK, looseId: UUID, decision: 'maybe' });
     expect(c.body).toEqual({ t: TOK, looseId: UUID });
   });
-  test('role and step', async () => {
+  test('step; there is no role route (a POST /api/th/role falls through untouched, no bot call)', async () => {
     await boot(ok);
-    let c = await post('role', { t: TOK, side: 'child' });
-    expect(c.body).toEqual({ t: TOK, side: 'child' });
-    c = await post('role', { t: TOK, side: 'admin' });
-    expect(c.body).toEqual({ t: TOK });
-    c = await post('step', { t: TOK, step: 'opened', kind: 'story', origin: 'library', id: 'nope', x: 1 });
+    const none = await request('POST', '/api/th/role', { body: { t: TOK, side: 'child' } });
+    expect(none.body).toBe(SPA);
+    let c = await post('step', { t: TOK, step: 'opened', kind: 'story', origin: 'library', id: 'nope', x: 1 });
     expect(c.body).toEqual({ t: TOK, step: 'opened', kind: 'story', origin: 'library' });
   });
 });

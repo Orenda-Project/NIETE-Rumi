@@ -73,6 +73,14 @@ const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {
 async function classText(message, lang) {
   try { return await require('./teacher-home.copy').withReturn(message, lang); } catch (_) { return message; }
 }
+/** A code the make minted is "prepared" until the send tap, so the home never reads it as a send (switch on only). */
+async function sendState(shareCodeId, state) {
+  try {
+    if (!(await require('./teacher-home.flags').on())) return;
+    const Sent = require('./teacher-home.sent');
+    await (state === 'sent' ? Sent.markSent(shareCodeId) : Sent.markPrepared(shareCodeId));
+  } catch (_) { /* the home reads it as sent */ }
+}
 // ── end teacher home ──
 
 function headers(res, csp) {
@@ -154,6 +162,7 @@ router.get('/m/:token/send', handlePage(async (req, res) => {
   const shareCodeId = quizIn(req.query.c);
   const out = shareCodeId ? await Bank.shareMessage({ uid: p.uid, lang: p.lang, shareCodeId }) : null;
   if (!out) return messagePage(res, 404, 'mk.error', p.lang);
+  await sendState(shareCodeId, 'sent');
   makerEvent('share_tap', p, { grade: out.grade, subject: out.subject, qlang: out.qlang, quizId: out.quizId });
   headers(res);
   return res.redirect(302, `https://wa.me/?text=${encodeURIComponent(await classText(out.message, p.lang))}`);
@@ -169,6 +178,7 @@ router.post('/api/ft/make', handleJson(async (req, res) => {
   if (!grade || !subject || !quizId) { headers(res); res.status(400).json({ error: 'mk.error' }); return; }
   const out = await Bank.make({ uid: p.uid, lang: p.lang, grade, subject, quizId });
   if (out.error) { headers(res); res.status(out.error === 400 ? 400 : 503).json({ error: 'mk.error' }); return; }
+  if (out.minted) await sendState(out.shareCodeId, 'prepared');
   makerEvent('made', p, { grade, subject, qlang: out.qlang, quizId });
   headers(res);
   res.status(200).json({ shareCodeId: out.shareCodeId, message: await classText(out.message, p.lang), qlang: out.qlang, preview: out.preview, total: out.total });

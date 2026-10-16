@@ -16,7 +16,6 @@
  *                                        → { quizId } — the existing job; the chat hand-out still arrives as today
  *   GET  /api/th/quiz/:id?t&lang         the poll: { state: making|ready|failed, message?, wa? }
  *   POST /api/th/confirm {t, looseId, candidateId, decision: same|no|unsure}   one confirm row → 204
- *   POST /api/th/role {t, side:'child'}  "Not a teacher? Change" → { next } (the one-door's writer + the join page)
  *   POST /api/th/step {t, step, kind?, id?, origin?}   page events → 204 (share_tap logs teacher_send)
  *
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
@@ -129,6 +128,12 @@ function createRouter(deps = null) {
       return (Cards.cardsFor({ lang, bot }) || []).map((c) => ({ card: c.card, title: c.title, href: c.href }));
     } catch (_) { return []; }
   }
+  /** The walk-through persona's view of the lists (the persona module decides; absent → the lists as they are). */
+  async function walkLists(user, lists) {
+    const P = deps && deps.TestPersona ? deps.TestPersona : optional('./test-persona');
+    if (!P || typeof P.forHome !== 'function' || !user || !user.phone_number) return lists;
+    try { return (await P.forHome(user.phone_number, lists)) || lists; } catch (_) { return lists; }
+  }
   /** "Not a teacher? Change" → a fresh one-question landing from the one door, when it is there (a link, no write here). */
   async function changeLanding(user, lang) {
     const OneDoor = optional('./one-door.service');
@@ -139,15 +144,6 @@ function createRouter(deps = null) {
       const at = url.indexOf('/quiz/go/');
       return at >= 0 ? url.slice(at) : null;
     } catch (_) { return null; }
-  }
-  /** The writer path for "Change" (the role writer + a nonce + the join page), when those are there. */
-  function changeParts() {
-    const Role = optional('./role.service');
-    const Nonce = optional('./go-nonce');
-    const Join = optional('../quiz/web-quiz-student-join');
-    const ok = Role && typeof Role.writeRoleAnswer === 'function' && Nonce && typeof Nonce.mint === 'function'
-      && Join && typeof Join.joinUrl === 'function';
-    return ok ? { Role, Nonce, Join } : null;
   }
   function practiceUrl(user, lang) {
     if (!user || !COACH_ROLES.has(String(user.role || '').toLowerCase())) return null;
@@ -171,7 +167,7 @@ function createRouter(deps = null) {
     else if (card.kind === 'class' && card.again && card.again.sendKind === 'share') out = await Send.shareSend({ uid: p.uid, lang, shareCodeId: card.again.id }, deps);
     else return card;
     if (!out) return card.kind === 'class' ? { ...card, again: null } : null;
-    return { ...card, send: { message: out.message, wa: out.wa, origin: card.kind === 'video' ? 'library' : 'again', sendKind: card.kind === 'video' ? 'video' : card.again.sendKind } };
+    return { ...card, send: { message: out.message, wa: out.wa, c: out.shareCodeId || null, origin: card.kind === 'video' ? 'library' : 'again', sendKind: card.kind === 'video' ? 'video' : card.again.sendKind } };
   }
 
   router.get('/quiz/teacher/:token', handlePage(async (req, res) => {
@@ -193,7 +189,7 @@ function createRouter(deps = null) {
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');
-    const [lessons, played, shares, pf, tree, children, confirm, maker] = await Promise.all([
+    const [lessons0, played0, shares0, pf, tree, children, confirm, maker] = await Promise.all([
       Data.within(Data.lessons(p.uid, deps), Data.REPORT_BUDGET_MS, [], 'lessons'),
       Data.within(Data.playedOwn(p.uid, deps), Data.REPORT_BUDGET_MS, new Map(), 'class report'),
       Data.within(Data.libraryShares(p.uid, deps), Data.SIDE_BUDGET_MS, [], 'library shares'),
@@ -203,6 +199,8 @@ function createRouter(deps = null) {
       Data.within(Data.confirmRows(p.uid, deps), Data.SIDE_BUDGET_MS, [], 'confirm queue'),
       makerOn().then((on) => (on ? Data.within(Data.makerLink(p.uid, lang, null, deps), Data.SIDE_BUDGET_MS, null, 'maker link') : null)),
     ]);
+    // a listed test phone walking as "a teacher with no lessons yet" (sandbox walk-through only): the lists hidden, never touched
+    const { lessons, played, shares } = await walkLists(user, { lessons: lessons0, played: played0, shares: shares0 });
     const grade = Data.gradeOf(req.query.g, pf);
     const pfSubject = (/^grade_[1-5]\|([a-z_]+)$/.exec(String(pf || '')) || [])[1] || null;
     const lib = await libraryFor({ p, token, lang, grade, tree, pfSubject });
@@ -214,14 +212,14 @@ function createRouter(deps = null) {
     }
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
-      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change: (await changeLanding(user, lang)) || Boolean(changeParts()),
+      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change: await changeLanding(user, lang),
     });
     home.primary = (await withSend(home.primary, p, lang)) || (maker ? { kind: 'make', href: maker } : { kind: 'none' });
     home.cards = maker ? cardsFor(lang) : [];
     home.lang = lang;
     const { facts } = home;
     delete home.facts;
-    event('teacher_home_open', p.uid, { first: await firstOpen(p.uid), ...facts, primary_kind: home.primary.kind, via: p.via, lang });
+    event('teacher_home_open', p.uid, { first: await firstOpen(p.uid), ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
     headers(res);
     res.status(200).json(home);
   }));
@@ -253,7 +251,7 @@ function createRouter(deps = null) {
     else { fail(res, 400); return; }
     if (!out) { fail(res, 404); return; }
     headers(res);
-    res.status(200).json({ message: out.message, wa: out.wa });
+    res.status(200).json({ message: out.message, wa: out.wa, c: out.shareCodeId || null });
   }));
 
   router.post('/api/th/quiz/make', handleJson(async (req, res) => {
@@ -301,23 +299,6 @@ function createRouter(deps = null) {
     res.status(204).end();
   }));
 
-  router.post('/api/th/role', handleJson(async (req, res) => {
-    const b = bodyOf(req);
-    const p = authorise(b.t, res);
-    if (!p) return;
-    const parts = changeParts();
-    if (!parts || b.side !== 'child') { fail(res, 404); return; }
-    const user = await Data.teacherOf(p.uid, deps);
-    if (!user || !user.phone_number) { fail(res, 404); return; }
-    await parts.Role.writeRoleAnswer({ userId: p.uid, side: 'child', src: 'role_page' });
-    const n = await parts.Nonce.mint({ phoneNorm: user.phone_number, userId: p.uid });
-    const next = n ? parts.Join.joinUrl({ n, lang: Page.pageLang(p.lang, null).lang }) : null;
-    if (!next) { fail(res, 503); return; }
-    event('teacher_home.step', p.uid, { step: 'change' });
-    headers(res);
-    res.status(200).json({ next });
-  }));
-
   const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam']);
   const SEND_KIND = { video: 'video', share: 'video', again: 'quiz', story: 'story' };
   const ORIGINS = new Set(['library', 'again', 'lesson_plan', 'coaching']);
@@ -327,6 +308,7 @@ function createRouter(deps = null) {
     if (!p) return;
     if (!STEPS.has(b.step)) { fail(res, 400); return; }
     if (b.step === 'share_tap' && SEND_KIND[b.kind]) {
+      if (uuidIn(b.c)) await require('./teacher-home.sent').markSent(b.c);
       event('teacher_send', p.uid, { kind: SEND_KIND[b.kind], origin: ORIGINS.has(b.origin) ? b.origin : 'library', again: b.kind === 'again' || b.kind === 'share', id: uuidIn(b.id) });
     } else {
       event('teacher_home.step', p.uid, { step: b.step, screen: 'home' });
