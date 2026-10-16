@@ -302,3 +302,19 @@ describe('11. "Tell the class" lists only real choices', () => {
     expect(scheme).not.toMatch(/any 7 of 7|any 0 of 0/);
   });
 });
+
+describe('12. no item is set from a religious text (COS ruling 8)', () => {
+  const RELIGIOUS = 'Never set an item that quotes, explains or evaluates a religious text (Qur\'an, hadith, the Farewell Sermon, du\'a, Naat, Hamd); set it from another part of the scope.';
+  test('the religious-text rule is in every section of every subject', () => {
+    for (const subject of Object.keys(P)) {
+      for (const section of P[subject].sections) {
+        expect([subject, section.id, prompt(subject, section.id).includes(RELIGIOUS)]).toEqual([subject, section.id, true]);
+      }
+    }
+  });
+  test('it reaches the SST sections that set the Farewell Sermon items on a chapter paper', () => {
+    // social_studies chapters_1 on sandbox set five items on «خطبہ حجۃ الوداع» (date, place, importance).
+    const CHAPTERS = { kind: 'chapters', chapters: [1], pages: null };
+    for (const id of ['A', 'B', 'C', 'D']) expect(prompt('social_studies', id, CHAPTERS)).toContain(RELIGIOUS);
+  });
+});
