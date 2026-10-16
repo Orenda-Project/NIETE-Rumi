@@ -4401,6 +4401,10 @@ BEGIN
     END IF;
 END$$;
 CREATE INDEX IF NOT EXISTS idx_users_school_id ON users(school_id) WHERE school_id IS NOT NULL;
+
+-- bot/database/migrations/student_identity.sql: the child's school (backfilled from the class, else the list owner's school).
+ALTER TABLE students ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES schools(id);
+CREATE INDEX IF NOT EXISTS idx_students_school ON students (school_id) WHERE school_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_role      ON users(role)      WHERE role IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS teacher_attendance_records (
