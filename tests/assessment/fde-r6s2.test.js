@@ -170,3 +170,45 @@ describe('5. the Science diagram page comes from the item, never the pattern def
     expect(scheme).toContain("the book's diagram");
   });
 });
+
+describe('6. Science Q2(b): every sub-question is marked out of 2.5', () => {
+  const situation = (subs) => ({
+    slot: 'science.B.Q2b', main_question: 'Give answers with logical reasons. Answer any TWO of the three questions.',
+    question: 'A child plays a game with their eyes closed and names each sound.', marks: 5, blooms: 'Apply', scheme: { points: [] },
+    questions: subs,
+  });
+  const run = (subs) => {
+    const raw = { unseen: { subjective: { 'Logical Reasoning': [situation(subs), situation(subs.map((s) => ({ ...s, question: `${s.question} Again.` })))] } } };
+    const laid = applyLayout(raw, P.science, FDE, { now: NOW }).examJson;
+    return normaliseScheme(laid).examJson;
+  };
+  const partsOf = (ex) => Object.values(ex.unseen.subjective).flat()[0].questions;
+  const sum = (sub) => sub.scheme.points.reduce((t, p) => t + p.marks, 0);
+
+  test('points that sum to less than 2.5 are scaled to 2.5, kinds and text kept', () => {
+    const subs = [
+      { question: 'Which senses are used?', answer: 'Hearing and touch.', scheme: { points: [{ text: 'Both senses named', marks: 1, kind: 'K' }] } },
+      { question: 'Why close the eyes?', answer: 'To listen better.', scheme: { points: [{ text: 'Reason linked to hearing', marks: 0.5, kind: 'A' }] } },
+      { question: 'What if the ears were covered?', answer: 'Less would be heard.', scheme: { points: [{ text: 'Less sound', marks: 1, kind: 'K' }, { text: 'Reason', marks: 1, kind: 'A' }] } },
+    ];
+    const parts = partsOf(run(subs));
+    parts.forEach((sub) => expect(sum(sub)).toBe(2.5));
+    expect(parts[0].scheme.points).toEqual([{ text: 'Both senses named', marks: 2.5, kind: 'K' }]);
+    expect(parts[2].scheme.points.map((p) => p.kind)).toEqual(['K', 'A']);
+  });
+
+  test('a sub-question with no points prints its bare 2.5 chip; a 2.5 split is left alone', () => {
+    const subs = [
+      { question: 'Which senses are used?', answer: 'Hearing and touch.', marks: 1 },
+      { question: 'Why close the eyes?', answer: 'To listen better.', marks: 2, scheme: { points: [] } },
+      { question: 'What if the ears were covered?', answer: 'Less would be heard.', scheme: { points: [{ text: 'Less sound', marks: 1, kind: 'K' }, { text: 'Reason', marks: 1.5, kind: 'A' }] } },
+    ];
+    const ex = run(subs);
+    const parts = partsOf(ex);
+    expect(parts[2].scheme.points).toEqual([{ text: 'Less sound', marks: 1, kind: 'K' }, { text: 'Reason', marks: 1.5, kind: 'A' }]);
+    const scheme = visible(R.renderMarkingScheme({ examJson: ex, grade: 5, subject: 'science', allowShort: true }));
+    expect(scheme).toContain('a) Hearing and touch. 2.5');
+    expect(scheme).toContain('b) To listen better. 2.5');
+    expect(scheme).not.toMatch(/Hearing and touch\. K?1\b/);
+  });
+});
