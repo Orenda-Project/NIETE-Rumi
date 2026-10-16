@@ -217,9 +217,12 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
       { question: 'Which word is a verb?', options: ['a) jump', 'b) table', 'c) green', 'd) slowly'], answer: 'a) jump' },
       { question: 'Which word is an adjective?', options: ['a) run', 'b) tall', 'c) chair', 'd) quickly'], answer: 'b) tall' },
     ];
+    extra.push({ question: 'Which noun is a proper noun?', options: ['a) teacher', 'b) Lahore', 'c) city', 'd) river'], answer: 'b) Lahore' });
     const q1a = slotItems(layAfter(withExtra(exam, 'english.A.Q1a', extra), 'english').examJson, 'english.A.Q1a').map((q) => q.question);
     expect(q1a).toHaveLength(20);
     expect(q1a.filter((t) => t === first.question)).toHaveLength(1);
+    // The same options and key, the stem differing only in a framing word: the same question.
+    expect(q1a).not.toContain('Which noun is a proper noun?');
     expect(q1a).toEqual(expect.arrayContaining(['Pick the plural of box.', 'Which word is a verb?', 'Which word is an adjective?']));
     const q7 = withExtra(fixture('r9-sst-chapters2'), 'social_studies.D.Q7', [{ question: 'پاکستان کے پہلے وزیر اعظم کون تھے؟', answer: 'لیاقت علی خان۔' }]);
     const placed = slotItems(layAfter(q7, 'social_studies').examJson, 'social_studies.D.Q7').map((q) => q.question);
