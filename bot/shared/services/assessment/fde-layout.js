@@ -645,19 +645,28 @@ const CROSS_HOLD = {
 
 // One question once per slot: the same stem, and for an MCQ the same options too, compared as
 // written (letter forms, diacritics, digits and case aside; no word dropped, so «silent 'k'»
-// and «silent 'b'» stay two). A re-asked section is written blind, so it often writes the first
-// reply's questions again.
+// and «silent 'b'» stay two). An MCQ with the same options and key whose stem differs only in
+// its framing words («Which noun / Which word is a proper noun?») is the same question too;
+// one that differs in a content word («___ apple» / «___ umbrella») is not. A re-asked section
+// is written blind, so it often writes the first reply's questions again.
 function plain(text) {
   let t = String(text == null ? '' : text).normalize('NFC').replace(UR_MARKS, '').toLowerCase();
   for (const [re, to] of UR_FORMS) t = t.replace(re, to);
   t = t.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06F0)).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
   return t.split(/[^\p{L}\p{N}]+/u).filter(Boolean).join(' ');
 }
+const FRAME_WORDS = new Set(('which what choose pick select find correct right following given below one option answer '
+  + 'word words noun verb adjective adverb pronoun preposition is are the a an of from').split(' '));
 function sameQuestion(a, b) {
-  const stem = plain(a.question);
-  if (!stem || stem !== plain(b.question)) return false;
+  const [sa, sb] = [plain(a.question), plain(b.question)];
+  if (!sa || !sb) return false;
   const opts = (q) => (Array.isArray(q.options) ? q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).sort().join('|') : '');
-  return opts(a) === opts(b);
+  if (opts(a) !== opts(b)) return false;
+  if (sa === sb) return true;
+  if (!opts(a) || plain(keyText(a)) !== plain(keyText(b))) return false;
+  const [A, B] = [new Set(sa.split(' ')), new Set(sb.split(' '))];
+  const differ = [...A].filter((w) => !B.has(w)).concat([...B].filter((w) => !A.has(w)));
+  return differ.every((w) => FRAME_WORDS.has(w));
 }
 
 /**
