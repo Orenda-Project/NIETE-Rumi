@@ -1,7 +1,7 @@
 'use strict';
 /**
- * The menu's Quiz row (`menu_quiz`) under the one door: ON → the SAME entry as /quiz (openQuizMenu, trigger 'menu'),
- * so the row can never again bypass the child / coach / unknown routing (ROUTING_MAP §0 step 8); OFF → today's
+ * The menu's Quiz row (`menu_quiz`) under the one door: ON → the same ONE reply as /quiz (the one door, door 'menu'),
+ * so the row can never again bypass the child / coach / unknown routing; OFF → today's
  * direct showList, byte-identical. Real MenuService.handleMenuButtonResponse; its boundaries are faked.
  */
 const { fixturePhone } = require('../quiz/web-quiz/fixture-phone');
@@ -22,7 +22,7 @@ jest.mock('../../shared/services/app-redirect.service', () => ({ redirectIfFlagg
 const mockShowList = jest.fn(async () => true);
 jest.mock('../../shared/services/quiz/transcript-quiz-list.service', () => ({ showList: (...a) => mockShowList(...a) }));
 const mockOpen = jest.fn(async () => 'one_door');
-jest.mock('../../shared/services/quiz/quiz-menu-entry.service', () => ({ openQuizMenu: (...a) => mockOpen(...a) }));
+jest.mock('../../shared/services/first-touch/one-door.service', () => ({ reply: (...a) => mockOpen(...a) }), { virtual: true });
 
 const MenuService = require('../../shared/services/menu.service');
 let OneDoorFlags = null;
@@ -41,9 +41,9 @@ test('OFF (absent): the row calls showList directly, exactly as today', async ()
   expect(mockOpen).not.toHaveBeenCalled();
 });
 
-test('ON: the row goes through the one entry with trigger menu — never showList', async () => {
+test('ON: the row gets the one door\'s ONE reply (door menu) — never showList', async () => {
   world([{ key: 'quiz_one_door', value: 'true' }]);
   await MenuService.handleMenuButtonResponse(COACH, FROM, 'menu_quiz', 'en');
-  expect(mockOpen).toHaveBeenCalledWith(expect.objectContaining({ user: COACH, from: FROM, language: 'en', sessionId: 'sess-1', trigger: 'menu' }));
+  expect(mockOpen).toHaveBeenCalledWith({ user: COACH, from: FROM, door: 'menu', language: 'en' });
   expect(mockShowList).not.toHaveBeenCalled();
 });

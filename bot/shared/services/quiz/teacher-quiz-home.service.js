@@ -65,8 +65,7 @@ async function handleHomeButton(buttonId, from, user) {
   const lang = langOf(user);
   // the one door (quiz_one_door): an old "Make a quiz" button in the chat opens the same ONE door as /quiz
   if (choice === 'make' && await require('../first-touch/one-door.flags').on()) {
-    const { openQuizMenu } = require('./quiz-menu-entry.service');
-    await openQuizMenu({ user, from, language: lang, trigger: 'home' });
+    await require('../first-touch/one-door.service').reply({ user, from, door: 'home', language: lang });
     return true;
   }
   if (choice === 'make' || !(await homeOn(userId))) {

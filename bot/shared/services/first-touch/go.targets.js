@@ -1,13 +1,13 @@
 'use strict';
 /**
  * Where the one door sends a person once the server knows who they are — named here, by constant, so the landing
- * never guesses a route. Each target is another lane's page; until its module is on this branch the target answers
+ * never guesses a route. Each target is another page's own module; until it is on this branch the target answers
  * null and the landing shows the honest line instead (never a 500, never a dead button).
  *
- *   teacher  → /quiz/teacher/<th token>   m-teacher-home: `./teacher-home.token` exports signTeacherHome({uid, lang, via})
- *   join     → /j/<j token>               m-student-join: `./join.token` exports signJoin({uid, n, lang})
- *   child    → /h/<hub token>?src=quiz    the hub (IA.md RULING #1: the same shell as /quiz/home), minted as sendHub does
- *   autoBind / bindChosen                 m-student-join: `./join.service` exports bindOnLanding({phoneNorm, userId, kids})
+ *   teacher  → /quiz/teacher/<th token>   the teacher home: `./teacher-home.token` exports signTeacherHome({uid, lang, via})
+ *   join     → /j/<j token>               the join page: `./join.token` exports signJoin({uid, n, lang})
+ *   child    → /h/<hub token>?src=quiz    the hub (the same shell as /quiz/home), minted as sendHub does
+ *   autoBind / bindChosen                 the join page: `./join.service` exports bindOnLanding({phoneNorm, userId, kids})
  *                                         and bindChosen({phoneNorm, userId, kid}) → {ok, next?, error?}
  */
 const TEACHER_HOME_PATH = '/quiz/teacher/';

@@ -1,9 +1,9 @@
 'use strict';
 /**
- * Which words are a quiz request under the one door, and which source they carry (EVENTS_V3 quiz_cmd{src}):
+ * Which words are a quiz request under the one door, and which source they carry (the quiz_cmd event's src):
  * the class message's line prefills exactly `quiz` (class_msg), the shared card's `quiz please` / «کوئز دکھائیں»
- * (lead-child RULING #C4) and `jugnu` / «جگنو» (card_share); `/quiz` is typed. A JUGNU- or QUIZ- code and STOP are
- * NEVER quiz-shaped, so they keep their own handlers and never reach the resolver (D7).
+ * and `jugnu` / «جگنو» (card_share); `/quiz` is typed. A JUGNU- or QUIZ- code and STOP are
+ * NEVER quiz-shaped, so they keep their own handlers and never reach the resolver.
  */
 jest.mock('../../shared/config/supabase', () => ({}));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));

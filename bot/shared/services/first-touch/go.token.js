@@ -8,10 +8,10 @@
  *     side  teacher | child | join | unknown — what the bot thought when it replied; a HINT: the landing re-resolves
  *     n     an opaque nonce (22 chars); the server keeps { phone_norm, user_id } under it (go.store) — never in the URL
  *     lang  ur | bi
- *     src   typed | class_msg | card_share | menu | home | other — which words asked (EVENTS_V3 quiz_cmd{src})
+ *     src   typed | class_msg | card_share | menu | home | other — which words asked (the quiz_cmd event's src)
  *
  * The landing is RE-USABLE for the token's life (a teacher who leaves through wa.me comes back by the same chat
- * button, RULING F9) on the first device that opened it; the WRITES it signs (role, bind) are single-use (go.store).
+ * button) on the first device that opened it; the WRITES it signs (role, bind) are single-use (go.store).
  * verifyGo(t) → { ok: payload } | { stale: payload } (genuine but expired) | null (forged, garbled, another kind).
  */
 const WebQuizToken = require('../quiz/web-quiz-token');

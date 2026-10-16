@@ -21,7 +21,7 @@
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const { resolveUx } = require('../../config/ux-strings');
+const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const Flags = require('./one-door.flags');
 const Role = require('./role.service');
 const Strings = require('./one-door.strings');
@@ -30,39 +30,11 @@ const TRIGGER = 'one_door_reply';
 const DOORS = Object.freeze(['text', 'menu', 'home']);
 const GO_PATH = '/quiz/go/';
 
-// The prefilled return words (EVENTS_V3 quiz_cmd{src}): the class message's line prefills exactly `quiz`; the shared
-// card's line prefills `quiz please` / «کوئز دکھائیں» (lead-child RULING #C4) — and `jugnu` / «جگنو» answer too.
-const CLASS_WORD = 'quiz';
-const CARD_WORDS = Object.freeze(['quiz please', 'کوئز دکھائیں', 'jugnu', 'جگنو']);
-const RETURN_WORDS = Object.freeze(['jugnu', 'جگنو']);
-
-/** Lower-case, no punctuation, single spaces (Urdu letters kept). */
-function norm(text) {
-  return String(text == null ? '' : text).normalize('NFKC').toLowerCase()
-    .replace(/[​-‏‪-‮⁦-⁩﻿]/gu, '')
-    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-}
-
-/** Is this the bare return word (`jugnu` / «جگنو») — quiz-shaped ONLY under the switch? Pure. */
-function isReturnWord(text) {
-  return RETURN_WORDS.includes(norm(text));
-}
-
-/** Which words asked: typed | class_msg | card_share | menu | home. Pure. */
-function srcOf(body, door = 'text') {
-  if (door === 'menu') return 'menu';
-  if (door === 'home') return 'home';
-  const raw = String(body || '').trim();
-  if (/^\/quiz/i.test(raw)) return 'typed';
-  const n = norm(raw);
-  if (n === CLASS_WORD) return 'class_msg';
-  if (CARD_WORDS.includes(n)) return 'card_share';
-  return 'typed';
-}
+const { norm, isReturnWord, srcOf, CLASS_WORD, CARD_WORDS, RETURN_WORDS } = require('./one-door.words');
 
 /** The ONE body + button for this side and language. Pure (the child-home words come from ux-strings). */
 function messageFor(side, lang, { childHome = true } = {}) {
-  const uxLang = lang === 'ur' ? 'ur' : 'en';
+  const uxLang = clampLanguage(lang);
   if (side === 'join') {
     // the remembered child, no row yet: the child home's own words (the join screen follows on the page)
     return {

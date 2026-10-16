@@ -57,7 +57,7 @@ const GOLDEN = path.join(__dirname, '__goldens__', 'one-door-off.json');
 const RECORD = process.env.ONE_DOOR_RECORD === '1';
 
 const ROW = { registration_completed: false, registration_state: null, name: null, teacher_uuid: null, school_id: null, portal_activated: false, preferred_language: 'en' };
-// The 7 persona rows of ROUTING_MAP §A (+ the roles of branch 3, ROLE.md §1.2). Names are test names ("Testwala").
+// The seven persona rows (+ every role with no quiz of its own: coach, school leader, supervisor, AEO, head). Names are test names ("Testwala").
 const PERSONAS = {
   unknown: { user: { id: 'u-unknown', role: null, ...ROW }, phone: fixturePhone(1) },
   child_known: { user: { id: 'u-child', role: null, ...ROW, persona: 'student', personaLanguage: 'en' }, phone: fixturePhone(2) },
@@ -158,7 +158,7 @@ onDescribe('switch ON — ONE cta_url for every handset that is not a child', ()
     expect(JSON.stringify(v.ok)).not.toContain('Testwala');
   });
 
-  test('the operator\'s #6: a coach gets the teacher home link (od.teacher), never the role menu', async () => {
+  test('a coach gets the teacher home link (od.teacher), never the role menu', async () => {
     world({ oneDoor: true });
     await ask('coach', 'text');
     expect(mockSent[0].p.body).toContain('Your quiz home');
@@ -193,7 +193,7 @@ onDescribe('switch ON — ONE cta_url for every handset that is not a child', ()
   });
 });
 
-onDescribe('the cap (COS RULING 165839): the one reply is counted on reply_to_own_message, 20 a phone a PKT day', () => {
+onDescribe('the cap: the one reply is counted on reply_to_own_message, 20 a phone a PKT day', () => {
   test('RED on the base: the 9th /quiz with the shared pool (8) exhausted still gets the ONE cta_url', async () => {
     world({ oneDoor: true });
     const p = PERSONAS.unknown;

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The role resolver (ROLE.md §2): pure decideRole per persona row of ROUTING_MAP §A, and resolveRole's one read in the
+ * The role resolver: pure decideRole per persona row, and resolveRole's one read in the
  * contract's order — identity/activity → binding → chat-joined row → our remembered page answer (door.keys) → unknown.
  * Never "a users row exists": a bare row (getOrCreateUser's) with nothing on it is unknown. A failed identity read is
  * unknown (the page asks), never a guess.
@@ -10,10 +10,10 @@ jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: 
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
 const mockActivity = jest.fn(async () => false);
-jest.mock('../../shared/services/student-ingress', () => ({
-  identity: jest.requireActual('../../shared/services/student-ingress').identity,
-  activity: (...a) => mockActivity(...a),
-}));
+jest.mock('../../shared/services/student-ingress-identity', () => {
+  const real = jest.requireActual('../../shared/services/student-ingress-identity');
+  return { ...real, activity: (...a) => mockActivity(...a) };
+});
 const mockFlags = { phoneBind: true };
 jest.mock('../../shared/services/quiz/web-quiz-identity-flags', () => ({ flags: jest.fn(async () => mockFlags) }));
 const mockBound = jest.fn(async () => []);
@@ -79,7 +79,7 @@ describe('langOf — the script rule', () => {
 describe('resolveRole — the one read, per persona row', () => {
   const resolve = (user, body = '/quiz') => Role.resolveRole({ user, phone: PHONE, body });
 
-  test('1 unknown phone: a bare users row is NOT a teacher (lead-chief 165240) → unknown, every rung read', async () => {
+  test('1 unknown phone: a bare users row is NOT a teacher → unknown, every rung read', async () => {
     const r = await resolve(BARE);
     expect(r).toMatchObject({ role: 'unknown', side: 'unknown', src: 'none', uid: 'u-1', lang: 'bi' });
     expect(mockActivity).toHaveBeenCalledWith('u-1');

@@ -10,7 +10,7 @@
  *   POST /who   {t}        → 200 {side, next|null}: the question page asks this after paint (someone known goes straight on)
  *   POST /role  {t, side}  side ∈ child|teacher → the remembered answer (door.keys, writer `role_page`), the cached
  *                          verdict forgotten → 200 {next}; a stale token → 410 {error:'go.stale'}
- *   POST /bind  {t, kid}   the multi-child "Yes, it's me" (m-student-join's write) → 200 {next} | 409 {error} | 501
+ *   POST /bind  {t, kid}   the multi-child "Yes, it's me" (the join page's write) → 200 {next} | 409 {error} | 501
  *
  * Switch quiz_one_door OFF: EVERY route answers 404 {off:true} before anything is read; the edge then falls through.
  * Never a 500: a thrown read → the go.error page (200) on /land, 503 {error:'go.error'} on the JSON routes.

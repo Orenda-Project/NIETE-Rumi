@@ -1,7 +1,7 @@
 'use strict';
 /**
  * Every word the one door says: the ONE WhatsApp reply (od.*), the role question page (rq.*), the landing's notes (go.*).
- * Signed copy only (design COPY_FTUE §1–§2 with the native read's FIX rows applied; go.stale / go.error = the signed
+ * Signed copy only (the native Urdu read's fixes applied; go.stale / go.error = the signed
  * mk.stale / mk.error words; go.family.* = the signed family-door words fd.h / fd.none). No test words, no
  * gendered stems, Urdu quotes ”…“, Latin inside Urdu in U+2066…U+2069 isolates. A cta_url button is ≤ 20 code points
  * (asserted by the tests).

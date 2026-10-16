@@ -2,7 +2,7 @@
 /**
  * The /quiz turn through the REAL handleTextMessage (the mock set of the registration tests): with quiz_one_door ON
  *  - the turn sends ONE reply: the registration Flow is never the second message (RED on the base: an unknown phone's
- *    /quiz is followed by offerRegistrationOnce — ROUTING_MAP §A row 1, 2 replies);
+ *    /quiz is followed by offerRegistrationOnce — 2 replies);
  *  - the return word `jugnu` / «جگنو» is a quiz request; the card's `quiz please` / «کوئز دکھائیں» already is;
  *  - the door does not depend on TRANSCRIPT_QUIZ_ENABLED; the quiz topic-reply window lets /quiz pass;
  *  - the one door receives the words that asked (its script rule and src).

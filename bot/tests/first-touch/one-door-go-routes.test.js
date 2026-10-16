@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The landing /api/internal/go/* (ROLE.md §3): the REAL router on a real HTTP port, the real token signer, nonce
+ * The landing /api/internal/go/*: the REAL router on a real HTTP port, the real token signer, nonce
  * store (Redis as a Map), role resolver and door.keys writer; supabase is a table double.
  *  - OFF → 404 {off:true} on every route, before any read.
  *  - land: the server re-resolves (the token's side is a hint): teacher → 302 the teacher home; a chat-joined child →
@@ -135,14 +135,14 @@ describe('land', () => {
     expect(await r.text()).toContain('یہ نہیں ہو سکا۔');
   });
 
-  test('a chat-joined child → 302 the child home /h/<hub token>?src=quiz (IA.md RULING #1)', async () => {
+  test('a chat-joined child → 302 the child home /h/<hub token>?src=quiz', async () => {
     world();
     const r = await land(await mint(PARENT, PH.parent, 'child'));
     expect(r.status).toBe(302);
     expect(r.headers.get('location')).toMatch(/^\/h\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{22}\?src=quiz$/);
   });
 
-  test('the token\'s life is re-usable on the same phone (RULING F9); another phone → go.stale', async () => {
+  test('the token\'s life is re-usable on the same phone; another phone → go.stale', async () => {
     world();
     const t = await mint(UNKNOWN, PH.unknown);
     expect((await land(t)).status).toBe(200);
@@ -207,7 +207,7 @@ describe('who / role — the one answer, remembered on the server', () => {
     expect((await post('role', { t: await mint(UNKNOWN, PH.unknown), side: 'admin' })).status).toBe(400);
   });
 
-  test('bind: m-student-join\'s writer not on this branch → 501, never a 500', async () => {
+  test('bind: the join page\'s writer not on this branch → 501, never a 500', async () => {
     world();
     const r = await post('bind', { t: await mint(PARENT, PH.parent, 'child'), kid: '55555555-5555-4555-8555-000000000001' });
     expect(r.status).toBe(501);

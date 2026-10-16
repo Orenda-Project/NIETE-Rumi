@@ -570,7 +570,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // THE ONE DOOR (quiz_one_door; read only for a quiz-shaped text): ON → the return word (`jugnu` / «جگنو») is a quiz
   // request too, the topic / follow-up windows let a quiz request pass, the /quiz door does not depend on
   // TRANSCRIPT_QUIZ_ENABLED, and the registration Flow is never the second message of a quiz turn. OFF → as before.
-  const OneDoor = require('../services/first-touch/one-door.service');
+  const OneDoor = require('../services/first-touch/one-door.words');
   const oneDoorOn = (isQuizMenuRequest(messageBody) || OneDoor.isReturnWord(messageBody))
     ? await require('../services/first-touch/one-door.flags').on() : false;
   const quizMenuRequest = (QuizMenuFlags.bareTextToMenu() && isQuizMenuRequest(messageBody))

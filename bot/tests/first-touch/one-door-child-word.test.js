@@ -2,7 +2,7 @@
 /**
  * A known child's return word through the REAL student-ingress route(): with quiz_one_door ON, `jugnu` / «جگنو» (the
  * shared card's word) opens the child's own quizzes — today's ONE hub reply — instead of the tutor; OFF, the tutor
- * answers it exactly as today. `quiz` is the child's /quiz either way; JUGNU- codes and STOP never reach it (D7).
+ * answers it exactly as today. `quiz` is the child's /quiz either way; JUGNU- codes and STOP keep their own handlers.
  */
 const { fixturePhone } = require('../quiz/web-quiz/fixture-phone');
 process.env.STUDENT_MODE_ENABLED = 'true';

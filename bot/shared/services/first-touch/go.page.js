@@ -2,7 +2,7 @@
 /**
  * The one door's pages, server-rendered, no web font, no external asset (≤ 30 KB; the question page is ~6 KB):
  *
- *   buildRolePage({ t, lang })    the ONE question (ROLE.md §3.3): Urdu first + English, the child tile first (amber, ●),
+ *   buildRolePage({ t, lang })    the ONE question: Urdu first + English, the child tile first (amber, ●),
  *                                 the parent line above it, then the teacher tile (blue, ◆), the note. No primary, no
  *                                 third option, no text entry. After paint the page asks the server who this phone is
  *                                 (POST /api/go/who): someone already known goes straight on. A tap POSTs /api/go/role
@@ -14,6 +14,7 @@
  * keeps NOTHING that decides routing (no localStorage, no cookie of its own).
  */
 const crypto = require('crypto');
+const { clampLanguage } = require('../../config/ux-strings');
 const { str } = require('./one-door.strings');
 
 const sha = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('base64');
@@ -61,7 +62,7 @@ const SCRIPT = [
   'err(j&&j.error==="go.stale"?"go.stale":"go.error")})})}})();',
 ].join('');
 
-// The two pictures, colour + SHAPE (RULING F8/F10): the child on a ● (a child holding an open book), the teacher on a ◆
+// The two pictures, colour + SHAPE: the child on a ● (a child holding an open book), the teacher on a ◆
 // (a grown-up beside a board). Inline, no file to fetch; they take the tile's colour.
 const CHILD_SVG = '<svg viewBox="0 0 64 64" width="60" height="60"><circle cx="32" cy="32" r="31" fill="currentColor" opacity=".22"/>'
   + '<circle cx="32" cy="19" r="8" fill="currentColor"/><path d="M17 50c2-11 8-16 15-16s13 5 15 16z" fill="currentColor"/>'
@@ -108,14 +109,14 @@ function buildRolePage({ t, lang = 'bi' } = {}) {
     + `<p class="note">${two('rq.note', lang)}</p>`
     + '</main>';
   const script = `<script type="application/json" id="go-boot">${bootJson({ t, words })}</script><script>${SCRIPT}</script>`;
-  return shell({ title: str('rq.h', lang === 'ur' ? 'ur' : 'en'), body, script, withScript: true });
+  return shell({ title: str('rq.h', clampLanguage(lang)), body, script, withScript: true });
 }
 
 /** One line, nothing to tap: go.stale | go.error | go.family (the student tap while the join screen is not on). */
 function buildMessagePage({ id = 'go.error', lang = 'bi' } = {}) {
   const ids = id === 'go.family' ? ['go.family.h', 'go.family.none'] : [id];
   const body = `<main class="go" data-screen="${esc(id)}">${ids.map((x) => `<p class="msg">${two(x, lang)}</p>`).join('')}</main>`;
-  return shell({ title: str(ids[0], lang === 'ur' ? 'ur' : 'en'), body });
+  return shell({ title: str(ids[0], clampLanguage(lang)), body });
 }
 
 module.exports = { buildRolePage, buildMessagePage, csp, _CSS: CSS, _SCRIPT: SCRIPT };

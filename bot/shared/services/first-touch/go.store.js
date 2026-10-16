@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The one door's server-side memory of WHO a landing token was sent to (ROLE.md §3.1): the token carries an opaque
+ * The one door's server-side memory of WHO a landing token was sent to: the token carries an opaque
  * nonce `n`; this module keeps { p: phone_norm, u: user_id } under it in Redis for the token's life. The phone is
  * never in the URL, the page, an event or a log line; keys hold a hash of the nonce, never the nonce itself.
  *

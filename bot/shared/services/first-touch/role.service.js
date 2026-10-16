@@ -3,8 +3,8 @@
  * WHO IS HOLDING THIS PHONE — the one door's answer, decided on the server before any reply and again when the page
  * lands (the token's side is only what the bot thought; the server re-reads, every time).
  *
- * The order (ROLE.md §2), first match wins:
- *   1  identity / activity (student-ingress identity() + activity(): registration, a name, a school, role coach or
+ * The order, first match wins:
+ *   1  identity / activity (student-ingress-identity identity() + activity(): registration, a name, a school, role coach or
  *      principal, owns a quiz / coaching session / lesson plan / list / training / assessment, an active class) → teacher
  *      Never "a users row exists": getOrCreateUser makes one for every phone that writes.
  *   2  a live child_phone_bindings row on this phone (web_quiz_phone_bind on)                               → child
@@ -84,21 +84,15 @@ async function resolveRole({ user, phone, body = '' } = {}) {
   const uid = (user && user.id) || null;
   const lang = langOf({ body, user });
   if (!user || !uid) return { ...decideRole({ failed: true }), uid, lang };
-  const Ingress = require('../student-ingress');
+  const Signs = require('../student-ingress-identity');
   let teacher = null;
   let failed = false;
   try {
-    const IDENTITY_FIELDS = ['registration_completed', 'registration_state', 'name', 'teacher_uuid', 'school_id', 'portal_activated', 'role'];
-    let full = user;
-    if (IDENTITY_FIELDS.some((f) => !(f in user))) {
-      const supabase = require('../../config/supabase');
-      const { data, error } = await supabase.from('users').select(IDENTITY_FIELDS.join(',')).eq('id', uid).maybeSingle();
-      if (error || !data) throw new Error((error && error.message) || 'users row not read');
-      full = { ...user, ...data };
-    }
-    if (Ingress.identity(full)) teacher = 'identity';
+    const full = await Signs.withIdentityFields(user);
+    if (!full) throw new Error('users row not read');
+    if (Signs.identity(full)) teacher = 'identity';
     else {
-      const act = await Ingress.activity(uid);
+      const act = await Signs.activity(uid);
       if (act === null) failed = true;
       else if (act) teacher = 'activity';
     }
