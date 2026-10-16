@@ -127,6 +127,13 @@ describe('wq-home.js: the doors', () => {
     expect(html).toContain('&amp;room=story&amp;pid=en.read.1.k07');
     expect(html).toContain('data-shelf="1"');
   });
+  test('Stories: a listening story asks the story room for a listen (&ex=listen), a read story does not', () => {
+    const html = H.door(HOME, ctxOf('en'), 'stories');
+    expect(html).toContain('pid=en.listen.1.k02&amp;ex=listen');
+    expect(html).not.toContain('pid=en.read.1.k07&amp;ex=listen');
+    const nx = H.nextOf({ ...HOME, doors: { ...DOORS_FULL, stories: [{ kind: 'listen', id: 'en.listen.1.k02', fresh: true }] } }, ctxOf('en'));
+    expect(nx.href).toMatch(/&ex=listen$/);
+  });
 });
 
 describe('wq-home.js: the Next tile', () => {
