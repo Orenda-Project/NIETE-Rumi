@@ -6,10 +6,9 @@
  *               v10 group lookup (coaching/ab-v10-arms.groupsForUsers, which is null for everyone while
  *               ab_v10_enabled is off).
  *   one week    conversations (role user) · niete_lp_downloads (sent) · niete_lp_opens (k5) ·
- *               coaching_sessions (graded recordings + the prior thing to try) · coaching_quality_metrics.
+ *               coaching_sessions (graded recordings) · coaching_quality_metrics.
  *
- * Every read is scoped to one teacher and one week and bounded (Class R). JSON is read by path
- * (`analysis_data->lp_fidelity`), never the whole column. Any read error THROWS: a report that quietly
+ * Every read is scoped to one teacher and one week and bounded (Class R). Any read error THROWS: a report that quietly
  * shows 0 for a count it could not read would tell a teacher something false.
  *
  * ab-v10-arms lives on the v10 stack (origin/staging, origin/main). It is required lazily, so this module
@@ -21,7 +20,7 @@ const { logToFile } = require('../../../utils/logger');
 const { pagedRows } = require('../../../utils/postgrest-paged');
 
 const CHUNK = 200;
-const MAX = { messages: 1000, deliveries: 500, opens: 500, sessions: 100, priors: 100, ratings: 200 };
+const MAX = { messages: 1000, deliveries: 500, opens: 500, sessions: 100, ratings: 200 };
 
 function check(what, { data, error }) {
   if (error) {
@@ -74,7 +73,7 @@ const naive = (iso) => iso.replace(/\.\d+Z$|Z$/, '');
 
 /** One teacher's rows for one week ({fromIso, toIso}). */
 async function readWeek(userId, { fromIso, toIso }) {
-  const [messages, deliveries, opens, sessions, priors] = await Promise.all([
+  const [messages, deliveries, opens, sessions] = await Promise.all([
     supabase.from('conversations').select('created_at')
       .eq('user_id', userId).eq('role', 'user')
       .gte('created_at', naive(fromIso)).lt('created_at', naive(toIso))
@@ -90,19 +89,12 @@ async function readWeek(userId, { fromIso, toIso }) {
       .gte('opened_at', fromIso).lt('opened_at', toIso)
       .limit(MAX.opens)
       .then((r) => check('lesson plan opens', r)),
-    supabase.from('coaching_sessions').select('id, created_at, lp:analysis_data->lp_fidelity')
+    supabase.from('coaching_sessions').select('id, created_at')
       .eq('user_id', userId).is('observation_type', null).not('analysis_data->scores', 'is', null)
       .gte('created_at', fromIso).lt('created_at', toIso)
       .order('created_at', { ascending: true })
       .limit(MAX.sessions)
       .then((r) => check('recordings', r)),
-    // The thing to try a recording is checked against is the latest prior session's (thing-to-try-pick).
-    supabase.from('coaching_sessions').select('id, created_at, thing:prioritized_action->thing_to_try')
-      .eq('user_id', userId).not('prioritized_action', 'is', null)
-      .lt('created_at', toIso)
-      .order('created_at', { ascending: false })
-      .limit(MAX.priors)
-      .then((r) => check('prior things to try', r)),
   ]);
 
   const ids = sessions.map((s) => s.id);
@@ -113,7 +105,7 @@ async function readWeek(userId, { fromIso, toIso }) {
       .limit(MAX.ratings))
     : [];
 
-  return { messages, deliveries, opens, sessions, priors, ratings };
+  return { messages, deliveries, opens, sessions, ratings };
 }
 
 module.exports = { groupBTeachers, teacher, readWeek };

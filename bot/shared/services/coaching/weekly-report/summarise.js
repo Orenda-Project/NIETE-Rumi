@@ -7,8 +7,6 @@
  *                opened in the app (niete_lp_opens, k5). The same lesson twice counts once.
  *   recordings   graded class recordings (coaching_sessions, observation_type null, scores present).
  *   daysUsed     distinct PKT calendar days with a message, a lesson plan, or a recording.
- *   move         the next-recording check of the thing to try (thing-to-try-pick.checkThing):
- *                did / partly / not_done are readable; no_matching_move and not_graded are not.
  *   thumbs       "Do you agree?" answers on the week's reports (coaching_quality_metrics, 1 agree, 0 not).
  */
 
@@ -26,7 +24,7 @@ function pktDay(ts) {
 
 const list = (v) => (Array.isArray(v) ? v : []);
 
-function summarise({ messages, deliveries, opens, sessions, ratings, checks } = {}) {
+function summarise({ messages, deliveries, opens, sessions, ratings } = {}) {
   const lessons = new Set();
   for (const r of list(deliveries)) if (r && r.lesson_id) lessons.add(String(r.lesson_id));
   for (const r of list(opens)) if (r && r.plan_ref) lessons.add(String(r.plan_ref));
@@ -37,16 +35,6 @@ function summarise({ messages, deliveries, opens, sessions, ratings, checks } = 
   for (const r of list(deliveries)) addDay(r && r.created_at);
   for (const r of list(opens)) addDay(r && r.opened_at);
   for (const r of list(sessions)) addDay(r && r.created_at);
-
-  const move = { did: 0, partly: 0, notDone: 0, checked: 0 };
-  for (const c of list(checks)) {
-    const o = c && c.outcome;
-    if (o === 'did') move.did += 1;
-    else if (o === 'partly') move.partly += 1;
-    else if (o === 'not_done') move.notDone += 1;
-    else continue;
-    move.checked += 1;
-  }
 
   const thumbs = { up: 0, down: 0 };
   for (const r of list(ratings)) {
@@ -59,7 +47,6 @@ function summarise({ messages, deliveries, opens, sessions, ratings, checks } = 
     lessonPlans: lessons.size,
     daysUsed: days.size,
     recordings: list(sessions).length,
-    move,
     thumbs,
   };
 }

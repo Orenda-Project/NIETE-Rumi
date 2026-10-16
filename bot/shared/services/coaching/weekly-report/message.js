@@ -3,7 +3,7 @@
  * bd-v0toag.32 — a teacher's week summary → the template call whatsapp.service.sendTemplate makes. Pure.
  *
  * A week with nothing to count gets weekly_usage_quiet_v1: no numbers, said kindly. Otherwise
- * weekly_usage_v1 with seven body parameters (templates/weekly-usage.template). Language is the teacher's
+ * weekly_usage_v1 with six body parameters (templates/weekly-usage.template). Language is the teacher's
  * preferred_language, clamped to the NIETE offer (en/ur, English floor).
  */
 
@@ -20,19 +20,11 @@ const MONTHS = {
 const PHRASES = {
   en: {
     teacher: 'Teacher',
-    notChecked: 'not checked yet',
-    did: (did, of) => `done in ${did} of ${of} recordings`,
-    partly: (n) => `, partly in ${n}`,
-    notSeen: (of) => `not seen yet in ${of} recordings`,
     noAnswers: 'no answers yet',
     agreed: (up, of) => `${up} of ${of}`,
   },
   ur: {
     teacher: 'استاد',
-    notChecked: 'ابھی جانچا نہیں گیا',
-    did: (did, of) => `${of} میں سے ${did} ریکارڈنگ میں کیا`,
-    partly: (n) => `، ${n} میں کچھ حد تک`,
-    notSeen: (of) => `${of} ریکارڈنگز میں ابھی نظر نہیں آیا`,
     noAnswers: 'ابھی کوئی جواب نہیں',
     agreed: (up, of) => `${of} میں سے ${up}`,
   },
@@ -56,13 +48,6 @@ function weekLabel({ weekStart, lastDay }, lang) {
   return a.m === b.m
     ? `${a.d}–${b.d} ${months[b.m]}`
     : `${a.d} ${months[a.m]} – ${b.d} ${months[b.m]}`;
-}
-
-function movePhrase(move, p) {
-  if (!move || !move.checked) return p.notChecked;
-  if (!move.did && !move.partly) return p.notSeen(move.checked);
-  if (!move.did) return p.did(0, move.checked) + p.partly(move.partly);
-  return p.did(move.did, move.checked) + (move.partly ? p.partly(move.partly) : '');
 }
 
 function thumbsPhrase(thumbs, p) {
@@ -90,7 +75,6 @@ function buildMessage({ summary, week, teacher = {} }) {
     summary.lessonPlans,
     summary.daysUsed,
     summary.recordings,
-    movePhrase(summary.move, p),
     thumbsPhrase(summary.thumbs, p),
   ];
   return {
