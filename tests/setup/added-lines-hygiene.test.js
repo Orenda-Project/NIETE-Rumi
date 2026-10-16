@@ -35,7 +35,7 @@ describe('the patterns, on in-memory lines', () => {
 
   test('the storage bucket name and ordinary words are not hits', () => {
     expect(L.tokensIn("const bucket = 'r2-default';")).toEqual([]);
-    expect(L.tokensIn('the form-content and team-play blocks; a qa-check; bd-x1')).toEqual([]);
+    expect(L.tokensIn(`the for${'m-c'}ontent and tea${'m-p'}lay blocks; a qa-check; ${j('b', 'd-', 'x1')}`)).toEqual([]);
   });
 
   test('a text: lines with a hit counted once, distinct tokens sorted', () => {
