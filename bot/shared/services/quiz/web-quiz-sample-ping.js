@@ -21,7 +21,8 @@
  * Per send: cap → reserve sample_pings (reserved) → ledger → transport (template `${template}_${lang}`, no parameters,
  * so no name, class or count rides the message) → row sent → web_quiz.sample_ping_sent{term, cls, usd}.
  * Events are written only with web_quiz_events_v2 && web_quiz_hub on, else one log line each; none carries a phone,
- * a raw id, a kid, a ukey or a tombstone. dryRun() reads only and returns counts only. Never throws.
+ * a raw id, a kid, a ukey or a tombstone. dryRun() reads only and returns counts only. Never throws. frameCounts() is the
+ * counting half for a reader: no event, no settings read.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -298,19 +299,37 @@ const plannedFields = (p, dry) => ({
   excl_consent: p.counts.excl_consent, excl_done: p.counts.excl_done,
 });
 
+/**
+ * The frame's counts for this term, for a reader: plan()'s counts only. No event, no log line, no app_settings read
+ * (neither the switch nor the go token), no write. Without a go token any consent version counts and the cap is the term
+ * ceiling; dryRun() passes the token's. Never an id or a phone. Never throws: a failed read → {error:'read_failed'}.
+ */
+async function frameCounts({ now = Date.now(), consentV = null, maxSends = TERM_CAP_SENDS } = {}) {
+  const t = ms(now);
+  try {
+    const term = require('./web-quiz-class-round-sampler').termCode(t);
+    const p = await plan({ now: t, term, consentV, maxSends });
+    return { term, ...p.counts };
+  } catch (e) {
+    if (!(e instanceof ReadFailed)) logError('web_quiz.sample_ping_dry_run_failed', { error: String(e && e.message || e).slice(0, 120) });
+    return { error: 'read_failed' };
+  }
+}
+
 /** Read-only counts (works with the switch off); planned{dry:true} only with the switch on. Never an id or a phone. */
 async function dryRun({ now = Date.now() } = {}) {
   const t = ms(now);
   try {
     const f = await flags(t);
     const g = await readGo(t);
-    const term = require('./web-quiz-class-round-sampler').termCode(t);
-    const p = await plan({ now: t, term, consentV: g.ok ? g.go.consent_v : null, maxSends: g.ok ? g.go.max_sends : TERM_CAP_SENDS });
-    if (f.on) emit(f, 'sample_ping_planned', plannedFields(p, true));
-    const n = p.counts.would_send_n;
+    const c = await frameCounts({ now: t, consentV: g.ok ? g.go.consent_v : null, maxSends: g.ok ? g.go.max_sends : TERM_CAP_SENDS });
+    if (c.error) return c;
+    const { term, ...counts } = c;
+    if (f.on) emit(f, 'sample_ping_planned', plannedFields({ term, counts }, true));
+    const n = counts.would_send_n;
     return {
       term, switch_on: Boolean(f.on), go_present: g.reason !== 'no_go', go_ok: Boolean(g.ok), go_reason: g.ok ? null : g.reason,
-      ...p.counts, usd_utility: round6(n * RATE.utility), usd_marketing: round6(n * RATE.marketing),
+      ...counts, usd_utility: round6(n * RATE.utility), usd_marketing: round6(n * RATE.marketing),
     };
   } catch (e) {
     if (!(e instanceof ReadFailed)) logError('web_quiz.sample_ping_dry_run_failed', { error: String(e && e.message || e).slice(0, 120) });
@@ -401,7 +420,7 @@ async function send({ now = Date.now, transport = defaultTransport } = {}) {
 }
 
 module.exports = {
-  flags, readGo, quietHours, classWindowOpen, plan, dryRun, send,
+  flags, readGo, quietHours, classWindowOpen, plan, frameCounts, dryRun, send,
   SWITCH_KEY, GO_KEY, TERM_CAP_SENDS, PER_CLASS_CAP, QUIET_START_H, QUIET_END_H, RATE,
   _resetCache: () => { cache = null; },
 };

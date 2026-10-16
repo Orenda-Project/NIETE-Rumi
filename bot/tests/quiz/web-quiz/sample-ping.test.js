@@ -587,6 +587,30 @@ describe('the dry run', () => {
     scan(out);
     allEventsClean();
   });
+
+  test('frameCounts: no event, no settings write, counts equal to dryRun\'s', async () => {
+    world({ go: null });
+    for (let i = 1; i <= 3; i += 1) family(i, [CLASS(i)]);
+    family(4, [null]);
+    family(5, [CLASS(5)], { consentV: null });
+    family(6, [CLASS(6)], { consentV: 2 });
+    const before = JSON.stringify(DB);
+    const counts = await Ping.frameCounts({ now: T0 });
+    expect(JSON.stringify(DB)).toBe(before);
+    expect(logEvent).not.toHaveBeenCalled();
+    expect(logToFile).not.toHaveBeenCalled();
+    fake.calls.forEach((c) => expect(c.op).toBe('select'));
+    expect(fake.calls.filter((c) => c.table === 'app_settings')).toHaveLength(0);
+    expect(Ledger.record).not.toHaveBeenCalled();
+    scan(counts);
+    const out = await Ping.dryRun({ now: T0 });
+    expect(events('web_quiz.sample_ping_planned')).toHaveLength(1);
+    expect(counts).toEqual({
+      term: '2026-27b', frame_n: 6, eligible_n: 4, would_send_n: 4, classes_n: 4, max_per_class: 1,
+      excl_loose: 1, excl_drawn: 0, excl_teacher: 0, excl_stop: 0, excl_consent: 1, excl_done: 0,
+    });
+    Object.keys(counts).forEach((k) => expect(out[k]).toEqual(counts[k]));
+  });
 });
 
 describe('events off', () => {
