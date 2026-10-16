@@ -312,3 +312,14 @@ describe('urdu Q6: verses that are not from the poem are never printed', () => {
   });
 });
 
+describe('urdu Q6 verses reference', () => {
+  const pages = (...ns) => ns.map((n) => `=== Page ${n} ===\nسطر ${n} یہ گندگی ہے کیسی آئی ہے`).join('\n\n');
+  test('the poem\'s pages in the loaded text are the reference; a poem cut in two by the chosen pages checks nothing', () => {
+    expect(Gen._versesReference(U, null, pages(61, 62, 63, 64, 65))).not.toBe('');
+    expect(Gen._versesReference(U, null, pages(50, 63))).toBe('');
+    expect(Gen._versesReference(U, null, pages(64, 70))).toBe('');
+    expect(Gen._versesReference(U, { content: 'یہ گندگی ہے کیسی آئی ہے یہ کہاں سے؟' }, pages(28, 29))).not.toBe('');
+    expect(Gen._versesReference(P.english, null, pages(63, 64))).toBe('');
+  });
+});
+
