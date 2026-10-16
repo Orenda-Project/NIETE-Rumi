@@ -652,7 +652,9 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // registration Flow. Every way of asking ("Register me", "/registered", رجسٹر …) is.
   const isRegisterCommand = isRegistrationIntent(messageBody);
 
-  if (user && !isRegisterCommand) {
+  // the one door (quiz_one_door): a quiz request is never a name answer (a name would make the phone read as a
+  // teacher's); the name question stays open for its real answer
+  if (user && !isRegisterCommand && !(oneDoorOn && isQuizMenuRequest(messageBody))) {
     try {
       const isPendingName = await FeatureRegistrationService.isPendingName(user.id);
       if (isPendingName) {

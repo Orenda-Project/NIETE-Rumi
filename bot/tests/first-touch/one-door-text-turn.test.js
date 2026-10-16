@@ -5,7 +5,8 @@
  *    /quiz is followed by offerRegistrationOnce — 2 replies);
  *  - the class line's `quiz` and the card's `quiz please` / «کوئز دکھائیں» reach the door; the bot's own name
  *    `jugnu` / «جگنو» does NOT (it stays the general bot's, ON or OFF);
- *  - the door does not depend on TRANSCRIPT_QUIZ_ENABLED; the quiz topic-reply window lets /quiz pass;
+ *  - the door does not depend on TRANSCRIPT_QUIZ_ENABLED; the quiz topic-reply window lets /quiz pass; a phone in
+ *    the middle of the name question never has "/quiz" stored as its name (a name would make it read as a teacher);
  *  - the one door receives the words that asked (its script rule and src).
  * With it OFF every one of these is today's (the same assertions the base passes).
  */
@@ -169,6 +170,16 @@ describe('switch OFF — today', () => {
     expect(mockOffer).toHaveBeenCalledTimes(1);
   });
 
+  test('a phone in the middle of the name question: today, /quiz is taken as the name answer', async () => {
+    const Reg = require('../../shared/services/feature-registration.service');
+    Reg.isPendingName.mockResolvedValue(true);
+    try {
+      await handleTextMessage(MESSAGE, FROM, '/quiz', { ...UNKNOWN });
+      expect(Reg.handleNameResponse).toHaveBeenCalledTimes(1);
+      expect(mockOpenQuizMenu).not.toHaveBeenCalled();
+    } finally { Reg.isPendingName.mockResolvedValue(false); }
+  });
+
   test('`jugnu` is not a quiz request', async () => {
     // not a quiz request: it walks on into the rest of the handler (outside this file's fakes) — only the door matters here
     await handleTextMessage(MESSAGE, FROM, 'jugnu', { ...UNKNOWN }).catch(() => {});
@@ -202,6 +213,16 @@ describe('switch ON — the one door', () => {
     process.env.TRANSCRIPT_QUIZ_ENABLED = 'false';
     await handleTextMessage(MESSAGE, FROM, 'quiz', { ...UNKNOWN });
     expect(mockOpenQuizMenu).toHaveBeenCalledTimes(1);
+  });
+
+  test('a phone in the middle of the name question: /quiz is not its name — the door answers, the name stays asked', async () => {
+    const Reg = require('../../shared/services/feature-registration.service');
+    Reg.isPendingName.mockResolvedValue(true);
+    try {
+      await handleTextMessage(MESSAGE, FROM, '/quiz', { ...UNKNOWN });
+      expect(Reg.handleNameResponse).not.toHaveBeenCalled();
+      expect(mockOpenQuizMenu).toHaveBeenCalledTimes(1);
+    } finally { Reg.isPendingName.mockResolvedValue(false); }
   });
 
   test('a quiz topic-reply window open → /quiz still reaches the door (the window stays for its real answer)', async () => {
