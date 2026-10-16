@@ -2057,7 +2057,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   function feedback(q, i, slot, ok, retry) {
-    sfx(ok ? 'right' : 'notyet');
+    if (!window.WQJ) sfx(ok ? 'right' : 'notyet');
     var right = { text: WQI.rightText(q, LANG) };
     var picked = (q.options || []).filter(function (o) { return o.slot === slot; })[0] || {};
     // Right: the reason (why), so the child hears WHY it is right; a praise-only fb_right is the fallback.
@@ -2088,9 +2088,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (cheer ? '<p class="wq-proof">🎉 ' + esc(cheer.text) + '</p>' : '') +
       '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
     ROOT.setAttribute('data-m', 'M7');
+    // The sound + motion kit (web_quiz_juice): its chime or soft bup, the picked option's pop or wobble, the run strip.
+    if (window.WQJ) WQJ[ok ? 'correct' : 'wrong']({ el: ROOT.querySelector('.wq-opt[data-slot="' + slot + '"]'), panel: fb, at: ROOT.querySelector('.wq-dotrow') || ROOT.querySelector('.wq-bar') });
     ev('feedback_view', { qid: q.qid, ok: ok ? 1 : 0 });
     var reasonPart = reason && speakable(WQI.say(reason, LANG)) ? [{ text: WQI.say(reason, LANG), url: (q.audio && q.audio.why) || null }] : [];
-    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(reasonPart, cheer ? [cheer] : []), null);
+    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(reasonPart, cheer ? [cheer] : []), ok && window.WQJ ? goOn : null);
+    // With the kit, a right answer moves on by itself 900 ms after Jugnu has said why; a wrong one waits for the tap.
+    function goOn() {
+      var me = $('#wq-next');
+      WQJ.after(900, function () { if ($('#wq-next') === me && ROOT.getAttribute('data-m') === 'M7') { if (retry) nextRetry(); else nextQuestion(); } });
+    }
     var nx = $('#wq-next');
     try { nx.scrollIntoView({ block: 'nearest' }); } catch (e) {}
     nx.addEventListener('click', function () {
@@ -2245,7 +2252,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       render(h, 'M9');
       libPrefetch();
       wireBar();
-      sfx('done');
+      if (window.WQJ) WQJ.finish({ el: ROOT.querySelector('.wq-card'), kind: 'quiz' }); else sfx('done');
       speak(done.text, done.url, null);
       on('#wq-card', card);
       on('#wq-class', board);

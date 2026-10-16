@@ -293,6 +293,7 @@
     }
     // the end of a story run: it can be read again, and the sticker line (never a number, never a score)
     function storyEnd(name, qa) {
+      if (window.WQJ) window.WQJ.finish({ kind: name });
       h.show(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
         + '<div class="wq-stack">' + (qa ? h.qaButtons() : btn('wqc-menu', t.endHome)) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
@@ -392,6 +393,8 @@
       // the questions about the story read still follow a reading (today's step; its own back button)
       var qa = r.qa && !hold ? h.qaButtons() : '';
       var home = hold && d.questions_on ? '' : btn('wqc-menu', t.endHome);
+      // the sound + motion kit (web_quiz_juice): the finish beat on a card that celebrates
+      if (window.WQJ && pose === 'celebrate') window.WQJ.finish({ kind: name });
       if (round) {
         h.show(name, h.jug(pose, line, true) + wait + '<div class="wq-stack">' + btn('wqc-handback', d.round_handback || '') + '</div>');
         h.on('wqc-handback', function () { if (d.round_back) location.href = d.round_back; else { try { history.back(); } catch (e) { /* stays */ } } });

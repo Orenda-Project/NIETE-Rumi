@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Jugnu sounds</title>
+<link rel="stylesheet" href="/wq/wq-juice.css?v=__CV__">
+<style>
+:root{--ink:#1f2937;--soft:#6b7280;--ok:#15803D;--okbg:#BBF7D0;--amber:#E65100;--bg:#fffdf7;--card:#fff;--line:#e5e7eb}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:18px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+html[lang=ur] body{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",system-ui,sans-serif;line-height:2}
+main{max-width:480px;margin:0 auto;padding:12px 16px 32px}
+.bar{display:flex;align-items:center;gap:8px}
+.dots{display:flex;gap:6px;flex:1}
+.dots span{flex:1;height:10px;border-radius:6px;background:var(--line);transition:background 300ms ease-out}
+.dots span.on{background:#58cc02}
+.jug{display:flex;justify-content:center;margin:12px 0 4px}
+.jug img{width:96px;height:96px}
+h1{font-size:28px;text-align:center;margin:8px 0 16px;letter-spacing:1px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.opt{min-height:96px;border:2px solid var(--line);border-bottom-width:4px;border-radius:16px;background:var(--card);font-size:30px;font-weight:700;color:var(--ink);cursor:pointer}
+.opt.s1{border-color:#8b5cf6}.opt.s2{border-color:#0ea5e9}
+.opt.ok{background:#58cc02;color:#fff;border-color:var(--ok)}
+.opt.no{border-color:var(--amber);text-decoration:underline;text-decoration-color:var(--amber)}
+.opt.show{outline:3px solid #86efac}
+.panel{margin-top:16px;padding:14px 16px;border-radius:16px;font-weight:700;min-height:64px}
+.panel.ok{background:var(--okbg);color:#14532D}
+.panel.no{background:#FFF3E0;color:#7c2d12}
+.next{display:block;width:100%;min-height:52px;margin-top:12px;border:0;border-bottom:4px solid #0f5132;border-radius:14px;background:var(--ok);color:#fff;font-size:20px;font-weight:700}
+.card{margin-top:16px;padding:20px;border-radius:20px;background:var(--card);text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.08)}
+.wq-stars{display:flex;justify-content:center;gap:4px;font-size:28px;margin:8px 0}
+.wq-star{opacity:.25}.wq-star.wq-on{opacity:1}
+.note{color:var(--soft);font-size:14px;text-align:center;margin-top:20px}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script src="/wq/wq-juice.js?v=__JV__" defer></script>
+<script>
+// The sound + motion kit's demo: ten questions to tap through (right and wrong), then the finish. Shown only while the
+// kit's switch is on; nothing is saved or sent. ?l=ur for Urdu.
+document.addEventListener('DOMContentLoaded', function () {
+  var UR = /[?&]l=ur\b/.test(location.search);
+  if (UR) { document.documentElement.lang = 'ur'; document.documentElement.dir = 'rtl'; }
+  var ud = function (n) { return UR ? String(n).replace(/[0-9]/g, function (d) { return String.fromCharCode(0x06F0 + Number(d)); }) : String(n); };
+  var T = UR
+    ? { yes: 'شاباش!', not: function (a) { return 'ابھی نہیں۔ جواب ' + a + ' ہے۔'; }, next: 'آگے بڑھیں', done: 'سارے سوال مکمل ہو گئے!', again: 'دوبارہ کھیلیں', sound: 'آواز' }
+    : { yes: 'Yes! Well done.', not: function (a) { return 'Not yet. The answer is ' + a + '.'; }, next: 'Next', done: 'You answered all the questions!', again: 'Play again', sound: 'Sound' };
+  var QS = [['🍎 + 🍎', 2, 3], ['⭐ ⭐ ⭐', 3, 4], ['5 − 1', 4, 6], ['🐟 🐟 🐟 🐟', 4, 2], ['2 + 3', 5, 4],
+    ['🌼 🌼', 2, 1], ['6 + 1', 7, 8], ['10 − 5', 5, 3], ['🦋 🦋 🦋', 3, 5], ['4 + 4', 8, 9]];
+  var app = document.getElementById('app'), i = 0, right = 0;
+  function J() { return window.WQJ || null; }
+  function bar() {
+    return '<div class="bar"><div class="dots">' + QS.map(function (_, k) { return '<span' + (k < i ? ' class="on"' : '') + '></span>'; }).join('') +
+      '</div><button class="wqj-snd" id="snd" aria-label="' + T.sound + '"></button></div>';
+  }
+  function show() {
+    if (i >= QS.length) return end();
+    var q = QS[i], swap = i % 3 === 1, a = swap ? q[2] : q[1], b = swap ? q[1] : q[2];
+    app.innerHTML = bar() + '<div class="jug"><img src="/wq/jugnu/thinking.webp" alt=""></div><h1>' + ud(q[0]) + '</h1>' +
+      '<div class="opts"><button class="opt s1" data-v="' + a + '">' + ud(a) + '</button><button class="opt s2" data-v="' + b + '">' + ud(b) + '</button></div><div id="fb"></div>';
+    if (J()) J().toggle(document.getElementById('snd'));
+    Array.prototype.forEach.call(app.querySelectorAll('.opt'), function (el) {
+      el.addEventListener('click', function () { pick(el, Number(el.getAttribute('data-v')) === q[1], q[1]); });
+    });
+  }
+  function pick(el, ok, ans) {
+    Array.prototype.forEach.call(app.querySelectorAll('.opt'), function (x) { x.disabled = true; });
+    el.classList.add(ok ? 'ok' : 'no');
+    var fb = document.getElementById('fb');
+    fb.innerHTML = '<div class="panel ' + (ok ? 'ok' : 'no') + '" id="panel">' + (ok ? T.yes : T.not(ud(ans))) + '</div>' + (ok ? '' : '<button class="next" id="next">' + T.next + '</button>');
+    document.querySelector('.jug img').src = '/wq/jugnu/' + (ok ? 'correct' : 'notyet') + '.webp';
+    i += 1;
+    var dot = app.querySelectorAll('.dots span')[i - 1]; if (dot) dot.className = 'on';
+    if (ok) right += 1;
+    if (J()) J()[ok ? 'correct' : 'wrong']({ el: el, panel: document.getElementById('panel'), at: app.querySelector('.bar') });
+    if (ok) { if (J()) J().after(900, show); else setTimeout(show, 900); }
+    else {
+      setTimeout(function () { Array.prototype.forEach.call(app.querySelectorAll('.opt'), function (x) { if (Number(x.getAttribute('data-v')) === ans) x.classList.add('show'); }); }, 900);
+      document.getElementById('next').addEventListener('click', show);
+    }
+  }
+  function end() {
+    var st = ''; for (var k = 0; k < QS.length; k++) st += '<span class="wq-star' + (k < right ? ' wq-on' : '') + '">⭐</span>';
+    app.innerHTML = bar() + '<div class="jug"><img src="/wq/jugnu/celebrate.webp" alt=""></div><div class="card" id="card"><h2>' + T.done + '</h2><div class="wq-stars">' + st + '</div>' +
+      '<button class="next" id="again">' + T.again + '</button></div>';
+    if (J()) { J().toggle(document.getElementById('snd')); J().finish({ el: document.getElementById('card'), kind: 'quiz' }); }
+    document.getElementById('again').addEventListener('click', function () { i = 0; right = 0; show(); });
+  }
+  show();
+});
+</script>
+</body>
+</html>
