@@ -1,0 +1,895 @@
+{
+ "menu_hub": {
+  "form": "G3",
+  "lang": "ur",
+  "exercises": [
+   {
+    "id": "bigger",
+    "name": "کون سا بڑا ہے؟",
+    "mins": 2,
+    "done": true,
+    "last": null,
+    "badge": true
+   },
+   {
+    "id": "missing",
+    "name": "غائب نمبر",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false
+   },
+   {
+    "id": "read",
+    "name": "اونچی آواز میں پڑھیں",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false,
+    "mic": true
+   },
+   {
+    "id": "listen",
+    "name": "سنیں اور جواب دیں",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false
+   }
+  ],
+  "record": true,
+  "trail": true,
+  "trail_copy": {
+   "title": "‏⁨{name}⁩ کا راستہ",
+   "sub": "‏⁨{total}⁩ میں سے {done} پڑاؤ مکمل۔ کوئی بھی پڑاؤ چنیں!",
+   "allDone": "آپ نے {name} کا راستہ مکمل کر لیا!",
+   "badge": "مکمل",
+   "next": "اگلا",
+   "mic": "مائیک استعمال ہوگا",
+   "needsMic": "مائیک چاہیے",
+   "micWait": "اس پڑاؤ کے لیے مائیک چاہیے۔ یہ انتظار کرے گا!",
+   "other": "کسی اور پڑاؤ پر جائیں",
+   "back": "راستے پر واپس",
+   "practice": "مشق کا دور۔ جتنا چاہیں کھیلیں!",
+   "stopDone": "پڑاؤ مکمل!",
+   "missAsk": "کون سا نمبر غائب ہے؟",
+   "missYes": "جی ہاں! یہاں {n} آئے گا۔",
+   "missWas": "یہاں {n} آئے گا۔ ایک اور کریں۔",
+   "missSkip": "چھوڑیں",
+   "micAgain": "مائیک دوبارہ آزمائیں",
+   "helpAsk": "اکیلے، یا کسی کی مدد سے؟",
+   "helpNo": "اکیلے",
+   "helpYes": "مدد کے ساتھ"
+  },
+  "rt": false
+ },
+ "menu_hub_en": {
+  "form": "G3",
+  "lang": "en",
+  "exercises": [
+   {
+    "id": "bigger",
+    "name": "Which is bigger?",
+    "mins": 2,
+    "done": true,
+    "last": null,
+    "badge": true
+   },
+   {
+    "id": "missing",
+    "name": "Missing number",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false
+   },
+   {
+    "id": "read",
+    "name": "Read aloud",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false,
+    "mic": true
+   },
+   {
+    "id": "listen",
+    "name": "Listen and answer",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false
+   }
+  ],
+  "record": true,
+  "trail": true,
+  "trail_copy": {
+   "title": "{name}'s Trail",
+   "sub": "{done} of {total} stops done. Pick any stop!",
+   "allDone": "You finished {name}'s Trail!",
+   "badge": "Done",
+   "next": "Next",
+   "mic": "uses the microphone",
+   "needsMic": "needs a microphone",
+   "micWait": "This stop needs a microphone. It will wait for you!",
+   "other": "Go to another stop",
+   "back": "Back to the trail",
+   "practice": "Practice round. Play as much as you like!",
+   "stopDone": "Stop done!",
+   "missAsk": "Which number is missing?",
+   "missYes": "Yes! {n} goes here.",
+   "missWas": "{n} goes here. Let us try another.",
+   "missSkip": "Skip",
+   "micAgain": "Try the microphone again",
+   "helpAsk": "On your own, or with help?",
+   "helpNo": "On my own",
+   "helpYes": "With help"
+  },
+  "rt": false
+ },
+ "menu_quiz": {
+  "form": "G3",
+  "lang": "ur",
+  "exercises": [
+   {
+    "id": "bigger",
+    "name": "کون سا بڑا ہے؟",
+    "mins": 2,
+    "done": true,
+    "last": null,
+    "badge": true
+   },
+   {
+    "id": "missing",
+    "name": "غائب نمبر",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false
+   },
+   {
+    "id": "read",
+    "name": "اونچی آواز میں پڑھیں",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false,
+    "mic": true
+   },
+   {
+    "id": "listen",
+    "name": "سنیں اور جواب دیں",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false
+   }
+  ],
+  "record": true,
+  "trail": true,
+  "trail_copy": {
+   "title": "‏⁨{name}⁩ کا راستہ",
+   "sub": "‏⁨{total}⁩ میں سے {done} پڑاؤ مکمل۔ کوئی بھی پڑاؤ چنیں!",
+   "allDone": "آپ نے {name} کا راستہ مکمل کر لیا!",
+   "badge": "مکمل",
+   "next": "اگلا",
+   "mic": "مائیک استعمال ہوگا",
+   "needsMic": "مائیک چاہیے",
+   "micWait": "اس پڑاؤ کے لیے مائیک چاہیے۔ یہ انتظار کرے گا!",
+   "other": "کسی اور پڑاؤ پر جائیں",
+   "back": "راستے پر واپس",
+   "practice": "مشق کا دور۔ جتنا چاہیں کھیلیں!",
+   "stopDone": "پڑاؤ مکمل!",
+   "missAsk": "کون سا نمبر غائب ہے؟",
+   "missYes": "جی ہاں! یہاں {n} آئے گا۔",
+   "missWas": "یہاں {n} آئے گا۔ ایک اور کریں۔",
+   "missSkip": "چھوڑیں",
+   "micAgain": "مائیک دوبارہ آزمائیں",
+   "helpAsk": "اکیلے، یا کسی کی مدد سے؟",
+   "helpNo": "اکیلے",
+   "helpYes": "مدد کے ساتھ"
+  },
+  "rt": false
+ },
+ "ex_read": {
+  "ex": "read",
+  "name": "اونچی آواز میں پڑھیں",
+  "lang": "ur",
+  "ct": {
+   "k": "c",
+   "sid": "44444444-4444-4444-8444-444444444444",
+   "ex": "read"
+  },
+  "clips": {
+   "intro": {
+    "text": "یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں پڑھیں۔ کوئی لفظ مشکل لگے تو اگلا لفظ پڑھیں۔",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/intro-sx-ishita-3ade4e9b.ogg?b=r2-default"
+   },
+   "start": {
+    "text": "تیار ہو جائیں۔ شروع کریں!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/start-sx-ishita-87d87d86.ogg?b=r2-default"
+   },
+   "stop": {
+    "text": "رک جائیں۔ شکریہ!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/stop-sx-ishita-3e98d9b6.ogg?b=r2-default"
+   },
+   "done": {
+    "text": "بہت اچھا پڑھا! شاباش!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/done-sx-ishita-537cb584.ogg?b=r2-default"
+   }
+  },
+  "record": true,
+  "guard": true,
+  "copy": {
+   "stuck": "آگے بہت مشکل ہے",
+   "incomplete": "آپ نے {words} لفظ پڑھے۔ اپنا نمبر پانے کے لیے پورا منٹ پڑھیں!",
+   "micSay": "\"جگنو!\" کہیں تاکہ میں آپ کو سن سکوں۔",
+   "micHeard": "آپ کی آواز آ رہی ہے! کچھ محفوظ نہیں ہوتا۔",
+   "micSilent": "جگنو کو ابھی آپ کی آواز نہیں آ رہی۔",
+   "stopAsk": "پڑھنا روکیں؟",
+   "wholeMinute": "آپ نے پورا منٹ پڑھا!"
+  },
+  "trail": true,
+  "trail_copy": {
+   "title": "‏⁨{name}⁩ کا راستہ",
+   "sub": "‏⁨{total}⁩ میں سے {done} پڑاؤ مکمل۔ کوئی بھی پڑاؤ چنیں!",
+   "allDone": "آپ نے {name} کا راستہ مکمل کر لیا!",
+   "badge": "مکمل",
+   "next": "اگلا",
+   "mic": "مائیک استعمال ہوگا",
+   "needsMic": "مائیک چاہیے",
+   "micWait": "اس پڑاؤ کے لیے مائیک چاہیے۔ یہ انتظار کرے گا!",
+   "other": "کسی اور پڑاؤ پر جائیں",
+   "back": "راستے پر واپس",
+   "practice": "مشق کا دور۔ جتنا چاہیں کھیلیں!",
+   "stopDone": "پڑاؤ مکمل!",
+   "missAsk": "کون سا نمبر غائب ہے؟",
+   "missYes": "جی ہاں! یہاں {n} آئے گا۔",
+   "missWas": "یہاں {n} آئے گا۔ ایک اور کریں۔",
+   "missSkip": "چھوڑیں",
+   "micAgain": "مائیک دوبارہ آزمائیں",
+   "helpAsk": "اکیلے، یا کسی کی مدد سے؟",
+   "helpNo": "اکیلے",
+   "helpYes": "مدد کے ساتھ"
+  },
+  "secs": 60,
+  "live": true,
+  "previous_wcpm": null,
+  "questions_on": true,
+  "story": {
+   "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہیں۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔",
+   "tokens": [
+    "آج",
+    "بلال",
+    "اپنے",
+    "والد",
+    "کے",
+    "ساتھ",
+    "دریائے",
+    "جہلم",
+    "کے",
+    "کنارے",
+    "گیا",
+    "وہاں",
+    "ٹھنڈی",
+    "ہوا",
+    "چل",
+    "رہی",
+    "تھی",
+    "اور",
+    "پانی",
+    "آہستہ",
+    "بہہ",
+    "رہا",
+    "تھا",
+    "بلال",
+    "نے",
+    "کشتی",
+    "کو",
+    "حرکت",
+    "کرتے",
+    "دیکھا",
+    "اس",
+    "کے",
+    "والد",
+    "نے",
+    "اسے",
+    "بتایا",
+    "کہ",
+    "دریا",
+    "ہمارے",
+    "ملک",
+    "کے",
+    "لیے",
+    "اہم",
+    "ہیں",
+    "واپسی",
+    "پر",
+    "بلال",
+    "نے",
+    "خوبصورت",
+    "پتھر",
+    "جمع",
+    "کیے",
+    "اور",
+    "مسکراتا",
+    "رہا",
+    "وہ",
+    "بہت",
+    "خوش",
+    "بھی",
+    "تھا"
+   ],
+   "lines": [
+    {
+     "n": 1,
+     "from": 0,
+     "to": 10
+    },
+    {
+     "n": 2,
+     "from": 11,
+     "to": 22
+    },
+    {
+     "n": 3,
+     "from": 23,
+     "to": 29
+    },
+    {
+     "n": 4,
+     "from": 30,
+     "to": 43
+    },
+    {
+     "n": 5,
+     "from": 44,
+     "to": 54
+    },
+    {
+     "n": 6,
+     "from": 55,
+     "to": 59
+    }
+   ],
+   "dir": "rtl"
+  }
+ },
+ "ex_missing": {
+  "ex": "missing",
+  "name": "غائب نمبر",
+  "lang": "ur",
+  "ct": {
+   "k": "c",
+   "sid": "44444444-4444-4444-8444-444444444444",
+   "ex": "missing"
+  },
+  "clips": {
+   "intro": {
+    "text": "ایک نمبر غائب ہے۔ غائب نمبر لکھیں!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/missing/intro-sx-ishita-31cd1b7f.ogg?b=r2-default"
+   },
+   "start": {
+    "text": "تیار؟ شروع کریں!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/missing/start-sx-ishita-2b75278a.ogg?b=r2-default"
+   },
+   "stop": {
+    "text": "بس، ہو گیا!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/missing/stop-sx-ishita-20eb0c42.ogg?b=r2-default"
+   },
+   "done": {
+    "text": "شاباش! آپ نے یہ پڑاؤ مکمل کر لیا۔",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/missing/done-sx-ishita-5ab9ad19.ogg?b=r2-default"
+   }
+  },
+  "record": true,
+  "guard": true,
+  "copy": {
+   "stuck": "آگے بہت مشکل ہے",
+   "incomplete": "آپ نے {words} لفظ پڑھے۔ اپنا نمبر پانے کے لیے پورا منٹ پڑھیں!",
+   "micSay": "\"جگنو!\" کہیں تاکہ میں آپ کو سن سکوں۔",
+   "micHeard": "آپ کی آواز آ رہی ہے! کچھ محفوظ نہیں ہوتا۔",
+   "micSilent": "جگنو کو ابھی آپ کی آواز نہیں آ رہی۔",
+   "stopAsk": "پڑھنا روکیں؟",
+   "wholeMinute": "آپ نے پورا منٹ پڑھا!"
+  },
+  "trail": true,
+  "trail_copy": {
+   "title": "‏⁨{name}⁩ کا راستہ",
+   "sub": "‏⁨{total}⁩ میں سے {done} پڑاؤ مکمل۔ کوئی بھی پڑاؤ چنیں!",
+   "allDone": "آپ نے {name} کا راستہ مکمل کر لیا!",
+   "badge": "مکمل",
+   "next": "اگلا",
+   "mic": "مائیک استعمال ہوگا",
+   "needsMic": "مائیک چاہیے",
+   "micWait": "اس پڑاؤ کے لیے مائیک چاہیے۔ یہ انتظار کرے گا!",
+   "other": "کسی اور پڑاؤ پر جائیں",
+   "back": "راستے پر واپس",
+   "practice": "مشق کا دور۔ جتنا چاہیں کھیلیں!",
+   "stopDone": "پڑاؤ مکمل!",
+   "missAsk": "کون سا نمبر غائب ہے؟",
+   "missYes": "جی ہاں! یہاں {n} آئے گا۔",
+   "missWas": "یہاں {n} آئے گا۔ ایک اور کریں۔",
+   "missSkip": "چھوڑیں",
+   "micAgain": "مائیک دوبارہ آزمائیں",
+   "helpAsk": "اکیلے، یا کسی کی مدد سے؟",
+   "helpNo": "اکیلے",
+   "helpYes": "مدد کے ساتھ"
+  },
+  "items": [
+   {
+    "seq": [
+     5,
+     6,
+     7,
+     null
+    ],
+    "answer": 8
+   },
+   {
+    "seq": [
+     14,
+     15,
+     null,
+     17
+    ],
+    "answer": 16
+   },
+   {
+    "seq": [
+     20,
+     null,
+     40,
+     50
+    ],
+    "answer": 30
+   },
+   {
+    "seq": [
+     null,
+     300,
+     400,
+     500
+    ],
+    "answer": 200
+   },
+   {
+    "seq": [
+     2,
+     4,
+     6,
+     null
+    ],
+    "answer": 8
+   },
+   {
+    "seq": [
+     348,
+     349,
+     null,
+     351
+    ],
+    "answer": 350
+   },
+   {
+    "seq": [
+     28,
+     null,
+     24,
+     22
+    ],
+    "answer": 26
+   },
+   {
+    "seq": [
+     30,
+     35,
+     null,
+     45
+    ],
+    "answer": 40
+   },
+   {
+    "seq": [
+     550,
+     540,
+     530,
+     null
+    ],
+    "answer": 520
+   },
+   {
+    "seq": [
+     3,
+     8,
+     null,
+     18
+    ],
+    "answer": 13
+   }
+  ],
+  "practice": [
+   {
+    "seq": [
+     1,
+     2,
+     null,
+     4
+    ],
+    "answer": 3
+   },
+   {
+    "seq": [
+     5,
+     10,
+     15,
+     null
+    ],
+    "answer": 20
+   }
+  ],
+  "stop_after": 4,
+  "first_key_s": 5
+ },
+ "ex_listen": {
+  "ex": "listen",
+  "name": "سنیں اور جواب دیں",
+  "lang": "ur",
+  "ct": {
+   "k": "c",
+   "sid": "44444444-4444-4444-8444-444444444444",
+   "ex": "listen"
+  },
+  "clips": {
+   "intro": {
+    "text": "ایک چھوٹی سی کہانی دو بار سنیں۔ پھر سوالوں کے جواب دیں!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/listen/intro-sx-ishita-a5cffb80.ogg?b=r2-default"
+   },
+   "start": {
+    "text": "غور سے سنیں۔",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/listen/start-sx-ishita-f1d61c50.ogg?b=r2-default"
+   },
+   "stop": {
+    "text": "اب سوال!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/listen/stop-sx-ishita-5da4deca.ogg?b=r2-default"
+   },
+   "done": {
+    "text": "شاباش! آپ نے بہت غور سے سنا۔",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/listen/done-sx-ishita-f039a0bd.ogg?b=r2-default"
+   }
+  },
+  "record": true,
+  "guard": true,
+  "copy": {
+   "stuck": "آگے بہت مشکل ہے",
+   "incomplete": "آپ نے {words} لفظ پڑھے۔ اپنا نمبر پانے کے لیے پورا منٹ پڑھیں!",
+   "micSay": "\"جگنو!\" کہیں تاکہ میں آپ کو سن سکوں۔",
+   "micHeard": "آپ کی آواز آ رہی ہے! کچھ محفوظ نہیں ہوتا۔",
+   "micSilent": "جگنو کو ابھی آپ کی آواز نہیں آ رہی۔",
+   "stopAsk": "پڑھنا روکیں؟",
+   "wholeMinute": "آپ نے پورا منٹ پڑھا!"
+  },
+  "trail": true,
+  "trail_copy": {
+   "title": "‏⁨{name}⁩ کا راستہ",
+   "sub": "‏⁨{total}⁩ میں سے {done} پڑاؤ مکمل۔ کوئی بھی پڑاؤ چنیں!",
+   "allDone": "آپ نے {name} کا راستہ مکمل کر لیا!",
+   "badge": "مکمل",
+   "next": "اگلا",
+   "mic": "مائیک استعمال ہوگا",
+   "needsMic": "مائیک چاہیے",
+   "micWait": "اس پڑاؤ کے لیے مائیک چاہیے۔ یہ انتظار کرے گا!",
+   "other": "کسی اور پڑاؤ پر جائیں",
+   "back": "راستے پر واپس",
+   "practice": "مشق کا دور۔ جتنا چاہیں کھیلیں!",
+   "stopDone": "پڑاؤ مکمل!",
+   "missAsk": "کون سا نمبر غائب ہے؟",
+   "missYes": "جی ہاں! یہاں {n} آئے گا۔",
+   "missWas": "یہاں {n} آئے گا۔ ایک اور کریں۔",
+   "missSkip": "چھوڑیں",
+   "micAgain": "مائیک دوبارہ آزمائیں",
+   "helpAsk": "اکیلے، یا کسی کی مدد سے؟",
+   "helpNo": "اکیلے",
+   "helpYes": "مدد کے ساتھ"
+  },
+  "read_times": 2,
+  "story_clip": {
+   "url": "https://signed.test/quiz-audio/test/challenge/ur/listen/story-sx-ishita-1d5e8d64.ogg?b=r2-default"
+  }
+ },
+ "ex_bigger": {
+  "ex": "bigger",
+  "name": "کون سا بڑا ہے؟",
+  "lang": "ur",
+  "ct": {
+   "k": "c",
+   "sid": "44444444-4444-4444-8444-444444444444",
+   "ex": "bigger"
+  },
+  "clips": {
+   "intro": {
+    "text": "دو نمبر آئیں گے۔ بڑے نمبر کو چھوئیں!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/bigger/intro-sx-ishita-13ab9cc5.ogg?b=r2-default"
+   },
+   "start": {
+    "text": "تیار؟ شروع کریں!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/bigger/start-sx-ishita-2b75278a.ogg?b=r2-default"
+   },
+   "stop": {
+    "text": "بس، ہو گیا!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/bigger/stop-sx-ishita-20eb0c42.ogg?b=r2-default"
+   },
+   "done": {
+    "text": "شاباش! بہت خوب!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/bigger/done-sx-ishita-5e869036.ogg?b=r2-default"
+   }
+  },
+  "record": true,
+  "guard": true,
+  "copy": {
+   "stuck": "آگے بہت مشکل ہے",
+   "incomplete": "آپ نے {words} لفظ پڑھے۔ اپنا نمبر پانے کے لیے پورا منٹ پڑھیں!",
+   "micSay": "\"جگنو!\" کہیں تاکہ میں آپ کو سن سکوں۔",
+   "micHeard": "آپ کی آواز آ رہی ہے! کچھ محفوظ نہیں ہوتا۔",
+   "micSilent": "جگنو کو ابھی آپ کی آواز نہیں آ رہی۔",
+   "stopAsk": "پڑھنا روکیں؟",
+   "wholeMinute": "آپ نے پورا منٹ پڑھا!"
+  },
+  "trail": true,
+  "trail_copy": {
+   "title": "‏⁨{name}⁩ کا راستہ",
+   "sub": "‏⁨{total}⁩ میں سے {done} پڑاؤ مکمل۔ کوئی بھی پڑاؤ چنیں!",
+   "allDone": "آپ نے {name} کا راستہ مکمل کر لیا!",
+   "badge": "مکمل",
+   "next": "اگلا",
+   "mic": "مائیک استعمال ہوگا",
+   "needsMic": "مائیک چاہیے",
+   "micWait": "اس پڑاؤ کے لیے مائیک چاہیے۔ یہ انتظار کرے گا!",
+   "other": "کسی اور پڑاؤ پر جائیں",
+   "back": "راستے پر واپس",
+   "practice": "مشق کا دور۔ جتنا چاہیں کھیلیں!",
+   "stopDone": "پڑاؤ مکمل!",
+   "missAsk": "کون سا نمبر غائب ہے؟",
+   "missYes": "جی ہاں! یہاں {n} آئے گا۔",
+   "missWas": "یہاں {n} آئے گا۔ ایک اور کریں۔",
+   "missSkip": "چھوڑیں",
+   "micAgain": "مائیک دوبارہ آزمائیں",
+   "helpAsk": "اکیلے، یا کسی کی مدد سے؟",
+   "helpNo": "اکیلے",
+   "helpYes": "مدد کے ساتھ"
+  },
+  "practice_round": true,
+  "items": [
+   {
+    "a": 7,
+    "b": 5
+   },
+   {
+    "a": 24,
+    "b": 11
+   },
+   {
+    "a": 23,
+    "b": 39
+   },
+   {
+    "a": 58,
+    "b": 49
+   },
+   {
+    "a": 65,
+    "b": 67
+   },
+   {
+    "a": 94,
+    "b": 78
+   },
+   {
+    "a": 146,
+    "b": 153
+   },
+   {
+    "a": 534,
+    "b": 287
+   },
+   {
+    "a": 623,
+    "b": 632
+   },
+   {
+    "a": 867,
+    "b": 965
+   }
+  ],
+  "practice": [
+   {
+    "a": 8,
+    "b": 4,
+    "answer": 8
+   },
+   {
+    "a": 10,
+    "b": 12,
+    "answer": 12
+   }
+  ],
+  "per_item_s": 10,
+  "stop_after": 4
+ },
+ "ex_read_quiz": {
+  "ex": "read",
+  "name": "اونچی آواز میں پڑھیں",
+  "lang": "ur",
+  "ct": {
+   "k": "c",
+   "sid": "44444444-4444-4444-8444-444444444444",
+   "ex": "read"
+  },
+  "clips": {
+   "intro": {
+    "text": "یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں پڑھیں۔ کوئی لفظ مشکل لگے تو اگلا لفظ پڑھیں۔",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/intro-sx-ishita-3ade4e9b.ogg?b=r2-default"
+   },
+   "start": {
+    "text": "تیار ہو جائیں۔ شروع کریں!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/start-sx-ishita-87d87d86.ogg?b=r2-default"
+   },
+   "stop": {
+    "text": "رک جائیں۔ شکریہ!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/stop-sx-ishita-3e98d9b6.ogg?b=r2-default"
+   },
+   "done": {
+    "text": "بہت اچھا پڑھا! شاباش!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/done-sx-ishita-537cb584.ogg?b=r2-default"
+   }
+  },
+  "record": true,
+  "guard": true,
+  "copy": {
+   "stuck": "آگے بہت مشکل ہے",
+   "incomplete": "آپ نے {words} لفظ پڑھے۔ اپنا نمبر پانے کے لیے پورا منٹ پڑھیں!",
+   "micSay": "\"جگنو!\" کہیں تاکہ میں آپ کو سن سکوں۔",
+   "micHeard": "آپ کی آواز آ رہی ہے! کچھ محفوظ نہیں ہوتا۔",
+   "micSilent": "جگنو کو ابھی آپ کی آواز نہیں آ رہی۔",
+   "stopAsk": "پڑھنا روکیں؟",
+   "wholeMinute": "آپ نے پورا منٹ پڑھا!"
+  },
+  "trail": true,
+  "trail_copy": {
+   "title": "‏⁨{name}⁩ کا راستہ",
+   "sub": "‏⁨{total}⁩ میں سے {done} پڑاؤ مکمل۔ کوئی بھی پڑاؤ چنیں!",
+   "allDone": "آپ نے {name} کا راستہ مکمل کر لیا!",
+   "badge": "مکمل",
+   "next": "اگلا",
+   "mic": "مائیک استعمال ہوگا",
+   "needsMic": "مائیک چاہیے",
+   "micWait": "اس پڑاؤ کے لیے مائیک چاہیے۔ یہ انتظار کرے گا!",
+   "other": "کسی اور پڑاؤ پر جائیں",
+   "back": "راستے پر واپس",
+   "practice": "مشق کا دور۔ جتنا چاہیں کھیلیں!",
+   "stopDone": "پڑاؤ مکمل!",
+   "missAsk": "کون سا نمبر غائب ہے؟",
+   "missYes": "جی ہاں! یہاں {n} آئے گا۔",
+   "missWas": "یہاں {n} آئے گا۔ ایک اور کریں۔",
+   "missSkip": "چھوڑیں",
+   "micAgain": "مائیک دوبارہ آزمائیں",
+   "helpAsk": "اکیلے، یا کسی کی مدد سے؟",
+   "helpNo": "اکیلے",
+   "helpYes": "مدد کے ساتھ"
+  },
+  "secs": 60,
+  "live": true,
+  "previous_wcpm": null,
+  "questions_on": true,
+  "story": {
+   "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہیں۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔",
+   "tokens": [
+    "آج",
+    "بلال",
+    "اپنے",
+    "والد",
+    "کے",
+    "ساتھ",
+    "دریائے",
+    "جہلم",
+    "کے",
+    "کنارے",
+    "گیا",
+    "وہاں",
+    "ٹھنڈی",
+    "ہوا",
+    "چل",
+    "رہی",
+    "تھی",
+    "اور",
+    "پانی",
+    "آہستہ",
+    "بہہ",
+    "رہا",
+    "تھا",
+    "بلال",
+    "نے",
+    "کشتی",
+    "کو",
+    "حرکت",
+    "کرتے",
+    "دیکھا",
+    "اس",
+    "کے",
+    "والد",
+    "نے",
+    "اسے",
+    "بتایا",
+    "کہ",
+    "دریا",
+    "ہمارے",
+    "ملک",
+    "کے",
+    "لیے",
+    "اہم",
+    "ہیں",
+    "واپسی",
+    "پر",
+    "بلال",
+    "نے",
+    "خوبصورت",
+    "پتھر",
+    "جمع",
+    "کیے",
+    "اور",
+    "مسکراتا",
+    "رہا",
+    "وہ",
+    "بہت",
+    "خوش",
+    "بھی",
+    "تھا"
+   ],
+   "lines": [
+    {
+     "n": 1,
+     "from": 0,
+     "to": 10
+    },
+    {
+     "n": 2,
+     "from": 11,
+     "to": 22
+    },
+    {
+     "n": 3,
+     "from": 23,
+     "to": 29
+    },
+    {
+     "n": 4,
+     "from": 30,
+     "to": 43
+    },
+    {
+     "n": 5,
+     "from": 44,
+     "to": 54
+    },
+    {
+     "n": 6,
+     "from": 55,
+     "to": 59
+    }
+   ],
+   "dir": "rtl"
+  }
+ },
+ "not_eligible": {
+  "status": 403,
+  "body": {
+   "error": "not_eligible"
+  }
+ },
+ "no_game": {
+  "status": 404,
+  "body": {
+   "error": "not_found"
+  }
+ }
+}
