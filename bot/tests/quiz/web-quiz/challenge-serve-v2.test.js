@@ -562,52 +562,116 @@ describe('admin_mode and sample_arm under _v2', () => {
     expect(rowOf(home.ct)).toMatchObject({ mode: 'practice', record: false, item_set_id: 'bigger.G3.A' });
   });
 
-  test('web_quiz_class_week on but the class-week module absent: nothing more is written, the serve goes on', async () => {
+  test('web_quiz_class_week on without its parent web_quiz_class_round: nothing more is written, the serve goes on', async () => {
     on(V2, ...CANON_ON, PERIOD, 'web_quiz_class_week');
     const ex = await Ch.exercise(hub(), 'bigger', D);
     expect(rowOf(ex.ct).meta).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
   });
 });
 
-describe('the class-week sample arm (web-quiz-challenge-draw.adminFields)', () => {
+describe('the class-week sample arm: a class-link run over the real window read (web-quiz-class-week → teacher-class-week)', () => {
   const Draw = require('../../../shared/services/quiz/web-quiz-challenge-draw');
-  const CW = '../../../shared/services/quiz/web-quiz-class-week';
-  // jest keeps the first mock it builds: the absent module is tried first (a throwing factory is never kept), then one
-  // stand-in whose answer each test sets
-  let openWindowFor = jest.fn();
+  const Week = require('../../../shared/services/quiz/teacher-class-week');
+  const CLS = 'c1a55000-0000-4000-8000-0000000000c1';
+  const OTHER = 'c1a55000-0000-4000-8000-0000000000c2';
+  // the card's switch: web_quiz_class_week under web_quiz_class_round, web_quiz_class_link (+ _v2 and the challenge)
+  const WEEK_ON = ['web_quiz_class_week', 'web_quiz_class_round', 'web_quiz_class_link'];
+  const clHub = (id = K3) => T.sign({ k: 'h', ids: [id], exp: Math.floor(Date.now() / 1000) + 3600, src: 'cl', cl: { c: CLS, s: 'roster_pick', q: 'high', h: false } });
+  const week = (from, to, classId = CLS) => {
+    db.class_round_draws = [{ round: 'R1', class_id: classId, term_code: Week.termOf(Date.now()), week_start: iso(from), week_end: iso(to) }];
+  };
+  const drawReads = (spy) => spy.mock.calls.filter(([t]) => t === 'class_round_draws').length;
+  beforeEach(() => { require('../../../shared/services/quiz/web-quiz-class-week-flags')._resetCache(); });
 
-  test('the module absent → no sample arm, nothing thrown', async () => {
-    jest.doMock(CW, () => { throw new Error("Cannot find module './web-quiz-class-week'"); }, { virtual: true });
-    expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: null });
-    jest.doMock(CW, () => ({ openWindowFor: (...a) => openWindowFor(...a) }), { virtual: true });
+  test('a class-link run inside its class\'s open week → sample_arm class_week, admin_mode self_run (the inserted row and its meta)', async () => {
+    on(V2, ...CANON_ON, PERIOD, ...WEEK_ON);
+    week(Date.now() - DAY, Date.now() + 6 * DAY);
+    const ex = await Ch.exercise(clHub(), 'bigger', D);
+    expect(rowOf(ex.ct)).toMatchObject({ via: 'class_link', class_id: CLS, admin_mode: 'self_run', sample_arm: 'class_week' });
+    expect(rowOf(ex.ct).meta).toMatchObject({ admin_mode: 'self_run', sample_arm: 'class_week' });
   });
 
-  test('via class_link inside an open class-week window, switch on → sample_arm class_week, admin_mode self_run', async () => {
-    openWindowFor = jest.fn(async () => ({ id: 'w1' }));
-    expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: 'class_week' });
-    expect(openWindowFor).toHaveBeenCalledWith(expect.objectContaining({ canonicalId: 'c1' }));
+  test('outside the week (not yet open, or another class\'s week) → sample_arm NULL', async () => {
+    on(V2, ...CANON_ON, PERIOD, ...WEEK_ON);
+    week(Date.now() + DAY, Date.now() + 8 * DAY);
+    const early = await Ch.exercise(clHub(), 'bigger', D);
+    expect(rowOf(early.ct)).toMatchObject({ via: 'class_link', admin_mode: 'self_run', sample_arm: null });
+    db.web_quiz_challenge_runs = [];
+    week(Date.now() - DAY, Date.now() + 6 * DAY, OTHER);
+    const other = await Ch.exercise(clHub(), 'bigger', D);
+    expect(rowOf(other.ct)).toMatchObject({ via: 'class_link', admin_mode: 'self_run', sample_arm: null });
   });
 
-  test('no open window, another door, or the switch off → no sample arm and no lookup', async () => {
-    openWindowFor = jest.fn(async () => null);
-    expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: null });
-    openWindowFor.mockClear();
-    expect(await Draw.adminFields({ mode: 'check', via: 'hub', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: null });
-    expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: false })).toEqual({ admin_mode: 'self_run', sample_arm: null });
-    expect(openWindowFor).not.toHaveBeenCalled();
+  test('switch off (web_quiz_class_week, or its parent web_quiz_class_link) → NULL and no class_round_draws read', async () => {
+    on(V2, ...CANON_ON, PERIOD, 'web_quiz_class_round', 'web_quiz_class_link');
+    week(Date.now() - DAY, Date.now() + 6 * DAY);
+    const spy = jest.spyOn(supabase, 'from');
+    const off = await Ch.exercise(clHub(), 'bigger', D);
+    expect(rowOf(off.ct)).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
+    expect(drawReads(spy)).toBe(0);
+    spy.mockRestore();
+    // the serve's own gate (week + round) on, the card's parent web_quiz_class_link off: the window module reads nothing
+    db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_class_link');
+    on('web_quiz_class_week');
+    require('../../../shared/services/quiz/web-quiz-class-week-flags')._resetCache();
+    Ch.__reset();
+    db.web_quiz_challenge_runs = [];
+    const spy2 = jest.spyOn(supabase, 'from');
+    const parentOff = await Ch.exercise(clHub(), 'bigger', D);
+    expect(rowOf(parentOff.ct)).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
+    expect(drawReads(spy2)).toBe(0);
+    spy2.mockRestore();
   });
 
-  test('a class round turn (mode class_round) is teacher_present in the class_round arm', async () => {
-    expect(await Draw.adminFields({ mode: 'class_round', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: 'class_round' });
+  test('a class round run in the open week is unchanged: teacher_present, class_round', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL, ...WEEK_ON);
+    week(Date.now() - DAY, Date.now() + 6 * DAY);
+    const ex = await Ch.exercise(clHub(), 'missing', { ...D, mode: 'class_round' });
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'class_round', record: false, admin_mode: 'teacher_present', sample_arm: 'class_round' });
+    expect(rowOf(ex.ct).meta).toMatchObject({ admin_mode: 'teacher_present', sample_arm: 'class_round' });
   });
 
-  test('a round turn at position 11+ (mode practice, via the round) writes admin_mode teacher_present and sample_arm null', async () => {
-    openWindowFor = jest.fn(async () => ({ id: 'w1' }));
-    expect(await Draw.adminFields({ mode: 'practice', via: 'class_round', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: null });
-    expect(openWindowFor).not.toHaveBeenCalled();
+  test('a hub run (not the class link) in the open week → NULL and no class_round_draws read', async () => {
+    on(V2, ...CANON_ON, PERIOD, ...WEEK_ON);
+    week(Date.now() - DAY, Date.now() + 6 * DAY);
+    const spy = jest.spyOn(supabase, 'from');
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(rowOf(ex.ct)).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
+    expect(drawReads(spy)).toBe(0);
+    spy.mockRestore();
   });
 
-  test('an ordinary home run (mode check or practice, via hub): self_run, null', async () => {
+  test('fail-safe: the class_round_draws read refused → no arm, the serve goes on', async () => {
+    on(V2, ...CANON_ON, PERIOD, ...WEEK_ON);
+    const from = supabase.from;
+    const refused = { select: () => refused, eq: () => refused, then: (ok) => ok({ data: null, error: { code: '42P01', message: 'relation "class_round_draws" does not exist' } }) };
+    supabase.from = (t) => (t === 'class_round_draws' ? refused : from(t));
+    try {
+      const ex = await Ch.exercise(clHub(), 'bigger', D);
+      expect(rowOf(ex.ct)).toMatchObject({ via: 'class_link', admin_mode: 'self_run', sample_arm: null });
+    } finally { supabase.from = from; }
+  });
+
+  test('openWindowFor: true only inside [week_start, week_end); no class or a bad moment → false', async () => {
+    on(V2, ...WEEK_ON);
+    const from = Date.now() - DAY;
+    const to = Date.now() + 6 * DAY;
+    week(from, to);
+    const CWin = require('../../../shared/services/quiz/web-quiz-class-week');
+    expect(await CWin.openWindowFor({ classId: CLS, at: new Date(from) })).toBe(true);
+    expect(await CWin.openWindowFor({ classId: CLS, at: new Date(to - 1) })).toBe(true);
+    expect(await CWin.openWindowFor({ classId: CLS, at: new Date(to) })).toBe(false);
+    expect(await CWin.openWindowFor({ classId: CLS, at: new Date(from - 1) })).toBe(false);
+    expect(await CWin.openWindowFor({ classId: null, at: new Date() })).toBe(false);
+    expect(await CWin.openWindowFor({ classId: CLS, at: 'not a date' })).toBe(false);
+  });
+
+  test('adminFields: a class round turn is teacher_present in the class_round arm; position 11+ (via the round) teacher_present, null', async () => {
+    expect(await Draw.adminFields({ mode: 'class_round', via: 'class_link', classId: CLS, classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: 'class_round' });
+    expect(await Draw.adminFields({ mode: 'practice', via: 'class_round', classId: CLS, classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: null });
+  });
+
+  test('adminFields: an ordinary home run (mode check or practice, via hub): self_run, null', async () => {
     expect(await Draw.adminFields({ mode: 'check', via: 'hub', canonicalId: 'c1' })).toEqual({ admin_mode: 'self_run', sample_arm: null });
     expect(await Draw.adminFields({ mode: 'practice', via: 'hub', canonicalId: 'c1' })).toEqual({ admin_mode: 'self_run', sample_arm: null });
   });

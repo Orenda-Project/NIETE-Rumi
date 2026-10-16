@@ -164,7 +164,9 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
     if (recordBlocked) Object.assign(rec, { mode: 'practice', record: false });
     const via = viaOf(w.via);
     // the sampling fields, as the v2 serve decides them (draw module's adminFields, the same class-week switch)
-    const admin = await D.adminFields({ mode: rec.mode, via, canonicalId, at: new Date(now), classWeekOn: via === 'class_link' && (await classWeekOn()) });
+    // a class-link pick (w.cl) is the class-week arm's door; the recorded via stays as it is
+    const armVia = w.cl && via !== 'class_round' ? 'class_link' : via;
+    const admin = await D.adminFields({ mode: rec.mode, via: armVia, classId, at: new Date(now), classWeekOn: armVia === 'class_link' && (await classWeekOn()) });
     const runId = crypto.randomUUID();
     const seed = crypto.randomBytes(16).toString('hex');
     const at = new Date(now).toISOString();
