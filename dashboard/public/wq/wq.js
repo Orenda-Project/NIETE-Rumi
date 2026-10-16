@@ -2628,6 +2628,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   // The card's door: the server mints this child's hub link for this phone (never a name in it) and the page opens it.
   var hubGoing = false;
+  // The pages' one link helper (wq-tel.js WQT.withLang): a hub opened from here opens in this page's language.
+  function withLang(h) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, LANG) : h; }
   function hubDoor() {
     if (hubGoing) return;
     hubGoing = true;
@@ -2637,7 +2639,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // One event per tap, with whether a hub opened (the hub counts its own view as src=door).
       ev('hub_door_tap', { ok: ok });
       flushEv(true);
-      if (ok) { location.assign(href + '?from=door'); return; }
+      if (ok) { location.assign(withLang(href + '?from=door')); return; }
       hubGoing = false;
       if (S.result) { S.result.hub_door = false; save(); }
       var b = $('#wq-hubdoor');
@@ -2980,7 +2982,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var h = r && r.ok && r.body ? r.body.home : null;
       if (done || typeof h !== 'string' || !/^\/h\/[A-Za-z0-9._-]+\?from=link$/.test(h)) return fall();
       done = true;
-      location.replace(h);
+      location.replace(withLang(h));
     }, fall);
   }
   var HX = B.view === 'class' || B.view === 'schools' || B.preview ? '' : handsetX();

@@ -14,6 +14,7 @@ const { renderHubPage, createWebQuizRouter } = require('../routes/web-quiz.route
 
 const HUB_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'hub.js'), 'utf8');
 const PLAY_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'hub-play.js'), 'utf8');
+const TEL_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-tel.js'), 'utf8');
 const GOLDEN = require('./fixtures/hub-play-golden.json');
 const BOOTS = require('./fixtures/hub-play-boots.json');
 
@@ -58,6 +59,8 @@ function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = fals
     Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
   };
   vm.createContext(ctx);
+  // wq-tel.js first, as on every page the edge renders (the pages' link helper WQT.withLang).
+  vm.runInContext(TEL_SRC, ctx);
   // The edge loads hub-play.js before hub.js (both deferred) only when the boot carries `play`.
   if (play) vm.runInContext(PLAY_SRC, ctx);
   vm.runInContext(HUB_SRC, ctx);
