@@ -59,11 +59,9 @@ const bindOn = async () => Boolean((await idFlags()).phoneBind);
 
 // Events v2 (web_quiz_events_v2, fail-closed): the page's bind events carry the envelope with the child's keyed kid
 // (and dk for the phone on bind_confirm); never a device_ref or a code. Off: today's event, byte for byte.
+// (w leads the fields so the switch-off line keeps today's key order.)
 async function emitV2(name, fields, { canonicalId = null, device = null } = {}) {
-  let v2 = false;
-  try { v2 = await require('./web-quiz-hub-flags').eventsV2On(); } catch (_) { v2 = false; }
-  if (!v2) return logEvent(name, { w: 's', ...fields });
-  return logEvent(name, K.envelope({ kid: canonicalId ? K.kid(canonicalId) : null, ...(device ? { dk: K.dk(device) } : {}), ...fields }));
+  return K.emit(name, { w: 's', ...fields }, { canonicalId, device });
 }
 
 // The number a wa.me link must open: the same variables the share links read (video-quiz-share botNumber).

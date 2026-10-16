@@ -2632,3 +2632,13 @@ Feature: NIETE (ICT) Teacher Training
     Then the round card shows "3 of 9 played. Continue another day." above its Start button, with no child's name
     And with the round not started, running, resumed or closed the card is exactly as before
     # web-quiz-class-round.js cardFor/pausedOf; class-round.page.js renderCard/pausedLine; unit: class-round-paused-card.test.js
+
+  # ── Events v2: the teacher's Undo of a saved place (app_settings web_quiz_events_v2, off by default) ──────
+
+  @quiz @config-gated @wip @draft @P3 @T937
+  Scenario: With web_quiz_events_v2 on, my Undo of a child's saved place is counted like the family's own undo
+    Given web_quiz_hub and web_quiz_events_v2 are on and a child on my class list has a place saved on a phone
+    When I tap "Undo" beside "Saved on WhatsApp ✓"
+    Then one web_quiz.bind_undo per child is logged with via "teacher", the event version, the key label and the child's keyed key, never a phone
+    But with web_quiz_events_v2 off the event is exactly today's
+    # web-quiz-kid.js emit (one home for the v2 rule; the binder, the page and the hub door use it too); teacher-jugnu-internal.routes.js afterErase. Unit: web-quiz-kid-emit.test.js. @wip.

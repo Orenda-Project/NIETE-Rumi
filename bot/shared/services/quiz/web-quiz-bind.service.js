@@ -67,9 +67,7 @@ async function sendText(to, key, language, params) {
  * With the switch off the event is today's, byte for byte.
  */
 async function emit(name, fields, canonicalId = null) {
-  let v2 = false;
-  try { v2 = await require('./web-quiz-hub-flags').eventsV2On(); } catch (_) { v2 = false; }
-  logEvent(name, v2 ? K.envelope({ kid: canonicalId ? K.kid(canonicalId) : null, ...fields }) : { ...fields, w: 's' });
+  return K.emit(name, fields, { canonicalId });
 }
 
 async function refused(reason, extra = {}, canonicalId = null) {
