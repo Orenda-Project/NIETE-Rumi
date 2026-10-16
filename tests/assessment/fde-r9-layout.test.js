@@ -37,6 +37,8 @@ function visible(html) {
 
 const SCOPE = { kind: 'chapters', chapters: [1, 2], pages: null };
 const lay = (exam, subject) => applyLayout(clone(exam), P[subject], SCOPE, { now: NOW });
+// After the engine's one re-ask (the re-asked section's items appended, as the top-up does).
+const layAfter = (exam, subject) => applyLayout(clone(exam), P[subject], SCOPE, { now: NOW, reasked: true });
 
 // The placed items of one slot, in print order.
 function slotItems(exam, slot) {
@@ -184,7 +186,7 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
       { question: 'پاکستان کی سب سے بڑی عدالت کون سی ہے؟', answer: 'سپریم کورٹ آف پاکستان۔' },
       { question: 'پاکستان کا قومی کھیل کون سا ہے؟', answer: 'ہاکی۔' },
     ];
-    const after = lay(withExtra(exam, 'social_studies.D.Q7', extra), 'social_studies');
+    const after = layAfter(withExtra(exam, 'social_studies.D.Q7', extra), 'social_studies');
     const q7 = slotItems(after.examJson, 'social_studies.D.Q7').map((q) => q.question);
     expect(after.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toBeUndefined();
     expect(q7).toHaveLength(8);
@@ -194,22 +196,52 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(q7.indexOf(REPEATS[0])).toBe(7);
   });
 
-  test('one question once per slot: a re-asked item with the same stem, or the same options, key and nearly the same stem, is not placed again', () => {
+  test('before the re-ask a model extra does not bring a held item back: the slot stays short, so the section is asked again', () => {
+    const exam = withExtra(fixture('r7-sst-item-text'), 'social_studies.D.Q7', [{ question: 'پاکستان کا قومی پھول کون سا ہے؟', answer: 'چنبیلی۔' }]);
+    const out = lay(exam, 'social_studies');
+    expect(out.shortfall).toEqual(expect.arrayContaining([{ slot: 'social_studies.D.Q7', missing: 2 }]));
+  });
+
+  test('after a re-ask that brought nothing new, the held items come back and the paper is whole', () => {
+    const out = layAfter(fixture('r7-sst-item-text'), 'social_studies');
+    expect(out.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toBeUndefined();
+    expect(slotItems(out.examJson, 'social_studies.D.Q7')).toHaveLength(8);
+  });
+
+  test('one question once per slot: the same stem with the same options is not placed twice', () => {
     const exam = fixture('r9-english-giveaway');
+    const first = slotItems(exam, 'english.A.Q1a')[3]; // «Which word is a proper noun?» river / teacher / Lahore / city
     const extra = [
-      { question: 'Which noun is a proper noun?', options: ['a) city', 'b) Lahore', 'c) river', 'd) teacher'], answer: 'b) Lahore' },
-      { question: 'Which word is a countable noun?', options: ['a) water', 'b) chair', 'c) milk', 'd) sand'], answer: 'b) chair' },
+      { question: first.question, options: ['a) city', 'b) Lahore', 'c) river', 'd) teacher'], answer: 'b) Lahore' },
       { question: 'Pick the plural of box.', options: ['a) boxs', 'b) boxes', 'c) boxies', 'd) box'], answer: 'b) boxes' },
       { question: 'Which word is a verb?', options: ['a) jump', 'b) table', 'c) green', 'd) slowly'], answer: 'a) jump' },
       { question: 'Which word is an adjective?', options: ['a) run', 'b) tall', 'c) chair', 'd) quickly'], answer: 'b) tall' },
     ];
-    const q1a = slotItems(lay(withExtra(exam, 'english.A.Q1a', extra), 'english').examJson, 'english.A.Q1a').map((q) => q.question);
+    const q1a = slotItems(layAfter(withExtra(exam, 'english.A.Q1a', extra), 'english').examJson, 'english.A.Q1a').map((q) => q.question);
     expect(q1a).toHaveLength(20);
-    expect(q1a).not.toContain('Which noun is a proper noun?');
-    expect(q1a.filter((t) => t === 'Which word is a countable noun?')).toHaveLength(1);
+    expect(q1a.filter((t) => t === first.question)).toHaveLength(1);
     expect(q1a).toEqual(expect.arrayContaining(['Pick the plural of box.', 'Which word is a verb?', 'Which word is an adjective?']));
-    // Two article items with the same options and key are two questions: both stay.
-    expect(q1a.filter((t) => t.startsWith('Which article completes the sentence'))).toHaveLength(2);
+    const q7 = withExtra(fixture('r9-sst-chapters2'), 'social_studies.D.Q7', [{ question: 'پاکستان کے پہلے وزیر اعظم کون تھے؟', answer: 'لیاقت علی خان۔' }]);
+    const placed = slotItems(layAfter(q7, 'social_studies').examJson, 'social_studies.D.Q7').map((q) => q.question);
+    expect(placed.filter((t) => t === 'پاکستان کے پہلے وزیر اعظم کون تھے؟')).toHaveLength(1);
+  });
+
+  test.each([
+    ["Which word has a silent letter 'k'?", ['a) knife', 'b) kite', 'c) kind', 'd) keep'], "Which word has a silent letter 'b'?", ['a) thumb', 'b) bat', 'c) bed', 'd) big']],
+    ['Which word is an abstract noun?', ['a) bravery', 'b) chair', 'c) river', 'd) book'], 'Which word is an abstract noun?', ['a) kindness', 'b) table', 'c) cup', 'd) tree']],
+    ['Choose the correct article: ___ apple.', ['a) a', 'b) an', 'c) the', 'd) no article'], 'Choose the correct article: ___ umbrella.', ['a) a', 'b) an', 'c) the', 'd) no article']],
+    ["How many syllables are in 'butterfly'?", ['a) 1', 'b) 2', 'c) 3', 'd) 4'], "How many syllables are in 'recycle'?", ['a) 1', 'b) 2', 'c) 3', 'd) 4']],
+  ])('two questions stay two: %s / %s', (s1, o1, s2, o2) => {
+    const exam = clone(fixture('r9-english-giveaway'));
+    const list = Object.values(exam.unseen).flatMap((t) => Object.values(t)).find((l) => l.some((q) => q.slot === 'english.A.Q1a'));
+    const at = list.findIndex((q) => q.slot === 'english.A.Q1a');
+    list[at] = { ...list[at], question: s1, options: o1, answer: o1[2] };
+    list[at + 1] = { ...list[at + 1], question: s2, options: o2, answer: o2[2] };
+    const q1a = slotItems(lay(exam, 'english').examJson, 'english.A.Q1a');
+    // Both stay, each once (options are turned round by the layout, so compare them as a set).
+    const has = (stem, opts) => q1a.filter((q) => q.question === stem && [...q.options].map((o) => o.slice(3)).sort().join('|') === opts.map((o) => o.slice(3)).sort().join('|')).length;
+    expect(has(s1, o1)).toBe(1);
+    expect(has(s2, o2)).toBe(1);
   });
 
   test('a three-point Q5 item with one point cued by Q1 is kept; one whose points are all in a Q1 stem is held', () => {

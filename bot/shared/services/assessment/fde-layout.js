@@ -547,10 +547,10 @@ function printable(slot, q) {
 // five of the following words…: invisible»). Social Studies: a Q5 or Q7 item that asks the
 // fact a Q1 MCQ already tests: its one-line answer, or marking points worth at least half its
 // marks, are given away by a Q1 MCQ (the MCQ's key is inside them, or they are printed in the
-// MCQ's stem, AND the two ask about the same thing). On the first reply a held item takes no
-// place, so the slot is short and the section is asked again; once the re-asked items are in,
-// they fill it first and a held item comes back only for a place nothing else can take. The
-// other slot is never touched.
+// MCQ's stem, AND the two ask about the same thing). Before the re-ask a held item takes no
+// place, so the slot is short and the section is asked again; after it, the clean items fill
+// the slot first and a held item comes back only for a place nothing else can take. The other
+// slot is never touched.
 const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const textsOf = (...values) => values.flat().filter((t) => typeof t === 'string');
 
@@ -643,27 +643,29 @@ const CROSS_HOLD = {
   social_studies: { held: ['social_studies.C.Q5', 'social_studies.D.Q7'], against: 'social_studies.A.Q1', rule: sameFact },
 };
 
-// One question once per slot: the same stem (read as tokensOf reads it), or an MCQ with the same
-// options, the same key and a stem three-fifths the same («Which noun is a proper noun?» and
-// «Which word is a proper noun?» over river / Lahore / teacher / city). Two article items share
-// options and key and are still two questions. A re-asked section is written blind, so it often
-// writes the first reply's questions again.
+// One question once per slot: the same stem, and for an MCQ the same options too, compared as
+// written (letter forms, diacritics, digits and case aside; no word dropped, so «silent 'k'»
+// and «silent 'b'» stay two). A re-asked section is written blind, so it often writes the first
+// reply's questions again.
+function plain(text) {
+  let t = String(text == null ? '' : text).normalize('NFC').replace(UR_MARKS, '').toLowerCase();
+  for (const [re, to] of UR_FORMS) t = t.replace(re, to);
+  t = t.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06F0)).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+  return t.split(/[^\p{L}\p{N}]+/u).filter(Boolean).join(' ');
+}
 function sameQuestion(a, b) {
-  const stem = (q) => tokensOf(q.question);
-  const [sa, sb] = [stem(a), stem(b)];
-  if (sa.length && sa.join(' ') === sb.join(' ')) return true;
-  const opts = (q) => (Array.isArray(q.options) ? q.options.map((o) => tokensOf(String(o).replace(OPTION_HEAD, '')).join(' ')).sort().join('|') : '');
-  if (!opts(a) || opts(a) !== opts(b) || tokensOf(keyText(a)).join(' ') !== tokensOf(keyText(b)).join(' ')) return false;
-  const [A, B] = [new Set(sa), new Set(sb)];
-  const both = [...A].filter((w) => B.has(w)).length;
-  return both / new Set([...A, ...B]).size >= 0.6;
+  const stem = plain(a.question);
+  if (!stem || stem !== plain(b.question)) return false;
+  const opts = (q) => (Array.isArray(q.options) ? q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).sort().join('|') : '');
+  return opts(a) === opts(b);
 }
 
 /**
  * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
  *
  * P is one subject of a pattern (patterns.get(id).subjects[key]); scope is
- * { kind: 'fde' | 'chapters' | 'pages', chapters, pages }. Never throws.
+ * { kind: 'fde' | 'chapters' | 'pages', chapters, pages }. `opts.reasked` is true once the
+ * engine's one re-ask has run (a held item may then fill a place nothing else takes). Never throws.
  */
 function applyLayout(examJson, P, scope, opts = {}) {
   const src = examJson && typeof examJson === 'object' ? clone(examJson) : {};
@@ -680,7 +682,6 @@ function applyLayout(examJson, P, scope, opts = {}) {
     bySlot.forEach((list) => { list.length = 0; });
     unplaced = 0;
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
-    const seen = new Map(); // slot → items the reply wrote for it
     const fallback = new Map(); // slot → held items, in reply order
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
@@ -691,7 +692,6 @@ function applyLayout(examJson, P, scope, opts = {}) {
       return false;
     };
     const offer = (slot, q) => {
-      seen.set(slot.slot, (seen.get(slot.slot) || 0) + 1);
       if (room(slot) && fits(slot, q)) bySlot.get(slot.slot).push(q);
       else unplaced += 1;
     };
@@ -712,13 +712,13 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (slot) offer(slot, entry.q);
       else unplaced += 1;
     }
-    // A held item comes back only when the reply wrote more than the slot holds (the re-asked
-    // section's items appended to the first reply's, or extras): the clean ones have had their
-    // turn, and a paper with a repeat beats no paper. On the first reply it stays out, so the slot
-    // is short and the section is asked again.
+    // A held item comes back only after the one re-ask (the engine says so, `opts.reasked`): the
+    // clean items, the re-asked section's among them, have had their turn, and a paper with a
+    // repeat beats no paper. Before it, the held item stays out, so the slot is short and the
+    // section is asked again.
+    if (!opts.reasked) return;
     fallback.forEach((list, id) => {
       const slot = slots.find((s) => s.slot === id);
-      if ((seen.get(id) || 0) <= slot.generate) return;
       for (const q of list) {
         if (!room(slot)) break;
         if (bySlot.get(id).some((p) => sameQuestion(p, q))) continue;

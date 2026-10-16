@@ -107,33 +107,16 @@ const INNOCENT = [
   },
 ];
 
-// The recorded Q5/Q7 items that ask what a Q1 MCQ already tests, and fictional stand-ins.
-const REPEATS = [
-  ['Short Questions', 'شہریت کسے کہتے ہیں؟ مختصر تعریف کریں۔'],
-  ['Short Questions (2)', 'آزادی اظہار کا نظریہ کس نے پیش کیا؟'],
-  ['Short Questions (2)', 'امن کا عالمی دن کب منایا جاتا ہے؟'],
-  ['Short Questions (2)', 'انسانی حقوق کے عالمی اعلامیے (UDHR) کا آرٹیکل 19 کس بارے میں ہے؟'],
-];
-const FRESH = [
-  { question: 'محلے کی صفائی میں ایک بچہ کیا کردار ادا کر سکتا ہے؟ دو طریقے لکھیں۔', answer: 'کوڑا کوڑے دان میں ڈالنا اور گلی میں پودے لگانا۔', scheme: { accept: [], points: [{ kind: 'K', text: 'کوڑا کوڑے دان میں', marks: 1.5 }, { kind: 'K', text: 'پودے لگانا', marks: 1.5 }] } },
-  { question: 'پاکستان کا قومی پھول کون سا ہے؟', answer: 'چنبیلی۔' },
-  { question: 'پاکستان کا قومی کھیل کون سا ہے؟', answer: 'ہاکی۔' },
-  { question: 'پاکستان کا قومی پرندہ کون سا ہے؟', answer: 'چکور۔' },
-];
-
 describe('Social Studies: an item that names a religious text is held, and the paper fails', () => {
   test('the recorded paper with three Farewell Sermon items fails PATTERN_SHORT_SLOT on all three slots', async () => {
     replay(SST_REAL());
     const err = await Gen.generatePatternExam(ARGS('social_studies')).catch((e) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err.code).toBe('PATTERN_SHORT_SLOT');
-    // One Sermon item per slot, plus the Q5/Q7 items that ask a fact a Q1 MCQ already tests
-    // (held by the layout since round 9: «شہریت کسے کہتے ہیں؟» in Q5, three in Q7; the re-ask
-    // returns the same reply, so nothing new can take their places).
     expect(err.shortfall).toEqual(expect.arrayContaining([
       { slot: 'social_studies.A.Q1', missing: 1 },
-      { slot: 'social_studies.C.Q5', missing: 1 + 1 },
-      { slot: 'social_studies.D.Q7', missing: 1 + 3 },
+      { slot: 'social_studies.C.Q5', missing: 1 },
+      { slot: 'social_studies.D.Q7', missing: 1 },
     ]));
     expect(err.shortfall).toHaveLength(3);
     const drops = logged('[assessment] held item dropped');
@@ -148,12 +131,6 @@ describe('Social Studies: an item that names a religious text is held, and the p
   test('the same paper with clean items in those three places is whole: no near-miss word drops anything', async () => {
     const src = SST_REAL();
     SERMON.forEach(([category, type, i], k) => { src.unseen[category][type][i] = INNOCENT[k]; });
-    // The recorded Q5/Q7 items that re-ask a Q1 fact are held by the layout (round 9), so they
-    // are swapped for items that ask something Q1 does not.
-    REPEATS.forEach(([type, stem], k) => {
-      const list = src.unseen.subjective[type];
-      list[list.findIndex((q) => q.question === stem)] = { ...list.find((q) => q.question === stem), ...FRESH[k] };
-    });
     replay(src);
     const out = await Gen.generatePatternExam(ARGS('social_studies'));
     expect(logged('[assessment] held item dropped')).toEqual([]);
