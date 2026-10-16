@@ -7734,6 +7734,16 @@ ALTER TABLE public.story_pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.story_page_voices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.story_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.story_events ENABLE ROW LEVEL SECURITY;
+-- story_page_unvoiced (mirror of web_quiz_story_unvoiced.sql): a page a child opened before it had a voice
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'story_events_event_check' AND conrelid = 'public.story_events'::regclass
+                 AND pg_get_constraintdef(oid) LIKE '%story_page_unvoiced%') THEN
+    ALTER TABLE public.story_events DROP CONSTRAINT IF EXISTS story_events_event_check;
+    ALTER TABLE public.story_events ADD CONSTRAINT story_events_event_check
+      CHECK (event IN ('story_opened', 'story_page_listened', 'story_page_read', 'story_questions_done', 'story_done', 'story_shared', 'story_page_unvoiced'));
+  END IF;
+END $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- student_videos.language (mirror of web_quiz_student_videos_language.sql): the lesson's language, NULL = unknown

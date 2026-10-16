@@ -585,7 +585,10 @@ describe('the class report of a story send', () => {
     const [, text] = WhatsAppService.sendMessage.mock.calls[0];
     expect(text).toMatch(/https:\/\/quiz\.example\.com\/r\/[A-Za-z0-9._%-]+/);
   });
-  test('a page with no voice yet (the reader\'s miss row) is never a page listened: not in the counts, not on a child\'s line, not on the web report', async () => {
+  test.each([
+    ['story_page_listened {miss:true}', (ev, child, n) => ev(child, 'story_page_listened', n, { miss: true })],
+    ['story_page_unvoiced', (ev, child, n) => ev(child, 'story_page_unvoiced', n)],
+  ])('a page with no voice yet (the reader\'s %s row) is never a page listened: not in the counts, not on a child\'s line, not on the web report', async (_, unvoiced) => {
     await Stories.share({ uid: TEACHER, storyId: B(1) });
     const sc = db.quiz_share_codes[0];
     const q = db.quizzes[0];
@@ -597,9 +600,8 @@ describe('the class report of a story send', () => {
     const ev = (child, event, page_n, data = {}) => ({ child_id: child, book_id: B(1), page_n, event, data, at: ago(10) });
     db.story_events.push(
       ev(KID_A, 'story_opened', null), ev(KID_A, 'story_page_listened', 1),
-      ev(KID_A, 'story_page_listened', 2, { miss: true }), ev(KID_A, 'story_page_listened', 3, { miss: true }),
-      ev(KID_B, 'story_opened', null), ev(KID_B, 'story_page_listened', 1, { miss: true }), ev(KID_B, 'story_page_listened', 2, { miss: true }),
-      ev(KID_B, 'story_page_listened', 3, { miss: true }),
+      unvoiced(ev, KID_A, 2), unvoiced(ev, KID_A, 3),
+      ev(KID_B, 'story_opened', null), unvoiced(ev, KID_B, 1), unvoiced(ev, KID_B, 2), unvoiced(ev, KID_B, 3),
     );
     const Data = require('../../../shared/services/quiz/teacher-report.data');
     const r = await Data.quizReport(TEACHER, q.id);
