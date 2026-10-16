@@ -131,6 +131,54 @@ const UX_STRINGS = {
     ur: 'مدد درکار',
   },
 
+  // ─── the registration Flow invite (services/registration-invite.service.js) ──
+  // One message, three cases: a new person, a registered teacher fixing her details, and an
+  // unregistered person who reached a feature that needs her school. Header ≤ 60 and button
+  // ≤ 20 CODE POINTS (WhatsApp rejects the whole message otherwise). No footer. The Urdu is
+  // impersonal or the polite imperative, never a second-person verb that picks her gender,
+  // and opens with Urdu so the paragraph lays out right to left.
+  registrationInviteNewHeader: {
+    en: 'Welcome to NIETE',
+    ur: 'خوش آمدید!',
+  },
+  registrationInviteNewBody: {
+    en: 'Let\'s set up your account: your name, your school and the classes you teach. It takes about a minute.',
+    ur: 'آئیے آپ کا اکاؤنٹ بنائیں: آپ کا نام، آپ کا اسکول اور آپ کی جماعتیں۔ اس میں تقریباً ایک منٹ لگے گا۔',
+  },
+  registrationInviteUpdateHeader: {
+    en: 'Update your details',
+    ur: 'اپنی تفصیلات درست کریں',
+  },
+  registrationInviteUpdateBody: {
+    en: 'Correct your name, school or classes. What you send replaces what I have on file.',
+    ur: 'اپنا نام، اسکول یا جماعتیں درست کریں۔ نئی معلومات پرانی کی جگہ لے لیں گی۔',
+  },
+  registrationInviteSchoolHeader: {
+    en: 'First, your school',
+    ur: 'پہلے آپ کا اسکول',
+  },
+  registrationInviteSchoolBody: {
+    en: 'To do this I need to know your school. Set up your account first — it takes about a minute.',
+    ur: 'اس کے لیے مجھے آپ کا اسکول معلوم ہونا ضروری ہے۔ پہلے اپنا اکاؤنٹ بنائیں — اس میں تقریباً ایک منٹ لگے گا۔',
+  },
+  registrationInviteButton: {
+    en: 'Get started',
+    ur: 'شروع کریں',
+  },
+  registrationInviteUpdateButton: {
+    en: 'Update details',
+    ur: 'تفصیلات درست کریں',
+  },
+  // A refused Flow send: never silence. /register is isolated in Urdu so it is not painted "register/".
+  registrationInviteRetry: {
+    en: 'I couldn\'t open the form just now. Please type /register to try again.',
+    ur: 'فارم ابھی نہیں کھل سکا۔ دوبارہ کوشش کے لیے ⁦/register⁩ لکھیں۔',
+  },
+  registrationInviteUnavailable: {
+    en: 'Registration isn\'t available right now. Please try again a little later.',
+    ur: 'رجسٹریشن ابھی دستیاب نہیں۔ براہ کرم کچھ دیر بعد کوشش کریں۔',
+  },
+
   // ─── /roster — the class-register command ─────────────────────────────────
   // Every string on this command was an English literal, including all four
   // Flow chrome fields, on a deployment where the leaders who use it read Urdu

@@ -36,6 +36,8 @@ const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 
 const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
 const { logToFile, logError } = require('../utils/logger');
 const { isRegistered } = require('../utils/registration-status');
+const { isRegistrationIntent } = require('../utils/registration-intent');
+const RegistrationInvite = require('../services/registration-invite.service');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
 const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // the one door to the catalogue
 const { promptAction } = require('../config/conversational-components'); // bd-oak77.13: the one ice-breaker map
@@ -307,7 +309,7 @@ async function quizInterceptStep(name, fn) {
   }
 }
 
-async function handleTextMessage(message, from, messageBody, user = null) {
+async function routeTextMessage(message, from, messageBody, user = null, turn = {}) {
   logToFile(`Processing TEXT message: ${messageBody}`);
 
   // bd-5ls6qy.7 — "Menu/" (a command typed back as RTL text displayed it), "/ menu", or a copied
@@ -481,6 +483,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   } else {
     logToFile('Using provided user object', { userId: user.id, phoneNumber: from });
   }
+  // The account this turn is about, for the after-reply registration offer (handleTextMessage).
+  // Set HERE, after the quiz and share-link intercepts above: a parent answering a child's quiz
+  // has been answered before this line and is never offered the teachers' form.
+  turn.user = user;
+  turn.lookupFailed = userLookupFailed;
 
   // NOTE: Funnel tracking (chat start) is handled centrally in whatsapp-bot.js
   // before routing to this handler
@@ -580,8 +587,8 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // bd-2447: `/register` is exempt from the pending-name intercept below —
   // otherwise the literal text "/register" gets swallowed as a name answer.
   // It falls through to the /register command branch, which always opens the
-  // registration Flow.
-  const isRegisterCommand = (messageBody || '').trim().toLowerCase() === '/register';
+  // registration Flow. Every way of asking ("Register me", "/registered", رجسٹر …) is.
+  const isRegisterCommand = isRegistrationIntent(messageBody);
 
   if (user && !isRegisterCommand) {
     try {
@@ -643,6 +650,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
   let responseLanguage = currentLanguage;
   let languageSwitched = false;
+  // Read at the END of the turn, by when the language resolver below has had its say.
+  turn.languageOf = () => responseLanguage;
+
+  // Every door that sends the registration Flow comes through here: the one sender
+  // (services/registration-invite.service.js) owns the token, the copy and the fallbacks, and
+  // the turn is marked so the after-reply offer does not send it a second time.
+  const inviteToRegister = async (reason) => {
+    turn.invited = true;
+    typingController.stop();
+    return RegistrationInvite.sendRegistrationInvite({ user, phone: from, language: responseLanguage, reason });
+  };
 
   if (overrideLanguage && overrideLanguage !== currentLanguage) {
     // Update user's language preference in database and cache using user ID
@@ -846,6 +864,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       return;
     }
 
+    // Not registered: the form first. /portal used to hand her a portal setup link for an
+    // account with no name, role or school behind it.
+    if (!isRegistered(user)) {
+      await inviteToRegister('portal');
+      return;
+    }
+
     try {
       const response = await handlePortalCommand(user, from);
 
@@ -967,6 +992,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // by a test; this branch only dispatches.
   if (trimmedMessage === '/roster') {
     if (await redirectToApp('classes', 'command')) return;
+    // A register belongs to a school: an unregistered adult registers (and picks her school) first.
+    if (user && !isRegistered(user)) {
+      await inviteToRegister('school_feature');
+      return;
+    }
     const { handleRosterCommand } = require('./roster-command');
     await handleRosterCommand({ user, from, typingController, noAccountCopy });
     return;
@@ -2016,107 +2046,25 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     return; // Exit early
   }
 
-  // Check for /register command
-  if (messageBody === '/register' || messageBody.toLowerCase() === '/register') {
-    logToFile('📝 Register command detected');
-    typingController.stop();
-
-    // Already registered on this branch = has a first_name (main keys registration on first_name).
-    // bd-2kxxa.1: computed, not an early return — the Flow below is how a registered coach fixes her name.
-    const isAlreadyRegistered = isRegistered(user);
-
-    // bd-2447: conversational/deferred registration is DEPRECATED (matches the
-    // main Rumi bot). /register ALWAYS opens the registration Flow when one is
-    // configured — regardless of feature count, registration_pending_name, or
-    // any onboarding gate, and even when the users row doesn't exist yet.
-    //
-    // bd-2kxxa.1 (R162): ...and regardless of registration_completed. A
-    // registered user re-opening the Flow is how she CORRECTS her details —
-    // e.g. a coach issued a number whose previous holder's name is still on
-    // the row. Replying "already registered" here left her no way to fix it.
-    // The submission handler (flow-response.handler.js handleRegistrationFlow)
-    // overwrites first_name/name and only writes role when a valid one is
-    // submitted, so re-running the Flow on a completed account is safe.
-    //
-    // The legacy recovery/guide paths below only remain as fallbacks for
-    // deployments with no REGISTRATION_FLOW_ID (or a failed Flow send).
-    const REGISTRATION_FLOW_ID = process.env.REGISTRATION_FLOW_ID || '';
-    if (REGISTRATION_FLOW_ID) {
-      try {
-        await WhatsAppService.sendFlow(from, {
-          flowId: REGISTRATION_FLOW_ID,
-          flowToken: user?.id || from,
-          header: isAlreadyRegistered ? 'Update your details' : 'Welcome',
-          body: isAlreadyRegistered
-            ? 'Correct your name or details — this replaces what I have on file.'
-            : 'Quick setup — tell us a little about you.',
-          footer: 'Powered by NIETE',
-          buttonText: 'Get started',
-        });
-        if (isAlreadyRegistered) {
-          logToFile('📝 Registration flow re-opened from /register for an already-registered user (details update)', {
-            userId: user?.id,
-            phoneNumber: from,
-            currentFirstName: user?.name || null,
-          });
-        } else {
-          logToFile('📝 Registration flow sent from /register command', { userId: user?.id, phoneNumber: from });
-        }
-        return;
-      } catch (error) {
-        logToFile('⚠️ Registration flow send failed from /register — falling back to legacy paths', {
-          userId: user?.id,
-          error: error.message,
-        });
-        // fall through to the legacy recovery/guide paths below
-      }
-    }
-
-    // Legacy path (no REGISTRATION_FLOW_ID, or the Flow send failed): a completed
-    // account has nothing to recover, so confirm and stop here.
-    if (isAlreadyRegistered) {
-      const known = firstNameOf(user) || 'there';
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${known}! What would you like to do next?`);
-      return;
-    }
-
-    // Check if user has features but missed registration (recovery path)
-    // This handles users who used features but never got asked for name
-    if (user?.id) {
-      const featureCount = await FeatureRegistrationService.countUserFeatures(user.id);
-      logToFile('📝 Checking feature count for recovery registration', {
-        userId: user.id,
-        featureCount,
-        phoneNumber: from
-      });
-
-      if (featureCount > 0) {
-        // User has features but never got registered - trigger recovery registration
-        logToFile('📝 Triggering recovery registration for user with features', {
-          userId: user.id,
-          featureCount,
-          phoneNumber: from
-        });
-
-        await FeatureRegistrationService.sendNameQuestion(
-          user.id,
-          from,
-          responseLanguage,
-          'text'
-        );
-        return;
-      }
-    }
-
-    // New registration happens after first feature completion
-    // Guide user to use a feature instead (only for users with 0 features)
-    const guideMessages = {
-      en: "I'll ask for your name after you try one of my features! You can:\n\n• Request a *lesson plan* - just tell me a topic\n• Start a *reading assessment* - type /reading test\n• Get *coaching feedback* - send me your classroom audio\n• Create a *video* - type /video\n\nWhat would you like to try?",
-      ur: "میں آپ کا نام پوچھوں گی جب آپ میری کوئی feature استعمال کریں گے!\n\n• *لیسن پلان* کی درخواست کریں - بس موضوع بتائیں\n• *ریڈنگ ٹیسٹ* شروع کریں - \u2066/reading test\u2069 ٹائپ کریں\n• *کوچنگ فیڈبیک* حاصل کریں - اپنی کلاس کی آڈیو بھیجیں\n• *ویڈیو* بنائیں - \u2066/video\u2069 ٹائپ کریں\n\nآپ کیا آزمانا چاہیں گے؟"
-    };
-
-    await WhatsAppService.sendMessage(from, guideMessages[responseLanguage] || guideMessages.en);
-    return; // Exit early
+  // ============================================================
+  // REGISTRATION: /register, and every other way of asking
+  // ============================================================
+  // /register ALWAYS opens the registration Flow — regardless of feature count,
+  // registration_pending_name or any onboarding gate, and regardless of
+  // registration_completed: a registered teacher re-opening it is how she CORRECTS her details
+  // (the invite sends her the "update your details" copy).
+  //
+  // And not only the exact text. In production (16 Sep – 16 Oct 2026) 25 teachers sent a bare
+  // "Register", 3 "Register me", and 16 a slash form one character off ("/registered",
+  // "/ register", "Type/register"); none got a form. utils/registration-intent.js says which
+  // messages are a request — a whitelist, so "attendance register" and "registration number"
+  // are not. The old substring keyword branch further down, with its "I'll ask for your name
+  // after you try one of my features!", is gone: the form is the only way to register.
+  if (isRegistrationIntent(messageBody)) {
+    const exact = messageBody.trim().toLowerCase() === '/register';
+    logToFile('📝 Registration requested', { userId: user?.id, phoneNumber: from, exact });
+    await inviteToRegister(exact ? 'register_command' : 'register_intent');
+    return;
   }
 
   // Check for /language command (December 2025 - Language Expansion)
@@ -2202,6 +2150,12 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       await WhatsAppService.sendMessage(from,
         noAccountCopy('Sorry, I could not find your account. Please send me a message first.'));
       typingController.stop();
+      return;
+    }
+
+    // A class needs a school: an unregistered adult registers (and picks her school) first.
+    if (!isRegistered(user)) {
+      await inviteToRegister('school_feature');
       return;
     }
 
@@ -2408,6 +2362,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   if (user?.id && AttendanceRouter.detect(messageBody).detected) {
     if (await redirectToApp('attendance', 'keyword')) return;
+    // Attendance is a school's: an unregistered adult registers (and picks her school) first.
+    if (!isRegistered(user)) {
+      await inviteToRegister('school_feature');
+      return;
+    }
     typingController.stop();
     // One door, in attendance-entry.service: it plans through the router and
     // then runs the ONE decision switch, the same one the typed-answer path
@@ -2418,58 +2377,6 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     return;
   }
 
-  // ============================================================
-  // REGISTRATION KEYWORD DETECTION
-  // ============================================================
-  const registrationKeywords = ['register', 'registration', 'sign up', 'رجسٹر', 'تسجيل', 'registrar'];
-  const registrationRequested = registrationKeywords.some(kw =>
-    messageBody.toLowerCase().includes(kw.toLowerCase())
-  );
-
-  if (registrationRequested) {
-    typingController.stop();
-
-    // Registered = a completed run OR a name already on the row.
-    // See shared/utils/registration-status.js for why the flag alone is not the test.
-    if (isRegistered(user)) {
-      // User already registered - confirm and guide to menu
-      await WhatsAppService.sendMessage(from, `✅ You're already registered, ${firstNameOf(user) || 'there'}! Type /menu to see what I can help you with.`);
-      return;
-    }
-
-    // Check if user has features but missed registration (recovery path)
-    if (user?.id) {
-      const featureCount = await FeatureRegistrationService.countUserFeatures(user.id);
-
-      if (featureCount > 0) {
-        // User has features but never got registered - trigger recovery registration
-        logToFile('📝 Recovery registration for user with features', {
-          userId: user.id,
-          featureCount,
-          phoneNumber: from
-        });
-
-        await FeatureRegistrationService.sendNameQuestion(
-          user.id,
-          from,
-          responseLanguage,
-          'text'
-        );
-        return;
-      }
-    }
-
-    // User has no features - guide them to use a feature first
-    logToFile('🔐 User requested registration via keyword - guiding to features', { userId: user?.id, keyword: messageBody });
-
-    const guideMessages = {
-      en: "I'll ask for your name after you try one of my features! You can:\n\n• Request a *lesson plan* - just tell me a topic\n• Start a *reading assessment* - type /reading test\n• Get *coaching feedback* - send me your classroom audio\n• Create a *video* - type /video\n\nWhat would you like to try?",
-      ur: "میں آپ کا نام پوچھوں گی جب آپ میری کوئی feature استعمال کریں گے!\n\n• *لیسن پلان* کی درخواست کریں - بس موضوع بتائیں\n• *ریڈنگ ٹیسٹ* شروع کریں - \u2066/reading test\u2069 ٹائپ کریں\n• *کوچنگ فیڈبیک* حاصل کریں - اپنی کلاس کی آڈیو بھیجیں\n• *ویڈیو* بنائیں - \u2066/video\u2069 ٹائپ کریں\n\nآپ کیا آزمانا چاہیں گے؟"
-    };
-
-    await WhatsAppService.sendMessage(from, guideMessages[responseLanguage] || guideMessages.en);
-    return;
-  }
 
   // ============================================================
   // CAPABILITY INQUIRY DETECTION
@@ -2805,6 +2712,41 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   } finally {
     // CRITICAL: Always stop typing indicator, even if function exits early or throws
     typingController.stop();
+  }
+}
+
+/**
+ * A text message, answered — and then, for an adult who has never been offered it, the
+ * registration form.
+ *
+ * Until this a brand-new number got no welcome and no form: her message was answered and
+ * nothing else happened (6,376 adults on production had messaged and never registered,
+ * 2026-10-16). The operator's rule: answer what she asked FIRST, then offer the form once;
+ * again only when she reaches a feature that needs her school (those doors invite her
+ * themselves). Once-only lives in the invite service (users.registration_started_at,
+ * claimed atomically), so this and the after-feature trigger cannot both send it.
+ *
+ * Not offered: to a registered teacher; to a child's handset (student-ingress lets a child's
+ * /video and quiz traffic through to this handler); when the account lookup failed (an outage
+ * is not a new person); in a turn that already sent the Flow; or when the routing threw.
+ * The offer itself never breaks the turn.
+ */
+async function handleTextMessage(message, from, messageBody, user = null) {
+  const turn = { user: null, lookupFailed: false, invited: false, languageOf: null };
+  await routeTextMessage(message, from, messageBody, user, turn);
+  await offerRegistrationAfterReply(turn, from);
+}
+
+async function offerRegistrationAfterReply(turn, from) {
+  try {
+    const account = turn.user;
+    if (!account || !account.id || turn.lookupFailed || turn.invited) return;
+    if (account.persona === 'student') return;
+    if (isRegistered(account)) return;
+    const language = (typeof turn.languageOf === 'function' && turn.languageOf()) || account.preferred_language;
+    await RegistrationInvite.offerRegistrationOnce({ user: account, phone: from, language, reason: 'first_reply' });
+  } catch (err) {
+    logToFile('⚠️ after-reply registration offer failed (non-fatal)', { error: err.message }, 'warn');
   }
 }
 
