@@ -191,6 +191,36 @@ describe('lantern + shelf', () => {
     expect(p.html()).toContain('آج جگنو کے ساتھ');
   });
 
+  // The story tile names the story when the server gives it a title (bot titleFor, the one title home); the page
+  // renders whatever title a tile carries and decides nothing. No title: today's label, byte for byte.
+  const TILE_BASE = '<a class="wqp-tile" data-shelf="1" data-pid="p-1" data-nx="new" href="/c/abc?kid=0000000000000001&amp;room=story&amp;pid=p-1">' +
+    '<span class="wqp-new">NEW</span><i aria-hidden="true">📖</i><span>This week&#39;s story</span></a>';
+  const tileOf = (h) => (/<a class="wqp-tile" data-shelf="1"[\s\S]*?<\/a>/.exec(h) || [])[0];
+
+  test('a story tile with a title: the tile names it (EN), escaped; the lantern names it too', () => {
+    const p = page({ ...BOOTS.done, play: play({ kind: 'story', title: 'The Kite', pid: 'p-1' }, [{ id: 'week_story', pid: 'p-1', nx: 'new', title: 'The Kite' }]) });
+    expect(tileOf(p.html())).toContain('<span>The Kite</span>');
+    expect(tileOf(p.html())).not.toContain('This week');
+    expect(p.html()).toContain('A new story is here: The Kite');
+    const x = page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'seen', title: '<b>Kite & "Co"</b>' }]) });
+    expect(tileOf(x.html())).toContain('<span>&lt;b&gt;Kite &amp; &quot;Co&quot;&lt;/b&gt;</span>');
+  });
+
+  test('UR: the tile\'s title isolated as the deck\'s {title} (U+2068 … U+2069), like the lantern line', () => {
+    const p = page({ ...BOOTS.done, lang: 'ur', play: play({ kind: 'story', title: 'لال پتنگ', pid: 'p-1' }, [{ id: 'week_story', pid: 'p-1', nx: 'new', title: 'لال پتنگ' }]) });
+    expect(tileOf(p.html())).toContain('<span>\u2068لال پتنگ\u2069</span>');
+    expect(tileOf(p.html())).not.toContain('اس ہفتے کی کہانی');
+    expect(p.html()).toContain('ایک نئی کہانی آ گئی ہے: \u2068لال پتنگ\u2069');
+  });
+
+  test('GOLDEN: no title (absent or null) -> the tile is today\'s label, byte for byte', () => {
+    const chHref = (/href="([^"]*)&amp;room=story/.exec(page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new' }]) }).html()) || [])[1];
+    const want = TILE_BASE.replace('/c/abc?kid=0000000000000001', chHref);
+    expect(tileOf(page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new' }]) }).html())).toBe(want);
+    const none = page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new', title: null }]) }).html();
+    expect(none).toBe(page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new' }]) }).html());
+  });
+
   const INST = { first: true, lantern: null, shelf: [{ id: 'numbers', nx: 'seen' }], install: true, doors: ['hub_first', 'install'] };
   const SEEN_TODAY = () => ({ wqp_hv_day: String(Math.floor((Date.now() + 5 * 3600000) / 86400000)) });
   const offer = (p, outcome = 'accepted') => {
@@ -389,6 +419,15 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     await p.flush();
     expect(p.html()).toContain('data-shelf="1"');
     expect(p.html()).toContain('&amp;room=story&amp;pid=en.read.1.story01');
+  });
+  // fresh profile: no wq_dv cookie, nothing stored; the unlock's `play` carries a titled story tile.
+  test('fresh profile (no cookie, no storage): the story tile from the unlock names the story', async () => {
+    const titled = { ...PLAY, shelf: [{ id: 'week_story', nx: 'new', pid: 'en.read.1.story01', title: 'The Kite' }, { id: 'numbers', nx: 'seen' }] };
+    const p = firstOpen({ ...BOOTS.done, play: titled }, { playLoaded: true });
+    await p.flush();
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(p.html()).toContain('<span>The Kite</span>');
+    expect(p.html()).not.toContain('This week&#39;s story');
   });
   test('hub-play.js already on the page: drawn at once, nothing loaded', async () => {
     const p = firstOpen({ ...BOOTS.done, play: PLAY }, { playLoaded: true });
