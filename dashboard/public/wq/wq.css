@@ -147,6 +147,9 @@ html[lang=ur] .wq-qtext{font-weight:700;font-size:21px;line-height:2.15}
 /* the inline SVG speaker / bell sit in the box the emoji glyph had */
 .wq-spk svg,.wq-ohear svg,.wq-shear>span:not(.wq-shp) svg,#wq-stim svg{width:1em;height:1em;display:block}
 #wq-stim svg{display:inline-block;vertical-align:-.15em}
+/* the sound kit's marks (wq.js ic()): one em, like the glyph each replaces */
+.wq-i{width:1em;height:1em;flex:0 0 auto;display:inline-block;vertical-align:-.15em}
+.wq-best .wq-i{color:var(--gold)}
 .wq-opts{display:grid;gap:10px}
 .wq-opt{display:flex;align-items:center;gap:12px;min-height:66px;border-radius:18px;border:3px solid transparent;box-shadow:0 4px 0 var(--line);padding:6px 10px;cursor:pointer;font-weight:900;font-size:21px;color:var(--ink);text-align:start;width:100%}
 html[lang=ur] .wq-opt{font-weight:700;font-size:20px;line-height:1.9}

@@ -214,3 +214,115 @@ describe('the results card: the score in Urdu digits on an Urdu card', () => {
     expect(big(p.html())).toBe('3/5');
   });
 });
+
+describe('the remaining marks: inline SVG with the sound kit on the page, today\'s emoji without it', () => {
+  const H = require('./wq-page-harness');
+  // the glyphs this batch replaces (kit on), never the speaker / bell / phone of the fix above
+  const GLYPH = /[\u{1F446}\u{1F64B}\u{1F3EB}\u{1F3C6}\u{1F3E0}\u{1F7E2}⭐✓✗↩▶\u{1F9D2}\u{1F3D8}]/u;
+  // a minimal sound kit: every call a no-op
+  const kit = () => { const J = {}; ['tap', 'correct', 'wrong', 'word', 'sentence', 'streak', 'finish', 'badge', 'dayDot', 'mic', 'stopAll', 'skin', 'autoNext'].forEach((k) => { J[k] = () => {}; }); J.muted = () => false; J.after = () => 0; return J; };
+  const modes = [['kit off', null], ['kit on', kit]];
+  const CHILD = { first: 'Zara', chip: 'c1', animal: 'owl' };
+  const card = (r) => ({ wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [], result: r } });
+  const pick = (re, h) => { const m = re.exec(h); return m ? m[1] : null; };
+
+  test.each([['en', {}], ['ur', {}], ['ur', { ui: { ur2: true } }]])('%s lesson screen (%j): the "how" icons and the play mark', (lang, bootExtra) => {
+    const off = H.page({ lang, bootExtra, video: { url: 'https://r2.test/v.mp4' } });
+    off.wq.video();
+    const how = (h) => (pick(/<ul class="wq-how">([\s\S]*?)<\/ul>/, h) || '').match(/<li><span>([\s\S]*?)<\/span>/g) || [];
+    expect(how(off.html()).map((x) => x.slice(10, -7))).toEqual(['🔊', '👆', '🙋']);
+    expect(off.html()).toContain('<span class="wq-vplay" aria-hidden="true">▶</span>');
+    const on = H.page({ lang, bootExtra, video: { url: 'https://r2.test/v.mp4' }, wqj: kit() });
+    on.wq.video();
+    const icons = how(on.html());
+    expect(icons.length).toBe(3);
+    icons.forEach((x) => expect(x).toMatch(/<svg[^>]*aria-hidden="true"/));
+    expect(icons[0]).toContain('M4 9h4l5-4v14l-5-4H4z'); // the speaker is the same SVG as the question's
+    expect(on.html()).toMatch(/<span class="wq-vplay" aria-hidden="true"><svg/);
+    expect(on.html()).not.toMatch(GLYPH);
+  });
+
+  test('the live line: a green dot emoji off, an SVG dot on', () => {
+    const off = H.page({ lang: 'en', live: { now: 7 } });
+    off.wq.landing();
+    expect(pick(/<p class="wq-proof">([\s\S]*?)<\/p>/, off.html())).toBe('🟢 7 classmates are playing right now — join them!');
+    const on = H.page({ lang: 'en', live: { now: 7 }, wqj: kit() });
+    on.wq.landing();
+    expect(pick(/<p class="wq-proof">([\s\S]*?)<\/p>/, on.html())).toMatch(/^<svg[\s\S]*<\/svg>7 classmates/);
+  });
+
+  test('a true/false item: ✓ / ✗ off, SVG on', () => {
+    const tf = [{ ...Q1, type: 'tf', options: [{ slot: 'A', text: 'True' }, { slot: 'B', text: 'False' }], correct_slot: 'A' }];
+    const tfi = (h) => (h.match(/<span class="wq-tfi" aria-hidden="true">([\s\S]*?)<\/span>/g) || []).map((x) => x.replace(/^<span[^>]*>|<\/span>$/g, ''));
+    const off = H.page({ lang: 'en', questions: tf });
+    off.wq.question(0, false);
+    expect(tfi(off.html())).toEqual(['✓', '✗']);
+    const on = H.page({ lang: 'en', questions: tf, wqj: kit() });
+    on.wq.question(0, false);
+    const t = tfi(on.html());
+    expect(t.length).toBe(2);
+    t.forEach((x) => expect(x).toMatch(/^<svg/));
+    expect(on.html()).not.toMatch(GLYPH);
+  });
+
+  test.each(['en', 'ur'])('%s card: the school league button, the invite ask (high and low), Watch more, the next video tile', (lang) => {
+    const r = { card: { first: 'Zara', animal: 'owl', correct: 7, total: 9, stars: 7 }, challenge_code: 'CHAL12', score: { correct: 7, total: 9 }, next: { vid: 'v2', title: 'Water' } };
+    const lo = { ...r, card: { ...r.card, correct: 2 }, score: { correct: 2, total: 9 } };
+    const o = { lang, bootExtra: { invite_ask: 'on' }, video: { url: 'https://r2.test/v.mp4' } };
+    const off = H.page({ ...o, store: card(r) }).html();
+    expect(off).toContain(lang === 'en' ? 'id="wq-schools">🏫 School league<' : 'id="wq-schools">🏫 اسکولوں کی لیگ<');
+    expect(pick(/<div class="wq-ask"><h2>([\s\S]*?)<\/h2>/, off)).toMatch(/^🏆 /);
+    expect(off).toContain('<span class="wq-ani" aria-hidden="true">🏠</span>');
+    expect(off).toContain('<span class="wq-ani" aria-hidden="true">🧒</span>');
+    expect(off).toContain('<span class="wq-ani" aria-hidden="true">🏘️</span>');
+    expect(off).toContain('<span class="wq-vtile wq-vt1" aria-hidden="true">▶</span>');
+    expect(pick(/<div class="wq-ask"><h2>([\s\S]*?)<\/h2>/, H.page({ ...o, store: card(lo) }).html())).toMatch(/^🏠 /);
+    const on = H.page({ ...o, store: card(r), wqj: kit() }).html();
+    expect(on).toMatch(/id="wq-schools"><svg/);
+    expect(pick(/<div class="wq-ask"><h2>([\s\S]*?)<\/h2>/, on)).toMatch(/^<svg/);
+    expect(on).toMatch(/id="wq-more"><svg/);
+    expect(on).not.toMatch(GLYPH);
+    const onLo = H.page({ ...o, store: card(lo), wqj: kit() }).html();
+    expect(pick(/<div class="wq-ask"><h2>([\s\S]*?)<\/h2>/, onLo)).toMatch(/^<svg/);
+    expect(onLo).not.toMatch(GLYPH);
+  });
+
+  test('a new best: ⭐ off, an SVG star on', () => {
+    const st = card({ card: { first: 'Omar', animal: 'owl', practice: true, kept: { correct: 3, total: 5 }, correct: 5, total: 5, best: { correct: 4, total: 5 } } });
+    const best = (p) => { p.wq.card(); return pick(/<div class="wq-banner wq-best">([\s\S]*?)<\/div>/, p.html()); };
+    expect(best(H.page({ lang: 'en', store: st }))).toMatch(/ ⭐$/);
+    const on = best(H.page({ lang: 'en', store: st, wqj: kit() }));
+    expect(on).toMatch(/<\/svg>$/);
+    expect(on).not.toMatch(GLYPH);
+  });
+
+  test('the home sheet: 🏠 off, an SVG house on; the top bar\'s sound toggle and home button stay as today', () => {
+    for (const [, k] of modes) {
+      const p = H.page({ lang: 'en', store: { wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [] } }, bootExtra: { nav: { home: true } }, questions: [Q1, Q2], ...(k ? { wqj: k() } : {}) });
+      p.wq.question(0, false);
+      expect(p.html()).toContain('aria-pressed="true">🔔</button>');
+      expect(p.html()).toContain('<span aria-hidden="true">🏠</span><span class="wq-homet">');
+      p.els['#wq-home'].fire('click');
+      const sheet = pick(/<div class="wq-sheetbox"><p>([\s\S]*?)<\/p>/, p.html());
+      expect(sheet).toBeTruthy();
+      if (k) expect(sheet).toMatch(/^<svg/); else expect(sheet).toMatch(/^🏠 /);
+    }
+  });
+
+  test('the peer pulse: the tick is "✓" text off, an SVG on', async () => {
+    const src = H.SRC;
+    expect(src).toContain("t.textContent = pl + ' ✓'");
+    expect(src).toContain("t.innerHTML = esc(pl) + ' ' + IC.check");
+  });
+
+  test('the shipped page source: every remaining mark goes through ic(svg, emoji), outside the WhatsApp share lines', () => {
+    const code = H.SRC.replace(/\/\*[\s\S]*?\*\//g, '').split('\n')
+      .map((l) => l.replace(/^\s*\/\/.*$/, '').replace(/ \/\/ .*$/, ''))
+      .filter((l) => !/chalLine:/.test(l)) // a WhatsApp message: it goes to chat, not to this screen
+      .filter((l) => !/^\s*how: \[\[/.test(l)) // the "how" copy keeps today's emoji: the list draws each through ic()
+      .filter((l) => !/id="wq-snd"|this\.textContent = SOUND|class="wq-home" id="wq-home"/.test(l)) // the top bar: today's, the kit skins it
+      .join('\n');
+    const bare = code.split('\n').filter((l) => GLYPH.test(l.replace(/ic\([^()]*(\([^()]*\))?[^()]*\)/g, '').replace(/t\.textContent = pl \+ ' ✓'/, ''))).map((l) => l.trim().slice(0, 90));
+    expect(bare).toEqual([]);
+  });
+});

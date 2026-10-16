@@ -14,6 +14,24 @@ var WQI = (function () {
   ];
   // Inline SVG marks, never emoji: old Android phones draw newer emoji as empty boxes.
   var SPK = '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>';
+  function ico(body) { return '<svg class="wq-i" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>'; }
+  // With the sound kit on the page (web_quiz_juice) the remaining marks are inline SVG; without it, today's emoji.
+  function ic(svg, emoji) { try { return window.WQJ ? svg : emoji; } catch (e) { return emoji; } }
+  var ICON = {
+    tap: ico('<path d="M9 11V4.5a1.5 1.5 0 0 1 3 0V10m0-1a1.5 1.5 0 0 1 3 0v2m0-1a1.5 1.5 0 0 1 3 0v4a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2l-3-4a1.5 1.5 0 0 1 2.3-2L9 14"/>'),
+    help: ico('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/>'),
+    school: ico('<path d="M3 21h18M5 21V10l7-5 7 5v11M10 21v-5h4v5M12 5V2h3"/>'),
+    trophy: ico('<path d="M7 4h10v5a5 5 0 0 1-10 0z" fill="currentColor"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 14v4M8 21h8"/>'),
+    home: ico('<path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-5h4v5"/>'),
+    kid: ico('<circle cx="12" cy="7" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/>'),
+    street: ico('<path d="M2 20h20M3 20v-8l5-4 5 4v8M13 20v-6l4-3 4 3v6"/>'),
+    live: ico('<circle cx="12" cy="12" r="6" fill="currentColor"/>'),
+    star: ico('<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z" fill="currentColor"/>'),
+    check: ico('<path d="M5 12.5l4.5 4.5L19 7"/>'),
+    cross: ico('<path d="M6 6l12 12M18 6L6 18"/>'),
+    back: ico('<path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/>'),
+    play: ico('<path d="M7 4l13 8-13 8z" fill="currentColor"/>')
+  };
   var BELL = '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z" fill="currentColor"/><path d="M10 21h4"/></svg>';
   var SHAPE_NAMES = { en: ['circle', 'square', 'triangle', 'diamond'], ur: ['دائرہ', 'مربع', 'تکون', 'معین'] };
   var KINDS = {
@@ -359,7 +377,7 @@ var WQI = (function () {
       }).join('') + '</div>';
     } else if (k === 'tf') {
       body = '<div class="wq-tf" role="group">' + o.slice(0, 2).map(function (x, i) {
-        return '<button class="wq-opt wq-tf' + (i ? 'n' : 'y') + '" data-slot="' + esc(x.slot) + '"><span class="wq-tfi" aria-hidden="true">' + (i ? '✗' : '✓') + '</span><span class="wq-lab">' + tex(x.text || (i ? T.no : T.yes)) + '</span></button>';
+        return '<button class="wq-opt wq-tf' + (i ? 'n' : 'y') + '" data-slot="' + esc(x.slot) + '"><span class="wq-tfi" aria-hidden="true">' + ic(i ? ICON.cross : ICON.check, i ? '✗' : '✓') + '</span><span class="wq-lab">' + tex(x.text || (i ? T.no : T.yes)) + '</span></button>';
       }).join('') + '</div>';
     } else if (k === 'order') {
       body = '<p class="wq-small">' + esc(T.orderHelp) + '</p><ol class="wq-seq">' + o.map(function (x, i) {
@@ -493,7 +511,7 @@ var WQI = (function () {
   // "Watch the lesson again": a library question can reopen its lesson video over the question (no answer changes).
   function rewatchHtml(v, T) {
     if (!v || !v.url) return '';
-    return '<button class="wq-btn wq-soft wq-again" id="wq-again" type="button"><span aria-hidden="true">▶</span> ' + esc(T.vAgain || '') + '</button>';
+    return '<button class="wq-btn wq-soft wq-again" id="wq-again" type="button">' + ic(ICON.play, '<span aria-hidden="true">▶</span>') + ' ' + esc(T.vAgain || '') + '</button>';
   }
   function openRewatch(doc, v, T, onClose) {
     var ov = doc.createElement('div');
@@ -535,7 +553,7 @@ var WQI = (function () {
     });
   }
   return { kind: kind, grade: grade, tex: tex, say: say, cleanSvg: cleanSvg, figureHtml: figureHtml, itemHtml: itemHtml, readParts: readParts,
-    rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, optClip: optClip, rewatchHtml: rewatchHtml, openRewatch: openRewatch, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES, SPK: SPK, TEX_SUPPORTED: TEX_SUPPORTED };
+    rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, optClip: optClip, rewatchHtml: rewatchHtml, openRewatch: openRewatch, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES, SPK: SPK, ICON: ICON, ic: ic, TEX_SUPPORTED: TEX_SUPPORTED };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
@@ -565,6 +583,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var PLACE = (BR && BR.place) || null;
   var params = (function () { var o = {}; try { new URLSearchParams(location.search).forEach(function (v, k) { o[k] = v; }); } catch (e) {} return o; })();
 
+  var IC = WQI.ICON, ic = WQI.ic;
   /* ---------------- copy (en + ur). Jugnu speaks one short line per screen. ---------------- */
   var T = {
     en: {
@@ -597,7 +616,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' league table'; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
-      schoolsBtn: '🏫 School league', schoolsT: 'School league', schoolsRule: 'This week · 10 points for playing, up to 10 for your score',
+      schoolsBtn: 'School league', schoolsT: 'School league', schoolsRule: 'This week · 10 points for playing, up to 10 for your score',
       pts: function (n) { return fmtN(n) + (n === 1 ? ' point' : ' points'); }, kidsN: function (n) { return fmtN(n) + (n === 1 ? ' child played' : ' children played'); },
       yourSchool: 'YOUR SCHOOL', moveNew: 'NEW', schoolPlace: function (s, p) { return s + ' is #' + p + ' this week'; },
       sinceY: function (m) { return (m > 0 ? '▲' : '▼') + Math.abs(m) + ' since yesterday'; },
@@ -619,19 +638,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       sharePlayed: function (w, t) { return w + ' played ' + t + '. Your turn!'; },
       // The challenge asked as "who?" (app_settings web_quiz_invite_ask): the head around an isolated score, the play-at-home
       // head below 60%, the three tiles, and the challenge's own first-person words (the friend sees a parent's number as sender).
-      askHead: ['🏆 Who can beat your ', '?'], askLow: '🏠 Play it with someone at home',
+      askHead: ['Who can beat your ', '?'], askLow: 'Play it with someone at home',
       whoHome: 'Someone at home', whoCousin: 'A cousin', whoStreet: 'A friend in my street',
       chalLine: function (w, s, n, t) { return w + ' here! I got ' + s + '/' + n + ' stars on ' + t + '. Can you beat me? 🏆 Tap the link to play:'; },
       chalPlayed: function (w, t) { return w + ' here! I played ' + t + '. Your turn! Tap the link to play:'; },
       moreBtn: 'Watch another video', moreT: 'More videos for you', moreSay: 'Pick a video. Its quiz comes right after.',
-      moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done ✓',
+      moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done',
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
       vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
       offWait: 'Your results will reach your teacher when you are back online.', offDone: 'All done! Your answers are saved on this phone.', tryNow: 'Send now',
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
-      pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right ✓'; },
+      pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right'; },
       liveNow: function (n) { return n + ' classmates are playing right now — join them!'; },
       // how many children of the class finished today (the child's own finish counts them all); never a place, and
       // never a count under 5 ("2 children" tells a child exactly one classmate finished): 1–4 say the one-finisher line
@@ -670,7 +689,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
       finN: function (n) { return urDigits(n) + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
-      schoolsBtn: '🏫 اسکولوں کی لیگ', schoolsT: 'اسکولوں کی لیگ', schoolsRule: 'اس ہفتے · کھیلنے کے ۱۰ پوائنٹس، اسکور کے ۱۰ تک',
+      schoolsBtn: 'اسکولوں کی لیگ', schoolsT: 'اسکولوں کی لیگ', schoolsRule: 'اس ہفتے · کھیلنے کے ۱۰ پوائنٹس، اسکور کے ۱۰ تک',
       pts: function (n) { return urDigits(fmtN(n)) + ' پوائنٹس'; }, kidsN: function (n) { return urDigits(fmtN(n)) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
       yourSchool: 'آپ کا اسکول', moveNew: 'نیا', schoolPlace: function (s, p) { return s + ' اس ہفتے نمبر ' + urDigits(p) + ' پر'; },
       sinceY: function (m) { return 'کل سے ' + urDigits(Math.abs(m)) + (m > 0 ? ' درجے اوپر' : ' درجے نیچے'); },
@@ -690,20 +709,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       revBack: function (n) { return 'سوال \u2066' + urDigits(n) + '\u2069 پر واپس'; },
       todaySub: 'بچوں نے کھیلا', myScores: 'میرے اسکور',
       sharePlayed: function (w, t) { return w + ' نے ' + t + ' کھیلا۔ اب آپ کی باری!'; },
-      askHead: ['🏆 ', ' سے آگے نکلنے کا چیلنج کسے دیں؟'], askLow: '🏠 گھر میں کسی کے ساتھ کھیلیں',
+      askHead: ['', ' سے آگے نکلنے کا چیلنج کسے دیں؟'], askLow: 'گھر میں کسی کے ساتھ کھیلیں',
       whoHome: 'گھر میں کوئی', whoCousin: 'کزن', whoStreet: 'محلے کا دوست',
       // Urdu prose: Urdu digits; the first name (either script) and the topic sit in first-strong isolates.
       chalLine: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
       chalPlayed: function (w, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
       moreBtn: 'ایک اور ویڈیو دیکھیں', moreT: 'آپ کے لیے مزید ویڈیوز', moreSay: 'ایک ویڈیو چنیں۔ اس کے بعد اس کا کوئز آئے گا۔',
-      moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', vchip: 'ویڈیو کوئز', nextT: 'اسی باب کی اگلی ویڈیو', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return urDigits(n) + ' منٹ'; }, doneTag: 'مکمل ✓',
+      moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', vchip: 'ویڈیو کوئز', nextT: 'اسی باب کی اگلی ویڈیو', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return urDigits(n) + ' منٹ'; }, doneTag: 'مکمل',
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
       offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ ٹیچر تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
-      pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + urDigits(n) + ' ٹھیک کیا ✓'; },
+      pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + urDigits(n) + ' ٹھیک کیا'; },
       liveNow: function (n) { return 'ابھی ' + urDigits(n) + ' ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!'; },
       nth: function (n) {
         if (n < 5) return 'آج آپ نے یہ کوئز مکمل کر لیا۔';
@@ -955,7 +974,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var t = document.createElement('div');
     t.className = 'wq-pulse';
     t.setAttribute('aria-hidden', 'true');
-    t.textContent = T.pulse(e.invited ? null : e.first, e.qn);
+    var pl = T.pulse(e.invited ? null : e.first, e.qn);
+    if (window.WQJ) t.innerHTML = esc(pl) + ' ' + IC.check; else t.textContent = pl + ' ✓';
     if (top != null) t.style.top = top + 'px';
     ROOT.appendChild(t);
     // Fixed, so a scroll would slide it over the stem or the options: it goes at the first scroll.
@@ -1367,7 +1387,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     ROOT.appendChild(t);
     setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2600);
   }
-  function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || '⭐') + '</span>'; }
+  function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || ic(IC.star, '⭐')) + '</span>'; }
   function fmtN(n) { return Number(n || 0).toLocaleString('en'); }
   // Joins the non-empty parts with a middle dot, so a missing class label or topic never leaves "NIETE ·".
   function dotJoin() { return Array.prototype.filter.call(arguments, function (x) { return x != null && String(x) !== ''; }).map(esc).join(' · '); }
@@ -1410,7 +1430,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
       (LIVE.class_today >= 5 && !B.challenge ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
       // Classmates with a right answer in the last 2 minutes (a count from the bot's memory); never on a friend's challenge.
-      (LIVE.now >= 5 && !ch ? '<p class="wq-proof">🟢 ' + esc(T.liveNow(LIVE.now)) + '</p>' : '');
+      (LIVE.now >= 5 && !ch ? '<p class="wq-proof">' + ic(IC.live, '🟢 ') + esc(T.liveNow(LIVE.now)) + '</p>' : '');
     render(h, 'M3');
     wireBar();
     wireChPic();
@@ -1800,8 +1820,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
       '<div class="wq-vbox"><video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
       '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button" aria-label="' + esc(T.vT) + '">' +
-      (v.poster ? '' : '<img src="' + IMG + 'hello.webp" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">▶</span></button></div>' +
-      '<ul class="wq-how">' + T.how.map(function (x) { return '<li><span>' + x[0] + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
+      (v.poster ? '' : '<img src="' + IMG + 'hello.webp" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">' + ic(IC.play, '▶') + '</span></button></div>' +
+      '<ul class="wq-how">' + T.how.map(function (x, k) { return '<li><span>' + ic([WQI.SPK, IC.tap, IC.help][k], x[0]) + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
       '<button class="wq-btn wq-go" id="wq-skip">' + esc(T.skip) + '</button>' + vDownload(v);
     render(h, 'M5');
     wireBar();
@@ -2140,7 +2160,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var nxt = -1;
     for (var k = 0; k < N; k++) if (!S.answers[QS[k].qid]) { nxt = k; break; }
     var h = bar(dots(j)) + qRow(j, T.qof(j + 1, N)) +
-      '<div class="wq-revnote" role="note">↩ ' + esc(T.revSay(j + 1)) + '</div>' +
+      '<div class="wq-revnote" role="note">' + ic(IC.back, '↩') + ' ' + esc(T.revSay(j + 1)) + '</div>' +
       '<div class="wq-item wq-review" data-kind="' + WQI.kind(q) + '">' + WQI.itemHtml(q, T, LANG) + '</div>' +
       (why ? '<div class="wq-fb ' + (a.ok ? 'wq-ok' : 'wq-no') + '"><div class="wq-why">' + WQI.tex(why) + '</div></div>' : '') +
       '<button class="wq-btn wq-go" id="wq-revnext" type="button">' + esc(nxt >= 0 ? T.revBack(nxt + 1) : T.next) + '</button>';
@@ -2173,7 +2193,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (SHEET) return;
     SHEET = true;
     ROOT.insertAdjacentHTML('beforeend', '<div class="wq-sheet" id="wq-sheet" role="dialog" aria-modal="true"><div class="wq-sheetbox">' +
-      '<p>🏠 ' + esc(S.queue && S.queue.length ? T.homeSaving : T.homeSure) + '</p>' +
+      '<p>' + ic(IC.home, '🏠') + ' ' + esc(S.queue && S.queue.length ? T.homeSaving : T.homeSure) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-gohome" type="button">' + esc(T.goHome) + '</button>' +
       '<button class="wq-btn wq-ghost" id="wq-stay" type="button">' + esc(T.stay) + '</button><!--/wq-sheet--></div></div>');
     on('#wq-gohome', function () { dropSheet(); homeGo(src); });
@@ -2441,7 +2461,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var shares = (firstTwo ? '' : shareBtn + panel + doorBtn) +
       (panel ? '' : '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>') +
       (friend ? '' : '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>') +
-      '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>';
+      '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>';
     // done_today: this child's counted finish today, the class too small for a count (the server sends none under 5)
     var place = c.nth || c.done_today ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth || 1) + '</span></p>' : '';
     // The practice note is framing, not a control: on a door card it goes under the door with the place note.
@@ -2450,7 +2470,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vsStrip(res.vs, c, total) + newBest(c, total) +
       (firstTwo ? '' : place) +
       (nx ? '<button class="wq-vitem wq-nextv" id="wq-next-v">' +
-        (nx.poster ? '<img class="wq-vtile" src="' + esc(nx.poster) + '" alt="" loading="lazy">' : '<span class="wq-vtile wq-vt1" aria-hidden="true">▶</span>') +
+        (nx.poster ? '<img class="wq-vtile" src="' + esc(nx.poster) + '" alt="" loading="lazy">' : '<span class="wq-vtile wq-vt1" aria-hidden="true">' + ic(IC.play, '▶') + '</span>') +
         '<span class="wq-vtext"><small>' + esc(T.nextT) + '</small><b dir="auto">' + esc(nx.title) + '</b></span></button>' : '') +
       // The name notice is for the share it sits on: always directly above "Share to class group".
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>';
@@ -2554,11 +2574,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The top bit: FNV-1a's lowest bit is only the parity of the key's characters.
     return h >>> 31 ? 'a1' : 'a0';
   }
-  var ASK_WHO = [['home', '🏠', 'whoHome'], ['cousin', '🧒', 'whoCousin'], ['street', '🏘️', 'whoStreet']];
+  var ASK_WHO = [['home', ic(IC.home, '🏠'), 'whoHome'], ['cousin', ic(IC.kid, '🧒'), 'whoCousin'], ['street', ic(IC.street, '🏘️'), 'whoStreet']];
   // Below 60% (or nothing right) there is no score to beat: play it with someone at home.
   function askLow(s, n) { return !s || !n || s / n < 0.6; }
   function askPanel(s, n) {
-    var head = askLow(s, n) ? esc(T.askLow) : esc(T.askHead[0]) + '<bdi dir="ltr">' + esc(s + '/' + n) + '</bdi>' + esc(T.askHead[1]);
+    var head = askLow(s, n) ? ic(IC.home, '🏠') + ' ' + esc(T.askLow) : ic(IC.trophy, '🏆') + ' ' + esc(T.askHead[0]) + '<bdi dir="ltr">' + esc(s + '/' + n) + '</bdi>' + esc(T.askHead[1]);
     return '<div class="wq-ask"><h2>' + head + '</h2><div class="wq-who">' + ASK_WHO.map(function (w) {
       return '<button class="wq-kid" id="wq-who-' + w[0] + '"><span class="wq-ani" aria-hidden="true">' + w[1] + '</span><span>' + esc(T[w[2]]) + '</span></button>';
     }).join('') + '</div></div>';
@@ -2581,7 +2601,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var b = c.practice && c.best;
     if (!b || !(b.total > 0) || !(total > 0) || c.correct * b.total <= b.correct * total) return '';
     function sc(x, y) { return '<bdi dir="ltr">' + esc(scoreN(x)) + '/' + esc(scoreN(y)) + '</bdi>'; }
-    return '<div class="wq-banner wq-best">' + esc(TW.newBest) + ' ' + sc(c.correct, total) + ' · ' + esc(TW.wasBest) + ' ' + sc(b.correct, b.total) + ' ⭐</div>';
+    return '<div class="wq-banner wq-best">' + esc(TW.newBest) + ' ' + sc(c.correct, total) + ' · ' + esc(TW.wasBest) + ' ' + sc(b.correct, b.total) + ' ' + ic(IC.star, '⭐') + '</div>';
   }
 
   // A friend's challenge: who won, with both scores (each score isolated so it reads left to right in Urdu).
@@ -2599,15 +2619,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // the link: the new page starts at once with the session token of the quiz just played.
   var SUBJECT_TILE = { Science: '🔬', Maths: '➗', English: '🔤', Urdu: 'ا', 'Islamic Studies': '🕌', 'General Knowledge': '🌍', Geography: '🗺️', History: '📜' };
   var HANDOVER_MS = 10 * 60 * 1000;
-  function moreBtn() { return Q.grade ? '<button class="wq-btn wq-soft wq-more" id="wq-more">▶ ' + esc(T.moreBtn) + '</button>' : ''; }
+  function moreBtn() { return Q.grade ? '<button class="wq-btn wq-soft wq-more" id="wq-more">' + ic(IC.play, '▶') + ' ' + esc(T.moreBtn) + '</button>' : ''; }
   function vItem(v, i) {
     // Each atom isolated, so "3.2 MB" keeps its Latin order inside an Urdu line.
     var meta = [v.secs ? esc(T.mins(Math.max(1, Math.round(v.secs / 60)))) : '', v.mb ? '<bdi dir="ltr">' + esc(v.mb + ' MB') + '</bdi>' : ''].filter(Boolean).join(' · ');
     var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy">'
-      : '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[v.subject] || '▶') + '</span>';
+      : '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[v.subject] || ic(IC.play, '▶')) + '</span>';
     return '<li><button class="wq-vitem" data-vid="' + esc(v.vid) + '">' + pic +
       '<span class="wq-vtext"><b dir="auto">' + esc(v.title) + '</b><small>' + meta + '</small></span>' +
-      (v.done ? '<span class="wq-vdone">' + esc(T.doneTag) + '</span>' : '') + '</button></li>';
+      (v.done ? '<span class="wq-vdone">' + esc(T.doneTag) + ' ' + ic(IC.check, '✓') + '</span>' : '') + '</button></li>';
   }
   // M4b library: subjects -> chapters (wq-lib.js) when the bot has it on; else today's list below.
   function moreVideos() {
@@ -2750,7 +2770,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<span>' + esc(T.avg) + '</span><span>' + esc(b.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (b.class_avg_pct || 0) + '%"></b></div></div>' +
         '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
         '<button class="wq-btn wq-go" id="wq-share-t">' + esc(T.shareTable) + '</button>' +
-        '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>' +
+        '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' +
         (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
       render(h, 'M11');
       wireBar();
@@ -2900,7 +2920,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.todayT) + '</p>' +
       '<div class="wq-big">' + esc(scoreN(fmtN(LIVE.ict_today_floor || 0))) + '</div>' +
       '<p class="wq-sub">' + esc(T.todaySub) + '</p></div>' +
-      (more ? moreBtn() : '') + '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>' +
+      (more ? moreBtn() : '') + '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' +
       '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
     render(h, 'M14');
     libPrefetch();
