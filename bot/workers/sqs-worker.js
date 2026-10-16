@@ -1746,6 +1746,7 @@ async function runLessonPlanHealth({ health } = {}) {
  */
 function schedulePeriodicChecks({ worker: w = null } = {}) {
   scheduleChallengeVoiceSweep({ worker: w });
+  scheduleCoachVoiceNoteSweep({ worker: w });
   try {
     scheduleLessonPlanHealth({ worker: w });
   } catch (error) {
@@ -1794,6 +1795,36 @@ function scheduleChallengeVoiceSweep({ worker: w = null, setIntervalFn = setInte
   if (first && typeof first.unref === 'function') first.unref();
   const timer = setIntervalFn(tick, CHALLENGE_VOICE_SWEEP_INTERVAL_MS);
   logToFile('Periodic Challenge voice orphan sweep enabled (hourly, main-queue replicas)');
+  return { tick, timer };
+}
+
+// bd-v0toag.67: the teacher's voice note for her coach is deleted 30 days after it was saved if the coach has
+// not marked the visit done ("I have visited" still deletes it at once, in the portal). Daily, from the
+// replicas that poll the main queue, with a first pass a few minutes after boot (Class P: each redeploy resets
+// the interval); bounded per run and idempotent across replicas (the key is nulled only after R2 confirms).
+const COACH_VOICE_NOTE_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const COACH_VOICE_NOTE_SWEEP_FIRST_MS = 4 * 60 * 1000;
+function scheduleCoachVoiceNoteSweep({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {
+  if (!SQSCoachingWorker._enabledQueues().has('main')) {
+    logToFile('Coach voice-note sweep not scheduled on this replica', { reason: 'no main queue' });
+    return null;
+  }
+  const tick = async () => {
+    if (w && w.isShuttingDown) {
+      logToFile('Coach voice-note sweep tick', { outcome: 'skipped', reason: 'shutting_down' });
+      return;
+    }
+    try {
+      const res = await require('../shared/services/coach-voice-note-retention.service').sweepExpiredVoiceNotes({ maxAgeDays: 30 });
+      logToFile('🧹 Coach voice-note 30-day sweep', res);
+    } catch (error) {
+      logToFile('Error in coach voice-note sweep (non-fatal)', { error: error.message }, 'error');
+    }
+  };
+  const first = setTimeoutFn(tick, COACH_VOICE_NOTE_SWEEP_FIRST_MS);
+  if (first && typeof first.unref === 'function') first.unref();
+  const timer = setIntervalFn(tick, COACH_VOICE_NOTE_SWEEP_INTERVAL_MS);
+  logToFile('Coach voice-note 30-day sweep enabled (daily + boot, main-queue replicas)');
   return { tick, timer };
 }
 
@@ -2060,5 +2091,6 @@ if (require.main === module) {
 module.exports = {
   SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
   exitAfterFlush, runQuizFunnelWatch, scheduleChallengeVoiceSweep, challengeVoiceSweepEnabled,
+  scheduleCoachVoiceNoteSweep,
   runLessonPlanHealth, scheduleLessonPlanHealth, schedulePeriodicChecks, recoverStaleLessonPlanRequests,
 };
