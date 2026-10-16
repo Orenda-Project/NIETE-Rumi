@@ -18,7 +18,8 @@ import { useCopy, useLang } from '../i18n';
 import { isolateRuns } from '../ui/bidi';
 import { catalogueOnce, patternFor, subjectName, useAssessmentSwitches } from './api';
 import { failureLabel } from './failure';
-import { fromSpec, type AnySpec } from './model';
+import { fromSpec, questionsOf, type AnySpec } from './model';
+import { openArtifact } from './openArtifact';
 import { ASSESSMENT_V2_BASE, editPath, newPaperPath, paperPath, requestPath } from './paths';
 import { resetPicks, setPicks } from './store';
 import { useJobs } from './useJobs';
@@ -40,7 +41,10 @@ import { NOTICES } from '../notices/copy';
  * delivered already), GET /assessment/status says where the request got to.
  */
 
-type Seen = { status: 'writing' | 'ready' | 'failed' | 'missing'; paperId?: string | null; errorCode?: string | null };
+/** The card's count line: none when the count is not known (a board-pattern job before its pattern is read). */
+const countLine = (n: number | null, say: (n: number) => string) => (n != null ? say(n) : undefined);
+
+type Seen = { status: 'writing' | 'ready' | 'failed' | 'missing'; paperId?: string | null; errorCode?: string | null; pattern?: string | null };
 
 function useDirectStatus(requestId: string, ask: boolean): Seen | null {
   const [seen, setSeen] = useState<Seen | null>(null);
@@ -48,21 +52,28 @@ function useDirectStatus(requestId: string, ask: boolean): Seen | null {
     if (!ask) return undefined;
     let live = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let settled = false;
     const poll = async () => {
+      if (timer) { clearTimeout(timer); timer = null; }
       try {
         const res = await portal.getAssessmentStatus(requestId);
         if (!live) return;
-        if (res.status === 'ready' && res.paperId) { setSeen({ status: 'ready', paperId: res.paperId }); return; }
-        if (res.status === 'failed') { setSeen({ status: 'failed', errorCode: res.errorCode }); return; }
-        if (res.status === 'not_found') { setSeen({ status: 'missing' }); return; }
-        setSeen({ status: 'writing' });
+        // R5-16: the status read says whether the request is a board-pattern one (absent on an older server).
+        const pattern = res.pattern ?? null;
+        if (res.status === 'ready' && res.paperId) { settled = true; setSeen({ status: 'ready', paperId: res.paperId, pattern }); return; }
+        if (res.status === 'failed') { settled = true; setSeen({ status: 'failed', errorCode: res.errorCode, pattern }); return; }
+        if (res.status === 'not_found') { settled = true; setSeen({ status: 'missing' }); return; }
+        setSeen({ status: 'writing', pattern });
       } catch {
         if (!live) return;
       }
       timer = setTimeout(poll, 4000);
     };
+    // SPEC §8.2: a page brought back to the front (WhatsApp reopened, the phone woken) asks at once, not at the next tick.
+    const onVisible = () => { if (live && !settled && document.visibilityState === 'visible') poll(); };
+    document.addEventListener('visibilitychange', onVisible);
     poll();
-    return () => { live = false; if (timer) clearTimeout(timer); };
+    return () => { live = false; if (timer) clearTimeout(timer); document.removeEventListener('visibilitychange', onVisible); };
   }, [requestId, ask]);
   return seen;
 }
@@ -91,7 +102,7 @@ export function RequestPage() {
   const askRow = !!readyId && (!spec || !!spec.pattern);
   const [paperRow] = useLoad(askRow ? () => findPaper(readyId as string) : null, `paper:${askRow ? readyId : ''}`);
   const row = dataOf(paperRow) ?? null;
-  const fde = !!(spec?.pattern || row?.pattern);
+  const fde = !!(spec?.pattern || row?.pattern || direct?.pattern);
   // DESIGN §2.8: a board-pattern paper's Ready also names what the teacher adds by hand and the paper page it goes on
   // (the paper view carries it; a plain paper's Ready reads nothing new).
   const lang = useLang();
@@ -114,7 +125,7 @@ export function RequestPage() {
         subject={name}
         grade={spec.grade}
         title={job?.label ?? ''}
-        extra={spec.pattern ? (patternTotal ? C.questionsCount(patternTotal) : undefined) : C.questionsCount(spec.questionCount)}
+        extra={countLine(questionsOf(spec, patternTotal || null), C.questionsCount)}
         action="none"
       />
     </ListCard>
@@ -122,7 +133,8 @@ export function RequestPage() {
 
   const open = async (artifact: 'paper' | 'answer_key') => {
     if (!seen?.paperId) return;
-    const r: DownloadResult = await downloadArtifact(seen.paperId, artifact);
+    // A board-pattern paper's rows hand their own file off inside WhatsApp's browser (R5-18); a plain paper downloads as today.
+    const r: DownloadResult = await (fde ? openArtifact : downloadArtifact)(seen.paperId, artifact);
     if (r === 'unavailable') toast({ title: artifact === 'answer_key' ? C.noKey : C.notAvailable });
     if (r === 'failed') toast({ title: C.couldNotOpen, variant: 'destructive' });
   };
@@ -245,7 +257,6 @@ export function RequestPage() {
           <Chip tone="done">{C.ready}</Chip>
           {row?.question_count != null && <Chip>{C.questionsCount(row.question_count)}</Chip>}
           <Chip>{C.fdeChip}</Chip>
-          <Chip>{C.withScheme}</Chip>
         </div>
         <ListCard label={C.readyTitle}>
           {fileRow('fde-ready-paper', 'paper', <FileText className="h-5 w-5" aria-hidden="true" />, C.questionPaper, pages?.paper, C.forClass, true)}

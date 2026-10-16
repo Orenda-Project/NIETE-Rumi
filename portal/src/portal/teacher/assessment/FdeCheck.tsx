@@ -98,7 +98,6 @@ export function FdeCheck() {
   const why = stepReason('check', p, 50, C, { busy });
   const subject = p.subjectName ?? p.subject ?? '';
   const titles = new Map((dataOf(chapters) ?? []).map((c) => [c.chapter_number, c.chapter_title]));
-  const unitsLine = [...p.chapters].sort((a, b) => a - b).join(', ');
 
   const make = async () => {
     setMaking(true);
@@ -156,7 +155,7 @@ export function FdeCheck() {
           <Row testId="fde-row-class" label={C.steps.class} to={newPaperPath('class')}
             value={C.gradeSubject(p.grade as number, subject)} action={<EditWord C={C} />} />
           <Row testId="fde-row-syllabus" label={C.syllabus} onPress={() => setTray('syllabus')}
-            value={custom ? C.join(unitsLine || C.picked(0), C.customised) : pick(pattern.scope.label, lang)}
+            value={custom ? C.join(C.unitsRange(p.chapters) || C.picked(0), C.customised) : pick(pattern.scope.label, lang)}
             sub={custom ? undefined : pick(pattern.scope, lang)} action={<EditWord C={C} />} />
           <Row testId="fde-row-inside" label={C.inside} onPress={() => setTray('inside')} value={pick(pattern.holds, lang)}
             action={<ChevronRight className="me-3 h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />} />
@@ -237,7 +236,7 @@ export function FdeCheck() {
           </ListCard>
           {custom && (
             <div className="flex flex-col gap-2 rounded-2xl border border-[#fde68a] bg-[#fffbeb] p-3.5">
-              <p className="text-[15px] font-semibold">{C.insideCustom(unitsLine)}</p>
+              <p className="text-[15px] font-semibold">{C.insideCustom(C.unitsRange(p.chapters))}</p>
               <p className="text-[14px] text-[#4b5563]">{C.fullRehearsal}</p>
               <button type="button" onClick={useFdeSyllabus} className={cn(PRIMARY, 'flex-none', FOCUS)}>{C.useFdeSyllabus}</button>
             </div>
