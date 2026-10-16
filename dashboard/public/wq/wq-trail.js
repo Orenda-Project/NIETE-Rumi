@@ -389,7 +389,8 @@
       if (r.qa) h.on('wqc-qa', function () { h.qa().open(); });
     }
     function storyLen(d) { return (d && d.story && d.story.tokens && d.story.tokens.length) || 0; }
-    function readEnd(r, words) {
+    // heard: a live reading's words heard; when given, it chooses the line (all = 90% of the story's words heard)
+    function readEnd(r, words, heard) {
       var d = h.S.data || {};
       if (isStory()) {
         var heard = r && !r.failed && !r.later && r.score && (r.score.attempted != null ? r.score.attempted : r.score.correct) > 0;
@@ -398,8 +399,9 @@
       }
       if (r && r.later) { endCard('read-result', 'hello', h.t.later, r); return; }
       var n = words != null ? words : (r && r.score ? (r.score.attempted != null ? r.score.attempted : r.score.correct) : 0);
-      var zero = !r || r.failed || !(n > 0);
-      var all = !zero && storyLen(d) > 0 && n >= storyLen(d);
+      var byHeard = heard != null;
+      var zero = !r || r.failed || !(n > 0) || (byHeard && !(heard > 0));
+      var all = !zero && storyLen(d) > 0 && (byHeard ? heard >= 0.9 * storyLen(d) : n >= storyLen(d));
       var ex = Object.assign({}, r || {}, { again: zero, qa: !zero && !!d.questions_on });
       endCard('read-result', zero ? 'hello' : 'celebrate', zero ? t.endZeroWords : (all ? t.endReadAll : t.endReadSome), ex);
     }
