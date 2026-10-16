@@ -58,11 +58,24 @@ test('the second, third … feature: still offered if no door has offered it yet
   expect(invite.offerRegistrationOnce).toHaveBeenCalledTimes(1);
 });
 
-test('a registered teacher is not offered anything', async () => {
-  const { Svc, invite, wa } = load({ row: { ...UNREGISTERED, name: 'Ayesha' } });
+test('a complete account (name + school + teacher) is not offered anything', async () => {
+  const { Svc, invite, wa } = load({ row: { ...UNREGISTERED, name: 'Ayesha', school_id: 'school-1', role: 'teacher' } });
   expect(await Svc.checkAndTriggerRegistration('u1', 'lesson_plan', 'p', 'en', 'text')).toBe(false);
   expect(invite.offerRegistrationOnce).not.toHaveBeenCalled();
   expect(wa.sendMessage).not.toHaveBeenCalled();
+});
+
+test('a roster teacher with a name but no school IS offered the Flow after a feature', async () => {
+  const { Svc, invite, wa } = load({ row: { ...UNREGISTERED, name: 'Ayesha', role: 'teacher' } });
+  expect(await Svc.checkAndTriggerRegistration('u1', 'lesson_plan', 'p', 'en', 'text')).toBe(true);
+  expect(invite.offerRegistrationOnce).toHaveBeenCalledTimes(1);
+  expect(wa.sendMessage).not.toHaveBeenCalled(); // never the name question for her
+});
+
+test('an admin-set coach is not offered anything', async () => {
+  const { Svc, invite } = load({ row: { ...UNREGISTERED, name: 'Rifat', role: 'coach' } });
+  expect(await Svc.checkAndTriggerRegistration('u1', 'lesson_plan', 'p', 'en', 'text')).toBe(false);
+  expect(invite.offerRegistrationOnce).not.toHaveBeenCalled();
 });
 
 test('sendNameQuestion with a Flow configured goes through the one sender (no third hand-rolled copy)', async () => {

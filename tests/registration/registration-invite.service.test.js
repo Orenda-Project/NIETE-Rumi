@@ -63,6 +63,8 @@ function load({ flowId = FLOW_ID, db = makeDb(), sendFlowResult = true } = {}) {
 
 const NEW_USER = { id: 'u1', name: null, registration_completed: false, registration_state: 'unregistered', registration_started_at: null };
 const NAMED_USER = { ...NEW_USER, name: 'Ayesha Bano' };
+// A roster row the form has nothing to add to: name, school and a form role (flag still false).
+const COMPLETE_USER = { ...NAMED_USER, school_id: 'school-1', role: 'teacher' };
 const cp = (s) => [...String(s)].length;
 
 const ORIG = process.env.REGISTRATION_FLOW_ID;
@@ -100,6 +102,12 @@ describe('sendRegistrationInvite', () => {
     const { svc, wa } = load();
     await svc.sendRegistrationInvite({ user: NEW_USER, phone: '923001234567', language: 'en', reason: 'school_feature' });
     expect(wa.sendFlow.mock.calls[0][1].body).toBe(svc.inviteCopy({ variant: 'school', language: 'en' }).body);
+  });
+
+  test('a REGISTERED teacher with no school reaching a school feature also gets the school copy, not "update"', async () => {
+    const { svc, wa } = load();
+    await svc.sendRegistrationInvite({ user: { ...NAMED_USER, role: 'teacher' }, phone: 'p', language: 'en', reason: 'school_feature' });
+    expect(wa.sendFlow.mock.calls[0][1].header).toBe(svc.inviteCopy({ variant: 'school', language: 'en' }).header);
   });
 
   test('Urdu copy for an Urdu teacher; anything off-offer falls to English', async () => {
@@ -145,8 +153,29 @@ describe('sendRegistrationInvite', () => {
 });
 
 describe('offerRegistrationOnce', () => {
-  test('a registered teacher is never offered', async () => {
-    const db = makeDb({ row: NAMED_USER });
+  test('a complete account (name + school + teacher) is never offered', async () => {
+    const db = makeDb({ row: COMPLETE_USER });
+    const { svc, wa } = load({ db });
+    expect(await svc.offerRegistrationOnce({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'first_reply' })).toBe(false);
+    expect(wa.sendFlow).not.toHaveBeenCalled();
+  });
+
+  test('a roster row with a name but no school IS offered — once', async () => {
+    const db = makeDb({ row: { ...NAMED_USER, role: 'teacher' }, claimRows: [{ id: 'u1' }] });
+    const { svc, wa } = load({ db });
+    expect(await svc.offerRegistrationOnce({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'first_reply' })).toBe(true);
+    expect(wa.sendFlow).toHaveBeenCalledTimes(1);
+  });
+
+  test('completed the form but no school: not offered unprompted (the school doors ask instead)', async () => {
+    const db = makeDb({ row: { ...NAMED_USER, role: 'teacher', registration_completed: true } });
+    const { svc, wa } = load({ db });
+    expect(await svc.offerRegistrationOnce({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'first_reply' })).toBe(false);
+    expect(wa.sendFlow).not.toHaveBeenCalled();
+  });
+
+  test('an admin-set coach is never offered, school or not', async () => {
+    const db = makeDb({ row: { ...NAMED_USER, role: 'coach' } });
     const { svc, wa } = load({ db });
     expect(await svc.offerRegistrationOnce({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'first_reply' })).toBe(false);
     expect(wa.sendFlow).not.toHaveBeenCalled();
