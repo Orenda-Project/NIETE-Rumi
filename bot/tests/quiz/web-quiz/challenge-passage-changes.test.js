@@ -4,7 +4,7 @@
  * dated `changes` note. Every file that carries such a note must: describe each change (date, field, what, why, the
  * hash of the text before), have a before-hash that differs from the file's current hash, still record exactly the
  * numbers the passage check computes from the new text, and remain an unreleased check-pool draft.
- * Plus the content of the two reference fixes this note was introduced for. Pure: reads the files on disk.
+ * Plus the content of each text fix. Pure: reads the files on disk.
  */
 const fs = require('fs');
 const path = require('path');
@@ -16,9 +16,9 @@ const all = () => fs.readdirSync(PASSAGES).filter((f) => f.endsWith('.json'))
   .map((f) => JSON.parse(fs.readFileSync(path.join(PASSAGES, f), 'utf8')));
 
 describe('passage text changes before first exposure', () => {
-  test('the two fixed reference passages carry a changes note', () => {
+  test('the fixed passages carry a changes note', () => {
     const withNote = all().filter((p) => Array.isArray(p.changes)).map((p) => p.passage_id).sort();
-    expect(withNote).toEqual(expect.arrayContaining(['en.read.3.ref01', 'ur.listen.3.ref01']));
+    expect(withNote).toEqual(expect.arrayContaining(['en.read.3.ref01', 'ur.listen.3.ref01', 'ur.read.1.sparrow']));
   });
 
   test('every changes note is complete, and the file still records what the passage check computes', () => {
@@ -55,5 +55,11 @@ describe('passage text changes before first exposure', () => {
     const p = read('ur.listen.3.ref01');
     expect(p.text.endsWith('اسی سبزی والے سے سبزی لی۔')).toBe(true);
     expect(p.changes[0].text_hash_before).toBe('896e52ec72935ebb1dcd659c3ab44952');
+  });
+
+  test('ur.read.1.sparrow: sentence 1 brings the sparrow into view, not up to the child', () => {
+    const p = read('ur.read.1.sparrow');
+    expect(Gate.sentences(p.text)[0]).toBe('ایک چھوٹی چڑیا نمرہ کو نظر آئی۔');
+    expect(p.changes.find((c) => c.field === 'text').text_hash_before).toBe('cf7320656d516694cb13d39dd13f0815');
   });
 });
