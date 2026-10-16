@@ -200,10 +200,29 @@ describe('childrenForPhone: one helper for the door and /quiz open', () => {
 describe('bind codes', () => {
   test('mint → { code: JUGNU- + 5 of [A-Z2-9] without O or I, expires_at }, valid 1 hour, device_ref kept for the audit', async () => {
     const codes = [];
-    for (let i = 0; i < 40; i += 1) codes.push(await Codes.mint(KID_A, 'dev-1', NOW));
+    // forty devices: one fresh code each (the same device within the hour would get its live code back, below)
+    for (let i = 0; i < 40; i += 1) codes.push(await Codes.mint(KID_A, `dev-${i}`, NOW));
     codes.forEach((c) => expect(c).toEqual({ code: expect.stringMatching(/^JUGNU-[A-HJ-NP-Z2-9]{5}$/), expires_at: '2026-10-15T11:00:00.000Z' }));
     const row = fake.db.child_bind_codes[0];
-    expect(row).toMatchObject({ code: codes[0].code, canonical_id: KID_A, device_ref: 'dev-1', minted_at: NOW.toISOString(), expires_at: '2026-10-15T11:00:00.000Z' });
+    expect(row).toMatchObject({ code: codes[0].code, canonical_id: KID_A, device_ref: 'dev-0', minted_at: NOW.toISOString(), expires_at: '2026-10-15T11:00:00.000Z' });
+  });
+
+  test('the same child on the same device within the hour → the live code again (reused), no new row; without a device → a new code', async () => {
+    const first = await Codes.mint(KID_A, 'dev-1', NOW);
+    const again = await Codes.mint(KID_A, 'dev-1', new Date(NOW.getTime() + 30 * 60000));
+    expect(again).toEqual({ code: first.code, expires_at: first.expires_at, reused: true });
+    expect(fake.db.child_bind_codes).toHaveLength(1);
+    const noDevice = await Codes.mint(KID_A, null, NOW);
+    expect(noDevice.code).not.toBe(first.code);
+    expect(noDevice.reused).toBeUndefined();
+    expect(fake.db.child_bind_codes).toHaveLength(2);
+    // with under ten minutes left the live code is not handed out again: a new one
+    const later = await Codes.mint(KID_A, 'dev-1', new Date(NOW.getTime() + 51 * 60000));
+    expect(later.code).not.toBe(first.code);
+    expect(fake.db.child_bind_codes).toHaveLength(3);
+    // at 49 minutes it still is
+    expect((await Codes.mint(KID_A, 'dev-1', new Date(NOW.getTime() + 49 * 60000))).code).toBe(later.code);
+    expect(fake.db.child_bind_codes).toHaveLength(3);
   });
 
   test('a collision retries once with a new code', async () => {

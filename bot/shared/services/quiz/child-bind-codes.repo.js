@@ -15,6 +15,7 @@ const PREFIX = 'JUGNU-';
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // [A-Z2-9] without O, I (0 and 1 are outside the range)
 const CODE_LEN = 5;
 const TTL_MS = 60 * 60 * 1000;
+const REUSE_MARGIN_MS = 10 * 60 * 1000;   // a live code is handed out again only while it has at least this long left
 const CODE_RX = /^JUGNU-([A-Z2-9]{5})$/i;
 const OUTCOMES = Object.freeze(['bound', 'max_kids', 'max_phones', 'teacher_phone', 'code_expired', 'code_used', 'child_unknown']);
 
@@ -31,16 +32,41 @@ function parseCode(text) {
   return CODE_RX.test(last) ? last.toUpperCase() : null;
 }
 
-/** A new code for this child → { code: 'JUGNU-XXXXX', expires_at: <ISO> } (the shape the page's mint reads), or null. One retry on a collision. */
+/** The child's live code for this device (unspent, with ≥ 10 min left, same device_ref) → { code, expires_at, reused: true }, or null. */
+async function liveFor(canonicalId, deviceRef, now) {
+  if (!deviceRef) return null;
+  const { data, error } = await supabase.from(TABLE).select('code, expires_at')
+    .eq('canonical_id', String(canonicalId)).eq('device_ref', String(deviceRef)).is('used_at', null)
+    .gt('expires_at', new Date(new Date(now).getTime() + REUSE_MARGIN_MS).toISOString())
+    .order('minted_at', { ascending: false }).limit(1);
+  if (error) throw new Error(error.message || 'read failed');
+  return data && data[0] ? { code: data[0].code, expires_at: data[0].expires_at, reused: true } : null;
+}
+
+/**
+ * A code for this child → { code: 'JUGNU-XXXXX', expires_at: <ISO> } (the shape the page's mint reads), or null.
+ * Idempotent per child × device: a second ask from the device that minted a still-live code answers that SAME code
+ * with `reused: true` (a double tap or a reopened card never shows a family two codes for one child) — but only while
+ * the code has at least ten minutes left, so a family never gets a code that dies before they press Send.
+ * The device_ref read here only de-duplicates the child's OWN live code for the SAME device; it never identifies a
+ * child or trusts a phone (IDENTITY §3). Without a device_ref every ask mints. One retry on a collision.
+ */
 async function mint(canonicalId, deviceRef = null, now = new Date()) {
   if (!canonicalId) return null;
   const minted = new Date(now);
+  const dev = deviceRef ? String(deviceRef).slice(0, 64) : null;
+  try {
+    const live = await liveFor(canonicalId, dev, minted);
+    if (live) return live;
+  } catch (err) {
+    logToFile('⚠️ child bind codes: live-code read failed, minting a new one', { error: err.message });
+  }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const code = randomCode();
     const expiresAt = new Date(minted.getTime() + TTL_MS).toISOString();
     try {
       const { error } = await supabase.from(TABLE).insert({
-        code, canonical_id: String(canonicalId), device_ref: deviceRef ? String(deviceRef).slice(0, 64) : null,
+        code, canonical_id: String(canonicalId), device_ref: dev,
         minted_at: minted.toISOString(), expires_at: expiresAt,
       });
       if (!error) return { code, expires_at: expiresAt };
@@ -83,4 +109,4 @@ async function markUsed(code, outcome, now = new Date()) {
   }
 }
 
-module.exports = { mint, get, markUsed, parseCode, randomCode, CODE_RX, OUTCOMES, ALPHABET, TTL_MS, TABLE };
+module.exports = { mint, get, markUsed, parseCode, randomCode, CODE_RX, OUTCOMES, ALPHABET, TTL_MS, REUSE_MARGIN_MS, TABLE };
