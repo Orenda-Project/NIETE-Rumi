@@ -16,7 +16,8 @@
  * Never a 500: a thrown read → the go.error page (200) on /land, 503 {error:'go.error'} on the JSON routes.
  * Nothing here writes the users row (role, registration, language). 0 WhatsApp messages.
  *
- * Events (ids only): one_door.landed{side, src, how}; with web_quiz_events_v3 ON web_quiz.role_asked / role_answered{role}.
+ * Events (ids only): one_door.landed{side, src, how}; with web_quiz_events_v3 ON web_quiz.role_asked / role_answered{role} /
+ * go_stale{why}.
  */
 const express = require('express');
 const { requireInternalKey } = require('../../middleware/require-internal-key');
@@ -109,6 +110,7 @@ router.get('/land/:token', async (req, res) => {
     if (o.p) lang = o.p.lang;
     if (o.stale) {
       landed(null, null, `stale_${o.stale}`);
+      await v3('go_stale', { why: o.stale, lang });
       return page(res, Page.buildMessagePage({ id: 'go.stale', lang }));
     }
     const d = await destination(o);
