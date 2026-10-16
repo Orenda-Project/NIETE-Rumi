@@ -712,6 +712,10 @@ function checkWorking(q, answer, exam, index) {
   if (units.size > 1) return null;
   if (stageUnits && !/^\s*[.!]?\s*$/.test(last.slice(stated[0].index + stated[0].raw.length).replace(KEY_UNITS, ' '))) return null;
   if (agrees(value, target)) return 'ok';
+  // "4 × 250 = 1000 = 1 kg": the result names a unit the working never did, and the
+  // stage before it only restates a number, so the result converts it. Left unchecked.
+  const restated = stageTokens(parts[parts.length - 1]);
+  if (unitsIn(last).size > 0 && !stageUnits && restated && !restated.some((t) => t.op)) return null;
   const all = numbersIn(answer);
   // A result rounded to the places it shows: right for a recurring value ("10 ÷ 3 = 3.3");
   // for one that ends, the question may have asked to round, so it is left unchecked.
