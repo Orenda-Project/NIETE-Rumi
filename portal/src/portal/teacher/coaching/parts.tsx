@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Camera, Check, ChevronDown, ImageIcon, Pause, Play, RotateCcw, X } from 'lucide-react';
+import { BookOpen, Camera, Check, ChevronDown, Eye, ImageIcon, Pause, Play, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { acceptFor, checkFile, MAX_PHOTOS } from '../../lib/coachingUpload';
 import type { Audio } from '../../newui/coaching/useSendFlow';
@@ -28,20 +28,38 @@ export function SectionHeading({ children, chip }: { children: ReactNode; chip?:
   );
 }
 
-/** The lesson plan: a "Select lesson plan" trigger, or the chosen plan as a row with Change. */
-export function PlanPicker({ plan, disabled, onOpen }: { plan: DraftPlan | null; disabled?: boolean; onOpen: () => void }) {
+/**
+ * The lesson plan: a "Select lesson plan" trigger, or the chosen plan as a row with Change, and (bd-fgj73x.5) an eye beside
+ * a library plan that opens it to read (`onView`).
+ */
+export function PlanPicker({ plan, disabled, onOpen, onView }: { plan: DraftPlan | null; disabled?: boolean; onOpen: () => void; onView?: () => void }) {
   const C = useCopy(COACHING);
   if (plan) {
     const label = plan.kind === 'library' ? plan.title : C.planPhoto;
     const subtitle = plan.kind === 'library' ? plan.chips.join(' · ') : plan.file.name;
-    return (
+    const row = (
       <ListRow
+        className={onView ? 'min-w-0 flex-1' : undefined}
         icon="file"
         label={label}
         subtitle={subtitle || undefined}
         chip={{ text: C.change, tone: 'score' }}
         onPress={onOpen}
       />
+    );
+    if (!onView) return row;
+    return (
+      <div className="flex items-center gap-2">
+        {row}
+        <button
+          type="button"
+          aria-label={C.viewPlan}
+          onClick={onView}
+          className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-[1.5px] border-[#c7cad6] bg-white text-[#33374a]', FOCUS)}
+        >
+          <Eye className="h-[22px] w-[22px]" strokeWidth={2} aria-hidden="true" />
+        </button>
+      </div>
     );
   }
   return (

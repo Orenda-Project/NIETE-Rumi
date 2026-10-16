@@ -30,6 +30,8 @@ export type LessonsAt = {
   render?: string;
   /** A plan's title, when the page cannot look it up (Preparing reached from Recent). */
   title?: string;
+  /** `dc`: Digital Coaching's From the library (bd-fgj73x.5): the pages CHOOSE a plan for her lesson. */
+  pick?: string;
 };
 
 export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
@@ -39,6 +41,7 @@ export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
   if (at.lesson) q.set('lesson', at.lesson);
   if (at.render) q.set('render', at.render);
   if (at.title) q.set('title', at.title);
+  if (at.pick) q.set('pick', at.pick);
   return `${LESSONS_HOME}/${view}?${q.toString()}`;
 }
 
@@ -49,7 +52,7 @@ export function readAt(search: string): LessonsAt | null {
   const subject = q.get('subject');
   if (!Number.isInteger(grade) || grade < 1 || grade > 12 || !subject) return null;
   const at: LessonsAt = { grade, subject };
-  for (const k of ['key', 'chapter', 'lesson', 'render', 'title'] as const) {
+  for (const k of ['key', 'chapter', 'lesson', 'render', 'title', 'pick'] as const) {
     const v = q.get(k);
     if (v) at[k] = v;
   }
@@ -75,12 +78,17 @@ export function dcHref(base: string, dc: DcPrefill | null | undefined): string {
 }
 
 /** A plan to reopen by its key, with what the viewer and Start DC need. */
-export type PlanRef = { plan: string; lang?: string | null; title?: string | null; grade?: number | null };
+export type PlanRef = {
+  plan: string; lang?: string | null; title?: string | null; grade?: number | null;
+  /** `dc`: opened from Digital Coaching's attached plan, to read it (no Start DC on it). */
+  from?: 'dc';
+};
 
 export function openUrl(ref: PlanRef): string {
   const q = new URLSearchParams({ plan: ref.plan });
   if (ref.lang && ref.plan.startsWith('g612:')) q.set('lang', ref.lang);
   if (ref.title) q.set('title', ref.title);
   if (ref.grade != null) q.set('grade', String(ref.grade));
+  if (ref.from) q.set('from', ref.from);
   return `${LESSONS_OPEN}?${q.toString()}`;
 }
