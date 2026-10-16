@@ -65,7 +65,7 @@ describe('switches: each only with its parent on; a failed read is all off', () 
   });
   test('a read failure → all false', async () => {
     supabase.from = () => { throw new Error('down'); };
-    expect(await IdFlags.flags()).toEqual({ canon: false, phoneBind: false, guestHome: false });
+    expect(await IdFlags.flags()).toEqual({ canon: false, phoneBind: false, guestHome: false, makerPage: false, firstDoor: false });
   });
   test('the three keys are SPEC\'s names', () => {
     expect([IdFlags.CANON_KEY, IdFlags.PHONE_BIND_KEY, IdFlags.GUEST_HOME_KEY]).toEqual(['web_quiz_identity_canon', 'web_quiz_phone_bind', 'web_quiz_guest_home']);
