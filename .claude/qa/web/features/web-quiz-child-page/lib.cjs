@@ -164,10 +164,8 @@ async function current(page, questions) {
   return found;
 }
 const wrongSlot = (qq) => { const right = String(qq.correct_slot).split(','); return qq.options.map((o) => o.slot).find((s) => !right.includes(s)) || qq.options[0].slot; };
-// Taps go through with { force: true }: Playwright otherwise waits for the button to hold still, and a page that keeps
-// animating (the speaking ring, a peer line sliding in) can hold a tap for its whole 30 s. A tap the page ignores
-// still fails here, on the wait for Next.
-const tap = (page, sel) => page.click(sel, { force: true, timeout: 10000 });
+// A plain click: a forced click on Next stalled after the page redrew it (run 20261016-161021, ~40 scenarios).
+const tap = (page, sel) => page.click(sel);
 async function tapAndNext(page, slot) {
   await tap(page, '.wq-opt[data-slot="' + slot + '"]');
   await page.waitForSelector('#wq-next', { state: 'visible', timeout: WAIT });

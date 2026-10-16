@@ -148,7 +148,7 @@ on('WQ053', 'off', async (page, ctx) => {
   }
   const rights = leads.filter((l, i) => i !== 1);
   expect(rights.every((l, i) => i === 0 || l !== rights[i - 1]), 'the same right line twice in a row: ' + rights.join(' | '));
-  expect(/The answer is "/.test(leads[1]), 'the wrong answer\'s lead is "' + leads[1] + '"');
+  expect(/The (right )?answer is "/i.test(leads[1]), 'the wrong answer\'s lead is "' + leads[1] + '"');   // one of eight recorded not-yet lines
   // a picture answer: "Not yet. Look, this one is right." with no empty quotes
   await page.evaluate(() => localStorage.clear());
   const b2 = await startAsNew(page, ctx, CODES.G3, 'Pic53');            // the picture-only item lives in the grade-3 quiz
