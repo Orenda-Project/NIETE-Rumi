@@ -210,7 +210,7 @@ function lightsOf(rows, now, self = null) {
   const keys = new Map();
   rows.forEach((r) => {
     if (!FINAL.has(r.status) || (r.exposure_no != null && Number(r.exposure_no) !== 1)) return;
-    if (roundRow(r)) return;
+    if (roundRow(r) || noiseRow(r)) return;
     const child = r.canonical_id || r.student_id;
     if (!child) return;
     const thing = r.passage_id || r.item_set_id || (r.exercise ? `${r.exercise}|${r.period_id || periodOf(rowAt(r))}` : null);

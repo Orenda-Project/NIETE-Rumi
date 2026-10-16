@@ -1,7 +1,8 @@
 'use strict';
 /**
  * The Book (web-quiz-book.js) never rewards a read the scorer judged not a reading: a check that is scored with its
- * record lost (implausible) gives no story sticker and lights no day. Every kept row is as before. Pure functions.
+ * record lost (implausible) gives no story sticker, lights no day and lights no class light. Every kept row is as
+ * before. Pure functions.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
@@ -20,5 +21,17 @@ describe('a noise read (scored check, record lost): no story sticker, no lit day
   test('daysOf: the noise row lights no day; a kept row lights its day', () => {
     expect(Book.daysOf([row({ record: false })], NOW).some(Boolean)).toBe(false);
     expect(Book.daysOf([row({})], NOW).some(Boolean)).toBe(true);
+  });
+});
+
+describe('a noise read lights no class light', () => {
+  const kid = (n, over = {}) => row({ id: `r${n}`, student_id: `s${n}`, ...over });
+  const five = [1, 2, 3, 4, 5].map((n) => kid(n));
+  test('five kept reads light five; a sixth child\'s noise read adds none', () => {
+    expect(Book.lightsOf(five, NOW, 's1')).toMatchObject({ shown: true, term_total: 5 });
+    expect(Book.lightsOf([...five, kid(6, { record: false })], NOW, 's1')).toMatchObject({ shown: true, term_total: 5 });
+  });
+  test('a sixth child\'s kept read still lights one', () => {
+    expect(Book.lightsOf([...five, kid(6)], NOW, 's1')).toMatchObject({ shown: true, term_total: 6 });
   });
 });
