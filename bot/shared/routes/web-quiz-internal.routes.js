@@ -14,6 +14,7 @@
  *   POST /me                    E7 a phone's children: past scores, friends finished
  *   POST /who/class             the teacher binds a hand-out to a class (identity v2)
  *   POST /bind/mint  GET /bind/status  POST /bind/undo   keep my place: the JUGNU- code, its state, page Undo
+ *   POST /join/grade  POST /join      a child joins on their own: the grade tap, then the one write (quiz_student_join)
  *   POST /e                     E8 page events -> logs (allow-listed, no PII)
  *   GET  /media/:code/:qid      E10 302 to a presigned picture (or the bytes)
  *   GET  /videos/:code          E11 "watch another video": lessons of the quiz's grade
@@ -104,6 +105,14 @@ router.post('/bind/mint', handle((req) => BindPage().mint({ hub: (req.body || {}
 router.get('/bind/status', handle((req) => BindPage().status({ code: typeof req.query.code === 'string' ? req.query.code.slice(0, 20) : '' })));
 router.post('/bind/undo', handle((req) => BindPage().undo({ code: (req.body || {}).code, device: req.get('x-wq-device') || undefined })));
 // ── end keep my place ──
+// ── a child joins on their own ── (web-quiz-student-join.js; quiz_student_join, off -> {off:true}). The device is x-wq-device.
+const StudentJoin = () => require('../services/quiz/web-quiz-student-join');
+router.post('/join/grade', handle((req) => StudentJoin().gradeTap({ t: (req.body || {}).t, grade: (req.body || {}).grade, device: req.get('x-wq-device') || undefined })));
+router.post('/join', handle((req) => {
+  const b = req.body || {};
+  return StudentJoin().join({ t: b.t, grade: b.grade, name: b.name, same: typeof b.same === 'string' ? b.same : null, force: b.force === true, device: req.get('x-wq-device') || undefined });
+}));
+// ── end join ──
 router.post('/e', handle(async (req, res) => { WebQuiz.events(req.body || {}, { device: req.get('x-wq-device') || null }); res.status(204).end(); }));
 router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, req.params.qid, { k: req.query.k, z: req.query.z })));
 router.get('/videos/:code', handle((req) => WebQuizVideos.list(req.params.code, { st: req.query.st })));
