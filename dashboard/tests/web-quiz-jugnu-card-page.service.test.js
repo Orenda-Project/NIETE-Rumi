@@ -126,6 +126,41 @@ describe('the identity step: a tap asks whose turn it is, never straight into a 
   });
 });
 
+// The challenge page's server render knows the phone only by the wq_dv cookie (the edge forwards it as x-wq-device),
+// and only hub.js used to write it: a child who went scorecard -> card -> Play without ever opening the hub reached
+// /c/<hub token> with no phone and met the other_device note. Play now writes it from the quiz page's own wq_d first.
+describe('Play carries this phone to the challenge page (the wq_dv cookie)', () => {
+  const DEV = 'AbCdEfGhIjKlMnOpQrSt_-';
+  const tapPlay = async (p) => { p.els['#wq-jc-go'].fire('click'); p.els['#wq-jc-play'].fire('click'); await flush(); await flush(); };
+  test('the cookie holds the quiz page\'s device_ref, written before the page leaves', async () => {
+    const p = withCard({ lang: 'en', store: { ...store(JC), wq_d: DEV }, api: { hubdoor: { href: HREF, animal: 'owl' } } });
+    let atLeave = null;
+    p.ctx.location.assign = (u) => { atLeave = p.ctx.document.cookie; p.hist.assigned.push(u); };
+    await tapPlay(p);
+    expect(p.hist.assigned).toEqual([HREF + '&lang=en']);
+    expect(atLeave).toBe('wq_dv=' + DEV + '; path=/; max-age=2592000; samesite=lax');
+  });
+  test('https: the cookie is secure', async () => {
+    const p = withCard({ lang: 'en', store: { ...store(JC), wq_d: DEV }, api: { hubdoor: { href: HREF } } });
+    p.ctx.location.protocol = 'https:';
+    await tapPlay(p);
+    expect(p.ctx.document.cookie).toBe('wq_dv=' + DEV + '; path=/; max-age=2592000; samesite=lax; secure');
+  });
+  test('no device_ref, or one that is not a device_ref: no cookie, the link still opens', async () => {
+    for (const extra of [{}, { wq_d: 'x;y=1' }, { wq_d: 'short' }]) {
+      const p = withCard({ lang: 'en', store: { ...store(JC), ...extra }, api: { hubdoor: { href: HREF } } });
+      await tapPlay(p);
+      expect(p.ctx.document.cookie).toBeUndefined();
+      expect(p.hist.assigned).toEqual([HREF + '&lang=en']);
+    }
+  });
+  test('the server says no: no cookie either', async () => {
+    const p = withCard({ lang: 'en', store: { ...store(JC), wq_d: DEV }, api: { hubdoor: { __status: 404, error: 'no_door' } } });
+    await tapPlay(p);
+    expect(p.ctx.document.cookie).toBeUndefined();
+  });
+});
+
 // Golden (SPEC §5.1-5.2): with the card switch off finish sends no jugnu_card, and the scorecard is the base's, string
 // for string (written from origin/sandbox with JC_GOLDEN_WRITE=1, EN and UR, with and without the hub door).
 describe('golden: the card switch off', () => {
