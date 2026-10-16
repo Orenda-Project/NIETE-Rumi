@@ -924,7 +924,7 @@ const RULE = {
   q1bQuote: 'Never refer to an underline the paper cannot show; quote the word or phrase instead.',
   q1bOne: 'Each item is one sentence to rewrite, with its instruction once.',
   // English Q5 on chosen pages with no poem: the nearest poem's own page text is given below the book text.
-  q5Given: (p) => `Q5 uses this poem from Unit ${p.unit} (book p.${p.pages}); print its lines exactly as given; title «${p.title} (Unit ${p.unit})».`,
+  q5Given: (p) => `Q5 uses this poem from Unit ${p.unit} (book p.${p.pages}); print only its verse lines, exactly as given, never a heading, instruction or activity line; title «${p.title} (Unit ${p.unit})».`,
 };
 
 // Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
@@ -1207,9 +1207,15 @@ async function _loadPatternPoem({ grade, subject, P, scope, pageContent }) {
   try {
     const got = await BookContent().loadPageRangeContent({ grade, subject, pageRanges: poem.pages });
     // The page store keeps the book's picture notes ("Object: Illustration of …") among the
-    // poem's lines; Q5 prints the given lines exactly, so the notes are left out.
+    // poem's lines, and a page goes on to its activities after the poem ("Diving Deeper"); Q5
+    // prints the given lines exactly, so neither is given.
+    let activities = false;
     const content = got && got.content
-      ? String(got.content).split('\n').filter((line) => !/^\s*Object:/.test(line)).join('\n')
+      ? String(got.content).split('\n').filter((line) => {
+        if (/^=== Page \d+ ===/.test(line)) activities = false;
+        else if (/^\s*Diving Deeper\b/i.test(line)) activities = true;
+        return !activities && !/^\s*Object:/.test(line);
+      }).join('\n').trim()
       : '';
     return content ? { ...poem, content } : null;
   } catch (err) {
