@@ -903,13 +903,16 @@ const RULE = {
   sstSituations: (q, n, total) => `Of the ${total} ${q} items, at least ${n} give a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and ask the child to use a concept from these pages to decide or explain; the rest may explain or compare book facts.`,
   spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
   // The page store runs p.29's three columns together line by line, so a model read the provincial
-  // cell (encroachments on public roads) as local work. Given column by column when the pages hold it.
-  sstTiers: [
-    'The book\'s table on p.29 says which government does what. The page text above runs its three columns together; these are its rows, column by column:',
+  // cell (encroachments on public roads) as local work. Given column by column when the pages hold
+  // it, and to any pages that name a government tier without it. One job per item: a full paper
+  // given the rows still keyed two jobs to one government.
+  sstTiers: (inPages) => [
+    `The book's table on p.29 says which government does what. ${inPages ? 'The page text above runs its three columns together; these are its rows, column by column:' : 'These are its rows, column by column:'}`,
     '- وفاقی حکومت: ملکی دفاع (مسلح افواج کے امور) کی نگرانی کرتی ہے؛ ملکی معیشت کو سنبھالتی ہے؛ خارجہ پالیسی (بیرونی ممالک سے تعلقات کے معاملات) کی نگرانی کرتی ہے۔',
     '- صوبائی حکومت: صوبے کا نظم و نسق (قانون سازی، عوامی سڑکوں اور راستوں سے تجاوزات ہٹانا، امن و امان کا قیام) چلاتی ہے؛ صوبائی محصولات کی نگرانی کرتی ہے؛ صوبوں کی داخلی پالیسی کے معاملات سنبھالتی ہے۔',
     '- مقامی حکومت: مویشی منڈیاں اور عوامی میلے منعقد کرتی ہے؛ پینے کے پانی کا بندوبست اور نکاسی آب کا انتظام دیکھتی ہے؛ بیواؤں، یتیموں، معذوروں اور قدرتی آفات کے متاثرین کی مدد کرتی ہے۔',
     '  An item, key or marking point that says which government (وفاقی، صوبائی یا مقامی) does a job takes it from these rows only; a job the rows do not name is not asked as a which-government item.',
+    '  A which-government item asks about one job; a situation with two jobs names each job\'s government from its own row, never both under one government.',
   ].join('\n'),
   sstQ56: 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.',
   accept: '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.',
@@ -1068,6 +1071,8 @@ function _holdsTierTable(pageContent) {
   const flat = String(pageContent || '').replace(/[\s\u200b-\u200f]+/g, '');
   return SST_TIER_CELLS.every((cell) => flat.includes(cell));
 }
+// Pages that name a government tier (pp 26-33 in the page store) can ask a which-government item.
+const SST_TIER_NAMED = /(?:وفاقی|صوبائی|مقامی)[\s\u200b-\u200f]*حکومت/;
 
 /**
  * What one section of a board-pattern paper asks for. The book text block is
@@ -1202,7 +1207,10 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
       rules.push(RULE.sstSituations(s.slot.split('.').pop(), Math.ceil(s.generate / 2), s.generate));
     }
   }
-  if (key === 'social_studies' && _holdsTierTable(pageContent)) rules.push(RULE.sstTiers);
+  if (key === 'social_studies') {
+    const inPages = _holdsTierTable(pageContent);
+    if (inPages || SST_TIER_NAMED.test(String(pageContent || ''))) rules.push(RULE.sstTiers(inPages));
+  }
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
@@ -1889,15 +1897,16 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       extraUsages.push(...first.usages);
       // The re-ask is told what the first replies already test (Section A's facts, Q4's words), so
       // it writes something new instead of the item the layout set aside, again.
-      const note = takenNote(P, b.section, firstLaid.examJson);
-      const second = await writeOne(note
-        ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
-        : b);
       // A slot short only because the layout set items aside (two options of equal value, an item
       // tagged to a full slot) keeps the first reply and takes the missing items from the second:
       // the layout fills a slot in reply order, so the first reply's items land first. Any other
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShort.has(f.slot));
+      // On a top-up the note also names what the slot keeps, and asks for spares.
+      const note = takenNote(P, b.section, firstLaid.examJson, { topUp: Boolean(topUp), shortfall });
+      const second = await writeOne(note
+        ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
+        : b);
       results[i] = topUp ? { ...second, tree: _topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
       _dropProseVerses(results[i].tree, versesRef, requestId);
     }));
