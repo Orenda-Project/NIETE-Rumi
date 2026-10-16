@@ -1299,10 +1299,12 @@ function biggerItems(items, taps, served) {
 const BIGGER_FAST_MS = 500;
 // the speed floor: all 10 right AND the median per-item ms under 1500 (a reading child cannot be that fast; a script can)
 const RAPID_PERFECT_MS = 1500;
-function rapidPerfect(rows) {
+// or the server's own clock from the serve under 25 s (that clock also holds ~10 s of the page's own pacing before and between items)
+const RAPID_PERFECT_ELAPSED_S = 25;
+function rapidPerfect(rows, elapsedS) {
   if (!Array.isArray(rows) || rows.length !== 10 || !rows.every((r) => r.ok === true && r.ms != null)) return false;
   const ms = rows.map((r) => Number(r.ms)).sort((a, b) => a - b);
-  return (ms[4] + ms[5]) / 2 < RAPID_PERFECT_MS;
+  return (ms[4] + ms[5]) / 2 < RAPID_PERFECT_MS || (Number.isFinite(elapsedS) && elapsedS < RAPID_PERFECT_ELAPSED_S);
 }
 // A run is rapid when three or more items were FAST AND WRONG (fast and right is fluency); abandoned when the stop
 // came from items never touched.
@@ -1751,7 +1753,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     let meta = { ms: Number(body.ms) || null, ...(await provenance(c.sid, 'missing', null, run)), helped: helpedOf(body.helped), clock: 'row_paint', elapsed_s: Math.round(elapsedMs / 100) / 10, too_fast: elapsedMs < typed };
     if (rules.items) meta = { ...meta, items: rows, ...itemFlags(reached, { fastMs: missingFastMs, stopped: score.stopped }) };
     // the speed floor: a record warm-up with every item right and a median item time under the floor is a scripted 10/10
-    if (rules.items && run.v2 && run.mode === 'check' && run.record === true && run.anchor_block && rapidPerfect(rows)) meta = { ...meta, quality: 'rapid_perfect' };
+    if (rules.items && run.v2 && run.mode === 'check' && run.record === true && run.anchor_block && rapidPerfect(rows, meta.elapsed_s)) meta = { ...meta, quality: 'rapid_perfect' };
     if (sv && sv.tryout) meta = { ...meta, tryout: tryoutAnswer(sv.tryout, body.tryout, Bank) };
     const stored = await writeRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta, ...helpedV2 });
     if (stored === 'duplicate') fail(409, 'already_done');
