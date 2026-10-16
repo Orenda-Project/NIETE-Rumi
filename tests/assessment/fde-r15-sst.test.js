@@ -251,6 +251,31 @@ describe('4. one more D-only re-ask before a held D item is put back', () => {
   });
 });
 
+describe('5. Q6: two different ideas applied, never one fact twice, a computation or a recall list', () => {
+  const prompt = (subject, id, scope) => {
+    const S = ALL[subject];
+    const sec = S.sections.find((s) => s.id === id);
+    return Gen.buildPatternUserPrompt({ grade: 5, subject, pageContent: 'Book text.', pageReference: '1-20', section: sec, slots: sec.slots, lang: S.medium, P: S, scope });
+  };
+  const SCOPES = [{ kind: 'fde', chapters: null, pages: null }, { kind: 'chapters', chapters: [1, 2], pages: null }, { kind: 'pages', chapters: null, pages: '26-33' }];
+
+  test('D carries the tightened Q6 line on every scope; C does not', () => {
+    for (const scope of SCOPES) {
+      const d = prompt('social_studies', 'D', scope);
+      expect(d).toMatch(/two different ideas/);
+      expect(d).toMatch(/never one fact said twice/i);
+      expect(d).toMatch(/no computation/i);
+      expect(prompt('social_studies', 'C', scope)).not.toMatch(/two different ideas/);
+    }
+  });
+
+  test('no other subject carries it', () => {
+    for (const subject of ['science', 'english', 'maths', 'urdu']) {
+      for (const s of ALL[subject].sections) expect(prompt(subject, s.id, SCOPES[1])).not.toMatch(/two different ideas/);
+    }
+  });
+});
+
 describe('the eight local papers: what the new rows hold', () => {
   test('full scope holds no D item that the round-14 head kept', () => {
     // Recorded on the round-14 head: full_1–4 were clean by the by-points test; a hold there is a false flag.
