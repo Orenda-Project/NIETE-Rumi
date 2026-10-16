@@ -115,8 +115,13 @@ const audioOf = (name = "lesson.m4a"): Audio => ({
 });
 const m4a = (name = "lesson.m4a") => new File(["a"], name, { type: "audio/mp4" });
 const jpg = (n: string) => new File(["x"], n, { type: "image/jpeg" });
-const recordBtn = () => screen.getByRole("button", { name: C.recordTitle });
-const uploadBtn = () => screen.getByRole("button", { name: C.uploadRecording });
+/** Record lesson and Upload recording are in the Recording card's tray (operator, 16 Oct): open it if it is closed. */
+const inRecordTray = () => {
+  if (!screen.queryByRole("dialog", { name: C.recording })) fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${C.recording}`) }));
+  return within(screen.getByRole("dialog", { name: C.recording }));
+};
+const recordBtn = () => inRecordTray().getByRole("button", { name: C.recordTitle });
+const uploadBtn = () => inRecordTray().getByRole("button", { name: C.uploadRecording });
 
 /** Step 1 on the one screen: her Grade 4 · General Science, from the picker's tray. */
 async function pickClass() {
