@@ -109,7 +109,8 @@ describe('the switch off', () => {
   test('no join link, no write, every call answers off', async () => {
     seed({ join: false });
     const n = await GoNonce.mint({ phoneNorm: PHONE, userId: UNKNOWN_USER.id });
-    expect(await Join.joinUrl({ n, lang: 'en' })).toBeNull();
+    await Join.flags();
+    expect(Join.joinUrl({ n, lang: 'en' })).toBeNull();
     const t = Join.signJoin({ n, lang: 'en' });
     expect(await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE })).toEqual({ off: true });
     expect(await Join.gradeTap({ t, grade: 3, device: DEVICE })).toEqual({ off: true });
@@ -309,7 +310,7 @@ describe('the page shell answer', () => {
     const n = await GoNonce.mint({ phoneNorm: PHONE, userId: UNKNOWN_USER.id });
     const t = Join.signJoin({ n, lang: 'en' });
     expect(await Join.pageInfo({ t })).toEqual({ off: true });
-    expect(await Join.joinUrl({ n, lang: 'en' })).toBeNull();
+    expect(Join.joinUrl({ n, lang: 'en' })).toBeNull();
     expect(await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE })).toEqual({ off: true });
     expect(await Join.autoBind({ n })).toEqual({ off: true });
     ['students', 'child_phone_bindings', 'child_identity', 'user_feature_first_use'].forEach((tb) => expect(writes(tb)).toHaveLength(0));
@@ -363,6 +364,37 @@ describe('the /quiz landing for a phone with children but no binding: never a si
   test('no child on the phone and no roster row → the join screen link', async () => {
     const n = await GoNonce.mint({ phoneNorm: PHONE, userId: UNKNOWN_USER.id });
     expect((await Join.autoBind({ n })).join).toMatch(/^\/quiz\/join\//);
+  });
+});
+
+describe('the landing\'s own call style', () => {
+  test('joinUrl and practiceJoinUrl answer synchronously (a string the landing can 302 to at once)', async () => {
+    await Join.flags();
+    const n = await GoNonce.mint({ phoneNorm: PHONE, userId: UNKNOWN_USER.id });
+    expect(typeof Join.joinUrl({ n, lang: 'bi' })).toBe('string');
+    expect(T.verify(Join.joinUrl({ n, lang: 'bi' }).slice(Join.JOIN_PATH.length), 'j')).toEqual(expect.objectContaining({ n, l: 'en' }));
+    expect(typeof Join.practiceJoinUrl({ uid: 'u-coach', lang: 'ur' })).toBe('string');
+  });
+
+  test('bindPick({kid, src}) with the landing\'s student id: this phone\'s child → bound; a stranger id → refused', async () => {
+    seed({ students: [chatKid(0, 'Ali Testwala'), chatKid(1, 'Bina Testwala')] });
+    const n = await GoNonce.mint({ phoneNorm: PHONE, userId: UNKNOWN_USER.id });
+    expect(await Join.bindPick({ n, kid: 'f0000000-0000-4000-8000-00000000dead', src: 'quiz', device: DEVICE })).toEqual({ refused: 'child_unknown' });
+    const out = await Join.bindPick({ n, kid: KIDS[1], src: 'quiz', device: DEVICE });
+    expect(out.next).toMatch(/from=bind/);
+    expect(fake.db.child_phone_bindings).toEqual([expect.objectContaining({ canonical_id: KIDS[1], via: 'guest' })]);
+  });
+
+  test('bindPick({kid, src:"device"}): a child who played on THIS device (not yet on the phone) → bound; another device → refused', async () => {
+    const LOOSE = 'f0000000-0000-4000-8000-000000000177';
+    seed({ students: [{ id: LOOSE, student_name: 'Noor Testwala', phone: null, list_id: null, is_active: true, status: 'active', self_reported_class: '2' }] });
+    fake.db.quiz_sessions.push({ id: 's-1', student_id: LOOSE, device_ref: DEVICE, created_at: iso(Date.now() - 3600000) });
+    const n = await GoNonce.mint({ phoneNorm: PHONE, userId: UNKNOWN_USER.id });
+    expect(await Join.bindPick({ n, kid: LOOSE, src: 'device', device: OTHER_DEVICE })).toEqual({ refused: 'child_unknown' });
+    const out = await Join.bindPick({ n, kid: LOOSE, src: 'device', device: DEVICE });
+    expect(out.next).toMatch(/from=bind/);
+    expect(fake.db.child_phone_bindings).toEqual([expect.objectContaining({ canonical_id: LOOSE, via: 'guest', phone_norm: PHONE })]);
+    expect(events('web_quiz.bind_confirm')).toEqual([expect.objectContaining({ src: 'device' })]);
   });
 });
 

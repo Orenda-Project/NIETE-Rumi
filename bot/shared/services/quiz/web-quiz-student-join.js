@@ -99,15 +99,21 @@ function signJoin({ n = null, lang = 'en', mode = null } = {}) {
   return T.sign({ k: 'j', ...(practice ? { m: 'practice' } : { n }), l: langOf(lang), exp: nowS() + JOIN_TTL_S });
 }
 
-/** '/quiz/join/<j>' for the landing's 302 and the role page's {next}; null with the switch off or no token. */
-async function joinUrl({ n, lang, mode } = {}) {
-  if (!(await flags()).on) return null;
+/**
+ * '/quiz/join/<j>' for the landing's 302 and the role page's {next}; null with no token, or when the switch was last
+ * read OFF. Synchronous (the landing builds its redirect without waiting): it answers from the switch's 30-s cache and
+ * refreshes that cache in the background; before the first read it builds the link, and the page itself asks the
+ * switch again before it draws anything (off → the portal's own page).
+ */
+function joinUrl({ n, lang, mode } = {}) {
+  if (!cache || Date.now() - cache.at >= TTL_MS) flags().catch(() => {});
+  if (cache && !cache.on) return null;
   const t = signJoin({ n, lang, mode });
   return t ? `${JOIN_PATH}${t}` : null;
 }
 
-/** The coach's "Try it as a student" (the teacher home's foot): a practice join, nothing written. null with the switch off. */
-async function practiceJoinUrl({ lang } = {}) {
+/** The coach's "Try it as a student" (the teacher home's foot): a practice join, nothing written. Synchronous, as joinUrl. */
+function practiceJoinUrl({ lang } = {}) {
   return joinUrl({ lang, mode: 'practice' });
 }
 
@@ -381,15 +387,40 @@ async function rosterHits(phoneNorm) {
   }
 }
 
-/** The sheet's "Yes, it's me" → that child's binding on this phone (via 'guest'), home with from=bind. */
-async function bindPick({ n, chip, lang = 'en' } = {}) {
+/** Did this device play as this child on a quiz page (the landing's "Is it <First>?" for a child known on this device)? */
+async function playedHere(studentId, device) {
+  const d = T.cleanDeviceRef(device);
+  if (!d || !studentId) return null;
+  try {
+    const { data, error } = await supabase.from('quiz_sessions').select('student_id').eq('student_id', String(studentId)).eq('device_ref', d).limit(1);
+    if (error || !(data || []).length) return null;
+    const { data: row } = await supabase.from('students').select('id, student_name, is_active, status').eq('id', String(studentId)).maybeSingle();
+    return row && row.is_active !== false && (row.status || 'active') === 'active' ? row : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * The sheet's "Yes, it's me" → that child's binding on this phone (via 'guest'), home with from=bind. The child is
+ * named by the sheet's `chip`, or by the landing's `kid` (a student id the landing already matched); either way it
+ * must be one of THIS phone's children (bound, chat, or its class-list family), or — `src:'device'` — a child who
+ * played on this very device. A stranger is refused.
+ */
+async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = null, device = null, lang = 'en' } = {}) {
   try {
     const f = await flags();
     if (!f.bind) return { off: true };
     const who = await GoNonce.peek(n);
     if (!who) return { stale: true };
-    const { set, kids, src } = await offerFor(who.phoneNorm);
-    const kid = kids.find((k) => T.chipId('go', k.id) === String(chip || ''));
+    const offer = await offerFor(who.phoneNorm);
+    const { set, kids } = offer;
+    let src = offer.src;
+    let kid = kids.find((k) => (chip && T.chipId('go', k.id) === String(chip)) || (kidId && String(k.id) === String(kidId))) || null;
+    if (!kid && kidId && askedSrc === 'device') {
+      kid = await playedHere(kidId, device);
+      if (kid) src = 'device';
+    }
     if (!kid) return { refused: 'child_unknown' };
     const home = [kid, ...set.filter((k) => String(k.id) !== String(kid.id))];
     // already saved on this phone: home with no write and no "saved" line

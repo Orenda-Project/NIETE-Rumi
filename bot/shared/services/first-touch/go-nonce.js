@@ -1,82 +1,79 @@
 'use strict';
 /**
- * The /quiz landing's nonce map: the ONE place a page-held link turns back into the phone that asked for it.
+ * WHO a /quiz landing link was sent to — kept on the server, never in the URL, the page or a log line.
  *
- * The bot knows the sender of every `/quiz`; the page it opens does not. The reply's link therefore carries an
- * opaque nonce `n` (22 random base64url chars, never derived from anything), and this module keeps, server-side in
- * Redis, n → { phoneNorm, userId } for 24 hours (the landing is re-usable for that long). Never in a URL, a page or a
- * log: the key is a hash of n, the value is the phone and the users row id, and nothing here logs either.
+ * The one /quiz reply's link carries an opaque nonce `n` (22 chars, random); this module keeps { p: phone_norm,
+ * u: user_id } under a hash of it in Redis for 24 hours (the landing is re-usable for the link's life).
  *
- *   mint({ phoneNorm, userId })  → n | null       null when Redis is down or the input is bad (the caller then links
- *                                                  without a nonce, and no page write can happen)
- *   peek(n)                      → { phoneNorm, userId } | null   read only; any number of times
- *   claim(n, purpose)            → { phoneNorm, userId } | null   once per purpose ('role' | 'join' | 'bind'): the
- *                                                  first caller gets the entry, every later one null. The entry itself
- *                                                  is never deleted, so one purpose never burns another's.
+ *   mint({ phoneNorm, userId }) → n | null      null when Redis cannot keep it (the reply then carries no write power)
+ *   peek(n)                     → { phoneNorm, userId } | null      read only, any number of times
+ *   claim(n, purpose)           → { phoneNorm, userId } | null      ONCE per purpose ('role' | 'join' | 'bind'):
+ *                                 SET NX then READ BACK (the Redis wrapper answers "set" on an error; only the read-back
+ *                                 decides), so one write never burns another purpose's
+ *   bindDevice(n, ref)          → 'first' | 'same' | 'other' | 'none'   the link belongs to the first device that opens it
  *
- * Fails closed: Redis down, a bad nonce or an expired entry → null, never a guess.
+ * The map itself is never deleted (it expires). Nothing here logs `n`, a phone or a user id.
  */
 const crypto = require('crypto');
-const T = require('../quiz/web-quiz-token');
 
 const TTL_S = 24 * 60 * 60;
-const NONCE_RX = /^[A-Za-z0-9_-]{22}$/;
 const PURPOSES = Object.freeze(['role', 'join', 'bind']);
-const hashOf = (n) => crypto.createHash('sha256').update(String(n)).digest('hex').slice(0, 32);
-const mapKey = (n) => `ft:go:n:${hashOf(n)}`;
-const usedKey = (n, purpose) => `ft:go:used:${hashOf(n)}:${purpose}`;
+const NONCE_RX = /^[A-Za-z0-9_-]{22}$/;
+const h = (n) => crypto.createHash('sha256').update(String(n)).digest('hex').slice(0, 32);
+const KEY = {
+  map: (n) => `ft:go:n:${h(n)}`,
+  used: (n, purpose) => `ft:go:used:${h(n)}:${purpose}`,
+  dev: (n) => `ft:go:dev:${h(n)}`,
+};
+const redis = () => require('../cache/railway-redis.service');
 
-function store() {
+function parse(v) {
   try {
-    const redis = require('../cache/railway-redis.service');
-    return redis && typeof redis.isAvailable === 'function' && redis.isAvailable() ? redis : null;
-  } catch (_) {
-    return null;
-  }
+    const o = typeof v === 'string' ? JSON.parse(v) : v;
+    return o && o.p && o.u ? { phoneNorm: String(o.p), userId: String(o.u) } : null;
+  } catch (_) { return null; }
 }
 
-const clean = (n) => (typeof n === 'string' && NONCE_RX.test(n) ? n : null);
-
 async function mint({ phoneNorm, userId } = {}) {
-  const redis = store();
-  if (!redis || !phoneNorm || !userId) return null;
-  const n = T.newNonce();
+  if (!phoneNorm || !userId) return null;
   try {
-    const ok = await redis.set(mapKey(n), JSON.stringify({ p: String(phoneNorm), u: String(userId) }), TTL_S);
-    return ok ? n : null;
-  } catch (_) {
-    return null;
-  }
+    const n = crypto.randomBytes(16).toString('base64url');
+    const r = redis();
+    await r.set(KEY.map(n), JSON.stringify({ p: String(phoneNorm), u: String(userId) }), TTL_S);
+    return parse(await r.get(KEY.map(n))) ? n : null;   // kept only if it reads back
+  } catch (_) { return null; }
 }
 
 async function peek(n) {
-  const nonce = clean(n);
-  const redis = store();
-  if (!nonce || !redis) return null;
-  try {
-    let v = await redis.get(mapKey(nonce));
-    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { v = null; } }
-    return v && v.p && v.u ? { phoneNorm: String(v.p), userId: String(v.u) } : null;
-  } catch (_) {
-    return null;
-  }
+  if (typeof n !== 'string' || !NONCE_RX.test(n)) return null;
+  try { return parse(await redis().get(KEY.map(n))); } catch (_) { return null; }
+}
+
+/** SET NX a fresh value, then read it back: true only when this caller's value is the one stored. */
+async function setOnce(key, ttl) {
+  const mine = crypto.randomBytes(12).toString('base64url');
+  const r = redis();
+  await r.setNX(key, mine, ttl);
+  const held = await r.get(key);
+  return { mine: held != null && String(held) === mine, held: held == null ? null : String(held) };
 }
 
 async function claim(n, purpose) {
   if (!PURPOSES.includes(purpose)) return null;
-  const entry = await peek(n);
-  if (!entry) return null;
-  const redis = store();
-  if (!redis) return null;
-  // a letter first, so the store's JSON-parsing get() always hands it back as this same string
-  const mark = `m${T.newNonce()}`;
-  try {
-    await redis.setNX(usedKey(n, purpose), mark, TTL_S);
-    // Read back: setNX answers "claimed" when Redis errors, so only the stored value decides who was first.
-    return (await redis.get(usedKey(n, purpose))) === mark ? entry : null;
-  } catch (_) {
-    return null;
-  }
+  const who = await peek(n);
+  if (!who) return null;
+  try { return (await setOnce(KEY.used(n, purpose), TTL_S)).mine ? who : null; } catch (_) { return null; }
 }
 
-module.exports = { mint, peek, claim, TTL_S, PURPOSES };
+async function bindDevice(n, ref) {
+  if (!ref) return 'none';
+  try {
+    const r = redis();
+    await r.setNX(KEY.dev(n), String(ref), TTL_S);
+    const held = await r.get(KEY.dev(n));
+    if (held == null) return 'first';                     // Redis could not keep it: the landing is not refused for an outage
+    return String(held) === String(ref) ? 'same' : 'other';
+  } catch (_) { return 'first'; }
+}
+
+module.exports = { mint, peek, claim, bindDevice, PURPOSES, TTL_S, NONCE_RX, _key: KEY };
