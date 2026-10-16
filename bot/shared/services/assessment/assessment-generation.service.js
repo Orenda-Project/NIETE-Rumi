@@ -808,11 +808,13 @@ function _cachedPrefixKey(messages) {
  * Sections run in parallel, and a cache entry is readable only once the request writing it has
  * started answering: sent together, every section writes the same prefix and none reads it. One
  * call with that exact prefix, the sections' own model, effort and JSON instruction, and no output
- * (`max_tokens: 0`, which the API accepts with thinking left at its default) writes it; the
+ * (`max_tokens: 1`; the reasoning is cut off with it) writes it; the
  * sections then read it. Maths sections are set from different pages and share nothing past the
  * system prompt, so they get no warm call. A failure here never fails the paper: the sections
  * simply write the cache themselves. Returns each warm call's usage, which is billed.
  */
+const WARM_MAX_TOKENS = 1;
+
 async function _warmSharedPrefixes({ built, model, job, requestId, pattern }) {
   if (!String(model || '').startsWith(DIRECT_LANE)) return [];
   const groups = new Map();
@@ -831,7 +833,11 @@ async function _warmSharedPrefixes({ built, model, job, requestId, pattern }) {
         messages: [system, { role: 'user', content: [user.content[0], { type: 'text', text: 'warmup' }] }],
         temperature: 0.7,
         response_format: { type: 'json_object' },
-        max_tokens: 0,
+        // One token, not zero: the API took 0 as "no limit" and wrote a whole billed answer to
+        // "warmup" (3,702 tokens, ~22 s, before any section could start). The effort stays the
+        // sections' own, because a change of thinking settings would stop the sections reading
+        // the cache this call writes; the one-token cap is what bounds the reasoning.
+        max_tokens: WARM_MAX_TOKENS,
         reasoning: SECTION_REASONING,
       }, { timeout: SECTION_TIMEOUT_MS });
       const usage = (response && response.usage) || {};
@@ -892,6 +898,13 @@ const RULE = {
   spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
   sstQ56: 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.',
   accept: '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.',
+  mathsSectionC: 'Section C is also set from the pages above: keep each slot\'s marks and item shape (a word problem stays a word problem, a calculation a calculation) and take the topic from these pages.',
+  grammarFromPages: 'Q1(a) grammar MCQs test only the grammar these pages teach. If the pages teach fewer grammar points than there are MCQs, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.',
+  mathsTosFloor: 'Of the 100 marks, 8–12 are Remember (at least 8 of the 20 MCQs recall a definition, fact, formula or property name), at most 60 Understand, at least 30 Apply.',
+  propertyOneKey: 'For an MCQ that tests a property (divisible by, prime, factor, multiple, even, odd, greatest, smallest, rounded to, place value) exactly ONE option satisfies the stem; check every option before writing it.',
+  unitsNumerals: 'Every measurement stem names its unit (cm, m, kg, litres, rupees, degrees). Write mixed numbers as numerals, e.g. 5 2/3, never \'five and two thirds\' or \'5 and 2/3\'.',
+  frameLabels: 'Key labels come only from the book\'s figure; if the figure carries fewer parts than the frame has leader lines, ask for that smaller number.',
+  grade5Words: 'Use Grade 5 vocabulary; a term the book does not use (e.g. \'lactic acid\', \'electrons\') is replaced by the book\'s word.',
 };
 
 // The pages Urdu items are never set from: lessons 1–3 (the Hamd, the Naat, the third).
@@ -912,6 +925,10 @@ const HELD_TERMS_SST = Object.freeze([
   { term: 'نعت', pattern: 'نعت(?:یں|وں|یہ)?' },
   { term: 'حمد', pattern: 'حمد(?:یہ)?' },
 ].map(({ term, pattern }) => Object.freeze({ term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, 'u') })));
+
+// Maths Section A's slot rule asks for 3 to 5 recall MCQs; the ToS floor needs at least 8.
+const MATHS_RECALL_FROM = '3 to 5 of them pure recall';
+const MATHS_RECALL_TO = 'at least 8 of them pure recall';
 
 /** "1 mark each", "1.25 marks each", "20 marks (parts 10 + 8 + 2)". */
 function _marksPhrase(slot) {
@@ -971,17 +988,32 @@ function _closedLists(P, slots) {
  * this section. Every pattern-specific word comes from the pattern data.
  */
 function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, section, slots, lang, P, scope }) {
-  const list = Array.isArray(slots) && slots.length ? slots : section.slots;
   const medium = lang || P.medium;
   const key = P.key || Patterns.normalise(subject);
   const sectionLabel = section.label_en || section.label_ur || section.id;
-  const hasMcq = list.some((s) => s.shape === 'mcq');
 
   // The FDE syllabus names units and kinds per slot; a paper set on chosen chapters or
   // pages keeps each slot's kind and marks but takes its items from those pages only.
   const fde = Boolean(scope) && scope.kind === 'fde';
+  // Maths Section C on chosen pages: the fixed one-of-each-kind list (draw, area, …) is
+  // FDE's Units 11–12 syllabus, so it is not asked for; marks and shape stay.
+  const mathsC = !fde && key === 'maths' && section.id === 'C';
+  const given = Array.isArray(slots) && slots.length ? slots : section.slots;
+  const list = given.map((s) => {
+    if (mathsC && Array.isArray(s.kinds) && s.kinds.length) {
+      return { ...s, kinds: null, prompt_rule: null, grain: s.grain && { ...s.grain, kind: 'a word problem or a calculation' } };
+    }
+    // Maths MCQs: the ToS floor's recall count replaces the slot's 3-to-5.
+    if (key === 'maths' && typeof s.prompt_rule === 'string' && s.prompt_rule.includes(MATHS_RECALL_FROM)) {
+      return { ...s, prompt_rule: s.prompt_rule.replace(MATHS_RECALL_FROM, MATHS_RECALL_TO) };
+    }
+    return s;
+  });
+  const hasMcq = list.some((s) => s.shape === 'mcq');
   const rules = [RULE.bookOnly, RULE.religious];
   if (!fde) rules.push(RULE.chapterOnly);
+  if (mathsC) rules.push(RULE.mathsSectionC);
+  if (!fde && key === 'english' && hasMcq) rules.push(RULE.grammarFromPages);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) {
     rules.push('Science: a situation comes only from the book activities its slot\'s rule lists, never another.');
   }
@@ -995,11 +1027,15 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     rules.push(`Across the whole paper the marks split by thinking level is ${split} (FDE's table of specification). `
       + `Tag each item: ${RULE.r1}${key === 'english' ? `; ${RULE.r1English}` : ''}.`);
   }
+  if (key === 'maths') rules.push(RULE.mathsTosFloor, RULE.unitsNumerals);
+  if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
-    rules.push(`In this section, ${RULE.recall}.`, RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
+    if (key !== 'maths') rules.push(`In this section, ${RULE.recall}.`);
+    rules.push(RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
     // Word MCQs (anagram, homophone, spelling) on the language papers; number options on Maths and Science.
     if (key === 'english' || key === 'urdu') rules.push(RULE.oneKey);
     if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
+    if (key === 'maths') rules.push(RULE.propertyOneKey);
   }
   rules.push(RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept);
   if (fde && key === 'maths' && list.some((s) => (Array.isArray(s.families) && s.families.length) || (Array.isArray(s.kinds) && s.kinds.length))) {
@@ -1009,6 +1045,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   const picks = list.some((s) => Array.isArray(s.parts_spec) && s.parts_spec.some((p) => p.pick));
   if (picks && medium === 'ur') rules.push(RULE.picks);
   if (picks) rules.push(RULE.picksVerbatim);
+  if ((key === 'science' || key === 'social_studies') && list.some((s) => s.shape === 'frame')) rules.push(RULE.frameLabels);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) rules.push(RULE.situationParts);
   if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
   if (key === 'social_studies' && list.some((s) => /\.Q[56]$/.test(s.slot))) rules.push(RULE.sstQ56);
@@ -1075,6 +1112,88 @@ function _sectionText(section, loaded, scopeKind, ranges) {
 }
 
 /** Concatenate the sections' trees: the same type under the same category becomes one list. */
+/**
+ * A comprehension item whose "questions" part came back with marks and no questions: the paper would
+ * print the part's head and its marks over nothing. Read on a laid-out paper (the slot's parts_spec
+ * says how many questions the part holds). Only the "questions" part is read: other parts keep
+ * their content under other names.
+ */
+function _emptyQuestionParts(examJson) {
+  const specs = {};
+  for (const section of (examJson && examJson._layout && examJson._layout.sections) || []) {
+    for (const slot of section.slots || []) if (Array.isArray(slot.parts_spec)) specs[slot.slot] = slot.parts_spec;
+  }
+  const out = [];
+  _walkQuestions(examJson, (q) => {
+    if (!q.slot || !specs[q.slot] || !Array.isArray(q.parts)) return;
+    q.parts.forEach((part) => {
+      if (!part || part.key !== 'questions') return;
+      if (Array.isArray(part.questions) && part.questions.length) return;
+      const spec = specs[q.slot].find((x) => x.key === 'questions');
+      out.push({ slot: q.slot, part: 'questions', missing: (spec && spec.n) || 1 });
+    });
+  });
+  return out;
+}
+
+/**
+ * The first reply, plus the second reply's items for the given slots that are not already in it. Nothing else of the second reply is kept.
+ */
+function _topUp(firstTree, secondTree, slots) {
+  // Keyed on everything the item says, not its question line alone: an item whose stem sits in
+  // another field has no question line, and two of those are not the same item.
+  const keyOf = (q) => _textsOf(q).map((t) => _flat(t).toLowerCase()).join('\u0001');
+  const seen = new Set();
+  _walkQuestions(firstTree, (q) => seen.add(keyOf(q)));
+  const extra = JSON.parse(JSON.stringify(secondTree || {}));
+  for (const branch of ['seen', 'unseen']) {
+    for (const types of Object.values((extra && extra[branch]) || {})) {
+      if (!types || typeof types !== 'object') continue;
+      for (const [type, list] of Object.entries(types)) {
+        if (!Array.isArray(list)) continue;
+        types[type] = list.filter((q) => q && slots.has(q.slot) && !seen.has(keyOf(q)));
+      }
+    }
+  }
+  return _mergeSections([firstTree, extra]);
+}
+
+// The markers the paper refuses in a question's own text (the renderer's item list). The renderer's
+// own list is used when it exports one; this copy is the fallback.
+const REVIEW_ITEM_FALLBACK = Object.freeze([/needs review/i, /\bfil{2}er\b/i, /\u26A0/, /Islamabad\sModel\sSchool/i, /MODEL PAPER FOR/i]);
+
+function _reviewItemList() {
+  try {
+    const list = require('./assessment-paper-fde.renderer').REFUSED_ITEM;
+    if (Array.isArray(list) && list.length) return list;
+  } catch { /* the fallback below */ }
+  return REVIEW_ITEM_FALLBACK;
+}
+
+/** Section id → the first refused marker one of its items carries. */
+function _reviewTextHits(results) {
+  const list = _reviewItemList();
+  const hits = new Map();
+  for (const r of results) {
+    _walkQuestions(r.tree, (q) => {
+      if (hits.has(r.id)) return;
+      // The marking scheme prints too, so its text is read with the item's.
+      const texts = _textsOf(q);
+      const walk = (v) => {
+        if (typeof v === 'string') texts.push(v);
+        else if (Array.isArray(v)) v.forEach(walk);
+        else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+      };
+      walk(q.scheme);
+      for (const t of texts) {
+        const re = list.find((x) => x.test(t));
+        if (re) { hits.set(r.id, { slot: q.slot || null, marker: String(re) }); return; }
+      }
+    });
+  }
+  return hits;
+}
+
 function _mergeSections(trees) {
   const out = {};
   for (const tree of trees) {
@@ -1238,9 +1357,13 @@ function _dropHeld(examJson, held, requestId = null) {
           if (!q || typeof q !== 'object') return true;
           const why = held(q);
           if (!why) return true;
-          const hit = { slot: q.slot || null, ...why };
+          // The kind (the reply's own type key) and, for a quote, the run that matched: one log line
+          // then says whether a drop was a real quote or a phrase the held lessons share with others.
+          const { match, ...reason } = why;
+          const hit = { slot: q.slot || null, ...reason };
           dropped.push(hit);
-          logToFile('[assessment] held item dropped', requestId ? { requestId, ...hit } : hit);
+          const line = { ...hit, kind: type, ...(match ? { match } : {}) };
+          logToFile('[assessment] held item dropped', requestId ? { requestId, ...line } : line);
           return false;
         });
       }
@@ -1285,13 +1408,22 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '', 
     for (let i = 0; i + HELD_SHINGLE <= allowed.length; i += 1) shingles.delete(allowed.slice(i, i + HELD_SHINGLE));
   }
 
-  const quotes = (q) => _textsOf(q).some((t) => {
-    const s = _flat(t);
-    for (let i = 0; i + HELD_SHINGLE <= s.length; i += 1) if (shingles.has(s.slice(i, i + HELD_SHINGLE))) return true;
-    return false;
-  });
+  // The first run of the held pages an item carries, or null.
+  const quoteOf = (q) => {
+    for (const t of _textsOf(q)) {
+      const s = _flat(t);
+      for (let i = 0; i + HELD_SHINGLE <= s.length; i += 1) {
+        const run = s.slice(i, i + HELD_SHINGLE);
+        if (shingles.has(run)) return run;
+      }
+    }
+    return null;
+  };
 
-  return _dropHeld(examJson, (q) => (quotes(q) ? { reason: 'lesson_1_3' } : null), requestId);
+  return _dropHeld(examJson, (q) => {
+    const match = quoteOf(q);
+    return match ? { reason: 'lesson_1_3', match } : null;
+  }, requestId);
 }
 
 /** Where a pattern paper's pages come from: the pattern's syllabus, the job's pages, or a chapter. */
@@ -1378,18 +1510,38 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // whole. Decided on the reply as the model wrote it, BEFORE the held-content filter, so an
   // item the filter drops is still never refilled.
   const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern });
-  const short = firstLaid.shortfall.concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall);
+  const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
+  const short = firstLaid.shortfall
+    .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
+    .concat(_emptyQuestionParts(firstLaid.examJson));
   const shortSlots = new Set(short.map((f) => f.slot));
-  const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)));
+  // An item carrying text the paper refuses to print (a review mark the model copied) fails the
+  // paper at render; its section is asked once more instead, and a second hit fails it here.
+  const reviewHits = _reviewTextHits(results);
+  const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)) || reviewHits.has(section.id));
   const extraUsages = [];
   if (again.length) {
     await Promise.all(again.map(async (b) => {
       const shortfall = short.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
-      logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall });
+      const reviewText = reviewHits.get(b.section.id) || null;
+      logToFile('[assessment] section re-asked', {
+        requestId, pattern, section: b.section.id, shortfall, ...(reviewText ? { reviewText } : {}),
+      });
       const i = results.findIndex((r) => r.id === b.section.id);
-      extraUsages.push(...results[i].usages);
-      results[i] = await writeOne(b);
+      const first = results[i];
+      extraUsages.push(...first.usages);
+      const second = await writeOne(b);
+      // A slot short only because the layout set items aside (two options of equal value, an item
+      // tagged to a full slot) keeps the first reply and takes the missing items from the second:
+      // the layout fills a slot in reply order, so the first reply's items land first. Any other
+      // re-ask (a part with no marking points, a review mark) takes the second reply whole.
+      const topUp = !reviewText && shortfall.length && shortfall.every((f) => layoutShort.has(f.slot));
+      results[i] = topUp ? { ...second, tree: _topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
     }));
+    const still = _reviewTextHits(results);
+    if (still.size) {
+      throw fail('REVIEW_TEXT', 'A question carries text that must never print.', { sections: [...still.keys()], examJson: merged(), model });
+    }
   }
 
   // Layout first, so the filter sees every item under its pattern slot; a drop
@@ -1409,15 +1561,21 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     requestId, pattern, placed: layout.placed, unplaced: layout.unplaced, totalMarks: examJson._layout.total_marks,
     sections: P.sections.map((s) => s.id), dropped: dropped.length, shortfall: laid.shortfall,
   });
+  // A failed paper keeps what the model wrote and which model wrote it (on the error, for the
+  // row), so the failure can be read afterwards instead of guessed at.
   if (laid.shortfall.length) {
-    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: laid.shortfall });
+    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: laid.shortfall, examJson, model });
+  }
+  const emptyParts = _emptyQuestionParts(examJson);
+  if (emptyParts.length) {
+    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: emptyParts, examJson, model });
   }
 
   const scheme = normaliseScheme(examJson);
   examJson = scheme.examJson;
   if (scheme.log.length) logToFile('[assessment] scheme normalised', { pattern, notes: scheme.log.slice(0, 50), count: scheme.log.length });
   if (scheme.shortfall.length) {
-    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall });
+    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
   }
 
   const notesBefore = (examJson._layout.notes || []).length;

@@ -195,22 +195,38 @@ function typesetFractions(html) {
 
 // ── refusals ───────────────────────────────────────────────────────────────
 
-const REFUSED = [/مسودہ/, /needs review/i, /\bfiller\b/i, /اسی طرح/, /⚠/, /Islamabad Model School/i, /MODEL PAPER FOR/i];
+/*
+ * Two lists. Our own chrome (the `_layout` block: header, notes, legend, the
+ * before-the-exam box) is refused for every marker. The model's item text is
+ * refused only for the English review markers: «اسی طرح» and «مسودہ» are
+ * ordinary Urdu words a real instruction or distractor uses.
+ */
+const REFUSED_ITEM = [/needs review/i, /\bfiller\b/i, /⚠/, /Islamabad Model School/i, /MODEL PAPER FOR/i];
+const REFUSED_CHROME = [...REFUSED_ITEM, /مسودہ/, /اسی طرح/];
 
-function refuseReviewText(node, where = 'paper') {
+function refuseIn(node, where, list, name) {
   if (typeof node === 'string') {
-    for (const re of REFUSED) {
+    for (const re of list) {
       if (re.test(node)) {
-        const err = new Error(`REVIEW_TEXT: the ${where} carries text that must never print (${re})`);
+        const err = new Error(`REVIEW_TEXT[${name}]: the ${where} carries text that must never print (${re})`);
         err.code = 'REVIEW_TEXT';
+        err.list = name;
+        err.where = where;
         throw err;
       }
     }
   } else if (Array.isArray(node)) {
-    node.forEach((n) => refuseReviewText(n, where));
+    node.forEach((n) => refuseIn(n, where, list, name));
   } else if (node && typeof node === 'object') {
-    Object.values(node).forEach((n) => refuseReviewText(n, where));
+    Object.values(node).forEach((n) => refuseIn(n, where, list, name));
   }
+}
+
+function refuseReviewText(examJson, where = 'paper') {
+  if (!examJson || typeof examJson !== 'object') return refuseIn(examJson, where, REFUSED_CHROME, 'chrome');
+  const { _layout: chrome, ...items } = examJson;
+  refuseIn(chrome, where, REFUSED_CHROME, 'chrome');
+  refuseIn(items, where, REFUSED_ITEM, 'item');
 }
 
 // ── counts ─────────────────────────────────────────────────────────────────
@@ -804,7 +820,30 @@ const BOOK_SOURCE = {
   diagram: { en: "the book's diagram", ur: 'کتاب کا خاکہ' }, // ur: needs fluent-Urdu review
 };
 
-function beforeExamBox(L, live, ctx, paperFileName, grade) {
+// Rows the scheme pass wrote in code (an answer with no points), counted in the box.
+const FILLED_BY_CODE = {
+  en: (n) => (n === 1 ? '1 row filled by code' : `${n} rows filled by code`),
+  ur: (n) => (n === 1 ? '1 قطار کوڈ نے بھری' : `${n} قطاریں کوڈ نے بھریں`), // needs fluent-Urdu review
+};
+
+// `item` is the index in the model's own type list (seen/unseen → category →
+// type), as marking-scheme.js writes it; an entry whose item was removed is not counted.
+function filledByCode(L, examJson) {
+  const list = Array.isArray(L.scheme_shortfall) ? L.scheme_shortfall : [];
+  const removed = (e) => ['seen', 'unseen'].some((branch) => Object.values(examJson[branch] || {})
+    .some((types) => types && typeof types === 'object' && Object.values(types)
+      .some((items) => Array.isArray(items) && items[e.item] && items[e.item].slot === e.slot && items[e.item].removed === true)));
+  const seen = new Set();
+  return list.filter((e) => {
+    if (!e || typeof e !== 'object') return false;
+    const key = `${e.slot}|${e.item}|${e.part}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return !removed(e);
+  }).length;
+}
+
+function beforeExamBox(L, live, ctx, paperFileName, grade, examJson) {
   const lang = ctx.medium;
   const B = L.before_exam;
   const lines = [...B[`lines_${lang}`]];
@@ -857,6 +896,8 @@ function beforeExamBox(L, live, ctx, paperFileName, grade) {
   if (!attempts.length) lines[3] = lines[3].replace(lang === 'ur' ? '؛ {attempts}' : '; {attempts}', '');
   lines[3] = fill(lines[3], { sections: where, attempts: attempts.join(lang === 'ur' ? '؛ ' : '; ') });
   lines[4] = fill(lines[4], { t: L[`total_time_${lang}`] || (lang === 'ur' ? '3 گھنٹے' : '3 hrs') });
+  const filled = examJson ? filledByCode(L, examJson) : 0;
+  if (filled > 0) lines.push(FILLED_BY_CODE[lang](filled));
   const fileHtml = `<bdi class="file" dir="ltr">${esc(file)}</bdi>`;
   return `<div class="box before"><div class="bt">${textOf(B[`title_${lang}`], ctx)}</div><ol>${lines.map((l) => `<li>${textOf(l, ctx).replace(FILE_MARK, fileHtml)}</li>`).join('')}</ol></div>`;
 }
@@ -1128,7 +1169,7 @@ function renderMarkingScheme({ examJson, grade, subject, paperFileName = null, a
 <div class="title">${textOf(H[`title_${lang}`], ctx)}</div>
 <div class="scheme-title">${textOf(H[`scheme_title_${lang}`], ctx)}</div>
 <div class="covers">${textOf(coversScope, ctx)}</div>
-${beforeExamBox(L, live, ctx, paperFileName, grade)}
+${beforeExamBox(L, live, ctx, paperFileName, grade, examJson)}
 ${legendBox(L, ctx, kinds)}
 ${suppliesBox(L, ctx)}`;
 
@@ -1284,6 +1325,8 @@ module.exports = {
   pdfOptions,
   toUrduDigits,
   framePages,
+  // the generation service re-asks a section whose item text hits this list
+  REFUSED_ITEM,
   // for tests and the paper view
   substitute,
   itemNumber,
