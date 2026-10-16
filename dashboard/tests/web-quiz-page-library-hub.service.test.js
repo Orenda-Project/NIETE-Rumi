@@ -89,6 +89,16 @@ test('no teacher\'s quiz played yet (409 no_class): says so, in Urdu too, and st
   expect(p.html()).toContain('پہلے اپنے استاد کا کوئی کوئز کھیلیں');
 });
 
+test('a child with no class (the child home on): start() answers a watch, and the lesson plays on the home\'s own player', async () => {
+  const p = libPage({ api: { ...API, '/api/wq/videos/start': { watch: { vid: V(2), url: 'https://r2.example.test/v.mp4?sig', title: 'Leaves', lang: 'en', after: false } } } });
+  await flush(); await flush();
+  p.els['[data-s="Science"]'].fire('click');
+  await flush(); await flush();
+  p.els[`[data-v="${V(2)}"]`].fire('click');
+  await flush(); await flush();
+  expect(p.assigned).toEqual([`/h/HUBTOK?kid=c1#watch/${V(2)}`]);
+});
+
 test('Back from the subjects goes to the hub', async () => {
   const p = libPage({ api: API });
   await flush(); await flush();
