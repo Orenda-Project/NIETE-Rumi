@@ -79,7 +79,9 @@ function attachSubjectNote(groups, analysis, language) {
 /**
  * @param {object} session - coaching_sessions row (transcript_text, user_id, created_at, classroom_photos)
  * @param {object} analysis - enhancedAnalysis (framework, scores, domains, reflective_corpus, …)
- * @param {object} opts - { teacherName, commitmentAction, language, brand, requireNarrative }
+ * @param {object} opts - { teacherName, commitmentAction, language, brand, target, requireNarrative }
+ *   `target` (bd-v0toag.1.5): the report's ONE next step (next-step.selectNextStep); the horizon
+ *   names it. /observe2's coach pick still wins; absent → the lowest-scoring section, as before.
  *   `requireNarrative` (bd-trksw9): reject with code NARRATIVE_UNAVAILABLE instead of
  *   rendering when the narrative pass failed twice. Off by default.
  *   `brand` selects the template palette ('niete' for the FICO/NIETE path,
@@ -113,13 +115,13 @@ async function generateHeroReport(session, analysis, opts = {}) {
   }
 
   // /observe2 (pilot sheet R3): the coach's "Work on first" is the horizon's target, judged or not;
-  // every other report keeps the lowest-scoring section (target null).
+  // a coaching report names its selected next step (bd-v0toag.1.5); otherwise the lowest-scoring section.
   const narrative = await generateReportNarrative(analysis, {
     transcript: session.transcript_text,
     trend,
     language: lang,
     teacherName,
-    target: observe2Target(analysis),
+    target: observe2Target(analysis) || opts.target || null,
   });
   // /observe2: the horizon's title is the coach's pick, in its own words, set here rather than trusted
   // to the model. Before the image and before the caller stores the narrative.
