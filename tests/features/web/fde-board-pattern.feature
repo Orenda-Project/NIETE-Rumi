@@ -42,6 +42,14 @@ Feature: FDE board-pattern paper for Grade 5
 
   # ── Business rules / valid variations ─────────────────────────────────────────────────────────────────────────────
 
+  @FB09
+  Scenario: The New paper dock stays clear of the ready banner
+    Given the board-pattern switch is on
+    And a paper the teacher asked for earlier has just become ready
+    When a Grade 5 Science teacher reaches Check and make on a phone 360 or 390 wide while the "Paper ready" banner shows
+    Then Make my paper sits wholly above the banner, not one pixel under it
+    And Make my paper can be tapped without closing the banner first
+
   @FB03
   Scenario: A teacher on plain New paper takes the side door
     Given the board-pattern switch is on
