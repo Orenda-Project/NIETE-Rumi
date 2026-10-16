@@ -150,7 +150,7 @@ function resolveIdentity({ phone, account }) {
   if (hasAccount) {
     const name = normaliseAccountName(account);
     if (!name) {
-      throw new Error(`REFUSED: "${account}" is not an account name — lower-case letters, digits and hyphens, ` +
+      throw new Error(`REFUSED: "${account}" is not an account name — lower-case letters, digits, hyphens and underscores, ` +
         'starting with a letter, 3 to 40 characters, at most 6 digits (e.g. fde-islamabad)');
     }
     return { stored: storedPhoneFor(name), signInAs: name };
