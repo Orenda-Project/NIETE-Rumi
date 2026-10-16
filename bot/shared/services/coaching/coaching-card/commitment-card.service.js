@@ -21,6 +21,8 @@ const { modelFor } = require('../../../config/model-registry');
 const { logToFile } = require('../../../utils/logger');
 const { generatePrioritizedAction } = require('./prioritized-action.service');
 const { simplifyPedagogyJargon } = require('../pedagogy-jargon');
+// bd-v0toag.1.5: one selector for the horizon, the card and the stored focus.
+const { cardTarget } = require('../next-step');
 // bd-gr4fy.5.12: the same gendered-address detector the reflective question uses.
 const { genderedAddress } = require('../reflective-questions/guardrails');
 
@@ -70,7 +72,19 @@ function extractQ3(conversationState) {
   return q3;
 }
 
-function buildPrompt(lang, analysis, q3) {
+/**
+ * The report's ONE next step, pinned into the prompt so the card's action is
+ * about the same indicator the horizon names (bd-v0toag.1.5). Null target →
+ * the prompt reads exactly as before.
+ */
+function targetBlock(target) {
+  if (!target || !target.indicator) return '';
+  const move = target.try ? ` The scorer's suggested move: "${target.try}".` : '';
+  const why = target.rationale ? ` Why it is the next step: ${target.rationale}` : '';
+  return `\nTHE TARGET (fixed — do NOT choose a different area): indicator ${target.indicator} "${target.name}".${why}${move} Your "action" is about THIS indicator only — ONE move, not a list of moves.\n`;
+}
+
+function buildPrompt(lang, analysis, q3, target = null) {
   const langName = LANG_NAME[lang] || 'English';
   const strengths = (analysis.strengths || []).map((s) => s.title || s.analysis || s).slice(0, 3);
   const growth = (analysis.growth_opportunities || []).map((g) => ({
@@ -92,11 +106,11 @@ PLAIN LANGUAGE — the teacher must understand every word. Do NOT use coach-jarg
 
 The card has TWO parts:
 1. "commitment" — a single warm sentence (max ~18 words) in the teacher's OWN spirit, reflecting back what SHE values, drawn from her Q3 answer (her forward-looking reflection). Address her as "you"/"we". No honorifics, no name inside it.
-2. "action" — ONE specific, concrete thing to try in her NEXT class. It MUST be rooted in THIS exact lesson AND fuse her own value (from her Q3 answer + strengths) with the single highest-leverage growth area. Phrase it as an implementation intention anchored to next class ("Next class, when [trigger], [do X]") — but respect the gender-neutral rule above (imperative, not a gendered "you will"). Max ~32 words. Vivid and classroom-specific — name the actual materials/concept from THIS lesson. NOT generic.
+2. "action" — ONE specific, concrete thing to try in her NEXT class. It MUST be rooted in THIS exact lesson AND fuse her own value (from her Q3 answer + strengths) with ${target ? 'THE TARGET below' : 'the single highest-leverage growth area'}. Phrase it as an implementation intention anchored to next class ("Next class, when [trigger], [do X]") — but respect the gender-neutral rule above (imperative, not a gendered "you will"). Max ~32 words. Vivid and classroom-specific — name the actual materials/concept from THIS lesson. NOT generic.
 
 Also return "highlights": an array of 2–4 short ${langName} keyword phrases that appear verbatim in "action" (concrete nouns) to visually emphasise. And "lesson_label": a 2–4 word ${langName} subject·topic label.
 
-Session (framework: ${(analysis.framework || 'oecd').toUpperCase()}):
+Session (framework: ${(analysis.framework || 'oecd').toUpperCase()}):${targetBlock(target)}
 - Her strengths: ${strengths.join(' | ') || '(none captured)'}
 - Growth areas: ${growth.map((g) => `${g.area} — ${g.observation} Strategy: ${g.strategy}`).join(' || ') || '(none)'}
 - Q3 question we asked her: ${q3.question || '(n/a)'}
@@ -106,8 +120,9 @@ Return STRICT JSON only: {"commitment":"...","action":"...","lesson_label":"..."
 }
 
 /** Map the rule-based prioritized-action output into the commitment-card shape. */
-async function fallbackCard(analysis, teacherName, priorAction, lang) {
-  const pa = await generatePrioritizedAction(analysis, teacherName, priorAction);
+async function fallbackCard(analysis, teacherName, priorAction, lang, target = null) {
+  // The template names the selected step when there is one (bd-v0toag.1.5), never a second pick.
+  const pa = await generatePrioritizedAction(analysis, teacherName, priorAction, target && target.indicator);
   if (!pa) return null;
 
   // The rule-based path is authored in English. For non-English teachers,
@@ -151,7 +166,7 @@ async function fallbackCard(analysis, teacherName, priorAction, lang) {
  * @param {object} analysis - enhancedAnalysis (framework + strengths + growth_opportunities)
  * @param {object} conversationState - coaching_sessions.conversation_state (has questions[])
  * @param {string} outputLanguage - language code (en/sw/ur/ar); falls back to en
- * @param {object} [opts] - { teacherName, priorAction }
+ * @param {object} [opts] - { teacherName, priorAction, target }
  * @returns {Promise<object|null>}
  */
 async function generateCommitmentCard(analysis, conversationState, outputLanguage = 'en', opts = {}) {
@@ -159,14 +174,16 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
   const lang = (outputLanguage || 'en').slice(0, 2);
   if (!analysis) return null;
 
+  // opts.target: the report's ONE selected step (next-step.selectNextStep). Absent → choose here.
+  const target = opts.target !== undefined ? opts.target : cardTarget(analysis, null);
   const q3 = extractQ3(conversationState);
   if (!q3) {
     logToFile('Commitment card: no Q3 commitment → rule-based fallback', { framework: analysis.framework });
-    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang));
+    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, target));
   }
 
   try {
-    const prompt = buildPrompt(lang, analysis, q3);
+    const prompt = buildPrompt(lang, analysis, q3, target);
     const ask = async (text) => {
       const r = await GPT5MiniService.openai.chat.completions.create({
         model: modelFor('coaching.commitmentCard'),
@@ -197,8 +214,8 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
     });
   } catch (e) {
     logToFile('Commitment card LLM failed → rule-based fallback', { error: e.message });
-    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang));
+    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, target));
   }
 }
 
-module.exports = { generateCommitmentCard, extractQ3, buildPrompt, LANG_NAME };
+module.exports = { generateCommitmentCard, extractQ3, buildPrompt, cardTarget, LANG_NAME };
