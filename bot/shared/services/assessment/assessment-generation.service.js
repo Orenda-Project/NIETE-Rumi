@@ -930,6 +930,7 @@ const RULE = {
   q1bOne: 'Each item is one sentence to rewrite, with its instruction once.',
   // English Q5 on chosen pages with no poem: the nearest poem's own page text is given below the book text.
   q5Given: (p) => `Q5 uses this poem from Unit ${p.unit} (book p.${p.pages}); print only its verse lines, exactly as given, never a heading, instruction or activity line; title «${p.title} (Unit ${p.unit})».`,
+  urduNoMaxims: 'Model answers, passages, dialogues and stories carry no religious maxim, hadith, verse, dua or act of worship; keep them to everyday life.',
 };
 
 // Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
@@ -970,6 +971,24 @@ const HELD_TERMS_SST = Object.freeze([
   { term: 'نعت', pattern: 'نعت(?:یں|وں|یہ)?' },
   { term: 'حمد', pattern: 'حمد(?:یہ)?' },
 ].map(({ term, pattern }) => Object.freeze({ term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, 'u') })));
+
+// Urdu: the text the model writes itself (a model answer, a passage, a scheme point) never carries
+// a religious maxim, hadith, verse or act of worship. Matched on _heldNorm text, whole words. The
+// operator-allowed classes («اللہ تعالیٰ کرے», «میری دعا ہے کہ», greetings, «دعا» in a letter) are
+// not in the list; «ایمان داری» (honesty) is not «ایمان کا حصہ».
+const HELD_TERMS_URDU_AUTHORED = Object.freeze([
+  { term: 'ایمان کا حصہ', pattern: 'ایمان کا حصہ' },
+  { term: 'نصف ایمان', pattern: 'نصف ایمان' },
+  { term: 'حدیث', pattern: 'حدیث(?:یں|وں|ی)?|احادیث' },
+  { term: 'فرمایا', pattern: 'فرمای[اے]' },
+  { term: 'قرآن', pattern: 'قران(?:ی|ے)?' },
+  { term: 'آیت', pattern: 'ایت(?:یں|وں)?|ایات' },
+  { term: 'ارشاد', pattern: 'ارشاد' },
+  { term: 'نماز پڑھ', pattern: 'نماز پڑھ', open: true },
+  { term: 'روزہ رکھ', pattern: 'روز[ہے] رکھ', open: true },
+].map(({ term, pattern, open }) => Object.freeze({
+  term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})${open ? '' : '(?![\\p{L}\\p{N}])'}`, 'u'),
+})));
 
 // Maths Section A's slot rule asks for 3 to 5 recall MCQs; the ToS floor needs at least 8.
 const MATHS_RECALL_FROM = '3 to 5 of them pure recall';
@@ -1100,6 +1119,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   const closed = _closedLists(P, list);
   if (closed) rules.push(closed);
   if (key === 'urdu') rules.push(fde ? `${RULE.held} Set items only from book pages ${P.scope.page_ranges}.` : RULE.held);
+  if (key === 'urdu') rules.push(RULE.urduNoMaxims);
   if (scope && scope.kind === 'fde' && P.scope.excluded_pages_note) rules.push(P.scope.excluded_pages_note);
   const tos = TOS[key];
   if (tos) {
@@ -1491,6 +1511,74 @@ function _heldTermOf(q) {
 }
 
 /**
+ * The text an item carries that the model wrote as its own: answers, passages, `accept`, the scheme.
+ * An MCQ's answer is one of its options, which are read with the stem, so it is not model prose.
+ */
+function _modelTextsOf(q) {
+  const out = [];
+  const add = (v) => {
+    if (typeof v === 'string') out.push(v);
+    else if (Array.isArray(v)) v.forEach(add);
+    else if (v && typeof v === 'object') Object.values(v).forEach(add);
+  };
+  const visit = (o) => {
+    if (!o || typeof o !== 'object') return;
+    const mcq = Array.isArray(o.options) && o.options.length > 0;
+    ['answer', 'passage', 'accept', 'scheme'].forEach((k) => { if (!(mcq && k === 'answer')) add(o[k]); });
+    ['parts', 'questions'].forEach((k) => { if (Array.isArray(o[k])) o[k].forEach(visit); });
+  };
+  visit(q);
+  return out;
+}
+
+/** Whether the match at `at` (length `len`) in `s` sits in a run of HELD_SHINGLE characters `book` prints. */
+function _quotesBook(s, at, len, book) {
+  if (!book) return false;
+  if (s.length <= HELD_SHINGLE || len >= HELD_SHINGLE) return book.includes(s.length <= HELD_SHINGLE ? s : s.slice(at, at + len));
+  for (let i = Math.max(0, at + len - HELD_SHINGLE); i <= Math.min(at, s.length - HELD_SHINGLE); i += 1) {
+    if (book.includes(s.slice(i, i + HELD_SHINGLE))) return true;
+  }
+  return false;
+}
+
+/**
+ * Urdu: the first held term (HELD_TERMS_URDU_AUTHORED) an item's own model text carries, or null.
+ * `book` is the paper's book text, _heldNorm'd: a term inside a run the book prints is the book's.
+ */
+function _authoredReligiousOf(q, book) {
+  for (const t of _modelTextsOf(q)) {
+    const s = _heldNorm(t);
+    for (const { term, re } of HELD_TERMS_URDU_AUTHORED) {
+      for (const m of s.matchAll(new RegExp(re.source, 'gu'))) {
+        if (!_quotesBook(s, m.index, m[0].length, book)) return term;
+      }
+    }
+  }
+  return null;
+}
+
+/** The book text a paper is set from, the held pages (lessons 1–3) left out, whitespace collapsed. */
+function _keptBookText(allowedText) {
+  // The held pages themselves never count as allowed, even when the teacher's chapters reach into them.
+  const pages = _splitPages(allowedText);
+  const kept = pages ? pages.filter((pg) => !_inRanges(pg.page, HELD_PAGES)).map((pg) => pg.text).join(' ') : allowedText;
+  return _flat(String(kept || '').replace(/=== Page \d+ ===/g, ' '));
+}
+
+/** Section id → the first authored religious term one of its Urdu items carries ({ slot, term }). */
+function _religiousHits(results, book) {
+  const hits = new Map();
+  for (const r of results) {
+    _walkQuestions(r.tree, (q) => {
+      if (hits.has(r.id)) return;
+      const term = _authoredReligiousOf(q, book);
+      if (term) hits.set(r.id, { slot: q.slot || null, term });
+    });
+  }
+  return hits;
+}
+
+/**
  * Urdu: an item of a printed-word-list slot (`shape: 'words'`, `print_words`) whose FDE instruction
  * takes no {q} prints FDE's instruction and the list; a `question` the model wrote for it only says
  * the instruction again. That restatement is stock exercise wording the held lessons also print, so
@@ -1565,12 +1653,10 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '', 
   // questions below") sits on the held pages AND in the lessons the paper is set from. Only
   // what the held lessons alone contain marks an item as quoting them; a shared phrase never
   // drops a good item and fails the paper as a short slot.
-  // The held pages themselves never count as allowed, even when the teacher's chapters reach into them.
-  const pages = _splitPages(allowedText);
-  const kept = pages ? pages.filter((pg) => !_inRanges(pg.page, HELD_PAGES)).map((pg) => pg.text).join(' ') : allowedText;
+  const kept = _keptBookText(allowedText);
   // The pattern's own Urdu (instructions, closed lists, rules) is what the model is told to
   // copy, and a held lesson's exercise can print the same instruction: never a quote.
-  const allowedTexts = [_flat(String(kept || '').replace(/=== Page \d+ ===/g, ' ')), ..._urduStringsOf(P)];
+  const allowedTexts = [kept, ..._urduStringsOf(P)];
   for (const allowed of allowedTexts) {
     for (let i = 0; i + HELD_SHINGLE <= allowed.length; i += 1) shingles.delete(allowed.slice(i, i + HELD_SHINGLE));
   }
@@ -1587,9 +1673,13 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '', 
     return null;
   };
 
+  // A religious maxim, hadith or act of worship the model wrote into an answer, passage or scheme.
+  const book = _heldNorm(kept);
   return _dropHeld(examJson, (q) => {
     const match = quoteOf(q);
-    return match ? { reason: 'lesson_1_3', match } : null;
+    if (match) return { reason: 'lesson_1_3', match };
+    const term = _authoredReligiousOf(q, book);
+    return term ? { reason: 'authored_religious', term } : null;
   }, requestId);
 }
 
@@ -1686,14 +1776,19 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
   // paper at render; its section is asked once more instead, and a second hit fails it here.
   const reviewHits = _reviewTextHits(results);
-  const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)) || reviewHits.has(section.id));
+  // Urdu: a section whose model text carries an authored religious maxim is asked once more; a
+  // second hit is held by religiousFilter below and the slot is short.
+  const religiousHits = key === 'urdu' ? _religiousHits(results, _heldNorm(_keptBookText(loaded.content))) : new Map();
+  const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot))
+    || reviewHits.has(section.id) || religiousHits.has(section.id));
   const extraUsages = [];
   if (again.length) {
     await Promise.all(again.map(async (b) => {
       const shortfall = short.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
       const reviewText = reviewHits.get(b.section.id) || null;
+      const religious = religiousHits.get(b.section.id) || null;
       logToFile('[assessment] section re-asked', {
-        requestId, pattern, section: b.section.id, shortfall, ...(reviewText ? { reviewText } : {}),
+        requestId, pattern, section: b.section.id, shortfall, ...(reviewText ? { reviewText } : {}), ...(religious ? { religious } : {}),
       });
       const i = results.findIndex((r) => r.id === b.section.id);
       const first = results[i];
@@ -1702,8 +1797,8 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       // A slot short only because the layout set items aside (two options of equal value, an item
       // tagged to a full slot) keeps the first reply and takes the missing items from the second:
       // the layout fills a slot in reply order, so the first reply's items land first. Any other
-      // re-ask (a part with no marking points, a review mark) takes the second reply whole.
-      const topUp = !reviewText && shortfall.length && shortfall.every((f) => layoutShort.has(f.slot));
+      // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
+      const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShort.has(f.slot));
       results[i] = topUp ? { ...second, tree: _topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
     }));
     const still = _reviewTextHits(results);
