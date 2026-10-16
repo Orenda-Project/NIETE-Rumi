@@ -297,19 +297,40 @@ async function send({ uid, storyId, classId = null, now = Date.now() } = {}) {
 }
 
 /**
- * The teacher home's Stories tile line: the stories this teacher has sent and the children who opened them (joined a
- * story send's class link), or null while the switch is off. A preview is not a send. Reads only.
+ * The teacher home's Stories tile line: the stories this teacher has sent (only these books with `bookIds`) and the
+ * children of those sends who read: a child who joined a send's class link and has any story_events row on that send's
+ * book since it was first sent. A child reading the same book from the shelf, or before the send, is not counted.
+ * Null while the switch is off, and on any read error (never throws). A preview is not a send. Reads only.
  */
-async function storyCounts(uid) {
-  if (!uid || !(await flagOn())) return null;
-  const { data: rows, error } = await supabase.from('quizzes').select('id')
-    .eq('teacher_id', uid).eq('quiz_source', SOURCE).eq('status', 'sent');
-  if (error) return null;
-  const ids = (rows || []).map((r) => r.id).filter(Boolean);
-  if (!ids.length) return { sent: 0, opened: 0 };
-  const { data: sessions, error: e2 } = await supabase.from('quiz_sessions').select('student_id').in('quiz_id', ids);
-  if (e2) return null;
-  return { sent: ids.length, opened: new Set((sessions || []).map((x) => x.student_id).filter(Boolean)).size };
+async function storyCounts(uid, { bookIds = null } = {}) {
+  try {
+    if (!uid || !(await flagOn())) return null;
+    const { data: rows, error } = await supabase.from('quizzes').select('id, meta')
+      .eq('teacher_id', uid).eq('quiz_source', SOURCE).eq('status', 'sent');
+    if (error) return null;
+    const want = Array.isArray(bookIds) ? new Set(bookIds.map(String)) : null;
+    const sends = (rows || []).filter((q) => q && q.id && bookOf(q) && (!want || want.has(bookOf(q))));
+    if (!sends.length) return { sent: 0, read: 0 };
+    const { data: sessions, error: e2 } = await supabase.from('quiz_sessions').select('quiz_id, student_id').in('quiz_id', sends.map((q) => q.id));
+    if (e2) return null;
+    const kidsOf = new Map(sends.map((q) => [q.id, new Set()]));
+    (sessions || []).forEach((x) => { if (x && x.student_id && kidsOf.has(x.quiz_id)) kidsOf.get(x.quiz_id).add(x.student_id); });
+    const kids = [...new Set((sessions || []).map((x) => x && x.student_id).filter(Boolean))];
+    if (!kids.length) return { sent: sends.length, read: 0 };
+    const { data: events, error: e3 } = await supabase.from('story_events').select('child_id, book_id, at')
+      .in('book_id', [...new Set(sends.map(bookOf))]).in('child_id', kids);
+    if (e3) return null;
+    const read = new Set();
+    sends.forEach((q) => {
+      const since = (q.meta && (q.meta.first_sent_at || q.meta.sent_at)) || '';
+      const mine = kidsOf.get(q.id);
+      (events || []).forEach((e) => { if (e && mine.has(e.child_id) && String(e.book_id) === bookOf(q) && String(e.at || '') >= since) read.add(e.child_id); });
+    });
+    return { sent: sends.length, read: read.size };
+  } catch (e) {
+    logToFile('⚠️ story send: tile counts failed', { error: e.message });
+    return null;
+  }
 }
 
 /** The page's story for a code whose quiz is a story send, when the switch is on; null otherwise (today's 404). */

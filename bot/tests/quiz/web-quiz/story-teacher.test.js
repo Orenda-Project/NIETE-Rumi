@@ -517,22 +517,44 @@ describe('story sends in the teacher\'s other quiz lists', () => {
     const stats = await List.statsFor(TEACHER, [db.quizzes[0]]);
     expect(stats.get(db.quizzes[0].id)).toMatchObject({ played: 1, avg: null });
   });
-  test('the teacher home\'s Stories tile counts: stories sent and the children who opened them (a preview is neither; off = null)', async () => {
-    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 0, opened: 0 });
+  test('the teacher home\'s Stories tile counts: stories sent and the children of those sends who read since the send (a preview is neither; off = null)', async () => {
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 0, read: 0 });
     await Stories.share({ uid: TEACHER, storyId: B(1) });
     await Stories.share({ uid: TEACHER, storyId: B(3) });
     await Stories.preview({ uid: TEACHER, storyId: B(4) });
     await Stories.share({ uid: OTHER, storyId: B(1) });
     const [a, b] = db.quiz_share_codes.filter((c) => c.teacher_user_id === TEACHER && c.active !== false);
     const other = db.quiz_share_codes.find((c) => c.teacher_user_id === OTHER);
+    const KID_C = '44444444-4444-4444-8444-666666666666';
+    const KID_D = '44444444-4444-4444-8444-777777777777';
+    db.quizzes.forEach((q) => { if (q.meta && q.meta.first_sent_at) q.meta.first_sent_at = ago(3); });
     const s = (id, sc, kid) => ({ id, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: id });
-    db.quiz_sessions.push(s('s1', a, KID_A), s('s2', b, KID_A), s('s3', b, KID_B), s('s4', other, '44444444-4444-4444-8444-666666666666'));
-    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 2, opened: 2 });
-    expect(await Stories.storyCounts(OTHER)).toEqual({ sent: 1, opened: 1 });
+    db.quiz_sessions.push(s('s1', a, KID_A), s('s2', b, KID_A), s('s3', b, KID_B), s('s4', other, KID_C));
+    const ev = (child, bookId, h, event = 'story_page_listened') => ({ child_id: child, book_id: bookId, page_n: 1, event, data: {}, at: ago(h) });
+    db.story_events.push(
+      ev(KID_A, B(1), 1), ev(KID_A, B(3), 1, 'story_opened'),   // KID_A read both of TEACHER's sends: one child
+      ev(KID_B, B(3), 5),                                        // before the send: not this send's reading
+      ev(KID_B, B(1), 1),                                        // B(1) is TEACHER's, but KID_B joined only the B(3) send
+      ev(KID_D, B(1), 1),                                        // a child of no send of TEACHER's, reading the same book from the shelf
+      ev(KID_C, B(1), 1));                                       // OTHER's class
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 2, read: 1 });
+    expect(await Stories.storyCounts(TEACHER, { bookIds: [B(3)] })).toEqual({ sent: 1, read: 1 });
+    expect(await Stories.storyCounts(TEACHER, { bookIds: [B(4)] })).toEqual({ sent: 0, read: 0 });
+    expect(await Stories.storyCounts(OTHER)).toEqual({ sent: 1, read: 1 });
     expect(await Stories.storyCounts(null)).toBeNull();
     db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_stories_teacher');
     Stories._reset();
     expect(await Stories.storyCounts(TEACHER)).toBeNull();
+  });
+  test('the Stories tile counts never throw: a read error is null', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quiz_sessions.push({ id: 's1', quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: KID_A, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(1), device_ref: 's1' });
+    const from = supabase.from;
+    supabase.from = (t) => { if (t === 'story_events') throw new Error('boom'); return from(t); };
+    try {
+      expect(await Stories.storyCounts(TEACHER)).toBeNull();
+    } finally { supabase.from = from; }
   });
   test('the quiz menu never lists a story send as a quiz to cancel', async () => {
     await Stories.preview({ uid: TEACHER, storyId: B(1) });
