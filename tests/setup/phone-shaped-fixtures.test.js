@@ -7,10 +7,12 @@
  * needs digits, the test builds them at runtime from parts (see
  * bot/tests/quiz/web-quiz/fixture-phone.js).
  *
- * Files that held such strings before this guard are listed, with their hit
- * counts, in `phone-shaped-fixtures.allowlist.json`. The list only shrinks:
- * a new file, or a higher count, fails; a lower count also fails until the
- * entry is lowered (or removed at 0), so a cleanup is locked in.
+ * Directories whose test files held such strings before this guard are listed,
+ * with their total hit counts, in `phone-shaped-fixtures.allowlist.json` (keyed
+ * by directory so the list names no test file). The list only shrinks: a new
+ * directory, or a higher count, fails; a lower count also fails until the
+ * entry is lowered (or removed at 0), so a cleanup is locked in. A directory
+ * not on the list (bot/tests/quiz/web-quiz among them) allows none.
  *
  * The rule itself (lib) is exercised on in-memory strings below, so the
  * pattern is executed, not just grepped.
@@ -19,7 +21,7 @@
 const path = require('path');
 
 const ALLOWLIST = require('./phone-shaped-fixtures.allowlist.json');
-const { countPhoneShaped, findPhoneShaped, scanTree, checkAgainstAllowlist } = require('./phone-shaped-fixtures-lib');
+const { countPhoneShaped, findPhoneShaped, scanTree, checkAgainstAllowlist, byDirectory } = require('./phone-shaped-fixtures-lib');
 
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const ROOTS = ['bot/tests', 'dashboard/tests'].map((d) => path.join(REPO_ROOT, d));
@@ -72,8 +74,13 @@ describe('the shrink-only allowlist check', () => {
 });
 
 describe('the tree (bot/tests, dashboard/tests) against the allowlist', () => {
-  test('no new phone-shaped fixtures; no allowlist entry above or below its file', () => {
-    const hits = scanTree(ROOTS, { relativeTo: REPO_ROOT });
+  test('no new phone-shaped fixtures; no allowlist entry above or below its directory', () => {
+    const hits = byDirectory(scanTree(ROOTS, { relativeTo: REPO_ROOT }));
     expect(checkAgainstAllowlist(hits, ALLOWLIST)).toEqual([]);
+  });
+
+  test('byDirectory sums a directory\'s files; the web quiz suites have no entry (they allow none)', () => {
+    expect(byDirectory({ 'a/b/x.test.js': 2, 'a/b/y.test.js': 1, 'a/c/z.test.js': 4 })).toEqual({ 'a/b': 3, 'a/c': 4 });
+    expect(Object.keys(ALLOWLIST)).not.toContain('bot/tests/quiz/web-quiz');
   });
 });

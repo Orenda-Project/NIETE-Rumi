@@ -119,7 +119,7 @@ describe('the binding store', () => {
   });
 
   test('insert writes the normalised phone, the tomb and the via; a bad via writes nothing', async () => {
-    const row = await bind(KID_A, { phoneNorm: '+92 300 0000501' });
+    const row = await bind(KID_A, { phoneNorm: '+92 000 0000501' });
     expect(row).toMatchObject({ canonical_id: KID_A, phone_norm: PHONE, phone_tomb: Bind.tombOf(PHONE), via: 'save', expires_at: NEXT_END, rebind_of: null });
     expect(await bind(KID_B, { via: 'sms' })).toBeNull();
     expect(fake.db.child_phone_bindings).toHaveLength(1);

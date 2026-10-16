@@ -59,7 +59,7 @@ let fake;
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.WEB_QUIZ_TOKEN_SECRET = 'bind-page-test-secret';
-  process.env.WHATSAPP_BOT_NUMBER = '+92 300 0000000';
+  process.env.WHATSAPP_BOT_NUMBER = '+92 000 0000000';
   redis._store.clear();
   Hub._resetCache();
   Ch.__reset();

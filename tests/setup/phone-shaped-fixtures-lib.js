@@ -70,7 +70,7 @@ function scanTree(roots, { relativeTo }) {
 }
 
 /**
- * Compare live hits against the allowlist ({ file: count }). Shrink-only:
+ * Compare live hits against the allowlist ({ path: count }; the tree check passes directories). Shrink-only:
  *   - a hit in a file not on the list fails;
  *   - a listed file whose count went up fails;
  *   - a listed file whose count went down (or to 0) fails until the entry is lowered or removed.
@@ -95,4 +95,14 @@ function checkAgainstAllowlist(hits, allowlist) {
   return problems;
 }
 
-module.exports = { PHONE_SHAPED_SOURCE, phoneShapedRx, findPhoneShaped, countPhoneShaped, scanTree, checkAgainstAllowlist };
+/** Per-file hits summed per directory ({ 'bot/tests/calls': 59 }): the allowlist's key, so it names no test file. */
+function byDirectory(hits) {
+  const out = {};
+  for (const [file, n] of Object.entries(hits)) {
+    const dir = file.split('/').slice(0, -1).join('/');
+    out[dir] = (out[dir] || 0) + n;
+  }
+  return out;
+}
+
+module.exports = { PHONE_SHAPED_SOURCE, phoneShapedRx, findPhoneShaped, countPhoneShaped, scanTree, checkAgainstAllowlist, byDirectory };
