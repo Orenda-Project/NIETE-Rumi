@@ -234,7 +234,7 @@ const helpedOf = (v) => (v === true || v === 'helped' ? true : (v === false || v
 const trailCopy = (lang) => Object.fromEntries(Object.entries(TRAIL_KEYS).map(([k, key]) => [k, resolveUx(key, { language: lang, params: { name: '{name}', done: '{done}', total: '{total}', n: '{n}' } })]));
 
 // A test child ("<Name> Testwala"): the row says so, so no filter has to guess.
-const isTestName = (name) => /testwala\s*$/i.test(String(name || ''));
+const { isTestName } = require('./web-quiz-fixture');
 
 function isTrue(v) {
   let x = v;
