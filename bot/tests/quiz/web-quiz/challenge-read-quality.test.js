@@ -233,6 +233,26 @@ describe('the noise floor: a counted read with no believable speech is implausib
     }
   });
 
+  test('golden: real speech reading the WRONG passage (words heard, none credited) is failed/unheard as today, no quality key; it is the period\'s attempted record', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
+    // a voice reading another text: the speech service hears 50 real words, the model credits none and marks none attempted
+    const other = { text: '', tokens: Array.from({ length: 50 }, (_, k) => ({ text: ` other${k}`, start_ms: Math.round((0.9 + k * 1.1) * 1000), end_ms: Math.round((0.9 + k * 1.1 + 0.8) * 1000), speaker: 1 })) };
+    await readWith(ex.ct, other, 0, 0);
+    const row = rowOf(ex.ct);
+    expect(row.status).toBe('failed');
+    expect(row.meta.reason).toBe('unheard');
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.meta).not.toHaveProperty('record_lost');
+    expect(row.wcpm == null).toBe(true);
+    // the child tried: a 0-word read is in the sample (the bottom of the distribution), so it holds the period's record and the
+    // next read this period is a practice round — unlike an implausible row, which gives the slot back
+    expect(row.record).toBe(true);
+    const again = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false });
+  });
+
   test('golden: an ordinary read carries no quality key and stays the record', async () => {
     on(V2, ...CANON_ON, PERIOD, POOL, 'web_quiz_challenge_items');
     const ex = await Ch.exercise(hub(K5), 'read', D);
