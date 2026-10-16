@@ -131,7 +131,8 @@ describe('wq-trail.js raLoad: the read-along player at its own fixed version (ra
     const { document, head } = fakeDoc('/wq/wq-trail.js', '/wq/wq-trail.js?v=abc123def0m');
     const ctx = { document, window: {}, RA_V };
     vm.createContext(ctx);
-    vm.runInContext(`${FN}\nraLoad();`, ctx);
+    // raLoad's load listener (`warm`, the clip preload) lives beside it in wq-trail.js: a stand-in here
+    vm.runInContext(`${FN}\nfunction warm() {}\nraLoad();`, ctx);
     expect(head.map((e) => e.src)).toEqual([`/wq/wq-readalong.js?v=${RA_V}`]);
   });
 });
