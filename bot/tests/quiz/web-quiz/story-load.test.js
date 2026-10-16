@@ -210,6 +210,15 @@ describe('planBook', () => {
     expect(L.planBook(g).why).toEqual(['p01: voice pace unknown wpm']);
   });
 
+  test('a voice with no span pace anywhere fails gate B; a span pace in the check file alone is read', () => {
+    const f = fixture({ wpm: 95, pace: 120 });
+    const vj = path.join(f.voiceDir, 'p02.json'); const j = JSON.parse(fs.readFileSync(vj, 'utf8')); delete j.pace_wpm; fs.writeFileSync(vj, JSON.stringify(j));
+    expect(L.planBook(f).why).toEqual(['p02: voice span pace unknown wpm']);
+    expect(L.planBook(f).ready).toBe(false);
+    const qj = path.join(f.voiceDir, 'p02.qa.json'); fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), pace_wpm: 128 }));
+    expect(L.planBook(f).why).toEqual([]);
+  });
+
   test('a page whose voice fails any check is loaded with no voice (Your turn), never as voiced', async () => {
     const f = fixture();
     const vj = path.join(f.voiceDir, 'p02.json');
