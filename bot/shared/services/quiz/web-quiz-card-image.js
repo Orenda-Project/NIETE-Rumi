@@ -23,6 +23,9 @@ const path = require('path');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
+const { clampLanguage } = require('../../config/ux-strings');
+// The card speaks the deployment's two languages only.
+const LANG = (v) => clampLanguage(v, ['en', 'ur']);
 
 const KEY = 'web_quiz_card_v3';
 const TTL_MS = 30 * 1000;
@@ -148,7 +151,7 @@ function open(token) {
 function facts(token) {
   const f = open(token);
   if (!f) return null;
-  return { kind: f.k, deed: f.d, lang: f.l === 'ur' ? 'ur' : 'en', first: f.n || '', code: f.c || null };
+  return { kind: f.k, deed: f.d, lang: LANG(f.l), first: f.n || '', code: f.c || null };
 }
 
 // ─── who finished (the server says; the page never names the child) ─────────
@@ -202,7 +205,7 @@ function botNumber() {
 }
 /** The return line: the words, and the chat with this deployment's bot with them typed (null with no number). */
 function returnLine(lang) {
-  const l = lang === 'ur' ? 'ur' : 'en';
+  const l = LANG(lang);
   const n = botNumber();
   return { text: COPY[l].ret, cta: COPY[l].cta, words: CARD_RETURN_WORDS[l], href: n ? `https://wa.me/${n}?text=${encodeURIComponent(CARD_RETURN_WORDS[l])}` : null };
 }
@@ -213,7 +216,7 @@ async function mint(body = {}, { device = null } = {}) {
   const kind = typeof body.kind === 'string' ? body.kind : '';
   const deed = typeof body.deed === 'string' ? body.deed : '';
   if (!DEEDS[kind] || !DEEDS[kind].includes(deed)) fail(400, 'bad_request');
-  const lang = body.lang === 'ur' ? 'ur' : 'en';
+  const lang = LANG(body.lang);
   const w = await who(body, lang, device);
   const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), t: Math.floor(Date.now() / 1000) });
   if (!token) fail(503, 'web_quiz_off');
@@ -250,7 +253,7 @@ const STICKER = '<svg width="120" height="120" viewBox="0 0 120 120" aria-hidden
 
 /** The card's HTML (pure): what the headless browser photographs. opt.fonts false only for a layout snapshot. */
 function renderCard(f, opt = {}) {
-  const lang = f.lang === 'ur' ? 'ur' : 'en';
+  const lang = LANG(f.lang);
   const t = COPY[lang];
   const a = opt.fonts === false ? {} : assets();
   const rtl = lang === 'ur';
