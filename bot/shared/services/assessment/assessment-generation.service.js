@@ -896,6 +896,11 @@ const RULE = {
   scienceQ3: 'Q3(a): two of the three long questions are Remember (state, name, define with the book\'s wording); one is Understand. Q3(b): the short questions are reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\') so that the paper carries Apply marks.',
   unequalOptions: 'MCQ options are pairwise unequal in value (no two options that simplify to the same number, no 2/5 and 6/15) and written in simplest form.',
   noRepeats: 'No item repeats another item\'s content, numbers or answer on this paper, in any section.',
+  // Social Studies: a paraphrase of a fact is not a repeated stem, so noRepeats lets Q5 and Q7 re-ask it.
+  // The sections are written in parallel, so the rule names the slots, not their items.
+  sstNoReask: 'Q5 and Q7 never ask a fact that a Section A item (stem or key) or a Q6 item on this paper already tests.',
+  // Social Studies Apply marks come from situations; the model follows a counted slot rule, not sstQ56's wording alone.
+  sstSituations: (q, n, total) => `Of the ${total} ${q} items, at least ${n} give a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and ask the child to use a concept from these pages to decide or explain; the rest may explain or compare book facts.`,
   spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
   sstQ56: 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.',
   accept: '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.',
@@ -920,6 +925,11 @@ const RULE = {
   // Maths on chosen chapters or pages: FDE's Q1(b) and Q2 topic lists are not given; the topics come from the pages.
   mathsPagesAB: 'Q1(b) and Q2 are set from the pages above: keep each slot\'s marks and item shape (a word problem stays a word problem, a calculation a calculation) and take every topic from these pages. The word-problem counts above still apply.',
   noAnagram: 'Never set an item that asks the child to rearrange, unscramble or reorder letters to make a word.',
+  // English Q1(b): the underline sentence Q1(a) and Q2 carry, and one rewrite per item.
+  q1bQuote: 'Never refer to an underline the paper cannot show; quote the word or phrase instead.',
+  q1bOne: 'Each item is one sentence to rewrite, with its instruction once.',
+  // English Q5 on chosen pages with no poem: the nearest poem's own page text is given below the book text.
+  q5Given: (p) => `Q5 uses this poem from Unit ${p.unit} (book p.${p.pages}); print only its verse lines, exactly as given, never a heading, instruction or activity line; title «${p.title} (Unit ${p.unit})».`,
 };
 
 // Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
@@ -1022,7 +1032,7 @@ function _closedLists(P, slots) {
  * after it, the section's slots and the rules that apply to this subject and
  * this section. Every pattern-specific word comes from the pattern data.
  */
-function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, section, slots, lang, P, scope }) {
+function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, section, slots, lang, P, scope, poem = null }) {
   const medium = lang || P.medium;
   const key = P.key || Patterns.normalise(subject);
   const sectionLabel = section.label_en || section.label_ur || section.id;
@@ -1034,7 +1044,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   // FDE's Units 11–12 syllabus, so it is not asked for; marks and shape stay.
   const mathsC = !fde && key === 'maths' && section.id === 'C';
   const given = Array.isArray(slots) && slots.length ? slots : section.slots;
-  const list = given.map((s) => {
+  const shaped = given.map((s) => {
     if (mathsC && Array.isArray(s.kinds) && s.kinds.length) {
       return { ...s, kinds: null, prompt_rule: null, grain: s.grain && { ...s.grain, kind: 'a word problem or a calculation' } };
     }
@@ -1071,13 +1081,18 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     }
     return s;
   });
+  const list = shaped.map((s) => (key === 'english' && s.slot === 'english.A.Q1b'
+    ? { ...s, prompt_rule: [s.prompt_rule, RULE.q1bQuote, RULE.q1bOne].filter(Boolean).join(' ') }
+    : s));
+  // English Q5 on chosen pages that hold no poem: the nearest poem's page text, when the caller loaded it.
+  const givenPoem = !fde && key === 'english' && poem && poem.content && list.some((s) => s.slot === 'english.C.Q5') ? poem : null;
   const hasMcq = list.some((s) => s.shape === 'mcq');
   const rules = [RULE.bookOnly, RULE.religious];
   if (!fde) rules.push(RULE.chapterOnly);
   if (mathsC) rules.push(RULE.mathsSectionC);
   if (!fde && key === 'english' && hasMcq) rules.push(RULE.grammarFromPages);
   if (!fde && key === 'english' && list.some((s) => ENGLISH_PAGES_SLOTS[s.slot])) rules.push(RULE.pagesPoints, RULE.pagesRest);
-  if (!fde && key === 'english' && list.some((s) => s.slot === 'english.C.Q5')) rules.push(RULE.q5Poem);
+  if (!fde && key === 'english' && list.some((s) => s.slot === 'english.C.Q5')) rules.push(givenPoem ? RULE.q5Given(givenPoem) : RULE.q5Poem);
   if (key === 'english') rules.push(RULE.noAnagram);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) {
     rules.push('Science: a situation comes only from the book activities its slot\'s rule lists, never another.');
@@ -1134,6 +1149,12 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender, RULE.people);
   if (medium === 'ur') rules.push(RULE.genderUrdu);
   rules.push(RULE.noRepeats);
+  if (key === 'social_studies' && list.some((s) => /\.Q[57]$/.test(s.slot))) rules.push(RULE.sstNoReask);
+  if (key === 'social_studies') {
+    for (const s of list.filter((x) => /\.Q[56]$/.test(x.slot))) {
+      rules.push(RULE.sstSituations(s.slot.split('.').pop(), Math.ceil(s.generate / 2), s.generate));
+    }
+  }
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
@@ -1143,7 +1164,12 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
 \`\`\`
 ${pageContent}
 \`\`\`
-
+${givenPoem ? `
+**Poem for Q5 (book p.${givenPoem.pages}):**
+\`\`\`
+${givenPoem.content}
+\`\`\`
+` : ''}
 **SECTION ${section.id}** — ${sectionLabel}, one section of a board-pattern paper. Write this section only.
 
 **GENERATE THE FOLLOWING:**
@@ -1167,6 +1193,46 @@ function _splitPages(content) {
     page: Number(m[1]),
     text: text.slice(m.index, i + 1 < marks.length ? marks[i + 1].index : text.length).trim(),
   }));
+}
+
+/**
+ * English Q5 on chosen pages: the book poem nearest those pages when none of them holds one, or null
+ * (the FDE syllabus, another subject, a page list that cannot be read, or a poem page already chosen).
+ */
+function patternPoemFor({ P, scope, pageContent }) {
+  if (!P || !Array.isArray(P.poems) || !P.poems.length || !scope || scope.kind === 'fde') return null;
+  if (!P.sections.some((sec) => sec.slots.some((s) => s.slot === 'english.C.Q5'))) return null;
+  const chosen = (_splitPages(pageContent) || []).map((p) => p.page);
+  if (!chosen.length) return null;
+  const pagesOf = (poem) => Patterns.parseRanges(poem.pages).flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i));
+  if (P.poems.some((poem) => pagesOf(poem).some((n) => chosen.includes(n)))) return null;
+  const distance = (poem) => Math.min(...pagesOf(poem).flatMap((n) => chosen.map((c) => Math.abs(n - c))));
+  const nearest = P.poems.reduce((best, poem) => (distance(poem) < distance(best) ? poem : best));
+  return { unit: nearest.unit, pages: nearest.pages, title: nearest.title };
+}
+
+/** Q5's poem page text from the book store; null (and today's Q5 rule) when it cannot be loaded. */
+async function _loadPatternPoem({ grade, subject, P, scope, pageContent }) {
+  const poem = patternPoemFor({ P, scope, pageContent });
+  if (!poem) return null;
+  try {
+    const got = await BookContent().loadPageRangeContent({ grade, subject, pageRanges: poem.pages });
+    // The page store keeps the book's picture notes ("Object: Illustration of …") among the
+    // poem's lines, and a page goes on to its activities after the poem ("Diving Deeper"); Q5
+    // prints the given lines exactly, so neither is given.
+    let activities = false;
+    const content = got && got.content
+      ? String(got.content).split('\n').filter((line) => {
+        if (/^=== Page \d+ ===/.test(line)) activities = false;
+        else if (/^\s*Diving Deeper\b/i.test(line)) activities = true;
+        return !activities && !/^\s*Object:/.test(line);
+      }).join('\n').trim()
+      : '';
+    return content ? { ...poem, content } : null;
+  } catch (err) {
+    logToFile('[assessment] Q5 poem pages not loaded', { pages: poem.pages, error: err.message });
+    return null;
+  }
 }
 
 /**
@@ -1539,6 +1605,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     ? { kind: 'chapters', chapters: [Number(chapterNumber)], pages: null }
     : { kind: 'pages', chapters: null, pages: pageRanges });
   const sectionRanges = (Patterns.scopeFor(pattern, subject) || {}).section_ranges || {};
+  const poem = await _loadPatternPoem({ grade, subject, P, scope: layoutScope, pageContent: loaded.content });
 
   const family = URDU_MEDIUM.has(canonical(subject) || 'eng') ? 'urdu' : 'eng';
   if (typeof ensureCurrent === 'function') await ensureCurrent();
@@ -1552,7 +1619,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       system,
       user: buildPatternUserPrompt({
         grade, subject, pageContent: text.content, pageReference: text.pageReference,
-        section, slots: section.slots, lang: P.medium, P, scope: layoutScope,
+        section, slots: section.slots, lang: P.medium, P, scope: layoutScope, poem,
       }),
       pageContent: text.content,
       model,
@@ -1590,7 +1657,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // is one whole block of a section (Maths C's Q4–8), and the same call usually comes back
   // whole. Decided on the reply as the model wrote it, BEFORE the held-content filter, so an
   // item the filter drops is still never refilled.
-  const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern });
+  const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall
     .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
@@ -1629,12 +1696,12 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // then lays the paper out again, and the emptied place is a shortfall — the
   // extras the model wrote were already set aside and never fill it.
   let examJson = merged();
-  let laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
+  let laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern, reasked: again.length > 0 });
   const firstUnplaced = laid.unplaced;
   examJson = laid.examJson;
   const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content, requestId });
   if (dropped.length) {
-    laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
+    laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern, reasked: again.length > 0 });
     examJson = laid.examJson;
   }
   const layout = { placed: laid.placed, unplaced: firstUnplaced };
@@ -1684,6 +1751,7 @@ module.exports = {
   generatePatternExam,
   sectionMaxTokens,
   buildPatternUserPrompt,
+  patternPoemFor,
   religiousFilter,
   buildSystemPrompt,
   buildUserPrompt,
