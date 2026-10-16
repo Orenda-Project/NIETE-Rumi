@@ -1371,9 +1371,10 @@ const ENDED_BY_CHILD = new Set(['stuck', 'home', 'hidden']);
 //   low_story_confidence   the house confidence is under 0.5 while the model credits ≥ 90% (a 220 Hz tone: 0.44 with 60/60)
 // Never the confidence alone. The reason rides meta.flags; the row reads quality 'implausible' (EVENTS §11) and, like a row the
 // sweeper abandons, record=false with meta.record_lost='implausible' (the month stays open). Null = believed (today's rows).
-// A read the page ended on silence with nothing credited is judged first by the words the speech service heard (silentFloor):
-// at least max(3, 10% of the story's tokens) is real speech that aligns to nothing — unheard, the record kept; fewer is not a
-// reading at all — implausible, no_speech when nothing was heard, else no_aligned_words. A silent room is never a reader of 0.
+// Every record read is judged first by the words the speech service heard (silentFloor), however it ended: fewer than
+// max(3, 10% of the story's tokens) is not a reading at all — implausible, no_speech when nothing was heard, else
+// no_aligned_words; at least that many falls through (real speech that aligns to nothing is unheard, the record kept).
+// A silent or noisy room is never a reader of 0.
 const IMPLAUSIBLE_CONF = 0.5;
 const IMPLAUSIBLE_SHARE = 0.9;
 const IMPLAUSIBLE_STT_SUPPORT = 0.25;   // heard words must be at least a quarter of the credited count
@@ -1442,10 +1443,12 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
       return { score: { correct: 0, attempted: 0, stopped: false, finished_early: false, time_left: 0 }, wcpm: null, ended: ctx.ended || null, implausible: doubt,
         meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: [...(m.flags || []), doubt], ...rest, quality: 'implausible', raw: { correct: score.correct, attempted: score.attempted, wcpm: rate } } };
     };
-    // Ended on silence with nothing credited: the floor on the words heard runs first (enough of them falls through to unheard)
-    if (rules.record && ctx.ended === 'silent' && !stopped && score.attempted === 0) {
+    // The floor on the words heard runs first on every record read, however it ended, stopped or not, whatever the marker
+    // credited: fewer words than the floor, none of them aligned to the story, is not a reading. A few words that DO align
+    // are a weak reader's own (the bottom of the distribution): they, and enough words heard, fall through to today's paths.
+    if (rules.record && !(Number(m && m.align_correct) > 0)) {
       const floor = silentFloor(m, tokensN);
-      if (floor) return implausibleRow(floor, wcpm(score.correct, score.time_left));
+      if (floor) return implausibleRow(floor, stopped ? 0 : wcpm(score.correct, score.time_left));
     }
     // Not one word of the story was heard: that is not a reading of 0 words — no score, no ✓, no growth baseline,
     // nothing in the class results; the child is asked to try again.

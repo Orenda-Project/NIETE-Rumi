@@ -277,8 +277,8 @@ describe('copy deck v2.4.1: the finish card counts the class, never places the c
     const src = fs.readFileSync(WQ_JS, 'utf8');
     const one = d()['quiz.finish.count_one'];
     const many = d()['quiz.finish.count'];
-    expect(src).toContain(`if (n === 1) return '${one.en}';`);
-    expect(src).toContain(`if (n === 1) return '${one.ur}';`);
+    expect(src).toContain(`if (n < 5) return '${one.en}';`);
+    expect(src).toContain(`if (n < 5) return '${one.ur}';`);
     const [a, b] = many.en.split('{n}');
     expect(src).toContain(`return ['${a}', '<bdi>' + n + '</bdi>', '${b}'];`);
     const [c, e] = many.ur.split('{n}');
