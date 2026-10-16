@@ -122,4 +122,25 @@ describe("StepOutline", () => {
     expect(box.className).toMatch(/absolute/);
     expect(box.style.top).toMatch(/^calc\(25%/);
   });
+
+  // bd-v0toag.77 (Amena, 16 Oct): "the highlight doesnt stand out". Loud: a thick solid amber frame, a highlighter
+  // fill that keeps the heading readable, a star on the corner, and a few pulses (none under reduced motion).
+  it("loud: a thick amber frame, a highlighter fill and a star badge", () => {
+    const { container } = render(<StepOutline mark={MARK} />);
+    const box = container.firstChild as HTMLElement;
+    const width = Number(/border-\[(\d+)px\]/.exec(box.className)?.[1] ?? 0);
+    expect(width).toBeGreaterThanOrEqual(5);
+    expect(box.className).toMatch(/border-\[#f59e0b\]/);
+    expect(box.className).toMatch(/mix-blend-multiply/);
+    expect(box.className).not.toMatch(/\/25\b/);
+    expect(box.querySelector("[data-testid='step-star'] svg")).not.toBeNull();
+  });
+
+  it("pulses only when motion is welcome, and never forever", () => {
+    const { container } = render(<StepOutline mark={MARK} />);
+    const box = container.firstChild as HTMLElement;
+    expect(box.className).toMatch(/motion-safe:animate-\[/);
+    expect(box.className).not.toMatch(/(^|\s)animate-pulse/);
+    expect(box.className).not.toMatch(/infinite/);
+  });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { Star } from 'lucide-react';
 import { locateStep, type StepMark, type TextDocLike } from '../lib/planSteps';
 
 /**
@@ -47,13 +48,24 @@ export function useStepJump(root: RefObject<HTMLElement | null>, mark: StepMark 
   }, [root, mark, jump]);
 }
 
-/** The outline over the heading's band (the plan's own heading, in the strip's amber). */
+/**
+ * The outline over the heading's band, loud (bd-v0toag.77, Amena 16 Oct: "the highlight doesnt stand out"): a thick
+ * solid amber frame with a glow, a highlighter fill (multiply, so the heading stays readable), a star badge on its
+ * corner, and three pulses when it appears; still under reduced motion.
+ */
 export function StepOutline({ mark }: { mark: Pick<StepMark, 'top' | 'height'> }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-[2%] rounded-md border-[3px] border-[#f5b400] bg-[#fff4cc]/25"
-      style={{ top: `calc(${mark.top * 100}% - 6px)`, height: `calc(${mark.height * 100}% + 12px)` }}
-    />
+      className="pointer-events-none absolute inset-x-[2%] rounded-lg border-[6px] border-[#f59e0b] bg-[#fde047]/50 mix-blend-multiply shadow-[0_0_0_4px_rgba(245,158,11,0.35),0_0_18px_rgba(245,158,11,0.6)] motion-safe:animate-[pulse_0.9s_ease-in-out_3]"
+      style={{ top: `calc(${mark.top * 100}% - 8px)`, height: `calc(${mark.height * 100}% + 16px)` }}
+    >
+      <span
+        data-testid="step-star"
+        className="absolute -start-4 -top-4 flex h-8 w-8 items-center justify-center rounded-full bg-[#f59e0b] shadow-md ring-2 ring-white"
+      >
+        <Star className="h-5 w-5 fill-white text-white" />
+      </span>
+    </div>
   );
 }

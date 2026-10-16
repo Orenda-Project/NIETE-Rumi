@@ -8,6 +8,7 @@ import { useCopy } from '../i18n';
 
 /**
  * v10 coaching test (bd-v0toag.8, PR2) — the one thing to try, as a strip above a grade 1–5 plan.
+ * Loud since bd-v0toag.77 (Amena, 16 Oct): solid amber, a thick edge and a shadow, the star in a dark badge.
  *
  * Shown only when GET /teacher/thing-to-try has one for her: groups C and D while ab_v10_enabled is
  * on (dashboard/routes/portal-teacher-thing-to-try.routes.js). For everyone else, and on any failed
@@ -80,15 +81,17 @@ export function ThingToTryStrip({ lessonId, onStep, onShowStep }: {
         setOpen(!open);
         logTap(lessonId, thing.step?.index ?? null);
       }}
-      className={cn('flex min-h-[56px] w-full items-start gap-3 rounded-2xl border border-[#fcd34d] bg-[#fffbeb] px-3.5 py-3 text-start', FOCUS)}
+      className={cn('flex min-h-[56px] w-full items-start gap-3 rounded-2xl border-[3px] border-[#b45309] bg-[#fbbf24] px-3.5 py-3 text-start shadow-[0_4px_14px_rgba(180,83,9,0.35)]', FOCUS)}
     >
-      <Star className="mt-0.5 h-5 w-5 shrink-0 fill-[#f59e0b] text-[#f59e0b]" aria-hidden="true" />
+      <span data-testid="strip-star" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#b45309] ring-2 ring-white" aria-hidden="true">
+        <Star className="h-6 w-6 fill-white text-white" />
+      </span>
       <span className="flex-1">
-        <span className="block text-[13px] font-semibold text-[#92400e]">
+        <span className="block text-[14px] font-bold uppercase tracking-wide text-[#451a03]">
           {C.thingToTry}
           {thing.step ? <span className="font-normal" dir="ltr"> · {thing.step.name}</span> : null}
         </span>
-        <span className={cn('block text-[15px] text-[#1d2025]', open ? '' : 'line-clamp-2')}>{thing.text}</span>
+        <span className={cn('block text-[16px] font-semibold text-[#1d2025]', open ? '' : 'line-clamp-2')}>{thing.text}</span>
       </span>
     </button>
   );
