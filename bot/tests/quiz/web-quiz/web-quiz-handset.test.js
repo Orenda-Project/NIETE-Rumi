@@ -63,8 +63,8 @@ function seed({ link = 'true', merge = null } = {}) {
       { id: INVITE, code: 'FRND01', quiz_id: 'q-1', teacher_user_id: TEACHER, language: 'en', parent_share_code_id: SC, invited_by_student_id: CHAT_KID, active: true, expires_at: null },
     ],
     students: [
-      { id: CHAT_KID, student_name: 'Ayesha Khan', phone: '923001112223', list_id: null, enrolled_by_user_id: TEACHER, is_active: true, status: 'active', created_at: '2026-09-10T00:00:00Z' },
-      { id: CHAT_SIB, student_name: 'Bilal Khan', phone: '923001112223', list_id: null, enrolled_by_user_id: TEACHER, is_active: true, status: 'active', created_at: '2026-09-12T00:00:00Z' },
+      { id: CHAT_KID, student_name: 'Ayesha Khan', phone: '+92300FIXTURE1', list_id: null, enrolled_by_user_id: TEACHER, is_active: true, status: 'active', created_at: '2026-09-10T00:00:00Z' },
+      { id: CHAT_SIB, student_name: 'Bilal Khan', phone: '+92300FIXTURE1', list_id: null, enrolled_by_user_id: TEACHER, is_active: true, status: 'active', created_at: '2026-09-12T00:00:00Z' },
       { id: PAGE_KID, student_name: 'ayesha khan', phone: null, list_id: null, enrolled_by_user_id: TEACHER, is_active: true, status: 'active', created_at: '2026-10-07T00:00:00Z' },
       { id: PAGE_NEW, student_name: 'Zara', phone: null, list_id: null, enrolled_by_user_id: TEACHER, is_active: true, status: 'active', created_at: '2026-10-07T00:00:00Z' },
       { id: PAGE_OTHER_T, student_name: 'Ayesha Khan', phone: null, list_id: null, enrolled_by_user_id: OTHER_T, is_active: true, status: 'active', created_at: '2026-10-07T00:00:00Z' },
@@ -107,7 +107,7 @@ describe('withLink — the bot appends #x= to a web link it sends to ONE phone',
     expect(tok).toBeTruthy();
     expect(tok.sc).toBe(SC);
     expect(url).not.toContain(CHAT_KID);
-    expect(url).not.toContain('923001112223');
+    expect(url).not.toContain('+92300FIXTURE1');
     const entry = [...redis._store.values()].find((v) => v && v.ids);
     expect(entry).toEqual(expect.objectContaining({ ids: [CHAT_KID, CHAT_SIB], sc: SC }));
     expect(typeof entry.at).toBe('number');
@@ -148,7 +148,7 @@ describe('bind — the page redeems the token once with its device', () => {
     expect(r.one).toBe(T.chipId(SC, CHAT_KID));
     expect(await HubDevice.deviceKids(r.device_ref)).toEqual([CHAT_KID]);
     expect(await HubDevice.deviceMayName([CHAT_KID], r.device_ref)).toBe(true);
-    expect(JSON.stringify(r)).not.toContain('923001112223');
+    expect(JSON.stringify(r)).not.toContain('+92300FIXTURE1');
     expect(logEvent).toHaveBeenCalledWith('web_quiz.handset_bound', expect.objectContaining({ shareCodeId: SC, kids: 1, would_merge: 0, merged: 0 }));
   });
 

@@ -1,3 +1,4 @@
+-- requires: web_quiz_challenge.sql
 -- Migration: provenance columns on the web quiz Challenge runs, the two new run states, and two small tables
 -- the weekly health numbers and the reading/numbers lamps write to.
 --

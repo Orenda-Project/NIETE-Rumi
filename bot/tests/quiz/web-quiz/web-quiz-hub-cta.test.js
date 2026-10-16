@@ -15,9 +15,9 @@ beforeEach(() => { jest.clearAllMocks(); });
 test('posts an interactive cta_url: body, a button cut to 20 code points, the url', async () => {
   axios.post.mockResolvedValue({ data: { messages: [{ id: 'wamid.1' }] } });
   const label = 'کھولیں '.repeat(5); // 30 code points
-  expect(await WA.sendCtaUrl('923001112223', { body: 'Your quizzes are here.', buttonText: label, url: 'https://p.example/h/abc.def' })).toBe(true);
+  expect(await WA.sendCtaUrl('+92300FIXTURE1', { body: 'Your quizzes are here.', buttonText: label, url: 'https://p.example/h/abc.def' })).toBe(true);
   const [, payload] = axios.post.mock.calls[0];
-  expect(payload).toMatchObject({ to: '923001112223', type: 'interactive', interactive: { type: 'cta_url', body: { text: 'Your quizzes are here.' } } });
+  expect(payload).toMatchObject({ to: '+92300FIXTURE1', type: 'interactive', interactive: { type: 'cta_url', body: { text: 'Your quizzes are here.' } } });
   expect(payload.interactive.action).toEqual({ name: 'cta_url', parameters: { display_text: [...label].slice(0, 20).join(''), url: 'https://p.example/h/abc.def' } });
 });
 

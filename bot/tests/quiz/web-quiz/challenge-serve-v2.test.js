@@ -833,7 +833,8 @@ describe('ruling #43: the exercise payload under _v2 carries only what the page 
       expect(p.record).toBe(true);   // the record switch's flag, as today
       for (const k of DROPPED) if (!(p === miss && k === 'anchor_block')) expect(p).not.toHaveProperty(k);
     }
-    // a practice serve says so
+    // a practice serve says so (the record played: a served-and-left record row is served again instead)
+    rowOf(big.ct).status = 'scored';
     const again = await Ch.exercise(hub(K5), 'bigger', D);
     expect(again).toMatchObject({ mode: 'practice', practice_round: true, draw: { outcome: 'served' } });
     // every field stays on the row and in meta.draw

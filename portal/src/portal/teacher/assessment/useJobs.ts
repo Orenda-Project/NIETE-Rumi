@@ -4,7 +4,7 @@ import type { AssessmentSpec } from '../../services/api';
 import { usePaperJobs, type PaperJob, type StartResult } from '../../components/assessment-jobs/usePaperJobs';
 import { itemId } from '../notices/model';
 import { noticeTracker } from '../notices/tracker';
-import type { FdeSpec, V2Spec } from './model';
+import { questionsOf, type FdeSpec, type V2Spec } from './model';
 import { requestPath } from './paths';
 
 /**
@@ -28,7 +28,7 @@ function follow(job: PaperJob, subject: string | null): void {
     grade: spec.grade ?? null,
     subject,
     // A board-pattern request is sent with questionCount 0 (the pattern fixes it): no count rather than "0 questions".
-    questions: (job.spec as { pattern?: string | null }).pattern ? null : spec.questionCount ?? null,
+    questions: questionsOf(job.spec, null),
     waitHref: requestPath(job.requestId),
     spec: job.spec,
   });

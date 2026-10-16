@@ -44,8 +44,9 @@ const StudentQuiz = require('../../../shared/services/quiz/student-quiz.service'
 const BindRepo = require('../../../shared/services/quiz/child-phone-bindings.repo');
 const T = require('../../../shared/services/quiz/web-quiz-token');
 
-const PHONE = '920000000811';
-const PHONE_2 = '920000000812';
+const { fixturePhone, maskFixturePhones } = require('./fixture-phone');
+const PHONE = fixturePhone(811);
+const PHONE_2 = fixturePhone(812);
 const KIDS = ['e0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000002', 'e0000000-0000-4000-8000-000000000003'];
 const UNKNOWN_USER = { id: 'u-guest', registration_completed: false, registration_state: 'unregistered', name: null,
   teacher_uuid: null, school_id: null, portal_activated: false, role: 'teacher', preferred_language: 'en' };
@@ -292,7 +293,7 @@ describe('goldens: guest home off → the original path (snapshots taken from th
     seed({ settings: { web_quiz_hub: true } });
     const v = await Ingress.classify({ user: UNKNOWN_USER, phone: PHONE });
     expect(v).toMatchSnapshot();
-    expect(redisService.set.mock.calls).toMatchSnapshot();
+    expect(maskFixturePhones(redisService.set.mock.calls)).toMatchSnapshot();
     expect(events('student_ingress.decided')).toMatchSnapshot();
     redisService.__keys.clear();
     expect(await say('/quiz')).toBe(false);
@@ -303,7 +304,7 @@ describe('goldens: guest home off → the original path (snapshots taken from th
     seed({ settings: BIND_ON });
     const v = await Ingress.classify({ user: UNKNOWN_USER, phone: PHONE });
     expect(v).toMatchSnapshot();
-    expect(redisService.set.mock.calls).toMatchSnapshot();
+    expect(maskFixturePhones(redisService.set.mock.calls)).toMatchSnapshot();
     redisService.__keys.clear();
     const user = { ...UNKNOWN_USER };
     expect(await say('/quiz', user)).toBe(false);
@@ -314,7 +315,7 @@ describe('goldens: guest home off → the original path (snapshots taken from th
   test('a chat child with nothing to show, guest home off → today\'s no-quizzes line from open()', async () => {
     seed({ settings: BIND_ON });
     await StudentQuiz.open(PHONE, { language: 'en' });
-    expect(WhatsApp.sendMessage.mock.calls).toMatchSnapshot();
+    expect(maskFixturePhones(WhatsApp.sendMessage.mock.calls)).toMatchSnapshot();
     expect(WhatsApp.sendCtaUrl).not.toHaveBeenCalled();
   });
 });

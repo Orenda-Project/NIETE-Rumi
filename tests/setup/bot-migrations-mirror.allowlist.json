@@ -1,0 +1,199 @@
+{
+  "why": "Tables whose bot migration and schema-mirror column names differed before this gate. Shrink only: make the two agree, then delete the names.",
+  "tables": {
+    "call_memory": {
+      "creator": "create_calls_tables.sql",
+      "mirror": false,
+      "onlyMigration": [
+        "call_count",
+        "caller_number",
+        "summary",
+        "updated_at",
+        "user_id"
+      ]
+    },
+    "call_recall_docs": {
+      "creator": "create_calls_tables.sql",
+      "mirror": false,
+      "onlyMigration": [
+        "caller_number",
+        "content",
+        "created_at",
+        "embedded_at",
+        "embedding",
+        "id",
+        "kind",
+        "user_id"
+      ]
+    },
+    "call_trace": {
+      "creator": "create_calls_tables.sql",
+      "mirror": false,
+      "onlyMigration": [
+        "args_json",
+        "created_at",
+        "id",
+        "kind",
+        "latency_ms",
+        "result_bytes",
+        "result_preview",
+        "seq",
+        "tool_name",
+        "wa_call_id"
+      ]
+    },
+    "calls": {
+      "creator": "create_calls_tables.sql",
+      "mirror": false,
+      "onlyMigration": [
+        "caller_name",
+        "caller_number",
+        "context_snapshot",
+        "cost_estimate",
+        "created_at",
+        "duration_seconds",
+        "ended_at",
+        "id",
+        "model",
+        "started_at",
+        "status",
+        "transcript",
+        "user_id",
+        "voice",
+        "wa_call_id"
+      ]
+    },
+    "chat_sessions": {
+      "creator": "001_add_chat_sessions.sql",
+      "onlyMirror": [
+        "conversation_state"
+      ]
+    },
+    "coaching_sessions": {
+      "creator": "003_classroom_coaching.sql",
+      "onlyMirror": [
+        "autofill_analysis_data",
+        "classroom_photos",
+        "debrief_status",
+        "error_stack",
+        "framework",
+        "framework_selection_reason",
+        "lesson_plan_link_method",
+        "linked_lesson_plan_id",
+        "observation_type",
+        "observer_user_id",
+        "prioritized_action",
+        "silence_markers",
+        "tokens_raw"
+      ]
+    },
+    "lp_feedback": {
+      "creator": "017_lp_feedback.sql",
+      "onlyMirror": [
+        "lp612_segment_id"
+      ]
+    },
+    "niete_lp_assets": {
+      "creator": "018_niete_lp_assets_and_downloads.sql",
+      "mirror": false,
+      "onlyMigration": [
+        "asset_kind",
+        "bytes",
+        "catalog_version",
+        "content_hash",
+        "created_at",
+        "id",
+        "is_current",
+        "lesson_id",
+        "prompt_layer_sha",
+        "r2_key",
+        "rendered_at",
+        "source_bytes",
+        "source_sha1",
+        "superseded_at",
+        "version_stamp"
+      ]
+    },
+    "niete_lp_downloads": {
+      "creator": "018_niete_lp_assets_and_downloads.sql",
+      "onlyMirror": [
+        "request_id"
+      ]
+    },
+    "reading_assessments": {
+      "creator": "004_reading_assessments.sql",
+      "onlyMirror": [
+        "failed_at"
+      ]
+    },
+    "record_history": {
+      "creator": "row_history_audit.sql",
+      "mirror": false,
+      "onlyMigration": [
+        "actor",
+        "actor_source",
+        "changed_at",
+        "changed_cols",
+        "id",
+        "new_vals",
+        "old_vals",
+        "op",
+        "row_id",
+        "table_name",
+        "txid"
+      ]
+    },
+    "student_lists": {
+      "creator": "014_attendance_tables.sql",
+      "onlyMirror": [
+        "class_id"
+      ]
+    },
+    "student_videos": {
+      "creator": "create_student_videos_table.sql",
+      "onlyMigration": [
+        "clean_chapter",
+        "clean_title",
+        "migration_status",
+        "r2_url",
+        "superseded_by"
+      ]
+    },
+    "students": {
+      "creator": "014_attendance_tables.sql",
+      "onlyMigration": [
+        "admission_no",
+        "date_of_birth",
+        "enrolled_by_user_id",
+        "import_run_id",
+        "phone",
+        "school_id",
+        "student_code"
+      ],
+      "onlyMirror": [
+        "parent_phone"
+      ]
+    },
+    "video_quiz_deliveries": {
+      "creator": "create_video_quiz_tables.sql",
+      "mirror": false,
+      "onlyMigration": [
+        "correlation_id",
+        "created_at",
+        "delivered_at",
+        "grade",
+        "id",
+        "phone",
+        "quiz_offered_at",
+        "quiz_responded_at",
+        "quiz_response",
+        "quiz_session_id",
+        "status",
+        "subject",
+        "title",
+        "user_id",
+        "video_id"
+      ]
+    }
+  }
+}

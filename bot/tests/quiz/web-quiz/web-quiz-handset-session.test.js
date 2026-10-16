@@ -46,8 +46,8 @@ function seed(flag) {
   db = F.db({ flag, classes: 'none', codeClass: null });
   db.app_settings.push({ key: 'web_quiz_handset_link', value: 'true' });
   db.students.push(
-    { id: CHAT_KID, student_name: 'Ayesha Khan', phone: '923001112223', list_id: null, enrolled_by_user_id: F.TEACHER, is_active: true, status: 'active', created_at: '2026-09-10T00:00:00Z' },
-    { id: CHAT_SIB, student_name: 'Bilal Khan', phone: '923001112223', list_id: null, enrolled_by_user_id: F.TEACHER, is_active: true, status: 'active', created_at: '2026-09-12T00:00:00Z' },
+    { id: CHAT_KID, student_name: 'Ayesha Khan', phone: '+92300FIXTURE1', list_id: null, enrolled_by_user_id: F.TEACHER, is_active: true, status: 'active', created_at: '2026-09-10T00:00:00Z' },
+    { id: CHAT_SIB, student_name: 'Bilal Khan', phone: '+92300FIXTURE1', list_id: null, enrolled_by_user_id: F.TEACHER, is_active: true, status: 'active', created_at: '2026-09-12T00:00:00Z' },
   );
   const fake = makeFake(db);
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });

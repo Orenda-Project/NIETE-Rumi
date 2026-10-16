@@ -1,3 +1,4 @@
+-- requires: child_identity.sql
 -- Migration: merge_log.tier — which teacher-confirm queue tier a decision was made on.
 --
 -- NON-DESTRUCTIVE. One nullable column on merge_log (child_identity.sql), plus a
