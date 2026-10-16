@@ -136,7 +136,7 @@ describe('reader pass ON: a flagged item does not print', () => {
     const readers = asked.filter((a) => a.sec === 'reader');
     expect(readers).toHaveLength(2);
     // The FDE model and job, JSON, medium effort.
-    expect(readers[0].req).toMatchObject({ job: 'assessment.generate', response_format: { type: 'json_object' }, reasoning: { effort: 'medium' } });
+    expect(readers[0].req).toMatchObject({ job: 'assessment.generate', response_format: { type: 'json_object' }, reasoning: { effort: 'medium' }, max_tokens: 8000 });
     // The first read is the printed paper, never a key outside Q1's side list.
     const first = readers[0].prompt;
     expect(first).toContain('Q6');

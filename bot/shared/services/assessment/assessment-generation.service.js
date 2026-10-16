@@ -1811,7 +1811,8 @@ async function _loadPatternContent({ grade, subject, P, scope, pageRanges, chapt
 // READER_SUBJECTS. Any failure of the read or the top-up keeps the paper as it was: the reader
 // never fails a paper that prints without it.
 const READER_TIMEOUT_MS = 120000;
-const READER_MAX_TOKENS = 4000;
+// The longest recorded read wrote 3,217 tokens (reasoning included); a cut-off read skips the pass.
+const READER_MAX_TOKENS = 8000;
 // Medium: at low effort the same eight recorded papers read 8, 8, 7 and 6 of 8 give-aways; at medium, 8 of 8 three times.
 const READER_REASONING = { effort: 'medium' };
 const READ_SLOT = 'urdu.A.Q1';
