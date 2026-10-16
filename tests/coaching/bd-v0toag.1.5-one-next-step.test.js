@@ -26,6 +26,13 @@ jest.mock('../../bot/shared/services/coaching/coaching-card/commitment-card.serv
 jest.mock('../../bot/shared/config/coaching-card.config', () => ({ getCoachingCardCopy: jest.fn(() => ({ commitPrompt: 'Will you try this?', commitButtons: { yes: 'Yes', later: 'Later', no: 'No' }, cardFooter: 'Human Coach' })) }));
 jest.mock('../../bot/shared/services/coaching/coaching-trend.service', () => ({ loadPriorAction: jest.fn(async () => null), loadTrendData: jest.fn(async () => []), loadRecentSectionBModes: jest.fn(async () => []) }));
 
+// While ab_v10_enabled is on, the one next step is the new report: groups C and D only (Amena, 16 Oct).
+// Switch off → every teacher gets it, as before the test.
+const mockSwitch = jest.fn(async () => true);
+jest.mock('../../bot/shared/services/coaching/ab-v10-switch', () => ({ v10Enabled: (...a) => mockSwitch(...a) }));
+const mockGroup = jest.fn(async () => ({ group: 'C', plan: 'v9', report: 'new' }));
+jest.mock('../../bot/shared/services/coaching/ab-v10-arms', () => ({ groupFor: (...a) => mockGroup(...a) }));
+
 const updates = [];
 const ok = (id, name, score) => ({ id, name, score, applicable: true });
 const ANALYSIS = {
@@ -58,6 +65,8 @@ const RG = require('../../bot/shared/services/coaching/report-generator.service'
 
 beforeEach(() => {
   updates.length = 0; jest.clearAllMocks();
+  mockSwitch.mockResolvedValue(true);
+  mockGroup.mockResolvedValue({ group: 'C', plan: 'v9', report: 'new' });
   jest.spyOn(RG, 'enhanceAnalysisWithReflections').mockResolvedValue(JSON.parse(JSON.stringify(ANALYSIS)));
   jest.spyOn(RG, 'generatePDFReport').mockResolvedValue({ png: Buffer.from('PNG'), caption: 'cap' });
   jest.spyOn(RG, 'sendHeroImageReport').mockResolvedValue(true);
@@ -110,6 +119,40 @@ describe('one next step across the report', () => {
     expect(RG.generatePDFReport.mock.calls[0][5].target.indicator).toBe('C3');
     expect(updates.some((u) => u.analysis_data && u.analysis_data.focus_area_scorer)).toBe(false);
     expect(mockLog.mock.calls.some(([m]) => typeof m === 'string' && m.includes('[next-step]') && m.includes('fallback —'))).toBe(false);
+  });
+});
+
+describe('while the v10 test is on, only groups C and D get the one next step', () => {
+  const todays = async (group) => {
+    mockGroup.mockResolvedValue(group);
+    await RG.generateReport('sess-1', { from: '10000000000' });
+    expect(mockGroup).toHaveBeenCalledWith('user-1');
+    // Today's report: the card chooses as before, the horizon has no pinned step, the scorer's focus stays.
+    expect(mockCard.mock.calls.length).toBeGreaterThan(0);
+    for (const call of mockCard.mock.calls) expect(call[3].target).toBeNull();
+    const step = RG.generatePDFReport.mock.calls[0][5];
+    expect(step && step.target).toBeFalsy();
+    expect(updates.some((u) => u.analysis_data && u.analysis_data.focus_area_scorer)).toBe(false);
+    expect(RG.generatePDFReport.mock.calls[0][2].focus_area.indicator).toBe('C1');
+    expect(mockLog.mock.calls.some(([m]) => typeof m === 'string' && m.includes('[next-step]'))).toBe(false);
+  };
+
+  test('group A: today\'s report', () => todays({ group: 'A', plan: 'v9', report: 'today' }));
+  test('group B: today\'s report', () => todays({ group: 'B', plan: 'v10', report: 'today' }));
+  test('school not drawn (null): today\'s report', () => todays(null));
+
+  test('group D gets it too', async () => {
+    mockGroup.mockResolvedValue({ group: 'D', plan: 'v10', report: 'new' });
+    await RG.generateReport('sess-1', { from: '10000000000' });
+    expect(mockCard.mock.calls[0][3].target.indicator).toBe('B6');
+  });
+
+  test('switch off: every teacher gets the step, no group lookup', async () => {
+    mockSwitch.mockResolvedValue(false);
+    mockGroup.mockResolvedValue({ group: 'A', plan: 'v9', report: 'today' });
+    await RG.generateReport('sess-1', { from: '10000000000' });
+    expect(mockGroup).not.toHaveBeenCalled();
+    expect(mockCard.mock.calls[0][3].target.indicator).toBe('B6');
   });
 });
 

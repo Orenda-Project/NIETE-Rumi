@@ -357,21 +357,29 @@ class ReportGeneratorService {
       }
 
       // bd-v0toag.1.5: ONE next step, chosen once — the horizon, the card and the stored focus all read it.
+      // While the v10 test is on it is part of the new report, so only groups C and D get it (Amena,
+      // 16 Oct); A, B and undrawn schools get today's report — target null, the card chooses its own
+      // area, the scorer's focus is left as written. With the test off, every teacher gets it.
       const { selectNextStep, focusPatch } = require('./next-step');
-      const nextStep = selectNextStep(enhancedAnalysis, loop);
+      let oneStep = true;
+      if (await v10Enabled().catch(() => false)) {
+        const v10 = await require('./ab-v10-arms').groupFor(session.user_id);
+        oneStep = !!(v10 && v10.report === 'new');
+      }
+      const nextStep = oneStep ? selectNextStep(enhancedAnalysis, loop) : { target: null };
       const stepId = nextStep.target && nextStep.target.indicator;
       if (nextStep.fallback) {
         logToFile('[next-step] fallback — no valid loop target or focus_area; the weakest scored row is the step', {
           coachingSessionId, reason: nextStep.reason, scorer_indicator: nextStep.scorerIndicator, indicator: stepId || null,
         });
       }
-      const stepFocus = focusPatch(enhancedAnalysis, nextStep.target);
+      const stepFocus = oneStep ? focusPatch(enhancedAnalysis, nextStep.target) : null;
       if (stepFocus) {
         Object.assign(enhancedAnalysis, stepFocus);
         await require('./next-step-store').persistNextStepFocus(coachingSessionId, stepFocus);
       }
       const logRuleCard = (card) => {
-        if (card && card._source === 'fallback') logToFile('[next-step] commitment card is the rule-based fallback', { coachingSessionId, indicator: stepId || null, card_indicator: card.indicator });
+        if (oneStep && card && card._source === 'fallback') logToFile('[next-step] commitment card is the rule-based fallback', { coachingSessionId, indicator: stepId || null, card_indicator: card.indicator });
       };
 
       let precomputedCommitment = null;
@@ -939,6 +947,8 @@ class ReportGeneratorService {
    * @param {object} session - Session data
    * @param {string} teacherName - Teacher's full name
    * @param {object} enhancedAnalysis - Enhanced analysis data
+   * @param {object} [precomputedCommitment] - the commitment card already generated
+   * @param {object} [nextStep] - next-step.selectNextStep result (bd-v0toag.1.5); its target pins the horizon
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
