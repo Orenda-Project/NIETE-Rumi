@@ -93,8 +93,9 @@ const run = (extra = {}) => Gen.generatePatternExam({
   grade: 5, subject: 'urdu', pattern: 'fde_g5_2027', scope: rec.scope, pageRanges: rec.scope.pages, requestId: 'req-reader', ...extra,
 }).then((r) => ({ ok: r }), (err) => ({ err }));
 
-// generated_at is the clock's; everything else must match.
-const stable = (exam) => { const e = clone(exam); delete e._layout.generated_at; return e; };
+// generated_at is the clock's, and `_layout.reader` is the pass's own record (asserted where it
+// matters, absent on an OFF paper); everything else must match.
+const stable = (exam) => { const e = clone(exam); delete e._layout.generated_at; delete e._layout.reader; return e; };
 
 beforeEach(() => { mockCreate.mockReset(); mockLog.mockReset(); });
 
@@ -162,6 +163,9 @@ describe('reader pass ON: a flagged item does not print', () => {
     expect(line[1].tokens).toBe(9300 * 2);
     // The reader's calls are billed with the paper.
     expect(out.ok.tokenData.totalTokens).toBe(1500 * 5 + 9300 * 2);
+    // The paper itself records what the reader did: a panel reads it from exam_json, no log needed.
+    expect(out.ok.examJson._layout.reader).toMatchObject({ flagged: 1, replaced: 1, still_flagged: 0, put_back: 0 });
+    expect(out.ok.examJson._layout.reader.items).toEqual([{ label: flagged, by: 'Q1.13', reason: 'states the rule that answers which sentence is شکیہ', outcome: 'replaced' }]);
   });
 
   test('a replacement the re-check still flags is taken off, and an in-Q1 hold is put back in its place', async () => {
@@ -187,6 +191,8 @@ describe('reader pass ON: a flagged item does not print', () => {
     expect(asked.filter((x) => x.sec === 'reader')).toHaveLength(2);
     const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
     expect(line[1]).toMatchObject({ flagged: 1, replaced: 0, still_flagged: 1, put_back: 1 });
+    // An item printed over the reader's own flag says so on the paper.
+    expect(out.ok.examJson._layout.reader.items.map((x) => x.outcome)).toEqual(['put_back', 'taken_off']);
   });
 
   test('nothing flagged: no top-up, and the paper is the one it would be with the pass off', async () => {
@@ -195,6 +201,10 @@ describe('reader pass ON: a flagged item does not print', () => {
     mockCreate.mockReset(); mockLog.mockReset();
     const asked = serve({ reader: async () => JSON.stringify({ candidates: [] }) });
     const on = await run({ readerPass: true });
+    // The same paper; the pass leaves only its record (flagged 0), and an OFF paper has none.
+    expect(on.ok.examJson._layout.reader).toMatchObject({ flagged: 0, items: [] });
+    expect(off.ok.examJson._layout.reader).toBeUndefined();
+    delete on.ok.examJson._layout.reader;
     expect(stable(on.ok.examJson)).toEqual(stable(off.ok.examJson));
     expect(asked.filter((x) => x.sec === 'A')).toHaveLength(2);
     expect(asked.filter((x) => x.sec === 'reader')).toHaveLength(1);
@@ -217,6 +227,9 @@ describe('a reader failure never fails a paper', () => {
     const on = await run({ readerPass: true });
     expect(on.err).toBeUndefined();
     expect(stable(on.ok.examJson)).toEqual(stable(off.ok.examJson));
+    // The paper carries the pass's record and no item: a failed read never names one.
+    expect(on.ok.examJson._layout.reader).toMatchObject({ flagged: 0, replaced: 0, put_back: 0, items: [] });
+    expect(off.ok.examJson._layout.reader).toBeUndefined();
     const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
     expect(line).toBeTruthy();
     expect(line[1]).toMatchObject({ subject: 'urdu', flagged: 0, replaced: 0 });
@@ -300,6 +313,26 @@ describe('review findings', () => {
     expect(out.err).toBeUndefined();
     const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
     expect(line[1]).toMatchObject({ flagged: 1, rechecked: false });
+  });
+});
+
+describe('a reply the client already parsed', () => {
+  test('a reader reply whose content is an object is read, not dropped as a failed read', async () => {
+    let flagged = null;
+    serve({
+      reader: async (prompt, n) => {
+        if (n === 1) {
+          flagged = labelOf(prompt, RULE_STEM);
+          return { candidates: [{ item: flagged, by: 'Q1.13', evidence: 'شاید کل بارش ہو جائے', reason: 'rule twin', given_away: true }] };
+        }
+        return { candidates: [] };
+      },
+    });
+    const out = await run({ readerPass: true });
+    expect(q1Stems(out.ok.examJson).some((s) => RULE_STEM.test(s))).toBe(false);
+    const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
+    expect(line[1].error).toBeUndefined();
+    expect(line[1]).toMatchObject({ flagged: 1, replaced: 1 });
   });
 });
 
