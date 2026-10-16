@@ -618,6 +618,8 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
   // ── standing class link card (web_quiz_class_link; r.classLink is absent when the switch is off → '') ──
   const linkCard = r.classLink ? require('./teacher-class-link-card').renderClassLinkCard(r.classLink, { lang, base, print }) : '';
   // ── end standing class link card ──
+  // The class report did not answer within the page's budget: never "no quizzes" — the existing retry line instead.
+  if (r.pending) return { header, main: `<section class="card" style="margin-top:16px"><p class="muted">${L(C.errorBody)}</p></section>${linkCard}` };
   if (!cells.length && !quizzes.length) {
     return { header, main: `<section class="card" style="margin-top:16px"><p class="muted">${L(C.emptyClass)}</p></section>${linkCard}` };
   }
