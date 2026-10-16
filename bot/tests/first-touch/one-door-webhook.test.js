@@ -9,7 +9,8 @@
  *  - a known child: OFF today's "Home" reply → ON the same ONE hub link with the child words (no retired door word);
  *  - the bot's own name «جگنو» / `jugnu` is not a quiz request, ON or OFF;
  *  - the 9th /quiz with the shared 8-a-day pool spent still gets its link (its own counter) — for an unknown phone,
- *    for a known child's hub reply, and for a binder reply (STOP with nothing saved): OFF those are capped as today;
+ *    for a known child's hub reply, and for a binder reply (STOP with nothing saved; a code that saves the child):
+ *    OFF those are capped as today;
  *  - with Keep my place ON too, its way-back line is recorded once on the own counter and sent once.
  */
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost';
@@ -27,7 +28,7 @@ const { fixturePhone } = require('../quiz/web-quiz/fixture-phone');
 const PHONE = fixturePhone(41);
 const ROW = { registration_completed: false, registration_state: null, name: null, teacher_uuid: null, school_id: null, portal_activated: false, preferred_language: 'en' };
 
-/** The fake database: tables of rows; head counts; updates applied; a table may be made to fail. */
+/** The fake database: tables of rows; head counts; updates applied; a write hands back what it wrote; a table may be made to fail. */
 function db(tables, { failTables = [] } = {}) {
   const writes = [];
   const match = (row, f) => f.every(([op, col, val]) => {
@@ -54,10 +55,10 @@ function db(tables, { failTables = [] } = {}) {
       b.range = (a, z) => { q.limit = z - a + 1; return b; };
       ['not', 'gte', 'lte', 'gt', 'lt', 'or', 'neq', 'ilike', 'like', 'contains', 'filter', 'match'].forEach((m) => { b[m] = () => b; });
       b.update = (fields) => { q.update = fields; return b; };
-      ['insert', 'upsert', 'delete'].forEach((m) => { b[m] = (rows) => { writes.push({ table, op: m, rows }); q.write = true; return b; }; });
+      ['insert', 'upsert', 'delete'].forEach((m) => { b[m] = (rows) => { writes.push({ table, op: m, rows }); q.write = rows || true; return b; }; });
       const run = () => {
         if (failTables.includes(table)) return { data: null, count: null, error: { message: `${table} down` } };
-        if (q.write) return { data: [], error: null };
+        if (q.write) return { data: q.write === true ? [] : [].concat(q.write).map((r, i) => ({ id: `${table}-w${writes.length}-${i}`, ...r })), error: null };
         let rows = (tables[table] || []).filter((r) => match(r, filters));
         if (q.update) {
           writes.push({ table, fields: q.update, filters: [...filters] });
@@ -336,17 +337,21 @@ describe('replies to a person\'s own message ride their own counter (the shared 
     const soon = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const minted = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const fifth = { id: 'st-5', phone: null, list_id: null, is_active: true, student_name: 'Fifth Testwala', self_reported_class: '4', created_at: '2026-10-08T08:59:00Z' };
+    // the phone's four children, as the real read finds them: four live bindings (the chat child among them) and
+    // their four active student rows
+    const kin = ['k-2', 'k-3', 'k-4'].map((id, i) => ({ id, phone: null, list_id: null, is_active: true, student_name: `Kin${i + 2} Testwala`, self_reported_class: '4', created_at: '2026-10-08T08:59:00Z' }));
+    const norm = require('../../shared/services/quiz/student-identity.service').normalisePhone(PHONE);
+    const bindings = ['st-1', 'k-2', 'k-3', 'k-4'].map((id, i) => ({ id: `b-${i + 1}`, canonical_id: id, phone_norm: norm, via: 'save', bound_at: `2026-10-0${i + 1}T08:00:00Z`, expires_at: soon, revoked_at: null }));
     const app = await boot(worldOf({
-      users: [CHILD_USER()], students: [CHILD_ROW(), fifth], settings: { ...BIND, web_quiz_bind_way_back: true, ...extra },
-      extra: { child_bind_codes: [{ code: 'JUGNU-AB2CD', canonical_id: 'st-5', minted_at: minted, expires_at: soon, used_at: null, outcome: null }] },
+      users: [CHILD_USER()], students: [CHILD_ROW(), ...kin, fifth], settings: { ...BIND, web_quiz_bind_way_back: true, ...extra },
+      extra: { child_phone_bindings: bindings, child_bind_codes: [{ code: 'JUGNU-AB2CD', canonical_id: 'st-5', minted_at: minted, expires_at: soon, used_at: null, outcome: null }] },
     }));
     try {
       await spendPool();
       const Ledger = require('../../shared/services/quiz/message-ledger');
       const BindRepo = require('../../shared/services/quiz/child-phone-bindings.repo');
-      const four = ['k-1', 'k-2', 'k-3', 'k-4'].map((id) => ({ id }));
-      expect(four).toHaveLength(require('../../shared/services/quiz/web-quiz-token').HUB_MAX_KIDS);
-      jest.spyOn(BindRepo, 'childrenForPhone').mockResolvedValue(four);
+      expect((await BindRepo.childrenForPhone(PHONE)).map((k) => k.id).sort()).toEqual(['k-2', 'k-3', 'k-4', 'st-1']);
+      expect(4).toBe(require('../../shared/services/quiz/web-quiz-token').HUB_MAX_KIDS);
       const records = [];
       const real = Ledger.record.bind(Ledger);
       jest.spyOn(Ledger, 'record').mockImplementation(async (args) => { const ok = await real(args); records.push({ ...args, ok }); return ok; });
@@ -354,6 +359,32 @@ describe('replies to a person\'s own message ride their own counter (the shared 
       // the way back's reply: the full line WITH the button to the child's page (the binder's own line has none)
       expect(out.map((s) => s.kind)).toEqual(n ? ['cta'] : []);
       expect(records.map((r) => [r.trigger, r.reason, r.ownReply, r.ok])).toEqual([['bind_reply', 'max_kids', true, n === 1]]);
+    } finally { await app.close(); }
+  });
+
+  // The binder's own replies (Keep my place OFF): a code that saves the child answers with ONE link to the children's
+  // page, on the person's own counter. One door OFF → the shared pool applies as today (capped, silent; still saved).
+  test.each([['OFF', {}, 0], ['ON', ON, 1]])('a code that saves the child (the binder\'s own reply): one door %s → %s reply, ONE ledger record', async (_n, extra, n) => {
+    const soon = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const minted = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const sib = { id: 'st-2', phone: null, list_id: null, is_active: true, student_name: 'Sib Testwala', self_reported_class: '4', created_at: '2026-10-08T08:59:00Z' };
+    const app = await boot(worldOf({
+      users: [CHILD_USER()], students: [CHILD_ROW(), sib], settings: { ...BIND, ...extra },
+      extra: { child_bind_codes: [{ code: 'JUGNU-EF3GH', canonical_id: 'st-2', minted_at: minted, expires_at: soon, used_at: null, outcome: null }] },
+    }));
+    try {
+      await spendPool();
+      const Ledger = require('../../shared/services/quiz/message-ledger');
+      const records = [];
+      const real = Ledger.record.bind(Ledger);
+      jest.spyOn(Ledger, 'record').mockImplementation(async (args) => { const ok = await real(args); records.push({ ...args, ok }); return ok; });
+      const store = require('../../shared/config/supabase');
+      const out = await app.text('JUGNU-EF3GH');
+      // the binding is written either way (the save is not a reply); only the reply rides the counter
+      expect(store.writes.filter((w) => w.table === 'child_phone_bindings' && w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['st-2']);
+      expect(out.map((s) => s.kind)).toEqual(n ? ['cta'] : []);
+      if (n) expect(out[0].p.url).toMatch(/^https:\/\/portal\.example\/h\//);
+      expect(records.map((r) => [r.trigger, r.reason, r.ownReply, r.ok])).toEqual([['bind_reply', 'bind', true, n === 1]]);
     } finally { await app.close(); }
   });
 });
