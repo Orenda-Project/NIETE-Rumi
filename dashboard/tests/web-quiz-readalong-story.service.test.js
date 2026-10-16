@@ -286,4 +286,21 @@ describe('the first sound: the clip is warmed on the ask screen, never played', 
     await p.click('wqc-ex-read');
     expect(p.win.__pre).toBeUndefined();
   });
+  test('the player already on the page: the trail menu, a counted read\'s intro and a practice listen\'s end card (its words fetched) warm nothing', async () => {
+    const helped = () => { const s = store(); s.setItem('wqc_helped_v2:', 'self'); return s; };
+    const c = trail({ pre: [PRE_STUB], session: helped(), routes: { 'ch/HUB.TOKEN/read': ok(PREAD({ hear_first: TIMED, practice_round: undefined, mode: 'check' })) } });
+    await c.flush();
+    expect(c.win.WQReadAlong.preload).toBeDefined();
+    expect(c.win.__pre).toEqual([]);          // the menu
+    await c.click('wqc-ex-read');
+    expect(['intro', 'help-ask']).toContain(c.screen());
+    expect(c.win.__pre).toEqual([]);          // a counted read's intro
+    const l = trail({ pre: [PRE_STUB], routes: { 'ch/HUB.TOKEN/listen': ok(SLISTEN({ show_words: true, story: undefined, v2: V2(false) })), 'ch/words/CTL': ok({ readalong: TIMED }), ...QS } });
+    await l.flush();
+    await l.click('wqc-ex-listen');
+    await toQaDone(l);
+    expect(l.screen()).toBe('qa-done');
+    expect(wordsAsked(l)).toEqual(['/api/wq/ch/words/CTL?lang=en']);
+    expect(l.win.__pre).toEqual([]);          // the end card, the words in hand: still nothing warmed
+  });
 });

@@ -77,7 +77,7 @@
   var ALONG_CAP_MS = 180000;   // a WebView that never reports the clip's end still reaches the read
   // the word-by-word player (wq-readalong.js), fetched only when a story serve carries `readalong`
   // (web_quiz_readalong); its version is the file's sha256, first 10 hex (a test keeps the two in step)
-  var RA_V = 'ec2e99e729';
+  var RA_V = 'a8a85bdd52';
 
   // own styles (only under v2): the chip's second line under the name; Urdu lines at Nastaliq-readable size
   function css() {
