@@ -109,6 +109,9 @@
       '<div class="wqb-row' + (view.ctx.lang === 'ur' ? ' wqb-stack' : '') + '"><button type="button" class="wqb-btn wqb-go" data-b="keep">' + esc(t.cardBtn) + '</button>' +
       '<button type="button" class="wqb-btn wqb-ghost" data-b="later">' + esc(t.cardLater) + '</button></div>';
   }
+  function keepRow() {
+    return '<div class="wqb-row wqb-stack"><button type="button" class="wqb-btn wqb-go" data-b="keep">' + esc(L(view.ctx.lang).cardBtn) + '</button></div>';
+  }
   function showCard() {
     draw(cardHtml());
     on('keep', sheet);
@@ -189,7 +192,11 @@
         sset(sessionStorage, CODE_KEY, null);
         if (r.reason === 'max_phones') sset(sessionStorage, HIDE_KEY, '1');
         var m = refusal(st === 'expired' ? 'expired' : r.reason);
-        if (m) msg(m);
+        // web_quiz_bind_way_back (`wb` on the answer): never a dead card — "took too long" keeps its button, and a
+        // refusal with no line of its own says "not saved" and offers Yes again
+        if (r.wb && st === 'expired') { msg(m, keepRow()); on('keep', sheet); }
+        else if (m) msg(m);
+        else if (r.wb) tryAgain();
       }
     }).catch(function () {});
   }

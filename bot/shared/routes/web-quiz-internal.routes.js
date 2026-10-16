@@ -23,6 +23,7 @@
  *   GET  /ch/:token/back       the class round's hand-back: {to} the round page, or {to:null}
  *   GET  /ch/...  POST /ch/...  the kid's Challenge (POST /ch/live: a temporary key for a live read-aloud) (web-quiz-challenge.js); GET /challenge/results?list=
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
+ *   POST /card  GET /card/:t.png  the finish card (web_quiz_card_v3): a card token for this child's finish, its picture
  *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
  *   GET  /lib/:code             the video library from a quiz: subjects (grade strip), then chapters
  *   GET  /lib/h/:token          the same from the kid's hub
@@ -44,6 +45,7 @@ const ShareWarm = require('../services/quiz/web-quiz-share-warm');
 const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
+const CardImage = require('../services/quiz/web-quiz-card-image');
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -87,7 +89,8 @@ router.post('/finish', handle(async (req) => {
   const out = await WebQuiz.finishSession(req.body || {});
   // The share pictures are drawn now, after the answer, so a child who taps Share at once sends a ready picture.
   ShareWarm.afterFinish(out);
-  return out;
+  // The finish card (web_quiz_card_v3): {card_v3: true} with the switch on, else nothing added.
+  return Object.assign(out, await CardImage.field());
 }));
 router.get('/board/:code', handle((req) => WebQuiz.board(req.params.code, { st: req.query.st })));
 router.get('/schools/:code', handle((req) => WebQuizSchools.board(req.params.code, { st: req.query.st })));
@@ -147,7 +150,7 @@ router.post('/ch/qa', challenge((C, req) => C.answer(req.body || {})));
 // x-wq-device on a result: the phone the mic notice was shown on (marked seen for that child on that phone)
 router.post('/ch/result', challenge((C, req) => C.submit(req.body || {}, { device: req.get('x-wq-device') })));
 // x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
-router.get('/ch/:token', challenge((C, req) => C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })));
+router.get('/ch/:token', challenge(async (C, req) => Object.assign(await C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') }), await CardImage.field())));
 // Story Time (?room=story&pid=<passage id>, read and listen only): passed on only with web_quiz_challenge_story on; off, ignored.
 const storyAsk = async (C, req) => (req.query.room === 'story' && (req.params.exercise === 'read' || req.params.exercise === 'listen') && typeof C.storyOn === 'function' && (await C.storyOn())
   ? { passageId: typeof req.query.pid === 'string' ? req.query.pid : null, room: 'story' } : {});
@@ -173,14 +176,39 @@ router.get('/art/:id', async (req, res) => {
     return res.status(500).json({ error: 'server_error' });
   }
 });
+// The finish card (web-quiz-card-image.js, web_quiz_card_v3). POST /card: a token for this child's finish (the
+// session, run or hub token names the child; the page names only the deed). GET /card/<t>.png: its picture; a link
+// preview fetches it with no session, so the sealed token is the permission and anyone may cache it. The token is
+// never logged (the access log is the edge's, which logs the route pattern only).
+const cardServe = (fn) => async (req, res) => {
+  try {
+    const out = await fn(req);
+    if (out && out.bytes) {
+      res.set('Content-Type', out.contentType);
+      res.set('Cache-Control', 'public, max-age=86400, immutable');
+      return res.send(out.bytes);
+    }
+    res.set('Cache-Control', 'no-store');
+    return res.status(200).json(out);
+  } catch (err) {
+    if (err instanceof CardImage.CardError) return res.status(err.status).set('Cache-Control', 'no-store').json(err.body);
+    logToFile('❌ web-quiz card failed', { error: err.message }, 'error');
+    return res.status(500).json({ error: 'server_error' });
+  }
+};
+router.post('/card', cardServe((req) => CardImage.mint(req.body || {}, { device: req.get('x-wq-device') || null })));
+router.get('/card/:token.png', cardServe((req) => CardImage.image(req.params.token)));
+router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params.token)));
 // M4a hub — the kid hub's boot JSON (a WhatsApp /quiz link names this phone's own children)
 // `src`: the route that brought the child (hub_open.src), read by the hub_open emit as opts.src.
 // `lang`: the language the page that sent the child was in (?lang=, the edge forwards only en|ur); the hub checks it again.
 router.get('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang })));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
-router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s), device: req.get('x-wq-device') })));
-router.get('/lib/:code', handle((req) => WebQuizLibrary.lib(req.params.code, { st: q1(req.query.st), g: q1(req.query.g), s: q1(req.query.s) })));
+// `l`: the page's language (en|ur, anything else dropped); read only under app_settings web_quiz_videos_v3.
+const ql = (v) => (v === 'en' || v === 'ur' ? v : undefined);
+router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l), device: req.get('x-wq-device') })));
+router.get('/lib/:code', handle((req) => WebQuizLibrary.lib(req.params.code, { st: q1(req.query.st), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l) })));
 router.get('/videos/dl/:code', handle((req) => WebQuizLibrary.download(req.params.code, { st: q1(req.query.st), vid: q1(req.query.vid) })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.

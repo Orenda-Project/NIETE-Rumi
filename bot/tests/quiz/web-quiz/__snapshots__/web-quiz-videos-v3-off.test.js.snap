@@ -1,0 +1,1921 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`web_quiz_videos_v3 off: the library is byte-identical lib and libHub payloads and database calls (absent) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+  ],
+  "out": [
+    {
+      "grade": "3",
+      "grades": [
+        {
+          "art": "/wq/art/grade-kg-1.webp",
+          "g": "KG",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/grade-3-1.webp",
+          "g": "3",
+          "n": 12,
+        },
+        {
+          "art": "/wq/art/grade-4-1.webp",
+          "g": "4",
+          "n": 1,
+        },
+      ],
+      "mine": "Science",
+      "subjects": [
+        {
+          "art": "/wq/art/subject-english-1.webp",
+          "key": "English",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/subject-maths-1.webp",
+          "key": "Maths",
+          "n": 5,
+        },
+        {
+          "art": "/wq/art/subject-science-1.webp",
+          "key": "Science",
+          "n": 3,
+        },
+        {
+          "art": "/wq/art/subject-urdu-1.webp",
+          "key": "Urdu",
+          "n": 3,
+        },
+      ],
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "code": "VID003",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "done": true,
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "code": "VID001",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+    {
+      "art": "/wq/art/subject-maths-1.webp",
+      "chapters": [
+        {
+          "name": "Chapter 10",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v5_poster.jpg?<signed>",
+              "title": "Big numbers",
+              "vid": "aaaaaa05-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Chapter 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v4_poster.jpg?<signed>",
+              "title": "Adding",
+              "vid": "aaaaaa04-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v17_poster.jpg?<signed>",
+              "title": "Taking away",
+              "vid": "aaaaaa17-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 12",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v15_poster.jpg?<signed>",
+              "title": "Shapes",
+              "vid": "aaaaaa15-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v16_poster.jpg?<signed>",
+              "title": "Lines",
+              "vid": "aaaaaa16-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Maths",
+    },
+    {
+      "art": "/wq/art/subject-urdu-1.webp",
+      "chapters": [
+        {
+          "name": "باب ٣",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v14_poster.jpg?<signed>",
+              "title": "تین",
+              "vid": "aaaaaa14-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "باب ۱۰",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v12_poster.jpg?<signed>",
+              "title": "دس",
+              "vid": "aaaaaa12-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "باب ۲",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v13_poster.jpg?<signed>",
+              "title": "دو",
+              "vid": "aaaaaa13-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Urdu",
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+    {
+      "grade": "3",
+      "grades": [
+        {
+          "art": "/wq/art/grade-kg-1.webp",
+          "g": "KG",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/grade-3-1.webp",
+          "g": "3",
+          "n": 12,
+        },
+        {
+          "art": "/wq/art/grade-4-1.webp",
+          "g": "4",
+          "n": 1,
+        },
+      ],
+      "subjects": [
+        {
+          "art": "/wq/art/subject-english-1.webp",
+          "key": "English",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/subject-maths-1.webp",
+          "key": "Maths",
+          "n": 5,
+        },
+        {
+          "art": "/wq/art/subject-science-1.webp",
+          "key": "Science",
+          "n": 3,
+        },
+        {
+          "art": "/wq/art/subject-urdu-1.webp",
+          "key": "Urdu",
+          "n": 3,
+        },
+      ],
+    },
+    {
+      "art": "/wq/art/subject-maths-1.webp",
+      "chapters": [
+        {
+          "name": "Chapter 10",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v5_poster.jpg?<signed>",
+              "title": "Big numbers",
+              "vid": "aaaaaa05-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Chapter 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v4_poster.jpg?<signed>",
+              "title": "Adding",
+              "vid": "aaaaaa04-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v17_poster.jpg?<signed>",
+              "title": "Taking away",
+              "vid": "aaaaaa17-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 12",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v15_poster.jpg?<signed>",
+              "title": "Shapes",
+              "vid": "aaaaaa15-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v16_poster.jpg?<signed>",
+              "title": "Lines",
+              "vid": "aaaaaa16-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Maths",
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "code": "VID003",
+              "k": "fb739c79d8eabed4",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "done": true,
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "code": "VID001",
+              "k": "cb0ec5a6a262b3b7",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+  ],
+}
+`;
+
+exports[`web_quiz_videos_v3 off: the library is byte-identical lib and libHub payloads and database calls (an object) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+  ],
+  "out": [
+    {
+      "grade": "3",
+      "grades": [
+        {
+          "art": "/wq/art/grade-kg-1.webp",
+          "g": "KG",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/grade-3-1.webp",
+          "g": "3",
+          "n": 12,
+        },
+        {
+          "art": "/wq/art/grade-4-1.webp",
+          "g": "4",
+          "n": 1,
+        },
+      ],
+      "mine": "Science",
+      "subjects": [
+        {
+          "art": "/wq/art/subject-english-1.webp",
+          "key": "English",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/subject-maths-1.webp",
+          "key": "Maths",
+          "n": 5,
+        },
+        {
+          "art": "/wq/art/subject-science-1.webp",
+          "key": "Science",
+          "n": 3,
+        },
+        {
+          "art": "/wq/art/subject-urdu-1.webp",
+          "key": "Urdu",
+          "n": 3,
+        },
+      ],
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "code": "VID003",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "done": true,
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "code": "VID001",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+    {
+      "art": "/wq/art/subject-maths-1.webp",
+      "chapters": [
+        {
+          "name": "Chapter 10",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v5_poster.jpg?<signed>",
+              "title": "Big numbers",
+              "vid": "aaaaaa05-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Chapter 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v4_poster.jpg?<signed>",
+              "title": "Adding",
+              "vid": "aaaaaa04-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v17_poster.jpg?<signed>",
+              "title": "Taking away",
+              "vid": "aaaaaa17-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 12",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v15_poster.jpg?<signed>",
+              "title": "Shapes",
+              "vid": "aaaaaa15-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v16_poster.jpg?<signed>",
+              "title": "Lines",
+              "vid": "aaaaaa16-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Maths",
+    },
+    {
+      "art": "/wq/art/subject-urdu-1.webp",
+      "chapters": [
+        {
+          "name": "باب ٣",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v14_poster.jpg?<signed>",
+              "title": "تین",
+              "vid": "aaaaaa14-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "باب ۱۰",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v12_poster.jpg?<signed>",
+              "title": "دس",
+              "vid": "aaaaaa12-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "باب ۲",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v13_poster.jpg?<signed>",
+              "title": "دو",
+              "vid": "aaaaaa13-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Urdu",
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+    {
+      "grade": "3",
+      "grades": [
+        {
+          "art": "/wq/art/grade-kg-1.webp",
+          "g": "KG",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/grade-3-1.webp",
+          "g": "3",
+          "n": 12,
+        },
+        {
+          "art": "/wq/art/grade-4-1.webp",
+          "g": "4",
+          "n": 1,
+        },
+      ],
+      "subjects": [
+        {
+          "art": "/wq/art/subject-english-1.webp",
+          "key": "English",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/subject-maths-1.webp",
+          "key": "Maths",
+          "n": 5,
+        },
+        {
+          "art": "/wq/art/subject-science-1.webp",
+          "key": "Science",
+          "n": 3,
+        },
+        {
+          "art": "/wq/art/subject-urdu-1.webp",
+          "key": "Urdu",
+          "n": 3,
+        },
+      ],
+    },
+    {
+      "art": "/wq/art/subject-maths-1.webp",
+      "chapters": [
+        {
+          "name": "Chapter 10",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v5_poster.jpg?<signed>",
+              "title": "Big numbers",
+              "vid": "aaaaaa05-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Chapter 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v4_poster.jpg?<signed>",
+              "title": "Adding",
+              "vid": "aaaaaa04-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v17_poster.jpg?<signed>",
+              "title": "Taking away",
+              "vid": "aaaaaa17-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 12",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v15_poster.jpg?<signed>",
+              "title": "Shapes",
+              "vid": "aaaaaa15-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v16_poster.jpg?<signed>",
+              "title": "Lines",
+              "vid": "aaaaaa16-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Maths",
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "code": "VID003",
+              "k": "fb739c79d8eabed4",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "done": true,
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "code": "VID001",
+              "k": "cb0ec5a6a262b3b7",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+  ],
+}
+`;
+
+exports[`web_quiz_videos_v3 off: the library is byte-identical lib and libHub payloads and database calls (false) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+  ],
+  "out": [
+    {
+      "grade": "3",
+      "grades": [
+        {
+          "art": "/wq/art/grade-kg-1.webp",
+          "g": "KG",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/grade-3-1.webp",
+          "g": "3",
+          "n": 12,
+        },
+        {
+          "art": "/wq/art/grade-4-1.webp",
+          "g": "4",
+          "n": 1,
+        },
+      ],
+      "mine": "Science",
+      "subjects": [
+        {
+          "art": "/wq/art/subject-english-1.webp",
+          "key": "English",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/subject-maths-1.webp",
+          "key": "Maths",
+          "n": 5,
+        },
+        {
+          "art": "/wq/art/subject-science-1.webp",
+          "key": "Science",
+          "n": 3,
+        },
+        {
+          "art": "/wq/art/subject-urdu-1.webp",
+          "key": "Urdu",
+          "n": 3,
+        },
+      ],
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "code": "VID003",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "done": true,
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "code": "VID001",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+    {
+      "art": "/wq/art/subject-maths-1.webp",
+      "chapters": [
+        {
+          "name": "Chapter 10",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v5_poster.jpg?<signed>",
+              "title": "Big numbers",
+              "vid": "aaaaaa05-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Chapter 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v4_poster.jpg?<signed>",
+              "title": "Adding",
+              "vid": "aaaaaa04-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v17_poster.jpg?<signed>",
+              "title": "Taking away",
+              "vid": "aaaaaa17-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 12",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v15_poster.jpg?<signed>",
+              "title": "Shapes",
+              "vid": "aaaaaa15-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v16_poster.jpg?<signed>",
+              "title": "Lines",
+              "vid": "aaaaaa16-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Maths",
+    },
+    {
+      "art": "/wq/art/subject-urdu-1.webp",
+      "chapters": [
+        {
+          "name": "باب ٣",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v14_poster.jpg?<signed>",
+              "title": "تین",
+              "vid": "aaaaaa14-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "باب ۱۰",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v12_poster.jpg?<signed>",
+              "title": "دس",
+              "vid": "aaaaaa12-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "باب ۲",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v13_poster.jpg?<signed>",
+              "title": "دو",
+              "vid": "aaaaaa13-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Urdu",
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+    {
+      "grade": "3",
+      "grades": [
+        {
+          "art": "/wq/art/grade-kg-1.webp",
+          "g": "KG",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/grade-3-1.webp",
+          "g": "3",
+          "n": 12,
+        },
+        {
+          "art": "/wq/art/grade-4-1.webp",
+          "g": "4",
+          "n": 1,
+        },
+      ],
+      "subjects": [
+        {
+          "art": "/wq/art/subject-english-1.webp",
+          "key": "English",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/subject-maths-1.webp",
+          "key": "Maths",
+          "n": 5,
+        },
+        {
+          "art": "/wq/art/subject-science-1.webp",
+          "key": "Science",
+          "n": 3,
+        },
+        {
+          "art": "/wq/art/subject-urdu-1.webp",
+          "key": "Urdu",
+          "n": 3,
+        },
+      ],
+    },
+    {
+      "art": "/wq/art/subject-maths-1.webp",
+      "chapters": [
+        {
+          "name": "Chapter 10",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v5_poster.jpg?<signed>",
+              "title": "Big numbers",
+              "vid": "aaaaaa05-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Chapter 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v4_poster.jpg?<signed>",
+              "title": "Adding",
+              "vid": "aaaaaa04-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v17_poster.jpg?<signed>",
+              "title": "Taking away",
+              "vid": "aaaaaa17-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 12",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v15_poster.jpg?<signed>",
+              "title": "Shapes",
+              "vid": "aaaaaa15-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v16_poster.jpg?<signed>",
+              "title": "Lines",
+              "vid": "aaaaaa16-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Maths",
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "code": "VID003",
+              "k": "fb739c79d8eabed4",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "done": true,
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "code": "VID001",
+              "k": "cb0ec5a6a262b3b7",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+  ],
+}
+`;
+
+exports[`web_quiz_videos_v3 off: the library is byte-identical lib and libHub payloads and database calls (the string true) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quizzes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "table": "quiz_share_codes",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+    {
+      "op": "select",
+      "table": "student_videos",
+    },
+  ],
+  "out": [
+    {
+      "grade": "3",
+      "grades": [
+        {
+          "art": "/wq/art/grade-kg-1.webp",
+          "g": "KG",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/grade-3-1.webp",
+          "g": "3",
+          "n": 12,
+        },
+        {
+          "art": "/wq/art/grade-4-1.webp",
+          "g": "4",
+          "n": 1,
+        },
+      ],
+      "mine": "Science",
+      "subjects": [
+        {
+          "art": "/wq/art/subject-english-1.webp",
+          "key": "English",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/subject-maths-1.webp",
+          "key": "Maths",
+          "n": 5,
+        },
+        {
+          "art": "/wq/art/subject-science-1.webp",
+          "key": "Science",
+          "n": 3,
+        },
+        {
+          "art": "/wq/art/subject-urdu-1.webp",
+          "key": "Urdu",
+          "n": 3,
+        },
+      ],
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "code": "VID003",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "done": true,
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "code": "VID001",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+    {
+      "art": "/wq/art/subject-maths-1.webp",
+      "chapters": [
+        {
+          "name": "Chapter 10",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v5_poster.jpg?<signed>",
+              "title": "Big numbers",
+              "vid": "aaaaaa05-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Chapter 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v4_poster.jpg?<signed>",
+              "title": "Adding",
+              "vid": "aaaaaa04-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v17_poster.jpg?<signed>",
+              "title": "Taking away",
+              "vid": "aaaaaa17-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 12",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v15_poster.jpg?<signed>",
+              "title": "Shapes",
+              "vid": "aaaaaa15-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v16_poster.jpg?<signed>",
+              "title": "Lines",
+              "vid": "aaaaaa16-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Maths",
+    },
+    {
+      "art": "/wq/art/subject-urdu-1.webp",
+      "chapters": [
+        {
+          "name": "باب ٣",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v14_poster.jpg?<signed>",
+              "title": "تین",
+              "vid": "aaaaaa14-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "باب ۱۰",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v12_poster.jpg?<signed>",
+              "title": "دس",
+              "vid": "aaaaaa12-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "باب ۲",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v13_poster.jpg?<signed>",
+              "title": "دو",
+              "vid": "aaaaaa13-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Urdu",
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+    {
+      "grade": "3",
+      "grades": [
+        {
+          "art": "/wq/art/grade-kg-1.webp",
+          "g": "KG",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/grade-3-1.webp",
+          "g": "3",
+          "n": 12,
+        },
+        {
+          "art": "/wq/art/grade-4-1.webp",
+          "g": "4",
+          "n": 1,
+        },
+      ],
+      "subjects": [
+        {
+          "art": "/wq/art/subject-english-1.webp",
+          "key": "English",
+          "n": 1,
+        },
+        {
+          "art": "/wq/art/subject-maths-1.webp",
+          "key": "Maths",
+          "n": 5,
+        },
+        {
+          "art": "/wq/art/subject-science-1.webp",
+          "key": "Science",
+          "n": 3,
+        },
+        {
+          "art": "/wq/art/subject-urdu-1.webp",
+          "key": "Urdu",
+          "n": 3,
+        },
+      ],
+    },
+    {
+      "art": "/wq/art/subject-maths-1.webp",
+      "chapters": [
+        {
+          "name": "Chapter 10",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v5_poster.jpg?<signed>",
+              "title": "Big numbers",
+              "vid": "aaaaaa05-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Chapter 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v4_poster.jpg?<signed>",
+              "title": "Adding",
+              "vid": "aaaaaa04-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v17_poster.jpg?<signed>",
+              "title": "Taking away",
+              "vid": "aaaaaa17-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 12",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v15_poster.jpg?<signed>",
+              "title": "Shapes",
+              "vid": "aaaaaa15-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Unit 3 Part 2",
+          "videos": [
+            {
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v16_poster.jpg?<signed>",
+              "title": "Lines",
+              "vid": "aaaaaa16-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Maths",
+    },
+    {
+      "art": "/wq/art/subject-science-1.webp",
+      "chapters": [
+        {
+          "name": "Animals",
+          "videos": [
+            {
+              "code": "VID003",
+              "k": "fb739c79d8eabed4",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v3_poster.jpg?<signed>",
+              "title": "Life Cycle of a Hen",
+              "vid": "aaaaaa03-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+        {
+          "name": "Plants",
+          "videos": [
+            {
+              "done": true,
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v2_poster.jpg?<signed>",
+              "title": "Leaves",
+              "vid": "aaaaaa02-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+            {
+              "code": "VID001",
+              "k": "cb0ec5a6a262b3b7",
+              "poster": "https://test-bucket.acct.r2.example.com/student-videos/v1_poster.jpg?<signed>",
+              "title": "Parts of a Flower",
+              "vid": "aaaaaa01-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            },
+          ],
+        },
+      ],
+      "grade": "3",
+      "subject": "Science",
+    },
+  ],
+}
+`;
