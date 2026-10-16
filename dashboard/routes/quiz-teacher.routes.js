@@ -4,6 +4,7 @@
  * never followed). It never verifies a token and never touches the database: the bot renders and decides.
  *
  *   GET  /quiz/teacher/:token            the page shell (HTML)
+ *   GET  /quiz/teacher/:token/send       a library code's send (?c, ?o, ?lang): the bot marks it sent, 302 → wa.me
  *   GET  /quiz/teacher/:token/stories    the stories page (served by the stories router on the bot); ?book (a story
  *                                        tile's book: its send sheet), ?grade (1-5) and ?lang reach it
  *   GET  /api/th/home  ?t&g&lang         the home's JSON
@@ -32,8 +33,11 @@ const ONE_OF = (...vals) => (v) => vals.includes(v);
 
 // The query keys each GET may carry to the bot; anything else is dropped.
 const QUERY = { t: (v) => TOKEN_RX.test(v), g: (v) => /^[1-5]$/.test(v), lang: LANG };
-// The query keys a page may carry: the shell reads lang; the stories page also the tile's book and the grade.
+// The query keys a page may carry: the shell reads lang; the stories page also the tile's book and the grade; the send
+// the library code and where the send started.
 const PAGE_QUERY = { book: (v) => UUID_RX.test(v), grade: (v) => /^[1-5]$/.test(v), lang: LANG };
+const SEND_QUERY = { c: (v) => UUID_RX.test(v), o: ONE_OF('library', 'again', 'lesson_plan', 'coaching'), lang: LANG };
+const PAGE_KEYS = { '': { lang: LANG }, '/stories': PAGE_QUERY, '/send': SEND_QUERY };
 function forwardQuery(q, keys = QUERY) {
   const out = Object.keys(keys).filter((k) => typeof q[k] === 'string' && keys[k](q[k])).map((k) => `${k}=${encodeURIComponent(q[k])}`);
   return out.length ? `?${out.join('&')}` : '';
@@ -129,7 +133,7 @@ function createQuizTeacherRouter(opts = {}) {
     return async (req, res, next) => {
       const token = String(req.params.token || '');
       if (!TOKEN_RX.test(token) || !configured) return next();
-      const query = forwardQuery(req.query || {}, suffix ? PAGE_QUERY : { lang: LANG });
+      const query = forwardQuery(req.query || {}, PAGE_KEYS[suffix]);
       let out;
       try {
         out = await callBot('GET', `${BOT_BASE}/quiz/teacher/${token}${suffix}${query}`, req, null, { raw: true });
@@ -175,6 +179,7 @@ function createQuizTeacherRouter(opts = {}) {
 
   router.get('/quiz/teacher/:token', limiter, forwardPage());
   router.get('/quiz/teacher/:token/stories', limiter, forwardPage('/stories'));
+  router.get('/quiz/teacher/:token/send', limiter, forwardPage('/send'));
   router.get('/api/th/home', limiter, forwardGetJson('/api/th/home'));
   router.get('/api/th/library', limiter, forwardGetJson('/api/th/library'));
   router.get('/api/th/quiz/:id', limiter, forwardGetJson('/api/th/quiz'));

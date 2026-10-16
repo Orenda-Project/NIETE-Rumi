@@ -153,6 +153,17 @@ describe('path-for-path forwarding', () => {
       `/api/internal/th/quiz/teacher/${TOK}/stories`,
     ]);
   });
+  test('send: the library code (uuid), where it started and lang reach the bot; its 302 to wa.me is passed on', async () => {
+    await boot({ status: 302, location: 'https://wa.me/?text=hello', bytes: Buffer.alloc(0) });
+    const r = await request('GET', `/quiz/teacher/${TOK}/send?c=${UUID}&o=again&lang=ur&evil=1`);
+    await request('GET', `/quiz/teacher/${TOK}/send?c=nope&o=elsewhere`);
+    expect(calls.map((c) => c.path)).toEqual([
+      `/api/internal/th/quiz/teacher/${TOK}/send?c=${UUID}&o=again&lang=ur`,
+      `/api/internal/th/quiz/teacher/${TOK}/send`,
+    ]);
+    expect(r.status).toBe(302);
+    expect(r.headers.location).toBe('https://wa.me/?text=hello');
+  });
   test('home: only t, g (1-5), lang forwarded', async () => {
     await boot(ok);
     await request('GET', `/api/th/home?t=${TOK}&g=3&lang=en&evil=1`);

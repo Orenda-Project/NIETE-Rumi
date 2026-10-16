@@ -9,8 +9,8 @@
  *   story    else the stories shelf's first book for the class's grade (a link to the stories page's own sheet)
  *   video    else the bank's ready video quiz for that grade, its class message already built ("Send to my class")
  *   make     else the maker page
- * (between class and story: an un-quizzed lesson plan or coaching session of the last 7 days → "Quiz from your last
- *  lesson: <topic>" with "Quiz this", the library card second)
+ * (between class and story: an un-quizzed lesson plan or coaching session of the last 7 days, newer than the teacher's
+ *  last send → "Quiz from your last lesson: <topic>" with "Quiz this", the library card second)
  * THE TIMELINE: lesson plans, coaching sessions and sent quizzes (stories too), newest first; each row ONE verb:
  *   quiz_this (a lesson or a session with no quiz yet) · again (a sent quiz) · none (a quiz being made)
  */
@@ -59,8 +59,8 @@ const shareRow = (s) => ({
   kind: 'quiz', key: `sc_${s.shareCodeId}`, title: s.topic || '', date: s.at, verb: 'again', id: s.shareCodeId, sendKind: 'share', played: s.played,
 });
 
-/** The newest send of the window with few children finished, as the class card; or null. */
-function classCard({ lessons, played, shares, reports, now }) {
+/** Every send the home knows (the teacher's own quizzes and the library shares), each with its time. */
+function sendsOf({ lessons, played, shares }) {
   const sends = [];
   extraOwn(lessons, played).forEach(([id, p]) => sends.push({ own: true, id, title: p.topic || '', at: ms(p.date), played: p.played || 0 }));
   lessons.filter((r) => SENT.has(r.state) && r.quizId).forEach((r) => {
@@ -68,6 +68,12 @@ function classCard({ lessons, played, shares, reports, now }) {
     sends.push({ own: true, id: r.quizId, title: r.topic || (p && p.topic) || '', at: ms((p && p.date) || r.date), played: p ? p.played : 0 });
   });
   shares.forEach((s) => sends.push({ own: false, id: s.shareCodeId, title: s.topic || '', at: ms(s.at), played: s.played }));
+  return sends;
+}
+
+/** The newest send of the window with few children finished, as the class card; or null. */
+function classCard({ lessons, played, shares, reports, now }) {
+  const sends = sendsOf({ lessons, played, shares });
   const recent = sends.filter((s) => now - s.at <= SEND_WINDOW_MS && s.at <= now + 60000).sort((a, b) => b.at - a.at);
   const top = recent[0];
   if (!top || top.played >= FEW) return null;
@@ -94,7 +100,7 @@ function buildHome({
   const books = Array.isArray(stories) && stories.length && storiesBase
     ? stories.map((b) => ({ id: b.id, title: b.title, href: `${storiesBase}?book=${encodeURIComponent(b.id)}` })) : [];
   let primary = classCard({ lessons, played, shares, reports, now });
-  if (!primary) primary = lastLesson(rows, now);
+  if (!primary) primary = lastLesson(rows, now, Math.max(0, ...sendsOf({ lessons, played, shares }).map((x) => x.at)));
   if (!primary && books.length) primary = { kind: 'story', id: books[0].id, title: books[0].title, href: books[0].href, grade };
   if (!primary && video) primary = { kind: 'video', id: video.quizId, title: video.topic, grade };
   if (!primary && maker) primary = { kind: 'make', href: maker };
@@ -111,9 +117,12 @@ function buildHome({
   };
 }
 
-/** The newest lesson plan or coaching session of the last 7 days with no quiz yet, as the top card; or null. */
-function lastLesson(rows, now) {
-  const r = rows.find((x) => x.verb === 'quiz_this' && x.date && now - ms(x.date) <= LESSON_WINDOW_MS);
+/**
+ * The newest lesson plan or coaching session of the last 7 days with no quiz yet, and newer than the teacher's last
+ * send (`lastSendAt`, ms; 0 = never sent), as the top card; or null.
+ */
+function lastLesson(rows, now, lastSendAt = 0) {
+  const r = rows.find((x) => x.verb === 'quiz_this' && x.date && now - ms(x.date) <= LESSON_WINDOW_MS && ms(x.date) > lastSendAt);
   return r ? { kind: 'lesson', id: r.id, make: r.make, title: r.title, from: r.kind } : null;
 }
 

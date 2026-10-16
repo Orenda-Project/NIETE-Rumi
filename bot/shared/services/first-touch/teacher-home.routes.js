@@ -17,6 +17,7 @@
  *   GET  /api/th/quiz/:id?t&lang         the poll: { state: making|ready|failed, message?, wa? }
  *   POST /api/th/confirm {t, looseId, candidateId, decision: same|no|unsure}   one confirm row → 204
  *   POST /api/th/step {t, step, kind?, id?, origin?}   page events → 204 (share_tap logs teacher_send)
+ *   GET  /quiz/teacher/:token/send?c&o&lang   a library code's send: marked sent here, teacher_send, 302 → wa.me
  *
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
@@ -327,14 +328,20 @@ function createRouter(deps = null) {
   const SEND_KIND = { video: 'video', share: 'video', again: 'quiz', story: 'story' };
   const ORIGINS = new Set(['library', 'again', 'lesson_plan', 'coaching']);
   const PROMPTED_VIAS = new Set(['report']);
-  /** The keyed class of a code this teacher holds; null for no code, another teacher's code or a failed read. */
-  async function classKeyOf(uid, codeId) {
-    if (!codeId) return null;
+  /** A code id → { mine, cls_k }: whether this teacher holds it, and its keyed class; a failed read → not mine. */
+  async function codeOf(uid, codeId) {
+    if (!codeId) return { mine: false, cls_k: null };
     try {
       const { data } = await Data.dep(deps, 'supabase').from('quiz_share_codes').select('class_id, teacher_user_id').eq('id', codeId).maybeSingle();
-      if (!data || data.teacher_user_id !== uid || !data.class_id) return null;
-      return require('../quiz/web-quiz-kid').clsOf(data.class_id) || null;
-    } catch (_) { return null; }
+      if (!data || data.teacher_user_id !== uid) return { mine: false, cls_k: null };
+      return { mine: true, cls_k: data.class_id ? (require('../quiz/web-quiz-kid').clsOf(data.class_id) || null) : null };
+    } catch (_) { return { mine: false, cls_k: null }; }
+  }
+  /** One send: the code (only the teacher's own) is no longer "prepared", and teacher_send is logged once. */
+  async function sent(p, { kind, origin, again, id, c }) {
+    const code = await codeOf(p.uid, c);
+    if (code.mine) await require('./teacher-home.sent').markSent(c);
+    event('teacher_send', p.uid, { kind, origin: ORIGINS.has(origin) ? origin : 'library', again, id, prompted: PROMPTED_VIAS.has(p.via), cls_k: code.cls_k });
   }
   router.post('/api/th/step', handleJson(async (req, res) => {
     const b = bodyOf(req);
@@ -342,11 +349,7 @@ function createRouter(deps = null) {
     if (!p) return;
     if (!STEPS.has(b.step)) { fail(res, 400); return; }
     if (b.step === 'share_tap' && SEND_KIND[b.kind]) {
-      if (uuidIn(b.c)) await require('./teacher-home.sent').markSent(b.c);
-      event('teacher_send', p.uid, {
-        kind: SEND_KIND[b.kind], origin: ORIGINS.has(b.origin) ? b.origin : 'library', again: b.kind === 'again' || b.kind === 'share', id: uuidIn(b.id),
-        prompted: PROMPTED_VIAS.has(p.via), cls_k: await classKeyOf(p.uid, uuidIn(b.c)),
-      });
+      await sent(p, { kind: SEND_KIND[b.kind], origin: b.origin, again: b.kind === 'again' || b.kind === 'share', id: uuidIn(b.id), c: uuidIn(b.c) });
     } else {
       event('teacher_home.step', p.uid, { step: b.step, screen: 'home' });
     }
@@ -354,10 +357,33 @@ function createRouter(deps = null) {
     res.status(204).end();
   }));
 
+  // The send itself for a library code (the sheet's "Send to my class"): the code is marked sent HERE, on the server,
+  // then 302 → wa.me with the class message — the page's beacon is only a hint. A code that is not this teacher's → the
+  // error page, nothing marked.
+  router.get('/quiz/teacher/:token/send', handlePage(async (req, res) => {
+    const v = HomeToken.verifyTeacherHome(req.params.token);
+    if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
+    if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur');
+    const p = v.ok;
+    const lang = Page.pageLang(p.lang, asked(req.query.lang)).lang;
+    const c = uuidIn(req.query.c);
+    const out = c ? await Send.shareSend({ uid: p.uid, lang, shareCodeId: c }, deps) : null;
+    if (!out) return messagePage(res, 404, 'mk.error', lang);
+    const origin = ORIGINS.has(req.query.o) ? req.query.o : 'library';
+    await sent(p, { kind: 'video', origin, again: origin === 'again', id: out.quizId || null, c });
+    headers(res);
+    return res.redirect(302, out.wa);
+  }));
+
   // The stories page (/quiz/teacher/<token>/stories): the stories router's own render, when that module is there.
-  router.get('/quiz/teacher/:token/stories', (req, res, next) => {
+  // Its switch off answers the same {off:true} as this router's, so the edge falls through to today's page.
+  router.get('/quiz/teacher/:token/stories', async (req, res, next) => {
     const Stories = optional('../../routes/story-teacher-internal.routes');
     if (!Stories || typeof Stories.servePage !== 'function') return res.status(404).json({ off: true });
+    const Svc = optional('../quiz/story-teacher.service');
+    let on = true;
+    try { on = !Svc || typeof Svc.flagOn !== 'function' || (await Svc.flagOn()) === true; } catch (_) { on = false; }
+    if (!on) return res.status(404).json({ off: true });
     return Stories.servePage(req, res, next);
   });
 

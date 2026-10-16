@@ -23,6 +23,11 @@ const mockDoor = { mintLanding: undefined };
 const mockModules = { load: undefined };
 jest.mock('../../shared/services/first-touch/one-door.service', () => mockDoor, { virtual: true });
 jest.mock('../../shared/services/first-touch/optional-modules', () => mockModules, { virtual: true });
+// The stories page's router and service (another change): virtual stand-ins, absent unless a test fills them.
+const mockStoryRoutes = { servePage: undefined };
+const mockStorySvc = { flagOn: undefined };
+jest.mock('../../shared/routes/story-teacher-internal.routes', () => mockStoryRoutes, { virtual: true });
+jest.mock('../../shared/services/quiz/story-teacher.service', () => mockStorySvc, { virtual: true });
 
 const express = require('express');
 const supabase = require('../../shared/config/supabase');
@@ -94,13 +99,22 @@ describe('switch OFF', () => {
     expect(logEvent).not.toHaveBeenCalled();
   });
 
-  test('a settings read that throws → OFF', async () => {
+  test('a settings read that throws → OFF on every route of this router', async () => {
     seed();
     supabase.from = () => { throw new Error('app_settings down'); };
     await boot(deps);
-    const res = await get(`/quiz/teacher/${tokenFor()}`);
-    expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ off: true });
+    const t = tokenFor();
+    const answers = await Promise.all([
+      get(`/quiz/teacher/${t}`), get(`/quiz/teacher/${t}/stories`), get(`/quiz/teacher/${t}/send?c=${OWN_CODE}`), get(`/api/th/home?t=${t}`),
+      get(`/api/th/library?t=${t}&g=3`), get(`/api/th/quiz/${OWN_QUIZ}?t=${t}`), post('/api/th/send', { t, kind: 'video', id: qid(2) }),
+      post('/api/th/quiz/make', { t, kind: 'coaching', id: SESSION }), post('/api/th/confirm', { t, looseId: OWN_QUIZ, candidateId: OTHER, decision: 'same' }),
+      post('/api/th/step', { t, step: 'more' }),
+    ]);
+    for (const res of answers) {
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ off: true });
+    }
+    expect(logEvent).not.toHaveBeenCalled();
   });
 });
 
@@ -413,6 +427,26 @@ describe('the stories shelf and the other seams', () => {
     expect(await res.json()).toEqual({ off: true });
   });
 
+  test('the stories page with its own switch off answers {off:true} too (the edge falls through); on → its page', async () => {
+    seed();
+    await boot(deps);
+    mockStoryRoutes.servePage = jest.fn((req, res) => res.status(200).type('html').send(`<p>stories ${req.query.book || ''}</p>`));
+    try {
+      mockStorySvc.flagOn = async () => false;
+      let res = await get(`/quiz/teacher/${tokenFor()}/stories?book=b1`);
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ off: true });
+      mockStorySvc.flagOn = async () => { throw new Error('down'); };
+      res = await get(`/quiz/teacher/${tokenFor()}/stories`);
+      expect(await res.json()).toEqual({ off: true });
+      expect(mockStoryRoutes.servePage).not.toHaveBeenCalled();
+      mockStorySvc.flagOn = async () => true;
+      res = await get(`/quiz/teacher/${tokenFor()}/stories?book=b1`);
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe('<p>stories b1</p>');
+    } finally { mockStoryRoutes.servePage = undefined; mockStorySvc.flagOn = undefined; }
+  });
+
   test('the home\'s card taps are logged on this router, with screen home', async () => {
     seed();
     await boot(deps);
@@ -518,6 +552,48 @@ describe('the walk-through row on the foot (sandbox test phones only)', () => {
     expect(SCRIPT).toContain("post('/api/go/persona',{t:k.t,as:x.getAttribute('data-persona')})");
     expect(SCRIPT).toContain("String(k.html).indexOf('<section data-screen=\"walk\">')!==0");
     expect(SCRIPT).toContain("o.next.indexOf('/quiz/go/')!==0");
+  });
+});
+
+describe('the send of a library code goes through the server', () => {
+  test('GET /quiz/teacher/<t>/send?c: 302 → wa.me with the class message, the code marked sent HERE (no beacon needed), teacher_send logged once', async () => {
+    seed();
+    await boot(deps);
+    const t = tokenFor({ via: 'report' });
+    const first = await (await get(`/api/th/home?t=${t}&g=4`)).json();
+    const c = first.primary.send.c;
+    const res = await get(`/quiz/teacher/${t}/send?c=${c}&o=library`);
+    expect(res.status).toBe(302);
+    const loc = res.headers.get('location');
+    expect(loc.startsWith('https://wa.me/?text=')).toBe(true);
+    expect(decodeURIComponent(loc.slice('https://wa.me/?text='.length))).toBe(first.primary.send.message);
+    const sends = logEvent.mock.calls.filter(([n]) => n === 'teacher_send');
+    expect(sends).toHaveLength(1);
+    expect(sends[0][1]).toMatchObject({ kind: 'video', origin: 'library', again: false, prompted: true });
+    const after = await (await get(`/api/th/home?t=${t}&g=4`)).json();
+    expect(after.primary).toMatchObject({ kind: 'class', played: 0, title: 'Fractions' });
+  });
+
+  test('another teacher\'s code: the error page, nothing marked, no event; a beacon for it marks nothing either', async () => {
+    seed();
+    const at = new Date().toISOString();
+    fake.db.quiz_share_codes.push({ id: OWN_CODE, code: 'QRSTUV', quiz_id: qid(2), teacher_user_id: OTHER, active: true, created_at: at, invited_by_student_id: null });
+    await boot(deps);
+    const Sent = require('../../shared/services/first-touch/teacher-home.sent');
+    await Sent.markPrepared(OWN_CODE);
+    const res = await get(`/quiz/teacher/${tokenFor()}/send?c=${OWN_CODE}`);
+    expect(res.status).toBe(404);
+    expect(await res.text()).toContain(str('th.open.wa', 'en'));
+    expect(logEvent.mock.calls.filter(([n]) => n === 'teacher_send')).toHaveLength(0);
+    await post('/api/th/step', { t: tokenFor(), step: 'share_tap', kind: 'share', id: qid(2), c: OWN_CODE, origin: 'again' });
+    expect([...(await Sent.prepared([OWN_CODE]))]).toEqual([OWN_CODE]);
+  });
+
+  test('the sheet sends a library code through that route (and beacons only for the teacher\'s own quiz)', () => {
+    const { SCRIPT } = require('../../shared/services/first-touch/teacher-home.page');
+    expect(SCRIPT).toContain("function srv(x){return x.c&&(x.sendKind==='video'||x.sendKind==='share')?'/quiz/teacher/'+T+'/send?c='+encodeURIComponent(x.c)");
+    expect(SCRIPT).toContain("q('#th-sheet-go').setAttribute('href',srv(x)||x.wa);");
+    expect(SCRIPT).toContain("if(cur&&!srv(cur))step('share_tap'");
   });
 });
 
