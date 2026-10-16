@@ -245,6 +245,10 @@ describe('storyKey: a temporary key for one story-page reading', () => {
     await expect(K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV })).rejects.toMatchObject({ status: 429, body: { error: 'enough_for_today' } });
     expect(global.fetch).not.toHaveBeenCalled();
     expect(db.web_quiz_live_read_keys).toHaveLength(3);
+    // the day's count per child is in the log (the cap is set from the real spread, never a guess)
+    const ev = require('../../../shared/utils/structured-logger').logEvent.mock.calls;
+    expect(ev.filter((c) => c[0] === 'web_quiz.lr_key').map((c) => [c[1].n, c[1].cap])).toEqual([[1, 3], [2, 3], [3, 3]]);
+    expect(ev.filter((c) => c[0] === 'web_quiz.lr_key_rest').map((c) => [c[1].n, c[1].cap])).toEqual([[3, 3]]);
   });
 
   test('the cap absent ⇒ 40 a day; yesterday\'s keys do not count', async () => {

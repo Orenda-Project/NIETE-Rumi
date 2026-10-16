@@ -96,7 +96,11 @@ async function storyKey({ st, kid, book, page, lang, device } = {}) {
     logError('web_quiz.lr_keys_count_failed', { error: String((e && e.message) || e).slice(0, 120) });
     fail(503, 'live_unavailable');
   }
-  if (mine >= (await storyCap()) || !(await Budget.readOpen())) fail(429, 'enough_for_today');
+  const cap = await storyCap();
+  if (mine >= cap || !(await Budget.readOpen())) {
+    logEvent('web_quiz.lr_key_rest', { src: 'story_page', n: mine, cap });
+    fail(429, 'enough_for_today');
+  }
   const Live = require('./web-quiz-soniox-live');
   if (!Live.configured()) fail(503, 'live_unavailable');
   const run = crypto.randomUUID();
@@ -112,7 +116,8 @@ async function storyKey({ st, kid, book, page, lang, device } = {}) {
     fail(502, 'live_unavailable');
   }
   Budget.noteStarted();
-  logEvent('web_quiz.lr_key', { src: 'story_page', lang: l, run });
+  // n = this child's story keys today, this one included: the cap is set from that spread, not a guess
+  logEvent('web_quiz.lr_key', { src: 'story_page', lang: l, run, n: mine + 1, cap });
   return { api_key: minted.api_key, expires_at: minted.expires_at, ws: Live.WS_URL, model: Live.MODEL, lang: l, run };
 }
 

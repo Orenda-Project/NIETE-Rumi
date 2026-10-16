@@ -175,12 +175,12 @@
     en: { done: 'I\'m done', doneAsk: 'Done?', checking: 'Listening…', readNow: 'Read it aloud!', keepGoing: 'Keep going!', wellRead: 'Well read!',
       micAsk: 'Tap the button so Jugnu can hear you read.', micGo: 'Start reading', chrome: 'Open in Chrome', listen: 'Listen with Jugnu instead',
       notNow: 'Not now, just listen', stop: 'Stop for now', grownUps: 'For grown-ups', okListen: 'That\'s OK, let\'s listen with Jugnu.',
-      osAsk: 'When the phone asks, tap Allow.',
+      osAsk: 'When the phone asks, tap Allow.', rest: 'Jugnu\'s ears need a rest. Let\'s listen to this one together!',
       facts: 'The voice is heard only to light up the words as they are read. On a story page nothing is kept. “Not now, just listen” works at any time.' },
     ur: { done: 'میں نے پڑھ لیا', doneAsk: 'ہو گیا؟', checking: 'آپ کی آواز سنی جا رہی ہے…', readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', wellRead: 'بہت خوب پڑھا!',
       micAsk: 'بٹن دبائیں تاکہ جگنو آپ کو پڑھتے ہوئے سن سکے۔', micGo: 'پڑھنا شروع کریں', chrome: 'کروم میں کھولیں', listen: 'جگنو سے سن لیں',
       notNow: 'ابھی نہیں، صرف سنیں', stop: 'ابھی کے لیے بس', grownUps: 'بڑوں کے لیے', okListen: 'کوئی بات نہیں۔ آئیں، جگنو سے سنتے ہیں۔',
-      osAsk: 'جب فون پوچھے تو «اجازت دیں» (\u2066Allow\u2069) دبائیں۔',
+      osAsk: 'جب فون پوچھے تو «اجازت دیں» (\u2066Allow\u2069) دبائیں۔', rest: 'جگنو کے کانوں کو اب تھوڑا آرام چاہیے۔ آئیں، یہ کہانی مل کر سنتے ہیں!',
       facts: 'آواز صرف پڑھتے وقت الفاظ کو روشن کرنے کے لیے سنی جاتی ہے۔ کہانی کے صفحے پر کچھ بھی محفوظ نہیں ہوتا۔ «ابھی نہیں، صرف سنیں» کسی بھی وقت دبا سکتے ہیں۔' },
   };
   // the controls' glyphs are drawn, never a font character (a ✓ or an emoji falls into the Nastaliq face)
@@ -278,7 +278,7 @@
       if (doneBtn && doneFrom > 0) doneBtn.hidden = !(s.v.total > 0 && s.v.heard / s.v.total >= doneFrom);
       var glow = el.querySelector('.lr-glow');
       if (glow) glow.className = 'lr-glow lr-glow-' + glowLevel(s.v);
-      if (nudge) nudge.textContent = Date.now() - s.lastAt > 5000 && s.v.heard > 0 ? t.keepGoing : t.readNow;
+      if (nudge) nudge.textContent = s.rest ? t.rest : Date.now() - s.lastAt > 5000 && s.v.heard > 0 ? t.keepGoing : t.readNow;
     }
     function check() {
       var why = shouldFinish(s.v, Date.now(), s.lastAt, fin);
@@ -315,6 +315,8 @@
     } catch (e) { s.mr = null; }
     Promise.resolve().then(function () { return o.getKey(); }).then(function (k) {
       if (s.ended || !window.WebSocket) { fallback('no_socket'); return; }
+      // the day's readings used up: the kind line, then the host plays the story instead ('rest')
+      if (k && k.error === 'enough_for_today') { s.rest = true; paint(); fallback('rest'); return; }
       // a refused key answers {error} through a plain fetch: never open a socket to "undefined"
       if (!k || typeof k.ws !== 'string' || !/^wss:\/\//.test(k.ws) || !k.api_key) { fallback('key'); return; }
       s.sock = W.open({ ws: k.ws, api_key: k.api_key, model: k.model, lang: k.lang || lang, onTokens: onTokens, onFail: fallback });

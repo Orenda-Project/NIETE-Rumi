@@ -23,6 +23,7 @@ const LIVE_SRC = fs.readFileSync(path.join(PUB, 'wq-read-live.js'), 'utf8');
 const TRAIL_SRC = fs.readFileSync(path.join(PUB, 'wq-trail.js'), 'utf8');
 const LR_PATH = path.join(PUB, 'wq-liveread.js');
 const LR_SRC = fs.existsSync(LR_PATH) ? fs.readFileSync(LR_PATH, 'utf8') : '';
+const UR_REST = 'جگنو کے کانوں کو اب تھوڑا آرام چاہیے۔ آئیں، یہ کہانی مل کر سنتے ہیں!';
 
 // the component alone, on a bare window
 function lib() {
@@ -378,6 +379,21 @@ describe('mount(): a story page reads itself (the component alone, a fake DOM an
     await E.flush();
     expect(E.socks).toHaveLength(0);
     expect(why).toBe('key');
+  });
+
+  test('the day\'s readings used up ({error:"enough_for_today"}): the kind line, a "rest" fallback, no socket', async () => {
+    for (const lang of ['en', 'ur']) {
+      const E = env(); const D = dom();
+      let why = null;
+      E.L.mount(D.el, { words: PAGE, lang, getKey: () => Promise.resolve({ error: 'enough_for_today' }), stream: {}, onFallback: (w) => { why = w; } });
+      await E.flush();
+      expect(E.socks).toHaveLength(0);
+      expect(why).toBe('rest');
+      expect(D.kids['.lr-nudge'].textContent).toBe(E.L.COPY[lang].rest);
+    }
+    expect(env().L.COPY.en.rest).toBe('Jugnu\'s ears need a rest. Let\'s listen to this one together!');
+    expect(env().L.COPY.ur.rest).toBe(UR_REST);
+    for (const lang of ['en', 'ur']) expect(env().L.COPY[lang].rest).not.toMatch(/limit|quota|enough|test|exam|assessment|امتحان|ٹیسٹ|حد/i);
   });
 
   test('the last chunk reaches the speech service before "finalize" (the recorder stops first)', async () => {
