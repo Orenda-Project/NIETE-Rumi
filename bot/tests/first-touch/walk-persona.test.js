@@ -183,6 +183,20 @@ describe('the row (ON + listed)', () => {
     expect(ur.slice(ur.indexOf('data-screen="walk"'))).not.toContain('Start as a new phone');
   });
 
+  test('row() — the shape other pages embed (the teacher home\'s foot): a listed phone\'s section, \'\' for anyone else', async () => {
+    world();
+    const t = await mint();
+    const html = await persona().row({ lang: 'bi', token: t });
+    expect(html.startsWith('<section data-screen="walk">')).toBe(true);
+    expect(html.endsWith('</section>')).toBe(true);
+    expect(html.match(/data-persona="/g)).toHaveLength(3);
+    expect(await persona().row({ lang: 'bi', token: await mint(OTHER, PH.other) })).toBe('');   // not on the list
+    expect(await persona().row({ lang: 'bi', token: 'x.y' })).toBe('');                        // not a token
+    expect(await persona().row({ lang: 'bi' })).toBe('');
+    world({ sw: 'false' });
+    expect(await persona().row({ lang: 'bi', token: await mint() })).toBe('');                  // switch off
+  });
+
   test('a bad `as` → 400, a stale token → 410, nothing written', async () => {
     world();
     expect((await tap('nobody')).status).toBe(400);
