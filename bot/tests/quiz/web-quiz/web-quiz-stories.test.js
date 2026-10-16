@@ -321,6 +321,24 @@ describe('the book', () => {
     expect(out.pages[0].words.some((w) => w.s_ms != null)).toBe(false);
     expect(mockPresign).not.toHaveBeenCalled();
   });
+  test('lr3: true only when the live reader v3 AND realtime switches are both the boolean true, read in the one settings query', async () => {
+    const cases = [
+      [[], false],
+      [[['web_quiz_live_read_v3', true]], false],
+      [[['web_quiz_challenge_realtime', true]], false],
+      [[['web_quiz_live_read_v3', true], ['web_quiz_challenge_realtime', 'true']], false],
+      [[['web_quiz_live_read_v3', false], ['web_quiz_challenge_realtime', true]], false],
+      [[['web_quiz_live_read_v3', true], ['web_quiz_challenge_realtime', true]], true],
+    ];
+    for (const [extra, want] of cases) {
+      Stories._reset(); seed();
+      extra.forEach(([key, value]) => fake.db.app_settings.push({ key, value }));
+      const before = fake.calls.filter((c) => c.table === 'app_settings').length;
+      const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+      expect(out.lr3).toBe(want);
+      expect(fake.calls.filter((c) => c.table === 'app_settings').length - before).toBe(1);
+    }
+  });
   test('the share card: no card_v3 key while the card module is absent or off', async () => {
     seed();
     const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });

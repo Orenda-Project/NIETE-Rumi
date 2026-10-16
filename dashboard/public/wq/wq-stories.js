@@ -473,7 +473,7 @@
     function rate() { var a = R.pl && R.pl.audio; if (a) { a.playbackRate = slow() ? 0.85 : 1; a.preservesPitch = true; } }
     function extra() {
       var s = m.st, p = P[m.i], w = p.words && p.words[m.skip], a = m.alt(), h = '';
-      var echo = b.grade < 3 && p.audio && !R.keyNo && (s === 'together' || /^(read|practise)$/.test(s) && m.ratio <= 0.5);
+      var echo = b.lr3 && b.grade < 3 && p.audio && !R.keyNo && (s === 'together' || /^(read|practise)$/.test(s) && m.ratio <= 0.5);
       if (s === 'practise' && w) h = '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + dirOf(L) + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
       else if (s === 'read' || s === 'practise') h = '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
       else if (s === 'denied' || s === 'together') h = '<p>' + esc(t[s]) + '</p>';

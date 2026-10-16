@@ -17,7 +17,7 @@ const BANNED = /\b(test|exam|wpm|words per minute)\b|امتحان|ٹیسٹ|اس�
 const W = (i, t, s, box) => (box ? { i, t, s_ms: s, e_ms: s + 400, box } : { i, t, s_ms: s, e_ms: s + 400 });
 function book(over = {}) {
   return {
-    id: 'b-1', title: 'Mina Testwala', lang: 'en', dir: 'ltr', grade: 1, pace_wpm: 90,
+    id: 'b-1', title: 'Mina Testwala', lang: 'en', dir: 'ltr', grade: 1, pace_wpm: 90, lr3: true,
     pages: [
       { n: 1, image: { url: '/s/b-1/p01.webp', w: 720, h: 1080 }, text_band: { url: '/s/b-1/p01-band.webp', w: 1440, h: 260, box: [100, 800, 520, 130] },
         text: 'Mina Testwala has a kite', words: [W(0, 'Mina', 100, [110, 810, 40, 50]), W(1, 'Testwala', 600, [160, 810, 30, 50]), W(2, 'has', 1100, [200, 810, 20, 50]), W(3, 'zigzag', 1600, [230, 870, 90, 50]), W(4, 'kite.', 2100, [330, 870, 60, 50])],
@@ -1564,6 +1564,21 @@ describe('Read it together only where the reading key answers', () => {
     toMic(e, root); e.calls.ask[0].onStream({});
     return root;
   }
+  test('the book says lr3:false (or says nothing): no "Read it together" button and no key asked for it; lr3:true: drawn', async () => {
+    for (const lr3 of [false, undefined]) {
+      const bk = book(); if (lr3 === undefined) delete bk.lr3; else bk.lr3 = lr3;
+      const e = env({ replies: { book: { status: 200, body: bk } } });
+      const root = await readWith(e);
+      e.calls.lr[0].o.onResult(READ(READ20));
+      expect(root.innerHTML).not.toContain('data-tap="echo"');
+      expect(root.innerHTML).toMatch(/data-main data-primary[^>]*>Next</);
+      expect(e.calls.posts.filter((x) => /\/lr\/key/.test(x.url))).toHaveLength(0);
+    }
+    const on = env({ replies: { book: { status: 200, body: book({ lr3: true }) } } });
+    const r2 = await readWith(on);
+    on.calls.lr[0].o.onResult(READ(READ20));
+    expect(r2.innerHTML).toContain('data-tap="echo"');
+  });
   test('the key endpoint answers 404 (the live reader not on this server yet): no "Read it together" button, Next stays primary', async () => {
     const e = env({ replies: { key: { status: 404, body: { error: 'not_found' } } } });
     const root = await readWith(e);
