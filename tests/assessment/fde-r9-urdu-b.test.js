@@ -165,7 +165,10 @@ describe('urdu backstop: an authored maxim in model text', () => {
   test.each([
     ['a Quran verse named', 'قرآن کی آیت ہے کہ صفائی رکھو'],
     ['half of faith', 'صفائی نصف ایمان ہے'],
-    ['an act of worship', 'علی: میں روز فجر کی نماز پڑھتا ہوں اور روزہ رکھتا ہوں'],
+    ['an exhortation to pray', 'علی: ہمیں وقت پر نماز پڑھنی چاہیے۔'],
+    ['an imperative to pray', 'احمر: تم بھی نماز پڑھو۔'],
+    ['an obligation to fast', 'روزہ رکھنا ہر ایک پر فرض ہے۔'],
+    ['an obligation to pray', 'نماز ہم سب پر لازم ہے۔'],
     ['a saying with فرمایا', 'آپ نے فرمایا کہ سچ بولو'],
     ['Arabic letter forms', 'صفائي ايمان كا حصہ ہے'],
   ])('held: %s', async (_name, text) => {
@@ -182,6 +185,8 @@ describe('urdu backstop: an authored maxim in model text', () => {
     ['a greeting', 'السلام علیکم! آپ کیسے ہیں؟ گھر والوں کو سلام۔'],
     ['honesty, not faith', 'نتیجہ: ایمان داری سب سے اچھی عادت ہے۔'],
     ['the paper\'s own book page', `استاد نے کہا: ${BOOK_LINE}`],
+    ['a child\'s morning, narrated', 'احمد صبح اٹھ کر نماز پڑھتا اور اس کے بعد ناشتہ کرتا تھا۔'],
+    ['a routine, narrated with a zero-width joiner', 'دادا جان نماز\u200cپڑھ کر سیر کو جاتے ہیں اور روزہ رکھتے ہیں۔'],
   ])('not held: %s', async (_name, text) => {
     book();
     fakeModel({ slot: 'urdu.C.Q8', patch: (q) => { q.answer = text; }, times: 2 });
