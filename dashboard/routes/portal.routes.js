@@ -8462,6 +8462,66 @@ router.get('/config', async (req, res) => {
   }
 });
 
+// ── Schools analytics v7: LP Engagement ─────────────────────────────────────────
+const LpEngagement = require('../services/lp-engagement.service');
+
+// Its own ten-minute cache, keyed from|to|region|band: the tab's reads never slow the other tabs.
+const lpEngagementCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
+
+/**
+ * GET /api/portal/analytics/lp-engagement?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>&band=primary|midhigh
+ *
+ * The LP Engagement tab, the ICT dashboard's formula 1 to 1 (PLAN v7): per teacher × Sunday-week ×
+ * grade × subject, lp_ratio = min(distinct LPs / 5, 1); a teacher's ratio is the mean of her rows;
+ * overall / sector / school = Σ teacher ratios ÷ rostered teachers of the band; On-Schedule ≥ 60%,
+ * Moderate ≥ 40%, Off-Schedule below. LPs = plans opened + lesson plans generated. Primary = K-5
+ * plans over Primary-band teachers; midhigh = 6-12 plans over Middle/High-band teachers.
+ *
+ * Answer: { success, range, band, lpOpensLoggedSince,
+ *   overview  {teachers, lpRatio, lpPct, activeSectors, onSchedule, moderate, offSchedule}
+ *   regions   the six sectors, each {region, teachers, lpRatio, lpPct, onSchedule, moderate,
+ *             offSchedule, onPct, moderatePct, offPct}
+ *   schools   counted schools with a band teacher, {schoolId, emis, name, region, teachers, lpRatio,
+ *             lpPct, status: on|moderate|off}
+ *   bySubject / byGrade  {rows: [{subject, name | grade, …the region numbers}], overall}
+ *   sectorSubjects / sectorGrades  [{region, values: {<subject|grade>: lpPct}}] for the grouped bars }
+ * lpPct and the shares are her displayed integers; lpRatio is the 0–1 ratio to 4 places. A level with
+ * no band teacher has lpPct null, never a 0. The region filter scopes overview, schools, bySubject and
+ * byGrade; regions and the sector matrices always carry all six. No teacher identity.
+ *
+ * Same gate, window and regions as /analytics/schools (the cache sits behind the gate); an unknown
+ * region or band is a 400. Definitions: services/lp-engagement.service.js.
+ */
+router.get('/analytics/lp-engagement', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    if (!region.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown region.' });
+    }
+    const band = LpEngagement.parseBandFilter(req.query.band);
+    if (!band.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown band.' });
+    }
+    const range = analyticsRange(req.query);
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${band.band}`;
+    const body = await lpEngagementCache.getOrLoad(key, async () => {
+      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band);
+      return {
+        success: true,
+        range,
+        band: band.band,
+        // LP opens are logged from this day on; the page says so for an earlier window.
+        lpOpensLoggedSince: SchoolsAnalytics.LP_OPENS_LOGGED_SINCE,
+        ...LpEngagement.summarizeLpEngagement(rows, { band: band.band, region: region.region }),
+      };
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('analytics/lp-engagement error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load LP engagement.' });
+  }
+});
+
 // Exported for tests only (an express Router is a function; attaching a
 // property to it does not affect mounting). Keeps the media-URL contract —
 // presign-vs-passthrough and the signed disposition options — testable

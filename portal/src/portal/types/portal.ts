@@ -935,3 +935,89 @@ export interface CoachingAnalyticsRegion {
   schools: number;
   coachNames: string[];
 }
+
+/* ── bd-97x22y.3 — GET /api/portal/analytics/lp-engagement (schools analytics v7) ─────────────────────────────────── */
+
+/**
+ * The LP Engagement tab, the ICT dashboard's formula 1 to 1 (PLAN v7): per teacher × Sunday-week × grade × subject,
+ * lp_ratio = min(distinct LPs ÷ 5, 1) (LPs = plans opened + lesson plans generated); a teacher's ratio is the mean of
+ * her rows; a school / sector / overall ratio = Σ teacher ratios ÷ the band's rostered teachers (none = 0). On-Schedule
+ * ≥ 60%, Moderate ≥ 40%, Off-Schedule below. `lpPct` and the shares are the integers her page shows; `lpRatio` is the
+ * 0–1 ratio (4 places). A level with no band teacher has `lpPct` null — shown "—", never 0.
+ */
+export type LpBand = 'primary' | 'midhigh';
+export type LpStatus = 'on' | 'moderate' | 'off';
+
+export interface LpEngagementCounts {
+  teachers: number;
+  lpRatio: number | null;
+  lpPct: number | null;
+  onSchedule: number;
+  moderate: number;
+  offSchedule: number;
+}
+
+/** Each band's share of the teachers, rounded (her "(16%)"); null when there are no teachers. */
+export interface LpEngagementShares {
+  onPct: number | null;
+  moderatePct: number | null;
+  offPct: number | null;
+}
+
+export interface LpEngagementOverview extends LpEngagementCounts {
+  /** Sectors where a band teacher has LP data in the window. */
+  activeSectors: number;
+}
+
+export interface LpEngagementRegion extends LpEngagementCounts, LpEngagementShares {
+  region: string;
+}
+
+export interface LpEngagementSchool {
+  schoolId: string;
+  emis: string | null;
+  name: string;
+  region: string;
+  teachers: number;
+  lpRatio: number | null;
+  lpPct: number | null;
+  status: LpStatus | null;
+}
+
+export type LpEngagementRow = LpEngagementCounts & LpEngagementShares;
+export interface LpEngagementSubjectRow extends LpEngagementRow {
+  subject: string;
+  name: string;
+}
+export interface LpEngagementGradeRow extends LpEngagementRow {
+  grade: number;
+}
+
+/** Her subject / grade table: one row each, and her "Overall" row (null when the table is empty). */
+export interface LpEngagementTable<R> {
+  rows: R[];
+  overall: LpEngagementRow | null;
+}
+
+/** One sector's LP % in every subject (or grade): the grouped bars. */
+export interface LpEngagementSectorValues {
+  region: string;
+  values: Record<string, number | null>;
+}
+
+export interface LpEngagementResponse {
+  success: boolean;
+  range: { from: string | null; to: string | null };
+  band: LpBand;
+  lpOpensLoggedSince: string;
+  overview: LpEngagementOverview;
+  /** All six sectors, whatever the region filter. */
+  regions: LpEngagementRegion[];
+  /** Schools with a band teacher, in the chosen region (all when none is chosen). */
+  schools: LpEngagementSchool[];
+  bySubject: LpEngagementTable<LpEngagementSubjectRow>;
+  byGrade: LpEngagementTable<LpEngagementGradeRow>;
+  /** All six sectors, whatever the region filter. */
+  sectorSubjects: LpEngagementSectorValues[];
+  sectorGrades: LpEngagementSectorValues[];
+}
