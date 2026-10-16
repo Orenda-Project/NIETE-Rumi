@@ -1585,7 +1585,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // is one whole block of a section (Maths C's Q4–8), and the same call usually comes back
   // whole. Decided on the reply as the model wrote it, BEFORE the held-content filter, so an
   // item the filter drops is still never refilled.
-  const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern });
+  const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall
     .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
@@ -1624,12 +1624,12 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // then lays the paper out again, and the emptied place is a shortfall — the
   // extras the model wrote were already set aside and never fill it.
   let examJson = merged();
-  let laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
+  let laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern, reasked: again.length > 0 });
   const firstUnplaced = laid.unplaced;
   examJson = laid.examJson;
   const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content, requestId });
   if (dropped.length) {
-    laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
+    laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern, reasked: again.length > 0 });
     examJson = laid.examJson;
   }
   const layout = { placed: laid.placed, unplaced: firstUnplaced };
