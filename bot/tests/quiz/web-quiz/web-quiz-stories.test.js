@@ -113,6 +113,19 @@ describe('the switch: off is closed everywhere', () => {
     );
     expect(await Stories.hubBits({ studentId: KID, now: NOON_PKT })).toEqual({ stories: { on: 1, resume: { book_id: F.BOOK(1), title: 'Book 1 Testwala', cover: `/s/${F.BOOK(1)}/cover-aaaa0001.webp`, page_n: 2, pages: 2 } } });
   });
+  test('hubBits: a miss row (a page with no voice, written at book open) is not progress: it never picks the book or moves its page', async () => {
+    seed();
+    const at = (h) => new Date(NOON_PKT - h * 3600000).toISOString();
+    fake.db.story_events.push(
+      { child_id: KID, book_id: F.BOOK(1), page_n: 1, event: 'story_page_listened', data: {}, at: at(2) },
+      { child_id: KID, book_id: F.BOOK(2), page_n: 2, event: 'story_page_listened', data: { miss: true }, at: at(1) },
+      { child_id: KID, book_id: F.BOOK(1), page_n: 2, event: 'story_page_listened', data: { miss: true }, at: at(0.5) },
+    );
+    expect((await Stories.hubBits({ studentId: KID, now: NOON_PKT })).stories.resume).toEqual(expect.objectContaining({ book_id: F.BOOK(1), page_n: 2 }));
+    Stories._reset(); seed();
+    fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(2), page_n: 2, event: 'story_page_listened', data: { miss: true }, at: at(1) });
+    expect(await Stories.hubBits({ studentId: KID, now: NOON_PKT })).toEqual({ stories: { on: 1 } });
+  });
   test('hubBits: nothing half-read in 7 days → no resume key', async () => {
     seed();
     fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: {}, at: new Date(NOON_PKT - 8 * DAY).toISOString() });

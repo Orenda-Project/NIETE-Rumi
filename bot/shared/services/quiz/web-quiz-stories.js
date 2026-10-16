@@ -94,7 +94,7 @@ async function resumeOf(studentId, now) {
   const done = new Set(); const last = new Map();
   (data || []).forEach((r) => {
     if (r.event === 'story_done') { if (counted(r)) done.add(r.book_id); }
-    else if (PAGE_EVENTS.has(r.event) && Number.isFinite(Number(r.page_n))) {
+    else if (PAGE_EVENTS.has(r.event) && !(r.data && r.data.miss) && Number.isFinite(Number(r.page_n))) {
       const was = last.get(r.book_id) || { at: '', page: 0 };
       last.set(r.book_id, { at: String(r.at) > was.at ? String(r.at) : was.at, page: Math.max(was.page, Number(r.page_n)) });
     }
