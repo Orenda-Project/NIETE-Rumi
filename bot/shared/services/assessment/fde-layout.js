@@ -547,9 +547,10 @@ function printable(slot, q) {
 // five of the following words…: invisible»). Social Studies: a Q5 or Q7 item that asks the
 // fact a Q1 MCQ already tests: its one-line answer, or marking points worth at least half its
 // marks, are given away by a Q1 MCQ (the MCQ's key is inside them, or they are printed in the
-// MCQ's stem, AND the two ask about the same thing). The held item takes no place: the next
-// item in reply order does (on a re-ask, the second reply's), and with none left the slot is
-// short. The other slot is never touched.
+// MCQ's stem, AND the two ask about the same thing). On the first reply a held item takes no
+// place, so the slot is short and the section is asked again; once the re-asked items are in,
+// they fill it first and a held item comes back only for a place nothing else can take. The
+// other slot is never touched.
 const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const textsOf = (...values) => values.flat().filter((t) => typeof t === 'string');
 
@@ -588,13 +589,16 @@ function tokensOf(text) {
 const keyText = (q) => (typeof q.answer === 'string' ? q.answer.replace(OPTION_HEAD, '') : '');
 // An answer of one line (ten words or fewer, function words aside) is judged whole.
 const ONE_LINE = 10;
-// Same thing asked: at least three of the MCQ's own words, and at least half of them.
+// Same thing asked: at least three of the MCQ's own words, and at least two in five of them.
 const SAME_WORDS = 3;
-const SAME_SHARE = 0.5;
+const SAME_SHARE = 0.4;
 
 function sameFact(q1s) {
-  const mcqs = q1s.map((m) => ({ key: new Set(tokensOf(keyText(m))), stem: new Set(tokensOf(m.question)) }))
-    .filter((m) => m.key.size && m.stem.size);
+  const mcqs = q1s.map((m) => ({
+    key: new Set(tokensOf(keyText(m))),
+    stem: new Set(tokensOf(m.question)),
+    options: new Set(tokensOf(textsOf(Array.isArray(m.options) ? m.options : []).map((o) => o.replace(OPTION_HEAD, '')).join(' '))),
+  })).filter((m) => m.key.size && m.stem.size);
   if (!mcqs.length) return null;
   return (q) => {
     const scheme = q.scheme && typeof q.scheme === 'object' ? q.scheme : {};
@@ -620,6 +624,9 @@ function sameFact(q1s) {
     // A one-line answer (or an item with no marking points) is given whole, with its accepted answers.
     if (!points.length || tokensOf(q.answer).length <= ONE_LINE) {
       if (textsOf(q.answer, accept).some(given)) return true;
+      // A one-line answer that is only an MCQ's options («مقننہ، انتظامیہ اور عدلیہ»).
+      const ans = new Set(tokensOf(q.answer));
+      if (ans.size >= 2 && mcqs.some((m) => [...ans].every((w) => m.options.has(w)))) return true;
     }
     // Otherwise the points the MCQs give must carry at least half the item's marks: one point of
     // three cued is a hint, not the answer.
@@ -630,17 +637,26 @@ function sameFact(q1s) {
   };
 }
 
-// `spare`: how many items a slot may lose to the hold. Social Studies holds at most a slot's spare
-// choices (Q5 any 6 of 9: three; Q7 any 6 of 8: two), the first in reply order, so a re-ask can
-// always refill it and a narrow chapter whose facts all sit in Q1 still gets a paper. English
-// Q1(a) has twenty MCQs and a Q4 word is a plain giveaway: every one is held.
 const CROSS_HOLD = {
-  english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words, spare: () => Infinity },
-  social_studies: {
-    held: ['social_studies.C.Q5', 'social_studies.D.Q7'], against: 'social_studies.A.Q1', rule: sameFact,
-    spare: (slot) => Math.max(0, slot.generate - slot.attempt),
-  },
+  english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words },
+  social_studies: { held: ['social_studies.C.Q5', 'social_studies.D.Q7'], against: 'social_studies.A.Q1', rule: sameFact },
 };
+
+// One question once per slot: the same stem (read as tokensOf reads it), or an MCQ with the same
+// options, the same key and a stem three-fifths the same («Which noun is a proper noun?» and
+// «Which word is a proper noun?» over river / Lahore / teacher / city). Two article items share
+// options and key and are still two questions. A re-asked section is written blind, so it often
+// writes the first reply's questions again.
+function sameQuestion(a, b) {
+  const stem = (q) => tokensOf(q.question);
+  const [sa, sb] = [stem(a), stem(b)];
+  if (sa.length && sa.join(' ') === sb.join(' ')) return true;
+  const opts = (q) => (Array.isArray(q.options) ? q.options.map((o) => tokensOf(String(o).replace(OPTION_HEAD, '')).join(' ')).sort().join('|') : '');
+  if (!opts(a) || opts(a) !== opts(b) || tokensOf(keyText(a)).join(' ') !== tokensOf(keyText(b)).join(' ')) return false;
+  const [A, B] = [new Set(sa), new Set(sb)];
+  const both = [...A].filter((w) => B.has(w)).length;
+  return both / new Set([...A, ...B]).size >= 0.6;
+}
 
 /**
  * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
@@ -658,10 +674,26 @@ function applyLayout(examJson, P, scope, opts = {}) {
 
   const all = walk(src);
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
-  const place = (held) => {
+  // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
+  const place = (cross) => {
     bySlot.forEach((list) => { list.length = 0; });
     unplaced = 0;
-    const fits = (slot, q) => settleVerses(slot, q) && printable(slot, q) && !(held && held(slot, q));
+    const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
+    const seen = new Map(); // slot → items the reply wrote for it
+    const fallback = new Map(); // slot → held items, in reply order
+    const fits = (slot, q) => {
+      if (!settleVerses(slot, q) || !printable(slot, q)) return false;
+      if (!holds(slot)) return true;
+      if (bySlot.get(slot.slot).some((p) => sameQuestion(p, q))) return false;
+      if (!cross.rule(q)) return true;
+      fallback.set(slot.slot, [...(fallback.get(slot.slot) || []), q]);
+      return false;
+    };
+    const offer = (slot, q) => {
+      seen.set(slot.slot, (seen.get(slot.slot) || 0) + 1);
+      if (room(slot) && fits(slot, q)) bySlot.get(slot.slot).push(q);
+      else unplaced += 1;
+    };
     const untagged = [];
     // Tagged items first, so an untagged one cannot take a tagged one's place.
     for (const entry of all) {
@@ -671,30 +703,36 @@ function applyLayout(examJson, P, scope, opts = {}) {
         slot = slots.find((s) => slotKey(s.slot).endsWith(tail));
       }
       if (!slot) { untagged.push(entry); continue; }
-      if (room(slot) && fits(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
-      else unplaced += 1;
+      offer(slot, entry.q);
     }
     for (const entry of untagged) {
       const key = typeKey(entry.type);
       const slot = slots.find((s) => typeKey(s.type) === key && room(s));
-      if (slot && fits(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
+      if (slot) offer(slot, entry.q);
       else unplaced += 1;
     }
+    // A held item comes back only when the reply wrote more than the slot holds (the re-asked
+    // section's items appended to the first reply's, or extras): the clean ones have had their
+    // turn, and a paper with a repeat beats no paper. On the first reply it stays out, so the slot
+    // is short and the section is asked again.
+    fallback.forEach((list, id) => {
+      const slot = slots.find((s) => s.slot === id);
+      if ((seen.get(id) || 0) <= slot.generate) return;
+      for (const q of list) {
+        if (!room(slot)) break;
+        if (bySlot.get(id).some((p) => sameQuestion(p, q))) continue;
+        bySlot.get(id).push(q);
+        unplaced -= 1;
+      }
+    });
   };
   place(null);
-  // A subject whose sections can give each other away is laid out again, the held items
-  // set aside, against what the first pass placed in the slot they would give away.
+  // A subject whose sections can give each other away is laid out again with its rule, built
+  // from what the first pass placed in the slot that could be given away.
   const cross = CROSS_HOLD[P.key];
   const against = cross && slots.find((s) => s.slot === cross.against);
   const rule = against && cross.rule(bySlot.get(against.slot).slice());
-  if (rule) {
-    const lost = new Map();
-    place((slot, q) => {
-      if (!cross.held.includes(slot.slot) || (lost.get(slot.slot) || 0) >= cross.spare(slot) || !rule(q)) return false;
-      lost.set(slot.slot, (lost.get(slot.slot) || 0) + 1);
-      return true;
-    });
-  }
+  if (rule) place({ held: cross.held, rule });
   spreadKeys(slots, bySlot);
 
   // Marks, lines and the canonical tag come from the pattern, never the model.
