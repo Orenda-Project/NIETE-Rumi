@@ -21,6 +21,7 @@
  *   GET  /pulse/:code           E13 peer pulse: classmates' right answers, from memory
  *   GET  /ch/:token/back       the class round's hand-back: {to} the round page, or {to:null}
  *   GET  /ch/...  POST /ch/...  the kid's Challenge (POST /ch/live: a temporary key for a live read-aloud) (web-quiz-challenge.js); GET /challenge/results?list=
+ *   POST /lr/key                a story page's one-read speech key (web-quiz-live-read-v3.js, web_quiz_live_read_v3)
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
  *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
  *   GET  /lib/:code             the video library from a quiz: subjects (grade strip), then chapters
@@ -125,6 +126,8 @@ router.get('/ch/result/:ct', challenge((C, req) => C.poll(req.params.ct)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {}, { device: req.get('x-wq-device') })));
 // Read aloud, live: a temporary Soniox key for one run (web-quiz-soniox-live.js); the server key never leaves the bot.
 router.post('/ch/live', challenge((C, req) => C.liveKey(req.body || {})));
+// Live reading v3: a story page's own one-read temporary key (web-quiz-live-read-v3.js; 404 'off' with the switch off).
+router.post('/lr/key', handle((req) => { const b = req.body || {}; return require('../services/quiz/web-quiz-live-read-v3').storyKey({ st: b.st, kid: b.kid, book: b.book, page: b.page, lang: b.lang, device: req.get('x-wq-device') || undefined }); }));
 // Questions after Read aloud: the reached questions with their 3 options (no key), then one answer per tap.
 router.post('/ch/qs', challenge((C, req) => C.questions(req.body || {})));
 router.post('/ch/qa', challenge((C, req) => C.answer(req.body || {})));

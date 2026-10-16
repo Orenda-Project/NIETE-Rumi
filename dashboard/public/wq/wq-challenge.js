@@ -923,6 +923,7 @@
     var ws = shownWords(d.story);
     var spans = ws.map(function (w, i) {
       var m = (marks && marks[i]) || 'none';
+      if (m === 'miss' && lrCounted()) m = 'none';   // RULING #C1 line 9: a counted read lights matched words only
       var next = live && live.v && live.v.next === i ? ' wqc-next' : '';
       return '<span class="wqc-w wqc-' + m + next + '">' + esc(w) + '</span>';
     }).join(' ');
@@ -949,9 +950,57 @@
     var before = live.v ? live.v.heardOk : 0;
     live.v = live.tr.push(tokens);
     if (live.v.heardOk > before) live.lastWordAt = Date.now();
+    if (lr3() && live.v.heardOk > before) lrHeard(before);
     livePaint();
     // the last word heard ends the reading; finalize then makes Soniox confirm what it has at once
-    if ((live.v.finished || live.v.lastHeard) && S.screen === 'read-live') stopRec('last_word');
+    if ((live.v.finished || live.v.lastHeard) && S.screen === 'read-live' && !lr3()) stopRec('last_word');
+  }
+
+  // ── live reading v3 (the read payload's lr3; wq-liveread.js; LIVEREAD.md): the reading finishes itself ──────────────
+  function lr3() { return !!(S.data && S.data.lr3 && window.WQLiveRead); }
+  function lrCounted() { return lr3() && !!S.data.lr3.counted; }
+  function lrView() { var v = live && live.v; return v ? { heard: v.heardOk, total: v.marks.length, lastHeard: !!v.lastHeard } : { heard: 0, total: 0, lastHeard: false }; }
+  // RULING #C1 line 7: Done always on a practice read; on a counted read only once done_from of the words are lit
+  function lrDoneOpen() {
+    var from = Number(S.data.lr3.done_from) || 0;
+    if (!from) return true;
+    var v = lrView();
+    return v.total > 0 && v.heard / v.total >= from;
+  }
+  // a new word lit: the glow, the counted read's Done at 80 %, and the finish check after the tail / the quiet
+  function lrHeard(before) {
+    var f = S.data.lr3.finish || {};
+    var v = lrView();
+    var g = q('wqc-lr-glow');
+    if (g) g.className = 'lr-glow lr-glow-' + window.WQLiveRead.glowLevel(v);
+    var from = Number(S.data.lr3.done_from) || 0;
+    if (from && guardOn() && before / v.total < from && v.heard / v.total >= from && S.screen === 'read-live') paintRead();
+    setTimeout(function () {
+      if (!live || !live.v || S.screen !== 'read-live') return;
+      var now = lrView();
+      var why = window.WQLiveRead.shouldFinish(now, Date.now(), live.lastWordAt, f);
+      if (why) { stopRec(why); return; }
+      // a counted read never ends on the quiet: past 80 % the Done button pulses once ("Done?"), the child decides
+      var btn = q('wqc-stop');
+      if (lrCounted() && btn && now.heard / now.total >= (f.pct || 0.8) && Date.now() - live.lastWordAt >= (f.quiet_ms || 4000) && btn.className.indexOf('lr-pulse') < 0) btn.className += ' lr-pulse';
+    }, v.lastHeard ? (f.tail_ms || 1000) : (f.quiet_ms || 4000));
+  }
+  // the result handed to the card (wq:liveread:result): the live words when there are some, else what is known
+  function lrEmit(isLive) {
+    var d = S.data;
+    var v = live && live.v;
+    var st = v ? v.marks.map(function (m) { return m === 'ok' || m === 'okp' ? 'read' : (m === 'miss' ? 'skipped' : 'ahead'); }) : [];
+    var view = { states: st, read: v ? v.correct : 0, heard: v ? v.heardOk : 0, skipped: st.filter(function (x) { return x === 'skipped'; }).length, total: v ? v.marks.length : ((d.story && d.story.tokens) || []).length };
+    window.WQLiveRead.emit(window.WQLiveRead.result(view, { source: 'passage', id: d.passage_id || null, lang: L, counted: !!d.lr3.counted, ended: rec.ended, ms: rec.ms, live: isLive }));
+  }
+  // a reading that could not go live: "checking…" for at most 10 s, then the card (the check still lands on the Book)
+  function lrCheck() {
+    setTimeout(function () {
+      if (rec.gaveUp || (S.screen !== 'read-send' && S.screen !== 'read-wait')) return;
+      readResult({ later: true });
+      rec.gaveUp = true;
+      lrEmit(false);
+    }, 10000);
   }
 
   // ── the read guard (the exercise says guard:true and carries its copy): a local microphone check before the
@@ -1028,6 +1077,8 @@
   }
   // The one way out of a timed reading under the guard, and only once the first line's window has passed.
   function stickyHtml() {
+    // live reading v3: Done is always there, "too hard" still opens after the first line's window
+    if (lr3() && guardOn() && (lrDoneOpen() || rec.stuckOpen)) return '<div class="wqc-sticky">' + (lrDoneOpen() ? '<button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(t.finished) + '</button>' : '') + (rec.stuckOpen ? '<button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(cp('stuck')) + '</button>' : '') + '</div>';
     if (!guardOn()) return '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(t.finished) + '</button></div>';
     return rec.stuckOpen ? '<div class="wqc-sticky"><button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(cp('stuck')) + '</button></div>' : '';
   }
@@ -1053,6 +1104,7 @@
     for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k];
     withHelped(b);
     if (guardOn()) { b.ended = rec.ended || 'timer'; b.read_s = Math.round((rec.ms || 0) / 1000); b.mic_check = rec.micCheck || 'none'; }
+    if (lr3()) { b.live_ui_v = 3; if (!b.ended) b.ended = rec.ended || 'timer'; }
     return b;
   }
 
@@ -1072,6 +1124,7 @@
     rec.chunks = [];
     rec.left = d.secs || 60;
     rec.sent = false;
+    rec.gaveUp = false;
     // each reading has its own length: Try again in the same page load must not post the last one's
     rec.ms = 0;
     try {
@@ -1126,7 +1179,7 @@
     var clockHtml = g || (TR && TR.isStory()) ? '' : '<div class="wqc-clock"><span class="wqc-dot" aria-hidden="true"></span><span id="wqc-left">' + clock(rec.left) + '</span></div>';
     if (liveOk() && trailOn()) {
       // the Trail never shows a reading speed: no running number, no bar, no "Last time"; the words still light up
-      show('read-live', clockHtml + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
+      show('read-live', clockHtml + (lr3() ? '<div class="lr-glow lr-glow-' + window.WQLiveRead.glowLevel(lrView()) + '" id="wqc-lr-glow" aria-hidden="true"></div>' : '') + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
         + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
         + stickyHtml());
       livePaint();
@@ -1215,6 +1268,7 @@
   }
 
   function liveResult(w) {
+    if (lr3()) lrEmit(true);
     // the Trail's line follows the words heard (heardOk): the live cursor can run to the end on words never heard
     // the first card waits for the server's result before it draws a button the result could change (liveSettle)
     if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold({ score: { attempted: live.v.attempted } }, null, live.v.heardOk); return; }
@@ -1377,6 +1431,7 @@
     var blob = new Blob(rec.chunks, { type: type });
     rec.blob = blob;
     show('read-send', jug('thinking', t.sending, true));
+    if (lr3()) lrCheck();
     api('ch/upload', cons({ ct: d.ct, type: type, size: blob.size })).then(function (u) {
       return fetch(u.put_url, { method: 'PUT', headers: { 'content-type': u.content_type }, body: blob }).then(function (r) {
         if (!r.ok) { var e = new Error('put_' + r.status); e.status = r.status; throw e; }
@@ -1416,6 +1471,7 @@
   }
 
   function readResult(r) {
+    if (rec.gaveUp) return;   // live reading v3: the card was shown at the 10-s mark; a late answer moves nothing
     if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(r); return; }
     var d = S.data;
     var line; var pose = 'celebrate'; var score = ''; var growth = '';

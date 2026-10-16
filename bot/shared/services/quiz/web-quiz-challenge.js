@@ -47,6 +47,8 @@ const Flags = require('./web-quiz-hub-flags');
 const Measure = require('./web-quiz-measure-events');
 // The Trail page v2 (web_quiz_challenge_v2 and its children): {} / null with v2 off, so today's paths are untouched.
 const TrailPage = require('./web-quiz-trail-page');
+// Live reading v3 (web_quiz_live_read_v3): {} with the switch off, so today's payloads are untouched.
+const LiveReadV3 = () => require('./web-quiz-live-read-v3');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
@@ -719,6 +721,7 @@ async function menu(token, { kid, lang, device } = {}) {
     rt: await Tel.flag(),
     ...((await require('./web-quiz-ur-polish').ui()) ? { ui: { ur2: true } } : {}),
     ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    ...(await LiveReadV3().forMenu()),   // live reading v3: the page loads its component (off ⇒ nothing)
   };
 }
 
@@ -811,7 +814,9 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
   const previousWcpm = live ? (rules.record ? null : ((await previousRun(w.studentId, 'read', w.lang)) || {}).wcpm) : undefined;
   return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await questionsOn(), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
-    ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}) };
+    ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}),
+    // live reading v3 (web_quiz_live_read_v3, read only when real-time is on; off ⇒ nothing): how the reading finishes itself
+    ...(live && await LiveReadV3().forRead({ counted: async () => (v2 ? v2.mem.record === true : !!rules.record && !w.round && (await attemptInfo(w.studentId, 'read', w.lang)).attempt_no === 1) })) };
 }
 
 // ── challenge v2: the draw, the record decided at serve, the period (web_quiz_challenge_v2 / _period / _pool) ──────
@@ -1851,7 +1856,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   // The key decides, never the switch at this moment: a kept key stays whatever the switch now says; a plain key with
   // the switch now on is still deleted, and the row says so (calibration then knows why there is no audio).
   const audio = isKeptKey(key) ? { audio_key: key } : ((await keepAudioOn()) ? { audio_kept: false } : {});
-  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio };
+  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio, ...(await LiveReadV3().metaFor(body, { record: !!rules.record })) };
   // the mic notice (web_quiz_challenge_audio_consent; null with it off): on the row, one event per run; a run that
   // showed it marks this child's notice seen on this phone (x-wq-device), so it is not shown again
   const consent = await TrailPage.consentFor(body);
@@ -2186,7 +2191,7 @@ async function warmClip(key, text, lang, { record = true, now = Date.now() } = {
 const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecordedOn(now));
 
 module.exports = {
-  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
+  menu, exercise, entryOf, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, TRAIL_ORDER, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,

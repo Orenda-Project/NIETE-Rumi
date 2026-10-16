@@ -1,0 +1,31 @@
+/* Live reading v3 (wq-liveread.js): the words as they are read. Loaded only with the bot's lr3 (web_quiz_live_read_v3). */
+:root { --lr-green: #58cc02; --lr-read-bg: rgba(88, 204, 2, .35); --lr-heard-bg: rgba(88, 204, 2, .16); --lr-skip: #f2b84b; --lr-ink: #1f2a37; --lr-cur: #1c6dd0; }
+.lr { position: relative; padding: 8px 4px 96px; color: var(--lr-ink); }
+.lr-nudge { margin: 0 0 12px; font-size: 18px; font-weight: 700; text-align: center; }
+.lr-text { font-size: 24px; line-height: 2; word-spacing: 2px; }
+html[lang=ur] .lr-text, .lr[lang=ur] .lr-text { font-size: 26px; line-height: 2.3; }
+.lr-w { padding: 2px 4px; border-radius: 8px; transition: background-color 120ms ease-out, box-shadow 120ms ease-out; }
+.lr-read { background: var(--lr-read-bg); }
+.lr-heard { background: var(--lr-heard-bg); }
+.lr-skipped { box-shadow: inset 0 -3px 0 var(--lr-skip); }
+.lr-current { box-shadow: 0 0 0 2px var(--lr-cur); }
+/* a story page: each word's state as a box over the illustration (LIVEREAD §12) */
+.lr-ov { position: relative; width: 100%; border-radius: 12px; overflow: hidden; }
+.lr-ov img { display: block; width: 100%; height: auto; }
+.lr-box { position: absolute; padding: 0; border-radius: 6px; }
+.lr-box.lr-read { background: rgba(88, 204, 2, .38); }
+.lr-box.lr-heard { background: rgba(88, 204, 2, .2); }
+/* Jugnu's glow: brighter per word lit (RULING #C1), never per second, never a number */
+.lr-glow { width: 56px; height: 56px; margin: 0 auto 8px; border-radius: 50%; background: radial-gradient(circle, #fffbe0 0, #ffd84d 40%, rgba(255, 216, 77, 0) 70%); opacity: .25; transform: scale(.8); transition: opacity 300ms ease-out, transform 300ms ease-out; }
+.lr-glow-1 { opacity: .45; transform: scale(.88); }
+.lr-glow-2 { opacity: .65; transform: scale(.96); }
+.lr-glow-3 { opacity: .85; transform: scale(1.04); }
+.lr-glow-4 { opacity: 1; transform: scale(1.12); box-shadow: 0 0 24px 6px rgba(255, 216, 77, .55); }
+.lr-bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(rgba(255,255,255,0), #fff 30%); }
+.lr-bar .wq-btn { width: 100%; min-height: 52px; }
+.lr-ask, .lr-check { padding: 24px 16px; text-align: center; }
+.lr-say { font-size: 20px; margin: 0 0 16px; }
+/* a counted read past 80 % and quiet: the Done button pulses once (the child decides; nothing ends by itself) */
+.lr-pulse { animation: lr-pulse 900ms ease-out 2; }
+@keyframes lr-pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(88, 204, 2, .6); } 60% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(88, 204, 2, 0); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .lr-w, .lr-glow { transition: none; } .lr-pulse { animation: none; } }

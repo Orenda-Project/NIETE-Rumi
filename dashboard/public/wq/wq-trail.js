@@ -227,7 +227,7 @@
       if (ex === 'listen' && !clipUrl(d)) { gettingReady(ex); return; }
       tries = 0;
       d.story_room = true;
-      d.live = false;   // no words-a-minute bar in Story Time
+      if (!d.lr3) d.live = false;   // no words-a-minute bar in Story Time (live reading v3 keeps the words lighting, no meter)
       h.S.data = d;
       h.ev('ch_start', { step: ex });
       if (ex === 'read' && clipUrl(d)) storyAsk(); else intro();
