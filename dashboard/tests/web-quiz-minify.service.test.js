@@ -132,15 +132,14 @@ describe('switch off (no `min` in the payload): today\'s pages and files', () =>
     }
   });
 
-  it('a ?v=<hex>m URL asked for while the switch is off (a page cached while it was on) answers the raw bytes, 200, immutable', async () => {
+  it('a ?v=<hex>m URL asked for while the switch is off (a page cached while it was on) answers the raw bytes, 200, not kept (no-cache)', async () => {
     srv = await start(build(bot([jsonRes(200, QUIZ())])));
     await get(srv, '/q/AB12CD');
     for (const f of ['wq.js', 'wq.css', 'hub.js', 'wq-tel.js']) {
       const r = await get(srv, `/wq/${f}?v=${HEX}m`);
       expect([f, r.status]).toEqual([f, 200]);
       expect([f, r.buf.equals(raw(f))]).toEqual([f, true]);
-      expect(r.headers['cache-control']).toMatch(/max-age=31536000/);
-      expect(r.headers['cache-control']).toMatch(/immutable/);
+      expect(r.headers['cache-control']).toBe('no-cache');
     }
   });
 
@@ -149,6 +148,7 @@ describe('switch off (no `min` in the payload): today\'s pages and files', () =>
     const r = await get(srv, `/wq/wq.js?v=${HEX}m`);
     expect(r.status).toBe(200);
     expect(r.buf.equals(raw('wq.js'))).toBe(true);
+    expect(r.headers['cache-control']).toBe('no-cache'); // this process has not seen min:true: not kept for a year
   });
 
   it('switched on, then off again: the same ?v=<hex>m URL answers raw once the edge learns it is off', async () => {
@@ -159,6 +159,7 @@ describe('switch off (no `min` in the payload): today\'s pages and files', () =>
     await get(srv, '/q/AB12CD');
     const off = await get(srv, `/wq/wq.js?v=${HEX}m`);
     expect(off.buf.equals(raw('wq.js'))).toBe(true);
+    expect(off.headers['cache-control']).toBe('no-cache');
   });
 });
 
@@ -306,6 +307,70 @@ describe('a file that does not minify is served raw (publicDir: a test-only fold
     expect(lines.filter((l) => l[0] !== 'web_quiz.bot_call')).toEqual(minLines);
     expect(lines[0][0]).toBe('web_quiz.minify_error');
     expect(lines[0][1].file).toBe('bad.js');
+  });
+});
+
+describe('esbuild missing or broken: raw everywhere, quiet logs', () => {
+  let srv;
+  afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
+  const ABS = '/srv/app/dashboard/routes/web-quiz.routes.js';
+  const moduleMissing = () => {
+    const e = new Error(`Cannot find module 'esbuild'\nRequire stack:\n- ${ABS}\n- /srv/app/dashboard/server.js`);
+    e.code = 'MODULE_NOT_FOUND';
+    e.requireStack = [ABS];
+    return e;
+  };
+
+  it('esbuild not installed: no page links an m URL (page bytes = switch-off bytes), an m URL is raw and not kept, one quiet log line', async () => {
+    let R;
+    jest.isolateModules(() => {
+      jest.doMock('esbuild', () => { throw moduleMissing(); });
+      R = require('../routes/web-quiz.routes');
+    });
+    const lines = [];
+    const app = express();
+    app.set('trust proxy', 1);
+    const router = R.createWebQuizRouter({ botUrl: BOT, apiKey: KEY, logEvent: (e, p) => lines.push([e, p]),
+      fetchImpl: bot([jsonRes(200, QUIZ({ min: true })), jsonRes(200, QUIZ({ min: true })), jsonRes(200, HUB({ min: true })), jsonRes(200, HUB({ min: true }))]) });
+    app.use(router);
+    srv = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+    await router.minifyReady;
+    jest.dontMock('esbuild');
+    await get(srv, '/q/AB12CD');
+    const q = await get(srv, '/q/AB12CD');
+    expect(q.body).toBe(R.renderQuizPage({ payload: QUIZ({ min: true }), code: 'AB12CD', view: 'quiz', origin: ORIGIN, assetV: R.assetVersion() }));
+    expect(q.body).not.toMatch(/\?v=[0-9a-f]+m\b/);
+    await get(srv, `/h/${TOKEN}`);
+    const h = await get(srv, `/h/${TOKEN}`);
+    expect(h.body).not.toMatch(/\?v=[0-9a-f]+m\b/);
+    const r = await get(srv, `/wq/wq.js?v=${R.assetVersion()}m`);
+    expect(r.buf.equals(raw('wq.js'))).toBe(true);
+    expect(r.headers['cache-control']).toBe('no-cache');
+    expect(lines.filter((l) => l[0] === 'web_quiz.minify_error').length).toBe(1);
+  });
+
+  it('esbuild present but its binary missing (every file fails the same way): one log line, not one per file', async () => {
+    const lines = [];
+    const esbuild = { transform: async () => { const e = new Error('The package "@esbuild/linux-x64" could not be found'); e.code = 'ENOENT'; throw e; } };
+    srv = await onEdge({ esbuild, logEvent: (e, p) => lines.push([e, p]) });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(lines.filter((l) => l[0] === 'web_quiz.minify_error').length).toBe(1);
+    const r = await get(srv, `/wq/wq.js?v=${HEX}m`);
+    expect(r.buf.equals(raw('wq.js'))).toBe(true);
+  });
+
+  it('the log line carries the error code and a short message, never a stack or an absolute path', async () => {
+    const lines = [];
+    const esbuild = { transform: async () => { throw moduleMissing(); } };
+    srv = await onEdge({ esbuild, logEvent: (e, p) => lines.push([e, p]) });
+    await new Promise((r) => setTimeout(r, 50));
+    const l = lines.filter((x) => x[0] === 'web_quiz.minify_error');
+    expect(l.length).toBe(1);
+    expect(l[0][1].code).toBe('MODULE_NOT_FOUND');
+    for (const v of Object.values(l[0][1])) {
+      expect(String(v)).not.toMatch(/\//);
+      expect(String(v)).not.toMatch(/Require stack/);
+    }
   });
 });
 
