@@ -892,6 +892,13 @@ const RULE = {
   spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
   sstQ56: 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.',
   accept: '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.',
+  mathsSectionC: 'Section C is also set from the pages above: keep each slot\'s marks and item shape (a word problem stays a word problem, a calculation a calculation) and take the topic from these pages.',
+  grammarFromPages: 'Q1(a) grammar MCQs test only the grammar these pages teach. If the pages teach fewer grammar points than there are MCQs, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.',
+  mathsTosFloor: 'Of the 100 marks, 8–12 are Remember (at least 8 of the 20 MCQs recall a definition, fact, formula or property name), at most 60 Understand, at least 30 Apply.',
+  propertyOneKey: 'For an MCQ that tests a property (divisible by, prime, factor, multiple, even, odd, greatest, smallest, rounded to, place value) exactly ONE option satisfies the stem; check every option before writing it.',
+  unitsNumerals: 'Every measurement stem names its unit (cm, m, kg, litres, rupees, degrees). Write mixed numbers as numerals, e.g. 5 2/3, never \'five and two thirds\' or \'5 and 2/3\'.',
+  frameLabels: 'Key labels come only from the book\'s figure; if the figure carries fewer parts than the frame has leader lines, ask for that smaller number.',
+  grade5Words: 'Use Grade 5 vocabulary; a term the book does not use (e.g. \'lactic acid\', \'electrons\') is replaced by the book\'s word.',
 };
 
 // The pages Urdu items are never set from: lessons 1–3 (the Hamd, the Naat, the third).
@@ -912,6 +919,10 @@ const HELD_TERMS_SST = Object.freeze([
   { term: 'نعت', pattern: 'نعت(?:یں|وں|یہ)?' },
   { term: 'حمد', pattern: 'حمد(?:یہ)?' },
 ].map(({ term, pattern }) => Object.freeze({ term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, 'u') })));
+
+// Maths Section A's slot rule asks for 3 to 5 recall MCQs; the ToS floor needs at least 8.
+const MATHS_RECALL_FROM = '3 to 5 of them pure recall';
+const MATHS_RECALL_TO = 'at least 8 of them pure recall';
 
 /** "1 mark each", "1.25 marks each", "20 marks (parts 10 + 8 + 2)". */
 function _marksPhrase(slot) {
@@ -971,17 +982,32 @@ function _closedLists(P, slots) {
  * this section. Every pattern-specific word comes from the pattern data.
  */
 function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, section, slots, lang, P, scope }) {
-  const list = Array.isArray(slots) && slots.length ? slots : section.slots;
   const medium = lang || P.medium;
   const key = P.key || Patterns.normalise(subject);
   const sectionLabel = section.label_en || section.label_ur || section.id;
-  const hasMcq = list.some((s) => s.shape === 'mcq');
 
   // The FDE syllabus names units and kinds per slot; a paper set on chosen chapters or
   // pages keeps each slot's kind and marks but takes its items from those pages only.
   const fde = Boolean(scope) && scope.kind === 'fde';
+  // Maths Section C on chosen pages: the fixed one-of-each-kind list (draw, area, …) is
+  // FDE's Units 11–12 syllabus, so it is not asked for; marks and shape stay.
+  const mathsC = !fde && key === 'maths' && section.id === 'C';
+  const given = Array.isArray(slots) && slots.length ? slots : section.slots;
+  const list = given.map((s) => {
+    if (mathsC && Array.isArray(s.kinds) && s.kinds.length) {
+      return { ...s, kinds: null, prompt_rule: null, grain: s.grain && { ...s.grain, kind: 'a word problem or a calculation' } };
+    }
+    // Maths MCQs: the ToS floor's recall count replaces the slot's 3-to-5.
+    if (key === 'maths' && typeof s.prompt_rule === 'string' && s.prompt_rule.includes(MATHS_RECALL_FROM)) {
+      return { ...s, prompt_rule: s.prompt_rule.replace(MATHS_RECALL_FROM, MATHS_RECALL_TO) };
+    }
+    return s;
+  });
+  const hasMcq = list.some((s) => s.shape === 'mcq');
   const rules = [RULE.bookOnly, RULE.religious];
   if (!fde) rules.push(RULE.chapterOnly);
+  if (mathsC) rules.push(RULE.mathsSectionC);
+  if (!fde && key === 'english' && hasMcq) rules.push(RULE.grammarFromPages);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) {
     rules.push('Science: a situation comes only from the book activities its slot\'s rule lists, never another.');
   }
@@ -995,11 +1021,15 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     rules.push(`Across the whole paper the marks split by thinking level is ${split} (FDE's table of specification). `
       + `Tag each item: ${RULE.r1}${key === 'english' ? `; ${RULE.r1English}` : ''}.`);
   }
+  if (key === 'maths') rules.push(RULE.mathsTosFloor, RULE.unitsNumerals);
+  if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
-    rules.push(`In this section, ${RULE.recall}.`, RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
+    if (key !== 'maths') rules.push(`In this section, ${RULE.recall}.`);
+    rules.push(RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
     // Word MCQs (anagram, homophone, spelling) on the language papers; number options on Maths and Science.
     if (key === 'english' || key === 'urdu') rules.push(RULE.oneKey);
     if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
+    if (key === 'maths') rules.push(RULE.propertyOneKey);
   }
   rules.push(RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept);
   if (fde && key === 'maths' && list.some((s) => (Array.isArray(s.families) && s.families.length) || (Array.isArray(s.kinds) && s.kinds.length))) {
@@ -1009,6 +1039,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   const picks = list.some((s) => Array.isArray(s.parts_spec) && s.parts_spec.some((p) => p.pick));
   if (picks && medium === 'ur') rules.push(RULE.picks);
   if (picks) rules.push(RULE.picksVerbatim);
+  if ((key === 'science' || key === 'social_studies') && list.some((s) => s.shape === 'frame')) rules.push(RULE.frameLabels);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) rules.push(RULE.situationParts);
   if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
   if (key === 'social_studies' && list.some((s) => /\.Q[56]$/.test(s.slot))) rules.push(RULE.sstQ56);
