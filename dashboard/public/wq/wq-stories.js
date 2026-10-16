@@ -366,10 +366,10 @@
       var p = P[m.i], im = p.image, i = m.i;
       paint(scr('story-page', L, top(L, ic(t, 'back', t.back, '‹'), b.title, !!p.audio) + stage(p, (p.audio && p.boxes_ok ? '' : img(im.url, im.w, im.h)) + (p.audio ? '<div data-ra></div>' : '')) +
         '<div class="wqs-extra" data-extra>' + extra() + '</div><div class="wqs-ctl">' +
-        '<button class="wqs-arr" data-tap="prev"' + (i ? '' : ' disabled') + ' aria-label="' + esc(t.prevP) + '"><span dir="ltr">' + (L === 'ur' ? '›' : '‹') + '</span></button>' +
+        '<button class="wqs-arr" data-tap="prev"' + (i ? '' : ' disabled') + ' aria-label="' + esc(t.prevP) + '"><span dir="ltr">‹</span></button>' +
         '<button class="wqs-main" data-main data-primary data-tap="main"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[m.label()]) + '</button>' +
         (p.audio ? '<button class="wqs-slow" data-tap="slow" aria-pressed="' + slow() + '">🐢 ' + esc(t.slow) + '</button>' : '') +
-        '<button class="wqs-arr" data-tap="next" aria-label="' + esc(t.nextP) + '"><span dir="ltr">' + (L === 'ur' ? '‹' : '›') + '</span></button></div>'));
+        '<button class="wqs-arr" data-tap="next" aria-label="' + esc(t.nextP) + '"><span dir="ltr">›</span></button></div>'));
       camTo(null);
       if (p.audio) {
         mount(p, {

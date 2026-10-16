@@ -541,9 +541,11 @@ describe('the reader', () => {
     const root = await openReader(e, { lang: 'ur' });
     checkScreen(root.innerHTML, 'ur');
     expect(root.innerHTML).toContain('سنیں');
-    // In Urdu the next page is to the LEFT: each arrow points outward and is isolated so the browser never mirrors it.
-    expect(root.innerHTML).toMatch(/data-tap="prev"[^>]*><span dir="ltr">›<\/span>/);
-    expect(root.innerHTML).toMatch(/data-tap="next"[^>]*><span dir="ltr">‹<\/span>/);
+    // In Urdu the next page is to the LEFT: the glyphs are isolated from the browser's own mirroring, and the stylesheet
+    // flips them once, so each arrow points outward (a double flip pointed both inward).
+    expect(root.innerHTML).toMatch(/data-tap="prev"[^>]*><span dir="ltr">‹<\/span>/);
+    expect(root.innerHTML).toMatch(/data-tap="next"[^>]*><span dir="ltr">›<\/span>/);
+    expect(require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'wq', 'wq-stories.css'), 'utf8')).toContain('[dir=rtl] .wqs-arr{transform:scaleX(-1)}');
     toMic(e, root);
     expect(root.innerHTML).toMatch(/data-screen="story-mic" lang="ur" dir="rtl"/);
     expect(e.calls.ask[0].lang).toBe('ur');
