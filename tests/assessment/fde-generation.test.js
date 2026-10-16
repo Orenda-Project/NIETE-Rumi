@@ -3,7 +3,7 @@
  *
  * One call for a whole 48-item paper with a marking scheme on every written item runs past what a
  * single reply can carry, so each section is its own call: its own slots, its own pages (Maths
- * sets Section B from Units 1–8 and Section C from Units 11–12), its own 12,000-token ceiling and
+ * sets Section B from Units 1–8 and Section C from Units 11–12), its own 24,000-token ceiling and
  * its own one retry. The sections are then merged and run through the same chain every pattern
  * paper goes through: layout, the Urdu held-lessons filter, the scheme check, the maths key check.
  *
@@ -167,14 +167,15 @@ describe('generatePatternExam: one call per section', () => {
     ]);
   });
 
-  test('max_tokens 12000 per call, timeout 240000, the rest as generateExam sends it', async () => {
+  test('max_tokens 24000 per call, low reasoning effort, timeout 300000, the rest as generateExam sends it', async () => {
     bookFor('maths');
     fakeModel('maths');
     await Gen.generatePatternExam(ARGS('maths'));
     expect(mockCreate).toHaveBeenCalledTimes(3);
     for (const [params, options] of mockCreate.mock.calls) {
-      expect(params.max_tokens).toBe(12000);
-      expect(options).toEqual({ timeout: 240000 });
+      expect(params.max_tokens).toBe(24000);
+      expect(params.reasoning).toEqual({ effort: 'low' });
+      expect(options).toEqual({ timeout: 300000 });
       expect('timeout' in params).toBe(false);
       expect(params.job).toBe('assessment.generate');
       expect(params.temperature).toBe(0.7);
