@@ -176,6 +176,50 @@ describe('passage check: the rules on made-up passages', () => {
   });
 });
 
+describe('passage check: a listening title never holds an answer', () => {
+  // the listener sees the title before hearing the story, never the text: a title holding an accepted answer gives it away
+  const listen = (over = {}) => base({ passage_id: 'en.listen.1.sample', kind: 'listen', ...over });
+  const leak = (res) => [...res.problems, ...res.warnings].filter((x) => x.startsWith('title_answer:'));
+
+  test('a check-pool listening passage whose title holds q1\'s answer fails', () => {
+    const res = G.checkPassage(listen({ title_en: 'The Blue Kite' }));
+    expect(has(res, 'title_answer')).toBe(true);
+    expect(res.problems.find((x) => x.startsWith('title_answer:'))).toBe('title_answer: title_en holds "blue", an answer of q1');
+    expect(res.ok).toBe(false);
+  });
+
+  test('the same title on a practice listening story is a warning, not a problem', () => {
+    const res = G.checkPassage(listen({ title_en: 'The Blue Kite', pool: 'practice' }));
+    expect(has(res, 'title_answer')).toBe(false);
+    expect(res.warnings.some((x) => x.startsWith('title_answer:'))).toBe(true);
+    expect(res.ok).toBe(true);
+  });
+
+  test('a title with no answer in it, a word that only contains an answer, and a read stop are not flagged', () => {
+    expect(leak(G.checkPassage(listen({ title_en: 'A Windy Day' })))).toEqual([]);
+    expect(leak(G.checkPassage(listen({ title_en: 'Blueberry Day' })))).toEqual([]);   // a whole word, not a substring
+    expect(leak(G.checkPassage(base({ title_en: 'The Blue Kite' })))).toEqual([]);   // read stop: the text is on screen
+  });
+
+  test('either language: an Urdu title holding an Urdu answer on a check-pool listen fails', () => {
+    const res = G.checkPassage(listen({ title_en: 'A Windy Day', title_ur: 'نیلی پتنگ', questions: [
+      q('q1', 1, 'What colour was the kite?', 'blue', ['pink', 'yellow'], { accept: ['blue', 'نیلی'] }),
+      q('q2', 1, 'What did Zara have?', 'a kite', ['a ball', 'a book']),
+      q('q3', 2, 'Where did Zara take the kite?', 'to the park', ['to school', 'to the shop']),
+    ] }));
+    expect(res.problems.filter((x) => x.startsWith('title_answer:'))).toEqual(['title_answer: title_ur holds "نیلی", an answer of q1']);
+  });
+
+  test('a Set A listening pointer whose title holds one of its v3 answers fails', () => {
+    const p = JSON.parse(fs.readFileSync(path.join(PASSAGES, 'en.listen.2.setA.json'), 'utf8'));
+    expect(G.checkPassage(p).problems).toEqual([]);
+    const v3 = require('../../../shared/data/child-test/item-bank.v3.json').sets.A.reading.en.listening;
+    const answer = v3.questions.flatMap((x) => x.accept || []).find((x) => /^[A-Za-z]+$/.test(x));
+    const res = G.checkPassage({ ...p, title_en: `The ${answer} Story` });
+    expect(has(res, 'title_answer')).toBe(true);
+  });
+});
+
 describe('passage check: the stock on disk', () => {
   const files = fs.readdirSync(PASSAGES).filter((f) => f.endsWith('.json')).sort();
   const all = files.map((f) => ({ file: f, p: JSON.parse(fs.readFileSync(path.join(PASSAGES, f), 'utf8')) }));
@@ -222,6 +266,12 @@ describe('passage check: the stock on disk', () => {
       expect(reserve.length).toBeGreaterThanOrEqual(1);
       for (const { p } of reserve) expect([p.pool, p.band]).toEqual(['practice', 1]);
     }
+  });
+
+  test('the listening titles that hold an answer today are practice stories only, each a warning', () => {
+    const warned = all.filter(({ p }) => G.checkPassage(p).warnings.some((x) => x.startsWith('title_answer:'))).map(({ p }) => p.passage_id);
+    expect(warned.length).toBeGreaterThan(0);
+    for (const id of warned) expect(all.find(({ p }) => p.passage_id === id).p).toMatchObject({ kind: 'listen', pool: 'practice' });
   });
 
   test('exactly one reference per (language, band, kind) among the check files present', () => {
