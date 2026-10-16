@@ -225,6 +225,17 @@ describe('1 · golden: every new switch off, or only the children on — today, 
 describe('3 · every draw is logged in challenge_draws AND meta.draw', () => {
   beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL));
 
+  // EVENTS §2 (the card door leads to a run with via = quiz_card): the Jugnu card mints a hub token whose SIGNED
+  // payload carries src 'cd'; the serve reads the source from the signature only, never from a query parameter.
+  test('a run opened from the Jugnu card (hub token signed with src cd) is via quiz_card; a plain hub token stays hub', async () => {
+    const card = T.sign({ k: 'h', ids: [K3], exp: Math.floor(Date.now() / 1000) + 3600, src: 'cd' });
+    const ex = await Ch.exercise(card, 'read', D);
+    expect(rowOf(ex.ct).via).toBe('quiz_card');
+    db.web_quiz_challenge_runs.length = 0;
+    Ch.__reset();
+    const plain = await Ch.exercise(hub(K3), 'read', D);
+    expect(rowOf(plain.ct).via).toBe('hub');
+  });
   test('served: a grade-3 child draws in band 1 (entry_grade); the row is inserted at serve with the draw', async () => {
     const ex = await Ch.exercise(hub(K3), 'read', D);
     const row = rowOf(ex.ct);

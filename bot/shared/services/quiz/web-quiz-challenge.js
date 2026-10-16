@@ -332,7 +332,8 @@ async function entryOf(token, kid, device) {
     const trust = await require('./web-quiz-hub-device').deviceTrusted(token, device);
     if (!trust.ok || !trust.ids.includes(String(hit))) fail(403, 'other_device');
     // Standing class link: the pick's facts ride the hub token's `cl` claim to the run row (insertRun); absent today.
-    return { studentId: hit, via: 'hub', ...(h.src === 'cl' && h.cl ? { cl: h.cl } : {}) };
+    // A hub token the Jugnu card minted (signed src 'cd'): the run is the card's, via quiz_card (VIA.quiz).
+    return { studentId: hit, via: h.src === 'cd' ? 'quiz' : 'hub', ...(h.src === 'cl' && h.cl ? { cl: h.cl } : {}) };
   }
   // ── class round (web_quiz_class_round): a round turn token plays as the child whose turn is open, only during that turn ──
   const rt = T.verify(token, 'r');
