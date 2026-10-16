@@ -991,7 +991,7 @@ describe('the finish card and Home', () => {
     const root = await toDone(e);
     expect(e.calls.loaded.map((x) => x.src || x.href).filter((u) => /finish-card/.test(u))).toEqual(['/wq/wq-finish-card.css?v=abc123', '/wq/wq-finish-card.js?v=abc123']);
     expect(got.el).toBe(root.querySelector('[data-col]'));
-    expect(got.o).toEqual({ source: 'story', ended: 'read', pages_read: 2, stars: null, title: 'Mina Testwala', cover: undefined, lang: 'en', auth: { hub: TOKEN, kid: KID }, ev: expect.any(Function), home: '#', next: null });
+    expect(got.o).toEqual({ source: 'story', ended: 'read', pages_read: 2, pages_listened: expect.any(Number), stars: null, title: 'Mina Testwala', cover: undefined, lang: 'en', auth: { hub: TOKEN, kid: KID }, ev: expect.any(Function), home: '#', next: null });
     expect(root.querySelector('[data-own]').hidden).toBe(true);
   });
   test('the card refuses (false) -> our own block stays; no card_v3 -> nothing loaded', async () => {
@@ -1345,6 +1345,7 @@ describe('the done line for a partial listen', () => {
     expect(h).toContain('You listened with Jugnu!');
     expect(h).toContain('1 page heard');
     expect(got).toMatchObject({ source: 'story', ended: 'listened', pages_read: 0 });
+    expect(got.pages_listened).toBeGreaterThan(0);
   });
 });
 
