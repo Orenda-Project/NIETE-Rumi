@@ -89,6 +89,9 @@ app.use('/api/internal/wq', require('./shared/routes/web-quiz-internal.routes'))
 app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.routes'));
 // A teacher sends a storybook to the class (portal /api/teacher/stories, /api/teacher/story/share), same x-api-key check.
 app.use('/api/internal/ts', require('./shared/routes/story-teacher-internal.routes'));
+// ── first touch: the maker page ──
+try { require('./shared/services/first-touch/maker.mount').mountMaker(app); } catch (_) { /* not mounted; every other route is today's */ }   // /api/internal/ft (quiz_maker_page)
+// ── end first touch ──
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);
@@ -751,6 +754,16 @@ app.post('/webhook', async (req, res) => {
         const ConversationResume = require('./shared/services/conversation-resume.service');
         if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
       }
+
+      // ── first touch: the maker fallback's three buttons (quiz_maker_page; off or a throw → today's chain) ──
+      if (buttonId.startsWith('ft_fb_')) {
+        try {
+          if (await require('./shared/services/first-touch/maker.fallback').handleFallbackButton({ user, phone: from, id: buttonId, lang: user && user.preferred_language })) return;
+        } catch (err) {
+          logToFile('⚠️ first touch: the fallback tap failed — today\'s handling', { error: err && err.message });
+        }
+      }
+      // ── end first touch ──
 
       // Child test (bd-s1oo0.4): every ctst_ button (offer, Present/Absent/Refused, Stop, Menu,
       // No strip photo) belongs to the child test. Inert unless CHILD_TEST_ENABLED; false → the
