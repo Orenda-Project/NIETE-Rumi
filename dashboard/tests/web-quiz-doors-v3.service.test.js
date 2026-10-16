@@ -409,15 +409,33 @@ describe('after a watched video: a ranked Next from the server (watch.next) when
     q.nextEl.fire('click');
     expect(q.go).toHaveBeenCalledWith('/c/tok#bigger', 'after_video');
   });
-  test('no card: our own tile; next_shown carries source server for a ranked Next, fallback without one', async () => {
+  test('no card: our own tile; next_shown carries source ranked for a ranked Next, fallback without one', async () => {
     const p = watchWith({ kind: 'story', title: 'Read a story', title_ur: 'کہانی پڑھیں', href: '#stories' }, { card: false });
     await flush();
     p.vEl.fire('ended');
-    expect(p.evs.filter(([n]) => n === 'next_shown')).toEqual([['next_shown', { ctx: 'after_video', kind: 'story', pos: 0, source: 'server' }]]);
+    expect(p.evs.filter(([n]) => n === 'next_shown')).toEqual([['next_shown', { ctx: 'after_video', kind: 'story', pos: 0, source: 'ranked' }]]);
     const q = watchWith(null, { card: false });
     await flush();
     q.vEl.fire('ended');
     expect(q.evs.filter(([n]) => n === 'next_shown')).toEqual([['next_shown', { ctx: 'after_video', kind: 'quiz', pos: 0, source: 'fallback' }]]);
+  });
+  test('a ranked Next joins the server\'s offer: next_shown and next_tap carry its offer, source, rank_src, arm, score_v and id (the relay\'s own words)', async () => {
+    const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: true,
+      next: { kind: 'story', title: 'Read a story', href: '#stories', offer: 'abcdefghij', source: 'pinned', rank_src: 'ctrl', arm: 'b', score_v: 'v1', id: 'en.read.1.k02', bogus: '<x>' } } };
+    const answer = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(WATCH)), json: () => Promise.resolve(WATCH) });
+    const t = live({ fetchImpl: answer });
+    const tap = el(); tap.setAttribute('data-tap', 'after'); tap.closest = () => tap;
+    const after = el({ hidden: true, parentNode: { removeChild() {} }, querySelector: () => el() });
+    const vEl = el({ duration: 100, currentTime: 0 });
+    const root = fakeRoot({ '.wq-vid': vEl, '.wq-vplay': el(), '.wq-after': after }, [tap]);
+    const evs = [];
+    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]), go: jest.fn() }, `watch/${VID}`);
+    await flush();
+    vEl.fire('ended');
+    const join = { offer: 'abcdefghij', source: 'pinned', rank_src: 'ctrl', arm: 'b', score_v: 'v1', id: 'en.read.1.k02' };
+    expect(evs.find(([n]) => n === 'next_shown')[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join });
+    tap.fire('click', { preventDefault() {}, stopPropagation() {}, target: tap });
+    expect(evs.find(([n]) => n === 'next_tap')[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join });
   });
   test('a malformed next (no title, an outside href, javascript:) is ignored: today\'s rule', async () => {
     for (const bad of [{ href: '#stories' }, { title: 'x', href: 'https://evil.example/' }, { title: 'x', href: 'javascript:alert(1)' }, { title: 'x', href: '//evil.example/p' }, 'nope']) {

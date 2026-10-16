@@ -288,12 +288,26 @@
   // The server's ranked Next after this video (`watch.next`), or null: its words in the page's language and where it
   // goes — #after/<vid> the quiz after it (minted on the tap), #watch/<vid> another lesson here, another #hash of this
   // page, or a /path of this site. Anything else (no title, another site) is ignored and today's rule stands.
+  // The server's offer words for next_shown / next_tap (EVENTS_V3 §2), so a ranked tile joins its next_set: only short
+  // plain strings, only the keys the relay keeps; `source` is the slot's own (ranked | pinned), never invented.
+  var JOIN = ['offer', 'rank_src', 'arm', 'score_v', 'id'];
+  function joinOf(n) {
+    var j = { source: n.source === 'pinned' ? 'pinned' : 'ranked' };
+    JOIN.forEach(function (k) { if (typeof n[k] === 'string' && /^[A-Za-z0-9._:-]{1,64}$/.test(n[k])) j[k] = n[k]; });
+    return j;
+  }
+  function nextLine(next) {
+    var o = { ctx: 'after_video', kind: (next || {}).kind, pos: 0 };
+    var j = (next && next.ranked && next.join) || { source: 'fallback' };
+    for (var k in j) if (Object.prototype.hasOwnProperty.call(j, k)) o[k] = j[k];
+    return o;
+  }
   function rankedNext(n, ctx) {
     if (!n || typeof n !== 'object') return null;
     var title = (langOf(ctx) === 'ur' && n.title_ur) || n.title;
     var href = typeof n.href === 'string' ? n.href : '';
     if (typeof title !== 'string' || !title || !/^(#[A-Za-z0-9/_-]*|\/[A-Za-z0-9][^\s]*)$/.test(href)) return null;
-    var o = { kind: String(n.kind || ''), title: title, sub: typeof n.sub === 'string' ? n.sub : '', href: '#', ranked: true };
+    var o = { kind: String(n.kind || ''), title: title, sub: typeof n.sub === 'string' ? n.sub : '', href: '#', ranked: true, join: joinOf(n) };
     var m = /^#after\/([0-9a-f-]{36})$/.exec(href); var w = /^#watch\/([0-9a-f-]{36})$/.exec(href);
     if (m) o.quiz = true; else if (w) o.vid = w[1]; else if (href.charAt(0) === '#') o.hash = href; else o.path = href;
     return o;
@@ -347,7 +361,7 @@
         }
         if (tap === 'after') {
           e.preventDefault();
-          ev('next_tap', { ctx: 'after_video', kind: (view.next || {}).kind, pos: 0 });
+          ev('next_tap', nextLine(view.next));
           return afterGo(root, B, ctx);
         }
       });
@@ -408,7 +422,7 @@
       if (endCard(root, B, ctx, ev)) return;
       a.hidden = false;
       var nx = a.querySelector('.wq-vnext'); if (nx) nx.setAttribute('data-primary', '');
-      ev('next_shown', { ctx: 'after_video', kind: (view.next || {}).kind, pos: 0, source: (view.next || {}).ranked ? 'server' : 'fallback' });
+      ev('next_shown', nextLine(view.next));
     };
     if (playBtn) playBtn.addEventListener('click', function () { try { var p = vEl.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} });
     vEl.addEventListener('play', function () {
