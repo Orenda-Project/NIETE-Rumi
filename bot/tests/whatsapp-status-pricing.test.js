@@ -24,7 +24,7 @@ function aStatus(over = {}) {
     id: 'wamid.A1',
     status: 'delivered',
     timestamp: '1760600000',
-    recipient_id: '923001112223',
+    recipient_id: '+92300FIXTURE1',
     pricing: { billable: true, pricing_model: 'PMP', category: 'utility', type: 'regular' },
     ...over,
   };
@@ -49,7 +49,7 @@ describe('pricedFields', () => {
   test('reads billable, category, pricing_model and type from a delivered status', () => {
     expect(pricedFields(aStatus())).toEqual({
       wamid: 'wamid.A1', status: 'delivered', billable: true, category: 'utility',
-      pricingModel: 'PMP', pricingType: 'regular', phone: '923001112223',
+      pricingModel: 'PMP', pricingType: 'regular', phone: '+92300FIXTURE1',
     });
   });
 
@@ -74,19 +74,19 @@ describe('pricedFields', () => {
 describe('logPricedStatuses', () => {
   test('resolves three recipients in ONE users query and emits three events with the right userId', async () => {
     const chain = usersReturn({ data: [
-      { id: 'u1', phone_number: '923001112223' },
-      { id: 'u2', phone_number: '923004445556' },
-      { id: 'u3', phone_number: '923007778889' },
+      { id: 'u1', phone_number: '+92300FIXTURE1' },
+      { id: 'u2', phone_number: '+92300FIXTURE2' },
+      { id: 'u3', phone_number: '+92300FIXTURE3' },
     ], error: null });
     await logPricedStatuses([
       aStatus(),
-      aStatus({ id: 'wamid.B', recipient_id: '923004445556' }),
-      aStatus({ id: 'wamid.C', recipient_id: '923007778889', status: 'read' }),
+      aStatus({ id: 'wamid.B', recipient_id: '+92300FIXTURE2' }),
+      aStatus({ id: 'wamid.C', recipient_id: '+92300FIXTURE3', status: 'read' }),
     ], { phoneNumberId: 'P1' });
 
     expect(supabase.from).toHaveBeenCalledTimes(1);
     expect(supabase.from).toHaveBeenCalledWith('users');
-    expect(chain.in).toHaveBeenCalledWith('phone_number', ['923001112223', '923004445556', '923007778889']);
+    expect(chain.in).toHaveBeenCalledWith('phone_number', ['+92300FIXTURE1', '+92300FIXTURE2', '+92300FIXTURE3']);
     expect(chain.is).toHaveBeenCalledWith('deleted_at', null);
     expect(logEvent).toHaveBeenCalledTimes(3);
     expect(logEvent.mock.calls.map((c) => [c[0], c[1].userId, c[1].wamid])).toEqual([
@@ -97,9 +97,9 @@ describe('logPricedStatuses', () => {
   });
 
   test('never logs the phone number', async () => {
-    usersReturn({ data: [{ id: 'u1', phone_number: '923001112223' }], error: null });
+    usersReturn({ data: [{ id: 'u1', phone_number: '+92300FIXTURE1' }], error: null });
     await logPricedStatuses([aStatus()], { phoneNumberId: 'P1' });
-    expect(JSON.stringify(logEvent.mock.calls)).not.toContain('923001112223');
+    expect(JSON.stringify(logEvent.mock.calls)).not.toContain('+92300FIXTURE1');
   });
 
   test('an unknown recipient gets an event with no userId, and no user is created', async () => {
@@ -148,7 +148,7 @@ describe('handleStatusWebhook (the /webhook status branch)', () => {
   });
 
   test('a broadcast failure does not stop the pricing log, and does not throw', async () => {
-    usersReturn({ data: [{ id: 'u1', phone_number: '923001112223' }], error: null });
+    usersReturn({ data: [{ id: 'u1', phone_number: '+92300FIXTURE1' }], error: null });
     const broadcast = jest.fn(() => Promise.reject(new Error('db')));
     await expect(handleStatusWebhook({ statuses: [aStatus()], phoneNumberId: 'P1' }, broadcast)).resolves.toBeUndefined();
     expect(logEvent).toHaveBeenCalledWith('whatsapp.status.priced', expect.objectContaining({ userId: 'u1' }));
