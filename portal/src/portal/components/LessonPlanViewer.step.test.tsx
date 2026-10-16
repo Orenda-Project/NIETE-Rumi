@@ -28,7 +28,7 @@ const page = {
 };
 const doc = { numPages: 3, getPage: vi.fn(async () => page), destroy: vi.fn(async () => {}) };
 const VIEW = { source: { lane: "k5" as const, lessonId: "g1e8s6", assetKind: "lesson" as const }, title: "Sounds" };
-const MARK = { page: 2, top: 0.4, height: 0.02 };
+const MARK = { page: 2, top: 0.4, height: 0.02, bands: [{ page: 2, top: 0.4, bottom: 0.955 }] };
 let scrollTo: ReturnType<typeof vi.fn>;
 
 beforeAll(() => {

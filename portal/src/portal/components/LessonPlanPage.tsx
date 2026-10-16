@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { StepOutline } from './stepMark';
+import { StepBand, StepOutline } from './stepMark';
 import type { StepMark } from '../lib/planSteps';
 
 /**
  * One page of a lesson plan, drawn by pdf.js onto a <canvas> only while it is near the screen
  * (split out of LessonPlanViewer, bd-v0toag.60 — no behaviour change). Its step outline, when the
- * mark falls on this page, is drawn over it.
+ * mark falls on this page, is drawn over it, and the step's wash on every page the step runs over (bd-v0toag.78).
  */
 
 /** The look of a page's frame (the viewer's VIEWER_STYLE.page points here). */
@@ -88,6 +88,9 @@ export const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed, mark
       {/* bd-fmf24g.56: dir="ltr". A canvas inherits the page's direction, and in Urdu (rtl) pdf.js then draws each
           glyph offset by its own width: thin letters vanish and words break apart. A PDF page is always laid out ltr. */}
       <canvas ref={canvas} dir="ltr" role="img" aria-label={pageLabel(pageNumber)} className="block h-full w-full" />
+      {mark?.bands.filter((b) => b.page === pageNumber).map((b) => (
+        <StepBand key={`${b.page}-${b.top}`} band={b} star={b.page !== mark.page} />
+      ))}
       {mark && mark.page === pageNumber ? <StepOutline mark={mark} /> : null}
     </div>
   );

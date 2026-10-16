@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Star } from 'lucide-react';
-import { locateStep, type StepMark, type TextDocLike } from '../lib/planSteps';
+import { locateStep, type StepBand as Band, type StepMark, type TextDocLike } from '../lib/planSteps';
 
 /**
  * v10 coaching test (bd-v0toag.8, PR3) — the step her thing to try belongs to, on the plan the viewer draws
@@ -66,6 +66,31 @@ export function StepOutline({ mark }: { mark: Pick<StepMark, 'top' | 'height'> }
       >
         <Star className="h-5 w-5 fill-white text-white" />
       </span>
+    </div>
+  );
+}
+
+/**
+ * The whole step on one page it runs over (bd-v0toag.78, Amena 16 Oct: "star and highlight the exact step further in
+ * the LP"): a lighter amber frame and highlighter wash from its top to its bottom on this page, so the heading's
+ * outline stays the loudest thing. `star` puts a star on the pages after the heading's (that page has its own).
+ */
+export function StepBand({ band, star }: { band: Pick<Band, 'top' | 'bottom'>; star: boolean }) {
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="step-band"
+      className="pointer-events-none absolute inset-x-[1%] rounded-lg border-[3px] border-[#f59e0b] bg-[#fde047]/25 mix-blend-multiply"
+      style={{ top: `calc(${band.top * 100}% - 8px)`, height: `calc(${+((band.bottom - band.top) * 100).toFixed(2)}% + 8px)` }}
+    >
+      {star ? (
+        <span
+          data-testid="band-star"
+          className="absolute -start-3 -top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#f59e0b] shadow-md ring-2 ring-white"
+        >
+          <Star className="h-4 w-4 fill-white text-white" />
+        </span>
+      ) : null}
     </div>
   );
 }

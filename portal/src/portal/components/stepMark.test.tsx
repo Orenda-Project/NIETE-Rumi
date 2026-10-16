@@ -10,10 +10,10 @@ import { render, renderHook, waitFor } from "@testing-library/react";
 vi.mock("../lib/planSteps", () => ({ locateStep: vi.fn() }));
 
 import { locateStep } from "../lib/planSteps";
-import { StepOutline, jumpToMark, useStepJump, useStepMark } from "./stepMark";
+import { StepBand, StepOutline, jumpToMark, useStepJump, useStepMark } from "./stepMark";
 
 const locate = locateStep as unknown as ReturnType<typeof vi.fn>;
-const MARK = { page: 2, top: 0.25, height: 0.02 };
+const MARK = { page: 2, top: 0.25, height: 0.02, bands: [{ page: 2, top: 0.25, bottom: 0.955 }] };
 const doc = { numPages: 3, getPage: vi.fn() };
 
 let scrollTo: ReturnType<typeof vi.fn>;
@@ -142,5 +142,37 @@ describe("StepOutline", () => {
     expect(box.className).toMatch(/motion-safe:animate-\[/);
     expect(box.className).not.toMatch(/(^|\s)animate-pulse/);
     expect(box.className).not.toMatch(/infinite/);
+  });
+});
+
+// bd-v0toag.78 (Amena, 16 Oct): "can it be possible to also star and highlight the exact step further in the LP".
+// The whole step, heading to the next step, washed on every page it runs over, with a star on each page after the first.
+describe("StepBand", () => {
+  const BAND = { page: 3, top: 0.025, bottom: 0.6 };
+
+  it("covers the step's run on this page, out of the way of taps and screen readers", () => {
+    const { container } = render(<StepBand band={BAND} star />);
+    const box = container.firstChild as HTMLElement;
+    expect(box.getAttribute("aria-hidden")).toBe("true");
+    expect(box.className).toMatch(/pointer-events-none/);
+    expect(box.className).toMatch(/absolute/);
+    expect(box.style.top).toMatch(/^calc\(2\.5%/);
+    expect(box.style.height).toMatch(/57\.5/);
+  });
+
+  it("an amber frame and a highlighter wash that keeps the plan readable", () => {
+    const { container } = render(<StepBand band={BAND} star />);
+    const box = container.firstChild as HTMLElement;
+    expect(box.className).toMatch(/border-\[#f59e0b\]/);
+    expect(box.className).toMatch(/mix-blend-multiply/);
+    expect(box.className).toMatch(/bg-\[#fde047\]/);
+  });
+
+  it("a star on a page the step runs on to; none where the heading's own star already is", () => {
+    const on = render(<StepBand band={BAND} star />);
+    expect(on.container.querySelector("[data-testid='band-star'] svg")).not.toBeNull();
+    on.unmount();
+    const off = render(<StepBand band={BAND} star={false} />);
+    expect(off.container.querySelector("[data-testid='band-star']")).toBeNull();
   });
 });
