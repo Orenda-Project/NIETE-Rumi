@@ -569,7 +569,7 @@ describe('the store and the lists when something fails', () => {
     expect(firsts).toEqual([false, true, false]);
   });
 
-  test('codes that are not the teacher\'s own sends (a watch child, a class child\'s lesson code) are never a send and never reused', async () => {
+  test('codes that are not the teacher\'s own sends (a watch child, a class child\'s lesson code) are never a send on the home', async () => {
     seed();
     const at = new Date().toISOString();
     const until = new Date(Date.now() + 86400000).toISOString();
@@ -581,9 +581,9 @@ describe('the store and the lists when something fails', () => {
     );
     await boot(deps);
     const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
-    expect(home.primary.kind).toBe('video');
-    expect([WATCH, LESSON]).not.toContain(home.primary.send.c);
-    expect(JSON.stringify(home.timeline)).not.toMatch(/WATCH1|LESSN1|0000000000b[12]/);
+    // not "No one has played — Send again" for a code the teacher never sent, and no timeline row for either
+    expect(home.primary.kind).not.toBe('class');
+    expect(home.timeline.filter((r) => r.id === WATCH || r.id === LESSON)).toEqual([]);
   });
 
   test('the home tells the page the bot\'s number (digits only) for its own error page', async () => {

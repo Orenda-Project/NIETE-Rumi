@@ -139,7 +139,7 @@ async function liveQuiz({ grade, subject, quizId }) {
 async function heldCode(uid, quizId, now) {
   const { data, error } = await supabase.from('quiz_share_codes')
     .select('id, code, teacher_name, topic, language, active, expires_at, created_at, class_id')
-    .eq('teacher_user_id', uid).eq('quiz_id', quizId).is('parent_share_code_id', null).is('invited_by_student_id', null);
+    .eq('teacher_user_id', uid).eq('quiz_id', quizId).is('invited_by_student_id', null);
   if (error) throw new Error(error.message || 'share code read failed');
   const live = (data || []).filter((c) => c.active !== false && (!c.expires_at || new Date(c.expires_at).getTime() > now));
   live.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
