@@ -384,22 +384,28 @@
       var sticker = !round && !d.practice_round && !r.noSticker && r.sticker !== false ? '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>' : '';
       var next = nx && nx.title ? '<p class="wq-sub" id="wqc-next">' + esc(t.endNext(nx.title)) + '</p>' : '';
       var b3 = (r.read_along_first || d.read_along_first) ? '<p class="wq-sub" id="wqc-b3">' + esc(t.endB3Next) + '</p>' : '';
-      var again = r.again ? btn('wqc-again', h.t.again, 'wq-soft') : '';
+      // hold: a live reading's card before the server's result settles: the listening line, and no button the result
+      // could change (no again, no questions; Home only when the questions are off, the same Home in both results)
+      var hold = !!r.hold;
+      var wait = hold ? '<p class="wq-sub" id="wqc-listening">' + esc(h.t.listening) + '</p>' : '';
+      var again = r.again && !hold ? btn('wqc-again', h.t.again, 'wq-soft') : '';
       // the questions about the story read still follow a reading (today's step; its own back button)
-      var qa = r.qa ? h.qaButtons() : '';
+      var qa = r.qa && !hold ? h.qaButtons() : '';
+      var home = hold && d.questions_on ? '' : btn('wqc-menu', t.endHome);
       if (round) {
-        h.show(name, h.jug(pose, line, true) + '<div class="wq-stack">' + btn('wqc-handback', d.round_handback || '') + '</div>');
+        h.show(name, h.jug(pose, line, true) + wait + '<div class="wq-stack">' + btn('wqc-handback', d.round_handback || '') + '</div>');
         h.on('wqc-handback', function () { if (d.round_back) location.href = d.round_back; else { try { history.back(); } catch (e) { /* stays */ } } });
         return;
       }
-      h.show(name, h.jug(pose, line, true) + sticker + next + b3 + '<div class="wq-stack">' + (qa || btn('wqc-menu', t.endHome)) + again + '</div>');
+      h.show(name, h.jug(pose, line, true) + wait + sticker + next + b3 + '<div class="wq-stack">' + (qa || home) + again + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });
       if (r.qa) h.on('wqc-qa', function () { h.qa().open(); });
     }
     function storyLen(d) { return (d && d.story && d.story.tokens && d.story.tokens.length) || 0; }
     // heard: a live reading's words heard; when given, it chooses the line (all = 90% of the story's words heard)
-    function readEnd(r, words, heard) {
+    // hold: the card waits for the server's result (endCard); true back = held, the page draws the settled card later
+    function readEnd(r, words, heard, hold) {
       var d = h.S.data || {};
       if (isStory()) {
         var heard = r && !r.failed && !r.later && r.score && (r.score.attempted != null ? r.score.attempted : r.score.correct) > 0;
@@ -411,9 +417,12 @@
       var byHeard = heard != null;
       var zero = !r || r.failed || !(n > 0) || (byHeard && !(heard > 0));
       var all = !zero && storyLen(d) > 0 && (byHeard ? heard >= 0.9 * storyLen(d) : n >= storyLen(d));
-      var ex = Object.assign({}, r || {}, { again: zero, qa: !zero && !!d.questions_on });
+      var ex = Object.assign({}, r || {}, { again: zero, qa: !zero && !!d.questions_on, hold: !!hold });
       endCard('read-result', zero ? 'hello' : 'celebrate', zero ? t.endZeroWords : (all ? t.endReadAll : t.endReadSome), ex);
+      return !!hold;
     }
+    // a live reading's first card, before the server answers (the story room draws at once, as today)
+    function readHold(r, words, heard) { return readEnd(r, words, heard, true) === true; }
     // s: the server's score for bigger / missing; a run stopped early did not answer every question, so the card
     // never says it did: the sticker line alone (a first counted run), or today's "Stop done!" on a practice round
     function tapEnd(name, s) {
@@ -429,7 +438,7 @@
     }
 
     return { opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
-      readEnd: readEnd, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, introTitle: introTitle, introLine: introLine, T: T };
+      readEnd: readEnd, readHold: readHold, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, introTitle: introTitle, introLine: introLine, T: T };
   }
 
   window.WQTRAIL = { init: init, T: T };
