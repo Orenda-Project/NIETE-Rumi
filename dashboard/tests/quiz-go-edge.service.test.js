@@ -104,12 +104,42 @@ test('a malformed token falls through with no bot call', async () => {
   expect(calls).toHaveLength(0);
 });
 
-test('a bot that cannot be reached → the go.error page (503), never a 500', async () => {
+test('a bot that cannot be reached → today\'s handling answers (the edge draws no page of its own), never a 500', async () => {
   await boot(() => { throw new Error('ECONNREFUSED'); });
   const r = await req(srv, 'GET', `/quiz/go/${TOK}`, { headers: { 'accept-language': 'ur-PK' } });
-  expect(r.status).toBe(503);
-  expect(r.body).toContain('یہ نہیں ہو سکا۔');
-  expect((await req(srv, 'POST', '/api/go/role', { body: { t: TOK, side: 'teacher' } })).status).toBe(503);
+  expect(r.status).toBe(299);
+  expect(r.body).toBe('today');
+  expect(r.headers['set-cookie']).toBeUndefined();
+  expect((await req(srv, 'POST', '/api/go/role', { body: { t: TOK, side: 'teacher' } })).status).toBe(299);
+});
+
+test('over the rate limit → today\'s handling answers (no page of ours), with no bot call', async () => {
+  await boot(() => botRes(404, { body: JSON.stringify({ off: true }) }));
+  for (let i = 0; i < 120; i += 1) await req(srv, 'GET', `/quiz/go/${TOK}`);
+  const n = calls.length;
+  const r = await req(srv, 'GET', `/quiz/go/${TOK}`);
+  expect(r.status).toBe(299);
+  expect(r.body).toBe('today');
+  expect(calls).toHaveLength(n);
+  expect((await req(srv, 'POST', '/api/go/who', { body: { t: TOK } })).status).toBe(299);
+});
+
+test('the edge\'s own error page (the bot answered) carries ONE tap back to the bot: wa.me/<bot>?text=quiz', async () => {
+  const saved = { W: process.env.WHATSAPP_BOT_NUMBER, R: process.env.REFERRAL_BOT_NUMBER };
+  try {
+    process.env.WHATSAPP_BOT_NUMBER = '+92 300 0000000';
+    await boot(() => botRes(302, { location: 'https://evil.example/x' }));
+    const r = await req(srv, 'GET', `/quiz/go/${TOK}`);
+    expect(r.status).toBe(502);
+    expect(r.body).toContain('href="https://wa.me/923000000000?text=quiz"');
+    expect(r.body).toContain('Open WhatsApp');
+    delete process.env.WHATSAPP_BOT_NUMBER; delete process.env.REFERRAL_BOT_NUMBER;
+    const q = await req(srv, 'GET', `/quiz/go/${TOK}`);
+    expect(q.body).not.toContain('wa.me');
+  } finally {
+    if (saved.W === undefined) delete process.env.WHATSAPP_BOT_NUMBER; else process.env.WHATSAPP_BOT_NUMBER = saved.W;
+    if (saved.R === undefined) delete process.env.REFERRAL_BOT_NUMBER; else process.env.REFERRAL_BOT_NUMBER = saved.R;
+  }
 });
 
 test('POST /api/go/role forwards only {t, side}; the answer\'s next must be this site\'s page', async () => {

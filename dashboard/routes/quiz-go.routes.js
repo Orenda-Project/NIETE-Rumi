@@ -13,8 +13,9 @@
  * (the landing link is bound to its first device). Only a Location of this site's own pages is passed on.
  *
  * The bot answers 404 {off:true} when the switch is off: the edge then calls next() — today's handling (the SPA
- * catch-all) answers, byte for byte. A malformed token falls through with no bot call. A bot that cannot be reached →
- * the go.error page / 503 {error:'go.error'}. The edge never touches the database.
+ * catch-all) answers, byte for byte. A malformed token, a bot that cannot be reached and a caller over the rate limit
+ * all fall through the same way: the edge draws a page only after the bot answered with the switch on (a Location off
+ * this site, a bot 5xx → go.error with its one "Open WhatsApp" tap). The edge never touches the database.
  */
 const crypto = require('crypto');
 const express = require('express');
@@ -49,6 +50,12 @@ function formBody(kind, body) {
 /** The request's language for an edge-made error page: the phone's Accept-Language (Urdu) else both. */
 const langOf = (req) => (/^\s*ur\b/i.test(String((req.get && req.get('accept-language')) || '')) ? 'ur' : 'bi');
 
+/** This deployment's dialable bot number (WHATSAPP_BOT_NUMBER, else REFERRAL_BOT_NUMBER — the share links' source). */
+const botNumber = () => String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '') || null;
+
+/** The go.error page for an answer the bot gave that this edge cannot pass on, with its one "Open WhatsApp" tap. */
+const errorPage = (req) => GoPage.buildMessagePage({ id: 'go.error', lang: langOf(req), bot: botNumber() });
+
 function sendPage(res, built, status = 200) {
   res.set({ ...PRIVATE, 'Content-Security-Policy': built.csp });
   return res.status(status).type('html').send(built.html);
@@ -76,7 +83,7 @@ function createQuizGoRouter(opts = {}) {
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 120, standardHeaders: false, legacyHeaders: false, validate: false,
     keyGenerator: (req) => `go:${clientIp(req)}`,
-    handler: (req, res) => sendPage(res, GoPage.buildMessagePage({ id: 'go.error', lang: langOf(req) }), 429),
+    handler: (req, res, next) => next('route'),   // over the limit: today's handling answers (no page of ours, no bot call)
   });
   const lenient = (parser) => (req, res, next) => parser(req, res, (err) => { if (err) req.body = {}; next(); });
   const parse = [lenient(express.json({ limit: '4kb' }))];
@@ -99,16 +106,16 @@ function createQuizGoRouter(opts = {}) {
     try {
       out = await callBot('GET', `${BOT_BASE}/land/${token}${ask}`, req, null, { raw: true, device: dv.ref, route: '/api/internal/go/land/:t' });
     } catch (_) {
-      return sendPage(res, GoPage.buildMessagePage({ id: 'go.error', lang: langOf(req) }), 503);
+      return next();   // the bot cannot be reached: today's handling answers (the edge draws no page of its own)
     }
     if (isOff(out)) return next();   // nothing was set on the response: today's handling answers
     if (dv.minted) res.append('Set-Cookie', dv.minted);
     if (out.status >= 300 && out.status < 400) {
-      if (!okLocation(out.location)) return sendPage(res, GoPage.buildMessagePage({ id: 'go.error', lang: langOf(req) }), 502);
+      if (!okLocation(out.location)) return sendPage(res, errorPage(req), 502);
       res.set(PRIVATE);
       return res.redirect(302, out.location);
     }
-    if (out.status >= 500) return sendPage(res, GoPage.buildMessagePage({ id: 'go.error', lang: langOf(req) }), 503);
+    if (out.status >= 500) return sendPage(res, errorPage(req), 503);
     res.set(PRIVATE);   // the bot's page carries its own Content-Security-Policy <meta>
     return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
   });
@@ -121,8 +128,7 @@ function createQuizGoRouter(opts = {}) {
       try {
         out = await callBot('POST', `${BOT_BASE}/${kind}`, req, { t, ...formBody(kind, req.body) }, { route: `/api/internal/go/${kind}` });
       } catch (_) {
-        res.set(PRIVATE);
-        return res.status(503).json({ error: 'go.error' });
+        return next();   // the bot cannot be reached: today's handling answers
       }
       if (isOff(out)) return next();
       res.set(PRIVATE);

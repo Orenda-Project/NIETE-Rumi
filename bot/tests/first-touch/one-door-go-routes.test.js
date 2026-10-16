@@ -60,6 +60,7 @@ const WebQuizToken = require('../../shared/services/quiz/web-quiz-token');
 const OneDoorFlags = require('../../shared/services/first-touch/one-door.flags');
 const OneDoor = require('../../shared/services/first-touch/one-door.service');
 const GoToken = require('../../shared/services/first-touch/go.token');
+const Page = require('../../shared/services/first-touch/go.page');
 const HubFlags = require('../../shared/services/quiz/web-quiz-hub-flags');
 const IdFlags = require('../../shared/services/quiz/web-quiz-identity-flags');
 const { mountGo } = require('../../shared/services/first-touch/go.mount');
@@ -283,6 +284,38 @@ describe('land', () => {
     expect(html).toContain('data-screen="go.family"');
   });
 
+  test('the stale and error pages carry ONE tap back to the bot (wa.me/<bot>?text=quiz, "Open WhatsApp"); no number → the words alone', async () => {
+    const saved = { W: process.env.WHATSAPP_BOT_NUMBER, R: process.env.REFERRAL_BOT_NUMBER };
+    try {
+      world();
+      process.env.WHATSAPP_BOT_NUMBER = '+92 300 0000000';
+      const t = await mint(UNKNOWN, PH.unknown);
+      await land(t);
+      const stale = await (await land(t, DEV2)).text();
+      expect(stale).toContain('data-screen="go.stale"');
+      expect(stale).toContain('href="https://wa.me/923000000000?text=quiz"');
+      expect(stale).toContain('Open WhatsApp');
+      expect(stale).toContain('واٹس ایپ کھولیں');
+      expect(stale.match(/wa\.me/g)).toHaveLength(1);
+      const ur = Page.buildMessagePage({ id: 'go.error', lang: 'ur', bot: '923000000000' }).html;
+      expect(ur).toContain('href="https://wa.me/923000000000?text=quiz"');
+      expect(ur).toContain('واٹس ایپ کھولیں');
+      expect(ur).not.toContain('Open WhatsApp');
+      delete process.env.WHATSAPP_BOT_NUMBER; delete process.env.REFERRAL_BOT_NUMBER;
+      const none = await (await land(t, DEV2)).text();
+      expect(none).toContain('This link has expired.');
+      expect(none).not.toContain('wa.me');
+      expect(Page.buildMessagePage({ id: 'go.stale', lang: 'bi', bot: 'not a number' }).html).not.toContain('wa.me');
+    } finally {
+      if (saved.W === undefined) delete process.env.WHATSAPP_BOT_NUMBER; else process.env.WHATSAPP_BOT_NUMBER = saved.W;
+      if (saved.R === undefined) delete process.env.REFERRAL_BOT_NUMBER; else process.env.REFERRAL_BOT_NUMBER = saved.R;
+    }
+  });
+
+  test('the error line a parent reads is at least 18 px (Urdu)', () => {
+    expect(String(Page._CSS)).toMatch(/\.err\{[^}]*font-size:18px/);
+  });
+
   test('re-usable on the same phone; another phone → go.stale; forged / expired / unknown nonce → go.stale; never a 500', async () => {
     world();
     const t = await mint(UNKNOWN, PH.unknown);
@@ -492,6 +525,21 @@ describe('the sandbox walk-through hooks (the module present; its own switch dec
     expect(html.indexOf('data-screen="walkthrough"')).toBeGreaterThan(html.indexOf('class="note"'));
     mockPersona = { row: jest.fn(async () => null) };
     expect(await (await land(await mint(UNKNOWN, PH.unknown))).text()).not.toContain('walkthrough');
+  });
+
+  test('the module ABSENT: the one question page is byte-identical to the page without a row, and /persona is 404', async () => {
+    world();
+    Optional._set('testPersona', null);
+    try {
+      const t = await mint(UNKNOWN, PH.unknown);
+      const r = await land(t);
+      const built = Page.buildRolePage({ t, lang: 'bi' });
+      expect(await r.text()).toBe(built.html);
+      expect(r.headers.get('content-security-policy')).toBe(built.csp);
+      expect((await post('persona', { t, as: 'fresh' })).status).toBe(404);
+    } finally {
+      standIn();
+    }
   });
 
   test('its route is mounted on the router when the module exports mount()', () => {

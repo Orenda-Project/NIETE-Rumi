@@ -121,6 +121,11 @@ async function deviceKids(d) {
   return ids.filter((id) => live.has(id)).map((id) => ({ id, first: live.get(id) }));
 }
 
+/** This deployment's dialable bot number (the share links' source), or null. */
+function botNumber() {
+  try { return require('../quiz/video-quiz-share.service').botNumber() || null; } catch (_) { return null; }
+}
+
 /** The bind claim given back (the write did not happen). Best effort: a Redis miss leaves the link used, never wrong. */
 async function releaseBind(n) {
   try { await require('../cache/railway-redis.service').delete(GoNonce._key.used(n, 'bind')); } catch (_) { /* used stays used */ }
@@ -163,7 +168,7 @@ function render(res, d, t, lang) {
   if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids }));
   if (d.page === 'role') return rolePage(res, t, lang);
   if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang }));
-  return page(res, Page.buildMessagePage({ id: 'go.error', lang }));
+  return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber() }));
 }
 
 router.get('/land/:token', async (req, res) => {
@@ -175,7 +180,7 @@ router.get('/land/:token', async (req, res) => {
     if (o.stale) {
       event('one_door.landed', { side: null, src: null, how: `stale_${o.stale}` });
       await v3('go_stale', { why: o.stale, lang });
-      return page(res, Page.buildMessagePage({ id: 'go.stale', lang }));
+      return page(res, Page.buildMessagePage({ id: 'go.stale', lang, bot: botNumber() }));
     }
     // the one question paints before any database read; who this phone is, is asked after paint
     if (o.p.side === 'unknown' || req.query.ask === '1') {
@@ -187,7 +192,7 @@ router.get('/land/:token', async (req, res) => {
     return render(res, d, t, lang);
   } catch (err) {
     logToFile('❌ one door: landing failed', { error: err && err.message }, 'error');
-    return page(res, Page.buildMessagePage({ id: 'go.error', lang }));
+    return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber() }));
   }
 });
 

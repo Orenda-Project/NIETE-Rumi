@@ -13,7 +13,8 @@
  *   buildPickPage({ t, lang, kids })  the children the server already knows for this phone (first names only):
  *                                 one → "Is it <First>?"; several → "Who is playing?" chips; then the notice sentences
  *                                 BEFORE "Yes, it's me" (POST /api/go/bind), and "None of these" → the one question.
- *   buildMessagePage({ id, lang })  one line + nothing to do: go.stale (send "quiz" again), go.error, go.family
+ *   buildMessagePage({ id, lang, bot? })  one line: go.stale (send "quiz" again), go.error, go.family; the first two
+ *                                   carry ONE "Open WhatsApp" tap (wa.me/<bot>?text=quiz) when `bot` is a dialable number
  *
  * Inline CSS and the one script are allowed by their sha256 in the page's Content-Security-Policy (sent as a header
  * and repeated in a <meta>). The token rides in a <script type="application/json"> block, never in a log. The page
@@ -49,7 +50,8 @@ const CSS = [
   '.c .ic{color:var(--amber)}.t .ic{color:var(--blue)}.lb .en{text-align:right}',
   '.lb{display:flex;flex-direction:column;gap:2px}.lb b{font-size:24px;font-weight:400}.lb small{font-size:18px;color:var(--muted)}',
   '.note{margin:4px 0 0;text-align:center;font-size:18px;color:var(--muted)}',
-  '.err{margin:0;padding:8px 12px;border-radius:12px;background:var(--warn-bg);color:var(--warn);font-weight:800;text-align:center}',
+  '.err{margin:0;padding:8px 12px;border-radius:12px;background:var(--warn-bg);color:var(--warn);font-weight:800;text-align:center;font-size:18px}',
+  '.wa{display:block;min-height:48px;padding:10px 16px;border-radius:16px;background:var(--green);color:#fff;font-size:20px;font-weight:800;text-align:center;text-decoration:none}.wa .en{color:#fff}',
   '.msg{margin:40px 0 0;padding:18px;border-radius:18px;background:var(--card);border:2px solid var(--line);text-align:center;font-size:20px}',
   '.sheet{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:22px;border:3px solid var(--amber);background:var(--amber-bg)}',
   '.q{margin:0;font-size:26px;text-align:center}.q .en{font-size:17px;font-weight:800;color:var(--ink)}',
@@ -191,9 +193,12 @@ function buildPickPage({ t, lang = 'bi', kids = [] } = {}) {
 }
 
 /** One line, nothing to tap: go.stale | go.error | go.family (the student tap while the join screen is not on). */
-function buildMessagePage({ id = 'go.error', lang = 'bi' } = {}) {
+function buildMessagePage({ id = 'go.error', lang = 'bi', bot = null } = {}) {
   const ids = id === 'go.family' ? ['go.family.h', 'go.family.none'] : [id];
-  const body = `<main class="go" data-screen="${esc(id)}">${ids.map((x) => `<p class="msg">${two(x, lang)}</p>`).join('')}</main>`;
+  // a dead end carries ONE tap back to the bot's chat with "quiz" typed (no dialable number → the words alone)
+  const n = id === 'go.stale' || id === 'go.error' ? require('./cards.page').botOf(bot) : null;
+  const wa = n ? `<a class="wa" href="https://wa.me/${n}?text=quiz" data-tap="open_whatsapp">${two('go.wa', lang)}</a>` : '';
+  const body = `<main class="go" data-screen="${esc(id)}">${ids.map((x) => `<p class="msg">${two(x, lang)}</p>`).join('')}${wa}</main>`;
   return shell({ title: str(ids[0], clampLanguage(lang)), body });
 }
 

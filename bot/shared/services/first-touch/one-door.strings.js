@@ -61,6 +61,7 @@ const S = Object.freeze({
   // the landing's notes
   'go.stale': Object.freeze({ en: 'This link has expired. For a new one, send “quiz” in the chat.', ur: 'اس لنک کی مدت ختم ہو گئی ہے۔ نیا لنک لینے کے لیے چیٹ میں ”کوئز“ لکھ کر بھیجیں۔' }),
   'go.error': Object.freeze({ en: "That didn't work. Try again in a moment.", ur: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔' }),
+  'go.wa': Object.freeze({ en: 'Open WhatsApp', ur: 'واٹس ایپ کھولیں' }),
   'go.family.h': Object.freeze({ en: 'Playing from home?', ur: 'گھر سے کھیلنا ہے؟' }),
   'go.family.none': Object.freeze({ en: 'No class link yet? Ask your teacher.', ur: 'ابھی لنک نہیں ملا؟ اپنے ٹیچر سے پوچھیں۔' }),
 });
