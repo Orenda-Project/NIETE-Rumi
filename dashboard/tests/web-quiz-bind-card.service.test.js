@@ -151,7 +151,7 @@ test('focus return: pending shows nothing new; expired asks again', async () => 
 
 test('the STOP line says the phone link only: STOP removes the number, no readings or deletion claim; the sheet makes no deletion claim (EN, UR)', () => {
   const NOTICE = {
-    en: 'A grown-up can undo this any time by sending STOP on WhatsApp.',
+    en: 'A grown-up can remove this phone number any time by sending STOP on WhatsApp.',
     ur: "گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔",   // v2.1: U+00A0 inside «واٹس ایپ»
   };
   for (const lang of ['en', 'ur']) {

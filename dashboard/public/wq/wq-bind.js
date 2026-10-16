@@ -25,7 +25,7 @@
       yes: "Yes, it's me",
       no: "No, it's not me",
       noticeSave: function (name) { return "Jugnu will save this phone number with " + name + "'s name until the end of the school year (31 March), longer only if you keep playing."; },
-      noticeStopPhoneOnly: "A grown-up can undo this any time by sending STOP on WhatsApp.",
+      noticeStopPhoneOnly: "A grown-up can remove this phone number any time by sending STOP on WhatsApp.",
       noticeReadings: function (name) { return "Readings " + name + " makes with the microphone are kept too."; },
       whoSends: "A grown-up sends one WhatsApp message from this phone.",
       sendBtn: "Send on WhatsApp",
