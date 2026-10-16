@@ -244,8 +244,21 @@
       // Only a hub for one child carries that child's language; with no child picked the bot's lang is a
       // default, and the server render's (from this family's children) stays.
       if (B.kid) setLang(B.lang || LANG);
+      if (B.play && B.play.install) manifestIn();
       boot();
     }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); locked(); });
+  }
+
+  // The install manifest has the same first-open gap: renderHubPage writes <link rel="manifest"> only on an unlocked
+  // render with play.install. Added once, with the server's href (this hub's token, ?kid= for a 16-hex chip).
+  function manifestIn() {
+    try {
+      if (document.querySelector('link[rel="manifest"]')) return;
+      var l = document.createElement('link');
+      l.rel = 'manifest';
+      l.href = '/h/' + TOKEN + '/manifest.webmanifest' + (B.kid && /^[0-9a-f]{16}$/.test(B.kid) ? '?kid=' + B.kid : '');
+      document.head.appendChild(l);
+    } catch (e) {}
   }
 
   /* ---------------- H2 the hub ---------------- */
