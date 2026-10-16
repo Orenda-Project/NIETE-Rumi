@@ -97,10 +97,9 @@ const fail = (status, error) => { throw new CardError(status, error); };
 // ─── the switch ─────────────────────────────────────────────────────────────
 
 let cache = null;
+// On only as JSON true: a string "true" row is off, as every child-page switch reads it (one truth across the pages).
 function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+  return value === true;
 }
 /** true only with app_settings web_quiz_card_v3 literally true; 30 s cache; fails closed. Never throws. */
 async function on(now = Date.now()) {
