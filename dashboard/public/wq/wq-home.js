@@ -82,7 +82,8 @@
       : { kind: 'quiz', title: g.done ? t.nextAgain : t.nextQuiz, sub: g.topic || '', href: quizHref(g.code, g.k, g.done), src: 'door' };
     return { kind: 'none', title: t.nextNone, sub: '', href: null, src: 'none' };
   }
-  function storyHref(B, ctx, s) { return chHref(B, ctx) + '&room=story&pid=' + encodeURIComponent(s.id); }
+  // A listening story asks the story room for a listen (wq-trail.js reads &ex=listen), else it is served as a read.
+  function storyHref(B, ctx, s) { return chHref(B, ctx) + '&room=story&pid=' + encodeURIComponent(s.id) + (s.kind === 'listen' ? '&ex=listen' : ''); }
   var POSE = { story: 'hello', game: 'correct', quiz: 'thinking', video: 'idle', none: 'sleep' };
 
   /* ---------------- markup ---------------- */
