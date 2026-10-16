@@ -161,7 +161,7 @@ describe('events v3 on', () => {
   });
 });
 
-describe('events v3 on: the relay keeps the amended names (EVENTS v3 changelog 19:3xZ)', () => {
+describe('events v3 on: the relay keeps the amended names (EVENTS v3 §2 and §4)', () => {
   const by = (n) => logEvent.mock.calls.filter(([name]) => name === n).map(([, f]) => f);
   const hub = () => ({ ht: T.signHub([KID]), chip: T.chipId('h', KID) });
 
@@ -244,7 +244,7 @@ describe('events v3 on: the relay keeps the amended names (EVENTS v3 changelog 1
   });
 });
 
-describe('tk: the teacher key (RULING: one helper, beside kid())', () => {
+describe('tk: the teacher key, one helper beside kid()', () => {
   const crypto = require('crypto');
   const UID = '11111111-1111-4111-8111-000000000001';
   test('HMAC-SHA256(key, "t|" + id) hex[0:16], the same function from the kid and the events modules', () => {
