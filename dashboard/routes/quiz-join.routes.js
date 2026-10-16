@@ -26,8 +26,7 @@ const WARM = ['/wq/hub.js', '/wq/wq.css', '/wq/hub-play.js', '/wq/wq-tel.js'];
 // The Urdu face the child home's wq.css already uses (same URL, so the join's download is the home's cache hit).
 const UR_FONT = '/wq/fonts/wq-nastaliq-5.woff2';
 
-// COPY_FTUE §3 (signed in COPY_FTUE_UR_READ §3, FIX rows applied); the REAL strings reused are named beside each;
-// the new lines are signed in outputs/lanes/m-student-join/urdu_read.md (FIX rows applied).
+// Every line had a native Urdu read; the existing strings reused are named beside each.
 const COPY = {
   en: {
     title: 'Jugnu',
@@ -46,8 +45,8 @@ const COPY = {
     full: 'This phone already has 4 children. Open it and pick your name.',
     open: 'Open',
     teacher: "This is a teacher's phone, so nothing is saved here. Play anyway!",
-    practice: 'Practice: nothing is saved on this phone',            // th.practice (COPY_FTUE §7)
-    // fd.sub / fd.none (onboard COPY C, signed): the words when the join cannot save
+    practice: 'Practice: nothing is saved on this phone',
+    // the family door's fd.sub / fd.none: the words when the join cannot save
     off: 'Open the link your teacher sent to the class group, or type the code written on it.',
     offNone: 'No class link yet? Ask your teacher.',
     stale: 'This link has expired. For a new one, send “quiz” in the chat.',   // mk.stale (signed)
@@ -71,7 +70,7 @@ const COPY = {
     teacher: 'یہ ٹیچر کا فون ہے، اس لیے یہاں کچھ محفوظ نہیں ہوگا۔ پھر بھی کھیلیں!',
     practice: 'مشق: اس فون پر کچھ محفوظ نہیں ہوگا',
     off: 'ٹیچر نے کلاس گروپ میں جو لنک بھیجا ہے وہ کھولیں، یا اُس پیغام میں لکھا کوڈ یہاں لکھیں۔',
-    // fd.none with the native read's FIX (urdu_read.md): «اپنے ٹیچر» assumed a man; the bare noun is neutral
+    // fd.none with the native read's fix: «اپنے ٹیچر» assumed a man; the bare noun is neutral
     offNone: 'ابھی لنک نہیں ملا؟ ٹیچر سے پوچھیں۔',
     stale: 'اس لنک کی مدت ختم ہو گئی ہے۔ نیا لنک لینے کے لیے چیٹ میں ”کوئز“ لکھ کر بھیجیں۔',
     error: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',

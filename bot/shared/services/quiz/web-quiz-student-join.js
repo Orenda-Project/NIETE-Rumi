@@ -14,7 +14,7 @@
  *   join({ t, grade, name, device, same, force })   the ONE write (below) → { next } | { ask } | { refused, next? } | { stale } | { off }
  *   practiceJoinUrl({ uid, lang })   the coach's "Try it as a student": a practice j token (no nonce) → its URL
  *   pageInfo({ t })                  the join page's shell answer (the switch, the token): { lang, practice } | { stale } | { off }
- *   autoBind({ n })                  the `/quiz` landing of a phone with children but no binding (ROLE §4.2): never
+ *   autoBind({ n })                  the `/quiz` landing of a phone with children but no binding: never
  *                                    a silent bind — the confirm sheet's chips ("Is it <First>?" + the notice)
  *   bindPick({ n, chip })            the sheet's "Yes, it's me" → the binding (via 'guest'), home with from=bind
  *   noteRecognised({ phoneNorm })    join_recognised: a self-joined child's phone is known again (once a PKT day)
@@ -29,7 +29,7 @@
  * already on this phone ("Is this you?", never a twin row), and > 4 children on the phone (refused with a line).
  *
  * Practice (`mode:'practice'`, the coach's "Try it as a student"): the grade only (no name), no row, no binding, no key,
- * no nonce. A family phone on a teacher's class list (rung 3b, `students.parent_phone`) is offered its own roster
+ * no nonce. A family phone on a teacher's class list (`students.parent_phone`) is offered its own roster
  * children (first names, ≤ 4, one school) on the same sheet; the tap writes ONE binding and nothing on `students`.
  * Events carry ids only (kid from the event-key module): join_grade, join_done, join_refused, join_recognised, bind_confirm.
  */
@@ -49,7 +49,7 @@ const JOIN_TTL_S = 60 * 60;
 const GRADES = Object.freeze([1, 2, 3, 4, 5]);
 const MAX_KIDS = T.HUB_MAX_KIDS;
 const JOIN_PATH = '/quiz/join/';
-// The child home with no child row (practice): IA.md's /quiz/home shell, told the grade and that nothing is saved.
+// The child home with no child row (practice): the /quiz/home shell, told the grade and that nothing is saved.
 const PRACTICE_HOME = '/quiz/home';
 // What the home's first paint needs, warmed on the grade tap (long-cached assets; a prefetch costs nothing if unused).
 const HOME_ASSETS = Object.freeze(['/wq/hub.js', '/wq/wq.css', '/wq/hub-play.js', '/wq/wq-tel.js']);
@@ -106,7 +106,7 @@ async function joinUrl({ n, lang, mode } = {}) {
   return t ? `${JOIN_PATH}${t}` : null;
 }
 
-/** The coach's "Try it as a student" (m-teacher-home's foot): a practice join, nothing written. null with the switch off. */
+/** The coach's "Try it as a student" (the teacher home's foot): a practice join, nothing written. null with the switch off. */
 async function practiceJoinUrl({ lang } = {}) {
   return joinUrl({ lang, mode: 'practice' });
 }
@@ -315,7 +315,7 @@ function pickChips(set) {
 }
 
 /**
- * Rung 3b: the roster children whose family phone (students.parent_phone, as the teacher typed it) is this phone —
+ * The roster children whose family phone (students.parent_phone, as the teacher typed it) is this phone —
  * only when they are 1–4 children of ONE school (a wrong number on a roster then exposes one first name at most,
  * never a class). [] otherwise, and on any read error.
  */
@@ -334,7 +334,7 @@ async function rosterForPhone(phoneNorm) {
   }
 }
 
-/** Who the sheet may offer on this phone: its own children (bound ∪ chat), else its roster children (rung 3b). */
+/** Who the sheet may offer on this phone: its own children (bound ∪ chat), else its roster children. */
 async function offerFor(phoneNorm) {
   const set = await phoneSet(phoneNorm);
   if (set.length) return { set, kids: set, src: 'quiz' };
@@ -342,9 +342,9 @@ async function offerFor(phoneNorm) {
 }
 
 /**
- * A `/quiz` landing for a phone the resolver called `child` (ROLE §4.2). Never a silent bind (IDENTITY §8): every
+ * A `/quiz` landing for a phone the resolver called `child`. Never a silent bind (IDENTITY §8): every
  * child already bound → home (from=quiz, no toast); a child not yet bound → the confirm sheet's chips ("Is it
- * <First>?" + the three notice sentences + "Yes, it's me"; m-quiz-route draws it); none at all → the join screen;
+ * <First>?" + the three notice sentences + "Yes, it's me"; the landing draws it); none at all → the join screen;
  * a roster number that is not one family (two schools, > 4) → { none } (the role question).
  * → { next } | { confirm: { src, kids } } | { join } | { none } | { off } | { stale }. Writes nothing. Never throws.
  */
@@ -392,6 +392,8 @@ async function bindPick({ n, chip, lang = 'en' } = {}) {
     const kid = kids.find((k) => T.chipId('go', k.id) === String(chip || ''));
     if (!kid) return { refused: 'child_unknown' };
     const home = [kid, ...set.filter((k) => String(k.id) !== String(kid.id))];
+    // already saved on this phone: home with no write and no "saved" line
+    if ((await BindRepo.activeForPhone(who.phoneNorm)).some((b) => String(b.canonical_id) === String(kid.id))) return { next: homeUrl(home, kid.id, 'quiz', lang) };
     if (await teacherPhone(who.userId)) return { refused: 'teacher_phone', next: homeUrl(home, kid.id, 'quiz', lang) };
     const b = await bindChild(who.phoneNorm, String(kid.id));
     if (!b || !b.ok) return { refused: (b && b.reason) || 'unavailable', next: set.length ? homeUrl(set, set[0].id, 'quiz', lang) : null };

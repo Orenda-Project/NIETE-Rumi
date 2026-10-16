@@ -180,7 +180,7 @@ describe('a new child joins: one row, one binding, forget called', () => {
   });
 });
 
-describe('the home after a join never shows the claim card (operator point 5)', () => {
+describe('the home after a join never shows the claim card', () => {
   const homeOf = async (next) => {
     const Hub = require('../../../shared/services/quiz/web-quiz-hub');
     const [p, q] = next.split('?');
@@ -327,7 +327,7 @@ describe('the page shell answer', () => {
   });
 });
 
-describe('the /quiz landing for a phone with children but no binding (ROLE §4.2): never a silent bind', () => {
+describe('the /quiz landing for a phone with children but no binding: never a silent bind', () => {
   test('ONE chat child → the confirm sheet (nothing written); "Yes, it\'s me" → ONE guest binding, bind_confirm, home from=bind; 0 messages', async () => {
     seed({ students: [chatKid(0, 'Ali Testwala')] });
     const n = await GoNonce.mint({ phoneNorm: PHONE, userId: UNKNOWN_USER.id });
@@ -354,6 +354,10 @@ describe('the /quiz landing for a phone with children but no binding (ROLE §4.2
     const picked = await Join.bindPick({ n, chip: T.chipId('go', KIDS[1]) });
     expect(picked.next).toContain(`kid=${T.chipId('h', KIDS[1])}`);
     expect(fake.db.child_phone_bindings).toEqual([expect.objectContaining({ canonical_id: KIDS[1], via: 'guest' })]);
+    // the already-saved child picked again: home with no second write and no "saved" line
+    const again = await Join.bindPick({ n, chip: T.chipId('go', KIDS[1]) });
+    expect(again.next).toMatch(/from=quiz/);
+    expect(inserts('child_phone_bindings')).toHaveLength(1);
   });
 
   test('no child on the phone and no roster row → the join screen link', async () => {
@@ -362,7 +366,7 @@ describe('the /quiz landing for a phone with children but no binding (ROLE §4.2
   });
 });
 
-describe('rung 3b: a family phone on a teacher\'s class list (F15; redteam-2\'s four tests)', () => {
+describe('a family phone on a teacher\'s class list', () => {
   const rosterKid = (i, name, school = 'sch-1', extra = {}) => ({ id: KIDS[i], student_name: name, phone: null, parent_phone: `+${PHONE}`, list_id: 'list-1',
     school_id: school, is_active: true, status: 'active', merged_into: null, self_reported_class: '3', created_at: iso(Date.now() - 60000), ...extra });
 
@@ -409,7 +413,7 @@ describe('rung 3b: a family phone on a teacher\'s class list (F15; redteam-2\'s 
   });
 });
 
-describe('a failed binding leaves no orphan child', () => {
+describe('failure: a failed binding leaves no orphan child', () => {
   test('the binder cannot write → the new row is retired (is_active false), the answer is an error, no key', async () => {
     const Repo = require('../../../shared/services/quiz/child-phone-bindings.repo');
     jest.spyOn(Repo, 'insert').mockResolvedValue(null);
