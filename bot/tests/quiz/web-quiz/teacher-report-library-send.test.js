@@ -49,6 +49,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
+const { OFF_VALUES, throwOn } = require('../../helpers/switch-off-matrix');
 // jest.resetModules() gives every test (and every switch state inside one) a fresh registry and fresh switch caches:
 // the boundary fakes are read from the registry the code under test will require.
 const WA = () => require('../../../shared/services/whatsapp.service');
@@ -303,7 +304,7 @@ describe('switch off: today\'s, byte for byte', () => {
     expect(JSON.stringify(await Data.quizReport(AUTHOR, LQ))).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
   };
 
-  test.each([['false', false], ['absent', null], ['"yes"', 'yes'], ['1', 1], ['{}', {}]])('quiz_teacher_home %s: the sender is refused, the class tab has no library sends', async (_, home) => {
+  test.each(OFF_VALUES)('quiz_teacher_home %s: the sender is refused, the class tab has no library sends', async (_, home) => {
     seed({ home });
     await offAsToday();
   });
@@ -312,13 +313,7 @@ describe('switch off: today\'s, byte for byte', () => {
     const fake = seed();
     // the switch row is there and true, but reading it throws: off
     const sb = require('../../../shared/config/supabase');
-    sb.from = (t) => {
-      const b = fake.from(t);
-      if (t !== 'app_settings') return b;
-      const { eq } = b;
-      b.eq = (c, v) => { if (c === 'key' && v === 'quiz_teacher_home') throw new Error('settings down'); return eq.call(b, c, v); };
-      return b;
-    };
+    sb.from = throwOn(fake.from, 'quiz_teacher_home');
     await offAsToday();
     const { logToFile } = require('../../../shared/utils/logger');
     expect(logToFile.mock.calls.some(([m]) => String(m).includes('teacher home: settings lookup failed'))).toBe(true);
@@ -363,6 +358,35 @@ describe('the sender-side log lines', () => {
     const [list, pick] = await failBoth();
     expect(list).toEqual({ tk: null, error: 'boom-list' });
     expect(pick).toEqual({ tk: null, quizId: LQ, error: 'boom-pick' });
+  });
+
+  test('a failed class-list read logs the keyed reference, never the teacher\'s id', async () => {
+    process.env.WEB_QUIZ_KID_KEY = KID_KEY;
+    const tk = crypto.createHmac('sha256', KID_KEY).update(`t|${SENDER}`).digest('hex').slice(0, 16);
+    seed();
+    jest.spyOn(Data, 'readRoster').mockRejectedValue(new Error('boom-roster'));
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    await List.showReports({ id: SENDER, preferred_language: 'en' }, '000b', 'en');
+    const roster = calls('class list read failed');
+    expect(roster).toHaveLength(1);
+    expect(roster[0][1]).toEqual({ tk, error: 'boom-roster' });
+    expect(JSON.stringify(roster[0][1])).not.toContain(SENDER);
+  });
+
+  // the one agreed value: every copy of the teacher reference (and tk() when it is shared) gives this for this id
+  test('the reference is the agreed value: a 32-byte key and the pinned id give e815e81977411f12; 31 bytes give null', async () => {
+    const PIN_ID = 'a0000000-0000-4000-8000-000000000001';
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    const emitted = async (key) => {
+      process.env.WEB_QUIZ_KID_KEY = key;
+      seed();
+      Log().logToFile.mockClear();
+      jest.spyOn(Data, 'sentQuizzes').mockRejectedValue(new Error('boom-list'));
+      await List.showReports({ id: PIN_ID, preferred_language: 'en' }, '000b', 'en');
+      return calls('sent-quiz read failed — own quizzes only')[0][1].tk;
+    };
+    expect(await emitted('k'.repeat(32))).toBe('e815e81977411f12');
+    expect(await emitted('k'.repeat(31))).toBeNull();
   });
 });
 
