@@ -17,6 +17,9 @@
  * Whitespace and the multiplication sign are normalised (FDE prints "x" and
  * "×" on the same page); every other character is as printed.
  *
+ * A slot's `words` print on the paper only where `print_words` is true (a word
+ * list the child works from); anywhere else they are the key and stay off it.
+ *
  * Urdu: lines copied from FDE's pages are marked "transcribed"; every other
  * Urdu line here is a draft and needs fluent-Urdu review before teachers see it.
  * Religious text is never authored: the Naat alternative prints FDE's
@@ -81,7 +84,7 @@ const LEGEND = {
     'A correct answer with no working earns the A mark(s) only (Q1(b): both marks).',
     'A method step with an arithmetic slip keeps half its M marks (round down) if the method is right; later steps that use the slipped number correctly earn full marks, including the final A.',
     '"Attempt any N": tell children to answer exactly N. If more are answered, mark all and keep the best N.',
-    'Grades (FDE p.115): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%.',
+    'Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%.',
   ],
   // needs fluent-Urdu review (all six)
   lines_ur: [
@@ -94,8 +97,34 @@ const LEGEND = {
   ],
   // The grade bands print as one left-to-right line inside an Urdu page.
   bands_line: 5,
-  bands_lead_ur: 'گریڈ (FDE ص 115)؛ پاس = 40٪', // needs fluent-Urdu review
+  bands_lead_ur: 'گریڈ (FDE ص 113)؛ پاس = 40٪', // needs fluent-Urdu review
+  // The chip key, and the two lines that only mean something on a Maths scheme.
+  key_line: 1,
+  maths_lines: [2, 3],
+  key_names_en: { M: 'method', A: 'answer', U: 'unit', K: 'key point', L: 'label' },
+  key_names_ur: { M: 'طریقہ', A: 'جواب', U: 'اکائی', K: 'اہم نکتہ', L: 'نام' }, // needs fluent-Urdu review
 };
+
+/**
+ * The legend one subject prints. Maths keeps every line. Every other subject
+ * drops the two Maths marking lines (no working, arithmetic slip), and its
+ * chip key is rebuilt by the renderer from the chips its scheme prints
+ * (`key_from_chips`). `bands_line` and `key_line` point into the kept lines.
+ */
+function legendFor(key) {
+  if (key === 'maths') return { ...LEGEND, subject: key };
+  const kept = LEGEND.lines_en.map((_, i) => i).filter((i) => !LEGEND.maths_lines.includes(i));
+  return {
+    ...LEGEND,
+    subject: key,
+    key_from_chips: true,
+    lines_en: kept.map((i) => LEGEND.lines_en[i]),
+    lines_ur: kept.map((i) => LEGEND.lines_ur[i]),
+    bands_line: kept.indexOf(LEGEND.bands_line),
+    key_line: kept.indexOf(LEGEND.key_line),
+    maths_lines: [],
+  };
+}
 
 const BEFORE_EXAM = {
   title_en: 'Teacher: before the exam',
@@ -314,6 +343,7 @@ const SCIENCE = {
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
+    covers_partial_en: 'Covers {units}; every section set from these chapters.',
     title_en: 'Grade 5 · Science · FDE pattern practice paper',
     title_ur: 'جماعت پنجم · سائنس · FDE pattern کا مشقی پرچہ', // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
     time_line_en: 'Time Allowed: 3 Hours',
@@ -370,8 +400,8 @@ const SCIENCE = {
           prompt_rule: 'One item: `question` is the NAME of a diagram printed in the book (e.g. "Layers of the Earth"), `book_page` the book page it is on, `answer` the five labels in order. The paper prints an empty frame with five label lines; the teacher draws or pastes the diagram. Never describe the picture and never send the child to a picture.',
           frame: {
             kind: 'diagram', height_mm: 70, lines: 5, book_page: 168, word_bank: false,
-            title_en: 'Diagram: {q} (drawn on the board or pasted)',
-            title_ur: 'خاکہ: {q} (بورڈ پر بنائیں یا چسپاں کریں)', // needs fluent-Urdu review
+            title_en: 'Diagram: {q}',
+            title_ur: 'خاکہ: {q}', // needs fluent-Urdu review
             supply_en: 'Diagram: {q}', supply_ur: 'خاکہ: {q}', // ur: needs fluent-Urdu review
             duty_en: 'the diagram to label', duty_ur: 'نشان دہی والا خاکہ', // ur: needs fluent-Urdu review
           },
@@ -414,7 +444,7 @@ const SCIENCE = {
           section_pages: 'scope',
           grain: { kind: 'an activity situation in words, then three sub-questions (a, b, c), answer any two', number_size: 'none', steps: 1, unit_choice: false },
           families: null, kinds: null,
-          prompt_rule: 'Three situations, each from a different one of these book activities only: textures and sounds; spreading diseases; microorganisms at work; how pollution affects our world; solubility and state changes; rusting; physical vs chemical change; shadow and transparency; magnets. Each item: `question` = the situation in words (what the child does and sees), `questions` = three sub-questions a, b, c. Never refer to a picture.',
+          prompt_rule: 'Three situations, each from a different one of these book activities only: textures and sounds; spreading diseases; microorganisms at work; how pollution affects our world; solubility and state changes; rusting; physical vs chemical change; shadow and transparency; magnets. Each item: `question` = the situation in words (what the child does and sees), `questions` = three sub-questions, each an object {question, answer, scheme: {points, accept, common_error}} whose points add up to 2.5; a sub-question\'s `question` carries no letter or number in front (the paper letters them a, b, c). Never refer to a picture.',
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
       ],
@@ -557,7 +587,7 @@ const ENGLISH = {
           section_pages: 'scope',
           grain: { kind: 'an unseen narrative passage of about 120 words; five literal or inference questions; four do-as-directed items tied to the passage; three nouns and three verbs', number_size: 'none', steps: 1, unit_choice: false },
           families: null, kinds: null,
-          prompt_rule: 'One item: `passage` = an unseen story of 120–160 words; `parts` = [{key:"questions", questions:[5]}, {key:"do_as_directed", questions:[4: a part of speech of a quoted word, a tense change, a fill-in from the passage, a true/false]}, {key:"pick", pick:{"Nouns":[≥3 nouns that appear in the passage], "Verbs":[≥3 verbs that appear in the passage]}}].',
+          prompt_rule: 'One item: `passage` = an unseen story of 120–160 words; `parts` = [{key:"questions", questions:[5]}, {key:"do_as_directed", questions:[4: a part of speech of a quoted word, a tense change, a fill-in from the passage, a true/false]}, {key:"pick", pick:{"Nouns":[5 nouns], "Verbs":[5 verbs]}}]. Every picked word is copied exactly as written in the passage, inflection included ("walked", never "walk"); two spares of each kind, the scheme keeps the first three that are in the passage. Never refer to an underlined, bold or italic word; quote the word instead (What part of speech is "quickly"?).',
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
       ],
@@ -591,6 +621,7 @@ const ENGLISH = {
           grain: { kind: 'six unit vocabulary words, any five used in sentences', number_size: 'six words', steps: 1, unit_choice: false },
           families: null, kinds: null,
           prompt_rule: 'One item: `words` = exactly six words from units 1–10; `answer` = one model sentence per word. 2 marks a word (meaning shown 1 + correct sentence 1).',
+          print_words: true,
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
         {
@@ -601,7 +632,7 @@ const ENGLISH = {
           numbering: 'none', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'match four cue words to their rhymes in a 9–10 line poem from the book', number_size: 'four cue words', steps: 1, unit_choice: false },
           families: null, kinds: null,
-          prompt_rule: 'One item: `question` = the title of a poem from units 1–10 exactly as in the book; `passage` = 6–10 of its lines exactly as printed in the book; `words` = four cue words from those lines; `answer` = each cue word with its rhyme.',
+          prompt_rule: 'One item: `question` = the title of a poem from units 1–10 exactly as in the book; `passage` = 6–10 of its lines exactly as printed in the book, holding at least two rhyming pairs; no `words` (the four rhyming words are the answer, so nothing on the paper may list them); `answer` = the four rhyming words as two pairs, each word copied from the passage (e.g. "white – night; wet – yet").',
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
         {
@@ -684,6 +715,8 @@ const URDU = {
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
+    covers_partial_en: 'Covers {units}; every section set from these lessons.',
+    covers_partial_ur: 'احاطہ: {units}؛ ہر حصہ انہی اسباق سے۔', // needs fluent-Urdu review
     title_en: 'Grade 5 · Urdu · FDE pattern practice paper',
     title_ur: 'جماعت پنجم · اردو · FDE pattern کا مشقی پرچہ', // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
     // FDE's Urdu paper prints no overall time, total or note; these are ours.
@@ -762,7 +795,7 @@ const URDU = {
           section_pages: 'scope',
           grain: { kind: 'an unseen paragraph of 100–140 words; four questions and a title; two of each word class picked from the paragraph; two antonyms', number_size: 'none', steps: 1, unit_choice: false },
           families: null, kinds: null,
-          prompt_rule: 'One item: `passage` = an unseen paragraph of 100–140 words about everyday school or family life (no real people, no religious text); `parts` = [{key:"questions", questions:[5, the fifth asks for a suitable title (مناسب عنوان)]}, {key:"pick", pick:{"اسم معرفہ":[≥2], "اسم نکرہ":[≥2], "اسم صفت":[≥2], "فعل":[≥2]}} — every word copied exactly as it appears in the paragraph, {key:"antonyms", antonyms:[[word from the paragraph, its antonym], two pairs]}].',
+          prompt_rule: 'One item: `passage` = an unseen paragraph of 100–140 words about everyday school or family life (no real people, no religious text); `parts` = [{key:"questions", questions:[5, the fifth asks for a suitable title (مناسب عنوان)]}, {key:"pick", pick:{"اسم معرفہ":[4], "اسم نکرہ":[4], "اسم صفت":[4], "فعل":[4]}} — every word copied exactly as written in the paragraph, inflection included (two spares of each kind; the scheme keeps the first two that are in the paragraph), {key:"antonyms", antonyms:[[word from the paragraph, its antonym], two pairs]}].',
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
       ],
@@ -787,6 +820,7 @@ const URDU = {
           grain: { kind: 'seven words from the lessons\' new-word lists; any five', number_size: 'seven words', steps: 1, unit_choice: false },
           families: null, kinds: null,
           prompt_rule: 'One item: `words` = exactly seven words from the نئے الفاظ lists of lessons 4–10; `answer` = each word with its meaning from the book. 1 mark a word.',
+          print_words: true,
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
         {
@@ -811,6 +845,7 @@ const URDU = {
           grain: { kind: 'four words and three idioms from lessons 4–10; any five in sentences', number_size: 'seven entries', steps: 1, unit_choice: false },
           families: null, kinds: null,
           prompt_rule: 'One item: `words` = four words and three محاورات from lessons 4–10 (seven entries); `answer` = one model sentence each. 1 mark each (1 / ½ / 0).',
+          print_words: true,
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
         {
@@ -920,6 +955,7 @@ const SST = {
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
+    covers_partial_en: 'Covers {units}; every section set from these chapters.',
     title_en: 'Grade 5 · Social Studies · FDE pattern practice paper',
     title_ur: 'جماعت پنجم · معاشرتی علوم · FDE pattern کا مشقی پرچہ', // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
     time_line_ur: 'وقت: 3 گھنٹے', // needs fluent-Urdu review
@@ -976,7 +1012,7 @@ const SST = {
           families: null, kinds: null,
           prompt_rule: 'One item: `question` = «پاکستان کا نقشہ», `answer` = the ten places to label (four neighbouring countries, the provinces and territories, the Arabian Sea). The paper prints an empty frame with ten label lines; the teacher pastes a blank outline map.',
           frame: {
-            kind: 'map', height_mm: 110, lines: 10, book_page: null, word_bank: false,
+            kind: 'map', height_mm: 100, lines: 10, book_page: null, word_bank: false,
             title_en: 'Map of Pakistan (paste or photocopy a blank outline map; label here)',
             title_ur: 'پاکستان کا نقشہ (خالی خاکہ چسپاں یا فوٹو کاپی کریں؛ نشاندہی یہاں کریں)', // needs fluent-Urdu review
             supply_en: 'Map of Pakistan', supply_ur: 'پاکستان کا نقشہ', // ur: needs fluent-Urdu review
@@ -1123,7 +1159,7 @@ for (const [key, subject] of Object.entries(SUBJECTS)) {
   for (const [k, v] of Object.entries(COMMON_EN)) header[`${k}_en`] = v;
   for (const [k, v] of Object.entries(COMMON_UR)) header[`${k}_ur`] = v;
   subject.header = { ...header, ...subject.header };
-  subject.legend = LEGEND;
+  subject.legend = legendFor(key);
   subject.before_exam = BEFORE_EXAM;
   subject.supplies = SUPPLIES;
   subject.summary_lines = SUMMARY[key];

@@ -16,10 +16,14 @@ import { paperGroups } from './papersList';
 import { rememberPapers } from './paperCache';
 import { ASSESSMENT_ALL, newPaperPath, requestPath } from './paths';
 import { resetPicks, setPicks } from './store';
-import { pkDay, pkToday } from './model';
+import { pkDay, pkToday, questionsOf } from './model';
+
 import { failureLabel } from './failure';
 import { useJobs } from './useJobs';
 import { Chip, Label, ListCard, LoadState } from './ui';
+
+/** A Being made row's count line: none for a board-pattern job (the pattern fixes its count, sent as 0). */
+const countLine = (n: number | null, say: (n: number) => string) => (n != null ? say(n) : undefined);
 
 /**
  * bd-fmf24g.6 — the teacher v2 Assessment main page (v28 canvas Assessment.dc.html):
@@ -151,7 +155,8 @@ export function AssessmentHub() {
                 subject={subjectName(catalogue, j.spec.grade, j.spec.subject)}
                 grade={j.spec.grade}
                 title={j.label}
-                extra={C.questionsCount(j.spec.questionCount)}
+                // A board-pattern job carries questionCount 0 (the pattern fixes it): its label says FDE pattern, no count.
+                extra={countLine(questionsOf(j.spec, null), C.questionsCount)}
                 chip={j.status === 'writing'
                   ? { text: j.slow ? C.slow : C.writing, tone: 'waiting' }
                   : { text: failureLabel(j.errorCode, C), tone: 'error' }}

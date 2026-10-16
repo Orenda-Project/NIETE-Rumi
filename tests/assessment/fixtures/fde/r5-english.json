@@ -1,0 +1,28 @@
+{
+  "unseen": {
+    "subjective": {
+      "Word Sentences": [
+        {
+          "slot": "english.C.Q4",
+          "main_question": "Use any FIVE of the given words in your own sentences",
+          "words": ["forgiveness", "annoyance", "urban", "gratitude", "ancient", "sacrifice"],
+          "answer": "forgiveness: letting go of anger - The child asked for forgiveness after breaking a toy.\nannoyance: a feeling of being irritated - There was annoyance when the bus was late.\nurban: of a town or city - The urban area was full of tall buildings.\ngratitude: being thankful - The class showed gratitude to the teacher.\nancient: very old - The ancient fort was built centuries ago.\nsacrifice: giving something up for someone - Sharing lunch with a hungry friend was a sacrifice.",
+          "blooms": "Apply",
+          "scheme": { "points": [{ "text": "meaning shown for five words", "marks": 5, "kind": "K" }, { "text": "a correct sentence for five words", "marks": 5, "kind": "A" }], "accept": ["any correct sentence that shows the meaning"], "common_error": "a sentence that uses the word without showing its meaning" }
+        }
+      ],
+      "Rhyming Words": [
+        {
+          "slot": "english.C.Q5",
+          "main_question": "Read the poem and match each cue word with its rhyming word from the poem.",
+          "question": "Morning Song",
+          "passage": "The sky is turning pale and white,\nThe stars have left the edge of night.\nThe grass along the path is wet,\nThe sun has not come up as yet.",
+          "words": ["white", "night", "wet", "yet"],
+          "answer": "white → night, wet → yet",
+          "blooms": "Understand",
+          "scheme": { "points": [{ "text": "white – night", "marks": 2, "kind": "A" }, { "text": "wet – yet", "marks": 2, "kind": "A" }], "accept": ["either order of a pair"], "common_error": "pairing words that only look alike" }
+        }
+      ]
+    }
+  }
+}

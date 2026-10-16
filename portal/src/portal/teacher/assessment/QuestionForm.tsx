@@ -60,7 +60,7 @@ function Tick({ on, onPress, label, round }: { on: boolean; onPress: () => void;
 }
 
 export function QuestionForm({
-  values, onChange, fields, kind, rtl, slotCap = 6,
+  values, onChange, fields, kind, rtl, slotCap = 6, fixedMarks = false,
 }: {
   values: FormValues;
   onChange: (v: FormValues) => void;
@@ -70,6 +70,9 @@ export function QuestionForm({
   kind?: AddKind;
   rtl: boolean;
   slotCap?: number;
+  /** A board-pattern paper (R5-13): the board fixes each question's marks, so there is no Marks box (its mark is sent back
+   *  unchanged, which the server does not count as an edit). */
+  fixedMarks?: boolean;
 }) {
   const C = useCopy(ASSESSMENT);
   const set = (patch: Partial<FormValues>) => onChange({ ...values, ...patch });
@@ -184,7 +187,7 @@ export function QuestionForm({
 
       {!(kind && shape === 'comprehension') && (
         <div className="flex gap-3">
-          <div className="w-32"><Field label={C.marksLabel} htmlFor="aq-marks"><Line id="aq-marks" numeric value={values.marks} onChange={(v) => set({ marks: v })} /></Field></div>
+          {!fixedMarks && <div className="w-32"><Field label={C.marksLabel} htmlFor="aq-marks"><Line id="aq-marks" numeric value={values.marks} onChange={(v) => set({ marks: v })} /></Field></div>}
           {fields && fields.shape === 'standard' && fields.show_lines && (
             <div className="w-36">
               <Field label={C.lines} htmlFor="aq-lines">

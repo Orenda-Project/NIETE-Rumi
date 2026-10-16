@@ -1,0 +1,8 @@
+{
+  "_about": "Urdu MCQs keyed by option text that starts with the letter ب, plus one lettered key.",
+  "unseen": { "objective": { "MCQs": [
+    { "slot": "urdu.A.Q1", "question": "کون سا جانور دودھ دیتا ہے؟", "options": ["کتا", "مرغی", "مچھلی", "بکری"], "answer": "بکری", "blooms": "Remember" },
+    { "slot": "urdu.A.Q1", "question": "آسمان سے کیا برستا ہے؟", "options": ["پتھر", "ریت", "بارش", "دھواں"], "answer": "بارش", "blooms": "Remember" },
+    { "slot": "urdu.A.Q1", "question": "کون سا پھل پیلا ہوتا ہے؟", "options": ["الف) کیلا", "ب) جامن", "ج) انگور", "د) آلو بخارا"], "answer": "الف) کیلا", "blooms": "Remember" }
+  ] } }
+}

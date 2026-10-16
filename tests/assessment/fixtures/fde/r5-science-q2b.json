@@ -1,0 +1,48 @@
+{
+  "unseen": {
+    "subjective": {
+      "Logical Reasoning": [
+        {
+          "slot": "science.B.Q2b",
+          "main_question": "Read the situation given below and answer any TWO of the three sub-questions (a, b, c). Give answers with logical reasons.",
+          "question": "A group of classmates sprayed coloured water mixed with glitter into the air to stand for a germ. A few of them touched tables and bottles with glitter on their hands. One child with glitter on one hand shook hands with a friend, who then shook hands with another friend. Some of them later washed their hands with soap and water, and others did not.",
+          "questions": [
+            { "question": "a) Why did glitter appear on the hands of children who never touched the sprayed objects?" },
+            { "question": "b) What happened to the glitter on the hands that were washed with soap and water?" },
+            { "question": "c) Suggest one habit that would reduce the spread of germs shown here, and explain why it works." }
+          ],
+          "answer": "a) Glitter spread through handshakes and touched surfaces, showing how germs pass from person to person. b) Washing with soap and water removed most of the glitter, showing handwashing reduces germs. c) Regular handwashing with soap breaks the chain of germ transfer.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              { "text": "a correct reason for the first chosen sub-question", "marks": 2.5, "kind": "A" },
+              { "text": "a correct reason for the second chosen sub-question", "marks": 2.5, "kind": "A" }
+            ],
+            "accept": ["any two of the three sub-answers with a reason about contact"],
+            "common_error": "saying handwashing removes every germ, or not linking touch to spread"
+          }
+        },
+        {
+          "slot": "science.B.Q2b",
+          "main_question": "Give answers with logical reasons. Read the situation below and answer any TWO of the three questions (a, b, c).",
+          "question": "A child left a few iron nails in a jar of salty water, and a friend left similar nails in a jar of plain water. Both jars stayed open to the air for a week.",
+          "questions": [
+            { "question": "a) Which jar's nails would rust faster, and why?", "marks": 2.5, "lines": 2, "answer": "The nails in the salty water, because salt water speeds up the reaction between iron, water and oxygen." },
+            { "question": "b) What does the orange, flaky coating tell us about the kind of change?", "marks": 2.5, "lines": 2, "answer": "A chemical change, because a new substance (rust) has formed." },
+            { "question": "c) If the rusted nails are dried in the sun, will they turn back into shiny iron? Give a reason.", "marks": 2.5, "lines": 2, "answer": "No, rust is a new substance from a chemical change and drying cannot undo it." }
+          ],
+          "answer": "Any two well-reasoned answers from (a), (b) or (c) showing that rusting is a chemical change.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              { "text": "a correct, reasoned answer to the first chosen sub-question", "marks": 2.5, "kind": "A" },
+              { "text": "a correct, reasoned answer to the second chosen sub-question", "marks": 2.5, "kind": "A" }
+            ],
+            "accept": ["any correct explanation that salt water speeds up rusting"],
+            "common_error": "thinking rust goes away when the nails are dried"
+          }
+        }
+      ]
+    }
+  }
+}

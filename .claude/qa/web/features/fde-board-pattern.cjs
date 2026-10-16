@@ -61,7 +61,9 @@ const scenarios = [
     await asRole(page, ctx, 'teacher', 'teacherV2');
     await visit(page, ctx, HUB, { heading: /^Assessment$/ });
     await page.getByTestId('fde-door').click();
-    await page.getByText('Science', { exact: true }).first().click();
+    // The door's picker opens straight on Grade 5's subjects (no grade step).
+    await page.getByRole('button', { name: /Select grade and subject/ }).click();
+    await page.getByRole('button', { name: /^Grade 5 · Science/ }).click();
     await page.getByTestId('step-next').waitFor({ state: 'visible', timeout: 15000 });
     // Words above Make my paper: everything the teacher reads before the button.
     const above = await page.evaluate(() => {
@@ -93,8 +95,10 @@ const scenarios = [
     await asRole(page, ctx, 'teacher', 'teacherV2');
     await visit(page, ctx, HUB, { heading: /^Assessment$/ });
     await page.getByText('New paper').first().click();
-    await page.getByText('Grade 5', { exact: false }).first().click();
-    await page.getByText('English', { exact: true }).first().click();
+    // The class picker is a collapsed trigger; its tray holds the grade radios and the subject buttons.
+    await page.getByRole('button', { name: /Select grade and subject/ }).click();
+    await page.getByRole('radio', { name: /^Grade 5/ }).click();
+    await page.getByRole('button', { name: /^Grade 5 · English/ }).click();
     const card = page.getByTestId('fde-side-door');
     await card.waitFor({ state: 'visible', timeout: 15000 });
     await card.getByRole('radio').first().click();
@@ -162,6 +166,35 @@ const scenarios = [
       return { status: r.status };
     } finally {
       await unseed(ctx, ids);
+    }
+  } },
+
+  { id: 'FB08', title: "A board-pattern choice switched off mid-way goes back to today's Chapters step", run: async (page, ctx) => {
+    await patternSwitch(ctx, true);
+    try {
+      await asRole(page, ctx, 'teacher', 'teacherV2');
+      await visit(page, ctx, HUB, { heading: /^Assessment$/ });
+      await page.getByText('New paper').first().click();
+      // The class picker is a collapsed trigger; its tray holds the grade radios and the subject buttons.
+      await page.getByRole('button', { name: /Select grade and subject/ }).click();
+      await page.getByRole('radio', { name: /^Grade 5/ }).click();
+      await page.getByRole('button', { name: /^Grade 5 · English/ }).click();
+      const card = page.getByTestId('fde-side-door');
+      await card.waitFor({ state: 'visible', timeout: 15000 });
+      await card.getByRole('radio').first().click();
+      await page.getByText('Chapters are not used for the FDE board pattern').waitFor({ state: 'visible', timeout: 15000 });
+      // The switch goes off while the teacher is on the step; a reload reads the options again (the app reads them once per load).
+      await patternSwitch(ctx, false);
+      await page.reload();
+      const tab = page.getByRole('tab', { name: 'Chapters' });
+      await tab.waitFor({ state: 'visible', timeout: 15000 });
+      expect((await tab.getAttribute('aria-selected')) === 'true', 'the Chapters tab is not selected after the switch went off');
+      expect(!(await page.getByTestId('fde-side-door').count()), 'the FDE board pattern card is still on Chapters or pages');
+      await page.getByText('Select at least one chapter').first().waitFor({ state: 'visible', timeout: 15000 });
+      expect(await page.getByTestId('step-next').isDisabled(), 'Next is not off on Chapters or pages');
+      return { landed: 'chapters' };
+    } finally {
+      await patternSwitch(ctx, false);
     }
   } },
 ];

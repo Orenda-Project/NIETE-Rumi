@@ -5,6 +5,7 @@ import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, 
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
 import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
+import type { LpBand, LpEngagementResponse } from '../types/portal';
 import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport, SchoolHit, TeacherPlan } from '../coach/types';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
@@ -492,7 +493,7 @@ export const portal = {
   },
 
   // ── bd-hb8qs: edit a finished paper (saves a NEW version; the bot owns every rule) ──
-  getAssessmentVersions: async (paperId: string): Promise<{ versions: EditVersion[] }> => {
+  getAssessmentVersions: async (paperId: string): Promise<{ versions: EditVersion[]; pattern?: string | null }> => {
     const response = await api.get(`/assessment/edit/${encodeURIComponent(paperId)}/versions`);
     return response.data;
   },
@@ -767,6 +768,8 @@ export type AssessmentStatus = {
   status: 'queued' | 'generating' | 'ready' | 'failed' | 'not_found';
   paperId?: string | null;
   errorCode?: string | null;
+  /** The board pattern the request was made with (api.md §4.5, R5-16); null/absent for a plain request or an older server. */
+  pattern?: string | null;
 };
 
 export type AssessmentPaper = {
@@ -873,6 +876,17 @@ export const analytics = {
     if (q.to) params.to = q.to;
     params.region = q.region || 'all';
     const response = await api.get('/analytics/coaching', { params });
+    return response.data;
+  },
+  // bd-97x22y.3 — the LP Engagement tab (schools analytics v7): her formula, her Primary / Mid-High toggle (`band`).
+  // Same window and region as the schools read; its own endpoint so its cost never slows the other tabs.
+  getLpEngagement: async (q: { from: string | null; to: string | null; region: string | null; band: LpBand }): Promise<LpEngagementResponse> => {
+    const params: Record<string, string> = {};
+    if (q.from) params.from = q.from;
+    if (q.to) params.to = q.to;
+    params.region = q.region || 'all';
+    params.band = q.band;
+    const response = await api.get('/analytics/lp-engagement', { params });
     return response.data;
   },
 };

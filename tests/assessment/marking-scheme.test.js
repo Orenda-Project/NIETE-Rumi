@@ -195,18 +195,18 @@ describe('normaliseScheme', () => {
     expect(canonicalBlooms(7)).toBeNull();
   });
 
-  test('caps accept at six and 80 code points (Urdu counted in code points)', () => {
-    const urdu81 = 'ب'.repeat(81);
-    const urdu80 = 'ب'.repeat(80);
-    const astral80 = '𝟙'.repeat(80); // 80 code points, 160 UTF-16 units
-    const accept = [urdu81, urdu80, astral80, 'four', 'five', 'six', 'seven', 'eight'];
+  test('caps accept at six and 240 code points (Urdu counted in code points)', () => {
+    const urduOver = 'ب'.repeat(241); // over the cap (a runaway line)
+    const urduAtCap = 'ب'.repeat(240);
+    const astralAtCap = '𝟙'.repeat(240); // 240 code points, 480 UTF-16 units
+    const accept = [urduOver, urduAtCap, astralAtCap, 'four', 'five', 'six', 'seven', 'eight'];
     const q = { slot: 'urdu.C.Q3', question: 'معنی لکھیں', answer: 'معنی', marks: 5, blooms: 'Remember', scheme: { accept } };
     const s = first(normaliseScheme(paper('urdu', [q]))).scheme;
     expect(s.accept).toHaveLength(6);
-    expect([...s.accept[0]]).toHaveLength(80);
+    expect([...s.accept[0]]).toHaveLength(240);
     expect(s.accept[0].endsWith('…')).toBe(true);
-    expect(s.accept[1]).toBe(urdu80);
-    expect(s.accept[2]).toBe(astral80);
+    expect(s.accept[1]).toBe(urduAtCap);
+    expect(s.accept[2]).toBe(astralAtCap);
     expect(s.accept.slice(3)).toEqual(['four', 'five', 'six']);
 
     // A string becomes a list of one.
@@ -217,18 +217,18 @@ describe('normaliseScheme', () => {
     expect([...capCodePoints('ب'.repeat(200), 160)]).toHaveLength(160);
   });
 
-  test('point text capped at 160 code points', () => {
+  test('point text capped at 240 code points', () => {
     const q = wordProblem([{ text: 'm'.repeat(300), marks: 3, kind: 'M' }, { text: '327,750', marks: 2, kind: 'A' }]);
     const s = first(normaliseScheme(paper('maths', [q]))).scheme;
-    expect([...s.points[0].text]).toHaveLength(160);
+    expect([...s.points[0].text]).toHaveLength(240);
     expect(s.points[0].text.endsWith('…')).toBe(true);
   });
 
-  test('common_error capped at 160', () => {
+  test('common_error capped at 240', () => {
     const q = wordProblem([{ text: 'method', marks: 3, kind: 'M' }, { text: '327,750', marks: 2, kind: 'A' }]);
-    q.scheme.common_error = 'غ'.repeat(200);
+    q.scheme.common_error = 'غ'.repeat(300);
     const s = first(normaliseScheme(paper('maths', [q]))).scheme;
-    expect([...s.common_error]).toHaveLength(160);
+    expect([...s.common_error]).toHaveLength(240);
     expect(s.common_error.endsWith('…')).toBe(true);
 
     const q2 = wordProblem([{ text: 'method', marks: 3, kind: 'M' }, { text: '327,750', marks: 2, kind: 'A' }]);

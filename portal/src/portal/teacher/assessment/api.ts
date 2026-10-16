@@ -52,19 +52,25 @@ const patternInflight = new Map<string, Promise<AssessmentPattern | null>>();
 
 /**
  * The board pattern /assessment/options offers for this grade + subject, or null (flag off, another grade, Islamiat).
- * Once per page load per class; a failed read is null (nothing new is drawn) and is asked again next time.
+ * Once per page load per class. A failed read REJECTS (and is asked again next time): a screen that already holds the
+ * teacher's board-pattern choice must say "could not load", never act as if the pattern were switched off.
  */
-export function patternFor(grade: number | null, subject: string | null): Promise<AssessmentPattern | null> {
+export function patternOffer(grade: number | null, subject: string | null): Promise<AssessmentPattern | null> {
   if (grade === null || !subject) return Promise.resolve(null);
   const key = `${grade}:${subject}`;
   let hit = patternInflight.get(key);
   if (!hit) {
-    hit = portal.getAssessmentOptions(grade, subject)
-      .then((o) => o.patterns?.[0] ?? null)
-      .catch(() => { patternInflight.delete(key); return null; });
-    patternInflight.set(key, hit);
+    const read = portal.getAssessmentOptions(grade, subject).then((o) => o.patterns?.[0] ?? null);
+    read.catch(() => { if (patternInflight.get(key) === read) patternInflight.delete(key); });
+    patternInflight.set(key, read);
+    hit = read;
   }
   return hit;
+}
+
+/** patternOffer, with a failed read as null (nothing new is drawn): for a probe that only decides what to show. */
+export function patternFor(grade: number | null, subject: string | null): Promise<AssessmentPattern | null> {
+  return patternOffer(grade, subject).catch(() => null);
 }
 
 /** Tests only. */

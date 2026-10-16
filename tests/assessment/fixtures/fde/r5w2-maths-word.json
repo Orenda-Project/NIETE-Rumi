@@ -1,0 +1,87 @@
+{
+ "_about": "Fictional Grade 5 maths word problems whose keys carry their own working («a op b = c»), as a recorded board-pattern reply wrote them. The fourth key is planted wrong (3,076,000 for 34,567 x 89). The last key states a result that is not the result of the sum before it (the average after the total), and must not be \"corrected\". Used by fde-r5-scheme.test.js.",
+ "unseen": {
+  "subjective": {
+   "Word Problems": [
+    {
+     "slot": "maths.B.Q2",
+     "question": "A school has a budget of Rs. 85,000 for sports. It spends Rs. 24,567 on equipment. How much money is left?",
+     "answer": "85000 - 24567 = Rs. 60,433.",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "A bakery packs 12,345 biscuits into each crate. How many biscuits are in 6 crates?",
+     "answer": "12345 × 6 = 74,070",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "One string of lights costs Rs. 359. What do 13,645 strings cost?",
+     "answer": "13645 x 359 = Rs. 4,898,555.",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "A printer makes 34,567 posters. Each poster costs Rs. 89 to print. What is the total cost?",
+     "answer": "34567 x 89 = Rs. 3,076,000.",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "A village fund of Rs. 15,000 gives 2/5 of it to the library. How much does the library get?",
+     "answer": "2/5 of 15000 = (15000 / 5) x 2 = 3000 x 2 = Rs. 6,000.",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "A jug held 5 3/4 litres of water and the class drank 2 1/4 litres. How much is left?",
+     "answer": "5 3/4 - 2 1/4 = 3 2/4 = 3 1/2 litres.",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "A runner went 3.45 km and then 1.75 km more. How far did the runner go?",
+     "answer": "3.45 + 1.75 = 5.20 km.",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "Lights flash every 24 seconds and every 36 seconds. When do they flash together again?",
+     "answer": "Divisors: 2, 2, 2, 3, 3. LCM = 2 x 2 x 2 x 3 x 3 = 72 seconds.",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "A library has 52,843 books packed 76 to a box. How many full boxes are there and how many books are left over?",
+     "answer": "52843 / 76. Quotient = 695, Remainder = 23.",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.A.Q1b",
+     "question": "Write Rs. 4,897,478 in words.",
+     "answer": "Four million, eight hundred ninety-seven thousand, four hundred seventy-eight rupees.",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "Five children scored 45, 60, 55, 70 and 50 marks. Find their average score.",
+     "answer": "Sum = 45 + 60 + 55 + 70 + 50 = 280. Average = 280 divided by 5 = 56.",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "45 out of every 100 children in a school of 800 are girls. How many girls are there?",
+     "answer": "45/100 × 800 = 45 × 8 = 360 girls.",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "maths.B.Q2",
+     "question": "Three apples cost Rs. 40.25 each and two pears cost Rs. 30.25 each. What is the total cost?",
+     "answer": "Apples: 3 × 40.25 = 120.75. Pears: 2 × 30.25 = 60.50. Total: 120.75 + 60.50 = Rs. 181.25.",
+     "blooms": "Apply"
+    }
+   ]
+  }
+ }
+}

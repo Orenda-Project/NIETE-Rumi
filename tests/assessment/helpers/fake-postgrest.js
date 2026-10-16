@@ -7,6 +7,36 @@
  * the request row by request_id. Every write is recorded in `writes`, so a test
  * can assert what was — and was NOT — written.
  */
+/**
+ * A JSONB slice in a select (`pattern:exam_json->_layout->>preset_id`) answers as its own key, on
+ * the row and on its embedded rows, the way PostgREST computes it. Additive: the row keeps every
+ * other column, as the rest of this fake always has.
+ */
+function sliced(row, cols) {
+  const specs = [...String(cols || '').matchAll(/(\w+):(\w+)((?:->>?\w+)+)/g)];
+  if (!specs.length || !row || typeof row !== 'object') return row;
+  const at = (obj) => {
+    const out = { ...obj };
+    for (const [, alias, col, path] of specs) {
+      if (!(col in obj)) continue;
+      let v = obj[col];
+      const steps = [...path.matchAll(/->(>?)(\w+)/g)];
+      steps.forEach(([, text, key], i) => {
+        v = v == null ? null : v[key];
+        if (text && i === steps.length - 1 && v != null) v = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      });
+      out[alias] = v === undefined ? null : v;
+    }
+    return out;
+  };
+  const top = at(row);
+  for (const rel of ['assessment_papers', 'assessment_requests']) {
+    if (Array.isArray(top[rel])) top[rel] = top[rel].map(at);
+    else if (top[rel] && typeof top[rel] === 'object') top[rel] = at(top[rel]);
+  }
+  return top;
+}
+
 function makeFakeDb(seed = {}) {
   const tables = JSON.parse(JSON.stringify(seed));
   const writes = [];
@@ -72,7 +102,7 @@ function makeFakeDb(seed = {}) {
       if (st.range) rows = rows.slice(st.range[0], st.range[1] + 1);
       if (st.limit) rows = rows.slice(0, st.limit);
       if (st.head) return { data: null, count: total, error: null };
-      return { data: JSON.parse(JSON.stringify(rows)), count: st.count ? total : null, error: null };
+      return { data: JSON.parse(JSON.stringify(rows.map((r) => sliced(r, st.cols)))), count: st.count ? total : null, error: null };
     };
     const b = {
       select: (cols = '*', opts = {}) => { st.cols = cols; st.head = !!opts.head; st.count = opts.count || null; return b; },
