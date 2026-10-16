@@ -29,6 +29,8 @@
   var io = null;
 
   function lang(c) { return c.lang === 'ur' ? 'ur' : 'en'; }
+  // The pages' one link helper (wq-tel.js WQT.withLang, loaded first on the quiz page): the challenge opens in this language.
+  function withLang(h, l) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l) : h; }
   function words(c) { return W[lang(c)]; }
   function door(c, n) { if (c.res && c.res.jugnu_ev) c.ev(n, { door: DOOR.door, surface: DOOR.surface, slot: DOOR.slot }); }
 
@@ -103,7 +105,7 @@
     c.api('POST', 'hubdoor', { st: c.st, jugnu: 1 }).then(function (r) {
       var href = r.ok && r.body && typeof r.body.href === 'string' ? r.body.href : '';
       c.flushEv(true);
-      if (CH_HREF.test(href)) { keepDevice(); location.assign(href + '&lang=' + lang(c)); return; }
+      if (CH_HREF.test(href)) { keepDevice(); location.assign(withLang(href, lang(c))); return; }
       going = false;
       c.toast(c.T.oops);
       c.back();

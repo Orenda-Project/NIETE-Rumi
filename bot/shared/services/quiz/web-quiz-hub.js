@@ -357,8 +357,22 @@ async function brandKey() {
   }
 }
 
+/**
+ * The language the child chose on the page that sent them here (?lang=en|ur), when it may win over the guess from
+ * their history: only under web_quiz_challenge_v2 (with its parents; web-quiz-hub-play.js switches, 30 s cache,
+ * fail closed). Anything else, or the switch off: null, and the hub is today's. Asked only when a lang came.
+ */
+async function askedLang(lang) {
+  if (lang !== 'en' && lang !== 'ur') return null;
+  try {
+    return (await require('./web-quiz-hub-play').switches()).v2 ? lang : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /** A phone that may not see the children: their language only, never a name, a chip or a quiz. */
-async function lockedHub(ids, why) {
+async function lockedHub(ids, why, asked = null) {
   let lang = 'en';
   try {
     const { data: rows } = await dbRead('lockedHub:students:1', (db) => db.from('students').select('id, is_active').in('id', ids));
@@ -369,19 +383,21 @@ async function lockedHub(ids, why) {
       lang = clampLanguage(StudentQuiz.childLanguage(history));
     }
   } catch (_) { /* English */ }
+  if (asked) lang = asked;
   logEvent('web_quiz.hub_locked', { kids: ids.length, why });
   return { lang, locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, brand: await brandKey() };
 }
 
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hubPayload(token, { kid, device, src } = {}) {
+async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
+  const asked = await askedLang(wanted);
   const trust = await deviceTrusted(token, device);
-  if (!trust.ok) return lockedHub(ids, trust.why);
+  if (!trust.ok) return lockedHub(ids, trust.why, asked);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   let mine = ids.filter((id) => trust.ids.includes(id));
   // child identity store (web_quiz_identity_canon): each child once, by the id they are known by (the token keeps raw ids).
@@ -404,7 +420,7 @@ async function hubPayload(token, { kid, device, src } = {}) {
   const challengeP = f.challenge && chosen ? challengeGrade(chosen.id) : Promise.resolve(false);
   const ctx = chosen ? await kidContext(chosen.id) : null;
   const history = ctx ? ctx.history : [];
-  const lang = clampLanguage(require('./student-quiz.service').childLanguage(history));
+  const lang = asked || clampLanguage(require('./student-quiz.service').childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     lang,

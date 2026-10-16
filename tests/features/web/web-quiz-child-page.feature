@@ -1292,6 +1292,7 @@ Feature: Web child quiz page on the portal
     Given the hub door is switched on and a child of the class finished the teacher's quiz on their phone
     When the child taps "My quizzes, videos and challenges" on their card
     Then their own hub opens on that phone, with the video library and the challenge
+    And the hub link carries the card's language (lang=en or ur), and with web_quiz_challenge_v2 on the hub, its challenge and library links open in it
     And the same link opened on another phone shows no child's name and starts nothing
     But a friend who played from a challenge link sees no such button
   @T592
@@ -1705,6 +1706,7 @@ Feature: Web child quiz page on the portal
     And a phone that remembers one child, who finished the quiz behind the teacher's /q/<code> link on that phone
     When the same link is opened again on that phone
     Then the page asks the server once and opens that child's own hub at /h/<token>?from=link
+    And that link carries the page's language (lang=en or ur), which the hub honours only with web_quiz_challenge_v2 on
     And the hub token names that child only and is bound to that phone, so a copy opened on another phone names nobody
     And the server writes door_shown with door "link_home" and surface "hub"
     But a reply that is not a hub link, an error, or no reply in 3 seconds shows today's screen

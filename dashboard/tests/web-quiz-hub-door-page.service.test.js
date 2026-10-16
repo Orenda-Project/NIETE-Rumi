@@ -47,7 +47,8 @@ describe('a tap opens this child\'s hub', () => {
     await flush(); await flush();
     const call = p.fetches.find((f) => f.url.indexOf('hubdoor') >= 0);
     expect(JSON.parse(call.init.body)).toEqual({ st: 's1' });
-    expect(p.hist.assigned).toEqual(['/h/tok.abc?from=door']);
+    // In the page's language (the pages' link helper, wq-tel.js WQT.withLang).
+    expect(p.hist.assigned).toEqual(['/h/tok.abc?from=door&lang=en']);
     expect(evs(p)).toContainEqual(expect.objectContaining({ n: 'hub_door_tap', ok: true }));
   });
   test('the server says no (door switched off meanwhile): no navigation, a toast, and the card stops offering it', async () => {
