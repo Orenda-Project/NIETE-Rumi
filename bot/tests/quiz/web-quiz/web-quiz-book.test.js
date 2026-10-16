@@ -370,3 +370,85 @@ describe('a story sticker\'s title is the passage file\'s (one title home)', () 
     } finally { Bank._loadPassagesFrom(); fs.rmSync(dir, { recursive: true, force: true }); }
   });
 });
+
+// A story sticker is the first FINISH of a passage (the child reached the end card): a `scored` row only. A swept run
+// (written `failed`) still lights its Trail stop, but it was never finished, so it gives no story sticker.
+describe('a story sticker is a finish (scored rows only)', () => {
+  test('a swept failed listen: its Trail sticker stays, no story sticker', async () => {
+    db.web_quiz_challenge_runs.push(run({ exercise: 'listen', status: 'failed', passage_id: 'en.listen.2.setA', wcpm: null, score: null }));
+    const out = await book();
+    expect(out.trail_stickers).toEqual(['listen']);
+    expect(out.story_stickers).toEqual([]);
+  });
+  test('golden: a scored listen gives the story sticker as before', async () => {
+    db.web_quiz_challenge_runs.push(run({ exercise: 'listen', passage_id: 'en.listen.2.setA', wcpm: null }));
+    const out = await book();
+    expect(out.trail_stickers).toEqual(['listen']);
+    expect(out.story_stickers).toEqual([{ passage_id: 'en.listen.2.setA', title: '' }]);
+  });
+  test('a swept try and a later finish of one passage: one sticker, placed at the finish', async () => {
+    db.web_quiz_challenge_runs.push(
+      run({ mode: 'practice', record: false, passage_id: 'en.read.1.story01', status: 'failed', created_at: MON, scored_at: MON }),
+      run({ mode: 'practice', record: false, passage_id: 'en.read.1.story02', created_at: '2026-11-10T06:00:00Z', scored_at: '2026-11-10T06:00:00Z' }),
+      run({ mode: 'practice', record: false, passage_id: 'en.read.1.story01', created_at: WED, scored_at: WED }),
+    );
+    const out = await book();
+    expect(out.story_stickers.map((s) => s.passage_id)).toEqual(['en.read.1.story02', 'en.read.1.story01']);
+  });
+});
+
+// The new lamp: when one sitting lights lamps on two ladders, the lamp a SCORED run set is the one the child sees,
+// not the one a swept (failed) run set. A rung row names its run by row_id (child_rungs.row_id, the run that set it).
+describe('the new lamp prefers a scored run\'s lamp over a swept run\'s', () => {
+  const T1 = '2026-11-11T03:00:00Z';
+  const T2 = '2026-11-11T03:10:00Z';
+  test('N5 from a scored warm-up at t1, R1 from a swept listen at t2, same period -> levelup names numbers 5', async () => {
+    db.web_quiz_challenge_runs.push(
+      run({ id: 'run-warm', exercise: 'missing', item_set_id: 's-a1', created_at: T1, scored_at: T1 }),
+      run({ id: 'run-listen', exercise: 'listen', status: 'failed', passage_id: 'en.listen.2.setA', created_at: T2, scored_at: T2 }),
+    );
+    db.child_rungs = [
+      { canonical_id: KID, ladder: 'numbers', rung: 5, period_id: '2026-11', set_at: T1, row_id: 'run-warm' },
+      { canonical_id: KID, ladder: 'reading', rung: 1, period_id: '2026-11', set_at: T2, row_id: 'run-listen' },
+    ];
+    expect((await book()).levelup).toEqual({ ladder: 'numbers', rung: 5 });
+  });
+  test('golden: a single lamp from a swept run -> that lamp, exactly as before', async () => {
+    db.web_quiz_challenge_runs.push(run({ id: 'run-listen', exercise: 'listen', status: 'failed', passage_id: 'en.listen.2.setA', created_at: T2, scored_at: T2 }));
+    db.child_rungs = [{ canonical_id: KID, ladder: 'reading', rung: 1, period_id: '2026-11', set_at: T2, row_id: 'run-listen' }];
+    expect((await book()).levelup).toEqual({ ladder: 'reading', rung: 1 });
+  });
+  test('golden: two lamps from scored runs (or with no run named) -> the newest, as before', async () => {
+    db.web_quiz_challenge_runs.push(
+      run({ id: 'run-warm', exercise: 'missing', item_set_id: 's-a1', created_at: T1, scored_at: T1 }),
+      run({ id: 'run-read', passage_id: 'en.read.2.setA', created_at: T2, scored_at: T2 }),
+    );
+    db.child_rungs = [
+      { canonical_id: KID, ladder: 'numbers', rung: 5, period_id: '2026-11', set_at: T1, row_id: 'run-warm' },
+      { canonical_id: KID, ladder: 'reading', rung: 2, period_id: '2026-11', set_at: T2, row_id: 'run-read' },
+    ];
+    expect((await book()).levelup).toEqual({ ladder: 'reading', rung: 2 });
+    db.child_rungs.forEach((r) => { delete r.row_id; });
+    expect((await book()).levelup).toEqual({ ladder: 'reading', rung: 2 });
+  });
+});
+
+// The counted-listen title gate (web-quiz-passage-title.js) reaches the Book: while it is red, a counted listening
+// passage's sticker carries no title even when its file has one; a practice listening story keeps its title.
+describe('the Book\'s story_stickers carry no counted-listen title while the gate is red', () => {
+  test('a counted listen whose file has titles in both languages -> "" (the generic) in English and Urdu', async () => {
+    const { LISTEN_TITLE_GATE_RED } = require('../../../shared/services/quiz/web-quiz-passage-title');
+    const Bank = require('../../../shared/services/child-test/item-bank');
+    const p = Bank.getPassage('en.listen.2.setA');
+    expect(p).toMatchObject({ kind: 'listen', pool: 'check' });
+    expect(p.title_en && p.title_ur).toBeTruthy();
+    expect(LISTEN_TITLE_GATE_RED).toBe(true);
+    db.web_quiz_challenge_runs.push(run({ exercise: 'listen', passage_id: 'en.listen.2.setA', wcpm: null }));
+    expect((await book()).story_stickers).toEqual([{ passage_id: 'en.listen.2.setA', title: '' }]);
+    expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'en.listen.2.setA', title: '' }]);
+  });
+  test('a practice listening story keeps its file title (the gate is for counted listens only)', async () => {
+    db.web_quiz_challenge_runs.push(run({ exercise: 'listen', mode: 'practice', record: false, passage_id: 'en.listen.1.story01', wcpm: null }));
+    expect((await book()).story_stickers).toEqual([{ passage_id: 'en.listen.1.story01', title: 'Ice Cream in the Sun' }]);
+  });
+});
