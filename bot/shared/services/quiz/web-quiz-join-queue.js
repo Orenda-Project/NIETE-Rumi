@@ -4,7 +4,9 @@
  * class list?", one tap each, and the strict backward join as a job function.
  *
  *   computeCandidates(teacherUserId)  every queue row for ONE teacher, both tiers, ungated (tests, lead review)
- *   candidatesFor(teacherUserId)      the rows of the served tiers (TIERS_SERVED minus any tier held by precision)
+ *   candidatesFor(teacherUserId)      the rows of the served tiers (TIERS_SERVED minus any tier held by precision),
+ *                                     from the teacher's cached queue (QUEUE_TTL_S, Redis with a local fallback):
+ *                                     the rows are computed once per teacher per few minutes; every decision drops it
  *   precisionByTier()                 per tier: the teachers' decisions so far, precision, Wilson lower bound, held
  *   servedTiers()                     the tiers served right now ([] when the switch is off)
  *   decide({teacherUserId, looseId, candidateId, decision})   'same' | 'no' | 'undo': the only queue write
@@ -29,6 +31,7 @@
  * dropped), so the rows match the measured truth set. Rows carry first names only: never a surname, phone or device.
  * Never throws: a failure is an empty queue / a refused tap.
  */
+const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
@@ -58,6 +61,8 @@ const HOLD_LOWER = 0.85;
 const PRECISION_TTL_MS = 60 * 1000;
 const DECISIONS = new Set(['same', 'no', 'undo']);
 const CAP = 5000;
+const QUEUE_TTL_S = 10 * 60;      // a teacher's computed queue is kept this long (the tab and every tap read it)
+const QUEUE_PREFIX = 'wq:jq:t:';  // + sha256(teacher id)[0:16]: ids and hashes only in a key
 const JOB_PAGE = 200;   // a page of loose ids goes into one `.in()`: at most IN_CHUNK (web-quiz-in-chunks)
 
 // ─── the fold (r0 identity audit `norm`) ─────────────────────────────────────
@@ -278,6 +283,50 @@ const round4 = (x) => (x == null ? null : Math.round(x * 10000) / 10000);
 
 let precisionCache = null; // {at, value}
 
+// ─── the per-teacher queue cache ─────────────────────────────────────────────
+// compute() is the slow part (every roster row, every session of every loose child: seconds on a teacher with many
+// codes) and it ran on every tab load AND inside every decision. The computed rows (both tiers, ungated) are kept per
+// teacher for QUEUE_TTL_S in Redis — a local in-process map when Redis is down — and every write of decide() drops the
+// teacher's entry, so a decided pair never comes back stale. The row shape in the cache is exactly compute()'s (first
+// names only; never a phone or a device).
+const localQueue = new Map(); // key → {at, rows}
+const queueKey = (t) => QUEUE_PREFIX + crypto.createHash('sha256').update(String(t)).digest('hex').slice(0, 16);
+function redisOrNull() {
+  try {
+    const r = require('../cache/railway-redis.service');
+    return r && typeof r.isAvailable === 'function' && r.isAvailable() ? r : null;
+  } catch (_) { return null; }
+}
+async function cachedCompute(t) {
+  const key = queueKey(t);
+  const now = Date.now();
+  const r = redisOrNull();
+  if (r) {
+    // Redis up: it is the one home of the cached queue (shared by every bot process); a miss recomputes.
+    try {
+      const v = await r.get(key);
+      const hit = v && typeof v === 'string' ? JSON.parse(v) : v;
+      if (hit && Array.isArray(hit.rows)) return hit.rows;
+    } catch (_) { /* a failed read computes */ }
+    const rows = await compute(t);
+    try { await r.set(key, { at: now, rows }, QUEUE_TTL_S); } catch (_) { /* served uncached this once */ }
+    return rows;
+  }
+  // Redis down: this process keeps its own copy for the same TTL (never consulted while Redis is up).
+  const loc = localQueue.get(key);
+  if (loc && now - loc.at < QUEUE_TTL_S * 1000) return loc.rows;
+  const rows = await compute(t);
+  localQueue.set(key, { at: now, rows });
+  return rows;
+}
+async function dropQueue(t) {
+  if (!t) return;
+  const key = queueKey(t);
+  localQueue.delete(key);
+  const r = redisOrNull();
+  if (r) { try { await r.delete(key); } catch (_) { /* expires on its own */ } }
+}
+
 async function countDecisions(tier, decision) {
   const { count, error } = await supabase.from('merge_log').select('id', { count: 'exact', head: true })
     .eq('source', 'queue').eq('tier', tier).eq('decision', decision);
@@ -336,7 +385,7 @@ async function candidatesFor(teacherUserId) {
     if (!teacherUserId || !(await canonOn())) return [];
     const tiers = await liveTiers();
     if (!tiers.length) return [];
-    return serveTiers(await compute(teacherUserId), tiers);
+    return serveTiers(await cachedCompute(teacherUserId), tiers);
   } catch (err) {
     logToFile('⚠️ join queue: candidates failed — an empty queue', { error: err.message });
     return [];
@@ -353,12 +402,10 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
   if (!(await canonOn())) return { off: true };
   if (!teacherUserId || !looseId || !candidateId || looseId === candidateId || !DECISIONS.has(decision)) return { ok: false, reason: 'bad_request' };
   try {
-    const roster = await teacherRoster(teacherUserId);
-    if (!roster.has(candidateId)) return { ok: false, reason: 'not_your_roster' };
     const now = new Date().toISOString();
     const log = (d, tier) => rows(supabase.from('merge_log').insert({
       loose_id: looseId, candidate_id: candidateId, teacher_id: teacherUserId, decision: d, source: 'queue', tier: tier || null, decided_at: now,
-    }).select('id')).then((x) => { precisionCache = null; return x; });
+    }).select('id')).then(async (x) => { precisionCache = null; await dropQueue(teacherUserId); return x; });
     // Idempotent: the same tap again (a 303-and-refresh double submit) writes nothing and answers as the first did.
     const last = (await lastDecisions(teacherUserId, [looseId])).get(`${looseId}|${candidateId}`);
     if (last === decision) {
@@ -369,14 +416,27 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
     // "Same child" only for a pair the teacher is actually shown: the served queue (a tier held out or held by its
     // precision can never be written through any caller). 'no' and 'undo' keep their own checks (an undo stays
     // possible). Every row records the tier of the pair as shown; an undo, the tier of the 'same' it reverses.
-    let tier = null;
-    if (decision === 'same') {
-      const tiers = await liveTiers();
-      const shown = tiers.length ? serveTiers(await compute(teacherUserId), tiers) : [];
-      const pair = shown.find((x) => x.loose_id === looseId && x.candidate_id === candidateId);
-      if (!pair) return { ok: false, reason: 'not_served' };
-      tier = pair.evidence.tier;
+    // The pair as the teacher was shown it: the served tiers of the teacher's cached queue (computed at most
+    // QUEUE_TTL_S ago from this teacher's roster and loose children, so a served pair IS on the roster and IS loose
+    // as of then). 'same' / 'no' on a served pair verify nothing else and go to the write: the merge keeps its own
+    // guard (still loose, still active, not enrolled) so a pair that went stale is refused, never mis-merged.
+    const tiers = decision === 'undo' ? [] : await liveTiers();
+    const shown = tiers.length ? serveTiers(await cachedCompute(teacherUserId), tiers) : [];
+    const pair = shown.find((x) => x.loose_id === looseId && x.candidate_id === candidateId) || null;
+    if (pair && decision === 'same') {
+      if (!(await mergeLoose(looseId, candidateId, now))) { await dropQueue(teacherUserId); return { ok: false, reason: 'not_loose' }; }
+      await log('same', pair.evidence.tier);
+      logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged', ...kidFor(candidateId) });
+      return { ok: true, decision };
     }
+    if (pair && decision === 'no') {
+      await log('no', pair.evidence.tier);
+      return { ok: true, decision };
+    }
+    // Not a served pair (or an undo): today's full checks, unchanged.
+    const roster = await teacherRoster(teacherUserId);
+    if (!roster.has(candidateId)) return { ok: false, reason: 'not_your_roster' };
+    if (decision === 'same') return { ok: false, reason: 'not_served' };
     if (decision === 'undo') {
       if (last !== 'same') return { ok: false, reason: 'nothing_to_undo' };
       const back = await rows(supabase.from('students').update({ merged_into: null, status: 'active', is_active: true, updated_at: now })
@@ -390,16 +450,10 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
     if (decision === 'no') {
       // The tier is recorded only for a pair the teacher was shown (the served, unheld queue); a 'no' on any other
       // pair is kept without a tier, so nothing counts toward a tier's accepted share before the teacher saw it.
-      const tiers = await liveTiers();
-      const shown = tiers.length ? serveTiers(await compute(teacherUserId), tiers) : [];
-      const pair = shown.find((x) => x.loose_id === looseId && x.candidate_id === candidateId);
-      await log('no', pair ? pair.evidence.tier : null);
+      await log('no', null);
       return { ok: true, decision };
     }
-    if (!(await mergeLoose(looseId, candidateId, now))) return { ok: false, reason: 'not_loose' };
-    await log('same', tier);
-    logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged', ...kidFor(candidateId) });
-    return { ok: true, decision };
+    return { ok: false, reason: 'bad_request' };
   } catch (err) {
     logToFile('⚠️ join queue: decision not written', { error: err.message });
     return { ok: false, reason: 'failed' };
@@ -524,5 +578,6 @@ module.exports = {
   computeCandidates, candidatesFor, serveTiers, decide, linkClassCodes, runBackwardJoin, precisionByTier, servedTiers,
   TIERS, TIERS_SERVED, HOLD_MIN_N, HOLD_LOWER, norm, wilsonLower,
   _serveForTest: (tiers) => { served = tiers ? Object.freeze([...tiers]) : TIERS_SERVED; precisionCache = null; },
-  _resetPrecisionCache: () => { precisionCache = null; }, tokset, words, canonFirst, gradeOf, firstName, route,
+  _resetPrecisionCache: () => { precisionCache = null; }, _resetQueueCache: () => { localQueue.clear(); }, QUEUE_TTL_S,
+  tokset, words, canonFirst, gradeOf, firstName, route,
 };
