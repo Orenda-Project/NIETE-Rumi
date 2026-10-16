@@ -101,6 +101,8 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
   // storybooks from the kid's hub (the bot answers 404 stories_off while web_quiz_stories is off)
   { method: 'get', path: '/api/wq/stories/shelf/h/:token', limiter: 'read', token: true },
+  // the covers of one grade × language for anyone (no child data): a join's grade tap warms the thumbnails
+  { method: 'get', path: '/api/wq/stories/shelf', limiter: 'read', cache: 'public, max-age=300' },
   { method: 'get', path: '/api/wq/stories/book/:id/h/:token', limiter: 'read', token: true },
   // per child link (a whole class reads behind one school address), with a loose ceiling per address
   { method: 'post', path: '/api/wq/stories/event/h/:token', limiter: ['stories', 'challengeIp'], token: true },
@@ -650,6 +652,7 @@ function createWebQuizRouter(opts = {}) {
         if (out.status >= 300 && out.status < 400 && out.location) return res.redirect(out.status, out.location);
         if (out.status === 204) return res.status(204).end();
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
+        if (r.cache && out.status === 200) res.set('Cache-Control', r.cache);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
         return res.status(out.status).json(out.body == null ? {} : out.body);
       } catch (err) {

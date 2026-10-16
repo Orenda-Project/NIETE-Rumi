@@ -340,6 +340,34 @@ describe('events', () => {
     expect(out.by_kind).toEqual({ literal: [1, 1], inference: [0, 1] });
     expect(fake.db.story_events[0].data.by_kind).toEqual({ literal: [1, 1], inference: [0, 1] });
   });
+  test('a second miss shows the answer kindly ({show}); a first miss never does', async () => {
+    seed();
+    expect(await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_answer', data: { n: 2, i: 0 } })).toEqual({ ok: true, right: false });
+    expect(await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_answer', data: { n: 2, i: 2, try: 2 } })).toEqual({ ok: true, right: false, show: 1 });
+    expect(await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_answer', data: { n: 2, i: 1, try: 2 } })).toEqual({ ok: true, right: true });
+  });
+  test('answers as tries per question ([first, second?]): right by the second try counts, by_kind too', async () => {
+    seed();
+    const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_questions_done', data: { answers: [[2, 0], [1]] } });
+    expect(out).toMatchObject({ correct: 2, total: 2, by_kind: { literal: [1, 1], inference: [1, 1] } });
+  });
+  test('story_page_read keeps which came first and the skipped word positions (numbers only)', async () => {
+    seed();
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { words_total: 5, words_read: 3, first: 'read', skipped_words: [1, 3, 'x', 999999] } });
+    expect(fake.db.story_events[0].data).toEqual({ words_total: 5, words_read: 3, first: 'read', skipped_words: [1, 3] });
+  });
+  test('the public shelf: no token, no child, only ready books of the grade × language in catalogue order, covers only', async () => {
+    seed();
+    const out = await Stories.shelfPublic({ g: '2', l: 'en' });
+    expect(out.grade).toBe(2); expect(out.lang).toBe('en');
+    expect(out.books.map((b) => b.id)).toEqual([1, 2, 3, 4, 5, 6, 7].map(F.BOOK));
+    expect(Object.keys(out.books[0]).sort()).toEqual(['cover', 'dir', 'grade', 'id', 'lang', 'minutes', 'pages', 'title']);
+    expect(mockKidFromHub).not.toHaveBeenCalled();
+  });
+  test('the public shelf is closed with the switch off', async () => {
+    seed({ on: false });
+    expect(await body(Stories.shelfPublic({ g: '2' }))).toEqual({ error: 'stories_off' });
+  });
   test('story_answer accepts the contract\'s {n, i} as well as {n, pick}', async () => {
     seed();
     expect(await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_answer', data: { n: 1, i: 0 } })).toEqual({ ok: true, right: true });

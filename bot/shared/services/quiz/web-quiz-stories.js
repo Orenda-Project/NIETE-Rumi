@@ -4,6 +4,7 @@
  * off, every answer is 404 `stories_off` and nothing about the child is read).
  *
  *   shelf(token, {kid, g, l, t, device, now})   the books of one grade × language for the child a hub chip names
+ *   shelfPublic({g, l})                         the same shelf's covers for anyone (no token, no child data)
  *   book(id, token, {kid, device})              one ready book: pages, words with the voice's timings, questions (no answers)
  *   bookData(id)                                the same payload with no child (the teacher's preview, behind its own token)
  *   event(token, {kid, book_id, page_n, event, data}, {device})  one story event; questions are checked here
@@ -45,7 +46,7 @@ const EVENTS = new Set(['story_opened', 'story_page_listened', 'story_page_read'
 const KEEP = {
   story_opened: { shelf_position: 'int', from_teacher: 'bool', grade: 'int', lang: 'lang', code: 'code' },
   story_page_listened: { ms: 'int', completed: 'bool', miss: 'bool' },
-  story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended' },
+  story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended', first: 'first', skipped_words: 'ints' },
   story_questions_done: {},
   story_done: { pages_listened: 'int', pages_read: 'int', stars: 'int' },
   story_shared: {},
@@ -55,11 +56,9 @@ const ENDED = new Set(['last_word', 'quiet', 'done_tap', 'timer', 'line1', 'stuc
 const fail = (status, error) => { throw new WqError(status, { error }); };
 let cache = null;
 
-/** Only a literal true (or "true") turns it on; a read error is off. */
+/** Only a literal true (or the exact string "true") turns it on; a read error is off. */
 function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true;
+  return value === true || value === 'true';
 }
 
 async function flags(now = Date.now()) {
@@ -181,6 +180,8 @@ function keep(event, data) {
     else if (spec[k] === 'lang' && (v === 'en' || v === 'ur')) out[k] = v;
     else if (spec[k] === 'ended' && ENDED.has(v)) out[k] = v;
     else if (spec[k] === 'code' && typeof v === 'string' && /^[A-Za-z0-9]{4,12}$/.test(v)) out[k] = v;
+    else if (spec[k] === 'first' && (v === 'listen' || v === 'read')) out[k] = v;
+    else if (spec[k] === 'ints' && Array.isArray(v)) out[k] = v.slice(0, 200).filter((n) => Number.isInteger(n) && n >= 0 && n < 2000);
   });
   return out;
 }
@@ -224,6 +225,20 @@ async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
   };
   logEvent('web_quiz.stories_shelf', { g: grade, l: lang, n: out.books.length });
   return out;
+}
+
+/** The covers of one grade × language for anyone (no token, no child): warms thumbnails before a child is known. */
+async function shelfPublic({ g, l } = {}) {
+  if (!(await storiesOn())) fail(404, 'stories_off');
+  const grade = gradeOf(g) || 1;
+  const lang = l === 'ur' ? 'ur' : 'en';
+  const { data } = await supabase.from('story_books').select(BOOK_COLS).eq('status', 'ready').eq('grade', grade).eq('lang', lang);
+  const books = (data || []).slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  return {
+    grade, lang,
+    books: books.map((b) => ({ id: b.id, title: b.title, grade: b.grade, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', pages: b.pages,
+      minutes: b.minutes == null ? null : Number(b.minutes), cover: fileUrl(b.id, b.cover_file) })),
+  };
 }
 
 async function signAudio(key, bookId) {
@@ -370,7 +385,8 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
     if (!q) fail(400, 'bad_question');
     const right = int(data.i != null ? data.i : data.pick) === Number(q.answer_i);
     logEvent('web_quiz.story_answer', { n: q.n, kind: q.kind, right });
-    return { ok: true, right };
+    // Only after a second miss is the answer shown (kindly, then the next question); a first miss earns a look back.
+    return { ok: true, right, ...(!right && int(data.try) === 2 ? { show: Number(q.answer_i) } : {}) };
   }
   const page = pageN == null ? null : int(pageN);
   if (pageN != null && (page === null || page < 0 || page > (Number(b.pages) || 0) + 1)) fail(400, 'bad_page');
@@ -378,7 +394,8 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   const out = { ok: true };
   if (name === 'story_questions_done') {
     const qs = await reviewedQuestions(b.id);
-    const picks = Array.isArray(data && data.answers) ? data.answers.slice(0, qs.length).map(int) : [];
+    // One pick per question, or its tries [first, second?]: the last try is the answer (right by the second try counts).
+    const picks = Array.isArray(data && data.answers) ? data.answers.slice(0, qs.length).map((a) => int(Array.isArray(a) ? a[a.length - 1] : a)) : [];
     const correct = qs.filter((q, i) => picks[i] !== null && picks[i] === Number(q.answer_i)).length;
     const stars = effortOf(await childEvents(who.studentId, b.id), true);
     Object.assign(out, { correct, total: qs.length, stars });
@@ -437,7 +454,7 @@ async function stickersFor(studentId) {
 }
 
 module.exports = {
-  shelf, book, bookData, event, hubBits, stickersFor, storiesOn, pageReadable,
+  shelf, shelfPublic, book, bookData, event, hubBits, stickersFor, storiesOn, pageReadable,
   pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY,
   _reset: () => { cache = null; },
   _cardField: (fn) => { cardField = fn; },

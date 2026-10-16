@@ -84,6 +84,21 @@ describe('storybook stickers on the Book', () => {
     const out = await book();
     expect(Object.prototype.hasOwnProperty.call(out, 'book_stickers')).toBe(false);
   });
+  test.each([['false', false], ['the word yes', 'yes'], ['a JSON string true with spaces', ' true ']])('Stories set to %s: no book_stickers key', async (_, value) => {
+    db.story_books = [F.book(1)];
+    db.story_events = [{ child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: {}, at: WED }];
+    db.app_settings.push({ key: 'web_quiz_stories', value });
+    const out = await book();
+    expect(Object.prototype.hasOwnProperty.call(out, 'book_stickers')).toBe(false);
+  });
+  test('the Stories settings read throws: no book_stickers key, the Book still answers', async () => {
+    db.story_books = [F.book(1)];
+    db.story_events = [{ child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: {}, at: WED }];
+    const fake = makeFake(db);
+    Object.assign(supabase, { from: (t) => (t === 'app_settings' ? { select: () => ({ in: async (c, keys) => (keys.includes('web_quiz_stories') ? { data: null, error: { message: 'down' } } : fake.from(t).select('key, value').in(c, keys)) }) } : fake.from(t)) });
+    const out = await book();
+    expect(Object.prototype.hasOwnProperty.call(out, 'book_stickers')).toBe(false);
+  });
   test('Stories on: one sticker per finished ready book, with its title and cover', async () => {
     db.app_settings.push({ key: 'web_quiz_stories', value: true });
     db.story_books = [F.book(1), F.book(2, { status: 'off' })];

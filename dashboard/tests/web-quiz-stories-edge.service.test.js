@@ -40,6 +40,18 @@ describe('/api/wq/stories/*', () => {
     expect(calls[0].url).toBe(`${BOT}/api/internal/wq/stories/shelf/h/${TOKEN}?kid=kidchipabcdefghi&g=2&l=ur`);
     expect(calls[0].opts.headers['x-wq-device']).toBe('AAAAAAAAAAAAAAAAAAAAAA');
   });
+  test('the public shelf (no token): forwarded with its query, cacheable for 5 minutes', async () => {
+    const r = await call('GET', '/api/wq/stories/shelf?g=2&l=ur');
+    expect(r.status).toBe(200);
+    expect(r.cache).toBe('public, max-age=300');
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/stories/shelf?g=2&l=ur`);
+  });
+  test('the public shelf off (404) is never cached', async () => {
+    answer = { status: 404, body: { error: 'stories_off' } };
+    const r = await call('GET', '/api/wq/stories/shelf?g=2');
+    expect(r.status).toBe(404);
+    expect(r.cache).toBe('no-store');
+  });
   test('the book: forwarded', async () => {
     const r = await call('GET', `/api/wq/stories/book/${BOOK}/h/${TOKEN}?kid=kidchipabcdefghi`);
     expect(r.status).toBe(200);
