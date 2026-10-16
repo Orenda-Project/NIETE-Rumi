@@ -42,6 +42,7 @@
       lanternTrailOne: 'A game is waiting for you on the Trail.', lanternTrailMany: 'Games are waiting for you on the Trail.',
       storyBanner: 'Story Time: just for fun',
       storyAsk: 'Hear it from me first, or read it yourself.', storyReadAlong: 'Read along with Jugnu', storyAgain: 'Read this story again any time.',
+      ra: { play: 'Play', pause: 'Pause', replay: 'Hear it again' },
       warmupTitle: 'Number warm-up', warmupSay: "Let's start with some numbers.", warmupDone: 'Warm-up done!',
       // jg.trail.welcome_back (the lead's posted EN): the intro line of a re-served record (reopened: true)
       welcomeBack: "Welcome back! Let's carry on.",
@@ -63,6 +64,7 @@
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
       storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
+      ra: { play: 'سنیں', pause: 'روکیں', replay: 'دوبارہ سنیں' },
       warmupTitle: 'گنتی کا کھیل', warmupSay: 'چلیں، پہلے گنتی سے شروع کریں۔', warmupDone: 'گنتی کا کھیل مکمل!',
       welcomeBack: 'دوبارہ خوش آمدید! آئیں، آگے چلتے ہیں۔',
       // jg.t.practice (deck bytes, bot/shared/config/copy.v2.json)
@@ -73,6 +75,9 @@
   var HELP_KEY = 'wqc_helped_v2';
   var CLIP_TRIES = 3;
   var ALONG_CAP_MS = 180000;   // a WebView that never reports the clip's end still reaches the read
+  // the word-by-word player (wq-readalong.js), fetched only when a story serve carries `readalong`
+  // (web_quiz_readalong); its version is the file's sha256, first 10 hex (a test keeps the two in step)
+  var RA_V = 'd1b532baac';
 
   // own styles (only under v2): the chip's second line under the name; Urdu lines at Nastaliq-readable size
   function css() {
@@ -230,7 +235,8 @@
       d.live = false;   // no words-a-minute bar in Story Time
       h.S.data = d;
       h.ev('ch_start', { step: ex });
-      if (ex === 'read' && clipUrl(d)) storyAsk(); else intro();
+      if (ex === 'read' && d.readalong) raLoad();   // fetched now, so the child's tap can start the voice
+      if (ex === 'read' && (clipUrl(d) || d.readalong)) storyAsk(); else intro();
     }
     // two equal answers, neither pressed until a tap
     function storyAsk() {
@@ -249,9 +255,30 @@
       var ln = lines[at] || { from: 0, to: ws.length - 1 };
       return ws.map(function (w, i) { return '<span class="wqc-w' + (i >= ln.from && i <= ln.to ? ' wqc-next' : '') + '">' + esc(w) + '</span>'; }).join(' ');
     }
+    function raLoad() {
+      if (window.WQReadAlong || raLoad.asked) return;
+      raLoad.asked = true;
+      try {
+        var s = document.createElement('script');
+        s.src = '/wq/wq-readalong.js?v=' + RA_V;
+        document.head.appendChild(s);
+      } catch (e) { /* the line-lit read-along stays */ }
+    }
+    // Read along, word by word (the serve's `readalong` and the player loaded): Jugnu reads at a child's pace, the
+    // green pill on each word as it is spoken; play/pause, replay, tap a word to hear it from there. Nothing moves on
+    // by itself: "I'm ready" goes to the normal read whenever the child is.
+    function timedAlong(d) {
+      h.show('story-along', h.jug('hello', t.storyReadAlong, true) + '<div id="wqc-along-ra"></div>'
+        + '<div class="wqc-sticky">' + btn('wqc-along-read', h.t.ready) + '</div>');
+      var p = window.WQReadAlong.mount(h.q('wqc-along-ra'), d.readalong, { labels: t.ra });
+      h.on('wqc-along-read', function () { try { p.destroy(); } catch (e) { /* gone */ } h.read(); });
+      p.play();   // inside the child's tap: the in-app browser's audio unlock
+    }
     // Read along: the story clip plays, the line it is on is lit, then the normal read (the microphone, the story)
     function readAlong() {
       var d = h.S.data;
+      if (d.readalong && window.WQReadAlong) { timedAlong(d); return; }
+      if (!clipUrl(d)) { h.read(); return; }
       var st = d.story;
       var ws = alongWords(st);
       var lines = (st.lines && st.lines.length) ? st.lines : [{ from: 0, to: ws.length - 1 }];

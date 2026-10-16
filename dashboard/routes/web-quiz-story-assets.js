@@ -1,0 +1,118 @@
+/**
+ * GET /s/:bookId/:file — a storybook's page pictures, covers, word bands and page voices, from our own origin.
+ *
+ * Every file is content-addressed (story-store.js: story/<env>/<book id>/<stem>-<hash8>.<ext>), so it never changes
+ * under its name and the phone keeps it for a year (immutable); a re-voice is a new name. Streamed from storage by
+ * the portal itself, never through the bot, and kept in a 64 MB memory so a class opening the same book asks
+ * storage once. Phones fetch audio by byte range: a Range gets a 206.
+ *
+ * Switch app_settings web_quiz_stories (default OFF, read at most every 30 s, fail closed): OFF, the edge does not own
+ * the path at all — the request goes on to whatever answers it today, byte for byte, and storage is never asked.
+ */
+const StoryStore = require('../../bot/shared/services/quiz/story-store');
+
+const FLAG_KEY = 'web_quiz_stories';
+const FLAG_TTL_MS = 30000;
+const LRU_BYTES = 64 * 1024 * 1024;
+const TYPES = { webp: 'image/webp', ogg: 'audio/ogg', mp3: 'audio/mpeg' };
+const NO_STORE = { 'Cache-Control': 'no-store' };
+
+/** A memory of {bytes, contentType} by key, at most maxBytes in total; least recently used out first. */
+function createByteLru(maxBytes = LRU_BYTES) {
+  const m = new Map();
+  let total = 0;
+  return {
+    get(k) {
+      const v = m.get(k);
+      if (v) { m.delete(k); m.set(k, v); }
+      return v;
+    },
+    set(k, v) {
+      const n = v.bytes.length;
+      if (n > maxBytes) return;
+      if (m.has(k)) { total -= m.get(k).bytes.length; m.delete(k); }
+      while (total + n > maxBytes && m.size) {
+        const [oldK, oldV] = m.entries().next().value;
+        m.delete(oldK);
+        total -= oldV.bytes.length;
+      }
+      m.set(k, v);
+      total += n;
+    },
+    size: () => total,
+  };
+}
+
+/** app_settings web_quiz_stories, read through the portal's own client, remembered for 30 s; any failure = off. */
+function flagReader({ now = Date.now } = {}) {
+  let at = -Infinity;
+  let val = false;
+  return async () => {
+    if (now() - at < FLAG_TTL_MS) return val;
+    try {
+      const supabase = require('../config/supabase');
+      val = supabase ? await require('../lib/feature-flags').isFlagEnabled(supabase, FLAG_KEY) : false;
+    } catch (_) { val = false; }
+    at = now();
+    return val;
+  };
+}
+
+/** The object at key in the quiz-audio bucket, or null when storage has no such object. */
+async function r2Object(key) {
+  return require('../services/r2.service').getObjectBytes(key, { bucket: StoryStore.storyBucket() || undefined });
+}
+
+function rangeOf(header, size) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(header || '').trim());
+  if (!m || (m[1] === '' && m[2] === '')) return null;
+  let start; let end;
+  if (m[1] === '') { start = Math.max(0, size - Number(m[2])); end = size - 1; } else { start = Number(m[1]); end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1); }
+  return start <= end && start < size ? { start, end } : { bad: true };
+}
+
+/**
+ * The route's handler. opts: storiesOn() → boolean, storyObject(key) → {bytes, contentType} | null, storyEnv (the
+ * storage env name; default the Railway environment's), limiter (express middleware, run only while on), now.
+ */
+function createStoryAssetHandler(opts = {}) {
+  const storiesOn = opts.storiesOn || flagReader({ now: opts.now });
+  const storyObject = opts.storyObject || r2Object;
+  const env = opts.storyEnv || StoryStore.deployEnv();
+  const lru = createByteLru(opts.lruBytes || LRU_BYTES);
+  return async function storyAsset(req, res, next) {
+    let on = false;
+    try { on = (await storiesOn()) === true; } catch (_) { on = false; }
+    if (!on) return next();
+    if (opts.limiter) {
+      let passed = false;
+      await new Promise((resolve) => { Promise.resolve(opts.limiter(req, res, () => { passed = true; resolve(); })).then(() => resolve(), () => resolve()); });
+      if (!passed) return undefined;
+    }
+    const bookId = String(req.params.bookId || '');
+    const file = String(req.params.file || '');
+    if (!StoryStore.BOOK_RX.test(bookId) || !StoryStore.FILE_RX.test(file)) return res.status(400).set(NO_STORE).json({ error: 'bad_name' });
+    const key = StoryStore.storyKey({ env, bookId, file });
+    const h8 = /-([0-9a-f]{8})\.[a-z0-9]+$/.exec(file);
+    const etag = h8 ? `"${h8[1]}"` : null;
+    const fixed = { 'Cache-Control': StoryStore.IMMUTABLE, 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff', ...(etag ? { ETag: etag } : {}) };
+    if (etag && req.headers['if-none-match'] === etag) return res.status(304).set(fixed).end();
+    let obj = lru.get(key);
+    if (!obj) {
+      try { obj = await storyObject(key); } catch (_) { return res.status(502).set(NO_STORE).json({ error: 'upstream_error' }); }
+      if (!obj || !obj.bytes) return res.status(404).set(NO_STORE).json({ error: 'not_found' });
+      lru.set(key, obj);
+    }
+    const type = TYPES[file.split('.').pop()] || obj.contentType || 'application/octet-stream';
+    const size = obj.bytes.length;
+    const range = req.headers.range ? rangeOf(req.headers.range, size) : null;
+    if (range && range.bad) return res.status(416).set({ ...NO_STORE, 'Content-Range': `bytes */${size}` }).end();
+    if (range) {
+      return res.status(206).set({ ...fixed, 'Content-Type': type, 'Content-Range': `bytes ${range.start}-${range.end}/${size}` })
+        .end(obj.bytes.subarray(range.start, range.end + 1));
+    }
+    return res.status(200).set({ ...fixed, 'Content-Type': type, 'Content-Length': String(size) }).end(obj.bytes);
+  };
+}
+
+module.exports = { createStoryAssetHandler, createByteLru, flagReader, FLAG_KEY };
