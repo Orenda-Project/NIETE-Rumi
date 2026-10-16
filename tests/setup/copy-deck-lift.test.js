@@ -52,6 +52,7 @@
 const fs = require('fs');
 const path = require('path');
 const ALLOW = require('./copy-deck-lift.allowlist.json');
+const { ownedOnly } = require('./web-quiz-owned-paths');
 const EN_ONLY = require('./copy-deck-en-only.allowlist.json');
 const {
   REPO, liftNames, liftText, liftSite, copyStates, wqLiftNames, wqCopyStates, wqEnWithoutUr, copyGapVerdict, listVerdict,
@@ -271,7 +272,8 @@ describe('the tree', () => {
     const now = reachedModules();
     expect(now).toContain('bot/shared/config/ux-strings.js');
     const why = 'the deck-lift gate now reaches a different set of modules; update copy-deck-lift.modules.json (the train tool reads it to start a union run)';
-    expect({ why, modules: listed }).toEqual({ why, modules: now });
+    // compared inside the web quiz's own paths only: another team's module on a tier's tree never fails it
+    expect({ why, modules: ownedOnly(listed) }).toEqual({ why, modules: ownedOnly(now) });
   });
 
   test('every checked live deck key is lifted byte for byte, or listed; nothing new or moved', () => {
