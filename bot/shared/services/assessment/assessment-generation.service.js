@@ -808,11 +808,13 @@ function _cachedPrefixKey(messages) {
  * Sections run in parallel, and a cache entry is readable only once the request writing it has
  * started answering: sent together, every section writes the same prefix and none reads it. One
  * call with that exact prefix, the sections' own model, effort and JSON instruction, and no output
- * (`max_tokens: 0`, which the API accepts with thinking left at its default) writes it; the
+ * (`max_tokens: 1`; the reasoning is cut off with it) writes it; the
  * sections then read it. Maths sections are set from different pages and share nothing past the
  * system prompt, so they get no warm call. A failure here never fails the paper: the sections
  * simply write the cache themselves. Returns each warm call's usage, which is billed.
  */
+const WARM_MAX_TOKENS = 1;
+
 async function _warmSharedPrefixes({ built, model, job, requestId, pattern }) {
   if (!String(model || '').startsWith(DIRECT_LANE)) return [];
   const groups = new Map();
@@ -831,7 +833,11 @@ async function _warmSharedPrefixes({ built, model, job, requestId, pattern }) {
         messages: [system, { role: 'user', content: [user.content[0], { type: 'text', text: 'warmup' }] }],
         temperature: 0.7,
         response_format: { type: 'json_object' },
-        max_tokens: 0,
+        // One token, not zero: the API took 0 as "no limit" and wrote a whole billed answer to
+        // "warmup" (3,702 tokens, ~22 s, before any section could start). The effort stays the
+        // sections' own, because a change of thinking settings would stop the sections reading
+        // the cache this call writes; the one-token cap is what bounds the reasoning.
+        max_tokens: WARM_MAX_TOKENS,
         reasoning: SECTION_REASONING,
       }, { timeout: SECTION_TIMEOUT_MS });
       const usage = (response && response.usage) || {};
@@ -1106,6 +1112,54 @@ function _sectionText(section, loaded, scopeKind, ranges) {
 }
 
 /** Concatenate the sections' trees: the same type under the same category becomes one list. */
+/**
+ * The first reply, plus the second reply's items for the given slots whose question is not already
+ * in it. Nothing else of the second reply is kept.
+ */
+function _topUp(firstTree, secondTree, slots) {
+  const seen = new Set();
+  _walkQuestions(firstTree, (q) => seen.add(_flat(q.question).toLowerCase()));
+  const extra = JSON.parse(JSON.stringify(secondTree || {}));
+  for (const branch of ['seen', 'unseen']) {
+    for (const types of Object.values((extra && extra[branch]) || {})) {
+      if (!types || typeof types !== 'object') continue;
+      for (const [type, list] of Object.entries(types)) {
+        if (!Array.isArray(list)) continue;
+        types[type] = list.filter((q) => q && slots.has(q.slot) && !seen.has(_flat(q.question).toLowerCase()));
+      }
+    }
+  }
+  return _mergeSections([firstTree, extra]);
+}
+
+// The markers the paper refuses in a question's own text (the renderer's item list). The renderer's
+// own list is used when it exports one; this copy is the fallback.
+const REVIEW_ITEM_FALLBACK = Object.freeze([/needs review/i, /\bfil{2}er\b/i, /MODEL PAPER FOR/i, /\u26A0/]);
+
+function _reviewItemList() {
+  try {
+    const list = require('./assessment-paper-fde.renderer').REFUSED_ITEM;
+    if (Array.isArray(list) && list.length) return list;
+  } catch { /* the fallback below */ }
+  return REVIEW_ITEM_FALLBACK;
+}
+
+/** Section id → the first refused marker one of its items carries. */
+function _reviewTextHits(results) {
+  const list = _reviewItemList();
+  const hits = new Map();
+  for (const r of results) {
+    _walkQuestions(r.tree, (q) => {
+      if (hits.has(r.id)) return;
+      for (const t of _textsOf(q)) {
+        const re = list.find((x) => x.test(t));
+        if (re) { hits.set(r.id, { slot: q.slot || null, marker: String(re) }); return; }
+      }
+    });
+  }
+  return hits;
+}
+
 function _mergeSections(trees) {
   const out = {};
   for (const tree of trees) {
@@ -1269,7 +1323,9 @@ function _dropHeld(examJson, held, requestId = null) {
           if (!q || typeof q !== 'object') return true;
           const why = held(q);
           if (!why) return true;
-          const hit = { slot: q.slot || null, ...why };
+          // The kind (the reply's own type key) and, for a quote, the run that matched: one log line
+          // then says whether a drop was a real quote or a phrase the held lessons share with others.
+          const hit = { slot: q.slot || null, kind: type, ...why };
           dropped.push(hit);
           logToFile('[assessment] held item dropped', requestId ? { requestId, ...hit } : hit);
           return false;
@@ -1316,13 +1372,22 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '', 
     for (let i = 0; i + HELD_SHINGLE <= allowed.length; i += 1) shingles.delete(allowed.slice(i, i + HELD_SHINGLE));
   }
 
-  const quotes = (q) => _textsOf(q).some((t) => {
-    const s = _flat(t);
-    for (let i = 0; i + HELD_SHINGLE <= s.length; i += 1) if (shingles.has(s.slice(i, i + HELD_SHINGLE))) return true;
-    return false;
-  });
+  // The first run of the held pages an item carries, or null.
+  const quoteOf = (q) => {
+    for (const t of _textsOf(q)) {
+      const s = _flat(t);
+      for (let i = 0; i + HELD_SHINGLE <= s.length; i += 1) {
+        const run = s.slice(i, i + HELD_SHINGLE);
+        if (shingles.has(run)) return run;
+      }
+    }
+    return null;
+  };
 
-  return _dropHeld(examJson, (q) => (quotes(q) ? { reason: 'lesson_1_3' } : null), requestId);
+  return _dropHeld(examJson, (q) => {
+    const match = quoteOf(q);
+    return match ? { reason: 'lesson_1_3', match } : null;
+  }, requestId);
 }
 
 /** Where a pattern paper's pages come from: the pattern's syllabus, the job's pages, or a chapter. */
@@ -1409,18 +1474,36 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // whole. Decided on the reply as the model wrote it, BEFORE the held-content filter, so an
   // item the filter drops is still never refilled.
   const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern });
+  const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall.concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall);
   const shortSlots = new Set(short.map((f) => f.slot));
-  const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)));
+  // An item carrying text the paper refuses to print (a review mark the model copied) fails the
+  // paper at render; its section is asked once more instead, and a second hit fails it here.
+  const reviewHits = _reviewTextHits(results);
+  const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)) || reviewHits.has(section.id));
   const extraUsages = [];
   if (again.length) {
     await Promise.all(again.map(async (b) => {
       const shortfall = short.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
-      logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall });
+      const reviewText = reviewHits.get(b.section.id) || null;
+      logToFile('[assessment] section re-asked', {
+        requestId, pattern, section: b.section.id, shortfall, ...(reviewText ? { reviewText } : {}),
+      });
       const i = results.findIndex((r) => r.id === b.section.id);
-      extraUsages.push(...results[i].usages);
-      results[i] = await writeOne(b);
+      const first = results[i];
+      extraUsages.push(...first.usages);
+      const second = await writeOne(b);
+      // A slot short only because the layout set items aside (two options of equal value, an item
+      // tagged to a full slot) keeps the first reply and takes the missing items from the second:
+      // the layout fills a slot in reply order, so the first reply's items land first. Any other
+      // re-ask (a part with no marking points, a review mark) takes the second reply whole.
+      const topUp = !reviewText && shortfall.length && shortfall.every((f) => layoutShort.has(f.slot));
+      results[i] = topUp ? { ...second, tree: _topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
     }));
+    const still = _reviewTextHits(results);
+    if (still.size) {
+      throw fail('REVIEW_TEXT', 'A question carries text that must never print.', { sections: [...still.keys()], examJson: merged(), model });
+    }
   }
 
   // Layout first, so the filter sees every item under its pattern slot; a drop
@@ -1440,15 +1523,17 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     requestId, pattern, placed: layout.placed, unplaced: layout.unplaced, totalMarks: examJson._layout.total_marks,
     sections: P.sections.map((s) => s.id), dropped: dropped.length, shortfall: laid.shortfall,
   });
+  // A failed paper keeps what the model wrote and which model wrote it (on the error, for the
+  // row), so the failure can be read afterwards instead of guessed at.
   if (laid.shortfall.length) {
-    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: laid.shortfall });
+    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: laid.shortfall, examJson, model });
   }
 
   const scheme = normaliseScheme(examJson);
   examJson = scheme.examJson;
   if (scheme.log.length) logToFile('[assessment] scheme normalised', { pattern, notes: scheme.log.slice(0, 50), count: scheme.log.length });
   if (scheme.shortfall.length) {
-    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall });
+    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
   }
 
   const notesBefore = (examJson._layout.notes || []).length;

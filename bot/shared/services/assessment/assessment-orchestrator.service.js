@@ -642,8 +642,12 @@ async function buildPaper(job, user = {}) {
       ...(Array.isArray(err.shortfall) ? { shortfall: err.shortfall } : {}),
     });
 
+    // A board-pattern failure carries the paper as the model wrote it and the model's name, so the
+    // row can be read afterwards. A plain failure carries neither and writes what it wrote before.
     await _patchPaper(paperId, {
       status: 'failed', error_code: code, error_detail: safeDetail(err),
+      ...(err.examJson && typeof err.examJson === 'object' ? { exam_json: err.examJson } : {}),
+      ...(err.model ? { model: String(err.model) } : {}),
     });
 
     return { status: 'failed', code, paperId };
