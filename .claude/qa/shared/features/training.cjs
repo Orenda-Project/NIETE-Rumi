@@ -1204,13 +1204,13 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   // source is v7.3 with SEEN_COUNT and COUNTS; the fixture is now that file (bd-w3cb9.7). A refusal
   // comes back as an endpoint error on Continue — the emulator surfaces it as ENDPOINT_ERROR:<reason>
   // and the screen does not advance, which is exactly "I stay on that screen and see the reason".
-  if (want('T30', 'T31', 'T32', 'T33', 'T34')) {
+  if (want('T30', 'T31', 'T32', 'T33', 'T34', 'T696')) {
     const SOURCE = { seen: 'Seen (from the book)', unseen: 'Unseen (outside the book)', both: 'Both Seen and Unseen' };
     const errOf = (r) => (r && !r.ok && /^ENDPOINT_ERROR:/.test(String(r.err || ''))) ? String(r.err).replace(/^ENDPOINT_ERROR:/, '') : null;
     const inputsOf = (pr) => ((pr && pr.items) || []).filter(i => i.kind === 'input' && i.visible !== false && String(i.text || '').trim());
     const optionsOf = (pr) => ((pr && pr.items) || []).filter(i => i.kind === 'option');
     // Open the generator and get to QUESTIONS with a class, a subject and a chapter chosen.
-    const assessTo = async (source) => {
+    const assessTo = async (source, pick = {}) => {
       await api.resetFlow(); await api.freshReset();
       await api.sendWait('/assessment');
       const op = await api.openFlow('Start|شروع');
@@ -1218,11 +1218,11 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       let pr = await api.flowProbe();
       // the probe lists both dropdowns' options as plain option items — pick by text (run 1148 showed
       // "Grade 1".."Grade 5" then "English"… with no field name on the item)
-      const grade = optionsOf(pr).find(o => /^Grade \d/.test(String(o.text || '').trim()));
+      const grade = optionsOf(pr).find(o => (pick.grade || /^Grade \d/).test(String(o.text || '').trim()));
       if (!grade) return { ok: false, err: 'NO_GRADE_OPTIONS', screen: pr.screen, text: String(pr.text || '').slice(0, 200) };
       let r = await api.flowPick(grade.text, { exact: true }); if (!r.ok) return { ok: false, err: 'GRADE:' + r.err };
       pr = await api.flowProbe();
-      const subj = optionsOf(pr).find(o => /^(English|Maths|Mathematics|Urdu|Islamiat|General Knowledge|Science|Social Studies)$/i.test(String(o.text || '').trim()));
+      const subj = optionsOf(pr).find(o => (pick.subject || /^(English|Maths|Mathematics|Urdu|Islamiat|General Knowledge|Science|Social Studies)$/i).test(String(o.text || '').trim()));
       if (!subj) return { ok: false, err: 'NO_SUBJECT_OPTIONS', screen: pr.screen, options: optionsOf(pr).map(o => o.text).slice(0, 10) };
       r = await api.flowPick(subj.text, { exact: true }); if (!r.ok) return { ok: false, err: 'SUBJECT:' + r.err };
       r = await api.flowClick('Continue', { settleMs: 3000 }); if (!r.ok) return { ok: false, err: 'CLASS>:' + r.err };
@@ -1341,6 +1341,25 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       }
       api.closeFlow();
       rec('T34', 'Going over 50 in total tells her why, where she can see it', ...(a.ok ? V(ok, ev) : ['BLOCKED', ev]), t() - s);
+    }
+    // T696 — the two picture-only kinds are not offered; the kinds the child draws still are
+    if (want('T696')) {
+      s = t();
+      const kinds = async (subject) => {
+        const a = await assessTo('unseen', { grade: /^Grade 5$/, subject });
+        const out = a.ok ? { screen: a.probe.screen, kinds: optionsOf(a.probe).map(o => String(o.text || '').trim()) } : { err: a.err };
+        api.closeFlow();
+        return out;
+      };
+      const sci = await kinds(/^Science$/i);
+      const eng = await kinds(/^English$/i);
+      const ev = { science: sci, english: eng };
+      const has = (k, n) => (k.kinds || []).includes(n);
+      const ok = sci.screen === 'TYPES' && eng.screen === 'TYPES'
+        && has(sci, 'Mind Map') && has(sci, 'Flow Chart') && !has(sci, 'Label the Diagram')
+        && has(eng, 'Essay Writing') && !has(eng, 'Picture Description');
+      rec('T696', 'The kinds of question that need a printed picture are not offered; the ones the child draws still are',
+        ...(sci.err || eng.err ? ['BLOCKED', ev] : V(ok, ev)), t() - s);
     }
   }
 

@@ -781,6 +781,10 @@ web:
       - portal/src/portal/pages/ClassicAssessment.tsx
       - portal/src/portal/pages/PortalReadingAssessment*.tsx
       - portal/src/portal/newui/assessment/**
+    fde-board-pattern:
+      - portal/src/portal/teacher/assessment/**        # the door, Check and make, the refusals the app shows
+      - dashboard/services/assessment.service.js       # the proxy: pattern/scope, errorCode, 409 passthrough
+      - dashboard/lib/assessment-rate-limit.js         # the soft limit (FB06/FB07)
     coach-portal:
       - portal/src/portal/coach/**
       - dashboard/services/coach-v2.service.js

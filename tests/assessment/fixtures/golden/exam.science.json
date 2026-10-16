@@ -1,0 +1,49 @@
+{
+  "seen": {
+    "subjective": {
+      "Brief Answers": [
+        { "question": "Name the three states of matter.", "answer": "Solid, liquid and gas.", "marks": 2 }
+      ]
+    }
+  },
+  "unseen": {
+    "objective": {
+      "MCQs": [
+        { "main_question": "Choose the correct answer.", "question": "Which part of a plant makes food?", "options": ["a) Root", "b) Stem", "c) Leaf", "d) Flower"], "answer": "c) Leaf", "marks": 1 },
+        { "main_question": "Choose the correct answer.", "question": "Water boils at:", "options": ["a) 0 °C", "b) 50 °C", "c) 100 °C", "d) 200 °C"], "answer": "c) 100 °C", "marks": 1 }
+      ],
+      "MSQs": [
+        { "question": "Which of these are living things? (Tick all that apply)", "options": ["a) Tree", "b) Stone", "c) Bird", "d) Chair"], "answer": "a) Tree, c) Bird", "marks": 2 }
+      ],
+      "True/False": [
+        { "main_question": "Write True or False.", "question": "Sound travels faster than light.", "answer": "False", "marks": 1 }
+      ],
+      "Fill in the Blanks": [
+        { "main_question": "Fill in the blanks.", "question": "The force that pulls things towards the earth is called ____.", "answer": "gravity", "marks": 1 }
+      ]
+    },
+    "subjective": {
+      "Brief Answers": [
+        { "question": "Why do we see lightning before we hear thunder?", "answer": "Light travels faster than sound.", "marks": 2, "lines": 2 },
+        "Write one use of a magnet."
+      ],
+      "Label the Diagram": [
+        { "question": "Label the parts of the flower shown: petal, sepal, stem.", "answer": "Petal, sepal, stem.", "marks": 3 }
+      ],
+      "Mind Map": [
+        { "question": "Make a mind map of the sources of energy.", "answer": "Sun, wind, water, fuel.", "marks": 4 }
+      ],
+      "Flow Chart": [
+        { "question": "Make a flow chart of the water cycle.", "answer": "Evaporation → condensation → precipitation → collection.", "marks": 4 }
+      ],
+      "Logical Reasoning": [
+        { "question": "A plant kept in a dark room turns yellow. Give a <reason> for this.", "answer": "Without light the plant cannot make food & chlorophyll.", "marks": 3 }
+      ],
+      "Long Question": {
+        "Describe": [
+          { "question": "Describe how a seed grows into a plant.", "questions": [ { "question": "What does a seed need to start growing?", "marks": 2, "answer": "Water, air and warmth." }, { "question": "Which part comes out first?", "marks": 1, "answer": "The root." } ] }
+        ]
+      }
+    }
+  }
+}

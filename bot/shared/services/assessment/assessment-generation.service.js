@@ -127,6 +127,29 @@ const ANSWER_KEY_ON =
   + '- Comprehension: put the "answer" inside EACH sub-question object in "questions", '
   + 'not on the passage.';
 
+/**
+ * The ceiling on what one paper may write, reasoning included. The call used to
+ * set none, so it could run to the model's own maximum, and a low provider
+ * balance reserved that maximum on every request. The largest paper measured
+ * (30 Sep – 14 Oct 2026) wrote under 21,000 tokens. A reply that reaches the
+ * ceiling is a paper too long for one go: TRUNCATED, "try fewer questions".
+ */
+const MAX_OUTPUT_TOKENS = 32000;
+
+/**
+ * An empty reply: nothing written, nothing billed for writing, not cut off.
+ * About one call in thirty at peak, and a no-op from the provider rather than
+ * bad output, so it is asked once more. A reply that spent tokens and still
+ * came back empty is not free to repeat, and is left to BAD_JSON as before.
+ */
+function _isEmptyReply(response) {
+  const choice = response?.choices?.[0] || {};
+  const text = choice.message?.content;
+  const empty = text == null || String(text).trim() === '';
+  return empty && choice.finish_reason !== 'length'
+    && (Number(response?.usage?.completion_tokens) || 0) === 0;
+}
+
 function fail(code, message, extra = {}) {
   const err = new Error(message);
   err.code = code;
@@ -214,6 +237,17 @@ function planCounts({ contentSource = 'unseen', questionCount, questionTypes = [
 }
 
 /**
+ * The types a child DRAWS, from text, on the answer sheet. The paper prints no
+ * figure, so left to itself the model writes "complete the mind map below" and
+ * the child looks for a figure that is not there. Named only when one of them
+ * is asked for, so every other prompt stays exactly as it was.
+ */
+const DRAWN_BY_THE_CHILD = new Set(['Mind Map', 'Flow Chart', 'Graphs & Geometric Problems']);
+const DRAW_IT_LINE = '• For Mind Map / Flow Chart / Graphs & Geometric Problems: give the topic or the '
+  + 'data as text; the child draws it on the answer sheet; never refer to boxes, branches, arrows or a '
+  + 'figure printed on the paper.';
+
+/**
  * What to make, in the words the prompts expect. Objective and subjective are
  * listed separately because that is the shape of the tree the model returns.
  */
@@ -242,6 +276,7 @@ function buildUserPrompt({ grade, subject, pageContent, pageReference,
   // Only when she set one. An always-present line about marks would change every
   // prompt we have ever sent, including for the papers nobody budgeted.
   const budget = Number(totalMarks) > 0 ? Number(totalMarks) : null;
+  const drawIt = plan.questionTypes.some((q) => DRAWN_BY_THE_CHILD.has(q.id));
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
@@ -260,7 +295,8 @@ ${items.map((i) => `• ${i}`).join('\n')}
 **IMPORTANT NOTES:**
 • For SEEN questions: Extract questions exactly as they appear in the textbook
 • For UNSEEN questions: Create new questions based on concepts from the textbook
-• The paper carries no pictures. Do NOT include any question that needs a picture, illustration or diagram to answer (e.g. "write the name of each object under its picture", "look at the picture and…", "colour the…"). Rewrite it so it can be answered from text alone, or leave it out
+• The paper carries no pictures. Do NOT include any question that needs a picture, illustration or diagram to answer (e.g. "write the name of each object under its picture", "look at the picture and…", "colour the…"). Rewrite it so it can be answered from text alone, or leave it out${drawIt ? `
+${DRAW_IT_LINE}` : ''}
 • Include proper marks allocation for each question
 • Maintain grade-appropriate language and difficulty
 • Return output in the JSON format specified in the system prompt
@@ -574,19 +610,26 @@ async function generateExam(args) {
     types: plan.questionTypes.map((q) => `${q.count} ${q.id}`), contentChars: (pageContent || '').length,
   });
 
+  const ask = () => getClient().chat.completions.create({
+    model,
+    // Names the spender. llm-client records it on api.cost.incurred and strips it
+    // before the request goes out, so this job stops being $11.34/day of anonymous spend.
+    job: 'assessment.generate',
+    ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
+    messages,
+    temperature: 0.7,
+    response_format: { type: 'json_object' },
+    max_tokens: MAX_OUTPUT_TOKENS,
+  });
+
   let response;
   const startedAt = Date.now();
   try {
-    response = await getClient().chat.completions.create({
-      model,
-      // bd-jntcx: names the spender. llm-client records it on api.cost.incurred and strips it
-      // before the request goes out, so this job stops being $11.34/day of anonymous spend.
-      job: 'assessment.generate',
-      ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
-      messages,
-      temperature: 0.7,
-      response_format: { type: 'json_object' },
-    });
+    response = await ask();
+    if (_isEmptyReply(response)) {
+      logToFile('[assessment] empty reply, retrying once', { model, usage: response.usage || null });
+      response = await ask();
+    }
   } catch (err) {
     // An outage is not bad output, and telling them apart is what decides
     // whether a retry is worth anything.
@@ -612,6 +655,12 @@ async function generateExam(args) {
   try {
     examJson = extractJsonFromResponse(raw);
   } catch (err) {
+    // Cut off mid-paper at the ceiling: the same answer as above, not "try again".
+    if (choice.finish_reason === 'length') {
+      logToFile('[assessment] model ran out of room', { model, usage: response.usage, partial: true });
+      throw fail('TRUNCATED', 'That was too much to write in one go — try fewer questions.',
+        { usage: response.usage });
+    }
     logToFile('[assessment] model returned unusable JSON', {
       model, error: err.message, preview: raw.slice(0, 300),
     });

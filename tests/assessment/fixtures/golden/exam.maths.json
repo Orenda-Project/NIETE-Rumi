@@ -1,0 +1,39 @@
+{
+  "unseen": {
+    "objective": {
+      "MCQs": [
+        { "main_question": "Choose the correct answer.", "question": "What is the place value of 7 in 4,72,315?", "options": ["a) 7,000", "b) 70,000", "c) 700", "d) 7,00,000"], "answer": "b) 70,000", "marks": 1 },
+        { "main_question": "Choose the correct answer.", "question": "Which fraction is equal to 2/4?", "options": ["a) 1/2", "b) 1/4", "c) 3/4", "d) 2/3"], "answer": "a) 1/2", "marks": 1 },
+        { "main_question": "Choose the correct answer.", "question": "The HCF of 12 and 18 is:", "options": ["a) 3", "b) 6", "c) 9", "d) 36"], "answer": "b) 6", "marks": 1 }
+      ],
+      "Fill in the Blanks": [
+        { "main_question": "Fill in the blanks.", "question": "A triangle has ____ sides.", "answer": "three", "marks": 1 },
+        { "main_question": "Fill in the blanks.", "question": "0.5 written as a fraction is ____.", "answer": "1/2", "marks": 1 }
+      ],
+      "True/False": [
+        { "main_question": "Write True or False.", "question": "Every square is a rectangle.", "answer": "True", "marks": 1 },
+        { "main_question": "Write True or False.", "question": "The sum of the angles of a triangle is 360 degrees.", "answer": "False", "marks": 1 },
+        { "main_question": "Write True or False.", "question": "A removed question that must never print.", "answer": "True", "marks": 1, "removed": true }
+      ],
+      "Match the Column": [
+        { "question": "Match each shape with the number of its sides.", "column_a": ["Triangle", "Square", "Pentagon", "Hexagon"], "column_b": ["5", "3", "6", "4"], "answer": "Triangle → 3, Square → 4, Pentagon → 5, Hexagon → 6", "marks": 4 }
+      ]
+    },
+    "subjective": {
+      "Short Questions": [
+        { "question": "Find the LCM of 8 and 12.", "answer": "24", "marks": 2, "lines": 3 },
+        { "question": "Write 3 2/5 as an improper fraction.", "answer": "", "marks": 2 },
+        { "question": "Round 6,483 to the nearest hundred.", "answer": "6,500", "marks": 2, "lines": "x" }
+      ],
+      "Word Problems": [
+        { "question": "A shop sold 1,245 pencils on Monday and 2,380 pencils on Tuesday. How many pencils did it sell in the two days?", "answer": "Step 1: 1,245 + 2,380\nStep 2: 3,625 pencils", "marks": 5, "lines": 6 }
+      ],
+      "Graphs & Geometric Problems": [
+        { "question": "The table shows books read: Monday 12, Tuesday 8, Wednesday 15. Draw a bar graph of this data.", "answer": "Three bars of heights 12, 8 and 15 with labelled axes.", "marks": 4 }
+      ],
+      "Other": [
+        { "question": "Show that 45 ÷ 1.5 = 30 by multiplying.", "answer": "30 × 1.5 = 45", "marks": 3 }
+      ]
+    }
+  }
+}

@@ -83,12 +83,24 @@ function _sets(subject, grade) {
   return { objective, subjective };
 }
 
-/** Everything this subject and grade supports, each tagged with its category. */
+/**
+ * Types whose question only works with a picture printed on the paper.
+ *
+ * The paper carries no pictures, so offering these printed "look at the picture and…" under an
+ * empty space. They stay in the CATALOGUE, which is what lets a paper made before keep its
+ * category, its print and its revisions; they are only no longer offered. Mind Map, Flow Chart
+ * and Graphs & Geometric Problems stay offered: the child draws those from text on the answer
+ * sheet, and the user prompt says so whenever one is asked for.
+ */
+const NEEDS_PRINTED_PICTURE = new Set(['Label the Diagram', 'Picture Description']);
+
+/** Everything this subject and grade offers, each tagged with its category. */
 function forSubject(subject, grade) {
   const { objective, subjective } = _sets(subject, grade);
+  const offered = (id) => !NEEDS_PRINTED_PICTURE.has(id);
   return [
-    ...objective.map((id) => ({ id, category: 'objective' })),
-    ...subjective.map((id) => ({ id, category: 'subjective' })),
+    ...objective.filter(offered).map((id) => ({ id, category: 'objective' })),
+    ...subjective.filter(offered).map((id) => ({ id, category: 'subjective' })),
   ];
 }
 

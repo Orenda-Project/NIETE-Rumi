@@ -3,7 +3,8 @@ import { AssessmentAll } from './AssessmentAll';
 import { AssessmentHub } from './AssessmentHub';
 import { EditPaperPage, EditQuestionPage } from './EditPages';
 import { CheckStep, ClassStep, CoverStep, ExtrasStep, QuestionsStep, TypesStep } from './NewPaperSteps';
-import { PaperPage, VersionsPage } from './PaperPage';
+import { PaperPage } from './PaperPage';
+import { VersionsPage } from './VersionsPage';
 import { ASSESSMENT_ALL, ASSESSMENT_V2_BASE as B } from './paths';
 import { RequestPage } from './RequestPage';
 
