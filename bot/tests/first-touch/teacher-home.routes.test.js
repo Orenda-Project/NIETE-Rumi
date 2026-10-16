@@ -469,7 +469,7 @@ describe('the walk-through row on the foot (sandbox test phones only)', () => {
     expect(unlisted.replace(/"first":(true|false)/, '')).toBe(without.replace(/"first":(true|false)/, ''));
     expect(JSON.parse(unlisted).change).toBe('/quiz/go/GO.TOKEN_abc');
     row.mockImplementation(async () => ROW);
-    const listed = await (await get(`/api/th/home?t=${t}&g=4&lang=ur`)).json();
+    const listed = await (await get(`/api/th/home?t=${tokenFor({ lang: 'ur' })}&g=4`)).json();
     expect(listed.walk).toEqual({ html: ROW, t: 'GO.TOKEN_abc' });
     expect(row).toHaveBeenLastCalledWith({ lang: 'ur', token: 'GO.TOKEN_abc' });
   });
