@@ -187,13 +187,25 @@
       '<button class="wq-btn wq-ghost" id="wql-back">' + esc(t.back) + '</button>';
   }
 
-  function cardHtml(o, d, v, art, row) {
+  // A v3 list (tile: 'neutral', web_quiz_videos_v3): the card's own poster, then its chapter's art, then a
+  // plain tile; never the subject art. Without the marker the card is as it always was.
+  function thumbHtml(d, v, art, chArt, w, h) {
+    if (d.tile !== 'neutral') {
+      return '<span class="wql-thumb"' + (art ? ' style="background-image:url(' + esc(art) + ')"' : '') + '>' +
+        (v.poster ? '<img src="' + esc(v.poster) + '" alt="" loading="lazy" width="' + w + '" height="' + h + '" onerror="this.style.display=\'none\'">' : '');
+    }
+    var src = v.poster || chArt;
+    var next = chArt && chArt !== src ? ' data-f="' + esc(chArt) + '"' : '';
+    return '<span class="wql-thumb">' + (src ? '<img src="' + esc(src) + '" alt="" loading="lazy" width="' + w + '" height="' + h + '"' + next +
+      ' onerror="var f=this.getAttribute(\'data-f\');if(f){this.removeAttribute(\'data-f\');this.src=f}else{this.style.display=\'none\'}">' : '');
+  }
+
+  function cardHtml(o, d, v, art, row, chArt) {
     var t = tFor(o);
     var meta = [v.secs ? nb(o, t.mins(Math.max(1, Math.round(v.secs / 60)))) : '', mb(v.mb)].filter(Boolean).join(' · ');
     var w = row ? 120 : 160, h = row ? 68 : 90;
     return '<div class="wql-card' + (row ? ' wql-row' : '') + '"><button class="wql-pick" data-v="' + esc(v.vid) + '">' +
-      '<span class="wql-thumb"' + (art ? ' style="background-image:url(' + esc(art) + ')"' : '') + '>' +
-      (v.poster ? '<img src="' + esc(v.poster) + '" alt="" loading="lazy" width="' + w + '" height="' + h + '" onerror="this.style.display=\'none\'">' : '') +
+      thumbHtml(d, v, art, chArt, w, h) +
       (v.done ? '<span class="wql-done">' + esc(t.done) + '</span>' : '') + '</span>' +
       '<span class="wql-txt"><b dir="auto">' + esc(v.title) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</span></button>' +
       // The size is on the line above: the card's link stays short enough for a 168px card.
@@ -208,7 +220,7 @@
       var one = vids.length === 1;
       var title = c.name && (!one || c.name.toLowerCase() !== String(vids[0].title || '').toLowerCase()) ? '<h3 class="wql-ch" dir="auto">' + esc(c.name) + '</h3>' : '';
       return '<section class="wql-chap">' + title + '<div class="' + (one ? 'wql-one' : 'wql-strip') + '">' +
-        vids.map(function (v) { return cardHtml(o, d, v, art, one); }).join('') + '</div></section>';
+        vids.map(function (v) { return cardHtml(o, d, v, art, one, c.art || null); }).join('') + '</div></section>';
     }).join('');
     var note = o.note ? '<p class="wq-banner wql-note">' + esc(o.note) + '</p>' : '';
     o.note = null;

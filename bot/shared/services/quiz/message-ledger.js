@@ -47,7 +47,7 @@ const TABLE = 'message_ledger';
 const USD_PER_SEND = 0.015;
 const MINUTES_PER_ROUND_CHILD = 1;   // a class round: about a minute of the teacher's time per child asked, one at a time
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
-const TRIGGERS = Object.freeze(['home_reply', 'bind_reply', 'guest_reply', 'teacher_refusal', 'class_link', 'class_round', 'teacher_queue']);
+const TRIGGERS = Object.freeze(['home_reply', 'bind_reply', 'guest_reply', 'teacher_refusal', 'class_link', 'class_round', 'teacher_queue', 'maker_reply']);
 // The direct ping: bot → family only, never with a phone (the strict path). Kept beside TRIGGERS, not in it, so every
 // caller of TRIGGERS (the counted replies) is unchanged.
 const SAMPLE_PING = 'sample_ping';
