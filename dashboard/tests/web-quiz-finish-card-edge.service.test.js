@@ -122,6 +122,22 @@ describe('the shared link: /k/<t>', () => {
   });
 });
 
+describe('renderCardPage on a fresh profile (a classmate\'s phone: no cookie, no device ref, nothing cached)', () => {
+  test('the shared card opens whole with no state at all: the picture, the words, the one way in; no script, no cookie set', async () => {
+    const r = await req(srv, `/k/${TOK}`);
+    expect(r.status).toBe(200);
+    expect(r.headers['set-cookie']).toBeUndefined();
+    const html = r.body.toString();
+    expect(html).toContain(`<img src="https://portal.example/wq/card/${TOK}.png"`);
+    expect(html).toContain(FACTS.ret.text);
+    expect((html.match(/data-primary/g) || []).length).toBe(1);
+    expect(html).not.toMatch(/<script|localStorage|wq_dv/);
+    // the bot was asked with no device of the phone
+    const call = calls.find((c) => /\/card\/[^/.]+$/.test(c.url));
+    expect(JSON.stringify(call.init.headers || {})).not.toMatch(/x-wq-device/i);
+  });
+});
+
 describe('a class quiz shared from the card: /q/<CODE>?k=<t>', () => {
   test('previews the card picture (PNG); the quiz itself opens as always', async () => {
     const r = await req(srv, `/q/AB12CD?k=${TOK}`, { ua: WA });
