@@ -138,7 +138,7 @@ describe('switch ON — the page', () => {
     await get(`/m/${tokenFor({ via: 'menu' })}`);
     const opens = logEvent.mock.calls.filter(([e, f]) => e === 'onboard.maker' && f.step === 'open');
     expect(opens).toHaveLength(1);
-    expect(opens[0][1]).toEqual({ step: 'open', grade: null, subject: null, qlang: null, lang: 'en', via: 'menu', quiz_id: null, ukey: UK });
+    expect(opens[0][1]).toEqual({ step: 'open', grade: null, subject: null, qlang: null, lang: 'en', via: 'menu', quiz_id: null, ukey: UK, w: 's' });
     const flat = JSON.stringify(opens);
     expect(flat).not.toContain(PHONE);
     expect(flat).not.toContain(TEACHER.name);
@@ -159,6 +159,23 @@ describe('switch ON — the page', () => {
   });
 });
 
+describe('switch ON — a token of another kind', () => {
+  test('a family-kind token with maker fields → the 404 page and 404 {error:mk.stale}, and no bank read', async () => {
+    seed();
+    const WebQuizToken = require('../../shared/services/quiz/web-quiz-token');
+    const ft = WebQuizToken.sign({ k: 'f', uid: TEACHER.id, lang: 'en', tour: 0, via: 'door', uk: UK, exp: Math.floor(Date.now() / 1000) + 3600 });
+    expect(typeof ft).toBe('string');
+    const page = await get(`/m/${ft}`);
+    expect(page.status).toBe(404);
+    expect(await page.text()).toContain(str('mk.stale', 'en').replace(/'/g, '&#39;'));
+    const made = await post('/api/ft/make', { t: ft, grade: '4', subject: 'maths', quizId: qid(2) });
+    expect(made.status).toBe(404);
+    expect(await made.json()).toEqual({ error: 'mk.stale' });
+    expect(tableReads(fake, 'student_videos', 'quizzes', 'quiz_questions', 'video_quiz_share_codes', 'quiz_share_codes')).toBe(0);
+    expect(logEvent.mock.calls.filter(([e]) => e === 'onboard.maker')).toEqual([]);
+  });
+});
+
 describe('switch ON — /api/ft/step', () => {
   test('grade / subject / topic → 204 and one onboard.maker each, with codes; topic carries quiz_id and qlang', async () => {
     seed();
@@ -168,9 +185,9 @@ describe('switch ON — /api/ft/step', () => {
     expect((await post('/api/ft/step', { t, step: 'topic', grade: '3', subject: 'general_knowledge', quizId: qid(5) })).status).toBe(204);
     const steps = logEvent.mock.calls.filter(([e]) => e === 'onboard.maker').map(([, f]) => f);
     expect(steps).toEqual([
-      { step: 'grade', grade: 'grade_3', subject: null, qlang: null, lang: 'en', via: 'door', quiz_id: null, ukey: UK },
-      { step: 'subject', grade: 'grade_3', subject: 'general_knowledge', qlang: null, lang: 'en', via: 'door', quiz_id: null, ukey: UK },
-      { step: 'topic', grade: 'grade_3', subject: 'general_knowledge', qlang: 'en', lang: 'en', via: 'door', quiz_id: qid(5), ukey: UK },
+      { step: 'grade', grade: 'grade_3', subject: null, qlang: null, lang: 'en', via: 'door', quiz_id: null, ukey: UK, w: 's' },
+      { step: 'subject', grade: 'grade_3', subject: 'general_knowledge', qlang: null, lang: 'en', via: 'door', quiz_id: null, ukey: UK, w: 's' },
+      { step: 'topic', grade: 'grade_3', subject: 'general_knowledge', qlang: 'en', lang: 'en', via: 'door', quiz_id: qid(5), ukey: UK, w: 's' },
     ]);
   });
 
