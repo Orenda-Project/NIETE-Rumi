@@ -1,0 +1,6 @@
+{
+  "why": "Product code that read the old meta.counted stamp when this gate landed, with its line count. A row is counted by mode = 'check' AND record (meta.counted only for rows written before the mode column, printed apart). Shrink only.",
+  "files": {
+    "bot/shared/services/quiz/web-quiz-challenge-draw.js": 1
+  }
+}
