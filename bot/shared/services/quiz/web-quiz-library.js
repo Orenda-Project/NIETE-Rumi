@@ -245,6 +245,7 @@ async function download(code, { st, vid } = {}) {
 
 module.exports = {
   lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY,
+  inLanguage,
   _reset: () => { require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
   _idle: () => require('./web-quiz-bank')._idle(),
 };

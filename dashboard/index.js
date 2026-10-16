@@ -179,6 +179,10 @@ app.use(createQuizJoinRouter());
 // Not /t: that is the training link, mounted further down.
 const { createTeacherReportRouter } = require('./routes/teacher-report.routes');
 app.use(createTeacherReportRouter());
+// A teacher sends a storybook to the class (/api/teacher/stories, /api/teacher/story/share, /quiz/teacher/:th/stories);
+// the bot answers 404 while web_quiz_stories_teacher is off and the page falls through.
+const { createTeacherStoriesRouter } = require('./routes/teacher-stories.routes');
+app.use(createTeacherStoriesRouter());
 // ── first touch: the maker page ──
 app.use(require('./routes/first-touch.routes').createFirstTouchRouter());   // /m/:token, /f/:token, /api/ft/... (switch off at the bot → falls through)
 // ── end first touch ──
