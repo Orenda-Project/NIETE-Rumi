@@ -164,7 +164,7 @@ const readAloud = async (ct) => {
   r2.downloadFromR2.mockResolvedValue(clip(61));
   AudioService.transcribe.mockResolvedValue(heard(50, 1.1));
   llm.__create.mockResolvedValue(marks(45, 50));
-  return Ch.submit({ ct, key, ms: 61000, lang: 'en', ended: 'timer', mic_check: 'pass', read_s: 61 }, { waitMs: 60000 });
+  return Ch.submit({ ct, key, ms: 61000, lang: 'en', ended: 'timer', mic_check: 'level_ok', read_s: 61 }, { waitMs: 60000 });
 };
 const missingAnswers = (items, wrongFirst = 0) => items.map((it, i) => ({ i, value: String(i < wrongFirst ? it.answer + 1 : it.answer), ms: 3000, first_key_ms: 1200, keys: String(it.answer).length }));
 const biggerTaps = (items) => items.map((it, i) => ({ i, pick: Math.max(it.a, it.b), ms: 2500 }));
