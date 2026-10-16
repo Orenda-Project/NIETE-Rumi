@@ -1,7 +1,7 @@
 'use strict';
 /**
  * An in-memory stand-in for the Supabase client — the network boundary — that
- * APPLIES the filters it is given (eq/is/not/in/gte/gt/lt/order/limit; select/insert/update/delete; is/not also on a
+ * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/order/limit; select/insert/update/delete; is/not also on a
  * `col->>key` path), so a test fails when a query forgets one. Tables are plain arrays in `db`.
  */
 const crypto = require('crypto');
@@ -42,6 +42,11 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       // a list of more than ~390 UUIDs fails the request as supabase-js reports it (postgrest-js: `TypeError: fetch failed`,
       // the headers-overflow hint, data null). A read that feeds a data-sized list in unchunked goes red here.
       in(c, vs) { if ((vs || []).length > IN_MAX) st.overflow = vs.length; st.filters.push((r) => vs.includes(r[c])); return b; },
+      // PostgREST ilike: % is any run, case-insensitive.
+      ilike(c, pat) {
+        const rx = new RegExp(`^${String(pat).split('%').map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`, 'i');
+        st.filters.push((r) => r[c] != null && rx.test(String(r[c]))); return b;
+      },
       gte(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) >= String(v)); return b; },
       gt(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) > String(v)); return b; },
       lt(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) < String(v)); return b; },
@@ -105,18 +110,20 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     return { data: hit.map((r) => ({ ...r })), error: null };
   }
 
-  return {
+  const fake = {
     db, calls, rpcs,
     from: (t) => builder(t),
-    rpc: async (name, args) => {
+    async rpc(name, args) {
       rpcs.push({ name, args });
       if (name === 'increment_share_code_uses') {
         const sc = table('quiz_share_codes').find((r) => r.id === args.code_id);
         if (sc) sc.uses_count = (sc.uses_count || 0) + 1;
       }
-      return { data: null, error: null };
+      // A test may script the rpc answer (fake.rpcResult = { data, error }, or on the object it was assigned onto); default: nothing.
+      return (this && this.rpcResult) || fake.rpcResult || { data: null, error: null };
     },
   };
+  return fake;
 }
 
 module.exports = { makeFake };

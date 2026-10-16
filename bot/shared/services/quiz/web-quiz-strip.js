@@ -6,7 +6,11 @@
  * (web-quiz-challenge-sweeper.js), for the ISO week (PKT) just ended. Writing a week again replaces its rows.
  *
  * A cell is fixed grade band × language (× exercise / ladder / anchor block where the line says). Only 'check' rows
- * enter a cell: a practice or class-round row never does. The lines (line / cell):
+ * enter a cell: a practice or class-round row never does. A test child never does either: the week's and the month's
+ * rows lose every test child's rows before any line (web-quiz-fixture.js: meta.test, a "Testwala" name, a configured
+ * seed list, a configured test teacher's class). The lines (line / cell):
+ *   fixtures_excluded                       the test children's rows left out; n = the week's and month's rows read
+ *                                           (each run once). An unreadable table is named in `notes`
  *   plays / <mode|legacy>                   scored runs, by mode ('legacy' = a row written before the mode column)
  *   provenance_incomplete                   v2 rows (mode set) with any provenance column empty; n = v2 rows
  *   roster_bound_pct                        of children with a scored check run, the share on a class (class_id)
@@ -71,6 +75,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile, logError } = require('../../utils/logger');
 const { loadStudents, provenHigh, driftCounts } = require('./web-quiz-provenance');
+const { fixtureStudentIds, isFixtureRow } = require('./web-quiz-fixture');
 
 const TABLE = 'web_quiz_challenge_runs';
 const STRIP_TABLE = 'web_quiz_strip_weekly';
@@ -361,9 +366,21 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   const skipped = [];
   const notes = {};
 
-  // ── this week's runs ──
+  // ── this week's runs, and the month to date (period_id of the week's Monday, rows up to the week's end, scored
+  //    check rows: the cells at n = 30 and the anchor retest gap below) ──
   const wk = await allRows(() => supabase.from(TABLE).select(COLS).gte('created_at', start).lt('created_at', end), 'week_runs');
-  const rows = wk.rows;
+  const month = pktDay(start).slice(0, 7);
+  const moRead = await allRows(() => supabase.from(TABLE).select(COLS).eq('period_id', month).eq('mode', 'check').eq('status', 'scored')
+    .lt('created_at', end), 'month_runs');
+
+  // ── test children out of both, before any line (the one rule: web-quiz-fixture.js) ──
+  const read = new Map([...wk.rows, ...moRead.rows].map((r) => [r.id, r]));
+  const fixtures = await fixtureStudentIds({ ids: [], rows: [...read.values()] });
+  const real = (r) => !isFixtureRow(r, fixtures);
+  const rows = wk.rows.filter(real);
+  const mo = { rows: moRead.rows.filter(real) };
+  put('fixtures_excluded', '', [...read.values()].filter((r) => !real(r)).length, read.size);
+  if (fixtures.unreadable.length) notes.fixtures_excluded = `${fixtures.unreadable.join(', ')} unreadable: the rules reading it left nothing out`;
   const check = rows.filter((r) => r.mode === 'check');
 
   const plays = new Map();
@@ -419,11 +436,7 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
     }
   }
 
-  // ── the month to date (period_id of the week's Monday, rows up to the week's end), scored check rows:
-  //    cells at n = 30 and the anchor retest gap ──
-  const month = pktDay(start).slice(0, 7);
-  const mo = await allRows(() => supabase.from(TABLE).select(COLS).eq('period_id', month).eq('mode', 'check').eq('status', 'scored')
-    .lt('created_at', end), 'month_runs');
+  // ── the month to date (read above, test children out), scored check rows: cells at n = 30 and the anchor retest gap ──
   // high confidence is proven from the student row (on a list, or merged), not read from the column: one read
   const students = mo.rows.length ? await loadStudents(mo.rows.map(childOf)) : new Map();
   if (!students) skipped.push('cells_n30', 'anchor_retest_gap');
