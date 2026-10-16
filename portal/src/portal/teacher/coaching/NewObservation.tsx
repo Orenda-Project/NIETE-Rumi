@@ -38,7 +38,7 @@ import { useDcReport } from './useDcReport';
  *
  *   1 Grade and subject   the kit's ClassPicker, as Lesson Plans and Assessment have it (every grade, the Lesson Plans
  *                         catalogue, hers starred), in the grade colours. Sent with the lesson as teacherClass.
- *   2 Lesson plan         optional: her recent plans for this class in one tap, or the plan sheet (photo, library).
+ *   2 Lesson plan         optional: one Lesson plan button; its tray has her recent plans, the library, a photo or a file.
  *                         Before the recording (operator, 16 Oct); it opens with it, so it never holds the recording back.
  *   3 Recording           Start recording records HERE (clock, level, Pause, Stop and "Yes, finish"); the recording bar's
  *                         Return comes back here. Or Upload recording. Then Listen / Redo / Change file.
@@ -169,11 +169,6 @@ export function NewObservationPage() {
     setAudioProblem(null);
   };
 
-  // 3 Lesson plan: her recent plans for THIS class, one tap each.
-  const forClass = useMemo(() => (cls
-    ? (dataOf(recentPlans) ?? []).filter((p) => p.grade === cls.grade && norm(p.subject) === norm(cls.subject)).slice(0, 3)
-    : []), [recentPlans, cls]);
-
   // Submit, and what came of it — on this screen.
   const [sending, setSending] = useState<Sending>(null);
   const [failure, setFailure] = useState<SendError | null>(null);
@@ -261,28 +256,7 @@ export function NewObservationPage() {
           <FlowStep n={2} state={s2} chips={[C.optional]}>{C.lessonPlan}</FlowStep>
           {cls && phase !== 'recording' ? (
             <>
-              {!plan && forClass.length ? (
-                <div className={LIST_CARD}>
-                  {forClass.map((p, i) => (
-                    <button
-                      key={p.planKey}
-                      type="button"
-                      aria-label={p.title || C.planFallback}
-                      className="block w-full text-start"
-                      onClick={() => setPlan({ kind: 'library', pick: pickOf(p), title: p.title || C.planFallback, chips: planChips(p, C.picker) })}
-                    >
-                      <HistoryRow
-                        subject={p.subject ?? cls?.subject ?? ''}
-                        grade={p.grade ?? cls?.grade ?? null}
-                        title={p.title || C.planFallback}
-                        extra={[p.chapterTitle, p.dayLabel].filter(Boolean).join(' · ') || undefined}
-                        action="none"
-                        first={i === 0}
-                      />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+              {/* Her recent plans, the library, a photo or a file are all in the Lesson plan tray (operator, 16 Oct). */}
               <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} />
             </>
           ) : null}
