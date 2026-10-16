@@ -44,8 +44,9 @@ const SETTLE_MS = 30 * 60 * 1000;
 const nul = (v) => (v === undefined ? null : v);
 
 /** A record row with a final status, of a known child and period. */
+const implausible = (row) => !!(row && row.meta && row.meta.quality === 'implausible');  // (the quality floors): earns nothing
 function eligible(row) {
-  return !!row && row.mode === 'check' && row.record === true && FINAL.includes(row.status)
+  return !!row && row.mode === 'check' && row.record === true && FINAL.includes(row.status) && !implausible(row)
     && !!row.canonical_id && !!row.period_id;
 }
 
@@ -99,14 +100,16 @@ const isAnchor = (r) => r.anchor_block === 'A1' && r.status === 'scored';
 
 function numbersMet(rows) {
   const anchors = rows.filter(isAnchor);
+ // (the quality floors): a scripted fast 10/10 (meta.quality rapid_perfect) never lights N3–N5; N1–N2 read it as any row
+  const believed = anchors.filter((r) => !(r.meta && r.meta.quality === 'rapid_perfect'));
   const biggers = rows.filter((r) => r.exercise === 'bigger' && r.status === 'scored');
   const anyAnchorRight = anchors.some((r) => rightIn(r, 1, 10) >= 1);
   return [
     rows.length > 0,                                                                       // N1
     (biggers.some((r) => rightIn(r, 1, 6) >= 5) && anyAnchorRight) || anchors.some((r) => rightIn(r, 1, 6) >= 3), // N2
-    anchors.some((r) => rightIn(r, 1, 6) >= 5),                                            // N3
-    anchors.some((r) => rightIn(r, 1, 6) >= 5 && rightIn(r, 7, 10) >= 3),                  // N4 (one row)
-    anchors.some((r) => rightIn(r, 1, 10) === 10),                                         // N5 (one row)
+    believed.some((r) => rightIn(r, 1, 6) >= 5),                                           // N3
+    believed.some((r) => rightIn(r, 1, 6) >= 5 && rightIn(r, 7, 10) >= 3),                 // N4 (one row)
+    believed.some((r) => rightIn(r, 1, 10) === 10),                                        // N5 (one row)
   ];
 }
 

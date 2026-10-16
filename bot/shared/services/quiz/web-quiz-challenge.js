@@ -970,8 +970,8 @@ async function renewBindings(studentId, now = Date.now()) {
 /** A finished served row that is the child's first exposure in a class lights the class light (web_quiz.light_lit). Never throws. */
 async function lightIfFirst(id) {
   try {
-    const { data, error } = await supabase.from(TABLE).select('id, exercise, status, mode, exposure_no, class_id, anchor_block, canonical_id').eq('id', id).maybeSingle();
-    if (!error && data && data.mode != null) Draw().lightLit(data);
+    const { data, error } = await supabase.from(TABLE).select('id, exercise, status, mode, exposure_no, class_id, anchor_block, canonical_id, meta').eq('id', id).maybeSingle();
+    if (!error && data && data.mode != null && !(data.meta && data.meta.quality === 'implausible')) Draw().lightLit(data);
   } catch (e) {
     logError('web_quiz.ch_light_failed', { error: String(e && e.message || e).slice(0, 120) });
   }
@@ -1303,6 +1303,13 @@ function biggerItems(items, taps, served) {
   });
 }
 const BIGGER_FAST_MS = 500;
+// the speed floor: all 10 right AND the median per-item ms under 1500 (a reading child cannot be that fast; a script can)
+const RAPID_PERFECT_MS = 1500;
+function rapidPerfect(rows) {
+  if (!Array.isArray(rows) || rows.length !== 10 || !rows.every((r) => r.ok === true && r.ms != null)) return false;
+  const ms = rows.map((r) => Number(r.ms)).sort((a, b) => a - b);
+  return (ms[4] + ms[5]) / 2 < RAPID_PERFECT_MS;
+}
 // A run is rapid when three or more items were FAST AND WRONG (fast and right is fluency); abandoned when the stop
 // came from items never touched.
 function itemFlags(rows, { fastMs, stopped }) {
@@ -1357,6 +1364,23 @@ function scoreMissing(items, answers, { stopAfter = 4 } = {}) {
 
 // The endings that are the child's own: a reading ended this way is never a words-per-minute.
 const ENDED_BY_CHILD = new Set(['stuck', 'home', 'hidden']);
+// the noise floor: a counted read whose numbers cannot be believed — the question is whether SPEECH WAS ALIGNED AT ALL.
+//   no_speech              the speech service heard no word, yet the model (given the printed text) credited the passage
+//   no_aligned_words       the alignment of what was heard credits 0 words while the model credits ≥ 90% of the tokens
+//   low_story_confidence   the house confidence is under 0.5 while the model credits ≥ 90% (a 220 Hz tone: 0.44 with 60/60)
+// Never the confidence alone. The reason rides meta.flags; the row reads quality 'implausible' (EVENTS §11) and, like a row the
+// sweeper abandons, record=false with meta.record_lost='implausible' (the month stays open). Null = believed (today's rows).
+const IMPLAUSIBLE_CONF = 0.5;
+const IMPLAUSIBLE_SHARE = 0.9;
+function readQuality(m, score, tokensN) {
+  if (m && m.stt_words === 0) return 'no_speech';
+  const credited = tokensN > 0 && (score.correct || 0) >= IMPLAUSIBLE_SHARE * tokensN;
+  if (!credited) return null;
+  if (m && m.align_correct === 0 && m.stt_words > 0) return 'no_aligned_words';
+  const conf = m ? m.story_confidence : null;
+  if (conf != null && conf < IMPLAUSIBLE_CONF) return 'low_story_confidence';
+  return null;
+}
 
 async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = {}, ctx = {}) {
   let file = null;
@@ -1394,6 +1418,7 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
       ended: ctx.ended || null, mic_check: ctx.micCheck || null, read_s: Math.round(durationSec), duration_source: source,
       clock: t.clock || null, begin_at_s: t.begin_at_s == null ? null : t.begin_at_s, end_at_s: t.end_at_s == null ? null : t.end_at_s,
       count_flag: m.count_flag || null, story_confidence: m.story_confidence == null ? null : m.story_confidence,
+      ...(m.stt_words == null ? {} : { stt_words: m.stt_words }), ...(m.align_correct == null ? {} : { align_correct: m.align_correct }),
       ...(rules.items ? { items: (m.items || []).map((x) => ({ i: x.i, v: x.verdict })) } : {}),
     } : {};
     // The microphone was proven working and not one word came: the child was silent — EGRA's discontinue, a 0 —
@@ -1414,7 +1439,15 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
       const reason = durationSec < 15 ? 'abandoned' : 'incomplete';
       return { failed: true, reason, words: score.correct, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, words: score.correct } };
     }
-    return { score, wcpm: stopped ? 0 : wcpm(score.correct, score.time_left), ended: ctx.ended || null, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra } };
+    const rate = stopped ? 0 : wcpm(score.correct, score.time_left);
+    // the noise floor: numbers that cannot be believed are not a reading: zeroed, wcpm null, the raw counts kept, no items; record as served
+    const doubt = rules.record ? readQuality(m, score, (spec.story && spec.story.tokens && spec.story.tokens.length) || 0) : null;
+    if (doubt) {
+      const { items, ...rest } = extra;
+      return { score: { correct: 0, attempted: 0, stopped: false, finished_early: false, time_left: 0 }, wcpm: null, ended: ctx.ended || null, implausible: doubt,
+        meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: [...(m.flags || []), doubt], ...rest, quality: 'implausible', raw: { correct: score.correct, attempted: score.attempted, wcpm: rate } } };
+    }
+    return { score, wcpm: rate, ended: ctx.ended || null, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra } };
   } catch (e) {
     return { failed: true, reason: 'internal_error', meta: { error: String(e && e.message || e).slice(0, 120) } };
   } finally {
@@ -1719,6 +1752,8 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     // clock 'row_paint': each item's ms and first_key_ms run from the moment its row is painted (the page's rule)
     let meta = { ms: Number(body.ms) || null, ...(await provenance(c.sid, 'missing', null, run)), helped: helpedOf(body.helped), clock: 'row_paint', elapsed_s: Math.round(elapsedMs / 100) / 10, too_fast: elapsedMs < typed };
     if (rules.items) meta = { ...meta, items: rows, ...itemFlags(reached, { fastMs: missingFastMs, stopped: score.stopped }) };
+    // the speed floor: a record warm-up with every item right and a median item time under the floor is a scripted 10/10
+    if (rules.items && run.v2 && run.mode === 'check' && run.record === true && run.anchor_block && rapidPerfect(rows)) meta = { ...meta, quality: 'rapid_perfect' };
     if (sv && sv.tryout) meta = { ...meta, tryout: tryoutAnswer(sv.tryout, body.tryout, Bank) };
     const stored = await writeRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta, ...helpedV2 });
     if (stored === 'duplicate') fail(409, 'already_done');
@@ -1815,7 +1850,10 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
       const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
       return r.failed
         ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp, reason: r.reason }, scored_at: nowIso() }
-        : { status: 'scored', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), score: r.score, wcpm: r.wcpm, meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
+        : { status: 'scored', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), score: r.score, wcpm: r.wcpm,
+          // an implausible row never became a reading: record cleared (the sweeper's `abandoned` shape), record_lost says why, the month stays open
+          ...(r.implausible && isV2Meta(cur.meta) ? { record: false } : {}),
+          meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...(r.implausible && isV2Meta(cur.meta) ? { record_lost: 'implausible', counted: false } : {}), ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
     }, { force: true });
     await measureOutcome(c.r);
     await renewBindings(c.sid);
@@ -2131,3 +2169,6 @@ module.exports.passageTitle = passageTitle;
 module.exports.classWeekOpen = classWeekOpen;
 // the runs insert (and its duplicate-record rule), for its test
 module.exports.insertRun = insertRun;
+// the quality floors (speed, noise), pure, for their tests
+module.exports.readQuality = readQuality;
+module.exports.rapidPerfect = rapidPerfect;
