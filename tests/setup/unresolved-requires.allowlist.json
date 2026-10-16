@@ -15,8 +15,21 @@
     "reason": "Same OSS-stripped service as homework-bundle; lazy-required inside the post-delivery branch."
   },
   {
+    "from": "bot/shared/services/quiz/web-quiz-bind.service.js",
+    "spec": "../first-touch/walk-persona",
+    "reason": "The sandbox walk-through module ships in a later merge; the require is inside a try/catch and its absence means today's behaviour (a teacher's phone is refused as a family phone).",
+    "provider": "the sandbox walk-through module (bot/shared/services/first-touch/walk-persona.js)"
+  },
+  {
+    "from": "bot/shared/services/quiz/web-quiz-student-join.js",
+    "spec": "../first-touch/walk-persona",
+    "reason": "The sandbox walk-through module ships in a later merge; the require is inside a try/catch and its absence means today's behaviour (a teacher's phone is refused as a family phone).",
+    "provider": "the sandbox walk-through module (bot/shared/services/first-touch/walk-persona.js)"
+  },
+  {
     "from": "bot/shared/services/quiz/web-quiz-next-offer-sources.js",
     "spec": "./web-quiz-storybook-next",
-    "reason": "Optional storybook candidates (a half-read book, the shelf's unread books) from the stories reader's own module, to be added by the storybook reader PR (#2659): candidates({ studentId, lang, grade, token, chip }) -> rows of the slot's candidate shape (a half-read book = rule 'resume'). Lazy-required inside a try in storybooks(); until it lands there are no storybook candidates and the resume rule has nothing to offer; the slot ranks the rest."
+    "reason": "Optional storybook candidates (a half-read book, the shelf's unread books) from the stories reader's own module, to be added by the storybook reader change: candidates({ studentId, lang, grade, token, chip }) -> rows of the slot's candidate shape (a half-read book = rule 'resume'). Lazy-required inside a try in storybooks(); until it lands there are no storybook candidates and the resume rule has nothing to offer; the slot ranks the rest.",
+    "provider": "the storybook reader's next-thing candidates (bot/shared/services/quiz/web-quiz-storybook-next.js)"
   }
 ]
