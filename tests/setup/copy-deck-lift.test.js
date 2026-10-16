@@ -42,6 +42,11 @@
  * same object too (the Urdu child reads that table's other half), whenever the deck has an Urdu line that is not a
  * DRAFT. The exact rule is wqEnWithoutUr. copy-deck-en-only.allowlist.json: { "<key>": "<why>" }, the keys a page
  * shows in English only today; a new one fails, a listed one that gains its Urdu passes with a CLEAN line.
+ *
+ * copy-deck-lift.modules.json: the sorted repo paths of every bot/shared module this gate loads (ux-strings.js, every
+ * template, and what those require inside bot/shared), read from require.cache after the tree's states are built,
+ * never kept by hand. A tool that starts a run from a changed file reads it to know this gate covers that file. The
+ * list is recomputed on every run; any drift fails until the file is updated.
  */
 const fs = require('fs');
 const path = require('path');
@@ -250,7 +255,23 @@ describe('EN ⇒ UR in the same table, on in-memory child pages', () => {
   });
 });
 
+/** The repo paths (sorted) of every bot/shared module loaded once the tree's states are built. */
+function reachedModules() {
+  statesInTree();
+  return Object.keys(require.cache).map((f) => path.relative(REPO, f).split(path.sep).join('/'))
+    .filter((f) => f.startsWith('bot/shared/')).sort();
+}
+
 describe('the tree', () => {
+  test('the modules this gate reaches are the ones copy-deck-lift.modules.json lists', () => {
+    const file = path.join(__dirname, 'copy-deck-lift.modules.json');
+    const listed = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+    const now = reachedModules();
+    expect(now).toContain('bot/shared/config/ux-strings.js');
+    const why = 'the deck-lift gate now reaches a different set of modules; update copy-deck-lift.modules.json (the train tool reads it to start a union run)';
+    expect({ why, modules: listed }).toEqual({ why, modules: now });
+  });
+
   test('every checked live deck key is lifted byte for byte, or listed; nothing new or moved', () => {
     const { failures, cleans } = copyGapVerdict(statesInTree(), ALLOW);
     for (const line of cleans) console.warn(line);
