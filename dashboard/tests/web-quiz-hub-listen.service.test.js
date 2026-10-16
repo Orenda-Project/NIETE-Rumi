@@ -10,6 +10,7 @@ const vm = require('vm');
 
 const WQ = path.join(__dirname, '..', 'public', 'wq');
 const HUB_SRC = fs.readFileSync(path.join(WQ, 'hub.js'), 'utf8');
+const LISTEN_SRC = fs.readFileSync(path.join(WQ, 'wq-readalong-listen.js'), 'utf8');
 const BOOTS = require('./fixtures/hub-play-boots.json');
 const STUB = 'window.WQReadAlong = { mount: function (el, d, o) { var r = window.__ra = { el: el, d: d, o: o, destroyed: 0 }; return { destroy: function () { r.destroyed += 1; } }; } };';
 const PID = 'en.listen.1.story02';
@@ -119,6 +120,7 @@ describe('#listen/<pid> on the hub page', () => {
   test.each(['en', 'ur'])('%s: the player script is asked for, then the timing by the hub token; the player is mounted on it (it never plays by itself); no child event', async (lang) => {
     const p = open({ hash: '#listen/' + PID, boot: { ...BOOTS.done, lang }, routes: { 'listen/h/': ok({ readalong: TIMED }) } });
     await p.flush();
+    await p.arrive(/wq-readalong-listen\.js/, LISTEN_SRC);
     expect(p.html()).toContain('id="wq-listen-ra"');
     await p.arrive(/wq-readalong\.js/, STUB);
     await p.flush();
@@ -132,6 +134,7 @@ describe('#listen/<pid> on the hub page', () => {
   test('Back drops the player and draws the hub, the hash cleared', async () => {
     const p = open({ hash: '#listen/' + PID, boot: { ...BOOTS.done, lang: 'en' }, routes: { 'listen/h/': ok({ readalong: TIMED }) } });
     await p.flush();
+    await p.arrive(/wq-readalong-listen\.js/, LISTEN_SRC);
     await p.arrive(/wq-readalong\.js/, STUB);
     p.root.querySelector('#wq-listen-back').fire('click');
     await p.flush();
@@ -142,6 +145,7 @@ describe('#listen/<pid> on the hub page', () => {
   test('refused (switch off, a counted passage, no file): straight back to the hub, never a blank page', async () => {
     const p = open({ hash: '#listen/' + PID, boot: { ...BOOTS.done, lang: 'en' }, routes: { 'listen/h/': () => ({ status: 404, body: { error: 'no_words' } }) } });
     await p.flush();
+    await p.arrive(/wq-readalong-listen\.js/, LISTEN_SRC);
     await p.arrive(/wq-readalong\.js/, STUB);
     await p.flush();
     expect(p.html()).not.toContain('id="wq-listen-ra"');
@@ -153,6 +157,7 @@ describe('#listen/<pid> on the hub page', () => {
       await p.flush();
       expect(p.html()).not.toContain('id="wq-listen-ra"');
       expect(p.script(/wq-readalong\.js/)).toHaveLength(0);
+      expect(p.script(/wq-readalong-listen\.js/)).toHaveLength(0);
     }
   });
   test('the tile sets the hash in place (hashchange): the preview opens without a reload', async () => {
@@ -161,6 +166,7 @@ describe('#listen/<pid> on the hub page', () => {
     p.ctx.location.hash = '#listen/' + PID;
     (p.wl.hashchange || []).forEach((fn) => fn({}));
     await p.flush();
+    await p.arrive(/wq-readalong-listen\.js/, LISTEN_SRC);
     expect(p.html()).toContain('id="wq-listen-ra"');
   });
 });

@@ -2045,7 +2045,7 @@ async function readingOf(c, lang) {
 
 /**
  * "Show me the words" after a practice listen's questions: the story's timing file (web_quiz_readalong), by the run
- * token. Only a practice listen run gets it — a counted listen never shows its text (RULING: heard, never shown).
+ * token. Only a practice listen run gets it — a counted listen never shows its text (it is heard, never shown).
  */
 async function listenWords({ ct, lang } = {}) {
   const c = runOf(ct);

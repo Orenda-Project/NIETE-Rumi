@@ -47,7 +47,6 @@
       lastT: 'Your last quiz', cont: 'Continue', soFar: function (n) { return n ? n + (n === 1 ? ' question answered' : ' questions answered') : 'Not started yet'; },
       done: 'Finished', playAgain: 'Play again', vidT: 'Videos', vidSub: 'Watch one and try its quiz',
       wait: 'Opening…', noClass: 'Play a quiz from your teacher first.', gone: 'No quizzes here yet. Ask your teacher for a quiz link.', mins: function (m) { return m + ' min'; },
-      listenSay: 'Listen to Jugnu read it.', back: 'Back', ra: { play: 'Play', pause: 'Pause', replay: 'Hear it again' },
     },
     ur: {
       who: 'کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', hi: function (n) { return 'السلام علیکم ' + n + '! آج کیا کریں؟'; },
@@ -66,7 +65,6 @@
       lastT: 'آپ کا پچھلا کوئز', cont: 'جاری رکھیں', soFar: function (n) { return n ? '<bdi>' + n + '</bdi> سوالوں کے جواب دیے' : 'ابھی شروع نہیں کیا'; },
       done: 'مکمل', playAgain: 'دوبارہ کھیلیں', vidT: 'ویڈیوز', vidSub: 'ایک دیکھیں اور اس کا کوئز کریں',
       wait: 'کھل رہا ہے…', noClass: 'پہلے استاد کا کوئی کوئز کھیلیں۔', gone: 'ابھی یہاں کوئی کوئز نہیں۔ استاد سے کوئز کا لنک لیں۔', mins: function (m) { return m + ' منٹ'; },
-      listenSay: 'جگنو سے کہانی سنیں۔', back: 'واپس', ra: { play: 'سنیں', pause: 'روکیں', replay: 'دوبارہ سنیں' },
     },
   };
   // The polished Urdu copy (app_settings web_quiz_ur_polish → the edge's `wq-ur2` class on <html>): a child's words, the name
@@ -439,30 +437,15 @@
     if (B.locked) locked(); else if (B.kid) hub(); else if ((B.kids || []).length) picker();
   });
 
-  /* ---------------- #listen/<passage_id>: hear a practice story before sending it ---------------- */
-  // The practice home's story tiles: the stored clip with the word highlight (wq-readalong.js), by the hub token; no
-  // run, no microphone, no sticker, no event keyed by a child. Refused or offline: back to the hub, never a blank page.
-  var player = null;
-  function listenId() { var m = /^#listen\/([A-Za-z0-9._-]{3,64})$/.exec(String((typeof location !== 'undefined' && location.hash) || '')); return m && m[1].indexOf('..') < 0 ? m[1] : null; }
-  function listenLeave() {
-    try { if (player) player.destroy(); } catch (e) {}
-    player = null;
-    try { history.replaceState(null, '', selfUrl('/h/' + TOKEN)); } catch (e) {}
-    boot();
+  // #listen/<passage_id> (the practice home's story tiles): a grown-up hears a practice story first (wq-readalong-listen.js)
+  function listenIn() {
+    var m = /^#listen\/([A-Za-z0-9._-]{3,64})$/.exec(String((typeof location !== 'undefined' && location.hash) || ''));
+    if (!m || m[1].indexOf('..') >= 0) return false;
+    var go = function () { if (window.WQLISTEN) window.WQLISTEN.open({ pid: m[1], root: ROOT, token: TOKEN, lang: LANG, render: render, bar: bar, jug: jug, esc: esc, api: api, loadOnce: loadOnce, back: function () { try { history.replaceState(null, '', selfUrl('/h/' + TOKEN)); } catch (e) {} boot(); } }); };
+    if (window.WQLISTEN) go(); else loadOnce('wq-readalong-listen', false, go, null, boot);
+    return true;
   }
-  function listenIn(pid) {
-    render(bar() + jug('hello', T.listenSay) + '<div id="wq-listen-ra"></div><div class="wq-stack"><button class="wq-btn wq-soft" id="wq-listen-back" type="button">' + esc(T.back) + '</button></div>', 'HL');
-    on('#wq-listen-back', listenLeave);
-    var go = function () {
-      api('GET', 'listen/h/' + encodeURIComponent(TOKEN) + '/' + encodeURIComponent(pid) + '?lang=' + LANG).then(function (r) {
-        var el = ROOT.querySelector('#wq-listen-ra');
-        if (!r.ok || !r.body.readalong || !window.WQReadAlong || !el) { listenLeave(); return; }
-        player = window.WQReadAlong.mount(el, r.body.readalong, { labels: T.ra });   // its own play button: the tap starts the voice
-      }, listenLeave);
-    };
-    if (window.WQReadAlong) go(); else loadOnce('wq-readalong', false, go, null, listenLeave);
-  }
-  window.addEventListener('hashchange', function () { var pid = listenId(); if (pid) listenIn(pid); });
+  window.addEventListener('hashchange', listenIn);
 
   /* ---------------- boot ---------------- */
   function boot() {
@@ -473,5 +456,5 @@
     else if (!B.kid) picker();
     else hub();
   }
-  if (LOCKED_BOOT) unlock(); else if (listenId()) listenIn(listenId()); else boot();
+  if (LOCKED_BOOT) unlock(); else if (!listenIn()) boot();
 })();
