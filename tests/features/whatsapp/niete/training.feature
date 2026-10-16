@@ -2667,9 +2667,21 @@ Feature: NIETE (ICT) Teacher Training
     Given app_settings "web_quiz_class_round" is true
     And my class's round is paused with 3 of its 9 positions played
     When I open my class tab
-    Then the round card shows "3 of 9 played. Continue another day." above its Start button, with no child's name
+    Then the round card shows "3 of 9 played. Continue another day." above its one button, with no child's name
+    And under it the card says 'To carry on, tap "Continue". The list stays as it is.' and "Until then, the children see nothing about the round."
+    And its one button reads "Continue" and carries the round on in one tap, never "Start the round"
     And with the round not started, running, resumed or closed the card is exactly as before
-    # web-quiz-class-round.js cardFor/pausedOf; class-round.page.js renderCard/pausedLine; unit: class-round-paused-card.test.js
+    # web-quiz-class-round.js cardFor/pausedOf; class-round.page.js renderCard/pausedLine; unit: class-round-paused-card.test.js, class-round-paused-continue.test.js
+
+  @quiz @config-gated @wip @draft @P2 @T962
+  Scenario: My Urdu round list keeps each name whole, and a round turn is never counted, even across a restart
+    Given app_settings "web_quiz_class_round" and "web_quiz_challenge_v2" are true
+    And my class's round lists two children who share a first name, shown as "Bilal T." and "Bilal A."
+    When I open the round in Urdu
+    Then each name reads with its initial's full stop on its own side, and the count is in Urdu digits
+    And a child's round turn that was served before the bot restarted and finished after it is stored as not counted
+    And a child's own check that straddled the same restart is still its record
+    # class-round.page.js renderRound (Urdu name isolate); web-quiz-challenge.js provenance + submit (the served row's mode); unit: class-round-paused-continue.test.js, challenge-counted-meta.test.js
   @quiz @config-gated @wip @draft @P2 @T923
   Scenario: A run that comes by the class link inside my class's open week is stored in the class-week sample
     Given app_settings "web_quiz_class_week", "web_quiz_class_round", "web_quiz_class_link", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
