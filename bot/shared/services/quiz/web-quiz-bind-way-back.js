@@ -25,6 +25,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const Swr = require('./web-quiz-swr');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 
 const KEY = 'web_quiz_bind_way_back';
@@ -56,16 +57,29 @@ async function on(now = Date.now()) {
   try {
     if (!(await require('./web-quiz-identity-flags').flags()).phoneBind) return false;
     if (cache && now - cache.at < TTL_MS) return cache.on;
+    // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a second read.
+    const seam = Swr.covered(SEAM_NAME);
+    if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache.on; }
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const row = (data || []).find((r) => r.key === KEY);
-    cache = { at: now, on: Boolean(row && isTrue(row.value)) };
-    return cache.on;
+    return fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ keep my place way back: switch read failed — off', { error: err.message });
     return false;
   }
 }
+
+function fromRows(data, now) {
+  const row = (data || []).find((r) => r.key === KEY);
+  cache = { at: now, on: Boolean(row && isTrue(row.value)) };
+  return cache.on;
+}
+
+// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
+// cache from the raw rows, parsed here exactly as this module's own read parses them.
+const SEAM_NAME = 'bind-way-back';
+const hubSwitches = { name: SEAM_NAME, keys: [KEY], swr: [SEAM_NAME], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => r.key === KEY), now), read: () => on(), peek: () => cache };
 
 const ms = (t) => { const n = Date.parse(t); return Number.isFinite(n) ? n : null; };
 
@@ -161,4 +175,4 @@ async function alreadySaved({ phone, norm, row, resolveChild, user = null, asked
   }
 }
 
-module.exports = { on, reply, cardState, alreadySaved, KEY, LINES, LINK_WINDOW_MS, REFUSED_HIDE_MS, _resetCache: () => { cache = null; } };
+module.exports = { on, hubSwitches, reply, cardState, alreadySaved, KEY, LINES, LINK_WINDOW_MS, REFUSED_HIDE_MS, _resetCache: () => { cache = null; } };

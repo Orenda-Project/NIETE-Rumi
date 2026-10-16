@@ -47,6 +47,11 @@ function on(now = Date.now()) {
   return Boolean(cache && cache.on);
 }
 
+/** On, from a fresh cache, with no read (the hub switches' timer, web-quiz-hub-switches.js): false when stale or unread. */
+function fresh(now = Date.now()) {
+  return Boolean(cache && now - cache.at < TTL_MS && cache.on);
+}
+
 /**
  * Start a read now and keep its rejection for whoever awaits it: a read started early must not become an
  * unhandled rejection while the request waits on something else.
@@ -56,4 +61,4 @@ function early(promise) {
   return promise;
 }
 
-module.exports = { on, early, KEY, _reset: () => { cache = null; reading = null; } };
+module.exports = { on, fresh, early, KEY, _reset: () => { cache = null; reading = null; } };

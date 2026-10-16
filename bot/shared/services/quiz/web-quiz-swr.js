@@ -19,11 +19,44 @@ function stale(cache, ttlMs, now = Date.now()) {
   }
 }
 
-/** Run read() in the background unless a read of this switch is already in flight. Never throws, never rejects. */
+// The hub's one switch read in flight (web-quiz-hub-switches.js), by switch name: its own map, so a switch's own
+// background read never waits on itself.
+const seam = new Map();
+
+/** Run read() in the background unless a read of this switch is already in flight (its own, or the hub's one switch read). */
 function revalidate(name, read) {
-  if (inflight.has(name)) return;
+  if (inflight.has(name) || seam.has(name)) return;
   const p = Promise.resolve().then(read).catch(() => {}).then(() => { inflight.delete(name); });
   inflight.set(name, p);
 }
 
-module.exports = { stale, revalidate, _reset: () => inflight.clear() };
+/**
+ * The hub's one switch read is in flight for these switches (web_quiz_fast on; the seam runs only then): each one's own
+ * revalidate(name) reads nothing, and a switch with no fresh value waits for covered(name) before its own read.
+ * Never throws, never rejects.
+ */
+function cover(names, promise) {
+  const p = Promise.resolve(promise).catch(() => {});
+  names.forEach((name) => {
+    const q = p.then(() => { if (seam.get(name) === q) seam.delete(name); });
+    seam.set(name, q);
+  });
+}
+
+/** The seam's rows are in: a read of these switches from here on is its own (the priming itself may read a parent). */
+function uncover(names) {
+  names.forEach((name) => seam.delete(name));
+}
+
+/** The hub's one switch read in flight for this switch, else null. Resolves (never rejects) once its rows are primed. */
+function covered(name) {
+  return seam.get(name) || null;
+}
+
+/** 'cold' (no cached value), 'stale' (older than ttlMs) or 'fresh'. */
+function ageOf(cache, ttlMs, now = Date.now()) {
+  if (!cache) return 'cold';
+  return now - cache.at < ttlMs ? 'fresh' : 'stale';
+}
+
+module.exports = { stale, revalidate, cover, uncover, covered, ageOf, _reset: () => { inflight.clear(); seam.clear(); } };

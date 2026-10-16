@@ -42,16 +42,26 @@ async function flags(now = Date.now()) {
   return readFlags(now);
 }
 
+const KEYS = [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY];
+
+// The rows of the read (or of the hub's one switch read, web-quiz-hub-switches.js) -> the cache.
+function fromRows(data, now) {
+  const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+  cache = { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]), door: isTrue(by[DOOR_KEY]), childHome: isTrue(by[CHILD_HOME_KEY]),
+    homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]),
+    challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]) };
+  return cache;
+}
+
 async function readFlags(now) {
   if (cache && now - cache.at < TTL_MS) return cache;
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = Swr.covered('hub-flags');
+  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache; }
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', KEYS);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    cache = { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]), door: isTrue(by[DOOR_KEY]), childHome: isTrue(by[CHILD_HOME_KEY]),
-      homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]),
-      challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]) };
-    return cache;
+    return fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ web quiz hub: settings lookup failed — hub off', { error: err.message });
     return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false };
@@ -116,4 +126,8 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, hubLink, pageNav, eventsV2On, eventsV2Now, rungsOn, EVENTS_V2_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; } };
+// The hub's one switch read (web_quiz_fast on): this module's keys, its cache's age, and the cache from the raw rows.
+const hubSwitches = { name: 'hub-flags', keys: KEYS, swr: ['hub-flags'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => KEYS.includes(r.key)), now), read: () => flags(), peek: () => cache };
+
+module.exports = { flags, hubLink, hubSwitches, pageNav, eventsV2On, eventsV2Now, rungsOn, EVENTS_V2_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; } };

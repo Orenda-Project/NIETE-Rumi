@@ -51,28 +51,40 @@ async function switches(now = Date.now()) {
 
 async function readSwitches(now) {
   if (cache && now - cache.at < TTL_MS) return cache.s;
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = Swr.covered('hub-play');
+  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache.s; }
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', Object.values(KEYS));
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, isTrue(r.value)]));
-    const hub = Boolean(by[KEYS.hub]);
-    const challenge = hub && Boolean(by[KEYS.challenge]);
-    const v2 = challenge && Boolean(by[KEYS.v2]);
-    const s = {
-      first: challenge && Boolean(by[KEYS.first]),
-      v2,
-      story: v2 && Boolean(by[KEYS.story]),
-      book: v2 && Boolean(by[KEYS.book]),
-      install: hub && Boolean(by[KEYS.install]),
-      events: hub && Boolean(by[KEYS.events]),
-    };
-    cache = { at: now, s };
-    return s;
+    return fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ web quiz hub play: settings lookup failed — off', { error: err.message });
     return OFF;
   }
 }
+
+function fromRows(data, now) {
+  const by = Object.fromEntries((data || []).map((r) => [r.key, isTrue(r.value)]));
+  const hub = Boolean(by[KEYS.hub]);
+  const challenge = hub && Boolean(by[KEYS.challenge]);
+  const v2 = challenge && Boolean(by[KEYS.v2]);
+  const s = {
+    first: challenge && Boolean(by[KEYS.first]),
+    v2,
+    story: v2 && Boolean(by[KEYS.story]),
+    book: v2 && Boolean(by[KEYS.book]),
+    install: hub && Boolean(by[KEYS.install]),
+    events: hub && Boolean(by[KEYS.events]),
+  };
+  cache = { at: now, s };
+  return s;
+}
+
+// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
+// cache from the raw rows, parsed here exactly as this module's own read parses them.
+const hubSwitches = { name: 'hub-play', keys: Object.values(KEYS), swr: ['hub-play'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => Object.values(KEYS).includes(r.key)), now), read: () => switches(), peek: () => cache };
 
 // ── the resolver (BADGES §6, verbatim) ───────────────────────────────────────────────────────────────
 
@@ -287,7 +299,7 @@ async function playField(input) {
 /** The hub_open route value from a request's `from`/`src`, or undefined. */
 function srcOf(v) { return typeof v === 'string' && SRC_VALUES.includes(v) ? v : undefined; }
 
-module.exports = { playFor, playField, trailWaiting, openBands, nextThing, dayOf, switches, srcOf, SRC_VALUES, KEYS, _resetCache: () => { cache = null; } };
+module.exports = { playFor, playField, trailWaiting, openBands, nextThing, dayOf, switches, hubSwitches, srcOf, SRC_VALUES, KEYS, _resetCache: () => { cache = null; } };
 // the v3 home's Stories door (web-quiz-hub-doors.js) lists the same passages by the same rules
 module.exports.passagesOf = passagesOf;
 module.exports.seenPassages = seenPassages;

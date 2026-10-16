@@ -386,6 +386,9 @@ async function brandKey() {
   try {
     const WebQuizBrand = require('../../config/web-quiz-brand');
     const { orgName, botName } = require('../../config/branding');
+    // web_quiz_fast on: the hub's one switch read is in flight and the brand has no fresh value: its answer, not a read.
+    const seam = require('./web-quiz-swr').covered('brand');
+    if (seam && WebQuizBrand.hubSwitches.age(Date.now()) !== 'fresh') await seam;
     return await WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName });
   } catch (_) {
     return null;
@@ -604,6 +607,9 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
 
 /** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
 async function hub(token, opts = {}) {
+  // Fast first page (web_quiz_fast): every switch the hub reads, as ONE read, started before any of them (each switch
+  // with no fresh value waits for it instead of its own read): web-quiz-hub-switches.js. Only for a hub token. Off: no call.
+  if (require('./web-quiz-fast').on() && T.secret() && T.verify(token, 'h')) require('./web-quiz-hub-switches').ensure();
   // Fast first page (web_quiz_fast): the page-events switch is read beside the payload, not after it.
   const rt = require('./web-quiz-fast').on() ? require('./web-quiz-fast').early(Tel.flag()) : null;
   const ui = await require('./web-quiz-ur-polish').ui();

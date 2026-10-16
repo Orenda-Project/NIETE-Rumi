@@ -44,27 +44,41 @@ async function flags(now = Date.now()) {
   return readFlags(now);
 }
 
+const KEYS = [CANON_KEY, PHONE_BIND_KEY, GUEST_HOME_KEY, MAKER_PAGE_KEY, FIRST_DOOR_KEY];
+
 async function readFlags(now) {
   if (cache && now - cache.at < TTL_MS) return cache;
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = Swr.covered('identity-flags');
+  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache; }
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [CANON_KEY, PHONE_BIND_KEY, GUEST_HOME_KEY, MAKER_PAGE_KEY, FIRST_DOOR_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', KEYS);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    const hub = Boolean((await HubFlags.flags(now)).hub);
-    const canon = hub && isTrue(by[CANON_KEY]);
-    // WQ_TOMB_SALT is a hard parent: without it the store writes nothing and a family's JUGNU- message would meet silence.
-    const phoneBind = canon && isTrue(by[PHONE_BIND_KEY]) && Boolean(process.env.WQ_TOMB_SALT);
-    const guestHome = phoneBind && isTrue(by[GUEST_HOME_KEY]);
-    // ── first touch: the door's hard parent is the maker page; neither reads any switch above ──
-    const makerPage = isTrue(by[MAKER_PAGE_KEY]);
-    const firstDoor = makerPage && isTrue(by[FIRST_DOOR_KEY]);
-    // ── end first touch ──
-    cache = { at: now, canon, phoneBind, guestHome, makerPage, firstDoor };
-    return cache;
+    return await fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ child identity: settings lookup failed — identity switches off', { error: err.message });
     return { ...OFF };
   }
 }
 
-module.exports = { flags, isTrue, CANON_KEY, PHONE_BIND_KEY, GUEST_HOME_KEY, MAKER_PAGE_KEY, FIRST_DOOR_KEY, _resetCache: () => { cache = null; } };
+// The rows of the read (or of the hub's one switch read, web-quiz-hub-switches.js) -> the cache.
+async function fromRows(data, now) {
+  const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+  const hub = Boolean((await HubFlags.flags(now)).hub);
+  const canon = hub && isTrue(by[CANON_KEY]);
+  // WQ_TOMB_SALT is a hard parent: without it the store writes nothing and a family's JUGNU- message would meet silence.
+  const phoneBind = canon && isTrue(by[PHONE_BIND_KEY]) && Boolean(process.env.WQ_TOMB_SALT);
+  const guestHome = phoneBind && isTrue(by[GUEST_HOME_KEY]);
+  // ── first touch: the door's hard parent is the maker page; neither reads any switch above ──
+  const makerPage = isTrue(by[MAKER_PAGE_KEY]);
+  const firstDoor = makerPage && isTrue(by[FIRST_DOOR_KEY]);
+  // ── end first touch ──
+  cache = { at: now, canon, phoneBind, guestHome, makerPage, firstDoor };
+  return cache;
+}
+
+// The hub's one switch read (web_quiz_fast on): primed after the hub flags (its parent `hub` is read from their cache).
+const hubSwitches = { name: 'identity-flags', keys: KEYS, swr: ['identity-flags'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => KEYS.includes(r.key)), now), read: () => flags(), peek: () => cache };
+
+module.exports = { flags, isTrue, hubSwitches, CANON_KEY, PHONE_BIND_KEY, GUEST_HOME_KEY, MAKER_PAGE_KEY, FIRST_DOOR_KEY, _resetCache: () => { cache = null; } };

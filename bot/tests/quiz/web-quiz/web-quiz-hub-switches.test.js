@@ -128,7 +128,7 @@ describe('a switch reads the same through the seam as through its own read', () 
     'every other on': (i) => (i % 2 ? 'true' : false),
     missing: () => undefined,
   };
-  const noAt = (v) => JSON.parse(JSON.stringify(v, (k, x) => (k === 'at' ? undefined : x)));
+  const noAt = (v) => (v === undefined ? null : JSON.parse(JSON.stringify(v, (k, x) => (k === 'at' ? undefined : x))));
 
   test.each(Object.keys(VARIANTS))('%s', async (name) => {
     const rowsOf = (keys) => keys.map((key, i) => ({ key, value: VARIANTS[name](i) })).filter((r) => r.value !== undefined);
@@ -137,7 +137,8 @@ describe('a switch reads the same through the seam as through its own read', () 
     const keys = Seam().ALL_KEYS();
     S.db.app_settings = [...rowsOf(keys), { key: 'web_quiz_fast', value: true }];
     const own = {};
-    for (const e of Seam().entries()) { await e.read(); own[e.name] = noAt(e.peek()); }
+    const ownSays = {};
+    for (const e of Seam().entries()) { ownSays[e.name] = noAt(await e.read()); own[e.name] = noAt(e.peek()); }
     // The seam: one read of the same rows, each module primed from it.
     boot({ fast: true, every: true });
     S.db.app_settings = [...rowsOf(keys), { key: 'web_quiz_fast', value: true }];
@@ -148,19 +149,31 @@ describe('a switch reads the same through the seam as through its own read', () 
     expect(S.reads.filter((r) => r.t === 'app_settings').length).toBe(1);
     const primed = {};
     for (const e of Seam().entries()) primed[e.name] = noAt(e.peek());
-    expect(Object.keys(primed).length).toBeGreaterThanOrEqual(13);
+    expect(Object.keys(primed).length).toBe(12);  // the 13 reads of a stale hub but the fast switch's own (challenge: 3 switches)
+    // The same cache, but where the module's own read reads nothing (keep my place's way back with its parent off:
+    // it answers false before its cache; primed, its cache holds what its read would hold).
+    const skipped = Object.keys(own).filter((n) => own[n] === null);
+    expect(skipped.filter((n) => n !== 'bind-way-back')).toEqual([]);
+    skipped.forEach((n) => { delete own[n]; delete primed[n]; });
     expect(primed).toEqual(own);
-    // ...and a primed module answers from its cache: no read of its own.
+    // ...and a primed module answers what its own read answered, from its cache: no read of its own.
     S.reads = [];
-    for (const e of Seam().entries()) await e.read();
+    const primedSays = {};
+    for (const e of Seam().entries()) primedSays[e.name] = noAt(await e.read());
+    expect(primedSays).toEqual(ownSays);
     expect(S.reads.filter((r) => r.t === 'app_settings').length).toBe(0);
   });
 
-  test('the seam reads every key the hub asks for (CEILING_KEYS + brand + db deadline), never web_quiz_fast', () => {
-    boot({ fast: true, every: true });
+  test('the seam reads every key the hub asks for (fast off: each module\'s own read), never web_quiz_fast', async () => {
+    boot({ fast: false, every: true });
+    Fx.askedKeys.clear();
+    const tok = tokenOne();
+    await measure(tok, { device: DEVICE });
+    jest.setSystemTime(NOW + 6 * 60 * 1000);          // every cache expired, the brand's 5 min one too
+    await measure(tok, { device: DEVICE });
     const keys = Seam().ALL_KEYS();
     expect(keys).not.toContain('web_quiz_fast');
-    expect(CEILING_KEYS.filter((k) => !keys.includes(k))).toEqual([]);
+    expect([...Fx.askedKeys].filter((k) => k !== 'web_quiz_fast' && !keys.includes(k)).sort()).toEqual([]);
     expect(keys).toEqual(expect.arrayContaining(['web_quiz_brand', 'web_quiz_db_deadline']));
   });
 });

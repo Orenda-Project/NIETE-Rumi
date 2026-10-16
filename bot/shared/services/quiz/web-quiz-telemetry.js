@@ -14,6 +14,7 @@ const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
+const Swr = require('./web-quiz-swr');
 
 const KEY = 'web_quiz_rich_telemetry';
 const TTL_MS = 30 * 1000;
@@ -33,7 +34,7 @@ function refresh() {
       try {
         const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
         if (error) throw new Error(error.message || 'app_settings read failed');
-        cache = { at: Date.now(), on: isTrue(data && data.value) };
+        fromRow(data, Date.now());
       } catch (err) {
         logToFile('⚠️ web quiz telemetry: settings lookup failed — off', { error: err.message });
         cache = { at: Date.now(), on: false };
@@ -49,8 +50,19 @@ function refresh() {
 /** The switch, waited for (page payloads). */
 async function flag(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a second read.
+  const seam = Swr.covered(SEAM_NAME);
+  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache.on; }
   return refresh();
 }
+
+function fromRow(data, now) { cache = { at: now, on: isTrue(data && data.value) }; return cache.on; }
+
+// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
+// cache from the raw rows, parsed here exactly as this module's own read parses them.
+const SEAM_NAME = 'telemetry';
+const hubSwitches = { name: SEAM_NAME, keys: [KEY], swr: [SEAM_NAME], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRow(rows.find((r) => r.key === KEY) || null, now), read: () => flag(), peek: () => cache };
 
 /** The switch, never waited for (the events route): the cached value, refreshed in the background when stale. */
 function on(now = Date.now()) {
@@ -74,7 +86,7 @@ function batchIds(body = {}) {
 }
 
 module.exports = {
-  KEY, flag, on, deviceHash, batchIds,
+  KEY, flag, on, hubSwitches, deviceHash, batchIds,
   _set: (v) => { cache = { at: Date.now(), on: Boolean(v) }; },
   _reset: () => { cache = null; reading = null; },
 };

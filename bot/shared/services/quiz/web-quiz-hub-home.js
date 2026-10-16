@@ -54,17 +54,29 @@ async function flags(now = Date.now()) {
 
 async function readFlags(now) {
   if (cache && now - cache.at < TTL_MS) return cache;
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = Swr.covered('home-v3-flags');
+  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache; }
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, STORIES_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    cache = { at: now, home: isTrue(by[KEY]), stories: isTrue(by[STORIES_KEY]) };
-    return cache;
+    return fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ web quiz home: settings lookup failed — off', { error: err.message });
     return { home: false, stories: false };
   }
 }
+
+function fromRows(data, now) {
+  const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+  cache = { at: now, home: isTrue(by[KEY]), stories: isTrue(by[STORIES_KEY]) };
+  return cache;
+}
+
+// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
+// cache from the raw rows, parsed here exactly as this module's own read parses them.
+const hubSwitches = { name: 'home-v3-flags', keys: [KEY, STORIES_KEY], swr: ['home-v3-flags'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => r.key === KEY || r.key === STORIES_KEY), now), read: () => flags(), peek: () => cache };
 
 // Monday 00:00 PKT of the week `ms` is in, as epoch ms.
 function weekStart(ms) {
@@ -294,4 +306,4 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
   }
 }
 
-module.exports = { homeField, homeReads, homeFrom, doorsOf, headOf, flags, practiceHub, practiceOf, sentOnly, KEY, STORIES_KEY, _resetCache: () => { cache = null; }, _useModules: (m) => { modules = m; } };
+module.exports = { homeField, homeReads, homeFrom, doorsOf, headOf, flags, hubSwitches, practiceHub, practiceOf, sentOnly, KEY, STORIES_KEY, _resetCache: () => { cache = null; }, _useModules: (m) => { modules = m; } };

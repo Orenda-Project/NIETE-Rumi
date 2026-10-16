@@ -60,19 +60,33 @@ async function flags(now = Date.now()) {
 
 async function readFlags(now) {
   if (cache && now - cache.at < TTL_MS) return cache;
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = Swr.covered('book');
+  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache; }
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [HUB_KEY, CHALLENGE_KEY, V2_KEY, BOOK_KEY, WALL_KEY, STORY_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', FLAG_KEYS);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    const v2 = isTrue(by[HUB_KEY]) && isTrue(by[CHALLENGE_KEY]) && isTrue(by[V2_KEY]);
-    const book = v2 && isTrue(by[BOOK_KEY]);
-    cache = { at: now, book, wall: book && isTrue(by[WALL_KEY]), story: v2 && isTrue(by[STORY_KEY]) };
-    return cache;
+    return fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ web quiz book: settings lookup failed — book off', { error: err.message });
     return { book: false, wall: false, story: false };
   }
 }
+
+const FLAG_KEYS = [HUB_KEY, CHALLENGE_KEY, V2_KEY, BOOK_KEY, WALL_KEY, STORY_KEY];
+
+function fromRows(data, now) {
+  const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+  const v2 = isTrue(by[HUB_KEY]) && isTrue(by[CHALLENGE_KEY]) && isTrue(by[V2_KEY]);
+  const book = v2 && isTrue(by[BOOK_KEY]);
+  cache = { at: now, book, wall: book && isTrue(by[WALL_KEY]), story: v2 && isTrue(by[STORY_KEY]) };
+  return cache;
+}
+
+// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
+// cache from the raw rows, parsed here exactly as this module's own read parses them.
+const hubSwitches = { name: 'book', keys: FLAG_KEYS, swr: ['book'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => FLAG_KEYS.includes(r.key)), now), read: () => flags(), peek: () => cache };
 
 // ─── PKT calendar (pure) ──────────────────────────────────────────────────────────────────────────────
 
@@ -390,6 +404,6 @@ async function hubBits({ studentId, runs = null } = {}, now = Date.now()) {
 }
 
 module.exports = {
-  bookFor, hubBits, runsOnce, flags, lightsOf, lampsOf, outlineOf, trailStickersFor, daysOf, storyIdsOf, levelupOf, periodOf, weekStart, termStart,
+  bookFor, hubBits, runsOnce, flags, hubSwitches, lightsOf, lampsOf, outlineOf, trailStickersFor, daysOf, storyIdsOf, levelupOf, periodOf, weekStart, termStart,
   BOOK_KEY, WALL_KEY, V2_KEY, _resetCache: () => { cache = null; },
 };

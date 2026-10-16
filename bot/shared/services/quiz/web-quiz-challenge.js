@@ -173,6 +173,9 @@ async function settingOn(key) {
   if (c && Date.now() - c.at < SETTING_TTL_MS) return c.v;
   // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
   if (Swr.stale(c, SETTING_TTL_MS)) { Swr.revalidate(`challenge:${key}`, () => readSetting(key, true)); return c.v; }
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = Swr.covered(`challenge:${key}`);
+  if (seam) { await seam; const d = settingCache.get(key); if (d && Date.now() - d.at < SETTING_TTL_MS) return d.v; }
   return readSetting(key);
 }
 
@@ -182,7 +185,7 @@ async function readSetting(key, keep = false) {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', key);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    v = !!(data && data[0] && isTrue(data[0].value));
+    v = settingOf(data);
   } catch (e) {
     logError('web_quiz.ch_setting_read_failed', { key, error: String(e && e.message || e).slice(0, 120) });
     if (keep && settingCache.has(key)) return settingCache.get(key).v;
@@ -191,6 +194,7 @@ async function readSetting(key, keep = false) {
   settingCache.set(key, { v, at: Date.now() });
   return v;
 }
+function settingOf(data) { return !!(data && data[0] && isTrue(data[0].value)); }
 const recordOn = () => settingOn(RECORD_FLAG_KEY);
 const readGuardOn = () => settingOn(GUARD_FLAG_KEY);
 const itemsOn = () => settingOn(ITEMS_FLAG_KEY);
@@ -312,6 +316,9 @@ async function listenOn(now = Date.now()) {
   if (listenCache && now - listenCache.at < FLAG_TTL_MS) return listenCache.on;
   // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
   if (Swr.stale(listenCache, FLAG_TTL_MS, now)) { Swr.revalidate('challenge:listen', () => readListen(now, true)); return listenCache.on; }
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = Swr.covered('challenge:listen');
+  if (seam) { await seam; if (listenCache && now - listenCache.at < FLAG_TTL_MS) return listenCache.on; }
   return readListen(now);
 }
 
@@ -320,7 +327,7 @@ async function readListen(now, keep = false) {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', LISTEN_FLAG_KEY);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    listenCache = { at: now, on: !!(data && data[0]) && isTrue(data[0].value) };
+    listenFrom(data, now);
   } catch (e) {
     logToFile('⚠️ web quiz challenge: listen flag lookup failed — off', { error: e.message });
     if (keep && listenCache) return listenCache.on;
@@ -328,6 +335,26 @@ async function readListen(now, keep = false) {
   }
   return listenCache.on;
 }
+
+function listenFrom(data, now) { listenCache = { at: now, on: !!(data && data[0]) && isTrue(data[0].value) }; return listenCache.on; }
+
+// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
+// cache from the raw rows, parsed here exactly as this module's own read parses them.
+// The hub reads the record and missing switches (the Trail's stops) and Listen.
+const HUB_SETTING_KEYS = [RECORD_FLAG_KEY, MISSING_FLAG_KEY];
+const hubSwitches = {
+  name: 'challenge', keys: [...HUB_SETTING_KEYS, LISTEN_FLAG_KEY], swr: [...HUB_SETTING_KEYS.map((k) => `challenge:${k}`), 'challenge:listen'],
+  age: (now) => {
+    const ages = [...HUB_SETTING_KEYS.map((k) => Swr.ageOf(settingCache.get(k), SETTING_TTL_MS, now)), Swr.ageOf(listenCache, FLAG_TTL_MS, now)];
+    return ages.includes('cold') ? 'cold' : (ages.includes('stale') ? 'stale' : 'fresh');
+  },
+  prime: (rows, now) => {
+    HUB_SETTING_KEYS.forEach((k) => settingCache.set(k, { v: settingOf(rows.filter((r) => r.key === k)), at: now }));
+    listenFrom(rows.filter((r) => r.key === LISTEN_FLAG_KEY), now);
+  },
+  read: async () => { await recordOn(); await missingOn(); await listenOn(); },
+  peek: () => ({ ...Object.fromEntries(HUB_SETTING_KEYS.map((k) => [k, settingCache.get(k) || null])), listen: listenCache }),
+};
 
 /** The chip a hub page sends for one of the phone's children (not reversible): the hub's own, T.chipId('h', id). */
 function kidChip(studentId) {
@@ -2261,7 +2288,7 @@ module.exports = {
   scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, TRAIL_ORDER, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
-  settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
+  settingOn, hubSwitches, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
   updateRunMeta,   // the meta compare-and-set write, reused by the stuck-run sweeper (web-quiz-challenge-sweeper.js)
   __reset,
 };
