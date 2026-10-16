@@ -164,6 +164,9 @@
   var wired = false;
   function mount(root, B, ctx) {
     var name = String((typeof location !== 'undefined' && location.hash) || '').replace(/^#/, '');
+    hashOnce(root, B, ctx);
+    // The door screens (wq-doors.js, fetched after the home paints): theirs once loaded; until then the rows below.
+    if (window.WQDOORS && window.WQDOORS.owns(name)) return window.WQDOORS.mount(root, B, ctx, name);
     var html0 = DOORS.indexOf(name) >= 0 ? door(B, ctx, name) : html(B, ctx);
     root.innerHTML = html0;
     root.setAttribute('data-m', DOORS.indexOf(name) >= 0 ? 'H3-' + name : 'H3');
@@ -190,8 +193,13 @@
     var sh = root.querySelector('[data-shelf]');
     if (sh && window.WQSTORIES && typeof window.WQSTORIES.shelf === 'function') { try { window.WQSTORIES.shelf(sh, { token: ctx.token, kid: B.kid, lang: langOf(ctx), ev: ev }); } catch (e) {} }
     else if (B.stories && B.stories.on && !window.WQSTORIES && (sh || /^story\//.test(name))) loadOnce('wq-stories');
-    if (!wired) { wired = true; try { window.addEventListener('hashchange', function () { if (/^#(stories|games|videos)?$/.test(location.hash || '')) mount(root, B, ctx); }); } catch (e) {} }
+    if (!window.WQDOORS) loadOnce('wq-doors', function () { var n = String(location.hash || '').replace(/^#/, ''); if (window.WQDOORS && window.WQDOORS.owns(n)) mount(root, B, ctx); });
     try { window.scrollTo(0, 0); } catch (e) {}
+  }
+  function hashOnce(root, B, ctx) {
+    if (wired) return;
+    wired = true;
+    try { window.addEventListener('hashchange', function () { if (/^#(stories|games|videos|watch\/[0-9a-f-]{36})?$/i.test(location.hash || '')) mount(root, B, ctx); }); } catch (e) {}
   }
   function go(ctx, href, what) { if (!href) return; if (ctx.go) ctx.go(href, what); else location.assign(href); }
   function each(root, sel, fn) { Array.prototype.forEach.call(root.querySelectorAll(sel), fn); }
@@ -238,5 +246,5 @@
     } catch (e) {}
   }
 
-  window.WQHOME = { mount: mount, html: html, door: door, nextOf: nextOf, COPY: COPY, DOORS: DOORS };
+  window.WQHOME = { mount: mount, html: html, door: door, nextOf: nextOf, COPY: COPY, DOORS: DOORS, bar: barHtml, loadOnce: loadOnce };
 })();

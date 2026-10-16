@@ -173,7 +173,8 @@ describe('wq-home.js: mount loads the stories reader only when the server says s
     };
     vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, document, location: { hash }, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, JSON, Math, String, Number, Array, Object, encodeURIComponent });
     win.WQHOME.mount(root, B, { token: TOKEN, lang: 'en', ev() {} });
-    return head.map((e) => e.src || e.href);
+    // the door screens (wq-doors.js) are fetched after every paint; asserted on their own below
+    return head.map((e) => e.src || e.href).filter((u) => !/\/wq\/wq-doors\./.test(u));
   }
   const shelfB = { ...HOME, doors: { ...DOORS_FULL, stories: [{ kind: 'shelf' }] } };
   test('stories.on + the Stories door: wq-stories.css/.js at hub.js\'s ?v=', () => {

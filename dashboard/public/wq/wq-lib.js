@@ -405,6 +405,8 @@
           return r.text().then(function (x) {
             var j = null; try { j = x ? JSON.parse(x) : null; } catch (e) {}
             if (r.ok && j && j.code) { flushEv(); location.assign('/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : '')); return; }
+            // A child with no class (web_quiz_home_v3): the video plays on the child home's own player, the quiz offered after.
+            if (r.ok && j && j.watch) { flushEv(); location.assign(hubUrl + '#watch/' + encodeURIComponent(j.watch.vid || v.vid)); return; }
             going = false;
             ev('error', { err: r.status === 409 ? 'lib_no_class' : 'lib_start_' + r.status });
             o.note = r.status === 409 ? t.noClass : t.oops;
