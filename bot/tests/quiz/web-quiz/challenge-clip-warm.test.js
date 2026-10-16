@@ -221,6 +221,57 @@ describe('a run', () => {
   });
 });
 
+describe('the order: check-pool listening clips first (the story, then its questions), then every other clip', () => {
+  // A stock whose RELEASE order puts a read passage first and a practice listening story before the check-pool listening
+  // passage: the warm must still record the check-pool listening story first (the one clip a child cannot play the stop
+  // without), then that passage's prompts and options, and only then the read prompts and the practice story.
+  let restore;
+  const PRACTICE_STORY = 'A practice story for the shelf, never counted.';
+  beforeEach(() => {
+    r2.headObject.mockImplementation(async () => ({ exists: false }));   // a cold store (an earlier test leaves a per-key implementation behind)
+    const many = fs.mkdtempSync(path.join(os.tmpdir(), 'challenge-clip-warm-order-'));
+    for (const p of [pointer('en.read.2.setA', 'en', 'read', 'story'), pointer('en.listen.2.setA', 'en', 'listen', 'listening')]) {
+      fs.writeFileSync(path.join(many, `${p.passage_id}.json`), JSON.stringify(p));
+    }
+    fs.writeFileSync(path.join(many, 'en.listen.1.story01.json'), JSON.stringify({ passage_id: 'en.listen.1.story01', lang: 'en', kind: 'listen', band: 1, pool: 'practice', text: PRACTICE_STORY, questions: [], bank_version: 'child-test-items-v4' }));
+    Bank._loadPassagesFrom(many);
+    db.challenge_passages = [
+      row('en.read.2.setA', 'en', 'read', iso(NOW - 30 * DAY)),                                   // released first
+      { ...row('en.listen.1.story01', 'en', 'listen', iso(NOW - 10 * DAY)), pool: 'practice' },  // a practice story, released second
+      row('en.listen.2.setA', 'en', 'listen', iso(NOW - DAY)),                                    // the check-pool listening passage, released last
+    ];
+    restore = () => { Bank._loadPassagesFrom(dir); fs.rmSync(many, { recursive: true, force: true }); };
+  });
+  afterEach(() => restore());
+
+  test('the check-pool listening story is recorded first, its prompts and options next, the read prompts and the practice story after', async () => {
+    const listen = served('en.listen.2.setA');
+    const read = served('en.read.2.setA');
+    const out = await CW.warmClips({ now: NOW });
+    expect(out).toMatchObject({ missing: 0, passages: 3, n: listen.length + read.length + 1 });
+    const order = spoken();
+    expect(order[0]).toBe(Bank.getPassage('en.listen.2.setA').text);
+    const lastListen = Math.max(...listen.map((c) => order.indexOf(c.text)));
+    const firstOther = Math.min(...read.map((c) => order.indexOf(c.text)), order.indexOf(PRACTICE_STORY));
+    expect(lastListen).toBeLessThan(firstOther);
+  });
+
+  test('under the cap only the check-pool listening clips are recorded: with room for two recordings, the story and its first prompt; the read clips are the missing ones', async () => {
+    // the shared recorder has 34 left (two above the serve headroom of 32)
+    for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM - 2; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en');
+    expect(Ch.clipsLeft()).toBe(CW.SERVE_HEADROOM + 2);
+    tts.synthesize.mockClear();
+    const listen = served('en.listen.2.setA');
+    const read = served('en.read.2.setA');
+    const out = await CW.warmClips({ now: NOW });
+    expect(tts.synthesize).toHaveBeenCalledTimes(2);
+    expect(spoken()).toEqual([listen[0].text, listen[1].text]);
+    expect(out).toMatchObject({ recorded: 2, capped: true, missing: listen.length + read.length + 1 - 2 });
+    for (const c of read) expect(spoken()).not.toContain(c.text);
+    expect(spoken()).not.toContain(PRACTICE_STORY);
+  });
+});
+
 describe('the queue service\'s sweep tick (the hook)', () => {
   const ORIGINAL_Q = process.env.WORKER_QUEUES;
   afterEach(() => { if (ORIGINAL_Q === undefined) delete process.env.WORKER_QUEUES; else process.env.WORKER_QUEUES = ORIGINAL_Q; jest.restoreAllMocks(); });
