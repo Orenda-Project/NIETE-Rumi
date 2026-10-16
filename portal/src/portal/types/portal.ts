@@ -866,3 +866,66 @@ export interface TrainingLevelsResponse {
   /** The chosen region's schools (all regions' when none is chosen); a school with none of the band's teachers is left out. */
   schools: TrainingLevelsSchool[];
 }
+
+/* ── bd-97x22y.5 — GET /api/portal/analytics/observations (PLAN v7 "Observations") ──────────────────────────────── */
+
+/**
+ * Her FICO score breakdown (the ICT dashboard's Observations tab, 1 to 1): Section B LP Fidelity, C Teaching
+ * Practices, D Engagement — each out of 100 (one decimal), pooled over the observations it was scored on (its n). A
+ * section is null exactly when its n is 0 (B is not scored without a lesson plan); a count is never null.
+ */
+export interface ObservationSections {
+  sectionB: number | null;
+  sectionBN: number;
+  sectionC: number | null;
+  sectionCN: number;
+  sectionD: number | null;
+  sectionDN: number;
+}
+
+export interface ObservationsCounts extends ObservationSections {
+  observations: number;
+  /** Distinct teachers with at least one observation of this kind in the window. */
+  teachersObserved: number;
+}
+
+export interface ObservationsOverview extends ObservationsCounts {
+  schools: number;
+  /** Regions in scope with at least one observation of this kind. */
+  sectorsActive: number;
+}
+
+export interface ObservationsRegion extends ObservationsCounts {
+  region: string;
+  schools: number;
+}
+
+export interface ObservationsSchool extends ObservationsCounts {
+  schoolId: string;
+  emis: string | null;
+  name: string;
+  region: string;
+}
+
+/** One kind of observation (Digital Coach or Human): the whole selection, the six regions (whatever the filter), the schools. */
+export interface ObservationsKind {
+  overview: ObservationsOverview;
+  regions: ObservationsRegion[];
+  schools: ObservationsSchool[];
+}
+
+export interface ObservationsAnalyticsResponse {
+  success: boolean;
+  range: { from: string | null; to: string | null };
+  dc: ObservationsKind;
+  human: ObservationsKind;
+}
+
+/**
+ * bd-97x22y.5 — /analytics/coaching v7 (her Coaching tab, 1 to 1): each region also carries how many schools are in it
+ * (visited or not) and its coaches' names, sorted — staff, never teachers. Merged into the interface above.
+ */
+export interface CoachingAnalyticsRegion {
+  schools: number;
+  coachNames: string[];
+}

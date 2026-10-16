@@ -91,11 +91,11 @@ const SCHOOLS = () => [
   { id: 's6', name: 'Closed School', emis: '606', region: 'Tarnol', is_active: false, is_probable_test: false, coach_visits: 8 },
 ];
 const COACH_SCHOOLS = [
-  { coach_id: 'k1', school_id: 's1' },
-  { coach_id: 'k1', school_id: 's2' }, // two regions
-  { coach_id: 'k2', school_id: 's5' },
-  { coach_id: 'k3', school_id: 's4' }, // only an out-of-six school
-  { coach_id: 'k4', school_id: 's6' }, // only an inactive school
+  { coach_id: 'k1', school_id: 's1', coach_name: 'Saima Jabeen' },
+  { coach_id: 'k1', school_id: 's2', coach_name: 'Saima Jabeen' }, // two regions
+  { coach_id: 'k2', school_id: 's5', coach_name: 'Abdul Malik' },
+  { coach_id: 'k3', school_id: 's4', coach_name: 'Out Of Six' }, // only an out-of-six school
+  { coach_id: 'k4', school_id: 's6', coach_name: 'Inactive Only' }, // only an inactive school
 ];
 
 function poolRows(sql) {
@@ -179,7 +179,7 @@ describe('GET /analytics/coaching — the answer', () => {
     expect(payload.success).toBe(true);
     expect(payload.range).toEqual({ from: '2026-10-01', to: '2026-10-13' });
     expect(Object.keys(payload.overview).sort()).toEqual(['coachVisits', 'coaches', 'schoolsVisited']);
-    for (const r of payload.regions) expect(Object.keys(r).sort()).toEqual(['coachVisits', 'coaches', 'region', 'schoolsVisited']);
+    for (const r of payload.regions) expect(Object.keys(r).sort()).toEqual(['coachNames', 'coachVisits', 'coaches', 'region', 'schools', 'schoolsVisited']);
     for (const s of payload.schools) expect(Object.keys(s).sort()).toEqual(['coachVisits', 'emis', 'name', 'region', 'schoolId']);
   });
 
@@ -193,9 +193,11 @@ describe('GET /analytics/coaching — the answer', () => {
     // uncounted schools.
     expect(payload.overview).toEqual({ coaches: 2, coachVisits: 5, schoolsVisited: 2 });
     const card = (r) => payload.regions.find((x) => x.region === r);
-    expect(card('B.K')).toEqual({ region: 'B.K', coaches: 2, coachVisits: 3, schoolsVisited: 1 });
-    expect(card('Sihala')).toEqual({ region: 'Sihala', coaches: 1, coachVisits: 2, schoolsVisited: 1 });
-    expect(card('Tarnol')).toEqual({ region: 'Tarnol', coaches: 0, coachVisits: 0, schoolsVisited: 0 });
+    expect(card('B.K')).toEqual({ region: 'B.K', coaches: 2, coachVisits: 3, schoolsVisited: 1, schools: 2, coachNames: ['Abdul Malik', 'Saima Jabeen'] });
+    expect(card('Sihala')).toEqual({ region: 'Sihala', coaches: 1, coachVisits: 2, schoolsVisited: 1, schools: 1, coachNames: ['Saima Jabeen'] });
+    // Tarnol's only school is inactive: no school, no coach, no name.
+    expect(card('Tarnol')).toEqual({ region: 'Tarnol', coaches: 0, coachVisits: 0, schoolsVisited: 0, schools: 0, coachNames: [] });
+    expect(JSON.stringify(payload)).not.toMatch(/Out Of Six|Inactive Only/);
   });
 
   it('Σ school coachVisits = overview coachVisits', async () => {
@@ -210,8 +212,8 @@ describe('GET /analytics/coaching — the answer', () => {
     const { statusCode, payload } = await call('get', ROUTE, { userId: VIEWER, query: { region: 'sihala' } });
     expect(statusCode).toBe(200);
     expect(payload.schools.map((s) => s.name)).toEqual(['IMCG Sihala']);
-    const { region, ...card } = payload.regions.find((r) => r.region === 'Sihala');
-    expect(payload.overview).toEqual(card);
+    const card = payload.regions.find((r) => r.region === 'Sihala');
+    expect(payload.overview).toEqual({ coaches: card.coaches, coachVisits: card.coachVisits, schoolsVisited: card.schoolsVisited });
     expect(payload.regions).toHaveLength(6);
   });
 
@@ -252,10 +254,11 @@ describe('GET /analytics/coaching — the answer', () => {
     for (const q of queries) expect(JSON.stringify(q.params || [])).not.toContain('drop');
   });
 
-  it('carries no coach or teacher identity', async () => {
+  it('carries no coach id and no teacher identity; coach names only in regions[].coachNames (v7)', async () => {
     tableStates.app_settings = flag([VIEWER]);
     const { payload } = await call('get', ROUTE, { userId: VIEWER });
-    expect(JSON.stringify(payload)).not.toMatch(/"k\d"|coach_id|coachId|user_id|userId|phone/);
+    expect(JSON.stringify(payload)).not.toMatch(/"k\d"|coach_id|coachId|coach_name|user_id|userId|phone/);
+    expect(JSON.stringify({ overview: payload.overview, schools: payload.schools })).not.toMatch(/Saima|Abdul/);
   });
 });
 
