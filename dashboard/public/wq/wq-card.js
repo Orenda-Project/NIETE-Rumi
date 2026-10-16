@@ -16,9 +16,9 @@
   'use strict';
   // Copy: copy.addendum.v1.json jg.card.title / sub / btn and copy.v2.json jg.who.turn_of / not_me / turn.
   var W = {
-    en: { cardTitle: 'Jugnu has a game for you', cardSub: '2 minutes, no microphone', cardBtn: 'Play',
+    en: { cardTitle: 'Jugnu has a game for you', cardSub: '2 minutes to start, no microphone', cardBtn: 'Play',
       whoTurnOf: function (n) { return n + '\'s turn'; }, whoNotMe: 'Not my turn? Go back', whoTurn: 'Whose turn?' },
-    ur: { cardTitle: 'جگنو کے پاس آپ کے لیے ایک کھیل ہے', cardSub: '۲ منٹ، مائیک کی ضرورت نہیں', cardBtn: 'کھیلیں',
+    ur: { cardTitle: 'جگنو کے پاس آپ کے لیے ایک کھیل ہے', cardSub: 'شروع کے ۲ منٹ، مائیک کی ضرورت نہیں', cardBtn: 'کھیلیں',
       whoTurnOf: function (n) { return '⁨' + n + '⁩ کی باری'; }, whoNotMe: 'میری باری نہیں؟ واپس جائیں', whoTurn: 'کس کی باری ہے؟' }
   };
   var DOOR = { door: 'card', surface: 'scorecard', slot: 1 };

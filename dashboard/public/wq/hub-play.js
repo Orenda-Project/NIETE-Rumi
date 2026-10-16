@@ -19,7 +19,7 @@
     },
     ur: {
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔',
-      lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
+      lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       lanternNewStory: function (title) { return 'ایک نئی کہانی آ گئی ہے: ⁨' + title + '⁩'; },
       lanternTomorrow: 'کل نئی کہانی آئے گی۔',
       lanternAllSeen: 'اگلی کہانی پیر کو آئے گی۔ تب تک جگنو کے ساتھ گنتی کے کھیل کھیلیں۔',

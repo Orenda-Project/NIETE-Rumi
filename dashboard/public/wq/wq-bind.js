@@ -29,6 +29,7 @@
       noticeReadings: function (name) { return "Readings " + name + " makes with the microphone are kept too."; },
       whoSends: "A grown-up sends one WhatsApp message from this phone.",
       sendBtn: "Send on WhatsApp",
+      validHour: "This code works for the next hour.",
       saved: "Saved ✓",
       undoQ: "Not your family's phone?",
       undo: "Undo",
@@ -55,6 +56,7 @@
       noticeReadings: function (name) { return "مائیک پر ⁨" + name + "⁩ کی پڑھائی کی ریکارڈنگ بھی رکھی جاتی ہے۔"; },
       whoSends: "پھر گھر کے بڑے اس فون سے واٹس ایپ پر ایک پیغام بھیجیں۔",
       sendBtn: "واٹس ایپ پر بھیجیں",
+      validHour: "یہ کوڈ اگلے ایک گھنٹے تک کام کرے گا۔",
       saved: "محفوظ ہو گیا ✓",
       undoQ: "یہ آپ کے گھر کا فون نہیں؟",
       undo: "واپس لیں",
@@ -142,7 +144,8 @@
       if (r && r.ok && r.code && r.href) {
         sset(sessionStorage, CODE_KEY, JSON.stringify({ code: r.code, kid: c.kid }));
         var t = L(c.lang);
-        draw('<p class="wqb-sub">' + chips(esc(t.whoSends)) + '</p><a class="wqb-btn wqb-go wqb-wa" data-b="send" href="' + esc(r.href) + '" target="_blank" rel="noopener">' + esc(t.sendBtn) + '</a>');
+        draw('<p class="wqb-sub">' + chips(esc(t.whoSends)) + '</p><a class="wqb-btn wqb-go wqb-wa" data-b="send" href="' + esc(r.href) + '" target="_blank" rel="noopener">' + esc(t.sendBtn) + '</a>' +
+          '<p class="wqb-sub">' + esc(t.validHour) + '</p>');
         on('send', function () { ev('bind_sent', { w: 'p' }); });
         return;
       }
