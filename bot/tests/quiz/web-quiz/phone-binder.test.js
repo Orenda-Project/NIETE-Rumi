@@ -420,7 +420,8 @@ describe('the /quiz Home reply is on the ledger and under the cap (phone bind on
     redisService.__keys.set(`wq:reply_cap:${Ledger().pktDay(new Date())}:${Repo().ukeyOf(PHONE)}`, 8);
     expect(await StudentQuiz.open(PHONE, { language: 'en' })).toBe(true);
     expect(WhatsApp.sendCtaUrl).not.toHaveBeenCalled();
-    expect(fake.db.message_ledger).toEqual([]);
+    // the cap hit is on the ledger (capped), never a send (count 0, usd 0)
+    expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'home_reply', count: 0, usd: 0, capped: 1 })]);
     expect(events('web_quiz.reply_capped')).toEqual([{ trigger: 'home_reply', w: 's' }]);
   });
 
