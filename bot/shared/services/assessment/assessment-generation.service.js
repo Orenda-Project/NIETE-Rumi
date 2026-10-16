@@ -1945,8 +1945,11 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       const midLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
       const midShort = new Set(midLaid.shortfall.map((f) => f.slot));
       const otherShort = short.filter((f) => !firstLaid.shortfall.includes(f));
+      // A D that C's second reply left whole (the Q5 its Q6 restated is gone) keeps its first reply;
+      // only a D still short, or with a review or religious hit, is asked again.
       const later = built.filter((b) => inSection(b, 'D')
-        && (again.includes(b) || b.section.slots.some((s) => midShort.has(s.slot))));
+        && (b.section.slots.some((s) => midShort.has(s.slot) || otherShort.some((f) => f.slot === s.slot))
+          || reviewHits.has(b.section.id) || religiousHits.has(b.section.id)));
       await Promise.all(later.map((b) => reask(b, midLaid, otherShort.concat(midLaid.shortfall), midShort)));
     }
     const still = _reviewTextHits(results);

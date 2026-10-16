@@ -191,6 +191,56 @@ describe('3. one thinking level per choice group (Q5 Understand, Q6 Apply, Q7 Re
   });
 });
 
+describe('5. a D left whole by C\'s re-ask is kept, not written again', () => {
+  // chapters_1: Q6 ۲ (a wallet) restates Q5 ۳ (a purse) and Q6 ۴ (water-shortage news) restates
+  // Q5 ۴ (cleanliness-drive news), so D is short before the re-ask. C's first reply carries a
+  // review mark, so C is asked again whole, and its second reply sets two other cases in place of
+  // the purse and the drive: once C has answered, nothing in D restates a Q5 and D is whole.
+  const CH1 = paper('chapters_1');
+  const withItems = (json, slot, list) => {
+    const tree = JSON.parse(json);
+    for (const types of Object.values(tree.unseen)) for (const [t, l] of Object.entries(types)) {
+      if (l.some((q) => q.slot === slot)) types[t] = [...l.filter((q) => q.slot !== slot), ...list];
+    }
+    return JSON.stringify(tree);
+  };
+  const point = (text, marks) => ({ kind: 'K', text, marks });
+  const FRESH_Q5 = [
+    { slot: C5, question: 'پاکستان کے میدانی علاقوں میں زراعت کیوں زیادہ ہوتی ہے؟ دو وجوہات لکھیں۔', answer: 'میدانی علاقوں کی زمین زرخیز اور ہموار ہے اور دریاؤں سے پانی ملتا ہے۔', scheme: { points: [point('زرخیز اور ہموار زمین', 2), point('دریاؤں سے آب پاشی', 1)] } },
+    { slot: C5, question: 'شمالی پہاڑی علاقوں میں سردیوں میں برف کیوں پڑتی ہے؟ دو وجوہات لکھیں۔', answer: 'یہ علاقے بہت بلند ہیں جہاں درجۂ حرارت نقطۂ انجماد سے نیچے چلا جاتا ہے اور سرد ہوائیں چلتی ہیں۔', scheme: { points: [point('بلندی پر درجۂ حرارت نقطۂ انجماد سے نیچے', 2), point('سرد ہوائیں', 1)] } },
+  ];
+  const NEUTRAL_Q7 = { slot: D7, question: 'پاکستان کا قومی پھول کون سا ہے؟', answer: 'چنبیلی', scheme: { points: [point('چنبیلی', 2)] } };
+
+  test('D is asked once: C\'s re-ask removed the only Q5s its Q6s restated', async () => {
+    const q5 = items(CH1, C5);
+    const replies = {
+      A: [replyOf(CH1, 'A')],
+      B: [replyOf(CH1, 'B')],
+      // First reply: a review mark the paper must never print (built here, never a literal in the
+      // source). Second: the purse and the drive replaced by two other cases.
+      C: [withItems(replyOf(CH1, 'C'), C5, q5.map((q, i) => (i === 0 ? { ...q, scheme: { ...q.scheme, common_error: `${'needs'} ${'review'}` } } : q))),
+        withItems(replyOf(CH1, 'C'), C5, [...q5.filter((_, i) => i !== 2 && i !== 3), ...FRESH_Q5])],
+      // D as printed, with the Q7 Section A gives away (Edhi's organisation) swapped for another fact.
+      D: [withItems(replyOf(CH1, 'D'), D7, items(CH1, D7).map((q, i) => (i === 1 ? NEUTRAL_Q7 : q)))],
+    };
+    const asked = [];
+    mockCreate.mockReset();
+    mockCreate.mockImplementation(async (req) => {
+      const text = req.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
+      const sec = sectionOf(text);
+      asked.push(sec);
+      const content = replies[sec].length > 1 ? replies[sec].shift() : replies[sec][0];
+      return { choices: [{ message: { content }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
+    });
+    await Gen.generatePatternExam({
+      grade: 5, subject: 'social_studies', pattern: 'fde_g5_2027',
+      scope: scopeOf(CH1), pageRanges: '1-20', requestId: 'req-r14-whole-d',
+    }).catch(() => null);
+    expect(asked.filter((s) => s === 'C')).toHaveLength(2);
+    expect(asked.filter((s) => s === 'D')).toHaveLength(1);
+  });
+});
+
 describe('4. Section A\'s keys never run in a strict period', () => {
   const letters = (exam) => items(exam, A1).map((q) => String(q.answer).trim().split(/[)\s]/)[0]);
   const periodic = (seq) => [2, 3, 4].some((p) => seq.length >= 2 * p && seq.every((x, i) => i < p || x === seq[i - p]));
