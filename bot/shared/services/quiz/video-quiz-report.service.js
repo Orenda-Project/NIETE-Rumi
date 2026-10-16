@@ -833,10 +833,13 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // the meta read above; quizRow.meta is moved on with it so the class-card
   // write below, which spreads quizRow.meta, cannot erase it. No guidance
   // (the model failed) leaves an older stored one where it is.
-  const metaAfter = guidance && quizRow
+  // A library quiz's sender (quiz_teacher_home) stamps only their code: the author's row keeps its own guidance,
+  // here and in the class-card write below (which spreads quizRow.meta).
+  const stampId = await stampableQuizId(sc);
+  const metaAfter = guidance && quizRow && stampId
     ? { ...(quizRow.meta || {}), report_guidance: guidance, report_guidance_at: new Date().toISOString() }
     : null;
-  stamp.stamped = await markReportSent(shareCodeId, await stampableQuizId(sc), { meta: metaAfter });
+  stamp.stamped = await markReportSent(shareCodeId, stampId, { meta: metaAfter });
   if (metaAfter) quizRow.meta = metaAfter;
 
   // bd-2yyry.11 — the children's class cards, at the moment the teacher's
@@ -1402,6 +1405,19 @@ function formatGuidanceText(guidance, labels) {
 }
 
 /**
+ * The quiz row a share code's report may stamp (status, guidance): with `quiz_teacher_home` on, only when the code
+ * is the quiz's own teacher's — a library quiz's sender never writes its author's row (nor puts their class's
+ * guidance on the author's report). Off: the quiz, as today.
+ */
+async function stampableQuizId(sc) {
+  const Data = require('./teacher-report.data');
+  if (!(await Data.sentQuizzesOn())) return sc.quiz_id;
+  const { data, error } = await supabase.from('quizzes').select('teacher_id').eq('id', sc.quiz_id).maybeSingle();
+  if (error) logToFile('⚠️ video-quiz report: quiz owner unreadable — the quiz row is left alone', { shareCodeId: sc.id, error: error.message });
+  return data && data.teacher_id === sc.teacher_user_id ? sc.quiz_id : null;
+}
+
+/**
  * Stamp the share code as reported.
  *
  * Deliberately AFTER the send, not before: if WhatsApp throws, the teacher got
@@ -1415,19 +1431,6 @@ function formatGuidanceText(guidance, labels) {
  * @returns {Promise<boolean>} whether report_sent_at landed. generate() keeps its
  *   send claim when it did not, so a racing call cannot send the report again.
  */
-/**
- * The quiz row a share code's report may stamp (status, guidance): with `quiz_teacher_home` on, only when the code
- * is the quiz's own teacher's — a library quiz's sender never writes its author's row (nor puts their class's
- * guidance on the author's report). Off: the quiz, as today.
- */
-async function stampableQuizId(sc) {
-  const Data = require('./teacher-report.data');
-  if (!(await Data.sentQuizzesOn())) return sc.quiz_id;
-  const { data, error } = await supabase.from('quizzes').select('teacher_id').eq('id', sc.quiz_id).maybeSingle();
-  if (error) logToFile('⚠️ video-quiz report: quiz owner unreadable — the quiz row is left alone', { shareCodeId: sc.id, error: error.message });
-  return data && data.teacher_id === sc.teacher_user_id ? sc.quiz_id : null;
-}
-
 async function markReportSent(shareCodeId, quizId = null, { meta = null } = {}) {
   let stamped = false;
   try {

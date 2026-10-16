@@ -37,9 +37,13 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => {
     delete: jest.fn(async (k) => { kv.delete(k); return true; }),
   };
 });
+// The model: no answer (no guidance), unless a test sets global.GUIDANCE_REPLY to the JSON it should answer.
 jest.mock('../../../shared/services/llm-client', () => ({
-  withSpendRecording: () => ({ chat: { completions: { create: () => Promise.reject(new Error('no model in test')) } } }),
+  withSpendRecording: () => ({ chat: { completions: { create: () => (global.GUIDANCE_REPLY
+    ? Promise.resolve({ choices: [{ message: { content: global.GUIDANCE_REPLY } }] })
+    : Promise.reject(new Error('no model in test'))) } } }),
 }));
+jest.mock('../../../shared/services/quiz/video-quiz-rate-limiter.service', () => ({ throttle: jest.fn(async () => {}) }));
 
 const fs = require('fs');
 const path = require('path');
@@ -146,6 +150,8 @@ beforeEach(() => {
   process.env.INTERNAL_API_KEY = 'test-key';
   process.env.WEB_QUIZ_BASE_URL = BASE;
   process.env.VIDEO_REPORT_SEND_CLAIM = 'false';
+  delete process.env.CLASS_CARD_ENABLED;
+  global.GUIDANCE_REPLY = null;
   process.env.WHATSAPP_BOT_NUMBER = '920000000000';
   delete process.env.WEB_QUIZ_TOKEN_SECRET;
   Data = require('../../../shared/services/quiz/teacher-report.data');
@@ -321,13 +327,27 @@ describe('the 12 h report on the sender\'s code', () => {
     expect(Token.verifyTeacherReport(live)).toEqual({ teacherId: SENDER, quizId: LQ });
   });
 
-  test('on: the sender\'s report never writes the author\'s quiz row (status, guidance)', async () => {
+  test('on: the sender\'s report never writes the author\'s quiz row (status, guidance) — nor via the class cards', async () => {
     const fake = seed();
+    // The sender's class got guidance from the model, and their children get class cards (which write the quiz row).
+    global.GUIDANCE_REPLY = JSON.stringify({ muddled: 'Roots and stems.', board: 'Draw a plant. Label the root.', check: 'Which part drinks water?' });
+    process.env.CLASS_CARD_ENABLED = 'true';
+    fake.db.quiz_sessions.push(session('b3', SC_B, LQ, kidB(3), 'Bano3 Testwala', 2, 0, {
+      parent_phone: '000p', completed_at: new Date(Date.now() - 3600000).toISOString(),
+    }));
     const before = JSON.stringify(fake.db.quizzes.find((q) => q.id === LQ));
     const report = require('../../../shared/services/quiz/video-quiz-report.service');
     await report.generate(SC_B, { reason: 'scheduled' });
-    expect(JSON.stringify(fake.db.quizzes.find((q) => q.id === LQ))).toBe(before);
+    // Only the class cards' own once-per-child marker, under the SENDER's code, lands on the shared row (as for
+    // every shared code today); the author's status and guidance are untouched.
+    const after = fake.db.quizzes.find((q) => q.id === LQ);
+    expect(Object.keys(after.meta.class_cards || {})).toEqual([SC_B]);
+    const { class_cards: _cards, ...metaRest } = after.meta;
+    expect(JSON.stringify({ ...after, meta: metaRest })).toBe(before);
     expect(fake.db.quiz_share_codes.find((c) => c.id === SC_B).report_sent_at).toBeTruthy();
+    // the guidance did reach the sender (their PDF), and the class cards did go out
+    expect(JSON.stringify(require('../../../shared/utils/html-to-pdf').htmlToPdf.mock.calls)).toContain('Roots and stems');
+    expect(WA().sendImageFromBuffer).toHaveBeenCalled();
   });
 
   test('off: the sender\'s 12 h report is today\'s — no live links', async () => {
