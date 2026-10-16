@@ -1177,7 +1177,15 @@ function _reviewTextHits(results) {
   for (const r of results) {
     _walkQuestions(r.tree, (q) => {
       if (hits.has(r.id)) return;
-      for (const t of _textsOf(q)) {
+      // The marking scheme prints too, so its text is read with the item's.
+      const texts = _textsOf(q);
+      const walk = (v) => {
+        if (typeof v === 'string') texts.push(v);
+        else if (Array.isArray(v)) v.forEach(walk);
+        else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+      };
+      walk(q.scheme);
+      for (const t of texts) {
         const re = list.find((x) => x.test(t));
         if (re) { hits.set(r.id, { slot: q.slot || null, marker: String(re) }); return; }
       }
