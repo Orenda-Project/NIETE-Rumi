@@ -866,11 +866,18 @@ function wqEnLift(key, sites) {
   return null;
 }
 
-function wqCopyStates(deck, scripts) {
+/**
+ * A server-carried line: a key a page claims with no `en`/`ur` table lift at all, whose bytes a bot template lifts
+ * `same` (botStates, copyStates' map, says `same` for the bare key), is `carried`: the page shows what the server
+ * sends (wq-trail.js renders `d.round_handback`, lifted in class-round.page.js). `carried` is clean. Without
+ * botStates, or with the template's lift not `same`, the key stays `missing`.
+ */
+function wqCopyStates(deck, scripts, botStates = {}) {
   const out = {};
   for (const [key, entry, sites] of wqClaims(deck, readScripts(scripts))) {
     const hit = wqEnLift(key, sites);
     let lift = null;
+    if (!hit && botStates[key] === 'same') { out[key] = 'carried'; continue; }
     if (hit) {
       const ur = tableValue(hit.s.source, hit.s.mask, hit.s.ur, hit.name);
       lift = { en: hit.en, ...(ur !== undefined ? { ur } : {}) };
@@ -911,7 +918,7 @@ const GAP_PARTS = {
 };
 
 /**
- * The copy gap against copy-deck-lift.allowlist.json { key: state }: { failures, cleans }.
+ * The copy gap against copy-deck-lift.allowlist.json { key: state }: { failures, cleans }. `same` and `carried` are clean.
  *   NEW (fails): a key not same and not listed. CHANGED (fails): a listed key whose gap is not a part of the listed one.
  *   CLEAN (warns): a listed key now same or no longer checked. LESS (warns): a listed key whose gap is a strict part of
  *   the listed one (drift:en+ur → drift:ur; missing → missing:ur). A lift PR is never failed for lowering the gap.
@@ -923,7 +930,7 @@ function copyGapVerdict(states, allow) {
   for (const key of [...new Set([...Object.keys(states), ...Object.keys(allow)])].sort()) {
     const now = states[key];
     const ok = allow[key];
-    if (now === 'same' || now === undefined) { if (ok !== undefined) cleans.push(`CLEAN: ${key} is ${now || 'no longer checked'}. Remove it from ${FILE}.`); continue; }
+    if (now === 'same' || now === 'carried' || now === undefined) { if (ok !== undefined) cleans.push(`CLEAN: ${key} is ${now || 'no longer checked'}. Remove it from ${FILE}.`); continue; }
     if (ok === undefined) { failures.push(`NEW: ${key} is ${now}. Lift the deck's string byte for byte.`); continue; }
     if (ok === now) continue;
     const was = GAP_PARTS[ok] || [];

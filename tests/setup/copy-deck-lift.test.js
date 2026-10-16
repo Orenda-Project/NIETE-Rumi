@@ -26,6 +26,12 @@
  *
  * A `// <key>` comment alone on the line right above a property line claims that property, when it names one key.
  *
+ * A server-carried line: a key a child page claims with no `en`/`ur` table lift at all is `carried`, not missing,
+ * when a template under bot/shared/templates lifts it `same` (the bot-side state of the bare key): the page shows
+ * the bytes the server sends it (wq-trail.js renders `d.round_handback`, lifted in class-round.page.js and sent by
+ * web-quiz-challenge.js). `carried` is clean. When that template's lift drifts, the page key stays `missing` and the
+ * bot-side key shows the drift. The exact rule is wqCopyStates' third argument.
+ *
  * copy-deck-lift.allowlist.json: { "<key>": "<state>" } for every key not `same` today (key names only). It only
  * shrinks, and a PR that lifts a string is never failed for it: a key new to the gap fails (NEW), and so does a
  * listed key whose gap moved somewhere else (CHANGED, e.g. missing → drift); a listed key that is now `same` or no
@@ -62,9 +68,10 @@ function statesInTree() {
     source: fs.readFileSync(path.join(dir, n), 'utf8'),
     exports: require(path.join(dir, n)),
   }));
+  const bot = copyStates(deck, UX_STRINGS, templates);
   const wq = {};
-  for (const [k, v] of Object.entries(wqCopyStates(deck, scripts))) wq[`wq:${k}`] = v;
-  return { ...copyStates(deck, UX_STRINGS, templates), ...wq };
+  for (const [k, v] of Object.entries(wqCopyStates(deck, scripts, bot))) wq[`wq:${k}`] = v;
+  return { ...bot, ...wq };
 }
 
 describe('the rule, on in-memory sources', () => {
@@ -155,6 +162,25 @@ describe('the rule, on in-memory sources', () => {
       'jg.who.turn_of': 'same',
       'jg.keep.notice': 'missing',
     });
+  });
+
+  test('a server-carried line: a page that names the key with no table lift, a template lifting it same → carried; drifted → missing', () => {
+    const carryDeck = { _meta: {}, 'jg.round.c_handback': { en: 'Hand the phone back.', ur: 'فون واپس دیں۔' } };
+    const page = [{ id: 'wq-trail.js', source: [
+      '(function () {',
+      '  // the one button hands the phone back to the round page (jg.round.c_handback)',
+      "  var b = btn('wqc-handback', d.round_handback || '');",
+      '})();',
+    ].join('\n') }];
+    const tpl = (en) => [{ id: 'class-round.page.js', source: `cHandback: '${en}', // jg.round.c_handback`, exports: { T: { en: { cHandback: en }, ur: { cHandback: 'فون واپس دیں۔' } } } }];
+    const bot = copyStates(carryDeck, {}, tpl('Hand the phone back.'));
+    expect(bot).toEqual({ 'jg.round.c_handback': 'same' });
+    expect(wqCopyStates(carryDeck, page, bot)).toEqual({ 'jg.round.c_handback': 'carried' });
+    expect(copyGapVerdict({ 'wq:jg.round.c_handback': 'carried' }, {})).toEqual({ failures: [], cleans: [] });
+    const drifted = copyStates(carryDeck, {}, tpl('Give the phone back.'));
+    expect(drifted).toEqual({ 'jg.round.c_handback': 'drift:en' });
+    expect(wqCopyStates(carryDeck, page, drifted)).toEqual({ 'jg.round.c_handback': 'missing' });
+    expect(wqCopyStates(carryDeck, page)).toEqual({ 'jg.round.c_handback': 'missing' });
   });
 
   test('a lone comment line right above a property claims it, when it names one key', () => {
