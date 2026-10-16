@@ -29,6 +29,7 @@ const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
+const Stream = require('./web-quiz-stream');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
@@ -38,7 +39,7 @@ const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 const PS_RX = /^[a-z0-9]{8,16}$/;
 // hub_open.src's route values (EVENTS row 3). Mirrors SRC_VALUES in bot/shared/services/quiz/web-quiz-hub-play.js:
 // the edge cannot load the bot's modules, so keep the two lists the same.
-const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend)$/;
+const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join)$/;
 // A signed hub token (bot web-quiz-token.js): base64url payload "." 22-char signature.
 const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
@@ -115,6 +116,9 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/linkhome', limiter: 'session' },
   // the finish card (web_quiz_card_v3): a card token for this child's finish (the bot answers 404 while it is off)
   { method: 'post', path: '/api/wq/card', limiter: 'session' },
+  // a child joins on their own (quiz_student_join; the bot answers {off:true} with it off): the grade tap, the one write
+  { method: 'post', path: '/api/wq/join/grade', limiter: 'read' },
+  { method: 'post', path: '/api/wq/join', limiter: 'session' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
@@ -364,6 +368,17 @@ function renderCardPage({ facts, token, origin, url, brandKey }) {
 }
 
 /**
+ * The streamed page's wire (web-quiz-stream.js): compressed, the head sent at once. Always a 200: a revisit gets the
+ * head at once too (an early paint beats a 304 that waits for the bot). `page(tail)` ends with the quiz/hub,
+ * `again()` with FLUSH_AGAIN.
+ */
+function flushWire(req, res, top) {
+  const out = Stream.open(req, res);
+  out.write(top);
+  return { again: () => out.end(FLUSH_AGAIN), page: (tail) => out.end(tail) };
+}
+
+/**
  * A link-preview fetch's answer: the quiz page's own head (og tags, lang, dir) from the facts the edge
  * remembered, and an empty body. A crawler reads only the head; no quiz payload travels in it.
  */
@@ -388,6 +403,12 @@ function bindTags(payload, assetV) {
   return `<link rel="stylesheet" href="/wq/wq-bind.css?v=${assetV}">\n<script src="/wq/wq-bind.js?v=${assetV}" defer></script>\n`;
 }
 
+// The v3 child home: its stylesheet and script, only when the bot's hub JSON carries `home_v3` (web_quiz_home_v3 on).
+function homeTags(payload, assetV) {
+  if (!payload || !payload.home_v3) return '';
+  return `<link rel="stylesheet" href="/wq/wq-home.css?v=${assetV}">\n<script src="/wq/wq-home.js?v=${assetV}" defer></script>\n`;
+}
+
 // The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
 // renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
 function hubPageParts({ payload, token, origin, assetV }) {
@@ -403,7 +424,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-${bindTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
+${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };
@@ -744,18 +765,15 @@ function createWebQuizRouter(opts = {}) {
     const flush = lastFast && view === 'quiz' && !p && !preview && req.query.nf !== '1'
       ? renderQuizFlushTop({ facts: ogKnown.get(upper), code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v, k: req.query.k })
       : null;
-    if (flush) {
-      res.status(200).type('html');
-      res.write(flush.html);
-    }
+    const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
-      if (flush) return res.end(FLUSH_AGAIN);
+      if (flush) return wire.again();
       return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
-    if (flush && !(out.status === 200 && out.body && out.body.quiz)) return res.end(FLUSH_AGAIN);
+    if (flush && !(out.status === 200 && out.body && out.body.quiz)) return wire.again();
     // A friend's challenge code has no class page: the class table is the challenger's classmates'.
     if (view === 'class' && out.status === 200 && out.body && out.body.invited) {
       return res.status(404).type('html').send(renderClosedPage({ lang: out.body.quiz && out.body.quiz.lang === 'ur' ? 'ur' : 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
@@ -766,7 +784,7 @@ function createWebQuizRouter(opts = {}) {
       lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
       lastFast = out.body.fast === true;
       if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
-      if (flush) return res.end(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }
@@ -814,24 +832,21 @@ function createWebQuizRouter(opts = {}) {
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
       ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi })
       : null;
-    if (flush) {
-      res.status(200).type('html');
-      res.write(flush.html);
-    }
+    const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
-      if (flush) return res.end(FLUSH_AGAIN);
+      if (flush) return wire.again();
       return closed(502, 'off');
     }
-    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return res.end(FLUSH_AGAIN);
+    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return wire.again();
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
       lastFast = out.body.fast === true;
-      if (flush) return res.end(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
+      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
       return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
     }
     if (out.status === 401) return closed(401, 'hub');

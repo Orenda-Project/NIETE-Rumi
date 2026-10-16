@@ -48,6 +48,7 @@ const T = require('../../../shared/services/quiz/web-quiz-token');
 
 const { fixturePhone, maskFixturePhones } = require('./fixture-phone');
 const ANSWERS = require('./fixtures/bind-status-answers');
+const { OFF_VALUES, throwOn } = require('../../helpers/switch-off-matrix');
 const PHONE = fixturePhone(611);
 const KIDS = ['f0000000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000003',
   'f0000000-0000-4000-8000-000000000004', 'f0000000-0000-4000-8000-000000000005', 'f0000000-0000-4000-8000-000000000006'];
@@ -115,6 +116,12 @@ const resetWayBack = () => { try { require('../../../shared/services/quiz/web-qu
 function wayBack(value = true) {
   fake.db.app_settings.push({ key: WAY_BACK, value });
   resetWayBack();
+}
+/** every state that must read as off: the shared values (absent = no row), and a true row whose read throws */
+const OFF_CASES = [...OFF_VALUES.map(([label, value]) => [label, value, false]), ['true but the read fails', true, true]];
+function wayBackOff(value, fails) {
+  if (value !== null) wayBack(value);
+  if (fails) supabase.from = throwOn(supabase.from, WAY_BACK);
 }
 beforeEach(resetWayBack);
 const cta = () => WhatsApp.sendCtaUrl.mock.calls;
@@ -233,14 +240,13 @@ describe('every outcome answers the chat once (switch on)', () => {
   });
 });
 
-describe('goldens: switch off (absent or false) → today\'s replies, byte for byte', () => {
-  for (const value of [null, false]) {
-    const label = value === null ? 'absent' : 'false';
+describe('goldens: switch off (every off state) → today\'s replies, byte for byte', () => {
+  for (const [label, value, fails] of OFF_CASES) {
     test(`${label}: teacher → the plain line; the five silent refusals stay silent; max_kids → the plain line`, async () => {
       const run = async (seedArgs, body, user) => {
         seed(seedArgs);
         resetWayBack();
-        if (value !== null) wayBack(value);
+        wayBackOff(value, fails);
         jest.clearAllMocks();
         redisService.__keys.clear();
         expect(await say(body, user)).toBe(true);
@@ -308,9 +314,10 @@ describe('the hub card follows the child × device, not the browser tab', () => 
     }
   });
 
-  test('golden: switch off → today\'s `bind`, deep-equal, and the codes table is never read for it', async () => {
+  test.each(OFF_CASES)('golden: switch off (%s) → today\'s `bind`, deep-equal, and the codes table is never read for it', async (_, value, fails) => {
     seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0], { device_ref: DEV, used_at: iso(Date.now() - H), outcome: 'bound' })],
       bindings: [binding(KIDS[0], PHONE, { code_id: 'JUGNU-AB2CD' })] });
+    wayBackOff(value, fails);
     expect((await extras()).bind).toEqual(await today());
     expect(reads('child_bind_codes')).toHaveLength(0);
   });
@@ -331,6 +338,11 @@ describe('the hub card follows the child × device, not the browser tab', () => 
     expect(await BindPage.status({ code: c })).toEqual(ANSWERS.OFF[k]);
     wayBack();
     expect(await BindPage.status({ code: c })).toEqual(ANSWERS.ON[k]);
+  });
+  test.each(Object.keys(ANSWERS.OFF).flatMap((k) => OFF_CASES.map((c) => [k, ...c])))('status (%s): off (%s) → today\'s answer', async (k, _, value, fails) => {
+    seed({ students: [student(0)], codes: ROWS[k] });
+    wayBackOff(value, fails);
+    expect(await BindPage.status({ code: k === 'not_a_code' ? 'nope' : 'JUGNU-AB2CD' })).toEqual(ANSWERS.OFF[k]);
   });
 });
 
