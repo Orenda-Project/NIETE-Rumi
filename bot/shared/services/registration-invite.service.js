@@ -179,6 +179,8 @@ async function offerRegistrationOnce({ user, phone, language, reason = 'unspecif
   // Not "registered" (a name is enough for that): the account must still NEED the form — a name
   // with no school or role, or nothing at all (utils/registration-status.js needsRegistrationForm).
   if (!needsRegistrationForm(account) || account.registration_started_at) return false;
+  // ── first touch: never to a family phone or on a door turn (DOOR §8.4); a thrown guard → not offered
+  try { if (!(await require('./first-touch/door.invite-guard').inviteAllowed({ user: account, from: phone }))) return false; } catch (_) { return false; }
 
   // Claim the offer. Only the call that flips NULL → now sends it.
   const claimedAt = new Date().toISOString();

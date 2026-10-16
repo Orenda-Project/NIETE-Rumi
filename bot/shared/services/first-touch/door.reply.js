@@ -13,7 +13,8 @@
  * ONE send wrapper: Ledger.record({ trigger, phone, reason, recipient, initiated:'user' }) FIRST; the send only when it
  * returned true. false = the sister's per-phone cap refused it (it already logged web_quiz.reply_capped): nothing is
  * sent. The ledger never fails open and the door adds no cap of its own. Nothing here is bot-initiated, nothing is a
- * template, no reply is a second message, and no registration invite is ever called from here.
+ * template, no reply is a second message, and no registration invite is ever called from here; a chooser, family
+ * or capped turn is noted for the invite's guard (door.invite-guard.js).
  *
  * logDoor() emits onboard.quiz_door with EXACTLY the contract's fields — never a phone, a name, a kid, a dk, a token
  * or a code; `ukey` only through the sister's ukeyOf and only when it is set.
@@ -206,6 +207,8 @@ function isNewPhone(user, now = Date.now()) {
 /** onboard.quiz_door, once per decided door turn, with exactly the contract's fields. */
 function logDoor({ from, user, door, verdict = 'unknown', reason = 'no_key', store = 'none', reply, tap = 'none', lang, script = 'none' }) {
   const ukey = ukeyFor(from);
+  const turn = { chooser: 'chooser', family: 'family', fallback: 'family', capped_family: 'capped' }[reply];
+  if (turn) { try { require('./door.invite-guard').noteDoorTurn(from, turn); } catch (_) { /* the invite's own guard refuses on a throw */ } }
   logEvent('onboard.quiz_door', {
     door, verdict, reason, new_phone: isNewPhone(user), store, reply, tap, lang, script,
     ...(ukey ? { ukey } : {}), w: 's',
