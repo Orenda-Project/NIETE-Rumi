@@ -1011,19 +1011,56 @@ function takenNote(P, section, examJson, opts = {}) {
     .map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
   const notes = facts.length ? [`Section A of this paper already asks these questions (question → answer):\n${facts.join('\n')}\n`
     + 'Never ask any of these facts again, in any wording: every question you write here must test something Section A does not.'] : [];
-  // Section D is written beside Section C, never after it: its re-ask is told Q5's situations.
+  // Section D's re-ask is told the Q5 items on the paper now, with their points (its first ask was
+  // told C's first reply, firstAskNote).
   if (section.slots.some((s) => s.slot.startsWith('social_studies.D.'))) {
-    const cases = itemsOf(examJson, 'social_studies.C.Q5').map((q) => `- ${q.question.trim()}`);
-    if (cases.length) {
-      notes.push(`Q5 of this paper already sets these situations:\n${cases.join('\n')}\n`
-        + 'No Q6 or Q7 item you write may reuse a Q5 situation or ask what a Q5 item asks: set every item on a different case.');
-    }
+    const note = q5Note(itemsOf(examJson, Q5_SLOT));
+    if (note) notes.push(note);
   }
   // A top-up keeps the first reply's items: name what each short held slot keeps, and ask for spares,
   // since the refill is held against Section A as well.
   if (opts.topUp) notes.push(...keptNotes(P, section, examJson, cross, opts.shortfall));
   return notes.length ? notes.join('\n\n') : null;
 }
+// Social Studies: Section D is told every Q5 item with its marking points. A Q6 written beside C
+// from the same pages set C's own cases again (a purse found on the road in Q5, a wallet in Q6),
+// and a child who answers one has answered the other.
+const Q5_SLOT = 'social_studies.C.Q5';
+function q5Note(list) {
+  const lines = list.filter((q) => q && typeof q.question === 'string' && q.question.trim()).map((q) => {
+    const points = (q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
+      .map((p) => (typeof p === 'string' ? p : p && p.text)).filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim());
+    return `- ${q.question.trim()}${points.length ? `\n  points: ${points.join('; ')}` : ''}`;
+  });
+  if (!lines.length) return null;
+  return `Q5 of this paper asks these questions (under each, the points a full answer gives):\n${lines.join('\n')}\n`
+    + 'A child who answers these has already answered them. No Q6 or Q7 item you write may ask anything a child answering these '
+    + 'would already have answered, in any wording or with another person, place or object: set every item on a different case.';
+}
+
+/**
+ * firstAskNote(P, tree) → string | null
+ *
+ * What Social Studies Section D's FIRST ask is told, from Section C's first reply (`tree`, as the
+ * model wrote it): every Q5 item C wrote, spares included, with its marking points. Null for any
+ * other subject, or when C wrote no Q5 item.
+ */
+function firstAskNote(P, tree) {
+  if (!P || P.key !== 'social_studies' || !Array.isArray(P.sections)) return null;
+  const slots = P.sections.flatMap((sec) => sec.slots);
+  const byId = new Map(slots.map((slot) => [slotKey(slot.slot), slot]));
+  // Placed as the layout places it: by its tag, or a mis-tag by its tail.
+  const slotOf = (tag) => {
+    if (!tag) return null;
+    const slot = byId.get(slotKey(tag));
+    if (slot) return slot;
+    const tail = `.${slotKey(tag).split('.').slice(-2).join('.')}`;
+    return slots.find((s) => slotKey(s.slot).endsWith(tail)) || null;
+  };
+  const five = walk(tree).map((e) => e.q).filter((q) => (slotOf(q.slot) || {}).slot === Q5_SLOT);
+  return q5Note(five);
+}
+
 // Spare items asked of a short held slot on a top-up, beyond the ones it is missing.
 const SPARE_ITEMS = 4;
 // The laid-out items of one slot, with a question line.
@@ -1215,4 +1252,4 @@ function applyLayout(examJson, P, scope, opts = {}) {
   return { examJson: out, placed, unplaced, shortfall };
 }
 
-module.exports = { applyLayout, takenNote, verseLines, typeKey, slotKey, unitWord };
+module.exports = { applyLayout, takenNote, firstAskNote, verseLines, typeKey, slotKey, unitWord };

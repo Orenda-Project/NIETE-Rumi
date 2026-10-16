@@ -159,7 +159,7 @@ describe('2. when C and D are both asked again, D is told the Q5 items C\'s seco
     // D's re-ask is sent only once C's re-ask has answered.
     expect(d2).toBeGreaterThan(c2);
     const dNote = asked[d2].text;
-    expect(dNote).toContain('Q5 of this paper already sets these situations');
+    expect(dNote).toContain('Q5 of this paper asks these questions');
     expect(dNote).toContain(NEW_Q5);
   });
 });

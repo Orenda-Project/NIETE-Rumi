@@ -729,7 +729,7 @@ async function generateExam(args) {
 // calls it, so a paper without a pattern is built exactly as it always was.
 
 const Patterns = require('./patterns');
-const { applyLayout, takenNote, verseLines } = require('./fde-layout');
+const { applyLayout, takenNote, firstAskNote, verseLines } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 
@@ -1853,7 +1853,24 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     }
     return { id: section.id, slots, usage, elapsedMs, tree, usages };
   };
-  const results = await Promise.all(built.map(writeOne));
+  // Social Studies: Section D is written after Section C's first reply, told C's Q5 items and their
+  // marking points, so its first Q6s are not C's cases again; A and B are still written beside C.
+  const iC = key === 'social_studies' ? built.findIndex((b) => b.section.slots.some((s) => s.slot === 'social_studies.C.Q5')) : -1;
+  const iD = iC >= 0 ? built.findIndex((b) => b.section.slots.some((s) => s.slot === 'social_studies.D.Q6')) : -1;
+  let results;
+  if (iD < 0) {
+    results = await Promise.all(built.map(writeOne));
+  } else {
+    const writes = built.map((b, i) => (i === iD ? null : writeOne(b)));
+    const d = built[iD];
+    writes[iD] = writes[iC].then((c) => {
+      const note = firstAskNote(P, c.tree);
+      return writeOne(note
+        ? { ...d, messages: _sectionMessages({ system, user: `${d.user}\n\n${note}`, pageContent: d.pageContent, model }) }
+        : d);
+    });
+    results = await Promise.all(writes);
+  }
   // Urdu Q6: verses that are not the poem's are taken out before the layout, so Section C is asked again.
   const versesRef = key === 'urdu' ? _versesReference(P, poem, loaded.content) : '';
   results.forEach((r) => _dropProseVerses(r.tree, versesRef, requestId));

@@ -209,8 +209,9 @@ describe('2. one question once in every slot', () => {
     // Section D's re-ask is told Q5's situations.
     const d = asked.filter((x) => x.sec === 'D');
     expect(d.length).toBeGreaterThanOrEqual(2);
-    expect(d[0].text).not.toContain('Q5 of this paper already sets these situations');
-    expect(d[d.length - 1].text).toContain('Q5 of this paper already sets these situations');
+    // Since round 14 D's FIRST ask is told C's first-reply Q5 items too (D is written after C).
+    expect(d[0].text).toContain('Q5 of this paper asks these questions');
+    expect(d[d.length - 1].text).toContain('Q5 of this paper asks these questions');
   });
 });
 
@@ -221,21 +222,21 @@ describe('3. a re-asked Section D is told Q5\'s situations', () => {
   test('chapters_1: D\'s note lists every Q5 stem the first layout placed (the wallet among them)', () => {
     const kept = lay(REC.chapters_1, { reasked: false }).examJson;
     const note = takenNote(SST, D, kept);
-    expect(note).toContain('Q5 of this paper already sets these situations');
+    expect(note).toContain('Q5 of this paper asks these questions');
     const q5 = items(kept, C5);
     expect(q5.length).toBeGreaterThan(0);
     for (const q of q5) expect(note).toContain(q.question.trim());
-    expect(note).toContain('No Q6 or Q7 item you write may reuse a Q5 situation');
+    expect(note).toContain('No Q6 or Q7 item you write may ask anything a child answering these');
   });
 
   test('Section C\'s own note is unchanged: it is not told Q5', () => {
     const kept = lay(REC.chapters_1, { reasked: false }).examJson;
-    expect(takenNote(SST, C, kept)).not.toContain('already sets these situations');
+    expect(takenNote(SST, C, kept)).not.toContain('Q5 of this paper asks these questions');
   });
 
   test('a paper with no Q5 placed gives D today\'s note', () => {
     const kept = lay(REC.chapters_1, { reasked: false }).examJson;
     for (const t of Object.values(kept.unseen)) for (const [k, l] of Object.entries(t)) t[k] = l.filter((q) => q.slot !== C5);
-    expect(takenNote(SST, D, kept)).not.toContain('already sets these situations');
+    expect(takenNote(SST, D, kept)).not.toContain('Q5 of this paper asks these questions');
   });
 });
