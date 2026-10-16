@@ -40,9 +40,14 @@ jest.mock('../../shared/services/feature-intro.service', () => ({
     return true;
   }),
 }));
-// the join page's module (its own change): present or absent per test
+// the join page's module, the quiz-maker page's signer and the walk-through module (their own changes): present or
+// absent per test
 let mockJoin = {};
 jest.mock('../../shared/services/quiz/web-quiz-student-join', () => new Proxy({}, { get: (t, k) => mockJoin[k] }), { virtual: true });
+let mockMaker = {};
+jest.mock('../../shared/services/first-touch/maker.token', () => new Proxy({}, { get: (t, k) => mockMaker[k] }), { virtual: true });
+let mockPersona = {};
+jest.mock('../../shared/services/first-touch/test-persona', () => new Proxy({}, { get: (t, k) => mockPersona[k] }), { virtual: true });
 
 const redis = require('../../shared/services/cache/railway-redis.service');
 const { logEvent } = require('../../shared/utils/structured-logger');
@@ -79,9 +84,11 @@ beforeAll(async () => {
 afterAll(() => new Promise((r) => server.close(r)));
 
 const roster = (id, name, list = 'l-1', phone = PH.family) => ({ id, student_name: name, list_id: list, parent_phone: phone, is_active: true, status: 'active' });
-function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1', 't-2': 'sch-1' }, quizSessions = [] } = {}) {
+function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1', 't-2': 'sch-1' }, quizSessions = [], teacherHome = true, makerPage = false } = {}) {
   const settings = [];
   if (on) settings.push({ key: 'quiz_one_door', value: 'true' });
+  if (teacherHome) settings.push({ key: 'quiz_teacher_home', value: 'true' });
+  if (makerPage) settings.push({ key: 'quiz_maker_page', value: 'true' });
   settings.push({ key: 'web_quiz_hub', value: 'true' });
   mockDb = fakeDb({
     app_settings: settings,
@@ -98,6 +105,8 @@ function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1
   redis.__keys.clear();
   mockMarks.length = 0;
   mockJoin = {};
+  mockMaker = {};
+  mockPersona = {};
 }
 const WRITER = () => ({
   joinUrl: jest.fn(({ n, lang }) => `/quiz/join/j.${lang}${n.length}AAAAAAAAAAAAAAAAAA`),
@@ -344,5 +353,72 @@ describe('bind — "Yes, it\'s me"', () => {
     mockJoin = WRITER();
     expect((await post('bind', { t: await mint(TEACHER, PH.teach, 'unknown'), pick: 'a'.repeat(16) })).status).toBe(409);
     expect(mockJoin.bindPick).not.toHaveBeenCalled();
+  });
+});
+
+describe('a teacher while the teacher home is not serving', () => {
+  test('quiz_teacher_home OFF, the quiz-maker page ON → 302 /m/<token> (a working teacher screen)', async () => {
+    world({ teacherHome: false, makerPage: true });
+    mockMaker = { signMaker: jest.fn((f) => `mk.${f.via}${f.tour}AAAAAAAAAAAAAAAAAAAA`) };
+    const r = await land(await mint(TEACHER, PH.teach, 'teacher'));
+    expect(r.status).toBe(302);
+    expect(r.headers.get('location')).toMatch(/^\/m\/mk\.menu0/);
+    expect(mockMaker.signMaker).toHaveBeenCalledWith({ uid: 'u-teach', lang: 'bi', tour: 0, via: 'menu' });
+  });
+
+  test('neither the teacher home nor the maker page → the honest line (200), never a 500 or a dead link', async () => {
+    world({ teacherHome: false, makerPage: false });
+    mockMaker = { signMaker: jest.fn(() => 'mk.x') };
+    const r = await land(await mint(TEACHER, PH.teach, 'teacher'));
+    expect(r.status).toBe(200);
+    expect(await r.text()).toContain('data-screen="go.error"');
+    expect(mockMaker.signMaker).not.toHaveBeenCalled();
+  });
+});
+
+describe('the sandbox walk-through hooks (the module present; its own switch decides inside get/row)', () => {
+  const COACH = { id: 'u-coach', ...ROW, role: 'coach', name: 'Coach Testwala' };
+  const coachWorld = () => { world(); mockDb.tables.users.push({ ...COACH }); };
+
+  test('absent persona → the coach is a teacher, as always', async () => {
+    coachWorld();
+    mockPersona = { get: jest.fn(async () => null) };
+    expect((await (await post('who', { t: await mint(COACH, fixturePhone(105)) })).json()).side).toBe('teacher');
+  });
+
+  test('fresh → the coach phone resolves unknown (the question); door answers older than the walk are ignored, newer honoured', async () => {
+    coachWorld();
+    const since = Date.now() - 1000;
+    mockPersona = { get: jest.fn(async () => ({ as: 'fresh', since })) };
+    mockDb.tables.user_feature_first_use.push({ user_id: 'u-coach', feature: 'quiz_door_child', intro_shown_count: 1, feature_used_at: new Date(since - 60000).toISOString() });
+    const t = await mint(COACH, fixturePhone(105));
+    expect((await (await post('who', { t })).json()).side).toBe('unknown');
+    mockDb.tables.user_feature_first_use.push({ user_id: 'u-coach', feature: 'quiz_door_child', intro_shown_count: 1, feature_used_at: new Date().toISOString() });
+    mockJoin = WRITER();
+    expect((await (await post('who', { t })).json()).next).toMatch(/^\/quiz\/join\//);
+  });
+
+  test('teacher_empty → teacher; the persona rides the reply event (QA excludes the walk)', async () => {
+    coachWorld();
+    mockPersona = { get: jest.fn(async () => ({ as: 'teacher_empty', since: Date.now() })) };
+    const Role = require('../../shared/services/first-touch/role.service');
+    expect(await Role.resolveRole({ user: { id: 'u-unknown', ...ROW }, phone: PH.unknown })).toMatchObject({ side: 'teacher', src: 'persona', persona: 'teacher_empty' });
+  });
+
+  test('the row the module builds sits under the note on the one question page; none when it returns nothing', async () => {
+    world();
+    mockPersona = { row: jest.fn(async () => '<section data-screen="walkthrough">Walk</section>') };
+    const html = await (await land(await mint(UNKNOWN, PH.unknown))).text();
+    expect(html.indexOf('data-screen="walkthrough"')).toBeGreaterThan(html.indexOf('class="note"'));
+    mockPersona = { row: jest.fn(async () => null) };
+    expect(await (await land(await mint(UNKNOWN, PH.unknown))).text()).not.toContain('walkthrough');
+  });
+
+  test('its route is mounted on the router when the module exports mount()', () => {
+    jest.isolateModules(() => {
+      mockPersona = { mount: jest.fn((r) => r.post('/persona', (req, res) => res.json({ ok: true }))) };
+      require('../../shared/services/first-touch/go.routes');
+      expect(mockPersona.mount).toHaveBeenCalledTimes(1);
+    });
   });
 });

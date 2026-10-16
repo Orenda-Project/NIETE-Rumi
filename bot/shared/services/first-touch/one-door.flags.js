@@ -7,8 +7,9 @@
  *                                                      page that decides teacher or child (first-touch/one-door.service)
  *   ownCap    = web_quiz_own_reply_cap_per_phone       the ceiling of the `reply_to_own_message` counter (absent → 20)
  *   eventsV3  = web_quiz_events_v3                     the v3 event names (quiz_cmd, role_asked, role_answered) are written
+ *   teacherHome = quiz_teacher_home                    the teacher home serves (else a teacher lands on the maker page)
  *
- * Absent / unreadable → { on:false, ownCap:20, eventsV3:false }: every caller's path is today's. Read only on a quiz-shaped turn (and
+ * Absent / unreadable → { on:false, ownCap:20, eventsV3:false, teacherHome:false }: every caller's path is today's. Read only on a quiz-shaped turn (and
  * by the ledger for a reply marked ownReply), so no other message pays for it.
  */
 const supabase = require('../../config/supabase');
@@ -17,10 +18,11 @@ const { logToFile } = require('../../utils/logger');
 const ONE_DOOR_KEY = 'quiz_one_door';
 const OWN_CAP_KEY = 'web_quiz_own_reply_cap_per_phone';
 const EVENTS_V3_KEY = 'web_quiz_events_v3';
+const TEACHER_HOME_KEY = 'quiz_teacher_home';
 const OWN_CAP_DEFAULT = 20;
 const TTL_MS = 30 * 1000;
-const OFF = Object.freeze({ on: false, ownCap: OWN_CAP_DEFAULT, eventsV3: false });
-let cache = null; // { at, on, ownCap, eventsV3 }
+const OFF = Object.freeze({ on: false, ownCap: OWN_CAP_DEFAULT, eventsV3: false, teacherHome: false });
+let cache = null; // { at, on, ownCap, eventsV3, teacherHome }
 
 function isTrue(value) {
   let v = value;
@@ -37,14 +39,14 @@ function capOf(value) {
   return Number.isInteger(n) ? Math.max(1, n) : OWN_CAP_DEFAULT;
 }
 
-/** → { on, ownCap, eventsV3 }; OFF on a failed read (not cached). Never throws. */
+/** → { on, ownCap, eventsV3, teacherHome }; OFF on a failed read (not cached). Never throws. */
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    cache = { at: now, on: isTrue(by[ONE_DOOR_KEY]), ownCap: capOf(by[OWN_CAP_KEY]), eventsV3: isTrue(by[EVENTS_V3_KEY]) };
+    cache = { at: now, on: isTrue(by[ONE_DOOR_KEY]), ownCap: capOf(by[OWN_CAP_KEY]), eventsV3: isTrue(by[EVENTS_V3_KEY]), teacherHome: isTrue(by[TEACHER_HOME_KEY]) };
     return cache;
   } catch (err) {
     logToFile('⚠️ one door: settings lookup failed — switch off', { error: err.message });
@@ -57,4 +59,4 @@ async function on() {
   try { return Boolean((await flags()).on); } catch (_) { return false; }
 }
 
-module.exports = { flags, on, capOf, ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, OWN_CAP_DEFAULT, _resetCache: () => { cache = null; } };
+module.exports = { flags, on, capOf, ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY, OWN_CAP_DEFAULT, _resetCache: () => { cache = null; } };

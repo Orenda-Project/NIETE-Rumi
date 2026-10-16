@@ -126,7 +126,7 @@ async function destination(o) {
   const who = await Role.resolveRole({ user: { id: o.userId }, phone: o.phoneNorm });
   const lang = o.p.lang;
   const base = { side: who.side, src: who.src };
-  if (who.side === 'teacher') return { ...base, how: 'teacher_home', next: Targets.teacher({ uid: o.userId, lang }) };
+  if (who.side === 'teacher') return { ...base, how: 'teacher_home', next: await Targets.teacher({ uid: o.userId, lang }) };
   if (who.side === 'child') {
     // a child kept on this phone already → the home; one on the phone but not kept here yet → "Is it <First>?" first
     // (the notice before any binding); the class roster's family → the same sheet, never a silent bind
@@ -140,10 +140,26 @@ async function destination(o) {
   return { ...base, how: 'ask', page: 'role' };
 }
 
+// The sandbox walk-through (switch quiz_test_personas; its own module, looked up by name): its route and its row on the
+// one question page. Without the module (or with its switch off) nothing here changes a byte.
+const PERSONA_MODULE = './test-persona';
+function personaModule() {
+  try { return require(PERSONA_MODULE); } catch (e) { if (e && e.code !== 'MODULE_NOT_FOUND') throw e; return null; }
+}
+async function personaRow(lang, t) {
+  try {
+    const M = personaModule();
+    if (!M || typeof M.row !== 'function') return '';
+    const row = await M.row({ lang, token: t });
+    return typeof row === 'string' ? row : '';
+  } catch (_) { return ''; }
+}
+const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t) }));
+
 function render(res, d, t, lang) {
   if (d.next) { headers(res); return res.redirect(302, d.next); }
   if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids }));
-  if (d.page === 'role') return page(res, Page.buildRolePage({ t, lang }));
+  if (d.page === 'role') return rolePage(res, t, lang);
   if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang }));
   return page(res, Page.buildMessagePage({ id: 'go.error', lang }));
 }
@@ -162,7 +178,7 @@ router.get('/land/:token', async (req, res) => {
     // the one question paints before any database read; who this phone is, is asked after paint
     if (o.p.side === 'unknown' || req.query.ask === '1') {
       event('one_door.landed', { side: 'unknown', src: null, how: req.query.ask === '1' ? 'ask_again' : 'ask' });
-      return page(res, Page.buildRolePage({ t, lang }));
+      return rolePage(res, t, lang);
     }
     const d = await destination(o);
     event('one_door.landed', { side: d.side, src: d.src, how: d.next || d.page ? d.how : `${d.how}_missing` });
@@ -249,6 +265,11 @@ router.post('/bind', async (req, res) => {
     return json(res, 503, { error: 'go.error' });
   }
 });
+
+(function mountPersona() {
+  const M = personaModule();
+  if (M && typeof M.mount === 'function') M.mount(router);   // POST /persona {t, as}
+}());
 
 module.exports = router;
 module.exports._open = open;

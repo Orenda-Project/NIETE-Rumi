@@ -73,6 +73,7 @@ test.each([
   '/quiz/teacher/th.AAAAAAAAAAAAAAAAAAAAAA',
   '/quiz/join/j.AAAAAAAAAAAAAAAAAAAAAA',
   '/h/hub.AAAAAAAAAAAAAAAAAAAAAA?from=quiz',
+  '/m/mk.AAAAAAAAAAAAAAAAAAAAAA',
 ])('the bot\'s 302 to this site\'s page %s passes', async (loc) => {
   await boot(() => botRes(302, { location: loc }));
   const r = await req(srv, 'GET', `/quiz/go/${TOK}`);
@@ -128,4 +129,12 @@ test('POST /api/go/who forwards {t, d}; /api/go/bind forwards {t, pick, d} and d
   expect(JSON.parse(calls[0].init.body)).toEqual({ t: TOK, d: N });
   await req(srv, 'POST', '/api/go/bind', { body: { t: TOK, pick: '0123456789abcdef', d: N, kid: '55555555-5555-4555-8555-000000000001', first: 'Sara' } });
   expect(JSON.parse(calls[1].init.body)).toEqual({ t: TOK, pick: '0123456789abcdef', d: N });
+});
+
+test('POST /api/go/persona forwards only {t, as ∈ fresh|teacher_empty|real}', async () => {
+  await boot(() => botRes(200, { body: JSON.stringify({ next: `/quiz/go/${TOK}` }) }));
+  await req(srv, 'POST', '/api/go/persona', { body: { t: TOK, as: 'fresh', phone: '+92300FIXTURE0' } });
+  expect(JSON.parse(calls[0].init.body)).toEqual({ t: TOK, as: 'fresh' });
+  await req(srv, 'POST', '/api/go/persona', { body: { t: TOK, as: 'admin' } });
+  expect(JSON.parse(calls[1].init.body)).toEqual({ t: TOK });
 });

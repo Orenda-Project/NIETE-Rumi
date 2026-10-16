@@ -134,7 +134,7 @@ const NOTICE_IDS = ['cl.notice.save', 'cl.notice.stop', 'cl.notice.readings'];
 const bootTag = (o) => `<script type="application/json" id="go-boot">${bootJson(o)}</script><script>${SCRIPT}</script>`;
 
 /** The one question. `t` = the go token (it goes back in each POST). */
-function buildRolePage({ t, lang = 'bi' } = {}) {
+function buildRolePage({ t, lang = 'bi', extra = '' } = {}) {
   const body = '<main class="go" data-screen="role">'
     + `<h1>${two('rq.h', lang)}</h1>`
     // a child who played on THIS device (filled after paint by /api/go/who; hidden until then)
@@ -153,6 +153,8 @@ function buildRolePage({ t, lang = 'bi' } = {}) {
     + `<span class="lb"><b>${two('rq.teacher', lang)}</b><small>${two('rq.teacher.sub', lang)}</small></span></button>`
     + '<p class="err" id="go-err" role="alert" hidden></p>'
     + `<p class="note">${two('rq.note', lang)}</p>`
+    // the sandbox walk-through row (listed test phones only; its own module builds it) — nothing otherwise
+    + (typeof extra === 'string' ? extra : '')
     + '</main>';
   return shell({ title: str('rq.h', clampLanguage(lang)), body, script: bootTag({ kind: 'role', t, words: wordsFor(lang) }), withScript: true });
 }
@@ -175,7 +177,7 @@ function buildPickPage({ t, lang = 'bi', kids = [] } = {}) {
     + `<button type="button" class="yes" id="go-yes" data-tap="pick_yes"${one ? '' : ' disabled'}>${two('cl.confirm.yes', lang)}</button>`
     + '</section>'
     + '<p class="err" id="go-err" role="alert" hidden></p>'
-    + `<a class="no" data-tap="pick_none" href="/quiz/go/${encodeURIComponent(t)}?ask=1">${two('cl.confirm.none', lang)}</a>`
+    + `<a class="no" data-tap="pick_none" href="/quiz/go/${encodeURIComponent(t)}?ask=1">${two(one ? 'cl.confirm.no' : 'cl.confirm.none', lang)}</a>`
     + '</main>';
   return shell({
     title: one ? str('cl.confirm.q', clampLanguage(lang), { first: one.first }) : str('cl.confirm.who', clampLanguage(lang)),

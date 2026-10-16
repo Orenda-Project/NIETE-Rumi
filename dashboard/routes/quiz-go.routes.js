@@ -7,6 +7,7 @@
  *   POST /api/go/who  {t, d?}      → the bot: {side, next|null, known?}
  *   POST /api/go/role {t, side}    → the bot: {next, side}
  *   POST /api/go/bind {t, pick, d?} → the bot: {next}
+ *   POST /api/go/persona {t, as}   → the bot: the sandbox walk-through (its own module; 404 off → falls through)
  * Every forward goes through the child quiz's bot client (web-quiz.routes createBotClient: x-api-key, the caller's
  * address, the phone's wq_dv device ref, a timeout, redirects never followed). A phone with no wq_dv gets one here
  * (the landing link is bound to its first device). Only a Location of this site's own pages is passed on.
@@ -26,13 +27,15 @@ const BOT_BASE = '/api/internal/go';
 const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/;
 const PRIVATE = { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff' };
 
-// The pages a landing may send a person on to: the teacher home, the child home (hub), the join screen, the landing.
-const okLocation = (loc) => typeof loc === 'string' && /^\/(quiz\/teacher|quiz\/join|quiz\/go|quiz\/home|h)\/[A-Za-z0-9_.%-]+(\?[A-Za-z0-9_=&%.-]*)?$/.test(loc);
+// The pages a landing may send a person on to: the teacher home, the quiz-maker page, the child home (hub), the join
+// screen, the landing.
+const okLocation = (loc) => typeof loc === 'string' && /^\/(quiz\/teacher|quiz\/join|quiz\/go|quiz\/home|h|m)\/[A-Za-z0-9_.%-]+(\?[A-Za-z0-9_=&%.-]*)?$/.test(loc);
 
 const FORM = {
   who: { d: (v) => /^[A-Za-z0-9_-]{22}$/.test(v) },
   role: { side: (v) => v === 'child' || v === 'teacher' },
   bind: { pick: (v) => /^[0-9a-f]{16}$/.test(v), d: (v) => /^[A-Za-z0-9_-]{22}$/.test(v) },
+  persona: { as: (v) => v === 'fresh' || v === 'teacher_empty' || v === 'real' },
 };
 function formBody(kind, body) {
   const out = {};
@@ -133,6 +136,7 @@ function createQuizGoRouter(opts = {}) {
   router.post('/api/go/who', limiter, parse, forwardPost('who'));
   router.post('/api/go/role', limiter, parse, forwardPost('role'));
   router.post('/api/go/bind', limiter, parse, forwardPost('bind'));
+  router.post('/api/go/persona', limiter, parse, forwardPost('persona'));
   return router;
 }
 

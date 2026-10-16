@@ -88,7 +88,9 @@ async function reply({ user, from, door = 'text', body = '', language = null } =
   try {
     const who = await Role.resolveRole({ user, phone: from, body });
     const lang = who.lang;
-    const event = (reply_, extra = {}) => logEvent('onboard.quiz_door', { door: d, verdict: who.side, src: who.src, reply: reply_, lang, userId, ...extra });
+    const event = (reply_, extra = {}) => logEvent('onboard.quiz_door', {
+      door: d, verdict: who.side, src: who.src, reply: reply_, lang, userId, ...(who.persona ? { persona: who.persona } : {}), ...extra,
+    });
 
     if (who.side === 'child' && who.src !== 'family') {
       // a known / bound child: today's one hub reply (its words are od.child.* under this switch; its count rides `ownReply`)

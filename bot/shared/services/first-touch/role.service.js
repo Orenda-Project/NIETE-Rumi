@@ -20,14 +20,20 @@
  * with src 'error' (the page then asks rather than guess a child into a teacher's home or the reverse), and every other
  * failed rung is skipped as absent. Nothing here writes anything — except writeRoleAnswer, the page's one writer.
  *
+ * A sandbox walk-through persona (switch quiz_test_personas, listed test phones only): `fresh` skips rungs 1, 3 and 3b
+ * and counts only the door answers given since the walk began; `teacher_empty` answers teacher. Off → no effect.
+ *
  * → { role: 'teacher'|'child'|'unknown', side: 'teacher'|'child'|'join'|'unknown', src, uid, children: [ids],
- *     kids: [{ id, first }], lang }      src ∈ identity | activity | bound | roster | family | key | none | error
+ *     kids: [{ id, first }], lang, persona? }  src ∈ identity | activity | bound | roster | family | key | none | error | persona
  *     (`kids` carries first names only, for the "Is it <First>?" sheet; never a surname, a school or a phone)
  */
 const { logToFile } = require('../../utils/logger');
 
 const SIDES = Object.freeze(['teacher', 'child', 'join', 'unknown']);
-const SRCS = Object.freeze(['identity', 'activity', 'bound', 'roster', 'family', 'key', 'none', 'error']);
+const SRCS = Object.freeze(['identity', 'activity', 'bound', 'roster', 'family', 'key', 'none', 'error', 'persona']);
+// The sandbox walk-through personas (switch quiz_test_personas; its own module): looked up by name, so this file runs
+// the same with or without it; get() answers null whenever that switch is off.
+const PERSONA_MODULE = './test-persona';
 const MAX_KIDS = 4;
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 
@@ -138,10 +144,26 @@ async function familyKids(phone, now = new Date()) {
   return kidsOf(kept);
 }
 
-async function doorOf(userId) {
+async function doorOf(userId, since = null) {
   const Keys = require('./door.keys');
   const { decideDoor } = require('./door.service');
-  return decideDoor(await Keys.readDoorKeys(userId));
+  const keys = await Keys.readDoorKeys(userId);
+  if (since) {
+    // a walk-through "new phone": only the answers given since the walk began count (keys are never deleted)
+    for (const k of Object.keys(keys)) if (!keys[k].usedAt || keys[k].usedAt.getTime() <= since) delete keys[k];
+  }
+  return decideDoor(keys);
+}
+
+/** The walk-through persona for this phone ({ as, since } | null); null without the module or with its switch off. */
+async function personaOf(phone) {
+  if (!phone) return null;
+  let M = null;
+  try { M = require(PERSONA_MODULE); } catch (e) { if (e && e.code !== 'MODULE_NOT_FOUND') throw e; return null; }
+  if (!M || typeof M.get !== 'function') return null;
+  const { normalisePhone } = require('../quiz/student-identity.service');
+  const p = await M.get(normalisePhone(phone));
+  return p && (p.as === 'fresh' || p.as === 'teacher_empty') ? p : null;
 }
 
 /** A rung's read; a throw is logged (no phone, no id) and read as absent. */
@@ -160,6 +182,14 @@ async function resolveRole({ user, phone, body = '' } = {}) {
   const uid = (user && user.id) || null;
   const lang = langOf({ body, user });
   if (!user || !uid) return { ...decideRole({ failed: true }), uid, lang };
+  const tp = await soft('persona', () => personaOf(phone), null);
+  if (tp && tp.as === 'teacher_empty') return { ...decideRole({ teacher: 'persona' }), uid, lang, persona: tp.as };
+  if (tp && tp.as === 'fresh') {
+    // a walk-through "new phone": no teacher signs, no chat or roster rows — the binding and the answers made since count
+    const bound = phone ? await soft('bound', () => boundKids(phone), []) : [];
+    const door = !bound.length ? await soft('key', () => doorOf(uid, Number(tp.since) || Date.now()), null) : null;
+    return { ...decideRole({ bound, door }), uid, lang, persona: tp.as };
+  }
   const Signs = require('../student-ingress-identity');
   let teacher = null;
   let failed = false;
@@ -229,6 +259,6 @@ async function teacherFacts(uid) {
 }
 
 module.exports = {
-  decideRole, resolveRole, langOf, firstOf, schoolYearStart, familyKids, writeRoleAnswer, forgetDoorVerdict, teacherFacts,
+  decideRole, resolveRole, langOf, firstOf, schoolYearStart, familyKids, writeRoleAnswer, forgetDoorVerdict, teacherFacts, personaOf,
   SIDES, SRCS, MAX_KIDS,
 };

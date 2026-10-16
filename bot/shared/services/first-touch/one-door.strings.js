@@ -40,7 +40,7 @@ const S = Object.freeze({
   'rq.note': Object.freeze({ en: 'We ask this once. You can change it later.', ur: 'جگنو یہ ایک ہی بار پوچھے گا۔ بعد میں بدلنا ہو تو بدل لیں۔' }),
   // the confirm sheet ("Is it <First>?") — a child the server already knows on this phone, before any binding
   'cl.confirm.q': Object.freeze({ en: 'Is it {first}?', ur: 'کیا یہ \u2068{first}\u2069 ہیں؟' }),
-  'cl.confirm.yes': Object.freeze({ en: "Yes, it's me", ur: 'ہاں، یہ میں ہوں' }),
+  'cl.confirm.yes': Object.freeze({ en: "Yes, it's me", ur: 'جی ہاں، یہ میں ہوں' }),
   'cl.confirm.none': Object.freeze({ en: 'None of these', ur: 'ان میں سے کوئی نہیں' }),
   'cl.confirm.no': Object.freeze({ en: "No, it's not me", ur: 'یہ میں نہیں ہوں' }),
   'cl.confirm.who': Object.freeze({ en: 'Who is playing?', ur: 'کھیلنے کے لیے اپنا نام چنیں' }),
