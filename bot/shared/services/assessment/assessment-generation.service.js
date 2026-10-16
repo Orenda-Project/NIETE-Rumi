@@ -780,6 +780,7 @@ const RULE = {
   oneCorrect: 'Every MCQ has exactly one correct option: check that no other option is also true (another number that fits the rule, a second work by the same author, a value equal to the key).',
   optionsOnly: 'Write the four options only in `options`; never list (a), (b), (c), (d) inside the question.',
   urduQ4: 'Each Q4 item\'s `question` starts with its own directive in Urdu (what to do: choose the group word, choose the conditional word, change to the future tense, split into syllables), then the sentence or words.',
+  religious: 'Never set an item that quotes, explains or evaluates a religious text (Qur\'an, hadith, the Farewell Sermon, du\'a, Naat, Hamd); set it from another part of the scope.',
   noUnderline: 'Never refer to an underlined, bold or italic word; name the word in the stem instead.',
   scienceQ3: 'Q3(a): two of the three long questions are Remember (state, name, define with the book\'s wording); one is Understand. Q3(b): the short questions are reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\') so that the paper carries Apply marks.',
   unequalOptions: 'MCQ options are pairwise unequal in value (no two options that simplify to the same number, no 2/5 and 6/15) and written in simplest form.',
@@ -862,7 +863,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   // The FDE syllabus names units and kinds per slot; a paper set on chosen chapters or
   // pages keeps each slot's kind and marks but takes its items from those pages only.
   const fde = Boolean(scope) && scope.kind === 'fde';
-  const rules = [RULE.bookOnly];
+  const rules = [RULE.bookOnly, RULE.religious];
   if (!fde) rules.push(RULE.chapterOnly);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) {
     rules.push('Science: a situation comes only from the book activities its slot\'s rule lists, never another.');
