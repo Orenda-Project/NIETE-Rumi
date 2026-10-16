@@ -18,7 +18,7 @@
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout } = require('../../bot/shared/services/assessment/fde-layout');
 const { normaliseScheme } = require('../../bot/shared/services/assessment/marking-scheme');
-const { mathsCheck } = require('../../bot/shared/services/assessment/maths-check');
+const { mathsCheck, mcqPropertyVerdict } = require('../../bot/shared/services/assessment/maths-check');
 const { anagramVerdict } = require('../../bot/shared/services/assessment/english-check');
 
 const P = Patterns.get('fde_g5_2027').subjects;
@@ -199,5 +199,53 @@ describe('B. english anagram guard: placed only with one anagram, keyed', () => 
       expect(anagramVerdict(item)).toEqual({ ok: null });
     }
     expect(laidEnglish({ question: 'Which word has silent letters?', options: ['a) knife', 'b) cat', 'c) dog', 'd) pen'], answer: 'a) knife' }).gone).toBe(false);
+  });
+});
+
+// ── C. Maths MCQs rounded to decimal places ────────────────────────────────
+
+// Maths full_3 Q1(a) xi (round-3 local), verbatim: 7.846 to the nearest tenth is 7.8, keyed 7.9.
+const FULL_3_XI = { question: 'What is 7.846 rounded to the nearest tenth?', options: ['a) 7.9', 'b) 7.8', 'c) 8.0', 'd) 7.85'], answer: 'a) 7.9' };
+
+function mathsMcqsWith(item) {
+  const list = Array.from({ length: 20 }, (_, i) => (i === 7 ? item : {
+    question: `What is ${i + 3} × 4?`,
+    options: [`a) ${(i + 3) * 4 + 1}`, `b) ${(i + 3) * 4}`, `c) ${(i + 3) * 4 - 2}`, `d) ${(i + 3) * 4 + 5}`],
+    answer: `b) ${(i + 3) * 4}`,
+  })).map((q) => ({ slot: 'maths.A.Q1a', marks: 1, ...q }));
+  return { unseen: { objective: { MCQs: list } } };
+}
+function laidMaths(item) {
+  const out = applyLayout(mathsMcqsWith(item), P.maths, FDE, { now: NOW });
+  return { gone: !out.examJson.unseen.objective.MCQs.some((q) => q.question === item.question), short: out.shortfall.find((s) => s.slot === 'maths.A.Q1a') };
+}
+
+describe('C. maths rounding to the nearest tenth / hundredth / thousandth / whole number', () => {
+  it('full_3 xi: 7.846 to the nearest tenth keyed 7.9 → dropped, slot short', () => {
+    expect(mcqPropertyVerdict(FULL_3_XI)).toEqual({ ok: false, passing: ['b'] });
+    expect(laidMaths(FULL_3_XI)).toEqual({ gone: true, short: { slot: 'maths.A.Q1a', missing: 1 } });
+  });
+
+  it('a right key at each place → kept', () => {
+    for (const item of [
+      { question: 'What is 6.478 rounded to the nearest tenth?', options: ['a) 6.4', 'b) 6.5', 'c) 6.48', 'd) 7.0'], answer: 'b) 6.5' },
+      { question: 'Round 3.456 to the nearest hundredth.', options: ['a) 3.45', 'b) 3.46', 'c) 3.5', 'd) 3.4'], answer: 'b) 3.46' },
+      { question: 'What is 5.678 rounded to the nearest hundredth?', options: ['A) 5.67', 'B) 5.68', 'C) 5.7', 'D) 5.6'], answer: 'B) 5.68' },
+      { question: 'Round 2.4615 to the nearest thousandth.', options: ['a) 2.461', 'b) 2.462', 'c) 2.46', 'd) 2.5'], answer: 'b) 2.462' },
+      { question: 'Round 7.85 to the nearest tenth.', options: ['a) 7.8', 'b) 7.9', 'c) 8', 'd) 7.85'], answer: 'b) 7.9' },
+      { question: 'What is 12.5 rounded to the nearest whole number?', options: ['a) 12', 'b) 13', 'c) 12.5', 'd) 10'], answer: 'b) 13' },
+    ]) {
+      expect([item.question, mcqPropertyVerdict(item)]).toEqual([item.question, { ok: true }]);
+      expect(laidMaths(item).gone).toBe(false);
+    }
+  });
+
+  it('two options equal to the rounded value, or none → not ok', () => {
+    expect(mcqPropertyVerdict({ question: 'What is 4.36 rounded to the nearest tenth?', options: ['a) 4.3', 'b) 4.5', 'c) 4.2', 'd) 4.0'], answer: 'a) 4.3' })).toEqual({ ok: false, passing: [] });
+  });
+
+  it('a stem with two numbers, or options that are not numbers, stays unchecked', () => {
+    expect(mcqPropertyVerdict({ question: 'Round 3.46 and 2.71 to the nearest tenth: which sum is it?', options: ['a) 6.2', 'b) 6.1', 'c) 6.0', 'd) 6.3'], answer: 'a) 6.2' })).toEqual({ ok: null });
+    expect(mcqPropertyVerdict({ question: 'To round 7.846 to the nearest tenth, which digit do we look at?', options: ['a) 7', 'b) 8', 'c) 4', 'd) 6'], answer: 'c) 4' }).ok).not.toBe(false);
   });
 });

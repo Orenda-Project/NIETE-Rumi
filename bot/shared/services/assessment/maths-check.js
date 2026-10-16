@@ -907,7 +907,29 @@ function superlativeVerdict(stem, parts) {
   return verdictOf(parts, (_, i) => Math.abs(values[i] - best) < 1e-9);
 }
 
+const DECIMAL_PLACES = { tenth: 1, hundredth: 2, thousandth: 3, 'whole number': 0, whole: 0 };
+
+// "What is 7.846 rounded to the nearest tenth?": the stem's one number rounded half up to
+// that many places, compared with each option's value.
+function decimalRoundingVerdict(stem, parts) {
+  const m = /\bto the nearest (tenth|hundredth|thousandth|whole number|whole)\b/.exec(stem);
+  if (!m || !/\bround(?:ed)?\b/.test(stem)) return null;
+  // "which digit do we look at?" asks about the method, not the rounded number.
+  if (/\bdigits?\b|\bplace\b/.test(stem)) return { ok: null };
+  const k = DECIMAL_PLACES[m[1]];
+  const rest = stem.slice(0, m.index) + ' ' + stem.slice(m.index + m[0].length);
+  const numbers = rest.match(/\d[\d,]*(?:\.\d+)?/g) || [];
+  if (numbers.length !== 1) return { ok: null };
+  const values = parts.map((p) => plainValue(p.body));
+  if (values.some(Number.isNaN)) return { ok: null };
+  const n = Number(numbers[0].replace(/,/g, ''));
+  const rounded = Math.round(n * 10 ** k + 1e-9) / 10 ** k;
+  return verdictOf(parts, (_, i) => Math.abs(values[i] - rounded) < 1e-9);
+}
+
 function roundingVerdict(stem, parts) {
+  const decimal = decimalRoundingVerdict(stem, parts);
+  if (decimal) return decimal;
   const m = /\bto the nearest (hundred thousand|ten thousand|thousand|hundred|ten|100,000|10,000|1,000|1000|100|10)\b/.exec(stem);
   if (!m || !/\bround(?:ed)?\b/.test(stem)) return null;
   const place = PLACE_WORDS[m[1]] || Number(m[1].replace(/,/g, ''));
@@ -947,7 +969,7 @@ function answerLetter(answer) {
  *
  * For an MCQ whose stem asks for a property (divisible by n, prime, factor of n,
  * multiple of n, even, odd, the greatest/smallest option, rounded to the nearest
- * 10/100/1000, the place value of a digit): ok when exactly one option has it
+ * 10/100/1000 or tenth/hundredth/thousandth/whole number, the place value of a digit): ok when exactly one option has it
  * and the key names that option, otherwise the letters of the options that do. Any other stem, or options
  * that are not plain numbers, is `{ ok: null }` (unchecked). Never throws.
  */
