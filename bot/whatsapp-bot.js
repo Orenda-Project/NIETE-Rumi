@@ -95,6 +95,9 @@ try { require('./shared/services/first-touch/maker.mount').mountMaker(app); } ca
 // ── teacher home: /api/internal/th (quiz_teacher_home; off → 404 {off:true} and the edge falls through) ──
 try { require('./shared/services/first-touch/teacher-home.mount').mountTeacherHome(app); } catch (_) { /* not mounted; every other route is today's */ }
 // ── end teacher home ──
+// ── the one door (quiz_one_door): /quiz/go landing, the one question (portal edge -> bot), same x-api-key check ──
+try { require('./shared/services/first-touch/go.mount').mountGo(app); } catch (_) { /* not mounted; every other route is today's */ }
+// ── end the one door ──
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);

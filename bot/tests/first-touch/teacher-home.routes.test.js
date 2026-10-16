@@ -18,11 +18,11 @@ jest.mock('../../shared/services/whatsapp.service', () => require('./_ingress-mo
 // The walk-through persona module by its real name (it may not be on this branch yet: a virtual stand-in).
 const mockWalk = { forHome: undefined };
 jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk, { virtual: true });
-// The one door's landing link and its module lookup (they land separately: virtual stand-ins, inert unless a test fills them).
+// The one door's landing link and its module lookup: stand-ins, inert unless a test fills them.
 const mockDoor = { mintLanding: undefined };
 const mockModules = { load: undefined };
-jest.mock('../../shared/services/first-touch/one-door.service', () => mockDoor, { virtual: true });
-jest.mock('../../shared/services/first-touch/optional-modules', () => mockModules, { virtual: true });
+jest.mock('../../shared/services/first-touch/one-door.service', () => mockDoor);
+jest.mock('../../shared/services/first-touch/optional-modules', () => mockModules);
 // The stories page's router and service: stand-ins, empty unless a test fills them.
 const mockStoryRoutes = { servePage: undefined };
 const mockStorySvc = { flagOn: undefined };
