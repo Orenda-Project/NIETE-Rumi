@@ -179,7 +179,7 @@ function buildHeroReportHtml(vm) {
   .hero h1{font-family:${headFam};font-size:${RTL ? '26px' : '31px'};line-height:${RTL ? '1.6' : '1.15'};font-weight:600;flex:1;max-width:560px;margin:0}
   .hscore{flex-shrink:0;text-align:${RTL ? 'left' : 'right'};line-height:1}
   .hscore .p{font-family:'Lexend';font-weight:700;font-size:44px;letter-spacing:-.02em;margin-top:4px}
-  .hscore .s{font-family:'Lexend';font-size:12.5px;color:${P.scoreSub};margin-top:6px;letter-spacing:.05em}
+  .hscore .s{font-family:'Lexend',${NON_LATIN},sans-serif;font-size:12.5px;color:${P.scoreSub};margin-top:6px;letter-spacing:.05em}
   .who{margin-top:14px;font-size:14px;color:${P.who}}.who b{color:#fff}
   .pad{padding:${RTL ? '14px' : '13px'} 42px}
   .identity{font-family:${headFam};font-size:${RTL ? '17px' : '18px'};line-height:${RTL ? '1.6' : '1.45'};color:${P.ink};font-weight:400}
