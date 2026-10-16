@@ -44,6 +44,7 @@ function kidFor(canonicalId) {
   }
 }
 const IdFlags = require('./web-quiz-identity-flags');
+const { inChunks } = require('./web-quiz-in-chunks');   // every `.in()` on a data-sized list: <= 200 ids a request
 
 const TIERS = Object.freeze(['roster_unique_with_loose', 'probable']);
 // Bounded labelling mode (IDENTITY §12 gate, ruled 15 Oct 2026): the queue serves roster_unique_with_loose only (0 wrong
@@ -57,7 +58,7 @@ const HOLD_LOWER = 0.85;
 const PRECISION_TTL_MS = 60 * 1000;
 const DECISIONS = new Set(['same', 'no', 'undo']);
 const CAP = 5000;
-const JOB_PAGE = 1000;
+const JOB_PAGE = 200;   // a page of loose ids goes into one `.in()`: at most IN_CHUNK (web-quiz-in-chunks)
 
 // ─── the fold (r0 identity audit `norm`) ─────────────────────────────────────
 const AR_MAP = { 'ي': 'ی', 'ى': 'ی', 'ك': 'ک', 'ه': 'ہ', 'ة': 'ہ', 'ۀ': 'ہ', 'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ٱ': 'ا', 'ؤ': 'و', 'ئ': 'ی', 'ے': 'ی', 'ھ': 'ہ' };
@@ -99,7 +100,7 @@ async function teacherScope(t) {
   const own = await rows(supabase.from('student_lists').select('id, class_id, class_name').eq('user_id', t).eq('is_active', true));
   const classIds = uniq([...ct.map((x) => x.class_id), ...own.map((l) => l.class_id)]);
   const onClass = classIds.length
-    ? await rows(supabase.from('student_lists').select('id, class_id, class_name').in('class_id', classIds).eq('is_active', true)) : [];
+    ? await inChunks(() => supabase.from('student_lists').select('id, class_id, class_name').eq('is_active', true), 'class_id', classIds) : [];
   const lists = new Map();
   [...own, ...onClass].forEach((l) => lists.set(l.id, l));
   return { classIds, lists };
@@ -109,14 +110,14 @@ async function teacherScope(t) {
 async function teacherRoster(t, scope) {
   const { classIds, lists } = scope || await teacherScope(t);
   const listIds = [...lists.keys()];
-  const classes = classIds.length ? await rows(supabase.from('classes').select('id, grade_code').in('id', classIds)) : [];
+  const classes = classIds.length ? await inChunks(() => supabase.from('classes').select('id, grade_code'), 'id', classIds) : [];
   const classGrade = new Map(classes.map((x) => [x.id, gradeOf(x.grade_code)]));
-  const enr = classIds.length ? await rows(supabase.from('class_enrollments').select('student_id, class_id').in('class_id', classIds).eq('is_active', true)) : [];
+  const enr = classIds.length ? await inChunks(() => supabase.from('class_enrollments').select('student_id, class_id').eq('is_active', true), 'class_id', classIds) : [];
   const enrClass = new Map(enr.map((e) => [e.student_id, e.class_id]));
   const cols = 'id, list_id, student_name, student_name_urdu, father_name, phone, parent_phone, status, merged_into, is_active';
-  const byList = listIds.length ? await rows(supabase.from('students').select(cols).in('list_id', listIds).limit(CAP)) : [];
+  const byList = listIds.length ? await inChunks(() => supabase.from('students').select(cols).limit(CAP), 'list_id', listIds) : [];
   const enrIds = uniq(enr.map((e) => e.student_id)).filter((id) => !byList.some((s) => s.id === id));
-  const byEnr = enrIds.length ? await rows(supabase.from('students').select(cols).in('id', enrIds).limit(CAP)) : [];
+  const byEnr = enrIds.length ? await inChunks(() => supabase.from('students').select(cols).limit(CAP), 'id', enrIds) : [];
   const out = new Map();
   for (const s of [...byList, ...byEnr]) {
     if (s.status === 'merged' || s.merged_into || s.is_active === false) continue;
@@ -137,20 +138,20 @@ async function teacherLoose(t) {
   const codes = await rows(supabase.from('quiz_share_codes').select('id').eq('teacher_user_id', t));
   const quizzes = await rows(supabase.from('quizzes').select('id').eq('teacher_id', t));
   const sCols = 'student_id, parent_phone, device_ref';
-  const viaCode = codes.length ? await rows(supabase.from('quiz_sessions').select(sCols).in('share_code_id', codes.map((x) => x.id)).limit(CAP)) : [];
-  const viaQuiz = quizzes.length ? await rows(supabase.from('quiz_sessions').select(sCols).in('quiz_id', quizzes.map((x) => x.id)).limit(CAP)) : [];
+  const viaCode = codes.length ? await inChunks(() => supabase.from('quiz_sessions').select(sCols).limit(CAP), 'share_code_id', codes.map((x) => x.id)) : [];
+  const viaQuiz = quizzes.length ? await inChunks(() => supabase.from('quiz_sessions').select(sCols).limit(CAP), 'quiz_id', quizzes.map((x) => x.id)) : [];
   const cols = 'id, list_id, student_name, self_reported_class, father_name, phone, parent_phone, status, merged_into, is_active';
   const enrolled = await rows(supabase.from('students').select(cols).eq('enrolled_by_user_id', t).is('list_id', null).eq('status', 'active').is('merged_into', null).limit(CAP));
   const reached = uniq([...viaCode, ...viaQuiz].map((q) => q.student_id)).filter((id) => !enrolled.some((s) => s.id === id));
-  const more = reached.length ? await rows(supabase.from('students').select(cols).in('id', reached).is('list_id', null).eq('status', 'active').is('merged_into', null)) : [];
+  const more = reached.length ? await inChunks(() => supabase.from('students').select(cols).is('list_id', null).eq('status', 'active').is('merged_into', null), 'id', reached) : [];
   let kids = [...enrolled, ...more].filter((s) => s.is_active !== false);
   if (!kids.length) return new Map();
   const ids = kids.map((s) => s.id);
-  const enr = await rows(supabase.from('class_enrollments').select('student_id').in('student_id', ids).eq('is_active', true));
+  const enr = await inChunks(() => supabase.from('class_enrollments').select('student_id').eq('is_active', true), 'student_id', ids);
   const enrolledSomewhere = new Set(enr.map((e) => e.student_id));
   kids = kids.filter((s) => !enrolledSomewhere.has(s.id));
   // every session of these children (not only this teacher's) carries their phones and devices
-  const sessions = await rows(supabase.from('quiz_sessions').select(sCols).in('student_id', kids.map((s) => s.id)).limit(CAP));
+  const sessions = await inChunks(() => supabase.from('quiz_sessions').select(sCols).limit(CAP), 'student_id', kids.map((s) => s.id));
   const out = new Map();
   for (const s of kids) {
     const mine = sessions.filter((q) => q.student_id === s.id);
@@ -213,8 +214,8 @@ function route(kid, roster, loose) {
 /** The latest decision per (loose, candidate) pair of this teacher. */
 async function lastDecisions(t, looseIds) {
   if (!looseIds.length) return new Map();
-  const log = await rows(supabase.from('merge_log').select('loose_id, candidate_id, decision, decided_at')
-    .eq('teacher_id', t).in('loose_id', looseIds).order('decided_at', { ascending: true }));
+  const log = await inChunks(() => supabase.from('merge_log').select('loose_id, candidate_id, decision, decided_at')
+    .eq('teacher_id', t).order('decided_at', { ascending: true }), 'loose_id', looseIds);
   const m = new Map();
   log.forEach((x) => m.set(`${x.loose_id}|${x.candidate_id}`, x.decision));
   return m;
@@ -461,11 +462,11 @@ async function runBackwardJoin({ dryRun = true } = {}) {
       page.forEach((s) => teachers.add(s.enrolled_by_user_id));
       const ids = page.map((s) => s.id);
       if (ids.length) {
-        const ss = await rows(supabase.from('quiz_sessions').select('share_code_id, quiz_id').in('student_id', ids).limit(CAP * 4));
+        const ss = await inChunks(() => supabase.from('quiz_sessions').select('share_code_id, quiz_id').limit(CAP * 4), 'student_id', ids);
         const codes = uniq(ss.map((x) => x.share_code_id));
         const quizzes = uniq(ss.map((x) => x.quiz_id));
-        if (codes.length) (await rows(supabase.from('quiz_share_codes').select('teacher_user_id').in('id', codes))).forEach((x) => teachers.add(x.teacher_user_id));
-        if (quizzes.length) (await rows(supabase.from('quizzes').select('teacher_id').in('id', quizzes))).forEach((x) => teachers.add(x.teacher_id));
+        if (codes.length) (await inChunks(() => supabase.from('quiz_share_codes').select('teacher_user_id'), 'id', codes)).forEach((x) => teachers.add(x.teacher_user_id));
+        if (quizzes.length) (await inChunks(() => supabase.from('quizzes').select('teacher_id'), 'id', quizzes)).forEach((x) => teachers.add(x.teacher_id));
       }
       if (page.length < JOB_PAGE) break;
       from = ids[ids.length - 1];

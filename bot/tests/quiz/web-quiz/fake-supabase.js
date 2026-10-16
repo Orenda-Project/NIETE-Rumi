@@ -6,6 +6,9 @@
  */
 const crypto = require('crypto');
 
+// ~390 UUIDs is where a `.in()` list overflows the 16 KB response-header cap (measured on sandbox: 400 ids → 16.6 KB).
+const IN_MAX = 390;
+
 // PostgREST compares a jsonb column with eq.<json literal> as jsonb (key order does not matter); a plain value with ===.
 const canon = (v) => (v && typeof v === 'object' ? (Array.isArray(v) ? v.map(canon) : Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])]))) : v);
 // A filter column may be a jsonb path, `meta->>audio_key` (PostgREST's text arrow): the key's value, or null.
@@ -35,7 +38,10 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       neq(c, v) { st.filters.push((r) => r[c] !== v); return b; },
       is(c, v) { st.filters.push((r) => (v === null ? val(r, c) == null : val(r, c) === v)); return b; },
       not(c, op, v) { if (op === 'is' && v === null) st.filters.push((r) => val(r, c) != null); return b; },
-      in(c, vs) { st.filters.push((r) => vs.includes(r[c])); return b; },
+      // PostgREST echoes the query into the Content-Location header and Node's fetch caps response headers at 16 KB:
+      // a list of more than ~390 UUIDs fails the request as supabase-js reports it (postgrest-js: `TypeError: fetch failed`,
+      // the headers-overflow hint, data null). A read that feeds a data-sized list in unchunked goes red here.
+      in(c, vs) { if ((vs || []).length > IN_MAX) st.overflow = vs.length; st.filters.push((r) => vs.includes(r[c])); return b; },
       gte(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) >= String(v)); return b; },
       gt(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) > String(v)); return b; },
       lt(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) < String(v)); return b; },
@@ -46,9 +52,19 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       delete() { st.op = 'delete'; return b; },
       maybeSingle() { st.single = 'maybe'; return b; },
       single() { st.single = 'one'; return b; },
-      then(res, rej) { return Promise.resolve(run(st)).then(res, rej); },
+      then(res, rej) { return Promise.resolve(st.overflow ? overflow(st) : run(st)).then(res, rej); },
     };
     return b;
+  }
+
+  // supabase-js 2.112's answer when fetch fails on the headers cap (postgrest-js PostgrestBuilder.then's catch): the shape verbatim.
+  function overflow(st) {
+    calls.push({ table: st.t, op: st.op, payload: st.payload, overflow: st.overflow });
+    return {
+      success: false,
+      error: { message: 'TypeError: fetch failed', details: 'TypeError: fetch failed\n\nCaused by: HeadersOverflowError: Headers Overflow Error (UND_ERR_HEADERS_OVERFLOW)', hint: 'HTTP headers exceeded server limits (typically 16KB)', code: '' },
+      data: null, count: null, status: 0, statusText: '',
+    };
   }
 
   function run(st) {
