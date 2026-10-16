@@ -617,11 +617,49 @@ function answeredWhole(m, answered, answer) {
   return both >= SAME_WORDS && both / asks.length >= ASKED_SHARE;
 }
 
+// Two readings of one fact the word-share tests miss, compared with a medial ی or ے dropped (a paper
+// spells «سینٹ» and «سینیٹ»). The fold is kept to these two: across the other tests it made a one-line
+// «اخبار اور رسائل» the options of a WhatsApp MCQ. `phrase` is what the MCQ's stem names: its first
+// words, through «کا / کی / کے», up to the verb or the question word («سینیٹ کے ارکان کی تعداد»,
+// «ایدھی فاؤنڈیشن»), two words or more.
+const foldUr = (w) => (w.length > 3 && /^\p{Script=Arabic}+$/u.test(w) ? w[0] + w.slice(1, -1).replace(/[یے]/g, '') + w.slice(-1) : w);
+const folded = (text) => new Set(tokensOf(text).map(foldUr));
+const STEM_PHRASE = 2;
+const PHRASE_ENDS = new Set('نے میں کو سے پر ہے ہیں تھا تھی تھے کون کس کیا کب کہاں کیوں کیسے کتنا کتنی کتنے درج'.split(' '));
+function stemPhrase(stem) {
+  const words = [];
+  for (const w of plain(stem).split(' ')) {
+    if (PHRASE_ENDS.has(w)) break;
+    words.push(w);
+  }
+  return folded(words.join(' '));
+}
+const within = (a, b) => [...a].every((w) => b.has(w));
+const share = (a, b) => [...a].filter((w) => b.has(w)).length;
+// (1) Same thing asked, same key: the item asks about what the MCQ's stem names, and its one-line
+//     answer is the MCQ's key («پاکستان میں سینٹ کے ارکان کی تعداد کتنی ہے؟ → 104» beside «سینیٹ کے ارکان کی
+//     تعداد کتنی ہے؟ → 104»). The key is the item's answer, not a word of its question.
+// (2) Both facts of the answer printed in Section A: the answer is what the MCQ's stem names, beside
+//     half the MCQ's key, and neither is in the item's own question («عبدالستار ایدھی نے کون سی فلاحی تنظیم
+//     قائم کی؟ → ایدھی فاؤنڈیشن …, accepting پناہ گاہیں» beside «ایدھی فاؤنڈیشن نے … کیا قائم کیا؟ → یتیموں اور
+//     لاوارثوں کے لیے پناہ گاہیں»).
+// Both are one-line answers (a Q7, a short Q5): in a longer answer the two facts are one point among
+// others, a partial FDE's own paper has (its Q5 «Define lines of latitude. How many are these?»).
+function stemTwin(m, item) {
+  if (!item.oneLine || m.phrase.size < STEM_PHRASE || !m.keyF.size) return false;
+  const ownKey = [...m.keyF].filter((w) => !item.asked.has(w));
+  if (ownKey.length * 2 < m.keyF.size) return false;
+  if (within(m.phrase, item.asked)) return within(m.keyF, item.answered);
+  return within(m.phrase, item.answer) && share(m.keyF, item.answered) * 2 >= m.keyF.size;
+}
+
 function sameFact(q1s) {
   const mcqs = q1s.map((m) => ({
     key: new Set(tokensOf(keyText(m))),
     stem: new Set(tokensOf(m.question)),
     options: new Set(tokensOf(textsOf(Array.isArray(m.options) ? m.options : []).map((o) => o.replace(OPTION_HEAD, '')).join(' '))),
+    phrase: stemPhrase(m.question),
+    keyF: folded(keyText(m)),
   })).filter((m) => m.key.size && m.stem.size);
   if (!mcqs.length) return null;
   return (q) => {
@@ -645,6 +683,12 @@ function sameFact(q1s) {
         return [...k].every((w) => m.stem.has(w)) && asksSame(stem.filter((w) => !k.has(w)));
       });
     };
+    const answerF = folded(q.answer);
+    const item = {
+      asked: folded(q.question), answer: answerF, answered: new Set([...answerF, ...folded(accept.join(' '))]),
+      oneLine: tokensOf(q.answer).length <= ONE_LINE,
+    };
+    if (mcqs.some((m) => stemTwin(m, item))) return true;
     // A one-line answer (or an item with no marking points) is given whole, with its accepted answers.
     if (!points.length || tokensOf(q.answer).length <= ONE_LINE) {
       if (textsOf(q.answer, accept).some(given)) return true;
