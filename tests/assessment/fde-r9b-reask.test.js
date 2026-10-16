@@ -117,13 +117,14 @@ test('one question once in Q7 when only the endings differ; «کب» / «کہا�
     { slot: 'social_studies.D.Q7', question: 'قائد اعظم کہاں پیدا ہوئے؟', answer: 'کراچی میں۔' },
     { slot: 'social_studies.D.Q7', question: 'پاکستان کا دارالحکومت کون سا ہے؟', answer: 'اسلام آباد۔' },
     { slot: 'social_studies.D.Q7', question: 'پاکستان کا دارالحکومت کون سا تھا؟', answer: 'کراچی۔' },
+    // The recorded paper's second Q7 is «پاکستان کے پہلے وزیر اعظم کون تھے؟»; this one only changes the endings.
+    { slot: 'social_studies.D.Q7', question: 'پاکستان کا پہلا وزیر اعظم کون تھا؟', answer: 'لیاقت علی خان۔' },
   );
-  // The recorded paper has «پاکستان کے پہلے وزیر اعظم کون تھے؟»; this one only changes the endings.
-  list.push({ slot: 'social_studies.D.Q7', question: 'پاکستان کا پہلا وزیر اعظم کون تھا؟', answer: 'لیاقت علی خان۔' });
   const out = applyLayout(exam, P, { kind: 'chapters', chapters: [4, 6], pages: null }, { now: '2026-10-20T07:12:00.000Z', reasked: true });
   const q7 = slotItems(out.examJson, 'social_studies.D.Q7').map((q) => q.question);
   expect(q7).toEqual(expect.arrayContaining([
     'قائد اعظم کب پیدا ہوئے؟', 'قائد اعظم کہاں پیدا ہوئے؟', 'پاکستان کا دارالحکومت کون سا ہے؟', 'پاکستان کا دارالحکومت کون سا تھا؟',
   ]));
-  expect(q7).not.toContain('پاکستان کا پہلا وزیر اعظم کون تھا؟');
+  // One of the two first-prime-minister questions, never both (room is not what decides: both come early).
+  expect(q7.filter((t) => t === 'پاکستان کا پہلا وزیر اعظم کون تھا؟' || t === 'پاکستان کے پہلے وزیر اعظم کون تھے؟')).toHaveLength(1);
 });
