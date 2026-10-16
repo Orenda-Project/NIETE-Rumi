@@ -129,7 +129,18 @@ function createRouter(deps = null) {
       return (Cards.cardsFor({ lang, bot }) || []).map((c) => ({ card: c.card, title: c.title, href: c.href }));
     } catch (_) { return []; }
   }
-  /** "Not a teacher? Change" works only when the one door's writer and the join page are both there. */
+  /** "Not a teacher? Change" → a fresh one-question landing from the one door, when it is there (a link, no write here). */
+  async function changeLanding(user, lang) {
+    const OneDoor = optional('./one-door.service');
+    if (!OneDoor || typeof OneDoor.mintLanding !== 'function' || !user || !user.phone_number) return null;
+    try {
+      const url = await OneDoor.mintLanding({ user, phone: user.phone_number, side: 'unknown', lang: lang === 'en' ? 'bi' : 'ur', src: 'other' });
+      if (typeof url !== 'string') return null;
+      const at = url.indexOf('/quiz/go/');
+      return at >= 0 ? url.slice(at) : null;
+    } catch (_) { return null; }
+  }
+  /** The writer path for "Change" (the role writer + a nonce + the join page), when those are there. */
   function changeParts() {
     const Role = optional('./role.service');
     const Nonce = optional('./go-nonce');
@@ -203,7 +214,7 @@ function createRouter(deps = null) {
     }
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
-      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change: Boolean(changeParts()),
+      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change: (await changeLanding(user, lang)) || Boolean(changeParts()),
     });
     home.primary = (await withSend(home.primary, p, lang)) || (maker ? { kind: 'make', href: maker } : { kind: 'none' });
     home.cards = maker ? cardsFor(lang) : [];
@@ -307,7 +318,7 @@ function createRouter(deps = null) {
     res.status(200).json({ next });
   }));
 
-  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card']);
+  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam']);
   const SEND_KIND = { video: 'video', share: 'video', again: 'quiz', story: 'story' };
   const ORIGINS = new Set(['library', 'again', 'lesson_plan', 'coaching']);
   router.post('/api/th/step', handleJson(async (req, res) => {
@@ -318,13 +329,18 @@ function createRouter(deps = null) {
     if (b.step === 'share_tap' && SEND_KIND[b.kind]) {
       event('teacher_send', p.uid, { kind: SEND_KIND[b.kind], origin: ORIGINS.has(b.origin) ? b.origin : 'library', again: b.kind === 'again' || b.kind === 'share', id: uuidIn(b.id) });
     } else {
-      event('teacher_home.step', p.uid, { step: b.step });
+      event('teacher_home.step', p.uid, { step: b.step, screen: 'home' });
     }
     headers(res);
     res.status(204).end();
   }));
 
-  // ── slot: stories page (its PR adds one line: require('./teacher-stories.routes').mount(router, { HomeToken });) ──
+  // The stories page (/quiz/teacher/<token>/stories): the stories router's own render, when that module is there.
+  router.get('/quiz/teacher/:token/stories', (req, res, next) => {
+    const Stories = optional('../../routes/story-teacher-internal.routes');
+    if (!Stories || typeof Stories.servePage !== 'function') return res.status(404).json({ off: true });
+    return Stories.servePage(req, res, next);
+  });
 
   return router;
 }

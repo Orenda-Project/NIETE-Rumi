@@ -81,7 +81,9 @@ const CSS = [
   '.th-msg{width:100%;min-height:150px;margin:0;padding:12px 14px;border-radius:14px;background:var(--card);border:2px solid var(--line);font:16px/1.5 var(--f);color:var(--ink);resize:vertical}',
   'html[lang=ur] .th-msg{font-family:var(--fu);font-size:18px;line-height:2}',
   '.th-ok{margin:0;font-weight:800;color:var(--brand-d)}html[lang=ur] .th-ok{font-weight:400;font-size:18px}',
-  '.th-sk{background:#EDF2EF;border-radius:12px;min-height:22px}',
+  '.th-sk{background:#EDF2EF;border-radius:12px;min-height:22px}.th-sk-b{min-height:56px}',
+  '.th-row-q{flex:1 1 100%}.th-row-b{display:flex;flex-wrap:wrap;gap:8px}',
+  '.th-row .th-link{min-height:44px}',
   '.th-foot{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:6px}',
   '.th-cards{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}',
   '.th-sheet{position:fixed;inset:0;background:var(--ground);overflow:auto;z-index:5}',
@@ -111,7 +113,7 @@ function link(cls,txt,href,tap,primary){var x=el('a',cls,txt);x.href=href;x.setA
 function err(on){q('#th-err').hidden=!on}
 function hello(){var h=q('#th-h');clear(h);if(d&&d.first){var p=String(S['th.h']||'').split('{first}');h.appendChild(document.createTextNode(p[0]||''));h.appendChild(topic(d.first));h.appendChild(document.createTextNode(p[1]||''))}else h.textContent=S['th.hello.noname']||''}
 var cur=null;
-function sheet(x,title){cur=x;q('#th-sheet-t').textContent='';q('#th-sheet-t').appendChild(topic(title));var m=q('#th-msg');m.value=x.message;q('#th-sheet-go').setAttribute('href',x.wa);q('#th-copied').hidden=true;q('#th-long').hidden=true;q('#th-sheet').hidden=false;q('#th-main').setAttribute('aria-hidden','true');
+function sheet(x,title){cur=x;q('#th-sheet-t').textContent='';q('#th-sheet-t').appendChild(topic(title));var m=q('#th-msg');m.value=x.message;q('#th-sheet-go').setAttribute('href',x.wa);q('#th-copied').hidden=true;q('#th-long').hidden=true;q('#th-sheet').hidden=false;q('#th-main').setAttribute('aria-hidden','true');try{m.style.height='auto';m.style.height=(m.scrollHeight+4)+'px'}catch(e){}
 try{history.pushState({sheet:1},'')}catch(e){}window.scrollTo(0,0)}
 function unsheet(){q('#th-sheet').hidden=true;q('#th-main').removeAttribute('aria-hidden')}
 window.addEventListener('popstate',function(){unsheet()});
@@ -131,13 +133,13 @@ if(p.report)c.appendChild(link('th-link',S['th.report'],p.report,'report'));retu
 if(p.kind==='made'){var u0=el('p','th-say');u0.appendChild(topic(p.title));c.appendChild(u0);
 c.appendChild(btn('th-go',S['th.send'],'send',function(){sheet({message:p.send.message,wa:p.send.wa,sendKind:'again',id:p.id,origin:p.origin},p.title)},true));return}
 c.appendChild(el('p','th-say',S['th.primary.lib']));
-if(p.kind==='story'||p.kind==='video'){c.appendChild(el('p','th-note',fill('th.chosen.for',{n:dg(p.grade)})));var u=el('p','th-sub');u.appendChild(topic(p.title));c.appendChild(u);
+if(p.kind==='story'||p.kind==='video'){var u=el('p','th-sub');u.appendChild(topic(p.title));c.appendChild(u);
 if(p.kind==='story')c.appendChild(link('th-go',S['th.send'],p.href,'story_tile',true));
 else if(p.send)c.appendChild(btn('th-go',S['th.send'],'send',function(){sheet({message:p.send.message,wa:p.send.wa,sendKind:'video',id:p.id,origin:'library'},p.title)},true));return}
 if(p.kind==='make'&&p.href){c.appendChild(link('th-go',S['th.make'],p.href,'make',true))}}
-function under(){var ul=q('#th-confirm');clear(ul);(d.confirm||[]).forEach(function(r){var li=el('li','th-row');li.setAttribute('data-row','confirm');var tx=el('div','th-row-t');
-tx.appendChild(el('span','th-row-n',fill('th.confirm.q',{name:r.first,name2:r.candidateFirst})));li.appendChild(tx);
-[['same','th.confirm.same'],['no','th.confirm.diff'],['unsure','th.confirm.unsure']].forEach(function(k){li.appendChild(btn('th-row-v',S[k[1]],'confirm_'+k[0],function(){if(busy)return;busy=true;
+function under(){var ul=q('#th-confirm');clear(ul);(d.confirm||[]).forEach(function(r){var li=el('li','th-row');li.setAttribute('data-row','confirm');var tx=el('div','th-row-t th-row-q');
+tx.appendChild(el('span','th-row-n',fill('th.confirm.q',{name:r.first,name2:r.candidateFirst})));li.appendChild(tx);var bx=el('div','th-row-b');li.appendChild(bx);
+[['same','th.confirm.same'],['no','th.confirm.diff'],['unsure','th.confirm.unsure']].forEach(function(k){bx.appendChild(btn('th-row-v',S[k[1]],'confirm_'+k[0],function(){if(busy)return;busy=true;
 post('/api/th/confirm',{t:b.t,looseId:r.looseId,candidateId:r.candidateId,decision:k[0]}).then(function(x){if(!x.ok&&x.status!==204)throw 0;li.parentNode&&li.parentNode.removeChild(li)}).catch(function(){err(true)}).then(function(){busy=false})}))});ul.appendChild(li)});
 ul.hidden=!(d.confirm&&d.confirm.length);var c=q('#th-children');c.hidden=!d.children;if(d.children)c.setAttribute('href',d.children)}
 var TAG={lp:'th.tag.lp',coach:'th.tag.coach',quiz:'th.tag.quiz'};
@@ -152,7 +154,7 @@ function rows(){var ul=q('#th-rows');clear(ul);var all=d.timeline||[];
 all.slice(0,shown).forEach(function(r){var li=el('li','th-row');li.setAttribute('data-row',r.kind);var tx=el('div','th-row-t');
 var k=el('span','th-row-k',S[TAG[r.kind]]||'');if(r.verb==='again'&&r.played!=null){k.textContent+=' \\u00b7 '+(r.played>0?fill('th.played.n',{n:dg(r.played)}):S['th.zero'])}
 tx.appendChild(k);var n=el('span','th-row-n');n.appendChild(topic(r.title));tx.appendChild(n);li.appendChild(tx);
-if(r.verb==='again'){li.appendChild(btn('th-row-v',S['th.again'],'again',function(){fetchSend(r.sendKind,r.id,r.title,'again')}));if(r.report)li.appendChild(link('th-row-v',S['th.report'],r.report,'report'))}
+if(r.verb==='again'){li.appendChild(btn('th-row-v',S['th.again'],'again',function(){fetchSend(r.sendKind,r.id,r.title,'again')}));if(r.report)li.appendChild(link('th-link',S['th.report'],r.report,'report'))}
 else if(r.verb==='quiz_this'){var v=btn('th-row-v',S['th.quiz.this'],'quiz_this',function(){make(r,tx,v)});li.appendChild(v)}
 else if(r.status==='making'&&r.quizId){poll(r,tx,null)}
 ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown}
@@ -164,12 +166,13 @@ var v=q('#th-videos');v.hidden=!d.maker;if(d.maker)v.setAttribute('href',d.maker
 function pickGrade(n){if(String(n)===String(grade))return;grade=n;store('th.grade',String(n));step('grade');
 getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}).catch(function(e){if(e!==1)err(true)})}
 function foot(){var m=q('#th-make');m.hidden=!d.maker;if(d.maker)m.setAttribute('href',d.maker);
-var cs=q('#th-cards');clear(cs);(d.cards||[]).forEach(function(c){cs.appendChild(link('th-go2',c.title,c.href,'card'))});cs.hidden=!(d.cards&&d.cards.length);
-var s=q('#th-try');s.hidden=!d.tryStudent;if(d.tryStudent)s.setAttribute('href',d.tryStudent);q('#th-change').hidden=!d.change}
+var cs=q('#th-cards');clear(cs);(d.cards||[]).forEach(function(c){var a=link('th-go2',c.title,c.href,'card');a.setAttribute('data-card',c.card);cs.appendChild(a)});cs.hidden=!(d.cards&&d.cards.length);
+var s=q('#th-try');s.hidden=!d.tryStudent;if(d.tryStudent)s.setAttribute('href',d.tryStudent);q('#th-change').hidden=!(d.change===true);var cl=q('#th-change-go');cl.hidden=typeof d.change!=='string';if(typeof d.change==='string')cl.setAttribute('href',d.change)}
 function render(){hello();top();under();rows();lib(d.library||{grade:2});foot();q('#th-main').setAttribute('data-ready','1')}
 q('#th-more').addEventListener('click',function(){shown+=10;rows();step('more')});
 q('#th-back').addEventListener('click',function(){try{history.back()}catch(e){unsheet()}});
 q('#th-copy').addEventListener('click',copy);
+q('#th-cards').addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('[data-card]'):null;if(a)step('card_'+a.getAttribute('data-card'))});
 q('#th-sheet-go').addEventListener('click',function(){if(cur)step('share_tap',{kind:cur.sendKind,id:cur.id,origin:cur.origin})});
 q('#th-grades').addEventListener('click',function(e){var c=e.target&&e.target.closest?e.target.closest('[data-grade]'):null;if(c)pickGrade(c.getAttribute('data-grade'))});
 q('#th-change').addEventListener('click',function(){if(busy)return;busy=true;post('/api/th/role',{t:b.t,side:'child'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(x){if(x&&typeof x.next==='string')location.href=x.next;else throw 0}).catch(function(){err(true)}).then(function(){busy=false})});
@@ -231,7 +234,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
 <main class="th" id="th-main" data-screen="teacher_home" data-home>
 <header class="th-top"><h1 id="th-h">${esc(str('th.hello.noname', l))}</h1>${sw}</header>
 <p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>
-<section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk" style="min-height:56px"></div></section>
+<section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>
 <ul class="th-rows" id="th-confirm" hidden></ul>
 <a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>
 <section id="th-tl" hidden>
@@ -251,6 +254,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
 <a class="th-link" id="th-make" data-tap="make" hidden>${esc(str('th.make', l))}</a>
 <div class="th-cards" id="th-cards" hidden></div>
 <a class="th-link" id="th-try" data-tap="try_student" hidden>${esc(str('th.try.student', l))}</a>
+<a class="th-link" id="th-change-go" data-tap="change" hidden>${esc(str('th.change', l))}</a>
 <button type="button" class="th-link" id="th-change" data-tap="change" hidden>${esc(str('th.change', l))}</button>
 </nav>
 </main>

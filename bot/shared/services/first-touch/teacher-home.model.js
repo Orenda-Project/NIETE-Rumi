@@ -74,7 +74,7 @@ function buildHome({
   const rows = [...lessons.map((r) => lessonRow(r, played, reports)), ...shares.map(shareRow)]
     .sort((a, b) => ms(b.date) - ms(a.date)).slice(0, MAX_ROWS);
   const books = Array.isArray(stories) && stories.length && storiesBase
-    ? stories.map((b) => ({ id: b.id, title: b.title, href: `${storiesBase}#book/${encodeURIComponent(b.id)}` })) : [];
+    ? stories.map((b) => ({ id: b.id, title: b.title, href: `${storiesBase}?book=${encodeURIComponent(b.id)}` })) : [];
   let primary = classCard({ lessons, played, shares, reports, now });
   if (!primary && books.length) primary = { kind: 'story', id: books[0].id, title: books[0].title, href: books[0].href, grade };
   if (!primary && video) primary = { kind: 'video', id: video.quizId, title: video.topic, grade };

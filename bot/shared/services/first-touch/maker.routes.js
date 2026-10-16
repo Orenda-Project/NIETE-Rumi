@@ -71,10 +71,7 @@ const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {
 
 // ── teacher home: every class message ends with the "any day: send quiz" line (quiz_teacher_home; off → today's bytes) ──
 async function classText(message, lang) {
-  try {
-    if (await require('./teacher-home.flags').on()) return require('./teacher-home.send').withReturn(message, lang);
-  } catch (_) { /* today's message */ }
-  return message;
+  try { return await require('./teacher-home.copy').withReturn(message, lang); } catch (_) { return message; }
 }
 // ── end teacher home ──
 

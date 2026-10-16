@@ -13,9 +13,8 @@
  * "Quiz this" starts the EXISTING job: a lesson-plan provider's start / the recording's startTranscriptLesson (the
  * daily cap and the chat hand-out are untouched); the page then polls quizStatus until the forwardable exists.
  */
-const { fill } = require('./teacher-home.strings');
+const { returnLineText } = require('./teacher-home.copy');
 
-const BOT_RX = /^\d{10,15}$/;
 const SENT = new Set(['sent', 'report_sent']);
 const REMAKE = new Set(['none', 'offered', 'failed']);
 
@@ -24,22 +23,17 @@ const bankOf = (deps) => (deps && deps.Bank) || require('./maker.bank');
 const listOf = (deps) => (deps && deps.List) || require('../quiz/transcript-quiz-list.service');
 const providersOf = (deps) => (deps && deps.Providers) || require('../quiz/quiz-lesson-providers');
 const transcriptOf = (deps) => (deps && deps.Transcript) || require('../quiz/transcript-lesson-provider');
-const botOf = (deps) => {
-  const n = String(((deps && deps.botNumber) || require('../quiz/video-quiz-share.service').botNumber)() || '');
-  return BOT_RX.test(n) ? n : null;
-};
 const messageLang = (lang) => (lang === 'en' ? 'en' : 'ur');
 
-/** The message with the return line appended (a blank line before it); unchanged when the number is unknown. */
-function withReturn(message, lang, deps) {
-  const bot = botOf(deps);
-  if (!bot || typeof message !== 'string' || !message) return message;
-  return `${message}\n\n${fill('cm.return', messageLang(lang), { link: `https://wa.me/${bot}?text=quiz` })}`;
+/** The message with the return line appended (a blank line before it); unchanged when the bot's number is unknown. */
+function withReturn(message, lang) {
+  const line = returnLineText(messageLang(lang));
+  return line && typeof message === 'string' && message ? `${message}\n\n${line}` : message;
 }
 
 const waHref = (message) => `https://wa.me/?text=${encodeURIComponent(message)}`;
-const sendable = (message, lang, deps) => {
-  const m = withReturn(message, lang, deps);
+const sendable = (message, lang) => {
+  const m = withReturn(message, lang);
   return { message: m, wa: waHref(m) };
 };
 
@@ -61,14 +55,14 @@ async function videoSend({ uid, lang, quizId }, deps) {
   if (!chip) return null;
   const out = await bankOf(deps).make({ uid, lang, grade: chip.grade, subject: chip.subject, quizId });
   if (!out || out.error || typeof out.message !== 'string') return null;
-  return { ...sendable(out.message, lang, deps), shareCodeId: out.shareCodeId, quizId };
+  return { ...sendable(out.message, lang), shareCodeId: out.shareCodeId, quizId };
 }
 
 /** A library quiz the teacher already holds a code for → { message, wa, shareCodeId } | null. */
 async function shareSend({ uid, lang, shareCodeId }, deps) {
   const out = await bankOf(deps).shareMessage({ uid, lang, shareCodeId });
   if (!out || typeof out.message !== 'string') return null;
-  return { ...sendable(out.message, lang, deps), shareCodeId, quizId: out.quizId };
+  return { ...sendable(out.message, lang), shareCodeId, quizId: out.quizId };
 }
 
 /** The teacher's own quiz's stored forwardable, owner-checked and only while its code is live. */
@@ -89,7 +83,7 @@ async function ownMessage(uid, quizId, deps, now = Date.now()) {
 /** The teacher's own quiz → { message, wa, shareCodeId } | null. */
 async function againSend({ uid, lang, quizId }, deps) {
   const own = await ownMessage(uid, quizId, deps);
-  return own ? { ...sendable(own.message, lang, deps), shareCodeId: own.shareCodeId, quizId, source: own.source } : null;
+  return own ? { ...sendable(own.message, lang), shareCodeId: own.shareCodeId, quizId, source: own.source } : null;
 }
 
 /**

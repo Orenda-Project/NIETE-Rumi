@@ -73,7 +73,7 @@ describe('switch OFF', () => {
     await boot(deps);
     const t = tokenFor();
     const answers = await Promise.all([
-      get(`/quiz/teacher/${t}`), get('/quiz/teacher/garbage'), get(`/api/th/home?t=${t}`), get(`/api/th/library?t=${t}&g=3`),
+      get(`/quiz/teacher/${t}`), get('/quiz/teacher/garbage'), get(`/quiz/teacher/${t}/stories`), get(`/api/th/home?t=${t}`), get(`/api/th/library?t=${t}&g=3`),
       get(`/api/th/quiz/${OWN_QUIZ}?t=${t}`), post('/api/th/send', { t, kind: 'video', id: qid(2) }),
       post('/api/th/quiz/make', { t, kind: 'coaching', id: SESSION }), post('/api/th/confirm', { t, looseId: OWN_QUIZ, candidateId: OTHER, decision: 'same' }),
       post('/api/th/role', { t, side: 'child' }), post('/api/th/step', { t, step: 'more' }),
@@ -316,5 +316,49 @@ describe('the confirm rows and the events', () => {
       expect(str(id, 'en')).toBeTruthy();
       expect(str(id, 'ur')).toBeTruthy();
     });
+  });
+});
+
+describe('the stories shelf and the other seams', () => {
+  test('stories for the grade: the top card is the first book, every tile links to the stories page\'s own sheet', async () => {
+    seed();
+    deps.Stories = {
+      flagOn: async () => true,
+      shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'The Thirsty Crow', featured: true }, { id: 'b2', title: 'Rain' }] })),
+    };
+    await boot(deps);
+    const t = tokenFor();
+    const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
+    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories`;
+    expect(deps.Stories.shelf).toHaveBeenCalledWith({ uid: TEACHER.id, grade: 3, lang: 'en' });
+    expect(home.primary).toMatchObject({ kind: 'story', id: 'b1', href: `${base}?book=b1` });
+    expect(home.library.stories.map((b) => b.href)).toEqual([`${base}?book=b1`, `${base}?book=b2`]);
+    expect(home.library.all).toBe(base);
+  });
+
+  test('a stories module whose switch is off → no tiles, the video card is the library pick', async () => {
+    seed();
+    deps.Stories = { flagOn: async () => false, shelf: jest.fn() };
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(deps.Stories.shelf).not.toHaveBeenCalled();
+    expect(home.library.stories).toEqual([]);
+    expect(home.primary.kind).toBe('video');
+  });
+
+  test('the stories page route answers off until the stories router is there (the edge then falls through)', async () => {
+    seed();
+    await boot(deps);
+    const res = await get(`/quiz/teacher/${tokenFor()}/stories`);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ off: true });
+  });
+
+  test('the home\'s card taps are logged on this router, with screen home', async () => {
+    seed();
+    await boot(deps);
+    expect((await post('/api/th/step', { t: tokenFor(), step: 'card_coach' })).status).toBe(204);
+    expect(logEvent).toHaveBeenCalledWith('teacher_home.step', expect.objectContaining({ step: 'card_coach', screen: 'home' }));
+    expect((await post('/api/th/step', { t: tokenFor(), step: 'anything_else' })).status).toBe(400);
   });
 });
