@@ -189,6 +189,9 @@ const POOL_FLAG_KEY = 'web_quiz_challenge_pool';
 const v2On = () => settingOn(V2_FLAG_KEY);
 const periodOn = () => settingOn(PERIOD_FLAG_KEY);
 const poolOn = () => settingOn(POOL_FLAG_KEY);
+// Story Time (SPEC §1 web_quiz_challenge_story, child of _v2): the route reads room/pid only when this is on
+const STORY_FLAG_KEY = 'web_quiz_challenge_story';
+const storyOn = async () => (await v2On()) && settingOn(STORY_FLAG_KEY);
 const rulesOf = async () => {
   const record = await recordOn();
   const v2 = await v2On();
@@ -570,6 +573,11 @@ async function storyClip(lang, drawnText = null) {
   return clipUrl(clipKey('listen', 'story', lang, text), text, lang);
 }
 
+/** Story Time read-along: a story read aloud in the quiz voice (the listening story's scheme, exercise 'read'). */
+function readAlongClip(lang, text) {
+  return text ? clipUrl(clipKey('read', 'story', lang, text), text, lang) : null;
+}
+
 async function clipsFor(ex, lang) {
   const out = {};
   await Promise.all(PARTS.map(async (part) => {
@@ -701,6 +709,10 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // fail closed before anything is served: the runs read names a column this tier lacks (isMissingColumn); under _v2
   // the serve's own read answers "on its way" instead (serveV2)
   if (!rules.v2 && (rules.record || rules.trail) && (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).readFailed) fail(503, 'unavailable');
+  // Story Time: a practice story by id (room/pid reach here only with web_quiz_challenge_story on); served under _pool
+  // only, and a story room never falls back to a check serve
+  const storyAsk = (arguments[2] || {}).room === 'story' && (ex === 'read' || ex === 'listen');
+  if (storyAsk && !rules.pool) fail(400, 'story_pid');
   const { Bank } = childTest();
   const task = def.task(w.lang);
   let spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
@@ -711,7 +723,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // standing class link (web_quiz_class_link): a class-link pick is served via 'class_link' in the link's class, the teacher's own visit as practice
   const asked = w.round ? { w, mode: w.roundMode, classId: w.classId }
     : w.cl ? require('./web-quiz-class-link').serveArgs(w, arguments[2]) : { w, mode: (arguments[2] || {}).mode, classId: (arguments[2] || {}).classId };
-  const v2 = rules.v2 ? await serveV2(asked.w, ex, rules, { mode: asked.mode, classId: asked.classId, device }) : null;   // mode: 'practice' from a caller (Story Time)
+  const v2 = rules.v2 ? await serveV2(asked.w, ex, rules, { mode: storyAsk ? 'practice' : asked.mode, classId: asked.classId, device, story: storyAsk ? { passageId: (arguments[2] || {}).passageId } : null }) : null;   // mode: 'practice' from a caller (Story Time)
   if (v2 && v2.on_its_way) return { ex, on_its_way: true, draw: { outcome: 'on_its_way' }, copy: { ...Draw().ON_ITS_WAY_COPY } };
   if (v2 && v2.formNum !== w.form) spec = Bank.getTaskSpec({ grade: Number(v2.formNum), set: 'A', task });   // M8: the fixed grade's form
   const runId = v2 ? v2.runId : crypto.randomUUID();
@@ -1020,7 +1032,7 @@ async function reserveV2(w, ex, open, { D, Bank, pool, canonicalId, ob, now, for
  * `mode` 'practice' from the caller (Story Time, another change) is honoured; a second serve of a stop in the same
  * period is practice. A teacher's device cannot be told apart here (who() carries no such signal).
  */
-async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: askedClass = null } = {}) {
+async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: askedClass = null, story: storyAsk = null } = {}) {
   const D = Draw();
   const { Bank } = childTest();
   const pool = rules.pool && typeof Bank.getItemV4 === 'function';
@@ -1060,6 +1072,7 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   const drawRow = (d) => ({ draw_id: crypto.randomUUID(), canonical_id: canonicalId, period_id: periodNow, stop: ex, lang: w.lang, fixed_grade_band: gb, drawn_at: new Date(now).toISOString(), weights_v: 'w1', ...d });
   let passageId = null; let itemSetId = null; let anchorBlock = null; let band = null; let set = null;
   let items = null; let tryout = null; let story = null; let dir = null; let drawLog = null; let drawSeed = null; let periodSet;
+  let storyDraw = null;
 
   if (ex === 'missing') {
     if (pool) {
@@ -1089,6 +1102,16 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
       return { on_its_way: true };
     }
     passageId = d.id; band = d.band; drawSeed = seed;
+  } else if (pool && storyAsk) {
+    // Story Time: the practice story the shelf showed, only if the shelf could have shown it to this child (the
+    // shelf's own open bands); anything else is refused before a row exists
+    const pid = typeof storyAsk.passageId === 'string' ? storyAsk.passageId : null;
+    const bands = require('./web-quiz-hub-play').openBands(fixed.grade, ob.rungs && ob.rungs.reading);
+    const own = pid && typeof Bank.getPassage === 'function' ? Bank.getPassage(pid) : null;
+    const s = D.storyPassageFor({ rows: await D.registryPassages(), pid, kind: ex, lang: w.lang, bands, reserve: !!(own && own.reserve === true), now: new Date(now) });
+    if (!s) fail(400, 'story_pid');
+    passageId = s.passage_id; band = Number(s.band);
+    storyDraw = { outcome: 'served', band_reason: 'story', served_id: passageId, open_bands: [...bands].sort() };
   } else if (pool) {
     // practice (a replay in the period): no draw from the check pool; the period's record passage again, else the last one met
     const mine = rows.filter((r) => r.exercise === ex && r.passage_id && (r.lang == null || r.lang === w.lang));
@@ -1107,6 +1130,9 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   // the listening story must be playable before anything is written (a passage met is never served again)
   const clipUrl = ex === 'listen' ? await storyClip(w.lang, story && story.text) : undefined;
   if (ex === 'listen' && !clipUrl) fail(503, 'getting_ready');
+  // Story Time read-along: the story in the quiz voice, played with the line lit before the child reads (the lazy clip
+  // path; null until recorded, and asking records it); only on a story serve, never on a check
+  const readAlong = storyDraw && ex === 'read' ? { url: await readAlongClip(w.lang, story && story.text) } : null;
 
   const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // the anchor_serves_any column (and meta, kept one period)
   const prev2 = anchorBlock ? D.anchorPrev2(rows, anchorBlock) : null;   // of which before the provenance columns: meta.draw.anchor_prev2
@@ -1116,7 +1142,7 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   const anchorExp = anchorBlock ? D.anchorExposureNo(rows, anchorBlock) : null;
   const metaDraw = drawLog ? { draw_id: drawLog.draw_id, outcome: drawLog.outcome, eligible: drawLog.eligible, eligible_n: drawLog.eligible_n, ref_eligible: drawLog.ref_eligible,
     p: drawLog.p, band_reason: drawLog.band_reason, weights_v: drawLog.weights_v, seed: drawLog.seed, ...(periodSet ? { period_set: periodSet } : {}),
-    ...(prev2 ? { anchor_prev2: prev2 } : {}) } : null;
+    ...(prev2 ? { anchor_prev2: prev2 } : {}) } : storyDraw;
   const via = VIA[w.via] || w.via || null;
   const admin = await D.adminFields({ mode, via, canonicalId, at: new Date(now), classWeekOn: await classWeekOpen(via) });
   const periodId = periodRule ? periodNow : null;
@@ -1142,7 +1168,7 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     top: { canonical_id: canonicalId, mode, period_id: periodId, band, record, via, exposure_no: exposure, passage_id: passageId, item_set_id: itemSetId,
       anchor_block: anchorBlock, anchor_exposure_no: anchorExp, form: formNum },
     // the page gets only what it renders (ruling #43); every other field is on the row, in meta.draw and in ch_start
-    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' } },
+    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' }, ...(readAlong ? { story_clip: readAlong } : {}) },
     event: { w: 's', mode, period_id: periodId, form, band, rung: rung == null ? null : rung, ...(isPassage ? { passage_id: passageId } : { item_set_id: itemSetId }),
       exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via },
     items, tryout, story, dir, clipUrl,
@@ -2032,7 +2058,7 @@ const clipsLeft = () => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecorded);
 module.exports = {
   menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
-  recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
+  recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
   updateRunMeta,   // the meta compare-and-set write, reused by the stuck-run sweeper (web-quiz-challenge-sweeper.js)
