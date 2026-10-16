@@ -852,8 +852,15 @@ const placeName = (body) => body.toLowerCase().replace(/[^a-z ]/g, '').replace(/
 
 const SUPERLATIVE = /\b(greatest|largest|biggest|highest|smallest|least|lowest)\b/;
 const ASKS_WHICH = /\b(?:which|choose|select|pick)\b|کون/;
-// Words that turn the question round or ask about more than one number.
-const NOT_READ = /\b(?:not|except|never|common|hcf|lcm|gcd|how many|estimate|both|all)\b|نہیں|مشترک/;
+// Words that turn the question round, add a second condition or ask about
+// more than one number: "divisible by 2 and 3", "between 12 and 20", "neither
+// prime nor composite", "rounds to 500", "which is wrong", "face value".
+const NOT_READ = new RegExp([
+  String.raw`\b(?:not|except|never|common|hcf|lcm|gcd|how many|estimate|both|all)\b`,
+  String.raw`\b(?:and|or|nor|neither|but|also|than|between|greater|less|besides|apart)\b`,
+  String.raw`\b(?:wrong|incorrect|false|face value|rounds|when rounded)\b`,
+  String.raw`نہیں|مشترک|(?:^|\s)(?:اور|یا)(?=\s|$)`,
+].join('|'));
 
 // Each property: the stem it reads, and the test an option's whole number must pass.
 const PROPERTIES = [

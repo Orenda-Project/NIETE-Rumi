@@ -140,6 +140,25 @@ describe('B. mcqPropertyVerdict, property by property', () => {
     }
   });
 
+  it('a second condition, a reversed ask or a negative stays unchecked (review of the first push)', () => {
+    for (const [q, options] of [
+      ['Which number is divisible by 2 and 3?', ['a) 8', 'b) 12', 'c) 14', 'd) 20']],
+      ['Which number is a multiple of 6 and 8?', ['a) 12', 'b) 24', 'c) 18', 'd) 30']],
+      ['کون سا عدد 2 اور 3 سے پورا تقسیم ہوتا ہے؟', ['a) 9', 'b) 12', 'c) 15', 'd) 21']],
+      ['Which number is a multiple of 5 between 12 and 20?', ['a) 10', 'b) 15', 'c) 25', 'd) 30']],
+      ['Which number is divisible by 11 and greater than 50?', ['a) 22', 'b) 33', 'c) 55', 'd) 66']],
+      ['Which number rounds to 500 when rounded to the nearest hundred?', ['a) 449', 'b) 460', 'c) 540', 'd) 551']],
+      ['Which number is neither prime nor composite?', ['a) 1', 'b) 2', 'c) 3', 'd) 4']],
+      ['Which number is divisible by 3 or 5?', ['a) 7', 'b) 10', 'c) 11', 'd) 13']],
+      ['Which number is divisible by 7 other than 7?', ['a) 14', 'b) 9', 'c) 10', 'd) 8']],
+      ['Which of these is incorrect? A number is divisible by 3', ['a) 9', 'b) 10', 'c) 12', 'd) 15']],
+      ['Which is wrong when 4,567 is rounded to the nearest 100?', ['a) 4,600', 'b) 4,500', 'c) 4,570', 'd) 4,567']],
+      ['What is the face value of the digit 5 in 4,567?', ['a) 5', 'b) 50', 'c) 500', 'd) 5,000']],
+    ]) {
+      expect([q, v(q, options)]).toEqual([q, { ok: null }]);
+    }
+  });
+
   it('never throws on a malformed item', () => {
     for (const item of [null, {}, { question: 'Which number is even?' }, { question: 5, options: 'x' }, { question: 'Which number is even?', options: [null, 2] }]) {
       expect(() => mcqPropertyVerdict(item)).not.toThrow();
