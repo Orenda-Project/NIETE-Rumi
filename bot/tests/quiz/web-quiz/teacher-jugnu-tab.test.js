@@ -22,7 +22,7 @@ jest.mock('../../../shared/services/quiz/web-quiz-class-link-flags', () => ({
     const { data } = await require('../../../shared/config/supabase').from('app_settings').select('key, value').in('key', ['web_quiz_class_link']);
     return (data || []).some((r) => r.key === 'web_quiz_class_link' && r.value === 'true');
   }),
-}), { virtual: true });
+}));
 
 const express = require('express');
 const { makeFake } = require('./fake-supabase');

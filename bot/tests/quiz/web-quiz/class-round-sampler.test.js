@@ -9,10 +9,10 @@
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
-jest.mock('../../../shared/services/whatsapp.service', () => ({ sendMessage: jest.fn(), sendTextMessage: jest.fn(), sendInteractiveMessage: jest.fn() }), { virtual: true });
+jest.mock('../../../shared/services/whatsapp.service', () => ({ sendMessage: jest.fn(), sendTextMessage: jest.fn(), sendInteractiveMessage: jest.fn() }));
 jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({
   kid: (id) => `kid(${id})`, cls: (id) => `cls(${String(id).slice(-4)})`, envelope: (f) => ({ w: 's', ev_v: 2, kid_v: '2026', ...f }),
-}), { virtual: true });
+}));
 jest.mock('../../../shared/services/quiz/message-ledger', () => ({ record: jest.fn() }));
 
 const { makeFake } = require('./fake-supabase');

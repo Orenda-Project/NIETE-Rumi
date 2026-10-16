@@ -1,6 +1,5 @@
 {
   "bot/tests/observe": 4,
-  "bot/tests/quiz/web-quiz": 11,
   "bot/tests/welcome": 3,
   "tests/assessment": 1,
   "tests/attendance": 2,

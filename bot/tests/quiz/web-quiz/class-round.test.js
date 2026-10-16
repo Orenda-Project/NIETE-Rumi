@@ -18,7 +18,7 @@ jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({
   kid: (id) => `kid(${String(id).slice(-2)})`,
   cls: (id) => `cls(${String(id).slice(-2)})`,
   envelope: (f) => ({ w: 's', ev_v: 2, kid_v: '2026', ...f }),
-}), { virtual: true });
+}));
 
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
