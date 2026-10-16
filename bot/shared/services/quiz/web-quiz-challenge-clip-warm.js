@@ -118,8 +118,8 @@ async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
   let capped = false;
   let attempts = 0;
   for (const c of ordered) {
-    if (!capped && (attempts >= WARM_MAX_PER_RUN || Ch.clipsLeft() <= SERVE_HEADROOM)) capped = true;
-    const r = await Ch.warmClip(c.key, c.text, c.lang, { record: !capped });
+    if (!capped && (attempts >= WARM_MAX_PER_RUN || Ch.clipsLeft(now) <= SERVE_HEADROOM)) capped = true;
+    const r = await Ch.warmClip(c.key, c.text, c.lang, { record: !capped, now });
     if (r !== 'had' && !capped) attempts += 1;
     tally[r] += 1;
     if (r === 'missing' && c.tier <= CHECK_LISTEN_REST) missingListen += 1;

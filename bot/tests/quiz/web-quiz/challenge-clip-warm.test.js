@@ -296,7 +296,8 @@ describe('the daily guard (capped runs re-arm the hour, bounded)', () => {
       expect(await CW.daily({ now: NOW })).toMatchObject({ capped: true, recorded: 0, missing: 10 });
       expect(await CW.daily({ now: NOW + HOUR })).toBeNull();
       expect(warmEvents()).toHaveLength(1);
-      expect(await CW.daily({ now: NOW + DAY })).toMatchObject({ capped: true, recorded: 0 });
+      // the next Pakistan day the shared allowance is back (RULING #121): the ten clips record
+      expect(await CW.daily({ now: NOW + DAY })).toMatchObject({ capped: false, recorded: 10, missing: 0 });
       expect(warmEvents()).toHaveLength(2);
     } finally { done(); }
   });
@@ -315,6 +316,24 @@ describe('the daily guard (capped runs re-arm the hour, bounded)', () => {
       Ch.__reset();
       expect(await CW.daily({ now: NOW + DAY })).toMatchObject({ capped: true, recorded: 96 });
       expect(warmEvents()).toHaveLength(9);
+    } finally { done(); }
+  });
+
+  test('the recorder\'s allowance returns at the next Pakistan day: a run that spent it (96 recorded, 32 left) records again the next day, never the same day', async () => {
+    // RULING #121's aim on a long-lived process: without a daily return of the shared allowance a capped run can only ever re-arm into
+    // a run that records nothing (28 left ≤ the serve headroom) — a 350-clip stock would wait for a redeploy, not for the next tick.
+    const done = coldStock(200);
+    try {
+      expect(await CW.daily({ now: NOW })).toMatchObject({ capped: true, recorded: 96 });
+      expect(Ch.clipsLeft()).toBe(Ch.MAX_CLIP_RECORDINGS - 96);
+      // the same day: the re-armed tick runs, records nothing (the allowance is spent) and closes the day
+      expect(await CW.daily({ now: NOW + HOUR })).toMatchObject({ capped: true, recorded: 0 });
+      expect(await CW.daily({ now: NOW + 2 * HOUR })).toBeNull();
+      // the next Pakistan day: the allowance is back, the warm records again
+      expect(Ch.clipsLeft()).toBe(Ch.MAX_CLIP_RECORDINGS - 96);
+      const next = await CW.daily({ now: NOW + DAY });
+      expect(next).toMatchObject({ capped: true, recorded: 96 });
+      expect(warmEvents()).toHaveLength(3);
     } finally { done(); }
   });
 
