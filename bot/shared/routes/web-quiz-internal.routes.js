@@ -125,7 +125,8 @@ router.post('/ch/live', challenge((C, req) => C.liveKey(req.body || {})));
 // Questions after Read aloud: the reached questions with their 3 options (no key), then one answer per tap.
 router.post('/ch/qs', challenge((C, req) => C.questions(req.body || {})));
 router.post('/ch/qa', challenge((C, req) => C.answer(req.body || {})));
-router.post('/ch/result', challenge((C, req) => C.submit(req.body || {})));
+// x-wq-device on a result: the phone the mic notice was shown on (marked seen for that child on that phone)
+router.post('/ch/result', challenge((C, req) => C.submit(req.body || {}, { device: req.get('x-wq-device') })));
 // x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
 router.get('/ch/:token', challenge((C, req) => C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })));
 // Story Time (?room=story&pid=<passage id>, read and listen only): passed on only with web_quiz_challenge_story on; off, ignored.

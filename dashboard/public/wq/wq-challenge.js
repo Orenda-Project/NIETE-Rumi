@@ -326,7 +326,7 @@
     on('wqc-help-yes', function () { helped = true; ev('ch_helped', { v: 1 }); then(); });
   }
   function withHelped(b) { if (TR) return TR.withHelped(b); if (helped != null) b.helped = helped; return b; }
-  // the grown-up's keep answer rides the upload under v2 (wq-trail.js); without v2 the body is today's
+  // under v2 a run that showed the mic notice says so on its upload (wq-trail.js); without v2 the body is today's
   function cons(b) { return TR ? TR.consent(b) : b; }
   // Missing number's stop: under v2 the warm-up's stop_after 0 means it never stops; else today's rule
   function stopAfter(d) { return TR && d.stop_after === 0 ? Infinity : (d.stop_after || 4); }
@@ -798,6 +798,8 @@
       noMic('unsupported');
       return;
     }
+    // under v2 the mic notice comes first, before the permission it explains; its one control comes back here
+    if (TR && TR.notice(micStart)) return;
     show('mic-ask', jug('hello', t.micAsk, true) + '<button class="wq-btn wq-soft" id="wqc-skip" type="button">' + esc(t.skip) + '</button>');
     var settled = false;
     on('wqc-skip', function () { settled = true; releaseMic(); refreshMenu(); });
@@ -1034,7 +1036,6 @@
   }
 
   function readStart() {
-    if (TR && TR.keepAsk(readStart)) return;
     var d = S.data;
     // under the read guard the story is revealed when the clock starts, not while the cue plays
     show('read-ready', jug('hello', d.clips.start.text) + (guardOn() ? '' : storyHtml(d.story)));

@@ -6844,6 +6844,27 @@ BEGIN
   END LOOP;
 END $$;
 
+-- The mic notice (web_quiz_challenge_runs_notice_shown.sql): audio_consent also admits notice_shown, audio_consent_by notice_tap.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wqcr_audio_consent_chk'
+                   AND conrelid = 'web_quiz_challenge_runs'::regclass
+                   AND pg_get_constraintdef(oid) LIKE '%notice_shown%') THEN
+    ALTER TABLE web_quiz_challenge_runs DROP CONSTRAINT IF EXISTS wqcr_audio_consent_chk;
+    ALTER TABLE web_quiz_challenge_runs ADD CONSTRAINT wqcr_audio_consent_chk CHECK (audio_consent IN ('kept_ok', 'kept_no', 'not_asked', 'notice_shown'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wqcr_audio_by_chk'
+                   AND conrelid = 'web_quiz_challenge_runs'::regclass
+                   AND pg_get_constraintdef(oid) LIKE '%notice_tap%') THEN
+    ALTER TABLE web_quiz_challenge_runs DROP CONSTRAINT IF EXISTS wqcr_audio_by_chk;
+    ALTER TABLE web_quiz_challenge_runs ADD CONSTRAINT wqcr_audio_by_chk CHECK (audio_consent_by IN ('grownup_tap', 'notice_tap'));
+  END IF;
+END $$;
+
+COMMENT ON COLUMN web_quiz_challenge_runs.audio_consent IS
+  'Internal. notice_shown (the mic notice was shown on this run) | not_asked | kept_ok | kept_no (the earlier keep question; kept_no is never kept). NULL with web_quiz_challenge_audio_consent off.';
+COMMENT ON COLUMN web_quiz_challenge_runs.audio_consent_by IS
+  'Internal. notice_tap (the child tapped the mic notice''s one control) | grownup_tap (the earlier keep question).';
 COMMENT ON COLUMN web_quiz_challenge_runs.mode IS
   'Internal. check | practice | class_round. Only check rows enter a trend; NULL on rows written before the provenance columns.';
 COMMENT ON COLUMN web_quiz_challenge_runs.record IS

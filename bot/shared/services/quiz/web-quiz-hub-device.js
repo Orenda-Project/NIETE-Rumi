@@ -11,6 +11,8 @@
  *   deviceTrusted(token, device)       {ok, why, ids}: ids = the children this phone may see
  *   deviceMayName(studentIds, device)  boolean
  *   deviceKids(device)                 the student ids this phone was trusted with (newest hubs), [] if none
+ *   noticeSeen(childId, device)        the mic notice's wording version this child has seen on this phone, or null
+ *   noteNoticeSeen(childId, device, v) records it (best effort; false when Redis is down or there is no device)
  */
 const crypto = require('crypto');
 const { read: dbRead } = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
@@ -27,6 +29,11 @@ const kidKey = (studentId, d) => KID_PREFIX + crypto.createHash('sha256').update
 const DEVKIDS_PREFIX = 'wq:hub:devkids:';
 const DEVKIDS_MAX = 8;
 const devKidsKey = (d) => DEVKIDS_PREFIX + crypto.createHash('sha256').update(String(d)).digest('hex').slice(0, 32);
+// The mic notice (web-quiz-trail-page.js): the wording version this child (canonical id) has seen on this phone, so it
+// is shown once per child per phone (a sibling on the same phone sees it once too) and again only on a new wording.
+const NOTICE_PREFIX = 'wq:hub:notice:';
+const NOTICE_TTL_S = 400 * 24 * 3600;   // longer than a school year: the notice is not shown again because time passed
+const noticeKey = (childId, d) => NOTICE_PREFIX + crypto.createHash('sha256').update(`${childId}|${d}`).digest('hex').slice(0, 32);
 
 /** Has this phone (device_ref) ever played as one of these children (any code)? */
 async function deviceKnows(studentIds, deviceRef) {
@@ -117,4 +124,31 @@ async function deviceKids(device) {
   }
 }
 
-module.exports = { deviceTrusted, deviceMayName, deviceKids };
+/** The notice version this child has seen on this phone; null when unseen, no device, or Redis is down (shown then). */
+async function noticeSeen(childId, device) {
+  const d = T.cleanDeviceRef(device);
+  if (!d || !childId) return null;
+  try {
+    const redis = require('../cache/railway-redis.service');
+    if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) return null;
+    const v = Number(await redis.get(noticeKey(String(childId), d)));
+    return Number.isInteger(v) && v > 0 ? v : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** This child has seen notice version v on this phone. Best effort; false with no device or Redis down. */
+async function noteNoticeSeen(childId, device, v) {
+  const d = T.cleanDeviceRef(device);
+  if (!d || !childId || !(Number.isInteger(v) && v > 0)) return false;
+  try {
+    const redis = require('../cache/railway-redis.service');
+    if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) return false;
+    return (await redis.set(noticeKey(String(childId), d), String(v), NOTICE_TTL_S)) !== false;
+  } catch (_) {
+    return false;
+  }
+}
+
+module.exports = { deviceTrusted, deviceMayName, deviceKids, noticeSeen, noteNoticeSeen };

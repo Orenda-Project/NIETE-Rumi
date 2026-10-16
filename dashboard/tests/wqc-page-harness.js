@@ -35,7 +35,7 @@ function fakeEl(id) {
   };
 }
 
-function page({ htmlClass = '', freshEls = false, storage = null, perm = null, clock = null, lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 WhatsApp', media = 'grant', routes = {}, recorder = 'ok', chunk = 4000, href = 'https://portal.test/c/HUB.TOKEN', micLevel = 128, src = SRC, pre = [], session = null, scripts = {}, chV = 'abc1234567' } = {}) {
+function page({ htmlClass = '', freshEls = false, storage = null, perm = null, clock = null, lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 WhatsApp', media = 'grant', routes = {}, recorder = 'ok', chunk = 4000, href = 'https://portal.test/c/HUB.TOKEN', micLevel = 128, src = SRC, pre = [], session = null, scripts = {}, chV = 'abc1234567', kid = null } = {}) {
   const els = {};
   const root = { querySelector: (sel) => { const id = sel.replace(/^#/, ''); if (!els[id]) els[id] = fakeEl(id); return els[id]; } };
   // freshEls: each render replaces the elements, as a real DOM does (a key bound on one screen is not the next one's)
@@ -91,7 +91,7 @@ function page({ htmlClass = '', freshEls = false, storage = null, perm = null, c
     this.createMediaStreamSource = () => ({ connect() {} });
     this.createAnalyser = () => { mic.analysers += 1; return { fftSize: 2048, frequencyBinCount: 1024, getByteTimeDomainData(arr) { for (let i = 0; i < arr.length; i += 1) arr[i] = i % 2 ? mic.level : 256 - mic.level; } }; };
   }
-  const boot = { textContent: JSON.stringify({ token: 'HUB.TOKEN', kid: null, menu: { ...menu, lang }, mascot: lang === 'ur' ? 'جگنو' : 'Jugnu' }) };
+  const boot = { textContent: JSON.stringify({ token: 'HUB.TOKEN', kid, menu: { ...menu, lang }, mascot: lang === 'ur' ? 'جگنو' : 'Jugnu' }) };
   const wl = {};
   const window = { MediaRecorder, scrollTo() {}, AudioContext, ...(storage ? { localStorage: storage } : {}), ...(session ? { sessionStorage: session } : {}), addEventListener(n, fn) { (wl[n] = wl[n] || []).push(fn); } };
   const ctx = {

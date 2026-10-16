@@ -5,8 +5,10 @@
  *
  *   help       "Is someone helping you today?" once per sitting, before the first scored stop (never before a
  *              practice round), nothing preselected; the answer rides every result as helped:'self'|'helped'.
- *   keep       after the microphone is on, a separate screen: may Jugnu keep this reading? (only when the payload
- *              says v2.consent); nothing preselected (the retention lines are held back pending a ruling); the answer rides the upload and the result as audio_consent.
+ *   notice     the mic NOTICE (RULING #96(4)): before the microphone is asked for, on the read stop, one card with one
+ *              control ("Got it"), when the payload's v2 carries `notice` (this child has not seen that wording on this
+ *              phone) and the phone's own mirror (localStorage wq_notice_v:<chip>) has not seen it either; the control
+ *              goes on to the microphone; that run's upload and result carry audio_consent:'notice_shown'.
  *   whose turn the serve answers ask:'whose_turn' → one chip per child, a tap reloads with kid=<chip>; never auto-picked.
  *   outcomes   on_its_way → a card, the stop stays closed (no run, no mic); lower_band → the ordinary passage screen.
  *   end cards  what was done (read all / read some / tried / listened / answered), the same sticker line for every
@@ -24,15 +26,15 @@
   var T = {
     en: {
       helpQ: 'Is someone helping you today?', helpAlone: 'No, on my own', helpWith: 'Yes, someone is helping', helpNote: 'You get the sticker both ways.',
-      keepQ: 'May Jugnu keep this reading to check that it heard right?',
-      keepYes: 'Yes, keep it', keepNo: "No, don't keep it", keepEither: 'Jugnu listens either way.',
+      // jg.keep.notice / jg.keep.notice_ok (deck v2.2, bot/shared/config/copy.v2.json): the mic notice, {name} = the child's first name
+      noticeT: 'Jugnu keeps this reading to see how {name} is learning. One checker may listen. A grown-up can remove the phone link any time by sending STOP on WhatsApp.',
+      noticeOk: 'Got it',
       whoTurn: 'Whose turn?', whoTapName: 'Tap your name.', whoPlayedHere: 'Played on this phone before', whoSomeoneElse: 'Someone else',
       nextOnItsWay: 'A new story is on its way.',
       endReadAll: 'You read the whole story!', endReadSome: 'You read out loud with Jugnu!', endZeroWords: 'You tried a whole new story!',
       endListen: 'You listened to the whole story!', endTap: 'You answered all the questions!', endSticker: 'A sticker went into your Book.',
       endB3Next: 'Next time Jugnu can read a story with you first.', endNext: function (title) { return 'Next: ' + title; }, endHome: 'Home',
       trailPractice: 'Playing again: just for fun', trailMicWait: 'This game needs the mic. Play it when the mic is on.', trailOther: 'Try another game', trailStopDone: 'Game done!',
-      keepSubV2: 'Kept so one person can listen and confirm Jugnu heard right. A grown-up can say no.', keepAskGrownup: 'Ask a grown-up this one.',
       lanternTrailOne: 'A game is waiting for you on the Trail.', lanternTrailMany: 'Games are waiting for you on the Trail.',
       storyBanner: 'Story Time: just for fun',
       storyAsk: 'Hear it from me first, or read it yourself.', storyReadAlong: 'Read along with Jugnu', storyAgain: 'Read this story again any time.',
@@ -40,15 +42,16 @@
     },
     ur: {
       helpQ: 'کیا آج آپ کو کسی کی مدد مل رہی ہے؟', helpAlone: 'نہیں، اپنے آپ', helpWith: 'جی ہاں، کسی کی مدد سے', helpNote: 'اسٹیکر دونوں طرح ملے گا۔',
-      keepQ: 'کیا جگنو یہ ریکارڈنگ رکھ لے، تاکہ دیکھا جا سکے کہ جگنو نے ٹھیک سنا؟',
-      keepYes: 'جی ہاں، رکھ لیں', keepNo: 'نہیں، نہ رکھیں', keepEither: 'جگنو دونوں صورتوں میں سنے گا۔',
+      // jg.keep.notice / jg.keep.notice_ok (deck v2.2 bytes, bot/shared/config/copy.v2.json: {name} inside U+2068…U+2069,
+      // STOP inside U+2066…U+2069)
+      noticeT: 'جگنو یہ ریکارڈنگ رکھتا ہے تاکہ دیکھا جا سکے کہ ⁨{name}⁩ کی پڑھائی کیسی چل رہی ہے۔ اسے صرف ایک جانچنے والا سن سکتا ہے۔ واٹس ایپ پر ⁦STOP⁩ بھیج کر کسی بھی وقت یہ فون نمبر ہٹایا جا سکتا ہے۔',
+      noticeOk: 'ٹھیک ہے',
       whoTurn: 'کس کی باری ہے؟', whoTapName: 'اپنا نام دبائیں۔', whoPlayedHere: 'پہلے بھی اسی فون پر کھیلا گیا', whoSomeoneElse: 'کوئی اور',
       nextOnItsWay: 'ایک نئی کہانی آنے والی ہے۔',
       endReadAll: 'آپ نے پوری کہانی پڑھ لی!', endReadSome: 'آپ نے جگنو کے ساتھ اونچی آواز میں پڑھا!', endZeroWords: 'آپ نے ایک بالکل نئی کہانی کھول کر دیکھی!',
       endListen: 'آپ نے پوری کہانی سن لی!', endTap: 'آپ نے سارے سوالوں کے جواب دے دیے!', endSticker: 'آپ کی کتاب میں ایک اسٹیکر لگ گیا۔',
       endB3Next: 'اگلی بار جگنو پہلے آپ کے ساتھ کہانی پڑھ سکتا ہے۔', endNext: function (title) { return 'آگے: ⁨' + title + '⁩'; }, endHome: 'واپس جائیں',
       trailPractice: 'یہ کھیل دوبارہ: بس مزے کے لیے', trailMicWait: 'اس کھیل کے لیے مائیک چاہیے۔ مائیک چلنے پر کھیلیں۔', trailOther: 'کوئی اور کھیل کھیلیں', trailStopDone: 'کھیل مکمل!',
-      keepSubV2: 'یہ ریکارڈنگ اس لیے رکھی جاتی ہے تاکہ ایک شخص سن کر دیکھ سکے کہ جگنو نے ٹھیک سنا۔ گھر کے بڑے منع کر سکتے ہیں۔', keepAskGrownup: 'یہ سوال گھر کے بڑوں سے پوچھیں۔',
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
       storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
@@ -70,9 +73,7 @@
         + '[lang="ur"] .wqc .wq-sub,[lang="ur"] .wqc-who2,[lang="ur"] #wqc-story-banner{font-size:20px}'
         // Urdu at 20 px or more on every v2 screen (bubble, buttons, lines): only under .wqt-v2, which WQTRAIL sets
         + 'html[lang="ur"] .wqt-v2 .wq-say,html[lang="ur"] .wqt-v2 .wq-btn,html[lang="ur"] .wqt-v2 .wq-sub,html[lang="ur"] .wqt-v2 .wqc-banner,'
-        + 'html[lang="ur"] .wqt-v2 .wqc-pill,html[lang="ur"] .wqt-v2 small{font-size:20px}'
-        // the keep answers: two equal columns, the same height
-        + '.wqc-keep2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch}.wqc-keep2 .wq-btn{margin:0;min-height:56px;width:100%}';
+        + 'html[lang="ur"] .wqt-v2 .wqc-pill,html[lang="ur"] .wqt-v2 small{font-size:20px}';
       document.head.appendChild(st);
     } catch (e) { /* unstyled still works */ }
   }
@@ -83,8 +84,7 @@
     var L = h.L === 'ur' ? 'ur' : 'en';
     var t = T[L];
     var esc = h.esc;
-    var keep = null;      // this run's keep answer: 'kept_ok' | 'kept_no' | null (screen not shown)
-    var keepFor = null;   // the run (ct) that answer belongs to
+    var noticeRun = null;   // the run (ct) the mic notice was shown on: its upload and result say notice_shown
     var tries = 0;
     var deep = null;
     try { deep = String((location && location.hash) || '').replace(/^#/, '') || null; } catch (e) { deep = null; }
@@ -306,25 +306,38 @@
       return xs.map(function (x) { return x.anchor_block ? Object.assign({}, x, { name: t.warmupTitle }) : x; });
     }
 
-    // ── keep this reading? ──
-    function keepAsk(then) {
+    // ── the mic notice: once per child per phone, before the microphone is asked for ──
+    var NOTICE_KEY = 'wq_notice_v';
+    function noticeKey() { return h.boot && h.boot.kid ? NOTICE_KEY + ':' + h.boot.kid : null; }
+    // the phone's mirror of the server's record (a failed server write never shows it twice); no chip, no mirror
+    function noticeSeenHere(v) {
+      var k = noticeKey();
+      if (!k) return false;
+      try { return window.localStorage.getItem(k) === String(v); } catch (e) { return false; }
+    }
+    function noteNoticeHere(v) {
+      var k = noticeKey();
+      if (!k) return;
+      try { window.localStorage.setItem(k, String(v)); } catch (e) { /* the server's record still holds */ }
+    }
+    function noticeLine(name) {
+      var n = String(name || '');
+      // the Urdu deck line already isolates {name} (U+2068…U+2069): the name goes in as it is
+      return t.noticeT.split('{name}').join(n);
+    }
+    // then: the microphone, exactly as the stop would have gone on (micStart). false = no notice, go on now.
+    function notice(then) {
       var d = h.S.data;
-      if (!d || !d.v2 || !d.v2.consent || keepFor === d.ct) return false;
-      keepFor = d.ct; keep = null;
-      // jg.keep.sub / jg.keep.stop (90 days, STOP deletes) are held back by ruling and not shipped; jg.keep.sub_v2 instead
-      h.show('keep-ask', h.jug('hello', t.keepQ, true) + '<p class="wq-sub" id="wqc-keep-sub">' + esc(t.keepSubV2) + '</p>'
-        // the answer is recorded as a grown-up's tap, so the screen says who answers (jg.keep.ask_grownup)
-        + '<p class="wq-sub" id="wqc-keep-grownup">' + esc(t.keepAskGrownup) + '</p>'
-        // the two answers side by side at equal width, the same button class: neither is "the top green button"
-        + '<div class="wqc-keep2" id="wqc-keep-pair">' + btn('wqc-keep-yes', t.keepYes) + btn('wqc-keep-no', t.keepNo) + '</div>'
-        + '<p class="wq-sub" id="wqc-keep-either">' + esc(t.keepEither) + '</p>');
-      h.on('wqc-keep-yes', function () { keep = 'kept_ok'; then(); });
-      h.on('wqc-keep-no', function () { keep = 'kept_no'; then(); });
+      if (!d || !d.v2 || !d.v2.consent || !d.v2.notice || noticeRun === d.ct || noticeSeenHere(d.v2.notice)) return false;
+      var v = d.v2.notice;
+      // one card, one control: nothing to choose, nothing preselected
+      h.show('mic-notice', h.jug('hello', noticeLine(d.v2.name), true) + '<div class="wq-stack">' + btn('wqc-notice-ok', t.noticeOk) + '</div>');
+      h.on('wqc-notice-ok', function () { noticeRun = d.ct; noteNoticeHere(v); then(); });
       return true;
     }
     function consent(b) {
       var d = h.S.data;
-      if (d && d.v2 && d.v2.consent && keep && keepFor === d.ct) b.audio_consent = keep;
+      if (d && d.v2 && d.v2.consent && noticeRun && noticeRun === d.ct) b.audio_consent = 'notice_shown';
       return b;
     }
     function withHelped(b) {
@@ -378,7 +391,7 @@
       endCard(name, 'celebrate', line, {});
     }
 
-    return { opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, keepAsk: keepAsk, consent: consent, withHelped: withHelped,
+    return { opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
       readEnd: readEnd, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, T: T };
   }
 
