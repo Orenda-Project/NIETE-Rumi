@@ -2485,7 +2485,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(), function (full) { fallback(full, 'card', full, null, null, true); }));
+    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
     // A tile shares the challenge in its own first-person words; the first name is the card's (c.first), never a full name.
@@ -2509,15 +2509,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       flushEv(true);
       location.assign('/q/' + encodeURIComponent(nx.code));
     });
-    if (res.card_v3 && !friend) finishCard();
+    if (res.card_v3 && !friend) finishCard(classUrl);
   }
   /* ---------------- the finish card (wq-finish-card.js; app_settings web_quiz_card_v3, finish's card_v3) ---------------- */
   // Last in card(): the card's token is asked for as the card opens (the share never waits); the file is asked for
   // only when finish sends card_v3, and the card is drawn again once it loads.
   var fcAsked = false;
-  function fcOpts() { return { lang: LANG, topic: Q.topic, st: S.st, ev: ev }; }
-  function finishCard() {
-    if (window.WQFC) { window.WQFC.primeQuiz(fcOpts()); return; }
+  // url: the class link, shared until the card's own link is in (a slow phone taps before it is)
+  function fcOpts(url) { return { lang: LANG, topic: Q.topic, st: S.st, ev: ev, url: url }; }
+  function finishCard(url) {
+    if (window.WQFC) { window.WQFC.primeQuiz(fcOpts(url)); return; }
     if (fcAsked) return;
     fcAsked = true;
     try {

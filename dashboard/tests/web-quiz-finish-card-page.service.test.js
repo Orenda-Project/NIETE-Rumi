@@ -214,6 +214,82 @@ describe('switch on: the quiz card gains the deed and its class share becomes th
   });
 });
 
+describe('switch on: the class share never goes without a link (the card link once it is in)', () => {
+  // the card link's request answers when the test says (a slow phone on a weak connection: ~15 s measured)
+  function slowPage(lang = 'en') {
+    let answer;
+    const pending = new Promise((res) => { answer = res; });
+    const p = page({ lang, store: store({ ...RESULT, card_v3: true }), api: { '/api/wq/card': () => pending } });
+    vm.runInContext(FC_SRC, p.ctx);
+    // a real page draws the card again (new buttons); the harness keeps one fake button, so drop the first draw's listener
+    p.els['#wq-share'].listeners = {};
+    p.wq.card();
+    return { p, answer };
+  }
+  const lines = (p) => (waText(p) || '').split('\n');
+  test('a tap before the card link is in: the button waits (soft), then sends the class link after at most 2 s', async () => {
+    const { p } = slowPage('en');
+    await flush();
+    p.els['#wq-share'].fire('click');
+    await flush();
+    expect(p.html()).not.toContain('id="wq-wa"');
+    expect(p.timers.some((t) => t.fn && t.ms === 2000)).toBe(true);
+    p.runTimers(2000);
+    await flush();
+    const l = lines(p);
+    expect(l[0]).toBe(`⭐ ${FC.DEEDS.en.quiz_done}`);
+    // the class link (today's, with its class picture key) — never a card token
+    expect(l.filter((x) => /^https:\/\/example\.test\/q\/TEST(\?a=[\w.-]+)?$/.test(x)).length).toBe(1);
+    expect(waText(p)).not.toMatch(/[?&]k=/);
+  });
+  test('the card link arrives during the wait: the tap sends the card link at once', async () => {
+    const { p, answer } = slowPage('en');
+    await flush();
+    p.els['#wq-share'].fire('click');
+    answer({ token: TOK, url: `/q/TEST?k=${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET.en });
+    await flush(); await flush(); await flush();
+    expect(lines(p)).toContain(`https://example.test/q/TEST?k=${TOK}`);
+  });
+  test('the card link was refused (another phone, a cold store): the class link at once, no wait', async () => {
+    const p = page({ lang: 'ur', store: store({ ...RESULT, card_v3: true }), api: { '/api/wq/card': { __status: 403, error: 'other_device' } } });
+    vm.runInContext(FC_SRC, p.ctx);
+    p.els['#wq-share'].listeners = {};
+    p.wq.card();
+    await flush(); await flush();
+    p.els['#wq-share'].fire('click');
+    await flush();
+    expect(lines(p).filter((x) => /^https:\/\/example\.test\/q\/TEST(\?a=[\w.-]+)?$/.test(x)).length).toBe(1);
+    expect(p.timers.some((t) => t.fn && t.ms === 2000)).toBe(false);
+  });
+});
+
+describe('switch on: Send to class (the card\'s own link) tapped before its link is in', () => {
+  test('the tap is held (soft) at most 2 s; when the link lands the same link opens with it, once', async () => {
+    let answer;
+    const pending = new Promise((res) => { answer = res; });
+    const timers = [];
+    const listeners = [];
+    const a = { tagName: 'A', className: 'wq-btn wq-go wqfc-share', href: null, clicks: 0,
+      setAttribute(k, v) { if (k === 'href') this.href = v; }, addEventListener(n, fn) { listeners.push(fn); },
+      click() { this.clicks += 1; listeners.forEach((fn) => fn({ currentTarget: a, preventDefault() { a.held = (a.held || 0) + 1; } })); } };
+    const fc = fcAlone({ fetch: () => pending.then((j) => ({ ok: true, text: () => Promise.resolve(JSON.stringify(j)) })),
+      setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout() {},
+      document: { getElementById: (id) => (id === 'wqfc-share' ? a : null), createElement: () => ({}), head: { appendChild() {} } } });
+    fc.mount({ insertAdjacentHTML() {} }, { kind: 'read', deed: 'read_some', lang: 'en', auth: { ct: 'CT1' } });
+    let prevented = 0;
+    listeners.forEach((fn) => fn({ currentTarget: a, preventDefault() { prevented += 1; } }));
+    expect(prevented).toBe(1);
+    expect(a.className).toContain('wq-soft');
+    expect(timers.map((t) => t.ms)).toContain(2000);
+    answer({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET.en });
+    await flush(); await flush(); await flush();
+    expect(a.clicks).toBe(1);
+    expect(a.held || 0).toBe(0);
+    expect(a.className).toBe('wq-btn wq-go wqfc-share');
+    expect(decodeURIComponent(a.href)).toContain(`https://portal.example/k/${TOK}`);
+  });
+});
+
 /* ---------------- the Jugnu end cards (wq-trail.js) ---------------- */
 // A small host: the page's helpers as wq-challenge.js hands them over, the screen as one HTML string.
 function trail({ lang = 'en', data = {}, menu = {}, withFc = false, href = 'https://portal.example/c/tok' } = {}) {

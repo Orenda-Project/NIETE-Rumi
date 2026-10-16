@@ -247,13 +247,15 @@
     }).catch(function () { return null; });
   }
 
-  // The share's words now, and the link once the token is in (st.text); the picture as a file where one can go.
+  // The share's words now — with the host's own link (o.link: the quiz's class link) until the card's link is in —
+  // and the card's link once the token is in (st.text); the picture as a file where one can go.
   function prime(o) {
     css();
     var k = keyOf(o);
     if (primed[k]) return primed[k];
-    var st = primed[k] = { text: shareText(o), url: null, file: null, ready: false };
-    mint(o).then(function (j) {
+    var st = primed[k] = { text: shareText(o.link ? { lang: o.lang, deed: o.deed, title: o.title, url: o.link } : o), url: o.link || null, file: null, ready: false, settled: false };
+    st.wait = mint(o).then(function (j) {
+      st.settled = true;
       if (!j) return;
       st.url = location.origin + j.url;
       st.img = j.img;
@@ -274,6 +276,29 @@
   // host's fallback (the quiz's "send it on WhatsApp" screen) for a host's <button>.
   function tapShare(o, e, fallback) {
     var st = prime(o);
+    // The card's link not in yet: the tap waits for it, at most 2 s (the button soft meanwhile, no new words), then
+    // shares what it has — the host's link at least, so the class always gets something to tap.
+    if (!st.settled && !st.gaveUp) {
+      if (e && e.preventDefault) e.preventDefault();
+      if (st.waiting) return;
+      st.waiting = true;
+      var btn = e && e.currentTarget && typeof e.currentTarget.className === 'string' ? e.currentTarget : null;
+      var was = btn ? btn.className : '';
+      if (btn) btn.className = was.replace(/\bwq-go\b/, 'wq-soft');
+      var t = null;
+      var go = function () {
+        if (!st.waiting) return;
+        st.waiting = false;
+        st.gaveUp = true;
+        if (t) clearTimeout(t);
+        if (btn) btn.className = was;
+        if (fallback || !btn) { tapShare(o, null, fallback); return; }
+        try { btn.setAttribute('href', waHref(st.text)); btn.click(); } catch (x) { /* the next tap shares */ }
+      };
+      t = setTimeout(go, 2000);
+      st.wait.then(go);
+      return;
+    }
     var ev = typeof o.ev === 'function' ? o.ev : function () {};
     // The sender's WhatsApp fetches the preview picture a moment after the tap: ask for it now, so it is drawn by then.
     if (st.img && !st.warmed) { st.warmed = true; try { fetch(st.img).catch(function () {}); } catch (x) { /* the preview asks itself */ } }
@@ -388,7 +413,7 @@
   // The teacher's quiz card (wq.js M10, which draws the deed line and the tile from these): its own screen keeps n/10
   //; its class share is the card — deed + topic, no score, the link, the return line.
   function quizDeedHtml(lang) { return '<p class="wqfc-deed" id="wqfc-deed">' + esc(W[L(lang)].quizDeed) + '</p>'; }
-  function quiz(o) { return { kind: 'quiz', deed: 'quiz_done', lang: L(o.lang), title: o.topic, auth: o.st ? { st: o.st } : null, ev: o.ev }; }
+  function quiz(o) { return { kind: 'quiz', deed: 'quiz_done', lang: L(o.lang), title: o.topic, auth: o.st ? { st: o.st } : null, ev: o.ev, link: typeof o.url === 'string' ? o.url : null }; }
   function primeQuiz(o) {
     var q = quiz(o);
     prime(q);
