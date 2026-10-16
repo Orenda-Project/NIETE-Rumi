@@ -524,6 +524,14 @@ function deviceCookie(req) {
   return m ? m[1] : null;
 }
 
+// The hub's boot payload: with web_quiz_fast on, a locked answer that was asked WITH this phone's wq_dv cookie says
+// so (`dv: 1`), and hub.js shows the locked screen without asking the bot again with the same ref. Otherwise the
+// bot's object itself (switch off: today's bytes).
+function hubBootPayload(body, req) {
+  if (!body || body.fast !== true || body.locked !== true || !deviceCookie(req)) return body;
+  return { ...body, dv: 1 };
+}
+
 // A bot route as it is logged: the caller's template, else the path cut to its first four
 // segments with ":x" for the rest, so a code or a token in the path is never written down.
 function botRouteOf(pathname) {
@@ -885,8 +893,9 @@ function createWebQuizRouter(opts = {}) {
       lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
       lastFast = out.body.fast === true;
       learnMedia(out.body);
-      if (flush) return wire.page(withBotMark(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }), res.locals.wqBotMs));
-      return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version(), media: mediaIfFast() }));
+      const payload = hubBootPayload(out.body, req);
+      if (flush) return wire.page(withBotMark(renderHubFlushTail({ guess: flush.guess, payload, token, origin, assetV: version() }), res.locals.wqBotMs));
+      return res.status(200).type('html').send(renderHubPage({ payload, token, origin, assetV: version(), media: mediaIfFast() }));
     }
     if (out.status === 401) return closed(401, 'hub');
     return closed(out.status === 503 ? 503 : 502, 'off');
@@ -1068,4 +1077,4 @@ function createWebQuizRouter(opts = {}) {
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderCardPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, assetVersion };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderCardPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, hubBootPayload, assetVersion };
