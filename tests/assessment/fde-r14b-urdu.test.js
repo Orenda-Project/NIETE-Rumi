@@ -8,6 +8,10 @@
  * 2. A stem that prints its own key: «لفظ «سانپ» کی درست املا کون سی ہے؟» → سانپ. Held; a quoted
  *    example that holds the key among other words («"اگر بارش ہوئی تو …" میں حرفِ شرط») stays.
  * 3. Two questions in one stem («…پیش آیا؟ سدرہ کی بہن کا نام کیا تھا؟»): held.
+ * 4. A stem that states another item's one-word answer on its topic («… کانفرنس کس شہر میں ہوئی؟ →
+ *    ٹوکیو» beside «… ٹوکیو کی کانفرنس میں آنے کا بلاوا …»): held.
+ * 5. A Section A top-up asks for two spares, so a hold inside the re-ask does not bring a held
+ *    item back for the last place («شانہ بشانہ», a Q3 word).
  *
  * The recorded papers are local replies (content only).
  */
@@ -19,7 +23,7 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logErr
 
 const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
 const Patterns = require('../../bot/shared/services/assessment/patterns');
-const { applyLayout } = require('../../bot/shared/services/assessment/fde-layout');
+const { applyLayout, takenNote } = require('../../bot/shared/services/assessment/fde-layout');
 
 const PAT = Patterns.get('fde_g5_2027');
 const U = PAT.subjects.urdu;
@@ -159,5 +163,48 @@ describe('the Urdu Section A prompt', () => {
         expect(text).not.toContain('Each MCQ stem asks one question');
       }
     }
+  });
+});
+
+describe('a stem that states another item\'s one-word answer on its topic', () => {
+  const ch3 = read('chapters_3');
+  const [asks, gives] = [ch3.unseen.objective.MCQs[1], ch3.unseen.objective.MCQs[19]];
+
+  test('chapters_3: Q1 ۲۰ «… ٹوکیو کی کانفرنس …» is held; Q1 ۲ «… کانفرنس کس شہر میں ہوئی؟ → ٹوکیو» stays', () => {
+    expect(asks.answer).toContain('ٹوکیو');
+    const stems = q1Stems(laid(ch3));
+    expect(stems).toContain(asks.question);
+    expect(stems).not.toContain(gives.question);
+  });
+
+  test('a one-word key named in a stem on another topic stays («امن»: no shared word besides the key)', () => {
+    const exam = { unseen: { objective: { MCQs: [
+      { slot: 'urdu.A.Q1', marks: 1, question: 'سفید کبوتر کس چیز کی علامت ہیں؟', options: ['الف) جنگ', 'ب) امن', 'ج) غصہ', 'د) خوف'], answer: 'ب) امن' },
+      { slot: 'urdu.A.Q1', marks: 1, question: 'سدرہ نے دنیا میں امن کے لیے کیا دعا مانگی؟', options: ['الف) کھیل', 'ب) دوستی', 'ج) جنگ نہ ہو', 'د) سفر'], answer: 'ج) جنگ نہ ہو' },
+    ] } } };
+    expect(q1Stems(laid(exam))).toHaveLength(2);
+  });
+
+  test('a grammar item that quotes its example is never given away by a one-word key elsewhere', () => {
+    const exam = { unseen: { objective: { MCQs: [
+      { slot: 'urdu.A.Q1', marks: 1, question: '"اگر بارش ہوئی تو ہم گھر رہیں گے۔" اس جملے میں حرفِ شرط کون سا ہے؟', options: OPTS, answer: 'الف) اگر' },
+      { slot: 'urdu.A.Q1', marks: 1, question: 'حرفِ شرط «اگر» کے ساتھ کون سا حرفِ جزا آتا ہے؟', options: ['الف) تو', 'ب) اور', 'ج) مگر', 'د) کہ'], answer: 'الف) تو' },
+    ] } } };
+    expect(q1Stems(laid(exam))).toHaveLength(2);
+  });
+});
+
+describe('a Section A top-up asks for spares', () => {
+  test('chapters_2 short by 2: the note asks for 4 and takes the first 2 that fit', () => {
+    const ch2 = read('chapters_2');
+    const note = takenNote(U, sectionA, ch2, { topUp: true, shortfall: [{ slot: 'urdu.A.Q1', missing: 2 }] });
+    expect(note).toContain('needs 2 more. Write 4 new items');
+    expect(note).toContain('the paper takes the first 2');
+  });
+
+  test('a re-ask that is not a top-up is unchanged (no count)', () => {
+    const ch2 = read('chapters_2');
+    const note = takenNote(U, sectionA, ch2, { topUp: false, shortfall: [{ slot: 'urdu.A.Q1', missing: 2 }] }) || '';
+    expect(note).not.toContain('Write 4');
   });
 });
