@@ -42,9 +42,9 @@ const BI_BUTTONS = Object.freeze({
 const IDS = Object.freeze({
   DOOR_TEACHER: 'ft_door_teacher',
   DOOR_CHILD: 'ft_door_child',
-  MK_READY: 'ft_mk_ready',
-  MK_PLAN: 'ft_mk_plan',
-  MK_RECORD: 'ft_mk_record',
+  MK_READY: 'ft_fb_quiz',
+  MK_PLAN: 'ft_fb_lp',
+  MK_RECORD: 'ft_fb_coach',
 });
 
 /** The maker seam. Tests set `_deps.makerCta`; unset → the maker module's own makerCta, required lazily. */

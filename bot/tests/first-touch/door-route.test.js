@@ -4,7 +4,7 @@
  * real ingress: "hello" (cold: today's 10-minute no_student_row) then "quiz" 30 s later → the chooser (the handler
  * re-reads the door itself for a warm no_student_row); the tap's reply is bilingual; the maker reply goes through the
  * injectable seam Reply._deps.makerCta({ uid, lang, who, via }); with no maker cta module the door's own 3-button
- * fallback (maker.fallback.body.unknown(.bi), ids ft_mk_ready / ft_mk_plan / ft_mk_record) goes out, and each of its
+ * fallback (maker.fallback.body.unknown(.bi), ids ft_fb_quiz / ft_fb_lp / ft_fb_coach) goes out, and each of its
  * buttons opens the SAME entry its menu row opens today. A capped verdict is today's path in this change. A broken
  * door module costs exactly its branch.
  */
@@ -89,7 +89,7 @@ test('no maker cta module (today): the door\'s own 3-button fallback, maker_repl
   const [fb] = T.sent().buttons;
   expect(T.sent().buttons).toHaveLength(1);
   expect(fb.body).toBe(UX.ftMakerFallbackBodyUnknownBi.ur);
-  expect(fb.buttons.map((b) => b.id)).toEqual(['ft_mk_ready', 'ft_mk_plan', 'ft_mk_record']);
+  expect(fb.buttons.map((b) => b.id)).toEqual(['ft_fb_quiz', 'ft_fb_lp', 'ft_fb_coach']);
   expect(T.ledgerTriggers()).toEqual(['maker_reply']);
   expect(T.doorEvents()).toEqual([expect.objectContaining({ reply: 'fallback', tap: 'teacher', store: 'teacher' })]);
 });
@@ -103,7 +103,7 @@ test('the fallback for a teacher key holder in Urdu: maker.fallback.body with th
 });
 
 describe('the fallback\'s buttons open today\'s entries, the same functions the menu rows call', () => {
-  test.each([['ft_mk_ready', 'menu_videos'], ['ft_mk_plan', 'menu_lesson_plan'], ['ft_mk_record', 'menu_coaching']])('%s → the %s row\'s handler', async (id, row) => {
+  test.each([['ft_fb_quiz', 'menu_videos'], ['ft_fb_lp', 'menu_lesson_plan'], ['ft_fb_coach', 'menu_coaching']])('%s → the %s row\'s handler', async (id, row) => {
     T.seed();
     const open = jest.spyOn(MenuService, 'handleMenuButtonResponse').mockImplementation(async () => {});
     const { routed } = await T.tap(id);

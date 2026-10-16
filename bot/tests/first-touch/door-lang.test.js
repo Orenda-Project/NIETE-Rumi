@@ -75,7 +75,7 @@ test('the maker reply\'s 3-button fallback after a bilingual tap is bilingual: .
   await T.tap('ft_door_teacher');
   const [fb] = T.sent().buttons;
   expect(fb.body).toBe(UX.ftMakerFallbackBodyUnknownBi.ur);
-  expect(fb.buttons.map((b) => b.id)).toEqual(['ft_mk_ready', 'ft_mk_plan', 'ft_mk_record']);
+  expect(fb.buttons.map((b) => b.id)).toEqual(['ft_fb_quiz', 'ft_fb_lp', 'ft_fb_coach']);
   expect(fb.buttons.map((b) => b.title)).toEqual([Reply.BI_BUTTONS.fallback1, Reply.BI_BUTTONS.fallback2, Reply.BI_BUTTONS.fallback3]);
   for (const b of fb.buttons) expect(cp(b.title)).toBeLessThanOrEqual(20);
 });
