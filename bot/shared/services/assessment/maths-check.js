@@ -874,7 +874,7 @@ const PROPERTIES = [
 
 function verdictOf(parts, passes) {
   const passing = parts.filter(passes).map((p) => p.letter);
-  return passing.length === 1 ? { ok: true } : { ok: false, passing };
+  return passing.length === 1 ? { ok: true, key: passing[0] } : { ok: false, passing };
 }
 
 function propertyVerdict(stem, parts) {
@@ -927,13 +927,21 @@ function placeValueVerdict(stem, parts) {
   return verdictOf(parts, (_, i) => names[i] === PLACE_NAMES[k]);
 }
 
+// The keyed letter of an answer written "d", "d)", "(d)", "D." or "d) 5,148"; null when it has none.
+function answerLetter(answer) {
+  if (typeof answer !== 'string') return null;
+  const t = westernDigits(answer).trim();
+  const m = OPTION_LETTER.exec(t) || /^\(?([a-h])\)?$/i.exec(t);
+  return m ? m[1].toLowerCase() : null;
+}
+
 /**
  * mcqPropertyVerdict(item) → { ok: true } | { ok: false, passing: [letters] } | { ok: null }
  *
  * For an MCQ whose stem asks for a property (divisible by n, prime, factor of n,
  * multiple of n, even, odd, the greatest/smallest option, rounded to the nearest
- * 10/100/1000, the place value of a digit): ok when exactly one option has it,
- * otherwise the letters of the options that do. Any other stem, or options
+ * 10/100/1000, the place value of a digit): ok when exactly one option has it
+ * and the key names that option, otherwise the letters of the options that do. Any other stem, or options
  * that are not plain numbers, is `{ ok: null }` (unchecked). Never throws.
  */
 function mcqPropertyVerdict(item) {
@@ -945,7 +953,11 @@ function mcqPropertyVerdict(item) {
     const parts = optionParts(item.options);
     for (const read of [roundingVerdict, placeValueVerdict, propertyVerdict, superlativeVerdict]) {
       const verdict = read(stem, parts);
-      if (verdict) return verdict;
+      if (!verdict) continue;
+      if (verdict.ok !== true) return verdict;
+      // One option has the property; when the key names another letter, the key is wrong.
+      const keyed = answerLetter(item.answer);
+      return keyed && keyed !== verdict.key ? { ok: false, passing: [verdict.key] } : { ok: true };
     }
   } catch (_) {
     // Unreadable is unchecked.
