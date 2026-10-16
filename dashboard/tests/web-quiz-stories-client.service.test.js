@@ -148,6 +148,8 @@ function env(opt = {}) {
   calls.audios = [];
   win.Audio = function (u) { const a = this; a.src = u || ''; a.currentTime = 0; a.paused = true; a.play = () => { a.paused = false; return Promise.resolve(); }; a.pause = () => { a.paused = true; }; calls.audios.push(a); };
   win.dispatchEvent = (e) => calls.disp.push(e.type);
+  calls.imgs = [];
+  win.Image = function () { const im = this; Object.defineProperty(im, 'src', { set(v) { calls.imgs.push(v); }, get() { return ''; } }); };
   const sb = vm.createContext({ window: win, document: doc, JSON, Math, String, Number, Array, Object, Promise, encodeURIComponent, Date });
   vm.runInContext(fs.readFileSync(SRC, 'utf8'), sb);
   const S = win.WQSTORIES;
@@ -1557,6 +1559,19 @@ describe('echo reading on G1-2', () => {
     fire(root, 'eend');
     expect(screenOf(root.innerHTML)).toBe('story-page');
     expect(root.innerHTML).toContain('data-tap="echo"');
+  });
+});
+
+describe('the next page is fetched ahead', () => {
+  test('on a page, the next page\'s picture is asked for (and its voice preloaded when the player can); none past the last page', async () => {
+    const e = env(); const root = await openReader(e);
+    expect(e.calls.imgs).toContain('/s/b-1/p02.webp');
+    fire(root, 'next'); fire(root, 'next');
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+    const n = e.calls.imgs.length;
+    expect(e.calls.imgs).toContain('/s/b-1/p03.webp');
+    fire(root, 'prev'); fire(root, 'next');
+    expect(e.calls.imgs.slice(n).filter((u) => /p04/.test(u))).toHaveLength(0);
   });
 });
 
