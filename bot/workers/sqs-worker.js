@@ -1780,11 +1780,17 @@ function scheduleLessonPlanHealth({ worker: w = null, setIntervalFn = setInterva
     }
     return runLessonPlanHealth();
   };
-  const first = setTimeoutFn(tick, LP_HEALTH_FIRST_MS);
+  // The hourly timer starts at the boot run, not at boot. A tick's claim lives 59 minutes: anchored at
+  // boot, the first hourly tick would land 57 minutes after the boot run's claim and be refused on every
+  // replica — one skipped hour after every deploy.
+  let timer = null;
+  const first = setTimeoutFn(() => {
+    timer = setIntervalFn(tick, LP_HEALTH_TICK_MS);
+    return tick();
+  }, LP_HEALTH_FIRST_MS);
   if (first && typeof first.unref === 'function') first.unref();
-  const timer = setIntervalFn(tick, LP_HEALTH_TICK_MS);
   logToFile('Lesson-plan health check scheduled (hourly + boot, main-queue replicas; a no-op until LP_LIFECYCLE_PATHS is set)');
-  return { tick, timer };
+  return { tick, get timer() { return timer; } };
 }
 
 function scheduleChallengeVoiceSweep({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {
