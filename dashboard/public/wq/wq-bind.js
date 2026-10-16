@@ -99,7 +99,8 @@
   function cardHtml() {
     var t = L(view.ctx.lang);
     return '<h3 class="wqb-title">' + esc(t.cardTitle) + '</h3><p class="wqb-sub">' + chips(esc(t.cardSub)) + '</p>' +
-      '<div class="wqb-row"><button type="button" class="wqb-btn wqb-go" data-b="keep">' + esc(t.cardBtn) + '</button>' +
+      // Urdu: the two buttons stacked full width, so «میری جگہ محفوظ کریں» never leaves «کریں» alone on a second line
+      '<div class="wqb-row' + (view.ctx.lang === 'ur' ? ' wqb-stack' : '') + '"><button type="button" class="wqb-btn wqb-go" data-b="keep">' + esc(t.cardBtn) + '</button>' +
       '<button type="button" class="wqb-btn wqb-ghost" data-b="later">' + esc(t.cardLater) + '</button></div>';
   }
   function showCard() {
