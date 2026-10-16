@@ -73,14 +73,14 @@ export function StepFrame({
       testId="step-next"
     />
   );
-  const dock = hint
-    ? (
-      <div className="flex w-full flex-col gap-1.5">
-        <p data-testid="step-hint" className="px-1 text-center text-[14px] font-semibold text-[#4b5563]">{hint}</p>
-        {button}
-      </div>
-    )
-    : button;
+  // While a "ready" banner shows above the menu, the dock stands on top of it (`--notice-banner-h`, NoticeHost):
+  // otherwise the banner covers Next / Make and the teacher must close it first.
+  const dock = (
+    <div data-testid="step-dock" className="flex w-full flex-col gap-1.5" style={{ paddingBottom: 'var(--notice-banner-h, 0px)' }}>
+      {hint && <p data-testid="step-hint" className="px-1 text-center text-[14px] font-semibold text-[#4b5563]">{hint}</p>}
+      {button}
+    </div>
+  );
   return (
     <TeacherPage crumb={crumb ?? C.newPaperCrumb} title={C.steps[step]} backTo={backTo} dock={dock} testId={`assessment-step-${step}`}>
       <div role="progressbar" aria-label={C.step(n, steps.length)} aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={n} className="flex gap-1.5 px-1">
