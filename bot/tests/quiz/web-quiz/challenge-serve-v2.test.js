@@ -1113,3 +1113,28 @@ describe('anchor_serves_any counts a pre-v2 missing row as an A1 serve', () => {
     expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 0, partial: 0 });
   });
 });
+
+describe('a reviewed designated reference is served by the counted draw', () => {
+  beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL));
+  const reviewedRef = (rows) => rows.map((r) => (r.passage_id === 'en.read.1.ref01' ? { ...r, status: 'reviewed', provenance: 'reviewer_levelled', reviewer: 'Reviewer Testwala', reviewed_at: REL } : r));
+
+  test('band 1 holds only the reviewed reference: a grade-3 child\'s counted read serves it', async () => {
+    db.challenge_passages = reviewedRef(REGISTRY()).filter((r) => r.passage_id !== 'en.read.1.kite');
+    Object.assign(supabase, guardColumns(makeFake(db)));
+    const ex = await Ch.exercise(hub(K3), 'read', D);
+    expect(ex).toMatchObject({ mode: 'check', draw: { outcome: 'served' } });
+    expect(rowOf(ex.ct)).toMatchObject({ status: 'served', band: 1, mode: 'check', record: true, passage_id: 'en.read.1.ref01' });
+    expect(db.challenge_draws[0]).toMatchObject({ outcome: 'served', band: 1, band_reason: 'entry_grade', served_id: 'en.read.1.ref01', eligible_n: 1, ref_eligible: true });
+  });
+
+  test('beside a provisional passage it keeps the reference weight: 0.85 / 0.15', async () => {
+    db.challenge_passages = reviewedRef(REGISTRY());
+    Object.assign(supabase, guardColumns(makeFake(db)));
+    const ex = await Ch.exercise(hub(K3), 'read', D);
+    const log = db.challenge_draws[0];
+    expect(log).toMatchObject({ outcome: 'served', band: 1, eligible_n: 2, ref_eligible: true });
+    expect(log.eligible.map((e) => e.id)).toEqual(['en.read.1.ref01', 'en.read.1.kite']);
+    expect(log.eligible.map((e) => e.w)).toEqual([expect.closeTo(0.85, 12), expect.closeTo(0.15, 12)]);
+    expect(['en.read.1.ref01', 'en.read.1.kite']).toContain(rowOf(ex.ct).passage_id);
+  });
+});
