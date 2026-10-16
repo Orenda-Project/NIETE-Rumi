@@ -190,3 +190,45 @@ describe('REVIEW_TEXT in an item: that section is asked once more, then the pape
     expect(state.calls).toHaveLength(4);
   });
 });
+
+describe('an Urdu Q2 "questions" part with marks and no questions is a short slot', () => {
+  const URDU = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', 'urdu.json'), 'utf8'));
+  const isQ2 = (req) => req.messages.map((m) => JSON.stringify(m.content)).join('').includes('urdu.B.Q2');
+  const emptied = () => {
+    const src = clone(URDU);
+    const walk = (n) => {
+      if (Array.isArray(n)) n.forEach(walk);
+      else if (n && typeof n === 'object') {
+        if (n.slot === 'urdu.B.Q2') n.parts = n.parts.map((p) => (p.key === 'questions' ? { key: 'questions', marks: p.marks } : p));
+        else Object.values(n).forEach(walk);
+      }
+    };
+    walk(src);
+    return src;
+  };
+  const URDU_ARGS = { ...MATHS, subject: 'urdu' };
+
+  test('empty on the first reply, whole on the re-ask → the paper is whole', async () => {
+    let q2Calls = 0;
+    const { Generation } = load((req) => {
+      if (!isQ2(req)) return reply(URDU, req);
+      q2Calls += 1;
+      return reply(q2Calls === 1 ? emptied() : URDU, req);
+    });
+    const out = await Generation.generatePatternExam(URDU_ARGS);
+    expect(q2Calls).toBe(2);
+    const reasked = state.logs.filter(([l]) => l === '[assessment] section re-asked').map(([, d]) => d);
+    expect(reasked).toEqual([expect.objectContaining({ shortfall: [{ slot: 'urdu.B.Q2', part: 'questions', missing: 5 }] })]);
+    let q2;
+    const walk = (n) => { if (Array.isArray(n)) n.forEach(walk); else if (n && typeof n === 'object') { if (n.slot === 'urdu.B.Q2' && n.parts) q2 = n; else Object.values(n).forEach(walk); } };
+    walk(out.examJson.unseen);
+    expect(q2.parts.find((p) => p.key === 'questions').questions.length).toBeGreaterThan(0);
+  });
+
+  test('empty again on the re-ask → PATTERN_SHORT_SLOT naming the part', async () => {
+    const { Generation } = load((req) => reply(isQ2(req) ? emptied() : URDU, req));
+    await expect(Generation.generatePatternExam(URDU_ARGS)).rejects.toMatchObject({
+      code: 'PATTERN_SHORT_SLOT', shortfall: [{ slot: 'urdu.B.Q2', part: 'questions', missing: 5 }],
+    });
+  });
+});
