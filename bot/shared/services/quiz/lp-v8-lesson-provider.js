@@ -16,6 +16,8 @@
  *     reader, version rule and switch the 15:00 offer uses; its row ref is the open's id);
  *   - whose asset is a LESSON (an answer key is never a quiz source);
  *   - not an assessment day (`_seg995`, D9);
+ *   - not in a subject held out of machine-written quizzes (lp-religious-hold: Islamiyat, until its
+ *     religious review) — the 15:00 offer holds the same lessons;
  *   - whose EXACT served version (lesson_id, version_stamp, content_hash) has a
  *     slide script in `niete_lp_asset_sources` — the key resolveSlideScript
  *     uses; the 13 KB script itself is never read here;
@@ -38,6 +40,7 @@ const { LP_V8 } = require('./quiz-sources');
 const { needsLanguageAsk, quizLanguageFor, teacherLanguageFor } = require('./transcript-quiz-language');
 const LessonClaim = require('./lp-lesson-claim');
 const Funnel = require('./quiz-funnel');
+const ReligiousHold = require('./lp-religious-hold');
 
 const SOURCE = LP_V8;
 const LABEL_KEY = 'tqRowFromLessonPlan';
@@ -163,8 +166,17 @@ function toItem(row) {
 
 /** Keep the rows a quiz can be made from (kind, day, source), newest delivery per lesson. */
 async function makeable(rows) {
-  const candidates = rows.filter((r) => r.asset_id && r.status === 'sent'
+  const taken = rows.filter((r) => r.asset_id && r.status === 'sent'
     && !String(r.lesson_id || '').endsWith(ASSESSMENT_SUFFIX));
+  // A held subject (Islamiyat, until its religious review) is never listed, opened
+  // or made, and is logged under its own reason.
+  const held = taken.filter((r) => ReligiousHold.isHeldLesson(r));
+  if (held.length) {
+    logEvent('quiz_menu.lesson_held', {
+      userId: held[0].user_id, source: SOURCE, reason: ReligiousHold.HELD_REASON, lessons: held.length,
+    });
+  }
+  const candidates = taken.filter((r) => !ReligiousHold.isHeldLesson(r));
   if (!candidates.length) return [];
   const lessons = await lessonAssetIds(candidates.map((r) => r.asset_id));
   const seen = new Set();

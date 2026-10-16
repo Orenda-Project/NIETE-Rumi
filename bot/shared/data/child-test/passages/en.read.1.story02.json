@@ -1,0 +1,223 @@
+{
+  "passage_id": "en.read.1.story02",
+  "lang": "en",
+  "kind": "read",
+  "band": 1,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Hira"
+  ],
+  "tokens": 32,
+  "sentences": 6,
+  "mean_sent_len": 5.3,
+  "max_word_len": 6,
+  "readability": 1,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 1,
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "Where Is the Moon?",
+  "title_ur": null,
+  "text": "One night, Hira looked for the moon. The sky was full of clouds. There was no moon. Hira was not happy. Then the clouds went away. Hira saw a bright full moon.",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      12
+    ],
+    [
+      13,
+      16
+    ],
+    [
+      17,
+      20
+    ],
+    [
+      21,
+      25
+    ],
+    [
+      26,
+      31
+    ]
+  ],
+  "tokens_list": [
+    "One",
+    "night",
+    "Hira",
+    "looked",
+    "for",
+    "the",
+    "moon",
+    "The",
+    "sky",
+    "was",
+    "full",
+    "of",
+    "clouds",
+    "There",
+    "was",
+    "no",
+    "moon",
+    "Hira",
+    "was",
+    "not",
+    "happy",
+    "Then",
+    "the",
+    "clouds",
+    "went",
+    "away",
+    "Hira",
+    "saw",
+    "a",
+    "bright",
+    "full",
+    "moon"
+  ],
+  "text_hash": "52812f115740b5a7db55643a86068e4f",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Hira look for?",
+      "right": "the moon",
+      "wrong": [
+        "the sun",
+        "a star"
+      ],
+      "accept": [
+        "the moon",
+        "moon"
+      ],
+      "reject": [
+        "the sun",
+        "a star"
+      ],
+      "rubric": "Right if the child says the moon (or moon)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "When did Hira look for it?",
+      "right": "one night",
+      "wrong": [
+        "one morning",
+        "after lunch"
+      ],
+      "accept": [
+        "one night",
+        "at night",
+        "night"
+      ],
+      "reject": [
+        "one morning",
+        "after lunch"
+      ],
+      "rubric": "Right if the child says one night (or at night / night)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was the sky full of?",
+      "right": "clouds",
+      "wrong": [
+        "birds",
+        "kites"
+      ],
+      "accept": [
+        "clouds"
+      ],
+      "reject": [
+        "birds",
+        "kites"
+      ],
+      "rubric": "Right if the child says clouds."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "How did Hira feel?",
+      "right": "not happy",
+      "wrong": [
+        "sleepy",
+        "hungry"
+      ],
+      "accept": [
+        "not happy",
+        "sad",
+        "unhappy"
+      ],
+      "reject": [
+        "sleepy",
+        "hungry"
+      ],
+      "rubric": "Right if the child says not happy (or sad / unhappy)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What went away?",
+      "right": "the clouds",
+      "wrong": [
+        "the stars",
+        "the birds"
+      ],
+      "accept": [
+        "the clouds",
+        "clouds"
+      ],
+      "reject": [
+        "the stars",
+        "the birds"
+      ],
+      "rubric": "Right if the child says the clouds (or clouds)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Hira see at the end?",
+      "right": "a bright full moon",
+      "wrong": [
+        "a tall tree",
+        "a small bird"
+      ],
+      "accept": [
+        "a bright full moon",
+        "the moon",
+        "a full moon"
+      ],
+      "reject": [
+        "a tall tree",
+        "a small bird"
+      ],
+      "rubric": "Right if the child says a bright full moon (or the moon / a full moon)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

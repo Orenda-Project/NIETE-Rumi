@@ -1,0 +1,201 @@
+{
+  "passage_id": "ur.read.1.ref01",
+  "lang": "ur",
+  "kind": "read",
+  "band": 1,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": true,
+  "tokens": 34,
+  "sentences": 6,
+  "mean_sent_len": 5.7,
+  "max_word_len": 5,
+  "readability": 0.931,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.966,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 5,
+  "text_hash": "97399e4a47aeb9d79f4196a3b7fac751",
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "لال پتنگ",
+  "text": "ثنا کے پاس ایک لال پتنگ ہے۔ وہ اسے لے کر میدان میں گئی۔ لیکن وہاں ہوا نہیں تھی۔ پھر زور کی ہوا آئی۔ پتنگ اوپر ہی اوپر جانے لگی۔ ثنا بہت خوش ہوئی۔",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      13
+    ],
+    [
+      14,
+      18
+    ],
+    [
+      19,
+      23
+    ],
+    [
+      24,
+      29
+    ],
+    [
+      30,
+      33
+    ]
+  ],
+  "tokens_list": [
+    "ثنا",
+    "کے",
+    "پاس",
+    "ایک",
+    "لال",
+    "پتنگ",
+    "ہے",
+    "وہ",
+    "اسے",
+    "لے",
+    "کر",
+    "میدان",
+    "میں",
+    "گئی",
+    "لیکن",
+    "وہاں",
+    "ہوا",
+    "نہیں",
+    "تھی",
+    "پھر",
+    "زور",
+    "کی",
+    "ہوا",
+    "آئی",
+    "پتنگ",
+    "اوپر",
+    "ہی",
+    "اوپر",
+    "جانے",
+    "لگی",
+    "ثنا",
+    "بہت",
+    "خوش",
+    "ہوئی"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ثنا کے پاس کیا ہے؟",
+      "right": "پتنگ",
+      "wrong": [
+        "گڑیا",
+        "ٹوپی"
+      ],
+      "accept": [
+        "پتنگ",
+        "لال پتنگ"
+      ],
+      "reject": [
+        "گڑیا",
+        "ٹوپی"
+      ],
+      "rubric": "Correct if the child says the kite (پتنگ)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "پتنگ کا رنگ کیا ہے؟",
+      "right": "لال",
+      "wrong": [
+        "سبز",
+        "پیلا"
+      ],
+      "accept": [
+        "لال",
+        "سرخ"
+      ],
+      "reject": [
+        "سبز",
+        "پیلا"
+      ],
+      "rubric": "Correct if the child says red (لال)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ثنا پتنگ لے کر کہاں گئی؟",
+      "right": "میدان میں",
+      "wrong": [
+        "چھت پر",
+        "گلی میں"
+      ],
+      "accept": [
+        "میدان میں",
+        "میدان"
+      ],
+      "reject": [
+        "چھت پر",
+        "گلی میں"
+      ],
+      "rubric": "Correct if the child says to the field (میدان)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "پھر زور کی کیا آئی؟",
+      "right": "ہوا",
+      "wrong": [
+        "بارش",
+        "آواز"
+      ],
+      "accept": [
+        "ہوا"
+      ],
+      "reject": [
+        "بارش",
+        "آواز"
+      ],
+      "rubric": "Correct if the child says the wind (ہوا)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "آخر میں ثنا کیسی تھی؟",
+      "right": "خوش",
+      "wrong": [
+        "اداس",
+        "ناراض"
+      ],
+      "accept": [
+        "خوش",
+        "بہت خوش"
+      ],
+      "reject": [
+        "اداس",
+        "ناراض"
+      ],
+      "rubric": "Correct if the child says happy (خوش)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "ثنا"
+  ]
+}

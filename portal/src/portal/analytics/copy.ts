@@ -215,7 +215,11 @@ const EN = {
         title: 'Observations',
         items: [
           { term: 'DC observations', text: "Finished Digital Coach (AI) observations of the teachers' lessons in the period." },
-          { term: 'Teachers observed', text: 'How many of the N teachers had at least one Digital Coach observation in the period ("x of N").' },
+          { term: 'Teachers observed', text: 'How many of the N teachers had at least one observation of that kind (Human or Digital Coach) in the period ("x of N").' },
+          { term: 'Sectors active', text: 'Regions with at least one observation of that kind in the period.' },
+          { term: 'LP Fidelity (Section B)', text: 'How closely the lesson followed its lesson plan: the FICO Section B score, out of 100 and shown as a percentage. A lesson with no lesson plan has no Section B score and is not counted in it, so fewer observations are scored for it than for C and D; its own "n scored" is shown on its card.' },
+          { term: 'Teaching Practices (Section C)', text: 'The FICO Section C score (high-leverage teaching practices), out of 100 and shown as a percentage, averaged over the observations in the period.' },
+          { term: 'Engagement (Section D)', text: 'The FICO Section D score (student engagement), out of 100 and shown as a percentage, averaged over the observations in the period.' },
           { term: 'Human observations', text: 'Finished observations of the teachers by a school leader or coach in the period, including ones the observer has reviewed.' },
           { term: 'Avg FICO', text: 'The average Digital Coach observation score, out of 100 and shown as a percentage, over the observations in the period that have a score. "n scored" is how many had one.' },
           { term: 'Avg HITL', text: "The average score of human observations after the observer's review, out of 100 and shown as a percentage. \"n scored\" is how many had one." },
@@ -228,12 +232,15 @@ const EN = {
           { term: 'Total coaches', text: 'Coaches (test accounts left out) with at least one school in the region on record. A coach whose schools are in two regions counts in both region cards and once in the total. It is who is assigned today, so the period does not change it.' },
           { term: 'Coach visits', text: 'Scheduled coach visits marked done, on a day in the period, at an active school in the six regions.' },
           { term: 'Schools visited', text: 'Schools with at least one coach visit in the period ("x of N" schools).' },
+          { term: 'Schools in a region', text: "A region card's schools: every school counted in that region, visited or not." },
+          { term: 'Coaches by sector', text: "The names of each region's coaches, A to Z. A coach whose schools are in two regions is listed in both. Coaches are NIETE staff; no teacher is named." },
         ],
       },
       {
         title: 'Regions, periods and totals',
         items: [
-          { term: 'Regions and totals', text: 'Counts are added up across schools. Averages are worked out over all the scored observations together, so a large school weighs more than a small one.' },
+          { term: 'Regions and totals', text: 'Counts are added up across schools. Avg FICO and Avg HITL are worked out over all the scored observations together, so a large school weighs more than a small one.' },
+          { term: 'Section scores (B, C, D)', text: "These follow the ICT dashboard. A school's score, and the score at the top of the tab, average their observations. A region's card and its bars average the region's schools' scores instead, each school with a score counting once, so with a region chosen its card can differ a little from the score at the top." },
           { term: 'Period', text: 'Days are counted in Pakistan time, the first and the last day both included.' },
         ],
       },
@@ -613,6 +620,45 @@ const EN = {
       busy: 'Loading the training numbers',
       error: "The training numbers didn't load. Check your connection and try again.",
     },
+  },
+  /** bd-97x22y.5 — the Observations tab in the ICT dashboard's words (PLAN v7, her Observations.jsx). */
+  obsV7: {
+    kinds: { human: 'Human observations', dc: 'Digital Coach observations' } as Record<ObservationKind, string>,
+    summary: { human: 'Observation summary', dc: 'Digital Coach impact' } as Record<ObservationKind, string>,
+    breakdown: 'FICO score breakdown',
+    chart: { human: 'Avg observation scores by sector', dc: 'Digital Coach — avg scores by sector' } as Record<ObservationKind, string>,
+    sectors: 'Sector breakdown',
+    tiles: {
+      observations: { human: 'Total observations', dc: 'Total DC observations' } as Record<ObservationKind, string>,
+      teachersObserved: 'Teachers observed',
+      sectorsActive: { human: 'Sectors active', dc: 'Sectors covered' } as Record<ObservationKind, string>,
+    },
+    /** Her three sections, in her order. */
+    sections: { b: 'LP Fidelity', c: 'Teaching Practices', d: 'Engagement' },
+    scoreCards: { b: 'LP Fidelity score', c: 'Teaching Practices score', d: 'Engagement score' },
+    codes: { b: 'Section B', c: 'Section C', d: 'Section D' },
+    /** "Section B — LP Fidelity" (the chart legend), "Section B — Human observations" (under a score card). */
+    dash: (a: string, b: string) => `${a} — ${b}`,
+    shortCodes: { b: 'B', c: 'C', d: 'D' },
+    /** Her y-axis. */
+    axis: 'Average score (%)',
+    /** Under a sector card's count. */
+    unit: { human: 'observations', dc: 'Digital Coach observations' } as Record<ObservationKind, string>,
+    /** A school row's count: "12 obs". */
+    obs: (n: string) => `${n} obs`,
+    noSchools: 'No schools here.',
+  },
+
+  /** bd-97x22y.5 — the Coaching tab in the ICT dashboard's words (PLAN v7, her Coaching.jsx). */
+  coachingV7: {
+    totalCoaches: 'Total coaches',
+    totalVisits: 'Total visits',
+    schools: 'Schools',
+    coaches: 'Coaches',
+    byRegion: 'Coaches by sector',
+    total: (n: string) => `${n} total`,
+    coachesIn: (n: string) => `${n} ${n === '1' ? 'coach' : 'coaches'}`,
+    none: 'No coaches',
   },
 };
 

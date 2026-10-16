@@ -100,6 +100,18 @@ const JOBS = {
     familyEnv: { eng: 'ASSESSMENT_GEN_MODEL_ENG', urdu: 'ASSESSMENT_GEN_MODEL_URDU' },
     settingsAtSite: true,
   },
+  'assessment.generate.fde': {
+    // Board-pattern papers, one call per section. A bake-off found a different model writes them
+    // better for less, so they can be moved on their own, both languages at once, without moving
+    // plain papers. With its variable unset it INHERITS assessment.generate, family variables and
+    // all, so a pattern paper resolves exactly as it did before this job existed; the call site
+    // then uses assessment.generate's own resolution, settings rows included.
+    // `default` is assessment.generate's literal, for readers of this table; `inherits` is
+    // consulted first, so it is reached only through that job.
+    env: 'ASSESSMENT_GEN_MODEL_FDE', default: 'google/gemini-3.1-pro-preview', inherits: 'assessment.generate',
+    site: 'shared/services/assessment/assessment-generation.service.js',
+    settingsAtSite: true,
+  },
   'hcp.feedback': {
     // falls through to the platform default today, which is why it has no literal of its own
     env: 'HCP_FEEDBACK_MODEL', default: null,
@@ -169,6 +181,9 @@ const JOBS = {
   'coaching.observeDebrief': {
     env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/observe/observe-debrief.service.js',
   },
+  // bd-08qvls.1: the /observe2 moments call and its label check, through completeJson's `job` option under their
+  // own name, so they can run on Claude Sonnet 5.5 (16 Oct eval) without moving the other completeJson consumers.
+  'observe2.moments': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/observe/observe2/moments.js' },
   'coaching.fidelityFallback': { env: null, default: 'gpt-4o-mini', site: 'shared/services/gpt5-mini.service.js' },
   'coaching.enhance': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
   'coaching.reflectiveQuestion': { env: null, default: 'gpt-4o', site: 'shared/services/gpt5-mini.service.js' },
@@ -253,6 +268,8 @@ const FALLBACK = {
   // Falling back to the author's own model would verify the author with itself.
   'quiz.keyVerify':   null,
   'assessment.generate': 'google/gemini-3.1-pro-preview',  // what it already runs
+  // The call site names the paper's own model (per language) as its fallback; this is the floor.
+  'assessment.generate.fde': 'google/gemini-3.1-pro-preview',
   'hcp.feedback':     null,  // falls through to the platform default, which is the floor
   // bd-s1oo0.5: no validated alternative for any child-test job. A supplier outage leaves that
   // section's marks empty with confidence 0 (ai_status 'partial') and the coach marks it.
@@ -363,6 +380,7 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'coaching.pedagogy': 'whole',          // gpt5-mini.service.js _safeJsonParse(rawContent)
   'coaching.completeJson': 'whole',      // gpt5-mini.service.js _safeJsonParse(content)
   'coaching.observeDebrief': 'whole',    // gpt5-mini.service.js completeJson: _safeJsonParse(content)
+  'observe2.moments': 'whole',           // gpt5-mini.service.js completeJson: _safeJsonParse(content)
   'coaching.questionRouter': 'whole',    // gpt5-mini.service.js _generateReflectiveQuestionV12: _safeJsonParse(content)
   'coaching.reflectiveCorpus': 'whole',  // gpt5-mini.service.js extractReflectiveCorpus: _safeJsonParse(content)
   'lp.extractUpload': 'whole',           // coaching/fidelity/lp-upload-extractor.js safeJsonParse
@@ -457,6 +475,7 @@ function todaysModel(job, ctx = {}) {
   }
   const own = spec.env ? (process.env[spec.env] || '').trim() : '';
   if (own) return own;
+  if (spec.inherits) return todaysModel(spec.inherits, ctx);
   if (spec.default) return spec.default;
   // hcp.feedback and anything else with no literal fall through to the platform default
   return (process.env[JOBS['platform.default'].env] || '').trim()
@@ -509,7 +528,12 @@ function resolveModelForJob(job, ctx = {}) {
   // last, so nothing can beat it
   if (cfg.killSwitch) { model = todaysModel(job, ctx); source = 'kill-switch'; }
 
-  return { job, model, source, env: JOBS[job].env, site: JOBS[job].site };
+  // Whether the answer is the inherited job's, unmoved: nothing set or written for this job
+  // itself. Such a call site asks the inherited job instead, so that job's settings still apply.
+  const spec = JOBS[job];
+  const inherited = Boolean(spec.inherits) && source === 'today'
+    && !(spec.env && (process.env[spec.env] || '').trim());
+  return { job, model, source, env: spec.env, site: spec.site, ...(inherited ? { inherited: spec.inherits } : {}) };
 }
 
 /**

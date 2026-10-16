@@ -6,7 +6,8 @@
  *   /observe2 → the /observe visit planner, opened with the token <userId>:observe2-visit
  *   → Start (flow-response.handler binds the teacher exactly as /observe does, so the recording
  *     still attaches to the right teacher) → afterStart: a record in observation_field_forms, then
- *     "How long is this period?" (30 / 35 / 40 minutes)
+ *     "How long is this period?" (25 / 30 / 35 / 40 minutes, a list: four do not fit WhatsApp's
+ *     three reply buttons; Friday periods are 25, FICO pilot sheet R18)
  *   → handlePeriodButton: the period is saved and the live form is sent, token
  *     <userId>:observe2-form:<recordId>, with the three before-the-lesson steps.
  *
@@ -24,10 +25,14 @@ const { getObserveArm } = require('../observe-gate');
 const { logToFile } = require('../../../utils/logger');
 
 const VISIT_MARKER = 'observe2-visit';
-const PERIODS = [30, 35, 40];
+const PERIODS = [25, 30, 35, 40];
 const PERIOD_BUTTON_RX = /^obs2_period:([A-Za-z0-9-]{1,64}):(\d{1,3})$/;
+// "Fill the form" on the message that saved a recording that came first (capture-link holdRecording).
+const FILL_BUTTON_RX = /^obs2_fill:([A-Za-z0-9-]{1,64})$/;
+const fillButtonId = (formId) => `obs2_fill:${formId}`;
 
 const visitToken = (userId) => `${userId}:${VISIT_MARKER}`;
+const periodId = (formId, minutes) => `obs2_period:${formId}:${minutes}`;
 const formToken = (userId, formId) => `${userId}:observe2-form:${formId}`;
 const isObserve2VisitToken = (token) => String(token || '').endsWith(`:${VISIT_MARKER}`);
 
@@ -96,12 +101,17 @@ async function afterStart({ user, phoneNumber, boundTeacher, schoolExtId, teache
   const formId = created.form.id;
   logToFile('🔭 /observe2: record created, asking the period', { userId: user.id, formId, teacherBound: Boolean(teacher) });
   await markStateWithForm(user.id, formId);
-  const asked = await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-    body: S.period_body(teacher && teacher.teacher_name),
-    buttons: PERIODS.map((m) => ({ id: `obs2_period:${formId}:${m}`, title: S.period_button(m) })),
+  // The row ids are the ids the period buttons carried, so a button already in a coach's chat and a
+  // row tapped today reach the same handler (whatsapp-bot.js routes obs2_period: on both branches).
+  const asked = await WhatsAppService.sendInteractiveMessage(phoneNumber, {
+    body: { text: S.period_body(teacher && teacher.teacher_name) },
+    action: {
+      button: S.period_list_button,
+      sections: [{ rows: PERIODS.map((m) => ({ id: periodId(formId, m), title: S.period_button(m) })) }],
+    },
   });
   if (!asked) {
-    logToFile('❌ /observe2: the period buttons did not send', { userId: user.id, formId }, 'error');
+    logToFile('❌ /observe2: the period list did not send', { userId: user.id, formId }, 'error');
     await WhatsAppService.sendMessage(phoneNumber, S.period_failed);
     return { ok: false, formId };
   }
@@ -131,11 +141,16 @@ function parsePeriodButton(buttonId) {
   return { formId: m[1], minutes };
 }
 
-async function sendLiveForm(user, from, formId, minutes) {
+/**
+ * @param {object} [opts]
+ * @param {boolean} [opts.afterLesson] the recording is already in: the form is filled after the lesson,
+ *   so the message carries no "start recording" or clock steps.
+ */
+async function sendLiveForm(user, from, formId, minutes, opts = {}) {
   const S = stringsFor(user);
   const sent = await WhatsAppService.sendFlow(from, {
     flowId: process.env.OBSERVE2_FIELD_FORM_FLOW_ID,
-    body: S.form_body(minutes),
+    body: opts.afterLesson ? S.form_body_after : S.form_body(minutes),
     buttonText: S.form_cta,
     flowToken: formToken(user.id, formId),
   });
@@ -147,7 +162,7 @@ async function sendLiveForm(user, from, formId, minutes) {
 }
 
 /**
- * "30 / 35 / 40 minutes" → save the period, send the live form. Tapping another period later
+ * "25 / 30 / 35 / 40 minutes" → save the period, send the live form. Tapping another period later
  * (before the seal) changes it and re-sends the same form.
  * @returns {Promise<boolean>} false when the id is not a period button.
  */
@@ -179,6 +194,32 @@ async function handlePeriodButton(user, from, buttonId) {
   return true;
 }
 
+/**
+ * "Fill the form" → the live form for that visit, in its after-the-lesson words when the recording is
+ * already in. Sealed, or not this coach's: the same "already sealed, or not yours" line as the period.
+ * @returns {Promise<boolean>} false when the id is not a fill button.
+ */
+async function handleFillButton(user, from, buttonId) {
+  const m = FILL_BUTTON_RX.exec(String(buttonId || ''));
+  if (!m || !user) return false;
+  const S = stringsFor(user);
+  const got = await Store.getForm(m[1]);
+  if (!got.ok) {
+    await WhatsAppService.sendMessage(from, S.try_again);
+    return true;
+  }
+  const form = got.form;
+  if (!form || form.observer_user_id !== user.id || form.sealed_at) {
+    logToFile('⚠️ /observe2: fill tap on a form that is not open for this coach', {
+      userId: user.id, formId: m[1], found: Boolean(form), sealed: Boolean(form && form.sealed_at),
+    }, 'warn');
+    await WhatsAppService.sendMessage(from, S.form_gone);
+    return true;
+  }
+  await sendLiveForm(user, from, form.id, form.period_minutes, { afterLesson: Boolean(form.coaching_session_id) });
+  return true;
+}
+
 module.exports = {
   PERIODS,
   VISIT_MARKER,
@@ -189,5 +230,7 @@ module.exports = {
   handleObserve2Command,
   afterStart,
   handlePeriodButton,
+  fillButtonId,
+  handleFillButton,
   sendLiveForm,
 };

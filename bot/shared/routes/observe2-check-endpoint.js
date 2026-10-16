@@ -15,15 +15,17 @@
  *   HEARD_EXPLAIN or FIDELITY → ADDED_ONE, ADDED_TWO   every level pre-filled with what the sealed answers and the
  *                   confirmed moments add up to (rules.addUp), with the reason; the recording's
  *                   own levels are never sent to any screen.
- *   ADDED_TWO → PRIORITY   the pick sealed before any moment was seen.
+ *   ADDED_TWO → PRIORITY   the picks sealed before any moment was seen: "Work on first" and up to two
+ *                   more (R14). A check opened before "Also work on" was published (no `cv` in its
+ *                   payload) gets its own screen's data: the first pick only, and only one its list has.
  *   PRIORITY → DONE      the record is checked once; the brief follows in the chat.
  */
 
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { addUp } = require('../services/observe/observe2/rules');
-const { CODES } = require('../services/observe/observe2/fico17');
-const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS } = require('../services/observe/observe2/evidence-check.flow');
+const { CODES, PRIORITY, ALSO_NONE, pickAlso } = require('../services/observe/observe2/fico17');
+const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS, CHECK_VERSION } = require('../services/observe/observe2/evidence-check.flow');
 const { logToFile } = require('../utils/logger');
 
 const HEARD_IDS = HEARD_SCREENS.map((h) => h.id);
@@ -63,21 +65,66 @@ const momentsOf = (form) => ((form && form.rumi_moments && form.rumi_moments.mom
 
 // ------------------------------------------------------------------ screens
 
+// The line that opens each moments screen. A part with no moment says so: a question over nothing is
+// what coaches met on 14 Oct (pilot sheet R8, R9; bd-eal7zn.3). Explaining moments feed no level by a
+// rule (rules.js PICK_CODES), so that screen says the coach picks those levels.
+const HEARD_INTRO = Object.freeze({
+  some: 'These moments were picked from the recording as evidence for this part of the lesson. Say whether each one happened as written. What you confirm counts toward the levels on the next screens; a "No" counts for nothing.',
+  explain: 'These moments were picked from the recording as evidence of how the teacher explains. Say whether each one happened as written. They help you choose the explaining levels on the next screens; they are not added up for you.',
+  none: 'No clear moment for this question was found in the recording, so there is nothing to check here. Your own answers from the form still count. Tap Next.',
+  unavailable: 'This check is not available. Tap Next to close it.',
+});
+
+function introFor(moment, form, count) {
+  if (!form) return HEARD_INTRO.unavailable;
+  if (!count) return HEARD_INTRO.none;
+  return moment === 'explain' ? HEARD_INTRO.explain : HEARD_INTRO.some;
+}
+
+// A slot's description: the quote, then why Rumi picked it (pilot sheet R15), within WhatsApp's 300
+// code points. The why is never cut; the quote gives way. A moment from before v2 has no why.
+const DESCRIPTION_MAX = 300;
+const WHY_SHOWN_MAX = 120;
+const clipCp = (text, max) => { const cps = [...text]; return cps.length > max ? `${cps.slice(0, Math.max(0, max - 1)).join('')}…` : text; };
+
+function describe(m) {
+  const why = clipCp(String(m.why || '').trim(), WHY_SHOWN_MAX);
+  const room = DESCRIPTION_MAX - 2 - (why ? [...why].length + 1 : 0);
+  const quote = clipCp(String(m.quote || ''), room);
+  return why ? `"${quote}"\n${why}` : `"${quote}"`;
+}
+
 function renderHeard(screenId, form) {
   const moment = MOMENT_OF[screenId];
   const list = momentsOf(form).filter((m) => m.moment === moment);
-  const data = {};
+  const data = { [`${screenId.toLowerCase()}_intro`]: introFor(moment, form, list.length) };
   for (let i = 1; i <= SLOTS; i += 1) {
     const k = `${screenId.toLowerCase()}_${i}`;
     const m = list[i - 1];
     data[`${k}_t`] = m ? [...`${m.minute} · ${m.label || m.type}`].slice(0, 30).join('') : '';
-    data[`${k}_d`] = m ? `"${m.quote}"` : '';
+    data[`${k}_d`] = m ? describe(m) : '';
     data[`${k}_v`] = Boolean(m);
   }
   return { screen: screenId, data };
 }
 
 const levelText = (lv) => (lv == null ? '' : String(lv));
+
+const newCheck = (screenData) => Boolean(screenData && screenData.cv === CHECK_VERSION);
+
+// The PRIORITY screen, pre-filled with the sealed picks. Today's published check lists only the 17, so
+// a pick it does not have (the plan's steps) is left for the coach to choose rather than sent as a value
+// its Dropdown cannot show.
+function renderPriority(form, screenData) {
+  const a = (form && form.answers) || {};
+  const first = String(a.priority || '');
+  if (!newCheck(screenData)) return { screen: 'PRIORITY', data: { priority_level: PRIORITY[first] ? first : '' } };
+  const also = pickAlso([a.also_1, a.also_2], first);
+  return {
+    screen: 'PRIORITY',
+    data: { priority_level: first, also_level_1: also[0] || ALSO_NONE, also_level_2: also[1] || ALSO_NONE },
+  };
+}
 
 function renderAdded(screenId, added) {
   const data = {};
@@ -307,7 +354,7 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     if (idx >= 0 && idx < HEARD_IDS.length - 1) return renderHeard(HEARD_IDS[idx + 1], null);
     if (step === 'HEARD_EXPLAIN' || step === 'FIDELITY') return renderAdded('ADDED_ONE', {});
     if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', {});
-    if (step === 'ADDED_TWO') return { screen: 'PRIORITY', data: { priority_level: '' } };
+    if (step === 'ADDED_TWO') return renderPriority(null, screenData);
     return renderDone(null, NOT_AVAILABLE);
   }
 
@@ -345,7 +392,7 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     const saved = await Store.saveReview(form, pickFields(screenData, keys));
     const current = saved.ok ? saved.form : form;
     if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', addedLevels(current, current.evidence_review || {}));
-    return { screen: 'PRIORITY', data: { priority_level: String((current.answers || {}).priority || '') } };
+    return renderPriority(current, screenData);
   }
 
   if (step === 'PRIORITY') {
@@ -366,6 +413,13 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     const finalLevels = {};
     for (const code of CODES) finalLevels[code] = review[`${code}_final`] || added[code] || '';
     const patch = pickFields(screenData, ['priority_final', 'why']);
+    // "Also work on": as submitted on the new check; on a check opened before it existed, the picks
+    // sealed in the form. Never the first pick again, never twice (fico17.pickAlso).
+    const a = form.answers || {};
+    const first = patch.priority_final || a.priority || '';
+    patch.also_final = newCheck(screenData)
+      ? pickAlso([screenData.also_final_1, screenData.also_final_2], first)
+      : pickAlso([a.also_1, a.also_2], first);
     const checked = await Store.markChecked(form, finalLevels, patch);
     if (!checked.ok) {
       if (checked.alreadyChecked) {

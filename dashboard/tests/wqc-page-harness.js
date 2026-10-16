@@ -35,13 +35,14 @@ function fakeEl(id) {
   };
 }
 
-function page({ htmlClass = '', freshEls = false, storage = null, perm = null, clock = null, lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 WhatsApp', media = 'grant', routes = {}, recorder = 'ok', chunk = 4000, href = 'https://portal.test/c/HUB.TOKEN', micLevel = 128 } = {}) {
+function page({ htmlClass = '', freshEls = false, storage = null, perm = null, clock = null, lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 WhatsApp', media = 'grant', routes = {}, recorder = 'ok', chunk = 4000, href = 'https://portal.test/c/HUB.TOKEN', micLevel = 128, src = SRC, pre = [], session = null, scripts = {}, chV = 'abc1234567', kid = null } = {}) {
   const els = {};
   const root = { querySelector: (sel) => { const id = sel.replace(/^#/, ''); if (!els[id]) els[id] = fakeEl(id); return els[id]; } };
   // freshEls: each render replaces the elements, as a real DOM does (a key bound on one screen is not the next one's)
   let html0 = '';
   Object.defineProperty(root, 'innerHTML', { get: () => html0, set: (v) => { html0 = v; if (freshEls) Object.keys(els).forEach((k) => { delete els[k]; }); } });
   const fetches = [];
+  const loaded = [];
   const events = [];
   const timers = [];
   const recs = [];
@@ -90,16 +91,27 @@ function page({ htmlClass = '', freshEls = false, storage = null, perm = null, c
     this.createMediaStreamSource = () => ({ connect() {} });
     this.createAnalyser = () => { mic.analysers += 1; return { fftSize: 2048, frequencyBinCount: 1024, getByteTimeDomainData(arr) { for (let i = 0; i < arr.length; i += 1) arr[i] = i % 2 ? mic.level : 256 - mic.level; } }; };
   }
-  const boot = { textContent: JSON.stringify({ token: 'HUB.TOKEN', kid: null, menu: { ...menu, lang }, mascot: lang === 'ur' ? 'جگنو' : 'Jugnu' }) };
+  const boot = { textContent: JSON.stringify({ token: 'HUB.TOKEN', kid, menu: { ...menu, lang }, mascot: lang === 'ur' ? 'جگنو' : 'Jugnu' }) };
   const wl = {};
-  const window = { MediaRecorder, scrollTo() {}, AudioContext, ...(storage ? { localStorage: storage } : {}), addEventListener(n, fn) { (wl[n] = wl[n] || []).push(fn); } };
+  const window = { MediaRecorder, scrollTo() {}, AudioContext, ...(storage ? { localStorage: storage } : {}), ...(session ? { sessionStorage: session } : {}), addEventListener(n, fn) { (wl[n] = wl[n] || []).push(fn); } };
   const ctx = {
     window, navigator, fetch, Audio, console, Uint8Array,
     Blob: function Blob(parts, o) { this.size = parts.reduce((a, p) => a + (p.size || 0), 0); this.type = o && o.type; },
-    location: (() => { const u = new URL(href); return { href, host: u.host, pathname: u.pathname, search: u.search }; })(),
+    location: (() => { const u = new URL(href); return { href, host: u.host, pathname: u.pathname, search: u.search, hash: u.hash }; })(),
     document: {
       getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? boot : null),
-      createElement: () => ({}), head: { appendChild() {} }, visibilityState: 'visible',
+      // a script the page adds (src = '/wq/<file>?v=…') runs from `scripts` on this window and fires load; unknown ⇒ error
+      createElement: (tag) => ({ tag, l: {}, addEventListener(n, fn) { (this.l[n] = this.l[n] || []).push(fn); }, getAttribute(k) { return this[k]; } }),
+      head: { appendChild(el) {
+        if (!el || el.tag !== 'script' || !el.src) return;
+        loaded.push(el.src);
+        const code = scripts[String(el.src).split('?')[0]];
+        const fire = (n) => { (el.l[n] || []).forEach((fn) => fn({})); if (typeof el['on' + n] === 'function') el['on' + n]({}); };
+        Promise.resolve().then(() => { if (code == null) { fire('error'); return; } vm.runInContext(code, ctx); fire('load'); });
+      } },
+      // the page's own <script src="/wq/wq-challenge.js?v=…"> (its version rides to what it loads later)
+      querySelector: (sel) => (/wq-challenge\.js/.test(sel) ? { getAttribute: () => `/wq/wq-challenge.js?v=${chV}` } : null),
+      visibilityState: 'visible',
       // the edge's class on <html> (htmlClass: e.g. 'wq-ur2' when the Urdu polish is on)
       documentElement: { classList: { contains: (c) => String(htmlClass).split(/\s+/).includes(c) } },
       addEventListener(n, fn) { (wl[`doc:${n}`] = wl[`doc:${n}`] || []).push(fn); },
@@ -110,8 +122,11 @@ function page({ htmlClass = '', freshEls = false, storage = null, perm = null, c
     Date: clock ? Object.assign(function D() { return new Date(clock.t); }, { now: () => clock.t }) : Date, JSON, Math, String, Number, Promise, Error, RegExp, Object, Array, encodeURIComponent,
   };
   ctx.MediaRecorder = MediaRecorder;
+  ctx.URL = URL;
   vm.createContext(ctx);
-  vm.runInContext(SRC, ctx);
+  // pre: scripts the page loads before wq-challenge.js (e.g. wq-trail.js), on the same window
+  pre.forEach((code) => vm.runInContext(code, ctx));
+  vm.runInContext(src, ctx);
   const flush = async () => { for (let i = 0; i < 8; i += 1) await new Promise((r) => setImmediate(r)); };
   const runTimers = async (pred = () => true) => {
     const due = timers.splice(0).filter((x) => { if (pred(x)) return true; timers.push(x); return false; });
@@ -119,7 +134,7 @@ function page({ htmlClass = '', freshEls = false, storage = null, perm = null, c
     await flush();
   };
   return {
-    w: window.__wqc, root, els, fetches, events, played, recs, flush, runTimers, mic, timers,
+    w: window.__wqc, win: window, ctx, loc: ctx.location, root, els, fetches, loaded, events, played, recs, flush, runTimers, mic, timers,
     fire: async (n) => { (wl[n] || []).forEach((fn) => fn({})); await flush(); },
     fireDoc: async (n) => { (wl[`doc:${n}`] || []).forEach((fn) => fn({})); await flush(); },
     setHidden: () => { ctx.document.visibilityState = 'hidden'; },
@@ -132,4 +147,4 @@ function page({ htmlClass = '', freshEls = false, storage = null, perm = null, c
 
 const ok = (body) => () => ({ status: 200, body });
 
-module.exports = { page, ok, MENU, CLIPS, COPY, STORY, READ, READ_GUARD };
+module.exports = { page, ok, SRC, MENU, CLIPS, COPY, STORY, READ, READ_GUARD };

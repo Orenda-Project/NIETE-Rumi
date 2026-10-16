@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ur" dir="rtl"><head><meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>اپنے کوچ کو بتائیں</title><style>
+:root{--ink:#1d2433;--soft:#5b6578;--ok:#2B8A3E;--blue:#3B5BDB;--wa:#e5ddd5;--out:#dcf8c6}
+*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:var(--ink);font:17px/1.5 system-ui,-apple-system,"Segoe UI",
+"Noto Nastaliq Urdu","Noto Naskh Arabic",sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:520px;margin:0 auto;padding:16px}h1{font-size:22px;margin:0 0 10px}h2{font-size:17px;margin:0 0 8px}
+.box{background:#fff;border-radius:14px;padding:14px 16px;margin:0 0 12px;box-shadow:0 1px 3px #0001}
+label.r{display:flex;gap:10px;align-items:flex-start;padding:8px 0}label.r input{width:22px;height:22px;flex:none;margin-top:2px}
+.btn{display:block;width:100%;font:inherit;font-weight:800;border:0;border-radius:12px;padding:13px;background:var(--blue);
+color:#fff;text-align:center;text-decoration:none;cursor:pointer;margin:10px 0 0}
+.ghost{background:#fff;color:var(--blue);border:1.5px solid var(--blue)}.hint{color:var(--soft);font-size:15px;margin:6px 0 0}
+.ok{color:var(--ok);font-weight:800}ul{margin:0;padding:0 18px}audio{width:100%;margin:8px 0 0}
+.wa{background:var(--wa);min-height:100vh}.bub{background:#fff;border-radius:10px;padding:10px 12px;margin:0 0 8px;max-width:86%}
+.me{background:var(--out);margin-inline-start:auto}.qb{display:grid;gap:6px;margin:0 0 8px;max-width:86%}
+.qb button{font:inherit;font-weight:700;color:#027eb5;background:#fff;border:0;border-radius:10px;padding:9px;cursor:pointer}
+input.t{width:100%;font:inherit;padding:10px;border-radius:20px;border:1px solid #ccc}
+</style></head><body><main>
+<h1>اپنے کوچ کو بتائیں</h1><form id="f"><section class="box"><h2>کیا ٹھیک نہیں لگا؟ جو جو درست ہو، چنیں۔</h2><label class="r"><input type="checkbox" name="reason" value="score"><span>میرا اسکور درست نہیں لگتا</span></label><label class="r"><input type="checkbox" name="reason" value="missed"><span>میں نے یہ کیا تھا، رپورٹ نے نہیں پکڑا</span></label><label class="r"><input type="checkbox" name="reason" value="wont_work"><span>یہ کام میری کلاس میں ممکن نہیں (بچے زیادہ، وقت کم)</span></label><label class="r"><input type="checkbox" name="reason" value="unclear"><span>سمجھ نہیں آیا کہ کرنا کیا ہے</span></label></section>
+<section class="box"><button class="btn ghost" type="button" id="rec" data-max-seconds="20" data-stop="ریکارڈنگ… روکنے کے لیے دبائیں">🎙 وائس نوٹ ریکارڈ کریں (اختیاری)</button><input type="file" accept="audio/*" capture id="fb" hidden><audio id="pl" controls hidden></audio><button class="btn ghost" type="button" id="del" hidden>✕ ہٹائیں</button><p class="hint">20 سیکنڈ تک، اپنے الفاظ میں۔</p></section>
+<button class="btn" type="submit">کوچ کو بھیجیں</button><a class="btn ghost" href="b-report.html">رہنے دیں</a></form>
+<section class="box" id="done" hidden><p class="ok">✓ آپ کے کوچ کو بتا دیا گیا ہے، وہ آ کر آپ کی کلاس دیکھیں گے۔</p><a class="btn" id="see" href="b-coach.html" data-coach="b-coach.html">دیکھیں کوچ کو کیا ملتا ہے ›</a></section>
+</main><script>(function(){var k='v10p-note',rec=document.getElementById('rec'),pl=document.getElementById('pl'),
+del=document.getElementById('del'),fb=document.getElementById('fb'),max=+rec.dataset.maxSeconds*1000,r=null,lab=rec.textContent;
+function show(u){pl.src=u;pl.hidden=false;del.hidden=false}
+function keep(b){var f=new FileReader();f.onload=function(){try{sessionStorage.setItem(k,f.result)}catch(e){}show(f.result)};f.readAsDataURL(b)}
+try{var o=sessionStorage.getItem(k);if(o)show(o)}catch(e){}
+rec.onclick=function(){if(r){r.stop();return}if(!window.MediaRecorder||!navigator.mediaDevices){fb.click();return}
+navigator.mediaDevices.getUserMedia({audio:true}).then(function(s){var parts=[];r=new MediaRecorder(s);
+r.ondataavailable=function(e){parts.push(e.data)};var t=setTimeout(function(){if(r)r.stop()},max);
+r.onstop=function(){clearTimeout(t);s.getTracks().forEach(function(x){x.stop()});keep(new Blob(parts,{type:r.mimeType||'audio/webm'}));
+r=null;rec.textContent=lab};r.start();rec.textContent=rec.dataset.stop}).catch(function(){fb.click()})};
+fb.onchange=function(){if(fb.files[0])keep(fb.files[0])};
+del.onclick=function(){try{sessionStorage.removeItem(k)}catch(e){}pl.hidden=true;del.hidden=true;pl.removeAttribute('src')};
+document.getElementById('f').onsubmit=function(e){e.preventDefault();var c=[].map.call(document.querySelectorAll('input[name=reason]:checked'),
+function(x){return x.value});var a=document.getElementById('see');a.href=a.dataset.coach+'?r='+c.join(',');
+this.hidden=true;document.getElementById('done').hidden=false}})();</script></body></html>

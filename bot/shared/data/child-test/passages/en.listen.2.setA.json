@@ -1,0 +1,17 @@
+{
+  "passage_id": "en.listen.2.setA",
+  "lang": "en",
+  "kind": "listen",
+  "band": 2,
+  "pool": "check",
+  "is_reference": true,
+  "names": [
+    "Sara"
+  ],
+  "v3_ref": {
+    "lang": "en",
+    "kind": "listening"
+  },
+  "questions_extra": [],
+  "bank_version": "child-test-items-v3"
+}

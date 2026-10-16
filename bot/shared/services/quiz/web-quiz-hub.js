@@ -85,9 +85,10 @@ const gradeNum = (v) => (String(v == null ? '' : v).match(/\d+/) || [''])[0];
 const daysAgoIso = (d) => new Date(Date.now() - d * 86400000).toISOString();
 const isOpen = (c) => c && c.active !== false && (!c.expires_at || new Date(c.expires_at).getTime() > Date.now());
 
-/** The ids a genuine hub token names; else 401. */
+/** The ids a genuine hub token names; else 401 (404 for a genuine guest token). */
 function idsOf(token) {
   const tok = T.verify(token, 'h');
+  if (!tok && T.verify(token, 'g')) fail(404, 'not_found'); // a guest token (web_quiz_guest_home): the guest page is not built
   if (!tok || !Array.isArray(tok.ids) || !tok.ids.length) fail(401, 'bad_token');
   return tok.ids.map(String);
 }
@@ -310,11 +311,21 @@ async function recsFor(kidId, history, grade) {
  * off it). Null when the token or the chip is not genuine.
  */
 async function kidFromHub(token, chip, device) {
-  const studentId = kidOf(token, chip);
+  let studentId = kidOf(token, chip);
+  let rawIds = studentId ? [studentId] : [];
+  // child identity store (web_quiz_identity_canon): the hub shows each child by the id they are known by, so a chip
+  // may name a folded id; it resolves through the token's raw ids (the phone must be trusted for one of them).
+  if (!studentId && chip && (await require('./web-quiz-identity-flags').flags()).canon) {
+    const tok = T.verify(token, 'h');
+    const raw = tok && Array.isArray(tok.ids) ? tok.ids.map(String) : [];
+    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds(raw);
+    rawIds = raw.filter((id) => kidChip(canon.get(id) || id) === String(chip));
+    studentId = rawIds.length ? canon.get(rawIds[0]) || rawIds[0] : null;
+  }
   if (!studentId) return null;
   // A forwarded link opens nothing as the child on another phone.
   const trust = await deviceTrusted(token, device);
-  if (!trust.ok || !trust.ids.includes(studentId)) return null;
+  if (!trust.ok || !rawIds.some((id) => trust.ids.includes(id))) return null;
   const ctx = await kidContext(studentId);
   if (!ctx) return null;
   const root = ctx.history.find((e) => e.teacherSent) || null;
@@ -346,8 +357,22 @@ async function brandKey() {
   }
 }
 
+/**
+ * The language the child chose on the page that sent them here (?lang=en|ur), when it may win over the guess from
+ * their history: only under web_quiz_challenge_v2 (with its parents; web-quiz-hub-play.js switches, 30 s cache,
+ * fail closed). Anything else, or the switch off: null, and the hub is today's. Asked only when a lang came.
+ */
+async function askedLang(lang) {
+  if (lang !== 'en' && lang !== 'ur') return null;
+  try {
+    return (await require('./web-quiz-hub-play').switches()).v2 ? lang : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /** A phone that may not see the children: their language only, never a name, a chip or a quiz. */
-async function lockedHub(ids, why) {
+async function lockedHub(ids, why, asked = null) {
   let lang = 'en';
   try {
     const { data: rows } = await dbRead('lockedHub:students:1', (db) => db.from('students').select('id, is_active').in('id', ids));
@@ -358,21 +383,28 @@ async function lockedHub(ids, why) {
       lang = clampLanguage(StudentQuiz.childLanguage(history));
     }
   } catch (_) { /* English */ }
+  if (asked) lang = asked;
   logEvent('web_quiz.hub_locked', { kids: ids.length, why });
   return { lang, locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, brand: await brandKey() };
 }
 
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hubPayload(token, { kid, device } = {}) {
+async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
+  const asked = await askedLang(wanted);
   const trust = await deviceTrusted(token, device);
-  if (!trust.ok) return lockedHub(ids, trust.why);
+  if (!trust.ok) return lockedHub(ids, trust.why, asked);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
-  const mine = ids.filter((id) => trust.ids.includes(id));
+  let mine = ids.filter((id) => trust.ids.includes(id));
+  // child identity store (web_quiz_identity_canon): each child once, by the id they are known by (the token keeps raw ids).
+  if ((await require('./web-quiz-identity-flags').flags()).canon) {
+    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds(mine);
+    mine = [...new Set(mine.map((id) => canon.get(id) || id))];
+  }
 
   const { data: rows } = await dbRead('hubPayload:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine));
@@ -388,7 +420,7 @@ async function hubPayload(token, { kid, device } = {}) {
   const challengeP = f.challenge && chosen ? challengeGrade(chosen.id) : Promise.resolve(false);
   const ctx = chosen ? await kidContext(chosen.id) : null;
   const history = ctx ? ctx.history : [];
-  const lang = clampLanguage(require('./student-quiz.service').childLanguage(history));
+  const lang = asked || clampLanguage(require('./student-quiz.service').childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     lang,
@@ -398,8 +430,13 @@ async function hubPayload(token, { kid, device } = {}) {
     // Which brand the page wears: a key only; the edge owns the look (as getQuiz).
     brand: await brandKey(),
   };
+  // Events v2 (web_quiz_events_v2): hub_open gains the envelope and the phone's key (kid only once a child is picked).
+  // src is the route the caller passed (the hub URL's from=), only from the known set; the return mark (ret) is not known here.
+  const openEv = (base, studentId) => (f.hub && f.eventsV2 ? require('./web-quiz-measure-events').hubOpen(base, { studentId, device, src }) : base);
+  // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
+  await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src });
   if (!chosen) {
-    logEvent('web_quiz.hub_open', { kids: kidsRows.length, picked: false });
+    logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;
   }
   const grade = ctx.grade;
@@ -431,10 +468,12 @@ async function hubPayload(token, { kid, device } = {}) {
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
   // The Library tile wears the child's grade picture (the library opens on that grade).
   if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
-  logEvent('web_quiz.hub_open', {
+  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
+  logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
-  });
+  }, chosen.id));
+  Object.assign(out, await require('./web-quiz-book').hubBits({ studentId: chosen.id })); // Jugnu's Book: {} while web_quiz_challenge_book is off
   return out;
 }
 

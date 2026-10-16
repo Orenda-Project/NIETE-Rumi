@@ -1,0 +1,163 @@
+{
+ "rule": "trail -> newest unseen story (live only) -> numbers (+day) -> day; a preview names a day or a title, never a rung, lamp or sticker",
+ "cases": [
+  {
+   "case": "trail waiting",
+   "in": {
+    "trail_waiting": [
+     "read",
+     "bigger"
+    ],
+    "unseen_stories": [
+     {
+      "title": "The Kite",
+      "released_at": "2026-11-02T00:00:00+05:00",
+      "band": 1
+     }
+    ],
+    "numbers_fresh": true,
+    "next_release": "2026-11-09T00:00:00+05:00",
+    "read_along_first": false,
+    "now": "2026-11-04T18:00:00+05:00"
+   },
+   "out": {
+    "kind": "trail",
+    "stops": 2
+   }
+  },
+  {
+   "case": "newest unseen story",
+   "in": {
+    "trail_waiting": [],
+    "unseen_stories": [
+     {
+      "title": "The Kite",
+      "released_at": "2026-10-26T00:00:00+05:00",
+      "band": 1
+     },
+     {
+      "title": "Rain on the Roof",
+      "released_at": "2026-11-02T00:00:00+05:00",
+      "band": 2
+     }
+    ],
+    "numbers_fresh": true,
+    "next_release": "2026-11-09T00:00:00+05:00",
+    "read_along_first": false,
+    "now": "2026-11-04T18:00:00+05:00"
+   },
+   "out": {
+    "kind": "story",
+    "title": "Rain on the Roof"
+   }
+  },
+  {
+   "case": "read-along-first child gets band-1 first",
+   "in": {
+    "trail_waiting": [],
+    "unseen_stories": [
+     {
+      "title": "The Kite",
+      "released_at": "2026-10-26T00:00:00+05:00",
+      "band": 1
+     },
+     {
+      "title": "Rain on the Roof",
+      "released_at": "2026-11-02T00:00:00+05:00",
+      "band": 2
+     }
+    ],
+    "numbers_fresh": true,
+    "next_release": null,
+    "read_along_first": true,
+    "now": "2026-11-04T18:00:00+05:00"
+   },
+   "out": {
+    "kind": "story",
+    "title": "The Kite"
+   }
+  },
+  {
+   "case": "nothing unseen, Sunday, buffered Monday drop",
+   "in": {
+    "trail_waiting": [],
+    "unseen_stories": [],
+    "numbers_fresh": true,
+    "next_release": "2026-11-09T00:00:00+05:00",
+    "read_along_first": false,
+    "now": "2026-11-08T19:00:00+05:00"
+   },
+   "out": {
+    "kind": "numbers",
+    "day": "tomorrow"
+   }
+  },
+  {
+   "case": "nothing unseen, Wednesday",
+   "in": {
+    "trail_waiting": [],
+    "unseen_stories": [],
+    "numbers_fresh": true,
+    "next_release": "2026-11-09T00:00:00+05:00",
+    "read_along_first": false,
+    "now": "2026-11-04T19:00:00+05:00"
+   },
+   "out": {
+    "kind": "numbers",
+    "day": "monday"
+   }
+  },
+  {
+   "case": "nothing unseen, no buffered drop: promise nothing",
+   "in": {
+    "trail_waiting": [],
+    "unseen_stories": [],
+    "numbers_fresh": true,
+    "next_release": null,
+    "read_along_first": false,
+    "now": "2026-11-04T19:00:00+05:00"
+   },
+   "out": {
+    "kind": "numbers",
+    "day": null
+   }
+  },
+  {
+   "case": "numbers switch off",
+   "in": {
+    "trail_waiting": [],
+    "unseen_stories": [],
+    "numbers_fresh": false,
+    "next_release": "2026-11-09T00:00:00+05:00",
+    "read_along_first": false,
+    "now": "2026-11-04T19:00:00+05:00"
+   },
+   "out": {
+    "kind": "day",
+    "day": "monday"
+   }
+  },
+  {
+   "case": "future story title never shown",
+   "in": {
+    "trail_waiting": [],
+    "unseen_stories": [
+     {
+      "title": "Not Yet Live",
+      "released_at": "2026-11-09T00:00:00+05:00",
+      "band": 1
+     }
+    ],
+    "numbers_fresh": true,
+    "next_release": "2026-11-09T00:00:00+05:00",
+    "read_along_first": false,
+    "now": "2026-11-08T19:00:00+05:00"
+   },
+   "out": {
+    "kind": "numbers",
+    "day": "tomorrow"
+   },
+   "note": "unseen_stories must already exclude released_at > now; the resolver re-filters defensively"
+  }
+ ]
+}

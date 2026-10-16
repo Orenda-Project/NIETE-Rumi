@@ -1,0 +1,23 @@
+{
+  "done": {
+    "lang": "en", "token": "tok.tok", "brand": null, "home_v": 1,
+    "kids": [{ "chip": "0000000000000001", "first": "Zara", "animal": "owl", "grade": "3" }], "kid": "0000000000000001",
+    "teacher": null, "again": [], "recs": [], "lib": null,
+    "challenge": { "on": true, "exercises": [{ "id": "bigger", "done": false }, { "id": "read", "done": false }] },
+    "last": { "code": "MATH01", "topic": "Fractions quiz", "subject": "Maths", "k": "k1", "state": "done", "score": { "c": 8, "t": 10 }, "again": true }
+  },
+  "open": {
+    "lang": "en", "token": "tok.tok", "brand": null, "home_v": 1,
+    "kids": [{ "chip": "0000000000000001", "first": "Zara", "animal": "owl", "grade": "3" }], "kid": "0000000000000001",
+    "teacher": null, "again": [], "recs": [], "lib": null,
+    "challenge": { "on": true, "exercises": [{ "id": "bigger", "done": false }, { "id": "read", "done": false }] },
+    "last": { "code": "NEWQ01", "topic": "Shapes", "subject": "maths", "k": "k2", "state": "open", "answered": 2 }
+  },
+  "classic": {
+    "lang": "ur", "token": "tok.tok", "brand": null,
+    "kids": [{ "chip": "0000000000000001", "first": "زارا", "animal": "owl", "grade": "3" }], "kid": "0000000000000001",
+    "teacher": { "code": "NEWQ01", "topic": "Shapes", "subject": "maths", "sent_at": "2026-10-06T10:00:00Z", "k": "k1" },
+    "again": [], "recs": [], "lib": { "href": "/lib/tok.tok?kid=0000000000000001&l=ur" },
+    "challenge": { "on": true, "exercises": [{ "id": "bigger", "done": false }, { "id": "read", "done": false }] }
+  }
+}

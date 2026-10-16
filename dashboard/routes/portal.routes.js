@@ -94,6 +94,7 @@ const { makeRequireAnalyticsViewer } = require('../lib/analytics-viewer');
 const { isAccountNameInput, normaliseAccountName, storedPhoneFor } = require('../lib/analytics-account-name');
 const SchoolsAnalytics = require('../services/schools-analytics.service');
 const CoachingAnalytics = require('../services/coaching-analytics.service'); // bd-97x22y.1
+const ObservationsAnalytics = require('../services/observations-analytics.service'); // bd-97x22y.5
 const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
@@ -1762,6 +1763,45 @@ router.get('/analytics/training-levels', requirePortalAuth, requireAnalyticsView
   }
 });
 
+// bd-97x22y.5 — its own ten-minute cache, keyed from|to|region like the two above. The costly part
+// (each session's analysis_data) is the schools route's per-session memo, shared: a session either
+// route has read is not read again by the other.
+const observationsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
+
+/**
+ * GET /api/portal/analytics/observations?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
+ *
+ * The schools-analytics Observations tab (bd-97x22y.5, PLAN v7): the ICT dashboard's Observations
+ * tab 1 to 1 — for Digital Coach (`dc`) and Human (`human`) observations each: observations,
+ * teachers observed, sectors active, and her FICO Section B / C / D scores (LP Fidelity, Teaching
+ * Practices, Engagement; % with their n) — overall, per region (the six ICT sectors, whatever the
+ * filter) and per school. Its own endpoint so /analytics/schools answers exactly as before. Same
+ * gate, window, regions and school rule; definitions in services/observations-analytics.service.js.
+ * School-level only — no teacher appears in the answer.
+ */
+router.get('/analytics/observations', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    if (!region.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown region.' });
+    }
+    const range = analyticsRange(req.query);
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const body = await observationsAnalyticsCache.getOrLoad(key, async () => {
+      const rows = await ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range);
+      return {
+        success: true,
+        range,
+        ...ObservationsAnalytics.summarizeObservationsAnalytics(rows, { region: region.region }),
+      };
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('analytics/observations error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load observation analytics.' });
+  }
+});
+
 /**
  * GET /api/portal/my-analytics
  * A TEACHER's own Analytics page: the same sections her principal sees when
@@ -2822,15 +2862,28 @@ router.get('/lesson-plans/recent', requirePortalAuth, async (req, res) => {
 // and it is a school-leader gate that 403s teachers. Reading the wrong one is
 // silent: it passes undefined, and the bot answers "userId is required".
 const Assessment = require('../services/assessment.service');
+const AssessmentRateLimit = require('../lib/assessment-rate-limit');
 
-/** A 400 from the bot carries a message she can act on; anything else is ours. */
+/**
+ * A 400 (or a coded 409) from the bot carries a message the teacher can act on; anything else is ours.
+ * `errorCode` / `requestId` ride along only when the bot sent them, so an uncoded 400 answers as before.
+ */
 function assessmentFailure(res, error, fallback) {
   if (error && error.userFacing) {
-    return res.status(400).json({ success: false, error: error.message });
+    const body = { success: false, error: error.message };
+    if (error.errorCode) body.errorCode = error.errorCode;
+    if (error.requestId) body.requestId = error.requestId;
+    return res.status(error.status === 409 ? 409 : 400).json(body);
   }
   console.error('❌ Portal assessment failed', { error: error?.message });
   return res.status(502).json({ success: false, error: fallback });
 }
+
+/**
+ * The soft per-teacher limit on making papers (10 an hour, 30 a day): 429 RATE_LIMITED with retryAt.
+ * A no-op unless assessment_rate_limit_enabled is on; a failed count never blocks (the lib fails open).
+ */
+const assessmentRateLimit = AssessmentRateLimit.middleware({ supabase, dbQuery });
 
 /**
  * GET /api/portal/assessment/options?grade=4&subject=science
@@ -2879,7 +2932,7 @@ router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
  * 202 because the paper does not exist yet — generation is a queued job of
  * about a minute and the page polls /status.
  */
-router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
+router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, async (req, res) => {
   try {
     const body = req.body || {};
     const { requestId } = await Assessment.create({
@@ -2900,6 +2953,10 @@ router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
       includeAnswerKey: body.includeAnswerKey,
       answerLines: body.answerLines,
       outputFormat: body.outputFormat,
+      // The board pattern (FDE). undefined, not null, when absent: JSON drops the keys, so a plain
+      // request reaches the bot byte-identical to before.
+      pattern: body.pattern ?? undefined,
+      scope: body.scope ?? undefined,
     });
     res.status(202).json({ success: true, requestId });
   } catch (error) {

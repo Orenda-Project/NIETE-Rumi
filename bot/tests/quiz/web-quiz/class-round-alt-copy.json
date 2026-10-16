@@ -1,0 +1,10 @@
+{
+ "jg.round.card_sub": {
+  "en": "Your class was drawn this term. About a minute per child, one at a time, on your phone. You can continue another day.",
+  "ur": "اس ٹرم قرعہ اندازی میں آپ کی کلاس نکلی ہے۔ ہر بچے کے لیے تقریباً ایک منٹ، آپ کے فون پر۔ چاہیں تو کسی اور دن جاری رکھیں۔"
+ },
+ "bot.round.invite": {
+  "en": "Jugnu class round: nothing about your class is ever reported by name.\nYour class came up in the draw for this term's round. On your phone, each child present plays two short tap games in their turn, about a minute a turn, with no microphone. You can pause and continue another day.\nIf this term does not suit you, tap \"Not this term\" on the card. That is completely fine.\nTap Open to see how it works.",
+  "ur": "جگنو کلاس راؤنڈ: آپ کی کلاس کی کوئی بات کبھی نام کے ساتھ رپورٹ نہیں کی جاتی۔\nاس ٹرم کے راؤنڈ کی قرعہ اندازی میں آپ کی کلاس کا نام آیا ہے۔ کلاس میں موجود ہر بچے کی باری پر آپ کے فون پر ٹیپ والے دو چھوٹے کھیل ہوتے ہیں، ہر باری تقریباً ایک منٹ کی، مائیک کے بغیر۔ چاہیں تو روک کر کسی اور دن جاری رکھیں۔\nاگر یہ ٹرم آپ کے لیے مناسب نہ ہو تو کارڈ پر «اس ٹرم نہیں» دبا دیں۔ یہ بالکل ٹھیک ہے۔\nیہ کیسے ہوتا ہے، دیکھنے کے لیے «کھولیں» دبائیں۔"
+ }
+}

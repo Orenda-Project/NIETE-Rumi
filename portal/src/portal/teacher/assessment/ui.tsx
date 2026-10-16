@@ -43,21 +43,27 @@ export function Chip({ children, tone = 'grey' }: { children: ReactNode; tone?: 
 
 /** The New paper's frame: back to the step before, "New paper" over the step's name, its bar, and Next. */
 export function StepFrame({
-  step, backTo, next, children,
+  step, backTo, next, children, steps = STEPS, crumb, hint,
 }: {
   step: Step;
   backTo: string;
+  /** The steps this New paper has: today's six, or the FDE board pattern's two (Class, Check). */
+  steps?: readonly Step[];
+  /** The eyebrow over the title; "New paper" unless the FDE door led here ("FDE pattern papers"). */
+  crumb?: string;
+  /** One quiet line above the dock's button ("Ready in about 3 min · …"). */
+  hint?: ReactNode;
   /** The dock: a link (`to`) or a button (`onPress`). `why` is the reason it is off, in words, or null when it works
    *  (bd-fmf24g.34: a disabled button always says why); `busy` is off too, with "Please wait" unless `why` says more. */
   next: { label: ReactNode; why: string | null; to?: string; onPress?: () => void; busy?: boolean };
   children: ReactNode;
 }) {
   const C = useCopy(ASSESSMENT);
-  const n = STEPS.indexOf(step) + 1;
+  const n = steps.indexOf(step) + 1;
   const icon = next.busy
     ? <Loader2 className="h-5 w-5 motion-safe:animate-spin" aria-hidden="true" />
     : <ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />;
-  const dock = (
+  const button = (
     <ButtonWithReason
       label={next.label}
       reason={next.busy ? (next.why ?? C.why.wait) : next.why}
@@ -67,10 +73,18 @@ export function StepFrame({
       testId="step-next"
     />
   );
+  const dock = hint
+    ? (
+      <div className="flex w-full flex-col gap-1.5">
+        <p data-testid="step-hint" className="px-1 text-center text-[14px] font-semibold text-[#4b5563]">{hint}</p>
+        {button}
+      </div>
+    )
+    : button;
   return (
-    <TeacherPage crumb={C.newPaperCrumb} title={C.steps[step]} backTo={backTo} dock={dock} testId={`assessment-step-${step}`}>
-      <div role="progressbar" aria-label={C.step(n, STEPS.length)} aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={n} className="flex gap-1.5 px-1">
-        {STEPS.map((s, i) => (
+    <TeacherPage crumb={crumb ?? C.newPaperCrumb} title={C.steps[step]} backTo={backTo} dock={dock} testId={`assessment-step-${step}`}>
+      <div role="progressbar" aria-label={C.step(n, steps.length)} aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={n} className="flex gap-1.5 px-1">
+        {steps.map((s, i) => (
           <i key={s} className={cn('h-[5px] flex-1 rounded-full', i < n ? 'bg-[#33374a]' : 'bg-[#e5e7eb]')} />
         ))}
       </div>

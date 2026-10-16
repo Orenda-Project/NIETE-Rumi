@@ -293,7 +293,7 @@ describe('the door is wired', () => {
     const fs = require('fs');
     const path = require('path');
     const src = fs.readFileSync(path.join(__dirname, '../../whatsapp-bot.js'), 'utf8');
-    const attachAt = src.indexOf('StudentIngress.attach(user, from)');
+    const attachAt = src.indexOf('StudentIngress.attach(user, from, { body: messageBody })');
     const routeAt = src.indexOf('StudentIngress.route({ message, messageType, messageBody, from, user })');
     const dispatchAt = src.indexOf("if (messageType === 'text' && messageBody) {");
     expect(attachAt).toBeGreaterThan(-1);

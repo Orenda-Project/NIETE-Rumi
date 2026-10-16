@@ -19,10 +19,25 @@
  *
  * window.WQT.push(e) lets a page script send its own event through this queue (same ps/pseq); it returns
  * false when telemetry is off, and the page then sends it the way it always has.
+ *
+ * window.WQT.withLang(href, lang) is the pages' one link helper, here because this is the one script every page
+ * loads first (the hub page does not load wq-lib.js): every link a page mints into another page carries
+ * lang=<en|ur>, the language the child sees, so the next page opens in it. Always there, switch on or off.
  */
 (function () {
   'use strict';
-  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {} };
+  // The link with lang=<en|ur> set (an existing lang= replaced, a #fragment kept last); any other lang: unchanged.
+  function withLang(href, lang) {
+    var h = String(href == null ? '' : href);
+    if (lang !== 'en' && lang !== 'ur') return h;
+    var i = h.indexOf('#');
+    var frag = i >= 0 ? h.slice(i) : '';
+    if (i >= 0) h = h.slice(0, i);
+    if (/[?&]lang=[^&]*/.test(h)) h = h.replace(/([?&])lang=[^&]*/, '$1lang=' + lang);
+    else h += (h.indexOf('?') < 0 ? '?' : /[?&]$/.test(h) ? '' : '&') + 'lang=' + lang;
+    return h + frag;
+  }
+  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang };
   var B;
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return; }
   if (!B || B.rt !== true) return;

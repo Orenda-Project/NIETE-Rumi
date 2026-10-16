@@ -250,6 +250,7 @@ features:
     - bot/shared/handlers/observe-visit-flow.handler.js
     - bot/shared/routes/observe-mewaka-endpoint.js
     - bot/shared/routes/observe2-check-endpoint.js      # observe2's check Flow + the brief (sandbox)
+    - bot/shared/routes/observe2-form-endpoint.js       # observe2's live field form (the parts, the seal, CONTINUE)
     - bot/docs/flows/observe-*.json
     - bot/shared/templates/observe-*.js
     - bot/shared/templates/observation-report.template.js
@@ -824,6 +825,10 @@ web:
       - portal/src/portal/pages/ClassicAssessment.tsx
       - portal/src/portal/pages/PortalReadingAssessment*.tsx
       - portal/src/portal/newui/assessment/**
+    fde-board-pattern:
+      - portal/src/portal/teacher/assessment/**        # the door, Check and make, the refusals the app shows
+      - dashboard/services/assessment.service.js       # the proxy: pattern/scope, errorCode, 409 passthrough
+      - dashboard/lib/assessment-rate-limit.js         # the soft limit (FB06/FB07)
     coach-portal:
       - portal/src/portal/coach/**
       - dashboard/services/coach-v2.service.js

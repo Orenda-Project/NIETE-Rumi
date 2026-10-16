@@ -309,14 +309,21 @@ function collectQuestions(examJson) {
   return found;
 }
 
+/**
+ * What one question is worth: the sum of its parts when its parts carry marks,
+ * else its own number. One rule for the paper's total and the key's column, so
+ * the two can never disagree.
+ */
+function questionMarks(question) {
+  if (Array.isArray(question?.questions)) {
+    const subs = question.questions.reduce((s, q) => s + (Number(q?.marks) || 0), 0);
+    if (subs > 0) return subs;
+  }
+  return Number(question?.marks) || 0;
+}
+
 function totalMarks(questions) {
-  return questions.reduce((sum, { question }) => {
-    if (Array.isArray(question?.questions)) {
-      const subs = question.questions.reduce((s, q) => s + (Number(q?.marks) || 0), 0);
-      if (subs > 0) return sum + subs;
-    }
-    return sum + (Number(question?.marks) || 0);
-  }, 0);
+  return questions.reduce((sum, { question }) => sum + questionMarks(question), 0);
 }
 
 // The paper a child writes on never carries the answers, whatever was asked for.
@@ -325,6 +332,8 @@ function totalMarks(questions) {
 // eslint-disable-next-line no-unused-vars
 function renderPaper({ examJson, grade, subject, schoolName, pageReference,
                        chapterTitle, includeAnswerKey = false, answerLines = true }) {
+  // A board-pattern paper carries its layout and prints by it; read off the paper, never a flag.
+  if (examJson && examJson._layout) return require('./assessment-paper-fde.renderer').renderPaper(arguments[0]);
   const lineMm = lineHeightMm(grade);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
@@ -437,8 +446,16 @@ function questionLabel(question) {
  * under the number the paper printed it, with its answer beside it. A question
  * the model gave no answer for still appears, so the numbering matches the
  * paper and the teacher sees the gap rather than a renumbered list.
+ *
+ * The last column is what the question is worth, written the way the paper
+ * writes it, and each part of a passage carries its own part marks: marking
+ * forty copies from the key should not need the question paper open beside it.
+ * On an Urdu key the marks are a Latin run inside a right-to-left table and
+ * stay isolated left-to-right.
  */
 function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, chapterTitle }) {
+  // A board-pattern paper's key is its marking scheme.
+  if (examJson && examJson._layout) return require('./assessment-paper-fde.renderer').renderMarkingScheme(arguments[0]);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
   const dash = '—';
@@ -449,7 +466,7 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
   for (const { type, question } of questions) {
     if (type !== lastType) {
       if (type && !GENERIC_TYPES.has(String(type).trim().toLowerCase())) {
-        rows.push(`<tr class="type"><td colspan="3">${esc(type)}</td></tr>`);
+        rows.push(`<tr class="type"><td colspan="4">${esc(type)}</td></tr>`);
       }
       lastType = type;
     }
@@ -466,14 +483,17 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
       answer = question.questions.map((sub, i) => {
         const letter = String.fromCharCode(97 + i);
         const a = typeof sub === 'object' && sub.answer ? esc(sub.answer) : dash;
-        return `<div><b>${letter})</b> ${a}</div>`;
+        const part = typeof sub === 'object' ? marksLabel(sub && sub.marks) : '';
+        // The letter is a Latin run: isolated, or "c) —" reads "—(c" on an Urdu key.
+        return `<div><b class="num">${letter})</b> ${a}${part ? ` ${part}` : ''}</div>`;
       }).join('');
     } else if (question && Array.isArray(question.words) && question.words.length && !question.answer) {
       answer = dash;
     } else {
       answer = question && question.answer ? escMultiline(question.answer) : dash;
     }
-    rows.push(`<tr><td class="num">${number}.</td><td class="qt">${esc(questionLabel(question))}</td><td class="ans">${answer}</td></tr>`);
+    rows.push(`<tr><td class="num">${number}.</td><td class="qt">${esc(questionLabel(question))}</td>`
+      + `<td class="ans">${answer}</td><td class="mk">${marksLabel(questionMarks(question))}</td></tr>`);
     number += 1;
   }
 
@@ -501,9 +521,11 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
   .teacher { border: 1px solid #999; padding: 6px 10px; font-size: 10.5pt; margin-bottom: 12px; color: #222; }
   table.key { width: 100%; border-collapse: collapse; }
   table.key td { border-bottom: 1px solid #ccc; padding: 6px 7px; vertical-align: top; }
-  table.key td.num { width: 8%; font-weight: 700; white-space: nowrap; }
-  table.key td.qt { width: 46%; color: #333; }
-  table.key td.ans { width: 46%; font-weight: 600; }
+  table.key td.num { width: 7%; font-weight: 700; white-space: nowrap; }
+  table.key td.qt { width: 40%; color: #333; }
+  table.key td.ans { width: 40%; font-weight: 600; }
+  table.key td.mk { width: 13%; white-space: nowrap; font-size: 10pt; color: #444; text-align: ${rtl ? 'left' : 'right'}; }
+  table.key td.ans .marks { font-weight: 400; font-size: 10pt; color: #444; white-space: nowrap; }
   table.key tr.type td { border-bottom: 1.5px solid #000; font-size: 10.5pt; font-weight: 700;
     text-transform: uppercase; letter-spacing: .04em; padding-top: 14px; }
   tr { page-break-inside: avoid; }
@@ -524,4 +546,6 @@ module.exports = {
   renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion,
   answerLinesFor, storedLines, MAX_STORED_LINES,
   NO_LINES, isRtl, GENERIC_TYPES,
+  // For a second renderer that prints the same fonts and escapes the same way.
+  fontFaces, esc,
 };

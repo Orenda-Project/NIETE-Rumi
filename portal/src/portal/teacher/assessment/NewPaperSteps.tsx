@@ -1,24 +1,27 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { AlignLeft, BookOpen, ListChecks, Plus, Shuffle, Sparkles, X } from 'lucide-react';
+import { AlignLeft, BookOpen, LayoutList, ListChecks, Plus, Shuffle, Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { ClassPicker, NumberField, type ClassPick, type GradeSubjectPair } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
-import { ASSESSMENT } from './copy';
+import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { useCopy } from '../i18n';
-import { catalogueOnce, loadChapters, loadTypes, subjectName } from './api';
+import { catalogueOnce, loadChapters, loadTypes, patternFor, patternOffer, subjectName } from './api';
 import {
-  MAX_TOTAL_MARKS, checkPages, toSpec, typesStatus, unseenTarget, type Picks, type Source,
+  FDE_STEPS, MAX_TOTAL_MARKS, STEPS, checkPages, isFde, toSpec, typesStatus, unseenTarget, type Picks, type Source,
 } from './model';
+import { FdeCheck } from './FdeCheck';
+import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
 import { useJobs } from './useJobs';
 import {
-  CheckRow, Chip, Choice, Label, ListCard, LoadState, StepFrame, Stepper, SwitchRow, Tabs,
+  CheckRow, Chip, Choice, Label, ListCard, LoadState, PRIMARY, StepFrame, Stepper, SwitchRow, Tabs,
 } from './ui';
+import { portal, type AssessmentPattern } from '../../services/api';
 
 /**
  * bd-fmf24g.6 — the teacher v2 New paper, six steps (v28 canvas AssessmentNew … AssessConfirm), each its
@@ -45,8 +48,16 @@ function needsClassOf(p: Picks) {
 const changeClass = (p: Picks, grade: number, subject: string | null, name: string | null): Partial<Picks> => {
   const same = p.grade === grade && p.subject === subject;
   // A new class has other chapters and other types: what she picked for the old one goes.
-  return same ? { subjectName: name } : { grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typeMode: 'auto' };
+  if (same) return { subjectName: name };
+  const out: Partial<Picks> = { grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typeMode: 'auto' };
+  // …and a board pattern picked for the old class (the side door) goes too; the FDE door's intent is decided by the pick.
+  return p.style || p.coverBy === 'fde' ? { ...out, coverBy: 'chapters', style: null, pattern: null } : out;
 };
+
+/** The FDE door's pick: an eligible subject keeps the board pattern and goes to Check; any other falls back to today's. */
+const doorPick = (pattern: string | null): Partial<Picks> => (pattern
+  ? { coverBy: 'fde', style: 'fde', pattern, patternIntent: pattern, chapters: [], ranges: [] }
+  : { coverBy: 'chapters', style: null, pattern: null, patternIntent: null });
 
 /* ── 1 Class ─────────────────────────────────────────────────────────────── */
 
@@ -63,22 +74,98 @@ export function ClassStep() {
     ? Object.fromEntries(Object.entries(catalogue.byGrade).map(([g, list]) => [g, list.map((s) => s.name)]))
     : undefined), [catalogue]);
 
-  const onPick = (v: GradeSubjectPair, pick: ClassPick) => {
+  // The FDE door (bd: the door sets patternIntent): the subjects it serves are read once, so a tap goes straight on.
+  const door = !!p.patternIntent;
+  // Islamiat is held by policy (DESIGN §4.2), not by the server's answer: dim from first paint, and the probe below may only
+  // un-hold it, the day the server offers a pattern for it.
+  const [held, setHeld] = useState<string[]>(['islamiat']);
+  const doorGrades = catalogue?.patternGrades;
+  // The door's intent outlives the switch (sessionStorage): when the catalogue offers no board pattern any more, Class is
+  // today's Class, with today's eyebrow and steps (as Cover's `gone` reset does).
+  const switchedOff = door && cat.status === 'ok' && !!catalogue && !doorGrades?.length;
+  useEffect(() => {
+    if (switchedOff) set({ patternIntent: null, style: null, pattern: null, coverBy: 'chapters' });
+  }, [switchedOff, set]);
+  useEffect(() => {
+    if (!door || !catalogue || !doorGrades?.length) return undefined;
+    let live = true;
+    const pairs = doorGrades.flatMap((g) => (catalogue.byGrade[g] ?? []).map((s) => [g, s.key] as const));
+    Promise.all(pairs.map(([g, k]) => patternFor(g, k).then((pat) => (pat ? null : k)))).then((off) => {
+      if (live) setHeld(off.filter((k): k is string => k === 'islamiat'));
+    });
+    return () => { live = false; };
+  }, [door, catalogue, doorGrades]);
+
+  // The door's read for the tapped class: in flight (said, and a second tap waits) or failed (said, with Try again). A
+  // failed read is never taken as "no pattern here": that would drop the teacher on today's Chapters step unasked.
+  const [doorRead, setDoorRead] = useState<null | 'busy' | { retry: () => void }>(null);
+  const doorBusy = useRef(false);
+  // A teacher who leaves Class (Back) while the read is out is not pulled forward when it answers.
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+
+  const onPick = async (v: GradeSubjectPair, pick: ClassPick) => {
     const own = pick.combo && typeof pick.combo.featureKey === 'string' ? pick.combo.featureKey : null;
     const key = own ?? catalogue?.byGrade[v.grade]?.find((s) => s.name === v.subject)?.key ?? null;
     if (!key) return;
-    set((cur) => changeClass(cur, v.grade, key, subjectName(catalogue, v.grade, key) || v.subject));
+    const name = subjectName(catalogue, v.grade, key) || v.subject;
+    if (door) {
+      if (doorBusy.current) return;
+      doorBusy.current = true;
+      setDoorRead('busy');
+      let pattern: AssessmentPattern | null;
+      try {
+        pattern = await patternOffer(v.grade, key);
+      } catch {
+        doorBusy.current = false;
+        if (alive.current) setDoorRead({ retry: () => { onPick(v, pick); } });
+        return;
+      }
+      doorBusy.current = false;
+      if (!alive.current) return;
+      setDoorRead(null);
+      set((cur) => ({ ...changeClass(cur, v.grade, key, name), ...doorPick(pattern ? pattern.id : null) }));
+      navigate(newPaperPath(pattern ? 'check' : 'cover'));
+      return;
+    }
+    set((cur) => changeClass(cur, v.grade, key, name));
     navigate(newPaperPath('cover'));
   };
 
   const value = p.grade !== null && p.subject ? { grade: p.grade, subject: subjectName(catalogue, p.grade, p.subject) || p.subjectName || p.subject } : null;
+  // The door (DESIGN 2.2): the grade is fixed (the pattern's grades) and only its subjects are offered, the held one off.
+  // Given to the kit's picker as the only pairs, so it opens straight on the subjects (no grade step, no other class).
+  const doorPairs = useMemo(() => {
+    if (!door || !catalogue || !doorGrades?.length) return null;
+    const pairs = doorGrades.flatMap((g) => (catalogue.byGrade[g] ?? []).map((s) => ({
+      grade: g, subject: s.name, subjectKey: s.key, featureKey: s.key, available: !held.includes(s.key),
+    })));
+    return pairs.length ? pairs : null;
+  }, [door, catalogue, doorGrades, held]);
+  const heldNames = held.map((k) => subjectName(catalogue, 5, k)).filter(Boolean);
 
   return (
     <StepFrame
       step="class"
       backTo={ASSESSMENT_V2_BASE}
-      next={{ label: C.next, why: stepReason('class', p, catalogue?.maxQuestions ?? 50, C), to: newPaperPath('cover') }}
+      steps={door ? FDE_STEPS : STEPS}
+      crumb={door ? C.fdeDoor : undefined}
+      next={{ label: C.next, why: door && doorRead === 'busy' ? C.why.wait : stepReason('class', p, catalogue?.maxQuestions ?? 50, C), to: newPaperPath(isFde(p) ? 'check' : 'cover') }}
     >
+      {door && heldNames.length > 0 && (
+        <p data-testid="fde-held-note" className="flex min-h-[44px] items-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-3.5 text-[14px] font-semibold text-[#6b7280]">
+          {C.islamiatHeld}
+        </p>
+      )}
+      {door && doorRead === 'busy' && (
+        <p data-testid="fde-door-busy" role="status" className="flex min-h-[44px] items-center px-3.5 text-[15px] font-semibold text-[#4b5563]">{C.why.wait}</p>
+      )}
+      {door && doorRead && doorRead !== 'busy' && (
+        <div role="alert" className="flex flex-col gap-3 rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">
+          <p>{C.loadFailed}</p>
+          <button type="button" onClick={doorRead.retry} className={cn(PRIMARY, 'flex-none', FOCUS)}>{C.tryAgain}</button>
+        </div>
+      )}
       {combos.status !== 'ok'
         ? <LoadState status={combos.status} onRetry={retryCombos} />
         : cat.status !== 'ok' || !catalogue
@@ -87,7 +174,8 @@ export function ClassStep() {
             <ClassPicker
               label={C.selectGradeSubject}
               feature="assessment"
-              combos={mine}
+              combos={doorPairs ?? mine}
+              allowOther={!doorPairs}
               subjectsByGrade={byGradeNames}
               grades={catalogue.grades}
               value={value}
@@ -112,16 +200,60 @@ export function CoverStep() {
   const lastPage = list.reduce((m, c) => Math.max(m, c.page_end ?? 0), 0) || null;
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  // The side door: the board pattern for this class, when /assessment/options offers it (flag on, Grade 5, eligible).
+  const [offer, retryOffer] = useLoad(needsClass ? null : () => patternOffer(p.grade, p.subject), `pattern:${p.grade}:${p.subject}`);
+  const pattern = dataOf(offer) ?? null;
+  // Board-pattern picks (the side door, a reload, Back from Check) hold until the offer is read: while it loads or after a
+  // failed read the step waits and says so; if no pattern is offered any more (its flag went off), the picks go back to
+  // today's, so the plain Chapters step shows its tabs and its reason.
+  const fdeHeld = isFde(p) || p.coverBy === 'fde';
+  const gone = fdeHeld && offer.status === 'ok' && !pattern;
+  useEffect(() => {
+    if (gone) set({ coverBy: 'chapters', style: null, pattern: null, patternIntent: null, chapters: [], ranges: [] });
+  }, [gone, set]);
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
+  if (fdeHeld && !pattern) {
+    return (
+      <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: offer.status === 'error' ? C.loadFailed : C.why.wait, to: newPaperPath('check') }}>
+        <LoadState status={offer.status === 'error' ? 'error' : 'loading'} onRetry={retryOffer} />
+      </StepFrame>
+    );
+  }
 
   const toggle = (n: number) => set((cur) => ({
     chapters: cur.chapters.includes(n) ? cur.chapters.filter((x) => x !== n) : [...cur.chapters, n],
   }));
   const check = checkPages(from, to, lastPage);
   const note = pagesMessage(check, C);
+  const fdePicked = !!pattern && isFde(p);
+  const flip = () => set(fdePicked
+    ? { coverBy: 'chapters', style: null, pattern: null, patternIntent: null }
+    : { coverBy: 'fde', style: 'fde', pattern: pattern?.id ?? null });
+
+  if (fdePicked) {
+    return (
+      <StepFrame step="cover" backTo={backTo('class')} hint={C.skips4} next={{ label: C.next, why: null, to: newPaperPath('check') }}>
+        <SideDoor picked onFlip={flip} C={C} />
+        <p className="px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.chaptersOff}</p>
+        {list.length > 0 && (
+          <div aria-hidden="true" className="pointer-events-none opacity-40">
+            <ListCard label={C.chapters}>
+              {list.map((c, i) => (
+                <div key={c.chapter_number} className={cn('flex min-h-[56px] items-center gap-3 px-3', i > 0 && 'border-t border-[#f0f1f3]')}>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#f3f4f6] text-[15px] font-bold text-[#33374a]">{c.chapter_number}</span>
+                  <span className="text-[16px] font-semibold leading-snug">{c.chapter_title}</span>
+                </div>
+              ))}
+            </ListCard>
+          </div>
+        )}
+      </StepFrame>
+    );
+  }
 
   return (
-    <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C), to: newPaperPath('questions') }}>
+    <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C, { offerFde: !!pattern }), to: newPaperPath('questions') }}>
+      {pattern && <SideDoor picked={false} onFlip={flip} C={C} />}
       <Tabs
         label={C.steps.cover}
         value={p.coverBy}
@@ -213,6 +345,15 @@ export function CoverStep() {
         </>
       )}
     </StepFrame>
+  );
+}
+
+/** The side door: the FDE board pattern as one pickable card above today's Chapters step (Grade 5, eligible, flag on). */
+function SideDoor({ picked, onFlip, C }: { picked: boolean; onFlip: () => void; C: AssessmentV2Copy }) {
+  return (
+    <div data-testid="fde-side-door" role="radiogroup" aria-label={C.styleFde}>
+      <Choice picked={picked} onPick={onFlip} icon={<LayoutList className="h-6 w-6" aria-hidden="true" />} name={C.styleFde} sub={C.fdeDoorChips} />
+    </div>
   );
 }
 
@@ -433,6 +574,12 @@ export function ExtrasStep() {
 /* ── 6 Check and make ────────────────────────────────────────────────────── */
 
 export function CheckStep() {
+  const [p] = usePicks();
+  if (isFde(p)) return <FdeCheck />;
+  return <PlainCheck />;
+}
+
+function PlainCheck() {
   const C = useCopy(ASSESSMENT);
   const [p] = usePicks();
   const navigate = useNavigate();
@@ -451,8 +598,11 @@ export function CheckStep() {
   const cover = p.coverBy === 'chapters'
     ? titles.map((c) => `${c.chapter_number} ${c.chapter_title}`)
     : p.ranges.map(([a, b]) => C.pageRange(a, b));
+  // The job's name: the first chapter's title, or its number when Make is tapped before the titles have loaded.
+  const firstChapters = [...p.chapters].sort((a, b) => a - b);
   const coverName = p.coverBy === 'chapters'
-    ? (titles.length ? `${titles[0].chapter_title}${titles.length > 1 ? ` +${titles.length - 1}` : ''}` : C.chapters)
+    ? (titles.length ? `${titles[0].chapter_title}${titles.length > 1 ? ` +${titles.length - 1}` : ''}`
+      : firstChapters.length ? `${C.chapterShort(firstChapters[0])}${firstChapters.length > 1 ? ` +${firstChapters.length - 1}` : ''}` : C.chapters)
     : (p.ranges.length ? C.pageRange(p.ranges[0][0], p.ranges[0][1]) : C.pages);
   const typesLine = p.source === 'seen' ? C.bookOnly
     : p.typeMode === 'auto' ? C.autoMix
@@ -476,12 +626,16 @@ export function CheckStep() {
     setError(null);
     const res = await start(toSpec(p), coverName, p.subjectName ?? p.subject);
     setBusy(false);
-    if ('job' in res) navigate(requestPath(res.job.requestId), { replace: true });
-    else setError(res.error);
+    if ('job' in res) { navigate(requestPath(res.job.requestId), { replace: true }); return; }
+    // The hour's paper limit (the server's 429) in the teacher's words and time; any other refusal keeps the server's message.
+    const f = portal.takeGenerateFailure?.() ?? null;
+    setError(makeErrorText(res.error, f, C));
   };
 
   return (
     <StepFrame step="check" backTo={backTo('extras')} next={{ label: busy ? C.making : C.makePaper, why: stepReason('check', p, 50, C), onPress: make, busy }}>
+      {/* Above the rows, as on the board-pattern Check: under them it sits below the fold, behind the dock. */}
+      {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
       <ListCard label={C.steps.check}>
         {rows.map((r, i) => (
           <div key={r.k} className={cn('flex min-h-[72px] items-center gap-3 py-2 ps-3.5 pe-1.5', i > 0 && 'border-t border-[#f0f1f3]')}>
@@ -495,7 +649,6 @@ export function CheckStep() {
           </div>
         ))}
       </ListCard>
-      {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
     </StepFrame>
   );
 }

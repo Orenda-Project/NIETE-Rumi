@@ -4,7 +4,10 @@
  *
  * Contract (PLAN v6 §3), counts only, never null:
  *   overview { coaches, coachVisits, schoolsVisited }
- *   regions  [{ region, coaches, coachVisits, schoolsVisited }]  — the six ICT sectors, in order
+ *   regions  [{ region, coaches, coachVisits, schoolsVisited, schools, coachNames }]  — the six ICT
+ *            sectors, in order. v7 (bd-97x22y.5, her Coaching tab 1 to 1): `schools` = counted schools
+ *            in the sector (not window-dependent), `coachNames` = the names of the sector's coaches,
+ *            sorted (her "Coaches by sector"); a coach in two sectors is listed in both.
  *   schools  [{ schoolId, emis, name, region, coachVisits }]
  *
  *   coachVisits    observation_schedules status 'done', OWNED BY A COACH (leader_user_id is a
@@ -28,15 +31,17 @@ const SchoolsAnalytics = require('../../dashboard/services/schools-analytics.ser
 
 const SIX = ['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol'];
 const OVERVIEW_KEYS = ['coachVisits', 'coaches', 'schoolsVisited'];
-const REGION_KEYS = ['coachVisits', 'coaches', 'region', 'schoolsVisited'];
+const REGION_KEYS = ['coachNames', 'coachVisits', 'coaches', 'region', 'schools', 'schoolsVisited'];
+const OVERVIEW_OF = ({ coaches, coachVisits, schoolsVisited }) => ({ coaches, coachVisits, schoolsVisited });
 const SCHOOL_KEYS = ['coachVisits', 'emis', 'name', 'region', 'schoolId'];
 
 // One row per school from the schools read, with its coach visits in the window.
 const school = (id, region, coach_visits = 0, extra = {}) => ({
   id, name: `School ${id}`, emis: `E-${id}`, region, is_active: true, is_probable_test: false, coach_visits, ...extra,
 });
-// One row per (non-test coach, school) from the coach read.
-const pair = (coach_id, school_id) => ({ coach_id, school_id });
+// One row per (non-test coach, school) from the coach read, with the coach's users.name.
+const NAMES = { cA: 'Zainab', cB: 'Abdul Malik', cC: 'hiba', cD: 'Off Coach', cE: 'Test School Coach', cF: 'No Region Coach', cG: 'Durbeen Coach', cH: 'Nowhere Coach' };
+const pair = (coach_id, school_id, coach_name = NAMES[coach_id]) => ({ coach_id, school_id, coach_name });
 
 const ROWS = {
   schools: [
@@ -74,14 +79,46 @@ describe('summarizeCoachingAnalytics', () => {
     expect(summarizeCoachingAnalytics({}).regions.map((r) => r.region)).toEqual(SIX);
   });
 
-  it('per region: coaches, visits and schools visited', () => {
+  it('per region: coaches, visits, schools visited — and (v7) schools in the sector and its coaches by name', () => {
     const card = (r) => summarizeCoachingAnalytics(ROWS).regions.find((x) => x.region === r);
-    expect(card('B.K')).toEqual({ region: 'B.K', coaches: 2, coachVisits: 3, schoolsVisited: 1 });
-    expect(card('Sihala')).toEqual({ region: 'Sihala', coaches: 1, coachVisits: 2, schoolsVisited: 1 });
-    expect(card('Urban-I')).toEqual({ region: 'Urban-I', coaches: 1, coachVisits: 1, schoolsVisited: 1 });
+    expect(card('B.K')).toEqual({ region: 'B.K', coaches: 2, coachVisits: 3, schoolsVisited: 1, schools: 2, coachNames: ['Abdul Malik', 'Zainab'] });
+    expect(card('Sihala')).toEqual({ region: 'Sihala', coaches: 1, coachVisits: 2, schoolsVisited: 1, schools: 1, coachNames: ['Abdul Malik'] });
+    expect(card('Urban-I')).toEqual({ region: 'Urban-I', coaches: 1, coachVisits: 1, schoolsVisited: 1, schools: 1, coachNames: ['hiba'] });
     for (const r of ['Nilore', 'Urban-II', 'Tarnol']) {
-      expect(card(r)).toEqual({ region: r, coaches: 0, coachVisits: 0, schoolsVisited: 0 });
+      expect(card(r)).toEqual({ region: r, coaches: 0, coachVisits: 0, schoolsVisited: 0, schools: 0, coachNames: [] });
     }
+  });
+
+  it('coach names (v7): one per coach of the sector, sorted ignoring case, trimmed; a coach in two sectors is in both lists', () => {
+    const out = summarizeCoachingAnalytics({
+      schools: [school('a', 'Tarnol'), school('b', 'Tarnol'), school('c', 'Nilore')],
+      coachSchools: [
+        pair('k1', 'a', '  Saman Zahoor '), pair('k1', 'b', '  Saman Zahoor '), // two schools, one sector: listed once
+        pair('k2', 'a', 'abubakar'),
+        pair('k3', 'b', 'Hamza'), pair('k4', 'b', 'Hamza'), // two coaches, one name: both listed
+        pair('k2', 'c', 'abubakar'), // also in Nilore
+      ],
+    });
+    const names = (r) => out.regions.find((x) => x.region === r).coachNames;
+    expect(names('Tarnol')).toEqual(['abubakar', 'Hamza', 'Hamza', 'Saman Zahoor']);
+    expect(names('Nilore')).toEqual(['abubakar']);
+    expect(out.regions.find((x) => x.region === 'Tarnol').coaches).toBe(4);
+  });
+
+  it('a coach with no name on file is counted but not listed — no name is invented', () => {
+    const out = summarizeCoachingAnalytics({
+      schools: [school('a', 'Tarnol')],
+      coachSchools: [pair('k1', 'a', null), pair('k2', 'a', '   '), pair('k3', 'a', 'Sana')],
+    });
+    const t = out.regions.find((x) => x.region === 'Tarnol');
+    expect(t.coaches).toBe(3);
+    expect(t.coachNames).toEqual(['Sana']);
+  });
+
+  it('schools (v7) is every counted school in the sector, visited or not, whatever the window', () => {
+    const out = summarizeCoachingAnalytics({ schools: ROWS.schools.map((s) => ({ ...s, coach_visits: 0 })), coachSchools: [] });
+    expect(out.regions.map((r) => [r.region, r.schools])).toEqual([['B.K', 2], ['Sihala', 1], ['Urban-I', 1], ['Nilore', 0], ['Urban-II', 0], ['Tarnol', 0]]);
+    expect(Object.keys(out.overview).sort()).toEqual(OVERVIEW_KEYS);
   });
 
   it('a coach covering two regions counts in both cards but once in the overview', () => {
@@ -137,8 +174,7 @@ describe('summarizeCoachingAnalytics', () => {
     for (const b of SIX) {
       const f = summarizeCoachingAnalytics(ROWS, { region: b });
       expect(f.regions).toEqual(all.regions);
-      const { region, ...card } = all.regions.find((r) => r.region === b);
-      expect(f.overview).toEqual(card);
+      expect(f.overview).toEqual(OVERVIEW_OF(all.regions.find((r) => r.region === b)));
       expect(f.schools.every((s) => s.region === b)).toBe(true);
     }
     expect(summarizeCoachingAnalytics(ROWS, { region: 'B.K' }).schools.map((s) => s.schoolId)).toEqual(['bk1', 'bk2']);
@@ -158,13 +194,19 @@ describe('summarizeCoachingAnalytics', () => {
       const out = summarizeCoachingAnalytics(rows);
       expect(out.overview).toEqual({ coaches: 0, coachVisits: 0, schoolsVisited: 0 });
       expect(out.schools).toEqual([]);
-      for (const r of out.regions) expect([r.coaches, r.coachVisits, r.schoolsVisited]).toEqual([0, 0, 0]);
+      for (const r of out.regions) expect([r.coaches, r.coachVisits, r.schoolsVisited, r.schools, r.coachNames]).toEqual([0, 0, 0, 0, []]);
     }
   });
 
-  it('carries no coach or teacher identity — only counts', () => {
-    const s = JSON.stringify(summarizeCoachingAnalytics(ROWS));
-    expect(s).not.toMatch(/"c[A-H]"|coach_id|coachId|user_id|userId|phone/);
+  it('carries no coach id and no teacher identity; coach NAMES only, in regions[].coachNames (v7, her Coaches by sector)', () => {
+    const out = summarizeCoachingAnalytics(ROWS);
+    const s = JSON.stringify(out);
+    expect(s).not.toMatch(/"c[A-H]"|coach_id|coachId|coach_name|user_id|userId|phone/);
+    // Names appear nowhere but the lists: not in the overview, not on a school row.
+    expect(JSON.stringify(out.overview)).not.toMatch(/Zainab|Abdul|hiba/);
+    expect(JSON.stringify(out.schools)).not.toMatch(/Zainab|Abdul|hiba/);
+    // A coach whose only schools are uncounted is named nowhere.
+    expect(s).not.toMatch(/Off Coach|Test School Coach|No Region Coach|Durbeen Coach|Nowhere Coach/);
   });
 });
 
@@ -271,7 +313,7 @@ describe('loadCoachingAnalyticsRows — two set-based reads, no per-school loop'
       expect(branches[0]).toMatch(/JOIN schools sch ON sch\.id = lsch\.school_id/);
       expect(branches[1]).toMatch(/JOIN schools sch ON 'niete:' \|\| sch\.emis = lsch\.school_ext_id/);
       for (const b of branches) {
-        expect(b).toMatch(/SELECT lsch\.leader_user_id AS coach_id, sch\.id AS school_id/);
+        expect(b).toMatch(/SELECT lsch\.leader_user_id AS coach_id, sch\.id AS school_id, u\.name AS coach_name/);
         expect(b).toMatch(/FROM leader_schools lsch/);
         expect(b).toMatch(/JOIN users u ON u\.id = lsch\.leader_user_id/);
         expect(b).toMatch(/u\.role = 'coach'/);

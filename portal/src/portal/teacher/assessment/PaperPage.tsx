@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
-import { ChevronRight, Download, History, KeyRound, Pencil } from 'lucide-react';
+import { ChevronRight, ClipboardCheck, Download, History, KeyRound, Pencil } from 'lucide-react';
+import { browserEnv } from '@/lib/runtime';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { portal } from '../../services/api';
@@ -12,8 +13,9 @@ import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
 import { useAssessmentSwitches } from './api';
-import { dayLabel, pkDay, pkToday } from './model';
+import { FDE_EDITING, dayLabel, pkDay, pkToday } from './model';
 import { findPaper } from './paperCache';
+import { openArtifact } from './openArtifact';
 import { ASSESSMENT_V2_BASE, editPath, paperPath, versionsPath } from './paths';
 import { HistoryRow } from '../ui';
 import { PaperBody } from './PaperBody';
@@ -56,7 +58,8 @@ export function PaperPage() {
   const canSend = useShareAvailable('paper');
 
   const open = async (artifact: 'paper' | 'answer_key') => {
-    const r: DownloadResult = await downloadArtifact(paperId, artifact);
+    // A board-pattern paper's rows hand their own file off inside WhatsApp's browser (R5-18); a plain paper downloads as today.
+    const r: DownloadResult = await (p?.pattern ? openArtifact : downloadArtifact)(paperId, artifact);
     if (r === 'unavailable') toast({ title: artifact === 'answer_key' ? C.noKey : C.notAvailable });
     if (r === 'failed') toast({ title: C.couldNotOpen, variant: 'destructive' });
   };
@@ -77,8 +80,12 @@ export function PaperPage() {
   }
 
   const day = pkDay(p.ready_at);
+  // A board-pattern paper: its key is the marking scheme, and it is not edited in the app (FDE_EDITING, the
+  // operator's cut A of 15 Oct: the editor would have to keep the board's shape).
+  const fde = !!p.pattern;
   const chips = (
     <>
+      {fde && <Chip tone="indigo">{C.fdeChip}</Chip>}
       {p.chapter_number != null && <Chip>{C.chapterShort(p.chapter_number)}</Chip>}
       {p.question_count != null && <Chip>{C.questionsCount(p.question_count)}</Chip>}
       {p.total_marks != null && <Chip>{C.marksCount(p.total_marks)}</Chip>}
@@ -97,12 +104,14 @@ export function PaperPage() {
   );
 
   const rows: JSX.Element[] = [];
-  rows.push(<ActionRow key="download" first onPress={() => open('paper')} icon={<Download className="h-5 w-5" aria-hidden="true" />} label={C.download} />);
+  rows.push(<ActionRow key="download" first onPress={() => open('paper')} icon={<Download className="h-5 w-5" aria-hidden="true" />} label={fde ? C.join(C.download, C.questionPaper) : C.download} />);
   if (p.has_answer_key) {
-    rows.push(<ActionRow key="key" first={rows.length === 0} onPress={() => open('answer_key')} icon={<KeyRound className="h-5 w-5" aria-hidden="true" />} label={C.answerKey} />);
+    rows.push(fde
+      ? <ActionRow key="key" first={rows.length === 0} onPress={() => open('answer_key')} icon={<ClipboardCheck className="h-5 w-5" aria-hidden="true" />} label={C.markingScheme} />
+      : <ActionRow key="key" first={rows.length === 0} onPress={() => open('answer_key')} icon={<KeyRound className="h-5 w-5" aria-hidden="true" />} label={C.answerKey} />);
   }
   if (switches?.editing) {
-    rows.push(<ActionRow key="edit" first={rows.length === 0} to={editPath(paperId)} icon={<Pencil className="h-5 w-5" aria-hidden="true" />} label={C.edit} />);
+    if (!fde || FDE_EDITING) rows.push(<ActionRow key="edit" first={rows.length === 0} to={editPath(paperId)} icon={<Pencil className="h-5 w-5" aria-hidden="true" />} label={C.edit} />);
     rows.push(<ActionRow key="versions" first={rows.length === 0} to={versionsPath(paperId)} icon={<History className="h-5 w-5" aria-hidden="true" />} label={C.versions} />);
   }
 
@@ -122,73 +131,9 @@ export function PaperPage() {
           ? <PaperBody view={view} />
           : <p className="rounded-2xl border border-dashed border-[#c7cad6] bg-white p-5 text-center text-[16px] font-semibold text-[#4b5563]">{C.downloadToView}</p>}
       {rows.length > 0 && <ListCard label={C.myPapers}>{rows}</ListCard>}
-    </TeacherPage>
-  );
-}
-
-/* ── Versions (v28 canvas AssessVersions) ────────────────────────────────── */
-
-export function VersionsPage() {
-  const C = useCopy(ASSESSMENT);
-  const { paperId = '' } = useParams();
-  const { toast } = useToast();
-  // Only a paper's latest version is in My papers, so a version opens as its file (any version she owns).
-  const openVersion = async (id: string) => {
-    const r: DownloadResult = await downloadArtifact(id, 'paper');
-    if (r === 'unavailable') toast({ title: C.notAvailable });
-    if (r === 'failed') toast({ title: C.couldNotOpen, variant: 'destructive' });
-  };
-  const [versions, retry] = useLoad(() => portal.getAssessmentVersions(paperId).then((r) => r.versions || []), `versions:${paperId}`);
-  const list = dataOf(versions) ?? [];
-  const today = pkToday();
-
-  return (
-    <TeacherPage crumb={C.title} title={C.versions} backTo={paperPath(paperId)} testId="assessment-versions">
-      {versions.status !== 'ok'
-        ? <LoadState status={versions.status} onRetry={retry} />
-        : list.length === 0
-          ? <LoadState status="ok" empty onRetry={retry} />
-          : (
-            <ListCard label={C.versions}>
-              {list.map((v, i) => {
-                const ready = v.status === 'ready';
-                const day = pkDay(v.createdAt);
-                const meta = C.join(
-                  day ? dayLabel(day, today, C.days) : null,
-                  v.questionCount != null ? C.questionsCount(v.questionCount) : null,
-                  v.marks != null ? C.marksCount(v.marks) : null,
-                );
-                const head = (
-                  <>
-                    <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-[16px] font-extrabold', v.latest ? 'bg-[#33374a] text-white' : 'bg-[#f3f4f6] text-[#33374a]')}>
-                      {v.version != null ? C.version(v.version) : ''}
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="flex flex-wrap items-center gap-2 text-[16px] font-semibold">
-                        {v.version != null ? C.versionLong(v.version) : ''}
-                        {v.latest && <Chip tone="done">{C.latest}</Chip>}
-                        {!v.editedFrom && <Chip>{C.first}</Chip>}
-                        {!ready && <Chip tone={v.status === 'failed' ? 'error' : 'warn'}>{v.status === 'failed' ? C.failed : C.writing}</Chip>}
-                      </span>
-                      <span className="text-[13px] text-[#6b7280]">{meta}</span>
-                    </span>
-                  </>
-                );
-                return (
-                  <div key={v.paperId} className={cn('flex items-center gap-1.5 py-1.5 pe-1.5', i > 0 && 'border-t border-[#f0f1f3]')}>
-                    {ready
-                      ? <button type="button" onClick={() => openVersion(v.paperId)} className={cn('flex min-h-[72px] min-w-0 flex-1 items-center gap-3 ps-3 text-start', FOCUS)}>{head}</button>
-                      : <div className="flex min-h-[72px] min-w-0 flex-1 items-center gap-3 ps-3">{head}</div>}
-                    {ready && (
-                      <Link to={editPath(v.paperId)} className={cn('flex min-h-[56px] min-w-[64px] items-center justify-center rounded-[14px] bg-[#f3f4f6] px-2.5 text-[15px] font-semibold text-[#33374a]', FOCUS)}>
-                        {C.edit}
-                      </Link>
-                    )}
-                  </div>
-                );
-              })}
-            </ListCard>
-          )}
+      {fde && ['android-iab', 'ios-iab'].includes(browserEnv()) && (
+        <p data-testid="fde-if-no-download" className="px-2 text-center text-[14px] text-[#4b5563]">{C.ifNoDownload}</p>
+      )}
     </TeacherPage>
   );
 }

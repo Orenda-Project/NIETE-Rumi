@@ -36,8 +36,9 @@ const Funnel = require('./quiz-funnel');
 const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel,
   needsLanguageAsk, languageAskButtons, languageAskBody } = require('./transcript-quiz-language');
 const {
-  LP_V8, isPlanQuiz, lpRemakeableQuiz, failureReasonOf, digestFailureReason, failureCopyKey,
+  LP_V8, isPlanQuiz, lpRemakeableQuiz, failureReasonOf, digestFailureReason, failureCopyKey, heldForReview,
 } = require('./quiz-sources');
+const { HELD_REASON } = require('./lp-religious-hold');
 
 const OFFER_YES = 'tq_yes_';
 const OFFER_NO = 'tq_no_';
@@ -537,7 +538,9 @@ async function remakeLpQuiz({ quiz, phone, teacherLang, source = 'flow' }) {
   // check (`_sourceBack`, lp-source-check); a source_off row needs the 6-12
   // source on here.
   if (!isPlanQuiz(quiz.quiz_source) || !lpRemakeableQuiz(quiz)) {
-    logEvent('transcript_quiz.remake_refused', { quizId: quiz.id, reason: failureReasonOf(meta), remakes: meta.remakes || 0 });
+    // A held subject is refused under its own reason, not the failure it first had.
+    const reason = isPlanQuiz(quiz.quiz_source) && heldForReview(meta) ? HELD_REASON : failureReasonOf(meta);
+    logEvent('transcript_quiz.remake_refused', { quizId: quiz.id, reason, remakes: meta.remakes || 0 });
     return false;
   }
   const { error: _error, error_detail: _detail, ...kept } = meta;

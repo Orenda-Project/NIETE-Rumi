@@ -18,6 +18,29 @@ const { MAX_ATTEMPTS } = require('../config/lesson-plan-generation');
 // with LP_LIFECYCLE_PATHS off for it, every insert and update below is exactly the old one.
 const LIFECYCLE_SOURCE = Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED;
 
+/**
+ * Whether this request row is one the grounded path recorded — the only rows its stage columns and
+ * events belong on. markCompleted and markFailed run for every row the generation worker finishes; a
+ * deployment that still generates freeform Gamma plans sends those through here too, and a row asked
+ * before the path was switched on has no source either. Those are updated exactly as before.
+ * Switched off: false, with no read. A read that fails stamps nothing (and says so).
+ */
+async function isOwnRow(requestId) {
+  if (!Lifecycle.enabled(LIFECYCLE_SOURCE)) return false;
+  try {
+    const { data, error } = await supabase
+      .from('lesson_plan_requests')
+      .select('source')
+      .eq('id', requestId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return !!(data && data.source === LIFECYCLE_SOURCE);
+  } catch (err) {
+    logToFile('LP lifecycle: could not read the request row, its stage is not recorded', { requestId, error: err.message }, 'error');
+    return false;
+  }
+}
+
 class LessonPlanQueueService {
   // createAndQueue (freeform LP / presentation via Gamma) was removed with
   // bd-2540 (Option A partial Gamma strip). The only remaining teacher-facing
@@ -134,6 +157,7 @@ class LessonPlanQueueService {
    *   existed) and sent (did WhatsApp accept it) feed the lifecycle columns only
    */
   static async markCompleted(requestId, result) {
+    const own = await isOwnRow(requestId);
     await Lifecycle.writeWithFallback((extra) => supabase
       .from('lesson_plan_requests')
       .update({
@@ -143,11 +167,11 @@ class LessonPlanQueueService {
         completed_at: new Date().toISOString(),
         ...extra,
       })
-      .eq('id', requestId), Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'completed', { generatedAt: result.generatedAt, sent: result.sent }),
+      .eq('id', requestId), own ? Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'completed', { generatedAt: result.generatedAt, sent: result.sent }) : {},
     { source: LIFECYCLE_SOURCE, table: 'lesson_plan_requests', requestId });
 
     logToFile('Lesson plan request completed', { requestId });
-    Lifecycle.queueEvent(LIFECYCLE_SOURCE, result.sent === false
+    if (own) Lifecycle.queueEvent(LIFECYCLE_SOURCE, result.sent === false
       ? 'lesson_plan.delivery.failed'
       : (result.sent === true ? 'lesson_plan.delivery.sent' : 'lesson_plan.generation.completed'), { requestId });
   }
@@ -169,7 +193,8 @@ class LessonPlanQueueService {
     const attempt = (request?.retry_count || 0) + 1;
     const isFinal = typeof final === 'boolean' ? final : attempt >= MAX_ATTEMPTS;
 
-    const failed = Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed', { errorCode });
+    const own = await isOwnRow(requestId);
+    const failed = own ? Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed', { errorCode }) : {};
     await Lifecycle.writeWithFallback((extra) => supabase
       .from('lesson_plan_requests')
       .update({
@@ -182,7 +207,7 @@ class LessonPlanQueueService {
       .eq('id', requestId), failed, { source: LIFECYCLE_SOURCE, table: 'lesson_plan_requests', requestId });
 
     logToFile('Lesson plan request failed', { requestId, errorMessage });
-    Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.generation.failed', {
+    if (own) Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.generation.failed', {
       requestId, errorCode: failed.error_code || errorCode || 'GENERATION_FAILED', attempt, final: isFinal,
     });
   }

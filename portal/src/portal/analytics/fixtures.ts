@@ -8,6 +8,7 @@
 import type {
   CoachingAnalyticsCounts, CoachingAnalyticsResponse, CoachingAnalyticsSchool,
   SchoolsAnalyticsCounts, SchoolsAnalyticsResponse, SchoolsAnalyticsSchool,
+  ObservationsAnalyticsResponse, ObservationsCounts, ObservationsKind, ObservationsSchool,
 } from '../types/portal';
 
 // The six ICT regions, the only ones the server counts (bd-s6qbts.4): a school outside them is in no row and no total.
@@ -130,7 +131,114 @@ export function fixtureCoaching(opts: { from?: string | null; to?: string | null
     success: true,
     range: { from: opts.from ?? null, to: opts.to ?? null },
     overview: coachingRollUp(scope),
-    regions: REGION_ORDER.map((region) => ({ region, ...coachingRollUp([region]) })),
+    regions: REGION_ORDER.map((region) => ({ region, ...coachingRollUp([region]), ...coachingV7(region) })),
     schools: FIXTURE_COACHING_SCHOOLS.filter((s) => !wanted || s.region.toLowerCase() === wanted),
   };
+}
+
+/**
+ * bd-97x22y.5 — the v7 coaching region fields (her Coaching tab): how many schools are in the region and its coaches'
+ * names, A to Z. FICTIONAL names, one per fixture coach (COACHES above); a coach in two regions is listed in both.
+ */
+const COACH_NAMES: Record<string, string> = {
+  'c-1': 'Ayesha Noor', 'c-2': 'Bilal Ahmed', 'c-3': 'Hina Tariq', 'c-4': 'Sadia Rauf', 'c-5': 'Kamran Ali',
+  'c-6': 'Mariam Iqbal', 'c-7': 'Usman Ghani', 'c-8': 'Farah Naz', 'c-9': 'Zeeshan Haider',
+};
+
+function coachingV7(region: string): { schools: number; coachNames: string[] } {
+  const r = region.toLowerCase();
+  return {
+    schools: FIXTURE_SCHOOLS.filter((s) => s.region.toLowerCase() === r).length,
+    coachNames: COACHES.filter((c) => c.regions.some((x) => x.toLowerCase() === r))
+      .map((c) => COACH_NAMES[c.id])
+      .sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' })),
+  };
+}
+
+/**
+ * bd-97x22y.5 — a GET /api/portal/analytics/observations answer (PLAN v7), FICTIONAL, for the same schools: per school
+ * its observations of each kind (the schools fixture's DC / human counts), teachers observed and the three FICO
+ * sections with their n. Section B is scored on fewer observations than C and D (no lesson plan, no Section B).
+ * Roll-ups are worked out as the server does: counts summed; the overview's sections pooled (Σ % × n ÷ Σ n); a region's
+ * sections her rule — the mean of its schools' scores, each scored school once — with n still the observations scored.
+ */
+type Sec = [b: number | null, bN: number, c: number | null, d: number | null];
+const OBS_SECTIONS: Record<string, { dc: Sec; human: [teachers: number, ...Sec] }> = {
+  's-01': { dc: [71, 4, 75, 55], human: [1, 72, 1, 78, 58] },
+  's-02': { dc: [69, 12, 70, 50], human: [4, 70, 5, 66, 49] },
+  's-04': { dc: [null, 0, null, null], human: [0, null, 0, null, null] },
+  's-05': { dc: [77, 20, 80, 56], human: [5, 76, 4, 81, 59] },
+  's-06': { dc: [79, 14, 81, 60], human: [4, 80, 5, 79, 62] },
+  's-07': { dc: [52, 1, 58, 44], human: [5, 64, 6, 71, 52] },
+  's-08': { dc: [83, 15, 84, 63], human: [5, 82, 6, 86, 61] },
+  's-09': { dc: [74, 9, 77, 57], human: [5, 75, 4, 74, 56] },
+  's-10': { dc: [66, 5, 68, 51], human: [4, 69, 3, 72, 54] },
+  's-11': { dc: [76, 7, 79, 58], human: [6, 78, 7, 80, 60] },
+  's-12': { dc: [70, 6, 72, 48], human: [7, 68, 8, 70, 50] },
+  's-13': { dc: [64, 3, 66, 46], human: [1, 66, 1, 69, 47] },
+  's-14': { dc: [72, 22, 71, 51], human: [9, 73, 10, 72, 52] },
+  's-15': { dc: [null, 0, 62, 41], human: [0, null, 0, null, null] },
+  's-16': { dc: [71, 6, 74, 55], human: [2, 70, 2, 73, 53] },
+  's-18': { dc: [70, 11, 66, 50], human: [3, 71, 3, 64, 51] },
+};
+
+function obsSchool(s: SchoolsAnalyticsSchool, kind: 'dc' | 'human'): ObservationsSchool {
+  const row = OBS_SECTIONS[s.schoolId];
+  const observations = kind === 'dc' ? s.dcObservations : s.humanObservations;
+  const [b, bN, c, d] = kind === 'dc' ? row.dc : (row.human.slice(1) as Sec);
+  const teachersObserved = kind === 'dc' ? s.teachersWithDc : row.human[0];
+  const n = observations;
+  return {
+    schoolId: s.schoolId, emis: s.emis, name: s.name, region: s.region, observations, teachersObserved,
+    sectionB: bN > 0 ? b : null, sectionBN: bN,
+    sectionC: n > 0 ? c : null, sectionCN: c === null ? 0 : n,
+    sectionD: n > 0 ? d : null, sectionDN: d === null ? 0 : n,
+  };
+}
+
+function obsRollUp(rows: ObservationsSchool[]): ObservationsCounts & { schools: number } {
+  const pool = (avg: 'sectionB' | 'sectionC' | 'sectionD', nKey: 'sectionBN' | 'sectionCN' | 'sectionDN') => {
+    const n = rows.reduce((t, r) => t + r[nKey], 0);
+    return { avg: n ? round1(rows.reduce((t, r) => t + (r[avg] ?? 0) * r[nKey], 0) / n) : null, n };
+  };
+  const b = pool('sectionB', 'sectionBN');
+  const c = pool('sectionC', 'sectionCN');
+  const d = pool('sectionD', 'sectionDN');
+  return {
+    schools: rows.length,
+    observations: rows.reduce((t, r) => t + r.observations, 0),
+    teachersObserved: rows.reduce((t, r) => t + r.teachersObserved, 0),
+    sectionB: b.avg, sectionBN: b.n, sectionC: c.avg, sectionCN: c.n, sectionD: d.avg, sectionDN: d.n,
+  };
+}
+
+/** A region's sections, her rule: the mean of its schools' scores (each school with a score once); n summed. */
+function obsSectorMeans(rows: ObservationsSchool[]) {
+  const mean = (avg: 'sectionB' | 'sectionC' | 'sectionD', nKey: 'sectionBN' | 'sectionCN' | 'sectionDN') => {
+    const scored = rows.filter((r) => r[nKey] > 0 && r[avg] !== null);
+    return scored.length ? round1(scored.reduce((t, r) => t + (r[avg] as number), 0) / scored.length) : null;
+  };
+  return { sectionB: mean('sectionB', 'sectionBN'), sectionC: mean('sectionC', 'sectionCN'), sectionD: mean('sectionD', 'sectionDN') };
+}
+
+/** The observations answer for one window and region filter ('all' or a region name), shaped as the server sends it. */
+export function fixtureObservations(opts: { from?: string | null; to?: string | null; region?: string | null } = {}): ObservationsAnalyticsResponse {
+  const wanted = opts.region && opts.region.toLowerCase() !== 'all' ? opts.region.toLowerCase() : null;
+  const kindOf = (kind: 'dc' | 'human'): ObservationsKind => {
+    const all = FIXTURE_SCHOOLS.map((s) => obsSchool(s, kind));
+    const inScope = all.filter((s) => !wanted || s.region.toLowerCase() === wanted);
+    const regions = REGION_ORDER.map((region) => {
+      const rows = all.filter((s) => s.region === region);
+      return { region, ...obsRollUp(rows), ...obsSectorMeans(rows) };
+    });
+    return {
+      overview: {
+        ...obsRollUp(inScope),
+        sectorsActive: regions.filter((r) => (!wanted || r.region.toLowerCase() === wanted) && r.observations > 0).length,
+      },
+      regions,
+      schools: inScope,
+    };
+  };
+  return { success: true, range: { from: opts.from ?? null, to: opts.to ?? null }, dc: kindOf('dc'), human: kindOf('human') };
 }

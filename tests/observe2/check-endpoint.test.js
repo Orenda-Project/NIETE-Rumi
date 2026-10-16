@@ -83,7 +83,12 @@ describe('the moments', () => {
       heard_ask_3_v: false, heard_ask_8_v: false,
     });
     for (const [k, v] of Object.entries(out.data)) if (k.endsWith('_t')) expect([...v].length).toBeLessThanOrEqual(30);
-    expect(JSON.stringify(out.data)).not.toMatch(/level/i);
+    // The screen's opening line tells the coach how a confirmed moment counts toward their own levels
+    // (pilot sheet R5); no moment field carries a level, and the recording's levels are never sent.
+    const { heard_ask_intro: intro, ...moments } = out.data;
+    expect(intro).toMatch(/counts toward the levels/);
+    expect(JSON.stringify(moments)).not.toMatch(/level/i);
+    expect(JSON.stringify(out.data)).not.toContain(JSON.stringify(row(id).rumi_levels));
   });
 
   test('each screen saves its answers and opens the next', async () => {

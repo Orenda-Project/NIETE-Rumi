@@ -13,6 +13,8 @@
  * A sibling on the same phone gets their own door from their own card: the token never names the phone's other children.
  * Err is web-quiz.service's WqError, passed in by the route: this module never requires the service (whose finish()
  * requires it), so there is no require cycle.
+ * Events v2 (web_quiz_events_v2, read fail-closed): the server `web_quiz.hub_door` event carries the writer mark
+ * `w:'s'` so a count of server door events reads `w=='s'`; with the switch off the event is today's, byte for byte.
  */
 const { read: dbRead } = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
 const { logEvent } = require('../../utils/structured-logger');
@@ -39,8 +41,9 @@ async function field(s) {
 }
 
 async function door(body = {}, Err = Error) {
+  const mark = (await Flags.eventsV2On()) ? { w: 's' } : {};
   const fail = (status, error, why) => {
-    logEvent('web_quiz.hub_door', { ok: false, reason: why || error });
+    logEvent('web_quiz.hub_door', { ok: false, reason: why || error, ...mark });
     const e = new Err(status, { error });
     if (!(e.status && e.body)) Object.assign(e, { status, body: { error } });
     throw e;
@@ -54,11 +57,12 @@ async function door(body = {}, Err = Error) {
   const home = Boolean(body.home) && f.hub && f.homeButton;
   if (!home && !(await isOn())) fail(404, 'no_door', 'off');
   if (!ownRun(s) || (s.status !== 'completed' && !(home && s.status === 'in_progress'))) fail(404, 'no_door', 'not_own_finished_run');
-  const token = T.signHub([s.student_id]);
+  // child identity store (web_quiz_identity_canon): the hub link names the child by the id they are known by.
+  const token = T.signHub([(await require('./web-quiz-identity-flags').flags()).canon ? await require('./web-quiz-identity-roster').canonicalStudentId(s.student_id) : s.student_id]);
   if (!token) fail(404, 'no_door', 'no_secret');
   const bound = await Device.deviceTrusted(token, tok.d);
   if (!bound.ok) fail(404, 'no_door', bound.why);
-  logEvent('web_quiz.hub_door', { ok: true, sessionId: s.id, reason: bound.why, ...(home ? { home: true } : {}) });
+  logEvent('web_quiz.hub_door', { ok: true, sessionId: s.id, reason: bound.why, ...(home ? { home: true } : {}), ...mark });
   return { href: `/h/${token}` };
 }
 

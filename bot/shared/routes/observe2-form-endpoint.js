@@ -8,8 +8,11 @@
  *
  *   INIT      a new form → PART_ONE; a reopened one → CONTINUE, saying where the record stands
  *             (INIT may only answer with an entry screen, so Part 2 cannot be opened directly).
- *   PART_ONE    checked (rules.validate) → refused under the field, or saved with the server time → PART_TWO
- *   PART_TWO    checked against Part 1 (children who had not spoken yet) → saved → LESSON_PLAN
+ *   PART_ONE    warm-up to guided practice: checked (rules.validate) → refused under the field, or saved
+ *               with the server time (the switch to the children working on their own) → PART_TWO
+ *   PART_TWO    the children working on their own and the wrap-up: checked against Part 1 (children who
+ *               had not spoken yet) → saved → LESSON_PLAN. The parts' questions changed with form
+ *               version 5 (R4/R10); a form on the older Flow posts no `fv` there and keeps its own.
  *   LESSON_PLAN the teacher's own recent plans from the bot, named as /observe's picker names them, plus
  *               /observe's "Upload new"; a pick is saved with the keys the fidelity grader resolves the
  *               plan's moves by → AFTER, which names it (the coach goes back to change it; the plan is
@@ -24,14 +27,25 @@
  *             already in. (A form opened before the photo step carries its photos here: still stored.)
  *   CONTINUE  → PART_TWO, LESSON_PLAN, PHOTOS, AFTER or SEALED, from the record (a plan whose added
  *               files never arrived goes back to LESSON_PLAN; an unanswered photo step to PHOTOS).
+ *               The screen lists the notes the coach has typed so far, by part: a reopened form cannot go
+ *               back to them (pilot sheet R13).
+ *
+ * Part 2 comes back with what was saved for it, or with what was just typed when it is refused (its
+ * init-values), for a form opened on a Flow that says it can take them (the `prefill` marker); a form
+ * opened on an older Flow gets exactly the screens it knows.
  *
  * The screens are English for the pilot; the chat message after the seal is in the coach's language.
+ *
+ * A form whose recording is already in (held at capture for a recording that came first, or sent
+ * before Part 1 was saved) is filled after the lesson: its hints name the lesson's steps, not minutes.
  */
 
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { validate } = require('../services/observe/observe2/rules');
-const { FIELDS, FORM_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES } = require('../services/observe/observe2/field-form.flow');
+const {
+  FIELDS, FIELDS_V4, PREFILL, PREFILLED, PREFILLED_TYPES, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES,
+} = require('../services/observe/observe2/field-form.flow');
 const { observe2Strings } = require('../services/observe/observe2/strings');
 const { logToFile } = require('../utils/logger');
 
@@ -66,9 +80,23 @@ function clock(iso) {
   }
 }
 
-const halves = (form) => {
-  const period = Number(form && form.period_minutes) || DEFAULT_PERIOD;
-  return { period, half: Math.round(period / 2) };
+const periodOf = (form) => Number(form && form.period_minutes) || DEFAULT_PERIOD;
+
+// The parts follow the lesson plan's steps, not the clock (R4/R10), named as the after-the-lesson hints
+// below name them: Part 1 is up to and including guided practice, Part 2 independent practice and the
+// wrap-up. "Part 1 done" is tapped when independent practice starts.
+const PART_1_HINT = 'Up to and including guided practice. When the children start independent practice, tap "Part 1 done": your answers are saved then.';
+const part2Hint = (period) => `Independent practice and the wrap-up, to minute ${period}. Answer only for this part.`;
+
+// "After the lesson": the recording is already in (held at capture, or sent before Part 1 was saved),
+// so the lesson is over and the coach fills the form from what they saw and heard. The parts are
+// named by the lesson's own steps (the 5-step plan), never by the clock. Only screen data changes, so
+// a form opened on the published Flow keeps working (no FORM_VERSION change).
+const afterLesson = (form) => Boolean(form && form.coaching_session_id);
+const AFTER_HINT = {
+  part1: 'The first part of the lesson: up to and including guided practice. Fill it in from what you saw and heard.',
+  part2: 'The second part of the lesson: independent practice and the wrap-up.',
+  continue: 'Carry on with Part 2: independent practice and the wrap-up.',
 };
 
 async function teacherName(form) {
@@ -94,25 +122,52 @@ async function loadForm(flowToken) {
 // ------------------------------------------------------------------ screens
 
 async function renderPart1(form, extra = {}) {
-  const { period, half } = halves(form);
+  const period = periodOf(form);
   const name = await teacherName(form);
+  const after = afterLesson(form);
+  const lesson = after ? 'recorded lesson' : `${period}-minute period`;
   return {
     screen: 'PART_ONE',
     data: {
-      teacher_line: name ? `Teacher: ${name} · ${period}-minute period` : `${period}-minute period`,
-      part_hint: `Minute 0 to ${half}. At minute ${half}, tap "Part 1 done": your answers are saved then.`,
+      teacher_line: name ? `Teacher: ${name} · ${lesson}` : `${lesson[0].toUpperCase()}${lesson.slice(1)}`,
+      part_hint: after ? AFTER_HINT.part1 : PART_1_HINT,
       ...NO_ERRORS,
       ...extra,
     },
   };
 }
 
-function renderPart2(form, extra = {}) {
-  const { period, half } = halves(form);
+// Does this request come from a Flow whose Part 2 takes init values? (field-form.flow.js PREFILL)
+const takesPrefill = (screenData) => Boolean(screenData && screenData.prefill === PREFILL);
+
+// One init value, as the Flow declares its field (field-form.flow.js initData): ticks a list of strings,
+// a tick box a boolean, the rest a string. Never null (Meta refuses null); nothing saved is the type's
+// empty value. Counts (numbers) are never pre-filled: Meta has no empty number.
+function initValue(type, v) {
+  if (type === 'array') return Array.isArray(v) ? v.map(String) : [];
+  if (type === 'boolean') return v === true || v === 'true';
+  return v === undefined || v === null ? '' : String(v);
+}
+
+// Part 2's init values from a set of answers: every pre-filled field, typed as the Flow declares it.
+function partTwoInit(answers) {
+  const a = answers || {};
+  const out = {};
+  for (const f of PREFILLED.PART_TWO || []) out[`init_${f}`] = initValue(PREFILLED_TYPES[f], a[f]);
+  return out;
+}
+
+/**
+ * @param {object|null} form
+ * @param {object} [extra] error fields
+ * @param {object|null} [init] answers to pre-fill Part 2 with; null for a form on an older Flow
+ */
+function renderPart2(form, extra = {}, init = null) {
   return {
     screen: 'PART_TWO',
     data: {
-      part_hint: `From minute ${half} to ${period}. Answer only for what happens in this part.`,
+      part_hint: afterLesson(form) ? AFTER_HINT.part2 : part2Hint(periodOf(form)),
+      ...(init ? partTwoInit(init) : {}),
       ...NO_ERRORS,
       ...extra,
     },
@@ -145,13 +200,16 @@ function planOption(row) {
   return { id: String(row.id), title: f.title, description: f.description };
 }
 
+// The list is the teacher's own (the visit planner chose the teacher), and it holds the plans read in
+// the app as well as those sent on WhatsApp. Coaches still asked teachers for the file (pilot sheet
+// R11), so the hint says it isn't needed (bd-eal7zn.2). The hint is screen data: no Flow change.
 async function renderPlan(form, extra = {}, plans) {
   const list = plans || await recentPlans(form);
   const name = form ? await teacherName(form) : null;
   const who = name || 'The teacher';
   const hint = list.length
-    ? `${name ? `${name}'s` : "The teacher's"} most recent plans from the bot. If the plan isn't here, pick "Upload new" to add it.`
-    : `${who} has no plans from the bot yet. Pick "Upload new" to add the plan.`;
+    ? `${name ? `${name}'s` : "The teacher's"} plans from the app and WhatsApp, newest first. Pick the one taught: there's no need to ask for the file. If it isn't here, pick "Upload new".`
+    : `${who} has no plans from the app or WhatsApp yet. Pick "Upload new" to add the plan.`;
   return {
     screen: 'LESSON_PLAN',
     data: {
@@ -216,7 +274,9 @@ function renderAfterOld(form, extra = {}) {
   return { screen: 'AFTER', data: { lp_line: planLine(form && form.answers), ...NO_ERRORS, ...extra } };
 }
 
-const newForm = (screenData) => Boolean(screenData && screenData.fv === FORM_VERSION);
+// The form's version (`fv`): 4 brought the photo step, 5 the parts by the lesson's steps.
+const formVersion = (screenData) => Number((screenData && screenData.fv) || 0);
+const newForm = (screenData) => formVersion(screenData) >= 4;
 
 // After the plan: the photo step, unless it was already answered (the coach went back to the plan);
 // straight to the seal screen on a form still running the old Flow.
@@ -225,25 +285,53 @@ function afterPlan(form, screenData) {
   return photosDone(form && form.answers) ? renderAfter(form) : renderAdd('PHOTOS');
 }
 
+// The recording already in (held at capture, or sent before the seal): the screen says so, as the chat
+// message after the seal does (afterSeal: sealed_chat_recording_in). Asking for it again contradicted
+// that message (sandbox E2E, 15 Oct).
+const RECORDING_IN_LINE = 'Next: the recording is already in, so the moments come to you in the chat to check.';
+
 function renderSealed(form, lines) {
   const l = lines || {
     sealed_line: `Sealed at ${clock(form.sealed_at)}`,
-    next_line: 'Next: stop the recorder and send the recording in the chat. The steps are waiting there.',
+    next_line: afterLesson(form)
+      ? RECORDING_IN_LINE
+      : 'Next: stop the recorder and send the recording in the chat, as a document. The steps are waiting there.',
   };
   return { screen: 'SEALED', data: { ...l, record_id: String((form && form.id) || '') } };
 }
 
+// The boxes a coach types in, with the names the form gives them, in the order they are met.
+const NOTE_BOXES = [
+  ['p1_notes', 'Part 1'], ['p1_listen_other', 'Part 1, with a group'],
+  ['p2_notes', 'Part 2'], ['p2_listen_other', 'Part 2, with a group'],
+  ['note', 'Not in the recording'], ['detail', 'What happened'],
+];
+
+// What the coach has typed so far, by part, for the reopened form's screen; '' when nothing was typed.
+// A TextBody holds 4,096 characters; these boxes hold at most 600 each.
+function notesSoFar(form) {
+  const a = (form && form.answers) || {};
+  const lines = NOTE_BOXES
+    .map(([field, label]) => [label, String(a[field] || '').trim()])
+    .filter(([, text]) => text)
+    .map(([label, text]) => `${label}: ${text}`);
+  return lines.length ? `\n\nYour notes, kept with the record:\n${lines.join('\n')}` : '';
+}
+
 function renderContinue(kind, form) {
-  const { period, half } = halves(form);
+  const period = periodOf(form);
   const text = {
-    part1: ['Part 1 is saved', `Carry on with Part 2, from minute ${half} to ${period}.`],
+    part1: ['Part 1 is saved', afterLesson(form) ? AFTER_HINT.continue : `Carry on with Part 2: independent practice and the wrap-up, to minute ${period}.`],
     plan: ['Parts 1 and 2 are saved', 'Next: the lesson plan, then seal the record.'],
     part2: ['Parts 1 and 2 and the plan are saved', 'Carry on to the last screen and seal the record.'],
-    sealed: ['This record is sealed', `It was sealed at ${clock(form && form.sealed_at)} and can't change. Send the recording in the chat if you haven't yet.`],
+    sealed: ['This record is sealed', afterLesson(form)
+      ? `It was sealed at ${clock(form && form.sealed_at)} and can't change. The recording is already in.`
+      : `It was sealed at ${clock(form && form.sealed_at)} and can't change. Send the recording in the chat as a document if you haven't yet.`],
     gone: ['This form is not available', 'Send /observe2 in the chat to start a new visit.'],
     error: ['Something went wrong', 'Close this form and open it again in a minute.'],
   }[kind];
-  return { screen: 'CONTINUE', data: { continue_heading: text[0], continue_line: text[1] } };
+  const notes = ['part1', 'plan', 'part2', 'sealed'].includes(kind) ? notesSoFar(form) : '';
+  return { screen: 'CONTINUE', data: { continue_heading: text[0], continue_line: `${text[1]}${notes}` } };
 }
 
 // Validation failures, shown under each field and once at the bottom. WhatsApp shows no message under
@@ -351,12 +439,15 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
   if (step === 'CONTINUE') {
     if (!form || form.sealed_at) return renderSealed(form, form ? null : { sealed_line: 'Nothing to fill in', next_line: 'Send /observe2 in the chat to start a new visit.' });
     if (form.part2_done_at) return planDone(form.answers) ? afterPlan(form, screenData) : renderPlan(form);
-    return renderPart2(form);
+    return renderPart2(form, {}, takesPrefill(screenData) ? (form.answers || {}) : null);
   }
+
+  // Part 2 sent back as it is (refused, or not saved) keeps what the coach just typed.
+  const typed = takesPrefill(screenData) ? screenData : null;
 
   if (!loaded.ok) {
     const again = { error: 'Something went wrong on our side. Tap the button again.', has_error: true };
-    if (step === 'PART_TWO') return renderPart2(null, again);
+    if (step === 'PART_TWO') return renderPart2(null, again, typed);
     if (step === 'LESSON_PLAN') return renderPlan(null, again, []);
     if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, again);
     if (step === 'AFTER') return renderAfter(null, again);
@@ -364,7 +455,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
   }
   if (!form) {
     const gone = { error: 'This form is not available. Close it and send /observe2 in the chat.', has_error: true };
-    if (step === 'PART_TWO') return renderPart2(null, gone);
+    if (step === 'PART_TWO') return renderPart2(null, gone, typed);
     if (step === 'LESSON_PLAN') return renderPlan(null, gone, []);
     if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, gone);
     if (step === 'AFTER') return renderAfter(null, gone);
@@ -373,16 +464,19 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
 
   if (step === 'PART_ONE' || step === 'PART_TWO') {
     const part = step === 'PART_ONE' ? 'p1' : 'p2';
-    const answers = Store.pick(screenData, FIELDS[step]);
-    const errors = validate(step, { ...(form.answers || {}), ...answers });
-    const render = step === 'PART_ONE' ? (extra) => renderPart1(form, extra) : (extra) => renderPart2(form, extra);
+    // Today's fields and those a form on the older Flow still sends (FIELDS_V4); its checks by its version.
+    const answers = Store.pick(screenData, [...FIELDS[step], ...(FIELDS_V4[step] || [])]);
+    const errors = validate(step, { ...(form.answers || {}), ...answers }, { version: formVersion(screenData) });
+    const render = step === 'PART_ONE' ? (extra) => renderPart1(form, extra) : (extra) => renderPart2(form, extra, typed);
     if (Object.keys(errors).length) return render(refused(errors));
     const saved = await Store.savePart(form, part, answers);
     if (!saved.ok) {
       return render({ error: saved.sealed ? 'This record is already sealed. Close the form.' : 'Not saved. Tap the button again.', has_error: true });
     }
     logToFile('[observe2] part saved', { formId: form.id, part });
-    return step === 'PART_ONE' ? renderPart2(saved.form) : renderPlan(saved.form);
+    // Part 1 sent again after Part 2 was saved: Part 2 comes back with what was saved for it.
+    if (step === 'PART_ONE') return renderPart2(saved.form, {}, takesPrefill(screenData) ? (saved.form.answers || {}) : null);
+    return renderPlan(saved.form);
   }
 
   if (step === 'LESSON_PLAN') {

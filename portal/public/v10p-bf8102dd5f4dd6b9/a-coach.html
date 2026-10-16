@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>A teacher would like a visit</title><style>
+:root{--ink:#1d2433;--soft:#5b6578;--ok:#2B8A3E;--blue:#3B5BDB;--wa:#e5ddd5;--out:#dcf8c6}
+*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:var(--ink);font:17px/1.5 system-ui,-apple-system,"Segoe UI",
+"Noto Nastaliq Urdu","Noto Naskh Arabic",sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:520px;margin:0 auto;padding:16px}h1{font-size:22px;margin:0 0 10px}h2{font-size:17px;margin:0 0 8px}
+.box{background:#fff;border-radius:14px;padding:14px 16px;margin:0 0 12px;box-shadow:0 1px 3px #0001}
+label.r{display:flex;gap:10px;align-items:flex-start;padding:8px 0}label.r input{width:22px;height:22px;flex:none;margin-top:2px}
+.btn{display:block;width:100%;font:inherit;font-weight:800;border:0;border-radius:12px;padding:13px;background:var(--blue);
+color:#fff;text-align:center;text-decoration:none;cursor:pointer;margin:10px 0 0}
+.ghost{background:#fff;color:var(--blue);border:1.5px solid var(--blue)}.hint{color:var(--soft);font-size:15px;margin:6px 0 0}
+.ok{color:var(--ok);font-weight:800}ul{margin:0;padding:0 18px}audio{width:100%;margin:8px 0 0}
+.wa{background:var(--wa);min-height:100vh}.bub{background:#fff;border-radius:10px;padding:10px 12px;margin:0 0 8px;max-width:86%}
+.me{background:var(--out);margin-inline-start:auto}.qb{display:grid;gap:6px;margin:0 0 8px;max-width:86%}
+.qb button{font:inherit;font-weight:700;color:#027eb5;background:#fff;border:0;border-radius:10px;padding:9px;cursor:pointer}
+input.t{width:100%;font:inherit;padding:10px;border-radius:20px;border:1px solid #ccc}
+</style></head><body><main>
+<h1>A teacher would like a visit</h1><section class="box"><h2>Teacher A</h2><p>G1 English ch8 L5 · 7 Oct</p></section>
+<section class="box"><h2>What she said wasn’t right</h2><ul id="rs" data-voice-only="a voice note"><li>a voice note</li></ul></section>
+<section class="box"><h2>Her voice note</h2><audio id="pl" controls hidden></audio><p class="hint" id="none">No voice note</p></section>
+<button class="btn" type="button" id="v">I have visited</button><p class="ok" id="vd" hidden>✓ Visit done. Thank you.</p>
+<script type="application/json" id="w">{"score": "My score doesn’t seem right", "missed": "I did this, but the report missed it", "wont_work": "This won’t work in my class", "unclear": "I didn’t understand what to do"}</script>
+</main><script>(function(){var W=JSON.parse(document.getElementById('w').textContent),q=(location.search.match(/[?&]r=([^&]*)/)||[])[1]||'',
+c=decodeURIComponent(q).split(',').filter(function(x){return W[x]}),ul=document.getElementById('rs');
+ul.innerHTML='';(c.length?c.map(function(x){return W[x]}):[ul.dataset.voiceOnly]).forEach(function(t){var li=document.createElement('li');
+li.textContent=t;ul.appendChild(li)});try{var n=sessionStorage.getItem('v10p-note');if(n){var a=document.getElementById('pl');a.src=n;
+a.hidden=false;document.getElementById('none').hidden=true}}catch(e){}
+document.getElementById('v').onclick=function(){this.hidden=true;document.getElementById('vd').hidden=false}})();</script></body></html>

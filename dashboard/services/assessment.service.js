@@ -62,7 +62,13 @@ function config() {
   };
 }
 
-async function ask(path, body) {
+/**
+ * `coded` is for create only. Its 400s and 409s carry an errorCode (and a 409 the
+ * request already being made) that the app draws a specific screen for. Every
+ * other path keeps the old contract: a 400 is a two-key message, and a 409 —
+ * which no other bot route sends — is ours to answer as a 502.
+ */
+async function ask(path, body, { coded = false } = {}) {
   const { baseUrl, apiKey } = config();
   if (!baseUrl || !apiKey) {
     throw new Error('Assessment API is not configured (MAIN_BOT_URL / INTERNAL_API_KEY)');
@@ -73,15 +79,20 @@ async function ask(path, body) {
     timeout: TIMEOUT_MS,
     // 400s carry a per-field message the teacher should see (an out-of-range
     // question count says which range). Letting axios throw on them would turn
-    // a correctable mistake into "something went wrong".
-    validateStatus: (s) => (s >= 200 && s < 300) || s === 400,
+    // a correctable mistake into "something went wrong". A 409 is the bot saying
+    // a paper for this class is already being made.
+    validateStatus: (s) => (s >= 200 && s < 300) || s === 400 || (coded && s === 409),
   });
 
   const data = res && res.data;
-  if (res.status === 400) {
+  // A 409 passes through only when it says what it is; an uncoded one stays ours (502).
+  if (res.status === 400 || (coded && res.status === 409 && typeof data?.errorCode === 'string')) {
     const err = new Error(data?.error || 'That request was not valid.');
     err.userFacing = true;
-    err.status = 400;
+    err.status = res.status;
+    // The code lets the app say which real thing went wrong (PATTERN_OFF, ALREADY_GENERATING, …).
+    if (coded && typeof data?.errorCode === 'string') err.errorCode = data.errorCode;
+    if (coded && typeof data?.requestId === 'string') err.requestId = data.requestId;
     throw err;
   }
   if (!data || data.success !== true) {
@@ -116,7 +127,7 @@ async function listChapters(grade, subject) {
  * template, so it would land sometimes and not others.
  */
 async function create(spec) {
-  const data = await ask('create', spec);
+  const data = await ask('create', spec, { coded: true });
   return { requestId: data.requestId };
 }
 

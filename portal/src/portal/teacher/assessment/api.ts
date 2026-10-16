@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { portal, type AssessmentChapter, type AssessmentPaperList, type AssessmentQuestionType } from '../../services/api';
+import { portal, type AssessmentChapter, type AssessmentPaperList, type AssessmentPattern, type AssessmentQuestionType } from '../../services/api';
 import { readConfigShared } from '../../lib/useNewUi';
 
 /**
@@ -16,6 +16,8 @@ export type Catalogue = {
   byGrade: Record<number, CatalogueSubject[]>;
   maxQuestions: number;
   defaultQuestions: number;
+  /** Only while the board pattern is on (the bot's flag): the grades it serves. Absent = nothing new is drawn. */
+  patternGrades?: number[];
 };
 
 /** The grades on offer, then each grade's subjects (a handful of small reads, in parallel). */
@@ -31,6 +33,7 @@ export async function loadCatalogue(): Promise<Catalogue> {
     byGrade: Object.fromEntries(per),
     maxQuestions: top.maxQuestions,
     defaultQuestions: top.defaultQuestions,
+    ...(top.patternGrades?.length ? { patternGrades: top.patternGrades } : {}),
   };
 }
 
@@ -45,8 +48,33 @@ export function catalogueOnce(): Promise<Catalogue> {
   return catalogueInflight;
 }
 
+const patternInflight = new Map<string, Promise<AssessmentPattern | null>>();
+
+/**
+ * The board pattern /assessment/options offers for this grade + subject, or null (flag off, another grade, Islamiat).
+ * Once per page load per class. A failed read REJECTS (and is asked again next time): a screen that already holds the
+ * teacher's board-pattern choice must say "could not load", never act as if the pattern were switched off.
+ */
+export function patternOffer(grade: number | null, subject: string | null): Promise<AssessmentPattern | null> {
+  if (grade === null || !subject) return Promise.resolve(null);
+  const key = `${grade}:${subject}`;
+  let hit = patternInflight.get(key);
+  if (!hit) {
+    const read = portal.getAssessmentOptions(grade, subject).then((o) => o.patterns?.[0] ?? null);
+    read.catch(() => { if (patternInflight.get(key) === read) patternInflight.delete(key); });
+    patternInflight.set(key, read);
+    hit = read;
+  }
+  return hit;
+}
+
+/** patternOffer, with a failed read as null (nothing new is drawn): for a probe that only decides what to show. */
+export function patternFor(grade: number | null, subject: string | null): Promise<AssessmentPattern | null> {
+  return patternOffer(grade, subject).catch(() => null);
+}
+
 /** Tests only. */
-export function forgetCatalogue(): void { catalogueInflight = null; }
+export function forgetCatalogue(): void { catalogueInflight = null; patternInflight.clear(); }
 
 /** The subject's name the catalogue gives, else its key. */
 export function subjectName(cat: Catalogue | undefined, grade: number | null, key: string | null): string {

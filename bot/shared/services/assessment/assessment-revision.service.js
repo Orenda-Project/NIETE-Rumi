@@ -18,6 +18,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const Renderer = require('./assessment-paper.renderer');
+const FdeRenderer = require('./assessment-paper-fde.renderer');
 const Selection = require('./assessment-selection');
 const Edit = require('./assessment-edit');
 const { rendererFor } = require('./assessment-format');
@@ -100,6 +101,83 @@ async function _loadOwnedPaper(paperId, userId) {
   return { paper: data };
 }
 
+/** A board-pattern paper: printed from its `_layout`, two files (paper + marking scheme). */
+function isPatternPaper(paper) {
+  return Boolean(paper && paper.exam_json && paper.exam_json._layout);
+}
+
+/** The paper's marks: a board pattern's total is the renderer's, not the sum of its items. */
+function _marksOf(tree, questions) {
+  return tree && tree._layout ? FdeRenderer.totalMarks(tree) : Renderer.totalMarks(questions);
+}
+
+/**
+ * A board-pattern paper's two files, made the way the orchestrator first made
+ * them: the paper with its own PDF options (the "Page n of N" footer), its page
+ * count and the page each frame fell on read off the new PDF, then the marking
+ * scheme — whose box names the paper's file and page count — with its options,
+ * and its own count. A removal can change both counts, so both are written
+ * again on the tree that is stored. The tree is the FULL tree with removed
+ * questions flagged, which the renderer prints from: a slot the teacher took
+ * below its count is her choice and prints its smaller count, never the model's
+ * PATTERN_SHORT_SLOT.
+ */
+async function _renderPatternFiles({ tree, grade, subject, answerLines, renderer, paperFileName }) {
+  const { pdfPageCount } = require('./assessment-orchestrator.service');
+  const buffer = await renderer.render(
+    Renderer.renderPaper({ examJson: tree, grade, subject, answerLines }),
+    { pdfOptions: FdeRenderer.pdfOptions(tree, 'paper') },
+  );
+  const paperPages = pdfPageCount(buffer);
+  let framePages = null;
+  try {
+    const found = await FdeRenderer.framePages(buffer);
+    if (found && Object.keys(found).length) framePages = found;
+  } catch (err) {
+    logToFile('[assessment-revision] frame pages unreadable', { error: err.message });
+  }
+  const counted = {
+    ...tree,
+    _layout: { ...tree._layout, pages: paperPages == null ? null : { paper: paperPages, scheme: null }, frame_pages: framePages },
+  };
+  const keyBuffer = await renderer.render(
+    Renderer.renderAnswerKey({ examJson: counted, grade, subject, paperFileName }),
+    { pdfOptions: FdeRenderer.pdfOptions(counted, 'scheme') },
+  );
+  const schemePages = pdfPageCount(keyBuffer);
+  const pages = paperPages == null && schemePages == null ? null : { paper: paperPages, scheme: schemePages };
+  return { buffer, keyBuffer, tree: { ...counted, _layout: { ...counted._layout, pages } } };
+}
+
+/**
+ * The slot a board-pattern edit left with nothing on the paper — one that still
+ * had a question in the version it was edited from — or null. Such a slot would
+ * print "Attempt zero of the following"; going below the slot's attempt count is
+ * fine (it prints its smaller count), going to none is not.
+ */
+const PATTERN_EMPTY_SLOT = 'PATTERN_EMPTY_SLOT';
+function _emptiedSlot(tree, parentTree) {
+  if (!tree || !tree._layout) return null;
+  const liveSlots = (t) => new Set(Selection.indexQuestions(t)
+    .filter((q) => !q.removed && q.question && q.question.slot).map((q) => q.question.slot));
+  const now = liveSlots(tree);
+  const before = parentTree ? liveSlots(parentTree) : null;
+  for (const sec of tree._layout.sections || []) {
+    for (const slot of sec.slots || []) {
+      if (!now.has(slot.slot) && (!before || before.has(slot.slot))) return slot.slot;
+    }
+  }
+  return null;
+}
+
+/** The review Flow's ticks as removed flags, so a board-pattern paper keeps every slot's items. */
+function _flagUnticked(examJson, selectedIds) {
+  if (selectedIds == null) return examJson;
+  const keep = new Set(selectedIds);
+  return Selection.indexQuestions(examJson)
+    .reduce((tree, q) => Selection.setRemoved(tree, q.id, q.removed || !keep.has(q.id)) || tree, examJson);
+}
+
 /** Everything she could tick, for the screen that asks. */
 async function listQuestions({ paperId, userId }) {
   const { paper, code } = await _loadOwnedPaper(paperId, userId);
@@ -139,6 +217,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
     return { status: 'failed', code: loaded.code };
   }
   const { paper } = loaded;
+  const pattern = isPatternPaper(paper);
   const req = paper.assessment_requests || {};
   const { grade, subject, pageRanges, format, answerLines } = coverageOf(req);
 
@@ -168,11 +247,19 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
   }
 
   try {
-    const examJson = Selection.applySelection(paper.exam_json, selectedIds);
-    const questions = Renderer.collectQuestions(examJson);
-    const marks = Renderer.totalMarks(questions);
+    let examJson = pattern
+      ? _flagUnticked(paper.exam_json, selectedIds)
+      : Selection.applySelection(paper.exam_json, selectedIds);
+    if (pattern && _emptiedSlot(examJson, paper.exam_json)) {
+      throw Object.assign(new Error('a board-pattern slot would be left empty'), { code: PATTERN_EMPTY_SLOT });
+    }
+    const questions = Renderer.collectQuestions(pattern ? Selection.activeTree(examJson) : examJson);
+    const marks = _marksOf(examJson, questions);
 
-    const html = Renderer.renderPaper({
+    // A board-pattern paper is always a PDF: its footer's page total comes from the print step.
+    const renderer = rendererFor(pattern ? 'pdf' : format);
+    const name = fileName({ grade, subject, format: renderer.ext, suffix: pattern ? '_FDE_Edited' : '_Edited' });
+    const html = pattern ? null : Renderer.renderPaper({
       examJson,
       grade,
       subject,
@@ -182,15 +269,19 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
       answerLines,
     });
 
-    const renderer = rendererFor(format);
     let buffer;
+    let schemeBuffer = null;
     try {
-      buffer = await renderer.render(html);
+      if (pattern) {
+        ({ buffer, keyBuffer: schemeBuffer, tree: examJson } = await _renderPatternFiles({
+          tree: examJson, grade, subject, answerLines, renderer, paperFileName: name,
+        }));
+      } else {
+        buffer = await renderer.render(html);
+      }
     } catch (err) {
       throw Object.assign(err, { code: 'RENDER_FAILED' });
     }
-
-    const name = fileName({ grade, subject, format: renderer.ext, suffix: '_Edited' });
 
     let key;
     try {
@@ -235,11 +326,12 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
     // awaited, so the caller knows whether it went.
     const keyTask = (async () => {
       try {
-        const keyHtml = Renderer.renderAnswerKey({
+        const keyBuffer = schemeBuffer || await renderer.render(Renderer.renderAnswerKey({
           examJson, grade, subject, schoolName, pageReference: pageRanges, chapterTitle: null,
+        }));
+        const keyName = fileName({
+          grade, subject, format: renderer.ext, suffix: pattern ? '_FDE_Edited_MarkingScheme' : '_Edited_AnswerKey',
         });
-        const keyBuffer = await renderer.render(keyHtml);
-        const keyName = fileName({ grade, subject, format: renderer.ext, suffix: '_Edited_AnswerKey' });
         const keyKey = await r2.uploadExamBuffer({ buffer: keyBuffer, userId, examId: paperId, filename: keyName });
         await _patch(paperId, { answer_key_r2_key: keyKey });
         const keyUrl = await r2.getPresignedUrl(r2.buildR2PublicUrl(keyKey), 3600);
@@ -286,7 +378,6 @@ async function saveEdit({ paperId, userId, questionId, edit }) {
   if (!paper) {
     return { status: 'rejected', code, message: TEACHER_MESSAGE[code] || FALLBACK_MESSAGE };
   }
-
   const tree = paper.exam_json;
   const target = Selection.indexQuestions(tree).find((q) => q.id === questionId);
   if (!target) {
@@ -307,7 +398,7 @@ async function saveEdit({ paperId, userId, questionId, edit }) {
   }
 
   const questions = Renderer.collectQuestions(next);
-  const marks = Renderer.totalMarks(questions);
+  const marks = _marksOf(next, questions);
 
   await _patch(paperId, {
     exam_json: next,
@@ -390,7 +481,7 @@ async function listFamily({ paperId, userId }) {
     .eq('id', paperId).maybeSingle();
   if (error || !anchor || anchor.assessment_requests?.user_id !== userId) return { code: 'NOT_FOUND' };
   const { data: rows, error: famErr } = await supabase.from('assessment_papers')
-    .select('id, status, edited_from, created_at, question_count, total_marks')
+    .select('id, status, edited_from, created_at, question_count, total_marks, pattern:exam_json->_layout->>preset_id')
     .eq('request_id', anchor.request_id);
   if (famErr) return { code: 'NOT_FOUND' };
   const asc = [...(rows || [])].sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
@@ -405,8 +496,13 @@ async function listFamily({ paperId, userId }) {
     };
   });
   const latestReady = [...numbered].reverse().find((v) => v.status === 'ready');
+  // Every version of a board-pattern paper is that pattern (a failed edit row may carry no tree,
+  // so the family's own answer is used). A plain family's rows stay exactly as they were.
+  const pattern = (rows || []).map((r) => r.pattern).find(Boolean) || null;
   return {
-    versions: numbered.reverse().map((v) => ({ ...v, latest: !!latestReady && v.paperId === latestReady.paperId })),
+    versions: numbered.reverse().map((v) => ({
+      ...v, latest: !!latestReady && v.paperId === latestReady.paperId, ...(pattern ? { pattern } : {}),
+    })),
   };
 }
 
@@ -468,13 +564,16 @@ async function buildVersion({ parentId, userId, tree, schoolName: knownSchool })
   const loaded = await loadVersion({ paperId: parentId, userId });
   if (!loaded.paper) return { status: 'failed', code: loaded.code };
   const parent = loaded.paper;
+  const pattern = isPatternPaper(parent);
   const req = parent.assessment_requests || {};
   const { grade, subject, pageRanges, format, answerLines } = coverageOf(req);
+  const emptied = pattern ? _emptiedSlot(tree, parent.exam_json) : null;
+  if (emptied) return { status: 'failed', code: PATTERN_EMPTY_SLOT, slot: emptied };
 
   const active = Selection.activeTree(tree);
   const questions = Renderer.collectQuestions(active);
   if (!questions.length) return { status: 'failed', code: 'EMPTY_SELECTION' };
-  const marks = Renderer.totalMarks(questions);
+  const marks = _marksOf(tree, questions);
 
   const { data: row, error: insErr } = await supabase.from('assessment_papers')
     .insert({
@@ -496,23 +595,33 @@ async function buildVersion({ parentId, userId, tree, schoolName: knownSchool })
 
   try {
     const [version, parentVersion] = await Promise.all([versionNumberOf(row), versionNumberOf(parent)]);
-    const chapterTitle = await _chapterTitle(req, grade, subject);
-    const renderer = rendererFor(format);
+    // A board-pattern paper's files carry no chapter in their names, as when it was made.
+    const chapterTitle = pattern ? null : await _chapterTitle(req, grade, subject);
+    const renderer = rendererFor(pattern ? 'pdf' : format);
     const schoolName = knownSchool !== undefined ? knownSchool : (await _teacher(userId, null)).schoolName;
     const common = { examJson: active, grade, subject, schoolName, pageReference: pageRanges, chapterTitle };
 
+    const v = `${pattern ? '_FDE' : ''}${version ? `_v${version}` : '_Edited'}`;
+    const name = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: v });
+    const keyName = fileName({
+      grade, subject, chapterTitle, format: renderer.ext, suffix: `${v}${pattern ? '_MarkingScheme' : '_AnswerKey'}`,
+    });
+
     let buffer;
     let keyBuffer;
+    let stored = null;
     try {
-      buffer = await renderer.render(Renderer.renderPaper({ ...common, answerLines }));
-      keyBuffer = await renderer.render(Renderer.renderAnswerKey(common));
+      if (pattern) {
+        ({ buffer, keyBuffer, tree: stored } = await _renderPatternFiles({
+          tree, grade, subject, answerLines, renderer, paperFileName: name,
+        }));
+      } else {
+        buffer = await renderer.render(Renderer.renderPaper({ ...common, answerLines }));
+        keyBuffer = await renderer.render(Renderer.renderAnswerKey(common));
+      }
     } catch (err) {
       throw Object.assign(err, { code: 'RENDER_FAILED' });
     }
-
-    const v = version ? `_v${version}` : '_Edited';
-    const name = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: v });
-    const keyName = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: `${v}_AnswerKey` });
     let fileKey;
     let keyKey;
     try {
@@ -524,6 +633,8 @@ async function buildVersion({ parentId, userId, tree, schoolName: knownSchool })
 
     await _patch(paperId, {
       status: 'ready', file_r2_key: fileKey, answer_key_r2_key: keyKey, ready_at: new Date().toISOString(),
+      // The page counts read off this version's own files, in the write that makes it ready.
+      ...(stored ? { exam_json: stored } : {}),
     });
     return {
       status: 'ready', paperId, version, parentVersion, questionCount: questions.length, marks,
@@ -615,7 +726,7 @@ async function resendVersion({ paperId, userId, phone: knownPhone, user = null, 
   const chapterTitle = await _chapterTitle(req, grade, subject);
   const version = await versionNumberOf(p);
   const questions = Renderer.collectQuestions(p.exam_json);
-  const marks = Renderer.totalMarks(questions);
+  const marks = _marksOf(p.exam_json, questions);
   const title = [_title({ grade, subject, chapterTitle }), version > 1 ? `Version ${version}` : null]
     .filter(Boolean).join(' · ');
   const name = String(p.file_r2_key).split('/').pop();
@@ -636,13 +747,22 @@ async function resendVersion({ paperId, userId, phone: knownPhone, user = null, 
   let keyKey = p.answer_key_r2_key;
   if (!keyKey) {
     try {
-      const renderer = rendererFor(format);
-      const keyBuffer = await renderer.render(Renderer.renderAnswerKey({
-        examJson: Selection.activeTree(p.exam_json), grade, subject, schoolName, pageReference: pageRanges, chapterTitle,
-      }));
+      const pattern = isPatternPaper(p);
+      const renderer = rendererFor(pattern ? 'pdf' : format);
+      const keyHtml = Renderer.renderAnswerKey({
+        examJson: pattern ? p.exam_json : Selection.activeTree(p.exam_json),
+        grade, subject, schoolName, pageReference: pageRanges, chapterTitle,
+        ...(pattern ? { paperFileName: name } : {}),
+      });
+      const keyBuffer = pattern
+        ? await renderer.render(keyHtml, { pdfOptions: FdeRenderer.pdfOptions(p.exam_json, 'scheme') })
+        : await renderer.render(keyHtml);
       keyKey = await r2.uploadExamBuffer({
         buffer: keyBuffer, userId, examId: paperId,
-        filename: fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: `_v${version}_AnswerKey` }),
+        filename: fileName({
+          grade, subject, chapterTitle, format: renderer.ext,
+          suffix: pattern ? `_FDE_v${version}_MarkingScheme` : `_v${version}_AnswerKey`,
+        }),
       });
       await _patch(paperId, { answer_key_r2_key: keyKey });
     } catch (err) {
@@ -664,4 +784,5 @@ async function resendVersion({ paperId, userId, phone: knownPhone, user = null, 
 module.exports = {
   rerender, listQuestions, saveEdit, fileName, TEACHER_MESSAGE,
   loadVersion, versionNumberOf, listVersionItems, listFamily, buildVersion, createVersion, resendVersion,
+  isPatternPaper,
 };

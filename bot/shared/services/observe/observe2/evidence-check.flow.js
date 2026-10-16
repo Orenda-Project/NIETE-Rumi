@@ -5,8 +5,9 @@
  *
  *   HEARD_ASK, HEARD_WRONG, HEARD_WORK, HEARD_EXPLAIN
  *       The moments Rumi found in the recording, grouped by the four moments. Each is a quote with
- *       its minute; the coach answers "yes, this happened" or "no, or not like this". Up to SLOTS
- *       per screen; unused slots are hidden.
+ *       its minute and why it was picked; the coach answers "yes, this happened" or "no, or not like
+ *       this". Up to SLOTS per screen; unused slots are hidden. A line from the endpoint opens each
+ *       screen: how the moments count, or that Rumi found none for this question.
  *   FIDELITY
  *       Only when the coach picked a lesson plan in the form and it was graded: each step the plan
  *       asked for, already rated from the recording by the grader /observe uses (done, done another
@@ -17,7 +18,8 @@
  *       Every level, pre-selected with what the coach's sealed answers and confirmed moments add up
  *       to (rules.js). Rumi's own level is never shown. The coach changes any they disagree with.
  *   PRIORITY
- *       The pick the coach made before sealing, kept or changed, with one box for why.
+ *       The picks the coach made before sealing (the first, and up to two more), kept or changed, with
+ *       one box for why.
  *   DONE
  *
  * Every footer is a data_exchange that posts every field on its screen, so the server holds each
@@ -27,9 +29,13 @@
  * Regenerate the committed copy after any change:  node bot/scripts/generate-observe2-flow-json.js
  */
 
-const { MOMENTS, PLAIN, EXTRA, ROW, PRIORITY } = require('./fico17');
+const { MOMENTS, PLAIN, EXTRA, ROW, FOCUS, FOCUS_ORDER, ALSO_NONE, THINKING } = require('./fico17');
 
 const FLOW_VERSION = '7.3';
+// This check's own version, sent by the footers whose next screen's data changed (ADDED_TWO, PRIORITY:
+// "Also work on", R14). A check opened before it was published sends none, and the endpoint answers it
+// in its own shape.
+const CHECK_VERSION = '2';
 const SLOTS = 8;
 // One slot per prescribed move, as many as /observe shows (observe-draft MAX_MOVE_SLOTS); moves past
 // the twelfth keep the grader's rating there too.
@@ -58,14 +64,14 @@ const ADDED_SCREENS = [
 const ORDER = MOMENTS.flatMap((m) => m.codes);
 const YES_NO = [{ id: 'yes', title: 'Yes, this happened' }, { id: 'no', title: 'No, or not like this' }];
 
-function screenWith(id, title, children, footerLabel, data, initValues) {
+function screenWith(id, title, children, footerLabel, data, initValues, extraPayload) {
   const fields = [];
   const collect = (list) => list.forEach((c) => {
     if (c.name) fields.push(c.name);
     ['then', 'else'].forEach((k) => Array.isArray(c[k]) && collect(c[k]));
   });
   collect(children);
-  const payload = { screen: id };
+  const payload = { screen: id, ...(extraPayload || {}) };
   for (const f of fields) payload[f] = `\${form.${f}}`;
   const form = {
     type: 'Form',
@@ -76,11 +82,17 @@ function screenWith(id, title, children, footerLabel, data, initValues) {
   return { id, title, data, layout: { type: 'SingleColumnLayout', children: [form] } };
 }
 
-function heardScreen({ id, title, moment }, isLast) {
-  const data = {};
+// The line under each moments screen's question comes from the endpoint, so a part with no moment says
+// so instead of showing the question over nothing (pilot sheet R8, R9; bd-eal7zn.3). A check opened on a
+// Flow published before this line was declared ignores it and keeps today's screen.
+function heardScreen({ id, title, moment }) {
+  const intro = `${id.toLowerCase()}_intro`;
+  const data = {
+    [intro]: { type: 'string', __example__: 'These moments were picked from the recording as evidence for this part of the lesson. Say whether each one happened as written.' },
+  };
   const kids = [
     { type: 'TextHeading', text: MOMENT_BY_ID[moment].question },
-    { type: 'TextCaption', text: 'These are moments from the recording. Say whether each one really happened. No score from the recording is shown.' },
+    { type: 'TextBody', text: `\${data.${intro}}` },
   ];
   for (let i = 1; i <= SLOTS; i += 1) {
     const k = `${id.toLowerCase()}_${i}`;
@@ -124,12 +136,13 @@ function fidelityScreen() {
 function addedScreen({ id, title, codes }) {
   const data = {};
   const init = {};
-  const kids = [{ type: 'TextCaption', text: 'Each level is what your answers and the moments you confirmed add up to. Change any you disagree with.' }];
+  const kids = [{ type: 'TextCaption', text: 'Each level is what your answers and the moments you confirmed add up to. Change any you disagree with. Rows marked "Thinking" show whether children reasoned, or only recalled.' }];
   for (const code of codes) {
     data[`${code}_because`] = { type: 'string', __example__: 'Two open questions, each answered by one child.' };
     data[`${code}_level`] = { type: 'string', __example__: '3' };
     kids.push(
-      { type: 'TextSubheading', text: ROW[code] },
+      // The six indicators that score thinking are named as such (R16); the screens and fields are unchanged.
+      { type: 'TextSubheading', text: THINKING.codes.includes(code) ? `${THINKING.name}: ${ROW[code]}` : ROW[code] },
       { type: 'TextCaption', text: `\${data.${code}_because}` },
       {
         type: 'RadioButtonsGroup', name: `${code}_final`, label: 'Level', required: true,
@@ -138,18 +151,29 @@ function addedScreen({ id, title, codes }) {
     );
     init[`${code}_final`] = `\${data.${code}_level}`;
   }
-  return screenWith(id, title, kids, 'Next', data, init);
+  // The last level screen's answer is the PRIORITY screen, whose data changed with "Also work on".
+  const last = id === ADDED_SCREENS[ADDED_SCREENS.length - 1].id;
+  return screenWith(id, title, kids, 'Next', data, init, last ? { cv: CHECK_VERSION } : null);
 }
 
 function priorityScreen() {
+  const focus = FOCUS_ORDER.map((c) => ({ id: c, title: FOCUS[c] }));
+  const also = [{ id: ALSO_NONE, title: 'Nothing else' }, ...focus];
   const kids = [
-    { type: 'TextCaption', text: "Your pick before you saw the recording's moments. Keep it or change it." },
-    { type: 'Dropdown', name: 'priority_final', label: 'Work on first', required: true, 'data-source': ORDER.map((c) => ({ id: c, title: PRIORITY[c] })) },
+    { type: 'TextCaption', text: "Your picks before you saw the recording's moments. Keep them or change them." },
+    { type: 'Dropdown', name: 'priority_final', label: 'Work on first', required: true, 'data-source': focus },
+    { type: 'TextCaption', text: 'If the teacher needs more, up to two. Optional.' },
+    { type: 'Dropdown', name: 'also_final_1', label: 'Also work on', required: false, 'data-source': also },
+    { type: 'Dropdown', name: 'also_final_2', label: 'And also', required: false, 'data-source': also },
     { type: 'TextArea', name: 'why', label: 'Why you changed', required: false, 'max-length': 600, 'helper-text': 'If you changed a level or the pick: which moment or answer did it' },
   ];
   return screenWith('PRIORITY', 'Work on first', kids, 'Submit', {
     priority_level: { type: 'string', __example__: 'C8' },
-  }, { priority_final: '${data.priority_level}' });
+    also_level_1: { type: 'string', __example__: 'plan' },
+    also_level_2: { type: 'string', __example__: 'none' },
+  }, {
+    priority_final: '${data.priority_level}', also_final_1: '${data.also_level_1}', also_final_2: '${data.also_level_2}',
+  }, { cv: CHECK_VERSION });
 }
 
 function buildEvidenceCheckFlow() {
@@ -174,7 +198,7 @@ function buildEvidenceCheckFlow() {
     },
   };
   const screens = [
-    ...HEARD_SCREENS.map((h, i) => heardScreen(h, i === HEARD_SCREENS.length - 1)),
+    ...HEARD_SCREENS.map(heardScreen),
     fidelityScreen(),
     ...ADDED_SCREENS.map(addedScreen),
     priorityScreen(),
@@ -187,4 +211,4 @@ function buildEvidenceCheckFlow() {
   return { version: FLOW_VERSION, data_api_version: '3.0', routing_model: routing, screens };
 }
 
-module.exports = { buildEvidenceCheckFlow, SLOTS, FIDELITY_SLOTS, FIDELITY_VERDICTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION };
+module.exports = { buildEvidenceCheckFlow, SLOTS, FIDELITY_SLOTS, FIDELITY_VERDICTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION, CHECK_VERSION };

@@ -42,6 +42,28 @@ function pooledPct(domains, keys) {
   return max > 0 ? round1((score / max) * 100) : null;
 }
 
+// bd-97x22y.5 — the FICO sections the schools analytics Observations tab shows, as the ICT
+// dashboard does (her Section B / C / D, sync_observations.py:38-41). One domain each;
+// teacher_subject_knowledge (F) is not in her rubric and is not shown.
+const FICO_SECTIONS = Object.freeze({
+  b: 'lesson_plan_fidelity',
+  c: 'high_leverage_practices',
+  d: 'student_engagement',
+});
+
+/**
+ * One FICO section's percentage for one session, or null when it was not scored. A section
+ * marked `assessed: false` is not scored — the framework leaves it out of the total
+ * (fico-framework.js:796, 847) and the report shows no number for it (fico-adapter.js:81) —
+ * even though its proxy domain_score / domain_max stay stamped on the row.
+ */
+function sectionPct(domains, key) {
+  const d = domains && typeof domains === 'object' ? domains[key] : null;
+  if (!d || d.assessed === false) return null;
+  return pooledPct(domains, [key]);
+}
+
 module.exports = {
   pooledPct, isHumanObservation, HUMAN_OBSERVATION, S_DOMAINS, T_DOMAINS, E_DOMAINS,
+  FICO_SECTIONS, sectionPct,
 };

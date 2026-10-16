@@ -1,0 +1,229 @@
+{
+  "passage_id": "en.listen.1.story01",
+  "lang": "en",
+  "kind": "listen",
+  "band": 1,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Rehan"
+  ],
+  "tokens": 37,
+  "sentences": 6,
+  "mean_sent_len": 6.2,
+  "max_word_len": 6,
+  "readability": 0.962,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.962,
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "Ice Cream in the Sun",
+  "title_ur": null,
+  "text": "Rehan had ice cream in the park. The sun was very hot. The ice cream was soft. Some of it was on his hands. His mother gave Rehan some water. He ate the rest by a tree.",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      11
+    ],
+    [
+      12,
+      16
+    ],
+    [
+      17,
+      23
+    ],
+    [
+      24,
+      29
+    ],
+    [
+      30,
+      36
+    ]
+  ],
+  "tokens_list": [
+    "Rehan",
+    "had",
+    "ice",
+    "cream",
+    "in",
+    "the",
+    "park",
+    "The",
+    "sun",
+    "was",
+    "very",
+    "hot",
+    "The",
+    "ice",
+    "cream",
+    "was",
+    "soft",
+    "Some",
+    "of",
+    "it",
+    "was",
+    "on",
+    "his",
+    "hands",
+    "His",
+    "mother",
+    "gave",
+    "Rehan",
+    "some",
+    "water",
+    "He",
+    "ate",
+    "the",
+    "rest",
+    "by",
+    "a",
+    "tree"
+  ],
+  "text_hash": "40abe552c3496b45374cf86ed6ed8c67",
+  "q_reach_1": 1,
+  "q_reach_2": 2,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Rehan have in the park?",
+      "right": "ice cream",
+      "wrong": [
+        "a cake",
+        "an apple"
+      ],
+      "accept": [
+        "ice cream",
+        "an ice cream"
+      ],
+      "reject": [
+        "a cake",
+        "an apple"
+      ],
+      "rubric": "Right if the child says ice cream (or an ice cream)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "How was the sun?",
+      "right": "very hot",
+      "wrong": [
+        "very cold",
+        "very dark"
+      ],
+      "accept": [
+        "very hot",
+        "hot"
+      ],
+      "reject": [
+        "very cold",
+        "very dark"
+      ],
+      "rubric": "Right if the child says very hot (or hot)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where was some of the ice cream?",
+      "right": "on his hands",
+      "wrong": [
+        "on his shoes",
+        "on the bench"
+      ],
+      "accept": [
+        "on his hands",
+        "his hands",
+        "on his hand"
+      ],
+      "reject": [
+        "on his shoes",
+        "on the bench"
+      ],
+      "rubric": "Right if the child says on his hands (or his hands / on his hand)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did his mother give Rehan?",
+      "right": "some water",
+      "wrong": [
+        "some bread",
+        "a hat"
+      ],
+      "accept": [
+        "some water",
+        "water"
+      ],
+      "reject": [
+        "some bread",
+        "a hat"
+      ],
+      "rubric": "Right if the child says some water (or water)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Rehan have the rest?",
+      "right": "by a tree",
+      "wrong": [
+        "in the car",
+        "at home"
+      ],
+      "accept": [
+        "by a tree",
+        "near a tree",
+        "under a tree"
+      ],
+      "reject": [
+        "in the car",
+        "at home"
+      ],
+      "rubric": "Right if the child says by a tree (or near a tree / under a tree)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 3,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why was the ice cream soft?",
+      "right": "the sun was hot",
+      "wrong": [
+        "it was in the car",
+        "it was very old"
+      ],
+      "accept": [
+        "the sun was hot",
+        "it was hot",
+        "the sun"
+      ],
+      "reject": [
+        "it was in the car",
+        "it was very old"
+      ],
+      "rubric": "Right if the child says the sun was hot (or it was hot / the sun)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

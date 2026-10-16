@@ -1,0 +1,239 @@
+{
+  "passage_id": "ur.read.3.story01",
+  "lang": "ur",
+  "kind": "read",
+  "band": 3,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 60,
+  "sentences": 8,
+  "mean_sent_len": 7.5,
+  "max_word_len": 5,
+  "readability": 0.907,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 5,
+  "text_hash": "dd81f7e8cc5d8f58d560b8593a314f98",
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "جال میں بلبل",
+  "text": "مہک جماعت کے ساتھ کینجھر جھیل کی سیر کو گئی۔ جھیل کے پاس بہت سے پرندے بیٹھے تھے۔ مہک نے دیکھا کہ ایک بلبل جال میں پھنسی ہے۔ وہ اڑ نہیں سکتی تھی۔ مہک نے جلدی سے اپنی سہیلی کو آواز دی۔ دونوں نے مل کر جال کھول دیا۔ بلبل آسمان کی طرف اڑ گئی۔ مہک کو بہت خوشی ہوئی۔",
+  "lines": [
+    [
+      0,
+      9
+    ],
+    [
+      10,
+      17
+    ],
+    [
+      18,
+      27
+    ],
+    [
+      28,
+      32
+    ],
+    [
+      33,
+      41
+    ],
+    [
+      42,
+      48
+    ],
+    [
+      49,
+      54
+    ],
+    [
+      55,
+      59
+    ]
+  ],
+  "tokens_list": [
+    "مہک",
+    "جماعت",
+    "کے",
+    "ساتھ",
+    "کینجھر",
+    "جھیل",
+    "کی",
+    "سیر",
+    "کو",
+    "گئی",
+    "جھیل",
+    "کے",
+    "پاس",
+    "بہت",
+    "سے",
+    "پرندے",
+    "بیٹھے",
+    "تھے",
+    "مہک",
+    "نے",
+    "دیکھا",
+    "کہ",
+    "ایک",
+    "بلبل",
+    "جال",
+    "میں",
+    "پھنسی",
+    "ہے",
+    "وہ",
+    "اڑ",
+    "نہیں",
+    "سکتی",
+    "تھی",
+    "مہک",
+    "نے",
+    "جلدی",
+    "سے",
+    "اپنی",
+    "سہیلی",
+    "کو",
+    "آواز",
+    "دی",
+    "دونوں",
+    "نے",
+    "مل",
+    "کر",
+    "جال",
+    "کھول",
+    "دیا",
+    "بلبل",
+    "آسمان",
+    "کی",
+    "طرف",
+    "اڑ",
+    "گئی",
+    "مہک",
+    "کو",
+    "بہت",
+    "خوشی",
+    "ہوئی"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "مہک کس کے ساتھ سیر کو گئی؟",
+      "right": "جماعت کے ساتھ",
+      "wrong": [
+        "خالہ کے ساتھ",
+        "دادی کے ساتھ"
+      ],
+      "accept": [
+        "جماعت کے ساتھ",
+        "جماعت"
+      ],
+      "reject": [
+        "خالہ کے ساتھ",
+        "دادی کے ساتھ"
+      ],
+      "rubric": "Correct if the child says with her class (جماعت)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "مہک کس جھیل کی سیر کو گئی؟",
+      "right": "کینجھر",
+      "wrong": [
+        "منچھر",
+        "ہالیجی"
+      ],
+      "accept": [
+        "کینجھر",
+        "کینجھر جھیل"
+      ],
+      "reject": [
+        "منچھر",
+        "ہالیجی"
+      ],
+      "rubric": "Correct if the child says Kinjhar (کینجھر)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "جھیل کے پاس بہت سے کیا بیٹھے تھے؟",
+      "right": "پرندے",
+      "wrong": [
+        "ہرن",
+        "اونٹ"
+      ],
+      "accept": [
+        "پرندے"
+      ],
+      "reject": [
+        "ہرن",
+        "اونٹ"
+      ],
+      "rubric": "Correct if the child says birds (پرندے)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "جال میں کیا پھنسی تھی؟",
+      "right": "بلبل",
+      "wrong": [
+        "چڑیا",
+        "مینا"
+      ],
+      "accept": [
+        "بلبل",
+        "ایک بلبل"
+      ],
+      "reject": [
+        "چڑیا",
+        "مینا"
+      ],
+      "rubric": "Correct if the child says a bulbul (بلبل)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "مہک نے کس کو آواز دی؟",
+      "right": "سہیلی کو",
+      "wrong": [
+        "امی کو",
+        "استانی کو"
+      ],
+      "accept": [
+        "سہیلی کو",
+        "اپنی سہیلی کو",
+        "سہیلی",
+        "دوست کو",
+        "اپنی دوست کو",
+        "دوست"
+      ],
+      "reject": [
+        "امی کو",
+        "استانی کو"
+      ],
+      "rubric": "Correct if the child says her friend (سہیلی)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "مہک"
+  ]
+}

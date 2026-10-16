@@ -39,11 +39,36 @@ function specFor(analysis, domainKey, id) {
   return indicatorSpec(domainKey, id) || {};
 }
 
+/**
+ * /observe2's "Following the plan's steps" (FICO pilot sheet R14): the coach may pick the lesson plan's
+ * own steps as the thing to work on. That is Section B, the plan fidelity, which has no indicator row
+ * to resolve, so the target is the section itself, named as the coach picked it. Only an /observe2
+ * record can carry it (observe2/fico17.js PLAN_FOCUS); anywhere else "plan" is not an id.
+ */
+const PLAN_FOCUS = 'plan';
+function planTarget(analysis, fa) {
+  if (!analysis || !analysis.observe2 || !analysis.domains || !analysis.domains.lesson_plan_fidelity) return null;
+  const f = fa && typeof fa === 'object' ? fa : {};
+  const title = typeof f.title === 'string' && f.title ? f.title : "Following the plan's steps";
+  return {
+    indicator: PLAN_FOCUS,
+    domain: 'lesson_plan_fidelity',
+    name: title,
+    rung: null,
+    rationale: typeof f.rationale === 'string' ? f.rationale : '',
+    try: typeof f.try_this_tomorrow === 'string' ? f.try_this_tomorrow : '',
+    title,
+    count: null,
+    levels: null,
+  };
+}
+
 function resolveTarget(analysis) {
   if (!analysis || !analysis.domains || typeof analysis.domains !== 'object') return null;
   const fa = analysis.focus_area;
   const id = fa && typeof fa === 'object' ? String(fa.indicator || '').trim() : '';
   if (!id) return null;
+  if (id === PLAN_FOCUS) return planTarget(analysis, fa);
 
   for (const [domainKey, domain] of Object.entries(analysis.domains)) {
     for (const ind of (domain && Array.isArray(domain.indicators) ? domain.indicators : [])) {
@@ -77,6 +102,7 @@ function resolveIndicator(analysis, indicatorId) {
   if (!id || !analysis || !analysis.domains || typeof analysis.domains !== 'object') return null;
   const fa = analysis.focus_area && typeof analysis.focus_area === 'object' && String(analysis.focus_area.indicator || '') === id
     ? analysis.focus_area : {};
+  if (id === PLAN_FOCUS) return planTarget(analysis, fa);
   for (const [domainKey, domain] of Object.entries(analysis.domains)) {
     for (const ind of (domain && Array.isArray(domain.indicators) ? domain.indicators : [])) {
       if (!ind || String(ind.id) !== id) continue;

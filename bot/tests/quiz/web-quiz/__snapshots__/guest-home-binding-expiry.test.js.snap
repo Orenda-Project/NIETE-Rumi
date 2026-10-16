@@ -1,0 +1,72 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`goldens: guest home off → the original path (snapshots taken from the code before this change) a chat child with nothing to show, guest home off → today's no-quizzes line from open() 1`] = `
+[
+  [
+    "92300FIXTURE811",
+    "No quizzes yet — they come from the link your class shares. Send ⁦/video⁩ for videos meanwhile.",
+  ],
+]
+`;
+
+exports[`goldens: guest home off → the original path (snapshots taken from the code before this change) phone bind on, guest home off → the same no_student_row verdict and the same /quiz path 1`] = `
+{
+  "language": null,
+  "mode": "unknown",
+  "persona": null,
+  "reason": "no_student_row",
+  "studentClass": null,
+}
+`;
+
+exports[`goldens: guest home off → the original path (snapshots taken from the code before this change) phone bind on, guest home off → the same no_student_row verdict and the same /quiz path 2`] = `
+[
+  [
+    "student_ingress:92300FIXTURE811",
+    {
+      "language": null,
+      "mode": "unknown",
+      "persona": null,
+      "reason": "no_student_row",
+      "studentClass": null,
+    },
+    600,
+  ],
+]
+`;
+
+exports[`goldens: guest home off → the original path (snapshots taken from the code before this change) unknown phone, every switch off → no_student_row deep-equal; /quiz not taken; nothing sent 1`] = `
+{
+  "language": null,
+  "mode": "unknown",
+  "persona": null,
+  "reason": "no_student_row",
+  "studentClass": null,
+}
+`;
+
+exports[`goldens: guest home off → the original path (snapshots taken from the code before this change) unknown phone, every switch off → no_student_row deep-equal; /quiz not taken; nothing sent 2`] = `
+[
+  [
+    "student_ingress:92300FIXTURE811",
+    {
+      "language": null,
+      "mode": "unknown",
+      "persona": null,
+      "reason": "no_student_row",
+      "studentClass": null,
+    },
+    600,
+  ],
+]
+`;
+
+exports[`goldens: guest home off → the original path (snapshots taken from the code before this change) unknown phone, every switch off → no_student_row deep-equal; /quiz not taken; nothing sent 3`] = `
+[
+  {
+    "mode": "unknown",
+    "reason": "no_student_row",
+    "userId": "u-guest",
+  },
+]
+`;

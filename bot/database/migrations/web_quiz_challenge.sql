@@ -1,3 +1,4 @@
+-- requires: 014_attendance_tables.sql
 -- Migration: the kid's Challenge on the web quiz (short self-run exercises from the child-test battery).
 --
 -- NON-DESTRUCTIVE. One new table; nothing existing changes.

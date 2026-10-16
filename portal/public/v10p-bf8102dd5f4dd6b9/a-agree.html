@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Do you agree with this report?</title><style>
+:root{--ink:#1d2433;--soft:#5b6578;--ok:#2B8A3E;--blue:#3B5BDB;--wa:#e5ddd5;--out:#dcf8c6}
+*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:var(--ink);font:17px/1.5 system-ui,-apple-system,"Segoe UI",
+"Noto Nastaliq Urdu","Noto Naskh Arabic",sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:520px;margin:0 auto;padding:16px}h1{font-size:22px;margin:0 0 10px}h2{font-size:17px;margin:0 0 8px}
+.box{background:#fff;border-radius:14px;padding:14px 16px;margin:0 0 12px;box-shadow:0 1px 3px #0001}
+label.r{display:flex;gap:10px;align-items:flex-start;padding:8px 0}label.r input{width:22px;height:22px;flex:none;margin-top:2px}
+.btn{display:block;width:100%;font:inherit;font-weight:800;border:0;border-radius:12px;padding:13px;background:var(--blue);
+color:#fff;text-align:center;text-decoration:none;cursor:pointer;margin:10px 0 0}
+.ghost{background:#fff;color:var(--blue);border:1.5px solid var(--blue)}.hint{color:var(--soft);font-size:15px;margin:6px 0 0}
+.ok{color:var(--ok);font-weight:800}ul{margin:0;padding:0 18px}audio{width:100%;margin:8px 0 0}
+.wa{background:var(--wa);min-height:100vh}.bub{background:#fff;border-radius:10px;padding:10px 12px;margin:0 0 8px;max-width:86%}
+.me{background:var(--out);margin-inline-start:auto}.qb{display:grid;gap:6px;margin:0 0 8px;max-width:86%}
+.qb button{font:inherit;font-weight:700;color:#027eb5;background:#fff;border:0;border-radius:10px;padding:9px;cursor:pointer}
+input.t{width:100%;font:inherit;padding:10px;border-radius:20px;border:1px solid #ccc}
+</style></head><body class="wa"><main>
+<div class="bub">Do you agree with this report?</div><div class="qb" id="qb"><button id="y" type="button">👍 Yes</button><button id="n" type="button">👎 No</button></div>
+<div class="bub" id="ty" hidden>Thank you.</div><div class="bub" id="why" hidden>Thanks for telling us. What didn’t seem right? (one line is enough)</div><div class="bub" id="got" hidden>Got it, thank you — this makes the next report better.</div>
+<form id="in" hidden><input class="t" name="t" placeholder="Type one line…"></form>
+</main><script>(function(){var y=document.getElementById('y'),n=document.getElementById('n');
+function me(t){var d=document.createElement('div');d.className='bub me';d.textContent=t;return d}
+y.onclick=function(){var q=document.getElementById('qb');q.replaceWith(me(y.textContent));document.getElementById('ty').hidden=false};
+n.onclick=function(){var q=document.getElementById('qb');q.replaceWith(me(n.textContent));document.getElementById('why').hidden=false;
+document.getElementById('in').hidden=false};document.getElementById('in').onsubmit=function(e){e.preventDefault();var t=this.t.value.trim();
+if(!t)return;document.getElementById('why').after(me(t));this.hidden=true;document.getElementById('got').hidden=false}})();</script></body></html>

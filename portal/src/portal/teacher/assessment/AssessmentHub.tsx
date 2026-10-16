@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronRight, Plus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ChevronRight, LayoutList, Plus, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AssessmentPaper } from '../../services/api';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
@@ -15,10 +15,15 @@ import { catalogueOnce, loadPapers, subjectName, useAssessmentSwitches } from '.
 import { paperGroups } from './papersList';
 import { rememberPapers } from './paperCache';
 import { ASSESSMENT_ALL, newPaperPath, requestPath } from './paths';
-import { resetPicks } from './store';
+import { resetPicks, setPicks } from './store';
+import { pkDay, pkToday, questionsOf } from './model';
+
 import { failureLabel } from './failure';
 import { useJobs } from './useJobs';
 import { Chip, Label, ListCard, LoadState } from './ui';
+
+/** A Being made row's count line: none for a board-pattern job (the pattern fixes its count, sent as 0). */
+const countLine = (n: number | null, say: (n: number) => string) => (n != null ? say(n) : undefined);
 
 /**
  * bd-fmf24g.6 — the teacher v2 Assessment main page (v28 canvas Assessment.dc.html):
@@ -67,9 +72,60 @@ export function AssessmentHub() {
 
   const making = jobs.filter((j) => j.status === 'writing' || j.status === 'failed');
   const groups = useMemo(() => paperGroups(papers, C, newIds), [papers, C, newIds]);
+  const navigate = useNavigate();
+
+  // The FDE door: only while /assessment/options advertises the board pattern (its flag on the bot). It remembers the
+  // last board-pattern paper in the teacher's list, so the repeat journey is one tap to Check.
+  const fdeGrade = catalogue?.patternGrades?.[0] ?? null;
+  const lastFde = fdeGrade !== null ? papers.find((x) => x.pattern) : undefined;
+  // The door asks for "a board pattern"; which one comes with the subject (/assessment/options' patterns), on the pick.
+  const fdePicks = (pattern: string | null) => ({ grade: fdeGrade, patternIntent: pattern ?? 'fde', coverBy: 'fde' as const, style: 'fde' as const, pattern });
+  const lastDays = (() => {
+    const day = pkDay(lastFde?.ready_at);
+    return day ? Math.max(0, Math.round((Date.parse(pkToday()) - Date.parse(day)) / 86_400_000)) : null;
+  })();
+  const door = fdeGrade !== null && (
+    <div className={cn('overflow-hidden', CARD)}>
+      <Link
+        to={newPaperPath('class')}
+        data-testid="fde-door"
+        onClick={() => { resetPicks(catalogue?.defaultQuestions); setPicks(fdePicks(null)); }}
+        className={cn('flex min-h-[112px] items-center gap-4 p-4', FOCUS)}
+      >
+        <span
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full"
+          style={{ background: FEATURE_HUE.assessment.bg, color: FEATURE_HUE.assessment.fg }}
+        >
+          <LayoutList className="h-[30px] w-[30px]" aria-hidden="true" />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
+          <b className="text-[20px] font-semibold leading-tight">{C.fdeDoor}</b>
+          <span className="flex flex-wrap gap-1.5">{C.fdeDoorChips.split(' · ').map((c) => <Chip key={c}>{c}</Chip>)}</span>
+          {lastFde && lastDays !== null && <span className="text-[14px] text-[#4b5563]">{C.lastMade(lastFde.subject, lastDays)}</span>}
+        </span>
+        <ChevronRight className="h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
+      </Link>
+      {lastFde && (
+        <button
+          type="button"
+          data-testid="fde-door-again"
+          onClick={() => {
+            resetPicks(catalogue?.defaultQuestions);
+            setPicks({ ...fdePicks(lastFde.pattern as string), grade: lastFde.grade ?? fdeGrade, subject: lastFde.subject_key, subjectName: lastFde.subject });
+            navigate(newPaperPath('check'));
+          }}
+          className={cn('flex min-h-[56px] w-full items-center justify-center gap-2 border-t border-[#f0f1f3] text-[16px] font-semibold text-[#33374a]', FOCUS)}
+        >
+          <RotateCcw className="h-5 w-5" aria-hidden="true" />
+          {C.makeAnother}
+        </button>
+      )}
+    </div>
+  );
 
   const page1 = (
     <>
+      {door}
       <Link
         to={newPaperPath('class')}
         onClick={() => resetPicks(catalogue?.defaultQuestions)}
@@ -99,7 +155,8 @@ export function AssessmentHub() {
                 subject={subjectName(catalogue, j.spec.grade, j.spec.subject)}
                 grade={j.spec.grade}
                 title={j.label}
-                extra={C.questionsCount(j.spec.questionCount)}
+                // A board-pattern job carries questionCount 0 (the pattern fixes it): its label says FDE pattern, no count.
+                extra={countLine(questionsOf(j.spec, null), C.questionsCount)}
                 chip={j.status === 'writing'
                   ? { text: j.slow ? C.slow : C.writing, tone: 'waiting' }
                   : { text: failureLabel(j.errorCode, C), tone: 'error' }}

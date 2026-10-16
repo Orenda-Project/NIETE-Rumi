@@ -91,6 +91,10 @@ const STRINGS = {
     who_ack: 'Asante — nimeandika {name}.',
     who_other_ack: 'Sawa. Utaweza kuandika jina wakati wa kutuma ripoti.',
     who_stale: 'Orodha hii imepitwa na wakati. Utaweza kuandika jina wakati wa kutuma ripoti.',
+    who_type_name: 'Andika jina la mwalimu kwa herufi za Kiingereza, nitamtafuta katika shule zako.',
+    who_name_matches_body: 'Zaidi ya mwalimu mmoja katika shule zako analingana na "{name}". Chagua uliyemchunguza, au bonyeza "Mtu mwingine" kuandika zaidi ya jina.',
+    who_name_none_retry: 'Sikumpata "{name}" kati ya walimu wa shule zako. Angalia tahajia na uandike jina tena kwa herufi za Kiingereza.',
+    who_name_none_final: 'Bado hakuna mwalimu anayeitwa "{name}" katika shule zako. Hakuna shida: utaweza kuandika jina wakati wa kutuma ripoti.',
     list_send_desc_prefix: 'Tuma ripoti kwa',
     list_send_default_desc: 'Tuma ripoti kwa mwalimu',
     // ── bd-22: guided debrief ────────────────────────────────────────
@@ -149,6 +153,7 @@ const STRINGS = {
     resume_desc_retry: '⚠ Ilisimama — bonyeza kuanzisha tena',
     resume_desc_wait: 'Uchambuzi unaendelea — fomu itafika hivi karibuni',
     resume_desc_observe2: 'Hatua inayofuata ya ziara inasubiri — bonyeza kuifungua',
+    resume_desc_observe2_form: 'Somo limerekodiwa — bonyeza kujaza fomu',
     resume_retry_ack: '🔄 Nimeanzisha tena — nitakutumia fomu ikiwa tayari.',
     resume_retry_exhausted: 'Nimejaribu mara kadhaa na hauwezi kukamilika. Rekodi yako ipo salama. Kama bado una sauti, nitumie tena — nitaanzisha uchunguzi mpya.',
     watchdog_stalled_coach: '⚠️ Uchunguzi uliorekodiwa ulisimama katikati na sikuweza kuuanzisha tena. Hakuna kilichopotea — rekodi ipo salama. Nitumie sauti tena nitaanzisha uchunguzi mpya.',
@@ -223,6 +228,9 @@ const STRINGS = {
     send_failed_fo: '⚠️ Samahani — ripoti haikuweza kutumwa kwa mwalimu sasa hivi. Andika /observe, chagua uchunguzi huo, na ujaribu tena kutuma (📨).',
     // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
     send_preview_failed_fo: '⚠️ Samahani — ripoti ya {name} haikuweza kuandaliwa kwa sababu ya hitilafu ya kiufundi. Bonyeza hapa chini kujaribu tena.',
+    // A plain-text step when WhatsApp refuses the buttons twice (observe-send: never a silent preview).
+    send_preview_failed_text: '⚠️ Samahani — ripoti ya {name} haikuweza kuandaliwa kwa sababu ya hitilafu ya kiufundi. Andika /observe, chagua uchunguzi huu kwenye orodha (📨) ili kujaribu tena.',
+    send_confirm_unavailable: '⚠️ Ripoti iliyo hapo juu iko tayari, lakini vitufe vya kutuma havikufika. Andika /observe, chagua uchunguzi huu kwenye orodha (📨) ili kuituma.',
     btn_regenerate_report: 'Tengeneza upya',
     send_template_queued_fo:
       '📨 Mwalimu hajanitumia ujumbe hivi karibuni, kwa hivyo nimemtumia mwaliko rasmi — akiubonyeza, ripoti yake itamfikia mara moja. Nitakujulisha.',
@@ -301,6 +309,10 @@ const STRINGS = {
     who_ack: 'شکریہ — {name} محفوظ کر لیا۔',
     who_other_ack: 'ٹھیک ہے۔ رپورٹ بھیجتے وقت نام لکھ سکتے ہیں۔',
     who_stale: 'یہ فہرست پرانی ہو چکی ہے۔ رپورٹ بھیجتے وقت نام لکھ سکتے ہیں۔',
+    who_type_name: 'ٹیچر کا نام انگریزی حروف میں لکھ کر بھیجیں، اسے آپ کے اسکولوں کی فہرست میں تلاش کیا جائے گا۔',
+    who_name_matches_body: 'آپ کے اسکولوں میں ایک سے زیادہ ٹیچرز کا نام \u2068{name}\u2069 سے ملتا ہے۔ جن کا مشاہدہ کیا، انہیں چنیں، یا «کوئی اور» دبا کر نام کا مزید حصہ لکھیں۔',
+    who_name_none_retry: 'آپ کے اسکولوں کے ٹیچرز میں \u2068{name}\u2069 نہیں ملا۔ ہجے دیکھ کر نام دوبارہ انگریزی حروف میں لکھیں۔',
+    who_name_none_final: 'آپ کے اسکولوں میں اب بھی \u2068{name}\u2069 نام کا کوئی ٹیچر نہیں ملا۔ کوئی بات نہیں: نام رپورٹ بھیجتے وقت لکھا جا سکتا ہے۔',
     list_send_desc_prefix: 'رپورٹ بھیجنا باقی: ',
     list_send_default_desc: 'استاد کو رپورٹ بھیجیں',
     debrief_record_instruction:
@@ -353,6 +365,7 @@ const STRINGS = {
     resume_desc_retry: '⚠ رک گیا تھا — دبا کر دوبارہ چلائیں',
     resume_desc_wait: 'تجزیہ جاری ہے — فارم جلد ملے گا',
     resume_desc_observe2: 'وزٹ کا اگلا مرحلہ باقی ہے — دبا کر کھولیں',
+    resume_desc_observe2_form: 'سبق ریکارڈ ہو چکا ہے — دبا کر فارم بھریں',
     resume_retry_ack: '🔄 دوبارہ شروع کر دیا — فارم تیار ہوتے ہی بھیج دوں گی۔',
     resume_retry_exhausted: 'میں نے اسے کئی بار چلایا، لیکن یہ مکمل نہیں ہو سکا۔ ریکارڈنگ محفوظ ہے۔ اگر آڈیو اب بھی موجود ہو تو دوبارہ بھیج دیں — میں نیا مشاہدہ شروع کر دوں گی۔',
     watchdog_stalled_coach: '⚠️ جو مشاہدہ ریکارڈ ہوا تھا وہ درمیان میں رک گیا اور دوبارہ نہیں چل سکا۔ کچھ ضائع نہیں ہوا — ریکارڈنگ محفوظ ہے۔ آڈیو دوبارہ بھیج دیں، میں نیا مشاہدہ شروع کر دوں گی۔',
@@ -419,6 +432,9 @@ const STRINGS = {
     send_failed_fo: '⚠️ معذرت — رپورٹ ابھی استاد کو نہیں بھیجی جا سکی۔ \u2066/observe\u2069 لکھیں، وہ مشاہدہ منتخب کریں، اور دوبارہ بھیجنے کی کوشش کریں (📨)۔',
     // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
     send_preview_failed_fo: '⚠️ معذرت — {name} کی رپورٹ ایک تکنیکی خرابی کی وجہ سے تیار نہیں ہو سکی۔ دوبارہ کوشش کے لیے نیچے بٹن دبائیں۔',
+    // A plain-text step when WhatsApp refuses the buttons twice (observe-send: never a silent preview).
+    send_preview_failed_text: '⚠️ معذرت — {name} کی رپورٹ ایک تکنیکی خرابی کی وجہ سے تیار نہیں ہو سکی۔ دوبارہ کوشش کے لیے \u2066/observe\u2069 لکھیں اور فہرست سے یہ مشاہدہ (📨) منتخب کریں۔',
+    send_confirm_unavailable: '⚠️ اوپر والی رپورٹ تیار ہے، مگر بھیجنے کے بٹن نہیں آ سکے۔ رپورٹ بھیجنے کے لیے \u2066/observe\u2069 لکھیں اور فہرست سے یہ مشاہدہ (📨) منتخب کریں۔',
     btn_regenerate_report: 'رپورٹ دوبارہ بنائیں',
     send_template_queued_fo: '📨 استاد نے حال میں مجھے پیغام نہیں بھیجا، اس لیے انہیں دعوت بھیجی ہے — ایک ٹیپ پر رپورٹ مل جائے گی۔ میں بتاؤں گی۔',
     send_operator_review_fo: '📨 رپورٹ جائزے کے لیے بھیج دی گئی ہے — منظوری پر استاد کو پہنچے گی۔',
@@ -519,6 +535,10 @@ const STRINGS = {
     who_ack: 'Thanks — noted {name}.',
     who_other_ack: 'No problem. You can type the name when you send the report.',
     who_stale: 'That list has expired. You can type the name when you send the report.',
+    who_type_name: "Type the teacher's name, as it's written in English, and I'll find them in your schools.",
+    who_name_matches_body: 'More than one teacher in your schools matches "{name}". Pick the one you observed, or tap "Someone else" to type more of the name.',
+    who_name_none_retry: 'I couldn\'t find "{name}" among the teachers in your schools. Check the spelling and type the name again, in English letters.',
+    who_name_none_final: 'Still no teacher called "{name}" in your schools. No problem: you can type the name when you send the report.',
     list_send_desc_prefix: 'Send report to',
     list_send_default_desc: 'Send the report to the teacher',
     // ── bd-22: guided debrief ────────────────────────────────────────
@@ -579,6 +599,7 @@ const STRINGS = {
     resume_desc_retry: '⚠ It stopped — tap to run it again',
     resume_desc_wait: "Analysis in progress — the form is coming soon",
     resume_desc_observe2: 'Next step of your visit is waiting — tap to open it',
+    resume_desc_observe2_form: 'Recorded lesson — tap to fill the form',
     resume_retry_ack: "🔄 Restarted — I'll send the form as soon as it's ready.",
     resume_retry_exhausted: "I've run this one as many times as I can and it won't go through. Your recording is saved. If you still have the audio, send it again and I'll start a fresh observation.",
     watchdog_stalled_coach: "⚠️ The observation you recorded stopped partway and I couldn't restart it. Nothing is lost — your recording is saved. Send the audio again when you can and I'll start a fresh one.",
@@ -657,6 +678,9 @@ const STRINGS = {
     send_failed_fo: "⚠️ Sorry — the report couldn't be sent to the teacher just now. Type /observe, pick that observation, and try sending again (📨).",
     // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
     send_preview_failed_fo: "⚠️ Sorry — {name}'s report couldn't be prepared because of a technical error. Tap below to try again.",
+    // A plain-text step when WhatsApp refuses the buttons twice (observe-send: never a silent preview).
+    send_preview_failed_text: "⚠️ Sorry — {name}'s report couldn't be prepared because of a technical error. Type /observe and pick this observation from the list (📨) to try again.",
+    send_confirm_unavailable: "⚠️ The report above is ready, but the Send buttons didn't come through. Type /observe and pick this observation from the list (📨) to send it.",
     btn_regenerate_report: 'Regenerate report',
     send_template_queued_fo:
       "📨 The teacher hasn't messaged me recently, so I sent them an official invite — one tap and the report arrives. I'll let you know.",
@@ -708,10 +732,16 @@ const VISIT_CAPTURE_TEMPLATES = {
   en: {
     withName: '🎙️ You\'re observing *{name}*. When the lesson starts, record it and send me the audio — I\'ll draft the {fw} form for you.',
     noName: '🎙️ When the lesson starts, record it and send me the audio — I\'ll draft the {fw} form for you.',
+    // A recording from the phone's recorder app goes as a DOCUMENT: shared as audio, WhatsApp refuses
+    // it over 16 MB on the phone, and a lesson from a recorder app is bigger than that.
+    sendAsDocument: 'A recording from the phone\'s recorder app goes as a *Document* (📎 → *Document*), not as audio: WhatsApp refuses audio over 16 MB.',
   },
   ur: {
-    withName: '🎙️ *{name}* کے سبق کا مشاہدہ۔ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
+    // Opens with U+200F: WhatsApp lays a paragraph out from its first strong character, and a
+    // teacher's name in Latin script would otherwise turn this Urdu line left to right.
+    withName: '\u200F🎙️ *{name}* کے سبق کا مشاہدہ۔ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
     noName: '🎙️ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
+    sendAsDocument: 'فون کی ریکارڈر ایپ کی ریکارڈنگ *Document* کے طور پر بھیجیں (📎، پھر *Document*)، آڈیو کے طور پر نہیں: واٹس ایپ \u206616 MB\u2069 سے بڑی آڈیو نہیں بھیجتا۔',
   },
 };
 
@@ -724,7 +754,7 @@ function buildVisitCapturePrompt(lang, opts = {}) {
   const fw = String(opts.framework || 'FICO').toUpperCase();
   const t = VISIT_CAPTURE_TEMPLATES[l];
   const template = opts.teacherName ? t.withName : t.noName;
-  return template.replace('{name}', opts.teacherName || '').replace('{fw}', fw);
+  return `${template.replace('{name}', opts.teacherName || '').replace('{fw}', fw)}\n\n${t.sendAsDocument}`;
 }
 
 // ── Scheduling "done" exit ack (bd-2444, operator 2026-07-31) ────────────────

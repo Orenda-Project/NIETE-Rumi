@@ -994,6 +994,18 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         const ObserveState = require('../services/observe/observe-state.service');
         const sendState = await ObserveState.getState(user.id);
         const { DETAILS_TEXT_STATES } = require('../services/observe/observe-send.service');
+        // "Someone else" on "Which teacher did you observe?": the next text is the teacher's name,
+        // matched to the coach's schools, unless the send flow asked for a name and number since.
+        // A slash command or anything that is not a name is never taken (observe-who).
+        try {
+          const ObserveWho = require('../services/observe/observe-who.service');
+          const detailsAt = sendState && DETAILS_TEXT_STATES.includes(sendState.state) ? sendState.updatedAt : null;
+          if (await ObserveWho.handleTypedTeacherName(user, from, messageBody.trim(), { otherPromptAt: detailsAt })) return;
+        } catch (whoErr) {
+          logToFile('❌ observe-who: typed teacher name check failed (falling through)', {
+            userId: user && user.id, error: whoErr.message,
+          }, 'error');
+        }
         if (sendState && DETAILS_TEXT_STATES.includes(sendState.state)) {
           const ObserveSend = require('../services/observe/observe-send.service');
           const consumed = await ObserveSend.handleTeacherDetailsText(user, from, trimmedMessage, sendState);

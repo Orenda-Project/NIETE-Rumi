@@ -2405,6 +2405,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The door to this child's own hub (their quizzes, the video library, the challenge), when finish offered it:
     // the second action, right under "Share to class group".
     var doorBtn = res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '';
+    // The Jugnu card (wq-card.js, sent only when finish offers it): first under the score, above the shares.
+    var jc = res.jugnu_card && !friend ? jugnuCard() : '';
     // With the door, a class child's first screen is the score, "Share to class group" and the door (a 360x740 phone,
     // Urdu included): the practice note and the two-line place-in-class note come after them. A video quiz card keeps its own order
     // ("Next in this chapter", "Watch more" first).
@@ -2435,13 +2437,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
+      jc + notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
     render(h, 'M10');
     libPrefetch();
     wireBar();
+    if (jc) window.WQCARD.wire(jcCtx());
     // How the child did (the share ask may depend on it) and whether this was a friend's challenge run.
     var pct = res.score && res.score.pct != null ? res.score.pct : (total ? Math.round(100 * (c.correct || 0) / total) : 0);
     // Once per finished session: the card re-renders on Back from the share screen, the class table or the league,
@@ -2625,6 +2628,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   // The card's door: the server mints this child's hub link for this phone (never a name in it) and the page opens it.
   var hubGoing = false;
+  // The pages' one link helper (wq-tel.js WQT.withLang): a hub opened from here opens in this page's language.
+  function withLang(h) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, LANG) : h; }
   function hubDoor() {
     if (hubGoing) return;
     hubGoing = true;
@@ -2634,13 +2639,35 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // One event per tap, with whether a hub opened (the hub counts its own view as src=door).
       ev('hub_door_tap', { ok: ok });
       flushEv(true);
-      if (ok) { location.assign(href + '?from=door'); return; }
+      if (ok) { location.assign(withLang(href + '?from=door')); return; }
       hubGoing = false;
       if (S.result) { S.result.hub_door = false; save(); }
       var b = $('#wq-hubdoor');
       if (b && b.parentNode) b.parentNode.removeChild(b);
       toast(T.oops);
     }, function () { hubGoing = false; ev('hub_door_tap', { ok: false, err: 'net' }); toast(T.offline); });
+  }
+
+  /* ---------------- the Jugnu card (wq-card.js; app_settings web_quiz_challenge_card) ---------------- */
+  // Its script is asked for the first time finish offers the card; it draws the card again once it arrives.
+  var jcAsked = false;
+  function jugnuCard() {
+    if (window.WQCARD) return window.WQCARD.html(jcCtx());
+    if (jcAsked) return '';
+    jcAsked = true;
+    try {
+      var own = document.querySelector && document.querySelector('script[src*="/wq/wq.js"]');
+      var v = own && /[?&]v=([A-Za-z0-9_-]+)/.exec(own.getAttribute('src') || '');
+      var el = document.createElement('script');
+      el.src = '/wq/wq-card.js' + (v ? '?v=' + v[1] : '');
+      el.onload = function () { if (window.WQCARD && ROOT.getAttribute('data-m') === 'M10') card(); };
+      (document.head || document.body).appendChild(el);
+    } catch (e) {}
+    return '';
+  }
+  function jcCtx() {
+    return { res: S.result || {}, lang: LANG, mascot: MASC, first: S.child && S.child.first, T: { play: T.play, oops: T.oops, offline: T.offline },
+      esc: esc, ani: ani, bar: bar, wireBar: wireBar, render: render, on: on, ev: ev, flushEv: flushEv, api: api, toast: toast, st: S.st, back: card };
   }
 
   /* ---------------- M11 league table ---------------- */
@@ -2944,10 +2971,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       landing();
     }, function () { done(); ev('handset_page', { ok: 0, status: 'net' }); landing(); });
   }
+  // An old, finished class link opened again on the phone that finished it (boot link_home, app_settings
+  // web_quiz_link_home): the server answers that child's hub (a token for that child only, bound to this phone) or
+  // null, and then today's screen (`rest`). Asked once, only for ONE remembered child; never waits more than 3 s.
+  function linkHome(rest) {
+    var done = false;
+    function fall() { if (!done) { done = true; rest(); } }
+    setTimeout(fall, 3000);
+    api('POST', 'linkhome', { code: CODE, device_ref: sget('wq_d', null) }).then(function (r) {
+      var h = r && r.ok && r.body ? r.body.home : null;
+      if (done || typeof h !== 'string' || !/^\/h\/[A-Za-z0-9._-]+\?from=link$/.test(h)) return fall();
+      done = true;
+      location.replace(withLang(h));
+    }, fall);
+  }
   var HX = B.view === 'class' || B.view === 'schools' || B.preview ? '' : handsetX();
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();
   else if (FROM) { ev('more_arrive', {}); if (FROM.t) ev('more_timing', { nav_ms: Date.now() - FROM.t }); startSession({ from_st: FROM.st }, null, ''); }
+  else if (B.link_home && !B.preview && !B.invited && !B.challenge && !HX && !S.queue.length && !S.pending && (S.result ? S.st : !S.st) && kids().length === 1 && sget('wq_d', null)) linkHome(function () { if (S.result) card(); else landing(); });
   else if (S.result && S.st) card();
   else if (S.pending && S.st) results(S.fixed || 0);
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();

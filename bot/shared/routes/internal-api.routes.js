@@ -1414,6 +1414,30 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
     out.defaultQuestions = QuestionTypes.DEFAULT_QUESTIONS;
   }
 
+  // Board-pattern papers. Both keys are ADDED only when the flag is on, so with
+  // it off this JSON is exactly what the form read before patterns existed. A
+  // flag read that throws is off: offering a pattern create would then refuse
+  // is worse than not offering it.
+  const Flags = require('../config/feature-flags');
+  let patternsOn = false;
+  try { patternsOn = await Flags.isAssessmentFdePatternEnabled(); } catch (_) { patternsOn = false; }
+  if (patternsOn) {
+    const Patterns = require('../services/assessment/patterns');
+    // null = every subject the pattern holds; a list narrows it.
+    const allowed = await Flags.fdePatternSubjects();
+    const listed = (s) => allowed === null || allowed.includes(Patterns.normalise(s));
+    if (grade !== null && subject && listed(subject)) {
+      const ids = Patterns.list().filter((id) => Patterns.isEligible(id, grade, subject));
+      if (ids.length) out.patterns = ids.map((id) => ({ id, ...Patterns.summaryFor(id, subject) }));
+    }
+    // The grades any pattern exists for, from the registry rather than typed
+    // here, on EVERY call — the hub shows the door before a grade is picked.
+    // An empty subject list offers no pattern anywhere, so no door either.
+    if (allowed === null || allowed.length) {
+      out.patternGrades = [...new Set(Patterns.list().map((id) => Patterns.get(id).grade))].sort((a, b) => a - b);
+    }
+  }
+
   return res.json(out);
 }));
 
@@ -1464,6 +1488,123 @@ function chapterPages(chapters, picked) {
 }
 
 /**
+ * The refusals a board-pattern request can get, in one place. The app reads `errorCode` and holds
+ * the Urdu; these are the assessment generator's own codes, not the lesson-plan lifecycle's.
+ */
+const PATTERN_CODE = Object.freeze({
+  OFF: 'PATTERN_OFF', INELIGIBLE: 'PATTERN_INELIGIBLE', SCOPE_CONFLICT: 'SCOPE_CONFLICT',
+  NO_BUDGET: 'PATTERN_NO_BUDGET', ALREADY_GENERATING: 'ALREADY_GENERATING',
+});
+
+/**
+ * The request for a board-pattern paper, once /assessment/create has accepted it.
+ *
+ * What the teacher chose is only WHERE the questions come from: the FDE
+ * syllabus (scope 'fde' — the server resolves the pattern's own pages and
+ * chapters), or chapters / pages exactly as an ordinary paper takes them. The
+ * rest is the pattern's: one slot-tagged type entry per slot (the generator
+ * fills slots, so these are not checked against the subject's own type list),
+ * the count is the slots' sum, the marks are fixed (no budget), every question
+ * is new, and the marking scheme always comes with it.
+ */
+async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines, onQueued = null }) {
+  const Patterns = require('../services/assessment/patterns');
+  const chapterNumber = picked.length === 1 ? picked[0] : null;
+
+  const book = await Browse.bookFor(grade, subject);
+  if (!book) {
+    return res.status(400).json({ success: false, error: 'We do not have that book yet.' });
+  }
+
+  let pages;
+  let chapters;
+  let kind;
+  if (scope === 'fde') {
+    const fde = Patterns.scopeFor(pattern, subject);
+    kind = 'fde';
+    pages = fde.page_ranges;
+    chapters = fde.chapters;
+  } else if (pageRanges) {
+    // Pages the teacher typed win over chapters, as on an ordinary paper.
+    kind = 'pages';
+    pages = pageRanges;
+    chapters = picked.length ? picked : null;
+  } else {
+    // The same chapter checks an ordinary paper gets.
+    kind = 'chapters';
+    chapters = picked;
+    const listed = await Browse.listChapters(grade, subject);
+    if (picked.some((n) => !listed.some((c) => c.chapter_number === n))) {
+      return res.status(400).json({ success: false, error: 'That chapter is not in this book.' });
+    }
+    pages = chapterPages(listed, picked);
+    if (chapterNumber === null && !pages) {
+      return res.status(400).json({ success: false, error: 'We do not have the pages for those chapters yet.' });
+    }
+  }
+
+  const questionTypes = Patterns.expandTypes(pattern, subject);
+  const questionCount = questionTypes.reduce((sum, t) => sum + t.count, 0);
+
+  const AssessmentRequest = require('../services/assessment/assessment-request.service');
+  const { requestId } = await AssessmentRequest.createAndQueue({
+    userId,
+    surface: 'portal',
+    grade,
+    subject,
+    textbookId: book.id,
+    // The FDE syllabus spans many chapters: no single chapter names the paper.
+    chapterNumber: kind === 'fde' ? null : chapterNumber,
+    chapterNumbers: chapters && chapters.length ? chapters : null,
+    pageRanges: pages,
+    contentSource: 'unseen',
+    questionCount,
+    seenCount: null,
+    totalMarks: null,
+    questionTypes,
+    includeAnswerKey: true,
+    answerLines: answerLines !== false,
+    outputFormat: 'pdf',
+    pattern,
+    scope: { kind, chapters: chapters && chapters.length ? chapters : null, pages },
+  });
+
+  if (onQueued) onQueued(requestId);
+  return res.status(202).json({ success: true, requestId });
+}
+
+/**
+ * One board-pattern create per class at a time, in this process. Each class key holds the tail of
+ * a promise chain; a create waits for the one before it to answer, then reads. The bot runs as one
+ * container per tier, so this closes the window without a database lock (no DDL for one guard).
+ */
+const classQueue = new Map();
+function onePerClass(key, fn) {
+  const before = classQueue.get(key) || Promise.resolve();
+  const run = before.then(fn, fn);
+  const tail = run.catch(() => {});
+  classQueue.set(key, tail);
+  tail.then(() => {
+    if (classQueue.get(key) !== tail) return;
+    classQueue.delete(key);
+    justQueued.delete(key);
+  });
+  return run;
+}
+
+/**
+ * The request a class was just given, kept only while other creates for that class are still
+ * waiting behind it (and never past a few seconds): those taps arrived while it was being made,
+ * so they are the same paper even if the database read behind the 409 has not caught up. A create
+ * that arrives after the queue has drained is answered by the database alone, as before.
+ */
+const JUST_QUEUED_MS = 2000;
+const justQueued = new Map();
+function rememberQueued(key, id) {
+  justQueued.set(key, { id, at: Date.now() });
+}
+
+/**
  * POST /api/internal/assessment/create
  * Body { userId, grade, subject, chapterNumbers|chapterNumber|pageRanges, ... } → 202 { success, requestId }
  *
@@ -1492,6 +1633,71 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+
+  // A board-pattern paper takes its own path: the pattern fixes the types, the
+  // count and the marks, so none of the checks below apply to it. The refusals
+  // run in a fixed order — flag first, so a switched-off pattern never reveals
+  // whether this class would have been eligible.
+  const pattern = body.pattern ? String(body.pattern).trim() : null;
+  if (pattern) {
+    const Flags = require('../config/feature-flags');
+    let on = false;
+    try { on = await Flags.isAssessmentFdePatternEnabled(); } catch (_) { on = false; }
+    if (!on) {
+      return res.status(400).json({
+        success: false,
+        error: 'Board-pattern papers are off right now. Make your own paper or try later.',
+        errorCode: PATTERN_CODE.OFF,
+      });
+    }
+    const Patterns = require('../services/assessment/patterns');
+    const allowed = await Flags.fdePatternSubjects();
+    const listed = allowed === null || allowed.includes(Patterns.normalise(subject));
+    if (!listed || !Patterns.isEligible(pattern, grade, subject)) {
+      return res.status(400).json({
+        success: false,
+        error: 'That board pattern is not available for this grade and subject.',
+        errorCode: PATTERN_CODE.INELIGIBLE,
+      });
+    }
+    const fdeScope = body.scope === 'fde';
+    if (fdeScope && (picked.length || pageRanges)) {
+      return res.status(400).json({
+        success: false, error: 'Send either the FDE syllabus or chapters, not both.', errorCode: PATTERN_CODE.SCOPE_CONFLICT,
+      });
+    }
+    if (!fdeScope && picked.length === 0 && !pageRanges) {
+      return res.status(400).json({ success: false, error: 'chapterNumbers or pageRanges is required' });
+    }
+    // Any budget at all, even one that matches: the pattern's marks are the
+    // board's, and a number from the form could only ever disagree with them.
+    if (body.totalMarks != null && body.totalMarks !== '') {
+      return res.status(400).json({
+        success: false, error: 'Board-pattern papers fix their marks.', errorCode: PATTERN_CODE.NO_BUDGET,
+      });
+    }
+    // The read and the insert are one step per class: three taps at once (a retry after a
+    // timed-out POST, Check open in two tabs) would otherwise all read "nothing in flight" before
+    // any of them wrote, and make three papers.
+    const classKey = [userId, grade, Patterns.normalise(subject), pattern].join('|');
+    return onePerClass(classKey, async () => {
+      const AssessmentRequest = require('../services/assessment/assessment-request.service');
+      const recent = justQueued.get(classKey);
+      const busy = (recent && Date.now() - recent.at < JUST_QUEUED_MS ? { id: recent.id } : null)
+        || await AssessmentRequest.findGenerating({ userId, grade, subject, pattern, withinMinutes: 10 });
+      if (busy) {
+        return res.status(409).json({
+          success: false, error: 'A paper for this class is being made.', errorCode: PATTERN_CODE.ALREADY_GENERATING, requestId: busy.id,
+        });
+      }
+      return createPatternRequest({
+        Browse, res, userId, grade, subject, pattern, scope: fdeScope ? 'fde' : null,
+        picked, pageRanges, answerLines: body.answerLines,
+        onQueued: (id) => rememberQueued(classKey, id),
+      });
+    });
+  }
+
   if (picked.length === 0 && !pageRanges) {
     return res.status(400).json({ success: false, error: 'chapterNumbers or pageRanges is required' });
   }

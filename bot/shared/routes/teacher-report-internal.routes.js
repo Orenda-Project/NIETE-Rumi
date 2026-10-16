@@ -8,9 +8,14 @@
  *   GET /page/:token[?lang=&tab=class&class=<listId>]  the report page (HTML)
  *   GET /pdf/:token[?lang=&tab=class]                  the same page, print mode, as a PDF
  *   GET /remind/:token?quiz=<id>                       logs the tap, 302 -> wa.me with the reminder
+ *   GET /jlink/:token?class=<id>&how=forward|copy      the class link card: 302 -> wa.me with the link only / 303 back, card open
+ *   POST /jnew/:token {class, n}                       the class link card's confirm "Make a new link": 303 back to the class tab
+ *                                                      (400 without the confirm card's signed nonce n; a stale one → 303
+ *                                                      back to the confirm card with a fresh nonce; nothing revoked)
  *   GET /data/:token                                   the report as JSON (tests, QA)
  *   POST /class/:token {quiz, key}                     "Which class was this for?" -> identity v2 whoClass
  *   POST /fix/:token {quiz, ref, add|studentId}        a typed child: add to the class / who it really is -> fixWho
+ *   GET /fwd/:token, POST /queue/:token                the Jugnu tab's (teacher-jugnu-internal.routes; switch off -> 404)
  * The two POSTs answer 303 back to the report (with ?e=1 when nothing was saved).
  *
  * A bad or expired token gets the "link has expired" page (401 / 410); a quiz
@@ -26,6 +31,7 @@ const { clampLanguage } = require('../config/ux-strings');
 const Data = require('../services/quiz/teacher-report.data');
 const Token = require('../services/quiz/teacher-report-token');
 const { renderPage, renderMessagePage, REPORT_PATH } = require('../templates/teacher-report.page');
+const Jugnu = require('./teacher-jugnu-internal.routes'); // the Jugnu tab (web_quiz_teacher_jugnu)
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -86,7 +92,18 @@ async function build(req, v) {
     if (t) quizTokens[q.id] = t;
   });
   const lang = await languageFor(req, v.teacherId, null);
-  return { tab, lang, data: { class: report || {} }, report, tokens: { self: req.params.token, quiz: quizTokens } };
+  const classData = report || {};
+  // ── standing class link card (web_quiz_class_link): null when off → the class tab is unchanged ──
+  const classLink = await require('../services/quiz/web-quiz-class-link').forTeacher(v.teacherId);
+  if (classLink) classData.classLink = { ...classLink, open: uuidOr(req.query.cl_open) };
+  // "Make a new link" asks first (?jconfirm=<class>): that class's card shows the warning and a nonce for this teacher + class.
+  const asked = classLink ? uuidOr(req.query.jconfirm) : null;
+  if (asked && classLink.cards.some((c) => c.classId === asked)) {
+    const n = require('../services/quiz/web-quiz-class-link').signRenewNonce({ teacherId: v.teacherId, classId: asked });
+    if (n) classData.classLink.confirm = { classId: asked, n };
+  }
+  // ── end standing class link card ──
+  return { tab, lang, data: { class: classData }, report, tokens: { self: req.params.token, quiz: quizTokens } };
 }
 
 const handle = (fn) => async (req, res) => {
@@ -108,12 +125,17 @@ router.get('/page/:token', handle(async (req, res) => {
   if (!v) return;
   const b = await build(req, v);
   if (!b) { notFound(req, res, v); return; }
+  const jugnu = await Jugnu.pageExtras(req, v, b.lang); // Jugnu tab: null when its switch is off
+  // ── class round (web_quiz_class_round): its card on the class tab; '' when off or no open draw ──
+  const roundCard = b.tab === 'class' ? await require('../services/quiz/web-quiz-class-round').cardFor(v.teacherId, { lang: b.lang, token: req.params.token }) : '';
   logEvent('teacher_report.opened', {
-    teacherId: v.teacherId, quizId: v.quizId, scope: v.quizId ? 'quiz' : 'all', tab: b.tab, iab: IAB_RX.test(req.get('user-agent') || ''),
+    teacherId: v.teacherId, quizId: v.quizId, scope: v.quizId ? 'quiz' : 'all', tab: jugnu && jugnu.view ? 'jugnu' : b.tab, iab: IAB_RX.test(req.get('user-agent') || ''),
   });
   noStore(res);
   res.status(200).type('html').send(renderPage(b.data, {
     lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: NOTICES[req.query.e] || null, ok: okOf(req.query),
+    ...(jugnu ? { jugnu } : {}),
+    ...(roundCard ? { roundCard } : {}),
   }));
 }));
 
@@ -149,6 +171,40 @@ router.get('/remind/:token', handle(async (req, res) => {
   noStore(res);
   res.redirect(302, `https://wa.me/?text=${encodeURIComponent(report.reminder.text)}`);
 }));
+
+// ── standing class link: the card's Forward (302 wa.me, the URL only) and Copy (303 back, card open); both logged ──
+router.get('/jlink/:token', handle(async (req, res) => {
+  const v = authorise(req, res);
+  if (!v) return;
+  const how = req.query.how === 'copy' ? 'copy' : 'forward';
+  const href = await require('../services/quiz/web-quiz-class-link').forwardHref({
+    teacherId: v.teacherId, classId: uuidOr(req.query.class), how, reportBase: `${REPORT_PATH}/${encodeURIComponent(req.params.token)}`,
+  });
+  if (!href) { notFound(req, res, v); return; }
+  noStore(res);
+  res.redirect(how === 'copy' ? 303 : 302, href);
+}));
+// "Make a new link" (the confirm card's form): switch off → 404 as before; no valid nonce for this teacher + class
+// → 400, a stale one (the card left open past 10 minutes) → 303 back to the confirm card (a fresh nonce); not the
+// class's own teacher (the signed report token) → 404. Only the 303 to the class tab changes a row.
+router.post('/jnew/:token', handle(async (req, res) => {
+  const v = authorise(req, res);
+  if (!v) return;
+  const body = req.body || {};
+  const made = await require('../services/quiz/web-quiz-class-link').renew({
+    teacherId: v.teacherId, classId: uuidOr(body.class), n: typeof body.n === 'string' ? body.n : null,
+  });
+  if (made && made.refused === 'stale_nonce') {
+    noStore(res);
+    res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}?tab=class&jconfirm=${encodeURIComponent(uuidOr(body.class))}#class-link`);
+    return;
+  }
+  if (made && made.refused) { page(res, 400, 'error', queryLang(req)); return; }
+  if (!made) { notFound(req, res, v); return; }
+  noStore(res);
+  res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}?tab=class#class-link`);
+}));
+// ── end standing class link ──
 
 router.get('/data/:token', handle(async (req, res) => {
   const v = Token.verifyTeacherReport(req.params.token);
@@ -244,5 +300,12 @@ router.post('/fix/:token', handle(async (req, res) => {
   const no = row && Number.isInteger(Number(row.roll)) && row.roll !== null ? Number(row.roll) : null;
   back(req, res, out, { kind: add ? 'added' : 'moved', no });
 }));
+
+// ── Jugnu tab (web_quiz_teacher_jugnu): GET /fwd/:token, POST /queue/:token — 404 while the switch is off ──
+Jugnu.attach(router, { authorise, handle, notFound, noStore, languageFor });
+// ── end Jugnu tab ──
+// ── class round (web_quiz_class_round): the locked round mode; every route is the report's 404 while off ──
+router.use('/round', require('./class-round-internal.routes')({ page, noStore, queryLang }));
+// ── end class round ──
 
 module.exports = router;

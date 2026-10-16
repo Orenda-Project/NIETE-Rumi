@@ -24,6 +24,9 @@
  *                                                  children under (Redis, web-quiz-handset.js),
  *                                                  sc = the share code it was sent for. Carries no
  *                                                  id, no name, no phone: the page redeems it once
+ *   g   guest token    {k:'g', t, exp}             1 hour: an unknown phone's /quiz link (web_quiz_guest_home);
+ *                                                  t = the phone's tombstone (child-phone-bindings.repo tombOf),
+ *                                                  never the phone, never an id (a guest has no child row yet)
  *   chip               HMAC(secret, shareCodeId|studentId)[:16] — a child's name
  *                      button; not reversible, recomputed over the class
  *
@@ -52,6 +55,8 @@ const HUB_MAX_KIDS = 4;
 // From the measured tap delay after a redirect (median 20 s, max 15 min): one hour covers every tap seen.
 const HANDSET_TTL_S = 60 * 60;
 const NONCE_RX = /^[A-Za-z0-9_-]{22}$/;
+const GUEST_TTL_S = 60 * 60;
+const TOMB_RX = /^[0-9a-f]{32}$/;
 const DEVICE_REF_RX = /^[A-Za-z0-9_-]{22}$/;
 
 // Stable per child (hash of the student id), so the same animal shows on every
@@ -80,8 +85,11 @@ function sign(payload) {
   return `${body}.${mac(key, body)}`;
 }
 
-/** The payload when the token is genuine, of `kind`, and unexpired; else null. */
-function verify(token, kind) {
+/**
+ * The payload when the token is genuine, of `kind`, and unexpired; else null. `allowExpired` (opt-in, for telling a
+ * stale-but-genuine token from a forged one) skips only the expiry check; the signature and kind are still required.
+ */
+function verify(token, kind, { allowExpired = false } = {}) {
   try {
     const key = secret();
     if (!key || typeof token !== 'string' || token.length > 1024) return null;
@@ -94,7 +102,7 @@ function verify(token, kind) {
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) return null;
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
     if (!payload || payload.k !== kind) return null;
-    if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    if (!payload.exp || (!allowExpired && payload.exp < Math.floor(Date.now() / 1000))) return null;
     return payload;
   } catch {
     return null;
@@ -102,6 +110,13 @@ function verify(token, kind) {
 }
 
 const nowS = () => Math.floor(Date.now() / 1000);
+
+// A dropped id is never silent: a server log line with counts only (no id, no phone). Never throws.
+function logIdsDropped(n, caller) {
+  try {
+    require('../../utils/structured-logger').logEvent('web_quiz.token_ids_dropped', { n, kept: HUB_MAX_KIDS, caller: String(caller || 'hub_link'), w: 's' });
+  } catch (_) { /* the token is still built */ }
+}
 
 function signSession({ sessionId, deviceRef, shareCodeId }) {
   return sign({ k: 's', sid: sessionId, d: deviceRef, sc: shareCodeId, exp: nowS() + SYNC_TTL_S });
@@ -112,16 +127,29 @@ function signPreview({ shareCodeId, teacherUserId }) {
   return sign({ k: 'p', sc: shareCodeId, t: teacherUserId, exp: nowS() + PREVIEW_TTL_S });
 }
 
-function signChallenge({ studentId, ex, runId }) {
+function signChallenge({ studentId, ex, runId, round = null, mode = null }) {
   if (!studentId || !ex || !runId) return null;
-  return sign({ k: 'c', sid: studentId, ex, r: runId, exp: nowS() + CHALLENGE_TTL_S });
+  // round / mode: the class round's id and the mode the server chose for this position (web_quiz_class_round) —
+  // only on a run started from a round turn token
+  return sign({ k: 'c', sid: studentId, ex, r: runId, exp: nowS() + CHALLENGE_TTL_S, ...(round ? { cr: round, cm: mode } : {}) });
 }
 
-/** The kid hub's link token: this phone's children (≤4 ids). Null with none or no secret. */
-function signHub(studentIds) {
-  const ids = [...new Set((Array.isArray(studentIds) ? studentIds : []).map(String).filter(Boolean))].slice(0, HUB_MAX_KIDS);
+/**
+ * The kid hub's link token: this phone's children (≤4 ids). Null with none or no secret.
+ * More than 4 ids: the first 4 are kept, and the drop is logged (web_quiz.token_ids_dropped; `caller` names the builder).
+ */
+function signHub(studentIds, caller = 'hub_link') {
+  const given = [...new Set((Array.isArray(studentIds) ? studentIds : []).map(String).filter(Boolean))];
+  const ids = given.slice(0, HUB_MAX_KIDS);
+  if (given.length > HUB_MAX_KIDS) logIdsDropped(given.length - HUB_MAX_KIDS, caller);
   if (!ids.length) return null;
   return sign({ k: 'h', ids, exp: nowS() + HUB_TTL_S });
+}
+
+/** The guest link token: the phone's tombstone only (32 hex), one hour. Null for anything else or no secret. */
+function signGuest({ phoneTomb } = {}) {
+  if (typeof phoneTomb !== 'string' || !TOMB_RX.test(phoneTomb)) return null;
+  return sign({ k: 'g', t: phoneTomb, exp: nowS() + GUEST_TTL_S });
 }
 
 /** A handset-link nonce: 16 random bytes, never derived from anything. */
@@ -156,7 +184,7 @@ function animalFor(studentId) {
 }
 
 module.exports = {
-  secret, sign, verify, signSession, signPreview, signChallenge, signHub, signHandset, newNonce, chipId,
+  secret, sign, verify, signSession, signPreview, signChallenge, signHub, signGuest, signHandset, newNonce, chipId,
   newDeviceRef, cleanDeviceRef, animalFor, ANIMALS,
-  SESSION_TTL_S, SYNC_TTL_S, PREVIEW_TTL_S, CHALLENGE_TTL_S, HUB_TTL_S, HUB_MAX_KIDS, HANDSET_TTL_S,
+  SESSION_TTL_S, SYNC_TTL_S, PREVIEW_TTL_S, CHALLENGE_TTL_S, HUB_TTL_S, HUB_MAX_KIDS, HANDSET_TTL_S, GUEST_TTL_S,
 };

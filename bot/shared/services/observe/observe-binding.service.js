@@ -54,6 +54,38 @@ async function _writeQueue(userId, queue) {
 }
 
 /**
+ * Identical bytes already taken in the last SHA_TTL_S → answer "already got this one" and return
+ * {action:'dupe', sessionId}; otherwise null. Shared by the park and by the /observe2 hold
+ * (observe2/capture-link holdRecording), so a file sent twice is one visit whichever path took it.
+ * Best-effort: a Redis failure reads as "not seen" and never blocks the recording.
+ */
+async function answerIfDuplicate(user, from, sha256) {
+  if (!sha256) return null;
+  try {
+    const existing = await redisService.get(shaKey(user.id, sha256));
+    if (!existing) return null;
+    const S = observeStrings(observeLang(user));
+    const rec = typeof existing === 'string' ? { sessionId: existing } : existing;
+    const name = rec.teacherName || S.bind_dupe_fallback_name;
+    await WhatsAppService.sendMessage(from, S.bind_dupe_ack.replace('{name}', name));
+    logToFile('🔁 observe-binding: duplicate recording answered as dupe', {
+      userId: user.id, sha256, sessionId: rec.sessionId,
+    });
+    return { action: 'dupe', sessionId: rec.sessionId };
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Remember the bytes of a recording just taken (see answerIfDuplicate). Best-effort. */
+async function rememberRecording(userId, sha256, { sessionId, teacherName = null } = {}) {
+  if (!sha256) return;
+  try {
+    await redisService.setexWithCeiling(shaKey(userId, sha256), SHA_TTL_S, JSON.stringify({ sessionId, teacherName }));
+  } catch (_) { /* dedupe memory is best-effort */ }
+}
+
+/**
  * Park an unbound recording and ask whose it is. Returns
  * {action: 'asked'|'dupe'|'park_full', ...}.
  */
@@ -61,20 +93,8 @@ async function parkAndAsk(user, from, { audioId, sha256 = null, durationSeconds 
   const S = observeStrings(observeLang(user));
 
   // Dedupe: identical bytes already bound recently → point at the live one.
-  if (sha256) {
-    try {
-      const existing = await redisService.get(shaKey(user.id, sha256));
-      if (existing) {
-        const rec = typeof existing === 'string' ? { sessionId: existing } : existing;
-        const name = rec.teacherName || S.bind_dupe_fallback_name;
-        await WhatsAppService.sendMessage(from, S.bind_dupe_ack.replace('{name}', name));
-        logToFile('🔁 observe-binding: duplicate recording answered as dupe', {
-          userId: user.id, sha256, sessionId: rec.sessionId,
-        });
-        return { action: 'dupe', sessionId: rec.sessionId };
-      }
-    } catch (_) { /* dedupe is best-effort — never blocks a park */ }
-  }
+  const dupe = await answerIfDuplicate(user, from, sha256);
+  if (dupe) return dupe;
 
   const queue = await _readQueue(user.id);
   if (queue.length >= PARK_CAP) {
@@ -283,12 +303,7 @@ async function consumeParkedIfArmed(user, from, { teacherName = null } = {}) {
 
   queue.shift();
   await _writeQueue(user.id, queue);
-  if (head.sha256) {
-    try {
-      await redisService.setexWithCeiling(shaKey(user.id, head.sha256), SHA_TTL_S,
-        JSON.stringify({ sessionId: session.id, teacherName }));
-    } catch (_) { /* dedupe memory is best-effort */ }
-  }
+  await rememberRecording(user.id, head.sha256, { sessionId: session.id, teacherName });
   logToFile('✅ observe-binding: parked recording bound and captured', {
     userId: user.id, sessionId: session.id, remaining: queue.length,
   });
@@ -327,6 +342,7 @@ async function consumeParkedDebrief(user, from, sessionId) {
 
 module.exports = {
   parkAndAsk, buildBindingList, handleBindingTap, consumeParkedIfArmed, consumeParkedDebrief,
+  answerIfDuplicate, rememberRecording,
 };
 
 /**

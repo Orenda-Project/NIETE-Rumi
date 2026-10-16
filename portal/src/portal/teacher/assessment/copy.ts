@@ -17,6 +17,27 @@ import type { CopyEntry } from '../copyRegistry';
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
+/** FDE writes choice counts as words ("Attempt any eight"); the editor's preview line does too. */
+const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
+  'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'] as const;
+const numberWord = (n: number) => NUMBER_WORDS[n] ?? String(n);
+/** Section letters as the Urdu papers print them (حصہ الف …). */
+const SECTION_UR: Record<string, string> = { A: 'الف', B: 'ب', C: 'ج', D: 'د' };
+
+/** Units kept, as compressed runs: [1,2,3,4,6,7,8] → ['1–4', '6–8'] (ASCII digits, an en dash). */
+function unitRuns(units: number[] | number): string[] {
+  const list = (Array.isArray(units) ? units : [units]).map(Number).filter((n) => Number.isInteger(n));
+  const sorted = [...new Set(list)].sort((a, b) => a - b);
+  const runs: string[] = [];
+  for (let i = 0; i < sorted.length; i += 1) {
+    let j = i;
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j += 1;
+    runs.push(i === j ? String(sorted[i]) : `${sorted[i]}–${sorted[j]}`);
+    i = j;
+  }
+  return runs;
+}
+
 export const ASSESSMENT_V2_COPY = {
   title: 'Assessment',
   home: 'Home',
@@ -90,6 +111,8 @@ export const ASSESSMENT_V2_COPY = {
     marks: (max: number) => `Marks: 1 to ${max}`,
     earlier: (step: string) => `Finish ${step} first`,
     wait: 'Please wait',
+    scopeOrFde: 'Select chapters or the FDE board pattern',
+    generating: 'A paper for this class is being made',
   },
   addPages: 'Add pages',
   removePages: 'Remove pages',
@@ -226,6 +249,69 @@ export const ASSESSMENT_V2_COPY = {
     UPLOAD_FAILED: 'Not saved',
   } as Record<string, string>,
   failureFallback: 'Something went wrong',
+  /* the FDE board pattern (copy deck §A). The pattern's own lines (holds, sections, scope, files, You add) are DATA
+     from /assessment/options, never typed here. */
+  fdeDoor: 'FDE pattern papers',
+  fdeDoorChips: 'Grade 5 · Feb 2027 · Marking scheme',
+  lastMade: (subject: string, days: number) => `Last: ${subject} · ${days === 0 ? 'today' : days === 1 ? '1 day ago' : `${days} days ago`}`,
+  islamiatHeld: 'FDE pattern for Islamiat: after review',
+  styleFde: 'FDE board pattern',
+  styleFdeSub: 'Sections, time, marks, choice',
+  styleOwn: 'My own paper',
+  styleOwnSub: 'Count, types and marks',
+  ownNext: 'Next: questions, types and marks',
+  paperStyle: 'Paper style',
+  syllabus: 'Syllabus',
+  ownScopeSub: 'Select from the book',
+  notInFde: 'Not in the FDE exam',
+  fdeTopicsOnly: 'FDE topics only',
+  practiseFromBook: 'Practise from the book',
+  customised: 'customised',
+  // The customised Syllabus row (R5-20 a): "Units 1–4, 6–8"; one unit alone is "Unit 3".
+  unitsRange: (units: number[] | number) => {
+    const runs = unitRuns(units);
+    if (runs.length === 0) return '';
+    return `${runs.length === 1 && !runs[0].includes('–') ? 'Unit' : 'Units'} ${runs.join(', ')}`;
+  },
+  fullRehearsal: 'For the full rehearsal, select the FDE syllabus',
+  useFdeSyllabus: 'Use FDE syllabus',
+  insideCustom: (scope: string) => `Covers ${scope}; every section set from these units`,
+  inside: 'Inside',
+  notOfficial: 'Practice paper · not an official FDE paper',
+  youAdd: 'You add',
+  beforeCopying: 'before photocopying',
+  onPage: (n: number) => `p. ${n}`,
+  // The operator's review (15 Oct): the hint is the time only; "not an official FDE paper" stays on the paper and in Inside.
+  readyHint: 'Ready in about 3 min',
+  skips4: 'Skips 4 steps · goes to Check',
+  chaptersOff: 'Chapters are not used for the FDE board pattern',
+  aboutThreeMin: '~3 min',
+  waitHub: 'It will also be in Recent papers on Assessment.',
+  waitPoll: 'This page checks by itself.',
+  elapsed: (n: number) => `${n} min so far`,
+  longerBody: 'Still being made. It stays in Recent papers and opens there when ready.',
+  fdeChip: 'FDE pattern',
+  fdeListChip: 'FDE',
+  questionPaper: 'Question paper',
+  markingScheme: 'Marking scheme',
+  pagesCount: (n: number) => (n === 1 ? '1 page' : `${n} pages`),
+  forClass: 'for the class',
+  forTeacher: 'for the teacher',
+  ifNoDownload: 'If Download does nothing here, use Open in another app',
+  seePaperBeingMade: 'See the paper being made',
+  /* the editor on a board-pattern paper (EditPages.tsx renders these) */
+  editBoth: 'Changes the paper and the marking scheme',
+  section: (letter: string) => `Section ${letter}`,
+  willSay: (slot: string, n: number, of: number) => `${slot} will then say: any ${numberWord(n)} of ${numberWord(of)}`,
+  willSayAll: (slot: string, of: number) => `${slot} will then say: ${of === 2 ? 'attempt both' : `attempt all ${numberWord(of)}`}`,
+  noAddOnPattern: 'Board-pattern papers keep their shape',
+  patternFixedMarks: 'Board-pattern papers fix each question\'s marks.',
+  /** The server's refusals of a board-pattern request (errorCode), in the teacher's words: a sentence each, beside Make. */
+  fdeFailures: {
+    PATTERN_OFF: 'Board-pattern papers are off for now. Make your own paper or try later.',
+    ALREADY_GENERATING: 'A paper for this class is being made · see My papers',
+    RATE_LIMITED: (time: string | null) => (time ? `Paper limit reached · try again at ${time}` : 'Paper limit reached · try again later'),
+  },
   /* days */
   days: {
     today: 'Today',
@@ -310,6 +396,8 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
     marks: (max: number) => `نمبر: 1 سے ${max} تک`,
     earlier: (step: string) => `پہلے ${step} مکمل کریں`,
     wait: 'براہ کرم انتظار کریں',
+    scopeOrFde: 'ابواب چنیں یا FDE بورڈ pattern',
+    generating: 'اس کلاس کا پرچہ تیار ہو رہا ہے',
   },
   addPages: 'صفحات شامل کریں',
   removePages: 'صفحات ہٹائیں',
@@ -438,6 +526,64 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
     UPLOAD_FAILED: 'محفوظ نہیں ہوا',
   },
   failureFallback: 'کچھ مسئلہ ہو گیا',
+  // The FDE board pattern: MACHINE-DRAFTED (copy deck §A), needs fluent-Urdu review. "FDE" stays Latin (the kit isolates it).
+  fdeDoor: 'FDE pattern کے پرچے',
+  fdeDoorChips: 'جماعت 5 · فروری 2027 · مارکنگ اسکیم',
+  lastMade: (subject: string, days: number) => `آخری: ${subject} · ${days === 0 ? 'آج' : `${days} دن پہلے`}`,
+  islamiatHeld: 'اسلامیات کا FDE pattern: جائزے کے بعد',
+  styleFde: 'FDE بورڈ pattern',
+  styleFdeSub: 'حصے، وقت، نمبر، انتخاب',
+  styleOwn: 'اپنی مرضی کا پرچہ',
+  styleOwnSub: 'تعداد، اقسام اور نمبر',
+  ownNext: 'اگلا: سوال، اقسام اور نمبر',
+  paperStyle: 'پرچے کا pattern',
+  syllabus: 'نصاب',
+  ownScopeSub: 'کتاب سے چنیں',
+  notInFde: 'FDE امتحان میں شامل نہیں',
+  fdeTopicsOnly: 'صرف FDE کے موضوعات',
+  practiseFromBook: 'کتاب سے مشق کریں',
+  customised: 'حسبِ ضرورت',
+  // Urdu comma between the runs; the digits stay ASCII, so «·» may sit beside them (R5-20 a). Needs fluent-Urdu review.
+  unitsRange: (units: number[] | number) => {
+    const runs = unitRuns(units);
+    return runs.length ? `یونٹ ${runs.join('، ')}` : '';
+  },
+  fullRehearsal: 'مکمل مشق کے لیے FDE نصاب چنیں',
+  useFdeSyllabus: 'FDE نصاب چنیں',
+  insideCustom: (scope: string) => `احاطہ: ${scope}؛ ہر حصہ انہی سے`,
+  inside: 'پرچے میں',
+  notOfficial: 'مشقی پرچہ · سرکاری FDE پرچہ نہیں',
+  youAdd: 'آپ شامل کریں',
+  beforeCopying: 'فوٹو کاپی سے پہلے',
+  onPage: (n: number) => `ص ${n}`,
+  readyHint: 'تقریباً 3 منٹ میں تیار',
+  skips4: '4 مراحل کم، سیدھا جانچ کا صفحہ',
+  chaptersOff: 'FDE بورڈ pattern میں ابواب نہیں چنے جاتے',
+  aboutThreeMin: 'تقریباً 3 منٹ',
+  waitHub: 'یہ پرچہ «حالیہ پرچے» میں بھی ملے گا۔',
+  waitPoll: 'یہ صفحہ خود دیکھتا رہتا ہے۔',
+  elapsed: (n: number) => `اب تک ${n} منٹ`,
+  longerBody: 'پرچہ ابھی تیار ہو رہا ہے۔ یہ «حالیہ پرچے» میں رہے گا اور تیار ہونے پر وہیں کھلے گا۔',
+  fdeChip: 'FDE pattern',
+  fdeListChip: 'FDE',
+  questionPaper: 'سوالیہ پرچہ',
+  markingScheme: 'مارکنگ اسکیم',
+  pagesCount: (n: number) => (n === 1 ? '1 صفحہ' : `${n} صفحات`), // singular: needs fluent-Urdu review
+  forClass: 'کلاس کے لیے',
+  forTeacher: 'ٹیچر کے لیے',
+  ifNoDownload: 'اگر ڈاؤن لوڈ کچھ نہ کرے تو دوسری ایپ میں کھولیں',
+  seePaperBeingMade: 'تیار ہوتا پرچہ دیکھیں',
+  editBoth: 'پرچہ اور مارکنگ اسکیم دونوں تبدیل ہوں گے',
+  section: (letter: string) => `حصہ ${SECTION_UR[letter] ?? letter}`,
+  willSay: (slot: string, n: number, of: number) => `${slot} پھر کہے گا: ${of} میں سے کوئی ${n}`,
+  willSayAll: (slot: string, of: number) => `${slot} پھر کہے گا: ${of === 2 ? 'دونوں حل کریں' : `تمام ${of} حل کریں`}`,
+  noAddOnPattern: 'بورڈ pattern کا پرچہ اپنی شکل رکھتا ہے',
+  patternFixedMarks: 'FDE pattern کے پرچوں میں ہر سوال کے نمبر مقرر ہیں۔', // needs fluent-Urdu review
+  fdeFailures: {
+    PATTERN_OFF: 'بورڈ pattern کے پرچے فی الحال بند ہیں۔ اپنی مرضی کا پرچہ بنائیں یا بعد میں کوشش کریں۔',
+    ALREADY_GENERATING: 'اس کلاس کا پرچہ تیار ہو رہا ہے · «میرے پرچے» دیکھیں',
+    RATE_LIMITED: (time: string | null) => (time ? `پرچوں کی حد پوری ہو گئی · ${time} پر دوبارہ کوشش کریں` : 'پرچوں کی حد پوری ہو گئی · بعد میں کوشش کریں'),
+  },
   days: {
     today: 'آج',
     yesterday: 'کل',
@@ -454,7 +600,11 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Assessment',
   module: ASSESSMENT as Bilingual<unknown>,
   // join only joins its parts ("Grade 4 · Science · 15 questions"): the same in both languages.
-  same: ['join'],
+  // fdeChip: the operator's review (15 Oct) writes "pattern" in Latin in Urdu too, so "FDE pattern" is the same in both.
+  same: ['join', 'fdeListChip', 'fdeChip'],
   // The reasons beside a disabled button are a short line each, not a label (bd-fmf24g.34).
-  longOk: ['why'],
+  // FDE: the hint and note lines beside a button or under a row are one short line each (copy deck §A `longOk`).
+  longOk: ['why', 'fdeDoorChips', 'islamiatHeld', 'ownNext', 'fullRehearsal', 'insideCustom', 'notOfficial', 'readyHint', 'skips4',
+    'chaptersOff', 'waitHub', 'waitPoll', 'longerBody', 'ifNoDownload', 'fdeFailures', 'lastMade', 'notInFde', 'practiseFromBook',
+    'styleFdeSub', 'styleOwnSub', 'editBoth', 'willSay', 'willSayAll', 'noAddOnPattern', 'patternFixedMarks', 'seePaperBeingMade'],
 };
