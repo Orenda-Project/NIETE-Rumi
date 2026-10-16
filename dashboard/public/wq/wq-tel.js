@@ -23,6 +23,9 @@
  * window.WQT.withLang(href, lang) is the pages' one link helper, here because this is the one script every page
  * loads first (the hub page does not load wq-lib.js): every link a page mints into another page carries
  * lang=<en|ur>, the language the child sees, so the next page opens in it. Always there, switch on or off.
+ *
+ * window.WQT.nowrap(html) is the pages' one helper for «واٹس ایپ» (WhatsApp), here for the same reason: the word is
+ * never broken across a line («واٹس / ایپ»). Always there, switch on or off.
  */
 (function () {
   'use strict';
@@ -37,7 +40,11 @@
     else h += (h.indexOf('?') < 0 ? '?' : /[?&]$/.test(h) ? '' : '&') + 'lang=' + lang;
     return h + frag;
   }
-  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang };
+  // «واٹس ایپ» as one word: in already-escaped HTML each one (a space or a no-break space between) becomes one span
+  // that never wraps (wq.css .wqb-nowrap; a no-break space inside too); one already held is left as it is. Every other byte unchanged.
+  var WA_UR = /<span class="wqb-nowrap">واٹس[ \u00a0]ایپ<\/span>|واٹس[ \u00a0]ایپ/g;
+  function nowrap(html) { return String(html == null ? '' : html).replace(WA_UR, '<span class="wqb-nowrap">واٹس\u00a0ایپ</span>'); }
+  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang, nowrap: nowrap };
   var B;
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return; }
   if (!B || B.rt !== true) return;

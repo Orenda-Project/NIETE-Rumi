@@ -75,11 +75,11 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   // /quiz and STOP keep their own direction inside an Urdu line: the isolate in the string AND an ltr chip on the page.
   function chips(html) {
-    return String(html)
+    var h = String(html)
       .replace(/⁦?\/quiz⁩?/g, '⁦<bdi dir="ltr" class="wqb-chip">/quiz</bdi>⁩')
-      .replace(/⁦?\bSTOP\b⁩?/g, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩')
-      // «واٹس ایپ» is one word on the page: never «واٹس / ایپ» across a line (native read, page note 2)
-      .replace(/واٹس[ \u00a0]ایپ/g, '<span class="wqb-nowrap">واٹس\u00a0ایپ</span>');
+      .replace(/⁦?\bSTOP\b⁩?/g, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩');
+    // «واٹس ایپ» is one word on the page: never «واٹس / ایپ» across a line (native read, page note 2; wq-tel.js WQT.nowrap)
+    return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h;
   }
   function L(lang) { return T[lang === 'ur' ? 'ur' : 'en']; }
   function sget(st, k) { try { return st.getItem(k); } catch (e) { return null; } }
