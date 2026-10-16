@@ -6,6 +6,7 @@
  *   GET  /q/:code/schools  the same page opened on the school league (own URL, own link preview)
  *   GET  /q/:code/art/:kind.jpg?a=<id>  a share picture (card, class, schools, invite), drawn by the bot;
  *                          every shared link names one as its og:image, so the picture arrives with the link
+ *   GET  /s/:book/:file    a storybook's picture or voice, immutable, from storage (web-quiz-story-assets.js)
  *   *    /api/wq/*         forwarded to the bot's /api/internal/wq/* with the internal key
  *   GET  /wq-probe         a capability probe for real phones; posts its result as one event
  *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>)
@@ -25,6 +26,7 @@ const express = require('express');
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
+const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
@@ -843,6 +845,14 @@ function createWebQuizRouter(opts = {}) {
     const kind = out.status === 401 ? 'closed' : 'off';
     return res.status(out.status === 401 ? 410 : 503).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind, origin, assetV: version(), brandKey, ui: lastUi }));
   }
+
+  // A storybook's pictures and voices (web-quiz-story-assets.js): content-addressed, immutable, from our own origin.
+  // Off (app_settings web_quiz_stories) the path is not ours: the request goes on exactly as today.
+  // A class behind one school NAT opens the same book at once: its own generous ceiling, applied only while on.
+  router.get('/s/:bookId/:file', createStoryAssetHandler({
+    storiesOn: opts.storiesOn, storyObject: opts.storyObject, storyEnv: opts.storyEnv, now,
+    limiter: rateLimit({ ...common, max: 1200, keyGenerator: (req) => `sa:${clientIp(req)}` }),
+  }));
 
   // The share pictures. The id is the permission (the bot checks its mac); the edge checks its shape and that it
   // is the kind the path names, so a link can never ask for one picture under another's name or cache life.
