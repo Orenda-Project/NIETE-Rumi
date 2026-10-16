@@ -735,7 +735,35 @@ function checkWorking(q, answer, exam, index) {
   return replaceKey(q, exam, answer, target.index, target.raw, computed, index);
 }
 
+// "68,970 ÷ 45 = 1,532 remainder 10": a whole-number division with its quotient and remainder.
+const QUOTIENT_REMAINDER = /(\d[\d,]*)\s*÷\s*(\d[\d,]*)\s*=\s*(\d[\d,]*)\s*,?\s*(?:remainder|rem\.?|\bR\b)\s*[=:]?\s*(\d[\d,]*)/gi;
+const wholeOf = (raw) => (/^\d{1,3}(?:,\d{2,3})*$|^\d+$/.test(raw) ? BigInt(raw.replace(/,/g, '')) : null);
+
+/**
+ * Board-pattern papers: the last "a ÷ b = q remainder r" in a key. The remainder is
+ * corrected when the quotient is right; a wrong quotient is left unchecked (the slip
+ * could be in either number). Returns undefined when the key has no such stage.
+ */
+function checkRemainder(q, answer, exam, index) {
+  const all = [...answer.matchAll(QUOTIENT_REMAINDER)];
+  if (!all.length) return undefined;
+  const m = all[all.length - 1];
+  const [a, b, quotient, remainder] = [m[1], m[2], m[3], m[4]].map(wholeOf);
+  if ([a, b, quotient, remainder].some((v) => v === null) || b === 0n) return null;
+  if (quotient !== a / b) return null;
+  const right = a % b;
+  if (remainder === right) return 'ok';
+  const raw = m[4];
+  const at = m.index + m[0].length - raw.length;
+  const computed = raw.includes(',') ? Number(right).toLocaleString('en-US') : String(right);
+  return replaceKey(q, exam, answer, at, raw, computed, index);
+}
+
 function checkQuestion(q, exam, index) {
+  if (isObject(exam._layout) && typeof q.answer === 'string' && q.answer.length <= MAX_TEXT) {
+    const verdict = checkRemainder(q, q.answer, exam, index);
+    if (verdict !== undefined) return verdict;
+  }
   const form = parseForm(q.question);
   if (!form) {
     // Board-pattern papers only: a plain paper's checks stay exactly as they were.
