@@ -1,5 +1,5 @@
 // NOT @mock-lane yet — this driver is mock-CAPABLE (api.fresh, no browser DOM) and run-suite has an un-register seed, but the bot caches the teacher's registration at stack startup and the stack is shared across features, so R01/R03/R06 see the cached 'registered' state. Re-add the @mock-lane marker once the bot's user cache is invalidated on the unregister (or registration gets its own stack).
-/* registration.feature — 13 @e2e scenarios across four Flow screens, one process.
+/* registration.feature — @e2e scenarios across four Flow screens and the front door (R14–R19), one process.
  * Precondition: the driver must be UNREGISTERED (no name, registration flags clear — the bot's
  * isRegistered() gate) so /register opens the Flow. users.name is the only name column.
  * Scenario order is deliberate — it walks the Flow once and harvests several scenarios per pass. */
@@ -168,9 +168,66 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
             dbName: fnAfter.trim() }, 0);
     } else {
       r = await api.sendWait('/register');
-      rec('R08', 'An already-registered teacher is not re-onboarded',
-          ...V(/already registered/i.test(r.txt), { reply: (r.txt || '').slice(0, 110), botWaitMs: r.waitedMs }), t() - s);
+      // Since 2026-10-16 a registered teacher gets the Flow to UPDATE her details, never "already registered".
+      rec('R08', 'An already-registered teacher gets the Flow to update her details',
+          ...V(/Update your details|تفصیلات درست کریں/i.test(r.txt) && !/already registered/i.test(r.txt),
+               { reply: (r.txt || '').slice(0, 110), btns: r.btns, botWaitMs: r.waitedMs }), t() - s);
     }
+  }
+
+  // ---- the front door (2026-10-16): every way of asking, /portal, school features ----
+  const REG_FLOW = (x) => /Welcome to NIETE|خوش آمدید|Update your details|تفصیلات درست کریں|First, your school|پہلے آپ کا اسکول/i.test(x.txt || '');
+  if (want('R14')) {
+    s = t();
+    const asked = ['Register', 'Register me', 'i need to register', '/registered', '/ register', 'Type/register', 'رجسٹر'];
+    const got = [];
+    for (const msg of asked) {
+      api.db('unregister');
+      await api.resetFlow();
+      const x = await api.sendWait(msg);
+      got.push({ msg, flow: REG_FLOW(x), oldGuide: /ask for your name|نام پوچھوں گی/i.test(x.txt || '') });
+    }
+    rec('R14', 'Every way of asking to register opens the registration Flow',
+        ...V(got.every((g) => g.flow && !g.oldGuide), { got }), t() - s);
+  }
+  if (want('R15')) {
+    s = t();
+    const said = ['attendance register', 'Mera registration number kia hai'];
+    const got = [];
+    for (const msg of said) {
+      const x = await api.sendWait(msg);
+      got.push({ msg, flow: REG_FLOW(x), head: (x.txt || '').split('\n')[0].slice(0, 60) });
+    }
+    rec('R15', 'Talking about a register is not a registration request',
+        ...V(got.every((g) => !g.flow), { got }), t() - s);
+  }
+  if (want('R16')) {
+    rec('R16', "A new person's first message is answered first, then the Flow is offered once", 'DEFERRED',
+        { reason: 'needs a number that has never been offered the form (users.registration_started_at is NULL) — the driver account is stamped after its first offer and api.db has no action that clears the stamp; the ordering and once-only rules are covered by tests/registration/front-door-invite.test.js and registration-invite.service.test.js' }, 0);
+  }
+  if (want('R17')) {
+    s = t();
+    api.db('unregister');
+    await api.resetFlow();
+    r = await api.sendWait('/portal');
+    rec('R17', '/portal from someone not yet registered opens the registration Flow',
+        ...V(REG_FLOW(r) && !/portal\/setup\//i.test(r.txt || ''), { head: (r.txt || '').split('\n')[0], botWaitMs: r.waitedMs }), t() - s);
+  }
+  if (want('R18')) {
+    s = t();
+    const got = [];
+    for (const cmd of ['/classes', '/roster']) {
+      api.db('unregister');
+      await api.resetFlow();
+      const x = await api.sendWait(cmd);
+      got.push({ cmd, school: /First, your school|پہلے آپ کا اسکول/i.test(x.txt || '') });
+    }
+    rec('R18', 'A feature that needs a school asks an unregistered person to register first',
+        ...V(got.every((g) => g.school), { got }), t() - s);
+  }
+  if (want('R19')) {
+    rec('R19', 'After the first lesson plan, a person already offered the Flow is not asked her name in chat', 'DEFERRED',
+        { reason: 'needs a lesson plan generated and delivered by the worker on an unregistered account — minutes per run; the worker guard is covered by tests/registration/after-first-feature-invite.test.js' }, 0);
   }
 
   if (want('R10')) {
