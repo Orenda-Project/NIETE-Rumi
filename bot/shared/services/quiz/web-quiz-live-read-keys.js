@@ -115,7 +115,7 @@ async function storyKey({ st, kid, book, page, lang, device } = {}) {
     logError('web_quiz.lr_key_failed', { status: minted.status, reason: minted.reason });
     fail(502, 'live_unavailable');
   }
-  Budget.noteStarted();
+  Budget.noteStarted(LR.STORY_KEY_WEIGHT);
   // n = this child's story keys today, this one included: the cap is set from that spread, not a guess
   logEvent('web_quiz.lr_key', { src: 'story_page', lang: l, run, n: mine + 1, cap });
   return { api_key: minted.api_key, expires_at: minted.expires_at, ws: Live.WS_URL, model: Live.MODEL, lang: l, run };

@@ -28,6 +28,8 @@ const TABLE = 'web_quiz_live_read_keys';
 const FINISH_PCT = 0.8;
 const QUIET_MS = 4000;   // every oral-reading protocol allows 3 s a word, and the stream adds lag
 const TAIL_MS = 1000;
+// a story page is 5-15 s of audio, a passage read ~60 s: in the day's read budget (money) a story key is a quarter of a read
+const STORY_KEY_WEIGHT = 0.25;
 const UI_V = 3;
 // how a reading ended, as the page says it (the row keeps it beside live_ui_v)
 const ENDED = new Set(['last_word', 'quiet', 'done_tap', 'timer', 'line1', 'stuck', 'hidden', 'home', 'silent']);
@@ -93,4 +95,4 @@ async function keysSince(sinceIso) {
 
 function _reset() { cache.clear(); }
 
-module.exports = { FLAG_KEY, LIVE_FLAG_KEY, TABLE, FINISH_PCT, QUIET_MS, TAIL_MS, UI_V, on, liveOn, settingOn, forRead, forMenu, metaFor, keysSince, _reset };
+module.exports = { FLAG_KEY, LIVE_FLAG_KEY, TABLE, STORY_KEY_WEIGHT, FINISH_PCT, QUIET_MS, TAIL_MS, UI_V, on, liveOn, settingOn, forRead, forMenu, metaFor, keysSince, _reset };

@@ -84,9 +84,9 @@ async function readOpen(now = Date.now()) {
   return false;
 }
 
-/** A reading is about to be scored here: count it before the next count of the table sees it. */
-function noteStarted() {
-  started += 1;
+/** A reading is about to be scored here: count it before the next count of the table sees it (a story key weighs less). */
+function noteStarted(weight) {
+  started += typeof weight === 'number' && weight > 0 ? weight : 1;
 }
 
 /** Other readings that spend the same budget, counted from their own table (0 when they are off). */

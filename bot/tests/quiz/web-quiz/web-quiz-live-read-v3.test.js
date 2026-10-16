@@ -262,15 +262,19 @@ describe('storyKey: a temporary key for one story-page reading', () => {
     await expect(K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV })).rejects.toMatchObject({ status: 429 });
   });
 
-  test('story-page keys count in the whole day\'s read budget: at the cap a story key AND a passage read are refused', async () => {
-    db.app_settings.push(LR3, RT, { key: 'web_quiz_challenge_daily_reads', value: 2 });
-    require('../../../shared/services/quiz/web-quiz-challenge-budget')._reset();
-    await K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV });
-    await K.storyKey({ st: hub(), book: 'b1', page: 2, lang: 'en', device: DEV });
-    // a new process: the budget is counted from the tables, the story keys included
-    require('../../../shared/services/quiz/web-quiz-challenge-budget')._reset(); LR._reset(); K._reset();
+  test('story-page keys count a quarter of a read in the whole day\'s read budget: at the cap a story key AND a passage read are refused', async () => {
+    db.app_settings.push(LR3, RT, { key: 'web_quiz_challenge_daily_reads', value: 1 });
+    const Budget = require('../../../shared/services/quiz/web-quiz-challenge-budget');
+    Budget._reset();
+    expect(LR.STORY_KEY_WEIGHT).toBe(0.25);
+    // four story keys = one passage read's worth (a story page is 5-15 s of audio, a passage ~60 s)
+    for (let k = 0; k < 4; k += 1) await K.storyKey({ st: hub(), book: 'b1', page: k + 1, lang: 'en', device: DEV });
+    expect(await Budget.readsToday()).toBe(1);
+    // a new process: the budget is counted from the tables, the story keys included at a quarter each
+    Budget._reset(); LR._reset(); K._reset();
+    expect(await Budget.readsToday()).toBe(1);
     global.fetch.mockClear();
-    await expect(K.storyKey({ st: hub(), book: 'b1', page: 3, lang: 'en', device: DEV })).rejects.toMatchObject({ status: 429, body: { error: 'enough_for_today' } });
+    await expect(K.storyKey({ st: hub(), book: 'b1', page: 5, lang: 'en', device: DEV })).rejects.toMatchObject({ status: 429, body: { error: 'enough_for_today' } });
     await expect(Ch.exercise(hub(), 'read', { ...D, lang: 'en' })).rejects.toMatchObject({ status: 429, body: { error: 'enough_for_today' } });
     expect(global.fetch).not.toHaveBeenCalled();
   });
