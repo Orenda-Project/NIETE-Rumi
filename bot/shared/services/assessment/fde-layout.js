@@ -657,16 +657,57 @@ function plain(text) {
 }
 const FRAME_WORDS = new Set(('which what choose pick select find correct right following given below one option answer '
   + 'word words noun verb adjective adverb pronoun preposition is are the a an of from').split(' '));
+// A written item (no options) is also the same question when only its endings, its case markers
+// or its copula differ («پاکستان کے پہلے وزیر اعظم کون تھے؟» / «پاکستان کا پہلا وزیر اعظم کون تھا؟»);
+// the question words stay, so «کب» and «کہاں» are two questions.
+const LINKS = new Set(['کا', 'کی', 'کے', 'تھا', 'تھی', 'تھے', 'ہے', 'ہیں', 'ہو']);
+const writtenKey = (text) => plain(text).split(' ')
+  .filter((w) => w && !LINKS.has(w))
+  .map((w) => (/^\p{Script=Arabic}{4,}$/u.test(w) ? w.replace(/(?:وں|یں|ے|ہ|ی|ا)$/, '') : w))
+  .join(' ');
 function sameQuestion(a, b) {
   const [sa, sb] = [plain(a.question), plain(b.question)];
   if (!sa || !sb) return false;
   const opts = (q) => (Array.isArray(q.options) ? q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).sort().join('|') : '');
   if (opts(a) !== opts(b)) return false;
   if (sa === sb) return true;
+  if (!opts(a)) return writtenKey(a.question) === writtenKey(b.question);
   if (!opts(a) || plain(keyText(a)) !== plain(keyText(b))) return false;
   const [A, B] = [new Set(sa.split(' ')), new Set(sb.split(' '))];
   const differ = [...A].filter((w) => !B.has(w)).concat([...B].filter((w) => !A.has(w)));
   return differ.every((w) => FRAME_WORDS.has(w));
+}
+
+/**
+ * takenNote(P, section, examJson) → string | null
+ *
+ * What the engine's one re-ask of `section` is told, from the first layout (`examJson`): the
+ * facts the slot its items are held against already tests. Social Studies C/D: Section A's
+ * questions and answers. English A: Q4's words. Null for any other section or subject, so no
+ * other prompt changes.
+ */
+function takenNote(P, section, examJson) {
+  const cross = P && CROSS_HOLD[P.key];
+  if (!cross || !section || !Array.isArray(section.slots) || !section.slots.some((s) => cross.held.includes(s.slot))) return null;
+  const against = [];
+  for (const branch of ['seen', 'unseen']) {
+    for (const types of Object.values((examJson && examJson[branch]) || {})) {
+      for (const list of Object.values(types || {})) {
+        if (Array.isArray(list)) against.push(...list.filter((q) => q && q.slot === cross.against));
+      }
+    }
+  }
+  if (P.key === 'english') {
+    const words = against.flatMap((q) => (Array.isArray(q.words) ? q.words : [])).filter((w) => typeof w === 'string' && w.trim());
+    if (!words.length) return null;
+    return `Q4 of this paper asks the child to use these words in sentences: ${words.map((w) => w.trim()).join(', ')}. `
+      + 'No item you write in this section may use any of these words, in its stem or in its options.';
+  }
+  const facts = against.filter((q) => typeof q.question === 'string' && q.question.trim())
+    .map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
+  if (!facts.length) return null;
+  return `Section A of this paper already asks these questions (question → answer):\n${facts.join('\n')}\n`
+    + 'Never ask any of these facts again, in any wording: every question you write here must test something Section A does not.';
 }
 
 /**
@@ -800,4 +841,4 @@ function applyLayout(examJson, P, scope, opts = {}) {
   return { examJson: out, placed, unplaced, shortfall };
 }
 
-module.exports = { applyLayout, typeKey, slotKey, unitWord };
+module.exports = { applyLayout, takenNote, typeKey, slotKey, unitWord };

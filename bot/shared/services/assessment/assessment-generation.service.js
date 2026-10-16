@@ -729,7 +729,7 @@ async function generateExam(args) {
 // calls it, so a paper without a pattern is built exactly as it always was.
 
 const Patterns = require('./patterns');
-const { applyLayout } = require('./fde-layout');
+const { applyLayout, takenNote } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 
@@ -1635,16 +1635,12 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
 
   const built = P.sections.map((section) => {
     const text = _sectionText(section, loaded, layoutScope.kind, sectionRanges[section.id]);
-    const messages = _sectionMessages({
-      system,
-      user: buildPatternUserPrompt({
-        grade, subject, pageContent: text.content, pageReference: text.pageReference,
-        section, slots: section.slots, lang: P.medium, P, scope: layoutScope, poem,
-      }),
-      pageContent: text.content,
-      model,
+    const user = buildPatternUserPrompt({
+      grade, subject, pageContent: text.content, pageReference: text.pageReference,
+      section, slots: section.slots, lang: P.medium, P, scope: layoutScope, poem,
     });
-    return { section, messages };
+    const messages = _sectionMessages({ system, user, pageContent: text.content, model });
+    return { section, messages, user, pageContent: text.content };
   });
   // Awaited, so the sections that follow read what it wrote. Empty off the direct lane.
   const warmUsages = await _warmSharedPrefixes({ built, model, job, requestId, pattern });
@@ -1698,7 +1694,12 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       const i = results.findIndex((r) => r.id === b.section.id);
       const first = results[i];
       extraUsages.push(...first.usages);
-      const second = await writeOne(b);
+      // The re-ask is told what the first replies already test (Section A's facts, Q4's words), so
+      // it writes something new instead of the item the layout set aside, again.
+      const note = takenNote(P, b.section, firstLaid.examJson);
+      const second = await writeOne(note
+        ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
+        : b);
       // A slot short only because the layout set items aside (two options of equal value, an item
       // tagged to a full slot) keeps the first reply and takes the missing items from the second:
       // the layout fills a slot in reply order, so the first reply's items land first. Any other
