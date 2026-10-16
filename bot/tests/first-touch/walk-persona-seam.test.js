@@ -48,7 +48,7 @@ jest.mock('../../shared/services/feature-intro.service', () => ({
     return true;
   }),
 }));
-jest.mock('../../shared/services/quiz/web-quiz-student-join', () => ({}), { virtual: true });
+jest.mock('../../shared/services/quiz/web-quiz-student-join', () => ({}));
 
 const redis = require('../../shared/services/cache/railway-redis.service');
 const logger = require('../../shared/utils/logger');
