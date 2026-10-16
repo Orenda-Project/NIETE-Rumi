@@ -16,6 +16,11 @@
  * Behind app_settings `web_quiz_challenge_clip_warm`, effective only with `web_quiz_challenge_v2` and
  * `web_quiz_challenge` on (each fails closed). Off ⇒ one switch read and nothing else: clips record on first serve.
  * Cost ≈ US$0.0002 a clip (Soniox by audio time).
+ *
+ * The order (RULING #100(a)): the check-pool LISTENING clips come first — every listening story (the one clip a child
+ * cannot play the stop without), then those passages' prompts and options — and only then every other clip (read
+ * prompts, practice and Story Time clips) in release order. A capped run so spends its allowance where a cold clip
+ * would turn a child away.
  */
 const supabase = require('../../config/supabase');
 const { logToFile, logError } = require('../../utils/logger');
@@ -38,26 +43,39 @@ async function switchOn() {
 
 /** The passages to warm: released by now + 7 days, not withdrawn, not retired; oldest release first. */
 async function passageRows(now) {
-  const { data, error } = await supabase.from('challenge_passages').select('passage_id, lang, kind, status, released_at, withdrawn_at')
+  const { data, error } = await supabase.from('challenge_passages').select('passage_id, lang, kind, pool, status, released_at, withdrawn_at')
     .not('released_at', 'is', null).is('withdrawn_at', null).neq('status', 'retired');
   if (error) throw new Error(error.message || 'challenge_passages read failed');
   return (data || []).filter((r) => Date.parse(r.released_at) <= now + AHEAD_MS)
     .sort((a, b) => Date.parse(a.released_at) - Date.parse(b.released_at) || String(a.passage_id).localeCompare(String(b.passage_id)));
 }
 
-/** One passage's clips as the serve asks for them: [{ key, text, lang }]. */
-function clipsOf(p, optAudio) {
+// The warm's tiers: 0 = a check-pool listening story, 1 = that passage's prompts and options, 2 = everything else.
+const CHECK_LISTEN_STORY = 0;
+const CHECK_LISTEN_REST = 1;
+const OTHER = 2;
+
+/** One passage's clips as the serve asks for them, each with its tier: [{ key, text, lang, tier }]. */
+function clipsOf(p, optAudio, pool = p.pool) {
   const out = [];
   const lang = p.lang;
-  if (p.kind === 'listen' && p.text) out.push({ key: Ch.clipKey('listen', 'story', lang, p.text), text: p.text, lang });
+  const checkListen = p.kind === 'listen' && pool === 'check';
+  if (p.kind === 'listen' && p.text) out.push({ key: Ch.clipKey('listen', 'story', lang, p.text), text: p.text, lang, tier: checkListen ? CHECK_LISTEN_STORY : OTHER });
   for (const q of p.questions || []) {
     const t = Ch.tapOptions(q, lang, 'clip-warm');   // the option ORDER is per run; the set (and so the keys) is not
     if (!t) continue;
     const k = q.id.split('.').pop();
-    out.push({ key: Ch.clipKey(p.kind, k, lang, q.prompt), text: q.prompt, lang });
-    if (p.kind === 'listen' && optAudio) t.options.forEach((o) => out.push({ key: Ch.clipKey('listen', `${k}-opt`, lang, o), text: o, lang }));
+    const tier = checkListen ? CHECK_LISTEN_REST : OTHER;
+    out.push({ key: Ch.clipKey(p.kind, k, lang, q.prompt), text: q.prompt, lang, tier });
+    if (p.kind === 'listen' && optAudio) t.options.forEach((o) => out.push({ key: Ch.clipKey('listen', `${k}-opt`, lang, o), text: o, lang, tier }));
   }
   return out;
+}
+
+/** The clips in warm order: by tier (check-pool listening stories, their prompts and options, the rest), release order within a tier; the first `limit`. */
+function inWarmOrder(clips, limit) {
+  const ordered = [...clips.values()].map((c, i) => ({ c, i })).sort((a, b) => a.c.tier - b.c.tier || a.i - b.i).map((x) => x.c);
+  return Number.isFinite(limit) ? ordered.slice(0, limit) : ordered;
 }
 
 /**
@@ -81,18 +99,23 @@ async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
     const p = Bank.getPassage(r.passage_id);
     if (!p) { logToFile('⚠️ challenge clip warm: a registry passage has no file in this deploy', { passage_id: r.passage_id }); continue; }
     passages += 1;
-    for (const c of clipsOf(p, optAudio)) if (!clips.has(c.key) && clips.size < limit) clips.set(c.key, c);
+    for (const c of clipsOf(p, optAudio, r.pool || p.pool)) {
+      const have = clips.get(c.key);
+      if (!have) clips.set(c.key, c);
+      else if (c.tier < have.tier) have.tier = c.tier;   // one key shared by two passages warms at the earlier tier
+    }
   }
+  const ordered = inWarmOrder(clips, limit);
   const tally = { recorded: 0, had: 0, missing: 0 };
   let capped = false;
   let attempts = 0;
-  for (const c of clips.values()) {
+  for (const c of ordered) {
     if (!capped && (attempts >= WARM_MAX_PER_RUN || Ch.clipsLeft() <= SERVE_HEADROOM)) capped = true;
     const r = await Ch.warmClip(c.key, c.text, c.lang, { record: !capped });
     if (r !== 'had' && !capped) attempts += 1;
     tally[r] += 1;
   }
-  const out = { n: clips.size, missing: tally.missing, recorded: tally.recorded, had: tally.had, capped, passages };
+  const out = { n: ordered.length, missing: tally.missing, recorded: tally.recorded, had: tally.had, capped, passages };
   logEvent('web_quiz.ch_clip_warm', { n: out.n, missing: out.missing, w: 's' });
   logToFile('🔊 Challenge clip warm', out);
   return out;
