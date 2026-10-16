@@ -28,6 +28,7 @@
  * the handler that needs it.
  */
 const crypto = require('crypto');
+const { clampLanguage } = require('../../config/ux-strings');   // the ONE clamp (language-single-source gate)
 const fs = require('fs');
 const path = require('path');
 const Token = require('../quiz/web-quiz-token');
@@ -74,7 +75,7 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-const str = (id, lang) => STRINGS[id][lang === 'ur' ? 'ur' : 'en'];
+const str = (id, lang) => STRINGS[id][clampLanguage(lang)];
 
 /** structured-logger's logEvent, required at call time (a test mocks it); a failed log never decides a response. */
 function emit(event, fields) {
@@ -174,7 +175,7 @@ function brandParts() {
 
 function lockup(brand, lang) {
   if (!brand || !brand.mark || !brand.label) return '<span class="fd-brand"></span>';
-  const l = lang === 'ur' ? 'ur' : 'en';
+  const l = clampLanguage(lang);
   return `<span class="fd-brand"><span class="fd-mark${brand.mark.tile ? '' : ' fd-bare'}" aria-hidden="true">${brand.mark.svg}</span>`
     + `<span class="fd-lock"><b>${esc(brand.label[l])}</b><small>${esc(brand.sub && brand.sub[l])}</small></span></span>`;
 }
@@ -191,7 +192,7 @@ function fontFace(assetBase) {
  * { html, styleHash } — the hash goes into the response's Content-Security-Policy.
  */
 function buildFamilyDoor({ token = null, lang = 'en', state = 'fresh', switchTo = null, typed = '', assetBase = ASSET_BASE } = {}) {
-  const l = lang === 'ur' ? 'ur' : 'en';
+  const l = clampLanguage(lang);
   const ur = l === 'ur';
   const st = ['fresh', 'code_bad', 'stale', 'denied'].includes(state) ? state : 'fresh';
   const hasToken = st !== 'denied' && typeof token === 'string' && TOKEN_RX.test(token);
@@ -246,7 +247,7 @@ function renderFamilyDoor(opts = {}) {
 
 /** A one-line plain page for a refused "Change my choice" or a failure there (mk.stale / mk.error; no form, no link). */
 function buildPlainPage({ lang = 'en', id = 'mk.stale' } = {}) {
-  const l = lang === 'ur' ? 'ur' : 'en';
+  const l = clampLanguage(lang);
   const ur = l === 'ur';
   const { vars, brand } = brandParts();
   const style = `${ur ? fontFace(ASSET_BASE) : ''}${CSS}${vars}`;
@@ -394,7 +395,7 @@ async function handlePostDoor(req, res) {
       await require('./door.keys').markChild(uid, phone);
     } catch (err) {
       try { require('../../utils/logger').logToFile('⚠️ first touch: change-my-choice write failed', { error: String((err && err.message) || err).slice(0, 120) }); } catch (_) { /* nothing */ }
-      return sendPage(res, 200, buildPlainPage({ lang: makerLang === 'ur' ? 'ur' : 'en', id: 'mk.error' }));
+      return sendPage(res, 200, buildPlainPage({ lang: clampLanguage(makerLang), id: 'mk.error' }));
     }
     const ukey = ukeyOf(phone);
     const uk = ukey ? { ukey } : {};
@@ -408,7 +409,7 @@ async function handlePostDoor(req, res) {
     try {
       family = require('./family.token').mintFamilyToken({ uid, lang: makerLang === 'ur' ? 'ur' : 'bi', ukey });
     } catch (_) { family = null; }
-    if (!family) return sendPage(res, 200, buildPlainPage({ lang: makerLang === 'ur' ? 'ur' : 'en', id: 'mk.error' }));
+    if (!family) return sendPage(res, 200, buildPlainPage({ lang: clampLanguage(makerLang), id: 'mk.error' }));
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     return res.redirect(302, `/f/${encodeURIComponent(family)}${makerLang === 'en' ? '?lang=en' : ''}`);
   } catch (_) {
