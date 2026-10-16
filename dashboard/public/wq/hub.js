@@ -151,6 +151,7 @@
   }
   // This phone's device_ref: the same key the quiz page keeps it under (wq.js sget 'wq_d', JSON), so a
   // phone that opens the hub and then plays is one phone to the server. Minted here when there is none.
+  // With no stored ref, a valid wq_dv cookie the server already gave this phone is adopted, never minted over.
   // The same ref goes into the wq_dv cookie, so the pages a hub link opens next (the challenge, the library)
   // reach the server as this phone too: their server render and API calls carry it as x-wq-device.
   function keepCookie(d) {
@@ -163,6 +164,8 @@
     var d = null;
     try { d = JSON.parse(localStorage.getItem('wq_d') || 'null'); } catch (e) { d = null; }
     if (typeof d === 'string' && /^[A-Za-z0-9_-]{22}$/.test(d)) return keepCookie(d);
+    // No stored ref: a valid wq_dv the server already gave this phone is adopted (and kept), never minted over.
+    try { var m = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/.exec(document.cookie || ''); if (m) { try { localStorage.setItem('wq_d', JSON.stringify(m[1])); } catch (e) {} return keepCookie(m[1]); } } catch (e) {}
     var ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
     var bytes = [];
     try { var a = new Uint8Array(22); window.crypto.getRandomValues(a); bytes = Array.prototype.slice.call(a); } catch (e) { bytes = []; }
