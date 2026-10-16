@@ -114,6 +114,7 @@ const mul = (a, b) => frac(a.num * b.num, a.den * b.den);
 const div = (a, b) => (b.num === 0n ? null : frac(a.num * b.den, a.den * b.num));
 const same = (a, b) => a.num === b.num && a.den === b.den;
 const pow10 = (k) => 10n ** BigInt(k);
+const HUNDRED = { num: 100n, den: 1n };
 
 function twosAndFives(den) {
   let d = den;
@@ -761,6 +762,13 @@ function checkQuestion(q, exam, index) {
       target = earlier;
       if (agrees(form.value, target)) return 'ok';
     }
+  }
+  // Board-pattern papers: a stem that asks for a decimal "and then a percentage" ends on
+  // the percentage (3/4 = 0.75 = 75%). A key with its own % sign on a stem read as a
+  // decimal agrees when it is the value written as a percent, and is otherwise left
+  // unchecked: it is never rewritten to the decimal with a % ("0.75%").
+  if (isObject(exam._layout) && !form.percent && PERCENT_SIGN.test(answer.slice(target.index + target.raw.length))) {
+    return same(mul(form.value, HUNDRED), target.value) ? 'ok' : null;
   }
   const computed = formatLike(form.value, target, form, all);
   if (computed === target.raw) return 'ok';

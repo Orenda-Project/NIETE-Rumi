@@ -116,3 +116,49 @@ describe('3. Science Q2(b) answers written on the parent', () => {
     expect(visible(scheme)).toContain('The skin sends signals to the brain.');
   });
 });
+
+describe('4. a key that converts twice is never "corrected" to its first conversion', () => {
+  const { mathsCheck } = require('../../bot/shared/services/assessment/maths-check');
+  test('3/4 = 0.75 = 75% keeps its percentage', () => {
+    const items = [{ slot: 'maths.B.Q2', question: 'Convert the fraction 3/4 into a decimal and then express it as a percentage.', answer: '3/4 = 0.75 = 75%', blooms: 'Apply' },
+      { slot: 'maths.B.Q2', question: 'Write 2/5 as a decimal and then as a percentage.', answer: '2/5 = 0.4 = 40%', blooms: 'Apply' }];
+    const laid = applyLayout({ unseen: { subjective: { 'Word Problems': items } } }, P.maths, FDE, { now: NOW });
+    const out = mathsCheck(normaliseScheme(laid.examJson).examJson, { subject: 'maths' }).examJson;
+    const got = Object.values(out.unseen.subjective).flat();
+    expect(got.map((q) => q.answer)).toEqual(['3/4 = 0.75 = 75%', '2/5 = 0.4 = 40%']);
+    got.forEach((q) => expect(q.scheme.checked).toBe('ok'));
+    expect(out._layout.notes.filter((n) => /corrected by code/.test(n.text_en || ''))).toEqual([]);
+  });
+  test('a wrong percentage after the decimal is still not "corrected" to the decimal', () => {
+    const items = [{ slot: 'maths.B.Q2', question: 'Convert the fraction 3/4 into a decimal and then express it as a percentage.', answer: '3/4 = 0.75 = 70%', blooms: 'Apply' }];
+    const laid = applyLayout({ unseen: { subjective: { 'Word Problems': items } } }, P.maths, FDE, { now: NOW });
+    const out = mathsCheck(normaliseScheme(laid.examJson).examJson, { subject: 'maths' }).examJson;
+    const [q] = Object.values(out.unseen.subjective).flat();
+    expect(q.answer).not.toBe('3/4 = 0.75 = 0.75%');
+  });
+});
+
+describe('5. the Science diagram page comes from the item, never the pattern default', () => {
+  const diagram = (bookPage) => ({
+    unseen: { subjective: { Diagram: [{ slot: 'science.A.Q1b', question: 'Respiratory System', book_page: bookPage, answer: 'nose, windpipe, lungs, air sacs, diaphragm', marks: 5, blooms: 'Remember' }] } },
+  });
+  const supplyOf = (bookPage) => applyLayout(diagram(bookPage), P.science, FDE, { now: NOW }).examJson._layout.supplies.find((s) => s.kind === 'diagram');
+
+  test('a page written as "Page 7" or "p. 7" is page 7', () => {
+    expect(supplyOf('Page 7').book_page).toBe(7);
+    expect(supplyOf('p. 7').book_page).toBe(7);
+    expect(supplyOf(68).book_page).toBe(68);
+  });
+
+  test('a page that does not parse, or none, prints no page and names the book diagram', () => {
+    for (const bad of ['the book figure', null, undefined, '', 'Chapter 2']) {
+      const s = supplyOf(bad);
+      expect(s.book_page).toBe(null);
+      expect(s.line_en).not.toMatch(/168|book p\./);
+    }
+    const laid = applyLayout(diagram('the book figure'), P.science, FDE, { now: NOW }).examJson;
+    const scheme = visible(R.renderMarkingScheme({ examJson: normaliseScheme(laid).examJson, grade: 5, subject: 'science', allowShort: true }));
+    expect(scheme).not.toMatch(/book p\. 168|\(book p\./);
+    expect(scheme).toContain("the book's diagram");
+  });
+});
