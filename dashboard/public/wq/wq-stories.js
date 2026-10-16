@@ -9,19 +9,19 @@
   var T = {
     en: {
       shelf: 'Storybooks', gl: function (g, l) { return 'Grade ' + g + ', ' + (l === 'ur' ? 'Urdu' : 'English'); },
-      readWith: function (h) { return 'Read <bdi>' + h + '</bdi> with Jugnu'; }, teacher: 'From your teacher', by: function (n) { return 'by ' + n; },
+      readWith: function (h) { return 'Read ' + h + ' with Jugnu'; }, teacher: 'From your teacher', by: function (n) { return 'by ' + n; },
       read: 'Read', empty: 'No storybooks here yet. Try another grade.', oops: 'Jugnu could not open this.', retry: 'Try again',
       off: 'Stories are resting today.', home: 'Home', back: 'Back', close: 'Close', sound: 'Sound', prevP: 'Page before', nextP: 'Next page',
       listen: 'Listen', pause: 'Pause', yourTurn: 'Your turn', next: 'Next', again: 'Listen again', whole: 'Whole page', slow: 'Slower', hearFirst: 'Hear it first',
-      denied: 'That\'s OK, let\'s listen with Jugnu', wellRead: 'Well read!', together: 'Let\'s read it together', practise: 'Let\'s practise this word',
+      denied: 'That\'s OK, let\'s listen with Jugnu', wellRead: 'Well read!', together: 'Let\'s read it together', echoB: 'Read it together', practise: 'Let\'s practise this word',
     },
     ur: {
       shelf: 'کہانیوں کی کتابیں', gl: function (g, l) { return 'جماعت ' + g + '، ' + (l === 'ur' ? 'اردو' : 'انگریزی'); },
-      readWith: function (h) { return 'جگنو کے ساتھ <bdi>' + h + '</bdi> پڑھیں'; }, teacher: 'ٹیچر کی طرف سے', by: function (n) { return n + ' کی لکھی ہوئی'; },
+      readWith: function (h) { return 'جگنو کے ساتھ ' + h + ' پڑھیں'; }, teacher: 'ٹیچر کی طرف سے', by: function (n) { return n + ' کی لکھی ہوئی'; },
       read: 'پڑھ لی', empty: 'یہاں ابھی کوئی کہانی نہیں۔ کوئی اور جماعت چنیں۔', oops: 'یہ کتاب ابھی نہیں کھل سکی۔', retry: 'دوبارہ کوشش کریں',
       off: 'آج کہانیاں آرام کر رہی ہیں۔', home: 'ہوم', back: 'واپس', close: 'بند کریں', sound: 'آواز', prevP: 'پچھلا صفحہ', nextP: 'اگلا صفحہ',
       listen: 'سنیں', pause: 'رکیں', yourTurn: 'اب آپ پڑھیں', next: 'آگے', again: 'دوبارہ سنیں', whole: 'پورا صفحہ', slow: 'آہستہ', hearFirst: 'پہلے سنیں',
-      denied: 'کوئی بات نہیں، جگنو کے ساتھ سنیں', wellRead: 'بہت اچھا پڑھا!', together: 'آئیں مل کر پڑھیں', practise: 'آئیں، یہ لفظ پھر سے پڑھیں',
+      denied: 'کوئی بات نہیں، جگنو کے ساتھ سنیں', wellRead: 'بہت اچھا پڑھا!', together: 'آئیں مل کر پڑھیں', echoB: 'آئیں مل کر پڑھیں', practise: 'آئیں، یہ لفظ پھر سے پڑھیں',
     },
   };
   var JG = '/wq/jugnu/';
@@ -30,7 +30,6 @@
     tick: sv('M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'), play: sv('M8 5v14l11-7z'), home: sv('M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z'),
     spk: sv('M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z'),
     mute: sv('M3 9v6h4l5 5V4L7 9zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z'),
-    mic: sv('M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1a7 7 0 0 0 6-6.9z'),
     slow: sv('M3 16a9 7 0 0 1 18 0zm17-3a2 2 0 1 0 2.5-2.5zM6 16v3h3v-3zm9 0v3h3v-3z'),
   };
   var cache = {}, opened = {}, codes = {}, cur = null;
@@ -62,6 +61,7 @@
   }
   function tids(kid) { return String(ls('wq_st_t:' + (kid || '')) || '').split(',').filter(Boolean); }
 
+  function hm(l, pr) { return '<a class="wqs-ic" href="#" data-home data-tap="home"' + (pr ? ' data-primary' : '') + ' aria-label="' + esc(T[l].home) + '">' + IC.home + '</a>'; }
   function scr(name, l, inner, cls) { return '<section class="wqs ' + (cls || '') + '" data-screen="' + name + '" lang="' + l + '" dir="' + dirOf(l) + '">' + inner + '</section>'; }
   function img(src, w, h, cls, ex) { return '<img' + (cls ? ' class="' + cls + '"' : '') + ' src="' + esc(src) + '" width="' + w + '" height="' + h + '" alt=""' + (ex || '') + ' onerror="WQSTORIES._bad(this)">'; }
   function ic(t, tap, label, glyph, ex) { return '<button class="wqs-ic" ' + (ex || 'data-back') + ' data-tap="' + tap + '" aria-label="' + esc(label) + '">' + glyph + '</button>'; }
@@ -112,9 +112,9 @@
     }
     var tb = bk[tk];
     return scr('stories-shelf', l,
-      '<div class="wqs-top"><a class="wqs-ic" href="#" data-home data-tap="home"' + (bk.length ? '' : ' data-primary') + ' aria-label="' + esc(t.home) + '">' + IC.home + '</a><h2>' + esc(t.shelf) + '</h2></div>' +
+      '<div class="wqs-top">' + hm(l, !bk.length) + '<h2>' + esc(t.shelf) + '</h2></div>' +
       '<button class="wqs-gl" data-tap="gl" aria-expanded="' + !!open + '">' + esc(t.gl(dg(d.grade, l), l)) + ' ▾</button>' + (open ? '<div class="wqs-pick">' + chips + '</div>' : '') +
-      (tb ? '<button class="wqs-tcard" data-tap="book" data-arg="' + tk + '" data-primary>' + cov(tb) + '<span><i class="wqs-rib">' + esc(t.teacher) + '</i><b>' + IC.play + ' ' + t.readWith(esc(tb.title)) + '</b>' + (tb.by ? '<small>' + esc(t.by(tb.by)) + '</small>' : '') + '</span></button>' : '') +
+      (tb ? '<button class="wqs-tcard" data-tap="book" data-arg="' + tk + '" data-primary>' + cov(tb) + '<span><i class="wqs-rib">' + esc(t.teacher) + '</i><b>' + IC.play + ' ' + t.readWith('<bdi lang="' + lg(tb.lang) + '" dir="' + dirOf(lg(tb.lang)) + '">' + esc(tb.title) + '</bdi>') + '</b>' + (tb.by ? '<small>' + esc(t.by(tb.by)) + '</small>' : '') + '</span></button>' : '') +
       (bk.length ? '<ul class="wqs-grid">' + cards + '</ul>' : '<p class="wqs-say">' + esc(t.empty) + '</p>'), 'wqs-shelf');
   }
   function shelf(el, ctx, q) {
@@ -129,20 +129,20 @@
       var d = el._d || {}, b = (d.books || [])[+arg];
       if (tap === 'book' && b) {
         opened[b.id] = 1;
-        post(ctx, b.id, 'story_opened', { shelf_position: b.shelf_position == null ? +arg : b.shelf_position, from_teacher: !!b.from_teacher, grade: b.grade, lang: b.lang });
+        post(ctx, b.id, 'story_opened', { shelf_position: b.shelf_position == null ? +arg + 1 : b.shelf_position, from_teacher: !!b.from_teacher, grade: b.grade, lang: b.lang });
         W.location.hash = '#story/' + b.id;
       } else if (tap === 'gl') { el._open = !el._open; el.innerHTML = np(shelfHtml(d, el._open)); }
       else if (tap === 'g' || tap === 'l') { q[tap] = arg; ls('wq_st_gl', (q.g || '') + ',' + (q.l || '')); shelf(el, ctx, q); }
       else if (tap === 'retry') shelf(el, ctx, q);
     });
-    el.innerHTML = '<div class="wqs wqs-shelf" aria-busy="true"><div class="wqs-grid">' + new Array(5).join('<i class="wqs-skel"></i>') + '</div></div>';
-    function fail() { el.innerHTML = retryHtml(l, '<a class="wqs-ic" href="#" data-home data-tap="home" aria-label="' + esc(T[l].home) + '">' + IC.home + '</a>'); }
+    el.innerHTML = np(scr('stories-wait', l, '<div class="wqs-top">' + hm(l, 1) + '</div><div class="wqs-grid" aria-busy="true">' + new Array(5).join('<i class="wqs-skel"></i>') + '</div>', 'wqs-shelf'));
+    function fail() { el.innerHTML = retryHtml(l, hm(l)); }
     req('GET', '/api/wq/stories/shelf/h/' + enc(ctx.token) + '?kid=' + enc(ctx.kid) + (q.g ? '&g=' + enc(q.g) : '') + '&l=' + l + (ids ? '&t=' + enc(ids) : '')).then(function (r) {
       if (r.status === 404) { el.innerHTML = ''; el.hidden = true; return; }
       if (!r.ok) return fail();
       el._d = r.body; el._open = false;
       el.innerHTML = np(shelfHtml(r.body, false));
-      evt(ctx, 'story_shelf_shown', { n: (r.body.books || []).length, g: String(r.body.grade), lang: r.body.lang });
+      evt(ctx, 'story_shelf_shown', { n: (r.body.books || []).length, grade: +r.body.grade, lang: r.body.lang });
     }, fail);
   }
 
@@ -175,6 +175,13 @@
   function mark(p, i, a, rtl) {
     var ws = p.words || [], w = ws[i], k, x;
     if (!w) return null;
+    if (p.quality === 'low') {
+      var N = lines(p), q = N.l[N.of[i]], bs = q ? (q.bs.length ? q.bs : q.i.map(function (j) { return ws[j].box; }).filter(Boolean)) : [];
+      if (!bs.length) { a = a || [0, p.image.h - 40, p.image.w, 40]; return a.slice(0, 4); }
+      x = [1e9, 1e9, -1e9, -1e9];
+      bs.forEach(function (b) { x = [Math.min(x[0], b[0]), Math.min(x[1], b[1]), Math.max(x[2], b[0] + b[2]), Math.max(x[3], b[1] + b[3])]; });
+      return [x[0], x[1], x[2] - x[0], x[3] - x[1]];
+    }
     if (w.box) return w.box.slice(0, 4);
     x = (p.lines || []).filter(function (y) { return y.i0 <= i && i <= y.i1; })[0];
     if (x && x.box) { var b = x.box, g = (i - x.i0 + 1) / (x.i1 - x.i0 + 1); return [b[0] + (rtl ? b[2] * (1 - g) : 0), b[1] + b[3] - 6, b[2] * g, 6, 1]; }
@@ -232,9 +239,8 @@
     m.altTap = function () {
       var a = m.alt();
       if (a === 'yourTurn') { if (m.st === 'listening') fx('pause'); m.pref = 'read'; m.set('mic'); }
-      else if (a) m.echo();
+      else if (a) { fx('play'); m.set('listening'); }
     };
-    m.echo = function () { fx('play'); m.set('listening'); };
     m.primary = function () {
       var lab = m.label();
       if (lab === 'pause') { fx('pause'); m.set('paused'); }
@@ -283,7 +289,7 @@
 
   function reader(id, ctx, root) {
     var C = clockOf(ctx), tch = ctx.role === 'teacher', R = { id: id, root: root, ctx: ctx, C: C, tch: tch, pl: null, lr: null, poll: null, au: null };
-    var b, L = lg(ctx.lang), t = T[L], P, m, Q, view = '', pg = -1, mp = -1, t0 = -1, acc = 0, sent = {}, ask = {};
+    var b, L = lg(ctx.lang), t = T[L], P, m, Q, view = '', pg = -1, t0 = -1, acc = 0, sent = {}, ask = {};
     var sp, sm = '', LN = { l: [], of: [] }, zl = -1, li = -1, wu = 0;
     var paint = R.paint = function (h) { root.innerHTML = h; };
     R.live = function () { return cur === R; };
@@ -295,7 +301,7 @@
     }
     R.home = home;
     function bookUrl() { return tch ? ctx.bookUrl : '/api/wq/stories/book/' + enc(id) + '/h/' + enc(ctx.token) + '?kid=' + enc(ctx.kid); }
-    function wait() { paint(scr('story-wait', L, '<i class="wqs-skel wqs-big"></i>')); }
+    function wait() { paint(scr('story-wait', L, top(L, ic(t, 'back', t.back, '‹', 'data-back data-primary')) + '<i class="wqs-skel wqs-big"></i>')); }
     R.wait = wait;
     function oops() { paint(retryHtml(L, ic(t, 'back', t.back, '‹'))); }
     function load(q) {
@@ -311,7 +317,7 @@
       R.b = b = bk; if (!tch) cache[id] = b;
       R.L = L = lg(b.lang); R.t = t = T[L]; R.P = P = b.pages || [];
       if (!W.WQReadAlong) P.forEach(function (p) { p.audio = null; });
-      var o = { lr: !tch && !!(W.WQLiveRead && W.WQLiveRead.mount), fx: fx, start: q && q.p ? q.p - 1 : 0 };
+      var LR = W.WQLiveRead, o = { lr: !tch && !!(LR && LR.mount && LR.askMic), fx: fx, start: q && q.p ? q.p - 1 : 0 };
       R.m = m = machine(b, o);
       if (!opened[id] && !tch) {
         opened[id] = 1;
@@ -331,11 +337,10 @@
     };
     function show() {
       if (cur !== R) return;
-      var s = m.st, v = s === 'mic' ? 'mic' : s === 'reading' ? 'read' : s === 'questions' ? 'q' : s === 'done' ? 'd' : 'page';
+      var s = m.st, v = s === 'mic' ? 'mic' : s === 'reading' ? 'read' : s === 'questions' ? 'q' : s === 'done' ? 'd' : s === 'echo' ? 'e' : 'page';
       if (v === view && (v !== 'page' || m.i === pg)) { if (v === 'page') sync(); return; }
       if (pg >= 0 && (m.i !== pg || v === 'q' || v === 'd')) flush();
       drop();
-      if (m.i !== pg) mp = -1;
       view = v; pg = m.i;
       if (v === 'page') return pageScreen();
       wait();
@@ -354,9 +359,10 @@
     R.drop = drop;
     function flush() {
       if (t0 >= 0) { acc += C.now() - t0; t0 = -1; }
-      if (acc > 0 && !sent[pg] && P[pg]) { sent[pg] = 1; post(ctx, id, 'story_page_listened', { ms: acc, completed: false }, P[pg].n); }
+      if (acc > 0 && !sent[pg] && P[pg]) { sent[pg] = 1; pp('story_page_listened', { ms: acc, completed: false }, pg); }
       acc = 0;
     }
+    var pp = R.pp = function (ev, d, k) { var n = P[k] && P[k].n; if (n >= 1 && n <= P.length) post(ctx, id, ev, d, n); };
     function kill() {
       if (cur === R) { flush(); cur = null; }
       drop(); if (R.au) R.au.pause();
@@ -364,7 +370,7 @@
     R.kill = kill;
     R.hush = function () {
       if (R.au) R.au.pause();
-      if (m && m.st === 'listening') m.primary();
+      if (m && m.st === 'listening') m.primary(); else if (m && m.st === 'echo') Q.act('hush'); else if (R.pl) R.pl.pause();
       if (R.lr && m.st === 'reading') R.lr.stop('hidden');
     };
     function fx(n) {
@@ -388,9 +394,6 @@
           onState: function (s) { if (s === 'error' && R.pl) m.err(); },
           onWordTap: function () { if (/^(idle|paused|listened|together|denied)$/.test(m.st)) { t0 = C.now(); m.set('listening'); } },
         });
-      } else if (!p.is_picture && mp !== i) {
-        mp = i;
-        post(ctx, id, 'story_page_listened', { miss: true }, p.n);
       }
       if (!p.audio && !p.is_picture && !ask[i]) {
         ask[i] = 1;
@@ -469,8 +472,8 @@
       var echo = b.grade < 3 && p.audio && (s === 'together' || /^(read|practise)$/.test(s) && m.ratio <= 0.5);
       if (s === 'practise' && w) h = '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + dirOf(L) + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
       else if (s === 'read' || s === 'practise') h = '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
-      else if (s === 'denied' || s === 'together' && !echo) h = '<p>' + esc(t[s]) + '</p>';
-      if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(t.together) + '</button>';
+      else if (s === 'denied' || s === 'together') h = '<p>' + esc(t[s]) + '</p>';
+      if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(t.echoB) + '</button>';
       if (a) h = '<button class="wqs-sec" data-tap="alt"' + (a === 'hearFirst' ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[a]) + '</button>' + h;
       if (p.audio && /^(listened|paused|read|practise)$/.test(s)) h += '<button class="wqs-again" data-tap="again" data-sound data-trigger="tap">↻ ' + esc(t.again) + '</button>';
       return h;
@@ -482,7 +485,7 @@
     }
     function ended() {
       if (t0 >= 0) { acc += C.now() - t0; t0 = -1; }
-      if (!sent[m.i]) { sent[m.i] = 1; post(ctx, id, 'story_page_listened', { ms: acc, completed: true }, P[m.i].n); }
+      if (!sent[m.i]) { sent[m.i] = 1; pp('story_page_listened', { ms: acc, completed: true }, m.i); }
       acc = 0;
       li = -1; zl = -1; camTo(null); word(-1);
       m.end();
@@ -498,7 +501,7 @@
       else if (tap === 'back') back();
       else if (tap === 'home') home();
       else if (tap === 'retry') { view = ''; show(); }
-      else if (tap === 'close' || tap === 'notnow') m.notNow();
+      else if (tap === 'close') m.notNow();
       else if (tap === 'snd') {
         var v = !muted(), s = root.querySelector('[data-snd]');
         if (W.WQJ && W.WQJ.mute) juice('mute', v);
@@ -509,7 +512,6 @@
       } else if (tap === 'again') { if (R.pl) { if (t0 < 0) t0 = C.now(); R.pl.replay(); if (/^(listened|paused)$/.test(m.st)) m.set('listening'); } }
       else if (tap === 'word') { if (R.pl) R.pl.playWord(+arg); }
       else if (tap === 'alt') m.altTap();
-      else if (tap === 'echo') m.echo();
       else if (tap === 'slow') { ls('wq_st_slow:' + (ctx.kid || ''), slow() ? '0' : '1'); rate(); var sb = root.querySelector('.wqs-slow'); if (sb) sb.setAttribute('aria-pressed', String(slow())); }
       else if (tap === 'cam') { wu = !wu; zl = -1; if (wu) camTo(null); else if (li >= 0) camLine(li); var wb = root.querySelector('[data-whole]'); if (wb) wb.setAttribute('aria-pressed', String(!!wu)); }
     });

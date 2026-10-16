@@ -38,7 +38,9 @@
 .wqs-cam .wqs-lens{position:absolute;z-index:1}
 .wqs-mk{box-sizing:border-box;background:rgba(187,247,208,.3);box-shadow:inset 0 0 0 3px #15803D;border-radius:8px}
 .wqs-mk{position:absolute;z-index:2;opacity:0;pointer-events:none;transition:left .12s,top .12s,width .12s,height .12s,opacity .15s}
-.wqs-sw{box-shadow:none;border-radius:3px;background:rgba(88,204,2,.45)}
+.wqs-sw{box-shadow:inset 0 -3px 0 #15803D;border-radius:3px;background:rgba(187,247,208,.3)}
+.wqs-es{position:absolute;z-index:2;box-sizing:border-box;border-radius:8px;box-shadow:inset 0 0 0 3px #15803D;pointer-events:none}
+.wqs-cam [data-ra]~.wqs-lr{position:absolute;left:0;top:0;width:100%;z-index:1}
 .wqs-cam .lr-box.lr-read,.wqs-cam .lr-box.lr-heard{background:linear-gradient(transparent 78%,rgba(21,128,61,.85) 78%);border-radius:3px;box-shadow:none}
 .wqs-cam .lr-box.lr-skipped{background:none;box-shadow:none;border-bottom:5px dashed #E65100;border-radius:0}
 .wqs-cam .lr-box.lr-cur,.wqs-cam .lr-box.lr-current{background:#BBF7D0;outline:3px solid #15803D;border-radius:8px}
@@ -80,6 +82,7 @@
 .wqs-opt{flex:1;display:flex;align-items:center;gap:12px;min-height:72px;padding:8px 14px;border-radius:22px;background:#fff;box-shadow:0 4px 0 var(--line);font-size:24px;font-weight:800;text-align:start;outline:3px solid transparent;outline-offset:-3px}
 .wqs-opt img{width:64px;height:64px;border-radius:14px;object-fit:cover;flex:none}
 .wqs-chosen{outline-color:var(--hl);background:#d6f5e3}
+.wqs-dim{opacity:.45;cursor:default}
 .wqs-wob{outline-color:#f2a33a;background:#fff3dc;animation:wqs-wob .24s 2}
 @keyframes wqs-wob{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .wqs-pv{margin:0;padding-inline-start:20px}
