@@ -293,3 +293,53 @@ describe('replies per bound child (D3): home_reply + bind_reply sends ÷ childre
     expect(line('replies_per_bound_child')).toBeUndefined();
   });
 });
+
+describe('record duplicates and lamps settled without answers (counts only)', () => {
+  const PREV = '2026-10-08T08:00:00Z';                     // 2026-W41
+  const dup = (extra = {}) => v2({ mode: 'practice', record: false, meta: { record_lost: 'duplicate' }, ...extra });
+
+  test('record_duplicates: the week\'s record_lost = duplicate rows over the attempts at a record (records + duplicates)', async () => {
+    install([
+      dup(), dup({ canonical_id: B, status: 'failed' }),
+      v2({ canonical_id: A }), v2({ canonical_id: B }), v2({ canonical_id: C, status: 'failed' }),
+      dup({ created_at: PREV }),                             // the week before: not counted
+      v2({ canonical_id: C, created_at: PREV }),              // a record the week before: not counted
+      v2({ canonical_id: C, mode: 'practice', record: false }),   // practice without record_lost: neither
+    ]);
+    await Strip.weeklyStrip({ week: WEEK, now: NOW });
+    expect(line('record_duplicates')).toMatchObject({ value: 2, n: 5 });
+  });
+
+  test('lamps_settled_unanswered: the week\'s lamps_settled_day rows summed; n = scored record readings of the week', async () => {
+    install([
+      v2({ canonical_id: A }), v2({ canonical_id: B }),
+      v2({ canonical_id: C, mode: 'practice', record: false }),       // a practice read: excluded
+      v2({ canonical_id: C, status: 'failed' }),                       // a failed read: excluded
+      v2({ canonical_id: C, exercise: 'bigger' }),                     // not a reading: excluded
+      v2({ canonical_id: C, created_at: PREV }),                       // the week before: excluded
+    ], {
+      web_quiz_strip_weekly: [
+        { week: WEEK, line: 'lamps_settled_day', cell: '2026-10-13', value: 1, n: 4 },
+        { week: WEEK, line: 'lamps_settled_day', cell: '2026-10-15', value: 2, n: 5 },
+        { week: '2026-W41', line: 'lamps_settled_day', cell: '2026-10-08', value: 7, n: 9 },
+      ],
+    });
+    await Strip.weeklyStrip({ week: WEEK, now: NOW });
+    expect(line('lamps_settled_unanswered')).toMatchObject({ value: 3, n: 2 });
+  });
+
+  test('lamps_settled_unanswered with no daily rows (rung switch off all week): value 0, n as usual', async () => {
+    install([v2({ canonical_id: A })]);
+    await Strip.weeklyStrip({ week: WEEK, now: NOW });
+    expect(line('lamps_settled_unanswered')).toMatchObject({ value: 0, n: 1 });
+    expect(line('record_duplicates')).toMatchObject({ value: 0, n: 1 });
+  });
+
+  test('settledSnapshot writes one lamps_settled_day row in the day\'s week (value = settled, n = checked)', async () => {
+    install([]);
+    await Strip.settledSnapshot({ day: '2026-10-15', settled: 1, checked: 4, now: NOW });
+    expect(db.web_quiz_strip_weekly.filter((r) => r.line === 'lamps_settled_day')).toEqual([
+      expect.objectContaining({ week: WEEK, line: 'lamps_settled_day', cell: '2026-10-15', value: 1, n: 4 }),
+    ]);
+  });
+});

@@ -38,6 +38,15 @@
  *   teacher_accepted_share / <tier>         the teacher-accepted share of the join queue's tier (its Wilson 95% lower
  *                                           bound; a teacher's tap is a judgement, not a label, so never "precision")
  *   teacher_accepted_held / <tier>          1 when the tier is auto-held on that share, else 0
+ *   record_duplicates                       runs created in the week with meta.record_lost = 'duplicate' (a second
+ *                                           record of the stop this period, stored as practice); n = the attempts at
+ *                                           a record: the week's record rows plus those duplicates (above 0 every
+ *                                           week is a double-open in the page, not a race)
+ *   lamps_settled_unanswered                Reading lamps the daily settle lit in the week without answers: the sum
+ *                                           of the week's `lamps_settled_day / <PKT day>` rows (settledSnapshot,
+ *                                           value = settled, n = checked); n = the week's scored record readings.
+ *                                           The settle runs only with the rung switch on: a week with it off has
+ *                                           no daily rows (value 0)
  * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings) skips its lines, logged.
  *
  * The reply cap counts in Redis, `wq:reply_cap:<PKT day>:<hash>` = the day's replies for one phone, 24-h TTL from
@@ -196,6 +205,16 @@ async function replyCapSnapshot({ now = Date.now() } = {}) {
   return { day, phones: got.phones, hits: got.bins.get('capped') || 0 };
 }
 
+/**
+ * The daily job's record of its rung settle (web-quiz-rungs.js settleDeferred, run only with the rung switch on):
+ * one `lamps_settled_day / <PKT day>` row in that day's week, value = lamps lit without answers, n = readings checked.
+ */
+async function settledSnapshot({ day, settled, checked, now = Date.now() } = {}) {
+  const week = isoWeekOf(Date.parse(`${day}T07:00:00Z`));
+  await writeLines([{ week, line: 'lamps_settled_day', cell: day, value: Number(settled) || 0, n: Number(checked) || 0 }], now);
+  return { day, settled: Number(settled) || 0 };
+}
+
 /** The week's reply-cap lines: the daily snapshots, plus a live read of a day still in Redis and not snapshotted. */
 async function replyCapLines({ week, start, now, put }) {
   const days = Array.from({ length: 7 }, (_, i) => pktDay(new Date(Date.parse(start) + i * DAY_MS).toISOString()));
@@ -320,6 +339,10 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   const firsts = counted.filter((r) => Number(r.exposure_no) === 1);
   put('no_class_first_finishes', '', share(firsts.filter((r) => r.class_id == null).length, firsts.length), firsts.length);
 
+  // record duplicates: a second record of the stop this period, stored as practice; n = the attempts at a record
+  const dups = rows.filter((r) => r.meta && r.meta.record_lost === 'duplicate').length;
+  put('record_duplicates', '', dups, rows.filter((r) => r.record === true).length + dups);
+
   // lost readings: attempted = scored + failed (a swept run is a failed run with meta.swept_at)
   const attempted = check.filter((r) => r.exercise === 'read' && (r.status === 'scored' || r.status === 'failed'));
   const att = new Map(); const lost = new Map(); const swept = new Map(); const attD = new Map(); const lostD = new Map();
@@ -423,6 +446,14 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
     }
   }
 
+  // ── Reading lamps the daily settle lit without answers (the week's daily rows; none with the rung switch off) ──
+  const recordReads = counted.filter((r) => r.exercise === 'read' && r.record === true).length;
+  const { data: setl, error: sErr } = await supabase.from(STRIP_TABLE).select('cell, value').eq('week', week).eq('line', 'lamps_settled_day');
+  if (sErr) {
+    skipped.push('lamps_settled_unanswered');
+    if (!isMissingTable(sErr)) logError('web_quiz.strip_read_failed', { what: 'lamps_settled_day', code: sErr.code || null });
+  } else put('lamps_settled_unanswered', '', (setl || []).reduce((s, r) => s + (Number(r.value) || 0), 0), recordReads);
+
   // ── identity: the reply cap and the teacher-accepted share (each only when its input exists) ──
   if (!(await replyCapLines({ week, start, now, put }))) skipped.push('reply_cap');
   if (!(await acceptedShareLines({ put }))) skipped.push('teacher_accepted_share');
@@ -447,4 +478,4 @@ async function writeLines(lines, now) {
   }
 }
 
-module.exports = { weeklyStrip, replyCapSnapshot, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES };
+module.exports = { weeklyStrip, replyCapSnapshot, settledSnapshot, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES };

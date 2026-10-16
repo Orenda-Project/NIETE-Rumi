@@ -33,6 +33,7 @@
  *     ended, now }), when present: the job only schedules it; the calibration carries its own switches;
  *   - every day, the rung job's settleDeferred({ now }) (web-quiz-rungs.js, when present), only with the rung switch
  *     on (web_quiz_challenge_rungs under web_quiz_challenge_v2); absent or without that export, nothing and no log.
+ *     When it ran, its count is kept as the day's `lamps_settled_day` row (web-quiz-strip.js settledSnapshot).
  *
  * Every write to a run's meta goes through the Challenge's compare-and-set (updateRunMeta): a scorer that lands its
  * result while the sweeper looks at the row wins, and the sweeper leaves the row alone. A row is never touched unless
@@ -273,6 +274,14 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   if (hasSettle) {
     try { out.settled = await Rungs.settleDeferred({ now }); } catch (e) {
       logError('web_quiz.ch_rung_settle_failed', { error: errText(e) });
+    }
+    // the settle's count is only in memory: keep the day's (one row under the day claim) for the weekly numbers
+    if (out.settled) {
+      try {
+        await require('./web-quiz-strip').settledSnapshot({ day: claim.day, settled: out.settled.settled, checked: out.settled.checked, now });
+      } catch (e) {
+        logError('web_quiz.strip_settled_failed', { error: errText(e) });
+      }
     }
   }
   if (!anyOn) return out;
