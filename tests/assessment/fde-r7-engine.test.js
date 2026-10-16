@@ -232,3 +232,26 @@ describe('an Urdu Q2 "questions" part with marks and no questions is a short slo
     });
   });
 });
+
+describe('the top-up never treats two items without a question line as the same item', () => {
+  test('first and second replies whose Q1a items carry no "question" (stem in "passage") still top up', async () => {
+    const stemless = (src) => {
+      const out = clone(src);
+      for (const types of Object.values(out.unseen)) {
+        for (const list of Object.values(types)) {
+          list.filter((q) => q.slot === 'maths.A.Q1a').forEach((q) => { q.passage = q.question; delete q.question; });
+        }
+      }
+      return out;
+    };
+    let aCalls = 0;
+    const { Generation } = load((req) => {
+      if (!isA(req)) return reply(FIXTURE, req);
+      aCalls += 1;
+      return aCalls === 1 ? reply(stemless(q1aSource([3, 9])), req) : reply(stemless(q1aSource([5], ' (again)')), req);
+    });
+    const out = await Generation.generatePatternExam(MATHS);
+    expect(aCalls).toBe(2);
+    expect(out.layout.placed).toBe(48);
+  });
+});
