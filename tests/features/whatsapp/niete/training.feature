@@ -2259,6 +2259,15 @@ Feature: NIETE (ICT) Teacher Training
     And when every story at that level and the one below has been met, the child sees "A new story is on its way." and nothing is recorded
     # web-quiz-challenge-draw.js drawPassage; each draw logged in challenge_draws. Unit: challenge-draw.test.js. @wip.
 
+  @quiz @config-gated @wip @draft @P2 @T855
+  Scenario: With web_quiz_challenge_story on, a story tapped on the Story Time shelf is the story the child plays
+    Given web_quiz_challenge_v2 and web_quiz_challenge_pool and web_quiz_challenge_story are on
+    When a child taps a story on the Story Time shelf
+    Then that story is served to read or to hear, as practice, and this month's record is left for the Trail
+    And a story the shelf could not have shown this child is refused and nothing is written
+    But with web_quiz_challenge_story off the stop serves exactly as before
+    # web-quiz-internal.routes.js room/pid; web-quiz-challenge.js serveV2; draw storyPassageFor. Unit: challenge-story-serve.test.js. @wip.
+
   @quiz @config-gated @wip @draft @P1 @T330
   Scenario: With the teacher report on for me, /quiz opens a home with three choices
     Given app_settings "teacher_report_teachers" is "all" or lists me

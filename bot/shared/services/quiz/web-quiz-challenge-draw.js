@@ -154,6 +154,26 @@ function ownYearCode(now = new Date()) {
 
 const ms = (t) => (t == null ? NaN : new Date(t).getTime());
 
+// ── pure: Story Time (a practice story asked for by id) ─────────────────────────────────────────────────
+
+// The statuses and the reserve id the Story Time shelf lists by (web-quiz-hub-play.js): a story the shelf can show is a
+// story the serve accepts, and nothing else.
+const STORY_STATUS = new Set(['reviewed', 'provisional', 'calibrated']);
+const RESERVE_ID = /\.reserve\d+$/;
+
+/**
+ * The registry row of the practice story `pid` when this child may be served it as a Story Time play, else null:
+ * pool practice, a shelf status, released, not withdrawn, not the reserve, in the child's language, of this kind, in
+ * one of the child's open bands (`bands`, the shelf's openBands set). `reserve` is the bank file's own flag.
+ */
+function storyPassageFor({ rows, pid, kind, lang, bands, reserve = false, now = new Date() } = {}) {
+  if (typeof pid !== 'string' || !pid || reserve || RESERVE_ID.test(pid)) return null;
+  const r = (rows || []).find((x) => x && x.passage_id === pid);
+  if (!r || r.pool !== 'practice' || !STORY_STATUS.has(r.status) || r.withdrawn_at != null) return null;
+  if (!(ms(r.released_at) <= ms(now)) || r.lang !== lang || r.kind !== kind) return null;
+  return bands instanceof Set && bands.has(Number(r.band)) ? r : null;
+}
+
 /** ITEMS §5.2, ordered: the reference first, then by id. */
 function eligible({ rows, seenIds, kind, lang, band, now = new Date() } = {}) {
   const seen = seenIds instanceof Set ? seenIds : new Set(seenIds || []);
@@ -506,7 +526,7 @@ module.exports = {
   STOPS, WEIGHTS, ON_ITS_WAY_COPY,
   entryBand, ceilingBand, gradeBand, formOfGrade, isLine1OrZero, lastCountedRead, drawBand,
   rowServedId, seenIdsOf, exposureNo, anchorExposureNo, anchorServesAny, anchorPrev2, countedThisPeriod, recordAtServe,
-  eligible, weigh, mulberry32, pick, drawPassage, periodIdFor, biggerSetFor, tryoutItem, trailState,
+  eligible, weigh, mulberry32, pick, drawPassage, storyPassageFor, periodIdFor, biggerSetFor, tryoutItem, trailState,
   registryPassages, periods, notePeriodMissing, adminFields, yearCode, writeChildIdentity, isoWeekPkt, activeClassOf, lightLit, rungsOf, openBand, fixedGradeOf, childRows, logDraw, trailStateFor, pickOf,
   __reset,
 };
