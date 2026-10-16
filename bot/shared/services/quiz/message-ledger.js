@@ -187,11 +187,48 @@ async function addByRpc({ day, trigger, classId, initiated, recipient, n, usdEac
  * (raw or normalised) → the send decision: false only when the phone is over today's reply cap.
  * @param {{trigger:string, phone?:string, classId?:string|null, initiated?:'user'|'bot', recipient?:'family'|'teacher', count?:number, usdEach?:number, minutesEach?:number, now?:Date}} p
  */
-async function record({ trigger, phone = null, reason = null, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, minutesEach = 0, now = new Date() } = {}) {
+/**
+ * A reply the cap refused is counted on the day's row as `capped` (never on count/usd, never through
+ * message_ledger_add): one read of the ledger then says "sent / capped" for the day. Never throws; a failed write is
+ * logged once per process and the refusal stands.
+ */
+let cappedWriteLogged = false;
+async function countCapped({ trigger, classId, initiated, recipient, now }) {
+  const day = pktDay(now);
+  try {
+    let q = supabase.from(TABLE).select('capped').eq('day', day).eq('trigger', trigger).eq('initiated', initiated).eq('recipient', recipient);
+    q = classId ? q.eq('class_id', String(classId)) : q.is('class_id', null);
+    const { data, error } = await q.limit(1);
+    if (missingTable(error)) return;
+    if (error) throw new Error(error.message || 'read failed');
+    const row = (data || [])[0];
+    if (row) {
+      let u = supabase.from(TABLE).update({ capped: (Number(row.capped) || 0) + 1 }).eq('day', day).eq('trigger', trigger).eq('initiated', initiated).eq('recipient', recipient);
+      u = classId ? u.eq('class_id', String(classId)) : u.is('class_id', null);
+      const res = await u;
+      if (res.error) throw new Error(res.error.message || 'update failed');
+      return;
+    }
+    const res = await supabase.from(TABLE).insert({ day, trigger, class_id: classId ? String(classId) : null, initiated, recipient, count: 0, usd: 0, capped: 1 });
+    if (res.error && res.error.code !== '23505' && !missingTable(res.error)) throw new Error(res.error.message || 'insert failed');
+  } catch (err) {
+    if (!cappedWriteLogged) { cappedWriteLogged = true; logToFile('⚠️ message ledger: capped count not written', { error: err.message }); }
+  }
+}
+
+/**
+ * `uncapped: true` (the binder's STOP that erased a binding — a privacy action is never silent): the reply is counted
+ * on the ledger as a send but neither checked against nor added to the phone's day counter, so a phone-day's bound is
+ * the cap plus that one reply.
+ */
+async function record({ trigger, phone = null, reason = null, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, minutesEach = 0, uncapped = false, now = new Date() } = {}) {
   if (!TRIGGERS.includes(trigger) || !INITIATED.includes(initiated) || !RECIPIENTS.includes(recipient)) return false;
   if (initiated === 'bot' && recipient === 'family') return false;
   if (phone) {
-    if (!(await underCap(phone, trigger, now))) return false;
+    if (!uncapped && !(await underCap(phone, trigger, now))) {
+      await countCapped({ trigger, classId, initiated, recipient, now });
+      return false;
+    }
     if (!(await write({ trigger, reason, classId, initiated, recipient, count, usdEach, minutesEach, now })) && !writeFailLogged) {
       // the reply still goes out: the ledger is the accounting, the reply is the family's (logged once per process)
       writeFailLogged = true;
@@ -252,6 +289,7 @@ async function write({ trigger, reason = null, classId, initiated, recipient, co
 }
 
 module.exports = {
+  countCapped,
   record, pktDay, capPerPhone, TRIGGERS, USD_PER_SEND, MINUTES_PER_ROUND_CHILD, TABLE, CAP_KEY, CAP_DEFAULT,
   _resetMissing: () => { missingLogged = false; writeFailLogged = false; oldFunctionLogged = false; },
   _resetCap: () => { capCache = null; unkeyedLogged = false; redisFailLogged = false; localCounts.clear(); },
