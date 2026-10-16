@@ -528,12 +528,14 @@ function stripTags(holder) {
 }
 
 // An MCQ with two right answers is not placed: two options of one value (see
-// sameValueTwice), or a stem asking for a property ("divisible by 11", "prime",
-// "rounded to the nearest 100") that no option or more than one option has.
+// sameValueTwice), a stem asking for a property ("divisible by 11", "prime",
+// "rounded to the nearest 100") that no option or more than one option has, or an
+// anagram of a quoted word that is not exactly one option, keyed.
 const { mcqPropertyVerdict } = require('./maths-check');
+const { anagramVerdict } = require('./english-check');
 
 function printable(slot, q) {
-  return slot.shape !== 'mcq' || (!sameValueTwice(q) && mcqPropertyVerdict(q).ok !== false);
+  return slot.shape !== 'mcq' || (!sameValueTwice(q) && mcqPropertyVerdict(q).ok !== false && anagramVerdict(q).ok !== false);
 }
 
 /**
