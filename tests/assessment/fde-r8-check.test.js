@@ -249,3 +249,42 @@ describe('C. maths rounding to the nearest tenth / hundredth / thousandth / whol
     expect(mcqPropertyVerdict({ question: 'To round 7.846 to the nearest tenth, which digit do we look at?', options: ['a) 7', 'b) 8', 'c) 4', 'd) 6'], answer: 'c) 4' }).ok).not.toBe(false);
   });
 });
+
+// ── D. A quotient-and-remainder key written with "/" ───────────────────────
+
+// Maths full_1 Q2 iv (round-4 local), as the model wrote it: right, remainder 0.
+const DIVIDE_SLASH = {
+  slot: 'maths.B.Q2',
+  question: 'Divide 48,672 by 36. Write the quotient and the remainder.',
+  answer: '48,672 / 36 = 1,352 remainder 0. Quotient 1,352, remainder 0.',
+  blooms: 'Understand',
+};
+
+function q2Checked(item) {
+  const laid = applyLayout({ unseen: { subjective: { 'Word Problems': [item] } } }, P.maths, FDE, { now: NOW });
+  const mc = mathsCheck(normaliseScheme(laid.examJson).examJson, { subject: 'maths' });
+  return Object.values(mc.examJson.unseen.subjective).flat().find((q) => q.question === item.question);
+}
+
+describe('D. a remainder key is never rewritten to the quotient', () => {
+  it('full_1 Q2 iv: «48,672 / 36 = 1,352 remainder 0» stays, ok', () => {
+    const q = q2Checked(DIVIDE_SLASH);
+    expect(q.answer).toBe(DIVIDE_SLASH.answer);
+    expect(q.scheme.checked).toBe('ok');
+  });
+
+  it('a wrong remainder after "/" is corrected; "÷" still works', () => {
+    const q = q2Checked({ ...DIVIDE_SLASH, question: 'Divide 4,573 by 12. Write the quotient and the remainder.', answer: '4,573 / 12 = 381 remainder 5' });
+    expect([q.scheme.checked, q.answer]).toEqual(['replaced', '4,573 / 12 = 381 remainder 1']);
+    const r = q2Checked({ ...DIVIDE_SLASH, question: 'Divide 4,573 by 12. Write the quotient and the remainder.', answer: '4,573 ÷ 12 = 381 remainder 1' });
+    expect(r.scheme.checked).toBe('ok');
+    const w = q2Checked({ ...DIVIDE_SLASH, answer: '48,672 / 36 = 1,352 with remainder 0. Quotient 1,352, remainder 0.' });
+    expect([w.scheme.checked, w.answer]).toEqual(['ok', '48,672 / 36 = 1,352 with remainder 0. Quotient 1,352, remainder 0.']);
+  });
+
+  it('an exact division keyed with a remainder in some other shape is left unchecked, never rewritten', () => {
+    const answer = 'Quotient = 1,352 and remainder = 0';
+    const q = q2Checked({ ...DIVIDE_SLASH, answer });
+    expect([q.scheme.checked, q.answer]).toEqual([null, answer]);
+  });
+});
