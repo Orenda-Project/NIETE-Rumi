@@ -701,6 +701,74 @@ function q4Twin(q4s) {
   };
 }
 
+// Social Studies, one fact once per slot by its key: two written items whose keys say the same
+// thing (one key's words all inside the other's) and whose stems ask about the same thing (every
+// word of the shorter-keyed stem, its key aside, in the other stem) are one question: «کے ٹو کی
+// اونچائی کتنی ہے؟ → 8,611 میٹر» inside «کے ٹو کی اونچائی کتنی ہے اور … → 8,611 میٹر؛ …». Two facts
+// about one place («اونچائی» / «پہاڑی سلسلہ») stay two.
+function sameKeyFact(a, b) {
+  if (Array.isArray(a.options) || Array.isArray(b.options)) return false;
+  const ka = new Set(tokensOf(keyText(a)));
+  const kb = new Set(tokensOf(keyText(b)));
+  if (!ka.size || !kb.size) return false;
+  const [small, big, qs, qb] = ka.size <= kb.size ? [ka, kb, a, b] : [kb, ka, b, a];
+  if (![...small].every((w) => big.has(w))) return false;
+  const asks = tokensOf(qs.question).filter((w) => !small.has(w));
+  const other = new Set(tokensOf(qb.question));
+  return asks.length > 0 && asks.every((w) => other.has(w));
+}
+
+// Social Studies, which government does a job (the book's table, p.29). A key that gives one row's
+// job to another government is a wrong key, not a repeat: it is held before the re-ask and never
+// comes back. Read sentence by sentence: a sentence that names one government («… حکومت») gives it
+// the jobs it lists, and one that opens with a pronoun («وہ», «یہ») carries the sentence before's
+// government. A sentence that names two governments compares them, and one that says «نہیں» denies
+// a job: neither is judged. A short key that names one government is read with its stem. The jobs
+// are the table's own cell words.
+const TIER_NAMES = { وفاقی: 'federal', صوبائی: 'provincial', مقامی: 'local' };
+const TIER_JOBS = {
+  federal: ['دفاع', 'مسلح افواج', 'ملکی معیشت', 'خارجہ پالیسی'],
+  provincial: ['تجاوزات', 'امن و امان', 'صوبائی محصولات', 'داخلی پالیسی'],
+  local: ['مویشی منڈی', 'عوامی میلے', 'نکاسی', 'پینے کے پانی', 'پینے کا پانی', 'بیواؤں', 'یتیموں', 'معذوروں'],
+};
+const flatUr = (text) => {
+  let t = String(text == null ? '' : text).normalize('NFC').replace(UR_MARKS, '');
+  for (const [re, to] of UR_FORMS) t = t.replace(re, to);
+  return t.replace(/[\s​-‏]+/g, '');
+};
+const TIER_JOB_FLAT = Object.fromEntries(Object.entries(TIER_JOBS).map(([tier, jobs]) => [tier, jobs.map(flatUr)]));
+const TIER_RE = new RegExp(`(${Object.keys(TIER_NAMES).map(flatUr).join('|')})حکومت`, 'g');
+const CARRIES = /^\s*(?:وہ|یہ|یہی|وہی|اس|ان)\s/;
+const tiersIn = (flat) => new Set([...flat.matchAll(TIER_RE)].map((m) => TIER_NAMES[Object.keys(TIER_NAMES).find((n) => flatUr(n) === m[1])]));
+const jobsOf = (flat, tier) => TIER_JOB_FLAT[tier].some((j) => flat.includes(j));
+const otherJob = (flat, tier) => Object.keys(TIER_JOB_FLAT).some((t) => t !== tier && jobsOf(flat, t));
+function tierSlipIn(text) {
+  let carry = null;
+  for (const sentence of String(text || '').split(/[۔.!?؟\n]+/)) {
+    const flat = flatUr(sentence);
+    if (!flat) continue;
+    const named = tiersIn(flat);
+    if (named.size > 1 || /نہیں/.test(sentence)) { carry = null; continue; }
+    const tier = named.size === 1 ? [...named][0] : (CARRIES.test(` ${sentence.trim()} `) ? carry : null);
+    carry = tier;
+    if (tier && otherJob(flat, tier)) return true;
+  }
+  return false;
+}
+function tierSlip(q) {
+  const scheme = q.scheme && typeof q.scheme === 'object' ? q.scheme : {};
+  const points = Array.isArray(scheme.points) ? scheme.points.map((p) => p && p.text) : [];
+  const accept = Array.isArray(scheme.accept) ? scheme.accept : [];
+  if (textsOf(q.answer, points, accept).some(tierSlipIn)) return true;
+  // «سڑکوں سے تجاوزات ہٹانا کس حکومت کا کام ہے؟ → مقامی حکومت»
+  const key = flatUr(keyText(q));
+  const keyed = tiersIn(key);
+  if (keyed.size !== 1 || tokensOf(keyText(q)).length > ONE_LINE) return false;
+  const tier = [...keyed][0];
+  const stem = flatUr(q.question);
+  return tiersIn(stem).size === 0 && !jobsOf(stem, tier) && otherJob(stem, tier);
+}
+
 const CROSS_HOLD = {
   english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words },
   urdu: { held: ['urdu.A.Q1'], against: 'urdu.C.Q4', rule: q4Twin },
@@ -753,7 +821,7 @@ function sameQuestion(a, b) {
  * other section or subject, so no
  * other prompt changes.
  */
-function takenNote(P, section, examJson) {
+function takenNote(P, section, examJson, opts = {}) {
   const cross = P && CROSS_HOLD[P.key];
   if (!cross || !section || !Array.isArray(section.slots) || !section.slots.some((s) => cross.held.includes(s.slot))) return null;
   const against = [];
@@ -780,9 +848,32 @@ function takenNote(P, section, examJson) {
   }
   const facts = against.filter((q) => typeof q.question === 'string' && q.question.trim())
     .map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
-  if (!facts.length) return null;
-  return `Section A of this paper already asks these questions (question → answer):\n${facts.join('\n')}\n`
-    + 'Never ask any of these facts again, in any wording: every question you write here must test something Section A does not.';
+  const notes = facts.length ? [`Section A of this paper already asks these questions (question → answer):\n${facts.join('\n')}\n`
+    + 'Never ask any of these facts again, in any wording: every question you write here must test something Section A does not.'] : [];
+  // A top-up keeps the first reply's items: name what each short held slot keeps, and ask for spares,
+  // since the refill is held against Section A as well.
+  if (opts.topUp) notes.push(...keptNotes(P, section, examJson, cross, opts.shortfall));
+  return notes.length ? notes.join('\n\n') : null;
+}
+// Spare items asked of a short held slot on a top-up, beyond the ones it is missing.
+const SPARE_ITEMS = 4;
+function keptNotes(P, section, examJson, cross, shortfall) {
+  const out = [];
+  for (const slot of section.slots.filter((s) => cross.held.includes(s.slot))) {
+    const gap = (Array.isArray(shortfall) ? shortfall : []).find((f) => f && f.slot === slot.slot);
+    if (!gap || !(gap.missing > 0)) continue;
+    const label = slot.label_en || slot.slot.split('.').pop();
+    const kept = [];
+    for (const types of Object.values((examJson && examJson.unseen) || {})) {
+      for (const list of Object.values(types || {})) {
+        if (Array.isArray(list)) kept.push(...list.filter((q) => q && q.slot === slot.slot && typeof q.question === 'string' && q.question.trim()));
+      }
+    }
+    const lines = kept.map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
+    out.push(`${lines.length ? `${label} already keeps these items (question → answer):\n${lines.join('\n')}\nNever write any of these again, in any wording. ` : ''}`
+      + `${label} needs ${gap.missing} more: write ${gap.missing + SPARE_ITEMS} new ${label} items, each testing a fact that neither Section A nor ${label}'s kept items test; the paper takes the first ${gap.missing} that are new.`);
+  }
+  return out;
 }
 
 /**
@@ -802,6 +893,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
 
   const all = walk(src);
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
+  const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
   const place = (cross) => {
     bySlot.forEach((list) => { list.length = 0; });
@@ -810,8 +902,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const fallback = new Map(); // slot → held items, in reply order
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
+      if (P.key === 'social_studies' && tierSlip(q)) return false;
       if (!holds(slot)) return true;
-      if (bySlot.get(slot.slot).some((p) => sameQuestion(p, q))) return false;
+      if (bySlot.get(slot.slot).some((p) => twin(p, q))) return false;
       if (!cross.rule(q)) return true;
       fallback.set(slot.slot, [...(fallback.get(slot.slot) || []), q]);
       return false;
@@ -846,7 +939,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       const slot = slots.find((s) => s.slot === id);
       for (const q of list) {
         if (!room(slot)) break;
-        if (bySlot.get(id).some((p) => sameQuestion(p, q))) continue;
+        if (bySlot.get(id).some((p) => twin(p, q))) continue;
         bySlot.get(id).push(q);
         unplaced -= 1;
       }
