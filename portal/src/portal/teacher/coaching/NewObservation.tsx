@@ -25,6 +25,8 @@ import { useCopy } from '../i18n';
 import { NOTICES } from '../notices/copy';
 import { COACHING } from './copy';
 import { clearDraft, holdDraft, peekDraft, planKeyOf, readPrefill, type DraftClass, type DraftPlan } from './draft';
+import { DC_PICK } from './libraryPick';
+import { lessonsUrl, openUrl } from '../lessons/paths';
 import { micBlockedLine, micPermissionDenied } from './micBlocked';
 import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard } from './parts';
 import { COACHING_HOME, COACHING_NEW, lessonPath } from './paths';
@@ -205,6 +207,28 @@ export function NewObservationPage() {
     }
   };
 
+  // From the library (bd-fgj73x.5): her class's chapters, to CHOOSE a plan (lessons/ pages with pick=dc; a tap attaches it
+  // and comes back here). The class is named in the library's own subject key; one it does not know: Lesson Plans.
+  const libraryHref = () => {
+    const key = cls ? catalogue?.byGrade[cls.grade]?.find((s) => norm(s.name) === norm(cls.subject))?.key : null;
+    return cls && key
+      ? lessonsUrl('chapters', { grade: cls.grade, subject: key, key: cls.subjectKey, pick: DC_PICK })
+      : teacherPath('lessons');
+  };
+  // The eye on her attached library plan: open it to read; Back comes back here (the draft is held).
+  const viewPlan = plan && plan.kind === 'library' && planKeyOf(plan.pick)
+    ? () => {
+      holdDraft({ audio, plan, photos, cls });
+      navigate(openUrl({
+        plan: planKeyOf(plan.pick) as string,
+        lang: 'lang' in plan.pick ? plan.pick.lang : null,
+        title: plan.title,
+        grade: cls?.grade ?? null,
+        from: 'dc',
+      }));
+    }
+    : undefined;
+
   const ready = !!cls && !!audio;
   const after = !!sessionId || !!sending;
   // Reloaded mid-upload: that upload is gone, and there is nothing to show; the main page lists what did arrive.
@@ -272,7 +296,7 @@ export function NewObservationPage() {
           {cls && phase !== 'recording' ? (
             <>
               {/* Her recent plans, the library, a photo or a file are all in the Lesson plan tray (operator, 16 Oct). */}
-              <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} />
+              <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} onView={viewPlan} />
             </>
           ) : null}
 
@@ -417,7 +441,8 @@ export function NewObservationPage() {
         open={planSheet}
         onClose={() => setPlanSheet(false)}
         onPick={(p) => { setPlan({ kind: 'library', ...p }); setPlanSheet(false); }}
-        onLibrary={() => { setPlanSheet(false); holdDraft({ audio, plan, photos, cls }); navigate(teacherPath('lessons')); }}
+        forClass={cls}
+        onLibrary={() => { setPlanSheet(false); holdDraft({ audio, plan, photos, cls }); navigate(libraryHref()); }}
         onFile={(file, asPhoto) => {
           setPlanProblem(null);
           if (!file) return false;
