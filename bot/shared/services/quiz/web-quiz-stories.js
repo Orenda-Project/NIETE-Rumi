@@ -389,8 +389,13 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   if (name === 'story_done') {
     const before = await supabase.from('story_events').select('id').eq('child_id', who.studentId).eq('book_id', b.id).eq('event', 'story_done').limit(1);
     const first = !before.error && !(before.data || []).length;
+    // Counted from the child's own events, never the page's numbers.
+    const rows = await childEvents(who.studentId, b.id);
+    const pagesOf = (kind) => new Set(rows.filter((r) => r.event === kind).map((r) => r.page_n)).size;
+    const effort = effortOf(rows, rows.some((r) => r.event === 'story_questions_done'));
+    kept = { pages_listened: pagesOf('story_page_listened'), pages_read: pagesOf('story_page_read'), stars: effort };
     // A sticker is for a story the child listened to or read: a finish with no page heard or read earns none.
-    const tried = first && effortOf(await childEvents(who.studentId, b.id), false) > 0;
+    const tried = first && kept.pages_listened + kept.pages_read > 0;
     out.sticker = tried && (await bookOn());
   }
   const { error } = await supabase.from('story_events').insert({ child_id: who.studentId, book_id: b.id, page_n: page, event: name, data: kept });

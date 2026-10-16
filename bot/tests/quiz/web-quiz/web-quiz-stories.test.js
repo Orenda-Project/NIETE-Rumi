@@ -359,6 +359,11 @@ describe('events', () => {
     expect(other.sticker).toBe(true);
     expect(fake.db.story_events.filter((e) => e.event === 'story_done')).toHaveLength(3);
   });
+  test('story_done keeps effort stars counted from the child\'s own events, never the page\'s claim', async () => {
+    seed();
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_done', data: { pages_listened: 9, pages_read: 9, stars: 3 } });
+    expect(fake.db.story_events[0].data).toEqual({ pages_listened: 0, pages_read: 0, stars: 0 });
+  });
   test('no sticker for a finish with nothing listened or read (zero-input chain)', async () => {
     seed({ book: true });
     const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_done', data: {} });

@@ -94,7 +94,7 @@ function env(opt = {}) {
     else if (/\/stories\/event\//.test(url)) {
       if (body.event === 'story_questions_done') r = { status: 200, body: { ok: true, correct: 1, total: 2, stars: 2 } };
       else if (body.event === 'story_answer') r = { status: 200, body: { ok: true, right: opt.right ? opt.right(body.data) : true } };
-      else if (body.event === 'story_done') r = { status: 200, body: { ok: true, sticker: body.data.pages_read > 0 || body.data.pages_listened > 0 } };
+      else if (body.event === 'story_done') r = { status: 200, body: { ok: true, sticker: opt.alwaysSticker ? true : body.data.pages_read > 0 || body.data.pages_listened > 0 } };
       else r = { status: 200, body: { ok: true } };
     } else if (/\/lr\/key/.test(url)) r = { status: 200, body: { ws: 'wss://x', api_key: 'k', model: 'm', lang: 'en' } };
     else r = { status: 404, body: {} };
@@ -709,7 +709,7 @@ describe('questions and the done card', () => {
     expect(r2.innerHTML).toContain('Who wants to play?');
   });
   test('W6 zero-input chain: skip Listen, Done at 0 words, no questions -> "You tried a new story!", no sticker, no confetti', async () => {
-    const e = env({ wqj: true, replies: { book: { status: 200, body: book({ questions: [] }) } } });
+    const e = env({ wqj: true, alwaysSticker: true, replies: { book: { status: 200, body: book({ questions: [] }) } } });
     const root = await openReader(e);
     fire(root, 'next'); fire(root, 'next');
     fire(root, 'main'); fire(root, 'mic'); e.calls.ask[0].onStream({});

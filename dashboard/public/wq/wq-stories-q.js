@@ -208,7 +208,7 @@
       R.wait();
       post(ctx, id, 'story_done', { pages_listened: c.pages_listened, pages_read: c.pages_read, stars: qs }).then(function (r) { need(function () {
         if (!live()) return;
-        var stk = !!(r && r.sticker === true), deed = function (k) { return t[rd ? 'pagesRead' : 'pagesHeard'](K.dg(k, L), k); };
+        var stk = n > 0 && !!(r && r.sticker === true), deed = function (k) { return t[rd ? 'pagesRead' : 'pagesHeard'](K.dg(k, L), k); };
         var sh = n ? t[rd ? 'shareRead' : 'shareHeard'](b.title) : '';
         paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own>' + img('/wq/jugnu_celebrate.webp', 120, 120, 'wqs-jg') + '<h2>' + esc(head) + '</h2>' +
           (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + (stk ? '<p class="wqs-stk"><span aria-hidden="true">🌟</span> ' + esc(t.sticker) + '</p>' : '') + '</div>' +
