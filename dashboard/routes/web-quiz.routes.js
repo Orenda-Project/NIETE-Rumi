@@ -6,6 +6,8 @@
  *   GET  /q/:code/schools  the same page opened on the school league (own URL, own link preview)
  *   GET  /q/:code/art/:kind.jpg?a=<id>  a share picture (card, class, schools, invite), drawn by the bot;
  *                          every shared link names one as its og:image, so the picture arrives with the link
+ *   GET  /q/:code/art/teach.png?a=<id>&v=<ver>  the teacher's class link's own picture (the bot names it in the
+ *                          payload only while its switches are on), asked of the bot under this code; immutable
  *   GET  /s/:book/:file    a storybook's picture or voice, immutable, from storage (web-quiz-story-assets.js)
  *   GET  /wq/card/:t.png   the finish card's picture (web_quiz_card_v3), kept at the edge; HEAD answered from memory
  *   GET  /k/:t             a shared finish card: its og head (the picture) and one way in, the bot's chat
@@ -47,12 +49,17 @@ const BOT_TIMEOUT_MS = 10000;
 const BOT_SLOW_MS = 3000;
 const YEAR_S = 31536000;
 // A share picture's signed id (the bot's web-quiz-art.js): kind letter, ref, mac. The edge only checks its shape.
-const ART_ID_RX = /^([cils])\.[A-Za-z0-9_-]{4,24}\.[A-Za-z0-9_-]{12}$/;
-const ART_KIND = { card: 'c', invite: 'i', class: 'l', schools: 's' };
-// A card or an invite never changes once drawn; a class or school picture moves as children play.
-const ART_MAX_AGE = { card: 86400, invite: 86400, class: 600, schools: 600 };
+const ART_ID_RX = /^([cilst])\.[A-Za-z0-9_-]{4,24}\.[A-Za-z0-9_-]{12}$/;
+// teach: the teacher's class link (the class + its topic, or its book): a PNG whose link carries its version.
+const ART_KIND = { card: 'c', invite: 'i', class: 'l', schools: 's', teach: 't' };
+const ART_EXT = { teach: 'png' };
+// A card or an invite never changes once drawn; a class or school picture moves as children play; the class link's
+// picture never changes under its link (?v= moves with its label, topic or book).
+const ART_MAX_AGE = { card: 86400, invite: 86400, class: 600, schools: 600, teach: YEAR_S };
 // How long the edge itself keeps a drawn picture (ms): the preview fetch finds the one the card opening warmed.
-const ART_KEEP_MS = { card: 86400000, invite: 86400000, class: 120000, schools: 120000 };
+const ART_KEEP_MS = { card: 86400000, invite: 86400000, class: 120000, schools: 120000, teach: 86400000 };
+// The class link picture's version (the bot's web-quiz-class-pic.js): 8 hex.
+const TEACH_V_RX = /^[0-9a-f]{8}$/;
 // How long the edge remembers a code's og facts for a link-preview fetch (ms).
 const OG_KEEP_MS = 3600000;
 // A finish card's sealed token (the bot's web-quiz-card-image.js): base64url only. The edge checks its shape; the bot opens it.
@@ -261,8 +268,9 @@ function identityV2(payload) {
 }
 
 /**
- * The picture a link previews as: the shared card, the invite on a challenge code, the class view's table,
- * the plain class link with ?v=<played> (the teacher's reminder: the live class picture), else the brand's.
+ * The picture a link previews as: the shared card, the teacher's class link picture (when the bot names one), the
+ * invite on a challenge code, the class view's table, the plain class link with ?v=<played> (the teacher's reminder:
+ * the live class picture), else the brand's.
  * WhatsApp caches a preview per URL, so ?v rides into the picture URL too.
  */
 function ogImageFor({ payload, code, view, origin, a, v, k }) {
@@ -271,7 +279,12 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
   const art = (payload && payload.art) || {};
   const ver = typeof v === 'string' && /^[0-9]{1,10}$/.test(v) ? v : null;
   const pic = (kind, id) => (id ? `${origin}/q/${code}/art/${kind}.jpg?a=${encodeURIComponent(id)}${ver ? `&v=${ver}` : ''}` : null);
+  // The teacher's class link (art.teach, only while the bot's switches are on): after a child's own card, before today's.
+  const teachId = view === 'quiz' ? artId(art.teach, 'teach') : null;
+  const teach = teachId && typeof art.teach_v === 'string' && TEACH_V_RX.test(art.teach_v)
+    ? `${origin}/q/${code}/art/teach.png?a=${encodeURIComponent(teachId)}&v=${art.teach_v}` : null;
   return pic('card', artId(a, 'card'))
+    || teach
     || pic('invite', artId(art.invite, 'invite'))
     || (view === 'class' || (ver && view === 'quiz') ? pic('class', artId(art.class, 'class')) : null)
     || (view === 'schools' ? pic('schools', artId(art.schools, 'schools')) : null);
@@ -346,7 +359,7 @@ const FLUSH_AGAIN = `<script>location.replace(location.pathname+(location.search
 </html>`;
 
 // The finish card's picture is a PNG; every other share picture is a JPEG (head's default).
-const cardType = (image) => (image && /\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(image) ? { imageType: 'image/png' } : {});
+const cardType = (image) => (image && (/\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(image) || /\/art\/teach\.png\?/.test(image)) ? { imageType: 'image/png' } : {});
 
 /**
  * A shared finish card (/k/<t>): the og head names the card's picture; the page shows it with ONE way in, this
@@ -935,29 +948,36 @@ function createWebQuizRouter(opts = {}) {
 
   // The share pictures. The id is the permission (the bot checks its mac); the edge checks its shape and that it
   // is the kind the path names, so a link can never ask for one picture under another's name or cache life.
-  router.get('/q/:code/art/:kind.jpg', limiters.read, async (req, res) => {
+  // The file's extension is the kind's own (the class link's picture is a PNG): a kind under another extension is 404.
+  // A .png path no kind owns is not this route's: it goes on exactly as before the class link's picture.
+  const artRoute = (ext) => async (req, res, next) => {
     const kind = String(req.params.kind || '');
-    const id = Object.prototype.hasOwnProperty.call(ART_KIND, kind) ? artId(req.query.a, kind) : null;
+    if (ext !== 'jpg' && ART_EXT[kind] !== ext) return next();
+    const id = Object.prototype.hasOwnProperty.call(ART_KIND, kind) && (ART_EXT[kind] || 'jpg') === ext ? artId(req.query.a, kind) : null;
     if (!id || !CODE_RX.test(String(req.params.code || ''))) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
+    const teach = kind === 'teach';
+    const tv = teach && typeof req.query.v === 'string' && TEACH_V_RX.test(req.query.v) ? req.query.v : '';
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
-    const sq = req.query.f === 'sq';
+    const sq = !teach && req.query.f === 'sq';
     // One event per picture handed out: which kind, kept here or asked of the bot, how long, and who fetched it
     // (WhatsApp Android/iOS, a browser…). A phone's preview fetch left no trace when the edge already held the picture.
     const t0 = Date.now();
     const seen = (from, extra = {}) => logEvent('web_quiz.art_edge', {
       kind, size: sq ? 'sq' : 'og', from, ms: Date.now() - t0, ua: Preview.fetcherOf(req), head: req.method === 'HEAD', ...extra,
     });
-    const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
+    const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}${teach ? ', immutable' : ''}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
     // Kept at the edge: the card opening fetched it, so the sender's preview fetch never waits for a draw.
-    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}`;
+    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}${teach ? `|${String(req.params.code).toUpperCase()}|${tv}` : ''}`;
     const kept = artKept.get(keyArt);
     if (kept) { seen('edge'); return send(kept); }
     try {
-      const out = await callBot('GET', `/api/internal/wq/art/${id}${sq ? '?f=sq' : ''}`, req);
+      // the class link's picture is drawn only under its own code: the bot is told which one was asked
+      const q = teach ? `?c=${String(req.params.code).toUpperCase()}` : (sq ? '?f=sq' : '');
+      const out = await callBot('GET', `/api/internal/wq/art/${id}${q}`, req);
       if (out.bytes) {
         artKept.set(keyArt, { bytes: out.bytes, contentType: out.contentType }, ART_KEEP_MS[kind]);
         seen('bot');
-        return res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(out.contentType).send(out.bytes);
+        return send({ bytes: out.bytes, contentType: out.contentType });
       }
       seen('none', { status: out.status });
       return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
@@ -965,7 +985,9 @@ function createWebQuizRouter(opts = {}) {
       seen('none', { status: 0 });
       return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });
     }
-  });
+  };
+  router.get('/q/:code/art/:kind.jpg', limiters.read, artRoute('jpg'));
+  router.get('/q/:code/art/:kind.png', limiters.read, artRoute('png'));
 
   // ── the finish card (web_quiz_card_v3; the bot answers 404 while it is off) ──
   // The picture: a link preview fetches it twice (HEAD, then GET) with no session, so the sealed token is the permission;

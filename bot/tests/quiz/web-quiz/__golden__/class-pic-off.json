@@ -1,0 +1,45 @@
+{
+  "quiz_art": {
+    "class": "l.AB12CD.v1bw_tRX32tq",
+    "schools": "s.AB12CD.WmWs-ZvGRyS-",
+    "invite": null
+  },
+  "og_quiz": {
+    "quiz": {
+      "lang": "en",
+      "topic": "Parts of a plant",
+      "n": 2
+    },
+    "cls": {
+      "label": null
+    },
+    "challenge": null,
+    "art": {
+      "class": "l.AB12CD.v1bw_tRX32tq",
+      "schools": "s.AB12CD.WmWs-ZvGRyS-",
+      "invite": null
+    },
+    "brand": "niete",
+    "invited": false
+  },
+  "pic_quiz": {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "body": {
+      "error": "not_found"
+    }
+  },
+  "story_page": {
+    "status": 404,
+    "body": {
+      "error": "no_questions"
+    }
+  },
+  "pic_story": {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "body": {
+      "error": "not_found"
+    }
+  }
+}
