@@ -8,7 +8,8 @@
  * A tap never opens a run: one screen asks "<name>'s turn" (Play, or "Not my turn? Go back" to the card). Play asks
  * the server for this child's challenge link (POST hubdoor {st, jugnu: 1}) and opens it. The door events
  * (door_shown / door_tap {door: 'card', surface: 'scorecard', slot: 1}) go through the page's own ev() batch, only
- * when finish says the events are on (result.jugnu_ev). Nothing about the child is computed here.
+ * when finish says the events are on (result.jugnu_ev). Nothing about the child is computed here. With them on, the
+ * hub token and the chip of the link Play is given ride every event batch from then on (wq-tel.js WQT.setIds).
  * ctx (from wq.js): {res, lang, mascot, first, T: {play, oops, offline}, esc, ani, bar, wireBar, render, on, ev,
  * flushEv, api, toast, st, back}.
  */
@@ -100,11 +101,19 @@
     } catch (e) {}
   }
 
+  // Events v2 (result.jugnu_ev): the hub token and the chip of this child's challenge link, on the batch (never an
+  // event), so the server can count the child the card was for. Any other link: nothing set.
+  function batchIds(c, href) {
+    var m = c.res && c.res.jugnu_ev && CH_HREF.test(href) ? /^\/c\/([^?]+)\?kid=([^&]+)&/.exec(href) : null;
+    if (m && window.WQT && window.WQT.setIds) window.WQT.setIds({ ht: m[1], chip: m[2] });
+  }
+
   function play(c) {
     if (going) return;
     going = true;
     c.api('POST', 'hubdoor', { st: c.st, jugnu: 1 }).then(function (r) {
       var href = r.ok && r.body && typeof r.body.href === 'string' ? r.body.href : '';
+      batchIds(c, href);
       c.flushEv(true);
       if (CH_HREF.test(href)) { keepDevice(); location.assign(withLang(href, lang(c))); return; }
       going = false;

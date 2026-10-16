@@ -523,7 +523,8 @@ describe('the story tile names the story (one title home)', () => {
   test('GOLDEN: no story released -> the hub payload\'s key set and the play block are today\'s', async () => {
     seed(STORY_ON, { web_quiz_challenge_runs: done });
     const out = await Hub.hub(T.signHub([KID]), A);
-    expect(Object.keys(out).sort()).toEqual(['again', 'brand', 'challenge', 'home_v', 'kid', 'kids', 'lang', 'last', 'lib', 'play', 'recs', 'rt', 'teacher'].sort());
+    // events v2 is on in this block (STORY_ON), so the payload carries `ev2` (the page's batch ids); otherwise today's keys
+    expect(Object.keys(out).sort()).toEqual(['again', 'brand', 'challenge', 'ev2', 'home_v', 'kid', 'kids', 'lang', 'last', 'lib', 'play', 'recs', 'rt', 'teacher'].sort());
     expect(Object.keys(out.play)).toEqual(['first', 'lantern', 'shelf', 'install', 'doors']);
     expect(out.play.shelf).toStrictEqual([{ id: 'numbers', nx: 'seen' }]);
     expect(JSON.stringify(out.play)).not.toContain('title');

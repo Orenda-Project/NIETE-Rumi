@@ -190,17 +190,27 @@
     // Page-session telemetry on (wq-tel.js): the event joins that page session's queue.
     if (window.WQT && window.WQT.push(e)) return;
     try {
-      var body = JSON.stringify({ events: [e] });
+      // The hub token and the picked chip when events v2 set them (batchIds below): on the body, never the event.
+      var body = { events: [e] }, x = window.WQT && window.WQT.batchIds ? window.WQT.batchIds() : {}, k;
+      for (k in x) body[k] = x[k];
+      body = JSON.stringify(body);
       if (!(navigator.sendBeacon && navigator.sendBeacon('/api/wq/e', new Blob([body], { type: 'application/json' })))) {
         fetch('/api/wq/e', { method: 'POST', headers: { 'content-type': 'application/json' }, body: body, keepalive: true }).catch(function () {});
       }
     } catch (x) {}
   }
   function go(href, what) { ev('hub_pick', { src: what }); location.assign(href); }
+  // Events v2 (B.ev2, the bot's web_quiz_events_v2): every event batch carries this hub's token and, once a child is
+  // picked, that child's chip (wq-tel.js WQT.setIds), so the server can count each child. Off: nothing set.
+  function batchIds(chip) {
+    if (!B || B.ev2 !== true || !window.WQT || !window.WQT.setIds) return;
+    window.WQT.setIds(chip ? { ht: TOKEN, chip: String(chip) } : { ht: TOKEN });
+  }
 
   /* ---------------- H1 who is playing (only this phone's own children) ---------------- */
   function picker() {
     var kids = B.kids || [];
+    batchIds(null);
     // keep my place (B.bind, web_quiz_phone_bind): "Who is playing?" in the ruled Urdu, and each chip's second line.
     if (B.bind && !window.WQBIND) bindIn();
     var KB = B.bind && window.WQBIND ? window.WQBIND : null;
@@ -227,6 +237,7 @@
 
   /* ---------------- H-lock: a forwarded link (another phone) — never a name, never a play ---------------- */
   function locked() {
+    batchIds(null);
     B = { lang: LANG, token: TOKEN, brand: BR, locked: true, kids: [] };
     render(bar() + jug('thinking', T.lockSay) + '<h2>' + esc(T.lockT) + '</h2>' +
       '<p class="wq-sub">' + esc(T.mineDoor) + '</p>' +
@@ -364,6 +375,7 @@
       '</div>';
   }
   function hub() {
+    batchIds(B.kid);
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
     // With no teacher quiz the empty card already holds the library button: no second library tile.
@@ -427,6 +439,7 @@
 
   /* ---------------- boot ---------------- */
   function boot() {
+    batchIds(B.kid);
     ev('hub_view', { src: FROM_DOOR ? 'door' : FROM_HOME ? 'home' : B.kid ? 'hub' : 'who', i: (B.kids || []).length });
     if (FROM_DOOR || FROM_HOME) { FROM_DOOR = false; FROM_HOME = false; try { history.replaceState(null, '', selfUrl('/h/' + TOKEN)); } catch (e) {} }
     if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');

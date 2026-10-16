@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`card events off (no jugnu_ev): every body is today's telemetry off 1`] = `
+[
+  "{"events":[{"t":0,"code":"TEST","lang":"en","ua":"test","iab":0,"store":1,"net":"","src":"quiz","via":"direct","n":"page_open"},{"t":0,"code":"TEST","lang":"en","band":"mid","friend":0,"n":"card_view"}]}",
+]
+`;
+
+exports[`card events off (no jugnu_ev): every body is today's telemetry on 1`] = `
+[
+  "{"events":[{"n":"page_start","page":"quiz","ua":"test","t":0,"code":"TEST","lang":"en","ps":"ps","pseq":1,"sm":0},{"t":0,"code":"TEST","lang":"en","ua":"test","iab":0,"store":1,"net":"","src":"quiz","via":"direct","n":"page_open","ps":"ps","pseq":2,"sm":0},{"t":0,"code":"TEST","lang":"en","band":"mid","friend":0,"n":"card_view","ps":"ps","pseq":3,"sm":0}],"ps":"ps","st":"s1","dr":"AAAAAAAAAAAAAAAAAAAAAA"}",
+  "{"events":[{"n":"page_end","total_ms":0,"vis_ms":0,"count":4,"t":0,"code":"TEST","lang":"en","ps":"ps","pseq":4,"sm":0}],"ps":"ps","st":"s1","dr":"AAAAAAAAAAAAAAAAAAAAAA"}",
+]
+`;
+
+exports[`card events on (jugnu_ev): the bodies are today's, plus ht = the card's hub token and chip = its kid telemetry off 1`] = `
+[
+  "{"events":[{"t":0,"code":"TEST","lang":"en","ua":"test","iab":0,"store":1,"net":"","src":"quiz","via":"direct","n":"page_open"},{"t":0,"code":"TEST","lang":"en","band":"mid","friend":0,"n":"card_view"},{"t":0,"code":"TEST","lang":"en","door":"card","surface":"scorecard","slot":1,"n":"door_shown"},{"t":0,"code":"TEST","lang":"en","door":"card","surface":"scorecard","slot":1,"n":"door_tap"}]}",
+]
+`;
+
+exports[`card events on (jugnu_ev): the bodies are today's, plus ht = the card's hub token and chip = its kid telemetry on 1`] = `
+[
+  "{"events":[{"n":"page_start","page":"quiz","ua":"test","t":0,"code":"TEST","lang":"en","ps":"ps","pseq":1,"sm":0},{"t":0,"code":"TEST","lang":"en","ua":"test","iab":0,"store":1,"net":"","src":"quiz","via":"direct","n":"page_open","ps":"ps","pseq":2,"sm":0},{"t":0,"code":"TEST","lang":"en","band":"mid","friend":0,"n":"card_view","ps":"ps","pseq":3,"sm":0},{"t":0,"code":"TEST","lang":"en","door":"card","surface":"scorecard","slot":1,"n":"door_shown","ps":"ps","pseq":4,"sm":0},{"t":0,"code":"TEST","lang":"en","door":"card","surface":"scorecard","slot":1,"n":"door_tap","ps":"ps","pseq":5,"sm":0}],"ps":"ps","st":"s1","dr":"AAAAAAAAAAAAAAAAAAAAAA"}",
+  "{"events":[{"n":"page_end","total_ms":0,"vis_ms":0,"count":6,"t":0,"code":"TEST","lang":"en","ps":"ps","pseq":6,"sm":0}],"ps":"ps","st":"s1","dr":"AAAAAAAAAAAAAAAAAAAAAA"}",
+]
+`;
