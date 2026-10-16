@@ -70,8 +70,9 @@ const run = (over) => ({ id: `r-${Math.random().toString(36).slice(2, 10)}`, stu
 const passage = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: 'en', band, kind, pool: 'practice', status: 'reviewed',
   released_at: new Date(NOW - h * 3600000).toISOString(), title_en: `Title ${id}`, title_ur: null });
 
-function tables({ fast }) {
-  return {
+// loose: the usual quiz child on prod (no class list, no enrolment; their teacher known from the links they played).
+function tables({ fast, loose = false }) {
+  const t = {
     app_settings: [...ON_KEYS.map((key) => ({ key, value: 'true' })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : [])],
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, merged_into: null, status: null, created_at: ago(500) },
@@ -123,6 +124,13 @@ function tables({ fast }) {
       passage('en.read.1.story03', 'read', 1, -24 * 2),
     ],
   };
+  if (loose) {
+    t.students[0].list_id = null;
+    t.class_enrollments = [];
+    t.classes = [];
+    t.quiz_share_codes.find((c) => c.id === 'sc-new').class_id = null;
+  }
+  return t;
 }
 
 // ── the boundary: every read takes READ_MS and gets its wave ─────────────────────────────────────────
@@ -178,8 +186,7 @@ let golden;
 let record = false;
 beforeAll(() => {
   jest.useFakeTimers({ doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'clearImmediate', 'nextTick', 'queueMicrotask', 'hrtime', 'performance'] });
-  record = !fs.existsSync(GOLDEN);
-  golden = record ? {} : JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
+  golden = fs.existsSync(GOLDEN) ? JSON.parse(fs.readFileSync(GOLDEN, 'utf8')) : {};
 });
 afterAll(() => {
   if (record) fs.writeFileSync(GOLDEN, `${JSON.stringify(golden, null, 1)}\n`);
@@ -191,10 +198,15 @@ beforeEach(() => {
   delete process.env.WEB_QUIZ_BASE_URL;
 });
 
-/** The recorded value (first run, before the change) or, after it, the check that this run gives the same. */
+/** The recorded value (recorded on today's code, before the change) or, once recorded, the check that this run gives the same. */
 function same(name, value) {
-  if (record) golden[name] = value;
-  else expect(value).toEqual(golden[name]);
+  if (!(name in golden)) { golden[name] = value; record = true; return; }
+  expect(value).toEqual(golden[name]);
+}
+/** Today's wave count for a case (recorded on today's code, before the change), for the before -> after line. */
+function today(name, waves) {
+  if (!(name in golden)) { golden[name] = waves; record = true; }
+  return golden[name];
 }
 
 const tokenOne = () => T.signHub([KID]);
@@ -218,8 +230,9 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     expect(p.fast).toBe(true);
     same('on_warm_payload', warm.out);
     same('on_warm_hub_open', warm.open);
-    console.log(`hub warm waves (switch on): ${warm.waves}; reads ${JSON.stringify(warm.perTable)}`);
-    expect(warm.waves).toBeLessThanOrEqual(7);
+    console.log(`hub warm waves (switch on): today ${today('on_warm_waves_today', warm.waves)} -> ${warm.waves}; reads ${JSON.stringify(warm.perTable)}`);
+    // A child on a class list: the canonical ids and the hub each read the list (2 waves a loose child has not).
+    expect(warm.waves).toBeLessThanOrEqual(9);
   });
 
   test('the child\'s Jugnu runs are read once for the lantern, the shelf and the Book (not three times)', async () => {
@@ -239,9 +252,29 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     const warm = await measure(tok, { device: DEVICE });
     jest.setSystemTime(NOW + 31 * 1000);
     const stale = await measure(tok, { device: DEVICE });
-    console.log(`hub stale waves (switch on): ${stale.waves}; reads ${JSON.stringify(stale.perTable)}`);
+    console.log(`hub stale waves (switch on): today ${today('on_stale_waves_today', stale.waves)} -> ${stale.waves}; reads ${JSON.stringify(stale.perTable)}`);
     expect(stale.out).toBe(warm.out);
     expect(stale.open).toBe(warm.open);
+    // Every switch is answered from its cache; the 2 waves over warm are the class roster's own 30 s cache (identity roster).
+    expect(stale.waves).toBeLessThanOrEqual(11);
+  });
+
+  test('a loose child (no class list, no enrolment; the usual quiz child): the payload is today\'s, in at most 7 waves warm', async () => {
+    boot({ fast: true, loose: true });
+    const tok = tokenOne();
+    await measure(tok, { device: DEVICE });
+    const warm = await measure(tok, { device: DEVICE });
+    const p = JSON.parse(warm.out);
+    expect(p.teacher && p.teacher.src).toBe('teacher');
+    expect(p.recs.length).toBe(3);
+    expect(p.challenge).toEqual({ on: true });
+    same('on_loose_payload', warm.out);
+    same('on_loose_hub_open', warm.open);
+    jest.setSystemTime(NOW + 31 * 1000);
+    const stale = await measure(tok, { device: DEVICE });
+    expect(stale.out).toBe(warm.out);
+    console.log(`hub loose child waves (switch on): warm today ${today('on_loose_waves_today', warm.waves)} -> ${warm.waves}, stale today ${today('on_loose_stale_waves_today', stale.waves)} -> ${stale.waves}`);
+    expect(warm.waves).toBeLessThanOrEqual(7);
     expect(stale.waves).toBeLessThanOrEqual(7);
   });
 
@@ -276,6 +309,13 @@ describe('the kid hub, switch off: exactly today\'s (golden: payload, reads per 
     console.log(`hub waves (switch off): warm ${warm.waves}, stale ${stale.waves}`);
     same('off_warm', warm);
     same('off_stale', stale);
+  });
+
+  test('a loose child', async () => {
+    boot({ fast: false, loose: true });
+    const tok = tokenOne();
+    await measure(tok, { device: DEVICE });
+    same('off_loose', await measure(tok, { device: DEVICE }));
   });
 
   test('the picker and the locked hub', async () => {
