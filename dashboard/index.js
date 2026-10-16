@@ -177,6 +177,9 @@ app.use(createTeacherReportRouter());
 // ── first touch: the maker page ──
 app.use(require('./routes/first-touch.routes').createFirstTouchRouter());   // /m/:token, /f/:token, /api/ft/... (switch off at the bot → falls through)
 // ── end first touch ──
+// ── the one door: /quiz/go/:token and /api/go/* (switch quiz_one_door at the bot; off → falls through) ──
+app.use(require('./routes/quiz-go.routes').createQuizGoRouter());
+// ── end the one door ──
 // The phone test page for WhatsApp's in-app browser (/iab/:token, /api/iab-probe/*): camera,
 // gallery, file picker and microphone, each file confirmed by the server and thrown away. Before
 // the body parsers, so it reads every upload as bytes under its own size cap.

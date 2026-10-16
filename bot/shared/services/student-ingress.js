@@ -483,6 +483,12 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
         await openQuizzes(from, language);
         return true;
       }
+      // the one door (quiz_one_door): the shared card's return word (`jugnu` / «جگنو») is the child's /quiz too
+      if (!isCommand && require('./first-touch/one-door.service').isReturnWord(body) && await require('./first-touch/one-door.flags').on()) {
+        logEvent('quiz_menu.requested', { userId: user.id || null, route: 'child_quizzes', trigger: 'ingress' });
+        await openQuizzes(from, language);
+        return true;
+      }
 
       if (body.startsWith('/')) {
         const cmd = body.split(/\s+/)[0].toLowerCase();

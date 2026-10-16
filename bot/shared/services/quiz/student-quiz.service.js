@@ -197,7 +197,8 @@ async function sendHub(phone, known, lang, { home = false, trueCount = false } =
   if (!url) return false;
   // family phone binding on: the Home reply is counted on the ledger with the phone BEFORE it is sent (the per-phone
   // daily reply cap); over the cap nothing is sent and the /quiz is still handled. Off: today's path, uncounted.
-  if (trueCount && !(await require('./message-ledger').record({ trigger: 'home_reply', phone, reason: 'home' }))) return true;
+  // ownReply: a reply to the child's own /quiz — with quiz_one_door ON it is counted on `reply_to_own_message`, not the shared 8
+  if (trueCount && !(await require('./message-ledger').record({ trigger: 'home_reply', phone, reason: 'home', ownReply: true }))) return true;
   const body = resolveUx(home ? 'sqHomeBody' : 'sqHubBody', { language: lang });
   const labels = home ? ['sqHomeBtn', 'sqHomeBtnPlain'] : ['sqHubBtn'];
   let sent = false;

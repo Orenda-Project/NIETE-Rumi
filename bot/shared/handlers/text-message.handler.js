@@ -567,7 +567,14 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // takes it. In production two teachers' "quiz" was stored as a lesson plan's
   // 👎 reason (14 days to 24 Sep).
   // QUIZ_BARE_TEXT_TO_MENU off: false — the windows take whatever comes, as before.
-  const quizMenuRequest = QuizMenuFlags.bareTextToMenu() && isQuizMenuRequest(messageBody);
+  // THE ONE DOOR (quiz_one_door; read only for a quiz-shaped text): ON → the return word (`jugnu` / «جگنو») is a quiz
+  // request too, the topic / follow-up windows let a quiz request pass, the /quiz door does not depend on
+  // TRANSCRIPT_QUIZ_ENABLED, and the registration Flow is never the second message of a quiz turn. OFF → as before.
+  const OneDoor = require('../services/first-touch/one-door.service');
+  const oneDoorOn = (isQuizMenuRequest(messageBody) || OneDoor.isReturnWord(messageBody))
+    ? await require('../services/first-touch/one-door.flags').on() : false;
+  const quizMenuRequest = (QuizMenuFlags.bareTextToMenu() && isQuizMenuRequest(messageBody))
+    || (oneDoorOn && OneDoor.isReturnWord(messageBody));
 
   // ============================================================
   // LP FEEDBACK — REASON CAPTURE
@@ -1190,7 +1197,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // next topic" / "Extension" / "Bridge") and we asked for the next topic.
   // This reply is that topic — route it to the follow-up service.
   // ============================================================
-  if (user?.id && messageBody) {
+  if (user?.id && messageBody && !(oneDoorOn && quizMenuRequest)) {
     try {
       const QuizFollowUpService = require('../services/quiz/quiz-follow-up.service');
       const awaiting = await QuizFollowUpService.getAwaitingState(user.id);
@@ -1207,7 +1214,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // ============================================================
   // QUIZ TOPIC RESPONSE: user is replying with a quiz topic after /quiz
   // ============================================================
-  if (user?.id) {
+  if (user?.id && !(oneDoorOn && quizMenuRequest)) {
     try {
       const active = await ConversationState.getState(user.id);
       if (active && active.flow === 'quiz' && active.step === 'awaiting_topic') {
@@ -1376,8 +1383,8 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // ============================================================
   const TranscriptQuizList = require('../services/quiz/transcript-quiz-list.service');
   const TranscriptQuizOffer = require('../services/quiz/transcript-quiz-offer.service');
-  if (TranscriptQuizList.isQuizCommand(messageBody)
-      && !(TranscriptQuizOffer.enabled() === false && !/^\/quiz(\s|$)/i.test(trimmedMessage))) {
+  if ((TranscriptQuizList.isQuizCommand(messageBody) || (oneDoorOn && quizMenuRequest))
+      && (oneDoorOn || !(TranscriptQuizOffer.enabled() === false && !/^\/quiz(\s|$)/i.test(trimmedMessage)))) {
     logToFile('📝 /quiz command detected', { userId: user?.id, phoneNumber: from });
     if (await redirectToApp('quiz', 'command')) return;
     if (!user) {
@@ -1393,13 +1400,14 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     // lessons and lesson plans, and the quizzes made from them. WHICH menu, for
     // whoever holds this phone (a question waiting, a child, a coach, a
     // teacher), is decided in one place: quiz-menu-entry.service.
-    if (TranscriptQuizOffer.enabled()) {
+    if (oneDoorOn) turn.oneDoor = true;   // the one door: no registration Flow after this turn's ONE reply
+    if (TranscriptQuizOffer.enabled() || oneDoorOn) {
       typingController.stop();
       try {
         const responseLanguage = await getUserLanguage(user.id) || null;
         const QuizMenuEntry = require('../services/quiz/quiz-menu-entry.service');
         await QuizMenuEntry.openQuizMenu({
-          user, from, language: responseLanguage, sessionId, trigger: 'text',
+          user, from, language: responseLanguage, sessionId, trigger: 'text', ...(oneDoorOn ? { body: messageBody } : {}),
         });
       } catch (error) {
         logToFile('❌ transcript quiz: /quiz list failed', { userId: user.id, error: error.message }, 'error');
@@ -2843,7 +2851,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
 async function offerRegistrationAfterReply(turn, from) {
   try {
     const account = turn.user;
-    if (!account || !account.id || turn.lookupFailed || turn.invited) return;
+    if (!account || !account.id || turn.lookupFailed || turn.invited || turn.oneDoor) return;
     // Not "is she registered" (a name is enough for that) but "does she still need the form": a
     // name with no school or role counts. Children and admin-set coaches/AEOs never do.
     if (!needsRegistrationForm(account)) return;

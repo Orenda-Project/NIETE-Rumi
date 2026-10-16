@@ -7459,6 +7459,13 @@ alter table if exists message_ledger
 alter table if exists message_ledger
   add column if not exists capped integer not null default 0 check (capped >= 0);
 
+-- message_ledger: the one /quiz reply and the quiz-maker reply (bot/database/migrations/web_quiz_message_ledger_one_door.sql)
+-- The trigger CHECK widened by two; every trigger above is still allowed.
+alter table if exists message_ledger drop constraint if exists message_ledger_trigger_check;
+alter table if exists message_ledger add constraint message_ledger_trigger_check
+  check (trigger in ('home_reply','bind_reply','guest_reply','class_link','class_round','teacher_queue','teacher_refusal',
+                     'one_door_reply','maker_reply'));
+
 drop function if exists public.message_ledger_add(date, text, uuid, text, text, integer, numeric);
 
 create or replace function public.message_ledger_add(

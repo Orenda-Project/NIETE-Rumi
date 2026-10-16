@@ -47,7 +47,9 @@ const TABLE = 'message_ledger';
 const USD_PER_SEND = 0.015;
 const MINUTES_PER_ROUND_CHILD = 1;   // a class round: about a minute of the teacher's time per child asked, one at a time
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
-const TRIGGERS = Object.freeze(['home_reply', 'bind_reply', 'guest_reply', 'teacher_refusal', 'class_link', 'class_round', 'teacher_queue']);
+const TRIGGERS = Object.freeze(['home_reply', 'bind_reply', 'guest_reply', 'teacher_refusal', 'class_link', 'class_round', 'teacher_queue',
+  // the one door (quiz_one_door): the ONE /quiz reply, and the quiz-maker page's cta
+  'one_door_reply', 'maker_reply']);
 // The direct ping: bot → family only, never with a phone (the strict path). Kept beside TRIGGERS, not in it, so every
 // caller of TRIGGERS (the counted replies) is unchanged.
 const SAMPLE_PING = 'sample_ping';
@@ -170,6 +172,39 @@ async function underCap(phone, trigger, now) {
   return true;
 }
 
+// ── the one door's own counter (quiz_one_door): a reply to the person's OWN message ──
+// A reply the person asked for by writing (the one /quiz reply, a JUGNU- code's answer, STOP's) is counted on its own
+// counter `reply_to_own_message`, ceiling web_quiz_own_reply_cap_per_phone (absent → 20) per phone per PKT day, never on
+// the shared pool above: a 9th /quiz after eight bot replies still gets its link. Only with the switch ON and only for
+// a caller that marks the reply `ownReply`; with the switch OFF that caller is capped exactly as before.
+const OWN_COUNTER = 'reply_to_own_message';
+async function ownCounterCap() {
+  try {
+    const f = await require('../first-touch/one-door.flags').flags();
+    return f && f.on ? f.ownCap : null;
+  } catch (_) { return null; }
+}
+
+async function underOwnCap(phone, trigger, now, ceiling) {
+  const h = phoneHash(phone);
+  if (!h) return true;
+  const redisService = require('../cache/railway-redis.service');
+  const key = `wq:own_reply_cap:${pktDay(now)}:${h.hash}`;
+  let count = null;
+  try { count = await redisService.incr(key); } catch (_) { count = null; }
+  if (count === null || count === undefined || !Number.isFinite(Number(count))) {
+    count = localIncr(key);
+  } else if (Number(count) === 1) {
+    try { await redisService.expire(key, CAP_WINDOW_SECS); } catch (_) { /* the count still holds */ }
+  }
+  if (Number(count) > ceiling) {
+    logEvent('web_quiz.reply_capped', { trigger, counter: OWN_COUNTER, w: 's' });
+    return false;
+  }
+  return true;
+}
+// ── end the one door's own counter ──
+
 /** ONE atomic add through message_ledger_add → true (written) | false (failed) | null (no function: fall back). */
 async function addByRpc({ day, trigger, classId, initiated, recipient, n, usdEach, minutesEach = 0 }) {
   if (typeof supabase.rpc !== 'function') return null;
@@ -225,11 +260,13 @@ async function countCapped({ trigger, classId, initiated, recipient, now }) {
 }
 
 /**
+ * `ownReply: true` (a reply to the person's own message: the one /quiz reply, a JUGNU- code's answer, STOP's): with
+ * quiz_one_door ON it is checked against the `reply_to_own_message` counter instead of the shared cap; OFF → as before.
  * `uncapped: true` (the binder's STOP that erased a binding — a privacy action is never silent): the reply is counted
  * on the ledger as a send but neither checked against nor added to the phone's day counter, so a phone-day's bound is
  * the cap plus that one reply.
  */
-async function record({ trigger, phone = null, reason = null, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, minutesEach = 0, uncapped = false, now = new Date() } = {}) {
+async function record({ trigger, phone = null, reason = null, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, minutesEach = 0, uncapped = false, ownReply = false, now = new Date() } = {}) {
   if (!(TRIGGERS.includes(trigger) || trigger === SAMPLE_PING) || !INITIATED.includes(initiated) || !RECIPIENTS.includes(recipient)) return false;
   if (trigger === SAMPLE_PING) {
     if (initiated !== 'bot' || recipient !== 'family' || phone) return false;
@@ -237,7 +274,8 @@ async function record({ trigger, phone = null, reason = null, classId = null, in
   }
   if (initiated === 'bot' && recipient === 'family') return false;
   if (phone) {
-    if (!uncapped && !(await underCap(phone, trigger, now))) {
+    const own = ownReply && !uncapped ? await ownCounterCap() : null;
+    if (!uncapped && !(own ? await underOwnCap(phone, trigger, now, own) : await underCap(phone, trigger, now))) {
       await countCapped({ trigger, classId, initiated, recipient, now });
       return false;
     }
@@ -302,7 +340,7 @@ async function write({ trigger, reason = null, classId, initiated, recipient, co
 
 module.exports = {
   countCapped,
-  record, capAllows: underCap, pktDay, capPerPhone, TRIGGERS, SAMPLE_PING, USD_PER_SEND, MINUTES_PER_ROUND_CHILD, TABLE, CAP_KEY, CAP_DEFAULT,
+  record, capAllows: underCap, pktDay, OWN_COUNTER, capPerPhone, TRIGGERS, SAMPLE_PING, USD_PER_SEND, MINUTES_PER_ROUND_CHILD, TABLE, CAP_KEY, CAP_DEFAULT,
   _resetMissing: () => { missingLogged = false; writeFailLogged = false; oldFunctionLogged = false; },
   _resetCap: () => { capCache = null; unkeyedLogged = false; redisFailLogged = false; localCounts.clear(); },
 };

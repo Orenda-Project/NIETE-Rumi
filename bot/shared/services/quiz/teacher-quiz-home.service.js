@@ -63,6 +63,12 @@ async function handleHomeButton(buttonId, from, user) {
   const userId = (user && user.id) || null;
   logEvent('quiz_menu.choice', { userId, choice });
   const lang = langOf(user);
+  // the one door (quiz_one_door): an old "Make a quiz" button in the chat opens the same ONE door as /quiz
+  if (choice === 'make' && await require('../first-touch/one-door.flags').on()) {
+    const { openQuizMenu } = require('./quiz-menu-entry.service');
+    await openQuizMenu({ user, from, language: lang, trigger: 'home' });
+    return true;
+  }
   if (choice === 'make' || !(await homeOn(userId))) {
     const { openMakeQuiz } = require('./teacher-quiz-make.service');
     await openMakeQuiz({ user, from, language: lang });
