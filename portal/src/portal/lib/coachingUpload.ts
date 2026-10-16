@@ -57,6 +57,14 @@ export const MAX_PHOTOS = 3;
  */
 export const DC_MAX_PHOTOS = 10;
 
+/**
+ * bd-fgj73x.7 — the shortest recording Digital Coaching takes: 15 minutes, the WhatsApp bot's own line
+ * (bot/shared/config/classroom-audio.config.js CLASSROOM_AUDIO_THRESHOLD). A few seconds recorded by
+ * accident got a full report (operator, 16 Oct): Recording says the minimum up front, and a shorter one
+ * cannot be submitted. A file whose length cannot be read is not held back.
+ */
+export const DC_MIN_SECONDS = 900;
+
 /** Under this the WhatsApp path treats audio as a voice note, not a lesson. */
 export const SHORT_RECORDING_SECONDS = 600;
 

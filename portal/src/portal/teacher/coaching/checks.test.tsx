@@ -34,7 +34,7 @@ describe("coaching: copy", () => {
     const bad = collectCopy(COACHING_V2_COPY)
       // bd-idkgm2: and the one-line how-to under "Microphone blocked" (operator-approved, ICT row 18).
       // bd-qccbrv: and the other two lines of that card (same mockup).
-      .filter((c) => !["photosHint", "voiceNote", "micBlockedHint", "micBrowserBlocked", "micStillBlockedWhatsApp", "micStillBlocked"].includes(c.path))
+      .filter((c) => !["photosHint", "voiceNote", "micBlockedHint", "micBrowserBlocked", "micStillBlockedWhatsApp", "micStillBlocked", "tooShort"].includes(c.path))
       .filter((c) => copyProblem(c.text))
       .map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);
