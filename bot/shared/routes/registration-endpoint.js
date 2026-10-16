@@ -403,7 +403,8 @@ async function handleProfessionalInfoSubmit(userId, screenData, flowToken) {
     subjects: screenData.subjects || [],
     // The selection is carried into the completion payload — only a role the form may
     // grant, and never over an admin-set coach/AEO (registration-roles.js).
-    role: roleToWrite(screenData.role, user && user.role)
+    // Her row unreadable → write no role: an unknown current role may be an admin-set coach.
+    role: user ? roleToWrite(screenData.role, user.role) : null
   };
 
   // Persist role + professional fields NOW (org="other" adds ORG_DETAILS after this
@@ -744,7 +745,8 @@ async function handleRoleSchoolSubmit(userId, screenData, flowToken) {
   const user = await readUser(userId);
   const language = await screenLanguage(stored, user);
 
-  const role = roleToWrite(screenData.role, user && user.role);
+  // Her row unreadable → write no role: an unknown current role may be an admin-set coach.
+  const role = user ? roleToWrite(screenData.role, user.role) : null;
   if (role) await persistToUser(userId, { role });
   else if (screenData.role) logToFile('📝 registration: role not written', { userId, submitted: String(screenData.role).slice(0, 20), existing: user && user.role });
 

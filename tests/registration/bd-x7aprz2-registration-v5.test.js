@@ -332,3 +332,12 @@ describe('completion (handleRegistrationFlow)', () => {
     } finally { if (prev !== undefined) process.env.INTERNAL_API_KEY = prev; }
   });
 });
+
+describe('an unreadable row never costs a coach her role', () => {
+  it('ROLE_SCHOOL writes no role when her row cannot be read', async () => {
+    mockUsers.delete(UID); // maybeSingle → null, as on a failed read
+    const ep = loadEndpoint();
+    await ep.handleRegistrationDataExchange(UID, 'ROLE_SCHOOL', { role: 'teacher', school_query: 'tarnol' }, TOKEN);
+    expect(wroteKey(UID, 'role')).toBe(false);
+  });
+});
