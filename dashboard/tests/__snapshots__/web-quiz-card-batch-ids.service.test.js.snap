@@ -15,7 +15,7 @@ exports[`card events off (no jugnu_ev): every body is today's telemetry on 1`] =
 
 exports[`card events on (jugnu_ev): the bodies are today's, plus ht = the card's hub token and chip = its kid telemetry off 1`] = `
 [
-  "{"events":[{"t":0,"code":"TEST","lang":"en","ua":"test","iab":0,"store":1,"net":"","src":"quiz","via":"direct","n":"page_open"},{"t":0,"code":"TEST","lang":"en","band":"mid","friend":0,"n":"card_view"},{"t":0,"code":"TEST","lang":"en","door":"card","surface":"scorecard","slot":1,"n":"door_shown"},{"t":0,"code":"TEST","lang":"en","door":"card","surface":"scorecard","slot":1,"n":"door_tap"}]}",
+  "{"events":[{"t":0,"code":"TEST","lang":"en","ua":"test","iab":0,"store":1,"net":"","src":"quiz","via":"direct","n":"page_open"},{"t":0,"code":"TEST","lang":"en","band":"mid","friend":0,"n":"card_view"},{"t":0,"code":"TEST","lang":"en","door":"card","surface":"scorecard","slot":1,"n":"door_shown"},{"t":0,"code":"TEST","lang":"en","door":"card","surface":"scorecard","slot":1,"n":"door_tap"}],"st":"s1","dr":"AAAAAAAAAAAAAAAAAAAAAA"}",
 ]
 `;
 
