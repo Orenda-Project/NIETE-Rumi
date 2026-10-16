@@ -21,6 +21,7 @@ const T = require('./web-quiz-token');
 const K = require('./web-quiz-kid');
 const NO = require('./web-quiz-next-offer');
 const { logToFile } = require('../../utils/logger');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const PIN_DAYS = 7;
 const HUB_DEADLINE_MS = 1500;
@@ -57,14 +58,15 @@ function qkOf(quizId, code) {
 
 function links({ token, chip, lang, home }) {
   const h = home ? '&home=1' : '';
-  const l = `&lang=${lang === 'ur' ? 'ur' : 'en'}`;
+  const lc = clampLanguage(lang);
+  const l = `&lang=${lc}`;
   const ch = token && chip ? `/c/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}${l}${h}` : null;
   return {
     ch,
     stop: (ex) => (ch ? `${ch}#${ex}` : null),
     story: (pid) => (ch ? `${ch}&room=story&pid=${encodeURIComponent(pid)}` : null),
     quiz: (code, k, again) => (code ? `/q/${encodeURIComponent(code)}?${again ? 'again=1&' : ''}k=${encodeURIComponent(k || '')}` : null),
-    lib: token && chip ? `/lib/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}&l=${lang === 'ur' ? 'ur' : 'en'}${h}` : null,
+    lib: token && chip ? `/lib/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}&l=${lc}${h}` : null,
     book: token && chip ? `/h/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}${l}#book` : null,
     watch: token && chip ? (vid) => `/h/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}${l}#watch/${encodeURIComponent(vid)}` : null,
   };
