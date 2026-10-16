@@ -450,6 +450,9 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (f.hub && f.eventsV2) out.ev2 = true;
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
   await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src });
+  // a child whose place is saved on a family phone with no code (joined on their own, or confirmed on the /quiz landing):
+  // never the "keep my place" card again, on any link (quiz_student_join; off: untouched)
+  if (chosen && out.bind && out.bind.offer) await require('./web-quiz-student-join').hideCardIfBound(out, chosen.id);
   if (!chosen) {
     logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;

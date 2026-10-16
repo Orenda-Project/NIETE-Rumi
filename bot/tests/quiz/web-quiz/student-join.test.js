@@ -180,6 +180,34 @@ describe('a new child joins: one row, one binding, forget called', () => {
   });
 });
 
+describe('the home after a join never shows the claim card (operator point 5)', () => {
+  const homeOf = async (next) => {
+    const Hub = require('../../../shared/services/quiz/web-quiz-hub');
+    const [p, q] = next.split('?');
+    const token = p.slice(3);
+    const kid = new URLSearchParams(q).get('kid');
+    return Hub.hub(token, { device: DEVICE, kid, src: 'join' });
+  };
+  test('ON: the joined child\'s home → bind {offer:false, state:"bound"}, on this link and on a fresh one', async () => {
+    const { t } = await landing();
+    const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    const home = await homeOf(out.next);
+    expect(home.bind).toEqual({ offer: false, state: 'bound' });
+    const kidId = fake.db.students[0].id;
+    const fresh = `/h/${T.signHub([kidId], 'test')}?kid=${T.chipId('h', kidId)}`;
+    redis.__keys.clear();
+    expect((await homeOf(fresh)).bind).toEqual({ offer: false, state: 'bound' });
+  });
+  test('OFF after the join: today\'s card, untouched', async () => {
+    const { t } = await landing();
+    const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    fake.db.app_settings = fake.db.app_settings.filter((r) => r.key !== 'quiz_student_join');
+    Join._resetCache();
+    const home = await homeOf(out.next);
+    expect(home.bind).toMatchObject({ offer: true });
+  });
+});
+
 describe('the guards before the row', () => {
   test('another device holding the link → stale, nothing written', async () => {
     const { t } = await landing();

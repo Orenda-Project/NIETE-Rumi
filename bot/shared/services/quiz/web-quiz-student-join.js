@@ -403,6 +403,24 @@ async function bindPick({ n, chip, lang = 'en' } = {}) {
   }
 }
 
+/**
+ * The hub's "keep my place" card for a chosen child whose place is already saved on a family phone with no code
+ * (an active binding via 'guest'): `out.bind` becomes { offer:false, state:'bound' } — the claim never shows on an
+ * old or new link for that child. Switch off, no such binding, or a failed read: `out` untouched. Never throws.
+ */
+async function hideCardIfBound(out, studentId) {
+  try {
+    if (!out || !studentId || !(await flags()).bind) return out;
+    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds([String(studentId)]);
+    const id = canon.get(String(studentId)) || String(studentId);
+    const rows = await BindRepo.activeForChild(id);
+    if (rows.some((b) => b.via === 'guest')) out.bind = { offer: false, state: 'bound' };
+    return out;
+  } catch (_) {
+    return out;
+  }
+}
+
 /** join_recognised: this phone holds a child that joined on its own, and `/quiz` found it again. Once a PKT day. */
 async function noteRecognised({ phoneNorm } = {}) {
   try {
@@ -424,7 +442,7 @@ async function noteRecognised({ phoneNorm } = {}) {
 
 module.exports = {
   SWITCH_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
-  flags, signJoin, joinUrl, practiceJoinUrl, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised,
+  flags, signJoin, joinUrl, practiceJoinUrl, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound,
   cleanFirstName, cleanGrade, pickChips, rosterForPhone,
   _resetCache: () => { cache = null; },
 };
