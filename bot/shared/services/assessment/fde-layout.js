@@ -589,9 +589,10 @@ function tokensOf(text) {
 const keyText = (q) => (typeof q.answer === 'string' ? q.answer.replace(OPTION_HEAD, '') : '');
 // An answer of one line (ten words or fewer, function words aside) is judged whole.
 const ONE_LINE = 10;
-// Same thing asked: at least three of the MCQ's own words, and at least two in five of them.
+// Same thing asked: at least three of the MCQ's own words, and at least a third of them (a held item
+// only costs a re-ask now: it comes back when nothing else can take its place).
 const SAME_WORDS = 3;
-const SAME_SHARE = 0.4;
+const SAME_SHARE = 0.35;
 
 function sameFact(q1s) {
   const mcqs = q1s.map((m) => ({
