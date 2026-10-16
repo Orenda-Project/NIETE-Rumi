@@ -1210,7 +1210,8 @@
   }
 
   function liveResult(w) {
-    if (TR) { qa.attempted = live.v.attempted; TR.readEnd({ score: { attempted: live.v.attempted } }); return; }
+    // the Trail's line follows the words heard (heardOk): the live cursor can run to the end on words never heard
+    if (TR) { qa.attempted = live.v.attempted; TR.readEnd({ score: { attempted: live.v.attempted } }, null, live.v.heardOk); return; }
     var d = S.data;
     var good = w > 0;
     show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true)
@@ -1311,6 +1312,12 @@
   // a count 3 or more away replaces the number; the growth line always uses the checked count.
   function liveChecked(r) {
     if (!r || r.pending || r.later) return;
+    // the Trail: a settled "not a reading" (not heard, or no word) redraws its card as the zero line, only while
+    // that card is still open; a child who has gone on is never pulled back to it
+    if (TR) {
+      if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) readResult(r);
+      return;
+    }
     if ((r.failed && r.reason === 'unheard') || (r.score && r.score.stopped)) { readResult(r); return; }
     if (TR) return;
     if (r.failed || !(r.wcpm >= 0)) return;
