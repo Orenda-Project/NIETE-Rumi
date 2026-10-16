@@ -51,15 +51,28 @@ const AGAIN_MAX = 6;
 const RECS_MAX = 3;
 const TEACHER_DAYS = 7;
 const RESOLVE_MAX = 5;
-// The challenge's grade for a child (web-quiz-challenge.js gradeOf + formForChild, the grade-1 switches included), required on use so the hub never depends on the challenge to boot.
-async function challengeGrade(studentId) {
+// The challenge's form for a child (web-quiz-challenge.js gradeOf + formForChild, the grade-1 switches included), or
+// null when it has none; required on use so the hub never depends on the challenge to boot.
+async function challengeForm(studentId) {
   try {
     const Challenge = require('./web-quiz-challenge');
-    return Boolean(await Challenge.formForChild(await Challenge.gradeOf({ studentId })));
+    return (await Challenge.formForChild(await Challenge.gradeOf({ studentId }))) || null;
   } catch (err) {
     logToFile('⚠️ web quiz hub: challenge grade unavailable', { error: err.message });
-    return false;
+    return null;
   }
+}
+
+// The stops this child's Trail has, by the challenge menu's own rule (web-quiz-challenge.js menu()): the grade-1 form's
+// one stop; else the Trail order, the warm-up only with its switches, listen only with its. Not today's read-aloud cap
+// nor a listen story still recording: those close a stop for a day, they never take it off the Trail.
+async function trailStops(form) {
+  const Challenge = require('./web-quiz-challenge');
+  const G1 = require('./web-quiz-challenge-grade1');
+  if (form === G1.FORM) return [G1.EXERCISE];
+  const missing = (await Challenge.recordOn()) && (await Challenge.missingOn());
+  const listen = await Challenge.listenOn();
+  return Challenge.TRAIL_ORDER.filter((id) => (id !== 'missing' || missing) && (id !== 'listen' || listen));
 }
 
 // The web quiz's own error type, so the internal router answers it as every other wq route does.
@@ -416,8 +429,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;
 
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
-  // Started now, beside the rest of the hub's reads (challengeGrade never rejects): it is a few round trips of its own.
-  const challengeP = f.challenge && chosen ? challengeGrade(chosen.id) : Promise.resolve(false);
+  // Started now, beside the rest of the hub's reads (challengeForm never rejects): it is a few reads of its own.
+  const challengeP = f.challenge && chosen ? challengeForm(chosen.id) : Promise.resolve(null);
   const ctx = chosen ? await kidContext(chosen.id) : null;
   const history = ctx ? ctx.history : [];
   const lang = asked || clampLanguage(require('./student-quiz.service').childLanguage(history));
@@ -458,9 +471,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
   }
   // The tile asks the challenge's own grade rule (a band of grades is no grade there), so it never opens onto a refusal.
-  if (await challengeP) {
-    out.challenge = { on: true, exercises: [{ id: 'bigger', done: false }, { id: 'read', done: false }] };
-  }
+  const form = await challengeP;
+  if (form) out.challenge = { on: true };
   // The library: M4b's page when it is on; else the child's newest open quiz (its scorecard lists more videos).
   const newest = history.find((e) => e.active && e.code);
   // The library page opens in the child's language (?l=), the same one this hub is in.
@@ -468,7 +480,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
   // The Library tile wears the child's grade picture (the library opens on that grade).
   if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
-  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
+  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade, stopsOf: () => trailStops(form) })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
   logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
