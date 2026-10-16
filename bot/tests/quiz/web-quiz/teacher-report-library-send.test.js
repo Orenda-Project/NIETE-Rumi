@@ -485,3 +485,21 @@ describe('the 12 h report on the sender\'s code', () => {
     expect(await run(true)).toBe(await run(false));
   });
 });
+
+describe('the class tab marks a sent row, so a reader can tell sent from made without a second read', () => {
+  test('on: the sender\'s library rows carry sent: true; the author\'s rows carry no such key', async () => {
+    seed();
+    const sender = (await Data.classReport(SENDER, { now: NOW })).quizzes;
+    expect(sender.map((q) => [q.id, q.sent])).toEqual([[VQ, true], [LQ, true]]);
+    const author = (await Data.classReport(AUTHOR, { now: NOW })).quizzes;
+    expect(author.length).toBeGreaterThan(0);
+    author.forEach((q) => expect(q).not.toHaveProperty('sent'));
+  });
+
+  test('off: no row carries the key (today\'s rows)', async () => {
+    seed({ home: false });
+    for (const t of [SENDER, AUTHOR]) {
+      (await Data.classReport(t, { now: NOW })).quizzes.forEach((q) => expect(q).not.toHaveProperty('sent'));
+    }
+  });
+});

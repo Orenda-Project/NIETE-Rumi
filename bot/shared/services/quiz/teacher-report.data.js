@@ -565,6 +565,8 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
       onList: ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)).length : null,
       id: q.id, date: q.sent_at || (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
       subject: q.subject || null, source: q.quiz_source, played: mine.length, avg: mean(scores), scores,
+      // a library quiz this teacher SENT (sentQuizzes gives it sent_at); their own quizzes carry no key
+      ...(q.sent_at ? { sent: true } : {}),
     };
   });
 
