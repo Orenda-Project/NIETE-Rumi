@@ -640,9 +640,9 @@ function sameFact(q1s) {
 }
 
 // Urdu: the Q4 items' keys, read as written (option letter, dashes and commas aside), and the
-// MCQs keyed on one of them.
+// MCQs keyed on one of them. Q4 asks for words, so a key with no letter (a bare number) is no Q4 answer.
 function sameKey(q4s) {
-  const keys = new Set(q4s.map((q) => plain(keyText(q))).filter(Boolean));
+  const keys = new Set(q4s.map((q) => plain(keyText(q))).filter((k) => /\p{L}/u.test(k)));
   if (!keys.size) return null;
   return (q) => keys.has(plain(keyText(q)));
 }
