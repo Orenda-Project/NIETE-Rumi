@@ -710,9 +710,22 @@ function inOrder(a, b) {
   }
   return row[b.length];
 }
+// Urdu writes a compound split or joined («کام یاب» / «کامیاب», «کم زور» / «کمزور»): two words side
+// by side that make one word of the other text are read as that word.
+function joinSplits(words, other) {
+  const one = new Set(other);
+  const out = [];
+  for (let i = 0; i < words.length; i += 1) {
+    if (i + 1 < words.length && one.has(words[i] + words[i + 1])) { out.push(words[i] + words[i + 1]); i += 1; } else out.push(words[i]);
+  }
+  return out;
+}
 // A sentence is printed in a stem when the stem carries at least four in five of its words, in order.
 const SENTENCE_SHARE = 0.8;
-const printedIn = (sentence, stem) => inOrder(sentence, stem) >= Math.ceil(sentence.length * SENTENCE_SHARE);
+const printedIn = (sentence, stem) => {
+  const said = joinSplits(sentence, stem);
+  return inOrder(said, joinSplits(stem, said)) >= Math.ceil(said.length * SENTENCE_SHARE);
+};
 
 // Urdu: the word list a Q4 item asks about, quoted («کتاب، قلم، کاپی، بستہ») or after its colon up
 // to the sentence's end («گروہی الفاظ …: بادل، بجلی، بارش، گھٹائیں۔»), as each entry's words. A
@@ -974,6 +987,31 @@ function keyAcceptSplit(q) {
   const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept.filter((a) => typeof a === 'string') : [];
   return accept.some((a) => { const at = which(a); return at >= 0 && at !== keyAt; });
 }
+// Urdu Q1: an MCQ whose stem prints its own key gives itself away («لفظ «سانپ» کی درست املا کون سی
+// ہے؟» → سانپ; «سَحَر» … درست اعراب والا لفظ → سَحَر), the key being one of its options: a quote that is the key as written, marks and
+// all, or the key's words in order outside the stem's quotes. A quote that holds the key among other
+// words («"اگر بارش ہوئی تو …" میں حرفِ شرط …؟» → اگر) is the example the item asks about, and stays;
+// so does a stem that prints another option beside the key («عمارت» اور «اِمارت» میں سے …): the
+// child still chooses. A stem that asks two questions («… پیش آیا؟ سدرہ کی بہن کا نام کیا تھا؟»)
+// is two items in one place; a «؟» inside a quoted example does not count.
+const QUOTE_SPAN = /«[^»]+»|[’‘]{2}[^’‘]+[’‘]{2}|“[^”]+”|"[^"]+"|[’‘][^’‘]+[’‘]|'[^']+'/gu;
+const asWritten = (t) => String(t).normalize('NFC').replace(OPTION_HEAD, '').replace(/^[\s«»’‘“”"'(]+|[\s«»’‘“”"').,،۔؟?!]+$/gu, '');
+function printsOwnKey(q) {
+  if (!Array.isArray(q.options) || !q.options.length) return false;
+  const key = asWritten(keyText(q));
+  const options = q.options.map(asWritten);
+  if (!plain(key) || !options.includes(key)) return false;
+  const stem = String(q.question || '');
+  const quotes = (stem.match(QUOTE_SPAN) || []).map(asWritten);
+  const outside = stem.split(QUOTE_SPAN).map((part) => ` ${plain(part)} `);
+  const printed = (o) => quotes.includes(o) || outside.some((part) => part.includes(` ${plain(o)} `));
+  const others = options.filter((o) => o !== key && plain(o));
+  return printed(key) && !others.some(printed);
+}
+function asksTwo(q) {
+  if (!Array.isArray(q.options) || !q.options.length) return false;
+  return (String(q.question || '').replace(QUOTE_SPAN, ' ').match(/[؟?]/g) || []).length >= 2;
+}
 function sameQuestion(a, b) {
   const [sa, sb] = [plain(a.question), plain(b.question)];
   if (!sa || !sb) return false;
@@ -1139,6 +1177,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
       if (P.key === 'social_studies' && tierSlip(q)) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && (printsOwnKey(q) || asksTwo(q))) return false;
       if (!holds(slot)) {
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
