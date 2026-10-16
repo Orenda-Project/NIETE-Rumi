@@ -12,6 +12,10 @@ const { resolveUx, clampLanguage, subjectLabelFor } = require('../../config/ux-s
 
 const STRINGS = Object.freeze({
   'mk.h': Object.freeze({ en: "Make a quiz", ur: "کوئز بنائیں" }),
+  // the one tour banner (TOUR.md §2, §5)
+  'mk.tour': Object.freeze({ en: "3 taps: grade, subject and topic. Then send. About a minute.", ur: "تین قدم: جماعت، مضمون اور موضوع چنیں، پھر بھیج دیں۔ تقریباً ایک منٹ لگے گا۔" }),
+  'mk.tour.ok': Object.freeze({ en: "Got it", ur: "ٹھیک ہے" }),
+  'mk.tour.replay': Object.freeze({ en: "How it works", ur: "یہ کیسے کام کرتا ہے" }),
   'mk.grade': Object.freeze({ en: "Grade", ur: "جماعت" }),
   'mk.subject': Object.freeze({ en: "Subject", ur: "مضمون" }),
   'mk.topic': Object.freeze({ en: "Topic", ur: "موضوع" }),

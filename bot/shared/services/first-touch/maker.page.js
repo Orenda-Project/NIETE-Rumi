@@ -132,8 +132,10 @@ post('/api/ft/make',{t:b.t,grade:pick.grade,subject:pick.subject,quizId:pick.qui
 })();`;
 const SCRIPT_HASH = sha(SCRIPT);
 
+/** `scriptHash`: one hash, or a list (the addons' scripts, then the page's), each allowed by its own sha256. */
 function csp(styleHash, scriptHash, { meta = false } = {}) {
-  return `default-src 'none'; style-src 'sha256-${styleHash}'; ${scriptHash ? `script-src 'sha256-${scriptHash}'; connect-src 'self'; ` : ''}`
+  const scripts = [].concat(scriptHash || []).map((h) => `'sha256-${h}'`).join(' ');
+  return `default-src 'none'; style-src 'sha256-${styleHash}'; ${scripts ? `script-src ${scripts}; connect-src 'self'; ` : ''}`
     + `img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'${meta ? '' : "; frame-ancestors 'none'"}`;
 }
 
@@ -196,7 +198,7 @@ function readySubHtml({ grade, subject, topic, qlang }, l) {
 }
 
 /** The ready screen: exactly mk.ready.h, mk.ready.sub.lang, mk.ready.q, mk.send, mk.send.note, mk.copy, mk.next. */
-function readySection({ token, l, r, shown }) {
+function readySection({ token, l, r, shown, extra = '' }) {
   const enc = encodeURIComponent(token);
   const total = r && r.total ? r.total : 0;
   const [qa, qb] = str('mk.ready.q', l).split('{n}');
@@ -210,7 +212,7 @@ function readySection({ token, l, r, shown }) {
 <p class="mk-note" data-id="mk.send.note">${esc(str('mk.send.note', l))}</p>
 <button type="button" class="mk-go2" id="mk-copy" data-id="mk.copy">${esc(str('mk.copy', l))}</button>
 <p class="mk-msg" id="mk-msg" dir="auto">${esc((r && r.message) || '')}</p>
-<p class="mk-next" data-id="mk.next">${esc(str('mk.next', l))}</p>
+<p class="mk-next" data-id="mk.next">${esc(str('mk.next', l))}</p>${extra ? `\n${extra}` : ''}
 </div>
 </section>`;
 }
@@ -227,12 +229,21 @@ function prefillCell(pf, tree) {
  * pre-fill (shown only when its cell is in the tree). For a server-side render of a later state (tests, renders):
  * `ready` = { grade, subject, topic, qlang, message, preview, total, shareCodeId } opens on the ready screen;
  * `view` = { screen: 'subject' | 'topic', grade, subject } opens on that step.
+ * `addons` = [{ top?, ready?, foot?, script?, css? }] (the tour, the cards): see the marked block below.
  * → { html, csp } (the header value for the response).
  */
-function buildMakerPage({ token, lang = 'en', switchTo = null, via = 'menu', tree = {}, pf = null, ready = null, view = null }) {
+function buildMakerPage({ token, lang = 'en', switchTo = null, via = 'menu', tree = {}, pf = null, ready = null, view = null, addons = [] }) {
   const l = clampLanguage(lang);
   const ur = l === 'ur';
-  const style = `${fontFace(l)}${CSS}`;
+  // ── addons (tour, cards) ── each part lands in one place: top → #ft-banner-slot, ready → inside .mk-ready after
+  // mk.next, foot → after the page's foot, css → appended to the one <style>, script → its own <script> BEFORE the
+  // page's (so it can set window.ftOnFirstChip), allowed by its sha256. No addons → the page byte-identical.
+  const parts = (k) => (addons || []).map((a) => (a && typeof a[k] === 'string' ? a[k] : '')).filter(Boolean);
+  const addonCss = parts('css').map((c) => `\n${c}`).join('');
+  const addonScripts = parts('script');
+  const scriptHashes = [...addonScripts.map(sha), SCRIPT_HASH];
+  // ── end addons ──
+  const style = `${fontFace(l)}${CSS}${addonCss}`;
   const styleHash = sha(style);
   const enc = encodeURIComponent(token);
   const grades = Object.keys(tree).filter((g) => /^[1-5]$/.test(g)).sort();
@@ -283,11 +294,11 @@ function buildMakerPage({ token, lang = 'en', switchTo = null, via = 'menu', tre
     dg: ur ? UR_DIGITS.join('') : null,
     pick: pick ? { grade: pick.grade, subject: pick.subject, quizId: null } : null,
   };
-  const html = `${head(l, str('mk.h', l), style, styleHash, SCRIPT_HASH)}
+  const html = `${head(l, str('mk.h', l), style, styleHash, scriptHashes)}
 <body>
 <main class="mk">
 <header class="mk-top"><h1>${esc(str('mk.h', l))}</h1>${sw}</header>
-<div id="ft-banner-slot"></div>
+<div id="ft-banner-slot">${parts('top').join('')}</div>
 ${prefill}<section data-screen="grade"${open('grade')}>
 <h2>${esc(str('mk.grade', l))}</h2>
 <div class="mk-chips mk-grade">${gradeChips}</div>
@@ -302,14 +313,14 @@ ${topicGroups}
 <p class="mk-err" id="mk-err" role="alert" hidden>${esc(str('mk.error', l))}</p>
 <button type="button" class="mk-go" id="mk-make" disabled>${esc(str('mk.make', l))}</button>
 </section>
-${readySection({ token, l, r: ready, shown: screen === 'ready' })}
-${foot}
+${readySection({ token, l, r: ready, shown: screen === 'ready', extra: parts('ready').join('\n') })}
+${foot}${parts('foot').join('')}
 </main>
 <script type="application/json" id="mk-boot">${bootJson(boot)}</script>
-<script>${SCRIPT}</script>
+${addonScripts.map((x) => `<script>${x}</script>\n`).join('')}<script>${SCRIPT}</script>
 </body>
 </html>`;
-  return { html, csp: csp(styleHash, SCRIPT_HASH) };
+  return { html, csp: csp(styleHash, scriptHashes) };
 }
 
 /** A one-line page: `mk.stale` or `mk.error` (no form, no script). → { html, csp }. */

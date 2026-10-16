@@ -88,7 +88,7 @@ describe('switch ON — the page', () => {
     expect(html).toContain(subjectLabel('maths', 'en'));
     expect(html).toContain(subjectLabel('islamic_studies', 'en'));
     expect(html).toContain('Fractions');
-    expect(html).toContain('<div id="ft-banner-slot"></div>');
+    expect(html).toContain('<div id="ft-banner-slot"><div class="mk-tour" id="mk-tour"');   // the hook, now carrying the tour banner
     expect(html).toContain('window.ftOnFirstChip');
   });
 

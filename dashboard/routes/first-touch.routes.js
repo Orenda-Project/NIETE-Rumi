@@ -43,7 +43,7 @@ const FORM = {
   step: { step: WORD(30), grade: (v) => /^[1-5]$/.test(v), subject: WORD(40), quizId: (v) => UUID_RX.test(v) },
   code: { code: (v) => v.length > 0 && v.length <= 300, l: LANG },
   door: {},
-  tour: { action: WORD(20) },
+  tour: { action: WORD(20), how: WORD(10) },
 };
 function formBody(kind, body) {
   const out = {};

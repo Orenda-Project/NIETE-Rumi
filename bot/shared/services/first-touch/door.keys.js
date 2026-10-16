@@ -71,11 +71,40 @@ const markChild = (userId, phone) => write(userId, KEYS.CHILD, phone);
 /** The chooser SHOW: `increment` is true only when the row's feature_used_at is not today (PKT) — the caller decides. */
 const markAsked = (userId, phone, { increment = true } = {}) => write(userId, KEYS.ASKED, phone, { incrementIntroCount: increment });
 
-/** The banner was shown: the row with video_shown_at and intro_shown_count + 1 (a page action: no phone to forget). */
-const markTourShown = (userId) => FeatureIntro.markVideoShown(userId, KEYS.TOUR, { incrementIntroCount: true });
-/** The banner was dismissed (the OK, the first grade chip): feature_used_at set; the row is created first if absent. */
+/** Does the quiz_tour row exist? One read on the UNIQUE (user_id, feature) key. Throws on a read error. */
+async function tourRowExists(userId) {
+  const { data, error } = await supabase.from(TABLE).select('id').eq('user_id', userId).eq('feature', KEYS.TOUR).limit(1);
+  if (error) throw new Error(error.message || `${TABLE} read failed`);
+  return (data || []).length > 0;
+}
+
+/**
+ * The banner was shown (TOUR §2.3): a NO-OP when the row exists (no second increment, no video_shown_at
+ * overwrite); else the row with video_shown_at and intro_shown_count 1. → { created } — true only when this call
+ * made the row (checked after the write, which swallows its errors), so the route logs tour_shown once.
+ * A read error writes nothing → { created:false } (a missed count costs nothing; a second banner is the fault).
+ */
+async function markTourShown(userId) {
+  try {
+    if (await tourRowExists(userId)) return { created: false };
+  } catch (_) {
+    return { created: false };
+  }
+  await FeatureIntro.markVideoShown(userId, KEYS.TOUR, { incrementIntroCount: true });
+  let created = false;
+  try { created = await tourRowExists(userId); } catch (_) { created = false; }
+  return { created };
+}
+/**
+ * The banner was dismissed ("Got it", the first grade chip, the pre-fill's "Use it"; TOUR §2.4): the row is made
+ * first (no increment) ONLY when absent — markFeatureUsed is an UPDATE that writes 0 rows without one — then
+ * feature_used_at. Never touches intro_shown_count; never overwrites video_shown_at. A failed read skips the
+ * upsert (it would overwrite video_shown_at) and still tries the UPDATE.
+ */
 async function markTourDismissed(userId) {
-  await FeatureIntro.markVideoShown(userId, KEYS.TOUR);
+  let exists = true;
+  try { exists = await tourRowExists(userId); } catch (_) { exists = true; }
+  if (!exists) await FeatureIntro.markVideoShown(userId, KEYS.TOUR);
   await FeatureIntro.markFeatureUsed(userId, KEYS.TOUR);
 }
 /** Has this user met the banner (shown or dismissed)? true when unsure: no banner on a read error. */
