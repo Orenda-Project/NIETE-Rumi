@@ -1,0 +1,64 @@
+/* The family door page (/f/<token>): one screen, no script. Inlined into the page by family.door.js (one <style>,
+   allowed by its sha256 in the page's Content-Security-Policy), so the page needs no stylesheet request.
+   The look is the web quiz hub's (dashboard/public/wq/wq.css): the same token NAMES, the brand's values arrive
+   in front of this file from web-quiz-brand.js cssVars(). The values below are the default brand's. */
+:root{
+  --brand:#47BA7D;--brand-d:#23794D;--brand-ink:#333748;--ground:#F5F8F6;--card:#FFFFFF;--line:#DCE5DF;
+  --ink:#2A2D3A;--muted:#5F6374;--notyet:#8A5E06;--notyet-bg:#FFF2CF;
+  --mk1:#47BA7D;--mk2:#333748;--mk1-t:#47BA7D;--mk2-t:#FFFFFF;
+  --f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --fu:"WQ Nastaliq 2","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--ground);color:var(--ink);font-family:var(--f);-webkit-text-size-adjust:100%;touch-action:manipulation}
+html[lang=ur] body{font-family:var(--fu);word-spacing:.12em;font-synthesis-weight:none}
+
+.fd{max-width:480px;margin:0 auto;padding:10px 16px 24px;display:flex;flex-direction:column;gap:10px}
+
+/* the brand lockup, always LTR (a Latin mark), and the language switch on a bilingual token */
+.fd-top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px}
+.fd-brand{display:flex;align-items:center;gap:8px;direction:ltr;font-family:var(--f);color:var(--brand-ink)}
+.fd-mark{display:inline-flex;width:30px;height:30px;padding:5px;border-radius:8px;background:var(--brand-ink);--mk1:var(--mk1-t);--mk2:var(--mk2-t)}
+.fd-mark.fd-bare{width:auto;height:22px;padding:0;background:transparent;--mk1:var(--mk1);--mk2:var(--mk2)}
+.fd-mark svg{width:100%;height:100%;display:block}
+.fd-lock{display:flex;flex-direction:column;line-height:1.05}
+.fd-lock b{font-weight:900;font-size:15px;letter-spacing:.04em}
+.fd-lock small{font-weight:800;font-size:9.5px;letter-spacing:.14em;color:var(--muted)}
+.fd-sw{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;border-radius:999px;border:2px solid var(--line);background:var(--card);color:var(--brand-ink);font-weight:800;font-size:14px;text-decoration:none;font-family:var(--f)}
+.fd-sw[lang=ur]{font-family:var(--fu);font-weight:400;font-size:15px;line-height:1.6}
+
+h1{margin:0;font-size:28px;line-height:1.2;font-weight:900;color:var(--brand-ink)}
+html[lang=ur] h1{font-weight:400;font-size:27px;line-height:1.9}
+
+/* Jugnu says the line; the tail points at him (inline-start: left in English, right in Urdu) */
+.fd-jug{display:flex;align-items:flex-end;gap:6px}
+.fd-jug img{width:64px;height:64px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 5px 6px rgba(51,55,72,.18))}
+.fd-say{position:relative;flex:1;min-width:0;margin:0 0 10px;background:var(--card);border-radius:18px;padding:9px 14px;font-weight:800;font-size:17px;line-height:1.35;color:var(--brand-ink);box-shadow:0 2px 0 var(--line)}
+html[lang=ur] .fd-say{font-weight:400;font-size:17px;line-height:1.9}
+.fd-say::after{content:"";position:absolute;bottom:-8px;inset-inline-start:18px;border:9px solid transparent;border-top-color:var(--card);border-bottom:0}
+
+/* the code: a fixed Latin "QUIZ-" atom, then the six characters, always left to right */
+.fd-form{display:flex;flex-direction:column;gap:8px;margin:0}
+.fd-lab{font-weight:900;font-size:14px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+html[lang=ur] .fd-lab{font-weight:400;font-size:16px;letter-spacing:0;text-transform:none;line-height:1.7}
+.fd-field{display:flex;align-items:center;direction:ltr;unicode-bidi:isolate;min-height:58px;border:2px solid var(--line);border-radius:16px;background:#fff;padding:0 14px;font-family:var(--f);word-spacing:normal}
+.fd-field:focus-within{outline:3px solid var(--brand);outline-offset:1px}
+.fd-pre{flex:0 0 auto;font-weight:800;font-size:22px;letter-spacing:.12em;color:var(--brand-ink)}
+.fd-input{flex:1;min-width:0;width:100%;border:0;outline:0;background:transparent;font:800 22px/1.2 var(--f);letter-spacing:.12em;color:var(--brand-ink);padding:12px 0;text-transform:uppercase;direction:ltr;text-align:left}
+.fd-form.fd-is-bad .fd-field{border-color:var(--notyet)}
+.fd-err{margin:0;padding:6px 12px;border-radius:12px;background:var(--notyet-bg);color:var(--notyet);font-weight:800;font-size:15px;line-height:1.35}
+html[lang=ur] .fd-err{font-weight:400;font-size:16px;line-height:1.85}
+
+.fd-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:56px;border-radius:18px;border:0;font:900 20px/1.2 var(--f);cursor:pointer;padding:8px 18px;text-decoration:none;text-align:center}
+html[lang=ur] .fd-btn{font-family:var(--fu);font-weight:400;font-size:19px;line-height:1.8}
+.fd-go{background:var(--brand);color:#fff;box-shadow:0 4px 0 var(--brand-d);margin-bottom:4px}
+.fd-ask{min-height:48px;font-size:16px;font-weight:800;background:var(--card);color:var(--brand-ink);border:2px solid var(--line)}
+html[lang=ur] .fd-ask{font-size:17px}
+.fd-ask svg{flex:0 0 auto}
+
+.fd-note{margin:0;color:var(--muted);font-weight:700;font-size:14px;line-height:1.4}
+html[lang=ur] .fd-note{font-weight:400;font-size:16px;line-height:1.85}
+.fd-foot{margin:2px 0 0;text-align:center}
+.fd-foot a{color:var(--brand-ink);font-weight:800;font-size:14px;text-decoration:underline;text-underline-offset:4px}
+html[lang=ur] .fd-foot a{font-weight:400;font-size:16px;text-decoration-skip-ink:none;text-underline-offset:10px;text-decoration-thickness:1px}
