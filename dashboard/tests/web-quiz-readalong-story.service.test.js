@@ -209,6 +209,19 @@ describe('(d) a practice listen: "Show me the words" after the questions', () =>
     await p.click('wqc-show-words');
     expect(p.screen()).toBe('listen-words');
   });
+  test('with the finish card\'s hook on the page: the end card calls it (it draws nothing on a practice run) and still gets the button', async () => {
+    const FC = 'window.__fc = []; window.WQFC = { trailEnd: function (h, o) { window.__fc.push(o.name); return false; } };';
+    const p = trail({ pre: [FC], scripts: { '/wq/wq-readalong.js': STUB },
+      routes: { 'ch/HUB.TOKEN/listen': ok(SLISTEN({ show_words: true, story: undefined, v2: V2(false) })), 'ch/words/CTL': ok({ readalong: TIMED }), ...QS } });
+    await p.flush();
+    await p.click('wqc-ex-listen');
+    await toQaDone(p);
+    expect(p.screen()).toBe('qa-done');
+    expect(p.win.__fc.length).toBeGreaterThanOrEqual(1);   // the merged line runs on every draw of the card
+    expect(p.html()).toContain('Show me the words');
+    await p.click('wqc-show-words');
+    expect(p.screen()).toBe('listen-words');
+  });
   test('no `show_words`, a counted listen, or the words refused: today\'s end card, no button', async () => {
     for (const [d, words] of [[SLISTEN(), ok({ readalong: TIMED })], [SLISTEN({ show_words: true }), () => ({ status: 404, body: { error: 'no_words' } })]]) {
       const p = room({ href: `${ROOM}&ex=listen`, scripts: { '/wq/wq-readalong.js': STUB }, routes: { 'ch/HUB.TOKEN/listen': ok(d), 'ch/words/CTL': words, ...QS } });
