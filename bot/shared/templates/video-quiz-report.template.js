@@ -343,7 +343,9 @@ function renderVideoQuizReportHtml(d) {
       <div class="why"><b>${L(C.explanation)}</b> <span ${cls('whytext')}>${K(h.explanation || h.misconception)}</span></div>` : '';
     // Transcript quizzes tag each question with the learning goal it checks;
     // naming it here tells the teacher WHAT to reteach, not just which question.
-    const slo = h.slo ? `<div ${cls('slo')}>${K(h.slo)}</div>` : '';
+    // bd-v0toag.9: the curriculum code, only when the report passed one (switch on).
+    const code = h.sloCode ? `<span class="slo-code" dir="ltr">${esc(h.sloCode)}</span> · ` : '';
+    const slo = h.slo ? `<div ${cls('slo')}>${code}${K(h.slo)}</div>` : '';
     return `
       <div class="moment">
         <div class="mtop">

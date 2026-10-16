@@ -35,6 +35,9 @@ const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const Roster = require('./web-quiz-roster');
 const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
+const { v21On } = require('./quiz-v21-flag');
+const V21 = require('./teacher-report-v21');
+const SloCode = require('./quiz-slo-code');
 
 const QUIZ_COLS = 'id, teacher_id, topic, subject, grade, language, quiz_source, status, list_id, meta, created_at';
 const SESSION_COLS = 'id, quiz_id, share_code_id, student_id, student_name, user_id, status, correct_answers, '
@@ -170,7 +173,7 @@ function reminderText({ topic, link, language, played = null, of = null, classNa
 }
 
 /** Every question with how many counted children got it right, and the most-chosen wrong answer. */
-async function questionStats(quizId, counted) {
+async function questionStats(quizId, counted, { codeOf = null } = {}) {
   const { data: qs, error } = await supabase.from('quiz_questions').select(QUESTION_COLS)
     .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true });
   if (error) throw new Error(error.message);
@@ -192,9 +195,11 @@ async function questionStats(quizId, counted) {
     });
     const wrongN = mine.length - right;
     const top = [...wrongs.entries()].sort((a, b) => b[1] - a[1])[0];
+    const code = codeOf ? codeOf(q.external_id) : null;
     return {
       n: i + 1,
       text: q.question_text || '',
+      ...(code ? { code } : {}),
       answered: mine.length,
       correctPct: mine.length ? pct(right, mine.length) : null,
       wrongTop: top && OPTIONS.includes(top[0])
@@ -299,7 +304,11 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   // Per class code first (the class report's rule), then ONE row per child across the
   // quiz's codes: this page is one quiz, so a child who played on two hand-outs is
   // one child — the earlier finish counts.
-  const counted = onePerChildAcrossCodes(countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId));
+  const rawSessions = await sessionsFor(codes.map((c) => c.id));
+  const counted = onePerChildAcrossCodes(countedSessions(rawSessions, teacherId));
+  // bd-v0toag.9/.10, behind quiz_slo_retest_enabled: tries per child, completion, SLO codes.
+  const v21 = await v21On();
+  const tries = v21 ? V21.attemptCounts(rawSessions, teacherId) : null;
 
   const lang = clampLanguage(quiz.language);
   const primary = codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
@@ -332,11 +341,12 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       roll: listed && listed.number != null ? Number(listed.number) : null,
       onList: Boolean(listed),
       correct, total, pct: pct(correct, total),
+      ...(tries ? { attempts: tries.get(V21.childKey(s)) || 1 } : {}),
     };
   }).sort((a, b) => (b.pct - a.pct) || ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first));
   const { roster: rosterView, notPlayed, provisional } = who;
 
-  const questions = await questionStats(quiz.id, counting);
+  const questions = await questionStats(quiz.id, counting, v21 ? { codeOf: (ext) => SloCode.codeOf(meta, ext) } : {});
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
     .sort((a, b) => a.correctPct - b.correctPct || a.n - b.n)[0];
   const code = (codes.find((c) => c.id === meta.share_code_id) || codes[0] || {}).code || null;
@@ -369,6 +379,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       avg: mean((rosterView.state === 'known' ? played.filter((p) => p.onList) : played).map((p) => p.pct)),
       total: questions.length || Math.max(0, ...played.map((p) => p.total)),
       hardestN: hardest ? hardest.n : null,
+      ...(v21 ? { completion: V21.completion(rawSessions, teacherId, played.length) } : {}),
     },
     played,
     notPlayed,

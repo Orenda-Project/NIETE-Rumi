@@ -3066,6 +3066,15 @@ const UX_STRINGS = {
   vqWhichClass: { en: 'Which class is this quiz for?', ur: 'یہ کوئز کس کلاس کے لیے ہے؟' },
   vqWhichClassAny: { en: 'All / not sure', ur: 'سب / پتا نہیں' },
   vqWhichClassPick: { en: 'Choose class', ur: 'کلاس چنیں' },
+  // bd-v0toag.10 — "who helped?" one tap after a lesson quiz (quiz-helped-by.js; behind
+  // app_settings quiz_slo_retest_enabled). Button ≤20 and row titles ≤24 code points.
+  vqHelpedAsk: { en: 'One last tap: who helped you with this quiz?', ur: 'آخری سوال: اس کوئز میں آپ کی مدد کس نے کی؟' },
+  vqHelpedPick: { en: 'Who helped?', ur: 'کس نے مدد کی؟' },
+  vqHelpedNoOne: { en: 'No one', ur: 'کسی نے نہیں' },
+  vqHelpedClassmate: { en: 'A classmate', ur: 'ہم جماعت' },
+  vqHelpedTeacher: { en: 'My teacher', ur: 'استاد' },
+  vqHelpedFamily: { en: 'My family', ur: 'گھر والے' },
+  vqHelpedThanks: { en: 'Thank you!', ur: 'شکریہ!' },
   // A tap on the class question is always answered (Rule 24d: name the state, never silence).
   vqWhichClassAnyDone: {
     en: 'Okay — the report will show everyone who plays.',
