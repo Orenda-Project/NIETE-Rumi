@@ -149,6 +149,18 @@ describe('1 · OFF: the page without the row, byte for byte; the POST 404', () =
   });
 });
 
+describe('1b · OFF writes nothing: the switch is read before the link is opened', () => {
+  test.each([['absent', 'ABSENT'], ['false', 'false']])('%s — the POST leaves Redis exactly as it found it', async (label, sw) => {
+    world({ sw });
+    const t = await mint();
+    const before = [...redis.__keys.keys()].sort();
+    const p = await tap('fresh', t);
+    expect(p.status).toBe(404);
+    expect([...redis.__keys.keys()].sort()).toEqual(before);
+    expect(mockDb.writes).toEqual([]);
+  });
+});
+
 describe('2 · ON but not on the list: the same bytes, the same 404', () => {
   test('a coach phone whose id is not on the test-teacher list', async () => {
     world({ listed: false });
@@ -363,6 +375,30 @@ describe('5 · "Back to my real self"', () => {
 });
 
 describe('the persona\'s keys and clock', () => {
+  test('the record slides with the persona: each read that finds the persona gives the record 7 days again', async () => {
+    world();
+    await tap('fresh');
+    redis.expire.mockClear();
+    await persona().get(PH.coach);
+    expect(redis.expire).toHaveBeenCalledWith(persona()._key(NORM.coach), 24 * 3600);
+    expect(redis.expire).toHaveBeenCalledWith(persona()._keptKey(NORM.coach), 7 * 24 * 3600);
+  });
+
+  test('the switch going off mid-walk keeps the record; "Back to my real self" after it is on again still puts the phone back', async () => {
+    world();
+    await tap('fresh');
+    const sw = mockDb.tables.app_settings.find((r) => r.key === 'quiz_test_personas');
+    sw.value = 'false'; persona()._resetCache();
+    expect(await persona().get(PH.coach)).toBeNull();
+    expect(redis.__keys.has(persona()._keptKey(NORM.coach))).toBe(true);
+    expect(mockDb.writes.filter((w) => w.op === 'insert')).toHaveLength(0);
+    sw.value = 'true'; persona()._resetCache();
+    const r = await tap('real');
+    expect(r.status).toBe(200);
+    expect(mockDb.writes.filter((w) => w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['s-old']);
+    expect(redis.__keys.has(persona()._keptKey(NORM.coach))).toBe(false);
+  });
+
   test('the record does not stick (a write Redis drops): the tap fails and the phone keeps every link', async () => {
     world();
     const keptKey = persona()._keptKey(NORM.coach);

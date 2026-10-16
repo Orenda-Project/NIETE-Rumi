@@ -10,8 +10,9 @@
  * State, Redis, keyed by sha256(phone_norm)[:32] (never the phone):
  *   wq:persona:<h>       { as: 'fresh'|'teacher_empty', since, walk }, 24 h from its last use (a phone that keeps
  *                        walking keeps its persona; "Back to my real self" or a day of silence ends it)
- *   wq:persona:kept:<h>  { walk, kept: [{ id, via }] } (ids only), 7 days — written by the first "Start as a new
- *                        phone" of a walk BEFORE it erases anything: when the walk began and whose links it erased
+ *   wq:persona:kept:<h>  { walk, kept: [{ id, via }] } (ids only), 7 days from the persona's last use (it slides
+ *                        with it; the switch going off leaves it) — written by the first "Start as a new phone" of a
+ *                        walk BEFORE it erases anything: when the walk began and whose links it erased
  *   wq:persona:lock:<h>  held for the few seconds one restore takes (SET NX, 30 s), so two reads at once restore once
  * "Back to my real self" erases only the links bound since `walk` and re-binds the kept children, so the row is left
  * as it was. If the persona ran out first, the next read of this phone (a /quiz) does the same restore once. No table
@@ -131,7 +132,11 @@ async function get(phone) {
     const norm = normOf(phone);
     if (!norm || !(await flagOn())) return null;
     const p = await stored(norm);
-    if (p) { try { await redis().expire(keyOf(norm), TTL_S); } catch (_) { /* it ends a day after the tap instead */ } }
+    if (p) {
+      // both slide: the persona a day, the record of what was erased a week (lost only after a week of silence)
+      try { await redis().expire(keyOf(norm), TTL_S); } catch (_) { /* it ends a day after the tap instead */ }
+      try { await redis().expire(keptKeyOf(norm), KEPT_TTL_S); } catch (_) { /* it ends a week after the tap instead */ }
+    }
     else await restoreOrphan(norm);
     return p;
   } catch (_) { return null; }
@@ -322,9 +327,11 @@ function mount(router) {
   router.post('/persona', async (req, res) => {
     try {
       const b = req.body && typeof req.body === 'object' ? req.body : {};
+      // the switch first: OFF answers 404 before the link is opened, so nothing at all is written
+      if (!(await flagOn())) return send(res, 404, { off: true });
       const dv = req.get('x-wq-device');
       const o = await require('./go.routes')._open(String(b.t || ''), typeof dv === 'string' && DEVICE_RX.test(dv) ? dv : null);
-      if (o.stale) return (await flagOn()) ? send(res, 410, { error: 'go.stale' }) : send(res, 404, { off: true });
+      if (o.stale) return send(res, 410, { error: 'go.stale' });
       if (!(await allowed(o.userId))) return send(res, 404, { off: true });
       if (!TAPS.includes(b.as)) return send(res, 400, { error: 'go.error' });
       const out = await handle({ as: b.as, phoneNorm: o.phoneNorm, userId: o.userId, lang: o.p && o.p.lang });
