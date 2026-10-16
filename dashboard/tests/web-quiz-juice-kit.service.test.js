@@ -511,6 +511,17 @@ describe('the page\'s own sound button, drawn by the kit (WQJ.skin)', () => {
   });
 });
 
+describe('the panel\'s two fixes (the kit css)', () => {
+  const css = () => fs.readFileSync(CSS_PATH, 'utf8');
+  test('the streak word is drawn over the page, so nothing below it moves', () => {
+    expect(css()).toMatch(/\.wqj-strip\{[^}]*position:fixed/);
+    expect(css()).toMatch(/\.wqj-strip\{[^}]*pointer-events:none/);
+  });
+  test('the confetti stays in the top band, clear of the card\'s buttons', () => {
+    expect(css()).toMatch(/100%\{transform:translateY\(40vh\)/);
+  });
+});
+
 describe('the not-yet answer on the real quiz page (the kit css)', () => {
   const css = () => fs.readFileSync(CSS_PATH, 'utf8');
   test('the picked option: amber outline #E65100 and an underline, no fill (JUICE §1 row 2)', () => {

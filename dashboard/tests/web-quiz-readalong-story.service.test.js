@@ -304,3 +304,25 @@ describe('the first sound: the clip is warmed on the ask screen, never played', 
     expect(l.win.__pre).toEqual([]);          // the end card, the words in hand: still nothing warmed
   });
 });
+
+// ONE primary on a screen (ORG: every screen has one primary action): with the sound kit on (web_quiz_juice),
+// «Read along with Jugnu» is the one filled button and «I'm ready» the outlined one; off, today's two buttons.
+describe('story-ask: one primary with the kit on', () => {
+  const KIT = 'window.WQJ = { correct: function () {}, wrong: function () {}, finish: function () {} };';
+  const prim = (h) => (h.match(/data-primary/g) || []).length;
+  test('kit on: «Read along with Jugnu» is the one data-primary; «I\'m ready» is outlined', async () => {
+    const p = room({ pre: [KIT], routes: { 'ch/HUB.TOKEN/read': ok(SREAD({ readalong: TIMED })) }, scripts: { '/wq/wq-readalong.js': STUB } });
+    await p.flush();
+    expect(p.screen()).toBe('story-ask');
+    expect(prim(p.html())).toBe(1);
+    expect(p.html()).toMatch(/<button class="wq-btn wq-go" id="wqc-story-along" type="button" data-primary>/);
+    expect(p.html()).toMatch(/<button class="wq-btn wq-soft" id="wqc-story-read" type="button">/);
+  });
+  test('kit off: today\'s two buttons, no mark', async () => {
+    const p = room({ routes: { 'ch/HUB.TOKEN/read': ok(SREAD({ readalong: TIMED })) }, scripts: { '/wq/wq-readalong.js': STUB } });
+    await p.flush();
+    expect(prim(p.html())).toBe(0);
+    expect(p.html()).toMatch(/<button class="wq-btn wq-go" id="wqc-story-read" type="button">/);
+  });
+});
+

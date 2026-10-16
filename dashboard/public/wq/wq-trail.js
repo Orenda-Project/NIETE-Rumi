@@ -251,7 +251,7 @@
     // two equal answers, neither pressed until a tap
     function storyAsk() {
       h.show('story-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
-        + btn('wqc-story-along', t.storyReadAlong) + btn('wqc-story-read', h.t.ready) + '</div>');
+        + (window.WQJ ? btn('wqc-story-along', t.storyReadAlong).replace('type="button"', 'type="button" data-primary') + btn('wqc-story-read', h.t.ready, 'wq-soft') : btn('wqc-story-along', t.storyReadAlong) + btn('wqc-story-read', h.t.ready)) + '</div>'); // the kit (web_quiz_juice): one primary
       h.on('wqc-story-along', readAlong);
       h.on('wqc-story-read', h.read);
       warm();

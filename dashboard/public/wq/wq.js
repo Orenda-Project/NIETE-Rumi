@@ -2273,8 +2273,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         (fixed ? '<p class="wq-sub">' + esc(T.fixedLine(fixed)) + '</p>' : '') +
         '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
         (res.counted === false ? '<div class="wq-banner">' + esc(T.prac) + '</div>' : '') +
-        '<button class="wq-btn wq-go" id="wq-card">' + esc(T.seeCard) + '</button>' +
-        (friendRun() ? '' : '<button class="wq-btn wq-navy" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn();
+        '<button class="wq-btn wq-go" id="wq-card"' + (window.WQJ ? ' data-primary' : '') + '>' + esc(T.seeCard) + '</button>' + // the kit (web_quiz_juice): one primary
+        (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn();
       render(h, 'M9');
       libPrefetch();
       wireBar();
