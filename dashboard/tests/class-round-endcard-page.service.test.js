@@ -19,7 +19,7 @@ const TC = {
   helpAsk: 'On your own, or with help?', helpNo: 'On my own', helpYes: 'With help',
 };
 const V2 = { pool: true, story: false, consent: false };
-const BACK = '/r/eyJrIjoidHIifQ.AAAAAAAAAAAAAAAAAAAAAA/round?lang=en';
+const BACK = '/c/HUB.TOKEN/back?lang=en';
 const HANDBACK = { en: 'Thanks for playing! Hand the phone to your teacher.', ur: 'کھیلنے کا شکریہ! اب فون ٹیچر کو دے دیں۔' };
 const ROUND = (lang = 'en') => ({ round_turn: true, round_back: BACK.replace('lang=en', `lang=${lang}`), round_handback: HANDBACK[lang], round_say: 'Not sure? That is fine. Tap the arrow.' });
 const EXS = (stored = []) => [

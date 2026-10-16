@@ -769,7 +769,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
   const practiceRound = !w.round && ((rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice'));
   const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
-    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload) : {}), ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload, token) : {}), ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
     // a teacher's own visit through the class link (played as practice): the page's banner says nothing counts on their phone
     ...(w.cl && w.cl.m === 'practice' ? { teacher_preview: true } : {}) };
   if (ex === 'missing' && v2 && v2.items) {
@@ -1433,14 +1433,14 @@ async function roundGame(c, rules) {
 // A round turn's page: nothing on it marks the counted cut (no practice banner, no mode), and it carries the same
 // warm line for after every item.
 // round_turn: a round run is no voluntary counted stop (NC4, RULING #43), so its end card prints no sticker line and
-// its one button hands the phone back (jg.round.c_handback) to the round page the teacher opened (round_back).
-function roundPayload(w, payload) {
+// its one button hands the phone back (jg.round.c_handback) via the turn's own /c/<token>/back (round_back), which the
+// server answers with the round page the teacher opened; the teacher's report token never reaches the child's page.
+function roundPayload(w, payload, token) {
   if (!w.round) return payload;
   const { practice_round: _p, mode: _m, ...rest } = payload;
   const l = clampLanguage(w.lang, ['en', 'ur']);
   const C = require('../../templates/class-round.page').T[l];
-  return { ...rest, round_say: C.cNextSay, round_turn: true, round_handback: C.cHandback,
-    ...(w.roundBack ? { round_back: `/r/${encodeURIComponent(w.roundBack)}/round?lang=${l}` } : {}) };
+  return { ...rest, round_say: C.cNextSay, round_turn: true, round_handback: C.cHandback, round_back: `/c/${encodeURIComponent(token)}/back?lang=${l}` };
 }
 // ── end class round ──
 

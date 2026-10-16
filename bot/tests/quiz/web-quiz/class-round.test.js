@@ -276,9 +276,18 @@ describe('the child view', () => {
     const T = require('../../../shared/services/quiz/web-quiz-token');
     const claims = T.verify(m[1], 'r');
     expect(claims).toMatchObject({ k: 'r', rd: ROUND, sid: draw().state.order[0].id });
-    // bk: the report token this round page was opened with (the end card's hand-back goes back to it); nothing else
-    expect(Object.keys(claims).sort()).toEqual(['bk', 'exp', 'k', 'rd', 'sid']);
-    expect(Token.verifyTeacherReport(claims.bk)).toMatchObject({ teacherId: TEACHER });
+    expect(Object.keys(claims).sort()).toEqual(['exp', 'k', 'rd', 'sid']);
+  });
+
+  test('the turn token carries no `bk`: the report token the round page was opened with is nowhere in the child\'s link', async () => {
+    await Round.start(TEACHER, { rng: seeded(7) });
+    await post(`/round/${tok()}/next`, HOLD);
+    const rt = tok();
+    const html = await (await get(`/round/${rt}`)).text();
+    const tt = html.match(/href="\/c\/([A-Za-z0-9_-]+\.[A-Za-z0-9_-]{22})/)[1];
+    const T = require('../../../shared/services/quiz/web-quiz-token');
+    expect(T.verify(tt, 'r')).not.toHaveProperty('bk');
+    expect(Buffer.from(tt.split('.')[0], 'base64url').toString('utf8')).not.toContain(rt.split('.')[0]);
   });
 });
 

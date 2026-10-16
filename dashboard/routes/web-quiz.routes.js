@@ -682,6 +682,22 @@ function createWebQuizRouter(opts = {}) {
 
   // M4c challenge: the kid's Challenge page, opened from the hub (or a quiz session token while testing).
   router.get('/c/:token', limiters.read, (req, res) => challengePage(req, res));
+  // The class round's hand-back (the round end card's one button): the bot keeps the teacher's round page token
+  // server-side and names it here; 303 there, else 303 to the turn's own page (Home). Never an error page.
+  router.get('/c/:token/back', limiters.read, async (req, res) => {
+    const token = String(req.params.token || '');
+    const lang = req.query.lang === 'ur' ? 'ur' : 'en';
+    res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' });
+    if (!TOKEN_RX.test(token)) return res.status(404).type('html').send(renderClosedPage({ lang, kind: 'closed', origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    const home = `/c/${encodeURIComponent(token)}?lang=${lang}`;
+    if (!botUrl || !apiKey) return res.redirect(303, home);
+    let to = null;
+    try {
+      const out = await callBot('GET', `/api/internal/wq/ch/${encodeURIComponent(token)}/back?lang=${lang}`, req, null, { route: '/api/internal/wq/ch/:token/back' });
+      to = out.status === 200 && out.body && typeof out.body.to === 'string' ? out.body.to : null;
+    } catch (_) { to = null; }
+    return res.redirect(303, to && /^\/r\/[A-Za-z0-9_.%-]{8,900}\/round\?lang=(?:en|ur)$/.test(to) ? to : home);
+  });
 
   async function challengePage(req, res) {
     pageHeaders(res);
