@@ -48,5 +48,15 @@
       "bot/shared/services/student-ingress.js"
     ],
     "reason": "Both edges are lazy, inside functions: student-ingress.js bindingWords() requires the binder only for a JUGNU- code or a whole-message STOP, and web-quiz-bind.service.js stopForBoundNonChild() requires student-ingress.js only to ask quizInFlight() before a non-child's STOP. Neither module touches the other at load time."
+  },
+  {
+    "cycle": [
+      "bot/shared/services/first-touch/maker.fallback.js",
+      "bot/shared/services/first-touch/maker.cta.js",
+      "bot/shared/services/first-touch/maker.empty.js",
+      "bot/shared/services/quiz/transcript-quiz-list.service.js",
+      "bot/shared/services/menu.service.js"
+    ],
+    "reason": "Every edge of this loop is a lazy require inside a function, so no module reads a half-initialised export: menu.service.js requires transcript-quiz-list.service.js inside the quiz menu row's handler; transcript-quiz-list.service.js requires maker.empty.js inside showList's empty branch; maker.empty.js requires maker.cta.js inside emptyLine(); maker.cta.js requires maker.fallback.js inside makerCta() when the cta is refused; maker.fallback.js requires menu.service.js inside handleFallbackButton()."
   }
 ]
