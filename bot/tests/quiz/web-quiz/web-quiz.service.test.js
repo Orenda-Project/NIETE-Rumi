@@ -172,6 +172,15 @@ describe('E2 GET quiz', () => {
     expect(JSON.stringify(out)).not.toMatch(/0000/);
   });
 
+  test('an Urdu quiz names the teacher with «ٹیچر» on the child\'s page (never «استاد»)', async () => {
+    fake.db.quiz_share_codes[0].language = 'ur';
+    fake.db.quizzes[0].language = 'ur';
+    const out = await WQ.getQuiz('AB12CD');
+    // a Latin name inside the Urdu line is bidi-isolated (RLM + FSI…PDI); the words are «<name> ٹیچر»
+    expect(out.cls.teacher.replace(/[\u200f\u2066-\u2069]/g, '')).toBe('Example Teacher ٹیچر');
+    expect(out.cls.teacher).not.toContain('استاد');
+  });
+
   test('unknown code 404, expired code 410 with the language', async () => {
     await expect(WQ.getQuiz('ZZZZZZ')).rejects.toMatchObject({ status: 404 });
     await expect(WQ.getQuiz('OLD111')).rejects.toMatchObject({ status: 410, body: { error: 'expired', lang: 'en' } });

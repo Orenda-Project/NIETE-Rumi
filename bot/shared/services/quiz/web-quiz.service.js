@@ -43,7 +43,7 @@ const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
 const { clampLanguage } = require('../../config/ux-strings');
-const { teacherLabel } = require('./quiz-teacher-label');
+const { childTeacherLabel } = require('./quiz-teacher-label');
 const Roster = require('./web-quiz-roster');
 const Identity = require('./web-quiz-identity');
 const IdRoster = require('./web-quiz-identity-roster');
@@ -564,7 +564,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     },
     cls: {
       // A friend's challenge names only the challenger: never the challenger's teacher or class.
-      label: invited ? null : label, teacher: invited ? null : teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip),
+      label: invited ? null : label, teacher: invited ? null : childTeacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip),
       ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}),
       ...(idn ? { identity: await got('boot', () => identityBoot(ctx, idn)) } : {}),
     },

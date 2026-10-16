@@ -37,3 +37,10 @@ describe.each(Object.keys(SITES))('%s', (f) => {
     expect(left).toEqual([]);
   });
 });
+
+test('the closed-quiz page in Urdu: «اپنے ٹیچر سے نیا لنک لیں۔»', () => {
+  const routes = fs.readFileSync(path.join(__dirname, '..', 'routes', 'web-quiz.routes.js'), 'utf8');
+  expect(routes).toContain("say: 'اپنے ٹیچر سے نیا لنک لیں۔'");
+  expect(routes).not.toMatch(/'[^'\n]*استاد[^'\n]*'/);
+});
+
