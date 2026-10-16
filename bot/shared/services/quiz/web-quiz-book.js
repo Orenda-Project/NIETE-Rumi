@@ -12,12 +12,14 @@
  *     that "would" meet a rung never lights a lamp here.
  *   - next_outline: one unlabelled outline per ladder after the lit lamps; none after rung 5; none for grade 1.
  *   - trail stickers: the stops of this PKT month with a final record row (any outcome, 0 words included).
- *   - story stickers: the first finish of each passage, keyed on passage_id.
+ *   - story stickers: the first finish (a `scored` row: the child reached the end card) of each passage, keyed on
+ *     passage_id; a swept (`failed`) run keeps its Trail sticker but gives no story sticker.
  *   - days this week: 7 booleans Mon..Sun PKT, a finished stop or story that day.
  *   - class lights: one light = one first finish by a child of the class in the term; shown only with >= 5 distinct
  *     children in the term; "+n this week" only when n >= 5 and from >= 3 children; never a name, never who has not
  *     played.
- *   - levelup: the newest lamp set this period ({ladder, rung, opens}); the page shows it once.
+ *   - levelup: the newest lamp set this period ({ladder, rung, opens}), a lamp a scored run set before one a swept run
+ *     set (child_rungs.row_id names the run); the page shows it once.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -108,7 +110,7 @@ async function childRuns(studentId) {
 /** The child's rung rows (child_rungs, append-only). No table or an error: none. */
 async function rungRows(canonicalId) {
   try {
-    const { data, error } = await supabase.from('child_rungs').select('ladder, rung, period_id, set_at').eq('canonical_id', canonicalId);
+    const { data, error } = await supabase.from('child_rungs').select('ladder, rung, period_id, set_at, row_id').eq('canonical_id', canonicalId);
     return error ? [] : (data || []).filter((r) => (r.ladder === 'reading' || r.ladder === 'numbers') && Number.isFinite(Number(r.rung)));
   } catch (_) {
     return [];
@@ -125,16 +127,12 @@ async function fixedGrade(canonicalId, fallback) {
   return n || null;
 }
 
-// The registry's title in the child's language (challenge_passages.title_en / title_ur); '' when absent.
+// The passage FILE's title in the child's language (one title home: web-quiz-passage-title.js;
+// Urdu ur → en, English en); '' when the file has none (the Book prints its generic).
 async function titlesOf(passageIds, lang) {
   if (!passageIds.length) return new Map();
-  try {
-    const { data, error } = await supabase.from('challenge_passages').select('passage_id, title_en, title_ur').in('passage_id', passageIds);
-    const col = lang === 'ur' ? 'title_ur' : 'title_en';
-    return error ? new Map() : new Map((data || []).map((r) => [r.passage_id, r[col] || '']));
-  } catch (_) {
-    return new Map();
-  }
+  const { titleFor } = require('./web-quiz-passage-title');
+  return new Map(passageIds.map((id) => [id, titleFor(id, lang) || '']));
 }
 
 async function classOf(studentId, rows) {
@@ -193,6 +191,7 @@ function storyIdsOf(rows) {
   rows.forEach((r) => {
     if (!r.passage_id || !FINAL.has(r.status) || roundRow(r)) return;
     const at = rowAt(r);
+    if (r.status !== 'scored') return; // a finish only: a swept (failed) run keeps its Trail sticker, no story sticker
     if (!first.has(r.passage_id) || at < first.get(r.passage_id)) first.set(r.passage_id, at);
   });
   return [...first.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id);
@@ -280,9 +279,14 @@ async function storyStock(band, lang, now) {
   }
 }
 
-/** The newest lamp lit this period, or null (the page shows it once). */
-function levelupOf(rungs, period, grade, storyOn = false) {
-  const mine = rungs.filter((r) => r.period_id === period).sort((a, b) => String(b.set_at || '').localeCompare(String(a.set_at || '')) || Number(b.rung) - Number(a.rung));
+/**
+ * The newest lamp lit this period, or null (the page shows it once). `runs` (the child's rows) names each rung row's run
+ * by row_id: a lamp a swept run set (a known run whose status is not `scored`) comes after any other lamp of the period.
+ */
+function levelupOf(rungs, period, grade, storyOn = false, runs = []) {
+  const status = new Map(runs.map((r) => [r.id, r.status]));
+  const swept = (r) => (r.row_id != null && status.has(r.row_id) && status.get(r.row_id) !== 'scored' ? 1 : 0);
+  const mine = rungs.filter((r) => r.period_id === period).sort((a, b) => swept(a) - swept(b) || String(b.set_at || '').localeCompare(String(a.set_at || '')) || Number(b.rung) - Number(a.rung));
   if (!mine.length) return null;
   const top = mine[0];
   const rung = Math.min(TOP_RUNG, Number(top.rung));
@@ -320,7 +324,7 @@ async function bookFor({ hub, kid, device, lang } = {}, now = Date.now()) {
     class_lights: f.wall ? await classLights(who.studentId, rows, now) : null,
     grade_band: bandOf(grade),
   };
-  const up = levelupOf(rungs, period, grade, f.story);
+  const up = levelupOf(rungs, period, grade, f.story, rows);
   // RULING #59: the room is named only when its shelf has a released story in that band and the child's language.
   if (up && up.opens) {
     const band = openedBand(up.ladder, up.rung, grade);

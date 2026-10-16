@@ -23,6 +23,7 @@
  * about whether the quiz exists.
  */
 const express = require('express');
+const { performance } = require('perf_hooks');
 const { requireInternalKey } = require('../middleware/require-internal-key');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
@@ -76,8 +77,36 @@ async function languageFor(req, teacherId, quizLanguage) {
   }
 }
 
-/** Everything one page needs: the data, its tab, its language and the tokens it links with. */
-async function build(req, v) {
+/**
+ * How long the page waits on the class report's base read (ms). The portal edge gives the bot 10 s
+ * (BOT_TIMEOUT_MS) and answered 502 at ~10.8 s; the base alone measured 6.7–7.6 s bot-direct for a teacher
+ * with 43 lists / 561 codes, and the edge added up to ~3 s on top. 5 s leaves the rest of the page and the
+ * edge inside 10 s. Past it the class tab renders without its quiz sections (the retry line instead).
+ */
+const BASE_BUDGET_MS = 5000;
+const OVER_BUDGET = Symbol('over budget');
+
+/** The class report's base read raced against the budget: its answer (or its error) in time, else OVER_BUDGET. */
+async function baseWithin(teacherId, ms) {
+  const work = Data.classReport(teacherId);
+  let timer;
+  const budget = new Promise((resolve) => { timer = setTimeout(() => resolve(OVER_BUDGET), ms); });
+  try {
+    const out = await Promise.race([work, budget]);
+    if (out !== OVER_BUDGET) return out;
+  } finally {
+    clearTimeout(timer);
+  }
+  work.catch((err) => logToFile('⚠️ teacher report: the class report failed after its budget', { error: err && err.message }, 'warn'));
+  logToFile('⚠️ teacher report: the class report was over its budget — the page renders without it', { budget_ms: ms }, 'warn');
+  return OVER_BUDGET;
+}
+
+/**
+ * Everything one page needs: the data, its tab, its language and the tokens it links with.
+ * opts.budgetMs (the page only): the class report's base read waits at most this long; opts.lang: already known.
+ */
+async function build(req, v, opts = {}) {
   const tab = req.query.tab === 'class' || !v.quizId ? 'class' : 'quiz';
   if (tab === 'quiz') {
     const report = await Data.quizReport(v.teacherId, v.quizId, { listId: uuidOr(req.query.class) });
@@ -85,14 +114,15 @@ async function build(req, v) {
     const lang = await languageFor(req, v.teacherId, report.quiz && report.quiz.language);
     return { tab, lang, data: { quiz: report }, report, tokens: { self: req.params.token } };
   }
-  const report = await Data.classReport(v.teacherId);
+  const based = opts.budgetMs ? await baseWithin(v.teacherId, opts.budgetMs) : await Data.classReport(v.teacherId);
+  const report = based === OVER_BUDGET ? null : based;
   const quizTokens = {};
   ((report && report.quizzes) || []).forEach((q) => {
     const t = Token.signTeacherReport({ teacherId: v.teacherId, quizId: q.id });
     if (t) quizTokens[q.id] = t;
   });
-  const lang = await languageFor(req, v.teacherId, null);
-  const classData = report || {};
+  const lang = opts.lang || await languageFor(req, v.teacherId, null);
+  const classData = report || (based === OVER_BUDGET ? { pending: true } : {});
   // ── standing class link card (web_quiz_class_link): null when off → the class tab is unchanged ──
   const classLink = await require('../services/quiz/web-quiz-class-link').forTeacher(v.teacherId);
   if (classLink) classData.classLink = { ...classLink, open: uuidOr(req.query.cl_open) };
@@ -120,23 +150,64 @@ function notFound(req, res, v) {
   return page(res, 404, 'missing', queryLang(req));
 }
 
+/**
+ * Events v2 (web_quiz_events_v2, fail-closed): teacher_report.opened in the v2 envelope with render_ms (the route's
+ * start to just before the send) and queue_age_s (the kept queue's age in whole seconds, ≤ QUEUE_TTL_S, when the
+ * join-queue service has queueAge and keeps one); the same numbers as the x-render-ms / x-queue-age headers. Off:
+ * today's event, no headers.
+ */
+async function queueAgeOf(teacherId) {
+  try {
+    const Q = require('../services/quiz/teacher-jugnu.data').queueService();
+    if (!Q || typeof Q.queueAge !== 'function') return null;
+    const age = await Q.queueAge(teacherId);
+    return typeof age === 'number' && Number.isFinite(age) && age >= 0 ? Math.round(age) : null; // null: none known
+  } catch (err) {
+    logToFile('⚠️ teacher report: the queue age read failed', { error: err.message }, 'warn');
+    return null;
+  }
+}
+
 router.get('/page/:token', handle(async (req, res) => {
+  const t0 = performance.now();
   const v = authorise(req, res);
   if (!v) return;
-  const b = await build(req, v);
-  if (!b) { notFound(req, res, v); return; }
-  const jugnu = await Jugnu.pageExtras(req, v, b.lang); // Jugnu tab: null when its switch is off
+  const budgetMs = module.exports.BASE_BUDGET_MS;
+  let b;
+  let jugnu;
+  if (req.query.tab === 'jugnu' && !v.quizId) {
+    // The Jugnu tab draws none of the class report: its own reads run beside the base read, not after it.
+    const lang = await languageFor(req, v.teacherId, null);
+    [b, jugnu] = await Promise.all([build(req, v, { budgetMs, lang }), Jugnu.pageExtras(req, v, lang)]);
+    if (!b) { notFound(req, res, v); return; }
+  } else {
+    b = await build(req, v, { budgetMs });
+    if (!b) { notFound(req, res, v); return; }
+    jugnu = await Jugnu.pageExtras(req, v, b.lang); // Jugnu tab: null when its switch is off
+  }
   // ── class round (web_quiz_class_round): its card on the class tab; '' when off or no open draw ──
   const roundCard = b.tab === 'class' ? await require('../services/quiz/web-quiz-class-round').cardFor(v.teacherId, { lang: b.lang, token: req.params.token }) : '';
-  logEvent('teacher_report.opened', {
+  const opened = {
     teacherId: v.teacherId, quizId: v.quizId, scope: v.quizId ? 'quiz' : 'all', tab: jugnu && jugnu.view ? 'jugnu' : b.tab, iab: IAB_RX.test(req.get('user-agent') || ''),
-  });
-  noStore(res);
-  res.status(200).type('html').send(renderPage(b.data, {
+  };
+  const v2 = await require('../services/quiz/web-quiz-hub-flags').eventsV2On();
+  if (!v2) logEvent('teacher_report.opened', opened);
+  const queueAge = v2 ? await queueAgeOf(v.teacherId) : null;
+  const html = renderPage(b.data, {
     lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: NOTICES[req.query.e] || null, ok: okOf(req.query),
     ...(jugnu ? { jugnu } : {}),
     ...(roundCard ? { roundCard } : {}),
-  }));
+  });
+  if (v2) {
+    const renderMs = Math.max(0, Math.round(performance.now() - t0));
+    logEvent('teacher_report.opened', require('../services/quiz/web-quiz-kid').envelope({
+      ...opened, render_ms: renderMs, ...(queueAge != null ? { queue_age_s: queueAge } : {}),
+    }));
+    res.set('x-render-ms', String(renderMs));
+    if (queueAge != null) res.set('x-queue-age', String(queueAge));
+  }
+  noStore(res);
+  res.status(200).type('html').send(html);
 }));
 
 router.get('/pdf/:token', handle(async (req, res) => {
@@ -309,3 +380,4 @@ router.use('/round', require('./class-round-internal.routes')({ page, noStore, q
 // ── end class round ──
 
 module.exports = router;
+module.exports.BASE_BUDGET_MS = BASE_BUDGET_MS; // the page's base budget (tests shrink it)

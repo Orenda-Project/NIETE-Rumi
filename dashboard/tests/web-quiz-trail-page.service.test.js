@@ -87,7 +87,7 @@ describe('the v2 trail map line: no count, no «پڑاؤ»', () => {
   const map = (badges, lang = 'ur') => v2page({ lang, menu: { ...TRAIL(), lang, trail_copy: lang === 'ur' ? UR_TC : TC, exercises: EXS.map((e, i) => ({ ...e, badge: badges[i] })) } }).html();
   test('several waiting → "Games are waiting", one → "A game is waiting", none → no line; never a digit or «پڑاؤ»', () => {
     const many = map([true, false, false]);
-    expect(many).toContain('جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔');
+    expect(many).toContain('جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔');
     expect(map([true, true, false])).toContain('جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔');
     expect(map([true, true, true])).not.toContain('wqc-trail-sub');
     for (const h of [many, map([true, true, true]), map([false, false, false], 'en')]) {
@@ -335,7 +335,7 @@ describe('"Whose turn?" from the serve; the page never picks', () => {
     const p = v2page({ menu: { ...TRAIL(), ...ASK } });
     expect(p.screen()).toBe('whose-turn');
     // a soft button, never an underlined link (an underline cuts through Nastaliq)
-    expect(p.html()).toMatch(/<button class="wq-btn wq-soft" type="button" id="wqc-who-else">Someone else</);
+    expect(p.html()).toMatch(/<button class="wq-btn wq-soft" type="button" id="wqc-who-else">My name isn't here</);
     await p.click('wqc-who-else');
     expect(p.loc.href).toBe('/h/HUB.TOKEN?from=home');
     expect(p.loc.href).not.toContain('kid=');

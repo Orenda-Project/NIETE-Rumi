@@ -84,7 +84,7 @@ const HOLD = { act: 'hold', hold: '700' };
 const card = (lang) => Round.cardFor(TEACHER, { lang, token: CARD_TOKEN });
 const cardOf = (html) => (/<section class="card cr-card"[\s\S]*?<\/section>/.exec(html) || [''])[0];
 const PAUSED_EN = '3 of 9 played. Continue another day.';
-const PAUSED_UR = '9 میں سے 3 بچوں نے کھیل لیا۔ کسی اور دن جاری رکھیں۔';
+const PAUSED_UR = '۹ میں سے ۳ بچوں نے کھیل لیا۔ کسی اور دن جاری رکھیں۔';
 
 /** Start, play the first three positions through the real routes, then pause: 3 of 9 played. */
 async function playThreeThenPause() {
@@ -131,7 +131,7 @@ describe('a paused round: the card says where it stopped', () => {
     const d = require('../../../shared/config/copy.v2.json')['jg.round.t_paused'];
     await playThreeThenPause();
     expect(await card('en')).toContain(d.en.replace('{done}', '3').replace('{total}', '9'));
-    expect(await card('ur')).toContain(d.ur.replace('{done}', '3').replace('{total}', '9'));
+    expect(await card('ur')).toContain(d.ur.replace('{done}', '۳').replace('{total}', '۹'));
   });
 
   test('resumed → the line is gone again', async () => {

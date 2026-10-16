@@ -132,7 +132,7 @@
       checked: function (m, w) { return m + ' نے دوبارہ سنا: ایک منٹ میں ' + ud(w) + ' لفظ!'; },
       qaStart: 'کہانی کے بارے میں سوال',
       listenGo: 'سنیں',
-      listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
+      listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
       qaRight: 'جی ہاں!',
       qaWas: function (a) { return 'جواب تھا: ' + a; },
       // the verb agrees with the count: ۱ کا … دیا, otherwise کے … دیے
@@ -487,10 +487,13 @@
 
   function intro() {
     var d = S.data;
-    show('intro', jug('hello', d.clips.intro.text, true) + hearBtn(d.clips.intro) + (d.ex === 'missing' ? missing.rowHtml(d.practice[0] || { seq: [] }, null, true) : '')
+    // v2 (wq-trail.js): a re-served record says "Welcome back" (its clip is the standard intro: no hear button, no clip);
+    // a read or listen stop names its passage under the bubble when the serve sends a title
+    var back = TR ? TR.introLine(d) : null;
+    show('intro', jug('hello', back || d.clips.intro.text, true) + (back ? '' : hearBtn(d.clips.intro)) + (TR ? TR.introTitle(d) : '') + (d.ex === 'missing' ? missing.rowHtml(d.practice[0] || { seq: [] }, null, true) : '')
       + '<div class="wqc-sticky"><button class="wq-btn wq-go" id="wqc-go" type="button">' + esc(d.ex === 'read' ? t.ready : (d.ex === 'listen' ? t.listenGo : t.start)) + '</button></div>');
-    bindHear(d.clips.intro);
-    say(d.clips.intro);
+    if (!back) bindHear(d.clips.intro);
+    say(back ? null : d.clips.intro);
     on('wqc-go', function () {
       if (d.ex === 'read') micStart();
       else if (d.ex === 'listen') listen.start();
@@ -921,6 +924,7 @@
     if (!live || !live.v) return;
     var el = q('wqc-live-story');
     if (el) el.innerHTML = liveStoryHtml(live.v.marks);
+    if (trailOn()) return;   // the Trail has no speed meter to paint
     var r = liveWpm(live.v);
     var n = q('wqc-wpm-n');
     if (n) n.textContent = r.wpm == null ? '…' : ud(r.wpm);
@@ -994,7 +998,7 @@
       clearInterval(tick);
       audSample();
       if (aud && aud.peak > MIC_FLOOR) {
-        rec.micCheck = 'pass';
+        rec.micCheck = 'level_ok';   // what was measured: an input level, not speech
         aud.peak = 0;
         readStart();
         return;
@@ -1092,7 +1096,7 @@
       // the first line's window: only after it may the child say the rest is too hard
       setTimeout(function () { if (rec.mr && rec.mr.state === 'recording' && !rec.stuckOpen) { rec.stuckOpen = true; paintRead(); } }, LINE1_MS);
       // the microphone was proven working: a silent start is a stopped reading, not a minute of nothing
-      if (rec.micCheck === 'pass') {
+      if (rec.micCheck === 'level_ok' || rec.micCheck === 'pass') {
         rec.sampler = setInterval(audSample, 200);
         setTimeout(function () { if (rec.mr && rec.mr.state === 'recording' && !heardAny()) stopRec('silent'); }, SILENT_MS);
       }
@@ -1110,7 +1114,15 @@
   function paintRead() {
     var d = S.data;
     var g = guardOn();
-    if (liveOk()) {
+    // the clock line of a read without live words (Story Time shows no clock: no number on a story screen)
+    var clockHtml = g || (TR && TR.isStory()) ? '' : '<div class="wqc-clock"><span class="wqc-dot" aria-hidden="true"></span><span id="wqc-left">' + clock(rec.left) + '</span></div>';
+    if (liveOk() && trailOn()) {
+      // the Trail never shows a reading speed: no running number, no bar, no "Last time"; the words still light up
+      show('read-live', clockHtml + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
+        + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
+        + stickyHtml());
+      livePaint();
+    } else if (liveOk()) {
       var prev = d.previous_wcpm;
       show('read-live', '<div class="wqc-wpm" id="wqc-wpm"><div class="wqc-wpm-top"><b id="wqc-wpm-n">…</b><span>' + esc(t.liveWpm) + '</span>'
         + (g ? '' : '<span class="wqc-wpm-left"><span class="wqc-dot" aria-hidden="true"></span> <span id="wqc-left">' + clock(rec.left) + '</span></span>') + '</div>'
@@ -1121,8 +1133,7 @@
         + stickyHtml());
       livePaint();
     } else {
-      // Story Time shows no clock (no number on a story screen)
-      show('read-rec', (g || (TR && TR.isStory()) ? '' : '<div class="wqc-clock"><span class="wqc-dot" aria-hidden="true"></span><span id="wqc-left">' + clock(rec.left) + '</span></div>')
+      show('read-rec', clockHtml
         + '<p class="wq-sub">' + esc(t.readNow) + '</p>' + storyHtml(d.story)
         + stickyHtml());
     }

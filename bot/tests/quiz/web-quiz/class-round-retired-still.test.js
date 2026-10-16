@@ -3,7 +3,8 @@
  * `jg.round.c_still` ("Still to play:") is retired in copy.v2.json: the class round's page never prints it, so its
  * T table no longer carries it (EN or UR). Every screen the page renders, EN and UR, is byte-identical to the page
  * before the key left: the digests in __golden__/class-round-pages.json were written by this file on the unchanged
- * template with GOLDEN_WRITE=1.
+ * template with GOLDEN_WRITE=1. The UR teacher screen and its paused form were retaken when the round count moved to
+ * Urdu digits: their HTML differs from the earlier page in those digits only.
  */
 const fs = require('fs');
 const path = require('path');

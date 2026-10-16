@@ -26,8 +26,10 @@
       no: "No, it's not me",
       noticeSave: function (name) { return "Jugnu will save this phone number with " + name + "'s name until the end of the school year (31 March), longer only if you keep playing."; },
       noticeStopPhoneOnly: "A grown-up can undo this any time by sending STOP on WhatsApp.",
+      noticeReadings: function (name) { return "Readings " + name + " makes with the microphone are kept too."; },
       whoSends: "A grown-up sends one WhatsApp message from this phone.",
       sendBtn: "Send on WhatsApp",
+      validHour: "This code works for the next hour.",
       saved: "Saved ✓",
       undoQ: "Not your family's phone?",
       undo: "Undo",
@@ -36,6 +38,7 @@
       refusedFull: "This phone already keeps four children's places.",
       refusedPhones: "This child's place is already saved on three phones.",
       codeExpired: "That took too long. Tap Keep my place again.",
+      tryAgain: "Your place wasn't saved just now. Please tap again.",
       whoPlaying: "Who is playing?",
       whoPlayedHere: "Played on this phone before",
     },
@@ -50,8 +53,10 @@
       // the first clause is the ruled one (a link, never a rename); the retention clause is the deck's
       noticeSave: function (name) { return "جگنو اس فون نمبر کو ⁨" + name + "⁩ کے ساتھ جوڑ کر محفوظ کرے گا۔ یہ اسکول کا سال ختم ہونے تک (۳۱ مارچ) رہے گا، اور اگر کھیلنا جاری رہے تو اس کے بعد بھی۔"; },
       noticeStopPhoneOnly: "گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔",
+      noticeReadings: function (name) { return "مائیک پر ⁨" + name + "⁩ کی پڑھائی کی ریکارڈنگ بھی رکھی جاتی ہے۔"; },
       whoSends: "پھر گھر کے بڑے اس فون سے واٹس ایپ پر ایک پیغام بھیجیں۔",
       sendBtn: "واٹس ایپ پر بھیجیں",
+      validHour: "یہ کوڈ اگلے ایک گھنٹے تک کام کرے گا۔",
       saved: "محفوظ ہو گیا ✓",
       undoQ: "یہ آپ کے گھر کا فون نہیں؟",
       undo: "واپس لیں",
@@ -60,6 +65,7 @@
       refusedFull: "اس فون پر پہلے ہی چار بچوں کی جگہ محفوظ ہے۔",
       refusedPhones: "اس بچے کی جگہ پہلے ہی تین فونوں پر محفوظ ہے۔",
       codeExpired: "اس میں دیر ہو گئی۔ دوبارہ «میری جگہ محفوظ کریں» دبائیں۔",
+      tryAgain: "ابھی جگہ محفوظ نہیں ہو سکی۔ دوبارہ دبائیں۔",
       whoPlaying: "کھیلنے کے لیے اپنا نام چنیں",
       whoPlayedHere: "پہلے بھی اسی فون پر کھیلا گیا",
     },
@@ -112,12 +118,15 @@
   // and two answers with nothing preselected.
   function sheet() {
     var t = L(view.ctx.lang);
-    var name = esc(view.ctx.first || '');
+    var raw = view.ctx.first || '';
+    var name = esc(raw);   // the title line inserts it as-is; the notice lines escape the whole sentence, so they take the raw name
     draw('<h3 class="wqb-title">' + t.isYou(name) + '</h3>' +
-      '<div class="wqb-notice"><p>' + chips(esc(t.noticeSave(name))) + '</p><p>' + chips(esc(t.noticeStopPhoneOnly)) + '</p></div>' +
-      '<p class="wqb-sub">' + esc(t.whoSends) + '</p>' +
+      '<div class="wqb-notice"><p>' + chips(esc(t.noticeSave(raw))) + '</p>' + (t.noticeReadings ? '<p>' + chips(esc(t.noticeReadings(raw))) + '</p>' : '') + '<p>' + chips(esc(t.noticeStopPhoneOnly)) + '</p></div>' +
+      '<p class="wqb-sub">' + chips(esc(t.whoSends)) + '</p>' +
       '<div class="wqb-row wqb-stack"><button type="button" class="wqb-btn wqb-go" data-b="yes">' + esc(t.yes) + '</button>' +
       '<button type="button" class="wqb-btn wqb-ghost" data-b="no">' + esc(t.no) + '</button></div>');
+    // the sheet may open below the fold on a small screen: bring its top into view (guarded; older browsers lack it)
+    try { if (view.mount && typeof view.mount.scrollIntoView === 'function') view.mount.scrollIntoView({ block: 'start' }); } catch (e) {}
     on('yes', confirm);
     on('no', function () { draw(''); });
   }
@@ -135,15 +144,22 @@
       if (r && r.ok && r.code && r.href) {
         sset(sessionStorage, CODE_KEY, JSON.stringify({ code: r.code, kid: c.kid }));
         var t = L(c.lang);
-        draw('<p class="wqb-sub">' + esc(t.whoSends) + '</p><a class="wqb-btn wqb-go wqb-wa" data-b="send" href="' + esc(r.href) + '" target="_blank" rel="noopener">' + esc(t.sendBtn) + '</a>');
+        draw('<p class="wqb-sub">' + chips(esc(t.whoSends)) + '</p><a class="wqb-btn wqb-go wqb-wa" data-b="send" href="' + esc(r.href) + '" target="_blank" rel="noopener">' + esc(t.sendBtn) + '</a>' +
+          '<p class="wqb-sub">' + esc(t.validHour) + '</p>');
         on('send', function () { ev('bind_sent', { w: 'p' }); });
         return;
       }
       // max_phones: the child is already kept on three phones -> its line, and no card again this session.
       if (r && r.refused === 'max_phones') sset(sessionStorage, HIDE_KEY, '1');
       var m = r && refusal(r.refused);
-      if (m) msg(m); else draw('');
-    }).catch(function () { draw(''); });
+      if (m) msg(m); else tryAgain();
+    }).catch(function () { tryAgain(); });
+  }
+  // A save that failed without a known reason (or a network error): say so and keep Yes so the parent can tap again.
+  function tryAgain() {
+    var t = L(view.ctx.lang);
+    msg(t.tryAgain, '<div class="wqb-row wqb-stack"><button type="button" class="wqb-btn wqb-go" data-b="yes">' + esc(t.yes) + '</button></div>');
+    on('yes', confirm);
   }
   function banner() {
     var t = L(view.ctx.lang);

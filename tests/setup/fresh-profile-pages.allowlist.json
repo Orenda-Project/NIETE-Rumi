@@ -1,8 +1,6 @@
 {
   "pages": [
     "class-round.page",
-    "renderChallengePage",
-    "renderClassLinkPage",
     "renderClosedPage",
     "renderLibPage",
     "renderPreviewPage",

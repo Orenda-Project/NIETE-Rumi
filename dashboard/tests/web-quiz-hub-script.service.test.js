@@ -168,7 +168,7 @@ test('another phone (still locked): NO name, the neutral "ask the child" screen,
   const p = page(LOCKED(), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED() } });
   await flush(); await flush();
   expect(p.moment()).toBe('H-lock');
-  expect(p.html()).toContain('Ask the child this link was sent to to open it');
+  expect(p.html()).toContain('Ask the child who got this link to open it');
   // the family's own other phone / browser is never stuck for 7 days: a fresh /quiz mints a fresh link
   expect(p.html()).toContain('Is this your link? Send /quiz on WhatsApp again for a new one.');
   expect(p.html()).not.toMatch(/ثنا|بلال|data-chip|\/q\//);

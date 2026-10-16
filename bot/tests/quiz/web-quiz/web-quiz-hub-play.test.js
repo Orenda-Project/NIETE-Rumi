@@ -43,6 +43,23 @@ const REGISTRY_COLS = (() => {
   return new Set(body.split('\n').map((l) => (/^\s{2}([a-z_0-9]+)\s/.exec(l) || [])[1]).filter((c) => c && c !== 'constraint'));
 })();
 
+// One title home: the lantern names a story by its passage FILE's title. A fixture registry row whose id
+// has no shipped file gets a file here carrying that row's titles; the shipped files are loaded as they are.
+const Bank = require('../../../shared/services/child-test/item-bank');
+const SHIPPED = require('path').join(__dirname, '../../../shared/data/child-test/passages');
+const PDIR = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'wqplay-'));
+function filesFor(rows) {
+  const fs = require('fs');
+  const at = (id) => require('path').join(PDIR, `${id}.json`);
+  fs.readdirSync(PDIR).forEach((f) => fs.rmSync(require('path').join(PDIR, f)));
+  fs.readdirSync(SHIPPED).filter((f) => f.endsWith('.json')).forEach((f) => fs.copyFileSync(require('path').join(SHIPPED, f), require('path').join(PDIR, f)));
+  rows.filter((r) => !fs.existsSync(at(r.passage_id))).forEach((r) => fs.writeFileSync(at(r.passage_id), JSON.stringify({
+    passage_id: r.passage_id, lang: r.lang, kind: r.kind, band: r.band, pool: r.pool, title_en: r.title_en == null ? null : r.title_en, title_ur: r.title_ur == null ? null : r.title_ur,
+  })));
+  Bank._loadPassagesFrom(PDIR);
+}
+afterAll(() => { Bank._loadPassagesFrom(); require('fs').rmSync(PDIR, { recursive: true, force: true }); });
+
 let db;
 function seed(settings, over = {}) {
   db = {
@@ -54,6 +71,7 @@ function seed(settings, over = {}) {
     quiz_sessions: [{ id: 's1', share_code_id: 'sc-1', quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 8, total_questions_answered: 10, mastery_percentage: 80, completed_at: ago(20), created_at: ago(20), student_class: '3' }],
     ...over,
   };
+  filesFor(db.challenge_passages || []);
   const fake = makeFake(db);
   // challenge_passages answers like PostgREST: a select naming a column the registry migration does not create is 42703.
   const from = (t) => {
@@ -281,6 +299,56 @@ describe('lantern + shelf (web_quiz_challenge_v2 / web_quiz_challenge_story)', (
   });
 });
 
+describe('the lantern counts the stops this child\'s own Trail has (the menu\'s stop rule)', () => {
+  const Challenge = require('../../../shared/services/quiz/web-quiz-challenge');
+  const STORY_ON = [...BASE_ON, ON('web_quiz_challenge_v2'), ON('web_quiz_challenge_story')];
+  const period = (() => { const d = new Date(Date.now() + 5 * 3600000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; })();
+  const run = (exercise) => ({ student_id: KID, exercise, mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null });
+  // The challenge's switches are cached for 30 s: every seed here starts them fresh.
+  const fresh = (settings, over, grade) => {
+    seed(settings, over);
+    if (grade) {
+      db.student_lists[0].class_name = grade;
+      db.students[0].self_reported_class = grade;
+      db.quizzes[0].grade = grade;
+      db.quiz_sessions.forEach((x) => { x.student_class = grade; });
+    }
+    Challenge.__reset();
+  };
+  afterEach(() => Challenge.__reset());
+
+  test('grade 1, numbers done -> no trail lantern', async () => {
+    fresh([...STORY_ON, ON('web_quiz_challenge_g1')], { web_quiz_challenge_runs: [run('numbers')] }, '1');
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern).toEqual({ kind: 'numbers', day: null });
+    expect(out.challenge).toEqual({ on: true });
+  });
+
+  test('grade 1, not done -> stops:1', async () => {
+    fresh([...STORY_ON, ON('web_quiz_challenge_g1')], { web_quiz_challenge_runs: [run('bigger'), run('read')] }, '1');
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern).toEqual({ kind: 'trail', stops: 1 });
+  });
+
+  test('grade 3, warm-up and listen waiting, bigger and read done -> stops:2 (the warm-up and listen count)', async () => {
+    const on = [...STORY_ON, ON('web_quiz_challenge_record'), ON('web_quiz_challenge_missing'), ON('web_quiz_challenge_listen')];
+    fresh(on, { web_quiz_challenge_runs: [run('bigger'), run('read')] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern).toEqual({ kind: 'trail', stops: 2 });
+    expect(out.challenge).toEqual({ on: true });
+    fresh(on, { web_quiz_challenge_runs: ['bigger', 'read', 'missing', 'listen'].map(run) });
+    expect((await Hub.hub(T.signHub([KID]), A)).play.lantern).toEqual({ kind: 'numbers', day: null });
+  });
+
+  test('GOLDEN: grade 3, nothing played -> today\'s trail lantern for the stops the Trail has', async () => {
+    // the warm-up and listen switches off: the Trail is bigger and read, the lantern exactly today's
+    fresh(STORY_ON, { web_quiz_challenge_runs: [] });
+    expect((await Hub.hub(T.signHub([KID]), A)).play.lantern).toEqual({ kind: 'trail', stops: 2 });
+    fresh([...STORY_ON, ON('web_quiz_challenge_record'), ON('web_quiz_challenge_missing'), ON('web_quiz_challenge_listen')], { web_quiz_challenge_runs: [] });
+    expect((await Hub.hub(T.signHub([KID]), A)).play.lantern).toEqual({ kind: 'trail', stops: 4 });
+  });
+});
+
 describe('band filter: never a passage above the bands open to this child', () => {
   const STORY_ON = [...BASE_ON, ON('web_quiz_challenge_v2'), ON('web_quiz_challenge_story')];
   const period = (() => { const d = new Date(Date.now() + 5 * 3600000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; })();
@@ -363,5 +431,42 @@ describe('hub_open route value (opts.src)', () => {
     expect(Play.srcOf('hs')).toBe('hs');
     expect(Play.srcOf('evil<')).toBeUndefined();
     expect(Play.srcOf(undefined)).toBeUndefined();
+  });
+});
+
+// One title home. The lantern names a story by its passage FILE's title (web-quiz-challenge.js
+// passageTitle), never the registry row's; a file with no title (a Set A pointer) gives no title and no "null".
+describe('the lantern\'s title is the passage file\'s (one title home)', () => {
+  const STORY_ON = [...BASE_ON, ON('web_quiz_challenge_v2'), ON('web_quiz_challenge_story'), ON('web_quiz_events_v2')];
+  const period = (() => { const d = new Date(Date.now() + 5 * 3600000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; })();
+  const done = [
+    { student_id: KID, exercise: 'read', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null },
+    { student_id: KID, exercise: 'bigger', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null },
+  ];
+  const reg = (id, lang, over = {}) => ({ passage_id: id, lang, band: 1, kind: 'read', pool: 'practice', status: 'reviewed', released_at: ago(2), title_en: 'Registry Title', title_ur: 'رجسٹری عنوان', ...over });
+
+  test('a passage whose file has a title and whose registry row has another: the child sees the file\'s', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('en.read.1.ref01', 'en')] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern).toEqual({ kind: 'story', title: 'The Pink Kite', pid: 'en.read.1.ref01' });
+    expect(JSON.stringify(out.play)).not.toContain('Registry Title');
+  });
+
+  test('an Urdu child: the file\'s Urdu title', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('ur.read.1.ref01', 'ur')] });
+    const out = await Hub.hub(T.signHub([KID]), { ...A, lang: 'ur' });
+    expect(out.play.lantern).toEqual({ kind: 'story', title: 'لال پتنگ', pid: 'ur.read.1.ref01' });
+    expect(JSON.stringify(out.play)).not.toContain('رجسٹری عنوان');
+  });
+
+  test('a passage whose file has no title (a registry title only): no title, never "null"; the lantern takes its next branch', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('en.read.1.plain01', 'en')] });
+    // the file itself carries no title in either language (the registry row's "Registry Title" is never the child's)
+    require('fs').writeFileSync(require('path').join(PDIR, 'en.read.1.plain01.json'), JSON.stringify({ passage_id: 'en.read.1.plain01', lang: 'en', kind: 'read', band: 1, pool: 'practice', title_en: null, title_ur: null }));
+    Bank._loadPassagesFrom(PDIR);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern.kind).toBe('numbers');
+    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'en.read.1.plain01', nx: 'seen' });
+    expect(JSON.stringify(out.play)).not.toMatch(/null"|"null|Registry Title|undefined/);
   });
 });

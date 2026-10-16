@@ -34,15 +34,15 @@ describe('the card: first under the score, above the shares', () => {
     const h = withCard({ lang: 'en', store: store(JC) }).html();
     expect(h).toContain('id="wq-jc-go"');
     expect(h).toContain('Jugnu has a game for you');
-    expect(h).toContain('2 minutes, no microphone');
+    expect(h).toContain('2 minutes to start, no microphone');
     expect(h).toMatch(/<button class="wq-btn wq-go" id="wq-jc-go">▶ Play<\/button>/);
     expect(h.indexOf('wq-scorecard')).toBeLessThan(h.indexOf('id="wq-jc-go"'));
     expect(h.indexOf('id="wq-jc-go"')).toBeLessThan(h.indexOf('id="wq-share"'));
   });
   test('UR: in Urdu', () => {
     const h = withCard({ lang: 'ur', store: store(JC) }).html();
-    expect(h).toContain('جگنو کے پاس آپ کے لیے ایک کھیل ہے');
-    expect(h).toContain('۲ منٹ، مائیک کی ضرورت نہیں');
+    expect(h).toContain('جگنو کے پاس آپ کے لیے ایک کھیل ہے');
+    expect(h).toContain('شروع کے ۲ منٹ، مائیک کی ضرورت نہیں');
     expect(h).toContain('کھیلیں</button>');
   });
   test('not on a friend\'s challenge run, nor when finish did not offer it', () => {

@@ -97,6 +97,7 @@ function createTeacherReportRouter(opts = {}) {
 
   function forward(kind) {
     return async (req, res) => {
+      const t0 = Date.now();
       const lang = req.query.lang === 'ur' || req.query.lang === 'en' ? req.query.lang : null;
       const fail = (status, k) => res.status(status).type('html').send(renderMessagePage({ kind: k, lang }));
       const token = String(req.params.token || '');
@@ -120,6 +121,12 @@ function createTeacherReportRouter(opts = {}) {
       if (kind === 'pdf' && out.status === 200 && /application\/pdf/i.test(type)) {
         const day = new Date(Date.now() + PKT_MS).toISOString().slice(0, 10);
         res.set('Content-Disposition', `attachment; filename="quiz-report-${day}.pdf"`);
+      }
+      // The report page's timing, when the bot sent it (events v2 on): its own numbers back, and the edge's whole time.
+      if (kind === 'page' && out.status === 200 && out.timing) {
+        if (out.timing.render != null) res.set('x-render-ms', out.timing.render);
+        if (out.timing.queue != null) res.set('x-queue-age', out.timing.queue);
+        res.set('x-edge-ms', String(Date.now() - t0));
       }
       return res.status(out.status).type(type).send(out.bytes || Buffer.alloc(0));
     };

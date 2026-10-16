@@ -2451,6 +2451,14 @@ Feature: NIETE (ICT) Teacher Training
     And "Undo" on my "Same child" brings that child back as a look-alike, and neither is joined automatically
     # web-quiz-join-queue.js teacherLoose blockers / runBackwardJoin refused_by_teacher; unit: teacher-join-queue-backward-no.test.js
 
+  @quiz @config-gated @wip @draft @P2 @T940
+  Scenario: While my "same child?" tab is open, my kept queue stays ready for my next tap, for up to an hour
+    Given web_quiz_hub and web_quiz_identity_canon are on and my queue has been worked out
+    When I keep reading the tab for more than ten minutes and then tap "Same child"
+    Then my tap answers from my kept queue without working it out again
+    But an hour after my queue was worked out, my next visit works it out afresh once
+    # web-quiz-join-queue.js cachedCompute slide + QUEUE_MAX_AGE_S; unit: teacher-join-queue-cache-slide.test.js
+
   # ── Challenge clip warm job (app_settings web_quiz_challenge_clip_warm, off by default) ──────────────────
 
   @quiz @config-gated @wip @draft @P2 @T850

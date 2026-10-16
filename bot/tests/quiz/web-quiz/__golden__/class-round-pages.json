@@ -52,12 +52,12 @@
     "bytes": 3449
   },
   "ur/teacher": {
-    "sha256": "94995501b053428126fd0aefa14d31a669c35941aaa418b574ccec769a354f2d",
-    "bytes": 5672
+    "sha256": "9eb049d563b2f4fbf4d5acb923067031f04c32a7c658c47f50ae68cc505dcea4",
+    "bytes": 5675
   },
   "ur/teacher-paused": {
-    "sha256": "3b980ecbdcb917eb4d09c48cbf5a79d16467dabc6de9fcaa04f22e0b293eba98",
-    "bytes": 5363
+    "sha256": "e29181dc4a4692ce2114e0c212aa1a1955a413d7757ea482c07da64a2e8594d1",
+    "bytes": 5366
   },
   "ur/child": {
     "sha256": "be7d61e8405857f69363568e5aafef317216bf99676b4e4c1893bb0a9c08c731",
