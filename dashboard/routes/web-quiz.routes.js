@@ -451,7 +451,10 @@ ${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail
 </html>`;
 }
 
-function renderChallengeNote({ lang, why, origin, assetV, brandKey, ui = null }) {
+// The pick_kid note's way back: the Challenge page's own Home label (wq-challenge.js homeBtn), to the hub of the token.
+const CH_HOME = { en: 'Home', ur: 'ہوم' };
+
+function renderChallengeNote({ lang, why, origin, assetV, brandKey, ui = null, hub = null }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey);
   const title = CH_COPY[l].title(brand.mascot[l]);
@@ -462,7 +465,7 @@ function renderChallengeNote({ lang, why, origin, assetV, brandKey, ui = null })
 <img class="wq-jugnu" src="/wq/jugnu/hello.webp" alt="" width="160" height="160">
 <h1>${esc(title)}</h1>
 <p class="wq-sub">${esc(CH_COPY[l][why] || '')}</p>
-</section></main>
+${hub ? `<a class="wq-home" href="/h/${encodeURIComponent(hub)}"><span aria-hidden="true">🏠</span><span class="wq-homet">${esc(CH_HOME[l])}</span></a>\n` : ''}</section></main>
 </body>
 </html>`;
 }
@@ -703,7 +706,10 @@ function createWebQuizRouter(opts = {}) {
     }
     const err = out.body && out.body.error;
     if (err === 'not_eligible' || err === 'pick_kid' || err === 'other_device') {
-      return res.status(out.status).type('html').send(renderChallengeNote({ lang: lang0 || 'en', why: err, origin, assetV: version(), brandKey, ui: lastUi }));
+      // pick_kid (a deep link with no tap on this visit): the note links to the hub of this token (a hub token only),
+      // where the child picks; never a dead end.
+      const hub = err === 'pick_kid' && HUB_TOKEN_RX.test(token) ? token : null;
+      return res.status(out.status).type('html').send(renderChallengeNote({ lang: lang0 || 'en', why: err, origin, assetV: version(), brandKey, ui: lastUi, hub }));
     }
     const kind = out.status === 401 ? 'closed' : 'off';
     return res.status(out.status === 401 ? 410 : 503).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind, origin, assetV: version(), brandKey, ui: lastUi }));
