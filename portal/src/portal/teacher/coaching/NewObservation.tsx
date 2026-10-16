@@ -293,6 +293,9 @@ export function NewObservationPage() {
           />
 
           <FlowStep n={2} state={s2} chips={[C.optional]}>{C.lessonPlan}</FlowStep>
+          {/* While she records, the plan she picked stays in sight, to read with the eye (operator, 16 Oct); no Change
+              mid-lesson. The recording goes on in the background while the plan is open (the frame's recording bar). */}
+          {cls && phase === 'recording' && plan ? <PlanPicker plan={plan} readOnly onOpen={() => {}} onView={viewPlan} /> : null}
           {cls && phase !== 'recording' ? (
             <>
               {/* Her recent plans, the library, a photo or a file are all in the Lesson plan tray (operator, 16 Oct). */}

@@ -30,9 +30,12 @@ export function SectionHeading({ children, chip }: { children: ReactNode; chip?:
 
 /**
  * The lesson plan: a "Select lesson plan" trigger, or the chosen plan as a row with Change, and (bd-fgj73x.5) an eye beside
- * a library plan that opens it to read (`onView`).
+ * a library plan that opens it to read (`onView`). `readOnly` (bd-fgj73x.6, while she records): the plan stays in sight, no
+ * Change; the row and the eye open it to read.
  */
-export function PlanPicker({ plan, disabled, onOpen, onView }: { plan: DraftPlan | null; disabled?: boolean; onOpen: () => void; onView?: () => void }) {
+export function PlanPicker({ plan, disabled, onOpen, onView, readOnly = false }: {
+  plan: DraftPlan | null; disabled?: boolean; onOpen: () => void; onView?: () => void; readOnly?: boolean;
+}) {
   const C = useCopy(COACHING);
   if (plan) {
     const label = plan.kind === 'library' ? plan.title : C.planPhoto;
@@ -43,8 +46,8 @@ export function PlanPicker({ plan, disabled, onOpen, onView }: { plan: DraftPlan
         icon="file"
         label={label}
         subtitle={subtitle || undefined}
-        chip={{ text: C.change, tone: 'score' }}
-        onPress={onOpen}
+        chip={readOnly ? null : { text: C.change, tone: 'score' }}
+        onPress={readOnly ? onView : onOpen}
       />
     );
     if (!onView) return row;
