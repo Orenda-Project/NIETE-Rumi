@@ -34,9 +34,19 @@
  *       codes minted on both: the denominator is codes, never events. A binding made before code_id was written
  *       names no code, and a renewal moves code_id to the renewing code, so `bound` can undercount a code whose
  *       binding was later renewed by another.
+ *   implausible / <lang>, implausible / <lang>|<reason>
+ *       The quality floor's watch line: of the week's scored check reads (exercise 'read', mode 'check', status
+ *       'scored', any record: a marked row has its record cleared, so keying on record would leave every one out),
+ *       test children left out (web-quiz-fixture.js), those the scorer marked meta.quality = 'implausible'; n = those
+ *       reads, per language. Per reason (meta.flags, in the scorer's order: no_speech, low_stt_support,
+ *       no_aligned_words, low_story_confidence; a row with several counts under each), every reason printed for a
+ *       language, 0 included; `not_given` only when a marked row names none. Red above 5 % in a language.
+ *   cold_clips (not measured: no store)
+ *       The clip warm's last run (missing_listen / missing_story) is an event and a log line only: no table holds it,
+ *       so the strip cannot read it. No row is written; the line is named in `skipped` with its note, every week.
  */
 const supabase = require('../../config/supabase');
-const { fixtureStudentIds } = require('./web-quiz-fixture');
+const { fixtureStudentIds, isFixtureRow } = require('./web-quiz-fixture');
 
 const TABLE = 'web_quiz_challenge_runs';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -46,6 +56,8 @@ const KEPT_DAYS = 90;
 const PAGE = 1000;
 const PKT_MS = 5 * 60 * 60 * 1000;
 const LEDGER_ORDER = ['day', 'trigger', 'class_id', 'initiated', 'recipient'];   // the ledger's unique key: a stable order
+const REASONS = ['no_speech', 'low_stt_support', 'no_aligned_words', 'low_story_confidence'];
+const READ_COLS = 'id, student_id, canonical_id, class_id, lang, meta, created_at';
 const RECOGNISED = new Set(['roster_pick', 'remembered', 'hub_chip', 'phone_bound']);
 const BUCKETS = ['first', 'le7', 'gt7'];
 
@@ -185,12 +197,56 @@ async function bindFunnelLines({ start, end, put, skipped, notes, allRows }) {
   put('bind_funnel', 'bound', made.size, codes.length);
 }
 
+const isImplausible = (r) => !!(r.meta && typeof r.meta === 'object' && r.meta.quality === 'implausible');
+
+/** Per language: { n, value, reasons: Map(reason → count) } over scored check reads. Pure. */
+function implausibleByLang(reads) {
+  const out = new Map();
+  for (const r of reads) {
+    const lang = r.lang || 'unknown';
+    if (!out.has(lang)) out.set(lang, { n: 0, value: 0, reasons: new Map([...REASONS, 'not_given'].map((k) => [k, 0])) });
+    const c = out.get(lang);
+    c.n += 1;
+    if (!isImplausible(r)) continue;
+    c.value += 1;
+    const flags = Array.isArray(r.meta.flags) ? r.meta.flags : [];
+    const named = REASONS.filter((k) => flags.includes(k));
+    (named.length ? named : ['not_given']).forEach((k) => c.reasons.set(k, c.reasons.get(k) + 1));
+  }
+  return out;
+}
+
+async function implausibleLines({ start, end, put, skipped, notes, allRows }) {
+  const got = await allRows(() => supabase.from(TABLE).select(READ_COLS)
+    .eq('exercise', 'read').eq('mode', 'check').eq('status', 'scored').gte('created_at', start).lt('created_at', end), 'implausible');
+  if (got.error) { skipped.push('implausible'); return; }
+  const fixtures = await fixtureStudentIds({ ids: [], rows: got.rows });
+  if (fixtures.unreadable.length) notes.implausible = `${fixtures.unreadable.join(', ')} unreadable: the rules reading it left nothing out`;
+  const byLang = implausibleByLang(got.rows.filter((r) => !isFixtureRow(r, fixtures)));
+  for (const [lang, c] of [...byLang].sort(([a], [b]) => a.localeCompare(b))) {
+    put('implausible', lang, c.value, c.n);
+    for (const [k, v] of c.reasons) if (k !== 'not_given' || v > 0) put('implausible', `${lang}|${k}`, v, c.n);
+  }
+}
+
+const COLD_CLIPS_NOTE = 'not measured: no store (the clip warm run is an event and a log line only; no table holds missing_listen / missing_story)';
+
+/** Cold clips at the last warm: nothing the strip can read, so it is named, never guessed. */
+function coldClipsLine({ skipped, notes }) {
+  skipped.push('cold_clips');
+  notes.cold_clips = COLD_CLIPS_NOTE;
+}
+
 /** Every line set above, each on its own reads. `allRows` is the strip's pager (web-quiz-strip.js). */
 async function moreLines(ctx) {
   await recognisedLines(ctx);
   await keptAllLine(ctx);
   await sentCappedLine(ctx);
   await bindFunnelLines(ctx);
+  await implausibleLines(ctx);
+  coldClipsLine(ctx);
 }
 
-module.exports = { moreLines, recognisedBuckets, keptAll, sentCapped, activeAt, bucketOf, RECOGNISED, CHUNK, LOOKBACK_DAYS };
+module.exports = {
+  moreLines, recognisedBuckets, keptAll, sentCapped, activeAt, implausibleByLang, bucketOf, RECOGNISED, REASONS, COLD_CLIPS_NOTE, CHUNK, LOOKBACK_DAYS,
+};

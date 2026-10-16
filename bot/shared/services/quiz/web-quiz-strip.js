@@ -75,6 +75,10 @@
  *   bind_funnel / codes                     save codes minted in the week (child_bind_codes) that were used; n = minted
  *   bind_funnel / bound                     of the same codes, those whose binding is active at the week's cut;
  *                                           n = minted (the denominator is codes, never events)
+ *   implausible / <lang>[|<reason>]          scored check reads (any record) the scorer marked implausible; n = the
+ *                                           language's scored check reads; one cell per reason (meta.flags). Red > 5 %
+ *   cold_clips                              not measured: no store (the clip warm's last run is an event only); named
+ *                                           in `skipped` with its note, no row
  * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, child_bind_codes, students) skips its
  * lines, logged.
  *
@@ -99,6 +103,7 @@ const PAGE = 1000;
 const LINE_NOTES = {
   sends: "message_ledger counts the switched replies only; it is not the bill (Meta's billable count is the cost total)",
   recognised_without_typing: 'homonym picks through the class link read as high until the class-link pick fix lands',
+  cold_clips: require('./web-quiz-strip-lines').COLD_CLIPS_NOTE,
 };
 const WEEK_RX = /^(\d{4})-W(\d{2})$/;
 const COLS = 'id, student_id, canonical_id, exercise, grade, lang, status, created_at, scored_at, meta, score, mode, form, band, record, '
@@ -547,7 +552,8 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   // ── identity: the reply cap and the teacher-accepted share (each only when its input exists) ──
   if (!(await replyCapLines({ week, start, now, put }))) skipped.push('reply_cap');
   if (!(await acceptedShareLines({ put }))) skipped.push('teacher_accepted_share');
-  // ── recognised without typing, kept readings under keep-all, sent / capped, the save-code funnel (web-quiz-strip-lines.js) ──
+  // ── recognised without typing, kept readings under keep-all, sent / capped, the save-code funnel, implausible reads,
+  //    cold clips (web-quiz-strip-lines.js) ──
   await require('./web-quiz-strip-lines').moreLines({ rows, start, end, now, put, skipped, notes, allRows });
   if (lines.some((l) => l.line === 'recognised_without_typing')) notes.recognised_without_typing = LINE_NOTES.recognised_without_typing;
 

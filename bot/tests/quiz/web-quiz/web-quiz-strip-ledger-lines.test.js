@@ -24,14 +24,16 @@ const GOLDEN = require('./web-quiz-strip-ledger-lines.golden.json');
 const WEEK = '2026-W42';                          // Mon 12 Oct – Sun 18 Oct 2026, PKT (days 2026-10-12 … 2026-10-18)
 const NOW = Date.parse('2026-10-19T06:00:00Z');
 const END = '2026-10-18T19:00:00.000Z';           // the week's cut (Monday 00:00 PKT)
-const NEW_LINES = ['sent', 'bind_funnel'];
-const STRICT = ['message_ledger', 'child_bind_codes', 'child_phone_bindings'];
+const NEW_LINES = ['sent', 'bind_funnel', 'implausible'];
+const READ_COLS = 'id, student_id, canonical_id, class_id, lang, meta, created_at';   // the implausible line's own read
+const STRICT = ['message_ledger', 'child_bind_codes', 'child_phone_bindings', 'web_quiz_challenge_runs'];
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const D = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
-const T = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';   // a test child ("<Name> Testwala")
+const T = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const F = 'ffffffff-ffff-4fff-8fff-ffffffffffff';   // a child known only by a run row marked as a test   // a test child ("<Name> Testwala")
 
 let n = 0;
 const run = (extra) => {
@@ -106,7 +108,8 @@ let fake;
 const install = (input, fail = () => null) => {
   db = input;
   fake = makeFake(db, { uniques: { web_quiz_strip_weekly: ['week', 'line', 'cell'] } });
-  const strict = strictFrom(fake.from, STRICT);
+  // a json path filter is not a column name: the kept-audio read's own path is admitted as written
+  const strict = strictFrom(fake.from, STRICT, { web_quiz_challenge_runs: ['meta->>audio_key'] });
   Object.assign(supabase, fake, {
     from: (t) => {
       const b = strict(t);
@@ -215,11 +218,12 @@ describe('golden: the lines that were there stay byte-identical', () => {
     install(world(), (t, sel) => {
       if (t === 'child_bind_codes') return MISSING_TABLE(t);
       if (t === 'message_ledger' && /capped/.test(sel)) return MISSING_COL('message_ledger.capped');
+      if (t === 'web_quiz_challenge_runs' && sel === READ_COLS) return MISSING_COL('web_quiz_challenge_runs.meta');
       return null;
     });
     const out = await strip();
     expect(stripRows()).toEqual(GOLDEN.lines);
-    expect(out.skipped).toEqual([...GOLDEN.skipped, ...NEW_LINES]);
+    expect(out.skipped).toEqual([...GOLDEN.skipped, ...NEW_LINES, 'cold_clips']);
     expect(out.lines).toBe(GOLDEN.lines.length);
   });
 
@@ -227,18 +231,73 @@ describe('golden: the lines that were there stay byte-identical', () => {
     install(world());
     const out = await strip();
     expect(existing()).toEqual(GOLDEN.lines);
-    expect(out.skipped).toEqual(GOLDEN.skipped);
-    expect(stripRows().slice(GOLDEN.lines.length).map((r) => `${r.line} / ${r.cell}`)).toEqual(['sent / capped', 'bind_funnel / codes', 'bind_funnel / bound']);
+    expect(out.skipped).toEqual([...GOLDEN.skipped, 'cold_clips']);
+    expect(stripRows().slice(GOLDEN.lines.length).map((r) => `${r.line} / ${r.cell}`)).toEqual(['sent / capped', 'bind_funnel / codes', 'bind_funnel / bound',
+      'implausible / ur', 'implausible / ur|no_speech', 'implausible / ur|low_stt_support', 'implausible / ur|no_aligned_words', 'implausible / ur|low_story_confidence']);
   });
 
   test('the new inputs readable and empty: value 0, n 0 on each new line', async () => {
     install({ ...world(), message_ledger: [], child_bind_codes: [], child_phone_bindings: [] });
     const out = await strip();
     expect(line('sent', 'capped')).toMatchObject({ value: 0, n: 0 });
+    expect(line('implausible', 'ur')).toMatchObject({ value: 0, n: 2 });   // two scored check reads, none marked
     expect(line('bind_funnel', 'codes')).toMatchObject({ value: 0, n: 0 });
     expect(line('bind_funnel', 'bound')).toMatchObject({ value: 0, n: 0 });
     expect(out.skipped).not.toEqual(expect.arrayContaining(['sent']));
     expect(out.skipped).not.toEqual(expect.arrayContaining(['bind_funnel']));
+  });
+});
+
+describe('implausible / <lang>: scored check reads the scorer marked implausible', () => {
+  const marked = (child, flags, extra = {}) => run({ canonical_id: child, meta: { quality: 'implausible', flags, record_lost: 'implausible' }, record: false, ...extra });
+
+  test('per language: value = marked, n = scored check reads (any record), with a cell per reason; test children out', async () => {
+    const w = world();
+    w.web_quiz_challenge_runs.push(
+      marked(A, ['no_speech']),
+      marked(B, ['some_model_flag', 'low_stt_support']),
+      marked(C, ['low_story_confidence'], { lang: 'en' }),
+      run({ canonical_id: C, lang: 'en' }),
+      run({ canonical_id: C, lang: 'en', record: false }),                       // any record: still in n
+      marked(D, []),                                                              // no reason given
+      marked(T, ['no_speech']),                                                   // a test child: out
+      marked(F, ['no_speech'], { meta: { quality: 'implausible', flags: ['no_speech'], test: true } }),   // a row the serve marked as a test: out
+      marked(A, ['no_speech'], { status: 'failed' }),                            // not scored: out
+      marked(A, ['no_speech'], { mode: 'practice' }),                            // not a check: out
+      marked(A, ['no_speech'], { exercise: 'listen' }),                          // not a read: out
+      marked(A, ['no_speech'], { created_at: '2026-10-11T08:00:00Z' }),          // the week before: out
+    );
+    install(w);
+    await strip();
+    // ur: A, B (plain) + A, B, D marked = 5 reads; 3 marked
+    expect(line('implausible', 'ur')).toMatchObject({ value: 3, n: 5 });
+    expect(line('implausible', 'ur|no_speech')).toMatchObject({ value: 1, n: 5 });
+    expect(line('implausible', 'ur|low_stt_support')).toMatchObject({ value: 1, n: 5 });
+    expect(line('implausible', 'ur|no_aligned_words')).toMatchObject({ value: 0, n: 5 });
+    expect(line('implausible', 'ur|low_story_confidence')).toMatchObject({ value: 0, n: 5 });
+    expect(line('implausible', 'ur|not_given')).toMatchObject({ value: 1, n: 5 });
+    expect(line('implausible', 'en')).toMatchObject({ value: 1, n: 3 });
+    expect(line('implausible', 'en|low_story_confidence')).toMatchObject({ value: 1, n: 3 });
+    expect(line('implausible', 'en|not_given')).toBeUndefined();
+  });
+
+  test('the read failing skips only this line, named in skipped', async () => {
+    install(world(), (t, sel) => (t === 'web_quiz_challenge_runs' && sel === READ_COLS ? MISSING_COL('x') : null));
+    const out = await strip();
+    expect(lines('implausible')).toEqual([]);
+    expect(out.skipped).toContain('implausible');
+    expect(line('sent', 'capped')).toBeDefined();
+  });
+});
+
+describe('cold clips at the last warm: not measured, no store', () => {
+  test('no table holds the clip warm run, so no row is written; the line is named in skipped with its note', async () => {
+    install(world());
+    const out = await strip();
+    expect(lines('cold_clips')).toEqual([]);
+    expect(out.skipped).toContain('cold_clips');
+    expect(out.notes.cold_clips).toBe(Strip.LINE_NOTES.cold_clips);
+    expect(Strip.LINE_NOTES.cold_clips).toMatch(/^not measured: no store/);
   });
 });
 
