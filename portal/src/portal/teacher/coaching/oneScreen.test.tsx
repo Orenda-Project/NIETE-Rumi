@@ -360,3 +360,27 @@ describe("recordings must be at least 15 minutes (operator, 16 Oct: a few second
     expect(screen.queryByText(C.tooShort)).toBeNull();
   });
 });
+
+describe("a recording the browser could not measure, closed by the server as too short (bd-fgj73x.7)", () => {
+  it("the second screen says it is too short, not just Stopped, and leaves no note to wait", async () => {
+    vi.mocked(readAudioDuration).mockResolvedValueOnce(null as never);
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "cancelled", stage: "stopped", reflection: null, shortRecording: true } as never);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    expect(await screen.findByText(C.tooShort)).toBeTruthy();
+    expect(screen.queryByText(C.stopped)).toBeNull();
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("stopped for any other reason still says Stopped", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "failed", stage: "stopped", reflection: null, shortRecording: false } as never);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    expect(await screen.findByText(C.stopped)).toBeTruthy();
+    expect(screen.queryByText(C.tooShort)).toBeNull();
+  });
+});

@@ -101,6 +101,17 @@ class TranscriptionProcessorService {
         transcription_started_at: new Date().toISOString()
       });
 
+      // bd-fgj73x.7 — a teacher's PORTAL upload under 15 minutes gets no flow and no report: measured here,
+      // BEFORE the Step 1/5 message, the transcription and the analysis (portal-short-recording.js). Only that
+      // row is downloaded early; a WhatsApp recording and a coach's observation never enter this branch.
+      const ShortGate = require('./portal-short-recording');
+      let audioData = null;
+      if (ShortGate.isPortalDc(session)) {
+        audioData = await this.fetchAudioForSession(session, payload);
+        const gate = await ShortGate.refuseShortPortalRecording({ session, coachingSessionId, from, audioData });
+        if (gate.refused) return;
+      }
+
       // Send progress update with listening animation.
       //
       // bd-jbjrx — this call used to pass no language, so the parameter default
@@ -141,7 +152,7 @@ class TranscriptionProcessorService {
 
       // bd-78i2k: the bytes may come from WhatsApp (a media id) or from R2 (a
       // portal upload). Everything below this line is identical either way.
-      const audioData = await this.fetchAudioForSession(session, payload);
+      if (!audioData) audioData = await this.fetchAudioForSession(session, payload);
       fs.writeFileSync(tempAudioPath, audioData);
 
       logToFile('Audio downloaded', {

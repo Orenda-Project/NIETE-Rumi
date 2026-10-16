@@ -415,7 +415,10 @@ export function NewObservationPage() {
               <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
             </section>
           ) : progress?.stage === 'stopped' ? (
-            <section aria-live="polite" className={cn(CARD, 'px-4 py-5 text-center text-[16px] font-semibold text-[#c8331f]')}>{C.stopped}</section>
+            <section aria-live="polite" className={cn(CARD, 'px-4 py-5 text-center text-[16px] font-semibold text-[#c8331f]')}>
+              {/* bd-fgj73x.7: closed by the server as under 15 minutes (a length the browser could not read). */}
+              {progress.shortRecording ? C.tooShort : C.stopped}
+            </section>
           ) : (
             <ProgressSteps
               heading={C.progress}
@@ -425,7 +428,7 @@ export function NewObservationPage() {
             />
           )}
           {/* While it uploads she keeps the app open (the card says so); the leave note comes once it has arrived. */}
-          {!sending ? (
+          {!sending && progress?.stage !== 'stopped' ? (
             <>
               <Reflection r={report} />
               {report.ready && sessionId ? <Action to={lessonPath(sessionId)} icon={Check}>{C.openLesson}</Action> : <LeaveNote text={leave} />}

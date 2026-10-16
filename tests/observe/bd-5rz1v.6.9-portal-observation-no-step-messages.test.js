@@ -34,11 +34,17 @@ jest.mock('../../bot/shared/utils/logger', () => ({
   logWarn: jest.fn(),
 }));
 
-// Heavy collaborators the two processors pull in at module load. None of them
-// runs before the step message, so they only have to exist.
-jest.mock('../../bot/shared/services/audio.service', () => ({}));
+// Heavy collaborators the two processors pull in at module load. Only one runs
+// before the step message: bd-fgj73x.7 downloads and measures a teacher's PORTAL
+// upload first (under 15 minutes it gets no flow), so the double hands back bytes
+// and a full lesson's length, 30 minutes.
+jest.mock('../../bot/shared/services/audio.service', () => ({
+  getAudioDuration: jest.fn(() => Promise.resolve(1800)),
+}));
 jest.mock('../../bot/shared/storage/r2', () => ({
   uploadClassroomAudio: jest.fn(() => Promise.resolve({})),
+  downloadFromR2: jest.fn(() => Promise.resolve(Buffer.from('audio'))),
+  extractKeyFromUrl: jest.fn((u) => String(u)),
 }));
 jest.mock('../../bot/shared/services/coaching/coaching-session.service', () => ({
   updateStatus: jest.fn(() => Promise.resolve({})),
