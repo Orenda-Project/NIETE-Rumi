@@ -2,7 +2,7 @@
 /**
  * The walk-through row for listed test phones (switch quiz_test_personas, sandbox only): the REAL landing router on a
  * real HTTP port, the real token signer, nonce map (Redis as a Map), role resolver, bindings repo and door.keys reader;
- * supabase is a table double.
+ * supabase is a table double. It is walk-persona.js's seam test: the bindings repo is never mocked or spied on.
  *  1 OFF (absent / false / garbage / a read that throws) → the one question page byte-identical to the page without
  *    the row; POST /persona 404 {off:true}
  *  2 ON but the phone's user id is not on the fixture rule's test-teacher list → the same bytes, the same 404
@@ -13,7 +13,7 @@
  *  5 "Back to my real self": get() is null, the coach phone lands on its own teacher home, the walk's own phone links
  *    are gone
  *  6 nothing logs the phone or the user id; no Redis key holds the phone
- *  7 the eraser runs exactly once per "Start as a new phone" tap, never on the other two
+ *  7 the eraser runs exactly once per "Start as a new phone" tap, never on the other two (read off the table writes)
  * And: production / staging never turn it on, whatever the switch says.
  */
 process.env.WEB_QUIZ_BASE_URL = 'https://portal.example';
@@ -422,18 +422,21 @@ describe('6 · nothing logs the phone or the user id', () => {
 });
 
 describe('7 · the eraser runs once per "Start as a new phone" tap, never on the others', () => {
-  test('a spy on the phone-wide erase', async () => {
+  test('the phone-wide erase, read off the table writes (the real repo; no spy)', async () => {
     world();
-    const spy = jest.spyOn(BindRepo, 'eraseAllForPhone');
+    // the phone-wide erase is the one bindings update filtered by this phone, revoked as a STOP
+    const phoneWide = () => mockDb.writes.filter((w) => w.table === 'child_phone_bindings' && w.fields
+      && w.fields.revoked_by === 'stop' && w.filters.some(([op, c, v]) => op === 'eq' && c === 'phone_norm' && v === NORM.coach));
     await tap('fresh');
-    expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy).toHaveBeenCalledWith(NORM.coach, 'stop', expect.any(Date));
+    expect(phoneWide()).toHaveLength(1);
+    expect(phoneWide()[0].fields).toEqual({ phone_norm: null, revoked_at: expect.any(String), revoked_by: 'stop' });
     await tap('teacher_empty');
     await tap('real');
-    expect(spy).toHaveBeenCalledTimes(1);
+    expect(phoneWide()).toHaveLength(1);
+    // the table double keeps no inserts: the link "real" put back is laid in by hand, so the next erase finds it
+    mockDb.tables.child_phone_bindings.push({ id: 'b-back', canonical_id: 's-old', phone_norm: NORM.coach, via: 'save', bound_at: iso(Date.now()), revoked_at: null, expires_at: iso(Date.now() + 90 * 24 * HOUR) });
     await tap('fresh');
-    expect(spy).toHaveBeenCalledTimes(2);
-    spy.mockRestore();
+    expect(phoneWide()).toHaveLength(2);
   });
 });
 
