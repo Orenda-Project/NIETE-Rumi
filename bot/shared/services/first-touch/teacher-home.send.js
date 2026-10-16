@@ -14,6 +14,7 @@
  * daily cap and the chat hand-out are untouched); the page then polls quizStatus until the forwardable exists.
  */
 const { returnLineText } = require('./teacher-home.copy');
+const { logToFile } = require('../../utils/logger');
 
 const SENT = new Set(['sent', 'report_sent']);
 const REMAKE = new Set(['none', 'offered', 'failed']);
@@ -51,12 +52,20 @@ async function chipFor(quizId, deps) {
 
 /** A library video quiz → { message, wa, shareCodeId } | null. */
 async function videoSend({ uid, lang, quizId }, deps) {
+  const Sent = require('./teacher-home.sent');
+  // a code minted just to show its message is not a send until the tap: with no store to mark it, mint nothing
+  if (!Sent.canMark()) return null;
   const chip = await chipFor(quizId, deps);
   if (!chip) return null;
   const out = await bankOf(deps).make({ uid, lang, grade: chip.grade, subject: chip.subject, quizId });
   if (!out || out.error || typeof out.message !== 'string') return null;
-  // a code minted just to show its message is not a send until the tap (teacher-home.sent.js)
-  if (out.minted) await require('./teacher-home.sent').markPrepared(out.shareCodeId);
+  if (out.minted && !(await Sent.markPrepared(out.shareCodeId))) {
+    // the store refused the mark: retire the code just minted, so it can never read as a send ("Send again")
+    const { error } = await supabaseOf(deps).from('quiz_share_codes').update({ active: false })
+      .eq('id', out.shareCodeId).eq('teacher_user_id', uid);
+    if (error) logToFile('❌ teacher home: a code shown but not marked could not be retired', { error: error.message }, 'error');
+    return null;
+  }
   return { ...sendable(out.message, lang), shareCodeId: out.shareCodeId, quizId };
 }
 
@@ -101,7 +110,7 @@ async function startQuiz({ user, kind, id, lang }, deps) {
   if (kind === 'lesson') {
     const parsed = providersOf(deps).parseLessonKey(id);
     if (!parsed || !parsed.provider) return { error: 'not_found' };
-    const out = await parsed.provider.start(teacher, parsed.lessonRef, { phone, quizLanguage, via: 'list' });
+    const out = await parsed.provider.start(teacher, parsed.lessonRef, { phone, quizLanguage, via: 'home' });
     if (out && out.quizId && (out.outcome === 'queued' || out.outcome === 'already')) return { quizId: out.quizId };
     return { error: out && out.outcome === 'unavailable' ? 'unavailable' : 'busy' };
   }
@@ -112,7 +121,7 @@ async function startQuiz({ user, kind, id, lang }, deps) {
     if (error) throw new Error(error.message);
     // A quiz made, being made or sent for this lesson is never re-made from the page (the job would start over).
     if (existing && !REMAKE.has(listOf(deps).quizState(existing))) return { quizId: existing.id };
-    const out = await transcriptOf(deps).startTranscriptLesson(teacher, id, { phone, quizLanguage, via: 'list' });
+    const out = await transcriptOf(deps).startTranscriptLesson(teacher, id, { phone, quizLanguage, via: 'home' });
     if (out && out.outcome === 'queued' && out.quizId) return { quizId: out.quizId };
     return { error: out && out.outcome === 'not_found' ? 'not_found' : 'busy' };
   }

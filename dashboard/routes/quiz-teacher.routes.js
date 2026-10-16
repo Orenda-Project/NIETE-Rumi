@@ -15,13 +15,18 @@
  * Switch quiz_teacher_home OFF: the bot answers 404 {off:true} and this edge calls next(), so the request falls
  * through to exactly today's handling (nothing is set on the response before that). A malformed token also falls
  * through, with no bot call. A bot that cannot be reached or answers 5xx: the page routes get the small static
- * mk.error page in the request's language, the JSON routes 503 {error:'mk.error'}. A caller over the rate limit also
- * falls through, with no bot call (never a 429: with the switch off this edge must not be seen at all).
+ * mk.error page in the request's language, with ONE tap back to the chat (wa.me/<bot>?text=quiz, the number the bot
+ * gave in its last home answer, digits only; the words alone until it has given one), the JSON routes 503
+ * {error:'mk.error'}. A caller over the rate limit also falls through, with no bot call (never a 429: with the switch
+ * off this edge must not be seen at all). A POST body is read by the same parser dashboard/index.js uses after this
+ * edge (express.json() with its defaults), and a body it cannot read goes on to the app's own error handling exactly
+ * as it would without this edge.
  */
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
 const { buildMessagePage } = require('../../bot/shared/services/first-touch/maker.page');
+const { str } = require('../../bot/shared/services/first-touch/teacher-home.strings');
 
 // base64url(payload) "." base64url(HMAC)[:22] — web-quiz-token's format.
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
@@ -68,8 +73,13 @@ function langOf(req) {
 
 const PRIVATE = { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' };
 
-function errorPage(req, res, status = 503) {
-  const built = buildMessagePage({ lang: langOf(req), id: 'mk.error' });
+/** The bot's number as the bot gave it: 10-15 digits, or null (never a link built from anything else). */
+const cleanBot = (v) => (typeof v === 'string' && /^\d{10,15}$/.test(v) ? v : null);
+
+function errorPage(req, res, status = 503, bot = null) {
+  const lang = langOf(req);
+  const tap = bot ? { href: `https://wa.me/${bot}?text=quiz`, text: str('th.open.wa', lang) } : null;
+  const built = buildMessagePage({ lang, id: 'mk.error', tap });
   res.set({ ...PRIVATE, 'Content-Security-Policy': built.csp });
   return res.status(status).type('html').send(built.html);
 }
@@ -99,6 +109,8 @@ function createQuizTeacherRouter(opts = {}) {
     configured = Boolean(botUrl && apiKey);
   }
   const router = express.Router();
+  let lastBot = null;   // the number the bot gave last (its home answer), for the edge's own error page
+  const fail = (req, res, status) => errorPage(req, res, status, lastBot);
 
   // Per caller address. Over the limit → this route is skipped (next('route')) and the request falls through to
   // today's handling untouched, exactly as with the switch off: no 429, no rate headers, no bot call.
@@ -107,22 +119,23 @@ function createQuizTeacherRouter(opts = {}) {
     keyGenerator: (req) => `th:${clientIp(req)}`,
     handler: (req, res, next) => next('route'),
   });
-  // Its own small body parser; a body too large or unreadable is an empty one (the bot then refuses it).
-  const parse = (req, res, next) => express.json({ limit: '4kb' })(req, res, (err) => { if (err) req.body = {}; next(); });
+  // The same body parser dashboard/index.js runs after this edge (express.json(), its defaults): a body it cannot read
+  // goes on to the app's error handling (next(err)) exactly as without this edge; a form body is left for the app.
+  const parse = express.json();
 
   /** Sends the bot's answer on; → false when the caller should fall through (switch off). */
   function relay(req, res, out, { json }) {
     if (isOff(out)) return false;
     if (out.status >= 300 && out.status < 400) {
       if (!okLocation(out.location)) {
-        if (json) errorJson(res); else errorPage(req, res, 502);
+        if (json) errorJson(res); else fail(req, res, 502);
         return true;
       }
       res.set(PRIVATE);
       res.redirect(out.status, out.location);
       return true;
     }
-    if (out.status >= 500) { if (json) errorJson(res); else errorPage(req, res); return true; }
+    if (out.status >= 500) { if (json) errorJson(res); else fail(req, res, 503); return true; }
     res.set(PRIVATE);
     if (out.status === 204) { res.status(204).end(); return true; }
     res.status(out.status).type(out.contentType || (json ? 'application/json; charset=utf-8' : 'text/html; charset=utf-8')).send(out.bytes || Buffer.alloc(0));
@@ -138,7 +151,7 @@ function createQuizTeacherRouter(opts = {}) {
       try {
         out = await callBot('GET', `${BOT_BASE}/quiz/teacher/${token}${suffix}${query}`, req, null, { raw: true });
       } catch (_) {
-        return errorPage(req, res);
+        return fail(req, res, 503);
       }
       if (!relay(req, res, out, { json: false })) return next();
       return undefined;
@@ -156,6 +169,9 @@ function createQuizTeacherRouter(opts = {}) {
         out = await callBot('GET', `${BOT_BASE}${path}${id !== undefined ? `/${id}` : ''}${forwardQuery(req.query || {})}`, req, null, { raw: true });
       } catch (_) {
         return errorJson(res);
+      }
+      if (path === '/api/th/home' && out && out.status === 200) {
+        try { lastBot = cleanBot(JSON.parse(Buffer.from(out.bytes || '').toString('utf8')).bot) || lastBot; } catch (_) { /* keep the last */ }
       }
       if (!relay(req, res, out, { json: true })) return next();
       return undefined;

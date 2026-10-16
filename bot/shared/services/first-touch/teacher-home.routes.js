@@ -49,6 +49,13 @@ const asked = (v) => (ASKABLE.includes(v) ? v : null);
 const uuidIn = (v) => (typeof v === 'string' && UUID_RX.test(v) ? v : null);
 const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {});
 const optional = (path) => { try { return require(path); } catch (_) { return null; } };
+/** The bot's dialable number, digits only (10-15), or null. */
+function botDigits() {
+  try {
+    const d = String(require('../quiz/video-quiz-share.service').botNumber() || '').replace(/\D/g, '');
+    return /^\d{10,15}$/.test(d) ? d : null;
+  } catch (_) { return null; }
+}
 /** A first-touch module by its name in the registry (`./optional-modules`) when that is on the branch, else by its path; absent or broken → null. */
 function byName(name, path) {
   const R = optional('./optional-modules');
@@ -119,11 +126,19 @@ function createRouter(deps = null) {
     try { logEvent(name, { w: 's', ev_v: 3, tk: tkOf(uid), ...fields }); } catch (_) { /* a failed log never decides a response */ }
   }
 
-  /** The teacher's first open of the home ever (a year-long SET NX on the event key); false when it cannot be told. */
+  /**
+   * The teacher's first open of the home ever (a year-long SET NX on the event key); false when it cannot be told. The
+   * client's setNX answers true when the store is down or fails (it never blocks its callers), so a true is believed
+   * only when the key now reads back.
+   */
   async function firstOpen(uid) {
     const tk = tkOf(uid);
     if (!tk) return false;
-    try { return (await require('../cache/railway-redis.service').setNX(`th:open:${tk}`, '1', 400 * 86400)) === true; } catch (_) { return false; }
+    try {
+      const R = require('../cache/railway-redis.service');
+      const key = `th:open:${tk}`;
+      return (await R.setNX(key, '1', 400 * 86400)) === true && (await R.get(key)) != null;
+    } catch (_) { return false; }
   }
   async function makerOn() {
     try { return (await require('../quiz/web-quiz-identity-flags').flags()).makerPage === true; } catch (_) { return false; }
@@ -169,8 +184,7 @@ function createRouter(deps = null) {
     const t = typeof change === 'string' ? change.slice('/quiz/go/'.length) : '';
     if (!t || t.includes('/')) return null;
     try {
-      const OneDoor = optional('./optional-modules');
-      const P = OneDoor && typeof OneDoor.load === 'function' ? OneDoor.load('testPersona') : null;
+      const P = byName('testPersona', './walk-persona');
       if (!P || typeof P.row !== 'function') return null;
       const html = await P.row({ lang, token: t });
       return typeof html === 'string' && html.startsWith('<section data-screen="walk">') ? { html, t } : null;
@@ -251,6 +265,7 @@ function createRouter(deps = null) {
     home.primary = (await withSend(home.primary, p, lang)) || (maker ? { kind: 'make', href: maker } : { kind: 'none' });
     home.cards = maker ? cardsFor(lang) : [];
     home.lang = lang;
+    home.bot = botDigits(); // the edge's own error page taps back to the chat with it
     const { facts } = home;
     delete home.facts;
     event('teacher_home_open', p.uid, { first: await firstOpen(p.uid), ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });

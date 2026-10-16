@@ -96,12 +96,25 @@ async function lessons(uid, deps) {
   });
 }
 
-/** The report's own played counts for this teacher's sent quizzes: Map quizId → { played, of, date, topic, source }. */
+/**
+ * The report's own played counts for the quizzes this teacher MADE and sent: Map quizId → { played, of, date, topic,
+ * source }. The class report also lists the library quizzes the teacher sent (their sender's report); those are this
+ * page's library shares (by their code), so they are left out here — one row per send, never two.
+ */
 async function playedOwn(uid, deps) {
   const Report = dep(deps, 'Report');
   const r = await Report.classReport(uid, { days: 60 });
+  const rows = (r && r.quizzes) || [];
   const out = new Map();
-  ((r && r.quizzes) || []).forEach((q) => out.set(q.id, { played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null }));
+  if (!rows.length) return out;
+  const mine = new Set();
+  const ids = rows.map((q) => q.id);
+  for (let i = 0; i < ids.length; i += 300) { // under PostgREST's .in() header cap
+    const { data: made, error } = await dep(deps, 'supabase').from('quizzes').select('id').in('id', ids.slice(i, i + 300)).eq('teacher_id', uid);
+    if (error) throw new Error(error.message);
+    (made || []).forEach((q) => mine.add(q.id));
+  }
+  rows.filter((q) => mine.has(q.id)).forEach((q) => out.set(q.id, { played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null }));
   return out;
 }
 
@@ -115,7 +128,8 @@ async function libraryShares(uid, deps, now = Date.now()) {
   const since = new Date(now - SHARE_DAYS * 86400000).toISOString();
   const { data, error } = await supabase.from('quiz_share_codes')
     .select('id, quiz_id, topic, created_at, active, expires_at')
-    .eq('teacher_user_id', uid).is('invited_by_student_id', null).gte('created_at', since)
+    // the teacher's own sends only: never a child's code under one of theirs (a watch child, a class child's lesson code)
+    .eq('teacher_user_id', uid).is('parent_share_code_id', null).is('invited_by_student_id', null).gte('created_at', since)
     .order('created_at', { ascending: false }).limit(10);
   if (error) throw new Error(error.message);
   const codes = (data || []).filter((c) => c.active !== false && (!c.expires_at || new Date(c.expires_at).getTime() > now));

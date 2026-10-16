@@ -52,7 +52,7 @@ const STRINGS = Object.freeze({
   'th.children': Object.freeze({ en: 'Children on this phone', ur: 'اس فون پر بچے' }),
   'th.try.student': Object.freeze({ en: 'Try it as a student', ur: 'بچوں والا حصہ آزمائیں' }),
   // the one tap back to the chat on every stale / error page and the error line (the link is wa.me/<bot>?text=quiz)
-  'th.open.wa': Object.freeze({ en: 'Open WhatsApp', ur: 'واٹس ایپ کھولیں' }),
+  'th.open.wa': Object.freeze({ en: 'Open WhatsApp', ur: 'واٹس ایپ کھولیں' }), // a no-break space inside the brand name (the signed form)
   // the class message's last line; {link} = https://wa.me/<the bot's number>?text=quiz
   'cm.return': Object.freeze({ en: 'Any day: send “quiz” to this number → {link}', ur: 'کسی بھی دن اس نمبر پر ”کوئز“ لکھ کر بھیجیں ← {link}' }),
 });
