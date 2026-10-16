@@ -190,12 +190,16 @@ const titleOf = (r, lang) => require('./web-quiz-passage-title').titleFor(r.pass
 
 /**
  * The Story Time shelf: this week's story, a story to listen to, numbers, more stories. NEW iff the passage is in
- * `unseenPids`, the same set the lantern's resolver reads, so a NEW tag and a story lantern always come together.
+ * `unseenPids`, the same set the lantern's resolver reads: a story lantern always names this week's story while it is
+ * NEW; a NEW listen story is marked on its own tile only.
  * This week's story carries its `title` from the same title home as the lantern; a passage with none keeps the
  * tile as it was ({ id, pid, nx }, the page's generic label).
  */
+// The newest live passage of one kind (this week's story is newestOf(live, 'read')), or null.
+const newestOf = (live, kind) => live.filter((r) => r.kind === kind).sort((a, b) => Date.parse(b.released_at) - Date.parse(a.released_at))[0] || null;
+
 function shelfOf(live, unseenPids, lang) {
-  const newest = (kind) => live.filter((r) => r.kind === kind).sort((a, b) => Date.parse(b.released_at) - Date.parse(a.released_at))[0] || null;
+  const newest = (kind) => newestOf(live, kind);
   const tile = (id, r) => (r ? { id, pid: r.passage_id, nx: unseenPids.has(r.passage_id) ? 'new' : 'seen' } : null);
   const read = newest('read');
   const named = (t) => { const title = t && titleOf({ passage_id: t.pid }, lang); return title ? { ...t, title } : t; };
@@ -239,13 +243,17 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } 
   const unseen = (seenIds ? p.live.filter((r) => !isSeenOf(seenIds)(r)) : [])
     .map((r) => ({ pid: r.passage_id, title: titleOf(r, lang), released_at: r.released_at, band: r.band }))
     .filter((u) => u.title);
+  // The lantern sits over the shelf's first tile (this week's story, shelfOf: the newest live read story) and names
+  // only that story: unseen there -> its title; seen or untitled -> no story line (numbers/day), never another story.
+  const weekRead = seenIds ? newestOf(p.live, 'read') : null;
+  const ownTile = weekRead ? unseen.filter((u) => u.pid === weekRead.passage_id) : [];
   const nx = nextThing({
-    trail_waiting: trail, unseen_stories: unseen, numbers_fresh: s.story, next_release: s.story ? p.next : null,
+    trail_waiting: trail, unseen_stories: ownTile, numbers_fresh: s.story, next_release: s.story ? p.next : null,
     read_along_first: false, now: nowIso,
   });
   // Story, numbers and day lines are Story Time's; with it off only the trail line shows.
   if (nx.kind === 'trail' || s.story) {
-    out.lantern = nx.kind === 'story' ? { ...nx, pid: (unseen.find((u) => u.title === nx.title) || {}).pid || null } : nx;
+    out.lantern = nx.kind === 'story' ? { ...nx, pid: (ownTile.find((u) => u.title === nx.title) || {}).pid || null } : nx;
   }
   if (seenIds) out.shelf = shelfOf(p.live, new Set(unseen.map((u) => u.pid)), lang);
   return out;
