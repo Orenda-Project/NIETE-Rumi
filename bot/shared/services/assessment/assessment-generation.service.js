@@ -1206,7 +1206,12 @@ async function _loadPatternPoem({ grade, subject, P, scope, pageContent }) {
   if (!poem) return null;
   try {
     const got = await BookContent().loadPageRangeContent({ grade, subject, pageRanges: poem.pages });
-    return got && got.content ? { ...poem, content: got.content } : null;
+    // The page store keeps the book's picture notes ("Object: Illustration of …") among the
+    // poem's lines; Q5 prints the given lines exactly, so the notes are left out.
+    const content = got && got.content
+      ? String(got.content).split('\n').filter((line) => !/^\s*Object:/.test(line)).join('\n')
+      : '';
+    return content ? { ...poem, content } : null;
   } catch (err) {
     logToFile('[assessment] Q5 poem pages not loaded', { pages: poem.pages, error: err.message });
     return null;
