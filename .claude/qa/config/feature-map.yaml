@@ -81,6 +81,8 @@ features:
 
   registration:
     - bot/shared/routes/registration-endpoint.js
+    - bot/shared/services/registration-invite.service.js   # the one sender of the registration Flow
+    - bot/shared/utils/registration-intent.js              # which messages are a registration request
     - bot/shared/config/registration-data.js
     - bot/shared/services/name-extractor.service.js
     - bot/shared/services/feature-registration.service.js
