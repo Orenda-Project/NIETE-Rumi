@@ -172,6 +172,45 @@ describe('POST /hubdoor {st, jugnu:1}: the Jugnu card\'s link', () => {
   });
 });
 
+// The Home button (app_settings web_quiz_home_button, with the hub on): the hub's own Jugnu link carries home=1
+// (hub.js withHome) so the Trail shows Home; the card's link, opened by the same child, carries it the same way.
+describe('the card href and the Home button (web_quiz_home_button)', () => {
+  const NOW = 1790000000000;
+  afterEach(() => jest.restoreAllMocks());
+  test('the card href carries home=1 (the Trail shows Home)', async () => {
+    seed({ on: { ...ALL_ON, web_quiz_home_button: true } });
+    const out = await cardModule().go({ st: st() }, WQ.WqError);
+    const m = /^\/c\/([A-Za-z0-9._-]+)\?kid=([A-Za-z0-9_-]+)&via=quiz_card&home=1$/.exec(out.href);
+    expect(m).not.toBeNull();
+    expect(T.verify(m[1], 'h')).toMatchObject({ ids: [KID], src: 'cd' });
+    expect(m[2]).toBe(T.chipId('h', KID));
+  });
+  test('the Home button on but the hub off: no card, so no link (the card\'s own switch still rules)', async () => {
+    seed({ on: { ...ALL_ON, web_quiz_hub: false, web_quiz_home_button: true } });
+    expect(await err(cardModule().go({ st: st() }, WQ.WqError))).toMatchObject({ status: 404, error: 'no_door' });
+  });
+  test('golden: the Home button off (or unreadable) -> the card href is today\'s, byte for byte', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+    const today = `/c/${T.sign({ k: 'h', ids: [KID], exp: Math.floor(NOW / 1000) + T.HUB_TTL_S, src: 'cd' })}?kid=${encodeURIComponent(T.chipId('h', KID))}&via=quiz_card`;
+    seed({ on: { ...ALL_ON, web_quiz_home_button: false } });
+    expect((await cardModule().go({ st: st() }, WQ.WqError)).href).toBe(today);
+    redis._store.clear(); cardModule()._resetCache(); Flags._resetCache(); seed();
+    expect((await cardModule().go({ st: st() }, WQ.WqError)).href).toBe(today);
+    redis._store.clear(); cardModule()._resetCache(); Flags._resetCache(); seed({ on: { ...ALL_ON, web_quiz_home_button: true } });
+    jest.spyOn(Flags, 'flags').mockRejectedValue(new Error('down'));
+    expect((await cardModule().go({ st: st() }, WQ.WqError)).href).toBe(today);
+  });
+  test('golden: the hub door\'s href is byte-unchanged (/h/<hub token>, no home param), Home asked or not', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+    const Door = require('../../../shared/services/quiz/web-quiz-hub-door');
+    const base = `/h/${T.signHub([KID])}`;
+    seed({ on: { ...ALL_ON, web_quiz_hub_door: true, web_quiz_home_button: true } });
+    expect((await Door.door({ st: st() }, WQ.WqError)).href).toBe(base);
+    redis._store.clear(); Flags._resetCache(); seed({ on: { ...ALL_ON, web_quiz_hub_door: true, web_quiz_home_button: true } });
+    expect((await Door.door({ st: st(), home: 1 }, WQ.WqError)).href).toBe(base);
+  });
+});
+
 // A play opened from the card has no quiz session on its hub token: the challenge's serve reads the pick from the hub
 // key, whose one builder is the identity pick module's hubPickKey(canonical id, device). go() copies THIS quiz
 // session's pick there for the same child and phone; no pick, or the module throwing, writes nothing and never throws.
