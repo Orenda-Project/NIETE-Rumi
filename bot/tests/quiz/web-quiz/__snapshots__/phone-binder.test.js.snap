@@ -3,7 +3,7 @@
 exports[`goldens: switch off → the original path (snapshots taken from the code before this change) a chat child's /quiz → the same cta_url args 1`] = `
 [
   [
-    "920000000611",
+    "92300FIXTURE611",
     {
       "body": "Your quizzes, videos and challenges are here.",
       "buttonText": "Open",

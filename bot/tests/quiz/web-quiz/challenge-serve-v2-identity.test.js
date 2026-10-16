@@ -66,7 +66,7 @@ const reset = (settings) => {
     challenge_periods: [{ period_id: '2026-11', starts_at: iso(Date.now() - DAY), ends_at: iso(Date.now() + 29 * DAY), anchor_block_version: 'A1', weights_v: 'w1', bank_version: 'child-test-items-v4' }],
     challenge_passages: [],
     challenge_draws: [],
-    child_phone_bindings: [{ id: 'b1', canonical_id: K3, phone_norm: '923001234567', via: 'save', bound_at: iso(Date.now() - 5 * DAY), last_played_at: null, expires_at: OLD_EXPIRY, revoked_at: null }],
+    child_phone_bindings: [{ id: 'b1', canonical_id: K3, phone_norm: '+92300FIXTURE1', via: 'save', bound_at: iso(Date.now() - 5 * DAY), last_played_at: null, expires_at: OLD_EXPIRY, revoked_at: null }],
   };
   Object.assign(supabase, guardColumns(makeFake(db)));
   Ch.__reset();

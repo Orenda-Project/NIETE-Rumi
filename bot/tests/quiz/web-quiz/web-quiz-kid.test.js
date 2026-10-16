@@ -17,6 +17,8 @@ const CHILD = '44444444-4444-4444-8444-000000000001';
 const OTHER = '44444444-4444-4444-8444-000000000002';
 const CLASS = '55555555-5555-4555-8555-000000000001';
 const DEV = 'AAAAAAAAAAAAAAAAAAAAAA';
+const { fixturePhone } = require('./fixture-phone');
+const PHONE = fixturePhone(1);
 const hmac = (s) => crypto.createHmac('sha256', KEY).update(s).digest('hex');
 const missing = () => logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.kid_key_missing');
 
@@ -35,7 +37,7 @@ describe('kid refuses without the secret', () => {
     expect(K.kid(OTHER)).toBeNull();
     expect(K.dk(DEV)).toBeNull();
     expect(K.cls(CLASS)).toBeNull();
-    expect(K.ukey('923001112223')).toBeNull();
+    expect(K.ukey(PHONE)).toBeNull();
     expect(missing()).toHaveLength(1);
     expect(missing()[0][1]).toEqual({ w: 's', ev_v: 2, kid_v: '2026', kid: null });
   });
@@ -71,14 +73,14 @@ describe('the keys', () => {
   test('the domain prefixes differ: the same value hashed as kid, dev, cls never collide; lengths 16/12/12/16', () => {
     expect(K.dk(DEV)).toBe(hmac(`dev|${DEV}`).slice(0, 12));
     expect(K.cls(CLASS)).toBe(hmac(`cls|${CLASS}`).slice(0, 12));
-    expect(K.ukey('923001112223')).toBe(hmac('ukey|923001112223').slice(0, 16));
+    expect(K.ukey(PHONE)).toBe(hmac(`ukey|${PHONE}`).slice(0, 16));
     expect(K.kid(CLASS).slice(0, 12)).not.toBe(K.cls(CLASS));
     expect(K.kid(CHILD)).toHaveLength(16);
     expect(K.dk(DEV)).toHaveLength(12);
   });
 
   test('not an id: null (a phone or a name is never hashed as a kid)', () => {
-    expect(K.kid('923001112223')).toBeNull();
+    expect(K.kid(PHONE)).toBeNull();
     expect(K.kid('Sana Testwala')).toBeNull();
     expect(K.kid(null)).toBeNull();
     expect(K.cls('not-a-class')).toBeNull();
@@ -114,12 +116,12 @@ describe('envelope', () => {
     const kid = K.kid(CHILD);
     const dirty = {
       kid, run: 'r1', device_ref: DEV, share_code: 'ABCD12', share_code_id: 'x', dh: 'abc', sid: 's1', code: 'ABCD12', code_h: 'h',
-      to_h: 't', shareCodeId: 'sc', sessionId: 'se', student_id: CHILD, class_id: CLASS, userId: 'u', phone: '923001112223',
-      phone_norm: '923001112223', name: 'Sana Testwala', token: 'tok', ukey: 'a0000000000009', dk: K.dk(DEV),
+      to_h: 't', shareCodeId: 'sc', sessionId: 'se', student_id: CHILD, class_id: CLASS, userId: 'u', phone: PHONE,
+      phone_norm: PHONE, name: 'Sana Testwala', token: 'tok', ukey: 'a0000000000009', dk: K.dk(DEV),
     };
     const out = K.envelope(dirty);
     expect(Object.keys(out).sort()).toEqual(['dk', 'ev_v', 'kid', 'kid_v', 'run', 'w']);
-    expect(JSON.stringify(out)).not.toMatch(/AAAAAAAA|ABCD12|Testwala|923001112223|55555555|44444444/);
+    expect(JSON.stringify(out)).not.toMatch(new RegExp(`AAAAAAAA|ABCD12|Testwala|${PHONE}|55555555|44444444`));
   });
 
   test('without a kid the event keeps its own fields (a diagnostics event is not rewritten)', () => {

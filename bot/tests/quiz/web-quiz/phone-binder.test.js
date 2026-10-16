@@ -45,7 +45,8 @@ const Ingress = require('../../../shared/services/student-ingress');
 const StudentQuiz = require('../../../shared/services/quiz/student-quiz.service');
 const T = require('../../../shared/services/quiz/web-quiz-token');
 
-const PHONE = '920000000611';
+const { fixturePhone, maskFixturePhones } = require('./fixture-phone');
+const PHONE = fixturePhone(611);
 const KIDS = ['f0000000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000003',
   'f0000000-0000-4000-8000-000000000004', 'f0000000-0000-4000-8000-000000000005', 'f0000000-0000-4000-8000-000000000006'];
 const NAMES = ['Ayesha Testwala', 'Bilal Testwala', 'Chanda Testwala', 'Danish Testwala', 'Erum Testwala', 'Faraz Testwala'];
@@ -249,7 +250,7 @@ describe('the seven refusals, one by one (no binding row, the code spent where i
 
   test('max_phones: the child is on 3 other phones → refused, spent, silent', async () => {
     seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])],
-      bindings: ['920000000701', '920000000702', '920000000703'].map((p) => binding(KIDS[0], p)) });
+      bindings: [fixturePhone(701), fixturePhone(702), fixturePhone(703)].map((p) => binding(KIDS[0], p)) });
     await say('JUGNU-AB2CD');
     expect(events('web_quiz.bind_refused')).toEqual([{ reason: 'max_phones', w: 's' }]);
     expect(fake.db.child_bind_codes[0].outcome).toBe('max_phones');
@@ -277,11 +278,11 @@ describe('the seven refusals, one by one (no binding row, the code spent where i
 
 describe('STOP', () => {
   test('a bound child\'s STOP erases every binding on the phone and replies once', async () => {
-    seed({ students: [student(0), student(1)], bindings: [binding(KIDS[0]), binding(KIDS[1]), binding(KIDS[2], '920000000799')] });
+    seed({ students: [student(0), student(1)], bindings: [binding(KIDS[0]), binding(KIDS[1]), binding(KIDS[2], fixturePhone(799))] });
     expect(await say('  Stop ')).toBe(true);
     const mine = fake.db.child_phone_bindings.filter((b) => b.id.endsWith('-611'));
     expect(mine.every((b) => b.phone_norm === null && b.revoked_by === 'stop' && b.revoked_at)).toBe(true);
-    expect(fake.db.child_phone_bindings.find((b) => b.id.endsWith('-799')).phone_norm).toBe('920000000799');
+    expect(fake.db.child_phone_bindings.find((b) => b.id.endsWith('-799')).phone_norm).toBe(fixturePhone(799));
     expect(WhatsApp.sendMessage.mock.calls).toEqual([[PHONE, UX_STRINGS.jugnuBindStopped.en]]);
     expect(events('web_quiz.bind_undo')).toEqual([{ via: 'stop', n: 1, audio_n: 0, w: 's' }, { via: 'stop', n: 1, audio_n: 0, w: 's' }]);
     expect(events('web_quiz.audio_purge_requested')).toEqual([{ n: 2, reason: 'stop', w: 's' }]);
@@ -551,7 +552,7 @@ describe('goldens: switch off → the original path (snapshots taken from the co
     jest.spyOn(Date, 'now').mockReturnValue(FIXED_NOW);
     seed({ on: false, students: [chatKid(0), chatKid(1)] });
     await StudentQuiz.open(PHONE, { language: 'en' });
-    expect(WhatsApp.sendCtaUrl.mock.calls).toMatchSnapshot();
+    expect(maskFixturePhones(WhatsApp.sendCtaUrl.mock.calls)).toMatchSnapshot();
     expect(events('student_quiz.opened')).toMatchSnapshot();
   });
 

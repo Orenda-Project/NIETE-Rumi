@@ -3,7 +3,7 @@
 exports[`goldens: guest home off → the original path (snapshots taken from the code before this change) a chat child with nothing to show, guest home off → today's no-quizzes line from open() 1`] = `
 [
   [
-    "920000000811",
+    "92300FIXTURE811",
     "No quizzes yet — they come from the link your class shares. Send ⁦/video⁩ for videos meanwhile.",
   ],
 ]
@@ -22,7 +22,7 @@ exports[`goldens: guest home off → the original path (snapshots taken from the
 exports[`goldens: guest home off → the original path (snapshots taken from the code before this change) phone bind on, guest home off → the same no_student_row verdict and the same /quiz path 2`] = `
 [
   [
-    "student_ingress:920000000811",
+    "student_ingress:92300FIXTURE811",
     {
       "language": null,
       "mode": "unknown",
@@ -48,7 +48,7 @@ exports[`goldens: guest home off → the original path (snapshots taken from the
 exports[`goldens: guest home off → the original path (snapshots taken from the code before this change) unknown phone, every switch off → no_student_row deep-equal; /quiz not taken; nothing sent 2`] = `
 [
   [
-    "student_ingress:920000000811",
+    "student_ingress:92300FIXTURE811",
     {
       "language": null,
       "mode": "unknown",
