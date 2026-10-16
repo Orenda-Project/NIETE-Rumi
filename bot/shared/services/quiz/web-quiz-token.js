@@ -124,9 +124,11 @@ function signPreview({ shareCodeId, teacherUserId }) {
   return sign({ k: 'p', sc: shareCodeId, t: teacherUserId, exp: nowS() + PREVIEW_TTL_S });
 }
 
-function signChallenge({ studentId, ex, runId }) {
+function signChallenge({ studentId, ex, runId, round = null, mode = null }) {
   if (!studentId || !ex || !runId) return null;
-  return sign({ k: 'c', sid: studentId, ex, r: runId, exp: nowS() + CHALLENGE_TTL_S });
+  // round / mode: the class round's id and the mode the server chose for this position (web_quiz_class_round) —
+  // only on a run started from a round turn token
+  return sign({ k: 'c', sid: studentId, ex, r: runId, exp: nowS() + CHALLENGE_TTL_S, ...(round ? { cr: round, cm: mode } : {}) });
 }
 
 /**

@@ -118,6 +118,8 @@ router.get('/page/:token', handle(async (req, res) => {
   const b = await build(req, v);
   if (!b) { notFound(req, res, v); return; }
   const jugnu = await Jugnu.pageExtras(req, v, b.lang); // Jugnu tab: null when its switch is off
+  // ── class round (web_quiz_class_round): its card on the class tab; '' when off or no open draw ──
+  const roundCard = b.tab === 'class' ? await require('../services/quiz/web-quiz-class-round').cardFor(v.teacherId, { lang: b.lang, token: req.params.token }) : '';
   logEvent('teacher_report.opened', {
     teacherId: v.teacherId, quizId: v.quizId, scope: v.quizId ? 'quiz' : 'all', tab: jugnu && jugnu.view ? 'jugnu' : b.tab, iab: IAB_RX.test(req.get('user-agent') || ''),
   });
@@ -125,6 +127,7 @@ router.get('/page/:token', handle(async (req, res) => {
   res.status(200).type('html').send(renderPage(b.data, {
     lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: NOTICES[req.query.e] || null, ok: okOf(req.query),
     ...(jugnu ? { jugnu } : {}),
+    ...(roundCard ? { roundCard } : {}),
   }));
 }));
 
@@ -282,5 +285,8 @@ router.post('/fix/:token', handle(async (req, res) => {
 // ── Jugnu tab (web_quiz_teacher_jugnu): GET /fwd/:token, POST /queue/:token — 404 while the switch is off ──
 Jugnu.attach(router, { authorise, handle, notFound, noStore, languageFor });
 // ── end Jugnu tab ──
+// ── class round (web_quiz_class_round): the locked round mode; every route is the report's 404 while off ──
+router.use('/round', require('./class-round-internal.routes')({ page, noStore, queryLang }));
+// ── end class round ──
 
 module.exports = router;
