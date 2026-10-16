@@ -8,6 +8,8 @@
  *   teacher_phone · code_unknown · code_used · code_expired · child_unknown · max_phones · max_kids
  *   A teacher's phone gets ONE refusal line (ledger teacher_refusal); a full phone gets ONE line (ledger bind_reply);
  *   the other refusals have no bot copy, so the binder stays silent (the page shows the state).
+ *   With web_quiz_bind_way_back on, every outcome answers ONCE instead, and a recent code's carries the button back
+ *   to the child's page (web-quiz-bind-way-back.js); off, all of the above is today's, byte for byte.
  *   Every reply is counted on the ledger BEFORE it is sent, with the phone (the per-phone daily reply cap): a
  *   reply over the cap is not sent.
  * Bound (new, renewed or a re-bind): the code is spent, the door's cached verdict is dropped, and ONE reply is
@@ -26,6 +28,7 @@ const Codes = require('./child-bind-codes.repo');
 const StudentIdentity = require('./student-identity.service');
 const Ledger = require('./message-ledger');
 const K = require('./web-quiz-kid');
+const WayBack = require('./web-quiz-bind-way-back');
 
 const MAX_PHONES_PER_CHILD = 3;
 const MAX_KIDS_PER_PHONE = require('./web-quiz-token').HUB_MAX_KIDS;
@@ -154,6 +157,7 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
       await Codes.markUsed(code, 'teacher_phone', now);
       const out = await refused('teacher_phone');
       const lang = clampLanguage((user && user.preferred_language) || 'en');
+      if (await WayBack.reply({ phone, reason: 'teacher_phone', code, asked, language: lang, now })) return out;
       // counted first (the per-phone reply cap); sent only when the ledger says so
       if (await Ledger.record({ trigger: 'teacher_refusal', recipient: 'teacher', phone, reason: 'teacher_phone', now })) {
         await sendText(phone, 'jugnuBindTeacherRefused', lang);
@@ -161,23 +165,30 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
       return out;
     }
 
+    // the way back's reply language for a code with a child: the family's prefill, else the child's, else the user's
+    const langOf = (r) => (r && r.canonical_id ? languageFor({ id: String(r.canonical_id) }, user, asked) : null);
+    const back = (out, reason, r) => WayBack.reply({ phone, reason, row: r, user, asked, language: langOf, now }).then(() => out);
     const row = await Codes.get(code);
-    if (!row) return refused('code_unknown');
-    if (row.used_at) return refused('code_used', {}, row.canonical_id);
+    if (!row) return back(await refused('code_unknown'), 'code_unknown', null);
+    if (row.used_at) {
+      const out = await refused('code_used', {}, row.canonical_id);
+      if (await WayBack.alreadySaved({ phone, norm, row, user, asked, now, sendSaved, languageFor, resolveChild: () => liveChild(row.canonical_id) })) return out;
+      return back(out, 'code_used', row);
+    }
     if (!row.expires_at || new Date(row.expires_at).getTime() <= new Date(now).getTime()) {
       await Codes.markUsed(code, 'code_expired', now);
-      return refused('code_expired', {}, row.canonical_id);
+      return back(await refused('code_expired', {}, row.canonical_id), 'code_expired', row);
     }
     const child = await liveChild(row.canonical_id);
     if (!child) {
       await Codes.markUsed(code, 'child_unknown', now);
-      return refused('child_unknown');
+      return back(await refused('child_unknown'), 'child_unknown', null);
     }
 
     const phones = await BindRepo.activeForChild(child.id, now);
     if (phones.length >= MAX_PHONES_PER_CHILD && !phones.some((b) => b.phone_norm === norm)) {
       await Codes.markUsed(code, 'max_phones', now);
-      return refused('max_phones', {}, child.id);
+      return back(await refused('max_phones', {}, child.id), 'max_phones', row);
     }
     const set = await BindRepo.childrenForPhone(phone);
     const inSet = set.some((k) => String(k.id) === child.id);
@@ -185,6 +196,7 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
       await Codes.markUsed(code, 'max_kids', now);
       const out = await refused('max_kids', { kids_n: set.length }, child.id);
       const lang = await languageFor(child, user, asked);
+      if (await WayBack.reply({ phone, reason: 'max_kids', row, language: lang, now })) return out;
       if (await Ledger.record({ trigger: 'bind_reply', phone, reason: 'max_kids', now })) await sendText(phone, 'jugnuBindFullRefused', lang);
       return out;
     }

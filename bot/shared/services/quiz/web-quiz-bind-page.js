@@ -122,7 +122,11 @@ async function status({ code } = {}) {
     if (!row) return { state: 'refused', reason: 'code_unknown' };
     if (row.used_at && row.outcome === 'bound') return { state: 'bound' };
     if (row.outcome === 'code_expired') return { state: 'expired' };
-    if (row.used_at && row.outcome) return { state: 'refused', reason: String(row.outcome).replace(/^refused:?/, '') };
+    if (row.used_at && row.outcome) {
+      const r = { state: 'refused', reason: String(row.outcome).replace(/^refused:?/, '') };
+      // web_quiz_bind_way_back: the page offers Yes again for a refusal it has no line for, instead of a dead card
+      return (await require('./web-quiz-bind-way-back').on()) ? { ...r, wb: true } : r;
+    }
     if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) return { state: 'expired' };
     return { state: 'pending' };
   } catch (err) {
@@ -204,7 +208,10 @@ async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, devi
     if (f.canon && chosen) await recordHubPick({ chosen, rows, device, src });
     if (!f.phoneBind) return out;
     if (chosen) {
-      out.bind = { offer: true, hub: token, kid: out.kid };
+      // web_quiz_bind_way_back: a child already saved, or a phone refused, from this device sees no card (null: off)
+      const WayBack = require('./web-quiz-bind-way-back');
+      const seen = (await WayBack.on()) ? await WayBack.cardState({ canonicalId: await canonicalOf(chosen.id), device }) : null;
+      out.bind = seen ? { offer: false, ...seen } : { offer: true, hub: token, kid: out.kid };
       return out;
     }
     out.bind = { offer: false };
@@ -219,6 +226,11 @@ async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, devi
     logToFile('⚠️ keep my place: hub extras failed', { error: err.message });
     return out;
   }
+}
+
+/** The chosen child's canonical id (the codes are minted under it); the id itself when the fold is unavailable. */
+async function canonicalOf(id) {
+  try { return (await require('./web-quiz-identity-roster').canonicalStudentId(id)) || id; } catch (_) { return id; }
 }
 
 // A play opened from the hub has no quiz session: its pick is keyed by the child and this phone.
