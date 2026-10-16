@@ -14,6 +14,7 @@ const WQ = path.join(__dirname, '..', 'public', 'wq');
 const HUB_SRC = fs.readFileSync(path.join(WQ, 'hub.js'), 'utf8');
 const BOOTS = require('./fixtures/hub-play-boots.json');
 const ON = { on: true };
+const ok = (body) => () => ({ status: 200, body });
 
 // The opening tag a simple selector (.class or #id) names, and where its element ends (same-tag depth count).
 function find(html, sel, from) {
@@ -139,10 +140,12 @@ describe('stories on, the v3 home off: a #story/ link opens the reader on the hu
     await p.flush();
     expect(p.script(/wq-stories\.js/)).toHaveLength(1);
     p.ctx.WQSTORIES = {};   // the reader arrived; it routes its own hashes from here
+    p.root.innerHTML = '<div class="wqs">a book page</div>';   // what the reader painted
     hash(p, '#story/bk1/p2');
     hash(p, '#story/bk2');
     await p.flush();
     expect(p.script(/wq-stories\.js/)).toHaveLength(1);
+    expect(p.html()).toBe('<div class="wqs">a book page</div>');   // page to page inside a book never redraws the hub
   });
   test.each(['', '#stories'])('leaving the book (hash "%s") draws the hub again', async (h) => {
     const boot = { ...BOOTS.done, lang: 'en', stories: ON };
@@ -164,12 +167,24 @@ describe('stories on, the v3 home off: a #story/ link opens the reader on the hu
     expect(p.html()).toBe('<div id="other">x</div>');
     expect(p.script(/wq-stories/)).toHaveLength(0);
   });
-  test('the v3 home on: hub.js leaves the reader to the home (only wq-home.js is asked for)', async () => {
+  test('the v3 home on: hub.js leaves the loading to the home (only wq-home.js is asked for) and hands the reader the hub\'s child', async () => {
     const p = open({ hash: '#story/bk1', boot: { ...BOOTS.done, lang: 'en', stories: ON, home_v3: true }, listen: false });
     await p.flush();
     expect(p.script(/wq-home\.js/)).toHaveLength(1);
     expect(p.script(/wq-stories/)).toHaveLength(0);
-    expect(p.ctx.WQSTORIES_CTX).toBeUndefined();
+    expect(p.wl.hashchange).toBeUndefined();
+    expect(p.ctx.WQSTORIES_CTX).toEqual({ token: BOOTS.done.token, kid: BOOTS.done.kid, lang: 'en' });
+  });
+  // A phone's first open: the server render was locked (no child in the page's boot JSON), the hub unlocked in place.
+  // The reader reads its child from WQSTORIES_CTX before the page's boot JSON, so it must be the unlocked hub's child.
+  const LOCKED = { lang: 'en', token: BOOTS.done.token, brand: null, locked: true, kids: [] };
+  test.each([[true, 'the v3 home'], [false, 'the hub']])('a first open that unlocks (home_v3 %p, %s): the reader gets the unlocked child, not the locked render\'s none', async (home) => {
+    const body = { ...BOOTS.done, lang: 'en', stories: ON, ...(home ? { home_v3: true } : {}) };
+    const p = open({ hash: '#story/bk1', boot: LOCKED, routes: { 'hub/': ok(body) }, listen: false });
+    await p.flush();
+    expect(p.fetches.some((u) => /\/hub\//.test(u))).toBe(true);
+    expect(p.ctx.WQSTORIES_CTX).toEqual({ token: BOOTS.done.token, kid: BOOTS.done.kid, lang: 'en' });
+    expect(p.script(/wq-stories\.js/)).toHaveLength(home ? 0 : 1);
   });
   test('no child on the hub (the picker): nothing fetched', async () => {
     const p = open({ hash: '#story/bk1', boot: { ...BOOTS.done, lang: 'en', stories: ON, kid: null }, listen: false });
