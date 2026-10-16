@@ -64,7 +64,7 @@ function refreshMode() {
  */
 async function identityMode(now = Date.now(), { swr = false } = {}) {
   if (flag && now - flag.at < TTL_MS) return flag.mode;
-  if (swr && flag) { refreshMode(); return flag.mode; }
+  if (swr && flag && now - flag.at < require('./web-quiz-swr').MAX_STALE * TTL_MS) { refreshMode(); return flag.mode; }
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', FLAG_KEY);
     if (error) throw new Error(error.message || 'app_settings read failed');

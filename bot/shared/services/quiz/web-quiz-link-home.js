@@ -64,7 +64,7 @@ function refresh() {
 async function isOn(now = Date.now(), { swr = false } = {}) {
   let own = false;
   if (cache && now - cache.at < TTL_MS) own = cache.on;
-  else if (swr && cache) { refresh(); own = cache.on; }
+  else if (swr && cache && now - cache.at < require('./web-quiz-swr').MAX_STALE * TTL_MS) { refresh(); own = cache.on; }
   else {
     try {
       const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [LINK_HOME_KEY]);

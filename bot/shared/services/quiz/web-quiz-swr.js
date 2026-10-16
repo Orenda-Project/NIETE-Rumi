@@ -2,16 +2,23 @@
 /**
  * Stale-while-revalidate for the web quiz's 30 s switch caches, only with app_settings web_quiz_fast on.
  *
- * A switch read with a cached value older than its TTL is answered from the cache at once and read again in the
- * background (one read in flight per switch); a failed background read keeps the cached value (the switch logs it
- * once, as its own read does). With no cached value yet (a cold start) the caller waits for the read, as today.
+ * A switch read with a cached value older than its TTL (but younger than twice it) is answered from the cache at once
+ * and read again in the background (one read in flight per switch); a failed background read keeps the cached value
+ * (the switch logs it once, as its own read does). With no cached value yet (a cold start), or one older than twice
+ * its TTL (a quiet spell: a flip is never answered later than that), the caller waits for the read, as today.
  * With web_quiz_fast off nothing here is used: every switch waits on a stale cache, exactly as before.
  */
 const inflight = new Map();
 
-/** True when `cache` holds a value older than ttlMs and web_quiz_fast is on: serve it, revalidate in the background. */
+/** The oldest value ever served while it is re-read: twice the cache's own time. */
+const MAX_STALE = 2;
+
+/**
+ * True when `cache` holds a value older than ttlMs but younger than MAX_STALE × ttlMs, and web_quiz_fast is on:
+ * serve it, revalidate in the background.
+ */
 function stale(cache, ttlMs, now = Date.now()) {
-  if (!cache || now - cache.at < ttlMs) return false;
+  if (!cache || now - cache.at < ttlMs || now - cache.at >= MAX_STALE * ttlMs) return false;
   try {
     return require('./web-quiz-fast').on() === true;
   } catch (_) {
@@ -59,4 +66,4 @@ function ageOf(cache, ttlMs, now = Date.now()) {
   return now - cache.at < ttlMs ? 'fresh' : 'stale';
 }
 
-module.exports = { stale, revalidate, cover, uncover, covered, ageOf, _reset: () => { inflight.clear(); seam.clear(); } };
+module.exports = { MAX_STALE, stale, revalidate, cover, uncover, covered, ageOf, _reset: () => { inflight.clear(); seam.clear(); } };

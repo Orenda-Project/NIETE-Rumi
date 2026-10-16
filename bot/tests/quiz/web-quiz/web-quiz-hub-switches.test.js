@@ -241,6 +241,50 @@ describe('the 25 s timer (one per process)', () => {
     expect(got.reads).toBe(0);                                     // and the request read no switch
   });
 
+  test('a quiet spell (no request for 40 s): the timer keeps itself and every switch fresh, the fast one too; a flip lands at the next tick', async () => {
+    await coldWithFastWarm({ fast: true, every: true });
+    const tok = tokenOne();
+    await measure(tok, { device: DEVICE });
+    S.db.app_settings.find((r) => r.key === 'web_quiz_challenge_book').value = 'false';
+    jest.setSystemTime(NOW + 40 * 1000);            // every 30 s cache, the fast switch's included, is past its time
+    Seam().start({ everyMs: 15 });
+    await realWait(120);                            // ticks with no request in between
+    expect(Seam().running()).toBe(true);            // the fast switch's own row kept the timer going
+    expect(require('../../../shared/services/quiz/web-quiz-fast').fresh()).toBe(true);
+    Seam().stop();
+    const next = await measure(tok, { device: DEVICE });
+    expect(JSON.parse(next.out).book_on).not.toBe(true);
+    expect(settingsReads(next)).toBe(0);
+  });
+
+  test('the fast switch flipped off: the timer\'s next tick reads it and stops', async () => {
+    await coldWithFastWarm({ fast: true, every: true });
+    await measure(tokenOne(), { device: DEVICE });
+    S.db.app_settings.find((r) => r.key === 'web_quiz_fast').value = false;
+    Seam().start({ everyMs: 15 });
+    await realWait(120);
+    expect(Seam().running()).toBe(false);
+    expect(require('../../../shared/services/quiz/web-quiz-fast').fresh()).toBe(false);
+  });
+
+  test('no value older than twice its cache time is served while it is re-read (a quiet spell waits, as today)', async () => {
+    await coldWithFastWarm({ fast: true, every: true });
+    const Swr = require('../../../shared/services/quiz/web-quiz-swr');
+    const at = Date.now();
+    expect(Swr.MAX_STALE).toBe(2);
+    expect(Swr.stale({ at, on: true }, 30000, at + 29999)).toBe(false);  // fresh: no re-read
+    expect(Swr.stale({ at, on: true }, 30000, at + 30000)).toBe(true);   // past its time: answered, re-read behind it
+    expect(Swr.stale({ at, on: true }, 30000, at + 59999)).toBe(true);
+    expect(Swr.stale({ at, on: true }, 30000, at + 60000)).toBe(false);  // twice its time: waited for
+    expect(Swr.stale(null, 30000, at)).toBe(false);                      // cold: waited for
+    // and the hub after 61 s quiet with no timer sees a flip made in the meantime
+    const tok = tokenOne();
+    await measure(tok, { device: DEVICE });
+    S.db.app_settings.find((r) => r.key === 'web_quiz_challenge_book').value = 'false';
+    jest.setSystemTime(NOW + 61 * 1000);
+    expect(JSON.parse((await measure(tok, { device: DEVICE })).out).book_on).not.toBe(true);
+  });
+
   test('a request before the first tick is answered as without the timer (the cold seam read)', async () => {
     await coldWithFastWarm({ fast: true, every: true });
     Seam().start();

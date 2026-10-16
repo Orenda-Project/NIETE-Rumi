@@ -20,14 +20,16 @@
  *   A failed read primes nothing: every module stays as it was and reads its own switch, by its own rules.
  *   Never throws.
  *
- * One timer per process (start/stop): every 25 s, while web_quiz_fast is on (its cache fresh: requests keep it so), the
- * same one read primes every module, so a hub request finds every switch fresh and a flipped switch lands within 25 s.
+ * One timer per process (start/stop): every 25 s, while web_quiz_fast is on, the same one read (plus the fast switch's
+ * own row, so the timer keeps itself going through a quiet spell) primes every module: a hub request finds every
+ * switch fresh, and a flipped switch, the fast one included, lands within 25 s. A switch is never answered from a value
+ * older than twice its cache time (web-quiz-swr.js), so a flip lands within 60 s even with the timer's reads failing.
  * It never blocks a request, never keeps the process alive (unref), reads nothing and stops while web_quiz_fast is off
  * (the next fast hub request starts it again). It starts from the hub's first fast request, never at require time, and
  * never under jest unless a test calls start().
  *
  * web_quiz_fast off: nothing here runs; every module reads its own switch, exactly as before.
- * The fast switch itself is not read here (it decides whether this runs).
+ * The fast switch itself is read here only by the timer (it decides whether this runs).
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -74,18 +76,24 @@ function ALL_KEYS() {
 }
 
 const fastOn = () => { try { return require('./web-quiz-fast').on() === true; } catch (_) { return false; } };
-// The timer's check: never a read (the fast switch's cache, fresh, on).
-const fastFresh = () => { try { return require('./web-quiz-fast').fresh() === true; } catch (_) { return false; } };
+// The timer's check: never a read (the fast switch's cached value, which the timer's own read keeps fresh).
+const fastCached = () => { try { return require('./web-quiz-fast').cachedOn() === true; } catch (_) { return false; } };
 
-/** The one read, then every module primed from its rows. Resolves true when primed, false when the read failed. */
-function load(now) {
+/**
+ * The one read, then every module primed from its rows. Resolves true when primed, false when the read failed.
+ * withFast (the timer): the fast switch's own row rides along and refreshes its cache too, so the timer keeps running
+ * through a quiet spell and a flip of any switch, the fast one included, lands within one tick.
+ */
+function load(now, { withFast = false } = {}) {
   if (!reading) {
     const names = entries().flatMap((e) => e.swr);
     reading = (async () => {
       try {
-        const { data, error } = await supabase.from('app_settings').select('key, value').in('key', ALL_KEYS());
+        const Fast = require('./web-quiz-fast');
+        const { data, error } = await supabase.from('app_settings').select('key, value').in('key', withFast ? [...ALL_KEYS(), Fast.KEY] : ALL_KEYS());
         if (error) throw new Error(error.message || 'app_settings read failed');
         const rows = Array.isArray(data) ? data : [];
+        if (withFast) Fast.prime(rows, now);
         // From here a module's read is its own (a parent read while priming must not wait on this read).
         Swr.uncover(names);
         for (const e of entries()) {
@@ -123,11 +131,16 @@ function ensure(now = Date.now()) {
   }
 }
 
-/** One tick of the timer: the one read while web_quiz_fast is on; stops (reading nothing) while it is off. */
+/**
+ * One tick of the timer: the one read (with the fast switch's own row) while web_quiz_fast is on; stops (reading
+ * nothing) while it is off, and after a tick that read it off. A failed read keeps the timer: the next tick tries again.
+ */
 async function tick() {
   try {
-    if (!fastFresh()) { stop(); return false; }
-    return await load(Date.now());
+    if (!fastCached()) { stop(); return false; }
+    const ok = await load(Date.now(), { withFast: true });
+    if (!fastCached()) stop();
+    return ok;
   } catch (_) {
     return false;
   }

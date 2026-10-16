@@ -52,6 +52,18 @@ function fresh(now = Date.now()) {
   return Boolean(cache && now - cache.at < TTL_MS && cache.on);
 }
 
+/** The cached value, however old, with no read (the timer's own check): false when unread. */
+function cachedOn() {
+  return Boolean(cache && cache.on);
+}
+
+/** The timer's one read carries this switch too: the cache from its row (absent: off), parsed as this module's read. */
+function prime(rows, now = Date.now()) {
+  const row = (rows || []).find((r) => r && r.key === KEY);
+  cache = { at: now, on: isTrue(row && row.value) };
+  return cache.on;
+}
+
 /**
  * Start a read now and keep its rejection for whoever awaits it: a read started early must not become an
  * unhandled rejection while the request waits on something else.
@@ -61,4 +73,4 @@ function early(promise) {
   return promise;
 }
 
-module.exports = { on, fresh, early, KEY, _reset: () => { cache = null; reading = null; } };
+module.exports = { on, fresh, cachedOn, prime, early, KEY, _reset: () => { cache = null; reading = null; } };
