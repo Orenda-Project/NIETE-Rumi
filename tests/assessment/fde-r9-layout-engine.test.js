@@ -67,7 +67,10 @@ test('Social Studies: the Q7 item asking a Q1 fact is held, Section D is asked a
   });
   const out = await Gen.generatePatternExam(ARGS('social_studies'));
   expect(dCalls).toBe(2);
+  // Section C is asked again too: its Q5 «کثیر الثقافتی معاشرے … کیا فائدہ» is Q1's «مختلف ثقافتی گروہوں
+  // … کیا فائدہ → رواداری اور بھائی چارہ» with its key as the answer, held since round 12.
   expect(logged('[assessment] section re-asked')).toEqual([
+    expect.objectContaining({ section: 'C', shortfall: [{ slot: 'social_studies.C.Q5', missing: 1 }] }),
     expect.objectContaining({ section: 'D', shortfall: [{ slot: 'social_studies.D.Q7', missing: 1 }] }),
   ]);
   const q7 = slotItems(out.examJson, 'social_studies.D.Q7').map((q) => q.question);
