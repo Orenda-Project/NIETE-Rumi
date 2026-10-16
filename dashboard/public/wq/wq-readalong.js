@@ -408,5 +408,23 @@
     try { var a = new Audio(); a.preload = 'auto'; a.src = (typeof data === 'string' ? data : data.audio.url); return a; } catch (e) { return null; }
   }
 
-  window.WQReadAlong = { mount: mount, parse: parse, indexAt: indexAt, preload: preload };
+  /** One word in Jugnu's voice with nothing drawn (a skipped word tapped after a read): play, then seek to its start,
+   *  pause once the clock passes its end. Call it inside the tap. Null when there is nothing to say. */
+  function sayWord(data, i) {
+    var d;
+    try { d = parse(data); } catch (e) { return null; }
+    if (!d.audio || !(i >= 0 && i < d.words.length)) return null;
+    var w = d.words[i];
+    var a = new Audio();
+    var raf = window.requestAnimationFrame ? function (f) { return window.requestAnimationFrame(f); } : function (f) { return setTimeout(f, 16); };
+    var done = false;
+    function stop() { if (done) return; done = true; try { a.pause(); a.removeAttribute('src'); a.load(); } catch (e) { /* gone */ } }
+    (function watch() { if (done) return; if ((a.currentTime || 0) * 1000 >= w.e + 10) { stop(); return; } raf(watch); }());
+    a.src = d.audio.url;
+    try { var pr = a.play(); if (pr && pr.catch) pr.catch(stop); } catch (e) { stop(); return null; }
+    try { a.currentTime = w.s / 1000; } catch (e) { /* not seekable yet */ }
+    return { stop: stop };
+  }
+
+  window.WQReadAlong = { mount: mount, parse: parse, indexAt: indexAt, preload: preload, sayWord: sayWord };
 }());
