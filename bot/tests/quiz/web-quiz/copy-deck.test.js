@@ -137,6 +137,12 @@ describe('copy deck v2.2: the new and retired keys', () => {
     expect(load()['jg.keep.notice_ok'].en).toBe('Got it');
   });
 
+  test('the keep-my-place card has a try-again line for a failed save', () => {
+    const t = load()['jg.bind.try_again'];
+    expect([t.surface, t.switch]).toEqual(['page.bind', 'web_quiz_phone_bind']);
+    expect([...t.ur].length).toBeLessThanOrEqual(60);
+  });
+
   test('retired keys are kept and marked, never deleted', () => {
     const d = load();
     for (const k of ['jg.round.c_still', 'jg.keep.q', 'jg.keep.yes', 'jg.keep.no', 'jg.keep.either', 'jg.keep.ask_grownup', 'jg.keep.sub_v2']) {
