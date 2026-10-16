@@ -916,12 +916,20 @@ const RULE = {
   pagesRest: 'If the pages teach fewer points than there are items, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.',
   oneKeyEnglish: 'A homophone or spelling MCQ has exactly one option that satisfies the stem.',
   q5Poem: 'Q5 uses a poem printed in the book. If these pages hold no poem, take the nearest poem in the syllabus, name its unit in the title, and print its lines verbatim; never write verse and never call prose a poem.',
+  // Maths on chosen chapters or pages: FDE's Q1(b) and Q2 topic lists are not given; the topics come from the pages.
+  mathsPagesAB: 'Q1(b) and Q2 are set from the pages above: keep each slot\'s marks and item shape (a word problem stays a word problem, a calculation a calculation) and take every topic from these pages. The word-problem counts above still apply.',
   noAnagram: 'Never set an item that asks the child to rearrange, unscramble or reorder letters to make a word.',
 };
 
 // Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
 // the model lands one or two short of a counted rule (round-4 local papers: Q2 5, 8, 5 of 12 asked for 6).
 const MATHS_Q1B_WORDS = 4;
+// Maths on chosen pages: the slots whose rule and grain carry FDE's model-paper topics. Each keeps
+// the rule from its marks sentence on (a count and topics come before it) under a topic-free head.
+const MATHS_PAGES_SLOTS = Object.freeze({
+  'maths.A.Q1b': { head: 'Ten one-step items. ', keepFrom: '2 marks each' },
+  'maths.B.Q2': { head: 'Twelve 5-mark items. ', keepFrom: 'Every word problem names its unit' },
+});
 // English on chosen pages: the slot fields that carry FDE's model-paper topic list, and what replaces them.
 // English bans anagram items, so FDE scope's Q1(a) topic list loses its "anagrams" entry at assembly.
 const ENGLISH_FDE_Q1A_ANAGRAMS = ', anagrams';
@@ -1029,6 +1037,17 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     if (mathsC && Array.isArray(s.kinds) && s.kinds.length) {
       return { ...s, kinds: null, prompt_rule: null, grain: s.grain && { ...s.grain, kind: 'a word problem or a calculation' } };
     }
+    // Maths on chosen pages: Q1(b)'s ten model topics and Q2's Units 1–8 families go; the topics come from the pages.
+    const mathsSlot = !fde && key === 'maths' && MATHS_PAGES_SLOTS[s.slot];
+    if (mathsSlot && typeof s.prompt_rule === 'string') {
+      const at = s.prompt_rule.indexOf(mathsSlot.keepFrom);
+      return {
+        ...s,
+        prompt_rule: mathsSlot.head + (at >= 0 ? s.prompt_rule.slice(at) : ''),
+        grain: s.grain && { ...s.grain, kind: s.grain.kind.split(/[,:]/)[0] },
+        families: null,
+      };
+    }
     // English on chosen pages: the slot's FDE topic list goes; the points come from the pages.
     const pagesSlot = !fde && key === 'english' && ENGLISH_PAGES_SLOTS[s.slot];
     if (pagesSlot) {
@@ -1074,12 +1093,15 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     if (q1b) rules.push(RULE.mathsQ1bWords(Math.min(MATHS_Q1B_WORDS, q1b.generate), q1b.generate));
     const q2 = list.find((s) => s.slot === 'maths.B.Q2');
     if (q2) {
-      const need = Math.ceil(q2.generate / 2);
+      // One above half: the model lands one or two short of a counted rule.
+      const need = Math.ceil(q2.generate / 2) + 1;
       rules.push(RULE.mathsQ2Words(need, q2.generate));
       // FDE's families carry one word problem each; the rest of the count comes from their other items.
-      const extra = Array.isArray(q2.families) ? need - q2.families.length : 0;
+      // The families are FDE's syllabus, so on chosen pages they are not asked for (see MATHS_PAGES_SLOTS).
+      const extra = fde && Array.isArray(q2.families) ? need - q2.families.length : 0;
       if (extra > 0) rules.push(RULE.mathsQ2Families(extra));
     }
+    if (!fde && list.some((s) => MATHS_PAGES_SLOTS[s.slot])) rules.push(RULE.mathsPagesAB);
   }
   if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
