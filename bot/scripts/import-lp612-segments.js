@@ -124,6 +124,22 @@ const SALUTATION_RE = /[\uFDFA\uFDFB\u0610\u0611]|صل[یى]\s*الل[هہ]\s*ع
  * DO stamp it when it heads a seerah title (اخلاقِ نبوی ﷺ) — what keeps the
  * adjectival cases out is the second test below, not this list.
  */
+/**
+ * A salutation the menu cut in half.
+ *
+ * `grade_8_islamiat.c04.r990` shipped as `دہرائی: احادیثِ نبوی صلی` — the 30-code-point
+ * cut landed inside `صلی اللہ علیہ وآلہ وصحابہ` and kept the first word of it. This is
+ * the one place in the corpus where the cap really is the cause, and it is the one
+ * case the dropped-salutation message must NOT be used for: that message says the
+ * stamp fits and to place it, and a reviewer who does gets `... نبوی صلی ﷺ` — a half
+ * salutation followed by a whole one, comfortably inside the cap.
+ *
+ * Only reached when SALUTATION_RE has already rejected the row, so the complete
+ * spellings it accepts (including a terminal `صلی اللہ علیہ`) never land here.
+ * Anchored at the end of the string because that is the only place a cut can leave one.
+ */
+const SEVERED_SALUTATION_RE = /(?:^|\s)(?:صل[یى](?:\s+الل?[هہ]?(?:\s+عل[یي]?[هہ]?(?:\s+و?(?:آل[هہ]?|سلم?)?)?)?)?|عل[یي][هہ]\s+السلا?|رض[یي](?:\s+الل?[هہ]?(?:\s+عن[هہ]?)?)?)\s*$/;
+
 const PROPHET_TOKEN_RE = /نبوی|\bنبی\b|\bرسول\b|رسولِ|مصطف[یى]|Muhammad|Mohammad|Muhammed|Rasulullah|Rasool|Rasul/;
 
 /**
@@ -173,6 +189,18 @@ function lostSalutation(s) {
   if (!sources.some((src) => tokenIsSaluted(token, src))) return null;
 
   const width = cps(menu);
+
+  // The cut landed inside the salutation. Say THAT, because the repair is different:
+  // nothing can be added to this row, it has to be re-cut so the break falls outside
+  // the stamp (operator, 2026-09-23, on this exact row: "Re-cut the title so the break
+  // falls outside the salutation").
+  if (SEVERED_SALUTATION_RE.test(menu)) {
+    return `menu_title "${menu}" ends INSIDE the salutation — the ${MENU_TITLE_CAP}-code-point `
+      + `cut severed it. Do NOT add a stamp to this row: appending one leaves half a `
+      + `salutation followed by a whole one. The title must be RE-CUT so the break falls `
+      + `outside it — bd-d6c8y, gate G5c.`;
+  }
+
   if (width + 2 > MENU_TITLE_CAP) return null;
 
   return `menu_title "${menu}" names the Prophet ("${token}") with no salutation, `
