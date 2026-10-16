@@ -736,7 +736,8 @@ function checkWorking(q, answer, exam, index) {
 }
 
 // "68,970 ÷ 45 = 1,532 remainder 10": a whole-number division with its quotient and remainder.
-const QUOTIENT_REMAINDER = /(\d[\d,]*)\s*÷\s*(\d[\d,]*)\s*=\s*(\d[\d,]*)\s*,?\s*(?:remainder|rem\.?|\bR\b)\s*[=:]?\s*(\d[\d,]*)/gi;
+const WHOLE = String.raw`(\d{1,3}(?:,\d{2,3})+|\d+)`;
+const QUOTIENT_REMAINDER = new RegExp(String.raw`${WHOLE}\s*÷\s*${WHOLE}\s*=\s*${WHOLE}\s*,?\s*(?:remainder|rem\.?|\bR\b)\s*[=:]?\s*${WHOLE}`, 'gi');
 const wholeOf = (raw) => (/^\d{1,3}(?:,\d{2,3})*$|^\d+$/.test(raw) ? BigInt(raw.replace(/,/g, '')) : null);
 
 /**
