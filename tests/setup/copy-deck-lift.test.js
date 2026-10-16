@@ -16,19 +16,45 @@
  *     source; the lift is then read from that template's exported table, else from a template's `T` under
  *     camelCase of the key's last two parts or last part (jg.t.link_renew_go → tLinkRenewGo, jg.round.t_count → tCount);
  *   - EN is always compared; UR when the deck's UR does not say DRAFT. A function lift is called with `{param}`.
- * The child pages' lifts (dashboard/public/wq) are outside this gate.
+ * The child pages (dashboard/public/wq/*.js, browser scripts nothing can require) are read from their source, the
+ * exact rule is wqCopyStates: a live non-`bot.*` key a script claims (a `// <key>` comment, or the key / its starred
+ * area named in the source) is read from that script's `en: {…}` / `ur: {…}` tables under the claimed property, else
+ * under camelCase of the key after its first part, of its last two parts or of its last part, or its last part as is
+ * (jg.who.turn_of → whoTurnOf, jg.keep.notice_ok → noticeOk, jg.link.is_here → is_here). A value is evaluated on its
+ * own (a string, or a self-contained function called with the deck's own {placeholders} in order); a value that is
+ * not self-contained is missing. Those states sit in the same allowlist as `wq:<key>`.
  *
- * copy-deck-lift.allowlist.json: { "<key>": "<state>" } for every key not `same` when this gate landed (key names
- * only). It only shrinks: a key that drifts or goes missing fails; a listed key whose state changed (fixed, or
- * different) fails until the entry is updated or removed.
+ * A `// <key>` comment alone on the line right above a property line claims that property, when it names one key.
+ *
+ * copy-deck-lift.allowlist.json: { "<key>": "<state>" } for every key not `same` today (key names only). It only
+ * shrinks, and a PR that lifts a string is never failed for it: a key new to the gap fails (NEW), and so does a
+ * listed key whose gap moved somewhere else (CHANGED, e.g. missing → drift); a listed key that is now `same` or no
+ * longer checked passes with a console.warn `CLEAN:` line, and one whose gap got smaller (drift:en+ur → drift:ur,
+ * missing → missing:ur) passes with a `LESS:` line, so the lift PR may lower the entry in its own commit.
+ *
+ * EN ⇒ UR in the same table: a key a child page lifts in an `en: {…}` table is lifted in the `ur: {…}` table of the
+ * same object too (the Urdu child reads that table's other half), whenever the deck has an Urdu line that is not a
+ * DRAFT. The exact rule is wqEnWithoutUr. copy-deck-en-only.allowlist.json: { "<key>": "<why>" }, the keys a page
+ * shows in English only today; a new one fails, a listed one that gains its Urdu passes with a CLEAN line.
  */
 const fs = require('fs');
 const path = require('path');
 const ALLOW = require('./copy-deck-lift.allowlist.json');
-const { REPO, liftNames, liftText, liftSite, copyStates } = require('./test-seam-gates-lib');
+const EN_ONLY = require('./copy-deck-en-only.allowlist.json');
+const {
+  REPO, liftNames, liftText, liftSite, copyStates, wqLiftNames, wqCopyStates, wqEnWithoutUr, copyGapVerdict, listVerdict,
+} = require('./test-seam-gates-lib');
+
+function treeInputs() {
+  const deck = JSON.parse(fs.readFileSync(path.join(REPO, 'bot/shared/config/copy.v2.json'), 'utf8'));
+  const wqDir = path.join(REPO, 'dashboard/public/wq');
+  const scripts = fs.readdirSync(wqDir).filter((n) => n.endsWith('.js')).sort()
+    .map((n) => ({ id: n, source: fs.readFileSync(path.join(wqDir, n), 'utf8') }));
+  return { deck, scripts };
+}
 
 function statesInTree() {
-  const deck = JSON.parse(fs.readFileSync(path.join(REPO, 'bot/shared/config/copy.v2.json'), 'utf8'));
+  const { deck, scripts } = treeInputs();
   const { UX_STRINGS } = require('../../bot/shared/config/ux-strings');
   const dir = path.join(REPO, 'bot/shared/templates');
   const templates = fs.readdirSync(dir).filter((n) => n.endsWith('.js')).map((n) => ({
@@ -36,19 +62,9 @@ function statesInTree() {
     source: fs.readFileSync(path.join(dir, n), 'utf8'),
     exports: require(path.join(dir, n)),
   }));
-  return copyStates(deck, UX_STRINGS, templates);
-}
-
-function gaps(states, allow) {
-  const out = [];
-  for (const key of [...new Set([...Object.keys(states), ...Object.keys(allow)])].sort()) {
-    const now = states[key];
-    const ok = allow[key];
-    if (now === 'same' || now === undefined) { if (ok !== undefined) out.push(`CLEAN: ${key} is ${now || 'no longer checked'}. Remove it from the allowlist.`); continue; }
-    if (ok === undefined) out.push(`NEW: ${key} is ${now}. Lift the deck's string byte for byte.`);
-    else if (ok !== now) out.push(`CHANGED: ${key} is ${now}, the allowlist says ${ok}.`);
-  }
-  return out;
+  const wq = {};
+  for (const [k, v] of Object.entries(wqCopyStates(deck, scripts))) wq[`wq:${k}`] = v;
+  return { ...copyStates(deck, UX_STRINGS, templates), ...wq };
 }
 
 describe('the rule, on in-memory sources', () => {
@@ -103,16 +119,124 @@ describe('the rule, on in-memory sources', () => {
     expect(copyStates({ 'jg.t.saved': deck['jg.t.saved'] }, {}, noUr)).toEqual({ 'jg.t.saved': 'missing:ur' });
   });
 
-  test('the allowlist check: a new gap, a changed state and a fixed key all fail; equal passes', () => {
-    expect(gaps({ a: 'same', b: 'missing' }, { b: 'missing' })).toEqual([]);
-    expect(gaps({ a: 'drift:en' }, {})[0]).toMatch(/^NEW: a is drift:en/);
-    expect(gaps({ b: 'drift:ur' }, { b: 'missing' })[0]).toMatch(/^CHANGED: b/);
-    expect(gaps({ b: 'same' }, { b: 'missing' })[0]).toMatch(/^CLEAN: b/);
+  test('a child page script: its en/ur tables are read from source, a function with the deck placeholders', () => {
+    const pageDeck = {
+      _meta: {},
+      'jg.link.is_here': { en: 'Is your name here?', ur: 'کیا آپ کا نام یہاں ہے؟' },
+      'jg.who.turn': { en: 'Whose turn?', ur: 'کس کی باری ہے؟' },
+      'jg.who.turn_of': { en: "{name}'s turn", ur: '⁨{name}⁩ کی باری' },
+      'jg.keep.notice': { en: 'We keep it.', ur: 'ہم رکھتے ہیں۔' },
+      'jg.keep.gone': { en: 'Gone', ur: 'گیا', retired: true },
+      'jg.link.letter_q': { en: 'Tap a letter', ur: 'حرف دبائیں' },
+      'bot.bind.saved': { en: 'Saved.', ur: 'ہو گیا' },
+    };
+    const scripts = [
+      { id: 'class-link.js', source: [
+        '(function () {',
+        '  // copy.v2.json: jg.link.is_here, jg.who.turn, jg.keep.notice, jg.keep.gone, bot.bind.saved',
+        '  var COPY = {',
+        "    en: { is_here: 'Is your name here?', turn: 'Whose turn?', note: 'x, y' },",
+        "    ur: { is_here: 'کیا آپ کا نام یہاں ہے؟', turn: 'کس کی باری', note: 'x' },",
+        '  };',
+        '})();',
+      ].join('\n') },
+      { id: 'wq-card.js', source: [
+        '(function () {',
+        '  // Copy: jg.who.turn_of',
+        "  var W = { en: { whoTurnOf: function (n) { return n + '\\'s turn'; } },",
+        "    ur: { whoTurnOf: function (n) { return '⁨' + n + '⁩ کی باری'; } } };",
+        '})();',
+      ].join('\n') },
+    ];
+    expect(wqLiftNames('jg.who.turn_of')).toEqual(['whoTurnOf', 'turnOf', 'turn_of']);
+    expect(wqCopyStates(pageDeck, scripts)).toEqual({
+      'jg.link.is_here': 'same',
+      'jg.who.turn': 'drift:ur',
+      'jg.who.turn_of': 'same',
+      'jg.keep.notice': 'missing',
+    });
+  });
+
+  test('a lone comment line right above a property claims it, when it names one key', () => {
+    const src = [
+      '  en: {',
+      '    // jg.t.practice (the deck): the practice banner',
+      "    teacherPractice: 'Practice',",
+      '    // jg.keep.notice / jg.keep.notice_ok',
+      "    noticeT: 'We keep it.',",
+      '  },',
+    ].join('\n');
+    expect(liftSite(src, 'jg.t.practice')).toEqual({ prop: 'teacherPractice' });
+    expect(liftSite(src, 'jg.keep.notice')).toEqual({ guess: true });
+    expect(liftSite("// jg.t.practice\n// another line\nteacherPractice: 'x',", 'jg.t.practice')).toEqual({ guess: true });
+  });
+
+  test('the allowlist check: a new gap and a moved gap fail; a fixed key and a smaller gap pass with a warning', () => {
+    expect(copyGapVerdict({ a: 'same', b: 'missing' }, { b: 'missing' })).toEqual({ failures: [], cleans: [] });
+    expect(copyGapVerdict({ a: 'drift:en' }, {}).failures[0]).toMatch(/^NEW: a is drift:en/);
+    expect(copyGapVerdict({ b: 'drift:ur' }, { b: 'missing' }).failures[0]).toMatch(/^CHANGED: b is drift:ur, the allowlist says missing/);
+    expect(copyGapVerdict({ b: 'drift:en' }, { b: 'drift:ur' }).failures[0]).toMatch(/^CHANGED: b/);
+    expect(copyGapVerdict({ b: 'same' }, { b: 'missing' })).toEqual({ failures: [], cleans: ['CLEAN: b is same. Remove it from copy-deck-lift.allowlist.json.'] });
+    expect(copyGapVerdict({}, { gone: 'missing' })).toEqual({ failures: [], cleans: ['CLEAN: gone is no longer checked. Remove it from copy-deck-lift.allowlist.json.'] });
+    expect(copyGapVerdict({ b: 'drift:ur' }, { b: 'drift:en+ur' })).toEqual({ failures: [], cleans: ['LESS: b is drift:ur now, the allowlist says drift:en+ur. Lower its entry in copy-deck-lift.allowlist.json.'] });
+    expect(copyGapVerdict({ b: 'missing:ur' }, { b: 'missing' }).cleans[0]).toMatch(/^LESS: b is missing:ur now/);
+  });
+});
+
+describe('EN ⇒ UR in the same table, on in-memory child pages', () => {
+  const deck = {
+    _meta: {},
+    'jg.a.both': { en: 'Both', ur: 'دونوں' },
+    'jg.a.en_only': { en: 'Only English', ur: 'صرف انگریزی' },
+    'jg.a.split': { en: 'Split', ur: 'الگ' },
+    'jg.a.draft': { en: 'Draft', ur: 'DRAFT مسودہ' },
+    'jg.a.no_ur': { en: 'No Urdu line' },
+    'jg.a.gone': { en: 'Gone', ur: 'گیا', retired: true },
+    'bot.a.line': { en: 'Line', ur: 'لائن' },
+  };
+  const page = (lines) => ({ id: 'wq-x.js', source: ['(function () {', '  // Copy: jg.a.*, bot.a.line', ...lines, '})();'].join('\n') });
+
+  test('a seeded-bad table, an EN key with no UR beside it, is a hit', () => {
+    expect(wqEnWithoutUr(deck, [page([
+      '  var T = {',
+      "    en: { both: 'Both', enOnly: 'Only English' },",
+      "    ur: { both: 'دونوں' },",
+      '  };',
+    ])])).toEqual(['jg.a.en_only']);
+  });
+
+  test('a UR lift in another object is not the same table; DRAFT and no-Urdu deck keys, retired and bot keys are not hits', () => {
+    expect(wqEnWithoutUr(deck, [page([
+      "  var A = { en: { split: 'Split', draft: 'Draft', noUr: 'No Urdu line', gone: 'Gone', line: 'Line' }, ur: {} };",
+      "  var B = { en: {}, ur: { split: 'الگ' } };",
+    ])])).toEqual(['jg.a.split']);
+  });
+
+  test('both halves in one object: no hit', () => {
+    expect(wqEnWithoutUr(deck, [page([
+      "  var T = { en: { both: 'Both', enOnly: 'Only English', split: 'Split' }, ur: { both: 'x', enOnly: 'y', split: 'z' } };",
+    ])])).toEqual([]);
+  });
+
+  test('the EN-only list check: a new key fails, a key that gained its Urdu passes with a CLEAN line', () => {
+    expect(listVerdict(['k'], [], 'x', 'f.json').failures).toEqual(['NEW: k x.']);
+    expect(listVerdict([], ['k'], 'x', 'f.json')).toEqual({ failures: [], cleans: ['CLEAN: k is fixed or gone. Remove it from f.json.'] });
   });
 });
 
 describe('the tree', () => {
-  test('every checked live deck key is lifted byte for byte, or listed; the list matches today exactly', () => {
-    expect(gaps(statesInTree(), ALLOW)).toEqual([]);
+  test('every checked live deck key is lifted byte for byte, or listed; nothing new or moved', () => {
+    const { failures, cleans } = copyGapVerdict(statesInTree(), ALLOW);
+    for (const line of cleans) console.warn(line);
+    expect(failures).toEqual([]);
+  });
+
+  test('every key a child page lifts in EN is lifted in UR in the same table, or listed as EN-only', () => {
+    const { deck, scripts } = treeInputs();
+    for (const k of Object.keys(EN_ONLY)) expect([k, String(EN_ONLY[k]).length >= 10]).toEqual([k, true]);
+    const what = "is lifted in EN with no UR in the same table: lift the deck's Urdu beside it";
+    const { failures, cleans } = listVerdict(wqEnWithoutUr(deck, scripts), Object.keys(EN_ONLY), what, 'copy-deck-en-only.allowlist.json');
+    for (const line of cleans) console.warn(line);
+    expect(failures).toEqual([]);
   });
 });
