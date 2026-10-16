@@ -31,18 +31,19 @@ function parseCode(text) {
   return CODE_RX.test(last) ? last.toUpperCase() : null;
 }
 
-/** A new code for this child → 'JUGNU-XXXXX', or null. One retry on a collision. */
+/** A new code for this child → { code: 'JUGNU-XXXXX', expires_at: <ISO> } (the shape the page's mint reads), or null. One retry on a collision. */
 async function mint(canonicalId, deviceRef = null, now = new Date()) {
   if (!canonicalId) return null;
   const minted = new Date(now);
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const code = randomCode();
+    const expiresAt = new Date(minted.getTime() + TTL_MS).toISOString();
     try {
       const { error } = await supabase.from(TABLE).insert({
         code, canonical_id: String(canonicalId), device_ref: deviceRef ? String(deviceRef).slice(0, 64) : null,
-        minted_at: minted.toISOString(), expires_at: new Date(minted.getTime() + TTL_MS).toISOString(),
+        minted_at: minted.toISOString(), expires_at: expiresAt,
       });
-      if (!error) return code;
+      if (!error) return { code, expires_at: expiresAt };
       if (error.code !== '23505') throw new Error(error.message || 'insert failed');
     } catch (err) {
       logToFile('⚠️ child bind codes: mint failed', { error: err.message });

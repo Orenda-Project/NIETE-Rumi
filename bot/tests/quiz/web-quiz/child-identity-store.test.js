@@ -198,26 +198,26 @@ describe('childrenForPhone: one helper for the door and /quiz open', () => {
 });
 
 describe('bind codes', () => {
-  test('mint → JUGNU- + 5 of [A-Z2-9] without O or I, valid 1 hour, device_ref kept for the audit', async () => {
+  test('mint → { code: JUGNU- + 5 of [A-Z2-9] without O or I, expires_at }, valid 1 hour, device_ref kept for the audit', async () => {
     const codes = [];
     for (let i = 0; i < 40; i += 1) codes.push(await Codes.mint(KID_A, 'dev-1', NOW));
-    codes.forEach((c) => expect(c).toMatch(/^JUGNU-[A-HJ-NP-Z2-9]{5}$/));
+    codes.forEach((c) => expect(c).toEqual({ code: expect.stringMatching(/^JUGNU-[A-HJ-NP-Z2-9]{5}$/), expires_at: '2026-10-15T11:00:00.000Z' }));
     const row = fake.db.child_bind_codes[0];
-    expect(row).toMatchObject({ canonical_id: KID_A, device_ref: 'dev-1', minted_at: NOW.toISOString(), expires_at: '2026-10-15T11:00:00.000Z' });
+    expect(row).toMatchObject({ code: codes[0].code, canonical_id: KID_A, device_ref: 'dev-1', minted_at: NOW.toISOString(), expires_at: '2026-10-15T11:00:00.000Z' });
   });
 
   test('a collision retries once with a new code', async () => {
     const spy = jest.spyOn(require('crypto'), 'randomInt').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0)
       .mockReturnValueOnce(0).mockReturnValueOnce(0);
     fake.db.child_bind_codes.push({ code: 'JUGNU-AAAAA', canonical_id: KID_B });
-    const c = await Codes.mint(KID_A, null, NOW);
+    const { code: c } = await Codes.mint(KID_A, null, NOW);
     spy.mockRestore();
     expect(c).toMatch(/^JUGNU-/);
     expect(c).not.toBe('JUGNU-AAAAA');
   });
 
   test('get is case-insensitive; markUsed spends a code once', async () => {
-    const c = await Codes.mint(KID_A, null, NOW);
+    const { code: c } = await Codes.mint(KID_A, null, NOW);
     expect((await Codes.get(c.toLowerCase())).canonical_id).toBe(KID_A);
     expect(await Codes.markUsed(c, 'nonsense')).toBe(false);
     expect(await Codes.markUsed(c.toLowerCase(), 'bound', NOW)).toBe(true);
