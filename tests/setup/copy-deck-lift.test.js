@@ -26,6 +26,9 @@
  *
  * A `// <key>` comment alone on the line right above a property line claims that property, when it names one key.
  *
+ * A lift that returns parts (a number-switched array, e.g. the finish card's count) stays unclaimed: no `// <key>`
+ * comment on it; that key's own test pins the bytes.
+ *
  * A server-carried line: a key a child page claims with no `en`/`ur` table lift at all is `carried`, not missing,
  * when a template under bot/shared/templates lifts it `same` (the bot-side state of the bare key): the page shows
  * the bytes the server sends it (wq-trail.js renders `d.round_handback`, lifted in class-round.page.js and sent by
