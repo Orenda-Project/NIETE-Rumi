@@ -729,7 +729,7 @@ async function generateExam(args) {
 // calls it, so a paper without a pattern is built exactly as it always was.
 
 const Patterns = require('./patterns');
-const { applyLayout, takenNote } = require('./fde-layout');
+const { applyLayout, takenNote, verseLines } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 
@@ -1255,6 +1255,55 @@ function patternPoemFor({ P, scope, pageContent }) {
   return { unit: nearest.unit, pages: nearest.pages, title: nearest.title };
 }
 
+/**
+ * Urdu Q6's verses come from the poem's own pages: the given poem's text, or the poem pages inside
+ * the loaded text. Letters only, so spacing and punctuation never decide. '' when neither is there
+ * (another subject, a page that could not be loaded): then nothing is checked.
+ */
+function _versesReference(P, poem, content) {
+  if (!P || P.key !== 'urdu' || !Array.isArray(P.poems) || !P.poems.length) return '';
+  if (poem && poem.content) return _lettersOnly(poem.content);
+  const want = new Set(P.poems.flatMap((p) => Patterns.parseRanges(p.pages)
+    .flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i))));
+  return _lettersOnly((_splitPages(content) || []).filter((pg) => want.has(pg.page)).map((pg) => pg.text).join('\n'));
+}
+function _lettersOnly(text) { return _heldNorm(text).replace(/[^\p{L}]/gu, ''); }
+// A line is the poem's when it is in the poem's text, or when three in four of its four-letter runs
+// are: a model writes a word as it is spelled, not as the page store read it («بیماری» / «پیماری»).
+function _lineFromPoem(line, ref) {
+  const n = _lettersOnly(line);
+  if (n.length < 8) return false;
+  if (ref.includes(n)) return true;
+  let found = 0;
+  for (let i = 0; i + 4 <= n.length; i += 1) if (ref.includes(n.slice(i, i + 4))) found += 1;
+  return found >= 0.75 * (n.length - 3);
+}
+/**
+ * Urdu Q6: a verses item whose four lines are not the poem's (lesson prose reworded under «درج ذیل
+ * اشعار کا مفہوم واضح کریں») is taken out of the reply, so the slot is short and Section C is asked
+ * once more; it is never printed. An item with fewer than four lines is the layout's to refuse.
+ * Mutates the tree.
+ */
+function _dropProseVerses(tree, ref, requestId) {
+  if (!ref || !tree || typeof tree !== 'object') return;
+  for (const branch of ['seen', 'unseen']) {
+    for (const types of Object.values(tree[branch] || {})) {
+      if (!types || typeof types !== 'object') continue;
+      for (const [type, list] of Object.entries(types)) {
+        if (!Array.isArray(list)) continue;
+        types[type] = list.filter((q) => {
+          if (!q || q.slot !== 'urdu.C.Q6') return true;
+          const fromPassage = verseLines(q.passage).lines;
+          const lines = (fromPassage.length >= 4 ? fromPassage : verseLines(q.question).lines).slice(-4);
+          if (lines.length < 4 || lines.filter((l) => _lineFromPoem(l, ref)).length >= 3) return true;
+          logToFile('[assessment] Q6 verses not from the poem', { requestId, slot: q.slot, lines });
+          return false;
+        });
+      }
+    }
+  }
+}
+
 /** The given poem's page text from the book store; null (and today's rule) when it cannot be loaded. */
 async function _loadPatternPoem({ grade, subject, P, scope, pageContent }) {
   const poem = patternPoemFor({ P, scope, pageContent });
@@ -1776,6 +1825,9 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     return { id: section.id, slots, usage, elapsedMs, tree, usages };
   };
   const results = await Promise.all(built.map(writeOne));
+  // Urdu Q6: verses that are not the poem's are taken out before the layout, so Section C is asked again.
+  const versesRef = key === 'urdu' ? _versesReference(P, poem, loaded.content) : '';
+  results.forEach((r) => _dropProseVerses(r.tree, versesRef, requestId));
   const now = new Date().toISOString();
   const merged = () => {
     const tree = _mergeSections(results.map((r) => r.tree));
@@ -1826,6 +1878,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShort.has(f.slot));
       results[i] = topUp ? { ...second, tree: _topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
+      _dropProseVerses(results[i].tree, versesRef, requestId);
     }));
     const still = _reviewTextHits(results);
     if (still.size) {
@@ -1894,6 +1947,8 @@ module.exports = {
   sectionMaxTokens,
   buildPatternUserPrompt,
   patternPoemFor,
+  _versesReference,
+  _dropProseVerses,
   religiousFilter,
   _blankWordsStems,
   buildSystemPrompt,

@@ -862,4 +862,4 @@ function applyLayout(examJson, P, scope, opts = {}) {
   return { examJson: out, placed, unplaced, shortfall };
 }
 
-module.exports = { applyLayout, takenNote, typeKey, slotKey, unitWord };
+module.exports = { applyLayout, takenNote, verseLines, typeKey, slotKey, unitWord };
