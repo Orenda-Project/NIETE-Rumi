@@ -176,6 +176,9 @@ app.use(createTeacherReportRouter());
 // signs nobody in; ahead of the SPA catch-all so it never serves index.html for a report link.
 const { createCoachingReportRouter } = require('./routes/coaching-report.routes');
 app.use(createCoachingReportRouter());
+// The coach card /cv/:token, the link in a C/D teacher's coach ping (bd-v0toag.38.9). Same rules as /cr.
+const { createCoachCardRouter } = require('./routes/coach-card.routes');
+app.use(createCoachCardRouter());
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));

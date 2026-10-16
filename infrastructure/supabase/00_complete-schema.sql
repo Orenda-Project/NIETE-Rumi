@@ -6540,7 +6540,7 @@ CREATE TABLE IF NOT EXISTS niete_coaching_ab_assignment (
 
 -- ─── coach_visit_requests (migration V1.6.7) — a C/D teacher asked her coach to observe ──
 -- Mirrors infrastructure/supabase/migrations/V1.6.7__coach_visit_requests.sql: one row per report;
--- status pending -> sent | failed, or no_coach. Transitional.
+-- status pending -> sent | failed, or no_coach; visited once the coach marks it (V1.6.9). Transitional.
 CREATE TABLE IF NOT EXISTS coach_visit_requests (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   coaching_session_id  UUID NOT NULL UNIQUE REFERENCES coaching_sessions (id),
@@ -6548,8 +6548,10 @@ CREATE TABLE IF NOT EXISTS coach_visit_requests (
   coach_user_id        UUID REFERENCES users (id),
   school_id            UUID REFERENCES schools (id),
   ab_group             TEXT NOT NULL CHECK (ab_group IN ('C', 'D')),
-  status               TEXT NOT NULL CHECK (status IN ('pending', 'sent', 'failed', 'no_coach')),
+  status               TEXT NOT NULL CHECK (status IN ('pending', 'sent', 'failed', 'no_coach', 'visited')),
   wa_message_id        TEXT,
+  reasons              TEXT[],
+  voice_note_key       TEXT,
   created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );

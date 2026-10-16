@@ -28,7 +28,7 @@ describe('template coach_visit_request_v1', () => {
   });
   test('the registrar submits exactly these bodies as UTILITY', () => {
     const { payloads } = require('../../bot/scripts/register-coach-visit-request-template');
-    expect(payloads().map((p) => [p.name, p.language, p.category, p.components[0].text])).toEqual(
+    expect(payloads(TEMPLATE).map((p) => [p.name, p.language, p.category, p.components[0].text])).toEqual(
       Object.entries(TEMPLATE.bodies).map(([l, t]) => ['coach_visit_request_v1', l, 'UTILITY', t]),
     );
   });
@@ -82,6 +82,8 @@ const WORLD = {
   leader_schools: [{ leader_user_id: C1, school_id: 'sch1', school_name: 'IMSG I-8/1' }],
 };
 
+// The send itself (pending → sent/failed, already, no_coach) moved to bd-v0toag.38.9-agree-ping-service.test.js
+// when the one-tap ask became "Do you agree?".
 describe('service', () => {
   const svc = () => require('../../dashboard/services/coach-visit-request');
 
@@ -90,40 +92,9 @@ describe('service', () => {
     expect(await svc().coachesFor(supa({ ...WORLD, leader_schools: [] }), U)).toEqual([]);
   });
 
-  test('a coach: row written pending, the template sent in the coach\'s language, row marked sent', async () => {
-    const db = supa(WORLD);
-    const sent = [];
-    const send = async (m) => { sent.push(m); return { ok: true, messageId: 'wamid.9' }; };
-    const out = await svc().requestVisit(db, { sessionId: S, userId: U, group: 'D', coachId: C1 }, { send });
-    expect(out).toEqual({ status: 'sent' });
-    expect(db.ops[0]).toEqual(['coach_visit_requests', 'insert', expect.objectContaining({
-      coaching_session_id: S, teacher_user_id: U, coach_user_id: C1, school_id: 'sch1', ab_group: 'D', status: 'pending',
-    })]);
-    expect(sent).toEqual([{ to: '923001112223', language: 'ur', params: ['Sana', 'Sadia Bibi', 'IMSG I-8/1'] }]);
-    expect(db.ops[1]).toEqual(['coach_visit_requests', 'update', expect.objectContaining({ status: 'sent', wa_message_id: 'wamid.9' })]);
-  });
 
-  test('a failed send: row marked failed', async () => {
-    const db = supa(WORLD);
-    const out = await svc().requestVisit(db, { sessionId: S, userId: U, group: 'C', coachId: C1 }, { send: async () => ({ ok: false }) });
-    expect(out).toEqual({ status: 'failed' });
-    expect(db.ops[1]).toEqual(['coach_visit_requests', 'update', expect.objectContaining({ status: 'failed' })]);
-  });
 
-  test('a second tap on the same report: nothing sent again', async () => {
-    const send = jest.fn();
-    const out = await svc().requestVisit(supa(WORLD, { conflict: true }), { sessionId: S, userId: U, group: 'C', coachId: C1 }, { send });
-    expect(out).toEqual({ status: 'already' });
-    expect(send).not.toHaveBeenCalled();
-  });
 
-  test('"none of these": recorded no_coach, nobody pinged', async () => {
-    const db = supa(WORLD);
-    const send = jest.fn();
-    expect(await svc().requestVisit(db, { sessionId: S, userId: U, group: 'C', coachId: null }, { send })).toEqual({ status: 'no_coach' });
-    expect(db.ops).toEqual([['coach_visit_requests', 'insert', expect.objectContaining({ coach_user_id: null, status: 'no_coach' })]]);
-    expect(send).not.toHaveBeenCalled();
-  });
 
   test('a coach not of her school, or not her report: refused, nothing written', async () => {
     const send = jest.fn();
