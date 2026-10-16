@@ -7,7 +7,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const { sessionCookie } = require('./lib/local-dev');
+const { sessionCookie, sessionBehaviour } = require('./lib/local-dev');
 const RedisStore = require('connect-redis').default;
 const { createClient } = require('redis');
 const bcrypt = require('bcryptjs');
@@ -284,6 +284,7 @@ app.use(session({
   name: process.env.SESSION_COOKIE_NAME || 'app.sid', // Custom name (hide that it's express-session)
   resave: false,
   saveUninitialized: false,
+  ...sessionBehaviour(), // rolling: 30 days from her last visit (bd-x7aprz.3)
   cookie: sessionCookie(process.env),
 }));
 

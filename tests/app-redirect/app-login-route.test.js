@@ -78,7 +78,9 @@ test('an expired token: the en+ur get-a-new-link page, no session', async () => 
   jest.setSystemTime(new Date('2026-10-11T10:00:01Z'));
   const res = await get(srv, `/go/${t}`);
   expect(res.status).toBe(200);
-  expect(res.body).toContain('/menu');
+  // bd-x7aprz.3: the page asks for a new link with /portal (a wa.me button, or the words when no bot number is set).
+  expect(res.body).toMatch(/\?text=%2Fportal|send \/portal/);
+  expect(res.body).not.toContain('/menu');
   expect(res.body).toMatch(/lang="ur"/);
   expect(res.body).toMatch(/[؀-ۿ]/);
   expect(sessions[0].portalUserId).toBeUndefined();
@@ -90,7 +92,7 @@ test('a tampered token and a bare /go get the same page, no session', async () =
   for (const p of [`/go/${t.slice(0, -1)}${t.endsWith('A') ? 'B' : 'A'}`, '/go/nope', '/go']) {
     const res = await get(srv, p);
     expect(res.status).toBe(200);
-    expect(res.body).toContain('/menu');
+    expect(res.body).toMatch(/\?text=%2Fportal|send \/portal/);
   }
   expect(sessions.every((s) => s.portalUserId === undefined)).toBe(true);
 });

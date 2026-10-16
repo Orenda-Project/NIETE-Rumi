@@ -2,7 +2,9 @@ Feature: Portal sign-in
   # The teacher + coach portal's login page (portal/src/portal/pages/PortalLogin.tsx), driven in a real browser
   # by the web lane: `npm run e2e:web -- portal-login` (scripts/qa/e2e-web.sh, bd-hnhlgn.5).
   # Runs on the local stack with the demo school network (bot/scripts/e2e/portal-demo-seed.js, password Demo2026).
-  # Server statuses → field messages: portal/src/portal/auth/errors.ts (401 wrongPw, 403 noPw, 404 noAccount, 400 checkNum).
+  # Server statuses → messages: portal/src/portal/auth/errors.ts (401 wrongPw, 400 checkNum; bd-x7aprz.3: 403 → back to
+  # the WhatsApp code "Log in by code", 404 → "Register on WhatsApp" — never "No password yet" / "No account found").
+  # bd-x7aprz.3: the page opens on the WhatsApp code; "she enters … and the password …" taps "Use password instead" first.
 
   Background:
     Given the portal is open at /portal/login
@@ -33,10 +35,11 @@ Feature: Portal sign-in
     And she is still on /portal/login
 
   @PL04
-  Scenario: A number with no account is named under the phone box
+  Scenario: A number that is not registered is offered Register on WhatsApp, never "No account found"
     When she enters 03009999999 and any password
     And she taps Log in
-    Then the phone box is marked invalid and says "No account found"
+    Then a "Register on WhatsApp" button opens the bot's chat with /register typed
+    And the page never says "No account found"
 
   @PL05
   Scenario: A malformed number is stopped before it is sent
@@ -46,15 +49,16 @@ Feature: Portal sign-in
     And no /login request was sent
 
   @PL06
-  Scenario: An activated account with no password yet is told so, not shown an error page
-    # bd-vdstfr / NIETE #2048: this answered 500 before the fix; now 403 PASSWORD_NOT_SET.
+  Scenario: An account with no password yet is sent to the WhatsApp code, not shown an error page
+    # bd-vdstfr / NIETE #2048: this answered 500 before the fix; now 403 PASSWORD_NOT_SET (bd-x7aprz.3: → the code).
     Given demo teacher 03000000919 is activated but has no password saved
     When she enters 03000000919 and any password
     And she taps Log in
-    Then the password box is marked invalid and says "No password yet"
+    Then the page says "Log in by code" and offers Send code
 
   @PL07
   Scenario: Forgot password opens the reset page with her number carried over
+    Given she taps Use password instead
     When she enters demo teacher 03000000911
     And she taps Forgot password
     Then she is on /portal/reset-password
@@ -91,3 +95,15 @@ Feature: Portal sign-in
     Then the bot replies with a link to this run's portal at /go/<token>
     When she opens that link in the browser
     Then she settles on /portal/teacher, signed in, without typing a password
+
+  @PL12
+  Scenario: A code on WhatsApp signs her in: number, Send code, the code, her dashboard — no password
+    # bd-x7aprz.3: POST /api/portal/request-code → the bot's portal_password_reset_niete template (mock WhatsApp);
+    # POST /api/portal/verify-code opens the session. The scenario sets a known code on the run's own database.
+    Given the teacher app v2 and the coach app v2 are off
+    When she enters demo teacher 03000000911
+    And she taps Send code
+    Then the code step opens, saying it was sent on WhatsApp
+    When she enters the code
+    And she taps Log in
+    Then she is on /portal/dashboard
