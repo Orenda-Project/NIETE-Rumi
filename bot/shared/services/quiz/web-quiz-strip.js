@@ -390,7 +390,11 @@ function rungAt(list, at) {
 }
 
 /** Compute the week's lines and write them (replace per week × line × cell). Returns { week, lines }. */
-async function weeklyStrip({ week, now = Date.now() } = {}) {
+/**
+ * `sink` (default: writeLines) receives the exact rows and `now`; a caller passing its own sink (the by-hand dry run,
+ * scripts/web-quiz/strip-dry.js) gets the rows and nothing is written to any table. The reads are the same either way.
+ */
+async function weeklyStrip({ week, now = Date.now(), sink = writeLines } = {}) {
   const { start, end } = weekBounds(week);
   const lines = [];
   const put = (line, cell, value, n) => lines.push({ week, line, cell: cell || '', value: value == null ? null : value, n: n == null ? null : n });
@@ -575,7 +579,7 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   await require('./web-quiz-strip-lines').moreLines({ rows, start, end, now, put, skipped, notes, allRows });
   if (lines.some((l) => l.line === 'recognised_without_typing')) notes.recognised_without_typing = LINE_NOTES.recognised_without_typing;
 
-  await writeLines(lines, now);
+  await sink(lines, now);
   if (skipped.length) logToFile('Challenge weekly numbers: lines skipped (table not there yet or unreadable)', { week, skipped });
   return { week, lines: lines.length, skipped, notes };
 }
