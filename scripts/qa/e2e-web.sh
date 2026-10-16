@@ -132,13 +132,17 @@ if [ -n "$PARALLEL" ]; then
   }
   child_args() { local ids; ids="$(only_for "$1")"; printf '%s' "${ids:+--only $ids}"; }
   passthru=""; [ -n "$REQ_HEADED" ] && passthru="--headed"; [ -n "$KEEP" ] && passthru="$passthru --keep"
+  # ONE run: its children share one run id (<this>-<feature>, like run-suite.sh's BASE_ID-<feature>) and commit
+  # nothing themselves (E2E_NO_COMMIT=1) — the parent commits every row once, after the last child finishes.
+  PRUN="parallel-$(date +%Y%m%d-%H%M%S)"
 
   if [ -n "$PLAN" ]; then
     echo "PARALLEL=$NPAR"
+    echo "PARALLEL_LEDGER_COMMIT=once"
     i=0
     for f in "${FEATS[@]}"; do
       # shellcheck disable=SC2046
-      bash "$0" "$f" --slot $((5 + i)) $(child_args "$f") $passthru --print-plan
+      E2E_NO_COMMIT=1 bash "$0" "$f" --slot $((5 + i)) --run-id "$PRUN-$f" $(child_args "$f") $passthru --print-plan
       i=$((i + 1))
     done
     exit 0
@@ -161,7 +165,7 @@ if [ -n "$PARALLEL" ]; then
   fi
   [ -d "$REPO/dashboard/node_modules" ] || { (cd "$REPO/dashboard" && npm ci --no-audit --no-fund >&2) || exit 6; }
 
-  LOGDIR="$HOME/.cache/niete-e2e-web/parallel-$(date +%Y%m%d-%H%M%S)"; mkdir -p "$LOGDIR"
+  LOGDIR="$HOME/.cache/niete-e2e-web/$PRUN"; mkdir -p "$LOGDIR"
   PIDS=(); NAMES=(); SLOTS=(); started=$(date +%s)
   # a slot is busy while the child given it is still running (a finished child tore its stack down: reusable)
   slot_busy() { local i=0 x; for x in ${SLOTS[@]+"${SLOTS[@]}"}; do
@@ -176,7 +180,7 @@ if [ -n "$PARALLEL" ]; then
     done
     [ -n "$s" ] || { log "no free port slot for $f"; continue; }
     # shellcheck disable=SC2046
-    bash "$0" "$f" --slot "$s" $(child_args "$f") $passthru >"$LOGDIR/$f.log" 2>&1 &
+    E2E_NO_COMMIT=1 bash "$0" "$f" --slot "$s" --run-id "$PRUN-$f" $(child_args "$f") $passthru >"$LOGDIR/$f.log" 2>&1 &
     PIDS+=($!); NAMES+=("$f"); SLOTS+=("$s")
     log "  started $f (slot $s, portal :$((4100 + s)))"
     sleep 2   # stagger stack start-ups: each one clones a database from the same template
@@ -190,6 +194,10 @@ if [ -n "$PARALLEL" ]; then
     i=$((i + 1))
   done
   log "parallel run done in $(( $(date +%s) - started ))s — per-feature logs: $LOGDIR"
+  # every child appended its row with committing off: ONE commit carries them all (the mock lane's rule)
+  sum=$(cat "$LOGDIR"/*.log 2>/dev/null | sed -nE 's/.*row appended .*\([A-Z]+ ([0-9]+) \/ ([0-9]+)\).*/\1 \2/p' \
+        | awk '{p+=$1; t+=$2} END {print p+0 "/" t+0}')
+  bash "$REPO/scripts/qa/commit-ledger-row.sh" "$REPO" "${#FEATS[@]} features $sum ($PRUN)"
   exit $rc
 fi
 
@@ -204,7 +212,7 @@ DATA="${DATA:-demo}"
 # A test stack needs a handful of portal DB connections, not the production pool of 20 (dashboard/config/database.js):
 # four parallel stacks at 20 exhausted the local Postgres (max_connections 100, "sorry, too many clients already").
 export DB_POOL_SIZE="${DB_POOL_SIZE:-5}" DB_POOL_MIN="${DB_POOL_MIN:-1}"
-RUN_ID="$(date +%Y%m%d-%H%M%S)-$FEATURE"
+RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M%S)-$FEATURE}"   # a parallel parent passes <its id>-<feature>
 RUN_DIR="$HOME/.cache/niete-e2e-web/$RUN_ID"
 EVIDENCE_REL=".claude/qa/results/web/niete/$RUN_ID"
 BASE_URL="http://localhost:$((4100+SLOT))"   # the address a person opens (and dev-portal.sh prints) — not 127.0.0.1,
@@ -221,7 +229,7 @@ export WEB_HEADED="$HEADED"
 if [ "$HEADED" = 1 ]; then export WEB_SLOWMO="${WEB_SLOWMO:-600}"; else export WEB_SLOWMO=0; fi
 
 if [ -n "$PLAN" ]; then
-  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"; echo "ONLY=$ONLY"; echo "DB_POOL_SIZE=$DB_POOL_SIZE"
+  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"; echo "ONLY=$ONLY"; echo "DB_POOL_SIZE=$DB_POOL_SIZE"; echo "LEDGER_COMMIT=$([ -n "${E2E_NO_COMMIT:-}" ] && echo off || echo on)"
   exit 0
 fi
 
