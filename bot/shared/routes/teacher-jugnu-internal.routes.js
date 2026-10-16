@@ -79,11 +79,14 @@ async function afterErase(erased) {
   const Kid = optional('../services/quiz/web-quiz-kid');
   const byChild = new Map();
   erased.forEach((e) => { const c = (e && e.canonical_id) || null; byChild.set(c, (byChild.get(c) || 0) + 1); });
-  byChild.forEach((n, child) => {
+  for (const [child, n] of byChild) {
     let kid = null;
     try { kid = Kid && typeof Kid.kid === 'function' && child ? Kid.kid(child) : null; } catch (_) { kid = null; }
-    logEvent('web_quiz.bind_undo', { via: 'teacher', n, audio_n: 0, w: 's', ...(kid ? { kid } : {}) });
-  });
+    const fields = { via: 'teacher', n, audio_n: 0, w: 's', ...(kid ? { kid } : {}) };
+    // events v2 (web_quiz_events_v2): the envelope, through the one home; off, or without it, today's line
+    if (Kid && typeof Kid.emit === 'function') await Kid.emit('web_quiz.bind_undo', fields, { canonicalId: child });
+    else logEvent('web_quiz.bind_undo', fields);
+  }
 }
 
 /** 303 back to the tab (?e=1 when nothing was saved). */
