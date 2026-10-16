@@ -22,7 +22,8 @@
       whoTurnOf: function (n) { return '⁨' + n + '⁩ کی باری'; }, whoNotMe: 'میری باری نہیں؟ واپس جائیں', whoTurn: 'کس کی باری ہے؟' }
   };
   var DOOR = { door: 'card', surface: 'scorecard', slot: 1 };
-  var CH_HREF = /^\/c\/[A-Za-z0-9._-]+\?kid=[A-Za-z0-9_-]+&via=quiz_card$/;
+  // The challenge link only; home=1 (web_quiz_home_button) is the one extra the server may add, so the Trail shows Home.
+  var CH_HREF = /^\/c\/[A-Za-z0-9._-]+\?kid=[A-Za-z0-9_-]+&via=quiz_card(&home=1)?$/;
   var shown = false;   // door_shown: once per page view (a re-render of the card is not another view)
   var lastTap = 0;     // door_tap: debounced 1 s
   var going = false;
