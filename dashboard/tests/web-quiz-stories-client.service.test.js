@@ -1916,3 +1916,53 @@ describe('the host slot and the host call shape', () => {
     expect(e.calls.gets[2]).toBe(`/api/wq/stories/shelf/h/${TOKEN}?kid=${KID}&l=en`);
   });
 });
+
+describe('hear a sentence again (a tapped word replays its sentence)', () => {
+  // the real player's pause() reports onState('paused') when it was playing; a sentence replay pauses itself at its end
+  const real = (e) => {
+    const mount = e.win.WQReadAlong.mount;
+    e.win.WQReadAlong.mount = (el, d, o) => { const p = mount(el, d, o); p.pause = () => { p.log.push('pause'); if (o.onState) o.onState('paused'); }; return p; };
+  };
+  test('the reader asks the player for the sentence tap', async () => {
+    const e = env(); await openReader(e);
+    expect(e.calls.ra[0].o.tap).toBe('sentence');
+  });
+  test('while listening: the replayed sentence ends by itself -> the button says Listen, not Pause; the time heard counts', async () => {
+    const e = env(); real(e); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    fire(root, 'main');
+    expect(root.querySelector('[data-main]').textContent).toBe('Pause');
+    p.o.onWordTap(2); e.advance(1500);
+    p.o.onState('paused');                              // the player stopped after the sentence's last word
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    fire(root, 'main');
+    expect(p.log.filter((x) => x === 'play')).toHaveLength(2);
+    e.advance(1000); p.o.onEnd();
+    const ev = e.calls.posts.filter((x) => x.body.event === 'story_page_listened');
+    expect(ev).toHaveLength(1);
+    expect(ev[0].body.data).toMatchObject({ ms: 2500, completed: true });
+  });
+  test('after the page was heard: a sentence replay goes back to Your turn when it ends, and sends nothing new', async () => {
+    const e = env(); real(e); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    fire(root, 'main'); p.o.onEnd();
+    expect(root.querySelector('[data-main]').textContent).toBe('Your turn');
+    p.o.onWordTap(1);
+    expect(root.querySelector('[data-main]').textContent).toBe('Pause');
+    p.o.onState('paused');
+    expect(root.querySelector('[data-main]').textContent).toBe('Your turn');
+    expect(e.calls.posts.filter((x) => x.body.event === 'story_page_listened')).toHaveLength(1);
+  });
+  test('the child\'s own Pause (the player then says paused) is one pause: Listen, and one tap plays again', async () => {
+    const e = env(); real(e); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    fire(root, 'main'); e.advance(700); fire(root, 'main');
+    expect(p.log).toEqual(['play', 'pause']);
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    fire(root, 'main');
+    expect(p.log).toEqual(['play', 'pause', 'play']);
+    expect(root.querySelector('[data-main]').textContent).toBe('Pause');
+    e.advance(300); p.o.onEnd();
+    expect(e.calls.posts.find((x) => x.body.event === 'story_page_listened').body.data.ms).toBe(1000);
+  });
+});
