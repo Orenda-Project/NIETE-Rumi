@@ -4,10 +4,11 @@
  * Re-score the Challenge's KEPT readings that were scored before the noise floor, so every kept read carries the
  * floor's marks (meta.quality / flags / raw / stt_words / align_correct) the way a read scored today does.
  *
- *   node scripts/quiz/rescore-kept-reads.js --env <env> --ref <supabase project ref> [--write] [--max-usd N]
+ *   node scripts/quiz/rescore-kept-reads.js --env <env> --ref <supabase project ref> [--score | --write] [--max-usd N]
  *
  * - DRY RUN IS THE DEFAULT: it selects the rows and prints counts by language and the cost ceiling
- *   (rows × USD_PER_READ); nothing is scored, nothing is written. --write scores and writes.
+ *   (rows × USD_PER_READ); nothing is scored, nothing is written. --score scores (paid) and prints every outcome by
+ *   reason with the row's short id, writing nothing; --write scores and writes.
  * - Refuses unless --env equals this deployment's RAILWAY_ENVIRONMENT_NAME and --ref is the project ref inside
  *   SUPABASE_URL. Every AXIOM_* variable is dropped before the service loads: a re-score sends no events.
  * - The rows: exercise 'read', status 'scored', meta.audio_key set, no meta.stt_words. A key outside the kept
@@ -15,7 +16,8 @@
  * - --write takes from the scorer ONLY quality, flags, raw, stt_words, align_correct, and stamps rescored_at, through
  *   the service's compare-and-set; score, wcpm, status, record, mode and the counted flag are never written. A row that
  *   changed since the read is left as it is. A re-score the live path would not keep (unheard, incomplete,
- *   abandoned) is counted by reason and not written: what such a row becomes is the operator's call.
+ *   abandoned) is not a reading: it is written as quality 'implausible' with its reason last in flags (the mark the
+ *   strip and the statement already read), with the heard and aligned word counts; an internal error writes nothing.
  * - Stops before the next read once the scorer's own cost reaches --max-usd (default 1.00); refuses up front when
  *   the ceiling is already above it.
  * - Prints counts only, and a row id's first 8 characters at most — never a key, a transcript, a name or a phone.
@@ -27,14 +29,16 @@ const MAX_USD = 1;
 const TAKEN = ['quality', 'flags', 'raw', 'stt_words', 'align_correct'];
 
 function parseArgs(argv) {
-  const out = { env: null, ref: null, write: false, maxUsd: MAX_USD };
+  const out = { env: null, ref: null, score: false, write: false, maxUsd: MAX_USD };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--write') out.write = true;
+    else if (a === '--score') out.score = true;
     else if (a === '--env' || a === '--ref') { out[a.slice(2)] = argv[i + 1] || null; i += 1; }
     else if (a === '--max-usd') { out.maxUsd = Number(argv[i + 1]); i += 1; }
     else throw new Error(`unknown argument: ${a}`);
   }
+  if (out.score && out.write) throw new Error('either --score or --write, not both');
   return out;
 }
 
@@ -66,7 +70,8 @@ const bump = (o, k) => { o[k] = (o[k] || 0) + 1; };
 async function rescoreKept({ args, env = process.env, deps }) {
   guard(args, env);
   const rows = (await deps.list()) || [];
-  const out = { env: args.env, dry_run: !args.write, selected: {}, not_kept: 0, cost_ceiling_usd: 0, ok: 0, implausible: {}, would_fail: {}, changed: 0, errors: 0, cost_usd: 0, stopped_at_cost: false, rows: [] };
+  const mode = args.write ? 'write' : (args.score ? 'score' : 'dry_run');
+  const out = { env: args.env, mode, dry_run: mode === 'dry_run', selected: {}, not_kept: 0, cost_ceiling_usd: 0, ok: 0, implausible: {}, would_fail: {}, changed: 0, errors: 0, cost_usd: 0, stopped_at_cost: false, rows: [] };
   const picked = [];
   for (const r of rows) {
     const m = r && r.meta;
@@ -76,7 +81,7 @@ async function rescoreKept({ args, env = process.env, deps }) {
     picked.push(r);
   }
   out.cost_ceiling_usd = Math.round(picked.length * USD_PER_READ * 1e6) / 1e6;
-  if (!args.write) return out;
+  if (mode === 'dry_run') return out;
   if (out.cost_ceiling_usd > args.maxUsd) throw new Error(`the cost ceiling US$${out.cost_ceiling_usd} is above --max-usd ${args.maxUsd}`);
   for (const r of picked) {
     if (out.cost_usd >= args.maxUsd) { out.stopped_at_cost = true; break; }
@@ -84,14 +89,24 @@ async function rescoreKept({ args, env = process.env, deps }) {
     let res;
     try { res = await deps.score(r); } catch (_) { res = { failed: true, reason: 'internal_error', meta: {} }; }
     out.cost_usd = Math.round((out.cost_usd + (Number(res && res.meta && res.meta.cost_usd) || 0)) * 1e6) / 1e6;
-    if (!res || res.failed) {
-      if (!res || res.reason === 'internal_error') out.errors += 1; else bump(out.would_fail, res.reason);
-      out.rows.push({ id: short(r.id), outcome: res ? res.reason : 'internal_error' });
+    if (!res || (res.failed && (!res.reason || res.reason === 'internal_error'))) {
+      out.errors += 1;
+      out.rows.push({ id: short(r.id), outcome: 'internal_error' });
       continue;
     }
     const got = res.meta || {};
     const take = {};
     for (const k of TAKEN) if (got[k] !== undefined) take[k] = got[k];
+    // not a reading by today's rules: the implausible mark, the reason last in flags
+    if (res.failed) Object.assign(take, { quality: 'implausible', flags: [...(Array.isArray(got.flags) ? got.flags : []), res.reason] });
+    const outcome = res.failed ? res.reason : (take.quality === 'implausible' ? `implausible:${res.implausible || (take.flags || []).slice(-1)[0] || 'unknown'}` : 'ok');
+    const tally = () => {
+      if (res.failed) bump(out.would_fail, res.reason);
+      else if (take.quality === 'implausible') bump(out.implausible, outcome.slice('implausible:'.length));
+      else out.ok += 1;
+      out.rows.push({ id: short(r.id), outcome });
+    };
+    if (mode === 'score') { tally(); continue; }
     let wrote = false;
     await deps.write(r.id, (cur) => {
       const cm = cur.meta || {};
@@ -100,9 +115,7 @@ async function rescoreKept({ args, env = process.env, deps }) {
       return { meta: { ...cm, ...take, rescored_at: deps.now() } };
     });
     if (!wrote) { out.changed += 1; out.rows.push({ id: short(r.id), outcome: 'changed' }); continue; }
-    if (take.quality === 'implausible') bump(out.implausible, res.implausible || (take.flags || []).slice(-1)[0] || 'unknown');
-    else out.ok += 1;
-    out.rows.push({ id: short(r.id), outcome: take.quality || 'ok' });
+    tally();
   }
   return out;
 }
@@ -141,7 +154,7 @@ async function main() {
   const dropped = stripAxiom(process.env);   // before any service module loads its logger
   const res = await rescoreKept({ args, env: process.env, deps: serviceDeps() });
   process.stdout.write(`${JSON.stringify({ ...res, axiom_vars_dropped: dropped })}\n`);
-  if (res.dry_run) process.stdout.write(`dry run: ${Object.values(res.selected).reduce((a, b) => a + b, 0)} kept reading(s) would be re-scored (ceiling US$${res.cost_ceiling_usd}); add --write to re-score them\n`);
+  if (res.dry_run) process.stdout.write(`dry run: ${Object.values(res.selected).reduce((a, b) => a + b, 0)} kept reading(s) would be re-scored (ceiling US$${res.cost_ceiling_usd}); --score names each outcome (paid, no write), --write writes\n`);
   if (res.errors) process.exitCode = 1;
 }
 

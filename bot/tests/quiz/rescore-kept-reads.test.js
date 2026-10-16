@@ -85,6 +85,7 @@ describe('rescore-kept-reads: the selection and the dry run', () => {
     const { deps, calls } = fakeDeps(rows);
     const out = await R.rescoreKept({ args: args(), env: ENV, deps });
     expect(out.dry_run).toBe(true);
+    expect(out.mode).toBe('dry_run');
     expect(out.selected).toEqual({ en: 1, ur: 1 });
     expect(out.not_kept).toBe(1);
     expect(out.cost_ceiling_usd).toBeCloseTo(2 * R.USD_PER_READ, 6);
@@ -127,15 +128,39 @@ describe('rescore-kept-reads: --write', () => {
     expect(m).toMatchObject({ stt_words: 41, align_correct: 39, flags: [], rescored_at: '2026-10-17T09:00:00.000Z', counted: true });
     expect(out.ok).toBe(1);
   });
-  it('a re-score the live path would not keep (unheard, abandoned) is counted for the operator, never written', async () => {
+  it('a re-score the live path would not keep (unheard, abandoned) is written as an implausible mark with its reason; an error is not written', async () => {
+    const { deps, calls, store } = fakeDeps([row(1), row(2), row(3)], {
+      [id(1)]: { failed: true, reason: 'unheard', meta: { cost_usd: 0.014, stt_words: 3, align_correct: 0 } },
+      [id(2)]: { failed: true, reason: 'internal_error', meta: {} },
+      [id(3)]: { failed: true, reason: 'abandoned', words: 2, meta: { cost_usd: 0.014, flags: ['short'], stt_words: 4, align_correct: 2, words: 2 } },
+    });
+    const before = JSON.parse(JSON.stringify(store.get(id(1))));
+    const out = await R.rescoreKept({ args: args(['--write']), env: ENV, deps });
+    expect(calls.write).toEqual([id(1), id(3)]);
+    const a = store.get(id(1));
+    for (const col of ['score', 'wcpm', 'status']) expect(a[col]).toEqual(before[col]);
+    expect(a.meta).toEqual({ ...before.meta, quality: 'implausible', flags: ['unheard'], stt_words: 3, align_correct: 0, rescored_at: '2026-10-17T09:00:00.000Z' });
+    expect(store.get(id(3)).meta).toMatchObject({ quality: 'implausible', flags: ['short', 'abandoned'], stt_words: 4, align_correct: 2 });
+    expect(store.get(id(3)).meta.words).toBeUndefined();
+    expect(out.would_fail).toEqual({ unheard: 1, abandoned: 1 });
+    expect(out.implausible).toEqual({});
+    expect(out.errors).toBe(1);
+  });
+  it('--score scores and names every outcome by reason, and writes nothing', async () => {
     const { deps, calls } = fakeDeps([row(1), row(2)], {
       [id(1)]: { failed: true, reason: 'unheard', meta: { cost_usd: 0.014 } },
-      [id(2)]: { failed: true, reason: 'internal_error', meta: {} },
+      [id(2)]: { score: { correct: 0 }, wcpm: null, implausible: 'low_stt_support', meta: { cost_usd: 0.014, quality: 'implausible', flags: ['low_stt_support'] } },
     });
-    const out = await R.rescoreKept({ args: args(['--write']), env: ENV, deps });
+    const out = await R.rescoreKept({ args: args(['--score']), env: ENV, deps });
+    expect(calls.score).toEqual([id(1), id(2)]);
     expect(calls.write).toEqual([]);
+    expect(out.mode).toBe('score');
     expect(out.would_fail).toEqual({ unheard: 1 });
-    expect(out.errors).toBe(1);
+    expect(out.implausible).toEqual({ low_stt_support: 1 });
+    expect(out.rows).toEqual([{ id: id(1).slice(0, 8), outcome: 'unheard' }, { id: id(2).slice(0, 8), outcome: 'implausible:low_stt_support' }]);
+  });
+  it('--score and --write together are refused', () => {
+    expect(() => R.parseArgs(['--score', '--write'])).toThrow(/either/);
   });
   it('a row that changed between the read and the write is left as it is', async () => {
     const { deps, store } = fakeDeps([row(1)]);
