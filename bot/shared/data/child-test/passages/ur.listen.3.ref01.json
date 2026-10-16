@@ -6,22 +6,22 @@
   "pool": "check",
   "status_at_authoring": "draft",
   "is_reference": true,
-  "tokens": 61,
+  "tokens": 63,
   "sentences": 8,
-  "mean_sent_len": 7.6,
+  "mean_sent_len": 7.9,
   "max_word_len": 6,
-  "readability": 0.909,
+  "readability": 0.911,
   "readability_list": "fed-cum-g5-2026",
   "readability_band_above": null,
   "q_reach_1": 2,
   "q_reach_2": 3,
   "q_n": 6,
-  "text_hash": "896e52ec72935ebb1dcd659c3ab44952",
+  "text_hash": "85f33aafb6d89e18c410a359a7b136a0",
   "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
   "licence": "generated",
   "title_en": null,
   "title_ur": "رانیہ بازار میں",
-  "text": "رانیہ اپنے دادا کے ساتھ سبزی لینے گئی۔ آسمان پر بہت سے بادل تھے۔ تھوڑی دیر میں بارش شروع ہو گئی۔ دونوں کے پاس چھتری نہیں تھی۔ ایک سبزی والے نے انھیں آواز دی۔ اس نے دونوں کو بیٹھنے کے لیے جگہ دی۔ رانیہ نے سبزیاں صاف کرنے میں مدد کی۔ بارش ختم ہوئی تو دادا نے اس سے سبزی لی۔",
+  "text": "رانیہ اپنے دادا کے ساتھ سبزی لینے گئی۔ آسمان پر بہت سے بادل تھے۔ تھوڑی دیر میں بارش شروع ہو گئی۔ دونوں کے پاس چھتری نہیں تھی۔ ایک سبزی والے نے انھیں آواز دی۔ اس نے دونوں کو بیٹھنے کے لیے جگہ دی۔ رانیہ نے سبزیاں صاف کرنے میں مدد کی۔ بارش ختم ہوئی تو دادا نے اسی سبزی والے سے سبزی لی۔",
   "lines": [
     [
       0,
@@ -53,7 +53,7 @@
     ],
     [
       51,
-      60
+      62
     ]
   ],
   "tokens_list": [
@@ -114,7 +114,9 @@
     "تو",
     "دادا",
     "نے",
-    "اس",
+    "اسی",
+    "سبزی",
+    "والے",
     "سے",
     "سبزی",
     "لی"
@@ -247,5 +249,14 @@
   "bank_version": "child-test-items-v4",
   "names": [
     "رانیہ"
+  ],
+  "changes": [
+    {
+      "at": "2026-10-16",
+      "field": "text",
+      "what": "last sentence (8): 'بارش ختم ہوئی تو دادا نے اس سے سبزی لی۔' -> 'بارش ختم ہوئی تو دادا نے اسی سبزی والے سے سبزی لی۔'",
+      "why": "by ear the last sentence's «اس» could be the vegetable seller or Raniya; fixed before the passage's first exposure on any served tier",
+      "text_hash_before": "896e52ec72935ebb1dcd659c3ab44952"
+    }
   ]
 }
