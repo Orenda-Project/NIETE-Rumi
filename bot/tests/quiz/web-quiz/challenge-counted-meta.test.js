@@ -169,6 +169,32 @@ describe('meta.counted under challenge v2 = (mode === \'check\' && record) (RULI
     expect(rowOf(own.ct).meta).toMatchObject({ counted: true });
   });
 
+  // A bot redeploy between the serve and the submit empties the run memory: the submit then finds the served row
+  // (its mode and record columns) but no v2 run. The stamp follows the row's mode, never the first-attempt default.
+  test('a round turn that straddled a redeploy (served, memory gone, then submitted): meta.counted=false', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(), 'bigger', { ...D, mode: 'class_round' });
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'class_round', record: false, status: 'served' });
+    Ch.__reset();   // the redeploy: RUNS (and the switch caches) are gone, the row stays
+    await Ch.submit({ ct: ex.ct, taps: biggerTaps(ex.items), ms: 25000 });
+    expect(rowOf(ex.ct)).toMatchObject({ status: 'scored', mode: 'class_round', record: false });
+    expect(rowOf(ex.ct).meta).toMatchObject({ attempt_no: 1, counted: false });
+  });
+
+  test('a round warm-up (missing) that straddled a redeploy: counted=false; a straddled check record row: true', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const round = await Ch.exercise(hub(), 'missing', { ...D, mode: 'class_round' });
+    Ch.__reset();
+    await Ch.submit({ ct: round.ct, answers: missingAnswers(round.items), ms: 30000 });
+    expect(rowOf(round.ct)).toMatchObject({ mode: 'class_round', record: false });
+    expect(rowOf(round.ct).meta).toMatchObject({ counted: false });
+    const own = await Ch.exercise(hub(), 'bigger', D);
+    expect(rowOf(own.ct)).toMatchObject({ mode: 'check', record: true });
+    Ch.__reset();
+    await Ch.submit({ ct: own.ct, taps: biggerTaps(own.items), ms: 25000 });
+    expect(rowOf(own.ct).meta).toMatchObject({ attempt_no: 1, counted: true });
+  });
+
   test('golden: v2 off, today\'s stamp — the first scored attempt counted=true, the second false (attempt_no), byte-identical meta keys', async () => {
     const a = await Ch.exercise(hub(), 'bigger', D);
     await Ch.submit({ ct: a.ct, taps: biggerTaps(a.items), ms: 25000 });
