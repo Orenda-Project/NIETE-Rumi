@@ -22,6 +22,11 @@ import type { PickerWords } from '../../newui/coaching/pickerWords';
 /** A band's word, by BandKey. English is lib/scoreBands' own, so the two can never drift. */
 const BANDS_EN = Object.fromEntries(BAND_THRESHOLDS.map((b) => [b.key, b.label])) as Record<BandKey, string>;
 
+import { DC_MIN_SECONDS } from '../../lib/coachingUpload';
+
+/** bd-fgj73x.7 — the minimum, said in minutes, from the one constant. */
+const MIN_MINUTES = DC_MIN_SECONDS / 60;
+
 export const COACHING_V2_COPY = {
   title: 'Digital Coaching',
   /* the main page and its one screen (Assessment's flow, design v6): Start DC observation, then step by step on one
@@ -52,6 +57,8 @@ export const COACHING_V2_COPY = {
   removePhoto: (n: number) => `Remove photo ${n}`,
   /** The photo cap said aloud: ten here, three for the coach (one grid, parts.tsx PhotoGrid). */
   upToPhotos: (n: number) => `Up to ${n} photos`,
+  atLeastMinutes: `At least ${MIN_MINUTES} min`,
+  tooShort: `Too short. Recordings must be at least ${MIN_MINUTES} minutes.`,
   notAPhoto: 'Not a photo',
   uploadRecording: 'Upload recording',
   recent: 'Recent DC Observations',
@@ -192,6 +199,8 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   addPhoto: 'تصویر شامل کریں',
   removePhoto: (n: number) => `تصویر ${n} ہٹائیں`,
   upToPhotos: (n: number) => `${n} تصاویر تک`,
+  atLeastMinutes: `${MIN_MINUTES} منٹ یا زیادہ`,
+  tooShort: `بہت مختصر۔ ریکارڈنگ کم از کم ${MIN_MINUTES} منٹ کی ہونی چاہیے۔`,
   notAPhoto: 'یہ تصویر نہیں',
   uploadRecording: 'ریکارڈنگ اپ لوڈ کریں',
   recent: 'حالیہ ڈیجیٹل کوچنگ مشاہدات',
@@ -312,5 +321,7 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Digital Coaching',
   module: COACHING as Bilingual<unknown>,
   // "DC observation" is ڈیجیٹل کوچنگ مشاہدہ (three words, the ontology's own name): it adds to a sentence of three.
-  longOk: ['startObservation', 'summaryCount', 'noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint', 'micBrowserBlocked', 'micStillBlockedWhatsApp', 'micStillBlocked'],
+  longOk: ['startObservation', 'summaryCount', 'noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint', 'micBrowserBlocked', 'micStillBlockedWhatsApp', 'micStillBlocked',
+    // bd-fgj73x.7: the operator asked for a short line that says why a recording under 15 minutes cannot be sent.
+    'tooShort'],
 };
