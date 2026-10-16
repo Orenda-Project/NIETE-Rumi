@@ -252,11 +252,22 @@ describe('8. MCQs: one right option, options only in `options`', () => {
       { slot: 'maths.A.Q1a', question: 'Find the side (a) of a square of area 49 cm².', options: ['6 cm', '7 cm', '8 cm', '9 cm'], answer: 'b', marks: 1, blooms: 'Apply' },
       { slot: 'maths.A.Q1a', question: 'Round 234,567 to the nearest thousand. (a) 234,000 (b) 235,000 (c) 234,500 (d) 230,000', options: ['a) 234,500', 'b) 230,000', 'c) 234,000', 'd) 235,000'], answer: 'd) 235,000', marks: 1, blooms: 'Apply' },
       { slot: 'maths.A.Q1a', question: 'Pick one: (a) a cat (b) a dog (c) a cow (d) a hen, then say why.', options: ['3', '4', '5', '6'], answer: 'a', marks: 1, blooms: 'Remember' },
+      { slot: 'maths.A.Q1a', question: 'Read the statements: (a) 2 is prime (b) 4 is prime (c) 5 is prime (d) 9 is prime. How many are true?', options: ['1', '2', '3', '4'], answer: 'b', marks: 1, blooms: 'Understand' },
+      { slot: 'maths.A.Q1a', question: 'Parts (a) 1 (b) 2 (c) 3 (d) 4 are marked. Find part (c).', options: ['1', '2', '3', '4'], answer: 'c', marks: 1, blooms: 'Remember' },
     ];
     const laid = applyLayout({ unseen: { objective: { MCQs: items } } }, P.maths, FDE, { now: NOW }).examJson;
     expect(laid.unseen.objective.MCQs.map((q) => q.question)).toEqual([
       'In 4,56,789 the digit 4 is in which place?', 'Which is greatest?', 'Find the side (a) of a square of area 49 cm².',
-      'Round 234,567 to the nearest thousand.', 'Pick one: (a) a cat (b) a dog (c) a cow (d) a hen, then say why.']);
+      'Round 234,567 to the nearest thousand.', 'Pick one: (a) a cat (b) a dog (c) a cow (d) a hen, then say why.',
+      'Read the statements: (a) 2 is prime (b) 4 is prime (c) 5 is prime (d) 9 is prime. How many are true?',
+      'Parts (a) 1 (b) 2 (c) 3 (d) 4 are marked. Find part (c).']);
+  });
+
+  test('a long stem is scanned in linear time', () => {
+    const stem = '(a) x (b) y (c) z '.repeat(600);
+    const t0 = Date.now();
+    applyLayout({ unseen: { objective: { MCQs: [{ slot: 'maths.A.Q1a', question: stem, options: ['x', 'y', 'z', 'w'], answer: 'a', marks: 1, blooms: 'Remember' }] } } }, P.maths, FDE, { now: NOW });
+    expect(Date.now() - t0).toBeLessThan(500);
   });
 });
 
@@ -274,7 +285,8 @@ describe('10. a remainder key is checked', () => {
     return Object.values(mathsCheck(normaliseScheme(laid.examJson).examJson, { subject: 'maths' }).examJson.unseen.subjective).flat();
   };
   test('a wrong remainder is corrected; a right one is ok; a wrong quotient is left unchecked', () => {
-    const [a, b, c, d] = check(['68,970 ÷ 45 = 1,532 remainder 10', '68,970 ÷ 45 = 1,532 remainder 30', '68,970 ÷ 45 = 1,500 remainder 30', '100 ÷ 7 = 14 R 2']);
+    const [a, b, c, d, e] = check(['68,970 ÷ 45 = 1,532 remainder 10', '68,970 ÷ 45 = 1,532 remainder 30', '68,970 ÷ 45 = 1,500 remainder 30', '100 ÷ 7 = 14 R 2', '103 ÷ 4 = 25, remainder 4, so 25 each']);
+    expect([e.answer, e.scheme.checked]).toEqual(['103 ÷ 4 = 25, remainder 3, so 25 each', 'replaced']);
     expect([a.answer, a.scheme.checked]).toEqual(['68,970 ÷ 45 = 1,532 remainder 30', 'replaced']);
     expect(b.scheme.checked).toBe('ok');
     expect([c.answer, c.scheme.checked]).toEqual(['68,970 ÷ 45 = 1,500 remainder 30', null]);

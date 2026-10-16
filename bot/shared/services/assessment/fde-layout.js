@@ -449,16 +449,28 @@ const TAGGED_FIELDS = ['question', 'main_question', 'text'];
 // "… which place? (a) Lakhs (b) Ten thousands (c) Thousands (d) Millions": the options
 // written into an MCQ stem as well as into `options`. The paper prints its own options
 // row (keys may be turned), so a second, differently lettered list never prints.
-const STEM_OPTIONS = /\s*\(?a\)\s*\S[^]*?\s\(?b\)\s*\S[^]*?\s\(?c\)\s*\S[^]*?\s\(?d\)\s*\S[^]*$/i;
+const STEM_LABEL = /(^|\s)\(?([a-d])\)\s*/gi;
+const STEM_MAX = 600;
+const optionText = (t) => String(t == null ? '' : t).replace(/^\s*\(?[a-d]\)\s*/i, '').replace(/[\s.,;]+$/, '').trim().toLowerCase();
 
 function stripStemOptions(q) {
-  if (!q || typeof q.question !== 'string' || !Array.isArray(q.options) || q.options.length < 4) return;
-  const m = STEM_OPTIONS.exec(q.question);
-  if (!m) return;
-  // Only a list that holds every option's text (in any order) is the options again.
-  const listed = m[0].toLowerCase();
-  const texts = q.options.map((o) => String(o == null ? '' : o).replace(/^\s*\(?[a-d]\)\s*/i, '').trim().toLowerCase());
-  if (texts.every((t) => t && listed.includes(t))) q.question = q.question.slice(0, m.index).trim();
+  if (!q || typeof q.question !== 'string' || q.question.length > STEM_MAX) return;
+  if (!Array.isArray(q.options) || q.options.length !== 4) return;
+  const text = q.question;
+  const labels = [...text.matchAll(STEM_LABEL)];
+  // The list must be the last four labels, a to d in order, and end the stem.
+  if (labels.length < 4) return;
+  const four = labels.slice(-4);
+  if (four.map((m) => m[2].toLowerCase()).join('') !== 'abcd') return;
+  const segments = four.map((m, i) => {
+    const from = m.index + m[0].length;
+    const to = i < 3 ? four[i + 1].index + four[i + 1][1].length : text.length;
+    return optionText(text.slice(from, to));
+  });
+  // Each segment is one of the options, each option once: then it is the options again.
+  const options = q.options.map(optionText);
+  if (new Set(segments).size !== 4 || !segments.every((seg) => seg && options.includes(seg))) return;
+  q.question = text.slice(0, four[0].index + four[0][1].length).trim();
 }
 
 function stripTags(holder) {
