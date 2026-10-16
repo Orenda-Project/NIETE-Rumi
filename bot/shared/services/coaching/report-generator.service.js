@@ -271,24 +271,6 @@ class ReportGeneratorService {
       // This matches the _resolveSessionLanguage helper used by the progress
       // ticker and the LP prompt, so a teacher whose UI is English but who
       // just taught in Urdu gets ALL messages in English (no jarring mix).
-      // bd-v0toag.1.5: ONE next step, chosen once — the horizon, the card and the stored focus all read it.
-      const { selectNextStep, focusPatch } = require('./next-step');
-      const nextStep = selectNextStep(enhancedAnalysis, null);
-      const stepId = nextStep.target && nextStep.target.indicator;
-      if (nextStep.fallback) {
-        logToFile('[next-step] fallback — no valid focus_area; the weakest scored row is the step', {
-          coachingSessionId, reason: nextStep.reason, scorer_indicator: nextStep.scorerIndicator, indicator: stepId || null,
-        });
-      }
-      const stepFocus = focusPatch(enhancedAnalysis, nextStep.target);
-      if (stepFocus) {
-        Object.assign(enhancedAnalysis, stepFocus);
-        await require('./next-step-store').persistNextStepFocus(coachingSessionId, stepFocus);
-      }
-      const logRuleCard = (card) => {
-        if (card && card._source === 'fallback') logToFile('[next-step] commitment card is the rule-based fallback', { coachingSessionId, indicator: stepId || null, card_indicator: card.indicator });
-      };
-
       const heroLanguage = outputLanguage; // bd-3b0co: unified resolver (was preferred || analysis || transcript || en)
       let precomputedCommitment = null;
       try {
@@ -309,9 +291,8 @@ class ReportGeneratorService {
           enhancedAnalysis,
           session.conversation_state,
           cardLanguage,
-          { teacherName: teacherFirstNameForCard, priorAction: await cardPriorAction(session.user_id, priorActionForCard), target: nextStep.target }
+          { teacherName: teacherFirstNameForCard, priorAction: await cardPriorAction(session.user_id, priorActionForCard) }
         );
-        logRuleCard(precomputedCommitment);
       } catch (e) {
         logToFile('⚠️  Pre-compute commitment card failed (non-fatal; hero renders without tryNext)', {
           error: e.message,
@@ -324,7 +305,7 @@ class ReportGeneratorService {
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape.
-      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, nextStep);
+      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
       // Upload report to R2 for portal access.
@@ -448,9 +429,8 @@ class ReportGeneratorService {
             enhancedAnalysis,
             session.conversation_state,
             cardLanguage,
-            { teacherName: teacherFirstName, priorAction: await cardPriorAction(session.user_id, priorAction), target: nextStep.target }
+            { teacherName: teacherFirstName, priorAction: await cardPriorAction(session.user_id, priorAction) }
           );
-          logRuleCard(actionData);
         }
 
         // bd-v0toag.20: v10 test only (ab_v10_enabled), otherwise actionData comes back as it was.
@@ -809,12 +789,10 @@ class ReportGeneratorService {
    * @param {object} session - Session data
    * @param {string} teacherName - Teacher's full name
    * @param {object} enhancedAnalysis - Enhanced analysis data
-   * @param {object} [precomputedCommitment] - the commitment card already generated
-   * @param {object} [nextStep] - next-step.selectNextStep result (bd-v0toag.1.5); its target pins the horizon
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
-  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, nextStep = null) {
+  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null) {
     logToFile('Generating PDF report', { coachingSessionId: session.id });
 
     // Resolve framework and dispatch to correct transformer
@@ -886,8 +864,6 @@ class ReportGeneratorService {
         // tryNext callout gracefully (template guards on truthiness).
         commitmentAction,
         slim,
-        // bd-v0toag.1.5: the report's ONE next step (the card got the same object) pins the horizon.
-        target: (nextStep && nextStep.target) || null,
       },
     };
 
