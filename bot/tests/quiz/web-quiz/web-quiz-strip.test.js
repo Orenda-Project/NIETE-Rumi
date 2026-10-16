@@ -52,6 +52,10 @@ const practiceRows = () => [
   v2({ canonical_id: C, mode: 'practice', status: 'scored', anchor_exposure_no: 1, anchor_block: 'A1' }),
 ];
 
+// The roster rows the run rows' children stand on: the strip trusts id_confidence = 'high' only when the student
+// row proves it (on a list, or merged into a roster row), so a test whose high rows must count seeds them.
+const roster = () => [A, B, C].map((sid, i) => ({ id: sid, name: `${['Ali', 'Bilal', 'Sana'][i]} Testwala`, list_id: 'list-1', merged_into: null, status: 'active' }));
+
 let db;
 const install = (runs, extra = {}) => {
   db = { [RUNS]: runs, web_quiz_strip_weekly: [], child_rungs: [], message_ledger: [], ...extra };
@@ -183,7 +187,7 @@ test('anchor retest gap: (returners − first-timers) ÷ pooled SD over the MONT
     anc(2, 30, { status: 'failed' }),
     anc(2, 30, { created_at: '2026-10-20T08:00:00Z' }),
     anc(2, 30, { period_id: '2026-09', created_at: '2026-09-30T08:00:00Z' }),
-  ]);
+  ], { students: roster() });
   await Strip.weeklyStrip({ week: WEEK, now: NOW });
   // means 11 vs 15, each sd √2 → pooled √2 → gap 4/√2; the cell is band × language × ladder × block
   const l = line('anchor_retest_gap', 'G23|ur|numbers|A1');
@@ -199,7 +203,7 @@ test('the anchor month is the week\'s Monday\'s (a week that starts in one month
     anc(2, 14, '2026-10-28T08:00:00Z', '2026-10'), anc(2, 16, '2026-10-28T08:00:00Z', '2026-10'),
     anc(1, 1, '2026-11-01T08:00:00Z', '2026-11'), anc(1, 2, '2026-11-01T08:00:00Z', '2026-11'),
     anc(2, 9, '2026-11-01T08:00:00Z', '2026-11'), anc(2, 9, '2026-11-01T08:00:00Z', '2026-11'),
-  ]);
+  ], { students: roster() });
   await Strip.weeklyStrip({ week: '2026-W44', now: NOW });
   expect(line('anchor_retest_gap', 'G23|ur|numbers|A1')).toMatchObject({ n: 4 });
   expect(line('anchor_retest_gap', 'G23|ur|numbers|A1').value).toBeCloseTo(4 / Math.SQRT2, 6);
@@ -230,7 +234,7 @@ test('cells at n = 30 count CHILDREN (distinct canonical id), not rows: usable =
     v2({ canonical_id: C, exercise: 'bigger', id_confidence: 'low' }),
     v2({ canonical_id: C, exercise: 'bigger', record: false }),
     v2({ canonical_id: B, exercise: 'bigger', exposure_no: 2 }),
-  ]);
+  ], { students: roster() });
   await Strip.weeklyStrip({ week: WEEK, now: NOW });
   expect(line('cells_n30', 'G23|ur|numbers')).toMatchObject({ value: 1, n: 1 });
 });
