@@ -8,6 +8,14 @@
  *   doorsOf({ out, stories, hasRoot })            the three doors (pure); every door is always present, an empty
  *                                                 one is [] / null and the page shows its "coming soon" line
  *   headOf(stamps, now)                           { dots, today } (pure): days with a finish this PKT week, as a count
+ *   practiceHub(token, { lang, brandKey })        the coach's preview of the class's home, or null (not a practice
+ *                                                 token, or the switch off: the caller goes on to today's path)
+ *
+ * THE PRACTICE HOME. A teacher trying the child app sees what their class sees, by GRADE, with no child anywhere: a hub
+ * token `{k:'h', ids:[], pr:1, g:<1-5>, lang?, bk?}` (the join's practice mode mints it) boots the same shell with this
+ * week's story and the listening story for the grade's entry band, the number games the grade has, the videos as
+ * watch-only, an empty jar, no dots and no name. It reads no child table and writes nothing (no binding, no Redis key);
+ * `bk` is the teacher home it came from (a /quiz/teacher/<t> path only), for the strip's Back and the grown-ups corner.
  *
  * The page decides nothing about what is next: the Next tile is `out.next` (web_quiz_next_offer) when the server sent it,
  * else the hub's own lantern / teacher card, in that order (wq-home.js). The doors carry ids and hrefs only; the
@@ -17,6 +25,9 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
+const T = require('./web-quiz-token');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const KEY = 'web_quiz_home_v3';
 const STORIES_KEY = 'web_quiz_stories';
@@ -113,4 +124,69 @@ async function homeField({ out, chosenId, history, now = Date.now() } = {}) {
   }
 }
 
-module.exports = { homeField, doorsOf, headOf, flags, KEY, STORIES_KEY, _resetCache: () => { cache = null; } };
+// ─── the practice home ─────────────────────────────────────────────────────────────────────────────
+
+const BACK_RX = /^\/quiz\/teacher\/[A-Za-z0-9._~-]{1,600}$/;
+const BACK_LABEL = { en: 'Back to my teacher home', ur: 'ٹیچر ہوم پر واپس' };
+
+/** The practice fields of a genuine hub token, or null (pure): pr:1, no child named, a grade 1-5. */
+function practiceOf(token) {
+  const tok = T.verify(token, 'h');
+  if (!tok || tok.pr !== 1 || !Array.isArray(tok.ids) || tok.ids.length) return null;
+  const g = Number(tok.g);
+  if (!Number.isInteger(g) || g < 1 || g > 5) return null;
+  const lang = clampLanguage(tok.lang || tok.l);
+  return { g, lang, bk: typeof tok.bk === 'string' && BACK_RX.test(tok.bk) ? tok.bk : null };
+}
+
+// This week's story and the listening story the grade's children are shown first (the entry band, no reading rung):
+// the same passages, the same release rule and the same title home as the child's shelf. [] on any failure.
+async function practiceStories(g, lang) {
+  try {
+    const Play = require('./web-quiz-hub-play');
+    const s = await Play.switches();
+    if (!s.v2 || !s.story) return [];
+    const p = await Play.passagesOf(lang, new Date().toISOString(), Play.openBands(g, 0));
+    const newest = (kind) => p.live.filter((r) => r.kind === kind).sort((a, b) => Date.parse(b.released_at) - Date.parse(a.released_at))[0] || null;
+    const title = (pid) => { try { return require('./web-quiz-passage-title').titleFor(pid, lang) || null; } catch (_) { return null; } };
+    return [['passage', newest('read')], ['listen', newest('listen')]].filter((x) => x[1])
+      .map(([kind, r]) => { const t = title(r.passage_id); return { kind, id: r.passage_id, fresh: false, ...(t ? { title: t } : {}) }; });
+  } catch (_) {
+    return [];
+  }
+}
+
+/** The practice payload, or null. Never reads a child table; never throws past a bad token (null). */
+async function practiceHub(token, { lang: asked, brandKey } = {}) {
+  const pr = practiceOf(token);
+  if (!pr) return null;
+  try {
+    const f = await flags();
+    if (!f.home) return null;
+    const hubFlags = await require('./web-quiz-hub-flags').flags();
+    if (!hubFlags.hub) return null;
+    const lang = asked ? clampLanguage(asked) : pr.lang;
+    let form = null;
+    if (hubFlags.challenge) {
+      try { form = await require('./web-quiz-challenge').formForChild(pr.g); } catch (_) { form = null; }
+    }
+    const stories = await practiceStories(pr.g, lang);
+    if (f.stories) stories.push({ kind: 'shelf' });
+    const out = {
+      lang, practice: 1, th: { practice: true }, grade: pr.g,
+      kids: [], kid: null, teacher: null, again: [], recs: [], challenge: form ? { on: true } : null, lib: null,
+      brand: typeof brandKey === 'function' ? await brandKey() : null,
+      home_v3: 1,
+      doors: { stories, games: form ? [{ kind: 'numbers' }] : [], videos: { watch: true, practice: true, grade: pr.g } },
+      head: { dots: 0, today: false, jar: null },
+      ...(pr.bk ? { practice_back: pr.bk, grownups: { teacher_href: pr.bk, teacher_label: BACK_LABEL[lang] } } : {}),
+    };
+    logEvent('web_quiz.hub_open', { practice: 1, kid: null, grade: pr.g, lang });
+    return out;
+  } catch (err) {
+    logToFile('⚠️ web quiz home: practice unavailable', { error: err.message });
+    return null;
+  }
+}
+
+module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, KEY, STORIES_KEY, _resetCache: () => { cache = null; } };

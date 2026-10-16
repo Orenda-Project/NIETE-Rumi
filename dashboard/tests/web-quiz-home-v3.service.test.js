@@ -125,7 +125,7 @@ describe('wq-home.js: the doors', () => {
   test('Stories: a passage opens the story room; the shelf stub is a slot for the stories reader', () => {
     const html = H.door({ ...HOME, doors: { ...DOORS_FULL, stories: [...DOORS_FULL.stories, { kind: 'shelf' }] } }, ctxOf('en'), 'stories');
     expect(html).toContain('&amp;room=story&amp;pid=en.read.1.k07');
-    expect(html).toContain('data-shelf="1"');
+    expect(html).toContain('data-stories-shelf="1"');
   });
   test('Stories: a listening story asks the story room for a listen (&ex=listen), a read story does not', () => {
     const html = H.door(HOME, ctxOf('en'), 'stories');
@@ -155,17 +155,18 @@ describe('wq-home.js: the Next tile', () => {
     expect(trail).toMatchObject({ kind: 'game', href: `/c/${encodeURIComponent(TOKEN)}?kid=${KID}`, src: 'lantern' });
     expect(trail.title).not.toMatch(BANNED);
   });
-  test('nothing at all: one Next element still, with no link', () => {
-    const html = H.html({ ...HUB, home_v3: 1, doors: DOORS_EMPTY, head: { dots: 0, today: false, jar: null } }, ctxOf('en'));
+  test('nothing at all: one Next element still, and it opens the Stories door', () => {
+    const html = H.html({ ...HUB, challenge: null, home_v3: 1, doors: DOORS_EMPTY, head: { dots: 0, today: false, jar: null } }, ctxOf('en'));
     expect(count(html, /class="wq-next[ "]/g)).toBe(1);
-    expect(html).toContain('data-kind="none"');
+    expect(html).toContain('data-kind="door"');
+    expect(html).toContain('href="#stories"');
   });
 });
 
 describe('wq-home.js: mount loads the stories reader only when the server says stories are on', () => {
   function mountWith(B, hash) {
     const head = [];
-    const root = { innerHTML: '', setAttribute() {}, querySelector: (sel) => (sel === '[data-shelf]' && /data-shelf/.test(root.innerHTML) ? {} : null), querySelectorAll: () => [], appendChild() {} };
+    const root = { innerHTML: '', setAttribute() {}, querySelector: (sel) => (sel === '[data-stories-shelf]' && /data-stories-shelf/.test(root.innerHTML) ? {} : null), querySelectorAll: () => [], appendChild() {} };
     const win = { addEventListener() {}, scrollTo() {} };
     const document = {
       querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null),
@@ -238,11 +239,196 @@ describe('hub.js', () => {
     r.head[1].l.error();
     expect(r.root.innerHTML).toContain('wq-hub');
   });
+  test('a practice boot (no child, home_v3): the home is mounted, not the "no one here" screen', () => {
+    const seen = [];
+    runHub({ ...HUB, kids: [], kid: null, practice: 1, grade: 3, home_v3: 1, doors: DOORS_EMPTY, head: { dots: 0, today: false, jar: null }, brand: null, token: TOKEN }, { mount: (root, B) => seen.push(B.practice) });
+    expect(seen).toEqual([1]);
+  });
+  test('kids:[] without practice: today\'s screen, never the home', () => {
+    const seen = [];
+    runHub({ ...HUB, kids: [], kid: null, home_v3: 1, doors: DOORS_EMPTY, brand: null, token: TOKEN }, { mount: () => seen.push(1) });
+    expect(seen).toHaveLength(0);
+  });
   test('off (no home_v3): today\'s hub, never mounted, nothing loaded', () => {
     const seen = [];
     const r = runHub({ ...HUB, brand: null, token: TOKEN }, { mount: () => seen.push(1) });
     expect(seen).toHaveLength(0);
     expect(r.head).toHaveLength(0);
     expect(r.html).toContain('wq-hub');
+  });
+});
+
+// ---- a live-ish page for mount(): elements that keep their listeners, a head, timers from the test -------------
+function page({ hash = '', conn = null, idle = true } = {}) {
+  const els = {}; const sheets = []; const head = []; const evs = []; const idleQ = [];
+  const el = (name) => {
+    if (els[name]) return els[name];
+    const l = {};
+    els[name] = {
+      l, attrs: {}, classList: { add() {}, remove() {} },
+      addEventListener(n, fn) { (l[n] = l[n] || []).push(fn); },
+      fire(n) { (l[n] || []).forEach((fn) => fn({ preventDefault() {} })); },
+      getAttribute(a) { return this.attrs[a] == null ? null : this.attrs[a]; },
+    };
+    return els[name];
+  };
+  const root = {
+    innerHTML: '', setAttribute() {},
+    querySelector: (sel) => (sel === '[data-tap="grownups"]' ? el('grownups') : null),
+    querySelectorAll: () => [],
+    appendChild: (b) => sheets.push(b),
+  };
+  const win = { addEventListener() {}, scrollTo() {} };
+  if (idle) win.requestIdleCallback = (fn) => idleQ.push(fn);
+  const document = {
+    querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null),
+    createElement: (tag) => ({ tag, className: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, addEventListener() {}, querySelector: () => null, innerHTML: '' }),
+    head: { appendChild: (x) => head.push(x) },
+  };
+  const navigator = conn ? { connection: conn } : {};
+  vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, document, navigator, location: { hash, pathname: '/h/x', search: '' }, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, JSON, Math, String, Number, Array, Object, encodeURIComponent, RegExp });
+  return { H: win.WQHOME, root, sheets, head, evs, el, idleQ, mount(B, ctx) { win.WQHOME.mount(root, B, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]), ...ctx }); } };
+}
+
+describe('the grown-ups corner: one timer at a time (a tap never opens it)', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  test('pointerdown + touchstart, released after 80 ms, then 2.1 s: no sheet', () => {
+    const p = page(); p.mount(HOME);
+    const g = p.el('grownups');
+    g.fire('pointerdown'); g.fire('touchstart');
+    jest.advanceTimersByTime(80);
+    g.fire('pointerup'); g.fire('touchend');
+    jest.advanceTimersByTime(2100);
+    expect(p.sheets.filter((b) => b.className === 'wq-gsheet')).toHaveLength(0);
+  });
+  test('held 2.2 s (both events fire for one finger): exactly one sheet', () => {
+    const p = page(); p.mount(HOME);
+    const g = p.el('grownups');
+    g.fire('pointerdown'); g.fire('touchstart');
+    jest.advanceTimersByTime(2200);
+    expect(p.sheets.filter((b) => b.className === 'wq-gsheet')).toHaveLength(1);
+  });
+});
+
+describe('the empty home: the primary is a door that has things, the sentence is the sub-line', () => {
+  const H = loadHome();
+  const EMPTY = { ...HUB, challenge: null, home_v3: 1, doors: DOORS_EMPTY, head: { dots: 0, today: false, jar: null } };
+  test.each(['en', 'ur'])('%s: one tappable primary to the Stories door', (lang) => {
+    const html = H.html(EMPTY, ctxOf(lang));
+    expect(count(html, /data-primary/g)).toBe(1);
+    const prim = /<a class="wq-next[^"]*" data-primary[^>]*href="([^"]*)"/.exec(html);
+    expect(prim && prim[1]).toBe('#stories');
+    expect(visible(html)).toContain(H.COPY[lang].nextNone);
+    expect(visible(html)).not.toMatch(BANNED);
+  });
+});
+
+describe('events: home_view on every home render; the Next tile carries the ranking fields', () => {
+  test('a Next tile from the server: home_view{src} AND next_shown with arm/score_v/offer/rank_src', () => {
+    const p = page();
+    p.mount({ ...HOME, src: 'quiz', next: { kind: 'story', href: '/c/x?kid=k', title: 'Read', arm: 'rank', score_v: 3, offer: 'o-1', rank_src: 'prior' } });
+    const names = p.evs.map((e) => e[0]);
+    expect(names).toEqual(expect.arrayContaining(['home_view', 'next_shown']));
+    expect(p.evs.find((e) => e[0] === 'home_view')[1]).toEqual({ src: 'quiz' });
+    expect(p.evs.find((e) => e[0] === 'next_shown')[1]).toMatchObject({ pos: 0, arm: 'rank', score_v: 3, offer: 'o-1', rank_src: 'prior' });
+  });
+  test('the fallback tile: home_view too, and no ranking fields invented', () => {
+    const p = page(); p.mount(HOME);
+    expect(p.evs.map((e) => e[0])).toEqual(expect.arrayContaining(['home_view', 'next_shown']));
+    expect(p.evs.find((e) => e[0] === 'home_view')[1]).toEqual({ src: 'home' });
+    expect(p.evs.find((e) => e[0] === 'next_shown')[1]).not.toHaveProperty('arm');
+  });
+  test('a door screen is not a home render', () => {
+    const p = page({ hash: '#games' }); p.mount(HOME);
+    expect(p.evs.map((e) => e[0])).not.toContain('home_view');
+  });
+});
+
+describe('one word for the teacher on a child screen, and the pending teacher quiz tile', () => {
+  const H = loadHome();
+  test('no «استاد» anywhere in the Urdu copy; «ٹیچر» in the four teacher lines', () => {
+    Object.values(H.COPY.ur).forEach((v) => expect(typeof v === 'function' ? v(3) : String(v)).not.toContain('استاد'));
+    ['videosSay', 'nextQuiz', 'nextNone', 'fromTeacher'].forEach((k) => expect(H.COPY.ur[k]).toContain('ٹیچر'));
+  });
+  test.each(['en', 'ur'])('%s: the teacher\'s pending quiz is the Next tile "From your teacher" with the New tag, the topic as the sub', (lang) => {
+    const B = { ...HOME, teacher: { code: 'T1', k: 'a', topic: 'Plants' } };
+    expect(H.nextOf(B, ctxOf(lang))).toMatchObject({ title: H.COPY[lang].fromTeacher, sub: 'Plants', src: 'teacher', tag: H.COPY[lang].newQuiz });
+    const html = H.html(B, ctxOf(lang));
+    expect(html).toContain('<i class="wq-new">' + H.COPY[lang].newQuiz + '</i>');
+    // «کوئز» is masculine: «نیا» on a quiz (a story keeps «نئی»), per the native read.
+    if (lang === 'ur') { expect(H.COPY.ur.newQuiz).toBe('نیا'); expect(H.COPY.ur.newTag).toBe('نئی'); }
+  });
+  test('controls are SVG, never emoji: the sound toggle and the go arrow', () => {
+    ['en', 'ur'].forEach((lang) => {
+      const html = H.html({ ...HOME, teacher: { code: 'T1', k: 'a', topic: 'Plants' } }, ctxOf(lang));
+      expect(html).not.toMatch(/[\u{1F507}\u{1F50A}▶◀]/u);
+      expect(/<button class="wq-snd"[^>]*>(.*?)<\/button>/.exec(html)[1]).toMatch(/^<svg/);
+    });
+  });
+  test('Jugnu\'s giggle is declared for the audit: data-sound + data-trigger on the header image', () => {
+    expect(H.html(HOME, ctxOf('en'))).toMatch(/<img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap"/);
+  });
+});
+
+describe('hash routes: an empty hash is home again, #book opens the Book on load', () => {
+  test('the Book opens on mount when the page lands on #book', () => {
+    const p = page({ hash: '#book' }); p.mount({ ...HOME, book_on: true });
+    expect(p.head.map((e) => e.src || e.href)).toEqual(['/wq/wq-book.css?v=abc123', '/wq/wq-book.js?v=abc123']);
+  });
+});
+
+describe('the Next tile\'s first JSON, prefetched when the phone is idle (pos 0 only)', () => {
+  const NX = { ...HOME, next: { kind: 'story', href: `/c/${TOKEN}?kid=${KID}&lang=en&room=story&pid=p1`, title: 'Read' } };
+  const prefetches = (p) => p.head.filter((x) => x.rel === 'prefetch').map((x) => x.href);
+  test('a same-origin challenge link: one <link rel=prefetch> to its menu JSON, only after idle', () => {
+    const p = page(); p.mount(NX);
+    expect(prefetches(p)).toEqual([]);
+    p.idleQ.forEach((fn) => fn());
+    expect(prefetches(p)).toEqual([`/api/wq/ch/${TOKEN}?lang=en&kid=${KID}`]);
+  });
+  test('Save-Data or a 2g link: nothing prefetched', () => {
+    [{ saveData: true }, { effectiveType: '2g' }, { effectiveType: 'slow-2g' }].forEach((conn) => {
+      const p = page({ conn }); p.mount(NX); p.idleQ.forEach((fn) => fn());
+      expect(prefetches(p)).toEqual([]);
+    });
+  });
+  test('another origin, or a quiz page (its quiz rides in the page): nothing', () => {
+    ['https://elsewhere.example/c/x?kid=1', '/q/MATH01?k=a'].forEach((href) => {
+      const p = page(); p.mount({ ...HOME, next: { kind: 'quiz', href, title: 'Q' } }); p.idleQ.forEach((fn) => fn());
+      expect(prefetches(p)).toEqual([]);
+    });
+  });
+});
+
+describe('the practice home (a coach previewing the class view): by grade, nothing about a child', () => {
+  const H = loadHome();
+  const PR = {
+    lang: 'en', practice: 1, th: { practice: true }, grade: 3, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: { on: true }, lib: null, brand: 'niete',
+    home_v3: 1, doors: { stories: [{ kind: 'passage', id: 'en.read.1.k07', fresh: false, title: 'The red kite' }], games: [{ kind: 'numbers' }], videos: { watch: true, practice: true } },
+    head: { dots: 0, today: false, jar: null }, grownups: { teacher_href: '/quiz/teacher/abc', teacher_label: 'Back to my teacher home' }, practice_back: '/quiz/teacher/abc',
+  };
+  test.each(['en', 'ur'])('%s: the class strip with Back, the class in the header, one primary, no banned word', (lang) => {
+    const html = H.html({ ...PR, lang }, ctxOf(lang));
+    expect(html).toContain('data-practice-strip');
+    expect(visible(html)).toContain(H.COPY[lang].prSees);
+    expect(visible(html)).toContain(H.COPY[lang].cls(3));
+    expect(html).toContain('href="/quiz/teacher/abc"');
+    expect(count(html, /data-primary/g)).toBe(1);
+    expect(visible(html)).not.toMatch(BANNED);
+    expect(visible(html)).not.toContain('Zara');
+  });
+  test('empty dots: none on, no today-ring; no jar', () => {
+    const html = H.html(PR, ctxOf('en'));
+    expect(count(html, /class="wq-dot"/g)).toBe(7);
+    expect(html).not.toContain('wq-jar');
+  });
+  test('Urdu header: «کلاس ۳» (Urdu digit)', () => {
+    expect(H.COPY.ur.cls(3)).toBe('کلاس ۳');
+  });
+  test('events carry kid:null and practice:1', () => {
+    const p = page(); p.mount(PR);
+    expect(p.evs.length).toBeGreaterThan(0);
+    p.evs.forEach((e) => expect(e[1]).toMatchObject({ kid: null, practice: 1 }));
   });
 });

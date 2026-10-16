@@ -5,7 +5,9 @@
  * doors are the server's `doors`. Copy lives in COPY below (one object, EN + UR): a door rename is one line.
  *   WQHOME.mount(root, B, ctx)  draw the home (or a door, from location.hash) and wire it; ctx {token, lang, ev, go}
  *   WQHOME.html(B, ctx)         the home's markup (pure, for tests)     WQHOME.door(B, ctx, name)  a door's markup
- *   WQHOME.nextOf(B, ctx)       the one Next thing {kind, title, sub, href, art, minutes, src} (pure) */
+ *   WQHOME.nextOf(B, ctx)       the one Next thing {kind, title, sub, href, art, minutes, src, tag} (pure)
+ * A practice boot (B.practice, a coach previewing what the class sees) is the same home by grade: "Class N" in the
+ * header, a strip with Back to the teacher home, and every tap that would need a child says so instead of opening. */
 (function () {
   'use strict';
   var COPY = {
@@ -16,26 +18,28 @@
       soon: 'Coming soon', home: 'Home',
       nextQuiz: 'Your teacher\'s quiz', nextCont: 'Finish your quiz', nextStory: 'Read a story with Jugnu', nextListen: 'Listen to a story',
       nextGame: 'Play a game with Jugnu', nextNumbers: 'Play the numbers game', nextVideo: 'Watch a video', nextAgain: 'Play again',
-      nextNone: 'Ask your teacher for a quiz link',
+      nextNone: 'Ask your teacher for a quiz link', nextPick: 'Pick a story',
       weekStory: 'This week\'s story', listen: 'Listen to a story', shelf: 'Storybooks', numbers: 'Numbers with Jugnu',
-      fromTeacher: 'From your teacher', again: 'Play again', newTag: 'New', openVideos: 'Open the videos',
+      fromTeacher: 'From your teacher', again: 'Play again', newTag: 'New', newQuiz: 'New', openVideos: 'Open the videos',
       mins: function (m) { return m + ' min'; },
       jar: 'My stickers', jarNew: 'A new sticker', sndOn: 'Sound on', sndOff: 'Sound off',
       sep: ', ', grown: 'Grown-ups', grownHold: 'Press and hold', grownLang: 'اردو', grownClose: 'Close', week: 'Days you played this week',
+      cls: function (n) { return 'Class ' + n; }, prSees: 'This is what your class sees', prBack: 'Back', prNote: 'Children open this from their own link',
     },
     ur: {
       hi: function (n) { return n ? '⁨' + n + '⁩، السلام علیکم!' : 'السلام علیکم!'; },
       stories: 'کہانیاں', games: 'کھیل', videos: 'ویڈیوز',
-      storiesSay: 'جگنو کے ساتھ کہانیاں پڑھیں اور سنیں', gamesSay: 'گنتی اور آوازوں کے کھیل', videosSay: 'استاد کی چنی ہوئی ویڈیوز',
+      storiesSay: 'جگنو کے ساتھ کہانیاں پڑھیں اور سنیں', gamesSay: 'گنتی اور آوازوں کے کھیل', videosSay: 'ٹیچر کی چنی ہوئی ویڈیوز',
       soon: 'جلد آ رہا ہے', home: 'ہوم',
-      nextQuiz: 'استاد کا کوئز', nextCont: 'اپنا کوئز مکمل کریں', nextStory: 'جگنو کے ساتھ کہانی پڑھیں', nextListen: 'کہانی سنیں',
+      nextQuiz: 'ٹیچر کا کوئز', nextCont: 'اپنا کوئز مکمل کریں', nextStory: 'جگنو کے ساتھ کہانی پڑھیں', nextListen: 'کہانی سنیں',
       nextGame: 'جگنو کے ساتھ کھیلیں', nextNumbers: 'گنتی کا کھیل کھیلیں', nextVideo: 'ویڈیو دیکھیں', nextAgain: 'دوبارہ کھیلیں',
-      nextNone: 'استاد سے کوئز کا لنک لیں',
+      nextNone: 'ٹیچر سے کوئز کا لنک لیں', nextPick: 'کہانی چنیں',
       weekStory: 'اس ہفتے کی کہانی', listen: 'کہانی سنیں', shelf: 'کہانیوں کی کتابیں', numbers: 'جگنو کے ساتھ گنتی',
-      fromTeacher: 'استاد کی طرف سے', again: 'دوبارہ کھیلیں', newTag: 'نئی', openVideos: 'ویڈیوز کھولیں',
+      fromTeacher: 'ٹیچر کی طرف سے', again: 'دوبارہ کھیلیں', newTag: 'نئی', newQuiz: 'نیا', openVideos: 'ویڈیوز کھولیں',
       mins: function (m) { return urDigits(m) + ' منٹ'; },
       jar: 'میرے اسٹیکرز', jarNew: 'نیا اسٹیکر', sndOn: 'آواز چالو', sndOff: 'آواز بند',
       sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownLang: 'English', grownClose: 'بند کریں', week: 'اس ہفتے آپ نے کب کب کھیلا',
+      cls: function (n) { return 'کلاس ' + urDigits(n); }, prSees: 'آپ کی کلاس کو یہی نظر آتا ہے', prBack: 'واپس', prNote: 'بچے اسے اپنے لنک سے کھولیں گے',
     },
   };
   // The door icons (inline, one colour, currentColor): a book, a die, a play button.
@@ -44,6 +48,9 @@
     games: '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" fill="currentColor"/><g fill="#fff"><circle cx="8" cy="8" r="1.7"/><circle cx="16" cy="16" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="16" cy="8" r="1.7"/><circle cx="8" cy="16" r="1.7"/></g></svg>',
     videos: '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="4" fill="currentColor"/><path d="M10 8.5v7l6-3.5z" fill="#fff"/></svg>',
     home: '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"/></svg>',
+    sndOn: '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    sndOff: '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    go: '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>',
     jar: '<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M7 2h10v3H7zM6 6h12a2 2 0 0 1 2 2v11a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V8a2 2 0 0 1 2-2z"/><path fill="#fff" d="M12 9.5l1.4 2.9 3.1.4-2.3 2.2.6 3.1-2.8-1.5-2.8 1.5.6-3.1-2.3-2.2 3.1-.4z"/></svg>',
   };
   var DOORS = ['stories', 'games', 'videos'];
@@ -65,7 +72,8 @@
       return { kind: n.kind, title: (l === 'ur' && n.title_ur) || n.title || t.nextStory, sub: (l === 'ur' && n.sub_ur) || n.sub || '', href: n.href, art: n.art || null, minutes: n.minutes || null, src: 'next' };
     }
     // No `next` from the server (web_quiz_next_offer off): today's order — the teacher's quiz, the quiz left open, the lantern.
-    if (B.teacher && B.teacher.code) return { kind: 'quiz', title: t.nextQuiz, sub: B.teacher.topic || '', href: quizHref(B.teacher.code, B.teacher.k), src: 'teacher' };
+    // The teacher's pending quiz IS the Next tile: "New · From your teacher", the topic beneath.
+    if (B.teacher && B.teacher.code) return { kind: 'quiz', title: t.fromTeacher, tag: t.newQuiz, sub: B.teacher.topic || '', href: quizHref(B.teacher.code, B.teacher.k), src: 'teacher' };
     if (B.last && B.last.code && B.last.state === 'open') return { kind: 'quiz', title: t.nextCont, sub: B.last.topic || '', href: quizHref(B.last.code, B.last.k), src: 'last' };
     var x = B.play && B.play.lantern;
     if (x && B.challenge && B.challenge.on) {
@@ -80,30 +88,41 @@
     var g = d.games[0];
     if (g) return g.kind === 'numbers' ? { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx), src: 'door' }
       : { kind: 'quiz', title: g.done ? t.nextAgain : t.nextQuiz, sub: g.topic || '', href: quizHref(g.code, g.k, g.done), src: 'door' };
-    return { kind: 'none', title: t.nextNone, sub: '', href: null, src: 'none' };
+    // Nothing to offer: the primary still opens something (the Stories door); the sentence becomes the sub-line.
+    return { kind: 'door', title: t.nextPick, sub: t.nextNone, href: '#stories', src: 'none' };
   }
   // A listening story asks the story room for a listen (wq-trail.js reads &ex=listen), else it is served as a read.
   function storyHref(B, ctx, s) { return chHref(B, ctx) + '&room=story&pid=' + encodeURIComponent(s.id) + (s.kind === 'listen' ? '&ex=listen' : ''); }
-  var POSE = { story: 'hello', game: 'correct', quiz: 'thinking', video: 'idle', none: 'sleep' };
+  var POSE = { story: 'hello', game: 'correct', quiz: 'thinking', video: 'idle', door: 'hello', none: 'sleep' };
 
   /* ---------------- markup ---------------- */
   function dotsHtml(B, t) {
     var h = B.head || {}; var n = Math.max(0, Math.min(7, Number(h.dots) || 0)); var out = '';
-    for (var i = 0; i < 7; i++) out += '<i class="wq-dot' + (i < n ? ' on' : '') + (i === n && !h.today ? ' ring' : '') + '"></i>';
+    // The coach's preview has no child, so no day of theirs to ring: seven empty dots.
+    for (var i = 0; i < 7; i++) out += '<i class="wq-dot' + (i < n ? ' on' : '') + (i === n && !h.today && !B.practice ? ' ring' : '') + '"></i>';
     return '<span class="wq-dots" role="img" aria-label="' + esc(t.week) + '">' + out + '</span>';
   }
   function headHtml(B, ctx) {
     var t = C(ctx); var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
+    var hi = B.practice ? t.cls(Number(B.grade) || '') : t.hi(me.first || '');
     var jar = B.head && B.head.jar ? '<a class="wq-jar" href="#book" data-tap="jar" aria-label="' + esc(t.jar) + '">' + ICON.jar + (B.head.jar.fresh ? '<b class="wq-jarnew" aria-label="' + esc(t.jarNew) + '"></b>' : '') + '</a>' : '';
-    return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" src="/wq/jugnu/hello.webp" alt="" width="44" height="44">' +
-      '<span class="wq-hhi">' + esc(t.hi(me.first || '')) + dotsHtml(B, t) + '</span>' + jar +
-      '<button class="wq-snd" type="button" data-tap="sound" aria-pressed="' + (muted() ? 'false' : 'true') + '" aria-label="' + esc(muted() ? t.sndOff : t.sndOn) + '">' + (muted() ? '🔇' : '🔊') + '</button></header>';
+    return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap" src="/wq/jugnu/hello.webp" alt="" width="44" height="44">' +
+      '<span class="wq-hhi">' + esc(hi) + dotsHtml(B, t) + '</span>' + jar +
+      '<button class="wq-snd" type="button" data-tap="sound" aria-pressed="' + (muted() ? 'false' : 'true') + '" aria-label="' + esc(muted() ? t.sndOff : t.sndOn) + '">' + (muted() ? ICON.sndOff : ICON.sndOn) + '</button></header>';
+  }
+  // The coach's preview: one strip on top, "This is what your class sees" + Back to the teacher home.
+  function stripHtml(B, ctx) {
+    if (!B.practice) return '';
+    var t = C(ctx);
+    var back = B.practice_back ? '<a class="wq-prback" data-tap="prback" href="' + esc(B.practice_back) + '">' + esc(t.prBack) + '</a>' : '<button class="wq-prback" type="button" data-tap="prback">' + esc(t.prBack) + '</button>';
+    return '<div class="wq-prstrip" data-practice-strip="1"><span>' + esc(t.prSees) + '</span>' + back + '</div>';
   }
   function nextHtml(nx, ctx) {
     var t = C(ctx);
     var art = nx.art ? '<img class="wq-nart" src="' + esc(nx.art) + '" alt="" width="96" height="96">' : '<img class="wq-nart" src="/wq/jugnu/' + (POSE[nx.kind] || 'hello') + '.webp" alt="" width="96" height="96">';
     var meta = [nx.sub ? '<bdi>' + esc(nx.sub) + '</bdi>' : '', nx.minutes ? esc(t.mins(nx.minutes)) : ''].filter(Boolean).join(langOf(ctx) === 'ur' ? '، ' : ' · ');
-    var inner = art + '<span class="wq-ntext"><b>' + esc(nx.title) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</span>' + (nx.href ? '<span class="wq-ngo" aria-hidden="true">▶</span>' : '');
+    var tag = nx.tag ? '<i class="wq-new">' + esc(nx.tag) + '</i>' : '';
+    var inner = art + '<span class="wq-ntext">' + tag + '<b>' + esc(nx.title) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</span>' + (nx.href ? '<span class="wq-ngo" aria-hidden="true">' + ICON.go + '</span>' : '');
     return nx.href
       ? '<a class="wq-next" data-primary data-tap="next" data-kind="' + esc(nx.kind) + '" data-src="' + esc(nx.src) + '" href="' + esc(nx.href) + '">' + inner + '</a>'
       : '<div class="wq-next wq-nnone" data-primary data-kind="none">' + inner + '</div>';
@@ -119,7 +138,7 @@
     return '<footer class="wq-grown"><button class="wq-gbtn" type="button" data-tap="grownups" aria-label="' + esc(t.grown + ' — ' + t.grownHold) + '"><i class="wq-gfill"></i>' + esc(t.grown) + '</button></footer>';
   }
   function html(B, ctx) {
-    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + headHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + grownHtml(ctx) + '</section>' + barHtml(ctx, null);
+    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + grownHtml(ctx) + '</section>' + barHtml(ctx, null);
   }
   function rowHtml(href, title, sub, tag, kind) {
     return '<li><a class="wq-row" data-tap="row" data-kind="' + esc(kind) + '" href="' + esc(href) + '"><b><bdi>' + esc(title) + '</bdi></b>' + (sub ? '<small><bdi>' + esc(sub) + '</bdi></small>' : '') + (tag ? '<i class="wq-new">' + esc(tag) + '</i>' : '') + '</a></li>';
@@ -128,7 +147,7 @@
     var t = C(ctx); var d = doorsOf(B); var rows = '';
     if (name === 'stories') {
       rows = d.stories.map(function (s) {
-        if (s.kind === 'shelf') return '<li class="wq-shelf" data-shelf="1"></li>';
+        if (s.kind === 'shelf') return '<li class="wq-stories-shelf" data-stories-shelf="1"></li>';
         return rowHtml(storyHref(B, ctx, s), s.title || (s.kind === 'listen' ? t.listen : t.weekStory), s.title ? (s.kind === 'listen' ? t.listen : t.weekStory) : '', s.fresh ? t.newTag : '', s.kind);
       }).join('');
     } else if (name === 'games') {
@@ -164,21 +183,30 @@
   var wired = false;
   function mount(root, B, ctx) {
     var name = String((typeof location !== 'undefined' && location.hash) || '').replace(/^#/, '');
+    if (B.practice) ctx = practiceCtx(ctx);
     var html0 = DOORS.indexOf(name) >= 0 ? door(B, ctx, name) : html(B, ctx);
     root.innerHTML = html0;
     root.setAttribute('data-m', DOORS.indexOf(name) >= 0 ? 'H3-' + name : 'H3');
     var ev = ctx.ev || function () {};
-    var nxEl = root.querySelector('.wq-next[data-src]');
-    if (nxEl) ev('next_shown', { ctx: 'home', kind: nxEl.getAttribute('data-kind'), pos: 0, source: nxEl.getAttribute('data-src') === 'next' ? 'ranked' : 'fallback' });
-    else if (DOORS.indexOf(name) < 0) ev('home_view', { src: 'home' });
+    var nx = DOORS.indexOf(name) < 0 ? nextOf(B, ctx) : null;
+    // Every home render is a home_view (the funnel's denominator); the tile it shows is a next_shown beside it.
+    if (nx) {
+      ev('home_view', { src: arrivedFrom(B) });
+      ev('next_shown', rankOf(B, { ctx: 'home', kind: nx.kind, pos: 0, source: nx.src === 'next' ? 'ranked' : 'fallback' }));
+      prefetchOnce(nx.href, ctx);
+    }
     each(root, '[data-tap]', function (el) {
       el.addEventListener('click', function (e) {
         var tap = el.getAttribute('data-tap');
         juice('tap');
-        if (tap === 'next') { e.preventDefault(); ev('next_tap', { pos: 0, kind: el.getAttribute('data-kind') }); go(ctx, el.getAttribute('href'), 'next'); }
+        var href = el.getAttribute('href') || '';
+        // The coach's preview opens nothing that needs a child: one line says where the class opens it.
+        if (B.practice && (tap === 'next' || tap === 'row') && href.charAt(0) !== '#') { e.preventDefault(); note(root, ctx); return; }
+        if (tap === 'next') { ev('next_tap', rankOf(B, { pos: 0, kind: el.getAttribute('data-kind') })); if (href.charAt(0) === '#') return; e.preventDefault(); go(ctx, href, 'next'); }
         else if (tap === 'door') { ev('door_tap', { door: el.getAttribute('data-door'), pos: DOORS.indexOf(el.getAttribute('data-door')) + 1 }); }
         else if (tap === 'row') { e.preventDefault(); go(ctx, el.getAttribute('href'), 'door_' + el.getAttribute('data-kind')); }
         else if (tap === 'sound') { setMuted(!muted()); mount(root, B, ctx); }
+        else if (tap === 'prback' && !B.practice_back) { try { history.back(); } catch (x) {} }
         else if (tap === 'jar') { e.preventDefault(); book(root, B, ctx); }
         // Tap Jugnu, hear the giggle (the sound kit's sprite; nothing without it).
         else if (tap === 'jugnu') { try { if (window.WQJ) { if (window.WQJ.giggle) window.WQJ.giggle(); if (window.WQJ.pop) window.WQJ.pop(el); } } catch (x) {} }
@@ -187,18 +215,73 @@
     var g = root.querySelector('[data-tap="grownups"]');
     if (g) hold(g, function () { grownups(root, B, ctx); });
     // The stories reader (wq-stories.js, web_quiz_stories: the boot's `stories.on`) fills [data-shelf] and owns #story/<id>.
-    var sh = root.querySelector('[data-shelf]');
+    var sh = root.querySelector('[data-stories-shelf]');
     if (sh && window.WQSTORIES && typeof window.WQSTORIES.shelf === 'function') { try { window.WQSTORIES.shelf(sh, { token: ctx.token, kid: B.kid, lang: langOf(ctx), ev: ev }); } catch (e) {} }
     else if (B.stories && B.stories.on && !window.WQSTORIES && (sh || /^story\//.test(name))) loadOnce('wq-stories');
-    if (!wired) { wired = true; try { window.addEventListener('hashchange', function () { if (/^#(stories|games|videos)?$/.test(location.hash || '')) mount(root, B, ctx); }); } catch (e) {} }
+    // An empty hash (the reader's way home) reads as '' — home again; #book (a jar tile's link) opens the Book on load.
+    if (!wired) { wired = true; try { window.addEventListener('hashchange', function () { if (/^(#(stories|games|videos)?)?$/.test(location.hash || '')) mount(root, B, ctx); }); } catch (e) {} }
+    if (name === 'book' && B.head && B.head.jar) book(root, B, ctx);
     try { window.scrollTo(0, 0); } catch (e) {}
+  }
+  // The arrival (?from= on the home's URL) as EVENTS_V3's home_view.src: door | home | link | quiz | who.
+  var FROM = { quiz: 'quiz', door: 'door', link: 'link', class_link: 'link', card: 'link', wa: 'link', who: 'who' };
+  function arrivedFrom(B) {
+    if (B.src && /^(door|home|link|quiz|who)$/.test(B.src)) return B.src;
+    var m = /[?&]from=([a-z_]+)/.exec((typeof location !== 'undefined' && location.search) || '');
+    return (m && FROM[m[1]]) || 'home';
+  }
+  // The ranking's own fields ride on next_shown / next_tap when the server's `next` carried them; never invented.
+  function rankOf(B, e) {
+    var n = B.next;
+    if (n && n.href) ['arm', 'score_v', 'offer', 'rank_src'].forEach(function (k) { if (n[k] != null) e[k] = n[k]; });
+    return e;
+  }
+  // The coach's preview: every event says it is one (kid:null, practice:1); nothing is a child's.
+  function practiceCtx(ctx) {
+    if (ctx.practiceWrapped) return ctx;
+    var ev = ctx.ev || function () {};
+    var out = {}; for (var k in ctx) out[k] = ctx[k];
+    out.ev = function (n, p) { var e = {}; for (var j in (p || {})) e[j] = p[j]; e.kid = null; e.practice = 1; ev(n, e); };
+    out.practiceWrapped = true;
+    return out;
+  }
+  function note(root, ctx) {
+    var t = C(ctx);
+    var old = root.querySelector && root.querySelector('.wq-prnote'); if (old && old.parentNode) old.parentNode.removeChild(old);
+    var box = document.createElement('div');
+    box.className = 'wq-gsheet wq-prnote'; box.setAttribute('role', 'status');
+    box.innerHTML = '<b>' + esc(t.prNote) + '</b><button class="wq-btn wq-ghost" type="button" data-tap="close">' + esc(t.grownClose) + '</button>';
+    root.appendChild(box);
+    var c = box.querySelector('[data-tap="close"]');
+    if (c) c.addEventListener('click', function () { if (box.parentNode) box.parentNode.removeChild(box); });
+  }
+  /* The Next tile is known at boot, so its activity's first JSON is fetched while the phone is idle: one <link
+   * rel=prefetch>, the tile only (pos 0), a same-site challenge link only (a quiz page carries its quiz in the page),
+   * never on Save-Data or a 2g link. The challenge page asks /api/wq/ch/<token>?lang=<l>&kid=<kid> first. */
+  var prefetched = false;
+  function prefetchOnce(href, ctx) {
+    if (prefetched || !href) return;
+    var m = /^\/c\/([^/?#]+)\?([^#]*)/.exec(href);
+    if (!m) return;
+    var q = {}; m[2].split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) q[kv.slice(0, i)] = kv.slice(i + 1); });
+    var url = '/api/wq/ch/' + m[1] + '?lang=' + (q.lang === 'ur' || q.lang === 'en' ? q.lang : langOf(ctx)) + (q.kid ? '&kid=' + q.kid : '');
+    prefetched = true;
+    var run = function () {
+      try {
+        var c = typeof navigator !== 'undefined' && navigator.connection;
+        if (c && (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || '')))) return;
+        var l = document.createElement('link'); l.rel = 'prefetch'; l.href = url; document.head.appendChild(l);
+      } catch (e) {}
+    };
+    try { if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 4000 }); else setTimeout(run, 1500); } catch (e) {}
   }
   function go(ctx, href, what) { if (!href) return; if (ctx.go) ctx.go(href, what); else location.assign(href); }
   function each(root, sel, fn) { Array.prototype.forEach.call(root.querySelectorAll(sel), fn); }
   // The grown-ups corner opens only on a ~2 s press-and-hold (IA §2; never a tap, never arithmetic).
   function hold(el, done) {
     var timer = null;
-    var start = function (e) { if (e && e.preventDefault) e.preventDefault(); el.classList.add('held'); timer = setTimeout(function () { timer = null; el.classList.remove('held'); done(); }, 2000); };
+    // One finger fires pointerdown AND touchstart on Android: the second start is ignored, so a tap never leaves a timer.
+    var start = function (e) { if (e && e.preventDefault) e.preventDefault(); if (timer) return; el.classList.add('held'); timer = setTimeout(function () { timer = null; el.classList.remove('held'); done(); }, 2000); };
     var stop = function () { if (timer) { clearTimeout(timer); timer = null; } el.classList.remove('held'); };
     ['pointerdown', 'touchstart'].forEach(function (n) { el.addEventListener(n, start); });
     ['pointerup', 'pointerleave', 'pointercancel', 'touchend', 'touchcancel'].forEach(function (n) { el.addEventListener(n, stop); });
@@ -238,5 +321,6 @@
     } catch (e) {}
   }
 
-  window.WQHOME = { mount: mount, html: html, door: door, nextOf: nextOf, COPY: COPY, DOORS: DOORS };
+  // practiceNote: the door screens (wq-doors.js) show the same one line on a coach's preview tap.
+  window.WQHOME = { mount: mount, html: html, door: door, nextOf: nextOf, COPY: COPY, DOORS: DOORS, practiceNote: note };
 })();

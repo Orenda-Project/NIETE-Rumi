@@ -30,6 +30,10 @@ const redis = require('../../../shared/services/cache/railway-redis.service');
 const KID = '44444444-4444-4444-8444-000000000071';
 const TEACHER = '11111111-1111-4111-8111-000000000071';
 const LIST = '55555555-5555-4555-8555-000000000071';
+// One fixed clock for every test (a Wednesday noon in PKT): the token's exp, the week's dots and the seeds never move
+// between the two hub reads a golden compares (a second boundary between two signHub calls once made the tokens differ).
+const NOW = Date.parse('2026-10-14T07:00:00Z');
+const ONLY_DATE = { now: NOW, doNotFake: ['nextTick', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout', 'queueMicrotask', 'hrtime', 'performance'] };
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 const ahead = (h) => new Date(Date.now() + h * 3600000).toISOString();
 const A = { device: 'AAAAAAAAAAAAAAAAAAAAAA' };
@@ -55,18 +59,21 @@ function seed(settings, over = {}) {
 }
 
 beforeEach(() => {
+  jest.useFakeTimers(ONLY_DATE);
   jest.clearAllMocks();
   process.env.WEB_QUIZ_TOKEN_SECRET = 'hub-home-test-secret';
   process.env.PORTAL_URL = 'https://portal.example.test';
   redis._store.clear();
   seed(BASE_ON);
 });
+afterEach(() => jest.useRealTimers());
 
 describe('GOLDEN: web_quiz_home_v3 off -> the hub payload is today\'s', () => {
   test('absent and false give the same payload, with no home key', async () => {
-    const base = await Hub.hub(T.signHub([KID]), A);
+    const tok = T.signHub([KID]);
+    const base = await Hub.hub(tok, A);
     seed([...BASE_ON, { key: 'web_quiz_home_v3', value: 'false' }, ON('web_quiz_stories')]);
-    const off = await Hub.hub(T.signHub([KID]), A);
+    const off = await Hub.hub(tok, A);
     expect(off).toEqual(base);
     expect(JSON.stringify(off)).toBe(JSON.stringify(base));
     ['home_v3', 'doors', 'head'].forEach((k) => expect(off).not.toHaveProperty(k));
@@ -92,9 +99,10 @@ describe('web_quiz_home_v3 on: the doors and the header', () => {
   const HOME_ON = [...BASE_ON, ON('web_quiz_home_v3')];
 
   test('the three doors are always present; keys are added, nothing of today\'s changes', async () => {
-    const base = await Hub.hub(T.signHub([KID]), A);
+    const tok = T.signHub([KID]);
+    const base = await Hub.hub(tok, A);
     seed(HOME_ON);
-    const out = await Hub.hub(T.signHub([KID]), A);
+    const out = await Hub.hub(tok, A);
     expect(out.home_v3).toBe(1);
     expect(Object.keys(out.doors).sort()).toEqual(['games', 'stories', 'videos']);
     expect(Array.isArray(out.doors.stories)).toBe(true);
@@ -143,6 +151,91 @@ describe('web_quiz_home_v3 on: the doors and the header', () => {
     const other = await Hub.hub(T.signHub([KID]), { device: 'BBBBBBBBBBBBBBBBBBBBBB' });
     expect(other.locked).toBe(true);
     expect(other).not.toHaveProperty('doors');
+  });
+});
+
+describe('the practice home: a `pr:1` hub token (a coach previewing what the class sees), addressed by grade', () => {
+  const HOME_ON = [...BASE_ON, ON('web_quiz_home_v3')];
+  const prTok = (over = {}) => T.sign({ k: 'h', ids: [], pr: 1, g: 3, lang: 'en', exp: Math.floor(Date.now() / 1000) + 3600, ...over });
+  const CHILD_TABLES = ['students', 'student_lists', 'quiz_sessions', 'web_quiz_challenge_runs', 'child_rungs', 'child_phone_bindings', 'child_bind_codes', 'children'];
+  function spyTables() {
+    const seen = [];
+    const from = supabase.from;
+    supabase.from = (t) => { seen.push(t); return from(t); };
+    return seen;
+  }
+
+  test('ids:[] boots the home for the grade; no child table is ever read; nothing is written to Redis', async () => {
+    seed(HOME_ON);
+    const seen = spyTables();
+    const out = await Hub.hub(prTok(), {});
+    expect(out).toMatchObject({ practice: 1, th: { practice: true }, grade: 3, kids: [], kid: null, home_v3: 1, head: { dots: 0, today: false, jar: null } });
+    expect(Object.keys(out.doors).sort()).toEqual(['games', 'stories', 'videos']);
+    expect(out.doors.games).toContainEqual({ kind: 'numbers' });
+    expect(out.doors.videos).toEqual({ watch: true, practice: true, grade: 3 });
+    CHILD_TABLES.forEach((t) => expect(seen).not.toContain(t));
+    expect(redis.setNX).not.toHaveBeenCalled();
+    expect(redis.set).not.toHaveBeenCalled();
+    expect(JSON.stringify(out)).not.toMatch(/Zara|Testwala|FIXTURE/);
+  });
+
+  test('the same with a phone: the phone is not bound, no child row read', async () => {
+    seed(HOME_ON);
+    const seen = spyTables();
+    const out = await Hub.hub(prTok(), A);
+    expect(out.practice).toBe(1);
+    expect(seen).not.toContain('students');
+    expect(redis.setNX).not.toHaveBeenCalled();
+  });
+
+  test('the language: the token\'s, or the asked one', async () => {
+    seed(HOME_ON);
+    expect((await Hub.hub(prTok({ lang: 'ur' }), {})).lang).toBe('ur');
+    expect((await Hub.hub(prTok(), { lang: 'ur' })).lang).toBe('ur');
+  });
+
+  test('Back to the teacher home: only a signed same-site teacher-home path, else none', async () => {
+    seed(HOME_ON);
+    const ok = await Hub.hub(prTok({ bk: '/quiz/teacher/abc.DEF_12-x' }), {});
+    expect(ok.practice_back).toBe('/quiz/teacher/abc.DEF_12-x');
+    expect(ok.grownups).toEqual({ teacher_href: '/quiz/teacher/abc.DEF_12-x', teacher_label: expect.any(String) });
+    for (const bk of ['https://elsewhere.example/x', '//elsewhere.example/x', '/h/other', 'javascript:alert(1)']) {
+      const out = await Hub.hub(prTok({ bk }), {});
+      expect(out).not.toHaveProperty('practice_back');
+      expect(out).not.toHaveProperty('grownups');
+    }
+  });
+
+  test('GOLDEN: web_quiz_home_v3 off -> a practice token is refused exactly as today (401 bad_token)', async () => {
+    seed(BASE_ON);
+    await expect(Hub.hub(prTok(), {})).rejects.toMatchObject({ status: 401 });
+  });
+
+  test('a grade outside 1-5, or a practice flag on a token naming children: never the practice home', async () => {
+    seed(HOME_ON);
+    await expect(Hub.hub(prTok({ g: 9 }), {})).rejects.toMatchObject({ status: 401 });
+    const named = await Hub.hub(T.sign({ k: 'h', ids: [KID], pr: 1, g: 3, exp: Math.floor(Date.now() / 1000) + 3600 }), A);
+    expect(named).not.toHaveProperty('practice');
+  });
+
+  test('Stories: this week\'s story and the listening story of the grade\'s entry band, never above it, never a reserve', async () => {
+    const P = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: 'en', band, kind, pool: 'practice', status: 'reviewed', released_at: ago(h), title_en: null, title_ur: null });
+    seed([...HOME_ON, ON('web_quiz_challenge_v2'), ON('web_quiz_challenge_story')], { challenge_passages: [
+      P('en.read.1.k01', 'read', 1, 300), P('en.read.1.k07', 'read', 1, 30), P('en.listen.1.k02', 'listen', 1, 40),
+      P('en.read.3.k09', 'read', 3, 1), P('en.read.1.reserve01', 'read', 1, 2),
+    ] });
+    const seen = spyTables();
+    const out = await Hub.hub(prTok({ g: 3 }), {});
+    expect(out.doors.stories.map((s) => [s.kind, s.id])).toEqual([['passage', 'en.read.1.k07'], ['listen', 'en.listen.1.k02']]);
+    expect(out.doors.stories.every((s) => s.fresh === false)).toBe(true);
+    CHILD_TABLES.forEach((t) => expect(seen).not.toContain(t));
+  });
+
+  test('no number game for a grade with no form (grade 1 without its switches)', async () => {
+    seed(HOME_ON);
+    const out = await Hub.hub(prTok({ g: 1 }), {});
+    expect(out.doors.games).toEqual([]);
+    expect(out.challenge).toBeNull();
   });
 });
 

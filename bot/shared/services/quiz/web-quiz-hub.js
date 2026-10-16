@@ -406,6 +406,8 @@ async function lockedHub(ids, why, asked = null) {
 
 async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
+  const practice = await require('./web-quiz-hub-home').practiceHub(token, { lang: wanted, brandKey }); // a coach's class preview by grade: null unless web_quiz_home_v3
+  if (practice) return practice;
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
