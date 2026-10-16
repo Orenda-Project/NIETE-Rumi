@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import i18n from "i18next";
 import { tapProblems } from "../newui/checks/rules";
+import { WHATSAPP_URL } from "@/lib/whatsapp";
 
 /**
  * bd-x7aprz.3 — the portal signs her in with a code on her WhatsApp; a password is optional; nothing ever says
@@ -67,6 +68,8 @@ const at = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>)
 // Digits built from parts: the public repo holds no phone-shaped literal (tests/setup/phone-shaped-fixtures).
 const NUM = ["03", "000", "000", "001"].join("");
 const BOT = ["92", "302", "0000255"].join("");
+// The chat link the SERVER sends for its own deployment: the portal's constant, with that deployment's number.
+const serverChat = (text: string) => `${WHATSAPP_URL.replace(/\d+$/, BOT)}?text=${encodeURIComponent(text)}`;
 const BANNED = /No account found|No password yet/;
 
 describe("login by a code on WhatsApp", () => {
@@ -150,13 +153,13 @@ describe("login by a code on WhatsApp", () => {
   });
 
   it("a number that is not registered: a Register on WhatsApp button to the bot with /register typed — never 'No account found'", async () => {
-    h.api.requestCode.mockRejectedValue(httpError(404, { code: "REGISTER_ON_WHATSAPP", whatsapp: `https://wa.me/${BOT}?text=%2Fregister` }));
+    h.api.requestCode.mockRejectedValue(httpError(404, { code: "REGISTER_ON_WHATSAPP", whatsapp: serverChat("/register") }));
     const user = userEvent.setup();
     at(<PortalLogin />);
     await user.type(screen.getByLabelText("Phone number"), NUM);
     await user.click(screen.getByRole("button", { name: "Send code" }));
     expect(await screen.findByText("Not registered yet")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Register on WhatsApp" })).toHaveAttribute("href", `https://wa.me/${BOT}?text=%2Fregister`);
+    expect(screen.getByRole("link", { name: "Register on WhatsApp" })).toHaveAttribute("href", serverChat("/register"));
     expect(document.body.textContent).not.toMatch(BANNED);
   });
 
@@ -167,7 +170,7 @@ describe("login by a code on WhatsApp", () => {
     await user.type(screen.getByLabelText("Phone number"), NUM);
     await user.click(screen.getByRole("button", { name: "Send code" }));
     const link = await screen.findByRole("link", { name: "Register on WhatsApp" });
-    expect(link.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/\d+\?text=%2Fregister$/);
+    expect(link.getAttribute("href")).toBe(`${WHATSAPP_URL}?text=%2Fregister`);
   });
 
   it("every tap target on the code step is at least 56px", async () => {
@@ -256,11 +259,11 @@ describe("an old set-up link (/portal/setup/<token>)", () => {
   });
 
   it("a dead link: 'Link expired', a button for a new link from WhatsApp (/portal typed), and Log in", async () => {
-    h.api.setupSignIn.mockRejectedValue(httpError(400, { code: "LINK_EXPIRED", whatsapp: `https://wa.me/${BOT}?text=%2Fportal` }));
+    h.api.setupSignIn.mockRejectedValue(httpError(400, { code: "LINK_EXPIRED", whatsapp: serverChat("/portal") }));
     const user = userEvent.setup();
     open();
     expect(await screen.findByRole("heading", { name: "Link expired" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Get a new link" })).toHaveAttribute("href", `https://wa.me/${BOT}?text=%2Fportal`);
+    expect(screen.getByRole("link", { name: "Get a new link" })).toHaveAttribute("href", serverChat("/portal"));
     expect(screen.queryByLabelText("New password")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Log in" }));
     expect(h.navigate).toHaveBeenCalledWith("/portal/login");

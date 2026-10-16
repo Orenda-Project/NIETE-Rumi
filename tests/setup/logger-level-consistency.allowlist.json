@@ -66,18 +66,6 @@
     "occurrence": 0
   },
   {
-    "file": "bot/shared/handlers/portal-command.handler.js",
-    "line": 93,
-    "snippet": "logToFile('❌ Failed to send portal invitation', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/handlers/portal-command.handler.js",
-    "line": 101,
-    "snippet": "logToFile('❌ Error in handlePortalCommand', {",
-    "occurrence": 0
-  },
-  {
     "file": "bot/shared/handlers/remark-command.handler.js",
     "line": 129,
     "snippet": "logToFile('❌ /remark: cycle lookup failed', { userId: user.id, error: err.message });",

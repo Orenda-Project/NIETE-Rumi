@@ -90,10 +90,20 @@ describe('bd-2510 — the UI asks for the format Pakistanis actually use', () =>
 
   it('every auth endpoint normalizes before looking the user up', () => {
     const src = read(ROUTES);
-    for (const ep of ['/login', '/request-reset', '/verify-reset-code']) {
-      const body = src.slice(src.indexOf(`router.post('${ep}'`));
-      const upTo = body.slice(0, body.indexOf('\nrouter.post('));
-      expect(upTo).toMatch(/sanitizePhoneNumber\(/);
+    // bd-x7aprz.3: /request-code and /verify-code look a number up too; /request-reset and /request-code share one
+    // named handler, so a route that hands off to a function is checked in that function's body.
+    for (const ep of ['/login', '/request-reset', '/verify-reset-code', '/request-code', '/verify-code']) {
+      const at = src.indexOf(`router.post('${ep}'`);
+      expect({ ep, found: at >= 0 }).toEqual({ ep, found: true });
+      const body = src.slice(at);
+      let upTo = body.slice(0, body.indexOf('\nrouter.post('));
+      const handOff = /^router\.post\('[^']+',\s*\w+,\s*(\w+)\);/.exec(upTo);
+      if (handOff) {
+        const fn = src.slice(src.indexOf(`async function ${handOff[1]}(`));
+        upTo = fn.slice(0, fn.indexOf('\n}\n'));
+        expect({ ep, handler: upTo.length > 0 }).toEqual({ ep, handler: true });
+      }
+      expect({ ep, normalizes: /sanitizePhoneNumber\(/.test(upTo) }).toEqual({ ep, normalizes: true });
     }
   });
 
