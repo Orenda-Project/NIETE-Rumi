@@ -81,6 +81,9 @@ beforeAll(async () => {
   const app = express();
   mountGo(app);
   await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
+  // a loaded machine can stretch the gap between two requests past Node's 5 s keep-alive: never reuse a closed socket
+  server.keepAliveTimeout = 120000;
+  server.headersTimeout = 121000;
   base = `http://127.0.0.1:${server.address().port}/api/internal/go`;
 });
 afterAll(() => new Promise((r) => server.close(r)));
