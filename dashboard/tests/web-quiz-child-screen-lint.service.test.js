@@ -22,7 +22,6 @@ const LIVE_SRC = fs.readFileSync(path.join(WQ, 'wq-read-live.js'), 'utf8');
 // Screens that show a forbidden word today and are waiting for a page fix. Shrink-only: an entry leaves when its
 // screen is clean; nothing is ever added to make a new screen pass. One line per entry: '<lang>:<screen>': 'why'.
 const ALLOW = {
-  'ur:quiz-finish-card-g1': 'the class-finish place line on the quiz page (not a Trail screen); outside these switches; listed by name until its own page fix',
 };
 
 // ── the table: one row per thing no child screen may show ───────────────────────────────────────────────────
@@ -270,8 +269,9 @@ describe.each(['en', 'ur'])('%s: no child screen shows a speed, a rank, a test w
   test.each(SCREENS)('%s', (name) => { check(`${lang}:${name}`, shots[name], lang); });
 });
 
-// The quiz page's grade-1 finish card (wq.js, its own page, run whole in wq-page-harness.js): the child's place among
-// today's class finishers is drawn in Urdu prose as «… آپ کا نمبر 2 ہے». The lint sees it; it is on ALLOW by name.
+// The quiz page's grade-1 finish card (wq.js, its own page, run whole in wq-page-harness.js): it says how many children
+// of the class finished today, never the child's place, the count in Urdu digits. The lint reads the whole card for the
+// rank sentence and the class line for every row (the card's other text is the quiz page's own, outside this lint).
 describe('the quiz page finish card, grade 1 (Urdu)', () => {
   const QP = require('./wq-page-harness');
   test('ur:quiz-finish-card-g1', () => {
@@ -279,10 +279,10 @@ describe('the quiz page finish card, grade 1 (Urdu)', () => {
     p.wq.S.result = { score: { correct: 4, total: 5 }, card: { first: '<Name> Testwala', animal: 'cat', correct: 4, total: 5, stars: 4, nth: 2 } };
     p.wq.card();
     const html = p.html();
-    expect(html).toContain('آپ کا نمبر');
-    const hits = lint(html, 'ur').map((h) => h.what);
-    expect(hits).toEqual(expect.arrayContaining(['rank sentence (UR)', 'bare Western digit in Urdu prose']));
-    check('ur:quiz-finish-card-g1', html, 'ur');
+    expect(html).not.toContain('آپ کا نمبر');
+    expect(lint(html, 'ur').map((h) => h.what)).not.toContain('rank sentence (UR)');
+    const line = /<p class="wq-proof wq-nth">[\s\S]*?<\/p>/.exec(html)[0];
+    check('ur:quiz-finish-card-g1', line, 'ur');
   });
 });
 

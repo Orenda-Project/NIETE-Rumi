@@ -1606,7 +1606,7 @@ async function classFinishersToday(shareCodeId) {
   }
 }
 
-/** "You're the 6th in your class to finish today": this session's place among them ({} when it is not one). Pure. */
+/** The card's "6 children in your class finished this quiz today.": how many finished up to and including this session ({} when it is not one). Pure. */
 function placeToday(rows, sessionId) {
   const mine = rows.find((r) => r.id === sessionId);
   return mine ? { nth: rows.filter((r) => String(r.completed_at) <= String(mine.completed_at)).length } : {};

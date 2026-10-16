@@ -610,7 +610,7 @@ Feature: Web child quiz page on the portal
   Scenario: The card says the child's place among today's class finishers
     Given two classmates finished this quiz earlier today
     When a child finishes it for the first time
-    Then the card says "You're the 3rd in your class to finish today" («آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر 3 ہے»), and the first says "You're the first in your class to finish today!"
+    Then the card says "3 children in your class finished this quiz today." («آج آپ کی کلاس میں ۳ بچوں نے یہ کوئز مکمل کیا۔»), and the first says "You finished this quiz today!" («آج آپ نے یہ کوئز مکمل کر لیا۔») — a count, never the child's place
     And a practice round, an invited friend and the teacher's preview get no such line
   @T420
   Scenario: A picture question whose picture cannot be drawn for one option plays as words
