@@ -485,9 +485,13 @@ function stripTags(holder) {
   if (Array.isArray(holder.parts)) holder.parts.forEach((part) => { if (part && Array.isArray(part.questions)) part.questions.forEach(stripTags); });
 }
 
-// An MCQ with two right answers is not placed (see sameValueTwice).
+// An MCQ with two right answers is not placed: two options of one value (see
+// sameValueTwice), or a stem asking for a property ("divisible by 11", "prime",
+// "rounded to the nearest 100") that no option or more than one option has.
+const { mcqPropertyVerdict } = require('./maths-check');
+
 function printable(slot, q) {
-  return slot.shape !== 'mcq' || !sameValueTwice(q);
+  return slot.shape !== 'mcq' || (!sameValueTwice(q) && mcqPropertyVerdict(q).ok !== false);
 }
 
 /**
