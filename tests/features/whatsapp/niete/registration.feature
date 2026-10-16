@@ -264,3 +264,41 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # feature-registration.service.js checkAndTriggerRegistration: with a Flow id it uses the
     # once-only offer; without one (production workers today) it stops when
     # registration_started_at is set.
+
+  # ═══════════ ADDED 2026-10-16 (later) · partly-known adults (code-grounded, not yet driven live) ═══════════
+  # isRegistered() is true for anyone with a name, so roster/coach-added adults with a name but no
+  # school or role — and anyone who quit the form after its first screen — were never offered it.
+  # One predicate decides now: utils/registration-status.js needsRegistrationForm / needsSchoolForFeature.
+
+  @e2e @wip @draft @flow @P1 @destructive @R20
+  Scenario Outline: A partly-known adult is offered the form once, after her reply
+    Given the NIETE bot chat is open
+    And my account has <on_file> and the form has never been offered to me
+    When I send "/menu"
+    Then the bot answers my message first
+    And after the answer the bot sends the registration Flow
+    When I send another message
+    Then the bot does not send the registration Flow again
+    Examples:
+      | on_file                                  |
+      | a name but no school                     |
+      | a name and a school but no teacher role  |
+    # A roster row with a name, a school AND role teacher/principal is complete and is NOT offered.
+    # An admin-set coach/AEO and a child's quiz phone are never offered. @destructive: stamps
+    # users.registration_started_at.
+
+  @e2e @wip @draft @flow @P1 @R21
+  Scenario Outline: A registered teacher with no school is asked for it before a school feature
+    Given the NIETE bot chat is open
+    And I am a registered teacher with no school on my account
+    When I send "<command>"
+    Then the bot sends a "First, your school" registration Flow
+    And it does not open <feature> or tell me to ask my coach
+    Examples:
+      | command  | feature           |
+      | /classes | the class manager |
+      | /roster  | the roster upload |
+    # needsSchoolForFeature: any adult without users.school_id, registered or not, completed or
+    # not — except an admin-set coach/AEO, whose schools are allocated. The form's INIT pre-fills
+    # what is on file, so she only picks the school.
+
