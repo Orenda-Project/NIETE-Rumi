@@ -7389,6 +7389,7 @@ ALTER TABLE public.class_round_draws ENABLE ROW LEVEL SECURITY;
 -- position-only aggregates; no child key, no name, no child's position. security_invoker: it reads the table with the
 -- caller's rights, so the table's row level security (no policy: service role only) applies to it as well.
 --   band        G23 | G45, from the stratum
+--   window_*, week_*   Pakistan days, both ends inclusive (the stored ends are exclusive instants)
 --   state       not_yet | accepted (the teacher started the round) | declined ("Not this term")
 --   closed      the round has closed (on the teacher's long-press or at the window's end)
 --   present_k, absent_k, declined_k, done_k   from the close (or the round as it stands while it runs); NULL before Start
@@ -7407,10 +7408,10 @@ SELECT d.round,
        d.weights_version,
        d.plan_sha256,
        d.order_arm,
-       d.window_start,
-       d.window_end,
-       d.week_start,
-       d.week_end,
+       (d.window_start AT TIME ZONE 'Asia/Karachi')::date AS window_start,
+       ((d.window_end AT TIME ZONE 'Asia/Karachi') - interval '1 microsecond')::date AS window_end,
+       (d.week_start AT TIME ZONE 'Asia/Karachi')::date AS week_start,
+       ((d.week_end AT TIME ZONE 'Asia/Karachi') - interval '1 microsecond')::date AS week_end,
        CASE WHEN d.declined_at IS NOT NULL THEN 'declined'
             WHEN d.accepted_at IS NOT NULL THEN 'accepted'
             ELSE 'not_yet' END AS state,

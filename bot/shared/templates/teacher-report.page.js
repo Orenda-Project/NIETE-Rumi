@@ -684,11 +684,13 @@ function renderPage(data, opts = {}) {
     ? `<a class="btn btn-ghost" href="${base}${qs([['tab', 'class'], ['lang', lang]])}">${L(C.allClasses)}</a>`
     : (opts.scope === 'quiz' ? `<a class="btn btn-ghost" href="${base}${qs([['lang', lang]])}">${L(C.backToQuiz)}</a>` : '')
 }</div>${jg && jg.href ? `<a class="btn btn-ghost" href="${jg.href}">${L(jg.label)}</a>` : '' /* Jugnu tab link (switch on only) */}</div>`;
+  // class round (web_quiz_class_round): its card heads the class tab; '' unless the route passed one
+  const roundCard = tab === 'class' && !print && typeof opts.roundCard === 'string' ? opts.roundCard : '';
   const upd = `<div class="upd">${L(C.updated(esc(timeLabel(opts.now || Date.now()))))}</div>`;
   const needUrdu = rtl || scriptOf(JSON.stringify(data || {})) === 'ur';
   const title = tab === 'quiz' ? `${(data.quiz.quiz && data.quiz.quiz.topic) || C.title} · ${C.title}` : C.classTitle;
   const css = usesMath(parts.main) ? `${extraCss}\n${mathCss()}` : extraCss;
-  return shell({ lang, rtl, print, needUrdu, extraCss: css, title, body: `${parts.header}<main class="wrap">${parts.main}${foot}${upd}</main>` });
+  return shell({ lang, rtl, print, needUrdu, extraCss: css, title, body: `${parts.header}<main class="wrap">${roundCard}${parts.main}${foot}${upd}</main>` });
 }
 
 /**

@@ -3512,6 +3512,14 @@ const STUDENT_TUTOR_STRINGS = {
     ur: "کھیلیں",
   },
   // ── end family phone binding ──
+  // ── the class round's teacher invitation (bot.round.invite; switch web_quiz_class_round) ──
+  // The body of the WhatsApp template jugnu_round_invite_{en,ur}: read RAW (a template body, not chat text). Not sent
+  // until the template is approved; "drawn", never picked.
+  roundInvite: {
+    en: "Jugnu class round: nothing about your class is ever reported by name.\nYour class came up in the draw for this term's round. On your phone, each child present plays two short tap games in their turn, about a minute a turn, with no microphone. You can pause and continue another day.\nIf this term does not suit you, tap \"Not this term\" on the card. That is completely fine.\nTap Open to see how it works.",
+    ur: "جگنو کلاس راؤنڈ: آپ کی کلاس کی کوئی بات کبھی نام کے ساتھ رپورٹ نہیں کی جاتی۔\nاس ٹرم کے راؤنڈ کی قرعہ اندازی میں آپ کی کلاس کا نام آیا ہے۔ کلاس میں موجود ہر بچے کی باری پر آپ کے فون پر ٹیپ والے دو چھوٹے کھیل ہوتے ہیں، ہر باری تقریباً ایک منٹ کی، مائیک کے بغیر۔ چاہیں تو روک کر کسی اور دن جاری رکھیں۔\nاگر یہ ٹرم آپ کے لیے مناسب نہ ہو تو کارڈ پر «اس ٹرم نہیں» دبا دیں۔ یہ بالکل ٹھیک ہے۔\nیہ کیسے ہوتا ہے، دیکھنے کے لیے «کھولیں» دبائیں۔",
+  },
+  // ── end class round invitation ──
   studentOffTopicHint: {
     en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
     ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
