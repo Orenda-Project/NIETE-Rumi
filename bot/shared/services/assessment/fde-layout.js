@@ -961,9 +961,18 @@ function stemGivesKey(a, b) {
     const stem = new Set(tokensOf(stemOf.question));
     return k.size > 0 && [...k].every((w) => stem.has(w));
   };
-  const given = (q) => key(q).size >= GIVEN_WORDS && !QUOTES_EXAMPLE.test(String(q.question || ''));
+  // A one-word key is given away too when the stem that prints it is on the same topic: the two
+  // stems share a content word besides the key («… کانفرنس کس شہر میں ہوئی؟ → ٹوکیو» beside «…
+  // ٹوکیو کی کانفرنس میں آنے کا بلاوا …»).
+  const topic = (q, by) => {
+    const k = key(q);
+    const other = new Set(tokensOf(by.question).filter((w) => w.length >= 3 && !k.has(w)));
+    return tokensOf(q.question).some((w) => w.length >= 3 && !k.has(w) && other.has(w));
+  };
+  const given = (q, by) => !QUOTES_EXAMPLE.test(String(q.question || ''))
+    && (key(q).size >= GIVEN_WORDS || (key(q).size === 1 && topic(q, by)));
   const [ab, ba] = [prints(a, b), prints(b, a)];
-  return (ab && ba) || (ab && given(b)) || (ba && given(a));
+  return (ab && ba) || (ab && given(b, a)) || (ba && given(a, b));
 }
 // Urdu Q4: an item with four options (in `options`, or on the stem's lines below it) keyed on one
 // option and accepting another («ج) بارش», accepting «د) فلکیات») has two answers. It is held and
@@ -1136,6 +1145,9 @@ function keptNotes(P, section, examJson, cross, shortfall) {
 }
 // Urdu Section A on a top-up: each short held slot's kept items and their keys. The re-ask writes
 // the section's full count (no spare count asked), so the paper has a new item for every twin it holds.
+// A top-up asks for two more than it needs: an item the layout holds inside the re-ask then takes a
+// spare's place, never the held item's put-back.
+const URDU_SPARES = 2;
 function urduKeptNotes(section, examJson, shortfall) {
   const out = [];
   for (const slot of section.slots) {
@@ -1147,7 +1159,7 @@ function urduKeptNotes(section, examJson, shortfall) {
     const keys = [...new Set(kept.map((q) => keyText(q).trim().replace(/\s*\n\s*/g, '; ')))];
     out.push(`${label} already keeps these items (question → answer):\n${kept.map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`).join('\n')}\n`
       + `Never write any of these again, in any wording, and never key a new item on any of these answers: ${keys.join('، ')}\n`
-      + `${label} needs ${gap.missing} more: the paper takes the first ${gap.missing} of your items that test a fact none of these tests.`);
+      + `${label} needs ${gap.missing} more. Write ${gap.missing + URDU_SPARES} new items: the paper takes the first ${gap.missing} of your items that test a fact none of these tests.`);
   }
   return out;
 }
