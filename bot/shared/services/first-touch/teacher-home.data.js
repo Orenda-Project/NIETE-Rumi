@@ -24,6 +24,10 @@ const SIDE_BUDGET_MS = 2500;
 const LESSON_ROWS = 30;
 const SHARE_DAYS = 30;
 
+// The stories service ships in its own pull request: looked up by name, absent → no stories section.
+const STORIES_MODULE = '../quiz/story-teacher.service';
+const optional = (path) => { try { return require(path); } catch (_) { return null; } };
+
 function defaults() {
   return {
     supabase: () => require('../../config/supabase'),
@@ -35,7 +39,7 @@ function defaults() {
     Bindings: () => require('../quiz/child-phone-bindings.repo'),
     Hub: () => require('../quiz/web-quiz-hub-flags'),
     Queue: () => require('../quiz/web-quiz-join-queue'),
-    Stories: () => { try { return require('../quiz/story-teacher.service'); } catch (_) { return null; } },
+    Stories: () => optional(STORIES_MODULE),
     Keys: () => require('./door.keys'),
   };
 }

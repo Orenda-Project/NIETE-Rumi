@@ -106,7 +106,7 @@ describe('the shell', () => {
     const html = await res.text();
     expect(nonSwitchReads()).toEqual([]);
     expect(html).toMatch(/<html lang="ur" dir="rtl">/);
-    expect(html).toContain('wq-nastaliq-3.woff2');
+    expect(html).toContain('wq-nastaliq-5.woff2');
     expect(html).toContain('data-screen="teacher_home"');
     expect(html).toContain('data-screen="teacher_send"');
     const markup = html.replace(/<script[\s\S]*?<\/script>/g, '');

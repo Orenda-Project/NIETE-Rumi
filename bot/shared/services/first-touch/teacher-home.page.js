@@ -31,7 +31,7 @@ const { clampLanguage } = require('../../config/ux-strings');
 const { str, ALL_IDS } = require('./teacher-home.strings');
 
 const ASSET_BASE = '/wq';
-const UR_FONT = `${ASSET_BASE}/fonts/wq-nastaliq-3.woff2`;
+const UR_FONT = `${ASSET_BASE}/fonts/wq-nastaliq-5.woff2`;
 const UR_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 
 function esc(s) {
@@ -44,7 +44,7 @@ const digits = (n, lang) => (lang === 'ur' ? String(n).replace(/\d/g, (d) => UR_
 
 const CSS = [
   ':root{--brand:#47BA7D;--brand-d:#23794D;--ink:#2A2D3A;--brand-ink:#333748;--muted:#5F6374;--ground:#F5F8F6;--card:#fff;--line:#DCE5DF;--warn:#8A5E06;--warn-bg:#FFF2CF;',
-  '--f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--fu:"WQ Nastaliq 3","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}',
+  '--f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--fu:"WQ Nastaliq 5","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}',
   '*,*::before,*::after{box-sizing:border-box}html,body{margin:0;padding:0}',
   'body{background:var(--ground);color:var(--ink);font-family:var(--f);-webkit-text-size-adjust:100%;touch-action:manipulation}',
   'html[lang=ur] body{font-family:var(--fu);word-spacing:.12em}',
@@ -91,7 +91,7 @@ const CSS = [
 
 function fontFace(lang) {
   if (lang !== 'ur') return '';
-  return `@font-face{font-family:"WQ Nastaliq 3";src:url(${UR_FONT}) format("woff2");font-weight:400;font-display:swap}\n`;
+  return `@font-face{font-family:"WQ Nastaliq 5";src:url(${UR_FONT}) format("woff2");font-weight:400;font-display:swap}\n`;
 }
 
 // The page's one script. Plain ES5; never builds HTML; a failed event post never blocks a tap.
