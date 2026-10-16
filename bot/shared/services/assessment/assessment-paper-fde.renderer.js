@@ -558,11 +558,19 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   return parts.join('');
 }
 
+// A slot that letters its items (a), (b) prints the letter itself, so a letter the model wrote
+// at the head of the item would print twice: «(a) (a) Write an application…». The stored item
+// keeps its text; only the print drops it.
+const OWN_LABEL = /^\(?[a-d]\)\s*/;
+function withoutOwnLabel(text, slot) {
+  return slot.numbering === 'alpha_paren' && typeof text === 'string' ? text.replace(OWN_LABEL, '') : text;
+}
+
 function stemOf(q, slot, inlineQ) {
   if (inlineQ) return '';
   if (slot.shape === 'frame' || slot.shape === 'comprehension') return '';
   if (slot.shape === 'words' && !q.question) return '';
-  return q.question || '';
+  return withoutOwnLabel(q.question || '', slot);
 }
 
 function slotBlock(slot, sec, list, ctx) {
@@ -1055,7 +1063,7 @@ function writtenRows(slot, list, ctx, Criteria) {
       return;
     }
     const answer = q.answer !== undefined && q.answer !== null ? `<b>${textOf(q.answer, ctx)}</b>` : '';
-    const stem = q.question ? `<div class="q-line">${textOf(cutAtWord(q.question, 110), ctx)}</div>` : '';
+    const stem = q.question ? `<div class="q-line">${textOf(cutAtWord(withoutOwnLabel(q.question, slot), 110), ctx)}</div>` : '';
     rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(n, ctx)}</td><td class="ans">${answer}${checkedChip(q, ctx)}${stem}</td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, list.indexOf(q), Number(q.marks) || slot.marks_each)}</td></tr>`);
   });
   if (slot.alternatives) {
