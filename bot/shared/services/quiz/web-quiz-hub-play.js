@@ -184,7 +184,9 @@ async function readingRungOf(childId) {
 }
 
 const isSeenOf = (ids) => (r) => ids.has(r.passage_id) || Boolean(r.twin_of && ids.has(r.twin_of));
-const titleOf = (r, lang) => (lang === 'ur' ? r.title_ur : r.title_en) || null;
+// The child-facing title is the passage FILE's (one title home: web-quiz-passage-title.js):
+// Urdu ur → en, English en; a file with none (a Set A pointer) gives null.
+const titleOf = (r, lang) => require('./web-quiz-passage-title').titleFor(r.passage_id, lang);
 
 /**
  * The Story Time shelf: this week's story, a story to listen to, numbers, more stories. NEW iff the passage is in

@@ -123,16 +123,12 @@ async function fixedGrade(canonicalId, fallback) {
   return n || null;
 }
 
-// The registry's title in the child's language (challenge_passages.title_en / title_ur); '' when absent.
+// The passage FILE's title in the child's language (one title home: web-quiz-passage-title.js;
+// Urdu ur → en, English en); '' when the file has none (the Book prints its generic).
 async function titlesOf(passageIds, lang) {
   if (!passageIds.length) return new Map();
-  try {
-    const { data, error } = await supabase.from('challenge_passages').select('passage_id, title_en, title_ur').in('passage_id', passageIds);
-    const col = lang === 'ur' ? 'title_ur' : 'title_en';
-    return error ? new Map() : new Map((data || []).map((r) => [r.passage_id, r[col] || '']));
-  } catch (_) {
-    return new Map();
-  }
+  const { titleFor } = require('./web-quiz-passage-title');
+  return new Map(passageIds.map((id) => [id, titleFor(id, lang) || '']));
 }
 
 async function classOf(studentId, rows) {
