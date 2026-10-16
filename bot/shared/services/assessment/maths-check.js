@@ -712,10 +712,11 @@ function checkWorking(q, answer, exam, index) {
   if (units.size > 1) return null;
   if (stageUnits && !/^\s*[.!]?\s*$/.test(last.slice(stated[0].index + stated[0].raw.length).replace(KEY_UNITS, ' '))) return null;
   if (agrees(value, target)) return 'ok';
-  // "4 × 250 = 1000 = 1 kg": the result names a unit the working never did, and the
-  // stage before it only restates a number, so the result converts it. Left unchecked.
+  // "4 × 250 = 1000 = 1 kg", "3 × 12 = 36 = 3 dozen": the stage before the result only
+  // restates a number, and the result differs from it, so the result converts it into
+  // some other measure, whatever word names it. Left unchecked.
   const restated = stageTokens(parts[parts.length - 1]);
-  if (unitsIn(last).size > 0 && !stageUnits && restated && !restated.some((t) => t.op)) return null;
+  if (!stageUnits && restated && !restated.some((t) => t.op)) return null;
   const all = numbersIn(answer);
   // A result rounded to the places it shows: right for a recurring value ("10 ÷ 3 = 3.3");
   // for one that ends, the question may have asked to round, so it is left unchecked.
@@ -829,6 +830,13 @@ function mathsCheck(examJson, options = {}) {
     for (const { q, index } of writtenQuestions(exam)) {
       // A key the model gave no scheme is still a key a child is marked against.
       if (!isObject(q.scheme)) q.scheme = {};
+      // A board-pattern key already checked keeps its verdict: a second pass must not turn
+      // "replaced" into "ok" (normaliseScheme resets it to null before the first pass).
+      const before = q.scheme.checked;
+      if (isObject(exam._layout) && (before === 'ok' || before === 'replaced')) {
+        counts[before === 'ok' ? 'checked' : 'replaced'] += 1;
+        continue;
+      }
       let verdict = null;
       try {
         verdict = checkQuestion(q, exam, index);

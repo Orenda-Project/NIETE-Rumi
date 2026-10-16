@@ -771,6 +771,7 @@ const RULE = {
   jsonOnly: 'Return the JSON only.',
   chapterOnly: 'Set every item only from the pages above. Where a slot\'s rule names a unit or topic outside them, keep the slot\'s kind and marks and set the item from these pages (the nearest skill they hold).',
   scaffold: 'Never write scaffold phrases such as \'based on the passage\', \'based on the text\', \'mentioned in the text\', \'according to the passage\' in a stem. Ask the question directly.',
+  noTags: 'Never add a source, chapter, lesson or thinking-level tag to an item, such as \'(Based on the chapter/concept: …)\', \'(Remember)\' or \'(Understand)\'; the stem ends with the question itself.',
   situationParts: 'Write each situation\'s three sub-questions as objects { question, answer, marks: 2.5, scheme } where scheme.points sum to 2.5; do not prefix a sub-question with a letter.',
   picksVerbatim: 'For each pick kind ask for the count needed plus two extra, copied exactly as the words appear in the passage (same spelling, same form).',
   gender: 'A child or a person in a stem is \'a child\', \'a student\', \'they\', or a named character. Never she/he, his/her for an unnamed person.',
@@ -890,7 +891,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (key === 'science' && list.some((s) => s.shape === 'situation')) rules.push(RULE.situationParts);
   if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
   if (key === 'social_studies' && list.some((s) => /\.Q[56]$/.test(s.slot))) rules.push(RULE.sstQ56);
-  rules.push(RULE.scaffold, RULE.noUnderline, RULE.gender);
+  rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender);
   if (medium === 'ur') rules.push(RULE.genderUrdu);
   rules.push(RULE.noRepeats);
 

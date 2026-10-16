@@ -106,6 +106,9 @@ function scopeBlock(P, scope) {
   } else if (pages) {
     coversEn = P.header.covers_partial_en.replace('{units}', `pp ${pages}`);
     coversUr = P.header.covers_partial_ur.replace('{units}', `ص ${pages}`);
+    // A page list is not units: the template's "these units/chapters/lessons" reads "these pages".
+    coversEn = coversEn.replace(/\bthese (units|chapters|lessons)\b/, 'these pages');
+    coversUr = coversUr.replace(/انہی (ابواب|اسباق)/, 'انہی صفحات'); // needs fluent-Urdu review
   }
   return {
     kind, chapters, pages,
@@ -431,6 +434,23 @@ function spreadKeys(slots, bySlot) {
   return moved;
 }
 
+// A tag the model appends to an item ("(Based on the chapter/concept: …)", "(Remember)",
+// «(سبق: …)»): FDE's paper has none, so it never prints.
+const ITEM_TAG = /\s*\((?:based on (?:the )?(?:chapter|concept|passage|text|lesson|topic|unit)\b[^()]*|(?:remember|understand|apply|analy[sz]e|evaluate|create)(?:ing)?|سبق\s*:[^()]*)\)\s*$/i;
+const TAGGED_FIELDS = ['question', 'main_question', 'text'];
+
+function stripTags(holder) {
+  if (!holder || typeof holder !== 'object') return;
+  for (const field of TAGGED_FIELDS) {
+    if (typeof holder[field] !== 'string') continue;
+    let text = holder[field];
+    for (let next = text.replace(ITEM_TAG, ''); next !== text; next = text.replace(ITEM_TAG, '')) text = next;
+    holder[field] = text;
+  }
+  if (Array.isArray(holder.questions)) holder.questions.forEach(stripTags);
+  if (Array.isArray(holder.parts)) holder.parts.forEach((part) => { if (part && Array.isArray(part.questions)) part.questions.forEach(stripTags); });
+}
+
 // An MCQ with two right answers is not placed (see sameValueTwice).
 function printable(slot, q) {
   return slot.shape !== 'mcq' || !sameValueTwice(q);
@@ -451,6 +471,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   let unplaced = 0;
 
   const all = walk(src);
+  all.forEach((entry) => stripTags(entry.q));
   const untagged = [];
   // Tagged items first, so an untagged one cannot take a tagged one's place.
   for (const entry of all) {
