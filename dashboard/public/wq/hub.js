@@ -252,38 +252,33 @@
   // The Jugnu corner's script when the server render had no `play`: a child's first open has no wq_dv cookie yet,
   // so the render was the locked one and the edge left hub-play.js out; unlock() then brings `play`. Loaded once,
   // at hub.js's own ?v=, and the hub drawn again when it arrives (still on the hub, still with `play`).
-  var playAsked = false;
   function playIn() {
-    if (playAsked) return;
-    playAsked = true;
-    try {
-      var me = document.querySelector('script[src*="/wq/hub.js"]');
-      var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
-      var s = document.createElement('script');
-      s.src = '/wq/hub-play.js' + (v ? '?v=' + v[1] : '');
-      s.addEventListener('load', function () { if (window.WQPLAY && B.play && ROOT.getAttribute('data-m') === 'H2') hub(); });
-      document.head.appendChild(s);
-    } catch (e) {}
+    loadOnce('hub-play', false, function () { if (window.WQPLAY && B.play && ROOT.getAttribute('data-m') === 'H2') hub(); });
   }
   // The keep-my-place card's script (wq-bind.js/.css) has the same gap: the edge's bindTags decides before the device
   // is known, so a first open's locked render leaves it out and unlock() then brings `bind`. Loaded once, at hub.js's
   // own ?v=, and the screen that uses it (the hub, or "Who is playing?") drawn again when it arrives.
-  var bindAsked = false;
   function bindIn() {
-    if (bindAsked) return;
-    bindAsked = true;
+    loadOnce('wq-bind', true, function () {
+      if (!window.WQBIND || !B.bind) return;
+      var m = ROOT.getAttribute('data-m');
+      if (m === 'H2') hub(); else if (m === 'H1') picker();
+    });
+  }
+  // The one lazy loader both use: /wq/<name>.js (and, with css, /wq/<name>.css before it) at hub.js's own ?v=,
+  // asked for at most once per page, with onload run when the script arrives. A failure leaves the page as it is.
+  var asked = {};
+  function loadOnce(name, css, onload) {
+    if (asked[name]) return;
+    asked[name] = true;
     try {
       var me = document.querySelector('script[src*="/wq/hub.js"]');
       var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
       var q = v ? '?v=' + v[1] : '';
-      var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/wq-bind.css' + q; document.head.appendChild(l);
+      if (css) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/' + name + '.css' + q; document.head.appendChild(l); }
       var s = document.createElement('script');
-      s.src = '/wq/wq-bind.js' + q;
-      s.addEventListener('load', function () {
-        if (!window.WQBIND || !B.bind) return;
-        var m = ROOT.getAttribute('data-m');
-        if (m === 'H2') hub(); else if (m === 'H1') picker();
-      });
+      s.src = '/wq/' + name + '.js' + q;
+      s.addEventListener('load', onload);
       document.head.appendChild(s);
     } catch (e) {}
   }
