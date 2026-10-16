@@ -2430,6 +2430,16 @@ Feature: NIETE (ICT) Teacher Training
     Then each of my codes with no class gets that class, and a second tap links none
     But a code that already has a class, another teacher's code, or a class that is not mine is never changed
 
+  @quiz @config-gated @wip @draft @P2 @T938
+  Scenario: A tap in my "same child?" queue answers from my kept queue, without working the queue out again
+    Given web_quiz_hub and web_quiz_identity_canon are on and two pairs are in my queue
+    When I tap "No" on one pair
+    Then that pair is gone from my queue at once and my next tap answers just as fast
+    And "Same child" takes every pair of that chat child out of my queue
+    And "Undo" puts the pair back in my queue at once
+    But a pair that changed meanwhile and is refused clears my kept queue, and it is worked out afresh on my next visit
+    # web-quiz-join-queue.js removeFromQueue/restoreToQueue; unit: teacher-join-queue-cache-filter.test.js
+
   # ── Challenge clip warm job (app_settings web_quiz_challenge_clip_warm, off by default) ──────────────────
 
   @quiz @config-gated @wip @draft @P2 @T850

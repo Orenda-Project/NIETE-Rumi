@@ -6,7 +6,8 @@
  *   computeCandidates(teacherUserId)  every queue row for ONE teacher, both tiers, ungated (tests, lead review)
  *   candidatesFor(teacherUserId)      the rows of the served tiers (TIERS_SERVED minus any tier held by precision),
  *                                     from the teacher's cached queue (QUEUE_TTL_S, Redis with a local fallback):
- *                                     the rows are computed once per teacher per few minutes; every decision drops it
+ *                                     the rows are computed once per teacher per few minutes; a 'same' / 'no' takes
+ *                                     its pair out of it (the rest of the TTL kept), an undo puts it back
  *   precisionByTier()                 per tier: the teachers' decisions so far, precision, Wilson lower bound, held
  *   servedTiers()                     the tiers served right now ([] when the switch is off)
  *   decide({teacherUserId, looseId, candidateId, decision})   'same' | 'no' | 'undo': the only queue write
@@ -286,10 +287,12 @@ let precisionCache = null; // {at, value}
 // ─── the per-teacher queue cache ─────────────────────────────────────────────
 // compute() is the slow part (every roster row, every session of every loose child: seconds on a teacher with many
 // codes) and it ran on every tab load AND inside every decision. The computed rows (both tiers, ungated) are kept per
-// teacher for QUEUE_TTL_S in Redis — a local in-process map when Redis is down — and every write of decide() drops the
-// teacher's entry, so a decided pair never comes back stale. The row shape in the cache is exactly compute()'s (first
+// teacher for QUEUE_TTL_S in Redis — a local in-process map when Redis is down. A written 'same' / 'no' takes its pair
+// out of the teacher's entry (removeFromQueue: the next tab read and the next tap need no recompute) and an undo puts
+// back what its 'same' took out (restoreToQueue); a refused stale pair, an undo of unknown tier and anything unexpected
+// drop the entry, so a decided pair never comes back stale. The row shape in the cache is exactly compute()'s (first
 // names only; never a phone or a device).
-const localQueue = new Map(); // key → {at, rows}
+const localQueue = new Map(); // key → {at, rows, undone?}
 const queueKey = (t) => QUEUE_PREFIX + crypto.createHash('sha256').update(String(t)).digest('hex').slice(0, 16);
 function redisOrNull() {
   try {
@@ -325,6 +328,73 @@ async function dropQueue(t) {
   localQueue.delete(key);
   const r = redisOrNull();
   if (r) { try { await r.delete(key); } catch (_) { /* expires on its own */ } }
+}
+
+/**
+ * Edit the teacher's cached queue in place: `edit(entry)` → the new entry, or null to drop the key. No cached queue →
+ * nothing to edit. Redis up: the key keeps its remaining TTL (getTTL; -1 / -2 / unknown → drop). Redis down: the local
+ * copy keeps its `at` (its TTL is counted from it). Anything unexpected → drop the key (never a stale pair).
+ */
+async function editQueue(t, edit) {
+  if (!t) return;
+  const key = queueKey(t);
+  try {
+    const r = redisOrNull();
+    if (r) {
+      localQueue.delete(key); // never consulted while Redis is up; never left holding a decided pair
+      const v = await r.get(key);
+      if (!v) return;
+      const hit = typeof v === 'string' ? JSON.parse(v) : v;
+      const next = hit && Array.isArray(hit.rows) ? edit(hit) : null;
+      if (!next) { await dropQueue(t); return; }
+      // getTTL (railway-redis): seconds left; -1 = no TTL or a failed read, -2 = the key is gone
+      const ttl = typeof r.getTTL === 'function' ? await r.getTTL(key) : null;
+      if (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0) { await dropQueue(t); return; }
+      if ((await r.set(key, next, Math.floor(ttl))) === false) await dropQueue(t);
+      return;
+    }
+    const loc = localQueue.get(key);
+    if (!loc) return;
+    const next = Array.isArray(loc.rows) ? edit(loc) : null;
+    if (next) localQueue.set(key, next); else localQueue.delete(key);
+  } catch (_) {
+    await dropQueue(t);
+  }
+}
+const byLoose = (a, b) => String(a.loose_id).localeCompare(String(b.loose_id)); // compute()'s order
+const entry = (at, rows, undone) => (undone && Object.keys(undone).length ? { at, rows, undone } : { at, rows });
+
+/** A written 'same' / 'no': the pair leaves the teacher's cached queue (a 'same' takes every row of that loose child with it:
+ *  a merged child is loose no more), the key keeps its remaining TTL; nothing is recomputed. Anything unexpected → drop the key.
+ *  The rows a 'same' takes out are kept beside the rows (`undone`, keyed by the loose id) so an undo can put them back. */
+async function removeFromQueue(t, looseId, candidateId, decision) {
+  const keep = decision === 'same'
+    ? (x) => x.loose_id !== looseId
+    : (x) => !(x.loose_id === looseId && x.candidate_id === candidateId);
+  return editQueue(t, (e) => {
+    const undone = { ...(e.undone || {}) };
+    if (decision === 'same') {
+      const gone = e.rows.filter((x) => x.loose_id === looseId);
+      if (gone.length) undone[looseId] = gone; else delete undone[looseId];
+    } else if (Array.isArray(undone[looseId])) {
+      undone[looseId] = undone[looseId].filter(keep); // an undo never brings back a pair decided 'no' meanwhile
+    }
+    return entry(e.at, e.rows.filter(keep), undone);
+  });
+}
+
+/** A written undo of a 'same' of tier `tier`: the rows that 'same' took out go back into the cached queue verbatim (the
+ *  key keeps its remaining TTL; nothing is recomputed). The tier unknown, or no kept rows serving this pair in that tier
+ *  → drop the key (only a recompute knows the pair's row). */
+async function restoreToQueue(t, looseId, candidateId, tier) {
+  if (!tier) { await dropQueue(t); return; }
+  await editQueue(t, (e) => {
+    const back = e.undone && Array.isArray(e.undone[looseId]) ? e.undone[looseId] : null;
+    if (!back || !back.some((x) => x.candidate_id === candidateId && x.evidence && x.evidence.tier === tier)) return null;
+    const undone = { ...e.undone };
+    delete undone[looseId];
+    return entry(e.at, [...e.rows.filter((x) => x.loose_id !== looseId), ...back].sort(byLoose), undone);
+  });
 }
 
 async function countDecisions(tier, decision) {
@@ -405,7 +475,13 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
     const now = new Date().toISOString();
     const log = (d, tier) => rows(supabase.from('merge_log').insert({
       loose_id: looseId, candidate_id: candidateId, teacher_id: teacherUserId, decision: d, source: 'queue', tier: tier || null, decided_at: now,
-    }).select('id')).then(async (x) => { precisionCache = null; await dropQueue(teacherUserId); return x; });
+    }).select('id')).then(async (x) => {
+      precisionCache = null;
+      // a 'same' / 'no' leaves the cached queue; an undo puts back the rows its 'same' took out (tier unknown → drop)
+      if (d === 'undo') await restoreToQueue(teacherUserId, looseId, candidateId, tier);
+      else await removeFromQueue(teacherUserId, looseId, candidateId, d);
+      return x;
+    });
     // Idempotent: the same tap again (a 303-and-refresh double submit) writes nothing and answers as the first did.
     const last = (await lastDecisions(teacherUserId, [looseId])).get(`${looseId}|${candidateId}`);
     if (last === decision) {
