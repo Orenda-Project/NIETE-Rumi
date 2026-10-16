@@ -19,7 +19,7 @@
     en: { cardTitle: 'Jugnu has a game for you', cardSub: '2 minutes to start, no microphone', cardBtn: 'Play',
       whoTurnOf: function (n) { return n + '\'s turn'; }, whoNotMe: 'Not my turn? Go back', whoTurn: 'Whose turn?' },
     ur: { cardTitle: 'جگنو کے پاس آپ کے لیے ایک کھیل ہے', cardSub: 'شروع کے ۲ منٹ، مائیک کی ضرورت نہیں', cardBtn: 'کھیلیں',
-      whoTurnOf: function (n) { return '⁨' + n + '⁩ کی باری'; }, whoNotMe: 'میری باری نہیں؟ واپس جائیں', whoTurn: 'کس کی باری ہے؟' }
+      whoTurnOf: function (n) { return '⁨' + n + '⁩ کی باری'; }, whoNotMe: 'میری باری نہیں؟ واپس جائیں', whoTurn: 'کس کی باری ہے؟' }
   };
   var DOOR = { door: 'card', surface: 'scorecard', slot: 1 };
   // The challenge link only; home=1 (web_quiz_home_button) is the one extra the server may add, so the Trail shows Home.
