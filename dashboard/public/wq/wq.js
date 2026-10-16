@@ -630,9 +630,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
       pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right ✓'; },
       liveNow: function (n) { return n + ' classmates are playing right now — join them!'; },
-      // how many children of the class finished today (the child's own finish counts them all); never a place
+      // how many children of the class finished today (the child's own finish counts them all); never a place, and
+      // never a count under 5 ("2 children" tells a child exactly one classmate finished): 1–4 say the one-finisher line
       nth: function (n) {
-        if (n === 1) return 'You finished this quiz today!';
+        if (n < 5) return 'You finished this quiz today!';
         return ['', '<bdi>' + n + '</bdi>', ' children in your class finished this quiz today.'];
       }
     },
@@ -702,7 +703,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + n + ' ٹھیک کیا ✓'; },
       liveNow: function (n) { return 'ابھی ' + n + ' ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!'; },
       nth: function (n) {
-        if (n === 1) return 'آج آپ نے یہ کوئز مکمل کر لیا۔';
+        if (n < 5) return 'آج آپ نے یہ کوئز مکمل کر لیا۔';
         return ['آج آپ کی کلاس میں ', '<bdi>' + urDigits(n) + '</bdi>', ' بچوں نے یہ کوئز مکمل کیا۔'];
       }
     }
