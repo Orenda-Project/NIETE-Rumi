@@ -328,6 +328,15 @@ async function withList(cls) {
  * Pass { teacherUserId, grade } alone to evaluate step 3 before a quiz row exists.
  * → { state, class: {id, grade, section, shift, label, listId} | null, classes: [...], bound: 'code'|'quiz'|'single'|'grade'|null }
  */
+/**
+ * The quiz's list is ANOTHER teacher's (a library quiz sent by someone who did not make it, quiz_teacher_home): it
+ * is the author's class, never the sender's — the sender's own classes answer instead. Off: today's reading.
+ */
+async function othersList(list, teacherUserId) {
+  if (!teacherUserId || !list.user_id || list.user_id === teacherUserId) return false;
+  try { return await require('../first-touch/teacher-home.flags').on(); } catch (_) { return false; }
+}
+
 async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = null, grade = null, gradeSoft = false } = {}) {
   let quizGrade = grade;
   let soft = Boolean(gradeSoft);
@@ -353,8 +362,8 @@ async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = nu
       // A coaching-born quiz's grade is the digest's reading of the transcript — a guess, not a fact.
       if (grade == null && q.meta && q.meta.grade_source === 'digest') soft = true;
       if (q.list_id) {
-        const { data: l } = await supabase.from('student_lists').select('id, class_id, class_name, section').eq('id', q.list_id).maybeSingle();
-        if (l && l.class_id) {
+        const { data: l } = await supabase.from('student_lists').select('id, class_id, class_name, section, user_id').eq('id', q.list_id).maybeSingle();
+        if (l && l.class_id && !(await othersList(l, teacherUserId))) {
           const cls = await classById(l.class_id);
           if (cls) return { state: 'known', class: { ...cls, listId: l.id, label: labelOf(cls, []) }, classes: [{ ...cls, listId: l.id, label: labelOf(cls, []) }], bound: 'quiz' };
         }
