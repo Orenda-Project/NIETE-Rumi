@@ -1,7 +1,7 @@
 'use strict';
 /**
  * An in-memory stand-in for the Supabase client — the network boundary — that
- * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/order/limit/range; select/insert/update/delete; is/not also on a
+ * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/order/limit/range; or() over is/eq/neq; select/insert/update/delete; is/not also on a
  * `col->>key` path), so a test fails when a query forgets one. Tables are plain arrays in `db`.
  */
 const crypto = require('crypto');
@@ -37,24 +37,20 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       eq(c, v) { st.filters.push((r) => same(r[c], v)); return b; },
       neq(c, v) { st.filters.push((r) => r[c] !== v); return b; },
       is(c, v) { st.filters.push((r) => (v === null ? val(r, c) == null : val(r, c) === v)); return b; },
-      // PostgREST `or`: comma-separated `col.op.value`; a NULL cell matches only `is.null` (SQL: NULL <> x is not true).
+      // PostgREST or=(a.op.v,…): any one holds. `neq` here is SQL's: a NULL cell is not "not equal" (it matches nothing).
       or(expr) {
-        const parts = String(expr).split(',').map((p) => {
-          const [c, op, ...rest] = p.split('.');
-          const v = rest.join('.');
-          return (r) => {
-            const x = val(r, c);
-            if (op === 'is') return v === 'null' ? x == null : String(x) === v;
-            if (x == null) return false;
-            if (op === 'eq') return String(x) === v;
-            if (op === 'neq') return String(x) !== v;
-            const n = Number(v);
-            if (op === 'lte') return Number(x) <= n;
-            if (op === 'gte') return Number(x) >= n;
-            return false;
-          };
-        });
-        st.filters.push((r) => parts.some((f) => f(r))); return b;
+        const parts = String(expr).split(',').map((p) => { const [c, op, ...rest] = p.split('.'); return [c, op, rest.join('.')]; });
+        const one = (r, [c, op, v]) => {
+          const cell = val(r, c);
+          if (op === 'is') return v === 'null' ? cell == null : String(cell) === v;
+          if (op === 'eq') return cell != null && String(cell) === v;
+          if (op === 'neq') return cell != null && String(cell) !== v;
+          if (op === 'lte') return cell != null && Number(cell) <= Number(v);
+          if (op === 'gte') return cell != null && Number(cell) >= Number(v);
+          throw new Error(`fake or(): unsupported op ${op}`);
+        };
+        st.filters.push((r) => parts.some((p) => one(r, p)));
+        return b;
       },
       not(c, op, v) { if (op === 'is' && v === null) st.filters.push((r) => val(r, c) != null); return b; },
       // PostgREST echoes the query into the Content-Location header and Node's fetch caps response headers at 16 KB:
