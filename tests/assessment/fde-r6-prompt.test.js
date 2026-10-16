@@ -96,6 +96,7 @@ describe('pattern prompt rules', () => {
     expect(prompt('english', 'A')).toContain(ANAGRAM);
     expect(prompt('urdu', 'A')).toContain(ANAGRAM);
     expect(prompt('english', 'C')).not.toContain(ANAGRAM);
+    for (const s of ['maths', 'science', 'social_studies']) expect(prompt(s, 'A')).not.toContain(ANAGRAM);
   });
 
   test('no underline reference', () => {
@@ -110,7 +111,9 @@ describe('pattern prompt rules', () => {
 
   test('options pairwise unequal', () => {
     expect(prompt('maths', 'A')).toContain(UNEQUAL);
+    expect(prompt('science', 'A')).toContain(UNEQUAL);
     expect(prompt('maths', 'B')).not.toContain(UNEQUAL);
+    for (const s of ['english', 'urdu', 'social_studies']) expect(prompt(s, 'A')).not.toContain(UNEQUAL);
   });
 
   test('no repeats rule', () => {
