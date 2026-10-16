@@ -6,7 +6,7 @@
 -- Needs the challenge_passages table (registry migration). Apply to sandbox first; staging and prod only on a go.
 
 INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, status, is_reference, released_at, tokens, sentences, mean_sent_len, max_word_len, readability, readability_list, q_reach_1, q_reach_2, q_n, title_en, title_ur, source_ref, licence, reviewer, reviewed_at, twin_of, text_hash, bank_version)
-VALUES ('en.listen.1.ref01', 'en', 'listen', 'check', 1, 'draft', true, NULL, 36, 6, 6, 6, 1, 'fed-cum-g2-2026', 1, 2, 6, 'The Lost Dog', NULL, 'generated brief v1 (band-1 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, '04385631487e5838b2a8c4233da36dbd', 'child-test-items-v4')
+VALUES ('en.listen.1.ref01', 'en', 'listen', 'check', 1, 'draft', true, NULL, 36, 6, 6, 6, 1, 'fed-cum-g2-2026', 1, 2, 6, 'Fahad Helps Out', NULL, 'generated brief v1 (band-1 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, '04385631487e5838b2a8c4233da36dbd', 'child-test-items-v4')
 ON CONFLICT (passage_id) DO NOTHING;
 INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, status, is_reference, released_at, tokens, sentences, mean_sent_len, max_word_len, readability, readability_list, q_reach_1, q_reach_2, q_n, title_en, title_ur, source_ref, licence, reviewer, reviewed_at, twin_of, text_hash, bank_version)
 VALUES ('en.listen.1.story01', 'en', 'listen', 'practice', 1, 'draft', false, NULL, 37, 6, 6.2, 6, 0.962, 'fed-cum-g2-2026', 1, 2, 6, 'Ice Cream in the Sun', NULL, 'generated brief v1 (band-1 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, '40abe552c3496b45374cf86ed6ed8c67', 'child-test-items-v4')
@@ -15,7 +15,7 @@ INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, statu
 VALUES ('en.listen.2.story01', 'en', 'listen', 'practice', 2, 'draft', false, NULL, 58, 9, 6.4, 10, 0.882, 'fed-cum-g3-2026', 1, 2, 6, 'A New Friend', NULL, 'generated brief v1 (band-2 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, 'bfd561359841bcfbdeda82365e556d73', 'child-test-items-v4')
 ON CONFLICT (passage_id) DO NOTHING;
 INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, status, is_reference, released_at, tokens, sentences, mean_sent_len, max_word_len, readability, readability_list, q_reach_1, q_reach_2, q_n, title_en, title_ur, source_ref, licence, reviewer, reviewed_at, twin_of, text_hash, bank_version)
-VALUES ('en.listen.3.ref01', 'en', 'listen', 'check', 3, 'draft', true, NULL, 64, 9, 7.1, 9, 0.953, 'fed-cum-g5-2026', 1, 2, 6, 'A Card for Mother', NULL, 'generated brief v1 (band-3 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, '8c3658ccfdfde00325ee9ec03fdf5a07', 'child-test-items-v4')
+VALUES ('en.listen.3.ref01', 'en', 'listen', 'check', 3, 'draft', true, NULL, 64, 9, 7.1, 9, 0.953, 'fed-cum-g5-2026', 1, 2, 6, 'Usman''s Big Idea', NULL, 'generated brief v1 (band-3 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, '8c3658ccfdfde00325ee9ec03fdf5a07', 'child-test-items-v4')
 ON CONFLICT (passage_id) DO NOTHING;
 INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, status, is_reference, released_at, tokens, sentences, mean_sent_len, max_word_len, readability, readability_list, q_reach_1, q_reach_2, q_n, title_en, title_ur, source_ref, licence, reviewer, reviewed_at, twin_of, text_hash, bank_version)
 VALUES ('en.listen.3.story01', 'en', 'listen', 'practice', 3, 'draft', false, NULL, 59, 8, 7.4, 7, 0.929, 'fed-cum-g5-2026', 1, 2, 6, 'A Rainy Day', NULL, 'generated brief v1 (band-3 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, 'afd0080631ccab5b04db4fd9f11b20b7', 'child-test-items-v4')
@@ -66,7 +66,7 @@ INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, statu
 VALUES ('en.read.3.story03', 'en', 'read', 'practice', 3, 'draft', false, NULL, 57, 7, 8.1, 9, 0.917, 'fed-cum-g5-2026', 2, 3, 6, 'The Next Game', NULL, 'generated brief v1 (band-3 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, 'be84e66abcc3e4a9f4ed258a2345f634', 'child-test-items-v4')
 ON CONFLICT (passage_id) DO NOTHING;
 INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, status, is_reference, released_at, tokens, sentences, mean_sent_len, max_word_len, readability, readability_list, q_reach_1, q_reach_2, q_n, title_en, title_ur, source_ref, licence, reviewer, reviewed_at, twin_of, text_hash, bank_version)
-VALUES ('ur.listen.1.ref01', 'ur', 'listen', 'check', 1, 'draft', true, NULL, 40, 6, 6.7, 5, 0.964, 'fed-cum-g2-2026', 2, 3, 6, NULL, 'سفید مرغی', 'generated brief v1 (band-1 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, 'd0309b35d102218d421d27cb164b6719', 'child-test-items-v4')
+VALUES ('ur.listen.1.ref01', 'ur', 'listen', 'check', 1, 'draft', true, NULL, 40, 6, 6.7, 5, 0.964, 'fed-cum-g2-2026', 2, 3, 6, NULL, 'فہد کی تلاش', 'generated brief v1 (band-1 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, 'd0309b35d102218d421d27cb164b6719', 'child-test-items-v4')
 ON CONFLICT (passage_id) DO NOTHING;
 INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, status, is_reference, released_at, tokens, sentences, mean_sent_len, max_word_len, readability, readability_list, q_reach_1, q_reach_2, q_n, title_en, title_ur, source_ref, licence, reviewer, reviewed_at, twin_of, text_hash, bank_version)
 VALUES ('ur.listen.1.story01', 'ur', 'listen', 'practice', 1, 'draft', false, NULL, 37, 6, 6.2, 4, 0.96, 'fed-cum-g2-2026', 2, 3, 4, NULL, 'ایمن کی گڑیا', 'generated brief v1 (band-1 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, 'bfa1ec5782557e0e5dba3abb8539373d', 'child-test-items-v4')
@@ -75,7 +75,7 @@ INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, statu
 VALUES ('ur.listen.2.story01', 'ur', 'listen', 'practice', 2, 'draft', false, NULL, 62, 8, 7.8, 6, 0.884, 'fed-cum-g3-2026', 2, 2, 4, NULL, 'گاجر کی ٹوکری', 'generated brief v1 (band-2 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, '0233966c403f17b4fa2b34c526f87410', 'child-test-items-v4')
 ON CONFLICT (passage_id) DO NOTHING;
 INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, status, is_reference, released_at, tokens, sentences, mean_sent_len, max_word_len, readability, readability_list, q_reach_1, q_reach_2, q_n, title_en, title_ur, source_ref, licence, reviewer, reviewed_at, twin_of, text_hash, bank_version)
-VALUES ('ur.listen.3.ref01', 'ur', 'listen', 'check', 3, 'draft', true, NULL, 61, 8, 7.6, 6, 0.909, 'fed-cum-g5-2026', 2, 3, 6, NULL, 'بارش میں سبزی', 'generated brief v1 (band-3 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, '896e52ec72935ebb1dcd659c3ab44952', 'child-test-items-v4')
+VALUES ('ur.listen.3.ref01', 'ur', 'listen', 'check', 3, 'draft', true, NULL, 61, 8, 7.6, 6, 0.909, 'fed-cum-g5-2026', 2, 3, 6, NULL, 'رانیہ بازار میں', 'generated brief v1 (band-3 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, '896e52ec72935ebb1dcd659c3ab44952', 'child-test-items-v4')
 ON CONFLICT (passage_id) DO NOTHING;
 INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, status, is_reference, released_at, tokens, sentences, mean_sent_len, max_word_len, readability, readability_list, q_reach_1, q_reach_2, q_n, title_en, title_ur, source_ref, licence, reviewer, reviewed_at, twin_of, text_hash, bank_version)
 VALUES ('ur.listen.3.story01', 'ur', 'listen', 'practice', 3, 'draft', false, NULL, 64, 8, 8, 5, 0.915, 'fed-cum-g5-2026', 2, 3, 6, NULL, 'مٹی کی گڑیا', 'generated brief v1 (band-3 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, '412b5d7f9591087fb44bf7fe1598586c', 'child-test-items-v4')
@@ -127,4 +127,11 @@ VALUES ('ur.read.3.story03', 'ur', 'read', 'practice', 3, 'draft', false, NULL, 
 ON CONFLICT (passage_id) DO NOTHING;
 
 -- Set A pointer titles: fill a NULL title on the reference row the registry seed inserted; never overwrite one.
-UPDATE public.challenge_passages SET title_ur = 'صفائی کا دن', updated_at = now() WHERE passage_id = 'ur.listen.2.setA' AND title_ur IS NULL;
+UPDATE public.challenge_passages SET title_ur = 'سارہ دکان پر گئی', updated_at = now() WHERE passage_id = 'en.listen.2.setA' AND title_ur IS NULL;
+UPDATE public.challenge_passages SET title_en = 'Sara Goes to the Shop', updated_at = now() WHERE passage_id = 'en.listen.2.setA' AND title_en IS NULL;
+UPDATE public.challenge_passages SET title_ur = 'عمران کی مصروف صبح', updated_at = now() WHERE passage_id = 'en.read.2.setA' AND title_ur IS NULL;
+UPDATE public.challenge_passages SET title_en = 'Imran''s Busy Morning', updated_at = now() WHERE passage_id = 'en.read.2.setA' AND title_en IS NULL;
+UPDATE public.challenge_passages SET title_ur = 'عائشہ کا اسکول', updated_at = now() WHERE passage_id = 'ur.listen.2.setA' AND title_ur IS NULL;
+UPDATE public.challenge_passages SET title_en = 'Ayesha''s School', updated_at = now() WHERE passage_id = 'ur.listen.2.setA' AND title_en IS NULL;
+UPDATE public.challenge_passages SET title_ur = 'بلال کا دن', updated_at = now() WHERE passage_id = 'ur.read.2.setA' AND title_ur IS NULL;
+UPDATE public.challenge_passages SET title_en = 'Bilal''s Day', updated_at = now() WHERE passage_id = 'ur.read.2.setA' AND title_en IS NULL;
