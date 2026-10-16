@@ -471,3 +471,68 @@ describe('the picture itself (pure)', () => {
     }
   });
 });
+
+// ─── the Urdu class label's order ───────────────────────────────────────────
+// On an Urdu picture the pill reads «جماعت ۳-A»: the word on the right, then the run «۳-A» drawn left to right, the
+// Urdu digit first (leftmost) and the Latin section letter last. Two guards keep a markup, font or renderer change
+// from silently flipping it to «A-۳»:
+//   1. the pill's source, pinned exactly, with no bidi control (LRM/RLM/ALM, embeddings, overrides, isolates) in it;
+//   2. the order as DRAWN, in the real headless Chromium the picture is photographed in, with the picture's own HTML
+//      and its own shipped fonts (nothing fetched). Each character of the pill is selected with a DOM Range and its
+//      laid-out box read back (getClientRects): that is where the shaper and the bidi resolver placed its glyph, so
+//      no pixel threshold or font metric is guessed. The digit's box must lie wholly left of the letter's.
+// The source pin alone would not catch everything: the same string inside <bdi dir="rtl"> draws as «A-۳».
+// A checkout installed without the browser (the postinstall's documented opt-out) skips (2), saying so.
+const { renderOptOut } = require('../helpers/pdf-layout');
+const BIDI_CONTROLS = /[؜‎‏‪-‮⁦-⁩]/;
+const UR_QUIZ = { kind: 'quiz', lang: 'ur', label: '3-A', topic: 'پودے کے حصے' };
+
+describe('the Urdu class label keeps its signed order: «جماعت ۳-A»', () => {
+  test('the pill\'s source string, exactly, with no bidi control inside it', () => {
+    const html = ClassPic.renderClassPic(UR_QUIZ, { fonts: false });
+    const pill = html.match(/<div class="pill">[\s\S]*?<\/div>/);
+    expect(pill && pill[0]).toBe('<div class="pill">جماعت <bdi dir="ltr">۳-A</bdi></div>');
+    const text = pill[0].replace(/<[^>]+>/g, '');
+    expect(text).toBe('جماعت ۳-A');
+    expect(text).not.toMatch(BIDI_CONTROLS);
+  });
+
+  (renderOptOut() ? test.skip : test)('drawn: the Urdu digit left of the Latin «A», the word right of both', async () => {
+    const { chromium } = require('playwright-core');
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
+      await page.setContent(ClassPic.renderClassPic(UR_QUIZ), { waitUntil: 'load' });
+      await page.evaluate(async () => {
+        await Promise.all(Array.from(document.fonts).map((f) => f.load().catch(() => {})));
+        await document.fonts.ready;
+      });
+      const boxes = await page.evaluate(() => {
+        // every character of the pill, in source order, with the box it was drawn in
+        const out = [];
+        const walk = document.createTreeWalker(document.querySelector('.pill'), NodeFilter.SHOW_TEXT);
+        for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+          for (let i = 0; i < n.data.length; i += 1) {
+            const r = document.createRange();
+            r.setStart(n, i); r.setEnd(n, i + 1);
+            const rects = Array.from(r.getClientRects()).filter((b) => b.width > 0);
+            if (!rects.length) continue;
+            out.push({ ch: n.data[i], left: Math.min(...rects.map((b) => b.left)), right: Math.max(...rects.map((b) => b.right)) });
+          }
+        }
+        return out;
+      });
+      const at = (ch) => boxes.find((b) => b.ch === ch);
+      const digit = at('۳');
+      const letter = at('A');
+      expect(digit && letter).toBeTruthy();
+      expect(digit.right).toBeLessThanOrEqual(letter.left);
+      // the word «جماعت» sits right of the run
+      const word = boxes.filter((b) => /[؀-ۯ]/.test(b.ch));
+      expect(word.length).toBeGreaterThan(0);
+      expect(Math.min(...word.map((b) => b.left))).toBeGreaterThanOrEqual(letter.right);
+    } finally {
+      await browser.close();
+    }
+  }, 60000);
+});
