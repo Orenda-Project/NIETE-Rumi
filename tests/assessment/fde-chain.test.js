@@ -146,8 +146,10 @@ describe.each(['maths', 'science', 'urdu'])('%s: tap → job → two stored file
     expect(row.exam_json._layout.pages).toEqual({ paper: 4, scheme: 5 });
     expect(state.uploads).toEqual([`Grade5_${LABEL[subject]}_FDE.pdf`, `Grade5_${LABEL[subject]}_FDE_MarkingScheme.pdf`]);
     // The row is written as each section comes back, so a long live run never looks dead to the
-    // duplicate guard (it reads "ten minutes since the row's last write" as a stopped run).
-    const touches = state.updates.filter((u) => u.table === 'assessment_papers' && u.payload.status === 'generating');
+    // duplicate guard. A touch of the time only: the status is never written back, so a paper a
+    // stopping worker handed back stays handed back.
+    const touches = state.updates.filter((u) => u.table === 'assessment_papers'
+      && Object.keys(u.payload).join() === 'updated_at');
     expect(touches.length).toBe(P.subjects[subject].sections.length);
     // Both documents with their own footer.
     expect(state.pdfs.every((o) => o && o.pdfOptions && o.pdfOptions.displayHeaderFooter)).toBe(true);

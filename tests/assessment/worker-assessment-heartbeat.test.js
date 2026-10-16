@@ -11,8 +11,9 @@
  * A deploy used to wait 30 s and then hand every in-flight paper back to the queue, after which
  * the process exits and the run dies with it. The duplicate guard (orchestrator-duplicate-
  * delivery.test.js) correctly refuses to build a paper whose row was written moments ago, so a
- * handed-back paper would sit in `generating`. Papers now drain like lesson plans: the deploy
- * waits for them, under the heartbeat.
+ * handed-back paper would sit in `generating`. A drain did not fix that (the platform gives a
+ * stopping container seconds), so a paper is now handed back at once with its row set to
+ * `queued`, which the next delivery takes over immediately.
  *
  * Drives the REAL SQSCoachingWorker (executeJob and shutdown), doubling only the SQS boundary,
  * the logger and the orchestrator the case delegates to.
@@ -30,8 +31,11 @@ jest.mock('../../bot/shared/services/queue/sqs-queue.service', () => ({
   extendJobTimeout: (...a) => mockExtend(...a),
 }));
 let mockProcess;
+const mockReleasePaper = jest.fn(async () => true);
 jest.mock('../../bot/shared/services/assessment/assessment-orchestrator.service', () => ({
   process: (...a) => mockProcess(...a),
+  touchGeneratingPaper: async () => {},
+  releasePaperForTakeover: (...a) => mockReleasePaper(...a),
 }));
 
 async function flush(times = 10) {
@@ -128,37 +132,41 @@ describe('worker: assessment_generate visibility', () => {
   });
 });
 
+// The drain this block used to pin ("a deploy finishes an in-flight paper") never ran in
+// production: the platform stops the container within seconds, so the paper died with its message
+// hidden. A paper is now handed back at once; the full chain (real orchestrator, row first) is in
+// deploy-killed-paper.test.js.
 describe('worker: a deploy and an in-flight paper', () => {
-  test('a deploy finishes an in-flight paper instead of handing it back at 30 s', async () => {
+  test('a deploy hands an in-flight paper back at once instead of draining it', async () => {
+    mockReleasePaper.mockImplementation(async () => true);
     const w = new SQSCoachingWorker('w-drain-1');
     const paper = pendingPaper();
-    w.activeJobs.set('rh-paper', { promise: paper.promise, sourceQueue: 'main', jobType: 'assessment_generate' });
+    w.activeJobs.set('rh-paper', { promise: paper.promise, sourceQueue: 'main', jobType: 'assessment_generate', requestId: 'req-1' });
 
     let settled = false;
     const done = w.shutdown().then(() => { settled = true; });
-    await jest.advanceTimersByTimeAsync(90_000);
-    expect(mockRelease).not.toHaveBeenCalled();
-    expect(settled).toBe(false);
-
-    w.activeJobs.delete('rh-paper');
-    await paper.finish();
     await jest.advanceTimersByTimeAsync(1_000);
-    await done;
+    expect(mockReleasePaper).toHaveBeenCalledWith('req-1');
+    expect(mockRelease).toHaveBeenCalledWith('rh-paper', 'main');
     expect(settled).toBe(true);
-    expect(mockRelease).not.toHaveBeenCalled();
+    await done;
   });
 
-  test('a coaching analysis is still handed back at 30 s while a paper drains', async () => {
+  test('a coaching analysis is still handed back at 30 s, the paper at once', async () => {
+    mockReleasePaper.mockImplementation(async () => true);
     const w = new SQSCoachingWorker('w-drain-2');
     const paper = pendingPaper();
     const analysis = pendingPaper();
-    w.activeJobs.set('rh-paper', { promise: paper.promise, sourceQueue: 'main', jobType: 'assessment_generate' });
+    w.activeJobs.set('rh-paper', { promise: paper.promise, sourceQueue: 'main', jobType: 'assessment_generate', requestId: 'req-1' });
     w.activeJobs.set('rh-analysis', { promise: analysis.promise, sourceQueue: 'main', jobType: 'analysis' });
 
     const done = w.shutdown();
-    await jest.advanceTimersByTimeAsync(31_000);
+    await jest.advanceTimersByTimeAsync(1_000);
     expect(mockRelease).toHaveBeenCalledTimes(1);
-    expect(mockRelease).toHaveBeenCalledWith('rh-analysis', 'main');
+    expect(mockRelease).toHaveBeenCalledWith('rh-paper', 'main');
+    await jest.advanceTimersByTimeAsync(30_000);
+    expect(mockRelease).toHaveBeenCalledTimes(2);
+    expect(mockRelease).toHaveBeenLastCalledWith('rh-analysis', 'main');
 
     w.activeJobs.delete('rh-paper');
     w.activeJobs.delete('rh-analysis');

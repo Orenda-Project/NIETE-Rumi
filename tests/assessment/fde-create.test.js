@@ -257,7 +257,7 @@ describe('POST /assessment/create — a board-pattern paper', () => {
     const guard = reads.find((r) => r.table === 'assessment_requests');
     expect(guard.eq).toEqual({ user_id: 'teacher-1', grade_code: 'grade_5', subject_code: 'maths' });
     expect(guard.gte).toEqual(['created_at', '2026-10-15T09:50:00.000Z']);
-    expect(guard.select).toMatch(/assessment_papers\(status, edited_from\)/);
+    expect(guard.select).toMatch(/assessment_papers\(status, edited_from, updated_at\)/);
     expect(guard.order).toEqual(['created_at', { ascending: false }]);
     expect(guard.limit).toBe(5);
 
@@ -357,5 +357,34 @@ describe('findGenerating', () => {
     // after the row was written). It must not lock the teacher out for the rest of ten minutes.
     recent = [{ id: 'req-orphan', created_at: '2026-10-15T11:52:00Z', question_types: [{ slot: 'maths.A.Q1a' }], assessment_papers: [] }];
     expect(await findGenerating({ userId: 'u', grade: 5, subject: 'maths', now })).toBeNull();
+  });
+
+  test('findGenerating ignores a generating row whose updated_at is older than 6 min', async () => {
+    const { findGenerating } = require('../../bot/shared/services/assessment/assessment-request.service');
+    const now = new Date('2026-10-15T12:00:00Z');
+    const paper = (updatedAt) => [{
+      id: 'req-busy', created_at: '2026-10-15T11:52:00Z', question_types: [{ slot: 'maths.A.Q1a' }],
+      assessment_papers: [{ status: 'generating', edited_from: null, updated_at: updatedAt }],
+    }];
+    // Written two minutes ago: a run is alive (the worker touches the row every minute) — busy.
+    recent = paper('2026-10-15T11:58:00Z');
+    expect(await findGenerating({ userId: 'u', grade: 5, subject: 'maths', now })).toEqual({ id: 'req-busy' });
+    // Silent seven minutes: the run that owned it is gone (a deploy killed it). A re-tap must not
+    // be pointed at a paper nobody is writing.
+    recent = paper('2026-10-15T11:53:00Z');
+    expect(await findGenerating({ userId: 'u', grade: 5, subject: 'maths', now })).toBeNull();
+    // The read asks for the column it judges by.
+    expect(reads[reads.length - 1].select).toMatch(/assessment_papers\(status, edited_from, updated_at\)/);
+  });
+
+  test('a re-tap on a class whose paper went silent > 6 min gets 202, not 409', async () => {
+    // NOW_ISO is 10:00; the paper was last written at 09:52.
+    recent = [{
+      id: 'req-dead', created_at: '2026-10-15T09:51:00Z', question_types: [{ slot: 'maths.A.Q1a' }],
+      assessment_papers: [{ status: 'generating', edited_from: null, updated_at: '2026-10-15T09:52:00Z' }],
+    }];
+    const { statusCode } = await invoke('/assessment/create', { ...PATTERN, scope: 'fde' });
+    expect(statusCode).toBe(202);
+    expect(queued).toHaveLength(1);
   });
 });
