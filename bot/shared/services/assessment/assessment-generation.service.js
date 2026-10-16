@@ -939,7 +939,7 @@ const RULE = {
   q1bOne: 'Each item is one sentence to rewrite, with its instruction once.',
   // English Q2: the general unnamed-person rule sits far below the passage ask and the passage still
   // came back with «An old man … he joined»; the passage slot carries it itself.
-  passagePeople: 'In the passage, a person who is not named (an old man, a shopkeeper, a farmer) is \'they\' (An old man watched them. The next day, they joined…); only a named character is he or she.',
+  passagePeople: 'In the passage, a person who is not named (an old man, a shopkeeper, a farmer) is \'they\' (An old man smiled. The next day, they joined the children…); only a named character is he or she.',
   // English Q5 on chosen pages with no poem: the nearest poem's own page text is given below the book text.
   q5Given: (p) => `Q5 uses this poem from Unit ${p.unit} (book p.${p.pages}); print only its verse lines, exactly as given, never a heading, instruction or activity line; title «${p.title} (Unit ${p.unit})».`,
   // Urdu Q6 on lessons with no poem: lesson 7's poem page text is given below the book text.

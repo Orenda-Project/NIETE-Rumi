@@ -39,7 +39,7 @@ const fixture = () => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures'
 
 // The sandbox paper's own Q4 question (request 9cbd25b8).
 const RESTATED = 'Write the meaning of each given word and use it in a sentence of your own. Any five words will be marked.';
-const PASSAGE_PEOPLE = 'In the passage, a person who is not named (an old man, a shopkeeper, a farmer) is \'they\' (An old man watched them. The next day, they joined…); only a named character is he or she.';
+const PASSAGE_PEOPLE = 'In the passage, a person who is not named (an old man, a shopkeeper, a farmer) is \'they\' (An old man smiled. The next day, they joined the children…); only a named character is he or she.';
 
 const loaded = (content, pageReference) => ({ content, pageReference, pageCount: 1, pagesFound: [], pagesMissing: [] });
 const reply = (content) => ({
