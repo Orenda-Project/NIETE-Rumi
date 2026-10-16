@@ -716,6 +716,7 @@ async function menu(token, { kid, lang, device } = {}) {
     trail: rules.period ? Fast.early(periodTrail(w)) : null,
     rt: Fast.early(Tel.flag()),
     ui: Fast.early(require('./web-quiz-ur-polish').ui()),
+    juice: Fast.early(require('./web-quiz-juice').field()),
     bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
   } : null;
   const got = (key, start) => (pre ? pre[key] : start());
@@ -748,6 +749,8 @@ async function menu(token, { kid, lang, device } = {}) {
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await got('rt', () => Tel.flag()),
     ...((await got('ui', () => require('./web-quiz-ur-polish').ui())) ? { ui: { ur2: true } } : {}),
+    // the sound + motion kit (web-quiz-juice.js): named only when on
+    ...((await got('juice', () => require('./web-quiz-juice').field())) ? { juice: true } : {}),
     ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
   };
 }

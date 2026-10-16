@@ -100,7 +100,7 @@ describe('a library link opened on another phone (the hub link is bound to the c
   const LOCK = { '/api/wq/lib/h/HUBTOK': { __status: 401, error: 'bad_token' } };
   test.each([
     ['en', 'This link was sent to another player', 'Ask the child who got this link to open it.', 'Is this your link? Send /quiz on WhatsApp again for a new one.'],
-    ['ur', 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔', 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ \u2066/quiz\u2069 بھیجیں۔'],
+    ['ur', 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔', 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس\u00a0ایپ پر دوبارہ \u2066/quiz\u2069 بھیجیں۔'], // «واٹس ایپ» drawn raw here: held by U+00A0
   ])('%s: says whose link it is and how to get your own, offers no retry (a retry can never work there) and goes back to the hub', async (lang, title, say, mine) => {
     const p = libPage({ lang, api: LOCK });
     await flush(); await flush();
