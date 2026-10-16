@@ -400,7 +400,7 @@
       if (p.audio) {
         mount(p, {
           onEnd: ended,
-          onState: function (s) { if (s === 'error' && R.pl) { m.err(); if (view === 'page' && m.i === i) { drop(); pageScreen(); } } else if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } },
+          onState: function (s) { if (s === 'error' && R.pl) { m.err(); if (view === 'page' && m.i === i) { drop(); pageScreen(); } } else if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } else if (s === 'paused' && m.st === 'listening') { if (t0 >= 0) { acc += C.now() - t0; t0 = -1; } m.set(m.l[m.i] ? 'listened' : 'paused'); } },
           onWordTap: function () { if (/^(idle|paused|listened|together|denied)$/.test(m.st)) { t0 = C.now(); m.set('listening'); } },
         });
       }
@@ -468,7 +468,7 @@
     R.word = word;
     function mount(p, op) {
       var ra = root.querySelector('[data-ra]');
-      op.mode = p.boxes_ok ? 'overlay' : 'strip'; op.leadMs = 50; op.labels = { play: t.listen, pause: t.pause, replay: t.again }; op.onWord = word;
+      op.mode = p.boxes_ok ? 'overlay' : 'strip'; op.leadMs = 50; op.tap = 'sentence'; op.labels = { play: t.listen, pause: t.pause, replay: t.again }; op.onWord = word;
       try { R.pl = W.WQReadAlong.mount(ra, { v: 1, id: b.id + '/p' + p.n, lang: b.lang, dir: b.dir, audio: p.audio, words: p.words, image: p.image, quality: p.quality }, op); } catch (x) { R.pl = null; }
       if (R.pl && R.pl.audio) R.pl.audio.muted = muted();
       rate();
