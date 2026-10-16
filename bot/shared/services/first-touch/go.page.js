@@ -85,7 +85,11 @@ const SCRIPT = [
   'if(busy)return;busy=true;var el=this;el.setAttribute("aria-busy","true");',
   'post("/api/go/role",{t:t,side:el.getAttribute("data-side")},function(s,j){if(s===200&&go(j))return;busy=false;el.removeAttribute("aria-busy");',
   'err(j&&j.error==="go.stale"?"go.stale":"go.error")})})}',
-  'var no=$("go-no");if(no)no.addEventListener("click",function(){$("go-known").hidden=true;pick=null});}',
+  'var no=$("go-no");if(no)no.addEventListener("click",function(){$("go-known").hidden=true;pick=null});',
+  // the sandbox walk-through row's buttons (rendered only for listed test phones): one POST, then follow `next`
+  'var ps=document.querySelectorAll("[data-persona]");for(var q=0;q<ps.length;q++){ps[q].addEventListener("click",function(){',
+  'if(busy)return;busy=true;var el=this;post("/api/go/persona",{t:t,as:el.getAttribute("data-persona")},function(s,j){if(s===200&&go(j))return;',
+  'busy=false;err(s===410?"go.stale":"go.error")})})}}',
   'var yes=$("go-yes");if(yes)yes.addEventListener("click",function(){bind(yes)});',
   'var chips=document.querySelectorAll("[data-pick]");for(var c=0;c<chips.length;c++){chips[c].addEventListener("click",function(){',
   'for(var k=0;k<chips.length;k++)chips[k].setAttribute("aria-pressed","false");this.setAttribute("aria-pressed","true");',
@@ -114,7 +118,8 @@ function shell({ title, body, script = '', withScript = false }) {
     csp: policy,
     html: '<!doctype html><html lang="ur" dir="rtl"><head><meta charset="utf-8">'
       + '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
-      + `<meta http-equiv="Content-Security-Policy" content="${esc(policy)}">`
+      // the <meta> copy (the edge forwards only the page): frame-ancestors is header-only, so it is left out here
+      + `<meta http-equiv="Content-Security-Policy" content="${esc(policy.replace(/; frame-ancestors 'none'/, ''))}">`
       + '<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">'
       + `<title>${esc(title)}</title><style>${CSS}</style></head><body>${body}${script}</body></html>`,
   };
