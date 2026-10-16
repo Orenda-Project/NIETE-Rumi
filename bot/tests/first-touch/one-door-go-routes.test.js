@@ -354,6 +354,34 @@ describe('bind — "Yes, it\'s me"', () => {
     expect(studentWrites()).toEqual([]);
   });
 
+  test('a refused or failed bind does not use the link up: the same link binds on the next tap; a done bind does', async () => {
+    world();
+    mockJoin = WRITER();
+    mockJoin.bindPick.mockResolvedValueOnce({ refused: 'max_kids' }).mockRejectedValueOnce(new Error('db down'));
+    const t = await mint(PARENT, PH.parent, 'child');
+    const pick = pickFrom(await (await land(t)).text());
+    expect((await post('bind', { t, pick })).status).toBe(409);
+    expect((await post('bind', { t, pick })).status).toBe(503);
+    const r = await post('bind', { t, pick });
+    expect(r.status).toBe(200);
+    expect(mockJoin.bindPick).toHaveBeenCalledTimes(3);
+    expect((await post('bind', { t, pick })).status).toBe(409);   // done: single-use from here
+    expect(mockJoin.bindPick).toHaveBeenCalledTimes(3);
+  });
+
+  test('the writer is told the page\'s language and the quiz page\'s device ref (rung 4b), nothing when unknown', async () => {
+    world({ quizSessions: [{ id: 'qs-1', student_id: 's-9', device_ref: QDEV, created_at: new Date().toISOString() }] });
+    mockJoin = WRITER();
+    const u = await mint(UNKNOWN, PH.unknown, 'unknown', 'ur');
+    const known = (await (await post('who', { t: u, d: QDEV })).json()).known;
+    expect((await post('bind', { t: u, pick: known.pick, d: QDEV })).status).toBe(200);
+    expect(mockJoin.bindPick.mock.calls[0][0]).toMatchObject({ kid: 's-9', src: 'device', device: DEV, quizDevice: QDEV, lang: 'ur' });
+    const t = await mint(PARENT, PH.parent, 'child');   // a bilingual page: no language preference is passed on
+    await post('bind', { t, pick: pickFrom(await (await land(t)).text()), d: 'not-a-ref' });
+    expect(mockJoin.bindPick.mock.calls[1][0]).not.toHaveProperty('quizDevice');
+    expect(mockJoin.bindPick.mock.calls[1][0]).not.toHaveProperty('lang');
+  });
+
   test('the roster family\'s chip → src roster; the device-known child → src device', async () => {
     world({ family: [roster('r-1', 'Ali Testwala')], quizSessions: [{ id: 'qs-1', student_id: 's-9', device_ref: QDEV, created_at: new Date().toISOString() }] });
     mockJoin = WRITER();

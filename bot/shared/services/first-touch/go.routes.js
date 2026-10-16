@@ -121,6 +121,11 @@ async function deviceKids(d) {
   return ids.filter((id) => live.has(id)).map((id) => ({ id, first: live.get(id) }));
 }
 
+/** The bind claim given back (the write did not happen). Best effort: a Redis miss leaves the link used, never wrong. */
+async function releaseBind(n) {
+  try { await require('../cache/railway-redis.service').delete(GoNonce._key.used(n, 'bind')); } catch (_) { /* used stays used */ }
+}
+
 /** Re-resolve on the server: { side, src, how, next?, page?, kids? }. */
 async function destination(o) {
   const who = await Role.resolveRole({ user: { id: o.userId }, phone: o.phoneNorm });
@@ -252,10 +257,23 @@ router.post('/bind', async (req, res) => {
       src = 'device';
     }
     if (!kid) return json(res, 400, { error: 'go.error' });
+    // one binding per link: claimed before the write (a double tap never writes twice), released when the write did not
+    // happen (a refusal or an error), so the same link can still bind the right child on the next tap
     if (!(await GoNonce.claim(o.p.n, 'bind'))) return json(res, 409, { error: 'go.error', why: 'used' });
-    const out = await Targets.bindPick({ n: o.p.n, kid: kid.id, device: deviceOf(req), src: src === 'family' ? 'roster' : (src === 'device' ? 'device' : 'quiz') });
+    const qd = quizDevice(b.d);
+    let out;
+    try {
+      out = await Targets.bindPick({
+        n: o.p.n, kid: kid.id, device: deviceOf(req), src: src === 'family' ? 'roster' : (src === 'device' ? 'device' : 'quiz'),
+        ...(qd ? { quizDevice: qd } : {}), ...(o.p.lang === 'ur' ? { lang: 'ur' } : {}),
+      });
+    } catch (err) {
+      await releaseBind(o.p.n);
+      throw err;
+    }
     event('one_door.bind', { src, ok: Boolean(out && out.next) });
     if (out && out.next) return json(res, 200, { next: out.next });
+    await releaseBind(o.p.n);
     return json(res, 409, { error: 'go.error', why: (out && (out.refused || out.error)) || 'refused' });
   } catch (err) {
     logToFile('❌ one door: bind failed', { error: err && err.message }, 'error');
