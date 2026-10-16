@@ -95,7 +95,7 @@
   function headHtml(B, ctx) {
     var t = C(ctx); var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var jar = B.head && B.head.jar ? '<a class="wq-jar" href="#book" data-tap="jar" aria-label="' + esc(t.jar) + '">' + ICON.jar + (B.head.jar.fresh ? '<b class="wq-jarnew" aria-label="' + esc(t.jarNew) + '"></b>' : '') + '</a>' : '';
-    return '<header class="wq-hhead"><img class="wq-hjug" src="/wq/jugnu/hello.webp" alt="" width="44" height="44">' +
+    return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" src="/wq/jugnu/hello.webp" alt="" width="44" height="44">' +
       '<span class="wq-hhi">' + esc(t.hi(me.first || '')) + dotsHtml(B, t) + '</span>' + jar +
       '<button class="wq-snd" type="button" data-tap="sound" aria-pressed="' + (muted() ? 'false' : 'true') + '" aria-label="' + esc(muted() ? t.sndOff : t.sndOn) + '">' + (muted() ? '🔇' : '🔊') + '</button></header>';
   }
@@ -147,9 +147,17 @@
       '<p class="wq-dsay">' + esc(t[name + 'Say']) + '</p>' + body + '</section>' + barHtml(ctx, name);
   }
 
-  /* ---------------- sound toggle (JUICE §0.1: localStorage wq_snd) ---------------- */
-  function muted() { try { return localStorage.getItem('wq_snd') === '0'; } catch (e) { return false; } }
-  function setMuted(m) { try { localStorage.setItem('wq_snd', m ? '0' : '1'); } catch (e) {} }
+  /* ---------------- sound toggle: ONE switch for the child, two keys on the phone ----------------
+   * JUICE's `wq_snd` ('1'/'0') and the quiz page's `wq_sound` (JSON true/false, it also silences the voice):
+   * off if either says off; a toggle writes both (WQJ.muted/WQJ.mute when the sound kit is loaded). */
+  function muted() {
+    try { if (window.WQJ && typeof window.WQJ.muted === 'function') return Boolean(window.WQJ.muted()); } catch (e) {}
+    try { return localStorage.getItem('wq_snd') === '0' || localStorage.getItem('wq_sound') === 'false'; } catch (e) { return false; }
+  }
+  function setMuted(m) {
+    try { if (window.WQJ && typeof window.WQJ.mute === 'function') return window.WQJ.mute(m); } catch (e) {}
+    try { localStorage.setItem('wq_snd', m ? '0' : '1'); localStorage.setItem('wq_sound', m ? 'false' : 'true'); } catch (e) {}
+  }
   function juice(fn) { try { if (window.WQJ && typeof window.WQJ[fn] === 'function') window.WQJ[fn](); } catch (e) {} }
 
   /* ---------------- mount ---------------- */
@@ -172,6 +180,8 @@
         else if (tap === 'row') { e.preventDefault(); go(ctx, el.getAttribute('href'), 'door_' + el.getAttribute('data-kind')); }
         else if (tap === 'sound') { setMuted(!muted()); mount(root, B, ctx); }
         else if (tap === 'jar') { e.preventDefault(); book(root, B, ctx); }
+        // Tap Jugnu, hear the giggle (the sound kit's sprite; nothing without it).
+        else if (tap === 'jugnu') { try { if (window.WQJ) { if (window.WQJ.giggle) window.WQJ.giggle(); if (window.WQJ.pop) window.WQJ.pop(el); } } catch (x) {} }
       });
     });
     var g = root.querySelector('[data-tap="grownups"]');

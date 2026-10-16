@@ -188,6 +188,23 @@ describe('wq-home.js: mount loads the stories reader only when the server says s
   });
 });
 
+describe('wq-home.js: one sound switch for both keys', () => {
+  function withStore(store, wqj) {
+    const win = {}; if (wqj) win.WQJ = wqj;
+    const ls = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+    vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, localStorage: ls, JSON, Math, String, Number, Array, Object, encodeURIComponent });
+    return win.WQHOME;
+  }
+  test('the quiz page\'s wq_sound=false mutes the home too', () => {
+    const html = withStore({ wq_sound: 'false' }).html(HOME, ctxOf('en'));
+    expect(html).toContain('aria-pressed="false"');
+  });
+  test('WQJ, when loaded, is the one source', () => {
+    const html = withStore({}, { muted: () => true }).html(HOME, ctxOf('en'));
+    expect(html).toContain('aria-pressed="false"');
+  });
+});
+
 // ---- hub.js: the one mount line ------------------------------------------------------------------------------
 function runHub(boot, home) {
   const root = { _h: '', set innerHTML(h) { this._h = h; }, get innerHTML() { return this._h; }, setAttribute() {}, getAttribute: () => 'H2', querySelector: () => null, querySelectorAll: () => [], appendChild() {} };
