@@ -74,7 +74,7 @@ export function StepFrame({
     />
   );
   // While a "ready" banner shows above the menu, the dock stands on top of it (`--notice-banner-h`, NoticeHost):
-  // otherwise the banner covers Next / Make and she must close it first.
+  // otherwise the banner covers Next / Make and the teacher must close it first.
   const dock = (
     <div data-testid="step-dock" className="flex w-full flex-col gap-1.5" style={{ paddingBottom: 'var(--notice-banner-h, 0px)' }}>
       {hint && <p data-testid="step-hint" className="px-1 text-center text-[14px] font-semibold text-[#4b5563]">{hint}</p>}
