@@ -4621,15 +4621,28 @@ CREATE MATERIALIZED VIEW public.mv_dashboard_stats_by_country AS
           GROUP BY ("left"((u.phone_number)::text, 2))
         ), feature_stats AS (
          SELECT "left"((u.phone_number)::text, 2) AS country_code,
-            count(DISTINCT lp.id) AS lesson_plans,
-            count(DISTINCT cs.id) AS coaching_sessions,
-            count(DISTINCT ra.id) AS reading_assessments,
-            count(DISTINCT vr.id) AS video_requests
+            (COALESCE(sum(lp.n), (0)::numeric))::bigint AS lesson_plans,
+            (COALESCE(sum(cs.n), (0)::numeric))::bigint AS coaching_sessions,
+            (COALESCE(sum(ra.n), (0)::numeric))::bigint AS reading_assessments,
+            (COALESCE(sum(vr.n), (0)::numeric))::bigint AS video_requests
            FROM ((((public.users u
-             LEFT JOIN public.lesson_plan_requests lp ON ((lp.user_id = u.id)))
-             LEFT JOIN public.coaching_sessions cs ON ((cs.user_id = u.id)))
-             LEFT JOIN public.reading_assessments ra ON ((ra.user_id = u.id)))
-             LEFT JOIN public.video_requests vr ON ((vr.user_id = u.id)))
+             LEFT JOIN ( SELECT lesson_plan_requests.user_id,
+                    count(*) AS n
+                   FROM public.lesson_plan_requests
+                  WHERE ((lesson_plan_requests.source IS NULL) OR (lesson_plan_requests.delivered_at IS NOT NULL))
+                  GROUP BY lesson_plan_requests.user_id) lp ON ((lp.user_id = u.id)))
+             LEFT JOIN ( SELECT coaching_sessions.user_id,
+                    count(*) AS n
+                   FROM public.coaching_sessions
+                  GROUP BY coaching_sessions.user_id) cs ON ((cs.user_id = u.id)))
+             LEFT JOIN ( SELECT reading_assessments.user_id,
+                    count(*) AS n
+                   FROM public.reading_assessments
+                  GROUP BY reading_assessments.user_id) ra ON ((ra.user_id = u.id)))
+             LEFT JOIN ( SELECT video_requests.user_id,
+                    count(*) AS n
+                   FROM public.video_requests
+                  GROUP BY video_requests.user_id) vr ON ((vr.user_id = u.id)))
           WHERE (COALESCE(u.is_test_user, false) = false)
           GROUP BY ("left"((u.phone_number)::text, 2))
         )
@@ -4651,6 +4664,13 @@ CREATE MATERIALIZED VIEW public.mv_dashboard_stats_by_country AS
      LEFT JOIN message_stats ms ON ((ms.country_code = us.country_code)))
      LEFT JOIN feature_stats fs ON ((fs.country_code = us.country_code)))
   WITH NO DATA;
+
+
+--
+-- Name: MATERIALIZED VIEW mv_dashboard_stats_by_country; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON MATERIALIZED VIEW public.mv_dashboard_stats_by_country IS 'Country stats for the NIETE portal, refreshed concurrently every 5 minutes. total_lesson_plans = lesson_plan_requests rows asked before the lifecycle (source IS NULL) + lifecycle asks delivered (delivered_at IS NOT NULL). Activity tables are counted per user before the join (V1.6.11).';
 
 
 --
