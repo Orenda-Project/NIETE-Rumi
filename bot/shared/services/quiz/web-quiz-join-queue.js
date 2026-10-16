@@ -697,8 +697,10 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       const back = await rows(supabase.from('students').update({ merged_into: null, status: 'active', is_active: true, updated_at: now })
         .eq('id', looseId).eq('merged_into', candidateId).is('list_id', null).select('id'));
       if (!back.length) return { ok: false, reason: 'nothing_to_undo' };
-      await log('undo', await sameTier(teacherUserId, looseId, candidateId));
-      if (await joinedOnTheirOwn(looseId)) joinConfirm('undo', teacherUserId, looseId);
+      const tier = await sameTier(teacherUserId, looseId, candidateId);
+      await log('undo', tier);
+      // a self-joined pair's 'same' is logged with no tier: only such an undo asks whether the child joined on its own
+      if (tier == null && (await selfJoinOn()) && (await joinedOnTheirOwn(looseId))) joinConfirm('undo', teacherUserId, looseId);
       return { ok: true, decision };
     }
     // Not a served pair: today's full checks, unchanged.
