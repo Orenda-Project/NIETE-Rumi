@@ -301,6 +301,11 @@ class MenuService {
         }
 
         case 'menu_quiz': {
+          // the one door (quiz_one_door): the menu's Quiz row is a quiz request like /quiz — a question waiting first, then the ONE reply
+          if (await require('./first-touch/one-door.flags').on()) {
+            await require('./first-touch/one-door.service').replyFromButton({ user, from, door: 'menu', language: clampLanguage(language) });
+            break;
+          }
           // The SAME predicate that decides whether the row is drawn
           // (config/menu-gates), not a second reading of the two conditions.
           // Two definitions of one gate is how a row and its tap end up
