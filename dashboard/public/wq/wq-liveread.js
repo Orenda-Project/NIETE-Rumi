@@ -164,7 +164,7 @@
     ur: { done: 'میں نے پڑھ لیا', doneAsk: 'ہو گیا؟', checking: 'آپ کی آواز سنی جا رہی ہے…', readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', wellRead: 'بہت خوب پڑھا!',
       micAsk: 'بٹن دبائیں تاکہ جگنو آپ کو پڑھتے ہوئے سن سکے۔', micGo: 'پڑھنا شروع کریں', chrome: 'کروم میں کھولیں', listen: 'جگنو سے سن لیں',
       notNow: 'ابھی نہیں، صرف سنیں', stop: 'ابھی کے لیے بس', grownUps: 'بڑوں کے لیے', okListen: 'کوئی بات نہیں۔ آئیں، جگنو سے سنتے ہیں۔',
-      osAsk: 'جب فون پوچھے تو «اجازت دیں» (Allow) دبائیں۔',
+      osAsk: 'جب فون پوچھے تو «اجازت دیں» (\u2066Allow\u2069) دبائیں۔',
       facts: 'آواز صرف پڑھتے وقت الفاظ کو روشن کرنے کے لیے سنی جاتی ہے۔ کہانی کے صفحے پر کچھ بھی محفوظ نہیں ہوتا۔ «ابھی نہیں، صرف سنیں» کسی بھی وقت دبا سکتے ہیں۔' },
   };
   // the controls' glyphs are drawn, never a font character (a ✓ or an emoji falls into the Nastaliq face)
@@ -193,7 +193,8 @@
     var t = Object.assign({}, COPY[o.lang === 'ur' ? 'ur' : 'en'], o.copy || {});
     var src = String(o.src || 'passage').slice(0, 16);
     var ev = function (n, d) { try { if (o.ev) o.ev(n, d); } catch (e) { /* the host's log never breaks the ask */ } };
-    el.innerHTML = '<div class="lr-ask"><p class="lr-say">' + esc(t.micAsk) + '</p>'
+    var dl = o.lang === 'ur' ? ' dir="rtl" lang="ur"' : ' dir="ltr" lang="en"';
+    el.innerHTML = '<div class="lr-ask"' + dl + '><p class="lr-say">' + esc(t.micAsk) + '</p>'
       + '<div class="lr-os-pic">' + OS_PIC + '<p class="lr-os-say">' + esc(t.osAsk) + '</p></div>'
       + '<button class="wq-btn wq-go lr-go" type="button">' + MIC + ' ' + esc(t.micGo) + '</button>'
       + '<button class="wq-btn wq-soft lr-listen" type="button">' + esc(t.notNow) + '</button>'
@@ -210,7 +211,7 @@
       ev('mic_declined', { src: src, how: why });
       var android = /Android/i.test((navigator && navigator.userAgent) || '');
       var href = 'intent://' + location.host + location.pathname + (location.search || '') + '#Intent;scheme=https;package=com.android.chrome;end';
-      el.innerHTML = '<div class="lr-ask"><p class="lr-say">' + esc(t.okListen) + '</p>'
+      el.innerHTML = '<div class="lr-ask"' + dl + '><p class="lr-say">' + esc(t.okListen) + '</p>'
         + '<button class="wq-btn wq-go lr-listen" type="button">' + esc(t.listen) + '</button>'
         + (android && why !== 'notallowederror' ? '<a class="wq-btn wq-soft" href="' + esc(href) + '">' + esc(t.chrome) + '</a>' : '') + '</div>';
       var b = el.querySelector('.lr-listen');
@@ -333,7 +334,7 @@
       }
       if (s.mr && s.mr.state !== 'inactive') { try { s.mr.stop(); } catch (e) { /* stopped */ } }
       // real-time did not work: an honest "checking…" for at most 10 s, then the card from what is known
-      el.innerHTML = '<div class="lr-check"><p class="lr-say">' + esc(t.checking) + '</p></div>';
+      el.innerHTML = '<div class="lr-check" dir="' + (lang === 'ur' ? 'rtl' : 'ltr') + '" lang="' + lang + '"><p class="lr-say">' + esc(t.checking) + '</p></div>';
       var done = false;
       // the host's check may know more words; the hand-off keeps the one result shape (and never a rate)
       var give = function (r) {

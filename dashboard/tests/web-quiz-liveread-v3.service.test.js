@@ -451,6 +451,7 @@ describe('mount(): a story page reads itself (the component alone, a fake DOM an
     D.el.querySelector = (sel) => { const k = D.kids; if (!k[sel]) { k[sel] = { l: {}, addEventListener(n, fn) { this.l[n] = fn; } }; } return k[sel]; };
     E.L.askMic(D.el, { lang: 'en', src: 'story', onStream: () => {}, onNotNow: () => { notNow += 1; }, onDenied: () => { throw new Error('not a denial'); }, ev: (n, d) => evs.push([n, d]) });
     const h = D.el.innerHTML;
+    expect(h).toMatch(/^<div class="lr-ask" dir="ltr" lang="en">/);   // the sheet carries its own direction
     expect(h).toContain('<svg class="lr-os"');                       // the OS prompt as a picture
     expect(h).toMatch(/class="wq-btn wq-go lr-go" type="button"><svg class="lr-mic"/);
     expect(h).toContain('Not now, just listen');
@@ -470,6 +471,7 @@ describe('mount(): a story page reads itself (the component alone, a fake DOM an
     E.L.askMic(D.el, { lang: 'ur', src: 'story', onStream: () => {}, onDenied: (w) => { why = w; }, ev: (n, d) => evs.push([n, d]) });
     D.kids['.lr-go'].l.click();   // getUserMedia only inside this tap
     await E.flush();
+    expect(D.el.innerHTML).toMatch(/^<div class="lr-ask" dir="rtl" lang="ur">/);
     expect(D.el.innerHTML).toContain('کوئی بات نہیں۔ آئیں، جگنو سے سنتے ہیں۔');
     expect(D.el.innerHTML).not.toContain('intent://');   // blocked: Chrome would ask the same, so no Chrome door
     expect(evs).toContainEqual(['mic_declined', { src: 'story', how: 'notallowederror' }]);
