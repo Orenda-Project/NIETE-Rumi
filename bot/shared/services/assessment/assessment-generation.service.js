@@ -885,6 +885,7 @@ const RULE = {
   situationParts: 'Write each situation\'s three sub-questions as objects { question, answer, marks: 2.5, scheme } where scheme.points sum to 2.5; do not prefix a sub-question with a letter.',
   picksVerbatim: 'For each pick kind ask for the count needed plus two extra, copied exactly as the words appear in the passage (same spelling, same form).',
   gender: 'A child or a person in a stem is \'a child\', \'a student\', \'they\', or a named character. Never she/he, his/her for an unnamed person.',
+  people: 'A person in a word problem or story who is not named is \'they\' (a carpenter … they); a named child keeps a name and needs no pronoun.',
   genderUrdu: 'کسی نامعلوم شخص کے لیے صنفی فعل استعمال نہ کریں؛ \'آپ … کریں\' یا نام والا کردار استعمال کریں۔', // needs fluent-Urdu review
   oneKey: 'An anagram, homophone or spelling MCQ has exactly one option that satisfies the stem.',
   oneCorrect: 'Every MCQ has exactly one correct option: check that no other option is also true (another number that fits the rule, a second work by the same author, a value equal to the key).',
@@ -927,8 +928,8 @@ const MATHS_Q1B_WORDS = 4;
 // Maths on chosen pages: the slots whose rule and grain carry FDE's model-paper topics. Each keeps
 // the rule from its marks sentence on (a count and topics come before it) under a topic-free head.
 const MATHS_PAGES_SLOTS = Object.freeze({
-  'maths.A.Q1b': { head: 'Ten one-step items. ', keepFrom: '2 marks each' },
-  'maths.B.Q2': { head: 'Twelve 5-mark items. ', keepFrom: 'Every word problem names its unit' },
+  'maths.A.Q1b': { head: 'Ten one-step items. ', keepFrom: '2 marks each', number_size: 'the sizes these pages use' },
+  'maths.B.Q2': { head: 'Twelve 5-mark items. ', keepFrom: 'Every word problem names its unit', number_size: 'the sizes these pages use' },
 });
 // English on chosen pages: the slot fields that carry FDE's model-paper topic list, and what replaces them.
 // English bans anagram items, so FDE scope's Q1(a) topic list loses its "anagrams" entry at assembly.
@@ -1044,7 +1045,11 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
       return {
         ...s,
         prompt_rule: mathsSlot.head + (at >= 0 ? s.prompt_rule.slice(at) : ''),
-        grain: s.grain && { ...s.grain, kind: s.grain.kind.split(/[,:]/)[0] },
+        grain: s.grain && {
+          ...s.grain,
+          kind: typeof s.grain.kind === 'string' ? s.grain.kind.split(/[,:]/)[0] : s.grain.kind,
+          number_size: mathsSlot.number_size,
+        },
         families: null,
       };
     }
@@ -1126,7 +1131,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
   if (key === 'social_studies' && list.some((s) => /\.Q[56]$/.test(s.slot))) rules.push(RULE.sstQ56);
   if (key === 'urdu' && list.some((s) => /\.Q4$/.test(s.slot))) rules.push(RULE.urduQ4);
-  rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender);
+  rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender, RULE.people);
   if (medium === 'ur') rules.push(RULE.genderUrdu);
   rules.push(RULE.noRepeats);
 
