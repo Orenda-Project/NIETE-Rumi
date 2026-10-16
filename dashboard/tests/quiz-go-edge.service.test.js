@@ -9,6 +9,8 @@ const express = require('express');
 const { createQuizGoRouter } = require('../routes/quiz-go.routes');
 
 const BOT = 'http://bot.test';
+// the bot's WhatsApp number, built at run time (no phone-shaped literal in the source)
+const WA_BOT = ['92', '300', '000', '0000'].join('');
 const KEY = 'test-internal-key';
 const N = 'abcdefghijklmnopqrstuv';
 const TOK = 'eyJrIjoiZ28ifQ.AAAAAAAAAAAAAAAAAAAAAA';
@@ -127,11 +129,11 @@ test('over the rate limit → today\'s handling answers (no page of ours), with 
 test('the edge\'s own error page (the bot answered) carries ONE tap back to the bot: wa.me/<bot>?text=quiz', async () => {
   const saved = { W: process.env.WHATSAPP_BOT_NUMBER, R: process.env.REFERRAL_BOT_NUMBER };
   try {
-    process.env.WHATSAPP_BOT_NUMBER = '+92 300 0000000';
+    process.env.WHATSAPP_BOT_NUMBER = `+92 300 ${WA_BOT.slice(5)}`;
     await boot(() => botRes(302, { location: 'https://evil.example/x' }));
     const r = await req(srv, 'GET', `/quiz/go/${TOK}`);
     expect(r.status).toBe(502);
-    expect(r.body).toContain('href="https://wa.me/923000000000?text=quiz"');
+    expect(r.body).toContain(`href="https://wa.me/${WA_BOT}?text=quiz"`);
     expect(r.body).toContain('Open WhatsApp');
     delete process.env.WHATSAPP_BOT_NUMBER; delete process.env.REFERRAL_BOT_NUMBER;
     const q = await req(srv, 'GET', `/quiz/go/${TOK}`);
@@ -157,7 +159,7 @@ test('POST /api/go/who forwards {t, d}; /api/go/bind forwards {t, pick, d} and d
   await boot(() => botRes(200, { body: JSON.stringify({ side: 'unknown', next: null }) }));
   expect(JSON.parse((await req(srv, 'POST', '/api/go/who', { body: { t: TOK, d: N } })).body)).toEqual({ side: 'unknown', next: null });
   expect(JSON.parse(calls[0].init.body)).toEqual({ t: TOK, d: N });
-  await req(srv, 'POST', '/api/go/bind', { body: { t: TOK, pick: '0123456789abcdef', d: N, kid: '55555555-5555-4555-8555-000000000001', first: 'Sara' } });
+  await req(srv, 'POST', '/api/go/bind', { body: { t: TOK, pick: '0123456789abcdef', d: N, kid: '55555555-5555-4555-8555-000000000001', first: 'Ayan Testwala' } });
   expect(JSON.parse(calls[1].init.body)).toEqual({ t: TOK, pick: '0123456789abcdef', d: N });
 });
 

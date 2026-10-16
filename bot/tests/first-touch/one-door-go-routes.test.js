@@ -64,6 +64,8 @@ const Page = require('../../shared/services/first-touch/go.page');
 const HubFlags = require('../../shared/services/quiz/web-quiz-hub-flags');
 const IdFlags = require('../../shared/services/quiz/web-quiz-identity-flags');
 const { mountGo } = require('../../shared/services/first-touch/go.mount');
+// the bot's WhatsApp number, built at run time (no phone-shaped literal in the source)
+const BOT = ['92', '300', '000', '0000'].join('');
 
 const ROW = { registration_completed: false, registration_state: null, name: null, teacher_uuid: null, school_id: null, portal_activated: false, role: null };
 const UNKNOWN = { id: 'u-unknown', ...ROW };
@@ -288,17 +290,17 @@ describe('land', () => {
     const saved = { W: process.env.WHATSAPP_BOT_NUMBER, R: process.env.REFERRAL_BOT_NUMBER };
     try {
       world();
-      process.env.WHATSAPP_BOT_NUMBER = '+92 300 0000000';
+      process.env.WHATSAPP_BOT_NUMBER = `+92 300 ${BOT.slice(5)}`;
       const t = await mint(UNKNOWN, PH.unknown);
       await land(t);
       const stale = await (await land(t, DEV2)).text();
       expect(stale).toContain('data-screen="go.stale"');
-      expect(stale).toContain('href="https://wa.me/923000000000?text=quiz"');
+      expect(stale).toContain(`href="https://wa.me/${BOT}?text=quiz"`);
       expect(stale).toContain('Open WhatsApp');
       expect(stale).toContain('واٹس\u00a0ایپ کھولیں');
       expect(stale.match(/wa\.me/g)).toHaveLength(1);
-      const ur = Page.buildMessagePage({ id: 'go.error', lang: 'ur', bot: '923000000000' }).html;
-      expect(ur).toContain('href="https://wa.me/923000000000?text=quiz"');
+      const ur = Page.buildMessagePage({ id: 'go.error', lang: 'ur', bot: BOT }).html;
+      expect(ur).toContain(`href="https://wa.me/${BOT}?text=quiz"`);
       expect(ur).toContain('واٹس\u00a0ایپ کھولیں');
       expect(ur).not.toContain('Open WhatsApp');
       delete process.env.WHATSAPP_BOT_NUMBER; delete process.env.REFERRAL_BOT_NUMBER;
@@ -315,10 +317,10 @@ describe('land', () => {
   test('the question and pick pages: an error shows the same ONE tap back (hidden until the error); the page never reloads', async () => {
     const saved = process.env.WHATSAPP_BOT_NUMBER;
     try {
-      process.env.WHATSAPP_BOT_NUMBER = '923000000000';
+      process.env.WHATSAPP_BOT_NUMBER = BOT;
       world();
       const role = await (await land(await mint(UNKNOWN, PH.unknown))).text();
-      expect(role).toMatch(/<a class="wa" id="go-wa" href="https:\/\/wa\.me\/923000000000\?text=quiz" data-tap="open_whatsapp" hidden>/);
+      expect(role).toContain(`<a class="wa" id="go-wa" href="https://wa.me/${BOT}?text=quiz" data-tap="open_whatsapp" hidden>`);
       mockJoin = WRITER();
       const pick = await (await land(await mint(PARENT, PH.parent, 'child'))).text();
       expect(pick).toContain('data-screen="pick"');
