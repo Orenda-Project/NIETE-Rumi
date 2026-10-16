@@ -43,7 +43,7 @@
       whoPlayedHere: "Played on this phone before",
     },
     ur: {
-      cardTitle: "اپنی جگہ واٹس ایپ پر محفوظ کریں",
+      cardTitle: "اپنی جگہ واٹس ایپ پر محفوظ کریں",
       cardSub: "پھر \u2066/quiz\u2069 بھیجنے سے یہ صفحہ اور آپ کے اسٹیکر دوبارہ کھل جائیں گے۔",
       cardBtn: "میری جگہ محفوظ کریں",
       cardLater: "ابھی نہیں",
@@ -54,8 +54,8 @@
       noticeSave: function (name) { return "جگنو اس فون نمبر کو ⁨" + name + "⁩ کے ساتھ جوڑ کر محفوظ کرے گا۔ یہ اسکول کا سال ختم ہونے تک (۳۱ مارچ) رہے گا، اور اگر کھیلنا جاری رہے تو اس کے بعد بھی۔"; },
       noticeStopPhoneOnly: "گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔",
       noticeReadings: function (name) { return "مائیک پر ⁨" + name + "⁩ کی پڑھائی کی ریکارڈنگ بھی رکھی جاتی ہے۔"; },
-      whoSends: "پھر گھر کے بڑے اس فون سے واٹس ایپ پر ایک پیغام بھیجیں۔",
-      sendBtn: "واٹس ایپ پر بھیجیں",
+      whoSends: "پھر گھر کے بڑے اس فون سے واٹس ایپ پر ایک پیغام بھیجیں۔",
+      sendBtn: "واٹس ایپ پر بھیجیں",
       validHour: "یہ کوڈ اگلے ایک گھنٹے تک کام کرے گا۔",
       saved: "محفوظ ہو گیا ✓",
       undoQ: "یہ آپ کے گھر کا فون نہیں؟",
@@ -78,7 +78,7 @@
     var h = String(html)
       .replace(/⁦?\/quiz⁩?/g, '⁦<bdi dir="ltr" class="wqb-chip">/quiz</bdi>⁩')
       .replace(/⁦?\bSTOP\b⁩?/g, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩');
-    // «واٹس ایپ» is one word on the page: never «واٹس / ایپ» across a line (native read, page note 2; wq-tel.js WQT.nowrap)
+    // «واٹس ایپ» is one word on the page: never «واٹس / ایپ» across a line (native read, page note 2; wq-tel.js WQT.nowrap)
     return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h;
   }
   function L(lang) { return T[lang === 'ur' ? 'ur' : 'en']; }

@@ -314,12 +314,14 @@ describe('nothing remembered on the teacher\'s browser', () => {
 
 describe('finish and the events', () => {
   test('the next long-press with nobody left closes the round: class_round_finished exactly, the draw row written; child_done has no pos', async () => {
-    await Round.start(TEACHER, { rng: seeded(9), now: Date.parse('2026-10-20T05:00:00Z') });
+    // one clock with the draw window (built on the real clock) and the routes: a fixed date fell outside the window after 22 Oct
+    const t0 = Date.now();
+    await Round.start(TEACHER, { rng: seeded(9), now: t0 });
     const order = draw().state.order.map((p) => p.id);
     await post(`/round/${tok()}/absent`, { pos: '5' });
     for (let i = 0; i < 5; i += 1) {
       await post(`/round/${tok()}/next`, HOLD);
-      await Round.childFinished(ROUND, order[i], `run-${i}`, { now: Date.parse('2026-10-20T05:40:00Z') });
+      await Round.childFinished(ROUND, order[i], `run-${i}`, { now: t0 + 40 * 60000 });
       await post(`/round/${tok()}/teacher`, HOLD);
     }
     expect(draw().finished_at).toBeNull(); // never closes by itself
