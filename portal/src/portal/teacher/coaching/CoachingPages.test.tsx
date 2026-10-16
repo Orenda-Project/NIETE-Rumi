@@ -146,7 +146,7 @@ describe("the page: no class, the recording first", () => {
     expect(http.get).toHaveBeenCalledWith("/me/grade-subjects", expect.anything());
   });
 
-  it("Upload attaches the file in place: the recording (Listen, Change file), then Lesson plan, Photos and ONE Submit, in that order, on with only a recording", async () => {
+  it("Upload attaches the file in place: Lesson plan (before the recording since 16 Oct), the recording (Listen, Change file), Photos and ONE Submit, in that order, on with only a recording", async () => {
     at(COACHING_NEW);
     await pickClass();
     await waitFor(() => expect(uploadBtn()).toBeTruthy(), { timeout: 5000 });
@@ -163,8 +163,8 @@ describe("the page: no class, the recording first", () => {
     const photos = screen.getByRole("heading", { name: new RegExp(C.photos) });
     const submit = screen.getByRole("button", { name: C.submit }) as HTMLButtonElement;
     const before = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(before(card, plan)).toBe(true);
-    expect(before(plan, photos)).toBe(true);
+    expect(before(plan, card)).toBe(true);
+    expect(before(card, photos)).toBe(true);
     expect(before(photos, submit)).toBe(true);
     expect(screen.getAllByRole("button", { name: C.submit })).toHaveLength(1);
     expect(submit.disabled).toBe(false); // the plan and the photos are optional

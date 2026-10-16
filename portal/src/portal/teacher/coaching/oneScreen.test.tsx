@@ -211,3 +211,18 @@ describe("compact record / upload (operator, 15 Oct: all steps share one screen)
     expect(rec.className).toContain("flex-row");
   });
 });
+
+describe("Lesson plan before the recording (operator, 16 Oct)", () => {
+  it("once a class is picked, Lesson plan (step 2) comes before Recording (step 3), and a plan can be chosen before recording", async () => {
+    at(COACHING_NEW);
+    await pickClass();
+    const plan = await screen.findByRole("heading", { name: new RegExp(C.lessonPlan) });
+    const rec = screen.getByRole("heading", { name: new RegExp(C.recording) });
+    expect(!!(plan.compareDocumentPosition(rec) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    // her recent plan for this class, one tap, with no recording yet
+    fireEvent.click(await screen.findByRole("button", { name: "How plants make food" }));
+    expect(await screen.findByText("How plants make food")).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.recordTitle })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: new RegExp(C.photos) })?.getAttribute("data-step-state")).toBe("upcoming");
+  });
+});

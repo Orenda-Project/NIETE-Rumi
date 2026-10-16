@@ -38,9 +38,10 @@ import { useDcReport } from './useDcReport';
  *
  *   1 Grade and subject   the kit's ClassPicker, as Lesson Plans and Assessment have it (every grade, the Lesson Plans
  *                         catalogue, hers starred), in the grade colours. Sent with the lesson as teacherClass.
- *   2 Recording           Start recording records HERE (clock, level, Pause, Stop and "Yes, finish"); the recording bar's
+ *   2 Lesson plan         optional: her recent plans for this class in one tap, or the plan sheet (photo, library).
+ *                         Before the recording (operator, 16 Oct); it opens with it, so it never holds the recording back.
+ *   3 Recording           Start recording records HERE (clock, level, Pause, Stop and "Yes, finish"); the recording bar's
  *                         Return comes back here. Or Upload recording. Then Listen / Redo / Change file.
- *   3 Lesson plan         optional: her recent plans for this class in one tap, or the plan sheet (photo, library).
  *   4 Photos              up to ten, No faces.
  *   Submit                sends exactly that, with the class; then, on the same screen, the lesson's progress
  *                         (Analysing → Reflection question → Report ready), the question answered here, the leave note
@@ -201,8 +202,10 @@ export function NewObservationPage() {
   const ready = !!cls && !!audio;
   const after = !!sessionId;
   const s1 = cls ? 'done' : 'now';
-  const s2 = !cls ? 'upcoming' : audio ? 'done' : 'now';
-  const s3 = !ready ? 'upcoming' : plan ? 'done' : 'now';
+  // Lesson plan before the recording (operator, 16 Oct): both open once a class is picked; the plan is optional, so it
+  // never holds the recording back.
+  const s2 = !cls ? 'upcoming' : plan ? 'done' : 'now';
+  const s3 = !cls ? 'upcoming' : audio ? 'done' : 'now';
   const s4 = !ready ? 'upcoming' : photos.length ? 'done' : 'now';
   const micLine = micBlockedLine({ browserBlocked, retried: micTries > 0, inApp: isInAppBrowser() }, C);
   const progress = report.state.progress;
@@ -254,7 +257,36 @@ export function NewObservationPage() {
             gradeColours
           />
 
-          <FlowStep n={2} state={s2}>{C.recording}</FlowStep>
+          <FlowStep n={2} state={s2} chips={[C.optional]}>{C.lessonPlan}</FlowStep>
+          {cls && phase !== 'recording' ? (
+            <>
+              {!plan && forClass.length ? (
+                <div className={LIST_CARD}>
+                  {forClass.map((p, i) => (
+                    <button
+                      key={p.planKey}
+                      type="button"
+                      aria-label={p.title || C.planFallback}
+                      className="block w-full text-start"
+                      onClick={() => setPlan({ kind: 'library', pick: pickOf(p), title: p.title || C.planFallback, chips: planChips(p, C.picker) })}
+                    >
+                      <HistoryRow
+                        subject={p.subject ?? cls?.subject ?? ''}
+                        grade={p.grade ?? cls?.grade ?? null}
+                        title={p.title || C.planFallback}
+                        extra={[p.chapterTitle, p.dayLabel].filter(Boolean).join(' · ') || undefined}
+                        action="none"
+                        first={i === 0}
+                      />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} />
+            </>
+          ) : null}
+
+          <FlowStep n={3} state={s3}>{C.recording}</FlowStep>
           {cls && !audio && phase === 'recording' ? (
             <section aria-label={C.recording} className={cn(CARD, 'flex flex-col items-center gap-4 border-2 border-[#c8331f] px-4 py-5')}>
               <span className={cn('inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold', session?.paused ? 'bg-[#fef3c7] text-[#b45309]' : 'bg-[#fee4e2] text-[#c8331f]')}>
@@ -292,35 +324,6 @@ export function NewObservationPage() {
           ) : null}
           {audioProblem ? (
             <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{audioProblem === 'too_large' ? C.tooLarge : C.notAudio}</p>
-          ) : null}
-
-          <FlowStep n={3} state={s3} chips={[C.optional]}>{C.lessonPlan}</FlowStep>
-          {ready ? (
-            <>
-              {!plan && forClass.length ? (
-                <div className={LIST_CARD}>
-                  {forClass.map((p, i) => (
-                    <button
-                      key={p.planKey}
-                      type="button"
-                      aria-label={p.title || C.planFallback}
-                      className="block w-full text-start"
-                      onClick={() => setPlan({ kind: 'library', pick: pickOf(p), title: p.title || C.planFallback, chips: planChips(p, C.picker) })}
-                    >
-                      <HistoryRow
-                        subject={p.subject ?? cls?.subject ?? ''}
-                        grade={p.grade ?? cls?.grade ?? null}
-                        title={p.title || C.planFallback}
-                        extra={[p.chapterTitle, p.dayLabel].filter(Boolean).join(' · ') || undefined}
-                        action="none"
-                        first={i === 0}
-                      />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} />
-            </>
           ) : null}
 
           <FlowStep n={4} state={s4} chips={[C.upToPhotos(DC_MAX_PHOTOS), C.noFaces]}>{C.photos}</FlowStep>
