@@ -232,15 +232,17 @@ async function process(quizId) {
   const since = new Date(now.getTime() - DUE_LOOKBACK_MS).toISOString();
   const [{ data: sameDay }, { data: recentlySent }] = await Promise.all([
     supabase.from('quizzes')
-      .select('id, topic, status, meta').eq('teacher_id', quiz.teacher_id)
+      .select('id, topic, status, meta, quiz_source').eq('teacher_id', quiz.teacher_id)
       .gte('created_at', dayStart),
     supabase.from('quizzes')
-      .select('id, topic, status, meta').eq('teacher_id', quiz.teacher_id)
+      .select('id, topic, status, meta, quiz_source').eq('teacher_id', quiz.teacher_id)
       .eq('status', 'sent').gte('meta->>sent_at', since),
   ]);
   const byId = new Map();
-  for (const q of sameDay || []) byId.set(q.id, q);
-  for (const q of recentlySent || []) if (ownNudgeDueToday(q, now)) byId.set(q.id, q);
+  // A storybook the teacher sent is not a quiet lesson: it is never nudged or counted here.
+  const lesson = (q) => q && q.quiz_source !== 'story';
+  for (const q of sameDay || []) if (lesson(q)) byId.set(q.id, q);
+  for (const q of recentlySent || []) if (lesson(q) && ownNudgeDueToday(q, now)) byId.set(q.id, q);
   byId.delete(quiz.id);
   const others = [...byId.values()];
 

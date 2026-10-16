@@ -108,7 +108,7 @@ function botNumber() {
 
 // ─── Minting ────────────────────────────────────────────────────────────────
 
-async function mintCode({ quizId, userId, videoId, language = 'en', classId = null }) {
+async function mintCode({ quizId, userId, videoId, language = 'en', classId = null, active }) {
   const { data: user } = await supabase
     .from('users').select('name').eq('id', userId).maybeSingle();
   // The fallback is read by CHILDREN in the quiz language ("*your teacher* نے…" was
@@ -131,6 +131,8 @@ async function mintCode({ quizId, userId, videoId, language = 'en', classId = nu
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     };
     if (bindClass) row.class_id = classId;
+    // Minted closed only when asked (a storybook previewed before the teacher sends it); else the table's default.
+    if (active === false) row.active = false;
     const { data, error } = await supabase.from('quiz_share_codes').insert(row).select('id, code').single();
     if (!error && data) {
       if (bindClass) await HandoutClass.fillGradeIfEmpty({ quizId, teacherUserId: userId, classId });

@@ -513,7 +513,11 @@ async function hub(token, opts = {}) {
   const ui = await require('./web-quiz-ur-polish').ui();
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
-  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}) };
+  const out = await hubPayload(token, opts);
+  // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
+  // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
+  const listen = !out.locked && (await Flags.flags()).readalong;
+  return { ...out, rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
 }
 
 module.exports = {

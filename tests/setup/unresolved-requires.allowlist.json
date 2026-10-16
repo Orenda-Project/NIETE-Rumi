@@ -31,5 +31,15 @@
     "spec": "./web-quiz-storybook-next",
     "reason": "Optional storybook candidates (a half-read book, the shelf's unread books) from the stories reader's own module, to be added by the storybook reader change: candidates({ studentId, lang, grade, token, chip }) -> rows of the slot's candidate shape (a half-read book = rule 'resume'). Lazy-required inside a try in storybooks(); until it lands there are no storybook candidates and the resume rule has nothing to offer; the slot ranks the rest.",
     "provider": "the storybook reader's next-thing candidates (bot/shared/services/quiz/web-quiz-storybook-next.js)"
+  },
+  {
+    "from": "bot/shared/services/quiz/story-teacher.service.js",
+    "spec": "../first-touch/teacher-home.token",
+    "reason": "The teacher home's own token verifier (verifyTeacherHome), shipped by the teacher-home PR. Required inside a try/catch in teacherToken(); absent, the same signed 'th' shape is checked locally. Remove this entry when the teacher-home PR lands."
+  },
+  {
+    "from": "bot/shared/services/quiz/story-teacher.service.js",
+    "spec": "../first-touch/teacher-home.copy",
+    "reason": "The teacher home's copy object (returnLine: the way-back line on every forwarded class message), shipped by the teacher-home PR. Required inside a try/catch in returnLine(); absent, the class message has no way-back line. Remove this entry when the teacher-home PR lands."
   }
 ]
