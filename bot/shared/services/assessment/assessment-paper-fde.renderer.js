@@ -826,15 +826,24 @@ const FILLED_BY_CODE = {
   ur: (n) => (n === 1 ? '1 قطار کوڈ نے بھری' : `${n} قطاریں کوڈ نے بھریں`), // needs fluent-Urdu review
 };
 
-function filledByCode(L, all) {
+// `item` is the index in the model's own type list (seen/unseen → category →
+// type), as marking-scheme.js writes it; an entry whose item was removed is not counted.
+function filledByCode(L, examJson) {
   const list = Array.isArray(L.scheme_shortfall) ? L.scheme_shortfall : [];
+  const removed = (e) => ['seen', 'unseen'].some((branch) => Object.values(examJson[branch] || {})
+    .some((types) => types && typeof types === 'object' && Object.values(types)
+      .some((items) => Array.isArray(items) && items[e.item] && items[e.item].slot === e.slot && items[e.item].removed === true)));
+  const seen = new Set();
   return list.filter((e) => {
-    const q = e && all.get(e.slot) && all.get(e.slot)[e.item];
-    return !(q && q.removed === true);
+    if (!e || typeof e !== 'object') return false;
+    const key = `${e.slot}|${e.item}|${e.part}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return !removed(e);
   }).length;
 }
 
-function beforeExamBox(L, live, ctx, paperFileName, grade, all) {
+function beforeExamBox(L, live, ctx, paperFileName, grade, examJson) {
   const lang = ctx.medium;
   const B = L.before_exam;
   const lines = [...B[`lines_${lang}`]];
@@ -887,7 +896,7 @@ function beforeExamBox(L, live, ctx, paperFileName, grade, all) {
   if (!attempts.length) lines[3] = lines[3].replace(lang === 'ur' ? '؛ {attempts}' : '; {attempts}', '');
   lines[3] = fill(lines[3], { sections: where, attempts: attempts.join(lang === 'ur' ? '؛ ' : '; ') });
   lines[4] = fill(lines[4], { t: L[`total_time_${lang}`] || (lang === 'ur' ? '3 گھنٹے' : '3 hrs') });
-  const filled = all ? filledByCode(L, all) : 0;
+  const filled = examJson ? filledByCode(L, examJson) : 0;
   if (filled > 0) lines.push(FILLED_BY_CODE[lang](filled));
   const fileHtml = `<bdi class="file" dir="ltr">${esc(file)}</bdi>`;
   return `<div class="box before"><div class="bt">${textOf(B[`title_${lang}`], ctx)}</div><ol>${lines.map((l) => `<li>${textOf(l, ctx).replace(FILE_MARK, fileHtml)}</li>`).join('')}</ol></div>`;
@@ -1160,7 +1169,7 @@ function renderMarkingScheme({ examJson, grade, subject, paperFileName = null, a
 <div class="title">${textOf(H[`title_${lang}`], ctx)}</div>
 <div class="scheme-title">${textOf(H[`scheme_title_${lang}`], ctx)}</div>
 <div class="covers">${textOf(coversScope, ctx)}</div>
-${beforeExamBox(L, live, ctx, paperFileName, grade, all)}
+${beforeExamBox(L, live, ctx, paperFileName, grade, examJson)}
 ${legendBox(L, ctx, kinds)}
 ${suppliesBox(L, ctx)}`;
 
