@@ -413,6 +413,39 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     expect(p.html()).toContain('id="wq-bind-slot"');
     expect(cards.length).toBe(1);
   });
+  // Both lazy loads on one first open (`play` and `bind` from the unlock): one hub-play.js, one wq-bind.css, one
+  // wq-bind.js, each at hub.js's ?v=; the hub drawn again when either arrives asks for nothing more.
+  function bothStamped(p) {
+    // hub-play.js adds its own <style> once it runs; only the scripts and stylesheets hub.js asked for count here.
+    const tags = p.head.filter((e) => e.tag === 'script' || e.tag === 'link').map((e) => e.tag + ' ' + (e.tag === 'link' ? e.rel + ' ' + e.href : e.src));
+    expect(tags).toEqual(['script /wq/hub-play.js?v=abc123', 'link stylesheet /wq/wq-bind.css?v=abc123', 'script /wq/wq-bind.js?v=abc123']);
+  }
+  test('`play` and `bind` on a first open: each loaded exactly once at hub.js\'s ?v=; hub-play.js arriving first redraws, nothing more loaded', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY, bind: { offer: true, hub: 'tok.tok' } });
+    await p.flush();
+    bothStamped(p);
+    vm.runInContext(PLAY_SRC, p.ctx);
+    p.head[0].l.load();
+    await p.flush();
+    expect(p.html()).toContain('data-shelf="1"');
+    bothStamped(p);
+    p.ctx.WQBIND = { card() {}, t: () => ({}), chipExtra: () => '' };
+    p.head[2].l.load();
+    await p.flush();
+    expect(p.html()).toContain('id="wq-bind-slot"');
+    bothStamped(p);
+  });
+  test('`play` and `bind` on a first open: wq-bind.js arriving first redraws, nothing more loaded', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY, bind: { offer: true, hub: 'tok.tok' } });
+    await p.flush();
+    bothStamped(p);
+    p.ctx.WQBIND = { card() {}, t: () => ({}), chipExtra: () => '' };
+    p.head[2].l.load();
+    await p.flush();
+    expect(p.html()).toContain('id="wq-bind-slot"');
+    expect(p.html()).not.toContain('data-shelf');
+    bothStamped(p);
+  });
   test('no `bind` in the unlock answer: wq-bind is never loaded', async () => {
     const p = firstOpen({ ...BOOTS.done, play: PLAY }, { playLoaded: true });
     await p.flush();

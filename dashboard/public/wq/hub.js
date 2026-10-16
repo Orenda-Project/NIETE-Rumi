@@ -244,46 +244,56 @@
       // Only a hub for one child carries that child's language; with no child picked the bot's lang is a
       // default, and the server render's (from this family's children) stays.
       if (B.kid) setLang(B.lang || LANG);
+      if (B.play && B.play.install) manifestIn();
       boot();
     }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); locked(); });
+  }
+
+  // The install manifest has the same first-open gap: renderHubPage writes <link rel="manifest"> only on an unlocked
+  // render with play.install. Added once, with the server's href (this hub's token, ?kid= for a 16-hex chip).
+  function manifestIn() {
+    try {
+      if (document.querySelector('link[rel="manifest"]')) return;
+      var l = document.createElement('link');
+      l.rel = 'manifest';
+      l.href = '/h/' + TOKEN + '/manifest.webmanifest' + (B.kid && /^[0-9a-f]{16}$/.test(B.kid) ? '?kid=' + B.kid : '');
+      document.head.appendChild(l);
+    } catch (e) {}
   }
 
   /* ---------------- H2 the hub ---------------- */
   // The Jugnu corner's script when the server render had no `play`: a child's first open has no wq_dv cookie yet,
   // so the render was the locked one and the edge left hub-play.js out; unlock() then brings `play`. Loaded once,
   // at hub.js's own ?v=, and the hub drawn again when it arrives (still on the hub, still with `play`).
-  var playAsked = false;
   function playIn() {
-    if (playAsked) return;
-    playAsked = true;
-    try {
-      var me = document.querySelector('script[src*="/wq/hub.js"]');
-      var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
-      var s = document.createElement('script');
-      s.src = '/wq/hub-play.js' + (v ? '?v=' + v[1] : '');
-      s.addEventListener('load', function () { if (window.WQPLAY && B.play && ROOT.getAttribute('data-m') === 'H2') hub(); });
-      document.head.appendChild(s);
-    } catch (e) {}
+    loadOnce('hub-play', false, function () { if (window.WQPLAY && B.play && ROOT.getAttribute('data-m') === 'H2') hub(); });
   }
   // The keep-my-place card's script (wq-bind.js/.css) has the same gap: the edge's bindTags decides before the device
   // is known, so a first open's locked render leaves it out and unlock() then brings `bind`. Loaded once, at hub.js's
   // own ?v=, and the screen that uses it (the hub, or "Who is playing?") drawn again when it arrives.
-  var bindAsked = false;
   function bindIn() {
-    if (bindAsked) return;
-    bindAsked = true;
+    loadOnce('wq-bind', true, function () {
+      if (!window.WQBIND || !B.bind) return;
+      var m = ROOT.getAttribute('data-m');
+      if (m === 'H2') hub(); else if (m === 'H1') picker();
+    });
+  }
+  // The one lazy loader (the Jugnu corner, keep my place, Jugnu's Book): /wq/<name>.js (and, with css, /wq/<name>.css
+  // before it) at hub.js's own ?v=, asked for at most once per page, with onload attached once, when the tag is made,
+  // however often the hub is drawn again while it loads. A failure leaves the page as it is.
+  var asked = {};
+  function loadOnce(name, css, onload, id) {
+    if (asked[name]) return;
+    asked[name] = true;
     try {
       var me = document.querySelector('script[src*="/wq/hub.js"]');
       var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
       var q = v ? '?v=' + v[1] : '';
-      var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/wq-bind.css' + q; document.head.appendChild(l);
+      if (css) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/' + name + '.css' + q; document.head.appendChild(l); }
       var s = document.createElement('script');
-      s.src = '/wq/wq-bind.js' + q;
-      s.addEventListener('load', function () {
-        if (!window.WQBIND || !B.bind) return;
-        var m = ROOT.getAttribute('data-m');
-        if (m === 'H2') hub(); else if (m === 'H1') picker();
-      });
+      if (id) s.id = id;
+      s.src = '/wq/' + name + '.js' + q;
+      s.addEventListener('load', onload);
       document.head.appendChild(s);
     } catch (e) {}
   }
@@ -346,13 +356,15 @@
     // A first open's server render was locked (no wq_dv cookie yet), so the edge left hub-play.js out: load it now.
     if (B.play && !window.WQPLAY) playIn();
     if (B.bind && !window.WQBIND) bindIn();
+    // keep my place's mount (wq-bind.js): under the greeting, or right after the Jugnu card when that leads.
+    var slot = B.bind && window.WQBIND ? '<div id="wq-bind-slot"></div>' : '';
     // The Jugnu corner (hub-play.js, loaded only when the server sent `play`): it may put the Jugnu card first.
     var top = B.play && window.WQPLAY
-      ? window.WQPLAY.top(B, T, { HOME: HOME, lastCard: lastCard(B.last), homeTiles: homeTiles(), teacher: B.teacher ? teacherCard(B.teacher) : '', teacherAny: teacherCard(B.teacher), tiles: tiles, LANG: LANG, MASC: MASC, chHref: '/c/' + withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid))), ROOT: ROOT, ev: ev })
+      ? window.WQPLAY.top(B, T, { afterJug: slot, HOME: HOME, lastCard: lastCard(B.last), homeTiles: homeTiles(), teacher: B.teacher ? teacherCard(B.teacher) : '', teacherAny: teacherCard(B.teacher), tiles: tiles, LANG: LANG, MASC: MASC, chHref: '/c/' + withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid))), ROOT: ROOT, ev: ev })
       : HOME
         ? lastCard(B.last) + homeTiles() + (B.teacher ? teacherCard(B.teacher) : '')
         : teacherCard(B.teacher) + (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '');
-    render(bar() + jug('hello', T.hi(me.first || '')) + (B.bind && window.WQBIND ? '<div id="wq-bind-slot"></div>' : '') + top +
+    render(bar() + jug('hello', T.hi(me.first || '')) + (slot && top.indexOf('id="wq-bind-slot"') < 0 ? slot : '') + top +
       againList(B.again || []) + recList(B.recs || []) +
       ((B.kids || []).length > 1 ? '<button class="wq-btn wq-ghost" id="wq-h-switch">' + ani(me.animal) + ' ' + esc(T.switchKid) + '</button>' : ''), 'H2');
     on('#wq-h-teacher', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'teacher'); });
@@ -368,13 +380,7 @@
     function bookIn() {
       var go = function () { if (window.WQBOOK) window.WQBOOK.hubLine(B, { root: ROOT, token: TOKEN, lang: LANG, ev: ev, back: hub }); };
       if (window.WQBOOK) return go();
-      var was = document.getElementById('wq-bk-js');
-      if (was) return was.addEventListener('load', go);
-      var me = document.querySelector('script[src*="/wq/hub.js"]');
-      var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
-      var q = v ? '?v=' + v[1] : '';
-      var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/wq-book.css' + q; document.head.appendChild(l);
-      var s = document.createElement('script'); s.id = 'wq-bk-js'; s.src = '/wq/wq-book.js' + q; s.addEventListener('load', go); document.head.appendChild(s);
+      loadOnce('wq-book', true, go, 'wq-bk-js');
     }
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-again]'), function (a) {
       a.addEventListener('click', function (e) { e.preventDefault(); go(a.getAttribute('href'), 'again'); });
