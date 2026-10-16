@@ -607,7 +607,7 @@ Feature: Web child quiz page on the portal
     And with one or none it says nothing, and a friend's challenge link never shows it
 
   @T441
-  Scenario: The card says the child's place among today's class finishers
+  Scenario: The card says how many children of the class finished today, never the child's place
     Given two classmates finished this quiz earlier today
     When a child finishes it for the first time
     Then the card says "You're the 3rd in your class to finish today" («آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر 3 ہے»), and the first says "You're the first in your class to finish today!"
