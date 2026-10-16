@@ -450,5 +450,5 @@
     else if (!B.kid) picker();
     else hub();
   }
-  if (LOCKED_BOOT) unlock(); else boot();
+  if (LOCKED_BOOT) unlock(); else if (!(window.WQLISTEN && WQLISTEN.take(boot, render, bar))) boot();
 })();

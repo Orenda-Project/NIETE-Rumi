@@ -471,7 +471,10 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     dbRead('getQuizTimed:quizzes:1', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle()),
   ]);
   mark('questions');
-  if (!questions.length) fail(404, 'no_questions');
+  // A storybook the teacher sent (story-teacher.service, web_quiz_stories_teacher) has no questions: the page joins the
+  // child and opens the book. Any other quiz with none is the 404 it always was.
+  const story = questions.length ? null : await require('./story-teacher.service').storyForQuiz(quizRow, ctx);
+  if (!questions.length && !story) fail(404, 'no_questions');
   // The language the quiz's clips are recorded in (the row's, else its questions' script).
   const voiceLang = clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions));
   // A library lesson's page speaks the lesson's language, never its class code's: a lesson code minted in
@@ -514,7 +517,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
   // Until they are recorded the page is told (audio_pending): it asks again and takes them as they land.
   let audioPending = false;
-  try {
+  if (!story) try {
     const Publish = require('./web-quiz-publish.service');
     audioPending = !Publish.isCurrent(((quizRow && quizRow.meta) || {}).web);
     Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
@@ -599,6 +602,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
+  if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
   return out;
 }
 

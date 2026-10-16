@@ -101,6 +101,9 @@
     var trail = (d.trail_stickers || []).map(function (s) { return STOP_ICON[s] ? '<span class="wq-bk-trail" aria-hidden="true">' + STOP_ICON[s] + '</span>' : ''; }).join('');
     var stickers = (d.story_stickers || []).map(function (s) {
       return '<a class="wq-bk-st" data-pid="' + esc(s.passage_id) + '" href="' + esc(storyHref(ctx, s.passage_id)) + '"><span aria-hidden="true">⭐</span><span dir="auto">' + esc(s.title) + '</span></a>';
+    }).join('') + (d.book_stickers || []).map(function (s) {
+      // A storybook finished (web_quiz_stories): its sticker, not a link (the reader lives behind the Stories door).
+      return '<span class="wq-bk-st wq-bk-sb" data-book="' + esc(s.book_id) + '"><span aria-hidden="true">📖</span><span dir="auto">' + esc(s.title) + '</span></span>';
     }).join('');
     return '<div class="wq-bk-bar"><button class="wq-btn wq-ghost wq-bk-back" id="wq-bk-back">' + esc(t.back) + '</button></div>' +
       '<h1 class="wq-bk-title">' + esc(t.bookTitle(d.name || '')) + '</h1>' +

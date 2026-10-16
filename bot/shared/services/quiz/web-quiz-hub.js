@@ -496,7 +496,12 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await require('./web-quiz-book').hubBits({ studentId: chosen.id })); // Jugnu's Book: {} while web_quiz_challenge_book is off
-  Object.assign(out, await require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history })); // the v3 home's doors + header: {} while web_quiz_home_v3 is off
+  // Stories and the v3 home are independent fields: read side by side, so Stories adds no serial wave.
+  const [storyBits, homeBits] = await Promise.all([
+    require('./web-quiz-stories').hubBits({ studentId: chosen.id }), // Stories: {} while web_quiz_stories is off
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history }), // the v3 home's doors + header: {} while web_quiz_home_v3 is off
+  ]);
+  Object.assign(out, storyBits, homeBits);
   return out;
 }
 
@@ -505,7 +510,11 @@ async function hub(token, opts = {}) {
   const ui = await require('./web-quiz-ur-polish').ui();
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
-  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}) };
+  const out = await hubPayload(token, opts);
+  // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
+  // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
+  const listen = !out.locked && (await Flags.flags()).readalong;
+  return { ...out, rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
 }
 
 module.exports = {

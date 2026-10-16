@@ -22,6 +22,10 @@
  *     lever, unchanged).
  *
  * Every answer logs `quiz_menu.requested {userId, route}` — ids only.
+ *
+ * THE ONE DOOR (switch `quiz_one_door`, first-touch/one-door.service): ON → after 1 and 2, EVERY handset gets ONE
+ * cta_url into the page that decides teacher or child; 3 and 4 (the role menu, the pilot home, the Flow, the list,
+ * "No lessons yet") are never reached. OFF → exactly the four answers above.
  */
 
 const WhatsAppService = require('../whatsapp.service');
@@ -38,6 +42,7 @@ const ROUTES = Object.freeze({
   CHILD_QUIZZES: 'child_quizzes',
   ROLE_MENU: 'role_menu',
   TEACHER_MENU: 'teacher_menu',
+  ONE_DOOR: 'one_door',
 });
 
 /** The question a quiz on this handset is waiting on, or null. Never throws. */
@@ -60,10 +65,11 @@ async function waitingQuestion(from) {
  * @param {string} args.from       the handset
  * @param {string|null} args.language the teacher's resolved language
  * @param {string|null} [args.sessionId] the chat session, for the role menu
- * @param {string} [args.trigger]  what asked: 'text' | 'ingress' (log only)
+ * @param {string} [args.trigger]  what asked: 'text' | 'ingress' | 'menu' | 'home' (log only; the one door's `door`)
+ * @param {string} [args.body]     the words that asked (the one door's script rule and `src`)
  * @returns {Promise<string>} the route taken (ROUTES)
  */
-async function openQuizMenu({ user, from, language = null, sessionId = null, trigger = 'text' }) {
+async function openQuizMenu({ user, from, language = null, sessionId = null, trigger = 'text', body = '' }) {
   const userId = (user && user.id) || null;
   const log = (route, extra = {}) => logEvent('quiz_menu.requested', { userId, route, trigger, ...extra });
 
@@ -83,6 +89,16 @@ async function openQuizMenu({ user, from, language = null, sessionId = null, tri
     log(ROUTES.CHILD_QUIZZES);
     return ROUTES.CHILD_QUIZZES;
   }
+
+  // ── the one door (quiz_one_door): ONE cta_url for every other handset; nothing below is reached ──
+  if (await require('../first-touch/one-door.flags').on()) {
+    const OneDoor = require('../first-touch/one-door.service');
+    const door = trigger === 'menu' || trigger === 'home' ? trigger : 'text';
+    const how = await OneDoor.reply({ user, from, door, body, language });
+    log(ROUTES.ONE_DOOR, { how });
+    return ROUTES.ONE_DOOR;
+  }
+  // ── end the one door ──
 
   // A non-teacher the pilot list NAMES (the operator, a coach on production) walks the
   // teacher path: the /quiz home. "all" never lifts the role gate below.

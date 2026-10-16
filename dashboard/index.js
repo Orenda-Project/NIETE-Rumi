@@ -170,6 +170,8 @@ app.get(ASSET_LINKS_PATH, assetLinksHandler);
 // never answer a quiz link.
 const { createWebQuizRouter } = require('./routes/web-quiz.routes');
 app.use(createWebQuizRouter());
+// the one door: /quiz/go/:token, /api/go/* (switch quiz_one_door at the bot; off → falls through to today's handling)
+app.use(require('./routes/quiz-go.routes').createQuizGoRouter());
 // A child joins on their own: /quiz/join/:token (quiz_student_join, decided by the bot; off → the routes below answer).
 const { createQuizJoinRouter } = require('./routes/quiz-join.routes');
 app.use(createQuizJoinRouter());
@@ -177,6 +179,10 @@ app.use(createQuizJoinRouter());
 // Not /t: that is the training link, mounted further down.
 const { createTeacherReportRouter } = require('./routes/teacher-report.routes');
 app.use(createTeacherReportRouter());
+// A teacher sends a storybook to the class (/api/teacher/stories, /api/teacher/story/share, /quiz/teacher/:th/stories);
+// the bot answers 404 while web_quiz_stories_teacher is off and the page falls through.
+const { createTeacherStoriesRouter } = require('./routes/teacher-stories.routes');
+app.use(createTeacherStoriesRouter());
 // ── first touch: the maker page ──
 app.use(require('./routes/first-touch.routes').createFirstTouchRouter());   // /m/:token, /f/:token, /api/ft/... (switch off at the bot → falls through)
 // ── end first touch ──

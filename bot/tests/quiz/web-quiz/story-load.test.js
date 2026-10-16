@@ -23,7 +23,7 @@ const webp = (w, h, tag) => {
 const h8 = (buf) => crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);
 
 let dir;
-function fixture({ voices = [1, 2], questionsReviewed = 3, band = true, wer = 0.0, drift = 60, wpm = 92, pace = null, grade = 1, mismatch = false, pageWatermark = false, bigPage = false } = {}) {
+function fixture({ voices = [1, 2], questionsReviewed = 3, band = true, wer = 0.0, drift = 60, wpm = 92, pace = null, grade = 1, mismatch = false, pageWatermark = false, bigPage = false, long = false } = {}) {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wqsl-'));
   const serve = path.join(dir, 'serve'); const vdir = path.join(dir, 'voices'); fs.mkdirSync(serve); fs.mkdirSync(vdir);
   fs.writeFileSync(path.join(serve, 'thumb.webp'), webp(240, 357, 'cover'));
@@ -38,7 +38,8 @@ function fixture({ voices = [1, 2], questionsReviewed = 3, band = true, wer = 0.
   };
   const book = { source_id: SRC, slug: 'g1-en-asad-testwala', title: 'Asad Testwala', grade, lang: 'en', slo_english: 'Nouns',
     author: 'Sara Testwala', illustrator: 'Ali Testwala', cover: { file: 'cover.webp', thumb: 'thumb.webp' }, text_ready: true, unsettled_pages: [],
-    pages: [page(1, 'Asad Testwala reads.'), page(2, 'The cat sits.')] };
+    pages: long ? [page(1, 'Asad Testwala reads a book with Sara Testwala under the big tree.'), page(2, 'The cat sits on the mat and the dog runs to it.')]
+      : [page(1, 'Asad Testwala reads.'), page(2, 'The cat sits.')] };
   for (const n of voices) {
     const words = book.pages[n - 1].words.map((w) => ({ i: w.i, t: w.t, s_ms: 400 + 500 * w.i, e_ms: 850 + 500 * w.i }));
     if (mismatch && n === 2) words.pop();
@@ -108,9 +109,9 @@ describe('planBook', () => {
     expect(L.planBook(fixture({ voices: [1] })).why).toEqual(['p02: no voice']);
     expect(L.planBook(fixture({ mismatch: true })).why).toEqual(['p02: voice words differ from the page words']);
     expect(L.planBook(fixture({ wer: 0.2, drift: 150 })).why).toEqual(['p01: voice wer 0.2', 'p02: voice wer 0.2']);
-    expect(L.planBook(fixture({ wpm: 104 })).why).toEqual(['p01: voice pace 104 wpm', 'p02: voice pace 104 wpm']);
-    expect(L.planBook(fixture({ wpm: 104, grade: 3 })).why).toEqual([]);
-    expect(L.planBook(fixture({ wpm: 116, grade: 4 })).why).toEqual(['p01: voice pace 116 wpm', 'p02: voice pace 116 wpm']);
+    expect(L.planBook(fixture({ wpm: 104, long: true })).why).toEqual(['p01: voice pace 104 wpm', 'p02: voice pace 104 wpm']);
+    expect(L.planBook(fixture({ wpm: 104, grade: 3, long: true })).why).toEqual([]);
+    expect(L.planBook(fixture({ wpm: 118, grade: 4, long: true })).why).toEqual(['p01: voice pace 118 wpm', 'p02: voice pace 118 wpm']);
     expect(L.planBook(fixture({ questionsReviewed: 2 })).why).toEqual(['questions: 2 reviewed']);
     expect(L.planBook(fixture({ band: false })).why).toEqual(['p01: no word band', 'p02: no word band']);
     expect(L.planBook(fixture({ pageWatermark: true })).why).toEqual(['p02: watermark']);
@@ -194,20 +195,50 @@ describe('planBook', () => {
   });
 
   test('two pace gates: the whole clip (100 / 115) and the word span (130 / 145)', () => {
-    expect(L.planBook(fixture({ wpm: 104, pace: 98 })).why).toEqual(['p01: voice pace 104 wpm', 'p02: voice pace 104 wpm']);
+    expect(L.planBook(fixture({ wpm: 104, pace: 98, long: true })).why).toEqual(['p01: voice pace 104 wpm', 'p02: voice pace 104 wpm']);
     expect(L.planBook(fixture({ wpm: 95, pace: 125 })).why).toEqual([]);
-    expect(L.planBook(fixture({ wpm: 95, pace: 131 })).why).toEqual(['p01: voice span pace 131 wpm', 'p02: voice span pace 131 wpm']);
+    expect(L.planBook(fixture({ wpm: 95, pace: 133 })).why).toEqual(['p01: voice span pace 133 wpm', 'p02: voice span pace 133 wpm']);
     expect(L.planBook(fixture({ wpm: 110, pace: 140, grade: 3 })).why).toEqual([]);
-    expect(L.planBook(fixture({ wpm: 110, pace: 146, grade: 5 })).why).toEqual(['p01: voice span pace 146 wpm', 'p02: voice span pace 146 wpm']);
-    const f = fixture({ pace: 120 });
+    expect(L.planBook(fixture({ wpm: 110, pace: 148, grade: 5 })).why).toEqual(['p01: voice span pace 148 wpm', 'p02: voice span pace 148 wpm']);
+    const f = fixture({ pace: 120, long: true });
     for (const n of [1, 2]) {
       const vj = path.join(f.voiceDir, `p0${n}.json`); const j = JSON.parse(fs.readFileSync(vj, 'utf8')); delete j.wpm; fs.writeFileSync(vj, JSON.stringify(j));
-      const qj = path.join(f.voiceDir, `p0${n}.qa.json`); fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), wpm_clip: n === 1 ? 99 : 101 }));
+      const qj = path.join(f.voiceDir, `p0${n}.qa.json`); fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), wpm_clip: n === 1 ? 99 : 103 }));
     }
-    expect(L.planBook(f).why).toEqual(['p02: voice pace 101 wpm']);
+    expect(L.planBook(f).why).toEqual(['p02: voice pace 103 wpm']);
     const g = fixture({ pace: 120 });
     const vj = path.join(g.voiceDir, 'p01.json'); const j = JSON.parse(fs.readFileSync(vj, 'utf8')); delete j.wpm; fs.writeFileSync(vj, JSON.stringify(j));
     expect(L.planBook(g).why).toEqual(['p01: voice pace unknown wpm']);
+  });
+
+  test('both pace gates keep a 2 % measurement tolerance, and no more', () => {
+    expect(L.planBook(fixture({ wpm: 102, pace: 132.6, long: true })).why).toEqual([]);
+    expect(L.planBook(fixture({ wpm: 102.1, pace: 120, long: true })).why).toEqual(['p01: voice pace 102.1 wpm', 'p02: voice pace 102.1 wpm']);
+    expect(L.planBook(fixture({ wpm: 95, pace: 132.7, long: true })).why).toEqual(['p01: voice span pace 132.7 wpm', 'p02: voice span pace 132.7 wpm']);
+    expect(L.planBook(fixture({ wpm: 117.3, pace: 147.9, grade: 3, long: true })).why).toEqual([]);
+    expect(L.planBook(fixture({ wpm: 117.4, pace: 148, grade: 5, long: true })).why).toEqual(['p01: voice pace 117.4 wpm', 'p01: voice span pace 148 wpm', 'p02: voice pace 117.4 wpm', 'p02: voice span pace 148 wpm']);
+  });
+
+  test('a page under 10 words: the whole-clip gate is 115 in every grade, and the span gate decides', () => {
+    expect(L.planBook(fixture({ wpm: 108.9, pace: 128.4 })).why).toEqual([]);
+    expect(L.planBook(fixture({ wpm: 117.3, pace: 120 })).why).toEqual([]);
+    expect(L.planBook(fixture({ wpm: 117.4, pace: 120 })).why).toEqual(['p01: voice pace 117.4 wpm', 'p02: voice pace 117.4 wpm']);
+    expect(L.planBook(fixture({ wpm: 108.9, pace: 133 })).why).toEqual(['p01: voice span pace 133 wpm', 'p02: voice span pace 133 wpm']);
+    // Ten words or more: the grade's own gate.
+    expect(L.planBook(fixture({ wpm: 108.9, pace: 128.4, long: true })).why).toEqual(['p01: voice pace 108.9 wpm', 'p02: voice pace 108.9 wpm']);
+  });
+
+  test('a wer miss ships only when the voice build waived it for a listen (both marks), never on one mark alone', () => {
+    const qa = (f, extra) => {
+      const qj = path.join(f.voiceDir, 'p02.qa.json');
+      fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), wer: 0.182, ...extra }));
+      return L.planBook(f).why;
+    };
+    expect(qa(fixture(), {})).toEqual(['p02: voice wer 0.182']);
+    expect(qa(fixture(), { listen_asked: true, waived: ['wer 0.182 (one short word misheard by every recogniser; listen asked)'] })).toEqual([]);
+    expect(qa(fixture(), { listen_asked: true })).toEqual(['p02: voice wer 0.182']);
+    expect(qa(fixture(), { waived: ['wer 0.182'] })).toEqual(['p02: voice wer 0.182']);
+    expect(qa(fixture(), { listen_asked: true, waived: ['pace 104'] })).toEqual(['p02: voice wer 0.182']);
   });
 
   test('a voice with no span pace anywhere fails gate B; a span pace in the check file alone is read', () => {
