@@ -712,7 +712,8 @@ async function menu(token, { kid, lang, device } = {}) {
     }),
     ...(rules.record ? { record: true } : {}),
     ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang) } : {}),
-    ...(w.round ? { round_turn: true } : {}),
+    // a round turn is served only under _v2 (exercise() refuses it 409 without), so the hand-back card is drawn only then
+    ...(w.round && rules.v2 ? { round_turn: true } : {}),
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await Tel.flag(),
     ...((await require('./web-quiz-ur-polish').ui()) ? { ui: { ur2: true } } : {}),
@@ -1432,7 +1433,7 @@ async function roundGame(c, rules) {
 }
 // A round turn's page: nothing on it marks the counted cut (no practice banner, no mode), and it carries the same
 // warm line for after every item.
-// round_turn: a round run is no voluntary counted stop (NC4, RULING #43), so its end card prints no sticker line and
+// round_turn: a round run is no voluntary counted stop (the sampling design's NC4), so its end card prints no sticker line and
 // its one button hands the phone back (jg.round.c_handback) via the turn's own /c/<token>/back (round_back), which the
 // server answers with the round page the teacher opened; the teacher's report token never reaches the child's page.
 function roundPayload(w, payload, token) {

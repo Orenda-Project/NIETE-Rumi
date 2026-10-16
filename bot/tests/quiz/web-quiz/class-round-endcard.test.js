@@ -1,6 +1,6 @@
 'use strict';
 /**
- * A round turn's end card and trail, the server side. A round run is not a voluntary counted stop (NC4, RULING #43):
+ * A round turn's end card and trail, the server side. A round run is not a voluntary counted stop (the sampling design's NC4):
  * its payload says round_turn so the page prints no sticker line and hands the phone back (the turn's own /back, which
  * the server answers with the round page the teacher opened; the report token never leaves the server), and the turn's trail marks the games already stored for this turn done.
  * Nothing changes for a home or quiz run. The real Challenge service, tokens, item bank and round service run;
@@ -77,6 +77,8 @@ beforeEach(() => {
 });
 
 const draw = () => DB.class_round_draws[0];
+// the teacher's phone (its wq_dv, which the edge gives a phone that has none)
+const TDEV = 'DeviceRefTeacher_00001';
 const HOLD = { act: 'hold', hold: 700 };
 // The teacher opens the round page with their report token, calls the next child, and the child's play link is the
 // one the round page renders (as the phone gets it).
@@ -136,10 +138,10 @@ describe('roundPayload: a round run says round_turn and where the phone goes bac
   });
 
   test('backTo: the turn token leads to the round page of the same report token, the hand-back card once the turn is done', async () => {
-    const { rt, token } = await openTurn();
+    const { rt, token } = await openTurn('en', TDEV);
     await playBigger(token);
     await Round.childFinished(ROUND, draw().state.order[draw().state.cur].id, 'r0');
-    expect(await Round.backTo(token, { lang: 'ur' })).toBe(`/r/${encodeURIComponent(rt)}/round?lang=ur`);
+    expect(await Round.backTo(token, { lang: 'ur', device: TDEV })).toBe(`/r/${encodeURIComponent(rt)}/round?lang=ur`);
     const v = Token.verifyTeacherReport(rt);
     expect(await Round.screen(v.teacherId, { lang: 'en', token: rt })).toContain(Page.T.en.cHandback);
   });
@@ -158,15 +160,15 @@ describe('roundPayload: a round run says round_turn and where the phone goes bac
   });
 
   test('backTo reads the round row: the teacher takes the phone back or calls the next child -> the earlier turn goes home (null)', async () => {
-    const { token } = await openTurn();
+    const { token } = await openTurn('en', TDEV);
     await playBigger(token);
     await Round.childFinished(ROUND, draw().state.order[draw().state.cur].id, 'r0');
-    expect(await Round.backTo(token, { lang: 'en' })).not.toBeNull();
+    expect(await Round.backTo(token, { lang: 'en', device: TDEV })).not.toBeNull();
     await Round.toTeacher(TEACHER, HOLD);
-    expect(await Round.backTo(token, { lang: 'en' })).toBeNull();
+    expect(await Round.backTo(token, { lang: 'en', device: TDEV })).toBeNull();
     await Round.next(TEACHER, HOLD);
     expect(draw().state.cur).toBe(1);
-    expect(await Round.backTo(token, { lang: 'en' })).toBeNull();
+    expect(await Round.backTo(token, { lang: 'en', device: TDEV })).toBeNull();
   });
 
   test('backTo: a kept report token that is not the round row\'s teacher\'s -> null', async () => {
@@ -189,6 +191,25 @@ describe('roundPayload: a round run says round_turn and where the phone goes bac
     expect(await Round.backTo(token, { lang: 'en', device: DEV })).toBe(`/r/${encodeURIComponent(rt)}/round?lang=en`);
     expect(await Round.backTo(token, { lang: 'en', device: 'DeviceRefOther_0000001' })).toBeNull();
     expect(await Round.backTo(token, { lang: 'en' })).toBeNull();
+  });
+
+  test('backTo fails closed: a round page opened with no device kept -> null for every phone, the teacher\'s too', async () => {
+    const { token } = await openTurn();
+    await playBigger(token);
+    await Round.childFinished(ROUND, draw().state.order[draw().state.cur].id, 'r0');
+    expect(await Round.backTo(token, { lang: 'en', device: 'DeviceRefTeacher_00001' })).toBeNull();
+    expect(await Round.backTo(token, { lang: 'en' })).toBeNull();
+  });
+
+  test('a round token with web_quiz_challenge_v2 off -> no round_turn in the menu payload', async () => {
+    const { token } = await openTurn();
+    DB.app_settings.find((s) => s.key === 'web_quiz_challenge_v2').value = false;
+    Ch.__reset();
+    let m = null;
+    try { m = await Ch.menu(token, { lang: 'en' }); } catch (e) { m = { refused: e.status }; }
+    expect(m).not.toHaveProperty('round_turn');
+    // and the start of a game is refused as before
+    await expect(Ch.exercise(token, 'bigger', { lang: 'en' })).rejects.toMatchObject({ status: 409 });
   });
 
   test('golden: a home (quiz) run carries no round_turn, no hand-back, no round page', async () => {
@@ -238,10 +259,10 @@ describe('GET /api/internal/wq/ch/:token/back: where the hand-back button goes',
   const KEY = { 'x-api-key': 'test-internal-key' };
 
   test('/c/<tt>/back (bot side): the round page of the report token the teacher opened, in the asked language', async () => {
-    const { rt, token } = await openTurn();
+    const { rt, token } = await openTurn('en', TDEV);
     const { srv, base } = await app();
     try {
-      const r = await fetch(`${base}/ch/${token}/back?lang=ur`, { headers: KEY });
+      const r = await fetch(`${base}/ch/${token}/back?lang=ur`, { headers: { ...KEY, 'x-wq-device': TDEV } });
       expect(r.status).toBe(200);
       expect(await r.json()).toEqual({ to: `/r/${encodeURIComponent(rt)}/round?lang=ur` });
     } finally { srv.close(); }

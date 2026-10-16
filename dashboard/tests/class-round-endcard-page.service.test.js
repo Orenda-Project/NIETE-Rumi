@@ -1,6 +1,6 @@
 /**
  * A class round turn on the Challenge page (public/wq/wq-challenge.js + wq-trail.js, run whole in the harness's vm;
- * only the browser and the network are faked). A round run is no voluntary counted stop (NC4, RULING #43): when the
+ * only the browser and the network are faked). A round run is no voluntary counted stop (the sampling design's NC4): when the
  * serve says round_turn the end card prints no sticker line and its only button hands the phone back to the round
  * page; the turn's trail shows the games already stored for this turn done and does not start them again. A check run's
  * end card keeps its sticker line and Home.

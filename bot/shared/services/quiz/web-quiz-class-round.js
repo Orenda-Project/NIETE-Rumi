@@ -339,8 +339,8 @@ function turnToken(round, studentId) {
 
 // The hand-back (the end card's one button, GET /c/<turn token>/back): the report token the teacher opened the round
 // page with stays on the server, in Redis under a hash of the turn (round|child|exp), for the turn's life, with a hash
-// of the phone the round page was opened on (when the edge knew it). It is never in the child's link, page, the DB, a
-// log or an event. The turn token's claims stay { k, rd, sid, exp }.
+// of the phone the round page was opened on (the edge gives a phone without one a wq_dv). It is never in the child's
+// link, page, the DB, a log or an event. The turn token's claims stay { k, rd, sid, exp }.
 const BACK_RX = /^[A-Za-z0-9_-]{8,600}\.[A-Za-z0-9_-]{22}$/;
 const hash32 = (s) => require('crypto').createHash('sha256').update(s).digest('hex').slice(0, 32);
 const backKey = (c) => `wq:cr:back:${hash32(`${c.rd}|${c.sid}|${c.exp}`)}`;
@@ -353,7 +353,8 @@ async function keepBack(tt, back, device) {
 /**
  * The round page a turn token's phone goes back to, or null (the caller sends it home). Read from the round row: the
  * kept report token must be the round's own teacher's, the round still on this child's turn (to play, or just done),
- * and the asking phone the one the round page was opened on (when that phone was known).
+ * and the asking phone the one the round page was opened on. No phone kept: null (the turn's own page; the teacher
+ * reopens the report link), never the round page to whoever holds the turn link.
  */
 async function backTo(tt, { lang, device } = {}) {
   const c = typeof tt === 'string' ? T.verify(tt, 'r') : null;
@@ -361,7 +362,7 @@ async function backTo(tt, { lang, device } = {}) {
   let kept = null;
   try { kept = await require('../cache/railway-redis.service').get(backKey(c)); } catch (_) { kept = null; }
   if (!kept || typeof kept.b !== 'string' || !BACK_RX.test(kept.b)) return null;
-  if (kept.d && kept.d !== deviceOf(device)) return null;
+  if (!kept.d || kept.d !== deviceOf(device)) return null;
   const v = require('./teacher-report-token').verifyTeacherReport(kept.b);
   if (!v) return null;
   const draw = await openDrawFor(v.teacherId);

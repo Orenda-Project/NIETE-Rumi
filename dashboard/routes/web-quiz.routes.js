@@ -378,7 +378,7 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
   const record = (method, route, t0, fields) => {
     try { logEvent('web_quiz.bot_call', { route, method, ms: now() - t0, ...fields }); } catch (_) { /* never decides a response */ }
   };
-  return async function callBot(method, pathname, req, body, { raw = false, route = null } = {}) {
+  return async function callBot(method, pathname, req, body, { raw = false, route = null, device = null } = {}) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
     const t0 = now();
@@ -388,7 +388,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       const ua = req.get('user-agent');
       if (ua) headers['user-agent'] = ua.slice(0, 300);
       // This phone's device_ref (the wq_dv cookie the hub page writes): a hub link opens nothing as a child on another phone.
-      const dv = deviceCookie(req);
+      // (`device`: a ref the caller just gave this phone, before its cookie comes back)
+      const dv = device || deviceCookie(req);
       if (dv) headers['x-wq-device'] = dv;
       const init = { method, headers, redirect: 'manual' };
       if (controller) init.signal = controller.signal;
