@@ -2,11 +2,11 @@
  * Editing a board-pattern paper.
  *
  * A teacher can take a question off an FDE paper, put it back, and change its
- * wording, marks or answer; the next version keeps the pattern's shape. So the
+ * wording or answer; the next version keeps the pattern's shape. So the
  * selection keeps `_layout` (without it the paper would print as a plain paper),
  * the printed counts follow the questions still on the paper ("any eight of the
- * following eleven"), a changed mark or answer drops the marking-scheme points
- * that were worked for the old one, and adding a question is refused — the
+ * following eleven"), a changed answer drops the marking-scheme points that
+ * were worked for the old one, and adding a question is refused — the
  * pattern fixes how many questions each slot holds.
  *
  * The editor service, the selection, the edit rules, the renderer and the route
@@ -121,13 +121,13 @@ describe('the selection keeps the pattern (E8.1)', () => {
   });
 });
 
-describe('a changed mark or answer drops the worked scheme points (E8.2)', () => {
+describe('a changed answer drops the worked scheme points (E8.2; marks: fde-edit-marks.test.js)', () => {
   const q2 = () => Selection.indexQuestions(EXAM).find((q) => q.question.slot === 'maths.B.Q2').question;
 
-  test('marks: points gone, checked null, accept and common error kept', () => {
+  test('answer, mark echoed: points gone, checked null, accept and common error kept', () => {
     const before = { ...q2(), scheme: { ...q2().scheme, checked: 'ok', common_error: 'x' } };
-    const out = Edit.applyEdit(before, { marks: '4' });
-    expect(out.marks).toBe(4);
+    const out = Edit.applyEdit(before, { marks: '5', answer: 'Seven million and more' });
+    expect(out.marks).toBe(5);
     expect(out.scheme.points).toBeUndefined();
     expect(out.scheme.checked).toBeNull();
     expect(out.scheme.accept).toEqual(before.scheme.accept);
@@ -157,11 +157,11 @@ describe('a changed mark or answer drops the worked scheme points (E8.2)', () =>
     expect(out.scheme.checked).toBeNull();
   });
 
-  test("a sub-question's own scheme (situation, comprehension) loses its points when its marks change", () => {
+  test("a sub-question's own scheme (situation, comprehension) loses its points when its answer changes", () => {
     const parent = { slot: 'english.C.Q6', question: 'Read the situation and answer.', questions: [
       { question: 'What should the child say?', answer: 'Sorry', marks: 2, scheme: { points: [{ text: 'an apology', marks: 2, kind: 'A' }], checked: 'ok' } },
       { question: 'Why?', answer: 'He was late', marks: 2, scheme: { points: [{ text: 'late', marks: 2, kind: 'A' }], checked: 'ok' } }] };
-    const out = Edit.applyEdit(parent, { subIndex: 0, marks: '3' });
+    const out = Edit.applyEdit(parent, { subIndex: 0, marks: '2', answer: 'I am sorry' });
     expect(out.questions[0].scheme.points).toBeUndefined();
     expect(out.questions[0].scheme.checked).toBeNull();
     expect(out.questions[1].scheme).toEqual(parent.questions[1].scheme);

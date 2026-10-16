@@ -148,10 +148,10 @@ describe('buildVersion on a board-pattern paper (E8.4)', () => {
     expect(mockRenders).toHaveLength(0);
   });
 
-  test('a marks edit lands on the v2 tree without its old scheme points', async () => {
+  test('an answer edit lands on the v2 tree without its old scheme points', async () => {
     const id = q2Ids(EXAM)[0];
     const Edit = require('../../bot/shared/services/assessment/assessment-edit');
-    const edited = Selection.replaceAt(EXAM, id, Edit.applyEdit(Selection.indexQuestions(EXAM).find((q) => q.id === id).question, { marks: '4' }));
+    const edited = Selection.replaceAt(EXAM, id, Edit.applyEdit(Selection.indexQuestions(EXAM).find((q) => q.id === id).question, { answer: 'Seven million and more' }));
     const out = await Revision.buildVersion({ parentId: 'v1', userId: U, tree: edited });
     expect(out.status).toBe('ready');
     const q = Selection.indexQuestions(newRow().exam_json).find((x) => x.id === id).question;

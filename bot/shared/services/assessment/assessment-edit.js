@@ -242,10 +242,23 @@ function _sameList(a, b) {
   return x.length === y.length && x.every((v, i) => v === y[i]);
 }
 
-/** Marks: a positive whole number, or left exactly as it was. */
-function marksFrom(raw, previous) {
+// A board pattern fixes what each question is worth: the paper prints one count per part.
+const PATTERN_FIXED_MARKS = 'PATTERN_FIXED_MARKS';
+const PATTERN_FIXED_MARKS_MESSAGE = "Board-pattern papers fix each question's marks.";
+
+/**
+ * Marks: a positive whole number, or left exactly as it was. The mark sent back
+ * unchanged is not an edit, even a fraction the paper already carries (1.25).
+ * On a board-pattern question (`fixed`) any other mark is refused.
+ */
+function marksFrom(raw, previous, { fixed = false } = {}) {
   if (raw === undefined || raw === null || String(raw).trim() === '') return previous;
   const n = Number(String(raw).trim());
+  const echo = previous != null && String(previous).trim() !== '' && n === Number(previous);
+  if (fixed && !echo) {
+    throw Object.assign(new Error(PATTERN_FIXED_MARKS_MESSAGE), { code: 'EDIT_REJECTED', errorCode: PATTERN_FIXED_MARKS });
+  }
+  if (echo && !Number.isInteger(n)) return previous;
   if (!Number.isInteger(n) || n < 1) fail('Marks must be a whole number, 1 or more.');
   return n;
 }
@@ -286,7 +299,7 @@ function applyEdit(question, edit) {
       }
     }
     if (e.answer !== undefined) _setAnswer(sub, e.answer);
-    const m = marksFrom(e.marks, sub.marks);
+    const m = marksFrom(e.marks, sub.marks, { fixed: Boolean(q.slot) });
     if (m !== undefined) sub.marks = m;
     const before = typeof question.questions[i] === 'string' ? {} : question.questions[i];
     // A sub-question can carry its own scheme (situation, comprehension); the
@@ -362,7 +375,7 @@ function applyEdit(question, edit) {
 
   _setLines(q, e.lines, e.linesDefault);
 
-  const m = marksFrom(e.marks, q.marks);
+  const m = marksFrom(e.marks, q.marks, { fixed: Boolean(q.slot) });
   if (m !== undefined) q.marks = m;
 
   if (_markedDifferently(question, q)) _dropWorkedPoints(q);
@@ -444,4 +457,5 @@ function newQuestion(kind, edit) {
 module.exports = {
   shapeOf, fieldsFor, applyEdit, SHAPES, SLOT_CAP,
   correctIndexOf, newQuestion, NEW_DEFAULTS, LINES_MAX, ANSWER_MAX, RADIO_TITLE_MAX,
+  PATTERN_FIXED_MARKS, PATTERN_FIXED_MARKS_MESSAGE,
 };
