@@ -37,7 +37,7 @@ const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 const PS_RX = /^[a-z0-9]{8,16}$/;
 // hub_open.src's route values (EVENTS row 3). Mirrors SRC_VALUES in bot/shared/services/quiz/web-quiz-hub-play.js:
 // the edge cannot load the bot's modules, so keep the two lists the same.
-const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend)$/;
+const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join)$/;
 // A signed hub token (bot web-quiz-token.js): base64url payload "." 22-char signature.
 const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
@@ -114,6 +114,9 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/linkhome', limiter: 'session' },
   // the finish card (web_quiz_card_v3): a card token for this child's finish (the bot answers 404 while it is off)
   { method: 'post', path: '/api/wq/card', limiter: 'session' },
+  // a child joins on their own (quiz_student_join; the bot answers {off:true} with it off): the grade tap, the one write
+  { method: 'post', path: '/api/wq/join/grade', limiter: 'read' },
+  { method: 'post', path: '/api/wq/join', limiter: 'session' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
@@ -380,6 +383,12 @@ function bindTags(payload, assetV) {
   return `<link rel="stylesheet" href="/wq/wq-bind.css?v=${assetV}">\n<script src="/wq/wq-bind.js?v=${assetV}" defer></script>\n`;
 }
 
+// The v3 child home: its stylesheet and script, only when the bot's hub JSON carries `home_v3` (web_quiz_home_v3 on).
+function homeTags(payload, assetV) {
+  if (!payload || !payload.home_v3) return '';
+  return `<link rel="stylesheet" href="/wq/wq-home.css?v=${assetV}">\n<script src="/wq/wq-home.js?v=${assetV}" defer></script>\n`;
+}
+
 // The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
 // renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
 function hubPageParts({ payload, token, origin, assetV }) {
@@ -395,7 +404,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-${bindTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
+${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };

@@ -20,7 +20,8 @@
  * today's 8-item list (web-quiz-videos.list).
  *
  * app_settings `web_quiz_videos_v3` (off unless the JSON true; off = all of the above unchanged):
- *   - only the videos in the child's language, plus those with no language (the hub: the child's own
+ *   - only the videos in the child's language, plus those with no language, inside each subject that has any in
+ *     the child's language (a subject with none is shown as it is) (the hub: the child's own
  *     language, else the page's ?l=; a quiz code: the page's ?l=, else the code's language);
  *   - chapters and titles with their numbers compared as numbers (Order.compareVideosNatural);
  *   - each chapter's `art` (its first poster) and `tile: 'neutral'`: a broken poster falls back to the
@@ -51,11 +52,30 @@ const langOf = (l) => (l === 'en' || l === 'ur' ? l : null);
 
 const { bank, track, studentFromSt, doneQuizzes, classCodes, languages } = require('./web-quiz-bank');
 
-/** web_quiz_videos_v3: the bank as a child of `lang` sees it (a video with no language is for both). */
+/**
+ * web_quiz_videos_v3: the bank as a child of `lang` sees it. Inside a grade's subject that is in the child's language
+ * (at least LANG_FLOOR of its videos, or LANG_SHARE of them), the other language's videos are left out (a video with
+ * no language is for both). A subject with fewer is shown whole, the child's language first; a subject with none in
+ * the child's language is shown as it is, so no subject disappears (e.g. Maths taught in English to an Urdu child).
+ */
+const LANG_FLOOR = 3;
+const LANG_SHARE = 0.25;
 async function inLanguage(ix, lang) {
   const of = lang ? await languages() : null;
   if (!of) return ix;
-  return { ...ix, rows: ix.rows.filter((r) => !of.has(r.id) || of.get(r.id) === lang) };
+  const group = (r) => `${r.grade}|${r.subject}`;
+  const all = new Map();
+  const own = new Map();
+  for (const r of ix.rows) {
+    all.set(group(r), (all.get(group(r)) || 0) + 1);
+    if (of.get(r.id) === lang) own.set(group(r), (own.get(group(r)) || 0) + 1);
+  }
+  const hasLang = new Set([...own].filter(([k, n]) => n >= LANG_FLOOR || n >= LANG_SHARE * all.get(k)).map(([k]) => k));
+  // A thin subject is shown whole; its videos in the child's language are listed first.
+  const ownFirst = new Set(ix.rows.filter((r) => own.has(group(r)) && !hasLang.has(group(r)) && of.get(r.id) === lang).map((r) => r.id));
+  // A subject shown as it is because all its videos are in another language is listed after the others.
+  const otherOnly = new Set(ix.rows.filter((r) => !own.has(group(r)) && of.has(r.id) && of.get(r.id) !== lang).map(group));
+  return { ...ix, rows: ix.rows.filter((r) => !hasLang.has(group(r)) || !of.has(r.id) || of.get(r.id) === lang), otherLast: otherOnly, ownFirst };
 }
 
 // ─── the views ───────────────────────────────────────────────────────────────
@@ -70,7 +90,9 @@ function subjectsView(ix, grade) {
   const grades = [...byGrade.keys()].filter((g) => Order.GRADE_ORDER.includes(g))
     .sort((a, b) => Order.gradeRank(a) - Order.gradeRank(b))
     .map((g) => ({ g, n: byGrade.get(g), art: gradeArt(g) }));
-  const subjects = [...bySubject.keys()].filter(Boolean).sort(Order.compareSubjects)
+  // web_quiz_videos_v3: a subject shown only in another language comes after the child's own; each group in order.
+  const first = (k) => (ix.otherLast && ix.otherLast.has(`${grade}|${k}`) ? 1 : 0);
+  const subjects = [...bySubject.keys()].filter(Boolean).sort((a, b) => first(a) - first(b) || Order.compareSubjects(a, b))
     .map((s) => ({ key: s, n: bySubject.get(s), art: subjectArt(s) }));
   return { grade, grades, subjects };
 }
@@ -79,6 +101,8 @@ async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, 
   const Videos = require('./web-quiz-videos');
   const Media = require('./web-quiz-media');
   const rows = ix.rows.filter((r) => String(r.grade) === grade && r.subject === subject).sort(v3 ? Order.compareVideosNatural : Order.compareVideos);
+  // web_quiz_videos_v3: in a thin subject the child's language comes first, each part in the usual order.
+  if (ix.ownFirst && ix.ownFirst.size) rows.sort((a, b) => (ix.ownFirst.has(b.id) ? 1 : 0) - (ix.ownFirst.has(a.id) ? 1 : 0));
   const quizIds = rows.map((r) => ix.quizOf.get(r.id));
   const [done, codes, posters] = await Promise.all([
     doneQuizzes(studentId, quizIds),
