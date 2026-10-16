@@ -12,17 +12,7 @@
   "wq:jg.install.title": "drift:ur",
   "wq:jg.keep.notice": "missing",
   "wq:jg.lantern.trail_open": "missing",
-  "wq:jg.link.is_here": "drift:ur",
   "wq:jg.next.on_its_way": "missing",
-  "wq:jg.opens.missing": "missing",
-  "wq:jg.opens.number_games": "missing",
-  "wq:jg.opens.puzzles": "missing",
-  "wq:jg.opens.questions": "missing",
-  "wq:jg.opens.shelf": "missing",
-  "wq:jg.opens.short_stories": "missing",
-  "wq:jg.opens.two_part": "missing",
   "wq:jg.round.c_handback": "missing",
-  "wq:jg.trail.listen_down": "missing",
-  "wq:jg.trail.welcome_back": "missing:ur",
-  "wq:jg.who.turn": "drift:ur"
+  "wq:jg.trail.listen_down": "missing"
 }
