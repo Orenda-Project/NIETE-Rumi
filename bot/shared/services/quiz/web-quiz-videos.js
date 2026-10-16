@@ -334,6 +334,15 @@ async function watchCodeFor({ rootId, vq, video, vid, lang, studentId, fail }) {
   return fail(502, 'db_unavailable');
 }
 
+/** EVENTS_V3 §1 `activity_start` for a watch, under web_quiz_events_v3 (its writer and switch are optional modules: absent = nothing). */
+async function activityStart(vid, studentId) {
+  try {
+    const N = require('./web-quiz-next-offer');
+    if (!(await N.switches()).events) return;
+    require('./web-quiz-events-v3').emit3('web_quiz.activity_start', { kind: 'video', item: vid, via: 'hub_door', offer: null }, { canonicalId: studentId });
+  } catch (_) { /* no events writer on this deployment */ }
+}
+
 /**
  * A child with no class code: with web_quiz_home_v3 off, 409 no_class (today). On: {watch: {vid, url, poster?, secs?,
  * title, lang, after}} — the video first, nothing minted (`after` = whether the quiz after it can be offered); with
@@ -353,6 +362,7 @@ async function watchStart(who, vid, body, fail) {
   if (!media || !media.url) fail(503, 'unavailable');
   const meta = peekMeta(vid) || {};
   logEvent('web_quiz.video_watch_start', { videoId: vid, lang, after: Boolean(rootId) });
+  await activityStart(vid, who.studentId);
   return {
     watch: {
       vid, url: media.url, ...(media.poster ? { poster: media.poster } : {}), ...(meta.secs ? { secs: meta.secs } : {}),

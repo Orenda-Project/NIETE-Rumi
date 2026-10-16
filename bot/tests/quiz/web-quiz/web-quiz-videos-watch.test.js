@@ -31,6 +31,10 @@ jest.mock('../../../shared/services/whatsapp.service', () => ({
 }));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
+const mockEmit3 = jest.fn();
+const mockEvSw = jest.fn();
+jest.mock('../../../shared/services/quiz/web-quiz-events-v3', () => ({ emit3: (...a) => mockEmit3(...a) }), { virtual: true });
+jest.mock('../../../shared/services/quiz/web-quiz-next-offer', () => ({ switches: (...a) => mockEvSw(...a) }), { virtual: true });
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 const mockS3Send = jest.fn();
 jest.mock('@aws-sdk/client-s3', () => {
@@ -180,6 +184,15 @@ describe('switch on: a child with no class WATCHES', () => {
     expect(a.code).toBeUndefined();
     expect(codesNow()).toBe(n);
     expect(SQS.queueJob).not.toHaveBeenCalled();
+  });
+
+  test('activity_start (EVENTS_V3 §1) for the watch only under the events switch', async () => {
+    mockEvSw.mockResolvedValue({ events: false });
+    await Videos.start({ hub: 'x', kid: 'y', vid: V(1) });
+    expect(mockEmit3).not.toHaveBeenCalled();
+    mockEvSw.mockResolvedValue({ events: true });
+    await Videos.start({ hub: 'x', kid: 'y', vid: V(1) });
+    expect(mockEmit3).toHaveBeenCalledWith('web_quiz.activity_start', { kind: 'video', item: V(1), via: 'hub_door', offer: null }, { canonicalId: KID_A });
   });
 
   test('a bad lesson id is 400, an unknown lesson 404, a bad hub token 401 — as today', async () => {
