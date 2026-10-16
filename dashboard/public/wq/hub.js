@@ -40,7 +40,7 @@
       libT: 'Video library', libSub: 'Pick a subject and a chapter',
       recT: 'Try these next', chT: function (m) { return m + '\'s Challenge'; }, chSub: 'Short games for reading and numbers',
       switchKid: 'Switch player', oops: 'Something went wrong. Try again.', offline: 'No internet. Try again when you are online.',
-      lockT: 'This link was sent to another player', lockSay: 'Ask the child this link was sent to to open it.',
+      lockT: 'This link was sent to another player', lockSay: 'Ask the child who got this link to open it.',
       someone: 'Someone else / new player', newT: 'New here?', mineDoor: 'Finish your own quiz, then tap “My quizzes, videos and challenges”.',
       mine: 'Is this your link? Send /quiz on WhatsApp again for a new one.',
       newSay: 'Ask your teacher for a quiz link, or send /quiz on WhatsApp from your family\'s phone.',

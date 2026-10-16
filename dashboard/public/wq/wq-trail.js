@@ -30,10 +30,10 @@
   var T = {
     en: {
       helpQ: 'Is someone helping you today?', helpAlone: 'No, on my own', helpWith: 'Yes, someone is helping', helpNote: 'You get the sticker both ways.',
-      // jg.keep.notice / jg.keep.notice_ok (deck v2.2, bot/shared/config/copy.v2.json): the mic notice, {name} = the child's first name
-      noticeT: 'Jugnu keeps this reading to see how {name} is learning. One checker may listen. A grown-up can remove the phone link any time by sending STOP on WhatsApp.',
+      // jg.keep.notice / jg.keep.notice_ok (deck v2.3, bot/shared/config/copy.v2.json): the mic notice, {name} = the child's first name
+      noticeT: 'Jugnu keeps this reading to see how {name} is learning. One checker may listen. A grown-up can remove the phone number any time by sending STOP on WhatsApp; the reading stays.',
       noticeOk: 'Got it',
-      whoTurn: 'Whose turn?', whoTapName: 'Tap your name.', whoPlayedHere: 'Played on this phone before', whoSomeoneElse: 'Someone else',
+      whoTurn: 'Whose turn?', whoTapName: 'Tap your name.', whoPlayedHere: 'Played on this phone before', whoSomeoneElse: "My name isn't here",
       nextOnItsWay: 'A new story is on its way.',
       endReadAll: 'You read the whole story!', endReadSome: 'You read out loud with Jugnu!', endZeroWords: 'You tried a whole new story!',
       endListen: 'You listened to the whole story!', endTap: 'You answered all the questions!', endSticker: 'A sticker went into your Book.',
@@ -50,17 +50,17 @@
     },
     ur: {
       helpQ: 'کیا آج آپ کو کسی کی مدد مل رہی ہے؟', helpAlone: 'نہیں، اپنے آپ', helpWith: 'جی ہاں، کسی کی مدد سے', helpNote: 'اسٹیکر دونوں طرح ملے گا۔',
-      // jg.keep.notice / jg.keep.notice_ok (deck v2.2 bytes, bot/shared/config/copy.v2.json: {name} inside U+2068…U+2069,
+      // jg.keep.notice / jg.keep.notice_ok (deck v2.3 bytes, bot/shared/config/copy.v2.json: {name} inside U+2068…U+2069,
       // STOP inside U+2066…U+2069)
-      noticeT: 'جگنو یہ ریکارڈنگ رکھتا ہے تاکہ دیکھا جا سکے کہ ⁨{name}⁩ کی پڑھائی کیسی چل رہی ہے۔ اسے صرف ایک جانچنے والا سن سکتا ہے۔ واٹس ایپ پر ⁦STOP⁩ بھیج کر کسی بھی وقت یہ فون نمبر ہٹایا جا سکتا ہے۔',
+      noticeT: 'جگنو یہ ریکارڈنگ رکھتا ہے تاکہ ⁨{name}⁩ کی پڑھائی دیکھی جا سکے۔ اسے صرف ایک جانچنے والا سن سکتا ہے۔ گھر کے بڑے کسی بھی وقت ⁦STOP⁩ بھیج کر فون نمبر ہٹا سکتے ہیں، ریکارڈنگ پھر بھی رہے گی۔',
       noticeOk: 'ٹھیک ہے',
-      whoTurn: 'کس کی باری ہے؟', whoTapName: 'اپنا نام دبائیں۔', whoPlayedHere: 'پہلے بھی اسی فون پر کھیلا گیا', whoSomeoneElse: 'کوئی اور',
+      whoTurn: 'کس کی باری ہے؟', whoTapName: 'اپنا نام دبائیں۔', whoPlayedHere: 'پہلے بھی اسی فون پر کھیلا گیا', whoSomeoneElse: 'میرا نام یہاں نہیں',
       nextOnItsWay: 'ایک نئی کہانی آنے والی ہے۔',
       endReadAll: 'آپ نے پوری کہانی پڑھ لی!', endReadSome: 'آپ نے جگنو کے ساتھ اونچی آواز میں پڑھا!', endZeroWords: 'آپ نے ایک بالکل نئی کہانی کھول کر دیکھی!',
       endListen: 'آپ نے پوری کہانی سن لی!', endTap: 'آپ نے سارے سوالوں کے جواب دے دیے!', endSticker: 'آپ کی کتاب میں ایک اسٹیکر لگ گیا۔',
       endB3Next: 'اگلی بار جگنو پہلے آپ کے ساتھ کہانی پڑھ سکتا ہے۔', endNext: function (title) { return 'آگے: ⁨' + title + '⁩'; }, endHome: 'واپس جائیں',
       trailPractice: 'یہ کھیل دوبارہ: بس مزے کے لیے', trailMicWait: 'اس کھیل کے لیے مائیک چاہیے۔ مائیک چلنے پر کھیلیں۔', trailOther: 'کوئی اور کھیل کھیلیں', trailStopDone: 'کھیل مکمل!',
-      lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
+      lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
       storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
       warmupTitle: 'گنتی کا کھیل', warmupSay: 'چلیں، پہلے گنتی سے شروع کریں۔', warmupDone: 'گنتی کا کھیل مکمل!',

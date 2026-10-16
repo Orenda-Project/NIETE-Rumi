@@ -132,7 +132,7 @@
       checked: function (m, w) { return m + ' نے دوبارہ سنا: ایک منٹ میں ' + ud(w) + ' لفظ!'; },
       qaStart: 'کہانی کے بارے میں سوال',
       listenGo: 'سنیں',
-      listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
+      listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
       qaRight: 'جی ہاں!',
       qaWas: function (a) { return 'جواب تھا: ' + a; },
       // the verb agrees with the count: ۱ کا … دیا, otherwise کے … دیے
