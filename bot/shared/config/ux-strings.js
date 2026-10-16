@@ -4578,6 +4578,20 @@ const STUDENT_TUTOR_STRINGS = {
     en: "This phone already keeps four children's places, the most Jugnu allows. Send /quiz and tap a name to play.",
     ur: "اس فون پر پہلے ہی چار بچوں کی جگہ محفوظ ہے، جو جگنو میں سب سے زیادہ ہے۔ کھیلنے کے لیے \u2066/quiz\u2069 بھیجیں اور نام دبائیں۔",
   },
+  // web_quiz_bind_way_back: the outcomes that had no reply. Each is sent with the jugnuBindOpenBtn button back to the
+  // child's page when the code was minted for a known child in the last day (jugnuBindCodeUnknown: never a button).
+  jugnuBindPhonesRefused: {
+    en: "This child's place is already saved on three phones, the most Jugnu allows.",
+    ur: "اس بچے کی جگہ پہلے ہی تین فونوں پر محفوظ ہے، جو جگنو میں سب سے زیادہ ہے۔",
+  },
+  jugnuBindCodeOld: {
+    en: "That code has already been used or is more than an hour old, so nothing was saved. Open the page and tap “Keep my place” again for a new one.",
+    ur: "یہ کوڈ پہلے استعمال ہو چکا ہے یا ایک گھنٹے سے پرانا ہے، اس لیے کچھ محفوظ نہیں ہوا۔ نیا کوڈ لینے کے لیے صفحہ کھولیں اور دوبارہ «میری جگہ محفوظ کریں» دبائیں۔",
+  },
+  jugnuBindCodeUnknown: {
+    en: "Jugnu could not find that code, so nothing was saved. Open Jugnu's link again and tap “Keep my place”.",
+    ur: "جگنو کو یہ کوڈ نہیں ملا، اس لیے کچھ محفوظ نہیں ہوا۔ جگنو کا لنک دوبارہ کھولیں اور «میری جگہ محفوظ کریں» دبائیں۔",
+  },
   jugnuBindStopped: {
     en: "Done. Jugnu has removed this phone number from the children's names it was saved with. Send /quiz any time to start again.",
     ur: "ہو گیا۔ جگنو نے یہ فون نمبر بچوں کے ناموں سے ہٹا دیا ہے۔ دوبارہ شروع کرنے کے لیے کسی بھی وقت \u2066/quiz\u2069 بھیجیں۔",
