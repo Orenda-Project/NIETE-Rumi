@@ -199,7 +199,7 @@ describe('6. Science Q2(b): every sub-question is marked out of 2.5', () => {
     expect(parts[2].scheme.points.map((p) => p.kind)).toEqual(['K', 'A']);
   });
 
-  test('a sub-question with no points prints its bare 2.5 chip; a 2.5 split is left alone', () => {
+  test('a sub-question with no points prints A2.5 on its answer, never a bare chip; a 2.5 split is left alone', () => {
     const subs = [
       { question: 'Which senses are used?', answer: 'Hearing and touch.', marks: 1 },
       { question: 'Why close the eyes?', answer: 'To listen better.', marks: 2, scheme: { points: [] } },
@@ -212,8 +212,8 @@ describe('6. Science Q2(b): every sub-question is marked out of 2.5', () => {
     const Selection = require('../../bot/shared/services/assessment/assessment-selection');
     expect(Selection.marksOf(Object.values(ex.unseen.subjective).flat()[0])).toBe(5);
     const scheme = visible(R.renderMarkingScheme({ examJson: ex, grade: 5, subject: 'science', allowShort: true }));
-    expect(scheme).toContain('a) Hearing and touch. 2.5');
-    expect(scheme).toContain('b) To listen better. 2.5');
+    expect(scheme).toContain('a) Hearing and touch. A2.5 Hearing and touch.');
+    expect(scheme).toContain('b) To listen better. A2.5 To listen better.');
     expect(scheme).not.toMatch(/Hearing and touch\. K?1\b/);
   });
 });
