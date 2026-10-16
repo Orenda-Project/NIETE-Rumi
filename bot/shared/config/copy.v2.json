@@ -1,13 +1,13 @@
 {
  "_meta": {
-  "version": "2.2",
+  "version": "2.3",
   "what": "The Jugnu copy deck: every child, teacher and WhatsApp string, EN and UR. Surfaces lift strings from here byte for byte; nothing reads this file at runtime.",
   "placeholders": "{name} {name2} {title} {code} {n} {total} {done} {absent} {thing} {enrolled}; Urdu wraps {name}/{name2}/{title}/{thing} in U+2068..U+2069 and /quiz, STOP in U+2066..U+2069; {n} takes Urdu digits, no isolate",
   "cp_rule": "code points of the worst case: name 20, title 24, code 11, thing 32, numbers 3, enrolled 7; isolates counted",
   "held_rule": "a key with `held` is never rendered or sent",
   "retired_rule": "a key with `retired: true` is rendered or sent by no surface; it is kept, never deleted, so old lifts stay traceable",
   "nbsp_rule": "U+00A0 inside a unit that must not break («واٹس ایپ», «ہوم اسکرین», a question's last pair); lifts copy it byte for byte",
-  "keys": 211
+  "keys": 217
  },
  "jg.lantern.trail_one": {
   "en": "A game is waiting for you on the Trail.",
@@ -22,7 +22,7 @@
  },
  "jg.lantern.trail_many": {
   "en": "Games are waiting for you on the Trail.",
-  "ur": "جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔",
+  "ur": "جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔",
   "surface": "page.hub",
   "cap_cp": 60,
   "switch": "web_quiz_challenge_v2",
@@ -557,14 +557,14 @@
   }
  },
  "jg.who.someone_else": {
-  "en": "Someone else",
-  "ur": "کوئی اور",
+  "en": "My name isn't here",
+  "ur": "میرا نام یہاں نہیں",
   "surface": "page.who",
   "cap_cp": 20,
   "switch": "web_quiz_hub",
   "cp": {
-   "en": 12,
-   "ur": 8
+   "en": 18,
+   "ur": 18
   }
  },
  "jg.who.played_here": {
@@ -1696,7 +1696,7 @@
  },
  "jg.card.title": {
   "en": "Jugnu has a game for you",
-  "ur": "جگنو کے پاس آپ کے لیے ایک کھیل ہے",
+  "ur": "جگنو کے پاس آپ کے لیے ایک کھیل ہے",
   "surface": "page.scorecard",
   "cap_cp": 40,
   "switch": "web_quiz_challenge_card",
@@ -1706,14 +1706,14 @@
   }
  },
  "jg.card.sub": {
-  "en": "2 minutes, no microphone",
-  "ur": "۲ منٹ، مائیک کی ضرورت نہیں",
+  "en": "2 minutes to start, no microphone",
+  "ur": "شروع کے ۲ منٹ، مائیک کی ضرورت نہیں",
   "surface": "page.scorecard",
   "cap_cp": 90,
   "switch": "web_quiz_challenge_card",
   "cp": {
-   "en": 24,
-   "ur": 26
+   "en": 33,
+   "ur": 34
   }
  },
  "jg.card.btn": {
@@ -2236,14 +2236,14 @@
   }
  },
  "jg.keep.notice": {
-  "en": "Jugnu keeps this reading to see how {name} is learning. One checker may listen. A grown-up can remove the phone link any time by sending STOP on WhatsApp.",
-  "ur": "جگنو یہ ریکارڈنگ رکھتا ہے تاکہ دیکھا جا سکے کہ ⁨{name}⁩ کی پڑھائی کیسی چل رہی ہے۔ اسے صرف ایک جانچنے والا سن سکتا ہے۔ واٹس ایپ پر ⁦STOP⁩ بھیج کر کسی بھی وقت یہ فون نمبر ہٹایا جا سکتا ہے۔",
+  "en": "Jugnu keeps this reading to see how {name} is learning. One checker may listen. A grown-up can remove the phone number any time by sending STOP on WhatsApp; the reading stays.",
+  "ur": "جگنو یہ ریکارڈنگ رکھتا ہے تاکہ ⁨{name}⁩ کی پڑھائی دیکھی جا سکے۔ اسے صرف ایک جانچنے والا سن سکتا ہے۔ گھر کے بڑے کسی بھی وقت ⁦STOP⁩ بھیج کر فون نمبر ہٹا سکتے ہیں، ریکارڈنگ پھر بھی رہے گی۔",
   "surface": "page.trail",
   "cap_cp": 200,
   "switch": "web_quiz_challenge_keep_audio",
   "cp": {
-   "en": 168,
-   "ur": 200
+   "en": 189,
+   "ur": 199
   }
  },
  "jg.keep.notice_ok": {
@@ -2335,14 +2335,81 @@
   }
  },
  "jg.bind.try_again": {
-  "en": "That didn't work just now. Please tap again.",
-  "ur": "ابھی یہ نہیں ہو سکا۔ دوبارہ دبائیں۔",
+  "en": "Your place wasn't saved just now. Please tap again.",
+  "ur": "ابھی جگہ محفوظ نہیں ہو سکی۔ دوبارہ دبائیں۔",
   "surface": "page.bind",
   "cap_cp": 60,
   "switch": "web_quiz_phone_bind",
   "cp": {
-   "en": 44,
-   "ur": 35
+   "en": 51,
+   "ur": 42
+  }
+ },
+ "jg.bind.valid_hour": {
+  "en": "This code works for the next hour.",
+  "ur": "یہ کوڈ اگلے ایک گھنٹے تک کام کرے گا۔",
+  "surface": "page.bind",
+  "cap_cp": 40,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 34,
+   "ur": 36
+  }
+ },
+ "jg.trail.welcome_back": {
+  "en": "Welcome back! Let's carry on.",
+  "ur": "دوبارہ خوش آمدید! آئیں، آگے چلتے ہیں۔",
+  "surface": "page.trail",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 29,
+   "ur": 37
+  }
+ },
+ "jg.bind.notice_readings": {
+  "en": "Readings {name} makes with the microphone are kept too.",
+  "ur": "مائیک پر ⁨{name}⁩ کی پڑھائی کی ریکارڈنگ بھی رکھی جاتی ہے۔",
+  "surface": "page.bind",
+  "cap_cp": 80,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 69,
+   "ur": 71
+  }
+ },
+ "bot.ping.invite": {
+  "en": "Jugnu's Challenge has something new to play. Send /quiz here to open your page. Reply STOP to stop these messages.",
+  "ur": "جگنو کے چیلنج میں کھیلنے کے لیے کچھ نیا ہے۔ اپنا صفحہ کھولنے کے لیے یہاں ⁦/quiz⁩ بھیجیں۔ یہ پیغامات بند کرنے کے لیے ⁦STOP⁩ بھیجیں۔",
+  "surface": "wa.body",
+  "cap_cp": 160,
+  "switch": "web_quiz_sample_ping",
+  "cp": {
+   "en": 114,
+   "ur": 130
+  },
+  "held": true
+ },
+ "jg.trail.listen_down": {
+  "en": "The story won't play right now. Try another challenge.",
+  "ur": "کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔",
+  "surface": "page.trail",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 54,
+   "ur": 44
+  }
+ },
+ "jg.lib.lock_say": {
+  "en": "Ask the child who got this link to open it.",
+  "ur": "جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔",
+  "surface": "page.library",
+  "cap_cp": 60,
+  "switch": "web_quiz_library",
+  "cp": {
+   "en": 43,
+   "ur": 57
   }
  }
 }
