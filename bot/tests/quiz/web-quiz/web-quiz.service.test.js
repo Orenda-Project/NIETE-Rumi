@@ -733,7 +733,10 @@ describe('the sound + motion kit switch (app_settings web_quiz_juice) rides the 
     fake.db.app_settings = [];
     expect(Object.prototype.hasOwnProperty.call(await WQ.getQuiz('AB12CD'), 'juice')).toBe(false);
     Juice._reset();
-    fake.db.app_settings = [{ key: 'web_quiz_juice', value: 'true' }];
+    fake.db.app_settings = [{ key: 'web_quiz_juice', value: 'true' }]; // a string 'true' row is off
+    expect(Object.prototype.hasOwnProperty.call(await WQ.getQuiz('AB12CD'), 'juice')).toBe(false);
+    Juice._reset();
+    fake.db.app_settings = [{ key: 'web_quiz_juice', value: true }];
     expect((await WQ.getQuiz('AB12CD')).juice).toBe(true);
     Juice._reset();
     fake.db.app_settings = [];

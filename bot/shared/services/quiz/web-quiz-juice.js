@@ -15,10 +15,9 @@ const TTL_MS = 30 * 1000;
 let cache = null; // { at, on }
 let reading = null;
 
+// JSON true only: a string 'true' row is off, like every child-page switch
 function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+  return value === true;
 }
 
 function refresh() {
