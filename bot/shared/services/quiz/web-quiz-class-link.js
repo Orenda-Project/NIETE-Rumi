@@ -15,7 +15,10 @@
  *                                   letters present); a wrong one → the teacher step again, no children
  *   letter({code, s, letter})       the chips whose canon first name starts with that letter, FIRST NAMES ONLY
  *   pick({code, s, chip, device_ref})  → {href: /h/<token>}: a hub token for that child carrying the pick
- *                                   (`cl`: class, id_src, id_confidence, homonym_in_list, practice) to the run row
+ *                                   (`cl`: class, id_src, id_confidence, homonym_in_list, practice) to the run row.
+ *                                   A HIGH pick (not the teacher's own visit) is remembered on that phone for
+ *                                   min(the link's time left, 28 days), and its token carries that exp; a "Whose turn?"
+ *                                   re-mint for that child on that phone carries the same exp. A LOW pick: 7 days.
  *   runColumns(cl, studentId)       the run-row columns a class-link pick writes (web-quiz-challenge insertRun)
  *   mint / forTeacher / forwardHref the teacher's side: the card on the report's class tab and its Forward link
  *   renew({teacherId, classId, n})  "Make a new link": revokes the class's live link and mints a new one — only with
@@ -45,6 +48,10 @@ const TEACHER_PREVIEW_TTL_S = 15 * 60;
 const RENEW_NONCE_TTL_S = 10 * 60;
 const TEACHER_CHIPS_MAX = 3;
 const PKT_MS = 5 * 3600 * 1000;
+// How long a high pick is remembered on its phone: as long as the link, at most 28 days (IDENTITY §2(b)).
+const MEMORY_MAX_S = 28 * 24 * 3600;
+const MEM_PREFIX = 'wq:cl:mem:';
+const memKey = (code, d) => MEM_PREFIX + crypto.createHash('sha256').update(`${code}|${d}`).digest('hex').slice(0, 32);
 // The letters a child can tap: the whole alphabet of the roster's script, fixed (never only the letters present).
 const LETTERS = {
   latin: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
@@ -126,6 +133,45 @@ function stepOf(code, s, want) {
   const p = T.verify(s, 'cl');
   if (!p || p.c !== code || (want && !want.includes(p.st))) fail(403, 'bad_step');
   return p;
+}
+
+// ── the phone's memory of a high pick ──────────────────────────────────────────────────────────────
+// One Redis record per (link, phone): {studentId: exp} for the children a HIGH pick named there, each kept until its
+// own exp (min(the link's expires_at, the pick + 28 days)). Only pick() writes it, only for a high pick; nothing here
+// reads or sets a confidence. Redis down → {} (the phone's memory falls back to today's 7 days).
+const redisUp = () => {
+  const redis = require('../cache/railway-redis.service');
+  return redis && typeof redis.isAvailable === 'function' && redis.isAvailable() ? redis : null;
+};
+async function memoryOf(code, d) {
+  try {
+    const redis = d ? redisUp() : null;
+    const v = redis ? await redis.get(memKey(code, d)) : null;
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+    const now = nowS();
+    return Object.fromEntries(Object.entries(v).filter(([id, exp]) => id && Number(exp) > now).map(([id, exp]) => [id, Number(exp)]));
+  } catch (_) {
+    return {};
+  }
+}
+/** The exp a high pick of this child on this phone gets now: the one already remembered, else min(link end, now + 28 d). */
+function horizonExp(link, remembered) {
+  if (remembered) return remembered;
+  const end = Math.floor(new Date(link.expires_at).getTime() / 1000);
+  if (!Number.isFinite(end)) return nowS() + T.HUB_TTL_S;
+  return Math.min(end, nowS() + MEMORY_MAX_S);
+}
+async function remember(code, d, studentId, exp) {
+  const ttl = exp - nowS();
+  if (!d || ttl <= 0) return;
+  // The hub's device record too (hub ?k= chips and "Whose turn?"), for the same time.
+  await HubDevice.rememberKids([studentId], d, ttl);
+  try {
+    const redis = redisUp();
+    if (!redis) return;
+    const kept = { ...(await memoryOf(code, d)), [String(studentId)]: exp };
+    await redis.set(memKey(code, d), kept, Math.max(...Object.values(kept)) - nowS());
+  } catch (_) { /* best effort: the hub's device record still holds it */ }
 }
 
 /** The teacher card's own link: a short-lived signed claim that this visit is the teacher's (plays as practice). */
@@ -240,7 +286,8 @@ async function rememberedInClass(link, deviceRef, kids) {
   if (!d || !kids.length) return [];
   const { data } = await supabase.from('quiz_sessions').select('student_id').eq('device_ref', d).limit(50);
   const hubKids = await HubDevice.deviceKids(d);
-  const played = [...new Set([...(data || []).map((r) => r.student_id), ...hubKids].filter(Boolean).map(String))];
+  const picked = Object.keys(await memoryOf(link.code, d));
+  const played = [...new Set([...(data || []).map((r) => r.student_id), ...hubKids, ...picked].filter(Boolean).map(String))];
   if (!played.length) return [];
   const Roster = require('./web-quiz-identity-roster');
   const canon = await Roster.canonicalStudentIds(played);
@@ -365,8 +412,17 @@ async function pick({ code, s, chip, device_ref: deviceRef } = {}) {
   }
   if (!hit) fail(403, 'bad_chip');
   if (step.p) cl.m = 'practice';
-  const token = T.sign({ k: 'h', ids: [hit.id], exp: nowS() + T.HUB_TTL_S, src: 'cl', cl });
+  // The pick's confidence is read here, never changed: a high pick (not the teacher's own visit) is remembered as long
+  // as the link (≤ 28 days) from now; a "Whose turn?" pick of a child a high pick left on this phone keeps THAT exp (the
+  // memory is never stretched by being used). Anything else (a low pick, the teacher's visit, a phone remembered only by
+  // its played sessions or another hub): today's 7 days.
+  const d = T.cleanDeviceRef(deviceRef);
+  const kept = d && !step.p && cl.q === 'high' ? await memoryOf(code, d) : null;
+  const long = Boolean(kept) && (step.st === 'chips' || Boolean(kept[String(hit.id)]));
+  const exp = long ? horizonExp(link, step.st === 'who' ? kept[String(hit.id)] : null) : nowS() + T.HUB_TTL_S;
+  const token = T.sign({ k: 'h', ids: [hit.id], exp, src: 'cl', cl });
   if (!token) fail(503, 'web_quiz_off');
+  if (long) await remember(code, d, hit.id, exp);
   // The teacher's own preview is not a child's door: no door_tap.
   if (!step.p) emit('door_tap', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: hit.id });
   // ?from=class_link: the hub (the one writer of hub_open) logs the source; this module emits no hub_open.

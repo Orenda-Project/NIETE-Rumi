@@ -87,10 +87,35 @@ async function deviceTrusted(token, device) {
       await Promise.all(out.ids.map((id) => redis.set(kidKey(id, d), '1', ttl)));
       const had = await redis.get(devKidsKey(d));
       const kids = [...new Set([...out.ids, ...(Array.isArray(had) ? had.map(String) : [])])].slice(0, DEVKIDS_MAX);
-      await redis.set(devKidsKey(d), kids, ttl);
+      // The list is one key for all the phone's children: never longer than a hub's 7 days, so a longer-lived token
+      // (a high class-link pick) never stretches a sibling's memory; that pick keeps its own record (web-quiz-class-link).
+      await redis.set(devKidsKey(d), kids, Math.min(ttl, T.HUB_TTL_S));
     } catch (_) { /* naming falls back to deviceKnows */ }
   }
   return out;
+}
+
+/**
+ * Trust this phone for these children from now (web-quiz-handset.js, after a bot-sent link's token is
+ * redeemed on it): the same two Redis keys deviceTrusted writes, so hubChipKid and deviceMayName accept
+ * the children's chips on this phone. Best effort; false when Redis is down.
+ */
+async function rememberKids(studentIds, device, ttlS = T.HUB_TTL_S) {
+  const d = T.cleanDeviceRef(device);
+  const ids = [...new Set((studentIds || []).map(String).filter(Boolean))];
+  if (!d || !ids.length) return false;
+  try {
+    const redis = require('../cache/railway-redis.service');
+    if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) return false;
+    const ttl = Math.max(60, Number(ttlS) || T.HUB_TTL_S);
+    const wrote = await Promise.all(ids.map((id) => redis.set(kidKey(id, d), '1', ttl)));
+    if (wrote.some((w) => w === false)) return false;
+    const had = await redis.get(devKidsKey(d));
+    const kids = [...new Set([...ids, ...(Array.isArray(had) ? had.map(String) : [])])].slice(0, DEVKIDS_MAX);
+    return (await redis.set(devKidsKey(d), kids, Math.min(ttl, T.HUB_TTL_S))) !== false;
+  } catch (_) {
+    return false;
+  }
 }
 
 /** May this phone see these children's names on a hub ?k= link? A phone they played on, or one a hub of theirs was opened on. */
@@ -151,4 +176,4 @@ async function noteNoticeSeen(childId, device, v) {
   }
 }
 
-module.exports = { deviceTrusted, deviceMayName, deviceKids, noticeSeen, noteNoticeSeen };
+module.exports = { deviceTrusted, deviceMayName, deviceKids, rememberKids, noticeSeen, noteNoticeSeen };

@@ -320,7 +320,7 @@ describe('(b\') a phone that opened a class-link child\'s hub → "Whose turn?" 
 
   test('a phone the hub trusted only with a child of ANOTHER class → the stranger path, no children', async () => {
     const code = await linkFor();
-    expect((await HubDevice.deviceTrusted(T.signHub([OUT]), DEV_FRESH)).ok).toBe(true);
+    await HubDevice.rememberKids([OUT], DEV_FRESH);
     const a = await CL.arrive({ code, device_ref: DEV_FRESH });
     expect(a.step).toBe('teacher');
     expect(names(a)).toEqual([]);
@@ -328,7 +328,7 @@ describe('(b\') a phone that opened a class-link child\'s hub → "Whose turn?" 
 
   test('the device record and the teacher quiz\'s sessions together: the union, still only this class', async () => {
     const code = await linkFor();
-    expect((await HubDevice.deviceTrusted(T.signHub([MA, OUT]), DEV_PLAYED)).ok).toBe(true);
+    await HubDevice.rememberKids([MA, OUT], DEV_PLAYED);
     const a = await CL.arrive({ code, device_ref: DEV_PLAYED });
     expect(a.step).toBe('who');
     expect(a.kids.map((k) => k.first).sort()).toEqual(['Ayaan', 'Zara']);
