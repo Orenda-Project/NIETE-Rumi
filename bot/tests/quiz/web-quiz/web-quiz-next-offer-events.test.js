@@ -266,5 +266,7 @@ describe('tk: the teacher key, one helper beside kid()', () => {
     expect(logEvent.mock.calls.filter(([n]) => n === 'web_quiz.kid_key_missing')).toHaveLength(1);
     process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(32);
     expect(K.tk(UID)).toMatch(/^[0-9a-f]{16}$/);
+    // the team's pinned vector (the same literal every teacher surface's test asserts on its emitted line)
+    expect(K.tk('a0000000-0000-4000-8000-000000000001')).toBe('e815e81977411f12');
   });
 });
