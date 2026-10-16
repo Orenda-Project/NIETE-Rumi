@@ -290,7 +290,8 @@ describe('the prompts', () => {
         expect(text).toContain(`generate EXACTLY ${slot.generate}`);
         expect(text).toContain(`"slot": "${slot.slot}"`);
         expect(text).toContain(`"${slot.type}"`);
-        expect(text).toContain(slot.prompt_rule);
+        // Maths MCQs: the ToS floor's recall count replaces the slot's "3 to 5".
+        expect(text).toContain(slot.prompt_rule.replace('3 to 5 of them pure recall', 'at least 8 of them pure recall'));
         expect(text).toContain(slot.grain.kind);
       }
       expect(text).toContain(R1);
@@ -303,8 +304,9 @@ describe('the prompts', () => {
       expect(text.trimEnd().endsWith('Return the JSON only.')).toBe(true);
     }
 
-    // Recall MCQs only where the MCQs are; the families rule on B and C; the choice where there is one.
-    expect(A).toContain('include 3–5 straight recall MCQs');
+    // Maths recall MCQs: one count, the ToS floor's, on A only; the families rule on B and C; the choice where there is one.
+    expect(A).toContain('at least 8 of the 20 MCQs recall');
+    expect(A).not.toContain('include 3–5 straight recall MCQs');
     expect(B).not.toContain('include 3–5 straight recall MCQs');
     expect(B).toContain(FAMILIES);
     expect(C).toContain(FAMILIES);

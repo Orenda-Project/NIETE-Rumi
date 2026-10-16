@@ -75,6 +75,21 @@ describe('round-3 pattern prompt rules', () => {
     for (const s of SUBJECTS.filter((x) => x !== 'maths')) expect(prompt(s, 'A')).not.toContain(TOS_FLOOR);
   });
 
+  test('maths recall count is one number', () => {
+    // The floor's "at least 8 of the 20" is the only recall count a Maths MCQ section is given.
+    for (const scope of [FDE, CHAPTERS]) {
+      const text = prompt('maths', 'A', scope);
+      expect(text).toContain(TOS_FLOOR);
+      expect(text).not.toContain('include 3–5 straight recall MCQs');
+      expect(text).not.toMatch(/3 to 5 of them pure recall/);
+      expect(text).toContain('at least 8 of them pure recall (a fact or a name)');
+    }
+    // Every other subject keeps the 3–5 recall line.
+    for (const s of ['science', 'english', 'social_studies', 'urdu']) {
+      expect(prompt(s, 'A')).toContain('include 3–5 straight recall MCQs');
+    }
+  });
+
   test('one-key property MCQ rule', () => {
     for (const scope of [FDE, CHAPTERS]) expect(prompt('maths', 'A', scope)).toContain(PROPERTY);
     expect(prompt('maths', 'B')).not.toContain(PROPERTY);
