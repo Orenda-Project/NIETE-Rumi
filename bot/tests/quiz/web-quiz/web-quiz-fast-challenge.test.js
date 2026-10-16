@@ -65,9 +65,9 @@ const slow = (p) => {
   inflight += 1; maxInflight = Math.max(maxInflight, inflight);
   return new Promise((r) => setTimeout(r, READ_MS)).then(() => { inflight -= 1; return p(); });
 };
-function seed({ fast = false } = {}) {
+function seed({ fast = false, juice = false } = {}) {
   fake = makeFake({
-    app_settings: [...SWITCHES.map((key) => ({ key, value: true })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : [])],
+    app_settings: [...SWITCHES.map((key) => ({ key, value: true })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : []), ...(juice ? [{ key: 'web_quiz_juice', value: true }] : [])],
     student_lists: [{ id: LIST, class_name: '3', section: 'B', user_id: 't1', is_active: true }],
     students: [{ id: KID, list_id: LIST, student_name: 'Zara Testwala' }, { id: OLD, list_id: null, self_reported_class: '7', student_name: 'Big Testwala' }],
     quiz_share_codes: [{ id: SC, language: 'ur' }],
@@ -179,3 +179,13 @@ test('switch on: a failed runs read refuses the menu as today, and leaves nothin
     process.off('unhandledRejection', unhandled);
   }
 });
+
+test('switch on with the sound kit on: the menu names juice exactly as with fast off (the kit read joins the early reads)', async () => {
+  await fresh({ fast: true, juice: true });
+  const on = await call(() => Ch.menu(hub(), DEV));
+  await fresh({ fast: false, juice: true });
+  const off = await call(() => Ch.menu(hub(), DEV));
+  expect(on.juice).toBe(true);
+  expect(on).toEqual(off);
+});
+

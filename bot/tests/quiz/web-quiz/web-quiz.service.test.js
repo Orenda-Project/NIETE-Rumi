@@ -725,3 +725,17 @@ describe('the Urdu polish switch (app_settings web_quiz_ur_polish) rides the qui
     fake.db.app_settings = [];
   });
 });
+
+describe('the sound + motion kit switch (app_settings web_quiz_juice) rides the quiz payload as juice', () => {
+  const Juice = require('../../../shared/services/quiz/web-quiz-juice');
+  test('absent → no juice key at all (the payload stays today\'s); on → juice: true', async () => {
+    Juice._reset();
+    fake.db.app_settings = [];
+    expect(Object.prototype.hasOwnProperty.call(await WQ.getQuiz('AB12CD'), 'juice')).toBe(false);
+    Juice._reset();
+    fake.db.app_settings = [{ key: 'web_quiz_juice', value: 'true' }];
+    expect((await WQ.getQuiz('AB12CD')).juice).toBe(true);
+    Juice._reset();
+    fake.db.app_settings = [];
+  });
+});

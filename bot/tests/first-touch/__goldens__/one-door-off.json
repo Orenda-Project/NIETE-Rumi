@@ -1,0 +1,342 @@
+{
+  "unknown|text": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE1",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "unknown|menu": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE1",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "unknown|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE1",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "child_known|text": [
+    {
+      "kind": "child_hub",
+      "to": "92300FIXTURE2"
+    }
+  ],
+  "child_known|menu": [
+    {
+      "kind": "child_hub",
+      "to": "92300FIXTURE2"
+    }
+  ],
+  "child_known|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE2",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "child_bound|text": [
+    {
+      "kind": "child_hub",
+      "to": "92300FIXTURE3"
+    }
+  ],
+  "child_bound|menu": [
+    {
+      "kind": "child_hub",
+      "to": "92300FIXTURE3"
+    }
+  ],
+  "child_bound|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE3",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "teacher_lessons|text": [
+    {
+      "kind": "flow",
+      "to": "92300FIXTURE4",
+      "f": {
+        "flowId": "flow-1",
+        "header": "📝 Your quizzes",
+        "body": "Your lessons, newest first. Open one to see how the class did, get its report, or resend its link — all in here, without leaving this screen.",
+        "buttonText": "Open",
+        "flowToken": "<flow token>"
+      }
+    }
+  ],
+  "teacher_lessons|menu": [
+    {
+      "kind": "flow",
+      "to": "92300FIXTURE4",
+      "f": {
+        "flowId": "flow-1",
+        "header": "📝 Your quizzes",
+        "body": "Your lessons, newest first. Open one to see how the class did, get its report, or resend its link — all in here, without leaving this screen.",
+        "buttonText": "Open",
+        "flowToken": "<flow token>"
+      }
+    }
+  ],
+  "teacher_lessons|home": [
+    {
+      "kind": "flow",
+      "to": "92300FIXTURE4",
+      "f": {
+        "flowId": "flow-1",
+        "header": "📝 Your quizzes",
+        "body": "Your lessons, newest first. Open one to see how the class did, get its report, or resend its link — all in here, without leaving this screen.",
+        "buttonText": "Open",
+        "flowToken": "<flow token>"
+      }
+    }
+  ],
+  "teacher_none|text": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE5",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "teacher_none|menu": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE5",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "teacher_none|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE5",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "coach|text": [
+    {
+      "kind": "role_menu",
+      "to": "92300FIXTURE6",
+      "role": "coach"
+    }
+  ],
+  "coach|menu": [
+    {
+      "kind": "role_menu",
+      "to": "92300FIXTURE6",
+      "role": "coach"
+    }
+  ],
+  "coach|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE6",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "teacher_parent|text": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE7",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "teacher_parent|menu": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE7",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "teacher_parent|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE7",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "principal|text": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE8",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "principal|menu": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE8",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "principal|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE8",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "school_leader|text": [
+    {
+      "kind": "role_menu",
+      "to": "92300FIXTURE9",
+      "role": "school_leader"
+    }
+  ],
+  "school_leader|menu": [
+    {
+      "kind": "role_menu",
+      "to": "92300FIXTURE9",
+      "role": "school_leader"
+    }
+  ],
+  "school_leader|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE9",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "supervisor|text": [
+    {
+      "kind": "role_menu",
+      "to": "92300FIXTURE10",
+      "role": "supervisor"
+    }
+  ],
+  "supervisor|menu": [
+    {
+      "kind": "role_menu",
+      "to": "92300FIXTURE10",
+      "role": "supervisor"
+    }
+  ],
+  "supervisor|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE10",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "aeo|text": [
+    {
+      "kind": "role_menu",
+      "to": "92300FIXTURE11",
+      "role": "aeo"
+    }
+  ],
+  "aeo|menu": [
+    {
+      "kind": "role_menu",
+      "to": "92300FIXTURE11",
+      "role": "aeo"
+    }
+  ],
+  "aeo|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE11",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "head|text": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE12",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "head|menu": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE12",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "head|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE12",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "pilot_named_coach|text": [
+    {
+      "kind": "buttons",
+      "to": "92300FIXTURE13",
+      "p": {
+        "body": "📝 *Quizzes*\n\nWhat would you like to do?\n\n*Make a quiz*: from your recent lesson plans and coaching lessons.\n*My quiz reports*: who played, scores and what to reteach, quiz by quiz.\n*Class progress*: all your quizzes by class and subject.",
+        "buttons": [
+          {
+            "id": "tqh_make",
+            "title": "Make a quiz"
+          },
+          {
+            "id": "tqh_reports",
+            "title": "My quiz reports"
+          },
+          {
+            "id": "tqh_class",
+            "title": "Class progress"
+          }
+        ]
+      }
+    }
+  ],
+  "pilot_named_coach|menu": [
+    {
+      "kind": "buttons",
+      "to": "92300FIXTURE13",
+      "p": {
+        "body": "📝 *Quizzes*\n\nWhat would you like to do?\n\n*Make a quiz*: from your recent lesson plans and coaching lessons.\n*My quiz reports*: who played, scores and what to reteach, quiz by quiz.\n*Class progress*: all your quizzes by class and subject.",
+        "buttons": [
+          {
+            "id": "tqh_make",
+            "title": "Make a quiz"
+          },
+          {
+            "id": "tqh_reports",
+            "title": "My quiz reports"
+          },
+          {
+            "id": "tqh_class",
+            "title": "Class progress"
+          }
+        ]
+      }
+    }
+  ],
+  "pilot_named_coach|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE13",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "roster_parent|text": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE14",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "roster_parent|menu": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE14",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "roster_parent|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE14",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ]
+}
