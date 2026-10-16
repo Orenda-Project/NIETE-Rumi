@@ -342,6 +342,12 @@ function bindTags(payload, assetV) {
   return `<link rel="stylesheet" href="/wq/wq-bind.css?v=${assetV}">\n<script src="/wq/wq-bind.js?v=${assetV}" defer></script>\n`;
 }
 
+// The v3 child home: its stylesheet and script, only when the bot's hub JSON carries `home_v3` (web_quiz_home_v3 on).
+function homeTags(payload, assetV) {
+  if (!payload || !payload.home_v3) return '';
+  return `<link rel="stylesheet" href="/wq/wq-home.css?v=${assetV}">\n<script src="/wq/wq-home.js?v=${assetV}" defer></script>\n`;
+}
+
 // The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
 // renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
 function hubPageParts({ payload, token, origin, assetV }) {
@@ -357,7 +363,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-${bindTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
+${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };
