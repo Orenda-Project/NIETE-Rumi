@@ -355,7 +355,7 @@ function clientIp(req) {
  * timeout, redirects never followed. Shared by the child quiz and the teacher report.
  * Returns { status, body, location } (JSON parsed), or { status, bytes, contentType,
  * location } for a 2xx picture — or for ANY answer when `raw` is set (an HTML page, a
- * PDF). Throws { unreachable: true } when the bot cannot be reached.
+ * PDF; with `timing` when the bot sent its timing headers). Throws { unreachable: true } when the bot cannot be reached.
  */
 const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/;
 function deviceCookie(req) {
@@ -368,6 +368,15 @@ function deviceCookie(req) {
 function botRouteOf(pathname) {
   const parts = String(pathname || '').split('?')[0].split('/').filter(Boolean);
   return `/${parts.slice(0, 4).join('/')}${parts.length > 4 ? '/:x' : ''}`;
+}
+
+// The bot's own timing on a teacher report page (x-render-ms, x-queue-age; sent only with web_quiz_events_v2 on):
+// whole numbers only, else not passed on. null when the bot sent neither.
+const TIMING_RX = /^\d{1,7}$/;
+function timingOf(res) {
+  const one = (h) => { const v = res.headers && res.headers.get ? res.headers.get(h) : null; return typeof v === 'string' && TIMING_RX.test(v) ? v : null; };
+  const t = { render: one('x-render-ms'), queue: one('x-queue-age') };
+  return t.render != null || t.queue != null ? t : null;
 }
 
 const defaultLogEvent = (e, p) => { try { require('../services/telemetry.service').logEvent(e, p); } catch (_) { /* never decides a response */ } };
@@ -403,7 +412,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
       const type = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
       if ((raw || (res.status >= 200 && res.status < 300 && /^image\//i.test(type))) && res.arrayBuffer) {
-        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location };
+        const timing = timingOf(res);
+        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location, ...(timing ? { timing } : {}) };
       }
       const text = await res.text();
       let json = null;
