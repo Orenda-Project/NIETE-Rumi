@@ -80,20 +80,20 @@ describe('storybook stickers on the Book', () => {
   beforeEach(() => { require('../../../shared/services/quiz/web-quiz-stories')._reset(); });
   test('Stories off: no book_stickers key at all, even with a finished book', async () => {
     db.story_books = [F.book(1)];
-    db.story_events = [{ child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: {}, at: WED }];
+    db.story_events = [{ child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: { pages_listened: 1, pages_read: 0, stars: 1 }, at: WED }];
     const out = await book();
     expect(Object.prototype.hasOwnProperty.call(out, 'book_stickers')).toBe(false);
   });
-  test.each([['false', false], ['the word yes', 'yes'], ['a JSON string true with spaces', ' true ']])('Stories set to %s: no book_stickers key', async (_, value) => {
+  test.each([['false', false], ['the word yes', 'yes'], ['a JSON string true with spaces', ' true '], ['the JSON string "true"', 'true']])('Stories set to %s: no book_stickers key', async (_, value) => {
     db.story_books = [F.book(1)];
-    db.story_events = [{ child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: {}, at: WED }];
+    db.story_events = [{ child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: { pages_listened: 1, pages_read: 0, stars: 1 }, at: WED }];
     db.app_settings.push({ key: 'web_quiz_stories', value });
     const out = await book();
     expect(Object.prototype.hasOwnProperty.call(out, 'book_stickers')).toBe(false);
   });
   test('the Stories settings read throws: no book_stickers key, the Book still answers', async () => {
     db.story_books = [F.book(1)];
-    db.story_events = [{ child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: {}, at: WED }];
+    db.story_events = [{ child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: { pages_listened: 1, pages_read: 0, stars: 1 }, at: WED }];
     const fake = makeFake(db);
     Object.assign(supabase, { from: (t) => (t === 'app_settings' ? { select: () => ({ in: async (c, keys) => (keys.includes('web_quiz_stories') ? { data: null, error: { message: 'down' } } : fake.from(t).select('key, value').in(c, keys)) }) } : fake.from(t)) });
     const out = await book();
@@ -103,8 +103,8 @@ describe('storybook stickers on the Book', () => {
     db.app_settings.push({ key: 'web_quiz_stories', value: true });
     db.story_books = [F.book(1), F.book(2, { status: 'off' })];
     db.story_events = [
-      { child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: {}, at: WED },
-      { child_id: KID, book_id: F.BOOK(2), event: 'story_done', data: {}, at: WED },
+      { child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: { pages_listened: 1, pages_read: 0, stars: 1 }, at: WED },
+      { child_id: KID, book_id: F.BOOK(2), event: 'story_done', data: { pages_listened: 1, pages_read: 0, stars: 1 }, at: WED },
       { child_id: KID, book_id: F.BOOK(1), event: 'story_opened', data: {}, at: WED },
     ];
     const out = await book();
@@ -115,5 +115,39 @@ describe('storybook stickers on the Book', () => {
     db.story_books = [F.book(1)];
     db.story_events = [];
     expect((await book()).book_stickers).toEqual([]);
+  });
+});
+
+// Golden (SPEC §5): with Stories off in any of its four shapes the hub payload and its events are the base's, byte for byte.
+describe('golden: Stories off (absent, false, "yes", the string "true", a read that throws) -> the hub payload is the base\'s', () => {
+  const BASE = ['web_quiz_hub', 'web_quiz_challenge'];
+  async function snap(extra, broken) {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
+    try {
+      seed({ app_settings: [...settings(BASE), ...extra], web_quiz_challenge_runs: [run({ class_id: CLASS, passage_id: 'p-g' })], child_rungs: [{ canonical_id: KID, ladder: 'reading', rung: 3, period_id: '2026-11', set_at: WED }] });
+      if (broken) {
+        const fake = makeFake(db);
+        Object.assign(supabase, { from: (t) => (t === 'app_settings' ? { select: () => ({ in: async (c, keys) => (keys.includes('web_quiz_stories') ? { data: null, error: { message: 'down' } } : fake.from(t).select('key, value').in(c, keys)) }) } : fake.from(t)) });
+      }
+      Hub._resetCache();
+      require('../../../shared/services/quiz/web-quiz-book')._resetCache();
+      require('../../../shared/services/quiz/web-quiz-stories')._reset();
+      redis._store.clear();
+      logEvent.mockClear();
+      const payload = await Hub.hub(T.signHub([KID]), { kid: T.chipId('h', KID), device: DEV });
+      return JSON.parse(JSON.stringify({ payload, events: logEvent.mock.calls }));
+    } finally {
+      jest.useRealTimers();
+    }
+  }
+  test.each([
+    ['absent', [], false],
+    ['false', [{ key: 'web_quiz_stories', value: false }], false],
+    ['"yes"', [{ key: 'web_quiz_stories', value: 'yes' }], false],
+    ['the string "true"', [{ key: 'web_quiz_stories', value: 'true' }, { key: 'web_quiz_stories_band', value: true }], false],
+    ['a read that throws', [{ key: 'web_quiz_stories', value: true }], true],
+  ])('Stories %s: equals the golden', async (_, extra, broken) => {
+    const golden = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
+    expect(await snap(extra, broken)).toEqual(golden);
   });
 });

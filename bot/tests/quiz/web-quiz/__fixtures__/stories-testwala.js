@@ -37,12 +37,12 @@ const P3 = {
 
 const VOICE_P1 = {
   id: 'v-p1', page_id: P1.id, lang: 'en', provider: 'soniox', voice: 'Grace', model: 'tts-rt-v2', is_current: true,
-  audio_key: `readalong/sandbox/story/en/${BOOK(1)}-p01/grace-dddd0001.ogg`, ms: 3200, wpm: 94,
+  audio_key: `story/sandbox/${BOOK(1)}/a01-dddd0001.ogg`, ms: 3200, wpm: 94,
   timings: [{ i: 0, s_ms: 120, e_ms: 480 }, { i: 1, s_ms: 520, e_ms: 1100 }, { i: 2, s_ms: 1150, e_ms: 1500 }, { i: 3, s_ms: 1550, e_ms: 1650 }, { i: 4, s_ms: 1700, e_ms: 2300 }],
   timing_source: 'stt_align',
 };
 // An older voice of page 1 that is no longer current: never served.
-const VOICE_P1_OLD = { ...VOICE_P1, id: 'v-p1-old', is_current: false, audio_key: 'readalong/sandbox/story/en/old.ogg', timings: [] };
+const VOICE_P1_OLD = { ...VOICE_P1, id: 'v-p1-old', is_current: false, audio_key: `story/sandbox/${BOOK(1)}/a01-old00001.ogg`, timings: [] };
 
 const QUESTIONS = [
   { id: 'q1', book_id: BOOK(1), n: 1, kind: 'literal', q: 'What does Sami Testwala see?', options: ['A kite', 'A cat', 'A bus'], answer_i: 0, page_ref: 1, review_status: 'reviewed' },

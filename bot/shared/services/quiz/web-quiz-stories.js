@@ -13,7 +13,7 @@
  *   pageReadable(bookId, n)                     may this page be read aloud (the live-read key checks before it spends)
  *
  * Content lives in the database and the storage bucket (story_books, story_pages, story_page_voices, story_questions);
- * pictures are served by the same-origin `/s/<book>/<file>` route, audio as a short-lived signed URL. Rules:
+ * pictures and audio are served by the same-origin `/s/<book>/<file>` route (audio only from the book's own story/ keys). Rules:
  *   - the shelf lists only `status='ready'` books: books the teacher sent first, then the unfinished ones in a shuffle
  *     seeded by (child, PKT day), finished last; every book carries its `shelf_position`;
  *   - a book's `words[]` are the printed words merged with the CURRENT voice's timings by `i`; a page with no voice
@@ -28,6 +28,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { WqError } = require('./web-quiz-error');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const FLAG_KEY = 'web_quiz_stories';
 // The 2× crop of the printed words: on its own switch, used only as a lens that replaces the print where the words
@@ -36,7 +37,6 @@ const BAND_KEY = 'web_quiz_stories_band';
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
-const AUDIO_TTL_S = 6 * 3600;
 const GRADES = [1, 2, 3, 4, 5];
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FILE_RX = /^[a-z0-9-]+\.(webp|ogg|mp3)$/;
@@ -56,9 +56,15 @@ const ENDED = new Set(['last_word', 'quiet', 'done_tap', 'timer', 'line1', 'stuc
 const fail = (status, error) => { throw new WqError(status, { error }); };
 let cache = null;
 
-/** Only a literal true (or the exact string "true") turns it on; a read error is off. */
+/** Only a literal true turns it on (app_settings.value is jsonb: the flip writes the boolean); a read error is off. */
 function isTrue(value) {
-  return value === true || value === 'true';
+  return value === true;
+}
+
+// A finish counts (the shelf's tick, the Book's sticker, "the first time") only if the child listened to or read a page.
+function counted(row) {
+  const d = (row && row.data) || {};
+  return (Number(d.pages_listened) || 0) + (Number(d.pages_read) || 0) > 0;
 }
 
 async function flags(now = Date.now()) {
@@ -83,11 +89,11 @@ const PAGE_EVENTS = new Set(['story_page_listened', 'story_page_read']);
 /** The newest ready book of the last 7 days with a page listened/read and no finish: {book_id, title, cover, page_n, pages}. */
 async function resumeOf(studentId, now) {
   const since = new Date(now - RESUME_DAYS * DAY_MS).toISOString();
-  const { data } = await supabase.from('story_events').select('book_id, page_n, event, at').eq('child_id', studentId).gte('at', since)
+  const { data } = await supabase.from('story_events').select('book_id, page_n, event, data, at').eq('child_id', studentId).gte('at', since)
     .order('at', { ascending: false }).limit(300);
   const done = new Set(); const last = new Map();
   (data || []).forEach((r) => {
-    if (r.event === 'story_done') done.add(r.book_id);
+    if (r.event === 'story_done') { if (counted(r)) done.add(r.book_id); }
     else if (PAGE_EVENTS.has(r.event) && Number.isFinite(Number(r.page_n))) {
       const was = last.get(r.book_id) || { at: '', page: 0 };
       last.set(r.book_id, { at: String(r.at) > was.at ? String(r.at) : was.at, page: Math.max(was.page, Number(r.page_n)) });
@@ -181,7 +187,7 @@ function keep(event, data) {
     else if (spec[k] === 'ended' && ENDED.has(v)) out[k] = v;
     else if (spec[k] === 'code' && typeof v === 'string' && /^[A-Za-z0-9]{4,12}$/.test(v)) out[k] = v;
     else if (spec[k] === 'first' && (v === 'listen' || v === 'read')) out[k] = v;
-    else if (spec[k] === 'ints' && Array.isArray(v)) out[k] = v.slice(0, 200).filter((n) => Number.isInteger(n) && n >= 0 && n < 2000);
+    else if (spec[k] === 'ints' && Array.isArray(v)) out[k] = v.filter((n) => Number.isInteger(n) && n >= 0 && n < 2000).slice(0, 10);
   });
   return out;
 }
@@ -199,8 +205,8 @@ async function readyBook(id) {
 
 async function doneSet(studentId, bookIds) {
   if (!bookIds.length) return new Set();
-  const { data } = await supabase.from('story_events').select('book_id').eq('child_id', studentId).eq('event', 'story_done').in('book_id', bookIds);
-  return new Set((data || []).map((r) => r.book_id));
+  const { data } = await supabase.from('story_events').select('book_id, data').eq('child_id', studentId).eq('event', 'story_done').in('book_id', bookIds);
+  return new Set((data || []).filter(counted).map((r) => r.book_id));
 }
 
 const gradeOf = (v) => { const m = /\d+/.exec(String(v == null ? '' : v)); const g = m ? Number(m[0]) : 0; return GRADES.includes(g) ? g : null; };
@@ -208,7 +214,7 @@ const gradeOf = (v) => { const m = /\d+/.exec(String(v == null ? '' : v)); const
 async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
   const who = await guard(token, kid, device);
   const grade = gradeOf(g) || gradeOf(who.grade) || 1;
-  const lang = l === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(l);
   const { data } = await supabase.from('story_books').select(BOOK_COLS).eq('status', 'ready').eq('grade', grade).eq('lang', lang);
   const books = data || [];
   const teacher = String(t || '').split(',').map((s) => s.trim()).filter((s) => UUID_RX.test(s)).slice(0, MAX_TEACHER);
@@ -231,7 +237,7 @@ async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
 async function shelfPublic({ g, l } = {}) {
   if (!(await storiesOn())) fail(404, 'stories_off');
   const grade = gradeOf(g) || 1;
-  const lang = l === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(l);
   const { data } = await supabase.from('story_books').select(BOOK_COLS).eq('status', 'ready').eq('grade', grade).eq('lang', lang);
   const books = (data || []).slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
   return {
@@ -241,17 +247,11 @@ async function shelfPublic({ g, l } = {}) {
   };
 }
 
-async function signAudio(key, bookId) {
-  if (!key) return null;
-  // Stored with the book (story/<env>/<book>/a<NN>-<hash8>.ogg): the same-origin /s/ route serves it, immutable.
-  if (String(key).startsWith('story/')) return fileUrl(bookId, String(key).split('/').pop());
-  try {
-    const bucket = require('./web-quiz-audio-store').quizAudioBucket();
-    return await require('../../storage/r2').presignKey(key, AUDIO_TTL_S, { bucket });
-  } catch (err) {
-    logToFile('⚠️ web quiz stories: audio sign failed', { error: err.message });
-    return null;
-  }
+// One audio path: a voice is stored with its book (story/<env>/<book>/a<NN>-<hash8>.ogg) and the same-origin /s/ route
+// serves it, immutable. Any other key is never signed: that page has no audio.
+function audioUrl(key, bookId) {
+  if (!key || !String(key).startsWith('story/')) return null;
+  return fileUrl(bookId, String(key).split('/').pop());
 }
 
 // The band as one jsonb (text_band) or as columns (band_file, band_w, band_h, band_box): both read the same.
@@ -315,9 +315,20 @@ async function cardBits() {
 }
 
 async function book(id, token, { kid, device } = {}) {
-  await guard(token, kid, device);
+  const who = await guard(token, kid, device);
   const out = await bookData(id);
+  await keepMisses(who.studentId, out);
   return Object.assign(out, await cardBits());
+}
+
+// A text page served without a voice is kept as a miss (story_page_listened {miss:true}) so it gets voiced; never counted.
+async function keepMisses(studentId, out) {
+  const rows = out.pages.filter((p) => !p.is_picture && !p.audio && p.text)
+    .map((p) => ({ child_id: studentId, book_id: out.id, page_n: p.n, event: 'story_page_listened', data: { miss: true } }));
+  if (!rows.length) return;
+  const { error } = await supabase.from('story_events').insert(rows);
+  if (error) logToFile('⚠️ web quiz stories: miss not kept', { error: error.message });
+  logEvent('web_quiz.story_page_miss', { pages: rows.length });
 }
 
 /** One ready book's payload with no child attached (the teacher's preview reuses it behind its own token). 404 otherwise. */
@@ -333,7 +344,7 @@ async function bookData(id) {
     ? await supabase.from('story_page_voices').select('*').in('page_id', pages.map((p) => p.id)).eq('is_current', true)
     : { data: [] };
   const voiceOf = new Map((voiceRows || []).map((v) => [v.page_id, v]));
-  const urls = await Promise.all(pages.map((p) => (voiceOf.get(p.id) ? signAudio(voiceOf.get(p.id).audio_key, b.id) : null)));
+  const urls = pages.map((p) => (voiceOf.get(p.id) ? audioUrl(voiceOf.get(p.id).audio_key, b.id) : null));
   const questions = await reviewedQuestions(b.id);
   const wpms = (voiceRows || []).map((v) => Number(v.wpm)).filter((n) => Number.isFinite(n) && n > 0);
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
@@ -389,13 +400,18 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   if (name === 'story_answer') {
     const q = (await reviewedQuestions(b.id)).find((x) => x.n === int(data && data.n));
     if (!q) fail(400, 'bad_question');
-    const right = int(data.i != null ? data.i : data.pick) === Number(q.answer_i);
+    const pick = int(data.i != null ? data.i : data.pick);
+    const right = pick === Number(q.answer_i);
     logEvent('web_quiz.story_answer', { n: q.n, kind: q.kind, right });
     // Only after a second miss is the answer shown (kindly, then the next question); a first miss earns a look back.
-    return { ok: true, right, ...(!right && int(data.try) === 2 ? { show: Number(q.answer_i) } : {}) };
+    // A second try needs a first one: another option, also wrong.
+    const first = data.first == null ? null : int(data.first);
+    const options = Array.isArray(q.options) ? q.options.length : 0;
+    const second = int(data.try) === 2 && first !== null && first < options && first !== pick && first !== Number(q.answer_i);
+    return { ok: true, right, ...(!right && second ? { show: Number(q.answer_i) } : {}) };
   }
   const page = pageN == null ? null : int(pageN);
-  if (pageN != null && (page === null || page < 0 || page > (Number(b.pages) || 0) + 1)) fail(400, 'bad_page');
+  if (pageN != null && (page === null || page < 1 || page > (Number(b.pages) || 0))) fail(400, 'bad_page');
   let kept = keep(name, data);
   const out = { ok: true };
   if (name === 'story_questions_done') {
@@ -412,16 +428,20 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
     kept = { correct, total: qs.length, stars, by_kind: byKind };
   }
   if (name === 'story_done') {
-    const before = await supabase.from('story_events').select('id').eq('child_id', who.studentId).eq('book_id', b.id).eq('event', 'story_done').limit(1);
-    const first = !before.error && !(before.data || []).length;
+    const before = await supabase.from('story_events').select('data').eq('child_id', who.studentId).eq('book_id', b.id).eq('event', 'story_done');
+    const first = !before.error && !(before.data || []).some(counted);
     // Counted from the child's own events, never the page's numbers.
     const rows = await childEvents(who.studentId, b.id);
     const pagesOf = (kind) => new Set(rows.filter((r) => r.event === kind).map((r) => r.page_n)).size;
     const effort = effortOf(rows, rows.some((r) => r.event === 'story_questions_done'));
     kept = { pages_listened: pagesOf('story_page_listened'), pages_read: pagesOf('story_page_read'), stars: effort };
-    // A sticker is for a story the child listened to or read: a finish with no page heard or read earns none.
-    const tried = first && kept.pages_listened + kept.pages_read > 0;
-    out.sticker = tried && (await bookOn());
+    // A finish counts only for a story the child listened to or read: with no page heard or read there is no row,
+    // so no sticker, no shelf tick, and a later real finish is still the first.
+    if (kept.pages_listened + kept.pages_read === 0) {
+      logEvent('web_quiz.story_done_empty', {});
+      return { ok: true, sticker: false };
+    }
+    out.sticker = first && (await bookOn());
   }
   const { error } = await supabase.from('story_events').insert({ child_id: who.studentId, book_id: b.id, page_n: page, event: name, data: kept });
   if (error) logToFile('⚠️ web quiz stories: event not kept', { event: name, error: error.message });
@@ -446,9 +466,9 @@ async function pageReadable(bookId, pageN) {
 /** The Book's storybook stickers: the first finish of each ready book, newest first. [] on any error. */
 async function stickersFor(studentId) {
   try {
-    const { data } = await supabase.from('story_events').select('book_id, at').eq('child_id', studentId).eq('event', 'story_done');
+    const { data } = await supabase.from('story_events').select('book_id, data, at').eq('child_id', studentId).eq('event', 'story_done');
     const first = new Map();
-    (data || []).forEach((r) => { if (!first.has(r.book_id) || String(r.at) < String(first.get(r.book_id))) first.set(r.book_id, r.at); });
+    (data || []).filter(counted).forEach((r) => { if (!first.has(r.book_id) || String(r.at) < String(first.get(r.book_id))) first.set(r.book_id, r.at); });
     if (!first.size) return [];
     const { data: books } = await supabase.from('story_books').select('id, title, cover_file').in('id', [...first.keys()]).eq('status', 'ready');
     return (books || []).map((b) => ({ book_id: b.id, title: b.title, cover: fileUrl(b.id, b.cover_file), at: first.get(b.id) }))
