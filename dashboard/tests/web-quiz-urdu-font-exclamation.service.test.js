@@ -7,7 +7,8 @@
  * gain that one token.
  *
  * /wq is cached for a year (immutable) and the font URLs carry no ?v=, so the rebuilt faces ship under
- * new file names (wq-nastaliq-3 and -4); a phone that cached the old files fetches the new ones.
+ * new file names (now wq-nastaliq-5 and -6, which also bring the "!" close to the word before it); a phone that
+ * cached the old files fetches the new ones.
  *
  * The fonts are decoded here from the shipped bytes (fontkit reads woff2). The fixture records each
  * file's sha256 and code points (written by the subset build), so the font and its record cannot drift.
@@ -24,9 +25,9 @@ const RECORD = require('./fixtures/nastaliq-cmap.json');
 const BANG = 0x21;
 
 // The two faces exactly as the stylesheet declares them: as before, with the new file names and ",U+0021" at the end of each range.
-const FACE_1 = '@font-face{font-family:"WQ Nastaliq";src:url(fonts/wq-nastaliq-3.woff2) format("woff2");font-display:swap;size-adjust:155%;'
+const FACE_1 = '@font-face{font-family:"WQ Nastaliq";src:url(fonts/wq-nastaliq-5.woff2) format("woff2");font-display:swap;size-adjust:155%;'
   + 'unicode-range:U+0600-06FF,U+00A0,U+00AB,U+00BB,U+200C-200F,U+2066-2069,U+25CC,U+0020,U+0021}';
-const FACE_2 = '@font-face{font-family:"WQ Nastaliq 2";src:url(fonts/wq-nastaliq-4.woff2) format("woff2");font-weight:400;font-display:swap;'
+const FACE_2 = '@font-face{font-family:"WQ Nastaliq 2";src:url(fonts/wq-nastaliq-6.woff2) format("woff2");font-weight:400;font-display:swap;'
   + 'unicode-range:U+0020,U+00A0,U+00AB,U+00BB,U+060C,U+061B,U+061F,U+0621-063A,U+0640-0656,U+0658,U+0660-066D,U+0670,U+0679,U+067E,'
   + 'U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C0-06C3,U+06CC,U+06D2-06D4,U+06F0-06F9,U+200C-200F,U+25CC,U+0021}';
 
@@ -52,7 +53,7 @@ function cmapOf(file) {
 }
 
 describe('the Urdu Nastaliq faces draw "!" themselves', () => {
-  const FILES = ['wq-nastaliq-3.woff2', 'wq-nastaliq-4.woff2'];
+  const FILES = ['wq-nastaliq-5.woff2', 'wq-nastaliq-6.woff2'];
 
   test('the stylesheet declares exactly these two faces', () => {
     expect(Object.keys(faces()).sort()).toEqual(FILES);
@@ -98,8 +99,8 @@ describe('the Urdu Nastaliq faces draw "!" themselves', () => {
 
   test('golden: each face declaration is the old one with only its new file name and ",U+0021" in its range', () => {
     const f = faces();
-    expect(f['wq-nastaliq-3.woff2'].decl).toBe(FACE_1);
-    expect(f['wq-nastaliq-4.woff2'].decl).toBe(FACE_2);
+    expect(f['wq-nastaliq-5.woff2'].decl).toBe(FACE_1);
+    expect(f['wq-nastaliq-6.woff2'].decl).toBe(FACE_2);
     expect(CSS.split('U+0021').length - 1).toBe(2);
   });
 });
