@@ -176,6 +176,40 @@ describe('land', () => {
     expect(WebQuizToken.verify(th, 'th')).toMatchObject({ k: 'th', uid: 'u-teach', lang: 'bi', via: 'go' });
   });
 
+  test('"Not a teacher? Change" (src change): the question stays on screen for a registered teacher and a known child', async () => {
+    world({ family: [roster('r-1', 'Ali Testwala')] });
+    for (const [user, phone] of [[TEACHER, PH.teach], [PARENT, PH.parent], [FAMILY, PH.family]]) {
+      OneDoorFlags._resetCache();
+      const url = await OneDoor.mintLanding({ user, phone, side: 'unknown', lang: 'bi', src: 'change' });
+      const t = url.split('/quiz/go/')[1];
+      const r = await land(t);
+      expect(r.status).toBe(200);
+      expect(await r.text()).toContain('data-screen="role"');
+      expect(await (await post('who', { t })).json()).toEqual({ side: 'unknown', next: null });
+    }
+    // the tap still meets the server's answer: a registered teacher who taps "I want to play" keeps the teacher home
+    const t = (await OneDoor.mintLanding({ user: TEACHER, phone: PH.teach, side: 'unknown', lang: 'bi', src: 'change' })).split('/quiz/go/')[1];
+    const j = await (await post('role', { t, side: 'child' })).json();
+    expect(j.next).toMatch(/^\/quiz\/teacher\//);
+  });
+
+  test('mintLandingForPhone (the child home\'s Change row): the phone alone is enough; switch OFF, no phone, no user → null', async () => {
+    world();
+    const { normalisePhone } = require('../../shared/services/quiz/student-identity.service');
+    mockDb.tables.users.find((u) => u.id === 'u-parent').phone_number = `+${normalisePhone(PH.parent)}`;
+    const url = await OneDoor.mintLandingForPhone({ phoneNorm: normalisePhone(PH.parent), lang: 'ur' });
+    const t = url.split('/quiz/go/')[1];
+    expect(GoToken.verifyGo(t).ok).toMatchObject({ uid: 'u-parent', side: 'unknown', lang: 'ur', src: 'change' });
+    expect(url).not.toContain(normalisePhone(PH.parent));
+    expect(await (await post('who', { t })).json()).toEqual({ side: 'unknown', next: null });
+    const withId = await OneDoor.mintLandingForPhone({ phoneNorm: normalisePhone(PH.parent), userId: 'u-parent', lang: 'en' });
+    expect(GoToken.verifyGo(withId.split('/quiz/go/')[1]).ok).toMatchObject({ uid: 'u-parent', lang: 'bi' });
+    expect(await OneDoor.mintLandingForPhone({ phoneNorm: '', lang: 'ur' })).toBeNull();
+    expect(await OneDoor.mintLandingForPhone({ phoneNorm: normalisePhone(fixturePhone(199)), lang: 'ur' })).toBeNull();
+    world({ on: false });
+    expect(await OneDoor.mintLandingForPhone({ phoneNorm: normalisePhone(PH.parent), lang: 'ur' })).toBeNull();
+  });
+
   test('a teacher token → 302 the teacher home (the teacher home\'s token shape)', async () => {
     world();
     const r = await land(await mint(TEACHER, PH.teach, 'teacher'));

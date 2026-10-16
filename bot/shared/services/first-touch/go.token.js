@@ -6,12 +6,13 @@
  *   { k:'go', uid, side, n, lang, src, exp }
  *     uid   users.id of the phone that asked (getOrCreateUser's row) — an id, never the phone
  *     side  teacher | child | join | unknown — what the bot thought when it replied; a HINT: the landing re-resolves
- *     n     an opaque nonce (22 chars); the server keeps { phone_norm, user_id } under it (go.store) — never in the URL
+ *     n     an opaque nonce (22 chars); the server keeps { phone_norm, user_id } under it (go-nonce) — never in the URL
  *     lang  ur | bi
- *     src   typed | class_msg | card_share | menu | home | other — which words asked (the quiz_cmd event's src)
+ *     src   typed | class_msg | card_share | menu | home | other — which words asked (the quiz_cmd event's src);
+ *           change — minted by a page that already knows the person ("Not a teacher? Change"): the question stays
  *
  * The landing is RE-USABLE for the token's life (a teacher who leaves through wa.me comes back by the same chat
- * button) on the first device that opened it; the WRITES it signs (role, bind) are single-use (go.store).
+ * button) on the first device that opened it; the WRITES it signs (role, bind) are single-use (go-nonce).
  * verifyGo(t) → { ok: payload } | { stale: payload } (genuine but expired) | null (forged, garbled, another kind).
  */
 const WebQuizToken = require('../quiz/web-quiz-token');
@@ -20,7 +21,7 @@ const KIND = 'go';
 const GO_TTL_S = 24 * 60 * 60;
 const SIDES = Object.freeze(['teacher', 'child', 'join', 'unknown']);
 const LANGS = Object.freeze(['ur', 'bi']);
-const SRCS = Object.freeze(['typed', 'class_msg', 'card_share', 'menu', 'home', 'other']);
+const SRCS = Object.freeze(['typed', 'class_msg', 'card_share', 'menu', 'home', 'other', 'change']);
 const NONCE_RX = /^[A-Za-z0-9_-]{22}$/;
 
 /** The payload's fields when every one is in its set; else null. */

@@ -197,7 +197,8 @@ router.post('/who', async (req, res) => {
     const t = String(b.t || '');
     const o = await open(t, deviceOf(req));
     if (o.stale) return json(res, 410, { error: 'go.stale' });
-    const d = await destination(o);
+    // "Not a teacher? Change": the person asked to answer again, so the question stays (the tap meets the server's answer)
+    const d = o.p.side === 'unknown' && o.p.src === 'change' ? { side: 'unknown' } : await destination(o);
     if (d.next) return json(res, 200, { side: d.side, next: d.next });
     if (d.page === 'pick') return json(res, 200, { side: d.side, next: `/quiz/go/${encodeURIComponent(t)}` });
     await v3('role_asked', { lang: o.p.lang });

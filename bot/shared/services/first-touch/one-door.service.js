@@ -73,6 +73,30 @@ async function mintLanding({ user, phone, side = 'unknown', lang = 'bi', src = '
   return landingUrl({ user, phone, side, lang, src });
 }
 
+/**
+ * The child home's "Not a teacher? Change" link (ROLE §5.4): minted server-side while the hub payload renders, from the
+ * phone the binding gives — never put in a URL a child can share. Side unknown, src change (the question stays on
+ * screen). `lang` is the home's en | ur → the page's ur | bi. `userId` optional: else the phone's own users row.
+ * null when quiz_one_door is OFF, with no phone, no users row for it, or no link could be minted. Never throws.
+ */
+async function mintLandingForPhone({ phoneNorm, lang = 'bi', userId = null } = {}) {
+  try {
+    if (!phoneNorm || !(await Flags.on())) return null;
+    let uid = userId ? String(userId) : null;
+    if (!uid) {
+      const supabase = require('../../config/supabase');
+      const { data, error } = await supabase.from('users').select('id')
+        .in('phone_number', [String(phoneNorm), `+${phoneNorm}`]).limit(1);
+      if (error || !data || !data.length) return null;
+      uid = String(data[0].id);
+    }
+    return await landingUrl({ user: { id: uid }, phone: String(phoneNorm), side: 'unknown', lang: lang === 'ur' ? 'ur' : 'bi', src: 'change' });
+  } catch (err) {
+    logToFile('⚠️ one door: change link not minted', { error: err && err.message });
+    return null;
+  }
+}
+
 const knownOf = (side) => (side === 'teacher' ? 'teacher' : (side === 'child' || side === 'join' ? 'child' : 'unknown'));
 const cmdSrc = (src) => (src === 'menu' || src === 'home' ? 'other' : src);
 
@@ -134,4 +158,4 @@ async function reply({ user, from, door = 'text', body = '', language = null } =
   }
 }
 
-module.exports = { reply, mintLanding, messageFor, srcOf, TRIGGER, DOORS, GO_PATH, CLASS_WORD, CARD_WORDS };
+module.exports = { reply, mintLanding, mintLandingForPhone, messageFor, srcOf, TRIGGER, DOORS, GO_PATH, CLASS_WORD, CARD_WORDS };
