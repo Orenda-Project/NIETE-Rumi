@@ -146,7 +146,7 @@ const PAGE_COPY = {
     words: 'Words the class skipped most', kind: { literal: 'Finds facts in the story', inference: 'Works out why', vocab: 'Word meanings' },
   },
   ur: {
-    opened: 'نے کہانی کھولی', listened: 'نے سنی', read: 'نے اونچی آواز میں پڑھی', questions: 'نے سوالوں کے جواب دیے', children: 'ہر بچے کا حال',
+    opened: 'بچوں نے کہانی کھولی', listened: 'نے سنی', read: 'نے اونچی آواز میں پڑھی', questions: 'نے سوالوں کے جواب دیے', children: 'ہر بچے کا کام',
     pages: (n) => `${urN(n)} ${n === 1 ? 'صفحہ' : 'صفحے'}`, none: 'ابھی کسی بچے نے کہانی نہیں کھولی۔', skills: 'کلاس کیا کر سکتی ہے',
     words: 'کلاس نے یہ لفظ سب سے زیادہ چھوڑے', kind: { literal: 'کہانی میں لکھی بات ڈھونڈنا', inference: 'وجہ سمجھنا', vocab: 'لفظوں کے معنی' },
   },

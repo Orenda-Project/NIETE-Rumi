@@ -3130,14 +3130,14 @@ const UX_STRINGS = {
   // Nobody joined by the report's time: said in story words, with the one thing to do (the link stays open).
   storyReportNoOne: {
     en: '📖 *{title}* — no one in your class has opened the story yet. The link is still open: forward the class message again.',
-    ur: '‏📖 *{title}* — ابھی آپ کی کلاس میں کسی نے کہانی نہیں کھولی۔ لنک ابھی کھلا ہے: کلاس کا پیغام دوبارہ بھیج دیں۔',
+    ur: '‏📖 *{title}* — آپ کی کلاس میں ابھی تک کسی نے کہانی نہیں کھولی۔ لنک اب بھی کام کر رہا ہے: کلاس کو پیغام دوبارہ بھیج دیں۔',
   },
   // The class reads this name when the teacher has none on record: neutral, the word children use.
   storyYourTeacher: { en: 'Your teacher', ur: 'آپ کے ٹیچر' },
   // The same, with the teacher's name, on a story's landing (the quiz landing keeps its own word).
-  storyTeacherNamed: { en: 'Teacher {name}', ur: 'ٹیچر {name}' },
+  storyTeacherNamed: { en: 'Teacher {name}', ur: '{name} ٹیچر' },
   // Under Send on the teacher's story page: the honest way back after WhatsApp opens.
-  storyComeBack: { en: 'After sending, come back from the button in your chat.', ur: 'بھیجنے کے بعد اپنی چیٹ کے بٹن سے واپس آئیں۔' },
+  storyComeBack: { en: 'After sending, come back from the button in your chat.', ur: 'بھیجنے کے بعد اپنی چیٹ میں بٹن دبا کر یہاں واپس آئیں۔' },
   storyReportKind_literal: { en: 'Finds facts in the story: {right}/{total}', ur: '‏کہانی میں لکھی بات ڈھونڈنا: {right}/{total}' },
   storyReportKind_inference: { en: 'Works out why: {right}/{total}', ur: '‏وجہ سمجھنا: {right}/{total}' },
   storyReportKind_vocab: { en: 'Word meanings: {right}/{total}', ur: '‏لفظوں کے معنی: {right}/{total}' },

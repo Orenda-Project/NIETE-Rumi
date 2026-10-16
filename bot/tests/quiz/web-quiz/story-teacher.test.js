@@ -222,7 +222,7 @@ describe('the preview and the tap', () => {
     expect(pv.book).toMatchObject({ id: B(1), title: 'Book 1 Testwala' });
     expect(pv.class_message).toContain(pv.link);
     expect(pv.wa_href).toBe(`https://wa.me/?text=${encodeURIComponent(pv.class_message)}`);
-    expect(pv.back_line).toBe('بھیجنے کے بعد اپنی چیٹ کے بٹن سے واپس آئیں۔');
+    expect(pv.back_line).toBe('بھیجنے کے بعد اپنی چیٹ میں بٹن دبا کر یہاں واپس آئیں۔');
     expect(pv.report_line).toBe('رپورٹ ہمیشہ کی طرح آپ کو واٹس ایپ پر ملے گی۔');
     expect(logEvent).not.toHaveBeenCalledWith('teacher_story_sent', expect.anything());
   });
@@ -287,7 +287,7 @@ describe('the Stories page (the bot renders it)', () => {
     expect(r.body).toContain('<form method="post" action="/api/teacher/story/send">');
     expect(r.body).toContain(`name="story_id" value="${B(2)}"`);
     expect(r.body).toContain(`<audio controls preload="none" src="/s/${B(2)}/a01-1a2b3c4d.ogg">`);
-    expect(r.body).toContain('بھیجنے کے بعد اپنی چیٹ کے بٹن سے واپس آئیں۔');
+    expect(r.body).toContain('بھیجنے کے بعد اپنی چیٹ میں بٹن دبا کر یہاں واپس آئیں۔');
     expect(r.body).toContain('Book 2 Testwala');
     expect(r.body).toContain(`/s/${B(2)}/p01-00000002.webp`);
     expect(r.body).toContain('رپورٹ ہمیشہ کی طرح آپ کو واٹس ایپ پر ملے گی');
@@ -675,6 +675,8 @@ describe('the child\'s story landing names the teacher in the children\'s word',
     const out = await WQ.getQuiz(sent.code);
     expect(out.cls.teacher).toContain('ٹیچر');
     expect(out.cls.teacher).not.toContain('استاد');
+    // the name first, as children say it (bidi-isolated, as every Urdu string with a name is)
+    expect(out.cls.teacher).toMatch(/Example Testwala\u2069? ٹیچر$/);
     const en = await Stories.share({ uid: TEACHER, storyId: B(1) });
     dbDefaults();
     expect((await WQ.getQuiz(en.code)).cls.teacher).toBe('Teacher Example Testwala');
