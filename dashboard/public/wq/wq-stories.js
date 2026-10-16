@@ -67,7 +67,7 @@
   function ic(t, tap, label, glyph, ex) { return '<button class="wqs-ic" ' + (ex || 'data-back') + ' data-tap="' + tap + '" aria-label="' + esc(label) + '">' + glyph + '</button>'; }
   function top(l, left, title, snd) {
     var t = T[l], m = muted();
-    return '<div class="wqs-top" dir="ltr">' + (left || '<span class="wqs-ic0"></span>') + '<h2 lang="' + l + '" dir="' + dirOf(l) + '">' + esc(title || '') + '</h2>' +
+    return '<div class="wqs-top" dir="' + dirOf(l) + '">' + (left || '<span class="wqs-ic0"></span>') + '<h2 lang="' + l + '" dir="' + dirOf(l) + '">' + esc(title || '') + '</h2>' +
       (snd ? '<button class="wqs-ic wqs-snd" data-snd data-tap="snd" aria-pressed="' + m + '" aria-label="' + esc(t.sound) + '">' + (m ? IC.mute : IC.spk) + '</button>' : '') + '</div>';
   }
   function kind(name, l, say, btn, left) {
@@ -395,7 +395,7 @@
       if (p.audio) {
         mount(p, {
           onEnd: ended,
-          onState: function (s) { if (s === 'error' && R.pl) m.err(); else if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } },
+          onState: function (s) { if (s === 'error' && R.pl) { m.err(); if (view === 'page' && m.i === i) { drop(); pageScreen(); } } else if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } },
           onWordTap: function () { if (/^(idle|paused|listened|together|denied)$/.test(m.st)) { t0 = C.now(); m.set('listening'); } },
         });
       }

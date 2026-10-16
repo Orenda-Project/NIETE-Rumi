@@ -573,6 +573,9 @@ describe('the reader', () => {
     expect(root.innerHTML).toMatch(/data-tap="prev"[^>]*><span dir="ltr">‹<\/span>/);
     expect(root.innerHTML).toMatch(/data-tap="next"[^>]*><span dir="ltr">›<\/span>/);
     expect(require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'wq', 'wq-stories.css'), 'utf8')).toContain('[dir=rtl] .wqs-arr{transform:scaleX(-1)}');
+    // The top bar runs right to left too: back sits on the right and its ‹ is mirrored by the browser to point right.
+    expect(root.innerHTML).toMatch(/class="wqs-top" dir="rtl"/);
+    expect(root.innerHTML).not.toMatch(/class="wqs-top" dir="ltr"/);
     toMic(e, root);
     expect(root.innerHTML).toMatch(/data-screen="story-mic" lang="ur" dir="rtl"/);
     expect(e.calls.ask[0].lang).toBe('ur');
@@ -1623,6 +1626,15 @@ describe('the day\'s readings used up, and low-timed pages', () => {
     const p = e.calls.ra[e.calls.ra.length - 1];
     fire(root, 'main');
     expect(p.log.filter((x) => x === 'play')).toHaveLength(2);
+  });
+  test('a page voice that fails to load: the Slower pill and the sound toggle go with it', async () => {
+    const e = env(); const root = await openReader(e);
+    expect(root.innerHTML).toContain('class="wqs-slow"');
+    e.calls.ra[e.calls.ra.length - 1].o.onState('error');
+    expect(root.innerHTML).not.toContain('class="wqs-slow"');
+    expect(root.innerHTML).not.toContain('data-snd');
+    checkScreen(root.innerHTML, 'en');
+    expect(root.innerHTML).toMatch(/class="wqs-top" dir="ltr"/);
   });
   test('quality:\'low\': the live reader gets playWord:null and the page offers no word to tap (no practise word); a word-timed page does', async () => {
     const bk = book(); bk.pages[0].quality = 'low';
