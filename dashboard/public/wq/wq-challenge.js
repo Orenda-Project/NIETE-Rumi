@@ -994,7 +994,7 @@
       clearInterval(tick);
       audSample();
       if (aud && aud.peak > MIC_FLOOR) {
-        rec.micCheck = 'pass';
+        rec.micCheck = 'level_ok';   // what was measured: an input level, not speech
         aud.peak = 0;
         readStart();
         return;
@@ -1092,7 +1092,7 @@
       // the first line's window: only after it may the child say the rest is too hard
       setTimeout(function () { if (rec.mr && rec.mr.state === 'recording' && !rec.stuckOpen) { rec.stuckOpen = true; paintRead(); } }, LINE1_MS);
       // the microphone was proven working: a silent start is a stopped reading, not a minute of nothing
-      if (rec.micCheck === 'pass') {
+      if (rec.micCheck === 'level_ok' || rec.micCheck === 'pass') {
         rec.sampler = setInterval(audSample, 200);
         setTimeout(function () { if (rec.mr && rec.mr.state === 'recording' && !heardAny()) stopRec('silent'); }, SILENT_MS);
       }
