@@ -387,4 +387,50 @@ describe('replies to a person\'s own message ride their own counter (the shared 
       expect(records.map((r) => [r.trigger, r.reason, r.ownReply, r.ok])).toEqual([['bind_reply', 'bind', true, n === 1]]);
     } finally { await app.close(); }
   });
+
+  // The binder's own line for a full phone (Keep my place OFF, so no way back answers first): a fifth child's code on a
+  // phone already holding four answers with the one plain line, on the person's own counter.
+  test.each([['OFF', {}, 0], ['ON', ON, 1]])('a fifth child on a full phone (the binder\'s own line): one door %s → %s reply, ONE ledger record', async (_n, extra, n) => {
+    const soon = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const minted = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const fifth = { id: 'st-5', phone: null, list_id: null, is_active: true, student_name: 'Fifth Testwala', self_reported_class: '4', created_at: '2026-10-08T08:59:00Z' };
+    const kin = ['k-2', 'k-3', 'k-4'].map((id, i) => ({ id, phone: null, list_id: null, is_active: true, student_name: `Kin${i + 2} Testwala`, self_reported_class: '4', created_at: '2026-10-08T08:59:00Z' }));
+    const norm = require('../../shared/services/quiz/student-identity.service').normalisePhone(PHONE);
+    const bindings = ['st-1', 'k-2', 'k-3', 'k-4'].map((id, i) => ({ id: `b-${i + 1}`, canonical_id: id, phone_norm: norm, via: 'save', bound_at: `2026-10-0${i + 1}T08:00:00Z`, expires_at: soon, revoked_at: null }));
+    const app = await boot(worldOf({
+      users: [CHILD_USER()], students: [CHILD_ROW(), ...kin, fifth], settings: { ...BIND, ...extra },
+      extra: { child_phone_bindings: bindings, child_bind_codes: [{ code: 'JUGNU-JK4LM', canonical_id: 'st-5', minted_at: minted, expires_at: soon, used_at: null, outcome: null }] },
+    }));
+    try {
+      await spendPool();
+      const Ledger = require('../../shared/services/quiz/message-ledger');
+      const records = [];
+      const real = Ledger.record.bind(Ledger);
+      jest.spyOn(Ledger, 'record').mockImplementation(async (args) => { const ok = await real(args); records.push({ ...args, ok }); return ok; });
+      const out = await app.text('JUGNU-JK4LM');
+      expect(out.map((s) => s.kind)).toEqual(n ? ['text'] : []);
+      expect(records.map((r) => [r.trigger, r.reason, r.ownReply, r.ok])).toEqual([['bind_reply', 'max_kids', true, n === 1]]);
+    } finally { await app.close(); }
+  });
+
+  // A teacher's phone sending a child's code: refused with the one teacher line, on the person's own counter.
+  test.each([['OFF', {}, 0], ['ON', ON, 1]])('a teacher\'s phone sends a child\'s code (the binder\'s refusal): one door %s → %s reply, ONE ledger record', async (_n, extra, n) => {
+    const soon = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const minted = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const TEACHER = { id: 'u-teacher', phone_number: PHONE, role: 'teacher', ...ROW, registration_completed: true, registration_state: 'completed', name: 'Teacher Testwala', teacher_uuid: 'tu-1', school_id: 'sch-1' };
+    const app = await boot(worldOf({
+      users: [TEACHER], settings: { ...BIND, ...extra },
+      extra: { child_bind_codes: [{ code: 'JUGNU-NP5QR', canonical_id: 'st-1', minted_at: minted, expires_at: soon, used_at: null, outcome: null }] },
+    }));
+    try {
+      await spendPool();
+      const Ledger = require('../../shared/services/quiz/message-ledger');
+      const records = [];
+      const real = Ledger.record.bind(Ledger);
+      jest.spyOn(Ledger, 'record').mockImplementation(async (args) => { const ok = await real(args); records.push({ ...args, ok }); return ok; });
+      const out = await app.text('JUGNU-NP5QR');
+      expect(out.map((s) => s.kind)).toEqual(n ? ['text'] : []);
+      expect(records.map((r) => [r.trigger, r.reason, r.ownReply, r.ok])).toEqual([['teacher_refusal', 'teacher_phone', true, n === 1]]);
+    } finally { await app.close(); }
+  });
 });
