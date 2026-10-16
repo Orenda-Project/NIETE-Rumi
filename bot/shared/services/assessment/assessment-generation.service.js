@@ -899,8 +899,16 @@ const RULE = {
   // Social Studies: a paraphrase of a fact is not a repeated stem, so noRepeats lets Q5 and Q7 re-ask it.
   // The sections are written in parallel, so the rule names the slots, not their items.
   sstNoReask: 'Q5 and Q7 never ask a fact that a Section A item (stem or key) or a Q6 item on this paper already tests.',
-  // Social Studies Apply marks come from situations; the model follows a counted slot rule, not sstQ56's wording alone.
-  sstSituations: (q, n, total) => `Of the ${total} ${q} items, at least ${n} give a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and ask the child to use a concept from these pages to decide or explain; the rest may explain or compare book facts.`,
+  // Social Studies: one thinking level per choice group, as FDE's own paper sets them (Q7 recall,
+  // Q5 define / explain / compare, Q6 explain or apply in a situation). A mixed slot put one book-recall
+  // item among situations, so the child's choice changed how hard the paper was. Q6's situations carry
+  // the Apply marks the counted situation rule used to spread over Q5 and Q6.
+  sstBand: {
+    Q5: 'Every Q5 item is Understand: define a term, explain why, give two reasons, or compare two things from these pages. No Q5 item sets a situation to decide, and none is a one-fact recall item.',
+    Q6: 'Every Q6 item is Apply: it sets a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and asks the child to use a concept from these pages to decide or explain. No Q6 item asks to define, list or recall a book fact.',
+    Q7: 'Every Q7 item is Remember: one fact (who, what, where, when, how many) answered in one line. No Q7 item asks why or sets a situation.',
+  },
+  sstGroups: 'The child chooses which items of a question to answer, so every item of Q5, of Q6 and of Q7 is the same kind as the others in its question and as hard.',
   spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
   // The page store runs p.29's three columns together line by line, so a model read the provincial
   // cell (encroachments on public roads) as local work. Given column by column when the pages hold
@@ -914,7 +922,6 @@ const RULE = {
     '  An item, key or marking point that says which government (وفاقی، صوبائی یا مقامی) does a job takes it from these rows only; a job the rows do not name is not asked as a which-government item.',
     '  A which-government item asks about one job; a situation with two jobs names each job\'s government from its own row, never both under one government.',
   ].join('\n'),
-  sstQ56: 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.',
   accept: '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.',
   mathsSectionC: 'Section C is also set from the pages above: keep each slot\'s marks and item shape (a word problem stays a word problem, a calculation a calculation) and take the topic from these pages.',
   grammarFromPages: 'Q1(a) grammar MCQs test only the grammar these pages teach. If the pages teach fewer grammar points than there are MCQs, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.',
@@ -1196,16 +1203,14 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if ((key === 'science' || key === 'social_studies') && list.some((s) => s.shape === 'frame')) rules.push(RULE.frameLabels);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) rules.push(RULE.situationParts);
   if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
-  if (key === 'social_studies' && list.some((s) => /\.Q[56]$/.test(s.slot))) rules.push(RULE.sstQ56);
   if (key === 'urdu' && list.some((s) => /\.Q4$/.test(s.slot))) rules.push(RULE.urduQ4);
   rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender, RULE.people);
   if (medium === 'ur') rules.push(RULE.genderUrdu);
   rules.push(RULE.noRepeats);
   if (key === 'social_studies' && list.some((s) => /\.Q[57]$/.test(s.slot))) rules.push(RULE.sstNoReask);
   if (key === 'social_studies') {
-    for (const s of list.filter((x) => /\.Q[56]$/.test(x.slot))) {
-      rules.push(RULE.sstSituations(s.slot.split('.').pop(), Math.ceil(s.generate / 2), s.generate));
-    }
+    const bands = list.map((s) => RULE.sstBand[s.slot.split('.').pop()]).filter(Boolean);
+    if (bands.length) rules.push(...bands, RULE.sstGroups);
   }
   if (key === 'social_studies') {
     const inPages = _holdsTierTable(pageContent);
