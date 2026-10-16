@@ -6,8 +6,11 @@
  *
  * The write is ONE call to the database function message_ledger_add (INSERT … ON CONFLICT DO UPDATE
  * count = count + n). Only when that function is missing (42883) or the client has no rpc does it fall back to
- * select-then-write. A bot-initiated send to a family is never recorded (it must not exist). A missing table
- * (42P01) is logged once and the call returns false. Never throws.
+ * select-then-write. A bot-initiated send to a family is never recorded (it must not exist), with ONE exception: the
+ * direct ping (trigger 'sample_ping') is accepted ONLY as initiated 'bot' → recipient 'family' and ONLY without
+ * `phone`, so its return value is the write result (false → the caller sends nothing; while the table's CHECKs still
+ * refuse the row, every ping is refused here). A missing table (42P01) is logged once and the call returns false.
+ * Never throws.
  *
  * A counted reply is one the bot DECIDED to send (an attempt), not a delivery: callers record first and send
  * only when record() returned true, so a send that fails afterwards is still counted.
@@ -24,6 +27,8 @@
  * the send decision: false ONLY when capped (a ledger write that fails is logged, web_quiz.ledger_write_failed{trigger}
  * once per process, and the reply still goes out). `reason` (bind, renew, stop, stop_nothing, max_kids, teacher_phone,
  * guest, home) rides on msg_sent; the ledger row stays keyed by trigger.
+ * capAllows(phone, trigger, now) is that cap on its own (the direct ping runs it before it reserves, then records
+ * without a phone).
  * The cap never fails open: with neither secret set the counter is keyed on a per-boot salt (per process), and with
  * Redis down a process-local counter takes over; both are logged once and visible as
  * web_quiz.reply_cap_unavailable{why: 'boot_salt'|'redis_local'} so a go package can see the cap ran degraded.
@@ -43,6 +48,9 @@ const USD_PER_SEND = 0.015;
 const MINUTES_PER_ROUND_CHILD = 1;   // a class round: about a minute of the teacher's time per child asked, one at a time
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 const TRIGGERS = Object.freeze(['home_reply', 'bind_reply', 'guest_reply', 'teacher_refusal', 'class_link', 'class_round', 'teacher_queue']);
+// The direct ping: bot → family only, never with a phone (the strict path). Kept beside TRIGGERS, not in it, so every
+// caller of TRIGGERS (the counted replies) is unchanged.
+const SAMPLE_PING = 'sample_ping';
 const INITIATED = Object.freeze(['user', 'bot']);
 const RECIPIENTS = Object.freeze(['family', 'teacher']);
 const CAP_KEY = 'web_quiz_reply_cap_per_phone';
@@ -222,7 +230,11 @@ async function countCapped({ trigger, classId, initiated, recipient, now }) {
  * the cap plus that one reply.
  */
 async function record({ trigger, phone = null, reason = null, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, minutesEach = 0, uncapped = false, now = new Date() } = {}) {
-  if (!TRIGGERS.includes(trigger) || !INITIATED.includes(initiated) || !RECIPIENTS.includes(recipient)) return false;
+  if (!(TRIGGERS.includes(trigger) || trigger === SAMPLE_PING) || !INITIATED.includes(initiated) || !RECIPIENTS.includes(recipient)) return false;
+  if (trigger === SAMPLE_PING) {
+    if (initiated !== 'bot' || recipient !== 'family' || phone) return false;
+    return write({ trigger, reason, classId, initiated, recipient, count, usdEach, minutesEach, now });
+  }
   if (initiated === 'bot' && recipient === 'family') return false;
   if (phone) {
     if (!uncapped && !(await underCap(phone, trigger, now))) {
@@ -290,7 +302,7 @@ async function write({ trigger, reason = null, classId, initiated, recipient, co
 
 module.exports = {
   countCapped,
-  record, pktDay, capPerPhone, TRIGGERS, USD_PER_SEND, MINUTES_PER_ROUND_CHILD, TABLE, CAP_KEY, CAP_DEFAULT,
+  record, capAllows: underCap, pktDay, capPerPhone, TRIGGERS, SAMPLE_PING, USD_PER_SEND, MINUTES_PER_ROUND_CHILD, TABLE, CAP_KEY, CAP_DEFAULT,
   _resetMissing: () => { missingLogged = false; writeFailLogged = false; oldFunctionLogged = false; },
   _resetCap: () => { capCache = null; unkeyedLogged = false; redisFailLogged = false; localCounts.clear(); },
 };
