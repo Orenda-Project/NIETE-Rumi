@@ -955,7 +955,12 @@ describe('the passage title on the listen/read payload and the menu (title_ur|ti
     on(V2, ...CANON_ON, PERIOD, POOL);
     const l = await Ch.exercise(hub(K3), 'listen', D);
     expect(rowOf(l.ct)).toMatchObject({ passage_id: 'en.listen.1.boat01', status: 'served' });
-    expect(l.title).toEqual(TITLE);
+    expect(l).not.toHaveProperty('title');   // the counted-listen title gate: a counted LISTEN passage carries no title while the gate is red
+    // a READ passage with a title (the text is on screen) keeps it through the one home
+    fs.writeFileSync(path.join(PDIR, 'en.read.1.titled01.json'), JSON.stringify({ passage_id: 'en.read.1.titled01', lang: 'en', kind: 'read', band: 1, pool: 'check', status_at_authoring: 'reviewed', is_reference: false,
+      text: W12.join(' '), lines: [{ n: 1, from: 0, to: 4 }, { n: 2, from: 5, to: 9 }, { n: 3, from: 10, to: W12.length - 1 }], tokens: W12, questions: [], twin_of: null, bank_version: 'child-test-items-v4', title_en: TITLE.en, title_ur: TITLE.ur }));
+    Bank._loadPassagesFrom(PDIR);
+    expect(Ch.passageTitle('en.read.1.titled01')).toEqual(TITLE);
     const r = await Ch.exercise(hub(K3), 'read', D);
     expect(['en.read.1.ref01', 'en.read.1.kite']).toContain(rowOf(r.ct).passage_id);   // the random band-1 draw; neither fixture has a title
     expect(r).not.toHaveProperty('title');
@@ -967,7 +972,8 @@ describe('the passage title on the listen/read payload and the menu (title_ur|ti
     expect(before).not.toHaveProperty('title');
     await Ch.exercise(hub(K3), 'listen', D);
     const after = (await Ch.menu(hub(K3), D)).exercises.find((e) => e.id === 'listen');
-    expect(after.title).toEqual(TITLE);
+    // the counted-listen title gate: a counted LISTEN passage carries no title anywhere while the gate is red (the child would see it before the story)
+    expect(after).not.toHaveProperty('title');
   });
 
   test('the re-served record row (served and left, opened again) carries the same title', async () => {
@@ -975,7 +981,7 @@ describe('the passage title on the listen/read payload and the menu (title_ur|ti
     const first = await Ch.exercise(hub(K3), 'listen', D);
     const again = await Ch.exercise(hub(K3), 'listen', D);
     expect(runOf(again.ct)).toBe(runOf(first.ct));
-    expect(again.title).toEqual(TITLE);
+    expect(again).not.toHaveProperty('title');   // the counted-listen title gate: no title on a counted listen stop while the gate is red
     // the page is told it is a re-open (r5-redteam-4 025824); a first serve never says so
     expect(again.reopened).toBe(true);
     expect(first).not.toHaveProperty('reopened');
@@ -989,7 +995,7 @@ describe('the passage title on the listen/read payload and the menu (title_ur|ti
   });
 
   test('one home for the shelf: passageTitle(id) gives {en, ur} or null', () => {
-    expect(Ch.passageTitle('en.listen.1.boat01')).toEqual(TITLE);
+    expect(Ch.passageTitle('en.listen.1.boat01')).toBeNull();   // the counted-listen title gate: a counted listening passage, withheld while the gate is red
     expect(Ch.passageTitle('en.read.1.ref01')).toBeNull();
     expect(Ch.passageTitle('no.such.passage')).toBeNull();
   });
