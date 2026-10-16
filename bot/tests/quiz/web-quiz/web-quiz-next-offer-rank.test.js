@@ -174,14 +174,38 @@ describe('the arm', () => {
       kinds.add(r.next.kind);
     }
     expect(kinds).toEqual(new Set(['video', 'quiz', 'game', 'story']));
-    expect(NO.rank('after_quiz', [video, again, game], base({ arm: 'rand' }), FILE).meta.elig).toEqual(['game', 'quiz', 'video']);
+    expect(NO.rank('after_quiz', [video, again, game], base({ arm: 'rand' }), FILE).meta.elig).toEqual(['game', 'quiz', 'video']);   // the kit's kind order
   });
   test('ctrl: today\'s lantern candidate is the primary', () => {
     const lantern = { ...story('s-lantern', daysAgo(1)), lantern: true };
     const r = NO.rank('home', [video, again, lantern], base({ arm: 'ctrl' }), FILE);
     expect(r.next.id).toBe('s-lantern');
     expect(r.next.arm).toBe('ctrl');
-    expect(r.next.rank_src).toBe('rule');
+    expect(r.next.rank_src).toBe('ctrl');
+    expect(r.next.source).toBe('fallback');
+    expect(r.meta.rule).toBe('none');
+  });
+  test('ctrl with no lantern: the first candidate as the surface built them, never the ranked head', () => {
+    // after_quiz ranks the video (11.6) over the game (0.8, no CI: no rotation); the surface built the game first
+    const ranked = NO.rank('after_quiz', [game, video], base({ arm: 'rank' }), FILE);
+    expect(ranked.next.id).toBe('vid-1');
+    const r = NO.rank('after_quiz', [game, video], base({ arm: 'ctrl' }), FILE);
+    expect(r.next.id).toBe('numbers');
+    expect(r.next).toMatchObject({ arm: 'ctrl', rank_src: 'ctrl', source: 'fallback' });
+    expect(r.meta.rule).toBe('none');
+    // and a rule still beats it
+    expect(NO.rank('after_quiz', [game, video, quizPin()], base({ arm: 'ctrl' }), FILE).next.rank_src).toBe('pinned');
+  });
+  test('source on every slot (pinned | ranked | fallback) and the arm + score_v on every alt', () => {
+    const p = NO.rank('home', [video, again, quizPin()], base(), FILE);
+    expect(p.next.source).toBe('pinned');
+    const r = NO.rank('after_quiz', [video, again, game], base({ arm: 'rank' }), FILE);
+    expect(r.next.source).toBe('ranked');
+    expect(r.next.alts.length).toBe(2);
+    r.next.alts.forEach((a) => expect(a).toMatchObject({ arm: 'rank', score_v: FILE.v, source: 'ranked' }));
+    const d = NO.rank('after_quiz', [video, again, game], base({ arm: 'rand' }), FILE);
+    expect(d.next.source).toBe('ranked');
+    d.next.alts.forEach((a) => expect(a.arm).toBe('rand'));
   });
 });
 
@@ -205,12 +229,47 @@ describe('the table\'s variant names', () => {
 });
 
 describe('the rand arm stays inside the child\'s eligible kinds', () => {
-  test('200 seeded draws: the primary kind is always in meta.elig, and elig is sorted', () => {
+  test('200 seeded draws: the primary kind is always in meta.elig, and elig is in the kit\'s kind order', () => {
     for (let d = 0; d < 200; d += 1) {
-      const r = NO.rank('after_quiz', [video, again, game], base({ arm: 'rand', seed: `k|${d}`, has_root: d % 2 === 0 }), FILE);
+      const r = NO.rank('after_quiz', [video, again, game, invite, story('s', daysAgo(1))], base({ arm: 'rand', seed: `k|${d}`, has_root: d % 2 === 0 }), FILE);
       expect(r.meta.elig).toContain(r.next.kind);
-      expect(r.meta.elig).toEqual([...r.meta.elig].sort());
+      expect(r.meta.elig).toEqual(NO.KINDS.filter((k) => r.meta.elig.includes(k)));
       if (d % 2) expect(r.next.kind).not.toBe('video');
     }
+  });
+});
+
+describe('the VALUE override is validated per context and per row', () => {
+  test('malformed -> null (the file stands)', () => {
+    for (const v of ['{bad', '[]', '5', 'null', '"x"', JSON.stringify({ v: 'x' }), JSON.stringify({ contexts: [] }), JSON.stringify({ contexts: { home: 5 } }),
+      JSON.stringify({ contexts: { home: [{ kind: 'robot', score: 1, evidence: 'prior' }, { kind: 'game', score: 'high', evidence: 'prior' }, { kind: 'game', score: 1, evidence: 'maybe' }] } }), 7, null, undefined, {}]) {
+      expect(NO.weightsOf(v)).toBeNull();
+    }
+  });
+  test('a home-only override changes the home table only; every other context keeps the file\'s', () => {
+    const W = NO.weightsOf(JSON.stringify({ v: 'ovr-2', contexts: { home: [{ kind: 'game', score: 40, ci: [30, 50], n: 9, evidence: 'significant' }] } }));
+    expect(W.v).toBe('ovr-2');
+    expect(W.contexts.home).toEqual([{ kind: 'game', score: 40, ci: [30, 50], n: 9, evidence: 'significant' }]);
+    Object.keys(FILE.contexts).filter((c) => c !== 'home').forEach((c) => expect(W.contexts[c]).toEqual(FILE.contexts[c]));
+    // the after_quiz ranking is still the file's
+    expect(NO.rank('after_quiz', [game, video], base(), W).next.id).toBe('vid-1');
+  });
+  test('the invalid rows of a context are dropped, the valid kept; a bad ci or variant is a bad row; a junk v is "override"', () => {
+    const W = NO.weightsOf({ v: 'not ok!', contexts: { after_game: [{ kind: 'game', score: 'x', evidence: 'prior' }, { kind: 'story', score: null, evidence: 'prior' },
+      { kind: 'video', score: 2, ci: [1], evidence: 'prior' }, { kind: 'quiz', variant: 7, score: 1, evidence: 'prior' }] } });
+    expect(W.v).toBe('override');
+    expect(W.contexts.after_game).toEqual([{ kind: 'story', score: null, evidence: 'prior' }]);
+  });
+});
+
+describe('after a read with almost nothing read (after_read_tried)', () => {
+  test('never a read-aloud; a listening story first, the table\'s own order', () => {
+    const listen = { kind: 'story', id: 'en.listen.1.k02', href: '/c/t?kid=c&room=story&pid=en.listen.1.k02', title: 'Listen to a story' };
+    const r = NO.rank('after_read_tried', [video, game, story('read-1', daysAgo(1)), { ...stopRead(), read_aloud: true }, { ...story('read-2', daysAgo(1)), read_aloud: true }, listen], base(), FILE);
+    expect([r.next, ...r.next.alts].map((x) => x.id)).not.toContain('stop.read');
+    expect([r.next, ...r.next.alts].map((x) => x.id)).not.toContain('read-2');
+    expect(r.next.kind).toBe('story');
+    expect(r.next.rank_src).toBe('prior');
+    expect(FILE.contexts.after_read_tried.every((x) => x.evidence === 'prior' && x.score === null)).toBe(true);
   });
 });

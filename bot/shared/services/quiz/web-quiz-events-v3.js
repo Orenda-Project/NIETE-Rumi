@@ -6,16 +6,20 @@
  *   envelope3(fields, { kid, sit })           { w:'s', ev_v:3, kid_v, kid|null, sit|null, v3:1, ...fields } — with a
  *                                              kid present, every id that joins a row back to a phone, a share code
  *                                              or a session is removed (web-quiz-kid.js stripIds)
- *   sitOf(kid)                                 the child's current sitting id: a random 10-char id held in Redis keyed
- *                                              by the kid, 30-minute sliding life; a new sitting starts after 30 minutes
- *                                              with no line. Random, carries no identity. Null without a kid or Redis.
- *   emit3(name, fields, { canonicalId })        one v3 server line (callers check the switch)
+ *   sitOf(kid, dk)                             the current sitting id: a random 10-char id held in Redis keyed by the
+ *                                              kid (else the phone's dk), 30-minute sliding life; a new sitting starts
+ *                                              after 30 minutes with no line. Random, carries no identity. Null without
+ *                                              either key or without Redis.
+ *   emit3(name, fields, { canonicalId, device }) one v3 server line (callers check the switch)
  *   relayed(e)                                 is this page event a v3 line (next_shown, next_tap, home_view, door_tap
- *                                              with a v3 door, door_row_tap, video_open, video_watched)? The relay (web-quiz.service.js events) hands
+ *                                              with a v3 door, door_row_tap, video_open, video_watched, who_open,
+ *                                              card_shown, card_share)? The relay (web-quiz.service.js events) hands
  *                                              it to `relay` only with `web_quiz_events_v3` on; off, today's path.
  *   relay(e, body, device, { onTap })          the page line, cleaned by the v3 rules (EVENTS v3 §2), keyed by the
  *                                              child (the hub token + chip, else the quiz session), its sitting id, and
  *                                              a next_tap's offer goes to onTap(kid, offer) (the slot's streak reset).
+ *                                              A coach's preview line (`practice: 1`) is kept with kid null: never a child's.
+ *   tk(userId)                                 the teacher key (web-quiz-kid.js tk), for a teacher surface's lines.
  */
 const crypto = require('crypto');
 const { logEvent } = require('../../utils/structured-logger');
@@ -52,11 +56,13 @@ async function readSit(kid) {
   return valid(won) ? won : mine;
 }
 
-async function sitOf(kid) {
-  if (!kid) return null;
-  if (inflight.has(kid)) return inflight.get(kid);
-  const p = readSit(kid).catch(() => null).finally(() => inflight.delete(kid));
-  inflight.set(kid, p);
+// The sitting's key: the child's kid, else the phone's dk (EVENTS v3 §0: `kid|dk`); the two never share a key.
+async function sitOf(kid, dk = null) {
+  const key = kid || (dk ? `d.${dk}` : null);
+  if (!key) return null;
+  if (inflight.has(key)) return inflight.get(key);
+  const p = readSit(key).catch(() => null).finally(() => inflight.delete(key));
+  inflight.set(key, p);
   return p;
 }
 
@@ -65,20 +71,20 @@ function envelope3(fields = {}, { kid = null, sit = null } = {}) {
   return out.kid ? K.stripIds(out) : out;
 }
 
-async function emit3(name, fields = {}, { canonicalId = null } = {}) {
+async function emit3(name, fields = {}, { canonicalId = null, device = null } = {}) {
   const kid = canonicalId ? K.kid(canonicalId) : null;
-  const sit = await sitOf(kid);
+  const sit = await sitOf(kid, kid || !device ? null : K.dk(device));
   logEvent(name, envelope3(fields, { kid, sit }));
 }
 
 // ── the page's slot lines (EVENTS v3 §2) ──────────────────────────────────────────────────────────────
 
-const CTX = /^(home|after_quiz|after_quiz_low|after_read|after_read_weak|after_game|after_video|after_story|ftue|teacher_home)$/;
+const CTX = /^(home|after_quiz|after_quiz_low|after_read|after_read_weak|after_read_tried|after_game|after_video|after_story|ftue|teacher_home)$/;
 const RULES = Object.freeze({
   ctx: CTX,
-  kind: /^(story|game|quiz|video|storybook|invite|sticker|none)$/,
+  kind: /^(story|game|quiz|video|storybook|invite|sticker|door|none)$/,
   id: /^[a-z0-9._:-]{1,64}$/i,
-  rank_src: /^(significant|prior|rule|pinned|rand)$/,
+  rank_src: /^(significant|prior|rule|pinned|rand|ctrl)$/,
   offer: /^[A-Za-z0-9_-]{10}$/,
   arm: /^(rank|rand|ctrl)$/,
   score_v: /^[A-Za-z0-9._-]{1,32}$/,
@@ -93,9 +99,18 @@ const BY_NAME = Object.freeze({
   door_row_tap: { door: RULES.door, kind: /^(passage|listen|game|quiz|again|subject|video|storybook)$/, item: ITEM, lang: RULES.lang },
   video_open: { item: ITEM, via: /^(hub_door|next_offer|library|deep)$/, lang: RULES.lang },
   video_watched: { item: ITEM, via: /^(hub_door|next_offer|library|deep)$/, lang: RULES.lang },
+  // the shared-phone sheet; the result cards (EVENTS v3 §4)
+  who_open: { lang: RULES.lang },
+  card_shown: { source: /^(quiz|read|story|challenge)$/, lang: RULES.lang },
+  card_share: { source: /^(quiz|read|story|challenge)$/, kind: /^(card_image|invite_link)$/, path: /^(file|native|wa|copy)$/, lang: RULES.lang },
 });
+// Small whole numbers a name keeps ([min, max]) and its true/false keys (booleans only, never a string).
+const INTS = Object.freeze({ who_open: { kids: [0, 20], jn: [0, 1] } });
+const BOOLS = Object.freeze({ card_shown: ['share_ok', 'tried'] });
 const POS_MAX = { door_row_tap: 99 };
 const NAMES = new Set(['next_shown', 'next_tap', 'home_view', 'door_tap', ...Object.keys(BY_NAME)]);
+// A coach's preview of the child home: its lines say so and are never keyed to a child (the tables drop them).
+const practiceOf = (e) => e && (e.practice === 1 || e.practice === '1');
 
 // Lines only the server writes (the slot's denominator, the activity spine): a page copy is dropped under v3.
 const SERVER_V3 = new Set(['next_set', 'activity_start', 'activity_end']);
@@ -117,6 +132,9 @@ function clean3(e) {
   const num = (k) => Number.isFinite(Number(e[k])) && e[k] !== null && e[k] !== '' && typeof e[k] !== 'boolean' && Number(e[k]) >= 0;
   if (num('ms_to_tap')) out.ms_to_tap = Math.round(Number(e.ms_to_tap));
   if (e.n === 'video_watched' && num('ms')) out.ms = Math.round(Number(e.ms));
+  for (const [k, [lo, hi]] of Object.entries(INTS[e.n] || {})) if (Number.isInteger(e[k]) && e[k] >= lo && e[k] <= hi) out[k] = e[k];
+  for (const k of (BOOLS[e.n] || [])) if (typeof e[k] === 'boolean') out[k] = e[k];
+  if (practiceOf(e)) out.practice = 1;
   return out;
 }
 
@@ -150,13 +168,14 @@ async function childOf(body = {}) {
 async function relay(e, body = {}, device = null, { onTap = null } = {}) {
   try {
     const fields = { ...clean3(e), w: 'p' };
-    const studentId = await childOf(body);
+    const studentId = fields.practice ? null : await childOf(body);
     const kid = studentId ? K.kid(studentId) : null;
-    const sit = await sitOf(kid);
-    logEvent(`web_quiz.${e.n}`, envelope3({ ...fields, dk: K.dk(device || body.dr) }, { kid, sit }));
+    const dk = K.dk(device || body.dr);
+    const sit = await sitOf(kid, dk);
+    logEvent(`web_quiz.${e.n}`, envelope3({ ...fields, dk }, { kid, sit }));
     // the caller's tap hook (the next-thing slot's streak): passed in, so this module needs nothing from the slot's
     if (e.n === 'next_tap' && kid && fields.offer && typeof onTap === 'function') await onTap(kid, fields.offer);
   } catch (_) { /* a lost line, never a lost page */ }
 }
 
-module.exports = { envelope3, sitOf, emit3, relayed, forged, relay, clean3, SIT_TTL_S };
+module.exports = { envelope3, sitOf, emit3, relayed, forged, relay, clean3, tk: K.tk, SIT_TTL_S };

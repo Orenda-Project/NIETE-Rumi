@@ -17,8 +17,10 @@ const S = require('./web-quiz-next-offer-sources');
 const { logToFile } = require('../../utils/logger');
 
 const DEADLINE_MS = 1200;
+// A read that covered less than this share of the passage is a weak read (EVENTS v3 §7: after_read_weak).
+const WEAK_SHARE = 0.4;
 const RESULT_MEMO_S = 15 * 60;
-const { candidatesOf, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, withDeadline } = S;
+const { candidatesOf, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, artOr, withDeadline } = S;
 
 /**
  * A child's snapshot for a result card: the hub's own reads for one child (teacher card, the quiz left open, play
@@ -63,25 +65,26 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false }
 
 
 /** One result's `{ next_offer }`: the snapshot's candidates + the result's own, ranked for `ctx`. */
-async function resultField({ studentId, device, lang: asked = null, ctx, extra = [], drop = () => false }) {
+async function resultField({ studentId, device, lang: asked = null, ctx, extra = [], drop = () => false, live = null }) {
   const sw = await NO.switches();
   if (!studentId || !sw.on) return {};
   const snap = await snapshot({ studentId, device, lang: asked, watch: sw.watch });
   if (!snap) return {};
   const { canonical, token, out, history, collect, grade, lang } = snap;
-  const [{ quizIds, storyCodes, unsentCodes }, books, onItsWay] = await Promise.all([
+  const [{ quizIds, storyCodes, unsentCodes, known, covers }, books, onItsWay] = await Promise.all([
     quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)]),
     storybooks({ studentId: canonical, lang, grade, token, chip: out.kid }),
     onItsWayOf(canonical, studentId, collect.trail, lang, grade),
   ]);
-  const candidates = [...extra, ...candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, unsentCodes, extra: books, watch: sw.watch })]
+  const candidates = [...extra, ...candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers,
+    subjectArt: require('./web-quiz-hub')._parts.subjectArtOf, extra: books, watch: sw.watch })]
     .filter((c, i, a) => !drop(c) && a.findIndex((x) => x.id === c.id) === i);
-  const next = await NO.nextFor({ ctx, studentId: canonical, candidates, hasRoot: hasRootOf(history), lang });
+  const next = await NO.nextFor({ ctx, studentId: canonical, candidates, hasRoot: hasRootOf(history), lang, live });
   return next ? { next_offer: next } : {};
 }
 
 /** The quiz finish's `{ next_offer }` (the route wraps finishSession). `{}` for a teacher's or a friend's run. */
-async function finishInner(body = {}, out = {}, { device = null } = {}) {
+async function finishInner(body = {}, out = {}, { device = null } = {}, live = null) {
   try {
     if (!out || !out.score || !(await NO.switches()).on) return {};
     const tok = T.verify(body.st, 's');
@@ -98,7 +101,10 @@ async function finishInner(body = {}, out = {}, { device = null } = {}) {
     const k = T.chipId(s.share_code_id, s.student_id);
     if (sc && sc.code && sc.active !== false) extra.push({ kind: 'quiz', variant: 'again', id: qkOf(s.quiz_id, sc.code), href: `/q/${encodeURIComponent(sc.code)}?again=1&k=${encodeURIComponent(k)}`, ...words('again'), minutes: 3 });
     // the quiz's own "next in this chapter" (a video quiz with a code) is one candidate among the rest
-    if (out.next && out.next.code && out.next.title) extra.push({ kind: 'video', variant: 'chapter', id: `chapter.${out.next.vid || out.next.code}`, href: `/q/${encodeURIComponent(out.next.code)}`, ...words('video'), ...subOf(out.next.title), minutes: 3 });
+    // (its id is the video's: a share code never rides beside a kid)
+    if (out.next && out.next.code && out.next.title && out.next.vid) {
+      extra.push({ kind: 'video', variant: 'chapter', id: `chapter.${out.next.vid}`, href: `/q/${encodeURIComponent(out.next.code)}`, ...words('video'), ...subOf(out.next.title), minutes: 3, ...artOr(out.next.poster || out.next.art, 'video') });
+    }
     if (out.challenge_code) {
       const base = String(process.env.PORTAL_URL || '').replace(/\/+$/, '');
       const link = `${base}/q/${out.challenge_code}`;
@@ -107,26 +113,48 @@ async function finishInner(body = {}, out = {}, { device = null } = {}) {
     }
     // the quiz just finished is not "your teacher's quiz" any more
     const doneId = qkOf(s.quiz_id, sc && sc.code);
-    return await resultField({ studentId: s.student_id, device: tok.d || device, lang, ctx, extra, drop: (c) => c.variant === 'new' && c.id === doneId });
+    return await resultField({ studentId: s.student_id, device: tok.d || device, lang, ctx, extra, drop: (c) => c.variant === 'new' && c.id === doneId, live });
   } catch (err) {
     logToFile('⚠️ web quiz next offer: finish field unavailable', { error: err.message });
     return {};
   }
 }
 
-/** The context of a Jugnu stop's final result (pure). */
-function challengeCtx(ex, result = {}) {
+/**
+ * The context of a Jugnu stop's final result (pure). A read with almost nothing read (no word heard, or given up in
+ * the first seconds: the "you tried" card) is `after_read_tried`; a weak one failed otherwise, ended by the timer or an
+ * error, or covered < 40 % of the passage (`words` = the passage's word count, when known; read = score.attempted).
+ */
+const TRIED = new Set(['unheard', 'abandoned']);
+function challengeCtx(ex, result = {}, { words: total = null } = {}) {
   if (ex === 'read') {
+    if (result.failed && TRIED.has(result.reason)) return 'after_read_tried';
     if (result.failed) return 'after_read_weak';
     if (['timer', 'error', 'timeout'].includes(result.ended)) return 'after_read_weak';
+    const read = Number(result.score && result.score.attempted);
+    if (Number.isFinite(read) && Number(total) > 0 && read / Number(total) < WEAK_SHARE) return 'after_read_weak';
     return 'after_read';
   }
   if (ex === 'listen') return 'after_story';
   return 'after_game';
 }
 
+/** The run's passage word count (its served passage), or null when it cannot be read. Never throws. */
+async function passageWords(runId) {
+  try {
+    if (!runId) return null;
+    const { read: dbRead } = require('./web-quiz-db-deadline');
+    const { data } = await dbRead('nextOffer:challenge_runs:1', (db) => db.from('web_quiz_challenge_runs').select('id, passage_id').eq('id', runId).maybeSingle());
+    if (!data || !data.passage_id) return null;
+    const p = require('./web-quiz-challenge').passageFor(data.passage_id, require('../child-test/item-bank'));
+    return p && Array.isArray(p.tokens) && p.tokens.length ? p.tokens.length : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /** A Jugnu stop's final result's `{ next_offer }` (the route wraps submit and poll). `{}` on {pending} or a null. */
-async function challengeInner(result, ct, { device = null, lang = null } = {}) {
+async function challengeInner(result, ct, { device = null, lang = null } = {}, live = null) {
   try {
     if (!result || result.pending || !(await NO.switches()).on) return {};
     const c = T.verify(ct, 'c');
@@ -138,8 +166,10 @@ async function challengeInner(result, ct, { device = null, lang = null } = {}) {
     const had = memo ? await redis.get(memo) : null;
     if (had && typeof had === 'object' && had.href) return { next_offer: had };
     const drop = (x) => x.id === `stop.${c.ex}`;
-    const field = await resultField({ studentId: c.sid, device, lang, ctx: challengeCtx(c.ex, result), drop });
-    if (memo && field.next_offer) redis.set(memo, field.next_offer, RESULT_MEMO_S).catch(() => {});
+    const words = c.ex === 'read' && !result.failed ? await passageWords(c.r) : null;
+    const field = await resultField({ studentId: c.sid, device, lang, ctx: challengeCtx(c.ex, result, { words }), drop, live });
+    // the memo only for an offer the child got (past the deadline the next poll draws afresh, and logs it then)
+    if (memo && field.next_offer && (!live || live.on)) redis.set(memo, field.next_offer, RESULT_MEMO_S).catch(() => {});
     return field;
   } catch (err) {
     logToFile('⚠️ web quiz next offer: challenge field unavailable', { error: err.message });
@@ -154,7 +184,7 @@ async function challengeInner(result, ct, { device = null, lang = null } = {}) {
 async function offerFor({ studentId, device, lang = null, ctx, extra = [] } = {}) {
   try {
     if (!studentId || !device || typeof ctx !== 'string') return {};
-    return (await withDeadline(resultField({ studentId, device, lang, ctx, extra }), DEADLINE_MS)) || {};
+    return (await withDeadline((live) => resultField({ studentId, device, lang, ctx, extra, live }), DEADLINE_MS)) || {};
   } catch (_) {
     return {};
   }
@@ -162,12 +192,12 @@ async function offerFor({ studentId, device, lang = null, ctx, extra = [] } = {}
 
 /** The quiz finish's `{ next_offer }`, or `{}` past the deadline (the card is never held up). */
 async function finishField(body, out, opts) {
-  return (await withDeadline(finishInner(body, out, opts), DEADLINE_MS)) || {};
+  return (await withDeadline((live) => finishInner(body, out, opts, live), DEADLINE_MS)) || {};
 }
 
 /** A Jugnu stop's final result's `{ next_offer }`, or `{}` past the deadline. */
 async function challengeField(result, ct, opts) {
-  return (await withDeadline(challengeInner(result, ct, opts), DEADLINE_MS)) || {};
+  return (await withDeadline((live) => challengeInner(result, ct, opts, live), DEADLINE_MS)) || {};
 }
 
-module.exports = { finishField, challengeField, offerFor, challengeCtx, DEADLINE_MS };
+module.exports = { finishField, challengeField, offerFor, challengeCtx, passageWords, DEADLINE_MS, WEAK_SHARE };

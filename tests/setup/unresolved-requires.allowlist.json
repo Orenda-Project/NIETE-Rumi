@@ -17,6 +17,6 @@
   {
     "from": "bot/shared/services/quiz/web-quiz-next-offer-sources.js",
     "spec": "./web-quiz-storybook-next",
-    "reason": "Optional storybook candidates (a half-read book, the shelf's unread books) from the stories reader's own module. Lazy-required inside a try in storybooks(); absent = no storybook candidates, the slot ranks the rest."
+    "reason": "Optional storybook candidates (a half-read book, the shelf's unread books) from the stories reader's own module, to be added by the storybook reader PR (#2659): candidates({ studentId, lang, grade, token, chip }) -> rows of the slot's candidate shape (a half-read book = rule 'resume'). Lazy-required inside a try in storybooks(); until it lands there are no storybook candidates and the resume rule has nothing to offer; the slot ranks the rest."
   }
 ]

@@ -13,10 +13,14 @@
  *       the top two rotate when their CIs overlap (seeded by child + day), a primary shown twice and not tapped
  *       drops one place. rank_src 'significant' only when the row beats stopping on the data; else 'prior'.
  * The arm (per child per PKT day): rank 70 % · rand 20 % (the primary's kind drawn among the eligible kinds,
- * rank_src 'rand') · ctrl 10 % (today's lantern). Rules 1, 2 and 1b hold in every arm.
+ * rank_src 'rand') · ctrl 10 % (today's order for the surface: the lantern where there is one, else the first
+ * candidate as the surface builds them; rank_src 'ctrl'). Rules 1, 2 and 1b hold in every arm.
+ * Every slot carries `source` (pinned | ranked | fallback: what the page reports on next_shown) and the arm and
+ * score_v (the alts too).
  *
  *   rank(ctx, candidates, state, weights)   pure: { next, meta } or null when nothing is offerable
- *   nextFor({ ctx, studentId, candidates, lang })  the impure wrapper: switches, per-child state, the `next_set` line
+ *   nextFor({ ctx, studentId, candidates, lang, live })  the impure wrapper: switches, per-child state, the `next_set`
+ *                                           line; `live` (from the caller's deadline) false -> nothing written, no line
  *   noteTap(studentId, offer)               a tap on an offer resets its "shown, not tapped" streak
  *
  * Fail closed: a settings or Redis error is "switch off" / "no state"; nothing here ever throws to the caller.
@@ -39,7 +43,8 @@ const ALTS_MAX = 2;
 const STATE_TTL_S = 40 * 24 * 60 * 60;
 const KINDS = ['story', 'game', 'quiz', 'video', 'storybook', 'invite', 'sticker'];
 // The fields of a candidate the page sees (the next object); everything else is the ranker's.
-const PUBLIC = ['kind', 'variant', 'id', 'href', 'title', 'title_ur', 'sub', 'sub_ur', 'minutes', 'art'];
+const PUBLIC = ['kind', 'variant', 'id', 'href', 'title', 'title_ur', 'sub', 'sub_ur', 'minutes', 'art', 'tag', 'tag_ur'];
+const EVIDENCE = new Set(['significant', 'prior']);
 let cache = null;
 
 // ── pure ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -108,10 +113,13 @@ function ranked(ctx, list, state, weights) {
 
 const srcOfRow = (row) => (row && row.evidence === 'significant' ? 'significant' : 'prior');
 
+// source: the page's word for the slot (next_shown.source): a teacher's pin, today's order (ctrl), else the ranker's
+const sourceOf = (rankSrc) => (rankSrc === 'pinned' ? 'pinned' : rankSrc === 'ctrl' ? 'fallback' : 'ranked');
+
 function slot(x, ctx, rankSrc, extra) {
   const out = {};
   PUBLIC.forEach((k) => { if (x.c[k] != null) out[k] = x.c[k]; });
-  return { ...out, ctx, rank_src: rankSrc, score: x.score == null ? null : x.score, ...extra };
+  return { ...out, ctx, rank_src: rankSrc, source: sourceOf(rankSrc), score: x.score == null ? null : x.score, ...extra };
 }
 
 /**
@@ -122,7 +130,8 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
   const nowMs = Number.isFinite(Date.parse(state.now)) ? Date.parse(state.now) : Date.now();
   const arm = ['rank', 'rand', 'ctrl'].includes(state.arm) ? state.arm : 'rank';
   const scoreV = (weights && weights.v) || null;
-  const weak = ctx === 'after_read_weak';
+  // after a weak read or one with almost nothing read (tried), never another read-aloud
+  const weak = ctx === 'after_read_weak' || ctx === 'after_read_tried';
   const eligible = (Array.isArray(candidates) ? candidates : []).filter((c) => offerable(c)
     && !c.on_its_way
     && !(c.kind === 'video' && c.needs_root && !state.has_root)
@@ -158,8 +167,9 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
     head = order.find((x) => x.c.kind === kind);
     src = 'rand';
   } else if (arm === 'ctrl') {
-    head = order.find((x) => x.c.lantern) || order[0];
-    src = head.c.lantern ? 'rule' : srcOfRow(head.row);
+    // today's order: the lantern where the surface has one, else the first candidate as built (never the ranked head)
+    head = order.find((x) => x.c.lantern) || [...order].sort((a, b) => a.i - b.i)[0];
+    src = 'ctrl';
   } else {
     head = order[0];
     src = srcOfRow(head.row);
@@ -169,12 +179,13 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
   const alts = [...tail.filter((x) => x.c.kind !== head.c.kind), ...tail.filter((x) => x.c.kind === head.c.kind)]
     .filter((x, i, a) => a.findIndex((y) => y.c.id === x.c.id) === i && x.c.id !== head.c.id)
     .slice(0, ALTS_MAX)
-    .map((x) => slot(x, ctx, srcOfRow(x.row), {}));
+    .map((x) => slot(x, ctx, srcOfRow(x.row), { arm, score_v: scoreV }));
   const next = { ...slot(head, ctx, src, { arm, score_v: scoreV }), alts };
   return {
     next,
-    // elig: the kinds the rand arm could draw from (its denominator: the draw is uniform over THIS child's set)
-    meta: { rule, arm, score_v: scoreV, order: [head, ...tail].map((x) => x.c.id), kinds: [next, ...alts].map((x) => x.kind), elig: [...new Set(order.map((x) => x.c.kind))].sort() },
+    // elig: the kinds the rand arm could draw from (its denominator: the draw is uniform over THIS child's set), in
+    // the kit's kind order (KINDS)
+    meta: { rule, arm, score_v: scoreV, order: [head, ...tail].map((x) => x.c.id), kinds: [next, ...alts].map((x) => x.kind), elig: KINDS.filter((k) => order.some((x) => x.c.kind === k)) },
   };
 }
 
@@ -186,13 +197,33 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-/** A VALUE override that has the file's shape (a `contexts` object of arrays), else null. */
+/** One scores row as the file has it (a kit kind, a finite or null score, evidence significant|prior), else null. */
+function rowOf(r) {
+  if (!r || typeof r !== 'object' || !KINDS.includes(r.kind)) return null;
+  if (!(r.score === null || Number.isFinite(r.score)) || !EVIDENCE.has(r.evidence)) return null;
+  if (r.variant != null && typeof r.variant !== 'string') return null;
+  if (r.ci != null && !(Array.isArray(r.ci) && r.ci.length === 2 && r.ci.every(Number.isFinite))) return null;
+  return r;
+}
+
+/**
+ * A VALUE override, validated per context: each context it names that has at least one valid row replaces the file's
+ * table for that context (its invalid rows dropped); every other context keeps the file's. Null when nothing in it is
+ * usable (malformed JSON, no `contexts`, no valid row): the file stands.
+ */
 function weightsOf(value) {
   let v = value;
   if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { return null; } }
-  if (!v || typeof v !== 'object' || !v.contexts || typeof v.contexts !== 'object') return null;
-  if (!Object.values(v.contexts).every(Array.isArray)) return null;
-  return { v: String(v.v || 'override'), contexts: v.contexts };
+  if (!v || typeof v !== 'object' || Array.isArray(v) || !v.contexts || typeof v.contexts !== 'object' || Array.isArray(v.contexts)) return null;
+  const own = {};
+  for (const [ctx, rows] of Object.entries(v.contexts)) {
+    if (!Array.isArray(rows)) continue;
+    const ok = rows.map(rowOf).filter(Boolean);
+    if (ok.length) own[ctx] = ok;
+  }
+  if (!Object.keys(own).length) return null;
+  const vv = typeof v.v === 'string' && /^[A-Za-z0-9._-]{1,32}$/.test(v.v) ? v.v : 'override';
+  return { v: vv, contexts: { ...FILE_WEIGHTS.contexts, ...own } };
 }
 
 const OFF = Object.freeze({ on: false, events: false, pool: false, watch: false, weights: FILE_WEIGHTS });
@@ -231,6 +262,8 @@ function childKey(studentId) {
 }
 
 const stateKey = (key) => `wq:next:${key}`;
+// Another surface's own key (a teacher home's tk) keeps its state apart from every child's: never one Redis key for both.
+const OWN_KEY = /^[0-9a-f]{16}$/;
 
 async function loadState(key) {
   try {
@@ -251,16 +284,22 @@ function offerId() { return crypto.randomBytes(8).toString('base64url').slice(0,
  * The `next` object for a child in a context, or null (switch off, no child, nothing offerable, any failure: the
  * caller adds no key). `candidates` from the builders below; `hasRoot` = the child has a class quiz (videos need one).
  */
-async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en', now = Date.now(), key: ownKey = null } = {}) {
+async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en', now = Date.now(), key: ownKey = null, live = null } = {}) {
+  // live: the caller's deadline token; once it is false (the field has been given up) nothing is written or logged —
+  // a tile no child was shown never spends a month open, a streak step or a next_set line
+  const alive = () => !live || live.on !== false;
   try {
     const s = await switches();
     if (!s.on || !(studentId || ownKey) || !Array.isArray(candidates) || !candidates.length) return null;
-    // key: another surface's own keyed id (a teacher home's tk) for its arm, seed and state; else the child's
-    const key = typeof ownKey === 'string' && /^[0-9a-f]{8,32}$/.test(ownKey) ? ownKey : childKey(studentId);
+    // key: another surface's own keyed id (a teacher home's tk: exactly 16 hex) for its arm, seed and state (under
+    // its own prefix); else the child's
+    const own = typeof ownKey === 'string' && OWN_KEY.test(ownKey);
+    const key = own ? ownKey : childKey(studentId);
     if (!key) return null;
+    const sk = own ? `o:${key}` : key;
     const day = pktDay(now);
     const month = pktMonth(now);
-    const st = await loadState(key);
+    const st = await loadState(sk);
     const opens = (st.m === month ? Number(st.o) || 0 : 0) + (ctx === 'home' ? 1 : 0);
     const r = rank(ctx, candidates, {
       arm: module.exports.armOf(key, day), seed: `${key}|${day}`, now: new Date(now).toISOString(), monthOpens: opens,
@@ -271,13 +310,14 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
     const offers = { ...(st.of || {}) };
     [next, ...next.alts].forEach((x) => { offers[x.offer] = x.id; });
     const keep = Object.keys(offers).slice(-9);
-    await saveState(key, {
+    if (!alive()) return null;
+    await saveState(sk, {
       m: month, o: opens,
       s: st.s && st.s.id === next.id ? { id: next.id, n: (Number(st.s.n) || 0) + 1 } : { id: next.id, n: 1 },
       rd: r.meta.rule === 'resume' ? day : st.rd || null,
       of: Object.fromEntries(keep.map((k) => [k, offers[k]])),
     });
-    if (s.events) {
+    if (s.events && alive()) {
       const pinnedK = candidates.filter((c) => c && c.rule === 'teacher_quiz').length;
       require('./web-quiz-events-v3').emit3('web_quiz.next_set', {
         ctx, offer: next.offer, kinds: r.meta.kinds.join('|'), rank_src: next.rank_src, arm: r.meta.arm,
@@ -313,6 +353,6 @@ function eventsV3Now(now = Date.now()) {
 
 module.exports = {
   eventsV3Now,
-  rank, armOf, pktDay, pktMonth, switches, weightsOf, nextFor, noteTap, childKey, KEYS, FILE_WEIGHTS, KINDS,
+  rank, armOf, pktDay, pktMonth, switches, weightsOf, rowOf, nextFor, noteTap, childKey, KEYS, FILE_WEIGHTS, KINDS,
   _resetCache: () => { cache = null; },
 };

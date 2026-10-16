@@ -801,6 +801,90 @@
     "evidence": "prior",
     "note": "No data. Inherits after_quiz; a read-aloud kind is NOT eligible after a weak read: the story entry here means a LISTEN-only story."
    }
+  ],
+  "after_read_tried": [
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Ordered by the child-app lead's rule: reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "storybook",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Ordered by the child-app lead's rule: reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "video",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Ordered by the child-app lead's rule: reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "variant": "again",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Ordered by the child-app lead's rule: reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "game",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Ordered by the child-app lead's rule: reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "variant": "new",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Ordered by the child-app lead's rule: reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "invite",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Ordered by the child-app lead's rule: reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "sticker",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Ordered by the child-app lead's rule: reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   }
   ]
  }
 }

@@ -125,12 +125,24 @@ describe('GOLDEN: web_quiz_next_offer off -> the hub boot is today\'s', () => {
     seed(BASE_ON, pending());
     const base = await Hub.hub(T.signHub([KID]), A);
     expect(base).not.toHaveProperty('next');
-    for (const value of ['false', false, null]) {
+    for (const value of ['false', false, null, 'yes', '1', 1, 'on', { enabled: true }, '{}', '[true]', '']) {
       seed([...BASE_ON, { key: 'web_quiz_next_offer', value }, ON('web_quiz_events_v3')], pending());
       redis._store.clear();
       const off = await Hub.hub(T.signHub([KID]), A);
       expect(off).toEqual(base);
     }
+    // the slot's settings read throws (an outage): off, the payload today's
+    seed([...NEXT_ON, ON('web_quiz_events_v3')], pending());
+    redis._store.clear();
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t !== 'app_settings') return b;
+      const inn = b.in.bind(b);
+      b.in = (c, vs) => { if (c === 'key' && (vs || []).includes('web_quiz_next_offer')) throw new Error('settings read failed'); return inn(c, vs); };
+      return b;
+    };
+    expect(await Hub.hub(T.signHub([KID]), A)).toEqual(base);
     expect(v3Lines()).toEqual([]);
     expect([...redis._store.keys()].some((k) => String(k).startsWith('wq:next:'))).toBe(false);
   });
@@ -236,7 +248,7 @@ describe('the next_set line (events v3)', () => {
     expect(f.kid).toMatch(/^[0-9a-f]{16}$/);
     expect(f.sit).toMatch(/^[a-z0-9]{10}$/);
     expect(f.kinds.split('|')[0]).toBe('quiz');
-    expect(f.elig.split('|')).toEqual([...f.elig.split('|')].sort());
+    expect(f.elig.split('|')).toEqual(NO.KINDS.filter((k) => f.elig.split('|').includes(k)));   // the kit's kind order
     const text = JSON.stringify(f);
     ['Zara', 'FIXTURE', KID, 'SCI002', '22222222-2222-4222-8222-000000000002'].forEach((s) => expect(text).not.toContain(s));
   });
@@ -468,7 +480,248 @@ describe('nextFor with another surface\'s key', () => {
     const n = await NO.nextFor({ ctx: 'teacher_home', studentId: null, candidates: c, key: 'abcdef0123456789' });
     expect(n).toBeTruthy();
     expect(spy.mock.calls[0][0]).toBe('abcdef0123456789');
-    expect(redis._store.has('wq:next:abcdef0123456789')).toBe(true);
-    expect(await NO.nextFor({ ctx: 'teacher_home', studentId: null, candidates: c, key: 'not a key!' })).toBeNull();
+    expect(redis._store.has('wq:next:o:abcdef0123456789')).toBe(true);   // its own prefix: never a child's state key
+    for (const bad of ['not a key!', '923001234567', 'abcdef01', 'abcdef0123456789ab', 'ABCDEF0123456789']) {
+      expect(await NO.nextFor({ ctx: 'teacher_home', studentId: null, candidates: c, key: bad })).toBeNull();
+    }
+  });
+});
+
+// ── the second review's fixes ─────────────────────────────────────────────────────────────────────────────────
+const S = require('../../../shared/services/quiz/web-quiz-next-offer-sources');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const nextKeys = () => [...redis._store.keys()].filter((k) => String(k).startsWith('wq:next:'));
+const nextSets = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.next_set');
+// the per-child state read answers after `ms` (a slow Redis): everything else as it was. Swapped by hand (a spy on
+// the fake's own jest.fn would lose its implementation on restore); put back after each test.
+const fastGet = redis.get;
+function slowState(ms) {
+  redis.get = async function slowGet(k) {
+    if (String(k).startsWith('wq:next:')) await sleep(ms);
+    return fastGet.call(redis, k);
+  };
+}
+afterEach(() => { redis.get = fastGet; });
+
+describe('the deadline stops the work: a slot nobody was shown is never counted', () => {
+  test('the hub: a state read past 1.2 s -> no `next`, and after it lands no wq:next: write and no next_set', async () => {
+    process.env.WEB_QUIZ_KID_KEY = KEY32;
+    seed([...NEXT_ON, ON('web_quiz_events_v3')], pending());
+    slowState(1500);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out).not.toHaveProperty('next');
+    await sleep(800);   // the late read has resolved by now
+    expect(nextKeys()).toEqual([]);
+    expect(nextSets()).toEqual([]);
+  });
+
+  test('the quiz finish: past the deadline -> {} and nothing written or logged later', async () => {
+    process.env.WEB_QUIZ_KID_KEY = KEY32;
+    seed([...NEXT_ON, ON('web_quiz_events_v3')], pending());
+    slowState(1500);
+    expect(await Sources.finishField({ st: st() }, finished(), { device: A.device })).toEqual({});
+    await sleep(800);
+    expect(nextKeys()).toEqual([]);
+    expect(nextSets()).toEqual([]);
+  });
+
+  test('a Jugnu stop: past the deadline -> {}, no run memo, no state, no line; the next poll draws it afresh', async () => {
+    process.env.WEB_QUIZ_KID_KEY = KEY32;
+    seed([...NEXT_ON, ON('web_quiz_events_v3')], pending());
+    slowState(1500);
+    const t = T.signChallenge({ studentId: KID, ex: 'bigger', runId: 'run-late' });
+    expect(await Sources.challengeField({ score: {} }, t, { device: A.device })).toEqual({});
+    await sleep(800);
+    expect([...redis._store.keys()].filter((k) => String(k).startsWith('wq:nxr:'))).toEqual([]);
+    expect(nextKeys()).toEqual([]);
+    expect(nextSets()).toEqual([]);
+    redis.get = fastGet;
+    const again = await Sources.challengeField({ score: {} }, t, { device: A.device });
+    expect(again.next_offer.ctx).toBe('after_game');
+    expect(nextSets()).toHaveLength(1);
+  });
+
+  test('the hub\'s deadline is 1.2 s and the settings read is inside it', async () => {
+    expect(S.HUB_DEADLINE_MS).toBe(1200);
+    seed(NEXT_ON, pending());
+    await Hub.hub(T.signHub([KID]), A);   // the hub's own caches warm
+    const real = NO.switches;
+    jest.spyOn(NO, 'switches').mockImplementation(async () => { await sleep(2500); return real(); });
+    const t0 = Date.now();
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(Date.now() - t0).toBeLessThan(2200);
+    expect(out).not.toHaveProperty('next');
+    await sleep(1500);
+  });
+});
+
+describe('the teacher card fails closed', () => {
+  // the quizzes read the slot makes (id, quiz_source, status, meta) answers an error, or nothing
+  function quizRead(answer) {
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t !== 'quizzes') return b;
+      const sel = b.select.bind(b);
+      b.select = (cols, ...rest) => {
+        if (!/quiz_source, status, meta/.test(String(cols))) return sel(cols, ...rest);
+        const chain = new Proxy({}, { get: (_, k) => (k === 'then' ? (res) => res(answer) : () => chain) });
+        return chain;
+      };
+      return b;
+    };
+  }
+  test('a quizzes read error or no rows -> the teacher card is never offered (it may be a previewed book)', async () => {
+    for (const answer of [{ data: null, error: { message: 'timeout' } }, { data: null, error: null }]) {
+      withArm('rank');
+      seed(NEXT_ON, pending());
+      quizRead(answer);
+      const out = await Hub.hub(T.signHub([KID]), A);
+      const all = out.next ? [out.next, ...out.next.alts] : [];
+      expect(all.filter((x) => /SCI002/.test(x.href))).toEqual([]);
+      if (out.next) expect(out.next.rank_src).not.toBe('pinned');
+      const { next_offer: n } = await Sources.finishField({ st: st() }, finished(), { device: A.device });
+      if (n) expect([n, ...n.alts].filter((x) => /SCI002/.test(x.href) && x.variant !== 'again')).toEqual([]);
+      jest.restoreAllMocks();
+    }
+  });
+
+  test('a storybook whose report went out (status report_sent) is still the teacher\'s send: pinned, its cover, «نئی»', async () => {
+    const BOOK = '99999999-9999-4999-8999-000000000001';
+    const over = { ...pending(), story_books: [{ id: BOOK, cover_file: 'cover-ab12cd34.webp' }] };
+    Object.assign(over.quizzes[1], { quiz_source: 'story', status: 'report_sent', meta: { story: { book_id: BOOK, lang: 'en' } } });
+    seed(NEXT_ON, over);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.next).toMatchObject({ kind: 'storybook', rank_src: 'pinned', source: 'pinned', art: `/s/${BOOK}/cover-ab12cd34.webp`, tag: 'New', tag_ur: 'نئی' });
+  });
+
+  test('a lesson\'s video code (a parent code) open ≤ 7 days is never "your teacher\'s quiz"', async () => {
+    const over = pending();
+    over.quiz_share_codes[1].parent_share_code_id = 'sc-1';
+    seed(NEXT_ON, over);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    if (out.next) expect([out.next, ...out.next.alts].filter((x) => x.rank_src === 'pinned')).toEqual([]);
+  });
+});
+
+describe('the tile: words, picture, tag, source', () => {
+  test('the counted read stop reads "Read to Jugnu" / «جگنو کو پڑھ کر سناؤ»', () => {
+    const list = S.candidatesOf({ out: { kid: 'c1' }, token: 'tok', collect: { trail: ['read', 'bigger'] } });
+    expect(list.find((c) => c.id === 'stop.read')).toMatchObject({ title: 'Read to Jugnu', title_ur: 'جگنو کو پڑھ کر سناؤ' });
+  });
+
+  test('every kind carries a picture: the subject\'s, the grade\'s, the poster, else Jugnu\'s own', () => {
+    const out = {
+      kid: 'c1', book_on: true,
+      teacher: { code: 'TQ0001', k: 'k1', topic: 'Plants', subject: 'Science', sent_at: ago(5) },
+      last: { code: 'LQ0001', k: 'k2', state: 'open', subject: 'Maths' },
+      again: [{ code: 'AQ0001', k: 'k3', subject: 'English', art: '/wq/art/subject-english-1.webp' }],
+      lib: { href: '/lib/tok?kid=c1&l=en', art: '/wq/art/grade-3-1.webp' },
+      recs: [{ vid: 'v-1', title: 'Water', poster: '/p.webp' }],
+    };
+    const subjectArt = (s) => `/wq/art/subject-${String(s).toLowerCase()}-1.webp`;
+    const list = S.candidatesOf({
+      out, token: 'tok', watch: true, subjectArt, known: new Set(['TQ0001']),
+      collect: { trail: ['read', 'listen', 'bigger'], unseen: [{ pid: 'en.read.1.k01', title: 'A' }, { pid: 'en.listen.1.k02', title: 'B' }], live: [{ passage_id: 'en.listen.1.k02', kind: 'listen' }], story: true },
+      extra: [{ kind: 'invite', id: 'invite', href: 'https://wa.me/?text=x', title: 'Invite a friend' }, { kind: 'storybook', id: 'sb-1', href: '/s/x', title: 'A book', rule: 'resume' }],
+    });
+    const kinds = new Set(list.map((c) => c.kind));
+    ['quiz', 'video', 'story', 'game', 'sticker', 'invite', 'storybook'].forEach((k) => expect(kinds).toContain(k));
+    list.forEach((c) => expect(typeof c.art === 'string' && c.art.startsWith('/')).toBe(true));
+    expect(list.find((c) => c.id === 'library').art).toBe('/wq/art/grade-3-1.webp');   // the hub's own grade picture
+    expect(list.find((c) => c.rule === 'teacher_quiz' && c.variant === 'new').art).toBe('/wq/art/subject-science-1.webp');
+    expect(list.find((c) => c.variant === 'again').art).toBe('/wq/art/subject-english-1.webp');
+    expect(list.find((c) => c.id === 'v-1').art).toBe('/p.webp');
+    expect(list.find((c) => c.rule === 'teacher_quiz')).toMatchObject({ tag: 'New', tag_ur: 'نیا' });
+    // the shipped files only: every Jugnu picture exists in the app's public folder
+    const pub = require('path').join(__dirname, '../../../../dashboard/public');
+    Object.values(S.JUGNU_ART).forEach((a) => expect(require('fs').existsSync(require('path').join(pub, a))).toBe(true));
+  });
+
+  test('on the hub: `source` on next, arm + score_v + source on every alt, art everywhere', async () => {
+    withArm('rank');
+    seed([...NEXT_ON, ON('web_quiz_library')], pending());
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.next).toMatchObject({ source: 'pinned', arm: 'rank', score_v: NO.FILE_WEIGHTS.v });
+    expect(out.next.alts.length).toBeGreaterThan(0);
+    out.next.alts.forEach((a) => expect(a).toMatchObject({ arm: 'rank', score_v: NO.FILE_WEIGHTS.v, source: 'ranked' }));
+    [out.next, ...out.next.alts].forEach((x) => expect(x.art).toMatch(/^\//));
+  });
+
+  test('the chapter video\'s id is the video\'s, never its share code; no video id -> no chapter tile', async () => {
+    seed(NEXT_ON, pending());
+    const a = await Sources.finishField({ st: st() }, finished({ next: { code: 'VIDQ01', title: 'Water' } }), { device: A.device });
+    expect(JSON.stringify(a)).not.toContain('chapter.VIDQ01');
+    seed(NEXT_ON, pending());
+    const b = await Sources.finishField({ st: st() }, finished({ next: { code: 'VIDQ01', title: 'Water', vid: 'vid-9' } }), { device: A.device });
+    const ch = [b.next_offer, ...b.next_offer.alts].find((x) => x.variant === 'chapter');
+    if (ch) expect(ch.id).toBe('chapter.vid-9');
+  });
+});
+
+describe('a read\'s context: weak below 40 % of the passage; tried when almost nothing was read', () => {
+  const R = require('../../../shared/services/quiz/web-quiz-next-offer-result');
+  test('challengeCtx (pure)', () => {
+    expect(R.challengeCtx('read', { score: { attempted: 11 } }, { words: 30 })).toBe('after_read_weak');
+    expect(R.challengeCtx('read', { score: { attempted: 12 } }, { words: 30 })).toBe('after_read');
+    expect(R.challengeCtx('read', { score: { attempted: 5 } }, { words: null })).toBe('after_read');   // unknown length: not judged
+    expect(R.challengeCtx('read', { failed: true, reason: 'unheard' })).toBe('after_read_tried');
+    expect(R.challengeCtx('read', { failed: true, reason: 'abandoned' })).toBe('after_read_tried');
+    expect(R.challengeCtx('read', { failed: true, reason: 'incomplete' })).toBe('after_read_weak');
+    expect(R.challengeCtx('read', { score: { attempted: 30 }, ended: 'timer' }, { words: 30 })).toBe('after_read_weak');
+  });
+
+  test('through the result: the run\'s own passage length decides (a third of it read -> after_read_weak)', async () => {
+    withArm('rank');
+    const Bank = require('../../../shared/services/child-test/item-bank');
+    const PID = 'en.read.1.ref01';
+    const n = Challenge.passageFor(PID, Bank).tokens.length;
+    expect(n).toBeGreaterThan(5);
+    seed([...NEXT_ON, ...STORY_ON], { web_quiz_challenge_runs: [{ id: 'run-weak', student_id: KID, exercise: 'read', status: 'scored', passage_id: PID }] });
+    Challenge.__reset();
+    const t = T.signChallenge({ studentId: KID, ex: 'read', runId: 'run-weak' });
+    const weak = await Sources.challengeField({ score: { correct: 3, attempted: Math.floor(n / 3) }, wcpm: 20 }, t, { device: A.device });
+    expect(weak.next_offer.ctx).toBe('after_read_weak');
+    redis._store.clear();
+    const t2 = T.signChallenge({ studentId: KID, ex: 'read', runId: 'run-weak' });
+    db.web_quiz_challenge_runs[0].id = 'run-weak';
+    const ok = await Sources.challengeField({ score: { correct: n - 1, attempted: n }, wcpm: 60 }, t2, { device: A.device });
+    expect(ok.next_offer.ctx).toBe('after_read');
+  });
+
+  test('a read with nothing heard -> after_read_tried: never another read-aloud', async () => {
+    withArm('rank');
+    seed([...NEXT_ON, ...STORY_ON], { web_quiz_challenge_runs: [] });
+    Challenge.__reset();
+    const t = T.signChallenge({ studentId: KID, ex: 'read', runId: 'run-tried' });
+    const { next_offer: o } = await Sources.challengeField({ failed: true, reason: 'unheard' }, t, { device: A.device });
+    expect(o.ctx).toBe('after_read_tried');
+    expect([o, ...o.alts].filter((x) => x.title === 'Read to Jugnu')).toEqual([]);
+  });
+});
+
+describe('GET /ch/result/:ct with a FINAL result: off -> byte for byte; on -> plus next_offer', () => {
+  let server; let base;
+  beforeAll(async () => {
+    process.env.INTERNAL_API_KEY = 'route-key';
+    const express = require('express');
+    const app = express();
+    app.use(express.json());
+    app.use('/wq', require('../../../shared/routes/web-quiz-internal.routes'));
+    await new Promise((r) => { server = app.listen(0, r); });
+    base = `http://127.0.0.1:${server.address().port}/wq`;
+  });
+  afterAll(() => new Promise((r) => server.close(r)));
+  test('a scored poll', async () => {
+    const H = { 'x-api-key': 'route-key', 'x-wq-device': A.device };
+    jest.spyOn(Challenge, 'poll').mockResolvedValue({ score: { correct: 4, n: 5 } });
+    const t = T.signChallenge({ studentId: KID, ex: 'bigger', runId: 'run-get' });
+    seed(BASE_ON, pending());
+    expect(await (await fetch(`${base}/ch/result/${encodeURIComponent(t)}`, { headers: H })).text()).toBe(JSON.stringify({ score: { correct: 4, n: 5 } }));
+    seed(NEXT_ON, pending());
+    const on = await (await fetch(`${base}/ch/result/${encodeURIComponent(t)}`, { headers: H })).json();
+    const { next_offer: n, ...rest } = on;
+    expect(rest).toEqual({ score: { correct: 4, n: 5 } });
+    expect(n.ctx).toBe('after_game');
   });
 });
