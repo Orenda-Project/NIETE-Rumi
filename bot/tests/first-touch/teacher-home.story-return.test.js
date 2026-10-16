@@ -48,7 +48,10 @@ function fakeDb(db) {
 function seed(homeOn) {
   fakeDb({
     app_settings: (q) => [
+      // the stories send's own switch and the two it needs (it is on only when all three are)
       { key: 'web_quiz_stories_teacher', value: true },
+      { key: 'web_quiz_stories', value: true },
+      { key: 'web_quiz_hub', value: true },
       ...(homeOn ? [{ key: 'quiz_teacher_home', value: true }] : []),
     ].filter((r) => !q.eq.key || r.key === q.eq.key),
     story_books: [{ id: BOOK, title: 'The Thirsty Crow', grade: 2, lang: 'en', pages: 8, minutes: 4, cover_file: null, featured_rank: 1, status: 'ready' }],
