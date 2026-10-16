@@ -71,7 +71,8 @@
     var key = ladder === 'reading' ? 'R' : 'N';
     var lamps = '';
     for (var k = 1; k <= Math.min(5, lit); k++) lamps += '<li class="wq-bk-lamp"><span class="wq-bk-glow" aria-hidden="true">🪔</span><span>' + esc(t['rung' + key + k]) + '</span></li>';
-    if (outline && lit < 5) lamps += '<li class="wq-bk-outline" aria-hidden="true"></li>';
+    // The dashed ring is a picture; its name (the next step's jg.rung.*) is the visible text beside it.
+    if (outline && lit < 5) lamps += '<li class="wq-bk-outline" aria-hidden="true"></li><li class="wq-bk-nextname">' + esc(t['rung' + key + (Math.max(0, lit) + 1)]) + '</li>';
     return '<div class="wq-bk-ladder" data-ladder="' + ladder + '"><h3>' + esc(ladder === 'reading' ? t.bookReading : t.bookNumbers) + '</h3><ol>' + lamps + '</ol></div>';
   }
   function daysHtml(days, lang) {
