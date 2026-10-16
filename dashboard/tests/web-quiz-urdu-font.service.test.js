@@ -158,11 +158,12 @@ describe('Urdu copy on the after-quiz screens', () => {
     const one = page({ lang: 'ur', store: store(), api: { '/finish': { score: { correct: 1, total: 5 }, counted: true } } });
     one.ctx.__wq.results(0);
     await flush(); await flush();
-    expect(one.html()).toMatch(/1 درست کیا</);
+    // an Urdu child screen prints every number in Urdu digits
+    expect(one.html()).toMatch(/۱ درست کیا</);
     const four = page({ lang: 'ur', store: store(), api: { '/finish': { score: { correct: 4, total: 5 }, counted: true } } });
     four.ctx.__wq.results(0);
     await flush(); await flush();
-    expect(four.html()).toMatch(/4 درست کیے</);
+    expect(four.html()).toMatch(/۴ درست کیے</);
   });
 
   test('the class label on the landing never breaks across lines («جماعت 3 (ب)» keeps its «(ب)»)', () => {

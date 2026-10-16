@@ -128,7 +128,8 @@ const MINT = { '/api/wq/card': { token: TOK, url: `/q/TEST?k=${TOK}`, img: `/wq/
 
 describe('golden: switch off, the quiz card and its class share are today\'s', () => {
   // Hashed from origin/sandbox ad10e50fc (this harness, these fixtures) before this change.
-  const GOLD = { en_html: '8a0a7b8e07da9f31', en_share: 'b731a541ab256d6d', ur_html: '58789e47df634ec6', ur_share: '0ad7fddbddad9a42' };
+  // ur_html re-hashed: the Urdu card's big score now prints in Urdu digits (۳/۵); with those mapped back it is the old hash.
+  const GOLD = { en_html: '8a0a7b8e07da9f31', en_share: 'b731a541ab256d6d', ur_html: '3654f22cb008e952', ur_share: '0ad7fddbddad9a42' };
   test('EN and UR: the card\'s HTML and the shared text', () => {
     const got = {};
     for (const lang of ['en', 'ur']) {
