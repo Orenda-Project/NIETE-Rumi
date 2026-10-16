@@ -1,8 +1,7 @@
 'use strict';
 /**
- * makerCta (FIRST_QUIZ §10.1, the call the door makes): the ledger FIRST with trigger maker_reply. Today the ledger's
- * frozen trigger list has no maker_reply, so record() refuses → nothing is sent, {sent:false, capped:true}. When the
- * ledger allows (an injected list), ONE cta_url with an https /m/ link whose token verifies with the six fields.
+ * makerCta (FIRST_QUIZ §10.1, the call the door makes): the ledger FIRST with trigger maker_reply (one of the ledger's
+ * counted triggers), then ONE cta_url with an https /m/ link whose token verifies with the six fields.
  */
 process.env.INTERNAL_API_KEY = 'unit-internal-key-not-a-secret';
 jest.mock('../../shared/config/supabase', () => ({}));
@@ -33,13 +32,19 @@ beforeEach(() => {
 });
 afterAll(() => { process.env = SAVED; });
 
-test('today: the ledger refuses maker_reply → nothing sent, { sent:false, capped:true }, web_quiz.reply_capped logged', async () => {
-  expect(Ledger.TRIGGERS).not.toContain('maker_reply');
+test('the ledger counts maker_reply (the real record, no stand-in): ONE ledger row, then ONE cta_url; web_quiz.msg_sent{trigger:maker_reply}', async () => {
+  expect(Ledger.TRIGGERS).toContain('maker_reply');
+  const order = [];
+  const record = Ledger.record.bind(Ledger);
+  jest.spyOn(Ledger, 'record').mockImplementation(async (args) => { const ok = await record(args); order.push(['record', args.trigger, ok]); return ok; });
+  WhatsAppService.sendCtaUrl.mockImplementation(async () => { order.push(['send']); return true; });
   const out = await Cta.makerCta({ uid: TEACHER.id, lang: 'ur', who: 'unknown', via: 'door', phone: PHONE });
-  expect(out).toEqual({ sent: false, capped: true });
-  expect(WhatsAppService.sendCtaUrl).not.toHaveBeenCalled();
+  expect(out).toEqual({ sent: true });
+  expect(order).toEqual([['record', 'maker_reply', true], ['send']]);
+  expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(1);
   expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
-  expect(logEvent).toHaveBeenCalledWith('web_quiz.reply_capped', expect.objectContaining({ trigger: 'maker_reply' }));
+  expect(logEvent).toHaveBeenCalledWith('web_quiz.msg_sent', expect.objectContaining({ trigger: 'maker_reply' }));
+  expect(logEvent).not.toHaveBeenCalledWith('web_quiz.reply_capped', expect.anything());
 });
 
 test('ledger allows → ONE sendCtaUrl, after the ledger, with an https /m/ URL whose token carries the six fields', async () => {
