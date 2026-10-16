@@ -3,6 +3,10 @@
  * The send sheet's message box shows the whole class message, the return line included, in English and in Urdu:
  * its rows come from msgRows (one source, inlined into the page's script), never fewer than the message's lines.
  */
+process.env.WHATSAPP_BOT_NUMBER = '15550001111';
+jest.mock('../../shared/config/supabase', () => ({}));
+jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
+
 const Page = require('../../shared/services/first-touch/teacher-home.page');
 const { fill } = require('../../shared/services/first-touch/teacher-home.strings');
 
@@ -45,7 +49,6 @@ test('the page reloads only for a stale link (410); any other refusal shows the 
   expect(Page.SCRIPT).toMatch(/function getj\(p\)\{[^\n]*if\(r\.status===410\)\{location\.reload\(\);throw 1\}/);
   expect(Page.SCRIPT).not.toMatch(/404&&p\.indexOf/);
   expect(Page.SCRIPT).toContain("function err(on){q('#th-err').hidden=!on;var g=q('#th-err-go');if(g)g.hidden=!on}");
-  process.env.WHATSAPP_BOT_NUMBER = '15550001111';
   ['en', 'ur'].forEach((lang) => {
     const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null });
     const { str } = require('../../shared/services/first-touch/teacher-home.strings');
