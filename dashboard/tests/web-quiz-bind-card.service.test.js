@@ -198,3 +198,12 @@ test('max_phones: the three-phones sentence (EN, UR), the card hidden for this s
   expect(o.innerHTML).toContain(html("This phone already keeps four children's places."));
   expect(o.innerHTML).not.toContain('three phones');
 });
+
+test('Urdu: the card\'s two buttons are stacked, so «محفوظ کریں» stays on one line; English keeps the row', () => {
+  const ur = mount();
+  load().B.card(ur, ctxOf().c);
+  expect(ur.innerHTML).toContain('<div class="wqb-row wqb-stack"><button type="button" class="wqb-btn wqb-go" data-b="keep">');
+  const en = mount();
+  load().B.card(en, ctxOf({ lang: 'en' }).c);
+  expect(en.innerHTML).toContain('<div class="wqb-row"><button type="button" class="wqb-btn wqb-go" data-b="keep">');
+});
