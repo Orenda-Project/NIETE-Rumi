@@ -487,10 +487,13 @@
 
   function intro() {
     var d = S.data;
-    show('intro', jug('hello', d.clips.intro.text, true) + hearBtn(d.clips.intro) + (d.ex === 'missing' ? missing.rowHtml(d.practice[0] || { seq: [] }, null, true) : '')
+    // v2 (wq-trail.js): a re-served record says "Welcome back" (its clip is the standard intro: no hear button, no clip);
+    // a read or listen stop names its passage under the bubble when the serve sends a title
+    var back = TR ? TR.introLine(d) : null;
+    show('intro', jug('hello', back || d.clips.intro.text, true) + (back ? '' : hearBtn(d.clips.intro)) + (TR ? TR.introTitle(d) : '') + (d.ex === 'missing' ? missing.rowHtml(d.practice[0] || { seq: [] }, null, true) : '')
       + '<div class="wqc-sticky"><button class="wq-btn wq-go" id="wqc-go" type="button">' + esc(d.ex === 'read' ? t.ready : (d.ex === 'listen' ? t.listenGo : t.start)) + '</button></div>');
-    bindHear(d.clips.intro);
-    say(d.clips.intro);
+    if (!back) bindHear(d.clips.intro);
+    say(back ? null : d.clips.intro);
     on('wqc-go', function () {
       if (d.ex === 'read') micStart();
       else if (d.ex === 'listen') listen.start();

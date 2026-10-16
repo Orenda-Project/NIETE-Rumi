@@ -139,3 +139,21 @@ describe('(f)(h) the class link pick on the run row and the hub event', () => {
     expect(events).toEqual(want.events);
   });
 });
+
+// A teacher's own visit through the class link plays as practice; its page says so with the teacher's line, so the
+// exercise payload carries teacher_preview: true then, and never otherwise (every other payload's key set unchanged).
+describe('teacher_preview on the exercise payload', () => {
+  const clHub = (cl) => T.sign({ k: 'h', ids: [KID], exp: exp(), src: 'cl', cl });
+
+  test('a teacher-preview run (class link, m = practice) → teacher_preview: true', async () => {
+    const p = await Ch.exercise(clHub({ c: CLASS, s: 'roster_pick', q: 'high', h: false, m: 'practice' }), 'bigger', { device: DEV });
+    expect(p.teacher_preview).toBe(true);
+  });
+
+  test('a child\'s class-link pick and a plain hub token: no teacher_preview key', async () => {
+    const pick = await Ch.exercise(clHub({ c: CLASS, s: 'roster_pick', q: 'high', h: false }), 'bigger', { device: DEV });
+    const plain = await Ch.exercise(plainHub(), 'bigger', { device: DEV });
+    expect(pick).not.toHaveProperty('teacher_preview');
+    expect(plain).not.toHaveProperty('teacher_preview');
+  });
+});
