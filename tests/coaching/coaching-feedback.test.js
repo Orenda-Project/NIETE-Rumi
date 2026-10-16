@@ -123,7 +123,7 @@ describe('the thumb is stored against the coaching session', () => {
     expect(key).toContain(USER);
     expect(value).toMatchObject({ coachingSessionId: SESSION });
     const asked = mockWhatsApp.sendMessage.mock.calls.at(-1)[1];
-    expect(asked).toMatch(/didn.t seem right/i); // bd-v0toag.38.9 wording
+    expect(asked).toMatch(/wasn.t accurate/i); // bd-v0toag.79 wording
   });
 });
 
