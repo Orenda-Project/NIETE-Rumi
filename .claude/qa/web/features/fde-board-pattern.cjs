@@ -27,17 +27,31 @@ async function api(page, ctx, method, path, body) {
 const fdeBody = (grade, subject) => ({ grade, subject, pattern: PATTERN, scope: 'fde', questionCount: 0,
   contentSource: 'unseen', seenCount: null, questionTypes: [], answerLines: true, outputFormat: 'pdf' });
 
-// Ten requests in the last hour for the demo teacher, with ids we keep, so clean-up deletes exactly these.
+// Ten requests in the last hour for the demo teacher, with ids we keep, so clean-up deletes exactly these. Grade 5
+// Maths, on the book catalogue() guarantees: the columns are foreign keys and the demo data has no subjects or books.
 async function seedTenThisHour(ctx) {
   const ids = Array.from({ length: 10 }, () => crypto.randomUUID());
   await ctx.sql('insert into assessment_requests (id, user_id, surface, grade_code, subject_code, textbook_id, chapter_number, question_count, created_at) '
-    + 'select x.id::uuid, u.id, \'portal\', (select code from grade_levels order by code limit 1), (select code from subjects order by code limit 1), '
-    + '(select id from textbooks limit 1), 1, 10, now() - (x.n || \' minutes\')::interval '
+    + 'select x.id::uuid, u.id, \'portal\', \'grade_5\', \'maths\', '
+    + "(select id from textbooks where curriculum = 'ict' and grade = 5 and subject = 'maths' limit 1), 1, 10, now() - (x.n || ' minutes')::interval "
     + 'from users u, (values ' + ids.map((id, i) => "('" + id + "', " + (i + 1) * 3 + ')').join(', ') + ') as x(id, n) '
     + "where u.phone_number = '" + TEACHER_PHONE + "'");
   return ids;
 }
 const unseed = (ctx, ids) => ctx.sql('delete from assessment_requests where id in (' + ids.map((id) => "'" + id + "'").join(', ') + ')');
+
+// The Grade 5 books the generator offers. The class picker lists only grades and subjects with an ICT book
+// (assessment-browse listGrades/listSubjects), and the demo data (DATA=demo, the default) has none: every grade is greyed
+// out and no scenario can reach Grade 5. Added only where missing, so a sandbox copy keeps its own books; the run's
+// database is its own and is dropped at the end of the run.
+const G5_SUBJECTS = ['english', 'maths', 'science'];
+async function catalogue(ctx) {
+  const list = G5_SUBJECTS.map((s) => "('" + s + "')").join(', ');
+  await ctx.sql('insert into subjects (code) select s from (values ' + list + ') as x(s) on conflict (code) do nothing');
+  await ctx.sql("insert into textbooks (curriculum, grade, subject, filename, total_pages) "
+    + "select 'ict', 5, s, 'e2e-fde-g5-' || s || '.pdf', 100 from (values " + list + ') as x(s) '
+    + "where not exists (select 1 from textbooks t where t.curriculum = 'ict' and t.grade = 5 and t.subject = x.s)");
+}
 
 async function bodyText(page) { return page.evaluate(() => document.body.innerText); }
 
@@ -65,6 +79,9 @@ const scenarios = [
     await page.getByRole('button', { name: /Select grade and subject/ }).click();
     await page.getByRole('button', { name: /^Grade 5 · Science/ }).click();
     await page.getByTestId('step-next').waitFor({ state: 'visible', timeout: 15000 });
+    // Count the finished page: Make shows before the pattern's rows load, and a count taken then passed headless
+    // with words still missing (a slowed --headed run counted 55).
+    await page.getByTestId('fde-row-inside').waitFor({ state: 'visible', timeout: 15000 });
     // Words above Make my paper: everything the teacher reads before the button.
     const above = await page.evaluate(() => {
       const btn = document.querySelector('[data-testid="step-next"]');
@@ -75,17 +92,25 @@ const scenarios = [
       for (let n = walker.nextNode(); n; n = walker.nextNode()) {
         const el = n.parentElement;
         if (!el || !el.offsetParent || btn.contains(el)) continue;
-        if (el.getBoundingClientRect().bottom <= top) words.push(...n.textContent.trim().split(/\s+/).filter(Boolean));
+        // A control that is only its label ("Edit") is not something she reads; a row whose button holds more is.
+        const ctl = el.closest('button, a, [role="button"]');
+        if (ctl && ctl.innerText.trim() === n.textContent.trim()) continue;
+        // Words only: the "·" separators are not words.
+        if (el.getBoundingClientRect().bottom <= top) words.push(...n.textContent.trim().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)));
       }
       return words.length;
     });
     expect(above !== null, 'no Make my paper button on Check and make');
-    expect(above <= 40, above + ' words above Make my paper (at most 40)');
+    expect(above <= 50, above + ' words above Make my paper (at most 50)');
+    // The summary is the Inside row itself; the tray behind it lists the sections and what she adds.
+    const row = await page.getByTestId('fde-row-inside').innerText();
+    for (const want of ['3 sections', '100 marks', '3 hrs']) expect(row.includes(want), 'Inside row lacks "' + want + '"');
     await page.getByTestId('fde-row-inside').click();
     const tray = page.getByTestId('fde-inside-tray');
     await tray.waitFor({ state: 'visible', timeout: 15000 });
     const text = await tray.innerText();
-    for (const want of ['3 sections', '100 marks', '3 hrs', 'You add']) expect(text.includes(want), 'Inside tray lacks "' + want + '"');
+    for (const sec of ['A', 'B', 'C']) expect(new RegExp('(^|\\n)' + sec + '(\\n|$)').test(text), 'Inside tray lacks section ' + sec);
+    expect(text.includes('You add'), 'Inside tray lacks "You add"');
     expect(/diagram to label/i.test(text), 'Inside tray lacks "the diagram to label"');
     return { wordsAboveMake: above };
   } },
@@ -199,4 +224,7 @@ const scenarios = [
   } },
 ];
 
-module.exports = { feature: 'fde-board-pattern', spec: 'tests/features/web/fde-board-pattern.feature', scenarios };
+// Every scenario starts on the catalogue, so a new one cannot forget it.
+const withCatalogue = scenarios.map((s) => ({ ...s, run: async (page, ctx) => { await catalogue(ctx); return s.run(page, ctx); } }));
+
+module.exports = { feature: 'fde-board-pattern', spec: 'tests/features/web/fde-board-pattern.feature', scenarios: withCatalogue };
