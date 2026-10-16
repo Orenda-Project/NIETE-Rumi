@@ -10,8 +10,10 @@
  *   whoseTurn({hub, kid, device, lang})  a hub link with >= 2 trusted children and no tap this request ->
  *                                   {ask:'whose_turn', kids:[{chip, first, animal, line2?, homonym_in_list}]}, else null
  *   hubExtras(out, {token, chosen, rows, trust})  under the phone-bind switch: `bind` and the chips' line2/played
- *   recordPick({sessionId, via, studentId})  under the identity-canon switch: the pick's id_src/id_confidence/
- *                                   homonym_in_list/canonical_id kept 24 h for the run row, and `id_pick` emitted
+ *   recordPick({sessionId, via, studentId, device})  under the identity-canon switch: the pick's id_src/id_confidence/
+ *                                   homonym_in_list/canonical_id kept 24 h for the run row, and `id_pick` emitted; with a
+ *                                   device, the pointer wq:idpick:d:<canonical_id>:<sha256(device)[0:16]> -> {session_id, at}
+ *                                   (the newest quiz start of this child on this phone), which the hub chip's record inherits
  *   pickFor(sessionId | {sessionId, canonicalId, device})  the quiz start's record, else the hub chip's record
  *                                   (wq:idpick:h:<canonical_id>:<sha256(device)[0:16]>, written by hubExtras), else null
  *   hubPickKey(canonicalId, device)  that hub record's Redis key (null without both); the one builder of the format
@@ -209,15 +211,57 @@ const hubPickKey = (canonicalId, device) => {
   const h = devHash(device);
   return canonicalId && h ? `${PICK_PREFIX}h:${canonicalId}:${h}` : null;
 };
+// The newest quiz start of this child on this phone: a pointer to its session record, written beside it by recordPick.
+const devPickKey = (canonicalId, device) => {
+  const h = devHash(device);
+  return canonicalId && h ? `${PICK_PREFIX}d:${canonicalId}:${h}` : null;
+};
 
-/** A chip tap on the hub (identity canon switch): hub_chip from a WhatsApp /quiz link (src 'wa'), else remembered. */
+/** That quiz start's pick record, within its 24 h and naming this canonical child; null without one (or a preview's). */
+async function sessionPickOnDevice(canonicalId, device) {
+  const ptr = await readPick(devPickKey(canonicalId, device));
+  if (!ptr || !ptr.session_id) return null;
+  const rec = await readPick(PICK_PREFIX + String(ptr.session_id));
+  if (!rec || !rec.id_src || String(rec.canonical_id || '') !== String(canonicalId)) return null;
+  if (!(Number.isFinite(Number(rec.at)) && Date.now() - Number(rec.at) <= PICK_TTL_S * 1000)) return null;
+  return rec;
+}
+
+/**
+ * Is the canonical child joined to a roster: on a class list, or carrying merged_into (IDENTITY §1: `high` only through
+ * a roster join; "My name isn't here" stays low until a teacher's join). A row that cannot be read counts as NOT
+ * joined: a guess never puts a child into the trend (a low row is promoted later by the join itself, never edited).
+ */
+async function rosterJoined(canonicalId) {
+  try {
+    const { data, error } = await supabase.from('students').select('id, list_id, merged_into').eq('id', canonicalId).maybeSingle();
+    if (error) throw new Error(error.message || 'students read failed');
+    return Boolean(data && (data.list_id || data.merged_into));
+  } catch (err) {
+    logToFile('⚠️ keep my place: roster join read failed — the hub pick is written low', { error: err.message });
+    return false;
+  }
+}
+
+/**
+ * A chip tap on the hub (identity canon switch): hub_chip from a WhatsApp /quiz link (src 'wa'); otherwise the pick of
+ * the newest quiz start of this child on this phone (its id_src, id_confidence and homonym_in_list: the child who came
+ * to the hub from the quiz they just played), and `remembered` only when no such pick exists. On top, a child joined to
+ * no roster (no list, no merged_into) is written `low`, as `forced_new` when that quiz start said so. `at` is this tap's
+ * instant (the serve's per-visit guard), never the quiz start's.
+ */
 async function recordHubPick({ chosen, rows = [], device, src }) {
   try {
     const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(chosen.id)) || chosen.id;
     const key = hubPickKey(canonicalId, device);
     if (!key) return null;
     const g = Homonym.guard(rows.map((r) => ({ id: String(r.id), first: r.student_name })), { surface: 'who' }).find((r) => r.id === String(chosen.id));
-    const rec = { id_src: src === 'wa' ? 'hub_chip' : 'remembered', id_confidence: 'high', homonym_in_list: Boolean(g && g.homonym_in_list), canonical_id: canonicalId, at: Date.now() };
+    let rec = { id_src: src === 'wa' ? 'hub_chip' : 'remembered', id_confidence: 'high', homonym_in_list: Boolean(g && g.homonym_in_list), canonical_id: canonicalId, at: Date.now() };
+    const sp = src === 'wa' ? null : await sessionPickOnDevice(canonicalId, device);
+    const joined = await rosterJoined(canonicalId);
+    // a "My name isn't here" pick is stale once a join names the child: the chip is then a remembered roster child
+    if (sp && !(sp.id_src === 'forced_new' && joined)) rec = { ...rec, id_src: sp.id_src, id_confidence: sp.id_confidence, homonym_in_list: Boolean(sp.homonym_in_list) };
+    if (!joined) rec = { ...rec, id_confidence: 'low', ...(sp && sp.id_src === 'forced_new' ? { id_src: 'forced_new' } : {}) };
     await require('../cache/railway-redis.service').set(key, rec, PICK_TTL_S);
     logEvent('web_quiz.id_pick', { w: 's', id_src: rec.id_src, id_confidence: rec.id_confidence, homonym_in_list: rec.homonym_in_list, chips_k: rows.length });
     return rec;
@@ -237,7 +281,7 @@ async function rosterHomonym(studentId) {
   return { homonym_in_list: Boolean(g && g.homonym_in_list), resolved: !g || g.confidence === 'high', k: rows.length };
 }
 
-async function recordPick({ sessionId, via, studentId } = {}) {
+async function recordPick({ sessionId, via, studentId, device } = {}) {
   try {
     if (!sessionId || !(await canonOn())) return null;
     const src = Homonym.idSrcFromVia(via);
@@ -254,6 +298,9 @@ async function recordPick({ sessionId, via, studentId } = {}) {
     };
     const redis = require('../cache/railway-redis.service');
     await redis.set(PICK_PREFIX + sessionId, rec, PICK_TTL_S);
+    // the newest quiz start of this child on this phone, for the hub chip's record to inherit (no device: no pointer)
+    const dkey = canonicalId && rec.id_src ? devPickKey(canonicalId, device) : null;
+    if (dkey) await redis.set(dkey, { session_id: String(sessionId), at: rec.at }, PICK_TTL_S);
     logEvent('web_quiz.id_pick', { w: 's', id_src: rec.id_src, id_confidence: rec.id_confidence, homonym_in_list: rec.homonym_in_list, chips_k: h.k });
     return rec;
   } catch (err) {
