@@ -117,13 +117,16 @@ async function mint({ hub, kid, device, lang } = {}) {
 async function status({ code } = {}) {
   try {
     if (!(await bindOn())) return { off: true };
-    if (!CODE_RX.test(String(code || ''))) return { state: 'refused', reason: 'code_unknown' };
+    // web_quiz_bind_way_back: every answer the page can come back from carries `wb` — an expired code keeps its Keep
+    // my place button, a refusal it has no line for offers Yes again, instead of a dead card
+    const way = async (r) => ((await require('./web-quiz-bind-way-back').on()) ? { ...r, wb: true } : r);
+    if (!CODE_RX.test(String(code || ''))) return way({ state: 'refused', reason: 'code_unknown' });
     const row = await require('./child-bind-codes.repo').get(String(code));
-    if (!row) return { state: 'refused', reason: 'code_unknown' };
+    if (!row) return way({ state: 'refused', reason: 'code_unknown' });
     if (row.used_at && row.outcome === 'bound') return { state: 'bound' };
-    if (row.outcome === 'code_expired') return { state: 'expired' };
-    if (row.used_at && row.outcome) return { state: 'refused', reason: String(row.outcome).replace(/^refused:?/, '') };
-    if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) return { state: 'expired' };
+    if (row.outcome === 'code_expired') return way({ state: 'expired' });
+    if (row.used_at && row.outcome) return way({ state: 'refused', reason: String(row.outcome).replace(/^refused:?/, '') });
+    if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) return way({ state: 'expired' });
     return { state: 'pending' };
   } catch (err) {
     logToFile('⚠️ keep my place: status failed', { error: err.message });
@@ -204,7 +207,10 @@ async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, devi
     if (f.canon && chosen) await recordHubPick({ chosen, rows, device, src });
     if (!f.phoneBind) return out;
     if (chosen) {
-      out.bind = { offer: true, hub: token, kid: out.kid };
+      // web_quiz_bind_way_back: `state` none|pending|bound|refused; saved or refused from this device → no card (off: today's)
+      const WayBack = require('./web-quiz-bind-way-back');
+      const seen = (await WayBack.on()) ? await WayBack.cardState({ canonicalId: await canonicalOf(chosen.id), device }) : null;
+      out.bind = seen && (seen.state === 'bound' || seen.state === 'refused') ? { offer: false, ...seen } : { offer: true, hub: token, kid: out.kid, ...(seen || {}) };
       return out;
     }
     out.bind = { offer: false };
@@ -219,6 +225,11 @@ async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, devi
     logToFile('⚠️ keep my place: hub extras failed', { error: err.message });
     return out;
   }
+}
+
+/** The chosen child's canonical id (the codes are minted under it); the id itself when the fold is unavailable. */
+async function canonicalOf(id) {
+  try { return (await require('./web-quiz-identity-roster').canonicalStudentId(id)) || id; } catch (_) { return id; }
 }
 
 // A play opened from the hub has no quiz session: its pick is keyed by the child and this phone.
