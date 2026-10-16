@@ -9,7 +9,8 @@
  * claim); once a day is the caller's. Switches, read fresh, a failed read is off:
  *   web_quiz_class_round, with its parents web_quiz_challenge_v2 and web_quiz_challenge;
  *   web_quiz_events_v2, with its parent web_quiz_hub (a v2 event).
- * Any of them off ⇒ the switches read only: no draws read, no event, no log.
+ * Any of them off ⇒ the switches read only: no draws read, no event, no log. The daily job asks switchesOn() first
+ * and, with them off, does not schedule this step (no day claimed for it).
  * The class is keyed (web-quiz-kid.js cls, inside its envelope): a raw class id never rides the event. The keyed-id
  * module absent, or the table not there yet ⇒ no event and one log line. Never throws.
  * Returns the number of events written, or null when off.
@@ -86,4 +87,4 @@ async function daily({ now = Date.now() } = {}) {
   }
 }
 
-module.exports = { daily, KEYS };
+module.exports = { daily, switchesOn, KEYS };
