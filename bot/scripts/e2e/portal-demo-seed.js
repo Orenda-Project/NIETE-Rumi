@@ -203,6 +203,9 @@ function build() {
       ['Which one grows?', ['A table', 'A rock', 'A seedling', 'A spoon'], 'C', 'A seedling grows into a plant.'],
       ['Which of these breathes?', ['A brick', 'A pencil', 'A bottle', 'A fish'], 'D', 'A fish breathes through its gills.'],
       ['A living thing can…', ['have babies', 'be made of plastic', 'never move', 'stay the same size for ever'], 'A', 'Living things reproduce.'],
+      // only pictures as options (the not-yet picture line, WQ053); the item quiz is full (QUESTIONS_MAX = 15)
+      ['Which picture shows a circle?', ['Picture 1', 'Picture 2', 'Picture 3', 'Picture 4'], 'B', 'The circle is the round one.',
+        { language: 'en', option_images: [{ b64: PNG }, { b64: PNG }, { b64: PNG }, { b64: PNG }] }],
     ]],
     ['grade2', 'Day and Night', [
       ['When do we see the sun?', ['In the day', 'At night', 'Never', 'Only in winter'], 'A', 'The sun shines in the daytime.'],
@@ -243,8 +246,6 @@ function build() {
           options: [{ slot: 'A', text: 'Apple', name: 'Apple', pic: { kind: 'pictogram', name: 'apple' } }, { slot: 'B', text: 'Cat', name: 'Cat', pic: { kind: 'pictogram', name: 'cat' } }, { slot: 'C', text: 'Bus', name: 'Bus', pic: { kind: 'pictogram', name: 'bus' } }] } }],
       ['Which animal do you hear?', ['Cow', 'Dog', 'Cat', 'Bird'], 'A', 'A cow says moo.',
         { language: 'en', stimulus_audio: 'http://127.0.0.1:9/no-such-clip.mp3' }],
-      ['Which picture shows a circle?', ['Picture 1', 'Picture 2', 'Picture 3', 'Picture 4'], 'B', 'The circle is the round one.',
-        { language: 'en', option_images: [{ b64: PNG }, { b64: PNG }, { b64: PNG }, { b64: PNG }] }],
       ['Which one do we sit on?', ['1. Table', '2. House', '3. Chair', 'Picture 4'], 'C', 'We sit on a chair.',
         { language: 'en', option_images: [{ b64: PNG }, { b64: PNG }, { b64: PNG }, { b64: PNG }] }],
       ['Match each animal to its sound.', ['A-1, B-2, C-3', 'A-2, B-1, C-3', 'A-3, B-2, C-1', null], 'A', 'A goes with 1: the cat says meow.',

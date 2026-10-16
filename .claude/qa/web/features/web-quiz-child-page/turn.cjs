@@ -8,7 +8,11 @@ const on = (id, mode, fn) => { modes[id] = mode; runs[id] = fn; };
 
 on('WQ135', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
-  await finishAsNew(page, ctx, CODES.OPEN, 'Tooba135');   // not a class-list name: a typed roster name takes the confirm path
+  // "Who is playing?" with the remembered cards needs more than one child on the phone: a sibling is remembered first
+  // (one remembered child lands on "Play as <name>" instead). Not a class-list name: that takes the confirm path.
+  const hina = await L.chipFor(ctx, CODES.OPEN, 'Hina Testwala');
+  await L.remember(page, ctx, [{ chip: hina.chip, first: hina.first, animal: hina.animal }]);
+  await finishAsNew(page, ctx, CODES.OPEN, 'Tooba135');
   const before = await L.rows(ctx, "select q.id, row_to_json(q)::text from quiz_sessions q join students s on s.id = q.student_id where s.student_name = 'Tooba135' and q.share_code_id = (select id from quiz_share_codes where code = " + q(CODES.OPEN) + ') order by q.created_at desc limit 1');
   expect(before.length, 'no finished session for Tooba');
   // the page reopens on Tooba's card
@@ -36,7 +40,7 @@ on('WQ135', 'off', async (page, ctx) => {
   const body = await text(page);
   expect(/Who is playing\?|Who's playing\?/.test(body), 'the landing does not ask who is playing: ' + body.slice(0, 120));
   const cards = await page.$$eval('.wq-kid-big', (els) => els.map((e) => e.innerText.trim()));
-  expect(cards.some((c) => /Tooba135/.test(c)), 'Tooba135 is not among the remembered cards: ' + JSON.stringify(cards));
+  expect(cards.some((c) => /Tooba135/.test(c)) && cards.some((c) => /Hina/.test(c)), 'the remembered cards are ' + JSON.stringify(cards));
   expect(/Someone else/.test(await inner(page, '#wq-someone')), '"Someone else" is missing');
   const after = await L.rows(ctx, 'select q.id, row_to_json(q)::text from quiz_sessions q where q.id = ' + q(before[0][0]));
   expect(after[0] && after[0][1] === before[0][1], 'Tooba\'s finished result changed: ' + before[0][1].slice(0, 200) + ' → ' + (after[0] ? after[0][1].slice(0, 200) : 'gone'));

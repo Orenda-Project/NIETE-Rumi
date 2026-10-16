@@ -61,18 +61,23 @@ async function playBigger(page, right) {
   await page.waitForSelector(S('help-ask') + ', ' + S('intro'), { state: 'attached', timeout: WAIT });
   if (await page.$(S('help-ask'))) { await page.click('#wqc-help-no'); await page.waitForSelector(S('intro'), { state: 'attached', timeout: WAIT }); }
   await page.click('#wqc-go');
-  // practice pairs, then the run: tap the bigger (or the smaller) number each time (a "go" screen between them waits)
-  for (let i = 0; i < 40; i++) {
-    const scr = await page.waitForSelector(S('bigger-practice') + ', ' + S('bigger-go') + ', ' + S('bigger-play') + ', ' + S('bigger-wait') + ', ' + S('bigger-result'), { state: 'attached', timeout: 20000 });
-    const name = await scr.getAttribute('data-screen');
+  // practice pairs, then the run: tap the bigger (or the smaller) number, then wait for the page to move on (the next
+  // pair, a "go" screen, the wait, or the result) — a fixed sleep raced the result screen and tapped a card that was gone
+  const shown = () => page.$eval('.wqc', (e) => (e.getAttribute('data-screen') || '') + '|' + e.innerText).catch(() => '');
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    const cur = await shown(); const name = cur.split('|')[0];
     if (name === 'bigger-result') return;
-    if (name === 'bigger-wait') { await page.waitForSelector(S('bigger-result'), { state: 'attached', timeout: 20000 }); return; }
-    if (name === 'bigger-go') { await sleep(1200); continue; }
-    const a = Number(await inner(page, '#wqc-a')), b = Number(await inner(page, '#wqc-b'));
-    await page.click((a > b) === right ? '#wqc-a' : '#wqc-b');
-    await sleep(name === 'bigger-practice' ? 1900 : 300);
+    if (name === 'bigger-practice' || name === 'bigger-play') {
+      const a = Number(await inner(page, '#wqc-a').catch(() => NaN)), b = Number(await inner(page, '#wqc-b').catch(() => NaN));
+      if (!Number.isFinite(a) || !Number.isFinite(b)) { await sleep(200); continue; }
+      await page.click((a > b) === right ? '#wqc-a' : '#wqc-b', { timeout: 3000, force: true }).catch(() => {});
+      await page.waitForFunction((prev) => { const e = document.querySelector('.wqc'); return !e || ((e.getAttribute('data-screen') || '') + '|' + e.innerText) !== prev; }, cur, { timeout: 8000 }).catch(() => {});
+      continue;
+    }
+    await sleep(300);                                   // go / wait / intro: the page moves on by itself
   }
-  await page.waitForSelector(S('bigger-result'), { state: 'attached', timeout: 20000 });
+  throw new Error('"Which is bigger?" reached no result screen in 120 s (at ' + (await shown()).split('|')[0] + ')');
 }
 
 on('WQ095', 'off', async (page, ctx) => {
@@ -164,8 +169,9 @@ on('WQ111', 'off', async (page, ctx) => {
   const m = JSON.parse(meta);
   const items = m.items || m.rows || null;
   expect(Array.isArray(items) && items.length === ex.json.items.length, 'the row keeps no per-item verdicts: ' + meta.slice(0, 200));
-  const numbersOnly = items.every((it) => Object.values(it).every((v) => typeof v === 'number' || typeof v === 'boolean' || v === null));
-  expect(numbersOnly, 'an item row carries text: ' + JSON.stringify(items[0]));
+  // numbers, booleans and one-letter codes (side: 'a'|'b' = which card was tapped); never a word about the child
+  const noText = items.every((it) => Object.values(it).every((v) => typeof v === 'number' || typeof v === 'boolean' || v === null || (typeof v === 'string' && v.length <= 1)));
+  expect(noText, 'an item row carries text: ' + JSON.stringify(items[0]));
   return { items: items.length, sample: items[0] };
 });
 
@@ -211,22 +217,31 @@ on('WQ116', 'off', async (page, ctx) => {
   await page.waitForSelector(S('missing-practice') + ' .wqc-cell, ' + S('missing-play') + ' .wqc-cell', { state: 'attached', timeout: WAIT });
   expect(await page.$eval('#wqc-kok', (e) => e.disabled), '✓ is enabled while the field is empty');
   await page.click('#wqc-k7'); expect((await inner(page, '#wqc-gap')) === '7', 'the gap does not show the typed digit');
-  await page.click('#wqc-kdel'); expect((await inner(page, '#wqc-gap')) === '?', '⌫ did not delete');
-  // answer every item right (the payload names the answer) through practice and the run
-  for (let i = 0; i < 40; i++) {
-    const scr = await page.waitForSelector(S('missing-practice') + ', ' + S('missing-go') + ', ' + S('missing-play') + ', ' + S('missing-result'), { state: 'attached', timeout: 20000 });
-    const name = await scr.getAttribute('data-screen');
+  await page.click('#wqc-kdel');
+  const gap = await inner(page, '#wqc-gap');                                  // emptied: the page clears the cell (the "?" is the first render's)
+  expect(gap === '' || gap === '?', '⌫ did not delete: the gap reads "' + gap + '"');
+  expect(await page.$eval('#wqc-kok', (e) => e.disabled), '✓ stays enabled after ⌫ emptied the field');
+  // answer every item right (the cells name the sequence) through practice and the run; after ✓ wait for the page to
+  // move on rather than sleeping a fixed time
+  const shownM = () => page.$eval('.wqc', (e) => (e.getAttribute('data-screen') || '') + '|' + e.innerText).catch(() => '');
+  const deadlineM = Date.now() + 120000;
+  while (Date.now() < deadlineM) {
+    const cur = await shownM(); const name = cur.split('|')[0];
     if (name === 'missing-result') break;
-    if (name === 'missing-go') { await sleep(1200); continue; }
-    const cells = await page.$$eval('.wqc-cell', (els) => els.map((e) => e.innerText.trim()));
-    const nums = cells.map((c) => (/^\d+$/.test(c) ? Number(c) : null));
-    const gapAt = nums.findIndex((n) => n === null);
-    const known = nums.filter((n) => n !== null);
-    const step = known.length >= 2 ? known[1] - known[0] : 1;
-    const answer = gapAt === 0 ? known[0] - step : known[gapAt - 1] + step;
-    for (const d of String(answer)) await page.click('#wqc-k' + d);
-    await page.click('#wqc-kok');
-    await sleep(name === 'missing-practice' ? 1900 : 350);
+    if (name === 'missing-practice' || name === 'missing-play') {
+      const cells = await page.$$eval('.wqc-cell', (els) => els.map((e) => e.innerText.trim()));
+      const nums = cells.map((c) => (/^\d+$/.test(c) ? Number(c) : null));
+      const gapAt = nums.findIndex((n) => n === null);
+      if (gapAt < 0 || nums.filter((n) => n !== null).length < 2) { await sleep(200); continue; }
+      const known = nums.filter((n) => n !== null);
+      const step = known.length >= 2 ? known[1] - known[0] : 1;
+      const answer = gapAt === 0 ? known[0] - step : known[gapAt - 1] + step;
+      for (const d of String(answer)) await page.click('#wqc-k' + d, { timeout: 3000, force: true }).catch(() => {});
+      await page.click('#wqc-kok', { timeout: 3000, force: true }).catch(() => {});
+      await page.waitForFunction((prev) => { const e = document.querySelector('.wqc'); return !e || ((e.getAttribute('data-screen') || '') + '|' + e.innerText) !== prev; }, cur, { timeout: 8000 }).catch(() => {});
+      continue;
+    }
+    await sleep(300);
   }
   await page.waitForSelector(S('missing-result'), { state: 'attached', timeout: 20000 });
   const score = await inner(page, '#wqc-score').catch(() => '');

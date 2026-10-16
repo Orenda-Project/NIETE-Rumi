@@ -155,8 +155,8 @@ on('WQ022', 'off', async (page, ctx) => {
 on('WQ090', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await reach(page, ctx, A, 'of 8?');
-  const body = await text(page);
-  for (const want of ['60 Ω', '9 ÷ 3 ≠ 3 ÷ 9', 'Rs 40']) expect(body.includes(want), 'the page does not show "' + want + '"');
+  const body = (await text(page)).replace(/\s+/g, ' ');                 // MathML's own spacing varies: compare without it
+  for (const [want, rx] of [['60 Ω', /60\s*Ω/], ['9 ÷ 3 ≠ 3 ÷ 9', /9\s*÷\s*3\s*≠\s*3\s*÷\s*9/], ['Rs 40', /Rs\s*40/]]) expect(rx.test(body), 'the page does not show "' + want + '": ' + body.slice(0, 160));
   for (const no of ['Omega', 'neq', 'frac', '\\', '$']) expect(!body.includes(no), 'the page shows "' + no + '"');
   expect(await count(page, '.wq-item math') >= 4, 'maths is not typeset as MathML');
   expect(await noOverflow(page), 'the page scrolls sideways');
@@ -167,7 +167,7 @@ on('WQ091', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await reach(page, ctx, A, 'column sum');
   const col = await page.$eval('.wq-opt[data-slot="A"] math', (m) => {
-    const rows = [...m.querySelectorAll('mtr')].map((r) => r.innerText.replace(/\s+/g, ' ').trim());
+    const rows = [...m.querySelectorAll('mtr')].map((r) => (r.textContent || '').replace(/\s+/g, ' ').trim());   // MathML nodes have no innerText
     const ruled = [...m.querySelectorAll('mtd')].some((d) => /border-top/.test(d.getAttribute('style') || ''));
     const right = [...m.querySelectorAll('mtd')].every((d) => /right/.test(d.getAttribute('columnalign') || getComputedStyle(d).textAlign));
     return { rows, ruled, right };

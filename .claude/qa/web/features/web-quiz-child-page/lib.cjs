@@ -131,9 +131,13 @@ async function openQuiz(page, ctx, code, query) {
 async function startAsNew(page, ctx, code, name) {
   await openQuiz(page, ctx, code);
   const b = await boot(page);
-  await page.click('#wq-play');
-  await page.waitForSelector('#wq-new', { state: 'visible', timeout: WAIT });
-  await page.click('#wq-new');
+  // the landing of a phone that remembers one child is "Play as <name>" / "Not <name>?"; of several, the cards and
+  // "Someone else"; of none, "Play" → "I'm new". Whichever it is, reach the typed-name path.
+  await page.waitForSelector('#wq-play, #wq-notme, #wq-someone', { state: 'visible', timeout: WAIT });
+  if (await page.$('#wq-notme')) { await tap(page, '#wq-notme'); await page.waitForSelector('#wq-someone, #wq-play', { state: 'visible', timeout: WAIT }); }
+  await tap(page, (await page.$('#wq-someone')) ? '#wq-someone' : '#wq-play');
+  await page.waitForSelector('#wq-new, #wq-name', { state: 'visible', timeout: WAIT });
+  if (await page.$('#wq-new')) await tap(page, '#wq-new');
   await page.fill('#wq-name', name);
   await page.click('#wq-start');
   await page.waitForSelector(onScreen('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
@@ -183,7 +187,7 @@ const og = (html, prop) => unesc((html.match(new RegExp('property="' + prop.repl
 // Answer `n` questions of the first pass, all right except the one at index `wrongAt` (−1 = none).
 async function play(page, questions, n, wrongAt) {
   for (let i = 0; i < n; i++) {
-    await page.waitForSelector(onScreen('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
+    await page.waitForSelector(onScreen('M6') + ' .wq-item', { state: 'visible', timeout: WAIT });   // a match item has no .wq-opt
     const qq = await current(page, questions);
     if (questions.indexOf(qq) === wrongAt) await tapAndNext(page, wrongSlot(qq));
     else { await answerRight(page, qq); await nextQ(page); }               // kind-aware: multi/order/match need Check

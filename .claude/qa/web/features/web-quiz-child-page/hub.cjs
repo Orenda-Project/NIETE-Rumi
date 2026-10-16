@@ -17,9 +17,16 @@ async function api(page, ctx, method, p, body) {
   return { status: r.status(), json };
 }
 // A family phone: these class-list children carry it (students.phone), nobody else does.
+// A family phone as production has it: the class-list children carry the phone, and the phone has joined a quiz on
+// WhatsApp, which leaves a quiz-joined row (no class list) — that row is what student mode reads to treat the phone as
+// a child's (student-mode.service quizStudentsFor: list_id null, is_active). Without it every /quiz is a teacher's.
 async function family(ctx, phone, names) {
+  await ctx.sql('delete from students where phone = ' + q(phone) + " and list_id is null and student_name like 'WA-join %'");
   await ctx.sql('update students set phone = null where phone = ' + q(phone));
   for (const n of names) await ctx.sql('update students set phone = ' + q(phone) + ' where student_name = ' + q(n) + ' and list_id is not null');
+  const first = await L.studentNamed(ctx, names[0]);
+  await ctx.sql("insert into students (student_name, list_id, enrolled_by_user_id, is_active, status, merged_into, phone) select 'WA-join ' || student_name, null, enrolled_by_user_id, true, 'merged', id, " + q(phone) + ' from students where id = ' + q(first));
+  // the bot keeps a phone's verdict a while (student-ingress VerdictCache): a fresh phone each run avoids a stale one
 }
 // A class-list child's session on `code`, started by chip (the roll pad's way), answered and finished through the API.
 async function chipFinish(page, ctx, code, name, wrongAt, device) {

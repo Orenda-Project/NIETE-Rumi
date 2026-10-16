@@ -45,17 +45,22 @@ on('WQ010', 'off', async (page, ctx) => {
   const { quizId } = await fakeClips(ctx, 'IT34CD', (id) => ({ q: 'quiz-audio/slow/' + id + '/q.ogg', opts: [null, null, null, null], why: null }));
   try {
     const ev = L.events(page);
+    const clipAsks = [];                                             // every fetch of the question's clip: one before the tap, none after
+    page.on('request', (r) => { if (/\/quiz-audio\/slow\//.test(r.url())) clipAsks.push({ at: Date.now(), url: r.url().split('/').slice(-2).join('/') }); });
     const b = await startAsNew(page, ctx, 'IT34CD', 'Quick10');
     const qq = await L.current(page, b.quiz.questions);
+    await sleep(1500);
+    const tapAt = Date.now();
     await L.answerRight(page, qq);                                   // kind-aware: a multi-select needs Check
     await page.waitForSelector('#wq-next', { state: 'visible', timeout: WAIT });
     await sleep(6000);
     await ev.flush();
     const fb = ev.of('audio_fallback').filter((e) => e.qid === qq.qid && e.part !== 'why');
     expect(fb.length === 0, 'audio_fallback was logged for the stopped clip: ' + JSON.stringify(fb));
-    const spk = await page.$eval('#wq-spk', (e) => e.classList.contains('wq-speaking')).catch(() => false);
-    expect(!spk, 'the old question is being read again');
-    return { fallbacks: 0 };
+    const again = clipAsks.filter((a) => a.at > tapAt + 300);
+    expect(again.length === 0, 'the old question\'s clip was asked for again after the tap: ' + JSON.stringify(again));
+    expect(/#wq-fb|wq-fb/.test(await page.content()) && (await inner(page, '#wq-fb')).length > 0, 'no feedback shown');
+    return { fallbacks: 0, clipAsksBeforeTap: clipAsks.length, afterTap: 0 };
   } finally { await page.unroute('**/quiz-audio/**'); await clearClips(ctx, quizId); }
 });
 
@@ -146,7 +151,7 @@ on('WQ053', 'off', async (page, ctx) => {
   expect(/The answer is "/.test(leads[1]), 'the wrong answer\'s lead is "' + leads[1] + '"');
   // a picture answer: "Not yet. Look, this one is right." with no empty quotes
   await page.evaluate(() => localStorage.clear());
-  const b2 = await startAsNew(page, ctx, 'IT12AB', 'Pic53');
+  const b2 = await startAsNew(page, ctx, CODES.G3, 'Pic53');            // the picture-only item lives in the grade-3 quiz
   // the options are only pictures (no names): the page's "notyetpic" line; a NAMED picture ("Cat") is quoted like any option
   const pic = b2.quiz.questions.find((x) => x.text === 'Which picture shows a circle?');
   expect(pic && pic.options.every((o) => !o.text && !o.name), 'the picture-only item has named options: ' + JSON.stringify(pic && pic.options.map((o) => o.text)));
