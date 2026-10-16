@@ -193,8 +193,8 @@ const UX_STRINGS = {
     ur: 'پہلے آپ کا اسکول',
   },
   registrationInviteSchoolBody: {
-    en: 'To do this I need to know your school. Set up your account first — it takes about a minute.',
-    ur: 'اس کے لیے مجھے آپ کا اسکول معلوم ہونا ضروری ہے۔ پہلے اپنا اکاؤنٹ بنائیں — اس میں تقریباً ایک منٹ لگے گا۔',
+    en: 'To do this I need to know your school. Pick it in this short form — it takes about a minute.',
+    ur: 'اس کے لیے مجھے آپ کا اسکول معلوم ہونا ضروری ہے۔ اس مختصر فارم میں اپنا اسکول چنیں — اس میں تقریباً ایک منٹ لگے گا۔',
   },
   registrationInviteButton: {
     en: 'Get started',

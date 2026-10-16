@@ -36,7 +36,7 @@ const ChildFlowToken = require('../services/quiz/child-flow-token'); // bd-2475 
 // process.env read (pre-existing NIETE code, untouched by this port).
 const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
 const { logToFile, logError } = require('../utils/logger');
-const { isRegistered } = require('../utils/registration-status');
+const { isRegistered, needsRegistrationForm, needsSchoolForFeature } = require('../utils/registration-status');
 const { isRegistrationIntent } = require('../utils/registration-intent');
 const RegistrationInvite = require('../services/registration-invite.service');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
@@ -1066,8 +1066,8 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // by a test; this branch only dispatches.
   if (trimmedMessage === '/roster') {
     if (await redirectToApp('classes', 'command')) return;
-    // A register belongs to a school: an unregistered adult registers (and picks her school) first.
-    if (user && !isRegistered(user)) {
+    // A register belongs to a school: an adult with no school picks it on the form first.
+    if (needsSchoolForFeature(user)) {
       await inviteToRegister('school_feature');
       return;
     }
@@ -2225,8 +2225,9 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       return;
     }
 
-    // A class needs a school: an unregistered adult registers (and picks her school) first.
-    if (!isRegistered(user)) {
+    // A class needs a school: an adult with no school picks it on the form first — registered or
+    // not. (classes/class-entry.service.js would otherwise answer "ask your coach".)
+    if (needsSchoolForFeature(user)) {
       await inviteToRegister('school_feature');
       return;
     }
@@ -2434,8 +2435,8 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // ============================================================
   if (user?.id && AttendanceRouter.detect(messageBody).detected) {
     if (await redirectToApp('attendance', 'keyword')) return;
-    // Attendance is a school's: an unregistered adult registers (and picks her school) first.
-    if (!isRegistered(user)) {
+    // Attendance is a school's: an adult with no school picks it on the form first.
+    if (needsSchoolForFeature(user)) {
       await inviteToRegister('school_feature');
       return;
     }
@@ -2825,9 +2826,12 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
  * themselves). Once-only lives in the invite service (users.registration_started_at,
  * claimed atomically), so this and the after-feature trigger cannot both send it.
  *
- * Not offered: to a registered teacher; to a child's handset (student-ingress lets a child's
- * /video and quiz traffic through to this handler); when the account lookup failed (an outage
- * is not a new person); in a turn that already sent the Flow; or when the routing threw.
+ * Offered to an adult who still needs the form (utils/registration-status.js
+ * needsRegistrationForm): nothing on file, or a name with no school or no form role. Not
+ * offered: to a complete account; to a child's handset (student-ingress lets a child's /video
+ * and quiz traffic through to this handler); to an admin-set coach/AEO; when the account lookup
+ * failed (an outage is not a new person); in a turn that already sent the Flow; or when the
+ * routing threw.
  * The offer itself never breaks the turn.
  */
 async function handleTextMessage(message, from, messageBody, user = null) {
@@ -2840,8 +2844,9 @@ async function offerRegistrationAfterReply(turn, from) {
   try {
     const account = turn.user;
     if (!account || !account.id || turn.lookupFailed || turn.invited) return;
-    if (account.persona === 'student') return;
-    if (isRegistered(account)) return;
+    // Not "is she registered" (a name is enough for that) but "does she still need the form": a
+    // name with no school or role counts. Children and admin-set coaches/AEOs never do.
+    if (!needsRegistrationForm(account)) return;
     const language = (typeof turn.languageOf === 'function' && turn.languageOf()) || account.preferred_language;
     await RegistrationInvite.offerRegistrationOnce({ user: account, phone: from, language, reason: 'first_reply' });
   } catch (err) {

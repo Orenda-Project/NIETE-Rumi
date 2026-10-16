@@ -22,6 +22,7 @@ const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const WhatsAppService = require('./whatsapp.service');
 const RegistrationInvite = require('./registration-invite.service');
+const { needsRegistrationForm } = require('../utils/registration-status');
 const tts = require('./tts');
 const { TEMP_DIR } = require('../utils/constants');
 
@@ -44,7 +45,7 @@ class FeatureRegistrationService {
       // Get user to check registration status
       const { data: user, error: userError } = await supabase
         .from('users')
-        .select('registration_completed, registration_pending_name, name, registration_started_at')
+        .select('registration_completed, registration_pending_name, name, role, school_id, registration_started_at')
         .eq('id', userId)
         .single();
 
@@ -53,7 +54,26 @@ class FeatureRegistrationService {
         return false;
       }
 
-      // Skip if already registered
+      // A deployment with a registration Flow offers the FORM, through the one sender and its
+      // once-only rule — not the name question, and not counted by feature: the first-reply
+      // offer (text-message.handler.js) has usually sent it already, and the once-only claim
+      // (users.registration_started_at) is what stops a second copy when the lesson plan lands.
+      // Who is offered is needsRegistrationForm(): a name with no school or role counts.
+      if (process.env.REGISTRATION_FLOW_ID) {
+        if (!needsRegistrationForm(user) || user.registration_pending_name) {
+          logToFile('Registration Flow not needed after this feature', { userId, featureType });
+          return false;
+        }
+        const offered = await RegistrationInvite.offerRegistrationOnce({
+          user: { id: userId }, phone: phoneNumber, language, reason: 'after_first_feature',
+        });
+        logToFile(offered ? 'Registration Flow offered after a feature' : 'Registration Flow not offered (already offered)', {
+          userId, featureType,
+        });
+        return offered;
+      }
+
+      // The conversational path (no Flow configured): it only ever asks a NAME.
       if (user.name || user.registration_completed) {
         logToFile('User already registered, skipping', { userId, firstName: user.name });
         return false;
@@ -63,20 +83,6 @@ class FeatureRegistrationService {
       if (user.registration_pending_name) {
         logToFile('Already waiting for name response, skipping', { userId });
         return false;
-      }
-
-      // A deployment with a registration Flow offers the FORM, through the one sender and its
-      // once-only rule — not the name question, and not counted by feature: the first-reply
-      // offer (text-message.handler.js) has usually sent it already, and the once-only claim
-      // (users.registration_started_at) is what stops a second copy when the lesson plan lands.
-      if (process.env.REGISTRATION_FLOW_ID) {
-        const offered = await RegistrationInvite.offerRegistrationOnce({
-          user: { id: userId }, phone: phoneNumber, language, reason: 'after_first_feature',
-        });
-        logToFile(offered ? 'Registration Flow offered after a feature' : 'Registration Flow not offered (already offered, or registered)', {
-          userId, featureType,
-        });
-        return offered;
       }
 
       // This process has no Flow id — but the BOT may have, and may already have offered her the

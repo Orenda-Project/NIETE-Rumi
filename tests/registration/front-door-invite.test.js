@@ -228,9 +228,28 @@ describe('a feature that needs a school asks an unregistered adult to register f
     expect(handleRosterCommand).not.toHaveBeenCalled();
   });
 
-  test('a registered teacher reaches /classes as before', async () => {
+  test('a registered teacher WITH a school reaches /classes as before', async () => {
     await handleTextMessage(MESSAGE, FROM, '/classes', registered());
     expect(openClassManagerFlow).toHaveBeenCalledTimes(1);
+    expect(Invite.sendRegistrationInvite).not.toHaveBeenCalled();
+  });
+
+  test.each(['/classes', '/roster'])('%s from a registered teacher with NO school → the "first, your school" Flow, not the feature', async (cmd) => {
+    await handleTextMessage(MESSAGE, FROM, cmd, registered({ school_id: null, role: 'teacher' }));
+    expect(invitedFor('school_feature')).toBe(true);
+    expect(openClassManagerFlow).not.toHaveBeenCalled();
+    expect(handleRosterCommand).not.toHaveBeenCalled();
+  });
+
+  test('a teacher who COMPLETED the form but has no school is asked for it at /classes', async () => {
+    await handleTextMessage(MESSAGE, FROM, '/classes', registered({ school_id: null, role: 'teacher', registration_completed: true }));
+    expect(invitedFor('school_feature')).toBe(true);
+    expect(openClassManagerFlow).not.toHaveBeenCalled();
+  });
+
+  test('an admin-set coach with no school of her own reaches /roster as before (her schools are allocated)', async () => {
+    await handleTextMessage(MESSAGE, FROM, '/roster', registered({ school_id: null, role: 'coach' }));
+    expect(handleRosterCommand).toHaveBeenCalledTimes(1);
     expect(Invite.sendRegistrationInvite).not.toHaveBeenCalled();
   });
 });
@@ -252,8 +271,21 @@ describe('after her first reply, a new adult is offered the form once', () => {
     expect(Invite.offerRegistrationOnce).not.toHaveBeenCalled();
   });
 
-  test('a registered teacher is never offered it', async () => {
-    await handleTextMessage(MESSAGE, FROM, '/menu', registered());
+  test('a complete account (name + school + teacher) is never offered it', async () => {
+    await handleTextMessage(MESSAGE, FROM, '/menu', registered({ role: 'teacher' }));
+    expect(Invite.offerRegistrationOnce).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['a name but no school', { school_id: null, role: 'teacher' }],
+    ['a name and a school but no form role', { role: null }],
+  ])('a partly-known adult (%s) IS offered it after her reply', async (_l, over) => {
+    await handleTextMessage(MESSAGE, FROM, '/menu', registered(over));
+    expect(Invite.offerRegistrationOnce).toHaveBeenCalledTimes(1);
+  });
+
+  test('an admin-set coach is never offered it', async () => {
+    await handleTextMessage(MESSAGE, FROM, '/menu', registered({ school_id: null, role: 'coach' }));
     expect(Invite.offerRegistrationOnce).not.toHaveBeenCalled();
   });
 
