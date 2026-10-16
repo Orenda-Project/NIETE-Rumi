@@ -31,7 +31,7 @@
       dl: 'Download', dlHelp: 'Download not starting?', chrome: 'Open in Chrome', none: 'No videos here yet.',
       oops: 'The videos did not load.', retry: 'Try again', wait: 'Opening the library…',
       noClass: 'Play a quiz from your teacher first, then this video opens here.', opening: 'Opening the video…',
-      lockT: 'This link was sent to another player', lockSay: 'Ask the child this link was sent to to open it.',
+      lockT: 'This link was sent to another player', lockSay: 'Ask the child who got this link to open it.',
       mine: 'Is this your link? Send /quiz on WhatsApp again for a new one.',
     },
     ur: {

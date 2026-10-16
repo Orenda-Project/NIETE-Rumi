@@ -102,7 +102,7 @@ describe('S0 landing', () => {
     expect(p.last().name).toBe('M4-who-v2');
     expect(p.last().h).toContain('Ayesha');
     expect(p.last().h).toContain('Bilal');
-    expect(p.last().h).toContain('Someone else');
+    expect(p.last().h).toContain("My name isn't here");
     p.tap('wq-kid-1');
     await flush();
     expect(p.calls[0].body).toMatchObject({ code: 'AB12CD', chip: 'c2', via: 'remembered' });
@@ -136,14 +136,14 @@ describe('S0 landing', () => {
   test('first visit: one Play button, then the name screen', () => {
     const p = page();
     p.ctx.landing();
-    expect(p.last().h).not.toContain('Someone else');
+    expect(p.last().h).not.toContain("My name isn't here");
     p.tap('wq-play');
     expect(p.last().name).toBe('M4-name');
   });
   test('Urdu copy', () => {
     const p = page({ lang: 'ur', kids: [{ chip: 'c1', first: 'Ayesha', animal: 'lion' }] });
     p.ctx.landing();
-    expect(p.last().h).toContain('کوئی اور');
+    expect(p.last().h).toContain('میرا نام یہاں نہیں');
     p.tap('wq-someone');
     expect(p.last().h).toContain('آپ کا نام کیا ہے؟');
     expect(p.last().h).toContain('وہ نام لکھیں جس سے آپ کو کلاس میں پکارا جاتا ہے۔');
@@ -232,7 +232,7 @@ describe('hub ?k=<chip>', () => {
   });
   // A link that already names the child never asks "Who is playing?" while it starts their session: the question
   // was drawn and then replaced ~2 s later with no tap (taps swallowed while the session was starting).
-  const asked = (s) => s.name === 'M4-who-v2' || /Whose turn is it\?|Someone else|id="wq-play"|id="wq-kid-/.test(s.h);
+  const asked = (s) => s.name === 'M4-who-v2' || /Whose turn is it\?|My name isn't here|id="wq-play"|id="wq-kid-/.test(s.h);
   test('while the session starts: an opening frame with the quiz, never the question or a button', async () => {
     const kids = [{ chip: 'hubchip', first: 'Ayesha', animal: 'lion' }, { chip: 'c2', first: 'Bilal', animal: 'owl' }];
     const p = page({ params: { k: 'hubchip' }, kids });

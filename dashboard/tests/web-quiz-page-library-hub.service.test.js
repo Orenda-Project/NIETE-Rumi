@@ -99,7 +99,7 @@ test('Back from the subjects goes to the hub', async () => {
 describe('a library link opened on another phone (the hub link is bound to the child\'s phone)', () => {
   const LOCK = { '/api/wq/lib/h/HUBTOK': { __status: 401, error: 'bad_token' } };
   test.each([
-    ['en', 'This link was sent to another player', 'Ask the child this link was sent to to open it.', 'Is this your link? Send /quiz on WhatsApp again for a new one.'],
+    ['en', 'This link was sent to another player', 'Ask the child who got this link to open it.', 'Is this your link? Send /quiz on WhatsApp again for a new one.'],
     ['ur', 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔', 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ \u2066/quiz\u2069 بھیجیں۔'],
   ])('%s: says whose link it is and how to get your own, offers no retry (a retry can never work there) and goes back to the hub', async (lang, title, say, mine) => {
     const p = libPage({ lang, api: LOCK });
@@ -158,6 +158,6 @@ describe('the polished Urdu copy on the library (the wq-ur2 class on <html>)', (
   test('English with the class flag never changes', async () => {
     const p = libPage({ lang: 'en', api: LOCK, ur2: true });
     await flush(); await flush();
-    expect(p.html()).toContain('Ask the child this link was sent to to open it.');
+    expect(p.html()).toContain('Ask the child who got this link to open it.');
   });
 });
