@@ -1011,7 +1011,7 @@ function keyInPoints(others) {
 const SAME_POINTS = [
   { held: 'social_studies.D.Q6', against: ['social_studies.C.Q5'], rule: samePoints, name: 'points' },
   { held: 'social_studies.D.Q6', against: ['social_studies.D.Q6'], rule: samePoints, name: 'points_in_slot' },
-  { held: 'social_studies.D.Q7', against: ['social_studies.C.Q5', 'social_studies.D.Q6'], rule: keyInPoints, name: 'key_in_points' },
+  { held: 'social_studies.D.Q7', against: ['social_studies.C.Q5', 'social_studies.D.Q6'], rule: keyInPoints, name: 'key_in_points', withHeld: true },
 ];
 
 const CROSS_HOLD = {
@@ -1360,8 +1360,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
     for (const row of SAME_POINTS) {
       if (!bySlot.has(row.held) || !row.against.every((id) => bySlot.has(id))) continue;
       const inSlot = row.against.includes(row.held);
-      // Read against what may print: the items placed and the ones held for the put-back.
-      const test = inSlot ? null : row.rule(row.against.flatMap((id) => [...bySlot.get(id), ...held.filter((h) => h.slot === id).map((h) => h.q)]));
+      // A Q7 is read against what may print: the items placed and the ones held for the put-back
+      // (a held Q6 that comes back would print the Q7's answer).
+      const test = inSlot ? null : row.rule(row.against.flatMap((id) => [...bySlot.get(id), ...(row.withHeld ? held.filter((h) => h.slot === id).map((h) => h.q) : [])]));
       if (!inSlot && !test) continue;
       rows.push({ slot: row.held, rule: test, name: row.name, inSlot });
       place(rule ? { held: cross.held, rule } : null, rows);
