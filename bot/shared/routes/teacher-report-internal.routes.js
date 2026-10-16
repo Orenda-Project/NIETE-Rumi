@@ -8,6 +8,8 @@
  *   GET /page/:token[?lang=&tab=class&class=<listId>]  the report page (HTML)
  *   GET /pdf/:token[?lang=&tab=class]                  the same page, print mode, as a PDF
  *   GET /remind/:token?quiz=<id>                       logs the tap, 302 -> wa.me with the reminder
+ *   GET /jlink/:token?class=<id>&how=forward|copy      the class link card: 302 -> wa.me with the link only / 303 back, card open
+ *   POST /jnew/:token {class}                          the class link card's "Make a new link": 303 back to the class tab
  *   GET /data/:token                                   the report as JSON (tests, QA)
  *   POST /class/:token {quiz, key}                     "Which class was this for?" -> identity v2 whoClass
  *   POST /fix/:token {quiz, ref, add|studentId}        a typed child: add to the class / who it really is -> fixWho
@@ -88,7 +90,12 @@ async function build(req, v) {
     if (t) quizTokens[q.id] = t;
   });
   const lang = await languageFor(req, v.teacherId, null);
-  return { tab, lang, data: { class: report || {} }, report, tokens: { self: req.params.token, quiz: quizTokens } };
+  const classData = report || {};
+  // ── standing class link card (web_quiz_class_link): null when off → the class tab is unchanged ──
+  const classLink = await require('../services/quiz/web-quiz-class-link').forTeacher(v.teacherId);
+  if (classLink) classData.classLink = { ...classLink, open: uuidOr(req.query.cl_open) };
+  // ── end standing class link card ──
+  return { tab, lang, data: { class: classData }, report, tokens: { self: req.params.token, quiz: quizTokens } };
 }
 
 const handle = (fn) => async (req, res) => {
@@ -153,6 +160,29 @@ router.get('/remind/:token', handle(async (req, res) => {
   noStore(res);
   res.redirect(302, `https://wa.me/?text=${encodeURIComponent(report.reminder.text)}`);
 }));
+
+// ── standing class link: the card's Forward (302 wa.me, the URL only) and Copy (303 back, card open); both logged ──
+router.get('/jlink/:token', handle(async (req, res) => {
+  const v = authorise(req, res);
+  if (!v) return;
+  const how = req.query.how === 'copy' ? 'copy' : 'forward';
+  const href = await require('../services/quiz/web-quiz-class-link').forwardHref({
+    teacherId: v.teacherId, classId: uuidOr(req.query.class), how, reportBase: `${REPORT_PATH}/${encodeURIComponent(req.params.token)}`,
+  });
+  if (!href) { notFound(req, res, v); return; }
+  noStore(res);
+  res.redirect(how === 'copy' ? 303 : 302, href);
+}));
+// "Make a new link": the class's own teacher only (the signed report token), switch on; anything else 404, no change.
+router.post('/jnew/:token', handle(async (req, res) => {
+  const v = authorise(req, res);
+  if (!v) return;
+  const made = await require('../services/quiz/web-quiz-class-link').renew({ teacherId: v.teacherId, classId: uuidOr((req.body || {}).class) });
+  if (!made) { notFound(req, res, v); return; }
+  noStore(res);
+  res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}?tab=class#class-link`);
+}));
+// ── end standing class link ──
 
 router.get('/data/:token', handle(async (req, res) => {
   const v = Token.verifyTeacherReport(req.params.token);
