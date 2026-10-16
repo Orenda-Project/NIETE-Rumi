@@ -436,7 +436,7 @@
     // hold: the card waits for the server's result (endCard); true back = held, the page draws the settled card later
     function readEnd(r, words, heard, hold) {
       var d = h.S.data || {};
-      if (window.WQFC && (h.md() || {}).card_v3 && window.WQFC.unheard(r, words, heard, storyLen(d))) { endCard('read-result', 'hello', window.WQFC.triedLine(L, r, h.t.later), Object.assign({}, r || {}, { again: !(r && r.later), qa: false, noSticker: true, tried: true, hold: !!hold })); return !!hold; }
+      if (window.WQFC && (h.md() || {}).card_v3 && window.WQFC.unheard(r, words, heard, storyLen(d))) { endCard('read-result', 'hello', window.WQFC.triedLine(L, r), Object.assign({}, r || {}, { again: !(r && r.later), qa: false, noSticker: true, tried: true, hold: !!hold })); return !!hold; }
       if (isStory()) {
         var heard = r && !r.failed && !r.later && r.score && (r.score.attempted != null ? r.score.attempted : r.score.correct) > 0;
         storyEnd('read-result', !!(heard && d.questions_on));

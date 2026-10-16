@@ -238,7 +238,8 @@ function assets() {
   if (!_assets) {
     _assets = {
       lexendBold: b64('fonts/Lexend-Bold.ttf'),
-      nastaliqBold: b64('fonts/NotoNastaliqUrdu-Bold.ttf'),
+      // the Regular file, drawn bold by the browser: the Bold file breaks a join («پڑھی» draws as «پڑ  ھی»)
+      nastaliq: b64('fonts/NotoNastaliqUrdu-Regular.ttf'),
       celebrate: b64('assets/wq-art/celebrate.webp'),
     };
   }
@@ -259,7 +260,8 @@ function renderCard(f, opt = {}) {
   const a = opt.fonts === false ? {} : assets();
   const rtl = lang === 'ur';
   const fonts = opt.fonts === false ? '' : `@font-face{font-family:'Lexend';font-weight:800;src:url(data:font/ttf;base64,${a.lexendBold})}
-@font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold})}`;
+@font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq})}
+@font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.lexendBold});unicode-range:U+0021}`;
   const face = rtl ? "'NastaliqUrdu','Lexend',sans-serif" : "'Lexend','NastaliqUrdu',sans-serif";
   // A name keeps the script it is written in: "Amal" on an Urdu card is its own LTR run.
   const nameDir = URDU_RX.test(f.first || '') ? 'rtl' : 'ltr';

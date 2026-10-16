@@ -267,7 +267,8 @@ describe('switch on: every Trail finish gets the card', () => {
     expect(h.indexOf('id="wqfc-share"')).toBeLessThan(h.indexOf('<div class="wq-stack">'));
     await flush();
     expect(JSON.parse(t.fetches[0].init.body)).toEqual({ kind: 'read', deed: 'read_all', lang: 'en', ct: 'CT1' });
-    expect(t.events).toContainEqual({ n: 'card_shown', src: 'read', ok: true });
+    // EVENTS_V3 §4's names (source, share_ok) beside today's (src, ok)
+    expect(t.events).toContainEqual({ n: 'card_shown', src: 'read', ok: true, source: 'read', share_ok: true });
   });
   test.each([
     [{ score: { attempted: 1 } }, 1, 'read_some'],
@@ -296,7 +297,7 @@ describe('switch on: every Trail finish gets the card', () => {
     expect(t.html()).not.toContain('id="wqc-next"');
     await flush(); await flush();
     t.tap('wqfc-share');
-    expect(t.events).toContainEqual({ n: 'card_share', src: 'read', step: 'card_image', how: 'wa' });
+    expect(t.events).toContainEqual({ n: 'card_share', src: 'read', step: 'card_image', how: 'wa', source: 'read', kind: 'card_image', path: 'wa' });
     // the picture is asked for on the tap, so the sender's preview finds it drawn
     expect(t.fetches.map((f) => f.url)).toContain(`/wq/card/${TOK}.png`);
   });
@@ -335,6 +336,8 @@ describe('switch on: the zero-input chain — the outcome decides the card, not 
     expect(h).not.toMatch(/sticker went into/i);
     await flush();
     expect(mintOf(t)).toMatchObject({ kind: 'read', deed: 'read_tried' });
+    // a card that certified nothing says so, so return-by-source can leave it out
+    expect(t.events).toContainEqual(expect.objectContaining({ n: 'card_shown', source: 'read', tried: true }));
   });
   test('Urdu: «آئیں مل کر پڑھیں»', () => {
     const t = on({ lang: 'ur' });
@@ -349,11 +352,15 @@ describe('switch on: the zero-input chain — the outcome decides the card, not 
     await flush();
     expect(mintOf(t).deed).toBe('read_some');
   });
-  test('not scored yet (later): today\'s "on its way" line, no sticker, no Again, the try card', async () => {
+  test('not scored yet (later): "Just wait a little" (never «نتیجہ»), no sticker, no Again, the try card', async () => {
     const t = on();
     t.TR.readEnd({ later: true });
     const h = t.html();
-    expect(h).toContain('Later');
+    expect(h).toContain('Just wait a little.');
+    const u = on({ lang: 'ur' });
+    u.TR.readEnd({ later: true });
+    expect(u.html()).toContain('بس تھوڑا سا انتظار کریں۔');
+    expect(u.html()).not.toContain('نتیجہ');
     expect(h).not.toContain('wqc-sticker');
     expect(h).not.toContain('wqc-again');
     await flush();
@@ -381,8 +388,9 @@ describe('WQFC.mount({source}) — the result object the reader hands over', () 
     const fetches = [];
     const fc = fcAlone({ fetch: (url, init) => { fetches.push({ url, init }); return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[o.lang || 'en'] })) }); },
       document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
-    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { auth: { hub: 'H', kid: 'K' }, ...o });
-    return { ok, out, fetches, fc };
+    const events = [];
+    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { auth: { hub: 'H', kid: 'K' }, ev: (n, p) => events.push({ n, ...p }), ...o });
+    return { ok, out, fetches, fc, events };
   }
   test('a story read: the deed counts pages in Urdu digits, the headline by `ended`, ONE sticker, the share', async () => {
     const m = mountWith({ source: 'story', ended: 'read', pages_read: 3, stars: 3, title: 'دھوپ', lang: 'ur' });
@@ -394,6 +402,7 @@ describe('WQFC.mount({source}) — the result object the reader hands over', () 
     expect(/data-n>([^<]*)</.exec(m.out)[1]).not.toMatch(/[0-9]/);
     await flush();
     expect(JSON.parse(m.fetches[0].init.body)).toEqual({ kind: 'book', deed: 'book_read', lang: 'ur', hub: 'H', kid: 'K' });
+    expect(m.events).toContainEqual({ n: 'card_shown', src: 'book', ok: true, source: 'story', share_ok: true });
   });
   test('EN: one page reads "1 page read"; effort stars are never drawn as a count', () => {
     const m = mountWith({ source: 'story', ended: 'read', pages_read: 1, stars: 2, lang: 'en' });
@@ -479,5 +488,29 @@ describe('golden: switch off, the Urdu Trail cards, Story Time\'s end and a held
       expect(t.fetches.length).toBe(0);
       expect(got).toEqual(GOLD);
     }
+  });
+});
+
+describe('a card that certified nothing: the Next tile is the one primary, Share a soft secondary', () => {
+  const NEXT = { kind: 'readalong', href: '/c/tok?kid=k1#along', title: 'Read along with Jugnu', minutes: 2, offer: 'o9' };
+  test('the try card leads with the tile; the sticker card keeps Share first', () => {
+    const tried = FC.html({ kind: 'read', deed: 'read_tried', lang: 'en', next: NEXT });
+    expect((tried.match(/data-primary/g) || []).length).toBe(1);
+    expect(tried).toMatch(/<a class="wqfc-next wqfc-lead" id="wqfc-next" data-primary data-tap="next"/);
+    expect(tried).toMatch(/<a class="wq-btn wq-soft wqfc-share" id="wqfc-share" data-tap="card_share" target="_blank"/);
+    expect(tried.indexOf('id="wqfc-next"')).toBeLessThan(tried.indexOf('id="wqfc-share"'));
+    const won = FC.html({ kind: 'read', deed: 'read_all', lang: 'en', next: NEXT });
+    expect(won.indexOf('id="wqfc-share"')).toBeLessThan(won.indexOf('id="wqfc-next"'));
+    expect(won).toMatch(/class="wq-btn wq-go wqfc-share" id="wqfc-share" data-primary/);
+  });
+  test('no tile to lead with: Share stays the primary', () => {
+    const h = FC.html({ kind: 'read', deed: 'read_tried', lang: 'en' });
+    expect(h).toMatch(/class="wq-btn wq-go wqfc-share" id="wqfc-share" data-primary/);
+  });
+  test('the tile\'s slot events say it came after a try', () => {
+    const events = [];
+    const fc = fcAlone({ document: { getElementById: (id) => (id === 'wqfc-next' ? { addEventListener() {} } : null), createElement: () => ({}), head: { appendChild() {} } } });
+    fc.mount({ insertAdjacentHTML() {} }, { kind: 'read', deed: 'read_tried', lang: 'en', next: NEXT, auth: { ct: 'c' }, ev: (n, p) => events.push({ n, ...p }) });
+    expect(events).toContainEqual(expect.objectContaining({ n: 'next_shown', ctx: 'after_read_tried', offer: 'o9' }));
   });
 });

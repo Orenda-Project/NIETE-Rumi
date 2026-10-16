@@ -223,6 +223,15 @@ describe('what the card says', () => {
     // the name block sits on the Urdu side of the card, whatever its own script
     expect(/\.name\{[^}]*\}/.exec(html)[0]).toContain('text-align:right');
   });
+  test('the Urdu face is the Regular Nastaliq file (the Bold file draws «پڑھی» with a gap after «پڑ»), drawn bold', () => {
+    const html = Card.renderCard({ lang: 'ur', first: 'امل', deed: 'read_all' });
+    const face = /@font-face\{font-family:'NastaliqUrdu';[^}]*\}/.exec(html)[0];
+    const reg = require('fs').readFileSync(require('path').join(__dirname, '../../../shared/fonts/NotoNastaliqUrdu-Regular.ttf')).toString('base64');
+    expect(face).toContain(reg.slice(0, 200));
+    expect(face).toContain('font-weight:400');
+    // its «!» sits far from the word: the one character drawn from the Latin face
+    expect(html).toMatch(/@font-face\{font-family:'NastaliqUrdu';[^}]*unicode-range:U\+0021\}/);
+  });
   test('an Urdu deed never breaks inside a word or leaves one word alone on its line', () => {
     const css = /\.deed\{[^}]*\}/.exec(Card.renderCard({ lang: 'ur', first: 'امل', deed: 'read_all' }, { fonts: false }))[0];
     expect(css).toContain('word-break:keep-all');
@@ -239,5 +248,23 @@ describe('what the card says', () => {
     const r = await fetch(`${base}/card/${body.token}`, { headers: KEY });
     expect(await r.json()).toEqual({ kind: 'quiz', lang: 'ur', first: 'امل', deed_text: Card.COPY.ur.quiz_done, ret: Card.returnLine('ur') });
     expect(Card.returnLine('ur').href).toBe(`https://wa.me/15550001111?text=${encodeURIComponent('کوئز دکھائیں')}`);
+  });
+});
+
+describe('the card\'s events pass the page-event allow-list with the contract\'s names (events v2)', () => {
+  const { cleanEvent } = require('../../../shared/services/quiz/web-quiz.service');
+  const v2 = { v2: true };
+  test('card_shown: source, share_ok and tried kept beside src/ok; anything else dropped', () => {
+    expect(cleanEvent({ n: 'card_shown', src: 'book', ok: true, source: 'story', share_ok: true, tried: true, kid: 'x', first: 'Amal' }, v2))
+      .toEqual({ name: 'card_shown', props: { src: 'book', ok: true, source: 'story', share_ok: true, tried: true, w: 'p' } });
+    expect(cleanEvent({ n: 'card_shown', source: 'Amal', share_ok: 'yes', tried: 1 }, v2).props).toEqual({ w: 'p' });
+  });
+  test('card_share: source, kind and path kept beside src/step/how', () => {
+    expect(cleanEvent({ n: 'card_share', src: 'read', step: 'card_image', how: 'wa', source: 'read', kind: 'card_image', path: 'wa' }, v2))
+      .toEqual({ name: 'card_share', props: { src: 'read', step: 'card_image', how: 'wa', source: 'read', kind: 'card_image', path: 'wa', w: 'p' } });
+    expect(cleanEvent({ n: 'card_share', path: 'https://x', kind: 'quiz' }, v2).props).toEqual({ w: 'p' });
+  });
+  test('events v2 off: nothing new is kept', () => {
+    expect(cleanEvent({ n: 'card_shown', src: 'read', source: 'read', share_ok: true }).props).toEqual({ src: 'read' });
   });
 });
