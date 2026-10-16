@@ -1532,7 +1532,7 @@ async function sweepOrphans({ now = Date.now(), olderThanMs = 10 * 60 * 1000, ma
   return out;
 }
 
-async function presignUpload({ ct, type, size, audio_consent } = {}) {
+async function presignUpload({ ct, type, size, audio_consent } = {}, { device = null } = {}) {
   const c = runOf(ct);
   if (c.ex !== 'read') fail(400, 'no_audio');
   const base = String(type || '').split(';')[0].trim().toLowerCase();
@@ -1545,7 +1545,11 @@ async function presignUpload({ ct, type, size, audio_consent } = {}) {
   if (!(await uploadable(c, mem))) fail(409, 'already_done');
   if (!(await Budget.readOpen())) fail(429, 'enough_for_today');
   const ts = Date.now();
-  const key = (await keepAudioOn()) && TrailPage.allowsKeep(await TrailPage.consentFor({ audio_consent }))
+  const consent = await TrailPage.consentFor({ audio_consent });
+  // the mic notice: the upload already carries 'notice_shown', so this child's notice is marked seen on this phone now,
+  // not only when the result comes back (a lost connection after the upload would otherwise show it again elsewhere)
+  if (consent === 'notice_shown') await TrailPage.noteNoticeShown(c.sid, device);
+  const key = (await keepAudioOn()) && TrailPage.allowsKeep(consent)
     ? `${keptRunPrefix(c, new Date(ts).toISOString().slice(0, 10))}read-${ts}.${ext}`
     : `${uploadPrefix(c)}${ts}.${ext}`;
   const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket(), signContentType: true });

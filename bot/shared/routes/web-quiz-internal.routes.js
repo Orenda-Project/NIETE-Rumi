@@ -121,7 +121,7 @@ const challenge = (fn) => handle((req) => {
   return fn(C, req);
 });
 router.get('/ch/result/:ct', challenge((C, req) => C.poll(req.params.ct)));
-router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {})));
+router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {}, { device: req.get('x-wq-device') })));
 // Read aloud, live: a temporary Soniox key for one run (web-quiz-soniox-live.js); the server key never leaves the bot.
 router.post('/ch/live', challenge((C, req) => C.liveKey(req.body || {})));
 // Questions after Read aloud: the reached questions with their 3 options (no key), then one answer per tap.
