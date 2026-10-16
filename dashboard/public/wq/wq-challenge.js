@@ -190,6 +190,11 @@
         '@keyframes wqc-pulse{50%{opacity:.3}}',
         '.wqc-hear{border:0;background:transparent;color:var(--navy);font-weight:800;font-size:15px;text-decoration:underline;cursor:pointer;padding:4px 0}',
         '.wqc-hear.wqc-pulse{animation:wqc-pulse 1.2s ease-in-out infinite}',
+        // the passage's title on a read or listen intro (wq-trail.js): the page heading's colour and weight (wq.css h1/h2,
+        // its Urdu and Urdu-polish weights), never the grey caption of .wq-sub; Urdu keeps its 20 px
+        '#wqc-ptitle{color:var(--navy);font-weight:900;font-size:20px}',
+        'html[lang=ur] #wqc-ptitle{font-weight:700}',
+        'html.wq-ur2[lang=ur] #wqc-ptitle{font-weight:400}',
         '.wqc-score{font-size:30px;font-weight:900;color:var(--navy);text-align:center;margin:0}',
         'html[lang=ur] .wqc-score{font-weight:700;line-height:2}',
         // the action stays on screen however long the story is (Urdu runs past the fold at 360x740)
