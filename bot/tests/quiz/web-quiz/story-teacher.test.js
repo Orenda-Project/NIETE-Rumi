@@ -320,6 +320,7 @@ describe('the Stories page (the bot renders it)', () => {
     expect(r.body).toEqual({ error: 'stories_off' });
   });
   test('a fresh profile (no cookie, no stored language, a teacher with no sends, no class and no books on the shelf): today\'s shape', async () => {
+    // teacher-stories.page, rendered by the bot for a phone that has never opened it
     db.story_books = [];
     db.story_pages = [];
     db.story_page_voices = [];
