@@ -1,8 +1,8 @@
 'use strict';
 /**
  * The Challenge's daily job (app_settings `web_quiz_challenge_audio_purge`, under `web_quiz_challenge`), once per PKT
- * day across every replica (the claim is a row in web_quiz_strip_weekly, so a second process or a second tick the
- * same day does nothing): the kept readings past `audio_keep_until` are deleted from R2 and their rows stop pointing
+ * day across every replica (the claim is a Redis key, `wq:daily_job:<PKT day>`, so a second process or a second tick
+ * the same day does nothing, and no table row is written for it): the kept readings past `audio_keep_until` are deleted from R2 and their rows stop pointing
  * at them; one `web_quiz.ch_audio_purged{n, oldest_age_d, reason:'age', w:'s'}`; the binding expiry is called once,
  * whatever the switches say (retention outlives every switch): with every switch off and the expiry module present the
  * job still claims the day and runs the expiry, and nothing else.
@@ -20,8 +20,17 @@ jest.mock('../../../shared/storage/r2', () => ({
 }));
 const mockExpireBindings = jest.fn(async () => ({ expired: 0, deleted: 0 }));
 jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => ({ expireBindings: mockExpireBindings }));
-// The daily reply-cap snapshot (sweeper switch) reads the Redis service: faked as down here (one skip line).
-jest.mock('../../../shared/services/cache/railway-redis.service', () => ({ isAvailable: jest.fn(() => false), scanValues: jest.fn(async () => null) }));
+// Redis: the day claim (SET NX over an in-memory store shared by every process) and the reply-cap counters
+// (scanValues: none here unless a test says so).
+jest.mock('../../../shared/services/cache/railway-redis.service', () => {
+  const store = new Map();
+  return {
+    _store: store,
+    isAvailable: jest.fn(() => true),
+    setNX: jest.fn(async (k, v) => { if (store.has(k)) return false; store.set(k, v); return true; }),
+    scanValues: jest.fn(async () => null),
+  };
+});
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
@@ -62,7 +71,7 @@ const fixture = () => [
 const events = (name) => logEvent.mock.calls.filter((c) => c[0] === name).map((c) => c[1]);
 
 beforeAll(() => { process.env.CHILD_TEST_R2_ENV = 'sandbox'; process.env.R2_BUCKET_NAME = 'r2-default'; delete process.env.CHILD_VOICE_BUCKET; });
-afterEach(() => { jest.clearAllMocks(); S.__reset(); });
+afterEach(() => { jest.clearAllMocks(); S.__reset(); require('../../../shared/services/cache/railway-redis.service')._store.clear(); });
 
 const PURGE = () => [ON('web_quiz_challenge'), ON('web_quiz_challenge_audio_purge')];
 // The binding expiry has its own switch (web_quiz_phone_bind, under web_quiz_identity_canon), never the purge's.
@@ -126,7 +135,7 @@ test('a key outside this env\'s kept prefix is never deleted, even past its keep
   expect(r2.deleteKey).not.toHaveBeenCalled();
 });
 
-test('golden: every switch off, the expiry module present: the job claims the day and runs the binding expiry ONLY (no sweep, no purge, no strip, no Redis, no event)', async () => {
+test('golden: every switch off, the expiry module present: the job claims the day (a Redis key, no row) and runs the binding expiry ONLY (no sweep, no purge, no strip, no reply-cap read, no event)', async () => {
   const Redis = require('../../../shared/services/cache/railway-redis.service');
   install([ON('web_quiz_challenge')], fixture());
   const before = JSON.stringify(db[RUNS]);
@@ -138,10 +147,11 @@ test('golden: every switch off, the expiry module present: the job claims the da
   expect(mockExpireBindings.mock.calls[0][0]).toEqual(new Date(NOW));
   expect(fake.calls.filter((c) => c.table === RUNS)).toEqual([]);
   expect(fake.calls.filter((c) => !['app_settings', 'web_quiz_strip_weekly'].includes(c.table))).toEqual([]);
-  expect(db.web_quiz_strip_weekly.map((r) => [r.line, r.cell])).toEqual([['daily_job', '2026-10-15']]);
+  expect(db.web_quiz_strip_weekly).toEqual([]);
+  expect(fake.calls.filter((c) => c.op !== 'select')).toEqual([]);
+  expect([...Redis._store.keys()]).toEqual(['wq:daily_job:2026-10-15']);
   expect(r2.deleteKey).not.toHaveBeenCalled();
   expect(r2.listKeys).not.toHaveBeenCalled();
-  expect(Redis.isAvailable).not.toHaveBeenCalled();
   expect(Redis.scanValues).not.toHaveBeenCalled();
   expect(logEvent).not.toHaveBeenCalled();
   expect(JSON.stringify(db[RUNS])).toBe(before);
@@ -167,7 +177,8 @@ test('phone binding on, sweeper and purge off: the tick runs expireBindings once
   expect(r2.listKeys).not.toHaveBeenCalled();
   expect(logEvent).not.toHaveBeenCalled();
   expect(JSON.stringify(db[RUNS])).toBe(before);
-  expect(db.web_quiz_strip_weekly.map((r) => [r.line, r.cell])).toEqual([['daily_job', '2026-10-15']]);
+  expect(db.web_quiz_strip_weekly).toEqual([]);
+  expect([...require('../../../shared/services/cache/railway-redis.service')._store.keys()]).toEqual(['wq:daily_job:2026-10-15']);
 });
 
 // Operator decision (keep every kept reading for now): the purge is a designed option behind a switch that stays off.
@@ -208,7 +219,7 @@ test('a throwing binding expiry is logged and the rest of the daily job still ru
 
 describe('the daily reply-cap snapshot (sweeper switch)', () => {
   const Redis = require('../../../shared/services/cache/railway-redis.service');
-  afterEach(() => { Redis.isAvailable.mockImplementation(() => false); Redis.scanValues.mockImplementation(async () => null); });
+  afterEach(() => { Redis.isAvailable.mockImplementation(() => true); Redis.scanValues.mockImplementation(async () => null); });
 
   test('sweeper on: yesterday\'s (PKT) reply counts are kept as reply_cap_day rows, counts only', async () => {
     Redis.isAvailable.mockImplementation(() => true);
@@ -222,10 +233,10 @@ describe('the daily reply-cap snapshot (sweeper switch)', () => {
     expect(out.replyCap).toMatchObject({ day: '2026-10-14', phones: 3 });
   });
 
-  test('purge only (sweeper off): no Redis call, no snapshot row', async () => {
+  test('purge only (sweeper off): no reply-cap read (the day claim is the only Redis call), no snapshot row', async () => {
     install(PURGE(), []);
     await S.dailyJob({ now: NOW });
-    expect(Redis.isAvailable).not.toHaveBeenCalled();
+    expect(Redis.setNX.mock.calls.map((c) => c[0])).toEqual(['wq:daily_job:2026-10-15']);
     expect(Redis.scanValues).not.toHaveBeenCalled();
     expect(db.web_quiz_strip_weekly.filter((r) => r.line === 'reply_cap_day')).toEqual([]);
   });
