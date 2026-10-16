@@ -640,9 +640,12 @@ function sameFact(q1s) {
 }
 
 // Urdu: the Q4 items' keys, read as written (option letter, dashes and commas aside), and the
-// MCQs keyed on one of them. Q4 asks for words, so a key with no letter (a bare number) is no Q4 answer.
+// MCQs keyed on one of them. A Q4 key is its answer and every answer its scheme accepts («موسمِ
+// برسات», accepting «برسات»). Q4 asks for words, so a key with no letter (a bare number) is no Q4 answer.
+const acceptOf = (q) => (q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept : [])
+  .filter((a) => typeof a === 'string').map((a) => a.replace(OPTION_HEAD, ''));
 function sameKey(q4s) {
-  const keys = new Set(q4s.map((q) => plain(keyText(q))).filter((k) => /\p{L}/u.test(k)));
+  const keys = new Set(q4s.flatMap((q) => [keyText(q), ...acceptOf(q)]).map(plain).filter((k) => /\p{L}/u.test(k)));
   if (!keys.size) return null;
   return (q) => keys.has(plain(keyText(q)));
 }
@@ -686,15 +689,37 @@ function inOrder(a, b) {
 const SENTENCE_SHARE = 0.8;
 const printedIn = (sentence, stem) => inOrder(sentence, stem) >= Math.ceil(sentence.length * SENTENCE_SHARE);
 
-// Urdu: a Q1 MCQ is a Q4 twin when it is keyed on a Q4 answer (sameKey), or when it prints a Q4
-// sentence: Q4's sentence is in the MCQ's stem, or the MCQ's quoted sentence is in Q4's stem.
+// Urdu: the word list a Q4 item asks about, quoted («کتاب، قلم، کاپی، بستہ») or after its colon up
+// to the sentence's end («گروہی الفاظ …: بادل، بجلی، بارش، گھٹائیں۔»), as each entry's words. A
+// list is three or more entries of one to three words each; anything else (a sentence, two words
+// to break up) is none.
+const LIST_ENTRIES = 3;
+const ENTRY_WORDS = 3;
+function listOf(q) {
+  const line = typeof q.question === 'string' ? q.question.trim().split('\n')[0] : '';
+  const colon = line.split(/[:：]/);
+  const said = [...line.matchAll(QUOTED)].map((m) => m.slice(1).find(Boolean))
+    .concat(colon.length > 1 ? [colon.slice(1).join(' ').split(/[۔؟?!]/)[0]] : []);
+  for (const text of said) {
+    const entries = text.split(/[،,]/).map(tokensOf);
+    if (entries.length >= LIST_ENTRIES && entries.every((e) => e.length && e.length <= ENTRY_WORDS)) return entries;
+  }
+  return [];
+}
+
+// Urdu: a Q1 MCQ is a Q4 twin when it is keyed on a Q4 answer (sameKey), when it prints a Q4
+// sentence (Q4's sentence is in the MCQ's stem, or the MCQ's quoted sentence is in Q4's stem), or
+// when its stem carries three of a Q4 list's entries, in any order.
 function q4Twin(q4s) {
   const byKey = sameKey(q4s);
   const q4 = q4s.map((q) => ({ said: sentencesOf(q, true), stem: plain(String(q.question || '').split('\n')[0].replace(BLANK, ' ')).split(' ') }));
   const sentences = q4.some((s) => s.said.length);
-  if (!byKey && !sentences) return null;
+  const lists = q4s.map(listOf).filter((l) => l.length);
+  if (!byKey && !sentences && !lists.length) return null;
   return (q) => {
     if (byKey && byKey(q)) return true;
+    const words = new Set(tokensOf(q.question));
+    if (lists.some((l) => l.filter((e) => e.every((w) => words.has(w))).length >= LIST_ENTRIES)) return true;
     const stem = plain(q.question).split(' ');
     const own = sentencesOf(q, false);
     return q4.some((s) => s.said.some((t) => printedIn(t, stem)) || own.some((t) => printedIn(t, s.stem) || s.said.some((f) => printedIn(t, f))));
@@ -771,9 +796,12 @@ function takenNote(P, section, examJson) {
       + 'No item you write in this section may use any of these words, in its stem or in its options.';
   }
   if (P.key === 'urdu') {
-    // A Q4 stem can carry its options on the lines below it; the first line is the question.
+    // A Q4 stem can carry its options on the lines below it; the first line is the question. The
+    // answers Q4 also accepts are named too: an MCQ keyed on one of them is held as well.
+    const also = (q) => [...new Set(acceptOf(q).map((a) => a.trim()).filter((a) => a && plain(a) !== plain(keyText(q))))];
     const asked = against.filter((q) => typeof q.question === 'string' && q.question.trim() && keyText(q).trim())
-      .map((q) => `- ${q.question.trim().split('\n')[0].trim()} → ${keyText(q).trim().replace(/\s*\n\s*/g, '; ')}`);
+      .map((q) => `- ${q.question.trim().split('\n')[0].trim()} → ${keyText(q).trim().replace(/\s*\n\s*/g, '; ')}`
+        + (also(q).length ? ` (also accepted: ${also(q).join('; ')})` : ''));
     if (!asked.length) return null;
     return `Q4 of this paper already asks these (question → answer):\n${asked.join('\n')}\n`
       + 'No MCQ you write in this section may be keyed on any of these answers or ask any of these again.';
