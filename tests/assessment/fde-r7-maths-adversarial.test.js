@@ -133,8 +133,9 @@ describe('C. parsing edges', () => {
     expect(v('What is the value of the digit ۴ in ۳,۱۴۲,۷۸۵?', ['a) 4,000', 'b) 40,000', 'c) 400,000', 'd) 400'])).toEqual({ ok: true });
   });
 
-  it('a decimal stem number in a rounding question is unchecked; a huge number is still a verdict', () => {
-    expect(v('Round 3.456 to the nearest hundredth.', ['a) 3.45', 'b) 3.46', 'c) 3.5', 'd) 3.4'])).toEqual({ ok: null });
+  // Round 8: rounding to decimal places is now read (7.846 to the nearest tenth was keyed 7.9).
+  it('a decimal stem number to the nearest ten is unchecked; to the nearest hundredth is a verdict; a huge number is still a verdict', () => {
+    expect(v('Round 3.456 to the nearest hundredth.', ['a) 3.45', 'b) 3.46', 'c) 3.5', 'd) 3.4'])).toEqual({ ok: true });
     expect(v('Round 3.456 to the nearest ten.', ['a) 0', 'b) 10', 'c) 3', 'd) 4'])).toEqual({ ok: null });
     expect(v('Which number is a prime number?', ['a) 999,999,937', 'b) 1,000,000', 'c) 999,999,936', 'd) 999,999,938'])).toEqual({ ok: true });
   });
