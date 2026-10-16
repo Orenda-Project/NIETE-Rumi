@@ -1,3 +1,4 @@
+-- requires: 014_attendance_tables.sql (creates students)
 -- requires: student_identity.sql (adds students.status and students.merged_into)
 -- Migration: a merged child record always names its target, and only a merged record does.
 --
