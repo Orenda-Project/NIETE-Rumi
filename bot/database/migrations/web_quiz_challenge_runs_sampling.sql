@@ -1,3 +1,4 @@
+-- requires: web_quiz_challenge.sql
 -- Migration: which sample a Challenge run belongs to, how it was administered, and how many times the child had met
 -- the anchor items before it in any mode.
 --
