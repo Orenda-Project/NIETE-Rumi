@@ -1743,7 +1743,7 @@ const PAGE_BIND = new Set(['bind_offered', 'bind_sent']);
 const SERVER_DOORS = new Set(['quiz_reply', 'class_link']);
 function serverOnly(e) {
   const n = String((e && e.n) || '');
-  if (SERVER_ONLY.has(n) || n.startsWith('class_round_') || (n.startsWith('bind_') && !PAGE_BIND.has(n))) return true;
+  if (SERVER_ONLY.has(n) || n.startsWith('class_round_') || n.startsWith('sample_ping_') || (n.startsWith('bind_') && !PAGE_BIND.has(n))) return true;
   if (n === 'door_shown' || n === 'door_tap') return SERVER_DOORS.has(e.door) || (n === 'door_shown' && e.door === 'link_home');
   return false;
 }
@@ -1761,6 +1761,8 @@ const NAME_PROPS = Object.freeze({
   door_shown: DOOR_PROPS,
   door_tap: DOOR_PROPS,
   ch_helped: Object.freeze({ v: helpedV }),
+  // the grown-up's keep answer (web-quiz-trail-page.js) and the keep notice being shown
+  ch_audio_consent: Object.freeze({ v: /^(kept_ok|kept_no|not_asked|notice_shown)$/ }),
   bind_offered: Object.freeze({ surface: /^(trail|hub|book|end_card)$/ }),
   // Jugnu's Book: class_wall_shown {shown, term_total?, week_n?} (the class lights line; no class id from the page).
   class_wall_shown: Object.freeze({ shown: /^(total|hidden_under5)$/, term_total: wallNum, week_n: wallNum }),
