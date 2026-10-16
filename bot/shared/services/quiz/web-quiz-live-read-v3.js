@@ -84,7 +84,7 @@ async function forMenu() {
 /** Every story key since `sinceIso`, for the day's read budget (the caller checks the switches); 0 when unreadable (logged). */
 async function keysSince(sinceIso) {
   try {
-    const { count, error } = await supabase.from(TABLE).select('id', { count: 'exact', head: true }).gte('created_at', sinceIso);
+    const { count, error } = await supabase.from('web_quiz_live_read_keys').select('id', { count: 'exact', head: true }).gte('created_at', sinceIso);
     if (error) throw new Error(error.message || 'count failed');
     return Number(count) || 0;
   } catch (e) {

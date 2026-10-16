@@ -80,7 +80,7 @@ async function pageReadable(book, page, now = Date.now()) {
 
 /** This child's story keys since Pakistan midnight; throws when the table cannot be read. */
 async function keysToday(studentId, now = Date.now()) {
-  const { count, error } = await supabase.from(LR.TABLE).select('id', { count: 'exact', head: true }).eq('student_id', studentId).gte('created_at', pkMidnightIso(now));
+  const { count, error } = await supabase.from('web_quiz_live_read_keys').select('id', { count: 'exact', head: true }).eq('student_id', studentId).gte('created_at', pkMidnightIso(now));
   if (error) throw new Error(error.message || 'count failed');
   return Number(count) || 0;
 }
@@ -115,7 +115,7 @@ async function storyKey({ st, kid, book, page, lang, device } = {}) {
   const run = crypto.randomUUID();
   // the row first: a key is never handed out that the caps did not count (a repeat was counted with its page)
   if (!repeat) {
-    const { error } = await supabase.from(LR.TABLE).insert({ id: run, student_id: entry.studentId, src: 'story_page', lang: l, created_at: new Date().toISOString() });
+    const { error } = await supabase.from('web_quiz_live_read_keys').insert({ id: run, student_id: entry.studentId, src: 'story_page', lang: l, created_at: new Date().toISOString() });
     if (error) {
       logError('web_quiz.lr_keys_write_failed', { error: String(error.message || error).slice(0, 120) });
       fail(503, 'live_unavailable');
