@@ -51,10 +51,10 @@ function bot(on = true) {
   };
   return { calls, fetchImpl };
 }
-function build(fetchImpl) {
+function build(fetchImpl, { teacherOn = async () => true } = {}) {
   const app = express();
   app.set('trust proxy', 1);
-  app.use(createTeacherStoriesRouter({ botUrl: BOT, apiKey: KEY, fetchImpl }));
+  app.use(createTeacherStoriesRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, teacherOn }));
   app.use((r, res) => res.status(418).send('fell through'));
   return app;
 }
@@ -117,6 +117,41 @@ test('the page is the bot\'s HTML, forwarded with grade, language and book only'
   expect(b.calls[0].url).toBe(`${BOT}/api/internal/ts/page/${TH}?grade=3&lang=ur&book=${BOOK}`);
   expect(out.headers['x-robots-tag']).toBe('noindex, nofollow');
   expect(out.headers['cache-control']).toBe('no-store');
+});
+
+test('switch off at the edge: the bot is never asked; the API and the page answer exactly as the bot\'s 404 does (golden)', async () => {
+  const viaBot = bot(false);
+  srv = await start(build(viaBot.fetchImpl));
+  const want = [await req(srv, 'GET', `/api/teacher/stories?th=${TH}`), await req(srv, 'POST', '/api/teacher/story/share', { th: TH, story_id: BOOK }),
+    await req(srv, 'GET', `/quiz/teacher/${TH}/stories`)];
+  await new Promise((r) => srv.close(r));
+  for (const off of [async () => false, async () => { throw new Error('down'); }]) {
+    const b = bot(true);
+    srv = await start(build(b.fetchImpl, { teacherOn: off }));
+    const got = [await req(srv, 'GET', `/api/teacher/stories?th=${TH}`), await req(srv, 'POST', '/api/teacher/story/share', { th: TH, story_id: BOOK }),
+      await req(srv, 'GET', `/quiz/teacher/${TH}/stories`)];
+    expect(b.calls).toHaveLength(0);
+    got.forEach((g, i) => { expect(g.status).toBe(want[i].status); expect(g.body).toBe(want[i].body); });
+    expect(got[2].body).toBe('fell through');
+    await new Promise((r) => srv.close(r));
+  }
+  srv = null;
+});
+test('the edge reads web_quiz_stories_teacher at most every 30 s, through the portal\'s flag rule', async () => {
+  const { teacherFlagReader } = require('../routes/teacher-stories.routes');
+  let t = 0;
+  const reads = [];
+  const fakeDb = { from: () => ({ select: () => ({ eq: (k, v) => { reads.push(v); return { maybeSingle: async () => ({ data: { value: true }, error: null }) }; } }) }) };
+  const on = teacherFlagReader({ now: () => t, db: () => fakeDb });
+  expect(await on()).toBe(true);
+  t = 29999;
+  expect(await on()).toBe(true);
+  expect(reads).toEqual(['web_quiz_stories_teacher']);
+  t = 30000;
+  await on();
+  expect(reads).toHaveLength(2);
+  const broken = teacherFlagReader({ now: () => 0, db: () => { throw new Error('no client'); } });
+  expect(await broken()).toBe(false);
 });
 
 test('switch off (the bot\'s 404): the API says so and the page falls through untouched (golden)', async () => {

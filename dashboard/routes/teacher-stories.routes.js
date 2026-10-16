@@ -1,6 +1,8 @@
 /**
  * A teacher sends a storybook to the class: the public edge. It forwards path for path to the bot's /api/internal/ts/*
- * and never decides anything: the bot reads app_settings web_quiz_stories_teacher (default off).
+ * and the bot decides (app_settings web_quiz_stories_teacher, default off, together with the child's stories and hub).
+ * The edge reads the same switch itself (at most every 30 s, any failure = off) only to cost nothing while it is off:
+ * then it never asks the bot and answers exactly what the bot's off answers (404 stories_off; the page falls through).
  *
  *   GET  /api/teacher/stories?th=&grade=&lang=[&all=1]    the story shelf (≤ 4 books; all of them with all=1)
  *   GET  /api/teacher/story/preview?th=&story_id=          the send made ready: the book, the exact class message
@@ -28,6 +30,23 @@ const QUERY = {
   book: (v) => UUID_RX.test(v),
 };
 const ORDER = ['th', 'grade', 'lang', 'all', 'story_id', 'class', 'book'];
+const FLAG_KEY = 'web_quiz_stories_teacher';
+const FLAG_TTL_MS = 30000;
+
+/** app_settings web_quiz_stories_teacher through the portal's own client and flag rule, remembered 30 s; failure = off. */
+function teacherFlagReader({ now = Date.now, db = () => require('../config/supabase') } = {}) {
+  let at = -Infinity;
+  let val = false;
+  return async () => {
+    if (now() - at < FLAG_TTL_MS) return val;
+    try {
+      const supabase = db();
+      val = supabase ? (await require('../lib/feature-flags').isFlagEnabled(supabase, FLAG_KEY)) === true : false;
+    } catch (_) { val = false; }
+    at = now();
+    return val;
+  };
+}
 
 /** Only the keys the bot reads, in one order, each checked. */
 function forwardQuery(q = {}, keys = ORDER) {
@@ -40,12 +59,16 @@ function createTeacherStoriesRouter(opts = {}) {
   const apiKey = opts.apiKey != null ? opts.apiKey : (process.env.INTERNAL_API_KEY || '');
   const fetchImpl = opts.fetchImpl || ((...a) => fetch(...a));
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
+  const teacherOn = opts.teacherOn || teacherFlagReader({ now: opts.now });
+  const isOn = async () => { try { return (await teacherOn()) === true; } catch (_) { return false; } };
   const router = express.Router();
   const common = { windowMs: 60 * 1000, standardHeaders: true, legacyHeaders: false, validate: false,
     handler: (req, res) => res.status(429).json({ error: 'slow_down' }) };
   const read = rateLimit({ ...common, max: 120, keyGenerator: (req) => `ts:${clientIp(req)}` });
   const write = rateLimit({ ...common, max: 30, keyGenerator: (req) => `tsw:${clientIp(req)}` });
   const ready = (req, res, next) => (botUrl && apiKey ? next() : res.status(503).json({ error: 'stories_off' }));
+  // Off: the bot's own off answer, without asking the bot and before any limiter counts the request.
+  const on = async (req, res, next) => ((await isOn()) ? next() : res.status(404).json({ error: 'stories_off' }));
   const noStore = (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
   const tokenIn = (v) => TOKEN_RX.test(String(v || ''));
 
@@ -66,8 +89,8 @@ function createTeacherStoriesRouter(opts = {}) {
     }
   };
 
-  router.get('/api/teacher/stories', noStore, ready, read, forward('GET', '/api/internal/ts/stories', '/api/internal/ts/stories'));
-  router.get('/api/teacher/story/preview', noStore, ready, write, forward('GET', '/api/internal/ts/preview', '/api/internal/ts/preview'));
+  router.get('/api/teacher/stories', noStore, ready, on, read, forward('GET', '/api/internal/ts/stories', '/api/internal/ts/stories'));
+  router.get('/api/teacher/story/preview', noStore, ready, on, write, forward('GET', '/api/internal/ts/preview', '/api/internal/ts/preview'));
   // {th, story_id, class?} only, each checked; the page's Send form posts it form-encoded, the home as JSON.
   const shareBody = (req, res, next) => {
     const b = req.body || {};
@@ -77,11 +100,12 @@ function createTeacherStoriesRouter(opts = {}) {
     return next();
   };
   const bodies = [express.json({ limit: '4kb', type: ['application/json', 'text/plain'] }), express.urlencoded({ extended: false, limit: '4kb' })];
-  router.post('/api/teacher/story/send', noStore, ready, write, ...bodies, shareBody, forward('POST', '/api/internal/ts/send', '/api/internal/ts/send'));
-  router.post('/api/teacher/story/share', noStore, ready, write, ...bodies, shareBody, forward('POST', '/api/internal/ts/share', '/api/internal/ts/share'));
+  router.post('/api/teacher/story/send', noStore, ready, on, write, ...bodies, shareBody, forward('POST', '/api/internal/ts/send', '/api/internal/ts/send'));
+  router.post('/api/teacher/story/share', noStore, ready, on, write, ...bodies, shareBody, forward('POST', '/api/internal/ts/share', '/api/internal/ts/share'));
 
-  // The page: the bot's HTML, forwarded as bytes. With the switch off (the bot's 404) the request goes on.
-  router.get('/quiz/teacher/:th/stories', read, async (req, res, next) => {
+  // The page: the bot's HTML, forwarded as bytes. With the switch off (here, or the bot's 404) the request goes on.
+  const pageOn = async (req, res, next) => ((await isOn()) ? next() : next('route'));
+  router.get('/quiz/teacher/:th/stories', pageOn, read, async (req, res, next) => {
     const th = String(req.params.th || '');
     if (!TOKEN_RX.test(th) || !botUrl || !apiKey) return next();
     let out;
@@ -99,4 +123,4 @@ function createTeacherStoriesRouter(opts = {}) {
   return router;
 }
 
-module.exports = { createTeacherStoriesRouter, forwardQuery };
+module.exports = { createTeacherStoriesRouter, forwardQuery, teacherFlagReader };
