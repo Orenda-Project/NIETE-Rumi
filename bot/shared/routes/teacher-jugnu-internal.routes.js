@@ -50,7 +50,7 @@ async function pageExtras(req, v, lang) {
   const week = await ClassWeek.cardForTab(tab, lang, Page.T);
   if (week) tab.week = week;
   // ── end class week ──
-  const queue = Page.queueReady(lang) && tab.list ? await Data.confirmQueue(v.teacherId, tab, lang) : null;
+  const queue = Page.queueReady(lang) && tab.list ? await Data.confirmQueueWithin(v.teacherId, tab, lang) : null; // null past its budget: no queue section
   out.view = Page.renderJugnu(tab, {
     lang, tokens: { self: req.params.token }, queue, notice: req.query.e === '1' ? 'failed' : null, scope: v.quizId ? 'quiz' : 'all',
   });
