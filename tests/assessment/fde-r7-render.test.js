@@ -201,6 +201,16 @@ describe('3. rows filled by code are counted in the before-the-exam box', () => 
     expect(box(schemeOf(exam, 'social_studies'))).toContain('2 rows filled by code');
   });
 
+  test('item is the index in the type list; a repeated entry counts once', () => {
+    const exam = sst([
+      { slot: 'social_studies.A.Q1', item: 4, part: null, filled_by: 'code' },
+      { slot: 'social_studies.A.Q1', item: 4, part: null, filled_by: 'code' },
+    ]);
+    expect(box(schemeOf(clone(exam), 'social_studies'))).toContain('1 row filled by code');
+    exam.unseen.objective.MCQs[4].removed = true;
+    expect(box(schemeOf(exam, 'social_studies'))).not.toMatch(/filled by code/);
+  });
+
   test('Urdu box line, Urdu digits', () => {
     const one = box(schemeOf(sst([{ slot: 'social_studies.A.Q1', item: 0, part: null, filled_by: 'code' }], 'ur'), 'social_studies'));
     expect(one).toContain('۱ قطار کوڈ نے بھری');
