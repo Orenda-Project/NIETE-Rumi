@@ -377,12 +377,20 @@
       var d = h.S.data || {};
       var r = extra || {};
       var nx = r.next || d.next;
-      var sticker = !d.practice_round && !r.noSticker ? '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>' : '';
+      // a class round turn (round_turn): no sticker line (a round run is no counted stop of the child's own), and the
+      // one button hands the phone back to the round page (jg.round.c_handback); no Home
+      var round = !!d.round_turn;
+      var sticker = !round && !d.practice_round && !r.noSticker ? '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>' : '';
       var next = nx && nx.title ? '<p class="wq-sub" id="wqc-next">' + esc(t.endNext(nx.title)) + '</p>' : '';
       var b3 = (r.read_along_first || d.read_along_first) ? '<p class="wq-sub" id="wqc-b3">' + esc(t.endB3Next) + '</p>' : '';
       var again = r.again ? btn('wqc-again', h.t.again, 'wq-soft') : '';
       // the questions about the story read still follow a reading (today's step; its own back button)
       var qa = r.qa ? h.qaButtons() : '';
+      if (round) {
+        h.show(name, h.jug(pose, line, true) + '<div class="wq-stack">' + btn('wqc-handback', d.round_handback || '') + '</div>');
+        h.on('wqc-handback', function () { if (d.round_back) location.href = d.round_back; else { try { history.back(); } catch (e) { /* stays */ } } });
+        return;
+      }
       h.show(name, h.jug(pose, line, true) + sticker + next + b3 + '<div class="wq-stack">' + (qa || btn('wqc-menu', t.endHome)) + again + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });
@@ -409,7 +417,7 @@
       var d = h.S.data || {};
       if (isStory()) { storyEnd(name, false); return; }
       if (s && s.stopped && !isWarmup(d)) {
-        var line0 = !d.practice_round ? t.endSticker : h.tc('stopDone');
+        var line0 = !d.practice_round && !d.round_turn ? t.endSticker : h.tc('stopDone');
         endCard(name, 'hello', line0, { noSticker: true });
         return;
       }
