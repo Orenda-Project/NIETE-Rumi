@@ -248,6 +248,43 @@ describe('the card\'s "Make a new link" at the report edge (POST /r/:token/jnew)
     const r = await postForm(`/r/${TOK}/jnew`, `class=${CLS}`);
     expect(r.status).toBe(404);
   });
+
+  it('the confirm card\'s signed nonce n reaches the bot with the class; anything not token-shaped is dropped', async () => {
+    const N = `${'n'.repeat(60)}.${'s'.repeat(22)}`;
+    const b = answering(303, `/r/${TOK}?tab=class#class-link`);
+    srv = await start(buildTr(b.fetchImpl));
+    await postForm(`/r/${TOK}/jnew`, `class=${CLS}&n=${N}`);
+    expect(JSON.parse(b.calls[0].opts.body)).toEqual({ class: CLS, n: N });
+    await postForm(`/r/${TOK}/jnew`, `class=${CLS}&n=${encodeURIComponent('<b>not a nonce</b>')}`);
+    expect(JSON.parse(b.calls[1].opts.body)).toEqual({ class: CLS });
+  });
+
+  it('a stale nonce: the bot\'s 303 back to the confirm state (fresh nonce) is followed', async () => {
+    const N = `${'n'.repeat(60)}.${'s'.repeat(22)}`;
+    const back = `/r/${TOK}?tab=class&jconfirm=${CLS}#class-link`;
+    const b = answering(303, back);
+    srv = await start(buildTr(b.fetchImpl));
+    const r = await postForm(`/r/${TOK}/jnew`, `class=${CLS}&n=${N}`);
+    expect(r.status).toBe(303);
+    expect(r.headers.location).toBe(back);
+    expect(JSON.parse(b.calls[0].opts.body)).toEqual({ class: CLS, n: N });
+  });
+
+  it('the bot\'s 400 (no valid nonce: nothing revoked) is passed through as 400', async () => {
+    const b = answering(400);
+    srv = await start(buildTr(b.fetchImpl));
+    const r = await postForm(`/r/${TOK}/jnew`, `class=${CLS}`);
+    expect(r.status).toBe(400);
+  });
+
+  it('the report page passes jconfirm (a class id) to the bot, so the card asks first; anything else is dropped', async () => {
+    const b = answering(200);
+    srv = await start(buildTr(b.fetchImpl));
+    await req(srv, 'GET', `/r/${TOK}?tab=class&jconfirm=${CLS}`);
+    expect(b.calls[0].url).toBe(`${BOT}/api/internal/tr/page/${TOK}?tab=class&jconfirm=${CLS}`);
+    await req(srv, 'GET', `/r/${TOK}?tab=class&jconfirm=nope`);
+    expect(b.calls[1].url).toBe(`${BOT}/api/internal/tr/page/${TOK}?tab=class`);
+  });
 });
 
 describe('the teacher\'s own visit from the card (/j/<code>?t=<signed>)', () => {

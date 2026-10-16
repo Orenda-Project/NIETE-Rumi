@@ -320,7 +320,7 @@ describe('(b\') a phone that opened a class-link child\'s hub → "Whose turn?" 
 
   test('a phone the hub trusted only with a child of ANOTHER class → the stranger path, no children', async () => {
     const code = await linkFor();
-    await HubDevice.rememberKids([OUT], DEV_FRESH);
+    expect((await HubDevice.deviceTrusted(T.signHub([OUT]), DEV_FRESH)).ok).toBe(true);
     const a = await CL.arrive({ code, device_ref: DEV_FRESH });
     expect(a.step).toBe('teacher');
     expect(names(a)).toEqual([]);
@@ -328,7 +328,7 @@ describe('(b\') a phone that opened a class-link child\'s hub → "Whose turn?" 
 
   test('the device record and the teacher quiz\'s sessions together: the union, still only this class', async () => {
     const code = await linkFor();
-    await HubDevice.rememberKids([MA, OUT], DEV_PLAYED);
+    expect((await HubDevice.deviceTrusted(T.signHub([MA, OUT]), DEV_PLAYED)).ok).toBe(true);
     const a = await CL.arrive({ code, device_ref: DEV_PLAYED });
     expect(a.step).toBe('who');
     expect(a.kids.map((k) => k.first).sort()).toEqual(['Ayaan', 'Zara']);
@@ -533,7 +533,7 @@ describe('POST /api/internal/tr/jnew/:token ("Make a new link")', () => {
   test('(a) the class\'s teacher → 303 back to the class tab; the old row revoked, one new active row', async () => {
     const old = await linkFor();
     const tok = Token.signTeacherReport({ teacherId: T1 });
-    const r = await post(tok, { class: C1 });
+    const r = await post(tok, { class: C1, n: CL.signRenewNonce({ teacherId: T1, classId: C1 }) });
     expect(r.status).toBe(303);
     expect(r.headers.get('location')).toBe(`/r/${encodeURIComponent(tok)}?tab=class#class-link`);
     const oldRow = db.class_links.find((x) => x.code === old);
@@ -550,7 +550,7 @@ describe('POST /api/internal/tr/jnew/:token ("Make a new link")', () => {
   test('(b) the old /j/ code then answers not_found: the page an unknown code gets', async () => {
     const old = await linkFor();
     expect((await fetch(`${base}/wq/cl/${old}`)).status).toBe(200);
-    await post(Token.signTeacherReport({ teacherId: T1 }), { class: C1 });
+    await post(Token.signTeacherReport({ teacherId: T1 }), { class: C1, n: CL.signRenewNonce({ teacherId: T1, classId: C1 }) });
     const r = await fetch(`${base}/wq/cl/${old}`);
     expect(r.status).toBe(404);
     expect(await r.json()).toEqual({ error: 'not_found' });
@@ -558,14 +558,17 @@ describe('POST /api/internal/tr/jnew/:token ("Make a new link")', () => {
     expect((await fetch(`${base}/wq/cl/${fresh}`)).status).toBe(200);
   });
 
-  test('(c) another teacher\'s token is refused (404) and no row changes', async () => {
+  test('(c) another teacher\'s token is refused and no row changes (no nonce → 400; their own nonce, not their class → 404)', async () => {
     await linkFor();
     const before = snapshot();
     const r = await post(Token.signTeacherReport({ teacherId: T2 }), { class: C1 });
-    expect(r.status).toBe(404);
+    expect(r.status).toBe(400);
+    expect(db.class_links).toEqual(before);
+    const own = await post(Token.signTeacherReport({ teacherId: T2 }), { class: C1, n: CL.signRenewNonce({ teacherId: T2, classId: C1 }) });
+    expect(own.status).toBe(404);
     expect(db.class_links).toEqual(before);
     const bad = await post(Token.signTeacherReport({ teacherId: T1 }), { class: 'not-a-class' });
-    expect(bad.status).toBe(404);
+    expect(bad.status).toBe(400);
     expect(db.class_links).toEqual(before);
   });
 
@@ -585,16 +588,183 @@ describe('POST /api/internal/tr/jnew/:token ("Make a new link")', () => {
 
 describe('the card\'s "Make a new link" and "Open" (EN + UR, no script)', () => {
   const CLASS_DATA = { cells: [{ grade: '3', subject: 'maths', avg: 70, played: 4, quizzes: 1 }], weeks: [], quizzes: [] };
-  test('a no-JS POST form to /jnew with the class, and Open on the teacher\'s own preview link', async () => {
+  test('(f) "Make a new link" is a plain link to the confirm state (no one-tap POST form), and Open on the teacher\'s own preview link', async () => {
     const extra = await CL.forTeacher(T1);
     const { preview } = extra.cards[0];
     const en = renderPage({ class: { ...CLASS_DATA, classLink: extra } }, { lang: 'en', tab: 'class', tokens: { self: 'tok.sig' } });
-    expect(en).toContain(`<form method="post" action="/r/tok.sig/jnew" class="act"><input type="hidden" name="class" value="${C1}"><button type="submit" class="btn btn-ghost" style="width:100%;font:inherit;font-weight:700;cursor:pointer">Make a new link</button></form>`);
+    expect(en).toContain(`<a class="btn btn-ghost act" href="/r/tok.sig?tab=class&amp;jconfirm=${C1}#class-link">Make a new link</a>`);
+    expect(en).not.toContain('<form method="post" action="/r/tok.sig/jnew"');
+    expect(en).not.toContain('name="n"');
     expect(en).toContain(`<a class="btn btn-ghost act" href="${preview.replace(/&/g, '&amp;')}">Open</a>`);
     expect(en).not.toContain('<script');
     const ur = renderPage({ class: { ...CLASS_DATA, classLink: extra } }, { lang: 'ur', tab: 'class', tokens: { self: 'tok.sig' } });
-    expect(ur).toContain('>نیا لنک بنائیں</button>');
+    expect(ur).toContain('>نیا لنک بنائیں</a>');
+    expect(ur).not.toContain('/r/tok.sig/jnew');
     expect(ur).toContain('>کھولیں</a>');
+  });
+});
+
+// ── "Make a new link" asks first: a no-JS confirm card with a signed nonce (teacher + class, 10 minutes) ──
+describe('"Make a new link" asks first (confirm card, signed nonce)', () => {
+  const express = require('express');
+  const Token = require('../../../shared/services/quiz/teacher-report-token');
+  const CONFIRM_EN = 'The old link will stop working for everyone. Forward the new one to the class group.';
+  const CONFIRM_UR = 'پرانا لنک سب کے لیے بند ہو جائے گا۔ نیا لنک کلاس گروپ میں بھیج دیں۔';
+  let server;
+  let base;
+  beforeEach(async () => {
+    const app = express();
+    app.use('/api/internal/tr', require('../../../shared/routes/teacher-report-internal.routes'));
+    const cl = express.Router();
+    cl.use(express.json());
+    cl.use('/cl', require('../../../shared/routes/web-quiz-class-link.routes'));
+    app.use('/api/internal/wq', cl);
+    await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
+    base = `http://127.0.0.1:${server.address().port}/api/internal`;
+  });
+  afterEach(() => { jest.restoreAllMocks(); return new Promise((r) => server.close(r)); });
+  const H = { 'x-api-key': 'test-internal-key' };
+  const post = (tok, body) => fetch(`${base}/tr/jnew/${tok}`, {
+    method: 'POST', headers: { ...H, 'content-type': 'application/json' }, body: JSON.stringify(body), redirect: 'manual',
+  });
+  const snapshot = () => JSON.parse(JSON.stringify(db.class_links));
+  const live = async (code) => (await fetch(`${base}/wq/cl/${code}`)).status;
+  const nonceFrom = (html) => { const m = html.match(/<input type="hidden" name="n" value="([^"]+)">/); return m ? m[1] : null; };
+
+  test('(a) POST jnew with no nonce → 400; nothing revoked, the old code still live', async () => {
+    const old = await linkFor();
+    const before = snapshot();
+    const r = await post(Token.signTeacherReport({ teacherId: T1 }), { class: C1 });
+    expect(r.status).toBe(400);
+    expect(db.class_links).toEqual(before);
+    expect(await live(old)).toBe(200);
+  });
+
+  test('(b) a forged, other-class, other-teacher, other-teacher-expired or wrong-kind nonce → 400; nothing revoked', async () => {
+    const old = await linkFor();
+    const before = snapshot();
+    const tok = Token.signTeacherReport({ teacherId: T1 });
+    const good = CL.signRenewNonce({ teacherId: T1, classId: C1 });
+    const forged = `${good.slice(0, -1)}${good.endsWith('A') ? 'B' : 'A'}`;
+    const otherClass = CL.signRenewNonce({ teacherId: T1, classId: C4 });
+    const otherTeacher = CL.signRenewNonce({ teacherId: T2, classId: C1 });
+    const realNow = Date.now();
+    jest.spyOn(Date, 'now').mockReturnValue(realNow - 11 * 60 * 1000);
+    const expired = CL.signRenewNonce({ teacherId: T1, classId: C1 });
+    const expiredOther = CL.signRenewNonce({ teacherId: T2, classId: C1 });
+    Date.now.mockRestore();
+    // another signed kind (the card's own preview token) is not a nonce either
+    const wrongKind = CL.signTeacherPreview(old);
+    for (const n of [forged, otherClass, otherTeacher, expiredOther, wrongKind, 'not-a-nonce']) {
+      expect((await post(tok, { class: C1, n })).status).toBe(400);
+    }
+    expect(db.class_links).toEqual(before);
+    expect(await live(old)).toBe(200);
+    // the nonce is good for 10 minutes, then not
+    expect(CL.verifyRenewNonce(good, { teacherId: T1, classId: C1 })).toBe(true);
+    expect(CL.verifyRenewNonce(expired, { teacherId: T1, classId: C1 })).toBe(false);
+  });
+
+  test('(b2) a STALE nonce (this teacher, this class, past 10 minutes) → 303 back to the confirm state, nothing revoked; it then carries a fresh nonce', async () => {
+    const old = await linkFor();
+    const before = snapshot();
+    const tok = Token.signTeacherReport({ teacherId: T1 });
+    const realNow = Date.now();
+    jest.spyOn(Date, 'now').mockReturnValue(realNow - 11 * 60 * 1000);
+    const stale = CL.signRenewNonce({ teacherId: T1, classId: C1 });
+    Date.now.mockRestore();
+    const r = await post(tok, { class: C1, n: stale });
+    expect(r.status).toBe(303);
+    expect(r.headers.get('location')).toBe(`/r/${encodeURIComponent(tok)}?tab=class&jconfirm=${C1}#class-link`);
+    expect(db.class_links).toEqual(before);
+    expect(await live(old)).toBe(200);
+    // a stale nonce whose signature was tampered with is still forged → 400
+    const forgedStale = `${stale.slice(0, -1)}${stale.endsWith('A') ? 'B' : 'A'}`;
+    expect((await post(tok, { class: C1, n: forgedStale })).status).toBe(400);
+    // following the 303: the confirm card again, with a fresh nonce that works
+    const again = await (await fetch(`${base}/tr/page/${tok}?tab=class&lang=en&jconfirm=${C1}`, { headers: H })).text();
+    const fresh = nonceFrom(again);
+    expect(fresh).not.toBe(stale);
+    expect(CL.verifyRenewNonce(fresh, { teacherId: T1, classId: C1 })).toBe(true);
+    expect((await post(tok, { class: C1, n: fresh })).status).toBe(303);
+    expect(await live(old)).toBe(404);
+  });
+
+  test('(c) GET the confirm state → the three strings (EN and UR) and a nonce for this teacher and class; the card otherwise unchanged', async () => {
+    await linkFor();
+    const tok = Token.signTeacherReport({ teacherId: T1 });
+    const self = `/r/${encodeURIComponent(tok)}`;
+    const en = await (await fetch(`${base}/tr/page/${tok}?tab=class&lang=en&jconfirm=${C1}`, { headers: H })).text();
+    expect(en).toContain(`<p class="small">${CONFIRM_EN}</p>`);
+    const n = nonceFrom(en);
+    expect(n).toBeTruthy();
+    expect(CL.verifyRenewNonce(n, { teacherId: T1, classId: C1 })).toBe(true);
+    expect(CL.verifyRenewNonce(n, { teacherId: T2, classId: C1 })).toBe(false);
+    expect(en).toContain(`<form method="post" action="${self}/jnew" class="act"><input type="hidden" name="class" value="${C1}"><input type="hidden" name="n" value="${n}"><button type="submit" class="btn btn-ghost" style="width:100%;font:inherit;font-weight:700;cursor:pointer">Make a new link</button></form>`);
+    expect(en).toContain(`<a class="btn btn-ghost act" href="${self}?tab=class#class-link">Keep this link</a>`);
+    expect(en).not.toContain('jconfirm=');
+    expect(en).not.toContain('<script');
+    const ur = await (await fetch(`${base}/tr/page/${tok}?tab=class&lang=ur&jconfirm=${C1}`, { headers: H })).text();
+    expect(ur).toContain(CONFIRM_UR);
+    expect(ur).toContain('>نیا لنک بنائیں</button></form>');
+    expect(ur).toContain('>یہی لنک رکھیں</a>');
+    expect(nonceFrom(ur)).toBeTruthy();
+    // the card otherwise unchanged: the confirm block stands exactly where the plain link stood
+    const extra = await CL.forTeacher(T1);
+    const { renderClassLinkCard, COPY } = require('../../../shared/templates/teacher-class-link-card');
+    for (const lang of ['en', 'ur']) {
+      const plain = renderClassLinkCard(extra, { lang, base: '/r/tok.sig' });
+      const asked = renderClassLinkCard({ ...extra, confirm: { classId: C1, n: 'NONCE' } }, { lang, base: '/r/tok.sig' });
+      const C = COPY[lang];
+      const makeLink = `<a class="btn btn-ghost act" href="/r/tok.sig?tab=class&amp;jconfirm=${C1}#class-link">${C.make}</a>`;
+      const confirmBlock = `<p class="small">${C.renewConfirm}</p>
+<form method="post" action="/r/tok.sig/jnew" class="act"><input type="hidden" name="class" value="${C1}"><input type="hidden" name="n" value="NONCE"><button type="submit" class="btn btn-ghost" style="width:100%;font:inherit;font-weight:700;cursor:pointer">${C.renewGo}</button></form>
+<a class="btn btn-ghost act" href="/r/tok.sig?tab=class#class-link">${C.renewKeep}</a>`;
+      expect(plain).toContain(makeLink);
+      expect(asked).toBe(plain.replace(makeLink, confirmBlock));
+    }
+  });
+
+  test('(c) a confirm for a class that is not this teacher\'s → no nonce, the card as normal', async () => {
+    await linkFor();
+    const tok = Token.signTeacherReport({ teacherId: T1 });
+    const html = await (await fetch(`${base}/tr/page/${tok}?tab=class&lang=en&jconfirm=${C2}`, { headers: H })).text();
+    expect(nonceFrom(html)).toBeNull();
+    expect(html).not.toContain(CONFIRM_EN);
+    expect(html).toContain(`jconfirm=${C1}#class-link">Make a new link</a>`);
+  });
+
+  test('(d) the confirm card\'s POST with its nonce → 303 back; the old code revoked, the new one live', async () => {
+    const old = await linkFor();
+    const tok = Token.signTeacherReport({ teacherId: T1 });
+    const page = await (await fetch(`${base}/tr/page/${tok}?tab=class&lang=en&jconfirm=${C1}`, { headers: H })).text();
+    const r = await post(tok, { class: C1, n: nonceFrom(page) });
+    expect(r.status).toBe(303);
+    expect(r.headers.get('location')).toBe(`/r/${encodeURIComponent(tok)}?tab=class#class-link`);
+    expect(await live(old)).toBe(404);
+    const fresh = db.class_links.filter((x) => x.class_id === C1 && x.revoked_at == null);
+    expect(fresh).toHaveLength(1);
+    expect(fresh[0].code).not.toBe(old);
+    expect(await live(fresh[0].code)).toBe(200);
+    // 4: after the 303 the card shows the new link, as today
+    const after = await (await fetch(`${base}/tr/page/${tok}?tab=class&lang=en`, { headers: H })).text();
+    expect(after).toContain(`https://quiz.example.org/j/${fresh[0].code}`);
+    expect(after).not.toContain(`/j/${old}`);
+  });
+
+  test('(e) switch off: jconfirm is ignored (no card, no nonce) and POST jnew answers 404 as today, nothing revoked', async () => {
+    await linkFor();
+    const before = snapshot();
+    db.app_settings.find((x) => x.key === 'web_quiz_class_link').value = false;
+    Flags._resetCache();
+    const tok = Token.signTeacherReport({ teacherId: T1 });
+    const asked = await (await fetch(`${base}/tr/page/${tok}?tab=class&lang=en&jconfirm=${C1}`, { headers: H })).text();
+    const plain = await (await fetch(`${base}/tr/page/${tok}?tab=class&lang=en`, { headers: H })).text();
+    expect(asked).toBe(plain);
+    expect(asked).not.toContain('class-link');
+    expect((await post(tok, { class: C1 })).status).toBe(404);
+    expect((await post(tok, { class: C1, n: CL.signRenewNonce({ teacherId: T1, classId: C1 }) })).status).toBe(404);
+    expect(db.class_links).toEqual(before);
   });
 });
 
