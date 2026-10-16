@@ -11,6 +11,7 @@
  *   GET /r/:token/fwd      the Jugnu tab's "Forward to the class group": the bot's 302 -> wa.me
  *   POST /r/:token/queue   the Jugnu tab's no-JS confirm-queue forms
  *   POST /r/:token/unbind  the Jugnu tab's "Saved on WhatsApp ✓ · Undo" form
+ *   GET /r/:token/wfwd     the class week card's forward: the bot's 302 -> wa.me
  *                          (both answered by the bot with a 303 back to the report)
  *
  * Like /q/:code, the edge never touches the database: it checks the token's shape,
@@ -96,8 +97,8 @@ function createTeacherReportRouter(opts = {}) {
         return fail(502, 'error');
       }
       if (out.status >= 300 && out.status < 400) {
-        // Only the reminder and the Jugnu forward redirect, and only ever to WhatsApp's share link.
-        if ((kind === 'remind' || kind === 'fwd') && out.location && /^https:\/\/wa\.me\//.test(out.location)) return res.redirect(302, out.location);
+        // Only the reminder and the Jugnu forwards (story, class week) redirect, and only ever to WhatsApp's share link.
+        if ((kind === 'remind' || kind === 'fwd' || kind === 'wfwd') && out.location && /^https:\/\/wa\.me\//.test(out.location)) return res.redirect(302, out.location);
         return fail(502, 'error');
       }
       if (out.status >= 500) return fail(502, 'error');
@@ -140,6 +141,8 @@ function createTeacherReportRouter(opts = {}) {
   router.get(`${REPORT_PATH}/:token/fwd`, privateHeaders, limiter, forward('fwd'));
   router.post(`${REPORT_PATH}/:token/queue`, privateHeaders, limiter, form, forwardForm('queue'));
   router.post(`${REPORT_PATH}/:token/unbind`, privateHeaders, limiter, form, forwardForm('unbind'));
+  // The class week card's forward (bot switch web_quiz_class_week; the bot answers 404 while it is off).
+  router.get(`${REPORT_PATH}/:token/wfwd`, privateHeaders, limiter, forward('wfwd'));
   return router;
 }
 
