@@ -389,7 +389,7 @@ describe('events', () => {
   test('sticker once: the first story_done of a book gives the sticker when the Book is on, never again', async () => {
     seed({ book: true });
     fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(1), page_n: 1, event: 'story_page_listened', data: {}, at: new Date().toISOString() });
-    fake.db.story_events.push({ child_id: KID_B, book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: {}, at: new Date().toISOString() });
+    fake.db.story_events.push({ child_id: KID_B, book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { words_total: 5, words_read: 4 }, at: new Date().toISOString() });
     const first = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_done', data: { pages_listened: 3, pages_read: 1, stars: 3 } });
     expect(first).toEqual({ ok: true, sticker: true });
     const again = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_done', data: {} });
@@ -403,6 +403,14 @@ describe('events', () => {
     seed();
     await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_done', data: { pages_listened: 9, pages_read: 9, stars: 3 } });
     expect(fake.db.story_events[0].data).toEqual({ pages_listened: 0, pages_read: 0, stars: 0 });
+  });
+  test('a page read with under 10 % of its words heard, or a voiceless "listen", is not effort: no sticker, no star for it', async () => {
+    seed({ book: true });
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { words_total: 12, words_read: 1 } });
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 2, event: 'story_page_listened', data: { miss: true } });
+    const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_done', data: {} });
+    expect(out).toEqual({ ok: true, sticker: false });
+    expect(fake.db.story_events.find((e) => e.event === 'story_done').data).toEqual({ pages_listened: 0, pages_read: 0, stars: 0 });
   });
   test('no sticker for a finish with nothing listened or read (zero-input chain)', async () => {
     seed({ book: true });
