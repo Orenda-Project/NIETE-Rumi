@@ -934,9 +934,10 @@ async function uploadImageWithRetry(imageBuffer, userId, imageId, mimeType) {
  * @param {Buffer} buffer - File buffer
  * @param {string} key - R2 object key
  * @param {string} contentType - MIME content type
+ * @param {{bucket?: string, cacheControl?: string}} [opts] - a named bucket; a Cache-Control stored on the object
  * @returns {Promise<string>} Public URL of uploaded file
  */
-async function uploadBuffer(buffer, key, contentType = 'application/octet-stream', { bucket } = {}) {
+async function uploadBuffer(buffer, key, contentType = 'application/octet-stream', { bucket, cacheControl } = {}) {
   try {
     const command = new PutObjectCommand({
       Bucket: bucket || BUCKET_NAME,
@@ -945,7 +946,9 @@ async function uploadBuffer(buffer, key, contentType = 'application/octet-stream
       ContentType: contentType,
       Metadata: {
         uploadedAt: new Date().toISOString()
-      }
+      },
+      // Optional: a content-addressed file (story pictures) is stored immutable; absent, the input is as before.
+      ...(cacheControl ? { CacheControl: cacheControl } : {}),
     });
 
     await getR2Client().send(command);
