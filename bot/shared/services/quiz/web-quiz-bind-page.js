@@ -117,17 +117,16 @@ async function mint({ hub, kid, device, lang } = {}) {
 async function status({ code } = {}) {
   try {
     if (!(await bindOn())) return { off: true };
-    if (!CODE_RX.test(String(code || ''))) return { state: 'refused', reason: 'code_unknown' };
+    // web_quiz_bind_way_back: every answer the page can come back from carries `wb` — an expired code keeps its Keep
+    // my place button, a refusal it has no line for offers Yes again, instead of a dead card
+    const way = async (r) => ((await require('./web-quiz-bind-way-back').on()) ? { ...r, wb: true } : r);
+    if (!CODE_RX.test(String(code || ''))) return way({ state: 'refused', reason: 'code_unknown' });
     const row = await require('./child-bind-codes.repo').get(String(code));
-    if (!row) return { state: 'refused', reason: 'code_unknown' };
+    if (!row) return way({ state: 'refused', reason: 'code_unknown' });
     if (row.used_at && row.outcome === 'bound') return { state: 'bound' };
-    if (row.outcome === 'code_expired') return { state: 'expired' };
-    if (row.used_at && row.outcome) {
-      const r = { state: 'refused', reason: String(row.outcome).replace(/^refused:?/, '') };
-      // web_quiz_bind_way_back: the page offers Yes again for a refusal it has no line for, instead of a dead card
-      return (await require('./web-quiz-bind-way-back').on()) ? { ...r, wb: true } : r;
-    }
-    if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) return { state: 'expired' };
+    if (row.outcome === 'code_expired') return way({ state: 'expired' });
+    if (row.used_at && row.outcome) return way({ state: 'refused', reason: String(row.outcome).replace(/^refused:?/, '') });
+    if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) return way({ state: 'expired' });
     return { state: 'pending' };
   } catch (err) {
     logToFile('⚠️ keep my place: status failed', { error: err.message });

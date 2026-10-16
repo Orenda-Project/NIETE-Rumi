@@ -47,6 +47,7 @@ const StudentQuiz = require('../../../shared/services/quiz/student-quiz.service'
 const T = require('../../../shared/services/quiz/web-quiz-token');
 
 const { fixturePhone, maskFixturePhones } = require('./fixture-phone');
+const ANSWERS = require('./fixtures/bind-status-answers');
 const PHONE = fixturePhone(611);
 const KIDS = ['f0000000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000003',
   'f0000000-0000-4000-8000-000000000004', 'f0000000-0000-4000-8000-000000000005', 'f0000000-0000-4000-8000-000000000006'];
@@ -314,11 +315,22 @@ describe('the hub card follows the child × device, not the browser tab', () => 
     expect(reads('child_bind_codes')).toHaveLength(0);
   });
 
-  test('status: with the switch on the answer says so (`wb`), so the page can offer a way back; off → today\'s answer', async () => {
-    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0], { used_at: iso(Date.now() - 1000), outcome: 'code_used' })] });
-    expect(await BindPage.status({ code: 'JUGNU-AB2CD' })).toEqual({ state: 'refused', reason: 'code_used' });
+  // the page acts on these answers (wq-bind.js onFocus); the page test feeds the same fixture, so neither side invents a shape
+  const ROWS = {
+    pending: [code('JUGNU-AB2CD', KIDS[0])],
+    bound: [code('JUGNU-AB2CD', KIDS[0], { used_at: iso(Date.now() - 1000), outcome: 'bound' })],
+    ran_out: [code('JUGNU-AB2CD', KIDS[0], { expires_at: iso(Date.now() - 1000) })],
+    no_row: [],
+    not_a_code: [],
+    ...Object.fromEntries(['code_expired', 'code_used', 'child_unknown', 'teacher_phone', 'max_phones', 'max_kids']
+      .map((o) => [o, [code('JUGNU-AB2CD', KIDS[0], { used_at: iso(Date.now() - 1000), outcome: o })]])),
+  };
+  test.each(Object.keys(ANSWERS.OFF))('status (%s): off → today\'s answer; on → `wb` on every answer the page can come back from', async (k) => {
+    seed({ students: [student(0)], codes: ROWS[k] });
+    const c = k === 'not_a_code' ? 'nope' : 'JUGNU-AB2CD';
+    expect(await BindPage.status({ code: c })).toEqual(ANSWERS.OFF[k]);
     wayBack();
-    expect(await BindPage.status({ code: 'JUGNU-AB2CD' })).toEqual({ state: 'refused', reason: 'code_used', wb: true });
+    expect(await BindPage.status({ code: c })).toEqual(ANSWERS.ON[k]);
   });
 });
 

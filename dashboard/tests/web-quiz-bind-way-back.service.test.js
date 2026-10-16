@@ -2,6 +2,8 @@
  * "Keep my place": a way back from every outcome on the page (web_quiz_bind_way_back; the bot's status answer carries
  * `wb: true` only with the switch on). public/wq/wq-bind.js run whole in a vm with a small fake DOM, the same harness as
  * web-quiz-bind-card.service.test.js: the bot API (fetch), the two storages and the event function are faked.
+ * The status answers are the server's own (bot/tests/.../fixtures/bind-status-answers.js, which the bot test proves
+ * `status()` gives for each code row), never a shape made up here.
  */
 const fs = require('fs');
 const path = require('path');
@@ -10,6 +12,7 @@ const vm = require('vm');
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-bind.js'), 'utf8');
 const TEL = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-tel.js'), 'utf8');
 const flush = () => new Promise((r) => setImmediate(r));
+const ANSWERS = require('../../bot/tests/quiz/web-quiz/fixtures/bind-status-answers');
 
 function load({ api = {}, local = {}, session = {} } = {}) {
   const fetches = [];
@@ -55,7 +58,7 @@ function mount() {
 }
 const ctxOf = (x = {}) => {
   const evs = [];
-  return { evs, c: { hub: 'h.tok', kid: '0123456789abcdef', first: 'Zara', lang: 'ur', ev: (n, p) => evs.push([n, p]), ...x } };
+  return { evs, c: { hub: 'h.tok', kid: '0123456789abcdef', first: 'Zara Testwala', lang: 'ur', ev: (n, p) => evs.push([n, p]), ...x } };
 };
 
 const KEPT = { wq_bind: JSON.stringify({ code: 'JUGNU-7KQ2X', kid: '0123456789abcdef' }) };
@@ -69,22 +72,22 @@ const focusWith = async (status, lang = 'en', extraApi = {}) => {
 };
 
 describe('switch on (wb): no outcome leaves a dead card', () => {
-  test('a refusal the page has no line for (code used / unknown / child gone) → "not saved just now" and Yes again, which mints anew', async () => {
-    for (const reason of ['code_used', 'code_unknown', 'child_unknown']) {
-      const { p, m } = await focusWith({ state: 'refused', reason, wb: true }, 'en',
-        { 'POST /api/wq/bind/mint': { ok: true, code: 'JUGNU-8MR3Y', href: 'https://wa.me/920000000000?text=y' } });
+  test('a refusal the page has no line for (code used / unknown / not a code / child gone) → "not saved just now" and Yes again, which mints anew', async () => {
+    for (const k of ['code_used', 'no_row', 'not_a_code', 'child_unknown']) {
+      const { p, m } = await focusWith(ANSWERS.ON[k], 'en',
+        { 'POST /api/wq/bind/mint': { ok: true, code: 'JUGNU-8MR3Y', href: 'https://wa.me/FIXTURE?text=y' } });
       expect(m.innerHTML).toContain("Your place wasn&#39;t saved just now. Please tap again.");
       expect(m.els.yes).toBeTruthy();
       expect(p.session.wq_bind).toBeUndefined();
       m.els.yes.click(); await flush(); await flush();
-      expect(m.els.send.href).toBe('https://wa.me/920000000000?text=y');
+      expect(m.els.send.href).toBe('https://wa.me/FIXTURE?text=y');
       expect(JSON.parse(p.session.wq_bind).code).toBe('JUGNU-8MR3Y');
     }
   });
 
-  test('expired → the "took too long" line WITH the Keep my place button, which opens the confirm sheet (EN, UR)', async () => {
-    for (const [lang, line, isYou] of [['en', 'That took too long. Tap Keep my place again.', 'Zara, is this you?'], ['ur', 'اس میں دیر ہو گئی۔ دوبارہ «میری جگہ محفوظ کریں» دبائیں۔', '⁨Zara⁩، کیا یہ آپ ہیں؟']]) {
-      const { m } = await focusWith({ state: 'expired', wb: true }, lang);
+  test('expired (marked by the binder, or ran out unused) → the "took too long" line WITH the Keep my place button, which opens the confirm sheet (EN, UR)', async () => {
+    for (const k of ['code_expired', 'ran_out']) for (const [lang, line, isYou] of [['en', 'That took too long. Tap Keep my place again.', 'Zara Testwala, is this you?'], ['ur', 'اس میں دیر ہو گئی۔ دوبارہ «میری جگہ محفوظ کریں» دبائیں۔', '⁨Zara Testwala⁩، کیا یہ آپ ہیں؟']]) {
+      const { m } = await focusWith(ANSWERS.ON[k], lang);
       expect(m.innerHTML).toContain(line);
       expect(m.els.keep).toBeTruthy();
       m.els.keep.click();
@@ -93,23 +96,25 @@ describe('switch on (wb): no outcome leaves a dead card', () => {
   });
 
   test('the refusals with a line keep it (teacher\'s phone, four children)', async () => {
-    const t = await focusWith({ state: 'refused', reason: 'teacher_phone', wb: true });
+    const t = await focusWith(ANSWERS.ON.teacher_phone);
     expect(t.m.innerHTML).toContain('This is a teacher&#39;s phone, so a child&#39;s place is not saved on it.');
-    const f = await focusWith({ state: 'refused', reason: 'max_kids', wb: true });
+    const f = await focusWith(ANSWERS.ON.max_kids);
     expect(f.m.innerHTML).toContain('This phone already keeps four children&#39;s places.');
   });
 });
 
 describe('goldens: no `wb` in the answer (switch off) → today\'s page, byte for byte', () => {
   test('a refusal with no line leaves the card exactly as it was', async () => {
-    for (const reason of ['code_used', 'code_unknown', 'child_unknown']) {
-      const { m, before } = await focusWith({ state: 'refused', reason });
+    for (const k of ['code_used', 'no_row', 'not_a_code', 'child_unknown']) {
+      const { m, before } = await focusWith(ANSWERS.OFF[k]);
       expect(m.innerHTML).toBe(before);
     }
   });
 
   test('expired → the line alone (no button), as today', async () => {
-    const { m } = await focusWith({ state: 'expired' });
-    expect(m.innerHTML).toBe('<div class="wqb-card" dir="ltr"><p class="wqb-msg" role="status">That took too long. Tap Keep my place again.</p></div>');
+    for (const k of ['code_expired', 'ran_out']) {
+      const { m } = await focusWith(ANSWERS.OFF[k]);
+      expect(m.innerHTML).toBe('<div class="wqb-card" dir="ltr"><p class="wqb-msg" role="status">That took too long. Tap Keep my place again.</p></div>');
+    }
   });
 });
