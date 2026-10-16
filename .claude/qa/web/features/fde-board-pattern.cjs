@@ -27,17 +27,31 @@ async function api(page, ctx, method, path, body) {
 const fdeBody = (grade, subject) => ({ grade, subject, pattern: PATTERN, scope: 'fde', questionCount: 0,
   contentSource: 'unseen', seenCount: null, questionTypes: [], answerLines: true, outputFormat: 'pdf' });
 
-// Ten requests in the last hour for the demo teacher, with ids we keep, so clean-up deletes exactly these.
+// Ten requests in the last hour for the demo teacher, with ids we keep, so clean-up deletes exactly these. Grade 5
+// Maths, on the book catalogue() guarantees: the columns are foreign keys and the demo data has no subjects or books.
 async function seedTenThisHour(ctx) {
   const ids = Array.from({ length: 10 }, () => crypto.randomUUID());
   await ctx.sql('insert into assessment_requests (id, user_id, surface, grade_code, subject_code, textbook_id, chapter_number, question_count, created_at) '
-    + 'select x.id::uuid, u.id, \'portal\', (select code from grade_levels order by code limit 1), (select code from subjects order by code limit 1), '
-    + '(select id from textbooks limit 1), 1, 10, now() - (x.n || \' minutes\')::interval '
+    + 'select x.id::uuid, u.id, \'portal\', \'grade_5\', \'maths\', '
+    + "(select id from textbooks where curriculum = 'ict' and grade = 5 and subject = 'maths' limit 1), 1, 10, now() - (x.n || ' minutes')::interval "
     + 'from users u, (values ' + ids.map((id, i) => "('" + id + "', " + (i + 1) * 3 + ')').join(', ') + ') as x(id, n) '
     + "where u.phone_number = '" + TEACHER_PHONE + "'");
   return ids;
 }
 const unseed = (ctx, ids) => ctx.sql('delete from assessment_requests where id in (' + ids.map((id) => "'" + id + "'").join(', ') + ')');
+
+// The Grade 5 books the generator offers. The class picker lists only grades and subjects with an ICT book
+// (assessment-browse listGrades/listSubjects), and the demo data (DATA=demo, the default) has none: every grade is greyed
+// out and no scenario can reach Grade 5. Added only where missing, so a sandbox copy keeps its own books; the run's
+// database is its own and is dropped at the end of the run.
+const G5_SUBJECTS = ['english', 'maths', 'science'];
+async function catalogue(ctx) {
+  const list = G5_SUBJECTS.map((s) => "('" + s + "')").join(', ');
+  await ctx.sql('insert into subjects (code) select s from (values ' + list + ') as x(s) on conflict (code) do nothing');
+  await ctx.sql("insert into textbooks (curriculum, grade, subject, filename, total_pages) "
+    + "select 'ict', 5, s, 'e2e-fde-g5-' || s || '.pdf', 100 from (values " + list + ') as x(s) '
+    + "where not exists (select 1 from textbooks t where t.curriculum = 'ict' and t.grade = 5 and t.subject = x.s)");
+}
 
 async function bodyText(page) { return page.evaluate(() => document.body.innerText); }
 
@@ -199,4 +213,7 @@ const scenarios = [
   } },
 ];
 
-module.exports = { feature: 'fde-board-pattern', spec: 'tests/features/web/fde-board-pattern.feature', scenarios };
+// Every scenario starts on the catalogue, so a new one cannot forget it.
+const withCatalogue = scenarios.map((s) => ({ ...s, run: async (page, ctx) => { await catalogue(ctx); return s.run(page, ctx); } }));
+
+module.exports = { feature: 'fde-board-pattern', spec: 'tests/features/web/fde-board-pattern.feature', scenarios: withCatalogue };
