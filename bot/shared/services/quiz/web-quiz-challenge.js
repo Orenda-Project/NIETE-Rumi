@@ -1378,10 +1378,10 @@ const IMPLAUSIBLE_SHARE = 0.9;
 const IMPLAUSIBLE_STT_SUPPORT = 0.25;   // heard words must be at least a quarter of the credited count
 const SILENT_FLOOR_MIN = 3;
 const SILENT_FLOOR_SHARE = 0.1;
+const heardFloor = (m, tokensN) => (Number(m && m.stt_words) || 0) >= Math.max(SILENT_FLOOR_MIN, Math.ceil(SILENT_FLOOR_SHARE * tokensN));
 function silentFloor(m, tokensN) {
-  const heard = Number(m && m.stt_words) || 0;
-  if (heard >= Math.max(SILENT_FLOOR_MIN, Math.ceil(SILENT_FLOOR_SHARE * tokensN))) return null;
-  return heard === 0 ? 'no_speech' : 'no_aligned_words';
+  if (heardFloor(m, tokensN)) return null;
+  return (Number(m && m.stt_words) || 0) === 0 ? 'no_speech' : 'no_aligned_words';
 }
 function readQuality(m, score, tokensN) {
   if (m && m.stt_words === 0) return 'no_speech';
@@ -1462,6 +1462,9 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
     // the noise floor
     const doubt = rules.record ? readQuality(m, score, tokensN) : null;
     if (doubt) return implausibleRow(doubt, rate);
+    // Speech that aligns to nothing (enough words heard, not one of them the passage's) is not a reading of this text, whatever
+    // the marker credited: unheard, the record kept. A first-line stop keeps its 0 (the discontinue is the child's own result).
+    if (rules.record && !stopped && m.align_correct === 0 && heardFloor(m, tokensN)) return { failed: true, reason: 'unheard', meta: { cost_usd: cost, duration_s: durationS, ...extra } };
     return { score, wcpm: rate, ended: ctx.ended || null, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra } };
   } catch (e) {
     return { failed: true, reason: 'internal_error', meta: { error: String(e && e.message || e).slice(0, 120) } };

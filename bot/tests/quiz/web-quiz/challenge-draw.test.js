@@ -51,6 +51,20 @@ describe('bands per fixed grade', () => {
     expect(D.isLine1OrZero({ exercise: 'read', status: 'scored', score: { stopped: false, correct: 40 }, meta: {} })).toBe(false);
   });
 
+  test('an implausible silent row is not the newest counted read (the band holds); a counted silent-ended unheard row is a zero read', () => {
+    const at = (h) => `2026-11-03T1${h}:00:00Z`;
+    const read = (over) => ({ exercise: 'read', status: 'scored', mode: 'check', record: true, score: { stopped: false, correct: 30 }, wcpm: 30, meta: {}, ...over });
+    const before = read({ id: 'r1', created_at: at(0) });
+    const fan = read({ id: 'r2', created_at: at(1), record: false, score: { correct: 0, attempted: 0, stopped: false }, wcpm: null,
+      meta: { ended: 'silent', mic_check: 'level_ok', quality: 'implausible', record_lost: 'implausible', counted: false } });
+    expect(D.lastCountedRead([before, fan])).toBe(before);
+    expect(D.drawBand({ fixedGrade: 5, openBand: 2, lastCountedRead: D.lastCountedRead([before, fan]) })).toEqual({ band: 2, band_reason: 'entry_grade', open_band: 2 });
+    const unheard = read({ id: 'r3', created_at: at(2), status: 'failed', score: null, wcpm: null, meta: { ended: 'silent', mic_check: 'level_ok', reason: 'unheard' } });
+    expect(D.lastCountedRead([before, fan, unheard])).toBe(unheard);
+    expect(D.isLine1OrZero(unheard)).toBe(true);
+    expect(D.drawBand({ fixedGrade: 5, openBand: 2, lastCountedRead: D.lastCountedRead([before, fan, unheard]) })).toEqual({ band: 1, band_reason: 'line1_drop', open_band: 2 });
+  });
+
   test('micHeard: the level check passed, in either spelling', () => {
     expect(D.micHeard('level_ok')).toBe(true);
     expect(D.micHeard('pass')).toBe(true);

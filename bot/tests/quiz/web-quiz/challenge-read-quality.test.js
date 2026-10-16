@@ -481,6 +481,66 @@ describe('the silent-ended read: the floor runs before the door', () => {
   });
 });
 
+describe('speech that aligns to nothing is never a scored read', () => {
+  const UR = ['ایک', 'دن', 'ہم', 'سکول', 'گئے', 'وہاں', 'بہت', 'بچے', 'تھے', 'اور'];
+  const urdu = (n) => ({ text: '', tokens: Array.from({ length: n }, (_, k) => ({ text: ` ${UR[k % UR.length]}`, start_ms: Math.round((0.9 + k * 1.1) * 1000), end_ms: Math.round((0.9 + k * 1.1 + 0.8) * 1000), speaker: 1 })) });
+  const serve = async (...more) => {
+    on(V2, ...CANON_ON, PERIOD, POOL, ...more);
+    const ex = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
+    return ex;
+  };
+
+  test('50 Urdu words on an English passage, the marker credits 5 of 50: failed/unheard, no quality key, the record kept (the next read is practice)', async () => {
+    const ex = await serve();
+    await readWith(ex.ct, urdu(50), 5, 50);
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 50, align_correct: 0 });
+    expect(row.status).toBe('failed');
+    expect(row.meta.reason).toBe('unheard');
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.meta).not.toHaveProperty('record_lost');
+    expect(row.wcpm == null).toBe(true);
+    expect(row.record).toBe(true);
+    const again = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false });
+  });
+
+  test('golden: the same transcript credited 90% or more stays implausible (no_aligned_words), record cleared', async () => {
+    const ex = await serve();
+    const n = enTokens().length;
+    await readWith(ex.ct, urdu(50), n, n);
+    const row = rowOf(ex.ct);
+    expect(row.status).toBe('scored');
+    expect(row.meta.quality).toBe('implausible');
+    expect(row.meta.flags).toEqual(expect.arrayContaining(['no_aligned_words']));
+    expect(row.record).toBe(false);
+    expect(row.meta.record_lost).toBe('implausible');
+  });
+
+  test('golden: an ordinary read with words aligned stays scored with its rate', async () => {
+    const ex = await serve();
+    await readAloud(ex.ct);
+    const row = rowOf(ex.ct);
+    expect(row.meta.align_correct).toBeGreaterThan(0);
+    expect(row).toMatchObject({ status: 'scored', record: true });
+    expect(row.wcpm).toBeGreaterThan(0);
+    expect(row.meta).not.toHaveProperty('quality');
+  });
+
+  test('golden: 3 Urdu words heard (under the floor), nothing aligned, the marker credits 2: scored at its rate as today', async () => {
+    const ex = await serve();
+    await readWith(ex.ct, urdu(3), 2, 3);
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 3, align_correct: 0 });
+    expect(row.status).toBe('scored');
+    expect(row.score).toMatchObject({ correct: 2, attempted: 3, stopped: false });
+    expect(row.wcpm).toBe(2);
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.record).toBe(true);
+  });
+});
+
 describe('the lamps (web-quiz-rungs): rapid_perfect never lights N3–N5; implausible lights nothing', () => {
   const base = (over) => ({ id: 'r', canonical_id: K5, exercise: 'missing', status: 'scored', mode: 'check', record: true, period_id: '2026-11', form: 'G3', grade: 3, lang: 'en', band: null, anchor_block: 'A1', exposure_no: 1, created_at: '2026-11-03T10:00:00Z', ...over });
   const items = (oks) => oks.map((ok, i) => ({ i: i + 1, ok, ms: 900 }));
