@@ -277,9 +277,10 @@ function sameNamed(set, name) {
 /** Undo a row whose binding failed: the row leaves every list (no delete: an audit trail of the attempt stays). */
 async function retire(id) {
   try {
-    await supabase.from('students').update({ is_active: false, updated_at: new Date().toISOString() }).eq('id', id).is('list_id', null);
+    const { error } = await supabase.from('students').update({ is_active: false, updated_at: new Date().toISOString() }).eq('id', id).is('list_id', null);
+    if (error) throw new Error(error.message || 'update failed');
   } catch (err) {
-    logToFile('⚠️ student join: row not retired after a failed bind', { error: err.message });
+    logToFile('❌ student join: row not retired after a failed bind (an active row with no phone)', { error: err.message }, 'error');
   }
 }
 
@@ -449,12 +450,24 @@ async function autoBind({ n, lang = null } = {}) {
   }
 }
 
-/** Does any roster row carry this phone at all (for "not one family" vs "nobody")? */
-async function rosterHits(phoneNorm) {
+/**
+ * Does a roster row of THIS school year carry this phone at all (for "not one family" vs "nobody")? The same rows
+ * rosterForPhone reads (active, unmerged, on an active list made since 1 April PKT): last year's roster, or a child
+ * who left, says nothing about this phone today, so it never sends the phone to the role question.
+ */
+async function rosterHits(phoneNorm, now = new Date()) {
   try {
     const local = `0${String(phoneNorm).slice(2)}`;
-    const { data, error } = await supabase.from('students').select('id').in('parent_phone', [`+${phoneNorm}`, String(phoneNorm), local]).limit(1);
-    return !error && (data || []).length > 0;
+    const { data, error } = await supabase.from('students').select('id, list_id')
+      .in('parent_phone', [`+${phoneNorm}`, String(phoneNorm), local])
+      .eq('is_active', true).eq('status', 'active').is('merged_into', null).not('list_id', 'is', null)
+      .limit(ROSTER_SCAN);
+    if (error || !(data || []).length) return false;
+    const listIds = [...new Set(data.map((k) => String(k.list_id)))];
+    const { data: lists, error: lerr } = await supabase.from('student_lists').select('id, is_active, created_at').in('id', listIds);
+    if (lerr) return false;
+    const since = schoolYearStart(now).getTime();
+    return (lists || []).some((l) => l.is_active !== false && l.created_at && new Date(l.created_at).getTime() >= since);
   } catch (_) {
     return false;
   }

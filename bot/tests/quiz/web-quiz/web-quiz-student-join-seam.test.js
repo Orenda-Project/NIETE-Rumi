@@ -377,6 +377,24 @@ describe('"Someone new?" on the same phone', () => {
 });
 
 describe('the page shell answer', () => {
+  test('the shell reads nothing but the cached switches before the first byte: only app_settings cold, then 0 reads', async () => {
+    const { t } = await landing();
+    const old = T.sign({ k: 'j', n: T.newNonce(), l: 'ur', exp: Math.floor(Date.now() / 1000) - 5 });
+    const real = supabase.from;
+    const tables = [];
+    supabase.from = (tb) => { tables.push(tb); return real(tb); };
+    try {
+      Join._resetCache();
+      for (const tok of [t, 'x.y', old]) await Join.pageInfo({ t: tok });
+      // cold: the join switch and its parents (identity, hub), each through its own 30 s cache — no other table
+      expect(tables.length).toBeGreaterThan(0);
+      expect([...new Set(tables)]).toEqual(['app_settings']);
+      tables.length = 0;
+      for (const tok of [t, 'x.y', old]) await Join.pageInfo({ t: tok });
+      expect(tables).toEqual([]);
+    } finally { supabase.from = real; }
+  });
+
   test('on: the language and mode; a forged token → stale; an expired one → stale with its language', async () => {
     const { t } = await landing();
     expect(await Join.pageInfo({ t })).toEqual({ ok: true, lang: 'ur', practice: false });
@@ -605,9 +623,20 @@ describe('a family phone on a teacher\'s class list', () => {
     const n = await GoNonce.mint({ phoneNorm: PHONE, userId: UNKNOWN_USER.id });
     const out = await Join.autoBind({ n });
     expect(out.confirm).toBeUndefined();
+    // nor the role question: last year's roster says nothing about this phone today, so the join screen
+    expect(out.none).toBeUndefined();
+    expect(out.join).toMatch(/^\/quiz\/join\//);
     expect(await Join.bindPick({ n, chip: T.chipId('go', KIDS[0]) })).toEqual({ refused: 'child_unknown' });
     expect(await Join.bindPick({ n, kid: KIDS[0], src: 'roster' })).toEqual({ refused: 'child_unknown' });
     expect(writes('child_phone_bindings')).toHaveLength(0);
+  });
+
+  test('(5b) only left or merged rows on this year\'s list → the join screen, never the role question', async () => {
+    seed({ students: [rosterKid(0, 'Gone Testwala', 'sch-1', { is_active: false }), rosterKid(1, 'Moved Testwala', 'sch-1', { merged_into: KIDS[3] })], lists: THIS_YEAR });
+    const n = await GoNonce.mint({ phoneNorm: PHONE, userId: UNKNOWN_USER.id });
+    const out = await Join.autoBind({ n });
+    expect(out.none).toBeUndefined();
+    expect(out.join).toMatch(/^\/quiz\/join\//);
   });
 
   test('(6) the filters run before the limit: five left/merged rows or five last-year rows never hide this year\'s child', async () => {
@@ -631,6 +660,49 @@ describe('failure: a failed binding leaves no orphan child', () => {
     expect(await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE })).toEqual({ error: 'unavailable' });
     expect(fake.db.students).toEqual([expect.objectContaining({ student_name: 'Sara', is_active: false })]);
     expect(writes('user_feature_first_use')).toHaveLength(0);
+  });
+});
+
+describe('failure: each write refused at the database, alone', () => {
+  const { logToFile } = require('../../../shared/utils/logger');
+  // the write fails as supabase-js reports it ({ data: null, error }); every other call is untouched
+  function failOnly(table, op) {
+    const prev = supabase.from;
+    supabase.from = (tb) => {
+      const b = prev(tb);
+      if (tb !== table) return b;
+      const orig = b[op];
+      b[op] = (...a) => { orig(...a); b.then = (res, rej) => Promise.resolve({ data: null, error: { message: 'injected', code: 'XX000' } }).then(res, rej); return b; };
+      return b;
+    };
+  }
+
+  test('the students insert fails → "unavailable", no binding, no child identity, no door key, the error logged', async () => {
+    const { t } = await landing();
+    failOnly('students', 'insert');
+    expect(await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE })).toEqual({ error: 'unavailable' });
+    expect(fake.db.child_phone_bindings).toEqual([]);
+    expect(fake.db.child_identity).toEqual([]);
+    expect(writes('user_feature_first_use')).toHaveLength(0);
+    expect(logToFile).toHaveBeenCalledWith(expect.stringContaining('could not create the child'), { error: 'injected' }, 'error');
+  });
+
+  test('the binding insert fails → "unavailable" (never "joined"), the new row retired, no door key', async () => {
+    const { t } = await landing();
+    failOnly('child_phone_bindings', 'insert');
+    const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    expect(out).toEqual({ error: 'unavailable' });
+    expect(fake.db.child_phone_bindings).toEqual([]);
+    expect(fake.db.students).toEqual([expect.objectContaining({ student_name: 'Sara', is_active: false })]);
+    expect(writes('user_feature_first_use')).toHaveLength(0);
+  });
+
+  test('the binding AND the retire fail → still "unavailable", and the row left active is logged as an error', async () => {
+    const { t } = await landing();
+    failOnly('child_phone_bindings', 'insert');
+    failOnly('students', 'update');
+    expect(await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE })).toEqual({ error: 'unavailable' });
+    expect(logToFile).toHaveBeenCalledWith(expect.stringContaining('row not retired'), { error: 'injected' }, 'error');
   });
 });
 
