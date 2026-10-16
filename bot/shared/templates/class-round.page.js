@@ -21,6 +21,9 @@
 const { PALETTE } = require('./niete-brand');
 const { clampLanguage } = require('../config/ux-strings');
 
+// Urdu prose writes its numbers in Urdu digits (U+06F0–06F9); a teacher's screen has no Western keypad or cells.
+const ud = (n) => String(n).replace(/[0-9]/g, (c) => '۰۱۲۳۴۵۶۷۸۹'[c]);
+
 // copy.v2.json → the page's T object (key in the comment)
 const T = {
   en: {
@@ -49,7 +52,7 @@ const T = {
     cardTitle: 'اس ٹرم کا کلاس راؤنڈ',
     cardSub: "اس ٹرم قرعہ اندازی میں آپ کی کلاس نکلی ہے۔ ہر بچے کے لیے تقریباً ایک منٹ، آپ کے فون پر۔ چاہیں تو کسی اور دن جاری رکھیں۔",
     start: 'راؤنڈ شروع کریں',
-    tCount: (done, total, absent) => `${total} میں سے ${done} مکمل، ${absent} غیر حاضر`,
+    tCount: (done, total, absent) => `${ud(total)} میں سے ${ud(done)} مکمل، ${ud(absent)} غیر حاضر`,
     tAbsent: 'غیر حاضر لگائیں',
     tNext: 'اگلے بچے کے لیے دبا کر رکھیں',
     cDone: 'ہو گیا ✓',
@@ -76,13 +79,14 @@ const q = (lang) => `?lang=${langOf(lang)}`;
 const base = (token) => `/r/${encodeURIComponent(token || '')}/round`;
 
 // jg.round.t_paused, read from copy.v2.json verbatim (the T table above is not touched): a paused round's card says
-// where it stopped, positions only ({done} of {total}, the paused screen's own numbers; ASCII digits, like tCount).
+// where it stopped, positions only ({done} of {total}, the paused screen's own numbers; Urdu digits in Urdu, like tCount).
 // '' when the round is not paused or the key is absent, so every other card is byte-identical.
 function pausedLine(lang, paused) {
   const d = paused && require('../config/copy.v2.json')['jg.round.t_paused'];
   const s = d && d[langOf(lang)];
   if (!s) return '';
-  return `<p class="cr-paused" style="font-weight:700">${esc(s.replace('{done}', String(Number(paused.done) || 0)).replace('{total}', String(Number(paused.total) || 0)))}</p>`;
+  const num = (n) => (langOf(lang) === 'ur' ? ud : String)(Number(n) || 0);
+  return `<p class="cr-paused" style="font-weight:700">${esc(s.replace('{done}', num(paused.done)).replace('{total}', num(paused.total)))}</p>`;
 }
 
 /**
