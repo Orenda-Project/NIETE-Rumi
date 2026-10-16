@@ -19,13 +19,13 @@ jest.mock('../../../shared/services/quiz/child-phone-bindings.repo', () => ({
 // EVENTS §1: kid = the per-child hash from the event key module (mocked: its keyed hash needs a secret).
 jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({ kid: jest.fn((id) => `k_${String(id).slice(-4)}`) }));
 
-// The standing class link's switch module ships separately: a virtual stand-in reading the same app_settings rows.
+// The standing class link's switch module ships separately: a stand-in reading the same app_settings rows.
 jest.mock('../../../shared/services/quiz/web-quiz-class-link-flags', () => ({
   classLinkOn: jest.fn(async () => {
     const { data } = await require('../../../shared/config/supabase').from('app_settings').select('key, value').in('key', ['web_quiz_class_link']);
     return (data || []).some((r) => r.key === 'web_quiz_class_link' && r.value === 'true');
   }),
-}), { virtual: true });
+}));
 
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
