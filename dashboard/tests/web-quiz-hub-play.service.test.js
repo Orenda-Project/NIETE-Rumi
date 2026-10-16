@@ -230,7 +230,8 @@ describe('lantern + shelf', () => {
   });
 
   const INST = { first: true, lantern: null, shelf: [{ id: 'numbers', nx: 'seen' }], install: true, doors: ['hub_first', 'install'] };
-  const SEEN_TODAY = () => ({ wqp_hv_day: String(Math.floor((Date.now() + 5 * 3600000) / 86400000)) });
+  // The page's day comes from the fixed NOW (pktDay() in hub-play.js), so the seeded day must too, never the real clock.
+  const SEEN_TODAY = () => ({ wqp_hv_day: String(Math.floor((NOW + 5 * 3600000) / 86400000)) });
   const offer = (p, outcome = 'accepted') => {
     const e = { prevented: 0, prompted: 0, preventDefault() { this.prevented += 1; }, prompt() { this.prompted += 1; }, userChoice: Promise.resolve({ outcome }) };
     p.win.beforeinstallprompt.forEach((fn) => fn(e));
@@ -277,7 +278,7 @@ describe('lantern + shelf', () => {
     const again = page({ ...BOOTS.done, play: INST }, { store: { ...SEEN_TODAY(), wqp_inst_later: p.store.wqp_inst_later } });
     offer(again);
     expect(card(again)).toBe('');
-    const later = page({ ...BOOTS.done, play: INST }, { store: { ...SEEN_TODAY(), wqp_inst_later: String(Date.now() - 8 * 86400000) } });
+    const later = page({ ...BOOTS.done, play: INST }, { store: { ...SEEN_TODAY(), wqp_inst_later: String(NOW - 8 * 86400000) } });
     offer(later);
     expect(card(later)).toContain('Add Jugnu');
   });
