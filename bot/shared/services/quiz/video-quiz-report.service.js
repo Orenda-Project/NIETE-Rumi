@@ -579,7 +579,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   if (!all.length) {
     await WhatsAppService.sendMessage(teacher.phone_number,
       resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } }));
-    stamp.stamped = await markReportSent(shareCodeId, sc.quiz_id);
+    stamp.stamped = await markReportSent(shareCodeId, await stampableQuizId(sc));
     // Stamped as a report, so counted as one — of its own kind. Unlogged, this
     // branch was 17.5% of production's report stamps (189 of 1,082) and every
     // one of them a class that never joined.
@@ -836,7 +836,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   const metaAfter = guidance && quizRow
     ? { ...(quizRow.meta || {}), report_guidance: guidance, report_guidance_at: new Date().toISOString() }
     : null;
-  stamp.stamped = await markReportSent(shareCodeId, sc.quiz_id, { meta: metaAfter });
+  stamp.stamped = await markReportSent(shareCodeId, await stampableQuizId(sc), { meta: metaAfter });
   if (metaAfter) quizRow.meta = metaAfter;
 
   // bd-2yyry.11 — the children's class cards, at the moment the teacher's
@@ -1415,6 +1415,19 @@ function formatGuidanceText(guidance, labels) {
  * @returns {Promise<boolean>} whether report_sent_at landed. generate() keeps its
  *   send claim when it did not, so a racing call cannot send the report again.
  */
+/**
+ * The quiz row a share code's report may stamp (status, guidance): with `quiz_teacher_home` on, only when the code
+ * is the quiz's own teacher's — a library quiz's sender never writes its author's row (nor puts their class's
+ * guidance on the author's report). Off: the quiz, as today.
+ */
+async function stampableQuizId(sc) {
+  const Data = require('./teacher-report.data');
+  if (!(await Data.sentQuizzesOn())) return sc.quiz_id;
+  const { data, error } = await supabase.from('quizzes').select('teacher_id').eq('id', sc.quiz_id).maybeSingle();
+  if (error) logToFile('⚠️ video-quiz report: quiz owner unreadable — the quiz row is left alone', { shareCodeId: sc.id, error: error.message });
+  return data && data.teacher_id === sc.teacher_user_id ? sc.quiz_id : null;
+}
+
 async function markReportSent(shareCodeId, quizId = null, { meta = null } = {}) {
   let stamped = false;
   try {

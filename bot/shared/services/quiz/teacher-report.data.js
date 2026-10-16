@@ -27,6 +27,14 @@
  *
  * Every read filters on the teacher. Children's names leave this module only
  * as first names with roll numbers, for the teacher's own page.
+ *
+ * A quiz the teacher SENT but did not make (switch `quiz_teacher_home`): a
+ * library quiz from the teacher home — the video bank's, or another teacher's —
+ * whose class code is this teacher's while `quizzes.teacher_id` is not. Its
+ * report is the sender's: their own class codes only (never the author's
+ * class), their own code's link and send date, and none of the author's
+ * per-class guidance. The author's report is unchanged (it reads only the
+ * author's codes). Off: such a quiz is "not this teacher's", as today.
  */
 
 const supabase = require('../../config/supabase');
@@ -155,6 +163,73 @@ async function sessionsFor(codeIds) {
   const { data, error } = await supabase.from('quiz_sessions').select(SESSION_COLS).in('share_code_id', codeIds);
   if (error) throw new Error(error.message);
   return data || [];
+}
+
+/** Is a library quiz's report its sender's (quiz_teacher_home)? Off, absent or unreadable: no. */
+async function sentQuizzesOn() {
+  try {
+    return await require('../first-touch/teacher-home.flags').on();
+  } catch (err) {
+    logToFile('⚠️ teacher report: teacher home switch unreadable — sent quizzes off', { error: err.message });
+    return false;
+  }
+}
+
+const newestFirst = (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''));
+const IN_CHUNK = 300; // well under the ~390 ids where a PostgREST .in() overflows its header cap
+
+/**
+ * A quiz this teacher sent but did not make, as its row plus `sent_at` (their newest class code's
+ * creation); null when the switch is off, the quiz is the teacher's own, or they hold no class code on it.
+ */
+async function sentQuiz(teacherId, quizId) {
+  if (!teacherId || !quizId || !(await sentQuizzesOn())) return null;
+  const codes = await classCodes(teacherId, [quizId]);
+  if (!codes.length) return null;
+  const { data, error } = await supabase.from('quizzes').select(QUIZ_COLS).eq('id', quizId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data || data.teacher_id === teacherId) return null;
+  return { ...data, list_id: null, sent_at: codes.slice().sort(newestFirst)[0].created_at };
+}
+
+/**
+ * Every quiz this teacher sent but did not make (class codes created since `since`), each with `sent_at`
+ * (the newest of those codes), newest send first. [] when the switch is off.
+ */
+async function sentQuizzes(teacherId, { since = null } = {}) {
+  if (!teacherId || !(await sentQuizzesOn())) return [];
+  let q = supabase.from('quiz_share_codes').select('quiz_id, created_at')
+    .eq('teacher_user_id', teacherId).is('invited_by_student_id', null);
+  if (since) q = q.gte('created_at', since);
+  const { data: codes, error } = await q;
+  if (error) throw new Error(error.message);
+  const sentAt = new Map();
+  (codes || []).forEach((c) => {
+    if (!sentAt.has(c.quiz_id) || String(c.created_at || '') > String(sentAt.get(c.quiz_id) || '')) sentAt.set(c.quiz_id, c.created_at);
+  });
+  const ids = [...sentAt.keys()];
+  const rows = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK) {
+    const { data, error: qErr } = await supabase.from('quizzes').select(QUIZ_COLS).in('id', ids.slice(i, i + IN_CHUNK));
+    if (qErr) throw new Error(qErr.message);
+    rows.push(...(data || []));
+  }
+  // The teacher's own quizzes are read by teacher_id as always; a NULL author (the bank) is not theirs.
+  return rows.filter((q) => q.teacher_id !== teacherId).map((q) => ({ ...q, list_id: null, sent_at: sentAt.get(q.id) }))
+    .sort((a, b) => String(b.sent_at || '').localeCompare(String(a.sent_at || '')));
+}
+
+/** The children's link for the sender's own code: the web page when it is on for them, else today's chat join link. */
+async function sentLink(teacherId, code) {
+  try {
+    const WQL = require('./web-quiz-link');
+    if (await WQL.webQuizOn(teacherId)) return `${WQL.webBaseUrl()}/q/${code}`;
+    const bot = require('./video-quiz-share.service').botNumber();
+    return bot ? `https://wa.me/${bot}?text=QUIZ-${code}` : null;
+  } catch (err) {
+    logToFile('⚠️ teacher report: no link for a sent quiz', { error: err.message });
+    return null;
+  }
 }
 
 /**
@@ -294,11 +369,16 @@ async function fromLists(teacherId, quiz, listId, counted, lang) {
  */
 async function quizReport(teacherId, quizId, { listId = null } = {}) {
   if (!teacherId || !quizId) return null;
-  const { data: quiz, error } = await supabase.from('quizzes').select(QUIZ_COLS)
+  const { data: own, error } = await supabase.from('quizzes').select(QUIZ_COLS)
     .eq('id', quizId).eq('teacher_id', teacherId).maybeSingle();
   if (error) throw new Error(error.message);
+  // A library quiz this teacher sent (quiz_teacher_home): their own codes, link and date; the author's
+  // forwarded message, lesson date, class list and per-class guidance are not theirs.
+  const sent = own ? null : await sentQuiz(teacherId, quizId);
+  const quiz = own || sent;
   if (!quiz) return null;
   const meta = quiz.meta || {};
+  const handout = sent ? {} : meta;
 
   const codes = await classCodes(teacherId, [quiz.id]);
   // Per class code first (the class report's rule), then ONE row per child across the
@@ -311,7 +391,8 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const tries = v21 ? V21.attemptCounts(rawSessions, teacherId) : null;
 
   const lang = clampLanguage(quiz.language);
-  const primary = codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
+  const primary = sent ? codes.slice().sort(newestFirst)[0] || null
+    : codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
   // Identity v2 answers first. A legacy class list the teacher picked on the page,
   // or the quiz's own list_id, still decides when v2 does not KNOW the class
   // (a list with no class behind it: legacy-only teachers).
@@ -349,11 +430,13 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const questions = await questionStats(quiz.id, counting, v21 ? { codeOf: (ext) => SloCode.codeOf(meta, ext) } : {});
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
     .sort((a, b) => a.correctPct - b.correctPct || a.n - b.n)[0];
-  const code = (codes.find((c) => c.id === meta.share_code_id) || codes[0] || {}).code || null;
+  const code = sent ? (primary && primary.code) || null
+    : (codes.find((c) => c.id === meta.share_code_id) || codes[0] || {}).code || null;
   // The children's link: the one the hand-out forwarded; else (a hand-out whose message
   // carries none) the quiz's own class code on the web page, when the web quiz is on.
-  let link = ((meta.student_message || '').match(LINK_RX) || [null])[0];
-  if (!link && code) {
+  let link = ((handout.student_message || '').match(LINK_RX) || [null])[0];
+  if (sent && code) link = await sentLink(teacherId, code);
+  if (!link && code && !sent) {
     try {
       const WQL = require('./web-quiz-link');
       if (await WQL.webQuizOn(teacherId)) link = `${WQL.webBaseUrl()}/q/${code}`;
@@ -365,7 +448,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   return {
     quiz: {
       id: quiz.id, topic: quiz.topic || '', subject: quiz.subject || null, grade: quiz.grade || null,
-      source: quiz.quiz_source, language: lang, date: meta.lesson_date || quiz.created_at, code, link,
+      source: quiz.quiz_source, language: lang, date: sent ? sent.sent_at : meta.lesson_date || quiz.created_at, code, link,
     },
     roster: rosterView,
     summary: {
@@ -385,7 +468,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     notPlayed,
     provisional,
     questions,
-    guidance: meta.report_guidance && typeof meta.report_guidance === 'object' ? meta.report_guidance : null,
+    guidance: handout.report_guidance && typeof handout.report_guidance === 'object' ? handout.report_guidance : null,
     reminder: link ? {
       language: lang,
       text: reminderText({
@@ -415,7 +498,11 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     .eq('teacher_id', teacherId).in('status', ['sent', 'report_sent']).gte('created_at', since)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  const qs = quizzes || [];
+  // The library quizzes this teacher sent (quiz_teacher_home), by their send date, among their own.
+  const sentList = await sentQuizzes(teacherId, { since });
+  const qs = sentList.length
+    ? [...(quizzes || []), ...sentList].sort((a, b) => String(b.sent_at || b.created_at || '').localeCompare(String(a.sent_at || a.created_at || '')))
+    : quizzes || [];
   const codes = await classCodes(teacherId, qs.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
   const counted = countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId);
@@ -442,7 +529,7 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     return {
       of: view.of,
       onList: ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)).length : null,
-      id: q.id, date: (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
+      id: q.id, date: q.sent_at || (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
       subject: q.subject || null, source: q.quiz_source, played: mine.length, avg: mean(scores), scores,
     };
   });
@@ -473,4 +560,6 @@ module.exports = {
   // The counting pieces, for /quiz "My quiz reports" (teacher-report-list): its rows must
   // show the numbers the report page shows, so they count with this module, not a copy.
   readRoster, classOf, countedSessions, classCodes, sessionsFor, onePerChildAcrossCodes,
+  // A library quiz's sender (quiz_teacher_home): the report list and the 12 h report's quiz-row guard read these.
+  sentQuiz, sentQuizzes, sentQuizzesOn,
 };

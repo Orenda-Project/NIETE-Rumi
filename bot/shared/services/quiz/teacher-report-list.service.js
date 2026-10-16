@@ -16,6 +16,10 @@
  * same numbers. One page costs a fixed five reads — quizzes, class codes,
  * sessions, class lists, children — whatever the number of rows; never one
  * per quiz.
+ *
+ * With `quiz_teacher_home` on, the library quizzes the teacher SENT (another
+ * teacher's or the bank's, on the teacher's own class code) are rows too, by
+ * their send date, counted on the teacher's own codes only (teacher-report.data).
  */
 
 const supabase = require('../../config/supabase');
@@ -46,7 +50,10 @@ async function loadSentQuizzes(teacherId, needed) {
     .order('created_at', { ascending: false })
     .limit(Math.max(1, needed));
   if (error) throw new Error(error.message);
-  return data || [];
+  const sent = await Data.sentQuizzes(teacherId);
+  if (!sent.length) return data || [];
+  const at = (q) => String(q.sent_at || q.created_at || '');
+  return [...(data || []), ...sent].sort((a, b) => at(b).localeCompare(at(a))).slice(0, Math.max(1, needed));
 }
 
 /** { [quizId]: { played, of, avg } } for these quizzes, in five reads. */
@@ -112,7 +119,7 @@ function buildReportRows(quizzes, stats, language, { page = 1 } = {}) {
   const rows = slice.map((q) => ({
     id: `${ROW_PREFIX}${q.id}`,
     title: composeTitle({
-      date: formatLessonDate((q.meta && q.meta.lesson_date) || q.created_at, language),
+      date: formatLessonDate(q.sent_at || (q.meta && q.meta.lesson_date) || q.created_at, language),
       subject: subjectLabel(q.subject, language),
     }, TITLE_MAX),
     description: describe(q.topic || resolveUx('tqLessonWord', { language }), statusOf(stats.get(q.id), language), language),
@@ -164,8 +171,10 @@ async function handleReportsPick(listId, phone, user) {
   }
   const quizId = listId.slice(ROW_PREFIX.length);
   // Only the teacher's own quiz; anything else is "not found" (never whose it is).
-  const { data: quiz } = await supabase.from('quizzes').select(QUIZ_COLS)
+  const { data: own } = await supabase.from('quizzes').select(QUIZ_COLS)
     .eq('id', quizId).eq('teacher_id', user.id).maybeSingle();
+  // …or a library quiz they sent on their own class code (quiz_teacher_home; off → null).
+  const quiz = own || await Data.sentQuiz(user.id, quizId);
   if (!quiz) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
     return true;
