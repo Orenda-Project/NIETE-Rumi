@@ -528,12 +528,16 @@ function stripTags(holder) {
 }
 
 // An MCQ with two right answers is not placed: two options of one value (see
-// sameValueTwice), or a stem asking for a property ("divisible by 11", "prime",
-// "rounded to the nearest 100") that no option or more than one option has.
+// sameValueTwice), a stem asking for a property ("divisible by 11", "prime",
+// "rounded to the nearest 100") that no option or more than one option has, or an
+// anagram of a quoted word that is not exactly one option, keyed. A rhyming-words
+// item with no poem (empty, a cue-word title, or prose) is not placed either.
 const { mcqPropertyVerdict } = require('./maths-check');
+const { anagramVerdict, rhymingPoemVerdict } = require('./english-check');
 
 function printable(slot, q) {
-  return slot.shape !== 'mcq' || (!sameValueTwice(q) && mcqPropertyVerdict(q).ok !== false);
+  if (slot.type === 'Rhyming Words') return rhymingPoemVerdict(q).ok;
+  return slot.shape !== 'mcq' || (!sameValueTwice(q) && mcqPropertyVerdict(q).ok !== false && anagramVerdict(q).ok !== false);
 }
 
 /**
