@@ -152,8 +152,9 @@ function notFound(req, res, v) {
 
 /**
  * Events v2 (web_quiz_events_v2, fail-closed): teacher_report.opened in the v2 envelope with render_ms (the route's
- * start to just before the send) and queue_age_s (the oldest open queue pair's age, when the join-queue service has
- * queueAge and knows one); the same numbers as the x-render-ms / x-queue-age headers. Off: today's event, no headers.
+ * start to just before the send) and queue_age_s (the kept queue's age in whole seconds, ≤ QUEUE_TTL_S, when the
+ * join-queue service has queueAge and keeps one); the same numbers as the x-render-ms / x-queue-age headers. Off:
+ * today's event, no headers.
  */
 async function queueAgeOf(teacherId) {
   try {

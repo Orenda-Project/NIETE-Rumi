@@ -9,7 +9,7 @@
  *   - a class report slower than the page's budget: the page (and the Jugnu tab) answers within the budget, with the
  *     retry line instead of the quiz sections — never "no quizzes"
  *   - teacher_report.opened: with web_quiz_events_v2 on, the v2 envelope plus render_ms and (when the queue service
- *     has queueAge) queue_age_s; with it off, today's object byte for byte
+ *     keeps one) queue_age_s, the kept queue's age in whole seconds; with it off, today's object byte for byte
  *   - goldens: with a fast base the class page and the Jugnu tab are byte for byte today's (snapshots written by
  *     today's code)
  *
@@ -238,41 +238,45 @@ describe('teacher_report.opened: render_ms and queue_age_s under events v2', () 
     expect(res.headers.get('x-queue-age')).toBeNull();
   }, 10000);
 
-  test('with web_quiz_events_v2 on, teacher_report.opened carries render_ms (integer ≥ 0) and, when the queue service has queueAge, queue_age_s', async () => {
+  test('with web_quiz_events_v2 on, teacher_report.opened carries render_ms (integer ≥ 0) and, when the teacher has a kept queue, queue_age_s = its age in whole seconds', async () => {
     await boot();
     v2On();
-    const Queue = require('../../../shared/services/quiz/web-quiz-join-queue');
-    expect(typeof Queue.queueAge).not.toBe('function'); // not exported today: the field is absent
-    let res = await get(`/page/${tok()}?tab=jugnu&class=${L1}`);
+    const R = require('../../../shared/services/cache/railway-redis.service');
+    const kept = () => [...R._store.keys()].filter((k) => k.startsWith('wq:jq:'));
+    // no kept queue yet: the class tab computes none, so the field and the header are absent
+    let res = await get(`/page/${tok()}`);
     expect(res.status).toBe(200);
     await res.text();
     let [ev] = opened();
-    expect(ev).toEqual({ w: 's', ev_v: 2, kid_v: null, kid: null, teacherId: T1, quizId: null, scope: 'all', tab: 'jugnu', iab: false, render_ms: expect.any(Number) });
+    expect(kept()).toEqual([]);
+    expect(ev).toEqual({ w: 's', ev_v: 2, kid_v: null, kid: null, teacherId: T1, quizId: null, scope: 'all', tab: 'class', iab: false, render_ms: expect.any(Number) });
     expect(Number.isInteger(ev.render_ms) && ev.render_ms >= 0).toBe(true);
     expect('queue_age_s' in ev).toBe(false);
     expect(res.headers.get('x-render-ms')).toBe(String(ev.render_ms));
     expect(res.headers.get('x-queue-age')).toBeNull();
 
-    // the queue service with queueAge: its answer, as an integer, in the event and the header
-    Queue.queueAge = jest.fn(async () => 86400.6);
+    // the Jugnu tab keeps the teacher's queue (the join-queue service, as landed); computed 125 s ago, the next open
+    // carries that age, read from the kept entry, in the event and the header
+    res = await get(`/page/${tok()}?tab=jugnu&class=${L1}`);
+    await res.text();
+    expect(kept()).toHaveLength(1);
+    const entry = R._store.get(kept()[0]);
+    R._store.set(kept()[0], { ...entry, at: Date.now() - 125400 });
     require('../../../shared/utils/structured-logger').logEvent.mockClear();
     res = await get(`/page/${tok()}`);
     await res.text();
     [ev] = opened();
-    expect(Queue.queueAge).toHaveBeenCalledWith(T1);
-    expect(ev).toEqual({ w: 's', ev_v: 2, kid_v: null, kid: null, teacherId: T1, quizId: null, scope: 'all', tab: 'class', iab: false, render_ms: expect.any(Number), queue_age_s: 86401 });
-    expect(Number.isInteger(ev.render_ms) && ev.render_ms >= 0).toBe(true);
-    expect(res.headers.get('x-queue-age')).toBe('86401');
+    expect(ev).toEqual({ w: 's', ev_v: 2, kid_v: null, kid: null, teacherId: T1, quizId: null, scope: 'all', tab: 'class', iab: false, render_ms: expect.any(Number), queue_age_s: 125 });
+    expect(res.headers.get('x-queue-age')).toBe('125');
 
-    // queueAge answering null (an empty queue): the field is absent
-    Queue.queueAge = jest.fn(async () => null);
+    // the kept queue gone (expired): the field is absent again
+    R._store.delete(kept()[0]);
     require('../../../shared/utils/structured-logger').logEvent.mockClear();
     res = await get(`/page/${tok()}`);
     await res.text();
     [ev] = opened();
     expect('queue_age_s' in ev).toBe(false);
     expect(res.headers.get('x-queue-age')).toBeNull();
-    delete Queue.queueAge;
   }, 10000);
 
   test('render_ms counts the slow base read (the route start to just before the send)', async () => {
