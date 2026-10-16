@@ -45,7 +45,7 @@ function seed(settings, { failSettings = false } = {}) {
   db = {
     app_settings: settings,
     // An English history (the guess says en) and an Urdu spelling of the name (shown only on an Urdu hub).
-    students: [{ id: KID, student_name: 'Zara Testwala', student_name_urdu: 'زارا', self_reported_class: '3', list_id: LIST, is_active: true, phone: '923000000000', created_at: ago(500) }],
+    students: [{ id: KID, student_name: 'Zara Testwala', student_name_urdu: 'زارا', self_reported_class: '3', list_id: LIST, is_active: true, created_at: ago(500) }],
     student_lists: [{ id: LIST, user_id: TEACHER, class_name: '3', section: 'A', is_active: true }],
     quizzes: [{ id: 'q-1', topic: 'Fractions quiz', subject: 'Maths', language: 'en', grade: '3', video_id: null }],
     quiz_share_codes: [{ id: 'sc-1', code: 'MATH01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(30) }],
