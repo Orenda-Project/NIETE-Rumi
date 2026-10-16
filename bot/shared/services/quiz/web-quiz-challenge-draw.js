@@ -37,13 +37,19 @@ const entryBand = (g) => (g === 2 || g === 3 ? 1 : (g === 4 || g === 5 ? 2 : nul
 const ceilingBand = (g) => (g === 2 || g === 3 ? 2 : (g === 4 || g === 5 ? 3 : null));
 const gradeBand = (g) => (g === 2 || g === 3 ? 'G23' : (g === 4 || g === 5 ? 'G45' : null));
 
+/**
+ * The page's microphone check passed: it measured an input level, not speech. The page writes 'level_ok'; rows and
+ * cached pages from before carry 'pass' for the same fact, so every reader accepts both.
+ */
+const micHeard = (v) => v === 'level_ok' || v === 'pass';
+
 /** A line-1 stop (the story's first-line rule) or 0 words (unheard, or silent with the mic proven working). */
 function isLine1OrZero(row) {
   if (!row || row.exercise !== 'read') return false;
   const s = row.score || {};
   const m = row.meta || {};
   if (row.status === 'failed' && m.reason === 'unheard') return true;
-  if (m.ended === 'silent' && m.mic_check === 'pass') return true;
+  if (m.ended === 'silent' && micHeard(m.mic_check)) return true;
   return row.status === 'scored' && (!!s.stopped || Number(m.stop_line) === 1);
 }
 
@@ -542,6 +548,7 @@ function lightLit(row, now = new Date()) {
 function __reset() { cache.clear(); periodMissingDay = null; }
 
 module.exports = {
+  micHeard,
   STOPS, WEIGHTS, ON_ITS_WAY_COPY,
   entryBand, ceilingBand, gradeBand, formOfGrade, isLine1OrZero, lastCountedRead, drawBand,
   rowServedId, seenIdsOf, exposureNo, anchorExposureNo, anchorServesAny, anchorPrev2, countedThisPeriod, recordAtServe,

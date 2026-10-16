@@ -1392,7 +1392,7 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
     } : {};
     // The microphone was proven working and not one word came: the child was silent — EGRA's discontinue, a 0 —
     // not "unheard" (which would send them round again).
-    if (rules.record && ctx.micCheck === 'pass' && ctx.ended === 'silent' && !stopped && score.attempted === 0) {
+    if (rules.record && Draw().micHeard(ctx.micCheck) && ctx.ended === 'silent' && !stopped && score.attempted === 0) {
       const s = { ...score, stopped: true, finished_early: false, time_left: 0 };
       return { score: s, wcpm: 0, ended: 'silent', meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, ended: 'silent' } };
     }

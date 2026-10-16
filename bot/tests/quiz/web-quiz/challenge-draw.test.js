@@ -43,8 +43,18 @@ describe('bands per fixed grade', () => {
 
   test('0 words (unheard, or silent with the mic proven) is a drop too; an ordinary read is not', () => {
     expect(D.isLine1OrZero({ exercise: 'read', status: 'failed', meta: { reason: 'unheard' } })).toBe(true);
-    expect(D.isLine1OrZero({ exercise: 'read', status: 'scored', score: { stopped: true }, meta: { ended: 'silent', mic_check: 'pass' } })).toBe(true);
+    expect(D.isLine1OrZero({ exercise: 'read', status: 'scored', score: { stopped: true }, meta: { ended: 'silent', mic_check: 'level_ok' } })).toBe(true);
+    // the mic word alone decides (no stopped flag, no stop line): the check's word, and its older spelling on rows from before
+    expect(D.isLine1OrZero({ exercise: 'read', status: 'scored', score: {}, meta: { ended: 'silent', mic_check: 'level_ok' } })).toBe(true);
+    expect(D.isLine1OrZero({ exercise: 'read', status: 'scored', score: {}, meta: { ended: 'silent', mic_check: 'pass' } })).toBe(true);
+    expect(D.isLine1OrZero({ exercise: 'read', status: 'scored', score: { stopped: false, correct: 3 }, meta: { ended: 'silent', mic_check: 'none' } })).toBe(false);
     expect(D.isLine1OrZero({ exercise: 'read', status: 'scored', score: { stopped: false, correct: 40 }, meta: {} })).toBe(false);
+  });
+
+  test('micHeard: the level check passed, in either spelling', () => {
+    expect(D.micHeard('level_ok')).toBe(true);
+    expect(D.micHeard('pass')).toBe(true);
+    for (const v of ['silent', 'none', null, undefined, '', 'PASS']) expect(D.micHeard(v)).toBe(false);
   });
 
   test('promoted (the reading rung opened the upper band) → +1; never above the ceiling', () => {
