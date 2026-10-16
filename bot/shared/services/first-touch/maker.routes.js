@@ -10,6 +10,7 @@
  *                                  code must be this teacher's, else 404) → 302 https://wa.me/?text=<message>, never
  *                                  stored; logs share_tap. Stale token → the mk.stale page; forged → 404
  *   POST /api/ft/make {t, grade, subject, quizId}   → { shareCodeId, message, qlang, preview, total } (maker.bank.js)
+ *   POST /api/ft/tour {t, action, how?}   → 204; the tour banner's show / dismiss / replay (tour.routes.js)
  *   POST /api/ft/step {t, step, grade?, subject?, quizId?}   → 204; logs onboard.maker for the page's steps (chip
  *                                  taps, share_copy, lang_mark_seen, prefill_kept / prefill_changed — the last two
  *                                  take their cell from the token's pf, never from the body)
@@ -31,6 +32,10 @@ const MakerToken = require('./maker.token');
 const Bank = require('./maker.bank');
 const Page = require('./maker.page');
 const { SUBJECT_CODES } = require('./maker.strings');
+// ── tour (TOUR.md §2-§5) ──
+const Keys = require('./door.keys');
+const Tour = require('./tour.page');
+// ── end tour ──
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -118,7 +123,11 @@ router.get('/m/:token', handlePage(async (req, res) => {
   const p = v.ok;
   const tree = await Bank.chipTree();
   const { lang, switchTo } = Page.pageLang(p.lang, asked(req.query.lang));
-  const built = Page.buildMakerPage({ token: req.params.token, lang, switchTo, via: p.via, tree, pf: p.pf });
+  // ── tour: the banner iff the token says tour:0 AND no quiz_tour row (one read, none when tour:1; error → hidden) ──
+  const show = p.tour === 0 && !(await Keys.tourSeen(p.uid));
+  const addons = [Tour.tourAddon({ lang, show })];
+  // ── end tour ──
+  const built = Page.buildMakerPage({ token: req.params.token, lang, switchTo, via: p.via, tree, pf: p.pf, addons });
   makerEvent('open', p);
   headers(res, built.csp);
   return res.status(200).type('html').send(built.html);
@@ -175,6 +184,8 @@ router.post('/api/ft/step', handleJson(async (req, res) => {
 }));
 
 // ── slot: family door (its PR adds one line: require('./family.routes').mount(router);) ──
-// ── slot: tour (its PR adds POST /api/ft/tour) ──
+// ── tour: POST /api/ft/tour (behind the switch and the body parsers above) ──
+require('./tour.routes').mount(router, { headers, handleJson, authoriseJson });
+// ── end tour ──
 
 module.exports = router;

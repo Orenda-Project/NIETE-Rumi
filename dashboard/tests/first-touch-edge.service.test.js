@@ -94,6 +94,13 @@ test('POST /api/ft/step → a field outside its shape and a field not on the lis
   expect(JSON.parse(calls[0].init.body)).toEqual({ t: TOK, step: 'share_copy' });
 });
 
+test('POST /api/ft/tour → action and the dismiss\'s how reach the bot; anything else is dropped', async () => {
+  await boot(() => botRes(204, { body: '' }));
+  const res = await request('POST', '/api/ft/tour', { body: { t: TOK, action: 'dismiss', how: 'chip', uid: 'x', phone: '+92300FIXTURE1' } });
+  expect(res.status).toBe(204);
+  expect(JSON.parse(calls[0].init.body)).toEqual({ t: TOK, action: 'dismiss', how: 'chip' });
+});
+
 test('a bot redirect: wa.me and same-site paths pass through, anything else does not', async () => {
   await boot(() => botRes(302, { location: 'https://wa.me/?text=hi' }));
   let res = await request('GET', `/m/${TOK}/send?c=a0000000-0000-4000-8000-000000000001`);
