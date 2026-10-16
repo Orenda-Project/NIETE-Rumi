@@ -228,7 +228,7 @@ describe("the page: no class, the recording first", () => {
     expect(await screen.findByText("How plants make food")).toBeTruthy();
   });
 
-  it("Submit with ONLY a recording sends it WITH her class, then its progress on the same screen", async () => {
+  it("Submit with ONLY a recording sends it WITH her class, then its progress on the second screen", async () => {
     at(COACHING_NEW);
     await pickClass();
     await waitFor(() => expect(uploadBtn()).toBeTruthy(), { timeout: 5000 });
@@ -241,7 +241,7 @@ describe("the page: no class, the recording first", () => {
     expect(payload.photos).toEqual([]);
     expect(payload.teacherClass).toEqual(THE_CLASS);
     expect(await screen.findByRole("region", { name: C.progress })).toBeTruthy();
-    expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
+    expect(screen.getByTestId("where").textContent).toMatch(new RegExp(`^${COACHING_NEW}\\?sent=(?!uploading)`)); // the second screen
     expect(peekDraft()).toBeNull(); // sent: nothing held
   });
 
