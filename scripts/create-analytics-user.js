@@ -14,7 +14,7 @@
  *   --name <account>  the account signs in with that NAME instead of a phone. users.phone_number holds the
  *                     reserved, non-numeric 'analytics:<account>' (dashboard/lib/analytics-account-name.js):
  *                     no teacher can hold it and WhatsApp cannot reach it. The name is lower-cased and must
- *                     match ^[a-z][a-z0-9-]{2,39}$ with at most 6 digits — exactly what the login accepts.
+ *                     match ^[a-z][a-z0-9_-]{2,39}$ with at most 6 digits — exactly what the login accepts.
  *   --phone <number>  as before: a real Pakistani mobile number.
  *   --display <label> the name the portal greets the account by (users.name). With --phone, --name is still
  *                     read as the label when --display is absent (the old usage).
