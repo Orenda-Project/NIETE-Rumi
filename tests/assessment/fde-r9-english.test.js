@@ -98,7 +98,7 @@ describe('english Q5 poem through generatePatternExam', () => {
         loads.push(pageRanges);
         if (pageRanges === '20') {
           if (poemFails) throw new Error('page store down');
-          return { content: '=== Page 20 ===\nColours by Shel Silverstein\nMy hair is reddish blondish brown,', pageReference: '20' };
+          return { content: '=== Page 20 ===\nColours by Shel Silverstein\nMy hair is reddish blondish brown,\nObject: Illustration of a notepad icon with text bubble: "What messages do you think the poet is telling?"\nBut it\'s silver when it\'s wet.', pageReference: '20' };
         }
         return { content: pagesText(31, 56), pageReference: pageRanges };
       },
@@ -120,6 +120,18 @@ describe('english Q5 poem through generatePatternExam', () => {
     expect(loads).toContain('20');
     expect(sectionC()).toContain('My hair is reddish blondish brown,');
     expect(sectionC()).toContain('title «Colours (Unit 2)»');
+  });
+
+  // The page store keeps the book's picture notes ("Object: Illustration of …") between the poem's
+  // lines; Q5 is told to print the given lines exactly, so those notes are not given.
+  test('injected poem: the book\'s picture notes are not given', async () => {
+    const G = load();
+    await G.generatePatternExam({ grade: 5, subject: 'english', pattern: 'fde_g5_2027', scope: PAGES, pageRanges: '31-56' }).catch(() => {});
+    const poemBlock = sectionC().split('**Poem for Q5')[1].split('```')[1];
+    expect(poemBlock).toContain('My hair is reddish blondish brown,');
+    expect(poemBlock).toContain('But it\'s silver when it\'s wet.');
+    expect(poemBlock).not.toContain('Object:');
+    expect(poemBlock).not.toContain('notepad icon');
   });
 
   test('page text cannot be loaded → no injection, today\'s Q5 rule', async () => {
