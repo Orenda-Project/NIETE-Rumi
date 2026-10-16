@@ -82,10 +82,13 @@
     return true;
   }
 
-  window.addEventListener('hashchange', function () {
+  window.addEventListener('hashchange', function (e) {
     if (!hub) return;
     if (pidOf()) take();
-    else if (shown) leave();   // the phone's Back from a preview: the hub
+    else if (shown) {          // the phone's Back from a preview: the hub, drawn once (the v3 home's own listener, added
+      leave();                 // after this one, would draw it again)
+      if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }
   });
   window.WQLISTEN = { take: take };
 }());
