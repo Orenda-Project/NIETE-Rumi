@@ -1,13 +1,13 @@
 {
  "_meta": {
-  "version": "2.4",
+  "version": "2.4.1",
   "what": "The Jugnu copy deck: every child, teacher and WhatsApp string, EN and UR. Surfaces lift strings from here byte for byte; one file reads it at runtime: bot/shared/templates/class-round.page.js (jg.round.t_paused).",
   "placeholders": "{name} {name2} {title} {code} {n} {total} {done} {absent} {thing} {enrolled}; Urdu wraps {name}/{name2}/{title}/{thing} in U+2068..U+2069 and /quiz, STOP in U+2066..U+2069; {n} takes Urdu digits, no isolate",
   "cp_rule": "code points of the worst case: name 20, title 24, code 11, thing 32, numbers 3, enrolled 7; isolates counted",
   "held_rule": "a key with `held` is never rendered or sent",
   "retired_rule": "a key with `retired: true` is rendered or sent by no surface; it is kept, never deleted, so old lifts stay traceable",
   "nbsp_rule": "U+00A0 inside a unit that must not break («واٹس ایپ», «ہوم اسکرین», a question's last pair); lifts copy it byte for byte",
-  "keys": 219
+  "keys": 221
  },
  "jg.lantern.trail_one": {
   "en": "A game is waiting for you on the Trail.",
@@ -2413,14 +2413,14 @@
   }
  },
  "jg.round.t_paused_how": {
-  "en": "To carry on, tap \"Start the round\", then \"Continue\". The list stays as it is.",
-  "ur": "راؤنڈ آگے بڑھانے کے لیے «راؤنڈ شروع کریں» اور پھر «جاری رکھیں» دبائیں۔ فہرست جوں کی توں رہے گی۔",
+  "en": "To carry on, tap \"Continue\". The list stays as it is.",
+  "ur": "راؤنڈ آگے بڑھانے کے لیے «جاری رکھیں» دبائیں۔ فہرست جوں کی توں رہے گی۔",
   "surface": "page.teacher",
   "cap_cp": 120,
   "switch": "web_quiz_class_round",
   "cp": {
-   "en": 77,
-   "ur": 95
+   "en": 53,
+   "ur": 69
   },
   "held": true
  },
@@ -2435,5 +2435,27 @@
    "ur": 49
   },
   "held": true
+ },
+ "quiz.finish.count_one": {
+  "en": "You finished this quiz today!",
+  "ur": "آج آپ نے یہ کوئز مکمل کر لیا۔",
+  "surface": "page.scorecard",
+  "cap_cp": 40,
+  "switch": "none (pre-R4 screen: the M10 finish card)",
+  "cp": {
+   "en": 29,
+   "ur": 29
+  }
+ },
+ "quiz.finish.count": {
+  "en": "{n} children in your class finished this quiz today.",
+  "ur": "آج آپ کی کلاس میں {n} بچوں نے یہ کوئز مکمل کیا۔",
+  "surface": "page.scorecard",
+  "cap_cp": 60,
+  "switch": "none (pre-R4 screen: the M10 finish card)",
+  "cp": {
+   "en": 52,
+   "ur": 47
+  }
  }
 }
