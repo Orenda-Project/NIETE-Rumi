@@ -14,7 +14,7 @@
       bookDays: 'Days you played this week', bookStickers: 'Story stickers', bookStickersSub: 'One for every whole story',
       bookTrailStickers: 'Trail stickers', bookDayLetters: 'M|T|W|T|F|S|S'.split('|'),
       rungR1: 'Starting a story', rungR2: 'Reading a short story', rungR3: 'Understanding a short story', rungR4: 'Reading a longer story', rungR5: 'Understanding a longer story',
-      rungN1: 'Finding numbers', rungN2: 'Comparing numbers', rungN3: 'Filling number gaps', rungN4: 'Counting past 100', rungN5: 'Filling every number gap',
+      rungN1: 'Finding numbers', rungN2: 'Comparing numbers', rungN3: 'Filling number gaps', rungN4: 'Counting past a hundred', rungN5: 'Filling every number gap',
       levelupHead: 'A new lamp is lit!', levelupOpen: function (t) { return 'Now open for you: ' + t; }, levelupSay: 'You read a story and answered its questions.', levelupSayNumbers: 'You filled in the number games!', levelupGo: 'Let\'s go',
       opensLonger: 'longer stories', opensTwoDigit: 'two-digit games', opensHundreds: 'hundreds games',
       lightsTerm: function (n) { return 'Your class has lit ' + n + ' lights this term.'; }, lightsWeek: function (n) { return n + ' of them this week.'; }, lightsHidden: 'Your class is playing too',
@@ -71,7 +71,8 @@
     var key = ladder === 'reading' ? 'R' : 'N';
     var lamps = '';
     for (var k = 1; k <= Math.min(5, lit); k++) lamps += '<li class="wq-bk-lamp"><span class="wq-bk-glow" aria-hidden="true">🪔</span><span>' + esc(t['rung' + key + k]) + '</span></li>';
-    if (outline && lit < 5) lamps += '<li class="wq-bk-outline" aria-hidden="true"></li>';
+    // The dashed ring is a picture; its name (the next step's jg.rung.*) is the visible text beside it.
+    if (outline && lit < 5) lamps += '<li class="wq-bk-outline" aria-hidden="true"></li><li class="wq-bk-nextname">' + esc(t['rung' + key + (Math.max(0, lit) + 1)]) + '</li>';
     return '<div class="wq-bk-ladder" data-ladder="' + ladder + '"><h3>' + esc(ladder === 'reading' ? t.bookReading : t.bookNumbers) + '</h3><ol>' + lamps + '</ol></div>';
   }
   function daysHtml(days, lang) {
