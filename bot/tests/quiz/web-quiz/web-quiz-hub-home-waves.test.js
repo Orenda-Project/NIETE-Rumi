@@ -65,10 +65,10 @@ const passage = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: '
   released_at: new Date(NOW - h * 3600000).toISOString(), title_en: `Title ${id}`, title_ur: null });
 
 // loose: the usual quiz child on prod (no class list, no enrolment; their teacher known from the links they played).
-function tables({ fast, loose = false, home = false }) {
+function tables({ fast, loose = false, home = false, stories = false }) {
   const t = {
     app_settings: [...ON_KEYS.map((key) => ({ key, value: 'true' })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : []),
-      ...(home ? [{ key: 'web_quiz_home_v3', value: true }, { key: 'web_quiz_stories', value: true }] : [])],
+      ...(home ? [{ key: 'web_quiz_home_v3', value: true }] : []), ...(stories ? [{ key: 'web_quiz_stories', value: true }] : [])],
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, merged_into: null, status: null, created_at: ago(500) },
       { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, merged_into: null, status: null, created_at: ago(400) },
@@ -212,6 +212,18 @@ describe.each([['a child on a class list', false], ['a loose child', true]])('th
     expect(p.head && typeof p.head.dots).toBe('number');
     expect(JSON.parse(off.warm.out).home_v3).toBeUndefined();
     console.log(`hub waves${loose ? ' (loose)' : ''}: home off ${off.warm.waves} warm / ${off.stale.waves} stale; home on ${on.warm.waves} / ${on.stale.waves}`);
+    expect({ warm: on.warm.waves, stale: on.stale.waves }).toEqual({ warm: off.warm.waves, stale: off.stale.waves });
+  });
+
+  test('stories on in both: the home read beside Stories adds no wave (+0), and the payload carries stories AND home_v3/doors/head', async () => {
+    const off = await warmAndStale({ fast: true, loose, stories: true });
+    const on = await warmAndStale({ fast: true, loose, home: true, stories: true });
+    const p = JSON.parse(on.warm.out);
+    expect(p.stories).toEqual({ on: 1 });
+    ['home_v3', 'doors', 'head'].forEach((k) => expect(p).toHaveProperty(k));
+    expect(JSON.parse(off.warm.out).stories).toEqual({ on: 1 });
+    expect(JSON.parse(off.warm.out).home_v3).toBeUndefined();
+    console.log(`hub waves, stories on${loose ? ' (loose)' : ''}: home off ${off.warm.waves} warm / ${off.stale.waves} stale; home on ${on.warm.waves} / ${on.stale.waves}`);
     expect({ warm: on.warm.waves, stale: on.stale.waves }).toEqual({ warm: off.warm.waves, stale: off.stale.waves });
   });
 });
