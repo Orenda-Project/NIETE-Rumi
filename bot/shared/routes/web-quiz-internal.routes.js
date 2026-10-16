@@ -104,7 +104,7 @@ router.post('/bind/mint', handle((req) => BindPage().mint({ hub: (req.body || {}
 router.get('/bind/status', handle((req) => BindPage().status({ code: typeof req.query.code === 'string' ? req.query.code.slice(0, 20) : '' })));
 router.post('/bind/undo', handle((req) => BindPage().undo({ code: (req.body || {}).code, device: req.get('x-wq-device') || undefined })));
 // ── end keep my place ──
-router.post('/e', handle(async (req, res) => { WebQuiz.events(req.body || {}); res.status(204).end(); }));
+router.post('/e', handle(async (req, res) => { WebQuiz.events(req.body || {}, { device: req.get('x-wq-device') || null }); res.status(204).end(); }));
 router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, req.params.qid, { k: req.query.k, z: req.query.z })));
 router.get('/videos/:code', handle((req) => WebQuizVideos.list(req.params.code, { st: req.query.st })));
 // device: the phone's device_ref from x-wq-device (the edge's wq_dv cookie), never trusted from the body.
