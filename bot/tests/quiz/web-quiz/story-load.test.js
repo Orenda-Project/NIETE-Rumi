@@ -136,6 +136,19 @@ describe('planBook', () => {
     expect(L.planBook({ ...f, cleared: false }).pages.map((p) => p.watermark)).toEqual([true, true]);
   });
 
+  test('lines are carried (malformed dropped); a voice its own build failed does not count; the READALONG key names the timing file', () => {
+    const f = fixture();
+    f.book.pages[0].lines = [{ i0: 0, i1: 2, box: [10.4, 800, 300, 40] }, { i0: 3 }, { i0: 2, i1: 1 }];
+    const vj = path.join(f.voiceDir, 'p02.json');
+    fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), ok: false, fails: ['wpm 140'], audio: { ms: 2100, key: 'readalong/sandbox/story/en/x-p02/sx-grace-0a1b2c3d.ogg' } }));
+    const p = L.planBook(f);
+    expect(p.pages[0].lines).toEqual([{ i0: 0, i1: 2, box: [10, 800, 300, 40] }]);
+    expect(p.pages[1].lines).toBeNull();
+    expect(p.why).toEqual(['p02: voice failed its own checks (wpm 140)']);
+    expect(p.voices[1].row.timing_key).toBe('readalong/sandbox/story/en/x-p02/sx-grace-0a1b2c3d.json');
+    expect(p.voices[0].row.timing_key).toBeNull();
+  });
+
   test('a picture page needs no words, band or voice; the uuid ids never change between runs', () => {
     const f = fixture({ voices: [1] });
     f.book.pages[1] = { ...f.book.pages[1], is_picture: true, words: [], text: '', text_band: undefined };

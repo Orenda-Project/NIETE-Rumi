@@ -66,6 +66,13 @@ function cleanWords(words) {
     ? { i: w.i, t: w.t, box: w.box.map((x) => Math.round(x)) } : { i: w.i, t: w.t }));
 }
 
+/** Each printed line as {i0, i1, box} (integers), or null when the page has none. */
+function cleanLines(lines) {
+  if (!Array.isArray(lines) || !lines.length) return null;
+  const ok = lines.filter((l) => l && Number.isInteger(l.i0) && Number.isInteger(l.i1) && l.i1 >= l.i0);
+  return ok.length ? ok.map((l) => (Array.isArray(l.box) && l.box.length === 4 ? { i0: l.i0, i1: l.i1, box: l.box.map((x) => Math.round(x)) } : { i0: l.i0, i1: l.i1 })) : null;
+}
+
 /** The voice for page n: READALONG JSON (+ qa.json beside it, + the clip) → {row fields, file, why[]}. */
 function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
   const stem = path.join(voiceDir, `p${pad(n)}`);
@@ -84,6 +91,7 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
   if (wer == null || wer > MAX_WER[lang]) why.push(`voice wer ${wer == null ? 'unknown' : wer}`);
   const wpm = num(j.pace_wpm) != null ? j.pace_wpm : pick('wpm');
   if (wpm == null || wpm > maxWpm(grade)) why.push(`voice pace ${wpm == null ? 'unknown' : wpm} wpm`);
+  if (j.ok === false || qa.ok === false) why.push(`voice failed its own checks${Array.isArray(j.fails) && j.fails.length ? ` (${j.fails.slice(0, 2).join(', ')})` : ''}`);
   const clip = readBytes(`${stem}.ogg`);
   const remoteKey = j.audio && typeof j.audio.key === 'string' ? j.audio.key : null;
   if (!clip && !remoteKey) why.push('voice clip missing');
@@ -97,7 +105,7 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
     remoteKey,
     row: {
       lang, provider: v.provider || qa.provider || 'soniox', voice: v.voice || v.id || qa.voice || 'unknown', model: v.model || null,
-      timing_key: null, ms: ms || 0, timings: ts.map((w) => ({ i: w.i, s_ms: Math.round(w.s_ms), e_ms: Math.round(w.e_ms) })),
+      timing_key: remoteKey && /\.(ogg|mp3)$/.test(remoteKey) ? remoteKey.replace(/\.(ogg|mp3)$/, '.json') : null, ms: ms || 0, timings: ts.map((w) => ({ i: w.i, s_ms: Math.round(w.s_ms), e_ms: Math.round(w.e_ms) })),
       timing_source: ['provider', 'stt_align', 'provider+stt', 'forced_align'].includes(src) ? src : 'stt_align',
       wpm: num(j.pace_wpm) != null ? j.pace_wpm : pick('wpm'), drift_ms_mean: pick('drift_ms_mean'), drift_ms_max: drift, wer,
       cost_usd: pick('cost_usd'),
@@ -171,7 +179,7 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
     }
     pages.push({
       id: pid, book_id: bookId, n: p.n, image_file: imgF.name, image_w: p.image.w, image_h: p.image.h,
-      text: String(p.text || ''), words, text_band: band, boxes_ok: p.boxes_ok === true,
+      text: String(p.text || ''), words, text_band: band, lines: cleanLines(p.lines), boxes_ok: p.boxes_ok === true,
       text_source: ['pdf', 'read+boxes', 'read'].includes(p.text_source) ? p.text_source : null,
       confidence: num(p.confidence) != null ? Math.round(p.confidence * 100) / 100 : null, is_picture: isPicture,
       watermark: !pageClear || p.watermark === true,

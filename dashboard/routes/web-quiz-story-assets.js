@@ -82,7 +82,7 @@ function createStoryAssetHandler(opts = {}) {
   const lru = createByteLru(opts.lruBytes || LRU_BYTES);
   return async function storyAsset(req, res, next) {
     let on = false;
-    try { on = await storiesOn(); } catch (_) { on = false; }
+    try { on = (await storiesOn()) === true; } catch (_) { on = false; }
     if (!on) return next();
     if (opts.limiter) {
       let passed = false;

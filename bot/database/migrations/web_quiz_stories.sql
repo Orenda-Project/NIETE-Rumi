@@ -11,6 +11,7 @@
 --   story_pages.n           1 = the first story page (the cover is the book's cover_file, never a page)
 --   story_pages.words       [{i, t, box:[x,y,w,h]}] in the page picture's pixels; box omitted where none
 --   story_pages.watermark   true until the page is known watermark-free (its book swept and, if cleaned, looked at)
+--   story_pages.lines       [{i0, i1, box:[x,y,w,h]}]: each printed line's first and last word and its box
 --   story_pages.text_band   {file, w, h, box:[x,y,w,h]}: the band of the picture holding the printed words, at 2x
 --   story_questions.audio   {q: file, o: [file, ...]}: the question and each option spoken, same voice as the book
 --   story_page_voices       versioned: a re-voice adds a row and moves is_current, never overwrites
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS story_pages (
   text          text NOT NULL DEFAULT '',
   words         jsonb NOT NULL DEFAULT '[]',
   text_band     jsonb,
+  lines         jsonb,
   boxes_ok      boolean NOT NULL DEFAULT false,
   text_source   text CHECK (text_source IN ('pdf', 'read+boxes', 'read')),
   confidence    numeric(3,2),

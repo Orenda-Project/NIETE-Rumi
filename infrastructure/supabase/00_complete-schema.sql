@@ -7657,6 +7657,7 @@ CREATE TABLE IF NOT EXISTS story_pages (
   text          text NOT NULL DEFAULT '',
   words         jsonb NOT NULL DEFAULT '[]',
   text_band     jsonb,
+  lines         jsonb,
   boxes_ok      boolean NOT NULL DEFAULT false,
   text_source   text CHECK (text_source IN ('pdf', 'read+boxes', 'read')),
   confidence    numeric(3,2),

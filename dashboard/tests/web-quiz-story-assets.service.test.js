@@ -66,6 +66,22 @@ describe('switch off', () => {
   });
 });
 
+describe('switch off, every way the switch can read off', () => {
+  test('a literal false, a throwing read and a non-boolean all fall through untouched', async () => {
+    for (const read of [async () => false, async () => { throw new Error('db down'); }, async () => 'true']) {
+      srv && srv.listening && await new Promise((r) => srv.close(r));
+      const app = express();
+      app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', logEvent: () => {}, storiesOn: read, storyEnv: 'sandbox',
+        storyObject: async (key) => { asked.push(key); return null; } }));
+      app.get('*', (q, res) => { res.setHeader('Cache-Control', 'no-cache'); res.type('html').send(SPA); });
+      await new Promise((r) => { srv = app.listen(0, r); });
+      const r = await req(srv, `/s/${BOOK}/${FILE}`);
+      expect([r.status, r.body.toString(), r.headers['ratelimit-limit']]).toEqual([200, SPA, undefined]);
+    }
+    expect(asked).toEqual([]);
+  });
+});
+
 describe('switch on', () => {
   beforeEach(async () => { on = true; await start(); });
 
