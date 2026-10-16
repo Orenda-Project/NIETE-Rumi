@@ -48,7 +48,7 @@ const Play = require('../../../shared/services/quiz/web-quiz-hub-play');
 
 const KID = '44444444-4444-4444-8444-000000000091';
 const KID2 = '44444444-4444-4444-8444-000000000092';
-const ON = (k) => ({ key: k, value: 'true' });
+const ON = (k) => ({ key: k, value: true });
 const STORY_ON = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_challenge_story'].map(ON);
 const NOW = Date.parse('2026-10-16T12:00:00Z'); // 17:00 PKT
 const ago = (d) => new Date(NOW - d * 86400000).toISOString();

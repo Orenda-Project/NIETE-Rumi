@@ -154,7 +154,7 @@ afterAll(() => { process.env = SAVED; });
 
 
 
-const HOME_ON = { key: 'web_quiz_home_v3', value: 'true' };
+const HOME_ON = { key: 'web_quiz_home_v3', value: true };
 const ROOT = '33333333-3333-4333-8333-777777777777';
 const WATCH_ROOT = { key: 'web_quiz_watch_root', value: JSON.stringify(ROOT) };
 const ROOT_ROW = { id: ROOT, code: 'JUGNU1', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER, teacher_name: 'Jugnu',

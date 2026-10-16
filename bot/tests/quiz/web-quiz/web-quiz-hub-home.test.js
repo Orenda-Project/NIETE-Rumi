@@ -37,7 +37,9 @@ const ONLY_DATE = { now: NOW, doNotFake: ['nextTick', 'setImmediate', 'clearImme
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 const ahead = (h) => new Date(Date.now() + h * 3600000).toISOString();
 const A = { device: 'AAAAAAAAAAAAAAAAAAAAAA' };
-const ON = (k) => ({ key: k, value: 'true' });
+// A switch is on only as the JSON boolean the flip writes; the string 'true' is OFF (see the string test below).
+const ON = (k) => ({ key: k, value: true });
+const STR = (k) => ({ key: k, value: 'true' });
 const BASE_ON = [ON('web_quiz_hub'), ON('web_quiz_challenge'), ON('web_quiz_child_quiz_home'), ON('web_quiz_library')];
 
 let db;
@@ -77,6 +79,18 @@ describe('GOLDEN: web_quiz_home_v3 off -> the hub payload is today\'s', () => {
     expect(off).toEqual(base);
     expect(JSON.stringify(off)).toBe(JSON.stringify(base));
     ['home_v3', 'doors', 'head'].forEach((k) => expect(off).not.toHaveProperty(k));
+  });
+
+  test('the string \'true\' is OFF (only the JSON boolean turns a switch on): no home key; with the home on, no shelf', async () => {
+    const tok = T.signHub([KID]);
+    const base = await Hub.hub(tok, A);
+    seed([...BASE_ON, STR('web_quiz_home_v3'), STR('web_quiz_stories')]);
+    const off = await Hub.hub(tok, A);
+    expect(JSON.stringify(off)).toBe(JSON.stringify(base));
+    seed([...BASE_ON, ON('web_quiz_home_v3'), STR('web_quiz_stories')]);
+    const on = await Hub.hub(tok, A);
+    expect(on.home_v3).toBe(1);
+    expect(on.doors.stories).not.toContainEqual({ kind: 'shelf' });
   });
 
   test('a settings read that fails -> fail closed: no home key', async () => {

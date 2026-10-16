@@ -12,10 +12,9 @@ const STORIES_KEY = 'web_quiz_stories';
 const TTL_MS = 30 * 1000;
 let cache = null;
 
+/** Only the JSON boolean the flip writes turns a switch on (app_settings.value is jsonb); the string 'true' is off. */
 function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+  return value === true;
 }
 
 async function flags(now = Date.now()) {

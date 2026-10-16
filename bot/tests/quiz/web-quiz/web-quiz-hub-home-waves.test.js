@@ -68,7 +68,7 @@ const passage = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: '
 function tables({ fast, loose = false, home = false }) {
   const t = {
     app_settings: [...ON_KEYS.map((key) => ({ key, value: 'true' })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : []),
-      ...(home ? [{ key: 'web_quiz_home_v3', value: 'true' }, { key: 'web_quiz_stories', value: 'true' }] : [])],
+      ...(home ? [{ key: 'web_quiz_home_v3', value: true }, { key: 'web_quiz_stories', value: true }] : [])],
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, merged_into: null, status: null, created_at: ago(500) },
       { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, merged_into: null, status: null, created_at: ago(400) },
