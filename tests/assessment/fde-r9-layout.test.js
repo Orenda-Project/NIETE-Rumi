@@ -170,6 +170,35 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(q7).toEqual(expect.arrayContaining(['پاکستان کا قومی پھول کون سا ہے؟', 'قائد اعظم کس شہر میں پیدا ہوئے؟']));
   });
 
+  test('a slot loses at most its spare choices (Q7 any 6 of 8: two), the first repeats in reply order', () => {
+    // The recorded round-7 paper's Q7 re-asks three Q1 facts word for word.
+    const exam = fixture('r7-sst-item-text');
+    const out = lay(exam, 'social_studies');
+    const q7 = slotItems(out.examJson, 'social_studies.D.Q7').map((q) => q.question);
+    expect(out.shortfall).toEqual(expect.arrayContaining([{ slot: 'social_studies.D.Q7', missing: 2 }]));
+    expect(q7).not.toContain('پاکستان کی سب سے بڑی عدالت کون سی ہے اور کہاں واقع ہے؟');
+    expect(q7).not.toContain('پاکستان میں اس وقت کون سا آئین نافذ ہے؟');
+    expect(q7).toContain('بیگم رعنا لیاقت علی خان نے 1949ء میں کون سا ادارہ قائم کیا؟');
+  });
+
+  test('a three-point Q5 item with one point cued by Q1 is kept; one whose points are all in a Q1 stem is held', () => {
+    const exam = fixture('r9-sst-chapters2');
+    const q5 = slotItems(lay(exam, 'social_studies').examJson, 'social_studies.C.Q5').map((q) => q.question);
+    // «قانون بنانے والا ادارہ»: Q1 keys مقننہ, one point of three.
+    expect(q5.some((t) => t.startsWith('اگر ملک میں قانون بنانے والا ادارہ نہ ہو'))).toBe(true);
+    const def = withExtra(exam, 'social_studies.C.Q5', []);
+    const q1 = slotItems(def, 'social_studies.A.Q1')[0];
+    q1.question = 'ایک شخص کی وہ قانونی حیثیت جس سے وہ کسی ملک کا شہری تصور کیا جاتا ہے، کیا کہلاتی ہے؟';
+    q1.options = ['الف) قومیت', 'ب) شہریت', 'ج) ثقافت', 'د) حکومت'];
+    q1.answer = 'ب) شہریت';
+    const target = slotItems(def, 'social_studies.C.Q5')[0];
+    target.question = 'شہریت کسے کہتے ہیں؟ مختصر تعریف کریں۔';
+    target.answer = 'شہریت ایک شخص کی وہ قانونی حیثیت ہے جس سے اسے کسی ملک کا شہری تصور کیا جاتا ہے، اور اس کے ساتھ حقوق اور فرائض ملتے ہیں۔';
+    target.scheme = { accept: [], points: [{ kind: 'K', text: 'قانونی حیثیت', marks: 1.5 }, { kind: 'K', text: 'ملک کا شہری تصور', marks: 1.5 }] };
+    const after = slotItems(lay(def, 'social_studies').examJson, 'social_studies.C.Q5').map((q) => q.question);
+    expect(after).not.toContain('شہریت کسے کہتے ہیں؟ مختصر تعریف کریں۔');
+  });
+
   test('Urdu-Indic digits and option letters match: a key written ۱۰۴ still holds the 104 item', () => {
     const exam = fixture('r9-sst-chapters2');
     for (const q of slotItems(exam, 'social_studies.A.Q1')) {
@@ -181,10 +210,26 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
 });
 
 describe('r9 · subjects without a cross-section table lay out as before', () => {
-  test('a science paper laid out twice is identical, and nothing is held', () => {
-    const exam = fixture('r7-science-full1.exam');
-    const a = applyLayout(clone(exam), P.science, { kind: 'fde', chapters: null, pages: null }, { now: NOW });
-    const b = applyLayout(clone(exam), P.science, { kind: 'fde', chapters: null, pages: null }, { now: NOW });
-    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  // sha256 of JSON.stringify(applyLayout(…)) recorded from the code before this change (sandbox a843a14b0).
+  const BEFORE = {
+    science: ['science', 'c89b21fc0d5a437e51246e5f213f96f99ebd7eb7fa052e5a166c2623ff91bbe7'],
+    maths: ['maths', 'd88bce6f7767acff4db300d0b252353f94e37b040ce2e8dce32e171f1a5fee95'],
+    urdu: ['urdu', 'd5ed4cd3602d4b2835292ccc4feaa3365c18f6fbf02b265abb305cc8a1cd5f0c'],
+    'r7-science-full1.exam': ['science', '2956ee5a438aa0fe16d14a4e2a4dabcfcb1cea63b813eb234abd75bd0598e7d2'],
+    'urdu-gen-full': ['urdu', 'd3d1b1fbea67508c1be28d8198d5d01ddbc55d1e1d931950682d5e6dc6600c28'],
+  };
+  test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
+    const [subject, sha] = BEFORE[name];
+    const out = applyLayout(fixture(name), P[subject], { kind: 'fde', chapters: null, pages: null }, { now: NOW });
+    expect(require('crypto').createHash('sha256').update(JSON.stringify(out)).digest('hex')).toBe(sha);
+  });
+});
+
+describe('r9 · English: a Q4 entry too short to be a word holds nothing', () => {
+  test('a stray one-letter Q4 entry does not hold every MCQ through its option labels', () => {
+    const exam = fixture('r9-english-giveaway');
+    slotItems(exam, 'english.C.Q4')[0].words = ['a', 'b'];
+    const out = lay(exam, 'english');
+    expect(out.shortfall.find((f) => f.slot === 'english.A.Q1a')).toBeUndefined();
   });
 });
