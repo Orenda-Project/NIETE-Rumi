@@ -244,7 +244,7 @@ describe('review findings', () => {
 
   test('a top-up whose items carry text the paper refuses to print keeps the paper as it was', async () => {
     const off = await offPaper();
-    const marked = clone(NEW).map((q, i) => (i === 0 ? { ...q, question: `${q.question} ⚠` } : q));
+    const marked = clone(NEW).map((q, i) => (i === 0 ? { ...q, question: `${q.question} ${String.fromCodePoint(0x26A0)}` } : q));
     serve({ topUp: marked, reader: async (prompt, n) => JSON.stringify({ candidates: n === 1 ? [ruleFlag(prompt)] : [] }) });
     const on = await run({ readerPass: true });
     expect(on.err).toBeUndefined();
