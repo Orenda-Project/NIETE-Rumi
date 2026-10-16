@@ -499,12 +499,14 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await require('./web-quiz-book').hubBits({ studentId: chosen.id })); // Jugnu's Book: {} while web_quiz_challenge_book is off
-  // The v3 home's doors + header and the ranked next thing, side by side (neither reads the other): {} while each is off.
-  const [homeV3, nextField] = await Promise.all([
+  // Stories, the v3 home's doors + header and the ranked next thing are independent fields (none reads another): read
+  // side by side, so neither Stories nor the slot adds a serial wave. Each is {} while its switch is off.
+  const [storyBits, homeBits, nextField] = await Promise.all([
+    require('./web-quiz-stories').hubBits({ studentId: chosen.id }),
     require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history }),
     require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
   ]);
-  Object.assign(out, homeV3, nextField);
+  Object.assign(out, storyBits, homeBits, nextField);
   return out;
 }
 
