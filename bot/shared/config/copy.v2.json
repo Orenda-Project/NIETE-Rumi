@@ -1,0 +1,2348 @@
+{
+ "_meta": {
+  "version": "2.2",
+  "what": "The Jugnu copy deck: every child, teacher and WhatsApp string, EN and UR. Surfaces lift strings from here byte for byte; nothing reads this file at runtime.",
+  "placeholders": "{name} {name2} {title} {code} {n} {total} {done} {absent} {thing} {enrolled}; Urdu wraps {name}/{name2}/{title}/{thing} in U+2068..U+2069 and /quiz, STOP in U+2066..U+2069; {n} takes Urdu digits, no isolate",
+  "cp_rule": "code points of the worst case: name 20, title 24, code 11, thing 32, numbers 3, enrolled 7; isolates counted",
+  "held_rule": "a key with `held` is never rendered or sent",
+  "retired_rule": "a key with `retired: true` is rendered or sent by no surface; it is kept, never deleted, so old lifts stay traceable",
+  "nbsp_rule": "U+00A0 inside a unit that must not break («واٹس ایپ», «ہوم اسکرین», a question's last pair); lifts copy it byte for byte",
+  "keys": 211
+ },
+ "jg.lantern.trail_one": {
+  "en": "A game is waiting for you on the Trail.",
+  "ur": "جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔",
+  "surface": "page.hub",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 39,
+   "ur": 49
+  }
+ },
+ "jg.lantern.trail_many": {
+  "en": "Games are waiting for you on the Trail.",
+  "ur": "جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔",
+  "surface": "page.hub",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 39,
+   "ur": 46
+  }
+ },
+ "jg.lantern.trail_open": {
+  "en": "The Trail is open again!",
+  "ur": "جگنو کا راستہ پھر سے کھل گیا!",
+  "surface": "page.hub",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_period",
+  "cp": {
+   "en": 24,
+   "ur": 29
+  }
+ },
+ "jg.lantern.new_story": {
+  "en": "A new story is here: {title}",
+  "ur": "ایک نئی کہانی آ گئی ہے: ⁨{title}⁩",
+  "surface": "page.hub",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 45,
+   "ur": 50
+  }
+ },
+ "jg.lantern.tomorrow": {
+  "en": "Tomorrow: a new story",
+  "ur": "کل نئی کہانی آئے گی۔",
+  "surface": "page.hub",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 21,
+   "ur": 20
+  }
+ },
+ "jg.lantern.all_seen": {
+  "en": "Next story arrives on Monday. Until then, play numbers with Jugnu.",
+  "ur": "اگلی کہانی پیر کو آئے گی۔ تب تک جگنو کے ساتھ گنتی کے کھیل کھیلیں۔",
+  "surface": "page.hub",
+  "cap_cp": 90,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 66,
+   "ur": 65
+  }
+ },
+ "jg.next.monday": {
+  "en": "Next story arrives on Monday",
+  "ur": "اگلی کہانی پیر کو آئے گی",
+  "surface": "page.hub+page.trail+page.book",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 28,
+   "ur": 24
+  }
+ },
+ "jg.next.on_its_way": {
+  "en": "A new story is on its way.",
+  "ur": "ایک نئی کہانی آنے والی ہے۔",
+  "surface": "page.trail",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 26,
+   "ur": 26
+  }
+ },
+ "jg.shelf.title": {
+  "en": "Jugnu today",
+  "ur": "آج جگنو کے ساتھ",
+  "surface": "page.hub",
+  "cap_cp": 30,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 11,
+   "ur": 15
+  }
+ },
+ "jg.shelf.week_story": {
+  "en": "This week's story",
+  "ur": "اس ہفتے کی کہانی",
+  "surface": "page.hub",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 17,
+   "ur": 16
+  }
+ },
+ "jg.shelf.listen": {
+  "en": "Listen to a story",
+  "ur": "کہانی سنیں",
+  "surface": "page.hub",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 17,
+   "ur": 10
+  }
+ },
+ "jg.shelf.numbers": {
+  "en": "Numbers with Jugnu",
+  "ur": "جگنو کے ساتھ گنتی",
+  "surface": "page.hub",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 18,
+   "ur": 17
+  }
+ },
+ "jg.shelf.older": {
+  "en": "More stories",
+  "ur": "اور کہانیاں",
+  "surface": "page.hub",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 12,
+   "ur": 11
+  }
+ },
+ "jg.shelf.tag_new": {
+  "en": "NEW",
+  "ur": "نئی",
+  "surface": "page.hub",
+  "cap_cp": 6,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 3,
+   "ur": 3
+  }
+ },
+ "jg.warmup.title": {
+  "en": "Number warm-up",
+  "ur": "گنتی کا کھیل",
+  "surface": "page.trail",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_pool",
+  "cp": {
+   "en": 14,
+   "ur": 12
+  }
+ },
+ "jg.warmup.say": {
+  "en": "Let's start with some numbers.",
+  "ur": "چلیں، پہلے گنتی سے شروع کریں۔",
+  "surface": "page.trail",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_pool",
+  "cp": {
+   "en": 30,
+   "ur": 29
+  }
+ },
+ "jg.warmup.done": {
+  "en": "Warm-up done!",
+  "ur": "گنتی کا کھیل مکمل!",
+  "surface": "page.trail",
+  "cap_cp": 30,
+  "switch": "web_quiz_challenge_pool",
+  "cp": {
+   "en": 13,
+   "ur": 18
+  }
+ },
+ "jg.help.q": {
+  "en": "Is someone helping you today?",
+  "ur": "کیا آج آپ کو کسی کی مدد مل رہی ہے؟",
+  "surface": "page.trail",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 29,
+   "ur": 34
+  }
+ },
+ "jg.help.alone": {
+  "en": "No, on my own",
+  "ur": "نہیں، اپنے آپ",
+  "surface": "page.trail",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 13,
+   "ur": 13
+  }
+ },
+ "jg.help.with": {
+  "en": "Yes, someone is helping",
+  "ur": "جی ہاں، کسی کی مدد سے",
+  "surface": "page.trail",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 23,
+   "ur": 21
+  }
+ },
+ "jg.help.note": {
+  "en": "You get the sticker both ways.",
+  "ur": "اسٹیکر دونوں طرح ملے گا۔",
+  "surface": "page.trail",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 30,
+   "ur": 24
+  }
+ },
+ "jg.mic.title": {
+  "en": "Read out loud",
+  "ur": "اونچی آواز میں پڑھیں",
+  "surface": "page.trail",
+  "cap_cp": 30,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 13,
+   "ur": 20
+  }
+ },
+ "jg.mic.say": {
+  "en": "Jugnu needs the microphone to hear you read.",
+  "ur": "آپ کو پڑھتے ہوئے سننے کے لیے جگنو کو مائیک چاہیے۔",
+  "surface": "page.trail",
+  "cap_cp": 80,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 44,
+   "ur": 49
+  }
+ },
+ "jg.mic.allow": {
+  "en": "Turn on the mic",
+  "ur": "مائیک چلائیں",
+  "surface": "page.trail",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 15,
+   "ur": 12
+  }
+ },
+ "jg.keep.q": {
+  "en": "May Jugnu keep this reading to check that it heard right?",
+  "ur": "کیا جگنو یہ ریکارڈنگ رکھ لے، تاکہ دیکھا جا سکے کہ جگنو نے ٹھیک سنا؟",
+  "surface": "page.trail",
+  "cap_cp": 90,
+  "switch": "web_quiz_challenge_keep_audio",
+  "cp": {
+   "en": 57,
+   "ur": 67
+  },
+  "retired": true
+ },
+ "jg.keep.sub": {
+  "en": "Kept up to 90 days, heard by one checker, then deleted. A grown-up can say no.",
+  "ur": "زیادہ سے زیادہ ۹۰ دن رکھی جائے گی، صرف ایک جانچ کرنے والا شخص سنے گا، پھر مٹا دی جائے گی۔ گھر کے بڑے منع کر سکتے ہیں۔",
+  "surface": "page.trail",
+  "cap_cp": 140,
+  "switch": "web_quiz_challenge_keep_audio",
+  "cp": {
+   "en": 78,
+   "ur": 117
+  },
+  "held": true,
+  "retired": true
+ },
+ "jg.keep.stop": {
+  "en": "Sending STOP on WhatsApp also deletes it.",
+  "ur": "واٹس ایپ پر ⁦STOP⁩ بھیج کر بھی یہ ریکارڈنگ مٹائی جا سکتی ہے۔",
+  "surface": "page.trail",
+  "cap_cp": 90,
+  "switch": "web_quiz_challenge_keep_audio",
+  "cp": {
+   "en": 41,
+   "ur": 60
+  },
+  "held": true,
+  "retired": true
+ },
+ "jg.keep.yes": {
+  "en": "Yes, keep it",
+  "ur": "جی ہاں، رکھ لیں",
+  "surface": "page.trail",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_keep_audio",
+  "cp": {
+   "en": 12,
+   "ur": 15
+  },
+  "retired": true
+ },
+ "jg.keep.no": {
+  "en": "No, don't keep it",
+  "ur": "نہیں، نہ رکھیں",
+  "surface": "page.trail",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_keep_audio",
+  "cp": {
+   "en": 17,
+   "ur": 14
+  },
+  "retired": true
+ },
+ "jg.keep.either": {
+  "en": "Jugnu listens either way.",
+  "ur": "جگنو دونوں صورتوں میں سنے گا۔",
+  "surface": "page.trail",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_keep_audio",
+  "cp": {
+   "en": 25,
+   "ur": 29
+  },
+  "retired": true
+ },
+ "jg.end.read_all": {
+  "en": "You read the whole story!",
+  "ur": "آپ نے پوری کہانی پڑھ لی!",
+  "surface": "page.trail",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 25,
+   "ur": 24
+  }
+ },
+ "jg.end.read_some": {
+  "en": "You read out loud with Jugnu!",
+  "ur": "آپ نے جگنو کے ساتھ اونچی آواز میں پڑھا!",
+  "surface": "page.trail",
+  "cap_cp": 50,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 29,
+   "ur": 39
+  }
+ },
+ "jg.end.zero_words": {
+  "en": "You tried a whole new story!",
+  "ur": "آپ نے ایک بالکل نئی کہانی کھول کر دیکھی!",
+  "surface": "page.trail",
+  "cap_cp": 50,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 28,
+   "ur": 40
+  }
+ },
+ "jg.end.listen": {
+  "en": "You listened to the whole story!",
+  "ur": "آپ نے پوری کہانی سن لی!",
+  "surface": "page.trail",
+  "cap_cp": 50,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 32,
+   "ur": 23
+  }
+ },
+ "jg.end.tap": {
+  "en": "You answered all the questions!",
+  "ur": "آپ نے سارے سوالوں کے جواب دے دیے!",
+  "surface": "page.trail",
+  "cap_cp": 50,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 31,
+   "ur": 33
+  }
+ },
+ "jg.end.sticker": {
+  "en": "A sticker went into your Book.",
+  "ur": "آپ کی کتاب میں ایک اسٹیکر لگ گیا۔",
+  "surface": "page.trail",
+  "cap_cp": 50,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 30,
+   "ur": 33
+  }
+ },
+ "jg.end.b3_next": {
+  "en": "Next time Jugnu can read a story with you first.",
+  "ur": "اگلی بار جگنو پہلے آپ کے ساتھ کہانی پڑھ سکتا ہے۔",
+  "surface": "page.trail",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 48,
+   "ur": 48
+  }
+ },
+ "jg.end.next": {
+  "en": "Next: {title}",
+  "ur": "آگے: ⁨{title}⁩",
+  "surface": "page.trail",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 30,
+   "ur": 31
+  }
+ },
+ "jg.end.home": {
+  "en": "Home",
+  "ur": "واپس جائیں",
+  "surface": "page.trail",
+  "cap_cp": 12,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 4,
+   "ur": 10
+  }
+ },
+ "jg.item.not_yet": {
+  "en": "Not yet. Try the next one.",
+  "ur": "ابھی نہیں۔ چلیں، اگلا کریں۔",
+  "surface": "page.trail",
+  "cap_cp": 30,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 26,
+   "ur": 27
+  }
+ },
+ "jg.story.banner": {
+  "en": "Story Time: just for fun",
+  "ur": "کہانی کا وقت: بس مزے کے لیے",
+  "surface": "page.story",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 24,
+   "ur": 27
+  }
+ },
+ "jg.story.ask": {
+  "en": "Hear it from me first, or read it yourself.",
+  "ur": "پہلے مجھ سے سن لیں، یا خود پڑھیں۔",
+  "surface": "page.story",
+  "cap_cp": 50,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 43,
+   "ur": 33
+  }
+ },
+ "jg.story.read_along": {
+  "en": "Read along with Jugnu",
+  "ur": "جگنو کے ساتھ ساتھ پڑھیں",
+  "surface": "page.story",
+  "cap_cp": 30,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 21,
+   "ur": 23
+  }
+ },
+ "jg.story.again": {
+  "en": "Read this story again any time.",
+  "ur": "یہ کہانی جب چاہیں دوبارہ پڑھیں۔",
+  "surface": "page.story",
+  "cap_cp": 50,
+  "switch": "web_quiz_challenge_story",
+  "cp": {
+   "en": 31,
+   "ur": 31
+  }
+ },
+ "jg.who.turn": {
+  "en": "Whose turn?",
+  "ur": "کس کی باری ہے؟",
+  "surface": "page.who",
+  "cap_cp": 30,
+  "switch": "web_quiz_hub",
+  "cp": {
+   "en": 11,
+   "ur": 14
+  }
+ },
+ "jg.who.playing": {
+  "en": "Who is playing?",
+  "ur": "کھیلنے کے لیے اپنا نام چنیں",
+  "surface": "page.who",
+  "cap_cp": 40,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 15,
+   "ur": 27
+  }
+ },
+ "jg.who.tap_name": {
+  "en": "Tap your name.",
+  "ur": "اپنا نام دبائیں۔",
+  "surface": "page.who",
+  "cap_cp": 30,
+  "switch": "web_quiz_hub",
+  "cp": {
+   "en": 14,
+   "ur": 16
+  }
+ },
+ "jg.who.turn_of": {
+  "en": "{name}'s turn",
+  "ur": "⁨{name}⁩ کی باری",
+  "surface": "page.who",
+  "cap_cp": 30,
+  "switch": "web_quiz_hub",
+  "cp": {
+   "en": 27,
+   "ur": 30
+  }
+ },
+ "jg.who.not_me": {
+  "en": "Not my turn? Go back",
+  "ur": "میری باری نہیں؟ واپس جائیں",
+  "surface": "page.who",
+  "cap_cp": 30,
+  "switch": "web_quiz_hub",
+  "cp": {
+   "en": 20,
+   "ur": 26
+  }
+ },
+ "jg.who.someone_else": {
+  "en": "Someone else",
+  "ur": "کوئی اور",
+  "surface": "page.who",
+  "cap_cp": 20,
+  "switch": "web_quiz_hub",
+  "cp": {
+   "en": 12,
+   "ur": 8
+  }
+ },
+ "jg.who.played_here": {
+  "en": "Played on this phone before",
+  "ur": "پہلے بھی اسی فون پر کھیلا گیا",
+  "surface": "page.who",
+  "cap_cp": 40,
+  "switch": "web_quiz_hub",
+  "cp": {
+   "en": 27,
+   "ur": 29
+  }
+ },
+ "jg.who.not_listed": {
+  "en": "My name isn't here",
+  "ur": "میرا نام یہاں نہیں ہے",
+  "surface": "page.who",
+  "cap_cp": 24,
+  "switch": "web_quiz_hub",
+  "cp": {
+   "en": 18,
+   "ur": 21
+  }
+ },
+ "jg.link.teacher_q": {
+  "en": "Tap your teacher's name",
+  "ur": "ٹیچر کا نام دبائیں",
+  "surface": "page.who",
+  "cap_cp": 40,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 23,
+   "ur": 18
+  }
+ },
+ "jg.link.letter_q": {
+  "en": "Tap the first letter of your name",
+  "ur": "اپنے نام کا پہلا حرف دبائیں",
+  "surface": "page.who",
+  "cap_cp": 50,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 33,
+   "ur": 27
+  }
+ },
+ "jg.link.is_here": {
+  "en": "Is your name here?",
+  "ur": "کیا آپ کا نام یہاں ہے؟",
+  "surface": "page.who",
+  "cap_cp": 30,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 18,
+   "ur": 22
+  }
+ },
+ "og.link.title": {
+  "en": "Jugnu's Challenge",
+  "ur": "جگنو کا چیلنج",
+  "surface": "og.title",
+  "cap_cp": 60,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 17,
+   "ur": 13
+  }
+ },
+ "og.link.desc": {
+  "en": "Stories and number games. Tap to play.",
+  "ur": "کہانیاں اور گنتی کے کھیل۔ کھیلنے کے لیے دبائیں۔",
+  "surface": "og.desc",
+  "cap_cp": 60,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 38,
+   "ur": 47
+  }
+ },
+ "jg.rung.r1": {
+  "en": "Starting a story",
+  "ur": "کہانی شروع کرنا",
+  "surface": "page.book+page.teacher",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 16,
+   "ur": 15
+  }
+ },
+ "jg.rung.r2": {
+  "en": "Reading a short story",
+  "ur": "چھوٹی کہانی پڑھنا",
+  "surface": "page.book+page.teacher",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 21,
+   "ur": 17
+  }
+ },
+ "jg.rung.r3": {
+  "en": "Understanding a short story",
+  "ur": "چھوٹی کہانی سمجھنا",
+  "surface": "page.book+page.teacher",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 27,
+   "ur": 18
+  }
+ },
+ "jg.rung.r4": {
+  "en": "Reading a longer story",
+  "ur": "لمبی کہانی پڑھنا",
+  "surface": "page.book+page.teacher",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 22,
+   "ur": 16
+  }
+ },
+ "jg.rung.r5": {
+  "en": "Understanding a longer story",
+  "ur": "لمبی کہانی سمجھنا",
+  "surface": "page.book+page.teacher",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 28,
+   "ur": 17
+  }
+ },
+ "jg.rung.n1": {
+  "en": "Finding numbers",
+  "ur": "نمبر ڈھونڈنا",
+  "surface": "page.book+page.teacher",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 15,
+   "ur": 12
+  }
+ },
+ "jg.rung.n2": {
+  "en": "Comparing numbers",
+  "ur": "بڑا چھوٹا نمبر پہچاننا",
+  "surface": "page.book+page.teacher",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 17,
+   "ur": 22
+  }
+ },
+ "jg.rung.n3": {
+  "en": "Filling number gaps",
+  "ur": "غائب نمبر بھرنا",
+  "surface": "page.book+page.teacher",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 19,
+   "ur": 15
+  }
+ },
+ "jg.rung.n4": {
+  "en": "Counting past 100",
+  "ur": "سو سے آگے گننا",
+  "surface": "page.book+page.teacher",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 17,
+   "ur": 14
+  }
+ },
+ "jg.rung.n5": {
+  "en": "Filling every number gap",
+  "ur": "سارے غائب نمبر بھرنا",
+  "surface": "page.book+page.teacher",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 24,
+   "ur": 20
+  }
+ },
+ "jg.levelup.head": {
+  "en": "A new lamp is lit!",
+  "ur": "ایک نیا دیا جل گیا!",
+  "surface": "page.trail",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 18,
+   "ur": 19
+  }
+ },
+ "jg.levelup.open": {
+  "en": "Now open for you: {thing}",
+  "ur": "اب ⁨{thing}⁩ بھی کھولیں!",
+  "surface": "page.trail",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 50,
+   "ur": 49
+  }
+ },
+ "jg.levelup.say": {
+  "en": "You read a story and answered its questions.",
+  "ur": "آپ نے کہانی پڑھی اور اس کے سوالوں کے جواب دیے۔",
+  "surface": "page.trail",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 44,
+   "ur": 46
+  }
+ },
+ "jg.levelup.go": {
+  "en": "Let's go",
+  "ur": "چلیں",
+  "surface": "page.trail",
+  "cap_cp": 20,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 8,
+   "ur": 4
+  }
+ },
+ "jg.opens.short_stories": {
+  "en": "short stories every week",
+  "ur": "ہر ہفتے چھوٹی کہانیاں",
+  "surface": "page.trail",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 24,
+   "ur": 21
+  }
+ },
+ "jg.opens.questions": {
+  "en": "story questions",
+  "ur": "کہانی کے سوال",
+  "surface": "page.trail",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 15,
+   "ur": 13
+  }
+ },
+ "jg.opens.longer": {
+  "en": "longer stories",
+  "ur": "لمبی کہانیاں",
+  "surface": "page.trail",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 14,
+   "ur": 12
+  }
+ },
+ "jg.opens.two_part": {
+  "en": "two-part stories",
+  "ur": "دو حصوں والی کہانیاں",
+  "surface": "page.trail",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 16,
+   "ur": 20
+  }
+ },
+ "jg.opens.shelf": {
+  "en": "the whole story shelf",
+  "ur": "کہانیوں کی پوری الماری",
+  "surface": "page.trail",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 21,
+   "ur": 22
+  }
+ },
+ "jg.opens.number_games": {
+  "en": "number games",
+  "ur": "گنتی کے کھیل",
+  "surface": "page.trail",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 12,
+   "ur": 12
+  }
+ },
+ "jg.opens.two_digit": {
+  "en": "two-digit games",
+  "ur": "دو ہندسوں والے کھیل",
+  "surface": "page.trail",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 15,
+   "ur": 19
+  }
+ },
+ "jg.opens.missing": {
+  "en": "missing-number games",
+  "ur": "غائب نمبر کے کھیل",
+  "surface": "page.trail",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 20,
+   "ur": 17
+  }
+ },
+ "jg.opens.hundreds": {
+  "en": "hundreds games",
+  "ur": "سینکڑوں کے کھیل",
+  "surface": "page.trail",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 14,
+   "ur": 15
+  }
+ },
+ "jg.opens.puzzles": {
+  "en": "big-number puzzles",
+  "ur": "بڑے نمبروں کی پہیلیاں",
+  "surface": "page.trail",
+  "cap_cp": 32,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 18,
+   "ur": 21
+  }
+ },
+ "jg.book.title": {
+  "en": "{name}'s Jugnu Book",
+  "ur": "⁨{name}⁩ کی جگنو کتاب",
+  "surface": "page.book",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 33,
+   "ur": 35
+  }
+ },
+ "jg.book.lamps": {
+  "en": "My lamps",
+  "ur": "میرے دیے",
+  "surface": "page.book",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 8,
+   "ur": 8
+  }
+ },
+ "jg.book.reading": {
+  "en": "Reading",
+  "ur": "پڑھنا",
+  "surface": "page.book",
+  "cap_cp": 16,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 7,
+   "ur": 5
+  }
+ },
+ "jg.book.numbers": {
+  "en": "Numbers",
+  "ur": "گنتی",
+  "surface": "page.book",
+  "cap_cp": 16,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 7,
+   "ur": 4
+  }
+ },
+ "jg.book.days": {
+  "en": "Days you played this week",
+  "ur": "اس ہفتے آپ نے کن دنوں کھیلا",
+  "surface": "page.book",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 25,
+   "ur": 27
+  }
+ },
+ "jg.book.stickers": {
+  "en": "Story stickers",
+  "ur": "کہانیوں کے اسٹیکر",
+  "surface": "page.book",
+  "cap_cp": 30,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 14,
+   "ur": 17
+  }
+ },
+ "jg.book.stickers_sub": {
+  "en": "One for every whole story",
+  "ur": "ہر پوری کہانی پر ایک اسٹیکر",
+  "surface": "page.book",
+  "cap_cp": 30,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 25,
+   "ur": 27
+  }
+ },
+ "jg.lights.term": {
+  "en": "Your class has lit {n} lights this term.",
+  "ur": "آپ کی کلاس نے اس ٹرم میں {n} روشنیاں جلائی ہیں۔",
+  "surface": "page.hub+page.book",
+  "cap_cp": 50,
+  "switch": "web_quiz_class_wall",
+  "cp": {
+   "en": 40,
+   "ur": 47
+  }
+ },
+ "jg.lights.week": {
+  "en": "{n} of them this week.",
+  "ur": "ان میں سے {n} اس ہفتے۔",
+  "surface": "page.hub+page.book",
+  "cap_cp": 24,
+  "switch": "web_quiz_class_wall",
+  "cp": {
+   "en": 22,
+   "ur": 22
+  }
+ },
+ "jg.lights.hidden": {
+  "en": "Your class is playing too",
+  "ur": "آپ کی کلاس بھی کھیل رہی ہے",
+  "surface": "page.hub+page.book",
+  "cap_cp": 40,
+  "switch": "web_quiz_class_wall",
+  "cp": {
+   "en": 25,
+   "ur": 26
+  }
+ },
+ "jg.parent.show": {
+  "en": "Show your grown-up",
+  "ur": "گھر کے بڑوں کو دکھائیں",
+  "surface": "page.book",
+  "cap_cp": 30,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 18,
+   "ur": 22
+  }
+ },
+ "jg.parent.line": {
+  "en": "This is {name}'s Jugnu Book. Each sticker is a game or a story finished with Jugnu.",
+  "ur": "یہ ⁨{name}⁩ کی جگنو کتاب ہے۔ ہر اسٹیکر ایک کھیل یا کہانی کا ہے جو جگنو کے ساتھ پوری ہوئی۔",
+  "surface": "page.book",
+  "cap_cp": 120,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 97,
+   "ur": 103
+  }
+ },
+ "jg.g1.title": {
+  "en": "Find the number",
+  "ur": "نمبر ڈھونڈیں",
+  "surface": "page.trail",
+  "cap_cp": 24,
+  "switch": "web_quiz_challenge_g1",
+  "cp": {
+   "en": 15,
+   "ur": 12
+  }
+ },
+ "jg.g1.say": {
+  "en": "Count the dots. Tap the number.",
+  "ur": "نقطے گنیں۔ پھر نمبر دبائیں۔",
+  "surface": "page.trail",
+  "cap_cp": 50,
+  "switch": "web_quiz_challenge_g1",
+  "cp": {
+   "en": 31,
+   "ur": 27
+  }
+ },
+ "jg.bind.card_title": {
+  "en": "Keep your place on WhatsApp",
+  "ur": "اپنی جگہ واٹس ایپ پر محفوظ کریں",
+  "surface": "page.bind",
+  "cap_cp": 40,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 27,
+   "ur": 31
+  }
+ },
+ "jg.bind.card_sub": {
+  "en": "Then sending /quiz opens this page and your stickers again.",
+  "ur": "پھر ⁦/quiz⁩ بھیجنے سے یہ صفحہ اور آپ کے اسٹیکر دوبارہ کھل جائیں گے۔",
+  "surface": "page.bind",
+  "cap_cp": 100,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 59,
+   "ur": 67
+  }
+ },
+ "jg.bind.card_btn": {
+  "en": "Keep my place",
+  "ur": "میری جگہ محفوظ کریں",
+  "surface": "page.bind",
+  "cap_cp": 20,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 13,
+   "ur": 19
+  }
+ },
+ "jg.bind.card_later": {
+  "en": "Not now",
+  "ur": "ابھی نہیں",
+  "surface": "page.bind",
+  "cap_cp": 20,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 7,
+   "ur": 9
+  }
+ },
+ "jg.bind.is_you": {
+  "en": "{name}, is this you?",
+  "ur": "⁨{name}⁩، کیا یہ آپ ہیں؟",
+  "surface": "page.bind",
+  "cap_cp": 40,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 34,
+   "ur": 38
+  }
+ },
+ "jg.bind.yes": {
+  "en": "Yes, it's me",
+  "ur": "جی ہاں، یہ میں ہوں",
+  "surface": "page.bind",
+  "cap_cp": 20,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 12,
+   "ur": 18
+  }
+ },
+ "jg.bind.no": {
+  "en": "No, it's not me",
+  "ur": "یہ میں نہیں ہوں",
+  "surface": "page.bind",
+  "cap_cp": 20,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 15,
+   "ur": 15
+  }
+ },
+ "jg.bind.notice_save": {
+  "en": "Jugnu will save this phone number with {name}'s name until the end of the school year (31 March), longer only if you keep playing.",
+  "ur": "جگنو اس فون نمبر کو ⁨{name}⁩ کے ساتھ جوڑ کر محفوظ کرے گا۔ یہ اسکول کا سال ختم ہونے تک (۳۱ مارچ) رہے گا، اور اگر کھیلنا جاری رہے تو اس کے بعد بھی۔",
+  "surface": "page.bind",
+  "cap_cp": 200,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 144,
+   "ur": 159
+  }
+ },
+ "jg.bind.notice_stop": {
+  "en": "To remove it, send STOP from this phone any time. That also deletes any kept readings of the children on this phone.",
+  "ur": "یہ نمبر ہٹانے کے لیے کسی بھی وقت اس فون سے ⁦STOP⁩ بھیجیں۔ اس سے اس فون کے بچوں کی رکھی گئی ریکارڈنگز بھی مٹ جائیں گی۔",
+  "surface": "page.bind",
+  "cap_cp": 200,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 116,
+   "ur": 117
+  },
+  "held": true,
+  "retired": true
+ },
+ "jg.bind.who_sends": {
+  "en": "A grown-up sends one WhatsApp message from this phone.",
+  "ur": "پھر گھر کے بڑے اس فون سے واٹس ایپ پر ایک پیغام بھیجیں۔",
+  "surface": "page.bind",
+  "cap_cp": 90,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 54,
+   "ur": 54
+  }
+ },
+ "jg.bind.send_btn": {
+  "en": "Send on WhatsApp",
+  "ur": "واٹس ایپ پر بھیجیں",
+  "surface": "page.bind",
+  "cap_cp": 24,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 16,
+   "ur": 18
+  }
+ },
+ "jg.bind.saved": {
+  "en": "Saved ✓",
+  "ur": "محفوظ ہو گیا ✓",
+  "surface": "page.bind",
+  "cap_cp": 20,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 7,
+   "ur": 14
+  }
+ },
+ "jg.bind.undo_q": {
+  "en": "Not your family's phone?",
+  "ur": "یہ آپ کے گھر کا فون نہیں؟",
+  "surface": "page.bind",
+  "cap_cp": 40,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 24,
+   "ur": 25
+  }
+ },
+ "jg.bind.undo": {
+  "en": "Undo",
+  "ur": "واپس لیں",
+  "surface": "page.bind",
+  "cap_cp": 20,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 4,
+   "ur": 8
+  }
+ },
+ "jg.bind.undone": {
+  "en": "Removed. This phone number is not kept.",
+  "ur": "ہٹا دیا گیا۔ یہ فون نمبر اب محفوظ نہیں۔",
+  "surface": "page.bind",
+  "cap_cp": 60,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 39,
+   "ur": 39
+  }
+ },
+ "jg.bind.refused_teacher": {
+  "en": "This is a teacher's phone, so a child's place is not saved on it.",
+  "ur": "یہ ٹیچر کا فون ہے، اس لیے اس پر بچے کی جگہ محفوظ نہیں ہوتی۔",
+  "surface": "page.bind",
+  "cap_cp": 90,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 65,
+   "ur": 59
+  }
+ },
+ "jg.bind.refused_full": {
+  "en": "This phone already keeps four children's places.",
+  "ur": "اس فون پر پہلے ہی چار بچوں کی جگہ محفوظ ہے۔",
+  "surface": "page.bind",
+  "cap_cp": 90,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 48,
+   "ur": 43
+  }
+ },
+ "jg.bind.code_expired": {
+  "en": "That took too long. Tap Keep my place again.",
+  "ur": "اس میں دیر ہو گئی۔ دوبارہ «میری جگہ محفوظ کریں» دبائیں۔",
+  "surface": "page.bind",
+  "cap_cp": 90,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 44,
+   "ur": 55
+  }
+ },
+ "wa.bind.prefill": {
+  "en": "Jugnu ✨ keep my place {code}",
+  "ur": "جگنو ✨ میری جگہ محفوظ کریں {code}",
+  "surface": "wa.prefill",
+  "cap_cp": 60,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 33,
+   "ur": 38
+  }
+ },
+ "bot.bind.saved": {
+  "en": "✓ {name}'s place is saved on this phone. Next time, send /quiz and tap {name}'s name.\nTo remove it, send STOP.",
+  "ur": "✓ ⁨{name}⁩ کی جگہ اس فون پر محفوظ ہو گئی۔ اگلی بار ⁦/quiz⁩ بھیجیں اور ⁨{name}⁩ کا نام دبائیں۔\nہٹانے کے لیے ⁦STOP⁩ بھیجیں۔",
+  "surface": "wa.body",
+  "cap_cp": 1024,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 138,
+   "ur": 149
+  }
+ },
+ "bot.bind.open_btn": {
+  "en": "Open my page",
+  "ur": "میرا صفحہ کھولیں",
+  "surface": "wa.button",
+  "cap_cp": 20,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 12,
+   "ur": 16
+  }
+ },
+ "bot.bind.teacher_refused": {
+  "en": "This number is a teacher's number on Jugnu, so a child's place cannot be saved on it. Please save it from the family's phone.",
+  "ur": "یہ نمبر جگنو پر ایک ٹیچر کا ہے، اس لیے اس پر کسی بچے کی جگہ محفوظ نہیں ہو سکتی۔ براہ کرم گھر کے فون سے محفوظ کریں۔",
+  "surface": "wa.body",
+  "cap_cp": 1024,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 125,
+   "ur": 114
+  }
+ },
+ "bot.bind.full_refused": {
+  "en": "This phone already keeps four children's places, the most Jugnu allows. Send /quiz and tap a name to play.",
+  "ur": "اس فون پر پہلے ہی چار بچوں کی جگہ محفوظ ہے، جو جگنو میں سب سے زیادہ ہے۔ کھیلنے کے لیے ⁦/quiz⁩ بھیجیں اور نام دبائیں۔",
+  "surface": "wa.body",
+  "cap_cp": 1024,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 106,
+   "ur": 116
+  }
+ },
+ "bot.bind.stopped": {
+  "en": "Done. Jugnu has removed this phone number from the children's names it was saved with, and deleted their kept readings. Send /quiz any time to start again.",
+  "ur": "ہو گیا۔ جگنو نے یہ فون نمبر بچوں کے ناموں سے ہٹا دیا ہے، اور ان کی رکھی گئی ریکارڈنگز مٹا دی ہیں۔ دوبارہ شروع کرنے کے لیے کسی بھی وقت ⁦/quiz⁩ بھیجیں۔",
+  "surface": "wa.body",
+  "cap_cp": 1024,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 155,
+   "ur": 149
+  },
+  "held": true,
+  "retired": true
+ },
+ "bot.bind.stop_nothing": {
+  "en": "Nothing was saved for this phone.",
+  "ur": "اس فون کے لیے کچھ محفوظ نہیں تھا۔",
+  "surface": "wa.body",
+  "cap_cp": 1024,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 33,
+   "ur": 33
+  }
+ },
+ "jg.t.tab": {
+  "en": "Jugnu",
+  "ur": "جگنو",
+  "surface": "page.teacher",
+  "cap_cp": 12,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 5,
+   "ur": 4
+  }
+ },
+ "jg.t.eyebrow": {
+  "en": "Class at a glance",
+  "ur": "کلاس کی جھلک",
+  "surface": "page.teacher",
+  "cap_cp": 30,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 17,
+   "ur": 12
+  }
+ },
+ "jg.t.month": {
+  "en": "Jugnu: this month",
+  "ur": "جگنو: اس مہینے",
+  "surface": "page.teacher",
+  "cap_cp": 30,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 17,
+   "ur": 14
+  }
+ },
+ "jg.t.coverage": {
+  "en": "{n} of {total} have started this month",
+  "ur": "اس مہینے {total} میں سے {n} بچوں نے شروع کیا",
+  "surface": "page.teacher",
+  "cap_cp": 60,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 34,
+   "ur": 40
+  }
+ },
+ "jg.t.col_name": {
+  "en": "Name",
+  "ur": "نام",
+  "surface": "page.teacher",
+  "cap_cp": 16,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 4,
+   "ur": 3
+  }
+ },
+ "jg.t.col_games": {
+  "en": "Games this month",
+  "ur": "اس مہینے کے کھیل",
+  "surface": "page.teacher",
+  "cap_cp": 24,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 16,
+   "ur": 16
+  }
+ },
+ "jg.t.col_stickers": {
+  "en": "Stickers",
+  "ur": "اسٹیکر",
+  "surface": "page.teacher",
+  "cap_cp": 16,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 8,
+   "ur": 6
+  }
+ },
+ "jg.t.stopped": {
+  "en": "Stopped early",
+  "ur": "ایک کھیل ادھورا",
+  "surface": "page.teacher",
+  "cap_cp": 30,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 13,
+   "ur": 15
+  }
+ },
+ "jg.t.mic": {
+  "en": "Waiting for a microphone",
+  "ur": "مائیک والا کھیل باقی",
+  "surface": "page.teacher",
+  "cap_cp": 40,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 24,
+   "ur": 20
+  }
+ },
+ "jg.t.saved": {
+  "en": "Saved on WhatsApp ✓",
+  "ur": "واٹس ایپ پر محفوظ ✓",
+  "surface": "page.teacher",
+  "cap_cp": 30,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 19,
+   "ur": 19
+  }
+ },
+ "jg.t.undo": {
+  "en": "Undo",
+  "ur": "واپس لیں",
+  "surface": "page.teacher",
+  "cap_cp": 20,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 4,
+   "ur": 8
+  }
+ },
+ "jg.t.sort": {
+  "en": "Sorted by name. No scores, no positions.",
+  "ur": "ترتیب نام کے حساب سے۔ کوئی اسکور نہیں، کوئی پوزیشن نہیں۔",
+  "surface": "page.teacher",
+  "cap_cp": 60,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 40,
+   "ur": 56
+  }
+ },
+ "jg.t.practice": {
+  "en": "Practice: nothing counts on a teacher's phone.",
+  "ur": "مشق: ٹیچر کے فون پر کچھ بھی شمار نہیں ہوتا۔",
+  "surface": "page.teacher",
+  "cap_cp": 60,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 46,
+   "ur": 43
+  }
+ },
+ "jg.t.fwd_btn": {
+  "en": "Forward to the class group",
+  "ur": "کلاس گروپ میں فارورڈ کریں",
+  "surface": "page.teacher",
+  "cap_cp": 30,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 26,
+   "ur": 25
+  }
+ },
+ "wa.t.fwd_text": {
+  "en": "This week in Jugnu's Challenge: {title}. A new story every Monday. Open the pinned link.",
+  "ur": "جگنو کے چیلنج میں اس ہفتے: ⁨{title}⁩۔ ہر پیر کو نئی کہانی۔ پِن کیا ہوا لنک کھولیں۔",
+  "surface": "wa.share",
+  "cap_cp": 300,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 105,
+   "ur": 99
+  }
+ },
+ "jg.t.link_title": {
+  "en": "Your class's Jugnu link",
+  "ur": "آپ کی کلاس کا جگنو لنک",
+  "surface": "page.teacher",
+  "cap_cp": 40,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 23,
+   "ur": 22
+  }
+ },
+ "jg.t.link_sub": {
+  "en": "Forward it once a term and pin it. It always opens this week's story.",
+  "ur": "ہر ٹرم میں ایک بار فارورڈ کریں اور پِن کر دیں۔ یہ ہمیشہ اس ہفتے کی کہانی کھولتا ہے۔",
+  "surface": "page.teacher",
+  "cap_cp": 120,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 69,
+   "ur": 83
+  }
+ },
+ "jg.t.link_copy": {
+  "en": "Copy",
+  "ur": "کاپی کریں",
+  "surface": "page.teacher",
+  "cap_cp": 16,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 4,
+   "ur": 9
+  }
+ },
+ "jg.round.card_title": {
+  "en": "This term's class round",
+  "ur": "اس ٹرم کا کلاس راؤنڈ",
+  "surface": "page.teacher",
+  "cap_cp": 40,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 23,
+   "ur": 20
+  }
+ },
+ "jg.round.card_sub": {
+  "en": "Your class was drawn this term. About a minute per child, one at a time, on your phone. You can continue another day.",
+  "ur": "اس ٹرم قرعہ اندازی میں آپ کی کلاس نکلی ہے۔ ہر بچے کے لیے تقریباً ایک منٹ، آپ کے فون پر۔ چاہیں تو کسی اور دن جاری رکھیں۔",
+  "surface": "page.teacher",
+  "cap_cp": 120,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 117,
+   "ur": 119
+  }
+ },
+ "jg.round.start": {
+  "en": "Start the round",
+  "ur": "راؤنڈ شروع کریں",
+  "surface": "page.teacher",
+  "cap_cp": 24,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 15,
+   "ur": 15
+  }
+ },
+ "jg.round.t_count": {
+  "en": "{done} of {total} done, {absent} absent",
+  "ur": "{total} میں سے {done} مکمل، {absent} غیر حاضر",
+  "surface": "page.round",
+  "cap_cp": 60,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 27,
+   "ur": 33
+  }
+ },
+ "jg.round.t_absent": {
+  "en": "Mark absent",
+  "ur": "غیر حاضر لگائیں",
+  "surface": "page.round",
+  "cap_cp": 24,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 11,
+   "ur": 15
+  }
+ },
+ "jg.round.t_next": {
+  "en": "Hold to call the next child",
+  "ur": "اگلے بچے کے لیے دبا کر رکھیں",
+  "surface": "page.round",
+  "cap_cp": 40,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 27,
+   "ur": 28
+  }
+ },
+ "jg.round.c_still": {
+  "en": "Still to play:",
+  "ur": "ابھی باری آنی ہے:",
+  "surface": "page.round",
+  "cap_cp": 30,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 14,
+   "ur": 17
+  },
+  "retired": true
+ },
+ "jg.round.c_done": {
+  "en": "Done ✓",
+  "ur": "ہو گیا ✓",
+  "surface": "page.round",
+  "cap_cp": 16,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 6,
+   "ur": 8
+  }
+ },
+ "jg.round.c_handback": {
+  "en": "Thanks for playing! Hand the phone to your teacher.",
+  "ur": "کھیلنے کا شکریہ! اب فون ٹیچر کو دے دیں۔",
+  "surface": "page.round",
+  "cap_cp": 90,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 51,
+   "ur": 39
+  }
+ },
+ "st.self_selection": {
+  "en": "These figures describe only children who chose to play Jugnu's Challenge. They are not a sample of children in ICT government primary schools and do not describe those schools.",
+  "ur": "یہ اعداد و شمار صرف ان بچوں کے ہیں جنہوں نے خود جگنو کا چیلنج کھیلا۔ یہ آئی سی ٹی کے سرکاری پرائمری اسکولوں کے بچوں کا نمونہ نہیں، اور ان اسکولوں کے بارے میں کچھ نہیں بتاتے۔",
+  "surface": "doc.statement",
+  "cap_cp": 300,
+  "switch": "none (document, not a screen)",
+  "cp": {
+   "en": 176,
+   "ur": 173
+  }
+ },
+ "st.measured": {
+  "en": "children measured",
+  "ur": "جن بچوں کا ڈیٹا شامل ہے",
+  "surface": "doc.statement",
+  "cap_cp": 40,
+  "switch": "none (document, not a screen)",
+  "cp": {
+   "en": 17,
+   "ur": 23
+  }
+ },
+ "st.within5": {
+  "en": "answered within 5 seconds (device-timed)",
+  "ur": "۵ سیکنڈ کے اندر جواب (فون کی گھڑی سے)",
+  "surface": "doc.statement",
+  "cap_cp": 60,
+  "switch": "none (document, not a screen)",
+  "cp": {
+   "en": 40,
+   "ur": 37
+  }
+ },
+ "st.too_few": {
+  "en": "too few to say",
+  "ur": "کچھ کہنے کے لیے تعداد بہت کم",
+  "surface": "doc.statement",
+  "cap_cp": 30,
+  "switch": "none (document, not a screen)",
+  "cp": {
+   "en": 14,
+   "ur": 28
+  }
+ },
+ "st.internal": {
+  "en": "Internal: not for release until approved",
+  "ur": "اندرونی: منظوری تک جاری نہ کریں",
+  "surface": "doc.statement",
+  "cap_cp": 60,
+  "switch": "none (document, not a screen)",
+  "cp": {
+   "en": 40,
+   "ur": 31
+  }
+ },
+ "jg.card.title": {
+  "en": "Jugnu has a game for you",
+  "ur": "جگنو کے پاس آپ کے لیے ایک کھیل ہے",
+  "surface": "page.scorecard",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_card",
+  "cp": {
+   "en": 24,
+   "ur": 33
+  }
+ },
+ "jg.card.sub": {
+  "en": "2 minutes, no microphone",
+  "ur": "۲ منٹ، مائیک کی ضرورت نہیں",
+  "surface": "page.scorecard",
+  "cap_cp": 90,
+  "switch": "web_quiz_challenge_card",
+  "cp": {
+   "en": 24,
+   "ur": 26
+  }
+ },
+ "jg.card.btn": {
+  "en": "Play",
+  "ur": "کھیلیں",
+  "surface": "page.scorecard",
+  "cap_cp": 20,
+  "switch": "web_quiz_challenge_card",
+  "cp": {
+   "en": 4,
+   "ur": 6
+  }
+ },
+ "jg.install.title": {
+  "en": "Add Jugnu to your home screen",
+  "ur": "جگنو کو اپنی ہوم اسکرین پر لگائیں",
+  "surface": "page.install",
+  "cap_cp": 60,
+  "switch": "web_quiz_install_prompt",
+  "cp": {
+   "en": 29,
+   "ur": 33
+  }
+ },
+ "jg.install.btn": {
+  "en": "Add",
+  "ur": "لگائیں",
+  "surface": "page.install",
+  "cap_cp": 20,
+  "switch": "web_quiz_install_prompt",
+  "cp": {
+   "en": 3,
+   "ur": 6
+  }
+ },
+ "jg.install.later": {
+  "en": "Not now",
+  "ur": "ابھی نہیں",
+  "surface": "page.install",
+  "cap_cp": 20,
+  "switch": "web_quiz_install_prompt",
+  "cp": {
+   "en": 7,
+   "ur": 9
+  }
+ },
+ "jg.levelup.say_numbers": {
+  "en": "You filled in the number games!",
+  "ur": "آپ نے گنتی کے کھیلوں میں نمبر بھر دیے!",
+  "surface": "page.trail",
+  "cap_cp": 90,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 31,
+   "ur": 38
+  }
+ },
+ "jg.trail.practice": {
+  "en": "Playing again: just for fun",
+  "ur": "یہ کھیل دوبارہ: بس مزے کے لیے",
+  "surface": "page.trail",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 27,
+   "ur": 29
+  }
+ },
+ "jg.trail.mic_wait": {
+  "en": "This game needs the mic. Play it when the mic is on.",
+  "ur": "اس کھیل کے لیے مائیک چاہیے۔ مائیک چلنے پر کھیلیں۔",
+  "surface": "page.trail",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 52,
+   "ur": 49
+  }
+ },
+ "jg.trail.other": {
+  "en": "Try another game",
+  "ur": "کوئی اور کھیل کھیلیں",
+  "surface": "page.trail",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 16,
+   "ur": 20
+  }
+ },
+ "jg.trail.stop_done": {
+  "en": "Game done!",
+  "ur": "کھیل مکمل!",
+  "surface": "page.trail",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_v2",
+  "cp": {
+   "en": 10,
+   "ur": 10
+  }
+ },
+ "jg.book.next": {
+  "en": "Next story",
+  "ur": "اگلی کہانی",
+  "surface": "page.book",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 10,
+   "ur": 10
+  }
+ },
+ "jg.book.trail_stickers": {
+  "en": "Trail stickers",
+  "ur": "جگنو کے راستے کے اسٹیکر",
+  "surface": "page.book",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 14,
+   "ur": 23
+  }
+ },
+ "jg.book.day_letters": {
+  "en": "M|T|W|T|F|S|S",
+  "ur": "پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ|اتوار",
+  "surface": "page.book",
+  "cap_cp": 60,
+  "switch": "web_quiz_challenge_book",
+  "cp": {
+   "en": 13,
+   "ur": 35
+  }
+ },
+ "jg.bind.refused_phones": {
+  "en": "This child's place is already saved on three phones.",
+  "ur": "اس بچے کی جگہ پہلے ہی تین فونوں پر محفوظ ہے۔",
+  "surface": "page.bind",
+  "cap_cp": 90,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 52,
+   "ur": 44
+  }
+ },
+ "jg.bind.notice_stop_phone_only": {
+  "en": "A grown-up can undo this any time by sending STOP on WhatsApp.",
+  "ur": "گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔",
+  "surface": "page.bind",
+  "cap_cp": 140,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 62,
+   "ur": 71
+  }
+ },
+ "jg.keep.sub_v2": {
+  "en": "Kept so one person can listen and confirm Jugnu heard right. A grown-up can say no.",
+  "ur": "یہ ریکارڈنگ اس لیے رکھی جاتی ہے تاکہ ایک شخص سن کر دیکھ سکے کہ جگنو نے ٹھیک سنا۔ گھر کے بڑے منع کر سکتے ہیں۔",
+  "surface": "page.trail",
+  "cap_cp": 140,
+  "switch": "web_quiz_challenge_keep_audio",
+  "cp": {
+   "en": 83,
+   "ur": 108
+  },
+  "retired": true
+ },
+ "jg.round.c_back": {
+  "en": "Give the phone back",
+  "ur": "فون واپس دے دیں",
+  "surface": "page.round",
+  "cap_cp": 24,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 19,
+   "ur": 15
+  }
+ },
+ "jg.t.q_head": {
+  "en": "Is {name} the same child as {name2}?",
+  "ur": "کیا ⁨{name}⁩ اور ⁨{name2}⁩ ایک ہی بچہ ہیں؟",
+  "surface": "page.teacher",
+  "cap_cp": 90,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 63,
+   "ur": 69
+  }
+ },
+ "jg.t.q_same": {
+  "en": "Same child",
+  "ur": "ایک ہی بچہ",
+  "surface": "page.teacher",
+  "cap_cp": 20,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 10,
+   "ur": 10
+  }
+ },
+ "jg.t.q_diff": {
+  "en": "Different",
+  "ur": "الگ الگ ہیں",
+  "surface": "page.teacher",
+  "cap_cp": 20,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 9,
+   "ur": 11
+  }
+ },
+ "jg.t.q_unsure": {
+  "en": "Not sure",
+  "ur": "یقین نہیں",
+  "surface": "page.teacher",
+  "cap_cp": 20,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 8,
+   "ur": 9
+  }
+ },
+ "jg.t.q_undo": {
+  "en": "Undo",
+  "ur": "واپس لیں",
+  "surface": "page.teacher",
+  "cap_cp": 20,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 4,
+   "ur": 8
+  }
+ },
+ "jg.t.q_link": {
+  "en": "Link this class's quiz codes to the class list",
+  "ur": "اس کلاس کے کوئز کوڈ کلاس کی فہرست سے جوڑیں",
+  "surface": "page.teacher",
+  "cap_cp": 60,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 46,
+   "ur": 42
+  }
+ },
+ "jg.t.q_sub": {
+  "en": "Nothing is ever deleted, and Undo is always here.",
+  "ur": "اس سے کبھی کچھ نہیں مٹتا، اور «واپس لیں» ہمیشہ یہیں ہے۔",
+  "surface": "page.teacher",
+  "cap_cp": 120,
+  "switch": "web_quiz_teacher_jugnu",
+  "cp": {
+   "en": 49,
+   "ur": 55
+  }
+ },
+ "jg.t.link_make": {
+  "en": "Make a new link",
+  "ur": "نیا لنک بنائیں",
+  "surface": "page.teacher",
+  "cap_cp": 24,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 15,
+   "ur": 14
+  }
+ },
+ "jg.t.link_open": {
+  "en": "Open",
+  "ur": "کھولیں",
+  "surface": "page.teacher",
+  "cap_cp": 20,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 4,
+   "ur": 6
+  }
+ },
+ "jg.round.t_declined": {
+  "en": "Not today",
+  "ur": "آج نہیں",
+  "surface": "page.teacher",
+  "cap_cp": 20,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 9,
+   "ur": 7
+  }
+ },
+ "jg.round.t_pause": {
+  "en": "Pause",
+  "ur": "روکیں",
+  "surface": "page.teacher",
+  "cap_cp": 20,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 5,
+   "ur": 5
+  }
+ },
+ "jg.round.t_resume": {
+  "en": "Continue",
+  "ur": "جاری رکھیں",
+  "surface": "page.teacher",
+  "cap_cp": 20,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 8,
+   "ur": 10
+  }
+ },
+ "jg.round.t_not_this_term": {
+  "en": "Not this term",
+  "ur": "اس ٹرم نہیں",
+  "surface": "page.teacher",
+  "cap_cp": 24,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 13,
+   "ur": 11
+  }
+ },
+ "jg.round.t_dnd": {
+  "en": "Turn on Do Not Disturb. Give the class some seatwork, then call each child to your phone for about a minute.",
+  "ur": "فون پر ڈو ناٹ ڈسٹرب لگا دیں۔ کلاس کو کچھ لکھنے کا کام دیں، پھر باری باری ہر بچے کو تقریباً ایک منٹ کے لیے اپنے فون پر بلائیں۔",
+  "surface": "page.teacher",
+  "cap_cp": 140,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 108,
+   "ur": 125
+  }
+ },
+ "jg.round.t_never_reported": {
+  "en": "Nothing about this class is ever reported by name.",
+  "ur": "اس کلاس کی کوئی بات کبھی نام کے ساتھ رپورٹ نہیں کی جاتی۔",
+  "surface": "page.teacher",
+  "cap_cp": 120,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 50,
+   "ur": 56
+  }
+ },
+ "jg.week.forward": {
+  "en": "This week Jugnu is for everyone in our class. Open the pinned link and play at home.",
+  "ur": "اس ہفتے جگنو ہماری کلاس کے سب بچوں کے لیے ہے۔ پِن کیا ہوا لنک کھولیں اور گھر پر کھیلیں۔",
+  "surface": "wa.share",
+  "cap_cp": 140,
+  "switch": "web_quiz_class_week",
+  "cp": {
+   "en": 84,
+   "ur": 87
+  }
+ },
+ "jg.week.card_title": {
+  "en": "Forward the week",
+  "ur": "اس ہفتے کا پیغام فارورڈ کریں",
+  "surface": "page.teacher",
+  "cap_cp": 40,
+  "switch": "web_quiz_class_week",
+  "cp": {
+   "en": 16,
+   "ur": 28
+  }
+ },
+ "jg.week.card_sub": {
+  "en": "One fixed message for the class group, with no names and no numbers. The link is added for you.",
+  "ur": "کلاس گروپ کے لیے ایک طے شدہ پیغام: نہ کوئی نام، نہ اعداد و شمار۔ لنک خود ساتھ لگ جاتا ہے۔",
+  "surface": "page.teacher",
+  "cap_cp": 120,
+  "switch": "web_quiz_class_week",
+  "cp": {
+   "en": 95,
+   "ur": 89
+  }
+ },
+ "bot.bind.stopped_phone_only": {
+  "en": "Done. Jugnu has removed this phone number from the children's names it was saved with. Send /quiz any time to start again.",
+  "ur": "ہو گیا۔ جگنو نے یہ فون نمبر بچوں کے ناموں سے ہٹا دیا ہے۔ دوبارہ شروع کرنے کے لیے کسی بھی وقت ⁦/quiz⁩ بھیجیں۔",
+  "surface": "wa.body",
+  "cap_cp": 300,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 122,
+   "ur": 108
+  }
+ },
+ "bot.guest.home": {
+  "en": "Play Jugnu's Challenge: short reading and number games.",
+  "ur": "جگنو کا چیلنج کھیلیں: پڑھنے اور گنتی کے چھوٹے کھیل۔",
+  "surface": "wa.body",
+  "cap_cp": 300,
+  "switch": "web_quiz_guest_home",
+  "cp": {
+   "en": 55,
+   "ur": 51
+  }
+ },
+ "bot.guest.home_btn": {
+  "en": "Play",
+  "ur": "کھیلیں",
+  "surface": "wa.button",
+  "cap_cp": 20,
+  "switch": "web_quiz_guest_home",
+  "cp": {
+   "en": 4,
+   "ur": 6
+  }
+ },
+ "bot.round.invite": {
+  "en": "Jugnu class round: nothing about your class is ever reported by name.\nYour class came up in the draw for this term's round. On your phone, each child present plays two short tap games in their turn, about a minute a turn, with no microphone. You can pause and continue another day.\nIf this term does not suit you, tap \"Not this term\" on the card. That is completely fine.\nTap Open to see how it works.",
+  "ur": "جگنو کلاس راؤنڈ: آپ کی کلاس کی کوئی بات کبھی نام کے ساتھ رپورٹ نہیں کی جاتی۔\nاس ٹرم کے راؤنڈ کی قرعہ اندازی میں آپ کی کلاس کا نام آیا ہے۔ کلاس میں موجود ہر بچے کی باری پر آپ کے فون پر ٹیپ والے دو چھوٹے کھیل ہوتے ہیں، ہر باری تقریباً ایک منٹ کی، مائیک کے بغیر۔ چاہیں تو روک کر کسی اور دن جاری رکھیں۔\nاگر یہ ٹرم آپ کے لیے مناسب نہ ہو تو کارڈ پر «اس ٹرم نہیں» دبا دیں۔ یہ بالکل ٹھیک ہے۔\nیہ کیسے ہوتا ہے، دیکھنے کے لیے «کھولیں» دبائیں۔",
+  "surface": "wa.body",
+  "cap_cp": 1024,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 401,
+   "ur": 431
+  }
+ },
+ "bot.round.open_btn": {
+  "en": "Open",
+  "ur": "کھولیں",
+  "surface": "wa.button",
+  "cap_cp": 20,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 4,
+   "ur": 6
+  }
+ },
+ "st.what_not": {
+  "en": "What this is not: not a sample of all children; not on the ASER or EGRA scale; played at home on a phone, sometimes with help.",
+  "ur": "یہ کیا نہیں ہے: تمام بچوں کا نمونہ نہیں؛ ⁦ASER⁩ یا ⁦EGRA⁩ کے پیمانے پر نہیں؛ گھر پر فون پر کھیلا گیا، کبھی کبھی کسی کی مدد سے۔",
+  "surface": "doc.statement",
+  "cap_cp": 200,
+  "switch": "none (document, not a screen)",
+  "cp": {
+   "en": 126,
+   "ur": 126
+  }
+ },
+ "st.no_trend": {
+  "en": "This snapshot shows no change over time.",
+  "ur": "یہ ایک وقت کی جھلک ہے؛ اس سے وقت کے ساتھ تبدیلی کا پتا نہیں چلتا۔",
+  "surface": "doc.statement",
+  "cap_cp": 80,
+  "switch": "none (document, not a screen)",
+  "cp": {
+   "en": 40,
+   "ur": 65
+  }
+ },
+ "st.reach": {
+  "en": "Children who played this month: {n} of about {enrolled} enrolled in grades 2 to 5.",
+  "ur": "اس مہینے کھیلنے والے بچے: جماعت ۲ سے ۵ میں داخل تقریباً {enrolled} میں سے {n}۔",
+  "surface": "doc.statement",
+  "cap_cp": 120,
+  "switch": "none (document, not a screen)",
+  "cp": {
+   "en": 79,
+   "ur": 75
+  }
+ },
+ "jg.keep.ask_grownup": {
+  "en": "Ask a grown-up this one.",
+  "ur": "یہ سوال گھر کے بڑوں سے پوچھیں۔",
+  "surface": "page.trail",
+  "cap_cp": 40,
+  "switch": "web_quiz_challenge_keep_audio",
+  "cp": {
+   "en": 24,
+   "ur": 30
+  },
+  "retired": true
+ },
+ "jg.round.c_assent": {
+  "en": "Two games, just tapping. If you'd rather not, that's fine.",
+  "ur": "دو کھیل ہیں، بس دبانا ہے۔ نہ کھیلنا چاہیں تو کوئی بات نہیں۔",
+  "surface": "page.round",
+  "cap_cp": 60,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 58,
+   "ur": 59
+  }
+ },
+ "jg.round.c_next_say": {
+  "en": "Not sure? That's fine. Tap the arrow.",
+  "ur": "نہیں پتہ؟ کوئی بات نہیں۔ آگے کا تیر دبائیں۔",
+  "surface": "page.round",
+  "cap_cp": 50,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 37,
+   "ur": 43
+  }
+ },
+ "jg.round.t_thanks": {
+  "en": "Your class took part. Thank you!",
+  "ur": "آپ کی کلاس نے حصہ لیا۔ شکریہ!",
+  "surface": "page.teacher",
+  "cap_cp": 40,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 32,
+   "ur": 29
+  }
+ },
+ "jg.g1.how_many": {
+  "en": "How many?",
+  "ur": "کتنے ہیں؟",
+  "surface": "page.trail",
+  "cap_cp": 20,
+  "switch": "web_quiz_challenge_g1",
+  "cp": {
+   "en": 9,
+   "ur": 9
+  }
+ },
+ "jg.keep.notice": {
+  "en": "Jugnu keeps this reading to see how {name} is learning. One checker may listen. A grown-up can remove the phone link any time by sending STOP on WhatsApp.",
+  "ur": "جگنو یہ ریکارڈنگ رکھتا ہے تاکہ دیکھا جا سکے کہ ⁨{name}⁩ کی پڑھائی کیسی چل رہی ہے۔ اسے صرف ایک جانچنے والا سن سکتا ہے۔ واٹس ایپ پر ⁦STOP⁩ بھیج کر کسی بھی وقت یہ فون نمبر ہٹایا جا سکتا ہے۔",
+  "surface": "page.trail",
+  "cap_cp": 200,
+  "switch": "web_quiz_challenge_keep_audio",
+  "cp": {
+   "en": 168,
+   "ur": 200
+  }
+ },
+ "jg.keep.notice_ok": {
+  "en": "Got it",
+  "ur": "ٹھیک ہے",
+  "surface": "page.trail",
+  "cap_cp": 12,
+  "switch": "web_quiz_challenge_keep_audio",
+  "cp": {
+   "en": 6,
+   "ur": 7
+  }
+ },
+ "jg.t.link_renew_confirm": {
+  "en": "The old link will stop working for everyone. Forward the new one to the class group.",
+  "ur": "پرانا لنک سب کے لیے بند ہو جائے گا۔ نیا لنک کلاس گروپ میں بھیج دیں۔",
+  "surface": "page.teacher",
+  "cap_cp": 120,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 84,
+   "ur": 67
+  }
+ },
+ "jg.t.link_renew_go": {
+  "en": "Make a new link",
+  "ur": "نیا لنک بنائیں",
+  "surface": "page.teacher",
+  "cap_cp": 24,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 15,
+   "ur": 14
+  }
+ },
+ "jg.t.link_renew_keep": {
+  "en": "Keep this link",
+  "ur": "یہی لنک رکھیں",
+  "surface": "page.teacher",
+  "cap_cp": 24,
+  "switch": "web_quiz_class_link",
+  "cp": {
+   "en": 14,
+   "ur": 13
+  }
+ },
+ "jg.round.t_paused": {
+  "en": "{done} of {total} played. Continue another day.",
+  "ur": "{total} میں سے {done} بچوں نے کھیل لیا۔ کسی اور دن جاری رکھیں۔",
+  "surface": "page.teacher",
+  "cap_cp": 80,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 40,
+   "ur": 55
+  }
+ },
+ "jg.round.t_give_to": {
+  "en": "Give the phone to {name}?",
+  "ur": "فون ⁨{name}⁩ کو دیں؟",
+  "surface": "page.round",
+  "cap_cp": 40,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 39,
+   "ur": 34
+  }
+ },
+ "jg.round.t_yes": {
+  "en": "Yes",
+  "ur": "ہاں",
+  "surface": "page.round",
+  "cap_cp": 8,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 3,
+   "ur": 3
+  }
+ },
+ "jg.round.t_not_yet": {
+  "en": "Not yet",
+  "ur": "ابھی نہیں",
+  "surface": "page.round",
+  "cap_cp": 12,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 7,
+   "ur": 9
+  }
+ },
+ "jg.bind.try_again": {
+  "en": "That didn't work just now. Please tap again.",
+  "ur": "ابھی یہ نہیں ہو سکا۔ دوبارہ دبائیں۔",
+  "surface": "page.bind",
+  "cap_cp": 60,
+  "switch": "web_quiz_phone_bind",
+  "cp": {
+   "en": 44,
+   "ur": 35
+  }
+ }
+}
