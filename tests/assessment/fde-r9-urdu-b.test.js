@@ -186,6 +186,9 @@ describe('urdu backstop: an authored maxim in model text', () => {
     ['honesty, not faith', 'نتیجہ: ایمان داری سب سے اچھی عادت ہے۔'],
     ['the paper\'s own book page', `استاد نے کہا: ${BOOK_LINE}`],
     ['a child\'s morning, narrated', 'احمد صبح اٹھ کر نماز پڑھتا اور اس کے بعد ناشتہ کرتا تھا۔'],
+    ['a first-person future', 'علی: کل میں مسجد جا کر نماز پڑھوں گا اور پھر کھیلوں گا۔'],
+    ['a plural future', 'ہم عید کی نماز پڑھیں گے اور پھر دادی کے گھر جائیں گے۔'],
+    ['duty, not obligation', 'نماز کے بعد اس نے پودوں کو پانی دینا اپنا فرض سمجھا۔'],
     ['a routine, narrated with a zero-width joiner', 'دادا جان نماز\u200cپڑھ کر سیر کو جاتے ہیں اور روزہ رکھتے ہیں۔'],
   ])('not held: %s', async (_name, text) => {
     book();

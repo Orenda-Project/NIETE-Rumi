@@ -976,7 +976,8 @@ const HELD_TERMS_SST = Object.freeze([
 // a religious maxim, hadith, verse or act of worship. Matched on _heldNorm text, whole words. The
 // operator-allowed classes («اللہ تعالیٰ کرے», «میری دعا ہے کہ», greetings, «دعا» in a letter) are
 // not in the list; «ایمان داری» (honesty) is not «ایمان کا حصہ».
-const URDU_EXHORT = '(?:و|یں|ا کرو|ا کریں|نا چاہی|نی چاہی|نے چاہی)';
+// The imperative and the obligation; «پڑھوں گا», «پڑھیں گے», «پڑھو گے» are a future, not an exhortation.
+const URDU_EXHORT = '(?:و(?!ں| گ[ےیا])|یں(?! گ[ےیا])|ا کرو|ا کریں|نا چاہی|نی چاہی|نے چاہی)';
 const HELD_TERMS_URDU_AUTHORED = Object.freeze([
   { term: 'ایمان کا حصہ', pattern: 'ایمان کا حصہ' },
   { term: 'نصف ایمان', pattern: 'نصف ایمان' },
@@ -989,7 +990,8 @@ const HELD_TERMS_URDU_AUTHORED = Object.freeze([
   // a narrated routine («صبح اٹھ کر نماز پڑھتا») is the prompt line's, not a maxim.
   { term: 'نماز پڑھ', pattern: `نماز ?پڑھ${URDU_EXHORT}`, open: true },
   { term: 'روزہ رکھ', pattern: `روز[ہے] ?رکھ${URDU_EXHORT}`, open: true },
-  { term: 'فرض', pattern: '(?:نماز|روز[ہے])[^۔.!?؟]{0,40}?(?:فرض|لازم)' },
+  // «فرض» is also "duty" («اپنا فرض سمجھا»): only the obligation predicate is held.
+  { term: 'فرض', pattern: '(?:نماز|روز[ہے])[^۔.!?؟]{0,40}?(?:پر (?:فرض|لازم)|(?:فرض|لازم) ہ(?:ے|یں))' },
 ].map(({ term, pattern, open }) => Object.freeze({
   term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})${open ? '' : '(?![\\p{L}\\p{N}])'}`, 'u'),
 })));
