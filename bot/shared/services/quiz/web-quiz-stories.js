@@ -247,6 +247,13 @@ function bandOf(bookId, row) {
   return { url, w: Number(band.w), h: Number(band.h), box: band.box.map(Number) };
 }
 
+/** The printed lines ({i0, i1, box} in 720-px page px): the reader zooms to a line even where word boxes are unsure. */
+function linesOf(lines) {
+  const ok = (Array.isArray(lines) ? lines : []).filter((l) => l && Number.isInteger(l.i0) && Number.isInteger(l.i1) && l.i1 >= l.i0 && Array.isArray(l.box) && l.box.length === 4)
+    .map((l) => ({ i0: l.i0, i1: l.i1, box: l.box.map(Number) }));
+  return ok.length ? { lines: ok } : {};
+}
+
 /** The spoken question + options ({q, o[]} file names under the book): urls, or null until every clip exists. */
 function qAudio(bookId, a) {
   if (!a || typeof a !== 'object' || !Array.isArray(a.o)) return null;
@@ -310,6 +317,7 @@ async function bookData(id) {
         n: p.n, image: { url: fileUrl(b.id, p.image_file), w: p.image_w, h: p.image_h }, text_band: f.band ? bandOf(b.id, p) : null,
         text: p.text || '', words: mergeWords(p.words, v && urls[i] ? v.timings : []),
         audio: v && urls[i] ? { url: urls[i], ms: Number(v.ms) || 0 } : null, boxes_ok: Boolean(p.boxes_ok), is_picture: Boolean(p.is_picture),
+        ...linesOf(p.lines),
       };
     }),
     // page_ref: the page that answers it ("Look back" after a miss); it says where to look, not which option is right.

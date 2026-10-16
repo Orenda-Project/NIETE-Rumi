@@ -221,6 +221,13 @@ describe('the book', () => {
     ]);
     expect(JSON.stringify(out)).not.toMatch(/answer_i|review_status|"answer"/);
   });
+  test('per-line boxes pass through when the page has them ({i0, i1, box}); absent or junk → no key', async () => {
+    seed();
+    fake.db.story_pages.find((p) => p.n === 2).lines = [{ i0: 0, i1: 3, box: [80, 890, 400, 50] }, { i0: 'x' }];
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out.pages[1].lines).toEqual([{ i0: 0, i1: 3, box: [80, 890, 400, 50] }]);
+    expect(out.pages[0]).not.toHaveProperty('lines');
+  });
   test('question audio: {q, o[]} on the /s/ route when the clips exist, null otherwise', async () => {
     seed();
     fake.db.story_questions[0].audio = { q: 'q1-ffff0001.webp'.replace('webp', 'ogg'), o: ['q1o1-ffff0002.ogg', 'q1o2-ffff0003.ogg', 'q1o3-ffff0004.ogg'] };
