@@ -7,7 +7,7 @@
  *                opened in the app (niete_lp_opens, k5). The same lesson twice counts once.
  *   recordings   graded class recordings (coaching_sessions, observation_type null, scores present).
  *   daysUsed     distinct PKT calendar days with a message, a lesson plan, or a recording.
- *   thumbs       "Do you agree?" answers on the week's reports (coaching_quality_metrics, 1 agree, 0 not).
+ *   thumbs       "What do you think of this report?" answers on the week's reports (coaching_quality_metrics, 1 accurate, 0 not).
  *   active       any row at all, weekend included.
  *
  * bd-v0toag.32.1 (Amena, 2026-10-16): the rows run from the Saturday before the school week. Saturday and

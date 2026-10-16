@@ -64,16 +64,16 @@ const req = (srv, method, path, form) => new Promise((resolve, reject) => {
   r.end(body);
 });
 const tok = () => require('../../bot/shared/services/coaching/report-link-token').signReportLink({ sessionId: S, userId: U });
-const HELP = 'Don’t agree? Your coach will come and see your class';
+const HELP = 'Report not accurate? Your coach will come and see your class';
 const NOTE = `data:audio/webm;base64,${Buffer.from('opus-bytes').toString('base64')}`;
 
 describe('the card', () => {
-  test('C/D: "Do you agree with this report?" Yes / No, and the link to her coach, before she answers', async () => {
+  test('C/D: "What do you think of this report?" Accurate / Not accurate, and the link to her coach, before she answers', async () => {
     const t = tok();
     const res = await req(await app({ group: 'D' }), 'GET', `/cr/${t}`);
-    expect(res.body).toContain('Do you agree with this report?');
-    expect(res.body).toContain('>👍 Yes<');
-    expect(res.body).toContain('>👎 No<');
+    expect(res.body).toContain('What do you think of this report?');
+    expect(res.body).toContain('>Accurate<');
+    expect(res.body).toContain('>Not accurate<');
     expect(res.body).not.toContain('useful to you');
     expect(res.body).toContain(HELP);
     expect(res.body).toContain(`href="/cr/${t}/coach"`);
@@ -104,7 +104,7 @@ describe('the card', () => {
   test('once she has sent it, the card says so and does not ask again', async () => {
     const res = await req(await app(), 'GET', `/cr/${tok()}?coach=sent`);
     expect(res.body).toContain('✓ Your coach has been told and will come to see your class.');
-    expect(res.body).not.toContain('Do you agree with this report?');
+    expect(res.body).not.toContain('What do you think of this report?');
   });
 });
 

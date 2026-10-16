@@ -214,30 +214,31 @@ const UX_STRINGS = {
 
   // ─── post-coaching survey ─────────────────────────────────────────────────
   // Sent right after the voice debrief, to groups A and B of the v10 test only
-  // (bd-v0toag.49); since bd-v0toag.38.9 it asks "Do you agree?", the same
-  // question C and D see on their report page. The negative path is the point of the whole survey: an
+  // (bd-v0toag.49); C and D see the same question on their report page. Since bd-v0toag.79 it asks
+  // what she thinks (Accurate / Not accurate), not "Do you agree?", which led the answer; still stored
+  // 1 / 0. The negative path is the point of the whole survey: an
   // unexplained thumbs-down tells us nothing, so it asks one plain question.
   // The two button titles are capped by WhatsApp at 20 CODE POINTS and an
-  // emoji costs two, so they are deliberately short in both languages.
+  // emoji costs two, so they are deliberately short in both languages and carry none.
   coachingSurveyAsk: {
-    en: 'Do you agree with this report?',
-    ur: 'کیا آپ اس رپورٹ سے متفق ہیں؟',
+    en: 'What do you think of this report?',
+    ur: 'اس رپورٹ کے بارے میں آپ کی کیا رائے ہے؟',
   },
   coachingSurveyYesButton: {
-    en: '👍 Yes',
-    ur: '👍 ہاں',
+    en: 'Accurate',
+    ur: 'درست',
   },
   coachingSurveyNoButton: {
-    en: '👎 No',
-    ur: '👎 نہیں',
+    en: 'Not accurate',
+    ur: 'درست نہیں',
   },
   coachingSurveyThanks: {
     en: 'Thank you.',
     ur: 'شکریہ۔',
   },
   coachingSurveyAskReason: {
-    en: 'Thanks for telling us. What didn’t seem right? (one line is enough)',
-    ur: 'بتانے کا شکریہ۔ کیا ٹھیک نہیں لگا؟ (ایک سطر کافی ہے)',
+    en: 'Thanks for telling us. What wasn’t accurate? (one line is enough)',
+    ur: 'بتانے کا شکریہ۔ کیا درست نہیں تھا؟ (ایک سطر کافی ہے)',
   },
   coachingSurveyReasonThanks: {
     en: 'Got it, thank you — this makes the next report better.',
