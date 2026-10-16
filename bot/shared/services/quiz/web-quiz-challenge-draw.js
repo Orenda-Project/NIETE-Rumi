@@ -21,6 +21,10 @@ const { logError } = require('../../utils/logger');
 const STOPS = Object.freeze(['missing', 'read', 'listen', 'bigger']);
 const WEIGHTS = Object.freeze({ w1: Object.freeze({ reference: 0.35, provisional_each: 0.15, provisional_max: 2 }) });
 const DRAWABLE = new Set(['calibrated', 'provisional']);
+// ITEMS §1.1 provenance, §8.1: the counted pool (mode 'check') admits only these; 'generated' is practice and Story Time only
+const COUNTED_PROVENANCE = new Set(['published_calibrated', 'reviewer_levelled']);
+/** A passage the counted pool may draw: a cited published instrument or a reviewer-levelled passage (the one rule). */
+const isCountedSource = (r) => !!r && COUNTED_PROVENANCE.has(r.provenance);
 const FINAL = new Set(['scored', 'failed']);
 const LAUNCH_SET = 'A';   // the bigger sets until clones exist: bigger.G3.A / bigger.G5.A in every period
 // "A new story is on its way." (copy deck key jg.next.on_its_way; not yet in ux-strings, so inline here, verbatim)
@@ -155,7 +159,8 @@ function ownYearCode(now = new Date()) {
 const ms = (t) => (t == null ? NaN : new Date(t).getTime());
 
 /** ITEMS §5.2, ordered: the reference first, then by id. */
-function eligible({ rows, seenIds, kind, lang, band, now = new Date() } = {}) {
+// `counted` (the CHECK draw under web_quiz_challenge_sourced_only): only sourced passages (isCountedSource)
+function eligible({ rows, seenIds, kind, lang, band, now = new Date(), counted = false } = {}) {
   const seen = seenIds instanceof Set ? seenIds : new Set(seenIds || []);
   const all = rows || [];
   // twins leave together: a seen passage removes the passage it is a twin of, and every passage that is its twin
@@ -167,7 +172,8 @@ function eligible({ rows, seenIds, kind, lang, band, now = new Date() } = {}) {
   const t = ms(now);
   return all
     .filter((r) => r.pool === 'check' && r.kind === kind && r.lang === lang && Number(r.band) === Number(band)
-      && DRAWABLE.has(r.status) && ms(r.released_at) <= t && r.withdrawn_at == null && !out.has(r.passage_id))
+      && DRAWABLE.has(r.status) && ms(r.released_at) <= t && r.withdrawn_at == null && !out.has(r.passage_id)
+      && (!counted || isCountedSource(r)))
     .sort((a, b) => (Number(!!b.is_reference) - Number(!!a.is_reference)) || String(a.passage_id).localeCompare(String(b.passage_id)));
 }
 
@@ -223,9 +229,9 @@ function pick(weighted, seedHex) {
 }
 
 /** The draw at a band, one band lower when exhausted, then on its way (ITEMS §5.4–5.5). */
-function drawPassage({ rows, seenIds, kind, lang, band, band_reason: reason, now, seed, weightsV = 'w1' } = {}) {
+function drawPassage({ rows, seenIds, kind, lang, band, band_reason: reason, now, seed, weightsV = 'w1', counted = false } = {}) {
   const tryBand = (b, why, outcome) => {
-    const E = eligible({ rows, seenIds, kind, lang, band: b, now });
+    const E = eligible({ rows, seenIds, kind, lang, band: b, now, counted });
     if (!E.length) return null;
     const weighted = weigh(E, weightsV);
     const got = pick(weighted, seed);
@@ -284,6 +290,7 @@ const TTL_MS = 30 * 1000;
 const cache = new Map();
 let periodMissingDay = null;
 const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|schema cache/i.test(String(e.message || '')));
+const isMissingColumn = (e) => !!e && e.code === '42703';
 
 async function cached(key, read) {
   const c = cache.get(key);
@@ -293,13 +300,22 @@ async function cached(key, read) {
   return v;
 }
 
-/** The passage registry rows the draw needs (30-s cache); [] when the table is absent or unreadable. */
+const PASSAGE_COLS = 'passage_id, lang, kind, band, pool, status, is_reference, released_at, withdrawn_at, twin_of';
+
+/**
+ * The passage registry rows the draw needs (30-s cache); [] when the table is absent or unreadable. On a tier without
+ * the provenance column (42703: web_quiz_challenge_passages_provenance.sql not applied) the rows are read without it and
+ * marked `provenanceMissing`: the counted-pool filter then fails closed (serveV2), every other reader is as before.
+ */
 function registryPassages() {
   return cached('passages', async () => {
-    const { data, error } = await supabase.from('challenge_passages')
-      .select('passage_id, lang, kind, band, pool, status, is_reference, released_at, withdrawn_at, twin_of');
-    if (error) { logError('web_quiz.ch_registry_read_failed', { table: 'challenge_passages', missing: isMissingTable(error), code: error.code || null }); return []; }
-    return data || [];
+    const { data, error } = await supabase.from('challenge_passages').select(`${PASSAGE_COLS}, provenance`);
+    if (!error) return data || [];
+    logError('web_quiz.ch_registry_read_failed', { table: 'challenge_passages', missing: !isMissingColumn(error) && isMissingTable(error), code: error.code || null });
+    if (!isMissingColumn(error)) return [];
+    const again = await supabase.from('challenge_passages').select(PASSAGE_COLS);
+    if (again.error) { logError('web_quiz.ch_registry_read_failed', { table: 'challenge_passages', missing: isMissingTable(again.error), code: again.error.code || null }); return []; }
+    return Object.assign((again.data || []).map(({ provenance, ...r }) => r), { provenanceMissing: true });
   });
 }
 
@@ -508,5 +524,6 @@ module.exports = {
   rowServedId, seenIdsOf, exposureNo, anchorExposureNo, anchorServesAny, anchorPrev2, countedThisPeriod, recordAtServe,
   eligible, weigh, mulberry32, pick, drawPassage, periodIdFor, biggerSetFor, tryoutItem, trailState,
   registryPassages, periods, notePeriodMissing, adminFields, yearCode, writeChildIdentity, isoWeekPkt, activeClassOf, lightLit, rungsOf, openBand, fixedGradeOf, childRows, logDraw, trailStateFor, pickOf,
+  isCountedSource,
   __reset,
 };

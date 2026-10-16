@@ -183,17 +183,23 @@ const missingOn = () => settingOn(MISSING_FLAG_KEY);
 //   _period  the record rule "one record per canonical child × stop × PKT calendar month" (read-side)
 //   _pool    the child-visible draw: the A1 warm-up, the band draw, the lower-band fallback, "on its way",
 //            the period's bigger set, the silent try-out item
+//   _sourced_only  (child of _pool) the counted draw takes only sourced passages: provenance published_calibrated or
+//            reviewer_levelled (ITEMS §8.1); generated passages stay practice and Story Time stock
 const V2_FLAG_KEY = 'web_quiz_challenge_v2';
 const PERIOD_FLAG_KEY = 'web_quiz_challenge_period';
 const POOL_FLAG_KEY = 'web_quiz_challenge_pool';
+const SOURCED_ONLY_FLAG_KEY = 'web_quiz_challenge_sourced_only';
 const v2On = () => settingOn(V2_FLAG_KEY);
 const periodOn = () => settingOn(PERIOD_FLAG_KEY);
 const poolOn = () => settingOn(POOL_FLAG_KEY);
 const rulesOf = async () => {
   const record = await recordOn();
   const v2 = await v2On();
-  return { record, guard: await readGuardOn(), items: await itemsOn(), trail: record && (await trailOn()), missing: record && (await missingOn()),
-    v2, period: v2 && (await periodOn()), pool: v2 && (await poolOn()) };
+  const head = { record, guard: await readGuardOn(), items: await itemsOn(), trail: record && (await trailOn()), missing: record && (await missingOn()),
+    v2, period: v2 && (await periodOn()) };
+  const pool = v2 && (await poolOn());
+  // _sourced_only is read only when its parent _pool is on (and so _v2)
+  return { ...head, pool, sourcedOnly: pool && (await settingOn(SOURCED_ONLY_FLAG_KEY)) };
 };
 const optionAudioOn = () => settingOn(OPTION_AUDIO_FLAG_KEY);
 // The payload says only which rules are on (nothing when none is: today's payload).
@@ -1082,7 +1088,11 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     set = /\.A$/.test(itemSetId) ? 'A' : null;
   } else if (pool && mode === 'check') {
     const db = D.drawBand({ fixedGrade: fixed.grade, openBand: ob.band, lastCountedRead: D.lastCountedRead(rows) });
-    const d = D.drawPassage({ rows: (await D.registryPassages()).filter((r) => r.pool === 'check'), seenIds: seen, kind: ex, lang: w.lang, band: db.band, band_reason: db.band_reason, now: new Date(now), seed });
+    const registry = await D.registryPassages();
+    // fail closed: the counted pool needs the provenance column; without it nothing is drawn, written or logged
+    if (rules.sourcedOnly && registry.provenanceMissing) return { on_its_way: true };
+    const d = D.drawPassage({ rows: registry.filter((r) => r.pool === 'check'), seenIds: seen, kind: ex, lang: w.lang, band: db.band, band_reason: db.band_reason, now: new Date(now), seed,
+      ...(rules.sourcedOnly ? { counted: true } : {}) });
     drawLog = drawRow({ open_band: db.open_band, band: d.band, band_reason: d.band_reason, eligible: d.eligible, eligible_n: d.eligible_n, ref_eligible: d.ref_eligible, p: d.p, served_id: d.served_id, outcome: d.outcome, seed: d.seed });
     if (d.outcome === 'on_its_way') {
       await D.logDraw({ ...drawLog, run_id: null });
@@ -2035,6 +2045,7 @@ module.exports = {
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
+  SOURCED_ONLY_FLAG_KEY,   // the counted draw takes sourced passages only (child of POOL_FLAG_KEY)
   updateRunMeta,   // the meta compare-and-set write, reused by the stuck-run sweeper (web-quiz-challenge-sweeper.js)
   __reset,
 };
