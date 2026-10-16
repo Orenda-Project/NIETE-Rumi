@@ -135,7 +135,7 @@ describe('the story shelf', () => {
   test('switch off: 404 stories_off and no book is read', async () => {
     seed({ on: false });
     await expect(Stories.shelf({ uid: TEACHER, grade: 2, lang: 'en' })).rejects.toMatchObject({ status: 404, body: { error: 'stories_off' } });
-    expect(fake.calls.some((c) => c.t === 'story_books')).toBe(false);
+    expect(fake.calls.some((c) => c.table === 'story_books')).toBe(false);
   });
   test('a teacher-home token names the teacher; anything else is no one', () => {
     expect(Stories.teacherOf(th())).toBe(TEACHER);
@@ -251,7 +251,7 @@ describe('the send', () => {
   test('a send never writes a challenge passage (the Challenge draw, the Book and the week story never see a storybook)', async () => {
     await Stories.share({ uid: TEACHER, storyId: B(1) });
     expect(db.challenge_passages).toHaveLength(0);
-    expect(fake.calls.some((c) => c.t === 'challenge_passages')).toBe(false);
+    expect(fake.calls.some((c) => c.table === 'challenge_passages')).toBe(false);
   });
 });
 
@@ -657,7 +657,7 @@ describe('the class report of a story send', () => {
     expect(text).toContain('Ali Testwala: 🎧 1 page · 🗣️ 1 page · ⭐ 1/4');
     expect(db.quiz_share_codes[0].report_sent_at).toBeTruthy();
     // a story has no question rows and no guidance writer
-    expect(fake.calls.some((c) => c.t === 'quiz_answers')).toBe(false);
+    expect(fake.calls.some((c) => c.table === 'quiz_answers')).toBe(false);
   });
   test('with the teacher\'s web report on, the story report carries its link (as every report does)', async () => {
     await Stories.share({ uid: TEACHER, storyId: B(1) });
