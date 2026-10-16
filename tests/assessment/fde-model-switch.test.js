@@ -162,7 +162,7 @@ describe('the FDE model switch', () => {
     await Gen.generatePatternExam(ARGS('science'));
     // One warm call for the prefix all three sections share.
     expect(mockWarm).toHaveBeenCalledTimes(1);
-    expect(mockWarm.mock.calls[0][0].max_tokens).toBe(0);
+    expect(mockWarm.mock.calls[0][0].max_tokens).toBe(1);
     for (const [params] of mockCreate.mock.calls) {
       const [system, user] = params.messages;
       const today = plain[sectionOf(params)];
