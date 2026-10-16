@@ -212,3 +212,20 @@ describe('6. Science Q2(b): every sub-question is marked out of 2.5', () => {
     expect(scheme).not.toMatch(/Hearing and touch\. K?1\b/);
   });
 });
+
+describe('7. a slot head that names its item names it in the scheme too', () => {
+  test('English Q5 / Q6 scheme heads print the poem and topic, never "{q}"', () => {
+    const raw = { unseen: { subjective: {
+      'Rhyming Words': [{ slot: 'english.C.Q5', question: 'The Kite', passage: 'A kite so high\nUp in the sky\nIt flies so far\nNear every star', answer: 'high – sky; far – star', blooms: 'Remember' }],
+      'Mind Map': [{ slot: 'english.C.Q6', question: 'Healthy Food', answer: 'fruit, vegetables, milk, water, rest', blooms: 'Create' }],
+    } } };
+    const laid = applyLayout(raw, P.english, FDE, { now: NOW }).examJson;
+    const ex = normaliseScheme(laid).examJson;
+    const scheme = visible(R.renderMarkingScheme({ examJson: ex, grade: 5, subject: 'english', allowShort: true }));
+    const paper = visible(R.renderPaper({ examJson: ex, grade: 5, subject: 'english', allowShort: true }));
+    expect(scheme).not.toContain('{q}');
+    expect(scheme).toContain('Write down FOUR rhyming words from the poem “The Kite”');
+    expect(scheme).toContain('Develop a mind map about “Healthy Food”.');
+    expect(paper).toContain('Write down FOUR rhyming words from the poem “The Kite”');
+  });
+});
