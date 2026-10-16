@@ -1,7 +1,8 @@
 'use strict';
 /**
  * The modules the one door uses when they are on the branch, and does without when they are not — each built by its
- * own change: the join page, the teacher home's signer, the quiz-maker page's signer, the sandbox walk-through.
+ * own change: the join page, the teacher home's signer, the quiz-maker page's signer, the sandbox walk-through
+ * (`walk-persona`: `bot/.gitignore` ignores `test-*.js`).
  * Looked up by NAME at call time (so a module that lands later is picked up with no edit here, and no file requires a
  * path that may not exist yet). A module that is absent answers null; a module that is present but throws while loading
  * throws (a broken module is loud, never silently "absent").
@@ -15,7 +16,7 @@ const PATHS = Object.freeze({
   studentJoin: path.join(__dirname, '..', 'quiz', 'web-quiz-student-join'),
   teacherHomeToken: path.join(__dirname, 'teacher-home.token'),
   makerToken: path.join(__dirname, 'maker.token'),
-  testPersona: path.join(__dirname, 'test-persona'),
+  testPersona: path.join(__dirname, 'walk-persona'),
 });
 let stand = {};
 
