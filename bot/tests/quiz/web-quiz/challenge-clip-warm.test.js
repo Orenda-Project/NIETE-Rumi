@@ -202,21 +202,21 @@ describe('a run', () => {
       expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: 200, missing: 104, missing_listen: 104, missing_story: 0, w: 's' }]]);   // every clip here is a check-pool listening story
       // the rest were asked of the store, never recorded
       expect(r2.headObject).toHaveBeenCalledTimes(200);
-      expect(Ch.clipsLeft()).toBeGreaterThanOrEqual(CW.SERVE_HEADROOM);
+      expect(Ch.clipsLeft(NOW)).toBeGreaterThanOrEqual(CW.SERVE_HEADROOM);
     } finally { done(); }
   });
 
   test('the serve headroom: with the shared counter already at 100 (28 left ≤ 32) the warm records nothing; all missing', async () => {
     // 100 recordings by the shared recorder (as a child's first serves would spend them)
-    for (let i = 0; i < 100; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en');
-    expect(Ch.clipsLeft()).toBe(28);
+    for (let i = 0; i < 100; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en', { now: NOW });
+    expect(Ch.clipsLeft(NOW)).toBe(28);
     tts.synthesize.mockClear();
     const done = coldStock(10);
     try {
       const out = await CW.warmClips({ now: NOW });
       expect(tts.synthesize).not.toHaveBeenCalled();
       expect(out).toMatchObject({ n: 10, missing: 10, recorded: 0, capped: true });
-      expect(Ch.clipsLeft()).toBe(28);
+      expect(Ch.clipsLeft(NOW)).toBe(28);
     } finally { done(); }
   });
 });
@@ -258,8 +258,8 @@ describe('the order: check-pool listening clips first (the story, then its quest
 
   test('under the cap only the check-pool listening clips are recorded: with room for two recordings, the story and its first prompt; the read clips are the missing ones', async () => {
     // the shared recorder has 34 left (two above the serve headroom of 32)
-    for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM - 2; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en');
-    expect(Ch.clipsLeft()).toBe(CW.SERVE_HEADROOM + 2);
+    for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM - 2; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en', { now: NOW });
+    expect(Ch.clipsLeft(NOW)).toBe(CW.SERVE_HEADROOM + 2);
     tts.synthesize.mockClear();
     const listen = served('en.listen.2.setA');
     const read = served('en.read.2.setA');
@@ -291,8 +291,8 @@ describe('the story read-along: a released practice story\'s clip is warmed, Urd
   };
   // room for exactly `n` recordings: the shared recorder pre-filled to n above the serve headroom
   const roomFor = async (n) => {
-    for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM - n; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en');
-    expect(Ch.clipsLeft()).toBe(CW.SERVE_HEADROOM + n);
+    for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM - n; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en', { now: NOW });
+    expect(Ch.clipsLeft(NOW)).toBe(CW.SERVE_HEADROOM + n);
     tts.synthesize.mockClear();
     r2.uploadBuffer.mockClear();
     r2.headObject.mockClear();
@@ -398,7 +398,7 @@ describe('the daily guard (capped runs re-arm the hour, bounded)', () => {
 
   test('a capped run that recorded nothing closes the day at once; the next Pakistan day runs', async () => {
     // the shared recorder at 28 left (≤ the serve headroom of 32): the warm can record nothing
-    for (let i = 0; i < 100; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en');
+    for (let i = 0; i < 100; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en', { now: NOW });
     const done = coldStock(10);
     try {
       expect(await CW.daily({ now: NOW })).toMatchObject({ capped: true, recorded: 0, missing: 10 });
@@ -433,12 +433,12 @@ describe('the daily guard (capped runs re-arm the hour, bounded)', () => {
     const done = coldStock(200);
     try {
       expect(await CW.daily({ now: NOW })).toMatchObject({ capped: true, recorded: 96 });
-      expect(Ch.clipsLeft()).toBe(Ch.MAX_CLIP_RECORDINGS - 96);
+      expect(Ch.clipsLeft(NOW)).toBe(Ch.MAX_CLIP_RECORDINGS - 96);
       // the same day: the re-armed tick runs, records nothing (the allowance is spent) and closes the day
       expect(await CW.daily({ now: NOW + HOUR })).toMatchObject({ capped: true, recorded: 0 });
       expect(await CW.daily({ now: NOW + 2 * HOUR })).toBeNull();
       // the next Pakistan day: the allowance is back, the warm records again
-      expect(Ch.clipsLeft()).toBe(Ch.MAX_CLIP_RECORDINGS - 96);
+      expect(Ch.clipsLeft(NOW)).toBe(Ch.MAX_CLIP_RECORDINGS - 96);
       const next = await CW.daily({ now: NOW + DAY });
       expect(next).toMatchObject({ capped: true, recorded: 96 });
       expect(warmEvents()).toHaveLength(3);
@@ -462,13 +462,13 @@ describe('the daily guard (capped runs re-arm the hour, bounded)', () => {
       const listen = served('en.listen.2.setA');
       const read = served('en.read.2.setA');
       // room for two recordings: the story and the first prompt; the rest of the listening clips and every read clip missing
-      for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM - 2; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en');
+      for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM - 2; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en', { now: NOW });
       const capped = await CW.warmClips({ now: NOW });
       expect(capped).toMatchObject({ recorded: 2, missing: listen.length - 2 + read.length, missing_listen: listen.length - 2 });
       expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: listen.length + read.length, missing: listen.length - 2 + read.length, missing_listen: listen.length - 2, missing_story: 0, w: 's' }]]);
       // every listening clip there, only read clips missing → 0
       Ch.__reset();
-      for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/read/pre-${i}.ogg`, `Line ${i}`, 'en');
+      for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/read/pre-${i}.ogg`, `Line ${i}`, 'en', { now: NOW });
       const have = new Set(listen.map((c) => c.key));
       r2.headObject.mockImplementation(async (key) => ({ exists: have.has(key) }));
       logEvent.mockClear();
