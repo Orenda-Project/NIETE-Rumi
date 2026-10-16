@@ -84,6 +84,23 @@ export const auth = {
   resetPassword: async (password: string) => {
     const response = await api.post('/reset-password', { password });
     return response.data;
+  },
+
+  // bd-x7aprz.3 — sign in with a 6-digit code sent to her WhatsApp (no password needed).
+  requestCode: async (phoneNumber: string) => {
+    const response = await api.post('/request-code', { phoneNumber });
+    return response.data;
+  },
+
+  verifyCode: async (phoneNumber: string, code: string) => {
+    const response = await api.post('/verify-code', { phoneNumber, code });
+    return response.data;
+  },
+
+  // An old /portal/setup/<token> link signs her in (the token is spent); a dead one answers 400 LINK_EXPIRED.
+  setupSignIn: async (token: string) => {
+    const response = await api.post('/setup-sign-in', { token });
+    return response.data;
   }
 };
 
