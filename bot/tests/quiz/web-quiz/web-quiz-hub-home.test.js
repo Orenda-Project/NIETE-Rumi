@@ -145,6 +145,26 @@ describe('web_quiz_home_v3 on: the doors and the header', () => {
     expect((await Hub.hub(T.signHub([KID]), A)).doors.stories).toContainEqual({ kind: 'shelf' });
   });
 
+  test('stories and the v3 home both on (the boolean true): the payload carries stories AND home_v3/doors/head; neither overwrites the other', async () => {
+    const Stories = require('../../../shared/services/quiz/web-quiz-stories');
+    const TRUE = (k) => ({ key: k, value: true });
+    const books = { story_books: [], story_events: [] };
+    seed([...BASE_ON, TRUE('web_quiz_home_v3')], books);
+    Stories._reset();
+    const home = await Hub.hub(T.signHub([KID]), A);
+    expect(home).not.toHaveProperty('stories');
+    seed([...BASE_ON, TRUE('web_quiz_home_v3'), TRUE('web_quiz_stories')], books);
+    Stories._reset();
+    const both = await Hub.hub(T.signHub([KID]), A);
+    expect(both.stories).toEqual({ on: 1 });
+    ['home_v3', 'doors', 'head'].forEach((k) => expect(both).toHaveProperty(k));
+    expect(Object.keys(both).sort()).toEqual([...Object.keys(home), 'stories'].sort());
+    expect(both.home_v3).toEqual(home.home_v3);
+    expect(both.head).toEqual(home.head);
+    expect(both.doors.stories).toContainEqual({ kind: 'shelf' });
+    Stories._reset();
+  });
+
   test('head: day-dots are a count of days with a finish this week (never a number shown), jar only with the Book', async () => {
     seed(HOME_ON);
     const out = await Hub.hub(T.signHub([KID]), A);
