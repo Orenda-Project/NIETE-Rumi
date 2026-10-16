@@ -584,6 +584,33 @@ describe('the class report of a story send', () => {
     const [, text] = WhatsAppService.sendMessage.mock.calls[0];
     expect(text).toMatch(/https:\/\/quiz\.example\.com\/r\/[A-Za-z0-9._%-]+/);
   });
+  test('a page with no voice yet (the reader\'s miss row) is never a page listened: not in the counts, not on a child\'s line, not on the web report', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    const q = db.quizzes[0];
+    q.meta.first_sent_at = ago(30);
+    db.quiz_sessions.push(
+      { id: 's-a', quiz_id: q.id, share_code_id: sc.id, student_id: KID_A, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(20), device_ref: 'd1', correct_answers: 0, total_questions_answered: 0 },
+      { id: 's-b', quiz_id: q.id, share_code_id: sc.id, student_id: KID_B, student_name: 'Ali Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(19), device_ref: 'd2', correct_answers: 0, total_questions_answered: 0 },
+    );
+    const ev = (child, event, page_n, data = {}) => ({ child_id: child, book_id: B(1), page_n, event, data, at: ago(10) });
+    db.story_events.push(
+      ev(KID_A, 'story_opened', null), ev(KID_A, 'story_page_listened', 1),
+      ev(KID_A, 'story_page_listened', 2, { miss: true }), ev(KID_A, 'story_page_listened', 3, { miss: true }),
+      ev(KID_B, 'story_opened', null), ev(KID_B, 'story_page_listened', 1, { miss: true }), ev(KID_B, 'story_page_listened', 2, { miss: true }),
+      ev(KID_B, 'story_page_listened', 3, { miss: true }),
+    );
+    const Data = require('../../../shared/services/quiz/teacher-report.data');
+    const r = await Data.quizReport(TEACHER, q.id);
+    expect(r.story.counts.listened).toBe(1);
+    expect(r.story.children.find((c) => c.first === 'Zara').listened).toBe(1);
+    expect(r.story.children.find((c) => c.first === 'Ali').listened).toBe(0);
+    await Report.generate(sc.id, { reason: 'scheduled' });
+    const [, text] = WhatsAppService.sendMessage.mock.calls[0];
+    expect(text).toContain('1 listened');
+    expect(text).toContain('Zara Testwala: 🎧 1 page');
+    expect(text).not.toMatch(/Ali Testwala: 🎧 [1-9]/);
+  });
   test('nobody joined: told in story words, stamped as every report', async () => {
     await Stories.share({ uid: TEACHER, storyId: B(1) });
     const sc = db.quiz_share_codes[0];

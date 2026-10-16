@@ -22,7 +22,8 @@ function tally(events) {
   for (const e of events || []) {
     if (!e || !e.child_id) continue;
     const t = by.get(e.child_id) || { listened: new Set(), read: new Set(), questions: null, done: false, qAt: '' };
-    if (e.event === 'story_page_listened' && e.page_n != null) t.listened.add(Number(e.page_n));
+    // A page with no voice yet is logged as a listen with `miss` (the reader's voicing backlog): nothing was heard.
+    if (e.event === 'story_page_listened' && e.page_n != null && !(e.data && e.data.miss)) t.listened.add(Number(e.page_n));
     if (e.event === 'story_page_read' && e.page_n != null) t.read.add(Number(e.page_n));
     if (e.event === 'story_questions_done' && e.data && String(e.at || '') >= t.qAt) {
       t.qAt = String(e.at || '');
