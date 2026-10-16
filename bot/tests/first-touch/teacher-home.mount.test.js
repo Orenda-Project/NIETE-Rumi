@@ -17,10 +17,10 @@ const supabase = require('../../shared/config/supabase');
 const Flags = require('../../shared/services/first-touch/teacher-home.flags');
 const { mountTeacherHome, MOUNT_PATH } = require('../../shared/services/first-touch/teacher-home.mount');
 
-/** The file's code lines only: block comments and whole-line // comments removed. */
+/** The file's code lines only: whole-line // comments removed first (one may hold a path like /api/x/*), then block comments. */
 function codeOf(file) {
-  return fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
+  return fs.readFileSync(file, 'utf8').split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 test('bot/whatsapp-bot.js mounts the teacher home, live, before the app listens', () => {

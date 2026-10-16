@@ -162,7 +162,7 @@ describe('the shell', () => {
     expect(forged).toContain(tap('en'));
     [stale, forged].forEach((h) => expect(h.match(/<a /g)).toHaveLength(1));
     expect(str('th.open.wa', 'en')).toBe('Open WhatsApp');
-    expect(str('th.open.wa', 'ur')).toBe('واٹس ایپ کھولیں');
+    expect(str('th.open.wa', 'ur')).toBe('واٹس\u00a0ایپ کھولیں'); // the signed form: a no-break space inside the brand name
   });
 
   test('the maker\'s own message pages are byte-identical to the quiz-maker page\'s (no tap unless one is asked for)', () => {
@@ -282,7 +282,7 @@ describe('"Quiz this" through the existing job, and the poll', () => {
     const res = await post('/api/th/quiz/make', { t: tokenFor({ lang: 'ur' }), kind: 'lesson', id: 'lsn_lp_v8_abc' });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ quizId: OWN_QUIZ });
-    expect(start).toHaveBeenCalledWith(expect.objectContaining({ id: TEACHER.id }), 'abc', { phone: 'fixture-phone', quizLanguage: 'ur', via: 'list' });
+    expect(start).toHaveBeenCalledWith(expect.objectContaining({ id: TEACHER.id }), 'abc', { phone: 'fixture-phone', quizLanguage: 'ur', via: 'home' });
   });
 
   test('a recorded lesson whose quiz was already sent is never re-made', async () => {
@@ -308,7 +308,7 @@ describe('"Quiz this" through the existing job, and the poll', () => {
     await boot(deps);
     const t = tokenFor();
     expect(await (await post('/api/th/quiz/make', { t, kind: 'coaching', id: SESSION })).json()).toEqual({ quizId: OWN_QUIZ });
-    expect(deps.Transcript.startTranscriptLesson).toHaveBeenCalledWith(expect.objectContaining({ id: TEACHER.id }), SESSION, { phone: 'fixture-phone', quizLanguage: 'en', via: 'list' });
+    expect(deps.Transcript.startTranscriptLesson).toHaveBeenCalledWith(expect.objectContaining({ id: TEACHER.id }), SESSION, { phone: 'fixture-phone', quizLanguage: 'en', via: 'home' });
     expect(await (await get(`/api/th/quiz/${OWN_QUIZ}?t=${t}`)).json()).toEqual({ state: 'making', title: 'Plants' });
     const q = fake.db.quizzes.find((x) => x.id === OWN_QUIZ);
     Object.assign(q, { status: 'sent', meta: { student_message: 'Play: https://portal.example/q/PLANTS', share_code_id: OWN_CODE } });
@@ -527,6 +527,73 @@ describe('the top card for a teacher with a fresh lesson, and story sends', () =
   });
 });
 
+describe('the store and the lists when something fails', () => {
+  const R = () => require('../../shared/services/cache/railway-redis.service');
+  test('a prepared mark the store refuses: the minted code is retired and never claimed; the next open mints a fresh one', async () => {
+    seed();
+    await boot(deps);
+    const t = tokenFor();
+    R().set.mockImplementationOnce(async () => false);
+    const first = await (await get(`/api/th/home?t=${t}&g=4`)).json();
+    expect(first.primary && first.primary.send).toBeFalsy();
+    expect(fake.db.quiz_share_codes).toHaveLength(1);
+    expect(fake.db.quiz_share_codes[0].active).toBe(false);
+    const next = await (await get(`/api/th/home?t=${t}&g=4`)).json();
+    expect(next.primary.kind).toBe('video');
+    expect(next.primary.send.c).not.toBe(fake.db.quiz_share_codes[0].id);
+    expect(fake.db.quiz_share_codes.filter((c) => c.active !== false)).toHaveLength(1);
+  });
+
+  test('a store that is not there: no code is minted to show a message (nothing could mark it prepared)', async () => {
+    seed();
+    await boot(deps);
+    const was = R().isAvailable;
+    R().isAvailable = () => false;
+    try {
+      const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+      expect(home.primary && home.primary.send).toBeFalsy();
+      expect(fake.db.quiz_share_codes).toHaveLength(0);
+    } finally { R().isAvailable = was; }
+  });
+
+  test('the first open is never claimed on a store that could not say (setNX answers true when it fails)', async () => {
+    seed();
+    await boot(deps);
+    const t = tokenFor();
+    R().__keys.clear();
+    R().setNX.mockImplementationOnce(async () => true); // what the real client answers when the store is down
+    await get(`/api/th/home?t=${t}&g=4`);
+    await get(`/api/th/home?t=${t}&g=4`);
+    await get(`/api/th/home?t=${t}&g=4`);
+    const firsts = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => f.first);
+    expect(firsts).toEqual([false, true, false]);
+  });
+
+  test('codes that are not the teacher\'s own sends (a watch child, a class child\'s lesson code) are never a send and never reused', async () => {
+    seed();
+    const at = new Date().toISOString();
+    const until = new Date(Date.now() + 86400000).toISOString();
+    const WATCH = 'f0000000-0000-4000-8000-0000000000b1';
+    const LESSON = 'f0000000-0000-4000-8000-0000000000b2';
+    fake.db.quiz_share_codes.push(
+      { id: WATCH, code: 'WATCH1', quiz_id: qid(2), teacher_user_id: TEACHER.id, active: true, expires_at: until, created_at: at, invited_by_student_id: null, parent_share_code_id: 'f0000000-0000-4000-8000-0000000000r0' },
+      { id: LESSON, code: 'LESSN1', quiz_id: qid(2), teacher_user_id: TEACHER.id, active: true, expires_at: until, created_at: at, invited_by_student_id: null, parent_share_code_id: 'f0000000-0000-4000-8000-0000000000c0' },
+    );
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(home.primary.kind).toBe('video');
+    expect([WATCH, LESSON]).not.toContain(home.primary.send.c);
+    expect(JSON.stringify(home.timeline)).not.toMatch(/WATCH1|LESSN1|0000000000b[12]/);
+  });
+
+  test('the home tells the page the bot\'s number (digits only) for its own error page', async () => {
+    seed();
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(home.bot).toBe(['1555', '000', '1111'].join(''));
+  });
+});
+
 describe('the optional modules by their registry names (when the registry is on the branch)', () => {
   afterEach(() => { mockModules.load = undefined; });
   test('the cards, the walk-through lists, the "Change" landing and the practice link come from load(<name>), not a typed path', async () => {
@@ -586,12 +653,6 @@ describe('the walk-through row on the foot (sandbox test phones only)', () => {
     expect((await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json()).walk).toBeUndefined();
   });
 
-  test('the page inserts only that row, posts the tap to the one door and follows only a landing link', () => {
-    const { SCRIPT } = require('../../shared/services/first-touch/teacher-home.page');
-    expect(SCRIPT).toContain("post('/api/go/persona',{t:k.t,as:x.getAttribute('data-persona')})");
-    expect(SCRIPT).toContain("String(k.html).indexOf('<section data-screen=\"walk\">')!==0");
-    expect(SCRIPT).toContain("o.next.indexOf('/quiz/go/')!==0");
-  });
 });
 
 describe('the send of a library code goes through the server', () => {
@@ -635,7 +696,7 @@ describe('the send of a library code goes through the server', () => {
     const Sent = require('../../shared/services/first-touch/teacher-home.sent');
     const t = tokenFor();
     const c = (await (await get(`/api/th/home?t=${t}&g=4`)).json()).primary.send.c;
-    R.delete.mockImplementationOnce(async () => { throw new Error('store blip'); });
+    R.delete.mockImplementationOnce(async () => false); // the real client answers false when the store is down
     expect((await get(`/quiz/teacher/${t}/send?c=${c}&o=library`)).status).toBe(302);
     expect([...(await Sent.prepared([c]))]).toEqual([]);
     expect(logEvent.mock.calls.filter(([n]) => n === 'teacher_send')).toHaveLength(1);
@@ -648,7 +709,7 @@ describe('the send of a library code goes through the server', () => {
     const t = tokenFor();
     const c = (await (await get(`/api/th/home?t=${t}&g=4`)).json()).primary.send.c;
     R.delete.mockClear();
-    R.delete.mockImplementation(async () => { throw new Error('store down'); });
+    R.delete.mockImplementation(async () => false);
     try {
       const res = await get(`/quiz/teacher/${t}/send?c=${c}&o=library`);
       expect(res.status).toBe(302);
@@ -656,7 +717,16 @@ describe('the send of a library code goes through the server', () => {
       expect(R.delete).toHaveBeenCalledTimes(2);
       expect((await post('/api/th/step', { t, step: 'share_tap', kind: 'share', id: qid(2), c, origin: 'library' })).status).toBe(503);
       expect(logEvent.mock.calls.filter(([n]) => n === 'teacher_send')).toHaveLength(0);
-    } finally { R.delete.mockImplementation(async (k) => R.__keys.delete(k)); }
+    } finally { R.delete.mockImplementation(async (k) => { R.__keys.delete(k); return true; }); }
+  });
+
+  test('a clear that throws counts as failed too (then retried)', async () => {
+    const R = require('../../shared/services/cache/railway-redis.service');
+    const Sent = require('../../shared/services/first-touch/teacher-home.sent');
+    R.delete.mockImplementationOnce(async () => { throw new Error('store blip'); });
+    expect(await Sent.markSent(OWN_CODE)).toBe(true);
+    R.delete.mockImplementationOnce(async () => { throw new Error('store blip'); }).mockImplementationOnce(async () => false);
+    expect(await Sent.markSent(OWN_CODE)).toBe(false);
   });
 
   test('a code is held as prepared for 4 days at most, and at least the class line\'s 72 h window', async () => {
@@ -669,12 +739,6 @@ describe('the send of a library code goes through the server', () => {
     expect(ttl * 1000).toBeGreaterThan(SEND_WINDOW_MS);
   });
 
-  test('the sheet sends a library code through that route (and beacons only for the teacher\'s own quiz)', () => {
-    const { SCRIPT } = require('../../shared/services/first-touch/teacher-home.page');
-    expect(SCRIPT).toContain("function srv(x){return x.c&&(x.sendKind==='video'||x.sendKind==='share')?'/quiz/teacher/'+T+'/send?c='+encodeURIComponent(x.c)");
-    expect(SCRIPT).toContain("q('#th-sheet-go').setAttribute('href',srv(x)||x.wa);");
-    expect(SCRIPT).toContain("if(cur&&!srv(cur))step('share_tap'");
-  });
 });
 
 describe('a code minted to show its message is not a send until the tap', () => {
@@ -699,5 +763,7 @@ describe('a code minted to show its message is not a send until the tap', () => 
     const after = await (await get(`/api/th/home?t=${t}&g=4`)).json();
     expect(after.primary).toMatchObject({ kind: 'class', played: 0, title: 'Fractions' });
     expect(after.timeline[0]).toMatchObject({ kind: 'quiz', verb: 'again', sendKind: 'share', id: first.primary.send.c });
+    // one row per send: the class report's sender row for the same library quiz is not a second, "own" row
+    expect(after.timeline.filter((r) => r.id === qid(2))).toEqual([]);
   });
 });

@@ -32,11 +32,6 @@ test('an empty or missing message still gets a small box; a one-line message one
   expect(Page.msgRows('x'.repeat(10), false)).toBeGreaterThanOrEqual(2);
 });
 
-test('the page script sizes the box with the same msgRows, every time the sheet opens', () => {
-  expect(Page.SCRIPT).toContain(Page.msgRows.toString());
-  expect(Page.SCRIPT).toMatch(/function sheet\([^)]*\)\{[^\n]*m\.rows=msgRows\(x\.message,/);
-});
-
 test.each(['en', 'ur'])('%s shell: the message box is never capped to a fixed height', (lang) => {
   const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: lang === 'en' ? 'ur' : 'en', asked: lang });
   const css = (/<style[^>]*>([\s\S]*?)<\/style>/.exec(html) || [])[1] || '';
@@ -45,10 +40,8 @@ test.each(['en', 'ur'])('%s shell: the message box is never capped to a fixed he
   expect(html).toMatch(/<textarea class="th-msg" id="th-msg"[^>]* rows="\d+"/);
 });
 
-test('the page reloads only for a stale link (410); any other refusal shows the error line with ONE tap back to the chat', () => {
-  expect(Page.SCRIPT).toMatch(/function getj\(p\)\{[^\n]*if\(r\.status===410\)\{location\.reload\(\);throw 1\}/);
-  expect(Page.SCRIPT).not.toMatch(/404&&p\.indexOf/);
-  expect(Page.SCRIPT).toContain("function err(on){q('#th-err').hidden=!on;var g=q('#th-err-go');if(g)g.hidden=!on}");
+// what the script does with a refusal is run in teacher-home.page-run.test.js; this is the shell's markup for it
+test('the shell carries the error line\'s ONE tap back to the chat, hidden until a refusal', () => {
   ['en', 'ur'].forEach((lang) => {
     const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null });
     const { str } = require('../../shared/services/first-touch/teacher-home.strings');

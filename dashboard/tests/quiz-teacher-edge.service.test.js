@@ -60,6 +60,7 @@ const POST_OK = { t: TOK };
 const ROUTES = [
   ['GET', `/quiz/teacher/${TOK}`, null, false],
   ['GET', `/quiz/teacher/${TOK}/stories`, null, false],
+  ['GET', `/quiz/teacher/${TOK}/send?c=${UUID}&o=library`, null, false],
   ['GET', `/api/th/home?t=${TOK}`, null, true],
   ['GET', `/api/th/library?t=${TOK}`, null, true],
   ['GET', `/api/th/quiz/${UUID}?t=${TOK}`, null, true],
@@ -114,15 +115,13 @@ describe('malformed input falls through with zero bot calls', () => {
     }
     expect(calls).toHaveLength(0);
   });
-  test('POST with no valid t or an unreadable body', async () => {
+  test('POST with no valid t', async () => {
     await boot({ status: 200, bytes: Buffer.from('never') });
     for (const kind of ['send', 'quiz/make', 'confirm', 'step']) {
       for (const body of [{}, { t: 'nope' }, { t: 5 }]) {
         const res = await request('POST', `/api/th/${kind}`, { body });
         expect(res.body).toBe(SPA);
       }
-      const bad = await rawPost(`/api/th/${kind}`, '{not json');
-      expect(bad.body).toBe(SPA);
     }
     expect(calls).toHaveLength(0);
   });
@@ -217,8 +216,8 @@ describe('POST bodies are allow-listed', () => {
 });
 
 describe('relay', () => {
-  const PAGE = ROUTES.slice(0, 2);
-  const JSONR = ROUTES.slice(2);
+  const PAGE = ROUTES.filter((r) => !r[3]);
+  const JSONR = ROUTES.filter((r) => r[3]);
   const run = (r) => request(r[0], r[1], { body: r[2] });
 
   test.each(ROUTES)('200 passes the same bytes, no-store: %s %s', async (...r) => {
@@ -319,5 +318,83 @@ describe('unconfigured', () => {
       expect(res.body).toBe(SPA);
       expect(res.headers['cache-control']).toBeUndefined();
     }
+  });
+});
+
+describe('a body the app cannot read is answered exactly as without this edge (dashboard/index.js\'s own parsers and handlers)', () => {
+  // dashboard/index.js after the edge: its two body parsers, the SPA catch-all (GET), the 404 handler, the error handler
+  const tail = (app) => {
+    app.use(express.urlencoded({ extended: true }));
+    app.use(express.json());
+    app.get('*', (req, res) => res.status(200).type('html').send(SPA));
+    app.use((req, res) => res.status(404).type('html').send('404 - Not Found'));
+    app.use((err, req, res, next) => res.status(500).type('html').send(`Server error ${err.type || ''}`)); // eslint-disable-line no-unused-vars
+  };
+  async function both(send) {
+    const out = [];
+    for (const withEdge of [true, false]) {
+      calls = [];
+      const app = express();
+      if (withEdge) app.use(createQuizTeacherRouter({ callBot: async (...a) => { calls.push(a); return OFF; } }));
+      tail(app);
+      srv = await new Promise((r) => { const x = app.listen(0, () => r(x)); });
+      const res = await send();
+      out.push({ status: res.status, body: res.body, type: res.headers['content-type'], calls: calls.length });
+      await new Promise((r) => srv.close(r)); srv = null;
+    }
+    return out;
+  }
+  const post = (path, text, type = 'application/json') => new Promise((resolve, reject) => {
+    const r = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'POST', path,
+      headers: { 'content-type': type, 'content-length': Buffer.byteLength(text) } }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks).toString('utf8') }));
+    });
+    r.on('error', reject);
+    r.end(text);
+  });
+  test.each(['send', 'quiz/make', 'confirm', 'step'])('POST /api/th/%s: malformed JSON, a 5 KB body, a form body', async (kind) => {
+    const big = JSON.stringify({ t: TOK, pad: 'x'.repeat(5 * 1024) });
+    for (const [text, type] of [['{not json', 'application/json'], [big, 'application/json'], [`t=${TOK}`, 'application/x-www-form-urlencoded']]) {
+      const [withEdge, without] = await both(() => post(`/api/th/${kind}`, text, type));
+      expect({ ...withEdge, calls: 0 }).toEqual({ ...without, calls: 0 });
+    }
+  });
+});
+
+describe('the edge\'s own error page carries ONE tap back to the chat', () => {
+  const BOT = ['1555', '000', '1111'].join('');
+  const homeWith = (bot) => ({ status: 200, bytes: Buffer.from(JSON.stringify({ lang: 'en', bot })), contentType: 'application/json' });
+  test('after the bot gave its number: the 503 and 502 pages link wa.me/<bot>?text=quiz in the page language', async () => {
+    let answer = homeWith(BOT);
+    await boot(() => (typeof answer === "function" ? answer() : answer));
+    expect((await request('GET', `/api/th/home?t=${TOK}`)).status).toBe(200);
+    answer = { status: 500, bytes: Buffer.from('boom') };
+    const en = await request('GET', `/quiz/teacher/${TOK}`);
+    expect(en.status).toBe(503);
+    expect(en.body.match(/wa\.me\//g)).toHaveLength(1);
+    expect(en.body).toContain(`href="https://wa.me/${BOT}?text=quiz"`);
+    expect(en.body).toContain('Open WhatsApp');
+    const ur = await request('GET', `/quiz/teacher/${TOK}?lang=ur`);
+    expect(ur.body).toContain(`href="https://wa.me/${BOT}?text=quiz"`);
+    expect(ur.body).toContain('واٹس\u00a0ایپ کھولیں');
+    answer = { status: 302, location: 'https://evil.example' };
+    const bad = await request('GET', `/quiz/teacher/${TOK}/send?c=${UUID}`);
+    expect(bad.status).toBe(502);
+    expect(bad.body).toContain(`href="https://wa.me/${BOT}?text=quiz"`);
+  });
+  test('no number yet, or one that is not digits: the words alone, no link', async () => {
+    let answer = { status: 500, bytes: Buffer.from('boom') };
+    await boot(() => (typeof answer === "function" ? answer() : answer));
+    const none = await request('GET', `/quiz/teacher/${TOK}`);
+    expect(none.body).not.toContain('wa.me');
+    answer = homeWith('+92 300 <script>');
+    await request('GET', `/api/th/home?t=${TOK}`);
+    answer = () => { throw new Error('aborted'); };
+    const res = await request('GET', `/quiz/teacher/${TOK}`);
+    expect(res.status).toBe(503);
+    expect(res.body).not.toContain('wa.me');
+    expect(res.body).not.toContain('<script>');
   });
 });
