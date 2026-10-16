@@ -19,14 +19,33 @@
  *       the upload was found in the store (web-quiz-challenge.js finish: meta.audio_key for a kept key, else
  *       meta.audio_kept = false with the switch on), or the purge has since cleared the key (meta.audio_purged_on).
  *       With the switch off a reading leaves no trace, so this line counts the readings made with it on.
+ *   sent / capped
+ *       From message_ledger over the week's PKT days: value = Σ capped (replies the per-phone daily cap refused),
+ *       n = Σ count (the sends, as the ledger counts them: one per reply that went out; count/usd never include a
+ *       refusal). The red signal is any value > 0: it is looked at, beside reply_cap_hits. The ledger names no child, so
+ *       no test child can be left out here (the same as the sends lines). The writer (message-ledger.js countCapped)
+ *       reads the day's row then updates it, so two refusals in the same instant can lose one increment: this line
+ *       can only undercount, never overcount.
+ *   bind_funnel / codes, bind_funnel / bound
+ *       Identity (b) on codes: the save codes minted in the week (child_bind_codes.minted_at), a test child's codes
+ *       left out (web-quiz-fixture.js, on the code's child). codes: value = those used (used_at set, any outcome,
+ *       as of the run); bound: value = those whose binding (child_phone_bindings.code_id) is active at the week's
+ *       cut (bound before it, not revoked before it, not expired by it: the replies-per-bound-child rule). n = the
+ *       codes minted on both: the denominator is codes, never events. A binding made before code_id was written
+ *       names no code, and a renewal moves code_id to the renewing code, so `bound` can undercount a code whose
+ *       binding was later renewed by another.
  */
 const supabase = require('../../config/supabase');
+const { fixtureStudentIds } = require('./web-quiz-fixture');
 
 const TABLE = 'web_quiz_challenge_runs';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CHUNK = 200;
 const LOOKBACK_DAYS = 35;
 const KEPT_DAYS = 90;
+const PAGE = 1000;
+const PKT_MS = 5 * 60 * 60 * 1000;
+const LEDGER_ORDER = ['day', 'trigger', 'class_id', 'initiated', 'recipient'];   // the ledger's unique key: a stable order
 const RECOGNISED = new Set(['roster_pick', 'remembered', 'hub_chip', 'phone_bound']);
 const BUCKETS = ['first', 'le7', 'gt7'];
 
@@ -107,10 +126,71 @@ async function keptAllLine({ now, put, skipped, allRows }) {
   put('kept_audio_all', '', k.value, k.n);
 }
 
+const pktDay = (iso) => new Date(Date.parse(iso) + PKT_MS).toISOString().slice(0, 10);
+
+/** Every row of a query by offset, a page at a time, in the given stable order: { rows } or { error }; never throws. */
+async function rangedRows(build, order) {
+  const rows = [];
+  try {
+    for (let from = 0; ; from += PAGE) {
+      let q = build();
+      for (const c of order) q = q.order(c, { ascending: true });
+      const { data, error } = await q.range(from, from + PAGE - 1);
+      if (error) return { error };
+      rows.push(...(data || []));
+      if (!data || data.length < PAGE) return { rows };
+    }
+  } catch (err) {
+    return { error: err };
+  }
+}
+
+/** Σ capped over Σ count. Pure. */
+function sentCapped(ledgerRows) {
+  let value = 0; let n = 0;
+  for (const r of ledgerRows) { value += Number(r.capped) || 0; n += Number(r.count) || 0; }
+  return { value, n };
+}
+
+async function sentCappedLine({ start, end, put, skipped }) {
+  const got = await rangedRows(() => supabase.from('message_ledger').select('day, trigger, class_id, initiated, recipient, count, capped')
+    .gte('day', pktDay(start)).lt('day', pktDay(end)), LEDGER_ORDER);
+  if (got.error) { skipped.push('sent'); return; }
+  const c = sentCapped(got.rows);
+  put('sent', 'capped', c.value, c.n);
+}
+
+/** A binding active at the cut (bound before it, not revoked before it, not expired by it). Pure. */
+const activeAt = (r, cut) => Date.parse(r.bound_at) < cut && (r.revoked_at == null || Date.parse(r.revoked_at) >= cut)
+  && Date.parse(r.expires_at) > cut;
+
+async function bindFunnelLines({ start, end, put, skipped, notes, allRows }) {
+  const got = await allRows(() => supabase.from('child_bind_codes').select('code, canonical_id, minted_at, used_at')
+    .gte('minted_at', start).lt('minted_at', end), 'bind_codes', 'minted_at', (r) => r.code);
+  if (got.error) { skipped.push('bind_funnel'); return; }
+  const fixtures = await fixtureStudentIds({ ids: [...new Set(got.rows.map((r) => r.canonical_id).filter(Boolean))] });
+  if (fixtures.unreadable.length) notes.bind_funnel = `${fixtures.unreadable.join(', ')} unreadable: the rules reading it left nothing out`;
+  const codes = got.rows.filter((r) => !fixtures.has(r.canonical_id));
+  put('bind_funnel', 'codes', codes.filter((r) => r.used_at != null).length, codes.length);
+
+  const used = codes.filter((r) => r.used_at != null).map((r) => r.code);
+  const made = new Set();
+  const cut = Date.parse(end);
+  for (let i = 0; i < used.length; i += CHUNK) {
+    const b = await allRows(() => supabase.from('child_phone_bindings').select('id, code_id, bound_at, expires_at, revoked_at')
+      .in('code_id', used.slice(i, i + CHUNK)), 'bind_codes_bound', 'bound_at');
+    if (b.error) { skipped.push('bind_funnel_bound'); return; }
+    b.rows.filter((r) => activeAt(r, cut)).forEach((r) => made.add(r.code_id));
+  }
+  put('bind_funnel', 'bound', made.size, codes.length);
+}
+
 /** Every line set above, each on its own reads. `allRows` is the strip's pager (web-quiz-strip.js). */
 async function moreLines(ctx) {
   await recognisedLines(ctx);
   await keptAllLine(ctx);
+  await sentCappedLine(ctx);
+  await bindFunnelLines(ctx);
 }
 
-module.exports = { moreLines, recognisedBuckets, keptAll, bucketOf, RECOGNISED, CHUNK, LOOKBACK_DAYS };
+module.exports = { moreLines, recognisedBuckets, keptAll, sentCapped, activeAt, bucketOf, RECOGNISED, CHUNK, LOOKBACK_DAYS };

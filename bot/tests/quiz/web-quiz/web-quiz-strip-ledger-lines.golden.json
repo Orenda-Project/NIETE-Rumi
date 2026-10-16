@@ -1,0 +1,295 @@
+{
+ "lines": [
+  {
+   "week": "2026-W42",
+   "line": "fixtures_excluded",
+   "cell": "",
+   "value": 0,
+   "n": 4,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "plays",
+   "cell": "check",
+   "value": 2,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "plays",
+   "cell": "practice",
+   "value": 1,
+   "n": 1,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "provenance_incomplete",
+   "cell": "",
+   "value": 4,
+   "n": 4,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "roster_bound_pct",
+   "cell": "",
+   "value": 0.5,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "helped_pct",
+   "cell": "G23|ur|read",
+   "value": 0.5,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "no_class_first_finishes",
+   "cell": "",
+   "value": 0.5,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "record_duplicates",
+   "cell": "",
+   "value": 0,
+   "n": 4,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "lost_readings",
+   "cell": "G23|ur",
+   "value": 0.3333333333333333,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "lost_readings_swept",
+   "cell": "G23|ur",
+   "value": 0,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "lost_readings_draw",
+   "cell": "b2|ur",
+   "value": 0.3333333333333333,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "b3_bottom_share",
+   "cell": "G23|ur",
+   "value": 1,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "provenance_drift",
+   "cell": "high_unproven",
+   "value": 4,
+   "n": 4,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "provenance_drift",
+   "cell": "homonym_missed",
+   "value": 0,
+   "n": 4,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "classes_link_eligible",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "kept_audio_keys",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "kept_audio_match",
+   "cell": "",
+   "value": 1,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "kept_audio_oldest_d",
+   "cell": "",
+   "value": null,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sends",
+   "cell": "home_reply",
+   "value": 5,
+   "n": 5,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sends",
+   "cell": "bind_reply",
+   "value": 3,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sends",
+   "cell": "guest_reply",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sends",
+   "cell": "class_link",
+   "value": 2,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sends_total",
+   "cell": "",
+   "value": 10,
+   "n": 10,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "sends_usd",
+   "cell": "",
+   "value": 0.15,
+   "n": 10,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "bot_to_family",
+   "cell": "",
+   "value": 0,
+   "n": 10,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "door_mix_numerator",
+   "cell": "",
+   "value": 5,
+   "n": 5,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "replies_per_bound_child",
+   "cell": "",
+   "value": 2.6666666666666665,
+   "n": 3,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "lamps_settled_unanswered",
+   "cell": "",
+   "value": 0,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "teacher_accepted_share",
+   "cell": "roster_unique_with_loose",
+   "value": null,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "teacher_accepted_held",
+   "cell": "roster_unique_with_loose",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "teacher_accepted_share",
+   "cell": "probable",
+   "value": null,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "teacher_accepted_held",
+   "cell": "probable",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "recognised_without_typing",
+   "cell": "first",
+   "value": 2,
+   "n": 2,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "recognised_without_typing",
+   "cell": "le7",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "recognised_without_typing",
+   "cell": "gt7",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "kept_audio_all",
+   "cell": "",
+   "value": 0,
+   "n": 0,
+   "computed_at": "2026-10-19T06:00:00.000Z"
+  }
+ ],
+ "skipped": [
+  "reply_cap"
+ ]
+}

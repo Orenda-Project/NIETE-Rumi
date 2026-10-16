@@ -65,10 +65,18 @@
  *                                           no daily rows (value 0)
  *   recognised_without_typing / <first|le7|gt7>  children with a scored check run, by days from their previous run
  *                                           (any mode, 35-day look-back) to their latest: value = latest run recognised
- *                                           without typing; n = the bucket's children (web-quiz-strip-lines.js)
+ *                                           without typing; n = the bucket's children (web-quiz-strip-lines.js).
+ *                                           Printed beside it (LINE_NOTES): homonym picks through the class link
+ *                                           read as high until the class-link pick fix lands
  *   kept_audio_all                          scored check / practice readings in 90 days naming a kept object; n = those
  *                                           with a recording (meta.audio_key, audio_kept, audio_purged_on)
- * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, students) skips its lines, logged.
+ *   sent / capped                           the week's replies refused at the per-phone cap (Σ message_ledger.capped);
+ *                                           n = the week's sends (Σ count). Red line: > 0 is looked at
+ *   bind_funnel / codes                     save codes minted in the week (child_bind_codes) that were used; n = minted
+ *   bind_funnel / bound                     of the same codes, those whose binding is active at the week's cut;
+ *                                           n = minted (the denominator is codes, never events)
+ * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, child_bind_codes, students) skips its
+ * lines, logged.
  *
  * The reply cap counts in Redis, `wq:reply_cap:<PKT day>:<hash>` = the day's replies for one phone, 24-h TTL from
  * the day's first reply. Counts only: the keys never leave the Redis service (scanValues), and nothing here writes or
@@ -90,6 +98,7 @@ const PAGE = 1000;
 // The caveat a reader of a line must see beside it (returned with the week's result as `notes`).
 const LINE_NOTES = {
   sends: "message_ledger counts the switched replies only; it is not the bill (Meta's billable count is the cost total)",
+  recognised_without_typing: 'homonym picks through the class link read as high until the class-link pick fix lands',
 };
 const WEEK_RX = /^(\d{4})-W(\d{2})$/;
 const COLS = 'id, student_id, canonical_id, exercise, grade, lang, status, created_at, scored_at, meta, score, mode, form, band, record, '
@@ -147,8 +156,11 @@ const childOf = (r) => r.canonical_id || r.student_id || null;
 const cellOf = (r, ...more) => [fixedBand(r), r.lang || 'unknown', ...more].join('|');
 const share = (a, b) => (b ? a / b : null);
 
-/** Every row a query gives, a page at a time on `col` (created_at; no silent cap). `build()` returns a fresh query. */
-async function allRows(build, what, col = 'created_at') {
+/**
+ * Every row a query gives, a page at a time on `col` (created_at; no silent cap). `build()` returns a fresh query.
+ * `keyOf` names a row once across pages (its id; a table with no id column passes its own key).
+ */
+async function allRows(build, what, col = 'created_at', keyOf = (r) => r.id) {
   const out = [];
   const seen = new Set();
   let cursor = null;
@@ -160,8 +172,8 @@ async function allRows(build, what, col = 'created_at') {
       if (!isMissingTable(error)) logError('web_quiz.strip_read_failed', { what, code: error.code || null, error: String(error.message || error).slice(0, 120) });
       return { rows: out, error };
     }
-    const fresh = (data || []).filter((r) => !seen.has(r.id));
-    fresh.forEach((r) => { seen.add(r.id); out.push(r); });
+    const fresh = (data || []).filter((r) => !seen.has(keyOf(r)));
+    fresh.forEach((r) => { seen.add(keyOf(r)); out.push(r); });
     if (!data || data.length < PAGE || !fresh.length) return { rows: out, error: null };
     cursor = data[data.length - 1][col];
   }
@@ -535,8 +547,9 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   // ── identity: the reply cap and the teacher-accepted share (each only when its input exists) ──
   if (!(await replyCapLines({ week, start, now, put }))) skipped.push('reply_cap');
   if (!(await acceptedShareLines({ put }))) skipped.push('teacher_accepted_share');
-  // ── recognised without typing, kept readings under keep-all (web-quiz-strip-lines.js) ──
-  await require('./web-quiz-strip-lines').moreLines({ rows, start, end, now, put, skipped, allRows });
+  // ── recognised without typing, kept readings under keep-all, sent / capped, the save-code funnel (web-quiz-strip-lines.js) ──
+  await require('./web-quiz-strip-lines').moreLines({ rows, start, end, now, put, skipped, notes, allRows });
+  if (lines.some((l) => l.line === 'recognised_without_typing')) notes.recognised_without_typing = LINE_NOTES.recognised_without_typing;
 
   await writeLines(lines, now);
   if (skipped.length) logToFile('Challenge weekly numbers: lines skipped (table not there yet or unreadable)', { week, skipped });
