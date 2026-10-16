@@ -20,7 +20,7 @@ const fs = require('fs');
 const path = require('path');
 
 const Patterns = require('../../bot/shared/services/assessment/patterns');
-const { applyLayout } = require('../../bot/shared/services/assessment/fde-layout');
+const { applyLayout, takenNote } = require('../../bot/shared/services/assessment/fde-layout');
 const { normaliseScheme } = require('../../bot/shared/services/assessment/marking-scheme');
 const { renderMarkingScheme } = require('../../bot/shared/services/assessment/assessment-paper-fde.renderer');
 
@@ -176,3 +176,19 @@ describe('urdu Q1 ↔ Q4: a quoted Q4 list is read the same way', () => {
     expect(items(examJson, 'urdu.A.Q1').map((q) => q.question)).not.toContain(q1.question);
   });
 });
+
+describe('urdu re-ask note: Q4\'s accepted answers are named too', () => {
+  test('chapters_2: the Section A re-ask is told «برسات» as well as «موسمِ برسات»', () => {
+    const note = takenNote(U, U.sections.find((s) => s.id === 'A'), ch2);
+    expect(note).toContain('→ موسمِ برسات');
+    expect(note).toContain('برسات');
+    expect(note.split('\n').find((l) => l.includes('بادل'))).toMatch(/برسات.*برسات/);
+  });
+
+  test('an accepted answer the same as the answer is not repeated', () => {
+    const note = takenNote(U, U.sections.find((s) => s.id === 'A'), ch2);
+    const tense = note.split('\n').find((l) => l.includes('فاختہ اڑاتی'));
+    expect(tense.endsWith('→ سدرہ باغ میں فاختہ اڑائے گی۔')).toBe(true);
+  });
+});
+

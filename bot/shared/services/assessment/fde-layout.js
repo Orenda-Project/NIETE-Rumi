@@ -796,9 +796,12 @@ function takenNote(P, section, examJson) {
       + 'No item you write in this section may use any of these words, in its stem or in its options.';
   }
   if (P.key === 'urdu') {
-    // A Q4 stem can carry its options on the lines below it; the first line is the question.
+    // A Q4 stem can carry its options on the lines below it; the first line is the question. The
+    // answers Q4 also accepts are named too: an MCQ keyed on one of them is held as well.
+    const also = (q) => [...new Set(acceptOf(q).map((a) => a.trim()).filter((a) => a && plain(a) !== plain(keyText(q))))];
     const asked = against.filter((q) => typeof q.question === 'string' && q.question.trim() && keyText(q).trim())
-      .map((q) => `- ${q.question.trim().split('\n')[0].trim()} → ${keyText(q).trim().replace(/\s*\n\s*/g, '; ')}`);
+      .map((q) => `- ${q.question.trim().split('\n')[0].trim()} → ${keyText(q).trim().replace(/\s*\n\s*/g, '; ')}`
+        + (also(q).length ? ` (also accepted: ${also(q).join('; ')})` : ''));
     if (!asked.length) return null;
     return `Q4 of this paper already asks these (question → answer):\n${asked.join('\n')}\n`
       + 'No MCQ you write in this section may be keyed on any of these answers or ask any of these again.';
