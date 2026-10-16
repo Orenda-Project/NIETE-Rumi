@@ -166,7 +166,8 @@
       h.S.data = d;
       if (d.clips && isWarmup(d)) d.clips = Object.assign({}, d.clips, { intro: { text: t.warmupSay, url: null } });
       h.ev('ch_start', { step: ex });
-      if (!d.practice_round && !helped()) helpAsk(intro); else intro();
+      // never in the teacher's class round (round_turn): that run is never a record, and the child holds the teacher's phone
+      if (!d.practice_round && !d.round_turn && !helped()) helpAsk(intro); else intro();
     }
     function openFailed(ex, e) {
       // a refused story id (any 400), a story that is gone (404) or no network: the room's "on its way"
