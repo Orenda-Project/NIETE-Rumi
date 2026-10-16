@@ -61,22 +61,24 @@
   function storyHref(B, ctx, s) { return chHref(B, ctx) + '&room=story&pid=' + encodeURIComponent(s.id) + (s.kind === 'listen' ? '&ex=listen' : ''); }
   function gameHref(B, ctx, g) { return chHref(B, ctx) + '#' + encodeURIComponent(g.stop || ''); }
   function bootDoors(B) { var d = B.doors || {}; return { stories: d.stories || [], games: d.games || [], videos: d.videos || null }; }
+  // A title with no Arabic-script letter (an English lesson title on an Urdu page) keeps the Latin face, left to right.
+  function lat(text) { return /[\u0600-\u06FF]/.test(String(text || '')) ? '' : ' class="wq-lat" dir="ltr"'; }
   function minsOf(secs) { var m = Math.round((Number(secs) || 0) / 60); return m >= 1 ? m : null; }
 
   /* ---------------- pieces ---------------- */
   function sayBtn(text, url, ctx) {
-    return '<button class="wq-say" type="button" data-tap="say" data-sound data-trigger="tap" data-say="' + esc(text) + '"' + (url ? ' data-url="' + esc(url) + '"' : '') + ' aria-label="' + esc(C(ctx).say + ': ' + text) + '">' + SPK + '</button>';
+    return '<button class="wq-dspk" type="button" data-tap="say" data-sound data-trigger="tap" data-say="' + esc(text) + '"' + (url ? ' data-url="' + esc(url) + '"' : '') + ' aria-label="' + esc(C(ctx).say + ': ' + text) + '">' + SPK + '</button>';
   }
   function row(o, ctx) {
     // o: {href, title, sub, tag, kind, pos, item, say, done, art, tap}
     var art = o.art ? '<img class="wq-rart" src="' + esc(o.art) + '" alt="" width="56" height="56" loading="lazy" decoding="async">' : '';
     var tag = o.done ? '<i class="wq-donetag" role="img" aria-label="' + esc(C(ctx).doneTag) + '">' + TICK + '</i>' : (o.tag ? '<i class="wq-new">' + esc(o.tag) + '</i>' : '');
     var attrs = ' data-tap="' + (o.tap || 'row') + '" data-kind="' + esc(o.kind) + '"' + (o.pos != null ? ' data-pos="' + esc(o.pos) + '"' : '') + (o.item ? ' data-item="' + esc(o.item) + '"' : '');
-    var inner = art + '<span class="wq-rtext"><b><bdi>' + esc(o.title) + '</bdi></b>' + (o.sub ? '<small><bdi>' + esc(o.sub) + '</bdi></small>' : '') + '</span>' + tag;
+    var inner = art + '<span class="wq-rtext"><b><bdi' + lat(o.title) + '>' + esc(o.title) + '</bdi></b>' + (o.sub ? '<small><bdi' + lat(o.sub) + '>' + esc(o.sub) + '</bdi></small>' : '') + '</span>' + tag;
     var main = o.href ? '<a class="wq-row wq-drow"' + attrs + ' href="' + esc(o.href) + '">' + inner + '</a>' : '<button class="wq-row wq-drow" type="button"' + attrs + '>' + inner + '</button>';
     return '<li class="wq-dli' + (o.done ? ' done' : '') + '">' + main + sayBtn(o.title, o.say, ctx) + '</li>';
   }
-  function section(title, rows) { return rows ? '<h3 class="wq-dsec" dir="auto">' + esc(title) + '</h3><ul class="wq-rows">' + rows + '</ul>' : ''; }
+  function section(title, rows) { return rows ? '<h3 class="wq-dsec" dir="auto"><bdi' + lat(title) + '>' + esc(title) + '</bdi></h3><ul class="wq-rows">' + rows + '</ul>' : ''; }
   // Exactly one primary per screen: the first row there is, else the screen's own fallback button.
   function primaryFirst(h) { return h.replace(/<(a|button) class="wq-row wq-drow"/, '<$1 class="wq-row wq-drow" data-primary'); }
   function frame(B, ctx, name, title, body) {
@@ -105,7 +107,7 @@
     var listens = list.filter(function (s) { return s.kind === 'listen'; });
     var h = (week.length ? '<ul class="wq-rows wq-week">' + week.map(mk).join('') + '</ul>' : '') +
       section(t.toRead, reads.map(mk).join('')) +
-      (shelfOn ? '<h3 class="wq-dsec" dir="auto">' + esc(t.books) + '</h3><div class="wq-shelf" data-shelf="1"></div>' : '') +
+      (shelfOn ? '<div class="wq-shelfwrap"><h3 class="wq-dsec" dir="auto">' + esc(t.books) + '</h3><div class="wq-shelf" data-shelf="1"></div></div>' : '') +
       section(t.toListen, listens.map(mk).join(''));
     if (!list.length && !shelfOn) return emptyNote(t.storiesNone, 'games', t.toGames);
     return list.length ? primaryFirst(h) : h;
@@ -120,7 +122,7 @@
     var open = quizzes.filter(function (g) { return !g.done; });
     var done = quizzes.filter(function (g) { return g.done; });
     var nums = data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
-    var quizRow = function (g, i) { return row({ href: quizHref(g.code, g.k, g.done), title: g.topic || t.quiz, sub: g.done ? t.again : t.fromTeacher, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, say: g.say }, ctx); };
+    var quizRow = function (g, i) { return row({ href: quizHref(g.code, g.k, g.done), title: g.topic || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, say: g.say }, ctx); };
     var h = section(t.fromTeacher, open.map(quizRow).join('')) +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
       section(t.again, done.map(quizRow).join(''));
@@ -141,7 +143,7 @@
   }
   function chaptersBody(ctx, lib, subj) {
     var t = C(ctx);
-    var back = '<button class="wq-btn wq-ghost wq-dback" type="button" data-tap="subjects">' + esc(t.back) + '</button>';
+    var back = '<button class="wq-dback" type="button" data-tap="subjects">' + esc(t.back) + '</button>';
     if (!lib) return back + '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
     var art = lib.art || null; var i = 0;
     var body = (lib.chapters || []).map(function (ch) {
@@ -157,10 +159,10 @@
   function watchHtml(w, ctx, next) {
     var t = C(ctx);
     var nx = next ? '<a class="wq-next wq-vnext" data-tap="after" data-kind="' + esc(next.kind) + '" href="' + esc(next.href || '#videos') + '">' +
-      '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">' + PLAY + '</span></a>' : '';
+      '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi' + lat(next.sub) + '>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">' + PLAY + '</span></a>' : '';
     return '<div class="wq-vbox"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
       '<button class="wq-vplay" type="button" data-primary data-tap="play" data-sound data-trigger="tap" aria-label="' + esc(t.play) + '">' + PLAY + '</button></div>' +
-      '<p class="wq-vtitle" dir="auto"><bdi>' + esc(w.title || '') + '</bdi></p>' +
+      '<p class="wq-vtitle" dir="auto"><bdi' + lat(w.title) + '>' + esc(w.title || '') + '</bdi></p>' +
       '<div class="wq-after" hidden>' + nx + '</div>';
   }
 
