@@ -540,8 +540,9 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
     const subjects = isV5 ? [] : (responseJson.subjects || []);
     registrationLanguage = clampLanguage(responseJson.language || offerDefaultLanguage());
 
-    const { data: existing } = await supabase.from('users').select('name, role, school_id').eq('id', userId).maybeSingle();
-    const role = roleToWrite(responseJson.role, existing && existing.role);
+    const { data: existing, error: readError } = await supabase.from('users').select('name, role, school_id').eq('id', userId).maybeSingle();
+    // Her row unreadable → write no role: an unknown current role may be an admin-set coach.
+    const role = existing && !readError ? roleToWrite(responseJson.role, existing.role) : null;
     const greetName = (fullName || (existing && existing.name) || '').trim().split(/\s+/)[0] || '';
 
     const setIf = (v) => (v !== undefined && v !== null && !(typeof v === 'string' && v.trim() === ''));
