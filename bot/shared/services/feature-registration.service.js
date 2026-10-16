@@ -44,7 +44,7 @@ class FeatureRegistrationService {
       // Get user to check registration status
       const { data: user, error: userError } = await supabase
         .from('users')
-        .select('registration_completed, registration_pending_name, name')
+        .select('registration_completed, registration_pending_name, name, registration_started_at')
         .eq('id', userId)
         .single();
 
@@ -77,6 +77,16 @@ class FeatureRegistrationService {
           userId, featureType,
         });
         return offered;
+      }
+
+      // This process has no Flow id — but the BOT may have, and may already have offered her the
+      // form (users.registration_started_at). Production, 2026-10-16: the id is set on the bot
+      // service only, not on the workers where this trigger runs, so without this she gets the Flow
+      // after her first message and then "By the way, what should I call you?" after her first
+      // lesson plan, and her next message is taken as her name.
+      if (user.registration_started_at) {
+        logToFile('Registration Flow already offered — not asking the name in chat', { userId, featureType });
+        return false;
       }
 
       // Check if this is first feature completion (the conversational path, no Flow configured)
