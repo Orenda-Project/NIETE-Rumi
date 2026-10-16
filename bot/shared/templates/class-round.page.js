@@ -111,7 +111,9 @@ function renderCard({ lang, token, started = false, early = false, paused = null
   const go = paused && C.tResume ? { act: 'resume', label: C.tResume } : { act: 'start', label: C.start };
   const startForm = early ? ''
     : `<form method="post" action="${base(token)}/${go.act}${q(lang)}"><button class="btn btn-primary" type="submit" style="width:100%;border:0;font:inherit;font-weight:700;cursor:pointer">${esc(go.label)}</button></form>`;
-  return `<section class="card cr-card" style="margin-top:16px"><h2>${esc(C.cardTitle)}</h2>${pausedLine(lang, paused)}<p class="muted">${esc(C.cardSub)}</p>${never}`
+  // paused: card_sub is left out (its last sentence repeats the paused line); every other card keeps it
+  const sub = paused ? '' : `<p class="muted">${esc(C.cardSub)}</p>`;
+  return `<section class="card cr-card" style="margin-top:16px"><h2>${esc(C.cardTitle)}</h2>${pausedLine(lang, paused)}${sub}${never}`
     + `${startForm}${notThisTerm}</section>`;
 }
 

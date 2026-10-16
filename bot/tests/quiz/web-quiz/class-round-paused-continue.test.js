@@ -55,6 +55,15 @@ describe('a paused round\'s card: one tap to carry on', () => {
     }
   });
 
+  test('the paused card leaves out card_sub (its last sentence repeats the paused line); an unpaused card keeps it', () => {
+    for (const lang of ['en', 'ur']) {
+      const sub = deck['jg.round.card_sub'][lang];
+      expect([lang, Page.renderCard({ lang, token: TOKEN, started: true, paused: PAUSED }).includes(sub)]).toEqual([lang, false]);
+      expect([lang, Page.renderCard({ lang, token: TOKEN, started: true }).includes(sub)]).toEqual([lang, true]);
+      expect(Page.T[lang].cardSub).toBe(sub);
+    }
+  });
+
   test('the paused card names no child and no round id', () => {
     const html = Page.renderCard({ lang: 'en', token: TOKEN, started: true, paused: PAUSED });
     expect(html).not.toMatch(/Bilal|Sana|Testwala/);
