@@ -21,14 +21,9 @@
       ]
     },
     "tests/github-api.test.js": {
-      "reason": "Calls the live GitHub API (repo, branch and token of the original deployment); fails without network access and credentials for that repository.",
+      "reason": "Calls the live GitHub API (repo, branch and token of the original deployment): which of its tests fail depends on the network, the token and the rate limit, so the whole suite is the baseline ('*'). The six seen failing on every base: getFileContent fetch and decode, listDirectory, getRepoTree, authenticate, repository mappings.",
       "tests": [
-        "GitHub API Service getFileContent should fetch file content from GitHub",
-        "GitHub API Service getFileContent should decode base64 content correctly",
-        "GitHub API Service listDirectory should list directory contents",
-        "GitHub API Service getRepoTree should fetch full repository tree",
-        "GitHub API Service error handling should authenticate with GitHub token",
-        "GitHub API Service repository mappings should have correct repo mappings"
+        "*"
       ]
     }
   }

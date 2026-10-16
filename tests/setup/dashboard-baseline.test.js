@@ -44,6 +44,12 @@ describe('newFailures, on a seeded jest --json result', () => {
     expect(D.summary(v)).toBe('0/4 passed; 4 failed: 1 baseline, 3 new');
   });
 
+  test("a whole-suite entry ('*') covers every test of that suite", () => {
+    const v = D.newFailures({ testResults: [suite('tests/net.test.js', [t('any one', 'failed'), t('another', 'failed')])] }, { suites: { 'tests/net.test.js': { reason: 'live', tests: ['*'] } } });
+    expect(v.new).toEqual([]);
+    expect(v.baseline).toBe(2);
+  });
+
   test('a baseline test that now passes is FIXED, not a failure', () => {
     const v = D.newFailures({ testResults: [suite('tests/a.test.js', [t('A one', 'passed'), t('A two', 'failed')])] }, BASE);
     expect(v.new).toEqual([]);
@@ -52,10 +58,11 @@ describe('newFailures, on a seeded jest --json result', () => {
 });
 
 describe('the committed baseline', () => {
-  test('four suites, nine named tests, each with a reason, each suite a file in dashboard/tests', () => {
+  test('four suites, each with a reason, each a file in dashboard/tests; only the live-network suite is whole', () => {
     const suites = Object.entries(D.BASELINE.suites);
     expect(suites).toHaveLength(4);
-    expect(suites.reduce((n, [, e]) => n + e.tests.filter((x) => x !== '(suite failed to run)').length, 0)).toBe(9);
+    expect(suites.filter(([, e]) => e.tests.includes('*')).map(([s]) => s)).toEqual(['tests/github-api.test.js']);
+    expect(suites.reduce((n, [, e]) => n + e.tests.filter((x) => x !== '(suite failed to run)' && x !== '*').length, 0)).toBe(3);
     for (const [rel, e] of suites) {
       expect(e.reason).toEqual(expect.any(String));
       expect(fs.existsSync(path.join(__dirname, '../../dashboard', rel))).toBe(true);

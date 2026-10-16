@@ -2,7 +2,8 @@
  * The dashboard Jest run's known failures, so a folder count reads "N new" mechanically.
  *
  * The full dashboard run (`cd dashboard && npx jest`) fails the same tests in the same four suites on every base:
- * dashboard-baseline.json names each suite (path relative to dashboard/), its failing test names, and why. Given a
+ * dashboard-baseline.json names each suite (path relative to dashboard/), its failing test names ('*': the whole
+ * suite, for the one that calls a live network service), and why. Given a
  * `jest --json` output, `newFailures` returns the failures outside that list. A baseline test that now passes is
  * reported as `FIXED:` (a warning: drop it from the baseline), never as a failure.
  *
@@ -47,7 +48,7 @@ function newFailures(result, baseline = BASELINE) {
   const all = testsOf(result);
   const failed = all.filter((t) => t.status === 'failed');
   const fresh = failed.filter((t) => !isKnown(t)).map((t) => `${t.suite} › ${t.name}`);
-  const passedKnown = all.filter((t) => t.status === 'passed' && isKnown(t)).map((t) => `${t.suite} › ${t.name}`);
+  const passedKnown = all.filter((t) => t.status === 'passed' && isKnown(t) && !known.get(t.suite).has('*')).map((t) => `${t.suite} › ${t.name}`);
   return { total: all.length, failed: failed.length, baseline: failed.length - fresh.length, new: fresh, fixed: passedKnown };
 }
 
