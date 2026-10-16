@@ -238,7 +238,7 @@ test('cells at n = 30 count CHILDREN (distinct canonical id), not rows: usable =
 describe('replies per bound child (D3): home_reply + bind_reply sends ÷ children with an active phone binding at the cut', () => {
   const END = '2026-10-18T19:00:00.000Z';                 // the week's cut
   const bind = (id, canonical_id, extra = {}) => ({
-    id, canonical_id, phone_norm: '923001234567', phone_tomb: 'f'.repeat(32), via: 'save', confirmed_at: '2026-10-01T00:00:00Z',
+    id, canonical_id, phone_norm: '+92300FIXTURE1', phone_tomb: 'f'.repeat(32), via: 'save', confirmed_at: '2026-10-01T00:00:00Z',
     bound_at: '2026-10-01T00:00:00Z', expires_at: '2027-03-31T18:59:59Z', revoked_at: null, revoked_by: null, ...extra,
   });
   const ledger = () => [
@@ -252,7 +252,7 @@ describe('replies per bound child (D3): home_reply + bind_reply sends ÷ childre
     install([], {
       message_ledger: ledger(),
       child_phone_bindings: [
-        bind('b1', A), bind('b2', A, { phone_norm: '923009999999' }),                          // one child, two phones
+        bind('b1', A), bind('b2', A, { phone_norm: '+92300FIXTURE2' }),                          // one child, two phones
         bind('b3', B, { phone_norm: null, revoked_at: '2026-10-15T00:00:00Z', revoked_by: 'stop' }),   // erased before the cut
         bind('b4', C, { bound_at: '2026-10-19T08:00:00Z' }),                                   // bound after the cut
         bind('b5', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', { expires_at: '2026-10-10T00:00:00Z' }),   // expired before the cut
