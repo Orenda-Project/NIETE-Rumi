@@ -2,8 +2,9 @@
 'use strict';
 /**
  * backfill-video-language — fill student_videos.language (web_quiz_student_videos_language.sql) once, from each
- * video's lesson quiz, by the rule the quiz's clips are already recorded in (web-quiz-videos.js lessonLanguage: the
- * quiz row's language, else its questions' script; then clamped to the languages this deployment offers).
+ * video's lesson quiz: the quiz row's language, else the MAJORITY script of its first questions (Arabic-script letters
+ * against Latin letters, so an English question that names one Urdu letter stays English); then clamped to the
+ * languages this deployment offers.
  *
  *   node scripts/web-quiz/backfill-video-language.js --expect-ref <supabase ref> [--dry-run]
  *
@@ -16,11 +17,14 @@ const PAGE = 500;
 
 function arg(argv, name) { const i = argv.indexOf(name); return i === -1 ? null : (argv[i + 1] || ''); }
 
-/** The lesson's language by the quiz clips' rule. */
+/** The lesson's language: the quiz row's own, else the majority script of its questions. */
 function languageFor(quiz, questions) {
-  const { quizLanguage } = require('../../bot/shared/services/quiz/web-quiz-publish.service');
   const { clampLanguage } = require('../../bot/shared/config/ux-strings');
-  return clampLanguage(quizLanguage(quiz, questions || []));
+  if (quiz && quiz.language) return clampLanguage(quiz.language);
+  const text = (questions || []).map((q) => `${q.question_text || ''} ${q.option_a || ''}`).join(' ');
+  const arabic = (text.match(/[\u0600-\u06FF]/g) || []).length;
+  const latin = (text.match(/[A-Za-z]/g) || []).length;
+  return clampLanguage(arabic > latin ? 'ur' : 'en');
 }
 
 async function all(q) {
