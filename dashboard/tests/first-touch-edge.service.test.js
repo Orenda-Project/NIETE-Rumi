@@ -101,6 +101,13 @@ test('POST /api/ft/tour → action and the dismiss\'s how reach the bot; anythin
   expect(JSON.parse(calls[0].init.body)).toEqual({ t: TOK, action: 'dismiss', how: 'chip' });
 });
 
+test('POST /api/ft/tour → a card beacon\'s card and screen reach the bot; anything else is dropped', async () => {
+  await boot(() => botRes(204, { body: '' }));
+  const res = await request('POST', '/api/ft/tour', { body: { t: TOK, action: 'card', card: 'lp', screen: 'ready', uid: 'x' } });
+  expect(res.status).toBe(204);
+  expect(JSON.parse(calls[0].init.body)).toEqual({ t: TOK, action: 'card', card: 'lp', screen: 'ready' });
+});
+
 test('a bot redirect: wa.me and same-site paths pass through, anything else does not', async () => {
   await boot(() => botRes(302, { location: 'https://wa.me/?text=hi' }));
   let res = await request('GET', `/m/${TOK}/send?c=a0000000-0000-4000-8000-000000000001`);
