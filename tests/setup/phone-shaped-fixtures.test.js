@@ -10,15 +10,18 @@
  * Directories whose test files held such strings before this guard are listed,
  * with their total hit counts, in `phone-shaped-fixtures.allowlist.json` (keyed
  * by directory so the list names no test file). The list only shrinks: a new
- * directory, or a higher count, fails; a lower count also fails until the
- * entry is lowered (or removed at 0), so a cleanup is locked in. A directory
- * not on the list (bot/tests/quiz/web-quiz among them) allows none.
+ * directory, or a higher count, fails; a lower count, or a listed directory
+ * not in the tree, prints a DOWN:/CLEAN:/GONE: warning and passes (the entry
+ * is lowered on the branch that owns the list). A directory not on the list
+ * (bot/tests/quiz/web-quiz among them) allows none.
  *
  * The rule itself (lib) is exercised on in-memory strings below, so the
  * pattern is executed, not just grepped.
  */
 
+const fs = require('fs');
 const path = require('path');
+const { report } = require('./ratchet-verdict-lib');
 
 const ALLOWLIST = require('./phone-shaped-fixtures.allowlist.json');
 const { countPhoneShaped, findPhoneShaped, scanTree, checkAgainstAllowlist, byDirectory } = require('./phone-shaped-fixtures-lib');
@@ -49,34 +52,51 @@ describe('the phone-shaped rule (executed on in-memory strings)', () => {
   });
 });
 
-describe('the shrink-only allowlist check', () => {
+describe('the shrink-only allowlist check: fail above, warn below', () => {
   test('clean when hits match the list exactly', () => {
-    expect(checkAgainstAllowlist({ 'a.test.js': 2 }, { 'a.test.js': 2 })).toEqual([]);
+    expect(checkAgainstAllowlist({ 'a/b': 2 }, { 'a/b': 2 })).toEqual({ failures: [], warnings: [] });
   });
 
-  test('a hit in a file not on the list fails and names the file', () => {
-    const p = checkAgainstAllowlist({ 'new.test.js': 1 }, {});
-    expect(p).toHaveLength(1);
-    expect(p[0]).toMatch(/^NEW: new\.test\.js/);
+  test('a hit in a directory not on the list fails and names it', () => {
+    const v = checkAgainstAllowlist({ 'new/dir': 1 }, {});
+    expect(v.failures).toHaveLength(1);
+    expect(v.failures[0]).toMatch(/^NEW: new\/dir has 1/);
   });
 
-  test('a listed file whose count went up fails', () => {
-    expect(checkAgainstAllowlist({ 'a.test.js': 3 }, { 'a.test.js': 2 })[0]).toMatch(/^UP: a\.test\.js has 3/);
+  test('a listed directory whose count went up fails', () => {
+    expect(checkAgainstAllowlist({ 'a/b': 3 }, { 'a/b': 2 }).failures[0]).toMatch(/^UP: a\/b has 3/);
   });
 
-  test('a listed file whose count went down fails until the entry is lowered', () => {
-    expect(checkAgainstAllowlist({ 'a.test.js': 1 }, { 'a.test.js': 2 })[0]).toMatch(/^DOWN: .*Lower its entry .* to 1/);
+  test('a listed directory whose count went down warns and passes', () => {
+    const v = checkAgainstAllowlist({ 'a/b': 1 }, { 'a/b': 2 });
+    expect(v.failures).toEqual([]);
+    expect(v.warnings).toEqual(['DOWN: a/b has 1, phone-shaped-fixtures.allowlist.json says 2. Lower it to 1.']);
   });
 
-  test('a listed file that reached 0 fails until the entry is removed', () => {
-    expect(checkAgainstAllowlist({}, { 'a.test.js': 2 })[0]).toMatch(/^CLEAN: a\.test\.js .*Remove its entry/);
+  test('a listed directory at 0 warns CLEAN and passes', () => {
+    const v = checkAgainstAllowlist({}, { 'a/b': 2 }, () => true);
+    expect(v.failures).toEqual([]);
+    expect(v.warnings[0]).toMatch(/^CLEAN: a\/b has none now/);
+  });
+
+  test('a listed directory absent from the tree warns GONE and passes', () => {
+    const v = checkAgainstAllowlist({}, { 'not/here': 4 }, (d) => d !== 'not/here');
+    expect(v.failures).toEqual([]);
+    expect(v.warnings).toEqual(['GONE: not/here is not in this tree. Remove its entry from phone-shaped-fixtures.allowlist.json.']);
+  });
+
+  test('a seeded tree: below and absent pass, above and new fail', () => {
+    const v = checkAgainstAllowlist({ below: 1, above: 5, fresh: 1 }, { below: 3, above: 2, absent: 7 }, (d) => d !== 'absent');
+    expect(v.failures.map((l) => l.split(':')[0] + ':' + l.split(' ')[1])).toEqual(['UP:above', 'NEW:fresh']);
+    expect(v.warnings.map((l) => l.split(' ').slice(0, 2).join(' '))).toEqual(['GONE: absent', 'DOWN: below']);
   });
 });
 
 describe('the tree (bot/tests, dashboard/tests) against the allowlist', () => {
-  test('no new phone-shaped fixtures; no allowlist entry above or below its directory', () => {
+  test('no new phone-shaped fixtures; no directory above its entry (below or gone: a warning)', () => {
     const hits = byDirectory(scanTree(ROOTS, { relativeTo: REPO_ROOT }));
-    expect(checkAgainstAllowlist(hits, ALLOWLIST)).toEqual([]);
+    const exists = (dir) => fs.existsSync(path.join(REPO_ROOT, dir));
+    expect(report(checkAgainstAllowlist(hits, ALLOWLIST, exists))).toEqual([]);
   });
 
   test('byDirectory sums a directory\'s files; the web quiz suites have no entry (they allow none)', () => {
