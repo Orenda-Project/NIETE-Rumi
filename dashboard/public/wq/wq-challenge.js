@@ -728,6 +728,7 @@
         var right = Number(v) === Number(it.answer);
         var g = q('wqc-gap'); if (g) g.className += right ? ' wqc-ok' : ' wqc-no';
         if (!right && g) g.textContent = it.answer;
+        if (window.WQJ) window.WQJ[right ? 'correct' : 'wrong']({ el: g }); // the kit (web_quiz_juice): chime or soft bup
         var s = q('wqc-say');
         if (s) s.textContent = tc(right ? 'missYes' : 'missWas', { n: it.answer });
         setTimeout(function () { missing.practice(k + 1); }, 1800);
@@ -1298,6 +1299,7 @@
           api('ch/qa', { ct: S.data.ct, q: x.id, pick: i, lang: L }).then(function (r) {
             var el = q('wqc-o' + i);
             if (el) el.className += r.ok ? ' wqc-ok' : ' wqc-no';
+            if (window.WQJ) window.WQJ[r.ok ? 'correct' : 'wrong']({ el: el }); // the kit (web_quiz_juice): chime or soft bup
             if (r.ok) qa.right += 1;
             else x.options.forEach(function (oo, j) { if (oo === r.answer) { var g = q('wqc-o' + j); if (g) g.className += ' wqc-ok'; } });
             var sy = q('wqc-say');
