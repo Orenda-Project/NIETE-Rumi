@@ -101,6 +101,13 @@ function at(path: string) {
 }
 const m4a = () => new File(["a"], "lesson.m4a", { type: "audio/mp4" });
 
+/** Step 3: the Recording card opens its tray (operator, 16 Oct: "open in tray and then asks for two options"). */
+const recordingCard = () => screen.findByRole("button", { name: new RegExp(`^${C.recording}`) });
+async function openRecording() {
+  fireEvent.click(await recordingCard());
+  return screen.getByRole("dialog", { name: C.recording });
+}
+
 /** Step 1: Grade 4 · General Science, from the tray. */
 async function pickClass() {
   fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) }));
@@ -151,8 +158,7 @@ describe("the one screen", () => {
     expect(await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) })).toBeTruthy();
     expect(screen.queryByRole("button", { name: C.recordTitle })).toBeNull();
     await pickClass();
-    expect(await screen.findByRole("button", { name: C.recordTitle })).toBeTruthy();
-    expect(screen.getByRole("button", { name: C.uploadRecording })).toBeTruthy();
+    expect(await recordingCard()).toBeTruthy();
     expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
   });
 
@@ -161,7 +167,7 @@ describe("the one screen", () => {
     session.start.mockImplementationOnce(async () => { session.active = true; return "recording"; });
     at(COACHING_NEW);
     await pickClass();
-    fireEvent.click(await screen.findByRole("button", { name: C.recordTitle }));
+    fireEvent.click(within(await openRecording()).getByRole("button", { name: C.recordTitle }));
     await waitFor(() => expect(session.start).toHaveBeenCalledWith({ returnTo: COACHING_NEW }));
     expect(await screen.findByRole("timer")).toBeTruthy();
     expect(screen.getByRole("button", { name: new RegExp(C.pause) })).toBeTruthy();
@@ -181,7 +187,8 @@ describe("the one screen", () => {
       .toEqual(expect.objectContaining({ grade: 4, subject: "General Science" }));
     const progress = await screen.findByRole("region", { name: C.progress });
     expect(within(progress).getByText(C.analysing)).toBeTruthy();
-    expect(screen.getByRole("link", { name: new RegExp(C.backToCoaching) }).getAttribute("href")).toBe(COACHING_HOME);
+    // no "Back to Digital Coaching" (operator, 16 Oct): the header's Back is the way out
+    expect(screen.queryByRole("link", { name: /Back to Digital Coaching/ })).toBeNull();
     expect(screen.getByRole("note")).toBeTruthy();
     expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
   });
@@ -201,14 +208,28 @@ describe("the one screen", () => {
   });
 });
 
-describe("compact record / upload (operator, 15 Oct: all steps share one screen)", () => {
-  it("Start recording and Upload recording are 88px buttons with the art beside the words, not 176px squares", async () => {
+describe("Recording opens in a tray, as Grade and subject does (operator, 16 Oct)", () => {
+  it("one Recording card on the screen; the two choices are only in its tray, full size", async () => {
     at(COACHING_NEW);
     await pickClass();
-    const rec = await screen.findByRole("button", { name: C.recordTitle });
-    expect(rec.className).toContain("min-h-[88px]");
-    expect(rec.className).not.toContain("min-h-[176px]");
-    expect(rec.className).toContain("flex-row");
+    const card = await recordingCard();
+    expect(card.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(screen.queryByRole("button", { name: C.recordTitle })).toBeNull();
+    expect(screen.queryByRole("button", { name: C.uploadRecording })).toBeNull();
+    const tray = await openRecording();
+    const rec = within(tray).getByRole("button", { name: C.recordTitle });
+    expect(rec.className).toContain("min-h-[176px]");
+    expect(within(tray).getByRole("button", { name: C.uploadRecording })).toBeTruthy();
+  });
+
+  it("Upload recording closes the tray and opens the file chooser", async () => {
+    at(COACHING_NEW);
+    await pickClass();
+    const input = (await screen.findByTestId("dc-audio-input")) as HTMLInputElement;
+    const click = vi.spyOn(input, "click");
+    fireEvent.click(within(await openRecording()).getByRole("button", { name: C.uploadRecording }));
+    expect(click).toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: C.recording })).toBeNull();
   });
 });
 
@@ -222,7 +243,7 @@ describe("Lesson plan before the recording (operator, 16 Oct)", () => {
     // her recent plan for this class, one tap, with no recording yet
     fireEvent.click(await screen.findByRole("button", { name: "How plants make food" }));
     expect(await screen.findByText("How plants make food")).toBeTruthy();
-    expect(screen.getByRole("button", { name: C.recordTitle })).toBeTruthy();
+    expect(await recordingCard()).toBeTruthy();
     expect(screen.queryByRole("heading", { name: new RegExp(C.photos) })?.getAttribute("data-step-state")).toBe("upcoming");
   });
 });

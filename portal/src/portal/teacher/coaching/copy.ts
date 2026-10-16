@@ -30,7 +30,6 @@ export const COACHING_V2_COPY = {
   gradeAndSubject: 'Grade and subject',
   summary: 'Summary',
   summaryCount: (n: number) => (n === 1 ? '1 DC observation' : `${n} DC observations`),
-  backToCoaching: 'Back to Digital Coaching',
   home: 'Home',
   /* the hub (bd-fmf24g.76: no class; Record lesson and Upload recording first, then the rest once a recording is on the page) */
   lessonPlan: 'Lesson plan',
@@ -173,7 +172,6 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   gradeAndSubject: 'جماعت اور مضمون',
   summary: 'خلاصہ',
   summaryCount: (n: number) => (n === 1 ? '1 ڈیجیٹل کوچنگ مشاہدہ' : `${n} ڈیجیٹل کوچنگ مشاہدات`),
-  backToCoaching: 'ڈیجیٹل کوچنگ پر واپس',
   home: 'ہوم',
   lessonPlan: 'لیسن پلان',
   optional: 'اختیاری',

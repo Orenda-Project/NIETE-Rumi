@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Check, Mic, Pause, Square, Upload } from 'lucide-react';
+import { Check, ChevronDown, Mic, Pause, Square, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
 import { acceptFor, checkFile, DC_MAX_PHOTOS, readAudioDuration } from '../../lib/coachingUpload';
@@ -19,8 +19,8 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { portal } from '../../services/api';
 import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
-import { ClassPicker, ConfirmTray, HistoryRow, LeaveNote, ProgressSteps, RecordUploadPair, type SubjectsByGrade } from '../ui';
-import { CARD, LIST_CARD } from '../ui/styles';
+import { ClassPicker, ConfirmTray, HistoryRow, LeaveNote, ProgressSteps, RecordUploadPair, Tray, type SubjectsByGrade } from '../ui';
+import { CARD, FOCUS, LIST_CARD } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { NOTICES } from '../notices/copy';
 import { COACHING } from './copy';
@@ -91,6 +91,7 @@ export function NewObservationPage() {
   const [planSheet, setPlanSheet] = useState(() => !!(location.state as { openPlan?: boolean } | null)?.openPlan);
   const [photos, setPhotos] = useState<File[]>(kept?.photos ?? []);
   const audioInput = useRef<HTMLInputElement>(null);
+  const [recordTray, setRecordTray] = useState(false);
 
   useEffect(() => { holdDraft({ audio, plan, photos, cls }); }, [audio, plan, photos, cls]);
 
@@ -312,12 +313,34 @@ export function NewObservationPage() {
             </section>
           ) : null}
           {cls && !audio && phase === 'idle' ? (
-            <RecordUploadPair
-              compact
-              onRecord={() => { void startRecording(); }}
-              onUpload={() => audioInput.current?.click()}
-              copy={{ startRecording: C.recordTitle, uploadRecording: C.uploadRecording }}
-            />
+            <>
+              {/* Recording is one card that opens a tray with the two choices, as Grade and subject does (operator,
+                  16 Oct). A choice closes the tray. */}
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded={recordTray}
+                onClick={() => setRecordTray(true)}
+                className={cn(
+                  'flex w-full min-h-[76px] items-center gap-3 rounded-2xl bg-white px-3 py-2.5 text-start shadow-[0_1px_3px_rgba(16,24,40,0.08)]',
+                  recordTray ? 'border-2 border-[#33374a]' : 'border border-[#e5e7eb]',
+                  FOCUS,
+                )}
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-[1.5px] border-dashed border-[#c7cad6] bg-[#f9fafb] text-[#6b7280]">
+                  <Mic className="h-[22px] w-[22px]" strokeWidth={2} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1 text-[17px] font-semibold leading-[1.3]">{C.recording}</span>
+                <ChevronDown className="h-[22px] w-[22px] shrink-0 text-[#6b7280]" strokeWidth={2.4} aria-hidden="true" />
+              </button>
+              <Tray open={recordTray} title={C.recording} onClose={() => setRecordTray(false)}>
+                <RecordUploadPair
+                  onRecord={() => { setRecordTray(false); void startRecording(); }}
+                  onUpload={() => { setRecordTray(false); audioInput.current?.click(); }}
+                  copy={{ startRecording: C.recordTitle, uploadRecording: C.uploadRecording }}
+                />
+              </Tray>
+            </>
           ) : null}
           {audio && cls ? (
             <RecordingCard audio={audio} onRedo={() => { void redo(); }} onChangeFile={() => audioInput.current?.click()} />
@@ -383,7 +406,6 @@ export function NewObservationPage() {
           )}
           <Reflection r={report} />
           {report.ready && sessionId ? <Action to={lessonPath(sessionId)} icon={Check}>{C.openLesson}</Action> : <LeaveNote text={leave} />}
-          <Action tone="outline" to={COACHING_HOME}>{C.backToCoaching}</Action>
         </>
       )}
 
