@@ -550,6 +550,18 @@ describe('admin_mode and sample_arm under _v2', () => {
     expect(rowOf(ex.ct)).toMatchObject({ admin_mode: 'teacher_present', sample_arm: 'class_round', anchor_serves_any: 1 });
   });
 
+  // SAMPLING_RULING NC4: a round child who has met the set before is still a round row (mode class_round), with exposure_no saying so
+  test('the class round wins over the seen-set practice rule: a child who met bigger.G3.A at home → mode class_round, exposure_no 2, never practice', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    db.web_quiz_challenge_runs.push({ id: 'home1', student_id: K3, canonical_id: K3, exercise: 'bigger', lang: 'en', status: 'scored', mode: 'check', record: true, item_set_id: 'bigger.G3.A', period_id: '2026-10', created_at: '2026-10-05T00:00:00Z' });
+    const ex = await Ch.exercise(hub(), 'bigger', { ...D, mode: 'class_round' });
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'class_round', record: false, item_set_id: 'bigger.G3.A', exposure_no: 2, admin_mode: 'teacher_present', sample_arm: 'class_round' });
+    expect(ex.mode).toBe('class_round');   // (the page's practice_round flag follows the round TOKEN, w.round, which this harness does not mint: roundPayload strips it on a real round)
+    // the same child at home: the seen set is a practice replay, as before
+    const home = await Ch.exercise(hub(), 'bigger', D);
+    expect(rowOf(home.ct)).toMatchObject({ mode: 'practice', record: false, item_set_id: 'bigger.G3.A' });
+  });
+
   test('web_quiz_class_week on but the class-week module absent: nothing more is written, the serve goes on', async () => {
     on(V2, ...CANON_ON, PERIOD, 'web_quiz_class_week');
     const ex = await Ch.exercise(hub(), 'bigger', D);
