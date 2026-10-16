@@ -58,6 +58,7 @@ jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
 const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout, takenNote } = require('../../bot/shared/services/assessment/fde-layout');
+const { topUpTree } = require('./helpers/urdu-spares');
 
 const P = Patterns.get('fde_g5_2027').subjects;
 const U = P.urdu;
@@ -104,9 +105,10 @@ describe('urdu Q1 ↔ Q4: Section A never gives a Q4 answer away', () => {
     expect(items(examJson, 'urdu.C.Q4').map((q) => q.answer)).toContain('الف) اسکول');
   });
 
-  test('after the one re-ask, a held item comes back only for a place nothing else takes', () => {
+  test('after the one re-ask a held Section C give-away still stays out (the engine tops Section A up again instead)', () => {
     const { examJson } = applyLayout(clone(papers.full_1), U, FDE, { reasked: true });
-    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(20);
+    const held = applyLayout(clone(papers.full_1), U, FDE, { reasked: false }).examJson;
+    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(items(held, 'urdu.A.Q1').length);
   });
 
   test('a paper with no shared key lays out as before', () => {
@@ -187,7 +189,8 @@ describe('lessons 4–5 through generatePatternExam', () => {
       const prompt = textOf(req);
       const sec = sectionOf(prompt);
       asked.push({ sec, prompt });
-      const tree = treeFor(sec);
+      // A Section A top-up writes new items (helpers/urdu-spares.js); every other call, the recording.
+      const tree = (sec === 'A' && topUpTree(prompt)) || treeFor(sec);
       if (sec === 'A' && q1GivesQ4Away && asked.filter((a) => a.sec === 'A').length === 1) {
         // Q4 ۲ of this request is «___ تم محنت کرو گے ___» keyed «الف) اگر، تو».
         tree.objective.MCQs[19] = {
@@ -285,7 +288,8 @@ describe('urdu Q6: verses that are not from the poem are never printed', () => {
       const prompt = textOf(req);
       const sec = ['A', 'B', 'C'].find((x) => prompt.includes(`"slot": "urdu.${x}.`));
       asked.push(sec);
-      const tree = treeFor(sec);
+      // A Section A top-up writes new items (helpers/urdu-spares.js); every other call, the recording.
+      const tree = (sec === 'A' && topUpTree(prompt)) || treeFor(sec);
       if (sec === 'C') tree.subjective['Poem Explanation'] = [clone(asked.filter((x) => x === 'C').length === 1 ? first : second)];
       return reply(tree);
     });

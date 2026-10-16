@@ -1172,9 +1172,10 @@ function keptNotes(P, section, examJson, cross, shortfall) {
 }
 // Urdu Section A on a top-up: each short held slot's kept items and their keys. The re-ask writes
 // the section's full count (no spare count asked), so the paper has a new item for every twin it holds.
-// A top-up asks for two more than it needs: an item the layout holds inside the re-ask then takes a
-// spare's place, never the held item's put-back.
-const URDU_SPARES = 2;
+// A top-up asks for spares beyond what it needs, at least two and half the gap rounded up (a top-up
+// for seven wrote three twins of kept facts): an item the layout holds inside the re-ask then takes a
+// spare's place.
+const urduSpares = (missing) => Math.max(2, Math.ceil(missing / 2));
 function urduKeptNotes(section, examJson, shortfall) {
   const out = [];
   for (const slot of section.slots) {
@@ -1186,7 +1187,7 @@ function urduKeptNotes(section, examJson, shortfall) {
     const keys = [...new Set(kept.map((q) => keyText(q).trim().replace(/\s*\n\s*/g, '; ')))];
     out.push(`${label} already keeps these items (question → answer):\n${kept.map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`).join('\n')}\n`
       + `Never write any of these again, in any wording, and never key a new item on any of these answers: ${keys.join('، ')}\n`
-      + `${label} needs ${gap.missing} more. Write ${gap.missing + URDU_SPARES} new items: the paper takes the first ${gap.missing} of your items that test a fact none of these tests.`);
+      + `${label} needs ${gap.missing} more. Write ${gap.missing + urduSpares(gap.missing)} new items: the paper takes the first ${gap.missing} of your items that test a fact none of these tests.`);
   }
   return out;
 }
@@ -1205,6 +1206,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const bySlot = new Map(slots.map((slot) => [slot.slot, []]));
   const room = (slot) => bySlot.get(slot.slot).length < slot.generate;
   let unplaced = 0;
+  let putBack = [];
 
   const all = walk(src);
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
@@ -1214,14 +1216,18 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const place = (cross) => {
     bySlot.forEach((list) => { list.length = 0; });
     unplaced = 0;
+    putBack = [];
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
     const fallback = new Map(); // slot → held items, in reply order
+    const inSlot = new Map(); // Urdu Q1: slot → items held inside Q1 that give nothing away, in reply order
+    const keep = (id, q) => inSlot.set(id, [...(inSlot.get(id) || []), q]);
     const repeats = new Map(); // Social Studies: slot → items a placed item already asks, in reply order
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
       if (P.key === 'social_studies' && tierSlip(q)) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return false;
-      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && (printsOwnKey(q) || asksTwo(q))) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && printsOwnKey(q)) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
       if (!holds(slot)) {
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
@@ -1261,6 +1267,23 @@ function applyLayout(examJson, P, scope, opts = {}) {
     // repeat beats no paper. Before it, the held item stays out, so the slot is short and the
     // section is asked again.
     if (!opts.reasked) return;
+    // Urdu: an item held against Section C (Q4's sentence, Q6's verse, a Q3/Q5 word) never comes
+    // back: it is the give-away a reader sees. The engine tops Section A up once more instead, and
+    // only an item held inside Q1 that gives nothing away fills a place left after that: a stem that
+    // asks two questions. A twin of a kept item, or a stem that prints a key, never comes back.
+    if (P.key === 'urdu') {
+      inSlot.forEach((list, id) => {
+        const slot = slots.find((s) => s.slot === id);
+        for (const q of list) {
+          if (!room(slot)) return;
+          if (bySlot.get(id).some((p) => twin(p, q))) continue;
+          bySlot.get(id).push(q);
+          putBack.push({ slot: id, rule: 'asks_two' });
+          unplaced -= 1;
+        }
+      });
+      return;
+    }
     fallback.forEach((list, id) => {
       const slot = slots.find((s) => s.slot === id);
       for (const q of list) {
@@ -1341,7 +1364,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
     frame_pages: null,
     notes: [],
   };
-  return { examJson: out, placed, unplaced, shortfall };
+  // `putBack` (Urdu: the held items that came back, with their rule) only when there are some.
+  return { examJson: out, placed, unplaced, shortfall, ...(putBack.length ? { putBack } : {}) };
 }
 
 module.exports = { applyLayout, takenNote, verseLines, typeKey, slotKey, unitWord };

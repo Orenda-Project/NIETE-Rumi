@@ -1915,6 +1915,24 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       results[i] = topUp ? { ...second, tree: _topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
       _dropProseVerses(results[i].tree, versesRef, requestId);
     }));
+    // Urdu Section A still short after its re-ask (the top-up's own items held as twins of kept
+    // facts, or a new hold against the re-asked Section C) is topped up once more, for exactly what
+    // it misses plus spares: a held Section C give-away is never put back to fill the place.
+    const a = key === 'urdu' ? built.find(({ section }) => section.slots.some((s) => s.slot === 'urdu.A.Q1')) : null;
+    const check = a && applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
+    const shortA = check ? check.shortfall.filter((f) => a.section.slots.some((s) => s.slot === f.slot)) : [];
+    if (shortA.length) {
+      logToFile('[assessment] section topped up again', { requestId, pattern, section: a.section.id, shortfall: shortA });
+      const i = results.findIndex((r) => r.id === a.section.id);
+      const first = results[i];
+      extraUsages.push(...first.usages);
+      const note = takenNote(P, a.section, check.examJson, { topUp: true, shortfall: shortA });
+      const second = await writeOne(note
+        ? { ...a, messages: _sectionMessages({ system, user: `${a.user}\n\n${note}`, pageContent: a.pageContent, model }) }
+        : a);
+      results[i] = { ...second, tree: _topUp(first.tree, second.tree, new Set(shortA.map((f) => f.slot))) };
+      _dropProseVerses(results[i].tree, versesRef, requestId);
+    }
     const still = _reviewTextHits(results);
     if (still.size) {
       throw fail('REVIEW_TEXT', 'A question carries text that must never print.', { sections: [...still.keys()], examJson: merged(), model });
@@ -1938,6 +1956,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   logToFile('[assessment] layout applied', {
     requestId, pattern, placed: layout.placed, unplaced: layout.unplaced, totalMarks: examJson._layout.total_marks,
     sections: P.sections.map((s) => s.id), dropped: dropped.length, shortfall: laid.shortfall,
+    ...(laid.putBack && laid.putBack.length ? { putBack: laid.putBack } : {}),
   });
   // A failed paper keeps what the model wrote and which model wrote it (on the error, for the
   // row), so the failure can be read afterwards instead of guessed at.

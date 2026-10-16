@@ -127,8 +127,8 @@ describe('Section A never gives Section C away', () => {
     }
   });
 
-  test('after the one re-ask a held item comes back only for a place nothing else takes', () => {
-    expect(items(laid('full_1', true), 'urdu.A.Q1')).toHaveLength(20);
+  test('after the one re-ask a held Section C give-away still stays out (the engine tops Section A up again instead)', () => {
+    expect(items(laid('full_1', true), 'urdu.A.Q1')).toHaveLength(items(laid('full_1', false), 'urdu.A.Q1').length);
   });
 
   test('the re-asked Section A is told the Q3/Q5 words and the Q6 verse; B and C are not', () => {
