@@ -36,7 +36,8 @@ const COPY = {
     hint: 'Just your first name',
     go: "Let's go!",
     later: 'Your teacher can add you to the class later.',
-    // wq-bind.js noticeSave / noticeReadings / noticeStopPhoneOnly (REAL, signed): IDENTITY §8, above "Let's go!"
+    // wq-bind.js noticeSave / noticeReadings / noticeStopPhoneOnly (REAL, signed), byte for byte (the tests compare the
+    // file): IDENTITY §8, above "Let's go!"
     noticeSave: "Jugnu will save this phone number with {n}'s name until the end of the school year (31 March), longer only if you keep playing.",
     noticeReadings: 'Readings {n} makes with the microphone are kept too.',
     noticeStop: 'A grown-up can remove this phone number any time by sending STOP on WhatsApp.',
@@ -62,8 +63,8 @@ const COPY = {
     go: 'چلو شروع کریں!',
     later: 'کلاس میں شامل کرنا ٹیچر کا کام ہے، وہ بعد میں ہو جائے گا۔',
     noticeSave: 'جگنو اس فون نمبر کو ⁨{n}⁩ کے ساتھ جوڑ کر محفوظ کرے گا۔ یہ اسکول کا سال ختم ہونے تک (۳۱ مارچ) رہے گا، اور اگر کھیلنا جاری رہے تو اس کے بعد بھی۔',
-    noticeReadings: 'مائیک پر ⁨{n}⁩ کی پڑھائی کی ریکارڈنگ بھی رکھی جاتی ہے۔',
-    noticeStop: 'گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔',
+    noticeReadings: 'مائیک پر ⁨{n}⁩ کی پڑھائی کی ریکارڈنگ بھی رکھی جاتی ہے۔',
+    noticeStop: 'گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔',
     isYou: 'کیا آپ ⁨{n}⁩ ہیں؟', yesMe: 'جی ہاں، یہ میں ہوں', diff: 'میں کوئی اور ⁨{n}⁩ ہوں',
     full: 'اس فون پر پہلے ہی ۴ بچے ہیں۔ کھولیں اور اپنا نام چنیں۔',
     open: 'کھولیں',
@@ -99,7 +100,7 @@ input{width:100%;height:56px;border-radius:14px;border:2px solid #e3c48a;padding
 .notice{font-size:16px;color:#4a3b2c;background:#fff;border-radius:14px;padding:10px 14px;margin:16px 0 0}[lang=ur] .notice{font-size:20px}.notice p{margin:4px 0}
 .go{display:block;width:100%;height:60px;margin:16px 0 12px;border:0;border-radius:18px;background:#2a9d8f;color:#fff;font-size:22px;font-weight:700;font-family:inherit;text-align:center;line-height:60px;text-decoration:none}
 .go:disabled{background:#b9c9c6}.note{font-size:15px;color:#6b5a48;margin:10px 0 0}[lang=ur] .note{font-size:18px}
-.line{background:#fff;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:18px}.strip{background:#264653;color:#fff;border-radius:12px;padding:8px 12px;margin:0 0 8px;font-size:16px;text-align:center}
+.line{background:#fff;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:18px}.strip{background:#264653;color:#fff;border-radius:12px;padding:8px 12px;margin:0 0 8px;font-size:16px;text-align:center}[lang=ur] .strip{font-size:18px}
 .pick{display:block;width:100%;min-height:56px;margin:8px 0;border-radius:14px;border:2px solid #e3c48a;background:#fff;font-size:20px;font-family:inherit}
 [dir=rtl] main{text-align:right}[dir=rtl] h1{text-align:center}bdi{unicode-bidi:isolate}`;
 
@@ -168,7 +169,9 @@ function createQuizJoinRouter(opts = {}) {
   let jsV = null;
   const phoneLang = (req) => (/^\s*ur\b/i.test(String(req.get('accept-language') || '')) ? 'ur' : 'en');
 
-  router.get('/quiz/join/:token', read, async (req, res, next) => {
+  // The limiter counts only pages the bot agreed to draw: with the switch off, every request still falls through to the
+  // portal's own answer (a school's shared connection never meets a 429 from a page that does not exist).
+  router.get('/quiz/join/:token', async (req, res, next) => {
     const token = String(req.params.token || '');
     if (!JOIN_TOKEN_RX.test(token) || !botUrl || !apiKey) return next();
     let out;
@@ -179,13 +182,17 @@ function createQuizJoinRouter(opts = {}) {
     }
     // the switch off (or a bot that has no such route yet): the portal's own answer, byte for byte
     if (out.status === 404) return next();
+    return read(req, res, () => draw(req, res, token, out));
+  });
+
+  function draw(req, res, token, out) {
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
     if (out.status === 410) return res.status(410).type('html').send(renderJoinNote({ lang: (out.body && out.body.lang) || phoneLang(req), kind: 'stale' }));
     if (out.status !== 200 || !out.body || !out.body.ok) return res.status(502).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'error' }));
     assetV = assetV || assetVersion();
     jsV = jsV || fileVersion('join.js');
     return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV }));
-  });
+  }
   return router;
 }
 

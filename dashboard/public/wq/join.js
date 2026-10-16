@@ -15,6 +15,9 @@
   var noticeEl = document.getElementById('jn-notice');
   var goEl = document.getElementById('jn-go');
   var outEl = document.getElementById('jn-out');
+  if (!goEl || !outEl) return;   // not the join screen (the file is public): nothing to do
+  // the home's own animals (hub.js ANIMALS): two children with one name are told apart by the animal they know
+  var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
@@ -53,7 +56,16 @@
   function say(html) { outEl.innerHTML = html; }
   function line(text) { say('<p class="line">' + esc(text) + '</p>'); }
   function name() { return nameEl ? String(nameEl.value || '').replace(/\s+/g, ' ').trim() : ''; }
-  function okName(n) { return n.length >= 1 && n.length <= 20 && !/[0-9٠-٩۰-۹]/.test(n); }
+  // The server's rule (cleanFirstName / NAME_RX): letters of any script, a space, an apostrophe or a hyphen; ≤ 20
+  // characters, ≤ 2 words. A browser without Unicode classes in RegExp keeps the old check; the server still decides.
+  var NAME_RX = null;
+  try { NAME_RX = new RegExp("^[\\p{L}\\p{M}' -]+$", 'u'); } catch (e) { NAME_RX = null; }
+  function okName(n) {
+    var s = n;
+    try { if (typeof s.normalize === 'function') s = s.normalize('NFC'); } catch (e) {}
+    if (s.length < 1 || s.length > 20 || s.split(' ').length > 2) return false;
+    return NAME_RX ? NAME_RX.test(s) : !/[0-9٠-٩۰-۹]/.test(s);
+  }
   function fill(tpl, n) { return String(tpl || '').split('{n}').join(n); }
   // IDENTITY §8: what is kept, until when, how to remove it — on screen with the child's own name before the tap
   function notice() {
@@ -89,11 +101,15 @@
       return go(b.next);
     }
     if (b.ask === 'is_this_you' && b.kids && b.kids.length) {
-      var k = b.kids[0];
-      var first = String(k.first || '');
-      return say('<p class="line">' + esc(fill(C.isYou, first)) + '</p>' +
-        '<button type="button" class="pick" data-tap="same" data-chip="' + esc(k.chip) + '">' + esc(C.yesMe) + '</button>' +
-        '<button type="button" class="pick" data-tap="new">' + esc(fill(C.diff, first)) + '</button>');
+      // every same-named child the server names, each with the animal the home shows for them, then "a different one"
+      var first = String(b.kids[0].first || '');
+      var html = '<p class="line">' + esc(fill(C.isYou, first)) + '</p>';
+      for (var i = 0; i < b.kids.length; i++) {
+        var k = b.kids[i] || {};
+        var face = b.kids.length > 1 ? (ANIMALS[k.animal] || '⭐') + ' ' : '';
+        html += '<button type="button" class="pick" data-tap="same" data-chip="' + esc(k.chip) + '">' + face + esc(C.yesMe) + '</button>';
+      }
+      return say(html + '<button type="button" class="pick" data-tap="new">' + esc(fill(C.diff, first)) + '</button>');
     }
     if (b.off) return say('<p class="line">' + esc(C.off) + '</p><p class="small">' + esc(C.offNone) + '</p>');
     if (b.stale) { goEl.disabled = true; return line(C.stale); }

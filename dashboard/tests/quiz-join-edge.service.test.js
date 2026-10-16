@@ -5,11 +5,23 @@
  * token → next(): the portal's own answer, byte for byte. The two POSTs ride the web quiz router's forwarder. The bot
  * is the network boundary (a fake fetch); the portal's own page is a stand-in that answers 418.
  */
+const fs = require('fs');
+const path = require('path');
 const http = require('http');
 const zlib = require('zlib');
 const express = require('express');
 const { createWebQuizRouter } = require('../routes/web-quiz.routes');
-const { createQuizJoinRouter } = require('../routes/quiz-join.routes');
+const { createQuizJoinRouter, COPY } = require('../routes/quiz-join.routes');
+
+// The signed notice sentences as the claim screen ships them (public/wq/wq-bind.js), "{n}" where the name goes: EN then UR.
+function bindNotices() {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-bind.js'), 'utf8');
+  const named = (key) => [...src.matchAll(new RegExp(`${key}: function \\(name\\) \\{ return "([^"]*)" \\+ name \\+ "([^"]*)"; \\}`, 'g'))].map((m) => `${m[1]}{n}${m[2]}`);
+  const stop = [...src.matchAll(/noticeStopPhoneOnly: "([^"]*)"/g)].map((m) => m[1]);
+  const save = named('noticeSave');
+  const readings = named('noticeReadings');
+  return { en: { noticeSave: save[0], noticeReadings: readings[0], noticeStop: stop[0] }, ur: { noticeSave: save[1], noticeReadings: readings[1], noticeStop: stop[1] } };
+}
 
 const BOT = 'http://bot.test';
 const KEY = 'test-internal-key';
@@ -18,6 +30,7 @@ const tok = (payload) => `${Buffer.from(JSON.stringify(payload)).toString('base6
 const J = tok({ k: 'j', n: 'N'.repeat(22), l: 'ur', exp: 4102444800 });
 const H = tok({ k: 'h', ids: ['x'], exp: 4102444800 });
 
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function jsonRes(status, body) {
   return { status, ok: status >= 200 && status < 300, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) };
 }
@@ -79,7 +92,7 @@ describe('GET /quiz/join/:token', () => {
     // IDENTITY §8: the notice block (its STOP sentence is static; the two named sentences fill as the name is typed) sits ABOVE "Let's go!"
     expect(html.indexOf('id="jn-notice"')).toBeGreaterThan(0);
     expect(html.indexOf('id="jn-notice"')).toBeLessThan(html.indexOf('id="jn-go"'));
-    expect(html).toContain('واٹس ایپ پر ⁦<bdi dir="ltr">STOP</bdi>⁩ بھیج کر');
+    expect(html).toContain(esc(bindNotices().ur.noticeStop).replace('STOP', '<bdi dir="ltr">STOP</bdi>'));
     expect(JSON.parse(html.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1].replace(/\\u003c/g, '<').replace(/\\u003e/g, '>').replace(/\\u0026/g, '&')).copy.noticeSave)
       .toBe('جگنو اس فون نمبر کو ⁨{n}⁩ کے ساتھ جوڑ کر محفوظ کرے گا۔ یہ اسکول کا سال ختم ہونے تک (۳۱ مارچ) رہے گا، اور اگر کھیلنا جاری رہے تو اس کے بعد بھی۔');
     expect(html).toContain('<link rel="preload" href="/wq/fonts/wq-nastaliq-5.woff2" as="font" type="font/woff2" crossorigin>');
@@ -99,6 +112,28 @@ describe('GET /quiz/join/:token', () => {
     expect(res.body).not.toContain('id="jn-name"');
     expect(res.body).not.toContain('id="jn-notice"');
     expect(res.body).not.toContain('rel="preload"');
+  });
+
+  test('the three notice sentences are byte for byte the claim screen\'s signed ones (wq-bind.js), EN and UR', () => {
+    const want = bindNotices();
+    ['en', 'ur'].forEach((l) => ['noticeSave', 'noticeReadings', 'noticeStop'].forEach((k) => {
+      expect(typeof want[l][k]).toBe('string');
+      expect(Buffer.from(COPY[l][k]).equals(Buffer.from(want[l][k]))).toBe(true);
+    }));
+  });
+
+  test('the Urdu practice strip is at least 18 px', async () => {
+    page = { status: 200, body: { ok: true, lang: 'ur', practice: true } };
+    const res = await req(srv, 'GET', `/quiz/join/${J}`);
+    expect(res.body).toContain('<p class="strip">مشق:');
+    expect(res.body).toContain('[lang=ur] .strip{font-size:18px}');
+  });
+
+  test('switch OFF: the 301st request a minute from one address (a school\'s shared connection) still gets the portal\'s answer, never a 429', async () => {
+    page = { status: 404, body: { error: 'off' } };
+    const statuses = [];
+    for (let i = 0; i < 305; i++) statuses.push((await req(srv, 'GET', `/quiz/join/${J}`)).status);
+    expect(statuses.filter((s) => s !== 418)).toEqual([]);
   });
 
   test('switch OFF (the bot answers 404) → the portal\'s own answer, byte for byte', async () => {

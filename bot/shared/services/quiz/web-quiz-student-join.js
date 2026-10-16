@@ -13,11 +13,13 @@
  *   gradeTap({ t, grade, device })   → { ok, prefetch[] } | { off } | { stale }   the grade chip: join_grade, the home's warm list
  *   join({ t, grade, name, device, same, force })   the ONE write (below) → { next } | { ask } | { refused, next? } | { stale } | { off }
  *   practiceJoinUrl({ uid, lang, back })  the coach's "Try it as a student": a practice j token (no nonce) → its URL
- *   siblingJoinToken({ phoneNorm, userId, lang })  "Someone new?" on a phone's child home: a fresh join token
+ *   siblingJoinToken({ phoneNorm, userId, lang })  "Someone new?" on a phone's child home: a fresh join token, minted
+ *                                    by the home at render (never carried in a URL)
  *   pageInfo({ t })                  the join page's shell answer (the switch, the token): { lang, practice } | { stale } | { off }
  *   autoBind({ n })                  the `/quiz` landing of a phone with children but no binding: never
  *                                    a silent bind — the confirm sheet's chips ("Is it <First>?" + the notice)
- *   bindPick({ n, chip })            the sheet's "Yes, it's me" → the binding (via 'guest'), home with from=bind
+ *   bindPick({ n, chip | kid, src, device, quizDevice, lang })  the sheet's "Yes, it's me" → the binding (via
+ *                                    'guest'), home with from=bind
  *   noteRecognised({ phoneNorm })    join_recognised: a self-joined child's phone is known again (once a PKT day)
  *
  * THE WRITE (one request; each step guards the next, and a failure after the row undoes the row):
@@ -61,6 +63,9 @@ const REC_PREFIX = 'ft:join:rec:';
 const NAME_MAX = 20;
 // Letters of any script, spaces, an apostrophe or a hyphen: never a digit (no phone number can be typed as a name).
 const NAME_RX = /^[\p{L}\p{M}' -]+$/u;
+const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
+// The family-phone roster read: rows past this many on one number are a class's number, never a family's.
+const ROSTER_SCAN = 40;
 
 let cache = null;
 
@@ -165,10 +170,10 @@ function cleanFirstName(raw) {
   return words.length <= 2 ? s : null;
 }
 
-/** A walk-through persona on a sandbox test phone ('fresh' = a new phone): the test-persona module, when present. */
+/** A walk-through persona on a sandbox test phone ('fresh' = a new phone): the walk-persona module, when present. */
 async function freshPersona(phoneNorm) {
   let M = null;
-  try { M = require('../first-touch/test-persona'); } catch (_) { return false; }
+  try { M = require('../first-touch/walk-persona'); } catch (_) { return false; }
   try { const p = M && typeof M.get === 'function' ? await M.get(phoneNorm) : null; return Boolean(p && p.as === 'fresh'); } catch (_) { return false; }
 }
 
@@ -190,15 +195,18 @@ async function teacherPhone(userId, phoneNorm = null) {
 
 const hubKid = (id) => T.chipId('h', id);
 
-/** The child's home: the hub of this phone's children, opened on `id`, marked with the route that brought them. */
-function homeUrl(kids, id, src, lang) {
-  const ids = [String(id), ...kids.map((k) => String(k.id)).filter((x) => x !== String(id))];
+/**
+ * The child's home: the hub of this phone's children, opened on `id` (none: the home's own pick), marked with the
+ * route that brought them. `lang` only when the caller knows it; without it the home keeps the family's own language.
+ */
+function homeUrl(kids, id, src, lang = null) {
+  const ids = [...(id ? [String(id)] : []), ...kids.map((k) => String(k.id)).filter((x) => x !== String(id))];
   const token = T.signHub(ids, `student_join_${src}`);
   if (!token) return null;
   const q = new URLSearchParams();
   q.set('from', src);
   if (id) q.set('kid', hubKid(id));
-  q.set('lang', langOf(lang));
+  if (lang) q.set('lang', langOf(lang));
   return `/h/${token}?${q}`;
 }
 
@@ -331,10 +339,9 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
     }
     const kids = [{ id }, ...set];
     await emit('join_done', { grade: g, kids_n: kids.length }, id, device);
-    const next = homeUrl(kids, id, 'join', lang);
-    // "Someone new?" on that home (a brother or sister on the same phone): their own join link, while the phone has room
-    const jn = kids.length < MAX_KIDS ? await siblingJoinToken({ phoneNorm: who.phoneNorm, userId: who.userId, lang }) : null;
-    return { next: jn && next ? `${next}&jn=${jn}` : next };
+    // "Someone new?" (a brother or sister on the same phone) is the home's to draw: it mints their own link at render
+    // (siblingJoinToken), so no join token ever rides this URL
+    return { next: homeUrl(kids, id, 'join', lang) };
   } catch (err) {
     logToFile('⚠️ student join: the join threw (nothing promised)', { error: err.message });
     return { error: 'unavailable' };
@@ -347,18 +354,34 @@ function pickChips(set) {
   return guarded.map((c) => ({ chip: T.chipId('go', c.id), first: c.first, animal: c.avatar, ...(c.line2 ? { line2: c.line2 } : {}) }));
 }
 
+/** 1 April 00:00 PKT that starts the school year `now` falls in (the landing's rung 3b rule, role.service.js). */
+function schoolYearStart(now = new Date()) {
+  const pkt = new Date(now.getTime() + PKT_OFFSET_MS);
+  const y = pkt.getUTCMonth() >= 3 ? pkt.getUTCFullYear() : pkt.getUTCFullYear() - 1;
+  return new Date(Date.UTC(y, 3, 1) - PKT_OFFSET_MS);
+}
+
 /**
- * The roster children whose family phone (students.parent_phone, as the teacher typed it) is this phone —
- * only when they are 1–4 children of ONE school (a wrong number on a roster then exposes one first name at most,
- * never a class). [] otherwise, and on any read error.
+ * The roster children whose family phone (students.parent_phone, as the teacher typed it) is this phone: active,
+ * unmerged rows on an active class list made THIS school year — only when they are 1–4 children of ONE school (a
+ * wrong number on a roster then exposes one first name at most, never a class). The row filters run in the query and
+ * the count after the year's lists, so old or left rows never crowd out this year's child; a number on more rows than
+ * a scan reads is a class's number, not a family's. [] otherwise, and on any read error.
  */
-async function rosterForPhone(phoneNorm) {
+async function rosterForPhone(phoneNorm, now = new Date()) {
   try {
     const local = `0${String(phoneNorm).slice(2)}`;
-    const { data, error } = await supabase.from('students').select('id, student_name, school_id, list_id, status, merged_into, is_active')
-      .in('parent_phone', [`+${phoneNorm}`, String(phoneNorm), local]).limit(MAX_KIDS + 1);
-    if (error) return [];
-    const kids = (data || []).filter((k) => k.list_id && k.is_active !== false && k.status !== 'merged' && !k.merged_into);
+    const { data, error } = await supabase.from('students').select('id, student_name, school_id, list_id')
+      .in('parent_phone', [`+${phoneNorm}`, String(phoneNorm), local])
+      .eq('is_active', true).eq('status', 'active').is('merged_into', null).not('list_id', 'is', null)
+      .limit(ROSTER_SCAN);
+    if (error || !(data || []).length || data.length >= ROSTER_SCAN) return [];
+    const listIds = [...new Set(data.map((k) => String(k.list_id)))];
+    const { data: lists, error: lerr } = await supabase.from('student_lists').select('id, is_active, created_at').in('id', listIds);
+    if (lerr) return [];
+    const since = schoolYearStart(now).getTime();
+    const live = new Set((lists || []).filter((l) => l.is_active !== false && l.created_at && new Date(l.created_at).getTime() >= since).map((l) => String(l.id)));
+    const kids = data.filter((k) => live.has(String(k.list_id)));
     const schools = new Set(kids.map((k) => k.school_id || null));
     if (!kids.length || kids.length > MAX_KIDS || schools.size !== 1) return [];
     return kids;
@@ -381,7 +404,7 @@ async function offerFor(phoneNorm) {
  * a roster number that is not one family (two schools, > 4) → { none } (the role question).
  * → { next } | { confirm: { src, kids } } | { join } | { none } | { off } | { stale }. Writes nothing. Never throws.
  */
-async function autoBind({ n, lang = 'en' } = {}) {
+async function autoBind({ n, lang = null } = {}) {
   try {
     const f = await flags();
     if (!f.bind) return { off: true };
@@ -394,7 +417,7 @@ async function autoBind({ n, lang = 'en' } = {}) {
     }
     if (!kids.length) {
       // a roster number with no family match → the role question; a phone with nothing at all → the join screen
-      return src === 'roster' && (await rosterHits(who.phoneNorm)) ? { none: true } : { join: await joinUrl({ n, lang }) };
+      return src === 'roster' && (await rosterHits(who.phoneNorm)) ? { none: true } : { join: await joinUrl({ n, lang: lang || 'en' }) };
     }
     return { confirm: { src, kids: pickChips(kids) } };
   } catch (err) {
@@ -432,9 +455,10 @@ async function playedHere(studentId, device) {
  * The sheet's "Yes, it's me" → that child's binding on this phone (via 'guest'), home with from=bind. The child is
  * named by the sheet's `chip`, or by the landing's `kid` (a student id the landing already matched); either way it
  * must be one of THIS phone's children (bound, chat, or its class-list family), or — `src:'device'` — a child who
- * played on this very device. A stranger is refused.
+ * played on this very device: `quizDevice` is the quiz page's own device (its local wq_d; the /q/ page keeps no
+ * cookie), else `device` (this browser's cookie). A stranger is refused. `lang` only when the landing knows it.
  */
-async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = null, device = null, lang = 'en' } = {}) {
+async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = null, device = null, quizDevice = null, lang = null } = {}) {
   try {
     const f = await flags();
     if (!f.bind) return { off: true };
@@ -445,7 +469,7 @@ async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = nul
     let src = offer.src;
     let kid = kids.find((k) => (chip && T.chipId('go', k.id) === String(chip)) || (kidId && String(k.id) === String(kidId))) || null;
     if (!kid && kidId && askedSrc === 'device') {
-      kid = await playedHere(kidId, device);
+      kid = await playedHere(kidId, quizDevice || device);
       if (kid) src = 'device';
     }
     if (!kid) return { refused: 'child_unknown' };
@@ -503,6 +527,6 @@ async function noteRecognised({ phoneNorm } = {}) {
 module.exports = {
   SWITCH_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
   flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound,
-  cleanFirstName, cleanGrade, pickChips, rosterForPhone,
+  cleanFirstName, cleanGrade, pickChips, rosterForPhone, schoolYearStart,
   _resetCache: () => { cache = null; },
 };
