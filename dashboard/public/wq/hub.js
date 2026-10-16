@@ -270,8 +270,9 @@
   // The Jugnu corner's script when the server render had no `play`: a child's first open has no wq_dv cookie yet,
   // so the render was the locked one and the edge left hub-play.js out; unlock() then brings `play`. Loaded once,
   // at hub.js's own ?v=, and the hub drawn again when it arrives (still on the hub, still with `play`); arriving on
-  // another screen, the next hub drawn finds it. A failed load is asked for again by the next hub drawn, once per
-  // page, and counted once (hub_play_load_failed); a second failure leaves the hub without the corner.
+  // another screen, the next hub drawn finds it. A failed load is counted once (hub_play_load_failed) and asked for
+  // again once per page: at once while the hub is shown, else by the next hub drawn; a second failure leaves the hub
+  // without the corner.
   var playFails = 0;
   function playIn() {
     loadOnce('hub-play', false, function () { if (window.WQPLAY && B.play && ROOT.getAttribute('data-m') === 'H2') hub(); }, null, function () {
@@ -279,6 +280,7 @@
       if (playFails > 1) return;
       asked['hub-play'] = false;
       ev('hub_play_load_failed', { file: 'hub-play.js', i: playFails });
+      if (B.play && ROOT.getAttribute('data-m') === 'H2') playIn();
     });
   }
   // The keep-my-place card's script (wq-bind.js/.css) has the same gap: the edge's bindTags decides before the device

@@ -530,16 +530,34 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     expect(p.html()).toContain('data-shelf="1"');
     expect(plays(p).map((e) => e.src)).toEqual(['/wq/hub-play.js?v=abc123']);
   });
-  test('hub-play.js fails once: one hub_play_load_failed, then the next hub asks for it again and draws the corner', async () => {
+  test('hub-play.js fails once while the child stays on the hub: asked again at once, the corner drawn without any other navigation', async () => {
     const p = firstOpen({ ...BOOTS.done, play: PLAY });
     await p.flush();
     expect(plays(p)).toHaveLength(1);
     plays(p)[0].l.error();
     await p.flush();
-    expect(p.html()).not.toContain('data-shelf');
     expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toEqual([expect.objectContaining({ n: 'hub_play_load_failed', file: 'hub-play.js', i: 1 })]);
-    await p.backAgain();
     expect(plays(p).map((e) => e.src)).toEqual(['/wq/hub-play.js?v=abc123', '/wq/hub-play.js?v=abc123']);
+    vm.runInContext(PLAY_SRC, p.ctx);
+    plays(p)[1].l.load();
+    await p.flush();
+    expect(p.moment()).toBe('H2');
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toHaveLength(1);
+  });
+  test('hub-play.js fails once on another screen ("Who is playing?"): nothing asked there, the next hub asks again and draws the corner', async () => {
+    const p = firstOpen({ ...TWO, play: PLAY }, { taps: true });
+    await p.flush();
+    p.tap('#wq-h-switch');
+    expect(p.moment()).toBe('H1');
+    const who = p.html();
+    plays(p)[0].l.error();
+    await p.flush();
+    expect(plays(p)).toHaveLength(1);
+    expect(p.html()).toBe(who);
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toHaveLength(1);
+    await p.backAgain();
+    expect(plays(p)).toHaveLength(2);
     vm.runInContext(PLAY_SRC, p.ctx);
     plays(p)[1].l.load();
     await p.flush();
@@ -552,9 +570,11 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     await p.flush();
     const bare = p.html();
     plays(p)[0].l.error();
-    await p.backAgain();
+    await p.flush();
     expect(plays(p)).toHaveLength(2);
     plays(p)[1].l.error();
+    await p.flush();
+    expect(plays(p)).toHaveLength(2);
     await p.backAgain();
     await p.backAgain();
     expect(plays(p)).toHaveLength(2);
