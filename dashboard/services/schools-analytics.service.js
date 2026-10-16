@@ -24,6 +24,14 @@
  * trigger maintains it), so each process remembers {updated_at, pct} per session id and
  * only reads the score of a session it has not seen in that state.
  *
+ * bd-97x22y.5 — the same read also takes each session's three FICO section scores (her B / C / D,
+ * for /analytics/observations), so analysis_data is opened ONCE per session per process for
+ * both routes: the value is detoasted once below an OFFSET 0 and reduced to nine fields in SQL
+ * (the domains object is ~25 KB with its indicators — it never comes to Node). The memo is
+ * shared by the two routes, and a score read already in flight for a session is awaited, not
+ * repeated, so two cold routes at once still read each session once. This route's answer is
+ * unchanged.
+ *
  * Definitions (window = Pakistan days, both ends inclusive, either end open):
  *   school            schools.is_active and not is_probable_test, and schools.region one of
  *                     the six sectors. A school with no region (NULL, blank) or any other
@@ -54,7 +62,7 @@
  */
 
 const { getOverall } = require('./coaching-frameworks.service');
-const { HUMAN_OBSERVATION } = require('./steps-grid.service');
+const { HUMAN_OBSERVATION, FICO_SECTIONS, sectionPct } = require('./steps-grid.service');
 // Imported, never respelled: two spellings of "finished" is how observations went missing once.
 const { TERMINAL } = require('./leader-patch.service');
 
@@ -251,6 +259,9 @@ function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
 /**
  * Per-process memo of session scores, keyed by id and stamped with the row's updated_at.
  * Bounded: past maxEntries it starts again empty rather than growing without limit.
+ * bd-97x22y.5: an entry also holds the session's FICO sections ({b, c, d}, null = not scored),
+ * and `pending` holds the score reads in flight (id → promise), so a second route arriving
+ * while the first is still reading waits for it instead of reading the same rows again.
  */
 function createScoreMemo({ maxEntries = 200000 } = {}) {
   const map = new Map();
@@ -259,10 +270,11 @@ function createScoreMemo({ maxEntries = 200000 } = {}) {
       const hit = map.get(id);
       return hit && hit.u === updatedAt ? hit : null;
     },
-    set(id, updatedAt, pct) {
+    set(id, updatedAt, pct, sections = null) {
       if (map.size >= maxEntries) map.clear();
-      map.set(id, { u: updatedAt, pct });
+      map.set(id, { u: updatedAt, pct, sections });
     },
+    pending: new Map(),
     get size() { return map.size; },
   };
 }
@@ -367,10 +379,103 @@ function sessionsSql(bounds) {
      AND ${windowClause('c.created_at', [bounds.fromTs, bounds.toTs])}`;
 }
 
+// The fields of a FICO section the score read keeps — what sectionPct reads, nothing else —
+// each as its own column `<section>_<field>` (b_score, b_max, b_assessed, c_score, …).
+const SECTION_FIELDS = Object.freeze({ score: 'domain_score', max: 'domain_max', assessed: 'assessed' });
+
+/**
+ * Each session's overall score and its three FICO sections, from ONE read of analysis_data:
+ * `#> '{}'` detoasts the value once, below an OFFSET 0 (which keeps the planner from folding the
+ * subquery back up and re-reading the column once per reference); the projections above it
+ * only walk that value in memory. The sections come out as nine plain text columns, never the
+ * ~25 KB domains object with its indicators (a first cut built a small jsonb object per row
+ * instead: +15% server time and twice the bytes on NIETE prod, 2026-10-14). A non-object
+ * analysis_data reads as nulls.
+ */
+const SECTION_COLUMNS = Object.entries(FICO_SECTIONS).flatMap(([k, key]) => Object.entries(SECTION_FIELDS)
+  .map(([col, f]) => `s.a #>> '{domains,${key},${f}}'::text[] AS ${k}_${col}`));
 const SCORES_SQL = `
-  SELECT id, updated_at, analysis_data->'scores' AS scores
-    FROM coaching_sessions
-   WHERE id = ANY($1::uuid[])`;
+  SELECT s.id, s.updated_at, s.a -> 'scores' AS scores,
+         ${SECTION_COLUMNS.join(',\n         ')}
+    FROM (SELECT id, updated_at, analysis_data #> '{}'::text[] AS a
+            FROM coaching_sessions
+           WHERE id = ANY($1::uuid[])
+          OFFSET 0) s`;
+
+/** The domains object sectionPct reads, rebuilt from a score row's section columns. */
+function domainsOf(row) {
+  const out = {};
+  for (const [k, key] of Object.entries(FICO_SECTIONS)) {
+    const flag = row[`${k}_assessed`];
+    out[key] = {
+      domain_score: row[`${k}_score`],
+      domain_max: row[`${k}_max`],
+      assessed: flag === false || flag === 'false' ? false : flag === true || flag === 'true' ? true : null,
+    };
+  }
+  return out;
+}
+
+/** A session's FICO sections: {b, c, d}, each a % or null. */
+function sectionsOf(row) {
+  const domains = row ? domainsOf(row) : null;
+  const out = {};
+  for (const [k, key] of Object.entries(FICO_SECTIONS)) out[k] = sectionPct(domains, key);
+  return out;
+}
+
+/**
+ * The counted sessions in the window, each with its overall score and FICO sections from the
+ * memo. One set-based read, then the scores of only those sessions the memo does not hold and
+ * no other request is already reading. Shared by /analytics/schools and /analytics/observations.
+ *
+ * @returns {Promise<{sessions: Array<{id, school_id, user_id, is_test, observation_type, pct, sections}>, scoreReads: number}>}
+ */
+async function loadCountedSessions(query, range, { memo = defaultMemo } = {}) {
+  const bounds = windowBounds(range);
+  const sessionRes = await query(sessionsSql(bounds), present(bounds.fromTs, bounds.toTs));
+  const sessions = (sessionRes.rows || []).map((r) => ({ ...r, updated_at: stamp(r.updated_at) }));
+
+  const waits = new Set();
+  const toRead = [];
+  for (const s of sessions) {
+    if (memo.get(s.id, s.updated_at)) continue;
+    const inflight = memo.pending && memo.pending.get(s.id);
+    if (inflight) waits.add(inflight);
+    else toRead.push(s.id);
+  }
+  if (toRead.length) {
+    const read = (async () => {
+      try {
+        const scoreRes = await query(SCORES_SQL, [toRead]);
+        for (const r of scoreRes.rows || []) {
+          memo.set(r.id, stamp(r.updated_at), sessionPct(r.scores), sectionsOf(r));
+        }
+      } finally {
+        if (memo.pending) for (const id of toRead) memo.pending.delete(id);
+      }
+    })();
+    if (memo.pending) for (const id of toRead) memo.pending.set(id, read);
+    waits.add(read);
+  }
+  await Promise.all(waits);
+
+  return {
+    sessions: sessions.map((s) => {
+      const hit = memo.get(s.id, s.updated_at);
+      return {
+        id: s.id,
+        school_id: s.school_id,
+        user_id: s.user_id,
+        is_test: s.is_test === true,
+        observation_type: s.observation_type == null ? null : s.observation_type,
+        pct: hit ? hit.pct : null,
+        sections: hit && hit.sections ? hit.sections : sectionsOf(null),
+      };
+    }),
+    scoreReads: toRead.length,
+  };
+}
 
 /**
  * At most three reads: schools (each with its roster, LP opens and training) and counted
@@ -385,32 +490,16 @@ const SCORES_SQL = `
 async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo } = {}) {
   const bounds = windowBounds(range);
   const instants = present(bounds.fromTs, bounds.toTs);
-  const [schoolRes, sessionRes] = await Promise.all([
+  const [schoolRes, counted] = await Promise.all([
     query(schoolsSql(bounds), instants),
-    query(sessionsSql(bounds), instants),
+    loadCountedSessions(query, range, { memo }),
   ]);
-
-  const sessions = (sessionRes.rows || []).map((r) => ({ ...r, updated_at: stamp(r.updated_at) }));
-  const misses = sessions.filter((s) => !memo.get(s.id, s.updated_at)).map((s) => s.id);
-  if (misses.length) {
-    const scoreRes = await query(SCORES_SQL, [misses]);
-    for (const r of scoreRes.rows || []) memo.set(r.id, stamp(r.updated_at), sessionPct(r.scores));
-  }
 
   return {
     schools: schoolRes.rows || [],
-    sessions: sessions.map((s) => {
-      const hit = memo.get(s.id, s.updated_at);
-      return {
-        id: s.id,
-        school_id: s.school_id,
-        user_id: s.user_id,
-        is_test: s.is_test === true,
-        observation_type: s.observation_type == null ? null : s.observation_type,
-        pct: hit ? hit.pct : null,
-      };
-    }),
-    scoreReads: misses.length,
+    // This route's sessions keep their shape: the sections are /analytics/observations' own.
+    sessions: counted.sessions.map(({ sections, ...s }) => s),
+    scoreReads: counted.scoreReads,
   };
 }
 
@@ -447,6 +536,8 @@ function createResponseCache({ ttlMs = 10 * 60 * 1000, maxEntries = 100, now = (
 module.exports = {
   LP_OPENS_LOGGED_SINCE,
   REGION_BUCKETS,
+  // Shared with coaching-analytics.service (bd-97x22y.1): one spelling of "which sector".
+  bucketOf,
   parseRegionFilter,
   windowBounds,
   sessionPct,
@@ -454,4 +545,6 @@ module.exports = {
   createScoreMemo,
   loadSchoolsAnalyticsRows,
   createResponseCache,
+  // bd-97x22y.5 — shared with observations-analytics.service: one counted-sessions read, one memo.
+  loadCountedSessions,
 };

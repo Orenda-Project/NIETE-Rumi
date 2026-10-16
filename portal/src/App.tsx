@@ -303,7 +303,9 @@ const App = () => {
             <Route path="/portal/attendance" element={<LegacyAttendanceRedirect to="/portal/coaching/analytics" />} />
             <Route path="/portal/leader/lessons" element={<SchoolLessons />} />
             <Route path="/portal/leader/teacher/:id" element={<LeaderTeacherDetail />} />
-            <Route path="/portal/analytics/schools" element={<SchoolsAnalytics />} />
+            {/* bd-97x22y.2 — the page and its six tabs (/portal/analytics/schools/<tab>), one route so a tab change
+                keeps the page and its numbers. */}
+            <Route path="/portal/analytics/schools/:tab?" element={<SchoolsAnalytics />} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

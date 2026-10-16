@@ -1,0 +1,918 @@
+{
+  "_fixture": "Hand-written fixture for tests; fictional; written for this fixture from the FDE topic list, not checked line by line against the textbook pages.",
+  "unseen": {
+    "objective": {
+      "MCQs": [
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which system carries oxygen and food to every part of the body?",
+          "options": [
+            "digestive system",
+            "nervous system",
+            "circulatory system",
+            "skeletal system"
+          ],
+          "answer": "c",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "The brain sends messages to the rest of the body through the",
+          "options": [
+            "bones",
+            "nerves",
+            "muscles",
+            "lungs"
+          ],
+          "answer": "b",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which body system breaks food down into simple substances?",
+          "options": [
+            "respiratory system",
+            "nervous system",
+            "skeletal system",
+            "digestive system"
+          ],
+          "answer": "d",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which of these diseases is spread by mosquitoes?",
+          "options": [
+            "diabetes",
+            "dengue",
+            "scurvy",
+            "tooth decay"
+          ],
+          "answer": "b",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which habit best stops germs passing from our hands to our food?",
+          "options": [
+            "drinking cold water",
+            "sleeping early",
+            "washing hands with soap",
+            "eating quickly"
+          ],
+          "answer": "c",
+          "blooms": "Apply"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "In the food chain grass → goat → lion, the goat is a",
+          "options": [
+            "producer",
+            "decomposer",
+            "secondary consumer",
+            "primary consumer"
+          ],
+          "answer": "d",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Bacteria and fungi that break down dead plants and animals are called",
+          "options": [
+            "producers",
+            "decomposers",
+            "herbivores",
+            "carnivores"
+          ],
+          "answer": "b",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Green plants are called producers because they",
+          "options": [
+            "make their own food",
+            "eat insects",
+            "live in soil",
+            "break down waste"
+          ],
+          "answer": "a",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Smoke from factories and vehicles mainly causes",
+          "options": [
+            "water pollution",
+            "noise pollution",
+            "air pollution",
+            "soil pollution"
+          ],
+          "answer": "c",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which of these is biodegradable?",
+          "options": [
+            "a plastic bag",
+            "a glass bottle",
+            "a tin can",
+            "a banana peel"
+          ],
+          "answer": "d",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which of these is a chemical change?",
+          "options": [
+            "cooking an egg",
+            "melting ice",
+            "tearing paper",
+            "dissolving salt"
+          ],
+          "answer": "a",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which change can be reversed easily?",
+          "options": [
+            "burning wood",
+            "rusting of iron",
+            "melting of wax",
+            "cooking rice"
+          ],
+          "answer": "c",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "An object that does not let any light pass through it is",
+          "options": [
+            "transparent",
+            "translucent",
+            "luminous",
+            "opaque"
+          ],
+          "answer": "d",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which of these is translucent?",
+          "options": [
+            "clear glass",
+            "frosted glass",
+            "a wooden door",
+            "a brick wall"
+          ],
+          "answer": "b",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which of these is a natural source of light?",
+          "options": [
+            "the Sun",
+            "the Moon",
+            "a mirror",
+            "a torch"
+          ],
+          "answer": "a",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Sound is produced when an object",
+          "options": [
+            "shines",
+            "cools down",
+            "vibrates",
+            "stops moving"
+          ],
+          "answer": "c",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Sound travels fastest through",
+          "options": [
+            "steel",
+            "air",
+            "water",
+            "empty space"
+          ],
+          "answer": "a",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which of these is attracted to a magnet?",
+          "options": [
+            "a wooden spoon",
+            "a glass marble",
+            "a cotton cloth",
+            "an iron nail"
+          ],
+          "answer": "d",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "Which of these is a good conductor of electricity?",
+          "options": [
+            "copper wire",
+            "a rubber band",
+            "a plastic ruler",
+            "a wooden stick"
+          ],
+          "answer": "a",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "question": "An echo is",
+          "options": [
+            "a loud sound",
+            "a reflected sound",
+            "a soft sound",
+            "a musical sound"
+          ],
+          "answer": "b",
+          "blooms": "Understand"
+        }
+      ]
+    },
+    "subjective": {
+      "Label the Diagram": [
+        {
+          "slot": "science.A.Q1b",
+          "question": "Layers of the Earth",
+          "answer": "Crust, upper mantle, lower mantle, outer core, inner core",
+          "book_page": 168,
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "crust",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "upper mantle",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "lower mantle",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "outer core",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "inner core",
+                "marks": 1,
+                "kind": "L"
+              }
+            ],
+            "accept": [
+              "\"mantle\" on either mantle line"
+            ],
+            "common_error": "Outer and inner core swapped: both core marks are lost, the other three stand."
+          }
+        }
+      ],
+      "Draw and Label": [
+        {
+          "slot": "science.B.Q2a",
+          "question": "Respiratory System",
+          "answer": "A drawing of the nose, the windpipe dividing into two bronchi, one to each lung, and the diaphragm below the lungs, all labelled.",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "nose or nostrils",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "mouth",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "windpipe (trachea)",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "bronchi: two tubes, one to each lung",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "two lungs, drawn and labelled",
+                "marks": 2,
+                "kind": "L"
+              },
+              {
+                "text": "diaphragm below the lungs",
+                "marks": 1,
+                "kind": "L"
+              }
+            ],
+            "accept": [
+              "nasal passage for nose",
+              "air tubes for bronchi"
+            ],
+            "common_error": "The food pipe labelled as the windpipe."
+          }
+        },
+        {
+          "slot": "science.B.Q2a",
+          "question": "Food Chain",
+          "answer": "Grass → grasshopper → frog → snake, each labelled producer, primary consumer, secondary consumer and top consumer, with arrows pointing from the thing eaten to the thing that eats it.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "a producer (a green plant) at the start",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "a primary consumer (a plant-eater)",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "a secondary consumer",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "a top consumer",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "each living thing named",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "arrows from the thing eaten to the thing that eats it",
+                "marks": 2,
+                "kind": "L"
+              }
+            ],
+            "accept": [
+              "any correct chain of four, e.g. plants → caterpillar → sparrow → hawk",
+              "the Sun drawn at the start (not needed)"
+            ],
+            "common_error": "Arrows drawn from the eater to its food: the arrow marks only are lost."
+          }
+        }
+      ],
+      "Logical Reasoning": [
+        {
+          "slot": "science.B.Q2b",
+          "question": "You put three iron nails in three places: one in a cup of tap water, one in a cup of cooking oil, and one in a dry, closed jar. After one week you look at all three nails.",
+          "questions": [
+            {
+              "question": "Which nail has rusted, and what does rust look like?",
+              "answer": "The nail in tap water. Rust is a reddish-brown, flaky layer on the iron."
+            },
+            {
+              "question": "Why did the nail in oil not rust?",
+              "answer": "The oil kept air and water away from the iron, and iron needs both to rust."
+            },
+            {
+              "question": "Is rusting a physical or a chemical change? Give one reason.",
+              "answer": "A chemical change: a new substance, rust, forms and cannot easily be turned back into iron."
+            }
+          ],
+          "blooms": "Apply"
+        },
+        {
+          "slot": "science.B.Q2b",
+          "question": "You hang a bar magnet from a thread so that it can turn freely, and wait until it stops moving. Then you bring the north pole of a second magnet near each end of the hanging magnet, one end at a time.",
+          "questions": [
+            {
+              "question": "In which direction does the hanging magnet point when it stops?",
+              "answer": "North and south: its north pole points towards the north."
+            },
+            {
+              "question": "What happens when the north pole of the second magnet comes near the north pole of the hanging magnet?",
+              "answer": "They push each other away (repel)."
+            },
+            {
+              "question": "What happens when it comes near the south pole? What rule does this show?",
+              "answer": "They pull together (attract). Unlike poles attract and like poles repel."
+            }
+          ],
+          "blooms": "Apply"
+        },
+        {
+          "slot": "science.B.Q2b",
+          "question": "You stir a spoonful of sugar into a glass of warm water. Then, with your teacher watching, you burn a small piece of paper on a steel plate.",
+          "questions": [
+            {
+              "question": "What happens to the sugar? Can you get it back, and how?",
+              "answer": "It dissolves and can no longer be seen. Yes: let the water evaporate and the sugar is left behind."
+            },
+            {
+              "question": "What is left after the paper burns? Can it be made into paper again?",
+              "answer": "Black ash is left and smoke is given off. It cannot be made into paper again."
+            },
+            {
+              "question": "Which activity shows a chemical change? Give one reason.",
+              "answer": "Burning the paper: new substances (ash and smoke) form and the change cannot be reversed."
+            }
+          ],
+          "blooms": "Apply"
+        }
+      ],
+      "Brief Answers": [
+        {
+          "slot": "science.C.Q3a",
+          "question": "Name the three main jobs of the skeletal system.",
+          "answer": "It gives the body its shape and holds it up, it protects soft organs such as the heart and lungs (inside the ribs), and it helps us move together with the muscles.",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "gives the body shape and support",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "protects soft organs, with one example (ribs: heart and lungs; skull: brain)",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "helps the body move, working with the muscles",
+                "marks": 1,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3a",
+          "question": "Why do we breathe faster after running?",
+          "answer": "Running makes our muscles work harder, so they need more oxygen. We breathe faster to take in more oxygen and to get rid of the extra carbon dioxide.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "the muscles work harder",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "they need more oxygen",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "faster breathing takes in more oxygen",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "and removes more carbon dioxide",
+                "marks": 1,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3a",
+          "question": "Write two differences between contagious and non-contagious diseases. Give one example of each.",
+          "answer": "A contagious disease is caused by germs and spreads from one person to another, e.g. flu or measles. A non-contagious disease does not spread from person to person, e.g. diabetes.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "contagious: spreads from person to person",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "non-contagious: does not spread",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "contagious diseases are caused by germs",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "a correct contagious example (flu, measles, chickenpox, TB)",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "a correct non-contagious example (diabetes, heart disease)",
+                "marks": 1,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3a",
+          "question": "What are microorganisms? Write two ways in which they are useful to us.",
+          "answer": "Microorganisms are tiny living things that can be seen only with a microscope. Yeast makes bread dough rise, and bacteria turn milk into yoghurt.",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "tiny living things seen only with a microscope",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "one useful job: yeast makes dough rise, bacteria make yoghurt, decomposers, medicines",
+                "marks": 1.5,
+                "kind": "K"
+              },
+              {
+                "text": "a second, different useful job",
+                "marks": 1.5,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3a",
+          "question": "How is a food web different from a food chain?",
+          "answer": "A food chain shows one path of who eats whom, e.g. grass → rabbit → fox. A food web is many food chains joined together, so one animal can eat, or be eaten by, more than one living thing.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "food chain: one path of feeding",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "food web: many food chains joined together",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "in a web an animal has more than one food or more than one enemy",
+                "marks": 1,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3a",
+          "question": "Write three ways in which polluted water harms living things.",
+          "answer": "People who drink it can get diseases such as diarrhoea, cholera and typhoid. Fish and other water animals die. Crops watered with it are spoiled.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "diseases in people (diarrhoea, cholera, typhoid)",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "fish and water animals die",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "a third harm: crops spoiled, or the water is unsafe to use",
+                "marks": 1,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3a",
+          "question": "Sort these into physical and chemical changes: melting butter, burning wood, freezing water, baking a cake, cutting paper.",
+          "answer": "Physical: melting butter, freezing water, cutting paper. Chemical: burning wood, baking a cake.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "melting butter: physical",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "burning wood: chemical",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "freezing water: physical",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "baking a cake: chemical",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "cutting paper: physical",
+                "marks": 1,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3a",
+          "question": "Why can we see our face in a mirror but not in a wooden board?",
+          "answer": "A mirror has a very smooth, shiny surface that sends light back evenly, so it forms an image of our face. Wood is rough and dull; it scatters and absorbs light, so no image forms.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "a mirror is smooth and shiny",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "it reflects light back evenly and forms an image",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "wood is rough and dull",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "it scatters or absorbs light, so there is no image",
+                "marks": 1,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3a",
+          "question": "How does the sound of the school bell reach our ears?",
+          "answer": "When the bell is struck it vibrates. The vibrations pass to the air around it and travel through the air as sound waves until they reach our ears, where the eardrum vibrates and we hear the sound.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "the bell vibrates",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "the vibrations travel through the air (sound waves)",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "they reach the ear",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "the eardrum vibrates and we hear",
+                "marks": 1,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3a",
+          "question": "Why is it dangerous to touch an electric switch with wet hands?",
+          "answer": "Water with dirt and salts in it conducts electricity. With wet hands, current can pass through the water into our body and give us an electric shock.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "water (tap water, sweat) conducts electricity",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "current can pass into the body",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "an electric shock or serious injury",
+                "marks": 1,
+                "kind": "K"
+              }
+            ]
+          }
+        }
+      ],
+      "Long Question": [
+        {
+          "slot": "science.C.Q3b",
+          "question": "Describe the journey of food through the digestive system, from the mouth to the large intestine. Say what happens in each part.",
+          "answer": "In the mouth the teeth chew the food and saliva softens it. The food pipe carries it to the stomach, which churns it and mixes it with digestive juices. In the small intestine digestion is finished and the useful food passes into the blood. The large intestine takes water from what is left, and the waste leaves the body.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "mouth: teeth chew, saliva softens the food",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "food pipe carries food to the stomach",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "stomach churns the food and mixes it with digestive juices",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "small intestine: digestion finished, food absorbed into the blood",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "large intestine: water taken back, waste leaves the body",
+                "marks": 2,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3b",
+          "question": "What causes air pollution? Explain how it affects our health and our surroundings, and suggest three ways to reduce it.",
+          "answer": "Smoke from vehicles, factories and burning rubbish pollutes the air. It causes coughing, asthma and other breathing problems, and smog that harms plants and animals. We can plant trees, walk or use buses instead of cars, and stop burning rubbish.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "two causes: smoke from vehicles, factories, burning rubbish or crops",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "health: coughing, asthma, breathing problems, sore eyes",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "surroundings: smog, harm to plants and animals, dirty buildings",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "three ways to reduce it, 1 each (plant trees, walk or share transport, do not burn rubbish)",
+                "marks": 3,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3b",
+          "question": "Explain how a shadow is formed. How does the shadow of a flagpole change from morning to noon to evening?",
+          "answer": "Light travels in straight lines. When an opaque object blocks it, a dark area forms behind the object: its shadow. In the morning the Sun is low in the east, so the flagpole's shadow is long and points west. At noon the Sun is high and the shadow is shortest. In the evening the Sun is low in the west and the shadow is long again, pointing east.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "light travels in straight lines",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "an opaque object blocks the light, leaving a dark area behind it",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "morning: Sun low in the east, shadow long and pointing west",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "noon: Sun high, shadow shortest",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "evening: Sun low in the west, shadow long and pointing east",
+                "marks": 2,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3b",
+          "question": "What is a magnet? Explain how you can turn an iron nail into a magnet, and write three uses of magnets in daily life.",
+          "answer": "A magnet attracts things made of iron, steel or nickel and has a north and a south pole. Stroke the nail many times with one pole of a magnet, always in the same direction, lifting the magnet away at the end of each stroke; the nail then picks up pins. Magnets are used in compasses, in fridge doors and in cranes that lift scrap iron.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "a magnet attracts iron, steel or nickel",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "it has a north and a south pole",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "stroke the nail with one pole of a magnet",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "many times, in the same direction only",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "lift the magnet away at the end of each stroke",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "test: the nail now picks up pins or clips",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "three uses, 1 each (compass, fridge door, cranes, toys, speakers)",
+                "marks": 3,
+                "kind": "K"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "science.C.Q3b",
+          "question": "Explain how electricity flows in a simple circuit made of a cell, a switch, wires and a bulb. What happens when the switch is opened? Why are electric wires covered with plastic?",
+          "answer": "Current flows from the cell, through the wires and the bulb, and back to the cell; the path must be complete, and the bulb lights. Opening the switch makes a gap, so the circuit is broken, the current stops and the bulb goes off. Plastic is an insulator: it does not let current pass, so it protects us from electric shocks.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "current flows from the cell through the wires and bulb and back to the cell",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "the path must be complete (closed)",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "the bulb lights when current flows through it",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "switch opened: a gap breaks the circuit, current stops, the bulb goes off",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "plastic is an insulator; it does not let current pass",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "it protects us from electric shocks",
+                "marks": 1,
+                "kind": "K"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

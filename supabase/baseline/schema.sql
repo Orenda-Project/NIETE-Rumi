@@ -4114,7 +4114,20 @@ CREATE TABLE public.lesson_plan_requests (
     completed_at timestamp with time zone,
     error_message text,
     retry_count integer DEFAULT 0,
-    last_retry_at timestamp with time zone
+    last_retry_at timestamp with time zone,
+    source text,
+    channel text,
+    region text,
+    grade integer,
+    subject text,
+    artifact_ref text,
+    generated_at timestamp with time zone,
+    delivered_at timestamp with time zone,
+    error_code text,
+    correlation_id text,
+    CONSTRAINT lesson_plan_requests_channel_check CHECK (((channel IS NULL) OR (channel = ANY (ARRAY['whatsapp'::text, 'portal'::text])))),
+    CONSTRAINT lesson_plan_requests_source_check CHECK (((source IS NULL) OR (source = ANY (ARRAY['gamma_standard'::text, 'gamma_enriched'::text, 'ug_lp'::text, 'ps_pregen'::text, 'v7_segment'::text, 'v7_chapter'::text, 'gamma_chapter'::text, 'pre_gen_chapter'::text, 'homework_bundle'::text, 'pic_to_lp_kieai'::text, 'kenya_browse'::text, 'multigrade_lp'::text, 'niete_grounded'::text, 'niete_v8_segment'::text, 'niete_lp612'::text, 'niete_oxbridge'::text, 'niete_portal_share'::text])))),
+    CONSTRAINT lesson_plan_requests_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[])))
 );
 
 
@@ -4141,7 +4154,8 @@ CREATE TABLE public.lesson_plans (
     delivery_time_ms integer,
     cost_usd numeric(8,4),
     pic_lp_session_id uuid,
-    textbook_metadata jsonb
+    textbook_metadata jsonb,
+    request_id uuid
 );
 
 
@@ -4648,6 +4662,7 @@ CREATE TABLE public.niete_lp612_deliveries (
     surface text DEFAULT 'whatsapp'::text NOT NULL,
     delivered_at timestamp with time zone DEFAULT now() NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    request_id uuid,
     CONSTRAINT niete_lp612_deliveries_lang_check CHECK ((lang = ANY (ARRAY['en'::text, 'ur'::text]))),
     CONSTRAINT niete_lp612_deliveries_surface_check CHECK ((surface = ANY (ARRAY['whatsapp'::text, 'portal'::text, 'backfill'::text])))
 );
@@ -4813,6 +4828,7 @@ CREATE TABLE public.niete_lp_downloads (
     segment_index integer,
     correlation_id text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    request_id uuid,
     CONSTRAINT niete_lp_downloads_status_check CHECK ((status = ANY (ARRAY['sent'::text, 'failed'::text])))
 );
 
@@ -9284,6 +9300,13 @@ CREATE INDEX idx_lesson_plans_pdf_url ON public.lesson_plans USING btree (pdf_ur
 
 
 --
+-- Name: idx_lesson_plans_request_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lesson_plans_request_id ON public.lesson_plans USING btree (request_id) WHERE (request_id IS NOT NULL);
+
+
+--
 -- Name: idx_lesson_plans_user_created; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9414,6 +9437,13 @@ CREATE INDEX idx_lp_feedback_user_time ON public.lp_feedback USING btree (user_i
 --
 
 CREATE INDEX idx_lp_opens_user_recent ON public.niete_lp_opens USING btree (user_id, opened_at DESC);
+
+
+--
+-- Name: idx_lp_requests_source_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp_requests_source_created ON public.lesson_plan_requests USING btree (source, created_at DESC) WHERE (source IS NOT NULL);
 
 
 --
@@ -11969,6 +11999,14 @@ ALTER TABLE ONLY public.lesson_plan_requests
 
 
 --
+-- Name: lesson_plans lesson_plans_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lesson_plans
+    ADD CONSTRAINT lesson_plans_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.lesson_plan_requests(id) ON DELETE SET NULL;
+
+
+--
 -- Name: lesson_plans lesson_plans_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12006,6 +12044,14 @@ ALTER TABLE ONLY public.lp_feedback
 
 ALTER TABLE ONLY public.niete_lp612_deliveries
     ADD CONSTRAINT niete_lp612_deliveries_render_id_fkey FOREIGN KEY (render_id) REFERENCES public.niete_lp612_renders(id) ON DELETE SET NULL;
+
+
+--
+-- Name: niete_lp612_deliveries niete_lp612_deliveries_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_deliveries
+    ADD CONSTRAINT niete_lp612_deliveries_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.lesson_plan_requests(id) ON DELETE SET NULL;
 
 
 --
@@ -12062,6 +12108,14 @@ ALTER TABLE ONLY public.niete_lp_asset_sources
 
 ALTER TABLE ONLY public.niete_lp_downloads
     ADD CONSTRAINT niete_lp_downloads_asset_id_fkey FOREIGN KEY (asset_id) REFERENCES public.niete_lp_assets(id) ON DELETE SET NULL;
+
+
+--
+-- Name: niete_lp_downloads niete_lp_downloads_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp_downloads
+    ADD CONSTRAINT niete_lp_downloads_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.lesson_plan_requests(id) ON DELETE SET NULL;
 
 
 --

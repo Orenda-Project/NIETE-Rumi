@@ -1,6 +1,6 @@
 'use strict';
 /**
- * v10 coaching test (bd-v0toag.49): "Was this coaching report useful to you?" after the report in
+ * v10 coaching test (bd-v0toag.49): "Do you agree with this report?" after the report in
  * groups A and B (today's report), the same question C and D get on the report page, so the four
  * groups compare. Ported from sandbox's coaching-feedback.service. Dark unless ab_v10_enabled is on
  * and the teacher's school is drawn into A or B. The ux catalog is real, so a wrong key goes red.
@@ -66,10 +66,10 @@ describe('askIfInTest: only groups A and B, only while the test is on', () => {
     mockArms.groupFor.mockResolvedValue({ group: letter, plan: letter === 'A' ? 'v9' : 'v10', report: 'today' });
     expect(await svc.askIfInTest({ coachingSessionId: S, userId: U, phone: PHONE })).toBe(true);
     expect(mockWA.sendInteractiveButtons).toHaveBeenCalledWith(PHONE, {
-      body: 'Was this coaching report useful to you?',
+      body: 'Do you agree with this report?',
       buttons: [
-        { id: `coaching_fb_yes_${S}`, title: '👍 Yes, useful' },
-        { id: `coaching_fb_no_${S}`, title: '👎 Not really' },
+        { id: `coaching_fb_yes_${S}`, title: '👍 Yes' },
+        { id: `coaching_fb_no_${S}`, title: '👎 No' },
       ],
     });
     expect(logEvent).toHaveBeenCalledWith('coaching.useful.asked', { coachingSessionId: S, userId: U, group: letter });
@@ -78,7 +78,7 @@ describe('askIfInTest: only groups A and B, only while the test is on', () => {
   test('in her language: Urdu', async () => {
     mockDb.rows.users = { preferred_language: 'ur' };
     await svc.askIfInTest({ coachingSessionId: S, userId: U, phone: PHONE });
-    expect(mockWA.sendInteractiveButtons.mock.calls[0][1].body).toBe('کیا یہ کوچنگ رپورٹ آپ کے لیے مفید رہی؟');
+    expect(mockWA.sendInteractiveButtons.mock.calls[0][1].body).toBe('کیا آپ اس رپورٹ سے متفق ہیں؟');
   });
 
   test('never throws: a failed send is false', async () => {
@@ -103,14 +103,14 @@ describe('the tap', () => {
 
   test('👍 with no wamid: the thank-you goes as text', async () => {
     await svc.handleFeedbackButton(`coaching_fb_yes_${S}`, PHONE);
-    expect(mockWA.sendMessage).toHaveBeenCalledWith(PHONE, 'Thanks — glad it was useful.');
+    expect(mockWA.sendMessage).toHaveBeenCalledWith(PHONE, 'Thank you.');
   });
 
   test('👎 updates the existing row with 0, asks why and opens a 10-minute window', async () => {
     mockDb.rows.coaching_quality_metrics = { id: 7 };
     await svc.handleFeedbackButton(`coaching_fb_no_${S}`, PHONE);
     expect(mockDb.writes).toContainEqual(['coaching_quality_metrics', 'update', { user_satisfaction_rating: 0 }, [['coaching_session_id', S]]]);
-    expect(mockWA.sendMessage).toHaveBeenCalledWith(PHONE, 'Thanks for telling us. What could we do better? (one line is enough)');
+    expect(mockWA.sendMessage).toHaveBeenCalledWith(PHONE, 'Thanks for telling us. What didn’t seem right? (one line is enough)');
     expect(mockRedis.set).toHaveBeenCalledWith(`coaching_feedback_pending:${U}`, expect.objectContaining({ coachingSessionId: S }), 600);
   });
 

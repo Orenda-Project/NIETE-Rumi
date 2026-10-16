@@ -4,7 +4,7 @@ import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, 
   AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
-import type { SchoolsAnalyticsResponse } from '../types/portal';
+import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
 import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport, SchoolHit, TeacherPlan } from '../coach/types';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
@@ -435,8 +435,23 @@ export const portal = {
   generateAssessment: async (
     spec: AssessmentSpec
   ): Promise<{ success: boolean; requestId?: string; error?: string }> => {
-    const response = await api.post('/assessment/generate', spec);
-    return response.data;
+    lastGenerateFailure = null;
+    try {
+      const response = await api.post('/assessment/generate', spec);
+      return response.data;
+    } catch (e) {
+      // The refusal's code (PATTERN_OFF, ALREADY_GENERATING, RATE_LIMITED …) for the screen that asked; the error
+      // itself goes on unchanged, so every caller that reads `response.data.error` behaves as before.
+      lastGenerateFailure = generateFailureOf(e);
+      throw e;
+    }
+  },
+
+  /** The code of the last refused generateAssessment, read once (the job tracker keeps only the message). */
+  takeGenerateFailure: (): GenerateFailure | null => {
+    const f = lastGenerateFailure;
+    lastGenerateFailure = null;
+    return f;
   },
 
   /**
@@ -644,6 +659,24 @@ export type DraftSection =
 export type ObservationDraft = { scale: DraftOption[]; fidelityScale: DraftOption[]; sections: DraftSection[]; saved: boolean; editable?: boolean };
 
 // ── Assessment Generator types ────────────────────────────────────────────
+
+/** A refused POST /assessment/generate: the server's code, the HTTP status, and for 429 when to try again. */
+export type GenerateFailure = { errorCode: string; status: number | null; retryAt: string | null; requestId: string | null };
+
+let lastGenerateFailure: GenerateFailure | null = null;
+
+/** The code inside an axios error from /assessment/generate, or null when the server gave none. */
+export function generateFailureOf(e: unknown): GenerateFailure | null {
+  const r = (e as { response?: { status?: number; data?: { errorCode?: unknown; retryAt?: unknown; requestId?: unknown } } })?.response;
+  const code = r?.data?.errorCode;
+  if (typeof code !== 'string' || !code) return null;
+  return {
+    errorCode: code,
+    status: typeof r?.status === 'number' ? r.status : null,
+    retryAt: typeof r?.data?.retryAt === 'string' ? r.data.retryAt : null,
+    requestId: typeof r?.data?.requestId === 'string' ? r.data.requestId : null,
+  };
+}
 //
 // These mirror what the BOT returns. Nothing here carries a default the bot
 // could disagree with — notably there is no MAX_COUNT: the cap lives in
@@ -676,6 +709,37 @@ export type AssessmentOptions = {
   /** The one cap. Never hardcoded here — the dead panel's 20 vs the bot's 25. */
   maxQuestions: number;
   defaultQuestions: number;
+  /** Only while the board pattern is on: the grades it serves (any call), and the pattern for this grade + subject. */
+  patternGrades?: number[];
+  patterns?: AssessmentPattern[];
+};
+
+/** EN + UR, as /assessment/options sends a board pattern's lines (data from the pattern module, never typed here). */
+export type BiText = { en: string; ur: string };
+
+/** A board pattern for one grade + subject: what the teacher is shown before Make (api.md §1). */
+export type AssessmentPattern = {
+  id: string;
+  name: BiText;
+  holds: BiText;
+  sections: Array<{ id: string } & BiText>;
+  choice: BiText | null;
+  choices?: Array<{ slot: string; label_en: string; label_ur: string; generate: number; attempt: number; marks_each: number }>;
+  youAdd: (BiText & { kind?: string; slot?: string }) | null;
+  files: BiText;
+  scope: BiText & {
+    label: BiText;
+    chapters: number[];
+    displayChapters?: number[];
+    excluded: number[];
+    topicsOnly: number[];
+    held: number[];
+    unitRanges: Array<{ chapter: number; ranges: string }>;
+  };
+  generateTotal: number;
+  totalMarks: number;
+  totalTime: BiText;
+  waitHint: BiText;
 };
 
 export type AssessmentSpec = {
@@ -693,6 +757,9 @@ export type AssessmentSpec = {
   includeAnswerKey?: boolean;
   answerLines?: boolean;
   outputFormat?: 'pdf' | 'docx';
+  /** A board-pattern request (absent on every other paper). */
+  pattern?: string;
+  scope?: 'fde';
 };
 
 export type AssessmentStatus = {
@@ -717,6 +784,9 @@ export type AssessmentPaper = {
   version?: number;
   /** How many ready versions the paper has. */
   version_count?: number;
+  /** The board pattern the paper was made in (null / absent: a plain paper), and its two files' page counts. */
+  pattern?: string | null;
+  pages?: { paper: number | null; scheme: number | null } | null;
 };
 
 export type AssessmentPaperList = {
@@ -737,7 +807,12 @@ export type PaperQuestion = {
 export type PaperSection = { heading: string | null; lead: string | null; questions: PaperQuestion[] };
 export type PaperView = {
   success: boolean;
-  paper: { paperId: string; version: number | null; grade: number | null; subject: string; chapterNumber: number | null; rtl: boolean; questionCount: number; marks: number };
+  paper: {
+    paperId: string; version: number | null; grade: number | null; subject: string; chapterNumber: number | null; rtl: boolean; questionCount: number; marks: number;
+    /** A board-pattern paper: the pattern, its page counts, and what the teacher adds (with the page it goes on). */
+    pattern?: string | null; totalMarks?: number | null; pages?: { paper: number | null; scheme: number | null } | null;
+    youAdd?: (BiText & { page: number | null }) | null;
+  };
   sections: PaperSection[];
 };
 
@@ -788,6 +863,16 @@ export const analytics = {
     if (q.to) params.to = q.to;
     params.region = q.region || 'all';
     const response = await api.get('/analytics/schools', { params });
+    return response.data;
+  },
+  // bd-97x22y.2 — the Coaching tab's numbers (PLAN v6 §3, served by bd-97x22y.1): same window and region as the
+  // schools read, its own endpoint so its cost never slows the other tabs.
+  getCoaching: async (q: { from: string | null; to: string | null; region: string | null }): Promise<CoachingAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (q.from) params.from = q.from;
+    if (q.to) params.to = q.to;
+    params.region = q.region || 'all';
+    const response = await api.get('/analytics/coaching', { params });
     return response.data;
   },
 };
@@ -1081,3 +1166,26 @@ export const classes = {
 };
 
 export default api;
+
+// bd-97x22y.4 — the Trainings tab's level progress (PLAN v7): its own read, all time (no window, as hers); the region
+// as the other analytics reads ('all' when none), and her Primary / Mid-High toggle as `band`.
+export const trainingLevelsAnalytics = {
+  get: async (q: { region: string | null; band: import('../types/portal').TrainingBand }): Promise<import('../types/portal').TrainingLevelsResponse> => {
+    const response = await api.get('/analytics/training-levels', { params: { region: q.region || 'all', band: q.band } });
+    return response.data;
+  },
+};
+
+// bd-97x22y.5 — the schools analytics Observations tab's numbers (PLAN v7, her FICO section breakdown for Human and
+// Digital Coach observations): its own endpoint, same window and region as the schools read (the server 403s anyone
+// but an analytics-only account).
+export const observationsAnalytics = {
+  get: async (q: { from: string | null; to: string | null; region: string | null }): Promise<import('../types/portal').ObservationsAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (q.from) params.from = q.from;
+    if (q.to) params.to = q.to;
+    params.region = q.region || 'all';
+    const response = await api.get('/analytics/observations', { params });
+    return response.data;
+  },
+};

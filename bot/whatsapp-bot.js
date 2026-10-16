@@ -829,7 +829,8 @@ app.post('/webhook', async (req, res) => {
             const row = await OxbridgeLpService.getById(rowId);
             const language = (pending && pending.language) || 'en';
             if (row) {
-              await OxbridgeLpService.deliverOxbridgeLp(from, row, language);
+              // Whose ask it was, for its lifecycle row (LP_LIFECYCLE_PATHS) — the delivery itself is unchanged.
+              await OxbridgeLpService.deliverOxbridgeLp(from, row, language, { userId: user && user.id });
             } else {
               await WhatsAppService.sendMessage(
                 from,

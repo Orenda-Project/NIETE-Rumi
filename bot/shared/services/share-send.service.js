@@ -265,17 +265,31 @@ function defaultDeps() {
 async function sendShare({ userId, kind, id } = {}, deps) {
   if (!userId || !KINDS.includes(kind) || !id || typeof id !== 'string') return { status: 'bad_request' };
   const d = deps || defaultDeps();
+  const askedAt = new Date().toISOString();
+  const seen = {};
+  const out = await attemptShare({ userId, kind, id }, d, seen);
+  // A lesson plan she sends herself is an ask of its own: its lifecycle row (LP_LIFECYCLE_PATHS on).
+  // Never throws, never changes the answer.
+  if (kind === 'lesson') await recordLessonShare({ userId, id, seen, out, askedAt });
+  return out;
+}
+
+/** The share itself — exactly the send it always was. `seen` collects what the lifecycle row needs. */
+async function attemptShare({ userId, kind, id }, d, seen) {
   try {
     const name = d.templateName(kind);
     if (!name) return { status: 'unavailable', reason: 'not_configured' };
 
     const user = await d.user(userId);
     if (!user || !user.phone_number) return { status: 'unavailable', reason: 'no_phone' };
+    seen.phone = user.phone_number;
     const item = await d.item(kind, id, userId);
     if (!item) return { status: 'not_found' };
+    seen.item = item;
     if (item.unsupported) return { status: 'unavailable', reason: item.unsupported };
 
     const lang = LANGS.includes(user.preferred_language) ? user.preferred_language : 'en';
+    seen.lang = lang;
     const components = componentsFor(item, { lang });
     const report = {};
     const ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
@@ -288,6 +302,69 @@ async function sendShare({ userId, kind, id } = {}, deps) {
   } catch (err) {
     logToFile('❌ share send failed', { kind, userId, error: err && err.message }, 'error');
     return { status: 'failed', reason: 'error' };
+  }
+}
+
+/** What a share's answer means for her lesson-plan ask; null = not an ask the table can hold. */
+function shareOutcome(out) {
+  switch (out && out.status) {
+    case 'sent': return { status: 'completed' };
+    case 'failed': return { status: 'failed', errorCode: 'DELIVERY_FAILED', errorMessage: `share ${out.reason || 'failed'}` };
+    // Not hers, not there, or not a lesson id the portal can name: an id that names no plan of hers is not
+    // an ask (the endpoint takes any id, so recording one would let a caller fill the table).
+    case 'not_found': return null;
+    case 'unavailable':
+      if (out.reason === 'not_configured' || out.reason === 'template_missing') {
+        return { status: 'failed', errorCode: 'DELIVERY_FAILED', errorMessage: `share ${out.reason}` };
+      }
+      return null; // no_phone (no number it could have reached), or an unsupported id
+    default: return null; // bad_request
+  }
+}
+
+/** The plan's own id: the catalogue lesson for grades 1-5, the segment for 6-12 (what every other row
+ *  of that plan carries as artifact_ref). */
+function planRefOf(id, item) {
+  const k5 = /^k5:([^:]+)/.exec(String(id));
+  if (k5) return k5[1];
+  const seg = /^lesson:([^:]+):/.exec(String((item && item.itemRef) || ''));
+  return seg ? seg[1] : String(id);
+}
+
+/**
+ * Her lesson-plan ask on the portal's "Send on WhatsApp" (source niete_portal_share, channel portal) —
+ * recorded once the share has its outcome. An answer key is not a lesson-plan ask. Never throws.
+ */
+async function recordLessonShare({ userId, id, seen, out, askedAt }) {
+  let Lifecycle = null;
+  try {
+    Lifecycle = require('./lesson-plan-lifecycle.service');
+    const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
+    if (/:answer_key$/.test(String(id)) || (seen.item && seen.item.answerKey)) return null;
+    if (!Lifecycle.enabled(SOURCES.NIETE_PORTAL_SHARE)) return null;
+    const outcome = shareOutcome(out);
+    if (!outcome) return null;
+    const item = seen.item || {};
+    return await Lifecycle.recordOutcome({
+      userId,
+      phone: seen.phone || null,
+      topic: item.title || 'Lesson plan',
+      language: seen.lang,
+      source: SOURCES.NIETE_PORTAL_SHARE,
+      channel: CHANNELS.PORTAL,
+      grade: item.grade,
+      subject: item.subject,
+      artifactRef: planRefOf(id, item),
+      askedAt,
+      // The plan existed before she shared it: generated when she asked, whenever there was one to send.
+      generatedAt: seen.item ? askedAt : null,
+      deliveredAt: out && out.at,
+      ...outcome,
+    });
+  } catch (err) {
+    // Describing the ask threw (recordOutcome itself never does): reported, never thrown into the share's answer.
+    if (Lifecycle) Lifecycle.recorderThrew(err, Lifecycle.LIFECYCLE.SOURCES.NIETE_PORTAL_SHARE);
+    return null;
   }
 }
 

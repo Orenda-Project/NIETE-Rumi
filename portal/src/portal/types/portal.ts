@@ -694,8 +694,9 @@ export interface CoachingProgress {
 /**
  * The numbers for one school, one region or the whole selection. Counts of things that happened in the window;
  * `teachersOpenedLp`, `teachersTrained` and `teachersWithDc` are read as "x of `teachers`". An average is null when
- * nothing was scored (its n is 0); a count is never null — 0 is a real 0. No percentages. No LPs generated and no
- * coach visits (bd-wfl8oz: human observations are the coach's visits).
+ * nothing was scored (its n is 0); a count is never null — 0 is a real 0. No LPs generated (bd-wfl8oz). The page
+ * shows avgFico / avgHitl (out of 100) as "64.8%" and nothing else as a percentage (bd-97x22y.2); coach visits come
+ * from their own read (CoachingAnalyticsResponse).
  */
 export interface SchoolsAnalyticsCounts {
   teachers: number;
@@ -740,4 +741,193 @@ export interface SchoolsAnalyticsResponse {
   overview: SchoolsAnalyticsOverview;
   regions: SchoolsAnalyticsRegion[];
   schools: SchoolsAnalyticsSchool[];
+}
+
+/**
+ * bd-97x22y.2 — GET /api/portal/analytics/coaching (PLAN v6 §3; served by bd-97x22y.1). Same guards, window and six
+ * regions as /analytics/schools, its own endpoint so the Coaching tab's cost never slows the other tabs.
+ *   coaches         coaches (not test accounts) with at least one school in the region; not window-dependent
+ *   coachVisits     observation_schedules marked done, scheduled on a Pakistan day in the window
+ *   schoolsVisited  schools with at least one counted visit
+ */
+export interface CoachingAnalyticsCounts {
+  coaches: number;
+  coachVisits: number;
+  schoolsVisited: number;
+}
+
+export interface CoachingAnalyticsRegion extends CoachingAnalyticsCounts {
+  region: string;
+}
+
+export interface CoachingAnalyticsSchool {
+  schoolId: string;
+  emis: string | null;
+  name: string;
+  region: string;
+  coachVisits: number;
+}
+
+export interface CoachingAnalyticsResponse {
+  success: boolean;
+  range: { from: string | null; to: string | null };
+  overview: CoachingAnalyticsCounts;
+  regions: CoachingAnalyticsRegion[];
+  schools: CoachingAnalyticsSchool[];
+}
+
+/* ── bd-97x22y.4 — GET /api/portal/analytics/training-levels (PLAN v7 "Trainings") ──────────────────────────────── */
+
+/**
+ * Her Primary / Mid-High toggle: the teacher's training band (users.teacher_level). Primary shows levels 1-4 (order
+ * 0-3), Mid/High levels 3-4 (order 2-3) — her two tabs. A teacher in both bands counts in both.
+ */
+export type TrainingBand = 'primary' | 'midhigh';
+
+/**
+ * One NIETE training level for a school, a region or the selection, all time. The state is the bot's own level rule,
+ * in her three states: passed = certified; inProgress = in progress or ready for the exam; notStarted = not started or
+ * locked. teachers = the band's teachers whose programme shows the level (= passed + inProgress + notStarted);
+ * pctPassed = passed ÷ teachers × 100, one decimal, null when teachers is 0.
+ */
+export interface TrainingLevelCounts {
+  levelId: number;
+  /** 0 Aspiring Teacher · 1 Emerging Practitioner · 2 Skilled Practitioner · 3 Teacher Leader. */
+  levelOrder: number;
+  passed: number;
+  inProgress: number;
+  notStarted: number;
+  teachers: number;
+  pctPassed: number | null;
+}
+
+/** "N of M teachers have passed all levels": passedAll = passed Teacher Leader, teachers = its teachers. */
+export interface TrainingLevelsBlock {
+  teachers: number;
+  passedAll: number;
+}
+
+/**
+ * Her Mid/High partner cards, over the Mid/High cohort (every teacher holding Middle or High): Oxbridge passed = all
+ * sessions passed, in progress = at least one; Beaconhouse passed = at least one subject (level) passed, in progress
+ * = activity without a pass. teachers = the cohort; pctPassed = passed ÷ teachers × 100, one decimal.
+ */
+export interface TrainingPartnerCard {
+  passed: number;
+  inProgress: number;
+  notStarted: number;
+  teachers: number;
+  pctPassed: number | null;
+}
+
+/** Teachers by grade band: a teacher teaching both counts in both columns and once in the total. */
+export interface TrainingBandSplit {
+  middle: number;
+  high: number;
+  total: number;
+}
+
+export interface TrainingPartners {
+  oxbridge: TrainingPartnerCard;
+  beaconhouse: TrainingPartnerCard;
+}
+
+/** The overview's panels: her Oxbridge session funnel and her Beaconhouse per-subject table. */
+export interface TrainingPartnersDetail {
+  oxbridge: TrainingPartnerCard & { sessions: Array<TrainingBandSplit & { name: string }>; completedAll: TrainingBandSplit };
+  beaconhouse: TrainingPartnerCard & { levels: Array<TrainingBandSplit & { name: string }> };
+}
+
+export interface TrainingLevelsRegion extends TrainingLevelsBlock {
+  region: string;
+  levels: TrainingLevelCounts[];
+  /** Mid/High only. */
+  partners?: TrainingPartners;
+}
+
+export interface TrainingLevelsSchool extends TrainingLevelsBlock {
+  schoolId: string;
+  emis: string | null;
+  name: string;
+  region: string;
+  levels: Array<Pick<TrainingLevelCounts, 'levelOrder' | 'passed' | 'teachers' | 'pctPassed'>>;
+}
+
+export interface TrainingLevelsResponse {
+  success: boolean;
+  band: TrainingBand | 'all';
+  /** When the server's snapshot was read (ISO); the numbers are as of then. */
+  computedAt: string;
+  /**
+   * On Mid/High, teachers = the Mid/High cohort and passedAll = hers: NIETE Skilled Practitioner + Teacher Leader +
+   * Oxbridge + Beaconhouse all passed; partners carry her panels. On Primary, passedAll = passed Teacher Leader.
+   */
+  overview: TrainingLevelsBlock & { levels: Array<TrainingLevelCounts & { name: string }>; partners?: TrainingPartnersDetail };
+  /** The six regions, whatever the filter. */
+  regions: TrainingLevelsRegion[];
+  /** The chosen region's schools (all regions' when none is chosen); a school with none of the band's teachers is left out. */
+  schools: TrainingLevelsSchool[];
+}
+
+/* ── bd-97x22y.5 — GET /api/portal/analytics/observations (PLAN v7 "Observations") ──────────────────────────────── */
+
+/**
+ * Her FICO score breakdown (the ICT dashboard's Observations tab, 1 to 1): Section B LP Fidelity, C Teaching
+ * Practices, D Engagement — each out of 100 (one decimal), pooled over the observations it was scored on (its n). A
+ * section is null exactly when its n is 0 (B is not scored without a lesson plan); a count is never null.
+ */
+export interface ObservationSections {
+  sectionB: number | null;
+  sectionBN: number;
+  sectionC: number | null;
+  sectionCN: number;
+  sectionD: number | null;
+  sectionDN: number;
+}
+
+export interface ObservationsCounts extends ObservationSections {
+  observations: number;
+  /** Distinct teachers with at least one observation of this kind in the window. */
+  teachersObserved: number;
+}
+
+export interface ObservationsOverview extends ObservationsCounts {
+  schools: number;
+  /** Regions in scope with at least one observation of this kind. */
+  sectorsActive: number;
+}
+
+export interface ObservationsRegion extends ObservationsCounts {
+  region: string;
+  schools: number;
+}
+
+export interface ObservationsSchool extends ObservationsCounts {
+  schoolId: string;
+  emis: string | null;
+  name: string;
+  region: string;
+}
+
+/** One kind of observation (Digital Coach or Human): the whole selection, the six regions (whatever the filter), the schools. */
+export interface ObservationsKind {
+  overview: ObservationsOverview;
+  regions: ObservationsRegion[];
+  schools: ObservationsSchool[];
+}
+
+export interface ObservationsAnalyticsResponse {
+  success: boolean;
+  range: { from: string | null; to: string | null };
+  dc: ObservationsKind;
+  human: ObservationsKind;
+}
+
+/**
+ * bd-97x22y.5 — /analytics/coaching v7 (her Coaching tab, 1 to 1): each region also carries how many schools are in it
+ * (visited or not) and its coaches' names, sorted — staff, never teachers. Merged into the interface above.
+ */
+export interface CoachingAnalyticsRegion {
+  schools: number;
+  coachNames: string[];
 }

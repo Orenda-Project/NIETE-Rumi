@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, Check, ChevronRight, Download, FileText, FileX2, KeyRound, Loader2, Pencil, Plus, RotateCcw } from 'lucide-react';
+import { AlertCircle, Check, ChevronRight, Download, FileText, FileX2, KeyRound, Loader2, Pencil, Plus, RotateCcw, ClipboardCheck } from 'lucide-react';
+import { browserEnv } from '@/lib/runtime';
+import { ShareActions } from '../ui/ShareActions';
+import { shareToWhatsApp, useShareAvailable } from '../share/api';
+import { findPaper } from './paperCache';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { portal } from '../../services/api';
@@ -80,6 +84,20 @@ export function RequestPage() {
 
   const spec = (job?.spec ?? null) as AnySpec | null;
   const name = spec ? subjectName(catalogue, spec.grade, spec.subject) : '';
+  // A board-pattern paper (the request carried `pattern`, or the paper says so): ~3 min, two named files, no editor.
+  const readyId = seen?.status === 'ready' ? seen.paperId ?? null : null;
+  // Read the paper's row only when the request might be a board-pattern one (a plain job's ready screen is today's).
+  const askRow = !!readyId && (!spec || !!spec.pattern);
+  const [paperRow] = useLoad(askRow ? () => findPaper(readyId as string) : null, `paper:${askRow ? readyId : ''}`);
+  const row = dataOf(paperRow) ?? null;
+  const fde = !!(spec?.pattern || row?.pattern);
+  const canSend = useShareAvailable('paper');
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!fde || seen?.status !== 'writing') return undefined;
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, [fde, seen?.status]);
   const card = spec && (
     <ListCard label={C.newPaper}>
       <HistoryRow
@@ -98,7 +116,13 @@ export function RequestPage() {
     if (r === 'unavailable') toast({ title: artifact === 'answer_key' ? C.noKey : C.notAvailable });
     if (r === 'failed') toast({ title: C.couldNotOpen, variant: 'destructive' });
   };
-  const another = () => { resetPicks(catalogue?.defaultQuestions); navigate(newPaperPath('class')); };
+  const another = () => {
+    resetPicks(catalogue?.defaultQuestions);
+    // Make another board-pattern paper: the FDE door again (Class, then Check).
+    if (fde) setPicks({ grade: spec?.grade ?? row?.grade ?? null, patternIntent: spec?.pattern ?? row?.pattern ?? 'fde', coverBy: 'fde', style: 'fde', pattern: null });
+    navigate(newPaperPath('class'));
+  };
+  const minutes = job ? Math.max(1, Math.floor((now - job.startedAt) / 60_000)) : 0;
 
   let title: string = C.writingTitle;
   let body = <LoadState status="loading" onRetry={() => {}} />;
@@ -115,19 +139,31 @@ export function RequestPage() {
           </span>
         </div>
         <div className="flex flex-wrap justify-center gap-2">
-          <Chip tone="warn">{job?.slow ? C.slow : C.aboutAMinute}</Chip>
+          {fde
+            ? (job?.slow
+              ? <><Chip tone="warn">{C.slow}</Chip><Chip tone="warn">{C.elapsed(minutes)}</Chip></>
+              : <><Chip tone="warn">{C.aboutThreeMin}</Chip><Chip>{C.fdeChip}</Chip></>)
+            : <Chip tone="warn">{job?.slow ? C.slow : C.aboutAMinute}</Chip>}
         </div>
         {/* bd-fmf24g.15 — replaces the "Safe to leave" chip: the app tells her here when it is ready. */}
-        <LeaveNote text={N.leave} />
+        {fde && job?.slow ? <p className="px-2 text-center text-[16px] font-semibold">{C.longerBody}</p> : <LeaveNote text={N.leave} />}
+        {fde && (
+          <div className="flex flex-col items-center gap-1 px-2 text-center text-[15px] text-[#4b5563]">
+            {!job?.slow && <p>{C.waitHub}</p>}
+            <p>{C.waitPoll}</p>
+          </div>
+        )}
         <div className="w-full">{card}</div>
       </div>
     );
-    dock = (
-      <div className="flex w-full flex-col gap-2.5">
-        <Link to={ASSESSMENT_V2_BASE} className={cn(OUTLINE, FOCUS)}>{C.myPapers}</Link>
-        <button type="button" onClick={another} className={cn(OUTLINE, FOCUS)}>{C.makeAnother}</button>
-      </div>
-    );
+    dock = fde
+      ? <Link to={ASSESSMENT_V2_BASE} className={cn(OUTLINE, FOCUS)}>{C.myPapers}</Link>
+      : (
+        <div className="flex w-full flex-col gap-2.5">
+          <Link to={ASSESSMENT_V2_BASE} className={cn(OUTLINE, FOCUS)}>{C.myPapers}</Link>
+          <button type="button" onClick={another} className={cn(OUTLINE, FOCUS)}>{C.makeAnother}</button>
+        </div>
+      );
   } else if (seen?.status === 'failed') {
     title = C.notMadeTitle;
     const busy = retrying.has(requestId);
@@ -140,7 +176,8 @@ export function RequestPage() {
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fee4e2] text-[#c8331f]">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </span>
-          <span className="text-[17px] font-semibold">{failureLabel(seen.errorCode, C)}</span>
+          <span className="flex-1 text-[17px] font-semibold">{failureLabel(seen.errorCode, C)}</span>
+          {fde && <Chip>{C.fdeChip}</Chip>}
         </div>
         <div className="w-full">{card}</div>
       </div>
@@ -173,6 +210,58 @@ export function RequestPage() {
           {C.dismiss}
         </button>
       </div>
+    );
+  } else if (seen?.status === 'ready' && seen.paperId && fde) {
+    title = C.readyTitle;
+    const paperId = seen.paperId;
+    const pages = row?.pages ?? null;
+    const fileRow = (testId: string, artifact: 'paper' | 'answer_key', icon: JSX.Element, label: string, n: number | null | undefined, who: string, first?: boolean) => (
+      <button type="button" data-testid={testId} onClick={() => open(artifact)}
+        className={cn('flex min-h-[68px] w-full items-center gap-3.5 px-3 text-start', !first && 'border-t border-[#f0f1f3]', FOCUS)}>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-[#33374a]">{icon}</span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-[16px] font-semibold">{label}</span>
+          <span className="text-[13px] text-[#6b7280]">{C.join(n ? C.pagesCount(n) : null, who)}</span>
+        </span>
+        <Download className="h-5 w-5 shrink-0 text-[#33374a]" aria-hidden="true" />
+      </button>
+    );
+    const inWhatsApp = ['android-iab', 'ios-iab'].includes(browserEnv());
+    // The two files first: they are what the teacher came for, and the kit's dock (two 64px buttons + Copy link inside
+    // WhatsApp's browser) leaves little room above it on a 360×740 phone.
+    body = (
+      <div className="flex flex-col gap-3 pt-1">
+        <div className="flex flex-wrap justify-center gap-2">
+          <Chip tone="done">{C.ready}</Chip>
+          {row?.question_count != null && <Chip>{C.questionsCount(row.question_count)}</Chip>}
+          <Chip>{C.fdeChip}</Chip>
+          <Chip>{C.withScheme}</Chip>
+        </div>
+        <ListCard label={C.readyTitle}>
+          {fileRow('fde-ready-paper', 'paper', <FileText className="h-5 w-5" aria-hidden="true" />, C.questionPaper, pages?.paper, C.forClass, true)}
+          {fileRow('fde-ready-scheme', 'answer_key', <ClipboardCheck className="h-5 w-5" aria-hidden="true" />, C.markingScheme, pages?.scheme, C.forTeacher)}
+        </ListCard>
+        {inWhatsApp && <p data-testid="fde-if-no-download" className="px-2 text-center text-[14px] text-[#4b5563]">{C.ifNoDownload}</p>}
+        <div className={cn(GRID, 'grid-cols-2 gap-2.5')}>
+          <Link to={paperPath(paperId)} className={cn('flex min-h-[64px] items-center justify-center gap-2 p-2 text-[15px] font-semibold', CARD, FOCUS)}>
+            <FileText className="h-5 w-5" aria-hidden="true" />
+            {C.open}
+          </Link>
+          <button type="button" onClick={another} className={cn('flex min-h-[64px] items-center justify-center gap-2 p-2 text-[15px] font-semibold', CARD, FOCUS)}>
+            <Plus className="h-5 w-5" aria-hidden="true" />
+            {C.makeAnother}
+          </button>
+        </div>
+      </div>
+    );
+    // The kit's ShareActions, exactly as the paper page has it: Send on WhatsApp (locked until a template exists), and
+    // Open in another app = the question paper's PDF through the hand-off page.
+    dock = (
+      <ShareActions
+        available={canSend}
+        onSend={() => shareToWhatsApp('paper', paperId)}
+        open={{ fileUrl: async () => (await portal.getAssessmentDownload(paperId, 'paper'))?.url ?? null }}
+      />
     );
   } else if (seen?.status === 'ready' && seen.paperId) {
     title = C.readyTitle;

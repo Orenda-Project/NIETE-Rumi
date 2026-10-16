@@ -1,17 +1,18 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { AlignLeft, BookOpen, ListChecks, Plus, Shuffle, Sparkles, X } from 'lucide-react';
+import { AlignLeft, BookOpen, LayoutList, ListChecks, Plus, Shuffle, Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { ClassPicker, NumberField, type ClassPick, type GradeSubjectPair } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
-import { ASSESSMENT } from './copy';
+import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { useCopy } from '../i18n';
-import { catalogueOnce, loadChapters, loadTypes, subjectName } from './api';
+import { catalogueOnce, loadChapters, loadTypes, patternFor, subjectName } from './api';
 import {
-  MAX_TOTAL_MARKS, checkPages, toSpec, typesStatus, unseenTarget, type Picks, type Source,
+  FDE_STEPS, MAX_TOTAL_MARKS, STEPS, checkPages, isFde, toSpec, typesStatus, unseenTarget, type Picks, type Source,
 } from './model';
+import { FdeCheck } from './FdeCheck';
 import { pagesMessage, stepReason } from './reasons';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
@@ -45,8 +46,16 @@ function needsClassOf(p: Picks) {
 const changeClass = (p: Picks, grade: number, subject: string | null, name: string | null): Partial<Picks> => {
   const same = p.grade === grade && p.subject === subject;
   // A new class has other chapters and other types: what she picked for the old one goes.
-  return same ? { subjectName: name } : { grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typeMode: 'auto' };
+  if (same) return { subjectName: name };
+  const out: Partial<Picks> = { grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typeMode: 'auto' };
+  // …and a board pattern picked for the old class (the side door) goes too; the FDE door's intent is decided by the pick.
+  return p.style || p.coverBy === 'fde' ? { ...out, coverBy: 'chapters', style: null, pattern: null } : out;
 };
+
+/** The FDE door's pick: an eligible subject keeps the board pattern and goes to Check; any other falls back to today's. */
+const doorPick = (pattern: string | null): Partial<Picks> => (pattern
+  ? { coverBy: 'fde', style: 'fde', pattern, patternIntent: pattern, chapters: [], ranges: [] }
+  : { coverBy: 'chapters', style: null, pattern: null, patternIntent: null });
 
 /* ── 1 Class ─────────────────────────────────────────────────────────────── */
 
@@ -63,22 +72,51 @@ export function ClassStep() {
     ? Object.fromEntries(Object.entries(catalogue.byGrade).map(([g, list]) => [g, list.map((s) => s.name)]))
     : undefined), [catalogue]);
 
-  const onPick = (v: GradeSubjectPair, pick: ClassPick) => {
+  // The FDE door (bd: the door sets patternIntent): the subjects it serves are read once, so a tap goes straight on.
+  const door = !!p.patternIntent;
+  const [held, setHeld] = useState<string[]>([]);
+  const doorGrades = catalogue?.patternGrades;
+  useEffect(() => {
+    if (!door || !catalogue || !doorGrades?.length) return undefined;
+    let live = true;
+    const pairs = doorGrades.flatMap((g) => (catalogue.byGrade[g] ?? []).map((s) => [g, s.key] as const));
+    Promise.all(pairs.map(([g, k]) => patternFor(g, k).then((pat) => (pat ? null : k)))).then((off) => {
+      if (live) setHeld(off.filter((k): k is string => k === 'islamiat'));
+    });
+    return () => { live = false; };
+  }, [door, catalogue, doorGrades]);
+
+  const onPick = async (v: GradeSubjectPair, pick: ClassPick) => {
     const own = pick.combo && typeof pick.combo.featureKey === 'string' ? pick.combo.featureKey : null;
     const key = own ?? catalogue?.byGrade[v.grade]?.find((s) => s.name === v.subject)?.key ?? null;
     if (!key) return;
-    set((cur) => changeClass(cur, v.grade, key, subjectName(catalogue, v.grade, key) || v.subject));
+    const name = subjectName(catalogue, v.grade, key) || v.subject;
+    if (door) {
+      const pattern = await patternFor(v.grade, key);
+      set((cur) => ({ ...changeClass(cur, v.grade, key, name), ...doorPick(pattern ? pattern.id : null) }));
+      navigate(newPaperPath(pattern ? 'check' : 'cover'));
+      return;
+    }
+    set((cur) => changeClass(cur, v.grade, key, name));
     navigate(newPaperPath('cover'));
   };
 
   const value = p.grade !== null && p.subject ? { grade: p.grade, subject: subjectName(catalogue, p.grade, p.subject) || p.subjectName || p.subject } : null;
+  const heldNames = held.map((k) => subjectName(catalogue, 5, k)).filter(Boolean);
 
   return (
     <StepFrame
       step="class"
       backTo={ASSESSMENT_V2_BASE}
-      next={{ label: C.next, why: stepReason('class', p, catalogue?.maxQuestions ?? 50, C), to: newPaperPath('cover') }}
+      steps={door ? FDE_STEPS : STEPS}
+      crumb={door ? C.fdeDoor : undefined}
+      next={{ label: C.next, why: stepReason('class', p, catalogue?.maxQuestions ?? 50, C), to: newPaperPath(isFde(p) ? 'check' : 'cover') }}
     >
+      {door && heldNames.length > 0 && (
+        <p data-testid="fde-held-note" className="flex min-h-[44px] items-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-3.5 text-[14px] font-semibold text-[#6b7280]">
+          {C.islamiatHeld}
+        </p>
+      )}
       {combos.status !== 'ok'
         ? <LoadState status={combos.status} onRetry={retryCombos} />
         : cat.status !== 'ok' || !catalogue
@@ -112,6 +150,9 @@ export function CoverStep() {
   const lastPage = list.reduce((m, c) => Math.max(m, c.page_end ?? 0), 0) || null;
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  // The side door: the board pattern for this class, when /assessment/options offers it (flag on, Grade 5, eligible).
+  const [offer] = useLoad(needsClass ? null : () => patternFor(p.grade, p.subject), `pattern:${p.grade}:${p.subject}`);
+  const pattern = dataOf(offer) ?? null;
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
 
   const toggle = (n: number) => set((cur) => ({
@@ -119,9 +160,35 @@ export function CoverStep() {
   }));
   const check = checkPages(from, to, lastPage);
   const note = pagesMessage(check, C);
+  const fdePicked = !!pattern && isFde(p);
+  const flip = () => set(fdePicked
+    ? { coverBy: 'chapters', style: null, pattern: null, patternIntent: null }
+    : { coverBy: 'fde', style: 'fde', pattern: pattern?.id ?? null });
+
+  if (fdePicked) {
+    return (
+      <StepFrame step="cover" backTo={backTo('class')} hint={C.skips4} next={{ label: C.next, why: null, to: newPaperPath('check') }}>
+        <SideDoor picked onFlip={flip} C={C} />
+        <p className="px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.chaptersOff}</p>
+        {list.length > 0 && (
+          <div aria-hidden="true" className="pointer-events-none opacity-40">
+            <ListCard label={C.chapters}>
+              {list.map((c, i) => (
+                <div key={c.chapter_number} className={cn('flex min-h-[56px] items-center gap-3 px-3', i > 0 && 'border-t border-[#f0f1f3]')}>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#f3f4f6] text-[15px] font-bold text-[#33374a]">{c.chapter_number}</span>
+                  <span className="text-[16px] font-semibold leading-snug">{c.chapter_title}</span>
+                </div>
+              ))}
+            </ListCard>
+          </div>
+        )}
+      </StepFrame>
+    );
+  }
 
   return (
-    <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C), to: newPaperPath('questions') }}>
+    <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C, { offerFde: !!pattern }), to: newPaperPath('questions') }}>
+      {pattern && <SideDoor picked={false} onFlip={flip} C={C} />}
       <Tabs
         label={C.steps.cover}
         value={p.coverBy}
@@ -213,6 +280,15 @@ export function CoverStep() {
         </>
       )}
     </StepFrame>
+  );
+}
+
+/** The side door: the FDE board pattern as one pickable card above today's Chapters step (Grade 5, eligible, flag on). */
+function SideDoor({ picked, onFlip, C }: { picked: boolean; onFlip: () => void; C: AssessmentV2Copy }) {
+  return (
+    <div data-testid="fde-side-door" role="radiogroup" aria-label={C.styleFde}>
+      <Choice picked={picked} onPick={onFlip} icon={<LayoutList className="h-6 w-6" aria-hidden="true" />} name={C.styleFde} sub={C.fdeDoorChips} />
+    </div>
   );
 }
 
@@ -433,6 +509,12 @@ export function ExtrasStep() {
 /* ── 6 Check and make ────────────────────────────────────────────────────── */
 
 export function CheckStep() {
+  const [p] = usePicks();
+  if (isFde(p)) return <FdeCheck />;
+  return <PlainCheck />;
+}
+
+function PlainCheck() {
   const C = useCopy(ASSESSMENT);
   const [p] = usePicks();
   const navigate = useNavigate();

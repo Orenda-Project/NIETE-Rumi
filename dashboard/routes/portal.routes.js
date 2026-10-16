@@ -92,6 +92,8 @@ const { makeRequireAnalyticsViewer } = require('../lib/analytics-viewer');
 // bd-s6qbts.5 — such an account signs in with an account NAME; users.phone_number holds analytics:<name>.
 const { isAccountNameInput, normaliseAccountName, storedPhoneFor } = require('../lib/analytics-account-name');
 const SchoolsAnalytics = require('../services/schools-analytics.service');
+const CoachingAnalytics = require('../services/coaching-analytics.service'); // bd-97x22y.1
+const ObservationsAnalytics = require('../services/observations-analytics.service'); // bd-97x22y.5
 const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
@@ -1667,6 +1669,134 @@ router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, asyn
   }
 });
 
+// Its own ten-minute cache, keyed from|to|region like the schools one.
+const coachingAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
+
+/**
+ * GET /api/portal/analytics/coaching?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
+ *
+ * The schools-analytics Coaching tab (bd-97x22y.1, PLAN v6 §3): coaches assigned, coach
+ * visits and schools visited — overall, per region (the six ICT sectors, whatever the
+ * filter) and per school (visits). A separate endpoint so this tab's reads never slow the
+ * others. Same gate, window, regions and school rule as /analytics/schools; definitions in
+ * services/coaching-analytics.service.js. Two set-based reads, no per-school loop.
+ */
+router.get('/analytics/coaching', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    if (!region.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown region.' });
+    }
+    const range = analyticsRange(req.query);
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const body = await coachingAnalyticsCache.getOrLoad(key, async () => {
+      const rows = await CoachingAnalytics.loadCoachingAnalyticsRows(dbQuery, range);
+      return {
+        success: true,
+        range,
+        ...CoachingAnalytics.summarizeCoachingAnalytics(rows, { region: region.region }),
+      };
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('analytics/coaching error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load coaching analytics.' });
+  }
+});
+
+// bd-97x22y.4 — the Trainings tab's level progress. One in-memory snapshot of the states read per process,
+// refreshed at most every 30 minutes and never waited on once it exists; every band and region is
+// summarised from it per request (cheap, pure).
+const TrainingLevels = require('../services/training-levels-analytics.service');
+
+const trainingLevelsSnapshot = TrainingLevels.createSnapshot({
+  load: () => TrainingLevels.loadTrainingLevelRows(dbQuery),
+  maxAgeMs: 30 * 60 * 1000,
+});
+
+/**
+ * GET /api/portal/analytics/training-levels?region=<sector|all>&band=<primary|midhigh|all>
+ *
+ * The schools-analytics v7 Trainings tab (bd-97x22y.4, PLAN v7 "Trainings"): the ICT dashboard's training
+ * level progress 1 to 1, on NIETE's own level rule. All time, as hers (no window; from/to are ignored).
+ * band: primary (default; levels 1-4 over teachers whose teacher_level holds PRIMARY) or midhigh (levels 3-4
+ * over MIDDLE or HIGH teachers); all = every teacher, band or none. Anything else is a 400, like an unknown
+ * region. Same gate and six regions as /analytics/schools.
+ *
+ * Answer:
+ *   { success, band, computedAt,                                   computedAt: when the snapshot's read began
+ *     overview: { teachers, passedAll, levels: [L] },
+ *     regions:  [{ region, teachers, passedAll, levels: [L without name] }],
+ *     schools:  [{ schoolId, emis, name, region, teachers, passedAll, levels: [{ levelOrder, passed, teachers, pctPassed }] }] }
+ *   L = { levelId, levelOrder (0-3), name, passed, inProgress, notStarted, teachers, pctPassed }
+ * passed = certified; inProgress = in_progress + ready_for_quiz; notStarted = not_started + locked; teachers =
+ * the band's teachers whose programme shows the level; pctPassed = passed / teachers × 100, one decimal, null
+ * when teachers is 0. passedAll = passed Teacher Leader, of its teachers. Regions are always the six; the
+ * overview and the schools follow ?region= (a school with none of the band's teachers is left out). No teacher
+ * appears. Definitions: services/training-levels-analytics.service.js.
+ */
+router.get('/analytics/training-levels', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    if (!region.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown region.' });
+    }
+    const band = TrainingLevels.parseBandFilter(req.query.band);
+    if (!band.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown band.' });
+    }
+    const snap = await trainingLevelsSnapshot.get();
+    res.json({
+      success: true,
+      band: band.band,
+      computedAt: snap.computedAt,
+      ...TrainingLevels.summarizeTrainingLevels(snap.rows, { band: band.band, region: region.region }),
+    });
+  } catch (error) {
+    console.error('analytics/training-levels error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load training analytics.' });
+  }
+});
+
+// bd-97x22y.5 — its own ten-minute cache, keyed from|to|region like the two above. The costly part
+// (each session's analysis_data) is the schools route's per-session memo, shared: a session either
+// route has read is not read again by the other.
+const observationsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
+
+/**
+ * GET /api/portal/analytics/observations?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
+ *
+ * The schools-analytics Observations tab (bd-97x22y.5, PLAN v7): the ICT dashboard's Observations
+ * tab 1 to 1 — for Digital Coach (`dc`) and Human (`human`) observations each: observations,
+ * teachers observed, sectors active, and her FICO Section B / C / D scores (LP Fidelity, Teaching
+ * Practices, Engagement; % with their n) — overall, per region (the six ICT sectors, whatever the
+ * filter) and per school. Its own endpoint so /analytics/schools answers exactly as before. Same
+ * gate, window, regions and school rule; definitions in services/observations-analytics.service.js.
+ * School-level only — no teacher appears in the answer.
+ */
+router.get('/analytics/observations', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    if (!region.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown region.' });
+    }
+    const range = analyticsRange(req.query);
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const body = await observationsAnalyticsCache.getOrLoad(key, async () => {
+      const rows = await ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range);
+      return {
+        success: true,
+        range,
+        ...ObservationsAnalytics.summarizeObservationsAnalytics(rows, { region: region.region }),
+      };
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('analytics/observations error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load observation analytics.' });
+  }
+});
+
 /**
  * GET /api/portal/my-analytics
  * A TEACHER's own Analytics page: the same sections her principal sees when
@@ -2727,15 +2857,28 @@ router.get('/lesson-plans/recent', requirePortalAuth, async (req, res) => {
 // and it is a school-leader gate that 403s teachers. Reading the wrong one is
 // silent: it passes undefined, and the bot answers "userId is required".
 const Assessment = require('../services/assessment.service');
+const AssessmentRateLimit = require('../lib/assessment-rate-limit');
 
-/** A 400 from the bot carries a message she can act on; anything else is ours. */
+/**
+ * A 400 (or a coded 409) from the bot carries a message the teacher can act on; anything else is ours.
+ * `errorCode` / `requestId` ride along only when the bot sent them, so an uncoded 400 answers as before.
+ */
 function assessmentFailure(res, error, fallback) {
   if (error && error.userFacing) {
-    return res.status(400).json({ success: false, error: error.message });
+    const body = { success: false, error: error.message };
+    if (error.errorCode) body.errorCode = error.errorCode;
+    if (error.requestId) body.requestId = error.requestId;
+    return res.status(error.status === 409 ? 409 : 400).json(body);
   }
   console.error('❌ Portal assessment failed', { error: error?.message });
   return res.status(502).json({ success: false, error: fallback });
 }
+
+/**
+ * The soft per-teacher limit on making papers (10 an hour, 30 a day): 429 RATE_LIMITED with retryAt.
+ * A no-op unless assessment_rate_limit_enabled is on; a failed count never blocks (the lib fails open).
+ */
+const assessmentRateLimit = AssessmentRateLimit.middleware({ supabase, dbQuery });
 
 /**
  * GET /api/portal/assessment/options?grade=4&subject=science
@@ -2784,7 +2927,7 @@ router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
  * 202 because the paper does not exist yet — generation is a queued job of
  * about a minute and the page polls /status.
  */
-router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
+router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, async (req, res) => {
   try {
     const body = req.body || {};
     const { requestId } = await Assessment.create({
@@ -2805,6 +2948,10 @@ router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
       includeAnswerKey: body.includeAnswerKey,
       answerLines: body.answerLines,
       outputFormat: body.outputFormat,
+      // The board pattern (FDE). undefined, not null, when absent: JSON drops the keys, so a plain
+      // request reaches the bot byte-identical to before.
+      pattern: body.pattern ?? undefined,
+      scope: body.scope ?? undefined,
     });
     res.status(202).json({ success: true, requestId });
   } catch (error) {

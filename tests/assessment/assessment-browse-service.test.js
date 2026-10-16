@@ -108,7 +108,8 @@ describe('what she may pick', () => {
     const opts = await Browse().questionOptions('science', 4);
     const ids = opts.types.map((t) => t.id);
 
-    expect(ids).toContain('Label the Diagram');     // science-only
+    expect(ids).toContain('Logical Reasoning');     // science-only
+    expect(ids).not.toContain('Label the Diagram'); // needs a printed picture, no longer offered
     expect(ids).not.toContain('Essay Writing');     // english/urdu-only
     // The cap comes from the bot's own constant. The portal holds no number:
     // the dead panel used to hardcode MAX_COUNT = 20 against the bot's 25.
