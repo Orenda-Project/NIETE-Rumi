@@ -12,7 +12,8 @@
  *
  * weekly_usage_v1 parameters, in order:
  *   {{1}} first name · {{2}} the week (12–16 Oct) · {{3}} lesson plans opened · {{4}} days used
- *   {{5}} recordings sent · {{6}} the thing to try (a phrase) · {{7}} reports agreed with (a phrase)
+ *   {{5}} recordings sent · {{6}} reports agreed with (a phrase)
+ *   (no thing-to-try line: Amena, 16 Oct — group B's report does not carry it)
  * weekly_usage_quiet_v1 (a week with nothing to count — said kindly, no numbers):
  *   {{1}} first name · {{2}} the week
  *
@@ -26,17 +27,17 @@ const TEMPLATE = {
     en_US:
       'Assalam o Alaikum {{1}}!\n\nHere is your week with Rumi ({{2}}):\n\n'
       + 'Lesson plans opened: {{3}}\nDays you used Rumi: {{4}}\nClass recordings sent: {{5}}\n'
-      + 'Thing to try from your report: {{6}}\nReports you agreed with: {{7}}\n\n'
+      + 'Reports you agreed with: {{6}}\n\n'
       + 'Thank you for your teaching this week. Reply here any time for a lesson plan or to send a class recording.',
     ur:
       'السلام علیکم {{1}}!\n\nRumi کے ساتھ آپ کا ہفتہ ({{2}}):\n\n'
       + 'کھولے گئے سبق کے منصوبے: {{3}}\nجن دنوں آپ نے Rumi استعمال کیا: {{4}}\nبھیجی گئی کلاس ریکارڈنگز: {{5}}\n'
-      + 'رپورٹ میں آزمانے والی بات: {{6}}\nجن رپورٹس سے آپ متفق تھے: {{7}}\n\n'
+      + 'جن رپورٹس سے آپ متفق تھے: {{6}}\n\n'
       + 'اس ہفتے کی تدریس کا شکریہ۔ سبق کا منصوبہ لینے یا کلاس ریکارڈنگ بھیجنے کے لیے کسی بھی وقت یہاں جواب دیں۔',
   },
   examples: {
-    en_US: ['Ayesha', '12–16 Oct', '4', '3', '2', 'done in 1 of 2 recordings', '2 of 3'],
-    ur: ['عائشہ', '12 تا 16 اکتوبر', '4', '3', '2', '2 میں سے 1 ریکارڈنگ میں کیا', '3 میں سے 2'],
+    en_US: ['Ayesha', '12–16 Oct', '4', '3', '2', '2 of 3'],
+    ur: ['عائشہ', '12 تا 16 اکتوبر', '4', '3', '2', '3 میں سے 2'],
   },
 };
 

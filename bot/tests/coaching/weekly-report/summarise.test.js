@@ -79,16 +79,10 @@ describe('summarise — days used (PKT calendar days with any activity)', () => 
   });
 });
 
-describe('summarise — the thing to try (move done), from the next-recording check', () => {
-  test('counts did / partly / not done; anything else is not a readable check', () => {
-    const s = summarise({
-      ...empty(),
-      checks: [
-        { outcome: 'did' }, { outcome: 'partly' }, { outcome: 'not_done' },
-        { outcome: 'no_matching_move' }, { outcome: 'not_graded' }, null,
-      ],
-    });
-    expect(s.move).toEqual({ did: 1, partly: 1, notDone: 1, checked: 3 });
+describe('summarise — no thing to try (removed 16 Oct)', () => {
+  test('checks are ignored: no move in the summary', () => {
+    const s = summarise({ ...empty(), checks: [{ outcome: 'did' }] });
+    expect(s).not.toHaveProperty('move');
   });
 });
 
@@ -109,7 +103,6 @@ describe('summarise — totals, and missing inputs', () => {
   test('missing arrays are treated as empty, never thrown on', () => {
     expect(summarise({})).toEqual({
       lessonPlans: 0, daysUsed: 0, recordings: 0,
-      move: { did: 0, partly: 0, notDone: 0, checked: 0 },
       thumbs: { up: 0, down: 0 },
     });
   });

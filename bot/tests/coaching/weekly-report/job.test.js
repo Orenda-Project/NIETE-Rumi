@@ -32,16 +32,12 @@ const SAT_10 = new Date('2026-10-17T05:00:00Z'); // Sat 17 Oct 10:00 PKT
 const FRI_10 = new Date('2026-10-16T05:00:00Z');
 const ON = { enabled: true, approved: ['weekly_usage_v1', 'weekly_usage_quiet_v1'] };
 const ROW = { id: 'n1', user_id: 'u1', kind: 'weekly_usage_report', nudge_date: '2026-10-12', context: { group: 'B' } };
-const TEACHER = { id: 'u1', name: 'Ayesha Khan', phone_number: '923001234567', preferred_language: 'en' };
+const TEACHER = { id: 'u1', name: 'Ayesha Khan', phone_number: '+92300FIXTURE1', preferred_language: 'en' };
 const busyWeek = () => ({
   messages: [{ created_at: '2026-10-12T05:00:00' }],
   deliveries: [{ lesson_id: 'L1', created_at: '2026-10-12T05:00:00Z' }],
   opens: [],
-  sessions: [{ id: 's1', created_at: '2026-10-13T05:00:00Z', lp: { status: 'ok' } }],
-  priors: [
-    { id: 's1', created_at: '2026-10-13T05:00:00Z', thing: { tag: 'new' } },
-    { id: 'p0', created_at: '2026-10-09T05:00:00Z', thing: { tag: 'old' } },
-  ],
+  sessions: [{ id: 's1', created_at: '2026-10-13T05:00:00Z' }],
   ratings: [{ coaching_session_id: 's1', user_satisfaction_rating: 1 }],
 });
 const events = (name) => mockEvent.mock.calls.filter(([n]) => n === name).map(([, d]) => d);
@@ -114,9 +110,9 @@ describe('send — one claimed row', () => {
     const out = await job.send(ROW, { now: SAT_10 });
     expect(out).toEqual({ sent: true, messageIds: [], context: expect.objectContaining({ template: 'weekly_usage_v1' }) });
     const [to, name, code, components, opts] = mockSendTemplate.mock.calls[0];
-    expect([to, name, code]).toEqual(['923001234567', 'weekly_usage_v1', 'en_US']);
+    expect([to, name, code]).toEqual(['+92300FIXTURE1', 'weekly_usage_v1', 'en_US']);
     expect(components[0].parameters.map((p) => p.text)).toEqual(
-      ['Ayesha', '12–16 Oct', '1', '2', '1', 'done in 1 of 1 recordings', '1 of 1'],
+      ['Ayesha', '12–16 Oct', '1', '2', '1', '1 of 1'],
     );
     expect(opts).toEqual({ report: {} });
     expect(mockReader.readWeek).toHaveBeenCalledWith('u1', expect.objectContaining({ weekStart: '2026-10-12' }));
@@ -125,13 +121,16 @@ describe('send — one claimed row', () => {
     })]);
   });
 
-  test('the thing to try is checked against the session BEFORE each recording, never the recording itself', async () => {
+  test('no thing to try: nothing is checked and the sent body has six parameters', async () => {
     await job.send(ROW, { now: SAT_10 });
-    expect(mockCheck).toHaveBeenCalledWith({ tag: 'old' }, { status: 'ok' });
+    expect(mockCheck).not.toHaveBeenCalled();
+    const params = mockSendTemplate.mock.calls[0][3][0].parameters;
+    expect(params).toHaveLength(6);
+    expect(events('v10.weekly_report.sent')[0].counts).not.toHaveProperty('move');
   });
 
   test('a quiet week sends the no-numbers template', async () => {
-    mockReader.readWeek.mockResolvedValue({ messages: [], deliveries: [], opens: [], sessions: [], priors: [], ratings: [] });
+    mockReader.readWeek.mockResolvedValue({ messages: [], deliveries: [], opens: [], sessions: [], ratings: [] });
     await job.send(ROW, { now: SAT_10 });
     expect(mockSendTemplate.mock.calls[0][1]).toBe('weekly_usage_quiet_v1');
   });
