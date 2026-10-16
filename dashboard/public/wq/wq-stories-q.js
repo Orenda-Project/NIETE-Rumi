@@ -53,10 +53,11 @@
         words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false,
         finish: { pct: 0.8, quiet_ms: 4000, tail_ms: 1000, quiet: true },
         copy: { done: t.done, readNow: t.readNow, keepGoing: t.keepGoing, checking: t.checking, wellRead: t.wellRead },
-        getKey: function () { return req('POST', '/api/wq/lr/key', { st: ctx.token, kid: ctx.kid, book: b.id, page: p.n, lang: L }).then(function (r) { return r.body; }); },
+        getKey: function () { return req('POST', '/api/wq/lr/key', { st: ctx.token, kid: ctx.kid, book: b.id, page: p.n, lang: L }).then(function (r) { if (!r.ok || r.body.error) R.keyNo = 1; return r.body; }, function (x) { R.keyNo = 1; throw x; }); },
         onResult: cb, onFallback: function (why) {
           if (why !== 'key' && why !== 'rest') return;
-          var el = root.querySelector('[data-lr]'), n = el && el.querySelector('.lr-nudge'), s;
+          if (why === 'key') R.keyNo = 1;
+          var el = why === 'rest' && root.querySelector('[data-lr]'), n = el && el.querySelector('.lr-nudge'), s;
           if (n && n.parentNode) n.parentNode.removeChild(n);
           eo = sum = null; m.voice();
           s = root.querySelector('[data-lrl]');

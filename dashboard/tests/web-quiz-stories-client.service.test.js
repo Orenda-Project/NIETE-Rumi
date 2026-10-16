@@ -96,7 +96,7 @@ function env(opt = {}) {
       else if (body.event === 'story_answer') { const ok = opt.right ? opt.right(body.data) : true; r = { status: 200, body: ok || body.data.try !== 2 ? { ok: true, right: ok } : { ok: true, right: false, show: 0 } }; }
       else if (body.event === 'story_done') r = { status: 200, body: { ok: true, sticker: opt.alwaysSticker ? true : opt.noSticker ? false : body.data.pages_read > 0 || body.data.pages_listened > 0 } };
       else r = { status: 200, body: { ok: true } };
-    } else if (/\/lr\/key/.test(url)) r = { status: 200, body: { ws: 'wss://x', api_key: 'k', model: 'm', lang: 'en' } };
+    } else if (/\/lr\/key/.test(url)) r = replies.key || { status: 200, body: { ws: 'wss://x', api_key: 'k', model: 'm', lang: 'en' } };
     else r = { status: 404, body: {} };
     return Promise.resolve({ status: r.status, ok: r.status < 400, json: () => Promise.resolve(r.body), text: () => Promise.resolve(JSON.stringify(r.body)) });
   }
@@ -1554,6 +1554,56 @@ describe('echo reading on G1-2', () => {
     fire(root, 'eend');
     expect(screenOf(root.innerHTML)).toBe('story-page');
     expect(root.innerHTML).toContain('data-tap="echo"');
+  });
+});
+
+describe('Read it together only where the reading key answers', () => {
+  const READ20 = ['read', 'ahead', 'ahead', 'ahead', 'ahead'];
+  async function readWith(e) {
+    const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    return root;
+  }
+  test('the key endpoint answers 404 (the live reader not on this server yet): no "Read it together" button, Next stays primary', async () => {
+    const e = env({ replies: { key: { status: 404, body: { error: 'not_found' } } } });
+    const root = await readWith(e);
+    const k = await e.calls.lr[0].o.getKey();
+    expect(k).toEqual({ error: 'not_found' });
+    e.calls.lr[0].o.onResult(READ(READ20));
+    expect(root.innerHTML).not.toContain('data-tap="echo"');
+    expect(root.innerHTML).toMatch(/data-main data-primary[^>]*>Next</);
+    expect(e.calls.posts.filter((x) => /\/lr\/key/.test(x.url))).toHaveLength(1);
+  });
+  test('a 200 with {error} (no keys left), or a key request that never arrives: no echo button either', async () => {
+    const e = env({ replies: { key: { status: 200, body: { error: 'cap' } } } });
+    const root = await readWith(e);
+    await e.calls.lr[0].o.getKey();
+    e.calls.lr[0].o.onResult(READ(READ20));
+    expect(root.innerHTML).not.toContain('data-tap="echo"');
+    const o = env({ fail: (u) => /\/lr\/key/.test(u) });
+    const r2 = await readWith(o);
+    await expect(o.calls.lr[0].o.getKey()).rejects.toThrow('offline');
+    o.calls.lr[0].o.onResult(READ(READ20));
+    expect(r2.innerHTML).not.toContain('data-tap="echo"');
+  });
+  test('the key answers: the button shows, and each mount asks for its own key (one per mount, never a kept one)', async () => {
+    const e = env();
+    const root = await readWith(e);
+    expect((await e.calls.lr[0].o.getKey()).ws).toBe('wss://x');
+    e.calls.lr[0].o.onResult(READ(READ20));
+    expect(root.innerHTML).toContain('data-tap="echo"');
+    expect(e.calls.lr[0].o.key).toBeUndefined();
+  });
+  test('onFallback(\'key\'): the live reader\'s line is NOT moved onto the page (it would say "Read it aloud!" while Jugnu reads); no echo button after', async () => {
+    const e = env(); const root = await readWith(e);
+    const c = e.calls.lr[0];
+    c.el.innerHTML = '<p class="lr-nudge"></p>';
+    c.el.querySelector('.lr-nudge').textContent = 'Read it aloud!';
+    c.o.onFallback('key');
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+    expect((root.querySelector('[data-lrl]') || {}).kids || []).toEqual([]);
+    expect(root.innerHTML).not.toContain('Read it aloud');
+    expect(root.innerHTML).not.toContain('data-tap="echo"');
   });
 });
 
