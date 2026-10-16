@@ -110,6 +110,13 @@ describe('1. review markers: chrome refuses every marker, item text only the Eng
     }
   });
 
+  test('the item list is exported for the re-ask, English markers only', () => {
+    expect(R.REFUSED_ITEM.every((re) => re instanceof RegExp)).toBe(true);
+    const hits = (t) => R.REFUSED_ITEM.some((re) => re.test(t));
+    for (const bad of ['needs review', 'filler', '⚠', 'MODEL PAPER FOR', 'Islamabad Model School']) expect({ bad, hit: hits(bad) }).toEqual({ bad, hit: true });
+    for (const ok of ['اسی طرح', 'مسودہ']) expect({ ok, hit: hits(ok) }).toEqual({ ok, hit: false });
+  });
+
   test('Urdu markers anywhere in item text (options, answers, scheme points) render', () => {
     const exam = clone(fixture('r7-sst-item-text'));
     const q = itemsOf(exam).find((x) => Array.isArray(x.options));
