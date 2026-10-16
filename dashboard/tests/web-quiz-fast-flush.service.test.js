@@ -163,6 +163,24 @@ describe('fast first page: GET /q/:code', () => {
     expect(res.body).toMatch(/nf=1/);
   });
 
+  it('switch on, a link-preview fetch for a code this edge has not seen: today\'s preview page, never the flushed head or the quiz', async () => {
+    const bot = heldBot([jsonRes(200, QUIZ({ fast: true })), jsonRes(500, {}), jsonRes(200, QUIZ({ fast: true }))]);
+    srv = await start(build(bot.fetchImpl));
+    await get(srv, '/q/AB12CD');
+    const res = await new Promise((resolve, reject) => {
+      const r = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'GET', path: '/q/PV12CD',
+        headers: { host: 'portal.example', 'user-agent': 'WhatsApp/2.23.20.0 A' } }, (rs) => {
+        let b = ''; rs.setEncoding('utf8'); rs.on('data', (c) => { b += c; }); rs.on('end', () => resolve({ status: rs.statusCode, body: b }));
+      });
+      r.on('error', reject); r.end();
+    });
+    expect(res.status).toBe(200);
+    expect(res.body).not.toMatch(/id="boot"/);
+    expect(res.body).not.toMatch(/correct_slot/);
+    expect(res.body).not.toMatch(/rel="preload" href="\/wq\/wq\.js/);
+    expect(res.body).toMatch(/<body><\/body>/);
+  });
+
   it('switch on, then off again: the next page after an off payload is today\'s render', async () => {
     const bot = heldBot([jsonRes(200, QUIZ({ fast: true })), jsonRes(200, QUIZ()), jsonRes(200, QUIZ())]);
     srv = await start(build(bot.fetchImpl));

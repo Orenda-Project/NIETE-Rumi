@@ -693,8 +693,9 @@ function createWebQuizRouter(opts = {}) {
     if (known && !(view === 'class' && known.invited)) {
       return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
     }
-    // Fast first page: the head and the Jugnu frame now, the quiz when the bot answers (never on a teacher's preview).
-    const flush = lastFast && view === 'quiz' && !p && req.query.nf !== '1'
+    // Fast first page: the head and the Jugnu frame now, the quiz when the bot answers (never on a teacher's preview
+    // link, never on a link-preview fetch: a crawler gets the preview page below, never the quiz).
+    const flush = lastFast && view === 'quiz' && !p && !preview && req.query.nf !== '1'
       ? renderQuizFlushTop({ facts: ogKnown.get(upper), code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v })
       : null;
     if (flush) {
