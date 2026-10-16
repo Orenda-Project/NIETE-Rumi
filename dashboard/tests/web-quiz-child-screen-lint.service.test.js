@@ -22,6 +22,7 @@ const LIVE_SRC = fs.readFileSync(path.join(WQ, 'wq-read-live.js'), 'utf8');
 // Screens that show a forbidden word today and are waiting for a page fix. Shrink-only: an entry leaves when its
 // screen is clean; nothing is ever added to make a new screen pass. One line per entry: '<lang>:<screen>': 'why'.
 const ALLOW = {
+  'ur:hub-last-quiz-score': 'the hub\'s last-quiz line shows that quiz\'s own score («⭐ 4/5», Western digits in a ltr bdi): a known exception',
 };
 
 // ── the table: one row per thing no child screen may show ───────────────────────────────────────────────────
@@ -392,5 +393,209 @@ describe('the lint catches each forbidden thing (a fake screen per row)', () => 
   test('look-alikes are not hits: an item counter (isolated digits in Urdu), "best", «پسند», «بندر», a stop\'s minutes, a "Testwala" name', () => {
     for (const h of ['<p>1 of 6</p>', '<p>Your best reading</p>', '<small>2 min</small>', '<b>&lt;Name&gt; Testwala</b>', '<p>Blocks and clocks</p>']) expect(lint(h, 'en')).toEqual([]);
     for (const h of ['<p>⁦6⁩ میں سے ⁦1⁩</p>', '<p>⁦10⁩ میں سے ⁦1⁩</p>', '<p>⁨10⁩ میں سے ⁨1⁩</p>', '<p>آپ کو پسند ہے</p>', '<p>بندر</p>', '<small>۲ منٹ</small>', '<p>کلاس لسٹ میں آپ کا نمبر کیا ہے؟</p>']) expect(lint(h, 'ur')).toEqual([]);
+  });
+});
+
+// ── the hub (hub.js + hub-play.js + wq-book.js's hub tile, run whole in a vm with a small fake DOM, as in
+// web-quiz-hub-play.service.test.js) and Jugnu's Book (wq-book.js, as in web-quiz-book-page.service.test.js) ──────
+// CHILD_LINT_SEED=hub,play,book (any of them): the same walk with a test word put into that page's own copy table.
+const vmod = require('vm');
+const HUB_SRC0 = fs.readFileSync(path.join(WQ, 'hub.js'), 'utf8');
+const PLAY_SRC0 = fs.readFileSync(path.join(WQ, 'hub-play.js'), 'utf8');
+const TEL_SRC = fs.readFileSync(path.join(WQ, 'wq-tel.js'), 'utf8');
+const BOOK_SRC0 = fs.readFileSync(path.join(WQ, 'wq-book.js'), 'utf8');
+/** A copy line of a page's own table with a test word put in front: its English block first, then every Urdu one (the
+ * key must be there, English then Urdu, so a renamed line fails loudly). */
+const seed = (src, key) => {
+  const parts = src.split(`${key}: '`);
+  if (parts.length < 3) throw new Error(`seed: "${key}" is not in each language of the page's copy`);
+  return `${parts[0]}${key}: 'Reading test ${parts[1]}${key}: 'ٹیسٹ ${parts.slice(2).join(`${key}: 'ٹیسٹ `)}`;
+};
+const SEEDS = { hub: 'chSub', play: 'lanternTrailMany', book: 'bookLamps' };
+/** The three pages' sources, with the named ones seeded. */
+const SRCS = (pages = []) => ({
+  hub: pages.includes('hub') ? seed(HUB_SRC0, SEEDS.hub) : HUB_SRC0,
+  play: pages.includes('play') ? seed(PLAY_SRC0, SEEDS.play) : PLAY_SRC0,
+  book: pages.includes('book') ? seed(BOOK_SRC0, SEEDS.book) : BOOK_SRC0,
+});
+const SEED_ON = String(process.env.CHILD_LINT_SEED || '').split(',').filter(Boolean);
+
+// The hub's clock, fixed (the teacher card says how many days ago its quiz was sent).
+const HUB_NOW = Date.parse('2026-10-15T21:00:00Z');
+class HubDate extends Date {
+  constructor(...a) { super(...(a.length ? a : [HUB_NOW])); }
+  static now() { return HUB_NOW; }
+}
+/** The hub page as hub.js draws it (the minimum of web-quiz-hub-play.service.test.js's page helper). */
+function hubPage(boot, { src = SRCS(), book = false, store = {} } = {}) {
+  const els = {};
+  const timers = [];
+  const winL = {};
+  const el = (sel, attrs) => (els[sel] = els[sel] || { sel, listeners: {}, attrs: attrs || {}, addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); }, getAttribute(k) { return this.attrs[k]; } });
+  const root = {
+    _h: '', attrs: {},
+    set innerHTML(h) {
+      this._h = h;
+      for (const k of Object.keys(els)) delete els[k];
+      for (const m of h.matchAll(/<(?:a|button|p|div)\b([^>]*)>/g)) {
+        const attrs = {};
+        for (const a of m[1].matchAll(/([a-z-]+)="([^"]*)"/g)) attrs[a[1]] = a[2].replace(/&amp;/g, '&');
+        const sel = attrs.id ? `#${attrs.id}` : attrs['data-shelf'] ? `[data-shelf="${attrs['data-shelf']}"]` : null;
+        if (sel) el(sel, attrs);
+      }
+    },
+    get innerHTML() { return this._h; },
+    setAttribute(k, v) { this.attrs[k] = v; },
+    getAttribute(k) { return this.attrs[k]; },
+    appendChild() {},
+    // the Book's hub tile goes in after the tiles row (here: added to the drawn screen)
+    querySelector(sel) { return sel === '.wq-htiles' ? { insertAdjacentHTML: (pos, h) => { root._h += h; } } : els[sel] || null; },
+    querySelectorAll(sel) { const k = sel.replace(/^\[|\]$/g, ''); return Object.values(els).filter((e) => e.attrs[k] !== undefined); },
+  };
+  const docEl = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, classList: { toggle() {}, contains: () => false } };
+  const ctx = {
+    document: { documentElement: docEl, head: { appendChild() {} }, getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, addEventListener() {}, textContent: '' }), querySelector: () => null, cookie: '' },
+    window: { scrollTo() {}, addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); }, matchMedia: () => ({ matches: false }) },
+    navigator: { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36', sendBeacon: () => true },
+    history: { replaceState() {} },
+    location: { search: '', protocol: 'https:', host: 'wq.example.test', assign() {}, reload() {} },
+    Blob: function Blob(parts) { this.parts = parts; },
+    fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve('{}') }),
+    localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
+    setTimeout: (fn) => { timers.push(fn); return timers.length; },
+    Date: HubDate, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
+  };
+  vmod.createContext(ctx);
+  vmod.runInContext(TEL_SRC, ctx);
+  if (boot.play) vmod.runInContext(src.play, ctx);
+  if (book) vmod.runInContext(src.book, ctx);
+  vmod.runInContext(src.hub, ctx);
+  const tick = () => { while (timers.length) timers.shift()(); };
+  tick();
+  return { html: () => root._h, els, tick, win: winL };
+}
+const hubShot = (p) => [p.html(), ...Object.values(p.els).map((e) => String(e.innerHTML || ''))].join(' ');
+
+// story titles from the bank's own passages (Story Time's shelf, the lantern, the Book's stickers)
+const PASSAGE = (f) => require(`../../bot/shared/data/child-test/passages/${f}.json`);
+const STORIES = {
+  en: [PASSAGE('en.read.3.story01'), PASSAGE('en.read.3.story03')].map((j) => ({ pid: j.passage_id, title: j.title_en })),
+  ur: [PASSAGE('ur.read.3.story01'), PASSAGE('ur.read.2.story01')].map((j) => ({ pid: j.passage_id, title: j.title_ur })),
+};
+const KID = (g) => ({ chip: '0000000000000001', first: '<Name> Testwala', animal: 'owl', grade: String(g) });
+const hubBoot = (lang, g, o = {}) => ({
+  lang, token: 'tok.tok', brand: null, home_v: 1, kids: [KID(g)], kid: '0000000000000001', teacher: null, again: [], recs: [], lib: null,
+  challenge: { on: true, exercises: [{ id: 'bigger', done: false }, { id: 'read', done: false }] },
+  last: { code: 'MATH01', topic: lang === 'ur' ? 'ریاضی' : 'Maths', subject: 'Maths', k: 'k1', state: 'done', score: { c: 4, t: 5 }, again: true },
+  ...o,
+});
+const PLAY = (o = {}) => ({ first: true, lantern: null, shelf: null, install: false, doors: ['hub_first', 'next', 'tomorrow', 'shelf', 'install'], ...o });
+// The last-quiz score line is its own screen (hub-last-quiz-score); every other hub screen is read without it.
+const SCORE = /<p class="wq-hscore">[\s\S]*?<\/p>/;
+const noScore = (h) => h.replace(SCORE, ' ');
+
+/** Every hub screen a class child sees, one language, one grade: { '<screen>': html }. */
+function collectHub(lang, g, src) {
+  const out = {};
+  const st = STORIES[lang];
+  const put = (name, p, want) => { if (want && !p.html().includes(want)) throw new Error(`${lang}:g${g}:${name}: "${want}" was not drawn`); out[name] = noScore(hubShot(p)); };
+  const hp = (o, opts = {}) => hubPage(hubBoot(lang, g, o), { src, ...opts });
+  put('hub home', hp({ play: PLAY() }), 'class="wq-card wq-hcard wqp-jug"');
+  const L = (name, lantern) => put(`hub lantern: ${name}`, hp({ play: PLAY({ lantern }) }), 'id="wqp-next"');
+  L('trail one', { kind: 'trail', stops: 1 });
+  L('trail many', { kind: 'trail', stops: 3 });
+  L('story', { kind: 'story', title: st[0].title, pid: st[0].pid });
+  L('numbers', { kind: 'numbers', day: null });
+  L('day', { kind: 'day', day: 'monday' });
+  L('tomorrow', { kind: 'numbers', day: 'tomorrow' });
+  L('all seen', { kind: 'numbers', day: 'monday' });
+  put('hub shelf', hp({ play: PLAY({ shelf: [{ id: 'week_story', pid: st[0].pid, nx: 'new', title: st[0].title }, { id: 'listen', pid: st[1].pid, nx: 'seen' }, { id: 'numbers', nx: 'seen' }, { id: 'older', nx: 'seen' }] }) }), 'class="wqp-shelf"');
+  {
+    const p = hp({ play: PLAY({ shelf: [{ id: 'numbers', nx: 'seen' }], install: true }) }, { store: { wqp_hv_day: String(Math.floor((HUB_NOW + 5 * 3600000) / 86400000)) } });
+    p.win.beforeinstallprompt.forEach((fn) => fn({ preventDefault() {}, prompt() {} }));
+    if (!String(p.els['#wqp-inst'].innerHTML || '').includes('wqp-add')) throw new Error(`${lang}:g${g}: the install card was not drawn`);
+    put('hub install card', p);
+  }
+  put('hub: last quiz open', hp({ play: PLAY(), last: { code: 'NEWQ01', topic: lang === 'ur' ? 'ریاضی' : 'Maths', subject: 'maths', k: 'k2', state: 'open', answered: 0 } }), 'wq-hlast');
+  put('hub: Book tile', hp({ play: PLAY(), book_on: true, class_lights: { shown: true, term_total: 41, week_n: 7 } }, { book: true }), 'id="wq-bk-open"');
+  put('hub: Book tile, lights under 5', hp({ play: PLAY(), book_on: true, class_lights: { shown: false } }, { book: true }), 'data-lights="hidden"');
+  put('hub: teacher quiz sent today', hp({ play: PLAY(), lib: { href: '/lib/tok.tok?kid=0000000000000001' }, teacher: { code: 'NEWQ01', topic: lang === 'ur' ? 'ریاضی' : 'Maths', subject: 'maths', sent_at: '2026-10-15T10:00:00Z', k: 'k1' } }), 'id="wq-h-teacher"');
+  put('hub: two children', hp({ play: PLAY(), kids: [KID(g), { ...KID(g), chip: '0000000000000002', animal: 'cat' }] }), 'id="wq-h-switch"');
+  put('hub: no Jugnu block', hp({}), 'id="wq-h-ch"');
+  // Left out until the page writes these counts in Urdu digits (each a bare Western digit in Urdu prose, hub.js):
+  // a teacher quiz sent N days ago, a quiz still open with N answered, Play again's best and tries, a video's minutes
+  // in Try these next.
+  // the last quiz's score, alone
+  const s = SCORE.exec(hp({ play: PLAY() }).html());
+  if (!s) throw new Error(`${lang}:g${g}: the last quiz's score was not drawn`);
+  out['hub-last-quiz-score'] = s[0];
+  return out;
+}
+const HUB_SCREENS = ['hub home', 'hub lantern: trail one', 'hub lantern: trail many', 'hub lantern: story', 'hub lantern: numbers', 'hub lantern: day',
+  'hub lantern: tomorrow', 'hub lantern: all seen', 'hub shelf', 'hub install card', 'hub: last quiz open', 'hub: teacher quiz sent today', 'hub: two children', 'hub: no Jugnu block', 'hub: Book tile', 'hub: Book tile, lights under 5', 'hub-last-quiz-score'];
+
+describe.each([['en', 1], ['en', 3], ['en', 5], ['ur', 1], ['ur', 3], ['ur', 5]])('%s, grade %s: no hub screen shows a speed, a rank, a test word or a lock', (lang, g) => {
+  let shots = null;
+  beforeAll(() => { shots = collectHub(lang, g, SRCS(SEED_ON)); });
+  test('every hub screen in the list was reached and drawn', () => {
+    expect(Object.keys(shots).sort()).toEqual([...HUB_SCREENS].sort());
+    for (const n of HUB_SCREENS) expect(visible(shots[n]).length).toBeGreaterThan(0);
+  });
+  test.each(HUB_SCREENS)('%s', (name) => { check(`${lang}:${name}`, shots[name], lang); });
+});
+
+/** The Book, one language: { '<screen>': html } (the page draws it from the bot's JSON; nothing is computed). */
+function collectBook(lang, src) {
+  const win = { scrollTo() {} };
+  vmod.runInNewContext(src, { window: win, JSON, Math, String, Number, Array, Object, encodeURIComponent });
+  const BK = win.WQBOOK;
+  const st = STORIES[lang];
+  const ctx = { token: 'tok.tok', kid: '0000000000000001', lang };
+  const d = (o = {}) => ({
+    name: '<Name> Testwala', trail_stickers: ['missing', 'read', 'listen', 'bigger'], story_stickers: st.map((s) => ({ passage_id: s.pid, title: s.title })),
+    lamps: { reading: 0, numbers: 0 }, next_outline: { reading: true, numbers: true }, days_this_week: [true, false, true, true, false, false, false],
+    class_lights: { shown: true, term_total: 41, week_n: 7 }, ...o,
+  });
+  const out = {};
+  for (const n of [0, 1, 3, 5]) out[`book: ${n} lamps`] = BK._bookHtml(d({ lamps: { reading: n, numbers: n } }), ctx, false);
+  out['book: no stickers, no days'] = BK._bookHtml(d({ trail_stickers: [], story_stickers: [], days_this_week: [false, false, false, false, false, false, false] }), ctx, false);
+  out['book: every day'] = BK._bookHtml(d({ days_this_week: [true, true, true, true, true, true, true] }), ctx, false);
+  out['book: lights under 5'] = BK._bookHtml(d({ class_lights: { shown: false } }), ctx, false);
+  out['book: new lamp, reading'] = BK._bookHtml(d({ lamps: { reading: 3, numbers: 1 }, levelup: { ladder: 'reading', rung: 3, opens: 'longer' } }), ctx, true);
+  out['book: new lamp, numbers'] = BK._bookHtml(d({ lamps: { reading: 1, numbers: 2 }, levelup: { ladder: 'numbers', rung: 2, opens: 'two_digit' } }), ctx, true);
+  out['book: new lamp, hundreds'] = BK._bookHtml(d({ lamps: { reading: 1, numbers: 4 }, levelup: { ladder: 'numbers', rung: 4, opens: 'hundreds' } }), ctx, true);
+  // the grown-up's line, shown
+  out['book: grown-up line'] = BK._bookHtml(d({ lamps: { reading: 3, numbers: 3 } }), ctx, false).replace(' id="wq-bk-pline" hidden>', ' id="wq-bk-pline">');
+  return out;
+}
+const BOOK_SCREENS = ['book: 0 lamps', 'book: 1 lamps', 'book: 3 lamps', 'book: 5 lamps', 'book: no stickers, no days', 'book: every day', 'book: lights under 5',
+  'book: new lamp, reading', 'book: new lamp, numbers', 'book: new lamp, hundreds', 'book: grown-up line'];
+
+describe.each(['en', 'ur'])('%s: no Book screen shows a speed, a rank, a test word or a lock', (lang) => {
+  let shots = null;
+  beforeAll(() => { shots = collectBook(lang, SRCS(SEED_ON).book); });
+  test('every Book screen in the list was reached and drawn', () => {
+    expect(Object.keys(shots).sort()).toEqual([...BOOK_SCREENS].sort());
+    const lit = (h, ladder) => (h.split(`data-ladder="${ladder}"`)[1].split('</ol>')[0].match(/wq-bk-lamp"/g) || []).length;
+    for (const n of [0, 1, 3, 5]) for (const ladder of ['reading', 'numbers']) expect(lit(shots[`book: ${n} lamps`], ladder)).toBe(n);
+    expect(shots['book: 3 lamps']).toContain('class="wq-bk-st"');
+    expect(shots['book: 3 lamps']).toContain('wq-bk-trail');
+    expect(shots['book: new lamp, reading']).toContain('wq-bk-up');
+  });
+  test.each(BOOK_SCREENS)('%s', (name) => { check(`${lang}:${name}`, shots[name], lang); });
+});
+
+describe('the hub and Book walks read each page\'s own copy: a test word in one copy table is caught there', () => {
+  const failing = (shots, lang) => Object.keys(shots).filter((n) => { try { check(`${lang}:${n}`, shots[n], lang); return false; } catch (e) { return true; } }).sort();
+  test.each(['en', 'ur'])('%s: hub.js (the Jugnu tile\'s line): every hub screen with the Jugnu tile or card fails; the shipped copy passes', (lang) => {
+    expect(failing(collectHub(lang, 3, SRCS(['hub'])), lang)).toEqual(HUB_SCREENS.filter((n) => n !== 'hub-last-quiz-score').sort());
+    expect(failing(collectHub(lang, 3, SRCS()), lang)).toEqual([]);
+  });
+  test.each(['en', 'ur'])('%s: hub-play.js (the lantern, many games): only that lantern fails; the shipped copy passes', (lang) => {
+    expect(failing(collectHub(lang, 3, SRCS(['play'])), lang)).toEqual(['hub lantern: trail many']);
+  });
+  test.each(['en', 'ur'])('%s: wq-book.js (My lamps): every Book screen fails; the shipped copy passes', (lang) => {
+    expect(failing(collectBook(lang, SRCS(['book']).book), lang)).toEqual([...BOOK_SCREENS].sort());
+    expect(failing(collectBook(lang, SRCS().book), lang)).toEqual([]);
   });
 });
