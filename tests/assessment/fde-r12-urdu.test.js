@@ -27,7 +27,15 @@ const { renderMarkingScheme } = require('../../bot/shared/services/assessment/as
 const U = Patterns.get('fde_g5_2027').subjects.urdu;
 const FDE = { kind: 'fde', chapters: null, pages: null };
 const read = (name) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', name), 'utf8'));
-const ch2 = read('r12-urdu-sandbox-chapters_2.json');
+// Q3/Q5's words and Q6's verse are held against Q1 too (fde-r13-urdu.test.js); this file proves the
+// Q4 rule alone, so the paper here carries no Q3, Q5 or Q6.
+const q4Only = (exam) => {
+  for (const types of Object.values(exam.unseen || {})) {
+    for (const [k, list] of Object.entries(types || {})) types[k] = list.filter((q) => !['urdu.C.Q3', 'urdu.C.Q5', 'urdu.C.Q6'].includes(q && q.slot));
+  }
+  return exam;
+};
+const ch2 = q4Only(read('r12-urdu-sandbox-chapters_2.json'));
 const full1 = read('r12-urdu-sandbox-full_1.json');
 const full2 = read('r12-urdu-sandbox-full_2.json');
 const clone = (x) => JSON.parse(JSON.stringify(x));
