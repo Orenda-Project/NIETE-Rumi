@@ -294,7 +294,7 @@ function normaliseComprehension(q, slot, label, log, shortfall) {
  * Science Q2(b): each sub-question is marked out of the slot's part marks (2.5).
  * Points that add to something else are scaled to it in half marks (kinds and text
  * kept). A sub-question with no points keeps none: its row prints the bare 2.5 chip.
- * A sub-question's own marks are the part marks, whatever the model wrote.
+ * A sub-question's own marks number is removed, whatever the model wrote.
  */
 function normaliseSituationParts(q, slot, label, log) {
   const each = toNumber(slot.item_parts && slot.item_parts.marks_each);
@@ -302,9 +302,13 @@ function normaliseSituationParts(q, slot, label, log) {
   q.questions.forEach((sub, k) => {
     if (!isObject(sub)) return;
     const where = `${label} part ${String.fromCharCode(97 + k)}`;
-    // Marks come from the pattern, never the model (a 1 / 2 / 2 split prints 2.5 each).
-    if (sub.marks !== undefined && toNumber(sub.marks) !== each) log.push(`${where}: marks ${show(sub.marks)} set to ${show(each)}`);
-    sub.marks = each;
+    // Marks come from the pattern, never the model: a sub-question's own number is
+    // removed, so its row prints the part marks (2.5) and the item still counts as its
+    // slot's 5 wherever marks are summed (two of three parts are attempted, not three).
+    if (sub.marks !== undefined) {
+      log.push(`${where}: marks ${show(sub.marks)} removed; the part is worth ${show(each)}`);
+      delete sub.marks;
+    }
     if (!isObject(sub.scheme) || !Array.isArray(sub.scheme.points)) return;
     const given = sub.scheme.points.filter((pt) => isObject(pt) && toNumber(pt.marks) > 0);
     if (given.length) {
