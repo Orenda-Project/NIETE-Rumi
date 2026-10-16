@@ -298,3 +298,31 @@ describe('trailStateFor: this period\'s record rows, one implementation for the 
     expect(logError).toHaveBeenCalledWith('web_quiz.ch_draw_log_failed', expect.objectContaining({ code: '42P01' }));
   });
 });
+
+describe('a designated reference may be reviewed', () => {
+  // a reviewer-levelled designated reference: calibrated by designation, so its status stays 'reviewed'
+  const REF_REVIEWED = { ...REF, status: 'reviewed', is_reference: true, provenance: 'reviewer_levelled' };
+  const elig = (rows, extra = {}) => D.eligible({ rows, seenIds: new Set(), kind: 'read', lang: 'ur', band: 2, now: NOW, ...extra }).map((r) => r.passage_id);
+
+  test('a reviewed designated reference (released, not withdrawn) is in E, first, in the counted pool too', () => {
+    const rows = [REF_REVIEWED, P('c1', { provenance: 'reviewer_levelled' }), P('c2', { provenance: 'reviewer_levelled' })];
+    expect(elig(rows)).toEqual(['ur.read.2.setA', 'c1', 'c2']);
+    expect(elig(rows, { counted: true })).toEqual(['ur.read.2.setA', 'c1', 'c2']);
+    expect(elig([{ ...REF_REVIEWED, released_at: '2026-12-01T00:00:00Z' }])).toEqual([]);
+    expect(elig([{ ...REF_REVIEWED, withdrawn_at: '2026-11-01T00:00:00Z' }])).toEqual([]);
+  });
+
+  test('it weighs as the reference: 0.35 / 0.325 / 0.325 beside two calibrated passages', () => {
+    const E = D.eligible({ rows: [REF_REVIEWED, P('c1'), P('c2')], seenIds: new Set(), kind: 'read', lang: 'ur', band: 2, now: NOW });
+    const list = D.weigh(E);
+    expect(list.map((x) => x.id)).toEqual(['ur.read.2.setA', 'c1', 'c2']);
+    expect(list.map((x) => x.w)).toEqual([expect.closeTo(0.35, 12), expect.closeTo(0.325, 12), expect.closeTo(0.325, 12)]);
+  });
+
+  test('golden: a reviewed check row that is not the designated reference stays out of E', () => {
+    expect(elig([REF, P('ur.read.2.rev', { status: 'reviewed' }), P('c1')])).toEqual(['ur.read.2.setA', 'c1']);
+    expect(elig([P('ur.read.2.rev', { status: 'reviewed' })])).toEqual([]);
+    // a reviewed reference in the practice pool is not a check row
+    expect(elig([{ ...REF_REVIEWED, pool: 'practice' }])).toEqual([]);
+  });
+});
