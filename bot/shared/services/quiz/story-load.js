@@ -96,7 +96,7 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
   const clipWpm = num(j.wpm) != null ? j.wpm : (num(qa.wpm_clip) != null ? qa.wpm_clip : num(qa.wpm));
   if (clipWpm == null || clipWpm > maxWpm(grade)) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm`);
   const spanWpm = num(j.pace_wpm) != null ? j.pace_wpm : num(qa.pace_wpm);
-  if (spanWpm != null && spanWpm > maxSpanWpm(grade)) why.push(`voice span pace ${spanWpm} wpm`);
+  if (spanWpm == null || spanWpm > maxSpanWpm(grade)) why.push(`voice span pace ${spanWpm == null ? 'unknown' : spanWpm} wpm`);
   if (j.ok === false || qa.ok === false) why.push(`voice failed its own checks${Array.isArray(j.fails) && j.fails.length ? ` (${j.fails.slice(0, 2).join(', ')})` : ''}`);
   const clip = readBytes(`${stem}.ogg`);
   const remoteKey = j.audio && typeof j.audio.key === 'string' ? j.audio.key : null;
@@ -114,7 +114,9 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
       timing_key: remoteKey && /\.(ogg|mp3)$/.test(remoteKey) ? remoteKey.replace(/\.(ogg|mp3)$/, '.json') : null, ms: ms || 0, timings: ts.map((w) => ({ i: w.i, s_ms: Math.round(w.s_ms), e_ms: Math.round(w.e_ms) })),
       timing_source: ['provider', 'stt_align', 'provider+stt', 'forced_align'].includes(src) ? src : 'stt_align',
       wpm: num(j.pace_wpm) != null ? j.pace_wpm : pick('wpm'), drift_ms_mean: pick('drift_ms_mean'), drift_ms_max: drift, wer,
-      cost_usd: pick('cost_usd'), quality: j.quality === 'low' ? 'low' : null,
+      // Line-timed unless the voice's own timing checks have run and passed: its 'low' mark (or the mirror field),
+      // or no p90 drift yet (a page re-made since the last check) all count as 'low'.
+      cost_usd: pick('cost_usd'), quality: (j.quality === 'low' || j.timing_quality === 'low' || qa.timing_quality === 'low' || pick('drift_ms_p90') == null) ? 'low' : null,
     },
   };
 }
@@ -182,7 +184,11 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
       const v = voiceDir ? voiceFor({ voiceDir, n: p.n, words, lang, grade: book.grade }) : { why: ['no voice'] };
       v.why.forEach((w) => why.push(`${tag}: ${w}`));
       // A voice that fails any check is not stored: the page is served with no voice (Your turn) until it passes.
-      if (v.row && v.file && !v.why.length) voices.push({ pageId: pid, n: p.n, file: v.file, row: v.row });
+      if (v.row && v.file && !v.why.length) {
+        // The clip is stored beside the pictures, so the row's audio_key always names a file /s/ can serve.
+        files.push(v.file);
+        voices.push({ pageId: pid, n: p.n, file: v.file, row: v.row });
+      }
     }
     pages.push({
       id: pid, book_id: bookId, n: p.n, image_file: imgF.name, image_w: p.image.w, image_h: p.image.h,
@@ -246,7 +252,7 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
  * Store the files and write the rows. store: the interface supabaseStore() implements; upload(buf, {bookId, name,
  * contentType}) → key. dryRun → nothing is written; the same summary comes back.
  */
-async function applyPlan(plan, { store, upload, env, dryRun = false, has = null }) {
+async function applyPlan(plan, { store, upload, env, dryRun = false, has = null, stored = null }) {
   const out = { bookId: plan.bookId, uploaded: 0, skipped: 0, status: null };
   const keyOf = (name) => Store.storyKey({ env, bookId: plan.bookId, file: name });
   if (dryRun) { out.status = plan.ready ? 'ready' : 'draft'; out.uploaded = plan.files.length; return out; }
@@ -269,9 +275,18 @@ async function applyPlan(plan, { store, upload, env, dryRun = false, has = null 
     if (cur && cur.audio_key !== audioKey) await store.retireVoice(cur.id);
     await store.upsertVoice(row);
   }
+  // A page with no passing voice this run keeps no current voice: the reader then offers the child's turn.
+  for (const c of current) if (!plan.voices.some((v) => v.pageId === c.page_id)) await store.retireVoice(c.id);
+  // A book is ready only when every voice it names is in storage under story/ (what the picture and voice route serves).
+  const missing = [];
+  for (const v of plan.voices) {
+    const key = keyOf(v.file.name);
+    if (!key.startsWith('story/') || (stored && !(await stored(key)))) missing.push(v.n);
+  }
+  missing.forEach((n) => plan.why.push(`p${pad(n)}: voice clip not stored`));
   await store.upsertQuestions(plan.questions);
   await store.deleteQuestionsAbove(plan.bookId, plan.questions.length ? Math.max(...plan.questions.map((q) => q.n)) : 0);
-  const status = prior === 'off' ? 'off' : (plan.ready ? 'ready' : 'draft');
+  const status = prior === 'off' ? 'off' : (plan.ready && !missing.length ? 'ready' : 'draft');
   await store.setStatus(plan.bookId, status);
   out.status = status;
   return out;

@@ -182,7 +182,7 @@ async function teacherCard(kidRow, list, history, grade) {
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
   const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history)]);
-  const open = codes.filter((c) => isOpen(c) && !seen.has(c.id));
+  const open = await require('./web-quiz-hub-home').sentOnly(codes.filter((c) => isOpen(c) && !seen.has(c.id))); // a previewed storybook is not "from your teacher": unchanged while web_quiz_home_v3 is off
   if (!open.length) return null;
   const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
   const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
@@ -407,6 +407,8 @@ async function lockedHub(ids, why, asked = null) {
 
 async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
+  const practice = await require('./web-quiz-hub-home').practiceHub(token, { lang: wanted, brandKey }); // a coach's class preview by grade: null unless web_quiz_home_v3
+  if (practice) return practice;
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
@@ -492,6 +494,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   }, chosen.id));
   Object.assign(out, await require('./web-quiz-book').hubBits({ studentId: chosen.id })); // Jugnu's Book: {} while web_quiz_challenge_book is off
   Object.assign(out, await require('./web-quiz-stories').hubBits({ studentId: chosen.id })); // Stories: {} while web_quiz_stories is off
+  Object.assign(out, await require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history })); // the v3 home's doors + header: {} while web_quiz_home_v3 is off
   return out;
 }
 
