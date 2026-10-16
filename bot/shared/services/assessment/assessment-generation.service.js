@@ -899,7 +899,28 @@ const RULE = {
   unitsNumerals: 'Every measurement stem names its unit (cm, m, kg, litres, rupees, degrees). Write mixed numbers as numerals, e.g. 5 2/3, never \'five and two thirds\' or \'5 and 2/3\'.',
   frameLabels: 'Key labels come only from the book\'s figure; if the figure carries fewer parts than the frame has leader lines, ask for that smaller number.',
   grade5Words: 'Use Grade 5 vocabulary; a term the book does not use (e.g. \'lactic acid\', \'electrons\') is replaced by the book\'s word.',
+  // Maths Apply marks come from word problems the child must choose the operation for
+  // (convention R1). The model follows counted slot rules, not percentages, so the share is a
+  // count. Target, attempt-weighted under R1: Remember 8–12, Understand ≤ 60, Apply ≥ 30.
+  mathsQ2Words: (n, total) => `In Q2, at least ${n} of the ${total} items are short word problems set in a situation a Grade 5 child knows (shopping, measuring, time, sharing, travel), in which the child decides which operation(s) to use; the other items stay calculations.`,
+  mathsQ2Families: (extra) => `Each Q2 family keeps its word problem; set ${extra} more of the families' number-sense or computation items as such word problems, keeping the skill they test.`,
+  mathsQ1bWords: (n, total) => `In Q1(b), at least ${n} of the ${total} items are one-step word problems set in a situation a Grade 5 child knows (shopping, measuring, time, sharing, travel), in which the child decides which operation to use.`,
+  // English on chosen chapters or pages: FDE's Q1(a)/(b) topic list is not given; the points come from the pages.
+  pagesPoints: 'Q1(a) and Q1(b) test only the grammar and word-study points these pages teach. Before writing, list those points from the pages.',
+  pagesRest: 'If the pages teach fewer points than there are items, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.',
+  noAnagram: 'Never set an item that asks the child to rearrange, unscramble or reorder letters to make a word.',
 };
+
+// Maths Q1(b): this many of its one-step items are word problems.
+const MATHS_Q1B_WORDS = 3;
+// English on chosen pages: the slot fields that carry FDE's model-paper topic list, and what replaces them.
+const ENGLISH_PAGES_SLOTS = Object.freeze({
+  'english.A.Q1a': { prompt_rule: 'Twenty four-option MCQs, one point each. Never refer to an underline the paper cannot show; quote the word instead.' },
+  'english.A.Q1b': {
+    prompt_rule: 'Five one-line items, each ending with its direction in round brackets.',
+    grain_kind: 'one-line transformation',
+  },
+});
 
 // The pages Urdu items are never set from: lessons 1–3 (the Hamd, the Naat, the third).
 const HELD_PAGES = '1-27';
@@ -997,6 +1018,15 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     if (mathsC && Array.isArray(s.kinds) && s.kinds.length) {
       return { ...s, kinds: null, prompt_rule: null, grain: s.grain && { ...s.grain, kind: 'a word problem or a calculation' } };
     }
+    // English on chosen pages: the slot's FDE topic list goes; the points come from the pages.
+    const pagesSlot = !fde && key === 'english' && ENGLISH_PAGES_SLOTS[s.slot];
+    if (pagesSlot) {
+      return {
+        ...s,
+        prompt_rule: pagesSlot.prompt_rule,
+        grain: pagesSlot.grain_kind && s.grain ? { ...s.grain, kind: pagesSlot.grain_kind } : s.grain,
+      };
+    }
     // Maths MCQs: the ToS floor's recall count replaces the slot's 3-to-5.
     if (key === 'maths' && typeof s.prompt_rule === 'string' && s.prompt_rule.includes(MATHS_RECALL_FROM)) {
       return { ...s, prompt_rule: s.prompt_rule.replace(MATHS_RECALL_FROM, MATHS_RECALL_TO) };
@@ -1008,6 +1038,8 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (!fde) rules.push(RULE.chapterOnly);
   if (mathsC) rules.push(RULE.mathsSectionC);
   if (!fde && key === 'english' && hasMcq) rules.push(RULE.grammarFromPages);
+  if (!fde && key === 'english' && list.some((s) => ENGLISH_PAGES_SLOTS[s.slot])) rules.push(RULE.pagesPoints, RULE.pagesRest);
+  if (key === 'english') rules.push(RULE.noAnagram);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) {
     rules.push('Science: a situation comes only from the book activities its slot\'s rule lists, never another.');
   }
@@ -1022,6 +1054,18 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
       + `Tag each item: ${RULE.r1}${key === 'english' ? `; ${RULE.r1English}` : ''}.`);
   }
   if (key === 'maths') rules.push(RULE.mathsTosFloor, RULE.unitsNumerals);
+  if (key === 'maths') {
+    const q1b = list.find((s) => s.slot === 'maths.A.Q1b');
+    if (q1b) rules.push(RULE.mathsQ1bWords(Math.min(MATHS_Q1B_WORDS, q1b.generate), q1b.generate));
+    const q2 = list.find((s) => s.slot === 'maths.B.Q2');
+    if (q2) {
+      const need = Math.ceil(q2.generate / 2);
+      rules.push(RULE.mathsQ2Words(need, q2.generate));
+      // FDE's families carry one word problem each; the rest of the count comes from their other items.
+      const extra = Array.isArray(q2.families) ? need - q2.families.length : 0;
+      if (extra > 0) rules.push(RULE.mathsQ2Families(extra));
+    }
+  }
   if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
     if (key !== 'maths') rules.push(`In this section, ${RULE.recall}.`);
