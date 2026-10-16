@@ -10,7 +10,8 @@
  *                                     the rows are computed once per teacher per few minutes; a 'same' / 'no' takes
  *                                     its pair out of it (the rest of the TTL kept), an undo puts it back
  *   precisionByTier()                 per tier: the teachers' decisions so far, precision, Wilson lower bound, held
- *                                     (a configured test teacher's decisions count for nothing)
+ *                                     (a configured test teacher's decisions count for nothing; excluded_n says how
+ *                                     many of the tier's queue rows they made)
  *   servedTiers()                     the tiers served right now ([] when the switch is off)
  *   decide({teacherUserId, looseId, candidateId, decision})   'same' | 'no' | 'undo': the only queue write
  *   linkClassCodes({teacherUserId, classId})  the teacher's unbound quiz codes → this class (never a bound one)
@@ -499,13 +500,23 @@ async function countDecisions(tier, decision, excluded = new Set()) {
   return count || 0;
 }
 
+/** The tier's queue rows (any decision) made by the excluded teachers; 0 with no read when there are none. */
+async function countExcluded(tier, excluded) {
+  if (!excluded.size) return 0;
+  const { count, error } = await supabase.from('merge_log').select('id', { count: 'exact', head: true })
+    .eq('source', 'queue').eq('tier', tier).in('teacher_id', [...excluded]); // bounded: the configured key's own list
+  if (error) throw new Error(error.message || 'read failed');
+  return count || 0;
+}
+
 /**
  * Per tier, from the teachers' queue decisions (merge_log source 'queue', tier set; a decision by a configured test
  * teacher, web-quiz-fixture.js fixtureConfig().teachers, counts for nothing): an undo reverses a same, so
  * same_net = same - undo, n = same_net + no, `precision` = same_net / n (null when n = 0). NOTE: this is the
  * TEACHER-ACCEPTED SHARE (a tap is a judgement, not a label); the labelled precision is queue_truth.json's. The strip
  * prints it as "teacher-accepted share". wilson_lower_95 is its 95% Wilson lower bound, held = n >= 50 and
- * wilson_lower_95 < 0.85. → [{tier, n, same, no, undo, precision, wilson_lower_95, held}]
+ * wilson_lower_95 < 0.85; excluded_n = the tier's queue rows (any decision) made by a configured test teacher, left
+ * out of every other count. → [{tier, n, same, no, undo, excluded_n, precision, wilson_lower_95, held}]
  * in TIERS order. Never throws: a failed read holds every tier ({held:true, error:true}). Cached 60 s in-process.
  */
 async function precisionByTier() {
@@ -517,11 +528,12 @@ async function precisionByTier() {
       const same = await countDecisions(tier, 'same', excluded);
       const no = await countDecisions(tier, 'no', excluded);
       const undo = await countDecisions(tier, 'undo', excluded);
+      const excludedN = await countExcluded(tier, excluded);
       const sameNet = Math.max(0, same - undo);
       const n = sameNet + no;
       const lower = wilsonLower(sameNet, n);
       value.push({
-        tier, n, same, no, undo, precision: n ? round4(sameNet / n) : null, wilson_lower_95: round4(lower),
+        tier, n, same, no, undo, excluded_n: excludedN, precision: n ? round4(sameNet / n) : null, wilson_lower_95: round4(lower),
         held: n >= HOLD_MIN_N && lower < HOLD_LOWER,
       });
     }
@@ -529,7 +541,7 @@ async function precisionByTier() {
     return value.map((x) => ({ ...x }));
   } catch (err) {
     logToFile('⚠️ join queue: tier precision not read — every tier held', { error: err.message });
-    return TIERS.map((tier) => ({ tier, n: 0, same: 0, no: 0, undo: 0, precision: null, wilson_lower_95: null, held: true, error: true }));
+    return TIERS.map((tier) => ({ tier, n: 0, same: 0, no: 0, undo: 0, excluded_n: 0, precision: null, wilson_lower_95: null, held: true, error: true }));
   }
 }
 
