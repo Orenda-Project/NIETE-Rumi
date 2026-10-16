@@ -326,10 +326,13 @@ describe('switch off: today\'s, byte for byte', () => {
 });
 
 describe('the sender-side log lines', () => {
+  const crypto = require('crypto');
+  const KID_KEY = 'k'.repeat(48);
   const Log = () => require('../../../shared/utils/logger');
   const calls = (msg) => Log().logToFile.mock.calls.filter(([m]) => String(m).includes(msg));
+  afterEach(() => { delete process.env.WEB_QUIZ_KID_KEY; });
 
-  test('a failed sent-quiz read logs the error, never whose it is', async () => {
+  const failBoth = async () => {
     seed();
     jest.spyOn(Data, 'sentQuizzes').mockRejectedValue(new Error('boom-list'));
     jest.spyOn(Data, 'sentQuiz').mockRejectedValue(new Error('boom-pick'));
@@ -340,12 +343,26 @@ describe('the sender-side log lines', () => {
     const pick = calls('sent-quiz read failed — not found');
     expect(list).toHaveLength(1);
     expect(pick).toHaveLength(1);
-    expect(list[0][1]).toEqual({ error: 'boom-list' });
-    expect(pick[0][1]).toEqual({ quizId: LQ, error: 'boom-pick' });
-    [...list, ...pick].forEach(([, payload]) => {
+    return [list[0][1], pick[0][1]];
+  };
+
+  test('a failed sent-quiz read logs the error and the teacher\'s keyed reference, never the teacher\'s id', async () => {
+    process.env.WEB_QUIZ_KID_KEY = KID_KEY;
+    const tk = crypto.createHmac('sha256', KID_KEY).update(`t|${SENDER}`).digest('hex').slice(0, 16);
+    const [list, pick] = await failBoth();
+    expect(list).toEqual({ tk, error: 'boom-list' });
+    expect(pick).toEqual({ tk, quizId: LQ, error: 'boom-pick' });
+    [list, pick].forEach((payload) => {
+      expect(payload.tk).toMatch(/^[0-9a-f]{16}$/);
       expect(payload).not.toHaveProperty('userId');
       expect(JSON.stringify(payload)).not.toContain(SENDER);
     });
+  });
+
+  test('without the key: the reference is null (never an unkeyed hash), and still no id', async () => {
+    const [list, pick] = await failBoth();
+    expect(list).toEqual({ tk: null, error: 'boom-list' });
+    expect(pick).toEqual({ tk: null, quizId: LQ, error: 'boom-pick' });
   });
 });
 
