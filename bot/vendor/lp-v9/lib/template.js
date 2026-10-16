@@ -978,7 +978,11 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    nowrap block has exactly one line box whatever it holds; overflow+ellipsis is what keeps that
    from running off the page edge instead. Clamping only ever SHRINKS the measured strip, so the
    packer's page budget cannot lose a pixel to this. No padding, no line-height, no font-size. */
-.foot .fl{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.foot .fl{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; }
+/* bd-5o0ay.10.38: the page ref was the tail of .fl, so a long chapter title pushed "pp. 68" under
+   the ellipsis ("pp. …"). The chapter run clips now; the page ref keeps its width. */
+.foot .fch{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.foot .fpp{ flex:none; white-space:nowrap; }
 .foot .fr{ text-align:${start}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .foot .wm{ font-weight:800; color:var(--brand, var(--navy)); }
 ${rtl ? `
@@ -1582,7 +1586,7 @@ function footerHtml(doc, ctx, n, total) {
   const L = ctx.L;
   const named = p.chapter_title && !String(p.chapter || "").includes(p.chapter_title);
   const chapter = named ? `${rich(p.chapter)} &mdash; ${rich(p.chapter_title)}` : rich(p.chapter || p.chapter_title);
-  const left = `${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${chapter} &middot; ${esc(L.pp)}${isoAtom(esc(p.printed_pages), ctx)}`;
+  const left = `<span class="fch">${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${chapter}</span><span class="fpp">&nbsp;&middot; ${esc(L.pp)}${isoAtom(esc(p.printed_pages), ctx)}</span>`;
   const brand = p.brand && p.brand.name ? `<span class="wm">${esc(p.brand.name)}</span> &middot; ` : "";
   return `<div class="foot"><div class="fl">${left}</div><div class="fr">${brand}${esc(L.pageOf(n, total))}</div></div>`;
 }
