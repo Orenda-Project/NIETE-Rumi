@@ -1,5 +1,3 @@
-/* Stories (wq-stories.js): the shelf, the reader, Your turn, the questions, the done card. Frame from concepts/stories-b,
-   pixels from concepts/stories-a (CONVERGENCE). Highlight tokens: JUICE.md §2. */
 .wqs{--hl:#58cc02;--ink:#1d2340;--soft:#4a5175;--line:#ece3cc;display:flex;flex-direction:column;gap:12px;padding:8px 12px 16px;color:var(--ink);background:#fff8e8;min-height:100%;box-sizing:border-box}
 .wqs[dir=rtl]{line-height:2}
 :where(.wqs) button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -14,7 +12,6 @@
 .wqs-sheet .wqs-top{align-self:stretch}
 .wqs-sheet>.wqs-main,.wqs-sheet>.wqs-sec,.wqs-col{width:100%;flex:none}
 .wqs-col{display:flex;flex-direction:column;gap:12px}
-/* shelf */
 .wqs-gl{align-self:flex-start;min-height:48px;border-radius:24px;padding:0 16px;background:#ffe26b;font-weight:800;box-shadow:0 3px 0 #c99d00}
 .wqs-pick{display:flex;flex-wrap:wrap;gap:8px}
 .wqs-chip{min-width:52px;height:52px;border-radius:26px;background:#fff;font-size:22px;font-weight:800;box-shadow:0 3px 0 var(--line);padding:0 12px}
@@ -34,23 +31,19 @@
 .wqs-skel{display:block;height:200px;border-radius:12px;background:linear-gradient(90deg,#eee8d6,#f8f4ea,#eee8d6);background-size:200% 100%;animation:wqs-sh 1.2s linear infinite}
 .wqs-big{height:60vh}
 @keyframes wqs-sh{to{background-position:-200% 0}}
-/* reader: ONE text. The stage shows the page; the camera (transform only) glides to the printed line (reading-expert) */
 .wqs-stage{position:relative;height:62vh;min-height:240px;overflow:hidden;border-radius:16px;background:#fff;box-shadow:0 3px 0 var(--line)}
 .wqs-cam{position:absolute;left:0;top:0;transform-origin:0 0;transition:transform .6s cubic-bezier(.3,.7,.2,1);will-change:transform}
 .wqs-cam img{width:100%;max-width:none;height:auto;display:block}
 .wqs-cam .wqra-ctl,.wqs-cam .wqra-text,.wqs-cam .lr-nudge,.wqs-cam .lr-glow,.wqs-lr .lr-bar,.wqs-lr .lr-done{display:none}
-.wqs-cam .wqra-band{position:absolute;margin:0;z-index:1}
 .wqs-cam .wqs-lens{position:absolute;z-index:1}
-/* the ONE highlight: a tight rounded box on the word's bbox, never a glow */
-.wqs-cam .wqra-pill,.wqs-mk{box-sizing:border-box;border-radius:12px;background:rgba(88,204,2,.3);border:4px solid #58cc02;box-shadow:none;filter:none}
+.wqs-mk{box-sizing:border-box;background:rgba(187,247,208,.3);box-shadow:inset 0 0 0 3px #15803D;border-radius:8px}
 .wqs-mk{position:absolute;z-index:2;opacity:0;pointer-events:none;transition:left .12s,top .12s,width .12s,height .12s,opacity .15s}
-.wqs-sw{border:0;border-radius:3px;background:rgba(88,204,2,.45)}
-/* Your turn marks on the print: underline bars, never filled boxes (Nastaliq words stack) */
-.wqs-cam .lr-box.lr-read{background:linear-gradient(transparent 80%,rgba(88,204,2,.85) 80%);border-radius:3px}
-.wqs-cam .lr-box.lr-heard{background:linear-gradient(transparent 84%,rgba(88,204,2,.4) 84%)}
-.wqs-cam .lr-box.lr-skipped{background:none;box-shadow:none;border-bottom:5px dashed #f2a33a;border-radius:0}
+.wqs-sw{box-shadow:none;border-radius:3px;background:rgba(88,204,2,.45)}
+.wqs-cam .lr-box.lr-read,.wqs-cam .lr-box.lr-heard{background:linear-gradient(transparent 78%,rgba(21,128,61,.85) 78%);border-radius:3px;box-shadow:none}
+.wqs-cam .lr-box.lr-skipped{background:none;box-shadow:none;border-bottom:5px dashed #E65100;border-radius:0}
+.wqs-cam .lr-box.lr-cur,.wqs-cam .lr-box.lr-current{background:#BBF7D0;outline:3px solid #15803D;border-radius:8px}
 .wqs-cam .lr,.wqs-cam .lr-ov{margin:0;padding:0}
-.wqs-whole{position:absolute;top:8px;right:8px;z-index:3;min-height:44px;border-radius:22px;padding:0 12px;background:rgba(255,255,255,.92);font-weight:700;box-shadow:0 2px 0 var(--line)}
+.wqs-whole{position:absolute;top:8px;right:8px;z-index:3;min-height:48px;border-radius:22px;padding:0 12px;background:rgba(255,255,255,.92);font-weight:700;box-shadow:0 2px 0 var(--line)}
 .wqs-whole[aria-pressed=true]{background:#ffe26b}
 .wqs-slow{flex:none;min-height:48px;border-radius:24px;padding:0 10px;background:#f4f0e2;font-weight:700;font-size:15px}
 .wqs-slow[aria-pressed=true]{background:#d6f5e3;outline:3px solid var(--hl);outline-offset:-3px}
@@ -68,7 +61,6 @@
 .wqs-extra:empty{display:none}
 .wqs-extra p{width:100%;margin:0;font-size:18px;font-weight:700}
 .wqs-well{color:#15803d}
-/* Your turn: our own Done (>= 48 px, sticky) replaces the component's; Jugnu glows by the words lit */
 .wqs-jg{display:block;margin:0 auto;filter:drop-shadow(0 0 4px rgba(255,216,77,.4));transition:filter .3s}
 .wqs-g1{filter:drop-shadow(0 0 9px rgba(255,216,77,.6))}
 .wqs-g2{filter:drop-shadow(0 0 14px rgba(255,216,77,.75))}
@@ -76,7 +68,6 @@
 .wqs-g4{filter:drop-shadow(0 0 26px #ffd84d)}
 .wqs-lr{flex:1}
 .wqs-done{position:sticky;bottom:8px;flex:none;width:100%;min-height:56px}
-/* questions */
 .wqs-dots{display:flex;justify-content:center;gap:8px;margin:0}
 .wqs-dots i{width:14px;height:14px;border-radius:7px;background:#e3dcc6}
 .wqs-dots .wqs-was{background:var(--hl)}
@@ -93,8 +84,9 @@
 @keyframes wqs-wob{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .wqs-pv{margin:0;padding-inline-start:20px}
 .wqs-pv h2{font-size:18px;margin-top:8px}
-/* done card */
 .wqs-deed{font-size:24px;font-weight:800;color:#15803d;margin:0}
 .wqs-stk{font-size:18px;font-weight:700;margin:0}
 .wqs-bad{min-height:96px;background:#eee8d6;cursor:pointer}
 @media (prefers-reduced-motion:reduce){.wqs *{animation:none!important;transition:none!important}}
+.wqs-g{width:1.15em;height:1.15em;vertical-align:-.2em;fill:currentColor;flex:none}
+.wqs-ic .wqs-g{width:26px;height:26px}

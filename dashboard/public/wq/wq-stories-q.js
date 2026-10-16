@@ -1,43 +1,38 @@
-/* Stories, the lazy part: loaded by wq-stories.js (same ?v=) when a reader opens. Your turn (WQLiveRead; pages over 40
- * words run per chunk of <= 25 words, ONE story_page_read with summed numbers), the questions with Look back (#S7),
- * the done card (#S5, W6; m-scorecard's WQFC when the book says card_v3) and the teacher's read-only questions.
- * Copy follows the rules above T in wq-stories.js. No framework, no build step. */
+/* Stories, second part (loaded by wq-stories.js at the same ?v=): Your turn, the questions, the done screen, the
+ * teacher's read-only questions. Copy follows the rules above T in wq-stories.js. */
 (function () {
   'use strict';
   var W = window, S = W.WQSTORIES, K = S && S._k;
   if (!K) return;
-  var esc = K.esc, enc = K.enc, scr = K.scr, img = K.img, ic = K.ic, top = K.top, post = K.post, req = K.req, juice = K.juice, JG = K.JG;
+  var IC = K.IC, esc = K.esc, scr = K.scr, img = K.img, ic = K.ic, top = K.top, post = K.post, req = K.req, juice = K.juice, JG = K.JG;
   var T2 = {
     en: {
-      done: 'I\'m done ✓', micSay: 'Tap to let Jugnu hear you', ok: 'OK', notNow: 'Not now, just listen',
+      done: 'I\'m done', micSay: 'Tap to let Jugnu hear you', ok: 'OK', notNow: 'Not now, just listen',
       readNow: 'Read it aloud!', keepGoing: 'Keep going!', checking: 'Jugnu is listening…',
-      lookBack: 'Let\'s look back!', backQ: 'Back to the question', hear: 'Hear it',
-      wholeRead: 'You read the whole story!', readSome: 'You read with Jugnu!', wholeHeard: 'You listened to the whole story!', tried: 'You tried a new story!',
+      lookAgain: 'Hmm, look again', backQ: 'Back to the question', itWas: function (x) { return 'It was: ' + x; }, hear: 'Hear it',
+      wholeRead: 'You read the whole story!', readSome: 'You read with Jugnu!', wholeHeard: 'You listened to the whole story!', heardSome: 'You listened with Jugnu!',
       pagesRead: function (s, n) { return s + (n === 1 ? ' page read' : ' pages read'); },
-      pagesHeard: function (s, n) { return s + (n === 1 ? ' page listened to' : ' pages listened to'); },
-      sticker: 'A new sticker for your Book!', more: 'More stories', share: 'Share with family',
-      shareRead: function (x) { return 'I read ' + x + ' with Jugnu!'; }, shareHeard: function (x) { return 'I listened to ' + x + ' with Jugnu!'; },
+      pagesHeard: function (s, n) { return s + (n === 1 ? ' page heard' : ' pages heard'); },
+      more: 'More stories',
     },
     ur: {
-      done: 'میں نے پڑھ لیا ✓', micSay: 'جگنو کو اپنی آواز سنانے کے لیے دبائیں', ok: 'ٹھیک ہے', notNow: 'ابھی نہیں، صرف سنیں',
+      done: 'میں نے پڑھ لیا', micSay: 'جگنو کو اپنی آواز سنانے کے لیے دبائیں', ok: 'ٹھیک ہے', notNow: 'ابھی نہیں، صرف سنیں',
       readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', checking: 'جگنو سن رہا ہے…',
-      lookBack: 'آئیں، کہانی میں پھر سے دیکھیں!', backQ: 'سوال پر واپس جائیں', hear: 'سنیں',
-      wholeRead: 'آپ نے پوری کہانی پڑھ لی!', readSome: 'آپ نے جگنو کے ساتھ پڑھا!', wholeHeard: 'آپ نے پوری کہانی سن لی!', tried: 'آپ نے ایک نئی کہانی شروع کی!',
+      lookAgain: 'ہمم، ایک بار پھر دیکھیں', backQ: 'سوال پر واپس جائیں', itWas: function (x) { return 'یہ تھا: ' + x; }, hear: 'سنیں',
+      wholeRead: 'آپ نے پوری کہانی پڑھ لی!', readSome: 'آپ نے جگنو کے ساتھ پڑھا!', wholeHeard: 'آپ نے پوری کہانی سن لی!', heardSome: 'آپ نے جگنو کے ساتھ سنا!',
       pagesRead: function (s, n) { return s + (n === 1 ? ' صفحہ پڑھا' : ' صفحے پڑھے'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' صفحہ سنا' : ' صفحے سنے'); },
-      sticker: 'آپ کی کتاب کے لیے ایک نیا اسٹیکر!', more: 'اور کہانیاں', share: 'گھر والوں کو بھیجیں',
-      shareRead: function (x) { return 'میں نے جگنو کے ساتھ «' + x + '» پڑھی!'; }, shareHeard: function (x) { return 'میں نے جگنو کے ساتھ «' + x + '» سنی!'; },
+      more: 'اور کہانیاں',
     },
   };
   ['en', 'ur'].forEach(function (l) { for (var k in T2[l]) K.T[l][k] = T2[l][k]; });
 
   S._q = function (R) {
     var ctx = R.ctx, C = R.C, id = R.id, root = R.root, paint = R.paint, b = R.b, P = R.P, m = R.m, L = R.L, t = R.t;
-    var qi = 0, ans = [], tries = [], chosen = -1, qlock = 0, qs = null, fcw = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, spr = null, end = 0;
+    var qi = 0, ans = [], dim = -1, rv = -1, chosen = -1, qlock = 0, qs = null, fcw = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, spr = null, end = 0;
     function live() { return R.live(); }
     function declined(how) { K.evt(ctx, 'mic_declined', { src: 'story', how: how }); }
 
-    /* ---- the mic: LIVEREAD §11 askMic owns the in-app-browser ask and its "Not now" door; else our minimal sheet ---- */
     var micO = {
       lang: L, src: 'story',
       onStream: function (s) { if (m.st === 'mic') { stream = s; m.granted(); } },
@@ -45,8 +40,8 @@
       onNotNow: function () { if (m.st === 'mic') { declined('not_now'); m.notNow(); } },
     };
     function micScreen() {
-      var ask = W.WQLiveRead.askMic, h = top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 96, 96, 'wqs-jg');
-      paint(scr('story-mic', L, h + (ask ? '<div data-mic></div>' : '<h2 class="wqs-say">' + esc(t.micSay) + '</h2><button class="wqs-main" data-primary data-tap="mic">🎤 ' + esc(t.ok) +
+      var ask = W.WQLiveRead.askMic;
+      paint(scr('story-mic', L, top(L, ic(t, 'close', t.close, '✕')) + (ask ? '<div data-mic></div>' : '<h2 class="wqs-say">' + esc(t.micSay) + '</h2><button class="wqs-main" data-primary data-tap="mic">' + IC.mic + ' ' + esc(t.ok) +
         '</button><button class="wqs-sec" data-tap="notnow">' + esc(t.notNow) + '</button>'), 'wqs-sheet'));
       if (!ask) return;
       var el = root.querySelector('[data-mic]');
@@ -54,19 +49,18 @@
       var g = el && el.querySelector('.lr-go');
       if (g) g.setAttribute('data-primary', '');
     }
-    function mic() {   // our sheet's OK: getUserMedia inside the tap
+    function mic() {
       var md = W.navigator && W.navigator.mediaDevices;
       if (md && md.getUserMedia) md.getUserMedia({ audio: true }).then(micO.onStream, micO.onDenied); else micO.onDenied();
     }
 
-    /* ---- Your turn, zoomed to the line like the listen; long pages per chunk ---- */
     function readScreen() {
       var p = P[m.i], LR = W.WQLiveRead, c, lh = '<div class="wqs-lr" data-lr></div>', st;
       if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, marks: [] }; }
       c = ck[ci];
       st = R.stage(p, lh);
       paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg') +
-        (R.mode() === 'z' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + esc(t.done) + '</button>'));
+        (R.mode() === 'z' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + esc(t.done) + ' ' + IC.tick + '</button>'));
       var z = R.mode() === 'z';
       if (z) R.camLine(c[0]);
       try {
@@ -78,7 +72,6 @@
           onResult: result,
         });
       } catch (e) { m.denied(); return; }
-      // Jugnu glows by the share of words lit and the camera follows the next word: never by time
       R.poll = C.set(function tick() {
         var v = R.lr && R.lr.view && R.lr.view(), g = root.querySelector('[data-jg]'), k = 0, ss = (v && v.states) || [];
         if (v && g && LR.glowLevel) g.className = 'wqs-jg wqs-g' + LR.glowLevel(v);
@@ -95,30 +88,28 @@
       if (++ci < ck.length && !stopAll && r.ended !== 'hidden') { R.drop(); return readScreen(); }
       var s = sum;
       sum = null;
-      post(ctx, id, 'story_page_read', { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended }, P[m.i].n);
+      var sk = [];
+      s.marks.forEach(function (x, i) { if (x === 'skipped') sk.push(i); });
+      post(ctx, id, 'story_page_read', { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read' }, P[m.i].n);
       m.result(s);
     }
 
-    /* ---- questions: one at a time, spoken when there is a clip; the server checks ---- */
     function qStart() {
       if (R.tch) return paint(preview());
       if (W.location.hash !== '#story/' + id + '/q') W.location.hash = '#story/' + id + '/q';
-      qi = 0; ans = []; tries = []; chosen = -1; qlock = 0;
+      qi = 0; ans = []; dim = -1; rv = -1; chosen = -1; qlock = 0;
       need(function () {});
-      // one sprite for every question clip (lead ruling): fetched once here, played by time
       var qsp = b.questions_sprite;
       if (qsp && qsp.url && W.Audio && !spr) { spr = new W.Audio(); spr.preload = 'auto'; spr.src = qsp.url; }
       if (!(b.questions || []).length) return m.set('done');
       qPaint();
     }
-    // a question's clip: {s_ms, e_ms} in the sprite, else its own url (option k is 'q<n>o<k+1>')
     function clip(k) {
       var q = b.questions[qi], c = spr && (b.questions_sprite.clips || {})['q' + q.n + (k === 'q' ? '' : 'o' + (+k + 1))], a = q.audio || {};
       return c || (k === 'q' ? a.q : (a.o || [])[+k]);
     }
-    function say(k, pr) { return '<button class="wqs-ic wqs-say" data-tap="say" data-arg="' + k + '"' + (pr ? ' data-primary' : '') + ' data-sound data-trigger="tap" aria-label="' + esc(t.hear) + '">🔊</button>'; }
+    function say(k, pr) { return '<button class="wqs-ic wqs-say" data-tap="say" data-arg="' + k + '"' + (pr ? ' data-primary' : '') + ' data-sound data-trigger="tap" aria-label="' + esc(t.hear) + '">' + IC.spk + '</button>'; }
     function optOf(op) { return typeof op === 'string' ? { t: op } : op || {}; }
-    // warm a question's clips (the question + its options) in parallel; the next one during the 900 ms
     function warm(k) {
       var a = (b.questions[k] || {}).audio;
       if (a && W.Audio && !spr) [a.q].concat(a.o || []).forEach(function (u) { try { if (u) { var x = new W.Audio(); x.preload = 'auto'; x.src = u; } } catch (e) {} });
@@ -128,12 +119,12 @@
       if (chosen < 0) warm(qi);
       paint(scr('story-questions', L, top(L, ic(t, 'back', t.back, '‹'), '', 1) +
         '<p class="wqs-dots" aria-hidden="true">' + b.questions.map(function (x, k) { return '<i class="' + (k < qi ? 'wqs-was' : k === qi ? 'wqs-now' : '') + '"></i>'; }).join('') + '</p>' +
-        '<div class="wqs-qc">' + (a.q ? say('q', 1) : '') + '<h2>' + esc(q.q) + '</h2></div><div class="wqs-opts">' +
+        '<div class="wqs-qc">' + (a.q ? say('q', rv < 0) : '') + '<h2>' + esc(q.q) + '</h2></div><div class="wqs-opts">' +
         (q.options || []).map(function (op, k) {
           op = optOf(op);
-          return '<div class="wqs-orow"><button class="wqs-opt' + (chosen === k ? ' wqs-chosen' : '') + '" data-tap="ans" data-arg="' + k + '"' + (!a.q && !k ? ' data-primary' : '') + '>' +
+          return '<div class="wqs-orow"><button class="wqs-opt' + (chosen === k ? ' wqs-chosen' : '') + (dim === k ? ' wqs-dim' : '') + '" data-tap="ans" data-arg="' + k + '"' + (!a.q && !k && rv < 0 ? ' data-primary' : '') + '>' +
             (op.img ? img(/\//.test(op.img) ? op.img : '/s/' + b.id + '/' + op.img, 64, 64) : '') + '<span>' + esc(op.t) + '</span></button>' + (o[k] ? say(k) : '') + '</div>';
-        }).join('') + '</div>'));
+        }).join('') + '</div>' + (rv >= 0 ? '<p class="wqs-say">' + esc(t.itWas(optOf(q.options[rv]).t)) + '</p><button class="wqs-main" data-primary data-tap="qnext">' + esc(t.next) + '</button>' : '')));
     }
     function sayIt(k) {
       var u = clip(k), pr;
@@ -147,39 +138,38 @@
       pr = R.au.play();
       if (pr && pr.catch) pr.catch(function () {});
     }
-    // #S7 look back: a first miss shows the page that answers it; the 2nd try is taken; a failed call moves on
     function answer(k) {
-      if (qlock) return;
-      var q = b.questions[qi], again = tries[qi];
-      qlock = 1; chosen = +k; ans[qi] = +k; tries[qi] = 1;
+      k = +k;
+      if (qlock || k === dim) return;
+      var q = b.questions[qi], d = { n: q.n, i: k }, two = !!ans[qi];
+      qlock = 1; chosen = k; (ans[qi] = ans[qi] || []).push(k);
+      if (two) d.try = 2;
       juice('tap'); qPaint();
-      var r0 = post(ctx, id, 'story_answer', { n: q.n, i: +k });
-      if (again) return on();
-      r0.then(function (r) {
+      post(ctx, id, 'story_answer', d).then(function (r) {
         if (!live()) return;
         if (!r || r.right == null || r.right) { if (r && r.right) juice('correct'); return on(); }
+        if (two) { if (r.show == null) return on(); rv = +r.show; chosen = -1; return qPaint(); }
         juice('wrong');
         var o = root.querySelector('.wqs-chosen');
         if (o) o.className += ' wqs-wob';
+        dim = k;
         var lp = P.filter(function (x) { return x.n === q.page_ref; })[0];
         C.set(function () { if (!live()) return; if (lp) look(lp); else { qlock = 0; chosen = -1; qPaint(); } }, 600);
       });
     }
-    function on() {
-      warm(qi + 1);
-      C.set(function () {
-        if (!live()) return;
-        qlock = 0; chosen = -1;
-        if (++qi < b.questions.length) return qPaint();
-        R.wait();
-        post(ctx, id, 'story_questions_done', { answers: ans }).then(function (r) { qs = r && r.stars != null ? r.stars : null; if (live()) m.set('done'); });
-      }, 900);
+    function on() { warm(qi + 1); C.set(adv, 900); }
+    function adv() {
+      if (!live()) return;
+      qlock = 0; chosen = -1; dim = -1; rv = -1;
+      if (++qi < b.questions.length) return qPaint();
+      R.wait();
+      post(ctx, id, 'story_questions_done', { answers: ans }).then(function (r) { qs = r && r.stars != null ? r.stars : null; if (live()) m.set('done'); });
     }
     function look(p) {
       R.drop();
-      paint(scr('story-look', L, top(L, ic(t, 'lret', t.back, '‹'), '', !!p.audio) + img(JG + 'thinking.webp', 72, 72, 'wqs-jg') + '<h2 class="wqs-say">' + esc(t.lookBack) + '</h2>' +
+      paint(scr('story-look', L, top(L, ic(t, 'lret', t.back, '‹'), '', !!p.audio) + img(JG + 'thinking.webp', 72, 72, 'wqs-jg') + '<h2 class="wqs-say">' + esc(t.lookAgain) + '</h2>' +
         R.stage(p, (p.audio && p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + (p.audio ? '<div data-ra></div>' : '')) +
-        (p.audio ? '<button class="wqs-again" data-tap="lplay" data-sound data-trigger="tap">🔊 ' + esc(t.listen) + '</button>' : '') +
+        (p.audio ? '<button class="wqs-again" data-tap="lplay" data-sound data-trigger="tap">' + IC.spk + ' ' + esc(t.listen) + '</button>' : '') +
         '<button class="wqs-main" data-primary data-tap="lret">' + esc(t.backQ) + '</button>', 'wqs-sheet'));
       R.camTo(null);
       if (p.audio) R.mount(p, { onEnd: function () { R.camTo(null); R.word(-1); } });
@@ -189,7 +179,6 @@
         return '<li><h2>' + esc(q.q) + '</h2><ul>' + (q.options || []).map(function (op) { return '<li>' + esc(optOf(op).t) + '</li>'; }).join('') + '</ul></li>';
       }).join('') + '</ol><button class="wqs-main" data-primary data-tap="back">' + esc(t.back) + '</button>');
     }
-    // m-scorecard's finish card: loaded at our own ?v= only when the book says card_v3
     function need(cb) {
       if (!b.card_v3 || W.WQFC || fcw === true) return cb();
       if (fcw) return fcw.push(cb);
@@ -197,27 +186,24 @@
       K.load('wq-finish-card.js', 'wq-finish-card.css', function () { var w = fcw; fcw = true; w.forEach(function (f) { f(); }); });
     }
 
-    // the done card (#S5, W6): read -> listened to every text page -> tried; one sticker at most, no score
     function finish() {
       if (R.tch) return paint(preview());
       var c = m.counts(), tp = [], k;
       for (k = 0; k < P.length; k++) if (!P[k].is_picture && P[k].words && P[k].words.length) tp.push(k);
       var all = function (o) { return tp.length > 0 && tp.every(function (i) { return o[i]; }); };
-      var rd = c.pages_read > 0, heard = !rd && all(m.l), n = rd ? c.pages_read : heard ? c.pages_listened : 0;
-      var head = rd ? (all(m.r) ? t.wholeRead : t.readSome) : heard ? t.wholeHeard : t.tried;
+      var rd = c.pages_read > 0, n = rd ? c.pages_read : c.pages_listened;
+      var head = rd ? (all(m.r) ? t.wholeRead : t.readSome) : n ? (all(m.l) ? t.wholeHeard : t.heardSome) : t.together;
       R.wait();
       post(ctx, id, 'story_done', { pages_listened: c.pages_listened, pages_read: c.pages_read, stars: qs }).then(function (r) { need(function () {
         if (!live()) return;
-        var stk = n > 0 && !!(r && r.sticker === true), deed = function (k) { return t[rd ? 'pagesRead' : 'pagesHeard'](K.dg(k, L), k); };
-        var sh = n ? t[rd ? 'shareRead' : 'shareHeard'](b.title) : '';
-        paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own>' + img('/wq/jugnu_celebrate.webp', 120, 120, 'wqs-jg') + '<h2>' + esc(head) + '</h2>' +
-          (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + (stk ? '<p class="wqs-stk"><span aria-hidden="true">🌟</span> ' + esc(t.sticker) + '</p>' : '') + '</div>' +
+        var deed = function (k) { return t[rd ? 'pagesRead' : 'pagesHeard'](K.dg(k, L), k); };
+        paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own><h2>' + esc(head) + '</h2>' +
+          (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + '</div>' +
           '<div class="wqs-col" data-col><button class="wqs-main" data-primary data-tap="more">' + esc(t.more) + '</button>' +
-          (sh ? '<a class="wqs-sec" href="https://wa.me/?text=' + enc(sh) + '" target="_blank" rel="noopener" data-tap="share">' + esc(t.share) + '</a>' : '') +
           '<button class="wqs-sec" data-home data-tap="home">' + esc(t.home) + '</button></div>', 'wqs-sheet'));
         var ok = false, own = root.querySelector('[data-own]');
         if (n && b.card_v3 && W.WQFC && W.WQFC.mount) {
-          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { kind: 'book', deed: 'book_read', lang: L, title: b.title, cover: b.cover, next: null, home: '#', auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev }) !== false; } catch (e) {}
+          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: null }) !== false; } catch (e) {}
         }
         if (own) own.hidden = ok;
         if (ok || !n) return;
@@ -237,8 +223,8 @@
         else if (tap === 'say') sayIt(arg);
         else if (tap === 'ans') answer(arg);
         else if (tap === 'lplay') { if (R.pl) R.pl.play(); }
+        else if (tap === 'qnext') adv();
         else if (tap === 'lret') { R.drop(); qlock = 0; chosen = -1; qPaint(); }
-        else if (tap === 'share') post(ctx, id, 'story_shared');
         else if (tap === 'more') { R.kill(); W.location.hash = '#stories'; }
         else return false;
         return true;
