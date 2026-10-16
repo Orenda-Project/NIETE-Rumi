@@ -995,7 +995,10 @@ function keyAcceptSplit(q) {
 // child still chooses. A stem that asks two questions («… پیش آیا؟ سدرہ کی بہن کا نام کیا تھا؟»)
 // is two items in one place; a «؟» inside a quoted example does not count.
 const QUOTE_SPAN = /«[^»]+»|[’‘]{2}[^’‘]+[’‘]{2}|“[^”]+”|"[^"]+"|[’‘][^’‘]+[’‘]|'[^']+'/gu;
-const asWritten = (t) => String(t).normalize('NFC').replace(OPTION_HEAD, '').replace(/^[\s«»’‘“”"'(]+|[\s«»’‘“”"').,،۔؟?!]+$/gu, '');
+// As written, marks kept (they are what an اعراب item tests), with only the Arabic letter forms of
+// ی / ک / ہ read as Urdu («ہندي» is «ہندی»).
+const SAME_LETTER = [[/[يى]/g, 'ی'], [/ك/g, 'ک'], [/ه/g, 'ہ']];
+const asWritten = (t) => SAME_LETTER.reduce((x, [re, to]) => x.replace(re, to), String(t).normalize('NFC')).replace(OPTION_HEAD, '').replace(/^[\s«»’‘“”"'(]+|[\s«»’‘“”"').,،۔؟?!]+$/gu, '');
 function printsOwnKey(q) {
   if (!Array.isArray(q.options) || !q.options.length) return false;
   const key = asWritten(keyText(q));
@@ -1004,7 +1007,9 @@ function printsOwnKey(q) {
   const stem = String(q.question || '');
   const quotes = (stem.match(QUOTE_SPAN) || []).map(asWritten);
   const outside = stem.split(QUOTE_SPAN).map((part) => ` ${plain(part)} `);
-  const printed = (o) => quotes.includes(o) || outside.some((part) => part.includes(` ${plain(o)} `));
+  // Outside the quotes only a key with a content word counts: a function word («میں») is in most
+  // stems' own frame («درج ذیل میں سے …»).
+  const printed = (o) => quotes.includes(o) || (tokensOf(o).length > 0 && outside.some((part) => part.includes(` ${plain(o)} `)));
   const others = options.filter((o) => o !== key && plain(o));
   return printed(key) && !others.some(printed);
 }
