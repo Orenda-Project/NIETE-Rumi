@@ -899,6 +899,8 @@ const RULE = {
   // Social Studies: a paraphrase of a fact is not a repeated stem, so noRepeats lets Q5 and Q7 re-ask it.
   // The sections are written in parallel, so the rule names the slots, not their items.
   sstNoReask: 'Q5 and Q7 never ask a fact that a Section A item (stem or key) or a Q6 item on this paper already tests.',
+  // Social Studies Apply marks come from situations; the model follows a counted slot rule, not sstQ56's wording alone.
+  sstSituations: (q, n, total) => `Of the ${total} ${q} items, at least ${n} give a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and ask the child to use a concept from these pages to decide or explain; the rest may explain or compare book facts.`,
   spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
   sstQ56: 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.',
   accept: '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.',
@@ -1148,6 +1150,11 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (medium === 'ur') rules.push(RULE.genderUrdu);
   rules.push(RULE.noRepeats);
   if (key === 'social_studies' && list.some((s) => /\.Q[57]$/.test(s.slot))) rules.push(RULE.sstNoReask);
+  if (key === 'social_studies') {
+    for (const s of list.filter((x) => /\.Q[56]$/.test(x.slot))) {
+      rules.push(RULE.sstSituations(s.slot.split('.').pop(), Math.ceil(s.generate / 2), s.generate));
+    }
+  }
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
