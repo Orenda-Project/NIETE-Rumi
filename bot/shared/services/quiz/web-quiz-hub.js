@@ -51,11 +51,11 @@ const AGAIN_MAX = 6;
 const RECS_MAX = 3;
 const TEACHER_DAYS = 7;
 const RESOLVE_MAX = 5;
-// The challenge's grade for a child (web-quiz-challenge.js gradeOf + formFor), required on use so the hub never depends on the challenge to boot.
+// The challenge's grade for a child (web-quiz-challenge.js gradeOf + formForChild, the grade-1 switches included), required on use so the hub never depends on the challenge to boot.
 async function challengeGrade(studentId) {
   try {
     const Challenge = require('./web-quiz-challenge');
-    return Boolean(Challenge.formFor(await Challenge.gradeOf({ studentId })));
+    return Boolean(await Challenge.formForChild(await Challenge.gradeOf({ studentId })));
   } catch (err) {
     logToFile('⚠️ web quiz hub: challenge grade unavailable', { error: err.message });
     return false;
