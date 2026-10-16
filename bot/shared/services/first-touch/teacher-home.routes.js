@@ -49,6 +49,12 @@ const asked = (v) => (ASKABLE.includes(v) ? v : null);
 const uuidIn = (v) => (typeof v === 'string' && UUID_RX.test(v) ? v : null);
 const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {});
 const optional = (path) => { try { return require(path); } catch (_) { return null; } };
+/** A first-touch module by its name in the registry (`./optional-modules`) when that is on the branch, else by its path; absent or broken → null. */
+function byName(name, path) {
+  const R = optional('./optional-modules');
+  try { if (R && typeof R.load === 'function') { const m = R.load(name); if (m) return m; } } catch (_) { return null; }
+  return optional(path);
+}
 
 /**
  * Builds the router. `deps` (tests) stands in for a data source; production passes nothing.
@@ -127,7 +133,7 @@ function createRouter(deps = null) {
     return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories` : null;
   }
   function cardsFor(lang) {
-    const Cards = optional('./cards.page');
+    const Cards = byName('cardsPage', './cards.page');
     if (!Cards || typeof Cards.cardsFor !== 'function') return [];
     try {
       const bot = require('../quiz/video-quiz-share.service').botNumber();
@@ -136,7 +142,7 @@ function createRouter(deps = null) {
   }
   /** The walk-through persona's view of the lists (the persona module decides; absent → the lists as they are). */
   async function walkLists(user, lists) {
-    const P = optional('./walk-persona');
+    const P = byName('testPersona', './walk-persona');
     if (!P || typeof P.forHome !== 'function' || !user || !user.phone_number) return lists;
     try { return (await P.forHome(user.phone_number, lists)) || lists; } catch (_) { return lists; }
   }
@@ -145,7 +151,7 @@ function createRouter(deps = null) {
    * `src:'change'` keeps the question on screen there (the landing does not send a known teacher straight back).
    */
   async function changeLanding(user, lang) {
-    const OneDoor = optional('./one-door.service');
+    const OneDoor = byName('oneDoor', './one-door.service');
     if (!OneDoor || typeof OneDoor.mintLanding !== 'function' || !user || !user.phone_number) return null;
     try {
       const url = await OneDoor.mintLanding({ user, phone: user.phone_number, side: 'unknown', lang: lang === 'en' ? 'bi' : 'ur', src: 'change' });
@@ -172,7 +178,7 @@ function createRouter(deps = null) {
   }
   function practiceUrl(user, lang) {
     if (!user || !COACH_ROLES.has(String(user.role || '').toLowerCase())) return null;
-    const Join = optional('../quiz/web-quiz-student-join');
+    const Join = byName('studentJoin', '../quiz/web-quiz-student-join');
     if (!Join || typeof Join.practiceJoinUrl !== 'function') return null;
     try { return Join.practiceJoinUrl({ uid: user.id, lang }) || null; } catch (_) { return null; }
   }

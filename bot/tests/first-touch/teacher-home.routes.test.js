@@ -527,6 +527,28 @@ describe('the top card for a teacher with a fresh lesson, and story sends', () =
   });
 });
 
+describe('the optional modules by their registry names (when the registry is on the branch)', () => {
+  afterEach(() => { mockModules.load = undefined; });
+  test('the cards, the walk-through lists, the "Change" landing and the practice link come from load(<name>), not a typed path', async () => {
+    seed();
+    Object.assign(fake.db.users[0], { phone_number: 'fixture-phone', role: 'coach' });
+    deps.List = listWith({ lessons: [{ source: 'lp_v8', lessonRef: 'ref1', date: new Date(Date.now() - 86400000).toISOString(), topic: 'Plants', subject: 'Science', grade: '4' }] });
+    const named = {
+      cardsPage: { cardsFor: () => [{ card: 'lp', title: 'Lesson plans', href: '/x' }] },
+      testPersona: { forHome: async (phone, lists) => ({ ...lists, lessons: [], played: new Map(), shares: [] }) },
+      oneDoor: { mintLanding: async () => 'https://portal.example/quiz/go/GO.NAMED' },
+      studentJoin: { practiceJoinUrl: () => 'https://portal.example/quiz/join/PRACTICE' },
+    };
+    mockModules.load = (name) => named[name] || null;
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(home.cards).toEqual([{ card: 'lp', title: 'Lesson plans', href: '/x' }]);
+    expect(home.timeline).toEqual([]);
+    expect(home.change).toBe('/quiz/go/GO.NAMED');
+    expect(home.tryStudent).toBe('https://portal.example/quiz/join/PRACTICE');
+  });
+});
+
 describe('the walk-through row on the foot (sandbox test phones only)', () => {
   const ROW = '<section data-screen="walk"><p class="note">Walk</p><button type="button" class="no" data-tap="walk_fresh" data-persona="fresh">New</button></section>';
   afterEach(() => { mockDoor.mintLanding = undefined; mockModules.load = undefined; });
