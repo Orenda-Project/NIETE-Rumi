@@ -363,6 +363,7 @@
   "web_quiz_strip_weekly.select([\"cell, value\"]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"lamps_settled_day\"])",
   "web_quiz_strip_weekly.select([\"cell, value, n\"]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"reply_cap_day\"])",
   "app_settings.select([\"key, value\"]).eq([\"key\",\"web_quiz_reply_cap_per_phone\"])",
+  "app_settings.select([\"key, value\"]).eq([\"key\",\"web_quiz_fixture_rule\"])",
   "merge_log.select([\"id\",{\"count\":\"exact\",\"head\":true}]).eq([\"source\",\"queue\"]).eq([\"tier\",\"roster_unique_with_loose\"]).eq([\"decision\",\"same\"])",
   "merge_log.select([\"id\",{\"count\":\"exact\",\"head\":true}]).eq([\"source\",\"queue\"]).eq([\"tier\",\"roster_unique_with_loose\"]).eq([\"decision\",\"no\"])",
   "merge_log.select([\"id\",{\"count\":\"exact\",\"head\":true}]).eq([\"source\",\"queue\"]).eq([\"tier\",\"roster_unique_with_loose\"]).eq([\"decision\",\"undo\"])",
