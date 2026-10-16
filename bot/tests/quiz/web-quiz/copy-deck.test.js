@@ -22,9 +22,9 @@ const entries = () => Object.entries(load()).filter(([k]) => k !== '_meta');
 const live = () => entries().filter(([, v]) => !v.retired && !v.held);
 
 describe('copy deck: shape', () => {
-  test('the deck is v2.4 and every key has both languages, a surface, a cap and a switch', () => {
+  test('the deck is v2.4.1 and every key has both languages, a surface, a cap and a switch', () => {
     const deck = load();
-    expect(deck._meta.version).toBe('2.4');
+    expect(deck._meta.version).toBe('2.4.1');
     for (const [k, v] of entries()) {
       expect([k, typeof v.en, typeof v.ur, typeof v.surface, typeof v.switch]).toEqual([k, 'string', 'string', 'string', 'string']);
       expect([k, Number.isInteger(v.cap_cp)]).toEqual([k, true]);
@@ -227,13 +227,11 @@ describe('copy deck v2.4: the STOP line names the number; the paused round card 
     expect(cp(s.en)).toBeLessThanOrEqual(s.cap_cp);
   });
 
-  test('the paused card: which buttons carry the round on (their own deck words), the list is kept, children see nothing', () => {
+  test('the paused card: which button carries the round on (its own deck words), the list is kept, children see nothing', () => {
     const how = d()['jg.round.t_paused_how'];
     const kids = d()['jg.round.t_paused_kids'];
     for (const k of [how, kids]) expect([k.surface, k.switch]).toEqual(['page.teacher', 'web_quiz_class_round']);
-    expect(how.en).toContain(`"${d()['jg.round.start'].en}"`);
     expect(how.en).toContain(`"${d()['jg.round.t_resume'].en}"`);
-    expect(how.ur).toContain(`«${d()['jg.round.start'].ur}»`);
     expect(how.ur).toContain(`«${d()['jg.round.t_resume'].ur}»`);
     expect(how.en).toMatch(/list stays/);
     expect(kids.en).toBe('Until then, the children see nothing about the round.');
@@ -253,5 +251,47 @@ describe('copy deck v2.4: the STOP line names the number; the paused round card 
   test('the deck says which file reads it at runtime', () => {
     expect(d()._meta.what).not.toMatch(/nothing reads this file at runtime/);
     expect(d()._meta.what).toMatch(/class-round\.page\.js/);
+  });
+});
+
+describe('copy deck v2.4.1: the finish card counts the class, never places the child; the paused card is one tap', () => {
+  const d = () => load();
+  const WQ_JS = path.join(__dirname, '../../../../dashboard/public/wq/wq.js');
+
+  test('the finish card: a count of the class that finished today, the child alone named by no number', () => {
+    const one = d()['quiz.finish.count_one'];
+    const many = d()['quiz.finish.count'];
+    expect([one.en, one.ur]).toEqual(['You finished this quiz today!', 'آج آپ نے یہ کوئز مکمل کر لیا۔']);
+    expect([many.en, many.ur]).toEqual(['{n} children in your class finished this quiz today.', 'آج آپ کی کلاس میں {n} بچوں نے یہ کوئز مکمل کیا۔']);
+    for (const k of [one, many]) {
+      expect([k.surface, k.held, k.retired]).toEqual(['page.scorecard', undefined, undefined]);
+      expect([cp(k.en) <= k.cap_cp, cp(k.ur) <= k.cap_cp]).toEqual([true, true]);
+      for (const l of ['en', 'ur']) expect(k[l]).not.toMatch(/\b(1st|2nd|3rd|\d+th|place|position)\b|نمبر|پوزیشن/);
+      expect(k.ur.endsWith('۔')).toBe(true);
+    }
+    expect(placeholders(one.en).concat(placeholders(one.ur))).toEqual([]);
+    expect([placeholders(many.en), placeholders(many.ur)]).toEqual([['{n}'], ['{n}']]);
+  });
+
+  test('the page shows the deck count lines byte for byte (wq.js T.nth, Urdu digits through urDigits)', () => {
+    const src = fs.readFileSync(WQ_JS, 'utf8');
+    const one = d()['quiz.finish.count_one'];
+    const many = d()['quiz.finish.count'];
+    expect(src).toContain(`if (n === 1) return '${one.en}';`);
+    expect(src).toContain(`if (n === 1) return '${one.ur}';`);
+    const [a, b] = many.en.split('{n}');
+    expect(src).toContain(`return ['${a}', '<bdi>' + n + '</bdi>', '${b}'];`);
+    const [c, e] = many.ur.split('{n}');
+    expect(src).toContain(`return ['${c}', '<bdi>' + urDigits(n) + '</bdi>', '${e}'];`);
+  });
+
+  test('the paused card names one tap, its own "Continue" button, and no longer "Start the round"', () => {
+    const how = d()['jg.round.t_paused_how'];
+    expect(how.en).toBe(`To carry on, tap "${d()['jg.round.t_resume'].en}". The list stays as it is.`);
+    expect(how.ur).toBe(`راؤنڈ آگے بڑھانے کے لیے «${d()['jg.round.t_resume'].ur}» دبائیں۔ فہرست جوں کی توں رہے${NBSP}گی۔`);
+    expect(how.en).not.toContain(d()['jg.round.start'].en);
+    expect(how.ur).not.toContain(d()['jg.round.start'].ur);
+    expect(how.ur.split(d()['jg.round.t_resume'].ur).length).toBe(2);
+    expect(how.held).toBe(true);
   });
 });
