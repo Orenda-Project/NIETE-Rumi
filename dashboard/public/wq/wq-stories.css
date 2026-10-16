@@ -34,10 +34,26 @@
 .wqs-skel{display:block;height:200px;border-radius:12px;background:linear-gradient(90deg,#eee8d6,#f8f4ea,#eee8d6);background-size:200% 100%;animation:wqs-sh 1.2s linear infinite}
 .wqs-big{height:60vh}
 @keyframes wqs-sh{to{background-position:-200% 0}}
-/* reader: the picture on top (>= 60% of the height), the soft glow on the print */
-.wqs-print{position:relative;width:100%;margin:0 auto;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 0 22px 4px rgba(255,216,77,.45)}
-.wqs-print>img{display:block;width:100%;height:auto}
-.wqs-print .wqra-ctl,.wqs-print .wqra-text{display:none}
+/* reader: ONE text. The stage shows the page; the camera (transform only) glides to the printed line (reading-expert) */
+.wqs-stage{position:relative;height:62vh;min-height:240px;overflow:hidden;border-radius:16px;background:#fff;box-shadow:0 3px 0 var(--line)}
+.wqs-cam{position:absolute;left:0;top:0;transform-origin:0 0;transition:transform .6s cubic-bezier(.3,.7,.2,1);will-change:transform}
+.wqs-cam img{width:100%;max-width:none;height:auto;display:block}
+.wqs-cam .wqra-ctl,.wqs-cam .wqra-text,.wqs-cam .lr-nudge,.wqs-cam .lr-glow,.wqs-lr .lr-bar,.wqs-lr .lr-done{display:none}
+.wqs-cam .wqra-band{position:absolute;margin:0;z-index:1}
+.wqs-cam .wqs-lens{position:absolute;z-index:1}
+/* the ONE highlight: a tight rounded box on the word's bbox, never a glow */
+.wqs-cam .wqra-pill,.wqs-mk{box-sizing:border-box;border-radius:12px;background:rgba(88,204,2,.3);border:4px solid #58cc02;box-shadow:none;filter:none}
+.wqs-mk{position:absolute;z-index:2;opacity:0;pointer-events:none;transition:left .12s,top .12s,width .12s,height .12s,opacity .15s}
+.wqs-sw{border:0;border-radius:3px;background:rgba(88,204,2,.45)}
+/* Your turn marks on the print: underline bars, never filled boxes (Nastaliq words stack) */
+.wqs-cam .lr-box.lr-read{background:linear-gradient(transparent 80%,rgba(88,204,2,.85) 80%);border-radius:3px}
+.wqs-cam .lr-box.lr-heard{background:linear-gradient(transparent 84%,rgba(88,204,2,.4) 84%)}
+.wqs-cam .lr-box.lr-skipped{background:none;box-shadow:none;border-bottom:5px dashed #f2a33a;border-radius:0}
+.wqs-cam .lr,.wqs-cam .lr-ov{margin:0;padding:0}
+.wqs-whole{position:absolute;top:8px;right:8px;z-index:3;min-height:44px;border-radius:22px;padding:0 12px;background:rgba(255,255,255,.92);font-weight:700;box-shadow:0 2px 0 var(--line)}
+.wqs-whole[aria-pressed=true]{background:#ffe26b}
+.wqs-slow{flex:none;min-height:48px;border-radius:24px;padding:0 10px;background:#f4f0e2;font-weight:700;font-size:15px}
+.wqs-slow[aria-pressed=true]{background:#d6f5e3;outline:3px solid var(--hl);outline-offset:-3px}
 .wqs-ctl{display:flex;align-items:center;gap:10px;margin-top:auto}
 .wqs-arr{width:64px;height:64px;border-radius:32px;background:#fff;box-shadow:0 4px 0 var(--line);font-size:40px;line-height:1;flex:none}
 .wqs-arr:disabled{opacity:.3}
@@ -53,7 +69,6 @@
 .wqs-extra p{width:100%;margin:0;font-size:18px;font-weight:700}
 .wqs-well{color:#15803d}
 /* Your turn: our own Done (>= 48 px, sticky) replaces the component's; Jugnu glows by the words lit */
-.wqs-micslot .lr-say,.wqs-micslot .lr-go,.wqs-lr .lr-bar{display:none}
 .wqs-jg{display:block;margin:0 auto;filter:drop-shadow(0 0 4px rgba(255,216,77,.4));transition:filter .3s}
 .wqs-g1{filter:drop-shadow(0 0 9px rgba(255,216,77,.6))}
 .wqs-g2{filter:drop-shadow(0 0 14px rgba(255,216,77,.75))}

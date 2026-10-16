@@ -8,15 +8,16 @@ const path = require('path');
 const vm = require('vm');
 
 const SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.js');
+const QSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-q.js');
 const CSS = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.css');
 const TOKEN = 'eyJrIjoiaCJ9.AbCdEfGhIjKlMnOpQrStUv';
-const KID = '0123456789abcdef';
+const KID = 'kidchipabcdefghi';
 const BANNED = /\b(test|exam|wpm|words per minute)\b|امتحان|ٹیسٹ|استاد/i;
 
 const W = (i, t, s, box) => (box ? { i, t, s_ms: s, e_ms: s + 400, box } : { i, t, s_ms: s, e_ms: s + 400 });
 function book(over = {}) {
   return {
-    id: 'b-1', title: 'Mina Kahaniwala', lang: 'en', dir: 'ltr', grade: 1, pace_wpm: 90,
+    id: 'b-1', title: 'Mina Testwala', lang: 'en', dir: 'ltr', grade: 1, pace_wpm: 90,
     pages: [
       { n: 1, image: { url: '/s/b-1/p01.webp', w: 720, h: 1080 }, text_band: { url: '/s/b-1/p01-band.webp', w: 1440, h: 260, box: [100, 800, 520, 130] },
         text: 'It is a sunny day', words: [W(0, 'It', 100, [110, 810, 40, 50]), W(1, 'is', 600, [160, 810, 30, 50]), W(2, 'a', 1100, [200, 810, 20, 50]), W(3, 'sunny', 1600, [230, 870, 90, 50]), W(4, 'day', 2100, [330, 870, 60, 50])],
@@ -35,9 +36,9 @@ function book(over = {}) {
 const SHELF = {
   grade: 1, lang: 'en', grades: [1, 2, 3, 4, 5],
   books: [
-    { id: 'b-9', title: 'Zed Book', grade: 1, lang: 'en', dir: 'ltr', pages: 4, minutes: 2, cover: '/s/b-9/cover.webp', done: false, from_teacher: true, shelf_position: 0, by: 'Ayesha Writer' },
-    { id: 'b-1', title: 'Mina Kahaniwala', grade: 1, lang: 'en', dir: 'ltr', pages: 3, minutes: 1, cover: '/s/b-1/cover.webp', done: false, from_teacher: false, shelf_position: 1 },
-    { id: 'b-4', title: 'Apple Tale', grade: 1, lang: 'en', dir: 'ltr', pages: 5, minutes: 3, cover: '/s/b-4/cover.webp', done: true, from_teacher: false, shelf_position: 2 },
+    { id: 'b-9', title: 'Zed Testwala', grade: 1, lang: 'en', dir: 'ltr', pages: 4, minutes: 2, cover: '/s/b-9/cover.webp', done: false, from_teacher: true, shelf_position: 0, by: 'Ayesha Testwala' },
+    { id: 'b-1', title: 'Mina Testwala', grade: 1, lang: 'en', dir: 'ltr', pages: 3, minutes: 1, cover: '/s/b-1/cover.webp', done: false, from_teacher: false, shelf_position: 1 },
+    { id: 'b-4', title: 'Apple Testwala', grade: 1, lang: 'en', dir: 'ltr', pages: 5, minutes: 3, cover: '/s/b-4/cover.webp', done: true, from_teacher: false, shelf_position: 2 },
   ],
 };
 
@@ -109,6 +110,7 @@ function env(opt = {}) {
   if (opt.ra !== false) {
     win.WQReadAlong = {
       mount(el, data, o) {
+        if (o.band) el.innerHTML = '<div class="wqra-pic wqra-band"></div>';
         const p = { el, data, o, log: [], audio: {}, play() { p.log.push('play'); }, pause() { p.log.push('pause'); }, replay() { p.log.push('replay'); }, playWord(i) { p.log.push('word:' + i); }, destroy() { p.log.push('destroy'); } };
         calls.ra.push(p); return p;
       },
@@ -118,17 +120,36 @@ function env(opt = {}) {
   if (opt.lr !== false) {
     win.WQLiveRead = {
       mount(el, o) { const c = { el, o, log: [], stop(w) { c.log.push('stop:' + w); }, destroy() { c.log.push('destroy'); }, view: () => ({ heard: 2, total: 5 }) }; calls.lr.push(c); return c; },
-      askMic(el, o) { el.innerHTML = '<button class="lr-go">go</button>'; calls.ask.push(o); },
+      askMic: opt.noAsk ? undefined : (el, o) => { el.innerHTML = '<button class="lr-go">go</button>'; calls.ask.push(o); calls.askEl = el; },
       glowLevel: () => 2,
     };
   }
   if (opt.wqj) win.WQJ = { tap() { calls.juice.push('tap'); }, finish(o) { calls.juice.push('finish:' + o.stars); }, correct() {}, wrong() {}, muted: () => calls.juice.includes('mute:true'), mute(b) { calls.juice.push('mute:' + b); } };
   const wqRoot = fakeEl('wq');
-  const doc = { getElementById: (id) => (id === 'boot' && opt.boot ? { textContent: JSON.stringify(opt.boot) } : id === 'wq' && opt.boot ? wqRoot : null), querySelector: () => null };
-  vm.runInNewContext(fs.readFileSync(SRC, 'utf8'), { window: win, document: doc, JSON, Math, String, Number, Array, Object, Promise, encodeURIComponent, Date });
+  calls.loaded = []; calls.hist = []; calls.disp = [];
+  const doc = {
+    getElementById: (id) => (id === 'boot' && opt.boot ? { textContent: JSON.stringify(opt.boot) } : id === 'wq' && opt.boot ? wqRoot : null),
+    querySelector: (sel) => (/wq-stories\.js/.test(sel) ? { getAttribute: () => '/wq/wq-stories.js?v=abc123' } : null),
+    createElement: (tag) => ({ tag }),
+    L: {}, addEventListener(n, f) { (this.L[n] = this.L[n] || []).push(f); },
+    head: { appendChild(x) {
+      calls.loaded.push(x);
+      if (x.tag !== 'script') return;
+      if (/wq-stories-q\.js\?v=abc123$/.test(x.src)) { if (opt.qFail) return x.onerror(); vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); return x.onload(); }
+      if (opt.onLoad) { opt.onLoad(win); x.onload(); }
+    } },
+  };
+  win.history = { replaceState(a, b, u) { calls.hist.push(u); } };
+  win.location.pathname = '/h/tok'; win.location.search = '?x=1';
+  win.HashChangeEvent = function (n) { this.type = n; };
+  calls.audios = [];
+  win.Audio = function (u) { const a = this; a.src = u || ''; a.currentTime = 0; a.paused = true; a.play = () => { a.paused = false; return Promise.resolve(); }; a.pause = () => { a.paused = true; }; calls.audios.push(a); };
+  win.dispatchEvent = (e) => calls.disp.push(e.type);
+  const sb = vm.createContext({ window: win, document: doc, JSON, Math, String, Number, Array, Object, Promise, encodeURIComponent, Date });
+  vm.runInContext(fs.readFileSync(SRC, 'utf8'), sb);
   const S = win.WQSTORIES;
   const ctx = (over = {}) => ({ token: TOKEN, kid: KID, lang: 'en', clock, ev: (n, p) => { (calls.ev = calls.ev || []).push([n, p]); }, ...over });
-  return { S, win, calls, clock, advance, ctx, store, winL, wqRoot, get now() { return now; } };
+  return { S, win, calls, clock, advance, ctx, store, winL, wqRoot, doc, get now() { return now; } };
 }
 const text = (h) => h.replace(/<[^>]*>/g, ' ').replace(/&(#39|amp|lt|gt|quot);/g, ' ');
 const primaries = (h) => (h.match(/data-primary/g) || []).length;
@@ -224,14 +245,14 @@ describe('the shelf', () => {
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('stories-shelf');
     expect(e.calls.gets[0]).toBe(`/api/wq/stories/shelf/h/${TOKEN}?kid=${KID}`);
-    const order = ['Zed Book', 'Mina Kahaniwala', 'Apple Tale'].map((t) => h.indexOf(t));
+    const order = ['Zed Testwala', 'Mina Testwala', 'Apple Testwala'].map((t) => h.indexOf(t));
     expect(order[0]).toBeGreaterThan(0); expect(order[0]).toBeLessThan(order[1]); expect(order[1]).toBeLessThan(order[2]);
     expect(h).toMatch(/class="wqs-tcard"[^>]*data-primary/);
-    expect(text(h)).toContain('▶ Read  Zed Book  with Jugnu');
+    expect(text(h)).toContain('▶ Read  Zed Testwala  with Jugnu');
     expect(h).toContain('From your teacher');
     expect((h.match(/data-done/g) || []).length).toBe(1);
     expect(h).toContain('✓');
-    expect(h).toContain('by Ayesha Writer');
+    expect(h).toContain('by Ayesha Testwala');
     expect((h.match(/<img[^>]*loading="lazy"[^>]*>/g) || []).length).toBe(3);
     expect(h).toMatch(/width="160" height="240"/);
     expect(h).toMatch(/onerror=/);
@@ -269,6 +290,7 @@ describe('the shelf', () => {
     fire(el, 'gl'); fire(el, 'g', 3); await flush();
     expect(e.calls.gets[2]).toMatch(/g=3/);
     expect(e.store.getItem('wq_st_gl')).toBe('3,ur');
+    expect(e.calls.gets[1]).not.toContain('g=');
     const h = el.innerHTML;
     checkScreen(h, 'ur');
     expect(h).toContain('ٹیچر کی طرف سے');
@@ -278,6 +300,13 @@ describe('the shelf', () => {
     // a new shelf later keeps the language
     const el2 = fakeEl('shelf2'); e.S.shelf(el2, e.ctx()); await flush();
     expect(e.calls.gets[3]).toContain('l=ur');
+    expect(e.calls.gets[3]).toContain('g=3');
+    // a language change alone remembers no grade: the server's grade stays
+    const e3 = env(); const el3 = fakeEl('s3'); e3.S.shelf(el3, e3.ctx()); await flush();
+    fire(el3, 'gl'); fire(el3, 'l', 'ur'); await flush();
+    expect(e3.store.getItem('wq_st_gl')).toBe(',ur');
+    e3.S.shelf(fakeEl('s4'), e3.ctx()); await flush();
+    expect(e3.calls.gets[2]).toContain('l=ur'); expect(e3.calls.gets[2]).not.toContain('g=');
   });
   test('an empty shelf: one kind line, no "coming soon"', async () => {
     const e = env({ replies: { shelf: { status: 200, body: { ...SHELF, books: [] } } } }); const el = fakeEl('shelf');
@@ -308,7 +337,7 @@ async function openReader(e, over = {}) {
 }
 function toMic(e, root) { fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onEnd(); fire(root, 'main'); }
 describe('the reader', () => {
-  test('page 1: the picture, one big button, ONE player (overlay) that also gets the text band', async () => {
+  test('page 1: the picture, one big button, ONE player (overlay) on the print; a zoomable page shows no band', async () => {
     const e = env(); const root = await openReader(e);
     const h = root.innerHTML;
     checkScreen(h, 'en');
@@ -322,7 +351,7 @@ describe('the reader', () => {
     expect(e.calls.ra).toHaveLength(1);
     const p = e.calls.ra[0];
     expect(p.o.mode).toBe('overlay'); expect(p.o.leadMs).toBe(50);
-    expect(p.o.band).toEqual({ url: '/s/b-1/p01-band.webp', x: 100, y: 800, w: 520, h: 130 });
+    expect(p.o.band).toBeUndefined();
     expect(p.data).toMatchObject({ v: 1, id: 'b-1/p1', lang: 'en', dir: 'ltr', audio: { url: '/a/p1.ogg' }, image: { url: '/s/b-1/p01.webp' } });
     expect(p.log).not.toContain('play');
   });
@@ -344,17 +373,38 @@ describe('the reader', () => {
     expect(ev.body).toMatchObject({ book_id: 'b-1', page_n: 1, data: { ms: 2600, completed: true } });
     expect(root.querySelector('[data-main]').textContent).toBe('Your turn');
   });
-  test('Your turn: the mic sheet (one OK, "Not now", a marked close), then reading with "I\'m done ✓" from the first render', async () => {
-    const e = env(); const root = await openReader(e);
+  test('no askMic: our minimal sheet (one OK, "Not now", a marked close); getUserMedia only inside the OK tap', async () => {
+    const e = env({ noAsk: true }); let asked = 0;
+    e.win.navigator = { mediaDevices: { getUserMedia: () => { asked += 1; return Promise.resolve({ id: 's' }); } } };
+    const root = await openReader(e);
     toMic(e, root);
-    let h = root.innerHTML;
+    const h = root.innerHTML;
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('story-mic');
     expect(h).toContain('Tap to let Jugnu hear you');
     expect(h).toMatch(/data-primary data-tap="mic">[^<]*OK/);
     expect(h).toContain('Not now, just listen');
     expect(h).toMatch(/data-back[^>]*>✕/);
-    fire(root, 'mic');
+    expect(asked).toBe(0);
+    fire(root, 'mic'); expect(asked).toBe(1);
+    await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-read');
+  });
+  test('askMic present: called per LIVEREAD §11 (lang, onStream, onDenied, onNotNow, src) when the sheet opens; its button is the primary', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    expect(screenOf(root.innerHTML)).toBe('story-mic');
+    expect(e.calls.ask).toHaveLength(1);
+    expect(e.calls.ask[0]).toMatchObject({ lang: 'en', src: 'story' });
+    expect(typeof e.calls.ask[0].onNotNow).toBe('function');
+    expect(e.calls.askEl.querySelector('.lr-go').attrs).toHaveProperty('data-primary');
+    expect(primaries(root.innerHTML)).toBe(0);
+    expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
+  });
+  test('Your turn: reading with "I\'m done ✓" from the first render', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    let h;
     expect(e.calls.ask).toHaveLength(1);
     e.calls.ask[0].onStream({ id: 'stream' });
     h = root.innerHTML;
@@ -374,13 +424,19 @@ describe('the reader', () => {
     fire(root, 'main');
     expect(c.log).toContain('stop:done_tap');
   });
-  test('"Not now, just listen": back to Listen, mic_declined not_now, nothing lost', async () => {
+  test('"Not now, just listen" (askMic onDenied(\'not_now\') or onNotNow): back to Listen, mic_declined not_now, nothing lost', async () => {
     const e = env(); const root = await openReader(e);
     toMic(e, root);
-    fire(root, 'notnow');
+    e.calls.ask[0].onDenied('not_now');
     expect(screenOf(root.innerHTML)).toBe('story-page');
     expect(root.innerHTML).toMatch(/data-main[^>]*>Listen</);
     expect(e.calls.ev).toContainEqual(['mic_declined', { src: 'story', how: 'not_now' }]);
+    const e2 = env(); const r2 = await openReader(e2);
+    toMic(e2, r2); e2.calls.ask[0].onNotNow();
+    expect(r2.innerHTML).toMatch(/data-main[^>]*>Listen</);
+    const e3 = env({ noAsk: true }); const r3 = await openReader(e3);
+    toMic(e3, r3); fire(r3, 'notnow');
+    expect(r3.innerHTML).toMatch(/data-main[^>]*>Listen</);
   });
   test('a result: story_page_read without the transcript; praise; practise the skipped word, then Next', async () => {
     const e = env(); const root = await openReader(e);
@@ -480,14 +536,13 @@ describe('the reader', () => {
     checkScreen(root.innerHTML, 'ur');
     expect(root.innerHTML).toContain('سنیں');
     toMic(e, root);
-    checkScreen(root.innerHTML, 'ur');
-    expect(root.innerHTML).toContain('جگنو کو اپنی آواز سنانے کے لیے دبائیں');
-    expect(root.innerHTML).toContain('ابھی نہیں، صرف سنیں');
+    expect(root.innerHTML).toMatch(/data-screen="story-mic" lang="ur" dir="rtl"/);
+    expect(e.calls.ask[0].lang).toBe('ur');
     fire(root, 'mic'); e.calls.ask[0].onStream({});
     checkScreen(root.innerHTML, 'ur');
     expect(root.innerHTML).toContain('میں نے پڑھ لیا ✓');
     e.calls.lr[0].o.onResult({ words_total: 5, words_read: 0, marks: [] });
-    expect(root.innerHTML).toContain('آؤ مل کر پڑھیں');
+    expect(root.innerHTML).toContain('آئیں مل کر پڑھیں');
   });
   test('stories off on a teacher link: a kind way home; offline: retry', async () => {
     const e = env({ replies: { book: { status: 404, body: { error: 'stories_off' } } } });
@@ -528,7 +583,7 @@ describe('questions and the done card', () => {
     fire(root, 'ans', 2);
     expect(root.innerHTML).toContain('wqs-chosen');
     await flush();
-    expect(e.calls.posts.find((x) => x.body.event === 'story_answer').body).toMatchObject({ book_id: 'b-1', event: 'story_answer', data: { n: 1, pick: 2 } });
+    expect(e.calls.posts.find((x) => x.body.event === 'story_answer').body).toMatchObject({ book_id: 'b-1', event: 'story_answer', data: { n: 1, i: 2 } });
     e.advance(899);
     expect(root.innerHTML).toContain('What is the day like?');
     e.advance(1);
@@ -591,7 +646,7 @@ describe('questions and the done card', () => {
     expect(h).toContain('۱ صفحہ سنا');
   });
   test('Look back (RULING #S7): a first miss wobbles, slides in the page that answers it, plays it on a tap, then a second try is taken', async () => {
-    const e = env({ hash: '#story/b-1/q', wqj: true, right: (d) => d.n === 1 && d.pick === 0 });
+    const e = env({ hash: '#story/b-1/q', wqj: true, right: (d) => d.n === 1 && d.i === 0 });
     const root = fakeEl('root');
     e.S.route(e.ctx({ root })); await flush();
     fire(root, 'ans', 2); await flush();
@@ -605,7 +660,7 @@ describe('questions and the done card', () => {
     expect(text(h)).not.toMatch(/wrong|try again|no\b/i);
     const p = e.calls.ra[e.calls.ra.length - 1];
     expect(p.data.id).toBe('b-1/p1');
-    expect(p.o.band).toEqual({ url: '/s/b-1/p01-band.webp', x: 100, y: 800, w: 520, h: 130 });
+    expect(p.o.band).toBeUndefined();
     expect(p.log).not.toContain('play');
     fire(root, 'lplay'); expect(p.log).toContain('play');
     fire(root, 'lret');
@@ -662,7 +717,7 @@ describe('questions and the done card', () => {
     const r2 = await openReader(e2, { lang: 'ur' });
     fire(r2, 'next'); fire(r2, 'next'); fire(r2, 'next'); await flush(); await flush();
     checkScreen(r2.innerHTML, 'ur');
-    expect(r2.innerHTML).toContain('آپ نے ایک نئی کہانی آزمائی!');
+    expect(r2.innerHTML).toContain('آپ نے ایک نئی کہانی شروع کی!');
   });
 });
 
@@ -723,16 +778,383 @@ describe('entries', () => {
 });
 
 describe('the shipped files', () => {
-  test('no answer key client side, no U+00B7, banned Urdu words absent from the copy, size budgets', () => {
-    const src = fs.readFileSync(SRC, 'utf8');
+  test('the lazy chunk: asked once at our ?v= when the reader opens; it failing to load is a kind retry, never a dead end', async () => {
+    const e = env(); const root = await openReader(e);
+    expect(e.calls.loaded.filter((x) => /wq-stories-q/.test(x.src)).map((x) => x.src)).toEqual(['/wq/wq-stories-q.js?v=abc123']);
+    toMic(e, root);
+    expect(screenOf(root.innerHTML)).toBe('story-mic');
+    const e2 = env({ qFail: true }); const r2 = await openReader(e2);
+    toMic(e2, r2);
+    checkScreen(r2.innerHTML, 'en');
+    expect(r2.innerHTML).toContain('data-tap="retry"');
+    expect(r2.innerHTML).toMatch(/data-back/);
+  });
+  test('no answer key client side, no U+00B7, banned Urdu words absent from the copy, size budgets (core <= 12 KB gz)', () => {
+    const src = fs.readFileSync(SRC, 'utf8') + fs.readFileSync(QSRC, 'utf8');
     const code = src.replace(/\/\*[\s\S]*?\*\//g, '');
     expect(src).not.toContain('answer_i');
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(src, { level: 9 }).length).toBeLessThanOrEqual(12 * 1024);
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12 * 1024);
+    expect(zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);
     const css = fs.readFileSync(CSS, 'utf8');
     expect(zlib.gzipSync(css, { level: 9 }).length).toBeLessThanOrEqual(3 * 1024);
     expect(css).toContain('prefers-reduced-motion');
+  });
+});
+
+// ---- round 2: one text, zoom to the line (reading-expert verdict) ------------------------------------------------
+describe('the camera (pure)', () => {
+  test('lines group by box y-overlap, in reading order', () => {
+    const e = env();
+    const ln = e.S._lines(book().pages[0]);
+    expect(ln.l.map((x) => x.i)).toEqual([[0, 1, 2], [3, 4]]);
+    expect(ln.of).toEqual([0, 0, 0, 1, 1]);
+    // Nastaliq: words of one line sit at slightly different heights, still one line
+    const ur = [[600, 500, 80, 40], [520, 506, 70, 34], [430, 498, 80, 44], [610, 560, 70, 40]].map((box, i) => ({ i, t: 'w', box }));
+    expect(e.S._lines({ words: ur }).l.map((x) => x.i)).toEqual([[0, 1, 2], [3]]);
+  });
+  test('whole page: contain-fit and centred', () => {
+    const e = env();
+    expect(e.S._cam(null, 360, 540, 720, 1080)).toMatchObject({ s: 0.5, tx: 0, ty: 0 });
+    expect(e.S._cam(null, 360, 600, 720, 1080)).toMatchObject({ s: 0.5, tx: 0, ty: 30 });
+  });
+  test('an EN line: fills the width up to 3x the whole page, centred, at 70 % of the height; words >= 26 px', () => {
+    const e = env();
+    const c = e.S._cam([[110, 810, 40, 50], [160, 810, 30, 50], [200, 810, 20, 50]], 360, 540, 720, 1080, false);
+    expect(c).toMatchObject({ s: 1.5, tx: -67.5, ty: -874.5, ok: true });
+    expect(c.px).toBe(75);
+  });
+  test('an RTL Urdu line wider than the screen: 26 px words, the line START (right edge) in view', () => {
+    const e = env();
+    const line = [[600, 500, 80, 18], [400, 500, 150, 18], [40, 500, 300, 18]];
+    const c = e.S._cam(line, 360, 540, 720, 1080, true);
+    expect(c.ok).toBe(true);
+    expect(c.px).toBeCloseTo(26, 0);
+    expect(680 * c.s + c.tx).toBeCloseTo(345.6, 0);
+    const l = e.S._cam(line, 360, 540, 720, 1080, false);
+    expect(40 * l.s + l.tx).toBeCloseTo(14.4, 0);
+  });
+  test('print too small for 26 px within 3x: not ok', () => {
+    const e = env();
+    expect(e.S._cam([[100, 900, 30, 8], [140, 900, 30, 8]], 360, 540, 720, 1080, false).ok).toBe(false);
+  });
+  test('the sweep mark: the word box, else its line row, else a progress bar (from the right for Urdu)', () => {
+    const e = env();
+    const p = book().pages[0];
+    expect(e.S._mark(p, 1, null, false)).toEqual([160, 810, 30, 50]);
+    const q = { ...p, words: p.words.map((w, i) => (i === 4 ? { ...w, box: undefined } : w)) };
+    expect(e.S._mark(q, 4, [100, 800, 520, 130], false)).toEqual([100, 870, 520, 50, 1]);
+    const n = book().pages[2];
+    expect(e.S._mark(n, 1, [100, 800, 520, 130], false)).toEqual([100, 800, 260, 130, 1]);
+    expect(e.S._mark(n, 1, [100, 800, 520, 130], true)).toEqual([360, 800, 260, 130, 1]);
+    expect(e.S._mark(n, 1, null, false)).toEqual([0, 1040, 360, 40, 1]);
+  });
+});
+
+describe('the reader zooms to the printed line', () => {
+  const T0 = 'translate(0px,0px) scale(0.5)';
+  test('whole page before Listen; on Listen the line; the next line as the word moves; Whole page toggle; back out after the last word; Your turn zoomed', async () => {
+    const e = env(); const root = await openReader(e);
+    const h = root.innerHTML;
+    expect(h).toMatch(/data-cam style="width:720px;height:1080px"/);
+    expect(h).toContain('Whole page');
+    const cam = root.querySelector('[data-cam]');
+    expect(cam.style.transform).toBe(T0);
+    const p = e.calls.ra[0];
+    fire(root, 'main');
+    expect(cam.style.transform).toBe('translate(-67.5px,-874.5px) scale(1.5)');
+    p.o.onWord(1);
+    expect(cam.style.transform).toBe('translate(-67.5px,-874.5px) scale(1.5)');
+    p.o.onWord(3);
+    expect(cam.style.transform).toBe('translate(-285px,-964.5px) scale(1.5)');
+    fire(root, 'cam');
+    expect(cam.style.transform).toBe(T0);
+    p.o.onWord(4);
+    expect(cam.style.transform).toBe(T0);
+    fire(root, 'cam');
+    expect(cam.style.transform).toBe('translate(-285px,-964.5px) scale(1.5)');
+    p.o.onEnd();
+    expect(cam.style.transform).toBe(T0);
+    fire(root, 'main'); fire(root, 'mic'); e.calls.ask[0].onStream({});
+    const r = root.innerHTML;
+    expect(r).toMatch(/data-cam[^>]*><div class="wqs-lr" data-lr><\/div>/);
+    expect(root.querySelector('[data-cam]').style.transform).toBe('translate(-67.5px,-874.5px) scale(1.5)');
+    checkScreen(r, 'en');
+  });
+  test('print too small to zoom + a text band (overlay page): band passed to the ONE player, its crop laid over the print region; no crop of ours', async () => {
+    const bk = book(); bk.pages[0].words = bk.pages[0].words.map((w) => ({ ...w, box: [w.box[0], w.box[1], w.box[2], 8] }));
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    const h = root.innerHTML;
+    expect(h).not.toMatch(/band|wqs-lens|data-mk/);
+    const p = e.calls.ra[0];
+    expect(p.o.band).toEqual({ url: '/s/b-1/p01-band.webp', x: 100, y: 800, w: 520, h: 130 });
+    const be = p.el.querySelector('.wqra-band');
+    expect([be.style.left, be.style.top, be.style.width, be.style.height]).toEqual(['100px', '800px', '520px', '130px']);
+    fire(root, 'main');
+    expect(root.querySelector('[data-cam]').style.transform).not.toBe(T0);
+  });
+  test('a strip page (boxes_ok:false, no lines) + a text band: our crop over the print region and our sweep; no band to the player', async () => {
+    const bk = book(); bk.pages[0].boxes_ok = false; bk.pages[0].words = bk.pages[0].words.map((w, i) => (i === 4 ? { ...w, box: undefined } : w));
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    const h = root.innerHTML;
+    expect(h).toMatch(/<img class="wqs-lens" src="\/s\/b-1\/p01-band.webp" width="1440" height="260"[^>]*style="left:100px;top:800px;width:520px;height:130px"/);
+    expect((h.match(/p01-band/g) || []).length).toBe(1);
+    const p = e.calls.ra[0];
+    expect(p.o.band).toBeUndefined(); expect(p.o.mode).toBe('strip');
+    fire(root, 'main'); p.o.onWord(4);
+    const mk = root.querySelector('[data-mk]');
+    expect([mk.style.left, mk.style.top, mk.style.width, mk.style.height, mk.style.opacity]).toEqual(['100px', '870px', '520px', '50px', '1']);
+  });
+  test('boxes_ok=false and no band: the whole page with a sweep, no zoom, no toggle', async () => {
+    const bk = book(); bk.pages[0].boxes_ok = false; bk.pages[0].text_band = null; bk.pages[0].words = bk.pages[0].words.map(({ box, ...w }) => w);
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    expect(root.innerHTML).not.toContain('Whole page');
+    expect(root.innerHTML).not.toContain('wqs-lens');
+    const p = e.calls.ra[0];
+    expect(p.o.mode).toBe('strip');
+    fire(root, 'main'); p.o.onWord(1);
+    const mk = root.querySelector('[data-mk]');
+    expect([mk.style.left, mk.style.width]).toEqual(['0px', '288px']);
+    expect(root.querySelector('[data-cam]').style.transform).toBe(T0);
+  });
+  test('the highlight is a tight bordered box, never a glow; read marks are underlines', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs-cam \.wqra-pill[^{]*\{[^}]*border:4px solid[^}]*\}/);
+    expect(css).toMatch(/\.wqs-cam \.wqra-pill[^{]*\{[^}]*box-shadow:none/);
+    expect(css).not.toMatch(/\.wqs-print/);
+    expect(css).toMatch(/\.lr-read\{background:linear-gradient\(transparent/);
+    expect(css).toMatch(/\.lr-skipped\{[^}]*dashed/);
+    expect(css).toMatch(/\.wqs-cam\{[^}]*transition:transform \.6s/);
+  });
+  test('Urdu: the toggle reads «پورا صفحہ»', async () => {
+    const e = env({ replies: { book: { status: 200, body: book({ lang: 'ur', dir: 'rtl' }) } } });
+    const root = await openReader(e, { lang: 'ur' });
+    expect(root.innerHTML).toContain('پورا صفحہ');
+  });
+});
+
+describe('the finish card and Home', () => {
+  async function toDone(e) { const root = await openReader(e); runBook(e, root); await flush(); await flush(); return root; }
+  test('card_v3: loads wq-finish-card at our ?v=, mounts on our button row with the real API, hides our block', async () => {
+    let got = null;
+    const e = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: (w) => { w.WQFC = { mount(el, o) { got = { el, o }; return true; } }; } });
+    const root = await toDone(e);
+    expect(e.calls.loaded.map((x) => x.src || x.href).filter((u) => /finish-card/.test(u))).toEqual(['/wq/wq-finish-card.css?v=abc123', '/wq/wq-finish-card.js?v=abc123']);
+    expect(got.el).toBe(root.querySelector('[data-col]'));
+    expect(got.o).toEqual({ kind: 'book', deed: 'book_read', lang: 'en', title: 'Mina Testwala', cover: undefined, next: null, home: '#', auth: { hub: TOKEN, kid: KID }, ev: expect.any(Function) });
+    expect(root.querySelector('[data-own]').hidden).toBe(true);
+  });
+  test('the card refuses (false) -> our own block stays; no card_v3 -> nothing loaded', async () => {
+    const e = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: (w) => { w.WQFC = { mount: () => false }; } });
+    const root = await toDone(e);
+    expect(root.querySelector('[data-own]').hidden).toBe(false);
+    expect(root.innerHTML).toContain('A new sticker for your Book!');
+    const e2 = env({ replies: { book: { status: 200, body: book({ questions: [] }) } } });
+    await toDone(e2);
+    expect(e2.calls.loaded.filter((x) => /finish-card/.test(x.src || x.href))).toHaveLength(0);
+  });
+  test('Home: the hash is cleared with replaceState and a hashchange is dispatched (so the home re-renders)', async () => {
+    const e = env({ replies: { book: { status: 200, body: book({ questions: [] }) } } });
+    const root = await toDone(e);
+    fire(root, 'home');
+    expect(e.calls.hist).toEqual(['/h/tok?x=1']);
+    expect(e.calls.disp).toEqual(['hashchange']);
+  });
+});
+
+describe('review items (lead-stories-2 early review)', () => {
+  test('the home slot is [data-stories-shelf] (hub-play owns [data-shelf])', () => {
+    const src = fs.readFileSync(SRC, 'utf8');
+    expect(src).toContain("querySelector('[data-stories-shelf]')");
+    expect(src).not.toContain("'[data-shelf]'");
+  });
+  test('Urdu sheet copy without askMic: «ابھی نہیں، صرف سنیں»', async () => {
+    const e = env({ noAsk: true, replies: { book: { status: 200, body: book({ lang: 'ur', dir: 'rtl' }) } } });
+    const root = await openReader(e, { lang: 'ur' });
+    toMic(e, root);
+    checkScreen(root.innerHTML, 'ur');
+    expect(root.innerHTML).toContain('ابھی نہیں، صرف سنیں');
+    expect(root.innerHTML).toContain('جگنو کو اپنی آواز سنانے کے لیے دبائیں');
+  });
+  test('the page hidden: the listen player pauses and its clock stops; a reading is stopped', async () => {
+    const e = env(); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    fire(root, 'main'); e.advance(1000);
+    e.doc.visibilityState = 'hidden'; e.doc.L.visibilitychange.forEach((f) => f());
+    expect(p.log).toEqual(['play', 'pause']);
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    e.advance(5000);
+    fire(root, 'next');
+    const ev = e.calls.posts.find((x) => x.body.event === 'story_page_listened');
+    expect(ev.body.data).toEqual({ ms: 1000, completed: false });
+    const e2 = env(); const r2 = await openReader(e2);
+    toMic(e2, r2); e2.calls.ask[0].onStream({});
+    e2.doc.visibilityState = 'hidden'; e2.doc.L.visibilitychange.forEach((f) => f());
+    expect(e2.calls.lr[0].log).toContain('stop:hidden');
+  });
+  test('the look-back screen has a back control; the shelf retry has a home link', async () => {
+    const e = env({ hash: '#story/b-1/q', right: () => false });
+    const root = fakeEl('root');
+    e.S.route(e.ctx({ root })); await flush();
+    fire(root, 'ans', 2); await flush(); e.advance(600);
+    expect(screenOf(root.innerHTML)).toBe('story-look');
+    expect(root.innerHTML).toMatch(/data-back data-tap="lret"/);
+    const e2 = env({ fail: () => true }); const el = fakeEl('shelf');
+    e2.S.shelf(el, e2.ctx()); await flush();
+    expect(el.innerHTML).toMatch(/data-home/);
+  });
+  test('the own done card: a WhatsApp share (deed + title, no digits) that posts story_shared; WQFC gets the cover', async () => {
+    const e = env({ replies: { book: { status: 200, body: book({ questions: [], cover: '/s/b-1/cover.webp' }) } } });
+    const root = await openReader(e); runBook(e, root); await flush(); await flush();
+    const a = /<a [^>]*href="https:\/\/wa\.me\/\?text=([^"]*)"[^>]*>/.exec(root.innerHTML);
+    expect(a[0]).toMatch(/target="_blank" rel="noopener"/);
+    const msg = decodeURIComponent(a[1]);
+    expect(msg).toContain('Mina Testwala');
+    expect(msg).not.toMatch(/[0-9]/);
+    fire(root, 'share');
+    expect(e.calls.posts.find((x) => x.body.event === 'story_shared').body).toMatchObject({ book_id: 'b-1', event: 'story_shared' });
+    let got = null;
+    const e2 = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true, cover: '/s/b-1/cover.webp' }) } }, onLoad: (w) => { w.WQFC = { mount(el, o) { got = o; return true; } }; } });
+    const r2 = await openReader(e2); runBook(e2, r2); await flush(); await flush();
+    expect(got.cover).toBe('/s/b-1/cover.webp');
+  });
+});
+
+// ---- server lines[] and chunked Your turn ------------------------------------------------------------------------
+function longPage(n, perLine, withLines) {
+  const words = []; const lines = [];
+  for (let i = 0; i < n; i += 1) words.push({ i, t: 'w' + i, s_ms: i * 300, e_ms: i * 300 + 250 });
+  for (let k = 0; k * perLine < n; k += 1) lines.push({ i0: k * perLine, i1: Math.min(n, (k + 1) * perLine) - 1, box: [40, 100 + k * 60, 640, 40] });
+  return { n: 1, image: { url: '/s/b-1/p01.webp', w: 720, h: 1080 }, text_band: null, text: '', words, audio: { url: '/a/p1.ogg', ms: n * 300 }, boxes_ok: false, is_picture: false, lines: withLines ? lines : undefined };
+}
+describe('server lines[] and chunked Your turn', () => {
+  test('the line pick: lines[k] contains word i; the camera uses lines[k].box', () => {
+    const e = env();
+    const p = longPage(30, 10, true);
+    const ln = e.S._lines(p);
+    expect(ln.of[0]).toBe(0); expect(ln.of[9]).toBe(0); expect(ln.of[10]).toBe(1); expect(ln.of[29]).toBe(2);
+    expect(ln.l[1].bs).toEqual([[40, 160, 640, 40]]);
+  });
+  test('the chunk split: <= 40 words is one chunk; longer pages go by consecutive lines, <= 25 words a chunk; no lines -> 25-word slices', () => {
+    const e = env();
+    expect(e.S._chunks(longPage(30, 10, true), e.S._lines(longPage(30, 10, true)))).toEqual([[0, 29]]);
+    const p = longPage(60, 10, true);
+    expect(e.S._chunks(p, e.S._lines(p))).toEqual([[0, 19], [20, 39], [40, 59]]);
+    const q = longPage(50, 12, true);
+    expect(e.S._chunks(q, e.S._lines(q))).toEqual([[0, 23], [24, 47], [48, 49]]);
+    const r = longPage(50, 10, false);
+    expect(e.S._chunks(r, e.S._lines(r))).toEqual([[0, 24], [25, 49]]);
+  });
+  test('boxes_ok:false WITH lines: zoom to the line box; a soft underline sweeps across it by word', async () => {
+    const bk = book(); bk.pages[0] = longPage(30, 10, true);
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    expect(p.o.mode).toBe('strip');
+    fire(root, 'main'); p.o.onWord(14);
+    const c = e.S._cam([[40, 160, 640, 40]], 360, 540, 720, 1080, false);
+    expect(root.querySelector('[data-cam]').style.transform).toBe(`translate(${c.tx}px,${c.ty}px) scale(${c.s})`);
+    const mk = root.querySelector('[data-mk]');
+    expect([mk.style.left, mk.style.top, mk.style.width, mk.style.height]).toEqual(['40px', '194px', '320px', '6px']);
+  });
+  test('a 60-word page: WQLiveRead once per chunk with the slice, ONE story_page_read with summed numbers', async () => {
+    const bk = book(); bk.pages[0] = longPage(60, 10, true);
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({ id: 's' });
+    expect(e.calls.lr).toHaveLength(1);
+    expect(e.calls.lr[0].o.words.map((w) => w.i)).toEqual([...Array(20).keys()]);
+    const res = (a, k) => ({ words_total: 20, words_read: a, skipped: k, ms: 1000, ended: 'last_word', marks: Array(20).fill('read') });
+    e.calls.lr[0].o.onResult(res(20, 0));
+    expect(e.calls.posts.filter((x) => x.body.event === 'story_page_read')).toHaveLength(0);
+    expect(e.calls.lr[1].o.words[0].i).toBe(20);
+    expect(e.calls.lr[1].o.stream).toEqual({ id: 's' });
+    expect(screenOf(root.innerHTML)).toBe('story-read');
+    e.calls.lr[1].o.onResult(res(18, 2));
+    e.calls.lr[2].o.onResult(res(20, 0));
+    const pr = e.calls.posts.filter((x) => x.body.event === 'story_page_read');
+    expect(pr).toHaveLength(1);
+    expect(pr[0].body.data).toEqual({ words_total: 60, words_read: 58, skipped: 2, ms: 3000, ended: 'last_word' });
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+  });
+  test('I\'m done during a chunk ends the whole page read', async () => {
+    const bk = book(); bk.pages[0] = longPage(60, 10, true);
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    fire(root, 'main');
+    expect(e.calls.lr[0].log).toContain('stop:done_tap');
+    e.calls.lr[0].o.onResult({ words_total: 20, words_read: 5, skipped: 0, ms: 900, ended: 'done_tap', marks: [] });
+    expect(e.calls.lr).toHaveLength(1);
+    expect(e.calls.posts.filter((x) => x.body.event === 'story_page_read')[0].body.data).toMatchObject({ words_read: 5, ended: 'done_tap' });
+  });
+});
+
+describe('question audio and the slower voice', () => {
+  test('per-question clips: the question and its options are warmed in parallel when it appears', async () => {
+    const e = env({ hash: '#story/b-1/q' });
+    const root = fakeEl('root');
+    e.S.route(e.ctx({ root })); await flush();
+    expect(e.calls.audios.map((a) => a.src)).toEqual(['/a/q1.ogg', '/a/q1o1.ogg', '/a/q1o2.ogg', '/a/q1o3.ogg']);
+    expect(e.calls.audios.every((a) => a.preload === 'auto')).toBe(true);
+    fire(root, 'say', 1);
+    expect(e.calls.audios[4].src).toBe('/a/q1o2.ogg');
+    expect(e.calls.audios[4].paused).toBe(false);
+  });
+  test('a questions sprite: ONE audio, a clip plays from s_ms and pauses at e_ms; 🔊 shown from the sprite alone', async () => {
+    const bk = book(); bk.questions.forEach((q) => { delete q.audio; });
+    bk.questions_sprite = { url: '/a/qs.ogg', clips: { q1: { s_ms: 0, e_ms: 1200 }, q1o1: { s_ms: 1300, e_ms: 1800 }, q1o2: { s_ms: 1900, e_ms: 2400 }, q2: { s_ms: 2500, e_ms: 3600 } } };
+    const e = env({ hash: '#story/b-1/q', replies: { book: { status: 200, body: bk } } });
+    const root = fakeEl('root');
+    e.S.route(e.ctx({ root })); await flush();
+    expect(e.calls.audios.map((a) => a.src)).toEqual(['/a/qs.ogg']);
+    const a = e.calls.audios[0];
+    expect(a.preload).toBe('auto');
+    const h = root.innerHTML;
+    expect((h.match(/data-tap="say"/g) || []).length).toBe(3);
+    fire(root, 'say', 1);
+    expect(a.currentTime).toBe(1.9); expect(a.paused).toBe(false);
+    a.currentTime = 2.3; e.advance(40); expect(a.paused).toBe(false);
+    a.currentTime = 2.41; e.advance(40); expect(a.paused).toBe(true);
+    expect(e.calls.audios).toHaveLength(1);
+  });
+  test('🐢 Slower: playbackRate 0.85 with pitch kept, remembered per child, applied after a page change; no number shown; not the primary', async () => {
+    const e = env(); const root = await openReader(e);
+    const h = root.innerHTML;
+    expect(h).toMatch(/<button class="wqs-slow" data-tap="slow" aria-pressed="false">🐢 Slower<\/button>/);
+    expect(text(h.split('wqs-slow')[1].split('</button>')[0])).not.toMatch(/[0-9]/);
+    fire(root, 'slow');
+    const p = e.calls.ra[0];
+    expect(p.audio.playbackRate).toBe(0.85); expect(p.audio.preservesPitch).toBe(true);
+    expect(e.store.getItem('wq_st_slow:' + KID)).toBe('1');
+    fire(root, 'next'); fire(root, 'prev');
+    const p2 = e.calls.ra[e.calls.ra.length - 1];
+    expect(p2).not.toBe(p);
+    expect(p2.audio.playbackRate).toBe(0.85);
+    expect(root.innerHTML).toMatch(/data-tap="slow" aria-pressed="true"/);
+    fire(root, 'slow');
+    expect(p2.audio.playbackRate).toBe(1);
+    const ur = env({ replies: { book: { status: 200, body: book({ lang: 'ur', dir: 'rtl' }) } } });
+    const r2 = await openReader(ur, { lang: 'ur' });
+    expect(r2.innerHTML).toContain('🐢 آہستہ');
+  });
+});
+
+describe('lines without a box (the full export)', () => {
+  test('a line with no box: no zoom for it (the whole page) and its words get the bottom sweep; boxed lines still zoom', async () => {
+    const bk = book(); const p = longPage(30, 10, true);
+    delete p.lines[1].box;
+    bk.pages[0] = p;
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    expect(e.S._lines(p).l[1].bs).toEqual([]);
+    const pl = e.calls.ra[0]; const cam = root.querySelector('[data-cam]');
+    fire(root, 'main');
+    const z0 = cam.style.transform;
+    expect(z0).not.toBe('translate(0px,0px) scale(0.5)');
+    pl.o.onWord(12);
+    expect(cam.style.transform).toBe('translate(0px,0px) scale(0.5)');
+    const mk = root.querySelector('[data-mk]');
+    expect([mk.style.left, mk.style.top, mk.style.height]).toEqual(['0px', '1040px', '40px']);
+    pl.o.onWord(25);
+    expect(cam.style.transform).not.toBe('translate(0px,0px) scale(0.5)');
   });
 });
