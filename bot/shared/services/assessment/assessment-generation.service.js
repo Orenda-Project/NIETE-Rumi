@@ -914,14 +914,17 @@ const RULE = {
   // English on chosen chapters or pages: FDE's Q1(a)/(b) topic list is not given; the points come from the pages.
   pagesPoints: 'Q1(a) and Q1(b) test only the grammar and word-study points these pages teach. Before writing, list those points to yourself; the reply is still the JSON only.',
   pagesRest: 'If the pages teach fewer points than there are items, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.',
+  oneKeyEnglish: 'A homophone or spelling MCQ has exactly one option that satisfies the stem.',
+  q5Poem: 'Q5 uses a poem printed in the book. If these pages hold no poem, take the nearest poem in the syllabus, name its unit in the title, and print its lines verbatim; never write verse and never call prose a poem.',
   noAnagram: 'Never set an item that asks the child to rearrange, unscramble or reorder letters to make a word.',
 };
 
-// The model lands one or two short of a counted word-problem rule (round-4 local papers: Q2
-// 5, 8, 5 of 12 asked for 6), so each count sits one above the floor the ToS needs.
-// Maths Q1(b): this many of its one-step items are word problems (floor 3).
+// Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
+// the model lands one or two short of a counted rule (round-4 local papers: Q2 5, 8, 5 of 12 asked for 6).
 const MATHS_Q1B_WORDS = 4;
 // English on chosen pages: the slot fields that carry FDE's model-paper topic list, and what replaces them.
+// English bans anagram items, so FDE scope's Q1(a) topic list loses its "anagrams" entry at assembly.
+const ENGLISH_FDE_Q1A_ANAGRAMS = ', anagrams';
 const ENGLISH_PAGES_SLOTS = Object.freeze({
   'english.A.Q1a': { prompt_rule: 'Twenty four-option MCQs, one point each. Never refer to an underline the paper cannot show; quote the word instead.' },
   'english.A.Q1b': {
@@ -1035,6 +1038,9 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
         grain: pagesSlot.grain_kind && s.grain ? { ...s.grain, kind: pagesSlot.grain_kind } : s.grain,
       };
     }
+    if (key === 'english' && s.slot === 'english.A.Q1a' && typeof s.prompt_rule === 'string') {
+      return { ...s, prompt_rule: s.prompt_rule.replace(ENGLISH_FDE_Q1A_ANAGRAMS, '') };
+    }
     // Maths MCQs: the ToS floor's recall count replaces the slot's 3-to-5.
     if (key === 'maths' && typeof s.prompt_rule === 'string' && s.prompt_rule.includes(MATHS_RECALL_FROM)) {
       return { ...s, prompt_rule: s.prompt_rule.replace(MATHS_RECALL_FROM, MATHS_RECALL_TO) };
@@ -1047,6 +1053,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (mathsC) rules.push(RULE.mathsSectionC);
   if (!fde && key === 'english' && hasMcq) rules.push(RULE.grammarFromPages);
   if (!fde && key === 'english' && list.some((s) => ENGLISH_PAGES_SLOTS[s.slot])) rules.push(RULE.pagesPoints, RULE.pagesRest);
+  if (!fde && key === 'english' && list.some((s) => s.slot === 'english.C.Q5')) rules.push(RULE.q5Poem);
   if (key === 'english') rules.push(RULE.noAnagram);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) {
     rules.push('Science: a situation comes only from the book activities its slot\'s rule lists, never another.');
@@ -1067,8 +1074,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     if (q1b) rules.push(RULE.mathsQ1bWords(Math.min(MATHS_Q1B_WORDS, q1b.generate), q1b.generate));
     const q2 = list.find((s) => s.slot === 'maths.B.Q2');
     if (q2) {
-      // Half of Q2, rounded up, is the floor; ask for one more.
-      const need = Math.ceil(q2.generate / 2) + 1;
+      const need = Math.ceil(q2.generate / 2);
       rules.push(RULE.mathsQ2Words(need, q2.generate));
       // FDE's families carry one word problem each; the rest of the count comes from their other items.
       const extra = Array.isArray(q2.families) ? need - q2.families.length : 0;
@@ -1080,7 +1086,8 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     if (key !== 'maths') rules.push(`In this section, ${RULE.recall}.`);
     rules.push(RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
     // Word MCQs (anagram, homophone, spelling) on the language papers; number options on Maths and Science.
-    if (key === 'english' || key === 'urdu') rules.push(RULE.oneKey);
+    if (key === 'english') rules.push(RULE.oneKeyEnglish);
+    if (key === 'urdu') rules.push(RULE.oneKey);
     if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
     if (key === 'maths') rules.push(RULE.propertyOneKey);
   }

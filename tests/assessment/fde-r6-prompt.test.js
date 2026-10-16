@@ -93,7 +93,8 @@ describe('pattern prompt rules', () => {
   });
 
   test('one-key anagram rule', () => {
-    expect(prompt('english', 'A')).toContain(ANAGRAM);
+    // English bans anagram items (round 4), so its one-key sentence no longer names them.
+    expect(prompt('english', 'A')).not.toContain(ANAGRAM);
     expect(prompt('urdu', 'A')).toContain(ANAGRAM);
     expect(prompt('english', 'C')).not.toContain(ANAGRAM);
     for (const s of ['maths', 'science', 'social_studies']) expect(prompt(s, 'A')).not.toContain(ANAGRAM);
