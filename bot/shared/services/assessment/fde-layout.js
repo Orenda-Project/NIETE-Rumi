@@ -799,9 +799,58 @@ function tierSlip(q) {
   return tiersIn(stem).size === 0 && !jobsOf(stem, tier) && otherJob(stem, tier);
 }
 
+// Urdu: a Q1 MCQ keyed on a word of a Q6 verse line it asks about: its key's words are all in the
+// line and its stem carries at least two of the line's other words («ندی کا پانی صاف ہو گا تو ہم کس
+// چیز سے بچیں گے؟ → بیماری» beside «پانی جو صاف ہوگا بیماری سے بچوگے»), or it quotes a line. A
+// key the verse merely shares («اور», «رات») with a stem about something else is no twin.
+const VERSE_ASKS = 2;
+function verseTwin(q6s) {
+  const lines = q6s.flatMap((q) => verseLines(q.passage).lines);
+  if (!lines.length) return null;
+  const read = lines.map((l) => ({ tokens: new Set(tokensOf(l)), words: plain(l).split(' ') }));
+  return (q) => {
+    const key = tokensOf(keyText(q));
+    const stem = tokensOf(q.question).filter((w) => !key.includes(w));
+    if (key.length && read.some((l) => key.every((w) => l.tokens.has(w)) && stem.filter((w) => l.tokens.has(w)).length >= VERSE_ASKS)) return true;
+    return sentencesOf(q, false).some((t) => read.some((l) => printedIn(t, l.words)));
+  };
+}
+
+// Urdu: a Q1 MCQ about a word Q3 (meanings) or Q5 (sentences) lists: its stem names the word and
+// asks its meaning, or it is keyed on the meaning Q3's own answer gives it («اقتصادی» → «معاشی
+// حالت سے» beside Q3's «اقتصادی: معاشی، …»). A Q1 item asking a listed word's opposite or its kind
+// of noun, keyed on something else, stays.
+const MEANING_ASK = /مطلب|معنی|معانی|مراد|مفہوم/;
+function meaningTwin(lists) {
+  const words = [...new Set(lists.flatMap((q) => (Array.isArray(q.words) ? q.words : [])).map(plain).filter(Boolean))];
+  if (!words.length) return null;
+  const meanings = new Map();
+  for (const q of lists.filter((x) => x.slot === 'urdu.C.Q3' && typeof x.answer === 'string')) {
+    for (const line of q.answer.split('\n')) {
+      const [w, ...rest] = line.split(/[:：]/);
+      if (rest.length && plain(w)) meanings.set(plain(w), new Set(tokensOf(rest.join(' '))));
+    }
+  }
+  return (q) => {
+    const stem = ` ${plain(q.question)} `;
+    const named = words.filter((w) => stem.includes(` ${w} `));
+    if (!named.length) return false;
+    if (MEANING_ASK.test(String(q.question))) return true;
+    const key = tokensOf(keyText(q));
+    return named.some((w) => meanings.has(w) && key.some((t) => meanings.get(w).has(t)));
+  };
+}
+
+// Urdu Section C against Q1: Q4's twins, Q6's verse, Q3/Q5's words, each read from its own slot.
+function urduTwin(placed) {
+  const of = (...ids) => placed.filter((q) => ids.includes(q.slot));
+  const rules = [q4Twin(of('urdu.C.Q4')), verseTwin(of('urdu.C.Q6')), meaningTwin(of('urdu.C.Q3', 'urdu.C.Q5'))].filter(Boolean);
+  return rules.length ? (q) => rules.some((r) => r(q)) : null;
+}
+
 const CROSS_HOLD = {
   english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words },
-  urdu: { held: ['urdu.A.Q1'], against: 'urdu.C.Q4', rule: q4Twin },
+  urdu: { held: ['urdu.A.Q1'], against: ['urdu.C.Q4', 'urdu.C.Q6', 'urdu.C.Q3', 'urdu.C.Q5'], rule: urduTwin },
   social_studies: { held: ['social_studies.C.Q5', 'social_studies.D.Q7'], against: 'social_studies.A.Q1', rule: sameFact },
 };
 
@@ -829,10 +878,16 @@ const writtenKey = (text) => plain(text).split(' ')
   .filter((w) => w && !CASE_MARKERS.has(w))
   .map((w) => COPULA[w] || (/^\p{Script=Arabic}{4,}$/u.test(w) ? w.replace(/(?:وں|یں|ے|ہ|ی|ا)$/, '') : w))
   .join(' ');
+// Urdu: the same stem keyed the same is one question, whatever distractor a rewrite changed (a
+// top-up told to write nothing it kept rewrote one with a single option swapped).
+function sameStemKey(a, b) {
+  const s = plain(a.question);
+  return Boolean(s) && s === plain(b.question) && Boolean(plain(keyText(a))) && plain(keyText(a)) === plain(keyText(b));
+}
 function sameQuestion(a, b) {
   const [sa, sb] = [plain(a.question), plain(b.question)];
   if (!sa || !sb) return false;
-  const opts = (q) => (Array.isArray(q.options) ? q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).sort().join('|') : '');
+  const opts =(q) => (Array.isArray(q.options) ? q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).sort().join('|') : '');
   if (opts(a) !== opts(b)) return false;
   if (sa === sb) return true;
   if (!opts(a)) { const k = writtenKey(a.question); return Boolean(k) && k === writtenKey(b.question); }
@@ -847,7 +902,8 @@ function sameQuestion(a, b) {
  *
  * What the engine's one re-ask of `section` is told, from the first layout (`examJson`): the
  * facts the slot its items are held against already tests. Social Studies C/D: Section A's
- * questions and answers. English A: Q4's words. Urdu A: Q4's questions and answers. Null for any
+ * questions and answers. English A: Q4's words. Urdu A: Q4's questions and answers, Q3/Q5's
+ * words and Q6's verse. Null for any
  * other section or subject, so no
  * other prompt changes.
  */
@@ -858,7 +914,7 @@ function takenNote(P, section, examJson, opts = {}) {
   for (const branch of ['seen', 'unseen']) {
     for (const types of Object.values((examJson && examJson[branch]) || {})) {
       for (const list of Object.values(types || {})) {
-        if (Array.isArray(list)) against.push(...list.filter((q) => q && q.slot === cross.against));
+        if (Array.isArray(list)) against.push(...list.filter((q) => q && [].concat(cross.against).includes(q.slot)));
       }
     }
   }
@@ -872,12 +928,24 @@ function takenNote(P, section, examJson, opts = {}) {
     // A Q4 stem can carry its options on the lines below it; the first line is the question. The
     // answers Q4 also accepts are named too: an MCQ keyed on one of them is held as well.
     const also = (q) => [...new Set(acceptOf(q).map((a) => a.trim()).filter((a) => a && plain(a) !== plain(keyText(q))))];
-    const asked = against.filter((q) => typeof q.question === 'string' && q.question.trim() && keyText(q).trim())
+    const asked = against.filter((q) => q.slot === 'urdu.C.Q4' && typeof q.question === 'string' && q.question.trim() && keyText(q).trim())
       .map((q) => `- ${q.question.trim().split('\n')[0].trim()} → ${keyText(q).trim().replace(/\s*\n\s*/g, '; ')}`
         + (also(q).length ? ` (also accepted: ${also(q).join('; ')})` : ''));
-    if (!asked.length) return null;
-    return `Q4 of this paper already asks these (question → answer):\n${asked.join('\n')}\n`
-      + 'No MCQ you write in this section may be keyed on any of these answers or ask any of these again.';
+    const notes = asked.length ? [`Q4 of this paper already asks these (question → answer):\n${asked.join('\n')}\n`
+      + 'No MCQ you write in this section may be keyed on any of these answers or ask any of these again.'] : [];
+    // Q3 and Q5's words, and Q6's verse, are printed in Section C: an MCQ on them gives C away.
+    const words = [...new Set(against.filter((q) => q.slot === 'urdu.C.Q3' || q.slot === 'urdu.C.Q5')
+      .flatMap((q) => (Array.isArray(q.words) ? q.words : [])).filter((w) => typeof w === 'string' && w.trim()).map((w) => w.trim()))];
+    if (words.length) {
+      notes.push(`Q3 and Q5 of this paper ask the meaning of, or a sentence with, these words: ${words.join('، ')}\n`
+        + 'No MCQ you write in this section may ask the meaning of any of these words, or be keyed on their meaning.');
+    }
+    const verses = against.filter((q) => q.slot === 'urdu.C.Q6').flatMap((q) => verseLines(q.passage).lines);
+    if (verses.length) {
+      notes.push(`Q6 of this paper prints these verses:\n${verses.join('\n')}\n`
+        + 'No MCQ you write in this section may ask about these verses or be answered from them.');
+    }
+    return notes.length ? notes.join('\n\n') : null;
   }
   const facts = against.filter((q) => typeof q.question === 'string' && q.question.trim())
     .map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
@@ -926,7 +994,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
 
   const all = walk(src);
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
-  const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q));
+  const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q)) || (P.key === 'urdu' && sameStemKey(p, q));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
   const place = (cross) => {
     bySlot.forEach((list) => { list.length = 0; });
@@ -982,8 +1050,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // A subject whose sections can give each other away is laid out again with its rule, built
   // from what the first pass placed in the slot that could be given away.
   const cross = CROSS_HOLD[P.key];
-  const against = cross && slots.find((s) => s.slot === cross.against);
-  const rule = against && cross.rule(bySlot.get(against.slot).slice());
+  const against = cross && slots.filter((s) => [].concat(cross.against).includes(s.slot));
+  const rule = against && against.length && cross.rule(against.flatMap((s) => bySlot.get(s.slot)));
   if (rule) place({ held: cross.held, rule });
   spreadKeys(slots, bySlot);
 

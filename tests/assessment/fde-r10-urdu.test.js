@@ -73,6 +73,14 @@ function items(exam, slot) {
   return out;
 }
 const clone = (x) => JSON.parse(JSON.stringify(x));
+// Q3/Q5's words and Q6's verse are held against Q1 too (fde-r13-urdu.test.js); this file proves the
+// Q4 rule alone, so the paper here carries no Q3, Q5 or Q6.
+const q4Only = (exam) => {
+  for (const types of Object.values(exam.unseen || {})) {
+    for (const [k, list] of Object.entries(types || {})) types[k] = list.filter((q) => !['urdu.C.Q3', 'urdu.C.Q5', 'urdu.C.Q6'].includes(q && q.slot));
+  }
+  return exam;
+};
 
 beforeEach(() => { mockCreate.mockReset(); mockLoads.length = 0; });
 
@@ -102,7 +110,7 @@ describe('urdu Q1 ↔ Q4: Section A never gives a Q4 answer away', () => {
   });
 
   test('a paper with no shared key lays out as before', () => {
-    const exam = clone(papers.lessons_4_5_failed);
+    const exam = q4Only(clone(papers.lessons_4_5_failed));
     const { examJson } = applyLayout(exam, U, L45, { reasked: false });
     expect(items(examJson, 'urdu.A.Q1')).toHaveLength(20);
   });
