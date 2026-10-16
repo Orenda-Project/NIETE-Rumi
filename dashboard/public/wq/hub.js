@@ -269,9 +269,19 @@
   /* ---------------- H2 the hub ---------------- */
   // The Jugnu corner's script when the server render had no `play`: a child's first open has no wq_dv cookie yet,
   // so the render was the locked one and the edge left hub-play.js out; unlock() then brings `play`. Loaded once,
-  // at hub.js's own ?v=, and the hub drawn again when it arrives (still on the hub, still with `play`).
+  // at hub.js's own ?v=, and the hub drawn again when it arrives (still on the hub, still with `play`); arriving on
+  // another screen, the next hub drawn finds it. A failed load is counted once (hub_play_load_failed) and asked for
+  // again once per page: at once while the hub is shown, else by the next hub drawn; a second failure leaves the hub
+  // without the corner.
+  var playFails = 0;
   function playIn() {
-    loadOnce('hub-play', false, function () { if (window.WQPLAY && B.play && ROOT.getAttribute('data-m') === 'H2') hub(); });
+    loadOnce('hub-play', false, function () { if (window.WQPLAY && B.play && ROOT.getAttribute('data-m') === 'H2') hub(); }, null, function () {
+      playFails += 1;
+      if (playFails > 1) return;
+      asked['hub-play'] = false;
+      ev('hub_play_load_failed', { file: 'hub-play.js', i: playFails });
+      if (B.play && ROOT.getAttribute('data-m') === 'H2') playIn();
+    });
   }
   // The keep-my-place card's script (wq-bind.js/.css) has the same gap: the edge's bindTags decides before the device
   // is known, so a first open's locked render leaves it out and unlock() then brings `bind`. Loaded once, at hub.js's
@@ -285,9 +295,9 @@
   }
   // The one lazy loader (the Jugnu corner, keep my place, Jugnu's Book): /wq/<name>.js (and, with css, /wq/<name>.css
   // before it) at hub.js's own ?v=, asked for at most once per page, with onload attached once, when the tag is made,
-  // however often the hub is drawn again while it loads. A failure leaves the page as it is.
+  // however often the hub is drawn again while it loads. A failure leaves the page as it is (onerror, when given, is told).
   var asked = {};
-  function loadOnce(name, css, onload, id) {
+  function loadOnce(name, css, onload, id, onerror) {
     if (asked[name]) return;
     asked[name] = true;
     try {
@@ -299,6 +309,7 @@
       if (id) s.id = id;
       s.src = '/wq/' + name + '.js' + q;
       s.addEventListener('load', onload);
+      if (onerror) s.addEventListener('error', onerror);
       document.head.appendChild(s);
     } catch (e) {}
   }
