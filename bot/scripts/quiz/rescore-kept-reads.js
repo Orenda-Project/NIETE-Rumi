@@ -13,7 +13,7 @@
  * - The rows: exercise 'read', status 'scored', meta.audio_key set, no meta.stt_words. A key outside the kept
  *   prefix is counted and never scored (the scorer deletes a plain upload when it finishes).
  * - --write takes from the scorer ONLY quality, flags, raw, stt_words, align_correct, and stamps rescored_at, through
- *   the service's compare-and-set; score, wcpm, status, record, mode and meta.counted are never written. A row that
+ *   the service's compare-and-set; score, wcpm, status, record, mode and the counted flag are never written. A row that
  *   changed since the read is left as it is. A re-score the live path would not keep (unheard, incomplete,
  *   abandoned) is counted by reason and not written: what such a row becomes is the operator's call.
  * - Stops before the next read once the scorer's own cost reaches --max-usd (default 1.00); refuses up front when
@@ -123,9 +123,9 @@ function serviceDeps() {
       return data || [];
     },
     isKeptKey: Ch.isKeptKey,
-    score: (r) => {
+    score: async (r) => {
       const m = r.meta || {};
-      const form = r.form || Ch.formFor(r.grade);
+      const form = r.form || (await Ch.formForChild(Number(r.grade)));   // rows older than the form column carry the grade only
       if (!form) return { failed: true, reason: 'no_form', meta: {} };
       const run = { form, lang: r.lang, task: `${r.lang}.story`, passage: r.passage_id ? Ch.passageFor(r.passage_id, CT.Bank) : null };
       const key = m.audio_key;

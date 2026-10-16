@@ -18,7 +18,7 @@ const R = require('../../scripts/quiz/rescore-kept-reads');
 
 const REF = 'abcdefghijklmnopqrst';
 const ENV = { RAILWAY_ENVIRONMENT_NAME: 'sandbox', SUPABASE_URL: `https://${REF}.supabase.co`, CHILD_TEST_R2_ENV: 'sandbox' };
-const KEPT = (run) => `child-voice/sandbox/kept/2026-10-10/${run}/read-1792000000000.webm`;
+const KEPT = (run) => `child-voice/sandbox/kept/2026-10-10/${run}/read-take1.webm`;
 const id = (n) => `0000000${n}-0000-4000-8000-00000000000${n}`;
 const row = (n, over = {}) => ({
   id: id(n), exercise: 'read', status: 'scored', lang: 'en', grade: 3, form: 3, passage_id: null, score: { correct: 40, attempted: 42 }, wcpm: 40,
@@ -79,7 +79,7 @@ describe('rescore-kept-reads: the selection and the dry run', () => {
       row(1), row(2, { lang: 'ur' }),
       row(3, { meta: { audio_key: KEPT(id(3)), stt_words: 30 } }),            // already scored under the floor
       row(4, { status: 'failed' }), row(5, { exercise: 'listen' }),
-      row(6, { meta: { audio_key: `child-voice/sandbox/${id(6)}/read-1792000000000.webm` } }),   // a plain upload
+      row(6, { meta: { audio_key: `child-voice/sandbox/${id(6)}/read-take1.webm` } }),   // a plain upload
       row(7, { meta: { counted: true } }),                                     // no audio kept
     ];
     const { deps, calls } = fakeDeps(rows);
@@ -187,7 +187,7 @@ describe('the service hands the script its scorer', () => {
     expect(res.failed).toBeUndefined();
     expect(res.meta).toMatchObject({ stt_words: 41, align_correct: 39 });
     expect(r2.deleteKey).not.toHaveBeenCalled();
-    await Ch.scoreRead(run, `child-voice/sandbox/${id(2)}/read-1792000000000.webm`, 'webm', 60000, CT, { record: true }, { ended: 'timer', runId: id(2) });
+    await Ch.scoreRead(run, `child-voice/sandbox/${id(2)}/read-take1.webm`, 'webm', 60000, CT, { record: true }, { ended: 'timer', runId: id(2) });
     expect(r2.deleteKey).toHaveBeenCalled();
   });
 
@@ -199,7 +199,7 @@ describe('the service hands the script its scorer', () => {
       const d = R.serviceDeps();
       await d.score({ id: id(1), lang: 'ur', grade: 5, form: null, passage_id: null, meta: { audio_key: KEPT(id(1)), ms: 58000, ended: 'stuck', mic_check: 'pass', read_s: 58 } });
       const [run, key, ext, ms, , rules, ctx] = seen[0];
-      expect(run).toEqual({ form: Ch.formFor(5), lang: 'ur', task: 'ur.story', passage: null });
+      expect(run).toEqual({ form: await Ch.formForChild(5), lang: 'ur', task: 'ur.story', passage: null });
       expect([key, ext, ms]).toEqual([KEPT(id(1)), 'webm', 58000]);
       expect(rules).toEqual({ record: true });
       expect(ctx).toEqual({ ended: 'stuck', micCheck: 'pass', readS: 58, runId: id(1) });
