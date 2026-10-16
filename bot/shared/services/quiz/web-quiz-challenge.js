@@ -1117,7 +1117,8 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
       const pickSet = D.biggerSetFor(form, periodNow, seen);
       itemSetId = pickSet.item_set_id;
       periodSet = pickSet.period_set;
-      if (pickSet.practice) mode = 'practice';
+      // a seen set is a practice replay at home; in the teacher's round the round's mode wins and exposure_no says it was met (SAMPLING_RULING NC4)
+      if (pickSet.practice && mode !== 'class_round') mode = 'practice';
       items = servedPairs(itemSetId, Bank);
       drawLog = drawRow({ open_band: null, band: null, band_reason: 'set', eligible: [{ id: itemSetId, w: 1 }], eligible_n: 1, ref_eligible: false, p: 1, served_id: itemSetId, outcome: 'served', seed: null });
     } else itemSetId = `bigger.${form}.A`;
