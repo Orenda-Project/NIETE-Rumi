@@ -3134,6 +3134,8 @@ const UX_STRINGS = {
   },
   // The class reads this name when the teacher has none on record: neutral, the word children use.
   storyYourTeacher: { en: 'Your teacher', ur: 'آپ کے ٹیچر' },
+  // The same, with the teacher's name, on a story's landing (the quiz landing keeps its own word).
+  storyTeacherNamed: { en: 'Teacher {name}', ur: 'ٹیچر {name}' },
   // Under Send on the teacher's story page: the honest way back after WhatsApp opens.
   storyComeBack: { en: 'After sending, come back from the button in your chat.', ur: 'بھیجنے کے بعد اپنی چیٹ کے بٹن سے واپس آئیں۔' },
   storyReportKind_literal: { en: 'Finds facts in the story: {right}/{total}', ur: '‏کہانی میں لکھی بات ڈھونڈنا: {right}/{total}' },

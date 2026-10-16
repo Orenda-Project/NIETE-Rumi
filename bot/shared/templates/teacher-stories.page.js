@@ -2,9 +2,10 @@
 /**
  * The teacher's Stories page (/quiz/teacher/<th>/stories; app_settings web_quiz_stories_teacher), rendered by the bot and
  * forwarded by the portal like the teacher report. No framework and no script it cannot do without: the grade and
- * language chips are links, a book opens its preview (?book=<id>) whose render readies the send, and "Send to class" is a
- * plain link (same origin → the bot marks it sent → wa.me with the message). One small inline script copies the message
- * and turns the home's `#book/<id>` into `?book=<id>`.
+ * language chips are links, a book opens its preview (?book=<id>) whose render readies the send (its code still closed),
+ * and "Send to class" is a form post (same origin → the bot opens the code and marks it sent → wa.me with the message).
+ * One small inline script turns the home's `#book/<id>` into `?book=<id>` and runs "Copy the message": it opens the send
+ * the same way first (POST /api/teacher/story/share), so a pasted message never carries a closed link, then copies.
  */
 const urDigits = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
@@ -53,12 +54,15 @@ main{max-width:560px;margin:0 auto;padding:16px 16px 40px}h1{font-size:22px;marg
 .go{background:var(--go);color:#fff}.soft{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 .note{color:var(--soft);font-size:15px;margin:12px 0 0}.hear{display:flex;align-items:center;gap:8px;margin:6px 0 0}.hear audio{flex:1;min-width:0;height:40px}.oops{background:#fff1f0;border-radius:12px;padding:12px}`;
 
-// The copy button (clipboard → execCommand → "long-press"); the home's #book/<id> becomes ?book=<id>.
+// The copy button (the send opened first → clipboard → execCommand → "long-press"); the home's #book/<id> becomes ?book=<id>.
 const JS = `(function(){var m=location.hash.match(/^#book\\/([0-9a-f-]{36})$/i);if(m&&!/[?&]book=/.test(location.search)){location.replace(location.pathname+(location.search?location.search+'&':'?')+'book='+m[1]);return;}
-var b=document.getElementById('copy'),t=document.getElementById('msg');if(!b||!t)return;b.hidden=false;
+var b=document.getElementById('copy'),t=document.getElementById('msg'),f=document.querySelector('form[action="/api/teacher/story/send"]');if(!b||!t||!f||typeof fetch!=='function')return;b.hidden=false;
 function ok(){b.textContent=b.getAttribute('data-done');}function no(){b.textContent=b.getAttribute('data-long');}
-b.addEventListener('click',function(){var v=t.value;if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(v).then(ok,function(){fb();});}else fb();
-function fb(){try{t.removeAttribute('readonly');t.select();var r=document.execCommand('copy');t.setAttribute('readonly','');r?ok():no();}catch(e){no();}}});})();`;
+function cp(v){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(v).then(ok,fb);}else fb();
+function fb(){try{t.removeAttribute('readonly');t.select();var r=document.execCommand('copy');t.setAttribute('readonly','');r?ok():no();}catch(e){no();}}}
+b.addEventListener('click',function(){if(b.disabled)return;b.disabled=true;var e=f.elements;
+fetch('/api/teacher/story/share',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({th:e.th.value,story_id:e.story_id.value})})
+.then(function(r){if(!r.ok)throw r;return r.json();}).then(function(o){b.disabled=false;cp(o&&typeof o.class_message==='string'&&o.class_message?o.class_message:t.value);},function(){b.disabled=false;b.textContent=b.getAttribute('data-fail');});});})();`;
 
 function head({ lang, title }) {
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
@@ -129,7 +133,7 @@ function renderPreview({ th, shelf, ui, p, firstPage, error }) {
 ${b.sample_audio ? `<p class="hear"><span>${esc(T.hear)}</span><audio controls preload="none" src="${esc(b.sample_audio)}"></audio></p>` : ''}
 <p class="note">${esc(T.msgHead)}</p>
 <textarea class="msg" id="msg" readonly rows="5" lang="${esc(b.lang)}" dir="${esc(b.dir)}">${esc(p.class_message)}</textarea>
-<button type="button" class="btn soft" id="copy" data-tap="copy" data-done="${esc(T.copied)}" data-long="${esc(T.longPress)}" hidden>${esc(T.copy)}</button>
+<button type="button" class="btn soft" id="copy" data-tap="copy" data-done="${esc(T.copied)}" data-long="${esc(T.longPress)}" data-fail="${esc(T.oops)}" hidden>${esc(T.copy)}</button>
 <form method="post" action="/api/teacher/story/send"><input type="hidden" name="th" value="${esc(th)}"><input type="hidden" name="story_id" value="${esc(b.id)}"><button type="submit" class="btn go" data-primary="1" data-tap="send">${esc(T.send)}</button></form>
 <p class="note">${esc(p.back_line)}</p>
 <p class="note">${esc(p.report_line)}</p>

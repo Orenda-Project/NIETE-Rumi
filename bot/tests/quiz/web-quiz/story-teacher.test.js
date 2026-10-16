@@ -66,8 +66,8 @@ function seed({ on = true, web = true } = {}) {
       book(6, 2, 'en', { status: 'draft' }), book(7, 3, 'en'), book(8, 2, 'ur', { title: 'کتاب Testwala' }),
     ],
     story_pages: [{ id: 'pg-2-1', book_id: B(2), n: 1, image_file: 'p01-00000002.webp' }, { id: 'pg-2-2', book_id: B(2), n: 2, image_file: 'p02-00000002.webp' }],
-    story_page_voices: [{ page_id: 'pg-2-1', audio_key: 'readalong/sandbox/story/en/x-p01/grace-1a2b3c4d.ogg', is_current: true },
-      { page_id: 'pg-2-1', audio_key: 'readalong/sandbox/story/en/x-p01/old-00000000.ogg', is_current: false }],
+    story_page_voices: [{ page_id: 'pg-2-1', audio_key: `story/sandbox/${B(2)}/a01-1a2b3c4d.ogg`, is_current: true },
+      { page_id: 'pg-2-1', audio_key: `story/sandbox/${B(2)}/a01-00000000.ogg`, is_current: false }],
     users: [{ id: TEACHER, name: 'Ms Example Testwala', phone_number: 'teacher-phone', preferred_language: 'en' },
       { id: OTHER, name: 'Mr Other Testwala', phone_number: 'other-phone', preferred_language: 'en' }],
     quizzes: [],
@@ -107,7 +107,7 @@ describe('the story shelf', () => {
     const out = await Stories.shelf({ uid: TEACHER, grade: 2, lang: 'en' });
     expect(out.books).toHaveLength(4);
     expect(out.books[0]).toEqual({ id: B(2), title: 'Book 2 Testwala', grade: 2, lang: 'en', dir: 'ltr', pages: 6, minutes: 2.5,
-      cover: `/s/${B(2)}/cover-00000002.webp`, featured: true, first_page: `/s/${B(2)}/p01-00000002.webp`, sample_audio: `/s/${B(2)}/grace-1a2b3c4d.ogg` });
+      cover: `/s/${B(2)}/cover-00000002.webp`, featured: true, first_page: `/s/${B(2)}/p01-00000002.webp`, sample_audio: `/s/${B(2)}/a01-1a2b3c4d.ogg` });
     expect(out.books.map((b) => b.id)).not.toContain(B(6));   // a draft never shows
     expect(out.books.map((b) => b.id)).not.toContain(B(7));   // another grade
     expect(out.books.slice(1).every((b) => b.featured === false)).toBe(true);
@@ -232,7 +232,8 @@ describe('the preview and the tap', () => {
     expect(out.redirect).toBe(pv.wa_href);
     expect(db.quizzes[0].status).toBe('sent');
     expect(db.quiz_share_codes).toHaveLength(1);
-    expect(logEvent).toHaveBeenCalledWith('teacher_story_sent', expect.objectContaining({ book_id: B(1), reused: true }));
+    // the preview's code, opened by this tap: the same code, not a second send of an open one
+    expect(logEvent).toHaveBeenCalledWith('teacher_story_sent', expect.objectContaining({ book_id: B(1), reused: false }));
   });
   test('the way back line (the teacher home\'s copy object) ends the class message when it is deployed', async () => {
     // The copy object's returnLine is async (it reads its own switch). A fresh module registry for this test only, so
@@ -285,12 +286,18 @@ describe('the Stories page (the bot renders it)', () => {
     expect(r.body).toContain('کلاس کو بھیجیں');
     expect(r.body).toContain('<form method="post" action="/api/teacher/story/send">');
     expect(r.body).toContain(`name="story_id" value="${B(2)}"`);
-    expect(r.body).toContain(`<audio controls preload="none" src="/s/${B(2)}/grace-1a2b3c4d.ogg">`);
+    expect(r.body).toContain(`<audio controls preload="none" src="/s/${B(2)}/a01-1a2b3c4d.ogg">`);
     expect(r.body).toContain('بھیجنے کے بعد اپنی چیٹ کے بٹن سے واپس آئیں۔');
     expect(r.body).toContain('Book 2 Testwala');
     expect(r.body).toContain(`/s/${B(2)}/p01-00000002.webp`);
     expect(r.body).toContain('رپورٹ ہمیشہ کی طرح آپ کو واٹس ایپ پر ملے گی');
     expect(r.body).toContain('wq-nastaliq-3.woff2');
+    // a book with no voice yet: no player at all
+    const none = res();
+    await Routes.servePage({ params: { th: th(TEACHER, 'en') }, query: { grade: '2', lang: 'en', book: B(1) } }, none);
+    expect(none.code).toBe(200);
+    expect(none.body).toContain('data-screen="teacher-story-preview"');
+    expect(none.body).not.toContain('<audio');
   });
   test('switch off: 404 stories_off, no page (the portal falls through to today)', async () => {
     seed({ on: false });
@@ -543,5 +550,174 @@ describe('the class report of a story send', () => {
     expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('teacher-phone', '📖 *Book 1 Testwala* — no one in your class has opened the story yet. The link is still open: forward the class message again.');
     expect(db.quiz_share_codes[0].report_sent_at).toBeTruthy();
+  });
+});
+
+describe('a preview never reaches a child, even when the database fails', () => {
+  const LIST = '55555555-5555-4555-8555-000000000001';
+  const Hub = require('../../../shared/services/quiz/web-quiz-hub');
+  function classOfTwo() {
+    db.students = [{ id: KID_A, student_name: 'Zara Testwala', student_name_urdu: null, self_reported_class: '2', list_id: LIST, is_active: true, created_at: ago(500) }];
+    db.student_lists = [{ id: LIST, user_id: TEACHER, class_name: '2', section: 'A', is_active: true }];
+  }
+  const card = async () => (await Hub.hub(T.signHub([KID_A]), { device: DEVICE })).teacher;
+  /** quiz_share_codes updates that set `active` to this value answer an error (the rest run as before). */
+  function failUpdates(active) {
+    const real = supabase.from;
+    supabase.from = (t) => {
+      const q = real(t);
+      if (t !== 'quiz_share_codes') return q;
+      const update = q.update.bind(q);
+      q.update = (p) => (p && p.active === active ? { eq: async () => ({ data: null, error: { message: 'down' } }) } : update(p));
+      return q;
+    };
+    return () => { supabase.from = real; };
+  }
+
+  test('the class hub after a preview is the hub before it (no teacher card); after Send the book is the teacher card', async () => {
+    classOfTwo();
+    const before = await card();
+    expect(before).toBeNull();
+    const pv = await Stories.preview({ uid: TEACHER, storyId: B(1) });
+    dbDefaults();   // the table's default for any column the insert did not name
+    expect(await card()).toEqual(before);
+    await Stories.send({ uid: TEACHER, storyId: B(1) });
+    expect(await card()).toMatchObject({ code: pv.code });
+  });
+  test('the code is minted closed in its own insert: a failing update cannot leave it open', async () => {
+    classOfTwo();
+    const restore = failUpdates(false);
+    try {
+      const pv = await Stories.preview({ uid: TEACHER, storyId: B(1) });
+      dbDefaults();
+      expect(db.quiz_share_codes[0].active).toBe(false);
+      await expect(WQ.getQuiz(pv.code)).rejects.toMatchObject({ status: 410 });
+      expect(await card()).toBeNull();
+    } finally { restore(); }
+  });
+  test('Send whose code cannot be opened is refused, and the row is not marked sent', async () => {
+    await Stories.preview({ uid: TEACHER, storyId: B(1) });
+    const restore = failUpdates(true);
+    try {
+      await expect(Stories.send({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 503 });
+    } finally { restore(); }
+    expect(db.quizzes[0].status).toBe('ready');
+    expect(db.quiz_share_codes[0].active).toBe(false);
+  });
+  test('the sent event says "reused" only when the code was already open before this tap', async () => {
+    await Stories.preview({ uid: TEACHER, storyId: B(1) });
+    await Stories.send({ uid: TEACHER, storyId: B(1) });
+    expect(logEvent).toHaveBeenLastCalledWith('teacher_story_sent', expect.objectContaining({ reused: false }));
+    await Stories.send({ uid: TEACHER, storyId: B(1) });
+    expect(logEvent).toHaveBeenLastCalledWith('teacher_story_sent', expect.objectContaining({ reused: true }));
+  });
+  test('a code closed while its row is already sent is never opened again by a later preview: a new closed code is made', async () => {
+    const first = await Stories.share({ uid: TEACHER, storyId: B(1) });
+    db.quiz_share_codes[0].active = false;   // closed for another reason after the send
+    const pv = await Stories.preview({ uid: TEACHER, storyId: B(1) });
+    expect(pv.code).not.toBe(first.code);
+    expect(db.quiz_share_codes.find((c) => c.code === first.code).active).toBe(false);
+    expect(db.quiz_share_codes.find((c) => c.code === pv.code).active).toBe(false);
+  });
+});
+
+describe('the switch read throws: the child link and the hub door are today\'s', () => {
+  const Err = class extends Error { constructor(status, body) { super(body.error); this.status = status; this.body = body; } };
+  test('/q 404 no_questions and the door\'s refusal', async () => {
+    const sent = await Stories.share({ uid: TEACHER, storyId: B(1) });
+    dbDefaults();
+    const sc = db.quiz_share_codes[0];
+    db.quiz_sessions.push({ id: 's-1', quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: KID_A, student_name: 'Zara Testwala', user_id: null,
+      status: 'in_progress', invited_by_student_id: null, device_ref: 'd1', created_at: ago(1) });
+    const st = T.signSession({ sessionId: 's-1', deviceRef: DEVICE, shareCodeId: sc.id });
+    const real = supabase.from;
+    supabase.from = (t) => {
+      const q = real(t);
+      if (t !== 'app_settings') return q;
+      const inn = q.in.bind(q);
+      q.in = (k, v) => (Array.isArray(v) && v.includes('web_quiz_stories_teacher') ? Promise.reject(new Error('down')) : inn(k, v));
+      return q;
+    };
+    Stories._reset();
+    try {
+      await expect(WQ.getQuiz(sent.code)).rejects.toMatchObject({ status: 404, body: { error: 'no_questions' } });
+      await expect(Door.door({ st, story: 1 }, Err)).rejects.toMatchObject({ status: 404 });
+    } finally { supabase.from = real; }
+  });
+});
+
+describe('the class page and the web report around a story send', () => {
+  test('cells and weeks of a class page with a story and a quiz are the quiz\'s alone', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    db.quizzes[0].created_at = ago(1);
+    const sc = db.quiz_share_codes[0];
+    db.quiz_sessions.push({ id: 's-a', quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: KID_A, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(1), device_ref: 'd1', correct_answers: 0, total_questions_answered: 0 });
+    const Data = require('../../../shared/services/quiz/teacher-report.data');
+    const onlyStory = await Data.classReport(TEACHER);
+    expect(onlyStory.cells || []).toEqual([]);
+    expect(onlyStory.weeks || []).toEqual([]);
+  });
+  test('the web report of a story nobody opened says so in story words', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const r = await require('../../../shared/services/quiz/teacher-report.data').quizReport(TEACHER, db.quizzes[0].id);
+    expect(r.story.counts).toEqual({ opened: 0, listened: 0, read: 0, questions: 0 });
+    const { renderPage } = require('../../../shared/templates/teacher-report.page');
+    expect(renderPage({ quiz: r }, { lang: 'en', tokens: { self: 'tok' } })).toContain('No child has opened the story yet.');
+    expect(renderPage({ quiz: r }, { lang: 'ur', tokens: { self: 'tok' } })).toContain('ابھی کسی بچے نے کہانی نہیں کھولی۔');
+  });
+});
+
+describe('the child\'s story landing names the teacher in the children\'s word', () => {
+  test('Urdu: «ٹیچر», never «استاد»; English unchanged', async () => {
+    db.books_ur = true;
+    const sent = await Stories.share({ uid: TEACHER, storyId: B(8) });
+    dbDefaults();
+    const out = await WQ.getQuiz(sent.code);
+    expect(out.cls.teacher).toContain('ٹیچر');
+    expect(out.cls.teacher).not.toContain('استاد');
+    const en = await Stories.share({ uid: TEACHER, storyId: B(1) });
+    dbDefaults();
+    expect((await WQ.getQuiz(en.code)).cls.teacher).toBe('Teacher Example Testwala');
+  });
+});
+
+describe('the Stories page\'s "Copy the message" opens the send first', () => {
+  const vm = require('vm');
+  const Page = require('../../../shared/templates/teacher-stories.page');
+  function run({ fetchOk = true } = {}) {
+    const p = { book: { id: B(1), title: 'Book 1 Testwala', lang: 'en', dir: 'ltr', pages: 6 }, class_message: 'Hello class https://quiz.example.com/q/AB12CD', report_line: 'r', back_line: 'b' };
+    const html = Page.renderPreview({ th: 'tok.AbCdEfGhIjKlMnOpQrStUv', shelf: { grade: 2, lang: 'en' }, ui: 'en', p });
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+    const button = { hidden: true, textContent: 'Copy the message', disabled: false, attrs: { 'data-done': 'Copied', 'data-long': 'Long-press', 'data-fail': 'This story cannot be sent right now.' } };
+    button.getAttribute = (k) => button.attrs[k];
+    button.addEventListener = (e, fn) => { button.click = fn; };
+    const msg = { value: p.class_message, setAttribute() {}, removeAttribute() {}, select() {} };
+    const form = { elements: { th: { value: 'tok.AbCdEfGhIjKlMnOpQrStUv' }, story_id: { value: B(1) } } };
+    const order = [];
+    const ctx = {
+      location: { hash: '', search: '', pathname: '/quiz/teacher/x/stories' },
+      document: { getElementById: (id) => ({ copy: button, msg }[id] || null), querySelector: () => form, execCommand: () => false },
+      navigator: { clipboard: { writeText: (v) => { order.push(['copy', v]); return Promise.resolve(); } } },
+      fetch: (url, o) => { order.push(['fetch', url, JSON.parse(o.body)]); return Promise.resolve({ ok: fetchOk, json: () => Promise.resolve({ class_message: p.class_message }) }); },
+      JSON, Promise,
+    };
+    vm.runInNewContext(script, ctx);
+    return { button, order };
+  }
+  const settle = () => new Promise((r) => setImmediate(r));
+  test('a tap POSTs the share (opening the code, marking it sent), then copies the message', async () => {
+    const { button, order } = run();
+    button.click();
+    await settle(); await settle();
+    expect(order[0]).toEqual(['fetch', '/api/teacher/story/share', { th: 'tok.AbCdEfGhIjKlMnOpQrStUv', story_id: B(1) }]);
+    expect(order[1]).toEqual(['copy', 'Hello class https://quiz.example.com/q/AB12CD']);
+    expect(button.textContent).toBe('Copied');
+  });
+  test('the share refused: nothing is copied and the teacher is told', async () => {
+    const { button, order } = run({ fetchOk: false });
+    button.click();
+    await settle(); await settle();
+    expect(order.filter((o) => o[0] === 'copy')).toEqual([]);
+    expect(button.textContent).toBe('This story cannot be sent right now.');
   });
 });

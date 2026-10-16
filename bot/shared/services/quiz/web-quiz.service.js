@@ -600,7 +600,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
-  if (story) out.story = story;
+  if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
   return out;
 }
 

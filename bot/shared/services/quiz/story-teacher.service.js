@@ -169,15 +169,17 @@ async function rowFor(uid, book, lang) {
 
 /**
  * The code this teacher holds for this quiz, while it has not expired: handed back again (the maker's rule), never a
- * second code. An open code first; else the closed one a preview made.
+ * second code. An open code first; else, while the row is not yet sent, the closed one a preview made (a code closed
+ * after a send was closed for a reason and is never opened again).
  */
-async function heldCode(uid, quizId, now) {
+async function heldCode(uid, quiz, now) {
+  const quizId = quiz.id;
   const { data } = await supabase.from('quiz_share_codes').select('id, code, active, expires_at, invited_by_student_id, class_id, created_at')
     .eq('quiz_id', quizId).eq('teacher_user_id', uid).is('invited_by_student_id', null)
     .order('created_at', { ascending: false });
   const nowIso = new Date(now).toISOString();
   const live = (data || []).filter((c) => c && (!c.expires_at || c.expires_at > nowIso));
-  return live.find((c) => c.active !== false) || live[0] || null;
+  return live.find((c) => c.active !== false) || (quiz.status === 'sent' ? null : live.find((c) => c.active === false)) || null;
 }
 
 /** The class to bind the code to: the one the teacher picked when it is theirs, else the one the server knows. */
@@ -225,14 +227,15 @@ async function prepare({ uid, storyId, classId = null, now = Date.now() } = {}) 
   const quiz = await rowFor(uid, book, lang);
 
   const Share = require('./video-quiz-share.service');
-  let held = await heldCode(uid, quiz.id, now);
-  const reused = Boolean(held);
+  let held = await heldCode(uid, quiz, now);
+  // An open code handed back again (a second send); a preview's closed code opened by this tap is not one.
+  const reused = Boolean(held && held.active !== false);
   if (!held) {
     const cls = await classFor(uid, quiz.id, classId);
-    const minted = await Share.mintCode({ quizId: quiz.id, userId: uid, videoId: null, language: lang, classId: cls });
+    // Closed in its own insert until the teacher sends it: a book only looked at is never "from your teacher" on a
+    // child's hub, not even for a moment, and no failed second write can leave it open.
+    const minted = await Share.mintCode({ quizId: quiz.id, userId: uid, videoId: null, language: lang, classId: cls, active: false });
     if (!minted) fail(503, 'unavailable');
-    // Closed until the teacher sends it: a book only looked at is never "from your teacher" on a child's hub.
-    await supabase.from('quiz_share_codes').update({ active: false }).eq('id', minted.id);
     held = { ...minted, active: false, class_id: minted.classId || null };
   }
   const link = await require('./web-quiz-link').quizLink(held.code, {
@@ -259,7 +262,11 @@ async function preview({ uid, storyId, classId = null, ui = null, now = Date.now
 
 /** The teacher's tap: the code opened, the row marked sent; the meta carries the code, the message and the times. */
 async function markSent(p, now) {
-  if (p.held.active === false) await supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id);
+  if (p.held.active === false) {
+    // Never a sent row behind a closed code (the class would get "expired"): no open, no send.
+    const { error } = await supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id);
+    if (error) { logToFile('❌ story send: could not open the code', { error: error.message }); fail(503, 'unavailable'); }
+  }
   const meta = { ...(p.quiz.meta || {}), story: { book_id: p.book.id, lang: p.lang }, share_code: p.held.code, share_code_id: p.held.id,
     link: p.out.link, student_message: p.out.class_message, sent_at: new Date(now).toISOString(),
     first_sent_at: (p.quiz.meta && p.quiz.meta.first_sent_at) || new Date(now).toISOString() };
@@ -290,6 +297,27 @@ async function storyForQuiz(quizRow, ctx) {
   return { id: String(bookId), from_teacher: true, code: ctx && ctx.code ? String(ctx.code) : null };
 }
 
+/**
+ * The class's name for the teacher on a story's landing: children say «ٹیچر», never «استاد» (the quiz landing's word,
+ * kept as it is for quizzes). English is the quiz landing's label unchanged.
+ */
+function storyTeacher(teacherName, lang) {
+  const { teacherLabel } = require('./quiz-teacher-label');
+  const label = teacherLabel(teacherName, lang);
+  if (clampLanguage(lang) !== 'ur') return label;
+  if (label === resolveUx('tqYourTeacher', { language: 'ur' })) return resolveUx('storyYourTeacher', { language: 'ur' });
+  const [before, after] = resolveUx('tqTeacherNamed', { language: 'ur', params: { name: '\u0000' } }).split('\u0000');
+  if (!label.startsWith(before) || !label.endsWith(after)) return label;
+  return resolveUx('storyTeacherNamed', { language: 'ur', params: { name: label.slice(before.length, label.length - after.length) } });
+}
+
+/** The page's boot for a story send: the book to open, and the teacher named in the children's word. */
+function storyBoot(out, story, ctx) {
+  out.story = story;
+  if (out.cls && out.cls.teacher) out.cls.teacher = storyTeacher(ctx && ctx.parent && ctx.parent.teacher_name, ctx && ctx.lang);
+  return out;
+}
+
 /** Whether a session belongs to a story send (the hub door opens before it is "finished": the story is the run). */
 async function storyDoorOk(session) {
   if (!session || !session.share_code_id || !(await flagOn())) return false;
@@ -301,6 +329,6 @@ async function storyDoorOk(session) {
 
 module.exports = {
   FLAG_KEY, NEEDS, SOURCE, StoryError, flagOn, teacherToken, teacherOf, pktDay, dayOrder, bookOf, shelf, prepare, preview, share, send,
-  storyForQuiz, storyDoorOk, returnLine,
+  storyForQuiz, storyBoot, storyTeacher, storyDoorOk, returnLine,
   _reset: () => { flag = null; },
 };
