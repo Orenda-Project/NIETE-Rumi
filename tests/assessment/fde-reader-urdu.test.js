@@ -135,8 +135,8 @@ describe('reader pass ON: a flagged item does not print', () => {
 
     const readers = asked.filter((a) => a.sec === 'reader');
     expect(readers).toHaveLength(2);
-    // The FDE model and job, JSON, medium effort.
-    expect(readers[0].req).toMatchObject({ job: 'assessment.generate', response_format: { type: 'json_object' }, reasoning: { effort: 'medium' }, max_tokens: 8000 });
+    // The FDE model and job, JSON, high effort.
+    expect(readers[0].req).toMatchObject({ job: 'assessment.generate', response_format: { type: 'json_object' }, reasoning: { effort: 'high' }, max_tokens: 8000 });
     // The first read is the printed paper, never a key outside Q1's side list.
     const first = readers[0].prompt;
     expect(first).toContain('Q6');
@@ -377,6 +377,50 @@ describe('the reader prompt', () => {
     expect(Reader.fold('سبق ٧')).toBe(Reader.fold('سبق ۷'));
     // Whole words: «کا» is not found inside «کاش».
     expect(Reader.fold('کاش ہم').includes(Reader.fold('کا'))).toBe(false);
+  });
+});
+
+// A fourth local round (8 fresh papers) found four give-aways the reader judged NOT given away
+// (its raw replies listed three of them as candidates with given_away:false). Each is a shape the
+// prompt never named; the distractor rule even told it to pass the fourth.
+describe('the shapes a local round missed', () => {
+  const RULES = (() => {
+    const { prompt } = Reader.buildReaderPrompt({ unseen: {} }, U);
+    return prompt.slice(0, prompt.indexOf(Reader.PAPER_HEAD));
+  })();
+
+  test('the prompt names each shape as a give-away', () => {
+    // A stem that, besides the word it asks about, prints a phrase meaning its key.
+    expect(RULES).toMatch(/its own stem explains its key/);
+    // A verse or passage whose sense answers the item, in other words.
+    expect(RULES).toMatch(/the SENSE of a verse line or a passage sentence answers it/);
+    // The key's idiom or word printed elsewhere in another form.
+    expect(RULES).toMatch(/another form of its key/);
+    // Another item's option that states the answer as a fact.
+    expect(RULES).toMatch(/an option of another item states its answer as a fact/);
+    // The old rule passed every distractor; only a bare word that tells nothing is passed now.
+    expect(RULES).not.toMatch(/an option that is only a distractor elsewhere/);
+  });
+
+  test('each shape, flagged with its own quote, is kept by the evidence check', () => {
+    const q = (question, options) => ({ question, options });
+    const labels = new Map([
+      ['Q1.2', q('سدرہ نے اپنے دوستوں کے ساتھ مل کر کیا بنایا؟', ['الف) کتب خانہ', 'ج) تھیڑ کمپنی'])],
+      ['Q1.6', q('نظم میں ندی انسانوں سے کیا چاہتی ہے؟', ['الف) اسے صاف کیا جائے'])],
+      ['Q1.13', q('«ٹکڑا ٹکڑا ہو جانا» کے مفہوم میں «خواب چکنا چور ہونا» کا مطلب کیا ہے؟', ['د) امیدوں کا ٹوٹ جانا'])],
+      ['Q1.14', q('محاورے «دھوم مچ جانا» کا کیا مطلب ہے؟', ['د) بہت مشہور ہو جانا'])],
+      ['Q1.17', q('سربراہ نے سدرہ سے کس بات کی اجازت مانگی؟', ['الف) یہی ڈراما پیش کرنے کی', 'ب) سدرہ کی تھیڑ کمپنی بند کرنے کی'])],
+    ]);
+    const blocks = new Map([...labels].map(([l, x]) => [l, Reader.fold([x.question, x.options.join(' | ')].join(' '))]));
+    blocks.set('Q5', Reader.fold('دھوم مچانا، منھ پھیر لینا'));
+    blocks.set('Q6', Reader.fold('یہ گندگی ہے کیسی آئی ہے یہ کہاں سے؟'));
+    const reply = { candidates: [
+      { item: 'Q1.2', by: 'Q1.17', evidence: 'سدرہ کی تھیڑ کمپنی', given_away: true },
+      { item: 'Q1.6', by: 'Q6', evidence: 'یہ گندگی ہے کیسی آئی ہے یہ کہاں سے؟', given_away: true },
+      { item: 'Q1.13', by: 'Q1.13', evidence: 'ٹکڑا ٹکڑا ہو جانا', given_away: true },
+      { item: 'Q1.14', by: 'Q5', evidence: 'دھوم مچانا', given_away: true },
+    ] };
+    expect(Reader.parseFlags(reply, labels, null, blocks).map((f) => f.item)).toEqual(['Q1.2', 'Q1.6', 'Q1.13', 'Q1.14']);
   });
 });
 
