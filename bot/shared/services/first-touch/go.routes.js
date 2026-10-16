@@ -161,11 +161,11 @@ async function personaRow(lang, t) {
     return typeof row === 'string' ? row : '';
   } catch (_) { return ''; }
 }
-const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t) }));
+const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber() }));
 
 function render(res, d, t, lang) {
   if (d.next) { headers(res); return res.redirect(302, d.next); }
-  if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids }));
+  if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber() }));
   if (d.page === 'role') return rolePage(res, t, lang);
   if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang }));
   return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber() }));

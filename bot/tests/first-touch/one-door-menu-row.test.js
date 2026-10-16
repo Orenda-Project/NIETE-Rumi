@@ -22,7 +22,12 @@ jest.mock('../../shared/services/app-redirect.service', () => ({ redirectIfFlagg
 const mockShowList = jest.fn(async () => true);
 jest.mock('../../shared/services/quiz/transcript-quiz-list.service', () => ({ showList: (...a) => mockShowList(...a) }));
 const mockOpen = jest.fn(async () => 'one_door');
-jest.mock('../../shared/services/first-touch/one-door.service', () => ({ reply: (...a) => mockOpen(...a) }));
+jest.mock('../../shared/services/first-touch/one-door.service', () => {
+  let real = {};
+  try { real = jest.requireActual('../../shared/services/first-touch/one-door.service'); } catch (_) { /* the base: no such module */ }
+  real.reply = (...a) => mockOpen(...a);   // replyFromButton calls module.exports.reply: the stand-in is what it reaches
+  return real;
+});
 
 const MenuService = require('../../shared/services/menu.service');
 let OneDoorFlags = null;
@@ -44,6 +49,46 @@ test('OFF (absent): the row calls showList directly, exactly as today', async ()
 test('ON: the row gets the one door\'s ONE reply (door menu) — never showList', async () => {
   world([{ key: 'quiz_one_door', value: 'true' }]);
   await MenuService.handleMenuButtonResponse(COACH, FROM, 'menu_quiz', 'en');
-  expect(mockOpen).toHaveBeenCalledWith({ user: COACH, from: FROM, door: 'menu', language: 'en' });
+  expect(mockOpen).toHaveBeenCalledWith(expect.objectContaining({ user: COACH, from: FROM, door: 'menu', language: 'en' }));
   expect(mockShowList).not.toHaveBeenCalled();
+});
+
+describe('ON: the row and the old "Make a quiz" button go through the /quiz entry, so a question waiting is answered first', () => {
+  const VideoQuiz = require('../../shared/services/quiz/video-quiz.service');
+  const WhatsAppService = require('../../shared/services/whatsapp.service');
+  const { resolveUx } = require('../../shared/config/ux-strings');
+  const saved = process.env.QUIZ_MENU_HANDSET_ROUTING;
+  beforeEach(() => { process.env.QUIZ_MENU_HANDSET_ROUTING = 'true'; });
+  afterEach(() => {
+    if (saved === undefined) delete process.env.QUIZ_MENU_HANDSET_ROUTING; else process.env.QUIZ_MENU_HANDSET_ROUTING = saved;
+    jest.restoreAllMocks();
+  });
+
+  test('menu row: a chat question in flight → today\'s "still in the quiz" line, no one-door reply', async () => {
+    world([{ key: 'quiz_one_door', value: 'true' }]);
+    jest.spyOn(VideoQuiz, 'getActiveState').mockResolvedValue({ currentQuestionId: 'q-1', language: 'en', sessionId: 's-1' });
+    await MenuService.handleMenuButtonResponse(COACH, FROM, 'menu_quiz', 'en');
+    expect(mockOpen).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(FROM, resolveUx('vqStillInQuiz', { language: 'en' }));
+  });
+
+  test('old "Make a quiz" button: a chat question in flight → the same line; none → the one door (door home)', async () => {
+    world([{ key: 'quiz_one_door', value: 'true' }]);
+    const Home = require('../../shared/services/quiz/teacher-quiz-home.service');
+    const spy = jest.spyOn(VideoQuiz, 'getActiveState').mockResolvedValue({ currentQuestionId: 'q-1', language: 'en' });
+    expect(await Home.handleHomeButton('tqh_make', FROM, COACH)).toBe(true);
+    expect(mockOpen).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(FROM, resolveUx('vqStillInQuiz', { language: 'en' }));
+    spy.mockResolvedValue(null);
+    await Home.handleHomeButton('tqh_make', FROM, COACH);
+    expect(mockOpen).toHaveBeenCalledWith(expect.objectContaining({ user: COACH, from: FROM, door: 'home' }));
+  });
+
+  test('menu row with no question waiting → the one door (door menu)', async () => {
+    world([{ key: 'quiz_one_door', value: 'true' }]);
+    jest.spyOn(VideoQuiz, 'getActiveState').mockResolvedValue(null);
+    await MenuService.handleMenuButtonResponse(COACH, FROM, 'menu_quiz', 'en');
+    expect(mockOpen).toHaveBeenCalledWith(expect.objectContaining({ user: COACH, from: FROM, door: 'menu' }));
+    expect(mockShowList).not.toHaveBeenCalled();
+  });
 });

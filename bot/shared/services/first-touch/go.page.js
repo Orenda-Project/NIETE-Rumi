@@ -3,14 +3,14 @@
  * The one door's pages, rendered by the bot with NO database read (the token check is CPU, the nonce a Redis read),
  * no web font, no external asset (each ≤ 30 KB):
  *
- *   buildRolePage({ t, lang })    the ONE question: Urdu first + English, the child tile first (amber, ●), the parent line
+ *   buildRolePage({ t, lang, extra?, bot? })    the ONE question: Urdu first + English, the child tile first (amber, ●), the parent line
  *                                 above it, then the teacher tile (blue, ◆), the note. No primary, no third option, no
  *                                 text entry. After paint the page asks the server who this phone is (POST /api/go/who,
  *                                 with this device's quiz-page ref when it has one): someone already known goes
  *                                 straight on; a child who played on THIS device is offered one line above the tiles,
  *                                 "Is it <First>?", with the three notice sentences, "Yes, it's me" / "No". A tap POSTs
  *                                 /api/go/role (or /api/go/bind) and follows the answer's `next` in the same web view.
- *   buildPickPage({ t, lang, kids })  the children the server already knows for this phone (first names only):
+ *   buildPickPage({ t, lang, kids, bot? })  the children the server already knows for this phone (first names only):
  *                                 one → "Is it <First>?"; several → "Who is playing?" chips; then the notice sentences
  *                                 BEFORE "Yes, it's me" (POST /api/go/bind), and "None of these" → the one question.
  *   buildMessagePage({ id, lang, bot? })  one line: go.stale (send "quiz" again), go.error, go.family; the first two
@@ -74,7 +74,7 @@ const SCRIPT = [
   'function post(p,o,cb){var x=new XMLHttpRequest();x.open("POST",p,true);x.setRequestHeader("content-type","application/json");',
   'x.timeout=15000;x.onload=function(){var j=null;try{j=JSON.parse(x.responseText)}catch(e){}cb(x.status,j)};',
   'x.onerror=x.ontimeout=function(){cb(0,null)};x.send(JSON.stringify(o))}',
-  'function err(id){var e=$("go-err");e.hidden=false;e.textContent=b.words[id]||b.words["go.error"];}',
+  'function err(id){var e=$("go-err");e.hidden=false;e.textContent=b.words[id]||b.words["go.error"];var w=$("go-wa");if(w)w.hidden=false}',
   'function fill(el,first){var n=el.querySelectorAll("[data-tpl]");for(var i=0;i<n.length;i++){n[i].textContent=n[i].getAttribute("data-tpl").split("{first}").join(first)}}',
   'function go(r){if(r&&r.next){location.assign(r.next);return true}return false}',
   'function bind(btn){if(busy||!pick)return;busy=true;btn.setAttribute("aria-busy","true");',
@@ -141,7 +141,13 @@ const NOTICE_IDS = ['cl.notice.save', 'cl.notice.stop', 'cl.notice.readings'];
 const bootTag = (o) => `<script type="application/json" id="go-boot">${bootJson(o)}</script><script>${SCRIPT}</script>`;
 
 /** The one question. `t` = the go token (it goes back in each POST). */
-function buildRolePage({ t, lang = 'bi', extra = '' } = {}) {
+/** ONE tap back to the bot's chat with "quiz" typed (F22), or '' without a dialable number. Hidden until an error. */
+function waTap(lang, bot, hidden = false) {
+  const n = require('./cards.page').botOf(bot);
+  return n ? `<a class="wa"${hidden ? ' id="go-wa"' : ''} href="https://wa.me/${n}?text=quiz" data-tap="open_whatsapp"${hidden ? ' hidden' : ''}>${two('go.wa', lang)}</a>` : '';
+}
+
+function buildRolePage({ t, lang = 'bi', extra = '', bot = null } = {}) {
   const body = '<main class="go" data-screen="role">'
     + `<h1>${two('rq.h', lang)}</h1>`
     // a child who played on THIS device (filled after paint by /api/go/who; hidden until then)
@@ -158,7 +164,7 @@ function buildRolePage({ t, lang = 'bi', extra = '' } = {}) {
     + '<button type="button" class="tile t" data-tap="role_teacher" data-side="teacher">'
     + `<span class="ic" aria-hidden="true">${TEACHER_SVG}</span>`
     + `<span class="lb"><b>${two('rq.teacher', lang)}</b><small>${two('rq.teacher.sub', lang)}</small></span></button>`
-    + '<p class="err" id="go-err" role="alert" hidden></p>'
+    + '<p class="err" id="go-err" role="alert" hidden></p>' + waTap(lang, bot, true)
     + `<p class="note">${two('rq.note', lang)}</p>`
     // the sandbox walk-through row (listed test phones only; its own module builds it) — nothing otherwise
     + (typeof extra === 'string' ? extra : '')
@@ -170,7 +176,7 @@ function buildRolePage({ t, lang = 'bi', extra = '' } = {}) {
  * The children the server knows for this phone, before a binding: first names only. `kids` = [{ pick, first }] — `pick`
  * is an opaque per-link id (never a student id). One child → "Is it <First>?"; several → chips.
  */
-function buildPickPage({ t, lang = 'bi', kids = [] } = {}) {
+function buildPickPage({ t, lang = 'bi', kids = [], bot = null } = {}) {
   const one = kids.length === 1 ? kids[0] : null;
   const head = one
     ? `<p class="q">${two('cl.confirm.q', lang, 'span', { first: one.first })}</p>`
@@ -183,7 +189,7 @@ function buildPickPage({ t, lang = 'bi', kids = [] } = {}) {
     + `<section class="sheet" id="go-sheet">${head}${notice}`
     + `<button type="button" class="yes" id="go-yes" data-tap="pick_yes"${one ? '' : ' disabled'}>${two('cl.confirm.yes', lang)}</button>`
     + '</section>'
-    + '<p class="err" id="go-err" role="alert" hidden></p>'
+    + '<p class="err" id="go-err" role="alert" hidden></p>' + waTap(lang, bot, true)
     + `<a class="no" data-tap="pick_none" href="/quiz/go/${encodeURIComponent(t)}?ask=1">${two(one ? 'cl.confirm.no' : 'cl.confirm.none', lang)}</a>`
     + '</main>';
   return shell({
@@ -196,8 +202,7 @@ function buildPickPage({ t, lang = 'bi', kids = [] } = {}) {
 function buildMessagePage({ id = 'go.error', lang = 'bi', bot = null } = {}) {
   const ids = id === 'go.family' ? ['go.family.h', 'go.family.none'] : [id];
   // a dead end carries ONE tap back to the bot's chat with "quiz" typed (no dialable number → the words alone)
-  const n = id === 'go.stale' || id === 'go.error' ? require('./cards.page').botOf(bot) : null;
-  const wa = n ? `<a class="wa" href="https://wa.me/${n}?text=quiz" data-tap="open_whatsapp">${two('go.wa', lang)}</a>` : '';
+  const wa = id === 'go.stale' || id === 'go.error' ? waTap(lang, bot) : '';
   const body = `<main class="go" data-screen="${esc(id)}">${ids.map((x) => `<p class="msg">${two(x, lang)}</p>`).join('')}${wa}</main>`;
   return shell({ title: str(ids[0], clampLanguage(lang)), body });
 }

@@ -311,9 +311,9 @@ class MenuService {
         }
 
         case 'menu_quiz': {
-          // the one door (quiz_one_door): the menu's Quiz row is a quiz request like /quiz — the same ONE reply
+          // the one door (quiz_one_door): the menu's Quiz row is a quiz request like /quiz — a question waiting first, then the ONE reply
           if (await require('./first-touch/one-door.flags').on()) {
-            await require('./first-touch/one-door.service').reply({ user, from, door: 'menu', language: clampLanguage(language) });
+            await require('./first-touch/one-door.service').replyFromButton({ user, from, door: 'menu', language: clampLanguage(language) });
             break;
           }
           // The SAME predicate that decides whether the row is drawn

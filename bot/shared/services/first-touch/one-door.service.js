@@ -74,6 +74,30 @@ async function mintLanding({ user, phone, side = 'unknown', lang = 'bi', src = '
 }
 
 /**
+ * A quiz request from the menu's Quiz row or an old "Make a quiz" chat button: a chat quiz waiting on a question is
+ * answered first with today's line (vqStillInQuiz — the check openQuizMenu makes for typed /quiz), else the ONE reply.
+ * @returns {Promise<string>} still_in_quiz | what reply() sent
+ */
+async function replyFromButton({ user, from, door, language = null } = {}) {
+  if (require('../quiz/quiz-menu-flags').handsetRouting()) {
+    let live = null;
+    try {
+      const state = await require('../quiz/video-quiz.service').getActiveState(from);
+      live = state && state.currentQuestionId ? state : null;
+    } catch (err) {
+      logToFile('❌ one door: quiz-state read failed — answering with the one reply', { error: err && err.message }, 'error');
+    }
+    if (live) {
+      const { resolveUx } = require('../../config/ux-strings');
+      await WhatsAppService.sendMessage(from, resolveUx('vqStillInQuiz', { language: clampLanguage(live.language || language) }));
+      logEvent('onboard.quiz_door', { door, verdict: 'still_in_quiz', reply: 'still_in_quiz', userId: (user && user.id) || null });
+      return 'still_in_quiz';
+    }
+  }
+  return module.exports.reply({ user, from, door, language });
+}
+
+/**
  * The child home's "Not a teacher? Change" link (ROLE §5.4): minted server-side while the hub payload renders, from the
  * phone the binding gives — never put in a URL a child can share. Side unknown, src change (the question stays on
  * screen). `lang` is the home's en | ur → the page's ur | bi. `userId` optional: else the phone's own users row.
@@ -158,4 +182,4 @@ async function reply({ user, from, door = 'text', body = '', language = null } =
   }
 }
 
-module.exports = { reply, mintLanding, mintLandingForPhone, messageFor, srcOf, TRIGGER, DOORS, GO_PATH, CLASS_WORD, CARD_WORDS };
+module.exports = { reply, replyFromButton, mintLanding, mintLandingForPhone, messageFor, srcOf, TRIGGER, DOORS, GO_PATH, CLASS_WORD, CARD_WORDS };

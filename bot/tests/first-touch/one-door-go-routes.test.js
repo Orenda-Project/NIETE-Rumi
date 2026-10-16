@@ -295,11 +295,11 @@ describe('land', () => {
       expect(stale).toContain('data-screen="go.stale"');
       expect(stale).toContain('href="https://wa.me/923000000000?text=quiz"');
       expect(stale).toContain('Open WhatsApp');
-      expect(stale).toContain('واٹس ایپ کھولیں');
+      expect(stale).toContain('واٹس\u00a0ایپ کھولیں');
       expect(stale.match(/wa\.me/g)).toHaveLength(1);
       const ur = Page.buildMessagePage({ id: 'go.error', lang: 'ur', bot: '923000000000' }).html;
       expect(ur).toContain('href="https://wa.me/923000000000?text=quiz"');
-      expect(ur).toContain('واٹس ایپ کھولیں');
+      expect(ur).toContain('واٹس\u00a0ایپ کھولیں');
       expect(ur).not.toContain('Open WhatsApp');
       delete process.env.WHATSAPP_BOT_NUMBER; delete process.env.REFERRAL_BOT_NUMBER;
       const none = await (await land(t, DEV2)).text();
@@ -309,6 +309,26 @@ describe('land', () => {
     } finally {
       if (saved.W === undefined) delete process.env.WHATSAPP_BOT_NUMBER; else process.env.WHATSAPP_BOT_NUMBER = saved.W;
       if (saved.R === undefined) delete process.env.REFERRAL_BOT_NUMBER; else process.env.REFERRAL_BOT_NUMBER = saved.R;
+    }
+  });
+
+  test('the question and pick pages: an error shows the same ONE tap back (hidden until the error); the page never reloads', async () => {
+    const saved = process.env.WHATSAPP_BOT_NUMBER;
+    try {
+      process.env.WHATSAPP_BOT_NUMBER = '923000000000';
+      world();
+      const role = await (await land(await mint(UNKNOWN, PH.unknown))).text();
+      expect(role).toMatch(/<a class="wa" id="go-wa" href="https:\/\/wa\.me\/923000000000\?text=quiz" data-tap="open_whatsapp" hidden>/);
+      mockJoin = WRITER();
+      const pick = await (await land(await mint(PARENT, PH.parent, 'child'))).text();
+      expect(pick).toContain('data-screen="pick"');
+      expect(pick).toContain('id="go-wa"');
+      expect(Page._SCRIPT).toContain('$("go-wa")');
+      expect(Page._SCRIPT).not.toMatch(/location\.reload/);
+      delete process.env.WHATSAPP_BOT_NUMBER;
+      expect(await (await land(await mint(UNKNOWN, PH.unknown))).text()).not.toContain('id="go-wa"');
+    } finally {
+      if (saved === undefined) delete process.env.WHATSAPP_BOT_NUMBER; else process.env.WHATSAPP_BOT_NUMBER = saved;
     }
   });
 
