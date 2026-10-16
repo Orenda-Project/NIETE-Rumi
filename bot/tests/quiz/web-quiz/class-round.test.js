@@ -184,7 +184,18 @@ describe('the long-press', () => {
 });
 
 describe('the child view', () => {
-  test('done children stay ticked on the list while later children play; no count anywhere on the child view', async () => {
+  // IDENTITY §2 / L11: a screen the child holds never names another child (the list and the ticks are the teacher's).
+  const visible = (html) => html.slice(html.indexOf('<body')).replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ');
+  const nameOf = (id) => NAMES[Number(id.slice(-2)) - 1];
+  const noOtherChild = (html, self) => {
+    const text = visible(html);
+    for (const n of NAMES.filter((x) => x !== self)) {
+      expect(text).not.toContain(n.split(' ')[0]);
+      expect(text).not.toContain(n.split(' ')[1]);
+    }
+  };
+
+  test.each(['en', 'ur'])('no other child\'s name on a turn screen, only "<name>\'s turn", the assent line and the hand-back hold; no count (%s)', async (lang) => {
     await Round.start(TEACHER, { rng: seeded(6) });
     const order = draw().state.order.map((p) => p.id);
     for (let i = 0; i < 2; i += 1) {
@@ -193,26 +204,49 @@ describe('the child view', () => {
       await post(`/round/${tok()}/teacher`, HOLD);
     }
     await post(`/round/${tok()}/next`, HOLD);
-    const html = await (await get(`/round/${tok()}`)).text();
-    const first = (id) => NAMES[Number(id.slice(-2)) - 1].split(' ')[0];
-    expect(html).toContain(`${first(order[2])}'s turn`);
-    expect(html).toContain('Still to play:');
-    const done = html.match(/<li class="done[^"]*">[\s\S]*?<\/li>/g) || [];
-    expect(done.join('')).toContain(first(order[0]));
-    expect(done.join('')).toContain(first(order[1]));
-    expect(done.join('')).toContain('Done ✓');
-    const body = html.slice(html.indexOf('<body'));
-    expect(body.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, '')).not.toMatch(/\d/);
+    const html = await (await get(`/round/${tok()}?lang=${lang}`)).text();
+    const Page = require('../../../shared/templates/class-round.page');
+    const C = Page.T[lang];
+    const self = nameOf(order[2]);
+    expect(visible(html)).toContain(self.split(' ')[0]);
+    expect(html).toContain(C.cAssent);
+    expect(html).toContain(C.cBack);
+    expect(html).not.toContain(C.cStill);
+    expect(html).not.toContain(C.cDone);
+    expect(html).not.toMatch(/<li\b/);
+    noOtherChild(html, self);
+    expect(visible(html)).not.toMatch(/\d/);
   });
 
-  test('after the games the child sees the hand-back screen, the list still ticked', async () => {
+  test.each(['en', 'ur'])('no other child\'s name on the hand-back screen: the hand-back line and the hold only (%s)', async (lang) => {
     await Round.start(TEACHER, { rng: seeded(6) });
     const order = draw().state.order.map((p) => p.id);
     await post(`/round/${tok()}/next`, HOLD);
     await Round.childFinished(ROUND, order[0], 'run-0');
+    await post(`/round/${tok()}/teacher`, HOLD);
+    await post(`/round/${tok()}/next`, HOLD);
+    await Round.childFinished(ROUND, order[1], 'run-1');
+    const html = await (await get(`/round/${tok()}?lang=${lang}`)).text();
+    const C = require('../../../shared/templates/class-round.page').T[lang];
+    expect(html).toContain(C.cHandback);
+    expect(html).toContain(C.cBack);
+    expect(html).not.toContain(C.cStill);
+    expect(html).not.toContain(C.cDone);
+    expect(html).not.toMatch(/<li\b/);
+    noOtherChild(html, null);
+  });
+
+  test('the list and the ticks live on the teacher\'s screen behind the long-press', async () => {
+    await Round.start(TEACHER, { rng: seeded(6) });
+    const order = draw().state.order.map((p) => p.id);
+    await post(`/round/${tok()}/next`, HOLD);
+    await Round.childFinished(ROUND, order[0], 'run-0');
+    await post(`/round/${tok()}/teacher`, HOLD);
     const html = await (await get(`/round/${tok()}`)).text();
-    expect(html).toContain('Thanks for playing! Hand the phone to your teacher.');
-    expect(html).toMatch(/<li class="done/);
+    const done = html.match(/<li class="done[^"]*">[\s\S]*?<\/li>/g) || [];
+    expect(done.join('')).toContain(nameOf(order[0]).split(' ')[0]);
+    expect(done.join('')).toContain('Done ✓');
+    for (const id of order.slice(1)) expect(visible(html)).toContain(nameOf(id).split(' ')[0]);
   });
 
   test('the play button opens the Challenge with a round turn token for exactly this child', async () => {

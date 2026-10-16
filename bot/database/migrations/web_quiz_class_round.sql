@@ -1,3 +1,4 @@
+-- requires: web_quiz_class_link.sql
 -- Migration: the once-a-term class round (web quiz), one row per drawn class per term, and the view the term's
 -- statement reads.
 --

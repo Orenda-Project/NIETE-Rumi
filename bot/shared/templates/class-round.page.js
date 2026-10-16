@@ -8,8 +8,10 @@
  *     view.mode 'teacher'   the teacher's count (theirs only), every child by first name in the server's order,
  *                           "Mark absent" on a child still to play (absent stays on the list, struck), and
  *                           "Hold to call the next child" (a long-press, ≥ 600 ms; a tap does nothing)
- *     view.mode 'child'     "<name>'s turn" (the button into the games), "Still to play:", done children ticked
- *     view.mode 'handback'  "Give the phone back to your teacher", the same list, ticks kept
+ *     view.mode 'child'     "<name>'s turn" (the button into the games) and the assent line
+ *     view.mode 'handback'  "Give the phone back to your teacher"
+ *   A screen the child holds never names another child (IDENTITY §2, RUBRIC L11): the list and the ticks are on the
+ *   teacher's screen only, behind the long-press.
  *   The child's screens carry no count, and replace their history entry and trap Back: the teacher's screen is
  *   never one Back away (the server also refuses it while a turn is open). Nothing is written to the browser: no
  *   storage, no cookie, no remembered child. The only script is the long-press and the Back trap.
@@ -193,16 +195,13 @@ function renderRound(view, { lang, token, turnHref = null }) {
       + `<div class="foot">${view.paused ? '' : holdForm(`${b}/next${q(l)}`, C.tNext)}${pauseForm}</div>`;
     return shell({ lang: l, title: C.cardTitle, body, script: HOLD_JS, css: TEACHER_CSS });
   }
-  // the child's screens: no count; done children stay ticked; absent children are not listed to the class
+  // the child's screens: no count, and no other child's name (the list stays with the teacher)
   const cur = view.current || { name: '' };
-  const still = rows.filter((r) => r.s === 'todo' && !r.now);
-  const doneRows = rows.filter((r) => r.s === 'done');
   const top = view.mode === 'handback'
     ? `<div class="handback"><h1>${esc(C.cHandback)}</h1></div>`
     : `<a class="turn" href="${esc(turnHref || '#')}"><span class="pl" aria-hidden="true">▶</span>${C.turnOf(esc(cur.name))}</a>`
       + `${C.cAssent ? `<p class="assent">${esc(C.cAssent)}</p>` : ''}`;
-  const body = `${top}${still.length ? `<h2>${esc(C.cStill)}</h2><ul class="still">${still.map((r) => `<li class="todo"><span class="nm">${esc(r.name)}</span></li>`).join('')}</ul>` : ''}`
-    + `${doneRows.length ? `<ul class="done-list">${doneRows.map((r) => `<li class="done"><span class="nm">${esc(r.name)}</span><span class="tick">${esc(C.cDone)}</span></li>`).join('')}</ul>` : ''}`
+  const body = `${top}`
     + `<div class="foot">${holdForm(`${b}/teacher${q(l)}`, C.cBack || C.tNext)}</div>`;
   return shell({ lang: l, title: view.mode === 'handback' ? C.cHandback : C.cardTitle, body, script: `${TRAP_JS}\n${HOLD_JS}` });
 }

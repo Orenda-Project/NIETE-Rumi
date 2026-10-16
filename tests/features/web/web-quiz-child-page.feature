@@ -1910,9 +1910,9 @@ Feature: Web child quiz page on the portal
   Scenario: The child's screens never lead back to the teacher's and remember nothing
     Given a child's turn is open on the teacher's phone
     When the child presses Back, or the teacher's screen is asked for
-    Then the child's screen stays, listing "Still to play:" and the children already "Done ✓", with no count
+    Then the child's screen stays, with no count and no other child's name (the list and the "Done ✓" ticks are on the teacher's screen only)
     And under "<name>'s turn" it says "Two games, just tapping. If you'd rather not, that's fine."
-    And after the games it says "Thanks for playing! Hand the phone to your teacher.", the ticks kept
+    And after the games it says only "Thanks for playing! Hand the phone to your teacher."
     And only holding "Give the phone back" returns to the teacher's screen
     And no round screen writes local storage, session storage or a cookie, or offers to keep a place
 
