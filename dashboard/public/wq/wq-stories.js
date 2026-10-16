@@ -61,7 +61,7 @@
   }
   function tids(kid) { return String(ls('wq_st_t:' + (kid || '')) || '').split(',').filter(Boolean); }
 
-  function hm(l, pr) { return '<a class="wqs-ic" href="#" data-home data-tap="home"' + (pr ? ' data-primary' : '') + ' aria-label="' + esc(T[l].home) + '">' + IC.home + '</a>'; }
+  function hm(l) { return '<a class="wqs-ic" href="#" data-home data-tap="home" aria-label="' + esc(T[l].home) + '">' + IC.home + '</a>'; }
   function scr(name, l, inner, cls) { return '<section class="wqs ' + (cls || '') + '" data-screen="' + name + '" lang="' + l + '" dir="' + dirOf(l) + '">' + inner + '</section>'; }
   function img(src, w, h, cls, ex) { return '<img' + (cls ? ' class="' + cls + '"' : '') + ' src="' + esc(src) + '" width="' + w + '" height="' + h + '" alt=""' + (ex || '') + ' onerror="WQSTORIES._bad(this)">'; }
   function ic(t, tap, label, glyph, ex) { return '<button class="wqs-ic" ' + (ex || 'data-back') + ' data-tap="' + tap + '" aria-label="' + esc(label) + '">' + glyph + '</button>'; }
@@ -92,7 +92,7 @@
     });
   }
 
-  function shelfHtml(d, open) {
+  function shelfHtml(d, open, host) {
     var l = lg(d.lang), t = T[l], bk = d.books || [], tk = -1, k, cards = '', first;
     for (k = 0; k < bk.length && tk < 0; k++) if (bk[k].from_teacher) tk = k;
     first = tk < 0;
@@ -111,19 +111,23 @@
       ['en', 'ur'].forEach(function (x) { chips += '<button class="wqs-chip" data-tap="l" data-arg="' + x + '" aria-pressed="' + (x === l) + '" lang="' + x + '" dir="' + dirOf(x) + '">' + (x === 'ur' ? 'اردو' : 'EN') + '</button>'; });
     }
     var tb = bk[tk];
+    if (host && !bk.length) return scr('stories-shelf', l, '<p class="wqs-say">' + esc(t.empty) + '</p>', 'wqs-shelf');
     return scr('stories-shelf', l,
-      '<div class="wqs-top">' + hm(l, !bk.length) + '<h2>' + esc(t.shelf) + '</h2></div>' +
-      '<button class="wqs-gl" data-tap="gl" aria-expanded="' + !!open + '">' + esc(t.gl(dg(d.grade, l), l)) + ' ▾</button>' + (open ? '<div class="wqs-pick">' + chips + '</div>' : '') +
+      '<div class="wqs-top">' + hm(l) + '<h2>' + esc(t.shelf) + '</h2></div>' +
+      '<button class="wqs-gl" data-tap="gl"' + (bk.length ? '' : ' data-primary') + ' aria-expanded="' + !!open + '">' + esc(t.gl(dg(d.grade, l), l)) + ' ▾</button>' + (open ? '<div class="wqs-pick">' + chips + '</div>' : '') +
       (tb ? '<button class="wqs-tcard" data-tap="book" data-arg="' + tk + '" data-primary>' + cov(tb) + '<span><i class="wqs-rib">' + esc(t.teacher) + '</i><b>' + IC.play + ' ' + t.readWith('<bdi lang="' + lg(tb.lang) + '" dir="' + dirOf(lg(tb.lang)) + '">' + esc(tb.title) + '</bdi>') + '</b>' + (tb.by ? '<small>' + esc(t.by(tb.by)) + '</small>' : '') + '</span></button>' : '') +
       (bk.length ? '<ul class="wqs-grid">' + cards + '</ul>' : '<p class="wqs-say">' + esc(t.empty) + '</p>'), 'wqs-shelf');
   }
   function shelf(el, ctx, q) {
     if (!el) return;
     ctx = ctx || {};
-    if (q && q.token || !ctx.token && ctx.kid) { var x = q || {}; ctx = { token: x.token, kid: ctx.kid, lang: x.lang || ctx.lang, ev: x.ev, primary: x.primary }; q = 0; }
+    if (q && q.token || !ctx.token && ctx.kid) { var x = q || {}; ctx = { token: x.token, kid: ctx.kid, lang: x.lang || ctx.lang, ev: x.ev, primary: x.primary, host: 1 }; q = 0; }
     if (!q) { q = {}; var gl = String(ls('wq_st_gl') || '').split(','); if (gl[0]) q.g = gl[0]; if (gl[1]) q.l = gl[1]; }
     var l = lg(q.l || ctx.lang), ids = tids(ctx.kid).join(',');
-    var np = function (h) { return ctx.primary === false ? h.replace(/ data-primary/g, '') : h; };
+    var gen = el._gen = (el._gen || 0) + 1, np = function (h) {
+      if (ctx.host) h = h.replace(/<div class="wqs-top"[^>]*>[\s\S]*?<\/div>/, '');
+      return ctx.primary === false ? h.replace(/ data-primary/g, '') : h;
+    };
     try { el.setAttribute('data-filled', '1'); } catch (e) {}
     wire(el, function (tap, arg) {
       var d = el._d || {}, b = (d.books || [])[+arg];
@@ -131,17 +135,18 @@
         opened[b.id] = 1;
         post(ctx, b.id, 'story_opened', { shelf_position: b.shelf_position == null ? +arg + 1 : b.shelf_position, from_teacher: !!b.from_teacher, grade: b.grade, lang: b.lang });
         W.location.hash = '#story/' + b.id;
-      } else if (tap === 'gl') { el._open = !el._open; el.innerHTML = np(shelfHtml(d, el._open)); }
+      } else if (tap === 'gl') { el._open = !el._open; el.innerHTML = np(shelfHtml(d, el._open, ctx.host)); }
       else if (tap === 'g' || tap === 'l') { q[tap] = arg; ls('wq_st_gl', (q.g || '') + ',' + (q.l || '')); shelf(el, ctx, q); }
       else if (tap === 'retry') shelf(el, ctx, q);
     });
-    el.innerHTML = np(scr('stories-wait', l, '<div class="wqs-top">' + hm(l, 1) + '</div><div class="wqs-grid" aria-busy="true">' + new Array(5).join('<i class="wqs-skel"></i>') + '</div>', 'wqs-shelf'));
-    function fail() { el.innerHTML = retryHtml(l, hm(l)); }
+    el.innerHTML = np(scr('stories-wait', l, '<div class="wqs-top">' + hm(l) + '</div><div class="wqs-grid" aria-busy="true">' + new Array(5).join('<i class="wqs-skel"></i>') + '</div>', 'wqs-shelf'));
+    function fail() { if (el._gen === gen) el.innerHTML = np(retryHtml(l, hm(l))); }
     req('GET', '/api/wq/stories/shelf/h/' + enc(ctx.token) + '?kid=' + enc(ctx.kid) + (q.g ? '&g=' + enc(q.g) : '') + '&l=' + l + (ids ? '&t=' + enc(ids) : '')).then(function (r) {
+      if (el._gen !== gen) return;
       if (r.status === 404) { el.innerHTML = ''; el.hidden = true; return; }
       if (!r.ok) return fail();
       el._d = r.body; el._open = false;
-      el.innerHTML = np(shelfHtml(r.body, false));
+      el.innerHTML = np(shelfHtml(r.body, false, ctx.host));
       evt(ctx, 'story_shelf_shown', { n: (r.body.books || []).length, grade: +r.body.grade, lang: r.body.lang });
     }, fail);
   }
@@ -557,7 +562,7 @@
       if (!/^#story\//.test(W.location.hash || '')) W.location.hash = '#story/' + sid;
     }
     var sl = document.querySelector('[data-stories-shelf], .wq-shelf[data-shelf]');
-    if (sl && c0 && !sl.getAttribute('data-filled')) shelf(sl, c0);
+    if (sl && c0 && !sl.getAttribute('data-filled') && sl.getAttribute('data-host') == null) shelf(sl, c0);
     W.addEventListener('hashchange', function () { route(found()); });
     if (document.addEventListener) document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && cur) cur.hush(); });
     if (c0) route(c0);

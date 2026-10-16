@@ -98,7 +98,9 @@ function env(opt = {}) {
       else r = { status: 200, body: { ok: true } };
     } else if (/\/lr\/key/.test(url)) r = replies.key || { status: 200, body: { ws: 'wss://x', api_key: 'k', model: 'm', lang: 'en' } };
     else r = { status: 404, body: {} };
-    return Promise.resolve({ status: r.status, ok: r.status < 400, json: () => Promise.resolve(r.body), text: () => Promise.resolve(JSON.stringify(r.body)) });
+    const res = { status: r.status, ok: r.status < 400, json: () => Promise.resolve(r.body), text: () => Promise.resolve(JSON.stringify(r.body)) };
+    if (opt.hold && opt.hold(url)) return new Promise((go) => (calls.held = calls.held || []).push(() => go(res)));
+    return Promise.resolve(res);
   }
   const store = { m: {}, getItem(k) { return k in this.m ? this.m[k] : null; }, setItem(k, v) { this.m[k] = String(v); } };
   const winL = {};
@@ -130,7 +132,7 @@ function env(opt = {}) {
   calls.loaded = []; calls.hist = []; calls.disp = [];
   const doc = {
     getElementById: (id) => (id === 'boot' && opt.boot ? { textContent: JSON.stringify(opt.boot) } : id === 'wq' && opt.boot ? wqRoot : null),
-    querySelector: (sel) => { (calls.qs = calls.qs || []).push(sel); return /wq-stories\.js/.test(sel) ? { getAttribute: () => '/wq/wq-stories.js?v=abc123' } : null; },
+    querySelector: (sel) => { (calls.qs = calls.qs || []).push(sel); if (opt.slot && /data-stories-shelf/.test(sel)) return opt.slot; return /wq-stories\.js/.test(sel) ? { getAttribute: () => '/wq/wq-stories.js?v=abc123' } : null; },
     createElement: (tag) => ({ tag }),
     L: {}, addEventListener(n, f) { (this.L[n] = this.L[n] || []).push(f); },
     head: { appendChild(x) {
@@ -1112,7 +1114,7 @@ describe('hooks, hush, back controls, the own done screen', () => {
     fire(root, 'ans', 1); await flush();
     expect(root.innerHTML).not.toContain('Hmm, look again');
   });
-  test('the loading screens: a back (reader) or home (shelf) control and exactly one primary', async () => {
+  test('the loading screens: the reader\'s has a back as its one primary; the shelf\'s has a home link that is never the primary', async () => {
     const e = env(); const root = fakeEl('root');
     e.S.open('b-1', e.ctx({ root }));
     let h = root.innerHTML;
@@ -1123,8 +1125,9 @@ describe('hooks, hush, back controls, the own done screen', () => {
     e.S.shelf(el, e.ctx());
     h = el.innerHTML;
     expect(h).toContain('wqs-skel');
-    checkScreen(h, 'en');
+    expect(screenOf(h)).toBe('stories-wait');
     expect(h).toMatch(/data-home/);
+    expect(primaries(h)).toBe(0);
     const el2 = fakeEl('shelf2');
     e.S.shelf(el2, e.ctx({ primary: false }));
     expect(primaries(el2.innerHTML)).toBe(0);
@@ -1772,6 +1775,75 @@ describe('a page counts as read only from 10 % of its words', () => {
     const m = e.S._machine(book(), { lr: true });
     m.go(2); m.end(); m.primary(); m.end();
     expect(m.counts().pages_listened).toBe(0);
+  });
+});
+
+describe('the shelf inside a host screen, and one writer per slot', () => {
+  const host = (e, el, over = {}) => e.S.shelf(el, { kid: KID, lang: 'en' }, { token: TOKEN, lang: 'en', ...over });
+  test('hosted (shelf(el, B, ctx)): no top bar and no primary while loading; books: one primary on the teacher card; primary:false: none', async () => {
+    const e = env(); const el = fakeEl('slot');
+    host(e, el);
+    expect(el.innerHTML).toContain('wqs-skel');
+    expect(el.innerHTML).not.toContain('wqs-top');
+    expect(el.innerHTML).not.toContain('data-home');
+    expect(primaries(el.innerHTML)).toBe(0);
+    await flush();
+    expect(el.innerHTML).not.toContain('wqs-top');
+    expect(el.innerHTML).not.toContain('data-home');
+    expect(primaries(el.innerHTML)).toBe(1);
+    expect(el.innerHTML).toMatch(/class="wqs-tcard"[^>]*data-primary/);
+    const e2 = env(); const el2 = fakeEl('slot2');
+    host(e2, el2, { primary: false }); await flush();
+    expect(primaries(el2.innerHTML)).toBe(0);
+  });
+  test('hosted, no books: only the "no books" line (the host keeps its own primary); a failed fetch keeps no top bar either', async () => {
+    const e = env({ replies: { shelf: { status: 200, body: { grade: 1, lang: 'en', grades: [1, 2, 3, 4, 5], books: [] } } } }); const el = fakeEl('slot');
+    host(e, el); await flush();
+    expect(el.innerHTML).toContain('No storybooks here yet.');
+    expect(el.innerHTML).not.toContain('wqs-top');
+    expect(el.innerHTML).not.toContain('data-home');
+    expect(el.innerHTML).not.toContain('data-tap="gl"');
+    expect(primaries(el.innerHTML)).toBe(0);
+    const f = env({ fail: (u) => /\/stories\/shelf\//.test(u) }); const el2 = fakeEl('slot2');
+    host(f, el2); await flush();
+    expect(el2.innerHTML).not.toContain('wqs-top');
+    expect(primaries(el2.innerHTML)).toBe(1);
+    expect(el2.innerHTML).toMatch(/data-primary data-tap="retry"/);
+  });
+  test('on its own (shelf(el, ctx)): Home is never the primary; an empty shelf makes "pick another grade" the primary', async () => {
+    const e = env(); const el = fakeEl('shelf');
+    e.S.shelf(el, e.ctx());
+    expect(el.innerHTML).toContain('data-home');
+    expect(el.innerHTML).not.toMatch(/data-home[^>]*data-primary/);
+    const z = env({ replies: { shelf: { status: 200, body: { grade: 1, lang: 'en', grades: [1, 2, 3, 4, 5], books: [] } } } }); const el2 = fakeEl('shelf2');
+    z.S.shelf(el2, z.ctx()); await flush();
+    expect(el2.innerHTML).toContain('wqs-top');
+    expect(el2.innerHTML).not.toMatch(/data-home[^>]*data-primary/);
+    expect(primaries(el2.innerHTML)).toBe(1);
+    expect(el2.innerHTML).toMatch(/data-tap="gl"[^>]*data-primary|data-primary[^>]*data-tap="gl"/);
+  });
+  test('two shelf() calls on one slot: only the later call paints, even when the older fetch answers last', async () => {
+    const e = env({ hold: (u) => /\/stories\/shelf\//.test(u) }); const el = fakeEl('slot');
+    e.S.shelf(el, e.ctx());                 // the self-mount's shape, its own primary
+    host(e, el, { primary: false });        // then the host's call
+    expect(e.calls.held).toHaveLength(2);
+    e.calls.held[1](); await flush();
+    const later = el.innerHTML;
+    expect(later).toContain('stories-shelf');
+    expect(primaries(later)).toBe(0);
+    e.calls.held[0](); await flush();
+    expect(el.innerHTML).toBe(later);
+    expect((e.calls.ev || []).filter((x) => x[0] === 'story_shelf_shown')).toHaveLength(0);
+  });
+  test('the self-mount skips a slot a host has claimed (data-host), and fills an unclaimed one', async () => {
+    const claimed = fakeEl('slot'); claimed.setAttribute('data-host', 'doors');
+    const e = env({ boot: { token: TOKEN, kid: KID, lang: 'en' }, slot: claimed }); await flush();
+    expect(e.calls.gets.filter((u) => /\/stories\/shelf\//.test(u))).toHaveLength(0);
+    expect(claimed.innerHTML).toBe('');
+    const free = fakeEl('slot2');
+    const e2 = env({ boot: { token: TOKEN, kid: KID, lang: 'en' }, slot: free }); await flush();
+    expect(e2.calls.gets.filter((u) => /\/stories\/shelf\//.test(u))).toHaveLength(1);
+    expect(free.innerHTML).toContain('stories-shelf');
   });
 });
 
