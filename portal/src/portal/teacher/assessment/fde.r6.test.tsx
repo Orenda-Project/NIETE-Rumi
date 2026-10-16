@@ -354,6 +354,15 @@ describe('the customised Syllabus row (R5-20 a)', () => {
   });
 });
 
+describe('the Inside tray on a customised paper', () => {
+  it('its "Covers" line prints the same ranges as the Syllabus row', async () => {
+    setPicks(fdePicks({ subject: 'english', subjectName: 'English', coverBy: 'chapters', chapters: [1, 2, 3, 4, 6, 7, 8] }));
+    app(newPaperPath('check'));
+    fireEvent.click(await screen.findByTestId('fde-row-inside'));
+    expect(await screen.findByText(C.insideCustom('Units 1–4, 6–8'))).toBeTruthy();
+  });
+});
+
 /* ── item 9: the door holds Islamiat from first paint ────────────────────── */
 
 describe('the door\'s Class step', () => {
