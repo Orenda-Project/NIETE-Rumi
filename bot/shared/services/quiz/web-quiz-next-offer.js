@@ -163,7 +163,8 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
   const next = { ...slot(head, ctx, src, { arm, score_v: scoreV }), alts };
   return {
     next,
-    meta: { rule, arm, score_v: scoreV, order: [head, ...tail].map((x) => x.c.id), kinds: [next, ...alts].map((x) => x.kind) },
+    // elig: the kinds the rand arm could draw from (its denominator: the draw is uniform over THIS child's set)
+    meta: { rule, arm, score_v: scoreV, order: [head, ...tail].map((x) => x.c.id), kinds: [next, ...alts].map((x) => x.kind), elig: [...new Set(order.map((x) => x.c.kind))].sort() },
   };
 }
 
@@ -268,7 +269,7 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
       const pinnedK = candidates.filter((c) => c && c.rule === 'teacher_quiz').length;
       await require('./web-quiz-events-v3').emit3('web_quiz.next_set', {
         ctx, offer: next.offer, kinds: r.meta.kinds.join('|'), rank_src: next.rank_src, arm: r.meta.arm,
-        score_v: r.meta.score_v, pinned_k: pinnedK, rule: r.meta.rule, lang,
+        score_v: r.meta.score_v, pinned_k: pinnedK, rule: r.meta.rule, elig: r.meta.elig.join('|'), lang,
       }, { canonicalId: studentId });
     }
     return next;

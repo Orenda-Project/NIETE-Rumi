@@ -225,6 +225,7 @@ describe('the next_set line (events v3)', () => {
     expect(f.kid).toMatch(/^[0-9a-f]{16}$/);
     expect(f.sit).toMatch(/^[a-z0-9]{10}$/);
     expect(f.kinds.split('|')[0]).toBe('quiz');
+    expect(f.elig.split('|')).toEqual([...f.elig.split('|')].sort());
     const text = JSON.stringify(f);
     ['Zara', 'FIXTURE', KID, 'SCI002', '22222222-2222-4222-8222-000000000002'].forEach((s) => expect(text).not.toContain(s));
   });

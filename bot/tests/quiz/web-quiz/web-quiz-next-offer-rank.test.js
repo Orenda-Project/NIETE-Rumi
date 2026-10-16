@@ -174,6 +174,7 @@ describe('the arm', () => {
       kinds.add(r.next.kind);
     }
     expect(kinds).toEqual(new Set(['video', 'quiz', 'game', 'story']));
+    expect(NO.rank('after_quiz', [video, again, game], base({ arm: 'rand' }), FILE).meta.elig).toEqual(['game', 'quiz', 'video']);
   });
   test('ctrl: today\'s lantern candidate is the primary', () => {
     const lantern = { ...story('s-lantern', daysAgo(1)), lantern: true };
