@@ -26,10 +26,10 @@ function prompt(subject, sectionId, scope = FDE) {
 const sectionIds = (subject) => P[subject].sections.map((s) => s.id);
 const slotOf = (subject, id) => P[subject].sections.flatMap((s) => s.slots).find((s) => s.slot === id);
 
-const Q2_WORDS = 'In Q2, at least 6 of the 12 items are short word problems set in a situation a Grade 5 child knows (shopping, measuring, time, sharing, travel), in which the child decides which operation(s) to use; the other items stay calculations.';
-const Q2_FAMILIES = 'Each Q2 family keeps its word problem; set 2 more of the families\' number-sense or computation items as such word problems, keeping the skill they test.';
-const Q1B_WORDS = 'In Q1(b), at least 3 of the 10 items are one-step word problems set in a situation a Grade 5 child knows (shopping, measuring, time, sharing, travel), in which the child decides which operation to use.';
-const PAGES_POINTS = 'Q1(a) and Q1(b) test only the grammar and word-study points these pages teach. Before writing, list those points from the pages.';
+const Q2_WORDS = 'In Q2, at least 7 of the 12 items are short word problems set in a situation a Grade 5 child knows (shopping, measuring, time, sharing, travel), in which the child decides which operation(s) to use; the other items stay calculations.';
+const Q2_FAMILIES = 'Each Q2 family keeps its word problem; set 3 more of the families\' number-sense or computation items as such word problems, keeping the skill they test.';
+const Q1B_WORDS = 'In Q1(b), at least 4 of the 10 items are one-step word problems set in a situation a Grade 5 child knows (shopping, measuring, time, sharing, travel), in which the child decides which operation to use.';
+const PAGES_POINTS = 'Q1(a) and Q1(b) test only the grammar and word-study points these pages teach. Before writing, list those points to yourself; the reply is still the JSON only.';
 const PAGES_REST = 'If the pages teach fewer points than there are items, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.';
 const NO_ANAGRAM = 'Never set an item that asks the child to rearrange, unscramble or reorder letters to make a word.';
 // FDE's model-paper topic lists for Q1(a) and Q1(b), as the pattern module carries them.
@@ -39,13 +39,13 @@ const Q1B_GRAIN = 'rewrite as a simile, identify subject + verb + object, change
 
 describe('round-4 pattern prompt rules', () => {
   test('maths Q2: counted word-problem slots, every scope', () => {
-    // The count is read from the pattern, not typed: half of Q2's generated items, rounded up.
+    // The count is read from the pattern, not typed: half of Q2's generated items, rounded up, plus one.
     const q2 = slotOf('maths', 'maths.B.Q2');
-    expect(Math.ceil(q2.generate / 2)).toBe(6);
+    expect(Math.ceil(q2.generate / 2) + 1).toBe(7);
     for (const scope of ALL_SCOPES) {
       const text = prompt('maths', 'B', scope);
       expect(text).toContain(Q2_WORDS);
-      // Four families carry four word problems; the other two of the six come from their other items.
+      // Four families carry four word problems; the other three of the seven come from their other items.
       expect(q2.families).toHaveLength(4);
       expect(text).toContain(Q2_FAMILIES);
       // Marks and counts stay as the pattern has them.
