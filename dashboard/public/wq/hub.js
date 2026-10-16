@@ -343,13 +343,15 @@
     // A first open's server render was locked (no wq_dv cookie yet), so the edge left hub-play.js out: load it now.
     if (B.play && !window.WQPLAY) playIn();
     if (B.bind && !window.WQBIND) bindIn();
+    // keep my place's mount (wq-bind.js): under the greeting, or right after the Jugnu card when that leads.
+    var slot = B.bind && window.WQBIND ? '<div id="wq-bind-slot"></div>' : '';
     // The Jugnu corner (hub-play.js, loaded only when the server sent `play`): it may put the Jugnu card first.
     var top = B.play && window.WQPLAY
-      ? window.WQPLAY.top(B, T, { HOME: HOME, lastCard: lastCard(B.last), homeTiles: homeTiles(), teacher: B.teacher ? teacherCard(B.teacher) : '', teacherAny: teacherCard(B.teacher), tiles: tiles, LANG: LANG, MASC: MASC, chHref: '/c/' + withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid))), ROOT: ROOT, ev: ev })
+      ? window.WQPLAY.top(B, T, { afterJug: slot, HOME: HOME, lastCard: lastCard(B.last), homeTiles: homeTiles(), teacher: B.teacher ? teacherCard(B.teacher) : '', teacherAny: teacherCard(B.teacher), tiles: tiles, LANG: LANG, MASC: MASC, chHref: '/c/' + withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid))), ROOT: ROOT, ev: ev })
       : HOME
         ? lastCard(B.last) + homeTiles() + (B.teacher ? teacherCard(B.teacher) : '')
         : teacherCard(B.teacher) + (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '');
-    render(bar() + jug('hello', T.hi(me.first || '')) + (B.bind && window.WQBIND ? '<div id="wq-bind-slot"></div>' : '') + top +
+    render(bar() + jug('hello', T.hi(me.first || '')) + (slot && top.indexOf('id="wq-bind-slot"') < 0 ? slot : '') + top +
       againList(B.again || []) + recList(B.recs || []) +
       ((B.kids || []).length > 1 ? '<button class="wq-btn wq-ghost" id="wq-h-switch">' + ani(me.animal) + ' ' + esc(T.switchKid) + '</button>' : ''), 'H2');
     on('#wq-h-teacher', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'teacher'); });
