@@ -31,10 +31,12 @@ jest.mock('../../../shared/services/quiz/web-quiz-rungs', () => {
 // The class sample windows (web-quiz-sample-window.js, ships with the class round; not on the base yet): VIRTUAL.
 // global.__win: unset → no module; 'present' → daily().
 const mockWinDaily = jest.fn(async () => 0);
+// its own switches (web_quiz_class_round under web_quiz_challenge_v2 + web_quiz_events_v2 under web_quiz_hub)
+const mockWinOn = jest.fn(async () => true);
 jest.mock('../../../shared/services/quiz/web-quiz-sample-window', () => {
-  if (global.__win === 'present') return { daily: mockWinDaily };
+  if (global.__win === 'present') return { daily: mockWinDaily, switchesOn: mockWinOn };
   throw new Error("Cannot find module './web-quiz-sample-window'");
-}, { virtual: true });
+});
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
@@ -71,7 +73,11 @@ describe('the class sample windows: scheduled here, decided by their own module'
     Object.assign(sb, f);
     return { S2, lg, f };
   };
-  afterEach(() => { delete global.__win; jest.resetModules(); mockWinDaily.mockReset(); mockWinDaily.mockImplementation(async () => 0); });
+  afterEach(() => {
+    delete global.__win; jest.resetModules();
+    mockWinDaily.mockReset(); mockWinDaily.mockImplementation(async () => 0);
+    mockWinOn.mockReset(); mockWinOn.mockImplementation(async () => true);
+  });
 
   test('present: daily({ now }) once per PKT day, its count returned as windows', async () => {
     mockWinDaily.mockImplementation(async () => 2);
@@ -83,10 +89,25 @@ describe('the class sample windows: scheduled here, decided by their own module'
     expect(out).toMatchObject({ ran: true, windows: 2 });
   });
 
-  test('present with every switch of ours off: still scheduled (its own switches decide)', async () => {
+  test('present with every switch of ours off and its own on: scheduled (its own switches decide)', async () => {
     const { S2 } = fresh('present', []);
     await expect(S2.dailyJob({ now: NOW })).resolves.toMatchObject({ ran: true, purged: null, strip: null });
     expect(mockWinDaily).toHaveBeenCalledTimes(1);
+  });
+
+  test('present with every switch off, its own too: not called, no day claimed, nothing written', async () => {
+    mockWinOn.mockImplementation(async () => false);
+    const { S2, f } = fresh('present', []);
+    await expect(S2.dailyJob({ now: NOW })).resolves.toEqual({ ran: false, reason: 'off' });
+    expect(mockWinDaily).not.toHaveBeenCalled();
+    expect(f.calls.filter((c) => c.table !== 'app_settings')).toEqual([]);   // the switches read only
+  });
+
+  test('present with the purge on and its own switches off: the day runs, the windows are not called', async () => {
+    mockWinOn.mockImplementation(async () => false);
+    const { S2 } = fresh('present', PURGE());
+    await expect(S2.dailyJob({ now: NOW })).resolves.toMatchObject({ ran: true, windows: null });
+    expect(mockWinDaily).not.toHaveBeenCalled();
   });
 
   test('a throwing module is one error line and the daily job goes on', async () => {
