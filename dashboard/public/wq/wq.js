@@ -807,6 +807,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The hub token and the chip when the Jugnu card set them (wq-card.js, events v2): on the body, never an event.
     var body = { events: evq.splice(0, 20) }, x = window.WQT && window.WQT.batchIds ? window.WQT.batchIds() : {}, k;
     for (k in x) body[k] = x[k];
+    // The Jugnu card's events (finish's jugnu_ev): this quiz's session and this phone's device ref on the body too, so
+    // the server can key the card's door lines to the child without the page-session telemetry (wq-tel.js).
+    if (S.result && S.result.jugnu_ev) {
+      if (body.st == null && typeof S.st === 'string') body.st = S.st;
+      var dref = sget('wq_d', null);
+      if (body.dr == null && typeof dref === 'string' && dref) body.dr = dref;
+    }
     body = JSON.stringify(body);
     try {
       if (beacon && navigator.sendBeacon && navigator.sendBeacon('/api/wq/e', new Blob([body], { type: 'application/json' }))) return;
