@@ -265,10 +265,11 @@
       if (m === 'H2') hub(); else if (m === 'H1') picker();
     });
   }
-  // The one lazy loader both use: /wq/<name>.js (and, with css, /wq/<name>.css before it) at hub.js's own ?v=,
-  // asked for at most once per page, with onload run when the script arrives. A failure leaves the page as it is.
+  // The one lazy loader (the Jugnu corner, keep my place, Jugnu's Book): /wq/<name>.js (and, with css, /wq/<name>.css
+  // before it) at hub.js's own ?v=, asked for at most once per page, with onload attached once, when the tag is made,
+  // however often the hub is drawn again while it loads. A failure leaves the page as it is.
   var asked = {};
-  function loadOnce(name, css, onload) {
+  function loadOnce(name, css, onload, id) {
     if (asked[name]) return;
     asked[name] = true;
     try {
@@ -277,6 +278,7 @@
       var q = v ? '?v=' + v[1] : '';
       if (css) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/' + name + '.css' + q; document.head.appendChild(l); }
       var s = document.createElement('script');
+      if (id) s.id = id;
       s.src = '/wq/' + name + '.js' + q;
       s.addEventListener('load', onload);
       document.head.appendChild(s);
@@ -363,13 +365,7 @@
     function bookIn() {
       var go = function () { if (window.WQBOOK) window.WQBOOK.hubLine(B, { root: ROOT, token: TOKEN, lang: LANG, ev: ev, back: hub }); };
       if (window.WQBOOK) return go();
-      var was = document.getElementById('wq-bk-js');
-      if (was) return was.addEventListener('load', go);
-      var me = document.querySelector('script[src*="/wq/hub.js"]');
-      var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
-      var q = v ? '?v=' + v[1] : '';
-      var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/wq-book.css' + q; document.head.appendChild(l);
-      var s = document.createElement('script'); s.id = 'wq-bk-js'; s.src = '/wq/wq-book.js' + q; s.addEventListener('load', go); document.head.appendChild(s);
+      loadOnce('wq-book', true, go, 'wq-bk-js');
     }
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-again]'), function (a) {
       a.addEventListener('click', function (e) { e.preventDefault(); go(a.getAttribute('href'), 'again'); });
