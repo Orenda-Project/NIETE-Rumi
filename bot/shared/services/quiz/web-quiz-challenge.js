@@ -767,7 +767,9 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
   const practiceRound = !w.round && ((rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice'));
   const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
-    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload) : {}), ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })) };
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload) : {}), ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    // a teacher's own visit through the class link (played as practice): the page's banner says nothing counts on their phone
+    ...(w.cl && w.cl.m === 'practice' ? { teacher_preview: true } : {}) };
   if (ex === 'missing' && v2 && v2.items) {
     // the A1 warm-up: the same 10 items in the same order on both forms, no 4-error stop; the try-out after item 10
     const p3 = Bank.getTaskSpec({ grade: 3, set: 'A', task: 'ma.missing' });
@@ -861,16 +863,8 @@ function passageFor(id, Bank) {
   return { id, text: st.text, tokens: st.tokens, lines: st.lines, direction: spec.direction, questions: spec.questions || [] };
 }
 
-/** The child-facing title of a passage as the page renders it (ITEMS §1 title_en/title_ur): { en, ur } or null when it has none. */
-function titleOf(p) {
-  if (!p || (p.title_en == null && p.title_ur == null)) return null;
-  return { en: p.title_en == null ? null : String(p.title_en), ur: p.title_ur == null ? null : String(p.title_ur) };
-}
-/** One home for every surface that names a passage (the shelf, the stop's intro): passageTitle(id) → { en, ur } | null. */
-function passageTitle(passageId) {
-  const { Bank } = childTest();
-  return titleOf(typeof Bank.getPassage === 'function' ? Bank.getPassage(passageId) : null);
-}
+// The passage's child-facing title: its one home is web-quiz-passage-title.js (a leaf)
+const { titleOf, passageTitle } = require('./web-quiz-passage-title');
 /** The menu entry's title field for a Trail stop with a passage served this period: {} when none. */
 function menuTitle(trailStop) {
   const t = trailStop && trailStop.passage_id ? passageTitle(trailStop.passage_id) : null;
