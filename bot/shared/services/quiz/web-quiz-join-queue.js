@@ -5,7 +5,8 @@
  *
  *   computeCandidates(teacherUserId)  every queue row for ONE teacher, both tiers, ungated (tests, lead review)
  *   candidatesFor(teacherUserId)      the rows of the served tiers (TIERS_SERVED minus any tier held by precision),
- *                                     from the teacher's cached queue (QUEUE_TTL_S, Redis with a local fallback):
+ *                                     from the teacher's cached queue (QUEUE_TTL_S, Redis with a local fallback; a
+ *                                     read renews it, up to QUEUE_MAX_AGE_S from its compute):
  *                                     the rows are computed once per teacher per few minutes; a 'same' / 'no' takes
  *                                     its pair out of it (the rest of the TTL kept), an undo puts it back
  *   precisionByTier()                 per tier: the teachers' decisions so far, precision, Wilson lower bound, held
@@ -67,6 +68,7 @@ const PRECISION_TTL_MS = 60 * 1000;
 const DECISIONS = new Set(['same', 'no', 'undo']);
 const CAP = 5000;
 const QUEUE_TTL_S = 10 * 60;      // a teacher's computed queue is kept this long (the tab and every tap read it)
+const QUEUE_MAX_AGE_S = 60 * 60;  // a read renews it for QUEUE_TTL_S, but never past this age from its compute
 const QUEUE_PREFIX = 'wq:jq:t:';  // + sha256(teacher id)[0:16]: ids and hashes only in a key
 const JOB_PAGE = 200;   // a page of loose ids goes into one `.in()`: at most IN_CHUNK (web-quiz-in-chunks)
 
@@ -332,7 +334,11 @@ let precisionCache = null; // {at, value}
 // back what its 'same' took out (restoreToQueue); a refused stale pair, an undo of unknown tier and anything unexpected
 // drop the entry, so a decided pair never comes back stale. The row shape in the cache is exactly compute()'s (first
 // names only; never a phone or a device).
-const localQueue = new Map(); // key → {at, rows, undone?}
+const localQueue = new Map(); // key → {at, rows, undone?, readAt?}
+// Within the hour cap: an entry computed at `at` is served (and its key renewed) only while younger than QUEUE_MAX_AGE_S.
+const withinCap = (hit, now) => Boolean(hit) && typeof hit.at === 'number' && Number.isFinite(hit.at) && now - hit.at < QUEUE_MAX_AGE_S * 1000;
+// The local copy (Redis down) lives QUEUE_TTL_S from its last read (readAt) or its compute, and never past the hour cap.
+const localLive = (loc, now) => Boolean(loc) && now - (loc.readAt || loc.at) < QUEUE_TTL_S * 1000 && withinCap(loc, now);
 const queueKey = (t) => QUEUE_PREFIX + crypto.createHash('sha256').update(String(t)).digest('hex').slice(0, 16);
 function redisOrNull() {
   try {
@@ -349,15 +355,21 @@ async function cachedCompute(t) {
     try {
       const v = await r.get(key);
       const hit = v && typeof v === 'string' ? JSON.parse(v) : v;
-      if (hit && Array.isArray(hit.rows)) return hit.rows;
+      // a hit within the hour cap is served and its key slides another QUEUE_TTL_S (an open tab keeps its queue
+      // warm for the next tap); an older one is worked out afresh
+      if (hit && Array.isArray(hit.rows) && withinCap(hit, now)) {
+        if (typeof r.expire === 'function') { try { await r.expire(key, QUEUE_TTL_S); } catch (_) { /* served all the same */ } }
+        return hit.rows;
+      }
     } catch (_) { /* a failed read computes */ }
     const rows = await compute(t);
     try { await r.set(key, { at: now, rows }, QUEUE_TTL_S); } catch (_) { /* served uncached this once */ }
     return rows;
   }
-  // Redis down: this process keeps its own copy for the same TTL (never consulted while Redis is up).
+  // Redis down: this process keeps its own copy for the same TTL, counted from its last read, under the same hour cap
+  // (never consulted while Redis is up).
   const loc = localQueue.get(key);
-  if (loc && now - loc.at < QUEUE_TTL_S * 1000) return loc.rows;
+  if (localLive(loc, now)) { loc.readAt = now; return loc.rows; }
   const rows = await compute(t);
   localQueue.set(key, { at: now, rows });
   return rows;
@@ -375,7 +387,7 @@ async function queueAge(teacherUserId) {
       hit = v && typeof v === 'string' ? JSON.parse(v) : v;
     } else {
       hit = localQueue.get(key) || null;
-      if (hit && Date.now() - hit.at >= QUEUE_TTL_S * 1000) hit = null;
+      if (!localLive(hit, Date.now())) hit = null;
     }
     if (!hit || !Array.isArray(hit.rows) || typeof hit.at !== 'number' || !Number.isFinite(hit.at)) return null;
     return Math.max(0, Math.floor((Date.now() - hit.at) / 1000));
@@ -417,6 +429,7 @@ async function editQueue(t, edit) {
     const loc = localQueue.get(key);
     if (!loc) return;
     const next = Array.isArray(loc.rows) ? edit(loc) : null;
+    if (next && loc.readAt) next.readAt = loc.readAt; // the local copy keeps its remaining life (from its last read)
     if (next) localQueue.set(key, next); else localQueue.delete(key);
   } catch (_) {
     await dropQueue(t);
@@ -726,6 +739,6 @@ module.exports = {
   computeCandidates, candidatesFor, serveTiers, decide, linkClassCodes, runBackwardJoin, precisionByTier, servedTiers, queueAge,
   TIERS, TIERS_SERVED, HOLD_MIN_N, HOLD_LOWER, norm, wilsonLower,
   _serveForTest: (tiers) => { served = tiers ? Object.freeze([...tiers]) : TIERS_SERVED; precisionCache = null; },
-  _resetPrecisionCache: () => { precisionCache = null; }, _resetQueueCache: () => { localQueue.clear(); }, QUEUE_TTL_S,
+  _resetPrecisionCache: () => { precisionCache = null; }, _resetQueueCache: () => { localQueue.clear(); }, QUEUE_TTL_S, QUEUE_MAX_AGE_S,
   tokset, words, canonFirst, gradeOf, firstName, route,
 };
