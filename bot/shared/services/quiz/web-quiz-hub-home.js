@@ -8,6 +8,7 @@
  *   doorsOf({ out, stories, hasRoot })            the three doors (pure); every door is always present, an empty
  *                                                 one is [] / null and the page shows its "coming soon" line
  *   headOf(stamps, now)                           { dots, today } (pure): days with a finish this PKT week, as a count
+ *   sentOnly(codes)                               the teacher's open codes without a storybook only previewed (switch on)
  *   practiceHub(token, { lang, brandKey })        the coach's preview of the class's home, or null (not a practice
  *                                                 token, or the switch off: the caller goes on to today's path)
  *
@@ -124,6 +125,26 @@ async function homeField({ out, chosenId, history, now = Date.now() } = {}) {
   }
 }
 
+/**
+ * The teacher's open codes minus the storybooks the teacher only previewed (the preview mints its code at render): a
+ * `quiz_source:'story'` quiz counts as sent with `status:'sent'` or `meta.sent_at` / `meta.first_sent_at`. With the
+ * switch off: the same array, no read. A read error keeps today's list (never hides a real teacher quiz).
+ */
+async function sentOnly(codes) {
+  if (!Array.isArray(codes) || !codes.length) return codes;
+  try {
+    if (!(await flags()).home) return codes;
+    const ids = [...new Set(codes.map((c) => c.quiz_id).filter(Boolean))];
+    const { data, error } = await supabase.from('quizzes').select('id, quiz_source, status, meta').in('id', ids);
+    if (error) return codes;
+    const sent = (q) => q.status === 'sent' || Boolean(q.meta && (q.meta.sent_at || q.meta.first_sent_at));
+    const preview = new Set((data || []).filter((q) => q.quiz_source === 'story' && !sent(q)).map((q) => q.id));
+    return preview.size ? codes.filter((c) => !preview.has(c.quiz_id)) : codes;
+  } catch (_) {
+    return codes;
+  }
+}
+
 // ─── the practice home ─────────────────────────────────────────────────────────────────────────────
 
 const BACK_RX = /^\/quiz\/teacher\/[A-Za-z0-9._~-]{1,600}$/;
@@ -189,4 +210,4 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
   }
 }
 
-module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, KEY, STORIES_KEY, _resetCache: () => { cache = null; } };
+module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, sentOnly, KEY, STORIES_KEY, _resetCache: () => { cache = null; } };

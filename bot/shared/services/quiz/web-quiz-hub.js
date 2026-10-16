@@ -182,7 +182,7 @@ async function teacherCard(kidRow, list, history, grade) {
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
   const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history)]);
-  const open = codes.filter((c) => isOpen(c) && !seen.has(c.id));
+  const open = await require('./web-quiz-hub-home').sentOnly(codes.filter((c) => isOpen(c) && !seen.has(c.id))); // a previewed storybook is not "from your teacher": unchanged while web_quiz_home_v3 is off
   if (!open.length) return null;
   const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
   const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));

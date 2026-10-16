@@ -154,6 +154,38 @@ describe('web_quiz_home_v3 on: the doors and the header', () => {
   });
 });
 
+describe('"From your teacher": a storybook the teacher only previewed never shows; a sent one does', () => {
+  const HOME_ON = [...BASE_ON, ON('web_quiz_home_v3')];
+  // A fresh child of the class with no plays yet: the teacher card comes from the teacher's recent open codes.
+  const story = (status, meta = {}) => ({
+    students: [{ id: KID, student_name: 'Zara Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, phone: '+92300FIXTURE7', created_at: ago(500) }],
+    quizzes: [{ id: 'q-s', topic: 'The red kite', subject: 'English', language: 'en', grade: '3', video_id: null, quiz_source: 'story', status, meta }],
+    quiz_share_codes: [{ id: 'sc-s', code: 'STORY1', quiz_id: 'q-s', active: true, expires_at: ahead(240), topic: 'The red kite', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, class_id: null, created_at: ago(2) }],
+    quiz_sessions: [],
+  });
+  test('ready (a preview) -> no teacher card, no Games row', async () => {
+    seed(HOME_ON, story('ready'));
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.teacher).toBeNull();
+    expect(out.doors.games.filter((g) => g.code === 'STORY1')).toEqual([]);
+  });
+  test('sent (status or meta.sent_at) -> the teacher card', async () => {
+    seed(HOME_ON, story('sent'));
+    expect((await Hub.hub(T.signHub([KID]), A)).teacher).toMatchObject({ code: 'STORY1' });
+    seed(HOME_ON, story('ready', { sent_at: ago(1) }));
+    expect((await Hub.hub(T.signHub([KID]), A)).teacher).toMatchObject({ code: 'STORY1' });
+  });
+  test('GOLDEN: web_quiz_home_v3 off -> today\'s card, exactly as before (the preview still shows)', async () => {
+    seed(BASE_ON, story('ready'));
+    expect((await Hub.hub(T.signHub([KID]), A)).teacher).toMatchObject({ code: 'STORY1' });
+  });
+  test('a quiz that is not a story is never filtered', async () => {
+    const s = story('ready'); s.quizzes[0].quiz_source = 'lesson_plan';
+    seed(HOME_ON, s);
+    expect((await Hub.hub(T.signHub([KID]), A)).teacher).toMatchObject({ code: 'STORY1' });
+  });
+});
+
 describe('the practice home: a `pr:1` hub token (a coach previewing what the class sees), addressed by grade', () => {
   const HOME_ON = [...BASE_ON, ON('web_quiz_home_v3')];
   const prTok = (over = {}) => T.sign({ k: 'h', ids: [], pr: 1, g: 3, lang: 'en', exp: Math.floor(Date.now() / 1000) + 3600, ...over });

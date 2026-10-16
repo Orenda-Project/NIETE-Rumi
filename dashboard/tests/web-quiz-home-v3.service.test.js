@@ -28,7 +28,7 @@ const HOME_SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-home.js');
 const CSS_SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-home.css');
 const HUB_SRC = path.join(__dirname, '..', 'public', 'wq', 'hub.js');
 
-// jugnu-org COPY.md §D + the v3 words (IA.md §0) + the test words: never on a child's screen.
+// The words a child's screen never shows: the copy ban list, the old activity names and the test words.
 const BANNED = /\b(test|tests|exam|assess\w*|wrong|wcpm|rank|percentile|position|prize|reward|unlock|level|clever|perfect|genius|incredible|egma|comparable|tested|testwala|challenge|trail|today|practice|counted|story time)\b|امتحان|ٹیسٹ|غلط|نتائج|نتیجہ|انعام|ذہین|کامل|پڑاؤ|چیلنج/i;
 const visible = (html) => html.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]*>/g, ' ').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 
