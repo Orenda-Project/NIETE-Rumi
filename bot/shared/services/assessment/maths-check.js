@@ -735,9 +735,9 @@ function checkWorking(q, answer, exam, index) {
   return replaceKey(q, exam, answer, target.index, target.raw, computed, index);
 }
 
-// "68,970 ÷ 45 = 1,532 remainder 10": a whole-number division with its quotient and remainder.
+// "68,970 ÷ 45 = 1,532 remainder 10" (or "68,970 / 45 = …"): a whole-number division with its quotient and remainder.
 const WHOLE = String.raw`(\d{1,3}(?:,\d{2,3})+|\d+)`;
-const QUOTIENT_REMAINDER = new RegExp(String.raw`${WHOLE}\s*÷\s*${WHOLE}\s*=\s*${WHOLE}\s*,?\s*(?:remainder|rem\.?|\bR\b)\s*[=:]?\s*${WHOLE}`, 'gi');
+const QUOTIENT_REMAINDER = new RegExp(String.raw`${WHOLE}\s*[÷/]\s*${WHOLE}\s*=\s*${WHOLE}\s*,?\s*(?:with\s+(?:a\s+)?)?(?:remainder|rem\.?|\bR\b)\s*[=:]?\s*${WHOLE}`, 'gi');
 const wholeOf = (raw) => (/^\d{1,3}(?:,\d{2,3})*$|^\d+$/.test(raw) ? BigInt(raw.replace(/,/g, '')) : null);
 
 /**
@@ -785,8 +785,9 @@ function checkQuestion(q, exam, index) {
 
   const all = numbersIn(answer);
   if (!all.length) return null;
-  // "994 remainder 1" is a different kind of answer from 994.25.
-  if (form.wholeDivision && form.value.den !== 1n && REMAINDER.test(answer)) return null;
+  // "994 remainder 1" is a different kind of answer from 994.25. On a board-pattern paper an
+  // exact division keyed "1,352 and remainder 0" is one too: its last number is the remainder.
+  if (form.wholeDivision && (form.value.den !== 1n || isObject(exam._layout)) && REMAINDER.test(answer)) return null;
 
   let target = all[all.length - 1];
   if (agrees(form.value, target)) return 'ok';
