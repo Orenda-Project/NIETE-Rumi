@@ -445,7 +445,8 @@
     batchIds(B.kid);
     ev('hub_view', { src: FROM_DOOR ? 'door' : FROM_HOME ? 'home' : B.kid ? 'hub' : 'who', i: (B.kids || []).length });
     if (FROM_DOOR || FROM_HOME) { FROM_DOOR = false; FROM_HOME = false; try { history.replaceState(null, '', selfUrl('/h/' + TOKEN)); } catch (e) {} }
-    if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
+    if (B.home_v3 && B.practice) hub(); // a coach's class preview (web_quiz_home_v3): the home by grade, no child
+    else if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
     else if (!B.kid) picker();
     else hub();
   }

@@ -182,7 +182,7 @@ async function teacherCard(kidRow, list, history, grade) {
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
   const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history)]);
-  const open = codes.filter((c) => isOpen(c) && !seen.has(c.id));
+  const open = await require('./web-quiz-hub-home').sentOnly(codes.filter((c) => isOpen(c) && !seen.has(c.id))); // a previewed storybook is not "from your teacher": unchanged while web_quiz_home_v3 is off
   if (!open.length) return null;
   const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
   const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
@@ -345,11 +345,12 @@ async function kidFromHub(token, chip, device) {
   return { studentId, grade: ctx.grade, rootId: root ? root.shareCodeId : null };
 }
 
-async function kidContext(studentId) {
-  const { data: row } = await dbRead('kidContext:students:1', (db) => db.from('students')
+// `known`: the child's row and class list the caller has just read (fast first page), so they are not read again.
+async function kidContext(studentId, known = null) {
+  const { data: row } = known ? { data: known.row } : await dbRead('kidContext:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle());
   if (!row || row.is_active === false) return null;
-  const { data: list } = row.list_id
+  const { data: list } = known ? { data: known.list } : row.list_id
     ? await dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle())
     : { data: null };
   const StudentQuiz = require('./student-quiz.service');
@@ -405,6 +406,8 @@ async function lockedHub(ids, why, asked = null) {
 
 async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
+  const practice = await require('./web-quiz-hub-home').practiceHub(token, { lang: wanted, brandKey }); // a coach's class preview by grade: null unless web_quiz_home_v3
+  if (practice) return practice;
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
@@ -431,7 +434,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
   // Started now, beside the rest of the hub's reads (challengeForm never rejects): it is a few reads of its own.
   const challengeP = f.challenge && chosen ? challengeForm(chosen.id) : Promise.resolve(null);
-  const ctx = chosen ? await kidContext(chosen.id) : null;
+  // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
+  const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null) : null;
   const history = ctx ? ctx.history : [];
   const lang = asked || clampLanguage(require('./student-quiz.service').childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
@@ -495,7 +499,9 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
 /** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
 async function hub(token, opts = {}) {
   const ui = await require('./web-quiz-ur-polish').ui();
-  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}) };
+  // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
+  const fast = require('./web-quiz-fast').on();
+  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}) };
 }
 
 module.exports = {
