@@ -7054,7 +7054,7 @@ GRANT SELECT ON public.niete_lp_taken TO service_role;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Challenge content registry: passages, maths items, periods, equating links, draws
--- (mirror of bot/database/migrations/web_quiz_challenge_registry.sql)
+-- (mirror of bot/database/migrations/web_quiz_challenge_registry.sql + web_quiz_challenge_passages_provenance.sql)
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS challenge_passages (
   passage_id        text PRIMARY KEY,
@@ -7080,7 +7080,11 @@ CREATE TABLE IF NOT EXISTS challenge_passages (
   title_en          text,
   title_ur          text,
   source_ref        text,
-  licence           text CHECK (licence IN ('textbook', 'cc_by', 'cc_by_sa', 'generated')),
+  licence           text CONSTRAINT challenge_passages_licence_check
+                    CHECK (licence IN ('textbook', 'cc_by', 'cc_by_sa', 'generated', 'published_instrument')),
+  -- web_quiz_challenge_passages_provenance.sql: only published_calibrated / reviewer_levelled are drawn for a counted serve
+  provenance        text NOT NULL DEFAULT 'generated' CONSTRAINT challenge_passages_provenance_check
+                    CHECK (provenance IN ('published_calibrated', 'reviewer_levelled', 'generated')),
   reviewer          text,
   reviewed_at       timestamptz,
   n_first_exposures integer NOT NULL DEFAULT 0,
