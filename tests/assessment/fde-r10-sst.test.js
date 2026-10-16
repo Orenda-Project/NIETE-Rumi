@@ -66,6 +66,13 @@ describe('round-6 Social Studies three-tier table', () => {
     expect(local).not.toContain('تجاوزات');
   });
 
+  // A re-read of the page that puts a zero-width mark inside a cell still finds the table.
+  test('a zero-width mark inside a cell still finds the table', () => {
+    const marked = WITH_TABLE.replace('مویشی منڈیاں', 'مویشی‌ منڈیاں');
+    expect(marked).not.toBe(WITH_TABLE);
+    expect(prompt('social_studies', 'C', CHAPTERS, marked)).toContain(HEAD);
+  });
+
   test('pages without the table → no table, the prompt is today\'s', () => {
     for (const scope of ALL_SCOPES) {
       for (const id of sectionIds('social_studies')) {

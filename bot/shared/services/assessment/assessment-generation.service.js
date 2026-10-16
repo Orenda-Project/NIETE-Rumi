@@ -1060,19 +1060,19 @@ function _closedLists(P, slots) {
   return `Composition topics come only from these closed lists, exactly as written:\n${lists.join('\n')}`;
 }
 
+// Social Studies p.29: two of the table's own cells, matched with the page store's spacing (and any zero-width mark) removed.
+const SST_TIER_CELLS = ['مویشیمنڈیاں', 'تجاوزاتہٹانا'];
+function _holdsTierTable(pageContent) {
+  const flat = String(pageContent || '').replace(/[\s\u200b-\u200f]+/g, '');
+  return SST_TIER_CELLS.every((cell) => flat.includes(cell));
+}
+
 /**
  * What one section of a board-pattern paper asks for. The book text block is
  * the same as buildUserPrompt's (which stays untouched for every other paper);
  * after it, the section's slots and the rules that apply to this subject and
  * this section. Every pattern-specific word comes from the pattern data.
  */
-// Social Studies p.29: two of the table's own cells, matched with the page store's spacing removed.
-const SST_TIER_CELLS = ['مویشیمنڈیاں', 'تجاوزاتہٹانا'];
-function _holdsTierTable(pageContent) {
-  const flat = String(pageContent || '').replace(/\s+/g, '');
-  return SST_TIER_CELLS.every((cell) => flat.includes(cell));
-}
-
 function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, section, slots, lang, P, scope, poem = null }) {
   const medium = lang || P.medium;
   const key = P.key || Patterns.normalise(subject);
