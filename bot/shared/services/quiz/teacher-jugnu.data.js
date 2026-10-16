@@ -9,6 +9,7 @@
  *   confirmQueue(teacherId, tab)  the teacher-confirm queue rows for that class (the join-queue
  *       service's rows, keys first / candidate_first / father_first / candidate_father_first, + this
  *       teacher's still-standing "Same child" decisions, for Undo). First names only, the fathers' too.
+ *   confirmQueueWithin(teacherId, tab, lang)  the same, or null past QUEUE_BUDGET_MS (the tab never waits on it).
  *
  * "Done" = a RECORD row of this period (record true, never mode 'practice') that reached a final status
  * (scored, or failed other than the no-microphone path). 'served' and 'abandoned' rows show nothing.
@@ -301,4 +302,28 @@ async function confirmQueue(teacherId, tab, lang = 'en') {
   return rows.filter((r) => r.first && r.candidateFirst);
 }
 
-module.exports = { jugnuTab, confirmQueue, queueService, bindingStore, periodOf, weekStartOf, firstName, _resetWarnings: () => warned.clear() };
+/** How long the tab waits on the confirm queue (ms): well inside the portal edge's 10 s (BOT_TIMEOUT_MS). */
+const QUEUE_BUDGET_MS = 3000;
+const OVER_BUDGET = Symbol('over budget');
+
+/**
+ * confirmQueue raced against the budget. In time: exactly its answer (or its error). Over budget: null, so
+ * the tab renders without the queue section, and one log line; the late answer is dropped, a late error caught.
+ */
+async function confirmQueueWithin(teacherId, tab, lang = 'en', ms = module.exports.QUEUE_BUDGET_MS) {
+  const work = confirmQueue(teacherId, tab, lang);
+  let timer;
+  const budget = new Promise((resolve) => { timer = setTimeout(() => resolve(OVER_BUDGET), ms); });
+  let out;
+  try {
+    out = await Promise.race([work, budget]);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (out !== OVER_BUDGET) return out;
+  work.catch((err) => warnOnce('confirmQueue after the budget', err));
+  logToFile('⚠️ teacher jugnu tab: the confirm queue was over its budget — the tab renders without it', { budget_ms: ms }, 'warn');
+  return null;
+}
+
+module.exports = { jugnuTab, confirmQueue, confirmQueueWithin, QUEUE_BUDGET_MS, queueService, bindingStore, periodOf, weekStartOf, firstName, _resetWarnings: () => warned.clear() };
