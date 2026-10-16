@@ -66,6 +66,23 @@ describe('join.js', () => {
     expect(html).toContain('data-chip="c2">🐱 Yes, it&#39;s me</button>');
   });
 
+  test('a dead end on the page (the link expired, or joining is off) carries ONE tap back to WhatsApp when the number is known', () => {
+    const copy = { stale: 'This link has expired.', off: 'Open the class link.', offNone: 'Ask your teacher.', openWa: 'Open WhatsApp', error: 'Try again' };
+    const p = run({ boot: { view: 'join', t: 'tok', lang: 'en', practice: true, bot: '920000000100', copy } });
+    p.tap({ 'data-tap': 'grade', 'data-grade': '2' });
+    p.tap({ 'data-tap': 'go' });
+    const join = p.posts.find((x) => x.path === '/api/wq/join');
+    join.xhr.status = 200; join.xhr.responseText = JSON.stringify({ stale: true }); join.xhr.onload();
+    expect(p.els['jn-out'].innerHTML).toContain('<a class="go" href="https://wa.me/920000000100?text=quiz">Open WhatsApp</a>');
+    const q = run({ boot: { view: 'join', t: 'tok', lang: 'en', practice: true, copy } });
+    q.tap({ 'data-tap': 'grade', 'data-grade': '2' });
+    q.tap({ 'data-tap': 'go' });
+    const j2 = q.posts.find((x) => x.path === '/api/wq/join');
+    j2.xhr.status = 200; j2.xhr.responseText = JSON.stringify({ off: true }); j2.xhr.onload();
+    expect(q.els['jn-out'].innerHTML).toContain('Open the class link.');
+    expect(q.els['jn-out'].innerHTML).not.toContain('wa.me');
+  });
+
   test('"Let\'s go!" opens exactly for the names the server accepts', () => {
     const p = run();
     p.tap({ 'data-tap': 'grade', 'data-grade': '2' });

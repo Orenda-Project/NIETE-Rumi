@@ -683,10 +683,12 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       if (!(await mergeLoose(looseId, candidateId, now, enrolledP))) { await dropQueue(teacherUserId); return { ok: false, reason: 'not_loose' }; }
       await log('same', pair.evidence.tier);
       logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged', ...kidFor(candidateId) });
+      if (pair.evidence.tier === SELF_JOIN_TIER) joinConfirm('same', teacherUserId, looseId);
       return { ok: true, decision };
     }
     if (pair && decision === 'no') {
       await log('no', pair.evidence.tier);
+      if (pair.evidence.tier === SELF_JOIN_TIER) joinConfirm('different', teacherUserId, looseId);
       return { ok: true, decision };
     }
     if (decision === 'undo') {
@@ -696,6 +698,7 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
         .eq('id', looseId).eq('merged_into', candidateId).is('list_id', null).select('id'));
       if (!back.length) return { ok: false, reason: 'nothing_to_undo' };
       await log('undo', await sameTier(teacherUserId, looseId, candidateId));
+      if (await joinedOnTheirOwn(looseId)) joinConfirm('undo', teacherUserId, looseId);
       return { ok: true, decision };
     }
     // Not a served pair: today's full checks, unchanged.
@@ -718,6 +721,24 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
 }
 
 /** The tier of this teacher's latest 'same' on the pair (what an undo reverses); null when it carried none. */
+/**
+ * The teacher's answer on a self-joined pair IS its label (the tier is measured from these, not from merge_log, whose
+ * tier stays NULL for it): join_confirm{tier, decision: same | different | undo, kid, teacher}. Ids only.
+ */
+function joinConfirm(decision, teacherUserId, looseId) {
+  logEvent('web_quiz.join_confirm', { w: 's', tier: SELF_JOIN_TIER, decision, teacher: String(teacherUserId), ...kidFor(looseId) });
+}
+
+/** A child that joined on its own: a loose row whose place is saved on a family phone (via 'guest'). */
+async function joinedOnTheirOwn(looseId) {
+  try {
+    const b = await rows(supabase.from('child_phone_bindings').select('canonical_id').eq('canonical_id', looseId).eq('via', 'guest').is('revoked_at', null).limit(1));
+    return b.length > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
 async function sameTier(t, looseId, candidateId) {
   const last = await rows(supabase.from('merge_log').select('tier, decided_at').eq('teacher_id', t).eq('loose_id', looseId)
     .eq('candidate_id', candidateId).eq('decision', 'same').order('decided_at', { ascending: false }).limit(1));

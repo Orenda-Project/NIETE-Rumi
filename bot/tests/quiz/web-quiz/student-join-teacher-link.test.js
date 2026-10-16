@@ -97,6 +97,22 @@ describe('the self-joined child on the teacher-confirm queue', () => {
     expect(fake.db.students.find((s) => s.id === S_SARA)).toMatchObject({ merged_into: null, status: 'active' });
   });
 
+  test('ON: the teacher\'s answer on a self-joined pair is its label — join_confirm{tier self_join, same | different | undo}, ids only', async () => {
+    const { logEvent } = require('../../../shared/utils/structured-logger');
+    const confirms = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.join_confirm').map(([, d]) => d);
+    seed();
+    await Queue.candidatesFor(T1);
+    await Queue.decide({ teacherUserId: T1, looseId: S_SARA, candidateId: R_SARA, decision: 'same' });
+    await Queue.decide({ teacherUserId: T1, looseId: S_SARA, candidateId: R_SARA, decision: 'undo' });
+    seed();
+    Queue._resetQueueCache();
+    await Queue.candidatesFor(T1);
+    await Queue.decide({ teacherUserId: T1, looseId: S_SARA, candidateId: R_SARA, decision: 'no' });
+    expect(confirms().map((d) => [d.tier, d.decision, d.teacher])).toEqual([['self_join', 'same', T1], ['self_join', 'undo', T1], ['self_join', 'different', T1]]);
+    expect(JSON.stringify(confirms())).not.toContain(S_SARA);
+    expect(JSON.stringify(confirms())).not.toContain(R_SARA);
+  });
+
   test('ON: "Different" keeps them apart for good', async () => {
     seed();
     await Queue.candidatesFor(T1);

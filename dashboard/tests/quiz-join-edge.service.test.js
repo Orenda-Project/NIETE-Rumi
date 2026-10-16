@@ -136,6 +136,35 @@ describe('GET /quiz/join/:token', () => {
     expect(statuses.filter((s) => s !== 418)).toEqual([]);
   });
 
+  test('the expired and error pages carry ONE tap back to WhatsApp (the bot\'s number from its answer); no number known → the words alone', async () => {
+    const BOT_NO = '920000000100';
+    page = { status: 410, body: { error: 'stale', lang: 'ur' } };
+    const bare = await req(srv, 'GET', `/quiz/join/${J}`);
+    expect(bare.body).not.toContain('wa.me');
+    page = { status: 410, body: { error: 'stale', lang: 'ur', bot: BOT_NO } };
+    const stale = await req(srv, 'GET', `/quiz/join/${J}`);
+    expect(stale.body).toContain(`<a class="go" href="https://wa.me/${BOT_NO}?text=quiz">${COPY.ur.openWa}</a>`);
+    expect((stale.body.match(/<a /g) || []).length).toBe(1);
+    // the bot unreachable now: the number it gave last time still makes the tap
+    page = { status: 500, body: { error: 'server_error' } };
+    const err = await req(srv, 'GET', `/quiz/join/${J}`, undefined, { 'accept-language': 'en-GB' });
+    expect(err.status).toBe(502);
+    expect(err.body).toContain(`<a class="go" href="https://wa.me/${BOT_NO}?text=quiz">Open WhatsApp</a>`);
+    // a number that is not digits is never written into a link
+    await new Promise((resolve) => srv.close(resolve));
+    await boot();
+    page = { status: 410, body: { error: 'stale', lang: 'en', bot: '"><script>' } };
+    expect((await req(srv, 'GET', `/quiz/join/${J}`)).body).not.toContain('wa.me');
+  });
+
+  test('the join page hands its script the bot\'s number and the tap words', async () => {
+    page = { status: 200, body: { ok: true, lang: 'en', practice: false, bot: '920000000100' } };
+    const html = (await req(srv, 'GET', `/quiz/join/${J}`)).body;
+    const b = JSON.parse(html.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1].replace(/\\u003c/g, '<').replace(/\\u003e/g, '>').replace(/\\u0026/g, '&'));
+    expect(b.bot).toBe('920000000100');
+    expect(b.copy.openWa).toBe('Open WhatsApp');
+  });
+
   test('switch OFF (the bot answers 404) → the portal\'s own answer, byte for byte', async () => {
     page = { status: 404, body: { error: 'off' } };
     const res = await req(srv, 'GET', `/quiz/join/${J}`);

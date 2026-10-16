@@ -45,6 +45,7 @@ const IdFlags = require('./web-quiz-identity-flags');
 const BindRepo = require('./child-phone-bindings.repo');
 const Homonym = require('./web-quiz-homonym');
 const GoNonce = require('../first-touch/go-nonce');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const SWITCH_KEY = 'quiz_student_join';
 const TTL_MS = 30 * 1000;
@@ -87,7 +88,7 @@ async function flags(now = Date.now()) {
   }
 }
 
-const langOf = (l) => (l === 'ur' ? 'ur' : 'en');
+const langOf = (l) => clampLanguage(l);
 const nowS = () => Math.floor(Date.now() / 1000);
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex').slice(0, 32);
 
@@ -98,6 +99,12 @@ function redisStore() {
   } catch (_) {
     return null;
   }
+}
+
+/** The bot's WhatsApp number (the share links' variables), for the one tap back on an expired page: {bot} | {}. */
+function botField() {
+  const n = String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
+  return /^\d{8,15}$/.test(n) ? { bot: n } : {};
 }
 
 /** The j token: the landing's nonce (none in practice), the page language, practice or not, one hour. */
@@ -231,15 +238,18 @@ function practiceHome(grade, lang, back = null) {
 
 const emit = (name, fields, canonicalId = null, device = null) => K.emit(`web_quiz.${name}`, fields, { canonicalId, device });
 
-/** The join page's shell (no database read but the cached switch): the language and the mode the screen is drawn in. */
+/**
+ * The join page's shell (no database read but the cached switch): the language and the mode the screen is drawn in,
+ * and the bot's number for the page's one tap back to WhatsApp when a link has expired.
+ */
 async function pageInfo({ t } = {}) {
   if (!(await flags()).on) return { off: true };
   const r = readToken(t);
   if (!r) {
     const old = T.verify(t, 'j', { allowExpired: true });
-    return { stale: true, lang: old ? langOf(old.l) : null };
+    return { stale: true, lang: old ? langOf(old.l) : null, ...botField() };
   }
-  return { ok: true, lang: langOf(r.tok.l), practice: r.practice };
+  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField() };
 }
 
 /** The grade chip: the join_grade line and the home's warm list (fired before the name is typed). */

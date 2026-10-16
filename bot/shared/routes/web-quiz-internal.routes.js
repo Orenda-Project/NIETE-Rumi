@@ -111,7 +111,7 @@ const StudentJoin = () => require('../services/quiz/web-quiz-student-join');
 router.get('/join/page/:token', handle(async (req, res) => {
   const out = await StudentJoin().pageInfo({ t: req.params.token });
   if (out.off) return res.status(404).json({ error: 'off' });
-  if (out.stale) return res.status(410).json({ error: 'stale', lang: out.lang });
+  if (out.stale) return res.status(410).json({ error: 'stale', lang: out.lang, ...(out.bot ? { bot: out.bot } : {}) });
   return out;
 }));
 router.post('/join/grade', handle((req) => StudentJoin().gradeTap({ t: (req.body || {}).t, grade: (req.body || {}).grade, device: req.get('x-wq-device') || undefined })));

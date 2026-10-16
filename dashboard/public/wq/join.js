@@ -55,6 +55,11 @@
 
   function say(html) { outEl.innerHTML = html; }
   function line(text) { say('<p class="line">' + esc(text) + '</p>'); }
+  // A dead end (the link expired, joining is off): ONE tap back to the bot, when the page knows its number.
+  function backTap() {
+    var b = typeof boot.bot === 'string' && /^\d{8,15}$/.test(boot.bot) ? boot.bot : null;
+    return b ? '<a class="go" href="https://wa.me/' + b + '?text=quiz">' + esc(C.openWa) + '</a>' : '';
+  }
   function name() { return nameEl ? String(nameEl.value || '').replace(/\s+/g, ' ').trim() : ''; }
   // The server's rule (cleanFirstName / NAME_RX): letters of any script, a space, an apostrophe or a hyphen; ≤ 20
   // characters, ≤ 2 words. A browser without Unicode classes in RegExp keeps the old check; the server still decides.
@@ -111,8 +116,8 @@
       }
       return say(html + '<button type="button" class="pick" data-tap="new">' + esc(fill(C.diff, first)) + '</button>');
     }
-    if (b.off) return say('<p class="line">' + esc(C.off) + '</p><p class="small">' + esc(C.offNone) + '</p>');
-    if (b.stale) { goEl.disabled = true; return line(C.stale); }
+    if (b.off) return say('<p class="line">' + esc(C.off) + '</p><p class="small">' + esc(C.offNone) + '</p>' + backTap());
+    if (b.stale) { goEl.disabled = true; return say('<p class="line">' + esc(C.stale) + '</p>' + backTap()); }
     line(C.error);
     sync();
   }

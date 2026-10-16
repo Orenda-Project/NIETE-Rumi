@@ -53,6 +53,7 @@ const COPY = {
     stale: 'This link has expired. For a new one, send “quiz” in the chat.',   // mk.stale (signed)
     error: "That didn't work. Try again in a moment.",                        // mk.error (signed)
     wait: 'Opening…',
+    openWa: 'Open WhatsApp',                                                  // the one tap back to the bot (native read: OK)
   },
   ur: {
     title: 'جگنو',
@@ -76,8 +77,14 @@ const COPY = {
     stale: 'اس لنک کی مدت ختم ہو گئی ہے۔ نیا لنک لینے کے لیے چیٹ میں ”کوئز“ لکھ کر بھیجیں۔',
     error: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
     wait: 'کھل رہا ہے…',
+    openWa: 'واٹس ایپ کھولیں',
   },
 };
+
+// The bot's WhatsApp number as the bot gave it: digits only, or nothing (never a link built from anything else).
+const BOT_RX = /^\d{8,15}$/;
+const cleanBot = (n) => (typeof n === 'string' && BOT_RX.test(n) ? n : null);
+const waLink = (bot) => `https://wa.me/${bot}?text=quiz`;
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -120,12 +127,13 @@ ${body}
 }
 
 /** The join screen. Practice: the strip, the grade only (no name, no notice). */
-function renderJoinPage({ token, lang, practice, assetV, jsV }) {
+function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const c = COPY[l];
-  const boot = { view: 'join', t: token, lang: l, practice: Boolean(practice), v: assetV, warm: WARM, copy: {
+  const b = cleanBot(bot);
+  const boot = { view: 'join', t: token, lang: l, practice: Boolean(practice), v: assetV, warm: WARM, ...(b ? { bot: b } : {}), copy: {
     noticeSave: c.noticeSave, noticeReadings: c.noticeReadings, isYou: c.isYou, yesMe: c.yesMe, diff: c.diff, full: c.full, open: c.open,
-    teacher: c.teacher, off: c.off, offNone: c.offNone, stale: c.stale, error: c.error, wait: c.wait,
+    teacher: c.teacher, off: c.off, offNone: c.offNone, stale: c.stale, error: c.error, wait: c.wait, openWa: c.openWa,
   } };
   const chips = c.grades.map((g, i) => `<li><button type="button" class="chip" data-tap="grade" data-grade="${i + 1}" aria-pressed="false">${esc(g)}</button></li>`).join('');
   const name = practice ? '' : `<label for="jn-name">${esc(c.name)}</label>
@@ -147,12 +155,14 @@ ${practice ? '' : `<p class="note">${esc(c.later)}</p>\n`}</main>
   return shell({ l, title: c.title, body, fontPreload: !practice });
 }
 
-/** The expired (or failed) link: the signed words, nothing to tap. */
-function renderJoinNote({ lang, kind }) {
+/** The expired (or failed) link: the signed words and ONE tap back to WhatsApp (when the bot's number is known). */
+function renderJoinNote({ lang, kind, bot = null }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const c = COPY[l];
+  const b = cleanBot(bot);
+  const tap = b ? `<a class="go" href="${esc(waLink(b))}">${esc(c.openWa)}</a>` : '';
   return shell({ l, title: c.title, body: `<body>
-<main data-screen="join_note"><img class="jg" src="/wq/jugnu/hello.webp" alt="" width="96" height="96"><p class="line">${esc(kind === 'stale' ? c.stale : c.error)}</p></main>
+<main data-screen="join_note"><img class="jg" src="/wq/jugnu/hello.webp" alt="" width="96" height="96"><p class="line">${esc(kind === 'stale' ? c.stale : c.error)}</p>${tap}</main>
 </body>` });
 }
 
@@ -167,6 +177,7 @@ function createQuizJoinRouter(opts = {}) {
   const read = rateLimit({ windowMs: 60 * 1000, standardHeaders: false, legacyHeaders: false, max: 300 });
   let assetV = null;
   let jsV = null;
+  let lastBot = null;   // the number the bot gave last, for an error page drawn while the bot cannot answer
   const phoneLang = (req) => (/^\s*ur\b/i.test(String(req.get('accept-language') || '')) ? 'ur' : 'en');
 
   // The limiter counts only pages the bot agreed to draw: with the switch off, every request still falls through to the
@@ -182,16 +193,17 @@ function createQuizJoinRouter(opts = {}) {
     }
     // the switch off (or a bot that has no such route yet): the portal's own answer, byte for byte
     if (out.status === 404) return next();
+    lastBot = cleanBot(out.body && out.body.bot) || lastBot;
     return read(req, res, () => draw(req, res, token, out));
   });
 
   function draw(req, res, token, out) {
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
-    if (out.status === 410) return res.status(410).type('html').send(renderJoinNote({ lang: (out.body && out.body.lang) || phoneLang(req), kind: 'stale' }));
-    if (out.status !== 200 || !out.body || !out.body.ok) return res.status(502).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'error' }));
+    if (out.status === 410) return res.status(410).type('html').send(renderJoinNote({ lang: (out.body && out.body.lang) || phoneLang(req), kind: 'stale', bot: cleanBot(out.body && out.body.bot) }));
+    if (out.status !== 200 || !out.body || !out.body.ok) return res.status(502).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'error', bot: lastBot }));
     assetV = assetV || assetVersion();
     jsV = jsV || fileVersion('join.js');
-    return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV }));
+    return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV, bot: out.body.bot }));
   }
   return router;
 }

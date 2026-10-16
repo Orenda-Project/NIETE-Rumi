@@ -375,6 +375,34 @@ describe('the page shell answer', () => {
     expect(await Join.pageInfo({ t: old })).toEqual({ stale: true, lang: 'ur' });
   });
 
+  test('the bot\'s WhatsApp number rides the answer, for the expired page\'s one tap back; none configured → no number', async () => {
+    const BOT_NO = fixturePhone(100);
+    process.env.WHATSAPP_BOT_NUMBER = `+${BOT_NO}`;
+    const { t } = await landing();
+    expect(await Join.pageInfo({ t })).toEqual({ ok: true, lang: 'ur', practice: false, bot: BOT_NO });
+    expect(await Join.pageInfo({ t: 'x.y' })).toEqual({ stale: true, lang: null, bot: BOT_NO });
+    delete process.env.WHATSAPP_BOT_NUMBER;
+    delete process.env.REFERRAL_BOT_NUMBER;
+    expect(await Join.pageInfo({ t: 'x.y' })).toEqual({ stale: true, lang: null });
+  });
+
+  test('the internal route: an expired link → 410 with its language and the bot\'s number', async () => {
+    const express = require('express');
+    const BOT_NO = fixturePhone(100);
+    process.env.WHATSAPP_BOT_NUMBER = BOT_NO;
+    process.env.INTERNAL_API_KEY = 'route-key';
+    const app = express();
+    app.use(express.json());
+    app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
+    const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    try {
+      const old = T.sign({ k: 'j', n: T.newNonce(), l: 'ur', exp: Math.floor(Date.now() / 1000) - 5 });
+      const res = await fetch(`http://127.0.0.1:${server.address().port}/api/internal/wq/join/page/${old}`, { headers: { 'x-api-key': 'route-key' } });
+      expect(res.status).toBe(410);
+      expect(await res.json()).toEqual({ error: 'stale', lang: 'ur', bot: BOT_NO });
+    } finally { await new Promise((r) => server.close(r)); }
+  });
+
   test.each([
     ['absent', null], ['false', false], ['the string "yes"', 'yes'], ['the number 1', 1], ['an object', {}],
   ])('the switch row %s → off everywhere, nothing written', async (_label, value) => {

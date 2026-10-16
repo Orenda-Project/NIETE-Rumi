@@ -566,6 +566,8 @@ CREATE TABLE IF NOT EXISTS students (
     -- bot/database/migrations/students_merged_state_check.sql: a merged record names its target, and only a merged one does.
     CONSTRAINT students_merged_state_chk CHECK ((status = 'merged') = (merged_into IS NOT NULL))
 );
+-- bot/database/migrations/student_identity.sql: the child's school (nullable; backfilled from the class list's owner).
+alter table if exists students add column if not exists school_id uuid references schools(id);
 
 CREATE TABLE IF NOT EXISTS student_videos (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
