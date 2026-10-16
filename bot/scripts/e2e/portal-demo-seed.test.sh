@@ -34,12 +34,13 @@ bash "$LDB" demo-seed "$(dirname "$tmp")/nowhere" >/dev/null 2>&1; t "exit code"
 
 echo "AC1 people"
 bash "$LDB" demo-seed "$tmp" >"$tmp/seed.out" 2>&1; t "demo-seed exit" "$?" "0"
-t "schools"   "$(q $db "select count(*) from schools where emis like 'DEMO-%'")" "3"
-t "teachers"  "$(q $db "select count(*) from users where $D and role='teacher'")" "9"
+# 3 demo schools + the league's ghost school (DEMO-004, one teacher, no classes: web-quiz-child-page WQ066)
+t "schools"   "$(q $db "select count(*) from schools where emis like 'DEMO-%'")" "4"
+t "teachers"  "$(q $db "select count(*) from users where $D and role='teacher'")" "10"
 t "coach"     "$(q $db "select count(*) from users where $D and role='coach'")" "1"
 t "principal" "$(q $db "select count(*) from users where $D and role='principal'")" "1"
 t "all can log in" "$(q $db "select count(*) from users where $D and portal_activated and portal_password_hash like '\$2%'")" "11"
-t "teachers have a school" "$(q $db "select count(*) from users where $D and role='teacher' and school_id is not null")" "9"
+t "teachers have a school" "$(q $db "select count(*) from users where $D and role='teacher' and school_id is not null")" "10"
 t "coach covers 3 schools" "$(q $db "select count(*) from leader_schools ls join users u on u.id=ls.leader_user_id where u.$D")" "3"
 
 echo "AC2 activity"

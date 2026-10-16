@@ -49,14 +49,14 @@ const SCHOOLS = [
   { key: 'school-1', emis: 'DEMO-001', name: 'Demo Model School G-6/2', region: 'Urban-I' },
   { key: 'school-2', emis: 'DEMO-002', name: 'Demo Girls School I-8/4', region: 'Urban-I' },
   { key: 'school-3', emis: 'DEMO-003', name: 'Demo Boys School Sihala', region: 'Sihala' },
-  // never played for on a run: the school league's ghost card (WQ066). Keep every scenario before it off SC4ABC.
-  { key: 'school-4', emis: 'DEMO-004', name: 'Demo Hill School Bhara Kahu', region: 'Bhara Kahu' },
 ];
+// A school nobody plays for on a run: the school league's ghost card (WQ066). Kept OUT of SCHOOLS/TEACHERS so the
+// coach, the leaders and every per-teacher fixture stay as they were; just the school, one teacher and one code.
+const GHOST = { school: { emis: 'DEMO-004', name: 'Demo Hill School Bhara Kahu', region: 'Bhara Kahu' }, teacher: 'Nadia Hill', phone: '923000000930', code: 'SC4ABC' };
 const TEACHERS = [
   ['Ayesha Siddiqui', 'school-1', 3, 'english'], ['Bilal Ahmed', 'school-1', 5, 'maths'], ['Sana Javed', 'school-1', 4, 'science'],
   ['Fatima Noor', 'school-2', 2, 'urdu'], ['Hina Rauf', 'school-2', 5, 'english'], ['Maryam Iqbal', 'school-2', 1, 'maths'],
   ['Usman Tariq', 'school-3', 4, 'social_studies'], ['Kamran Ali', 'school-3', 3, 'science'], ['Zainab Hussain', 'school-3', 2, 'english'],
-  ['Nadia Hill', 'school-4', 3, 'science'],
 ];
 const COACH = { name: 'Demo Coach Rabia Khan', phone: `${PHONE_PREFIX}01` };
 const PRINCIPAL = { name: 'Demo Principal Tariq Mehmood', phone: `${PHONE_PREFIX}02`, school: 'school-1' };
@@ -351,8 +351,14 @@ function build() {
   code('QZCLOSED', 'plant', { language: 'ur', active: false });        // switched off, in Urdu
   // The school league (WQ064–WQ068) needs finishes from more than one school: the same grade-3 questions as quizzes of
   // a school-2 teacher and a school-3 teacher, each with its own open code.
-  [['SC2ABC', 3], ['SC3ABC', 6], ['SC4ABC', 9]].forEach(([c, ti]) => {
-    const [tName, , tGrade] = TEACHERS[ti], tid = uid(`teacher:${ti}`), qid = uid(`quiz:school:${c}`);
+  // the ghost school, its one teacher (no class, no plans: nothing else in the demo sees it), and its code
+  const ghostSchool = uid('school-ghost'), ghostTeacher = uid('teacher:ghost');
+  add('schools', { id: ghostSchool, name: GHOST.school.name, region: GHOST.school.region, emis: GHOST.school.emis, source_system: SOURCE, is_active: true, is_probable_test: false });
+  add('users', { id: ghostTeacher, phone_number: GHOST.phone, name: GHOST.teacher, role: 'teacher', school_id: ghostSchool, school_name: GHOST.school.name,
+    country: 'Pakistan', region: 'ict', organization: 'niete', source: SOURCE, preferred_language: 'en', registration_completed: true, registration_state: 'completed',
+    registered_at: daysAgo(120), registration_completed_at: daysAgo(120), portal_activated: false, is_test_user: false, created_at: daysAgo(120), grades_taught: '3', subjects_taught: ['science'], subject: 'science' });
+  [['SC2ABC', 3, uid('teacher:3')], ['SC3ABC', 6, uid('teacher:6')], [GHOST.code, -1, ghostTeacher]].forEach(([c, ti, tid]) => {
+    const [tName, , tGrade] = ti >= 0 ? TEACHERS[ti] : [GHOST.teacher, null, 3], qid = uid(`quiz:school:${c}`);
     add('quizzes', { id: qid, teacher_id: tid, quiz_source: 'lesson_plan', topic: 'Living Things Around Us', grade: String(tGrade), subject: 'science', status: 'sent', language: 'en', total_students_sent: 0, created_at: daysAgo(1) });
     QUIZZES.find(([k]) => k === 'grade3')[2].forEach(([text, opts, correct, why], k) => add('quiz_questions', {
       id: uid(`quiz:school:${c}:q${k}`), quiz_id: qid, question_text: text, option_a: opts[0], option_b: opts[1], option_c: opts[2], option_d: opts[3],
