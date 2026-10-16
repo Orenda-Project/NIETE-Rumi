@@ -35,7 +35,8 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     const b = {
       select(cols, opts) { if (st.op === 'select') st.op = 'select'; st.returning = true; if (opts && opts.count) { st.count = true; st.head = !!opts.head; } return b; },
       eq(c, v) { st.filters.push((r) => same(r[c], v)); return b; },
-      neq(c, v) { st.filters.push((r) => r[c] !== v); return b; },
+      // SQL `<>`: a NULL cell is not "not equal" — PostgREST's neq never returns it
+      neq(c, v) { st.filters.push((r) => r[c] != null && r[c] !== v); return b; },
       is(c, v) { st.filters.push((r) => (v === null ? val(r, c) == null : val(r, c) === v)); return b; },
       not(c, op, v) { if (op === 'is' && v === null) st.filters.push((r) => val(r, c) != null); return b; },
       // PostgREST echoes the query into the Content-Location header and Node's fetch caps response headers at 16 KB:
