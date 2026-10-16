@@ -93,6 +93,8 @@ try { require('./shared/services/first-touch/maker.mount').mountMaker(app); } ca
 // ── the one door (quiz_one_door): /quiz/go landing, the one question (portal edge -> bot), same x-api-key check ──
 try { require('./shared/services/first-touch/go.mount').mountGo(app); } catch (_) { /* not mounted; every other route is today's */ }
 // ── end the one door ──
+// The teacher's web quiz report (portal /t/<token> -> bot), same x-api-key check.
+app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.routes'));
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);
