@@ -30,7 +30,6 @@ const T = {
     tCount: (done, total, absent) => `${done} of ${total} done, ${absent} absent`, // jg.round.t_count
     tAbsent: 'Mark absent', // jg.round.t_absent
     tNext: 'Hold to call the next child', // jg.round.t_next
-    cStill: 'Still to play:', // jg.round.c_still
     cDone: 'Done ✓', // jg.round.c_done
     cHandback: "Thanks for playing! Hand the phone to your teacher.", // jg.round.c_handback
     turnOf: (name) => `${name}'s turn`, // jg.who.turn_of
@@ -53,7 +52,6 @@ const T = {
     tCount: (done, total, absent) => `${total} میں سے ${done} مکمل، ${absent} غیر حاضر`,
     tAbsent: 'غیر حاضر لگائیں',
     tNext: 'اگلے بچے کے لیے دبا کر رکھیں',
-    cStill: 'ابھی باری آنی ہے:',
     cDone: 'ہو گیا ✓',
     cHandback: "کھیلنے کا شکریہ! اب فون ٹیچر کو دے دیں۔",
     turnOf: (name) => `⁨${name}⁩ کی باری`,

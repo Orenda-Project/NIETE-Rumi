@@ -211,7 +211,7 @@ describe('the child view', () => {
     expect(visible(html)).toContain(self.split(' ')[0]);
     expect(html).toContain(C.cAssent);
     expect(html).toContain(C.cBack);
-    expect(html).not.toContain(C.cStill);
+    expect(html).not.toContain(require('../../../shared/config/copy.v2.json')['jg.round.c_still'][lang]); // retired: in no T table
     expect(html).not.toContain(C.cDone);
     expect(html).not.toMatch(/<li\b/);
     noOtherChild(html, self);
@@ -230,7 +230,7 @@ describe('the child view', () => {
     const C = require('../../../shared/templates/class-round.page').T[lang];
     expect(html).toContain(C.cHandback);
     expect(html).toContain(C.cBack);
-    expect(html).not.toContain(C.cStill);
+    expect(html).not.toContain(require('../../../shared/config/copy.v2.json')['jg.round.c_still'][lang]); // retired: in no T table
     expect(html).not.toContain(C.cDone);
     expect(html).not.toMatch(/<li\b/);
     noOtherChild(html, null);
