@@ -1890,7 +1890,10 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
     const kept = lay(_dropItems(examJson, READ_SLOT, new Set(held.map((h) => _readerId(h.q)))));
     const shortfall = kept.shortfall.filter((f) => f.slot === READ_SLOT);
     const b = built.find((x) => x.section.slots.some((s) => s.slot === READ_SLOT));
-    const note = [takenNote(P, b.section, kept.examJson, { topUp: true, shortfall }), Reader.readerNote(first.flags, first.labels)]
+    // Ask twice what is missing (plus the note's spares): on a narrow scope the layout holds most of a
+    // top-up's items (5 asked, 4 held on a local lessons 6-7 paper), and the extras never print.
+    const ask2 = shortfall.map((f) => ({ ...f, missing: f.missing * 2 }));
+    const note = [takenNote(P, b.section, kept.examJson, { topUp: true, shortfall: ask2 }), Reader.readerNote(first.flags, first.labels)]
       .filter(Boolean).join('\n\n');
     logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall, reader: first.flags });
     const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
