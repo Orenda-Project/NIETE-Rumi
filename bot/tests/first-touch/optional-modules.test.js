@@ -30,7 +30,6 @@ describe('optional-modules — the neighbours by name', () => {
   // Every name resolves on this branch, or is a neighbour still in review (named by its change). A misspelt or
   // git-ignored name fails here instead of reading "absent" forever.
   const NOT_LANDED_YET = Object.freeze({
-    studentJoin: 'the join page (#2653)',
     teacherHomeToken: 'the teacher home (#2655)',
     testPersona: 'the walk-through (#2660)',
   });

@@ -99,12 +99,15 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
 
   let store = null;
   let upload = null;
+  let stored = null;
   if (!dryRun) {
     const client = connect();
     if (!client) return 2;
     store = Load.supabaseStore(client);
     const r2 = require('../../bot/shared/storage/r2');
     const bucket = Store.storyBucket(env) || undefined;
+    // Asked of the store itself after the upload, so a book is never ready with a clip the route cannot serve.
+    stored = async (key) => (await r2.headObject(key, { bucket })).exists === true;
     upload = async (buf, { key, contentType }) => {
       await r2.uploadBuffer(buf, key, contentType, { bucket, cacheControl: Store.IMMUTABLE });
       state[key] = buf.length;
@@ -128,7 +131,7 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
     });
     let out;
     try {
-      out = await Load.applyPlan(plan, { store, upload, env: target, dryRun, has: (k) => Object.prototype.hasOwnProperty.call(state, k) });
+      out = await Load.applyPlan(plan, { store, upload, env: target, dryRun, has: (k) => Object.prototype.hasOwnProperty.call(state, k), stored });
     } catch (e) {
       failed += 1;
       say(`load-stories: ${book.source_id} failed: ${String(e && e.message).slice(0, 160)}`);
