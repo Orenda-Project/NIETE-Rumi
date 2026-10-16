@@ -89,7 +89,7 @@ describe('language', () => {
     F.seed(supabase, ON);
     const out = await Lib.lib('AB12CD', { l: 'ur' });
     expect(counts(out)).toEqual({
-      grades: [['KG', 1], ['3', 9]],
+      grades: [['KG', 1], ['3', 9], ['4', 1]],
       subjects: [['English', 1], ['Maths', 3], ['Science', 2], ['Urdu', 3]],
     });
     expect(titles(await Lib.lib('AB12CD', { s: 'Science', l: 'ur' }))).toEqual([
@@ -101,25 +101,51 @@ describe('language', () => {
     F.seed(supabase, ON);
     const out = await Lib.lib('AB12CD', { l: 'en' });
     expect(counts(out)).toEqual({
-      grades: [['KG', 1], ['3', 7], ['4', 1]],
-      subjects: [['English', 1], ['Maths', 4], ['Science', 2]],
+      grades: [['KG', 1], ['3', 10], ['4', 1]],
+      subjects: [['English', 1], ['Maths', 4], ['Science', 2], ['Urdu', 3]],
     });
     expect(titles(await Lib.lib('AB12CD', { s: 'Science', l: 'en' }))).toEqual([['Plants', ['Leaves', 'Parts of a Flower']]]);
+  });
+
+  test('a subject with no video in the child\'s language is shown as it is: no subject disappears', async () => {
+    F.seed(supabase, ON);
+    // Grade 4 Science has only an English video: an Urdu child still sees it (no Urdu one to prefer).
+    expect(titles(await Lib.lib('AB12CD', { g: '4', s: 'Science', l: 'ur' }))).toEqual([['Energy', ['Grade four video']]]);
+    // The Urdu subject has only Urdu videos: an English child still sees all three.
+    expect(titles(await Lib.lib('AB12CD', { s: 'Urdu', l: 'en' })).map(([, t]) => t.length).reduce((a, b) => a + b, 0)).toBe(3);
+    // Subjects with videos in the child's language come first; none is dropped.
+    expect(counts(await Lib.lib('AB12CD', { g: '4', l: 'ur' })).subjects).toEqual([['Science', 1]]);
+    expect(counts(await Lib.lib('AB12CD', { l: 'en' })).subjects.map((x) => x[0])).toEqual(['English', 'Maths', 'Science', 'Urdu']);
+    // Where the child's language exists in the subject, the other language is left out.
+    expect(titles(await Lib.lib('AB12CD', { s: 'Science', l: 'ur' })).flatMap(([, t]) => t)).not.toContain('Leaves');
+  });
+
+  test('a subject shown only in another language is listed after the child\'s own subjects (Urdu first for an Urdu child)', async () => {
+    F.seed(supabase, ON);
+    await supabase.from('student_videos').insert({ id: F.V(20), grade: '3', subject: 'Art', clean_chapter: 'Colours', clean_title: 'Red', language: 'en',
+      migration_status: 'done', superseded_by: null, r2_url: 'https://acct.r2.example.com/test-bucket/student-videos/v20.mp4' });
+    await supabase.from('quizzes').insert({ id: F.VQ(20), video_id: F.V(20), quiz_source: 'video', status: 'ready', topic: 'Video quiz 20', grade: '3', subject: 'Art' });
+    expect(counts(await Lib.lib('AB12CD', { l: 'ur' })).subjects).toEqual([['English', 1], ['Maths', 3], ['Science', 2], ['Urdu', 3], ['Art', 1]]);
+    expect(counts(await Lib.lib('AB12CD', { l: 'en' })).subjects).toEqual([['Art', 1], ['English', 1], ['Maths', 4], ['Science', 2], ['Urdu', 3]]);
   });
 
   test('no language from the page, or one that is not en|ur: the quiz code\'s language', async () => {
     F.seed(supabase, ON);
     expect(counts(await Lib.lib('UR12CD', {})).subjects).toEqual([['English', 1], ['Maths', 3], ['Science', 2], ['Urdu', 3]]);
     expect(counts(await Lib.lib('UR12CD', { l: 'fr' })).subjects).toEqual([['English', 1], ['Maths', 3], ['Science', 2], ['Urdu', 3]]);
-    expect(counts(await Lib.lib('AB12CD', {})).subjects).toEqual([['English', 1], ['Maths', 4], ['Science', 2]]);
+    expect(counts(await Lib.lib('AB12CD', {})).subjects).toEqual([['English', 1], ['Maths', 4], ['Science', 2], ['Urdu', 3]]);
+    expect(titles(await Lib.lib('AB12CD', { s: 'Science' })).flatMap(([, t]) => t)).toEqual(['Leaves', 'Parts of a Flower']);
   });
 
   test('from the hub: the child\'s own language wins over the page\'s; without one, the page\'s', async () => {
     F.seed(supabase, ON);
+    const science = async (q) => titles(await Lib.libHub('hubtoken', { kid: 'chip-1', s: 'Science', ...q })).flatMap(([, t]) => t);
     kid('ur');
-    expect(counts(await Lib.libHub('hubtoken', { kid: 'chip-1', l: 'en' })).subjects.map((x) => x[0])).toContain('Urdu');
+    expect(await science({ l: 'en' })).toContain('Life Cycle of a Hen');
+    expect(await science({ l: 'en' })).not.toContain('Leaves');
     kid(null);
-    expect(counts(await Lib.libHub('hubtoken', { kid: 'chip-1', l: 'en' })).subjects.map((x) => x[0])).not.toContain('Urdu');
+    expect(await science({ l: 'en' })).toContain('Leaves');
+    expect(await science({ l: 'en' })).not.toContain('Life Cycle of a Hen');
     expect(titles(await Lib.libHub('hubtoken', { kid: 'chip-1', s: 'Science', l: 'ur' }))).toEqual([
       ['Animals', ['Life Cycle of a Hen']], ['Plants', ['Parts of a Flower']],
     ]);
