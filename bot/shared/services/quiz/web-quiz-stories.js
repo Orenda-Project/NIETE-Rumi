@@ -260,9 +260,21 @@ async function reviewedQuestions(bookId) {
   return (data || []).slice().sort((a, b) => a.n - b.n);
 }
 
+// The share card's field (m-scorecard's web-quiz-card-image.js, its own switch): {} when absent, off or failing.
+let cardField = null;
+async function cardBits() {
+  try {
+    const fn = cardField || require('./web-quiz-card-image').field; // eslint-disable-line global-require
+    return (await fn()) || {};
+  } catch (_) {
+    return {};
+  }
+}
+
 async function book(id, token, { kid, device } = {}) {
   await guard(token, kid, device);
-  return bookData(id);
+  const out = await bookData(id);
+  return Object.assign(out, await cardBits());
 }
 
 /** One ready book's payload with no child attached (the teacher's preview reuses it behind its own token). 404 otherwise. */
@@ -390,4 +402,5 @@ module.exports = {
   shelf, book, bookData, event, hubBits, stickersFor, storiesOn, pageReadable,
   pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY,
   _reset: () => { cache = null; },
+  _cardField: (fn) => { cardField = fn; },
 };

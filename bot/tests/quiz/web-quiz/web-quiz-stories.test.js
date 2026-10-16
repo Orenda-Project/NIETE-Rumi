@@ -236,6 +236,18 @@ describe('the book', () => {
     expect(out.pages[0].audio).toEqual({ url: `/s/${F.BOOK(1)}/a01-dddd0001.ogg`, ms: 3200 });
     expect(mockPresign).not.toHaveBeenCalled();
   });
+  test('the share card: no card_v3 key while the card module is absent or off', async () => {
+    seed();
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(Object.prototype.hasOwnProperty.call(out, 'card_v3')).toBe(false);
+  });
+  test('the share card: card_v3 when the card module says so', async () => {
+    seed();
+    Stories._cardField(async () => ({ card_v3: true }));
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out.card_v3).toBe(true);
+    Stories._cardField(null);
+  });
   test('mergeWords: timings joined by i, not by position', () => {
     const w = Stories.mergeWords([{ i: 0, t: 'a' }, { i: 1, t: 'b', box: [1, 2, 3, 4] }], [{ i: 1, s_ms: 10, e_ms: 20 }, { i: 0, s_ms: 0, e_ms: 5 }]);
     expect(w).toEqual([{ i: 0, t: 'a', s_ms: 0, e_ms: 5 }, { i: 1, t: 'b', s_ms: 10, e_ms: 20, box: [1, 2, 3, 4] }]);
