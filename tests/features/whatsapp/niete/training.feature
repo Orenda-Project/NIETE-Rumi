@@ -2466,6 +2466,7 @@ Feature: NIETE (ICT) Teacher Training
     Then my tap answers from my kept queue without working it out again
     And the tier's teacher-accepted share counts only the taps of teachers not listed in web_quiz_fixture_rule
     But with web_quiz_fixture_rule absent or malformed every teacher's taps count, as before
+    And the tier's result says how many of its taps came from the configured test teachers (excluded_n; unit: teacher-join-queue-excluded-count.test.js)
     # web-quiz-join-queue.js QUEUE_TTL_S + precisionByTier decider filter; unit: teacher-join-queue-decider-filter.test.js
 
   # ── Challenge clip warm job (app_settings web_quiz_challenge_clip_warm, off by default) ──────────────────
