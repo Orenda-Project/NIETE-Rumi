@@ -102,8 +102,13 @@ async function priorOnPhone(norm, childId) {
   return BindRepo.findByTomb(tomb);
 }
 
-/** The child's language (their quizzes', skipping lesson codes), else the user's, else English. */
-async function languageFor(child, user) {
+/**
+ * The reply's language: the language the family WROTE in when the message carries the page's prefill line (an Urdu
+ * card → an Urdu confirmation, whatever the child's class quiz is in), else the child's (their quizzes', skipping
+ * lesson codes), else the user's, else English.
+ */
+async function languageFor(child, user, asked = null) {
+  if (asked === 'ur' || asked === 'en') return asked;
   try {
     const SQ = require('./student-quiz.service');
     const lang = SQ.childLanguage(await SQ.quizzesForStudents([{ id: child.id, student_name: child.name }]));
@@ -143,6 +148,9 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
     if (!code) return null;
     const norm = StudentIdentity.normalisePhone(phone);
     if (!norm) return null;
+    // the page's prefill names the language the family tapped the card in; a bare code names none
+    let asked = null;
+    try { asked = require('./web-quiz-bind-page').prefillLanguage(body); } catch (_) { asked = null; }
 
     if (mode === 'teacher') {
       await Codes.markUsed(code, 'teacher_phone', now);
@@ -178,7 +186,7 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
     if (!inSet && set.length >= MAX_KIDS_PER_PHONE) {
       await Codes.markUsed(code, 'max_kids', now);
       const out = await refused('max_kids', { kids_n: set.length }, child.id);
-      const lang = await languageFor(child, user);
+      const lang = await languageFor(child, user, asked);
       if (await Ledger.record({ trigger: 'bind_reply', phone, reason: 'max_kids', now })) await sendText(phone, 'jugnuBindFullRefused', lang);
       return out;
     }
@@ -214,7 +222,7 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
     if (rebind && rebindPrior) ev.rebind_prior = rebindPrior;
     await emit('web_quiz.bind_bound', ev, child.id);
 
-    const lang = await languageFor(child, user);
+    const lang = await languageFor(child, user, asked);
     if (await Ledger.record({ trigger: 'bind_reply', phone, reason: renewed ? 'renew' : 'bind', now })) await sendSaved(phone, kids.length ? kids : [{ id: child.id }], child, lang);
     return { ok: true, outcome: 'bound', bindingId: binding.id, canonicalId: child.id, renewed, rebind };
   } catch (err) {

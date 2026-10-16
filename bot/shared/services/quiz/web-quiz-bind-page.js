@@ -20,6 +20,8 @@
  *                                   (wq:idpick:h:<canonical_id>:<sha256(device)[0:16]>, written by hubExtras), else null
  *   hubPickKey(canonicalId, device)  that hub record's Redis key (null without both); the one builder of the format
  *   canonOn() / bindOn()            the switches (false when the switch module is unavailable)
+ *   prefillLanguage(text)           'ur' | 'en' when a WhatsApp message starts with the page's prefill line, else null
+ *                                   (the binder replies in the language the family wrote in)
  *
  * Every function is a no-op ({off:true} or null) unless its switch is on. The phone number is never known
  * here (the page has none); a device_ref is never logged; the code row's device_ref is audit only.
@@ -37,6 +39,13 @@ const PICK_TTL_S = 24 * 3600;
 const PICK_PREFIX = 'wq:idpick:';
 // wa.bind.prefill: the bot reads the code only, so it sits LAST (bidi cannot move it in Urdu).
 const PREFILL = { en: 'Jugnu ✨ keep my place {code}', ur: 'جگنو ✨ میری جگہ محفوظ کریں {code}' };
+
+/** The language the family wrote in: 'ur' | 'en' when the message starts with one of the two prefill lines, else null. */
+function prefillLanguage(text) {
+  const t = String(text || '').trim();
+  for (const l of ['ur', 'en']) if (t.startsWith(PREFILL[l].replace(' {code}', ''))) return l;
+  return null;
+}
 
 async function idFlags() {
   try {
@@ -338,4 +347,4 @@ async function pickFor(arg) {
   }
 }
 
-module.exports = { mint, status, undo, whoseTurn, hubExtras, recordPick, pickFor, hubPickKey, canonOn, bindOn, CODE_RX, PREFILL };
+module.exports = { mint, status, undo, whoseTurn, hubExtras, recordPick, pickFor, hubPickKey, canonOn, bindOn, CODE_RX, PREFILL, prefillLanguage };
