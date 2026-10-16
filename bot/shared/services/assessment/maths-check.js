@@ -949,23 +949,42 @@ function roundingVerdict(stem, parts) {
 
 // "the value of the digit 8 in 8,204,631", "the place value of 7 in 573,018": a value (or,
 // for "place value", a place name). "Which place is the digit 9 in 2,395,140?", "in which
-// place is …", "which place does the digit 5 have in …": a place name only.
-const DIGIT_VALUE = /\b(?:place value of (?:the )?(?:digit )?|value of (?:the )?digit )(\d) in (\d[\d,]*)/;
+// place is …", "which place does the digit 5 have in …": a place name only. The number may
+// also come first, as FDE writes it: "In the number 4,305,276, what is the place value of
+// the digit 4?". "the number" may stand before N in either form.
+const DIGIT_ASK = String.raw`(?:(place value of (?:the )?(?:digit )?|value of (?:the )?digit )|which place (?:is|does) (?:the )?digit )(\d)`;
+const DIGIT_THEN_NUMBER = new RegExp(String.raw`\b${DIGIT_ASK} (?:(?:have|stand|occupy|take) )?in (?:the number )?(\d[\d,]*)`);
+const NUMBER_THEN_DIGIT = new RegExp(String.raw`\bin (?:the number )?(\d(?:[\d,]*\d)?)(?![\d.])(.*?)\b${DIGIT_ASK}(?!\d|[,.]\d)`);
 const NOT_WHOLE_TAIL = /^(?:\.\d|\s*(?:million|billion|thousand|hundred|lakh|crore|arab)\b|\s*[-+×x*÷/=^])/;
-const DIGIT_PLACE = /\bwhich place (?:is|does) (?:the )?digit (\d) (?:(?:have|stand|occupy|take) )?in (\d[\d,]*)/;
+
+// { value, digit, number, tail } for the one digit-in-a-number ask (value: the stem asks a value,
+// not only a place), { unread: true } when it cannot name one number, or null when there is no ask.
+function digitAsk(stem) {
+  const after = DIGIT_THEN_NUMBER.exec(stem);
+  const before = NUMBER_THEN_DIGIT.exec(stem);
+  // A number on each side ("In 8,943,210, … the digit 4 in 41,000?") names no one number.
+  if (after && before) return { unread: true };
+  if (after) return { value: Boolean(after[1]), digit: after[2], number: after[3], tail: stem.slice(after.index + after[0].length) };
+  // Between the number and the ask only a few plain words ("what is the", "find the").
+  if (before && /^,?\s*(?:[a-z]+\s+){0,3}$/.test(before[2])) {
+    return { value: Boolean(before[3]), digit: before[4], number: before[1], tail: stem.slice(before.index + 3).replace(/^(?:the number )?[\d,]*\d/, '') };
+  }
+  return null;
+}
 
 function placeValueVerdict(stem, parts) {
-  const value = DIGIT_VALUE.exec(stem);
-  const m = value || DIGIT_PLACE.exec(stem);
-  if (!m) return null;
+  const ask = digitAsk(stem);
+  if (!ask) return null;
+  if (ask.unread) return { ok: null };
+  const value = ask.value;
   // "3.5 million", "4,250 thousand", "25 + 30": the number read is not the whole number.
-  if (NOT_WHOLE_TAIL.test(stem.slice(m.index + m[0].length))) return { ok: null };
-  const digits = m[2].replace(/,/g, '');
+  if (NOT_WHOLE_TAIL.test(ask.tail)) return { ok: null };
+  const digits = ask.number.replace(/,/g, '');
   // A digit that appears twice (or not at all) names no one place.
-  if (digits.split(m[1]).length !== 2) return { ok: null };
-  const k = digits.length - 1 - digits.indexOf(m[1]);
+  if (digits.split(ask.digit).length !== 2) return { ok: null };
+  const k = digits.length - 1 - digits.indexOf(ask.digit);
   const values = parts.map((p) => wholeValue(p.body));
-  if (value && !values.some(Number.isNaN)) return verdictOf(parts, (_, i) => values[i] === Number(m[1]) * 10 ** k);
+  if (value && !values.some(Number.isNaN)) return verdictOf(parts, (_, i) => values[i] === Number(ask.digit) * 10 ** k);
   const names = parts.map((p) => placeName(p.body));
   if ((value && !/\bplace value\b/.test(stem)) || !names.every((n) => PLACE_NAMES.includes(n))) return { ok: null };
   return verdictOf(parts, (_, i) => names[i] === PLACE_NAMES[k]);
