@@ -328,6 +328,15 @@ async function withList(cls) {
  * Pass { teacherUserId, grade } alone to evaluate step 3 before a quiz row exists.
  * → { state, class: {id, grade, section, shift, label, listId} | null, classes: [...], bound: 'code'|'quiz'|'single'|'grade'|null }
  */
+/**
+ * The quiz's list is ANOTHER teacher's (a library quiz sent by someone who did not make it, quiz_teacher_home): it
+ * is the author's class, never the sender's — the sender's own classes answer instead. Off: today's reading.
+ */
+async function othersList(list, teacherUserId, homeOn = null) {
+  if (!teacherUserId || !list.user_id || list.user_id === teacherUserId) return false;
+  try { return await (homeOn || require('../first-touch/teacher-home.flags').on()); } catch (_) { return false; }
+}
+
 async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = null, grade = null, gradeSoft = false, codeClassId, quizRow } = {}) {
   // The quiz page hands what it already read (web_quiz_fast): the same answer, its reads started together.
   if (codeClassId !== undefined || quizRow !== undefined) {
@@ -357,8 +366,8 @@ async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = nu
       // A coaching-born quiz's grade is the digest's reading of the transcript — a guess, not a fact.
       if (grade == null && q.meta && q.meta.grade_source === 'digest') soft = true;
       if (q.list_id) {
-        const { data: l } = await supabase.from('student_lists').select('id, class_id, class_name, section').eq('id', q.list_id).maybeSingle();
-        if (l && l.class_id) {
+        const { data: l } = await supabase.from('student_lists').select('id, class_id, class_name, section, user_id').eq('id', q.list_id).maybeSingle();
+        if (l && l.class_id && !(await othersList(l, teacherUserId))) {
           const cls = await classById(l.class_id);
           if (cls) return { state: 'known', class: { ...cls, listId: l.id, label: labelOf(cls, []) }, classes: [{ ...cls, listId: l.id, label: labelOf(cls, []) }], bound: 'quiz' };
         }
@@ -428,7 +437,8 @@ const quiet = (p) => { p.catch(() => {}); return p; };
  *                read here, exactly as step 1 reads it. Never a class worked out from the quiz's list.
  *   quizRow      the page's own quizzes row ({grade, list_id, meta} or null), or a promise of it.
  * Only the reads move: the teacher's classes (step 3 needs only the teacher) start beside the quiz row, and the classes
- * and their lists are read together. Step 2 reads the quiz's list exactly as resolveQuizClass does.
+ * and their lists are read together. Step 2 skips another teacher's list exactly as resolveQuizClass does
+ * (othersList), so a quiz handed out by a teacher who did not make it never resolves to the author's class.
  */
 async function resolveHanded({ teacherUserId, quizId, shareCodeId, grade, gradeSoft, codeClassId, quizRow }) {
   let quizGrade = grade;
@@ -464,8 +474,10 @@ async function resolveHanded({ teacherUserId, quizId, shareCodeId, grade, gradeS
       // A coaching-born quiz's grade is the digest's reading of the transcript — a guess, not a fact.
       if (grade == null && q.meta && q.meta.grade_source === 'digest') soft = true;
       if (q.list_id) {
-        const { data: l } = await supabase.from('student_lists').select('id, class_id, class_name, section').eq('id', q.list_id).maybeSingle();
-        if (l && l.class_id) {
+        // The switch othersList may need is read beside the list (the same reading, started one read earlier).
+        const homeOn = teacherUserId ? quiet(Promise.resolve().then(() => require('../first-touch/teacher-home.flags').on())) : null;
+        const { data: l } = await supabase.from('student_lists').select('id, class_id, class_name, section, user_id').eq('id', q.list_id).maybeSingle();
+        if (l && l.class_id && !(await othersList(l, teacherUserId, homeOn))) {
           // The class row is the one step 3 read when it is one of the teacher's classes (the same columns, the same filter).
           const mine = teacherP ? await teacherP.catch(() => null) : null;
           const cls = mine && mine.ids.includes(l.class_id)

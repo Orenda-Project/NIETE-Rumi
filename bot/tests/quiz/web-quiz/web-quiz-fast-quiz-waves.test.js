@@ -8,7 +8,7 @@
  *   - A 30 s setting or roster that has gone stale is answered from what was read last and refreshed behind the page.
  *   - The payload is byte for byte what the switch-on page sent before this change (golden), for an English quiz with
  *     a known class, an Urdu quiz bound through its list, a code with no class, a quiz handed out by a teacher who did
- *     not make it (it resolves through the quiz's own list, as today) and a friend's challenge. Switch off: today's payload and today's
+ *     not make it (quiz_teacher_home on and off) and a friend's challenge. Switch off: today's payload and today's
  *     reads, in today's order (golden).
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
@@ -168,10 +168,10 @@ async function pages(scn, { fast, every = false }) {
 const depth = (ms) => Math.round(ms / READ_MS);
 // The waves are counted over the reads that had finished when the page answered: every read the page waited for is
 // among them, so the count is never below what the child waited for, and it does not move with the machine's load.
-// A quiz handed out by a teacher who did not make it resolves (as today) to the author's class through the quiz's own
-// list, and that class is not one of the sender's: its class row is one read after the list (4). A friend's challenge
-// resolves through two code reads and reads the challenger's run after the page is built: not this change.
-const LIMIT = { handed_home_on: 4, handed_home_off: 4, invite: null };
+// A quiz handed out by a teacher who did not make it, with quiz_teacher_home off, resolves (as before #2662's switch)
+// to the author's class, which is not one of the sender's: its class row is one read after the list (4). A friend's
+// challenge resolves through two code reads and reads the challenger's run after the page is built: not this change.
+const LIMIT = { handed_home_off: 4, invite: null };
 
 // The goldens: recorded once from the code before this change, then compared byte for byte.
 let golden = null;
@@ -243,7 +243,7 @@ describe('the class resolver handed what getQuiz already has', () => {
     ['en_class', F.TEACHER, F.SC], ['ur_list', F.TEACHER, F.SC], ['no_class', F.TEACHER, F.SC],
     ['handed_home_on', SENDER, SC_S], ['handed_home_off', SENDER, SC_S],
   ];
-  // handed_*: the author's list names a class that is not the sender's (see LIMIT above): one read more.
+  // handed_home_off: the author's list names a class that is not the sender's (see LIMIT above): one read more.
   test.each(CASES)('%s: the same answer as reading everything itself, in 2 round trips after the code', async (scn, teacher, sc) => {
     jest.resetModules();
     const fake = install(school(scn, { fast: true }));
@@ -260,6 +260,16 @@ describe('the class resolver handed what getQuiz already has', () => {
     const handed = await Identity.resolveQuizClass({ teacherUserId: teacher, quizId: F.QUIZ, shareCodeId: sc, codeClassId: code.class_id || null, quizRow });
     const ms = performance.now() - t0;
     expect(JSON.stringify(handed)).toBe(JSON.stringify(today));
-    expect(waves(reads.filter((r) => r.end != null && r.end <= t0 + ms + 0.5))).toBeLessThanOrEqual(scn.startsWith('handed') ? 3 : 2);
+    expect(waves(reads.filter((r) => r.end != null && r.end <= t0 + ms + 0.5))).toBeLessThanOrEqual(scn === 'handed_home_off' ? 3 : 2);
+  });
+
+  test('a quiz handed out by a teacher who did not make it never resolves to the author\'s class (switch on), on the handed path too', async () => {
+    jest.resetModules();
+    install(school('handed_home_on', { fast: true }));
+    const Identity = require('../../../shared/services/quiz/web-quiz-identity');
+    const r = await Identity.resolveQuizClass({ teacherUserId: SENDER, quizId: F.QUIZ, shareCodeId: SC_S, codeClassId: null,
+      quizRow: Promise.resolve({ grade: '4', list_id: F.LIST_A, meta: {} }) });
+    expect(r).toMatchObject({ state: 'known', class: { id: CLS_C } });
+    expect(r.bound).not.toBe('quiz');
   });
 });

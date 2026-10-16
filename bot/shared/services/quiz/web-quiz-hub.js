@@ -187,7 +187,7 @@ async function teacherCard(kidRow, list, history, grade, fast = false) {
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
   const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history, fast)]);
-  const open = codes.filter((c) => isOpen(c) && !seen.has(c.id));
+  const open = await require('./web-quiz-hub-home').sentOnly(codes.filter((c) => isOpen(c) && !seen.has(c.id))); // a previewed storybook is not "from your teacher": unchanged while web_quiz_home_v3 is off
   if (!open.length) return null;
   const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
   const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
@@ -443,6 +443,10 @@ const HUB_BRANCHES = [
   { name: 'recs', run: (s) => recsFor(s.chosen.id, s.history, s.ctx.grade, s.par) },
   { name: 'play', run: (s) => s.challengeP.then((form) => require('./web-quiz-hub-play').playField({ chosenId: s.chosen.id, last: s.last0, lang: s.lang, challenge: form ? { on: true } : null, grade: s.ctx.grade, stopsOf: () => trailStops(form), ...(s.runs ? { runs: s.runs } : {}) })) },
   { name: 'bits', run: (s) => require('./web-quiz-book').hubBits({ studentId: s.chosen.id, ...(s.runs ? { runs: s.runs } : {}) }) },
+  // the v3 home's reads (web_quiz_home_v3), keyed on the child; its doors are drawn from `out` at the end (homeFrom)
+  { name: 'home', run: (s) => require('./web-quiz-hub-home').homeReads({ chosenId: s.chosen.id, history: s.history, lang: s.lang }) },
+  // a place saved on a phone with no code hides the "keep my place" card (quiz_student_join); applied after keep my place
+  { name: 'bound', run: (s) => require('./web-quiz-student-join').guestBound(s.chosen.id) },
 ];
 
 /** Adds one parallel branch to the hub ({ name, run(s) }; a name is used once). */
@@ -473,6 +477,8 @@ function lazyHubBranches(s, branches = HUB_BRANCHES) {
 
 async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
+  const practice = await require('./web-quiz-hub-home').practiceHub(token, { lang: wanted, brandKey }); // a coach's class preview by grade: null unless web_quiz_home_v3
+  if (practice) return practice;
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
@@ -540,6 +546,11 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
   await take('extras');
   if (shadow !== out) Object.keys(shadow).forEach((k) => { if (k === 'kids' || !(k in out)) out[k] = shadow[k]; });
+  // a child whose place is saved on a family phone with no code (joined on their own, or confirmed on the /quiz landing):
+  // never the "keep my place" card again, on any link (quiz_student_join; off: untouched)
+  if (chosen && out.bind && out.bind.offer) {
+    if (par) { if (await take('bound')) out.bind = { offer: false, state: 'bound' }; } else await require('./web-quiz-student-join').hideCardIfBound(out, chosen.id);
+  }
   if (!chosen) {
     logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;
@@ -578,6 +589,9 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await take('bits')); // Jugnu's Book: {} while web_quiz_challenge_book is off
+  // the v3 home's doors + header: {} while web_quiz_home_v3 is off (fast: its reads ran with the branches above)
+  if (par) Object.assign(out, require('./web-quiz-hub-home').homeFrom({ out, history, reads: await take('home') }));
+  else Object.assign(out, await require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history }));
   return out;
 }
 

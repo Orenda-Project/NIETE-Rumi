@@ -55,7 +55,8 @@ const ON_KEYS = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_library', 'web_
 
 // The wave ceiling's case: every child-facing switch the hub reads, on (the ceiling test checks this list is complete).
 const CEILING_KEYS = [...ON_KEYS, 'web_quiz_back_nav', 'web_quiz_hub_door', 'web_quiz_challenge_rungs', 'web_quiz_challenge_trail',
-  'web_quiz_rich_telemetry', 'web_quiz_bind_way_back', 'web_quiz_guest_home', 'quiz_first_door', 'quiz_maker_page'];
+  'web_quiz_rich_telemetry', 'web_quiz_bind_way_back', 'web_quiz_guest_home', 'quiz_first_door', 'quiz_maker_page',
+  'web_quiz_home_v3', 'web_quiz_stories', 'quiz_student_join'];
 // Keys the hub reads that are not on/off switches of the child's page.
 const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity'];
 
@@ -445,7 +446,7 @@ describe('the hub\'s parallel branches (HUB_BRANCHES)', () => {
     expect(after.perTable.students).toBe(before.perTable.students + 1);
     expect(after.waves).toBe(before.waves);
     expect(() => Hub.addHubBranch({ name: 'probe', run: () => null })).toThrow(/already/);
-    expect(Hub.HUB_BRANCHES.map((b) => b.name)).toEqual(['extras', 'teacher', 'answered', 'recs', 'play', 'bits', 'probe']);
+    expect(Hub.HUB_BRANCHES.map((b) => b.name)).toEqual(['extras', 'teacher', 'answered', 'recs', 'play', 'bits', 'home', 'bound', 'probe']);
   });
 });
 
@@ -457,12 +458,14 @@ describe('a stale switch (30 s cache)', () => {
     ['challenge record switch', () => require('../../../shared/services/quiz/web-quiz-challenge').recordOn(), (v) => v],
     ['challenge listen switch', () => require('../../../shared/services/quiz/web-quiz-challenge').listenOn(), (v) => v],
     ['book flags', () => require('../../../shared/services/quiz/web-quiz-book').flags(), (v) => v.book],
+    ['home v3 flags', () => require('../../../shared/services/quiz/web-quiz-hub-home').flags(), (v) => v.home],
+    ['student join flags', () => require('../../../shared/services/quiz/web-quiz-student-join').flags(), (v) => v.on],
     ['Urdu polish', () => require('../../../shared/services/quiz/web-quiz-ur-polish').ui(), (v) => Boolean(v && v.ur2)],
   ];
   const timed = async (fn) => { reads = []; doneMax = 0; const v = await fn(); return { v, waves: doneMax }; };
 
   test.each(FLAG_MODULES)('%s, switch on: answered from the cache at once; a failed background read keeps the value', async (_, read, pick) => {
-    boot({ fast: true });
+    boot({ fast: true, every: true });
     await require('../../../shared/services/quiz/web-quiz-fast').on();
     await settle();
     expect(pick((await timed(read)).v)).toBe(true);                 // cold: waited for, as today
@@ -485,7 +488,7 @@ describe('a stale switch (30 s cache)', () => {
   });
 
   test.each(FLAG_MODULES)('%s, switch off: a stale cache waits for its read, as today', async (_, read, pick) => {
-    boot({ fast: false });
+    boot({ fast: false, every: true });
     await require('../../../shared/services/quiz/web-quiz-fast').on();
     await settle();
     expect(pick((await timed(read)).v)).toBe(true);
