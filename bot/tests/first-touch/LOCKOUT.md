@@ -1,6 +1,6 @@
 # LOCKOUT — the first-touch door, walked as cells
 
-Generated from DOOR.md (§1-§5, §8.3, §10) (the warm cell re-sends at +0; a capped keyless phone gets the family text; a child key on the menu row gets the family reply, no write) by a generator kept outside the repo; `door-walk.test.js` executes every cell this change builds (ours ON or OFF, the typed messages, the claims, the child word) through the real ingress, and lists the menu-row cells as todo for the menu-row change. "new teacher" and "family phone" are the same server state (an unknown phone). Warm = our verdict cached 60 s; every key write forgets it (both phone forms).
+Generated from DOOR.md (§1-§5, §8.3, §10) (the warm cell re-sends at +0; a capped keyless phone gets the family text; a child key on the menu row gets the family reply, no write) by a generator kept outside the repo; `door-walk.test.js` executes every cell this change builds (ours ON or OFF, the typed messages, the claims, the child word) through the real ingress, executes the menu-row cells (the list tap attached and routed, then `menu_quiz` through the real menu service), and executes the capped cells (a keyless phone shown the chooser on two PKT days: `quiz`, `کوئز`, `/quiz` and the menu row, warm and cold, theirs ON and OFF → family.fallback text, no write). "new teacher" and "family phone" are the same server state (an unknown phone). Warm = our verdict cached 60 s; every key write forgets it (both phone forms).
 
 | sender | store | cache | ours | theirs | message | reply | write |
 |---|---|---|---|---|---|---|---|
