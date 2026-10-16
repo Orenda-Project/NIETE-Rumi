@@ -1,0 +1,320 @@
+'use strict';
+/**
+ * The teacher home's bot router (/api/internal/th) end to end over the in-memory Supabase: the switch-off goldens (four
+ * states), the shell that reads nothing, the home for a teacher with no lesson plans (the library first, its class
+ * message already built and ending with the return line), the class card after a send nobody played, the sends, "Quiz
+ * this" through the existing job, the poll, the confirm rows and the events. Only the network boundary and the
+ * heaviest list (/quiz's own loadLessonPage) are stood in for; every module of the home runs for real.
+ */
+process.env.INTERNAL_API_KEY = 'unit-internal-key-not-a-secret';
+process.env.PORTAL_URL = 'https://portal.example';
+process.env.WHATSAPP_BOT_NUMBER = '15550001111';
+process.env.WEB_QUIZ_KID_KEY = 'unit-kid-key-not-a-secret-0123456789';
+jest.mock('../../shared/config/supabase', () => ({}));
+jest.mock('../../shared/services/cache/railway-redis.service', () => require('./_ingress-mocks').redisMock(jest));
+jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
+jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
+jest.mock('../../shared/services/whatsapp.service', () => require('./_ingress-mocks').whatsappMock(jest));
+
+const express = require('express');
+const supabase = require('../../shared/config/supabase');
+const { logEvent } = require('../../shared/utils/structured-logger');
+const IdFlags = require('../../shared/services/quiz/web-quiz-identity-flags');
+const HubFlags = require('../../shared/services/quiz/web-quiz-hub-flags');
+const Gate = require('../../shared/services/quiz/teacher-report-gate');
+const List = require('../../shared/services/quiz/transcript-quiz-list.service');
+const Bank = require('../../shared/services/first-touch/maker.bank');
+const Flags = require('../../shared/services/first-touch/teacher-home.flags');
+const HomeToken = require('../../shared/services/first-touch/teacher-home.token');
+const { createRouter } = require('../../shared/services/first-touch/teacher-home.routes');
+const { str, fill } = require('../../shared/services/first-touch/teacher-home.strings');
+const { seedMaker, TEACHER, qid } = require('./maker-fixture');
+
+const OTHER = 'a0000000-0000-4000-8000-0000000000f2';
+const OWN_QUIZ = 'c0000000-0000-4000-8000-0000000000a1';
+const OWN_CODE = 'f0000000-0000-4000-8000-0000000000a1';
+const SESSION = 'e0000000-0000-4000-8000-0000000000c1';
+const RETURN_LINE = fill('cm.return', 'en', { link: 'https://wa.me/15550001111?text=quiz' });
+const tokenFor = (o = {}) => HomeToken.signTeacherHome({ uid: TEACHER.id, lang: 'en', via: 'go', ...o });
+
+let srv;
+let fake;
+let deps;
+async function boot(d = null) {
+  const app = express();
+  app.use('/api/internal/th', createRouter(d));
+  await new Promise((r) => { srv = app.listen(0, r); });
+}
+const url = (p) => `http://127.0.0.1:${srv.address().port}/api/internal/th${p}`;
+const H = () => ({ 'x-api-key': process.env.INTERNAL_API_KEY });
+const get = (p) => fetch(url(p), { headers: H(), redirect: 'manual' });
+const post = (p, body) => fetch(url(p), { method: 'POST', headers: { ...H(), 'content-type': 'application/json' }, body: JSON.stringify(body), redirect: 'manual' });
+const nonSwitchReads = () => fake.calls.filter((c) => c.table !== 'app_settings');
+
+function seed({ on = true, value = true, extra = {}, settings = [] } = {}) {
+  fake = seedMaker(supabase, { on: true, extra });
+  fake.db.app_settings = [...fake.db.app_settings, ...(on ? [{ key: 'quiz_teacher_home', value }] : []), ...settings];
+  Flags.reset(); IdFlags._resetCache(); HubFlags._resetCache(); Gate._resetCache(); Bank._resetCache();
+}
+/** /quiz's own list, stood in for (its providers read a dozen tables); lessonItems + quizState stay real. */
+function listWith({ sessions = [], quizzes = [], lessons = [] } = {}) {
+  return { ...List, loadLessonPage: jest.fn(async () => ({ sessions, quizzes, counts: {}, lessons })) };
+}
+
+beforeEach(() => { jest.clearAllMocks(); deps = { List: listWith() }; });
+afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
+
+describe('switch OFF', () => {
+  const STATES = [
+    ['absent', { on: false }], ['false', { value: false }], ['"yes"', { value: 'yes' }], ['1', { value: 1 }], ['{}', { value: {} }],
+  ];
+  test.each(STATES)('%s → every route 404 {off:true}; nothing but the switch is read', async (_, s) => {
+    seed(s);
+    await boot(deps);
+    const t = tokenFor();
+    const answers = await Promise.all([
+      get(`/quiz/teacher/${t}`), get('/quiz/teacher/garbage'), get(`/api/th/home?t=${t}`), get(`/api/th/library?t=${t}&g=3`),
+      get(`/api/th/quiz/${OWN_QUIZ}?t=${t}`), post('/api/th/send', { t, kind: 'video', id: qid(2) }),
+      post('/api/th/quiz/make', { t, kind: 'coaching', id: SESSION }), post('/api/th/confirm', { t, looseId: OWN_QUIZ, candidateId: OTHER, decision: 'same' }),
+      post('/api/th/role', { t, side: 'child' }), post('/api/th/step', { t, step: 'more' }),
+    ]);
+    for (const res of answers) {
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ off: true });
+    }
+    expect(nonSwitchReads()).toEqual([]);
+    expect(logEvent).not.toHaveBeenCalled();
+  });
+
+  test('a settings read that throws → OFF', async () => {
+    seed();
+    supabase.from = () => { throw new Error('app_settings down'); };
+    await boot(deps);
+    const res = await get(`/quiz/teacher/${tokenFor()}`);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ off: true });
+  });
+});
+
+describe('the shell', () => {
+  test('paints with NO database read beyond the switch; Urdu page is rtl with the subset font', async () => {
+    seed();
+    await boot(deps);
+    const t = tokenFor({ lang: 'ur' });
+    const res = await get(`/quiz/teacher/${t}`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(nonSwitchReads()).toEqual([]);
+    expect(html).toMatch(/<html lang="ur" dir="rtl">/);
+    expect(html).toContain('wq-nastaliq-3.woff2');
+    expect(html).toContain('data-screen="teacher_home"');
+    expect(html).toContain('data-screen="teacher_send"');
+    const markup = html.replace(/<script[\s\S]*?<\/script>/g, '');
+    expect((markup.match(/ data-primary[ >]/g) || []).length).toBe(1); // the sheet's send; the home's is filled after paint
+    expect(res.headers.get('content-security-policy')).toMatch(/script-src 'sha256-/);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+    expect(html).not.toContain(TEACHER.name);
+  });
+
+  test('expired → the stale page (200); forged → the stale page (404)', async () => {
+    seed();
+    await boot(deps);
+    const old = HomeToken.signTeacherHome({ uid: TEACHER.id, lang: 'en', via: 'go' }, { now: Date.now() - 25 * 3600 * 1000 });
+    const a = await get(`/quiz/teacher/${old}`);
+    expect(a.status).toBe(200);
+    expect(await a.text()).toContain('This link has expired');
+    const b = await get(`/quiz/teacher/${tokenFor().slice(0, -3)}abc`);
+    expect(b.status).toBe(404);
+  });
+});
+
+describe('the home: a teacher with no lesson plans', () => {
+  test('the library opens first: the top card is a ready video quiz with its class message built, ending with the return line', async () => {
+    seed();
+    await boot(deps);
+    const t = tokenFor();
+    const res = await get(`/api/th/home?t=${t}&g=4`);
+    expect(res.status).toBe(200);
+    const home = await res.json();
+    expect(home.first).toBe('Amina');
+    expect(home.primary.kind).toBe('video');
+    expect(home.primary.id).toBe(qid(2));
+    expect(home.primary.send.wa.startsWith('https://wa.me/?text=')).toBe(true);
+    const message = decodeURIComponent(home.primary.send.wa.slice('https://wa.me/?text='.length));
+    expect(message).toBe(home.primary.send.message);
+    expect(message.endsWith(`\n\n${RETURN_LINE}`)).toBe(true);
+    expect(home.timeline).toEqual([]);
+    expect(home.library.grade).toBe(4);
+    expect(home.library.stories).toEqual([]);
+    expect(fake.db.quiz_share_codes).toHaveLength(1); // minted at render, through mintCode
+    const again = await (await get(`/api/th/home?t=${t}&g=4`)).json();
+    expect(again.primary.send.message).toBe(home.primary.send.message);
+    expect(fake.db.quiz_share_codes).toHaveLength(1); // the held code is reused
+    const open = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open');
+    expect(open[0][1]).toMatchObject({ w: 's', has_lp: false, has_coaching: false, primary_kind: 'video', tk: expect.stringMatching(/^[0-9a-f]{16}$/) });
+    expect(JSON.stringify(open)).not.toContain(TEACHER.id);
+  });
+
+  test('the maker link and the foot ride the maker switch', async () => {
+    seed();
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(home.maker).toMatch(/^\/m\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{22}$/);
+    seed({ settings: [] });
+    fake.db.app_settings = fake.db.app_settings.filter((r) => r.key !== 'quiz_maker_page');
+    IdFlags._resetCache();
+    const off = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(off.maker).toBeNull();
+    expect(off.cards).toEqual([]);
+  });
+
+  test('another grade from the chips: the library card and its pick', async () => {
+    seed();
+    await boot(deps);
+    const lib = await (await get(`/api/th/library?t=${tokenFor()}&g=5`)).json();
+    expect(lib.grade).toBe(5);
+    expect(lib.video).toEqual({ id: qid(11), title: 'Magnets' });
+    expect(lib.pick).toMatchObject({ kind: 'video', id: qid(11), send: { message: expect.stringContaining(RETURN_LINE) } });
+  });
+});
+
+describe('the home after a send nobody played', () => {
+  function seedSent({ owner = TEACHER.id, at = new Date().toISOString() } = {}) {
+    seed({
+      extra: {
+        coaching_sessions: [],
+        quiz_sessions: [],
+      },
+    });
+    fake.db.quizzes.push({
+      id: OWN_QUIZ, teacher_id: owner, quiz_source: 'transcript', status: 'sent', topic: 'Photosynthesis', subject: 'Science',
+      coaching_session_id: SESSION, created_at: at,
+      meta: { student_message: 'Class, play this quiz: https://portal.example/q/ABCDEF', share_code_id: OWN_CODE, share_code: 'ABCDEF' },
+    });
+    fake.db.quiz_share_codes.push({ id: OWN_CODE, code: 'ABCDEF', quiz_id: OWN_QUIZ, teacher_user_id: owner, active: true, expires_at: new Date(Date.now() + 86400000).toISOString(), created_at: at, invited_by_student_id: null });
+    const quiz = fake.db.quizzes.find((q) => q.id === OWN_QUIZ);
+    deps = { List: listWith({ sessions: [{ id: SESSION, created_at: at, transcript_text: 'x'.repeat(5000), analysis_data: { topic: 'Photosynthesis' } }], quizzes: [quiz] }) };
+  }
+
+  test('the top card is the class line with "Send again" carrying the stored class message + the return line', async () => {
+    seedSent();
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}`)).json();
+    expect(home.primary).toMatchObject({ kind: 'class', title: 'Photosynthesis', played: 0 });
+    expect(home.primary.send.message).toBe(`Class, play this quiz: https://portal.example/q/ABCDEF\n\n${RETURN_LINE}`);
+    expect(home.timeline[0]).toMatchObject({ kind: 'coach', verb: 'again', id: OWN_QUIZ, sendKind: 'again', played: 0 });
+  });
+
+  test('"Send again" is refused for a quiz that is not this teacher\'s', async () => {
+    seedSent({ owner: OTHER });
+    await boot(deps);
+    const res = await post('/api/th/send', { t: tokenFor(), kind: 'again', id: OWN_QUIZ });
+    expect(res.status).toBe(404);
+  });
+
+  test('"Send again" for their own quiz → the message and its wa.me link', async () => {
+    seedSent();
+    await boot(deps);
+    const res = await post('/api/th/send', { t: tokenFor(), kind: 'again', id: OWN_QUIZ });
+    expect(res.status).toBe(200);
+    const out = await res.json();
+    expect(out.wa).toBe(`https://wa.me/?text=${encodeURIComponent(out.message)}`);
+  });
+});
+
+describe('"Quiz this" through the existing job, and the poll', () => {
+  test('a lesson plan: the provider\'s own start, in the page language, never the chat\'s language question', async () => {
+    seed();
+    const start = jest.fn(async () => ({ outcome: 'queued', quizId: OWN_QUIZ }));
+    deps.Providers = { parseLessonKey: (k) => (k === 'lsn_lp_v8_abc' ? { provider: { start }, lessonRef: 'abc' } : null) };
+    fake.db.users[0].phone_number = 'fixture-phone';
+    await boot(deps);
+    const res = await post('/api/th/quiz/make', { t: tokenFor({ lang: 'ur' }), kind: 'lesson', id: 'lsn_lp_v8_abc' });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ quizId: OWN_QUIZ });
+    expect(start).toHaveBeenCalledWith(expect.objectContaining({ id: TEACHER.id }), 'abc', { phone: 'fixture-phone', quizLanguage: 'ur', via: 'list' });
+  });
+
+  test('a recorded lesson whose quiz was already sent is never re-made', async () => {
+    seed();
+    fake.db.users[0].phone_number = 'fixture-phone';
+    fake.db.quizzes.push({ id: OWN_QUIZ, teacher_id: TEACHER.id, coaching_session_id: SESSION, status: 'sent', quiz_source: 'transcript', meta: {} });
+    deps.Transcript = { startTranscriptLesson: jest.fn() };
+    await boot(deps);
+    const res = await post('/api/th/quiz/make', { t: tokenFor(), kind: 'coaching', id: SESSION });
+    expect(await res.json()).toEqual({ quizId: OWN_QUIZ });
+    expect(deps.Transcript.startTranscriptLesson).not.toHaveBeenCalled();
+  });
+
+  test('a recorded lesson with no quiz → startTranscriptLesson; the poll answers making, then ready with the message', async () => {
+    seed();
+    fake.db.users[0].phone_number = 'fixture-phone';
+    deps.Transcript = {
+      startTranscriptLesson: jest.fn(async () => {
+        fake.db.quizzes.push({ id: OWN_QUIZ, teacher_id: TEACHER.id, coaching_session_id: SESSION, status: 'generating', quiz_source: 'transcript', topic: 'Plants', meta: {} });
+        return { outcome: 'queued', quizId: OWN_QUIZ };
+      }),
+    };
+    await boot(deps);
+    const t = tokenFor();
+    expect(await (await post('/api/th/quiz/make', { t, kind: 'coaching', id: SESSION })).json()).toEqual({ quizId: OWN_QUIZ });
+    expect(deps.Transcript.startTranscriptLesson).toHaveBeenCalledWith(expect.objectContaining({ id: TEACHER.id }), SESSION, { phone: 'fixture-phone', quizLanguage: 'en', via: 'list' });
+    expect(await (await get(`/api/th/quiz/${OWN_QUIZ}?t=${t}`)).json()).toEqual({ state: 'making', title: 'Plants' });
+    const q = fake.db.quizzes.find((x) => x.id === OWN_QUIZ);
+    Object.assign(q, { status: 'sent', meta: { student_message: 'Play: https://portal.example/q/PLANTS', share_code_id: OWN_CODE } });
+    fake.db.quiz_share_codes.push({ id: OWN_CODE, quiz_id: OWN_QUIZ, teacher_user_id: TEACHER.id, active: true, expires_at: null });
+    const ready = await (await get(`/api/th/quiz/${OWN_QUIZ}?t=${t}`)).json();
+    expect(ready).toMatchObject({ state: 'ready', message: `Play: https://portal.example/q/PLANTS\n\n${RETURN_LINE}` });
+    expect(ready.wa).toBe(`https://wa.me/?text=${encodeURIComponent(ready.message)}`);
+  });
+
+  test('another teacher\'s quiz is not pollable', async () => {
+    seed();
+    fake.db.quizzes.push({ id: OWN_QUIZ, teacher_id: OTHER, status: 'generating', meta: {} });
+    await boot(deps);
+    expect((await get(`/api/th/quiz/${OWN_QUIZ}?t=${tokenFor()}`)).status).toBe(404);
+  });
+});
+
+describe('the confirm rows and the events', () => {
+  test('"Same child" calls the queue\'s own decide; "Not sure" writes nothing', async () => {
+    seed();
+    deps.Queue = { candidatesFor: async () => [], decide: jest.fn(async () => ({ ok: true })) };
+    await boot(deps);
+    const t = tokenFor();
+    expect((await post('/api/th/confirm', { t, looseId: OWN_QUIZ, candidateId: SESSION, decision: 'same' })).status).toBe(204);
+    expect(deps.Queue.decide).toHaveBeenCalledWith({ teacherUserId: TEACHER.id, looseId: OWN_QUIZ, candidateId: SESSION, decision: 'same' });
+    expect((await post('/api/th/confirm', { t, looseId: OWN_QUIZ, candidateId: SESSION, decision: 'unsure' })).status).toBe(204);
+    expect(deps.Queue.decide).toHaveBeenCalledTimes(1);
+  });
+
+  test('the confirm rows render on the home (first names only)', async () => {
+    seed();
+    deps.Queue = { candidatesFor: async () => [{ loose_id: OWN_QUIZ, candidate_id: SESSION, first: 'Sara Testwala', candidate_first: 'Sara' }] };
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(home.confirm).toEqual([{ looseId: OWN_QUIZ, candidateId: SESSION, first: 'Sara', candidateFirst: 'Sara' }]);
+  });
+
+  test('the send tap logs teacher_send with ids only', async () => {
+    seed();
+    await boot(deps);
+    expect((await post('/api/th/step', { t: tokenFor(), step: 'share_tap', kind: 'video', id: qid(2), origin: 'library' })).status).toBe(204);
+    expect(logEvent).toHaveBeenCalledWith('teacher_send', expect.objectContaining({ w: 's', kind: 'video', origin: 'library', again: false, id: qid(2) }));
+  });
+
+  test('"Not a teacher? Change" is not offered until the one door\'s writer exists', async () => {
+    seed();
+    await boot(deps);
+    const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(home.change).toBe(false);
+    expect((await post('/api/th/role', { t: tokenFor(), side: 'child' })).status).toBe(404);
+  });
+
+  test('the strings the page uses all resolve in both languages', () => {
+    ['th.send', 'th.again', 'th.zero', 'th.confirm.q', 'th.copy', 'cm.return'].forEach((id) => {
+      expect(str(id, 'en')).toBeTruthy();
+      expect(str(id, 'ur')).toBeTruthy();
+    });
+  });
+});
