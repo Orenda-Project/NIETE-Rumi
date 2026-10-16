@@ -1008,12 +1008,21 @@ const QUOTE_SPAN = /«[^»]+»|[’‘]{2}[^’‘]+[’‘]{2}|“[^”]+”|"[
 // ی / ک / ہ read as Urdu («ہندي» is «ہندی»).
 const SAME_LETTER = [[/[يى]/g, 'ی'], [/ك/g, 'ک'], [/ه/g, 'ہ']];
 const asWritten = (t) => SAME_LETTER.reduce((x, [re, to]) => x.replace(re, to), String(t).normalize('NFC')).replace(OPTION_HEAD, '').replace(/^[\s«»’‘“”"'(]+|[\s«»’‘“”"').,،۔؟?!]+$/gu, '');
+// A spelling item prints its key wherever its stem holds it, inside a longer quote too («جس چیز سے
+// … یعنی گرم مصالحہ» کا درست املا → مصالحہ): the word it tests, as written, among the stem's words.
+const SPELLING_ASK = /املا|ہجے/;
+const wordsAsWritten = (t) => asWritten(t).split(/[^\p{L}\p{M}\p{N}]+/u).filter(Boolean);
+function spellingPrints(stem, key) {
+  const [s, k] = [wordsAsWritten(stem), wordsAsWritten(key)];
+  return k.length > 0 && s.some((_, i) => k.every((w, j) => s[i + j] === w));
+}
 function printsOwnKey(q) {
   if (!Array.isArray(q.options) || !q.options.length) return false;
   const key = asWritten(keyText(q));
   const options = q.options.map(asWritten);
   if (!plain(key) || !options.includes(key)) return false;
   const stem = String(q.question || '');
+  if (SPELLING_ASK.test(stem) && spellingPrints(stem, key)) return true;
   const quotes = (stem.match(QUOTE_SPAN) || []).map(asWritten);
   const outside = stem.split(QUOTE_SPAN).map((part) => ` ${plain(part)} `);
   // Outside the quotes only a key with a content word counts: a function word («میں») is in most
