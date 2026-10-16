@@ -1,0 +1,116 @@
+'use strict';
+/**
+ * The child home (app_settings `web_quiz_home_v3`, default OFF): the keys the v3 home page (wq-home.js) draws on top of
+ * the hub's boot JSON — one Next thing, three doors (Stories, Games, Videos) and the header's day-dots and sticker jar.
+ * Additive only: with the switch off (or any failure) `homeField` returns {} and the hub payload is today's, byte for byte.
+ *
+ *   homeField({ out, chosenId, history, token })  {} | { home_v3: 1, doors, head }
+ *   doorsOf({ out, stories, hasRoot })            the three doors (pure); every door is always present, an empty
+ *                                                 one is [] / null and the page shows its "coming soon" line
+ *   headOf(stamps, now)                           { dots, today } (pure): days with a finish this PKT week, as a count
+ *
+ * The page decides nothing about what is next: the Next tile is `out.next` (web_quiz_next_offer) when the server sent it,
+ * else the hub's own lantern / teacher card, in that order (wq-home.js). The doors carry ids and hrefs only; the
+ * storybook shelf is a stub the stories reader fills (web_quiz_stories). Never a tile the server would answer "on its
+ * way": the Trail's "more stories" list and an empty shelf are left out; the Videos door is empty for a child with
+ * no class quiz (videos/start answers 409 no_class without one).
+ */
+const supabase = require('../../config/supabase');
+const { logToFile } = require('../../utils/logger');
+
+const KEY = 'web_quiz_home_v3';
+const STORIES_KEY = 'web_quiz_stories';
+const TTL_MS = 30 * 1000;
+const PKT_MS = 5 * 3600 * 1000;
+const DAY_MS = 86400000;
+const FINAL = new Set(['scored', 'failed']);
+let cache = null;
+
+function isTrue(value) {
+  let v = value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
+  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+}
+
+/** { home, stories } — 30 s cache, fails closed (a read error is every switch off). */
+async function flags(now = Date.now()) {
+  if (cache && now - cache.at < TTL_MS) return cache;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, STORIES_KEY]);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+    cache = { at: now, home: isTrue(by[KEY]), stories: isTrue(by[STORIES_KEY]) };
+    return cache;
+  } catch (err) {
+    logToFile('⚠️ web quiz home: settings lookup failed — off', { error: err.message });
+    return { home: false, stories: false };
+  }
+}
+
+// Monday 00:00 PKT of the week `ms` is in, as epoch ms.
+function weekStart(ms) {
+  const p = new Date(ms + PKT_MS);
+  const back = (p.getUTCDay() + 6) % 7;
+  return Date.UTC(p.getUTCFullYear(), p.getUTCMonth(), p.getUTCDate() - back) - PKT_MS;
+}
+
+/** The header's day-dots (pure): how many PKT days this week had a finish, and whether today did. Never a weekday map. */
+function headOf(stamps, now = Date.now()) {
+  const start = weekStart(now);
+  const days = new Set();
+  (stamps || []).forEach((iso) => {
+    const at = Date.parse(iso || '');
+    if (Number.isFinite(at) && at >= start && at < start + 7 * DAY_MS) days.add(Math.floor((at - start) / DAY_MS));
+  });
+  return { dots: days.size, today: days.has(Math.floor((now - start) / DAY_MS)) };
+}
+
+/** The three doors (pure). `out` = the hub payload built so far; `stories` = web_quiz_stories on; `hasRoot` = a class quiz played. */
+function doorsOf({ out = {}, stories = false, hasRoot = false } = {}) {
+  const shelf = (out.play && Array.isArray(out.play.shelf)) ? out.play.shelf : [];
+  const story = shelf
+    .filter((t) => t && t.pid && (t.id === 'week_story' || t.id === 'listen'))
+    .map((t) => ({ kind: t.id === 'listen' ? 'listen' : 'passage', id: t.pid, fresh: t.nx === 'new', ...(t.title ? { title: t.title } : {}) }));
+  if (stories) story.push({ kind: 'shelf' });
+  const games = [];
+  if (out.teacher && out.teacher.code) games.push({ kind: 'quiz', code: out.teacher.code, k: out.teacher.k, topic: out.teacher.topic || '', subject: out.teacher.subject || '', done: false, from: 'teacher' });
+  if (out.last && out.last.code && out.last.state === 'open') games.push({ kind: 'quiz', code: out.last.code, k: out.last.k, topic: out.last.topic || '', subject: out.last.subject || '', done: false, from: 'last' });
+  if (out.challenge && out.challenge.on) games.push({ kind: 'numbers' });
+  const again = out.last && out.last.state === 'done' && out.last.again ? [{ code: out.last.code, k: out.last.k, topic: out.last.topic, subject: out.last.subject }] : [];
+  again.concat(out.again || []).forEach((a) => { if (a && a.code) games.push({ kind: 'quiz', code: a.code, k: a.k, topic: a.topic || '', subject: a.subject || '', done: true, ...(a.art ? { art: a.art } : {}) }); });
+  const videos = out.lib && out.lib.href && hasRoot ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}) } : null;
+  return { stories: story, games, videos };
+}
+
+// This week's finishes: the quizzes in the hub's history and the child's final Jugnu runs (one small read; [] on any error).
+async function stampsOf(chosenId, history, now) {
+  const quiz = (history || []).map((e) => e && e.latest && e.latest.completed_at).filter(Boolean);
+  try {
+    const { data, error } = await supabase.from('web_quiz_challenge_runs').select('status, created_at')
+      .eq('student_id', chosenId).gte('created_at', new Date(weekStart(now)).toISOString()).limit(200);
+    if (error) return { stamps: quiz, fresh: false };
+    const runs = (data || []).filter((r) => FINAL.has(r.status));
+    return { stamps: quiz.concat(runs.map((r) => r.created_at)), fresh: runs.some((r) => now - Date.parse(r.created_at || '') < DAY_MS) };
+  } catch (_) {
+    return { stamps: quiz, fresh: false };
+  }
+}
+
+/** `{home_v3, doors, head}` for the hub payload of a chosen child, or `{}` (switch off, no child, any failure). Never throws. */
+async function homeField({ out, chosenId, history, now = Date.now() } = {}) {
+  try {
+    const f = await flags();
+    if (!f.home || !chosenId || !out) return {};
+    const hasRoot = (history || []).some((e) => e && e.teacherSent);
+    const { stamps, fresh } = await stampsOf(chosenId, history, now);
+    const head = headOf(stamps, now);
+    // The sticker jar leads to Jugnu's Book, so it is there only when the Book is; "new" = a sticker in the last day.
+    head.jar = out.book_on ? { fresh } : null;
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head };
+  } catch (err) {
+    logToFile('⚠️ web quiz home: unavailable', { error: err.message });
+    return {};
+  }
+}
+
+module.exports = { homeField, doorsOf, headOf, flags, KEY, STORIES_KEY, _resetCache: () => { cache = null; } };
