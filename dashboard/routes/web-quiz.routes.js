@@ -83,6 +83,10 @@ const API_ROUTES = [
   // M4c challenge (audio goes browser → R2 by presigned PUT, never through this body cap)
   // (limits per challenge token, so one carrier IP's classroom is not throttled as one child; a loose IP ceiling too)
   { method: 'get', path: '/api/wq/ch/result/:ct', limiter: 'read', token: true },
+  // the read-along on practice runs: a practice listen's words after its questions (by the run token); a grown-up's
+  // preview of a practice story from the hub (#listen/<pid>); the bot refuses both while web_quiz_readalong is off
+  { method: 'get', path: '/api/wq/ch/words/:ct', limiter: 'read', token: true },
+  { method: 'get', path: '/api/wq/listen/h/:token/:pid', limiter: 'read', token: true },
   { method: 'post', path: '/api/wq/ch/upload', limiter: ['challenge', 'challengeIp'] },
   { method: 'post', path: '/api/wq/ch/result', limiter: ['challenge', 'challengeIp'] },
   // read aloud, live: a one-run speech-to-text key (the bot mints it; counted by the same per-run limiter)

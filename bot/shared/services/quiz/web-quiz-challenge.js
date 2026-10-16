@@ -1240,6 +1240,11 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   const readAlong = storyDraw && ex === 'read' ? { url: await readAlongClip(w.lang, story && story.text) } : null;
   // the word-by-word read-along (web_quiz_readalong, web-quiz-readalong.js): the same story serve only; off ⇒ null
   const timed = storyDraw && ex === 'read' ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: w.lang, passageId, text: story && story.text }) : null;
+  // the same player on practice runs only (never a counted run, never a class round): a replayed read may be heard
+  // first (hear_first, inlined); a practice listen may show its words AFTER its questions (show_words: a flag only —
+  // the listen payload never carries the story's words; the page asks for them by the run token, listenWords())
+  const practiceTimed = mode === 'practice' && ((ex === 'read' && !storyDraw) || ex === 'listen')
+    ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: w.lang, passageId, text: story && story.text }) : null;
 
   const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // the anchor_serves_any column (and meta, kept one period)
   const prev2 = anchorBlock ? D.anchorPrev2(rows, anchorBlock) : null;   // of which before the provenance columns: meta.draw.anchor_prev2
@@ -1275,7 +1280,8 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     top: { canonical_id: canonicalId, mode, period_id: periodId, band, record, via, exposure_no: exposure, passage_id: passageId, item_set_id: itemSetId,
       anchor_block: anchorBlock, anchor_exposure_no: anchorExp, form: formNum },
     // the page gets only what it renders (ruling #43); every other field is on the row, in meta.draw and in ch_start
-    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' }, ...(readAlong ? { story_clip: readAlong } : {}), ...(timed ? { readalong: timed } : {}) },
+    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' }, ...(readAlong ? { story_clip: readAlong } : {}), ...(timed ? { readalong: timed } : {}),
+      ...(practiceTimed && ex === 'read' ? { hear_first: practiceTimed } : {}), ...(practiceTimed && ex === 'listen' ? { show_words: true } : {}) },
     event: { w: 's', mode, period_id: periodId, form, band, rung: rung == null ? null : rung, ...(isPassage ? { passage_id: passageId } : { item_set_id: itemSetId }),
       exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via },
     items, tryout, story, dir, clipUrl,
@@ -2038,6 +2044,42 @@ async function readingOf(c, lang) {
 }
 
 /**
+ * "Show me the words" after a practice listen's questions: the story's timing file (web_quiz_readalong), by the run
+ * token. Only a practice listen run gets it — a counted listen never shows its text (RULING: heard, never shown).
+ */
+async function listenWords({ ct, lang } = {}) {
+  const c = runOf(ct);
+  if (c.ex !== 'listen') fail(400, 'bad_request');
+  const { run, row, mem, spec } = await readingOf(c, lang);
+  const sv = mem.v2 || (await servedInfo(c.r)) || {};
+  const mode = sv.mode || (row && row.mode) || mem.mode;
+  if (mode !== 'practice') fail(403, 'not_practice');
+  const st = spec.story || {};
+  const t = sv.passage_id ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: run.lang, passageId: sv.passage_id, text: st.text }) : null;
+  if (!t) fail(404, 'no_words');
+  return { readalong: t };
+}
+
+/**
+ * A grown-up's preview of a practice story (#listen/<pid> on the practice home): the stored clip + its word timings,
+ * for any hub token; no run, no event keyed by a child. Only a story Story Time could show (released, reviewed, the
+ * practice pool, not withdrawn) — never a counted passage.
+ */
+async function listenPreview(hub, pid, { lang } = {}) {
+  if (!T.verify(hub, 'h')) fail(401, 'bad_token');
+  const m = /^(en|ur)\.(read|listen)\.([1-5])\.[a-z0-9_-]+$/i.exec(String(pid || ''));
+  if (!m) fail(400, 'bad_request');
+  if (!(await settingOn(require('./web-quiz-readalong').SWITCH_KEY))) fail(404, 'no_words');
+  const { Bank } = childTest();
+  const own = typeof Bank.getPassage === 'function' ? Bank.getPassage(pid) : null;
+  const s = own ? Draw().storyPassageFor({ rows: await Draw().registryPassages(), pid, kind: m[2], lang: m[1], bands: new Set([1, 2, 3, 4, 5]), reserve: own.reserve === true, now: new Date() }) : null;
+  if (!s) fail(404, 'no_words');
+  const t = await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: m[1], passageId: s.passage_id, text: own.text });
+  if (!t) fail(404, 'no_words');
+  return { readalong: t };
+}
+
+/**
  * The questions the child reached (EGRA: only about text read; a stopped reader gets none), at most 3, in bank order.
  * Words attempted: the checked score, else the live count stored with the result, else the page's own count (bounded).
  */
@@ -2240,7 +2282,7 @@ async function warmClip(key, text, lang, { record = true, now = Date.now() } = {
 const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecordedOn(now));
 
 module.exports = {
-  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
+  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, TRAIL_ORDER, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,

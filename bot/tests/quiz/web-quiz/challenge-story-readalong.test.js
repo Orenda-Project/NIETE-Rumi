@@ -69,6 +69,7 @@ const REGISTRY = () => [
   reg('en.read.1.kite'),                                                     // the story: released practice, band 1
   reg('en.read.1.boat', { status: 'calibrated' }),                           // another story, a shelf status too
   reg('en.listen.1.rain'),                                                   // a listening story
+  reg('en.listen.1.ref02', { pool: 'check', status: 'calibrated', is_reference: true }),   // the counted listen
   reg('en.read.1.later', { released_at: iso(Date.now() + 5 * DAY) }),        // not released yet
   reg('en.read.1.gone', { withdrawn_at: '2026-10-05T00:00:00Z' }),            // withdrawn
   reg('en.read.1.draft', { status: 'draft' }),                               // never reviewed
@@ -91,6 +92,7 @@ const Q = (id, needs, tap = true) => ({ id, prompt: `Who is ${id}?`, type: 'lite
 passage('en.read.1.ref01', W, [Q('en.read.1.ref01.q1', 1)], 'check');
 passage('en.read.1.kite', ['A', 'kite', 'story', ...W.slice(3)], [Q('en.read.1.kite.q1', 1), Q('en.read.1.kite.q2', 2)]);
 passage('en.read.1.boat', ['A', 'boat', 'story', ...W.slice(3)], [Q('en.read.1.boat.q1', 1)]);
+passage('en.listen.1.ref02', ['The', 'well', 'story', ...W.slice(3)], [Q('en.listen.1.ref02.q1', 1)], 'check');
 passage('en.listen.1.rain', ['The', 'rain', 'story', ...W.slice(3)], [Q('en.listen.1.rain.q1', 1), Q('en.listen.1.rain.q2', 2, false), Q('en.listen.1.rain.q3', 3)]);
 for (const id of ['en.read.1.later', 'en.read.1.gone', 'en.read.1.draft', 'ur.read.1.chand', 'en.read.2.river', 'en.read.1.reserve01']) passage(id, W, [Q(`${id}.q1`, 1)]);
 
@@ -244,10 +246,137 @@ describe('switch on', () => {
     expect(readalongReads()).toHaveLength(0);
   });
 
-  test('a listening story never carries it (the story is heard, never shown)', async () => {
+  test('a listening story never carries the words (the story is heard, never shown before its questions)', async () => {
     const { status, body } = await story('listen', 'en.listen.1.rain');
     expect(status).toBe(200);
     expect(body).not.toHaveProperty('readalong');
+    expect(body).not.toHaveProperty('hear_first');
+    expect(JSON.stringify(body)).not.toContain('rain story');
+  });
+});
+
+// The practice surfaces of the same player: (b) a practice read's "hear it first", (d) a practice listen's "show me the
+// words" after its questions, and the coach's preview (#listen/<pid>). Never on a counted run or a class round.
+const RAIN = 'en.listen.1.rain';
+const rainText = () => Bank.getPassage(RAIN).text;
+const fileFor = (pid, text) => ({ ...timingFile(text), id: pid });
+const dirOf = (pid) => `readalong/sandbox/passage/en/${pid}`;
+const words = async (ct) => {
+  const r = await fetch(`${base}/ch/words/${encodeURIComponent(ct)}?lang=en`, { headers: { 'x-api-key': 'route-key', 'x-wq-device': 'FamilyPhoneDeviceRef_1' } });
+  return { status: r.status, body: await r.json().catch(() => null) };
+};
+const preview = async (token, pid) => {
+  const r = await fetch(`${base}/listen/h/${encodeURIComponent(token)}/${encodeURIComponent(pid)}?lang=en`, { headers: { 'x-api-key': 'route-key' } });
+  return { status: r.status, body: await r.json().catch(() => null) };
+};
+
+describe('(b) a practice read: "hear it first"', () => {
+  test('on: a replay of a read already played carries `hear_first` (the timing file, voice signed); the counted read before it did not', async () => {
+    on(...STORY_ON, READALONG);
+    const first = await get('read');
+    expect(first.status).toBe(200);
+    expect(first.body).not.toHaveProperty('hear_first');
+    const row = rowOf(first.body.ct);
+    const pid = row.passage_id;
+    putFile(`${dirOf(pid)}/current.json`, fileFor(pid, Bank.getPassage(pid).text));
+    row.status = 'scored';
+    const again = await get('read');
+    expect(again.body).toMatchObject({ mode: 'practice', practice_round: true });
+    expect(again.body.hear_first).toMatchObject({ v: 1, id: pid, audio: { url: `https://signed.test/${dirOf(pid)}/sx-grace-ab12cd34.ogg` } });
+    expect(again.body.hear_first.words).toHaveLength(Bank.getPassage(pid).text.split(/\s+/).length);
+    expect(again.body).not.toHaveProperty('readalong');
+  });
+  test('off: the replay is today\'s payload, and no file is read', async () => {
+    on(...STORY_ON);
+    const first = await get('read');
+    const row = rowOf(first.body.ct);
+    putFile(`${dirOf(row.passage_id)}/current.json`, fileFor(row.passage_id, Bank.getPassage(row.passage_id).text));
+    row.status = 'scored';
+    const again = await get('read');
+    expect(again.body.practice_round).toBe(true);
+    expect(again.body).not.toHaveProperty('hear_first');
+    expect(readalongReads()).toHaveLength(0);
+  });
+  test('a Story Time read keeps `readalong` and never gets a second field', async () => {
+    on(...STORY_ON, READALONG);
+    putFile(`${DIR}/current.json`, timingFile());
+    const { body } = await story('read', KITE);
+    expect(body).toHaveProperty('readalong');
+    expect(body).not.toHaveProperty('hear_first');
+  });
+});
+
+describe('(d) a practice listen: "show me the words" after the questions', () => {
+  test('on + a timing file: the practice listen says `show_words: true` and carries no words; the words come from the run token', async () => {
+    on(...STORY_ON, READALONG);
+    putFile(`${dirOf(RAIN)}/current.json`, fileFor(RAIN, rainText()));
+    const { body } = await story('listen', RAIN);
+    expect(body.practice_round).toBe(true);
+    expect(body.show_words).toBe(true);
+    expect(body).not.toHaveProperty('readalong');
+    expect(JSON.stringify(body)).not.toContain('rain story');
+    const w = await words(body.ct);
+    expect(w.status).toBe(200);
+    expect(w.body.readalong).toMatchObject({ v: 1, id: RAIN, audio: { url: `https://signed.test/${dirOf(RAIN)}/sx-grace-ab12cd34.ogg` } });
+    expect(w.body.readalong.words.map((x) => x.t).join(' ')).toBe(rainText());
+  });
+  test('no timing file: no flag (the end card stays today\'s), and the words route says 404', async () => {
+    on(...STORY_ON, READALONG);
+    const { body } = await story('listen', RAIN);
+    expect(body).not.toHaveProperty('show_words');
+    expect((await words(body.ct)).status).toBe(404);
+  });
+  test('a counted listen never gets the flag, and its run token never gets the words', async () => {
+    on(...STORY_ON, READALONG);
+    putFile(`${dirOf('en.listen.1.ref02')}/current.json`, fileFor('en.listen.1.ref02', Bank.getPassage('en.listen.1.ref02').text));
+    const { body } = await get('listen');
+    expect(body).toMatchObject({ ex: 'listen', mode: 'check' });
+    expect(body.practice_round).toBeUndefined();
+    expect(body).not.toHaveProperty('show_words');
+    const pid = rowOf(body.ct).passage_id;
+    putFile(`${dirOf(pid)}/current.json`, fileFor(pid, Bank.getPassage(pid).text));
+    expect((await words(body.ct)).status).toBe(403);
+  });
+  test('off: the listen is today\'s, the words route refuses, and no file is read', async () => {
+    on(...STORY_ON);
+    putFile(`${dirOf(RAIN)}/current.json`, fileFor(RAIN, rainText()));
+    const { body } = await story('listen', RAIN);
+    expect(body).not.toHaveProperty('show_words');
+    expect((await words(body.ct)).status).toBe(404);
+    expect(readalongReads()).toHaveLength(0);
+  });
+  test('a read run token or a bad token gets nothing', async () => {
+    on(...STORY_ON, READALONG);
+    putFile(`${DIR}/current.json`, timingFile());
+    const { body } = await story('read', KITE);
+    expect((await words(body.ct)).status).toBe(400);
+    expect((await words('nope')).status).toBe(401);
+  });
+});
+
+describe('the coach\'s preview: #listen/<pid> (stored clip + highlight, no run)', () => {
+  test('on: a practice passage\'s timing for any hub token; no run row is written', async () => {
+    on(...STORY_ON, READALONG);
+    putFile(`${dirOf(RAIN)}/current.json`, fileFor(RAIN, rainText()));
+    const r = await preview(hub(), RAIN);
+    expect(r.status).toBe(200);
+    expect(r.body.readalong).toMatchObject({ v: 1, id: RAIN });
+    expect(db.web_quiz_challenge_runs).toHaveLength(0);
+  });
+  test('a counted passage (check pool), an unreleased or withdrawn one is never previewed', async () => {
+    on(...STORY_ON, READALONG);
+    for (const pid of ['en.read.1.ref01', 'en.read.1.later', 'en.read.1.gone', 'en.read.1.draft']) {
+      putFile(`${dirOf(pid)}/current.json`, fileFor(pid, Bank.getPassage(pid).text));
+      expect((await preview(hub(), pid)).status).toBe(404);
+    }
+  });
+  test('a bad hub token is 401; switch off or no file is 404 and off reads no file', async () => {
+    on(...STORY_ON, READALONG);
+    expect((await preview('bad.token', RAIN)).status).toBe(401);
+    expect((await preview(hub(), RAIN)).status).toBe(404);
+    fresh(); on(...STORY_ON); jest.clearAllMocks(); RA.readAlong({ settingOn: Ch.settingOn })._reset();
+    putFile(`${dirOf(RAIN)}/current.json`, fileFor(RAIN, rainText()));
+    expect((await preview(hub(), RAIN)).status).toBe(404);
     expect(readalongReads()).toHaveLength(0);
   });
 });
