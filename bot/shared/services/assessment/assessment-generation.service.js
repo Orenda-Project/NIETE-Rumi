@@ -1325,9 +1325,11 @@ function _dropHeld(examJson, held, requestId = null) {
           if (!why) return true;
           // The kind (the reply's own type key) and, for a quote, the run that matched: one log line
           // then says whether a drop was a real quote or a phrase the held lessons share with others.
-          const hit = { slot: q.slot || null, kind: type, ...why };
+          const { match, ...reason } = why;
+          const hit = { slot: q.slot || null, ...reason };
           dropped.push(hit);
-          logToFile('[assessment] held item dropped', requestId ? { requestId, ...hit } : hit);
+          const line = { ...hit, kind: type, ...(match ? { match } : {}) };
+          logToFile('[assessment] held item dropped', requestId ? { requestId, ...line } : line);
           return false;
         });
       }
