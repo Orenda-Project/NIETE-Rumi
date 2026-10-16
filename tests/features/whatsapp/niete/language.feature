@@ -153,6 +153,29 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # path feature-registration.service.js:156-161). Minor: pre-language a new user has no stored
     # pref anyway, but a returning user re-registering in Urdu still gets the English bubble.
 
+  @e2e @language @flow @P1
+  Scenario: The registration Flow speaks the language she picks on its first screen
+    Given the NIETE bot chat is open
+    And I open the registration Flow
+    When I choose "اردو" on the first screen and tap "Next / آگے"
+    Then the role and school screen, the school list screen and the grades screen are in Urdu
+    And my preferred_language is "ur", locked
+    # v5 (docs/flows/registration-flow-v5.json): the first screen is static and bilingual — she has
+    # not told us her language yet — and every later screen's words are served by the endpoint in
+    # the language she picked (registration-endpoint.js screenCopy, ux-strings regForm* keys).
+    # The choice is written through setUserLanguage, locked, as the first screen is submitted.
+
+  @e2e @language @destructive @P1
+  Scenario: The registration welcome and its portal button are in the language she chose
+    Given the NIETE bot chat is open
+    And I am a fresh test teacher who chose "اردو" on the registration Flow
+    When I complete the registration Flow
+    Then the welcome reads "رجسٹریشن کا شکریہ، <name>!"
+    And its button reads "پورٹل کھولیں"
+    # flow-response.handler.js sendRegistrationWelcome → resolveUx('regDoneChat' / 'regDonePortalButton')
+    # in the language from the completion payload; a failed submission's one apology is catalog copy
+    # too ('regFailed'). @destructive: registers the account.
+
   # ══════════════════════════════ D. /settings FLOW ═════════════════════════════════════
 
   # ═══════════════ E. PROPAGATION — does the choice reach each flow's surface? ═══════════
