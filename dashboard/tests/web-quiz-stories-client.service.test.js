@@ -1339,7 +1339,7 @@ describe('the done line for a partial listen', () => {
 });
 
 describe('public-repo hygiene', () => {
-  test('no ruling, lane, team or review words in the shipped files', () => {
+  test('the shipped files carry plain product words only', () => {
     const tag = new RegExp('#[' + 'SC][0-9]+\\b');
     const bad = new RegExp(['RUL' + 'ING', 'le' + 'ad-', 'la' + 'ne', 'red ' + 'team', 'pan' + 'el', 'oper' + 'ator', 'C' + 'OS\\b', 'm-(score|live|read|home|story)'].join('|'), 'i');
     [SRC, QSRC, CSS].forEach((f) => { const x = fs.readFileSync(f, 'utf8'); expect(x).not.toMatch(bad); expect(x).not.toMatch(tag); });
