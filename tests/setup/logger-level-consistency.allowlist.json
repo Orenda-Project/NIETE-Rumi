@@ -816,12 +816,6 @@
     "occurrence": 0
   },
   {
-    "file": "bot/shared/services/observe/observe-who.service.js",
-    "line": 233,
-    "snippet": "logToFile('❌ observe-who: failed to record observed teacher', {",
-    "occurrence": 0
-  },
-  {
     "file": "bot/shared/services/pdf-report.service.js",
     "line": 189,
     "snippet": "logToFile('❌ Error generating PDF report', {",
@@ -1795,12 +1789,6 @@
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1201,
-    "snippet": "logToFile('❌ Error sending interactive button message', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/services/whatsapp.service.js",
     "line": 1223,
     "snippet": "logToFile('❌ sendImageFromBuffer: empty buffer', { to });",
     "occurrence": 0
@@ -1815,12 +1803,6 @@
     "file": "bot/shared/services/whatsapp.service.js",
     "line": 1372,
     "snippet": "logToFile('❌ Error sending image with buttons', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1531,
-    "snippet": "logToFile('❌ Error sending interactive list message', {",
     "occurrence": 0
   },
   {

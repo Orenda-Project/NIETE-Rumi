@@ -291,6 +291,17 @@ function fidelityFallbackCopy(lp) {
     return 'The lesson plan was received, but the move-by-move check could not run for this '
       + 'observation.' + consequence;
   }
+  // bd-eal7zn.2 — /observe2's two states for a plan the coach ADDED that was never graded. Falling
+  // through to "No lesson plan was provided" told pilot coaches their plan was never attached.
+  const nextTime = ' Next time, pick the teacher\'s plan from the list in the form, or add a clear photo of each page.';
+  if (lp && lp.status === 'lp_unreadable') {
+    return 'A lesson plan was added, but its file or photos could not be read, so there are no plan '
+      + 'steps to review.' + nextTime + consequence;
+  }
+  if (lp && lp.status === 'lp_not_lesson_plan') {
+    return 'A file was added as the lesson plan, but no lesson steps were found in it, so there are no '
+      + 'plan steps to review.' + nextTime + consequence;
+  }
   // lp_absent, or no fidelity blob at all: no plan ever reached this observation.
   return 'No lesson plan was provided for this observation, so there was nothing to check the '
     + 'lesson against.' + consequence;

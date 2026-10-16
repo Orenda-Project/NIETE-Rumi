@@ -114,6 +114,23 @@ async function _waitingObserve2Form(userId) {
   }
 }
 
+/**
+ * Hold an unarmed lesson-length recording as an /observe2 visit, when that is the coach's flow.
+ * @returns {Promise<boolean>} true when it was held (or answered as the same file again); false →
+ *   the caller parks it as before. Never throws.
+ */
+async function _holdForObserve2(user, from, opts) {
+  try {
+    const Hold = require('./observe2/hold');
+    if (!(await Hold.prefersObserve2(user.id))) return false;
+    const out = await Hold.holdRecording(user, from, opts);
+    return Boolean(out);
+  } catch (err) {
+    logToFile('❌ observe2: holding the recording failed (parking it instead)', { userId: user.id, error: err.message }, 'error');
+    return false;
+  }
+}
+
 async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = false, durationSeconds = null, sha256 = null, mimeType = null }) {
   // FEAT-102 dark-safe gate: no published observe Flow → the whole capability
   // is off and leaders' audio flows through normal coaching exactly as before.
@@ -215,6 +232,11 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
   // and the coach is ASKED whose it is. bd-pkds0: this replaces the
   // duration-gated wall.
   if (looksLikeClassroom) {
+    // /observe2, record first (pilot sheet R19): a coach whose latest observation was an /observe2 one
+    // gets the recording held as a visit with its own form, in the database, to fill when ready. A
+    // hold that could not be made falls back to the park, so the recording is never lost.
+    const held = await _holdForObserve2(user, from, { audioId, sessionId, durationSeconds: dur || null, sha256 });
+    if (held) return true;
     logToFile('🔭 observe: unbound leader recording — asking whose it is', {
       userId: user.id, audioId, dur, slotState: state && state.state,
     });
