@@ -128,8 +128,8 @@ describe('Social Studies: an item that names a religious text is held, and the p
     expect(err).toBeInstanceOf(Error);
     expect(err.code).toBe('PATTERN_SHORT_SLOT');
     // One Sermon item per slot, plus the Q5/Q7 items that ask a fact a Q1 MCQ already tests
-    // (held by the layout since round 9: «شہریت کسے کہتے ہیں؟» in Q5; in Q7 two at the first
-    // layout (its spare choices) and the third when the paper is laid out again after the drop).
+    // (held by the layout since round 9: «شہریت کسے کہتے ہیں؟» in Q5, three in Q7; the re-ask
+    // returns the same reply, so nothing new can take their places).
     expect(err.shortfall).toEqual(expect.arrayContaining([
       { slot: 'social_studies.A.Q1', missing: 1 },
       { slot: 'social_studies.C.Q5', missing: 1 + 1 },
