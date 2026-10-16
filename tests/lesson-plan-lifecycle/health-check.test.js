@@ -15,6 +15,10 @@
  *     never counted against health. GENERATION / RENDER / DELIVERY / QUEUE failures are ours.
  *   · degraded = anything stuck > 6 h, or a path/channel failing >= 20% of >= 10 finished asks; it is
  *     said at error level as well as in the event.
+ *   · degraded too = a QUIET path that has stopped delivering: its last 3 attempts failed with nothing
+ *     delivered in between, over the last day. The window rules cannot see it — on the 2026-10-14 sandbox
+ *     run a curriculum ask failed all three attempts and the hour read "asks 2, failed 1, rate 0.5:
+ *     healthy" — and in production that path is rare enough that a total outage would never trip them.
  *   · Never throws.
  */
 
@@ -65,11 +69,14 @@ function fakeRedis({ available = true, holder = null } = {}) {
 const checked = () => mockEvent.mock.calls.filter((c) => c[0] === 'lesson_plan.health.checked').map((c) => c[1]);
 const errorLogs = () => mockLog.mock.calls.filter((c) => c[2] === 'error');
 
-const ENV_KEYS = ['LP_LIFECYCLE_PATHS', 'REGION'];
+// The alert's Slack target and the write-failure count's Axiom token: unset here, so this suite never
+// reaches the network (the alert itself is pinned in health-alert.test.js).
+const ENV_KEYS = ['LP_LIFECYCLE_PATHS', 'REGION', 'LP_HEALTH_ALERT', 'AXIOM_TOKEN', 'AXIOM_API_TOKEN',
+  'QUIZ_FUNNEL_WATCH_SLACK_TOKEN', 'QUIZ_FUNNEL_WATCH_SLACK_CHANNEL', 'PROD_DIGEST_SLACK_TOKEN', 'PROD_DIGEST_SLACK_CHANNEL'];
 let savedEnv;
 beforeEach(() => {
   savedEnv = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
-  delete process.env.LP_LIFECYCLE_PATHS;
+  for (const k of ENV_KEYS) delete process.env[k];
   process.env.REGION = 'niete';
   mockLog.mockClear();
   mockEvent.mockClear();
@@ -311,5 +318,101 @@ describe('what counts as finished, and what the cache says', () => {
 
   test('none switches the check off, like the lifecycle switch', () => {
     expect(Health.healthCheckOff({ LP_HEALTH_CHECK: 'none' })).toBe(true);
+  });
+});
+
+describe('a quiet path that has stopped delivering — its last attempts, over the last day', () => {
+  beforeEach(() => { process.env.LP_LIFECYCLE_PATHS = 'all'; });
+  const failedAsk = (over) => ask({ status: 'failed', delivered_at: null, ...over });
+
+  test('the 14 Oct sandbox shape is NOT healthy: one cached serve, then a curriculum ask that failed all three attempts', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      ask({ source: 'niete_grounded', created_at: ago(50), delivered_at: ago(49.9) }), // the cached serve
+      failedAsk({ source: 'niete_grounded', error_code: 'RENDER_FAILED', retry_count: 3, created_at: ago(40) }),
+    ];
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    // exactly what the health view read that day — under both window thresholds
+    expect(out.sources).toEqual([expect.objectContaining({ asks: 2, failed: 1, systemFailures: 1, systemFailureRate: 0.5 })]);
+    expect(out).toEqual(expect.objectContaining({ verdict: 'degraded', reasons: ['down:niete_grounded/whatsapp'] }));
+    expect(checked()[0].down).toEqual([expect.objectContaining({
+      source: 'niete_grounded', channel: 'whatsapp', attempts: 3, code: 'RENDER_FAILED', latestAt: ago(40),
+    })]);
+    expect(errorLogs()).toHaveLength(1);
+  });
+
+  test('three failed asks in a row, hours apart, are DOWN — no hourly window ever sees them together', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      ask({ source: 'niete_portal_share', created_at: ago(20 * 60), delivered_at: ago(20 * 60 - 1) }),
+      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(9 * 60) }),
+      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(4 * 60) }),
+      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(30) }),
+    ];
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out.sources).toEqual([expect.objectContaining({ asks: 1, systemFailures: 1 })]); // the window saw one
+    expect(out.reasons).toEqual(['down:niete_portal_share/whatsapp']);
+  });
+
+  test('a delivery breaks the run: two failures since the last delivery are not a verdict', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(9 * 60) }),
+      ask({ source: 'niete_portal_share', created_at: ago(5 * 60), delivered_at: ago(5 * 60 - 1) }),
+      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(4 * 60) }),
+      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(30) }),
+    ];
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out).toEqual(expect.objectContaining({ verdict: 'healthy', reasons: [] }));
+  });
+
+  test('content answers and asks still in flight neither count nor break the run', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      ask({ created_at: ago(10 * 60), delivered_at: ago(10 * 60 - 1) }),
+      failedAsk({ error_code: 'GENERATION_FAILED', created_at: ago(6 * 60) }),
+      failedAsk({ error_code: 'NO_ASSET', created_at: ago(5 * 60) }),
+      failedAsk({ error_code: 'GENERATION_FAILED', created_at: ago(3 * 60) }),
+      failedAsk({ error_code: 'NOT_ELIGIBLE', created_at: ago(2 * 60) }),
+      failedAsk({ error_code: 'GENERATION_FAILED', created_at: ago(40) }),
+      ask({ status: 'processing', delivered_at: null, created_at: ago(20) }),
+    ];
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out.reasons).toEqual(['down:niete_v8_segment/whatsapp']);
+  });
+
+  test('a plan made and then refused by WhatsApp (completed + DELIVERY_FAILED, no delivered_at) is a failed attempt, not a delivery', async () => {
+    // markCompleted keeps status completed for the queue when the send is refused, and says DELIVERY_FAILED
+    mockDb.tables.lesson_plan_requests = [60, 45, 30].map((m) => ask({
+      source: 'niete_grounded', status: 'completed', error_code: 'DELIVERY_FAILED', delivered_at: null, created_at: ago(m * 10),
+    }));
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out.reasons).toEqual(['down:niete_grounded/whatsapp']);
+  });
+
+  test('a curriculum ask with attempts left is still in flight — not yet a failed attempt', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      failedAsk({ source: 'niete_grounded', error_code: 'RENDER_FAILED', retry_count: 2, created_at: ago(40) }),
+    ];
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out.verdict).toBe('healthy');
+  });
+
+  test('failures older than a day are not a run', async () => {
+    mockDb.tables.lesson_plan_requests = [25, 26, 27].map((h) => failedAsk({ error_code: 'RENDER_FAILED', created_at: ago(h * 60) }));
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out.verdict).toBe('healthy');
+  });
+
+  test('a path the window rate already flags keeps its ONE reason', async () => {
+    mockDb.tables.lesson_plan_requests = Array.from({ length: 5 }, (_, i) => failedAsk({
+      source: 'niete_oxbridge', error_code: 'RENDER_FAILED', created_at: ago(20 + i),
+    }));
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out.reasons).toEqual(['failure_rate:niete_oxbridge/whatsapp']);
+  });
+
+  test('the on-demand view says it too', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      failedAsk({ source: 'niete_grounded', error_code: 'RENDER_FAILED', retry_count: 3, created_at: ago(40) }),
+    ];
+    const view = await Health.onDemand({ now: NOW });
+    expect(view).toEqual(expect.objectContaining({ status: 'degraded', reasons: ['down:niete_grounded/whatsapp'] }));
   });
 });
