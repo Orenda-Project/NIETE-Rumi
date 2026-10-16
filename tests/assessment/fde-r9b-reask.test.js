@@ -67,7 +67,8 @@ test('Social Studies, chapters 4 + 6: the re-asked Section D is told Section A\'
     scope: { kind: 'chapters', chapters: [4, 6], pages: '26-33,40-48' }, pageRanges: '26-33,40-48', requestId: 'req-9b',
   });
   const d = asked.filter((a) => a.sec === 'D');
-  expect(d).toHaveLength(2);
+  // Round 15: a D item still held after D's re-ask gets one more D-only re-ask before the put-back.
+  expect(d).toHaveLength(3);
   expect(d[0].prompt).not.toContain(NOTE_SST);
   expect(d[1].prompt).toContain(NOTE_SST);
   // Every Q1 question of the first Section A reply is named, with its answer.

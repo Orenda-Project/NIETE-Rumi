@@ -987,22 +987,32 @@ function samePoints(q5s) {
 // point «الیکٹرانک میڈیا … (برقی توانائی کا استعمال)», Q7 «سلام کرنا» beside a Q6 point «سلام کرنے کا
 // ذکر») is answered by that item: a child who writes the long answer has written the Q7's. Read on the
 // same words as `samePoints`, the other way round: every word of the Q7's answer is in one point, or
-// in the answer, of the other item, and the two are about the same thing (a word of the Q7's question,
-// other than its answer, is in the other item). A name inside another name («لیاقت علی خان» in «بیگم
-// رعنا لیاقت علی خان») is not the same thing. Marking words and «پاکستان» say nothing about the topic.
+// in the answer, of the other item, and the other item is about what the Q7 asks of. That is what the
+// Q7's stem names (`stemPhrase`, «بلوچستان کے شاہی جرگے», its answer and «پاکستان» aside): at least
+// half of it is in the other item's question or in the text that holds the answer. A date or a name
+// the other item gives for another thing («26 جون 1947ء» for Sindh's assembly; «لیاقت علی خان» inside
+// «بیگم رعنا لیاقت علی خان») is not the same fact. A stem that names nothing is read on any word of it.
 const QUIET_WORDS = new Set(tokensOf('درست جواب نام لکھا لکھنا پہلا پہلی دوسرا دوسری مثال ذکر بیان چاہیے چاہییں پاکستان'));
 function keyInPoints(others) {
   const items = others.filter(Boolean).map((q) => ({
-    texts: [...pointSets(q), new Set(tokensOf(q.answer))].filter((t) => t.size),
-    about: new Set(tokensOf(textsOf(q.question, q.answer, pointSets(q).length ? q.scheme.points.map((p) => (typeof p === 'string' ? p : p && p.text)) : []).join(' '))),
+    texts: [...(q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : []).map((p) => (typeof p === 'string' ? p : p && p.text)), q.answer]
+      .filter((t) => typeof t === 'string' && t.trim()).map((t) => ({ words: new Set(tokensOf(t)), folded: folded(t) })).filter((t) => t.words.size),
+    question: folded(q.question),
   })).filter((o) => o.texts.length);
   if (!items.length) return null;
+  const quiet = new Set([...QUIET_WORDS].map(foldUr));
   return (q) => {
     if (!q || tokensOf(q.answer).length > ONE_LINE) return false;
     const key = new Set(tokensOf(q.answer).filter((w) => !QUIET_WORDS.has(w)));
     if (!key.size) return false;
-    const asked = tokensOf(q.question).filter((w) => !key.has(w) && !QUIET_WORDS.has(w));
-    return items.some((o) => o.texts.some((t) => within(key, t)) && asked.some((w) => o.about.has(w)));
+    const keyF = new Set([...key].map(foldUr));
+    const names = [...stemPhrase(q.question)].filter((w) => !keyF.has(w) && !quiet.has(w));
+    const asked = [...folded(q.question)].filter((w) => !keyF.has(w) && !quiet.has(w));
+    return items.some((o) => o.texts.some((t) => {
+      if (!within(key, t.words)) return false;
+      const about = new Set([...o.question, ...t.folded]);
+      return names.length ? share(new Set(names), about) * 2 >= names.length : asked.some((w) => about.has(w));
+    }));
   };
 }
 // The point-set rows, laid in this order: a Q6 against the Q5s, a Q6 against the Q6s placed before
@@ -1246,8 +1256,9 @@ function keptNotes(P, section, examJson, cross, shortfall) {
  *
  * P is one subject of a pattern (patterns.get(id).subjects[key]); scope is
  * { kind: 'fde' | 'chapters' | 'pages', chapters, pages }. `opts.reasked` is true once the
- * engine's one re-ask has run (a held item may then fill a place nothing else takes). `held` lists
- * every item the last pass set aside, { slot, rule, printed, q }, `printed` when it was put back.
+ * engine's one re-ask has run (a held item may then fill a place nothing else takes). Social
+ * Studies also gets `held`: every item the last pass set aside, { slot, rule, printed, q },
+ * `printed` when it was put back.
  * Never throws.
  */
 function applyLayout(examJson, P, scope, opts = {}) {
@@ -1422,7 +1433,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
     frame_pages: null,
     notes: [],
   };
-  return { examJson: out, placed, unplaced, shortfall, held };
+  // `held` is Social Studies' only (the engine reads it for Section D); every other subject's
+  // result is as before.
+  return P.key === 'social_studies' ? { examJson: out, placed, unplaced, shortfall, held } : { examJson: out, placed, unplaced, shortfall };
 }
 
 module.exports = { applyLayout, takenNote, firstAskNote, verseLines, typeKey, slotKey, unitWord };

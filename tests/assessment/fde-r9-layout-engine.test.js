@@ -66,14 +66,17 @@ test('Social Studies: the Q7 item asking a Q1 fact is held, Section D is asked a
     return sectionReply(src, prompt, (mine) => (isD && dCalls === 2 && mine.some((q) => q.slot === 'social_studies.D.Q7') ? fresh : []));
   });
   const out = await Gen.generatePatternExam(ARGS('social_studies'));
-  expect(dCalls).toBe(2);
+  // Round 15: the re-ask brings new Q7s but the same three held Q6s, so D is asked once more.
+  expect(dCalls).toBe(3);
   // Section C is asked again too: its Q5 «کثیر الثقافتی معاشرے … کیا فائدہ» is Q1's «مختلف ثقافتی گروہوں
   // … کیا فائدہ → رواداری اور بھائی چارہ» with its key as the answer, held since round 12.
   // Since round 13 D is asked after C, and three Q6 items answered with a Q5 item's points are
   // held too (the angry social-media post is Q5 and Q6 both).
   expect(logged('[assessment] section re-asked')).toEqual([
     expect.objectContaining({ section: 'C', shortfall: [{ slot: 'social_studies.C.Q5', missing: 1 }] }),
-    expect.objectContaining({ section: 'D', shortfall: [{ slot: 'social_studies.D.Q6', missing: 3 }, { slot: 'social_studies.D.Q7', missing: 1 }] }),
+    // Round 15: Q7 «سرسید … 1875ء … کون سا اسکول» is held too; Q6's model answer names the school.
+    expect.objectContaining({ section: 'D', shortfall: [{ slot: 'social_studies.D.Q6', missing: 3 }, { slot: 'social_studies.D.Q7', missing: 2 }] }),
+    expect.objectContaining({ section: 'D', shortfall: [expect.objectContaining({ slot: 'social_studies.D.Q6' })] }),
   ]);
   const q7 = slotItems(out.examJson, 'social_studies.D.Q7').map((q) => q.question);
   expect(q7).toHaveLength(8);
@@ -123,7 +126,8 @@ test('Social Studies: when the re-asked section writes the same questions again,
     return sectionReply(again, prompt, () => []);
   });
   const out = await Gen.generatePatternExam(ARGS('social_studies'));
-  expect(dCalls).toBe(2);
+  // Round 15: the blind re-ask leaves D's held items held, so D is asked once more before the put-back.
+  expect(dCalls).toBe(3);
   const q7 = slotItems(out.examJson, 'social_studies.D.Q7').map((q) => q.question);
   expect(q7).toHaveLength(8);
   expect(new Set(q7).size).toBe(8);

@@ -191,10 +191,12 @@ describe('2 + 4. the re-ask note', () => {
       scope: { kind: 'chapters', chapters: [4, 6], pages: '26-33,40-48' }, pageRanges: '26-33,40-48', requestId: 'req-r11',
     });
     const d = asked.filter((a) => a.sec === 'D');
-    expect(d).toHaveLength(2);
+  // Round 15: a D item still held after D's re-ask gets one more D-only re-ask before the put-back.
+    expect(d).toHaveLength(3);
     expect(d[0].text).not.toContain('already keeps');
     expect(d[1].text).toContain('Q7 already keeps these items');
     expect(d[1].text).toMatch(/write \d+ new Q7 items/);
+    expect(d[2].text).toContain('These items were set aside');
   });
 });
 

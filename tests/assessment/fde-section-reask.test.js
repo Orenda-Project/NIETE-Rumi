@@ -132,7 +132,9 @@ describe('a short section is asked once more', () => {
     // and Q6 items answered with a Q5 item's points (round 13); Section A, where a Sermon item is
     // the only loss, is never asked again.
     const reasked = state.logs.filter(([l]) => l === '[assessment] section re-asked').map(([, d]) => d);
-    expect(reasked.map((d) => d.section).sort()).toEqual(['C', 'D']);
+    // Round 15: D may be asked once more before a held D item is put back.
+    expect([...new Set(reasked.map((d) => d.section))].sort()).toEqual(['C', 'D']);
+    expect(reasked.filter((d) => d.section === 'D').length).toBeLessThanOrEqual(2);
     reasked.forEach((d) => d.shortfall.forEach((f) => expect(['social_studies.C.Q5', 'social_studies.D.Q6', 'social_studies.D.Q7']).toContain(f.slot)));
     expect(state.calls).toHaveLength(sections + reasked.length);
     const held = state.logs.filter(([l]) => l === '[assessment] held item dropped').map(([, d]) => d);

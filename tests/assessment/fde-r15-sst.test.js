@@ -142,7 +142,7 @@ describe('1. the point-set hold is a list: Q6 ← Q5, Q7 ← Q5 / Q6, Q6 ← Q6'
   test('another subject\'s layout carries no point-set hold', () => {
     for (const key of ['science', 'english', 'maths', 'urdu']) {
       const laid = applyLayout({ unseen: {} }, ALL[key], { kind: 'fde' }, { reasked: false });
-      expect(laid.held.filter((h) => /^key_in_points|^points/.test(h.rule))).toEqual([]);
+      expect(laid.held).toBeUndefined();
     }
   });
 });
