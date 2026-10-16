@@ -2211,4 +2211,10 @@ module.exports.childTest = childTest;
 // row's words in the quiz voice (the clips' own scheme and recorder; a missing one is recorded in the background, so
 // the row has it on a later open, under the same daily cap as every clip)
 module.exports.storyClip = storyClip;
-module.exports.sayClip = (text, lang) => (text ? clipUrl(clipKey('door', 'say', lang, String(text)), String(text), lang) : Promise.resolve(null));
+module.exports.sayClip = async (text, lang) => {
+  if (!text) return null;
+  const key = clipKey('door', 'say', lang, String(text));
+  // a door label never takes the last half of the day's recordings from the challenge's own clips: past it, known clips only
+  if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
+  return clipUrl(key, String(text), lang);
+};
