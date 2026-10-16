@@ -27,6 +27,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Homonym = require('./web-quiz-homonym');
+const K = require('./web-quiz-kid');
 
 const CODE_RX = /^JUGNU-[A-Z2-9]{5}$/;
 const MAX_PHONES_PER_CHILD = 3;
@@ -44,6 +45,15 @@ async function idFlags() {
 }
 const canonOn = async () => Boolean((await idFlags()).canon);
 const bindOn = async () => Boolean((await idFlags()).phoneBind);
+
+// Events v2 (web_quiz_events_v2, fail-closed): the page's bind events carry the envelope with the child's keyed kid
+// (and dk for the phone on bind_confirm); never a device_ref or a code. Off: today's event, byte for byte.
+async function emitV2(name, fields, { canonicalId = null, device = null } = {}) {
+  let v2 = false;
+  try { v2 = await require('./web-quiz-hub-flags').eventsV2On(); } catch (_) { v2 = false; }
+  if (!v2) return logEvent(name, { w: 's', ...fields });
+  return logEvent(name, K.envelope({ kid: canonicalId ? K.kid(canonicalId) : null, ...(device ? { dk: K.dk(device) } : {}), ...fields }));
+}
 
 // The number a wa.me link must open: the same variables the share links read (video-quiz-share botNumber).
 function botNumber() {
@@ -85,7 +95,7 @@ async function mint({ hub, kid, device, lang } = {}) {
     }
     const minted = await require('./child-bind-codes.repo').mint(canonicalId, T.cleanDeviceRef(device));
     if (!minted || !minted.code) return { ok: false, error: 'unavailable' };
-    if (!minted.reused) logEvent('web_quiz.bind_confirm', { w: 's' });
+    if (!minted.reused) await emitV2('web_quiz.bind_confirm', {}, { canonicalId, device });
     const prefill = { en: PREFILL.en.replace('{code}', minted.code), ur: PREFILL.ur.replace('{code}', minted.code) };
     const l = require('../../config/ux-strings').clampLanguage(lang);
     return { ok: true, code: minted.code, expires_at: minted.expires_at || null, prefill, href: `https://wa.me/${n}?text=${encodeURIComponent(prefill[l])}` };
@@ -135,7 +145,7 @@ async function undo({ code } = {}) {
     for (const e of erased) {
       if (e && e.phone_norm && typeof Sid.forgetDoorVerdict === 'function') await Sid.forgetDoorVerdict(e.phone_norm, e.phone_norm);
     }
-    logEvent('web_quiz.bind_undo', { w: 's', via: 'page', n: erased.length });
+    await emitV2('web_quiz.bind_undo', { via: 'page', n: erased.length }, { canonicalId: row.canonical_id });
     return { ok: true };
   } catch (err) {
     logToFile('⚠️ keep my place: undo failed', { error: err.message });
