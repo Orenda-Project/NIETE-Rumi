@@ -138,3 +138,53 @@ test('POST /api/go/persona forwards only {t, as ∈ fresh|teacher_empty|real}', 
   await req(srv, 'POST', '/api/go/persona', { body: { t: TOK, as: 'admin' } });
   expect(JSON.parse(calls[1].init.body)).toEqual({ t: TOK });
 });
+
+describe('switch OFF: the response is byte-identical to a build WITHOUT this router (the real catch-all\'s shape)', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const { PORTAL_INDEX_CACHE_CONTROL } = require('../lib/portal-static-cache');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quiz-go-off-'));
+  const index = path.join(dir, 'index.html');
+  fs.writeFileSync(index, '<!doctype html><title>portal</title><div id="root"></div>');
+  // dashboard/index.js's SPA catch-all, line for line, then its 404 handler
+  const catchAll = (req, res, next) => {
+    if (!(req.path.startsWith('/api/') || req.path.startsWith('/observability/'))) {
+      res.setHeader('Cache-Control', PORTAL_INDEX_CACHE_CONTROL);
+      return res.sendFile(index);
+    }
+    return next();
+  };
+  const notFound = (req, res) => res.status(404).json({ error: 'Not found' });
+  async function both(method, p, body) {
+    const off = async () => botRes(404, { body: JSON.stringify({ off: true }) });
+    const withRouter = express();
+    withRouter.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: off }));
+    withRouter.get('*', catchAll);
+    withRouter.use(notFound);
+    const without = express();
+    without.get('*', catchAll);
+    without.use(notFound);
+    const a = await start(withRouter);
+    const b = await start(without);
+    try {
+      const ra = await req(a, method, p, body ? { body } : {});
+      const rb = await req(b, method, p, body ? { body } : {});
+      const strip = (h) => { const o = { ...h }; delete o.date; return o; };
+      return [{ status: ra.status, headers: strip(ra.headers), body: ra.body }, { status: rb.status, headers: strip(rb.headers), body: rb.body }];
+    } finally { a.close(); b.close(); }
+  }
+  afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  test.each([
+    ['GET', `/quiz/go/${TOK}`, null],
+    ['GET', `/quiz/go/${TOK}?ask=1`, null],
+    ['POST', '/api/go/role', { t: TOK, side: 'child' }],
+    ['POST', '/api/go/who', { t: TOK }],
+    ['POST', '/api/go/bind', { t: TOK, pick: '0123456789abcdef' }],
+  ])('%s %s', async (method, p, body) => {
+    const [withRouter, without] = await both(method, p, body);
+    expect(withRouter).toEqual(without);
+    expect(withRouter.headers['set-cookie']).toBeUndefined();
+  });
+});
