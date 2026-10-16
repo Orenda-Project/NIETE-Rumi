@@ -197,6 +197,7 @@
   function picker() {
     var kids = B.kids || [];
     // keep my place (B.bind, web_quiz_phone_bind): "Who is playing?" in the ruled Urdu, and each chip's second line.
+    if (B.bind && !window.WQBIND) bindIn();
     var KB = B.bind && window.WQBIND ? window.WQBIND : null;
     render(bar() + jug('hello', T.whoSay) + '<h2>' + esc(KB ? KB.t(LANG).whoPlaying : T.who) + '</h2><div class="wq-chips">' +
       kids.map(function (k) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '">' + ani(k.animal) + esc(k.first) + (KB ? KB.chipExtra(k, LANG) : '') + '</button>'; }).join('') + '</div>', 'H1');
@@ -264,6 +265,28 @@
       document.head.appendChild(s);
     } catch (e) {}
   }
+  // The keep-my-place card's script (wq-bind.js/.css) has the same gap: the edge's bindTags decides before the device
+  // is known, so a first open's locked render leaves it out and unlock() then brings `bind`. Loaded once, at hub.js's
+  // own ?v=, and the screen that uses it (the hub, or "Who is playing?") drawn again when it arrives.
+  var bindAsked = false;
+  function bindIn() {
+    if (bindAsked) return;
+    bindAsked = true;
+    try {
+      var me = document.querySelector('script[src*="/wq/hub.js"]');
+      var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
+      var q = v ? '?v=' + v[1] : '';
+      var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/wq-bind.css' + q; document.head.appendChild(l);
+      var s = document.createElement('script');
+      s.src = '/wq/wq-bind.js' + q;
+      s.addEventListener('load', function () {
+        if (!window.WQBIND || !B.bind) return;
+        var m = ROOT.getAttribute('data-m');
+        if (m === 'H2') hub(); else if (m === 'H1') picker();
+      });
+      document.head.appendChild(s);
+    } catch (e) {}
+  }
   // With the Home button on (nav_home), the library and the challenge are told to show it too.
   function withHome(h) { return B.nav_home ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'home=1' : h; }
   function teacherCard(t) {
@@ -322,6 +345,7 @@
       (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
     // A first open's server render was locked (no wq_dv cookie yet), so the edge left hub-play.js out: load it now.
     if (B.play && !window.WQPLAY) playIn();
+    if (B.bind && !window.WQBIND) bindIn();
     // The Jugnu corner (hub-play.js, loaded only when the server sent `play`): it may put the Jugnu card first.
     var top = B.play && window.WQPLAY
       ? window.WQPLAY.top(B, T, { HOME: HOME, lastCard: lastCard(B.last), homeTiles: homeTiles(), teacher: B.teacher ? teacherCard(B.teacher) : '', teacherAny: teacherCard(B.teacher), tiles: tiles, LANG: LANG, MASC: MASC, chHref: '/c/' + withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid))), ROOT: ROOT, ev: ev })

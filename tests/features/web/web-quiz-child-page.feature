@@ -1597,6 +1597,7 @@ Feature: Web child quiz page on the portal
     Given web_quiz_phone_bind is "on" under web_quiz_identity_canon and a hub link opened on the family's phone with one child chosen
     When the hub renders
     Then the card shows its title, the /quiz line with /quiz as a left-to-right chip, "Keep my place" and "Not now"
+    And on the child's first open of the hub (no device cookie yet, the server render locked) the card still appears once the hub unlocks, without a reload
     And bind_offered is sent once for this page view with surface "hub" and w "p"
     And "Not now" hides the card on this device for 7 days
     But with web_quiz_phone_bind "off" the hub page has no wq-bind script or style and the hub JSON has no bind key, byte-identical to before
