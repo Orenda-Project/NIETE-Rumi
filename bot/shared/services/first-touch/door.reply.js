@@ -5,6 +5,7 @@
  *   sendChooser      the chooser (door.body + "Make quiz" / "Play"), trigger door_reply, recipient family
  *   sendFamilyReply  the family door's cta_url (/f/<token>), trigger family_reply, recipient family; a refused cta
  *                    (sent:false) → family.fallback as plain text in the SAME turn (the same one record, no second)
+ *   sendCappedReply  the capped keyless phone: family.fallback as plain text, trigger family_reply, recipient family
  *   sendMakerReply   the maker cta: the maker module's makerCta({ uid, lang, who, via }) — it records maker_reply
  *                    itself; absent or throwing → the door's own 3-button fallback through the wrapper below,
  *                    trigger maker_reply, recipient teacher
@@ -126,6 +127,21 @@ async function sendFamilyReply({ from, user, lang, reason = 'text', ukey = null 
   return out.sent ? how : 'none';
 }
 
+/**
+ * The capped keyless reply (DOOR §3.2, COPY M9 fallback): family.fallback as plain text, nothing to tap, under one
+ * family_reply record. The same one text as a refused family cta. → 'capped_family' | 'capped' | 'none'.
+ */
+async function sendCappedReply({ from, lang, reason = 'capped' }) {
+  const WhatsAppService = require('../whatsapp.service');
+  const bi = lang !== 'ur';
+  const out = await ledgered({
+    trigger: 'family_reply', from, reason, recipient: 'family',
+    send: () => WhatsAppService.sendMessage(from, bi ? resolveUx('ftFamilyFallbackBi', { language: 'en' }) : ux('ftFamilyFallback', 'ur')),
+  });
+  if (!out.allowed) return 'capped';
+  return out.sent ? 'capped_family' : 'none';
+}
+
 /** The door's own 3-button fallback for the maker reply (maker_reply, recipient teacher). */
 async function sendMakerFallback({ from, lang, who, reason }) {
   const WhatsAppService = require('../whatsapp.service');
@@ -198,5 +214,5 @@ function logDoor({ from, user, door, verdict = 'unknown', reason = 'no_key', sto
 
 module.exports = {
   BI_BUTTONS, IDS, _deps,
-  sendChooser, sendFamilyReply, sendMakerReply, logDoor, ukeyFor, isNewPhone,
+  sendChooser, sendFamilyReply, sendCappedReply, sendMakerReply, logDoor, ukeyFor, isNewPhone,
 };

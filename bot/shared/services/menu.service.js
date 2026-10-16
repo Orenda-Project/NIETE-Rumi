@@ -324,6 +324,14 @@ class MenuService {
               resolveUx('featureNotAvailableHere', { language: clampLanguage(language) }));
             break;
           }
+          // ── first touch: an unknown phone's quiz row (true = answered; false or a throw = today's list) ──
+          try {
+            const DoorMenu = require('./first-touch/door.menu');
+            if (await DoorMenu.handleMenuQuiz({ user, from, language })) break;
+          } catch (err) {
+            logToFile('⚠️ first touch: the quiz row fell back to today\'s list', { error: err && err.message }, 'warn');
+          }
+          // ── end first touch
           const TranscriptQuizList = require('./quiz/transcript-quiz-list.service');
           await TranscriptQuizList.showList(user, from, clampLanguage(language), 1);
           break;

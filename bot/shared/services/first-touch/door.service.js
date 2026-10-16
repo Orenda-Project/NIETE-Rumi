@@ -210,9 +210,11 @@ async function answerQuiz({ user, from, text, note }) {
   const [verdict, reason] = VERDICT_OF[door] || ['unknown', 'no_key'];
   const base = { from, user, door: 'text', verdict, reason, lang, script };
   if (door === 'capped') {
-    // asked twice with no key: the family-safe capped reply is the cap change's to build; until then today's path
-    Reply.logDoor({ ...base, store: 'none', reply: 'today' });
-    return false;
+    // asked on two PKT days with no key (§3.2): family.fallback as plain text, no write — never the chooser, the
+    // maker or today's teacher home; the text names the teacher's typed way out
+    const reply = await Reply.sendCappedReply({ from, lang, reason: 'text' });
+    Reply.logDoor({ ...base, store: 'capped', reply });
+    return true;
   }
   if (door === 'maker') {
     const reply = await Reply.sendMakerReply({ from, user, lang, who: 'door', via: 'door', reason: 'text' });

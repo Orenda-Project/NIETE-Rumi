@@ -5,7 +5,7 @@
  * re-reads the door itself for a warm no_student_row); the tap's reply is bilingual; the maker reply goes through the
  * injectable seam Reply._deps.makerCta({ uid, lang, who, via }); with no maker cta module the door's own 3-button
  * fallback (maker.fallback.body.unknown(.bi), ids ft_fb_quiz / ft_fb_lp / ft_fb_coach) goes out, and each of its
- * buttons opens the SAME entry its menu row opens today. A capped verdict is today's path in this change. A broken
+ * buttons opens the SAME entry its menu row opens today. A capped verdict gets the plain-text capped reply. A broken
  * door module costs exactly its branch.
  */
 process.env.STUDENT_MODE_ENABLED = 'true';
@@ -114,11 +114,12 @@ describe('the fallback\'s buttons open today\'s entries, the same functions the 
   });
 });
 
-test('a capped keyless phone: today\'s path in this change (no chooser, no write)', async () => {
+test('a capped keyless phone: the capped reply (one plain text), no chooser, no write', async () => {
   T.seed({ rows: [firstUse('quiz_door_asked', { count: 2 })] });
   const { routed } = await T.text('quiz');
-  expect(routed).toBe(false);
-  expect(T.sendCount()).toBe(0);
+  expect(routed).toBe(true);
+  expect(T.sendCount()).toBe(1);
+  expect(T.sent().text).toHaveLength(1);
   expect(T.writes()).toEqual([]);
 });
 

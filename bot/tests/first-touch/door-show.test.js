@@ -3,8 +3,8 @@
  * DOOR.md §3.1 / §3.3 — the SHOW of the chooser writes quiz_door_asked, +1 only when the row's feature_used_at is not
  * today in PKT (Asia/Karachi, UTC+5, no DST): two "quiz" on one PKT day (11:00 and 15:00) → intro_shown_count 1 and two
  * chooser sends; 23:59 → 00:01 PKT straddles a PKT midnight → 2. The warm cell: a first_door verdict still cached
- * (60 s) → the chooser re-sent with NO key read and +0. A keyless phone asked on two PKT days is capped: in this
- * change it falls to today's path (the capped reply is the menu-row/cap change's), never a third chooser.
+ * (60 s) → the chooser re-sent with NO key read and +0. A keyless phone asked on two PKT days is capped: the plain-text
+ * family.fallback (door-cap.test.js), never a third chooser.
  */
 process.env.STUDENT_MODE_ENABLED = 'true';
 jest.mock('../../shared/config/supabase', () => ({}));
@@ -54,7 +54,7 @@ test('two "quiz" on one PKT day (11:00 and 15:00 PKT) → intro_shown_count 1, t
   expect(T.doorEvents().map((e) => [e.reply, e.store])).toEqual([['chooser', 'asked'], ['chooser', 'asked']]);
 });
 
-test('23:59 → 00:01 PKT (a PKT midnight between) → intro_shown_count 2, then a third request on a later day is capped: no third chooser', async () => {
+test('23:59 → 00:01 PKT (a PKT midnight between) → intro_shown_count 2, then a third request on a later day is capped: the capped reply, no third chooser', async () => {
   T.seed();
   at('2026-10-20T18:59:00Z');
   await T.text('quiz');
@@ -64,7 +64,8 @@ test('23:59 → 00:01 PKT (a PKT midnight between) → intro_shown_count 2, then
   expect(T.doorRows().quiz_door_asked.count).toBe(2);
   at('2026-10-22T06:00:00Z');
   const { routed } = await T.text('quiz');
-  expect(routed).toBe(false);                     // the capped reply is built by the cap change; here: today's path
+  expect(routed).toBe(true);                      // the capped reply (family.fallback, plain text): door-cap.test.js
+  expect(T.doorEvents().slice(-1)).toEqual([expect.objectContaining({ reply: 'capped_family', store: 'capped' })]);
   expect(choosers()).toHaveLength(2);
   expect(T.doorRows().quiz_door_asked.count).toBe(2);
 });
