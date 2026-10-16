@@ -499,7 +499,9 @@ async function hub(token, opts = {}) {
   const ui = await require('./web-quiz-ur-polish').ui();
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
-  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}) };
+  // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
+  const min = require('./web-quiz-minify').on();
+  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}) };
 }
 
 module.exports = {

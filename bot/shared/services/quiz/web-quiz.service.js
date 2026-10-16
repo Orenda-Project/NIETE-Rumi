@@ -597,6 +597,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
+  // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
+  if (require('./web-quiz-minify').on()) out.min = true;
   return out;
 }
 
