@@ -345,11 +345,12 @@ async function kidFromHub(token, chip, device) {
   return { studentId, grade: ctx.grade, rootId: root ? root.shareCodeId : null };
 }
 
-async function kidContext(studentId) {
-  const { data: row } = await dbRead('kidContext:students:1', (db) => db.from('students')
+// `known`: the child's row and class list the caller has just read (fast first page), so they are not read again.
+async function kidContext(studentId, known = null) {
+  const { data: row } = known ? { data: known.row } : await dbRead('kidContext:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle());
   if (!row || row.is_active === false) return null;
-  const { data: list } = row.list_id
+  const { data: list } = known ? { data: known.list } : row.list_id
     ? await dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle())
     : { data: null };
   const StudentQuiz = require('./student-quiz.service');
@@ -431,7 +432,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
   // Started now, beside the rest of the hub's reads (challengeForm never rejects): it is a few reads of its own.
   const challengeP = f.challenge && chosen ? challengeForm(chosen.id) : Promise.resolve(null);
-  const ctx = chosen ? await kidContext(chosen.id) : null;
+  // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
+  const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null) : null;
   const history = ctx ? ctx.history : [];
   const lang = asked || clampLanguage(require('./student-quiz.service').childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
