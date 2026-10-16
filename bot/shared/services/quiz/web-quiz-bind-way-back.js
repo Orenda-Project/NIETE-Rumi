@@ -113,10 +113,12 @@ async function reply({ phone, reason, code = null, row, user = null, asked = nul
   }
 }
 
-async function cardState({ canonicalId, device, now = new Date() } = {}) {
+// `early` (web_quiz_fast on): the child's bindings are read beside the code row (needed only when the code was bound).
+async function cardState({ canonicalId, device, now = new Date(), early = false } = {}) {
   try {
     const dev = require('./web-quiz-token').cleanDeviceRef(device);
     if (!canonicalId || !dev || !(await on())) return null;
+    const bindingsP = early ? require('./web-quiz-fast').early(Promise.resolve().then(() => require('./child-phone-bindings.repo').activeForChild(String(canonicalId), now))) : null;
     const { data, error } = await supabase.from('child_bind_codes').select('code, canonical_id, minted_at, expires_at, used_at, outcome')
       .eq('canonical_id', String(canonicalId)).eq('device_ref', dev).order('minted_at', { ascending: false }).limit(1);
     if (error) throw new Error(error.message || 'read failed');
@@ -126,7 +128,7 @@ async function cardState({ canonicalId, device, now = new Date() } = {}) {
     if (!row.used_at) return ms(row.expires_at) > t ? { state: 'pending' } : { state: 'none' };
     if (row.outcome === 'bound') {
       const Bindings = require('./child-phone-bindings.repo');
-      const active = (await Bindings.activeForChild(String(canonicalId), now)) || [];
+      const active = (await (bindingsP || Bindings.activeForChild(String(canonicalId), now))) || [];
       return active.some((b) => String(b.code_id || '') === row.code) ? { state: 'bound' } : { state: 'none' };
     }
     if (PAGE_REFUSALS.has(row.outcome)) {

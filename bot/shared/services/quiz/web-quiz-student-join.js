@@ -545,12 +545,16 @@ async function hideCardIfBound(out, studentId) {
   }
 }
 
-/** True when this child's place is saved on a phone with no code (a `guest` binding; the switch on). Never rejects. */
-async function guestBound(studentId) {
+/**
+ * True when this child's place is saved on a phone with no code (a `guest` binding; the switch on). Never rejects.
+ * `canon` (the hub's identity map, web_quiz_fast on): when it names the child as their own canonical id, no re-read.
+ */
+async function guestBound(studentId, { canon = null } = {}) {
   try {
     if (!studentId || !(await flags()).bind) return false;
-    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds([String(studentId)]);
-    const id = canon.get(String(studentId)) || String(studentId);
+    const known = canon && typeof canon.get === 'function' && canon.get(String(studentId)) === String(studentId) ? String(studentId) : null;
+    const map = known ? null : await require('./web-quiz-identity-roster').canonicalStudentIds([String(studentId)]);
+    const id = known || map.get(String(studentId)) || String(studentId);
     const rows = await BindRepo.activeForChild(id);
     return rows.some((b) => b.via === 'guest');
   } catch (_) {

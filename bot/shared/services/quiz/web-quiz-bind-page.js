@@ -204,15 +204,22 @@ async function whoseTurn({ hub, kid, device, lang } = {}) {
 async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, device, src, canon = null } = {}) {
   try {
     const f = await idFlags();
-    if (f.canon && chosen) await recordHubPick({ chosen, rows, device, src, canon });
-    if (!f.phoneBind) return out;
+    // `canon` (web_quiz_fast on): the pick record is written beside the card's reads (nothing below reads it), and the
+    // child's canonical id comes from the hub's map when it names the child as their own; off: one after another.
+    const pick = f.canon && chosen ? recordHubPick({ chosen, rows, device, src, canon }) : null;
+    if (pick && !canon) await pick;
+    const fast = Boolean(canon);
+    if (!f.phoneBind) { if (fast) await pick; return out; }
     if (chosen) {
       // web_quiz_bind_way_back: `state` none|pending|bound|refused; saved or refused from this device → no card (off: today's)
       const WayBack = require('./web-quiz-bind-way-back');
-      const seen = (await WayBack.on()) ? await WayBack.cardState({ canonicalId: await canonicalOf(chosen.id), device }) : null;
+      const known = fast && typeof canon.get === 'function' && canon.get(String(chosen.id)) === String(chosen.id) ? String(chosen.id) : null;
+      const seen = (await WayBack.on()) ? await WayBack.cardState({ canonicalId: known || (await canonicalOf(chosen.id)), device, early: fast }) : null;
       out.bind = seen && (seen.state === 'bound' || seen.state === 'refused') ? { offer: false, ...seen } : { offer: true, hub: token, kid: out.kid, ...(seen || {}) };
+      if (fast) await pick;
       return out;
     }
+    if (fast) await pick;
     out.bind = { offer: false };
     const played = trust.why === 'played' ? (trust.ids || []).map(String) : [];
     const guarded = await chipsOf(rows.map((r) => String(r.id)), { lang, played });

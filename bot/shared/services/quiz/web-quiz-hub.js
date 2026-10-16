@@ -187,10 +187,17 @@ async function teacherCard(kidRow, list, history, grade, fast = false) {
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
   const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history, fast)]);
-  const open = await require('./web-quiz-hub-home').sentOnly(codes.filter((c) => isOpen(c) && !seen.has(c.id))); // a previewed storybook is not "from your teacher": unchanged while web_quiz_home_v3 is off
+  const open0 = codes.filter((c) => isOpen(c) && !seen.has(c.id));
+  const quizzesOf = (open) => {
+    const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
+    return dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
+  };
+  // fast (web_quiz_fast): the quizzes are read beside the storybook check, for every open code (a filtered-out code's
+  // row is never looked up); off: after it, for the codes it kept (today's reads).
+  const early = fast && open0.length ? require('./web-quiz-fast').early(quizzesOf(open0)) : null;
+  const open = await require('./web-quiz-hub-home').sentOnly(open0); // a previewed storybook is not "from your teacher": unchanged while web_quiz_home_v3 is off
   if (!open.length) return null;
-  const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
-  const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
+  const { data: quizzes } = await (early || quizzesOf(open));
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
   // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
   const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
@@ -446,7 +453,7 @@ const HUB_BRANCHES = [
   // the v3 home's reads (web_quiz_home_v3), keyed on the child; its doors are drawn from `out` at the end (homeFrom)
   { name: 'home', run: (s) => require('./web-quiz-hub-home').homeReads({ chosenId: s.chosen.id, history: s.history, lang: s.lang }) },
   // a place saved on a phone with no code hides the "keep my place" card (quiz_student_join); applied after keep my place
-  { name: 'bound', run: (s) => require('./web-quiz-student-join').guestBound(s.chosen.id) },
+  { name: 'bound', run: (s) => require('./web-quiz-student-join').guestBound(s.chosen.id, { canon: s.canon }) },
 ];
 
 /** Adds one parallel branch to the hub ({ name, run(s) }; a name is used once). */
