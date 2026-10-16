@@ -18,12 +18,13 @@ display:grid;place-items:center;color:#fff;background:var(--ok);font-size:14px;f
 .go{display:block;text-align:center;background:var(--blue);color:#fff;text-decoration:none;font-weight:800;
 border-radius:12px;padding:13px;margin:12px 0 0}
 .q{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.yn{font:inherit;font-weight:700;border:1.5px solid var(--blue);
-background:#fff;color:var(--blue);border-radius:999px;padding:6px 20px;cursor:pointer}.yn[aria-pressed=true]{background:var(--blue);color:#fff}
+background:#fff;color:var(--blue);border-radius:999px;padding:6px 20px;cursor:pointer;text-decoration:none}
+.more{display:block;margin:10px 0 0;color:var(--blue);font-weight:700}.yn[aria-pressed=true]{background:var(--blue);color:#fff}
 </style></head><body><main>
 <h1>آپ کی کوچنگ رپورٹ</h1><p class="sub">G3 Urdu ch3 L2 · 7 Oct</p>
 <section class="box"><h2>آپ نے یہ اچھا کیا</h2><ul><li class="did partly"><span class="m">✓</span><span>آپ نے سبق پچھلے سبق کے سوالوں سے شروع کیا، اور بچوں نے یاد کر کے جواب دیے۔ <small>· شروع کیا</small></span></li><li class="did partly"><span class="m">✓</span><span>آپ نے کر کے دکھایا کہ سوال پڑھ کر جواب عبارت میں کیسے ڈھونڈتے ہیں۔ <small>· شروع کیا</small></span></li><li class="did partly"><span class="m">✓</span><span>آپ نے پوری جماعت کے ساتھ سوال ۲ اور ۳ حل کیے۔ <small>· شروع کیا</small></span></li></ul></section>
 <section class="box try"><h2>★ کل ایک کام آزمائیں</h2><p class="s">قدم ۲</p><p>قدم ۲ کا سوال ضرور پوچھیں: آپ کے گھر یا محلے میں باغبانی کون کرتا ہے؟ دو بچوں کے جواب سنیں، پھر آگے بڑھیں۔ آپ سبق سوالوں سے شروع کرتے ہیں، اس لیے اس میں بس ایک منٹ لگے گا۔</p><a class="go" href="b-plan.html">کل کا سبق کھولیں ›</a></section>
-<section class="box"><div class="q"><h2>کیا یہ رپورٹ مفید تھی؟</h2><button class="yn" type="button" aria-pressed="false">ہاں</button><button class="yn" type="button" aria-pressed="false">نہیں</button></div><p id="thanks" hidden>شکریہ۔</p></section>
+<section class="box"><div class="q"><h2>کیا آپ اس رپورٹ سے متفق ہیں؟</h2><button class="yn" type="button" aria-pressed="false">👍 ہاں</button><a class="yn" href="b-ping.html">👎 نہیں</a></div><p id="thanks" hidden>شکریہ۔</p><a class="more" href="b-ping.html">متفق نہیں؟ آپ کے کوچ آ کر کلاس دیکھیں گے</a></section>
 </main><script>document.addEventListener('click',function(e){var b=e.target.closest('.yn');if(!b)return;
 document.querySelectorAll('.yn').forEach(function(x){x.setAttribute('aria-pressed',x===b)});
 document.getElementById('thanks').hidden=false});</script></body></html>

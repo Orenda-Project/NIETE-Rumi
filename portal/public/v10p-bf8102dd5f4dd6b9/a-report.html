@@ -18,12 +18,13 @@ display:grid;place-items:center;color:#fff;background:var(--ok);font-size:14px;f
 .go{display:block;text-align:center;background:var(--blue);color:#fff;text-decoration:none;font-weight:800;
 border-radius:12px;padding:13px;margin:12px 0 0}
 .q{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.yn{font:inherit;font-weight:700;border:1.5px solid var(--blue);
-background:#fff;color:var(--blue);border-radius:999px;padding:6px 20px;cursor:pointer}.yn[aria-pressed=true]{background:var(--blue);color:#fff}
+background:#fff;color:var(--blue);border-radius:999px;padding:6px 20px;cursor:pointer;text-decoration:none}
+.more{display:block;margin:10px 0 0;color:var(--blue);font-weight:700}.yn[aria-pressed=true]{background:var(--blue);color:#fff}
 </style></head><body><main>
 <h1>Your coaching report</h1><p class="sub">G1 English ch8 L5 · 7 Oct</p>
 <section class="box"><h2>What you did well</h2><ul><li class="did done"><span class="m">✓</span><span>You opened with Pinky&#x27;s mixed-up calendar and asked which month comes next.</span></li><li class="did done"><span class="m">✓</span><span>You showed the position words with real things in the classroom, saying each sentence aloud.</span></li><li class="did done"><span class="m">✓</span><span>You showed on the calendar strip that the months always come in the same order.</span></li><li class="did done"><span class="m">✓</span><span>You led the whole class in saying position sentences together.</span></li><li class="did done"><span class="m">✓</span><span>You ended with a check: each child found their birth month on the calendar.</span></li><li class="did partly"><span class="m">✓</span><span>Children filled the calendar boxes with the months in order. <small>· Started</small></span></li></ul></section>
 <section class="box try"><h2>★ One thing to try tomorrow</h2><p class="s">step 4</p><p>In step 4, after the class says a word together, add one line: &#x27;Now say it to the child next to you.&#x27; Count to ten, then carry on.</p><a class="go" href="a-plan.html">Open tomorrow&#x27;s plan ›</a></section>
-<section class="box"><div class="q"><h2>Was this useful?</h2><button class="yn" type="button" aria-pressed="false">Yes</button><button class="yn" type="button" aria-pressed="false">No</button></div><p id="thanks" hidden>Thank you.</p></section>
+<section class="box"><div class="q"><h2>Do you agree with this report?</h2><button class="yn" type="button" aria-pressed="false">👍 Yes</button><a class="yn" href="a-ping.html">👎 No</a></div><p id="thanks" hidden>Thank you.</p><a class="more" href="a-ping.html">Don’t agree? Your coach will come and see your class</a></section>
 </main><script>document.addEventListener('click',function(e){var b=e.target.closest('.yn');if(!b)return;
 document.querySelectorAll('.yn').forEach(function(x){x.setAttribute('aria-pressed',x===b)});
 document.getElementById('thanks').hidden=false});</script></body></html>
