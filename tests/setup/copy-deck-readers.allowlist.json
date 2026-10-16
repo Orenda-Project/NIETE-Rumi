@@ -1,0 +1,3 @@
+{
+  "bot/shared/templates/class-round.page.js": "pausedLine() reads jg.round.t_paused from the deck at render time, with no held or retired check"
+}
