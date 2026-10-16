@@ -95,11 +95,15 @@ const scenarios = [
     });
     expect(above !== null, 'no Make my paper button on Check and make');
     expect(above <= 40, above + ' words above Make my paper (at most 40)');
+    // The summary is the Inside row itself; the tray behind it lists the sections and what she adds.
+    const row = await page.getByTestId('fde-row-inside').innerText();
+    for (const want of ['3 sections', '100 marks', '3 hrs']) expect(row.includes(want), 'Inside row lacks "' + want + '"');
     await page.getByTestId('fde-row-inside').click();
     const tray = page.getByTestId('fde-inside-tray');
     await tray.waitFor({ state: 'visible', timeout: 15000 });
     const text = await tray.innerText();
-    for (const want of ['3 sections', '100 marks', '3 hrs', 'You add']) expect(text.includes(want), 'Inside tray lacks "' + want + '"');
+    for (const sec of ['A', 'B', 'C']) expect(new RegExp('(^|\\n)' + sec + '(\\n|$)').test(text), 'Inside tray lacks section ' + sec);
+    expect(text.includes('You add'), 'Inside tray lacks "You add"');
     expect(/diagram to label/i.test(text), 'Inside tray lacks "the diagram to label"');
     return { wordsAboveMake: above };
   } },
