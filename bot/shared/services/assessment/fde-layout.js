@@ -44,6 +44,13 @@ const UNIT_WORD_ONE = {
   urdu: ['Lesson', 'سبق'], social_studies: ['Chapter', 'باب'], // ur: needs fluent-Urdu review
 };
 
+/** The word the paper names its scope with ("Lessons" / «اسباق»), for a screen that must say the same. */
+function unitWord(subjectKey, count) {
+  const table = Number(count) === 1 ? UNIT_WORD_ONE : UNIT_WORD;
+  const [en, ur] = table[subjectKey] || table.maths;
+  return { en, ur };
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -519,4 +526,4 @@ function applyLayout(examJson, P, scope, opts = {}) {
   return { examJson: out, placed, unplaced, shortfall };
 }
 
-module.exports = { applyLayout, typeKey, slotKey };
+module.exports = { applyLayout, typeKey, slotKey, unitWord };
