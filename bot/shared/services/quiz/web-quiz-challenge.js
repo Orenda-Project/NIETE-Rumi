@@ -1367,9 +1367,19 @@ const ENDED_BY_CHILD = new Set(['stuck', 'home', 'hidden']);
 //   low_story_confidence   the house confidence is under 0.5 while the model credits ≥ 90% (a 220 Hz tone: 0.44 with 60/60)
 // Never the confidence alone. The reason rides meta.flags; the row reads quality 'implausible' (EVENTS §11) and, like a row the
 // sweeper abandons, record=false with meta.record_lost='implausible' (the month stays open). Null = believed (today's rows).
+// A read the page ended on silence with nothing credited is judged first by the words the speech service heard (silentFloor):
+// at least max(3, 10% of the story's tokens) is real speech that aligns to nothing — unheard, the record kept; fewer is not a
+// reading at all — implausible, no_speech when nothing was heard, else no_aligned_words. A silent room is never a reader of 0.
 const IMPLAUSIBLE_CONF = 0.5;
 const IMPLAUSIBLE_SHARE = 0.9;
 const IMPLAUSIBLE_STT_SUPPORT = 0.25;   // heard words must be at least a quarter of the credited count
+const SILENT_FLOOR_MIN = 3;
+const SILENT_FLOOR_SHARE = 0.1;
+function silentFloor(m, tokensN) {
+  const heard = Number(m && m.stt_words) || 0;
+  if (heard >= Math.max(SILENT_FLOOR_MIN, Math.ceil(SILENT_FLOOR_SHARE * tokensN))) return null;
+  return heard === 0 ? 'no_speech' : 'no_aligned_words';
+}
 function readQuality(m, score, tokensN) {
   if (m && m.stt_words === 0) return 'no_speech';
   const correct = score.correct || 0;
@@ -1421,11 +1431,17 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
       ...(m.stt_words == null ? {} : { stt_words: m.stt_words }), ...(m.align_correct == null ? {} : { align_correct: m.align_correct }),
       ...(rules.items ? { items: (m.items || []).map((x) => ({ i: x.i, v: x.verdict })) } : {}),
     } : {};
-    // The microphone was proven working and not one word came: the child was silent — EGRA's discontinue, a 0 —
-    // not "unheard" (which would send them round again).
-    if (rules.record && Draw().micHeard(ctx.micCheck) && ctx.ended === 'silent' && !stopped && score.attempted === 0) {
-      const s = { ...score, stopped: true, finished_early: false, time_left: 0 };
-      return { score: s, wcpm: 0, ended: 'silent', meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, ended: 'silent' } };
+    const tokensN = (spec.story && spec.story.tokens && spec.story.tokens.length) || 0;
+    // numbers that cannot be believed are not a reading: zeroed, wcpm null, the raw counts kept, no items; record as served
+    const implausibleRow = (doubt, rate) => {
+      const { items, ...rest } = extra;
+      return { score: { correct: 0, attempted: 0, stopped: false, finished_early: false, time_left: 0 }, wcpm: null, ended: ctx.ended || null, implausible: doubt,
+        meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: [...(m.flags || []), doubt], ...rest, quality: 'implausible', raw: { correct: score.correct, attempted: score.attempted, wcpm: rate } } };
+    };
+    // Ended on silence with nothing credited: the floor on the words heard runs first (enough of them falls through to unheard)
+    if (rules.record && ctx.ended === 'silent' && !stopped && score.attempted === 0) {
+      const floor = silentFloor(m, tokensN);
+      if (floor) return implausibleRow(floor, wcpm(score.correct, score.time_left));
     }
     // Not one word of the story was heard: that is not a reading of 0 words — no score, no ✓, no growth baseline,
     // nothing in the class results; the child is asked to try again.
@@ -1440,13 +1456,9 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
       return { failed: true, reason, words: score.correct, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, words: score.correct } };
     }
     const rate = stopped ? 0 : wcpm(score.correct, score.time_left);
-    // the noise floor: numbers that cannot be believed are not a reading: zeroed, wcpm null, the raw counts kept, no items; record as served
-    const doubt = rules.record ? readQuality(m, score, (spec.story && spec.story.tokens && spec.story.tokens.length) || 0) : null;
-    if (doubt) {
-      const { items, ...rest } = extra;
-      return { score: { correct: 0, attempted: 0, stopped: false, finished_early: false, time_left: 0 }, wcpm: null, ended: ctx.ended || null, implausible: doubt,
-        meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: [...(m.flags || []), doubt], ...rest, quality: 'implausible', raw: { correct: score.correct, attempted: score.attempted, wcpm: rate } } };
-    }
+    // the noise floor
+    const doubt = rules.record ? readQuality(m, score, tokensN) : null;
+    if (doubt) return implausibleRow(doubt, rate);
     return { score, wcpm: rate, ended: ctx.ended || null, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra } };
   } catch (e) {
     return { failed: true, reason: 'internal_error', meta: { error: String(e && e.message || e).slice(0, 120) } };

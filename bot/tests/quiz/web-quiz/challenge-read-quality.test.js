@@ -353,6 +353,18 @@ describe('the speed floor on the server clock', () => {
     expect(R.computeRung('numbers', [row])).toBeLessThanOrEqual(2);
   });
 
+  test('the forged-clock shape: 10/10 at 1600 ms an item, submitted 23.8 s after the serve: rapid_perfect', async () => {
+    flags();
+    const ex = await Ch.exercise(hub(K5), 'missing', D);
+    later(23.8);
+    await Ch.submit({ ct: ex.ct, answers: rightAt(ex.items, 1600), ms: 16000 });
+    const row = rowOf(ex.ct);
+    expect(row.score.correct).toBe(10);
+    expect(row.meta.elapsed_s).toBeGreaterThanOrEqual(23.8);
+    expect(row.meta.elapsed_s).toBeLessThan(25);
+    expect(row.meta.quality).toBe('rapid_perfect');
+  });
+
   test('golden: the same 10/10 at 1600 ms, submitted 40 s after the serve: no quality key', async () => {
     flags();
     const ex = await Ch.exercise(hub(K5), 'missing', D);
@@ -393,6 +405,79 @@ describe('the speed floor on the server clock', () => {
     await Ch.submit({ ct: b.ct, answers: rightAt(b.items, 1600), ms: 16000 });
     expect(rowOf(b.ct).score.correct).toBe(10);
     expect(rowOf(b.ct).meta).not.toHaveProperty('quality');
+  });
+});
+
+describe('the silent-ended read: the floor runs before the door', () => {
+  // the page ended the reading on silence after 10 s; the microphone check measured a level (not speech)
+  const readSilent = async (ct, transcript, right, tried) => {
+    const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
+    r2.downloadFromR2.mockResolvedValue(clip(10));
+    AudioService.transcribe.mockResolvedValue(transcript);
+    llm.__create.mockResolvedValue(marks(right, tried));
+    return Ch.submit({ ct, key, ms: 10000, lang: 'en', ended: 'silent', mic_check: 'level_ok', read_s: 10 }, { waitMs: 60000 });
+  };
+  const UR = ['ایک', 'دن', 'ہم', 'سکول', 'گئے', 'وہاں', 'بہت', 'بچے', 'تھے', 'اور'];
+  const urdu = (n) => ({ text: '', tokens: Array.from({ length: n }, (_, k) => ({ text: ` ${UR[k % UR.length]}`, start_ms: Math.round((0.4 + k * 0.33) * 1000), end_ms: Math.round((0.4 + k * 0.33 + 0.28) * 1000), speaker: 1 })) });
+  const serve = async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
+    return ex;
+  };
+
+  test('29 Urdu words heard on an English passage, none credited: failed/unheard, no quality key, the record kept (the next read is practice)', async () => {
+    const ex = await serve();
+    await readSilent(ex.ct, urdu(29), 0, 0);
+    const row = rowOf(ex.ct);
+    expect(row.meta.stt_words).toBe(29);
+    expect(row.status).toBe('failed');
+    expect(row.meta.reason).toBe('unheard');
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.meta).not.toHaveProperty('record_lost');
+    expect(row.record).toBe(true);
+    const again = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false });
+  });
+
+  test('nothing heard at all: implausible (no_speech), record cleared, wcpm null; the next read is a fresh check', async () => {
+    const ex = await serve();
+    await readSilent(ex.ct, { text: '', tokens: [] }, 0, 0);
+    const row = rowOf(ex.ct);
+    expect(row.status).toBe('scored');
+    expect(row.meta.quality).toBe('implausible');
+    expect(row.meta.flags).toEqual(expect.arrayContaining(['no_speech']));
+    expect(row.record).toBe(false);
+    expect(row.meta.record_lost).toBe('implausible');
+    expect(row.wcpm).toBeNull();
+    expect(row.score.correct).toBe(0);
+    const again = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(again.ct)).toMatchObject({ mode: 'check', record: true });
+  });
+
+  test('one garbled word then silence, none credited: implausible (no_aligned_words), record cleared, no reading rung', async () => {
+    const ex = await serve();
+    await readSilent(ex.ct, garbled(1), 0, 0);
+    const row = rowOf(ex.ct);
+    expect(row.meta.stt_words).toBe(1);
+    expect(row.status).toBe('scored');
+    expect(row.meta.quality).toBe('implausible');
+    expect(row.meta.flags).toEqual(expect.arrayContaining(['no_aligned_words']));
+    expect(row.record).toBe(false);
+    expect(row.meta.record_lost).toBe('implausible');
+    expect(row.wcpm).toBeNull();
+    expect(R.computeRung('reading', [row])).toBe(0);
+  });
+
+  test('golden: a timer-ended read that stops on the first line stays scored, stopped, no quality key', async () => {
+    const ex = await serve();
+    await readWith(ex.ct, heard(50, 1.1), 0, 50);
+    const row = rowOf(ex.ct);
+    expect(row.status).toBe('scored');
+    expect(row.score.stopped).toBe(true);
+    expect(row.wcpm).toBe(0);
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.record).toBe(true);
   });
 });
 
