@@ -138,7 +138,7 @@ describe('a section has room to reason and still answer', () => {
     return tree;
   }
 
-  test('every section call: max_tokens 24000, timeout 300000, low reasoning effort', async () => {
+  test('every section call: max_tokens 24000 (no maths section sizes above it), timeout 300000, low reasoning effort', async () => {
     mockLoadPages.mockResolvedValue(loaded(MATHS_PAGES, '1-270'));
     mockCreate.mockImplementation(async (params) => reply(JSON.stringify(mathsSection(params.messages[1].content))));
     await Gen.generatePatternExam(ARGS('maths'));
