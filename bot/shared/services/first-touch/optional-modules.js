@@ -7,7 +7,7 @@
  * path that may not exist yet). A module that is absent answers null; a module that is present but throws while loading
  * throws (a broken module is loud, never silently "absent").
  *
- *   load(name) → the module | null        name ∈ studentJoin | teacherHomeToken | makerToken | testPersona
+ *   load(name) → the module | null        name ∈ studentJoin | teacherHomeToken | makerToken | testPersona | cardsPage | oneDoor
  *   _set(name, mod) / _reset()             tests only: stand a module in (or out) without mocking a path
  */
 const path = require('path');
@@ -17,6 +17,9 @@ const PATHS = Object.freeze({
   teacherHomeToken: path.join(__dirname, 'teacher-home.token'),
   makerToken: path.join(__dirname, 'maker.token'),
   testPersona: path.join(__dirname, 'walk-persona'),
+  // on the branch today; listed so every first-touch page looks its neighbours up through one list of names
+  cardsPage: path.join(__dirname, 'cards.page'),
+  oneDoor: path.join(__dirname, 'one-door.service'),
 });
 let stand = {};
 

@@ -9,7 +9,8 @@
  *  - a known child: OFF today's "Home" reply → ON the same ONE hub link with the child words (no retired door word);
  *  - the bot's own name «جگنو» / `jugnu` is not a quiz request, ON or OFF;
  *  - the 9th /quiz with the shared 8-a-day pool spent still gets its link (its own counter) — for an unknown phone,
- *    for a known child's hub reply, and for a binder reply (STOP with nothing saved): OFF those are capped as today.
+ *    for a known child's hub reply, and for a binder reply (STOP with nothing saved): OFF those are capped as today;
+ *  - with Keep my place ON too, its way-back line is recorded once on the own counter and sent once.
  */
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost';
 process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-key';
@@ -308,6 +309,51 @@ describe('replies to a person\'s own message ride their own counter (the shared 
       await spendPool();
       const out = await app.text('STOP');
       expect(out.filter((s) => s.kind === 'text')).toHaveLength(n);
+    } finally { await app.close(); }
+  });
+
+  // Keep my place (web_quiz_bind_way_back) and the one door on the same reply path: the way back's line for a code the
+  // bot does not know is recorded ONCE, on the person's own counter (ownReply), and sent once; the binder's own records
+  // beneath it never run. One door OFF → the shared pool applies as today (capped, silent).
+  test.each([['OFF', {}, 0], ['ON', ON, 1]])('Keep my place ON, a code the bot does not know (the way back\'s line): one door %s → %s reply, ONE ledger record', async (_n, extra, n) => {
+    const app = await boot(worldOf({ users: [CHILD_USER()], students: [CHILD_ROW()], settings: { ...BIND, web_quiz_bind_way_back: true, ...extra } }));
+    try {
+      await spendPool();
+      const Ledger = require('../../shared/services/quiz/message-ledger');
+      const records = [];
+      const real = Ledger.record.bind(Ledger);
+      jest.spyOn(Ledger, 'record').mockImplementation(async (args) => { const ok = await real(args); records.push({ ...args, ok }); return ok; });
+      const out = await app.text('JUGNU-ZZ9ZZ');
+      expect(out.filter((s) => s.kind === 'text')).toHaveLength(n);
+      expect(out.filter((s) => s.kind !== 'text')).toHaveLength(0);
+      expect(records.map((r) => [r.trigger, r.reason, r.ownReply, r.ok])).toEqual([['bind_reply', 'code_unknown', true, n === 1]]);
+    } finally { await app.close(); }
+  });
+
+  // The merged line itself (web-quiz-bind.service.js, a phone already holding four children): the way back answers
+  // first and the binder's own record beneath it never runs — one record, own counter, one reply.
+  test.each([['OFF', {}, 0], ['ON', ON, 1]])('Keep my place ON, a fifth child on a full phone (max_kids): one door %s → %s reply, ONE ledger record', async (_n, extra, n) => {
+    const soon = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const minted = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const fifth = { id: 'st-5', phone: null, list_id: null, is_active: true, student_name: 'Fifth Testwala', self_reported_class: '4', created_at: '2026-10-08T08:59:00Z' };
+    const app = await boot(worldOf({
+      users: [CHILD_USER()], students: [CHILD_ROW(), fifth], settings: { ...BIND, web_quiz_bind_way_back: true, ...extra },
+      extra: { child_bind_codes: [{ code: 'JUGNU-AB2CD', canonical_id: 'st-5', minted_at: minted, expires_at: soon, used_at: null, outcome: null }] },
+    }));
+    try {
+      await spendPool();
+      const Ledger = require('../../shared/services/quiz/message-ledger');
+      const BindRepo = require('../../shared/services/quiz/child-phone-bindings.repo');
+      const four = ['k-1', 'k-2', 'k-3', 'k-4'].map((id) => ({ id }));
+      expect(four).toHaveLength(require('../../shared/services/quiz/web-quiz-token').HUB_MAX_KIDS);
+      jest.spyOn(BindRepo, 'childrenForPhone').mockResolvedValue(four);
+      const records = [];
+      const real = Ledger.record.bind(Ledger);
+      jest.spyOn(Ledger, 'record').mockImplementation(async (args) => { const ok = await real(args); records.push({ ...args, ok }); return ok; });
+      const out = await app.text('JUGNU-AB2CD');
+      // the way back's reply: the full line WITH the button to the child's page (the binder's own line has none)
+      expect(out.map((s) => s.kind)).toEqual(n ? ['cta'] : []);
+      expect(records.map((r) => [r.trigger, r.reason, r.ownReply, r.ok])).toEqual([['bind_reply', 'max_kids', true, n === 1]]);
     } finally { await app.close(); }
   });
 });

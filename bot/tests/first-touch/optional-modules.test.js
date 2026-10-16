@@ -22,6 +22,24 @@ describe('optional-modules — the neighbours by name', () => {
     expect(Optional.PATHS.makerToken).toBe(path.join(FT, 'maker.token'));
   });
 
+  test('the first-touch modules other pages look up by name: the cards page and the one door', () => {
+    expect(Optional.PATHS.cardsPage).toBe(path.join(FT, 'cards.page'));
+    expect(Optional.PATHS.oneDoor).toBe(path.join(FT, 'one-door.service'));
+  });
+
+  // Every name resolves on this branch, or is a neighbour still in review (named by its change). A misspelt or
+  // git-ignored name fails here instead of reading "absent" forever.
+  const NOT_LANDED_YET = Object.freeze({
+    studentJoin: 'the join page (#2653)',
+    teacherHomeToken: 'the teacher home (#2655)',
+    testPersona: 'the walk-through (#2660)',
+  });
+  test.each(Object.keys(Optional.PATHS))('%s resolves on this branch, or is a neighbour not landed yet', (name) => {
+    let found = true;
+    try { require.resolve(Optional.PATHS[name]); } catch (_) { found = false; }
+    expect(found || Object.prototype.hasOwnProperty.call(NOT_LANDED_YET, name)).toBe(true);
+  });
+
   test('an absent neighbour answers null; an unknown name answers null; a stand-in wins', () => {
     expect(Optional.load('nope')).toBeNull();
     const mod = { get: () => null };
