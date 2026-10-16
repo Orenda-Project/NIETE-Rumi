@@ -1005,21 +1005,29 @@ function rawDeckReaders(files) {
 // ------------------------------------------------------------------------- a content file's changes trace
 
 const TRACE_FIELDS = ['at', 'field', 'what', 'why', 'text_hash_before'];
+const NO_HASH_TRACE = 'a changes trace in a file with no text_hash (an item bank or a Set A pointer file): a fix there '
+  + 'is a new id or a new bank_version, never a same-id edit (ITEMS item 18)';
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 /**
  * The problems (strings, `<where>: <what>`) of every `changes` array in a parsed content file: each entry has the
  * five fields as non-empty strings, `at` is an ISO time, `text_hash_before` is 32 lowercase hex (the files' own
- * text_hash format) and, when the holding object records a `text_hash`, differs from it. [] when the file has none.
+ * text_hash format) and, when the holding object records a `text_hash`, differs from it. A file that records no
+ * `text_hash` anywhere (an item bank, a Set A pointer file) carries no trace at all: NO_HASH_TRACE first. [] when the
+ * file has no trace.
  */
 function changesTraceProblems(doc) {
   const out = [];
+  let hashed = false;
+  let traced = false;
   const visit = (o, where) => {
     if (Array.isArray(o)) { o.forEach((x, i) => visit(x, `${where}[${i}]`)); return; }
     if (!o || typeof o !== 'object') return;
     for (const [k, v] of Object.entries(o)) {
       const at = where ? `${where}.${k}` : k;
+      if (k === 'text_hash') hashed = true;
       if (k !== 'changes') { visit(v, at); continue; }
+      traced = true;
       if (!Array.isArray(v)) { out.push(`${at}: not an array`); continue; }
       v.forEach((e, i) => {
         const w = `${at}[${i}]`;
@@ -1033,6 +1041,7 @@ function changesTraceProblems(doc) {
     }
   };
   visit(doc, '');
+  if (traced && !hashed) out.unshift(NO_HASH_TRACE);
   return out;
 }
 
