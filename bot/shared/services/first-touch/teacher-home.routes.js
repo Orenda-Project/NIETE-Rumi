@@ -23,7 +23,9 @@
  * Never a 500: a thrown read → the mk.error page (200) on the page route, 503 {error:'mk.error'} on the JSON routes.
  *
  * Events (ids only, never a phone, a name or a code): teacher_home_open { tk, first, has_lp, has_coaching,
- * zero_kids_open, primary_kind }, teacher_send { tk, kind: quiz|video|story, origin, again }, teacher_home.step.
+ * zero_kids_open, primary_kind }, teacher_send { tk, kind: quiz|video|story, origin, again, prompted, cls_k },
+ * teacher_home.step. `prompted`: the page was opened from a message the bot sent (the token's door is the report);
+ * `cls_k`: the keyed class of the code sent (web-quiz-kid clsOf), null when the code is not this teacher's or has none.
  */
 const crypto = require('crypto');
 const express = require('express');
@@ -130,7 +132,7 @@ function createRouter(deps = null) {
   }
   /** The walk-through persona's view of the lists (the persona module decides; absent → the lists as they are). */
   async function walkLists(user, lists) {
-    const P = deps && deps.TestPersona ? deps.TestPersona : optional('./test-persona');
+    const P = optional('./walk-persona');
     if (!P || typeof P.forHome !== 'function' || !user || !user.phone_number) return lists;
     try { return (await P.forHome(user.phone_number, lists)) || lists; } catch (_) { return lists; }
   }
@@ -143,6 +145,22 @@ function createRouter(deps = null) {
       if (typeof url !== 'string') return null;
       const at = url.indexOf('/quiz/go/');
       return at >= 0 ? url.slice(at) : null;
+    } catch (_) { return null; }
+  }
+  /**
+   * The sandbox walk-through row for a listed test phone (the one door's walk-through module renders it from the go
+   * token of the "Change" link): its HTML, or null — for every phone that is not listed, and whenever the module or the
+   * link is absent, the home's JSON is exactly what it was.
+   */
+  async function walkRow(change, lang) {
+    const t = typeof change === 'string' ? change.slice('/quiz/go/'.length) : '';
+    if (!t || t.includes('/')) return null;
+    try {
+      const OneDoor = optional('./optional-modules');
+      const P = OneDoor && typeof OneDoor.load === 'function' ? OneDoor.load('testPersona') : null;
+      if (!P || typeof P.row !== 'function') return null;
+      const html = await P.row({ lang, token: t });
+      return typeof html === 'string' && html.startsWith('<section data-screen="walk">') ? { html, t } : null;
     } catch (_) { return null; }
   }
   function practiceUrl(user, lang) {
@@ -210,10 +228,13 @@ function createRouter(deps = null) {
       const on = await Data.within(Data.dep(deps, 'Gate').teacherReportOn(p.uid), Data.SIDE_BUDGET_MS, false, 'report gate');
       if (on) ownSent.forEach((id) => { const u = Data.dep(deps, 'Gate').reportUrls({ teacherId: p.uid, quizId: id }); if (u) reports.set(id, { live: u.live, remind: u.remind }); });
     }
+    const change = await changeLanding(user, lang);
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
-      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change: await changeLanding(user, lang),
+      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
     });
+    const walk = await walkRow(change, lang);
+    if (walk) home.walk = walk;
     home.primary = (await withSend(home.primary, p, lang)) || (maker ? { kind: 'make', href: maker } : { kind: 'none' });
     home.cards = maker ? cardsFor(lang) : [];
     home.lang = lang;
@@ -302,6 +323,16 @@ function createRouter(deps = null) {
   const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam']);
   const SEND_KIND = { video: 'video', share: 'video', again: 'quiz', story: 'story' };
   const ORIGINS = new Set(['library', 'again', 'lesson_plan', 'coaching']);
+  const PROMPTED_VIAS = new Set(['report']);
+  /** The keyed class of a code this teacher holds; null for no code, another teacher's code or a failed read. */
+  async function classKeyOf(uid, codeId) {
+    if (!codeId) return null;
+    try {
+      const { data } = await Data.dep(deps, 'supabase').from('quiz_share_codes').select('class_id, teacher_user_id').eq('id', codeId).maybeSingle();
+      if (!data || data.teacher_user_id !== uid || !data.class_id) return null;
+      return require('../quiz/web-quiz-kid').clsOf(data.class_id) || null;
+    } catch (_) { return null; }
+  }
   router.post('/api/th/step', handleJson(async (req, res) => {
     const b = bodyOf(req);
     const p = authorise(b.t, res);
@@ -309,7 +340,10 @@ function createRouter(deps = null) {
     if (!STEPS.has(b.step)) { fail(res, 400); return; }
     if (b.step === 'share_tap' && SEND_KIND[b.kind]) {
       if (uuidIn(b.c)) await require('./teacher-home.sent').markSent(b.c);
-      event('teacher_send', p.uid, { kind: SEND_KIND[b.kind], origin: ORIGINS.has(b.origin) ? b.origin : 'library', again: b.kind === 'again' || b.kind === 'share', id: uuidIn(b.id) });
+      event('teacher_send', p.uid, {
+        kind: SEND_KIND[b.kind], origin: ORIGINS.has(b.origin) ? b.origin : 'library', again: b.kind === 'again' || b.kind === 'share', id: uuidIn(b.id),
+        prompted: PROMPTED_VIAS.has(p.via), cls_k: await classKeyOf(p.uid, uuidIn(b.c)),
+      });
     } else {
       event('teacher_home.step', p.uid, { step: b.step, screen: 'home' });
     }

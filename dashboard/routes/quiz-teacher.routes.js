@@ -4,7 +4,8 @@
  * never followed). It never verifies a token and never touches the database: the bot renders and decides.
  *
  *   GET  /quiz/teacher/:token            the page shell (HTML)
- *   GET  /quiz/teacher/:token/stories    the stories page (served by the stories router on the bot)
+ *   GET  /quiz/teacher/:token/stories    the stories page (served by the stories router on the bot); ?book (a story
+ *                                        tile's book: its send sheet), ?grade (1-5) and ?lang reach it
  *   GET  /api/th/home  ?t&g&lang         the home's JSON
  *   GET  /api/th/library ?t&g&lang       the library card for a grade
  *   GET  /api/th/quiz/:id ?t&lang        the "Quiz this" poll
@@ -13,7 +14,8 @@
  * Switch quiz_teacher_home OFF: the bot answers 404 {off:true} and this edge calls next(), so the request falls
  * through to exactly today's handling (nothing is set on the response before that). A malformed token also falls
  * through, with no bot call. A bot that cannot be reached or answers 5xx: the page routes get the small static
- * mk.error page in the request's language, the JSON routes 503 {error:'mk.error'}.
+ * mk.error page in the request's language, the JSON routes 503 {error:'mk.error'}. A caller over the rate limit also
+ * falls through, with no bot call (never a 429: with the switch off this edge must not be seen at all).
  */
 const express = require('express');
 const rateLimit = require('express-rate-limit');
@@ -30,8 +32,10 @@ const ONE_OF = (...vals) => (v) => vals.includes(v);
 
 // The query keys each GET may carry to the bot; anything else is dropped.
 const QUERY = { t: (v) => TOKEN_RX.test(v), g: (v) => /^[1-5]$/.test(v), lang: LANG };
-function forwardQuery(q) {
-  const out = Object.keys(QUERY).filter((k) => typeof q[k] === 'string' && QUERY[k](q[k])).map((k) => `${k}=${encodeURIComponent(q[k])}`);
+// The query keys a page may carry: the shell reads lang; the stories page also the tile's book and the grade.
+const PAGE_QUERY = { book: (v) => UUID_RX.test(v), grade: (v) => /^[1-5]$/.test(v), lang: LANG };
+function forwardQuery(q, keys = QUERY) {
+  const out = Object.keys(keys).filter((k) => typeof q[k] === 'string' && keys[k](q[k])).map((k) => `${k}=${encodeURIComponent(q[k])}`);
   return out.length ? `?${out.join('&')}` : '';
 }
 
@@ -92,11 +96,12 @@ function createQuizTeacherRouter(opts = {}) {
   }
   const router = express.Router();
 
-  // Per caller address. No rate headers: a request that falls through is untouched.
+  // Per caller address. Over the limit → this route is skipped (next('route')) and the request falls through to
+  // today's handling untouched, exactly as with the switch off: no 429, no rate headers, no bot call.
   const limiter = rateLimit({
-    windowMs: 60 * 1000, max: 240, standardHeaders: false, legacyHeaders: false, validate: false,
+    windowMs: 60 * 1000, max: opts.limit || 240, standardHeaders: false, legacyHeaders: false, validate: false,
     keyGenerator: (req) => `th:${clientIp(req)}`,
-    handler: (req, res) => errorPage(req, res, 429),
+    handler: (req, res, next) => next('route'),
   });
   // Its own small body parser; a body too large or unreadable is an empty one (the bot then refuses it).
   const parse = (req, res, next) => express.json({ limit: '4kb' })(req, res, (err) => { if (err) req.body = {}; next(); });
@@ -124,10 +129,10 @@ function createQuizTeacherRouter(opts = {}) {
     return async (req, res, next) => {
       const token = String(req.params.token || '');
       if (!TOKEN_RX.test(token) || !configured) return next();
-      const lang = LANG(req.query && req.query.lang) ? `?lang=${req.query.lang}` : '';
+      const query = forwardQuery(req.query || {}, suffix ? PAGE_QUERY : { lang: LANG });
       let out;
       try {
-        out = await callBot('GET', `${BOT_BASE}/quiz/teacher/${token}${suffix}${lang}`, req, null, { raw: true });
+        out = await callBot('GET', `${BOT_BASE}/quiz/teacher/${token}${suffix}${query}`, req, null, { raw: true });
       } catch (_) {
         return errorPage(req, res);
       }

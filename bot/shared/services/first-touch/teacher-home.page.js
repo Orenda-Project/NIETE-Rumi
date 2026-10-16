@@ -78,7 +78,7 @@ const CSS = [
   '.th-chip[aria-pressed=true]{border-color:var(--brand);background:#E8F6EE}',
   '.th-note{margin:0;color:var(--muted);font-size:15px;line-height:1.5}html[lang=ur] .th-note{font-size:18px;line-height:2}',
   '.th-err{margin:0;padding:6px 12px;border-radius:12px;background:var(--warn-bg);color:var(--warn);font-weight:800}html[lang=ur] .th-err{font-weight:400;font-size:18px;line-height:1.9}',
-  '.th-msg{width:100%;min-height:150px;margin:0;padding:12px 14px;border-radius:14px;background:var(--card);border:2px solid var(--line);font:16px/1.5 var(--f);color:var(--ink);resize:vertical}',
+  '.th-msg{width:100%;min-height:150px;margin:0;padding:12px 14px;border-radius:14px;background:var(--card);border:2px solid var(--line);font:16px/1.5 var(--f);color:var(--ink);resize:vertical;field-sizing:content}',
   'html[lang=ur] .th-msg{font-family:var(--fu);font-size:18px;line-height:2}',
   '.th-ok{margin:0;font-weight:800;color:var(--brand-d)}html[lang=ur] .th-ok{font-weight:400;font-size:18px}',
   '.th-sk{background:#EDF2EF;border-radius:12px;min-height:22px}.th-sk-b{min-height:56px}',
@@ -87,6 +87,7 @@ const CSS = [
   '.th-foot{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:6px}',
   '.th-cards{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}',
   '.th-sheet{position:fixed;inset:0;background:var(--ground);overflow:auto;z-index:5}',
+  '.th-walk{margin-top:14px;padding:12px;border:2px dashed var(--line);border-radius:14px}.th-walk button{display:block;width:100%;min-height:48px;margin-top:8px;border-radius:12px;border:2px solid var(--line);background:var(--card);font:inherit;color:var(--ink)}',
 ].join('\n');
 
 function fontFace(lang) {
@@ -94,8 +95,22 @@ function fontFace(lang) {
   return `@font-face{font-family:"WQ Nastaliq 5";src:url(${UR_FONT}) format("woff2");font-weight:400;font-display:swap}\n`;
 }
 
+/**
+ * The send sheet's message box rows: every line of the message, each long line counted for every phone row it wraps
+ * onto (≈ 28 Latin / 22 Urdu letters per row at 360 px; an Urdu message on the English page counts as Urdu), plus
+ * one, never under 3. Plain ES5: the page's script
+ * carries this very function (one source), so the whole message, the return line included, is in view.
+ */
+function msgRows(t, ur) {
+  var per = ur || /[\u0600-\u06FF]/.test(String(t || '')) ? 22 : 28;
+  var n = 1;
+  String(t || '').split('\n').forEach(function (l) { n += Math.max(1, Math.ceil(l.length / per)); });
+  return Math.max(3, n);
+}
+
 // The page's one script. Plain ES5; never builds HTML; a failed event post never blocks a tap.
 const SCRIPT = `(function(){
+${msgRows.toString()}
 var b={};try{b=JSON.parse(document.getElementById('th-boot').textContent)}catch(e){}
 var S=b.s||{},d=null,grade=null,busy=false,T=encodeURIComponent(b.t),shown=5,polls={};
 function q(s){return document.querySelector(s)}
@@ -113,7 +128,7 @@ function link(cls,txt,href,tap,primary){var x=el('a',cls,txt);x.href=href;x.setA
 function err(on){q('#th-err').hidden=!on}
 function hello(){var h=q('#th-h');clear(h);if(d&&d.first){var p=String(S['th.h']||'').split('{first}');h.appendChild(document.createTextNode(p[0]||''));h.appendChild(topic(d.first));h.appendChild(document.createTextNode(p[1]||''))}else h.textContent=S['th.hello.noname']||''}
 var cur=null;
-function sheet(x,title){cur=x;q('#th-sheet-t').textContent='';q('#th-sheet-t').appendChild(topic(title));var m=q('#th-msg');m.value=x.message;q('#th-sheet-go').setAttribute('href',x.wa);q('#th-copied').hidden=true;q('#th-long').hidden=true;q('#th-sheet').hidden=false;q('#th-main').setAttribute('aria-hidden','true');try{m.style.height='auto';m.style.height=(m.scrollHeight+4)+'px'}catch(e){}
+function sheet(x,title){cur=x;q('#th-sheet-t').textContent='';q('#th-sheet-t').appendChild(topic(title));var m=q('#th-msg');m.value=x.message;m.rows=msgRows(x.message,b.lang==='ur');q('#th-sheet-go').setAttribute('href',x.wa);q('#th-copied').hidden=true;q('#th-long').hidden=true;q('#th-sheet').hidden=false;q('#th-main').setAttribute('aria-hidden','true');try{m.style.height='auto';m.style.height=(m.scrollHeight+4)+'px'}catch(e){}
 try{history.pushState({sheet:1},'')}catch(e){}window.scrollTo(0,0)}
 function unsheet(){q('#th-sheet').hidden=true;q('#th-main').removeAttribute('aria-hidden')}
 window.addEventListener('popstate',function(){unsheet()});
@@ -169,7 +184,11 @@ function pickGrade(n){if(String(n)===String(grade))return;grade=n;store('th.grad
 getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}).catch(function(e){if(e!==1)err(true)})}
 function foot(){var m=q('#th-make');m.hidden=!d.maker;if(d.maker)m.setAttribute('href',d.maker);
 var cs=q('#th-cards');clear(cs);(d.cards||[]).forEach(function(c){var a=link('th-go2',c.title,c.href,'card');a.setAttribute('data-card',c.card);cs.appendChild(a)});cs.hidden=!(d.cards&&d.cards.length);
-var s=q('#th-try');s.hidden=!d.tryStudent;if(d.tryStudent)s.setAttribute('href',d.tryStudent);var cl=q('#th-change-go');cl.hidden=typeof d.change!=='string';if(typeof d.change==='string')cl.setAttribute('href',d.change)}
+var s=q('#th-try');s.hidden=!d.tryStudent;if(d.tryStudent)s.setAttribute('href',d.tryStudent);var cl=q('#th-change-go');cl.hidden=typeof d.change!=='string';if(typeof d.change==='string')cl.setAttribute('href',d.change);walk()}
+function walk(){var w=q('#th-walk'),k=d.walk;w.hidden=!k;if(!k||w.firstChild||String(k.html).indexOf('<section data-screen="walk">')!==0)return;w.insertAdjacentHTML('beforeend',k.html);
+Array.prototype.forEach.call(w.querySelectorAll('[data-persona]'),function(x){x.addEventListener('click',function(){if(busy)return;busy=true;
+post('/api/go/persona',{t:k.t,as:x.getAttribute('data-persona')}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(o){if(!o||typeof o.next!=='string'||o.next.indexOf('/quiz/go/')!==0)throw 0;location.href=o.next})
+.catch(function(){busy=false;err(true)})})})}
 function render(){hello();top();under();rows();lib(d.library||{grade:2});foot();q('#th-main').setAttribute('data-ready','1')}
 q('#th-more').addEventListener('click',function(){shown+=10;rows();step('more')});
 q('#th-back').addEventListener('click',function(){try{history.back()}catch(e){unsheet()}});
@@ -256,13 +275,14 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
 <div class="th-cards" id="th-cards" hidden></div>
 <a class="th-link" id="th-try" data-tap="try_student" hidden>${esc(str('th.try.student', l))}</a>
 <a class="th-link" id="th-change-go" data-tap="change" hidden>${esc(str('th.change', l))}</a>
+<div class="th-walk" id="th-walk" hidden></div>
 </nav>
 </main>
 <section class="th-sheet" id="th-sheet" data-screen="teacher_send" hidden>
 <div class="th">
 <div class="th-top"><button type="button" class="th-link" id="th-back" data-back data-tap="back" aria-label="${esc(str('th.title', l))}">${l === 'ur' ? '\u2192' : '\u2190'}</button></div>
 <p class="th-say" id="th-sheet-t"></p>
-<textarea class="th-msg" id="th-msg" readonly dir="auto" aria-label="${esc(str('th.copy', l))}"></textarea>
+<textarea class="th-msg" id="th-msg" readonly dir="auto" rows="${l === 'ur' ? 9 : 7}" aria-label="${esc(str('th.copy', l))}"></textarea>
 <button type="button" class="th-go2" id="th-copy" data-tap="copy">${esc(str('th.copy', l))}</button>
 <p class="th-ok" id="th-copied" role="status" hidden>${esc(str('th.copied', l))}</p>
 <p class="th-note" id="th-long" role="status" hidden>${esc(str('th.copy.long', l))}</p>
@@ -279,4 +299,4 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
   return { html, csp: csp(styleHash, SCRIPT_HASH) };
 }
 
-module.exports = { buildShell, pageLang, SCRIPT, SCRIPT_HASH, digits };
+module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, digits };
