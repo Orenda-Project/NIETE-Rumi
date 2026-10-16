@@ -127,14 +127,15 @@ function classOf(roster, quiz, listId) {
 }
 
 /** The sessions that count, per class code (the class report's rule). */
-function countedSessions(rows, teacherId) {
+// `opened`: a storybook send's sessions count once the child has joined (a story has no finish to wait for).
+function countedSessions(rows, teacherId, { opened = false } = {}) {
   const byCode = new Map();
   excludeSelfTests(rows, teacherId)
     .filter((s) => !s.invited_by_student_id)
     .forEach((s) => { const k = s.share_code_id; if (!byCode.has(k)) byCode.set(k, []); byCode.get(k).push(s); });
   const out = [];
   byCode.forEach((list) => out.push(...oneAttemptPerChild(list, { rule: attemptRuleFor(list) })));
-  return out.filter((s) => s.status === 'completed');
+  return out.filter((s) => s.status === 'completed' || (opened && s.status === 'in_progress'));
 }
 
 /** One counted session per child across a quiz's codes: the earliest finish. Rows without a student pass through. */
@@ -419,7 +420,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   // quiz's codes: this page is one quiz, so a child who played on two hand-outs is
   // one child — the earlier finish counts.
   const rawSessions = await sessionsFor(codes.map((c) => c.id));
-  const counted = onePerChildAcrossCodes(countedSessions(rawSessions, teacherId));
+  const counted = onePerChildAcrossCodes(countedSessions(rawSessions, teacherId, { opened: quiz.quiz_source === 'story' }));
   // bd-v0toag.9/.10, behind quiz_slo_retest_enabled: tries per child, completion, SLO codes.
   const v21 = await v21On();
   const tries = v21 ? V21.attemptCounts(rawSessions, teacherId) : null;
@@ -479,7 +480,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     }
   }
 
-  return {
+  const report = {
     quiz: {
       id: quiz.id, topic: quiz.topic || '', subject: quiz.subject || null, grade: quiz.grade || null,
       source: quiz.quiz_source, language: lang, date: sent ? sent.sent_at : meta.lesson_date || quiz.created_at, code, link,
@@ -511,6 +512,9 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       }),
     } : null,
   };
+  // A storybook the teacher sent: listened / read aloud / questions per child instead of scores (story-teacher-report.js).
+  if (quiz.quiz_source === 'story') return require('./story-teacher-report').forQuizReport(report, { quiz, sessions: counting, firstOf: (s) => { const l = who.listed(s); return l ? l.first : firstName(s.student_name); } });
+  return report;
 }
 
 /** Monday 00:00 PKT of the week `iso` falls in, as YYYY-MM-DD. */
@@ -539,7 +543,10 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     : quizzes || [];
   const codes = await classCodes(teacherId, qs.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
-  const counted = countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId);
+  const allSessions = await sessionsFor(codes.map((c) => c.id));
+  const counted = countedSessions(allSessions, teacherId);
+  // A storybook send's children count once they joined (story-teacher-report.js); a no-op when there is none.
+  require('./story-teacher-report').countStoryJoins(counted, { quizzes: qs, sessions: allSessions, quizOfCode, count: (rows) => countedSessions(rows, teacherId, { opened: true }) });
   const sessionsOf = new Map();
   counted.forEach((s) => {
     const q = quizOfCode.get(s.share_code_id);
@@ -558,7 +565,8 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     const { roster: view, one } = classOf(roster, q, null);
     const ids = one ? new Set(one.kids.map((k) => k.id)) : null;
     // the same children for the average as for "N of M"
-    const scores = (ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)) : mine)
+    // A storybook send has no questions: its children count as played, never as a 0 % score in an average.
+    const scores = q.quiz_source === 'story' ? [] : (ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)) : mine)
       .map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
     return {
       of: view.of,
@@ -571,6 +579,7 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   const cellMap = new Map();
   const weekMap = new Map();
   rows.forEach((r) => {
+    if (r.source === 'story') return;   // a story send is listed, never mixed into the class's quiz cells and weeks
     const ck = `${r.grade || ''}|${r.subject || ''}`;
     if (!cellMap.has(ck)) cellMap.set(ck, { grade: r.grade, subject: r.subject, quizzes: 0, played: 0, scores: [] });
     const c = cellMap.get(ck);

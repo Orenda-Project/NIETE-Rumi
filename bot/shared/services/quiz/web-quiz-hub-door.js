@@ -54,14 +54,17 @@ async function door(body = {}, Err = Error) {
   if (!s || s.share_code_id !== tok.sc) await fail(401, 'bad_token');
   const f = await Flags.flags();
   const home = Boolean(body.home) && f.hub && f.homeButton;
-  if (!home && !(await isOn())) await fail(404, 'no_door', 'off');
-  if (!ownRun(s) || (s.status !== 'completed' && !(home && s.status === 'in_progress'))) await fail(404, 'no_door', 'not_own_finished_run');
+  // A storybook the teacher sent: the book is the run, so its door (to the hub, which shows the book) opens before the
+  // session is finished, and with the hub on it does not wait for the card's door switch.
+  const story = Boolean(body.story) && f.hub && s.status === 'in_progress' && await require('./story-teacher.service').storyDoorOk(s);
+  if (!home && !story && !(await isOn())) await fail(404, 'no_door', 'off');
+  if (!ownRun(s) || (s.status !== 'completed' && !(home && s.status === 'in_progress') && !story)) await fail(404, 'no_door', 'not_own_finished_run');
   // child identity store (web_quiz_identity_canon): the hub link names the child by the id they are known by.
   const token = T.signHub([(await require('./web-quiz-identity-flags').flags()).canon ? await require('./web-quiz-identity-roster').canonicalStudentId(s.student_id) : s.student_id]);
   if (!token) await fail(404, 'no_door', 'no_secret');
   const bound = await Device.deviceTrusted(token, tok.d);
   if (!bound.ok) await fail(404, 'no_door', bound.why);
-  await K.emit('web_quiz.hub_door', { ok: true, sessionId: s.id, reason: bound.why, ...(home ? { home: true } : {}) }, { kind: 'mark' });
+  await K.emit('web_quiz.hub_door', { ok: true, sessionId: s.id, reason: bound.why, ...(home ? { home: true } : {}), ...(story ? { story: true } : {}) }, { kind: 'mark' });
   return { href: `/h/${token}` };
 }
 

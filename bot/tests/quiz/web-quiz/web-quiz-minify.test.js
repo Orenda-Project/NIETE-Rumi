@@ -219,4 +219,25 @@ describe('the hub payload (Hub.hub)', () => {
     delete on.min;
     expect(on).toEqual(off);
   });
+
+  test('with the read-along preview on too: both keys (`listen` and `min`), and otherwise the switch-off payload', async () => {
+    load();
+    seed();
+    db.app_settings.push({ key: 'web_quiz_readalong', value: true });
+    await open();
+    await wait();
+    const listenOnly = await open();
+    expect(listenOnly.listen).toBe(true);
+    expect(listenOnly).not.toHaveProperty('min');
+    load();
+    seed(true);
+    db.app_settings.push({ key: 'web_quiz_readalong', value: true });
+    await open();
+    await wait();
+    const both = await open();
+    expect(both.listen).toBe(true);
+    expect(both.min).toBe(true);
+    delete both.min;
+    expect(both).toEqual(listenOnly);
+  });
 });

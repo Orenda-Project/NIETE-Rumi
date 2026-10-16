@@ -1,7 +1,7 @@
 'use strict';
 /**
- * scripts/web-quiz/backfill-video-language.js: student_videos.language from each video's lesson quiz, by the quiz
- * clips' own rule (the row's language, else the questions' script). Only NULL rows; a video with no quiz stays NULL;
+ * scripts/web-quiz/backfill-video-language.js: student_videos.language from each video's lesson quiz, by the
+ * row's language, else the questions' majority script. Only NULL rows; a video with no quiz stays NULL;
  * dry run writes nothing; refuses a database that is not the expected one. The database is an in-memory query
  * builder with supabase-js's chain shape (the network boundary).
  */
@@ -37,10 +37,24 @@ const tables = () => ({
   quiz_questions: [{ quiz_id: 'q2', question_text: 'بلی کہاں ہے؟', option_a: 'گھر' }, { quiz_id: 'q3', question_text: 'Where is the cat?', option_a: 'Home' }],
 });
 
-test('the rule is the quiz clips\' rule: the row\'s language, else the questions\' script', () => {
+test('the rule: the row\'s language, else the questions\' script', () => {
   expect(languageFor({ language: 'ur' }, [])).toBe('ur');
   expect(languageFor({ language: null }, [{ question_text: 'بلی', option_a: '' }])).toBe('ur');
   expect(languageFor({ language: null }, [{ question_text: 'cat', option_a: 'dog' }])).toBe('en');
+});
+
+test('the questions\' script is the MAJORITY script: one Urdu letter inside an English question is still English', () => {
+  // A Grade 1 Qaida lesson: English questions that name an Urdu letter.
+  const qaida = [
+    { question_text: 'What is the Urdu name for the different shape of Ha (ہ)?', option_a: 'Do-chashmi Ha' },
+    { question_text: 'Which letter was called a thick letter?', option_a: 'Taa' },
+    { question_text: 'Which letter comes after Lam?', option_a: 'Meem' },
+  ];
+  expect(languageFor({ language: null }, qaida)).toBe('en');
+  // Urdu questions with an English word in them stay Urdu.
+  expect(languageFor({ language: null }, [{ question_text: 'Cat کو اردو میں کیا کہتے ہیں؟', option_a: 'بلی' }])).toBe('ur');
+  // The quiz row's own language still wins.
+  expect(languageFor({ language: 'ur' }, qaida)).toBe('ur');
 });
 
 test('fills only NULL rows that have a lesson quiz; counts, never ids', async () => {
