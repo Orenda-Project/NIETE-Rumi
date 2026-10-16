@@ -93,6 +93,12 @@ function ukey(phoneNorm, { now = Date.now() } = {}) {
   return p ? mac('ukey', p, 16, now) : null;
 }
 
+/** A quiz's key beside a kid (EVENTS v3: a quiz id is never logged beside a kid): hex(HMAC(K, 'q|' + quiz id))[0:10]. */
+function qk(quizId, { now = Date.now() } = {}) {
+  const id = uuidOf(quizId);
+  return id ? mac('q', id, 10, now) : null;
+}
+
 /** The fields without any id that would join a row back to a phone, a share code or a session. Pure. */
 function stripIds(fields = {}) {
   const out = { ...fields };
@@ -119,4 +125,4 @@ async function emit(name, fields = {}, { canonicalId = null, device = null, kind
 }
 
 // kidOf / dkOf / clsOf / ukeyOf: the names the callers use (the same functions).
-module.exports = { kid, dk, cls, ukey, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, stripIds, emit, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };
+module.exports = { kid, dk, cls, ukey, qk, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, stripIds, emit, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };

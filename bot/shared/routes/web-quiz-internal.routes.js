@@ -40,6 +40,8 @@ const WebQuizPulse = require('../services/quiz/web-quiz-pulse');
 const WebQuizArt = require('../services/quiz/web-quiz-art');
 // Loaded with the routes: it listens for finished sessions and draws their card picture straight away.
 const ShareWarm = require('../services/quiz/web-quiz-share-warm');
+// The ranked next thing on a result (web_quiz_next_offer), required on use.
+const NextOffer = () => require('../services/quiz/web-quiz-next-offer-sources');
 const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
@@ -86,7 +88,8 @@ router.post('/finish', handle(async (req) => {
   const out = await WebQuiz.finishSession(req.body || {});
   // The share pictures are drawn now, after the answer, so a child who taps Share at once sends a ready picture.
   ShareWarm.afterFinish(out);
-  return out;
+  // The ranked next thing (web_quiz_next_offer; off -> {} and the card is today's).
+  return out && typeof out === 'object' ? { ...out, ...(await NextOffer().finishField(req.body || {}, out, { device: req.get('x-wq-device') || null })) } : out;
 }));
 router.get('/board/:code', handle((req) => WebQuiz.board(req.params.code, { st: req.query.st })));
 router.get('/schools/:code', handle((req) => WebQuizSchools.board(req.params.code, { st: req.query.st })));
@@ -121,7 +124,9 @@ const challenge = (fn) => handle((req) => {
   }
   return fn(C, req);
 });
-router.get('/ch/result/:ct', challenge((C, req) => C.poll(req.params.ct)));
+// A final result (a score or a failure, never {pending}) gains the ranked next thing (web_quiz_next_offer; off -> today's).
+const withNext = async (out, ct, req) => (out && typeof out === 'object' ? { ...out, ...(await NextOffer().challengeField(out, ct, { device: req.get('x-wq-device') || null })) } : out);
+router.get('/ch/result/:ct', challenge(async (C, req) => withNext(await C.poll(req.params.ct), req.params.ct, req)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {}, { device: req.get('x-wq-device') })));
 // Read aloud, live: a temporary Soniox key for one run (web-quiz-soniox-live.js); the server key never leaves the bot.
 router.post('/ch/live', challenge((C, req) => C.liveKey(req.body || {})));
@@ -129,7 +134,7 @@ router.post('/ch/live', challenge((C, req) => C.liveKey(req.body || {})));
 router.post('/ch/qs', challenge((C, req) => C.questions(req.body || {})));
 router.post('/ch/qa', challenge((C, req) => C.answer(req.body || {})));
 // x-wq-device on a result: the phone the mic notice was shown on (marked seen for that child on that phone)
-router.post('/ch/result', challenge((C, req) => C.submit(req.body || {}, { device: req.get('x-wq-device') })));
+router.post('/ch/result', challenge(async (C, req) => withNext(await C.submit(req.body || {}, { device: req.get('x-wq-device') }), (req.body || {}).ct, req)));
 // x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
 router.get('/ch/:token', challenge((C, req) => C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })));
 // Story Time (?room=story&pid=<passage id>, read and listen only): passed on only with web_quiz_challenge_story on; off, ignored.
