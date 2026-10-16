@@ -286,6 +286,15 @@ describe('the book', () => {
     await Stories.bookData(F.BOOK(1));
     expect(fake.db.story_events.filter((e) => e.event === 'story_page_listened')).toHaveLength(1);
   });
+  test('one miss row per page per child per PKT day: a reopen the same day adds none, the next day adds one', async () => {
+    seed();
+    fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(1), page_n: 2, event: 'story_page_listened', data: { miss: true }, at: new Date().toISOString() });
+    await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(fake.db.story_events.filter((e) => e.event === 'story_page_listened')).toHaveLength(1);
+    fake.db.story_events[0].at = new Date(Date.now() - 2 * DAY).toISOString();
+    await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(fake.db.story_events.filter((e) => e.event === 'story_page_listened')).toHaveLength(2);
+  });
   test('a book payload stays within 25 KB', async () => {
     seed({ band: true });
     const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });

@@ -322,9 +322,16 @@ async function book(id, token, { kid, device } = {}) {
 }
 
 // A text page served without a voice is kept as a miss (story_page_listened {miss:true}) so it gets voiced; never counted.
-async function keepMisses(studentId, out) {
-  const rows = out.pages.filter((p) => !p.is_picture && !p.audio && p.text)
-    .map((p) => ({ child_id: studentId, book_id: out.id, page_n: p.n, event: 'story_page_listened', data: { miss: true } }));
+// One row per page per child per PKT day: a reopen the same day adds none.
+async function keepMisses(studentId, out, now = Date.now()) {
+  const missing = out.pages.filter((p) => !p.is_picture && !p.audio && p.text).map((p) => p.n);
+  if (!missing.length) return;
+  const since = new Date(pktDay(now) * DAY_MS - PKT_MS).toISOString();
+  const { data: kept } = await supabase.from('story_events').select('page_n, data').eq('child_id', studentId).eq('book_id', out.id)
+    .eq('event', 'story_page_listened').gte('at', since);
+  const seen = new Set((kept || []).filter((r) => r.data && r.data.miss === true).map((r) => r.page_n));
+  const rows = missing.filter((n) => !seen.has(n))
+    .map((n) => ({ child_id: studentId, book_id: out.id, page_n: n, event: 'story_page_listened', data: { miss: true } }));
   if (!rows.length) return;
   const { error } = await supabase.from('story_events').insert(rows);
   if (error) logToFile('⚠️ web quiz stories: miss not kept', { error: error.message });
