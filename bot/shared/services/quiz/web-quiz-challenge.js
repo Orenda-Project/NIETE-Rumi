@@ -676,7 +676,8 @@ async function sequenceNo(studentId, except = null) {
 async function provenance(studentId, exercise, lang, run, { except = null } = {}) {
   const { readFailed, ...a } = await attemptInfo(studentId, exercise, lang, { except, step: 'f' });
   // counted: under v2 the row's own mode and record (a round, a replay or a story is never counted, RULING #116); else the first scored attempt, as today
-  const counted = run.v2 ? run.mode === 'check' && run.record === true : a.attempt_no === 1;
+  // A run with a mode (a served row read back after a redeploy emptied the memory) follows its mode too: never counted unless a check record.
+  const counted = run.v2 || run.mode != null ? run.mode === 'check' && run.record === true : a.attempt_no === 1;
   return { ...a, ...(readFailed ? { runs_read_failed: true } : {}), counted, grade_source: run.gradeSource || null, test: !!run.test, sequence_n: await sequenceNo(studentId, except) };
 }
 
@@ -1760,6 +1761,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   // challenge v2: a run served under _v2 already has its row: it is finished in place, never inserted a second time
   const sv = mem.v2 || (isServedRow(storedRow) ? await servedInfo(c.r) : null);
   if (sv && sv.form && !mem.task) run = { ...run, form: sv.form };   // M8: the served row's (fixed-grade) form
+  if (sv && !run.v2 && sv.mode != null) run = { ...run, mode: sv.mode, record: sv.record };   // the served row's mode, when the memory is gone
   const writeRun = sv ? (row) => finishServed(c.r, row) : insertRun;
   const helpedV2 = sv ? { helped: helpedCol(helpedOf(body.helped)) } : {};
 
