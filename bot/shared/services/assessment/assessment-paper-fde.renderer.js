@@ -848,7 +848,8 @@ function beforeExamBox(L, live, ctx, paperFileName, grade) {
     if (slot.alternatives) return fill(B[`either_${lang}`], { label });
     if (slot.attempt < slot.generate) {
       const n = live.get(slot.slot).length;
-      return fill(B[`attempt_${lang}`], { label, n: Math.min(slot.attempt, n), g: n });
+      // A group cut to its attempt count (or emptied) offers no choice: nothing to tell.
+      return n > slot.attempt ? fill(B[`attempt_${lang}`], { label, n: slot.attempt, g: n }) : null;
     }
     if (slot.in_item_choice) return fill(B[`attempt_${lang}`], { label, n: slot.in_item_choice.n, g: slot.in_item_choice.g });
     return null;

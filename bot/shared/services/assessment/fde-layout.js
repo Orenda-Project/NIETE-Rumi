@@ -446,6 +446,21 @@ function spreadKeys(slots, bySlot) {
 const ITEM_TAG = /\s*\((?:based on (?:the )?(?:chapter|concept|passage|text|lesson|topic|unit)\b[^()]*|(?:remember|understand|apply|analy[sz]e|evaluate|create)(?:ing)?|سبق\s*:[^()]*)\)\s*$/i;
 const TAGGED_FIELDS = ['question', 'main_question', 'text'];
 
+// "… which place? (a) Lakhs (b) Ten thousands (c) Thousands (d) Millions": the options
+// written into an MCQ stem as well as into `options`. The paper prints its own options
+// row (keys may be turned), so a second, differently lettered list never prints.
+const STEM_OPTIONS = /\s*\(?a\)\s*\S[^]*?\s\(?b\)\s*\S[^]*?\s\(?c\)\s*\S[^]*?\s\(?d\)\s*\S[^]*$/i;
+
+function stripStemOptions(q) {
+  if (!q || typeof q.question !== 'string' || !Array.isArray(q.options) || q.options.length < 4) return;
+  const m = STEM_OPTIONS.exec(q.question);
+  if (!m) return;
+  // Only a list that holds every option's text (in any order) is the options again.
+  const listed = m[0].toLowerCase();
+  const texts = q.options.map((o) => String(o == null ? '' : o).replace(/^\s*\(?[a-d]\)\s*/i, '').trim().toLowerCase());
+  if (texts.every((t) => t && listed.includes(t))) q.question = q.question.slice(0, m.index).trim();
+}
+
 function stripTags(holder) {
   if (!holder || typeof holder !== 'object') return;
   for (const field of TAGGED_FIELDS) {
@@ -478,7 +493,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   let unplaced = 0;
 
   const all = walk(src);
-  all.forEach((entry) => stripTags(entry.q));
+  all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
   const untagged = [];
   // Tagged items first, so an untagged one cannot take a tagged one's place.
   for (const entry of all) {

@@ -232,3 +232,61 @@ describe('7. a slot head that names its item names it in the scheme too', () => 
     expect(paper).toContain('Write down FOUR rhyming words from the poem “The Kite”');
   });
 });
+
+describe('8. MCQs: one right option, options only in `options`', () => {
+  const ONE_CORRECT = 'Every MCQ has exactly one correct option: check that no other option is also true (another number that fits the rule, a second work by the same author, a value equal to the key).';
+  const OPTIONS_ONLY = 'Write the four options only in `options`; never list (a), (b), (c), (d) inside the question.';
+
+  test('one correct option and options-only rules on every MCQ section', () => {
+    for (const subject of ['maths', 'science', 'english', 'urdu']) {
+      const text = prompt(subject, 'A');
+      expect([subject, text.includes(ONE_CORRECT)]).toEqual([subject, true]);
+      expect([subject, text.includes(OPTIONS_ONLY)]).toEqual([subject, true]);
+    }
+  });
+
+  test('an option list written inside an MCQ stem is stripped; the options row stays', () => {
+    const items = [
+      { slot: 'maths.A.Q1a', question: 'In 4,56,789 the digit 4 is in which place? (a) Lakhs (b) Ten thousands (c) Thousands (d) Millions', options: ['Lakhs', 'Ten thousands', 'Thousands', 'Millions'], answer: 'a', marks: 1, blooms: 'Remember' },
+      { slot: 'maths.A.Q1a', question: 'Which is greatest? a) 0.5 b) 0.05 c) 0.55 d) 0.505', options: ['0.5', '0.05', '0.55', '0.505'], answer: 'c', marks: 1, blooms: 'Remember' },
+      { slot: 'maths.A.Q1a', question: 'Find the side (a) of a square of area 49 cm².', options: ['6 cm', '7 cm', '8 cm', '9 cm'], answer: 'b', marks: 1, blooms: 'Apply' },
+      { slot: 'maths.A.Q1a', question: 'Round 234,567 to the nearest thousand. (a) 234,000 (b) 235,000 (c) 234,500 (d) 230,000', options: ['a) 234,500', 'b) 230,000', 'c) 234,000', 'd) 235,000'], answer: 'd) 235,000', marks: 1, blooms: 'Apply' },
+      { slot: 'maths.A.Q1a', question: 'Pick one: (a) a cat (b) a dog (c) a cow (d) a hen, then say why.', options: ['3', '4', '5', '6'], answer: 'a', marks: 1, blooms: 'Remember' },
+    ];
+    const laid = applyLayout({ unseen: { objective: { MCQs: items } } }, P.maths, FDE, { now: NOW }).examJson;
+    expect(laid.unseen.objective.MCQs.map((q) => q.question)).toEqual([
+      'In 4,56,789 the digit 4 is in which place?', 'Which is greatest?', 'Find the side (a) of a square of area 49 cm².',
+      'Round 234,567 to the nearest thousand.', 'Pick one: (a) a cat (b) a dog (c) a cow (d) a hen, then say why.']);
+  });
+});
+
+describe('9. Urdu Q4 items carry their directive', () => {
+  test('the Q4 directive rule is in the Urdu section C prompt', () => {
+    expect(prompt('urdu', 'C')).toContain('Each Q4 item\'s `question` starts with its own directive in Urdu');
+  });
+});
+
+describe('10. a remainder key is checked', () => {
+  const { mathsCheck } = require('../../bot/shared/services/assessment/maths-check');
+  const check = (answers) => {
+    const items = answers.map((answer, i) => ({ slot: 'maths.B.Q2', question: `Share problem ${i}: how many each, and how many left?`, answer, blooms: 'Apply' }));
+    const laid = applyLayout({ unseen: { subjective: { 'Word Problems': items } } }, P.maths, FDE, { now: NOW });
+    return Object.values(mathsCheck(normaliseScheme(laid.examJson).examJson, { subject: 'maths' }).examJson.unseen.subjective).flat();
+  };
+  test('a wrong remainder is corrected; a right one is ok; a wrong quotient is left unchecked', () => {
+    const [a, b, c, d] = check(['68,970 ÷ 45 = 1,532 remainder 10', '68,970 ÷ 45 = 1,532 remainder 30', '68,970 ÷ 45 = 1,500 remainder 30', '100 ÷ 7 = 14 R 2']);
+    expect([a.answer, a.scheme.checked]).toEqual(['68,970 ÷ 45 = 1,532 remainder 30', 'replaced']);
+    expect(b.scheme.checked).toBe('ok');
+    expect([c.answer, c.scheme.checked]).toEqual(['68,970 ÷ 45 = 1,500 remainder 30', null]);
+    expect(d.scheme.checked).toBe('ok');
+  });
+});
+
+describe('11. "Tell the class" lists only real choices', () => {
+  test('a group cut to its attempt count is not "any 7 of 7"', () => {
+    const items = Array.from({ length: 7 }, (_, i) => ({ slot: 'maths.B.Q2', question: `Problem ${i + 1}: find the total of ${i + 10} and ${i + 20}.`, answer: `${i + 10} + ${i + 20} = ${2 * i + 30}`, blooms: 'Apply' }));
+    const laid = applyLayout({ unseen: { subjective: { 'Word Problems': items } } }, P.maths, FDE, { now: NOW }).examJson;
+    const scheme = visible(R.renderMarkingScheme({ examJson: normaliseScheme(laid).examJson, grade: 5, subject: 'maths', allowShort: true }));
+    expect(scheme).not.toMatch(/any 7 of 7|any 0 of 0/);
+  });
+});
