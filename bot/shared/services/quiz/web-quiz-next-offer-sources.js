@@ -69,6 +69,7 @@ function links({ token, chip, lang, home }) {
     quiz: (code, k, again) => (code ? `/q/${encodeURIComponent(code)}?${again ? 'again=1&' : ''}k=${encodeURIComponent(k || '')}` : null),
     lib: token && chip ? `/lib/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}&l=${lang === 'ur' ? 'ur' : 'en'}${h}` : null,
     book: token && chip ? `/h/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}${l}#book` : null,
+    watch: token && chip ? (vid) => `/h/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}${l}#watch/${encodeURIComponent(vid)}` : null,
   };
 }
 
@@ -79,7 +80,7 @@ function links({ token, chip, lang, home }) {
  * quizzesForStudents rows; `collect` = what the Jugnu corner read ({ trail, onItsWay, live, unseen, lantern, story });
  * `quizIds` = share code -> quiz id; `extra` = more candidates (storybooks, the finish's own). Returns the list.
  */
-function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en', quizIds = new Map(), storyCodes = new Set(), extra = [], nowMs = Date.now() } = {}) {
+function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en', quizIds = new Map(), storyCodes = new Set(), extra = [], watch = false, nowMs = Date.now() } = {}) {
   const L = links({ token, chip: out.kid, lang, home: out.nav_home });
   const list = [];
   const push = (c) => { if (c && c.href && c.id) list.push(c); };
@@ -109,6 +110,11 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
   });
   // a video: the library (a recommended video starts by a POST, so the tile opens the library on the child's grade)
   if (out.lib && out.lib.href && L.lib) push({ kind: 'video', variant: 'library', id: 'library', href: L.lib, ...words('video'), minutes: 3, needs_root: true });
+  // a child with no class quiz: the v3 home's own player watches the recommended lesson (nothing minted, no root needed)
+  const rec = (out.recs || []).find((r) => r && r.vid);
+  if (watch && rec && !hasRootOf(history) && L.watch) {
+    push({ kind: 'video', variant: 'recommended', id: rec.vid, href: L.watch(rec.vid), ...words('video'), ...subOf(rec.title), minutes: 3, ...(rec.poster ? { art: rec.poster } : {}) });
+  }
 
   // the Jugnu corner: this month's stops (rule 2), the stories (newest unseen first), the numbers game
   const lantern = collect.lantern || null;
@@ -203,14 +209,15 @@ const hasRootOf = (history) => (history || []).some((e) => e && e.teacherSent);
 /** The hub boot's `{ next }` (ctx home), from the payload the hub has just built. `{}` when off or on any failure. */
 async function hubField({ out, token, history, collect = {}, lang, chosenId, grade } = {}) {
   try {
-    if (!out || !chosenId || !(await NO.switches()).on) return {};
+    const sw = await NO.switches();
+    if (!out || !chosenId || !sw.on) return {};
     const canonical = chosenId;
     const [{ quizIds, storyCodes }, books, onItsWay] = await Promise.all([
       quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)]),
       storybooks({ studentId: canonical, lang, grade, token, chip: out.kid }),
       onItsWayOf(canonical, chosenId, collect.trail, lang, grade),
     ]);
-    const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, extra: books });
+    const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, extra: books, watch: sw.watch });
     const next = await NO.nextFor({ ctx: 'home', studentId: canonical, candidates, hasRoot: hasRootOf(history), lang });
     return next ? { next } : {};
   } catch (err) {
@@ -224,7 +231,7 @@ async function hubField({ out, token, history, collect = {}, lang, chosenId, gra
  * again, the library, the Jugnu corner), with a hub token minted for this child and bound to this phone (as the
  * card's hub door does). Null when the phone cannot be bound or anything fails.
  */
-async function snapshot({ studentId, device, lang: asked = null }) {
+async function snapshot({ studentId, device, lang: asked = null, watch = false }) {
   const Hub = require('./web-quiz-hub');
   const f = await Hub.flags();
   if (!f.hub) return null;
@@ -249,6 +256,10 @@ async function snapshot({ studentId, device, lang: asked = null }) {
   if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
   if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
   if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}&l=${lang}` };
+  // the recommended lesson, only where the tile can use it: a class-less child with the v3 home's watch-only player
+  if (watch && !hasRootOf(history)) {
+    try { out.recs = await parts.recsFor(canonical, history, grade); } catch (_) { out.recs = []; }
+  }
   const form = f.challenge ? await parts.challengeForm(canonical) : null;
   if (form) out.challenge = { on: true };
   const collect = {};
@@ -263,8 +274,9 @@ function withDeadline(p, ms = DEADLINE_MS) {
 
 /** One result's `{ next_offer }`: the snapshot's candidates + the result's own, ranked for `ctx`. */
 async function resultField({ studentId, device, lang: asked = null, ctx, extra = [], drop = () => false }) {
-  if (!studentId || !(await NO.switches()).on) return {};
-  const snap = await withDeadline(snapshot({ studentId, device, lang: asked }));
+  const sw = await NO.switches();
+  if (!studentId || !sw.on) return {};
+  const snap = await withDeadline(snapshot({ studentId, device, lang: asked, watch: sw.watch }));
   if (!snap) return {};
   const { canonical, token, out, history, collect, grade, lang } = snap;
   const [{ quizIds, storyCodes }, books, onItsWay] = await Promise.all([
@@ -272,7 +284,7 @@ async function resultField({ studentId, device, lang: asked = null, ctx, extra =
     storybooks({ studentId: canonical, lang, grade, token, chip: out.kid }),
     onItsWayOf(canonical, studentId, collect.trail, lang, grade),
   ]);
-  const candidates = [...extra, ...candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, extra: books })]
+  const candidates = [...extra, ...candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, extra: books, watch: sw.watch })]
     .filter((c, i, a) => !drop(c) && a.findIndex((x) => x.id === c.id) === i);
   const next = await NO.nextFor({ ctx, studentId: canonical, candidates, hasRoot: hasRootOf(history), lang });
   return next ? { next_offer: next } : {};

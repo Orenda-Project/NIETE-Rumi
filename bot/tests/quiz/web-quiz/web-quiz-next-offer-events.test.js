@@ -104,6 +104,22 @@ describe('events v3 on', () => {
     expect(text).not.toMatch(/"(code|name|ht|chip|student_id|dh|sid)"/);
   });
 
+  test('the door screens\' lines: door_row_tap (pos up to 99), video_open / video_watched (ms) keep their own keys only', async () => {
+    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    Svc.events({ ht: T.signHub([KID]), chip: T.chipId('h', KID), events: [
+      { n: 'door_row_tap', door: 'videos', kind: 'subject', item: 'science', pos: 12, ctx: 'home' },
+      { n: 'video_open', item: 'vid-9', via: 'hub_door' },
+      { n: 'video_watched', item: 'vid-9', via: 'hub_door', ms: 61234.6, code: 'TSTQ42' },
+    ] }, { device: DEV });
+    await flush();
+    const by = (n) => logEvent.mock.calls.filter(([name]) => name === n).map(([, f]) => f)[0];
+    expect(by('web_quiz.door_row_tap')).toMatchObject({ ev_v: 3, door: 'videos', kind: 'subject', item: 'science', pos: 12, kid: K.kid(KID) });
+    expect(by('web_quiz.door_row_tap')).not.toHaveProperty('ctx');
+    expect(by('web_quiz.video_open')).toMatchObject({ item: 'vid-9', via: 'hub_door' });
+    expect(by('web_quiz.video_watched')).toMatchObject({ item: 'vid-9', ms: 61235 });
+    expect(by('web_quiz.video_watched')).not.toHaveProperty('code');
+  });
+
   test('a quiz scorecard batch (no hub token): the child comes from the session token', async () => {
     await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
     const st = T.signSession({ sessionId: '66666666-6666-4666-8666-000000000001', deviceRef: DEV, shareCodeId: 'sc-1' });

@@ -10,8 +10,8 @@
  *                                              by the kid, 30-minute sliding life; a new sitting starts after 30 minutes
  *                                              with no line. Random, carries no identity. Null without a kid or Redis.
  *   emit3(name, fields, { canonicalId })        one v3 server line (callers check the switch)
- *   relayed(e)                                 is this page event a v3 slot line (next_shown, next_tap, home_view, and
- *                                              door_tap with a v3 door)? The relay (web-quiz.service.js events) hands
+ *   relayed(e)                                 is this page event a v3 line (next_shown, next_tap, home_view, door_tap
+ *                                              with a v3 door, door_row_tap, video_open, video_watched)? The relay (web-quiz.service.js events) hands
  *                                              it to `relay` only with `web_quiz_events_v3` on; off, today's path.
  *   relay(e, body, device)                     the page line, cleaned by the v3 rules (EVENTS v3 §2), keyed by the
  *                                              child (the hub token + chip, else the quiz session), its sitting id, and
@@ -87,7 +87,15 @@ const RULES = Object.freeze({
   src: /^(door|home|link|quiz|who)$/,
   lang: /^(en|ur)$/,
 });
-const NAMES = new Set(['next_shown', 'next_tap', 'home_view', 'door_tap']);
+// The door screens' lines (a row of a door, a video played from it): their own keys, scoped to the name.
+const ITEM = /^[a-z0-9._:-]{1,64}$/i;
+const BY_NAME = Object.freeze({
+  door_row_tap: { door: RULES.door, kind: /^(passage|listen|game|quiz|again|subject|video|storybook)$/, item: ITEM, lang: RULES.lang },
+  video_open: { item: ITEM, via: /^(hub_door|next_offer|library|deep)$/, lang: RULES.lang },
+  video_watched: { item: ITEM, via: /^(hub_door|next_offer|library|deep)$/, lang: RULES.lang },
+});
+const POS_MAX = { door_row_tap: 99 };
+const NAMES = new Set(['next_shown', 'next_tap', 'home_view', 'door_tap', ...Object.keys(BY_NAME)]);
 
 function relayed(e) {
   const n = String((e && e.n) || '');
@@ -98,9 +106,13 @@ function relayed(e) {
 /** The kept fields of a v3 slot line (pure): only the v3 keys, each by its rule; pos 0-3; ms_to_tap a whole number. */
 function clean3(e) {
   const out = {};
-  for (const [k, rx] of Object.entries(RULES)) if (typeof e[k] === 'string' && rx.test(e[k])) out[k] = e[k];
-  if (Number.isInteger(e.pos) && e.pos >= 0 && e.pos <= 3) out.pos = e.pos;
-  if (Number.isFinite(Number(e.ms_to_tap)) && e.ms_to_tap !== null && e.ms_to_tap !== '' && Number(e.ms_to_tap) >= 0) out.ms_to_tap = Math.round(Number(e.ms_to_tap));
+  const rules = BY_NAME[e.n] || RULES;
+  for (const [k, rx] of Object.entries(rules)) if (typeof e[k] === 'string' && rx.test(e[k])) out[k] = e[k];
+  const max = POS_MAX[e.n] || 3;
+  if (Number.isInteger(e.pos) && e.pos >= 0 && e.pos <= max) out.pos = e.pos;
+  const num = (k) => Number.isFinite(Number(e[k])) && e[k] !== null && e[k] !== '' && typeof e[k] !== 'boolean' && Number(e[k]) >= 0;
+  if (num('ms_to_tap')) out.ms_to_tap = Math.round(Number(e.ms_to_tap));
+  if (e.n === 'video_watched' && num('ms')) out.ms = Math.round(Number(e.ms));
   return out;
 }
 

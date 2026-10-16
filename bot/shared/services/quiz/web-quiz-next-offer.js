@@ -27,7 +27,8 @@ const { logToFile } = require('../../utils/logger');
 const FILE_WEIGHTS = require('./next-offer-weights.json');
 
 // pool: the counted-passage pool (web-quiz-challenge.js), read so a stop the draw would answer "on its way" is never offered.
-const KEYS = { on: 'web_quiz_next_offer', weights: 'web_quiz_next_offer_weights', events: 'web_quiz_events_v3', v2: 'web_quiz_challenge_v2', pool: 'web_quiz_challenge_pool' };
+// home: the v3 home, whose own player starts a video for a child with no class quiz (watch-only: nothing minted).
+const KEYS = { on: 'web_quiz_next_offer', weights: 'web_quiz_next_offer_weights', events: 'web_quiz_events_v3', v2: 'web_quiz_challenge_v2', pool: 'web_quiz_challenge_pool', home: 'web_quiz_home_v3' };
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -185,7 +186,7 @@ function weightsOf(value) {
   return { v: String(v.v || 'override'), contexts: v.contexts };
 }
 
-const OFF = Object.freeze({ on: false, events: false, pool: false, weights: FILE_WEIGHTS });
+const OFF = Object.freeze({ on: false, events: false, pool: false, watch: false, weights: FILE_WEIGHTS });
 
 async function switches(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.s;
@@ -193,7 +194,7 @@ async function switches(now = Date.now()) {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', Object.values(KEYS));
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    const s = { on: isTrue(by[KEYS.on]), events: isTrue(by[KEYS.events]), pool: isTrue(by[KEYS.v2]) && isTrue(by[KEYS.pool]), weights: weightsOf(by[KEYS.weights]) || FILE_WEIGHTS };
+    const s = { on: isTrue(by[KEYS.on]), events: isTrue(by[KEYS.events]), pool: isTrue(by[KEYS.v2]) && isTrue(by[KEYS.pool]), watch: isTrue(by[KEYS.home]), weights: weightsOf(by[KEYS.weights]) || FILE_WEIGHTS };
     cache = { at: now, s };
     return s;
   } catch (err) {

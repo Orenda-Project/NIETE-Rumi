@@ -395,3 +395,29 @@ describe('the routes wrap the results: switch off -> the body is today\'s, byte 
     expect(await (await fetch(`${base}/ch/result/${encodeURIComponent(t)}`, { headers: H })).json()).toEqual({ pending: true });
   });
 });
+
+describe('a child with no class quiz and the v3 home\'s watch-only player', () => {
+  const VID = '77777777-7777-4777-8777-000000000001';
+  const classless = () => ({
+    quiz_sessions: [], quiz_share_codes: [],
+    student_videos: [{ id: VID, grade: '3', subject: 'Science', clean_chapter: 'Water', clean_title: 'Where water goes', r2_url: null, migration_status: 'done', superseded_by: null }],
+    quizzes: [{ id: '88888888-8888-4888-8888-000000000001', video_id: VID, quiz_source: 'video', status: 'ready' }],
+  });
+
+  test('home v3 on -> a video it can watch at once (#watch/<vid>), never a library tile it cannot start', async () => {
+    withArm('rank');
+    seed([...NEXT_ON, ON('web_quiz_home_v3')], classless());
+    const out = await Hub.hub(T.signHub([KID]), A);
+    const all = [out.next, ...out.next.alts];
+    const v = all.find((x) => x.kind === 'video');
+    expect(v).toMatchObject({ variant: 'recommended', id: VID, sub: 'Where water goes' });
+    expect(v.href).toMatch(new RegExp(`^/h/[^?]+\\?kid=[^&]+&lang=en#watch/${VID}$`));
+    expect(all.filter((x) => x.id === 'library')).toEqual([]);
+  });
+
+  test('home v3 off -> no video at all for a class-less child (409 no_class)', async () => {
+    seed([...NEXT_ON, ON('web_quiz_library')], classless());
+    const out = await Hub.hub(T.signHub([KID]), A);
+    if (out.next) expect([out.next, ...out.next.alts].map((x) => x.kind)).not.toContain('video');
+  });
+});
