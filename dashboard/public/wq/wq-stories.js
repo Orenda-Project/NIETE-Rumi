@@ -18,7 +18,7 @@
     ur: {
       shelf: 'کہانیوں کی کتابیں', gl: function (g, l) { return 'جماعت ' + g + '، ' + (l === 'ur' ? 'اردو' : 'انگریزی'); },
       readWith: function (h) { return 'جگنو کے ساتھ <bdi>' + h + '</bdi> پڑھیں'; }, teacher: 'ٹیچر کی طرف سے', by: function (n) { return n + ' کی لکھی ہوئی'; },
-      read: 'پڑھ لی', empty: 'یہاں ابھی کوئی کہانی نہیں۔ کوئی اور جماعت چنیں۔', oops: 'جگنو یہ کھول نہیں سکا۔', retry: 'دوبارہ کوشش کریں',
+      read: 'پڑھ لی', empty: 'یہاں ابھی کوئی کہانی نہیں۔ کوئی اور جماعت چنیں۔', oops: 'یہ کتاب ابھی نہیں کھل سکی۔', retry: 'دوبارہ کوشش کریں',
       off: 'آج کہانیاں آرام کر رہی ہیں۔', home: 'ہوم', back: 'واپس', close: 'بند کریں', sound: 'آواز', prevP: 'پچھلا صفحہ', nextP: 'اگلا صفحہ',
       listen: 'سنیں', pause: 'رکیں', yourTurn: 'اب آپ پڑھیں', next: 'آگے', again: 'دوبارہ سنیں', whole: 'پورا صفحہ', slow: 'آہستہ', hearFirst: 'پہلے سنیں',
       denied: 'کوئی بات نہیں، جگنو کے ساتھ سنیں', wellRead: 'بہت اچھا پڑھا!', together: 'آئیں مل کر پڑھیں', practise: 'آئیں، یہ لفظ پھر سے پڑھیں',
@@ -120,9 +120,10 @@
   function shelf(el, ctx, q) {
     if (!el) return;
     ctx = ctx || {};
-    if (q && q.token || !ctx.token && ctx.kid) { var x = q || {}; ctx = { token: x.token, kid: ctx.kid, lang: x.lang || ctx.lang, ev: x.ev }; q = 0; }
+    if (q && q.token || !ctx.token && ctx.kid) { var x = q || {}; ctx = { token: x.token, kid: ctx.kid, lang: x.lang || ctx.lang, ev: x.ev, primary: x.primary }; q = 0; }
     if (!q) { q = {}; var gl = String(ls('wq_st_gl') || '').split(','); if (gl[0]) q.g = gl[0]; if (gl[1]) q.l = gl[1]; }
     var l = lg(q.l || ctx.lang), ids = tids(ctx.kid).join(',');
+    var np = function (h) { return ctx.primary === false ? h.replace(/ data-primary/g, '') : h; };
     try { el.setAttribute('data-filled', '1'); } catch (e) {}
     wire(el, function (tap, arg) {
       var d = el._d || {}, b = (d.books || [])[+arg];
@@ -130,7 +131,7 @@
         opened[b.id] = 1;
         post(ctx, b.id, 'story_opened', { shelf_position: b.shelf_position == null ? +arg : b.shelf_position, from_teacher: !!b.from_teacher, grade: b.grade, lang: b.lang });
         W.location.hash = '#story/' + b.id;
-      } else if (tap === 'gl') { el._open = !el._open; el.innerHTML = shelfHtml(d, el._open); }
+      } else if (tap === 'gl') { el._open = !el._open; el.innerHTML = np(shelfHtml(d, el._open)); }
       else if (tap === 'g' || tap === 'l') { q[tap] = arg; ls('wq_st_gl', (q.g || '') + ',' + (q.l || '')); shelf(el, ctx, q); }
       else if (tap === 'retry') shelf(el, ctx, q);
     });
@@ -140,7 +141,7 @@
       if (r.status === 404) { el.innerHTML = ''; el.hidden = true; return; }
       if (!r.ok) return fail();
       el._d = r.body; el._open = false;
-      el.innerHTML = shelfHtml(r.body, false);
+      el.innerHTML = np(shelfHtml(r.body, false));
       evt(ctx, 'story_shelf_shown', { n: (r.body.books || []).length, g: String(r.body.grade), lang: r.body.lang });
     }, fail);
   }

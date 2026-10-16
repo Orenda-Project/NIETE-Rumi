@@ -17,8 +17,8 @@
     },
     ur: {
       done: 'میں نے پڑھ لیا', micSay: 'جگنو کو اپنی آواز سنانے کے لیے دبائیں', ok: 'ٹھیک ہے', notNow: 'ابھی نہیں، صرف سنیں',
-      readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', checking: 'جگنو سن رہا ہے…',
-      lookAgain: 'ہمم، ایک بار پھر دیکھیں', backQ: 'سوال پر واپس جائیں', itWas: function (x) { return 'یہ تھا: ' + x; }, hear: 'سنیں',
+      readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', checking: 'آپ کی آواز سنی جا رہی ہے…',
+      lookAgain: 'ہمم، ایک بار پھر دیکھیں', backQ: 'سوال پر واپس جائیں', itWas: function (x) { return 'جواب یہ ہے: ' + x; }, hear: 'سنیں',
       wholeRead: 'آپ نے پوری کہانی پڑھ لی!', readSome: 'آپ نے جگنو کے ساتھ پڑھا!', wholeHeard: 'آپ نے پوری کہانی سن لی!', heardSome: 'آپ نے جگنو کے ساتھ سنا!',
       pagesRead: function (s, n) { return s + (n === 1 ? ' صفحہ پڑھا' : ' صفحے پڑھے'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' صفحہ سنا' : ' صفحے سنے'); },

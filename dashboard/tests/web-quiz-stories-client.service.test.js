@@ -236,6 +236,16 @@ describe('the reader state machine (pure, fake clock)', () => {
 
 // ---- the shelf ----------------------------------------------------------------------------------------------------
 describe('the shelf', () => {
+  test('one primary: none at all when the host screen already has its own (ctx.primary === false)', async () => {
+    const e = env(); const el = fakeEl('shelf');
+    e.S.shelf(el, e.ctx({ primary: false }));
+    await flush();
+    expect((el.innerHTML.match(/data-primary/g) || []).length).toBe(0);
+    const e2 = env(); const el2 = fakeEl('shelf');
+    e2.S.shelf(el2, e2.ctx());
+    await flush();
+    expect((el2.innerHTML.match(/data-primary/g) || []).length).toBe(1);
+  });
   test('an Urdu page asks for the Urdu shelf even before the child picks a language', async () => {
     const e = env(); const el = fakeEl('shelf');
     e.S.shelf(el, e.ctx({ lang: 'ur' }));
@@ -705,7 +715,7 @@ describe('questions and the done card', () => {
     expect(e.calls.posts.filter((x) => x.body.event === 'story_answer')).toHaveLength(4);
     expect(screenOf(root.innerHTML)).toBe('story-done');
   });
-  test('Urdu look-back copy: «ہمم، ایک بار پھر دیکھیں» and «یہ تھا: …»', async () => {
+  test('Urdu look-back copy: «ہمم، ایک بار پھر دیکھیں» and «جواب یہ ہے: …»', async () => {
     const e = env({ hash: '#story/b-1/q', right: () => false, replies: { book: { status: 200, body: book({ lang: 'ur', dir: 'rtl' }) } } });
     const root = fakeEl('root');
     e.S.route(e.ctx({ root, lang: 'ur' })); await flush();
@@ -713,7 +723,7 @@ describe('questions and the done card', () => {
     expect(root.innerHTML).toContain('ہمم، ایک بار پھر دیکھیں');
     fire(root, 'lret'); fire(root, 'ans', 1); await flush();
     checkScreen(root.innerHTML, 'ur');
-    expect(root.innerHTML).toContain('یہ تھا: a kite');
+    expect(root.innerHTML).toContain('جواب یہ ہے: a kite');
   });
   test('Look back: a right answer -> correct beat + 900 ms on; story_answer offline -> just moves on', async () => {
     const e = env({ hash: '#story/b-1/q', wqj: true });
