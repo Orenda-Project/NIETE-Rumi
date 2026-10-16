@@ -10,8 +10,10 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => ({
 }));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
-// the event-key module lands in another PR: a virtual stand-in, so id_confirmed can be checked for its kid
-jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({ kidOf: (id) => (id ? `k_${String(id).slice(-2)}` : null) }), { virtual: true });
+// the event-key module (web-quiz-kid.js) is real now: mock it NON-virtually, so id_confirmed can be checked for its kid.
+// A virtual mock registers under the extension-less path while Jest's resolver caches module ids per worker across test
+// files; a file that loaded the real `./web-quiz-kid` edge earlier in the same worker made this mock miss (kid_key_missing).
+jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({ kidOf: (id) => (id ? `k_${String(id).slice(-2)}` : null) }));
 
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
