@@ -324,7 +324,9 @@ async function listPapers(userId, { page = 1, pageSize = 10, grade = null, subje
     .from('assessment_requests')
     .select('id, grade_code, subject_code, chapter_number, created_at, '
       + 'assessment_papers!inner(id, status, edited_from, question_count, total_marks, ready_at, '
-      + 'created_at, answer_key_r2_key)',
+      + 'created_at, answer_key_r2_key, '
+      // Two JSONB slices, never the whole tree: which board pattern, and how many pages each file has.
+      + 'pattern:exam_json->_layout->>preset_id, pages:exam_json->_layout->pages)',
     { count: 'exact' })
     .eq('user_id', userId)
     .eq('assessment_papers.status', 'ready');
@@ -369,6 +371,8 @@ async function listPapers(userId, { page = 1, pageSize = 10, grade = null, subje
         has_answer_key: !!latest.answer_key_r2_key,
         version,
         version_count: ready.length,
+        pattern: latest.pattern ?? null,
+        pages: latest.pages ?? null,
       };
     }),
   };

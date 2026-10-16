@@ -68,6 +68,8 @@ function _item(q) {
     id: q.id, number: q.number, removed: q.removed, type: q.type, section,
     marks: q.marks, text: q.text, fields: Edit.fieldsFor(q.question, { type: q.type }),
   };
+  // Which board-pattern slot the item fills; only pattern papers carry one.
+  if (q.question && q.question.slot) item.slot = q.question.slot;
   if (Array.isArray(q.question?.questions)) {
     item.subs = q.question.questions.map((sub, index) => ({
       index, fields: _subFields(typeof sub === 'string' ? { question: sub } : sub),
@@ -106,6 +108,7 @@ async function questions({ userId, paperId }) {
       paperId, version: out.version, grade: _gradeOf(req), subject: req.subject_code,
       chapterNumber: req.chapter_number ?? null, rtl: isRtl(req.subject_code),
       questionCount: active.length, marks: active.reduce((s, q) => s + q.marks, 0),
+      ...(Revision.isPatternPaper(out.paper) ? { pattern: out.paper.exam_json._layout.preset_id } : {}),
     },
     items: out.items.map(_item),
   };
@@ -115,6 +118,7 @@ async function addKinds({ userId, paperId }) {
   const gate = await _gate(); if (gate) return gate;
   const loaded = await Revision.loadVersion({ paperId, userId });
   if (!loaded.paper) return { code: loaded.code };
+  if (Revision.isPatternPaper(loaded.paper)) return { code: Revision.PATTERN_NO_EDIT };
   const req = loaded.paper.assessment_requests || {};
   const subject = req.subject_code;
   const grade = _gradeOf(req);
@@ -139,6 +143,7 @@ async function validateEdit({ userId, paperId, id, kind, edit }) {
   const gate = await _gate(); if (gate) return gate;
   const loaded = await Revision.loadVersion({ paperId, userId });
   if (!loaded.paper) return { code: loaded.code };
+  if (Revision.isPatternPaper(loaded.paper)) return { code: Revision.PATTERN_NO_EDIT };
   try {
     let question;
     if (kind) {
@@ -168,6 +173,7 @@ async function saveVersion({ userId, parentId, changes }) {
   }
   const loaded = await Revision.loadVersion({ paperId: parentId, userId });
   if (!loaded.paper) return { status: 'failed', code: loaded.code };
+  if (Revision.isPatternPaper(loaded.paper)) return { status: 'failed', code: Revision.PATTERN_NO_EDIT };
   const req = loaded.paper.assessment_requests || {};
   const applied = applyChanges(loaded.paper.exam_json, changes, { subject: req.subject_code, grade: _gradeOf(req) });
   if (!applied.ok) return { status: 'failed', code: applied.code, errors: applied.errors };
