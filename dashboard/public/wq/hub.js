@@ -91,6 +91,8 @@
   /* ---------------- helpers ---------------- */
   // The pages' one link helper (wq-tel.js WQT.withLang, loaded first on every page): a link into another page carries lang=.
   function withLang(h, l) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l || LANG) : h; }
+  // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
+  function nowrap(h) { return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h; }
   // The hub's own address, with the language it was opened in when it was opened with one (else today's).
   function selfUrl(h) { return URL_LANG ? withLang(h, URL_LANG) : h; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -225,13 +227,13 @@
     B = { lang: LANG, token: TOKEN, brand: BR, locked: true, kids: [] };
     render(bar() + jug('thinking', T.lockSay) + '<h2>' + esc(T.lockT) + '</h2>' +
       '<p class="wq-sub">' + esc(T.mineDoor) + '</p>' +
-      '<p class="wq-sub">' + esc(T.mine) + '</p>' +
+      '<p class="wq-sub">' + nowrap(esc(T.mine)) + '</p>' +
       '<button class="wq-btn wq-ghost" id="wq-h-new">' + esc(T.someone) + '</button>', 'H-lock');
     on('#wq-h-new', function () { newPlayer(); });
   }
   function newPlayer() {
     ev('hub_pick', { src: 'new' });
-    render(bar() + jug('hello', T.newSay) + '<h2>' + esc(T.newT) + '</h2>', 'H-new');
+    render(bar() + nowrap(jug('hello', T.newSay)) + '<h2>' + esc(T.newT) + '</h2>', 'H-new');
   }
   // The server render has no device: ask again as this phone, then show what the bot allows.
   function unlock() {

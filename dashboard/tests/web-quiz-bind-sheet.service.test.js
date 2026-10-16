@@ -10,6 +10,7 @@ const path = require('path');
 const vm = require('vm');
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-bind.js'), 'utf8');
+const TEL = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-tel.js'), 'utf8');
 
 function load({ mint } = {}) {
   const fetches = [];
@@ -29,6 +30,8 @@ function load({ mint } = {}) {
   };
   ctx.window.window = ctx.window;
   vm.createContext(ctx);
+  // wq-tel.js first, as on the hub page (its WQT.nowrap holds «واٹس ایپ» on one line).
+  vm.runInContext(TEL, ctx);
   vm.runInContext(SRC, ctx);
   return { B: ctx.window.WQBIND, win: ctx.window, fetches };
 }

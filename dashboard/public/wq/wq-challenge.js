@@ -158,6 +158,8 @@
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
+  // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
+  function nowrap(h) { return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h; }
   function q(id) { return root.querySelector('#' + id); }
   function on(id, fn) { var el = q(id); if (el) el.addEventListener('click', fn); }
 
@@ -855,7 +857,7 @@
       return;
     }
     var android = /Android/i.test(navigator.userAgent || '');
-    show('no-mic', jug('notyet', t.noMic, true) + '<div class="wq-stack">'
+    show('no-mic', nowrap(jug('notyet', t.noMic, true)) + '<div class="wq-stack">'
       + (android ? '<a class="wq-btn wq-go" id="wqc-chrome" href="' + esc(chromeHref()) + '">' + esc(t.chrome) + '</a>' : '')
       + '<button class="wq-btn wq-soft" id="wqc-skip" type="button">' + esc(t.skip) + '</button></div>');
     on('wqc-skip', function () { releaseMic(); refreshMenu(); });
