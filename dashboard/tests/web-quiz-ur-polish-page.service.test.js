@@ -10,8 +10,8 @@ const { renderQuizPage, renderHubPage, renderChallengePage, renderLibPage, rende
 const { rule, CSS } = require('./wq-page-harness');
 
 const WQ = path.join(__dirname, '..', 'public', 'wq');
-const FONT1 = '/wq/fonts/wq-nastaliq-3.woff2';
-const FONT2 = '/wq/fonts/wq-nastaliq-4.woff2';
+const FONT1 = '/wq/fonts/wq-nastaliq-5.woff2';
+const FONT2 = '/wq/fonts/wq-nastaliq-6.woff2';
 const Q = (lang, extra = {}) => ({
   quiz: { id: 'q-1', code: 'AB12CD', topic: lang === 'ur' ? 'پودے' : 'Plants', lang, dir: lang === 'ur' ? 'rtl' : 'ltr', grade: '3', n: 1,
     questions: [{ qid: 'x1', i: 1, text: 'کون سا؟', options: [{ slot: 'A', text: 'جڑ' }, { slot: 'B', text: 'پتا' }], correct_slot: 'A' }] },
@@ -76,7 +76,7 @@ describe('the polished Urdu look is one scoped block of the stylesheet', () => {
   test('the old look is untouched: no rule before the block mentions wq-ur2, and the first face is still declared as it was', () => {
     expect(before).not.toContain('wq-ur2');
     expect(rule('html[lang=ur] body')).toMatch(/word-spacing:0?\.\d+em/);
-    expect(before).toMatch(/@font-face\{font-family:"WQ Nastaliq";src:url\(fonts\/wq-nastaliq-3\.woff2\)/);
+    expect(before).toMatch(/@font-face\{font-family:"WQ Nastaliq";src:url\(fonts\/wq-nastaliq-5\.woff2\)/);
   });
   test('the second face: self-hosted woff2 under 120 KB, Regular only, no size-adjust, swap, with its licence', () => {
     const face = /@font-face\{font-family:"WQ Nastaliq 2";src:url\(([^)]+)\) format\("woff2"\);([^}]*)\}/.exec(block);
