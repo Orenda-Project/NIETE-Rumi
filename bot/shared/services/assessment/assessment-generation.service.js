@@ -1113,6 +1113,30 @@ function _sectionText(section, loaded, scopeKind, ranges) {
 
 /** Concatenate the sections' trees: the same type under the same category becomes one list. */
 /**
+ * A comprehension item whose "questions" part came back with marks and no questions: the paper would
+ * print the part's head and its marks over nothing. Read on a laid-out paper (the slot's parts_spec
+ * says how many questions the part holds). Only the "questions" part is read: other parts keep
+ * their content under other names.
+ */
+function _emptyQuestionParts(examJson) {
+  const specs = {};
+  for (const section of (examJson && examJson._layout && examJson._layout.sections) || []) {
+    for (const slot of section.slots || []) if (Array.isArray(slot.parts_spec)) specs[slot.slot] = slot.parts_spec;
+  }
+  const out = [];
+  _walkQuestions(examJson, (q) => {
+    if (!q.slot || !specs[q.slot] || !Array.isArray(q.parts)) return;
+    q.parts.forEach((part) => {
+      if (!part || part.key !== 'questions') return;
+      if (Array.isArray(part.questions) && part.questions.length) return;
+      const spec = specs[q.slot].find((x) => x.key === 'questions');
+      out.push({ slot: q.slot, part: 'questions', missing: (spec && spec.n) || 1 });
+    });
+  });
+  return out;
+}
+
+/**
  * The first reply, plus the second reply's items for the given slots whose question is not already
  * in it. Nothing else of the second reply is kept.
  */
@@ -1477,7 +1501,9 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // item the filter drops is still never refilled.
   const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern });
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
-  const short = firstLaid.shortfall.concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall);
+  const short = firstLaid.shortfall
+    .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
+    .concat(_emptyQuestionParts(firstLaid.examJson));
   const shortSlots = new Set(short.map((f) => f.slot));
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
   // paper at render; its section is asked once more instead, and a second hit fails it here.
@@ -1529,6 +1555,10 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // row), so the failure can be read afterwards instead of guessed at.
   if (laid.shortfall.length) {
     throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: laid.shortfall, examJson, model });
+  }
+  const emptyParts = _emptyQuestionParts(examJson);
+  if (emptyParts.length) {
+    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: emptyParts, examJson, model });
   }
 
   const scheme = normaliseScheme(examJson);
