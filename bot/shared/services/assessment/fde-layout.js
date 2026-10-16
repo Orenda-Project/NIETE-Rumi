@@ -733,7 +733,8 @@ function listOf(q) {
 }
 
 // Urdu: a Q1 MCQ is a Q4 twin when it is keyed on a Q4 answer (sameKey), when it prints a Q4
-// sentence (Q4's sentence is in the MCQ's stem, or the MCQ's quoted sentence is in Q4's stem), or
+// sentence (Q4's sentence is in the MCQ's stem, or the MCQ's quoted sentence, blanks empty or
+// filled with its key, is in Q4's stem), or
 // when its stem carries three of a Q4 list's entries, in any order.
 function q4Twin(q4s) {
   const byKey = sameKey(q4s);
@@ -746,7 +747,8 @@ function q4Twin(q4s) {
     const words = new Set(tokensOf(q.question));
     if (lists.some((l) => l.filter((e) => e.every((w) => words.has(w))).length >= LIST_ENTRIES)) return true;
     const stem = plain(q.question).split(' ');
-    const own = sentencesOf(q, false);
+    // The MCQ's own sentence, its blanks empty and filled with its key («___ تم محنت کرو گے ___ …» → اگر، تو).
+    const own = sentencesOf(q, false).concat(sentencesOf(q, true));
     return q4.some((s) => s.said.some((t) => printedIn(t, stem)) || own.some((t) => printedIn(t, s.stem) || s.said.some((f) => printedIn(t, f))));
   };
 }
