@@ -43,9 +43,13 @@ import { useDcReport } from './useDcReport';
  *   3 Recording           Start recording records HERE (clock, level, Pause, Stop and "Yes, finish"); the recording bar's
  *                         Return comes back here. Or Upload recording. Then Listen / Redo / Change file.
  *   4 Photos              up to ten, No faces.
- *   Submit                sends exactly that, with the class; then, on the same screen, the lesson's progress
- *                         (Analysing → Reflection question → Report ready), the question answered here, the leave note
- *                         and Back to Digital Coaching. The main page lists it under Analysing until it is ready.
+ *   Submit                sends exactly that, with the class, and moves to a second screen (operator, 16 Oct): the
+ *                         upload %, then the lesson's progress (Analysing → Reflection question → Report ready), the
+ *                         question answered there and the leave note. Nothing on it can be changed, and the history
+ *                         entry of the editable screen is replaced, so Back goes to the main page, never to the edits.
+ *                         Its address is ?sent=uploading while uploading, then ?sent=<session>, so a reload finds the
+ *                         lesson (a reload mid-upload has lost the upload: the main page). A send that fails comes back
+ *                         to her screen with everything she chose. The main page lists it under Analysing until ready.
  *
  * What she has chosen is held in memory (draft.ts) so a trip to the library or her lesson plan, and Back, finds it.
  * Opened from a lesson plan (?grade&subject&plan) the class and the plan arrive filled in.
@@ -54,6 +58,7 @@ import { useDcReport } from './useDcReport';
 type AudioProblem = 'too_large' | 'not_audio' | null;
 type RecPhase = 'idle' | 'starting' | 'recording' | 'micBlocked';
 type Sending = { pct: number } | null;
+const UPLOADING = 'uploading';
 
 const NO_SUBJECTS: SubjectsByGrade = {};
 const norm = (s: string | null | undefined) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -172,12 +177,15 @@ export function NewObservationPage() {
   // Submit, and what came of it — on this screen.
   const [sending, setSending] = useState<Sending>(null);
   const [failure, setFailure] = useState<SendError | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  // The second screen (after Submit) is ?sent=uploading, then ?sent=<session>.
+  const sentParam = new URLSearchParams(location.search).get('sent');
+  const [sessionId, setSessionId] = useState<string | null>(() => (sentParam && sentParam !== UPLOADING ? sentParam : null));
   const report = useDcReport(sessionId);
   const submit = async () => {
     if (!audio || !cls) return;
     setFailure(null);
     setSending({ pct: 0 });
+    navigate(`${COACHING_NEW}?sent=${UPLOADING}`, { replace: true });
     try {
       const { coachingSessionId } = await sendLesson({
         audio: { blob: audio.blob, filename: audio.filename },
@@ -188,15 +196,22 @@ export function NewObservationPage() {
       if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
       clearDraft();
       setSessionId(coachingSessionId);
+      navigate(`${COACHING_NEW}?sent=${encodeURIComponent(coachingSessionId)}`, { replace: true });
     } catch (err) {
       setFailure(err instanceof SendError ? err : new SendError('network'));
+      navigate(COACHING_NEW, { replace: true });
     } finally {
       setSending(null);
     }
   };
 
   const ready = !!cls && !!audio;
-  const after = !!sessionId;
+  const after = !!sessionId || !!sending;
+  // Reloaded mid-upload: that upload is gone, and there is nothing to show; the main page lists what did arrive.
+  const reloadedMidUpload = useRef(sentParam === UPLOADING);
+  useEffect(() => {
+    if (reloadedMidUpload.current) navigate(COACHING_HOME, { replace: true });
+  }, [navigate]);
   const s1 = cls ? 'done' : 'now';
   // Lesson plan before the recording (operator, 16 Oct): both open once a class is picked; the plan is optional, so it
   // never holds the recording back.
@@ -331,13 +346,6 @@ export function NewObservationPage() {
             </>
           ) : null}
 
-          {sending ? (
-            <section aria-live="polite" className={cn(CARD, 'flex flex-col items-center gap-2 px-4 py-6 text-center')}>
-              <span className="text-[18px] font-semibold">{C.sending}</span>
-              <span className="text-[44px] font-light tabular-nums">{`${sending.pct}%`}</span>
-              <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
-            </section>
-          ) : null}
           {failure ? (
             <section role="alert" className={cn(CARD, 'flex flex-col gap-3 p-4')}>
               <span className="text-[17px] font-semibold text-[#c8331f]">
@@ -368,7 +376,13 @@ export function NewObservationPage() {
               />
             </section>
           ) : null}
-          {progress?.stage === 'stopped' ? (
+          {sending ? (
+            <section aria-live="polite" className={cn(CARD, 'flex flex-col items-center gap-2 px-4 py-6 text-center')}>
+              <span className="text-[18px] font-semibold">{C.sending}</span>
+              <span className="text-[44px] font-light tabular-nums">{`${sending.pct}%`}</span>
+              <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
+            </section>
+          ) : progress?.stage === 'stopped' ? (
             <section aria-live="polite" className={cn(CARD, 'px-4 py-5 text-center text-[16px] font-semibold text-[#c8331f]')}>{C.stopped}</section>
           ) : (
             <ProgressSteps
@@ -378,8 +392,13 @@ export function NewObservationPage() {
               doneLabel={C.reportReady}
             />
           )}
-          <Reflection r={report} />
-          {report.ready && sessionId ? <Action to={lessonPath(sessionId)} icon={Check}>{C.openLesson}</Action> : <LeaveNote text={leave} />}
+          {/* While it uploads she keeps the app open (the card says so); the leave note comes once it has arrived. */}
+          {!sending ? (
+            <>
+              <Reflection r={report} />
+              {report.ready && sessionId ? <Action to={lessonPath(sessionId)} icon={Check}>{C.openLesson}</Action> : <LeaveNote text={leave} />}
+            </>
+          ) : null}
         </>
       )}
 
