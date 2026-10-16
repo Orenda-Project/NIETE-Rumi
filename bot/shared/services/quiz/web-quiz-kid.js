@@ -102,5 +102,17 @@ function envelope(fields = {}) {
   return out;
 }
 
+/** One home for "an event under events v2, else today's fields". kind 'envelope' (the binding events): v2 on →
+ *  envelope({kid, dk?, ...fields}); off → {...fields, w:'s'}. kind 'mark' (the hub door, whose envelope is not yet
+ *  decided): v2 on → {...fields, w:'s'}; off → fields untouched. The switch read is fail-closed (a throw = off).
+ *  The switch module is required lazily so this module stays leaf-like (no require cycle). */
+async function emit(name, fields = {}, { canonicalId = null, device = null, kind = 'envelope' } = {}) {
+  let v2 = false;
+  try { v2 = Boolean(await require('./web-quiz-hub-flags').eventsV2On()); } catch (_) { v2 = false; }
+  if (kind === 'mark') return logEvent(name, v2 ? { ...fields, w: 's' } : { ...fields });
+  if (!v2) return logEvent(name, { ...fields, w: 's' });
+  return logEvent(name, envelope({ kid: canonicalId ? kid(canonicalId) : null, ...(device ? { dk: dk(device) } : {}), ...fields }));
+}
+
 // kidOf / dkOf / clsOf / ukeyOf: the names the callers use (the same functions).
-module.exports = { kid, dk, cls, ukey, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };
+module.exports = { kid, dk, cls, ukey, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, emit, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };
