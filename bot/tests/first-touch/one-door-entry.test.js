@@ -55,6 +55,7 @@ try { GoToken = require('../../shared/services/first-touch/go.token'); } catch (
 
 const GOLDEN = path.join(__dirname, '__goldens__', 'one-door-off.json');
 const RECORD = process.env.ONE_DOOR_RECORD === '1';
+const onDescribeOff = RECORD ? describe.skip : describe;
 
 const ROW = { registration_completed: false, registration_state: null, name: null, teacher_uuid: null, school_id: null, portal_activated: false, preferred_language: 'en' };
 // The seven persona rows (+ every role with no quiz of its own: coach, school leader, supervisor, AEO, head). Names are test names ("Testwala").
@@ -72,11 +73,17 @@ const PERSONAS = {
   aeo: { user: { id: 'u-aeo', role: 'aeo', ...ROW, name: 'Aeo Testwala' }, phone: fixturePhone(11) },
   head: { user: { id: 'u-head', role: 'head', ...ROW, name: 'Head Testwala' }, phone: fixturePhone(12) },
   pilot_named_coach: { user: { id: 'u-pilot', role: 'coach', ...ROW, name: 'Pilot Testwala' }, phone: fixturePhone(13) },
+  // a parent known only from a class roster (the child's parent_phone), no users identity: today = an unknown phone
+  roster_parent: { user: { id: 'u-family', role: null, ...ROW }, phone: fixturePhone(14) },
 };
 
-function world({ oneDoor = false, ownCap = null, cap = null } = {}) {
+// The switch's OFF states: absent, false, garbage, and a read that throws — every one is today, byte for byte.
+const OFF_STATES = Object.freeze({ absent: undefined, false: 'false', yes: 'yes', one: 1, object: { on: true }, throws: 'THROW' });
+
+function world({ oneDoor = false, ownCap = null, cap = null, offState = 'absent' } = {}) {
   const settings = [{ key: 'teacher_report_teachers', value: JSON.stringify(['u-pilot']) }];
   if (oneDoor) settings.push({ key: 'quiz_one_door', value: 'true' });
+  else if (OFF_STATES[offState] !== undefined && OFF_STATES[offState] !== 'THROW') settings.push({ key: 'quiz_one_door', value: OFF_STATES[offState] });
   if (ownCap != null) settings.push({ key: 'web_quiz_own_reply_cap_per_phone', value: String(ownCap) });
   if (cap != null) settings.push({ key: 'web_quiz_reply_cap_per_phone', value: String(cap) });
   mockDb = fakeDb({
@@ -87,9 +94,23 @@ function world({ oneDoor = false, ownCap = null, cap = null } = {}) {
       id: 'cs-1', user_id: 'u-teach', observation_type: null, status: 'completed', created_at: '2026-10-01T09:00:00Z',
       transcript_text: 'x'.repeat(5000), analysis_data: { topic: 'Fractions', subject: 'Maths' },
     }],
-    quizzes: [], quiz_sessions: [], quiz_share_codes: [], student_lists: [], students: [],
+    quizzes: [], quiz_sessions: [], quiz_share_codes: [],
+    student_lists: [{ id: 'l-1', user_id: 't-roster', is_active: true, created_at: new Date().toISOString() }],
+    students: [{ id: 'r-1', student_name: 'Ali Testwala', list_id: 'l-1', parent_phone: PERSONAS.roster_parent.phone, is_active: true, status: 'active' }],
     user_feature_first_use: [], child_phone_bindings: [], transcript_quiz_offers: [],
   });
+  mockDb.tables.users.push({ id: 't-roster', role: 'teacher', ...ROW, school_id: 'sch-1' });
+  if (offState === 'throws') {
+    // the switch's own read fails (throws inside the read): the door reads OFF
+    const from = mockDb.from.bind(mockDb);
+    mockDb.from = (table) => {
+      const b = from(table);
+      if (table !== 'app_settings') return b;
+      const inner = b.in;
+      b.in = (c, v) => { if (Array.isArray(v) && v.includes('quiz_one_door')) throw new Error('app_settings read failed'); return inner(c, v); };
+      return b;
+    };
+  }
   if (OneDoorFlags) OneDoorFlags._resetCache();
   Gate._resetCache && Gate._resetCache();
   Ledger._resetCap();
@@ -122,6 +143,18 @@ describe('switch OFF (absent) — every persona × typed/menu/home is byte-ident
         const got = stable(mockSent);
         recorded[`${name}|${trigger}`] = got;
         if (!RECORD) expect(got).toEqual(JSON.parse(fs.readFileSync(GOLDEN, 'utf8'))[`${name}|${trigger}`]);
+      });
+    }
+  }
+});
+
+onDescribeOff('switch OFF in every state (false, garbage, a read that throws) — the same bytes as absent', () => {
+  for (const state of Object.keys(OFF_STATES).filter((k) => k !== 'absent')) {
+    for (const name of ['unknown', 'coach', 'teacher_lessons', 'roster_parent', 'child_known']) {
+      test(`${state}: ${name} × text`, async () => {
+        world({ offState: state });
+        await ask(name, 'text');
+        expect(stable(mockSent)).toEqual(JSON.parse(fs.readFileSync(GOLDEN, 'utf8'))[`${name}|text`]);
       });
     }
   }
@@ -174,6 +207,16 @@ onDescribe('switch ON — ONE cta_url for every handset that is not a child', ()
     expect(mockSent[0].p.body).toBe('جگنو کا کوئز: ٹیچر اپنی کلاس کو کوئز اور کہانیاں بھیجیں؛ بچے کھیلیں اور پڑھیں۔ کھولنے کے لیے ٹیپ کریں۔ جگنو ایک بات پوچھے گا، پھر آپ کو یاد رکھے گا۔');
     expect(mockSent[0].p.buttonText).toBe('کھولیں');
     expect(logEvent).toHaveBeenCalledWith('onboard.quiz_door', expect.objectContaining({ door: 'text', verdict: 'unknown', reply: 'one_door', lang: 'ur' }));
+  });
+
+  test('a parent known only from a class roster → ONE cta_url to /quiz/go/<token> with the child words ("Is it <First>?" on the page)', async () => {
+    world({ oneDoor: true });
+    await ask('roster_parent', 'text');
+    expect(mockSent).toHaveLength(1);
+    expect(mockSent[0].kind).toBe('cta');
+    expect(mockSent[0].p.url).toMatch(/\/quiz\/go\//);
+    expect(mockSent[0].p.body).toBe('Your stories, videos and quizzes are here.');
+    expect(mockSent[0].p.body).not.toContain('Ali');
   });
 
   test.each(['child_known', 'child_bound'])('%s keeps today\'s ONE hub reply (StudentQuiz.open), unchanged', async (name) => {

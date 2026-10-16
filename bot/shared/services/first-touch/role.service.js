@@ -4,43 +4,72 @@
  * lands (the token's side is only what the bot thought; the server re-reads, every time).
  *
  * The order, first match wins:
- *   1  identity / activity (student-ingress-identity identity() + activity(): registration, a name, a school, role coach or
- *      principal, owns a quiz / coaching session / lesson plan / list / training / assessment, an active class) → teacher
- *      Never "a users row exists": getOrCreateUser makes one for every phone that writes.
- *   2  a live child_phone_bindings row on this phone (web_quiz_phone_bind on)                               → child
- *   3  a chat-joined students row keyed by this phone (StudentMode.quizStudentsForPhone)                    → child
+ *   1  identity / activity (student-ingress-identity identity() + activity(): registration, a name, a school, role
+ *      coach or principal, owns a quiz / coaching session / lesson plan / list / training / assessment, an active
+ *      class) → teacher. Never "a users row exists": getOrCreateUser makes one for every phone that writes.
+ *   2  a live child_phone_bindings row on this phone (web_quiz_phone_bind on)                      → child (bound)
+ *   3  a chat-joined students row keyed by this phone (StudentMode.quizStudentsForPhone)           → child (roster)
+ *   3b the class-roster record: active roster rows whose parent_phone is this phone, on a list of this school year,
+ *      in ONE school, at most 4 children                                                            → child (family)
+ *      (read only: the binding a "Yes, it's me" makes lives in child_phone_bindings, never on the roster row)
  *   4  our remembered page answer: door.keys quiz_door_teacher / quiz_door_child (≤ 90 days, newest wins,
  *      decideDoor) — teacher key → teacher; child key alone → the join screen (the "who" is never re-asked)
  *   5  nothing → unknown (the page asks once)
  *
  * decideRole is pure; resolveRole is the one read. A read that FAILS is never "no": rung 1 failing answers `unknown`
  * with src 'error' (the page then asks rather than guess a child into a teacher's home or the reverse), and every other
- * failed rung is skipped as absent. Nothing here writes anything.
+ * failed rung is skipped as absent. Nothing here writes anything — except writeRoleAnswer, the page's one writer.
  *
- * → { role: 'teacher'|'child'|'unknown', side: 'teacher'|'child'|'join'|'unknown', src, uid, children: [ids], lang }
- *   src ∈ identity | activity | bound | roster | key | none | error
+ * → { role: 'teacher'|'child'|'unknown', side: 'teacher'|'child'|'join'|'unknown', src, uid, children: [ids],
+ *     kids: [{ id, first }], lang }      src ∈ identity | activity | bound | roster | family | key | none | error
+ *     (`kids` carries first names only, for the "Is it <First>?" sheet; never a surname, a school or a phone)
  */
 const { logToFile } = require('../../utils/logger');
 
 const SIDES = Object.freeze(['teacher', 'child', 'join', 'unknown']);
-const SRCS = Object.freeze(['identity', 'activity', 'bound', 'roster', 'key', 'none', 'error']);
+const SRCS = Object.freeze(['identity', 'activity', 'bound', 'roster', 'family', 'key', 'none', 'error']);
 const MAX_KIDS = 4;
+const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 
-const kidIds = (rows) => [...new Set((rows || []).map((r) => String(r && (r.canonical_id || r.id) || '')).filter(Boolean))].slice(0, MAX_KIDS);
+/** The first word of a name: the only part of a child's name the door ever shows. */
+const firstOf = (name) => String(name || '').trim().split(/\s+/)[0] || '';
+const kidsOf = (rows) => {
+  const seen = new Set();
+  const out = [];
+  for (const r of rows || []) {
+    const id = String((r && r.id) || '');
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push({ id, first: firstOf(r.student_name) });
+  }
+  return out;
+};
+
+/** 1 April 00:00 PKT that starts the school year `now` falls in (the bindings' clock). */
+function schoolYearStart(now = new Date()) {
+  const pkt = new Date(now.getTime() + PKT_OFFSET_MS);
+  const y = pkt.getUTCMonth() >= 3 ? pkt.getUTCFullYear() : pkt.getUTCFullYear() - 1;
+  return new Date(Date.UTC(y, 3, 1) - PKT_OFFSET_MS);
+}
 
 /**
  * The decision, pure.
- * @param {{teacher?: 'identity'|'activity'|null, failed?: boolean, bound?: string[], roster?: string[], door?: string|null}} facts
- *   door: decideDoor's answer over this user's keys ('maker' | 'family' | 'chooser' | 'capped'), or null
+ * @param {{teacher?: 'identity'|'activity'|null, failed?: boolean, bound?: object[], roster?: object[], family?: object[],
+ *          door?: string|null}} facts   bound/roster/family: [{id, first}] (or ids); door: decideDoor's answer or null
  */
-function decideRole({ teacher = null, failed = false, bound = [], roster = [], door = null } = {}) {
-  if (teacher) return { role: 'teacher', side: 'teacher', src: teacher, children: [] };
-  if (failed) return { role: 'unknown', side: 'unknown', src: 'error', children: [] };
-  if (bound && bound.length) return { role: 'child', side: 'child', src: 'bound', children: bound.slice(0, MAX_KIDS) };
-  if (roster && roster.length) return { role: 'child', side: 'child', src: 'roster', children: roster.slice(0, MAX_KIDS) };
-  if (door === 'maker') return { role: 'teacher', side: 'teacher', src: 'key', children: [] };
-  if (door === 'family') return { role: 'child', side: 'join', src: 'key', children: [] };
-  return { role: 'unknown', side: 'unknown', src: 'none', children: [] };
+function decideRole({ teacher = null, failed = false, bound = [], roster = [], family = [], door = null } = {}) {
+  const kid = (src, list) => {
+    const kids = list.slice(0, MAX_KIDS).map((k) => (typeof k === 'string' ? { id: k, first: '' } : k));
+    return { role: 'child', side: 'child', src, children: kids.map((k) => k.id), kids };
+  };
+  if (teacher) return { role: 'teacher', side: 'teacher', src: teacher, children: [], kids: [] };
+  if (failed) return { role: 'unknown', side: 'unknown', src: 'error', children: [], kids: [] };
+  if (bound && bound.length) return kid('bound', bound);
+  if (roster && roster.length) return kid('roster', roster);
+  if (family && family.length) return kid('family', family);
+  if (door === 'maker') return { role: 'teacher', side: 'teacher', src: 'key', children: [], kids: [] };
+  if (door === 'family') return { role: 'child', side: 'join', src: 'key', children: [], kids: [] };
+  return { role: 'unknown', side: 'unknown', src: 'none', children: [], kids: [] };
 }
 
 /** The page language for this person: Urdu when they wrote in Arabic script or chose Urdu; else bilingual. */
@@ -50,16 +79,63 @@ function langOf({ body = '', user = null } = {}) {
   return 'bi';
 }
 
+async function firstNames(ids) {
+  if (!ids.length) return new Map();
+  const supabase = require('../../config/supabase');
+  const { data } = await supabase.from('students').select('id, student_name').in('id', ids);
+  return new Map((data || []).map((r) => [String(r.id), firstOf(r.student_name)]));
+}
+
 async function boundKids(phone) {
   const IdFlags = require('../quiz/web-quiz-identity-flags');
   if (!(await IdFlags.flags()).phoneBind) return [];
   const Repo = require('../quiz/child-phone-bindings.repo');
-  return kidIds(await Repo.activeForPhone(Repo.normalisePhone(phone)));
+  const rows = await Repo.activeForPhone(Repo.normalisePhone(phone));
+  const ids = [...new Set((rows || []).map((r) => String((r && r.canonical_id) || '')).filter(Boolean))].slice(0, MAX_KIDS);
+  if (!ids.length) return [];
+  const names = await soft('bound_names', () => firstNames(ids), new Map());
+  return ids.map((id) => ({ id, first: names.get(id) || '' }));
 }
 
 async function rosterKids(phone) {
   const StudentMode = require('../student-mode.service');
-  return kidIds(await StudentMode.quizStudentsForPhone(phone));
+  return kidsOf(await StudentMode.quizStudentsForPhone(phone));
+}
+
+/**
+ * Rung 3b — the class-roster record, read only. Active rows on an active list made this school year whose parent_phone
+ * is this phone; offered only when they sit in ONE school and number at most 4 (a number written on two schools'
+ * registers, or against a whole class, is a wrong number: the page asks instead and shows no name).
+ */
+async function familyKids(phone, now = new Date()) {
+  const { normalisePhone } = require('../quiz/student-identity.service');
+  const norm = normalisePhone(phone);
+  if (!norm) return [];
+  const supabase = require('../../config/supabase');
+  const { data: rows, error } = await supabase.from('students')
+    .select('id, student_name, list_id')
+    .in('parent_phone', [norm, `+${norm}`])
+    .eq('is_active', true)
+    .eq('status', 'active')
+    .not('list_id', 'is', null)
+    .limit(MAX_KIDS + 1);
+  if (error) throw new Error(error.message || 'roster read failed');
+  if (!rows || !rows.length || rows.length > MAX_KIDS) return [];
+  const listIds = [...new Set(rows.map((r) => String(r.list_id)))];
+  const { data: lists, error: lerr } = await supabase.from('student_lists').select('id, user_id, is_active, created_at').in('id', listIds);
+  if (lerr) throw new Error(lerr.message || 'list read failed');
+  const since = schoolYearStart(now).getTime();
+  const live = new Map((lists || [])
+    .filter((l) => l.is_active !== false && l.created_at && new Date(l.created_at).getTime() >= since)
+    .map((l) => [String(l.id), l]));
+  const kept = rows.filter((r) => live.has(String(r.list_id)));
+  if (!kept.length) return [];
+  const owners = [...new Set(kept.map((r) => String(live.get(String(r.list_id)).user_id || '')))];
+  const { data: teachers, error: terr } = await supabase.from('users').select('id, school_id').in('id', owners);
+  if (terr) throw new Error(terr.message || 'school read failed');
+  const schools = new Set((teachers || []).map((t) => String(t.school_id || `teacher:${t.id}`)));
+  if (schools.size !== 1) return [];
+  return kidsOf(kept);
 }
 
 async function doorOf(userId) {
@@ -77,8 +153,8 @@ async function soft(label, fn, fallback) {
 }
 
 /**
- * The one read. `user` = the users row (getOrCreateUser's, or read by id on the landing); `phone` = the sender.
- * @returns {Promise<{role, side, src, uid, children, lang}>}
+ * The one read. `user` = the users row (getOrCreateUser's, or `{ id }` on the landing); `phone` = the sender.
+ * @returns {Promise<{role, side, src, uid, children, kids, lang}>}
  */
 async function resolveRole({ user, phone, body = '' } = {}) {
   const uid = (user && user.id) || null;
@@ -103,8 +179,34 @@ async function resolveRole({ user, phone, body = '' } = {}) {
   if (teacher || failed) return { ...decideRole({ teacher, failed }), uid, lang };
   const bound = phone ? await soft('bound', () => boundKids(phone), []) : [];
   const roster = !bound.length && phone ? await soft('roster', () => rosterKids(phone), []) : [];
-  const door = !bound.length && !roster.length ? await soft('key', () => doorOf(uid), null) : null;
-  return { ...decideRole({ bound, roster, door }), uid, lang };
+  const family = !bound.length && !roster.length && phone ? await soft('family', () => familyKids(phone), []) : [];
+  const door = !bound.length && !roster.length && !family.length ? await soft('key', () => doorOf(uid), null) : null;
+  return { ...decideRole({ bound, roster, family, door }), uid, lang };
+}
+
+/**
+ * The page's ONE writer (writer `role_page`): the remembered answer through door.keys (the closed writer list), which
+ * also forgets the cached verdict for this phone. Never writes the users row. `phone` is read from the users row when
+ * the caller does not hold it (the teacher home's "Change").
+ * @returns {Promise<boolean>} true when written
+ */
+async function writeRoleAnswer({ userId, side, phone = null, src = 'role_page' } = {}) {
+  if (!userId || (side !== 'teacher' && side !== 'child') || src !== 'role_page') return false;
+  let ph = phone;
+  if (!ph) {
+    const supabase = require('../../config/supabase');
+    const { data } = await supabase.from('users').select('phone_number').eq('id', userId).maybeSingle();
+    ph = (data && data.phone_number) || null;
+  }
+  const Keys = require('./door.keys');
+  if (side === 'teacher') await Keys.markTeacher(userId, ph);
+  else await Keys.markChild(userId, ph);
+  return true;
+}
+
+/** Forget this phone's cached verdict (both phone forms). Never throws. */
+async function forgetDoorVerdict(phone) {
+  try { await require('./door.keys').forgetVerdict(phone); } catch (_) { /* the cache expires on its own */ }
 }
 
 /** Teacher-side extras the landing may want (head counts only; null on a failed read). */
@@ -126,4 +228,7 @@ async function teacherFacts(uid) {
   return { hasLessons, hasCoaching };
 }
 
-module.exports = { decideRole, resolveRole, langOf, teacherFacts, SIDES, SRCS, MAX_KIDS };
+module.exports = {
+  decideRole, resolveRole, langOf, firstOf, schoolYearStart, familyKids, writeRoleAnswer, forgetDoorVerdict, teacherFacts,
+  SIDES, SRCS, MAX_KIDS,
+};

@@ -56,6 +56,9 @@ describe('decideRole — pure, the contract order', () => {
     ['remembered teacher answer', { door: 'maker' }, { role: 'teacher', side: 'teacher', src: 'key' }],
     ['remembered child answer, no row yet → join', { door: 'family' }, { role: 'child', side: 'join', src: 'key' }],
     ['a row on the phone beats a remembered teacher answer', { roster: ['s1'], door: 'maker' }, { role: 'child', side: 'child', src: 'roster' }],
+    ['the class-roster family (rung 3b)', { family: [{ id: 'r-1', first: 'Ali' }] }, { role: 'child', side: 'child', src: 'family', kids: [{ id: 'r-1', first: 'Ali' }] }],
+    ['a chat-joined row beats the roster family', { roster: ['s1'], family: [{ id: 'r-1', first: 'Ali' }] }, { src: 'roster' }],
+    ['the roster family beats a remembered teacher answer', { family: [{ id: 'r-1', first: 'Ali' }], door: 'maker' }, { src: 'family' }],
     ['nothing → unknown', {}, { role: 'unknown', side: 'unknown', src: 'none' }],
     ['onboard\'s chooser/capped states are not answers → unknown', { door: 'capped' }, { role: 'unknown', side: 'unknown', src: 'none' }],
   ])('%s', (_name, facts, want) => {
@@ -169,5 +172,23 @@ describe('resolveRole — the one read, per persona row', () => {
 
   test('no user → unknown (error)', async () => {
     expect(await Role.resolveRole({ user: null, phone: PHONE })).toMatchObject({ side: 'unknown', src: 'error' });
+  });
+});
+
+describe('writeRoleAnswer — the page\'s one writer', () => {
+  test('refuses anything but teacher | child from the role page', async () => {
+    expect(await Role.writeRoleAnswer({ userId: 'u-1', side: 'admin', phone: PHONE })).toBe(false);
+    expect(await Role.writeRoleAnswer({ userId: 'u-1', side: 'teacher', phone: PHONE, src: 'menu' })).toBe(false);
+    expect(await Role.writeRoleAnswer({ side: 'teacher', phone: PHONE })).toBe(false);
+  });
+
+  test('firstOf keeps the first word of a name only', () => {
+    expect(Role.firstOf('  Sara  Testwala ')).toBe('Sara');
+    expect(Role.firstOf('')).toBe('');
+  });
+
+  test('the school year starts 1 April (Pakistan time)', () => {
+    expect(Role.schoolYearStart(new Date('2026-10-16T12:00:00Z')).toISOString()).toBe('2026-03-31T19:00:00.000Z');
+    expect(Role.schoolYearStart(new Date('2027-02-01T12:00:00Z')).toISOString()).toBe('2026-03-31T19:00:00.000Z');
   });
 });

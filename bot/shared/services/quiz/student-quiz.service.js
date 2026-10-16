@@ -199,12 +199,15 @@ async function sendHub(phone, known, lang, { home = false, trueCount = false } =
   // daily reply cap); over the cap nothing is sent and the /quiz is still handled. Off: today's path, uncounted.
   // ownReply: a reply to the child's own /quiz — with quiz_one_door ON it is counted on `reply_to_own_message`, not the shared 8
   if (trueCount && !(await require('./message-ledger').record({ trigger: 'home_reply', phone, reason: 'home', ownReply: true }))) return true;
-  const body = resolveUx(home ? 'sqHomeBody' : 'sqHubBody', { language: lang });
-  const labels = home ? ['sqHomeBtn', 'sqHomeBtnPlain'] : ['sqHubBtn'];
+  // the one door (quiz_one_door): the child's words without a retired door word ("stories, videos and quizzes")
+  const oneDoor = await require('../first-touch/one-door.flags').on();
+  const Words = oneDoor ? require('../first-touch/one-door.strings') : null;
+  const body = Words ? Words.str('od.child.body', lang) : resolveUx(home ? 'sqHomeBody' : 'sqHubBody', { language: lang });
+  const labels = Words ? [Words.str('od.child.btn', lang)] : (home ? ['sqHomeBtn', 'sqHomeBtnPlain'] : ['sqHubBtn']).map((key) => resolveUx(key, { language: lang }));
   let sent = false;
-  for (const key of labels) {
+  for (const buttonText of labels) {
     // ≤ 20 code points
-    sent = await WhatsAppService.sendCtaUrl(phone, { body, buttonText: resolveUx(key, { language: lang }), url });
+    sent = await WhatsAppService.sendCtaUrl(phone, { body, buttonText, url });
     if (sent) break;
   }
   if (!sent) { logToFile('⚠️ student-quiz: hub link send failed, falling back', {}, 'error'); return false; }

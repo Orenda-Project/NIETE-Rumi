@@ -1,11 +1,11 @@
 'use strict';
 /**
- * A known child's return word through the REAL student-ingress route(): with quiz_one_door ON, `jugnu` / «جگنو» (the
- * shared card's word) opens the child's own quizzes — today's ONE hub reply — instead of the tutor; OFF, the tutor
- * answers it exactly as today. `quiz` is the child's /quiz either way; JUGNU- codes and STOP keep their own handlers.
+ * The bot's own name from a known child, through the REAL student-ingress route(): `jugnu` / «جگنو» is NOT a quiz
+ * request under the one door — the tutor answers it, ON exactly as OFF (the card's return words are `quiz please` /
+ * «کوئز دکھائیں», which are already quiz-shaped). `quiz` is the child's /quiz either way.
  */
-const { fixturePhone } = require('../quiz/web-quiz/fixture-phone');
 process.env.STUDENT_MODE_ENABLED = 'true';
+const { fixturePhone } = require('../quiz/web-quiz/fixture-phone');
 jest.mock('../../shared/config/supabase', () => ({}));
 jest.mock('../../shared/services/cache/railway-redis.service', () => require('./_ingress-mocks').redisMock(jest));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
@@ -28,22 +28,18 @@ const route = (body) => Ingress.route({ messageType: 'text', messageBody: body, 
 
 beforeEach(() => { jest.clearAllMocks(); mockOn = false; });
 
-test.each(['jugnu', 'جگنو'])('OFF: %s goes to the tutor, as today', async (word) => {
-  expect(await route(word)).toBe(true);
-  expect(StudentQuiz.open).not.toHaveBeenCalled();
-  expect(handleGeneralConversation).toHaveBeenCalledTimes(1);
-});
+describe.each([['OFF', false], ['ON', true]])('switch %s', (_name, on) => {
+  test.each(['jugnu', 'Jugnu', 'جگنو'])('%s goes to the tutor, as today', async (word) => {
+    mockOn = on;
+    expect(await route(word)).toBe(true);
+    expect(StudentQuiz.open).not.toHaveBeenCalled();
+    expect(handleGeneralConversation).toHaveBeenCalledTimes(1);
+  });
 
-test.each(['jugnu', 'Jugnu', 'جگنو'])('ON: %s opens the child\'s own quizzes (the ONE hub reply)', async (word) => {
-  mockOn = true;
-  expect(await route(word)).toBe(true);
-  expect(StudentQuiz.open).toHaveBeenCalledWith(fixturePhone(2), expect.objectContaining({ language: 'ur' }));
-  expect(handleGeneralConversation).not.toHaveBeenCalled();
-});
-
-test('ON: a sentence with the word is still the tutor\'s', async () => {
-  mockOn = true;
-  await route('jugnu tell me about the moon');
-  expect(StudentQuiz.open).not.toHaveBeenCalled();
-  expect(handleGeneralConversation).toHaveBeenCalledTimes(1);
+  test.each(['quiz', 'quiz please', 'کوئز دکھائیں'])('%s opens the child\'s own quizzes (the ONE hub reply)', async (word) => {
+    mockOn = on;
+    expect(await route(word)).toBe(true);
+    expect(StudentQuiz.open).toHaveBeenCalledTimes(1);
+    expect(handleGeneralConversation).not.toHaveBeenCalled();
+  });
 });

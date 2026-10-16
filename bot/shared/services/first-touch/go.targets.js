@@ -1,22 +1,25 @@
 'use strict';
 /**
- * Where the one door sends a person once the server knows who they are — named here, by constant, so the landing
- * never guesses a route. Each target is another page's own module; until it is on this branch the target answers
+ * Where the one door sends a person once the server knows who they are — named here, so the landing never guesses a
+ * route. The teacher home and the join page are their own modules; until one is on this branch its target answers
  * null and the landing shows the honest line instead (never a 500, never a dead button).
  *
- *   teacher  → /quiz/teacher/<th token>   the teacher home: `./teacher-home.token` exports signTeacherHome({uid, lang, via})
- *   join     → /j/<j token>               the join page: `./join.token` exports signJoin({uid, n, lang})
- *   child    → /h/<hub token>?src=quiz    the hub (the same shell as /quiz/home), minted as sendHub does
- *   autoBind / bindChosen                 the join page: `./join.service` exports bindOnLanding({phoneNorm, userId, kids})
- *                                         and bindChosen({phoneNorm, userId, kid}) → {ok, next?, error?}
+ *   teacher  → /quiz/teacher/<th token>   the teacher home's `./teacher-home.token` signTeacherHome({uid, lang, via});
+ *                                         until that module is here, the same token shape is signed inline
+ *                                         ({k:'th', uid, lang, via:'go', exp: 24 h} — the teacher home verifies it)
+ *   join     → /quiz/join/<j token>       the join page's `../quiz/web-quiz-student-join` joinUrl({n, lang})
+ *   child    → /h/<hub token>?from=quiz   the child home (the same shell as /quiz/home), minted as the hub reply does;
+ *                                         `from=quiz` = a known child arriving from /quiz (no "saved" line)
+ *   bind     → the join page's bindPick({n, kid, device, src}) → { next } | { refused } — the one write of a binding;
+ *              the landing has already checked `kid` is one of THIS phone's (or this device's) children
  */
 const TEACHER_HOME_PATH = '/quiz/teacher/';
-const JOIN_PATH = '/j/';
-const HUB_SRC = 'src=quiz';
+const TH_TTL_S = 24 * 60 * 60;
 
 function optional(mod) {
   try { return require(mod); } catch (_) { return null; }
 }
+const studentJoin = () => optional('../quiz/web-quiz-student-join');
 
 /** A same-site path from the hub's absolute link (the edge passes only this site's paths on). */
 function pathOf(url) {
@@ -26,35 +29,39 @@ function pathOf(url) {
 
 function teacher({ uid, lang = 'bi' }) {
   const M = optional('./teacher-home.token');
-  if (!M || typeof M.signTeacherHome !== 'function') return null;
-  const t = M.signTeacherHome({ uid: String(uid), lang, via: 'go' });
+  let t = null;
+  if (M && typeof M.signTeacherHome === 'function') t = M.signTeacherHome({ uid: String(uid), lang, via: 'go' });
+  else {
+    const T = require('../quiz/web-quiz-token');
+    t = T.sign({ k: 'th', uid: String(uid), lang, via: 'go', exp: Math.floor(Date.now() / 1000) + TH_TTL_S });
+  }
   return t ? `${TEACHER_HOME_PATH}${t}` : null;
 }
 
-function join({ uid, n, lang = 'bi' }) {
-  const M = optional('./join.token');
-  if (!M || typeof M.signJoin !== 'function') return null;
-  const t = M.signJoin({ uid: String(uid), n, lang });
-  return t ? `${JOIN_PATH}${t}` : null;
+function join({ n, lang = 'bi' }) {
+  const M = studentJoin();
+  if (!M || typeof M.joinUrl !== 'function') return null;
+  const url = M.joinUrl({ n, lang: lang === 'ur' ? 'ur' : 'bi' });
+  return typeof url === 'string' && url ? (pathOf(url) || url) : null;
 }
 
-async function child(kids) {
+async function child(kids, from = 'quiz') {
   const url = await require('../quiz/web-quiz-hub-flags').hubLink(kids, 'one_door');
   const p = pathOf(url);
   if (!p) return null;
-  return `${p}${p.includes('?') ? '&' : '?'}${HUB_SRC}`;
+  return `${p}${p.includes('?') ? '&' : '?'}from=${from}`;
 }
 
-async function autoBind(args) {
-  const M = optional('./join.service');
-  if (!M || typeof M.bindOnLanding !== 'function') return null;
-  return M.bindOnLanding(args);
+/** Can a binding be written from this landing (the join page's writer on this branch)? */
+function canBind() {
+  const M = studentJoin();
+  return Boolean(M && typeof M.bindPick === 'function');
 }
 
-async function bindChosen(args) {
-  const M = optional('./join.service');
-  if (!M || typeof M.bindChosen !== 'function') return null;
-  return M.bindChosen(args);
+async function bindPick(args) {
+  const M = studentJoin();
+  if (!M || typeof M.bindPick !== 'function') return null;
+  return M.bindPick(args);
 }
 
-module.exports = { teacher, join, child, autoBind, bindChosen, pathOf, TEACHER_HOME_PATH, JOIN_PATH, HUB_SRC };
+module.exports = { teacher, join, child, canBind, bindPick, pathOf, TEACHER_HOME_PATH };

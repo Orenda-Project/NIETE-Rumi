@@ -317,5 +317,26 @@
       "to": "92300FIXTURE13",
       "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
     }
+  ],
+  "roster_parent|text": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE14",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "roster_parent|menu": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE14",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
+  ],
+  "roster_parent|home": [
+    {
+      "kind": "text",
+      "to": "92300FIXTURE14",
+      "text": "No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students."
+    }
   ]
 }

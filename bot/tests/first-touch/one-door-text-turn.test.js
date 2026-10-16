@@ -3,7 +3,8 @@
  * The /quiz turn through the REAL handleTextMessage (the mock set of the registration tests): with quiz_one_door ON
  *  - the turn sends ONE reply: the registration Flow is never the second message (RED on the base: an unknown phone's
  *    /quiz is followed by offerRegistrationOnce — 2 replies);
- *  - the return word `jugnu` / «جگنو» is a quiz request; the card's `quiz please` / «کوئز دکھائیں» already is;
+ *  - the class line's `quiz` and the card's `quiz please` / «کوئز دکھائیں» reach the door; the bot's own name
+ *    `jugnu` / «جگنو» does NOT (it stays the general bot's, ON or OFF);
  *  - the door does not depend on TRANSCRIPT_QUIZ_ENABLED; the quiz topic-reply window lets /quiz pass;
  *  - the one door receives the words that asked (its script rule and src).
  * With it OFF every one of these is today's (the same assertions the base passes).
@@ -185,7 +186,12 @@ describe('switch ON — the one door', () => {
     expect(mockOffer).not.toHaveBeenCalled();
   });
 
-  test.each(['jugnu', 'Jugnu!', 'جگنو', 'quiz please', 'کوئز دکھائیں', 'quiz', 'کوئز'])('%s → the one entry, no registration Flow', async (word) => {
+  test.each(['jugnu', 'جگنو'])('%s (the bot\'s own name) is not a quiz request: no door, ON as OFF', async (word) => {
+    await handleTextMessage(MESSAGE, FROM, word, { ...UNKNOWN }).catch(() => {});
+    expect(mockOpenQuizMenu).not.toHaveBeenCalled();
+  });
+
+  test.each(['quiz please', 'کوئز دکھائیں', 'quiz', 'کوئز'])('%s → the one entry, no registration Flow', async (word) => {
     await handleTextMessage(MESSAGE, FROM, word, { ...UNKNOWN });
     expect(mockOpenQuizMenu).toHaveBeenCalledTimes(1);
     expect(mockOpenQuizMenu.mock.calls[0][0].body).toBe(word);
