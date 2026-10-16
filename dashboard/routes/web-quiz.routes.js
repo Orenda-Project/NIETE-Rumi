@@ -175,10 +175,12 @@ function lockupHtml(brand, lang) {
 
 // An Urdu preview counts in Urdu digits while the finish card's switch is on (the bot carries `card_v3: true`): the
 // teacher's link and a child's card link sit side by side in one class group, one digit system. Off: today's text.
+// A score (۳/۵) keeps its left-to-right order inside the Urdu line (U+2066…U+2069).
+const urCount = (t) => urDigits(t).replace(/[\u06F0-\u06F9]+\/[\u06F0-\u06F9]+/g, (m) => `\u2066${m}\u2069`);
 function ogText(payload, view, brand) {
   const og = ogTextOf(payload, view, brand);
   const ur = ((payload && payload.quiz) || {}).lang === 'ur';
-  return ur && payload.card_v3 === true ? { ...og, title: urDigits(og.title), desc: urDigits(og.desc) } : og;
+  return ur && payload.card_v3 === true ? { ...og, title: urCount(og.title), desc: urCount(og.desc) } : og;
 }
 
 function ogTextOf(payload, view, brand) {

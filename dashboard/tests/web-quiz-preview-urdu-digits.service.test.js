@@ -70,6 +70,11 @@ describe('switch on (the bot carries card_v3: true): an Urdu preview counts in U
     expect(meta(b.body, 'title')).toBe('پودے کے حصے · جماعتیں ۱، ۳، ۵ کا کوئز');
     expect(meta(b.body, 'description')).toMatch(/^۵ سوال · /);
   });
+  test('a challenge\'s score stays left-to-right inside the Urdu line (۳/۵ never reads ۵/۳)', async () => {
+    page = quiz('ur', { card_v3: true, challenge: { first: 'امل', correct: 3, total: 5 }, art: { class: null, invite: 'i.x', schools: null } });
+    const r = await req(srv, '/q/AB12CD');
+    expect(meta(r.body, 'title')).toBe('امل کے \u2066۳/۵\u2069 سے آگے نکلیں! · پودے کے حصے');
+  });
   test('an English preview keeps its digits', async () => {
     page = quiz('en', { card_v3: true });
     const r = await req(srv, '/q/AB12CD');
