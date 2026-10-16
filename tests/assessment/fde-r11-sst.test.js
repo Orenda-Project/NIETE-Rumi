@@ -111,6 +111,21 @@ describe('1. which government does a job', () => {
     for (const q of right) expect(placed(laid, q.slot).map((x) => x.question)).toContain(q.question);
   });
 
+  // Right by p.29, and never held: a contrast opener, a tier named by its short name (صوبہ، وفاق),
+  // civil defence and «امن و امان» as a wish are no row's job given to another government.
+  test.each([
+    'وفاقی حکومت دفاع کرتی ہے۔ اس کے برعکس امن و امان صوبے کا کام ہے۔',
+    'صوبائی حکومت صوبے کا نظم چلاتی ہے۔ اس نظام میں وفاق دفاع اور خارجہ پالیسی دیکھتا ہے۔',
+    'وفاقی حکومت دفاع اور خارجہ پالیسی دیکھتی ہے جبکہ صوبے داخلی پالیسی خود طے کرتے ہیں۔',
+    'مقامی حکومت پانی کا انتظام کرتی ہے۔ ان کاموں سے الگ، صوبہ امن و امان سنبھالتا ہے۔',
+    'مقامی حکومت قدرتی آفات کے متاثرین کی مدد کرتی ہے اور شہری دفاع میں مدد دیتی ہے۔',
+    'مقامی حکومت صفائی کرتی ہے تاکہ علاقے میں امن و امان رہے۔',
+  ])('a right answer is placed: %s', (answer) => {
+    const q = { slot: 'social_studies.D.Q7', question: 'حکومتوں کے کام بتائیں۔', answer };
+    const laid = applyLayout(paper([q]), SST, FDE, { reasked: true });
+    expect(placed(laid, 'social_studies.D.Q7')).toHaveLength(1);
+  });
+
   test('an MCQ keyed on the wrong government for a job in its stem is held; the right key is placed', () => {
     const mcq = (answer) => ({ slot: 'social_studies.A.Q1', question: 'عوامی سڑکوں سے تجاوزات ہٹانا کس حکومت کا کام ہے؟', options: ['(a) وفاقی حکومت', '(b) صوبائی حکومت', '(c) مقامی حکومت', '(d) عدلیہ'], answer });
     const wrong = applyLayout(paper([mcq('(c) مقامی حکومت')]), SST, FDE, { reasked: true });

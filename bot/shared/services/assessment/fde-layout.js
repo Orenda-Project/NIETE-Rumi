@@ -721,14 +721,15 @@ function sameKeyFact(a, b) {
 // Social Studies, which government does a job (the book's table, p.29). A key that gives one row's
 // job to another government is a wrong key, not a repeat: it is held before the re-ask and never
 // comes back. Read sentence by sentence: a sentence that names one government («… حکومت») gives it
-// the jobs it lists, and one that opens with a pronoun («وہ», «یہ») carries the sentence before's
-// government. A sentence that names two governments compares them, and one that says «نہیں» denies
-// a job: neither is judged. A short key that names one government is read with its stem. The jobs
-// are the table's own cell words.
+// the jobs it lists, and one that opens with «وہ» or «یہ» carries the sentence before's government
+// («اس کے برعکس» does not). A sentence that names two governments (one of them by its short name,
+// «وفاق», «صوبہ») compares them, and one that says «نہیں» denies a job: neither is judged. A short
+// key that names one government is read with its stem. The jobs are the table's own cell words, as
+// phrases («ملکی دفاع», not «شہری دفاع»; «امن و امان کا قیام», not a wish for peace).
 const TIER_NAMES = { وفاقی: 'federal', صوبائی: 'provincial', مقامی: 'local' };
 const TIER_JOBS = {
-  federal: ['دفاع', 'مسلح افواج', 'ملکی معیشت', 'خارجہ پالیسی'],
-  provincial: ['تجاوزات', 'امن و امان', 'صوبائی محصولات', 'داخلی پالیسی'],
+  federal: ['ملکی دفاع', 'مسلح افواج', 'ملکی معیشت', 'خارجہ پالیسی'],
+  provincial: ['تجاوزات', 'امن و امان کا قیام', 'صوبائی محصولات', 'داخلی پالیسی'],
   local: ['مویشی منڈی', 'عوامی میلے', 'نکاسی', 'پینے کے پانی', 'پینے کا پانی', 'بیواؤں', 'یتیموں', 'معذوروں'],
 };
 const flatUr = (text) => {
@@ -738,7 +739,10 @@ const flatUr = (text) => {
 };
 const TIER_JOB_FLAT = Object.fromEntries(Object.entries(TIER_JOBS).map(([tier, jobs]) => [tier, jobs.map(flatUr)]));
 const TIER_RE = new RegExp(`(${Object.keys(TIER_NAMES).map(flatUr).join('|')})حکومت`, 'g');
-const CARRIES = /^\s*(?:وہ|یہ|یہی|وہی|اس|ان)\s/;
+const CARRIES = /^\s*(?:وہ|یہ|یہی|وہی)\s/;
+// A government named by its short name: «وفاق», «صوبہ / صوبے / صوبوں» (never «صوبائی»).
+const TIER_SHORT = new Map([['وفاق', 'federal'], ['صوبہ', 'provincial'], ['صوبے', 'provincial'], ['صوبوں', 'provincial']].map(([w, t]) => [plain(w), t]));
+const shortTiers = (sentence) => new Set(plain(sentence).split(' ').map((w) => TIER_SHORT.get(w)).filter(Boolean));
 const tiersIn = (flat) => new Set([...flat.matchAll(TIER_RE)].map((m) => TIER_NAMES[Object.keys(TIER_NAMES).find((n) => flatUr(n) === m[1])]));
 const jobsOf = (flat, tier) => TIER_JOB_FLAT[tier].some((j) => flat.includes(j));
 const otherJob = (flat, tier) => Object.keys(TIER_JOB_FLAT).some((t) => t !== tier && jobsOf(flat, t));
@@ -748,8 +752,9 @@ function tierSlipIn(text) {
     const flat = flatUr(sentence);
     if (!flat) continue;
     const named = tiersIn(flat);
-    if (named.size > 1 || /نہیں/.test(sentence)) { carry = null; continue; }
-    const tier = named.size === 1 ? [...named][0] : (CARRIES.test(` ${sentence.trim()} `) ? carry : null);
+    const all = new Set([...named, ...shortTiers(sentence)]);
+    if (all.size > 1 || /نہیں/.test(sentence)) { carry = null; continue; }
+    const tier = named.size === 1 ? [...named][0] : (!all.size && CARRIES.test(` ${sentence.trim()} `) ? carry : null);
     carry = tier;
     if (tier && otherJob(flat, tier)) return true;
   }
