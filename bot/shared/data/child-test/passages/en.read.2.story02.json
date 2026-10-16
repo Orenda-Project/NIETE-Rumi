@@ -1,0 +1,259 @@
+{
+  "passage_id": "en.read.2.story02",
+  "lang": "en",
+  "kind": "read",
+  "band": 2,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Amna"
+  ],
+  "tokens": 58,
+  "sentences": 8,
+  "mean_sent_len": 7.3,
+  "max_word_len": 7,
+  "readability": 0.947,
+  "readability_list": "fed-cum-g3-2026",
+  "readability_band_above": 0.921,
+  "source_ref": "generated brief v1 (band-2 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "The Night Sky",
+  "title_ur": null,
+  "text": "Amna loved the stars in the night sky. But the city lights were too bright. From her home, the stars were hard to spot. Her family took a trip to the hills. There were no city lights there. That night, Amna looked into the sky. It was full of bright stars! She stayed outside for a long time.",
+  "lines": [
+    [
+      0,
+      7
+    ],
+    [
+      8,
+      14
+    ],
+    [
+      15,
+      23
+    ],
+    [
+      24,
+      31
+    ],
+    [
+      32,
+      37
+    ],
+    [
+      38,
+      44
+    ],
+    [
+      45,
+      50
+    ],
+    [
+      51,
+      57
+    ]
+  ],
+  "tokens_list": [
+    "Amna",
+    "loved",
+    "the",
+    "stars",
+    "in",
+    "the",
+    "night",
+    "sky",
+    "But",
+    "the",
+    "city",
+    "lights",
+    "were",
+    "too",
+    "bright",
+    "From",
+    "her",
+    "home",
+    "the",
+    "stars",
+    "were",
+    "hard",
+    "to",
+    "spot",
+    "Her",
+    "family",
+    "took",
+    "a",
+    "trip",
+    "to",
+    "the",
+    "hills",
+    "There",
+    "were",
+    "no",
+    "city",
+    "lights",
+    "there",
+    "That",
+    "night",
+    "Amna",
+    "looked",
+    "into",
+    "the",
+    "sky",
+    "It",
+    "was",
+    "full",
+    "of",
+    "bright",
+    "stars",
+    "She",
+    "stayed",
+    "outside",
+    "for",
+    "a",
+    "long",
+    "time"
+  ],
+  "text_hash": "98a3b080069b51e51cd55929751f6791",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Amna love?",
+      "right": "the stars",
+      "wrong": [
+        "the rain",
+        "the flowers"
+      ],
+      "accept": [
+        "the stars",
+        "stars"
+      ],
+      "reject": [
+        "the rain",
+        "the flowers"
+      ],
+      "rubric": "Right if the child says the stars (or stars)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where were the stars?",
+      "right": "in the night sky",
+      "wrong": [
+        "in a book",
+        "on a poster"
+      ],
+      "accept": [
+        "in the night sky",
+        "in the sky",
+        "the sky"
+      ],
+      "reject": [
+        "in a book",
+        "on a poster"
+      ],
+      "rubric": "Right if the child says in the night sky (or in the sky / the sky)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was too bright?",
+      "right": "the city lights",
+      "wrong": [
+        "the moon",
+        "the sun"
+      ],
+      "accept": [
+        "the city lights",
+        "lights",
+        "city lights"
+      ],
+      "reject": [
+        "the moon",
+        "the sun"
+      ],
+      "rubric": "Right if the child says the city lights (or lights / city lights)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did her family go?",
+      "right": "to the hills",
+      "wrong": [
+        "to the sea",
+        "to a farm"
+      ],
+      "accept": [
+        "to the hills",
+        "the hills",
+        "hills"
+      ],
+      "reject": [
+        "to the sea",
+        "to a farm"
+      ],
+      "rubric": "Right if the child says to the hills (or the hills / hills)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 7,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was the sky full of?",
+      "right": "bright stars",
+      "wrong": [
+        "dark clouds",
+        "birds"
+      ],
+      "accept": [
+        "bright stars",
+        "stars"
+      ],
+      "reject": [
+        "dark clouds",
+        "birds"
+      ],
+      "rubric": "Right if the child says bright stars (or stars)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 8,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why did Amna stay outside for a long time?",
+      "right": "she loved the stars",
+      "wrong": [
+        "she was cold",
+        "she lost her shoe"
+      ],
+      "accept": [
+        "she loved the stars",
+        "to look at the stars",
+        "there were many stars"
+      ],
+      "reject": [
+        "she was cold",
+        "she lost her shoe"
+      ],
+      "rubric": "Right if the child says she loved the stars (or to look at the stars / there were many stars)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

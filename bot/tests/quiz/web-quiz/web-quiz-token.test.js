@@ -6,6 +6,7 @@
  */
 const crypto = require('crypto');
 
+const { fixturePhone } = require('./fixture-phone');
 const SAVED = { ...process.env };
 afterEach(() => { process.env = { ...SAVED }; });
 
@@ -104,7 +105,7 @@ describe('web-quiz-token', () => {
     expect(T.newDeviceRef()).not.toBe(a);
     expect(T.cleanDeviceRef(a)).toBe(a);
     expect(T.cleanDeviceRef('<script>')).toBeNull();
-    expect(T.cleanDeviceRef('+920000000000')).toBeNull();
+    expect(T.cleanDeviceRef(`+${fixturePhone(0)}`)).toBeNull();
   });
 
   test('animal is derived from the student id, stable, one of twelve', () => {

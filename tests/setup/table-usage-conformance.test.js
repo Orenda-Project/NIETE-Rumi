@@ -40,6 +40,20 @@ const ALLOWLIST = new Set([
   'exam_question_groups',
   'exams',
   'exam_questions',
+
+  // Web quiz Challenge read-side table, created with the runs provenance
+  // columns so the schema lands in one migration. Its writer ships in the
+  // follow-up PR that uses it (the weekly strip job fills
+  // web_quiz_strip_weekly). Remove the entry when its writer lands.
+  'web_quiz_strip_weekly',
+  // Child identity store: the tables exist (child_identity.sql, mirrored) before their first writer lands.
+  // child_identity is written by the Challenge draw service at the first counted play of the year; merge_log by
+  // the teacher join queue. Remove each entry when its writer is on sandbox.
+  'child_identity',
+  'merge_log',
+  // Challenge equating links (web_quiz_challenge_registry.sql, mirrored with the other four registry tables). The
+  // calibration job that writes it ships in a later merge. Remove this entry when its writer is on sandbox.
+  'challenge_links',
 ]);
 
 function collectFiles(dir, exts) {

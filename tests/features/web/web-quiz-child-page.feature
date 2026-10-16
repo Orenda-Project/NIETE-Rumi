@@ -1294,6 +1294,7 @@ Feature: Web child quiz page on the portal
     And every question the child reaches after the clips land is read in the quiz's recorded voice, in Urdu as in English
     And a quiz whose clips are already recorded never asks again
 
+    And the hub link carries the card's language (lang=en or ur), and with web_quiz_challenge_v2 on the hub, its challenge and library links open in it
   @T592
   Scenario: Every portal worker answers a link preview fast, whichever one the phone reaches
     Given the portal runs several worker processes and only one of them served the child's quiz page
@@ -1563,3 +1564,355 @@ Feature: Web child quiz page on the portal
     And the school sits on its own line under the points, and the class picture's average on its own line — no middots inside an Urdu sentence
     And the picture's cache key carries the switch only when it is on, so every picture already cached is served as before when it is off
     But an English picture is byte-identical with or without the switch
+
+  @T765
+  Scenario: Under web_quiz_identity_canon a merged loose child folds to the child it was merged into, one hop only
+    Given web_quiz_hub and web_quiz_identity_canon are "on"
+    And a loose child record was merged into a class-list child, and another loose record was merged into a record that was itself merged
+    When the server looks up the one id each child is known by
+    Then a second import of a class-list child folds to the first, as today
+    And the merged loose record maps to the class-list child it was merged into
+    And the record merged into a merged record maps to that record and is not followed further
+    But with web_quiz_identity_canon off, or web_quiz_hub off, the ids map exactly as before
+
+  @T766
+  Scenario: Under web_quiz_identity_canon the hub shows a merged loose child as the class-list child, once
+    Given web_quiz_hub and web_quiz_identity_canon are "on" and a hub link names three children, one of them a merged loose record
+    When the hub opens on the phone the link was sent to
+    Then the merged loose child's chip is the class-list child's chip, and a link naming both records shows one chip
+    And the link itself still carries the ids it was made with
+    And with one chip picked, the teacher card, Play again, the last quiz and the videos are that child's only
+    But with web_quiz_identity_canon off the hub's answer is byte-identical to today's for a three-child link
+
+  @T767
+  Scenario: Under web_quiz_identity_canon a typed new name on one phone is one child across a teacher's codes
+    Given web_quiz_hub and web_quiz_identity_canon are "on" and identity v2 is on
+    And a child typed a name that is not on the class list on one phone and played a teacher's code
+    When the same phone types the same name on another code of the same teacher
+    Then the quiz is played as the same child record, and no second record is made
+    And on another phone, for another teacher's code, or when two such records match, a new record is made as today
+    But with web_quiz_identity_canon off a new record is made with exactly today's fields
+  @T768
+  Scenario: The "Keep your place on WhatsApp" card shows once per view on a chosen child's hub, never on a practice hub
+    Given web_quiz_phone_bind is "on" under web_quiz_identity_canon and a hub link opened on the family's phone with one child chosen
+    When the hub renders
+    Then the card shows its title, the /quiz line with /quiz as a left-to-right chip, "Keep my place" and "Not now"
+    And on the child's first open of the hub (no device cookie yet, the server render locked) the card still appears once the hub unlocks, without a reload
+    And bind_offered is sent once for this page view with surface "hub" and w "p"
+    And "Not now" hides the card on this device for 7 days
+    But with web_quiz_phone_bind "off" the hub page has no wq-bind script or style and the hub JSON has no bind key, byte-identical to before
+
+  @T769
+  Scenario: The confirm sheet names the child, says what is kept and how to remove it, with nothing preselected
+    Given the card is shown for Zara in Urdu at 360 px
+    When "Keep my place" is tapped
+    Then the sheet asks "Zara, is this you?" with the name isolated, the notice says the phone number is kept with Zara's name until 31 March and that a grown-up can remove it by sending STOP, with no claim about readings, at 20 px or more
+    And neither "Yes, it's me" nor "No, it's not me" is preselected, and the STOP sentence and both buttons are fully visible
+    When "Yes, it's me" is tapped
+    Then a JUGNU- code is minted for that child, kept for this session only, and "Send on WhatsApp" opens wa.me with the code last in the message
+    And a teacher's device or a child already on 3 phones gets the page message instead, and no code is minted
+
+  @T770
+  Scenario: Back from WhatsApp the page says Saved and offers Undo
+    Given a code minted this session was sent from the family's phone
+    When the page comes back into view
+    Then it shows "Saved ✓", "Not your family's phone?" and "Undo"
+    When "Undo" is tapped
+    Then that one binding is erased, the door forgets the phone, bind_undo is logged with via "page" and n 1, no WhatsApp message is sent, and the card stays hidden for 7 days
+    And a pending code shows nothing, an expired code asks to tap Keep my place again
+
+  @T771
+  Scenario: A deep link to a scored route on a phone with two children and no tap asks "Whose turn?" first
+    Given web_quiz_identity_canon is "on" and a hub link naming two children opened on their phone
+    When the challenge menu or an exercise is opened without a child chip
+    Then the answer is the "Whose turn?" ask with each child's chip and first name, and no run is started or stored
+    And with one child the exercise is served as today
+    But with the switch "off" the route answers "pick_kid" as today
+
+  @T772
+  Scenario: Two chips with the same first name are told apart, or both picks are written low
+    Given a list holds two children whose first names fold to the same name and a third with a unique name
+    When the list is rendered on the teacher's link, the class link to a new device, or "Who is playing?"
+    Then the father's first name is the second line where it exists (never to a new device), and "Played on this phone before" marks a child this device played as
+    And both colliding rows carry homonym_in_list true; if their chips are still identical both picks are low, otherwise high
+    And the unique child's pick is high with homonym_in_list false
+
+  @T773
+  Scenario: Three remembered children on one phone: results for the tapped child only
+    Given a hub link names three children and the phone is trusted for all three
+    When "Who is playing?" is shown and one child is tapped
+    Then the hub, its quizzes and the challenge are that child's only, and the pick record is kept for the quiz start with id_src "hub_chip" and id_confidence "high"
+    And id_pick is logged with w "s" and no session id, device or code
+    And a play opened from the hub keeps the pick for that child on this phone for 24 hours: "hub_chip" from a WhatsApp /quiz link, "remembered" otherwise
+    But a child already kept on three phones sees "This child's place is already saved on three phones." and the card stays hidden for the session
+
+  @T800
+  Scenario: A class child's own scorecard offers Jugnu's challenge first, and the page counts that it was seen
+    Given web_quiz_hub, web_quiz_challenge and web_quiz_challenge_card are "on" and the child is in grade 2 to 5
+    When the child finishes their own run of a teacher's quiz
+    Then Jugnu's card ("Jugnu's Challenge · Short games for reading and numbers") is first under the score, above "Share to class group"
+    And with web_quiz_events_v2 "on" the page sends door_shown {door: card, surface: scorecard, slot: 1} once when the card is half in view, even when Back draws the card again
+    But a friend's challenge run, a teacher's test run, grade 1 and grade 6 see no Jugnu card
+
+  @T801
+  Scenario: Tapping Jugnu's card asks whose turn it is before any run
+    Given the scorecard shows Jugnu's card for Zara
+    When the child taps the card
+    Then one screen asks "Zara's turn" with a big Play button and "Not my turn? Go back"
+    And Play asks the server for this child's challenge link, bound to this phone and naming nobody, and opens it with via=quiz_card
+    And before it leaves, the page keeps this phone's device ref in the wq_dv cookie, so a child who never opened the hub meets the Trail, not the other-phone note
+    And the run it opens is recorded via quiz_card, from the card's signed link, never from a ?via= the page adds
+    And "Not my turn? Go back" returns to the scorecard without asking the server
+
+  @T802
+  Scenario: With the Jugnu card switched off the scorecard is today's
+    Given web_quiz_challenge_card is "off"
+    When a child finishes a teacher's quiz
+    Then finish() sends no jugnu_card and the scorecard's HTML is today's, string for string, in English and Urdu
+    And the quiz page loads no new script
+  @T808
+  Scenario: A teacher's quiz link opened again by the child who finished it lands on that child's hub
+    Given web_quiz_hub and web_quiz_link_home are "on"
+    And a phone that remembers one child, who finished the quiz behind the teacher's /q/<code> link on that phone
+    When the same link is opened again on that phone
+    Then the page asks the server once and opens that child's own hub at /h/<token>?from=link
+    And that link carries the page's language (lang=en or ur), which the hub honours only with web_quiz_challenge_v2 on
+    And the hub token names that child only and is bound to that phone, so a copy opened on another phone names nobody
+    And the server writes door_shown with door "link_home" and surface "hub"
+    But a reply that is not a hub link, an error, or no reply in 3 seconds shows today's screen
+
+  @T809
+  Scenario: The old link keeps today's quiz page whenever it is not one finished, remembered child
+    Given the teacher's /q/<code> link is opened
+    When web_quiz_link_home is "off", or web_quiz_hub is "off"
+    Then the quiz payload and the page are exactly today's and nothing is asked
+    When the phone remembers two or more children, or none, or played this code as a teacher, or the run is not finished, or answers wait to be sent
+    Then no hub opens and the landing, "Whose turn?", the quiz or the results card runs as today
+    And a friend's challenge code and the teacher's preview never ask
+  @T803
+  Scenario: The Jugnu card comes first on the hub once the last quiz is finished
+    Given web_quiz_hub, web_quiz_challenge and web_quiz_hub_challenge_first are "on" and the child's last quiz is finished
+    When the hub opens
+    Then the Jugnu card is the first card, above the last quiz, and its tile is not shown twice
+    But while the last quiz is still open, Continue stays first
+    And with web_quiz_hub_challenge_first "off" the hub's order and HTML are today's, byte for byte
+
+  @T804
+  Scenario: The lantern names the one next thing the server chose, never a count or a future title
+    Given web_quiz_challenge_v2 is "on"
+    When the Trail has stops waiting this month
+    Then the lantern says a game is waiting on the Trail, with no number
+    And with web_quiz_challenge_story "on" and nothing waiting, it names the newest live story the child has not met, or "Tomorrow: a new story", or Monday's line only when a release is buffered
+    But a story whose release is still ahead is never named, and with no buffered release only "Numbers with Jugnu" shows
+
+  @T805
+  Scenario: The Story Time shelf tags NEW only a story the child has never met
+    Given web_quiz_challenge_story is "on"
+    When the hub shows the shelf under "Jugnu today"
+    Then a story with no run row of any kind for the child, on it or its twin, carries "NEW"
+    And the numbers warm-up and a reserve story are never tagged new, and a reserve story is never on the shelf
+    And on the child's first open (no device cookie yet, the server render locked) the shelf still draws once the hub unlocks, without a reload
+
+  @T806
+  Scenario: The hub's doors are counted once per view, only with the new events on
+    Given web_quiz_events_v2 is "on"
+    When the hub renders the Jugnu card, the lantern and the shelf
+    Then door_shown hub_first is sent once with the card's position, door_shown next or tomorrow once, and door_shown shelf once per tile half in view
+    And a tap sends door_tap for that door
+    But with web_quiz_events_v2 "off" no door event is sent
+
+  @T807
+  Scenario: The hub can be added to the home screen without an install card
+    Given web_quiz_install_prompt is "on"
+    When the hub page loads
+    Then it links the web manifest, the browser's own prompt is counted as door_shown install and an accepted install as door_tap install
+    But no install card is drawn until its copy exists, and with the switch "off" there is no manifest link
+  @T775
+  Scenario: Jugnu's Book lamps come only from the child's rung rows
+    Given web_quiz_challenge_book and its parents are "on"
+    And a child has a counted read that would meet a reading rung but no rung row
+    When the child opens Jugnu's Book from the hub
+    Then no lamp is lit and each ladder shows exactly one unlabelled dashed outline
+    And a ladder lit to its fifth lamp shows no outline, and a grade 1 child sees no outline at all
+
+  @T776
+  Scenario: The class lights stay hidden until five children of the class have lit one this term
+    Given web_quiz_class_wall is "on" under the Book
+    When three children of the class have lights this term
+    Then the line reads "Your class is playing too" with no number
+    And with twelve children and 41 lights, 7 of them this week from 4 children, it reads the term total and "+7 this week"
+    But 6 lights this week from 2 children shows the term total only
+    And when no other child of the class has a light yet (nobody, or only this child) there is no lights line at all
+
+  @T777
+  Scenario: Days this week are lit dots only and a new week starts empty
+    Given the child finished a stop on Monday and Wednesday this week and one last week
+    When the Book opens
+    Then 7 dots show with Monday and Wednesday lit and no digit or streak word
+    And a served or abandoned run lights no dot, no sticker and no class light
+
+  @T778
+  Scenario: A new lamp is shown once, only when the server says one was lit this period
+    Given the server returns a reading lamp lit this period that opened longer stories
+    When the Book opens
+    Then "A new lamp is lit!" and "New for you: longer stories" show with "Let's go" opening Story Time
+    And the next time the Book opens on this phone it is not shown again
+
+  @T779
+  Scenario: A 0-word first read still earns the read stop's Trail sticker
+    Given a child's first counted read this month scored 0 words
+    When the Book opens
+    Then the read stop's Trail sticker is there and no reading lamp beyond what the rung rows say
+
+  @T780
+  Scenario: With the Book off the hub is today's, byte for byte
+    Given web_quiz_challenge_book is "off" (or its parent web_quiz_challenge_v2 is "off")
+    When a child opens the hub
+    Then the hub payload deep-equals today's and the hub page has no Book tile, script or stylesheet
+  @T785
+  Scenario: With the Trail v2 switch off the Challenge page and its payloads are today's
+    Given web_quiz_challenge_v2 is "off"
+    When the Challenge menu, a stop and its end card are served and drawn
+    Then the menu and exercise payloads deep-equal today's and the page HTML is string-equal to today's
+    And the page shell does not load the Trail v2 script
+
+  @T786
+  Scenario: The mic notice shows once per child per phone, before the microphone is asked for, with one control
+    Given web_quiz_challenge_v2, web_quiz_challenge_audio_consent and web_quiz_challenge_keep_audio are "on"
+    And this child has not seen the notice's current wording on this phone
+    When the child opens Read aloud and taps Ready
+    Then before the phone asks for the microphone one card says the reading is kept to see how the child is learning, that one checker may listen and that STOP on WhatsApp removes the phone link, with one "Got it" and nothing to choose
+    And "Got it" goes on to the microphone, every reading is kept, and that run's upload and result say notice_shown, which the run row and the ch_audio_consent event carry
+    And the same child on the same phone does not see it again, while a brother or sister on that phone sees it once, and everyone sees it again when its wording changes
+    But a legacy "kept_no" from an old page is still not kept, and with the switch off no notice shows and no consent is written
+
+  @T787
+  Scenario: The help question is asked once per sitting before the first scored stop
+    Given web_quiz_challenge_v2 is "on"
+    When the child opens the first scored stop of the sitting
+    Then "Is someone helping you today?" shows with nothing selected and the answer is sent as self or helped on every result
+    But a practice round never asks it
+
+  @T788
+  Scenario: The serve decides a stop opened by URL
+    Given web_quiz_challenge_v2 is "on" and a stop is opened by its URL
+    When the serve answers whose_turn, a practice round, or on_its_way
+    Then the page shows "Whose turn?" with one chip per child and picks nobody, the practice banner, or "A new story is on its way." with no microphone and no upload
+
+  @T789
+  Scenario: Trail v2 end cards say what was done, never a number about the child
+    Given web_quiz_challenge_v2 is "on"
+    When a reading ends with 0 words or with 90 words
+    Then the end card has no digit, no words-a-minute line, and the same sticker line for both
+    And the warm-up's stop_after 0 never stops it early
+  @T810
+  Scenario: A grade-1 child counts the dots and taps the number, and never sees a score
+    Given the challenge serves the exercise "numbers" with ten items, each a count of dots and three numeral tiles
+    When the child opens it, taps "Start" and taps one tile on each item
+    Then each item shows a ten-frame with that many dots, "How many?" and three tiles at least 64 px tall, with no timer and no count
+    And the tiles lock after one tap and are never coloured right or wrong
+    And after the last item the taps go once to the result endpoint as i, pick and ms each, and the end card shows no number
+    And on an Urdu page the copy is Urdu and the tiles are Urdu digits
+    But a challenge without the exercise "numbers" renders and requests exactly as before
+
+  @T811
+  Scenario: Story Time plays the story its link names, as a practice run with nothing counted
+    Given web_quiz_challenge_v2 and web_quiz_challenge_story are "on" and the Challenge page is opened with room=story and a story id
+    When the page asks for the read, or the listen when the link says ex=listen
+    Then that one request carries room=story and the story id, and no other request does
+    And a read first asks "Hear it from me first, or read it yourself." with "Read along with Jugnu" and "I'm ready" as two equal buttons, neither selected
+    And "Read along with Jugnu" plays the story clip with its line lit, then the normal read
+    And no story screen shows a clock, a score, words a minute or "N of M", and the end card says "Read this story again any time." with the sticker line
+    But a refused story id (any 400), a 404 or no network shows "A new story is on its way." and never an error page
+    And with the story switch off, or no room on the link, the page and its requests are today's
+
+  @T830
+  Scenario: A standing class link opens on the teacher's name, never on the class list
+    Given web_quiz_class_link, web_quiz_challenge_v2 and web_quiz_challenge are "on" and a teacher has a class link for an enrolled class
+    And a phone that has never played in this class opens /j/<code>
+    Then the page asks "Tap your teacher's name" with two or three teachers of the school and no child's name anywhere in it
+    When a wrong teacher is tapped
+    Then the same question comes back and still no child is shown
+    When the right teacher and then a first letter are tapped
+    Then "Is your name here?" shows only the first names under that letter, never a surname, an initial or a father's name
+    And two children with the same first name are both shown and either pick is written as a low-confidence pick among homonyms
+    And the pick opens that child's hub, and the run is written with the link's class and via class_link
+
+  @T831
+  Scenario: A phone that played in the class gets "Whose turn?" with only its own children
+    Given web_quiz_class_link is "on" and a phone has played as a child enrolled in the link's class
+    When that phone opens /j/<code>
+    Then the page asks "Whose turn?" with only the children this phone played as in this class
+    And a classmate or a child of another class is never shown
+
+  @T832
+  Scenario: The class link's preview and every closed state say nothing about the class
+    Given a /j/<code> link is shared on WhatsApp
+    Then its preview reads "Jugnu's Challenge" and "Stories and number games. Tap to play." in the class's language, with no class, school, teacher or child name and no digit
+    And with the switch or a parent off, or a revoked, expired, unknown or malformed code, /j/<code> is exactly the page an unknown /q/ code shows
+    And every /q/<code> page is byte-identical with the class link on or off
+
+  @T833
+  Scenario: The teacher forwards the class link from the report, and their own visit is practice
+    Given web_quiz_class_link is "on" and a teacher opens the class tab of their report
+    Then "Your class's Jugnu link" shows the link as selectable text and a Forward button, with no script on the page
+    When Forward is tapped
+    Then WhatsApp opens with the link alone as the text: no count and no name
+    When the teacher opens the link from the card with "Open" and picks a child
+    Then the visit is not counted as the link being opened, and the run is practice and is never counted
+    When "Make a new link" is tapped
+    Then the class tab comes back with a new link, and the old link opens only the page an unknown code gets
+    And another teacher cannot make a new link for this class, and no message is sent
+    But with the switch off the class tab is byte-identical to today's and "Make a new link" changes nothing
+  @T834
+  Scenario: The teacher whose class was drawn this term sees the class round card and starts the round
+    Given app_settings "web_quiz_class_round", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
+    And the teacher's class has an open class round draw this term
+    When the teacher opens "All my classes" from their report link
+    Then the first card says "This term's class round", "Your class was drawn this term. About a minute per child, one at a time, on your phone. You can continue another day." and "Nothing about this class is ever reported by name.", with "Start the round"
+    When the teacher taps "Start the round"
+    Then the server fixes a random order of the class's children once, and the round page lists each child by first name
+    And only the teacher's screen says "4 of 30 done, 1 absent"
+
+  @T835
+  Scenario: Absent is marked, never skipped, and the next child needs a long press
+    Given the teacher has started the class round
+    When the teacher taps "Mark absent" beside a child
+    Then that child stays on the list, struck through
+    When the teacher taps "Hold to call the next child" without holding
+    Then no child is called
+    When the teacher holds it for more than half a second
+    Then the next child still to play is called and the phone shows "<name>'s turn"
+
+  @T836
+  Scenario: The child's screens never lead back to the teacher's and remember nothing
+    Given a child's turn is open on the teacher's phone
+    When the child presses Back, or the teacher's screen is asked for
+    Then the child's screen stays, with no count and no other child's name (the list and the "Done ✓" ticks are on the teacher's screen only)
+    And under "<name>'s turn" it says "Two games, just tapping. If you'd rather not, that's fine."
+    And after the games it says only "Thanks for playing! Hand the phone to your teacher."
+    And only holding "Give the phone back" returns to the teacher's screen
+    And no round screen writes local storage, session storage or a cookie, or offers to keep a place
+
+  @T837
+  Scenario: With the class round off nothing changes
+    Given app_settings "web_quiz_class_round" (or "web_quiz_challenge_v2") is false or absent
+    When the teacher opens the report, or any "/r/<token>/round" address
+    Then the report is byte-identical to today's and has no round card
+    And every round address answers the report's own "not found" page
+
+  @T838
+  Scenario: The class round follows the term's draw: ten counted turns, a child's "not today", pause, and "Not this term"
+    Given my class is in this term's draw and today is inside its round window
+    When I mark a child "not today" on my screen
+    Then the child stays in place on my screen only, is never called or asked again, and no child's screen shows it
+    When I pause for today and come back another day inside the window
+    Then the order and every mark are as I left them
+    And the first ten turns in the order count and later children play the same games as practice, with nothing on screen showing the difference
+    And the round closes only when I hold "next" with nobody left, or at the window's end, never by itself
+    But a claim outside the window, after the round closed, or a second round run for the same child in the term stores nothing
+    And from the draw until the window's end, before starting, "Not this term" on the card closes the round for the term with one tap and sends no message
+    And before the window opens the card offers "Not this term" but not "Start the round"; after the window's end it offers neither
+    And when the round closes my screen says "Your class took part. Thank you!" with no count
+    And the draw row then holds the counted positions, the present ones among them and, per position bin only, how many played, scored none or were rapid
+    # every control renders only while its string exists in the page's copy (jg.round.t_declined, t_pause, t_resume, t_not_this_term)

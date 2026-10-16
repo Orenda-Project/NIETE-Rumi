@@ -2241,6 +2241,33 @@ Feature: NIETE (ICT) Teacher Training
   # reply buttons. Absent or not covering the teacher, /quiz is exactly the Flow-or-list it was.
   # The report link is the portal's /r/<token> (the training login link owns /t/).
 
+  # ── the Challenge's content draw and monthly record (web_quiz_challenge_v2 / _period / _pool) ──
+  @quiz @config-gated @wip @draft @P2 @T810
+  Scenario: With web_quiz_challenge_v2 and web_quiz_challenge_period on, a child's first play of a stop this month is the record
+    Given web_quiz_challenge and web_quiz_challenge_v2 and web_quiz_challenge_period are on
+    When a child opens a stop of the Challenge for the first time this month
+    Then the run is written when it is served, saying it is this month's record
+    And a second play of the same stop this month is practice and never the record
+    But with web_quiz_challenge_v2 off the Challenge serves, records and logs exactly as before
+    # web-quiz-challenge.js serveV2; web-quiz-challenge-draw.js recordAtServe. Unit: challenge-serve-v2.test.js. @wip.
+
+  @quiz @config-gated @wip @draft @P2 @T811
+  Scenario: With web_quiz_challenge_pool on, a child reads a story they have never met, or is told a new one is on its way
+    Given web_quiz_challenge_v2 and web_quiz_challenge_pool are on
+    When a child opens the read stop
+    Then the story is drawn at the child's level from the stories they have never read or heard
+    And when every story at that level and the one below has been met, the child sees "A new story is on its way." and nothing is recorded
+    # web-quiz-challenge-draw.js drawPassage; each draw logged in challenge_draws. Unit: challenge-draw.test.js. @wip.
+
+  @quiz @config-gated @wip @draft @P2 @T855
+  Scenario: With web_quiz_challenge_story on, a story tapped on the Story Time shelf is the story the child plays
+    Given web_quiz_challenge_v2 and web_quiz_challenge_pool and web_quiz_challenge_story are on
+    When a child taps a story on the Story Time shelf
+    Then that story is served to read or to hear, as practice, and this month's record is left for the Trail
+    And a story the shelf could not have shown this child is refused and nothing is written
+    But with web_quiz_challenge_story off the stop serves exactly as before
+    # web-quiz-internal.routes.js room/pid; web-quiz-challenge.js serveV2; draw storyPassageFor. Unit: challenge-story-serve.test.js. @wip.
+
   @quiz @config-gated @wip @draft @P1 @T330
   Scenario: With the teacher report on for me, /quiz opens a home with three choices
     Given app_settings "teacher_report_teachers" is "all" or lists me
@@ -2294,3 +2321,258 @@ Feature: NIETE (ICT) Teacher Training
     # Server: isOpenEndedQuestion (nothing to pick from = written); submitModuleExamPaper / saveModuleExamDraft store answer_text.
     # Portal: TrainingModuleExam isWritten(). Unit: tests/training/portal-exam-no-options-is-written.test.js,
     # portal TrainingModuleExam.test.tsx.
+
+  @quiz @config-gated @wip @draft @P2 @T698
+  Scenario: With web_quiz_identity_canon on, a child merged into a class-list child is known by that child's id
+    Given web_quiz_hub and web_quiz_identity_canon are on
+    And a loose child record was merged into a class-list child
+    When the server folds the ids a hub link or a session carries
+    Then the merged record's id becomes the class-list child's id, following one merge only
+    But with web_quiz_identity_canon off every id folds exactly as before
+
+  @quiz @config-gated @wip @draft @P2 @T699
+  Scenario: With web_quiz_identity_canon on, a new name typed again on the same phone for the same teacher is the same child
+    Given web_quiz_hub and web_quiz_identity_canon are on and identity v2 is on
+    And a child typed a name that is not on the class list on one phone for one of my codes
+    When the same phone types the same name on another of my codes
+    Then the quiz is recorded for the same child, and no second child record is made
+    But another phone, another teacher's code, or two matching records make a new record as today
+
+  @quiz @config-gated @wip @draft @P2 @T700
+  Scenario: A family phone binding is erased, never kept, when it is undone, stopped or expires
+    Given a child's binding to a family phone exists
+    When it is undone on the page, stopped, or expires
+    Then the phone number is erased from the binding and only a salted fingerprint stays, so a later re-bind is recognised as one
+    And with no fingerprint salt configured no binding is written at all
+    And a "JUGNU-" code in a message is recognised only as the message's last word, and never as a quiz share code
+
+  @quiz @config-gated @wip @draft @P2 @T701
+  Scenario: With web_quiz_phone_bind on, a family's "JUGNU-" message saves the child's place and gets one reply
+    Given web_quiz_hub, web_quiz_identity_canon and web_quiz_phone_bind are on
+    And a child's page made a "JUGNU-" code less than an hour ago
+    When the family sends that code from a phone that is not a teacher's
+    Then the child's place is saved on that phone and the code cannot be used again
+    And the family gets one message with the child's first name and an "Open my page" button to the phone's children's page
+    And the reply is counted once on the send ledger
+    And the phone's next /quiz within ten minutes is answered as that child's phone
+
+  @quiz @config-gated @wip @draft @P2 @T702
+  Scenario: With web_quiz_phone_bind on, a code is refused for a teacher's phone, a full phone, or a stale code
+    Given web_quiz_phone_bind is on
+    When a teacher's phone sends a "JUGNU-" code
+    Then nothing is saved and the teacher gets one line saying a child's place cannot be saved on a teacher's number
+    When a phone that already holds four children sends a code for a fifth child
+    Then nothing is saved and the family gets one line saying the phone already keeps four children's places
+    When the code is unknown, already used, more than an hour old, for a child no longer on record, or the child is already on three phones
+    Then nothing is saved and no message is sent
+
+  @quiz @config-gated @wip @draft @P2 @T703
+  Scenario: With web_quiz_phone_bind on, STOP removes every child's place from the phone and gets one reply
+    Given web_quiz_phone_bind is on
+    When a phone sends exactly "stop", "بند", "سٹاپ" or "اسٹاپ" as the whole message
+    Then every child's place saved on that phone is erased and the phone gets one "Done" reply
+    And a phone with nothing saved gets one "Nothing was saved for this phone" reply
+    But a teacher's phone with nothing saved that sends "stop" is answered exactly as before
+    And a child in the middle of a quiz who sends "stop" ends the quiz as before, and nothing saved is erased
+
+  @quiz @config-gated @wip @draft @P2 @T704
+  Scenario: With web_quiz_phone_bind on, /quiz opens the same children the door counts
+    Given web_quiz_phone_bind is on
+    And a phone holds one saved child and four children who joined by chat
+    When the phone sends /quiz
+    Then the home button opens a page for the phone's children, four at most, and the dropped child is logged
+    But with web_quiz_phone_bind off the /quiz reply is exactly as before
+
+  @quiz @config-gated @wip @draft @P2 @T705
+  Scenario: With web_quiz_phone_bind on, a family phone gets at most 8 service replies in one Pakistan day
+    Given web_quiz_phone_bind is on
+    And a phone has already been sent 8 binder replies today
+    When the phone sends "stop" or a JUGNU- code again
+    Then the binder does its work but sends no reply, and the capped reply is logged without the phone
+    But when the number of replies allowed today cannot be counted, the reply is still sent
+
+  @quiz @config-gated @wip @draft @P2 @T706
+  Scenario: With web_quiz_phone_bind on, the STOP reply says only that the phone was removed
+    Given web_quiz_phone_bind is on
+    And a phone holds a child's saved place
+    When the phone sends "stop"
+    Then the one "Done" reply says the phone number was removed from the children's names
+    And it never says that any recording was deleted, in English or in Urdu
+
+  @quiz @config-gated @wip @draft @P2 @T707
+  Scenario: With web_quiz_phone_bind on, a JUGNU- code or STOP from an unknown phone keeps the phone key off the decision log
+    Given web_quiz_phone_bind is on
+    And a phone that is not known to Rumi
+    When the phone sends a JUGNU- code or "stop"
+    Then the door's decision log line carries no phone key
+    But the same phone sending /quiz is logged exactly as before
+  @quiz @config-gated @wip @draft @P2 @T754
+  Scenario: With web_quiz_identity_canon on, my "same child?" queue pairs a chat child with one child on my class list
+    Given web_quiz_hub and web_quiz_identity_canon are on
+    And a child who played from a family phone is not on my class list, but one child on my list has the same name or every word of it
+    When my queue is computed
+    Then the pair shows first names, the grade and the class only, never a phone, a surname or a device
+    And a same-name record of mine on another phone or device stops the automatic join and puts the pair in my queue instead
+    But a kind of pair whose checked accuracy has not passed is not shown to me, and with the switch off my queue is empty
+
+  @quiz @config-gated @wip @draft @P2 @T755
+  Scenario: Only my tap joins a child, once, and I can undo it
+    Given web_quiz_hub and web_quiz_identity_canon are on and a pair is in my queue
+    When I tap "Same child"
+    Then the chat child's record is joined to the class-list child and my decision is logged
+    And tapping again writes nothing more, and "Undo" separates them again
+    But a child on another teacher's class list is refused and nothing is written
+
+  @quiz @config-gated @wip @draft @P2 @T756
+  Scenario: "Link this class's quiz codes" binds only my unbound codes to my own class
+    Given web_quiz_hub and web_quiz_identity_canon are on
+    When I link my quiz codes to one of my classes
+    Then each of my codes with no class gets that class, and a second tap links none
+    But a code that already has a class, another teacher's code, or a class that is not mine is never changed
+
+  @quiz @config-gated @wip @draft @P2 @T938
+  Scenario: A tap in my "same child?" queue answers from my kept queue, without working the queue out again
+    Given web_quiz_hub and web_quiz_identity_canon are on and two pairs are in my queue
+    When I tap "No" on one pair
+    Then that pair is gone from my queue at once and my next tap answers just as fast
+    And "Same child" takes every pair of that chat child out of my queue
+    And "Undo" puts the pair back in my queue at once
+    But a pair that changed meanwhile and is refused clears my kept queue, and it is worked out afresh on my next visit
+    # web-quiz-join-queue.js removeFromQueue/restoreToQueue; unit: teacher-join-queue-cache-filter.test.js
+
+  @quiz @config-gated @wip @draft @P1 @T939
+  Scenario: The automatic join never undoes my "Different", and a child I joined still holds back their look-alike
+    Given web_quiz_hub and web_quiz_identity_canon are on
+    And one child on my class list has two look-alikes from two different family phones, both in my queue
+    When I tap "Same child" on one of them
+    Then the other look-alike stays in my queue and the automatic join leaves them alone
+    When I tap "Different" on a pair
+    Then the automatic join never joins that pair, and its count shows it as refused by the teacher
+    And "Undo" on my "Same child" brings that child back as a look-alike, and neither is joined automatically
+    # web-quiz-join-queue.js teacherLoose blockers / runBackwardJoin refused_by_teacher; unit: teacher-join-queue-backward-no.test.js
+
+  # ── Challenge clip warm job (app_settings web_quiz_challenge_clip_warm, off by default) ──────────────────
+
+  @quiz @config-gated @wip @draft @P2 @T850
+  Scenario: With web_quiz_challenge_clip_warm off, the queue service's sweep tick records no clip
+    Given web_quiz_challenge_clip_warm is off
+    When the queue service's hourly sweep tick runs
+    Then no passage is read and no clip is recorded
+    And the tick does exactly what it did before, apart from reading the one switch
+
+  @quiz @config-gated @wip @draft @P2 @T851
+  Scenario: With web_quiz_challenge_v2 off, the clip warm switch alone does nothing
+    Given web_quiz_challenge_clip_warm is on
+    But web_quiz_challenge_v2 is off
+    When the clip warm job runs
+    Then no passage is read and no clip is recorded
+
+  @quiz @config-gated @wip @draft @P2 @T852
+  Scenario: With web_quiz_challenge_clip_warm on, released passages and next week's are ready before a child taps
+    Given web_quiz_challenge_clip_warm and web_quiz_challenge_v2 are on
+    And two passages are released, one is released in three days and one in thirty days
+    When the first sweep tick after boot runs
+    Then the story, question and option clips of the first three passages are recorded under the keys the page asks for
+    And the passage released in thirty days is left for later
+    And one clip warm count is logged with the clips asked for and the clips still missing
+
+  @quiz @config-gated @wip @draft @P2 @T853
+  Scenario: With web_quiz_challenge_clip_warm on, a clip already in the store is not made again
+    Given web_quiz_challenge_clip_warm and web_quiz_challenge_v2 are on
+    And a passage's story clip is already in the store
+    When the clip warm job runs, and runs again
+    Then that story is never sent to the voice again
+    And a second run on the same Pakistan day from the sweep tick does nothing
+
+  @quiz @config-gated @wip @draft @P2 @T854
+  Scenario: With web_quiz_challenge_clip_warm on, the job never records more than a child's first taps could
+    Given web_quiz_challenge_clip_warm and web_quiz_challenge_v2 are on
+    And more passages are coming than the process may record clips for
+    When the clip warm job runs
+    Then it stops recording at the same limit a child's first tap has
+    And the clips it did not record are counted as missing
+  @quiz @config-gated @wip @draft @P2 @T757
+  Scenario: A saved place on a family phone ends on the 31 March that closes its school year
+    Given a child's place is saved on a family phone until 31 March, 23:59:59 Pakistan time
+    When the daily job runs one second before that moment
+    Then the place is still saved and the phone's /quiz still opens the child's page
+    When the daily job runs after that moment
+    Then the phone number is erased from the place and only a salted fingerprint stays
+    And the phone's next /quiz is decided afresh, not from a remembered answer
+    And a place erased more than thirteen months ago is deleted for good
+    And a stop finished as that child on that phone keeps the place until the next 31 March
+
+  @quiz @config-gated @wip @draft @P2 @T758
+  Scenario: With web_quiz_guest_home on, /quiz from a phone the bot does not know gets one guest reply
+    Given web_quiz_hub, web_quiz_identity_canon, web_quiz_phone_bind and web_quiz_guest_home are on
+    And a phone that is not a teacher's has no child on it
+    When the phone sends /quiz
+    Then the phone gets one message with a button to a guest page link that carries no phone number
+    And the reply is counted once on the send ledger as a guest reply
+    And no child, no saved place and no result is written
+    When the phone sends /quiz a third time
+    Then it gets the usual "no quizzes yet" line instead of a third guest reply
+    But any other message from that phone, such as a registration, is answered exactly as before
+    And a teacher's phone that sends /quiz is answered as a teacher
+    And with web_quiz_guest_home off an unknown phone's /quiz is answered exactly as before
+
+  @quiz @config-gated @wip @draft @P1 @T839
+  Scenario: A child called in the class round plays the tap games as themself, and the runs say so
+    Given app_settings "web_quiz_class_round", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
+    And my class was drawn for this term's class round and I have started it on my phone
+    When I hold "Hold to call the next child" and the child called taps their turn
+    Then the child gets "Which is bigger?" (and "Missing number" when it is on), never the read-aloud
+    And each run they play is stored as theirs by the Challenge's serve, with via "class_round", my class, and mode "class_round" for the first ten positions or "practice" after
+    And their game screens carry no practice banner and say "Not sure? That's fine. Tap the arrow." under every item
+    And once their round games are stored they are ticked "Done ✓" and their identity is confirmed by the class round
+    # web-quiz-class-round.js entryOf/claimFor/gameStored; web-quiz-challenge.js round claim (cr); unit: class-round-challenge.test.js
+
+  @quiz @config-gated @negative @wip @draft @P1 @T840
+  Scenario: Outside an open round turn a round link or claim stores nothing, and my phone stays practice
+    Given the class round is off, not started, finished, or the turn on the phone is another child's or closed
+    When a round turn link or a challenge token carrying a round claim is used
+    Then the Challenge refuses it and no run is stored
+    And a quiz or hub link on my phone plays as today, with no round column on its runs
+
+  @quiz @config-gated @wip @draft @P2 @T856
+  Scenario: A paused class round's card on my class tab says where it stopped
+    Given app_settings "web_quiz_class_round" is true
+    And my class's round is paused with 3 of its 9 positions played
+    When I open my class tab
+    Then the round card shows "3 of 9 played. Continue another day." above its Start button, with no child's name
+    And with the round not started, running, resumed or closed the card is exactly as before
+    # web-quiz-class-round.js cardFor/pausedOf; class-round.page.js renderCard/pausedLine; unit: class-round-paused-card.test.js
+  @quiz @config-gated @wip @draft @P2 @T923
+  Scenario: A run that comes by the class link inside my class's open week is stored in the class-week sample
+    Given app_settings "web_quiz_class_week", "web_quiz_class_round", "web_quiz_class_link", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
+    And my class has this term's class week open now
+    When a child of my class opens a challenge game from the class link
+    Then the run is stored with admin_mode "self_run" and sample_arm "class_week", on the v2 serve and the grade-1 form alike
+    And a run outside the week, a run from another door, or any of those switches off is stored with no sample arm, exactly as today
+    And a class round turn is still stored as "teacher_present" in the "class_round" sample
+    # web-quiz-class-week.js openWindowFor → teacher-class-week.js openWeek; web-quiz-challenge-draw.js adminFields; unit: challenge-serve-v2.test.js, challenge-grade1.test.js
+  @quiz @config-gated @negative @wip @draft @P1 @T921
+  Scenario: The term's class round draw is refused when the school break list is missing or a class week falls in a break
+    Given app_settings "web_quiz_class_round" is true and the operator runs this term's draw with its plan and round window
+    When app_settings "web_quiz_term_breaks" is absent or unreadable, or the round window or either order's class week overlaps a stored break, or an order's class week cannot be placed in the term
+    Then no class is drawn and nothing is written, and the refusal is logged once with its dates and counted
+    And a draw whose window and both class weeks are clear of every break draws exactly as before
+    # web-quiz-class-round-sampler.js runTermDraw/termBreaks; unit: class-round-draw-breaks.test.js
+
+  @quiz @config-gated @negative @wip @draft @P1 @T922
+  Scenario: A drawn class's teacher invitation needs the operator's dated go for this term
+    Given my class was drawn for this term's class round
+    When app_settings "web_quiz_class_round_go" is absent, dated after today, for another term, or for another template or category
+    Then no invitation is sent and nothing is counted on the send ledger
+    And with a valid go an invitation is sent only after the send ledger counted it, and never more than the go's limit in a term
+    # web-quiz-class-round-sampler.js inviteTeacher/readGo; unit: class-round-draw-breaks.test.js
+
+  # ── Events v2: the teacher's Undo of a saved place (app_settings web_quiz_events_v2, off by default) ──────
+
+  @quiz @config-gated @wip @draft @P3 @T937
+  Scenario: With web_quiz_events_v2 on, my Undo of a child's saved place is counted like the family's own undo
+    Given web_quiz_hub and web_quiz_events_v2 are on and a child on my class list has a place saved on a phone
+    When I tap "Undo" beside "Saved on WhatsApp ✓"
+    Then one web_quiz.bind_undo per child is logged with via "teacher", the event version, the key label and the child's keyed key, never a phone
+    But with web_quiz_events_v2 off the event is exactly today's
+    # web-quiz-kid.js emit (one home for the v2 rule; the binder, the page and the hub door use it too); teacher-jugnu-internal.routes.js afterErase. Unit: web-quiz-kid-emit.test.js. @wip.

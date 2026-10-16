@@ -79,3 +79,64 @@ Feature: Teacher's web quiz report on the portal
   Scenario: The training link on the same portal still logs the teacher into training
     When the teacher opens a training link "/t/<token>"
     Then the training page opens as before, untouched by the report pages at "/r/<token>"
+
+  @T841
+  Scenario: The Jugnu tab shows the class's month, sorted by first name, behind its switch
+    Given the Jugnu tab switch and its parent switches are on
+    And class 5-A has 8 children, two of them named "Zara" with different fathers
+    When the teacher opens the report link and taps "Jugnu"
+    Then the tab shows "5 of 8 have started this month" at the top and nowhere else
+    And one row per child of 5-A, sorted by first name only, the two Zaras told apart by their fathers' first names
+    And each row shows the four stops done this month, "Stopped early" or "Waiting for a microphone" as words, stickers, lamps by rung name, the week's day dots and "Saved on WhatsApp ✓"
+    And a stop only served or abandoned shows nothing, and no surname or phone appears anywhere
+
+  @T842
+  Scenario: Forward to the class group carries the week's story and no number or name
+    Given the Jugnu tab switch and the class link switch are on, the class has a live class link and a story released this week
+    When the teacher taps "Forward to the class group"
+    Then WhatsApp opens its share sheet with the story's title, "every Monday" and "open the pinned link"
+    And the text carries no digit in any script and no child's name
+    And with no class link, the class link switch off, or no story this week the button is not shown
+
+  @T843
+  Scenario: The teacher-confirm queue asks one question per pair and passes the tap on
+    Given every switch of the Jugnu tab and of the confirm queue is on
+    And a child who typed "Ayesha" may be the listed Ayesha of 5-A, and only the listed one has a father's name
+    When the teacher opens the Jugnu tab
+    Then the queue asks "Is Ayesha the same child as Ayesha?" with the class, first names only
+    And under each name it shows that child's father's first name, or "—" when there is none, never a surname
+    And "Same child", "Different" and "Not sure" each save with one tap and come back to the tab
+    And a pair the teacher said was the same child shows "Undo"
+
+  @T844
+  Scenario: With the Jugnu switch off the report is exactly as before
+    Given the Jugnu tab switch, or one of its parents, is off
+    When the teacher opens the report link, with or without "tab=jugnu"
+    Then the quiz tab and the class tab are byte-for-byte today's pages, with no Jugnu link
+    And the forward link and the queue answer "not found"
+
+  @T845
+  Scenario: The class week card shows only for a drawn class inside its week window
+    Given the class week switch and its parent switches are on
+    And class 5-A is in this term's class draw with a week window that is open now and has a live class link
+    When the teacher opens the Jugnu tab for 5-A
+    Then a card titled "Forward the week" shows the copy deck's class week line and a "Forward to the class group" button
+    And in Urdu the card reads right to left in the report's Nastaliq face
+    And before the window opens, from the moment it closes, for a class not in the draw or a draw of another term, the card is not shown
+    And with no live class link or no class week line in the copy deck the card is not shown
+
+  @T846
+  Scenario: Forwarding the week sends one fixed line and the class link, with no number or name
+    Given the class week card is shown for 5-A
+    When the teacher taps the card's forward button
+    Then WhatsApp opens its share sheet with the class week line followed by the class link "/j/<code>"
+    And outside the link's code the text carries no digit in any script, no child's name, no count and no word that marks a child out
+    And the first tap of the window writes "class_week_forwarded" with the keyed class and the term only
+
+  @T847
+  Scenario: The class week forward is counted once per class per window and is invisible while switched off
+    Given the class week card is shown for 5-A
+    When the teacher taps the card's forward button twice in the same window
+    Then WhatsApp opens both times, and "class_week_forwarded" is written only once
+    And viewing the card writes no "sample_window" (the daily job writes it)
+    And with the class week switch, or any of its parents, off the Jugnu tab is byte-for-byte the page before the card, and the forward answers "not found"

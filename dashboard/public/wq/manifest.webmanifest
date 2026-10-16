@@ -1,0 +1,10 @@
+{
+  "name": "Jugnu",
+  "short_name": "Jugnu",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    { "src": "/wq/jugnu/hello.webp", "sizes": "200x200", "type": "image/webp", "purpose": "any" }
+  ]
+}

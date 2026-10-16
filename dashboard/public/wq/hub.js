@@ -14,6 +14,9 @@
   var FROM_DOOR = /[?&]from=door(&|$)/.test(String((typeof location !== 'undefined' && location.search) || ''));
   // Opened from the quiz page's Home button (?from=home): counted as Home's.
   var FROM_HOME = /[?&]from=home(&|$)/.test(String((typeof location !== 'undefined' && location.search) || ''));
+  // The language the page that sent the child here was in (?lang=en|ur, the door / the old class link): the bot
+  // honours it over its guess (under web_quiz_challenge_v2), so the hub's own calls and address keep it. Else null.
+  var URL_LANG = (/[?&]lang=(en|ur)(&|$)/.exec(String((typeof location !== 'undefined' && location.search) || '')) || [])[1] || null;
   var TOKEN = String(B.token || '');
   var BR = B.brand || null;
   var MASC = (BR && BR.mascot) || { en: 'Jugnu', ur: 'جگنو' };
@@ -86,6 +89,10 @@
   }
 
   /* ---------------- helpers ---------------- */
+  // The pages' one link helper (wq-tel.js WQT.withLang, loaded first on every page): a link into another page carries lang=.
+  function withLang(h, l) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l || LANG) : h; }
+  // The hub's own address, with the language it was opened in when it was opened with one (else today's).
+  function selfUrl(h) { return URL_LANG ? withLang(h, URL_LANG) : h; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function on(sel, fn) { var el = ROOT.querySelector(sel); if (el) el.addEventListener('click', fn); return el; }
   function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || '⭐') + '</span>'; }
@@ -167,6 +174,7 @@
     var body = {};
     if (kid) body.kid = kid;
     body.device_ref = deviceRef();
+    if (URL_LANG) body.lang = URL_LANG;
     return api('POST', 'hub/' + encodeURIComponent(TOKEN), body);
   }
   // Events: ids and counts only (the server allow-lists every prop); hub_pick's "what" rides in `src`.
@@ -188,8 +196,11 @@
   /* ---------------- H1 who is playing (only this phone's own children) ---------------- */
   function picker() {
     var kids = B.kids || [];
-    render(bar() + jug('hello', T.whoSay) + '<h2>' + esc(T.who) + '</h2><div class="wq-chips">' +
-      kids.map(function (k) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '">' + ani(k.animal) + esc(k.first) + '</button>'; }).join('') + '</div>', 'H1');
+    // keep my place (B.bind, web_quiz_phone_bind): "Who is playing?" in the ruled Urdu, and each chip's second line.
+    if (B.bind && !window.WQBIND) bindIn();
+    var KB = B.bind && window.WQBIND ? window.WQBIND : null;
+    render(bar() + jug('hello', T.whoSay) + '<h2>' + esc(KB ? KB.t(LANG).whoPlaying : T.who) + '</h2><div class="wq-chips">' +
+      kids.map(function (k) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '">' + ani(k.animal) + esc(k.first) + (KB ? KB.chipExtra(k, LANG) : '') + '</button>'; }).join('') + '</div>', 'H1');
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
       b.addEventListener('click', function () { pick(b.getAttribute('data-chip')); });
     });
@@ -204,7 +215,7 @@
       var kids = B.kids;
       B = r.body; B.token = TOKEN; B.brand = BR; B.kids = B.kids && B.kids.length ? B.kids : kids;
       setLang(B.lang || LANG);
-      try { history.replaceState(null, '', '/h/' + TOKEN + '?kid=' + encodeURIComponent(chip)); } catch (e) {}
+      try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + '?kid=' + encodeURIComponent(chip))); } catch (e) {}
       hub();
     }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); picker(); });
   }
@@ -233,11 +244,59 @@
       // Only a hub for one child carries that child's language; with no child picked the bot's lang is a
       // default, and the server render's (from this family's children) stays.
       if (B.kid) setLang(B.lang || LANG);
+      if (B.play && B.play.install) manifestIn();
       boot();
     }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); locked(); });
   }
 
+  // The install manifest has the same first-open gap: renderHubPage writes <link rel="manifest"> only on an unlocked
+  // render with play.install. Added once, with the server's href (this hub's token, ?kid= for a 16-hex chip).
+  function manifestIn() {
+    try {
+      if (document.querySelector('link[rel="manifest"]')) return;
+      var l = document.createElement('link');
+      l.rel = 'manifest';
+      l.href = '/h/' + TOKEN + '/manifest.webmanifest' + (B.kid && /^[0-9a-f]{16}$/.test(B.kid) ? '?kid=' + B.kid : '');
+      document.head.appendChild(l);
+    } catch (e) {}
+  }
+
   /* ---------------- H2 the hub ---------------- */
+  // The Jugnu corner's script when the server render had no `play`: a child's first open has no wq_dv cookie yet,
+  // so the render was the locked one and the edge left hub-play.js out; unlock() then brings `play`. Loaded once,
+  // at hub.js's own ?v=, and the hub drawn again when it arrives (still on the hub, still with `play`).
+  function playIn() {
+    loadOnce('hub-play', false, function () { if (window.WQPLAY && B.play && ROOT.getAttribute('data-m') === 'H2') hub(); });
+  }
+  // The keep-my-place card's script (wq-bind.js/.css) has the same gap: the edge's bindTags decides before the device
+  // is known, so a first open's locked render leaves it out and unlock() then brings `bind`. Loaded once, at hub.js's
+  // own ?v=, and the screen that uses it (the hub, or "Who is playing?") drawn again when it arrives.
+  function bindIn() {
+    loadOnce('wq-bind', true, function () {
+      if (!window.WQBIND || !B.bind) return;
+      var m = ROOT.getAttribute('data-m');
+      if (m === 'H2') hub(); else if (m === 'H1') picker();
+    });
+  }
+  // The one lazy loader (the Jugnu corner, keep my place, Jugnu's Book): /wq/<name>.js (and, with css, /wq/<name>.css
+  // before it) at hub.js's own ?v=, asked for at most once per page, with onload attached once, when the tag is made,
+  // however often the hub is drawn again while it loads. A failure leaves the page as it is.
+  var asked = {};
+  function loadOnce(name, css, onload, id) {
+    if (asked[name]) return;
+    asked[name] = true;
+    try {
+      var me = document.querySelector('script[src*="/wq/hub.js"]');
+      var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
+      var q = v ? '?v=' + v[1] : '';
+      if (css) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/' + name + '.css' + q; document.head.appendChild(l); }
+      var s = document.createElement('script');
+      if (id) s.id = id;
+      s.src = '/wq/' + name + '.js' + q;
+      s.addEventListener('load', onload);
+      document.head.appendChild(s);
+    } catch (e) {}
+  }
   // With the Home button on (nav_home), the library and the challenge are told to show it too.
   function withHome(h) { return B.nav_home ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'home=1' : h; }
   function teacherCard(t) {
@@ -285,7 +344,7 @@
   function homeTiles() {
     return '<div class="wq-htiles">' +
       (B.lib ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">🎬</span>') + '<b>' + esc(T.vidT) + '</b><small>' + esc(T.vidSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG)) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
       '</div>';
   }
   function hub() {
@@ -293,11 +352,19 @@
     var HOME = Boolean(B.home_v);
     // With no teacher quiz the empty card already holds the library button: no second library tile.
     var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG)) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
-    var top = HOME
-      ? lastCard(B.last) + homeTiles() + (B.teacher ? teacherCard(B.teacher) : '')
-      : teacherCard(B.teacher) + (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '');
-    render(bar() + jug('hello', T.hi(me.first || '')) + top +
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
+    // A first open's server render was locked (no wq_dv cookie yet), so the edge left hub-play.js out: load it now.
+    if (B.play && !window.WQPLAY) playIn();
+    if (B.bind && !window.WQBIND) bindIn();
+    // keep my place's mount (wq-bind.js): under the greeting, or right after the Jugnu card when that leads.
+    var slot = B.bind && window.WQBIND ? '<div id="wq-bind-slot"></div>' : '';
+    // The Jugnu corner (hub-play.js, loaded only when the server sent `play`): it may put the Jugnu card first.
+    var top = B.play && window.WQPLAY
+      ? window.WQPLAY.top(B, T, { afterJug: slot, HOME: HOME, lastCard: lastCard(B.last), homeTiles: homeTiles(), teacher: B.teacher ? teacherCard(B.teacher) : '', teacherAny: teacherCard(B.teacher), tiles: tiles, LANG: LANG, MASC: MASC, chHref: '/c/' + withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid))), ROOT: ROOT, ev: ev })
+      : HOME
+        ? lastCard(B.last) + homeTiles() + (B.teacher ? teacherCard(B.teacher) : '')
+        : teacherCard(B.teacher) + (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '');
+    render(bar() + jug('hello', T.hi(me.first || '')) + (slot && top.indexOf('id="wq-bind-slot"') < 0 ? slot : '') + top +
       againList(B.again || []) + recList(B.recs || []) +
       ((B.kids || []).length > 1 ? '<button class="wq-btn wq-ghost" id="wq-h-switch">' + ani(me.animal) + ' ' + esc(T.switchKid) + '</button>' : ''), 'H2');
     on('#wq-h-teacher', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'teacher'); });
@@ -306,6 +373,15 @@
     on('#wq-h-lib2', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'lib'); });
     on('#wq-h-ch', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'challenge'); });
     on('#wq-h-switch', function () { picker(); });
+    // keep my place: the card for the chosen child (wq-bind.js; never on a practice hub).
+    if (B.bind && B.bind.offer && window.WQBIND) window.WQBIND.card(document.getElementById('wq-bind-slot'), { hub: B.bind.hub || TOKEN, kid: B.kid, first: me.first || '', lang: LANG, practice: B.mode === 'practice', ev: ev });
+    if (B.book_on) bookIn();
+    // Jugnu's Book (wq-book.js/.css, web_quiz_challenge_book): loaded on first use, at hub.js's own ?v=, then its tile and lights line.
+    function bookIn() {
+      var go = function () { if (window.WQBOOK) window.WQBOOK.hubLine(B, { root: ROOT, token: TOKEN, lang: LANG, ev: ev, back: hub }); };
+      if (window.WQBOOK) return go();
+      loadOnce('wq-book', true, go, 'wq-bk-js');
+    }
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-again]'), function (a) {
       a.addEventListener('click', function (e) { e.preventDefault(); go(a.getAttribute('href'), 'again'); });
     });
@@ -336,7 +412,7 @@
   /* ---------------- boot ---------------- */
   function boot() {
     ev('hub_view', { src: FROM_DOOR ? 'door' : FROM_HOME ? 'home' : B.kid ? 'hub' : 'who', i: (B.kids || []).length });
-    if (FROM_DOOR || FROM_HOME) { FROM_DOOR = false; FROM_HOME = false; try { history.replaceState(null, '', '/h/' + TOKEN); } catch (e) {} }
+    if (FROM_DOOR || FROM_HOME) { FROM_DOOR = false; FROM_HOME = false; try { history.replaceState(null, '', selfUrl('/h/' + TOKEN)); } catch (e) {} }
     if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
     else if (!B.kid) picker();
     else hub();

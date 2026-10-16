@@ -1,0 +1,257 @@
+{
+  "passage_id": "en.read.2.story01",
+  "lang": "en",
+  "kind": "read",
+  "band": 2,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Asad"
+  ],
+  "tokens": 57,
+  "sentences": 8,
+  "mean_sent_len": 7.1,
+  "max_word_len": 7,
+  "readability": 0.902,
+  "readability_list": "fed-cum-g3-2026",
+  "readability_band_above": 0.902,
+  "source_ref": "generated brief v1 (band-2 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "Over the Wall",
+  "title_ur": null,
+  "text": "Asad played cricket with his friends in the street. He hit the ball very hard. It went over a tall wall. There was no other ball for the game. Asad went to the door next to the wall. An old woman gave the ball back. She asked the boys to be careful. Asad said sorry to her.",
+  "lines": [
+    [
+      0,
+      8
+    ],
+    [
+      9,
+      14
+    ],
+    [
+      15,
+      20
+    ],
+    [
+      21,
+      28
+    ],
+    [
+      29,
+      37
+    ],
+    [
+      38,
+      44
+    ],
+    [
+      45,
+      51
+    ],
+    [
+      52,
+      56
+    ]
+  ],
+  "tokens_list": [
+    "Asad",
+    "played",
+    "cricket",
+    "with",
+    "his",
+    "friends",
+    "in",
+    "the",
+    "street",
+    "He",
+    "hit",
+    "the",
+    "ball",
+    "very",
+    "hard",
+    "It",
+    "went",
+    "over",
+    "a",
+    "tall",
+    "wall",
+    "There",
+    "was",
+    "no",
+    "other",
+    "ball",
+    "for",
+    "the",
+    "game",
+    "Asad",
+    "went",
+    "to",
+    "the",
+    "door",
+    "next",
+    "to",
+    "the",
+    "wall",
+    "An",
+    "old",
+    "woman",
+    "gave",
+    "the",
+    "ball",
+    "back",
+    "She",
+    "asked",
+    "the",
+    "boys",
+    "to",
+    "be",
+    "careful",
+    "Asad",
+    "said",
+    "sorry",
+    "to",
+    "her"
+  ],
+  "text_hash": "8604c146ec971e087d9d1efb598cfe15",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What game did Asad play?",
+      "right": "cricket",
+      "wrong": [
+        "football",
+        "hockey"
+      ],
+      "accept": [
+        "cricket"
+      ],
+      "reject": [
+        "football",
+        "hockey"
+      ],
+      "rubric": "Right if the child says cricket."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Asad play?",
+      "right": "in the street",
+      "wrong": [
+        "in the park",
+        "in a field"
+      ],
+      "accept": [
+        "in the street",
+        "the street",
+        "street"
+      ],
+      "reject": [
+        "in the park",
+        "in a field"
+      ],
+      "rubric": "Right if the child says in the street (or the street / street)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "How did Asad hit the ball?",
+      "right": "very hard",
+      "wrong": [
+        "very softly",
+        "very slowly"
+      ],
+      "accept": [
+        "very hard",
+        "hard"
+      ],
+      "reject": [
+        "very softly",
+        "very slowly"
+      ],
+      "rubric": "Right if the child says very hard (or hard)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did the ball go?",
+      "right": "over a tall wall",
+      "wrong": [
+        "into a river",
+        "onto a bus"
+      ],
+      "accept": [
+        "over a tall wall",
+        "over the wall",
+        "over a wall"
+      ],
+      "reject": [
+        "into a river",
+        "onto a bus"
+      ],
+      "rubric": "Right if the child says over a tall wall (or over the wall / over a wall)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who gave the ball back?",
+      "right": "an old woman",
+      "wrong": [
+        "a young boy",
+        "a teacher"
+      ],
+      "accept": [
+        "an old woman",
+        "a woman",
+        "the old woman"
+      ],
+      "reject": [
+        "a young boy",
+        "a teacher"
+      ],
+      "rubric": "Right if the child says an old woman (or a woman / the old woman)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 8,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why did Asad say sorry?",
+      "right": "the ball went over her wall",
+      "wrong": [
+        "he was late for school",
+        "he lost her cup"
+      ],
+      "accept": [
+        "the ball went over her wall",
+        "he hit the ball over her wall",
+        "he was not careful"
+      ],
+      "reject": [
+        "he was late for school",
+        "he lost her cup"
+      ],
+      "rubric": "Right if the child says the ball went over her wall (or he hit the ball over her wall / he was not careful)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

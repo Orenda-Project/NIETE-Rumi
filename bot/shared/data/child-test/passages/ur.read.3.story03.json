@@ -1,0 +1,234 @@
+{
+  "passage_id": "ur.read.3.story03",
+  "lang": "ur",
+  "kind": "read",
+  "band": 3,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 62,
+  "sentences": 8,
+  "mean_sent_len": 7.8,
+  "max_word_len": 6,
+  "readability": 0.936,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 5,
+  "text_hash": "66b1b5a46d24b877631fe89488e1b901",
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "بجلی بند ہو گئی",
+  "text": "گرمی میں عنایہ کے گاؤں کی بجلی بند ہو گئی۔ سب لوگ باہر آ کر بیٹھ گئے۔ دادا نے سب سے بہت سی پہیلیاں پوچھیں۔ عنایہ نے جلدی جلدی جواب دیے۔ پھر سب آسمان کے ستارے دیکھتے رہے۔ کچھ دیر بعد بجلی واپس آ گئی۔ مگر کوئی بھی اندر جانا نہیں چاہتا تھا۔ سب نے باہر بیٹھ کر ہی کھانا کھا لیا۔",
+  "lines": [
+    [
+      0,
+      9
+    ],
+    [
+      10,
+      16
+    ],
+    [
+      17,
+      24
+    ],
+    [
+      25,
+      30
+    ],
+    [
+      31,
+      37
+    ],
+    [
+      38,
+      44
+    ],
+    [
+      45,
+      52
+    ],
+    [
+      53,
+      61
+    ]
+  ],
+  "tokens_list": [
+    "گرمی",
+    "میں",
+    "عنایہ",
+    "کے",
+    "گاؤں",
+    "کی",
+    "بجلی",
+    "بند",
+    "ہو",
+    "گئی",
+    "سب",
+    "لوگ",
+    "باہر",
+    "آ",
+    "کر",
+    "بیٹھ",
+    "گئے",
+    "دادا",
+    "نے",
+    "سب",
+    "سے",
+    "بہت",
+    "سی",
+    "پہیلیاں",
+    "پوچھیں",
+    "عنایہ",
+    "نے",
+    "جلدی",
+    "جلدی",
+    "جواب",
+    "دیے",
+    "پھر",
+    "سب",
+    "آسمان",
+    "کے",
+    "ستارے",
+    "دیکھتے",
+    "رہے",
+    "کچھ",
+    "دیر",
+    "بعد",
+    "بجلی",
+    "واپس",
+    "آ",
+    "گئی",
+    "مگر",
+    "کوئی",
+    "بھی",
+    "اندر",
+    "جانا",
+    "نہیں",
+    "چاہتا",
+    "تھا",
+    "سب",
+    "نے",
+    "باہر",
+    "بیٹھ",
+    "کر",
+    "ہی",
+    "کھانا",
+    "کھا",
+    "لیا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "عنایہ کے گاؤں کی کیا بند ہو گئی؟",
+      "right": "بجلی",
+      "wrong": [
+        "ریل",
+        "ہوا"
+      ],
+      "accept": [
+        "بجلی"
+      ],
+      "reject": [
+        "ریل",
+        "ہوا"
+      ],
+      "rubric": "Correct if the child says the electricity (بجلی)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "یہ کس موسم میں ہوا؟",
+      "right": "گرمی میں",
+      "wrong": [
+        "سردی میں",
+        "بہار میں"
+      ],
+      "accept": [
+        "گرمی میں",
+        "گرمی"
+      ],
+      "reject": [
+        "سردی میں",
+        "بہار میں"
+      ],
+      "rubric": "Correct if the child says in the hot season (گرمی)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "سب لوگ کہاں آ کر بیٹھ گئے؟",
+      "right": "باہر",
+      "wrong": [
+        "اندر",
+        "اوپر"
+      ],
+      "accept": [
+        "باہر"
+      ],
+      "reject": [
+        "اندر",
+        "اوپر"
+      ],
+      "rubric": "Correct if the child says outside (باہر)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "باہر بیٹھ کر دادا نے کیا کیا؟",
+      "right": "پہیلیاں پوچھیں",
+      "wrong": [
+        "کہانیاں سنائیں",
+        "نظمیں سنائیں"
+      ],
+      "accept": [
+        "پہیلیاں پوچھیں",
+        "پہیلیاں",
+        "بہت سی پہیلیاں پوچھیں"
+      ],
+      "reject": [
+        "کہانیاں سنائیں",
+        "نظمیں سنائیں",
+        "کہانیاں",
+        "نظمیں"
+      ],
+      "rubric": "Correct if the child says riddles (پہیلیاں)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 7,
+      "type": "inferential",
+      "tap_ok": false,
+      "prompt": "بجلی آنے کے بعد بھی کوئی اندر کیوں نہیں گیا؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "باہر مزا آ رہا تھا",
+        "سب ستارے دیکھ رہے تھے",
+        "باہر اچھا لگ رہا تھا"
+      ],
+      "reject": [],
+      "rubric": "Inferential turn. Correct if the child says they were enjoying it outside: the riddles, the stars, the cooler air."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "عنایہ"
+  ]
+}

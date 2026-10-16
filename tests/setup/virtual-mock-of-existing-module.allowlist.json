@@ -1,0 +1,20 @@
+{
+  "bot/tests/observe": 4,
+  "bot/tests/welcome": 3,
+  "tests/assessment": 1,
+  "tests/attendance": 2,
+  "tests/coaching": 3,
+  "tests/llm": 9,
+  "tests/lp612": 1,
+  "tests/observe": 4,
+  "tests/quiz": 2,
+  "tests/unit": 2,
+  "doMock": {
+    "bot/tests/observe": 14,
+    "bot/tests/quiz/web-quiz": 1,
+    "tests/llm": 2,
+    "tests/queue": 4,
+    "tests/quiz": 5,
+    "tests/training": 5
+  }
+}

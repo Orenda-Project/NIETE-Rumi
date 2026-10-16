@@ -9,6 +9,7 @@ const path = require('path');
 const vm = require('vm');
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'hub.js'), 'utf8');
+const TEL = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-tel.js'), 'utf8');
 const flush = () => new Promise((r) => setImmediate(r));
 
 function page(boot, { api = {}, store = {}, search = '' } = {}) {
@@ -66,9 +67,11 @@ function page(boot, { api = {}, store = {}, search = '' } = {}) {
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } },
     setTimeout: () => 0, Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
   };
-  // wqt: the page-session telemetry (wq-tel.js) as the page sees it, when a test turns it on.
-  if (arguments[1] && arguments[1].wqt) ctx.window.WQT = arguments[1].wqt;
   vm.createContext(ctx);
+  // wq-tel.js first, as the edge's template loads it (its stub and the link helper WQT.withLang are always there);
+  // wqt: the page-session telemetry as the page sees it, when a test turns it on.
+  vm.runInContext(TEL, ctx);
+  if (arguments[1] && arguments[1].wqt) Object.assign(ctx.window.WQT, arguments[1].wqt);
   vm.runInContext(SRC, ctx);
   return { beacons, doc: docEl.attrs, cls: () => docEl.className, cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
 }

@@ -1800,6 +1800,19 @@ function scheduleChallengeVoiceSweep({ worker: w = null, setIntervalFn = setInte
     } catch (error) {
       logToFile('Error in challenge voice orphan sweep (non-fatal)', { error: error.message });
     }
+    // Challenge clip warm (app_settings web_quiz_challenge_clip_warm, off by default): the first tick after boot, then
+    // once a Pakistan day, the coming passages' clips are recorded before a child meets them. Never stops the sweep.
+    try {
+      const ClipWarm = require('../shared/services/quiz/web-quiz-challenge-clip-warm');
+      if (await ClipWarm.switchOn()) await ClipWarm.daily();
+    } catch (error) {
+      logToFile('Error in challenge clip warm (non-fatal)', { error: error.message }, 'error');
+    }
+    try {
+      await require('../shared/services/quiz/web-quiz-challenge-sweeper').tick(); // stuck runs, the daily job (binding expiry always; every other part behind its own switch)
+    } catch (error) {
+      logToFile('Error in challenge housekeeping tick (non-fatal)', { error: error.message });
+    }
   };
   const first = setTimeoutFn(tick, CHALLENGE_VOICE_SWEEP_FIRST_MS);
   if (first && typeof first.unref === 'function') first.unref();

@@ -1,0 +1,230 @@
+{
+  "passage_id": "en.read.1.ref01",
+  "lang": "en",
+  "kind": "read",
+  "band": 1,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": true,
+  "names": [
+    "Sana"
+  ],
+  "tokens": 36,
+  "sentences": 6,
+  "mean_sent_len": 6,
+  "max_word_len": 6,
+  "readability": 0.96,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.96,
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "The Pink Kite",
+  "title_ur": null,
+  "text": "Sana had a new pink kite. She took it to the park. The kite went high in the sky. Then it was stuck in a tree. Her mother got the kite back. Sana was happy again.",
+  "lines": [
+    [
+      0,
+      5
+    ],
+    [
+      6,
+      11
+    ],
+    [
+      12,
+      18
+    ],
+    [
+      19,
+      25
+    ],
+    [
+      26,
+      31
+    ],
+    [
+      32,
+      35
+    ]
+  ],
+  "tokens_list": [
+    "Sana",
+    "had",
+    "a",
+    "new",
+    "pink",
+    "kite",
+    "She",
+    "took",
+    "it",
+    "to",
+    "the",
+    "park",
+    "The",
+    "kite",
+    "went",
+    "high",
+    "in",
+    "the",
+    "sky",
+    "Then",
+    "it",
+    "was",
+    "stuck",
+    "in",
+    "a",
+    "tree",
+    "Her",
+    "mother",
+    "got",
+    "the",
+    "kite",
+    "back",
+    "Sana",
+    "was",
+    "happy",
+    "again"
+  ],
+  "text_hash": "a368cd60ccc1ac7aabc1509ca1a3ddb5",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Sana have?",
+      "right": "a kite",
+      "wrong": [
+        "a ball",
+        "a book"
+      ],
+      "accept": [
+        "a kite",
+        "kite",
+        "a pink kite",
+        "a new kite"
+      ],
+      "reject": [
+        "a ball",
+        "a book"
+      ],
+      "rubric": "Right if the child says a kite (or kite / a pink kite / a new kite)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What colour was the kite?",
+      "right": "pink",
+      "wrong": [
+        "blue",
+        "yellow"
+      ],
+      "accept": [
+        "pink"
+      ],
+      "reject": [
+        "blue",
+        "yellow"
+      ],
+      "rubric": "Right if the child says pink."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Sana take the kite?",
+      "right": "to the park",
+      "wrong": [
+        "to school",
+        "to the shop"
+      ],
+      "accept": [
+        "to the park",
+        "the park",
+        "park"
+      ],
+      "reject": [
+        "to school",
+        "to the shop"
+      ],
+      "rubric": "Right if the child says to the park (or the park / park)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where was the kite stuck?",
+      "right": "in a tree",
+      "wrong": [
+        "on a wall",
+        "in the water"
+      ],
+      "accept": [
+        "in a tree",
+        "tree",
+        "in the tree"
+      ],
+      "reject": [
+        "on a wall",
+        "in the water"
+      ],
+      "rubric": "Right if the child says in a tree (or tree / in the tree)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who got the kite back?",
+      "right": "her mother",
+      "wrong": [
+        "her friend",
+        "her teacher"
+      ],
+      "accept": [
+        "her mother",
+        "mother",
+        "Sana’s mother"
+      ],
+      "reject": [
+        "her friend",
+        "her teacher"
+      ],
+      "rubric": "Right if the child says her mother (or mother / Sana’s mother)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 6,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why was Sana happy again?",
+      "right": "she had her kite back",
+      "wrong": [
+        "it was time to eat",
+        "she got a new book"
+      ],
+      "accept": [
+        "she had her kite back",
+        "her mother got the kite back",
+        "the kite came back"
+      ],
+      "reject": [
+        "it was time to eat",
+        "she got a new book"
+      ],
+      "rubric": "Right if the child says she had her kite back (or her mother got the kite back / the kite came back)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

@@ -16,8 +16,9 @@ async function get(phone) {
   return Promise.resolve(redisService.get(CACHE_KEY(phone))).catch(() => null);
 }
 
-async function set(phone, verdict) {
-  await Promise.resolve(redisService.set(CACHE_KEY(phone), verdict, CACHE_TTL_SECS)).catch(() => {});
+/** `ttlSecs`: the 10-minute default; a shorter one for a verdict that must not outlive a minute (the guest's). */
+async function set(phone, verdict, ttlSecs = CACHE_TTL_SECS) {
+  await Promise.resolve(redisService.set(CACHE_KEY(phone), verdict, ttlSecs)).catch(() => {});
 }
 
 async function forget(phone) {
