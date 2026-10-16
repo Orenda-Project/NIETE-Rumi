@@ -2421,8 +2421,7 @@
   "cp": {
    "en": 53,
    "ur": 69
-  },
-  "held": true
+  }
  },
  "jg.round.t_paused_kids": {
   "en": "Until then, the children see nothing about the round.",
@@ -2433,8 +2432,7 @@
   "cp": {
    "en": 53,
    "ur": 49
-  },
-  "held": true
+  }
  },
  "quiz.finish.count_one": {
   "en": "You finished this quiz today!",
