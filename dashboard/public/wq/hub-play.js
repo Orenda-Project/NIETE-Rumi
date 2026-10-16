@@ -10,6 +10,8 @@
       lanternTrailOne: 'A game is waiting for you on the Trail.',
       lanternTrailMany: 'Games are waiting for you on the Trail.',
       lanternNewStory: function (title) { return 'A new story is here: ' + title; },
+      // A tile's story title as the deck's {title} places it.
+      tileTitle: function (title) { return title; },
       lanternTomorrow: 'Tomorrow: a new story',
       lanternAllSeen: 'Next story arrives on Monday. Until then, play numbers with Jugnu.',
       nextMonday: 'Next story arrives on Monday',
@@ -21,6 +23,7 @@
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔',
       lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       lanternNewStory: function (title) { return 'ایک نئی کہانی آ گئی ہے: ⁨' + title + '⁩'; },
+      tileTitle: function (title) { return '⁨' + title + '⁩'; },
       lanternTomorrow: 'کل نئی کہانی آئے گی۔',
       lanternAllSeen: 'اگلی کہانی پیر کو آئے گی۔ تب تک جگنو کے ساتھ گنتی کے کھیل کھیلیں۔',
       nextMonday: 'اگلی کہانی پیر کو آئے گی',
@@ -94,7 +97,7 @@
       var href = chHref + (t.id === 'numbers' ? '' : '&room=story' + (t.pid ? '&pid=' + encodeURIComponent(t.pid) : ''));
       var tag = t.nx === 'new' && t.id !== 'numbers' ? '<span class="wqp-new">' + esc(L.shelfTagNew) + '</span>' : '';
       return '<a class="wqp-tile" data-shelf="' + (i + 1) + '" data-pid="' + esc(t.pid || '') + '" data-nx="' + (t.nx === 'new' ? 'new' : 'seen') + '" href="' + esc(href) + '">' +
-        tag + '<i aria-hidden="true">' + s[1] + '</i><span>' + esc(L[s[0]]) + '</span></a>';
+        tag + '<i aria-hidden="true">' + s[1] + '</i><span>' + esc(t.title ? L.tileTitle(t.title) : L[s[0]]) + '</span></a>';
     }).join('') + '</div>';
   }
 

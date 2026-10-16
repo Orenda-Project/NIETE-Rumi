@@ -4,7 +4,7 @@
  *   WQBOOK.open(ctx)        the Book screen: lamps, days this week, story stickers, the grown-up's line, the lights
  * The page computes nothing about the child: lamps, outlines, stickers, days, lights and the new lamp all come from
  * the bot (GET /api/wq/book/h/<token>). The page only remembers which new lamp it has already shown, to show it once.
- * Copy: the deck's jg.book.*, jg.rung.*, jg.levelup.*, jg.opens.*, jg.lights.*, jg.parent.* (camelCase of the key tail);
+ * Copy: the deck's jg.book.*, jg.rung.*, jg.levelup.*, jg.opens.longer / two_digit / hundreds (the three lamps that open a room), jg.lights.*, jg.parent.* (camelCase of the key tail);
  * "Back" is the library page's shipped string. */
 (function () {
   'use strict';

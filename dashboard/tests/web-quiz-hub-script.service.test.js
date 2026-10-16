@@ -182,7 +182,7 @@ test('Urdu lock screen: gender-neutral (no «رہا/رہی», no «بیٹا/بی
   const p = page(LOCKED({ lang: 'ur' }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED({ lang: 'ur' }) } });
   await flush(); await flush();
   expect(p.moment()).toBe('H-lock');
-  expect(p.html()).toContain('نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ');
+  expect(p.html()).toContain('نیا لنک لینے کے لیے <span class="wqb-nowrap">واٹس\u00a0ایپ</span> پر دوبارہ');   // «واٹس ایپ» held on one line
   expect(p.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
   p.els['#wq-h-new'].fire('click');
   expect(p.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
@@ -419,4 +419,33 @@ test('with the class, the Urdu lock screen says whose link it is in seven words'
   expect(p.moment()).toBe('H-lock');
   expect(p.html()).toContain('یہ لنک جس کو ملا تھا، وہی کھولے۔');
   expect(p.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
+});
+
+describe('«واٹس ایپ» held on one line (wq-tel.js WQT.nowrap) on the lock and new-player screens', () => {
+  const HELD = '<span class="wqb-nowrap">واٹس ایپ</span>';
+  // off: the page without the helper (WQT.nowrap absent), i.e. the screens as drawn before it.
+  const screens = async (lang, off) => {
+    const p = page(LOCKED({ lang }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED({ lang }) }, wqt: off ? { nowrap: undefined } : null });
+    await flush(); await flush();
+    expect(p.moment()).toBe('H-lock');
+    const lock = p.html();
+    p.els['#wq-h-new'].fire('click');
+    expect(p.moment()).toBe('H-new');
+    return [lock, p.html()];
+  };
+
+  test('Urdu: «mine» on the lock screen and «newSay» in the bubble hold it; nothing else changes', async () => {
+    const [lock, fresh] = await screens('ur');
+    expect(lock).toContain(`<p class="wq-sub">کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے ${HELD} پر دوبارہ ⁦/quiz⁩ بھیجیں۔</p>`);
+    expect(fresh).toContain(`<div class="wq-say">اپنے استاد سے کوئز کا لنک لیں، یا گھر کے فون سے ${HELD} پر ⁦/quiz⁩ بھیجیں۔</div>`);
+    const [lockOff, freshOff] = await screens('ur', true);
+    expect(lock.split(HELD).join('واٹس ایپ')).toBe(lockOff);
+    expect(fresh.split(HELD).join('واٹس ایپ')).toBe(freshOff);
+  });
+
+  test('English: both screens byte-identical to the page without the helper', async () => {
+    const on = await screens('en');
+    expect(on.join('')).not.toContain('wqb-nowrap');
+    expect(on).toEqual(await screens('en', true));
+  });
 });

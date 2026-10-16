@@ -32,6 +32,9 @@ const { renderMessagePage, REPORT_PATH } = require('../../bot/shared/templates/t
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PKT_MS = 5 * 3600 * 1000;
+// The phone's device ref cookie (the one hub.js writes): the round page gives a phone without one its own.
+const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=[A-Za-z0-9_-]{22}(?:;|$)/;
+const newDeviceRef = () => require('crypto').randomBytes(16).toString('base64url').slice(0, 22);
 const QUERY = {
   lang: (v) => v === 'en' || v === 'ur',
   // 'jugnu' is admitted always; the bot ignores it while web_quiz_teacher_jugnu is off (its golden: the page is byte-identical).
@@ -169,11 +172,18 @@ function createTeacherReportRouter(opts = {}) {
       if (typeof b.hold === 'string' && /^\d{1,6}$/.test(b.hold)) body.hold = b.hold;
     }
     const path = `/api/internal/tr/round/${token}${isPost ? `/${act}` : ''}${lang ? `?lang=${lang}` : ''}`;
+    // A child's hand-back answers only the phone this page was opened on, so the page must know the phone: one with
+    // no wq_dv gets one now, sent to the bot on this same call and set on the answer when the round page renders.
+    const minted = !isPost && !DEVICE_COOKIE_RX.test(String(req.get('cookie') || '')) ? newDeviceRef() : null;
     let out;
     try {
-      out = await callBot(isPost ? 'POST' : 'GET', path, req, isPost ? body : null, { raw: true });
+      out = await callBot(isPost ? 'POST' : 'GET', path, req, isPost ? body : null, { raw: true, device: minted });
     } catch (_) {
       return fail(502, 'error');
+    }
+    if (minted && out.status === 200) {
+      const secure = req.secure || req.get('x-forwarded-proto') === 'https';
+      res.append('Set-Cookie', `wq_dv=${minted}; Path=/; Max-Age=2592000; SameSite=Lax${secure ? '; Secure' : ''}`);
     }
     if (out.status === 303 && out.location && out.location.startsWith(`${REPORT_PATH}/`)) return res.redirect(303, out.location);
     if (out.status >= 300 && out.status < 400) return fail(502, 'error');

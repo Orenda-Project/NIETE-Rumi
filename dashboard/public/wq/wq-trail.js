@@ -54,7 +54,7 @@
       // STOP inside U+2066…U+2069)
       noticeT: 'جگنو یہ ریکارڈنگ رکھتا ہے تاکہ ⁨{name}⁩ کی پڑھائی دیکھی جا سکے۔ اسے صرف ایک جانچنے والا سن سکتا ہے۔ گھر کے بڑے کسی بھی وقت ⁦STOP⁩ بھیج کر فون نمبر ہٹا سکتے ہیں، ریکارڈنگ پھر بھی رہے گی۔',
       noticeOk: 'ٹھیک ہے',
-      whoTurn: 'کس کی باری ہے؟', whoTapName: 'اپنا نام دبائیں۔', whoPlayedHere: 'پہلے بھی اسی فون پر کھیلا گیا', whoSomeoneElse: 'میرا نام یہاں نہیں',
+      whoTurn: 'کس کی باری ہے؟', whoTapName: 'اپنا نام دبائیں۔', whoPlayedHere: 'پہلے بھی اسی فون پر کھیلا گیا', whoSomeoneElse: 'میرا نام یہاں نہیں',
       nextOnItsWay: 'ایک نئی کہانی آنے والی ہے۔',
       endReadAll: 'آپ نے پوری کہانی پڑھ لی!', endReadSome: 'آپ نے جگنو کے ساتھ اونچی آواز میں پڑھا!', endZeroWords: 'آپ نے ایک بالکل نئی کہانی کھول کر دیکھی!',
       endListen: 'آپ نے پوری کہانی سن لی!', endTap: 'آپ نے سارے سوالوں کے جواب دے دیے!', endSticker: 'آپ کی کتاب میں ایک اسٹیکر لگ گیا۔',
@@ -64,7 +64,7 @@
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
       storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
       warmupTitle: 'گنتی کا کھیل', warmupSay: 'چلیں، پہلے گنتی سے شروع کریں۔', warmupDone: 'گنتی کا کھیل مکمل!',
-      // no welcomeBack: jg.trail.welcome_back has no Urdu line on this page yet, so an Urdu child sees today's intro
+      welcomeBack: 'دوبارہ خوش آمدید! آئیں، آگے چلتے ہیں۔',
       // jg.t.practice (deck bytes, bot/shared/config/copy.v2.json)
       teacherPractice: 'مشق: ٹیچر کے فون پر کچھ بھی شمار نہیں ہوتا۔',
     },
@@ -377,12 +377,20 @@
       var d = h.S.data || {};
       var r = extra || {};
       var nx = r.next || d.next;
-      var sticker = !d.practice_round && !r.noSticker ? '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>' : '';
+      // a class round turn (round_turn): no sticker line (a round run is no counted stop of the child's own), and the
+      // one button hands the phone back to the round page (jg.round.c_handback); no Home
+      var round = !!d.round_turn;
+      var sticker = !round && !d.practice_round && !r.noSticker ? '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>' : '';
       var next = nx && nx.title ? '<p class="wq-sub" id="wqc-next">' + esc(t.endNext(nx.title)) + '</p>' : '';
       var b3 = (r.read_along_first || d.read_along_first) ? '<p class="wq-sub" id="wqc-b3">' + esc(t.endB3Next) + '</p>' : '';
       var again = r.again ? btn('wqc-again', h.t.again, 'wq-soft') : '';
       // the questions about the story read still follow a reading (today's step; its own back button)
       var qa = r.qa ? h.qaButtons() : '';
+      if (round) {
+        h.show(name, h.jug(pose, line, true) + '<div class="wq-stack">' + btn('wqc-handback', d.round_handback || '') + '</div>');
+        h.on('wqc-handback', function () { if (d.round_back) location.href = d.round_back; else { try { history.back(); } catch (e) { /* stays */ } } });
+        return;
+      }
       h.show(name, h.jug(pose, line, true) + sticker + next + b3 + '<div class="wq-stack">' + (qa || btn('wqc-menu', t.endHome)) + again + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });
@@ -409,7 +417,7 @@
       var d = h.S.data || {};
       if (isStory()) { storyEnd(name, false); return; }
       if (s && s.stopped && !isWarmup(d)) {
-        var line0 = !d.practice_round ? t.endSticker : h.tc('stopDone');
+        var line0 = !d.practice_round && !d.round_turn ? t.endSticker : h.tc('stopDone');
         endCard(name, 'hello', line0, { noSticker: true });
         return;
       }
