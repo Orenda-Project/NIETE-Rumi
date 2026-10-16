@@ -879,6 +879,29 @@ function urduTwin(placed) {
   return rules.length ? (q) => rules.some((r) => r(q)) : null;
 }
 
+// Social Studies: a Q6 item answered with a Q5 item's points is that item again under another name
+// (a purse found on the road in Q5, a wallet in Q6: return it to its owner, honesty, others' rights).
+// A Q5 point is in the Q6 item when at least half of its words are in one Q6 point; the Q6 item
+// restates the Q5 item when at least half of the Q5 points are in it. Points are compared, not
+// stems, since the two name different things. The Q6 item is held, never the Q5 one.
+const POINT_IN = 0.5;
+const POINTS_IN = 0.5;
+function pointSets(q) {
+  const points = q && q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [];
+  return points.map((p) => new Set(tokensOf(typeof p === 'string' ? p : p && p.text))).filter((s) => s.size);
+}
+function samePoints(q5s) {
+  const sets = q5s.map(pointSets).filter((s) => s.length);
+  if (!sets.length) return null;
+  return (q) => {
+    const mine = pointSets(q);
+    if (!mine.length) return false;
+    return sets.some((five) => five.filter((a) => mine.some((b) => [...a].filter((w) => b.has(w)).length >= POINT_IN * a.size)).length
+      >= POINTS_IN * five.length);
+  };
+}
+const SAME_POINTS = { held: 'social_studies.D.Q6', against: 'social_studies.C.Q5' };
+
 const CROSS_HOLD = {
   english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words },
   urdu: { held: ['urdu.A.Q1'], against: ['urdu.C.Q4', 'urdu.C.Q6', 'urdu.C.Q3', 'urdu.C.Q5'], rule: urduTwin },
@@ -1048,7 +1071,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
   const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q)) || (P.key === 'urdu' && sameStemKey(p, q));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
-  const place = (cross) => {
+  // `within`: Social Studies, a Q6 item that restates a Q5 item ({ slot, rule }, SAME_POINTS).
+  const place = (cross, within) => {
     bySlot.forEach((list) => { list.length = 0; });
     unplaced = 0;
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
@@ -1061,8 +1085,12 @@ function applyLayout(examJson, P, scope, opts = {}) {
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
         // after the re-ask only for a place nothing else takes.
-        if (P.key !== 'social_studies' || !bySlot.get(slot.slot).some((p) => twin(p, q))) return true;
-        repeats.set(slot.slot, [...(repeats.get(slot.slot) || []), q]);
+        if (P.key === 'social_studies' && bySlot.get(slot.slot).some((p) => twin(p, q))) {
+          repeats.set(slot.slot, [...(repeats.get(slot.slot) || []), q]);
+          return false;
+        }
+        if (!within || slot.slot !== within.slot || !within.rule(q)) return true;
+        fallback.set(slot.slot, [...(fallback.get(slot.slot) || []), q]);
         return false;
       }
       if (bySlot.get(slot.slot).some((p) => twin(p, q))) return false;
@@ -1122,6 +1150,14 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Each item as the slot it was placed in (a mis-tag, «urdo.C.Q4», is placed by its tail).
   const rule = against && against.length && cross.rule(against.flatMap((s) => bySlot.get(s.slot).map((q) => ({ ...q, slot: s.slot }))));
   if (rule) place({ held: cross.held, rule });
+  // Social Studies: Q6 is laid out once more against the Q5 items now placed (Q5 itself is held
+  // only against Section A, so laying Q6 again cannot move it).
+  if (P.key === 'social_studies' && bySlot.has(SAME_POINTS.held) && bySlot.has(SAME_POINTS.against)) {
+    const restates = samePoints(bySlot.get(SAME_POINTS.against));
+    if (restates && bySlot.get(SAME_POINTS.held).some(restates)) {
+      place(rule ? { held: cross.held, rule } : null, { slot: SAME_POINTS.held, rule: restates });
+    }
+  }
   spreadKeys(slots, bySlot);
 
   // Marks, lines and the canonical tag come from the pattern, never the model.
