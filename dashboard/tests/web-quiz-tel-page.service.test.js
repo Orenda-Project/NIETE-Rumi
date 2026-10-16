@@ -179,6 +179,39 @@ test("a page script's own event goes through the same queue, stamped; 20 events 
   expect(t.fetches[0].body.events[1]).toMatchObject({ n: 'answer', ok: 0, i: 1, ps: t.fetches[0].body.ps, pseq: 2 });
 });
 
+describe('WQT.setIds({ht, chip}): the hub token and the picked chip ride the batch, never an event', () => {
+  const HT = 'fakehubtoken.NotARealSignature000';
+  test('none set: the batch keys are today\'s (events, ps, dr)', () => {
+    const t = load({ boot: { rt: true, view: 'hub', kids: [] }, store: { wq_d: DEV } });
+    t.pagehide();
+    expect(t.batches().map((b) => Object.keys(b))).toEqual([['events', 'ps', 'dr']]);
+  });
+  test('ht before a pick, then ht + chip; a later {ht} alone drops the chip; non-strings are ignored', () => {
+    const t = load({ boot: { rt: true, view: 'hub', kids: [] }, store: { wq_d: DEV } });
+    t.ctx.WQT.setIds({ ht: HT });
+    t.ctx.WQT.flush(false);
+    t.ctx.WQT.push({ n: 'hub_pick', src: 'teacher' });
+    t.ctx.WQT.setIds({ ht: HT, chip: '00000000000000a1' });
+    t.ctx.WQT.flush(false);
+    t.ctx.WQT.push({ n: 'hub_view' });
+    t.ctx.WQT.setIds({ ht: HT });
+    t.ctx.WQT.flush(false);
+    t.ctx.WQT.push({ n: 'hub_view' });
+    t.ctx.WQT.setIds({ ht: 7, chip: { x: 1 } });
+    t.ctx.WQT.flush(false);
+    const b = t.batches();
+    expect(b.map((x) => Object.keys(x))).toEqual([['events', 'ps', 'dr', 'ht'], ['events', 'ps', 'dr', 'ht', 'chip'], ['events', 'ps', 'dr', 'ht'], ['events', 'ps', 'dr']]);
+    expect(b[1]).toMatchObject({ ht: HT, chip: '00000000000000a1' });
+    for (const e of t.sent()) expect('ht' in e || 'chip' in e).toBe(false);
+  });
+  test('off (rt not true): setIds is there and does nothing; no request', () => {
+    const t = load({ boot: { view: 'hub', kids: [] } });
+    expect(() => t.ctx.WQT.setIds({ ht: HT, chip: 'c' })).not.toThrow();
+    t.ctx.WQT.flush(true);
+    expect(t.fetches.length + t.beacons.length).toBe(0);
+  });
+});
+
 test('screen names on every page: hub moments, the library, the challenge screens, an unknown moment as itself', () => {
   const H = (n, rest = '') => `H${n}${rest}`; // the hub page's own moment marks
   const hub = load({ boot: { rt: true, view: 'hub', kids: [] } });
