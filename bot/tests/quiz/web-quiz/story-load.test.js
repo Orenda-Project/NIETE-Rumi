@@ -43,7 +43,7 @@ function fixture({ voices = [1, 2], questionsReviewed = 3, band = true, wer = 0.
     const words = book.pages[n - 1].words.map((w) => ({ i: w.i, t: w.t, s_ms: 400 + 500 * w.i, e_ms: 850 + 500 * w.i }));
     if (mismatch && n === 2) words.pop();
     fs.writeFileSync(path.join(vdir, `p0${n}.json`), JSON.stringify({ v: 1, lang: 'en', audio: { ms: 2100, mime: 'audio/ogg' }, words, wpm, pace_wpm: pace == null ? wpm : pace, voice: { provider: 'soniox', voice: 'Grace', model: 'tts-rt-v2' }, timing_src: 'stt_align' }));
-    fs.writeFileSync(path.join(vdir, `p0${n}.qa.json`), JSON.stringify({ wer, drift_ms_max: drift, drift_ms_mean: 40, cost_usd: 0.0012 }));
+    fs.writeFileSync(path.join(vdir, `p0${n}.qa.json`), JSON.stringify({ wer, drift_ms_max: drift, drift_ms_mean: 40, drift_ms_p90: 50, cost_usd: 0.0012 }));
     fs.writeFileSync(path.join(vdir, `p0${n}.ogg`), Buffer.from(`OggS-page-${n}`));
   }
   fs.writeFileSync(path.join(vdir, 'q1.ogg'), Buffer.from('OggS-q1'));
@@ -183,6 +183,16 @@ describe('planBook', () => {
     expect([...store.t.voices.values()].map((v) => v.quality).sort()).toEqual(['low', null]);
   });
 
+  test('a voice not yet through its timing checks counts as line-timed: the mirror flag, or no p90 on the page', () => {
+    const f = fixture();
+    const vj = path.join(f.voiceDir, 'p01.json');
+    fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), timing_quality: 'low' }));
+    const qj = path.join(f.voiceDir, 'p02.qa.json'); const q = JSON.parse(fs.readFileSync(qj, 'utf8')); delete q.drift_ms_p90; fs.writeFileSync(qj, JSON.stringify(q));
+    const p = L.planBook(f);
+    expect(p.why).toEqual([]);
+    expect(p.voices.map((v) => [v.n, v.row.quality])).toEqual([[1, 'low'], [2, 'low']]);
+  });
+
   test('two pace gates: the whole clip (100 / 115) and the word span (130 / 145)', () => {
     expect(L.planBook(fixture({ wpm: 104, pace: 98 })).why).toEqual(['p01: voice pace 104 wpm', 'p02: voice pace 104 wpm']);
     expect(L.planBook(fixture({ wpm: 95, pace: 125 })).why).toEqual([]);
@@ -254,6 +264,33 @@ describe('applyPlan', () => {
       const n = Number(path.basename(v.audio_key).slice(1, 3));
       expect(up.n).toBe(fs.readFileSync(path.join(f.voiceDir, `p0${n}.ogg`)).length);
     }
+  });
+
+  test('a book is ready only when every voice clip is in storage under story/; a missing one keeps it a draft with the reason', async () => {
+    const plan = L.planBook(fixture());
+    const store = memoryStore(); const r = recorder();
+    const missing = plan.voices.find((v) => v.n === 2);
+    const out = await L.applyPlan(plan, { store, upload: r.upload, env: 'sandbox', stored: async (k) => !k.endsWith(missing.file.name) });
+    expect(out.status).toBe('draft');
+    expect(plan.why).toEqual(['p02: voice clip not stored']);
+    expect(store.t.books.get(BOOK_ID).status).toBe('draft');
+    const again = L.planBook(fixture());
+    const asked = [];
+    expect((await L.applyPlan(again, { store, upload: r.upload, env: 'sandbox', stored: async (k) => { asked.push(k); return true; } })).status).toBe('ready');
+    expect(asked.sort()).toEqual([...store.t.voices.values()].filter((v) => v.is_current).map((v) => v.audio_key).sort());
+    expect(asked.every((k) => k.startsWith(`story/sandbox/${BOOK_ID}/`))).toBe(true);
+  });
+
+  test('a page whose voice no longer passes loses its current voice row (no stale clip is served)', async () => {
+    const f = fixture();
+    const store = memoryStore(); const r = recorder();
+    await L.applyPlan(L.planBook(f), { store, upload: r.upload, env: 'sandbox' });
+    const vj = path.join(f.voiceDir, 'p02.json');
+    fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), ok: false, fails: ['wer 0.3'] }));
+    await L.applyPlan(L.planBook(f), { store, upload: r.upload, env: 'sandbox' });
+    const cur = [...store.t.voices.values()].filter((v) => v.is_current).map((v) => v.page_id);
+    expect(cur).toEqual([Store.uuidV5(BOOK_ID, 'p01')]);
+    expect(store.t.voices.size).toBe(2);
   });
 
   test('a re-voice keeps the old row and moves is_current; a book set off stays off; a not-ready book is a draft', async () => {
