@@ -84,8 +84,10 @@ describe('1. no appended tags', () => {
 
 describe('2. the covers line of a pages paper', () => {
   test('a pages paper says these pages, not units or chapters', () => {
+    // Science and Urdu list no unit pages. For Maths these pages are exactly
+    // Units 1–2, which name the units instead (fde-r7-render.test.js).
     const scope = { kind: 'pages', chapters: null, pages: '1-12, 14-40' };
-    for (const subject of ['maths', 'science', 'urdu']) {
+    for (const subject of ['science', 'urdu']) {
       const s = applyLayout({ unseen: {} }, P[subject], scope, { now: NOW }).examJson._layout.scope;
       expect(s.covers_en).toBe('Covers pp 1-12, 14-40; every section set from these pages.');
       expect(s.covers_ur).not.toMatch(/ابواب|اسباق/);
@@ -197,7 +199,7 @@ describe('6. Science Q2(b): every sub-question is marked out of 2.5', () => {
     expect(parts[2].scheme.points.map((p) => p.kind)).toEqual(['K', 'A']);
   });
 
-  test('a sub-question with no points prints its bare 2.5 chip; a 2.5 split is left alone', () => {
+  test('a sub-question with no points prints A2.5 on its answer, never a bare chip; a 2.5 split is left alone', () => {
     const subs = [
       { question: 'Which senses are used?', answer: 'Hearing and touch.', marks: 1 },
       { question: 'Why close the eyes?', answer: 'To listen better.', marks: 2, scheme: { points: [] } },
@@ -210,8 +212,8 @@ describe('6. Science Q2(b): every sub-question is marked out of 2.5', () => {
     const Selection = require('../../bot/shared/services/assessment/assessment-selection');
     expect(Selection.marksOf(Object.values(ex.unseen.subjective).flat()[0])).toBe(5);
     const scheme = visible(R.renderMarkingScheme({ examJson: ex, grade: 5, subject: 'science', allowShort: true }));
-    expect(scheme).toContain('a) Hearing and touch. 2.5');
-    expect(scheme).toContain('b) To listen better. 2.5');
+    expect(scheme).toContain('a) Hearing and touch. A2.5 Hearing and touch.');
+    expect(scheme).toContain('b) To listen better. A2.5 To listen better.');
     expect(scheme).not.toMatch(/Hearing and touch\. K?1\b/);
   });
 });

@@ -87,6 +87,40 @@ function runs(numbers) {
   return parts.join(', ');
 }
 
+// Every page a page list names ("1-12, 14–40"), or null if it does not parse.
+function pageSet(list) {
+  const pages = new Set();
+  for (const part of String(list).split(',')) {
+    const m = /^\s*(\d+)\s*(?:[-–]\s*(\d+))?\s*$/.exec(part);
+    if (!m) return null;
+    const a = Number(m[1]);
+    const b = m[2] ? Number(m[2]) : a;
+    if (b < a || b - a > 1000) return null;
+    for (let p = a; p <= b; p += 1) pages.add(p);
+  }
+  return pages;
+}
+
+// The units a page list covers when it is exactly whole units of the pattern, else null.
+function unitsOfPages(P, list) {
+  const unitRanges = (P.scope && P.scope.unit_ranges) || [];
+  const want = pageSet(list);
+  if (!unitRanges.length || !want || !want.size) return null;
+  const units = [];
+  const covered = new Set();
+  for (const u of unitRanges) {
+    const own = pageSet(u.ranges);
+    if (!own || !own.size) continue;
+    const inside = [...own].filter((p) => want.has(p)).length;
+    if (inside === 0) continue;
+    if (inside !== own.size) return null;
+    units.push(Number(u.chapter));
+    own.forEach((p) => covered.add(p));
+  }
+  if (!units.length || covered.size !== want.size) return null;
+  return units.sort((a, b) => a - b);
+}
+
 function scopeBlock(P, scope) {
   const kind = scope && (scope.kind === 'chapters' || scope.kind === 'pages') ? scope.kind : 'fde';
   const chapters = kind === 'chapters' && Array.isArray(scope.chapters) ? scope.chapters.map(Number) : null;
@@ -104,8 +138,16 @@ function scopeBlock(P, scope) {
       coversUr = coversUr.replace(/انہی (ابواب|اسباق)/, `اسی ${ur}`); // needs fluent-Urdu review
     }
   } else if (pages) {
-    coversEn = P.header.covers_partial_en.replace('{units}', `pp ${pages}`);
-    coversUr = P.header.covers_partial_ur.replace('{units}', `ص ${pages}`);
+    // A page list that is exactly whole units of the pattern names the units, not the pages.
+    const units = unitsOfPages(P, pages);
+    if (units) {
+      const [en, ur] = (units.length === 1 ? UNIT_WORD_ONE : UNIT_WORD)[P.key] || (units.length === 1 ? UNIT_WORD_ONE : UNIT_WORD).maths;
+      coversEn = P.header.covers_partial_en.replace('{units}', `${en} ${runs(units)}`);
+      coversUr = P.header.covers_partial_ur.replace('{units}', `${ur} ${runs(units)}`);
+    } else {
+      coversEn = P.header.covers_partial_en.replace('{units}', `pp ${pages}`);
+      coversUr = P.header.covers_partial_ur.replace('{units}', `ص ${pages}`);
+    }
     // A page list is not units: the template's "these units/chapters/lessons" reads "these pages".
     coversEn = coversEn.replace(/\bthese (units|chapters|lessons)\b/, 'these pages');
     coversUr = coversUr.replace(/انہی (ابواب|اسباق)/, 'انہی صفحات'); // needs fluent-Urdu review
@@ -485,9 +527,13 @@ function stripTags(holder) {
   if (Array.isArray(holder.parts)) holder.parts.forEach((part) => { if (part && Array.isArray(part.questions)) part.questions.forEach(stripTags); });
 }
 
-// An MCQ with two right answers is not placed (see sameValueTwice).
+// An MCQ with two right answers is not placed: two options of one value (see
+// sameValueTwice), or a stem asking for a property ("divisible by 11", "prime",
+// "rounded to the nearest 100") that no option or more than one option has.
+const { mcqPropertyVerdict } = require('./maths-check');
+
 function printable(slot, q) {
-  return slot.shape !== 'mcq' || !sameValueTwice(q);
+  return slot.shape !== 'mcq' || (!sameValueTwice(q) && mcqPropertyVerdict(q).ok !== false);
 }
 
 /**
