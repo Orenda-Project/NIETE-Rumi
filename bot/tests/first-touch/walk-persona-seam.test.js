@@ -363,6 +363,48 @@ describe('5 · "Back to my real self"', () => {
 });
 
 describe('the persona\'s keys and clock', () => {
+  test('the record does not stick (a write Redis drops): the tap fails and the phone keeps every link', async () => {
+    world();
+    const keptKey = persona()._keptKey(NORM.coach);
+    const realSet = redis.set.getMockImplementation();
+    redis.set.mockImplementation(async (k, v, t) => (k === keptKey ? true : realSet(k, v, t)));   // says yes, keeps nothing
+    try {
+      const r = await tap('fresh');
+      expect(r.status).toBe(503);
+      expect(activeOnCoach().map((b) => b.id)).toEqual(['b-old']);
+      expect(mockDb.writes.filter((w) => w.table === 'child_phone_bindings')).toEqual([]);
+      expect(await persona().get(PH.coach)).toBeNull();
+    } finally { redis.set.mockImplementation(realSet); }
+  });
+
+  test('two reads at once after the persona ran out put the phone back once (one restore holds the phone)', async () => {
+    world();
+    await tap('fresh');
+    redis.__keys.delete(persona()._key(NORM.coach));            // a day of silence
+    await Promise.all([persona().get(PH.coach), persona().get(PH.coach)]);   // e.g. the resolver and the binder
+    expect(mockDb.writes.filter((w) => w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['s-old']);
+    expect(await keptRec()).toBeNull();
+    for (const k of redis.__keys.keys()) expect(k).not.toMatch(/^wq:persona:lock:/);   // the hold is let go
+  });
+
+  test('a reader that saw the record but gets the hold only after the first restore finds it gone and does nothing', async () => {
+    world();
+    await tap('fresh');
+    redis.__keys.delete(persona()._key(NORM.coach));
+    const realNX = redis.setNX.getMockImplementation();
+    const realDel = redis.delete.getMockImplementation();
+    let released;
+    const firstDone = new Promise((r) => { released = r; });
+    let calls = 0;
+    redis.setNX.mockImplementation(async (k, v, t) => { calls += 1; if (calls === 2) await firstDone; return realNX(k, v, t); });
+    redis.delete.mockImplementation(async (k) => { const out = await realDel(k); if (/^wq:persona:lock:/.test(k)) released(); return out; });
+    try {
+      await Promise.all([persona().get(PH.coach), persona().get(PH.coach)]);
+    } finally { redis.setNX.mockImplementation(realNX); redis.delete.mockImplementation(realDel); }
+    expect(calls).toBe(2);
+    expect(mockDb.writes.filter((w) => w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['s-old']);
+  });
+
   test('one hashed persona key and one hashed record key; each read slides the persona\'s day', async () => {
     world();
     await tap('fresh');

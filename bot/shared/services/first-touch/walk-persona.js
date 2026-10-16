@@ -12,6 +12,7 @@
  *                        walking keeps its persona; "Back to my real self" or a day of silence ends it)
  *   wq:persona:kept:<h>  { walk, kept: [{ id, via }] } (ids only), 7 days — written by the first "Start as a new
  *                        phone" of a walk BEFORE it erases anything: when the walk began and whose links it erased
+ *   wq:persona:lock:<h>  held for the few seconds one restore takes (SET NX, 30 s), so two reads at once restore once
  * "Back to my real self" erases only the links bound since `walk` and re-binds the kept children, so the row is left
  * as it was. If the persona ran out first, the next read of this phone (a /quiz) does the same restore once. No table
  * is written by the persona itself.
@@ -52,6 +53,8 @@ const NEVER_ON = Object.freeze(['production', 'prod', 'staging']);
 const h = (norm) => crypto.createHash('sha256').update(String(norm)).digest('hex').slice(0, 32);
 const keyOf = (norm) => `wq:persona:${h(norm)}`;
 const keptKeyOf = (norm) => `wq:persona:kept:${h(norm)}`;
+const lockKeyOf = (norm) => `wq:persona:lock:${h(norm)}`;
+const LOCK_TTL_S = 30;
 const redis = () => require('../cache/railway-redis.service');
 const normOf = (phone) => require('../quiz/student-identity.service').normalisePhone(phone);
 
@@ -188,10 +191,21 @@ async function restoreKept(norm, kept, now) {
 
 /** Put the phone back as it was before the walk (its own links re-bound, the walk's erased) and drop the record. */
 async function putBack(norm, rec, now) {
-  const erased = await eraseWalkLinks(norm, rec.walk, now);
-  const restored = await restoreKept(norm, rec.kept, now);
-  try { await redis().delete(keptKeyOf(norm)); } catch (_) { /* it expires in a week */ }
-  return { erased, restored };
+  // one restore at a time per phone, and the record re-read under the hold: a second reader that saw the record
+  // before the first one finished would otherwise erase the links the first one just put back (bound after `walk`)
+  let mine = false;
+  try { mine = Boolean(await redis().setNX(lockKeyOf(norm), '1', LOCK_TTL_S)); } catch (_) { mine = false; }
+  if (!mine) return { erased: 0, restored: 0 };
+  try {
+    const cur = await keptRecord(norm);
+    if (!cur || cur.walk !== rec.walk) return { erased: 0, restored: 0 };
+    const erased = await eraseWalkLinks(norm, cur.walk, now);
+    const restored = await restoreKept(norm, cur.kept, now);
+    try { await redis().delete(keptKeyOf(norm)); } catch (_) { /* it expires in a week */ }
+    return { erased, restored };
+  } finally {
+    try { await redis().delete(lockKeyOf(norm)); } catch (_) { /* it lapses in 30 s */ }
+  }
 }
 
 /** A walk whose persona ran out before "Back to my real self": the first read of the phone afterwards puts it back. */
