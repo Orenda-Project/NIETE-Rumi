@@ -125,6 +125,11 @@ describe('mint: the server names the child, the page names only the deed', () =>
     const fromPhone = (body) => fetch(`${base}/card`, { method: 'POST', headers: { ...KEY, 'x-wq-device': PHONE_DEV }, body: JSON.stringify(body) });
     const r2 = await fromPhone({ hub, kid: T.chipId('h', 'st-2'), kind: 'book', deed: 'book_read', lang: 'en' });
     expect(Card.facts((await r2.json()).token)).toMatchObject({ kind: 'book', first: 'Zarvish' });
+    // a storybook only listened to, and one opened with nothing read: the listening deed, the try card (no sticker)
+    const r3 = await fromPhone({ hub, kid: T.chipId('h', 'st-2'), kind: 'book', deed: 'listen_done', lang: 'ur' });
+    expect(Card.facts((await r3.json()).token)).toMatchObject({ kind: 'book', deed: 'listen_done', lang: 'ur' });
+    const r4 = await fromPhone({ hub, kid: T.chipId('h', 'st-2'), kind: 'book', deed: 'read_tried', lang: 'en' });
+    expect(r4.status).toBe(200);
     // two children on the hub token and no chip: which child is unknown
     expect((await fromPhone({ hub, kind: 'book', deed: 'book_read' })).status).toBe(401);
     // a forwarded hub link on another phone names nobody
@@ -160,6 +165,18 @@ describe('the picture', () => {
     expect(html).toContain("I finished my teacher&#39;s quiz today!");
   });
 
+  test('a picture still over 40 KB after the fewest colours is served, and says so in the log (no token)', async () => {
+    const noise = await sharp(require('crypto').randomBytes(1200 * 630 * 3), { raw: { width: 1200, height: 630, channels: 3 } }).png().toBuffer();
+    htmlToImage.mockResolvedValue(noise);
+    const { body } = await mintQuiz();
+    const r = await fetch(`${base}/card/${body.token}.png`, { headers: KEY });
+    expect(r.status).toBe(200);
+    const line = logToFile.mock.calls.find((c) => /over 40 KB/.test(c[0]));
+    expect(line).toBeTruthy();
+    expect(line[1]).toMatchObject({ kind: 'quiz', bytes: expect.any(Number) });
+    expect(JSON.stringify(line)).not.toContain(body.token.slice(0, 24));
+  });
+
   test('a token the server never issued: 404, nothing drawn', async () => {
     const r = await fetch(`${base}/card/${'A'.repeat(60)}.png`, { headers: KEY });
     expect(r.status).toBe(404);
@@ -178,7 +195,8 @@ describe('the picture', () => {
 
 // every kind of finish the card is for, and every deed it may say
 const EVERY_DEED = [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_some'], ['read', 'read_tried'], ['listen', 'listen_done'],
-  ['story', 'story_read'], ['story', 'answered'], ['game', 'game_done'], ['book', 'book_read'], ['video', 'video_watched']];
+  ['story', 'story_read'], ['story', 'answered'], ['story', 'read_tried'], ['game', 'game_done'], ['book', 'book_read'], ['book', 'listen_done'], ['book', 'read_tried'],
+  ['video', 'video_watched']];
 describe('what the card says', () => {
   test('the deed list is exactly these', () => {
     expect(Object.entries(Card.DEEDS).flatMap(([k, ds]) => ds.map((d) => [k, d]))).toEqual(EVERY_DEED);
@@ -202,6 +220,13 @@ describe('what the card says', () => {
     const html = Card.renderCard({ lang: 'ur', first: 'Amal', deed: 'read_all' }, { fonts: false });
     expect(html).toMatch(/<html lang="ur" dir="rtl">/);
     expect(html).toContain('<div class="name" dir="ltr">Amal</div>');
+    // the name block sits on the Urdu side of the card, whatever its own script
+    expect(/\.name\{[^}]*\}/.exec(html)[0]).toContain('text-align:right');
+  });
+  test('an Urdu deed never breaks inside a word or leaves one word alone on its line', () => {
+    const css = /\.deed\{[^}]*\}/.exec(Card.renderCard({ lang: 'ur', first: 'امل', deed: 'read_all' }, { fonts: false }))[0];
+    expect(css).toContain('word-break:keep-all');
+    expect(css).toContain('text-wrap:balance');
   });
   test('the return words are answered by the bot today, and are not the class message\'s word', () => {
     for (const l of ['en', 'ur']) {

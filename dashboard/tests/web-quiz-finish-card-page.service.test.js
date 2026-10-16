@@ -199,15 +199,18 @@ describe('switch on: the quiz card gains the deed and its class share becomes th
 
 /* ---------------- the Jugnu end cards (wq-trail.js) ---------------- */
 // A small host: the page's helpers as wq-challenge.js hands them over, the screen as one HTML string.
-function trail({ lang = 'en', data = {}, menu = {}, withFc = false } = {}) {
+function trail({ lang = 'en', data = {}, menu = {}, withFc = false, href = 'https://portal.example/c/tok' } = {}) {
   let screen = '';
   const listeners = {};
   const fetches = [];
   const events = [];
+  // a button's class as the screen string carries it (the card restyles the host's Home)
+  const classOf = (id) => { const m = new RegExp(`class="([^"]*)" id="${id}"`).exec(screen); return m ? m[1] : ''; };
   const el = (id) => ({ id, tagName: id === 'wqfc-share' || id === 'wqfc-next' ? 'A' : 'DIV', parentNode: { removeChild() { screen = screen.replace(/<p class="wq-sub" id="wqc-next">[^<]*<\/p>/, ''); } },
+    get className() { return classOf(id); }, set className(v) { screen = screen.replace(`class="${classOf(id)}" id="${id}"`, `class="${v}" id="${id}"`); },
     addEventListener(n, fn) { (listeners[id] = listeners[id] || []).push(fn); }, setAttribute() {} });
   const ctx = {
-    location: { origin: 'https://portal.example', hash: '' }, navigator: {},
+    location: { origin: 'https://portal.example', hash: '', href }, navigator: {}, URL,
     sessionStorage: { getItem: () => null, setItem() {} }, localStorage: { getItem: () => null, setItem() {} },
     fetch: (url, init) => { fetches.push({ url, init }); return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[lang] })) }); },
     document: {
@@ -308,6 +311,173 @@ describe('switch on: every Trail finish gets the card', () => {
       const t = on({ data });
       t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
       expect(t.html()).not.toContain('wqfc');
+    }
+  });
+});
+
+/* ---------------- a card never certifies a read nobody heard (the zero-input chain) ---------------- */
+describe('switch on: the zero-input chain — the outcome decides the card, not the line', () => {
+  const TWELVE = { tokens: 'a b c d e f g h i j k l'.split(' ') };
+  const on = (o = {}) => trail({ withFc: true, menu: { card_v3: true }, ...o, data: { story: TWELVE, ...(o.data || {}) } });
+  const mintOf = (t) => JSON.parse(t.fetches.find((f) => f.url === '/api/wq/card').init.body);
+  test.each([
+    ['Done at 0 of 12', { score: { attempted: 0 } }, 0],
+    ['Done at 1 of 12 (under a tenth)', { score: { attempted: 1 } }, 1],
+    ['the live read heard nothing though the server counted words', { score: { attempted: 3 } }, 0],
+    ['the read ended silent', { score: { attempted: 3 }, ended: 'silent' }, 3],
+    ['the recording failed', { failed: true, score: { attempted: 5 } }, null],
+  ])('%s: "Let\'s read it together", no sticker line, the try card', async (_, r, heard) => {
+    const t = on();
+    t.TR.readEnd(r, null, heard);
+    const h = t.html();
+    expect(h).toContain('Let&#39;s read it together');
+    expect(h).not.toContain('wqc-sticker');
+    expect(h).not.toMatch(/sticker went into/i);
+    await flush();
+    expect(mintOf(t)).toMatchObject({ kind: 'read', deed: 'read_tried' });
+  });
+  test('Urdu: «آئیں مل کر پڑھیں»', () => {
+    const t = on({ lang: 'ur' });
+    t.TR.readEnd({ score: { attempted: 0 } }, null, 0);
+    expect(t.html()).toContain('آئیں مل کر پڑھیں');
+    expect(t.html()).not.toContain('wqc-sticker');
+  });
+  test('2 of 12 (a tenth or more) still earns the sticker and "read some"', async () => {
+    const t = on();
+    t.TR.readEnd({ score: { attempted: 2 } }, null, 2);
+    expect(t.html()).toContain('wqc-sticker');
+    await flush();
+    expect(mintOf(t).deed).toBe('read_some');
+  });
+  test('not scored yet (later): today\'s "on its way" line, no sticker, no Again, the try card', async () => {
+    const t = on();
+    t.TR.readEnd({ later: true });
+    const h = t.html();
+    expect(h).toContain('Later');
+    expect(h).not.toContain('wqc-sticker');
+    expect(h).not.toContain('wqc-again');
+    await flush();
+    expect(mintOf(t).deed).toBe('read_tried');
+  });
+  test('Story Time, nothing heard: the together card, no sticker, the try card', async () => {
+    const t = on({ href: 'https://portal.example/c/tok?room=story&pid=p1', menu: { card_v3: true, v2: { story: true } }, data: { story_room: true } });
+    // the room opens its story (h.open), then the story's read ends with no words heard
+    t.TR.menu();
+    t.TR.readEnd({ score: { attempted: 0 } }, null, 0);
+    expect(t.html()).toContain('Let&#39;s read it together');
+    expect(t.html()).not.toContain('wqc-sticker');
+  });
+  test('switch on: the host\'s Home is soft, so green is Share only', () => {
+    const t = on();
+    t.TR.readEnd({ score: { attempted: 12 } }, null, 12);
+    expect(t.html()).toMatch(/class="wq-btn wq-soft" id="wqc-menu"/);
+  });
+});
+
+/* ---------------- one card, three sources (the story reader's call) ---------------- */
+describe('WQFC.mount({source}) — the result object the reader hands over', () => {
+  function mountWith(o) {
+    let out = '';
+    const fetches = [];
+    const fc = fcAlone({ fetch: (url, init) => { fetches.push({ url, init }); return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[o.lang || 'en'] })) }); },
+      document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
+    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { auth: { hub: 'H', kid: 'K' }, ...o });
+    return { ok, out, fetches, fc };
+  }
+  test('a story read: the deed counts pages in Urdu digits, the headline by `ended`, ONE sticker, the share', async () => {
+    const m = mountWith({ source: 'story', ended: 'read', pages_read: 3, stars: 3, title: 'دھوپ', lang: 'ur' });
+    expect(m.ok).toBe(true);
+    expect(m.out).toContain('۳ صفحے پڑھے');
+    expect(m.out).toContain('آپ نے جگنو کے ساتھ پڑھا!');
+    expect((m.out.match(/data-sticker/g) || []).length).toBe(1);
+    expect(m.out).toContain('id="wqfc-share"');
+    expect(/data-n>([^<]*)</.exec(m.out)[1]).not.toMatch(/[0-9]/);
+    await flush();
+    expect(JSON.parse(m.fetches[0].init.body)).toEqual({ kind: 'book', deed: 'book_read', lang: 'ur', hub: 'H', kid: 'K' });
+  });
+  test('EN: one page reads "1 page read"; effort stars are never drawn as a count', () => {
+    const m = mountWith({ source: 'story', ended: 'read', pages_read: 1, stars: 2, lang: 'en' });
+    expect(m.out).toContain('1 page read');
+    expect(m.out).not.toMatch(/⭐|★|stars?\b/);
+  });
+  test('listened only: "pages heard", the listening deed', async () => {
+    const m = mountWith({ source: 'story', ended: 'listened', pages_read: 0, pages_listened: 2, lang: 'en' });
+    expect(m.out).toContain('2 pages heard');
+    expect(m.out).toContain('You listened with Jugnu!');
+    await flush();
+    expect(JSON.parse(m.fetches[0].init.body)).toMatchObject({ kind: 'book', deed: 'listen_done' });
+  });
+  test('zero input: "Let\'s read it together", no sticker, no count, the try card', async () => {
+    const m = mountWith({ source: 'story', ended: 'read', pages_read: 0, lang: 'en' });
+    expect(m.out).toContain('Let&#39;s read it together');
+    expect(m.out).not.toContain('data-sticker');
+    expect(m.out).not.toMatch(/pages? (read|heard)/);
+    await flush();
+    expect(JSON.parse(m.fetches[0].init.body).deed).toBe('read_tried');
+  });
+  test('the share text never carries the page count', () => {
+    const m = mountWith({ source: 'story', ended: 'read', pages_read: 7, lang: 'en' });
+    const href = /id="wqfc-share"[^>]*href="([^"]+)"/.exec(m.out)[1];
+    expect(decodeURIComponent(href.replace(/&amp;/g, '&'))).not.toMatch(/7|page/);
+  });
+  test('numbers is WQFC\'s, from the source: the quiz keeps its own score, a read none, a story the count-up deed', () => {
+    expect(FC.numbersFor('quiz')).toBe('score');
+    expect(FC.numbersFor('read')).toBe('none');
+    expect(FC.numbersFor('story')).toBe('deed');
+    expect(FC.numbersFor('anything')).toBe('none');
+  });
+  test('the old {kind, deed} call still mounts', () => {
+    expect(mountWith({ kind: 'game', deed: 'game_done', lang: 'en' }).ok).toBe(true);
+  });
+});
+
+/* ---------------- the shared files keep guard lines only ---------------- */
+describe('wq.js / wq-trail.js carry guard lines, the card lives in wq-finish-card.js', () => {
+  const WQ_SRC = fs.readFileSync(path.join(WQ, 'wq.js'), 'utf8');
+  test('today\'s "Share to class group" handler is untouched; the card\'s tap is its own guarded line', () => {
+    expect(WQ_SRC).toContain("    on('#wq-share', function () { share(line, classUrl, 'card', art.card); });\n");
+  });
+  test('wq-trail.js: every card line is one guarded call into WQFC, no card function of its own', () => {
+    expect(TRAIL_SRC).not.toMatch(/function finishCard/);
+    const lines = TRAIL_SRC.split('\n').filter((l) => /WQFC/.test(l));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const l of lines) expect(l.trim()).toMatch(/^if \(window\.WQFC/);
+  });
+  test('the stylesheet the story reader asks for is the card\'s own CSS', () => {
+    expect(fs.readFileSync(path.join(WQ, 'wq-finish-card.css'), 'utf8')).toBe(FC.CSS);
+  });
+});
+
+describe('golden: switch off, the Urdu Trail cards, Story Time\'s end and a held card are today\'s', () => {
+  // Hashed from origin/sandbox ad10e50fc's wq-trail.js (this harness, these fixtures) before this change.
+  const GOLD = { ur_read_all: '5fd11c96d988ff65', ur_read_zero: '4234b39a29b107b6', ur_listen: '60c9b1d21df7cb88', en_story_end: '343db7dd3b03ef46', ur_story_end: '5140be996c852a58', en_hold: 'a81be8ad568eaaeb', en_later: '85395ff3222f9033' };
+  test('with the card script present and the switch off', () => {
+    for (const withFc of [false, true]) {
+      const got = {};
+      let t = trail({ withFc, lang: 'ur' });
+      t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
+      got.ur_read_all = sha(t.html());
+      t = trail({ withFc, lang: 'ur' });
+      t.TR.readEnd({ score: { attempted: 0 } }, null, 0);
+      got.ur_read_zero = sha(t.html());
+      t = trail({ withFc, lang: 'ur', data: { ex: 'listen' } });
+      t.TR.tapEnd('listen-result', {});
+      got.ur_listen = sha(t.html());
+      for (const lang of ['en', 'ur']) {
+        t = trail({ withFc, lang, href: 'https://portal.example/c/tok?room=story&pid=p1', menu: { v2: { story: true } }, data: { story_room: true } });
+        t.TR.menu();
+        t.TR.readEnd({ score: { attempted: 3 } }, null, 3);
+        expect(t.html()).toContain('id="wqc-sticker"');
+        got[`${lang}_story_end`] = sha(t.html());
+      }
+      t = trail({ withFc });
+      t.TR.readHold({ score: { attempted: 2 } }, null, 2);
+      got.en_hold = sha(t.html());
+      t = trail({ withFc });
+      t.TR.readEnd({ later: true });
+      got.en_later = sha(t.html());
+      expect(t.fetches.length).toBe(0);
+      expect(got).toEqual(GOLD);
     }
   });
 });

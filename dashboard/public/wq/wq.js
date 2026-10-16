@@ -2484,10 +2484,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    on('#wq-share', function () {
-      if (fc) fc.shareQuiz(fcOpts(), function (full) { fallback(full, 'card', full, null, null); });
-      else share(line, classUrl, 'card', art.card);
-    });
+    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(), function (full) { fallback(full, 'card', full, null, null); }));
+    on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
     // A tile shares the challenge in its own first-person words; the first name is the card's (c.first), never a full name.
     if (panel) {

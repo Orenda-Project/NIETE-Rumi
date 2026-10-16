@@ -41,9 +41,10 @@ const DEEDS = Object.freeze({
   quiz: ['quiz_done'],
   read: ['read_all', 'read_some', 'read_tried'],
   listen: ['listen_done'],
-  story: ['story_read', 'answered'],
+  story: ['story_read', 'answered', 'read_tried'],
   game: ['game_done'],
-  book: ['book_read'],
+  // a storybook (the reader's one result object, source 'story'): read, only listened to, or opened with nothing read
+  book: ['book_read', 'listen_done', 'read_tried'],
   video: ['video_watched'],
 });
 
@@ -269,8 +270,8 @@ body{width:${W}px;height:${H}px;overflow:hidden;background:#FFF8E7}
 .card{position:relative;width:${W}px;height:${H}px;display:flex;align-items:center;gap:40px;padding:56px 72px;background:#FFF8E7;color:#1F2937;font-family:${face};border-bottom:18px solid #15803D}
 .jug{width:300px;height:300px;flex:0 0 300px;object-fit:contain}
 .txt{flex:1;display:flex;flex-direction:column;gap:${rtl ? 14 : 18}px;min-width:0}
-.name{font:800 76px/${rtl ? 1.7 : 1.1} ${face};color:#14532D;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:isolate}
-.deed{font-weight:${rtl ? 700 : 800};font-size:${rtl ? 44 : 50}px;line-height:${rtl ? 1.9 : 1.2}}
+.name{font:800 76px/${rtl ? 1.7 : 1.1} ${face};color:#14532D;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:isolate;text-align:${rtl ? 'right' : 'left'}}
+.deed{font-weight:${rtl ? 700 : 800};font-size:${rtl ? 44 : 50}px;line-height:${rtl ? 1.9 : 1.2};word-break:keep-all;overflow-wrap:normal;text-wrap:balance}
 .st{display:flex;align-items:center;gap:20px;font-weight:700;font-size:${rtl ? 34 : 36}px;line-height:${rtl ? 1.9 : 1.2};color:#92400E}
 .brand{position:absolute;${rtl ? 'left' : 'right'}:72px;bottom:34px;font:800 28px/1 'Lexend',sans-serif;color:#15803D;letter-spacing:.04em}
 </style></head><body><div class="card">${jug}<div class="txt">
@@ -288,20 +289,22 @@ function remember(token, bytes) {
 const inflight = new Map();
 
 // Fewer colours until the picture fits: a flat card quantises well, so the first try almost always does.
-async function toPng(png) {
+async function toPng(png, f = {}) {
   const sharp = require('sharp');
   let out = null;
   for (const colors of [64, 32, 16]) {
     out = await sharp(png).resize(W, H, { fit: 'cover' }).png({ palette: true, colors, compressionLevel: 9, effort: 8 }).toBuffer();
     if (out.length <= MAX_BYTES) return out;
   }
+  // still served (a preview beats none), and said: the kind and the size only, never the token
+  logToFile('⚠️ web quiz card v3: picture over 40 KB at 16 colours', { kind: f.kind || null, lang: f.lang || null, bytes: out.length });
   return out;
 }
 
 async function drawNow(f) {
   const { htmlToImage } = require('../../utils/html-to-pdf');
   const png = await htmlToImage(renderCard(f), { width: W, height: H, deviceScaleFactor: 1, selector: '.card' });
-  return toPng(png);
+  return toPng(png, f);
 }
 
 /** {bytes, contentType:'image/png'} for a genuine token; CardError(404) else. Memory-cached by token. */
