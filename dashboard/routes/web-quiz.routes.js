@@ -195,9 +195,9 @@ function ogText(payload, view, brand) {
 // Urdu pages: the Nastaliq face (a subset of an OFL font, served from /wq like the rest of the page).
 // Android has no Nastaliq of its own, so it is fetched first, before the stylesheet that uses it.
 // The file name carries a version because /wq is served with a one-year immutable cache.
-const URDU_FONT = '/wq/fonts/wq-nastaliq-1.woff2';
+const URDU_FONT = '/wq/fonts/wq-nastaliq-3.woff2';
 // The polished Urdu look (app_settings web_quiz_ur_polish, carried as payload `ui.ur2`): a second face and ONE class on <html>.
-const URDU_FONT_2 = '/wq/fonts/wq-nastaliq-2.woff2';
+const URDU_FONT_2 = '/wq/fonts/wq-nastaliq-4.woff2';
 const ur2On = (ui, lang) => Boolean(ui && ui.ur2 === true && lang === 'ur');
 
 // Every share picture and brand picture is a 1200x630 JPEG: the head says so, so the phone knows what it fetches.
