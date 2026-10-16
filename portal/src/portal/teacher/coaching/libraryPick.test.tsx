@@ -214,3 +214,57 @@ describe("the tray's Recent are this class's only", () => {
     expect(within(tray).queryByText("Fractions of a whole")).toBeNull();
   });
 });
+
+describe("while she records, the lesson plan she picked stays in sight (operator, 16 Oct)", () => {
+  /** Her class and a library plan, then Start recording from the Recording tray. */
+  async function recordingWithPlan() {
+    session.start.mockImplementationOnce(async () => { session.active = true; return "recording"; });
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) }, { timeout: 5000 }));
+    const tray = screen.getByRole("dialog", { name: C.gradeAndSubject });
+    fireEvent.click(await within(tray).findByRole("radio", { name: /^Grade 4/ }));
+    fireEvent.click(await within(tray).findByRole("button", { name: /Grade 4 · General Science/ }));
+    await toLessons();
+    fireEvent.click(await screen.findByRole("button", { name: /^LP #.*How plants make their own food/ }));
+    await waitFor(() => expect(path()).toBe(COACHING_NEW));
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(`^${C.recording}`) }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: C.recording })).getByRole("button", { name: C.recordTitle }));
+    expect(await screen.findByRole("timer")).toBeTruthy();
+  }
+
+  it("the plan is shown under Lesson plan while recording, with the eye; no Change mid-lesson", async () => {
+    app();
+    await recordingWithPlan();
+    expect(screen.getByText("How plants make their own food")).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.viewPlan })).toBeTruthy();
+    // the plan's row has no Change while recording (the class card above keeps its own)
+    const row = screen.getByRole("button", { name: /How plants make their own food/ });
+    expect(row.textContent).not.toContain(C.change);
+  });
+
+  it("the eye opens it to read while the recording goes on; Back is the DC screen, still recording", async () => {
+    app();
+    await recordingWithPlan();
+    fireEvent.click(screen.getByRole("button", { name: C.viewPlan }));
+    await waitFor(() => expect(path()).toBe(LESSONS_VIEWER));
+    expect(screen.getByTestId("viewer").textContent).toBe("How plants make their own food");
+    expect(session.finish).not.toHaveBeenCalled();
+    back();
+    await waitFor(() => expect(path()).toBe(COACHING_NEW));
+    expect(await screen.findByRole("timer")).toBeTruthy();
+    expect(screen.getByText("How plants make their own food")).toBeTruthy();
+  });
+
+  it("no plan picked: nothing under Lesson plan while recording, as before", async () => {
+    session.start.mockImplementationOnce(async () => { session.active = true; return "recording"; });
+    app();
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) }, { timeout: 5000 }));
+    const tray = screen.getByRole("dialog", { name: C.gradeAndSubject });
+    fireEvent.click(await within(tray).findByRole("radio", { name: /^Grade 4/ }));
+    fireEvent.click(await within(tray).findByRole("button", { name: /Grade 4 · General Science/ }));
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(`^${C.recording}`) }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: C.recording })).getByRole("button", { name: C.recordTitle }));
+    expect(await screen.findByRole("timer")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: new RegExp(`^${C.selectPlan}$`) })).toBeNull();
+    expect(screen.queryByRole("button", { name: C.viewPlan })).toBeNull();
+  });
+});
