@@ -1,7 +1,7 @@
 /**
  * Read-along: Jugnu reads, and a green pill moves from word to word as each word is spoken.
  *
- *   var p = WQReadAlong.mount(el, data, { mode, leadMs, labels, onWord, onEnd, onState, onWordTap });
+ *   var p = WQReadAlong.mount(el, data, { mode, leadMs, labels, onWord, onEnd, onState, onWordTap, tap });
  *   p.play(); p.pause(); p.toggle(); p.replay(); p.seekToWord(i); p.playWord(i); p.destroy();
  *
  * `data` is a timing object {v, id, lang, dir, audio:{url, ms, mime}, words:[{i, t, s_ms, e_ms, box?}], image?:{url, w, h},
@@ -14,6 +14,7 @@
  * quality "low" (word times not trusted): the pill lights the whole printed LINE of the word being read, not the word.
  * The clock is the audio element: while playing, one requestAnimationFrame loop reads audio.currentTime and moves the
  * pill only when the word changes (≤ 1 frame late, no layout work per frame). The pill leads the sound by `leadMs`.
+ * tap 'sentence': a tapped word replays its printed sentence (on a "low" page, the whole lines it spans), lit as it plays.
  * Never autoplays: the first play() must run inside the child's tap (the in-app browser's audio unlock).
  * Fires window event 'wq:readalong' {type: started|word|finished|paused|resumed|tap_word, i, id}.
  */
@@ -352,12 +353,26 @@
       if (dead || !(i >= 0 && i < words.length)) return;
       playFrom(words[i].s - lead, i);
     }
+    // [first, last] word of the printed sentence holding i: a silent word (a stage direction the voice skips) never
+    // starts or ends one; on a "low" page widened to whole printed lines, whose ends are the pauses we trust
+    function sentence(i) {
+      var sil = function (k) { return !!(raw.words[k] && raw.words[k].silent); };
+      var end = function (k) { return !sil(k) && /[.!?\u06D4\u061F]["'\u201D\u2019)]*$/.test(words[k].t); };
+      var a = i;
+      var b = i;
+      while (a > 0 && !end(a - 1)) a -= 1;
+      while (b < words.length - 1 && !end(b)) b += 1;
+      while (a < b && sil(a)) a += 1;
+      while (b > a && sil(b)) b -= 1;
+      if (quality === 'low') { a = lineOf(a)[0]; b = lineOf(b)[1]; }
+      return [a, b];
+    }
 
     btn.addEventListener('click', function () { api.toggle(); });
     for (var j = 0; j < spans.length; j += 1) {
       (function (i) {
         spans[i].addEventListener('click', function () {
-          seekToWord(i);
+          if (opts.tap === 'sentence' && !dead) { var r = sentence(i); playFrom(words[r[0]].s - lead, r[0]); stopAt = words[r[1]].e; } else seekToWord(i);
           emit('tap_word', i, d.id);
           if (opts.onWordTap) opts.onWordTap(i);
         });

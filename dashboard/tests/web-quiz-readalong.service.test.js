@@ -438,3 +438,72 @@ describe('read-along player: the page', () => {
     expect(zlib.gzipSync(Buffer.from(SRC), { level: 9 }).length).toBeLessThanOrEqual(8192);
   });
 });
+
+describe('read-along player: tap a word to hear its sentence again (tap: \'sentence\')', () => {
+  test('a tapped word plays its whole printed sentence, lit word by word, and stops after the sentence\'s last word', () => {
+    const { RA, document, audio, events, at } = load();
+    const el = document.createElement('div');
+    const taps = [];
+    const p = RA.mount(el, DATA, { tap: 'sentence', onWordTap: (i) => taps.push(i) });
+    byClass(el, 'wqra-w')[1].click();            // "played" in "Asad played cricket."
+    expect(audio().currentTime).toBeCloseTo(0.15, 5);   // the sentence's first word, less the 50 ms lead
+    expect(lit(el)).toEqual(['0']);
+    expect(taps).toEqual([1]);
+    expect(events.map((e) => e.type)).toContain('tap_word');
+    at(700); expect(lit(el)).toEqual(['1']);
+    at(1300); expect(lit(el)).toEqual(['2']); expect(p.state).toBe('playing');
+    at(1800); expect(p.state).toBe('paused');      // "He won." is not played
+    expect(audio().paused).toBe(true);
+    byClass(el, 'wqra-w')[4].click();            // "won." → "He won."
+    expect(audio().currentTime).toBeCloseTo(2.55, 5);
+    expect(lit(el)).toEqual(['3']);
+    at(3400); expect(p.state).toBe('playing');
+    at(3500); expect(p.state).toBe('paused');
+  });
+
+  test('Urdu sentence ends (۔ ؟) split too, and a silent word never ends a sentence', () => {
+    const { RA, document, audio, at } = load();
+    const el = document.createElement('div');
+    const d = { ...DATA, lang: 'ur', dir: 'rtl', words: [
+      { i: 0, t: 'علی', s_ms: 200, e_ms: 600 },
+      { i: 1, t: '(آہستہ۔)', s_ms: 700, e_ms: 700, silent: true },   // a stage direction the voice does not read
+      { i: 2, t: 'آیا۔', s_ms: 700, e_ms: 1100 },
+      { i: 3, t: 'کیوں؟', s_ms: 1500, e_ms: 1900 },
+      { i: 4, t: 'بس۔', s_ms: 2300, e_ms: 2700 },
+    ] };
+    const p = RA.mount(el, d, { tap: 'sentence' });
+    byClass(el, 'wqra-w')[0].click();
+    expect(audio().currentTime).toBeCloseTo(0.15, 5);
+    at(1000); expect(p.state).toBe('playing');     // the silent word's ۔ did not stop it
+    at(1100); expect(p.state).toBe('paused');
+    byClass(el, 'wqra-w')[3].click();            // "کیوں؟" is its own sentence
+    expect(audio().currentTime).toBeCloseTo(1.45, 5);
+    at(1900); expect(p.state).toBe('paused');
+  });
+
+  test('a "low" page replays the whole printed line(s) the sentence spans (line ends are the trusted pauses)', () => {
+    const { RA, document, audio, at } = load({ imgWidth: 540 });
+    const el = document.createElement('div');
+    // line 0 = words 0–1 (y 1200), line 1 = words 2–4 (y 1260); sentences [0–2] and [3–4]
+    const boxes = [[100, 1200, 90, 40], [200, 1204, 90, 36], [100, 1260, 120, 40], [230, 1260, 60, 40], [300, 1262, 80, 38]];
+    const d = { ...DATA, quality: 'low', image: { url: 'p.webp', w: 1080, h: 1600 }, words: DATA.words.map((w, k) => ({ ...w, box: boxes[k] })) };
+    const p = RA.mount(el, d, { tap: 'sentence' });
+    const pill = byClass(el, 'wqra-pill')[0];
+    byClass(el, 'wqra-hit')[4].click();          // "won." → sentence 3–4 → line 1 = words 2–4
+    expect(audio().currentTime).toBeCloseTo(1.15, 5);
+    expect(pill.style.transform).toBe('translate(52px,632px)');
+    at(3400); expect(p.state).toBe('playing');
+    at(3500); expect(p.state).toBe('paused');
+  });
+
+  test('without the option a tap is exactly today\'s: it plays on from the word and does not stop at the sentence', () => {
+    const { RA, document, audio, at } = load();
+    const el = document.createElement('div');
+    const p = RA.mount(el, DATA, {});
+    byClass(el, 'wqra-w')[1].click();
+    expect(audio().currentTime).toBeCloseTo(0.65, 5);
+    expect(lit(el)).toEqual(['1']);
+    at(1900); expect(p.state).toBe('playing');
+    at(2600); expect(lit(el)).toEqual(['3']);
+  });
+});
