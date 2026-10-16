@@ -9,7 +9,7 @@
  *               ("No one in your class has played yet" / "{n} of your class have played") + "Send again" + "See report";
  *               else the library pick for the class's grade (a story → the stories page's own sheet; a ready video
  *               quiz → the send sheet); a quiz just made from a lesson replaces it with "Send to my class"
- *   under it    the IDENTITY §12 confirm rows ("Same child / Different / Not sure"), "Children on this phone"
+ *   under it    the confirm rows for children who joined on their own ("Same child / Different / Not sure"), "Children on this phone"
  *   timeline    "My lessons": lesson plans, coaching sessions and sent quizzes, newest first, 5 rows + "More"; each row
  *               one verb: "Quiz this" (the existing job, then the page polls until the class message exists) /
  *               "Send again" / "See report"; topic names verbatim with dir=auto
@@ -23,7 +23,7 @@
  *               come back from the button in your chat" (there is no screen to come back to)
  *
  * The script never builds HTML (createElement + textContent only); the inline CSS and the script are allowed by their
- * sha256 in the Content-Security-Policy (header + <meta>). RUBRIC hooks: data-screen per screen, ONE data-primary per
+ * sha256 in the Content-Security-Policy (header + <meta>). Audit hooks: data-screen per screen, ONE data-primary per
  * screen, data-tap on every action, data-back on the sheet, data-home on the home, lang/dir on <html>.
  */
 const crypto = require('crypto');

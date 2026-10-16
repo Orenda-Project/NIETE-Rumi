@@ -171,7 +171,7 @@ async function childrenLink(user, deps) {
   return dep(deps, 'Hub').hubLink(kids.map((k) => k.id), 'teacher_home');
 }
 
-/** The IDENTITY §12 confirm rows for this teacher: [{ looseId, candidateId, first, candidateFirst }]. */
+/** The confirm rows (a child who joined on their own, maybe one of this class) for this teacher: [{ looseId, candidateId, first, candidateFirst }]. */
 async function confirmRows(uid, deps) {
   const rows = await dep(deps, 'Queue').candidatesFor(uid);
   return (rows || []).slice(0, 5).map((r) => ({

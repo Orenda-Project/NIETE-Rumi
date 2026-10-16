@@ -15,7 +15,7 @@
  *   POST /api/th/quiz/make {t, kind, id} "Quiz this": kind lesson (the /quiz list key) | coaching (the session id)
  *                                        → { quizId } — the existing job; the chat hand-out still arrives as today
  *   GET  /api/th/quiz/:id?t&lang         the poll: { state: making|ready|failed, message?, wa? }
- *   POST /api/th/confirm {t, looseId, candidateId, decision: same|no|unsure}   one IDENTITY §12 row → 204
+ *   POST /api/th/confirm {t, looseId, candidateId, decision: same|no|unsure}   one confirm row → 204
  *   POST /api/th/role {t, side:'child'}  "Not a teacher? Change" → { next } (the one-door's writer + the join page)
  *   POST /api/th/step {t, step, kind?, id?, origin?}   page events → 204 (share_tap logs teacher_send)
  *
