@@ -203,10 +203,12 @@ async function wavesOf(extra, loose) {
   return { warm: warm.waves, stale: stale.waves, next: JSON.parse(warm.out).next || null };
 }
 
-test.each([['a child on a class list', false], ['the usual loose child', true]])('waves ON = OFF, warm and stale: %s', async (_, loose) => {
+test.each([['a child on a class list', false], ['the usual loose child', true]])('waves ON <= OFF, warm and stale (the slot never adds one): %s', async (_, loose) => {
   const off = await wavesOf(OFF, loose);
   const on = await wavesOf(ON, loose);
   expect(off.next).toBeNull();
   expect(on.next).toEqual(expect.objectContaining({ ctx: 'home', offer: expect.any(String) }));   // the slot really ran
-  expect({ warm: on.warm, stale: on.stale }).toEqual({ warm: off.warm, stale: off.stale });
+  // never a wave more; with the child home's early reads on the base the slot's own switch read can save one stale wave
+  expect(on.warm).toBeLessThanOrEqual(off.warm);
+  expect(on.stale).toBeLessThanOrEqual(off.stale);
 }, 60000);
