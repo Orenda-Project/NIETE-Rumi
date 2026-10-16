@@ -10,7 +10,6 @@
   "bot/shared/services/quiz/quiz-sources.js",
   "bot/shared/services/quiz/transcript-quiz-language.js",
   "bot/shared/templates/class-round.page.js",
-  "bot/shared/templates/coach-visit-request.template.js",
   "bot/shared/templates/latin-runs.js",
   "bot/shared/templates/niete-brand.js",
   "bot/shared/templates/observation-report.template.js",
