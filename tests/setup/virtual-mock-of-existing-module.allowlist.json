@@ -1,0 +1,16 @@
+{
+  "bot/tests/observe": 4,
+  "bot/tests/quiz/web-quiz": 11,
+  "bot/tests/welcome": 3,
+  "tests/assessment": 1,
+  "tests/attendance": 2,
+  "tests/child-test/L6": 1,
+  "tests/coaching": 9,
+  "tests/llm": 9,
+  "tests/lp612": 1,
+  "tests/observe": 4,
+  "tests/observe2": 1,
+  "tests/portal": 3,
+  "tests/quiz": 2,
+  "tests/unit": 2
+}
