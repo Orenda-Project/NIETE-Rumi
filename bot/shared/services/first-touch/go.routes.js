@@ -140,12 +140,9 @@ async function destination(o) {
   return { ...base, how: 'ask', page: 'role' };
 }
 
-// The sandbox walk-through (switch quiz_test_personas; its own module, looked up by name): its route and its row on the
-// one question page. Without the module (or with its switch off) nothing here changes a byte.
-const PERSONA_MODULE = './test-persona';
-function personaModule() {
-  try { return require(PERSONA_MODULE); } catch (e) { if (e && e.code !== 'MODULE_NOT_FOUND') throw e; return null; }
-}
+// The sandbox walk-through (switch quiz_test_personas; its own module, optional-modules.js): its route and its row on
+// the one question page. Without the module (or with its switch off) nothing here changes a byte.
+const personaModule = () => require('./optional-modules').load('testPersona');
 async function personaRow(lang, t) {
   try {
     const M = personaModule();

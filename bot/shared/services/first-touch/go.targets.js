@@ -20,10 +20,8 @@ const TEACHER_HOME_PATH = '/quiz/teacher/';
 const MAKER_PATH = '/m/';
 const TH_TTL_S = 24 * 60 * 60;
 
-function optional(mod) {
-  try { return require(mod); } catch (_) { return null; }
-}
-const studentJoin = () => optional('../quiz/web-quiz-student-join');
+const Optional = require('./optional-modules');
+const studentJoin = () => Optional.load('studentJoin');
 
 /** A same-site path from the hub's absolute link (the edge passes only this site's paths on). */
 function pathOf(url) {
@@ -33,7 +31,7 @@ function pathOf(url) {
 
 async function teacher({ uid, lang = 'bi' }) {
   if ((await require('./one-door.flags').flags()).teacherHome) {
-    const M = optional('./teacher-home.token');
+    const M = Optional.load('teacherHomeToken');
     let t = null;
     if (M && typeof M.signTeacherHome === 'function') t = M.signTeacherHome({ uid: String(uid), lang, via: 'go' });
     else {
@@ -43,7 +41,7 @@ async function teacher({ uid, lang = 'bi' }) {
     return t ? `${TEACHER_HOME_PATH}${t}` : null;
   }
   // the teacher home is not serving: the quiz-maker page is a working teacher screen when it is on
-  const Maker = optional('./maker.token');
+  const Maker = Optional.load('makerToken');
   if (Maker && typeof Maker.signMaker === 'function' && (await require('../quiz/web-quiz-identity-flags').flags()).makerPage) {
     const t = Maker.signMaker({ uid: String(uid), lang, tour: 0, via: 'menu' });
     return t ? `${MAKER_PATH}${t}` : null;

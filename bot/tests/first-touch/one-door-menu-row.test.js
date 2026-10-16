@@ -22,7 +22,7 @@ jest.mock('../../shared/services/app-redirect.service', () => ({ redirectIfFlagg
 const mockShowList = jest.fn(async () => true);
 jest.mock('../../shared/services/quiz/transcript-quiz-list.service', () => ({ showList: (...a) => mockShowList(...a) }));
 const mockOpen = jest.fn(async () => 'one_door');
-jest.mock('../../shared/services/first-touch/one-door.service', () => ({ reply: (...a) => mockOpen(...a) }), { virtual: true });
+jest.mock('../../shared/services/first-touch/one-door.service', () => ({ reply: (...a) => mockOpen(...a) }));
 
 const MenuService = require('../../shared/services/menu.service');
 let OneDoorFlags = null;

@@ -18,7 +18,8 @@ const mockFlags = { phoneBind: true };
 jest.mock('../../shared/services/quiz/web-quiz-identity-flags', () => ({ flags: jest.fn(async () => mockFlags) }));
 const mockBound = jest.fn(async () => []);
 jest.mock('../../shared/services/quiz/child-phone-bindings.repo', () => ({
-  activeForPhone: (...a) => mockBound(...a), normalisePhone: (p) => String(p).replace(/\D/g, ''),
+  ...jest.requireActual('../../shared/services/quiz/child-phone-bindings.repo'),
+  activeForPhone: (...a) => mockBound(...a),
 }));
 const mockRoster = jest.fn(async () => []);
 jest.mock('../../shared/services/student-mode.service', () => ({ quizStudentsForPhone: (...a) => mockRoster(...a) }));

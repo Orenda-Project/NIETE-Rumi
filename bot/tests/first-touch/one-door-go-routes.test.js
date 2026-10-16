@@ -40,14 +40,19 @@ jest.mock('../../shared/services/feature-intro.service', () => ({
     return true;
   }),
 }));
-// the join page's module, the quiz-maker page's signer and the walk-through module (their own changes): present or
-// absent per test
+// the join page's module, the quiz-maker page's signer and the walk-through module (their own changes): stood in
+// through optional-modules.js per test (no path is mocked, so these tests hold whether or not those modules have landed)
 let mockJoin = {};
-jest.mock('../../shared/services/quiz/web-quiz-student-join', () => new Proxy({}, { get: (t, k) => mockJoin[k] }), { virtual: true });
 let mockMaker = {};
-jest.mock('../../shared/services/first-touch/maker.token', () => new Proxy({}, { get: (t, k) => mockMaker[k] }), { virtual: true });
 let mockPersona = {};
-jest.mock('../../shared/services/first-touch/test-persona', () => new Proxy({}, { get: (t, k) => mockPersona[k] }), { virtual: true });
+const Optional = require('../../shared/services/first-touch/optional-modules');
+const standIn = () => {
+  Optional._set('studentJoin', new Proxy({}, { get: (t, k) => mockJoin[k] }));
+  Optional._set('makerToken', new Proxy({}, { get: (t, k) => mockMaker[k] }));
+  Optional._set('testPersona', new Proxy({}, { get: (t, k) => mockPersona[k] }));
+  Optional._set('teacherHomeToken', null);
+};
+standIn();
 
 const redis = require('../../shared/services/cache/railway-redis.service');
 const { logEvent } = require('../../shared/utils/structured-logger');
@@ -416,9 +421,10 @@ describe('the sandbox walk-through hooks (the module present; its own switch dec
 
   test('its route is mounted on the router when the module exports mount()', () => {
     jest.isolateModules(() => {
-      mockPersona = { mount: jest.fn((r) => r.post('/persona', (req, res) => res.json({ ok: true }))) };
+      const mount = jest.fn((r) => r.post('/persona', (req, res) => res.json({ ok: true })));
+      require('../../shared/services/first-touch/optional-modules')._set('testPersona', { mount });
       require('../../shared/services/first-touch/go.routes');
-      expect(mockPersona.mount).toHaveBeenCalledTimes(1);
+      expect(mount).toHaveBeenCalledTimes(1);
     });
   });
 });

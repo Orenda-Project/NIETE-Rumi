@@ -137,7 +137,7 @@ jest.mock('../../shared/services/quiz/quiz-menu-entry.service', () => ({ openQui
 const mockOffer = jest.fn(async () => true);
 jest.mock('../../shared/services/registration-invite.service', () => ({ offerRegistrationOnce: (...a) => mockOffer(...a) }));
 let mockOneDoor = false;
-jest.mock('../../shared/services/first-touch/one-door.flags', () => ({ on: jest.fn(async () => mockOneDoor), flags: jest.fn(async () => ({ on: mockOneDoor, ownCap: 20, eventsV3: false })) }), { virtual: true });
+jest.mock('../../shared/services/first-touch/one-door.flags', () => ({ on: jest.fn(async () => mockOneDoor), flags: jest.fn(async () => ({ on: mockOneDoor, ownCap: 20, eventsV3: false, teacherHome: false })) }));
 const mockTopic = jest.fn(async () => true);
 jest.mock('../../shared/services/quiz/quiz-orchestrator.service', () => ({ handleTopicReply: (...a) => mockTopic(...a), initiateQuizRequest: jest.fn(async () => true) }));
 jest.mock('../../shared/services/conversation-state.service', () => ({

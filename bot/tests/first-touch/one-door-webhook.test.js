@@ -8,7 +8,8 @@
  *  - a coach: OFF the role menu → ON 1 cta_url with the teacher words;
  *  - a known child: OFF today's "Home" reply → ON the same ONE hub link with the child words (no retired door word);
  *  - the bot's own name «جگنو» / `jugnu` is not a quiz request, ON or OFF;
- *  - the 9th /quiz with the shared 8-a-day pool spent still gets its link (its own counter).
+ *  - the 9th /quiz with the shared 8-a-day pool spent still gets its link (its own counter) — for an unknown phone,
+ *    for a known child's hub reply, and for a binder reply (STOP with nothing saved): OFF those are capped as today.
  */
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost';
 process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-key';
@@ -278,6 +279,35 @@ describe('a known child (a chat-joined row on this phone)', () => {
       expect(out[0].p.url).toMatch(/^https:\/\/portal\.example\/h\//);
       expect(out[0].p.body).toBe('Your stories, videos and quizzes are here.');
       expect(out[0].p.buttonText).toBe('Open');
+    } finally { await app.close(); }
+  });
+});
+
+describe('replies to a person\'s own message ride their own counter (the shared 8-a-day pool already spent)', () => {
+  const CHILD_USER = () => ({ id: 'u-child', phone_number: PHONE, role: 'teacher', ...ROW });
+  const CHILD_ROW = () => ({ id: 'st-1', phone: PHONE, list_id: null, is_active: true, student_name: 'Kid Testwala', self_reported_class: '4', created_at: '2026-10-08T08:59:00Z' });
+  const BIND = { web_quiz_identity_canon: true, web_quiz_phone_bind: true };
+  async function spendPool() {
+    const Ledger = require('../../shared/services/quiz/message-ledger');
+    for (let i = 0; i < 8; i += 1) await Ledger.record({ trigger: 'class_link', phone: PHONE, reason: 'home', recipient: 'family' });
+    expect(await Ledger.record({ trigger: 'class_link', phone: PHONE, reason: 'home' })).toBe(false);
+  }
+
+  test.each([['OFF', {}, 0], ['ON', ON, 1]])('a known child\'s /quiz (the hub reply, counted with the phone): %s → %s reply', async (_n, extra, n) => {
+    const app = await boot(worldOf({ users: [CHILD_USER()], students: [CHILD_ROW()], settings: { ...BIND, ...extra } }));
+    try {
+      await spendPool();
+      const out = await app.text('/quiz');
+      expect(ctas(out)).toHaveLength(n);
+    } finally { await app.close(); }
+  });
+
+  test.each([['OFF', {}, 0], ['ON', ON, 1]])('a child\'s STOP with nothing saved (a binder reply): %s → %s reply', async (_n, extra, n) => {
+    const app = await boot(worldOf({ users: [CHILD_USER()], students: [CHILD_ROW()], settings: { ...BIND, ...extra } }));
+    try {
+      await spendPool();
+      const out = await app.text('STOP');
+      expect(out.filter((s) => s.kind === 'text')).toHaveLength(n);
     } finally { await app.close(); }
   });
 });

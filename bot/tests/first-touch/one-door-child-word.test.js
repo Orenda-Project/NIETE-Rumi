@@ -17,7 +17,7 @@ jest.mock('../../shared/services/quiz/student-quiz.service', () => ({ open: jest
 jest.mock('../../shared/handlers/text-message.handler', () => ({ handleGeneralConversation: jest.fn(async () => true), tryChildVideoMenu: jest.fn(async () => true) }));
 jest.mock('../../shared/services/quiz/web-quiz-identity-flags', () => ({ flags: jest.fn(async () => ({ canon: false, phoneBind: false, guestHome: false })) }));
 let mockOn = false;
-jest.mock('../../shared/services/first-touch/one-door.flags', () => ({ on: jest.fn(async () => mockOn) }), { virtual: true });
+jest.mock('../../shared/services/first-touch/one-door.flags', () => ({ on: jest.fn(async () => mockOn) }));
 
 const Ingress = require('../../shared/services/student-ingress');
 const StudentQuiz = require('../../shared/services/quiz/student-quiz.service');

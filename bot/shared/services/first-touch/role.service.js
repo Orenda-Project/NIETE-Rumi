@@ -31,9 +31,8 @@ const { logToFile } = require('../../utils/logger');
 
 const SIDES = Object.freeze(['teacher', 'child', 'join', 'unknown']);
 const SRCS = Object.freeze(['identity', 'activity', 'bound', 'roster', 'family', 'key', 'none', 'error', 'persona']);
-// The sandbox walk-through personas (switch quiz_test_personas; its own module): looked up by name, so this file runs
+// The sandbox walk-through personas (switch quiz_test_personas; its own module, optional-modules.js): this file runs
 // the same with or without it; get() answers null whenever that switch is off.
-const PERSONA_MODULE = './test-persona';
 const MAX_KIDS = 4;
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 
@@ -158,8 +157,7 @@ async function doorOf(userId, since = null) {
 /** The walk-through persona for this phone ({ as, since } | null); null without the module or with its switch off. */
 async function personaOf(phone) {
   if (!phone) return null;
-  let M = null;
-  try { M = require(PERSONA_MODULE); } catch (e) { if (e && e.code !== 'MODULE_NOT_FOUND') throw e; return null; }
+  const M = require('./optional-modules').load('testPersona');
   if (!M || typeof M.get !== 'function') return null;
   const { normalisePhone } = require('../quiz/student-identity.service');
   const p = await M.get(normalisePhone(phone));
