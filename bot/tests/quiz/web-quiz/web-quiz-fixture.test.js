@@ -178,6 +178,80 @@ describe('fixtureStudentIds', () => {
     expect(JSON.stringify(logError.mock.calls)).not.toMatch(/Testwala/);
   });
 
+  // Rule 4 also holds for a child a configured test teacher CREATED (students.enrolled_by_user_id), enrolled or not.
+  const LOOSE = 'stu-loose';
+  const MADE_BY_REAL = 'stu-made-by-real';
+  const looseRows = () => [
+    ...students(),
+    { id: LOOSE, student_name: 'Rafay Sample', list_id: null, enrolled_by_user_id: TEACHER },
+    { id: MADE_BY_REAL, student_name: 'Nida Sample', list_id: null, enrolled_by_user_id: 'tch-real' },
+  ];
+  // one run row with no class, as a loose child plays
+  const looseRun = (id) => ({ student_id: id, canonical_id: id, class_id: null, meta: {} });
+
+  test('a loose child made by a test teacher, no enrolment, no list, class_id null: in the set, counted under teacher', async () => {
+    install({ students: looseRows() });
+    const all = await F.fixtureStudentIds();
+    expect(all.has(LOOSE)).toBe(true);
+    expect(all.counts).toEqual({ meta_test: 0, name: 1, list: 1, teacher: 2 });
+    const some = await F.fixtureStudentIds({ ids: [], rows: [looseRun(LOOSE)] });
+    expect([...some]).toEqual([LOOSE]);
+    expect(some.counts).toEqual({ meta_test: 0, name: 0, list: 0, teacher: 1 });
+    expect(some.unreadable).toEqual([]);
+    const given = await F.fixtureStudentIds({ ids: [LOOSE, REAL] });
+    expect([...given]).toEqual([LOOSE]);
+  });
+
+  test('a loose child made by a teacher who is not a configured test teacher: not in the set', async () => {
+    install({ students: looseRows() });
+    const all = await F.fixtureStudentIds();
+    expect(all.has(MADE_BY_REAL)).toBe(false);
+    const some = await F.fixtureStudentIds({ ids: [MADE_BY_REAL], rows: [looseRun(MADE_BY_REAL)] });
+    expect(some.size).toBe(0);
+    expect(some.counts).toEqual({ meta_test: 0, name: 0, list: 0, teacher: 0 });
+  });
+
+  test('the created-by read failing: students noted unreadable (once), no throw, the other rules still apply', async () => {
+    install({ students: looseRows() });
+    const realFrom = supabase.from;
+    supabase.from = (t) => {
+      const q = realFrom(t);
+      if (t !== 'students') return q;
+      const realIn = q.in;
+      q.in = (c, vs) => {
+        if (c === 'enrolled_by_user_id') q.then = (res) => Promise.resolve({ data: null, error: { code: '42501', message: 'permission denied' } }).then(res);
+        return realIn(c, vs);
+      };
+      return q;
+    };
+    const ids = await F.fixtureStudentIds({ ids: [REAL, NAMED, LISTED, TAUGHT, LOOSE], rows: [{ student_id: 'stu-x', meta: { test: true } }] });
+    expect([...ids].sort()).toEqual([LISTED, NAMED, TAUGHT, 'stu-x'].sort());
+    expect(ids.has(LOOSE)).toBe(false);
+    expect(ids.unreadable).toEqual(['students']);
+    expect(logError).toHaveBeenCalledWith('web_quiz.fixture_read_failed', { what: 'students', code: '42501' });
+  });
+
+  test('golden: with no test teachers configured, the result and the reads are exactly today\'s (no created-by read)', async () => {
+    const lists = { student_lists: [SEED_LIST], teachers: [] };
+    install({ app_settings: setting(lists), students: looseRows() });
+    const all = await F.fixtureStudentIds();
+    expect(JSON.stringify({ ids: [...all], counts: all.counts, unreadable: all.unreadable }))
+      .toBe('{"ids":["stu-named","stu-listed"],"counts":{"meta_test":0,"name":1,"list":1,"teacher":0},"unreadable":[]}');
+    expect(JSON.stringify(fake.calls)).toBe(JSON.stringify([
+      { table: 'app_settings', op: 'select', payload: null },
+      { table: 'students', op: 'select', payload: null },
+      { table: 'students', op: 'select', payload: null },
+    ]));
+    install({ app_settings: setting(lists), students: looseRows() });
+    const some = await F.fixtureStudentIds({ ids: [LOOSE, NAMED], rows: [looseRun(LOOSE)] });
+    expect(JSON.stringify({ ids: [...some], counts: some.counts, unreadable: some.unreadable }))
+      .toBe('{"ids":["stu-named"],"counts":{"meta_test":0,"name":1,"list":0,"teacher":0},"unreadable":[]}');
+    expect(JSON.stringify(fake.calls)).toBe(JSON.stringify([
+      { table: 'app_settings', op: 'select', payload: null },
+      { table: 'students', op: 'select', payload: null },
+    ]));
+  });
+
   test('an empty id list and no rows: no read of the students table', async () => {
     install();
     const ids = await F.fixtureStudentIds({ ids: [] });
