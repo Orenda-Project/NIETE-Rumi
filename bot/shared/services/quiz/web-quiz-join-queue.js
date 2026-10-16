@@ -44,13 +44,8 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 
-// The teacher in an event is the events' keyed reference, never the id: HMAC(kid key, 't|' + users.id)[:16];
-// null without the key (never an unkeyed hash).
-const tkOf = (userId) => {
-  const k = process.env.WEB_QUIZ_KID_KEY;
-  if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
-  return crypto.createHmac('sha256', k).update(`t|${userId}`).digest('hex').slice(0, 16);
-};
+// The teacher in an event is the events' keyed reference, never the id (null without the key, or without an id).
+const tkOf = (userId) => require('./web-quiz-kid').tk(userId);
 
 /** The keyed child id for an event (the event-key module, when present); nothing when it is not. Never a raw id. */
 function kidFor(canonicalId) {
