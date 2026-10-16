@@ -46,6 +46,7 @@ import * as paths from "./paths";
 import { COACHING_ALL, COACHING_HOME } from "./paths";
 import { clearDraft } from "./draft";
 import { SendError } from "../../lib/coachingSend";
+import { DC_MIN_SECONDS, readAudioDuration } from "../../lib/coachingUpload";
 import { COACHING_V2_COPY as C } from "./copy";
 
 const COACHING_NEW = (paths as Record<string, unknown>).COACHING_NEW as string;
@@ -325,5 +326,61 @@ describe("Submit moves to a second screen (operator, 16 Oct)", () => {
     expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
     expect(screen.getByTestId("dc-recording")).toBeTruthy();
     expect(screen.getByRole("button", { name: C.submit })).toBeTruthy();
+  });
+});
+
+describe("recordings must be at least 15 minutes (operator, 16 Oct: a few seconds got a full report)", () => {
+  it("Recording says the minimum before she records or uploads", async () => {
+    at(COACHING_NEW);
+    await pickClass();
+    const step = await screen.findByRole("heading", { name: new RegExp(C.recording) });
+    expect(step.textContent).toContain(C.atLeastMinutes);
+    expect(C.atLeastMinutes).toMatch(/15/);
+    expect(DC_MIN_SECONDS).toBe(900);
+  });
+
+  it("a recording under 15 minutes cannot be submitted: no Submit, a short line, Redo / Change file still there", async () => {
+    vi.mocked(readAudioDuration).mockResolvedValueOnce(14 * 60 + 59);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    expect(await screen.findByText(C.tooShort)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
+    expect(screen.getByTestId("dc-recording")).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.changeFile })).toBeTruthy();
+    expect(sendLesson).not.toHaveBeenCalled();
+  });
+
+  it("15 minutes exactly can be submitted, with no warning", async () => {
+    vi.mocked(readAudioDuration).mockResolvedValueOnce(15 * 60);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    expect(await screen.findByRole("button", { name: C.submit })).toBeTruthy();
+    expect(screen.queryByText(C.tooShort)).toBeNull();
+  });
+});
+
+describe("a recording the browser could not measure, closed by the server as too short (bd-fgj73x.7)", () => {
+  it("the second screen says it is too short, not just Stopped, and leaves no note to wait", async () => {
+    vi.mocked(readAudioDuration).mockResolvedValueOnce(null as never);
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "cancelled", stage: "stopped", reflection: null, shortRecording: true } as never);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    expect(await screen.findByText(C.tooShort)).toBeTruthy();
+    expect(screen.queryByText(C.stopped)).toBeNull();
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("stopped for any other reason still says Stopped", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "failed", stage: "stopped", reflection: null, shortRecording: false } as never);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    expect(await screen.findByText(C.stopped)).toBeTruthy();
+    expect(screen.queryByText(C.tooShort)).toBeNull();
   });
 });

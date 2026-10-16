@@ -297,6 +297,12 @@ const UX_STRINGS = {
     en: 'For a full teaching analysis I need at least {min} minutes of the lesson. If that recording was shorter, send a longer one and I will analyse it. If you only meant to chat, carry on; my answer is below.',
     ur: 'مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں۔ اگر یہ ریکارڈنگ اس سے مختصر تھی تو لمبی بھیجیں، تجزیہ ہو جائے گا۔ اگر صرف بات کرنی تھی تو نیچے جواب حاضر ہے۔',
   },
+  // bd-fgj73x.7 — a PORTAL DC upload under the minimum (portal-short-recording.js): no analysis, no report.
+  // Generic, 1-2 lines, no "my answer is below" (there is no chat turn here). {min} isolated in Urdu (§9.8).
+  coachingPortalRecordingTooShort: {
+    en: 'This recording is too short for a coaching report. Please record at least {min} minutes of your lesson and send it again.',
+    ur: 'یہ ریکارڈنگ کوچنگ رپورٹ کے لیے بہت مختصر ہے۔ براہ کرم اپنے سبق کے کم از کم \u2066{min}\u2069 منٹ ریکارڈ کر کے دوبارہ بھیجیں۔',
+  },
   coachingRecordingLooksShort: {
     en: 'This sounds like a classroom recording, but it is about {minutes} minutes. A full teaching analysis needs at least {min} minutes of the lesson. Send a longer recording and I will analyse it — or if you only meant to chat, just carry on.',
     ur: 'یہ کلاس روم کی ریکارڈنگ لگتی ہے، مگر تقریباً \u2066{minutes}\u2069 منٹ کی ہے۔ مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں۔ لمبی ریکارڈنگ بھیجیں تو تجزیہ ہو جائے گا — اور اگر صرف بات کرنی تھی تو بات جاری رکھیں۔',
