@@ -767,7 +767,7 @@ function checkQuestion(q, exam, index) {
   // the percentage (3/4 = 0.75 = 75%). A key with its own % sign on a stem read as a
   // decimal agrees when it is the value written as a percent, and is otherwise left
   // unchecked: it is never rewritten to the decimal with a % ("0.75%").
-  if (isObject(exam._layout) && !form.percent && PERCENT_SIGN.test(answer.slice(target.index + target.raw.length))) {
+  if (isObject(exam._layout) && (form.form === 'fraction-decimal' || form.form === 'percent-decimal') && PERCENT_SIGN.test(answer.slice(target.index + target.raw.length))) {
     return same(mul(form.value, HUNDRED), target.value) ? 'ok' : null;
   }
   const computed = formatLike(form.value, target, form, all);

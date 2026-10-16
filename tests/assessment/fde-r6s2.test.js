@@ -129,6 +129,14 @@ describe('4. a key that converts twice is never "corrected" to its first convers
     got.forEach((q) => expect(q.scheme.checked).toBe('ok'));
     expect(out._layout.notes.filter((n) => /corrected by code/.test(n.text_en || ''))).toEqual([]);
   });
+  test('a percent-of stem keeps its own check: a wrong key is corrected, never passed as ok', () => {
+    const items = [{ slot: 'maths.B.Q2', question: 'What is 20% of 150?', answer: '20%', blooms: 'Apply' },
+      { slot: 'maths.B.Q2', question: 'What is 1% of 50?', answer: '50%', blooms: 'Apply' }];
+    const laid = applyLayout({ unseen: { subjective: { 'Word Problems': items } } }, P.maths, FDE, { now: NOW });
+    const out = mathsCheck(normaliseScheme(laid.examJson).examJson, { subject: 'maths' }).examJson;
+    const got = Object.values(out.unseen.subjective).flat();
+    expect(got.map((q) => q.scheme.checked)).toEqual(['replaced', 'replaced']);
+  });
   test('a wrong percentage after the decimal is still not "corrected" to the decimal', () => {
     const items = [{ slot: 'maths.B.Q2', question: 'Convert the fraction 3/4 into a decimal and then express it as a percentage.', answer: '3/4 = 0.75 = 70%', blooms: 'Apply' }];
     const laid = applyLayout({ unseen: { subjective: { 'Word Problems': items } } }, P.maths, FDE, { now: NOW });
