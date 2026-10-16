@@ -48,6 +48,8 @@ function bindPage(api) {
   };
   ctx.window.window = ctx.window;
   vm.createContext(ctx);
+  // wq-tel.js first, as on the hub page (its WQT.nowrap holds «واٹس ایپ» on one line).
+  vm.runInContext(src('wq-tel.js'), ctx);
   vm.runInContext(src('wq-bind.js'), ctx);
   return ctx.window.WQBIND;
 }
