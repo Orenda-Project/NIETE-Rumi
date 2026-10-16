@@ -51,7 +51,8 @@
   function lightsHtml(cl, lang) {
     if (!cl) return '';
     var t = tOf(lang);
-    if (!cl.shown) return '<p class="wq-bk-lights" data-lights="hidden">✨ ' + esc(t.lightsHidden) + '</p>';
+    // nobody else in the class has a light yet (none): "your class is playing too" would not be true, so no line
+    if (!cl.shown) return cl.none ? '' : '<p class="wq-bk-lights" data-lights="hidden">✨ ' + esc(t.lightsHidden) + '</p>';
     return '<p class="wq-bk-lights" data-lights="total">✨ ' + esc(t.lightsTerm(num(cl.term_total, lang))) +
       // The week line is its own sentence on its own line (display:block), only from 1: never "0 of them this week".
       (Number(cl.week_n) >= 1 ? ' <span class="wq-bk-week">' + esc(t.lightsWeek(num(cl.week_n, lang))) + '</span>' : '') + '</p>';

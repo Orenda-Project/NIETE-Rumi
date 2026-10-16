@@ -1772,6 +1772,7 @@ Feature: Web child quiz page on the portal
     Then the line reads "Your class is playing too" with no number
     And with twelve children and 41 lights, 7 of them this week from 4 children, it reads the term total and "+7 this week"
     But 6 lights this week from 2 children shows the term total only
+    And when no other child of the class has a light yet (nobody, or only this child) there is no lights line at all
 
   @T777
   Scenario: Days this week are lit dots only and a new week starts empty

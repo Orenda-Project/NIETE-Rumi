@@ -148,6 +148,18 @@ describe('class lights (shown only with >= 5 children in the term)', () => {
     const out = await book();
     expect(out.class_lights.term_total).toBe(41);
   });
+  // "Your class is playing too" is only true when some OTHER child in the class has a light (qa-teacher-2 020740):
+  // nobody, or only this child, gets nothing at all (none: true) — the page prints no line.
+  test('nobody in the class has a light (this child\'s read was only served): none, no line', async () => {
+    db.web_quiz_challenge_runs.push(run({ status: 'served', class_id: CLASS, passage_id: 'p-open' }));
+    const out = await book();
+    expect(out.class_lights).toEqual({ shown: false, none: true });
+  });
+  test('only this child has lights: none (a lone child is not "playing too" with themself)', async () => {
+    db.web_quiz_challenge_runs.push(run({ class_id: CLASS, passage_id: 'p-mine', created_at: OCT, scored_at: OCT }), run({ class_id: CLASS, passage_id: 'p-mine2', created_at: MON, scored_at: MON }));
+    const out = await book();
+    expect(out.class_lights).toEqual({ shown: false, none: true });
+  });
   test('the wall switch off: no lights at all', async () => {
     db.app_settings = settings(ON);
     db.web_quiz_challenge_runs.push(...classRows(11, 33, 7, 4));
@@ -257,7 +269,8 @@ describe('served and abandoned rows light nothing', () => {
     expect(out.trail_stickers).toEqual([]);
     expect(out.story_stickers).toEqual([]);
     expect(out.days_this_week).toEqual([false, false, false, false, false, false, false]);
-    expect(out.class_lights).toEqual({ shown: false });
+    // served / abandoned rows are no light for anyone: nobody else has played, so no "playing too" line
+    expect(out.class_lights).toEqual({ shown: false, none: true });
   });
 });
 
