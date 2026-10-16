@@ -249,6 +249,12 @@ describe('hub(): trust is per child (a shared phone that played as ONE sibling s
     expect((await Hub.hub(token, A)).kids).toHaveLength(2);
   });
 
+  test('kidFromHub also names the child\'s language (from their own quizzes), for the video library', async () => {
+    const token = T.signHub([KID]);
+    await Hub.hub(token, A); // the first phone claims the link
+    expect(await Hub.kidFromHub(token, chipH(KID), DEV_A)).toMatchObject({ studentId: KID, lang: 'en' });
+  });
+
   test('the first phone to open the link is trusted for the whole family, even if it played as one of them', async () => {
     db.quiz_sessions.push(sess('s-a', 'sc-eng', 'q-eng', 'completed', 1, 2, ago(70), { device_ref: DEV_A }));
     const token = T.signHub([KID, SIB]);
@@ -420,10 +426,10 @@ describe('hub(): recommended for you', () => {
 describe('kidFromHub (the library and challenge routes)', () => {
   test('the chip\'s child, their grade and their class root code; a foreign chip or forged token is null', async () => {
     const token = T.signHub([KID, SIB]);
-    expect(await Hub.kidFromHub(token, chipH(KID), DEV_A)).toEqual({ studentId: KID, grade: '3', rootId: 'sc-maths' });
+    expect(await Hub.kidFromHub(token, chipH(KID), DEV_A)).toEqual({ studentId: KID, grade: '3', rootId: 'sc-maths', lang: 'en' });
     expect(await Hub.kidFromHub(token, chipH(OTHER), DEV_A)).toBeNull();
     expect(await Hub.kidFromHub('abc.def', chipH(KID), DEV_A)).toBeNull();
-    expect(await Hub.kidFromHub(token, chipH(SIB), DEV_A)).toEqual({ studentId: SIB, grade: '5', rootId: null });
+    expect(await Hub.kidFromHub(token, chipH(SIB), DEV_A)).toEqual({ studentId: SIB, grade: '5', rootId: null, lang: null });
   });
 
   test('a forwarded link opens no library as the child: another phone, or no device, is null', async () => {
