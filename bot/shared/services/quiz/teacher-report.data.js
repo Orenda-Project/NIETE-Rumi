@@ -150,11 +150,37 @@ function onePerChildAcrossCodes(sessions) {
     });
 }
 
-async function classCodes(teacherId, quizIds) {
+// The watch root (app_settings VALUE web_quiz_watch_root): the code a class-less child's video codes hang under. Those
+// codes copy the root's teacher but are not that teacher's class; a class child's own lesson code (parent = the class's
+// code) is. → the root's id, or null (absent, not an id, or unreadable: nothing is left out). 30 s cache.
+const WATCH_ROOT_KEY = 'web_quiz_watch_root';
+const ID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+let watchRootCache = null; // { at, id }
+async function watchRootId(now = Date.now()) {
+  if (watchRootCache && now - watchRootCache.at < 30 * 1000) return watchRootCache.id;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('value').eq('key', WATCH_ROOT_KEY).maybeSingle();
+    if (error) throw new Error(error.message);
+    let v = data && data.value;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
+    watchRootCache = { at: now, id: typeof v === 'string' && ID_RX.test(v) ? v : null };
+    return watchRootCache.id;
+  } catch (err) {
+    logToFile('⚠️ teacher report: watch root unreadable — no code left out', { error: err.message });
+    return null;
+  }
+}
+// a code query without the watch root's children (a NULL parent is kept: `neq` alone would drop it)
+const notUnderWatchRoot = (q, root) => (root ? q.or(`parent_share_code_id.is.null,parent_share_code_id.neq.${root}`) : q);
+
+// sends: a sender's list — without the watch root's children (they copy its teacher)
+async function classCodes(teacherId, quizIds, { sends = false } = {}) {
   if (!quizIds.length) return [];
-  const { data, error } = await supabase.from('quiz_share_codes')
+  let q = supabase.from('quiz_share_codes')
     .select('id, code, quiz_id, created_at')
     .in('quiz_id', quizIds).eq('teacher_user_id', teacherId).is('invited_by_student_id', null);
+  if (sends) q = notUnderWatchRoot(q, await watchRootId());
+  const { data, error } = await q;
   if (error) throw new Error(error.message);
   return data || [];
 }
@@ -186,7 +212,7 @@ const IN_CHUNK = 300; // well under the ~390 ids where a PostgREST .in() overflo
  */
 async function sentQuiz(teacherId, quizId) {
   if (!teacherId || !quizId || !(await sentQuizzesOn())) return null;
-  const codes = await classCodes(teacherId, [quizId]);
+  const codes = await classCodes(teacherId, [quizId], { sends: true });
   if (!codes.length) return null;
   const { data, error } = await supabase.from('quizzes').select(QUIZ_COLS).eq('id', quizId).maybeSingle();
   if (error) throw new Error(error.message);
@@ -201,8 +227,8 @@ async function sentQuiz(teacherId, quizId) {
  */
 async function sentQuizzes(teacherId, { since = null } = {}) {
   if (!teacherId || !(await sentQuizzesOn())) return [];
-  let q = supabase.from('quiz_share_codes').select('id, quiz_id, created_at')
-    .eq('teacher_user_id', teacherId).is('invited_by_student_id', null);
+  let q = notUnderWatchRoot(supabase.from('quiz_share_codes').select('id, quiz_id, created_at')
+    .eq('teacher_user_id', teacherId).is('invited_by_student_id', null), await watchRootId());
   if (since) q = q.gte('created_at', since);
   // Newest first and bounded: a capped read drops only the oldest codes, never a random few.
   const { data: codes, error } = await q.order('created_at', { ascending: false }).limit(CODES_MAX);

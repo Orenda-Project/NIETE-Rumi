@@ -184,3 +184,31 @@ describe('a tap on a fallback button → today\'s entry, once', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 });
+
+describe('the fallback\'s log lines name the teacher by the keyed reference, never by id', () => {
+  const PIN_ID = 'a0000000-0000-4000-8000-000000000001';
+  // a tap whose entry opened nothing logs one line; → that line's payload
+  async function logged(id, key) {
+    jest.resetModules();
+    jest.doMock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
+    if (key === null) delete process.env.WEB_QUIZ_KID_KEY; else process.env.WEB_QUIZ_KID_KEY = key;
+    supabase = require('../../shared/config/supabase');
+    fake = seedMaker(supabase, { on: true });
+    F = require('../../shared/services/first-touch/maker.fallback');
+    jest.spyOn(require('../../shared/services/student-videos-entry.service'), 'openStudentVideosFlow').mockResolvedValue(false);
+    jest.spyOn(require('../../shared/services/lp-browse-entry.service'), 'openLpBrowseFlow').mockResolvedValue(false);
+    await expect(F.handleFallbackButton({ user: { ...TEACHER, id: PIN_ID }, phone: PHONE, id, lang: 'en' })).resolves.toBe(true);
+    const calls = require('../../shared/utils/logger').logToFile.mock.calls.filter(([m]) => String(m).startsWith('ℹ️ first touch:'));
+    expect(calls).toHaveLength(1);
+    return calls[0][1];
+  }
+  afterEach(() => { jest.dontMock('../../shared/utils/logger'); });
+
+  test.each([['ft_fb_quiz'], ['ft_fb_lp']])('%s opened nothing: { tk } with the agreed value for a 32-byte key; null under 32 bytes', async (id) => {
+    expect(await logged(id, 'k'.repeat(32))).toEqual({ tk: 'e815e81977411f12' });
+    expect(await logged(id, 'k'.repeat(31))).toEqual({ tk: null });
+    const none = await logged(id, null);
+    expect(none).toEqual({ tk: null });
+    expect(JSON.stringify(none)).not.toContain(PIN_ID);
+  });
+});
