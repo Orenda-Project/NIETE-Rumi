@@ -164,5 +164,5 @@ function forwarded(card) {
 }
 
 module.exports = {
-  cardFor, forwardLine, markForwarded, forwarded, termOf, MARKED, _resetWarnings: () => { warned.clear(); warnedNoKid = false; warnedStamp = false; },
+  cardFor, forwardLine, markForwarded, forwarded, termOf, openWeek, MARKED, _resetWarnings: () => { warned.clear(); warnedNoKid = false; warnedStamp = false; },
 };

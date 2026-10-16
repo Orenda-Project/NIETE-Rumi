@@ -462,17 +462,17 @@ async function pickOf({ sessionId = null, canonicalId = null, device = null } = 
  * 'teacher_present', keyed on the round (via 'class_round', the round token's entry) as well as the mode, because
  * positions 11+ of a round are served mode 'practice' with the teacher still there; only the round's own
  * mode='class_round' turns are the 'class_round' sample arm. A run that came by the class link inside an OPEN class-week window of the child's class is the
- * 'class_week' arm (web-quiz-class-week, required lazily under web_quiz_class_week: absent → no arm); every other
+ * 'class_week' arm (web-quiz-class-week, the run's class_id, required lazily under web_quiz_class_week: absent → no arm); every other
  * run is 'self_run' with no arm.
  */
-async function adminFields({ mode, via, canonicalId, at = new Date(), classWeekOn = false } = {}) {
+async function adminFields({ mode, via, classId = null, at = new Date(), classWeekOn = false } = {}) {
   if (via === 'class_round' || mode === 'class_round') return { admin_mode: 'teacher_present', sample_arm: mode === 'class_round' ? 'class_round' : null };
   if (via === 'class_link' && classWeekOn) {
     let mod = null;
     try { mod = require('./web-quiz-class-week'); } catch (_) { mod = null; }
     if (mod && typeof mod.openWindowFor === 'function') {
       try {
-        if (await mod.openWindowFor({ canonicalId, at })) return { admin_mode: 'self_run', sample_arm: 'class_week' };
+        if (await mod.openWindowFor({ classId, at })) return { admin_mode: 'self_run', sample_arm: 'class_week' };
       } catch (e) {
         logError('web_quiz.ch_class_week_read_failed', { error: String(e && e.message || e).slice(0, 120) });
       }

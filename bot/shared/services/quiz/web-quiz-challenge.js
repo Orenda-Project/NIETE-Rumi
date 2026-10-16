@@ -1199,10 +1199,10 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     p: drawLog.p, band_reason: drawLog.band_reason, weights_v: drawLog.weights_v, seed: drawLog.seed, ...(periodSet ? { period_set: periodSet } : {}),
     ...(prev2 ? { anchor_prev2: prev2 } : {}) } : storyDraw;
   const via = VIA[w.via] || w.via || null;
-  const admin = await D.adminFields({ mode, via, canonicalId, at: new Date(now), classWeekOn: await classWeekOpen(via) });
   const periodId = periodRule ? periodNow : null;
   // the class at write time: the caller's (the class link), else the canonical child's active enrolment; never a share code
   const classId = (typeof askedClass === 'string' && /^[0-9a-f-]{36}$/i.test(askedClass) ? askedClass : null) || await D.activeClassOf([canonicalId, w.studentId]);
+  const admin = await D.adminFields({ mode, via, classId, at: new Date(now), classWeekOn: await classWeekOpen(via) });   // the class-week arm reads the run's class
   const row = {
     id: runId, student_id: w.studentId, exercise: ex, grade: w.grade, lang: w.lang, status: 'served', created_at: nowIso(),
     meta: { grade_fixed_src: fixed.src, open_band_src: ob.src, pick_src: pick.pick_src, ...(metaDraw ? { draw: metaDraw } : {}), ...(tryout ? { tryout: { item_id: tryout.item_id } } : {}), ...(anchorBlock ? { anchor_serves_any: servesAny } : {}), admin_mode: admin.admin_mode, sample_arm: admin.sample_arm, ...(recordBlocked ? { record_blocked: recordBlocked } : {}) },
