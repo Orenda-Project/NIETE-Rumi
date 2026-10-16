@@ -68,6 +68,17 @@ test('without --runs: the children of the configured lists and classes and the T
   expect(JSON.parse(out.stdout).student_ids).toEqual(['stu-listed', 'stu-named', 'stu-taught']);
 });
 
+test('a loose child a configured test teacher created (no class, no list) is printed under teacher', async () => {
+  install();
+  db.students.push({ id: 'stu-loose', student_name: 'Rafay Sample', list_id: null, enrolled_by_user_id: 'tch-seed' });
+  db.students.push({ id: 'stu-other', student_name: 'Nida Sample', list_id: null, enrolled_by_user_id: 'tch-real' });
+  const { out, io } = capture();
+  expect(await Cli.main({ argv: [], env: ENV, io })).toBe(0);
+  const got = JSON.parse(out.stdout);
+  expect(got.student_ids).toEqual(['stu-listed', 'stu-loose', 'stu-named', 'stu-taught']);
+  expect(got.counts).toEqual({ meta_test: 0, name: 1, list: 1, teacher: 2 });
+});
+
 test('refuses to run without the Supabase env (exit 2, nothing on stdout, no read)', async () => {
   install();
   const { out, io } = capture();
