@@ -22,12 +22,14 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
   @e2e @flow @P1 @R01
   Scenario: /register opens the registration Flow
     Given the NIETE bot chat is open
-    And I am not yet registered (no first_name)
+    And I am not yet registered (no name)
     When I send "/register"
-    Then the bot sends a "Welcome" Flow with body "Quick setup — tell us a little about you."
+    Then the bot sends a "Welcome to NIETE" Flow whose body asks for my name, my school and the classes I teach
     And a "Get started" Flow CTA is shown
-    # Verified live on PROD (2026-08-04): "Welcome / Quick setup — tell us a little
-    # about you. / Powered by NIETE" + "Get started". text-message.handler.js:1527-1540.
+    # UPDATED 2026-10-16: the invite copy now comes from ux-strings (registrationInviteNew*),
+    # sent by services/registration-invite.service.js — the one sender every door uses. In
+    # Urdu: "خوش آمدید!" / "شروع کریں". No footer. The 2026-08-04 live check saw the old copy
+    # ("Welcome / Quick setup — tell us a little about you. / Powered by NIETE").
 
   @e2e @flow @P1 @R02
   Scenario: The registration Flow first screen collects name and country
@@ -72,8 +74,9 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
   Scenario: /register is case-insensitive
     Given the NIETE bot chat is open
     When I send "/REGISTER"
-    Then the registration Flow (or already-registered reply) is returned
-    # text-message.handler.js:1511 matches messageBody.toLowerCase() === '/register'.
+    Then the registration Flow is returned
+    # UPDATED 2026-10-16: utils/registration-intent.js folds case; there is no
+    # "already registered" reply any more (a registered teacher gets the Flow to update).
 
   @e2e @flow @edge @P2 @R07
   Scenario: Pakistan teachers get an extra region screen
@@ -83,16 +86,17 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # Split-screen routing: PERSONAL_INFO → REGION_INFO for PK, else straight to
     # PROFESSIONAL_INFO (registration-endpoint.js:123-145). Non-destructive to view.
 
-  @e2e @edge @P2 @R08
-  Scenario: An already-registered teacher is not re-onboarded
+  @e2e @flow @edge @P2 @R08
+  Scenario: An already-registered teacher gets the Flow to update her details
     Given the NIETE bot chat is open
-    And I am already registered (have a first_name)
+    And I am already registered (have a name)
     When I send "/register"
-    Then the bot replies with "You're already registered"
-    And it greets me by my first name
-    # text-message.handler.js:1516-1518 short-circuits before the Flow. Needs a
-    # registered account — the shared driver was unregistered on 2026-08-04, so
-    # this path was not reproducible there.
+    Then the bot sends an "Update your details" Flow with an "Update details" CTA
+    And it does not reply "You're already registered"
+    # UPDATED 2026-10-16. Re-opening the Flow is how a registered teacher corrects her
+    # name or school (a number reissued with the previous holder's name on it); the
+    # "You're already registered" short-circuit left her no way to fix it.
+    # registration-invite.service.js variant "update". Needs a registered account.
 
   # ═══════════════════════════════ NEGATIVE ══════════════════════════════════
 
@@ -191,3 +195,87 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # registration-endpoint.js handleRegionInfoSubmit: a miss keeps the old behaviour
     # (province stored, no link) and logs 'emis_not_found' so the mistype rate is
     # measurable in Axiom. bd-z8p96. @wip: not yet driven live.
+
+  # ═══════════ ADDED 2026-10-16 · the front door (code-grounded, not yet driven live) ═══════════
+  # Every new or unregistered adult reaches the registration Flow. Live evidence it was
+  # missing (niete-logs, 16 Sep – 16 Oct 2026): 25 bare "Register", 3 "Register me" and 16
+  # slash near-misses never opened the Flow, and a new number got no welcome at all.
+  # Sender: services/registration-invite.service.js. Matcher: utils/registration-intent.js.
+
+  @e2e @wip @draft @flow @P1 @R14
+  Scenario Outline: Every way of asking to register opens the registration Flow
+    Given the NIETE bot chat is open
+    And I am not yet registered
+    When I send "<message>"
+    Then the bot sends the registration Flow
+    And it does not reply "I'll ask for your name after you try one of my features!"
+    Examples:
+      | message            |
+      | Register           |
+      | Register me        |
+      | i need to register |
+      | /registered        |
+      | / register         |
+      | Type/register      |
+      | رجسٹر              |
+    # The old substring keyword branch (text-message.handler.js) is gone.
+
+  @e2e @wip @draft @negative @P2 @R15
+  Scenario Outline: Talking about a register is not a registration request
+    Given the NIETE bot chat is open
+    When I send "<message>"
+    Then the bot does not send the registration Flow
+    Examples:
+      | message                          |
+      | attendance register              |
+      | Mera registration number kia hai |
+    # registration-intent.js is a whitelist: attendance/class/number words, digits and long
+    # forwarded text are never a request to set up her own account.
+
+  @e2e @wip @draft @flow @P1 @destructive @R16
+  Scenario: A new person's first message is answered first, then the Flow is offered once
+    Given the NIETE bot chat is open
+    And I am a fresh test number that has never messaged the bot
+    When I send "Assalam o alaikum, can you help me plan a lesson?"
+    Then the bot answers my message first
+    And after the answer the bot sends the registration Flow
+    When I send another message without registering
+    Then the bot answers it and does not send the registration Flow again
+    # text-message.handler.js handleTextMessage → offerRegistrationAfterReply →
+    # offerRegistrationOnce, claimed on users.registration_started_at. Never offered to a
+    # registered teacher, a child's quiz handset, or during an account-lookup outage.
+    # @destructive: stamps registration_started_at on the account.
+
+  @e2e @wip @draft @flow @P2 @R17
+  Scenario: /portal from someone not yet registered opens the registration Flow
+    Given the NIETE bot chat is open
+    And I am not yet registered
+    When I send "/portal"
+    Then the bot sends the registration Flow
+    And it does not send a portal setup link
+    # Before 2026-10-16 /portal handed an unregistered sender a setup link for an account
+    # with no name, role or school behind it. Registered teachers are unchanged.
+
+  @e2e @wip @draft @flow @P2 @R18
+  Scenario Outline: A feature that needs a school asks an unregistered person to register first
+    Given the NIETE bot chat is open
+    And I am not yet registered
+    When I send "<command>"
+    Then the bot sends a "First, your school" registration Flow
+    And it does not open <feature>
+    Examples:
+      | command  | feature           |
+      | /classes | the class manager |
+      | /roster  | the roster upload |
+    # text-message.handler.js /classes, /roster and the attendance keyword; variant "school".
+
+  @e2e @wip @draft @P2 @R19
+  Scenario: After the first lesson plan, a person already offered the Flow is not asked her name in chat
+    Given the NIETE bot chat is open
+    And I am not yet registered and the bot has already sent me the registration Flow
+    When I request a lesson plan and it is delivered
+    Then the bot does not ask "By the way, what should I call you?"
+    And my next message is not taken as my name
+    # feature-registration.service.js checkAndTriggerRegistration: with a Flow id it uses the
+    # once-only offer; without one (production workers today) it stops when
+    # registration_started_at is set.
