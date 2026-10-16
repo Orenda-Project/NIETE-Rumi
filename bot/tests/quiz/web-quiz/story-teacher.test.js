@@ -84,7 +84,8 @@ function seed({ on = true, web = true } = {}) {
 
 // The table's defaults (create_video_quiz_tables.sql): a minted code is active.
 const dbDefaults = () => db.quiz_share_codes.forEach((c) => { if (c.active === undefined) c.active = true; });
-const th = (uid = TEACHER, lang = 'en') => T.sign({ k: 'th', uid, lang, exp: Math.floor(Date.now() / 1000) + 3600 });
+// The teacher home's token shape (teacher-home.token.js): `via` names the door it was opened from; its verifier refuses one without it.
+const th = (uid = TEACHER, lang = 'en') => T.sign({ k: 'th', uid, lang, via: 'go', exp: Math.floor(Date.now() / 1000) + 3600 });
 
 const SAVED = { ...process.env };
 beforeEach(() => {
@@ -139,6 +140,8 @@ describe('the send', () => {
     expect(db.quizzes).toHaveLength(1);
     const q = db.quizzes[0];
     expect(q).toMatchObject({ teacher_id: TEACHER, quiz_source: 'story', topic: 'Book 1 Testwala', grade: '2', language: 'en', status: 'sent' });
+    // The sender's own row with no class list: the class is never derived from another teacher's list.
+    expect(q.list_id == null).toBe(true);
     expect(q.meta).toMatchObject({ story: { book_id: B(1), lang: 'en' }, share_code: out.code, link: out.link, student_message: out.class_message });
     expect(q.meta.sent_at).toBeTruthy();
     expect(q.meta.first_sent_at).toBeTruthy();
@@ -232,10 +235,21 @@ describe('the preview and the tap', () => {
     expect(logEvent).toHaveBeenCalledWith('teacher_story_sent', expect.objectContaining({ book_id: B(1), reused: true }));
   });
   test('the way back line (the teacher home\'s copy object) ends the class message when it is deployed', async () => {
-    jest.doMock('../../../shared/services/first-touch/teacher-home.copy', () => ({ returnLine: (l) => (l === 'ur' ? 'واپسی Testwala' : 'Any day: send quiz Testwala') }), { virtual: true });
-    const out = await Stories.share({ uid: TEACHER, storyId: B(1) });
-    expect(out.class_message.endsWith('\n\nAny day: send quiz Testwala')).toBe(true);
-    jest.dontMock('../../../shared/services/first-touch/teacher-home.copy');
+    // The copy object's returnLine is async (it reads its own switch). A fresh module registry for this test only, so
+    // the mock replaces the real copy object wherever it is deployed (virtual only while the file is absent: a virtual
+    // mock never stands in for a file that exists); the fake database goes on that registry's supabase.
+    const copy = '../../../shared/services/first-touch/teacher-home.copy';
+    const deployed = require('fs').existsSync(require('path').join(__dirname, `${copy}.js`));
+    jest.doMock(copy, () => ({ returnLine: async (l) => (l === 'ur' ? 'واپسی Testwala' : 'Any day: send quiz Testwala') }), { virtual: !deployed });
+    try {
+      await jest.isolateModulesAsync(async () => {
+        Object.assign(require('../../../shared/config/supabase'), { from: fake.from, rpc: fake.rpc });
+        const out = await require('../../../shared/services/quiz/story-teacher.service').share({ uid: TEACHER, storyId: B(1) });
+        expect(out.class_message.endsWith('\n\nAny day: send quiz Testwala')).toBe(true);
+      });
+    } finally {
+      jest.dontMock(copy);
+    }
   });
 });
 
