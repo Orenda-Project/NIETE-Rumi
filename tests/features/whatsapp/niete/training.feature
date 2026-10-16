@@ -2623,3 +2623,12 @@ Feature: NIETE (ICT) Teacher Training
     When a round turn link or a challenge token carrying a round claim is used
     Then the Challenge refuses it and no run is stored
     And a quiz or hub link on my phone plays as today, with no round column on its runs
+
+  @quiz @config-gated @wip @draft @P2 @T856
+  Scenario: A paused class round's card on my class tab says where it stopped
+    Given app_settings "web_quiz_class_round" is true
+    And my class's round is paused with 3 of its 9 positions played
+    When I open my class tab
+    Then the round card shows "3 of 9 played. Continue another day." above its Start button, with no child's name
+    And with the round not started, running, resumed or closed the card is exactly as before
+    # web-quiz-class-round.js cardFor/pausedOf; class-round.page.js renderCard/pausedLine; unit: class-round-paused-card.test.js

@@ -16,7 +16,7 @@
  *                                                  holding ANOTHER active student with the same canonical first name
  *                                                  (canonFirst, web-quiz-homonym.js: the rule the page uses)
  *                                { high_unproven, homonym_missed, n }, or null when `students` cannot be read
- * A name is read only to fold it to `first` for the comparison: it is never returned, logged or written. A missing
+ * A name (students.student_name) is read only to fold it to `first` for the comparison: it is never returned, logged or written. A missing
  * table or a read error is null (logged once, code only), never a throw.
  */
 const supabase = require('../../config/supabase');
@@ -51,9 +51,9 @@ async function loadStudents(ids) {
   const want = [...new Set([...(ids || [])].filter(Boolean))];
   const by = new Map();
   for (let i = 0; i < want.length; i += CHUNK) {
-    const got = await readIn('id, list_id, merged_into, status, name', 'id', want.slice(i, i + CHUNK));
+    const got = await readIn('id, list_id, merged_into, status, student_name', 'id', want.slice(i, i + CHUNK));
     if (got.error) { failed(STUDENTS, got.error); return null; }
-    for (const s of got.rows) by.set(s.id, { list_id: s.list_id == null ? null : s.list_id, merged_into: s.merged_into == null ? null : s.merged_into, status: s.status == null ? null : s.status, first: canonFirst(s.name) });
+    for (const s of got.rows) by.set(s.id, { list_id: s.list_id == null ? null : s.list_id, merged_into: s.merged_into == null ? null : s.merged_into, status: s.status == null ? null : s.status, first: canonFirst(s.student_name) });
   }
   return by;
 }
@@ -63,11 +63,11 @@ async function loadListMates(listIds) {
   const want = [...new Set([...(listIds || [])].filter(Boolean))];
   const by = new Map();
   for (let i = 0; i < want.length; i += CHUNK) {
-    const got = await readIn('id, list_id, status, name', 'list_id', want.slice(i, i + CHUNK));
+    const got = await readIn('id, list_id, status, student_name', 'list_id', want.slice(i, i + CHUNK));
     if (got.error) { failed(STUDENTS, got.error); return null; }
     for (const s of got.rows) {
       if (s.status !== 'active') continue;
-      const first = canonFirst(s.name);
+      const first = canonFirst(s.student_name);
       if (!first) continue;
       if (!by.has(s.list_id)) by.set(s.list_id, new Map());
       const m = by.get(s.list_id);

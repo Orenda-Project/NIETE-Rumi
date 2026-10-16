@@ -147,6 +147,14 @@
   // Western, isolated LTR in Urdu (the keypad is Western; one system). Otherwise today's Urdu digits.
   function ud(n) { if (trailOn() || UR2) return L === 'ur' ? iso(n) : String(n); return L === 'ur' ? String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }) : String(n); }
   function iso(n) { return '⁦' + n + '⁩'; }
+  // The item counter. Under v2 in Urdu (the Trail's counter, the line a child reads every item) it is drawn at the body
+  // size (20 px, never the 14 px small line), its digits the keypad's: Western, each in its own LTR isolate (COPY §C,
+  // a number beside a Western keypad or Western cells). Every other case is today's line.
+  function ofHtml(k, n, id) {
+    var a = id ? ' id="' + id + '"' : '';
+    if (!(TR && L === 'ur')) return '<p class="wq-small"' + a + '>' + esc(t.of(k, n)) + '</p>';
+    return '<p class="wq-small wqc-of-ur"' + a + ' style="font-size:20px;line-height:1.9">' + esc(iso(n) + ' میں سے ' + iso(k)) + '</p>';
+  }
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
@@ -571,7 +579,7 @@
   var bigger = {
     taps: [], i: 0, miss: 0, timer: null, t0: 0, started: 0,
     pairHtml: function (p, line, k, n) {
-      return jug('thinking', line) + (n ? '<p class="wq-small">' + esc(t.of(k, n)) + '</p><div class="wqc-timer"><i id="wqc-bar"></i></div>' : '')
+      return jug('thinking', line) + (n ? ofHtml(k, n) + '<div class="wqc-timer"><i id="wqc-bar"></i></div>' : '')
         + '<div class="wqc-pair"><button class="wqc-num" type="button" id="wqc-a">' + esc(p.a) + '</button><button class="wqc-num" type="button" id="wqc-b">' + esc(p.b) + '</button></div>';
     },
     practice: function (k) {
@@ -632,7 +640,8 @@
     finish: function () {
       clearInterval(bigger.timer);
       var d = S.data;
-      show('bigger-wait', jug('thinking', d.clips.stop.text, true));
+      // «All done!» after the last item: under v2 the happy pose of the end card that follows, never the puzzled one
+      show('bigger-wait', jug(TR ? 'hello' : 'thinking', d.clips.stop.text, true));
       say(d.clips.stop);
       api('ch/result', withHelped({ ct: d.ct, taps: bigger.taps, ms: Date.now() - bigger.started }))
         .then(function (r) { bigger.result(r.score); })
@@ -672,7 +681,7 @@
         + k('del', '', '⌫') + k('0') + k('ok', ' wqc-kok', '✓') + '</div>';
     },
     screen: function (name, it, line, k, n) {
-      show(name, jug('thinking', line) + (n ? '<p class="wq-small" id="wqc-of">' + esc(t.of(k, n)) + '</p>' : '')
+      show(name, jug('thinking', line) + (n ? ofHtml(k, n, 'wqc-of') : '')
         + missing.rowHtml(it, '') + missing.keysHtml() + '<button class="wqc-skip" id="wqc-skip1" type="button" hidden>' + esc(tc('missSkip')) + '</button>');
     },
     // `max`: no more digits than the answer has (3 for the 3-digit rows), so a long tap-run cannot be typed
@@ -740,7 +749,7 @@
     finish: function () {
       clearTimeout(missing.skipT);
       var d = S.data;
-      show('missing-wait', jug('thinking', d.clips.stop.text, true));
+      show('missing-wait', jug(TR ? 'hello' : 'thinking', d.clips.stop.text, true));
       say(d.clips.stop);
       api('ch/result', withHelped({ ct: d.ct, answers: missing.answers, ms: Date.now() - missing.started }))
         .then(function (r) { missing.result(r.score); })
@@ -1234,7 +1243,7 @@
         var c = oc[i];
         return '<div class="wqc-orow">' + (c && c.url ? '<button class="wqc-ohear" type="button" id="wqc-oh' + i + '" data-src="' + esc(c.url) + '" aria-label="' + esc(t.hearOption) + '">🔊</button>' : '<span class="wqc-ohear wqc-ohear-none" aria-hidden="true"></span>') + opt(o, i) + '</div>';
       }).join('');
-      show('qa', (TR && TR.isStory() ? '' : '<p class="wq-small">' + esc(t.of(k + 1, qa.list.length)) + '</p>') + jug('thinking', x.prompt) + hearBtn(x.clip)
+      show('qa', (TR && TR.isStory() ? '' : ofHtml(k + 1, qa.list.length)) + jug('thinking', x.prompt) + hearBtn(x.clip)
         + '<div class="wqc-opts">' + opts + '</div>');
       bindHear(x.clip);
       var picked = false;

@@ -1,9 +1,10 @@
 import type { TeacherRoute } from '../routes';
 import { CoachingAllPage } from './CoachingAll';
 import { CoachingHomePage } from './CoachingHome';
+import { NewObservationPage } from './NewObservation';
 import { ReportPage } from './ReportPage';
 import { SendPage } from './SendPage';
-import { COACHING_ALL, COACHING_HOME, COACHING_REPORT, COACHING_SEND } from './paths';
+import { COACHING_ALL, COACHING_HOME, COACHING_NEW, COACHING_REPORT, COACHING_SEND } from './paths';
 
 /**
  * bd-fmf24g.4 — the teacher v2 Digital Coaching pages (each one flag-gated by App's TeacherGate). The
@@ -12,6 +13,7 @@ import { COACHING_ALL, COACHING_HOME, COACHING_REPORT, COACHING_SEND } from './p
  */
 const routes: TeacherRoute[] = [
   { path: COACHING_HOME, element: <CoachingHomePage /> },
+  { path: COACHING_NEW, element: <NewObservationPage /> },
   { path: COACHING_SEND, element: <SendPage /> },
   { path: COACHING_REPORT, element: <ReportPage /> },
   { path: COACHING_ALL, element: <CoachingAllPage /> },

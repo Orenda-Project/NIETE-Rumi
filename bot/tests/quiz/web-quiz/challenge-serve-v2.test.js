@@ -76,7 +76,7 @@ const periodsNow = () => [
 const REL = '2026-10-01T00:00:00Z';
 const reg = (id, extra = {}) => {
   const [lang, kind, band] = id.split('.');
-  return { passage_id: id, lang, kind, band: Number(band), pool: 'check', status: 'calibrated', is_reference: false, released_at: REL, withdrawn_at: null, twin_of: null, ...extra };
+  return { passage_id: id, lang, kind, band: Number(band), pool: 'check', status: 'calibrated', is_reference: false, released_at: REL, withdrawn_at: null, twin_of: null, provenance: 'published_calibrated', ...extra };   // sourced: the counted draw admits it (RULING #105 (iii))
 };
 const REGISTRY = () => [
   reg('en.read.2.setA', { is_reference: true }), reg('ur.read.2.setA', { is_reference: true }),
@@ -988,7 +988,9 @@ describe('a round run or a practice run does not consume the home attempt', () =
     const ex = await Ch.exercise(hub(), 'read', D);
     expect(ex.practice_round).toBeUndefined();
     await readAloud(ex.ct);
-    expect(rowOf(ex.ct).meta).toMatchObject({ attempt_no: 1, counted: true });
+    // _period off: no record is decided on a v2 row (record null), so the stamp says not counted (RULING #116: mode === 'check' && record)
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: null });
+    expect(rowOf(ex.ct).meta).toMatchObject({ attempt_no: 1, counted: false });
   });
 
   test('(d) golden: a scored row written before the provenance columns (no mode, no via) still counts: attempt 2, practice', async () => {

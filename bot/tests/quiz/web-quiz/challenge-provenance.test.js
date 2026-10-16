@@ -1,14 +1,17 @@
 'use strict';
 /**
- * The counted pool admits only sourced passages (ITEMS §1.1 provenance, §8.1): under web_quiz_challenge_sourced_only
- * (parent web_quiz_challenge_pool, itself under web_quiz_challenge_v2) the CHECK draw keeps only passages with
- * provenance published_calibrated or reviewer_levelled; generated passages stay practice and Story Time stock.
- *   (a) on: a cell of generated passages only → on its way, no run row, a draw row with eligible_n 0
- *   (b) on: one reviewer_levelled + one generated → the reviewer_levelled one, eligible_n 1
- *   (c) on: the practice replay serves a generated record passage again, as today
- *   (d) on: a Story Time (practice) serve of a generated story still serves it
- *   (e) off: deep-equal to today's serve, generated passages eligible (the golden)
- *   (f) on, the registry without the provenance column (42703): on its way, nothing written
+ * The counted pool admits only sourced passages (ITEMS §1.1 provenance, §8.1; RULING #105 (iii)): under
+ * web_quiz_challenge_pool (itself under web_quiz_challenge_v2) the CHECK draw keeps only passages with provenance
+ * published_calibrated or reviewer_levelled, UNCONDITIONALLY — a property of the data, never of a switch
+ * (the former web_quiz_challenge_sourced_only key is read by nothing and exported by nothing). Generated passages
+ * stay practice and Story Time stock.
+ *   (a) a cell of generated passages only → on its way, no run row, a draw row with eligible_n 0
+ *   (b) one reviewer_levelled + one generated → the reviewer_levelled one, eligible_n 1
+ *   (c) the practice replay serves a generated record passage again, as today
+ *   (d) a Story Time (practice) serve of a generated story still serves it
+ *   (e) no switch read: the old key (absent, true or false) changes nothing; a generated passage is never drawn for mode='check'
+ *   (f) the registry without the provenance column (42703): on its way, nothing written
+ *   (g) golden: _pool off → today's serve, byte-identical whatever the registry carries (SPEC §5.3)
  * Plus the pure filter, and the migration on a real throwaway Postgres (skipped without the server binaries).
  * Faked boundaries only (Supabase, R2, speech, the LLM client); the service, the draw and the loader are real.
  */
@@ -60,7 +63,7 @@ const BASE_FLAGS = ['web_quiz_challenge', 'web_quiz_challenge_record', 'web_quiz
 const V2 = 'web_quiz_challenge_v2';
 const PERIOD = 'web_quiz_challenge_period';
 const POOL = 'web_quiz_challenge_pool';
-const SOURCED = 'web_quiz_challenge_sourced_only';
+const OLD_KEY = 'web_quiz_challenge_sourced_only';   // read by nothing since RULING #105 (iii)
 const STORY = 'web_quiz_challenge_story';
 const CANON_ON = ['web_quiz_hub', 'web_quiz_identity_canon'];
 const on = (...keys) => keys.forEach((key) => db.app_settings.push({ key, value: true }));
@@ -141,8 +144,21 @@ describe('the counted-pool filter (pure)', () => {
   });
 });
 
-describe('web_quiz_challenge_sourced_only on', () => {
-  beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL, SOURCED));
+// The keys the service asks app_settings for (the fake applies filters but does not log their values): the one
+// proof that nothing reads the old switch is the list of keys asked.
+let keysRead;
+const logKeys = () => {
+  keysRead = [];
+  const realFrom = supabase.from;
+  supabase.from = (t) => {
+    const b = realFrom(t);
+    if (t === 'app_settings') { const eq = b.eq.bind(b); b.eq = (c, v) => { if (c === 'key') keysRead.push(v); return eq(c, v); }; }
+    return b;
+  };
+};
+
+describe('the counted pool admits only sourced passages, unconditionally (RULING #105 (iii))', () => {
+  beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL));
 
   test('(a) a cell of generated passages only → on its way: no run row, no token, a draw row with eligible_n 0', async () => {
     const out = await Ch.exercise(hub(), 'read', D);
@@ -155,7 +171,7 @@ describe('web_quiz_challenge_sourced_only on', () => {
   test('(b) one reviewer_levelled + one generated → the reviewer_levelled one is drawn, eligible_n 1', async () => {
     setProv('en.read.1.kite', 'reviewer_levelled');
     for (let k = 0; k < 4; k += 1) {
-      fresh(db.challenge_passages); on(V2, ...CANON_ON, PERIOD, POOL, SOURCED);
+      fresh(db.challenge_passages); on(V2, ...CANON_ON, PERIOD, POOL);
       const ex = await Ch.exercise(hub(), 'read', D);
       expect(rowOf(ex.ct)).toMatchObject({ passage_id: 'en.read.1.kite', mode: 'check', record: true, band: 1 });
       expect(db.challenge_draws).toHaveLength(1);
@@ -183,6 +199,26 @@ describe('web_quiz_challenge_sourced_only on', () => {
     expect(ex.story.text).toBe(['A', 'boat', 'story', ...W12.slice(3)].join(' '));
   });
 
+  test('(e) no switch read: the old key absent, true or false, a generated passage is never drawn for mode=\'check\'; practice and Story Time still take generated', async () => {
+    // the check cell holds one generated passage beside the generated reference: nothing sourced → on its way, whatever the old key says
+    for (const oldKey of [undefined, true, false]) {
+      fresh(); on(V2, ...CANON_ON, PERIOD, POOL, STORY);
+      if (oldKey !== undefined) db.app_settings.push({ key: OLD_KEY, value: oldKey });
+      logKeys();
+      expect(await Ch.exercise(hub(), 'read', D)).toEqual(ON_ITS_WAY);
+      expect(db.web_quiz_challenge_runs).toHaveLength(0);
+      expect(keysRead.length).toBeGreaterThan(0);
+      expect(keysRead).not.toContain(OLD_KEY);
+      // the same child's Story Time serve of a generated story is served (practice)
+      const st = await Ch.exercise(hub(), 'read', { ...D, mode: 'practice', room: 'story', passageId: 'en.read.1.pstory' });
+      expect(rowOf(st.ct)).toMatchObject({ passage_id: 'en.read.1.pstory', mode: 'practice', record: false });
+      expect(keysRead).not.toContain(OLD_KEY);
+    }
+    // the key is exported by nothing
+    expect(Ch.SOURCED_ONLY_FLAG_KEY).toBeUndefined();
+    expect(Object.keys(Ch).filter((k) => /SOURCED/i.test(k))).toEqual([]);
+  });
+
   test('(f) the registry without the provenance column (42703) → on its way, nothing written', async () => {
     COLUMNS.challenge_passages.delete('provenance');
     try {
@@ -195,7 +231,7 @@ describe('web_quiz_challenge_sourced_only on', () => {
   });
 });
 
-describe('web_quiz_challenge_sourced_only off (or its parent off)', () => {
+describe('golden: _pool off → today\'s serve (SPEC §5.3), whatever the registry carries', () => {
   // Everything one read serve returns and writes, with ids, tokens and clocks taken out; the seed fixed.
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const norm = (x) => JSON.parse(JSON.stringify(x, (k, v) => {
@@ -212,36 +248,28 @@ describe('web_quiz_challenge_sourced_only off (or its parent off)', () => {
   beforeEach(() => { spy = jest.spyOn(crypto, 'randomBytes').mockImplementation((n) => Buffer.alloc(n, 7)); });
   afterEach(() => spy.mockRestore());
 
-  test('(e) golden: off, the serve deep-equals today\'s with generated passages eligible', async () => {
-    const today = await serveOnce(TODAY(), [V2, ...CANON_ON, PERIOD, POOL]);
-    jest.clearAllMocks();
-    const off = await serveOnce(REGISTRY(), [V2, ...CANON_ON, PERIOD, POOL]);
-    jest.clearAllMocks();
-    const offFalse = await serveOnce(REGISTRY(), [V2, ...CANON_ON, PERIOD, POOL], [SOURCED]);
-    expect(today.draws[0]).toMatchObject({ outcome: 'served', eligible_n: 2 });
-    expect(['en.read.1.ref01', 'en.read.1.kite']).toContain(today.rows[0].passage_id);
-    expect(off).toEqual(today);
-    expect(offFalse).toEqual(today);
-  });
-
-  test('on with _pool off: the switch has no effect (today\'s serve)', async () => {
+  test('(g) _pool off: the registry with provenance, without it, or with the old key set — the one serve, no draw row', async () => {
     const today = await serveOnce(TODAY(), [V2, ...CANON_ON, PERIOD]);
     jest.clearAllMocks();
-    const child = await serveOnce(REGISTRY(), [V2, ...CANON_ON, PERIOD, SOURCED]);
-    expect(child).toEqual(today);
+    const labelled = await serveOnce(REGISTRY(), [V2, ...CANON_ON, PERIOD]);
+    jest.clearAllMocks();
+    const oldKeyOn = await serveOnce(REGISTRY(), [V2, ...CANON_ON, PERIOD, OLD_KEY]);
+    jest.clearAllMocks();
+    const oldKeyOff = await serveOnce(REGISTRY(), [V2, ...CANON_ON, PERIOD], [OLD_KEY]);
+    expect(today.draws).toEqual([]);
+    expect(today.rows[0]).toMatchObject({ passage_id: 'en.read.2.setA', mode: 'check', record: true });
+    expect(labelled).toEqual(today);
+    expect(oldKeyOn).toEqual(today);
+    expect(oldKeyOff).toEqual(today);
   });
 
-  test('off, the registry without the provenance column: today\'s serve still', async () => {
-    const today = await serveOnce(TODAY(), [V2, ...CANON_ON, PERIOD, POOL]);
+  test('_pool off, the registry without the provenance column: today\'s serve still', async () => {
+    const today = await serveOnce(TODAY(), [V2, ...CANON_ON, PERIOD]);
     jest.clearAllMocks();
     COLUMNS.challenge_passages.delete('provenance');
     try {
-      expect(await serveOnce(REGISTRY(), [V2, ...CANON_ON, PERIOD, POOL])).toEqual(today);
+      expect(await serveOnce(REGISTRY(), [V2, ...CANON_ON, PERIOD])).toEqual(today);
     } finally { COLUMNS.challenge_passages.add('provenance'); }
-  });
-
-  test('the switch key is exported beside the pool switch', () => {
-    expect(Ch.SOURCED_ONLY_FLAG_KEY).toBe(SOURCED);
   });
 });
 

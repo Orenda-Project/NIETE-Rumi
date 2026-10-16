@@ -22,7 +22,7 @@
  *                   bot does: a certificate above an unpassed level still reads locked.
  *   certified       a training_certificates row, or a passed level EXAM: quiz_kind grand|capstone, is_passed,
  *                   and the quiz an active grand_quiz|capstone of a level the teacher sees (a diagnostic
- *                   certifies nothing, bd-43491; a row with no quiz id predates diagnostics and stands).
+ *                   certifies nothing; a row with no quiz id predates diagnostics and stands).
  *   ready_for_quiz  every active module of every active course of the level done (a progress row each).
  *   in_progress     at least one of them done.
  *   not_started     none.
@@ -48,7 +48,7 @@
  * The Mid/High "teachers" of a school, sector or the overview is that cohort (her total_teachers there).
  *
  * Bands — her Primary / Mid-High toggle — come from users.teacher_level (bot/shared/utils/teacher-level.js:
- * the single source; renamed from training_bands, bd-60095): Primary = holds PRIMARY, levels 1-4; Mid/High =
+ * the single source; renamed from training_bands): Primary = holds PRIMARY, levels 1-4; Mid/High =
  * holds MIDDLE or HIGH, levels 3-4 (her Mid/High tab shows only Skilled Practitioner and Teacher Leader). A
  * teacher in both bands counts in both tabs, as hers does; one with no band is in neither. `all` (every
  * teacher, band or none) is the denominator the prod sanity check uses.

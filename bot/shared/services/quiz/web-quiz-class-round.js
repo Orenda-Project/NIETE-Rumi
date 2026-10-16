@@ -362,12 +362,19 @@ async function claimFor(round, studentId, ex, runId = null) {
   return { mode: t.mode };
 }
 
+/** A paused round's positions for its card (the paused screen's numbers: done ticks of every position), or {}. */
+function pausedOf(draw) {
+  const st = draw.started_at && !draw.finished_at && draw.state;
+  if (!st || !st.paused || !Array.isArray(st.order)) return {};
+  return { paused: { done: st.order.filter((p) => p.s === 'done').length, total: st.order.length } };
+}
+
 /** The card on the teacher's class tab: '' unless the switch is on and the teacher's class has an open draw. */
 async function cardFor(teacherId, { lang, token } = {}) {
   try {
     if (!(await Flags.roundOn())) return '';
     const draw = await openDrawFor(teacherId);
-    if (draw) return Page.renderCard({ lang, token, started: !!draw.started_at });
+    if (draw) return Page.renderCard({ lang, token, started: !!draw.started_at, ...pausedOf(draw) });
     // drawn, the window not open yet: the card says what it is and offers "Not this term" only (no Start)
     const early = await declinableDrawFor(teacherId);
     return early ? Page.renderCard({ lang, token, early: true }) : '';
