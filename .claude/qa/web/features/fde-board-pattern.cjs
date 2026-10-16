@@ -41,17 +41,22 @@ const unseed = (ctx, ids) => ctx.sql('delete from assessment_requests where id i
 
 async function bodyText(page) { return page.evaluate(() => document.body.innerText); }
 
-// One fresh ready paper in the teacher's notices list, so the "Paper ready" banner shows without a model call. Only
-// the list is answered here; the seen/opened reports are swallowed so nothing is written for a paper that never existed.
+// One fresh ready paper in the teacher's notices list, so the "Paper ready" banner shows without a model call. The list
+// is empty until `arm()` is called: the banner runs about 10 s, so it is armed on Check and Check is reloaded (the app
+// asks for the list when a screen attaches). The seen/opened reports are swallowed, so nothing is written.
 async function readyPaperNotice(page) {
-  const now = Date.now();
-  const item = { id: 'paper:' + crypto.randomUUID(), kind: 'paper', state: 'ready', title: 'Maths', grade: 5, subject: 'maths',
-    questions: 35, chapterNumber: null, startedAt: new Date(now - 180000).toISOString(), readyAt: new Date(now - 5000).toISOString(),
-    seenAt: null, openedAt: null, homeUntil: new Date(now + 86400000).toISOString(), paperId: crypto.randomUUID() };
+  let armed = false;
+  const item = () => {
+    const now = Date.now();
+    return { id: 'paper:' + crypto.randomUUID(), kind: 'paper', state: 'ready', title: 'Maths', grade: 5, subject: 'maths',
+      questions: 35, chapterNumber: null, startedAt: new Date(now - 180000).toISOString(), readyAt: new Date(now - 3000).toISOString(),
+      seenAt: null, openedAt: null, homeUntil: new Date(now + 86400000).toISOString(), paperId: crypto.randomUUID() };
+  };
   await page.route('**/me/notices', (r) => (r.request().method() === 'GET'
-    ? r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, items: [item] }) })
+    ? r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, items: armed ? [item()] : [] }) })
     : r.fallback()));
   await page.route('**/me/notices/*/*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":true}' }));
+  return { arm: () => { armed = true; } };
 }
 
 // From the FDE door's Class step to Check and make. The picker shows every grade with only Grade 5 on offer; a
@@ -131,13 +136,16 @@ const scenarios = [
       for (const vp of [{ width: 360, height: 740 }, { width: 390, height: 844 }]) {
         await page.setViewportSize(vp);
         await page.unrouteAll({ behavior: 'ignoreErrors' });
-        await readyPaperNotice(page);
+        const notice = await readyPaperNotice(page);
         await asRole(page, ctx, 'teacher', 'teacherV2');
         await visit(page, ctx, HUB, { heading: /^Assessment$/ });
         await page.getByTestId('fde-door').click();
         await doorToCheck(page, 'Science');
         await page.getByTestId('step-next').waitFor({ state: 'visible', timeout: 15000 });
-        // The banner runs for about 10 s; the check happens inside that window.
+        notice.arm();
+        await page.reload();
+        await page.getByTestId('step-next').waitFor({ state: 'visible', timeout: 15000 });
+        // The banner runs for about 10 s from here; the check happens inside that window.
         await page.getByTestId('ready-banner').waitFor({ state: 'visible', timeout: 15000 });
         const m = await makeVsBanner(page);
         const at = vp.width + 'x' + vp.height;
@@ -150,6 +158,7 @@ const scenarios = [
       return seen;
     } finally {
       await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await patternSwitch(ctx, false);
     }
   } },
 
