@@ -25,7 +25,7 @@ jest.mock('../../../shared/services/quiz/web-quiz-class-link-flags', () => {
       return ['web_quiz_class_link', 'web_quiz_challenge_v2', 'web_quiz_challenge'].every((k) => on(data || [], k));
     }),
   };
-}, { virtual: true });
+});
 
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
