@@ -288,3 +288,68 @@ describe('D. a remainder key is never rewritten to the quotient', () => {
     expect([q.scheme.checked, q.answer]).toEqual([null, answer]);
   });
 });
+
+// ── E. Rounding "to n decimal places" ──────────────────────────────────────
+
+describe('E. maths rounding to n decimal places', () => {
+  it('a wrong key is dropped; a right key is kept', () => {
+    expect(mcqPropertyVerdict({ question: 'Round 3.456 to 2 decimal places.', options: ['a) 3.45', 'b) 3.46', 'c) 3.5', 'd) 3.4'], answer: 'a) 3.45' })).toEqual({ ok: false, passing: ['b'] });
+    expect(mcqPropertyVerdict({ question: 'What is 12.749 rounded to one decimal place?', options: ['a) 12.7', 'b) 12.8', 'c) 12.75', 'd) 13'], answer: 'a) 12.7' })).toEqual({ ok: true });
+    expect(mcqPropertyVerdict({ question: 'Write 5.6789 correct to three decimal places.', options: ['a) 5.678', 'b) 5.679', 'c) 5.68', 'd) 5.7'], answer: 'b) 5.679' })).toEqual({ ok: true });
+    expect(laidMaths({ question: 'Round 3.456 to 2 decimal places.', options: ['a) 3.45', 'b) 3.46', 'c) 3.5', 'd) 3.4'], answer: 'a) 3.45' }).gone).toBe(true);
+  });
+});
+
+// ── F. The Q5 rhyming-words poem ───────────────────────────────────────────
+
+// Round-3 local chapter papers (Units 3–4, Units 6–7), as written.
+const Q5_CUE_TITLE = {
+  slot: 'english.C.Q5', main_question: 'Read the poem lines and write the word that rhymes with each cue word',
+  question: 'Poem title not in the given pages. Cue words: sky, night, day, tree',
+  passage: 'I look up at the sky so high,\nThe stars are bright at night.\nThe clouds go drifting slowly by,\nThe moon is round and white.',
+  marks: 4, answer: 'sky – high; night – white',
+};
+const Q5_EMPTY = {
+  slot: 'english.C.Q5', main_question: 'Read the poem lines and find the rhyming word for each of the cue words given',
+  question: 'Cue words: night, wet, play, sing. Find the rhyming word for each from the poem lines.',
+  passage: '', answer: '', marks: 4,
+};
+const Q5_BOOK = {
+  slot: 'english.C.Q5', main_question: 'Read the poem lines. Write two pairs of rhyming words',
+  question: 'Colours',
+  passage: 'My skin is kind of sort of brownish pinkish yellowish white.\nMy eyes are greyish blueish green,\nBut I\'m told they look orange at night.\nMy hair is reddish blond',
+  marks: 4, answer: 'white – night; wet – yet',
+};
+
+const { rhymingPoemVerdict } = require('../../bot/shared/services/assessment/english-check');
+
+function laidQ5(item) {
+  const out = applyLayout({ unseen: { subjective: { 'Rhyming Words': [item] } } }, P.english, FDE, { now: NOW });
+  const placed = Object.values(out.examJson.unseen.subjective || {}).flat().some((q) => q && q.question === item.question);
+  return { placed, short: out.shortfall.find((s) => s.slot === 'english.C.Q5') };
+}
+
+describe('F. english Q5: only a printed poem is placed', () => {
+  it('a «Cue words» / «not in the given pages» title → not placed, slot short', () => {
+    expect(rhymingPoemVerdict(Q5_CUE_TITLE)).toEqual({ ok: false, reason: 'title' });
+    expect(laidQ5(Q5_CUE_TITLE)).toEqual({ placed: false, short: { slot: 'english.C.Q5', missing: 1 } });
+    expect(rhymingPoemVerdict({ ...Q5_BOOK, question: 'Colours (not in the given pages)' }).ok).toBe(false);
+  });
+
+  it('an empty passage → not placed, slot short', () => {
+    expect(rhymingPoemVerdict(Q5_EMPTY)).toEqual({ ok: false, reason: 'passage' });
+    expect(laidQ5(Q5_EMPTY)).toEqual({ placed: false, short: { slot: 'english.C.Q5', missing: 1 } });
+  });
+
+  it('prose (no line breaks) → not placed', () => {
+    const prose = { ...Q5_BOOK, question: 'Our Clean School', passage: 'Pick up the paper and put it in the bin. Bottles and cans can be used again. Every child can help to keep the school clean.' };
+    expect(rhymingPoemVerdict(prose)).toEqual({ ok: false, reason: 'prose' });
+    expect(laidQ5(prose).placed).toBe(false);
+  });
+
+  it('the book poem with its lines → placed', () => {
+    expect(rhymingPoemVerdict(Q5_BOOK)).toEqual({ ok: true });
+    expect(laidQ5(Q5_BOOK)).toEqual({ placed: true, short: undefined });
+    expect(rhymingPoemVerdict({ ...Q5_BOOK, passage: Q5_BOOK.passage.replace(/\n/g, '\r\n') })).toEqual({ ok: true });
+  });
+});

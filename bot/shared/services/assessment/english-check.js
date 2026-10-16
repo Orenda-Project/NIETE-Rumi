@@ -1,6 +1,7 @@
 'use strict';
 /**
- * Checking the one English key code can check for certain: an anagram MCQ.
+ * Checking what code can check for certain in an English paper: an anagram MCQ's
+ * key, and that a rhyming-words item is set on lines of a poem.
  *
  * "Which word can be made by rearranging the letters of 'tasr'?" with tars, rest,
  * rats and sort as options has two right answers and a wrong key. Whether an option
@@ -66,4 +67,23 @@ function anagramVerdict(item) {
   }
 }
 
-module.exports = { anagramVerdict };
+// Words in a title that say the model found no poem and wrote its own cue list instead.
+const NO_POEM_TITLE = /cue\s+words?|not\s+in\s+the\s+given\s+pages/i;
+
+/**
+ * rhymingPoemVerdict(item) → { ok: true } | { ok: false, reason: 'passage' | 'title' | 'prose' }
+ *
+ * A Rhyming Words item is set on lines of a poem printed in the book. It is not
+ * placed when its passage is empty, when its title says there is no poem («Cue words»,
+ * «not in the given pages»), or when the passage is prose (no line breaks).
+ */
+function rhymingPoemVerdict(item) {
+  if (!isObject(item)) return { ok: false, reason: 'passage' };
+  const passage = typeof item.passage === 'string' ? item.passage.trim() : '';
+  if (!passage) return { ok: false, reason: 'passage' };
+  if (NO_POEM_TITLE.test(String(item.question || ''))) return { ok: false, reason: 'title' };
+  if (!/\r?\n/.test(passage)) return { ok: false, reason: 'prose' };
+  return { ok: true };
+}
+
+module.exports = { anagramVerdict, rhymingPoemVerdict };
