@@ -59,6 +59,11 @@
  *                                           value = settled, n = checked); n = the week's scored record readings.
  *                                           The settle runs only with the rung switch on: a week with it off has
  *                                           no daily rows (value 0)
+ *   recognised_without_typing / <first|le7|gt7>  children with a scored check run, by days from their previous run
+ *                                           (any mode, 35-day look-back) to their latest: value = latest run recognised
+ *                                           without typing; n = the bucket's children (web-quiz-strip-lines.js)
+ *   kept_audio_all                          scored check / practice readings in 90 days naming a kept object; n = those
+ *                                           with a recording (meta.audio_key, audio_kept, audio_purged_on)
  * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, students) skips its lines, logged.
  *
  * The reply cap counts in Redis, `wq:reply_cap:<PKT day>:<hash>` = the day's replies for one phone, 24-h TTL from
@@ -517,6 +522,8 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   // ── identity: the reply cap and the teacher-accepted share (each only when its input exists) ──
   if (!(await replyCapLines({ week, start, now, put }))) skipped.push('reply_cap');
   if (!(await acceptedShareLines({ put }))) skipped.push('teacher_accepted_share');
+  // ── recognised without typing, kept readings under keep-all (web-quiz-strip-lines.js) ──
+  await require('./web-quiz-strip-lines').moreLines({ rows, start, end, now, put, skipped, allRows });
 
   await writeLines(lines, now);
   if (skipped.length) logToFile('Challenge weekly numbers: lines skipped (table not there yet or unreadable)', { week, skipped });
