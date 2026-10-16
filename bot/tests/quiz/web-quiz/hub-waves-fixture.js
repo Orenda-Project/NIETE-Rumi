@@ -69,9 +69,10 @@ const passage = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: '
 // off: switches present but set to 'false'.
 // sibGone: the second child's row is inactive; otherGrade: the last quiz's video is of another grade than the child;
 // manyRuns: 520 old runs ahead of the child's own (a child at the runs read's 500 cap).
-function tables({ fast, off = [], loose = false, sibGone = false, otherGrade = false, manyRuns = false, every = false }) {
+// json: the switches' rows hold JSON true / false (as a jsonb column returns them) instead of the strings 'true' / 'false'.
+function tables({ fast, off = [], loose = false, sibGone = false, otherGrade = false, manyRuns = false, every = false, json = false }) {
   const t = {
-    app_settings: [...(every ? CEILING_KEYS : ON_KEYS).map((key) => ({ key, value: off.includes(key) ? 'false' : 'true' })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : [])],
+    app_settings: [...(every ? CEILING_KEYS : ON_KEYS).map((key) => ({ key, value: json ? !off.includes(key) : (off.includes(key) ? 'false' : 'true') })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : [])],
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, merged_into: null, status: null, created_at: ago(500) },
       { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, merged_into: null, status: null, created_at: ago(400) },
@@ -136,11 +137,13 @@ function tables({ fast, off = [], loose = false, sibGone = false, otherGrade = f
 
 // ── the boundary: every read takes READ_MS and gets its wave ─────────────────────────────────────────
 // The run's state, shared with the test files: `reads` (this request's reads), `S.doneMax`, `down` (app_settings unreadable:
-// the switches' own failure path), `S.lastReads`, and the hub and token modules of the last boot.
-const S = { reads: [], doneMax: 0, down: false, lastReads: [], Hub: null, T: null };
+// the switches' own failure path), `S.lastReads`, the hub and token modules of the last boot, and `S.db` (the fake's tables:
+// a test may change a row between requests).
+const S = { reads: [], doneMax: 0, down: false, lastReads: [], Hub: null, T: null, db: null };
 const askedKeys = new Set(); // every app_settings key the code asked for
 function seed(opts) {
-  const fake = makeFake(tables(opts));
+  S.db = tables(opts);
+  const fake = makeFake(S.db);
   const from = (t) => {
     const b = fake.from(t);
     const then = b.then;
