@@ -1211,7 +1211,8 @@
 
   function liveResult(w) {
     // the Trail's line follows the words heard (heardOk): the live cursor can run to the end on words never heard
-    if (TR) { qa.attempted = live.v.attempted; TR.readEnd({ score: { attempted: live.v.attempted } }, null, live.v.heardOk); return; }
+    // the first card waits for the server's result before it draws a button the result could change (liveSettle)
+    if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold({ score: { attempted: live.v.attempted } }, null, live.v.heardOk); return; }
     var d = S.data;
     var good = w > 0;
     show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true)
@@ -1310,12 +1311,19 @@
 
   // The checked count (the number of record) arrived: "nothing heard" or a first-line stop replaces the live result;
   // a count 3 or more away replaces the number; the growth line always uses the checked count.
+  // The Trail's held first card settles once: from the live count, while that card is still open.
+  function liveSettle() {
+    if (!(live && live.held)) return;
+    live.held = false;
+    if (S.screen === 'read-result') TR.readEnd({ score: { attempted: live.v.attempted } }, null, live.v.heardOk);
+  }
   function liveChecked(r) {
-    if (!r || r.pending || r.later) return;
+    if (!r || r.pending || r.later) { liveSettle(); return; }
     // the Trail: a settled "not a reading" (not heard, or no word) redraws its card as the zero line, only while
     // that card is still open; a child who has gone on is never pulled back to it
     if (TR) {
-      if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) readResult(r);
+      if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) { if (live) live.held = false; readResult(r); return; }
+      liveSettle();
       return;
     }
     if ((r.failed && r.reason === 'unheard') || (r.score && r.score.stopped)) { readResult(r); return; }
@@ -1347,14 +1355,14 @@
       settle();
       if (r && r.pending) { pollQuiet(0); return; }
       liveChecked(r);
-    }).catch(function (e) { settle(); ev('ch_live', { ok: false, err: 'check_' + ((e && e.status) || 0) }); });
+    }).catch(function (e) { settle(); ev('ch_live', { ok: false, err: 'check_' + ((e && e.status) || 0) }); liveSettle(); });
   }
   function pollQuiet(n) {
-    if (n >= POLL_MAX) return;
+    if (n >= POLL_MAX) { liveSettle(); return; }
     setTimeout(function () {
       api('ch/result/' + encodeURIComponent(S.data.ct)).then(function (r) {
         if (r && r.pending) pollQuiet(n + 1); else liveChecked(r);
-      }).catch(function (e) { if (!(e && e.status >= 400 && e.status < 500)) pollQuiet(n + 1); });
+      }).catch(function (e) { if (!(e && e.status >= 400 && e.status < 500)) pollQuiet(n + 1); else liveSettle(); });
     }, POLL_MS);
   }
 
