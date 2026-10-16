@@ -348,7 +348,7 @@ const NO_ACCOUNT_HASH = '$2a$10$M8dFrLRU4srUDoTdVvEq4OIPA926Xo6Cwpfg1QYe.OKJt19H
 
 /**
  * bd-s6qbts.5 — sign in by account name. Returns the users row when ALL of these hold, else null:
- *   - the name is well formed (lower-cased + trimmed, ^[a-z][a-z0-9-]{2,39}$);
+ *   - the name is well formed (lower-cased + trimmed, ^[a-z][a-z0-9_-]{2,39}$);
  *   - an activated account holds users.phone_number = analytics:<name> — a value no phone can be;
  *   - that account's id is on app_settings.portal_analytics_only. Fail closed: a list that is absent, malformed
  *     (a broadcast true, "teachers", an object, bad JSON) or unreadable admits nobody;
