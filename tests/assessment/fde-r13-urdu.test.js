@@ -63,6 +63,7 @@ const HELD = {
     'لفظ «غلاظت» کا کیا مطلب ہے؟', 'لفظ «بے نوا» کا کیا مطلب ہے؟', 'ندی کا پانی صاف ہو گا تو ہم کس چیز سے بچیں گے؟'],
 };
 const BIRTH_NAME = 'محترمہ فاطمہ جناح کا پیدائشی نام کیا تھا؟';
+const GROUP_NAME = 'ایک ہی موضوع سے تعلق رکھنے والے الفاظ کے گروہ کو کیا کہتے ہیں؟';
 
 describe('one question once: the same stem and key is a twin whatever its distractors', () => {
   test.each([false, true])('full_2 prints «%s» reasked: the birth-name MCQ once', (reasked) => {
@@ -86,6 +87,9 @@ describe('Section A never gives Section C away', () => {
     // Nothing else is held: every other first-reply item stays (full_2's repeated MCQ once).
     const kept = q1Stems(papers[name]).filter((s) => !HELD[name].includes(s));
     if (name === 'full_2') kept.splice(kept.lastIndexOf(BIRTH_NAME), 1);
+    // A stem that prints another Q1 item's key holds that item: Q1 ۱۹ asks the name for a word group three earlier stems print
+    // («… یہ الفاظ کس کے متلازم ہیں؟» → «متلازم الفاظ»).
+    if (name === 'chapters_2') kept.splice(kept.indexOf(GROUP_NAME), 1);
     expect(after.slice().sort()).toEqual(kept.sort());
   });
 
@@ -151,10 +155,14 @@ describe('through generatePatternExam: the give-aways send Section A back, told 
     }
     return tree;
   };
-  // Section A first writes full_2's Q1 as recorded; asked again, it writes plain items in their place.
+  // Section A first writes full_2's Q1 as recorded; asked again, it writes plain items in their place,
+  // each keyed on its own word (one stem keyed the same 24 times is one question asked 24 times),
+  // and never printing a kept item's key (full_2 Q1 ۱۵ is keyed «اسم آلہ»).
+  const TOOLS = ['قینچی', 'چھری', 'ہتھوڑا', 'آری', 'کدال', 'بیلچہ', 'سوئی', 'قلم', 'برش', 'چمچ', 'ترازو', 'رندا',
+    'پیچ کس', 'کھرپا', 'درانتی', 'کلہاڑی', 'پلاس', 'چھلنی', 'بیلن', 'توا', 'ڈوئی', 'کنگھی', 'استری', 'چابی'];
   const FRESH = Array.from({ length: 24 }, (_, i) => ({
-    slot: 'urdu.A.Q1', question: `سوال نمبر ${['ایک', 'دو', 'تین', 'چار', 'پانچ', 'چھ', 'سات', 'آٹھ', 'نو', 'دس', 'گیارہ', 'بارہ', 'تیرہ', 'چودہ', 'پندرہ', 'سولہ', 'سترہ', 'اٹھارہ', 'انیس', 'بیس', 'اکیس', 'بائیس', 'تئیس', 'چوبیس'][i]} میں کون سا لفظ اسم آلہ ہے؟`,
-    options: ['الف) قینچی', 'ب) کرسی', 'ج) دریا', 'د) بادل'], answer: 'الف) قینچی',
+    slot: 'urdu.A.Q1', question: `سوال نمبر ${['ایک', 'دو', 'تین', 'چار', 'پانچ', 'چھ', 'سات', 'آٹھ', 'نو', 'دس', 'گیارہ', 'بارہ', 'تیرہ', 'چودہ', 'پندرہ', 'سولہ', 'سترہ', 'اٹھارہ', 'انیس', 'بیس', 'اکیس', 'بائیس', 'تئیس', 'چوبیس'][i]} میں کس چیز سے کام کیا جاتا ہے؟`,
+    options: [`الف) ${TOOLS[i]}`, 'ب) کرسی', 'ج) دریا', 'د) بادل'], answer: `الف) ${TOOLS[i]}`,
   }));
   function serve() {
     const asked = [];
