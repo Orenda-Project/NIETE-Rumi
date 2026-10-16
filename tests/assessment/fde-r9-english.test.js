@@ -75,7 +75,7 @@ describe('round-5 english pattern prompt rules', () => {
   test('english Q5: an injected poem is in the Section C prompt only', () => {
     const poem = { unit: 2, pages: '20', title: 'Colours', content: '=== Page 20 ===\nMy hair is reddish blondish brown,' };
     const c = prompt('english', 'C', PAGES, { poem });
-    expect(c).toContain('Q5 uses this poem from Unit 2 (book p.20); print its lines exactly as given; title «Colours (Unit 2)».');
+    expect(c).toContain('Q5 uses this poem from Unit 2 (book p.20); print only its verse lines, exactly as given, never a heading, instruction or activity line; title «Colours (Unit 2)».');
     expect(c).toContain('My hair is reddish blondish brown,');
     expect(c).not.toContain(Q5_POEM);
     for (const id of ['A', 'B']) expect(prompt('english', id, PAGES, { poem })).not.toContain('reddish blondish');
@@ -98,7 +98,7 @@ describe('english Q5 poem through generatePatternExam', () => {
         loads.push(pageRanges);
         if (pageRanges === '20') {
           if (poemFails) throw new Error('page store down');
-          return { content: '=== Page 20 ===\nColours by Shel Silverstein\nMy hair is reddish blondish brown,\nObject: Illustration of a notepad icon with text bubble: "What messages do you think the poet is telling?"\nBut it\'s silver when it\'s wet.', pageReference: '20' };
+          return { content: '=== Page 20 ===\nColours by Shel Silverstein\nMy hair is reddish blondish brown,\nObject: Illustration of a notepad icon with text bubble: "What messages do you think the poet is telling?"\nBut it\'s silver when it\'s wet.\nDiving Deeper\nActivity 1: Article Expedition\nFill in the blanks.', pageReference: '20' };
         }
         return { content: pagesText(31, 56), pageReference: pageRanges };
       },
@@ -132,6 +132,16 @@ describe('english Q5 poem through generatePatternExam', () => {
     expect(poemBlock).toContain('But it\'s silver when it\'s wet.');
     expect(poemBlock).not.toContain('Object:');
     expect(poemBlock).not.toContain('notepad icon');
+  });
+
+  // After the poem the page goes on to its activities ("Diving Deeper"); they are not the poem.
+  test('injected poem: the page stops at its activities', async () => {
+    const G = load();
+    await G.generatePatternExam({ grade: 5, subject: 'english', pattern: 'fde_g5_2027', scope: PAGES, pageRanges: '31-56' }).catch(() => {});
+    const poemBlock = sectionC().split('**Poem for Q5')[1].split('```')[1];
+    expect(poemBlock).toContain('But it\'s silver when it\'s wet.');
+    expect(poemBlock).not.toContain('Diving Deeper');
+    expect(poemBlock).not.toContain('Article Expedition');
   });
 
   test('page text cannot be loaded → no injection, today\'s Q5 rule', async () => {
