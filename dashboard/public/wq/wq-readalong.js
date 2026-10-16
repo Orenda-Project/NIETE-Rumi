@@ -377,9 +377,10 @@
     api.toggle = function () { if (api.state === 'playing') pause(); else play(); };
     api.replay = function () { finished = true; play(); };
     api.seekToWord = seekToWord;
-    // one word in the same voice (a missed word, a tapped word): play from its start, stop at its end
+    // one word in the same voice (a missed word, a tapped word): play from its start, stop at its end; never on a
+    // "low" file (its word times are not trusted: a slice could say the neighbour or half a word)
     api.playWord = function (i) {
-      if (dead || !(i >= 0 && i < words.length)) return;
+      if (dead || quality === 'low' || !(i >= 0 && i < words.length)) return;
       playFrom(words[i].s, i);
       stopAt = words[i].e;
     };
@@ -413,7 +414,7 @@
   function sayWord(data, i) {
     var d;
     try { d = parse(data); } catch (e) { return null; }
-    if (!d.audio || !(i >= 0 && i < d.words.length)) return null;
+    if (!d.audio || (data && data.quality === 'low') || !(i >= 0 && i < d.words.length)) return null;
     var w = d.words[i];
     var a = new Audio();
     var raf = window.requestAnimationFrame ? function (f) { return window.requestAnimationFrame(f); } : function (f) { return setTimeout(f, 16); };
