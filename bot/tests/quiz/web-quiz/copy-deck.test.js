@@ -22,9 +22,9 @@ const entries = () => Object.entries(load()).filter(([k]) => k !== '_meta');
 const live = () => entries().filter(([, v]) => !v.retired && !v.held);
 
 describe('copy deck: shape', () => {
-  test('the deck is v2.3 and every key has both languages, a surface, a cap and a switch', () => {
+  test('the deck is v2.4 and every key has both languages, a surface, a cap and a switch', () => {
     const deck = load();
-    expect(deck._meta.version).toBe('2.3');
+    expect(deck._meta.version).toBe('2.4');
     for (const [k, v] of entries()) {
       expect([k, typeof v.en, typeof v.ur, typeof v.surface, typeof v.switch]).toEqual([k, 'string', 'string', 'string', 'string']);
       expect([k, Number.isInteger(v.cap_cp)]).toEqual([k, true]);
@@ -212,5 +212,46 @@ describe('copy deck v2.3: the new keys and the read FIXes', () => {
     expect(d()['jg.bind.try_again'].ur).toContain('جگہ محفوظ نہیں');
     expect(d()['jg.bind.try_again'].en).toMatch(/place/);
     expect([d()['jg.who.someone_else'].en, d()['jg.who.someone_else'].ur]).toEqual(["My name isn't here", 'میرا نام یہاں نہیں']);
+  });
+});
+
+describe('copy deck v2.4: the STOP line names the number; the paused round card says how to carry on', () => {
+  const d = () => load();
+
+  test('the bind sheet STOP line names what STOP removes (the phone number), as the Urdu does, and nothing about readings', () => {
+    const s = d()['jg.bind.notice_stop_phone_only'];
+    expect(s.en).toBe('A grown-up can remove this phone number any time by sending STOP on WhatsApp.');
+    expect(s.en).not.toMatch(/undo this/);
+    expect(s.ur).toContain('یہ نمبر ہٹا');
+    for (const w of [/eading/, /ecording/, /delet/i]) expect(s.en).not.toMatch(w);
+    expect(cp(s.en)).toBeLessThanOrEqual(s.cap_cp);
+  });
+
+  test('the paused card: which buttons carry the round on (their own deck words), the list is kept, children see nothing', () => {
+    const how = d()['jg.round.t_paused_how'];
+    const kids = d()['jg.round.t_paused_kids'];
+    for (const k of [how, kids]) expect([k.surface, k.switch]).toEqual(['page.teacher', 'web_quiz_class_round']);
+    expect(how.en).toContain(`"${d()['jg.round.start'].en}"`);
+    expect(how.en).toContain(`"${d()['jg.round.t_resume'].en}"`);
+    expect(how.ur).toContain(`«${d()['jg.round.start'].ur}»`);
+    expect(how.ur).toContain(`«${d()['jg.round.t_resume'].ur}»`);
+    expect(how.en).toMatch(/list stays/);
+    expect(kids.en).toBe('Until then, the children see nothing about the round.');
+    for (const k of [how, kids]) {
+      expect(placeholders(k.en).concat(placeholders(k.ur))).toEqual([]);
+      expect([cp(k.en) <= k.cap_cp, cp(k.ur) <= k.cap_cp]).toEqual([true, true]);
+      expect(k.ur.endsWith('۔')).toBe(true);
+    }
+    expect(how.ur.endsWith(`رہے${NBSP}گی۔`)).toBe(true);
+    expect(kids.ur.endsWith(`نہیں${NBSP}آتا۔`)).toBe(true);
+  });
+
+  test('the new paused-card lines stay held until the round page lifts them', () => {
+    for (const k of ['jg.round.t_paused_how', 'jg.round.t_paused_kids']) expect([k, typeof d()[k].held]).toEqual([k, 'boolean']);
+  });
+
+  test('the deck says which file reads it at runtime', () => {
+    expect(d()._meta.what).not.toMatch(/nothing reads this file at runtime/);
+    expect(d()._meta.what).toMatch(/class-round\.page\.js/);
   });
 });

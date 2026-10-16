@@ -1,13 +1,13 @@
 {
  "_meta": {
-  "version": "2.3",
-  "what": "The Jugnu copy deck: every child, teacher and WhatsApp string, EN and UR. Surfaces lift strings from here byte for byte; nothing reads this file at runtime.",
+  "version": "2.4",
+  "what": "The Jugnu copy deck: every child, teacher and WhatsApp string, EN and UR. Surfaces lift strings from here byte for byte; one file reads it at runtime: bot/shared/templates/class-round.page.js (jg.round.t_paused).",
   "placeholders": "{name} {name2} {title} {code} {n} {total} {done} {absent} {thing} {enrolled}; Urdu wraps {name}/{name2}/{title}/{thing} in U+2068..U+2069 and /quiz, STOP in U+2066..U+2069; {n} takes Urdu digits, no isolate",
   "cp_rule": "code points of the worst case: name 20, title 24, code 11, thing 32, numbers 3, enrolled 7; isolates counted",
   "held_rule": "a key with `held` is never rendered or sent",
   "retired_rule": "a key with `retired: true` is rendered or sent by no surface; it is kept, never deleted, so old lifts stay traceable",
   "nbsp_rule": "U+00A0 inside a unit that must not break («واٹس ایپ», «ہوم اسکرین», a question's last pair); lifts copy it byte for byte",
-  "keys": 217
+  "keys": 219
  },
  "jg.lantern.trail_one": {
   "en": "A game is waiting for you on the Trail.",
@@ -1860,13 +1860,13 @@
   }
  },
  "jg.bind.notice_stop_phone_only": {
-  "en": "A grown-up can undo this any time by sending STOP on WhatsApp.",
+  "en": "A grown-up can remove this phone number any time by sending STOP on WhatsApp.",
   "ur": "گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔",
   "surface": "page.bind",
   "cap_cp": 140,
   "switch": "web_quiz_phone_bind",
   "cp": {
-   "en": 62,
+   "en": 77,
    "ur": 71
   }
  },
@@ -2411,5 +2411,29 @@
    "en": 43,
    "ur": 57
   }
+ },
+ "jg.round.t_paused_how": {
+  "en": "To carry on, tap \"Start the round\", then \"Continue\". The list stays as it is.",
+  "ur": "راؤنڈ آگے بڑھانے کے لیے «راؤنڈ شروع کریں» اور پھر «جاری رکھیں» دبائیں۔ فہرست جوں کی توں رہے گی۔",
+  "surface": "page.teacher",
+  "cap_cp": 120,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 77,
+   "ur": 95
+  },
+  "held": true
+ },
+ "jg.round.t_paused_kids": {
+  "en": "Until then, the children see nothing about the round.",
+  "ur": "تب تک بچوں کو راؤنڈ کے بارے میں کچھ نظر نہیں آتا۔",
+  "surface": "page.teacher",
+  "cap_cp": 80,
+  "switch": "web_quiz_class_round",
+  "cp": {
+   "en": 53,
+   "ur": 49
+  },
+  "held": true
  }
 }
