@@ -363,7 +363,8 @@ async function userFacts(uid) {
 function ukeyOf(phone) {
   if (!phone) return null;
   try {
-    const k = require('../quiz/child-phone-bindings.repo').ukeyOf(phone);
+    const BindRepo = require('../quiz/child-phone-bindings.repo');
+    const k = BindRepo.ukeyOf(BindRepo.normalisePhone(phone));   // the chat door's key for the same phone, either form
     return typeof k === 'string' && UKEY_RX.test(k) ? k : null;
   } catch (_) {
     return null;
@@ -416,6 +417,7 @@ async function handlePostDoor(req, res) {
 }
 
 module.exports = {
+  ukeyOf,
   renderFamilyDoor, buildFamilyDoor, buildPlainPage,
   handleGetFamily, handlePostCode, handleTeacherLink, handlePostDoor,
   normaliseCode, readFamilyToken, readMakerToken, pageLang, botNumber,
