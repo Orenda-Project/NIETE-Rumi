@@ -189,14 +189,15 @@ describe('a check that fails never costs the coach the moments', () => {
 describe('the default path (completeJson, the LLM client mocked)', () => {
   const choice = (content) => ({ choices: [{ finish_reason: 'stop', message: { content } }], usage: { completion_tokens: 800 } });
 
-  test('the label check runs as coaching.completeJson, the moments call\'s own job', async () => {
+  // bd-08qvls.1: both calls are their own job now, observe2.moments (tests/llm/observe2-moments-job.test.js).
+  test('the label check runs as observe2.moments, the moments call\'s own job', async () => {
     const id = await linked();
     mockCreate
       .mockResolvedValueOnce(choice(JSON.stringify(MODEL_OUT)))
       .mockResolvedValueOnce(choice(JSON.stringify(VERDICTS)));
     await Moments.runForSession('sess-1', '923000000001');
     expect(mockCreate).toHaveBeenCalledTimes(2);
-    expect(mockCreate.mock.calls[1][0]).toMatchObject({ job: 'coaching.completeJson', max_completion_tokens: 16000 });
+    expect(mockCreate.mock.calls[1][0]).toMatchObject({ job: 'observe2.moments', max_completion_tokens: 16000 });
     expect(mockCreate.mock.calls[1][0].model).toBe(mockCreate.mock.calls[0][0].model);
     expect(formRow(id).rumi_moments.verified.labels).toMatchObject({ status: 'ok', relabelled: 1 });
   });
