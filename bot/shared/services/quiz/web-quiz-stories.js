@@ -191,7 +191,8 @@ const BOOK_COLS = 'id, title, grade, lang, pages, minutes, cover_file, author, s
 
 async function readyBook(id) {
   if (!UUID_RX.test(String(id || ''))) return null;
-  const { data } = await supabase.from('story_books').select(BOOK_COLS).eq('id', id).eq('status', 'ready').maybeSingle();
+  // '*': a column added later (questions_sprite) never empties the read on a database that lacks it.
+  const { data } = await supabase.from('story_books').select('*').eq('id', id).eq('status', 'ready').maybeSingle();
   return data || null;
 }
 
@@ -252,6 +253,18 @@ function linesOf(lines) {
   const ok = (Array.isArray(lines) ? lines : []).filter((l) => l && Number.isInteger(l.i0) && Number.isInteger(l.i1) && l.i1 >= l.i0 && Array.isArray(l.box) && l.box.length === 4)
     .map((l) => ({ i0: l.i0, i1: l.i1, box: l.box.map(Number) }));
   return ok.length ? { lines: ok } : {};
+}
+
+/** All of a book's spoken questions in one clip ({file, clips:{q1:{s_ms,e_ms},…}}): one request on the questions screen. */
+function spriteOf(bookId, sp) {
+  const url = sp && typeof sp === 'object' ? fileUrl(bookId, sp.file) : null;
+  if (!url || !sp.clips || typeof sp.clips !== 'object') return {};
+  const clips = {};
+  Object.keys(sp.clips).forEach((k) => {
+    const c = sp.clips[k];
+    if (/^q\d+(o\d+)?$/.test(k) && c && Number.isFinite(Number(c.s_ms)) && Number(c.e_ms) > Number(c.s_ms)) clips[k] = { s_ms: Number(c.s_ms), e_ms: Number(c.e_ms) };
+  });
+  return Object.keys(clips).length ? { questions_sprite: { url, clips } } : {};
 }
 
 /** The spoken question + options ({q, o[]} file names under the book): urls, or null until every clip exists. */
@@ -321,6 +334,7 @@ async function bookData(id) {
       };
     }),
     // page_ref: the page that answers it ("Look back" after a miss); it says where to look, not which option is right.
+    ...spriteOf(b.id, b.questions_sprite),
     questions: questions.map((q) => ({ n: q.n, kind: q.kind, q: q.q, options: (Array.isArray(q.options) ? q.options : []).map((o) => optionOf(b.id, o)),
       ...(Number.isFinite(Number(q.page_ref)) && q.page_ref != null ? { page_ref: Number(q.page_ref) } : {}), audio: qAudio(b.id, q.audio) })),
   };

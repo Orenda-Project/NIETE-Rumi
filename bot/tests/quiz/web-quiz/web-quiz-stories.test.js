@@ -228,6 +228,13 @@ describe('the book', () => {
     expect(out.pages[1].lines).toEqual([{ i0: 0, i1: 3, box: [80, 890, 400, 50] }]);
     expect(out.pages[0]).not.toHaveProperty('lines');
   });
+  test('the questions sprite: {url, clips} on /s/ when the book has one; absent otherwise', async () => {
+    seed();
+    expect(await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' })).not.toHaveProperty('questions_sprite');
+    fake.db.story_books[0].questions_sprite = { file: 'qs-abcd1234.ogg', clips: { q1: { s_ms: 0, e_ms: 2200 }, q1o1: { s_ms: 2350, e_ms: 3300 } } };
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out.questions_sprite).toEqual({ url: `/s/${F.BOOK(1)}/qs-abcd1234.ogg`, clips: { q1: { s_ms: 0, e_ms: 2200 }, q1o1: { s_ms: 2350, e_ms: 3300 } } });
+  });
   test('question audio: {q, o[]} on the /s/ route when the clips exist, null otherwise', async () => {
     seed();
     fake.db.story_questions[0].audio = { q: 'q1-ffff0001.webp'.replace('webp', 'ogg'), o: ['q1o1-ffff0002.ogg', 'q1o2-ffff0003.ogg', 'q1o3-ffff0004.ogg'] };
