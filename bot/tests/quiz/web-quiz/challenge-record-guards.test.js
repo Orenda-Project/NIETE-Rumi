@@ -263,6 +263,26 @@ describe('the child\'s own open record row of the stop is served again, not lost
     expect(db.web_quiz_challenge_runs).toHaveLength(1);
     expect(db.challenge_draws).toHaveLength(1);
     expect(starts()[1]).toMatchObject({ passage_id: passageId, reopened: true });
+    // the RE-SERVE payload is the serve payload's key set plus `reopened: true`, a boolean — no band,
+    // exposure, rung or draw internals; the keys the page does not render stay on the row and in meta.draw
+    expect(again.reopened).toBe(true);
+    expect(Object.keys(again).sort()).toEqual([...Object.keys(first), 'reopened'].sort());
+    for (const k of ['band', 'exposure_no', 'rung', 'period_id', 'passage_id', 'item_set_id', 'anchor_block', 'anchor_exposure_no', 'draw', 'eligible', 'seed', 'p']) {
+      if (k === 'draw') { expect(again.draw).toEqual({ outcome: 'served' }); continue; }
+      expect(again).not.toHaveProperty(k);
+    }
+    expect(first).not.toHaveProperty('reopened');
+  });
+
+  test('the re-served warm-up payload: the first payload\'s keys plus reopened, anchor_block kept, nothing else', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    recordIndex();
+    const first = await Ch.exercise(hub(), 'missing', D);
+    ago(first.ct, 23 * 60);
+    const again = await Ch.exercise(hub(), 'missing', D);
+    expect(again).toMatchObject({ reopened: true, anchor_block: 'A1', draw: { outcome: 'served' } });
+    expect(Object.keys(again).sort()).toEqual([...Object.keys(first), 'reopened'].sort());
+    for (const k of ['band', 'exposure_no', 'rung', 'period_id', 'item_set_id', 'anchor_exposure_no']) expect(again).not.toHaveProperty(k);
   });
 
   test('a served record row 25 h old (past the sweeper\'s served boundary): that row abandoned, record=false, record_lost reopened; a clean check, exposure 1, a new draw, no 23505', async () => {
