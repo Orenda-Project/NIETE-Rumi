@@ -290,6 +290,41 @@ function normaliseComprehension(q, slot, label, log, shortfall) {
   if (pickSpec) checkPicks(q, parts, pickSpec, slot, label, log, shortfall);
 }
 
+/*
+ * Science Q2(b): each sub-question is marked out of the slot's part marks (2.5).
+ * Points that add to something else are scaled to it in half marks (kinds and text
+ * kept). A sub-question with no points keeps none: its row prints the bare 2.5 chip.
+ * A sub-question's own marks are the part marks, whatever the model wrote.
+ */
+function normaliseSituationParts(q, slot, label, log) {
+  const each = toNumber(slot.item_parts && slot.item_parts.marks_each);
+  if (!(each > 0) || !Array.isArray(q.questions)) return;
+  q.questions.forEach((sub, k) => {
+    if (!isObject(sub)) return;
+    const where = `${label} part ${String.fromCharCode(97 + k)}`;
+    // Marks come from the pattern, never the model (a 1 / 2 / 2 split prints 2.5 each).
+    if (sub.marks !== undefined && toNumber(sub.marks) !== each) log.push(`${where}: marks ${show(sub.marks)} set to ${show(each)}`);
+    sub.marks = each;
+    if (!isObject(sub.scheme) || !Array.isArray(sub.scheme.points)) return;
+    const given = sub.scheme.points.filter((pt) => isObject(pt) && toNumber(pt.marks) > 0);
+    if (given.length) {
+      const total = given.reduce((t, pt) => t + toNumber(pt.marks), 0);
+      if (Math.abs(total - each) > SUM_TOLERANCE) {
+        const scaled = given.map((pt) => Math.max(0.5, Math.round((toNumber(pt.marks) * each / total) * 2) / 2));
+        // Half marks may not add up exactly: the largest point takes the difference.
+        const big = scaled.indexOf(Math.max(...scaled));
+        scaled[big] += each - scaled.reduce((t, m) => t + m, 0);
+        if (scaled.every((m) => m > 0)) {
+          given.forEach((pt, i) => { pt.marks = scaled[i]; });
+          log.push(`${where}: points add to ${show(total)}, scaled to ${show(each)}`);
+        }
+      }
+      sub.scheme.points = given;
+    }
+    normaliseOne(sub, each, sub.question, slot, where, log);
+  });
+}
+
 function normaliseQuestion(q, slots, where, log, shortfall) {
   if (!isObject(q)) {
     log.push(`${where}: not a question, skipped`);
@@ -315,6 +350,7 @@ function normaliseQuestion(q, slots, where, log, shortfall) {
   if (objective) return;
   if ('scheme' in q) normaliseOne(q, q.marks, q.question, slot, label, log);
   if (slot.shape === 'comprehension') normaliseComprehension(q, slot, label, log, shortfall);
+  if (slot.shape === 'situation') normaliseSituationParts(q, slot, label, log);
 }
 
 function slotIndex(layout) {
