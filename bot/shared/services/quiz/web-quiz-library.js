@@ -20,7 +20,8 @@
  * today's 8-item list (web-quiz-videos.list).
  *
  * app_settings `web_quiz_videos_v3` (off unless the JSON true; off = all of the above unchanged):
- *   - only the videos in the child's language, plus those with no language (the hub: the child's own
+ *   - only the videos in the child's language, plus those with no language, inside each subject that has any in
+ *     the child's language (a subject with none is shown as it is) (the hub: the child's own
  *     language, else the page's ?l=; a quiz code: the page's ?l=, else the code's language);
  *   - chapters and titles with their numbers compared as numbers (Order.compareVideosNatural);
  *   - each chapter's `art` (its first poster) and `tile: 'neutral'`: a broken poster falls back to the
@@ -51,11 +52,19 @@ const langOf = (l) => (l === 'en' || l === 'ur' ? l : null);
 
 const { bank, track, studentFromSt, doneQuizzes, classCodes, languages } = require('./web-quiz-bank');
 
-/** web_quiz_videos_v3: the bank as a child of `lang` sees it (a video with no language is for both). */
+/**
+ * web_quiz_videos_v3: the bank as a child of `lang` sees it. Inside a grade's subject that has videos in the child's
+ * language, the other language's videos are left out (a video with no language is for both); a subject with none in
+ * the child's language is shown as it is, so no subject disappears (e.g. Maths taught in English to an Urdu child).
+ */
 async function inLanguage(ix, lang) {
   const of = lang ? await languages() : null;
   if (!of) return ix;
-  return { ...ix, rows: ix.rows.filter((r) => !of.has(r.id) || of.get(r.id) === lang) };
+  const group = (r) => `${r.grade}|${r.subject}`;
+  const hasLang = new Set(ix.rows.filter((r) => of.get(r.id) === lang).map(group));
+  // A subject shown as it is because all its videos are in another language is listed after the others.
+  const otherOnly = new Set(ix.rows.filter((r) => !hasLang.has(group(r)) && of.has(r.id) && of.get(r.id) !== lang).map(group));
+  return { ...ix, rows: ix.rows.filter((r) => !hasLang.has(group(r)) || !of.has(r.id) || of.get(r.id) === lang), otherLast: otherOnly };
 }
 
 // ─── the views ───────────────────────────────────────────────────────────────
@@ -70,7 +79,9 @@ function subjectsView(ix, grade) {
   const grades = [...byGrade.keys()].filter((g) => Order.GRADE_ORDER.includes(g))
     .sort((a, b) => Order.gradeRank(a) - Order.gradeRank(b))
     .map((g) => ({ g, n: byGrade.get(g), art: gradeArt(g) }));
-  const subjects = [...bySubject.keys()].filter(Boolean).sort(Order.compareSubjects)
+  // web_quiz_videos_v3: a subject shown only in another language comes after the child's own; each group in order.
+  const first = (k) => (ix.otherLast && ix.otherLast.has(`${grade}|${k}`) ? 1 : 0);
+  const subjects = [...bySubject.keys()].filter(Boolean).sort((a, b) => first(a) - first(b) || Order.compareSubjects(a, b))
     .map((s) => ({ key: s, n: bySubject.get(s), art: subjectArt(s) }));
   return { grade, grades, subjects };
 }
