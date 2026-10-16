@@ -581,6 +581,47 @@ describe('read-along player: tap a word to hear its sentence again (tap: \'sente
     at(3500); expect(p.state).toBe('paused');
   });
 
+  test('one splitter: sayLine (no line, no boxes) splits as the tap does, and a silent word never ends its sentence', () => {
+    const { RA } = load();
+    const d = { ...DATA, words: [
+      { i: 0, t: 'Asad', s_ms: 200, e_ms: 600 },
+      { i: 1, t: '(softly.)', s_ms: 700, e_ms: 700, silent: true },
+      { i: 2, t: 'played.', s_ms: 700, e_ms: 1100 },
+      { i: 3, t: 'He', s_ms: 2600, e_ms: 2800 },
+      { i: 4, t: 'won.', s_ms: 2900, e_ms: 3500 },
+    ] };
+    const h = RA.sayLine(d, 0);
+    expect([h.from, h.to]).toEqual([0, 2]);
+    expect(RA.parse(d).words[1].sil).toBe(true);
+    expect(RA.parse(DATA).words[1]).not.toHaveProperty('sil');
+  });
+
+  test('a silent word last on the page is never lit (indexAt skips it)', () => {
+    const { RA } = load();
+    const ws = RA.parse({ ...DATA, words: [...DATA.words, { i: 5, t: '(end)', s_ms: 3500, e_ms: 3500, silent: true }] }).words;
+    expect(RA.indexAt(ws, 3600)).toBe(4);
+    expect(RA.indexAt(ws, 100)).toBe(-1);
+  });
+
+  test('sayWord / sayLine: a null, fractional or non-number index returns null and never throws', () => {
+    const { RA } = load();
+    [null, undefined, 1.5, '1', NaN, -1].forEach((i) => {
+      expect(RA.sayWord(DATA, i)).toBeNull();
+      expect(RA.sayLine(DATA, i)).toBeNull();
+    });
+  });
+
+  test('without the option a tap on a "low" page is exactly today\'s: it seeks to the word and plays on', () => {
+    const { RA, document, audio, at } = load({ imgWidth: 540 });
+    const el = document.createElement('div');
+    const boxes = [[100, 1200, 90, 40], [200, 1204, 90, 36], [100, 1260, 120, 40], [230, 1260, 60, 40], [300, 1262, 80, 38]];
+    const d = { ...DATA, quality: 'low', image: { url: 'p.webp', w: 1080, h: 1600 }, words: DATA.words.map((w, k) => ({ ...w, box: boxes[k] })) };
+    const p = RA.mount(el, d, {});
+    byClass(el, 'wqra-hit')[4].click();
+    expect(audio().currentTime).toBeCloseTo(2.85, 5);
+    at(3600); expect(p.state).toBe('playing');
+  });
+
   test('without the option a tap is exactly today\'s: it plays on from the word and does not stop at the sentence', () => {
     const { RA, document, audio, at } = load();
     const el = document.createElement('div');

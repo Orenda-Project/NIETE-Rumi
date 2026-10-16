@@ -14,7 +14,7 @@
  * quality "low" (word times not trusted): the pill lights the whole printed LINE of the word being read, not the word.
  * The clock is the audio element: while playing, one requestAnimationFrame loop reads audio.currentTime and moves the
  * pill only when the word changes (≤ 1 frame late, no layout work per frame). The pill leads the sound by `leadMs`.
- * tap 'sentence': a tapped word replays its printed sentence (on a "low" page, the whole lines it spans), lit as it plays.
+ * tap 'sentence': a tapped word replays its sentence (a "low" page: the lines it spans), lit as it plays.
  * Never autoplays: the first play() must run inside the child's tap (the in-app browser's audio unlock).
  * Fires window event 'wq:readalong' {type: started|word|finished|paused|resumed|tap_word, i, id}.
  */
@@ -66,7 +66,9 @@
       if (!isFinite(s) || !isFinite(e) || s < 0 || e < s || s < prev) throw new Error('readalong: word ' + k + ' bad time');
       prev = s;
       var box = Array.isArray(w.box) && w.box.length === 4 && w.box.every(function (n) { return isFinite(Number(n)); }) ? w.box.map(Number) : null;
-      return { i: k, t: String(w.t == null ? '' : w.t), s: s, e: e, box: box };
+      var o = { i: k, t: String(w.t == null ? '' : w.t), s: s, e: e, box: box };
+      if (w.silent) o.sil = true;   // not read aloud: never lit
+      return o;
     });
     var img = d.image && d.image.url && d.image.w > 0 && d.image.h > 0 ? { url: String(d.image.url), w: Number(d.image.w), h: Number(d.image.h) } : null;
     return { id: d.id == null ? null : String(d.id), lang: d.lang === 'ur' ? 'ur' : 'en', dir: d.dir === 'rtl' || (d.dir == null && d.lang === 'ur') ? 'rtl' : 'ltr',
@@ -82,6 +84,7 @@
       var mid = (lo + hi) >> 1;
       if (words[mid].s <= t) { at = mid; lo = mid + 1; } else hi = mid - 1;
     }
+    while (at >= 0 && words[at].sil) at -= 1;
     return at;
   }
 
@@ -340,26 +343,18 @@
       if (dead || !(i >= 0 && i < words.length)) return;
       playFrom(words[i].s - lead, i);
     }
-    // [first, last] word of the printed sentence holding i: a silent word (a stage direction the voice skips) never
-    // starts or ends one; on a "low" page widened to whole printed lines, whose ends are the pauses we trust
-    function sentence(i) {
-      var sil = function (k) { return !!(raw.words[k] && raw.words[k].silent); };
-      var end = function (k) { return !sil(k) && /[.!?\u06D4\u061F]["'\u201D\u2019)]*$/.test(words[k].t); };
-      var a = i;
-      var b = i;
-      while (a > 0 && !end(a - 1)) a -= 1;
-      while (b < words.length - 1 && !end(b)) b += 1;
-      while (a < b && sil(a)) a += 1;
-      while (b > a && sil(b)) b -= 1;
-      if (quality === 'low') { a = lineOf(a)[0]; b = lineOf(b)[1]; }
-      return [a, b];
-    }
 
     btn.addEventListener('click', function () { api.toggle(); });
     for (var j = 0; j < spans.length; j += 1) {
       (function (i) {
         spans[i].addEventListener('click', function () {
-          if (opts.tap === 'sentence' && !dead) { var r = sentence(i); playFrom(words[r[0]].s - lead, r[0]); stopAt = words[r[1]].e; } else seekToWord(i);
+          // the sentence; a "low" page: its whole lines (their ends are the pauses we trust)
+          if (opts.tap === 'sentence' && !dead) {
+            var r = sentenceOf(words, i);
+            if (quality === 'low') r = [lineOf(r[0])[0], lineOf(r[1])[1]];
+            playFrom(words[r[0]].s - lead, r[0]);
+            stopAt = words[r[1]].e;
+          } else seekToWord(i);
           emit('tap_word', i, d.id);
           if (opts.onWordTap) opts.onWordTap(i);
         });
@@ -416,7 +411,7 @@
   function sayWord(data, i) {
     var d;
     try { d = parse(data); } catch (e) { return null; }
-    if (!d.audio || (d.quality || (data && data.quality)) === 'low' || !(i >= 0 && i < d.words.length)) return null;
+    if (!d.audio || (d.quality || (data && data.quality)) === 'low' || !okI(i, d.words.length)) return null;
     return clip(d.audio.url, d.words[i].s, d.words[i].e);
   }
   // one Audio on the signed URL, inside the caller's tap: play, seek to s, pause past e, then dropped
@@ -430,6 +425,19 @@
     try { var pr = a.play(); if (pr && pr.catch) pr.catch(stop); } catch (x) { stop(); return null; }
     try { a.currentTime = s / 1000; } catch (x) { /* not seekable yet */ }
     return { stop: stop };
+  }
+  // a whole-number index on the page (never null, 1.5 or '1')
+  function okI(i, n) { return i === (i | 0) && i >= 0 && i < n; }
+  // [first, last] word of i's sentence (. ! ? ۔ ؟); a silent word never starts or ends one
+  function sentenceOf(ws, i) {
+    var end = function (k) { return !ws[k].sil && /[.!?\u06D4\u061F]["'\u201D\u2019)]*$/.test(ws[k].t); };
+    var a = i;
+    var b = i;
+    while (a > 0 && !end(a - 1)) a -= 1;
+    while (b < ws.length - 1 && !end(b)) b += 1;
+    while (a < b && ws[a].sil) a += 1;
+    while (b > a && ws[b].sil) b -= 1;
+    return [a, b];
   }
   // printed lines from the words' boxes: a word whose box's middle falls outside the line so far starts the next line
   function boxLines(words) {
@@ -456,16 +464,11 @@
     var d;
     try { d = parse(data); } catch (e) { return null; }
     var ws = d.words;
-    if (!d.audio || !(i >= 0 && i < ws.length)) return null;
+    if (!d.audio || !okI(i, ws.length)) return null;
     var r = null;
     if (line && line[0] >= 0 && line[0] <= i && i <= line[1] && line[1] < ws.length) r = [line[0], line[1]];
     else if (ws.every(function (w) { return w.box; })) boxLines(ws).forEach(function (l) { if (i >= l[0] && i <= l[1]) r = l; });
-    else {
-      var end = /[.!?\u06D4\u061F]["'\u201D\u2019)]*$/;
-      r = [i, i];
-      while (r[0] > 0 && !end.test(ws[r[0] - 1].t)) r[0] -= 1;
-      while (r[1] < ws.length - 1 && !end.test(ws[r[1]].t)) r[1] += 1;
-    }
+    else r = sentenceOf(ws, i);
     var h = clip(d.audio.url, ws[r[0]].s, ws[r[1]].e);
     return h && { stop: h.stop, from: r[0], to: r[1] };
   }
