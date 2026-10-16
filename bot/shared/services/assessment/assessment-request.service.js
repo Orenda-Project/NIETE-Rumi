@@ -169,6 +169,23 @@ const BUSY_STATUSES = ['queued', 'generating'];
 const QUEUED_BUSY_MS = 3 * 60 * 1000;
 
 /**
+ * How long a queued or generating paper may go unwritten and still count as being made. While a
+ * paper is being made the worker touches its row every minute, so six minutes of silence is a run
+ * that is no longer there (a deploy restarted the worker mid-paper). Pointing a re-tap at that row
+ * would keep the teacher waiting on a paper nobody is writing.
+ */
+const BUSY_SILENT_MS = 6 * 60 * 1000;
+
+/** True when a busy paper row has been written recently enough to have a live run behind it. */
+function isLiveBusy(paper, nowMs) {
+  if (!BUSY_STATUSES.includes(paper.status)) return false;
+  const lastWrite = Date.parse(paper.updated_at);
+  // No timestamp to judge by: treat it as busy, as before.
+  if (!Number.isFinite(lastWrite)) return true;
+  return nowMs - lastWrite < BUSY_SILENT_MS;
+}
+
+/**
  * The board-pattern request this teacher already has in flight for this class,
  * if any: `{ id }` or null. One paper per class at a time — a second tap on
  * Make while the first is still being written would otherwise queue a second
@@ -182,7 +199,8 @@ const QUEUED_BUSY_MS = 3 * 60 * 1000;
  * and it is busy when it has no generated paper yet and was asked for in the last
  * three minutes (still queued), or its
  * generated paper (edited_from null; later versions are edits, not the
- * original job) is queued or generating. A ready or failed paper never blocks.
+ * original job) is queued or generating and was written in the last six
+ * minutes (BUSY_SILENT_MS). A ready or failed paper never blocks.
  *
  * FAILS OPEN: a read error returns null and is logged. A database hiccup must
  * never stop a teacher making a paper; the worst case is the duplicate this
@@ -197,7 +215,7 @@ async function findGenerating({ userId, grade, subject, pattern = null, withinMi
     const since = new Date(nowMs - withinMinutes * 60 * 1000).toISOString();
     const { data, error } = await supabase
       .from('assessment_requests')
-      .select('id, question_types, created_at, assessment_papers(status, edited_from)')
+      .select('id, question_types, created_at, assessment_papers(status, edited_from, updated_at)')
       .eq('user_id', userId)
       .eq('grade_code', `grade_${grade}`)
       .eq('subject_code', subject)
@@ -211,7 +229,7 @@ async function findGenerating({ userId, grade, subject, pattern = null, withinMi
       if (!types.some((t) => t && t.slot)) continue;
       const papers = [].concat(row.assessment_papers || []);
       const generated = papers.find((p) => p && p.edited_from == null);
-      if (generated && BUSY_STATUSES.includes(generated.status)) return { id: row.id };
+      if (generated && isLiveBusy(generated, nowMs)) return { id: row.id };
       const age = nowMs - new Date(row.created_at).getTime();
       if (!generated && Number.isFinite(age) && age < QUEUED_BUSY_MS) return { id: row.id };
     }

@@ -130,6 +130,19 @@ async function _patchPaper(paperId, patch) {
   }
 }
 
+/** Mark this run's paper as written now — only while it is still `generating`. */
+async function _touchOwnPaper(paperId) {
+  if (!paperId) return;
+  try {
+    await supabase.from('assessment_papers')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', paperId)
+      .eq('status', 'generating');
+  } catch (err) {
+    logToFile('[assessment] could not update paper row', { paperId, error: err.message });
+  }
+}
+
 /**
  * Render the answer key, put it in storage, and record where it went.
  *
@@ -215,9 +228,11 @@ async function _buildPatternPaper({ job, user, paperId }) {
   } = job;
   // `totalMarks` on the job is not read: the pattern's total is the paper's.
   const generated = await Generation.generatePatternExam({
-    grade, subject, pattern, scope, pageRanges, chapterNumber,
-    // A write per section: the duplicate guard reads ten minutes without one as a stopped run.
-    onSection: () => _patchPaper(paperId, { status: 'generating' }),
+    grade, subject, pattern, scope, pageRanges, chapterNumber, requestId,
+    // A write per section, so the row reads as a live run. Only while it IS this run's: a paper a
+    // stopping worker handed back (`queued`) is never flipped back to `generating`, or the next
+    // delivery would skip it and ack its only message.
+    onSection: () => _touchOwnPaper(paperId),
   });
 
   const versioned = await isAssessmentVersionsEnabled();
@@ -326,10 +341,16 @@ async function _buildPatternPaper({ job, user, paperId }) {
 
 /**
  * How long a paper may go unwritten in `generating` before a redelivered job
- * takes it over. A live run writes the row as it goes; ten minutes of silence
- * is a run that was stopped, and the teacher is still waiting for its paper.
+ * takes it over. The worker touches a live paper's row every minute
+ * (touchGeneratingPaper), whatever the model is doing, so three minutes of
+ * silence is three missed touches: a run that was stopped, with the teacher
+ * still waiting for its paper.
+ *
+ * It cannot lean on the generator's own writes. A pattern section waits up to
+ * 300 s on the model, twice, and writes the row only when it finishes, so
+ * without the touch anything under ten minutes could steal a live paper.
  */
-const PAPER_STALE_MS = 10 * 60 * 1000;
+const PAPER_STALE_MS = 180 * 1000;
 const UNIQUE_VIOLATION = '23505';
 
 /**
@@ -394,15 +415,67 @@ async function _onDuplicate(requestId) {
 
   const lastWrite = Date.parse(existing.updated_at || existing.created_at);
   const silentMs = Number.isFinite(lastWrite) ? Date.now() - lastWrite : 0;
-  if (silentMs < PAPER_STALE_MS) {
+  // `queued` means no run owns the row: a stopping worker handed it back
+  // (releasePaperForTakeover), so there is nothing to wait for.
+  if (existing.status !== 'queued' && silentMs < PAPER_STALE_MS) {
     skipped({ silentMs });
     return { result: { status: 'skipped', duplicate: true, paperId: existing.id } };
   }
 
-  logToFile('[assessment] taking over a stale paper', { requestId, paperId: existing.id, silentMs });
+  logToFile('[assessment] taking over a stale paper', { requestId, paperId: existing.id, silentMs, status: existing.status });
   // Written now, so a further delivery sees a run in progress and skips it.
   await _patchPaper(existing.id, { status: 'generating' });
   return { paperId: existing.id };
+}
+
+/**
+ * The worker's row heartbeat: mark a paper that is still being made as
+ * written now, so a redelivery reads a live run and leaves it alone. Only a
+ * `generating` generated row is touched — never a finished one, never an edit,
+ * and never a row already handed back. A failed touch is logged and swallowed;
+ * the next minute's touch is the retry.
+ */
+async function touchGeneratingPaper(requestId) {
+  if (!requestId) return;
+  try {
+    await supabase.from('assessment_papers')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('request_id', requestId)
+      .is('edited_from', null)
+      .eq('status', 'generating');
+  } catch (err) {
+    logToFile('[assessment] could not touch paper row', { requestId, error: err.message });
+  }
+}
+
+/**
+ * A stopping worker hands its paper back: `generating` goes to `queued`, which
+ * the next delivery takes over at once (see _onDuplicate). Called BEFORE the
+ * message is made visible again — a delivery that read a fresh `generating`
+ * row would skip it and ack the paper's only message.
+ *
+ * Returns false when it could not be written (no request id, or the database
+ * refused), and the caller must then leave the message alone. A row that is
+ * already ready or failed is not changed, and that is not a failure: a
+ * redelivery returns it as it is.
+ */
+async function releasePaperForTakeover(requestId) {
+  if (!requestId) return false;
+  try {
+    const { error } = await supabase.from('assessment_papers')
+      .update({ status: 'queued', updated_at: new Date().toISOString() })
+      .eq('request_id', requestId)
+      .is('edited_from', null)
+      .eq('status', 'generating');
+    if (error) {
+      logToFile('[assessment] could not hand paper back', { requestId, error: error.message });
+      return false;
+    }
+    return true;
+  } catch (err) {
+    logToFile('[assessment] could not hand paper back', { requestId, error: err.message });
+    return false;
+  }
 }
 
 /**
@@ -563,7 +636,11 @@ async function buildPaper(job, user = {}) {
     };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
-    logToFile('[assessment] build failed', { userId, requestId, paperId, code, error: err.message });
+    // A short pattern slot says which slot and by how many, so the line alone names the failure.
+    logToFile('[assessment] build failed', {
+      userId, requestId, paperId, code, error: err.message,
+      ...(Array.isArray(err.shortfall) ? { shortfall: err.shortfall } : {}),
+    });
 
     await _patchPaper(paperId, {
       status: 'failed', error_code: code, error_detail: safeDetail(err),
@@ -809,4 +886,6 @@ module.exports = {
   process, buildPaper, fileName, TEACHER_MESSAGE, pdfPageCount,
   // For the board-pattern branch, which runs inside buildPaper after this guard.
   _existingPaperFor, PAPER_STALE_MS,
+  // For the worker: the row heartbeat, and the hand-back at a deploy.
+  touchGeneratingPaper, releasePaperForTakeover,
 };

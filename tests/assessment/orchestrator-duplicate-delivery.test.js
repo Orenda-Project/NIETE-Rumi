@@ -15,8 +15,9 @@
  *
  *   ready                       returned as it is, without a model call or a second send
  *   failed                      returned as it is: the first run already recorded and reported it
- *   generating, written < 10m   another run owns it: skipped, and the worker acks the message
- *   generating, silent >= 10m   its run died: this delivery takes the SAME row over and builds it
+ *   generating, written < 3m    another run owns it: skipped, and the worker acks the message
+ *   generating, silent >= 3m    its run died: this delivery takes the SAME row over and builds it
+ *   queued                      handed back by a stopping worker: taken over at once
  *   unreadable                  as before the guard: build, without a row (never worse than today)
  */
 
@@ -185,8 +186,9 @@ describe('orchestrator: a second delivery of the same request', () => {
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
-  test('a paper another run is writing (written to in the last 10 min) is skipped, not written twice', async () => {
-    seedPaper({ id: 'paper-1', request_id: 'req-1', status: 'generating', created_at: minutesAgo(3), updated_at: minutesAgo(3) });
+  test('a paper another run is writing (written to in the last 3 min) is skipped, not written twice', async () => {
+    // The worker touches a live paper's row every minute, so a live run is never 3 min silent.
+    seedPaper({ id: 'paper-1', request_id: 'req-1', status: 'generating', created_at: minutesAgo(3), updated_at: minutesAgo(1) });
     const out = await Orchestrator.process({ ...JOB, deliver: 'whatsapp' });
     expect(out).toMatchObject({ status: 'skipped', duplicate: true, paperId: 'paper-1' });
     expect(mockGenerateExam).not.toHaveBeenCalled();
