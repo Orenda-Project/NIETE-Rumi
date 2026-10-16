@@ -175,7 +175,7 @@ app.use(createWebQuizRouter());
 const { createTeacherReportRouter } = require('./routes/teacher-report.routes');
 app.use(createTeacherReportRouter());
 // ── first touch: the maker page ──
-app.use(require('./routes/first-touch.routes').createFirstTouchRouter());   // /m/:token, /f/:token, /api/ft/* (switch off at the bot → falls through)
+app.use(require('./routes/first-touch.routes').createFirstTouchRouter());   // /m/:token, /f/:token, /api/ft/... (switch off at the bot → falls through)
 // ── end first touch ──
 // The phone test page for WhatsApp's in-app browser (/iab/:token, /api/iab-probe/*): camera,
 // gallery, file picker and microphone, each file confirmed by the server and thrown away. Before
