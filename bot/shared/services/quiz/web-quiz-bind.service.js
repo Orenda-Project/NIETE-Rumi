@@ -242,6 +242,63 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
 }
 
 /**
+ * The page-side bind (quiz_student_join): a phone the bot already proved — it sent `/quiz`, and the landing's nonce
+ * names it — keeps a child's place with NO code and NO reply. The same refusals as a code, in the same order
+ * (teacher_phone · child_unknown · max_phones · max_kids), the same renew-or-insert (a re-bind when the phone's
+ * tombstone matches), the same forget and the same bind_bound event with its `via`. Nothing is sent on WhatsApp.
+ * → null when web_quiz_phone_bind is off; {ok:true, outcome:'bound', bindingId, canonicalId, renewed, rebind} |
+ *   {ok:false, outcome:'refused', reason} | {ok:false, outcome:'error', reason?}. Never throws.
+ * @param {{phone:string, canonicalId:string, via?:'guest'|'teacher', mode?:'teacher'|'student'|'unknown', now?:Date}} p
+ */
+async function bindOnPhone({ phone, canonicalId, via = 'guest', mode = 'unknown', now = new Date() } = {}) {
+  try {
+    if (!(await on())) return null;
+    const norm = StudentIdentity.normalisePhone(phone);
+    if (!norm || !canonicalId || !['guest', 'teacher'].includes(via)) return { ok: false, outcome: 'error', reason: 'bad_request' };
+    // a sandbox walk-through phone playing a new family (the walk-persona module, absent everywhere else)
+    let fresh = false;
+    try { const P = require('../first-touch/walk-persona'); fresh = Boolean(P && typeof P.get === 'function' && ((await P.get(norm)) || {}).as === 'fresh'); } catch (_) { fresh = false; }
+    if (mode === 'teacher' && !fresh) return refused('teacher_phone', { via });
+    const child = await liveChild(canonicalId);
+    if (!child) return refused('child_unknown', { via });
+    const phones = await BindRepo.activeForChild(child.id, now);
+    if (phones.length >= MAX_PHONES_PER_CHILD && !phones.some((b) => b.phone_norm === norm)) return refused('max_phones', { via }, child.id);
+    const set = await BindRepo.childrenForPhone(phone);
+    if (!set.some((k) => String(k.id) === child.id) && set.length >= MAX_KIDS_PER_PHONE) return refused('max_kids', { via, kids_n: set.length }, child.id);
+
+    const mine = (await BindRepo.activeForPhone(norm, now)).find((b) => String(b.canonical_id) === child.id);
+    let binding = null;
+    let renewed = false;
+    let rebind = false;
+    let rebindPrior = null;
+    if (mine) {
+      binding = await BindRepo.renew(mine.id, BindRepo.expiresAtFor(now), now);
+      renewed = Boolean(binding);
+    } else {
+      const prior = await priorOnPhone(norm, child.id);
+      binding = await BindRepo.insert({
+        canonicalId: child.id, phoneNorm: norm, via, confirmedAt: now, expiresAt: BindRepo.expiresAtFor(now), rebindOf: prior ? prior.id : null,
+      });
+      if (binding && prior) { rebind = true; rebindPrior = prior.revoked_by || null; }
+    }
+    if (!binding) {
+      const reason = BindRepo.tombOf(norm) ? 'db_error' : 'no_salt';
+      logEvent('web_quiz.bind_write_failed', { reason, via, w: 's' });
+      return { ok: false, outcome: 'error', reason };
+    }
+    await forgetPhone(phone, norm, `bind_${via}`);
+    const kids = await BindRepo.childrenForPhone(phone);
+    const ev = { via, kids_n: kids.length, renewed, rebind };
+    if (rebind && rebindPrior) ev.rebind_prior = rebindPrior;
+    await emit('web_quiz.bind_bound', ev, child.id);
+    return { ok: true, outcome: 'bound', bindingId: binding.id, canonicalId: child.id, renewed, rebind };
+  } catch (err) {
+    logToFile('⚠️ phone binder: page-side bind threw (nothing promised)', { error: err.message });
+    return { ok: false, outcome: 'error' };
+  }
+}
+
+/**
  * STOP: erase every binding on this phone (the phone link only — the children's kept readings stay, by the operator's
  * decision), drop the door's cached verdict, and send ONE reply. → { n, children } or null when the switch is off.
  * No purge is requested anywhere, not even in the log (`web_quiz.audio_purge_requested` is retired, never emitted).
@@ -299,6 +356,6 @@ async function stopForBoundNonChild({ from, body, user = null, persona = null } 
 }
 
 module.exports = {
-  handleCode, handleStop, stopForBoundNonChild, isStop, ukeyOf,
+  handleCode, bindOnPhone, handleStop, stopForBoundNonChild, isStop, ukeyOf,
   STOP_WORDS, MAX_PHONES_PER_CHILD, MAX_KIDS_PER_PHONE,
 };

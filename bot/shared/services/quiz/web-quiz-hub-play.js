@@ -30,7 +30,7 @@ const RESERVE_ID = /\.reserve\d+$/;
 // A run row's final statuses (a record row that closes a Trail stop).
 const FINAL = ['scored', 'failed'];
 // The route that brought the child to the hub (EVENTS §1 row 3 `hub_open.src`): read by the hub_open emit as `opts.src`.
-const SRC_VALUES = ['card', 'home', 'door', 'wa', 'link', 'hs', 'class_link', 'guest', 'friend'];
+const SRC_VALUES = ['card', 'home', 'door', 'wa', 'link', 'hs', 'class_link', 'guest', 'friend', 'quiz', 'bind', 'join'];
 let cache = null;
 
 function isTrue(value) {
@@ -274,3 +274,7 @@ async function playField(input) {
 function srcOf(v) { return typeof v === 'string' && SRC_VALUES.includes(v) ? v : undefined; }
 
 module.exports = { playFor, playField, trailWaiting, openBands, nextThing, dayOf, switches, srcOf, SRC_VALUES, KEYS, _resetCache: () => { cache = null; } };
+// the v3 home's Stories door (web-quiz-hub-doors.js) lists the same passages by the same rules
+module.exports.passagesOf = passagesOf;
+module.exports.seenPassages = seenPassages;
+module.exports.readingRungOf = readingRungOf;
