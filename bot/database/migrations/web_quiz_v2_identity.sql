@@ -1,3 +1,4 @@
+-- requires: create_video_quiz_tables.sql
 -- Migration: the web quiz's hand-out → class binding (identity v2).
 --
 -- NON-DESTRUCTIVE. One new nullable column and one partial index.

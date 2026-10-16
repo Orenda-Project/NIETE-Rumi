@@ -1,3 +1,4 @@
+-- requires: web_quiz_challenge.sql
 -- Migration: the Challenge content registry (passages, maths items, periods, equating links, draws).
 --
 -- NON-DESTRUCTIVE. Five new tables; nothing existing changes shape. Apply to sandbox first; staging and prod only
