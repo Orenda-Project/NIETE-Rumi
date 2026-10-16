@@ -4,6 +4,8 @@
  * Never throws: every failure is an answer the page can show (or nothing).
  *
  *   mint({hub, kid, device, lang})  the chosen child on the trusted phone -> {ok, code, expires_at, prefill:{en,ur}, href}
+ *                                   (a second ask within the hour from the same device answers the same live code;
+ *                                   `bind_confirm` is logged once per live code, so the funnel counts children, not taps)
  *                                   refusals {ok:false, refused:'teacher_phone'|'max_phones'}, {ok:false, error}
  *   status({code})                  {state:'pending'|'bound'|'refused'|'expired', reason?}
  *   undo({code})                    erases the ONE binding this code made -> {ok:true}; sends no message
@@ -83,7 +85,7 @@ async function mint({ hub, kid, device, lang } = {}) {
     }
     const minted = await require('./child-bind-codes.repo').mint(canonicalId, T.cleanDeviceRef(device));
     if (!minted || !minted.code) return { ok: false, error: 'unavailable' };
-    logEvent('web_quiz.bind_confirm', { w: 's' });
+    if (!minted.reused) logEvent('web_quiz.bind_confirm', { w: 's' });
     const prefill = { en: PREFILL.en.replace('{code}', minted.code), ur: PREFILL.ur.replace('{code}', minted.code) };
     const l = require('../../config/ux-strings').clampLanguage(lang);
     return { ok: true, code: minted.code, expires_at: minted.expires_at || null, prefill, href: `https://wa.me/${n}?text=${encodeURIComponent(prefill[l])}` };
