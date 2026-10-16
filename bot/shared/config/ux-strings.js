@@ -3145,7 +3145,7 @@ const UX_STRINGS = {
   // Under the teacher's Send button on the story page.
   storyReportWhere: { en: 'The report comes to you on WhatsApp, as usual.', ur: 'رپورٹ ہمیشہ کی طرح آپ کو واٹس ایپ پر ملے گی۔' },
   // Under the books on the teacher's story page when this teacher's class cannot get a web link yet (no Send then).
-  storySendNotOpen: { en: 'Sending stories to your class is not open for your school yet.', ur: 'آپ کے اسکول کے لیے کلاس کو کہانیاں بھیجنا ابھی شروع نہیں ہوا۔' },
+  storySendNotOpen: { en: 'Sending stories to your class is not open for your school yet.', ur: 'آپ کے اسکول میں اپنی کلاس کو کہانیاں بھیجنے کی سہولت ابھی شروع نہیں ہوئی۔' },
   // The same schedule as tqReportPromise (one report service): 12 hours after
   // the first child joins, 07:00 PKT at night — never "tomorrow morning", never
   // "as soon as everyone has finished". A video-lesson quiz has no /quiz entry,

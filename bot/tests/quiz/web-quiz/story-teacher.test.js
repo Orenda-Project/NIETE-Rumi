@@ -343,7 +343,7 @@ describe('the Stories page (the bot renders it)', () => {
   });
   test('a teacher whose class cannot get a web link: the books with one kind line, no preview and no send form', async () => {
     db.app_settings.find((r) => r.key === 'web_quiz_teachers').value = [OTHER];
-    const LINE = { en: 'Sending stories to your class is not open for your school yet.', ur: 'آپ کے اسکول کے لیے کلاس کو کہانیاں بھیجنا ابھی شروع نہیں ہوا۔' };
+    const LINE = { en: 'Sending stories to your class is not open for your school yet.', ur: 'آپ کے اسکول میں اپنی کلاس کو کہانیاں بھیجنے کی سہولت ابھی شروع نہیں ہوئی۔' };
     for (const ui of ['en', 'ur']) {
       for (const query of [{ grade: '2', lang: 'en' }, { grade: '2', lang: 'en', book: B(2) }]) {
         const r = res();
