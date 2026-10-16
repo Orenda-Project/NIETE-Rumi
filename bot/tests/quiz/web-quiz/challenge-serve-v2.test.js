@@ -76,7 +76,7 @@ const periodsNow = () => [
 const REL = '2026-10-01T00:00:00Z';
 const reg = (id, extra = {}) => {
   const [lang, kind, band] = id.split('.');
-  return { passage_id: id, lang, kind, band: Number(band), pool: 'check', status: 'calibrated', is_reference: false, released_at: REL, withdrawn_at: null, twin_of: null, ...extra };
+  return { passage_id: id, lang, kind, band: Number(band), pool: 'check', status: 'calibrated', is_reference: false, released_at: REL, withdrawn_at: null, twin_of: null, provenance: 'published_calibrated', ...extra };   // sourced: the counted draw admits it (RULING #105 (iii))
 };
 const REGISTRY = () => [
   reg('en.read.2.setA', { is_reference: true }), reg('ur.read.2.setA', { is_reference: true }),
