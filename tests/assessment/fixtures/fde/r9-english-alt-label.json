@@ -1,0 +1,1666 @@
+{
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) fleet",
+     "blooms": "Remember",
+     "options": [
+      "a) fleet",
+      "b) ship",
+      "c) sailor",
+      "d) ocean"
+     ],
+     "question": "Which word is a collective noun?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) Lahore",
+     "blooms": "Remember",
+     "options": [
+      "a) river",
+      "b) Lahore",
+      "c) mountain",
+      "d) city"
+     ],
+     "question": "Which word is a proper noun?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "d) an",
+     "blooms": "Apply",
+     "options": [
+      "a) a",
+      "b) the",
+      "c) no article",
+      "d) an"
+     ],
+     "question": "Choose the correct article: Sara ate ___ orange after lunch.",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) deer",
+     "blooms": "Remember",
+     "options": [
+      "a) deers",
+      "b) deeres",
+      "c) deer",
+      "d) deeries"
+     ],
+     "question": "What is the correct plural of the word 'deer'?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) occasionally",
+     "blooms": "Understand",
+     "options": [
+      "a) often",
+      "b) occasionally",
+      "c) always",
+      "d) usually"
+     ],
+     "question": "Which word is the opposite of 'frequently'?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) whose",
+     "blooms": "Apply",
+     "options": [
+      "a) who",
+      "b) which",
+      "c) whose",
+      "d) where"
+     ],
+     "question": "Choose the correct relative pronoun: The boy ___ bike was stolen felt sad.",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "d) 3",
+     "blooms": "Understand",
+     "options": [
+      "a) 2",
+      "b) 4",
+      "c) 1",
+      "d) 3"
+     ],
+     "question": "How many syllables does the word 'butterfly' have?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) rarely",
+     "blooms": "Understand",
+     "options": [
+      "a) rarely",
+      "b) quickly",
+      "c) here",
+      "d) yesterday"
+     ],
+     "question": "Which word is an adverb of frequency?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) -ion",
+     "blooms": "Remember",
+     "options": [
+      "a) -ful",
+      "b) -ion",
+      "c) -less",
+      "d) -ship"
+     ],
+     "question": "Which suffix changes the verb 'invent' into the noun 'invention'?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) The birds were singing when I arrived.",
+     "blooms": "Understand",
+     "options": [
+      "a) The birds sing loudly.",
+      "b) The birds sang loudly.",
+      "c) The birds were singing when I arrived.",
+      "d) The birds will sing loudly."
+     ],
+     "question": "Which sentence is in the past continuous tense?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) flower",
+     "blooms": "Remember",
+     "options": [
+      "a) floor",
+      "b) flow",
+      "c) flower",
+      "d) fluor"
+     ],
+     "question": "Which word is a homophone of 'flour'?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) bookshelf",
+     "blooms": "Understand",
+     "options": [
+      "a) bookshelf",
+      "b) happiness",
+      "c) careful",
+      "d) invention"
+     ],
+     "question": "Which word is a compound word?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) cleanest",
+     "blooms": "Apply",
+     "options": [
+      "a) cleaner",
+      "b) more clean",
+      "c) cleanest",
+      "d) most cleaner"
+     ],
+     "question": "What is the superlative form of 'clean'?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) ought",
+     "blooms": "Apply",
+     "options": [
+      "a) can",
+      "b) ought",
+      "c) will",
+      "d) might"
+     ],
+     "question": "Which modal verb shows advice? 'You ___ to wear a coat in the cold.'",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) The girl's book is red.",
+     "blooms": "Apply",
+     "options": [
+      "a) The girls book is red.",
+      "b) The girl's book is red.",
+      "c) The girl book's is red.",
+      "d) The girls' book's is red."
+     ],
+     "question": "Which sentence uses the apostrophe correctly to show possession?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) knee",
+     "blooms": "Remember",
+     "options": [
+      "a) kite",
+      "b) knee",
+      "c) king",
+      "d) kind"
+     ],
+     "question": "Which word has a silent letter 'k'?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) listen",
+     "blooms": "Understand",
+     "options": [
+      "a) listen",
+      "b) lisent",
+      "c) tinsel",
+      "d) stolen"
+     ],
+     "question": "Which word is an anagram of 'silent'?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "d) Where is my bag?",
+     "blooms": "Understand",
+     "options": [
+      "a) Close the door.",
+      "b) What a lovely day!",
+      "c) The sky is blue.",
+      "d) Where is my bag?"
+     ],
+     "question": "Which is an interrogative sentence?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) little",
+     "blooms": "Apply",
+     "options": [
+      "a) few",
+      "b) many",
+      "c) little",
+      "d) both"
+     ],
+     "question": "Choose the correct quantifier: We have ___ water left in the bottle.",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) brave",
+     "blooms": "Understand",
+     "options": [
+      "a) brave",
+      "b) bravely",
+      "c) bravery",
+      "d) braves"
+     ],
+     "question": "Which word is an adjective?",
+     "main_question": "Choose the correct option"
+    }
+   ],
+   "Rewrite Sentences": [
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "The baby slept.",
+     "blooms": "Apply",
+     "question": "The baby is sleeping. (Change into simple past)",
+     "main_question": "Rewrite the sentences as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "The boy ran as fast as a cheetah.",
+     "blooms": "Apply",
+     "question": "The boy ran fast. (Rewrite as a simile using 'as ... as')",
+     "main_question": "Rewrite the sentences as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "Subject: The dog; Verb: chased; Object: the ball",
+     "blooms": "Understand",
+     "question": "The dog chased the ball. (Write the subject, verb and object)",
+     "main_question": "Rewrite the sentences as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "Farmers grew wheat every year.",
+     "blooms": "Apply",
+     "question": "Farmers grow wheat every year. (Change into simple past)",
+     "main_question": "Rewrite the sentences as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "The moon is a bright lamp in the night sky.",
+     "blooms": "Apply",
+     "question": "The moon is bright at night. (Rewrite as a metaphor)",
+     "main_question": "Rewrite the sentences as directed"
+    }
+   ]
+  },
+  "subjective": {
+   "Mind Map": [
+    {
+     "slot": "english.C.Q6",
+     "lines": 0,
+     "marks": 5,
+     "answer": "Possible branches: sorting paper; sorting plastic; making new things from old things; saving trees and energy; keeping the planet clean",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Any five relevant ideas such as bins, reuse, factories, reducing trash, helping the environment"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Topic written clearly in the centre",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Five branches drawn from the centre",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Branches show relevant ideas about the topic",
+        "marks": 3
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing full sentences or ideas unrelated to the topic."
+     },
+     "question": "Recycling Can Be Fun",
+     "main_question": "Draw a mind map on the topic given below with five branches"
+    }
+   ],
+   "Punctuation": [
+    {
+     "slot": "english.C.Q3",
+     "lines": 0,
+     "marks": 5,
+     "answer": "Rani asked her friend, \"Where have you kept the library book?\" Then she smiled and said, \"What a lovely surprise it was to find Ali's pencil box under the desk!\"",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Rani asked her friend where she had kept the library book. Then she smiled and said, \"What a lovely surprise it was to find Ali's pencil box under the desk!\"",
+       "Use of quotation marks or reported speech form with correct end marks"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Capital letters used correctly at sentence starts and for names (Rani, Ali, Then, What)",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Full stop or correct end mark used at the end of each sentence",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Question mark placed correctly after the question",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Exclamation mark placed correctly after the exclamatory sentence",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Comma and apostrophe (Ali's) used correctly",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Forgetting the apostrophe in Ali's or using a full stop instead of a question mark."
+     },
+     "question": "rani asked her friend where she had kept the library book then she smiled and said what a lovely surprise it was to find ali's pencil box under the desk",
+     "main_question": "Rewrite the passage using capital letters and correct punctuation marks"
+    }
+   ],
+   "Rhyming Words": [
+    {
+     "slot": "english.C.Q5",
+     "lines": 0,
+     "marks": 4,
+     "answer": "white – night; wet – yet",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "night – white; yet – wet"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "white rhymes with night (correct pair)",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "wet rhymes with yet (correct pair)",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing words that do not end with the same sound, such as green or brown."
+     },
+     "passage": "My skin is kind of sort of brownish pinkish yellowish white.\nMy eyes are greyish blueish green,\nBut I'm told they look orange at night.\n\nMy hair is reddish blondish brown,\nBut it's silver when it's wet.\nAnd all the colours I am inside\nHave not been invented yet.",
+     "question": "Colours",
+     "main_question": "Read the lines of the poem. Write the word from the poem that rhymes with each of these words: white, wet, night, yet"
+    }
+   ],
+   "Story Writing": [
+    {
+     "slot": "english.C.Q9",
+     "lines": 0,
+     "marks": 5,
+     "answer": "A story following every cue in order, using past tense, ending with the moral: kindness and honesty bring happiness.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Any reasonable moral such as: Be kind to animals; Honesty is the best policy"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Story follows the outline cues in order",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Past tense and correct sentences",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Correct spelling and punctuation",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Suitable moral and title",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaving out the moral or changing to present tense."
+     },
+     "question": "A boy finds a lost kitten — He takes it home — Mother says to find its owner — He puts up a notice — Kitten is hungry and sad — He feeds it milk — A girl comes crying — She is the owner — Both become friends — Moral",
+     "main_question": "Write a story using the outline given below. Give your story a suitable title"
+    }
+   ],
+   "Word Sentences": [
+    {
+     "slot": "english.C.Q4",
+     "lines": 0,
+     "marks": 10,
+     "words": [
+      "invisible",
+      "forgiveness",
+      "responsibility",
+      "freedom",
+      "democracy",
+      "gratitude"
+     ],
+     "answer": "invisible: cannot be seen; The ghost in the story was invisible. | forgiveness: letting go of a grudge against someone; Forgiveness makes our mind feel light. | responsibility: the duty to take care of someone or something; Feeding a pet is my responsibility. | freedom: being free to do things; Our heroes won us freedom. | democracy: a system where people vote to make decisions; In a democracy everyone gets a say. | gratitude: being thankful; The children showed gratitude to their teacher.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Any meaning that matches the book's meaning in the child's own words",
+       "Any grammatically correct sentence that shows the meaning of the word"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct meaning and correct sentence for the first word",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Correct meaning and correct sentence for the second word",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Correct meaning and correct sentence for the third word",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Correct meaning and correct sentence for the fourth word",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Correct meaning and correct sentence for the fifth word",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a sentence that does not show the meaning of the word, or no capital letter or full stop."
+     },
+     "question": "",
+     "main_question": "Write the meaning of each given word and use any five of them in sentences of your own"
+    }
+   ],
+   "Paragraph Writing": [
+    {
+     "slot": "english.C.Q8",
+     "lines": 0,
+     "marks": 10,
+     "answer": "A paragraph with a topic sentence, 5 to 7 supporting sentences with facts and details, and a concluding sentence.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Any relevant ideas about the chosen topic"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Clear topic sentence introducing the topic",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Supporting details relevant to the topic",
+        "marks": 4
+       },
+       {
+        "kind": "A",
+        "text": "Concluding sentence",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Correct spelling, capitals and punctuation",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Sentences are connected and in order",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing unconnected sentences with no topic sentence or conclusion."
+     },
+     "topics": [
+      "My Super Hero",
+      "Recycling",
+      "A Cultural Festival"
+     ],
+     "question": "",
+     "main_question": "Write a paragraph of about 8 to 10 sentences on any ONE of the following topics"
+    }
+   ],
+   "Application Writing": [
+    {
+     "slot": "english.C.Q7",
+     "lines": 0,
+     "marks": 10,
+     "answer": "Correct format: To The Principal, school name, date, subject: sick leave, Respected Sir/Madam, body stating fever and doctor's advice for three days' rest, request for leave, Yours obediently, name, class.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Any correct formal application format"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Proper heading: To, The Principal, school and date",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Suitable subject line",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Salutation and respectful opening",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Body gives the reason for illness and number of days requested",
+        "marks": 3
+       },
+       {
+        "kind": "A",
+        "text": "Polite request and closing with name and class",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Correct spelling, punctuation and grammar",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Missing the subject line or using informal language."
+     },
+     "question": "(a) Write an application to your principal for sick leave.",
+     "main_question": "Attempt any ONE of the following (a) or (b)"
+    },
+    {
+     "slot": "english.C.Q7",
+     "lines": 0,
+     "marks": 10,
+     "answer": "Correct format: address and date, Dear friend, opening greeting, thanks for the gift and how you liked it, how you will use it, good wishes, Yours lovingly, name.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Any correct informal letter format"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Address and date at the top",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Salutation and friendly opening",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Body thanks the friend and describes the gift",
+        "marks": 3
+       },
+       {
+        "kind": "A",
+        "text": "Closing with good wishes and name",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Correct spelling, punctuation and grammar",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaving out the date, or forgetting to say thank you clearly."
+     },
+     "question": "(b) Write a letter to your friend thanking them for a gift.",
+     "main_question": "Attempt any ONE of the following (a) or (b)"
+    }
+   ],
+   "Picture Description": [
+    {
+     "slot": "english.C.Q10",
+     "lines": 0,
+     "marks": 6,
+     "words": [
+      "children",
+      "swing",
+      "slide",
+      "grass",
+      "trees",
+      "laughing",
+      "playing",
+      "sunny",
+      "bench"
+     ],
+     "answer": "Model: The children are playing in a park. It is a sunny day. Some children are swinging and some are going down the slide. They are laughing happily. There are tall trees and green grass around.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Any sensible description of the scene in present continuous or simple present tense"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "At least five relevant sentences about the scene",
+        "marks": 3
+       },
+       {
+        "kind": "A",
+        "text": "Uses words from the word bank correctly",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Correct tense, capitals and full stops",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a list of words instead of full sentences."
+     },
+     "question": "children playing in a park",
+     "main_question": "Look at the frame and write 5 to 6 sentences describing the scene. You may use the words given"
+    }
+   ],
+   "Comprehension Passage": [
+    {
+     "slot": "english.B.Q2",
+     "lines": 0,
+     "marks": 20,
+     "parts": [
+      {
+       "key": "questions",
+       "questions": [
+        {
+         "lines": 2,
+         "marks": 2,
+         "answer": "He went to the river to feed the ducks.",
+         "blooms": "Remember",
+         "scheme": {
+          "accept": [
+           "To the river beside the village",
+           "They went to feed the ducks at the river"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "Names the river as the place",
+            "marks": 1
+           },
+           {
+            "kind": "A",
+            "text": "Mentions feeding the ducks",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Writing that he went to school or to the village."
+         },
+         "question": "Where did Samir go every morning with his grandfather?"
+        },
+        {
+         "lines": 2,
+         "marks": 2,
+         "answer": "His hands were too big to reach between the heavy stones.",
+         "blooms": "Understand",
+         "scheme": {
+          "accept": [
+           "The duckling was stuck between two stones and his hands did not fit"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "States his hands were too big",
+            "marks": 1
+           },
+           {
+            "kind": "A",
+            "text": "Links it to the duckling being stuck between stones",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Saying the duckling was too heavy."
+         },
+         "question": "Why could Samir not pull the duckling out himself?"
+        },
+        {
+         "lines": 2,
+         "marks": 2,
+         "answer": "He used a long stick to gently move one stone aside.",
+         "blooms": "Remember",
+         "scheme": {
+          "accept": [
+           "He pushed a stone away with a stick"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "Mentions the long stick",
+            "marks": 1
+           },
+           {
+            "kind": "A",
+            "text": "Mentions moving a stone aside",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Saying the grandfather pulled the duckling with his hands."
+         },
+         "question": "How did Samir's grandfather free the duckling?"
+        },
+        {
+         "lines": 2,
+         "marks": 2,
+         "answer": "She was thanking him for saving her duckling.",
+         "blooms": "Understand",
+         "scheme": {
+          "accept": [
+           "She was grateful that he helped her baby"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "States she was showing thanks",
+            "marks": 1
+           },
+           {
+            "kind": "A",
+            "text": "Links it to Samir returning her duckling",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Saying the mother duck was afraid or angry."
+         },
+         "question": "Why did the mother duck waddle around Samir in a circle?"
+        },
+        {
+         "lines": 2,
+         "marks": 2,
+         "answer": "He learned that a little kindness can make a big difference to someone in trouble.",
+         "blooms": "Understand",
+         "scheme": {
+          "accept": [
+           "Small kind acts can help others a lot"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "Identifies kindness as the lesson",
+            "marks": 1
+           },
+           {
+            "kind": "A",
+            "text": "Explains that it helps someone in trouble",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Writing only that he fed the ducks."
+         },
+         "question": "What did Samir learn from this event?"
+        }
+       ]
+      },
+      {
+       "key": "do_as_directed",
+       "questions": [
+        {
+         "lines": 1,
+         "marks": 1,
+         "answer": "Adverb",
+         "blooms": "Understand",
+         "scheme": {
+          "accept": [
+           "An adverb of manner"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "Adverb",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Calling it an adjective."
+         },
+         "question": "What part of speech is the word \"softly\"?"
+        },
+        {
+         "lines": 1,
+         "marks": 1,
+         "answer": "Samir will smile and carry it back to its mother.",
+         "blooms": "Apply",
+         "scheme": {
+          "accept": [
+           "Samir will smile and will carry it back to its mother."
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "Both verbs correctly changed to future tense",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Changing only one verb."
+         },
+         "question": "Change the sentence into the future tense: \"Samir smiled and carried it back to its mother.\""
+        },
+        {
+         "lines": 0,
+         "marks": 1,
+         "answer": "stones",
+         "blooms": "Remember",
+         "scheme": {
+          "accept": [],
+          "points": [
+           {
+            "kind": "A",
+            "text": "stones",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Writing the singular 'stone'."
+         },
+         "question": "Fill in the blank: Samir saw a tiny duckling stuck between two heavy ________."
+        },
+        {
+         "lines": 0,
+         "marks": 1,
+         "answer": "False",
+         "blooms": "Remember",
+         "scheme": {
+          "accept": [
+           "False, he lived in a small village"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "False",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Writing True."
+         },
+         "question": "Write True or False: Samir lived in a big city."
+        }
+       ]
+      },
+      {
+       "key": "pick",
+       "pick": {
+        "Nouns": [
+         "village",
+         "river",
+         "duckling"
+        ],
+        "Verbs": [
+         "walked",
+         "saw",
+         "ran"
+        ]
+       }
+      }
+     ],
+     "answer": "Model answers are given with each part.",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Marks follow the part-wise split of 10, 4 and 6"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Questions, do-as-directed and pick answers marked as per each part",
+        "marks": 20
+       }
+      ],
+      "checked": null,
+      "common_error": "Picking words that are not copied exactly as written in the passage."
+     },
+     "passage": "Samir lived in a small village beside a wide river. Every morning, he walked to the river with his grandfather to feed the ducks. One day, Samir saw a tiny duckling stuck between two heavy stones. It was crying softly. Samir tried to pull it out, but his hands were too big. He ran to his grandfather and called loudly for help. His grandfather brought a long stick and gently moved one stone aside. The duckling hopped free and quacked happily. Samir smiled and carried it back to its mother. The mother duck waddled around him in a circle, as if she was saying thank you. From that day, Samir brought extra bread for the ducks every morning. He learned that a little kindness can make a big difference to someone in trouble.",
+     "main_question": "Read the passage and answer the questions"
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "notes": [],
+  "pages": {
+   "paper": 4,
+   "scheme": 6
+  },
+  "scope": {
+   "kind": "fde",
+   "pages": null,
+   "line_en": "Units 1–10",
+   "line_ur": "یونٹ 1–10",
+   "chapters": null,
+   "label_en": "FDE syllabus 2026–27",
+   "label_ur": "FDE نصاب 2026–27",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "or_en": "OR",
+   "or_ur": "یا",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "note_en": "Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Sections B & C are to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed.",
+   "title_en": "Grade 5 · English · FDE pattern practice paper",
+   "title_ur": "جماعت پنجم · انگریزی · FDE pattern کا مشقی پرچہ",
+   "accept_en": "accept:",
+   "accept_ur": "یہ بھی درست:",
+   "covers_en": "Covers: {scope}. Not an official FDE paper.",
+   "covers_ur": "احاطہ: {scope}۔ یہ سرکاری FDE پرچہ نہیں ہے۔",
+   "footer_en": "Not an official FDE paper",
+   "footer_ur": "یہ سرکاری FDE پرچہ نہیں ہے",
+   "checked_en": "✓ checked",
+   "checked_ur": "✓ جانچا گیا",
+   "time_line_en": "Time Allowed: 3 Hours",
+   "disclaimer_en": "Practice paper in the FDE Grade V Centralised Annual Examination pattern (Feb 2027). Not an official FDE paper.",
+   "disclaimer_ur": "یہ مشق کا پرچہ ہے جو FDE کے جماعت پنجم کے مرکزی سالانہ امتحان (فروری 2027) کے pattern پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔",
+   "total_line_en": "Total Marks: {t:100}",
+   "footer_page_en": "Page {n} of {N}",
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "notes_title_en": "Notes",
+   "notes_title_ur": "نوٹ",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "school_line_en": "School: ____________",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "answer_sheet_en": "answer sheet",
+   "answer_sheet_ur": "جوابی کاپی",
+   "common_error_en": "common error:",
+   "common_error_ur": "عام غلطی:",
+   "record_grade_en": "Grade",
+   "record_grade_ur": "گریڈ",
+   "record_title_en": "Class record",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_total_en": "Total",
+   "record_total_ur": "کل",
+   "scheme_title_en": "MARKING SCHEME",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "covers_partial_en": "Covers {units}; every section set from these units.",
+   "covers_partial_ur": "احاطہ: {units}؛ ہر حصہ انہی ابواب سے۔"
+  },
+  "legend": {
+   "subject": "english",
+   "key_line": 1,
+   "lines_en": [
+    "MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.",
+    "M = method · A = answer · U = unit · K = key point · L = label.",
+    "\"Attempt any N\": tell children to answer exactly N. If more are answered, mark all and keep the best N.",
+    "Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%."
+   ],
+   "lines_ur": [
+    "معروضی: درست حرف پر 1 نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔",
+    "M = طریقہ، A = جواب، U = اکائی، K = اہم نکتہ، L = نام",
+    "«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔",
+    "A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F <40"
+   ],
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "bands_line": 3,
+   "maths_lines": [],
+   "key_names_en": {
+    "A": "answer",
+    "K": "key point",
+    "L": "label",
+    "M": "method",
+    "U": "unit"
+   },
+   "key_names_ur": {
+    "A": "جواب",
+    "K": "اہم نکتہ",
+    "L": "نام",
+    "M": "طریقہ",
+    "U": "اکائی"
+   },
+   "bands_lead_ur": "گریڈ (FDE ص 113)؛ پاس = 40٪",
+   "key_from_chips": true
+  },
+  "medium": "en",
+  "subject": "english",
+  "sections": [
+   {
+    "id": "A",
+    "marks": 25,
+    "slots": [
+     {
+      "or": false,
+      "slot": "english.A.Q1a",
+      "type": "MCQs",
+      "frame": null,
+      "grain": {
+       "kind": "one grammar or vocabulary point per item",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "mcq",
+      "attempt": 20,
+      "work_mm": null,
+      "category": "objective",
+      "families": null,
+      "generate": 20,
+      "label_en": "Q1 (a):",
+      "label_ur": "سوال 1 (الف)",
+      "numbering": "arabic",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Twenty four-option MCQs, one point each, covering: collective and proper nouns, articles, irregular plurals, antonyms, pronouns, syllables, adverbs, suffixes, tenses, homophones, compound words, degrees of adjectives, modals, apostrophe, spelling, anagrams, sentence types, quantifiers, adjectives. Never refer to an underline the paper cannot show; quote the word instead.",
+      "alternatives": null,
+      "marks_line_en": "({t:20})",
+      "option_labels": "A",
+      "section_pages": "scope",
+      "instruction_en": "Read each question carefully and choose the correct option. Each question carries 1 mark.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "english.A.Q1b",
+      "type": "Rewrite Sentences",
+      "frame": null,
+      "grain": {
+       "kind": "one-line transformation: rewrite as a simile, identify subject + verb + object, change the tense, simile or metaphor",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 2,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "work_mm": null,
+      "category": "objective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q1 (b).",
+      "label_ur": "سوال 1 (ب)",
+      "numbering": "roman_dot",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five one-line items, each ending with the direction in round brackets, e.g. \"The baby is sleeping. (Change into simple past)\". Cover similes/metaphors, S+V+O and simple present/past.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "section_pages": "scope",
+      "instruction_en": "Do as directed.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "note_en": null,
+    "time_en": "Time allowed: 30 Minutes",
+    "label_en": "SECTION A: OBJECTIVE",
+    "marks_en": "Total Marks: {t:25}",
+    "answer_on": "question_paper"
+   },
+   {
+    "id": "B",
+    "marks": 20,
+    "slots": [
+     {
+      "or": false,
+      "slot": "english.B.Q2",
+      "type": "Comprehension Passage",
+      "frame": null,
+      "grain": {
+       "kind": "an unseen narrative passage of about 120 words; five literal or inference questions; four do-as-directed items tied to the passage; three nouns and three verbs",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": [
+       10,
+       4,
+       6
+      ],
+      "shape": "comprehension",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q.2:",
+      "label_ur": "سوال 2",
+      "numbering": "none",
+      "compulsory": true,
+      "marks_each": 20,
+      "parts_spec": [
+       {
+        "n": 5,
+        "key": "questions",
+        "label": "i.",
+        "numbering": "alpha_paren",
+        "marks_each": 2,
+        "marks_line_en": "(2 × 5 = 10)",
+        "instruction_en": "Answer the following questions."
+       },
+       {
+        "n": 4,
+        "key": "do_as_directed",
+        "label": "ii.",
+        "numbering": "alpha_paren",
+        "marks_each": 1,
+        "marks_line_en": "(4)",
+        "instruction_en": "Do as directed."
+       },
+       {
+        "n": 6,
+        "key": "pick",
+        "pick": {
+         "Nouns": 3,
+         "Verbs": 3
+        },
+        "label": "iii.",
+        "marks_each": 1,
+        "marks_line_en": "(6)",
+        "instruction_en": "Choose three nouns and three verbs from the given passage."
+       }
+      ],
+      "prompt_rule": "One item: `passage` = an unseen story of 120–160 words; `parts` = [{key:\"questions\", questions:[5]}, {key:\"do_as_directed\", questions:[4: a part of speech of a quoted word, a tense change, a fill-in from the passage, a true/false]}, {key:\"pick\", pick:{\"Nouns\":[5 nouns], \"Verbs\":[5 verbs]}}]. Every picked word is copied exactly as written in the passage, inflection included (\"walked\", never \"walk\"); two spares of each kind, the scheme keeps the first three that are in the passage. Never refer to an underlined, bold or italic word; quote the word instead (What part of speech is \"quickly\"?).",
+      "alternatives": null,
+      "marks_line_en": null,
+      "section_pages": "scope",
+      "instruction_en": "Read the following passage and answer the questions given at the end.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "note_en": null,
+    "time_en": "Time allowed: 30 min",
+    "label_en": "SECTION B: COMPREHENSION",
+    "marks_en": "Total Marks: {t:20}",
+    "answer_on": "answer_sheet"
+   },
+   {
+    "id": "C",
+    "marks": 55,
+    "slots": [
+     {
+      "or": false,
+      "slot": "english.C.Q3",
+      "type": "Punctuation",
+      "frame": null,
+      "grain": {
+       "kind": "one or two sentences (about 25 words) with capitals, full stops, a question or exclamation mark, commas and an apostrophe removed",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "words",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q.3:",
+      "label_ur": "سوال 3",
+      "numbering": "none",
+      "compulsory": true,
+      "marks_each": 5,
+      "prompt_rule": "One item: `question` = the unpunctuated passage (lower case, no punctuation), `answer` = the punctuated passage. A points only, one per mark.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "section_pages": "scope",
+      "instruction_en": "Punctuate the following passage.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "english.C.Q4",
+      "type": "Word Sentences",
+      "frame": null,
+      "grain": {
+       "kind": "six unit vocabulary words, any five used in sentences",
+       "steps": 1,
+       "number_size": "six words",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "words",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q.4:",
+      "label_ur": "سوال 4",
+      "numbering": "none",
+      "compulsory": true,
+      "marks_each": 10,
+      "print_words": true,
+      "prompt_rule": "One item: `words` = exactly six words from units 1–10; `answer` = one model sentence per word. 2 marks a word (meaning shown 1 + correct sentence 1).",
+      "alternatives": null,
+      "marks_line_en": "({t:10})",
+      "section_pages": "scope",
+      "in_item_choice": {
+       "g": 6,
+       "n": 5
+      },
+      "instruction_en": "Use any five of the following words in meaningful sentences.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "english.C.Q5",
+      "type": "Rhyming Words",
+      "frame": null,
+      "grain": {
+       "kind": "match four cue words to their rhymes in a 9–10 line poem from the book",
+       "steps": 1,
+       "number_size": "four cue words",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "words",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q.5",
+      "label_ur": "سوال 5",
+      "numbering": "none",
+      "compulsory": true,
+      "marks_each": 4,
+      "prompt_rule": "One item: `question` = the title of a poem from units 1–10 exactly as in the book; `passage` = 6–10 of its lines exactly as printed in the book, holding at least two rhyming pairs; no `words` (the four rhyming words are the answer, so nothing on the paper may list them); `answer` = the four rhyming words as two pairs, each word copied from the passage (e.g. \"white – night; wet – yet\").",
+      "alternatives": null,
+      "marks_line_en": "({t:4})",
+      "section_pages": "scope",
+      "instruction_en": "Write down FOUR rhyming words from the poem “{q}”",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "english.C.Q6",
+      "type": "Mind Map",
+      "frame": null,
+      "grain": {
+       "kind": "a textbook topic; the child draws a map with five branches",
+       "steps": 1,
+       "number_size": "five branches",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "composition",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q.6:",
+      "label_ur": "سوال 6",
+      "numbering": "none",
+      "compulsory": true,
+      "marks_each": 5,
+      "prompt_rule": "One item: `question` = a short topic from units 1–10 (2–4 words). The child draws the map; never refer to boxes or branches printed on the paper. `answer` = five possible branches.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "section_pages": "scope",
+      "instruction_en": "Develop a mind map about “{q}”.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": true,
+      "slot": "english.C.Q7",
+      "type": "Application Writing",
+      "frame": null,
+      "grain": {
+       "kind": "a formal application OR an informal letter from FDE's closed lists",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": [
+       "application",
+       "letter"
+      ],
+      "lines": 0,
+      "parts": null,
+      "shape": "composition",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 2,
+      "label_en": "Q.7:",
+      "label_ur": "سوال 7",
+      "numbering": "alpha_paren",
+      "compulsory": false,
+      "marks_each": 10,
+      "prompt_rule": "Two items: (a) \"Write an application to your principal for …\" with a topic from closed_lists.applications; (b) \"Write a letter …\" with a topic from closed_lists.informal_letters.",
+      "alternatives": null,
+      "marks_line_en": "({t:10})",
+      "section_pages": "scope",
+      "instruction_en": "Attempt {w:ONE} of the following.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "english.C.Q8",
+      "type": "Paragraph Writing",
+      "frame": null,
+      "grain": {
+       "kind": "three paragraph topics from FDE's closed list; the child writes one",
+       "steps": 1,
+       "number_size": "three topics",
+       "unit_choice": false
+      },
+      "kinds": [
+       "paragraph"
+      ],
+      "lines": 0,
+      "parts": null,
+      "shape": "composition",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q.8:",
+      "label_ur": "سوال 8",
+      "numbering": "none",
+      "compulsory": true,
+      "marks_each": 10,
+      "prompt_rule": "One item: `topics` = three different titles from closed_lists.paragraphs, exactly as listed.",
+      "alternatives": null,
+      "marks_line_en": "({t:10})",
+      "section_pages": "scope",
+      "in_item_choice": {
+       "g": 3,
+       "n": 1
+      },
+      "instruction_en": "Write a paragraph on any ONE of the following topics.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "english.C.Q9",
+      "type": "Story Writing",
+      "frame": null,
+      "grain": {
+       "kind": "an outline of 8–12 cues separated by dashes, ending with \"Moral\"",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": [
+       "story_outline"
+      ],
+      "lines": 0,
+      "parts": null,
+      "shape": "composition",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q.9:",
+      "label_ur": "سوال 9",
+      "numbering": "none",
+      "compulsory": true,
+      "marks_each": 5,
+      "prompt_rule": "One item: `question` = the outline, 8–12 short cues separated by \" — \", ending \"— Moral\". No title.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "section_pages": "scope",
+      "instruction_en": "Develop a story with a moral from the given outline. Also suggest a suitable title.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "english.C.Q10",
+      "type": "Picture Description",
+      "frame": {
+       "kind": "picture",
+       "lines": 0,
+       "duty_en": "the picture",
+       "duty_ur": "تصویر",
+       "title_en": "Picture (pasted or drawn by the teacher)",
+       "title_ur": "تصویر (استاد چسپاں کریں یا بنائیں)",
+       "book_page": null,
+       "height_mm": 70,
+       "supply_en": "Picture: {q}",
+       "supply_ur": "تصویر: {q}",
+       "word_bank": true
+      },
+      "grain": {
+       "kind": "a nine-word bank for an everyday scene (classroom, park, market)",
+       "steps": 1,
+       "number_size": "eight to ten words",
+       "unit_choice": false
+      },
+      "kinds": [
+       "picture_description"
+      ],
+      "lines": 0,
+      "parts": null,
+      "shape": "frame",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q.10:",
+      "label_ur": "سوال 10",
+      "numbering": "none",
+      "compulsory": true,
+      "marks_each": 6,
+      "prompt_rule": "One item: `question` = a one-line scene for the teacher (e.g. \"children painting in an art lesson\"), `words` = 8–10 words a child would use to describe that scene. The paper prints a frame and the word bank; the teacher adds any picture that fits. Never describe the picture to the child.",
+      "alternatives": null,
+      "marks_line_en": "({t:6})",
+      "section_pages": "scope",
+      "instruction_en": "Describe the picture with the help of the given word bank. Also suggest a suitable title.",
+      "teacher_note_en": "Paste or draw a picture that fits the word bank in the frame before photocopying.",
+      "teacher_note_ur": "فوٹو کاپی سے پہلے مددگار الفاظ سے میل کھاتی کوئی تصویر خانے میں چسپاں کریں یا بنائیں۔"
+     }
+    ],
+    "note_en": null,
+    "time_en": "Time allowed: 2 Hrs.",
+    "label_en": "SECTION C: SUBJECTIVE",
+    "marks_en": "Total Marks: {t:55}",
+    "answer_on": "answer_sheet"
+   }
+  ],
+  "supplies": [
+   {
+    "kind": "picture",
+    "slot": "english.C.Q10",
+    "scene": "children playing in a park",
+    "words": [
+     "children",
+     "swing",
+     "slide",
+     "grass",
+     "trees",
+     "laughing",
+     "playing",
+     "sunny",
+     "bench"
+    ],
+    "line_en": "Q10: Picture: children playing in a park — word bank: children, swing, slide, grass, trees, laughing, playing, sunny, bench",
+    "line_ur": "سوال 10: تصویر: children playing in a park — مددگار الفاظ: children، swing، slide، grass، trees، laughing، playing، sunny، bench",
+    "book_page": null
+   }
+  ],
+  "unplaced": 0,
+  "preset_id": "fde_g5_2027",
+  "before_exam": {
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں"
+  },
+  "frame_pages": {
+   "english.C.Q10": 4
+  },
+  "total_marks": 100,
+  "generated_at": "2026-10-16T08:02:36.265Z",
+  "total_time_en": "3 hrs",
+  "total_time_ur": "3 گھنٹے"
+ }
+}

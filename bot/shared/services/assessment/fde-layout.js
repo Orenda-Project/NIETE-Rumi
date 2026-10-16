@@ -540,11 +540,141 @@ function printable(slot, q) {
   return slot.shape !== 'mcq' || (!sameValueTwice(q) && mcqPropertyVerdict(q).ok !== false && anagramVerdict(q).ok !== false);
 }
 
+// ── One section never gives another away ─────────────────────────────────
+//
+// English: a Q1(a) MCQ whose stem or options carry one of Q4's words hands the child that
+// word's meaning or a sentence to copy («What does the word 'invisible' mean?» above «Use any
+// five of the following words…: invisible»). Social Studies: a Q5 or Q7 item that asks the
+// fact a Q1 MCQ already tests: its one-line answer, or marking points worth at least half its
+// marks, are given away by a Q1 MCQ (the MCQ's key is inside them, or they are printed in the
+// MCQ's stem, AND the two ask about the same thing). Before the re-ask a held item takes no
+// place, so the slot is short and the section is asked again; after it, the clean items fill
+// the slot first and a held item comes back only for a place nothing else can take. The other
+// slot is never touched.
+const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const textsOf = (...values) => values.flat().filter((t) => typeof t === 'string');
+
+function q4Words(q4s) {
+  const words = q4s.flatMap((q) => (Array.isArray(q.words) ? q.words : []))
+    .map((w) => (typeof w === 'string' ? w.replace(/^[\s"'“‘(]+|[\s"'”’).,;:!?]+$/g, '') : ''))
+    .filter((w) => w.length >= 3) // a stray letter would match every option label
+    .map((w) => new RegExp(`(?<![A-Za-z])${escapeRe(w)}(?![A-Za-z])`, 'i'));
+  if (!words.length) return null;
+  return (q) => {
+    const text = textsOf(q.question, Array.isArray(q.options) ? q.options : []).join('\n');
+    return words.some((re) => re.test(text));
+  };
+}
+
+// Urdu read for matching only: one form per letter, no diacritics, Western digits, a light cut
+// of the endings number and gender change (صوبہ / صوبے / صوبوں), and no function words.
+const UR_FORMS = [[/[يى]/g, 'ی'], [/ك/g, 'ک'], [/[ةه]/g, 'ہ'], [/ۀ/g, 'ہ'], [/[أإآ]/g, 'ا'], [/ؤ/g, 'و'], [/ئ/g, 'ی']];
+const UR_MARKS = /[ً-ٰٟۖ-ۭٕٔ]/g;
+const OPTION_HEAD = /^\s*\(?(?:[a-dA-D]|الف|ب|ج|د)\s*[).:۔-]\s*/;
+const STOP = new Set(('میں کا کی کے کو نے سے پر اور یا ہے ہیں تھا تھی تھے کون کس کیا کب کہاں کیوں کیسے کتنا کتنی کتنے '
+  + 'سا سی جو جس جن یہ وہ اس ان ایک بھی تو ہو ہوا ہوئی ہوئے کر کرتا کرتی کرتے کریں کیا گیا گئی گئے لیے والا والی والے '
+  + 'اپنے اپنی اپنا ہوتا ہوتی ہوتے کہتے کہلاتا کہلاتی کہلاتے بتائیں لکھیں درج ذیل سب سے the a an of to in is are was were').split(/\s+/));
+
+function tokensOf(text) {
+  let t = String(text == null ? '' : text).normalize('NFC').replace(UR_MARKS, '').toLowerCase();
+  for (const [re, to] of UR_FORMS) t = t.replace(re, to);
+  t = t.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06F0)).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+  return t.split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w && !STOP.has(w))
+    .map((w) => (/^\d+ء$/.test(w) ? w.slice(0, -1) : w))
+    .map((w) => (/^\p{Script=Arabic}{4,}$/u.test(w) ? w.replace(/(?:وں|یں|ے|ہ|ی|ا)$/, '') : w))
+    .filter((w) => w.length >= 2 || /^\d$/.test(w));
+}
+
+const keyText = (q) => (typeof q.answer === 'string' ? q.answer.replace(OPTION_HEAD, '') : '');
+// An answer of one line (ten words or fewer, function words aside) is judged whole.
+const ONE_LINE = 10;
+// Same thing asked: at least three of the MCQ's own words, and at least a third of them (a held item
+// only costs a re-ask now: it comes back when nothing else can take its place).
+const SAME_WORDS = 3;
+const SAME_SHARE = 0.35;
+
+function sameFact(q1s) {
+  const mcqs = q1s.map((m) => ({
+    key: new Set(tokensOf(keyText(m))),
+    stem: new Set(tokensOf(m.question)),
+    options: new Set(tokensOf(textsOf(Array.isArray(m.options) ? m.options : []).map((o) => o.replace(OPTION_HEAD, '')).join(' '))),
+  })).filter((m) => m.key.size && m.stem.size);
+  if (!mcqs.length) return null;
+  return (q) => {
+    const scheme = q.scheme && typeof q.scheme === 'object' ? q.scheme : {};
+    const points = Array.isArray(scheme.points) ? scheme.points.filter((p) => p && typeof p.text === 'string') : [];
+    const accept = textsOf(Array.isArray(scheme.accept) ? scheme.accept : []);
+    const said = new Set(tokensOf(textsOf(q.question, q.answer, points.map((p) => p.text), accept).join(' ')));
+    // What the MCQ asks (its stem, the shared key taken out) is what the item says too.
+    const asksSame = (asks) => {
+      const both = asks.filter((w) => said.has(w)).length;
+      return both >= SAME_WORDS && both / asks.length >= SAME_SHARE;
+    };
+    // A key an MCQ gives away: it holds the MCQ's key, or it is printed in the MCQ's stem (a name
+    // both carry is not by itself the same question), and the two ask the same thing.
+    const given = (text) => {
+      const k = new Set(tokensOf(text));
+      if (!k.size) return false;
+      return mcqs.some((m) => {
+        const stem = [...m.stem].filter((w) => !m.key.has(w));
+        if ([...m.key].every((w) => k.has(w)) && asksSame(stem)) return true;
+        return [...k].every((w) => m.stem.has(w)) && asksSame(stem.filter((w) => !k.has(w)));
+      });
+    };
+    // A one-line answer (or an item with no marking points) is given whole, with its accepted answers.
+    if (!points.length || tokensOf(q.answer).length <= ONE_LINE) {
+      if (textsOf(q.answer, accept).some(given)) return true;
+      // A one-line answer that is only an MCQ's options («مقننہ، انتظامیہ اور عدلیہ»).
+      const ans = new Set(tokensOf(q.answer));
+      if (ans.size >= 2 && mcqs.some((m) => [...ans].every((w) => m.options.has(w)))) return true;
+    }
+    // Otherwise the points the MCQs give must carry at least half the item's marks: one point of
+    // three cued is a hint, not the answer.
+    const marks = points.map((p) => (Number(p.marks) > 0 ? Number(p.marks) : 1));
+    const total = marks.reduce((a, b) => a + b, 0);
+    const got = points.reduce((sum, p, i) => sum + (given(p.text) ? marks[i] : 0), 0);
+    return total > 0 && got * 2 >= total;
+  };
+}
+
+const CROSS_HOLD = {
+  english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words },
+  social_studies: { held: ['social_studies.C.Q5', 'social_studies.D.Q7'], against: 'social_studies.A.Q1', rule: sameFact },
+};
+
+// One question once per slot: the same stem, and for an MCQ the same options too, compared as
+// written (letter forms, diacritics, digits and case aside; no word dropped, so «silent 'k'»
+// and «silent 'b'» stay two). An MCQ with the same options and key whose stem differs only in
+// its framing words («Which noun / Which word is a proper noun?») is the same question too;
+// one that differs in a content word («___ apple» / «___ umbrella») is not. A re-asked section
+// is written blind, so it often writes the first reply's questions again.
+function plain(text) {
+  let t = String(text == null ? '' : text).normalize('NFC').replace(UR_MARKS, '').toLowerCase();
+  for (const [re, to] of UR_FORMS) t = t.replace(re, to);
+  t = t.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06F0)).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+  return t.split(/[^\p{L}\p{N}]+/u).filter(Boolean).join(' ');
+}
+const FRAME_WORDS = new Set(('which what choose pick select find correct right following given below one option answer '
+  + 'word words noun verb adjective adverb pronoun preposition is are the a an of from').split(' '));
+function sameQuestion(a, b) {
+  const [sa, sb] = [plain(a.question), plain(b.question)];
+  if (!sa || !sb) return false;
+  const opts = (q) => (Array.isArray(q.options) ? q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).sort().join('|') : '');
+  if (opts(a) !== opts(b)) return false;
+  if (sa === sb) return true;
+  if (!opts(a) || plain(keyText(a)) !== plain(keyText(b))) return false;
+  const [A, B] = [new Set(sa.split(' ')), new Set(sb.split(' '))];
+  const differ = [...A].filter((w) => !B.has(w)).concat([...B].filter((w) => !A.has(w)));
+  return differ.every((w) => FRAME_WORDS.has(w));
+}
+
 /**
  * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
  *
  * P is one subject of a pattern (patterns.get(id).subjects[key]); scope is
- * { kind: 'fde' | 'chapters' | 'pages', chapters, pages }. Never throws.
+ * { kind: 'fde' | 'chapters' | 'pages', chapters, pages }. `opts.reasked` is true once the
+ * engine's one re-ask has run (a held item may then fill a place nothing else takes). Never throws.
  */
 function applyLayout(examJson, P, scope, opts = {}) {
   const src = examJson && typeof examJson === 'object' ? clone(examJson) : {};
@@ -556,24 +686,63 @@ function applyLayout(examJson, P, scope, opts = {}) {
 
   const all = walk(src);
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
-  const untagged = [];
-  // Tagged items first, so an untagged one cannot take a tagged one's place.
-  for (const entry of all) {
-    let slot = byId.get(slotKey(entry.q.slot));
-    if (!slot && entry.q.slot) {
-      const tail = `.${slotKey(entry.q.slot).split('.').slice(-2).join('.')}`;
-      slot = slots.find((s) => slotKey(s.slot).endsWith(tail));
+  // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
+  const place = (cross) => {
+    bySlot.forEach((list) => { list.length = 0; });
+    unplaced = 0;
+    const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
+    const fallback = new Map(); // slot → held items, in reply order
+    const fits = (slot, q) => {
+      if (!settleVerses(slot, q) || !printable(slot, q)) return false;
+      if (!holds(slot)) return true;
+      if (bySlot.get(slot.slot).some((p) => sameQuestion(p, q))) return false;
+      if (!cross.rule(q)) return true;
+      fallback.set(slot.slot, [...(fallback.get(slot.slot) || []), q]);
+      return false;
+    };
+    const offer = (slot, q) => {
+      if (room(slot) && fits(slot, q)) bySlot.get(slot.slot).push(q);
+      else unplaced += 1;
+    };
+    const untagged = [];
+    // Tagged items first, so an untagged one cannot take a tagged one's place.
+    for (const entry of all) {
+      let slot = byId.get(slotKey(entry.q.slot));
+      if (!slot && entry.q.slot) {
+        const tail = `.${slotKey(entry.q.slot).split('.').slice(-2).join('.')}`;
+        slot = slots.find((s) => slotKey(s.slot).endsWith(tail));
+      }
+      if (!slot) { untagged.push(entry); continue; }
+      offer(slot, entry.q);
     }
-    if (!slot) { untagged.push(entry); continue; }
-    if (room(slot) && settleVerses(slot, entry.q) && printable(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
-    else unplaced += 1;
-  }
-  for (const entry of untagged) {
-    const key = typeKey(entry.type);
-    const slot = slots.find((s) => typeKey(s.type) === key && room(s));
-    if (slot && settleVerses(slot, entry.q) && printable(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
-    else unplaced += 1;
-  }
+    for (const entry of untagged) {
+      const key = typeKey(entry.type);
+      const slot = slots.find((s) => typeKey(s.type) === key && room(s));
+      if (slot) offer(slot, entry.q);
+      else unplaced += 1;
+    }
+    // A held item comes back only after the one re-ask (the engine says so, `opts.reasked`): the
+    // clean items, the re-asked section's among them, have had their turn, and a paper with a
+    // repeat beats no paper. Before it, the held item stays out, so the slot is short and the
+    // section is asked again.
+    if (!opts.reasked) return;
+    fallback.forEach((list, id) => {
+      const slot = slots.find((s) => s.slot === id);
+      for (const q of list) {
+        if (!room(slot)) break;
+        if (bySlot.get(id).some((p) => sameQuestion(p, q))) continue;
+        bySlot.get(id).push(q);
+        unplaced -= 1;
+      }
+    });
+  };
+  place(null);
+  // A subject whose sections can give each other away is laid out again with its rule, built
+  // from what the first pass placed in the slot that could be given away.
+  const cross = CROSS_HOLD[P.key];
+  const against = cross && slots.find((s) => s.slot === cross.against);
+  const rule = against && cross.rule(bySlot.get(against.slot).slice());
+  if (rule) place({ held: cross.held, rule });
   spreadKeys(slots, bySlot);
 
   // Marks, lines and the canonical tag come from the pattern, never the model.
