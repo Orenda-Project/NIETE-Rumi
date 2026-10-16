@@ -41,7 +41,7 @@ const WebQuizArt = require('../services/quiz/web-quiz-art');
 // Loaded with the routes: it listens for finished sessions and draws their card picture straight away.
 const ShareWarm = require('../services/quiz/web-quiz-share-warm');
 // The ranked next thing on a result (web_quiz_next_offer), required on use.
-const NextOffer = () => require('../services/quiz/web-quiz-next-offer-sources');
+const NextOffer = () => require('../services/quiz/web-quiz-next-offer-result');
 const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');

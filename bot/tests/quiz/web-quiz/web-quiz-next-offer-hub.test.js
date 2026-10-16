@@ -253,7 +253,7 @@ describe('the VALUE override (web_quiz_next_offer_weights)', () => {
 });
 
 // ── the result cards (web-quiz-next-offer-sources.js finishField / challengeField; the routes wrap them) ──────────
-const Sources = require('../../../shared/services/quiz/web-quiz-next-offer-sources');
+const Sources = require('../../../shared/services/quiz/web-quiz-next-offer-result');
 const st = () => T.signSession({ sessionId: 's1', deviceRef: A.device, shareCodeId: 'sc-1' });
 const finished = (over = {}) => ({ score: { correct: 8, total: 10, pct: 80, level: 'high' }, challenge_code: 'FRND01', card: { first: 'Zara' }, ...over });
 
