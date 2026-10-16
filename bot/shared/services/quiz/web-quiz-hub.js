@@ -15,7 +15,7 @@
  *   hub(token, {kid})      the page's boot JSON (contract: W37 M4 SPEC §1.3)
  *   hubLink(studentIds)    `<portal>/h/<token>` when the hub is on, else null
  *   kidOf(token, kid)      the student id a hub chip names
- *   kidFromHub(token, kid, device) {studentId, grade, rootId} for the library route (null on an untrusted phone)
+ *   kidFromHub(token, kid, device) {studentId, grade, rootId, lang} for the library route (null on an untrusted phone)
  *   deviceTrusted(token, device)  which of the children may this phone (device_ref) see? {ok, why, ids}
  *
  * A FORWARDED LINK NAMES NOBODY. The hub token is bound to the first phone (device_ref)
@@ -342,7 +342,8 @@ async function kidFromHub(token, chip, device) {
   const ctx = await kidContext(studentId);
   if (!ctx) return null;
   const root = ctx.history.find((e) => e.teacherSent) || null;
-  return { studentId, grade: ctx.grade, rootId: root ? root.shareCodeId : null };
+  // lang: the child's language from their own quizzes (null with none), for the video library's language list.
+  return { studentId, grade: ctx.grade, rootId: root ? root.shareCodeId : null, lang: require('./student-quiz.service').childLanguage(ctx.history) };
 }
 
 // `known`: the child's row and class list the caller has just read (fast first page), so they are not read again.

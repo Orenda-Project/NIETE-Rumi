@@ -12,9 +12,8 @@
  *                                                maker.prefill.js prefillFor with hasCell from the bank's chip tree
  *                                                (a read error → no pre-fill), unless the caller passes one.
  *
- * Today the ledger's frozen trigger list has no maker_reply, so record() refuses and nothing is sent; this module then
- * logs web_quiz.reply_capped itself (the ledger logs it only for a trigger it knows). The empty-line bodies and the
- * refused-send fallback buttons are not here yet.
+ * maker_reply is one of the ledger's counted triggers: record() refuses it only over the per-phone daily cap, and then
+ * nothing is sent (the ledger logs web_quiz.reply_capped).
  */
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
