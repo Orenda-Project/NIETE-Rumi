@@ -75,7 +75,8 @@ export interface ClassPickerProps {
   grades?: readonly number[];
   /**
    * Opt-in (Digital Coaching's one screen): the picked class drawn as the grade tile every list uses ("G4" on the
-   * grade's colour over the short subject on its tint), and the tray's grades and subjects in their grade colours.
+   * grade's colour over the short subject on its tint). The tray stays as it is everywhere (a trial of grade colours in
+   * the tray was reverted by the operator, 16 Oct).
    */
   gradeColours?: boolean;
   copy?: Partial<Pick<TeacherUiCopy, 'grade' | 'gradeShort' | 'gradeField' | 'selectGrade' | 'gradeSubjects' | 'yourClass' | 'gradeAndSubject' | 'change' | 'close' | 'selected'>>;
@@ -119,18 +120,18 @@ export function ClassPicker({
   const ids = useId();
   const map = subjectsByGradeFor(feature, subjectsByGrade);
   /** The grade tile (as HistoryRow's lead): the grade on its colour over the short subject on its tint. */
-  const gradeTile = (g: number, subject: string, size: 'big' | 'small') => {
+  const gradeTile = (g: number, subject: string) => {
     const tone = gradeColoursFor(g);
     return (
       <span
         aria-hidden="true"
         data-testid="class-grade-tile"
-        className={cn('flex shrink-0 flex-col overflow-hidden whitespace-nowrap text-center leading-none', size === 'big' ? 'h-14 w-14 rounded-xl' : 'h-10 w-10 rounded-[9px]')}
+        className="flex h-14 w-14 shrink-0 flex-col overflow-hidden whitespace-nowrap rounded-xl text-center leading-none"
       >
-        <span className={cn('flex flex-1 items-center justify-center font-extrabold tabular-nums text-white', size === 'big' ? 'text-[17px]' : 'text-[12px]')} style={{ backgroundColor: tone.dark }}>
+        <span className="flex flex-1 items-center justify-center text-[17px] font-extrabold tabular-nums text-white" style={{ backgroundColor: tone.dark }}>
           {bidi(words.gradeShort(g))}
         </span>
-        <span className={cn('flex flex-1 items-center justify-center font-bold', size === 'big' ? 'text-[15px]' : 'text-[11px]')} style={{ backgroundColor: tone.light, color: tone.dark }}>
+        <span className="flex flex-1 items-center justify-center text-[15px] font-bold" style={{ backgroundColor: tone.light, color: tone.dark }}>
           {subjectShort(subject, lang)}
         </span>
       </span>
@@ -202,12 +203,6 @@ export function ClassPicker({
   const choiceName = (c: Choice) =>
     `${gradeSubjectLabel(c.grade, c.subject, '', words.grade)}${c.mine && allowOther ? ` · ${words.yourClass}` : ''}`;
 
-  /** With gradeColours: a starred or picked subject on its grade's tint, edged in its grade's colour. */
-  const cellStyle = (c: Choice, on: boolean, starred: boolean) => {
-    if (!gradeColours || c.off || (!on && !starred)) return undefined;
-    const tone = gradeColoursFor(c.grade);
-    return { backgroundColor: tone.light, borderColor: tone.dark, borderWidth: 2 };
-  };
   const cell = (c: Choice, _i?: number, all?: readonly Choice[]) => {
     const on = isCurrent(c);
     const starred = c.mine && allowOther;
@@ -223,7 +218,7 @@ export function ClassPicker({
     );
     const body = (
       <>
-        {gradeColours ? gradeTile(c.grade, c.subject, 'small') : <SubjectTile subject={c.subject} size={32} tone={on ? 'selected' : c.off ? 'dim' : 'neutral'} />}
+        <SubjectTile subject={c.subject} size={32} tone={on ? 'selected' : c.off ? 'dim' : 'neutral'} />
         <span {...bidi.ltr(buttonName(c, all))} className="line-clamp-2 min-w-0 flex-1 text-[16px] font-semibold leading-[1.25]">{bidi(buttonName(c, all))}</span>
         {on ? (
           <span aria-hidden="true" className="absolute end-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#33374a] text-white">
@@ -237,7 +232,7 @@ export function ClassPicker({
     const href = linkFor(c);
     if (href) {
       return (
-        <Link key={`${c.grade}|${c.subject}`} to={href} onClick={() => choose(c)} aria-label={choiceName(c)} aria-current={on ? 'true' : undefined} className={box} style={cellStyle(c, on, c.mine && allowOther)}>
+        <Link key={`${c.grade}|${c.subject}`} to={href} onClick={() => choose(c)} aria-label={choiceName(c)} aria-current={on ? 'true' : undefined} className={box}>
           {body}
         </Link>
       );
@@ -251,20 +246,12 @@ export function ClassPicker({
         aria-label={choiceName(c)}
         onClick={() => choose(c)}
         className={box}
-        style={cellStyle(c, on, starred)}
       >
         {body}
       </button>
     );
   };
 
-  /** With gradeColours: each grade on its tint (hers edged in its colour); the one she taps filled with its colour. */
-  const gradeStyle = (g: number, on: boolean, starred: boolean) => {
-    const tone = gradeColoursFor(g);
-    return on
-      ? { backgroundColor: tone.dark, borderColor: tone.dark, color: '#fff' }
-      : { backgroundColor: tone.light, borderColor: starred ? tone.dark : tone.light, borderWidth: starred ? 2 : 1, color: tone.dark };
-  };
   const onGradeKey = (e: KeyboardEvent<HTMLButtonElement>) => radioKeyDown(e, keys, tg !== null && keys.includes(tg) ? tg : null, (g) => setTg(g));
   const tabStop = tg !== null && keys.includes(tg) ? tg : keys[0];
   const legend = allowOther && mine.length > 0;
@@ -286,7 +273,7 @@ export function ClassPicker({
       >
         {current ? (
           <>
-            {gradeColours ? gradeTile(current.grade, current.subject, 'big') : <SubjectTile subject={current.subject} />}
+            {gradeColours ? gradeTile(current.grade, current.subject) : <SubjectTile subject={current.subject} />}
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               {!allowOther ? (
                 <span className="text-[13px] font-semibold text-[#6b7280]">{label}</span>
@@ -362,7 +349,6 @@ export function ClassPicker({
                         tabIndex={g === tabStop ? 0 : -1}
                         onClick={() => { if (!off) setTg(g); }}
                         onKeyDown={onGradeKey}
-                        style={gradeColours && !off ? gradeStyle(g, on, starred) : undefined}
                         className={cn(
                           'relative flex min-h-[56px] min-w-0 items-center justify-center rounded-[14px] px-1 text-[16px] font-bold tabular-nums',
                           on
