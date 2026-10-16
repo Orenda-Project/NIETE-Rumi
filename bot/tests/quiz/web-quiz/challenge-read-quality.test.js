@@ -609,6 +609,29 @@ describe('the floor runs on every record read, however it ended', () => {
     expectImplausible(rowOf(ex.ct), 'no_aligned_words');
   });
 
+  test('a weak reader: two words heard, both aligned to the story, the child ended it at 20 s: incomplete as today, the record kept', async () => {
+    const ex = await serve();
+    await readEnded(ex.ct, { secs: 20, ended: 'stuck', transcript: heard(2, 1.1), right: 2, tried: 2 });
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 2, align_correct: 2 });
+    expect(row.status).toBe('failed');
+    expect(row.meta.reason).toBe('incomplete');
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.record).toBe(true);
+  });
+
+  test('golden, the trade kept on purpose: two words heard, one of them a word of the story, timer-ended, nothing credited: unheard, the record kept', async () => {
+    const ex = await serve();
+    const one = heard(1, 1.1).tokens;
+    await readEnded(ex.ct, { secs: 61, ended: 'timer', transcript: { text: '', tokens: [...one, { text: ' xq', start_ms: 2000, end_ms: 2500, speaker: 1 }] }, right: 0, tried: 0 });
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 2, align_correct: 1, ended: 'timer' });
+    expect(row.status).toBe('failed');
+    expect(row.meta.reason).toBe('unheard');
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.record).toBe(true);
+  });
+
   test('golden: enough words heard, the child ended it at 20 s: incomplete as today (the words read kept), no quality key', async () => {
     const ex = await serve();
     await readEnded(ex.ct, { secs: 20, ended: 'stuck', transcript: heard(15, 1.1), right: 12, tried: 15 });

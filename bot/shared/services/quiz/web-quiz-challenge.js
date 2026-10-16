@@ -1443,8 +1443,9 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
         meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: [...(m.flags || []), doubt], ...rest, quality: 'implausible', raw: { correct: score.correct, attempted: score.attempted, wcpm: rate } } };
     };
     // The floor on the words heard runs first on every record read, however it ended, stopped or not, whatever the marker
-    // credited: fewer words than the floor is not a reading (enough of them falls through to today's paths)
-    if (rules.record) {
+    // credited: fewer words than the floor, none of them aligned to the story, is not a reading. A few words that DO align
+    // are a weak reader's own (the bottom of the distribution): they, and enough words heard, fall through to today's paths.
+    if (rules.record && !(Number(m && m.align_correct) > 0)) {
       const floor = silentFloor(m, tokensN);
       if (floor) return implausibleRow(floor, stopped ? 0 : wcpm(score.correct, score.time_left));
     }
