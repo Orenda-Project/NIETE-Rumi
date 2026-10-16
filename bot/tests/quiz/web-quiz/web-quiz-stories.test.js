@@ -1,0 +1,303 @@
+'use strict';
+/**
+ * Stories for the child (web-quiz-stories.js, switch `web_quiz_stories`): the shelf, the book, the events.
+ * Supabase, R2's presign and the hub's "who is this child" are the boundaries and are faked; the rest runs for real.
+ * Books, pages, children and voices are invented ("Testwala", __fixtures__/stories-testwala.js).
+ */
+process.env.WEB_QUIZ_TOKEN_SECRET = 'test-only-secret';
+
+jest.mock('../../../shared/config/supabase', () => ({}));
+const mockKidFromHub = jest.fn();
+jest.mock('../../../shared/services/quiz/web-quiz-hub', () => ({ kidFromHub: (...a) => mockKidFromHub(...a) }));
+const mockPresign = jest.fn(async (key) => `https://r2.example.test/${key}?sig=1`);
+jest.mock('../../../shared/storage/r2', () => ({ presignKey: (...a) => mockPresign(...a) }));
+jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
+jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
+
+const { makeFake } = require('./fake-supabase');
+const supabase = require('../../../shared/config/supabase');
+const F = require('./__fixtures__/stories-testwala');
+const Stories = require('../../../shared/services/quiz/web-quiz-stories');
+
+const KID = '44444444-4444-4444-8444-444444444444';
+const KID_B = '55555555-5555-4555-8555-555555555555';
+const TOKEN = 'hub-token';
+const DAY = 86400000;
+const NOON_PKT = Date.UTC(2026, 9, 16, 7, 0, 0); // 12:00 PKT, 16 Oct 2026
+
+let fake;
+function seed({ on = true, book = false, band = false, extra = {} } = {}) {
+  const settings = [];
+  if (on) settings.push({ key: 'web_quiz_stories', value: true });
+  if (band) settings.push({ key: 'web_quiz_stories_band', value: true });
+  if (book) {
+    ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_challenge_book'].forEach((key) => settings.push({ key, value: true }));
+  }
+  const books = [F.book(1)];
+  for (let n = 2; n <= 7; n += 1) books.push(F.book(n));
+  books.push(F.book(8, { status: 'draft' }));                       // a draft: never on the shelf, never opened
+  books.push(F.book(9, { lang: 'ur', title: 'کتاب ٹیسٹ والا', slug: 'g2-ur-testwala-9' }));
+  books.push(F.book(10, { grade: 3 }));
+  fake = makeFake({
+    app_settings: settings,
+    story_books: books,
+    story_pages: [F.P2, F.P1, F.P3],
+    story_page_voices: [F.VOICE_P1, F.VOICE_P1_OLD],
+    story_questions: F.QUESTIONS.slice(),
+    story_events: [],
+    ...extra,
+  });
+  Object.assign(supabase, fake);
+}
+
+beforeEach(() => {
+  Stories._reset();
+  require('../../../shared/services/quiz/web-quiz-book')._resetCache();
+  mockKidFromHub.mockReset();
+  mockKidFromHub.mockImplementation(async (token, chip) => (token === TOKEN ? { studentId: chip === 'b' ? KID_B : KID, grade: '2', rootId: null } : null));
+  mockPresign.mockClear();
+});
+
+const status = async (p) => { try { await p; return 200; } catch (e) { return e.status || 500; } };
+const body = async (p) => { try { await p; return null; } catch (e) { return e.body; } };
+
+describe('the switch: off is closed everywhere', () => {
+  test('off: shelf, book and event answer 404 stories_off and read nothing about the child', async () => {
+    seed({ on: false });
+    expect(await body(Stories.shelf(TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
+    expect(await status(Stories.book(F.BOOK(1), TOKEN, { kid: 'a' }))).toBe(404);
+    expect(await status(Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_opened', data: {} }))).toBe(404);
+    expect(mockKidFromHub).not.toHaveBeenCalled();
+    expect(fake.db.story_events).toHaveLength(0);
+  });
+  test('a settings read that fails is off', async () => {
+    seed();
+    supabase.from = () => ({ select: () => ({ in: async () => ({ data: null, error: { message: 'down' } }) }) });
+    expect(await status(Stories.shelf(TOKEN, { kid: 'a' }))).toBe(404);
+  });
+  test('only a literal true turns it on', async () => {
+    seed({ on: false });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: 'yes' });
+    expect(await Stories.storiesOn()).toBe(false);
+  });
+  test('hubBits: {} off, {stories:{on:1}} on', async () => {
+    seed({ on: false });
+    expect(await Stories.hubBits()).toEqual({});
+    Stories._reset();
+    seed();
+    expect(await Stories.hubBits()).toEqual({ stories: { on: 1 } });
+  });
+  test('a hub link that names nobody on this phone opens nothing (401)', async () => {
+    seed();
+    expect(await status(Stories.shelf('other-token', { kid: 'a' }))).toBe(401);
+  });
+});
+
+describe('the shelf', () => {
+  test('lists only ready books of the grade and language, with covers on the /s/ route and no draft', async () => {
+    seed();
+    const out = await Stories.shelf(TOKEN, { kid: 'a', now: NOON_PKT });
+    expect(out.grade).toBe(2);
+    expect(out.lang).toBe('en');
+    expect(out.grades).toEqual([1, 2, 3, 4, 5]);
+    const ids = out.books.map((b) => b.id);
+    expect(ids).toHaveLength(7);
+    expect(ids).not.toContain(F.BOOK(8));
+    expect(ids).not.toContain(F.BOOK(9));
+    expect(ids).not.toContain(F.BOOK(10));
+    const b1 = out.books.find((b) => b.id === F.BOOK(1));
+    expect(b1).toEqual(expect.objectContaining({ title: 'Book 1 Testwala', grade: 2, lang: 'en', dir: 'ltr', pages: 2, minutes: 1.5,
+      cover: `/s/${F.BOOK(1)}/cover-aaaa0001.webp`, done: false, from_teacher: false }));
+    expect(out.books.map((b) => b.shelf_position)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(Buffer.byteLength(JSON.stringify(out))).toBeLessThanOrEqual(6 * 1024);
+  });
+  test('g and l pick another shelf; Urdu books are rtl', async () => {
+    seed();
+    const ur = await Stories.shelf(TOKEN, { kid: 'a', l: 'ur', now: NOON_PKT });
+    expect(ur.books.map((b) => [b.id, b.dir])).toEqual([[F.BOOK(9), 'rtl']]);
+    const g3 = await Stories.shelf(TOKEN, { kid: 'a', g: '3', now: NOON_PKT });
+    expect(g3.grade).toBe(3);
+    expect(g3.books.map((b) => b.id)).toEqual([F.BOOK(10)]);
+  });
+  test('order: from the teacher first, then unfinished shuffled per (child, PKT day), finished last', async () => {
+    seed();
+    fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(3), event: 'story_done', data: {}, at: new Date(NOON_PKT - DAY).toISOString() });
+    // Another child's finish never marks this child's shelf.
+    fake.db.story_events.push({ child_id: KID_B, book_id: F.BOOK(4), event: 'story_done', data: {}, at: new Date(NOON_PKT - DAY).toISOString() });
+    const out = await Stories.shelf(TOKEN, { kid: 'a', t: F.BOOK(6), now: NOON_PKT });
+    const ids = out.books.map((b) => b.id);
+    expect(ids[0]).toBe(F.BOOK(6));
+    expect(out.books[0].from_teacher).toBe(true);
+    expect(ids[ids.length - 1]).toBe(F.BOOK(3));
+    expect(out.books[ids.length - 1].done).toBe(true);
+    expect(out.books.find((b) => b.id === F.BOOK(4)).done).toBe(false);
+  });
+  test('the shuffle is stable for a child within a PKT day and moves across days and children', async () => {
+    seed();
+    const order = async (kid, now) => (await Stories.shelf(TOKEN, { kid, now })).books.map((b) => b.id).join();
+    const a1 = await order('a', NOON_PKT);
+    expect(await order('a', NOON_PKT + 3 * 3600000)).toBe(a1);          // later the same PKT day
+    const days = [];
+    for (let d = 1; d <= 5; d += 1) days.push(await order('a', NOON_PKT + d * DAY));
+    expect(days.some((o) => o !== a1)).toBe(true);
+    const kids = [await order('b', NOON_PKT)];
+    expect(kids.some((o) => o !== a1)).toBe(true);
+  });
+  test('the PKT day turns at 19:00 UTC, not at midnight UTC', () => {
+    expect(Stories.pktDay(Date.UTC(2026, 9, 16, 18, 59))).toBe(Stories.pktDay(Date.UTC(2026, 9, 16, 0, 1)));
+    expect(Stories.pktDay(Date.UTC(2026, 9, 16, 19, 0))).not.toBe(Stories.pktDay(Date.UTC(2026, 9, 16, 18, 59)));
+  });
+  test('a teacher id that is not on this shelf is ignored; junk is ignored', async () => {
+    seed();
+    const out = await Stories.shelf(TOKEN, { kid: 'a', t: `${F.BOOK(10)},not-a-uuid`, now: NOON_PKT });
+    expect(out.books.every((b) => b.from_teacher === false)).toBe(true);
+  });
+});
+
+describe('the book', () => {
+  test('pages in order with words × the current voice timings merged by i, boxes kept, audio signed', async () => {
+    seed({ band: true });
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out).toEqual(expect.objectContaining({ id: F.BOOK(1), title: 'Book 1 Testwala', lang: 'en', dir: 'ltr', grade: 2 }));
+    expect(out.pages.map((p) => p.n)).toEqual([1, 2, 3]);
+    const p1 = out.pages[0];
+    expect(p1.image).toEqual({ url: `/s/${F.BOOK(1)}/p01-bbbb0001.webp`, w: 720, h: 1080 });
+    expect(p1.text_band).toEqual({ url: `/s/${F.BOOK(1)}/p01-band-cccc0001.webp`, w: 1440, h: 200, box: [0, 860, 720, 100] });
+    expect(p1.words[1]).toEqual({ i: 1, t: 'Testwala', s_ms: 520, e_ms: 1100, box: [170, 880, 120, 40] });
+    expect(p1.audio).toEqual({ url: `https://r2.example.test/${F.VOICE_P1.audio_key}?sig=1`, ms: 3200 });
+    expect(p1.boxes_ok).toBe(true);
+    expect(mockPresign).toHaveBeenCalledWith(F.VOICE_P1.audio_key, expect.any(Number), expect.anything());
+    expect(mockPresign.mock.calls.some((c) => String(c[0]).includes('old.ogg'))).toBe(false);
+    expect(out.pace_wpm).toBe(94);
+  });
+  test('a page with no voice yet has audio null and words without times; a word with no box has no box key', async () => {
+    seed();
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    const p2 = out.pages[1];
+    expect(p2.audio).toBeNull();
+    expect(p2.boxes_ok).toBe(false);
+    expect(p2.text_band).toBeNull();
+    expect(p2.words[0]).toEqual({ i: 0, t: 'The' });
+    expect(p2.words[1]).toEqual({ i: 1, t: 'kite', box: [200, 900, 60, 40] });
+    expect(out.pages[2].is_picture).toBe(true);
+  });
+  test('questions: only reviewed, in order, options as {t, img?}; the answer is never sent', async () => {
+    seed();
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out.questions).toEqual([
+      { n: 1, kind: 'literal', q: 'What does Sami Testwala see?', options: [{ t: 'A kite' }, { t: 'A cat' }, { t: 'A bus' }] },
+      { n: 2, kind: 'inference', q: 'Where does the kite go?', options: [{ t: 'Down' }, { t: 'Up high', img: `/s/${F.BOOK(1)}/q2o1-eeee0001.webp` }, { t: 'Home' }] },
+    ]);
+    expect(JSON.stringify(out)).not.toMatch(/answer_i|review_status|"answer"/);
+  });
+  test('a draft book, an unknown id and a junk id are 404 not_found', async () => {
+    seed();
+    expect(await body(Stories.book(F.BOOK(8), TOKEN, { kid: 'a' }))).toEqual({ error: 'not_found' });
+    expect(await status(Stories.book('5b0000ff-0000-4000-8000-000000000000', TOKEN, { kid: 'a' }))).toBe(404);
+    expect(await status(Stories.book('../../etc', TOKEN, { kid: 'a' }))).toBe(404);
+  });
+  test('the text band is held back unless its own switch is on (a reading expert rules on the second copy of the words)', async () => {
+    seed();
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out.pages[0].text_band).toBeNull();
+    expect(JSON.stringify(out)).not.toContain('band-cccc');
+  });
+  test('audio stored under story/<env>/<book>/ is served by the /s/ route, unsigned', async () => {
+    seed();
+    fake.db.story_page_voices[0].audio_key = `story/sandbox/${F.BOOK(1)}/a01-dddd0001.ogg`;
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out.pages[0].audio).toEqual({ url: `/s/${F.BOOK(1)}/a01-dddd0001.ogg`, ms: 3200 });
+    expect(mockPresign).not.toHaveBeenCalled();
+  });
+  test('mergeWords: timings joined by i, not by position', () => {
+    const w = Stories.mergeWords([{ i: 0, t: 'a' }, { i: 1, t: 'b', box: [1, 2, 3, 4] }], [{ i: 1, s_ms: 10, e_ms: 20 }, { i: 0, s_ms: 0, e_ms: 5 }]);
+    expect(w).toEqual([{ i: 0, t: 'a', s_ms: 0, e_ms: 5 }, { i: 1, t: 'b', s_ms: 10, e_ms: 20, box: [1, 2, 3, 4] }]);
+  });
+});
+
+describe('events', () => {
+  test('story_opened is kept with the child, the book and only the allowed numbers', async () => {
+    seed();
+    const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_opened', data: { shelf_position: 3, from_teacher: false, grade: 2, lang: 'en', name: 'Sami' } });
+    expect(out).toEqual({ ok: true });
+    expect(fake.db.story_events).toHaveLength(1);
+    expect(fake.db.story_events[0]).toEqual(expect.objectContaining({ child_id: KID, book_id: F.BOOK(1), event: 'story_opened', page_n: null,
+      data: { shelf_position: 3, from_teacher: false, grade: 2, lang: 'en' } }));
+  });
+  test('story_page_read keeps numbers only (never a transcript)', async () => {
+    seed();
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { words_total: 5, words_read: 4, skipped: 1, ms: 3000, ended: 'last_word', transcript_final: 'sami sees a kite' } });
+    expect(fake.db.story_events[0].page_n).toBe(1);
+    expect(fake.db.story_events[0].data).toEqual({ words_total: 5, words_read: 4, skipped: 1, ms: 3000, ended: 'last_word' });
+  });
+  test('an unknown event, a draft book or a bad page is 400/404 and writes nothing', async () => {
+    seed();
+    expect(await status(Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_hacked', data: {} }))).toBe(400);
+    expect(await status(Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(8), event: 'story_opened', data: {} }))).toBe(404);
+    expect(await status(Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 99, event: 'story_page_read', data: {} }))).toBe(400);
+    expect(fake.db.story_events).toHaveLength(0);
+  });
+  test('story_questions_done is checked on the server: correct, total and effort stars back', async () => {
+    seed();
+    const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_questions_done', data: { answers: [0, 2] } });
+    expect(out).toEqual({ ok: true, correct: 1, total: 2, stars: expect.any(Number) });
+    expect(fake.db.story_events[0].data).toEqual({ correct: 1, total: 2, stars: out.stars });
+  });
+  test('effort stars: one for listening, one for reading aloud, one for answering — never for being right', () => {
+    expect(Stories.effortStars({ listened: 0, read: 0, answered: false })).toBe(0);
+    expect(Stories.effortStars({ listened: 2, read: 0, answered: false })).toBe(1);
+    expect(Stories.effortStars({ listened: 2, read: 1, answered: false })).toBe(2);
+    expect(Stories.effortStars({ listened: 2, read: 1, answered: true })).toBe(3);
+  });
+  test('stars on story_questions_done count the child\'s effort on this book, whatever the answers', async () => {
+    seed();
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_listened', data: { ms: 3000, completed: true } });
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { words_total: 5, words_read: 5 } });
+    const wrong = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_questions_done', data: { answers: [2, 2] } });
+    expect(wrong.correct).toBe(0);
+    expect(wrong.stars).toBe(3);
+  });
+  test('sticker once: the first story_done of a book gives the sticker when the Book is on, never again', async () => {
+    seed({ book: true });
+    const first = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_done', data: { pages_listened: 3, pages_read: 1, stars: 3 } });
+    expect(first).toEqual({ ok: true, sticker: true });
+    const again = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_done', data: {} });
+    expect(again).toEqual({ ok: true, sticker: false });
+    // Another child finishing the same book gets their own.
+    const other = await Stories.event(TOKEN, { kid: 'b', book_id: F.BOOK(1), event: 'story_done', data: {} });
+    expect(other.sticker).toBe(true);
+    expect(fake.db.story_events.filter((e) => e.event === 'story_done')).toHaveLength(3);
+  });
+  test('no sticker while the Book is off', async () => {
+    seed({ book: false });
+    const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_done', data: {} });
+    expect(out).toEqual({ ok: true, sticker: false });
+  });
+  test('stickersFor: the child\'s first finish of each ready book, newest first, with its title', async () => {
+    seed();
+    fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(2), event: 'story_done', data: {}, at: '2026-10-15T10:00:00Z' });
+    fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: {}, at: '2026-10-16T10:00:00Z' });
+    fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(1), event: 'story_done', data: {}, at: '2026-10-16T11:00:00Z' });
+    expect(await Stories.stickersFor(KID)).toEqual([
+      { book_id: F.BOOK(1), title: 'Book 1 Testwala', cover: `/s/${F.BOOK(1)}/cover-aaaa0001.webp` },
+      { book_id: F.BOOK(2), title: 'Book 2 Testwala', cover: `/s/${F.BOOK(2)}/cover-aaaa0002.webp` },
+    ]);
+  });
+});
+
+describe('pageReadable (the live-read key asks before it spends)', () => {
+  test('true only for a text page of a ready book with Stories on', async () => {
+    seed();
+    expect(await Stories.pageReadable(F.BOOK(1), 1)).toBe(true);
+    expect(await Stories.pageReadable(F.BOOK(1), 3)).toBe(false);   // a picture page: no words to read
+    expect(await Stories.pageReadable(F.BOOK(1), 9)).toBe(false);   // no such page
+    expect(await Stories.pageReadable(F.BOOK(8), 1)).toBe(false);   // a draft book
+    expect(await Stories.pageReadable('junk', 1)).toBe(false);
+  });
+  test('false with Stories off, without reading any book', async () => {
+    seed({ on: false });
+    const before = fake.calls.length;
+    expect(await Stories.pageReadable(F.BOOK(1), 1)).toBe(false);
+    expect(fake.calls.slice(before).some((c) => c.table !== 'app_settings')).toBe(false);
+  });
+});

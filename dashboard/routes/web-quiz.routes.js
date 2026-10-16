@@ -99,6 +99,10 @@ const API_ROUTES = [
   // Jugnu's Book from the kid's hub (the bot answers 503 while web_quiz_challenge_book is off)
   { method: 'get', path: '/api/wq/book/h/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
+  // storybooks from the kid's hub (the bot answers 404 stories_off while web_quiz_stories is off)
+  { method: 'get', path: '/api/wq/stories/shelf/h/:token', limiter: 'read', token: true },
+  { method: 'get', path: '/api/wq/stories/book/:id/h/:token', limiter: 'read', token: true },
+  { method: 'post', path: '/api/wq/stories/event/h/:token', limiter: 'session', token: true },
   { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
   // the results card's door to the child's hub (a session token in the body)
