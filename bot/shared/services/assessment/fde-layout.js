@@ -979,8 +979,16 @@ function stemGivesKey(a, b) {
     const other = new Set(tokensOf(by.question).filter((w) => w.length >= 3 && !k.has(w)));
     return tokensOf(q.question).some((w) => w.length >= 3 && !k.has(w) && other.has(w));
   };
-  const given = (q, by) => !QUOTES_EXAMPLE.test(String(q.question || ''))
-    && (key(q).size >= GIVEN_WORDS || (key(q).size === 1 && topic(q, by)));
+  // A quoted word list is no example: a stem that lists another item's key among its words
+  // («کمبل، آتش دان، مونگ پھلی، ریوڑیاں» … → سردی beside «… کون سا لفظ شامل نہیں ہو سکتا؟ → آتش
+  // دان») prints that key, whatever the item asking it quotes.
+  const listed = (q, by) => {
+    const k = plain(keyText(q));
+    return Boolean(k) && (String(by.question || '').match(QUOTE_SPAN) || [])
+      .some((quote) => { const words = quote.split(/[،,]/).map(plain).filter(Boolean); return words.length >= 2 && words.includes(k); });
+  };
+  const given = (q, by) => listed(q, by) || (!QUOTES_EXAMPLE.test(String(q.question || ''))
+    && (key(q).size >= GIVEN_WORDS || (key(q).size === 1 && topic(q, by))));
   const [ab, ba] = [prints(a, b), prints(b, a)];
   return (ab && ba) || (ab && given(b, a)) || (ba && given(a, b));
 }
