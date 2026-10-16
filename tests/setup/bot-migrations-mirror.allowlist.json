@@ -167,7 +167,6 @@
         "enrolled_by_user_id",
         "import_run_id",
         "phone",
-        "school_id",
         "student_code"
       ],
       "onlyMirror": [

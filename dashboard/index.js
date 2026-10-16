@@ -172,6 +172,9 @@ const { createWebQuizRouter } = require('./routes/web-quiz.routes');
 app.use(createWebQuizRouter());
 // The teacher home /quiz/teacher/:token and /api/th/* (switch off at the bot → falls through to the SPA).
 app.use(require('./routes/quiz-teacher.routes').createQuizTeacherRouter());
+// A child joins on their own: /quiz/join/:token (quiz_student_join, decided by the bot; off → the routes below answer).
+const { createQuizJoinRouter } = require('./routes/quiz-join.routes');
+app.use(createQuizJoinRouter());
 // The teacher's web quiz report /r/:token (+ /pdf, /remind), same bot client as /q.
 // Not /t: that is the training link, mounted further down.
 const { createTeacherReportRouter } = require('./routes/teacher-report.routes');
