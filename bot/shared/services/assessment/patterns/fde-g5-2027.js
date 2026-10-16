@@ -511,6 +511,13 @@ const ENGLISH = {
     informal_letters: ['Birthday party invitation', 'To your sister congratulating her on passing the examination', 'Thanking a friend for a gift', 'Inviting your friend to spend summer holidays with you', 'To your friend telling them about your favourite book'],
     applications: ['Sick leave', 'School leaving certificate', 'Leave to attend your brother\'s marriage ceremony', 'Remission of fine', 'Urgent piece of work', 'To your principal to upgrade your school library'],
   },
+  // The book's rhyming poems, for Q5 when the chosen pages hold none. Titles and pages as printed:
+  // p.20 «Colours by Shel Silverstein»; pp.100–101 the unit 8 poem (p.99 is its pre-reading,
+  // p.102 a second poem with no rhyming pairs).
+  poems: [
+    { unit: 2, pages: '20', title: 'Colours' },
+    { unit: 8, pages: '100-101', title: 'City Life vs. Farm Life: A Friendly Debate' },
+  ],
   scope: {
     page_ranges: '1-138',
     chapter_numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
