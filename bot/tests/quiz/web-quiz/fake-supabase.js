@@ -37,6 +37,25 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       eq(c, v) { st.filters.push((r) => same(r[c], v)); return b; },
       neq(c, v) { st.filters.push((r) => r[c] !== v); return b; },
       is(c, v) { st.filters.push((r) => (v === null ? val(r, c) == null : val(r, c) === v)); return b; },
+      // PostgREST `or`: comma-separated `col.op.value`; a NULL cell matches only `is.null` (SQL: NULL <> x is not true).
+      or(expr) {
+        const parts = String(expr).split(',').map((p) => {
+          const [c, op, ...rest] = p.split('.');
+          const v = rest.join('.');
+          return (r) => {
+            const x = val(r, c);
+            if (op === 'is') return v === 'null' ? x == null : String(x) === v;
+            if (x == null) return false;
+            if (op === 'eq') return String(x) === v;
+            if (op === 'neq') return String(x) !== v;
+            const n = Number(v);
+            if (op === 'lte') return Number(x) <= n;
+            if (op === 'gte') return Number(x) >= n;
+            return false;
+          };
+        });
+        st.filters.push((r) => parts.some((f) => f(r))); return b;
+      },
       not(c, op, v) { if (op === 'is' && v === null) st.filters.push((r) => val(r, c) != null); return b; },
       // PostgREST echoes the query into the Content-Location header and Node's fetch caps response headers at 16 KB:
       // a list of more than ~390 UUIDs fails the request as supabase-js reports it (postgrest-js: `TypeError: fetch failed`,

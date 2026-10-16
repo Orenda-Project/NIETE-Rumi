@@ -90,10 +90,10 @@ function seed(settings = []) {
   const vquiz = (n) => ({ id: VQ(n), video_id: V(n), quiz_source: 'video', status: 'ready', topic: `Video quiz ${n}`, grade: '3', subject: 'Science', language: null, meta: null });
   fake = makeFake({
     quiz_share_codes: [
-      { id: SC, code: 'AB12CD', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER, teacher_name: 'Ms Example Teacher',
+      { id: SC, code: 'AB12CD', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER, teacher_name: 'Nadia Testwala',
         topic: 'Parts of a plant', language: 'ur', active: true, expires_at: future, invited_by_student_id: null,
         parent_share_code_id: null, uses_count: 0, created_at: ago(30) },
-      { id: SC_OTHER, code: 'ZZ99ZZ', quiz_id: QUIZ, video_id: null, teacher_user_id: OTHER_TEACHER, teacher_name: 'Another Teacher',
+      { id: SC_OTHER, code: 'ZZ99ZZ', quiz_id: QUIZ, video_id: null, teacher_user_id: OTHER_TEACHER, teacher_name: 'Farah Testwala',
         topic: 'Parts of a plant', language: 'en', active: true, expires_at: future, invited_by_student_id: null,
         parent_share_code_id: null, uses_count: 0, created_at: ago(30) },
     ],

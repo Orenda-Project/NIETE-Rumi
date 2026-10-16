@@ -348,24 +348,13 @@ function mediaHelpers() {
 // ─── the class's name chips ────────────────────────────────────────────────
 
 /**
- * A child's own code under the watch root (a class-less child's quiz after a video): no class, so no classmates. The
- * root (app_settings VALUE web_quiz_watch_root, the key the videos module mints under) is read only for a code with a
- * parent and no inviter, once per page; any failure reads as not a watch code (today's page).
+ * A child's own code under the watch root (a class-less child's quiz after a video), or the root code itself: no class,
+ * so no classmates. The root (app_settings VALUE web_quiz_watch_root, the key the videos module mints under) comes in
+ * the page's own identity-mode settings read, so no code pays a read for it; no root (or a failed read) = today's page.
  */
-const WATCH_ROOT_KEY = 'web_quiz_watch_root';
-function isWatchCode(ctx) {
-  if (!ctx.moreVideosOf) return Promise.resolve(false);
-  if (!ctx.watchP) {
-    ctx.watchP = (async () => {
-      try {
-        const { data } = await supabase.from('app_settings').select('value').eq('key', WATCH_ROOT_KEY).maybeSingle();
-        let v = data && data.value;
-        if (typeof v === 'string') { try { v = JSON.parse(v); } catch { /* plain string */ } }
-        return typeof v === 'string' && v === ctx.moreVideosOf;
-      } catch { return false; }
-    })();
-  }
-  return ctx.watchP;
+async function isWatchCode(ctx) {
+  const root = await IdRoster.watchRoot();
+  return Boolean(root) && (ctx.moreVideosOf === root || ctx.shareCodeId === root);
 }
 
 /**
@@ -375,10 +364,16 @@ function isWatchCode(ctx) {
  */
 async function classChips(ctx) {
   const since = new Date(Date.now() - CHIP_WINDOW_DAYS * 86400000).toISOString();
-  // A watch code's teacher is the watch root's: its other codes are strangers, so only this code's own players.
+  // A watch code's teacher is the watch root's: its other codes are strangers, so only this code's own players; the
+  // root code itself is no class at all. Every other code of that teacher leaves the watch children's codes out.
+  const root = await IdRoster.watchRoot();
+  if (root && ctx.shareCodeId === root) return [];
   const watch = await isWatchCode(ctx);
-  const { data: codes } = watch ? { data: [] } : await dbRead('classChips:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id')
-    .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since).limit(200));
+  const { data: codes } = watch ? { data: [] } : await dbRead('classChips:quiz_share_codes:1', (db) => {
+    const q = db.from('quiz_share_codes').select('id')
+      .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since);
+    return (root ? q.or(`parent_share_code_id.is.null,parent_share_code_id.neq.${root}`) : q).limit(200);
+  });
   const ids = (codes || []).map((c) => c.id);
   if (!ids.includes(ctx.shareCodeId)) ids.push(ctx.shareCodeId);
   const { data: sessions } = await dbRead('classChips:quiz_sessions:1', (db) => db.from('quiz_sessions')
@@ -1188,6 +1183,8 @@ const ARABIC_SCRIPT = /[؀-ۿݐ-ݿ]/;
 async function identityV2(ctx) {
   if ((await IdRoster.identityMode()) !== 'v2') return null;
   if (ctx.invitedByStudentId) return { invited: true, resolved: NONE_CLASS };
+  // A class-less child's own code under the watch root (or the root): nobody's class, so no class to match a name in.
+  if (await isWatchCode(ctx)) return { invited: false, resolved: NONE_CLASS };
   try {
     const resolved = await Identity.resolveQuizClass({
       teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId,
