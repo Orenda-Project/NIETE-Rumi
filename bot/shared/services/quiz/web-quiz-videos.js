@@ -11,6 +11,10 @@
  *                           use with the teacher's attribution (teacher_user_id,
  *                           teacher_name) and parent_share_code_id = the class code.
  *
+ *   start({hub, kid, vid})  a child with no class code yet (web_quiz_home_v3 on): {watch} — the lesson's own signed
+ *                           video, no code minted; with {after:1} the quiz after it, on a code of the child's own
+ *                           under the watch root (app_settings VALUE web_quiz_watch_root). Switch off: 409 no_class.
+ *
  * A "more videos" code has a parent and no inviter. resolveCode collapses a code to its
  * parent only when it has an inviter (a friend's challenge), so this one plays its own
  * quiz and has its own league, and startSession schedules no 12-hour teacher report for
@@ -31,6 +35,7 @@ const CODE_DAYS = 30;
 const META_TTL_MS = 6 * 60 * 60 * 1000;
 const HEAD_BYTES = 65535;
 const VID_RX = /^[0-9a-f-]{36}$/i;
+const WATCH_TTL_S = 6 * 60 * 60;
 const { GRADE_ORDER } = require('./video-bank-order');
 
 // The quiz row's subject (lesson quizzes write lower-case short names) -> the video bank's.
@@ -274,6 +279,88 @@ async function lessonLanguage(vq) {
   return clampLanguage(quizLanguage(vq, qs || []));
 }
 
+// ─── watch-only: a child with no class code yet (web_quiz_home_v3) ──────────
+
+const WATCH_ROOT_KEY = 'web_quiz_watch_root';
+
+/** The watch root: a share code id from the VALUE key (a JSON string or plain), or null. Fails closed. */
+async function watchRoot() {
+  try {
+    const { data } = await supabase.from('app_settings').select('value').eq('key', WATCH_ROOT_KEY).maybeSingle();
+    let v = data && data.value;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
+    return typeof v === 'string' && VID_RX.test(v) ? v : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * The quiz after a watched video, for a child with no class: a code of the child's OWN under the watch root (a code's
+ * league is everyone who played it, and class-less children are strangers from different schools), reused once the
+ * child has played it. A child code (parent set, no inviter) schedules no teacher report and never reads as
+ * teacher-sent on the hub, so the child stays class-less. -> {id, code}
+ */
+async function watchCodeFor({ rootId, vq, video, vid, lang, studentId, fail }) {
+  const { data: played } = await supabase.from('quiz_sessions').select('share_code_id')
+    .eq('student_id', studentId).eq('quiz_id', vq.id).limit(20);
+  const ids = [...new Set((played || []).map((r) => r.share_code_id).filter(Boolean))];
+  if (ids.length) {
+    const { data: mine } = await supabase.from('quiz_share_codes').select('id, code, active, expires_at, parent_share_code_id, invited_by_student_id')
+      .in('id', ids).eq('parent_share_code_id', rootId).is('invited_by_student_id', null);
+    const live = (mine || []).find((c) => c.active !== false && (!c.expires_at || new Date(c.expires_at) > new Date()));
+    if (live) return live;
+  }
+  const { data: r } = await supabase.from('quiz_share_codes').select('id, teacher_user_id, teacher_name').eq('id', rootId).maybeSingle();
+  if (!r) fail(409, 'no_class');
+  const { randomCode } = require('./video-quiz-share.service');
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data, error } = await supabase.from('quiz_share_codes').insert({
+      code: randomCode(), quiz_id: vq.id, video_id: vid,
+      teacher_user_id: r.teacher_user_id, teacher_name: r.teacher_name,
+      topic: video.clean_title || vq.topic || null, language: lang,
+      parent_share_code_id: rootId, invited_by_student_id: null, active: true,
+      expires_at: new Date(Date.now() + CODE_DAYS * 86400000).toISOString(),
+    }).select('id, code').single();
+    if (!error && data) {
+      logEvent('web_quiz.watch_quiz_code', { videoId: vid, quizId: vq.id, newShareCodeId: data.id });
+      return data;
+    }
+    if (error && error.code !== '23505') {
+      logToFile('❌ web-quiz videos: could not mint a watch code', { error: error.message }, 'error');
+      break;
+    }
+  }
+  return fail(502, 'db_unavailable');
+}
+
+/**
+ * A child with no class code: with web_quiz_home_v3 off, 409 no_class (today). On: {watch: {vid, url, poster?, secs?,
+ * title, lang, after}} — the video first, nothing minted (`after` = whether the quiz after it can be offered); with
+ * body.after, {code, k} for the quiz after it under the watch root, else 409 no_class.
+ */
+async function watchStart(who, vid, body, fail) {
+  if (!(await require('./web-quiz-hub-home').flags()).home) fail(409, 'no_class');
+  if (!VID_RX.test(vid)) fail(400, 'bad_request');
+  const { video, vq, lang } = await lessonOf(vid, fail);
+  const rootId = await watchRoot();
+  if (body.after) {
+    if (!rootId) fail(409, 'no_class');
+    const c = await watchCodeFor({ rootId, vq, video, vid, lang, studentId: who.studentId, fail });
+    return { code: c.code, k: T.chipId(c.id, who.studentId) };
+  }
+  const media = await require('./web-quiz-media').presignVideo({ video_id: vid }, { expiresIn: WATCH_TTL_S });
+  if (!media || !media.url) fail(503, 'unavailable');
+  const meta = peekMeta(vid) || {};
+  logEvent('web_quiz.video_watch_start', { videoId: vid, lang, after: Boolean(rootId) });
+  return {
+    watch: {
+      vid, url: media.url, ...(media.poster ? { poster: media.poster } : {}), ...(meta.secs ? { secs: meta.secs } : {}),
+      title: video.clean_title || '', lang, after: Boolean(rootId),
+    },
+  };
+}
+
 /**
  * From a quiz page: {code, st, vid} -> {code}. From the kid's hub: {hub, kid, vid} -> {code, k},
  * rooted at the newest teacher-sent code the child played (kidFromHub().rootId; none -> 409 no_class),
@@ -290,7 +377,7 @@ async function start(body = {}) {
     // body.device: this phone's device_ref (the route sets it from x-wq-device) — a forwarded hub link starts nothing as the child.
     const who = await Hub.kidFromHub(String(body.hub), body.kid == null ? null : String(body.kid), body.device == null ? undefined : String(body.device));
     if (!who || !who.studentId) fail(401, 'bad_token');
-    if (!who.rootId) fail(409, 'no_class');
+    if (!who.rootId) return watchStart(who, vid, body, fail);
     if (!VID_RX.test(vid)) fail(400, 'bad_request');
     const { video, vq, lang } = await lessonOf(vid, fail);
     const c = await codeFor({ rootId: who.rootId, root: null, vq, video, vid, lang, fail });
@@ -305,4 +392,4 @@ async function start(body = {}) {
   return { code: c.code };
 }
 
-module.exports = { list, start, gradesFor, subjectFor, pick, mp4Seconds, classRootId, peekMeta, warmMeta, LIST_MAX, VID_RX, _metaCache: metaCache };
+module.exports = { list, start, watchRoot, WATCH_ROOT_KEY, gradesFor, subjectFor, pick, mp4Seconds, classRootId, peekMeta, warmMeta, LIST_MAX, VID_RX, _metaCache: metaCache };
