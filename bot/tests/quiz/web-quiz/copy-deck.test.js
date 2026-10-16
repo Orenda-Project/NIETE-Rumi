@@ -244,8 +244,8 @@ describe('copy deck v2.4: the STOP line names the number; the paused round card 
     expect(kids.ur.endsWith(`نہیں${NBSP}آتا۔`)).toBe(true);
   });
 
-  test('the new paused-card lines stay held until the round page lifts them', () => {
-    for (const k of ['jg.round.t_paused_how', 'jg.round.t_paused_kids']) expect([k, typeof d()[k].held]).toEqual([k, 'boolean']);
+  test('the new paused-card lines are lifted: live, no longer held (the round page renders both)', () => {
+    for (const k of ['jg.round.t_paused_how', 'jg.round.t_paused_kids']) expect([k, d()[k].held, d()[k].retired]).toEqual([k, undefined, undefined]);
   });
 
   test('the deck says which file reads it at runtime', () => {
@@ -292,6 +292,5 @@ describe('copy deck v2.4.1: the finish card counts the class, never places the c
     expect(how.en).not.toContain(d()['jg.round.start'].en);
     expect(how.ur).not.toContain(d()['jg.round.start'].ur);
     expect(how.ur.split(d()['jg.round.t_resume'].ur).length).toBe(2);
-    expect(how.held).toBe(true);
   });
 });
