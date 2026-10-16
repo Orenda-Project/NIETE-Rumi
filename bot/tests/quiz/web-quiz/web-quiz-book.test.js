@@ -39,6 +39,7 @@ const WED = '2026-11-11T04:00:00Z';
 const THU_LAST = '2026-11-05T06:00:00Z';
 const OCT = '2026-10-15T06:00:00Z';
 const GOLDEN = path.join(__dirname, 'web-quiz-book-hub-golden.json');
+const GOLDEN_V2 = path.join(__dirname, 'web-quiz-book-hub-golden-v2.json');
 
 let db;
 const ON = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_challenge_book'];
@@ -371,6 +372,7 @@ describe('golden: every new switch off -> the hub payload is the base\'s', () =>
       seed({ app_settings: settings(keys), web_quiz_challenge_runs: [run({ class_id: CLASS, passage_id: 'p-g' })], child_rungs: [{ canonical_id: KID, ladder: 'reading', rung: 3, period_id: '2026-11', set_at: WED }] });
       Hub._resetCache();
       try { require('../../../shared/services/quiz/web-quiz-book')._resetCache(); } catch (_) { /* absent on the base */ }
+      require('../../../shared/services/quiz/web-quiz-hub-play')._resetCache();   // its 30 s switch cache, so every snap reads its own switches
       redis._store.clear();
       logEvent.mockClear();
       const payload = await Hub.hub(T.signHub([KID]), { kid: T.chipId('h', KID), device: DEV });
@@ -379,13 +381,15 @@ describe('golden: every new switch off -> the hub payload is the base\'s', () =>
       jest.useRealTimers();
     }
   }
-  test('switches absent, book off under v2, book on without v2, wall on without book: all equal the base', async () => {
+  test('switches absent and book or wall on without v2 equal the base; book and wall off under v2 equal v2 alone', async () => {
     const base = await snap(BASE);
     const golden = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
     expect(base).toEqual(golden);
-    expect(await snap([...BASE, 'web_quiz_challenge_v2'])).toEqual(golden);
+    const v2 = await snap([...BASE, 'web_quiz_challenge_v2']);
+    // under v2 the hub carries v2's own `play`: book and wall off under v2 are compared to v2 alone, recorded from the base
+    expect(v2).toEqual(JSON.parse(fs.readFileSync(GOLDEN_V2, 'utf8')));
     expect(await snap([...BASE, 'web_quiz_challenge_book', 'web_quiz_class_wall'])).toEqual(golden);
-    expect(await snap([...BASE, 'web_quiz_challenge_v2', 'web_quiz_class_wall'])).toEqual(golden);
+    expect(await snap([...BASE, 'web_quiz_challenge_v2', 'web_quiz_class_wall'])).toEqual(v2);
   });
 });
 
