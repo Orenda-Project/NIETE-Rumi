@@ -10,12 +10,18 @@
  * The keys that broke a rule when this gate landed are listed by key in copy-deck-urdu-orphans.allowlist.json and
  * copy-deck-whatsapp-joiner.allowlist.json; each list only shrinks: a new key fails; a fixed key passes with a
  * console.warn `CLEAN:` line, so the deck edit that fixes it is never failed for it.
+ *
+ * Rule 2 also holds in the scripts that carry Urdu outside the deck (bot/shared, dashboard/public, dashboard/routes):
+ * a page string drawn without WQT.nowrap wraps at the plain space. Counted per file against
+ * copy-whatsapp-joiner-files.allowlist.json, shrink-only: a new file or a higher count fails; a lower one warns.
  */
 const fs = require('fs');
 const path = require('path');
 const ORPHANS = require('./copy-deck-urdu-orphans.allowlist.json');
 const WHATSAPP = require('./copy-deck-whatsapp-joiner.allowlist.json');
 const { REPO, urduOrphans, whatsappWithoutJoiner, listVerdict } = require('./test-seam-gates-lib');
+const { countVerdict } = require('./ratchet-verdict-lib');
+const SCRIPTS = require('./copy-whatsapp-joiner-files.allowlist.json');
 
 const NBSP = ' ';
 const deckInTree = () => JSON.parse(fs.readFileSync(path.join(REPO, 'bot/shared/config/copy.v2.json'), 'utf8'));
@@ -65,6 +71,30 @@ describe('the deck', () => {
   test('no new «واٹس ایپ» without U+00A0', () => {
     const { failures, cleans } = listVerdict(whatsappWithoutJoiner(deck), WHATSAPP, 'has «واٹس ایپ» without U+00A0 between the words', 'copy-deck-whatsapp-joiner.allowlist.json');
     for (const line of cleans) console.warn(line);
+    expect(failures).toEqual([]);
+  });
+});
+
+describe('the scripts', () => {
+  const { execFileSync } = require('child_process');
+  const PLAIN = /واٹس(?!\u00a0ایپ)\s*ایپ/g;
+  const scripts = () => execFileSync('git', ['ls-files', '-z', '--', 'bot/shared', 'dashboard/public', 'dashboard/routes'], { cwd: REPO })
+    .toString('utf8').split('\0').filter((f) => f.endsWith('.js'));
+
+  test('the count: «واٹس ایپ» with a plain space or none, each one; U+00A0 is not counted', () => {
+    expect(`a واٹس ایپ b واٹس${NBSP}ایپ c واٹسایپ`.match(PLAIN)).toHaveLength(2);
+  });
+
+  test('no script gains a «واٹس ایپ» without U+00A0', () => {
+    const hits = {};
+    for (const f of scripts()) {
+      const n = (fs.readFileSync(path.join(REPO, f), 'utf8').match(PLAIN) || []).length;
+      if (n) hits[f] = n;
+    }
+    const { failures, warnings } = countVerdict(hits, SCRIPTS, {
+      what: '«واٹس ایپ» without U+00A0', list: 'copy-whatsapp-joiner-files.allowlist.json', exists: (f) => fs.existsSync(path.join(REPO, f)),
+    });
+    for (const line of warnings) console.warn(line);
     expect(failures).toEqual([]);
   });
 });
