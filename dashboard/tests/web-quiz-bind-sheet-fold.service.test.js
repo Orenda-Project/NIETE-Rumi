@@ -116,10 +116,10 @@ test('the English notice is unchanged', () => {
   expect(block).toBe('<div class="wqb-notice">' +
     '<p>Jugnu will save this phone number with Zara&#39;s name until the end of the school year (31 March), longer only if you keep playing.</p>' +
     '<p>Readings Zara makes with the microphone are kept too.</p>' +
-    '<p>A grown-up can undo this any time by sending \u2066<bdi dir="ltr" class="wqb-chip">STOP</bdi>\u2069 on WhatsApp.</p></div>');
+    '<p>A grown-up can remove this phone number any time by sending \u2066<bdi dir="ltr" class="wqb-chip">STOP</bdi>\u2069 on WhatsApp.</p></div>');
   const save = block.indexOf('Jugnu will save this phone number with Zara');
   const readings = block.indexOf('Readings Zara makes with the microphone are kept too.');
-  const stop = block.indexOf('A grown-up can undo this');
+  const stop = block.indexOf('A grown-up can remove this phone number');
   expect(save).toBeGreaterThan(-1);
   expect(readings).toBeGreaterThan(save);
   expect(stop).toBeGreaterThan(readings);

@@ -104,7 +104,7 @@ test('English sheet: the recordings sentence between the save line and the STOP 
   expect(html).toContain('<p>' + line + '</p>');
   const save = html.indexOf('Jugnu will save this phone number with Zara');
   const readings = html.indexOf(line);
-  const stop = html.indexOf('A grown-up can undo this');
+  const stop = html.indexOf('A grown-up can remove this phone number');
   expect(save).toBeGreaterThan(-1);
   expect(readings).toBeGreaterThan(save);
   expect(stop).toBeGreaterThan(readings);
