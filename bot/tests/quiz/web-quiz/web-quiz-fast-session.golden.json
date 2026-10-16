@@ -1,0 +1,57 @@
+{
+ "chip": {
+  "st": {
+   "k": "s",
+   "d": "SessionPhoneDeviceRef1",
+   "sc": "33333333-3333-4333-8333-333333333333"
+  },
+  "device_ref": "SessionPhoneDeviceRef1",
+  "counted": false,
+  "reason": "already_finished",
+  "resume": {
+   "answered": []
+  },
+  "child": {
+   "chip": "21c0f80440197bf3",
+   "first": "عائشہ",
+   "animal": "cat"
+  }
+ },
+ "typed": {
+  "st": {
+   "k": "s",
+   "d": "SessionPhoneDeviceRef1",
+   "sc": "33333333-3333-4333-8333-333333333333"
+  },
+  "device_ref": "SessionPhoneDeviceRef1",
+  "counted": true,
+  "resume": {
+   "answered": []
+  },
+  "child": {
+   "chip": "<the new child>",
+   "first": "Omar",
+   "animal": "<the new child>"
+  }
+ },
+ "resume": {
+  "st": {
+   "k": "s",
+   "d": "SessionPhoneDeviceRef1",
+   "sc": "33333333-3333-4333-8333-333333333333"
+  },
+  "device_ref": "SessionPhoneDeviceRef1",
+  "counted": false,
+  "reason": "finished_elsewhere",
+  "resume": {
+   "answered": [
+    "99999991-9999-4999-8999-999999999999"
+   ]
+  },
+  "child": {
+   "chip": "21c0f80440197bf3",
+   "first": "عائشہ",
+   "animal": "cat"
+  }
+ }
+}
