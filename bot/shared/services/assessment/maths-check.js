@@ -912,12 +912,15 @@ const DECIMAL_PLACES = { tenth: 1, hundredth: 2, thousandth: 3, 'whole number': 
 
 // "What is 7.846 rounded to the nearest tenth?": the stem's one number rounded half up to
 // that many places, compared with each option's value.
+const PLACES_WORD = { one: 1, two: 2, three: 3, 1: 1, 2: 2, 3: 3 };
+
 function decimalRoundingVerdict(stem, parts) {
-  const m = /\bto the nearest (tenth|hundredth|thousandth|whole number|whole)\b/.exec(stem);
-  if (!m || !/\bround(?:ed)?\b/.test(stem)) return null;
+  // "to the nearest tenth", or "to 2 decimal places" / "correct to one decimal place".
+  const m = /\bto the nearest (tenth|hundredth|thousandth|whole number|whole)\b|\bto (one|two|three|1|2|3) decimal places?\b/.exec(stem);
+  if (!m || !/\bround(?:ed)?\b|\bcorrect to\b/.test(stem)) return null;
   // "which digit do we look at?" asks about the method, not the rounded number.
-  if (/\bdigits?\b|\bplace\b/.test(stem)) return { ok: null };
-  const k = DECIMAL_PLACES[m[1]];
+  if (/\bdigits?\b|(?<!decimal )\bplace\b/.test(stem)) return { ok: null };
+  const k = m[1] ? DECIMAL_PLACES[m[1]] : PLACES_WORD[m[2]];
   const rest = stem.slice(0, m.index) + ' ' + stem.slice(m.index + m[0].length);
   const numbers = rest.match(/\d[\d,]*(?:\.\d+)?/g) || [];
   if (numbers.length !== 1) return { ok: null };
