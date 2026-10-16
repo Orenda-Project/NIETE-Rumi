@@ -243,7 +243,10 @@ async function bindOnPhone({ phone, canonicalId, via = 'guest', mode = 'unknown'
     if (!(await on())) return null;
     const norm = StudentIdentity.normalisePhone(phone);
     if (!norm || !canonicalId || !['guest', 'teacher'].includes(via)) return { ok: false, outcome: 'error', reason: 'bad_request' };
-    if (mode === 'teacher') return refused('teacher_phone', { via });
+    // a sandbox walk-through phone playing a new family (the test-persona module, absent everywhere else)
+    let fresh = false;
+    try { const P = require('../first-touch/test-persona'); fresh = Boolean(P && typeof P.get === 'function' && ((await P.get(norm)) || {}).as === 'fresh'); } catch (_) { fresh = false; }
+    if (mode === 'teacher' && !fresh) return refused('teacher_phone', { via });
     const child = await liveChild(canonicalId);
     if (!child) return refused('child_unknown', { via });
     const phones = await BindRepo.activeForChild(child.id, now);

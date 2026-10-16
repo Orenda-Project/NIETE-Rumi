@@ -129,7 +129,7 @@ describe('a new child joins: one row, one binding, forget called', () => {
     expect(url).toMatch(/^\/quiz\/join\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{22}$/);
     expect(await Join.gradeTap({ t, grade: 3, device: DEVICE })).toEqual({ ok: true, prefetch: Join.HOME_ASSETS });
     const out = await Join.join({ t, grade: 3, name: '  Sara ', device: DEVICE });
-    expect(out.next).toMatch(/^\/h\/[A-Za-z0-9_.-]+\?from=join&kid=[0-9a-f]{16}&lang=ur$/);
+    expect(out.next).toMatch(/^\/h\/[A-Za-z0-9_.-]+\?from=join&kid=[0-9a-f]{16}&lang=ur&jn=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{22}$/);
 
     expect(inserts('students')).toHaveLength(1);
     expect(inserts('students')[0].payload).toEqual([{ student_name: 'Sara', self_reported_class: 'Grade 3', enrolled_by_user_id: null, phone: null, list_id: null }]);
@@ -169,7 +169,8 @@ describe('a new child joins: one row, one binding, forget called', () => {
     const a = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
     const b = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE, force: true });
     expect(inserts('students')).toHaveLength(1);
-    expect(b.next.split('?')[1]).toBe(a.next.split('?')[1]);
+    const kidOf = (u) => new URLSearchParams(u.split('?')[1]).get('kid');
+    expect(kidOf(b.next)).toBe(kidOf(a.next));
   });
 
   test('STOP still erases the guest binding (IDENTITY §7)', async () => {
@@ -236,7 +237,8 @@ describe('the guards before the row', () => {
     seed({ user: TEACHER_USER });
     const { t } = await landing(TEACHER_USER);
     const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
-    expect(out).toEqual({ refused: 'teacher_phone', next: '/quiz/home?m=practice&g=3&lang=ur' });
+    expect(out.refused).toBe('teacher_phone');
+    expect(T.verify(out.next.slice(3).split('?')[0], 'h')).toEqual(expect.objectContaining({ ids: [], pr: 1, g: 3, lang: 'ur' }));
     ['students', 'child_phone_bindings', 'child_identity', 'user_feature_first_use'].forEach((tb) => expect(writes(tb)).toHaveLength(0));
   });
 
@@ -287,8 +289,46 @@ describe('practice (the coach\'s "Try it as a student")', () => {
     expect(T.verify(t, 'j').n).toBeUndefined();
     expect(await Join.pageInfo({ t })).toEqual({ ok: true, lang: 'en', practice: true });
     expect(await Join.gradeTap({ t, grade: 2, device: DEVICE })).toMatchObject({ ok: true });
-    expect(await Join.join({ t, grade: 2, device: DEVICE })).toEqual({ next: '/quiz/home?m=practice&g=2&lang=en', practice: true });
+    const out = await Join.join({ t, grade: 2, device: DEVICE });
+    expect(out.practice).toBe(true);
+    expect(out.next).toMatch(/^\/h\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{22}\?from=join$/);
+    // the practice home's token: no child, the grade, the language — the home draws the class's view and writes nothing
+    expect(T.verify(out.next.slice(3).split('?')[0], 'h')).toEqual(expect.objectContaining({ k: 'h', ids: [], pr: 1, g: 2, lang: 'en' }));
     ['students', 'child_phone_bindings', 'child_identity', 'user_feature_first_use'].forEach((tb) => expect(writes(tb)).toHaveLength(0));
+  });
+});
+
+describe('practice: the way back to the teacher home', () => {
+  test('a teacher-home path rides to the practice home as bk; anything else is dropped', async () => {
+    await Join.flags();
+    const back = '/quiz/teacher/abc.def_ghi';
+    const t = Join.practiceJoinUrl({ lang: 'ur', back }).slice(Join.JOIN_PATH.length);
+    const out = await Join.join({ t, grade: 4, device: DEVICE });
+    expect(T.verify(out.next.slice(3).split('?')[0], 'h')).toEqual(expect.objectContaining({ pr: 1, g: 4, bk: back }));
+    const t2 = Join.practiceJoinUrl({ lang: 'ur', back: 'https://evil.example/x' }).slice(Join.JOIN_PATH.length);
+    const out2 = await Join.join({ t: t2, grade: 4, device: DEVICE });
+    expect(T.verify(out2.next.slice(3).split('?')[0], 'h').bk).toBeUndefined();
+  });
+});
+
+describe('"Someone new?" on the same phone', () => {
+  test('the home after a join carries jn: a join link of its own; a brother joins through it as a second child', async () => {
+    const { t } = await landing();
+    const a = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    const jn = new URLSearchParams(a.next.split('?')[1]).get('jn');
+    expect(T.verify(jn, 'j').n).not.toBe(T.verify(t, 'j').n);
+    const b = await Join.join({ t: jn, grade: 1, name: 'Bilal', device: DEVICE });
+    expect(b.next).toMatch(/^\/h\//);
+    expect(inserts('students')).toHaveLength(2);
+    expect(fake.db.child_phone_bindings.map((x) => x.via)).toEqual(['guest', 'guest']);
+    // the home of the second child names both children of the phone
+    expect(T.verify(b.next.slice(3).split('?')[0], 'h').ids).toHaveLength(2);
+  });
+
+  test('siblingJoinToken: off → null; on → a fresh token for that phone', async () => {
+    expect(await Join.siblingJoinToken({ phoneNorm: PHONE, userId: UNKNOWN_USER.id, lang: 'ur' })).toMatch(/\./);
+    seed({ join: false });
+    expect(await Join.siblingJoinToken({ phoneNorm: PHONE, userId: UNKNOWN_USER.id, lang: 'ur' })).toBeNull();
   });
 });
 
@@ -480,5 +520,25 @@ describe('the nonce map', () => {
     expect(await GoNonce.peek('not-a-nonce')).toBeNull();
     // the key is a hash: neither the nonce nor the phone is a Redis key
     expect([...redis.__keys.keys()].some((k) => k.includes(n) || k.includes(PHONE))).toBe(false);
+  });
+});
+
+// last in the file: it loads a fresh module registry (the persona module mocked), wired to the same fake database
+describe('the sandbox walk-through persona (module absent = today)', () => {
+  test('a teacher\'s phone playing a new family (as: fresh) joins and binds like a family; absent module → refused as today', async () => {
+    seed({ user: TEACHER_USER });
+    const l1 = await landing(TEACHER_USER);
+    expect((await Join.join({ t: l1.t, grade: 3, name: 'Sara', device: DEVICE })).refused).toBe('teacher_phone');
+    expect(writes('students')).toHaveLength(0);
+    jest.resetModules();
+    jest.doMock('../../../shared/services/first-touch/test-persona', () => ({ get: async () => ({ as: 'fresh', since: Date.now() }) }), { virtual: true });
+    const sb = require('../../../shared/config/supabase');
+    sb.from = supabase.from; sb.rpc = supabase.rpc;
+    const J2 = require('../../../shared/services/quiz/web-quiz-student-join');
+    const N2 = require('../../../shared/services/first-touch/go-nonce');
+    const n = await N2.mint({ phoneNorm: PHONE, userId: TEACHER_USER.id });
+    const out = await J2.join({ t: J2.signJoin({ n, lang: 'en' }), grade: 3, name: 'Sara', device: OTHER_DEVICE });
+    expect(out.next).toMatch(/^\/h\//);
+    expect(fake.db.child_phone_bindings).toEqual([expect.objectContaining({ via: 'guest', phone_norm: PHONE })]);
   });
 });
