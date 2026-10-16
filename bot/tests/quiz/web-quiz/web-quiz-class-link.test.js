@@ -293,6 +293,66 @@ describe('(b) a device whose remembered child is enrolled → "Whose turn?" with
   });
 });
 
+// ── (b') a phone whose door IS the class link: the hub's device record remembers it ─────────────────
+describe('(b\') a phone that opened a class-link child\'s hub → "Whose turn?" with that child only', () => {
+  const HubDevice = require('../../../shared/services/quiz/web-quiz-hub-device');
+  const hubToken = (href) => href.replace(/^\/h\//, '').replace(/\?.*$/, '');
+  // The stranger path, then the hub opened on the same phone (the hub's own trust step writes the device's children).
+  async function playedThroughLink(code, letter, device = DEV_FRESH) {
+    const b = await walkStranger(code, letter, device);
+    const p = await CL.pick({ code, s: b.s, chip: b.kids[0].chip, device_ref: device });
+    expect((await HubDevice.deviceTrusted(hubToken(p.href), device)).ok).toBe(true);
+    return p;
+  }
+
+  test('a phone that opened a class-link child\'s hub → "Whose turn?" with that child only', async () => {
+    const code = await linkFor();
+    await playedThroughLink(code, 'B');
+    const a = await CL.arrive({ code, device_ref: DEV_FRESH });
+    expect(a.step).toBe('who');
+    expect(a.kids.map((k) => k.first)).toEqual(['Bilal']);
+    expect(JSON.stringify(a)).not.toMatch(/Zara|Malik|Ayaan|Sana|Ahmed|Tariq/);
+    const p = await CL.pick({ code, s: a.s, chip: a.kids[0].chip, device_ref: DEV_FRESH });
+    expect(T.verify(hubToken(p.href), 'h')).toMatchObject({ ids: [BA], src: 'cl', cl: { c: C1, s: 'remembered', q: 'high', h: false } });
+    // The gate is re-checked at the pick: another phone cannot use the remembered chip.
+    await expect(CL.pick({ code, s: a.s, chip: a.kids[0].chip, device_ref: 'OtherPhoneDevice_03' })).rejects.toMatchObject({ status: 403 });
+  });
+
+  test('a phone the hub trusted only with a child of ANOTHER class → the stranger path, no children', async () => {
+    const code = await linkFor();
+    await HubDevice.rememberKids([OUT], DEV_FRESH);
+    const a = await CL.arrive({ code, device_ref: DEV_FRESH });
+    expect(a.step).toBe('teacher');
+    expect(names(a)).toEqual([]);
+  });
+
+  test('the device record and the teacher quiz\'s sessions together: the union, still only this class', async () => {
+    const code = await linkFor();
+    await HubDevice.rememberKids([MA, OUT], DEV_PLAYED);
+    const a = await CL.arrive({ code, device_ref: DEV_PLAYED });
+    expect(a.step).toBe('who');
+    expect(a.kids.map((k) => k.first).sort()).toEqual(['Ayaan', 'Zara']);
+    expect(JSON.stringify(a)).not.toMatch(/Malik|Bilal|Sana/);
+  });
+
+  test('Redis down: the device record says nothing, so the phone gets the stranger path (never a guess)', async () => {
+    const code = await linkFor();
+    await playedThroughLink(code, 'B');
+    const spy = jest.spyOn(redis, 'isAvailable').mockReturnValue(false);
+    try {
+      const a = await CL.arrive({ code, device_ref: DEV_FRESH });
+      expect(a.step).toBe('teacher');
+      expect(names(a)).toEqual([]);
+    } finally { spy.mockRestore(); }
+  });
+
+  test('golden: a teacher-quiz device with no hub record is unchanged ("Whose turn?" with the child it played as)', async () => {
+    const code = await linkFor();
+    const a = await CL.arrive({ code, device_ref: DEV_PLAYED });
+    expect({ step: a.step, kids: a.kids.map((k) => k.first) }).toEqual({ step: 'who', kids: ['Zara'] });
+  });
+});
+
 // ── (f)(g) the pick ────────────────────────────────────────────────────────────────────────────────
 describe('(f)(g) the pick writes via=class_link, class_id = the link\'s class, and the homonym rule', () => {
   test('identical first names → both picks low + homonym_in_list = true; distinct → high', async () => {
