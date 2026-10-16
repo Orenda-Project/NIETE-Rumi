@@ -24,6 +24,12 @@ const BANDS_EN = Object.fromEntries(BAND_THRESHOLDS.map((b) => [b.key, b.label])
 
 export const COACHING_V2_COPY = {
   title: 'Digital Coaching',
+  /* the main page and its one screen (Assessment's flow, design v6): Start DC observation, then step by step on one
+     screen — Grade and subject, Recording, Lesson plan, Photos — Submit, and the progress on that same screen */
+  startObservation: 'Start DC observation',
+  gradeAndSubject: 'Grade and subject',
+  summary: 'Summary',
+  summaryCount: (n: number) => (n === 1 ? '1 DC observation' : `${n} DC observations`),
   home: 'Home',
   /* the hub (bd-fmf24g.76: no class; Record lesson and Upload recording first, then the rest once a recording is on the page) */
   lessonPlan: 'Lesson plan',
@@ -160,6 +166,12 @@ export const COACHING_V2_COPY = {
  */
 export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   title: 'ڈیجیٹل کوچنگ',
+  // The Lesson Plans page's own words for Start DC observation and Grade and subject (lessons/copy.ts), and the
+  // ontology's خلاصہ for Summary. Machine-drafted where new; review pending.
+  startObservation: 'ڈیجیٹل کوچنگ مشاہدہ شروع کریں',
+  gradeAndSubject: 'جماعت اور مضمون',
+  summary: 'خلاصہ',
+  summaryCount: (n: number) => (n === 1 ? '1 ڈیجیٹل کوچنگ مشاہدہ' : `${n} ڈیجیٹل کوچنگ مشاہدات`),
   home: 'ہوم',
   lessonPlan: 'لیسن پلان',
   optional: 'اختیاری',
@@ -298,5 +310,5 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Digital Coaching',
   module: COACHING as Bilingual<unknown>,
   // "DC observation" is ڈیجیٹل کوچنگ مشاہدہ (three words, the ontology's own name): it adds to a sentence of three.
-  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint', 'micBrowserBlocked', 'micStillBlockedWhatsApp', 'micStillBlocked'],
+  longOk: ['startObservation', 'summaryCount', 'noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint', 'micBrowserBlocked', 'micStillBlockedWhatsApp', 'micStillBlocked'],
 };

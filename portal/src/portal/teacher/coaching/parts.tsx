@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Camera, ChevronDown, ImageIcon, Pause, Play, RotateCcw, X } from 'lucide-react';
+import { BookOpen, Camera, Check, ChevronDown, ImageIcon, Pause, Play, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { acceptFor, checkFile, MAX_PHOTOS } from '../../lib/coachingUpload';
 import type { Audio } from '../../newui/coaching/useSendFlow';
@@ -221,5 +221,41 @@ export function RecordingCard({ audio, onRedo, onChangeFile }: { audio: Audio; o
       </button>
       {url ? <audio ref={player} src={url} preload="metadata" onEnded={() => setPlaying(false)} className="hidden" /> : null}
     </section>
+  );
+}
+
+/**
+ * The one screen's step heading (design v6, FlowStep): its number in a 36px dot — indigo while it is the step she is on,
+ * green with a tick once done, flat grey before she gets there (never tappable-looking) — then its name and chips.
+ */
+export function FlowStep({ n, state, children, chips }: {
+  n: number; state: 'upcoming' | 'now' | 'done'; children: ReactNode; chips?: readonly string[];
+}) {
+  return (
+    <h2
+      data-step-state={state}
+      className={cn(
+        'mx-1 mt-2 flex min-h-[56px] items-center gap-3 text-[20px] leading-tight',
+        state === 'now' ? 'font-semibold text-[#1d2025]' : state === 'done' ? 'font-light text-[#1d2025]' : 'font-light text-[#6b7280]',
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[16px] font-extrabold tabular-nums',
+          state === 'now' && 'bg-[#33374a] text-white',
+          state === 'done' && 'bg-[#2f7a52] text-white',
+          state === 'upcoming' && 'bg-[#e5e7eb] text-[#6b7280]',
+        )}
+      >
+        {state === 'done' ? <Check className="h-[18px] w-[18px]" strokeWidth={3.2} /> : n}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        {children}
+        {state !== 'upcoming' ? (chips ?? []).map((c) => (
+          <span key={c} className="inline-flex h-[26px] items-center rounded-full bg-[#e5e7eb] px-2.5 text-[12px] font-semibold text-[#374151]">{c}</span>
+        )) : null}
+      </span>
+    </h2>
   );
 }

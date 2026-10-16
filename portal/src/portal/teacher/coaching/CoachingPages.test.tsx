@@ -3,9 +3,10 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 /**
- * bd-fmf24g.4 + bd-fmf24g.76 — the teacher v2 Digital Coaching pages, in the WhatsApp flow's order and with no class.
+ * bd-fmf24g.4 + bd-fmf24g.76 — the teacher v2 Digital Coaching pages. Since the one screen (design v6) the draft lives
+ * on /coaching/new: Grade and subject first (sent as teacherClass), then the steps below, and Submit sends in place.
  *
- *   page    Record lesson / Upload recording first. Upload attaches in place; Record opens the recording page and comes
+ *   page    (after Grade and subject) Record lesson / Upload recording. Upload attaches in place; Record opens the recording page and comes
  *           back here with the recording. Once there is one: Listen / Redo / Change file, Lesson plan (optional),
  *           Photos (up to ten, No faces) and the one Submit, on with only a recording. Recent DC Observations
  *           (collapsed). Opened from a lesson plan (?plan=k5:|g612:&lang) the plan arrives filled in.
@@ -39,11 +40,12 @@ import "../routes";
 import api from "../../services/api";
 import { CoachingHomePage } from "./CoachingHome";
 import { SendPage } from "./SendPage";
+import { NewObservationPage } from "./NewObservation";
 import coachingRoutes from "./routes";
 import type { Audio } from "../../newui/coaching/useSendFlow";
 import { SendError } from "../../lib/coachingSend";
 import { clearDraft, holdDraft, peekDraft, readPrefill } from "./draft";
-import { COACHING_HOME, COACHING_SEND } from "./paths";
+import { COACHING_HOME, COACHING_NEW, COACHING_SEND } from "./paths";
 import { COACHING_V2_COPY as C, COACHING_V2_COPY_UR } from "./copy";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn> };
@@ -85,6 +87,7 @@ function at(path: string, state?: unknown) {
     <MemoryRouter initialEntries={[{ pathname: path.split("?")[0], search: path.includes("?") ? `?${path.split("?")[1]}` : "", state }]}>
       <Routes>
         <Route path={COACHING_HOME} element={<><CoachingHomePage /><Where /></>} />
+        <Route path={COACHING_NEW} element={<><NewObservationPage /><Where /></>} />
         <Route path={COACHING_SEND} element={<><SendPage /><Where /></>} />
         <Route path="*" element={<Where />} />
       </Routes>
@@ -112,8 +115,23 @@ const audioOf = (name = "lesson.m4a"): Audio => ({
 });
 const m4a = (name = "lesson.m4a") => new File(["a"], name, { type: "audio/mp4" });
 const jpg = (n: string) => new File(["x"], n, { type: "image/jpeg" });
-const recordBtn = () => screen.getByRole("button", { name: C.recordTitle });
-const uploadBtn = () => screen.getByRole("button", { name: C.uploadRecording });
+/** Record lesson and Upload recording are in the Recording card's tray (operator, 16 Oct): open it if it is closed. */
+const inRecordTray = () => {
+  if (!screen.queryByRole("dialog", { name: C.recording })) fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${C.recording}`) }));
+  return within(screen.getByRole("dialog", { name: C.recording }));
+};
+const recordBtn = () => inRecordTray().getByRole("button", { name: C.recordTitle });
+const uploadBtn = () => inRecordTray().getByRole("button", { name: C.uploadRecording });
+
+/** Step 1 on the one screen: her Grade 4 · General Science, from the picker's tray. */
+async function pickClass() {
+  fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) }, { timeout: 5000 }));
+  const tray = screen.getByRole("dialog", { name: C.gradeAndSubject });
+  fireEvent.click(await within(tray).findByRole("radio", { name: /^Grade 4/ }));
+  fireEvent.click(await within(tray).findByRole("button", { name: /Grade 4 · General Science/ }));
+}
+const CLS = { grade: 4, subject: "General Science", subjectKey: "science" };
+const THE_CLASS = expect.objectContaining({ grade: 4, subject: "General Science", subjectKey: "science" });
 
 /** She uploads a recording on the page; resolves once it is attached. */
 async function attach(name = "lesson.m4a") {
@@ -122,23 +140,23 @@ async function attach(name = "lesson.m4a") {
 }
 
 describe("the page: no class, the recording first", () => {
-  it("opens with Record lesson and Upload recording; no class picker, her classes never read, nothing else yet", async () => {
-    at(COACHING_HOME);
-    // The first test of the file also loads the page's module graph: room for a slow, loaded run.
-    await waitFor(() => expect(recordBtn()).toBeTruthy(), { timeout: 5000 });
+  it("opens with Grade and subject; Record lesson and Upload recording come once a class is picked, nothing else yet", async () => {
+    at(COACHING_NEW);
+    expect(await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) }, { timeout: 5000 })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: C.recordTitle })).toBeNull();
+    await pickClass();
+    await waitFor(() => expect(recordBtn()).toBeTruthy());
     expect(uploadBtn()).toBeTruthy();
-    expect(screen.queryByText(/class/i)).toBeNull();
-    expect(screen.queryByRole("heading", { name: C.lessonPlan })).toBeNull();
-    expect(screen.queryByRole("heading", { name: new RegExp(C.photos) })).toBeNull();
     expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
-    expect(http.get).not.toHaveBeenCalledWith("/me/grade-subjects", expect.anything());
+    expect(http.get).toHaveBeenCalledWith("/me/grade-subjects", expect.anything());
   });
 
-  it("Upload attaches the file in place: the recording (Listen, Change file), then Lesson plan, Photos and ONE Submit, in that order, on with only a recording", async () => {
-    at(COACHING_HOME);
+  it("Upload attaches the file in place: Lesson plan (before the recording since 16 Oct), the recording (Listen, Change file), Photos and ONE Submit, in that order, on with only a recording", async () => {
+    at(COACHING_NEW);
+    await pickClass();
     await waitFor(() => expect(uploadBtn()).toBeTruthy(), { timeout: 5000 });
     await attach("period3.m4a");
-    expect(screen.getByTestId("where").textContent).toBe(COACHING_HOME); // she never left the page
+    expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW); // she never left the page
     const card = screen.getByTestId("dc-recording");
     expect(within(card).getByText("period3.m4a")).toBeTruthy();
     expect(within(card).getByRole("button", { name: C.listen })).toBeTruthy();
@@ -150,15 +168,16 @@ describe("the page: no class, the recording first", () => {
     const photos = screen.getByRole("heading", { name: new RegExp(C.photos) });
     const submit = screen.getByRole("button", { name: C.submit }) as HTMLButtonElement;
     const before = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(before(card, plan)).toBe(true);
-    expect(before(plan, photos)).toBe(true);
+    expect(before(plan, card)).toBe(true);
+    expect(before(card, photos)).toBe(true);
     expect(before(photos, submit)).toBe(true);
     expect(screen.getAllByRole("button", { name: C.submit })).toHaveLength(1);
     expect(submit.disabled).toBe(false); // the plan and the photos are optional
   });
 
   it("a file that is not a recording, or is too big, is SAID and not attached (it used to be dropped without a word)", async () => {
-    at(COACHING_HOME);
+    at(COACHING_NEW);
+    await pickClass();
     await waitFor(() => expect(uploadBtn()).toBeTruthy(), { timeout: 5000 });
     fireEvent.change(screen.getByTestId("dc-audio-input"), { target: { files: [new File(["x"], "notes.pdf", { type: "application/pdf" })] } });
     expect((await screen.findByRole("alert")).textContent).toBe(C.notAudio);
@@ -167,7 +186,8 @@ describe("the page: no class, the recording first", () => {
   });
 
   it("Change file keeps hers when the new one is refused", async () => {
-    at(COACHING_HOME);
+    at(COACHING_NEW);
+    await pickClass();
     await waitFor(() => expect(uploadBtn()).toBeTruthy(), { timeout: 5000 });
     await attach("first.m4a");
     fireEvent.change(screen.getByTestId("dc-audio-input"), { target: { files: [new File(["x"], "notes.pdf", { type: "application/pdf" })] } });
@@ -178,7 +198,8 @@ describe("the page: no class, the recording first", () => {
   });
 
   it("Photos: one grid, the hint, Up to 10 and No faces; ten fit, the eleventh is refused", async () => {
-    at(COACHING_HOME);
+    at(COACHING_NEW);
+    await pickClass();
     await waitFor(() => expect(uploadBtn()).toBeTruthy(), { timeout: 5000 });
     await attach();
     const heading = screen.getByRole("heading", { name: new RegExp(C.photos) });
@@ -199,16 +220,17 @@ describe("the page: no class, the recording first", () => {
     expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(9);
   });
 
-  it("from a lesson plan: the plan arrives filled in (named from her recent plans) once there is a recording; no class is taken from the link", async () => {
-    at(`${COACHING_HOME}?grade=4&subject=science&plan=k5:L3`);
+  it("from a lesson plan: her class and the plan arrive filled in (named from her classes and recent plans)", async () => {
+    at(`${COACHING_NEW}?grade=4&subject=science&plan=k5:L3`);
     await waitFor(() => expect(uploadBtn()).toBeTruthy(), { timeout: 5000 });
+    expect(screen.getByText("Grade 4 · General Science")).toBeTruthy();
     await attach();
     expect(await screen.findByText("How plants make food")).toBeTruthy();
-    expect(http.get).not.toHaveBeenCalledWith("/me/grade-subjects", expect.anything());
   });
 
-  it("Submit with ONLY a recording sends it with NO class, and the page says Sent", async () => {
-    at(COACHING_HOME);
+  it("Submit with ONLY a recording sends it WITH her class, then its progress on the same screen", async () => {
+    at(COACHING_NEW);
+    await pickClass();
     await waitFor(() => expect(uploadBtn()).toBeTruthy(), { timeout: 5000 });
     await attach();
     fireEvent.click(screen.getByRole("button", { name: C.submit }));
@@ -217,13 +239,15 @@ describe("the page: no class, the recording first", () => {
     expect(payload.audio.filename).toBe("lesson.m4a");
     expect(payload.plan).toBeNull();
     expect(payload.photos).toEqual([]);
-    expect(payload.teacherClass).toBeNull(); // the server resolves the subject, as for a WhatsApp recording
-    expect(await screen.findByRole("heading", { name: C.sent })).toBeTruthy();
+    expect(payload.teacherClass).toEqual(THE_CLASS);
+    expect(await screen.findByRole("region", { name: C.progress })).toBeTruthy();
+    expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
     expect(peekDraft()).toBeNull(); // sent: nothing held
   });
 
   it("Submit sends the recording, the plan and TEN photos together", async () => {
-    at(`${COACHING_HOME}?plan=k5:L3`);
+    at(`${COACHING_NEW}?plan=k5:L3`);
+    await pickClass();
     await waitFor(() => expect(uploadBtn()).toBeTruthy(), { timeout: 5000 });
     await attach();
     await screen.findByText("How plants make food");
@@ -234,23 +258,24 @@ describe("the page: no class, the recording first", () => {
     const [payload] = sendLesson.mock.calls[0] as unknown as [{ plan: unknown; photos: File[]; teacherClass: unknown }];
     expect(payload.plan).toEqual({ kind: "library", pick: { lessonId: "L3" } });
     expect(payload.photos).toEqual(photos);
-    expect(payload.teacherClass).toBeNull();
+    expect(payload.teacherClass).toEqual(THE_CLASS);
   });
 
-  it("Record lesson opens the recording page and starts it; Stop, Yes finish brings her BACK here with the recording attached", async () => {
-    at(COACHING_HOME);
+  it("Record lesson records ON this screen; Stop, Yes finish attaches the recording here", async () => {
+    at(COACHING_NEW);
+    await pickClass();
     await waitFor(() => expect(recordBtn()).toBeTruthy(), { timeout: 5000 });
     session.start.mockImplementationOnce(async () => { session.active = true; return "recording"; });
     fireEvent.click(recordBtn());
-    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_SEND));
-    expect(session.start).toHaveBeenCalledWith({ returnTo: COACHING_SEND });
+    await waitFor(() => expect(session.start).toHaveBeenCalledWith({ returnTo: COACHING_NEW }));
+    expect(await screen.findByRole("timer")).toBeTruthy();
+    expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
     session.finish.mockImplementationOnce((async () => {
       session.active = false;
       return { blob: new Blob(["rec"]), type: { ext: "webm" }, durationMs: 1_200_000, id: "rec-1" };
     }) as never);
     fireEvent.click(await screen.findByRole("button", { name: C.stop }));
     fireEvent.click(within(await screen.findByRole("dialog", { name: C.finishTitle })).getByRole("button", { name: C.yesFinish }));
-    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_HOME));
     const card = await screen.findByTestId("dc-recording");
     expect(within(card).getByText(C.yourRecording)).toBeTruthy();
     expect(within(card).getByRole("button", { name: C.redo })).toBeTruthy(); // made here: Redo
@@ -259,8 +284,8 @@ describe("the page: no class, the recording first", () => {
   });
 
   it("Redo deletes the phone copy and she is back to Record lesson / Upload recording", async () => {
-    holdDraft({ audio: { ...audioOf(), source: "recorded", recordingId: "rec-9" }, plan: null, photos: [] });
-    at(COACHING_HOME, { keep: true });
+    holdDraft({ audio: { ...audioOf(), source: "recorded", recordingId: "rec-9" }, plan: null, photos: [], cls: CLS });
+    at(COACHING_NEW, { keep: true });
     fireEvent.click(await within(await screen.findByTestId("dc-recording", {}, { timeout: 5000 })).findByRole("button", { name: C.redo }));
     await waitFor(() => expect(recordBtn()).toBeTruthy());
     const store = await import("../../lib/recordingStore");
@@ -268,26 +293,25 @@ describe("the page: no class, the recording first", () => {
     expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
   });
 
-  it("Recent DC Observations: collapsed; open shows her lessons, an unscored one as Analysing", async () => {
+  it("the main page: an unscored lesson under Analysing, the scored ones under Recent DC Observations, open", async () => {
     at(COACHING_HOME);
-    const toggle = await screen.findByRole("button", { name: new RegExp(C.recent) }, { timeout: 5000 });
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(toggle);
-    expect(await screen.findByText("Parts of a plant")).toBeTruthy();
-    expect(screen.getByText(C.analysing)).toBeTruthy();
+    const analysing = await screen.findByRole("region", { name: C.analysing }, { timeout: 5000 });
+    expect(within(analysing).getByText("Parts of a plant")).toBeTruthy();
+    expect(screen.getByText("Naming words")).toBeTruthy();
     expect(screen.getByText("Good")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: new RegExp(C.recent) })).toBeNull(); // not a fold: open
   });
 });
 
 describe("the send page", () => {
   it("no choice made (opened directly): back to the page", async () => {
     at(COACHING_SEND);
-    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_HOME));
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW));
   });
 
   it("Submit with nothing held goes back to the page rather than sending", async () => {
     at(COACHING_SEND, { start: "submit" });
-    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_HOME));
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW));
     expect(sendLesson).not.toHaveBeenCalled();
   });
 
@@ -318,21 +342,21 @@ describe("the send page", () => {
   it("Not accepted: Try again goes back to the page with the recording, plan and photos still on it", async () => {
     sendLesson.mockRejectedValueOnce(new SendError("refused"));
     const photo = jpg("board.jpg");
-    holdDraft({ audio: audioOf(), plan: null, photos: [photo] });
+    holdDraft({ audio: audioOf(), plan: null, photos: [photo], cls: CLS });
     at(COACHING_SEND, { start: "submit" });
     fireEvent.click(await screen.findByRole("button", { name: C.tryAgain }));
-    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_HOME));
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW));
     expect(await screen.findByTestId("dc-recording")).toBeTruthy();
     expect(screen.getAllByRole("button", { name: /Remove photo/ })).toHaveLength(1);
   });
 
   it("Lesson plan not used: Change lesson plan drops that plan, goes back to the page and opens its plan sheet", async () => {
     sendLesson.mockRejectedValueOnce(new SendError("plan_not_ready"));
-    holdDraft({ audio: audioOf(), plan: { kind: "library", pick: { segmentId: "S9", lang: "en" }, title: "Not written yet", chips: [] }, photos: [] });
+    holdDraft({ audio: audioOf(), plan: { kind: "library", pick: { segmentId: "S9", lang: "en" }, title: "Not written yet", chips: [] }, photos: [], cls: CLS });
     at(COACHING_SEND, { start: "submit" });
     expect(await screen.findByText(C.planNotUsed)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: C.changePlan }));
-    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_HOME));
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW));
     expect(await screen.findByRole("dialog")).toBeTruthy(); // the plan sheet
     expect(screen.queryByText("Not written yet")).toBeNull();
     expect(peekDraft()?.plan).toBeNull();
@@ -340,7 +364,7 @@ describe("the send page", () => {
 
   it("another lesson analysing: Open DC observation, or back to the page with the draft kept", async () => {
     sendLesson.mockRejectedValueOnce(new SendError("in_progress", "sess-7"));
-    holdDraft({ audio: audioOf(), plan: null, photos: [] });
+    holdDraft({ audio: audioOf(), plan: null, photos: [], cls: CLS });
     at(COACHING_SEND, { start: "submit" });
     expect(await screen.findByText(C.busy)).toBeTruthy();
     expect(screen.getByRole("link", { name: C.openThat }).getAttribute("href")).toContain("sess-7");
@@ -386,9 +410,10 @@ describe("the send page: Stop asks first (the kit's ConfirmTray)", () => {
 });
 
 describe("routes", () => {
-  it("registers the hub as the feature's main page and the send page under it", () => {
+  it("registers the hub as the feature's main page, the one screen and the send page under it", () => {
     const paths = coachingRoutes.map((r) => r.path);
     expect(paths).toContain(COACHING_HOME);
+    expect(paths).toContain(COACHING_NEW);
     expect(paths).toContain(COACHING_SEND);
     expect(paths.every((p) => p.startsWith("/portal/teacher/coaching"))).toBe(true);
   });

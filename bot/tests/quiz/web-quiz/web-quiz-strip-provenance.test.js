@@ -30,15 +30,15 @@ const MERGED = id('c');                                    // loose, but joined 
 const HINA1 = id('d'); const HINA2 = id('e'); const HINA_SOLO = id('f');
 const L1 = 'list-1'; const L2 = 'list-2'; const L3 = 'list-3';
 
-const student = (sid, name, extra = {}) => ({ id: sid, name, list_id: null, merged_into: null, status: 'active', ...extra });
+const student = (sid, name, extra = {}) => ({ id: sid, student_name: name, list_id: null, merged_into: null, status: 'active', ...extra });
 const students = () => [
-  student(ROSTER, 'Ali Testwala', { list_id: L1 }),
-  student(LOOSE, 'Bilal Testwala'),
-  student(MERGED, 'Sana Testwala', { merged_into: ROSTER }),
-  student(HINA1, 'Hina Testwala', { list_id: L2 }),
-  student(HINA2, 'Hina Bano Testwala', { list_id: L2 }),
-  student(HINA_SOLO, 'Hina Testwala', { list_id: L3 }),
-  student(id('9'), 'Hina Testwala', { list_id: L3, status: 'archived' }),      // not active: no homonym
+  student(ROSTER, 'Ali Sample', { list_id: L1 }),
+  student(LOOSE, 'Bilal Sample'),
+  student(MERGED, 'Sana Sample', { merged_into: ROSTER }),
+  student(HINA1, 'Hina Sample', { list_id: L2 }),
+  student(HINA2, 'Hina Bano Sample', { list_id: L2 }),
+  student(HINA_SOLO, 'Hina Sample', { list_id: L3 }),
+  student(id('9'), 'Hina Sample', { list_id: L3, status: 'archived' }),      // not active: no homonym
 ];
 
 let n = 0;

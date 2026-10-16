@@ -47,9 +47,9 @@ import "../routes";
 import api from "../../services/api";
 import { LibraryStep } from "../../newui/coaching/LibraryStep";
 import type { Audio } from "../../newui/coaching/useSendFlow";
-import { CoachingHomePage } from "./CoachingHome";
+import { NewObservationPage } from "./NewObservation";
 import { clearDraft, holdDraft } from "./draft";
-import { COACHING_HOME } from "./paths";
+import { COACHING_NEW } from "./paths";
 import { COACHING, COACHING_V2_COPY_UR as U } from "./copy";
 import { copyIn } from "../i18n";
 import { PlanSheet } from "../../newui/coaching/PlanSheet";
@@ -102,9 +102,9 @@ function at(path: string, element: React.ReactElement, state?: unknown, search =
 
 describe("the lesson-plan picker in Urdu", () => {
   it("the page's plan sheet: its title, Recent, From the library, Take a photo, Choose a file, a plan's grade chip", async () => {
-    // Her recording is on the page (the lesson plan row comes with it).
-    holdDraft({ audio: audioOf(), plan: null, photos: [] });
-    at(COACHING_HOME, <CoachingHomePage />, { keep: true });
+    // Her class and recording are on the one screen (the lesson plan row comes with them).
+    holdDraft({ audio: audioOf(), plan: null, photos: [], cls: { grade: 4, subject: "General Science", subjectKey: "science" } });
+    at(COACHING_NEW, <NewObservationPage />, { keep: true });
     const open = await screen.findByRole("button", { name: new RegExp(`^${U.selectPlan}$`) }, { timeout: 5000 }) as HTMLButtonElement;
     expect(open.disabled).toBe(false);
     fireEvent.click(open);

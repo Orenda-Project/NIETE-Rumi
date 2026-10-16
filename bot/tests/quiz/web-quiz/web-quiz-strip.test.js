@@ -54,7 +54,7 @@ const practiceRows = () => [
 
 // The roster rows the run rows' children stand on: the strip trusts id_confidence = 'high' only when the student
 // row proves it (on a list, or merged into a roster row), so a test whose high rows must count seeds them.
-const roster = () => [A, B, C].map((sid, i) => ({ id: sid, name: `${['Ali', 'Bilal', 'Sana'][i]} Testwala`, list_id: 'list-1', merged_into: null, status: 'active' }));
+const roster = () => [A, B, C].map((sid, i) => ({ id: sid, student_name: `${['Ali', 'Bilal', 'Sana'][i]} Sample`, list_id: 'list-1', merged_into: null, status: 'active' }));
 
 let db;
 const install = (runs, extra = {}) => {

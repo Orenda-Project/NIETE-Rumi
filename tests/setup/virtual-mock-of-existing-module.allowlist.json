@@ -11,5 +11,14 @@
   "tests/observe2": 1,
   "tests/portal": 3,
   "tests/quiz": 2,
-  "tests/unit": 2
+  "tests/unit": 2,
+  "doMock": {
+    "bot/tests/observe": 14,
+    "bot/tests/quiz/web-quiz": 1,
+    "tests/child-test/L2": 1,
+    "tests/llm": 2,
+    "tests/queue": 4,
+    "tests/quiz": 5,
+    "tests/training": 5
+  }
 }

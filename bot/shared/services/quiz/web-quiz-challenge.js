@@ -91,7 +91,8 @@ const PUT_TTL_S = 3 * 60;
 const CLIP_TTL_S = 6 * 60 * 60;
 const WAIT_MS = 5000;
 const READS_PER_DAY = 10;
-// per process: the mascot's 16 lines, the stories and question prompts, and Listen's ~27 answer options, ever
+// per process per Pakistan day (RULING #121): the mascot's 16 lines, the stories and question prompts, and Listen's
+// ~27 answer options; the allowance returns at the next PKT day so a long-lived process is never cold for good
 const MAX_CLIP_RECORDINGS = 128;
 const AUDIO_TYPES = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a' };
 
@@ -150,11 +151,18 @@ const RUNS = new Map();          // runId → { status, result, promise }
 const clipKnown = new Map();     // key → true (exists) | number (missing, checked at)
 const clipRecording = new Set();
 let clipsRecorded = 0;
+let clipsDay = null;   // the Pakistan day clipsRecorded counts; another day → the allowance is back
+/** Recordings made this Pakistan day (the counter returns to 0 on a new day). */
+function clipsRecordedOn(now = Date.now()) {
+  const day = AudioStore.pkDay(now);
+  if (clipsDay !== day) { clipsDay = day; clipsRecorded = 0; }
+  return clipsRecorded;
+}
 
 const settingCache = new Map();  // key → { v, at } for the record switches
 const SETTING_TTL_MS = 30 * 1000;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; Draw().__reset(); TrailPage._reset(); }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
 
 /** An app_settings switch, true only when its value reads true (fails closed), cached for 30 s. */
 async function settingOn(key) {
@@ -183,12 +191,12 @@ const missingOn = () => settingOn(MISSING_FLAG_KEY);
 //   _period  the record rule "one record per canonical child × stop × PKT calendar month" (read-side)
 //   _pool    the child-visible draw: the A1 warm-up, the band draw, the lower-band fallback, "on its way",
 //            the period's bigger set, the silent try-out item
-//   _sourced_only  (child of _pool) the counted draw takes only sourced passages: provenance published_calibrated or
-//            reviewer_levelled (ITEMS §8.1); generated passages stay practice and Story Time stock
+//   (no switch) under _pool the counted draw (mode 'check') takes only sourced passages: provenance published_calibrated
+//            or reviewer_levelled (ITEMS §8.1, RULING #105 (iii)) — a property of the data, never of a switch; generated
+//            passages stay practice and Story Time stock
 const V2_FLAG_KEY = 'web_quiz_challenge_v2';
 const PERIOD_FLAG_KEY = 'web_quiz_challenge_period';
 const POOL_FLAG_KEY = 'web_quiz_challenge_pool';
-const SOURCED_ONLY_FLAG_KEY = 'web_quiz_challenge_sourced_only';
 const v2On = () => settingOn(V2_FLAG_KEY);
 const periodOn = () => settingOn(PERIOD_FLAG_KEY);
 const poolOn = () => settingOn(POOL_FLAG_KEY);
@@ -200,9 +208,7 @@ const rulesOf = async () => {
   const v2 = await v2On();
   const head = { record, guard: await readGuardOn(), items: await itemsOn(), trail: record && (await trailOn()), missing: record && (await missingOn()),
     v2, period: v2 && (await periodOn()) };
-  const pool = v2 && (await poolOn());
-  // _sourced_only is read only when its parent _pool is on (and so _v2)
-  return { ...head, pool, sourcedOnly: pool && (await settingOn(SOURCED_ONLY_FLAG_KEY)) };
+  return { ...head, pool: v2 && (await poolOn()) };
 };
 const optionAudioOn = () => settingOn(OPTION_AUDIO_FLAG_KEY);
 // The payload says only which rules are on (nothing when none is: today's payload).
@@ -234,7 +240,7 @@ const helpedOf = (v) => (v === true || v === 'helped' ? true : (v === false || v
 const trailCopy = (lang) => Object.fromEntries(Object.entries(TRAIL_KEYS).map(([k, key]) => [k, resolveUx(key, { language: lang, params: { name: '{name}', done: '{done}', total: '{total}', n: '{n}' } })]));
 
 // A test child ("<Name> Testwala"): the row says so, so no filter has to guess.
-const isTestName = (name) => /testwala\s*$/i.test(String(name || ''));
+const { isTestName } = require('./web-quiz-fixture');
 
 function isTrue(v) {
   let x = v;
@@ -531,8 +537,8 @@ function clipKey(ex, part, lang, text) {
   return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: voiceTag(lang), text });
 }
 
-async function recordClip(key, text, lang) {
-  if (clipRecording.has(key) || clipsRecorded >= MAX_CLIP_RECORDINGS) return;
+async function recordClip(key, text, lang, now = Date.now()) {
+  if (clipRecording.has(key) || clipsRecordedOn(now) >= MAX_CLIP_RECORDINGS) return;
   clipRecording.add(key);
   clipsRecorded += 1;
   try {
@@ -656,7 +662,9 @@ async function sequenceNo(studentId, except = null) {
 /** What the record rule stamps on a row at insert: attempt, exposure, counted, where the grade came from, test. */
 async function provenance(studentId, exercise, lang, run, { except = null } = {}) {
   const { readFailed, ...a } = await attemptInfo(studentId, exercise, lang, { except, step: 'f' });
-  return { ...a, ...(readFailed ? { runs_read_failed: true } : {}), counted: a.attempt_no === 1, grade_source: run.gradeSource || null, test: !!run.test, sequence_n: await sequenceNo(studentId, except) };
+  // counted: under v2 the row's own mode and record (a round, a replay or a story is never counted, RULING #116); else the first scored attempt, as today
+  const counted = run.v2 ? run.mode === 'check' && run.record === true : a.attempt_no === 1;
+  return { ...a, ...(readFailed ? { runs_read_failed: true } : {}), counted, grade_source: run.gradeSource || null, test: !!run.test, sequence_n: await sequenceNo(studentId, except) };
 }
 
 async function menu(token, { kid, lang, device } = {}) {
@@ -1127,9 +1135,9 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     const db = D.drawBand({ fixedGrade: fixed.grade, openBand: ob.band, lastCountedRead: D.lastCountedRead(rows) });
     const registry = await D.registryPassages();
     // fail closed: the counted pool needs the provenance column; without it nothing is drawn, written or logged
-    if (rules.sourcedOnly && registry.provenanceMissing) return { on_its_way: true };
-    const d = D.drawPassage({ rows: registry.filter((r) => r.pool === 'check'), seenIds: seen, kind: ex, lang: w.lang, band: db.band, band_reason: db.band_reason, now: new Date(now), seed,
-      ...(rules.sourcedOnly ? { counted: true } : {}) });
+    if (registry.provenanceMissing) return { on_its_way: true };
+    // the counted draw admits only sourced passages (ITEMS §8.1; RULING #105 (iii): unconditional, no switch read)
+    const d = D.drawPassage({ rows: registry.filter((r) => r.pool === 'check'), seenIds: seen, kind: ex, lang: w.lang, band: db.band, band_reason: db.band_reason, now: new Date(now), seed, counted: true });
     drawLog = drawRow({ open_band: db.open_band, band: d.band, band_reason: d.band_reason, eligible: d.eligible, eligible_n: d.eligible_n, ref_eligible: d.ref_eligible, p: d.p, served_id: d.served_id, outcome: d.outcome, seed: d.seed });
     if (d.outcome === 'on_its_way') {
       await D.logDraw({ ...drawLog, run_id: null });
@@ -2080,16 +2088,16 @@ async function listResults({ cls, list } = {}) {
 // One clip by the serve's own key and recorder: known or found in the store ⇒ 'had'; else recorded now, awaited,
 // under the same per-process cap and in-flight set as a child's first serve ⇒ 'recorded' | 'missing'.
 // `record: false` (the cap reached): the store is asked, nothing is recorded.
-async function warmClip(key, text, lang, { record = true } = {}) {
+async function warmClip(key, text, lang, { record = true, now = Date.now() } = {}) {
   if (clipKnown.get(key) !== true) {
     try { if ((await r2.headObject(key, { bucket: AudioStore.quizAudioBucket() })).exists) clipKnown.set(key, true); } catch (_) { /* absent */ }
   }
   if (clipKnown.get(key) === true) return 'had';
   if (!record) return 'missing';
-  await recordClip(key, text, lang);
+  await recordClip(key, text, lang, now);
   return clipKnown.get(key) === true ? 'recorded' : 'missing';
 }
-const clipsLeft = () => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecorded);
+const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecordedOn(now));
 
 module.exports = {
   menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
@@ -2097,7 +2105,6 @@ module.exports = {
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
-  SOURCED_ONLY_FLAG_KEY,   // the counted draw takes sourced passages only (child of POOL_FLAG_KEY)
   updateRunMeta,   // the meta compare-and-set write, reused by the stuck-run sweeper (web-quiz-challenge-sweeper.js)
   __reset,
 };
