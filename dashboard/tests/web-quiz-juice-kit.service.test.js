@@ -110,7 +110,7 @@ describe('the kit loads and is one API', () => {
   test('window.WQJ carries every call the screens use', () => {
     const { J } = kit();
     expect(J).toBeTruthy();
-    ['tap', 'correct', 'wrong', 'word', 'sentence', 'streak', 'finish', 'badge', 'dayDot', 'mic', 'after', 'muted', 'mute', 'toggle', 'stopAll', 'pop', 'wobble', 'fly', 'confetti']
+    ['tap', 'correct', 'wrong', 'word', 'sentence', 'streak', 'finish', 'badge', 'dayDot', 'mic', 'after', 'muted', 'mute', 'toggle', 'stopAll', 'pop', 'wobble', 'fly', 'confetti', 'autoNext', 'skin', 'chunk']
       .forEach((k) => expect(typeof J[k]).toBe('function'));
   });
 
@@ -242,16 +242,58 @@ describe('never too much', () => {
     expect(k.oscs().length).toBe(31 * 3);
   });
 
-  test('the microphone window: every sound but the word tink is held back, the tink at half', () => {
+  test('the microphone window: every sound but the word tink and the sentence beat is held back; the tink at 0.5', () => {
     const k = kit(); k.tapDoc();
     k.J.mic(true);
-    k.J.sentence(); k.J.correct({});
+    k.J.correct({}); k.J.finish({}); k.J.streak(3);
     expect(k.oscs().length).toBe(0);
+    expect(k.vib).toEqual([]); // no buzz when its sound is held back
     k.J.word({ i: 0 });
-    expect(shape(k.oscs()).peak).toBeCloseTo(0.25, 5);
+    expect(shape(k.oscs()).peak).toBeCloseTo(0.5, 5); // JUICE §0.3: the per-word tink at 0.5 gain
     k.J.mic(false);
     k.J.sentence();
     expect(k.oscs().length).toBe(5);
+  });
+
+  test('a sentence read under the microphone: its arpeggio at half gain AND its buzz; muted: neither', () => {
+    const k = kit(); k.tapDoc();
+    k.J.mic(true);
+    k.J.sentence();
+    const s = shape(k.oscs());
+    expect(s.seq).toEqual([1047, 1319, 1568]);
+    expect(s.peak).toBeCloseTo(0.3, 5);
+    expect(k.vib).toEqual([15]);
+    const m = kit({ store: { wq_sound: 'false' } }); m.tapDoc();
+    m.J.mic(true); m.J.sentence(); m.J.mic(false); m.J.sentence();
+    expect(m.nodes.length).toBe(0);
+    expect(m.vib).toEqual([]);
+  });
+
+  test('a mic chunk boundary: no sound for 150 ms after it, then the tink again', () => {
+    const k = kit(); k.tapDoc();
+    k.J.mic(true);
+    k.J.chunk();
+    k.J.word({ i: 0 }); k.J.sentence();
+    expect(k.oscs().length).toBe(0);
+    expect(k.vib).toEqual([]);
+    k.tick(150);
+    k.J.word({ i: 1 });
+    expect(k.oscs().length).toBe(2);
+    k.J.mic(false); k.J.chunk(); k.J.sentence(); // outside the mic window a chunk holds nothing
+    expect(k.oscs().length).toBe(5);
+  });
+
+  test('the finish stars take one of the 3 animation slots (never past the cap)', () => {
+    const k = kit(); k.tapDoc();
+    const card = k.fakeEl('div');
+    card.stars = [1, 2, 3, 4, 5].map(() => k.fakeEl('i'));
+    k.J.finish({ el: card });
+    expect(card.stars.every((x) => x.animations.length === 1)).toBe(true);
+    const a = k.fakeEl('b'); const b = k.fakeEl('b');
+    k.J.pop(a); k.J.pop(b);
+    expect([a.animations.length, b.animations.length]).toEqual([1, 0]); // card + stars + a = 3
+    k.J.stopAll();
+    expect(card.stars.every((x) => x.animations[0].cancelled)).toBe(true);
   });
 
   test('no more than 3 animations at once', () => {
@@ -271,6 +313,13 @@ describe('mute', () => {
     expect(k.nodes.length).toBe(0);
     expect(k.J.muted()).toBe(true);
     expect(k.fetches.length).toBe(0); // and the sprite is never fetched
+  });
+
+  test('muted: no vibration either (never a buzz when its sound is refused)', () => {
+    const k = kit({ store: { wq_sound: 'false' } }); k.tapDoc();
+    k.J.correct({}); k.J.sentence(); k.J.finish({}); k.J.badge(null);
+    for (let i = 0; i < 9; i++) k.J.correct({});
+    expect(k.vib).toEqual([]);
   });
 
   test('the home\'s key (wq_snd "0") is the same switch: muted', () => {
@@ -375,6 +424,78 @@ describe('the sprite', () => {
     expect(b.slice(0, 4).toString('latin1')).toBe('OggS');
     expect(b.indexOf('OpusHead')).toBeGreaterThan(0);
     expect(b.length).toBeLessThanOrEqual(14 * 1024);
+  });
+});
+
+describe('the right answer moves on by itself (WQJ.autoNext)', () => {
+  function root(k) {
+    const r = k.fakeEl('main'); r.next = k.fakeEl('button'); r.attrs['data-m'] = 'M7';
+    r.querySelector = (sel) => (sel === '#wq-next' ? r.next : null);
+    return r;
+  }
+  test('900 ms after the voice ends, once, while the same Next is on screen', () => {
+    const k = kit(); const r = root(k); let went = 0;
+    const done = k.J.autoNext(r, () => { went += 1; });
+    expect(typeof done).toBe('function');
+    expect(k.timers.length).toBe(0); // nothing until the voice has ended
+    done();
+    expect(k.timers.filter((t) => t.live).map((t) => t.ms)).toEqual([900]);
+    k.runTimers();
+    expect(went).toBe(1);
+  });
+  test('not when the child tapped Next already, the screen moved on, or everything stopped', () => {
+    const k = kit(); let went = 0; const go = () => { went += 1; };
+    const a = root(k); const d1 = k.J.autoNext(a, go); d1(); a.next = k.fakeEl('button'); k.runTimers();
+    const b = root(k); const d2 = k.J.autoNext(b, go); d2(); b.attrs['data-m'] = 'M6'; k.runTimers();
+    const c = root(k); const d3 = k.J.autoNext(c, go); d3(); k.J.stopAll(); k.runTimers();
+    expect(went).toBe(0);
+  });
+});
+
+describe('the page\'s own sound button, drawn by the kit (WQJ.skin)', () => {
+  // the page's own click handler is registered first and flips aria-pressed; the kit only redraws and keeps both keys
+  function pageButton(k, on) {
+    const b = k.fakeEl('button'); b.attrs['aria-pressed'] = String(on); b.textContent = on ? '\u{1F514}' : '\u{1F515}';
+    b.addEventListener('click', function () { const now = b.attrs['aria-pressed'] !== 'true'; b.setAttribute('aria-pressed', now); b.textContent = now ? '\u{1F514}' : '\u{1F515}'; k.ls.set('wq_sound', String(now)); });
+    return b;
+  }
+  test('inline SVG in place of the emoji, its state from the page, one flip per tap', () => {
+    const k = kit(); const b = pageButton(k, true);
+    k.J.skin(b);
+    expect(b.innerHTML).toMatch(/^<svg[^>]*aria-hidden="true"/);
+    expect(b.innerHTML).toContain('M16 9a4 4 0 0 1 0 6'); // the waves: on
+    b.fire('click');
+    expect(b.attrs['aria-pressed']).toBe('false');
+    expect(b.innerHTML).toContain('M16 9l5 6'); // the cross: off
+    expect(b.innerHTML).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+    expect(k.ls.get('wq_snd')).toBe('0'); // the home's key follows the page's button
+    expect(k.J.muted()).toBe(true);
+    b.fire('click');
+    expect(b.attrs['aria-pressed']).toBe('true');
+    expect(k.ls.get('wq_snd')).toBe('1');
+    expect(k.J.muted()).toBe(false);
+  });
+  test('no button: nothing happens', () => {
+    const k = kit();
+    expect(() => k.J.skin(null)).not.toThrow();
+  });
+});
+
+describe('the not-yet answer on the real quiz page (the kit css)', () => {
+  const css = () => fs.readFileSync(CSS_PATH, 'utf8');
+  test('the picked option: amber outline #E65100 and an underline, no fill (JUICE §1 row 2)', () => {
+    const m = css().match(/\.wq-juice \.wq-opt\.wq-picked\{([^}]*)\}/);
+    expect(m).toBeTruthy();
+    expect(m[1]).toMatch(/border-color:#E65100!important/i);
+    expect(m[1]).toMatch(/background:#fff!important/i);
+    expect(m[1]).toMatch(/text-decoration:underline/);
+  });
+  test('the picture and order answers get the same amber edge', () => {
+    expect(css()).toMatch(/\.wq-juice \.wq-hot\.wq-picked\{[^}]*#E65100/i);
+    expect(css()).toMatch(/\.wq-juice \.wq-seq\.wq-picked,\.wq-juice \.wq-mgrid\.wq-picked\{[^}]*#E65100/i);
+  });
+  test('never red', () => {
+    expect(css()).not.toMatch(/#(f00|ff0000|dc2626|ef4444|b91c1c)\b/i);
   });
 });
 

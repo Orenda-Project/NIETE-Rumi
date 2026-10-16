@@ -30,8 +30,6 @@ h1{font-size:28px;text-align:center;margin:8px 0 16px;letter-spacing:1px}
 .panel.no{background:#FFF3E0;color:#7c2d12}
 .next{display:block;width:100%;min-height:52px;margin-top:12px;border:0;border-bottom:4px solid #0f5132;border-radius:14px;background:var(--ok);color:#fff;font-size:20px;font-weight:700}
 .card{margin-top:16px;padding:20px;border-radius:20px;background:var(--card);text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.08)}
-.wq-stars{display:flex;justify-content:center;gap:4px;font-size:28px;margin:8px 0}
-.wq-star{opacity:.25}.wq-star.wq-on{opacity:1}
 .note{color:var(--soft);font-size:14px;text-align:center;margin-top:20px}
 </style>
 </head>
@@ -50,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function () {
     : { yes: 'Yes! Well done.', not: function (a) { return 'Not yet. The answer is ' + a + '.'; }, next: 'Next', done: 'You answered all the questions!', again: 'Play again', sound: 'Sound' };
   var QS = [['🍎 + 🍎', 2, 3], ['⭐ ⭐ ⭐', 3, 4], ['5 − 1', 4, 6], ['🐟 🐟 🐟 🐟', 4, 2], ['2 + 3', 5, 4],
     ['🌼 🌼', 2, 1], ['6 + 1', 7, 8], ['10 − 5', 5, 3], ['🦋 🦋 🦋', 3, 5], ['4 + 4', 8, 9]];
-  var app = document.getElementById('app'), i = 0, right = 0;
+  var app = document.getElementById('app'), i = 0;
   function J() { return window.WQJ || null; }
   function bar() {
     return '<div class="bar"><div class="dots">' + QS.map(function (_, k) { return '<span' + (k < i ? ' class="on"' : '') + '></span>'; }).join('') +
@@ -74,7 +72,6 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelector('.jug img').src = '/wq/jugnu/' + (ok ? 'correct' : 'notyet') + '.webp';
     i += 1;
     var dot = app.querySelectorAll('.dots span')[i - 1]; if (dot) dot.className = 'on';
-    if (ok) right += 1;
     if (J()) J()[ok ? 'correct' : 'wrong']({ el: el, panel: document.getElementById('panel'), at: app.querySelector('.bar') });
     if (ok) { if (J()) J().after(900, show); else setTimeout(show, 900); }
     else {
@@ -83,11 +80,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
   function end() {
-    var st = ''; for (var k = 0; k < QS.length; k++) st += '<span class="wq-star' + (k < right ? ' wq-on' : '') + '">⭐</span>';
-    app.innerHTML = bar() + '<div class="jug"><img src="/wq/jugnu/celebrate.webp" alt=""></div><div class="card" id="card"><h2>' + T.done + '</h2><div class="wq-stars">' + st + '</div>' +
+    // the card's first line is the deed done, never a count about the child
+    app.innerHTML = bar() + '<div class="jug"><img src="/wq/jugnu/celebrate.webp" alt=""></div><div class="card" id="card"><h2>' + T.done + '</h2>' +
       '<button class="next" id="again">' + T.again + '</button></div>';
     if (J()) { J().toggle(document.getElementById('snd')); J().finish({ el: document.getElementById('card'), kind: 'quiz' }); }
-    document.getElementById('again').addEventListener('click', function () { i = 0; right = 0; show(); });
+    document.getElementById('again').addEventListener('click', function () { i = 0; show(); });
   }
   show();
 });

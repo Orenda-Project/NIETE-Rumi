@@ -29,6 +29,7 @@ const Preview = require('./web-quiz-preview');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
+const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 // A page session id (wq-tel.js): 8-16 lower-case letters and digits.
@@ -913,7 +914,8 @@ function createWebQuizRouter(opts = {}) {
   });
 
   // The sound + motion kit's demo page (ten answers to tap through): only while web_quiz_juice is on, never cached;
-  // no child page links to it. Off, or the bot not answering, it is not there (404), never the static file.
+  // no child page links to it. Off, or the bot not answering, it is not there (404). The file lives in views/, outside
+  // the /wq static handler, so no other spelling of the path reaches it.
   router.get('/wq/juice-demo.html', limiters.read, async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
     let on = false;
@@ -925,7 +927,7 @@ function createWebQuizRouter(opts = {}) {
     }
     if (!on) return res.status(404).type('text').send('not found');
     let html;
-    try { html = fs.readFileSync(path.join(PUBLIC_DIR, 'juice-demo.html'), 'utf8'); } catch (_) { return res.status(404).type('text').send('not found'); }
+    try { html = fs.readFileSync(JUICE_DEMO_FILE, 'utf8'); } catch (_) { return res.status(404).type('text').send('not found'); }
     return res.status(200).type('html').send(html.replace(/__JV__/g, challengeVersion('wq-juice.js')).replace(/__CV__/g, challengeVersion('wq-juice.css')));
   });
 

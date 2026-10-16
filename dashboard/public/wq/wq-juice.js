@@ -12,13 +12,17 @@
  *   WQJ.finish({el, kind})        card up at +300 ms (400 ms), its stars one by one over 900 ms, confetti 24 × 1.6 s,
  *                                 fanfare ≤ 1.8 s from the sprite (a synthesised one until the sprite is in)
  *   WQJ.badge(el) / WQJ.dayDot(el) sticker jingle 2.0 s + 0.6→1.15→1.0 spring; the day-dot fills 300 ms + ring 200 ms
- *   WQJ.mic(on)                   the microphone window: every sound but the word tink is held back; the tink at half
- *   WQJ.after(ms, fn)             a timer that stopAll() cancels (the right-answer auto-advance)
+ *   WQJ.mic(on) / WQJ.chunk()     the microphone window: only the word tink (0.5) and the sentence beat (half) sound;
+ *                                 chunk() marks a mic chunk sent: nothing sounds for the next 150 ms
+ *   WQJ.after(ms, fn)             a timer that stopAll() cancels
+ *   WQJ.autoNext(root, go)        returns the voice's done-callback: 900 ms later go(), if the same Next is on screen
  *   WQJ.muted() / WQJ.mute(b)     the page's ONE sound switch (localStorage wq_sound, the quiz page's; wq_snd, the home's)
  *   WQJ.toggle(btn)               wires a ≥ 48 px sound button to that switch
+ *   WQJ.skin(btn)                 draws a page's own sound button as SVG; keeps both keys in step
  *   WQJ.stopAll()                 every sound, timer and animation stops; runs by itself on pagehide, hidden, freeze
  *   WQJ.pop / wobble / fly / confetti   the motion helpers
- * prefers-reduced-motion: every move is a 150 ms fade; colour and sound stay. Muted: no audio node is ever made.
+ * prefers-reduced-motion: every move is a 150 ms fade; colour and sound stay. Muted: no audio node is ever made,
+ * and no vibration (never a buzz when its sound is refused).
  */
 (function (W) {
   'use strict';
@@ -44,7 +48,7 @@
   var SPRITE = '/wq/snd/juice-1.opus', SP = { fanfare: [0, 1.8], badge: [2, 2], giggle: [4.2, 0.6] };
   var KEY = 'wq_sound', KEY2 = 'wq_snd', WORD_MS = 150, PER_MIN = 30, MAX_ANIM = 3;
 
-  var ac = null, live = [], timers = [], anims = [], sent = [], lastWord = -1e9, duck = false, run = 0;
+  var ac = null, live = [], timers = [], anims = [], sent = [], lastWord = -1e9, lastChunk = -1e9, duck = false, run = 0;
   var sprite = null, spriteAsk = null, abort = null;
   function now() { return W.performance && W.performance.now ? W.performance.now() : Date.now(); }
   function store() { try { return W.localStorage; } catch (e) { return null; } }
@@ -76,9 +80,10 @@
   // one sound may play: not muted, the page in view, under 30 a minute (word tinks have their own limit)
   function may(kind) {
     if (muted() || hidden()) return false;
-    if (kind === 'word') return true;
-    if (duck) return false;
     var t = now();
+    if (duck && t - lastChunk < WORD_MS) return false;
+    if (kind === 'word') return true;
+    if (duck && kind !== 'sentence') return false;
     sent = sent.filter(function (x) { return t - x < 60000; });
     if (sent.length >= PER_MIN) return false;
     sent.push(t);
@@ -104,7 +109,7 @@
       } catch (e) {}
     });
   }
-  function play(kind, scale) { if (may(kind)) notes(R[kind], scale); }
+  function play(kind, scale) { if (!may(kind)) return false; notes(R[kind], scale); return true; }
   // the sprite is asked for once, on the first right answer, never on page load
   function loadSprite() {
     if (spriteAsk || muted() || !W.fetch) return;
@@ -116,7 +121,7 @@
       .then(function (buf) { sprite = buf; }, function () { /* the synthesised fallbacks stay */ });
   }
   function clip(name, fallback) {
-    if (!may(name)) return;
+    if (!may(name)) return false;
     var c = ctx();
     if (sprite && c) {
       try {
@@ -125,10 +130,11 @@
         s.connect(g); g.connect(c.destination);
         s.start(c.currentTime + 0.01, SP[name][0], SP[name][1]);
         live.push(s);
-        return;
+        return true;
       } catch (e) {}
     }
     if (fallback) notes(R[fallback]);
+    return true;
   }
 
   /* ---------- motion ---------- */
@@ -187,7 +193,7 @@
     if (!line) return false;
     if (n === 3) play('s3');
     if (n === 5) play('s5');
-    if (n === 10) { play('s10'); buzz([20, 40, 20]); }
+    if (n === 10 && play('s10')) buzz([20, 40, 20]);
     if (at && D && D.createElement && at.parentNode) {
       var old = D.getElementById && D.getElementById('wqj-strip');
       gone(old);
@@ -201,9 +207,8 @@
   }
   function correct(o) {
     o = o || {};
-    play('correct');
+    if (play('correct')) buzz(15);
     loadSprite();
-    buzz(15);
     pop(o.el);
     if (o.panel) anim(o.panel, [{ transform: 'translateY(24px)', opacity: 0 }, { transform: 'translateY(0)', opacity: 1 }], 200);
     run += 1;
@@ -222,30 +227,35 @@
     if (t - lastWord < WORD_MS) return false;
     lastWord = t;
     if (!may('word')) return false;
-    notes(R.word, duck ? 0.5 : 1);
+    notes(R.word);
     return true;
   }
-  function sentence() { play('sentence'); buzz(15); }
+  // under the mic at half gain; the buzz only with its sound
+  function sentence() { if (play('sentence', duck ? 0.5 : 1)) buzz(15); }
   function finish(o) {
     o = o || {};
-    clip('fanfare', 'fanfare');
-    buzz([30, 50, 30, 50, 60]);
+    if (clip('fanfare', 'fanfare')) buzz([30, 50, 30, 50, 60]);
     var el = o.el;
     if (el) {
       if (calm()) anim(el, [{ opacity: 0 }, { opacity: 1 }], 150, 'linear', 300);
       else anim(el, [{ transform: 'translateY(48px)', opacity: 0 }, { transform: 'translateY(0)', opacity: 1 }], 400, 'ease-out', 300);
-      // the stars light one by one after the card is up: 150 ms apart, the whole count within 900 ms
-      var st = !calm() && el.querySelectorAll ? el.querySelectorAll('.wq-star.wq-on') : [];
+      // the stars light one by one, 150 ms apart, within 900 ms: together ONE of the 3 animation slots
+      var st = !calm() && el.querySelectorAll && anims.length < MAX_ANIM ? el.querySelectorAll('.wq-star.wq-on') : [];
+      var pops = [];
       Array.prototype.forEach.call(st, function (s, i) {
-        try { s.animate([{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: 150, delay: 700 + i * Math.min(150, 750 / st.length), fill: 'backwards' }); } catch (e) {}
+        try { pops.push(s.animate([{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: 150, delay: 700 + i * Math.min(150, 750 / st.length), fill: 'backwards' })); } catch (e) {}
       });
+      if (pops.length) {
+        var group = { cancel: function () { pops.forEach(function (a) { try { a.cancel(); } catch (e) {} }); } };
+        anims.push(group);
+        after(700 + 900 + 150, function () { var i = anims.indexOf(group); if (i >= 0) anims.splice(i, 1); });
+      }
     }
     confetti(24, 1600);
     run = 0;
   }
   function badge(el) {
-    clip('badge', 'badge');
-    buzz(40);
+    if (clip('badge', 'badge')) buzz(40);
     anim(el, [{ transform: 'scale(.6)' }, { transform: 'scale(1.15)', offset: 0.6 }, { transform: 'scale(1)' }], 600, 'cubic-bezier(.34,1.56,.64,1)');
   }
   function dayDot(el) {
@@ -254,6 +264,12 @@
     if (el && el.classList) { el.classList.add('wqj-ring'); after(500, function () { el.classList.remove('wqj-ring'); }); }
   }
   function tap() { unlock(); }
+  function autoNext(root, go) {
+    return function () {
+      var me = root && root.querySelector ? root.querySelector('#wq-next') : null;
+      after(900, function () { if (root.querySelector('#wq-next') === me && root.getAttribute('data-m') === 'M7') go(); });
+    };
+  }
 
   function stopAll() {
     live.splice(0).forEach(function (n) { try { n.stop(0); } catch (e) {} });
@@ -275,6 +291,13 @@
     draw();
     btn.addEventListener('click', function () { mute(!muted()); draw(); if (!muted()) unlock(); });
   }
+  // a page's own button: its click flips aria-pressed first; the kit redraws and follows
+  function skin(btn) {
+    if (!btn || !btn.addEventListener) return;
+    var draw = function () { btn.innerHTML = btn.getAttribute('aria-pressed') === 'false' ? SVG_OFF : SVG_ON; };
+    draw();
+    btn.addEventListener('click', function () { mute(btn.getAttribute('aria-pressed') === 'false'); draw(); if (!muted()) unlock(); });
+  }
 
   // the first tap anywhere unlocks the sound (Android and iOS refuse it before a tap)
   if (D && D.addEventListener) {
@@ -290,7 +313,8 @@
 
   W.WQJ = {
     tap: tap, correct: correct, wrong: wrong, word: word, sentence: sentence, streak: streak, finish: finish, badge: badge,
-    dayDot: dayDot, giggle: function () { clip('giggle'); }, mic: function (on) { duck = !!on; }, after: after,
+    dayDot: dayDot, giggle: function () { clip('giggle'); }, mic: function (on) { duck = !!on; }, chunk: function () { lastChunk = now(); },
+    after: after, autoNext: autoNext, skin: skin,
     muted: muted, mute: mute, toggle: toggle, stopAll: stopAll, pop: pop, wobble: wobble, fly: fly, confetti: confetti,
     R: R, SP: SP
   };

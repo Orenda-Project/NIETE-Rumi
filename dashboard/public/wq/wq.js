@@ -1195,6 +1195,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       this.setAttribute('aria-pressed', SOUND); this.textContent = SOUND ? '🔔' : '🔕';
       if (!SOUND) stopAll(); // silent at once; nothing starts again until the next screen with sound on
     });
+    if (window.WQJ) WQJ.skin($('#wq-snd')); // the kit draws this button as SVG (web_quiz_juice)
     on('#wq-home', function () { homeTap(); });
   }
   /* ---------------- mascot (Jugnu): a still pose that comes alive ----------------
@@ -2092,12 +2093,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (window.WQJ) WQJ[ok ? 'correct' : 'wrong']({ el: ROOT.querySelector('.wq-opt[data-slot="' + slot + '"]'), panel: fb, at: ROOT.querySelector('.wq-dotrow') || ROOT.querySelector('.wq-bar') });
     ev('feedback_view', { qid: q.qid, ok: ok ? 1 : 0 });
     var reasonPart = reason && speakable(WQI.say(reason, LANG)) ? [{ text: WQI.say(reason, LANG), url: (q.audio && q.audio.why) || null }] : [];
-    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(reasonPart, cheer ? [cheer] : []), ok && window.WQJ ? goOn : null);
     // With the kit, a right answer moves on by itself 900 ms after Jugnu has said why; a wrong one waits for the tap.
-    function goOn() {
-      var me = $('#wq-next');
-      WQJ.after(900, function () { if ($('#wq-next') === me && ROOT.getAttribute('data-m') === 'M7') { if (retry) nextRetry(); else nextQuestion(); } });
-    }
+    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(reasonPart, cheer ? [cheer] : []), ok && window.WQJ ? WQJ.autoNext(ROOT, retry ? nextRetry : nextQuestion) : null);
     var nx = $('#wq-next');
     try { nx.scrollIntoView({ block: 'nearest' }); } catch (e) {}
     nx.addEventListener('click', function () {

@@ -11,6 +11,7 @@ const path = require('path');
 const vm = require('vm');
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq.js'), 'utf8');
+const KIT = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-juice.js'), 'utf8');
 const TAIL = '  else landing();\n})();';
 
 function fakeEl(sel) {
@@ -33,13 +34,18 @@ function recorder() {
   const J = {};
   ['tap', 'correct', 'wrong', 'word', 'sentence', 'streak', 'finish', 'badge', 'dayDot', 'mic', 'stopAll', 'muted'].forEach((k) => { J[k] = (...a) => { calls.push([k, ...a]); }; });
   J.after = (ms, fn) => { calls.push(['after', ms]); later.push({ ms, fn }); return later.length; };
+  // the kit's own auto-advance, its one timer the recorder's
+  const w = { setTimeout: (fn, ms) => J.after(ms, fn), clearTimeout() {} };
+  vm.runInNewContext(KIT, { window: w });
+  J.autoNext = (root, go) => { calls.push(['autoNext', root, go]); return w.WQJ.autoNext(root, go); };
+  J.skin = (el) => { calls.push(['skin', el]); };
   return { J, calls, later, names: () => calls.map((c) => c[0]) };
 }
 
 const Q1 = { qid: 'q1', i: 1, text: 'Which part of a plant drinks water?', options: [{ slot: 'A', text: 'Leaf' }, { slot: 'B', text: 'Root' }], correct_slot: 'B', why: 'Roots drink up water.', audio: { q: 'https://r2.example/q.ogg', opts: [null, null], why: 'https://r2.example/why.ogg' } };
 const Q2 = { ...Q1, qid: 'q2', i: 2 };
 
-function page({ juice = null, store = {} } = {}) {
+function page({ juice = null, store = {}, realKit = false } = {}) {
   const timers = [];
   const voiced = [];
   const clips = [];
@@ -84,6 +90,7 @@ function page({ juice = null, store = {} } = {}) {
   if (juice) ctx.WQJ = juice.J;
   ctx.window = ctx;
   vm.createContext(ctx);
+  if (realKit) vm.runInContext(KIT, ctx); // the edge's order: the kit before the page's own script
   vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, results: results, question: question, S: S };\n})();'), ctx);
   // The voice moves on: the current clip or phone line ends by itself.
   const endVoice = () => {
@@ -193,3 +200,59 @@ describe('switch on (the kit on the page)', () => {
     expect(p.contexts.length).toBe(0);
   });
 });
+
+describe('the quiz page keeps ONE line for each kit call', () => {
+  test('a right answer hands its advance to WQJ.autoNext(ROOT, the next step); no block of its own in the page', () => {
+    const j = recorder();
+    const p = page({ juice: j });
+    p.wq.question(0, false);
+    p.wq.feedback(Q1, 0, 'B', true, false);
+    const a = j.calls.find((x) => x[0] === 'autoNext');
+    expect(a).toBeTruthy();
+    expect(a[1]).toBe(p.root);
+    expect(a[2].name).toBe('nextQuestion');
+    expect(SRC).not.toMatch(/function goOn\b/);
+    expect(SRC.split('\n').filter((l) => /WQJ\.autoNext\(/.test(l)).length).toBe(1);
+  });
+
+  test('a wrong answer asks for no advance', () => {
+    const j = recorder();
+    const p = page({ juice: j });
+    p.wq.question(0, false);
+    p.wq.feedback(Q1, 0, 'A', false, false);
+    expect(j.names()).not.toContain('autoNext');
+  });
+});
+
+describe('the quiz page\'s sound button with the kit on (inline SVG, never an emoji)', () => {
+  const tap = (el) => (el.listeners.click || []).forEach((fn) => fn.call(el, {}));
+  test('drawn by the kit as SVG; one tap flips the page\'s sound once, and the kit with it', () => {
+    const store = {};
+    const p = page({ realKit: true, store });
+    delete p.els['#wq-snd']; // the harness keeps one element per selector: a new screen draws a new button
+    p.wq.question(0, false);
+    const b = p.els['#wq-snd'];
+    expect(b.innerHTML).toMatch(/^<svg/); // in place of the page's bell (the bar's html carries aria-pressed="true")
+    tap(b);
+    expect(b.attrs['aria-pressed']).toBe('false');
+    expect(b.innerHTML).toMatch(/^<svg/);
+    expect(b.innerHTML).toContain('M16 9l5 6');
+    expect(store.wq_sound).toBe('false');
+    expect(store.wq_snd).toBe('0');
+    expect(p.ctx.WQJ.muted()).toBe(true);
+    tap(b);
+    expect(b.attrs['aria-pressed']).toBe('true');
+    expect(store.wq_snd).toBe('1');
+  });
+
+  test('without the kit the page\'s own button is today\'s', () => {
+    const p = page();
+    delete p.els['#wq-snd'];
+    p.wq.question(0, false);
+    const b = p.els['#wq-snd'];
+    expect(b.innerHTML).toBe('');
+    tap(b);
+    expect(b.textContent).toBe('\u{1F515}');
+  });
+});
+

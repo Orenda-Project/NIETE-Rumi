@@ -91,6 +91,42 @@ describe('the kit\'s demo page', () => {
     } finally { s.server.close(); }
   });
 
+  // the static /wq handler serves whatever sits under public/wq (cached a year), so the demo page must not be there
+  const SPELLINGS = ['/wq/juice-demo%2Ehtml', '/wq/juice%2Ddemo.html', '/wq//juice-demo.html', '/wq/./juice-demo.html', '/WQ/juice-demo.html'];
+  test.each([[{ on: false }], [{}]])('off (%j): every other spelling of the path is 404 too, never a cached file', async (ans) => {
+    const s = await serve(ans);
+    try {
+      for (const p of SPELLINGS) {
+        const r = await get(s.port, p);
+        expect([p, r.status]).toEqual([p, 404]);
+        expect(r.body).not.toContain('<!doctype');
+        expect(String(r.headers['cache-control'] || '')).not.toMatch(/immutable|max-age=[1-9]/);
+      }
+    } finally { s.server.close(); }
+  });
+
+  test('on: only the one route draws it (the static handler has no copy)', async () => {
+    const s = await serve({ on: true });
+    try {
+      for (const p of SPELLINGS.slice(0, 3)) expect([p, (await get(s.port, p)).status]).toEqual([p, 404]);
+      expect((await get(s.port, '/wq/juice-demo.html')).status).toBe(200);
+    } finally { s.server.close(); }
+  });
+
+  test('the page lives outside public/ (views/), read by the gated route', () => {
+    expect(fs.existsSync(path.join(__dirname, '..', 'public', 'wq', 'juice-demo.html'))).toBe(false);
+    expect(fs.existsSync(path.join(__dirname, '..', 'views', 'juice-demo.html'))).toBe(true);
+  });
+
+  test('the demo\'s finish card says the deed, never a count about the child (no stars out of ten)', () => {
+    const f = path.join(__dirname, '..', 'views', 'juice-demo.html');
+    const html = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'juice-demo.html'), 'utf8');
+    expect(html).not.toMatch(/wq-star/);
+    expect(html).not.toMatch(/\bright\s*\+=/); // no tally of right answers kept for the card
+    expect(html).toContain('You answered all the questions!');
+    expect(html).toContain('سارے سوال مکمل ہو گئے!');
+  });
+
   test('no child page links to the demo', () => {
     const dir = path.join(__dirname, '..', 'public', 'wq');
     const hits = fs.readdirSync(dir).filter((f) => /\.(js|css|html)$/.test(f) && f !== 'juice-demo.html')
