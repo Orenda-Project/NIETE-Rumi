@@ -2551,6 +2551,17 @@ Feature: NIETE (ICT) Teacher Training
     But a pair that changed meanwhile and is refused clears my kept queue, and it is worked out afresh on my next visit
     # web-quiz-join-queue.js removeFromQueue/restoreToQueue; unit: teacher-join-queue-cache-filter.test.js
 
+  @quiz @config-gated @wip @draft @P1 @T939
+  Scenario: The automatic join never undoes my "Different", and a child I joined still holds back their look-alike
+    Given web_quiz_hub and web_quiz_identity_canon are on
+    And one child on my class list has two look-alikes from two different family phones, both in my queue
+    When I tap "Same child" on one of them
+    Then the other look-alike stays in my queue and the automatic join leaves them alone
+    When I tap "Different" on a pair
+    Then the automatic join never joins that pair, and its count shows it as refused by the teacher
+    And "Undo" on my "Same child" brings that child back as a look-alike, and neither is joined automatically
+    # web-quiz-join-queue.js teacherLoose blockers / runBackwardJoin refused_by_teacher; unit: teacher-join-queue-backward-no.test.js
+
   # ── Challenge clip warm job (app_settings web_quiz_challenge_clip_warm, off by default) ──────────────────
 
   @quiz @config-gated @wip @draft @P2 @T850

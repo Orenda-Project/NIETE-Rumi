@@ -12,7 +12,9 @@
  *   servedTiers()                     the tiers served right now ([] when the switch is off)
  *   decide({teacherUserId, looseId, candidateId, decision})   'same' | 'no' | 'undo': the only queue write
  *   linkClassCodes({teacherUserId, classId})  the teacher's unbound quiz codes → this class (never a bound one)
- *   runBackwardJoin({dryRun = true})  the strict rule over every chat child; dryRun returns labels and counts only
+ *   runBackwardJoin({dryRun = true})  the strict rule over every chat child; dryRun returns labels and counts only;
+ *                                     a pair the teacher answered "Different" is never joined (refused_by_teacher)
+ *   queueAge(teacherUserId)           whole seconds since the teacher's kept queue was computed; null when none
  *
  * Who is in the queue (per teacher; the teacher's roster is the pool):
  *   a CHAT child = a loose student (list_id NULL, status 'active', merged_into NULL, no active enrolment) of this
@@ -27,6 +29,8 @@
  *   3. the word-order fold (token set) is unique → the r0 tier B join; neither the queue nor this job.
  *   4. 'probable': every typed name word sits in exactly one roster name (same grade, or the roster grade unknown).
  *   Pairs whose latest merge_log decision of this teacher is 'same' or 'no' leave the queue; 'undo' re-admits.
+ *   A child the teacher merged with "Same child" in the queue still counts as a same-name look-alike in step 2, so its
+ *   twin on another phone and device stays blocked (in the queue) and is never joined by the job.
  *
  * The fold is the r0 identity audit's `norm` (NFKD, marks and harakat dropped, Arabic letter variants mapped, titles
  * dropped), so the rows match the measured truth set. Rows carry first names only: never a surname, phone or device.
@@ -139,7 +143,12 @@ async function teacherRoster(t, scope) {
   return out;
 }
 
-/** The teacher's loose children with their phones and devices. → Map id → {id, student_name, grade, phones, devices} */
+/**
+ * The teacher's loose children with their phones and devices. → Map id → {id, student_name, grade, phones, devices}
+ * The map also carries `.blockers` (Map id → the same shape): the teacher's children merged by the teacher's own queue
+ * tap ("Same child", the pair's latest decision of this teacher, source 'queue'). A blocker is never served or joined;
+ * it only keeps its same-name look-alike on another phone and device blocked in route(), as it did before the merge.
+ */
 async function teacherLoose(t) {
   const codes = await rows(supabase.from('quiz_share_codes').select('id').eq('teacher_user_id', t));
   const quizzes = await rows(supabase.from('quizzes').select('id').eq('teacher_id', t));
@@ -158,16 +167,45 @@ async function teacherLoose(t) {
   kids = kids.filter((s) => !enrolledSomewhere.has(s.id));
   // every session of these children (not only this teacher's) carries their phones and devices
   const sessions = await inChunks(() => supabase.from('quiz_sessions').select(sCols).limit(CAP), 'student_id', kids.map((s) => s.id));
-  const out = new Map();
-  for (const s of kids) {
-    const mine = sessions.filter((q) => q.student_id === s.id);
-    out.set(s.id, {
+  const shape = (s, list) => {
+    const mine = list.filter((q) => q.student_id === s.id);
+    return {
       id: s.id, student_name: s.student_name, father_name: s.father_name || null, grade: gradeOf(s.self_reported_class),
       phones: new Set(uniq([p10(s.phone), p10(s.parent_phone), ...mine.map((q) => p10(q.parent_phone))])),
       devices: new Set(uniq(mine.map((q) => q.device_ref))),
-    });
+    };
+  };
+  const out = new Map();
+  for (const s of kids) out.set(s.id, shape(s, sessions));
+  // the teacher's queue-merged children (same scope: enrolled by this teacher, or reached by a session on the teacher's
+  // codes or quizzes; list_id NULL): their sessions still carry their phones and devices
+  const mergedOwn = await rows(supabase.from('students').select(cols).eq('enrolled_by_user_id', t).is('list_id', null).not('merged_into', 'is', null).limit(CAP));
+  const reachedMerged = uniq([...viaCode, ...viaQuiz].map((q) => q.student_id)).filter((id) => !out.has(id) && !mergedOwn.some((s) => s.id === id));
+  const mergedMore = reachedMerged.length
+    ? await inChunks(() => supabase.from('students').select(cols).is('list_id', null).not('merged_into', 'is', null), 'id', reachedMerged) : [];
+  const queueMerged = await byQueueSame(t, [...mergedOwn, ...mergedMore]);
+  const blockers = new Map();
+  if (queueMerged.length) {
+    const bSessions = await inChunks(() => supabase.from('quiz_sessions').select(sCols).limit(CAP), 'student_id', queueMerged.map((s) => s.id));
+    for (const s of queueMerged) blockers.set(s.id, shape(s, bSessions));
   }
+  out.blockers = blockers;
   return out;
+}
+
+/** Of these merged children, those whose merge was this teacher's queue tap: the pair (child, merged_into)'s latest
+ *  merge_log decision of this teacher is 'same' with source 'queue' (a job or class-tab merge, or an undone one, is not). */
+async function byQueueSame(t, merged) {
+  const list = merged.filter((s) => s && s.merged_into);
+  if (!list.length) return [];
+  const log = await inChunks(() => supabase.from('merge_log').select('loose_id, candidate_id, decision, source, decided_at')
+    .eq('teacher_id', t).order('decided_at', { ascending: true }), 'loose_id', uniq(list.map((s) => s.id)));
+  const last = new Map();
+  log.forEach((x) => last.set(`${x.loose_id}|${x.candidate_id}`, x));
+  return list.filter((s) => {
+    const x = last.get(`${s.id}|${s.merged_into}`);
+    return Boolean(x && x.decision === 'same' && x.source === 'queue');
+  });
 }
 
 // ─── the rule ────────────────────────────────────────────────────────────────
@@ -197,7 +235,9 @@ function route(kid, roster, loose) {
   }
   if (exact.v === 'unique') {
     const k = norm(kid.student_name);
-    const others = [...loose.values()].filter((o) => o.id !== kid.id && norm(o.student_name) === k
+    // the teacher's queue-merged children (loose.blockers) still count as same-name look-alikes
+    const pool = loose.blockers ? [...loose.values(), ...loose.blockers.values()] : [...loose.values()];
+    const others = pool.filter((o) => o.id !== kid.id && norm(o.student_name) === k
       && disjoint(o.phones, kid.phones) && disjoint(o.devices, kid.devices));
     return { label: others.length ? 'blocked' : 'strict', r: exact.r };
   }
@@ -321,6 +361,27 @@ async function cachedCompute(t) {
   const rows = await compute(t);
   localQueue.set(key, { at: now, rows });
   return rows;
+}
+/** The whole seconds since the teacher's kept queue was computed (Redis, or the local copy when Redis is down); null
+ *  when there is none or on any error. Reads only: computes nothing, writes nothing. */
+async function queueAge(teacherUserId) {
+  try {
+    if (!teacherUserId) return null;
+    const key = queueKey(teacherUserId);
+    const r = redisOrNull();
+    let hit = null;
+    if (r) {
+      const v = await r.get(key);
+      hit = v && typeof v === 'string' ? JSON.parse(v) : v;
+    } else {
+      hit = localQueue.get(key) || null;
+      if (hit && Date.now() - hit.at >= QUEUE_TTL_S * 1000) hit = null;
+    }
+    if (!hit || !Array.isArray(hit.rows) || typeof hit.at !== 'number' || !Number.isFinite(hit.at)) return null;
+    return Math.max(0, Math.floor((Date.now() - hit.at) / 1000));
+  } catch (_) {
+    return null;
+  }
 }
 async function dropQueue(t) {
   if (!t) return;
@@ -615,18 +676,29 @@ async function runBackwardJoin({ dryRun = true } = {}) {
     const RANK = ['phone_name', 'strict', 'blocked', 'ambiguous', 'grade_mismatch', 'sibling_phone'];
     const labels = {};
     const joins = [];
+    const candidates = [];
     for (const [id, vs] of verdicts) {
       const joinsHere = vs.filter((v) => v.label === 'phone_name' || v.label === 'strict');
       const nameElsewhere = vs.some((v) => !joinsHere.includes(v) && ['blocked', 'ambiguous', 'word_order', 'probable'].includes(v.label));
       if (joinsHere.length === 1 && !nameElsewhere) {
-        labels[id] = joinsHere[0].label;
-        joins.push({ id, ...joinsHere[0] });
+        candidates.push({ id, ...joinsHere[0] });
         continue;
       }
       const best = vs.map((v) => v.label).filter((l) => RANK.includes(l)).sort((a, b) => RANK.indexOf(a) - RANK.indexOf(b))[0];
       labels[id] = joinsHere.length > 1 ? 'ambiguous' : (best === 'phone_name' || best === 'strict' ? 'blocked' : (best || 'none'));
     }
-    const counts = { phone_name: 0, strict: 0, blocked: 0, ambiguous: 0, none: 0, sibling_phone: 0, grade_mismatch: 0 };
+    // A pair the teacher answered "Different" (the teacher's latest decision on it is 'no') is never joined by the job,
+    // whatever the rule says: labelled refused_by_teacher. One merge_log read per teacher.
+    const lastByTeacher = new Map();
+    for (const t of uniq(candidates.map((j) => j.t))) {
+      lastByTeacher.set(t, await lastDecisions(t, uniq(candidates.filter((j) => j.t === t).map((j) => j.id))));
+    }
+    for (const j of candidates) {
+      if (lastByTeacher.get(j.t).get(`${j.id}|${j.r.id}`) === 'no') { labels[j.id] = 'refused_by_teacher'; continue; }
+      labels[j.id] = j.label;
+      joins.push(j);
+    }
+    const counts = { phone_name: 0, strict: 0, blocked: 0, ambiguous: 0, none: 0, sibling_phone: 0, grade_mismatch: 0, refused_by_teacher: 0 };
     Object.values(labels).forEach((l) => { counts[l] += 1; });
     let joined = 0;
     if (!dryRun) {
@@ -651,7 +723,7 @@ async function runBackwardJoin({ dryRun = true } = {}) {
 }
 
 module.exports = {
-  computeCandidates, candidatesFor, serveTiers, decide, linkClassCodes, runBackwardJoin, precisionByTier, servedTiers,
+  computeCandidates, candidatesFor, serveTiers, decide, linkClassCodes, runBackwardJoin, precisionByTier, servedTiers, queueAge,
   TIERS, TIERS_SERVED, HOLD_MIN_N, HOLD_LOWER, norm, wilsonLower,
   _serveForTest: (tiers) => { served = tiers ? Object.freeze([...tiers]) : TIERS_SERVED; precisionCache = null; },
   _resetPrecisionCache: () => { precisionCache = null; }, _resetQueueCache: () => { localQueue.clear(); }, QUEUE_TTL_S,
