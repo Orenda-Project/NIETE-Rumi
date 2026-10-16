@@ -27,6 +27,16 @@ jest.mock('../../../shared/utils/html-to-pdf', () => ({
   htmlToImage: jest.fn().mockResolvedValue(Buffer.from('png')),
 }));
 jest.mock('openai', () => jest.fn().mockImplementation(() => ({})));
+// Redis holds the teacher home's "prepared, not yet sent" marks (teacher-home.sent): an in-memory stand-in.
+jest.mock('../../../shared/services/cache/railway-redis.service', () => {
+  const kv = new Map();
+  return {
+    kv,
+    get: jest.fn(async (k) => (kv.has(k) ? kv.get(k) : null)),
+    set: jest.fn(async (k, v) => { kv.set(k, v); return true; }),
+    delete: jest.fn(async (k) => { kv.delete(k); return true; }),
+  };
+});
 jest.mock('../../../shared/services/llm-client', () => ({
   withSpendRecording: () => ({ chat: { completions: { create: () => Promise.reject(new Error('no model in test')) } } }),
 }));
@@ -210,6 +220,19 @@ describe('the sender\'s report (quiz_teacher_home on)', () => {
     seed();
     const on = await require('../../../shared/services/quiz/teacher-report.data').classReport(AUTHOR, { now: NOW });
     expect(JSON.stringify(on)).toBe(JSON.stringify(off));
+  });
+});
+
+describe('a library code the home only PREPARED (minted to show its message, never sent)', () => {
+  test('is not a send: no class-tab row, no chat row — until the send tap clears it', async () => {
+    seed();
+    const Sent = require('../../../shared/services/first-touch/teacher-home.sent');
+    await Sent.markPrepared(SC_BV);
+    const b = await Data.classReport(SENDER, { now: NOW });
+    expect(b.quizzes.map((q) => q.id)).toEqual([LQ]);
+    await Sent.markSent(SC_BV);
+    const after = await Data.classReport(SENDER, { now: NOW });
+    expect(after.quizzes.map((q) => q.id)).toEqual([VQ, LQ]);
   });
 });
 

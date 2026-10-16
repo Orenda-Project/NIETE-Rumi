@@ -194,20 +194,17 @@ async function sentQuiz(teacherId, quizId) {
 
 /**
  * Every quiz this teacher sent but did not make (class codes created since `since`), each with `sent_at`
- * (the newest of those codes), newest send first. [] when the switch is off.
+ * (the newest of those codes), newest send first. A code the teacher home minted only to SHOW its message
+ * (teacher-home.sent "prepared", cleared by the send tap) is not a send. [] when the switch is off.
  */
 async function sentQuizzes(teacherId, { since = null } = {}) {
   if (!teacherId || !(await sentQuizzesOn())) return [];
-  let q = supabase.from('quiz_share_codes').select('quiz_id, created_at')
+  let q = supabase.from('quiz_share_codes').select('id, quiz_id, created_at')
     .eq('teacher_user_id', teacherId).is('invited_by_student_id', null);
   if (since) q = q.gte('created_at', since);
   const { data: codes, error } = await q;
   if (error) throw new Error(error.message);
-  const sentAt = new Map();
-  (codes || []).forEach((c) => {
-    if (!sentAt.has(c.quiz_id) || String(c.created_at || '') > String(sentAt.get(c.quiz_id) || '')) sentAt.set(c.quiz_id, c.created_at);
-  });
-  const ids = [...sentAt.keys()];
+  const ids = [...new Set((codes || []).map((c) => c.quiz_id))];
   const rows = [];
   for (let i = 0; i < ids.length; i += IN_CHUNK) {
     const { data, error: qErr } = await supabase.from('quizzes').select(QUIZ_COLS).in('id', ids.slice(i, i + IN_CHUNK));
@@ -215,8 +212,24 @@ async function sentQuizzes(teacherId, { since = null } = {}) {
     rows.push(...(data || []));
   }
   // The teacher's own quizzes are read by teacher_id as always; a NULL author (the bank) is not theirs.
-  return rows.filter((q) => q.teacher_id !== teacherId).map((q) => ({ ...q, list_id: null, sent_at: sentAt.get(q.id) }))
+  const theirs = rows.filter((r) => r.teacher_id !== teacherId);
+  if (!theirs.length) return [];
+  const sentCodes = await notPrepared((codes || []).filter((c) => theirs.some((r) => r.id === c.quiz_id)));
+  const sentAt = new Map();
+  sentCodes.forEach((c) => {
+    if (!sentAt.has(c.quiz_id) || String(c.created_at || '') > String(sentAt.get(c.quiz_id) || '')) sentAt.set(c.quiz_id, c.created_at);
+  });
+  return theirs.filter((r) => sentAt.has(r.id)).map((r) => ({ ...r, list_id: null, sent_at: sentAt.get(r.id) }))
     .sort((a, b) => String(b.sent_at || '').localeCompare(String(a.sent_at || '')));
+}
+
+/** The codes the teacher really sent: without the home's "prepared" ones (none known → all of them). */
+async function notPrepared(codes) {
+  if (!codes.length) return codes;
+  let Sent = null;
+  try { Sent = require('../first-touch/teacher-home.sent'); } catch (_) { return codes; }
+  const prepared = await Sent.prepared(codes.map((c) => c.id));
+  return codes.filter((c) => !prepared.has(c.id));
 }
 
 /** The children's link for the sender's own code: the web page when it is on for them, else today's chat join link. */
