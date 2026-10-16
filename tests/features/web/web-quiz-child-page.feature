@@ -1690,6 +1690,7 @@ Feature: Web child quiz page on the portal
     When the child taps the card
     Then one screen asks "Zara's turn" with a big Play button and "Not my turn? Go back"
     And Play asks the server for this child's challenge link, bound to this phone and naming nobody, and opens it with via=quiz_card
+    And before it leaves, the page keeps this phone's device ref in the wq_dv cookie, so a child who never opened the hub meets the Trail, not the other-phone note
     And "Not my turn? Go back" returns to the scorecard without asking the server
 
   @T802

@@ -86,13 +86,24 @@
     c.on('#wq-jc-back', function () { c.back(); });
   }
 
+  // The challenge page's server render knows this phone only by the wq_dv cookie (the edge forwards it as
+  // x-wq-device; hub.js writes it too). A child who never opened the hub has none, so the hub link met the
+  // other_device note: write it from the quiz page's own device_ref (wq.js sget 'wq_d', JSON) before leaving.
+  function keepDevice() {
+    try {
+      var d = JSON.parse(localStorage.getItem('wq_d') || 'null');
+      if (typeof d !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(d)) return;
+      document.cookie = 'wq_dv=' + d + '; path=/; max-age=2592000; samesite=lax' + (location.protocol === 'https:' ? '; secure' : '');
+    } catch (e) {}
+  }
+
   function play(c) {
     if (going) return;
     going = true;
     c.api('POST', 'hubdoor', { st: c.st, jugnu: 1 }).then(function (r) {
       var href = r.ok && r.body && typeof r.body.href === 'string' ? r.body.href : '';
       c.flushEv(true);
-      if (CH_HREF.test(href)) { location.assign(href + '&lang=' + lang(c)); return; }
+      if (CH_HREF.test(href)) { keepDevice(); location.assign(href + '&lang=' + lang(c)); return; }
       going = false;
       c.toast(c.T.oops);
       c.back();
