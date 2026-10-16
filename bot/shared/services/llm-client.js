@@ -606,6 +606,15 @@ function adaptForTarget(model, params, moved = true) {
 }
 
 /**
+ * The output limit a model actually has for a call that asked for `requested`: what adaptForTarget sends it.
+ * For a caller that needs to know whether a reply reached its limit (bd-08qvls.1, observe2/llm-reply.js).
+ */
+function appliedOutputLimit(model, requested, moved = true) {
+  const p = adaptForTarget(model, { max_completion_tokens: requested }, moved);
+  return p.max_tokens != null ? p.max_tokens : p.max_completion_tokens;
+}
+
+/**
  * Send one call to a model this module chose: the direct lane for `anthropic-direct/`, else the
  * shared OpenRouter client, marked so the job's override is not applied to it a second time.
  * `options` are the per-call SDK options (timeout, retries), passed on to whichever lane it is.
@@ -1189,5 +1198,6 @@ module.exports = {
   assertFallbackUsable,
   getDefaultModel,
   getProviderInfo,
+  appliedOutputLimit,
   ANTHROPIC_DIRECT_PREFIX,
 };

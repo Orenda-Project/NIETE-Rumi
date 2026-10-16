@@ -110,7 +110,7 @@ describe('the default reader (completeJson, the LLM client mocked)', () => {
     const out = await Moments.runForSession('sess-1', '923000000001');
     // the moments call twice (cut off, then asked again), then the label check once
     expect(mockCreate).toHaveBeenCalledTimes(3);
-    expect(mockCreate.mock.calls[0][0]).toMatchObject({ max_completion_tokens: 16000, job: 'coaching.completeJson' });
+    expect(mockCreate.mock.calls[0][0]).toMatchObject({ max_completion_tokens: 16000, job: 'observe2.moments' }); // its own job (bd-08qvls.1)
     expect(formRow(id).rumi_moments.moments).toHaveLength(2);
     expect(out).toMatchObject({ action: 'check_sent' });
   });

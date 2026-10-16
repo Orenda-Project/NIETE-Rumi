@@ -30,6 +30,7 @@ const Store = require('./field-form.store');
 const { heardLevels } = require('./rules');
 const { checkQuotes } = require('./quote-check');
 const { checkLabels } = require('./label-check');
+const { JOB, unwrap, cutOff } = require('./llm-reply');
 const { observe2Strings } = require('./strings');
 const { clampLanguage } = require('../../../config/ux-strings');
 const { getLanguage } = require('../../../config/languages');
@@ -171,19 +172,16 @@ function normalise(raw) {
 // tokens, the median call uses ~12,000 (prod, 5-15 Oct).
 const MAX_TOKENS = 16000;
 
-async function defaultLlm(prompt, { maxTokens = MAX_TOKENS, label = 'observe2.moments' } = {}) {
+// Both calls (the moments and the label check) go out as their own job, observe2.moments (llm-reply.js), so the
+// app_settings row can move them alone. With no move it is today's model with today's request.
+async function defaultLlm(prompt, { maxTokens = MAX_TOKENS, label = 'observe2.moments', job = JOB } = {}) {
   const GPT5MiniService = require('../../gpt5-mini.service');
-  return GPT5MiniService.completeJson(prompt, { maxTokens, label });
-}
-
-// A reply as completeJson gives it ({result, usage}); a seam that hands back the bare JSON has no usage.
-function unwrap(reply) {
-  if (reply && typeof reply === 'object' && 'result' in reply && 'usage' in reply) return reply;
-  return { result: reply, usage: null };
+  return GPT5MiniService.completeJson(prompt, { maxTokens, label, job });
 }
 
 /**
- * The model's moments, asked for once more when the reply used the whole output budget. A cut-off
+ * The model's moments, asked for once more when the reply was cut off at its output limit (its finish
+ * reason, llm-reply.js cutOff; bd-08qvls.1). A cut-off
  * reply is not "Rumi heard nothing": on 12, 13 and 15 Oct three replies spent all 16,000 tokens, came
  * back with no moment, and were sent to the coach as four empty screens (bd-eal7zn.3). Cut off twice
  * is a failure, with the existing failure path.
@@ -191,11 +189,11 @@ function unwrap(reply) {
 async function readMoments(prompt, form, llm) {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     // eslint-disable-next-line no-await-in-loop
-    const { result, usage } = unwrap(await llm(prompt, { maxTokens: MAX_TOKENS }));
-    const used = usage ? Number(usage.completion_tokens) : NaN;
-    if (!(used >= MAX_TOKENS)) return result;
+    const reply = unwrap(await llm(prompt, { maxTokens: MAX_TOKENS, job: JOB }));
+    if (!cutOff(reply, MAX_TOKENS)) return reply.result;
     logToFile('[observe2] moments reply cut off at the output limit', {
-      formId: form.id, attempt, maxTokens: MAX_TOKENS, ...(attempt === 1 ? { next: 'asking once more' } : {}),
+      formId: form.id, attempt, maxTokens: MAX_TOKENS, finishReason: reply.finishReason,
+      tokens: reply.usage ? reply.usage.completion_tokens : null, ...(attempt === 1 ? { next: 'asking once more' } : {}),
     }, attempt === 1 ? 'warn' : 'error');
   }
   throw new Error('moments reply cut off at the output limit twice');
