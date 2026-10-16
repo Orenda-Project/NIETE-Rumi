@@ -64,7 +64,7 @@
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
       storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
-      ra: { play: 'چلائیں', pause: 'روکیں', replay: 'دوبارہ سنیں' },
+      ra: { play: 'سنیں', pause: 'روکیں', replay: 'دوبارہ سنیں' },
       warmupTitle: 'گنتی کا کھیل', warmupSay: 'چلیں، پہلے گنتی سے شروع کریں۔', warmupDone: 'گنتی کا کھیل مکمل!',
       welcomeBack: 'دوبارہ خوش آمدید! آئیں، آگے چلتے ہیں۔',
       // jg.t.practice (deck bytes, bot/shared/config/copy.v2.json)

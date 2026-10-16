@@ -92,7 +92,7 @@ describe('a story serve with `readalong`', () => {
       routes: { 'ch/HUB.TOKEN/read': ok(SREAD({ readalong: { ...TIMED, lang: 'ur', dir: 'rtl' } })) }, scripts: { '/wq/wq-readalong.js': STUB } });
     await p.flush();
     await p.click('wqc-story-along');
-    expect(p.win.__ra.o.labels).toEqual({ play: 'چلائیں', pause: 'روکیں', replay: 'دوبارہ سنیں' });
+    expect(p.win.__ra.o.labels).toEqual({ play: 'سنیں', pause: 'روکیں', replay: 'دوبارہ سنیں' });
   });
 
   test('`readalong` without the old clip still offers "Read along with Jugnu"', async () => {
