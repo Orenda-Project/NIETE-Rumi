@@ -206,3 +206,47 @@ describe('the kept queue lives 30 minutes', () => {
     expect(redis.set).not.toHaveBeenCalled();
   });
 });
+
+describe('an undo of my own \'same\' needs no roster read', () => {
+  const ROSTER_TABLES = ['class_teachers', 'student_lists', 'classes', 'class_enrollments'];
+  const rosterReads = (slice) => slice.filter((y) => y.op === 'select' && (ROSTER_TABLES.includes(y.table) || y.table === 'students')).length;
+  const writes = (slice) => slice.filter((y) => y.op !== 'select').map((y) => `${y.op}:${y.table}`);
+
+  test('undo of my own \'same\': 0 reads of class_teachers/student_lists/class_enrollments/students-by-roster (the roster read) between the undo call and its merge_log write; the pair is restored to the kept queue (cache-filter suite\'s restore behaviour unchanged)', async () => {
+    await Queue.candidatesFor(T1);
+    expect(await tap(PAIR1, 'same')).toEqual({ ok: true, decision: 'same' });
+    expect((await Queue.candidatesFor(T1)).map((y) => y.loose_id)).toEqual([c(8)]);
+    const b = calls();
+    expect(await tap(PAIR1, 'undo')).toEqual({ ok: true, decision: 'undo' });
+    const during = fake.calls.slice(b);
+    const logAt = during.findIndex((y) => y.op === 'insert' && y.table === 'merge_log');
+    expect(logAt).toBeGreaterThan(-1);
+    expect(rosterReads(during.slice(0, logAt))).toBe(0);
+    expect(writes(during)).toEqual(['update:students', 'insert:merge_log']);
+    expect(fake.db.students.find((s) => s.id === c(3))).toMatchObject({ merged_into: null, status: 'active', is_active: true });
+    expect(fake.db.merge_log[fake.db.merge_log.length - 1]).toMatchObject({ teacher_id: T1, loose_id: c(3), candidate_id: r(6), decision: 'undo', source: 'queue', tier: TIER });
+    const b2 = calls();
+    expect((await Queue.candidatesFor(T1)).map((y) => y.loose_id)).toEqual([c(3), c(8)]);
+    expect(computeReads(b2)).toBe(0);
+  });
+
+  test('golden: undo of a pair whose last decision is not my \'same\' → {ok:false, reason:\'nothing_to_undo\'}, nothing written', async () => {
+    await Queue.candidatesFor(T1);
+    const b = calls();
+    expect(await tap(PAIR2, 'undo')).toEqual({ ok: false, reason: 'nothing_to_undo' });
+    expect(writes(fake.calls.slice(b))).toEqual([]);
+    expect(await tap(PAIR2, 'no')).toEqual({ ok: true, decision: 'no' });
+    const b2 = calls();
+    expect(await tap(PAIR2, 'undo')).toEqual({ ok: false, reason: 'nothing_to_undo' });
+    expect(writes(fake.calls.slice(b2))).toEqual([]);
+  });
+
+  test('golden: undo when the loose row is no longer merged_into the candidate → nothing_to_undo', async () => {
+    await Queue.candidatesFor(T1);
+    expect(await tap(PAIR1, 'same')).toEqual({ ok: true, decision: 'same' });
+    Object.assign(fake.db.students.find((s) => s.id === c(3)), { merged_into: null, status: 'active', is_active: true });
+    const before = fake.db.merge_log.length;
+    expect(await tap(PAIR1, 'undo')).toEqual({ ok: false, reason: 'nothing_to_undo' });
+    expect(fake.db.merge_log.length).toBe(before);
+  });
+});

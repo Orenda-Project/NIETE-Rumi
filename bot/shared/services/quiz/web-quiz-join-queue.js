@@ -606,11 +606,8 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       await log('no', pair.evidence.tier);
       return { ok: true, decision };
     }
-    // Not a served pair (or an undo): today's full checks, unchanged.
-    const roster = await teacherRoster(teacherUserId);
-    if (!roster.has(candidateId)) return { ok: false, reason: 'not_your_roster' };
-    if (decision === 'same') return { ok: false, reason: 'not_served' };
     if (decision === 'undo') {
+      // the teacher's own latest decision on the pair is the 'same' being reversed: no roster read is needed (the update is guarded by merged_into)
       if (last !== 'same') return { ok: false, reason: 'nothing_to_undo' };
       const back = await rows(supabase.from('students').update({ merged_into: null, status: 'active', is_active: true, updated_at: now })
         .eq('id', looseId).eq('merged_into', candidateId).is('list_id', null).select('id'));
@@ -618,6 +615,10 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       await log('undo', await sameTier(teacherUserId, looseId, candidateId));
       return { ok: true, decision };
     }
+    // Not a served pair: today's full checks, unchanged.
+    const roster = await teacherRoster(teacherUserId);
+    if (!roster.has(candidateId)) return { ok: false, reason: 'not_your_roster' };
+    if (decision === 'same') return { ok: false, reason: 'not_served' };
     const loose = await teacherLoose(teacherUserId);
     if (!loose.has(looseId)) return { ok: false, reason: 'not_loose' };
     if (decision === 'no') {
