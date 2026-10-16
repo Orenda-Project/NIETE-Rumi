@@ -7,12 +7,14 @@
  * switch says) AND the phone's user id on the fixture rule's test-teacher list (app_settings web_quiz_fixture_rule
  * .teachers, read by web-quiz-fixture fixtureConfig — data, never code). Anyone else: no row, and the POST is 404.
  *
- * State: Redis `wq:persona:<sha256(phone_norm)[:32]>` = { as: 'fresh'|'teacher_empty', since, walk, kept }, 24 h
- * from its last use (a phone that keeps walking keeps its persona; "Back to my real self" or a day of silence ends it).
- * `since` = when this persona was chosen; `walk` = when "Start as a new phone" was tapped; `kept` = the children
- * ([{ id, via }], ids only) whose links on this phone that tap erased. Both are carried while the walk goes on, so
- * "Back to my real self" takes back exactly the walk's own links and puts the phone's own ones back: the row is left
- * as it was. No table is written by the persona itself.
+ * State, Redis, keyed by sha256(phone_norm)[:32] (never the phone):
+ *   wq:persona:<h>       { as: 'fresh'|'teacher_empty', since, walk }, 24 h from its last use (a phone that keeps
+ *                        walking keeps its persona; "Back to my real self" or a day of silence ends it)
+ *   wq:persona:kept:<h>  { walk, kept: [{ id, via }] } (ids only), 7 days — written by the first "Start as a new
+ *                        phone" of a walk BEFORE it erases anything: when the walk began and whose links it erased
+ * "Back to my real self" erases only the links bound since `walk` and re-binds the kept children, so the row is left
+ * as it was. If the persona ran out first, the next read of this phone (a /quiz) does the same restore once. No table
+ * is written by the persona itself.
  *
  *   flagOn()                  the switch, 30 s cache, never on production / staging
  *   allowed(userId)           flagOn() and the id is on the list (30 s cache)
@@ -44,10 +46,12 @@ const SWITCH_KEY = 'quiz_test_personas';
 const ASES = Object.freeze(['fresh', 'teacher_empty']);
 const TAPS = Object.freeze(['fresh', 'teacher_empty', 'real']);
 const TTL_S = 24 * 60 * 60;
+const KEPT_TTL_S = 7 * 24 * 60 * 60;
 const CACHE_MS = 30 * 1000;
 const NEVER_ON = Object.freeze(['production', 'prod', 'staging']);
 const h = (norm) => crypto.createHash('sha256').update(String(norm)).digest('hex').slice(0, 32);
 const keyOf = (norm) => `wq:persona:${h(norm)}`;
+const keptKeyOf = (norm) => `wq:persona:kept:${h(norm)}`;
 const redis = () => require('../cache/railway-redis.service');
 const normOf = (phone) => require('../quiz/student-identity.service').normalisePhone(phone);
 
@@ -96,13 +100,13 @@ async function allowed(userId, now = Date.now()) {
 
 const keptOf = (v) => (Array.isArray(v) ? v.filter((k) => k && typeof k.id === 'string' && k.id).map((k) => ({ id: k.id, via: k.via })) : []);
 
+const numOrNull = (v) => (v != null && Number.isFinite(Number(v)) ? Number(v) : null);
+const obj = (v) => { try { return typeof v === 'string' ? JSON.parse(v) : v; } catch (_) { return null; } };
+
 function parse(v) {
-  try {
-    const o = typeof v === 'string' ? JSON.parse(v) : v;
-    if (!o || !ASES.includes(o.as) || !Number.isFinite(Number(o.since))) return null;
-    const walk = o.walk != null && Number.isFinite(Number(o.walk)) ? Number(o.walk) : null;
-    return { as: o.as, since: Number(o.since), walk, kept: keptOf(o.kept) };
-  } catch (_) { return null; }
+  const o = obj(v);
+  if (!o || !ASES.includes(o.as) || !Number.isFinite(Number(o.since))) return null;
+  return { as: o.as, since: Number(o.since), walk: numOrNull(o.walk) };
 }
 
 /** The stored persona with no switch check (the POST's own read). */
@@ -110,23 +114,32 @@ async function stored(norm) {
   try { return parse(await redis().get(keyOf(norm))); } catch (_) { return null; }
 }
 
-/** → { as, since, walk, kept } | null. null whenever the switch is OFF. Never throws. */
+/** The walk's record: { walk, kept } | null. */
+async function keptRecord(norm) {
+  try {
+    const o = obj(await redis().get(keptKeyOf(norm)));
+    return o && numOrNull(o.walk) != null ? { walk: Number(o.walk), kept: keptOf(o.kept) } : null;
+  } catch (_) { return null; }
+}
+
+/** → { as, since, walk } | null. null whenever the switch is OFF. Never throws. */
 async function get(phone) {
   try {
     const norm = normOf(phone);
     if (!norm || !(await flagOn())) return null;
     const p = await stored(norm);
     if (p) { try { await redis().expire(keyOf(norm), TTL_S); } catch (_) { /* it ends a day after the tap instead */ } }
+    else await restoreOrphan(norm);
     return p;
   } catch (_) { return null; }
 }
 
 /** Keep a persona; true only when it reads back. */
-async function set(phone, as, { now = Date.now(), walk = null, kept = [] } = {}) {
+async function set(phone, as, { now = Date.now(), walk = null } = {}) {
   const norm = normOf(phone);
   if (!norm || !ASES.includes(as)) return false;
   try {
-    const value = { as, since: now, walk: walk == null ? null : Number(walk), kept: keptOf(kept) };
+    const value = { as, since: now, walk: numOrNull(walk) };
     await redis().set(keyOf(norm), JSON.stringify(value), TTL_S);
     const back = await stored(norm);
     return Boolean(back && back.as === as && back.since === now);
@@ -173,6 +186,23 @@ async function restoreKept(norm, kept, now) {
   return n;
 }
 
+/** Put the phone back as it was before the walk (its own links re-bound, the walk's erased) and drop the record. */
+async function putBack(norm, rec, now) {
+  const erased = await eraseWalkLinks(norm, rec.walk, now);
+  const restored = await restoreKept(norm, rec.kept, now);
+  try { await redis().delete(keptKeyOf(norm)); } catch (_) { /* it expires in a week */ }
+  return { erased, restored };
+}
+
+/** A walk whose persona ran out before "Back to my real self": the first read of the phone afterwards puts it back. */
+async function restoreOrphan(norm) {
+  const rec = await keptRecord(norm);
+  if (!rec) return;
+  const out = await putBack(norm, rec, new Date());
+  await require('./role.service').forgetDoorVerdict(norm);
+  try { logEvent('web_quiz.test_persona', { as: 'expired', ...out, w: 's' }); } catch (_) { /* never decides */ }
+}
+
 /**
  * Where the page goes after a tap, in the same web view: a new landing link (its own nonce, so the question's one
  * answer is not already spent) — the one question for a new phone, else the person's home (the landing re-resolves).
@@ -204,24 +234,27 @@ async function handle({ as, phoneNorm, userId = null, lang = 'bi', now = new Dat
     const Repo = require('../quiz/child-phone-bindings.repo');
     let erased = 0;
     let restored = 0;
+    const rec = await keptRecord(norm);
     if (as === 'fresh') {
-      // a walk already running keeps what its first tap erased (those links are not on the phone now)
-      const carry = prior && prior.walk != null ? prior.kept : null;
-      if (!(await set(norm, 'fresh', { now: at, walk: at, kept: carry || [] }))) return { error: 'go.error' };
-      const seen = new Set();
-      const kept = carry || ((await Repo.activeForPhone(norm, now)) || [])
-        .map((b) => ({ id: String(b.canonical_id), via: b.via }))
-        .filter((k) => k.id && !seen.has(k.id) && seen.add(k.id));
+      // a walk already running keeps its first record (what is on the phone now is the walk's own)
+      const walk = rec ? rec.walk : at;
+      if (!(await set(norm, 'fresh', { now: at, walk }))) return { error: 'go.error' };
+      if (!rec) {
+        const seen = new Set();
+        const kept = ((await Repo.activeForPhone(norm, now)) || [])
+          .map((b) => ({ id: String(b.canonical_id), via: b.via }))
+          .filter((k) => k.id && !seen.has(k.id) && seen.add(k.id));
+        await redis().set(keptKeyOf(norm), JSON.stringify({ walk, kept }), KEPT_TTL_S);
+        // nothing is erased unless the phone's own links can be put back
+        if (!(await keptRecord(norm))) { await clear(norm); return { error: 'go.error' }; }
+      }
       // the STOP eraser itself (the phone link only — the children's readings stay); no WhatsApp reply from a page tap
       erased = ((await Repo.eraseAllForPhone(norm, 'stop', now)) || []).length;
-      if (!carry && kept.length) await set(norm, 'fresh', { now: at, walk: at, kept });
     } else if (as === 'teacher_empty') {
-      if (!(await set(norm, 'teacher_empty', { now: at, walk: prior ? prior.walk : null, kept: prior ? prior.kept : [] }))) return { error: 'go.error' };
+      if (!(await set(norm, 'teacher_empty', { now: at, walk: prior ? prior.walk : (rec ? rec.walk : null) }))) return { error: 'go.error' };
     } else {
-      if (prior && prior.walk != null) {
-        erased = await eraseWalkLinks(norm, prior.walk, now);
-        restored = await restoreKept(norm, prior.kept, now);
-      }
+      // put back first, then end the persona (a /quiz in between sees the walk still on, never an orphan)
+      if (rec) ({ erased, restored } = await putBack(norm, rec, now));
       await clear(norm);
     }
     await Role.forgetDoorVerdict(norm);
@@ -292,6 +325,6 @@ function mount(router) {
 
 module.exports = {
   flagOn, allowed, get, set, clear, forHome, row, mount, handle, blockedTier,
-  SWITCH_KEY, ASES, TAPS, TTL_S, STRINGS: S, _key: keyOf,
+  SWITCH_KEY, ASES, TAPS, TTL_S, KEPT_TTL_S, STRINGS: S, _key: keyOf, _keptKey: keptKeyOf,
   _resetCache: () => { flagCache = null; listCache = null; },
 };

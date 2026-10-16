@@ -65,6 +65,9 @@ const { mountGo } = require('../../shared/services/first-touch/go.mount');
 const { createQuizGoRouter } = require('../../../dashboard/routes/quiz-go.routes');
 
 const persona = () => require('../../shared/services/first-touch/walk-persona');
+const GoToken = require('../../shared/services/first-touch/go.token');
+const keptRec = async () => { const v = await redis.get(persona()._keptKey(NORM.coach)); return v == null ? null : JSON.parse(v); };
+const sideOf = (next) => GoToken.verifyGo(next.split('/quiz/go/')[1]).ok.side;
 
 const ROW = { registration_completed: false, registration_state: null, name: null, teacher_uuid: null, school_id: null, portal_activated: false, role: null };
 const COACH = { id: 'u-coach', ...ROW, role: 'coach', name: 'Coach Testwala' };
@@ -293,7 +296,7 @@ describe('5 · "Back to my real self"', () => {
   test('get() is null; the coach phone lands on its own teacher home; the walk\'s own links gone, the phone\'s own put back', async () => {
     world();
     await tap('fresh');
-    expect((await persona().get(PH.coach)).kept).toEqual([{ id: 's-old', via: 'save' }]);
+    expect((await keptRec()).kept).toEqual([{ id: 's-old', via: 'save' }]);
     mockDb.tables.child_phone_bindings.push({ id: 'b-walk', canonical_id: 's-walk', phone_norm: NORM.coach, via: 'guest', bound_at: new Date(Date.now() + 1000).toISOString(), revoked_at: null, expires_at: iso(Date.now() + 90 * 24 * HOUR) });
     await tap('teacher_empty');
     const r = await tap('real');
@@ -317,8 +320,89 @@ describe('5 · "Back to my real self"', () => {
   test('a second "Start as a new phone" keeps what the first one erased', async () => {
     world();
     await tap('fresh');
+    const first = await keptRec();
     await tap('fresh');
-    expect((await persona().get(PH.coach)).kept).toEqual([{ id: 's-old', via: 'save' }]);
+    expect(await keptRec()).toEqual(first);
+    expect(first.kept).toEqual([{ id: 's-old', via: 'save' }]);
+  });
+
+  test('each child comes back with its own kind of link and a fresh school-year expiry', async () => {
+    world({ bindings: [
+      { id: 'b-t', canonical_id: 's-old', phone_norm: NORM.coach, via: 'teacher', bound_at: iso(Date.now() - 48 * HOUR), revoked_at: null, expires_at: iso(Date.now() + 90 * 24 * HOUR) },
+      { id: 'b-g', canonical_id: 's-walk', phone_norm: NORM.coach, via: 'guest', bound_at: iso(Date.now() - 47 * HOUR), revoked_at: null, expires_at: iso(Date.now() + 90 * 24 * HOUR) },
+    ] });
+    await tap('fresh');
+    await tap('real');
+    const back = mockDb.writes.filter((w) => w.table === 'child_phone_bindings' && w.op === 'insert').map((w) => w.rows);
+    const exp = BindRepo.expiresAtFor(new Date()).toISOString();
+    expect(back).toEqual([
+      expect.objectContaining({ canonical_id: 's-old', via: 'teacher', expires_at: exp }),
+      expect.objectContaining({ canonical_id: 's-walk', via: 'guest', expires_at: exp }),
+    ]);
+    expect(await keptRec()).toBeNull();
+  });
+
+  test('the persona ran out before "Back to my real self": the record outlives it; real — or the next /quiz — puts the phone back once', async () => {
+    world();
+    await tap('fresh');
+    expect(redis.set).toHaveBeenCalledWith(persona()._keptKey(NORM.coach), expect.any(String), 7 * 24 * 3600);
+    redis.__keys.delete(persona()._key(NORM.coach));            // a day of silence
+    await tap('real');
+    expect(mockDb.writes.filter((w) => w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['s-old']);
+    expect(await keptRec()).toBeNull();
+
+    world();
+    await tap('fresh');
+    redis.__keys.delete(persona()._key(NORM.coach));
+    expect(await persona().get(PH.coach)).toBeNull();             // the resolver's read on the next /quiz
+    expect(mockDb.writes.filter((w) => w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['s-old']);
+    expect(await keptRec()).toBeNull();
+    await persona().get(PH.coach);
+    expect(mockDb.writes.filter((w) => w.op === 'insert')).toHaveLength(1);   // once
+  });
+});
+
+describe('the persona\'s keys and clock', () => {
+  test('one hashed persona key and one hashed record key; each read slides the persona\'s day', async () => {
+    world();
+    await tap('fresh');
+    const keys = [...redis.__keys.keys()].filter((k) => k.startsWith('wq:persona:'));
+    expect(keys.filter((k) => /^wq:persona:[0-9a-f]{32}$/.test(k))).toHaveLength(1);
+    expect(keys.filter((k) => /^wq:persona:kept:[0-9a-f]{32}$/.test(k))).toHaveLength(1);
+    expect(keys).toHaveLength(2);
+    for (const k of keys) expect(k).not.toContain(NORM.coach);
+    redis.expire.mockClear();
+    await persona().get(PH.coach);
+    expect(redis.expire).toHaveBeenCalledWith(persona()._key(NORM.coach), 24 * 3600);
+  });
+
+  test('every tap forgets the cached answer for the phone, once', async () => {
+    world();
+    const spy = jest.spyOn(Role, 'forgetDoorVerdict');
+    for (const as of ['fresh', 'teacher_empty', 'real']) {
+      spy.mockClear();
+      await tap(as);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(NORM.coach);
+    }
+    spy.mockRestore();
+  });
+
+  test('the next link: the one question after a new phone, the home after the other two', async () => {
+    world();
+    expect(sideOf((await (await tap('fresh')).json()).next)).toBe('unknown');
+    expect(sideOf((await (await tap('teacher_empty')).json()).next)).toBe('teacher');
+    expect(sideOf((await (await tap('real')).json()).next)).toBe('teacher');
+  });
+
+  test('across the three taps nothing is written outside the phone links (no student, reading or user row)', async () => {
+    world();
+    await tap('fresh');
+    mockDb.tables.child_phone_bindings.push({ id: 'b-walk', canonical_id: 's-walk', phone_norm: NORM.coach, via: 'guest', bound_at: new Date(Date.now() + 1000).toISOString(), revoked_at: null, expires_at: iso(Date.now() + 90 * 24 * HOUR) });
+    await tap('teacher_empty');
+    await tap('real');
+    expect(mockDb.writes.length).toBeGreaterThan(0);
+    expect([...new Set(mockDb.writes.map((w) => w.table))]).toEqual(['child_phone_bindings']);
   });
 });
 
