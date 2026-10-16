@@ -106,6 +106,16 @@ describe('a Q1 stem that prints its own key', () => {
     expect(q1Stems(laid(exam))).toHaveLength(1);
   });
 
+  test('a quote of the key in Arabic letter forms is the key («ہندي» / «ہندی»)', () => {
+    const exam = paper({ question: 'لفظ «ہندي» کی درست املا کون سی ہے؟', options: ['الف) ہندی', 'ب) ھندی', 'ج) ہنضی', 'د) ہندے'], answer: 'الف) ہندی' });
+    expect(q1Stems(laid(exam))).toEqual([]);
+  });
+
+  test('a function-word key the stem\'s frame happens to use stays («درج ذیل میں سے …» → میں)', () => {
+    const exam = paper({ question: 'درج ذیل میں سے حرفِ جار کون سا ہے؟ "وہ کمرے میں بیٹھا ہے۔"', options: ['الف) میں', 'ب) وہ', 'ج) کمرے', 'د) بیٹھا'], answer: 'الف) میں' });
+    expect(q1Stems(laid(exam))).toHaveLength(1);
+  });
+
   test('a spelling item that does not print its word stays («درست املا والا لفظ کون سا ہے؟» → تربوز)', () => {
     const full3 = read('full_3');
     const spelling = full3.unseen.objective.MCQs.find((q) => /درست املا والا لفظ/.test(q.question)).question;
