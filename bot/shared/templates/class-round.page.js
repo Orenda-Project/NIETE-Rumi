@@ -77,11 +77,21 @@ const langOf = (l) => clampLanguage(l, ['en', 'ur']);
 const q = (lang) => `?lang=${langOf(lang)}`;
 const base = (token) => `/r/${encodeURIComponent(token || '')}/round`;
 
+// jg.round.t_paused, read from copy.v2.json verbatim (the T table above is not touched): a paused round's card says
+// where it stopped, positions only ({done} of {total}, the paused screen's own numbers; ASCII digits, like tCount).
+// '' when the round is not paused or the key is absent, so every other card is byte-identical.
+function pausedLine(lang, paused) {
+  const d = paused && require('../config/copy.v2.json')['jg.round.t_paused'];
+  const s = d && d[langOf(lang)];
+  if (!s) return '';
+  return `<p class="cr-paused" style="font-weight:700">${esc(s.replace('{done}', String(Number(paused.done) || 0)).replace('{total}', String(Number(paused.total) || 0)))}</p>`;
+}
+
 /**
  * The card on the teacher's class tab (no script: a plain form). `early`: the class is drawn and its window has not
  * opened, so the card offers only "Not this term" (Start works inside the window).
  */
-function renderCard({ lang, token, started = false, early = false }) {
+function renderCard({ lang, token, started = false, early = false, paused = null }) {
   const C = T[langOf(lang)];
   // "Not this term" (jg.round.t_not_this_term): one tap, before the round starts, only once its string exists
   const notThisTerm = !started && C.tNotThisTerm
@@ -90,7 +100,7 @@ function renderCard({ lang, token, started = false, early = false }) {
   const never = C.tNeverReported ? `<p class="muted">${esc(C.tNeverReported)}</p>` : '';
   const startForm = early ? ''
     : `<form method="post" action="${base(token)}/start${q(lang)}"><button class="btn btn-primary" type="submit" style="width:100%;border:0;font:inherit;font-weight:700;cursor:pointer">${esc(C.start)}</button></form>`;
-  return `<section class="card cr-card" style="margin-top:16px"><h2>${esc(C.cardTitle)}</h2><p class="muted">${esc(C.cardSub)}</p>${never}`
+  return `<section class="card cr-card" style="margin-top:16px"><h2>${esc(C.cardTitle)}</h2>${pausedLine(lang, paused)}<p class="muted">${esc(C.cardSub)}</p>${never}`
     + `${startForm}${notThisTerm}</section>`;
 }
 
