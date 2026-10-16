@@ -12,6 +12,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { countVerdict } = require('./ratchet-verdict-lib');
 
 /** The banned shape: a 92-prefixed run of 11+ digits (optional +), or an 11-digit 03… local number. */
 const PHONE_SHAPED_SOURCE = String.raw`(\+?92\d{9,}|\b03\d{9}\b)`;
@@ -70,29 +71,19 @@ function scanTree(roots, { relativeTo }) {
 }
 
 /**
- * Compare live hits against the allowlist ({ path: count }; the tree check passes directories). Shrink-only:
- *   - a hit in a file not on the list fails;
- *   - a listed file whose count went up fails;
- *   - a listed file whose count went down (or to 0) fails until the entry is lowered or removed.
- * → array of human-readable problems ([] = clean).
+ * Compare live hits against the allowlist ({ path: count }; the tree check passes directories). Shrink-only, and it
+ * shrinks where it is owned (ratchet-verdict-lib.js):
+ *   - a hit in a path not on the list, or a listed path whose count went up, is a failure;
+ *   - a listed path whose count went down (`DOWN:`), reached 0 (`CLEAN:`) or is not in the tree (`GONE:`, when
+ *     `exists` is given) is a warning, and passes.
+ * → { failures, warnings } (human-readable lines).
  */
-function checkAgainstAllowlist(hits, allowlist) {
-  const problems = [];
-  const files = new Set([...Object.keys(hits), ...Object.keys(allowlist)]);
-  for (const file of [...files].sort()) {
-    const now = hits[file] || 0;
-    const allowed = Object.prototype.hasOwnProperty.call(allowlist, file) ? allowlist[file] : null;
-    if (allowed === null) {
-      problems.push(`NEW: ${file} has ${now} phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts.`);
-    } else if (now > allowed) {
-      problems.push(`UP: ${file} has ${now} phone-shaped string(s), the allowlist allows ${allowed}. Do not add new ones.`);
-    } else if (now < allowed) {
-      problems.push(now === 0
-        ? `CLEAN: ${file} has no phone-shaped strings now. Remove its entry from phone-shaped-fixtures.allowlist.json.`
-        : `DOWN: ${file} has ${now} phone-shaped string(s), the allowlist says ${allowed}. Lower its entry in phone-shaped-fixtures.allowlist.json to ${now}.`);
-    }
-  }
-  return problems;
+function checkAgainstAllowlist(hits, allowlist, exists = null) {
+  return countVerdict(hits, allowlist, {
+    what: "phone-shaped string(s). Use the letters form '+92300FIXTURE<n>', or build digits at runtime from parts",
+    list: 'phone-shaped-fixtures.allowlist.json',
+    exists,
+  });
 }
 
 /** Per-file hits summed per directory ({ 'bot/tests/calls': 59 }): the allowlist's key, so it names no test file. */
