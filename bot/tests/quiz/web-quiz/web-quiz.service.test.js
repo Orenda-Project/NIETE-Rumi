@@ -163,7 +163,8 @@ describe('E2 GET quiz', () => {
     expect(q1.options.find((o) => o.slot === 'A')).toMatchObject({ fb: 'Roots hold the plant.', img: `/api/wq/media/AB12CD/${qid(1)}?k=A` });
     expect(q1.img).toBe(`/api/wq/media/AB12CD/${qid(1)}?k=q`);
     expect(out.cls.chips).toEqual([{ chip: chipOf(KID_A), first: 'Zara', animal: T.animalFor(KID_A) }]);
-    expect(out.live).toEqual({ class_today: 1, ict_today_floor: 1 });
+    // one child finished today: under 5, so the child's page gets no class count (the ICT-wide count is not one)
+    expect(out.live).toEqual({ class_today: 0, ict_today_floor: 1 });
     expect(out.video).toBeNull();
     expect(out.preview).toBe(false);
     // The teacher is named as the forwarded WhatsApp text names them; the parent's phone never leaves.
@@ -364,8 +365,8 @@ describe('E4 POST answers + E5 POST finish', () => {
     const { s } = await play('Sana Example', ['B', 'B', 'A', 'B']);
     const out = await WQ.finishSession({ st: s.st });
     expect(out.score).toEqual({ correct: 3, total: 4, pct: 75, level: 'developing' });
-    // nth: Zara finished earlier today, so Sana is the class's 2nd finisher today.
-    expect(out.card).toEqual({ first: 'Sana', animal: expect.any(String), correct: 3, total: 4, stars: 3, nth: 2 });
+    // Zara finished earlier today, so Sana is the class's 2nd finisher today: under 5, no count, only done_today.
+    expect(out.card).toEqual({ first: 'Sana', animal: expect.any(String), correct: 3, total: 4, stars: 3, done_today: true });
     expect(out.counted).toBe(true);
     expect(out.review[2]).toMatchObject({ qid: qid(3), picked: 'A', correct_slot: 'B', ok: false, why: 'Because 3' });
     expect(out.challenge_code).toMatch(/^[A-Z0-9]{6}$/);
