@@ -208,6 +208,8 @@ describe('the modules this suite reaches', () => {
     const listed = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
     expect(now).toContain('bot/shared/services/quiz/web-quiz-fixture.js');
     const why = 'the strip dry run now reaches a different set of modules; update web-quiz-strip-dry.modules.json (the train tool reads it to start a union run)';
-    expect({ why, modules: listed }).toEqual({ why, modules: now });
+    // compared inside the web quiz's own paths only: another team's module on a tier's tree never fails it
+    const { ownedOnly } = require('../../../../tests/setup/web-quiz-owned-paths');
+    expect({ why, modules: ownedOnly(listed) }).toEqual({ why, modules: ownedOnly(now) });
   });
 });
