@@ -1,0 +1,1661 @@
+{
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) Nervous system",
+     "blooms": "Remember",
+     "options": [
+      "a) Skeletal system",
+      "b) Nervous system",
+      "c) Digestive system",
+      "d) Respiratory system"
+     ],
+     "question": "Which body system carries messages between the brain and the rest of the body?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) Heart",
+     "blooms": "Remember",
+     "options": [
+      "a) Heart",
+      "b) Lungs",
+      "c) Brain",
+      "d) Stomach"
+     ],
+     "question": "Which part of the circulatory system pumps blood around the body?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) The muscles need more oxygen",
+     "blooms": "Apply",
+     "options": [
+      "a) The body needs less oxygen",
+      "b) The stomach needs more food",
+      "c) The muscles need more oxygen",
+      "d) The bones are growing"
+     ],
+     "question": "After a long run, a child's heart beats faster. Why does this happen?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "d) Nerves",
+     "blooms": "Understand",
+     "options": [
+      "a) Bones",
+      "b) Air",
+      "c) Blood vessels only",
+      "d) Nerves"
+     ],
+     "question": "A child touches a hot pan and pulls their hand away at once. What carries the message to the brain?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) Virus",
+     "blooms": "Remember",
+     "options": [
+      "a) Virus",
+      "b) Yeast",
+      "c) Mould",
+      "d) Yoghurt bacteria"
+     ],
+     "question": "Which microorganism must live inside the cells of other living things to grow?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) Diabetes",
+     "blooms": "Understand",
+     "options": [
+      "a) Chickenpox",
+      "b) Measles",
+      "c) Diabetes",
+      "d) Influenza"
+     ],
+     "question": "Which disease is NOT contagious?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) Making carbon dioxide by fermentation",
+     "blooms": "Apply",
+     "options": [
+      "a) Making carbon dioxide by fermentation",
+      "b) Absorbing all the water",
+      "c) Cooling the dough",
+      "d) Turning the flour into metal"
+     ],
+     "question": "A baker notices that dough becomes fluffy after yeast is added. What is the yeast doing?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) It trains the immune system to fight the germ",
+     "blooms": "Understand",
+     "options": [
+      "a) It cures the disease at once",
+      "b) It trains the immune system to fight the germ",
+      "c) It kills all germs in the air",
+      "d) It works as a pain reliever"
+     ],
+     "question": "Why does a vaccine help protect a person from a disease?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "d) Grass",
+     "blooms": "Apply",
+     "options": [
+      "a) Frog",
+      "b) Snake",
+      "c) Grasshopper",
+      "d) Grass"
+     ],
+     "question": "In a food chain of grass, grasshopper, frog and snake, which organism is the producer?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) Break down dead plants and animals",
+     "blooms": "Remember",
+     "options": [
+      "a) Break down dead plants and animals",
+      "b) Make food using sunlight",
+      "c) Hunt other animals",
+      "d) Eat only grass"
+     ],
+     "question": "What do decomposers do in an ecosystem?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "d) Carbon dioxide",
+     "blooms": "Understand",
+     "options": [
+      "a) Oxygen",
+      "b) Nitrogen",
+      "c) Helium",
+      "d) Carbon dioxide"
+     ],
+     "question": "Which gas released by burning fossil fuels traps heat and leads to global warming?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) A glass bottle",
+     "blooms": "Apply",
+     "options": [
+      "a) A glass bottle",
+      "b) A banana peel",
+      "c) A wooden stick",
+      "d) A newspaper"
+     ],
+     "question": "Which item is non-biodegradable?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) Butter melting",
+     "blooms": "Apply",
+     "options": [
+      "a) Milk turning sour",
+      "b) A nail rusting",
+      "c) Butter melting",
+      "d) Wood burning"
+     ],
+     "question": "Which of these is a physical change?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "d) A new substance forms that cannot be changed back",
+     "blooms": "Understand",
+     "options": [
+      "a) The egg changes its shape",
+      "b) The egg gets hot",
+      "c) The egg can be cooled again",
+      "d) A new substance forms that cannot be changed back"
+     ],
+     "question": "Why is boiling an egg a chemical change?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) A candle flame",
+     "blooms": "Apply",
+     "options": [
+      "a) A notebook",
+      "b) A candle flame",
+      "c) The moon",
+      "d) A mirror"
+     ],
+     "question": "Which object is luminous?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) Translucent",
+     "blooms": "Remember",
+     "options": [
+      "a) Transparent",
+      "b) Opaque",
+      "c) Translucent",
+      "d) Luminous"
+     ],
+     "question": "A material lets some light through but makes objects behind it look blurry. It is:",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) Steel",
+     "blooms": "Understand",
+     "options": [
+      "a) Air",
+      "b) Steel",
+      "c) Water",
+      "d) Oxygen gas"
+     ],
+     "question": "In which material does sound travel fastest?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) Loud",
+     "blooms": "Apply",
+     "options": [
+      "a) Quiet",
+      "b) Slow",
+      "c) Loud",
+      "d) Silent"
+     ],
+     "question": "A sound wave with a very high amplitude will sound:",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) The bulb does not glow",
+     "blooms": "Apply",
+     "options": [
+      "a) The bulb glows brightly",
+      "b) The bulb does not glow",
+      "c) The battery gets bigger",
+      "d) The wires become magnets"
+     ],
+     "question": "A bulb is connected to a battery by wires but the switch is open. What happens?",
+     "main_question": "Choose the correct option."
+    },
+    {
+     "slot": "science.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) They repel each other",
+     "blooms": "Apply",
+     "options": [
+      "a) They repel each other",
+      "b) They attract each other",
+      "c) They melt",
+      "d) They become non-magnetic"
+     ],
+     "question": "Two bar magnets are placed with their north poles facing each other. What happens?",
+     "main_question": "Choose the correct option."
+    }
+   ]
+  },
+  "subjective": {
+   "Brief Answers": [
+    {
+     "slot": "science.C.Q3a",
+     "lines": 0,
+     "marks": 5,
+     "answer": "The heart, the blood vessels and the blood.",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Heart, arteries and veins, and blood",
+       "Pump, vessels and blood"
+      ],
+      "points": [
+       {
+        "text": "Names the heart",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Names the blood vessels",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Names the blood",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Naming the lungs or the brain as a part of the circulatory system."
+     },
+     "question": "Name the three main parts of the human circulatory system.",
+     "main_question": "Answer any 8 of the following 10 questions."
+    },
+    {
+     "slot": "science.C.Q3a",
+     "lines": 0,
+     "marks": 5,
+     "answer": "A sense organ gathers information from the surroundings. The five are the eyes, ears, nose, tongue and skin.",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Names the senses: sight, hearing, smell, taste, touch, with their organs"
+      ],
+      "points": [
+       {
+        "text": "States that a sense organ gathers information from the surroundings",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Names all five organs: eyes, ears, nose, tongue, skin",
+        "marks": 3,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Listing the brain as a sense organ."
+     },
+     "question": "What is a sense organ? Name the five sense organs.",
+     "main_question": "Answer any 8 of the following 10 questions."
+    },
+    {
+     "slot": "science.C.Q3a",
+     "lines": 0,
+     "marks": 5,
+     "answer": "Microorganisms are tiny living things that can only be seen under a microscope. The three main groups are bacteria, viruses and fungi.",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Microbes or germs that are too small to see with the eye"
+      ],
+      "points": [
+       {
+        "text": "Tiny living things seen only under a microscope",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Bacteria",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Viruses",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Fungi",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Including algae or plants among the main groups."
+     },
+     "question": "What are microorganisms? Name the three main groups.",
+     "main_question": "Answer any 8 of the following 10 questions."
+    },
+    {
+     "slot": "science.C.Q3a",
+     "lines": 0,
+     "marks": 5,
+     "answer": "A contagious disease spreads from one person to another, for example flu. A non-contagious disease does not spread from person to person, for example diabetes.",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Contagious: cold, chickenpox, measles, COVID-19, cholera",
+       "Non-contagious: cancer, hypertension"
+      ],
+      "points": [
+       {
+        "text": "Contagious diseases spread from person to person",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Non-contagious diseases do not spread from person to person",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "A correct contagious example",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "A correct non-contagious example",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Saying that a non-contagious disease is caused by microorganisms that spread."
+     },
+     "question": "What is the difference between a contagious disease and a non-contagious disease? Give one example of each.",
+     "main_question": "Answer any 8 of the following 10 questions."
+    },
+    {
+     "slot": "science.C.Q3a",
+     "lines": 0,
+     "marks": 5,
+     "answer": "A food chain shows who eats whom in nature. The first living thing is a producer, a green plant, which makes its own food.",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Shows how energy passes from one living thing to the next"
+      ],
+      "points": [
+       {
+        "text": "A food chain shows who eats whom",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "The first is a producer or plant",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Producers make their own food using sunlight",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Saying the first member is a herbivore."
+     },
+     "question": "What is a food chain? Name the first living thing in every food chain.",
+     "main_question": "Answer any 8 of the following 10 questions."
+    },
+    {
+     "slot": "science.C.Q3a",
+     "lines": 0,
+     "marks": 5,
+     "answer": "Pollution is the introduction of harmful materials into the environment. The three types are air, water and land pollution.",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Contamination of the environment by waste, chemicals and other harmful substances"
+      ],
+      "points": [
+       {
+        "text": "Harmful substances put into the environment",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Air pollution",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Water pollution",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Land pollution",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Naming noise pollution instead of land pollution."
+     },
+     "question": "Define pollution. Name the three main types of pollution.",
+     "main_question": "Answer any 8 of the following 10 questions."
+    },
+    {
+     "slot": "science.C.Q3a",
+     "lines": 0,
+     "marks": 5,
+     "answer": "Biodegradable waste is broken down by natural processes, for example a banana peel. Non-biodegradable waste is not easily broken down and stays in the environment for years, for example plastic.",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Biodegradable: paper, food scraps, wood, leaves",
+       "Non-biodegradable: metal, glass, foam cup, tin can"
+      ],
+      "points": [
+       {
+        "text": "Biodegradable waste breaks down naturally",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Non-biodegradable waste does not break down easily",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "A correct biodegradable example",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "A correct non-biodegradable example",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Saying that non-biodegradable waste breaks down quickly."
+     },
+     "question": "What is the difference between biodegradable and non-biodegradable waste? Give one example of each.",
+     "main_question": "Answer any 8 of the following 10 questions."
+    },
+    {
+     "slot": "science.C.Q3a",
+     "lines": 0,
+     "marks": 5,
+     "answer": "A physical change affects the form or appearance of a material but does not make a different substance. Examples are melting ice and folding paper.",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Boiling water, chopping wood, breaking glass, dissolving sugar, crushing a can"
+      ],
+      "points": [
+       {
+        "text": "Changes form or appearance only",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "No new substance is formed",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "First correct example",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Second correct example",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Giving burning or rusting as an example."
+     },
+     "question": "What is a physical change? Give two examples.",
+     "main_question": "Answer any 8 of the following 10 questions."
+    },
+    {
+     "slot": "science.C.Q3a",
+     "lines": 0,
+     "marks": 5,
+     "answer": "Luminous objects shine with their own light, like the Sun. Non-luminous objects do not make their own light, like a book.",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Luminous: stars, candle, electric bulb, firefly",
+       "Non-luminous: moon, chair, shoes"
+      ],
+      "points": [
+       {
+        "text": "Luminous objects produce their own light",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Non-luminous objects do not produce their own light",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "A correct luminous example",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "A correct non-luminous example",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Calling the Moon a luminous object."
+     },
+     "question": "What is the difference between luminous and non-luminous objects? Give one example of each.",
+     "main_question": "Answer any 8 of the following 10 questions."
+    },
+    {
+     "slot": "science.C.Q3a",
+     "lines": 0,
+     "marks": 5,
+     "answer": "The poles are the north pole and the south pole. Like poles repel each other.",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "N and S poles; same poles push away"
+      ],
+      "points": [
+       {
+        "text": "North pole",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "South pole",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Like poles repel, or push each other away",
+        "marks": 3,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Saying that like poles attract."
+     },
+     "question": "What are the two poles of a magnet called? What happens when two like poles are brought close together?",
+     "main_question": "Answer any 8 of the following 10 questions."
+    }
+   ],
+   "Long Question": [
+    {
+     "slot": "science.C.Q3b",
+     "lines": 0,
+     "marks": 9,
+     "answer": "When a child runs, the muscles need more oxygen. The lungs breathe in more oxygen-rich air and fill the blood with oxygen. The heart beats faster and pumps this blood through the arteries to the muscles. Veins bring the blood back to the heart. The lungs also remove carbon dioxide. So the child breathes faster and the pulse rate rises.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Any clear account linking more oxygen demand to faster breathing and a faster heartbeat"
+      ],
+      "points": [
+       {
+        "text": "Muscles need more oxygen during exercise",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Lungs take in oxygen and fill the blood with it, and breathing becomes faster",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Heart beats faster and pumps blood through arteries to the muscles",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Veins bring blood back to the heart",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Carbon dioxide is breathed out and the pulse rate rises",
+        "marks": 2,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Saying the legs alone make the heart beat faster, with no mention of oxygen."
+     },
+     "question": "Explain how the heart and the lungs work together when a child runs in a race.",
+     "main_question": "Answer any 2 of the following 5 questions."
+    },
+    {
+     "slot": "science.C.Q3b",
+     "lines": 0,
+     "marks": 9,
+     "answer": "Germs can spread through touch, shared objects and surfaces, and through droplets in the air when a sick person sneezes or coughs. A person who touches a contaminated surface gets germs on their hands. They pass the germs on by shaking hands or touching their face. Washing hands with soap and water removes the germs, so they cannot pass on to others. This lowers the chance of getting sick.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Handshakes, hugs, eating together, contaminated water or food",
+       "Using masks and sanitisers as other preventive measures"
+      ],
+      "points": [
+       {
+        "text": "Germs spread through touch, surfaces or shared objects",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Germs spread through droplets when a sick person sneezes or coughs",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Germs pass from hands to other people or to the face",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Soap and water remove germs from the hands",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Fewer germs mean less spread of illness",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Saying that germs spread only through the air."
+     },
+     "question": "Explain how germs can spread from one person to many people, and how washing hands with soap and water helps to stop the spread.",
+     "main_question": "Answer any 2 of the following 5 questions."
+    },
+    {
+     "slot": "science.C.Q3b",
+     "lines": 0,
+     "marks": 9,
+     "answer": "Each living thing depends on others for food. If one animal is removed, the flow of energy and nutrients is spoiled. The animals that ate it would have less food and might starve. The animals it ate would increase in number because nothing eats them. In this way, the balance of the ecosystem is disturbed.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Any example food chain with correct effects on the animals above and below the removed one"
+      ],
+      "points": [
+       {
+        "text": "Living things in a chain depend on each other for food",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Removing one spoils the flow of energy and nutrients",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "The animals that eat it lose food and may starve",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "The animals it ate may increase in number",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "The balance of the ecosystem is disturbed",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Saying that only the removed animal is affected."
+     },
+     "question": "What would happen to the other living things in a food chain if one animal in the chain was removed? Explain your answer.",
+     "main_question": "Answer any 2 of the following 5 questions."
+    },
+    {
+     "slot": "science.C.Q3b",
+     "lines": 0,
+     "marks": 9,
+     "answer": "Coal, oil and gas are fossil fuels. When they are burned, they release smoke, soot and greenhouse gases such as carbon dioxide into the air. This causes air pollution and smog. The greenhouse gases trap heat from the Sun in the lower atmosphere. This is the greenhouse effect. The extra trapped heat warms the Earth, which is global warming. It changes weather patterns and harms ecosystems.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Examples of sources: factories, power plants, cars"
+      ],
+      "points": [
+       {
+        "text": "Burning fossil fuels such as coal, oil and gas releases smoke and gases",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "This causes air pollution or smog",
+        "marks": 1,
+        "kind": "K"
+       },
+       {
+        "text": "Greenhouse gases such as carbon dioxide trap the Sun's heat",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Trapped heat warms the Earth, which is global warming",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Weather patterns and ecosystems are affected",
+        "marks": 2,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Confusing the greenhouse effect with the hole in the ozone layer."
+     },
+     "question": "Explain why burning fossil fuels is harmful to the Earth. Describe how the greenhouse effect leads to global warming.",
+     "main_question": "Answer any 2 of the following 5 questions."
+    },
+    {
+     "slot": "science.C.Q3b",
+     "lines": 0,
+     "marks": 9,
+     "answer": "Sound is energy that travels as vibrations through a medium. The loudness depends on the amplitude of the sound wave and the distance from the source. As you move away, the intensity of the sound becomes less, so it sounds quieter. Sound needs a medium such as air, liquid or solid to travel through. Space is a vacuum with no air, so there is nothing for the vibrations to travel through. Sound cannot be heard there.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "A correct explanation using vibrations spreading out and losing energy"
+      ],
+      "points": [
+       {
+        "text": "Sound is energy travelling as vibrations through a medium",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Intensity depends on amplitude and distance from the source",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "The intensity becomes less far from the source, so the sound is quieter",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Sound needs a medium such as air, liquid or solid",
+        "marks": 2,
+        "kind": "K"
+       },
+       {
+        "text": "Space is a vacuum, so sound cannot travel",
+        "marks": 1,
+        "kind": "K"
+       }
+      ],
+      "checked": null,
+      "common_error": "Saying that sound travels in space but is too quiet to hear."
+     },
+     "question": "Explain why the sound of a bell becomes less loud as you walk away from it, and why sound cannot travel through space.",
+     "main_question": "Answer any 2 of the following 5 questions."
+    }
+   ],
+   "Draw and Label": [
+    {
+     "slot": "science.B.Q2a",
+     "lines": 0,
+     "marks": 7,
+     "answer": "A neat diagram showing: nose (nasal cavity), mouth, throat (pharynx), voice box (larynx), windpipe (trachea), bronchi, right lung, left lung, diaphragm.",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Nasal cavity or nose",
+       "Pharynx or throat",
+       "Larynx or voice box",
+       "Trachea or windpipe",
+       "Bronchus or bronchi",
+       "Left and right lung"
+      ],
+      "points": [
+       {
+        "text": "A neat, recognisable diagram with the lungs and windpipe in the correct places",
+        "marks": 2,
+        "kind": "M"
+       },
+       {
+        "text": "Seven parts labelled correctly with label lines, 5 marks in total (1 mark for each of five correct labels)",
+        "marks": 5,
+        "kind": "L"
+       }
+      ],
+      "checked": null,
+      "common_error": "Labelling the windpipe as the food pipe, or drawing the lungs without the windpipe joined to them."
+     },
+     "question": "Draw and label a simple diagram of the Respiratory System. Show and name at least seven parts.",
+     "main_question": "Draw and label any ONE of the following diagrams. Attempt one question out of two."
+    },
+    {
+     "slot": "science.B.Q2a",
+     "lines": 0,
+     "marks": 7,
+     "answer": "Sun → grass (producer) → grasshopper (primary consumer) → mouse (secondary consumer) → snake → hawk, with decomposers shown at the end. Arrows point from the organism that is eaten to the one that eats it.",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Any correct local food chain such as grass, rabbit, fox",
+       "Boxes or pictures joined by arrows",
+       "Naming herbivore for primary consumer and carnivore for secondary consumer"
+      ],
+      "points": [
+       {
+        "text": "Organisms drawn or named in a correct feeding order with arrows pointing the right way",
+        "marks": 2,
+        "kind": "M"
+       },
+       {
+        "text": "Five labels correct: the Sun as energy source, the producer, a primary consumer, a secondary consumer, and decomposers (1 mark each)",
+        "marks": 5,
+        "kind": "L"
+       }
+      ],
+      "checked": null,
+      "common_error": "Pointing the arrows from the eater to the food, or leaving out the producer."
+     },
+     "question": "Draw and label a simple Food Chain with five links. Show the direction of the arrows.",
+     "main_question": "Draw and label any ONE of the following diagrams. Attempt one question out of two."
+    }
+   ],
+   "Label the Diagram": [
+    {
+     "slot": "science.A.Q1b",
+     "lines": 0,
+     "marks": 5,
+     "answer": "1. Crust, 2. Mantle, 3. Outer core, 4. Inner core, 5. Lithosphere",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Continental crust or oceanic crust for the crust label",
+       "Upper mantle for the lithosphere base"
+      ],
+      "points": [
+       {
+        "text": "Crust labelled correctly",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Mantle labelled correctly",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Outer core labelled correctly",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Inner core labelled correctly",
+        "marks": 1,
+        "kind": "A"
+       },
+       {
+        "text": "Lithosphere labelled correctly",
+        "marks": 1,
+        "kind": "A"
+       }
+      ],
+      "checked": null,
+      "common_error": "Swapping the outer core and inner core labels."
+     },
+     "question": "Layers of the Earth",
+     "book_page": 168,
+     "main_question": "Label the diagram"
+    }
+   ],
+   "Logical Reasoning": [
+    {
+     "slot": "science.B.Q2b",
+     "lines": 0,
+     "marks": 5,
+     "answer": "The plastic sheet is transparent and gives a faint shadow, the tissue paper is translucent and gives a blurry shadow, and the cardboard is opaque and gives a dark shadow.",
+     "blooms": "Apply",
+     "question": "A student tests how well a clear plastic sheet, tissue paper and thick cardboard let light through. They hold each one in front of a torch and look at the wall behind it.",
+     "questions": [
+      {
+       "answer": "A solid, dark shadow, because cardboard is opaque and blocks all the light.",
+       "scheme": {
+        "accept": [
+         "No light passes through",
+         "Cardboard is opaque"
+        ],
+        "points": [
+         {
+          "text": "States a dark or solid shadow",
+          "marks": 1,
+          "kind": "A"
+         },
+         {
+          "text": "Explains that the opaque material blocks the light",
+          "marks": 1.5,
+          "kind": "A"
+         }
+        ],
+        "checked": null,
+        "common_error": "Saying there is no shadow at all."
+       },
+       "question": "What kind of shadow will the thick cardboard make, and why?"
+      },
+      {
+       "answer": "Tissue paper is translucent. It lets some light through but scatters it, so the shadow is light and blurry.",
+       "scheme": {
+        "accept": [
+         "It lets part of the light pass",
+         "The light is diffused"
+        ],
+        "points": [
+         {
+          "text": "Names the material as translucent",
+          "marks": 1,
+          "kind": "A"
+         },
+         {
+          "text": "Says some light passes through and is scattered",
+          "marks": 1.5,
+          "kind": "A"
+         }
+        ],
+        "checked": null,
+        "common_error": "Calling tissue paper transparent."
+       },
+       "question": "Why will the shadow of the tissue paper look blurry?"
+      },
+      {
+       "answer": "Tissue paper or a similar translucent material, because it lets light in but nobody can see clearly through it.",
+       "scheme": {
+        "accept": [
+         "Frosted plastic",
+         "Frosted glass"
+        ],
+        "points": [
+         {
+          "text": "Chooses a translucent material",
+          "marks": 1,
+          "kind": "A"
+         },
+         {
+          "text": "Reason: it lets light in but is not clear to see through",
+          "marks": 1.5,
+          "kind": "A"
+         }
+        ],
+        "checked": null,
+        "common_error": "Choosing the opaque cardboard, which blocks all the light."
+       },
+       "question": "Which of the three materials would be best for a window that gives privacy but still lets in light? Give a reason."
+      }
+     ],
+     "main_question": "Give answers with logical reasons. Answer any TWO of the three situations."
+    },
+    {
+     "slot": "science.B.Q2b",
+     "lines": 0,
+     "marks": 5,
+     "answer": "Rusting is a chemical change. Iron reacts with oxygen and water to form rust, and salt makes it happen faster.",
+     "blooms": "Understand",
+     "question": "A child puts two identical iron nails in two jars. One jar has plain water and the other has salty water. After a few days, the nail in the salty water is much more orange and flaky.",
+     "questions": [
+      {
+       "answer": "It is rust. Iron needs oxygen and water to form rust.",
+       "scheme": {
+        "accept": [
+         "Iron oxide"
+        ],
+        "points": [
+         {
+          "text": "Names the coating as rust",
+          "marks": 1,
+          "kind": "A"
+         },
+         {
+          "text": "Names both oxygen (air) and water",
+          "marks": 1.5,
+          "kind": "A"
+         }
+        ],
+        "checked": null,
+        "common_error": "Naming only water."
+       },
+       "question": "What is the orange coating on the nails called, and what two things are needed to form it?"
+      },
+      {
+       "answer": "A chemical change, because a new substance with different properties forms and it cannot easily be reversed.",
+       "scheme": {
+        "accept": [
+         "Cannot be changed back easily"
+        ],
+        "points": [
+         {
+          "text": "States chemical change",
+          "marks": 1,
+          "kind": "A"
+         },
+         {
+          "text": "Reason: a new substance forms",
+          "marks": 1.5,
+          "kind": "A"
+         }
+        ],
+        "checked": null,
+        "common_error": "Saying it is a physical change because only the colour changed."
+       },
+       "question": "Is rusting a physical change or a chemical change? Give a reason."
+      },
+      {
+       "answer": "It would rust very slowly or not at all, because there is no water.",
+       "scheme": {
+        "accept": [
+         "Rusting needs both oxygen and water"
+        ],
+        "points": [
+         {
+          "text": "Predicts little or no rust",
+          "marks": 1,
+          "kind": "A"
+         },
+         {
+          "text": "Reason: water (moisture) is missing",
+          "marks": 1.5,
+          "kind": "A"
+         }
+        ],
+        "checked": null,
+        "common_error": "Saying it would rust faster."
+       },
+       "question": "What would you predict about a nail kept in a dry, closed box? Why?"
+      }
+     ],
+     "main_question": "Give answers with logical reasons. Answer any TWO of the three situations."
+    },
+    {
+     "slot": "science.B.Q2b",
+     "lines": 0,
+     "marks": 5,
+     "answer": "Only magnetic materials such as iron and steel are attracted. Wood and aluminium are not.",
+     "blooms": "Apply",
+     "question": "A child brings a magnet close to a steel paper clip, a coin made of aluminium, a wooden pencil and an iron pin. Some objects jump to the magnet and some do not.",
+     "questions": [
+      {
+       "answer": "The steel paper clip and the iron pin.",
+       "scheme": {
+        "accept": [
+         "Objects made of iron or steel"
+        ],
+        "checked": null,
+        "common_error": "Saying the magnet attracts all metals, including aluminium."
+       },
+       "question": "Which objects will the magnet pick up?"
+      },
+      {
+       "answer": "Wood is not a magnetic material. It does not have the special electrons that act like tiny magnets.",
+       "scheme": {
+        "accept": [
+         "Only iron, cobalt and nickel are attracted"
+        ],
+        "points": [
+         {
+          "text": "States that wood is not a magnetic material",
+          "marks": 1,
+          "kind": "A"
+         },
+         {
+          "text": "Gives the reason about special electrons or material type",
+          "marks": 1.5,
+          "kind": "A"
+         }
+        ],
+        "checked": null,
+        "common_error": "Saying wood is too light."
+       },
+       "question": "Why does the wooden pencil not stick to the magnet?"
+      },
+      {
+       "answer": "The magnet has a magnetic field around it. Anything inside the field feels the force without touching.",
+       "scheme": {
+        "accept": [
+         "Magnetic force acts at a distance"
+        ],
+        "points": [
+         {
+          "text": "Mentions the magnetic field or force around the magnet",
+          "marks": 1.5,
+          "kind": "A"
+         },
+         {
+          "text": "States that touching is not needed",
+          "marks": 1,
+          "kind": "A"
+         }
+        ],
+        "checked": null,
+        "common_error": "Saying the magnet must touch the object."
+       },
+       "question": "The child holds the magnet a little away from the pin and the pin still moves toward it. How is this possible?"
+      }
+     ],
+     "main_question": "Give answers with logical reasons. Answer any TWO of the three situations."
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "notes": [],
+  "pages": {
+   "paper": 4,
+   "scheme": 6
+  },
+  "scope": {
+   "kind": "fde",
+   "pages": null,
+   "line_en": "Chapters 1–6 · Ch 7 diagrams",
+   "line_ur": "ابواب 1–6 · باب 7 کے خاکے",
+   "chapters": null,
+   "label_en": "FDE syllabus 2026–27",
+   "label_ur": "FDE نصاب 2026–27",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "or_en": "OR",
+   "or_ur": "یا",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "note_en": "Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Section B&C to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed.",
+   "title_en": "Grade 5 · Science · FDE pattern practice paper",
+   "title_ur": "جماعت پنجم · سائنس · FDE pattern کا مشقی پرچہ",
+   "accept_en": "accept:",
+   "accept_ur": "یہ بھی درست:",
+   "covers_en": "Covers: {scope}. Not an official FDE paper.",
+   "covers_ur": "احاطہ: {scope}۔ یہ سرکاری FDE پرچہ نہیں ہے۔",
+   "footer_en": "Not an official FDE paper",
+   "footer_ur": "یہ سرکاری FDE پرچہ نہیں ہے",
+   "checked_en": "✓ checked",
+   "checked_ur": "✓ جانچا گیا",
+   "time_line_en": "Time Allowed: 3 Hours",
+   "disclaimer_en": "Practice paper in the FDE Grade V Centralised Annual Examination pattern (Feb 2027). Not an official FDE paper.",
+   "disclaimer_ur": "یہ مشق کا پرچہ ہے جو FDE کے جماعت پنجم کے مرکزی سالانہ امتحان (فروری 2027) کے pattern پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔",
+   "total_line_en": "Total Marks: {t:100}",
+   "footer_page_en": "Page {n} of {N}",
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "notes_title_en": "Notes",
+   "notes_title_ur": "نوٹ",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "school_line_en": "School: ____________",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "answer_sheet_en": "answer sheet",
+   "answer_sheet_ur": "جوابی کاپی",
+   "common_error_en": "common error:",
+   "common_error_ur": "عام غلطی:",
+   "record_grade_en": "Grade",
+   "record_grade_ur": "گریڈ",
+   "record_title_en": "Class record",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_total_en": "Total",
+   "record_total_ur": "کل",
+   "scheme_title_en": "MARKING SCHEME",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "covers_partial_en": "Covers {units}; every section set from these chapters.",
+   "covers_partial_ur": "احاطہ: {units}؛ ہر حصہ انہی ابواب سے۔"
+  },
+  "legend": {
+   "subject": "science",
+   "key_line": 1,
+   "lines_en": [
+    "MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.",
+    "M = method · A = answer · U = unit · K = key point · L = label.",
+    "\"Attempt any N\": tell children to answer exactly N. If more are answered, mark all and keep the best N.",
+    "Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%."
+   ],
+   "lines_ur": [
+    "معروضی: درست حرف پر 1 نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔",
+    "M = طریقہ، A = جواب، U = اکائی، K = اہم نکتہ، L = نام",
+    "«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔",
+    "A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F <40"
+   ],
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "bands_line": 3,
+   "maths_lines": [],
+   "key_names_en": {
+    "A": "answer",
+    "K": "key point",
+    "L": "label",
+    "M": "method",
+    "U": "unit"
+   },
+   "key_names_ur": {
+    "A": "جواب",
+    "K": "اہم نکتہ",
+    "L": "نام",
+    "M": "طریقہ",
+    "U": "اکائی"
+   },
+   "bands_lead_ur": "گریڈ (FDE ص 113)؛ پاس = 40٪",
+   "key_from_chips": true
+  },
+  "medium": "en",
+  "subject": "science",
+  "sections": [
+   {
+    "id": "A",
+    "marks": 25,
+    "slots": [
+     {
+      "or": false,
+      "slot": "science.A.Q1a",
+      "type": "MCQs",
+      "frame": null,
+      "grain": {
+       "kind": "one concept per item across chapters 1–6: body systems, diseases, food chains, pollution, physical and chemical change, light, sound, magnets, circuits",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "mcq",
+      "attempt": 20,
+      "work_mm": null,
+      "category": "objective",
+      "families": null,
+      "generate": 20,
+      "label_en": "Q1 (a):",
+      "label_ur": "سوال 1 (الف)",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Twenty four-option MCQs from chapters 1–6 only (Skill Sharpener and Mastery Challenge included); 3 to 5 of them pure recall. Never set an item on chapter 7 here. Detailed respiratory (alveoli) or circulatory (chambers, valves) knowledge is not required.",
+      "alternatives": null,
+      "marks_line_en": "(1×{n:20}={t:20})",
+      "option_labels": "a",
+      "section_pages": "scope",
+      "instruction_en": "Encircle the correct answer.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "science.A.Q1b",
+      "type": "Label the Diagram",
+      "frame": {
+       "kind": "diagram",
+       "lines": 5,
+       "duty_en": "the diagram to label",
+       "duty_ur": "نشان دہی والا خاکہ",
+       "title_en": "Diagram: {q}",
+       "title_ur": "خاکہ: {q}",
+       "book_page": 168,
+       "height_mm": 70,
+       "supply_en": "Diagram: {q}",
+       "supply_ur": "خاکہ: {q}",
+       "word_bank": false
+      },
+      "grain": {
+       "kind": "label an unlabelled book diagram with 5 parts (chapters 1–7)",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "frame",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q1 (b):",
+      "label_ur": "سوال 1 (ب)",
+      "numbering": "none",
+      "compulsory": true,
+      "marks_each": 5,
+      "prompt_rule": "One item: `question` is the NAME of a diagram printed in the book (e.g. \"Layers of the Earth\"), `book_page` the book page it is on, `answer` the five labels in order. The paper prints an empty frame with five label lines; the teacher draws or pastes the diagram. Never describe the picture and never send the child to a picture.",
+      "alternatives": null,
+      "marks_line_en": "({t:5} Marks)",
+      "section_pages": "scope",
+      "instruction_en": "Label the given Diagram",
+      "teacher_note_en": "Draw this diagram on the board or paste the book's figure into the frame before photocopying.",
+      "teacher_note_ur": "فوٹو کاپی سے پہلے یہ خاکہ بورڈ پر بنائیں یا کتاب سے چسپاں کریں۔"
+     }
+    ],
+    "note_en": null,
+    "time_en": "Time Allowed: 30 minutes",
+    "label_en": "Section A",
+    "marks_en": "Total Marks: {t:25}",
+    "answer_on": "question_paper"
+   },
+   {
+    "id": "B",
+    "marks": 17,
+    "slots": [
+     {
+      "or": true,
+      "slot": "science.B.Q2a",
+      "type": "Draw and Label",
+      "frame": null,
+      "grain": {
+       "kind": "name a body or ecology diagram the child can draw and label from the book",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "draw",
+      "attempt": 1,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 2,
+      "label_en": "Q2 (a)",
+      "label_ur": "سوال 2 (الف)",
+      "numbering": "paren_roman",
+      "compulsory": false,
+      "marks_each": 7,
+      "prompt_rule": "Two items, each just the name of a diagram the child draws and labels from chapters 1–7 (e.g. \"Respiratory System\", \"Food Chain\"). The scheme lists the labels expected (L points). Not the detailed alveoli or heart chambers.",
+      "alternatives": null,
+      "marks_line_en": "({t:7} Marks)",
+      "section_pages": "scope",
+      "instruction_en": "Draw and label any {w:one} of the following:",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "science.B.Q2b",
+      "type": "Logical Reasoning",
+      "frame": null,
+      "grain": {
+       "kind": "an activity situation in words, then three sub-questions (a, b, c), answer any two",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "situation",
+      "attempt": 2,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 3,
+      "label_en": "Q2 (b)",
+      "label_ur": "سوال 2 (ب)",
+      "numbering": "paren_roman",
+      "compulsory": false,
+      "item_parts": {
+       "attempt": 2,
+       "line_en": "Answer any two of the given questions.",
+       "per_item": 3,
+       "marks_each": 2.5,
+       "marks_line_en": "(2 × 2.5 = 5)"
+      },
+      "marks_each": 5,
+      "prompt_rule": "Three situations, each from a different one of these book activities only: textures and sounds; spreading diseases; microorganisms at work; how pollution affects our world; solubility and state changes; rusting; physical vs chemical change; shadow and transparency; magnets. Each item: `question` = the situation in words (what the child does and sees), `questions` = three sub-questions, each an object {question, answer, scheme: {points, accept, common_error}} whose points add up to 2.5; a sub-question's `question` carries no letter or number in front (the paper letters them a, b, c). Never refer to a picture.",
+      "alternatives": null,
+      "marks_line_en": "({n:2} × 5 = {t:10})",
+      "section_pages": "scope",
+      "instruction_en": "Read and attempt any {w:TWO} of the following given situations carefully.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "note_en": "NOTE: Section B consists of 2 parts (a) and (b)",
+    "time_en": "Time Allowed: 2 hrs. 30 min",
+    "label_en": "Section B",
+    "marks_en": "Total Marks: {t:17}",
+    "answer_on": "answer_sheet"
+   },
+   {
+    "id": "C",
+    "marks": 58,
+    "slots": [
+     {
+      "or": false,
+      "slot": "science.C.Q3a",
+      "type": "Brief Answers",
+      "frame": null,
+      "grain": {
+       "kind": "short constructed response, 1 to 3 sentences, recall or explain",
+       "steps": 1,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "short",
+      "attempt": 8,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 10,
+      "label_en": "Q3 (a).",
+      "label_ur": "سوال 3 (الف)",
+      "numbering": "arabic",
+      "compulsory": false,
+      "marks_each": 5,
+      "prompt_rule": "Ten short-answer questions from chapters 1–6, one or two per chapter. Key points (K) that add to 5 marks each.",
+      "alternatives": null,
+      "marks_line_en": "({n:8}×5={t:40})",
+      "section_pages": "scope",
+      "instruction_en": "Answer any {w:eight} of the following questions briefly.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "science.C.Q3b",
+      "type": "Long Question",
+      "frame": null,
+      "grain": {
+       "kind": "extended response: explain a process or relationship in a paragraph",
+       "steps": 3,
+       "number_size": "none",
+       "unit_choice": false
+      },
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "short",
+      "attempt": 2,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q3 (b).",
+      "label_ur": "سوال 3 (ب)",
+      "numbering": "arabic",
+      "compulsory": false,
+      "marks_each": 9,
+      "prompt_rule": "Five explain/discuss questions from chapters 1–6 needing a 6–10 sentence answer; the scheme lists the key points (K) a full answer contains, adding to 9.",
+      "alternatives": null,
+      "marks_line_en": "({n:2} × 9 = {t:18})",
+      "section_pages": "scope",
+      "instruction_en": "Answer any {w:two} of the following questions comprehensively.",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "note_en": "Note: Section C consists of two parts: Q3 (a) and Q3 (b)",
+    "time_en": null,
+    "label_en": "Section C",
+    "marks_en": "Total Marks: {t:58}",
+    "answer_on": "answer_sheet"
+   }
+  ],
+  "supplies": [
+   {
+    "kind": "diagram",
+    "slot": "science.A.Q1b",
+    "scene": "Layers of the Earth",
+    "words": [],
+    "line_en": "Q1 (b): Diagram: Layers of the Earth (book p. 168)",
+    "line_ur": "سوال 1 (ب): خاکہ: Layers of the Earth (کتاب ص 168)",
+    "book_page": 168
+   }
+  ],
+  "unplaced": 1,
+  "preset_id": "fde_g5_2027",
+  "before_exam": {
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں"
+  },
+  "frame_pages": {
+   "science.A.Q1b": 2
+  },
+  "total_marks": 100,
+  "generated_at": "2026-10-16T05:44:03.707Z",
+  "total_time_en": "3 hrs",
+  "total_time_ur": "3 گھنٹے"
+ }
+}
