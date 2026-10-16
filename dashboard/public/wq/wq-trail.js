@@ -42,7 +42,7 @@
       lanternTrailOne: 'A game is waiting for you on the Trail.', lanternTrailMany: 'Games are waiting for you on the Trail.',
       storyBanner: 'Story Time: just for fun',
       storyAsk: 'Hear it from me first, or read it yourself.', storyReadAlong: 'Read along with Jugnu', storyAgain: 'Read this story again any time.',
-      ra: { play: 'Play', pause: 'Pause', replay: 'Hear it again' },
+      ra: { play: 'Play', pause: 'Pause', replay: 'Hear it again' }, showWords: 'Show me the words',
       warmupTitle: 'Number warm-up', warmupSay: "Let's start with some numbers.", warmupDone: 'Warm-up done!',
       // jg.trail.welcome_back (the lead's posted EN): the intro line of a re-served record (reopened: true)
       welcomeBack: "Welcome back! Let's carry on.",
@@ -64,7 +64,7 @@
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
       storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
-      ra: { play: 'سنیں', pause: 'روکیں', replay: 'دوبارہ سنیں' },
+      ra: { play: 'سنیں', pause: 'روکیں', replay: 'دوبارہ سنیں' }, showWords: 'الفاظ دکھائیں',
       warmupTitle: 'گنتی کا کھیل', warmupSay: 'چلیں، پہلے گنتی سے شروع کریں۔', warmupDone: 'گنتی کا کھیل مکمل!',
       welcomeBack: 'دوبارہ خوش آمدید! آئیں، آگے چلتے ہیں۔',
       // jg.t.practice (deck bytes, bot/shared/config/copy.v2.json)
@@ -77,7 +77,7 @@
   var ALONG_CAP_MS = 180000;   // a WebView that never reports the clip's end still reaches the read
   // the word-by-word player (wq-readalong.js), fetched only when a story serve carries `readalong`
   // (web_quiz_readalong); its version is the file's sha256, first 10 hex (a test keeps the two in step)
-  var RA_V = 'd1b532baac';
+  var RA_V = 'a617bdb93a';
 
   // own styles (only under v2): the chip's second line under the name; Urdu lines at Nastaliq-readable size
   function css() {
@@ -182,6 +182,8 @@
       h.S.data = d;
       if (d.clips && isWarmup(d)) d.clips = Object.assign({}, d.clips, { intro: { text: t.warmupSay, url: null } });
       h.ev('ch_start', { step: ex });
+      // a replayed read (practice, never a counted one or a class round) may be heard first, word by word (hear_first)
+      if (ex === 'read' && d.hear_first && d.practice_round === true && !d.round_turn) { raLoad(); hearAsk(intro); return; }
       // never in the teacher's class round (round_turn): that run is never a record, and the child holds the teacher's phone
       if (!d.practice_round && !d.round_turn && !helped()) helpAsk(intro); else intro();
     }
@@ -238,6 +240,13 @@
       if (ex === 'read' && d.readalong) raLoad();   // fetched now, so the child's tap can start the voice
       if (ex === 'read' && (clipUrl(d) || d.readalong)) storyAsk(); else intro();
     }
+    // a practice read: "hear it from me first, or read it yourself" — two equal answers; both end at the read's intro
+    function hearAsk(intro) {
+      h.show('hear-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
+        + btn('wqc-hear-along', t.storyReadAlong) + btn('wqc-hear-read', h.t.ready) + '</div>');
+      h.on('wqc-hear-along', function () { if (window.WQReadAlong) timedAlong(h.S.data.hear_first, intro); else intro(); });
+      h.on('wqc-hear-read', intro);
+    }
     // two equal answers, neither pressed until a tap
     function storyAsk() {
       h.show('story-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
@@ -267,17 +276,17 @@
     // Read along, word by word (the serve's `readalong` and the player loaded): Jugnu reads at a child's pace, the
     // green pill on each word as it is spoken; play/pause, replay, tap a word to hear it from there. Nothing moves on
     // by itself: "I'm ready" goes to the normal read whenever the child is.
-    function timedAlong(d) {
+    function timedAlong(ra, next) {
       h.show('story-along', h.jug('hello', t.storyReadAlong, true) + '<div id="wqc-along-ra"></div>'
         + '<div class="wqc-sticky">' + btn('wqc-along-read', h.t.ready) + '</div>');
-      var p = window.WQReadAlong.mount(h.q('wqc-along-ra'), d.readalong, { labels: t.ra });
-      h.on('wqc-along-read', function () { try { p.destroy(); } catch (e) { /* gone */ } h.read(); });
+      var p = window.WQReadAlong.mount(h.q('wqc-along-ra'), ra, { labels: t.ra });
+      h.on('wqc-along-read', function () { try { p.destroy(); } catch (e) { /* gone */ } next(); });
       p.play();   // inside the child's tap: the in-app browser's audio unlock
     }
     // Read along: the story clip plays, the line it is on is lit, then the normal read (the microphone, the story)
     function readAlong() {
       var d = h.S.data;
-      if (d.readalong && window.WQReadAlong) { timedAlong(d); return; }
+      if (d.readalong && window.WQReadAlong) { timedAlong(d.readalong, h.read); return; }
       if (!clipUrl(d)) { h.read(); return; }
       var st = d.story;
       var ws = alongWords(st);
@@ -321,10 +330,45 @@
     // the end of a story run: it can be read again, and the sticker line (never a number, never a score)
     function storyEnd(name, qa) {
       h.show(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
-        + '<div class="wq-stack">' + (qa ? h.qaButtons() : btn('wqc-menu', t.endHome)) + '</div>');
+        + '<div class="wq-stack">' + wordsBtn() + (qa ? h.qaButtons() : btn('wqc-menu', t.endHome)) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
+      wordsAfter(function () { storyEnd(name, qa); });
       if (window.WQFC) window.WQFC.trailEnd(h, { name: name, story: true, t: t });
+    }
+    // "Show me the words" after a practice listen's questions (show_words; never a counted listen or a class round):
+    // the words are asked for by the run token only now, after the questions; the card is drawn again with the button
+    // once they are here (and the player script), so the tap itself starts the voice
+    function wordsOk(d) { return d && d.ex === 'listen' && d.show_words === true && d.practice_round === true && !d.round_turn; }
+    function wordsBtn() { var d = h.S.data; return wordsOk(d) && d.words_ra && window.WQReadAlong ? btn('wqc-show-words', t.showWords) : ''; }
+    function wordsAfter(redraw) {
+      var d = h.S.data;
+      if (!wordsOk(d)) return;
+      if (d.words_ra) { if (window.WQReadAlong) h.on('wqc-show-words', function () { showWords(d.words_ra); }); return; }
+      if (d.words_asked) return;
+      d.words_asked = true;
+      raLoad();
+      var shown = h.S.screen;
+      fetch('/api/wq/ch/words/' + encodeURIComponent(d.ct) + '?lang=' + L, { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.text().then(function (x) { try { return JSON.parse(x); } catch (e) { return null; } }) : null; })
+        .then(function (j) {
+          if (!j || !j.readalong || h.S.data !== d) return;
+          d.words_ra = j.readalong;
+          var tries = 0;
+          // the player script may still be on its way: look again for a short while, then leave the card as it is
+          (function again() {
+            if (h.S.data !== d || h.S.screen !== shown) return;
+            if (window.WQReadAlong) { redraw(); return; }
+            if ((tries += 1) <= 20) setTimeout(again, 150);
+          }());
+        }, function () { /* no words: the card stays as it is */ });
+    }
+    function showWords(ra) {
+      h.show('listen-words', h.jug('hello', t.storyReadAlong, true) + '<div id="wqc-along-ra"></div>'
+        + '<div class="wq-stack">' + btn('wqc-menu', t.endHome) + '</div>');
+      var p = window.WQReadAlong.mount(h.q('wqc-along-ra'), ra, { labels: t.ra });
+      h.on('wqc-menu', function () { try { p.destroy(); } catch (e) { /* gone */ } h.refreshMenu(); });
+      p.play();   // inside the child's tap
     }
     // a stop's minutes and microphone line: in Urdu, Urdu digits and the mic on its own line (no Latin middot)
     function stopLine(x, wait, micLine) {
@@ -425,10 +469,11 @@
         h.on('wqc-handback', function () { if (d.round_back) location.href = d.round_back; else { try { history.back(); } catch (e) { /* stays */ } } });
         return;
       }
-      h.show(name, h.jug(pose, line, true) + wait + sticker + next + b3 + '<div class="wq-stack">' + (qa || home) + again + '</div>');
+      h.show(name, h.jug(pose, line, true) + wait + sticker + next + b3 + '<div class="wq-stack">' + wordsBtn() + (qa || home) + again + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });
       if (r.qa) h.on('wqc-qa', function () { h.qa().open(); });
+      wordsAfter(function () { endCard(name, pose, line, extra); });
       if (window.WQFC) window.WQFC.trailEnd(h, { name: name, line: line, r: r, t: t });
     }
     function storyLen(d) { return (d && d.story && d.story.tokens && d.story.tokens.length) || 0; }

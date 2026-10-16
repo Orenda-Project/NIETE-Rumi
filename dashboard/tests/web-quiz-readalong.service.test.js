@@ -433,6 +433,24 @@ describe('read-along player: the page', () => {
     expect(p.mode).toBe('text');
   });
 
+  test('sayWord: one word in Jugnu\'s voice with no player on screen — play, then seek to its start, pause past its end; inside the tap', () => {
+    const { RA, at, audio } = load();
+    const h = RA.sayWord(DATA, 2);   // "cricket." 1200–1800 ms
+    const a = audio();
+    expect(a.src).toBe(DATA.audio.url);
+    expect(a.plays).toBe(1);          // play() ran inside this call (the in-app browser's audio unlock)
+    expect(a.currentTime).toBeCloseTo(1.2);
+    at(1500); expect(a.paused).toBe(false);
+    at(1810); expect(a.paused).toBe(true);
+    expect(() => h.stop()).not.toThrow();
+  });
+  test('sayWord: a bad index, a page not voiced yet, or bad data does nothing and never throws', () => {
+    const { RA } = load();
+    expect(RA.sayWord(DATA, 9)).toBeNull();
+    expect(RA.sayWord({ ...DATA, audio: null }, 0)).toBeNull();
+    expect(RA.sayWord({ v: 9 }, 0)).toBeNull();
+  });
+
   test('size budget: ≤ 8 KB gzipped', () => {
     expect(SRC.length).toBeGreaterThan(0);
     expect(zlib.gzipSync(Buffer.from(SRC), { level: 9 }).length).toBeLessThanOrEqual(8192);
