@@ -346,11 +346,18 @@ function createRouter(deps = null) {
       return { mine: true, cls_k: data.class_id ? (require('../quiz/web-quiz-kid').clsOf(data.class_id) || null) : null };
     } catch (_) { return { mine: false, cls_k: null }; }
   }
-  /** One send: the code (only the teacher's own) is no longer "prepared", and teacher_send is logged once. */
+  /**
+   * One send: the code (only the teacher's own) is no longer "prepared", then teacher_send is logged once — only after
+   * that clear landed. → false when the clear failed (no event).
+   */
   async function sent(p, { kind, origin, again, id, c }) {
     const code = await codeOf(p.uid, c);
-    if (code.mine) await require('./teacher-home.sent').markSent(c);
+    if (code.mine && !(await require('./teacher-home.sent').markSent(c))) {
+      logToFile('⚠️ teacher home: a send could not be marked sent', { kind });
+      return false;
+    }
     event('teacher_send', p.uid, { kind, origin: ORIGINS.has(origin) ? origin : 'library', again, id, prompted: PROMPTED_VIAS.has(p.via), cls_k: code.cls_k });
+    return true;
   }
   router.post('/api/th/step', handleJson(async (req, res) => {
     const b = bodyOf(req);
@@ -358,7 +365,7 @@ function createRouter(deps = null) {
     if (!p) return;
     if (!STEPS.has(b.step)) { fail(res, 400); return; }
     if (b.step === 'share_tap' && SEND_KIND[b.kind]) {
-      await sent(p, { kind: SEND_KIND[b.kind], origin: b.origin, again: b.kind === 'again' || b.kind === 'share', id: uuidIn(b.id), c: uuidIn(b.c) });
+      if (!(await sent(p, { kind: SEND_KIND[b.kind], origin: b.origin, again: b.kind === 'again' || b.kind === 'share', id: uuidIn(b.id), c: uuidIn(b.c) }))) { fail(res, 503); return; }
     } else {
       event('teacher_home.step', p.uid, { step: b.step, screen: 'home' });
     }
@@ -379,7 +386,7 @@ function createRouter(deps = null) {
     const out = c ? await Send.shareSend({ uid: p.uid, lang, shareCodeId: c }, deps) : null;
     if (!out) return messagePage(res, 404, 'mk.error', lang);
     const origin = ORIGINS.has(req.query.o) ? req.query.o : 'library';
-    await sent(p, { kind: 'video', origin, again: origin === 'again', id: out.quizId || null, c });
+    await sent(p, { kind: 'video', origin, again: origin === 'again', id: out.quizId || null, c }); // a failed mark never blocks the send
     headers(res);
     return res.redirect(302, out.wa);
   }));

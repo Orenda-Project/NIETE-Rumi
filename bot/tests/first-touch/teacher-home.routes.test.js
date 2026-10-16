@@ -628,6 +628,47 @@ describe('the send of a library code goes through the server', () => {
     expect([...(await Sent.prepared([OWN_CODE]))]).toEqual([OWN_CODE]);
   });
 
+  test('a clear that fails once is retried: marked sent, teacher_send logged once', async () => {
+    seed();
+    await boot(deps);
+    const R = require('../../shared/services/cache/railway-redis.service');
+    const Sent = require('../../shared/services/first-touch/teacher-home.sent');
+    const t = tokenFor();
+    const c = (await (await get(`/api/th/home?t=${t}&g=4`)).json()).primary.send.c;
+    R.delete.mockImplementationOnce(async () => { throw new Error('store blip'); });
+    expect((await get(`/quiz/teacher/${t}/send?c=${c}&o=library`)).status).toBe(302);
+    expect([...(await Sent.prepared([c]))]).toEqual([]);
+    expect(logEvent.mock.calls.filter(([n]) => n === 'teacher_send')).toHaveLength(1);
+  });
+
+  test('a clear that fails twice: the send still goes to wa.me, no teacher_send; the beacon for the teacher\'s own code answers 503', async () => {
+    seed();
+    await boot(deps);
+    const R = require('../../shared/services/cache/railway-redis.service');
+    const t = tokenFor();
+    const c = (await (await get(`/api/th/home?t=${t}&g=4`)).json()).primary.send.c;
+    R.delete.mockClear();
+    R.delete.mockImplementation(async () => { throw new Error('store down'); });
+    try {
+      const res = await get(`/quiz/teacher/${t}/send?c=${c}&o=library`);
+      expect(res.status).toBe(302);
+      expect(res.headers.get('location').startsWith('https://wa.me/?text=')).toBe(true);
+      expect(R.delete).toHaveBeenCalledTimes(2);
+      expect((await post('/api/th/step', { t, step: 'share_tap', kind: 'share', id: qid(2), c, origin: 'library' })).status).toBe(503);
+      expect(logEvent.mock.calls.filter(([n]) => n === 'teacher_send')).toHaveLength(0);
+    } finally { R.delete.mockImplementation(async (k) => R.__keys.delete(k)); }
+  });
+
+  test('a code is held as prepared for 4 days at most, and at least the class line\'s 72 h window', async () => {
+    const R = require('../../shared/services/cache/railway-redis.service');
+    const { SEND_WINDOW_MS } = require('../../shared/services/first-touch/teacher-home.model');
+    R.set.mockClear();
+    await require('../../shared/services/first-touch/teacher-home.sent').markPrepared(OWN_CODE);
+    const ttl = R.set.mock.calls[0][2];
+    expect(ttl).toBeLessThanOrEqual(4 * 86400);
+    expect(ttl * 1000).toBeGreaterThan(SEND_WINDOW_MS);
+  });
+
   test('the sheet sends a library code through that route (and beacons only for the teacher\'s own quiz)', () => {
     const { SCRIPT } = require('../../shared/services/first-touch/teacher-home.page');
     expect(SCRIPT).toContain("function srv(x){return x.c&&(x.sendKind==='video'||x.sendKind==='share')?'/quiz/teacher/'+T+'/send?c='+encodeURIComponent(x.c)");
