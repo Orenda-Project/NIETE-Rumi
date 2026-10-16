@@ -463,7 +463,6 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     rt: Fast.early(Tel.flag()),
     ui: Fast.early(require('./web-quiz-ur-polish').ui()),
     ask: Fast.early(require('./web-quiz-invite-ask').mode()),
-    card: Fast.early(require('./web-quiz-card-image').field()),
   } : null;
   const got = (key, start) => (pre ? pre[key] : start());
   if (pre) pre.boot = Fast.early(pre.idn.then((idn) => (idn ? identityBoot(ctx, idn) : null)));
@@ -591,9 +590,6 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // The Urdu polish (web-quiz-ur-polish.js): one class on the page root when on; absent when off.
   const ui = await got('ui', () => require('./web-quiz-ur-polish').ui());
   if (ui) out.ui = ui;
-  // The finish card's switch (web-quiz-card-image.js): named only when on — the edge then counts an Urdu link's
-  // preview in Urdu digits; a switched-off payload is today's.
-  Object.assign(out, await got('card', () => require('./web-quiz-card-image').field()));
   // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
   const ask = await got('ask', () => require('./web-quiz-invite-ask').mode());
   if (ask !== 'off') out.invite_ask = ask;
