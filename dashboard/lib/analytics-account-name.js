@@ -19,8 +19,11 @@
 
 const ANALYTICS_PHONE_PREFIX = 'analytics:';
 
-/** Lower-case letter first, then lower-case letters, digits and hyphens: 3–40 characters in all. */
-const ACCOUNT_NAME_RE = /^[a-z][a-z0-9-]{2,39}$/;
+/**
+ * Lower-case letter first, then lower-case letters, digits, hyphens and underscores: 3–40 characters in all. The
+ * underscore is there because the ICT dashboard this page replaces signed the FDE in as fde_admin.
+ */
+const ACCOUNT_NAME_RE = /^[a-z][a-z0-9_-]{2,39}$/;
 
 /**
  * At most this many digits in a name. Every phone normaliser that reads a STORED phone_number joins all of its
