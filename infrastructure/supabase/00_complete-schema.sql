@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     phone_number VARCHAR(64) NOT NULL,  -- 64: also holds the 43-char merge tombstone 'merged:<uuid>' (V1.4.9)
     name VARCHAR(100),
-    grades_taught VARCHAR(100),
+    grades_taught VARCHAR(255),  -- 255: every grade id the registration form offers, as JSON (V1.6.10)
     registration_completed BOOLEAN DEFAULT false,
     registration_started_at TIMESTAMP,
     registration_completed_at TIMESTAMP,
