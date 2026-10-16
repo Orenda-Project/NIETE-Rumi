@@ -146,6 +146,18 @@ describe('Stories: 0 / 1 / many, only what opens', () => {
     seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: [passage('en.read.1.k01', 'read', 1, 3, 'The red kite')] });
     expect((await stories()).stories[0].say).toBe('https://r2.example.test/say.ogg');
   });
+
+  test('the wait for the say clips leaves no timer behind once they answer (a door read never holds the process open)', async () => {
+    mockCh.sayClip.mockImplementation(async () => null);
+    const set = jest.spyOn(global, 'setTimeout');
+    const clear = jest.spyOn(global, 'clearTimeout');
+    try {
+      await stories();
+      const waits = set.mock.calls.map((c, i) => [c[1], set.mock.results[i].value]).filter(([ms]) => ms === 600).map(([, id]) => id);
+      expect(waits.length).toBeGreaterThan(0);
+      waits.forEach((id) => expect(clear).toHaveBeenCalledWith(id));
+    } finally { set.mockRestore(); clear.mockRestore(); }
+  });
 });
 
 describe('listen rows and the daily cap on recorded clips (the door takes no more than half, as its labels)', () => {

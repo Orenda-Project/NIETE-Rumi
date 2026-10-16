@@ -77,8 +77,11 @@ async function sayAll(texts, lang) {
   try { Challenge = require('./web-quiz-challenge'); } catch (_) { return texts.map(() => null); }
   if (typeof Challenge.sayClip !== 'function') return texts.map(() => null);
   const all = Promise.all(texts.map((t) => Challenge.sayClip(t, lang).catch(() => null)));
-  const late = new Promise((resolve) => setTimeout(() => resolve(null), SAY_WAIT_MS));
-  return (await Promise.race([all, late])) || texts.map(() => null);
+  let timer = null;
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), SAY_WAIT_MS); });
+  try {
+    return (await Promise.race([all, late])) || texts.map(() => null);
+  } finally { clearTimeout(timer); }
 }
 
 async function storiesDoor(who, lang, now) {

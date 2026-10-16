@@ -436,6 +436,18 @@ describe('#watch/<lesson id> on page load: the home hands it to the door screens
     expect(fetch).toHaveBeenCalledWith('/api/wq/videos/start', expect.objectContaining({ method: 'POST' }));
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ hub: TOKEN, kid: KID, vid: VID });
   });
+
+  test('a hash change to #watch/<lesson id> after the home is up starts that lesson too (the "Watch next" tile\'s way)', async () => {
+    const on = {};
+    const { W, fetch, location } = live({ win: { addEventListener: (type, fn) => { on[type] = fn; } } });
+    W.WQHOME.mount(fakeRoot(), { ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev() {} });
+    expect(fetch).not.toHaveBeenCalledWith('/api/wq/videos/start', expect.anything());
+    expect(typeof on.hashchange).toBe('function');
+    location.hash = `#watch/${VID}`;
+    on.hashchange();
+    expect(fetch).toHaveBeenCalledWith('/api/wq/videos/start', expect.objectContaining({ method: 'POST' }));
+    expect(JSON.parse(fetch.mock.calls.find((c) => c[0] === '/api/wq/videos/start')[1].body)).toEqual({ hub: TOKEN, kid: KID, vid: VID });
+  });
 });
 
 describe('GOLDEN: switch off -> no door script anywhere', () => {
