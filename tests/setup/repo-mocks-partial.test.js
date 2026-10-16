@@ -15,12 +15,13 @@
  *
  * The same rule holds for `jest.doMock('<…>.repo', factory)` (a mock set up inside one test): its factory spreads
  * the real repo too. The doMock hits when this rule landed are in repo-mocks-partial.domock.allowlist.json as hit
- * counts per test FILE; that list only shrinks the same way.
+ * counts per test FILE; that list only shrinks too, but a lower count passes with a console.warn `DOWN:` / `CLEAN:`
+ * line, so the PR that fixes a doMock is never failed for it.
  */
 const fs = require('fs');
 const ALLOW = require('./repo-mocks-partial.allowlist.json');
 const ALLOW_DOMOCK = require('./repo-mocks-partial.domock.allowlist.json');
-const { rel, wholeRepoMocks, wholeRepoDoMocks, testFiles, byDir, countRatchet } = require('./test-seam-gates-lib');
+const { rel, wholeRepoMocks, wholeRepoDoMocks, testFiles, byDir, countRatchet, countVerdict } = require('./test-seam-gates-lib');
 
 const ROOTS = ['bot/tests', 'dashboard/tests', 'tests'];
 
@@ -102,7 +103,9 @@ describe('the tree', () => {
     expect(countRatchet(scan(), ALLOW, 'whole repo mock(s): spread jest.requireActual(<the repo>) into the factory')).toEqual([]);
   });
 
-  test('no new whole doMock of a repo; the doMock allowlist matches today exactly', () => {
-    expect(countRatchet(scanDoMocks(), ALLOW_DOMOCK, 'whole repo doMock(s): spread jest.requireActual(<the repo>) into the factory')).toEqual([]);
+  test('no new whole doMock of a repo, and none above its listed count', () => {
+    const { failures, cleans } = countVerdict(scanDoMocks(), ALLOW_DOMOCK, 'whole repo doMock(s): spread jest.requireActual(<the repo>) into the factory', 'repo-mocks-partial.domock.allowlist.json');
+    for (const line of cleans) console.warn(line);
+    expect(failures).toEqual([]);
   });
 });

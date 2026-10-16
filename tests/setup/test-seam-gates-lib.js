@@ -221,6 +221,35 @@ function listRatchet(found, allowed, what) {
   return out;
 }
 
+/**
+ * The warn-on-less check for a { key: count } allowlist named `file`: { failures, cleans }. A new key or a count above
+ * the listed one fails; a lower count (DOWN) or none (CLEAN) is a warning only, so the PR that removes a hit is never
+ * failed for it and may lower the entry in its own commit.
+ */
+function countVerdict(hits, allow, what, file) {
+  const failures = [];
+  const cleans = [];
+  for (const k of [...new Set([...Object.keys(hits), ...Object.keys(allow)])].sort()) {
+    const now = hits[k] || 0;
+    const ok = Object.prototype.hasOwnProperty.call(allow, k) ? allow[k] : null;
+    if (ok === null) failures.push(`NEW: ${k} has ${now} ${what}.`);
+    else if (now > ok) failures.push(`UP: ${k} has ${now} ${what}, ${file} allows ${ok}.`);
+    else if (now < ok) cleans.push(now === 0 ? `CLEAN: ${k} has none now. Remove its entry from ${file}.` : `DOWN: ${k} has ${now}, ${file} says ${ok}. Lower it to ${now}.`);
+  }
+  return { failures, cleans };
+}
+
+/** The warn-on-less check for a list allowlist named `file`: { failures, cleans }. A found item not listed fails; a listed item no longer found is a CLEAN warning. */
+function listVerdict(found, allowed, what, file) {
+  const f = new Set(found);
+  const a = new Set(allowed);
+  const failures = [];
+  const cleans = [];
+  for (const x of [...f].sort()) if (!a.has(x)) failures.push(`NEW: ${x} ${what}.`);
+  for (const x of [...a].sort()) if (!f.has(x)) cleans.push(`CLEAN: ${x} is fixed or gone. Remove it from ${file}.`);
+  return { failures, cleans };
+}
+
 // ------------------------------------------------------------------------------- gate 1: repo mocks are partial
 
 const isRepoSpec = (spec) => typeof spec === 'string' && /\.repo(\.js)?$/.test(spec.split('/').pop());
@@ -416,16 +445,22 @@ function liftText(v) {
  * Where a template lifts a deck key, from its own source:
  *   - a property line ending in a comment that names the key (`cardTitle: '…', // jg.round.card_title`) → that
  *     property of the exported table holding it ({ prop });
+ *   - a comment line that names the key and no other, right above a property line → that property ({ prop });
  *   - a comment that names the key right above `const NAME = {` (`// wa.t.fwd_text …` over `const FWD = {`) → the
  *     exported NAME as a whole ({ whole: NAME });
  *   - otherwise, when the source names the key or its area with a star (`jg.t.*`) and exports `T`: T under the
  *     camelCase lift names ({ guess: true }).
  * null when the template does not claim the key.
  */
+/** A deck key named in a comment: jg.* / og.* / wa.* / bot.* / st.* (a starred area too). */
+const DECK_KEY = /(?<![\w./])(?:jg|og|wa|bot|st)\.[a-z0-9_]+(?:\.[a-z0-9_*]+)*/g;
+
 function liftSite(source, key) {
   const k = key.replace(/\./g, '\\.');
   const prop = new RegExp(`^\\s*([A-Za-z_$][\\w$]*)\\s*:.*//\\s*${k}(?![\\w.])`, 'm').exec(source);
   if (prop) return { prop: prop[1] };
+  const above = new RegExp(`^[ \\t]*//([^\\n]*(?:^|[^\\w.])${k}(?![\\w.])[^\\n]*)\\n[ \\t]*([A-Za-z_$][\\w$]*)\\s*:`, 'm').exec(source);
+  if (above && new Set(above[1].match(DECK_KEY) || []).size === 1) return { prop: above[2] };
   const whole = new RegExp(`//[^\\n]*\\b${k}(?![\\w.])[^\\n]*\\n\\s*const\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*\\{`).exec(source);
   if (whole) return { whole: whole[1] };
   if (new RegExp(`(^|[^\\w.])${k}(?![\\w])`).test(source)) return { guess: true };
@@ -746,6 +781,33 @@ function tableValue(text, mask, tables, name) {
   return undefined;
 }
 
+/** The index (in `tables`) of the first table holding property `name` as its own (depth 0); -1 when none. */
+function tableProp(mask, tables, name) {
+  const rx = new RegExp(`(^|[{,\\s])${name.replace(/\$/g, '\\$')}\\s*:`, 'g');
+  for (let i = 0; i < tables.length; i += 1) {
+    const t = tables[i];
+    const body = mask.slice(t.open + 1, t.close);
+    rx.lastIndex = 0;
+    for (let m = rx.exec(body); m; m = rx.exec(body)) {
+      const at = t.open + 1 + m.index + m[0].length;
+      let d = 0;
+      for (let j = t.open + 1; j < at; j += 1) { if ('([{'.includes(mask[j])) d += 1; else if (')]}'.includes(mask[j])) d -= 1; }
+      if (d === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/** The index of the `{` of the object literal that holds position `at` (read on a mask); -1 at top level. */
+function parentBrace(mask, at) {
+  let depth = 0;
+  for (let i = at - 1; i >= 0; i -= 1) {
+    if (mask[i] === '}') depth += 1;
+    else if (mask[i] === '{') { if (depth === 0) return i; depth -= 1; }
+  }
+  return -1;
+}
+
 /** A lift's value as text, a function called with the deck's own {placeholders} (from the deck's EN) in order. */
 function liftTextFor(v, deckEntry) {
   if (typeof v !== 'function') return liftText(v);
@@ -772,32 +834,104 @@ function liftState(entry, lift, text = liftText) {
  * under wqLiftNames(key); scripts that claim the key by an explicit comment are read first.
  * deck: the parsed copy.v2.json; scripts: [{ id, source }].
  */
-function wqCopyStates(deck, scripts) {
-  const read = scripts.map((s) => {
+function readScripts(scripts) {
+  return scripts.map((s) => {
     const mask = codeMask(s.source);
     return { ...s, mask, en: langTables(mask, 'en'), ur: langTables(mask, 'ur') };
   });
-  const out = {};
+}
+
+/** The live, non-`bot.*` deck keys some script claims: [[key, entry, sites]], explicit claims first. */
+function wqClaims(deck, read) {
+  const out = [];
   for (const [key, entry] of Object.entries(deck)) {
     if (key === '_meta' || !entry || entry.retired || entry.held || key.startsWith('bot.')) continue;
     const sites = read.map((s) => ({ s, site: liftSite(s.source, key) })).filter((x) => x.site);
     if (!sites.length) continue;
     sites.sort((a, b) => Number(Boolean(a.site.guess)) - Number(Boolean(b.site.guess)));
+    out.push([key, entry, sites]);
+  }
+  return out;
+}
+
+/** Where a claimed key's EN is lifted: { s, name, en } for the first script and name whose `en` table has it; null when none. */
+function wqEnLift(key, sites) {
+  for (const { s, site } of sites) {
+    const names = site.prop ? [site.prop] : wqLiftNames(key);
+    for (const n of names) {
+      const en = tableValue(s.source, s.mask, s.en, n);
+      if (en !== undefined) return { s, name: n, en };
+    }
+  }
+  return null;
+}
+
+function wqCopyStates(deck, scripts) {
+  const out = {};
+  for (const [key, entry, sites] of wqClaims(deck, readScripts(scripts))) {
+    const hit = wqEnLift(key, sites);
     let lift = null;
-    for (const { s, site } of sites) {
-      const names = site.prop ? [site.prop] : wqLiftNames(key);
-      for (const n of names) {
-        const en = tableValue(s.source, s.mask, s.en, n);
-        if (en === undefined) continue;
-        const ur = tableValue(s.source, s.mask, s.ur, n);
-        lift = { en, ...(ur !== undefined ? { ur } : {}) };
-        break;
-      }
-      if (lift) break;
+    if (hit) {
+      const ur = tableValue(hit.s.source, hit.s.mask, hit.s.ur, hit.name);
+      lift = { en: hit.en, ...(ur !== undefined ? { ur } : {}) };
     }
     out[key] = liftState(entry, lift, liftTextFor);
   }
   return out;
+}
+
+/**
+ * EN ⇒ UR in the same table: the keys (sorted) a child page lifts in an `en: {…}` table (as wqCopyStates finds the
+ * lift) whose `ur: {…}` sibling — the `ur:` table of the same object — has no property of that name. Only keys whose
+ * deck Urdu is a string that is not a DRAFT are read (a key with no approved Urdu has nothing to lift). A UR value
+ * kept in another object (another `{ en, ur }` pair) is not the same table, and is a hit.
+ */
+function wqEnWithoutUr(deck, scripts) {
+  const out = [];
+  for (const [key, entry, sites] of wqClaims(deck, readScripts(scripts))) {
+    if (typeof entry.ur !== 'string' || /DRAFT/.test(entry.ur)) continue;
+    const hit = wqEnLift(key, sites);
+    if (!hit) continue;
+    const { s, name } = hit;
+    const enTable = s.en[tableProp(s.mask, s.en, name)];
+    const parent = parentBrace(s.mask, enTable.open);
+    const urSiblings = s.ur.filter((t) => parentBrace(s.mask, t.open) === parent);
+    if (tableProp(s.mask, urSiblings, name) < 0) out.push(key);
+  }
+  return out.sort();
+}
+
+/** The gap states a lift can only lower: a state's parts (en/ur missing or drifting). */
+const GAP_PARTS = {
+  missing: ['en-missing', 'ur-missing'],
+  'missing:ur': ['ur-missing'],
+  'drift:en': ['en-drift'],
+  'drift:ur': ['ur-drift'],
+  'drift:en+ur': ['en-drift', 'ur-drift'],
+};
+
+/**
+ * The copy gap against copy-deck-lift.allowlist.json { key: state }: { failures, cleans }.
+ *   NEW (fails): a key not same and not listed. CHANGED (fails): a listed key whose gap is not a part of the listed one.
+ *   CLEAN (warns): a listed key now same or no longer checked. LESS (warns): a listed key whose gap is a strict part of
+ *   the listed one (drift:en+ur → drift:ur; missing → missing:ur). A lift PR is never failed for lowering the gap.
+ */
+function copyGapVerdict(states, allow) {
+  const FILE = 'copy-deck-lift.allowlist.json';
+  const failures = [];
+  const cleans = [];
+  for (const key of [...new Set([...Object.keys(states), ...Object.keys(allow)])].sort()) {
+    const now = states[key];
+    const ok = allow[key];
+    if (now === 'same' || now === undefined) { if (ok !== undefined) cleans.push(`CLEAN: ${key} is ${now || 'no longer checked'}. Remove it from ${FILE}.`); continue; }
+    if (ok === undefined) { failures.push(`NEW: ${key} is ${now}. Lift the deck's string byte for byte.`); continue; }
+    if (ok === now) continue;
+    const was = GAP_PARTS[ok] || [];
+    const is = GAP_PARTS[now] || [now];
+    if (is.every((x) => was.includes(x)) && is.length < was.length) cleans.push(`LESS: ${key} is ${now} now, the allowlist says ${ok}. Lower its entry in ${FILE}.`);
+    else failures.push(`CHANGED: ${key} is ${now}, the allowlist says ${ok}.`);
+  }
+  return { failures, cleans };
 }
 
 // --------------------------------------------------------------------------- the deck's Urdu no-break rules
@@ -843,6 +977,8 @@ module.exports = {
   byDir,
   countRatchet,
   listRatchet,
+  countVerdict,
+  listVerdict,
   isRepoSpec,
   wholeRepoMocks,
   repoSpiesOutsideFailure,
@@ -875,6 +1011,8 @@ module.exports = {
   wqLiftNames,
   liftState,
   wqCopyStates,
+  wqEnWithoutUr,
+  copyGapVerdict,
   urduOrphans,
   whatsappWithoutJoiner,
 };

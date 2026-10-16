@@ -18,14 +18,14 @@
  * templates, literals joined by +, a const the file binds that way, or a parameter of the enclosing same-file
  * function every call of which passes such a string. Anything else is dynamic and not checked (counted only).
  *
- * select-columns-exist.allowlist.json: { "<table>.<column>": "<reason>" } for the hits when this gate landed; it only
- * shrinks (a new hit fails; a listed hit that is gone fails until removed).
+ * select-columns-exist.allowlist.json: { "<table>.<column>": "<reason>" } for the hits today (none). It only shrinks:
+ * a new hit fails; a listed hit that is gone passes with a console.warn `CLEAN:` line.
  */
 const fs = require('fs');
 const path = require('path');
 const ALLOW = require('./select-columns-exist.allowlist.json');
 const { parse } = require('../../bot/tests/quiz/web-quiz/strict-columns');
-const { REPO, walk, selectColumns, selectsOf, missingSelectedColumns, listRatchet } = require('./test-seam-gates-lib');
+const { REPO, walk, selectColumns, selectsOf, missingSelectedColumns, listVerdict } = require('./test-seam-gates-lib');
 
 function schemaColumns() {
   const sqlIn = (dir) => {
@@ -101,9 +101,11 @@ describe('the rule, on in-memory sources', () => {
 });
 
 describe('the tree', () => {
-  test('every quiz-service select names columns the schema has, or is listed; the list matches today exactly', () => {
+  test('every quiz-service select names columns the schema has, or is listed; nothing new', () => {
     const { hits } = scan(schemaColumns());
     for (const k of Object.keys(ALLOW)) expect([k, String(ALLOW[k]).length >= 10]).toEqual([k, true]);
-    expect(listRatchet(hits, Object.keys(ALLOW), 'is selected but the schema has no such column')).toEqual([]);
+    const { failures, cleans } = listVerdict(hits, Object.keys(ALLOW), 'is selected but the schema has no such column', 'select-columns-exist.allowlist.json');
+    for (const line of cleans) console.warn(line);
+    expect(failures).toEqual([]);
   });
 });

@@ -8,13 +8,17 @@
  * bot/shared/services/quiz/web-quiz-challenge*.js; any other caller asks the challenge for its answer instead.
  * Comments and strings are not read as calls; the declaration `function formFor(` is not a call.
  *
- * grade-form-one-home.allowlist.json: { "<file>": <calls> } for the callers when this gate landed; it only shrinks
- * (a new file or a higher count fails; a lower count fails until the entry is lowered or removed).
+ * grade-form-one-home.allowlist.json: { "<file>": <calls> } for the callers outside the home today (none now: the
+ * child doors ask the challenge's formForChild). It only shrinks: a new file or a higher count fails; a lower count
+ * passes with a console.warn `DOWN:` / `CLEAN:` line, so the PR that drops a caller is never failed for it.
+ *
+ * bot/tests/quiz/web-quiz/web-quiz-door-eligibility.test.js holds the same rule for the quiz services folder on raw
+ * text; this gate reads all production code under bot/ and dashboard/ and skips comments and strings.
  */
 const fs = require('fs');
 const path = require('path');
 const ALLOW = require('./grade-form-one-home.allowlist.json');
-const { REPO, rel, walk, formForCalls, isFormHome, countRatchet } = require('./test-seam-gates-lib');
+const { REPO, rel, walk, formForCalls, isFormHome, countVerdict } = require('./test-seam-gates-lib');
 
 const isProduction = (name, full) => name.endsWith('.js')
   && !/\.(test|spec)\.js$/.test(name)
@@ -52,10 +56,21 @@ describe('the rule, on in-memory sources', () => {
     expect(isFormHome('bot/shared/services/quiz/web-quiz-card.js')).toBe(false);
     expect(isFormHome('dashboard/routes/web-quiz-challenge.js')).toBe(false);
   });
+
+  test('the list check: a new file and a higher count fail; a lower count and a gone file pass with a warning', () => {
+    const what = 'formFor( call(s)';
+    expect(countVerdict({ a: 1 }, { a: 1 }, what, 'f.json')).toEqual({ failures: [], cleans: [] });
+    expect(countVerdict({ b: 1 }, {}, what, 'f.json').failures).toEqual(['NEW: b has 1 formFor( call(s).']);
+    expect(countVerdict({ a: 2 }, { a: 1 }, what, 'f.json').failures).toEqual(['UP: a has 2 formFor( call(s), f.json allows 1.']);
+    expect(countVerdict({ a: 1 }, { a: 2 }, what, 'f.json')).toEqual({ failures: [], cleans: ['DOWN: a has 1, f.json says 2. Lower it to 1.'] });
+    expect(countVerdict({}, { a: 1 }, what, 'f.json')).toEqual({ failures: [], cleans: ['CLEAN: a has none now. Remove its entry from f.json.'] });
+  });
 });
 
 describe('the tree', () => {
-  test('no new formFor caller outside the challenge; the allowlist matches today exactly', () => {
-    expect(countRatchet(scan(), ALLOW, 'formFor( call(s): ask the challenge for the form instead')).toEqual([]);
+  test('no new formFor caller outside the challenge, and none above its listed count', () => {
+    const { failures, cleans } = countVerdict(scan(), ALLOW, 'formFor( call(s): ask the challenge for the form instead', 'grade-form-one-home.allowlist.json');
+    for (const line of cleans) console.warn(line);
+    expect(failures).toEqual([]);
   });
 });

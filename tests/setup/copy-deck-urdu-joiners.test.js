@@ -8,13 +8,14 @@
  *
  * Every key is read (retired and held ones too: a lift copies the deck byte for byte, so the deck is fixed first).
  * The keys that broke a rule when this gate landed are listed by key in copy-deck-urdu-orphans.allowlist.json and
- * copy-deck-whatsapp-joiner.allowlist.json; each list only shrinks (a new key fails; a fixed key fails until removed).
+ * copy-deck-whatsapp-joiner.allowlist.json; each list only shrinks: a new key fails; a fixed key passes with a
+ * console.warn `CLEAN:` line, so the deck edit that fixes it is never failed for it.
  */
 const fs = require('fs');
 const path = require('path');
 const ORPHANS = require('./copy-deck-urdu-orphans.allowlist.json');
 const WHATSAPP = require('./copy-deck-whatsapp-joiner.allowlist.json');
-const { REPO, urduOrphans, whatsappWithoutJoiner, listRatchet } = require('./test-seam-gates-lib');
+const { REPO, urduOrphans, whatsappWithoutJoiner, listVerdict } = require('./test-seam-gates-lib');
 
 const NBSP = ' ';
 const deckInTree = () => JSON.parse(fs.readFileSync(path.join(REPO, 'bot/shared/config/copy.v2.json'), 'utf8'));
@@ -45,21 +46,25 @@ describe('the rules, on an in-memory deck', () => {
     expect(whatsappWithoutJoiner(deck)).toEqual(['w.joined', 'w.second', 'w.space']);
   });
 
-  test('the shrink-only list: a new key and a fixed key both fail; equal passes', () => {
-    expect(listRatchet(['a'], ['a'], 'x')).toEqual([]);
-    expect(listRatchet(['a', 'b'], ['a'], 'x')[0]).toMatch(/^NEW: b/);
-    expect(listRatchet([], ['a'], 'x')[0]).toMatch(/^CLEAN: a/);
+  test('the shrink-only list: a new key fails; a fixed key passes with a CLEAN line; equal passes', () => {
+    expect(listVerdict(['a'], ['a'], 'x', 'f.json')).toEqual({ failures: [], cleans: [] });
+    expect(listVerdict(['a', 'b'], ['a'], 'x', 'f.json')).toEqual({ failures: ['NEW: b x.'], cleans: [] });
+    expect(listVerdict([], ['a'], 'x', 'f.json')).toEqual({ failures: [], cleans: ['CLEAN: a is fixed or gone. Remove it from f.json.'] });
   });
 });
 
 describe('the deck', () => {
   const deck = deckInTree();
 
-  test('no new Urdu string ends on an orphan verb; the list matches today exactly', () => {
-    expect(listRatchet(urduOrphans(deck), ORPHANS, 'ends on an orphan verb: put U+00A0 before it')).toEqual([]);
+  test('no new Urdu string ends on an orphan verb', () => {
+    const { failures, cleans } = listVerdict(urduOrphans(deck), ORPHANS, 'ends on an orphan verb: put U+00A0 before it', 'copy-deck-urdu-orphans.allowlist.json');
+    for (const line of cleans) console.warn(line);
+    expect(failures).toEqual([]);
   });
 
-  test('no new «واٹس ایپ» without U+00A0; the list matches today exactly', () => {
-    expect(listRatchet(whatsappWithoutJoiner(deck), WHATSAPP, 'has «واٹس ایپ» without U+00A0 between the words')).toEqual([]);
+  test('no new «واٹس ایپ» without U+00A0', () => {
+    const { failures, cleans } = listVerdict(whatsappWithoutJoiner(deck), WHATSAPP, 'has «واٹس ایپ» without U+00A0 between the words', 'copy-deck-whatsapp-joiner.allowlist.json');
+    for (const line of cleans) console.warn(line);
+    expect(failures).toEqual([]);
   });
 });
