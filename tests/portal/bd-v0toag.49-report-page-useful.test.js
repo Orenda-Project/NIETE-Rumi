@@ -1,6 +1,6 @@
 'use strict';
 /**
- * v10 coaching test (bd-v0toag.49, part 2): "Was this coaching report useful to you?" on group C and D's
+ * v10 coaching test (bd-v0toag.49, part 2): "Do you agree with this report?" on group C and D's
  * report page /cr/:token, the same question, in the same words, that A and B get on WhatsApp, so the four
  * groups compare. Answered with a POST form (a link preview never fires a GET answer), stored in the same
  * coaching_quality_metrics columns (1 = 👍, 0 = 👎, the reason in user_feedback) and logged as
@@ -68,23 +68,23 @@ describe('the card asks', () => {
   test('the WhatsApp question, word for word, as a POST form with the two WhatsApp answers', async () => {
     const t = tok();
     const res = await req(await app(), 'GET', `/cr/${t}`);
-    expect(res.body).toContain('Was this coaching report useful to you?');
+    expect(res.body).toContain('Do you agree with this report?');
     expect(res.body).toContain(`<form method="post" action="/cr/${t}/useful"`);
     expect(res.body).toContain('name="useful" value="yes"');
-    expect(res.body).toContain('👍 Yes, useful');
+    expect(res.body).toContain('👍 Yes');
     expect(res.body).toContain('name="useful" value="no"');
-    expect(res.body).toContain('👎 Not really');
+    expect(res.body).toContain('👎 No');
     expect(emitted).toContainEqual({ e: 'coaching.useful.asked', d: { coachingSessionId: S, userId: U, group: 'C', channel: 'page' } });
   });
 
   test('in Urdu for an Urdu teacher, the same words as WhatsApp', async () => {
     const res = await req(await app({ view: { ...VIEW, language: 'ur' } }), 'GET', `/cr/${tok()}`);
-    expect(res.body).toContain('کیا یہ کوچنگ رپورٹ آپ کے لیے مفید رہی؟');
+    expect(res.body).toContain('کیا آپ اس رپورٹ سے متفق ہیں؟');
   });
 
   test('the detail screen does not ask', async () => {
     const res = await req(await app(), 'GET', `/cr/${tok()}/detail`);
-    expect(res.body).not.toContain('Was this coaching report useful to you?');
+    expect(res.body).not.toContain('Do you agree with this report?');
     expect(emitted.map((x) => x.e)).not.toContain('coaching.useful.asked');
   });
 });
@@ -99,19 +99,20 @@ describe('the answer', () => {
     expect(writes).toEqual([{ sessionId: S, userId: U, useful: true }]);
     expect(emitted).toContainEqual({ e: 'coaching.useful.answered', d: { coachingSessionId: S, userId: U, useful: true, group: 'C', channel: 'page' } });
     const card = await req(srv, 'GET', res.headers.location);
-    expect(card.body).toContain('Thanks — glad it was useful.');
-    expect(card.body).not.toContain('Was this coaching report useful to you?');
+    expect(card.body).toContain('Thank you.');
+    expect(card.body).not.toContain('Do you agree with this report?');
   });
 
-  test('👎: stored as 0; the card asks what could be better, with a POST form for one line', async () => {
-    const srv = await app({ group: 'D' });
+  // C and D's 👎 opens the coach ping instead (bd-v0toag.38.9-agree-ping-page.test.js).
+  test('👎 (outside C and D): stored as 0; the card asks what wasn’t right, with a POST form for one line', async () => {
+    const srv = await app({ group: 'A' });
     const t = tok();
     const res = await req(srv, 'POST', `/cr/${t}/useful`, { useful: 'no' });
     expect(res.headers.location).toBe(`/cr/${t}?useful=no`);
     expect(writes).toEqual([{ sessionId: S, userId: U, useful: false }]);
-    expect(emitted).toContainEqual({ e: 'coaching.useful.answered', d: { coachingSessionId: S, userId: U, useful: false, group: 'D', channel: 'page' } });
+    expect(emitted).toContainEqual({ e: 'coaching.useful.answered', d: { coachingSessionId: S, userId: U, useful: false, group: 'A', channel: 'page' } });
     const card = await req(srv, 'GET', res.headers.location);
-    expect(card.body).toContain('Thanks for telling us. What could we do better? (one line is enough)');
+    expect(card.body).toContain('Thanks for telling us. What didn’t seem right? (one line is enough)');
     expect(card.body).toContain('name="reason"');
   });
 
