@@ -2,7 +2,7 @@
 /**
  * The ready screen (FIRST_QUIZ §3.3, §4, §7.2) and the question-language mark (§3.2): the page rendered in its
  * "ready" state carries exactly {mk.ready.h, mk.ready.sub.lang, mk.ready.q, mk.send, mk.send.note, mk.copy, mk.next}
- * (no mk.report: the manager's §7.4 ruling), in English and Urdu, with both "Send to class group" and "Copy the
+ * (no report line on this screen), in English and Urdu, with both "Send to class group" and "Copy the
  * message"; never "your lesson" or a test word; mk.ready.sub.lang composed from the signed copy (the language clause
  * dropped when the quiz's language is unknown). Topic chips carry EN / «اردو» from the quiz's question language;
  * unknown → no mark.

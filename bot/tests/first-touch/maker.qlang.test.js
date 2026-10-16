@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The question language the page shows (manager's ruling on quizzes.language): nothing writes quizzes.language.
+ * The question language the page shows (read from the quiz, never stored): nothing writes quizzes.language.
  * qlang = quizzes.language when set; else the backfill's decideLanguage over the question texts WHEN it equals
  * today's read-aloud voice language (question text + first option); else null (no mark, no clause, no class line).
  * The tree reads quiz_questions once per build (cached with it); the make uses the same qlang.
