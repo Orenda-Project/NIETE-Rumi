@@ -348,6 +348,22 @@ function bindTags(payload, assetV) {
   return `<link rel="stylesheet" href="/wq/wq-bind.css?v=${assetV}">\n<script src="/wq/wq-bind.js?v=${assetV}" defer></script>\n`;
 }
 
+// The read-along preview (#listen/<pid>): its script, before hub.js, only when the bot's hub JSON says `listen: true`
+// (web_quiz_readalong on, the hub's own phone). Its own version (the preview and the player it loads), so the hub's
+// version and page stay today's while the switch is off.
+let listenV = null;
+function listenVersion() {
+  if (listenV) return listenV;
+  const h = crypto.createHash('sha256');
+  for (const f of ['wq-readalong-listen.js', 'wq-readalong.js']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
+  return (listenV = h.digest('hex').slice(0, 10));
+}
+function listenTag(payload) {
+  return payload && payload.listen === true ? `<script src="/wq/wq-readalong-listen.js?v=${listenVersion()}" defer></script>\n` : '';
+}
+
 // The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
 // renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
 function hubPageParts({ payload, token, origin, assetV }) {
@@ -363,7 +379,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-${bindTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
+${bindTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };

@@ -2062,11 +2062,13 @@ async function listenWords({ ct, lang } = {}) {
 
 /**
  * A grown-up's preview of a practice story (#listen/<pid> on the practice home): the stored clip + its word timings,
- * for any hub token; no run, no event keyed by a child. Only a story Story Time could show (released, reviewed, the
- * practice pool, not withdrawn) — never a counted passage.
+ * for a hub token on the phone it is bound to (as entryOf: a forwarded hub link opens nothing on another phone);
+ * no run, no event keyed by a child. Only a story Story Time could show (released, reviewed, the practice pool, not
+ * withdrawn) — never a counted passage.
  */
-async function listenPreview(hub, pid, { lang } = {}) {
+async function listenPreview(hub, pid, { lang, device } = {}) {
   if (!T.verify(hub, 'h')) fail(401, 'bad_token');
+  if (!(await require('./web-quiz-hub-device').deviceTrusted(hub, device)).ok) fail(403, 'other_device');
   const m = /^(en|ur)\.(read|listen)\.([1-5])\.[a-z0-9_-]+$/i.exec(String(pid || ''));
   if (!m) fail(400, 'bad_request');
   if (!(await settingOn(require('./web-quiz-readalong').SWITCH_KEY))) fail(404, 'no_words');

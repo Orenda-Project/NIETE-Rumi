@@ -437,16 +437,6 @@
     if (B.locked) locked(); else if (B.kid) hub(); else if ((B.kids || []).length) picker();
   });
 
-  // #listen/<passage_id> (the practice home's story tiles): a grown-up hears a practice story first (wq-readalong-listen.js)
-  function listenIn() {
-    var m = /^#listen\/([A-Za-z0-9._-]{3,64})$/.exec(String((typeof location !== 'undefined' && location.hash) || ''));
-    if (!m || m[1].indexOf('..') >= 0) return false;
-    var go = function () { if (window.WQLISTEN) window.WQLISTEN.open({ pid: m[1], root: ROOT, token: TOKEN, lang: LANG, render: render, bar: bar, jug: jug, esc: esc, api: api, loadOnce: loadOnce, back: function () { try { history.replaceState(null, '', selfUrl('/h/' + TOKEN)); } catch (e) {} boot(); } }); };
-    if (window.WQLISTEN) go(); else loadOnce('wq-readalong-listen', false, go, null, boot);
-    return true;
-  }
-  window.addEventListener('hashchange', listenIn);
-
   /* ---------------- boot ---------------- */
   function boot() {
     batchIds(B.kid);
@@ -456,5 +446,5 @@
     else if (!B.kid) picker();
     else hub();
   }
-  if (LOCKED_BOOT) unlock(); else if (!listenIn()) boot();
+  if (LOCKED_BOOT) unlock(); else if (!(window.WQLISTEN && WQLISTEN.take(boot, render, bar))) boot();
 })();

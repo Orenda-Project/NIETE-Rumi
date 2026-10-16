@@ -265,8 +265,9 @@ const words = async (ct) => {
   const r = await fetch(`${base}/ch/words/${encodeURIComponent(ct)}?lang=en`, { headers: { 'x-api-key': 'route-key', 'x-wq-device': 'FamilyPhoneDeviceRef_1' } });
   return { status: r.status, body: await r.json().catch(() => null) };
 };
-const preview = async (token, pid) => {
-  const r = await fetch(`${base}/listen/h/${encodeURIComponent(token)}/${encodeURIComponent(pid)}?lang=en`, { headers: { 'x-api-key': 'route-key' } });
+const PHONE_A = 'FamilyPhoneDeviceRef_1';
+const preview = async (token, pid, device = PHONE_A) => {
+  const r = await fetch(`${base}/listen/h/${encodeURIComponent(token)}/${encodeURIComponent(pid)}?lang=en`, { headers: { 'x-api-key': 'route-key', ...(device ? { 'x-wq-device': device } : {}) } });
   return { status: r.status, body: await r.json().catch(() => null) };
 };
 
@@ -355,13 +356,27 @@ describe('(d) a practice listen: "show me the words" after the questions', () =>
 });
 
 describe('the coach\'s preview: #listen/<pid> (stored clip + highlight, no run)', () => {
-  test('on: a practice passage\'s timing for any hub token; no run row is written', async () => {
+  test('on: a practice passage\'s timing for a hub token on its own phone; no run row is written', async () => {
     on(...STORY_ON, READALONG);
     putFile(`${dirOf(RAIN)}/current.json`, fileFor(RAIN, rainText()));
     const r = await preview(hub(), RAIN);
     expect(r.status).toBe(200);
     expect(r.body.readalong).toMatchObject({ v: 1, id: RAIN });
     expect(db.web_quiz_challenge_runs).toHaveLength(0);
+  });
+  test('bound to the phone, as the hub\'s menu is: a hub link served on phone A is refused on phone B and with no phone', async () => {
+    on(...STORY_ON, READALONG);
+    putFile(`${dirOf(RAIN)}/current.json`, fileFor(RAIN, rainText()));
+    const tok = T.sign({ k: 'h', ids: [K3], exp: Math.floor(Date.now() / 1000) + 3600, n: 'bound-a' });
+    expect((await preview(tok, RAIN, PHONE_A)).status).toBe(200);
+    const b = await preview(tok, RAIN, 'OtherPhoneDeviceRef_99');
+    expect(b.status).toBe(403);
+    expect(b.body).toMatchObject({ error: 'other_device' });
+    expect(b.body).not.toHaveProperty('readalong');
+    const none = await preview(tok, RAIN, null);
+    expect(none.status).toBe(403);
+    expect(none.body).not.toHaveProperty('readalong');
+    expect((await preview(tok, RAIN, PHONE_A)).status).toBe(200);
   });
   test('a counted passage (check pool), an unreleased or withdrawn one is never previewed', async () => {
     on(...STORY_ON, READALONG);
