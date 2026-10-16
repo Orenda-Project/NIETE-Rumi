@@ -161,7 +161,7 @@ describe('a run', () => {
     expect(r2.uploadBuffer).toHaveBeenCalledTimes(keys.size);
     expect(new Set(spoken())).toEqual(new Set(want.map((c) => c.text)));
     for (const c of far) expect(r2.uploadBuffer.mock.calls.map((x) => x[1])).not.toContain(c.key);
-    expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: keys.size, missing: 0, missing_listen: 0, w: 's' }]]);
+    expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: keys.size, missing: 0, missing_listen: 0, missing_story: 0, w: 's' }]]);
     // each recording is the serve's own: one ch_clip_recorded per clip
     expect(logEvent.mock.calls.filter(([name]) => name === 'web_quiz.ch_clip_recorded')).toHaveLength(keys.size);
   });
@@ -179,7 +179,7 @@ describe('a run', () => {
     expect(second).toMatchObject({ n: first.n, missing: 0 });
     expect(tts.synthesize).not.toHaveBeenCalled();
     expect(r2.headObject).not.toHaveBeenCalled();
-    expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: first.n, missing: 0, missing_listen: 0, w: 's' }]]);
+    expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: first.n, missing: 0, missing_listen: 0, missing_story: 0, w: 's' }]]);
   });
 
   test('a withdrawn or retired passage is not warmed', async () => {
@@ -199,7 +199,7 @@ describe('a run', () => {
       const out = await CW.warmClips({ now: NOW });
       expect(tts.synthesize).toHaveBeenCalledTimes(96);
       expect(out).toMatchObject({ n: 200, missing: 104, recorded: 96, capped: true });
-      expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: 200, missing: 104, missing_listen: 104, w: 's' }]]);   // every clip here is a check-pool listening story
+      expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: 200, missing: 104, missing_listen: 104, missing_story: 0, w: 's' }]]);   // every clip here is a check-pool listening story
       // the rest were asked of the store, never recorded
       expect(r2.headObject).toHaveBeenCalledTimes(200);
       expect(Ch.clipsLeft()).toBeGreaterThanOrEqual(CW.SERVE_HEADROOM);
@@ -272,6 +272,114 @@ describe('the order: check-pool listening clips first (the story, then its quest
   });
 });
 
+describe('the story read-along: a released practice story\'s clip is warmed, Urdu first, before any read prompt', () => {
+  // Story Time serves a practice READ story with a read-along clip (web-quiz-challenge.js readAlongClip,
+  // clipKey('read', 'story', lang, text)); the page offers "hear it from me" only once that clip exists, so the warm
+  // records it ahead of the first child who opens the story in each language.
+  const EN_STORY = 'Ali found a small red kite by the river and ran home to show his sister.';
+  const UR_STORY = 'علی نے دریا کے کنارے پتنگ دیکھی';
+  const story = (id, lang, text) => ({ passage_id: id, lang, kind: 'read', band: 1, pool: 'practice', text, questions: [], bank_version: 'child-test-items-v4' });
+  const practiceRow = (id, lang, releasedAt) => ({ ...row(id, lang, 'read', releasedAt), band: 1, pool: 'practice', status: 'reviewed' });
+  const storyKey = (lang, text) => Ch.clipKey('read', 'story', lang, text);
+  const asked = () => r2.headObject.mock.calls.map(([key]) => key);
+  let restore;
+  const load = (files) => {
+    const many = fs.mkdtempSync(path.join(os.tmpdir(), 'challenge-clip-warm-story-'));
+    for (const p of files) fs.writeFileSync(path.join(many, `${p.passage_id}.json`), JSON.stringify(p));
+    Bank._loadPassagesFrom(many);
+    restore = () => { Bank._loadPassagesFrom(dir); fs.rmSync(many, { recursive: true, force: true }); };
+  };
+  // room for exactly `n` recordings: the shared recorder pre-filled to n above the serve headroom
+  const roomFor = async (n) => {
+    for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM - n; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en');
+    expect(Ch.clipsLeft()).toBe(CW.SERVE_HEADROOM + n);
+    tts.synthesize.mockClear();
+    r2.uploadBuffer.mockClear();
+    r2.headObject.mockClear();
+  };
+  // a check-pool listening passage released first, a check-pool read passage, an EN story released second, a UR story released last
+  const mixed = () => {
+    load([pointer('en.listen.2.setA', 'en', 'listen', 'listening'), pointer('en.read.2.setA', 'en', 'read', 'story'),
+      story('en.read.1.story01', 'en', EN_STORY), story('ur.read.1.story01', 'ur', UR_STORY)]);
+    db.challenge_passages = [
+      row('en.listen.2.setA', 'en', 'listen', iso(NOW - 30 * DAY)),
+      row('en.read.2.setA', 'en', 'read', iso(NOW - 20 * DAY)),
+      practiceRow('en.read.1.story01', 'en', iso(NOW - 10 * DAY)),
+      practiceRow('ur.read.1.story01', 'ur', iso(NOW - DAY)),
+    ];
+  };
+  beforeEach(() => { r2.headObject.mockImplementation(async () => ({ exists: false })); restore = null; });   // a cold store
+  afterEach(() => { if (restore) restore(); });
+
+  test('a released story with no clip → the warm records its read-along clip (the key the serve reads)', async () => {
+    load([pointer('en.read.2.setA', 'en', 'read', 'story'), pointer('en.listen.2.setA', 'en', 'listen', 'listening'), story('en.read.1.story01', 'en', EN_STORY)]);
+    db.challenge_passages = [
+      row('en.read.2.setA', 'en', 'read', iso(NOW - 30 * DAY)),
+      row('en.listen.2.setA', 'en', 'listen', iso(NOW - DAY)),
+      practiceRow('en.read.1.story01', 'en', iso(NOW - 10 * DAY)),
+    ];
+    const out = await CW.warmClips({ now: NOW });
+    expect(spoken()).toContain(EN_STORY);
+    expect(r2.uploadBuffer.mock.calls.map((c) => c[1])).toContain(storyKey('en', EN_STORY));
+    expect(asked()).toContain(storyKey('en', EN_STORY));
+    expect(out).toMatchObject({ missing: 0, missing_story: 0, passages: 3 });
+    expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: out.n, missing: 0, missing_listen: 0, missing_story: 0, w: 's' }]]);
+  });
+
+  test('under the cap, the UR story\'s clip is recorded before any read prompt and before the EN story', async () => {
+    mixed();
+    const listen = served('en.listen.2.setA');
+    const read = served('en.read.2.setA');
+    expect(read.length).toBeGreaterThan(0);
+    await roomFor(listen.length + 2);
+    const out = await CW.warmClips({ now: NOW });
+    // the counted listening clips first (the options' order is per run, so as a set), then the UR story, then the EN story
+    expect(spoken()).toHaveLength(listen.length + 2);
+    expect(new Set(spoken().slice(0, listen.length))).toEqual(new Set(listen.map((c) => c.text)));
+    expect(spoken().slice(listen.length)).toEqual([UR_STORY, EN_STORY]);
+    expect(r2.uploadBuffer.mock.calls.slice(-2).map((c) => c[1])).toEqual([storyKey('ur', UR_STORY), storyKey('en', EN_STORY)]);
+    for (const c of read) expect(spoken()).not.toContain(c.text);
+    expect(out).toMatchObject({ recorded: listen.length + 2, capped: true, missing: read.length, missing_listen: 0, missing_story: 0 });
+  });
+
+  test('a cold story under the cap counts in missing_story; a check-pool read passage gets no read-along clip', async () => {
+    mixed();
+    const listen = served('en.listen.2.setA');
+    const read = served('en.read.2.setA');
+    await roomFor(listen.length);
+    const out = await CW.warmClips({ now: NOW });
+    expect(spoken()).toHaveLength(listen.length);
+    expect(new Set(spoken())).toEqual(new Set(listen.map((c) => c.text)));
+    expect(out).toMatchObject({ recorded: listen.length, capped: true, missing: read.length + 2, missing_listen: 0, missing_story: 2 });
+    expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: listen.length + read.length + 2, missing: read.length + 2, missing_listen: 0, missing_story: 2, w: 's' }]]);
+    restore();
+    // a check-pool read passage alone: its prompts are warmed, its text never as a read-along clip
+    load([pointer('en.read.2.setA', 'en', 'read', 'story')]);
+    db.challenge_passages = [row('en.read.2.setA', 'en', 'read', iso(NOW - 30 * DAY))];
+    Ch.__reset();
+    jest.clearAllMocks();
+    r2.headObject.mockImplementation(async () => ({ exists: false }));
+    const text = Bank.getPassage('en.read.2.setA').text;
+    expect(typeof text).toBe('string');
+    const alone = await CW.warmClips({ now: NOW });
+    expect(alone).toMatchObject({ n: read.length, missing: 0, missing_story: 0 });
+    expect(asked()).not.toContain(storyKey('en', text));
+    expect(asked().filter((k) => k.includes('/read/story-'))).toEqual([]);
+    expect(spoken()).not.toContain(text);
+  });
+
+  test('a reserve story gets no read-along clip; the shelf\'s story beside it does', async () => {
+    const RESERVE = 'A reserve story the shelf never lists, kept back for later.';
+    load([story('en.read.1.story01', 'en', EN_STORY), story('en.read.1.reserve01', 'en', RESERVE)]);
+    db.challenge_passages = [practiceRow('en.read.1.story01', 'en', iso(NOW - 10 * DAY)), practiceRow('en.read.1.reserve01', 'en', iso(NOW - 10 * DAY))];
+    const out = await CW.warmClips({ now: NOW });
+    expect(asked()).toContain(storyKey('en', EN_STORY));
+    expect(asked()).not.toContain(storyKey('en', RESERVE));
+    expect(spoken()).toEqual([EN_STORY]);
+    expect(out).toMatchObject({ n: 1, missing: 0, missing_story: 0, passages: 2 });
+  });
+});
+
 describe('the daily guard (capped runs re-arm the hour, bounded)', () => {
   const HOUR = 3600 * 1000;
   beforeEach(() => r2.headObject.mockImplementation(async () => ({ exists: false })));   // a cold store
@@ -296,7 +404,7 @@ describe('the daily guard (capped runs re-arm the hour, bounded)', () => {
       expect(await CW.daily({ now: NOW })).toMatchObject({ capped: true, recorded: 0, missing: 10 });
       expect(await CW.daily({ now: NOW + HOUR })).toBeNull();
       expect(warmEvents()).toHaveLength(1);
-      // the next Pakistan day the shared allowance is back (RULING #121): the ten clips record
+      // the next Pakistan day the shared allowance is back (the recorder's allowance returns each Pakistan day): the ten clips record
       expect(await CW.daily({ now: NOW + DAY })).toMatchObject({ capped: false, recorded: 10, missing: 0 });
       expect(warmEvents()).toHaveLength(2);
     } finally { done(); }
@@ -320,7 +428,7 @@ describe('the daily guard (capped runs re-arm the hour, bounded)', () => {
   });
 
   test('the recorder\'s allowance returns at the next Pakistan day: a run that spent it (96 recorded, 32 left) records again the next day, never the same day', async () => {
-    // RULING #121's aim on a long-lived process: without a daily return of the shared allowance a capped run can only ever re-arm into
+    // the aim on a long-lived process (the recorder's allowance returns each Pakistan day): without a daily return of the shared allowance a capped run can only ever re-arm into
     // a run that records nothing (28 left ≤ the serve headroom) — a 350-clip stock would wait for a redeploy, not for the next tick.
     const done = coldStock(200);
     try {
@@ -357,7 +465,7 @@ describe('the daily guard (capped runs re-arm the hour, bounded)', () => {
       for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM - 2; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en');
       const capped = await CW.warmClips({ now: NOW });
       expect(capped).toMatchObject({ recorded: 2, missing: listen.length - 2 + read.length, missing_listen: listen.length - 2 });
-      expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: listen.length + read.length, missing: listen.length - 2 + read.length, missing_listen: listen.length - 2, w: 's' }]]);
+      expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: listen.length + read.length, missing: listen.length - 2 + read.length, missing_listen: listen.length - 2, missing_story: 0, w: 's' }]]);
       // every listening clip there, only read clips missing → 0
       Ch.__reset();
       for (let i = 0; i < Ch.MAX_CLIP_RECORDINGS - CW.SERVE_HEADROOM; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/read/pre-${i}.ogg`, `Line ${i}`, 'en');
@@ -366,7 +474,7 @@ describe('the daily guard (capped runs re-arm the hour, bounded)', () => {
       logEvent.mockClear();
       const rest = await CW.warmClips({ now: NOW });
       expect(rest).toMatchObject({ capped: true, recorded: 0, missing: read.length, missing_listen: 0 });
-      expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: listen.length + read.length, missing: read.length, missing_listen: 0, w: 's' }]]);
+      expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: listen.length + read.length, missing: read.length, missing_listen: 0, missing_story: 0, w: 's' }]]);
     } finally { Bank._loadPassagesFrom(dir); fs.rmSync(many, { recursive: true, force: true }); }
   });
 });

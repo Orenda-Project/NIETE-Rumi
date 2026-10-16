@@ -12,18 +12,21 @@
  * at most WARM_MAX_PER_RUN clips, and never once SERVE_HEADROOM or fewer recordings are left for children's serves.
  * Past either limit the store is still asked and the rest are counted as missing. Read-alouds' daily budget (web-quiz-challenge-budget.js) is STT and is untouched here.
  *
- * One event per run: `web_quiz.ch_clip_warm {n, missing, missing_listen, w:'s'}` (n = clips asked for, missing = still
- * absent, missing_listen = those of them a check-pool listening passage needs: its story, prompts and options).
+ * One event per run: `web_quiz.ch_clip_warm {n, missing, missing_listen, missing_story, w:'s'}` (n = clips asked for,
+ * missing = still absent, missing_listen = those of them a check-pool listening passage needs: its story, prompts and
+ * options; missing_story = the Story Time read-along clips still absent).
  * Behind app_settings `web_quiz_challenge_clip_warm`, effective only with `web_quiz_challenge_v2` and
  * `web_quiz_challenge` on (each fails closed). Off ⇒ one switch read and nothing else: clips record on first serve.
  * Cost ≈ US$0.0002 a clip (Soniox by audio time).
  *
- * The order (RULING #100(a)): the check-pool LISTENING clips come first — every listening story (the one clip a child
- * cannot play the stop without), then those passages' prompts and options — and only then every other clip (read
- * prompts, practice and Story Time clips) in release order. A capped run so spends its allowance where a cold clip
- * would turn a child away.
+ * The order (the warm order: counted listening clips first): the check-pool LISTENING clips come first — every
+ * listening story (the one clip a child cannot play the stop without), then those passages' prompts and options — then
+ * the Story Time read-along clips (a released practice READ story in the quiz voice, clipKey('read', 'story'), Urdu
+ * first: the page offers "hear it from me" only once that clip exists, so the first child to open a story would
+ * otherwise get none), and only then every other clip (read prompts, practice listening clips) in release order. A
+ * capped run so spends its allowance where a cold clip would turn a child away.
  *
- * The daily guard (RULING #121): a run that ends capped having recorded at least one clip does not close the Pakistan
+ * The daily guard (the recorder's allowance returns each Pakistan day): a run that ends capped having recorded at least one clip does not close the Pakistan
  * day, so the next hourly tick warms again; a capped run that recorded nothing, an uncapped run, or the
  * MAX_CAPPED_RUNS_PER_DAY-th capped run that day closes it (a recorder that fails every clip cannot spend all day).
  */
@@ -57,10 +60,13 @@ async function passageRows(now) {
     .sort((a, b) => Date.parse(a.released_at) - Date.parse(b.released_at) || String(a.passage_id).localeCompare(String(b.passage_id)));
 }
 
-// The warm's tiers: 0 = a check-pool listening story, 1 = that passage's prompts and options, 2 = everything else.
+// The warm's tiers: 0 = a check-pool listening story, 1 = that passage's prompts and options, 1.5 = a Story Time
+// read-along clip, 2 = everything else.
 const CHECK_LISTEN_STORY = 0;
 const CHECK_LISTEN_REST = 1;
+const STORY_READ_ALONG = 1.5;
 const OTHER = 2;
+const RESERVE_ID = /\.reserve\d+$/;   // the reserve the Story Time shelf never lists (web-quiz-challenge-draw.js)
 
 /** One passage's clips as the serve asks for them, each with its tier: [{ key, text, lang, tier }]. */
 function clipsOf(p, optAudio, pool = p.pool) {
@@ -68,6 +74,8 @@ function clipsOf(p, optAudio, pool = p.pool) {
   const lang = p.lang;
   const checkListen = p.kind === 'listen' && pool === 'check';
   if (p.kind === 'listen' && p.text) out.push({ key: Ch.clipKey('listen', 'story', lang, p.text), text: p.text, lang, tier: checkListen ? CHECK_LISTEN_STORY : OTHER });
+  // a Story Time read story: its read-along clip (web-quiz-challenge.js readAlongClip); a counted read never plays one
+  if (p.kind === 'read' && pool === 'practice' && p.text && !RESERVE_ID.test(p.passage_id)) out.push({ key: Ch.clipKey('read', 'story', lang, p.text), text: p.text, lang, tier: STORY_READ_ALONG });
   for (const q of p.questions || []) {
     const t = Ch.tapOptions(q, lang, 'clip-warm');   // the option ORDER is per run; the set (and so the keys) is not
     if (!t) continue;
@@ -79,15 +87,19 @@ function clipsOf(p, optAudio, pool = p.pool) {
   return out;
 }
 
-/** The clips in warm order: by tier (check-pool listening stories, their prompts and options, the rest), release order within a tier; the first `limit`. */
+/**
+ * The clips in warm order: by tier (check-pool listening stories, their prompts and options, the Story Time read-along
+ * clips, the rest), release order within a tier, except that among the read-along clips Urdu comes first; the first `limit`.
+ */
 function inWarmOrder(clips, limit) {
-  const ordered = [...clips.values()].map((c, i) => ({ c, i })).sort((a, b) => a.c.tier - b.c.tier || a.i - b.i).map((x) => x.c);
+  const urFirst = (a, b) => (a.tier === STORY_READ_ALONG ? (b.lang === 'ur') - (a.lang === 'ur') : 0);
+  const ordered = [...clips.values()].map((c, i) => ({ c, i })).sort((a, b) => a.c.tier - b.c.tier || urFirst(a.c, b.c) || a.i - b.i).map((x) => x.c);
   return Number.isFinite(limit) ? ordered.slice(0, limit) : ordered;
 }
 
 /**
  * One warm run. Null when the switch (or a parent) is off, or the passages could not be read; else
- * { n, missing, missing_listen, recorded, had, capped, passages }.
+ * { n, missing, missing_listen, missing_story, recorded, had, capped, passages }.
  */
 async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
   if (!(await switchOn())) return null;
@@ -115,6 +127,7 @@ async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
   const ordered = inWarmOrder(clips, limit);
   const tally = { recorded: 0, had: 0, missing: 0 };
   let missingListen = 0;
+  let missingStory = 0;
   let capped = false;
   let attempts = 0;
   for (const c of ordered) {
@@ -123,9 +136,10 @@ async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
     if (r !== 'had' && !capped) attempts += 1;
     tally[r] += 1;
     if (r === 'missing' && c.tier <= CHECK_LISTEN_REST) missingListen += 1;
+    if (r === 'missing' && c.tier === STORY_READ_ALONG) missingStory += 1;
   }
-  const out = { n: ordered.length, missing: tally.missing, missing_listen: missingListen, recorded: tally.recorded, had: tally.had, capped, passages };
-  logEvent('web_quiz.ch_clip_warm', { n: out.n, missing: out.missing, missing_listen: out.missing_listen, w: 's' });
+  const out = { n: ordered.length, missing: tally.missing, missing_listen: missingListen, missing_story: missingStory, recorded: tally.recorded, had: tally.had, capped, passages };
+  logEvent('web_quiz.ch_clip_warm', { n: out.n, missing: out.missing, missing_listen: out.missing_listen, missing_story: out.missing_story, w: 's' });
   logToFile('🔊 Challenge clip warm', out);
   return out;
 }
