@@ -147,6 +147,19 @@ async function challengeInner(result, ct, { device = null, lang = null } = {}) {
   }
 }
 
+/**
+ * Any other activity's `{ next_offer }` (e.g. a watched video, ctx after_video): the child's candidates plus the
+ * caller's own (`extra`, the same shape), ranked for `ctx`. `{}` when off, past the deadline or on any failure.
+ */
+async function offerFor({ studentId, device, lang = null, ctx, extra = [] } = {}) {
+  try {
+    if (!studentId || !device || typeof ctx !== 'string') return {};
+    return (await withDeadline(resultField({ studentId, device, lang, ctx, extra }), DEADLINE_MS)) || {};
+  } catch (_) {
+    return {};
+  }
+}
+
 /** The quiz finish's `{ next_offer }`, or `{}` past the deadline (the card is never held up). */
 async function finishField(body, out, opts) {
   return (await withDeadline(finishInner(body, out, opts), DEADLINE_MS)) || {};
@@ -157,4 +170,4 @@ async function challengeField(result, ct, opts) {
   return (await withDeadline(challengeInner(result, ct, opts), DEADLINE_MS)) || {};
 }
 
-module.exports = { finishField, challengeField, challengeCtx, DEADLINE_MS };
+module.exports = { finishField, challengeField, offerFor, challengeCtx, DEADLINE_MS };

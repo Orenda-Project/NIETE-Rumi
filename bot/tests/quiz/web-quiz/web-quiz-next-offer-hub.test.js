@@ -436,3 +436,16 @@ describe('the "on its way" check reads the draw as the serve does', () => {
 async function Sources_onItsWay(id, stops, grade) {
   return require('../../../shared/services/quiz/web-quiz-next-offer-sources').onItsWayOf(id, id, stops, 'en', grade);
 }
+
+describe('offerFor: any other activity (a watched video)', () => {
+  test('after_video: the caller\'s own candidates join the child\'s, ranked for that ctx; off -> {}', async () => {
+    const own = { kind: 'video', variant: 'next', id: 'vid-next', href: '/h/t?kid=c#watch/vid-next', title: 'Watch a video', minutes: 3 };
+    seed(BASE_ON, pending());
+    expect(await Sources.offerFor({ studentId: KID, device: A.device, ctx: 'after_video', extra: [own] })).toEqual({});
+    seed(NEXT_ON, pending());
+    const { next_offer: n } = await Sources.offerFor({ studentId: KID, device: A.device, ctx: 'after_video', extra: [own] });
+    expect(n.ctx).toBe('after_video');
+    expect(n.rank_src).toBe('pinned');   // the teacher's pending quiz still comes first
+    expect([n, ...n.alts].length).toBeGreaterThan(1);
+  });
+});

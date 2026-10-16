@@ -97,6 +97,10 @@ const BY_NAME = Object.freeze({
 const POS_MAX = { door_row_tap: 99 };
 const NAMES = new Set(['next_shown', 'next_tap', 'home_view', 'door_tap', ...Object.keys(BY_NAME)]);
 
+// Lines only the server writes (the slot's denominator, the activity spine): a page copy is dropped under v3.
+const SERVER_V3 = new Set(['next_set', 'activity_start', 'activity_end']);
+const forged = (e) => SERVER_V3.has(String((e && e.n) || ''));
+
 function relayed(e) {
   const n = String((e && e.n) || '');
   if (!NAMES.has(n)) return false;
@@ -155,4 +159,4 @@ async function relay(e, body = {}, device = null, { onTap = null } = {}) {
   } catch (_) { /* a lost line, never a lost page */ }
 }
 
-module.exports = { envelope3, sitOf, emit3, relayed, relay, clean3, SIT_TTL_S };
+module.exports = { envelope3, sitOf, emit3, relayed, forged, relay, clean3, SIT_TTL_S };

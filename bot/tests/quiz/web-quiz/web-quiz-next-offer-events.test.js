@@ -120,6 +120,13 @@ describe('events v3 on', () => {
     expect(by('web_quiz.video_watched')).not.toHaveProperty('code');
   });
 
+  test('a page copy of a server-only v3 line (next_set, activity_start/end) is dropped under v3', async () => {
+    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    Svc.events({ events: [{ n: 'next_set', ctx: 'home', offer: 'AbCdEfGhIj' }, { n: 'activity_start', kind: 'quiz' }, { n: 'activity_end', kind: 'quiz' }] }, { device: DEV });
+    await flush();
+    expect(logEvent.mock.calls.filter(([n]) => /next_set|activity_/.test(n))).toEqual([]);
+  });
+
   test('a quiz scorecard batch (no hub token): the child comes from the session token', async () => {
     await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
     const st = T.signSession({ sessionId: '66666666-6666-4666-8666-000000000001', deviceRef: DEV, shareCodeId: 'sc-1' });

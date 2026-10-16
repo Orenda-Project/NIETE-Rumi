@@ -203,3 +203,14 @@ describe('the table\'s variant names', () => {
     expect(all.find((x) => x.id === 'qk-again').score).toBe(home.find((x) => x.variant === 'last').score);
   });
 });
+
+describe('the rand arm stays inside the child\'s eligible kinds', () => {
+  test('200 seeded draws: the primary kind is always in meta.elig, and elig is sorted', () => {
+    for (let d = 0; d < 200; d += 1) {
+      const r = NO.rank('after_quiz', [video, again, game], base({ arm: 'rand', seed: `k|${d}`, has_root: d % 2 === 0 }), FILE);
+      expect(r.meta.elig).toContain(r.next.kind);
+      expect(r.meta.elig).toEqual([...r.meta.elig].sort());
+      if (d % 2) expect(r.next.kind).not.toBe('video');
+    }
+  });
+});
