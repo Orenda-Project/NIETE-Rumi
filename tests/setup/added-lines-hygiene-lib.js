@@ -1,13 +1,18 @@
 /**
  * Added-lines hygiene: the repo is public, so a line of code, a comment or a test name never carries the name of a
- * private work-tracking item (a numbered decision, a tracker id, a reviewer or work-group handle, the org's private
- * workspace name). The tokens are matched by the patterns below; they are assembled from parts so this file is not a
- * hit for its own patterns.
+ * private work-tracking item (a numbered decision, a reviewer or work-group handle, the org's private workspace name).
+ * The tokens are matched by the patterns below; they are assembled from parts so this file is not a hit for its own
+ * patterns.
+ *
+ * Tracker ids (b d - and 4+ letters/digits) are another team's normal convention in this shared repo, so they are
+ * NOTED, never failed: both halves print `NOTE: tracker ids …` lines with a count per file, and the allowlist does
+ * not store them.
  *
  * Two halves, both in added-lines-hygiene.test.js:
  *   - the tree: every tracked file under bot/, dashboard/, scripts/, tests/ and docs/, counted per FILE (matching
  *     lines, and the distinct tokens), against added-lines-hygiene.allowlist.json — shrink-only, warn-on-less;
  *   - the branch: the ADDED lines of HEAD's diff against its merge-base with origin/sandbox; any hit fails.
+ * Tracker ids are noted in both halves, never failed.
  *
  * The allowlist stores each token ROT13-encoded (`tokensRot13`), so the list itself is not a hit.
  */
@@ -24,8 +29,6 @@ const j = (...parts) => parts.join('');
 const DECISION = new RegExp(j('RUL', 'ING'), 'i').source;
 const PATTERNS = [
   new RegExp(`${DECISION}\\s*#?\\d+`, 'gi'),
-  // A tracker id: b d - and 4+ lowercase letters/digits.
-  new RegExp(j('\\bb', 'd-[a-z0-9]{4,}'), 'g'),
   new RegExp(j('lead', '-review'), 'g'),
   // A numbered review group. Never the bare "r<digit>-": the storage bucket is called r2-default.
   new RegExp(j('r[0-9]-', '(panel|red', 'team)'), 'g'),
@@ -33,6 +36,9 @@ const PATTERNS = [
   new RegExp(j('\\bm-(meas', 'ure|pl', 'ay|cont', 'ent|ident', 'ity|teach', 'er)-?\\d*\\b'), 'g'),
   new RegExp(j('\\bqa-(chi', 'ld|teach', 'er|ident', 'ity)-?\\d*\\b'), 'g'),
 ];
+
+// A tracker id: b d - and 4+ lowercase letters/digits. Noted, never failed.
+const TRACKER = new RegExp(j('\\bb', 'd-[a-z0-9]{4,}'), 'g');
 
 const rot13 = (s) => String(s).replace(/[a-z]/gi, (c) => {
   const b = c <= 'Z' ? 65 : 97;
@@ -49,17 +55,28 @@ function tokensIn(line) {
   return out;
 }
 
-/** One text → { count: lines with a hit, tokens: distinct tokens, sorted } or null when clean. */
+/** The tracker ids on one line, in order (noted, never failed). */
+function trackerIdsIn(line) {
+  TRACKER.lastIndex = 0;
+  return String(line).match(TRACKER) || [];
+}
+
+/**
+ * One text → { count: lines with a hit, tokens: distinct tokens, sorted, trackers: lines with a tracker id }, or null
+ * when it has neither.
+ */
 function scanText(text) {
   let count = 0;
+  let trackers = 0;
   const tokens = new Set();
   for (const line of String(text).split('\n')) {
+    if (trackerIdsIn(line).length) trackers += 1;
     const t = tokensIn(line);
     if (!t.length) continue;
     count += 1;
     t.forEach((x) => tokens.add(x));
   }
-  return count ? { count, tokens: [...tokens].sort() } : null;
+  return count || trackers ? { count, tokens: [...tokens].sort(), trackers } : null;
 }
 
 function git(args) {
@@ -89,18 +106,24 @@ function trackedFiles() {
   }
 }
 
-/** { file: { count, tokens } } over the given repo-relative files (binary and unreadable files skipped). */
+/**
+ * Over the given repo-relative files (binary and unreadable files skipped): `found` { file: { count, tokens } } for
+ * files with a hit, and `trackers` { file: lines with a tracker id }.
+ */
 function scanTree(files = trackedFiles(), read = (f) => fs.readFileSync(path.join(REPO, f), 'utf8')) {
-  const out = {};
+  const found = {};
+  const trackers = {};
   for (const f of files) {
     if (BINARY.test(f)) continue;
     let text;
     try { text = read(f); } catch (_) { continue; }
     if (text.includes('\0')) continue;
     const hit = scanText(text);
-    if (hit) out[f] = hit;
+    if (!hit) continue;
+    if (hit.count) found[f] = { count: hit.count, tokens: hit.tokens };
+    if (hit.trackers) trackers[f] = hit.trackers;
   }
-  return out;
+  return { found, trackers };
 }
 
 // A path that itself names a token is stored ROT13-encoded behind this prefix.
@@ -124,11 +147,12 @@ function encodeAllowlist(found, why) {
 /**
  * The tree half's verdict. FAIL: a file not listed; a listed file above its count; a token the file's entry does not
  * list. WARN and pass: a listed file below its count (DOWN), at 0 (CLEAN), not in the tree (GONE), or a listed token
- * no longer present.
+ * no longer present. NOTE (never a failure): each file's tracker-id line count.
  */
-function treeVerdict(found, allow, exists = (f) => fs.existsSync(path.join(REPO, f))) {
+function treeVerdict(found, allow, exists = (f) => fs.existsSync(path.join(REPO, f)), trackers = {}) {
   const failures = [];
   const warnings = [];
+  const notes = Object.keys(trackers).sort().map((f) => `NOTE: tracker ids (noted, never failed): ${f} ${trackers[f]} line(s)`);
   for (const f of [...new Set([...Object.keys(found), ...Object.keys(allow)])].sort()) {
     const now = found[f] || { count: 0, tokens: [] };
     const a = allow[f];
@@ -147,7 +171,7 @@ function treeVerdict(found, allow, exists = (f) => fs.existsSync(path.join(REPO,
       warnings.push(`DOWN: ${f} no longer names ${a.tokens.filter((t) => !now.tokens.includes(t)).join(', ')}. Drop them from its entry.`);
     }
   }
-  return { failures, warnings };
+  return { failures, warnings, notes };
 }
 
 /** The added lines of a unified diff (`git diff -U0`): [{ file, line, text }]. */
@@ -181,6 +205,13 @@ function diffVerdict(added, onBase = () => false) {
   return failures;
 }
 
+/** The tracker ids on added lines, one NOTE per file with its line count (never a failure). */
+function diffNotes(added) {
+  const n = new Map();
+  for (const a of added) if (trackerIdsIn(a.text).length) n.set(a.file, (n.get(a.file) || 0) + 1);
+  return [...n.keys()].sort().map((f) => `NOTE: tracker ids on added lines (noted, never failed): ${f} ${n.get(f)} line(s)`);
+}
+
 /** The merge-base of HEAD and origin/sandbox, or null when git or the ref is unavailable. */
 function mergeBase(ref = 'origin/sandbox') {
   try { return git(['merge-base', 'HEAD', ref]).trim() || null; } catch (_) { return null; }
@@ -202,13 +233,13 @@ function branchAdded(base, ref = 'origin/sandbox') {
 }
 
 module.exports = {
-  REPO, ROOTS, LIST, PATTERNS, rot13, tokensIn, scanText, trackedFiles, scanTree, decodeAllowlist, encodeAllowlist,
-  treeVerdict, addedLines, diffVerdict, mergeBase, branchAdded,
+  REPO, ROOTS, LIST, PATTERNS, TRACKER, rot13, tokensIn, trackerIdsIn, scanText, trackedFiles, scanTree, decodeAllowlist, encodeAllowlist,
+  treeVerdict, addedLines, diffVerdict, diffNotes, mergeBase, branchAdded,
 };
 
 if (require.main === module) {
   // `node tests/setup/added-lines-hygiene-lib.js measure` prints the allowlist for today's tree.
   if (process.argv[2] !== 'measure') { process.stderr.write('usage: node tests/setup/added-lines-hygiene-lib.js measure\n'); process.exit(2); }
-  const why = 'Files that named private work items before this gate, with their line counts and tokens (ROT13). Shrink only: reword in product words, then lower or remove the entry.';
-  process.stdout.write(encodeAllowlist(scanTree(), why));
+  const why = 'Files that named private work items before this gate, with their line counts and tokens (ROT13). Tracker ids are noted, never listed. Shrink only: reword in product words, then lower or remove the entry.';
+  process.stdout.write(encodeAllowlist(scanTree().found, why));
 }
