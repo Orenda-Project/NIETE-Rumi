@@ -41,11 +41,13 @@ const slotOf = (it: EditItem) => (it as EditItem & { slot?: string }).slot;
 /** The paper section a slot prints in ('maths.B.Q2' → 'B'). */
 const sectionOf = (it: EditItem) => /\.([A-Z])\./.exec(slotOf(it) ?? '')?.[1] ?? null;
 
-const errorOf = (e: unknown, noAdd?: string): string | null => {
+const errorOf = (e: unknown, noAdd?: string, fixedMarks?: string): string | null => {
   const data = (e as { response?: { data?: { error?: string; errorCode?: string; code?: string; errors?: Array<{ message?: string }> } } })?.response?.data;
   // A board-pattern paper's refusals (no Add; and no edit at all while the server cannot edit one) in the deck's words.
   const codes = [data?.errorCode, data?.code];
   if (noAdd && codes.some((c) => c === 'PATTERN_NO_ADD' || c === 'PATTERN_NO_EDIT')) return noAdd;
+  // A changed mark on a board-pattern question (R5-13): the board fixes it.
+  if (fixedMarks && codes.includes('PATTERN_FIXED_MARKS')) return fixedMarks;
   const listed = (data?.errors ?? []).map((x) => x?.message).filter(Boolean) as string[];
   return listed.length ? listed.join(' ') : (data?.error ?? null);
 };
@@ -159,7 +161,7 @@ export function EditPaperPage() {
       toast({ title: C.saved });
       navigate(paperPath(r.paperId), { replace: true });
     } catch (e) {
-      setError(errorOf(e, C.noAddOnPattern) ?? C.notSaved);
+      setError(errorOf(e, C.noAddOnPattern, C.patternFixedMarks) ?? C.notSaved);
     } finally {
       setBusy(false);
     }
@@ -360,7 +362,7 @@ export function EditQuestionPage({ mode }: { mode: 'edit' | 'add' }) {
       }
       navigate(editPath(paperId), { replace: true });
     } catch (e) {
-      setError(errorOf(e, C.noAddOnPattern) ?? C.notSaved);
+      setError(errorOf(e, C.noAddOnPattern, C.patternFixedMarks) ?? C.notSaved);
     } finally {
       setBusy(false);
     }
@@ -388,6 +390,7 @@ export function EditQuestionPage({ mode }: { mode: 'edit' | 'add' }) {
         kind={mode === 'add' ? kind ?? undefined : undefined}
         rtl={!!d.paper.rtl}
         slotCap={slotCap}
+        fixedMarks={!!(d.paper as PatternPaper).pattern}
       />
       {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
       {mode === 'edit' && item && sub === null && (

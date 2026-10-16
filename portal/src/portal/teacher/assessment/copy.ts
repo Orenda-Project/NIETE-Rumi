@@ -24,6 +24,20 @@ const numberWord = (n: number) => NUMBER_WORDS[n] ?? String(n);
 /** Section letters as the Urdu papers print them (حصہ الف …). */
 const SECTION_UR: Record<string, string> = { A: 'الف', B: 'ب', C: 'ج', D: 'د' };
 
+/** Units kept, as compressed runs: [1,2,3,4,6,7,8] → ['1–4', '6–8'] (ASCII digits, an en dash). */
+function unitRuns(units: number[] | number): string[] {
+  const list = (Array.isArray(units) ? units : [units]).map(Number).filter((n) => Number.isInteger(n));
+  const sorted = [...new Set(list)].sort((a, b) => a - b);
+  const runs: string[] = [];
+  for (let i = 0; i < sorted.length; i += 1) {
+    let j = i;
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j += 1;
+    runs.push(i === j ? String(sorted[i]) : `${sorted[i]}–${sorted[j]}`);
+    i = j;
+  }
+  return runs;
+}
+
 export const ASSESSMENT_V2_COPY = {
   title: 'Assessment',
   home: 'Home',
@@ -253,6 +267,12 @@ export const ASSESSMENT_V2_COPY = {
   fdeTopicsOnly: 'FDE topics only',
   practiseFromBook: 'Practise from the book',
   customised: 'customised',
+  // The customised Syllabus row (R5-20 a): "Units 1–4, 6–8"; one unit alone is "Unit 3".
+  unitsRange: (units: number[] | number) => {
+    const runs = unitRuns(units);
+    if (runs.length === 0) return '';
+    return `${runs.length === 1 && !runs[0].includes('–') ? 'Unit' : 'Units'} ${runs.join(', ')}`;
+  },
   fullRehearsal: 'For the full rehearsal, select the FDE syllabus',
   useFdeSyllabus: 'Use FDE syllabus',
   insideCustom: (scope: string) => `Covers ${scope}; every section set from these units`,
@@ -272,7 +292,6 @@ export const ASSESSMENT_V2_COPY = {
   longerBody: 'Still being made. It stays in Recent papers and opens there when ready.',
   fdeChip: 'FDE pattern',
   fdeListChip: 'FDE',
-  withScheme: 'With marking scheme',
   questionPaper: 'Question paper',
   markingScheme: 'Marking scheme',
   pagesCount: (n: number) => (n === 1 ? '1 page' : `${n} pages`),
@@ -286,6 +305,7 @@ export const ASSESSMENT_V2_COPY = {
   willSay: (slot: string, n: number, of: number) => `${slot} will then say: any ${numberWord(n)} of ${numberWord(of)}`,
   willSayAll: (slot: string, of: number) => `${slot} will then say: ${of === 2 ? 'attempt both' : `attempt all ${numberWord(of)}`}`,
   noAddOnPattern: 'Board-pattern papers keep their shape',
+  patternFixedMarks: 'Board-pattern papers fix each question\'s marks.',
   /** The server's refusals of a board-pattern request (errorCode), in the teacher's words: a sentence each, beside Make. */
   fdeFailures: {
     PATTERN_OFF: 'Board-pattern papers are off for now. Make your own paper or try later.',
@@ -523,6 +543,11 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   fdeTopicsOnly: 'صرف FDE کے موضوعات',
   practiseFromBook: 'کتاب سے مشق کریں',
   customised: 'حسبِ ضرورت',
+  // Urdu comma between the runs; the digits stay ASCII, so «·» may sit beside them (R5-20 a). Needs fluent-Urdu review.
+  unitsRange: (units: number[] | number) => {
+    const runs = unitRuns(units);
+    return runs.length ? `یونٹ ${runs.join('، ')}` : '';
+  },
   fullRehearsal: 'مکمل مشق کے لیے FDE نصاب چنیں',
   useFdeSyllabus: 'FDE نصاب چنیں',
   insideCustom: (scope: string) => `احاطہ: ${scope}؛ ہر حصہ انہی سے`,
@@ -541,7 +566,6 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   longerBody: 'پرچہ ابھی تیار ہو رہا ہے۔ یہ «حالیہ پرچے» میں رہے گا اور تیار ہونے پر وہیں کھلے گا۔',
   fdeChip: 'FDE pattern',
   fdeListChip: 'FDE',
-  withScheme: 'مارکنگ اسکیم کے ساتھ',
   questionPaper: 'سوالیہ پرچہ',
   markingScheme: 'مارکنگ اسکیم',
   pagesCount: (n: number) => (n === 1 ? '1 صفحہ' : `${n} صفحات`), // singular: needs fluent-Urdu review
@@ -554,6 +578,7 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   willSay: (slot: string, n: number, of: number) => `${slot} پھر کہے گا: ${of} میں سے کوئی ${n}`,
   willSayAll: (slot: string, of: number) => `${slot} پھر کہے گا: ${of === 2 ? 'دونوں حل کریں' : `تمام ${of} حل کریں`}`,
   noAddOnPattern: 'بورڈ pattern کا پرچہ اپنی شکل رکھتا ہے',
+  patternFixedMarks: 'FDE pattern کے پرچوں میں ہر سوال کے نمبر مقرر ہیں۔', // needs fluent-Urdu review
   fdeFailures: {
     PATTERN_OFF: 'بورڈ pattern کے پرچے فی الحال بند ہیں۔ اپنی مرضی کا پرچہ بنائیں یا بعد میں کوشش کریں۔',
     ALREADY_GENERATING: 'اس کلاس کا پرچہ تیار ہو رہا ہے · «میرے پرچے» دیکھیں',
@@ -581,5 +606,5 @@ export const COPY_ENTRY: CopyEntry = {
   // FDE: the hint and note lines beside a button or under a row are one short line each (copy deck §A `longOk`).
   longOk: ['why', 'fdeDoorChips', 'islamiatHeld', 'ownNext', 'fullRehearsal', 'insideCustom', 'notOfficial', 'readyHint', 'skips4',
     'chaptersOff', 'waitHub', 'waitPoll', 'longerBody', 'ifNoDownload', 'fdeFailures', 'lastMade', 'notInFde', 'practiseFromBook',
-    'styleFdeSub', 'styleOwnSub', 'withScheme', 'editBoth', 'willSay', 'willSayAll', 'noAddOnPattern', 'seePaperBeingMade'],
+    'styleFdeSub', 'styleOwnSub', 'editBoth', 'willSay', 'willSayAll', 'noAddOnPattern', 'patternFixedMarks', 'seePaperBeingMade'],
 };

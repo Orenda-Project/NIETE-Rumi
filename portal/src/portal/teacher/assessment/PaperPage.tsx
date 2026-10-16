@@ -15,6 +15,7 @@ import { useCopy } from '../i18n';
 import { useAssessmentSwitches } from './api';
 import { FDE_EDITING, dayLabel, pkDay, pkToday } from './model';
 import { findPaper } from './paperCache';
+import { openArtifact } from './openArtifact';
 import { ASSESSMENT_V2_BASE, editPath, paperPath, versionsPath } from './paths';
 import { HistoryRow } from '../ui';
 import { PaperBody } from './PaperBody';
@@ -57,7 +58,8 @@ export function PaperPage() {
   const canSend = useShareAvailable('paper');
 
   const open = async (artifact: 'paper' | 'answer_key') => {
-    const r: DownloadResult = await downloadArtifact(paperId, artifact);
+    // A board-pattern paper's rows hand their own file off inside WhatsApp's browser (R5-18); a plain paper downloads as today.
+    const r: DownloadResult = await (p?.pattern ? openArtifact : downloadArtifact)(paperId, artifact);
     if (r === 'unavailable') toast({ title: artifact === 'answer_key' ? C.noKey : C.notAvailable });
     if (r === 'failed') toast({ title: C.couldNotOpen, variant: 'destructive' });
   };

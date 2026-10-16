@@ -27,21 +27,28 @@ export function VersionsPage() {
     if (r === 'unavailable') toast({ title: C.notAvailable });
     if (r === 'failed') toast({ title: C.couldNotOpen, variant: 'destructive' });
   };
-  const [versions, retry] = useLoad(() => portal.getAssessmentVersions(paperId).then((r) => r.versions || []), `versions:${paperId}`);
-  const list = dataOf(versions) ?? [];
+  const [versions, retry] = useLoad(() => portal.getAssessmentVersions(paperId), `versions:${paperId}`);
+  const read = dataOf(versions);
+  const list = read?.versions ?? [];
   const today = pkToday();
-  // A board-pattern paper (its row in My papers says so): the FDE chip, and each ready version's marking scheme.
-  const [row] = useLoad(() => findPaper(paperId), `versions-paper:${paperId}`);
-  const fde = !!(dataOf(row) as { pattern?: string | null } | null | undefined)?.pattern;
-  // Edit waits for the paper's row: until it says whether this is a board-pattern paper, Edit could open an editor the
-  // server refuses (FDE_EDITING).
-  const rowSettled = row.status === 'ok' || row.status === 'error';
+  // A board-pattern paper: the FDE chip, and each ready version's marking scheme. The versions read says so itself when the
+  // server sends `pattern` (R5-16, null for a plain paper); an older server leaves it out and the paper's row in My papers
+  // is read instead.
+  const told = !!read && 'pattern' in read;
+  const [row, retryRow] = useLoad(versions.status === 'ok' && !told ? () => findPaper(paperId) : null, `versions-paper:${paperId}:${versions.status === 'ok' && !told ? 'scan' : ''}`);
+  const found = dataOf(row) as { pattern?: string | null } | null | undefined;
+  const fde = told ? !!read?.pattern : !!found?.pattern;
+  // Edit waits until the page KNOWS whether this is a board-pattern paper: a failed My papers read, or a paper past the
+  // pages it reads, could be one, and Edit would open an editor the server refuses (FDE_EDITING). A failed read says so,
+  // with Try again.
+  const rowSettled = told || (row.status === 'ok' && !!found);
   // A handle for the QA harness (display:contents, no box) — on a board-pattern paper only, so a plain paper's page
   // is the branch point's, byte for byte.
   const wrapFde = (list: JSX.Element) => (fde ? <div data-testid="versions-list" className="contents">{list}</div> : list);
 
   return (
     <TeacherPage crumb={C.title} title={C.versions} backTo={paperPath(paperId)} chips={fde ? <Chip tone="indigo">{C.fdeChip}</Chip> : undefined} testId="assessment-versions">
+      {!told && versions.status === 'ok' && row.status === 'error' && <LoadState status="error" onRetry={retryRow} />}
       {versions.status !== 'ok'
         ? <LoadState status={versions.status} onRetry={retry} />
         : list.length === 0

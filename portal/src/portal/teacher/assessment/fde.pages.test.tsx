@@ -369,7 +369,8 @@ describe('request page', () => {
     expect(paperRow.textContent).toContain(C.pagesCount(4));
     expect(screen.getByTestId('fde-ready-scheme').textContent).toContain(C.markingScheme);
     expect(screen.getByTestId('fde-ready-scheme').textContent).toContain(C.pagesCount(3));
-    expect(screen.getByText(C.withScheme)).toBeTruthy();
+    // R5-19: no "With marking scheme" chip (the two rows name both files)
+    expect(document.body.textContent).not.toContain('With marking scheme');
     expect(screen.queryByRole('link', { name: C.edit })).toBeNull();
     expect(screen.getByTestId('share-open')).toBeTruthy();
   });

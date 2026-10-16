@@ -76,8 +76,16 @@ export function ClassStep() {
 
   // The FDE door (bd: the door sets patternIntent): the subjects it serves are read once, so a tap goes straight on.
   const door = !!p.patternIntent;
-  const [held, setHeld] = useState<string[]>([]);
+  // Islamiat is held by policy (DESIGN §4.2), not by the server's answer: dim from first paint, and the probe below may only
+  // un-hold it, the day the server offers a pattern for it.
+  const [held, setHeld] = useState<string[]>(['islamiat']);
   const doorGrades = catalogue?.patternGrades;
+  // The door's intent outlives the switch (sessionStorage): when the catalogue offers no board pattern any more, Class is
+  // today's Class, with today's eyebrow and steps (as Cover's `gone` reset does).
+  const switchedOff = door && cat.status === 'ok' && !!catalogue && !doorGrades?.length;
+  useEffect(() => {
+    if (switchedOff) set({ patternIntent: null, style: null, pattern: null, coverBy: 'chapters' });
+  }, [switchedOff, set]);
   useEffect(() => {
     if (!door || !catalogue || !doorGrades?.length) return undefined;
     let live = true;

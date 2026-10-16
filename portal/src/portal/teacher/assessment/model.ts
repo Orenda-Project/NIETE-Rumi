@@ -292,6 +292,21 @@ export type AnySpec = {
   scope?: 'fde' | null;
 };
 
+/** A board-pattern request (it carries `pattern`), whatever shape the job stored it in. */
+export function isPatternSpec(spec: unknown): boolean {
+  return !!spec && typeof spec === 'object' && !!(spec as { pattern?: string | null }).pattern;
+}
+
+/**
+ * How many questions a request's paper has: a board-pattern request is sent with questionCount 0 (the pattern fixes it),
+ * so it counts the pattern's own total when known, else nothing (never "0 questions").
+ */
+export function questionsOf(spec: unknown, patternTotal: number | null): number | null {
+  if (isPatternSpec(spec)) return patternTotal;
+  const n = spec && typeof spec === 'object' ? (spec as { questionCount?: number | null }).questionCount : null;
+  return typeof n === 'number' ? n : null;
+}
+
 /** Her choices back from a request she sent (Change choices on a paper that failed). */
 export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
   const chapters = spec.chapterNumbers?.length ? [...spec.chapterNumbers]
