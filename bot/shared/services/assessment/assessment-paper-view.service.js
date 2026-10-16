@@ -78,7 +78,7 @@ function buildPatternView(examJson) {
     sec.slots.forEach((slot, i) => {
       const items = bySlot.get(slot.slot);
       const label = lang === 'ur' ? (slot.label_ur || slot.label_en) : Patterns.shortLabel(slot.label_en);
-      const choice = FdeRenderer.choiceLine(slot, items.length, lang).text;
+      const choice = FdeRenderer.choiceLine(slot, items.length, lang, items).text;
       sections.push({
         slot: slot.slot,
         heading: i === 0 ? heading : null,

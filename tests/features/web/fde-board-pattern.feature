@@ -110,6 +110,28 @@ Feature: FDE board-pattern paper for Grade 5
     When the teacher tries to add a question
     Then the editor says "Board-pattern papers keep their shape" and no new version is made
 
+  @sandbox @real-paper @no-mock-driver
+  # No mock driver: the refusal is decided on a real paper's slot-tagged items, which only a sandbox paper carries.
+  Scenario: Changing a board-pattern question's marks is refused, and sending the same marks back is not an edit
+    Given a ready board-pattern paper
+    When the teacher saves a question with its marks changed
+    Then the editor says "Board-pattern papers fix each question's marks." and no new version is made
+    When the teacher saves an Urdu item worth 1.25 marks with its text changed and the marks left as they were
+    Then a new version is made and the item is still worth 1.25 marks
+
+  @sandbox
+  # No mock driver: three creates must reach the bot at the same instant, which the web driver cannot do through one page.
+  Scenario: Three requests for the same class at the same moment make one paper
+    Given the board-pattern switch is on
+    When three requests for a Grade 5 Maths board-pattern paper arrive for one teacher at the same moment
+    Then one paper is queued and the other two are told "A paper for this class is being made" with that paper's request
+
+  @sandbox
+  Scenario: A reopened wait page still knows it is a board-pattern paper
+    Given a Grade 5 Maths board-pattern paper is being made for this teacher
+    When they close the app and open the paper's link again
+    Then the wait screen shows the board-pattern chip and how long ago the paper was started
+
   # ── Edge cases ────────────────────────────────────────────────────────────────────────────────────────────────────
 
   @FB07
