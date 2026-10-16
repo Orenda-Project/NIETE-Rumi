@@ -24,6 +24,7 @@
       mins: function (m) { return m + ' min'; },
       jar: 'My stickers', jarNew: 'A new sticker', sndOn: 'Sound on', sndOff: 'Sound off',
       sep: ', ', grown: 'Grown-ups', grownHold: 'Press and hold', grownLang: 'اردو', grownClose: 'Close', week: 'Days you played this week',
+      who: 'Who is playing?', someoneNew: 'Someone new?',
       cls: function (n) { return 'Class ' + n; }, prSees: 'This is what your class sees', prBack: 'Back', prNote: 'Children open this from their own link',
     },
     ur: {
@@ -39,6 +40,7 @@
       mins: function (m) { return urDigits(m) + ' منٹ'; },
       jar: 'میرے اسٹیکرز', jarNew: 'نیا اسٹیکر', sndOn: 'آواز چالو', sndOff: 'آواز بند',
       sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownLang: 'English', grownClose: 'بند کریں', week: 'اس ہفتے آپ نے کب کب کھیلا',
+      who: 'کس کی باری ہے؟', someoneNew: 'کوئی اور؟',
       cls: function (n) { return 'کلاس ' + urDigits(n); }, prSees: 'آپ کی کلاس کو یہی نظر آتا ہے', prBack: 'واپس', prNote: 'بچے اسے اپنے لنک سے کھولیں گے',
     },
   };
@@ -73,24 +75,27 @@
     }
     // No `next` from the server (web_quiz_next_offer off): today's order — the teacher's quiz, the quiz left open, the lantern.
     // The teacher's pending quiz IS the Next tile: "New · From your teacher", the topic beneath.
-    if (B.teacher && B.teacher.code) return { kind: 'quiz', title: t.fromTeacher, tag: t.newQuiz, sub: B.teacher.topic || '', href: quizHref(B.teacher.code, B.teacher.k), src: 'teacher' };
-    if (B.last && B.last.code && B.last.state === 'open') return { kind: 'quiz', title: t.nextCont, sub: B.last.topic || '', href: quizHref(B.last.code, B.last.k), src: 'last' };
+    // The fallback carries the same minutes the ranker uses (quiz/video 3, story 2, numbers 1) and the thing's own art.
+    if (B.teacher && B.teacher.code) return { kind: 'quiz', title: t.fromTeacher, tag: t.newQuiz, sub: B.teacher.topic || '', href: quizHref(B.teacher.code, B.teacher.k), src: 'teacher', art: artOfCode(B, B.teacher.code), minutes: 3 };
+    if (B.last && B.last.code && B.last.state === 'open') return { kind: 'quiz', title: t.nextCont, sub: B.last.topic || '', href: quizHref(B.last.code, B.last.k), src: 'last', art: artOfCode(B, B.last.code), minutes: 3 };
     var x = B.play && B.play.lantern;
     if (x && B.challenge && B.challenge.on) {
-      if (x.kind === 'trail') return { kind: 'game', title: t.nextGame, sub: '', href: chHref(B, ctx), src: 'lantern' };
-      if (x.kind === 'story' && x.title) return { kind: 'story', title: t.nextStory, sub: x.title, href: chHref(B, ctx) + (x.pid ? '&room=story&pid=' + encodeURIComponent(x.pid) : ''), src: 'lantern' };
-      if (x.kind === 'numbers') return { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx), src: 'lantern' };
+      if (x.kind === 'trail') return { kind: 'game', title: t.nextGame, sub: '', href: chHref(B, ctx), src: 'lantern', minutes: 2 };
+      if (x.kind === 'story' && x.title) return { kind: 'story', title: t.nextStory, sub: x.title, href: chHref(B, ctx) + (x.pid ? '&room=story&pid=' + encodeURIComponent(x.pid) : ''), src: 'lantern', minutes: 2 };
+      if (x.kind === 'numbers') return { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx), src: 'lantern', minutes: 1 };
     }
     var d = doorsOf(B);
     var s = d.stories.filter(function (r) { return r.kind === 'passage' || r.kind === 'listen'; })[0];
-    if (s) return { kind: 'story', title: s.kind === 'listen' ? t.nextListen : t.nextStory, sub: s.title || '', href: storyHref(B, ctx, s), src: 'door' };
-    if (d.videos) return { kind: 'video', title: t.nextVideo, sub: '', href: withHome(B, d.videos.href), src: 'door' };
+    if (s) return { kind: 'story', title: s.kind === 'listen' ? t.nextListen : t.nextStory, sub: s.title || '', href: storyHref(B, ctx, s), src: 'door', minutes: 2 };
+    if (d.videos && d.videos.href) return { kind: 'video', title: t.nextVideo, sub: '', href: withHome(B, d.videos.href), src: 'door', art: d.videos.art || null, minutes: 3 };
     var g = d.games[0];
-    if (g) return g.kind === 'numbers' ? { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx), src: 'door' }
-      : { kind: 'quiz', title: g.done ? t.nextAgain : t.nextQuiz, sub: g.topic || '', href: quizHref(g.code, g.k, g.done), src: 'door' };
+    if (g) return g.kind === 'numbers' ? { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx), src: 'door', minutes: 1 }
+      : { kind: 'quiz', title: g.done ? t.nextAgain : t.nextQuiz, sub: g.topic || '', href: quizHref(g.code, g.k, g.done), src: 'door', art: g.art || null, minutes: 3 };
     // Nothing to offer: the primary still opens something (the Stories door); the sentence becomes the sub-line.
     return { kind: 'door', title: t.nextPick, sub: t.nextNone, href: '#stories', src: 'none' };
   }
+  // The art the server put on a quiz's Games row (its subject's picture), or null.
+  function artOfCode(B, code) { var r = doorsOf(B).games.filter(function (g) { return g.code === code && g.art; })[0]; return r ? r.art : null; }
   // A listening story asks the story room for a listen (wq-trail.js reads &ex=listen), else it is served as a read.
   function storyHref(B, ctx, s) { return chHref(B, ctx) + '&room=story&pid=' + encodeURIComponent(s.id) + (s.kind === 'listen' ? '&ex=listen' : ''); }
   var POSE = { story: 'hello', game: 'correct', quiz: 'thinking', video: 'idle', door: 'hello', none: 'sleep' };
@@ -107,8 +112,31 @@
     var hi = B.practice ? t.cls(Number(B.grade) || '') : t.hi(me.first || '');
     var jar = B.head && B.head.jar ? '<a class="wq-jar" href="#book" data-tap="jar" aria-label="' + esc(t.jar) + '">' + ICON.jar + (B.head.jar.fresh ? '<b class="wq-jarnew" aria-label="' + esc(t.jarNew) + '"></b>' : '') + '</a>' : '';
     return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap" src="/wq/jugnu/hello.webp" alt="" width="44" height="44">' +
-      '<span class="wq-hhi">' + esc(hi) + dotsHtml(B, t) + '</span>' + jar +
+      '<span class="wq-hhi">' + (whoOn(B) ? '<button class="wq-hname" type="button" data-tap="who">' + esc(hi) + '</button>' : esc(hi)) + dotsHtml(B, t) + '</span>' + jar +
       '<button class="wq-snd" type="button" data-tap="sound" aria-pressed="' + (muted() ? 'false' : 'true') + '" aria-label="' + esc(muted() ? t.sndOff : t.sndOn) + '">' + (muted() ? ICON.sndOff : ICON.sndOn) + '</button></header>';
+  }
+  // A shared phone: the child's name opens "Who is playing?" (this phone's children) and, when the join link came
+  // (the boot's `jn` or ?jn=), a last row "Someone new?" for a brother or sister. Never in the coach's preview.
+  function jnOf(B) {
+    var j = B.jn;
+    if (!j) { var m = /[?&]jn=([A-Za-z0-9._-]+)/.exec((typeof location !== 'undefined' && location.search) || ''); j = m && m[1]; }
+    return typeof j === 'string' && /^[A-Za-z0-9._-]{8,600}$/.test(j) ? j : null;
+  }
+  function whoOn(B) { return !B.practice && ((B.kids || []).length > 1 || Boolean(jnOf(B))); }
+  function who(B, ctx) {
+    var t = C(ctx); var j = jnOf(B);
+    var rows = (B.kids || []).map(function (k) {
+      return '<li><a class="wq-row" data-tap="pick" href="' + esc(withLang('/h/' + encodeURIComponent(ctx.token || B.token || '') + '?kid=' + encodeURIComponent(k.chip), langOf(ctx))) + '"><b><bdi>' + esc(k.first || '') + '</bdi></b></a></li>';
+    }).join('') + (j ? '<li><a class="wq-row" data-tap="join" href="/quiz/join/' + esc(j) + '"><b>' + esc(t.someoneNew) + '</b></a></li>' : '');
+    return '<b>' + esc(t.who) + '</b><ul class="wq-rows">' + rows + '</ul><button class="wq-btn wq-ghost" type="button" data-tap="close">' + esc(t.grownClose) + '</button>';
+  }
+  function whoSheet(root, B, ctx) {
+    var box = document.createElement('div');
+    box.className = 'wq-gsheet wq-who'; box.setAttribute('role', 'dialog'); box.setAttribute('data-screen', 'who');
+    box.innerHTML = who(B, ctx);
+    root.appendChild(box);
+    var c = box.querySelector('[data-tap="close"]');
+    if (c) c.addEventListener('click', function () { if (box.parentNode) box.parentNode.removeChild(box); });
   }
   // The coach's preview: one strip on top, "This is what your class sees" + Back to the teacher home.
   function stripHtml(B, ctx) {
@@ -206,6 +234,7 @@
         else if (tap === 'door') { ev('door_tap', { door: el.getAttribute('data-door'), pos: DOORS.indexOf(el.getAttribute('data-door')) + 1 }); }
         else if (tap === 'row') { e.preventDefault(); go(ctx, el.getAttribute('href'), 'door_' + el.getAttribute('data-kind')); }
         else if (tap === 'sound') { setMuted(!muted()); mount(root, B, ctx); }
+        else if (tap === 'who') { (ctx.ev || function () {})('who_open', { kids: (B.kids || []).length, jn: jnOf(B) ? 1 : 0 }); whoSheet(root, B, ctx); }
         else if (tap === 'prback' && !B.practice_back) { try { history.back(); } catch (x) {} }
         else if (tap === 'jar') { e.preventDefault(); book(root, B, ctx); }
         // Tap Jugnu, hear the giggle (the sound kit's sprite; nothing without it).
@@ -297,6 +326,17 @@
       (g.teacher_href ? '<a class="wq-btn wq-ghost" data-tap="teacher" href="' + esc(g.teacher_href) + '">' + esc(g.teacher_label || '') + '</a>' : '') +
       (g.stop_href ? '<a class="wq-btn wq-ghost" data-tap="stop" href="' + esc(g.stop_href) + '">' + esc(g.stop_label || '') + '</a>' : '') +
       '<button class="wq-btn wq-ghost" type="button" data-tap="close">' + esc(t.grownClose) + '</button>';
+    // Keep my place lives here on the v3 home (the card and, back from WhatsApp, its "Saved ✓ … Undo"): the sheet stays
+    // in the page until Close, so the Undo lands in it. A phone already kept is told how a grown-up removes it (STOP).
+    var KB = window.WQBIND && B.bind && !B.practice ? window.WQBIND : null;
+    if (KB && B.bind.offer) {
+      var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
+      var slot = document.createElement('div'); slot.className = 'wq-gbind'; box.appendChild(slot);
+      try { KB.card(slot, { hub: B.bind.hub || ctx.token, kid: B.kid, first: me.first || '', lang: langOf(ctx), practice: false, ev: ctx.ev }); } catch (e) {}
+    } else if (KB && B.bind.state === 'bound') {
+      var w = {}; try { w = (KB.t && KB.t(langOf(ctx))) || {}; } catch (e) { w = {}; }
+      if (w.noticeStopPhoneOnly) box.innerHTML += '<p class="wq-gstop">' + esc(w.noticeStopPhoneOnly) + '</p>';
+    }
     root.appendChild(box);
     var c = box.querySelector('[data-tap="close"]');
     if (c) c.addEventListener('click', function () { if (box.parentNode) box.parentNode.removeChild(box); });
@@ -322,5 +362,5 @@
   }
 
   // practiceNote: the door screens (wq-doors.js) show the same one line on a coach's preview tap.
-  window.WQHOME = { mount: mount, html: html, door: door, nextOf: nextOf, COPY: COPY, DOORS: DOORS, practiceNote: note };
+  window.WQHOME = { mount: mount, html: html, door: door, nextOf: nextOf, COPY: COPY, DOORS: DOORS, practiceNote: note, who: who };
 })();

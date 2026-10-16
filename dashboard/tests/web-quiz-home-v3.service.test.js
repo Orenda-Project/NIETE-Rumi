@@ -70,8 +70,8 @@ describe('wq-home.js: the home', () => {
     expect(html).toContain('class="wq-jar"');
     expect(count(html, /class="wq-dot on/g)).toBe(2);
     expect(count(html, /class="wq-dot ring/g)).toBe(1);
-    // No count about the child: the jar has no number, the dots have no digits.
-    expect(visible(html)).not.toMatch(/[0-9۰-۹]/);
+    // No count about the child: the jar has no number, the dots have no digits (the tile's minutes are a duration).
+    expect(visible(html).replace(/\d+ min|[۰-۹]+ منٹ/g, '')).not.toMatch(/[0-9۰-۹]/);
   });
   test('the Next CTA is at least 56 px tall (wq-home.css)', () => {
     const css = fs.readFileSync(CSS_SRC, 'utf8');
@@ -259,7 +259,7 @@ describe('hub.js', () => {
 });
 
 // ---- a live-ish page for mount(): elements that keep their listeners, a head, timers from the test -------------
-function page({ hash = '', conn = null, idle = true } = {}) {
+function page({ hash = '', conn = null, idle = true, bind = null, search = '' } = {}) {
   const els = {}; const sheets = []; const head = []; const evs = []; const idleQ = [];
   const el = (name) => {
     if (els[name]) return els[name];
@@ -280,13 +280,14 @@ function page({ hash = '', conn = null, idle = true } = {}) {
   };
   const win = { addEventListener() {}, scrollTo() {} };
   if (idle) win.requestIdleCallback = (fn) => idleQ.push(fn);
+  if (bind) win.WQBIND = bind;
   const document = {
     querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null),
-    createElement: (tag) => ({ tag, className: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, addEventListener() {}, querySelector: () => null, innerHTML: '' }),
+    createElement: (tag) => ({ tag, className: '', attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = v; }, addEventListener() {}, querySelector: () => null, appendChild(c) { this.kids.push(c); }, innerHTML: '' }),
     head: { appendChild: (x) => head.push(x) },
   };
   const navigator = conn ? { connection: conn } : {};
-  vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, document, navigator, location: { hash, pathname: '/h/x', search: '' }, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, JSON, Math, String, Number, Array, Object, encodeURIComponent, RegExp });
+  vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, document, navigator, location: { hash, pathname: '/h/x', search }, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, JSON, Math, String, Number, Array, Object, encodeURIComponent, RegExp });
   return { H: win.WQHOME, root, sheets, head, evs, el, idleQ, mount(B, ctx) { win.WQHOME.mount(root, B, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]), ...ctx }); } };
 }
 
@@ -430,5 +431,77 @@ describe('the practice home (a coach previewing the class view): by grade, nothi
     const p = page(); p.mount(PR);
     expect(p.evs.length).toBeGreaterThan(0);
     p.evs.forEach((e) => expect(e[1]).toMatchObject({ kid: null, practice: 1 }));
+  });
+});
+
+describe('the fallback tile carries minutes and the thing\'s own art when the server has it', () => {
+  const H = loadHome();
+  test('the teacher\'s quiz: the subject art from its Games row, 3 minutes', () => {
+    const B = { ...HOME, teacher: { code: 'MATH01', k: 'kk', topic: 'Fractions', subject: 'Maths' }, doors: { ...DOORS_FULL, games: [{ ...DOORS_FULL.games[0], art: '/wq/art/maths.webp' }] } };
+    expect(H.nextOf(B, ctxOf('en'))).toMatchObject({ art: '/wq/art/maths.webp', minutes: 3 });
+    expect(H.html(B, ctxOf('en'))).toContain('src="/wq/art/maths.webp"');
+  });
+  test('a story from the door: 2 minutes; the numbers game: 1; Urdu minutes in Urdu digits', () => {
+    const story = H.nextOf({ ...HOME, doors: { ...DOORS_FULL, games: [] } }, ctxOf('en'));
+    expect(story).toMatchObject({ kind: 'story', minutes: 2 });
+    const lantern = H.nextOf({ ...HOME, play: { lantern: { kind: 'numbers' } } }, ctxOf('en'));
+    expect(lantern).toMatchObject({ kind: 'game', minutes: 1 });
+    expect(H.html({ ...HOME, doors: { ...DOORS_FULL, games: [] } }, ctxOf('ur'))).toContain('۲ منٹ');
+  });
+});
+
+describe('the grown-ups sheet: keep my place (and its Undo) live there; a bound phone is told about STOP', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  const holdOpen = (p) => { const g = p.el('grownups'); g.fire('pointerdown'); jest.advanceTimersByTime(2100); return p.sheets.filter((b) => /wq-gsheet/.test(b.className))[0]; };
+  test('an offer: the keep-my-place card is drawn inside the sheet, for this child', () => {
+    const calls = [];
+    const bind = { card: (mountEl, c) => { calls.push([mountEl, c]); return true; }, t: () => ({ noticeStopPhoneOnly: 'STOP line' }) };
+    const p = page({ bind }); p.mount({ ...HOME, bind: { offer: true, hub: 'HUBTOK' } });
+    const sheet = holdOpen(p);
+    expect(calls).toHaveLength(1);
+    expect(sheet.kids).toContain(calls[0][0]);
+    expect(calls[0][1]).toMatchObject({ hub: 'HUBTOK', kid: KID, first: 'Zara', lang: 'en' });
+  });
+  test('already bound: the STOP line (the card\'s own words), no card', () => {
+    const calls = [];
+    const bind = { card: () => calls.push(1), t: () => ({ noticeStopPhoneOnly: 'A grown-up can remove this phone number any time by sending STOP on WhatsApp.' }) };
+    const p = page({ bind }); p.mount({ ...HOME, bind: { offer: false, state: 'bound' } });
+    const sheet = holdOpen(p);
+    expect(calls).toHaveLength(0);
+    expect(sheet.innerHTML).toContain('sending STOP on WhatsApp');
+  });
+  test('no bind on the boot: the sheet is as before', () => {
+    const p = page(); p.mount(HOME);
+    const sheet = holdOpen(p);
+    expect(sheet.kids).toHaveLength(0);
+  });
+});
+
+describe('a shared phone: the name opens "Who is playing?", with "Someone new?" when the join link came', () => {
+  const H = loadHome();
+  const TWO = { ...HOME, kids: [{ chip: KID, first: 'Zara', animal: 'owl', grade: '3' }, { chip: 'fedcba9876543210', first: 'Ali', animal: 'cat', grade: '2' }] };
+  test('one child and no join link: the name is plain text', () => {
+    expect(H.html(HOME, ctxOf('en'))).not.toContain('data-tap="who"');
+  });
+  test.each(['en', 'ur'])('%s: two children: the name is a button; the sheet lists both, each opening their own home', (lang) => {
+    expect(H.html(TWO, ctxOf(lang))).toContain('data-tap="who"');
+    const sh = H.who(TWO, ctxOf(lang));
+    expect(sh).toContain(H.COPY[lang].who);
+    expect(sh).toContain(`?kid=${KID}`);
+    expect(sh).toContain('?kid=fedcba9876543210');
+    expect(sh).not.toContain('/quiz/join/');
+    expect(count(sh, /data-primary/g)).toBe(0);
+    expect(visible(sh)).not.toMatch(BANNED);
+  });
+  test('a join link (?jn= or the boot\'s jn): the last row "Someone new?" opens the join', () => {
+    const sh = H.who({ ...HOME, jn: 'eyJrIjoiaiJ9.AbC-d_e' }, ctxOf('ur'));
+    expect(sh).toContain('href="/quiz/join/eyJrIjoiaiJ9.AbC-d_e"');
+    expect(visible(sh)).toContain('کوئی اور؟');
+    expect(H.html({ ...HOME, jn: 'eyJrIjoiaiJ9.AbC-d_e' }, ctxOf('en'))).toContain('data-tap="who"');
+    expect(H.who({ ...HOME, jn: 'bad"><script>' }, ctxOf('en'))).not.toContain('/quiz/join/');
+  });
+  test('the coach\'s preview never shows it', () => {
+    expect(H.html({ ...TWO, practice: 1, grade: 3, kids: [], kid: null, jn: 'eyJrIjoiaiJ9.AbC' }, ctxOf('en'))).not.toContain('data-tap="who"');
   });
 });

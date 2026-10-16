@@ -77,6 +77,19 @@ function headOf(stamps, now = Date.now()) {
   return { dots: days.size, today: days.has(Math.floor((now - start) / DAY_MS)) };
 }
 
+// A subject's picture (the hub's own subject art), or null; never throws.
+function subjectArt(subject) {
+  if (!subject) return null;
+  try {
+    const Lib = require('./web-quiz-library');
+    const Videos = require('./web-quiz-videos');
+    return (typeof Lib.subjectArt === 'function' && Lib.subjectArt(Videos.subjectFor(subject) || subject)) || null;
+  } catch (_) {
+    return null;
+  }
+}
+const withArt = (row) => { const art = row.art || subjectArt(row.subject); return art ? { ...row, art } : row; };
+
 /** The three doors (pure). `out` = the hub payload built so far; `stories` = web_quiz_stories on; `hasRoot` = a class quiz played. */
 function doorsOf({ out = {}, stories = false, hasRoot = false } = {}) {
   const shelf = (out.play && Array.isArray(out.play.shelf)) ? out.play.shelf : [];
@@ -85,11 +98,11 @@ function doorsOf({ out = {}, stories = false, hasRoot = false } = {}) {
     .map((t) => ({ kind: t.id === 'listen' ? 'listen' : 'passage', id: t.pid, fresh: t.nx === 'new', ...(t.title ? { title: t.title } : {}) }));
   if (stories) story.push({ kind: 'shelf' });
   const games = [];
-  if (out.teacher && out.teacher.code) games.push({ kind: 'quiz', code: out.teacher.code, k: out.teacher.k, topic: out.teacher.topic || '', subject: out.teacher.subject || '', done: false, from: 'teacher' });
-  if (out.last && out.last.code && out.last.state === 'open') games.push({ kind: 'quiz', code: out.last.code, k: out.last.k, topic: out.last.topic || '', subject: out.last.subject || '', done: false, from: 'last' });
+  if (out.teacher && out.teacher.code) games.push(withArt({ kind: 'quiz', code: out.teacher.code, k: out.teacher.k, topic: out.teacher.topic || '', subject: out.teacher.subject || '', done: false, from: 'teacher' }));
+  if (out.last && out.last.code && out.last.state === 'open') games.push(withArt({ kind: 'quiz', code: out.last.code, k: out.last.k, topic: out.last.topic || '', subject: out.last.subject || '', done: false, from: 'last' }));
   if (out.challenge && out.challenge.on) games.push({ kind: 'numbers' });
   const again = out.last && out.last.state === 'done' && out.last.again ? [{ code: out.last.code, k: out.last.k, topic: out.last.topic, subject: out.last.subject }] : [];
-  again.concat(out.again || []).forEach((a) => { if (a && a.code) games.push({ kind: 'quiz', code: a.code, k: a.k, topic: a.topic || '', subject: a.subject || '', done: true, ...(a.art ? { art: a.art } : {}) }); });
+  again.concat(out.again || []).forEach((a) => { if (a && a.code) games.push(withArt({ kind: 'quiz', code: a.code, k: a.k, topic: a.topic || '', subject: a.subject || '', done: true, ...(a.art ? { art: a.art } : {}) })); });
   const videos = out.lib && out.lib.href && hasRoot ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}) } : null;
   return { stories: story, games, videos };
 }

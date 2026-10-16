@@ -120,6 +120,12 @@ describe('web_quiz_home_v3 on: the doors and the header', () => {
     ]));
     // No score about the child rides in a door row.
     expect(JSON.stringify(out.doors)).not.toMatch(/"(best|score|tries)"/);
+    // A quiz row carries its subject's picture (the hub's own subject art) so the home's tile has the thing's art.
+    const Lib = require('../../../shared/services/quiz/web-quiz-library');
+    const V = require('../../../shared/services/quiz/web-quiz-videos');
+    const art = Lib.subjectArt(V.subjectFor('Maths') || 'Maths');
+    expect(art).toBeTruthy();
+    expect(out.doors.games.find((g) => g.code === 'MATH01')).toMatchObject({ art });
   });
 
   test('Videos: the library href for a child with a class quiz; null (door shown empty) for a child with none', async () => {
