@@ -9,8 +9,8 @@
  *   resolve(code, {preview, jt})    the landing: the link is live? → {lang}; else not_found (the edge renders exactly
  *                                   an unknown /q/ code's page). door_shown{class_link}, except for a link-preview
  *                                   fetch or the teacher's own visit from the card (jt, its signed preview token).
- *   arrive({code, device_ref, jt})  a device that played as a child enrolled in this class → "Whose turn?" with ONLY
- *                                   those children; any other device → "Tap your teacher's name" (2–3 teacher chips)
+ *   arrive({code, device_ref, jt})  a device that played as (or whose hub was opened for) a child enrolled in this class →
+ *                                   "Whose turn?" with ONLY those children; any other device → "Tap your teacher's name"
  *   teacher({code, s, tk})          the right teacher → the letter step (the script's whole alphabet, never only the
  *                                   letters present); a wrong one → the teacher step again, no children
  *   letter({code, s, letter})       the chips whose canon first name starts with that letter, FIRST NAMES ONLY
@@ -30,6 +30,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Identity = require('./web-quiz-identity');
+const HubDevice = require('./web-quiz-hub-device');
 const Flags = require('./web-quiz-class-link-flags');
 const { clampLanguage } = require('../../config/ux-strings');
 
@@ -212,12 +213,17 @@ function scriptOf(kids, lang) {
 }
 const shownName = (k, script) => (script === 'urdu' && k.nameUrdu ? k.nameUrdu : k.name);
 
-/** The children this device has played as (quiz_sessions.device_ref, as the hub trusts a phone) who are in the class. */
+/**
+ * The children this device is remembered as who are in the class: the ones it played as on a teacher's quiz
+ * (quiz_sessions.device_ref) and the ones a hub trusted it with (the hub's device record, HubDevice.deviceKids), so a
+ * phone whose only door is this link is remembered here too. Redis down → the device record adds nothing.
+ */
 async function rememberedInClass(link, deviceRef, kids) {
   const d = T.cleanDeviceRef(deviceRef);
   if (!d || !kids.length) return [];
   const { data } = await supabase.from('quiz_sessions').select('student_id').eq('device_ref', d).limit(50);
-  const played = [...new Set((data || []).map((r) => r.student_id).filter(Boolean).map(String))];
+  const hubKids = await HubDevice.deviceKids(d);
+  const played = [...new Set([...(data || []).map((r) => r.student_id), ...hubKids].filter(Boolean).map(String))];
   if (!played.length) return [];
   const Roster = require('./web-quiz-identity-roster');
   const canon = await Roster.canonicalStudentIds(played);
