@@ -325,6 +325,7 @@
         + '<div class="wq-stack">' + (qa ? h.qaButtons() : btn('wqc-menu', t.endHome)) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
+      if (window.WQFC) window.WQFC.trailEnd(h, { name: name, story: true, t: t });
     }
     // a stop's minutes and microphone line: in Urdu, Urdu digits and the mic on its own line (no Latin middot)
     function stopLine(x, wait, micLine) {
@@ -431,12 +432,14 @@
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });
       if (r.qa) h.on('wqc-qa', function () { h.qa().open(); });
+      if (window.WQFC) window.WQFC.trailEnd(h, { name: name, line: line, r: r, t: t });
     }
     function storyLen(d) { return (d && d.story && d.story.tokens && d.story.tokens.length) || 0; }
     // heard: a live reading's words heard; when given, it chooses the line (all = 90% of the story's words heard)
     // hold: the card waits for the server's result (endCard); true back = held, the page draws the settled card later
     function readEnd(r, words, heard, hold) {
       var d = h.S.data || {};
+      if (window.WQFC && (h.md() || {}).card_v3 && window.WQFC.unheard(r, words, heard, storyLen(d))) { endCard('read-result', 'hello', window.WQFC.triedLine(L, r), Object.assign({}, r || {}, { again: !(r && r.later), qa: false, noSticker: true, tried: true, hold: !!hold })); return !!hold; }
       if (isStory()) {
         var heard = r && !r.failed && !r.later && r.score && (r.score.attempted != null ? r.score.attempted : r.score.correct) > 0;
         storyEnd('read-result', !!(heard && d.questions_on));

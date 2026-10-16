@@ -1915,6 +1915,8 @@ const DOOR_PROPS = Object.freeze({
 });
 const HELPED_V = /^(self|helped|not_asked)$/;
 const helpedV = (v) => (v === 0 ? 'self' : v === 1 ? 'helped' : (typeof v === 'string' && HELPED_V.test(v) ? v : null));
+const CARD_SOURCE = /^(quiz|read|story|challenge)$/;
+const boolOnly = (v) => (typeof v === 'boolean' ? v : null);
 const NAME_PROPS = Object.freeze({
   // The doors (EVENTS §2): which door, on which surface, its 1-based slot as a number (every other name keeps `slot`
   // as the answer letter), a shelf tile's passage id, the next line's choice.
@@ -1926,6 +1928,9 @@ const NAME_PROPS = Object.freeze({
   bind_offered: Object.freeze({ surface: /^(trail|hub|book|end_card)$/ }),
   // Jugnu's Book: class_wall_shown {shown, term_total?, week_n?} (the class lights line; no class id from the page).
   class_wall_shown: Object.freeze({ shown: /^(total|hidden_under5)$/, term_total: wallNum, week_n: wallNum }),
+  // The finish card (web_quiz_card_v3, wq-finish-card.js): the events contract's names beside src/ok/how.
+  card_shown: Object.freeze({ source: CARD_SOURCE, share_ok: boolOnly, tried: boolOnly }),
+  card_share: Object.freeze({ source: CARD_SOURCE, kind: /^(card_image|invite_link)$/, path: /^(file|native|wa|copy)$/ }),
 });
 const nameProp = (rule, value) => (typeof rule === 'function' ? rule(value) : (typeof value === 'string' && rule.test(value) ? value : null));
 const BATCH_MAX = 20;
