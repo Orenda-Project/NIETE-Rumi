@@ -2695,3 +2695,16 @@ Feature: NIETE (ICT) Teacher Training
     Then one web_quiz.bind_undo per child is logged with via "teacher", the event version, the key label and the child's keyed key, never a phone
     But with web_quiz_events_v2 off the event is exactly today's
     # web-quiz-kid.js emit (one home for the v2 rule; the binder, the page and the hub door use it too); teacher-jugnu-internal.routes.js afterErase. Unit: web-quiz-kid-emit.test.js. @wip.
+
+  @quiz @config-gated @wip @draft @P1 @T870
+  Scenario: A child's round game ends with the phone handed back, and a resumed turn shows the game played done
+    Given app_settings "web_quiz_class_round", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
+    And I have opened the class round on my phone and called the next child
+    When the child finishes or stops their first round game
+    Then the end card has no sticker line and one button, "Thanks for playing! Hand the phone to your teacher."
+    And that button opens my class round page again on this phone (the turn link never holds my report link), with no Home button on the card
+    When I hand the phone back to the same child before their second game
+    Then their trail shows the first game done, tapping it starts nothing, and the second game is next
+    But a child's own check run outside the round still ends with "A sticker went into your Book." and Home
+    # web-quiz-challenge.js roundPayload round_turn/round_back, menu done from the turn's stored games; wq-trail.js endCard;
+    # unit: class-round-endcard.test.js, dashboard class-round-endcard-page.service.test.js

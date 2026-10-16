@@ -430,7 +430,8 @@
     var sub = TR ? TR.trailSub(xs) : (allDone ? tc('allDone', { name: MASCOT }) : tc('sub', { done: done, total: xs.length }));
     show('trail', jug(allDone ? 'celebrate' : 'hello', tc('title', { name: MASCOT }), true) + (TR && !sub ? '' : '<p class="wq-sub" id="wqc-trail-sub">' + esc(sub) + '</p>') + '<ol class="wqc-trail">' + stops + '</ol>');
     xs.forEach(function (x) {
-      on('wqc-ex-' + x.id, function () { if (x.mic && micAbsent()) micWait(); else open(x.id); });
+      // a class round turn: a game already stored for this turn is done and never starts a second run
+      on('wqc-ex-' + x.id, function () { if (menuData.round_turn && x.badge) return; if (x.mic && micAbsent()) micWait(); else open(x.id); });
     });
   }
 

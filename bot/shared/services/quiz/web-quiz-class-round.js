@@ -331,17 +331,24 @@ async function gameStored(round, studentId, ex, runId, { games = ['bigger'] } = 
   return false;
 }
 
-/** The link into the Challenge for the open turn: { k:'r', rd, sid, exp }. */
-function turnToken(round, studentId) {
+/**
+ * The link into the Challenge for the open turn: { k:'r', rd, sid, exp }, plus bk: the report token the round page was
+ * opened with (when given), so the child's end card hands the phone back to that same round page.
+ */
+const BACK_RX = /^[A-Za-z0-9_-]{8,600}\.[A-Za-z0-9_-]{22}$/;
+function turnToken(round, studentId, back = null) {
   if (!ROUND_RX.test(String(round || '')) || !studentId) return null;
-  return T.sign({ k: 'r', rd: round, sid: studentId, exp: Math.floor(Date.now() / 1000) + TURN_TTL_S });
+  const bk = typeof back === 'string' && BACK_RX.test(back) ? back : null;
+  return T.sign({ k: 'r', rd: round, sid: studentId, ...(bk ? { bk } : {}), exp: Math.floor(Date.now() / 1000) + TURN_TTL_S });
 }
 
 /** The Challenge's entry for a round turn token's claims, or null (refused). */
 async function entryOf(claims) {
   const t = claims && (await openTurn(claims.rd, claims.sid));
   if (!t) return null;
-  return { studentId: claims.sid, via: 'class_round', round: t.draw.round, classId: t.draw.class_id, roundMode: t.mode };
+  // roundGames: the games already stored for this turn (ids only); roundBack: the teacher's round page token (bk)
+  return { studentId: claims.sid, via: 'class_round', round: t.draw.round, classId: t.draw.class_id, roundMode: t.mode,
+    roundGames: [...(t.p.g || [])], ...(typeof claims.bk === 'string' && BACK_RX.test(claims.bk) ? { roundBack: claims.bk } : {}) };
 }
 
 /**
@@ -397,7 +404,7 @@ async function screen(teacherId, { lang, token } = {}) {
     const cur = st.order[st.cur];
     const mode = cur.s === 'done' ? 'handback' : 'child';
     const l = clampLanguage(lang);
-    const tt = mode === 'child' ? turnToken(draw.round, cur.id) : null;
+    const tt = mode === 'child' ? turnToken(draw.round, cur.id, token) : null;
     // a child-held screen gets no list at all (IDENTITY §2, L11): only the child's own first name
     return Page.renderRound({ mode, rows: [], current: { name: rows[st.cur].name } }, { lang, token, turnHref: tt ? `/c/${tt}?lang=${l}` : null });
   }

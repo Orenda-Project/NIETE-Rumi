@@ -276,7 +276,9 @@ describe('the child view', () => {
     const T = require('../../../shared/services/quiz/web-quiz-token');
     const claims = T.verify(m[1], 'r');
     expect(claims).toMatchObject({ k: 'r', rd: ROUND, sid: draw().state.order[0].id });
-    expect(Object.keys(claims).sort()).toEqual(['exp', 'k', 'rd', 'sid']);
+    // bk: the report token this round page was opened with (the end card's hand-back goes back to it); nothing else
+    expect(Object.keys(claims).sort()).toEqual(['bk', 'exp', 'k', 'rd', 'sid']);
+    expect(Token.verifyTeacherReport(claims.bk)).toMatchObject({ teacherId: TEACHER });
   });
 });
 

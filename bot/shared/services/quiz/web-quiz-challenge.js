@@ -701,7 +701,8 @@ async function menu(token, { kid, lang, device } = {}) {
     lang: w.lang,
     exercises: (rules.pool ? TRAIL_ORDER.map(byId) : EXERCISES).filter((e) => !w.round || ROUND_GAMES.includes(e.id)).filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk) && (e.id !== 'missing' || rules.missing)).map((e) => {
       const last = runs.find((r) => r.exercise === e.id) || null;
-      const done = trailNow ? trailNow.find((t) => t.stop === e.id).record_row_final : !!last;
+      // a round turn: done = stored for THIS turn (the round state), never a home run
+      const done = w.round ? (w.roundGames || []).includes(e.id) : (trailNow ? trailNow.find((t) => t.stop === e.id).record_row_final : !!last);
       // the record rule: done from the first counted run, and the menu is not a report — no number on it.
       // On the trail that same first counted run, of any outcome (stopped, incomplete), is the stop's badge.
       return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done, last: rules.record ? null : lastOf(last),
@@ -711,6 +712,7 @@ async function menu(token, { kid, lang, device } = {}) {
     }),
     ...(rules.record ? { record: true } : {}),
     ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang) } : {}),
+    ...(w.round ? { round_turn: true } : {}),
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await Tel.flag(),
     ...((await require('./web-quiz-ur-polish').ui()) ? { ui: { ur2: true } } : {}),
@@ -1430,10 +1432,15 @@ async function roundGame(c, rules) {
 }
 // A round turn's page: nothing on it marks the counted cut (no practice banner, no mode), and it carries the same
 // warm line for after every item.
+// round_turn: a round run is no voluntary counted stop (NC4, RULING #43), so its end card prints no sticker line and
+// its one button hands the phone back (jg.round.c_handback) to the round page the teacher opened (round_back).
 function roundPayload(w, payload) {
   if (!w.round) return payload;
   const { practice_round: _p, mode: _m, ...rest } = payload;
-  return { ...rest, round_say: require('../../templates/class-round.page').T[clampLanguage(w.lang, ['en', 'ur'])].cNextSay };
+  const l = clampLanguage(w.lang, ['en', 'ur']);
+  const C = require('../../templates/class-round.page').T[l];
+  return { ...rest, round_say: C.cNextSay, round_turn: true, round_handback: C.cHandback,
+    ...(w.roundBack ? { round_back: `/r/${encodeURIComponent(w.roundBack)}/round?lang=${l}` } : {}) };
 }
 // ── end class round ──
 
