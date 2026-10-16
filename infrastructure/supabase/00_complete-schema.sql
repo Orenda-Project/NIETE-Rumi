@@ -6827,6 +6827,22 @@ COMMENT ON COLUMN web_quiz_challenge_runs.score IS
 COMMENT ON COLUMN web_quiz_challenge_runs.wcpm IS
   'Internal. Read aloud: words correct per minute (EGRA Toolkit 10.3); 0 when stopped on the first line.';
 
+-- ─── live reading v3: a story page's speech keys (bot/database/migrations/web_quiz_live_read_keys.sql) ──
+-- One row per story-page speech key (who, when, the language): the child's day cap and the day's read budget hold
+-- across restarts. Never a transcript, a book's text, a word count or a score.
+CREATE TABLE IF NOT EXISTS web_quiz_live_read_keys (
+  id          uuid PRIMARY KEY,
+  student_id  uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  src         text NOT NULL DEFAULT 'story_page' CHECK (src IN ('story_page')),
+  lang        text CHECK (lang IN ('en', 'ur')),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS web_quiz_live_read_keys_student_idx
+  ON web_quiz_live_read_keys (student_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS web_quiz_live_read_keys_created_idx
+  ON web_quiz_live_read_keys (created_at);
+ALTER TABLE web_quiz_live_read_keys ENABLE ROW LEVEL SECURITY;
+
 -- ─── web quiz Challenge runs: provenance columns, served/abandoned, weekly numbers, lamps (bot/database/migrations/web_quiz_challenge_runs_v2.sql) ──
 ALTER TABLE web_quiz_challenge_runs
   ADD COLUMN IF NOT EXISTS bank_version       text,

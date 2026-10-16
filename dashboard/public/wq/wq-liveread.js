@@ -7,15 +7,20 @@
  *                                 number words are one word ("3" = "three" = "۳" = "تین"). The child reads a PREFIX: a
  *                                 word passed over is `skipped` (never wrong), an extra or repeated word costs nothing.
  *                                 States per word: read (heard, final) · heard (not final yet) · skipped · current · ahead
- *   shouldFinish(v, now, lastAt, f)   'last_word' | 'quiet' | null (RULING #C1) — the last word heard, f.tail_ms (1 s)
+ *   shouldFinish(v, now, lastAt, f)   'last_word' | 'quiet' | null — the last word heard, f.tail_ms (1 s)
  *                                 after it; or ≥ f.pct of the words heard and f.quiet_ms (4 s) with no new word (never
  *                                 when f.quiet is false: a counted read)
  *   glowLevel(v)                  0–4: Jugnu's glow, by the share of words lit — never by speed, never a number
- *   result(v, o)                  the result object handed to the card (no transcript in it)
- *   emit(result)                  window event `wq:liveread:result` (m-scorecard listens)
+ *   result(v, o)                  the result object handed to the card (no transcript in it, never a rate: wpm is null)
+ *   emit(result)                  window event `wq:liveread:result` (the finish card listens)
  *   mount(el, o)                  the whole reading on one element (a story page): words, Done, the stream, the finish
- *                                 rules, the fallback; → { stop(reason), destroy() }
- *   askMic(el, o)                 the microphone ask that works in WhatsApp's in-app browser on Android
+ *                                 rules, the fallback; → { stop(reason), destroy() }. A counted mount (o.counted): a quiet
+ *                                 "Stop for now" from the first second, "I'm done" only once o.doneFrom (0.8) of the words are lit
+ *   askMic(el, o)                 the microphone sheet that works in WhatsApp's in-app browser on Android (below)
+ *   doneHtml(copy)                the one Done label: "I'm done" / «میں نے پڑھ لیا» and a drawn tick
+ * The sound kit (window.WQJ, when the page has it): WQJ.mic(true|false) around the microphone, and on a practice read
+ * WQJ.word({i, ok}) per word newly lit and WQJ.sentence() at a sentence's last word; never on a counted read.
+ * One green on screen: a word heard and a word read draw the same (the difference lives in the result only).
  * No framework, no build step. Nothing here keeps or sends the child's words anywhere but the speech service.
  */
 (function () {
@@ -118,7 +123,7 @@
     return {
       v: 1, source: x.source || 'passage', id: x.id == null ? null : x.id, lang: x.lang === 'ur' ? 'ur' : 'en',
       words_total: v.total, words_read: v.heard, correct: v.read, skipped: v.skipped,
-      wpm: x.wpm && counted && ms >= 5000 ? Math.round(v.read / ms * 60000) : null,
+      wpm: null,
       ms: ms, ended: x.ended || 'done_tap', marks: marks, counted: counted, live: x.live !== false,
     };
   }
@@ -128,34 +133,86 @@
     } catch (e) { /* an old WebView: the callback is the hand-off */ }
   }
 
+  // ── the sound kit (wq-juice.js, when loaded): every call a no-op without it ───────────────────────
+  function juice(name, arg) {
+    var J = window.WQJ;
+    if (!J || typeof J[name] !== 'function') return;
+    try { J[name](arg); } catch (e) { /* a sound never breaks a reading */ }
+  }
+  var SENTENCE_END = /[.!?۔؟]["'”’)]*$/;
+  /** Practice reads only: a tink per word newly lit (in order), the sentence chime at a sentence's last word. */
+  function juiceWords(words, before, after, counted) {
+    if (counted || !window.WQJ) return;
+    for (var i = 0; i < after.length; i += 1) {
+      var was = before && (before[i] === 'read' || before[i] === 'heard' || before[i] === 'ok' || before[i] === 'okp');
+      var now = after[i] === 'read' || after[i] === 'heard' || after[i] === 'ok' || after[i] === 'okp';
+      if (now && !was) {
+        juice('word', { i: i, ok: true });
+        if (SENTENCE_END.test(String(words[i] || ''))) juice('sentence');
+      }
+    }
+  }
+
   // ── copy (EN + UR; no test words; gender-neutral) ────────────────────────────────────────────────
   var COPY = {
-    en: { done: 'Done', checking: 'Listening…', readNow: 'Read it aloud!', keepGoing: 'Keep going!', wellRead: 'Well read!',
+    // one Done label on every reading surface (practice from the first second, counted from 80 % lit)
+    en: { done: 'I\'m done', doneAsk: 'Done?', checking: 'Listening…', readNow: 'Read it aloud!', keepGoing: 'Keep going!', wellRead: 'Well read!',
       micAsk: 'Tap the button so Jugnu can hear you read.', micGo: 'Start reading', chrome: 'Open in Chrome', listen: 'Listen with Jugnu instead',
-      notNow: 'Not now, just listen', stop: 'Stop for now', finished: 'I\'m finished' },
-    ur: { done: 'ہو گیا', checking: 'آپ کی پڑھائی سنی جا رہی ہے…', readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', wellRead: 'بہت خوب پڑھا!',
+      notNow: 'Not now, just listen', stop: 'Stop for now', grownUps: 'For grown-ups', okListen: 'That\'s OK, let\'s listen with Jugnu.',
+      osAsk: 'When the phone asks, tap Allow.',
+      facts: 'The voice is heard only to light up the words as they are read. On a story page nothing is kept. “Not now, just listen” works at any time.' },
+    ur: { done: 'میں نے پڑھ لیا', doneAsk: 'ہو گیا؟', checking: 'آپ کی آواز سنی جا رہی ہے…', readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', wellRead: 'بہت خوب پڑھا!',
       micAsk: 'بٹن دبائیں تاکہ جگنو آپ کو پڑھتے ہوئے سن سکے۔', micGo: 'پڑھنا شروع کریں', chrome: 'کروم میں کھولیں', listen: 'جگنو سے سن لیں',
-      notNow: 'ابھی نہیں، صرف سنیں', stop: 'ابھی کے لیے بس', finished: 'میں نے پڑھ لیا' },
+      notNow: 'ابھی نہیں، صرف سنیں', stop: 'ابھی کے لیے بس', grownUps: 'بڑوں کے لیے', okListen: 'کوئی بات نہیں۔ آئیں، جگنو سے سنتے ہیں۔',
+      osAsk: 'جب فون پوچھے تو «اجازت دیں» (Allow) دبائیں۔',
+      facts: 'آواز صرف پڑھتے وقت الفاظ کو روشن کرنے کے لیے سنی جاتی ہے۔ کہانی کے صفحے پر کچھ بھی محفوظ نہیں ہوتا۔ «ابھی نہیں، صرف سنیں» کسی بھی وقت دبا سکتے ہیں۔' },
   };
+  // the controls' glyphs are drawn, never a font character (a ✓ or an emoji falls into the Nastaliq face)
+  var TICK = '<svg class="lr-tick" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var MIC = '<svg class="lr-mic" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5" fill="currentColor"/><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5v2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  // the phone's own permission prompt, as a picture: a box with a microphone and two buttons, the one to tap ringed
+  var OS_PIC = '<svg class="lr-os" viewBox="0 0 200 96" width="200" height="96" role="img" aria-hidden="true" focusable="false">'
+    + '<rect x="2" y="2" width="196" height="92" rx="12" fill="#fff" stroke="#9aa5b1" stroke-width="2"/>'
+    + '<rect x="90" y="12" width="20" height="28" rx="10" fill="#1f2a37"/><path d="M82 30a18 18 0 0 0 36 0M100 48v8" fill="none" stroke="#1f2a37" stroke-width="3" stroke-linecap="round"/>'
+    + '<rect x="18" y="64" width="72" height="20" rx="10" fill="#e5e7eb"/><rect x="110" y="64" width="72" height="20" rx="10" fill="#15803D"/>'
+    + '<rect x="104" y="58" width="84" height="32" rx="16" fill="none" stroke="#15803D" stroke-width="3" stroke-dasharray="5 4"/></svg>';
+  /** The one Done label: "I'm done" / «میں نے پڑھ لیا» and a drawn tick. */
+  function doneHtml(t) { return esc(t.done) + ' ' + TICK; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 
-  // ── the microphone ask (WhatsApp in-app browser on Android: ask only after a tap; a pending prompt is a branch) ──
+  // ── the microphone sheet, one on every reading surface (WhatsApp in-app browser on Android: ask only after a tap) ──
+  //   askMic(el, {lang, src, onStream, onNotNow, onDenied, ev, facts})
+  //   1. one line for the child + the big "Start reading" (getUserMedia only inside this tap) + "For grown-ups" (what is
+  //      heard, what is kept, how to stop — closed until opened);
+  //   2. the phone's own prompt as a picture (which button to tap);
+  //   3. a second big "Not now, just listen" → onNotNow() (else onDenied('not_now')): back to listening, no loss.
+  //   Blocked, unsupported or no answer in 8 s → "That's OK, let's listen with Jugnu" (+ "Open in Chrome" on Android).
+  //   ev(name, data): mic_ask {src} when shown, mic_declined {src, how} when the reading goes on without the mic.
   var MIC_WAIT_MS = 8000;
   function askMic(el, o) {
-    var t = COPY[o.lang === 'ur' ? 'ur' : 'en'];
-    // always a listen-only door next to the ask (no loss state): the family may say "not now"
-    el.innerHTML = '<div class="lr-ask"><p class="lr-say">' + esc(t.micAsk) + '</p><button class="wq-btn wq-go lr-go" type="button">🎤 ' + esc(t.micGo) + '</button>'
-      + '<button class="wq-btn wq-soft lr-listen" type="button">' + esc(t.notNow) + '</button></div>';
+    var t = Object.assign({}, COPY[o.lang === 'ur' ? 'ur' : 'en'], o.copy || {});
+    var src = String(o.src || 'passage').slice(0, 16);
+    var ev = function (n, d) { try { if (o.ev) o.ev(n, d); } catch (e) { /* the host's log never breaks the ask */ } };
+    el.innerHTML = '<div class="lr-ask"><p class="lr-say">' + esc(t.micAsk) + '</p>'
+      + '<div class="lr-os-pic">' + OS_PIC + '<p class="lr-os-say">' + esc(t.osAsk) + '</p></div>'
+      + '<button class="wq-btn wq-go lr-go" type="button">' + MIC + ' ' + esc(t.micGo) + '</button>'
+      + '<button class="wq-btn wq-soft lr-listen" type="button">' + esc(t.notNow) + '</button>'
+      + '<details class="lr-grown"><summary>' + esc(t.grownUps) + '</summary><p>' + esc(o.facts || t.facts) + '</p></details></div>';
+    ev('mic_ask', { src: src });
     var settled = false;
-    el.querySelector('.lr-listen').addEventListener('click', function () { if (settled) return; settled = true; if (o.onDenied) o.onDenied('not_now'); });
+    function notNow() {
+      if (o.onNotNow) o.onNotNow(); else if (o.onDenied) o.onDenied('not_now');
+    }
+    el.querySelector('.lr-listen').addEventListener('click', function () { if (settled) return; settled = true; ev('mic_declined', { src: src, how: 'not_now' }); notNow(); });
     function off(why) {
       if (settled) return;
       settled = true;
+      ev('mic_declined', { src: src, how: why });
       var android = /Android/i.test((navigator && navigator.userAgent) || '');
       var href = 'intent://' + location.host + location.pathname + (location.search || '') + '#Intent;scheme=https;package=com.android.chrome;end';
-      el.innerHTML = '<div class="lr-ask"><p class="lr-say">' + esc(t.micAsk) + '</p>'
-        + (android ? '<a class="wq-btn wq-go" href="' + esc(href) + '">' + esc(t.chrome) + '</a>' : '')
-        + '<button class="wq-btn wq-soft lr-listen" type="button">' + esc(t.listen) + '</button></div>';
+      el.innerHTML = '<div class="lr-ask"><p class="lr-say">' + esc(t.okListen) + '</p>'
+        + '<button class="wq-btn wq-go lr-listen" type="button">' + esc(t.listen) + '</button>'
+        + (android && why !== 'notallowederror' ? '<a class="wq-btn wq-soft" href="' + esc(href) + '">' + esc(t.chrome) + '</a>' : '') + '</div>';
       var b = el.querySelector('.lr-listen');
       if (b) b.addEventListener('click', function () { if (o.onDenied) o.onDenied(why); });
     }
@@ -183,6 +240,8 @@
     var img = o.image && o.image.w > 0 && o.image.h > 0 && items.every(function (x) { return x.box && x.box.length === 4; }) ? o.image : null;
     var pc = function (v, of) { return Math.round(1000 * v / of) / 10 + '%'; };
     var fin = o.finish || { pct: 0.8, quiet_ms: QUIET_MS, tail_ms: TAIL_MS, quiet: !o.counted };
+    // a counted reading: Done only once this share of the words is lit (an early Done would lose the reading)
+    var doneFrom = o.counted ? (typeof o.doneFrom === 'number' ? o.doneFrom : 0.8) : 0;
     var maxMs = o.maxMs || 60000;
     var s = { started: Date.now(), lastAt: Date.now(), v: m.view(), sock: null, live: false, queue: [], chunks: [], ended: null, mr: null, tick: null, quietT: null };
     el.innerHTML = '<div class="lr" dir="' + (o.dir === 'rtl' || lang === 'ur' ? 'rtl' : 'ltr') + '" lang="' + lang + '">'
@@ -192,11 +251,14 @@
           + items.map(function (x, i) { var b = x.box; return '<span class="lr-w lr-box" data-i="' + i + '" style="left:' + pc(b[0], img.w) + ';top:' + pc(b[1], img.h) + ';width:' + pc(b[2], img.w) + ';height:' + pc(b[3], img.h) + '" aria-label="' + esc(x.t) + '"></span>'; }).join('') + '</div>'
         : '<div class="lr-text">' + m.words.map(function (w, i) { return '<span class="lr-w" data-i="' + i + '">' + esc(w) + '</span>'; }).join(' ') + '</div>')
       + (o.meter === 'none' ? '' : '<div class="lr-glow lr-glow-0" aria-hidden="true"></div>')
-      + '<div class="lr-bar"><button class="wq-btn wq-navy lr-done" type="button">' + esc(t.done) + '</button></div></div>';
+      + '<div class="lr-bar"><button class="wq-btn wq-navy lr-done" type="button"' + (doneFrom > 0 ? ' hidden' : '') + '>' + doneHtml(t) + '</button>'
+      + (o.counted ? '<button class="wq-btn wq-soft lr-stop" type="button">' + esc(t.stop) + '</button>' : '') + '</div></div>';
     var spans = el.querySelectorAll ? el.querySelectorAll('.lr-w') : [];
     var nudge = el.querySelector('.lr-nudge');
+    var doneBtn = el.querySelector('.lr-done');
     function paint() {
       for (var i = 0; i < spans.length; i += 1) spans[i].className = 'lr-w ' + (img ? 'lr-box ' : '') + 'lr-' + s.v.states[i];
+      if (doneBtn && doneFrom > 0) doneBtn.hidden = !(s.v.total > 0 && s.v.heard / s.v.total >= doneFrom);
       var glow = el.querySelector('.lr-glow');
       if (glow) glow.className = 'lr-glow lr-glow-' + glowLevel(s.v);
       if (nudge) nudge.textContent = Date.now() - s.lastAt > 5000 && s.v.heard > 0 ? t.keepGoing : t.readNow;
@@ -207,7 +269,9 @@
     }
     function onTokens(tokens) {
       var before = s.v.heard;
+      var was = s.v.states;
       s.v = m.push(tokens);
+      juiceWords(m.words, was, s.v.states, o.counted);
       if (s.v.heard > before) {
         s.lastAt = Date.now();
         clearTimeout(s.quietT);
@@ -241,7 +305,9 @@
       s.queue.splice(0).forEach(function (c) { s.sock.send(c); });
     }).catch(function () { fallback('key'); });
     s.tick = setInterval(function () { if (Date.now() - s.started >= maxMs) finish('timer'); else paint(); }, 1000);
-    el.querySelector('.lr-done').addEventListener('click', function () { finish('done_tap'); });
+    if (doneBtn) doneBtn.addEventListener('click', function () { finish('done_tap'); });
+    if (o.counted) { var stopBtn = el.querySelector('.lr-stop'); if (stopBtn) stopBtn.addEventListener('click', function () { finish('stuck'); }); }
+    juice('mic', true);
 
     function deliver(r) {
       if (o.onResult) o.onResult(r);
@@ -251,8 +317,9 @@
       if (s.ended) return;
       s.ended = why;
       clearInterval(s.tick); clearTimeout(s.quietT);
+      juice('mic', false);
       var ms = Date.now() - s.started;
-      var base = { source: o.source || 'story_page', id: o.id, lang: lang, counted: !!o.counted, ended: why, wpm: o.wpm };
+      var base = { source: o.source || 'story_page', id: o.id, lang: lang, counted: !!o.counted, ended: why };
       if (s.live && s.sock) {
         // the recorder's last slice goes out BEFORE "finalize" (the socket drops audio once it is ending)
         var fin = false;
@@ -268,7 +335,14 @@
       // real-time did not work: an honest "checking…" for at most 10 s, then the card from what is known
       el.innerHTML = '<div class="lr-check"><p class="lr-say">' + esc(t.checking) + '</p></div>';
       var done = false;
-      var give = function (r) { if (done) return; done = true; deliver(r || result(s.v, Object.assign(base, { ms: ms, live: false }))); };
+      // the host's check may know more words; the hand-off keeps the one result shape (and never a rate)
+      var give = function (r) {
+        if (done) return;
+        done = true;
+        var out = result(s.v, Object.assign(base, { ms: ms, live: false }));
+        if (r && typeof r === 'object') ['words_total', 'words_read', 'correct', 'skipped', 'marks'].forEach(function (k) { if (r[k] != null) out[k] = r[k]; });
+        deliver(out);
+      };
       setTimeout(function () { give(null); }, CHECK_MS);
       if (o.check && o.record) {
         Promise.resolve(o.check(new Blob(s.chunks, { type: (s.mr && s.mr.mimeType) || 'audio/webm' }))).then(function (r) { give(r || null); }, function () { give(null); });
@@ -276,10 +350,10 @@
     }
     return {
       stop: function (why) { finish(why || 'done_tap'); },
-      destroy: function () { s.ended = s.ended || 'gone'; clearInterval(s.tick); clearTimeout(s.quietT); if (s.mr && s.mr.state !== 'inactive') { try { s.mr.stop(); } catch (e) { /* stopped */ } } },
+      destroy: function () { if (!s.ended) juice('mic', false); s.ended = s.ended || 'gone'; clearInterval(s.tick); clearTimeout(s.quietT); if (s.mr && s.mr.state !== 'inactive') { try { s.mr.stop(); } catch (e) { /* stopped */ } } },
       view: function () { return s.v; },
     };
   }
 
-  window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, COPY: COPY };
+  window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, COPY: COPY };
 })();

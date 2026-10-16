@@ -164,7 +164,7 @@ function clipsRecordedOn(now = Date.now()) {
 const settingCache = new Map();  // key → { v, at } for the record switches
 const SETTING_TTL_MS = 30 * 1000;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
 
 /** An app_settings switch, true only when its value reads true (fails closed), cached for 30 s. */
 async function settingOn(key) {
@@ -1856,7 +1856,9 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   // The key decides, never the switch at this moment: a kept key stays whatever the switch now says; a plain key with
   // the switch now on is still deleted, and the row says so (calibration then knows why there is no audio).
   const audio = isKeptKey(key) ? { audio_key: key } : ((await keepAudioOn()) ? { audio_kept: false } : {});
-  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio, ...(await LiveReadV3().metaFor(body, { record: !!rules.record })) };
+  // live reading v3 (off ⇒ {}): the UI version and how the page says it ended, kept through the scorer's final write too
+  const lr3Meta = await LiveReadV3().metaFor(body, { record: !!rules.record });
+  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio, ...lr3Meta };
   // the mic notice (web_quiz_challenge_audio_consent; null with it off): on the row, one event per run; a run that
   // showed it marks this child's notice seen on this phone (x-wq-device), so it is not shown again
   const consent = await TrailPage.consentFor(body);
@@ -1885,11 +1887,11 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     await updateRunMeta(c.r, (cur) => {
       const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
       return r.failed
-        ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp, reason: r.reason }, scored_at: nowIso() }
+        ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...lr3Meta, ...comp, reason: r.reason }, scored_at: nowIso() }
         : { status: 'scored', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), score: r.score, wcpm: r.wcpm,
           // an implausible row never became a reading: record cleared (the sweeper's `abandoned` shape), record_lost says why, the month stays open
           ...(r.implausible && isV2Meta(cur.meta) ? { record: false } : {}),
-          meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...(r.implausible && isV2Meta(cur.meta) ? { record_lost: 'implausible', counted: false } : {}), ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
+          meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...(r.implausible && isV2Meta(cur.meta) ? { record_lost: 'implausible', counted: false } : {}), ...audio, ...(live ? { live } : {}), ...lr3Meta, ...comp }, scored_at: nowIso() };
     }, { force: true });
     await measureOutcome(c.r);
     await renewBindings(c.sid);
@@ -2189,6 +2191,10 @@ async function warmClip(key, text, lang, { record = true, now = Date.now() } = {
   return clipKnown.get(key) === true ? 'recorded' : 'missing';
 }
 const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecordedOn(now));
+
+// Live reading v3: a story page's speech keys spend the same daily read budget (read from the cached switches: with
+// real-time or v3 off nothing is counted and nothing more is read)
+Budget.countAlso(async (sinceIso) => ((await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().keysSince(sinceIso) : 0));
 
 module.exports = {
   menu, exercise, entryOf, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,

@@ -8,7 +8,8 @@
  *
  * Absent or a failed read = the default; cached 60 s, like web_quiz_audio_daily_cap (web-quiz-audio-store.js).
  * Today's count = rows of web_quiz_challenge_runs with exercise 'read' since Pakistan midnight (every reading that
- * reached scoring; a 'served' or 'abandoned' row was never read), plus the readings this process started since that count. At the cap the Challenge offers
+ * reached scoring; a 'served' or 'abandoned' row was never read), plus whatever else countAlso() names (the Challenge names a story
+ * page's live-reading keys, web_quiz_live_read_keys, while live reading v3 is on), plus the readings this process started since that count. At the cap the Challenge offers
  * "Which is bigger?" only and a read already open gets "enough for today"; logged once per day per process.
  * A failed count lets the reading through (logged): the setting read still bounds a normal day.
  */
@@ -25,6 +26,7 @@ let capCache = null;   // { at, cap }
 let count = null;      // { day, at, n }
 let started = 0;       // readings this process started since the last count
 let loggedDay = null;
+let alsoCount = null;  // async (sinceIso) → more readings today, counted with the table (set once, by the Challenge)
 
 const pkDay = (now) => new Date(now + PK_OFFSET_MS).toISOString().slice(0, 10);
 const pkMidnightIso = (day) => new Date(Date.parse(`${day}T00:00:00Z`) - PK_OFFSET_MS).toISOString();
@@ -55,7 +57,9 @@ async function readsToday(now = Date.now()) {
     const { count: n, error } = await supabase.from('web_quiz_challenge_runs').select('id', { count: 'exact', head: true })
       .eq('exercise', 'read').in('status', ['scoring', 'scored', 'failed']).gte('created_at', pkMidnightIso(day));
     if (error) throw new Error(error.message || 'count failed');
-    count = { day, at: now, n: Number(n) || 0 };
+    let more = 0;
+    if (alsoCount) { try { more = Number(await alsoCount(pkMidnightIso(day))) || 0; } catch (_) { more = 0; } }
+    count = { day, at: now, n: (Number(n) || 0) + more };
     started = 0;
   }
   return count.n + started;
@@ -85,6 +89,11 @@ function noteStarted() {
   started += 1;
 }
 
+/** Other readings that spend the same budget, counted from their own table (0 when they are off). */
+function countAlso(fn) {
+  alsoCount = typeof fn === 'function' ? fn : null;
+}
+
 function _reset() { capCache = null; count = null; started = 0; loggedDay = null; }
 
-module.exports = { readOpen, dailyCap, readsToday, noteStarted, KEY, DEFAULT_DAILY_READS, _reset };
+module.exports = { readOpen, dailyCap, readsToday, noteStarted, countAlso, KEY, DEFAULT_DAILY_READS, _reset };

@@ -788,6 +788,7 @@
   }
   // The microphone is handed back on every way out: done, a recorder error, Skip, leaving the page.
   function releaseMic() {
+    lrMic(false);
     clearInterval(rec.timer);
     if (rec.stream) { stopTracks(rec.stream); rec.stream = null; }
   }
@@ -923,7 +924,8 @@
     var ws = shownWords(d.story);
     var spans = ws.map(function (w, i) {
       var m = (marks && marks[i]) || 'none';
-      if (m === 'miss' && lrCounted()) m = 'none';   // RULING #C1 line 9: a counted read lights matched words only
+      if (m === 'miss' && lrCounted()) m = 'none';   // a counted read lights matched words only, never a skip mark
+      if (m === 'okp' && lr3()) m = 'ok';            // one green: a word heard draws like a word read
       var next = live && live.v && live.v.next === i ? ' wqc-next' : '';
       return '<span class="wqc-w wqc-' + m + next + '">' + esc(w) + '</span>';
     }).join(' ');
@@ -933,7 +935,7 @@
     if (!live || !live.v) return;
     var el = q('wqc-live-story');
     if (el) el.innerHTML = liveStoryHtml(live.v.marks);
-    if (trailOn()) return;   // the Trail has no speed meter to paint
+    if (trailOn() || lr3()) return;   // the Trail and live reading v3 have no speed meter to paint
     var r = liveWpm(live.v);
     var n = q('wqc-wpm-n');
     if (n) n.textContent = r.wpm == null ? '…' : ud(r.wpm);
@@ -948,8 +950,11 @@
     if (!live) return;
     tokens.forEach(function (tk) { if (tk && tk.end_ms > live.audioMs) live.audioMs = tk.end_ms; });
     var before = live.v ? live.v.heardOk : 0;
+    var wasMarks = live.v ? live.v.marks : null;
     live.v = live.tr.push(tokens);
     if (live.v.heardOk > before) live.lastWordAt = Date.now();
+    // the sound kit: a tink per word newly lit and the sentence chime, on a practice read only (no-op without the kit)
+    if (lr3()) window.WQLiveRead.juiceWords(shownWords(S.data.story), wasMarks, live.v.marks, lrCounted());
     if (lr3() && live.v.heardOk > before) lrHeard(before);
     livePaint();
     // the last word heard ends the reading; finalize then makes Soniox confirm what it has at once
@@ -958,9 +963,12 @@
 
   // ── live reading v3 (the read payload's lr3; wq-liveread.js; LIVEREAD.md): the reading finishes itself ──────────────
   function lr3() { return !!(S.data && S.data.lr3 && window.WQLiveRead); }
+  function lrCopy() { return window.WQLiveRead.COPY[L === 'ur' ? 'ur' : 'en']; }
+  // the sound kit's microphone window (sounds held back while the child reads); once each way
+  function lrMic(on) { if (!lr3() || !!rec.lrMic === on) return; rec.lrMic = on; window.WQLiveRead.juice('mic', on); }
   function lrCounted() { return lr3() && !!S.data.lr3.counted; }
   function lrView() { var v = live && live.v; return v ? { heard: v.heardOk, total: v.marks.length, lastHeard: !!v.lastHeard } : { heard: 0, total: 0, lastHeard: false }; }
-  // RULING #C1 line 7: Done always on a practice read; on a counted read only once done_from of the words are lit
+  // Done always on a practice read; on a counted read only once done_from of the words are lit
   function lrDoneOpen() {
     var from = Number(S.data.lr3.done_from) || 0;
     if (!from) return true;
@@ -974,15 +982,20 @@
     var g = q('wqc-lr-glow');
     if (g) g.className = 'lr-glow lr-glow-' + window.WQLiveRead.glowLevel(v);
     var from = Number(S.data.lr3.done_from) || 0;
-    if (from && guardOn() && before / v.total < from && v.heard / v.total >= from && S.screen === 'read-live') paintRead();
+    if (from && before / v.total < from && v.heard / v.total >= from && S.screen === 'read-live') paintRead();
     setTimeout(function () {
       if (!live || !live.v || S.screen !== 'read-live') return;
       var now = lrView();
       var why = window.WQLiveRead.shouldFinish(now, Date.now(), live.lastWordAt, f);
       if (why) { stopRec(why); return; }
-      // a counted read never ends on the quiet: past 80 % the Done button pulses once ("Done?"), the child decides
+      // a counted read never ends on the quiet: past 80 % the Done button pulses once and the line asks "Done?"; the child decides
       var btn = q('wqc-stop');
-      if (lrCounted() && btn && now.heard / now.total >= (f.pct || 0.8) && Date.now() - live.lastWordAt >= (f.quiet_ms || 4000) && btn.className.indexOf('lr-pulse') < 0) btn.className += ' lr-pulse';
+      if (lrCounted() && btn && now.heard / now.total >= (f.pct || 0.8) && Date.now() - live.lastWordAt >= (f.quiet_ms || 4000) && btn.className.indexOf('lr-pulse') < 0) {
+        btn.className += ' lr-pulse';
+        rec.lrAsk = true;
+        var n = q('wqc-nudge');
+        if (n) n.textContent = lrCopy().doneAsk;
+      }
     }, v.lastHeard ? (f.tail_ms || 1000) : (f.quiet_ms || 4000));
   }
   // the result handed to the card (wq:liveread:result): the live words when there are some, else what is known
@@ -1077,10 +1090,11 @@
   }
   // The one way out of a timed reading under the guard, and only once the first line's window has passed.
   function stickyHtml() {
-    // live reading v3: Done is always there, "too hard" still opens after the first line's window
-    // a counted read: "I'm finished" from 80 % lit and a quiet "Stop for now" from the first second (stored as today's "too hard")
-    if (lrCounted() && guardOn()) { var lc = window.WQLiveRead.COPY[L === 'ur' ? 'ur' : 'en']; return '<div class="wqc-sticky">' + (lrDoneOpen() ? '<button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(lc.finished) + '</button>' : '') + '<button class="wq-btn wq-soft lr-stop" id="wqc-stuck" type="button">' + esc(lc.stop) + '</button></div>'; }
-    if (lr3() && guardOn()) return '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(t.finished) + '</button>' + (rec.stuckOpen ? '<button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(cp('stuck')) + '</button>' : '') + '</div>';
+    // live reading v3, with or without the read guard: one Done label ("I'm done" and a drawn tick)
+    // a counted read: Done from 80 % lit and a quiet "Stop for now" from the first second (stored as today's "too hard")
+    if (lrCounted()) { var lc = lrCopy(); return '<div class="wqc-sticky">' + (lrDoneOpen() ? '<button class="wq-btn wq-navy" id="wqc-stop" type="button">' + window.WQLiveRead.doneHtml(lc) + '</button>' : '') + '<button class="wq-btn wq-soft lr-stop" id="wqc-stuck" type="button">' + esc(lc.stop) + '</button></div>'; }
+    // a practice read: Done from the first second; under the guard "too hard" still opens after the first line's window
+    if (lr3()) return '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">' + window.WQLiveRead.doneHtml(lrCopy()) + '</button>' + (guardOn() && rec.stuckOpen ? '<button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(cp('stuck')) + '</button>' : '') + '</div>';
     if (!guardOn()) return '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(t.finished) + '</button></div>';
     return rec.stuckOpen ? '<div class="wqc-sticky"><button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(cp('stuck')) + '</button></div>' : '';
   }
@@ -1127,6 +1141,7 @@
     rec.left = d.secs || 60;
     rec.sent = false;
     rec.gaveUp = false;
+    rec.lrAsk = false;
     // each reading has its own length: Try again in the same page load must not post the last one's
     rec.ms = 0;
     try {
@@ -1150,6 +1165,7 @@
     // live: 250-ms slices (about 1 KB of opus each, fine on 3G) so the words follow the voice; otherwise 1 s
     rec.mr.start(liveOk() ? 250 : 1000);
     rec.started = Date.now();
+    lrMic(true);
     if (liveOk()) {
       live.started = rec.started;
       live.lastWordAt = rec.started;
@@ -1179,10 +1195,10 @@
     var g = guardOn();
     // the clock line of a read without live words (Story Time shows no clock: no number on a story screen)
     var clockHtml = g || (TR && TR.isStory()) ? '' : '<div class="wqc-clock"><span class="wqc-dot" aria-hidden="true"></span><span id="wqc-left">' + clock(rec.left) + '</span></div>';
-    if (liveOk() && trailOn()) {
-      // the Trail never shows a reading speed: no running number, no bar, no "Last time"; the words still light up
+    if (liveOk() && (trailOn() || lr3())) {
+      // the Trail (and any live reading v3) never shows a reading speed: no running number, no bar, no "Last time"; the words still light up
       show('read-live', clockHtml + (lr3() ? '<div class="lr-glow lr-glow-' + window.WQLiveRead.glowLevel(lrView()) + '" id="wqc-lr-glow" aria-hidden="true"></div>' : '') + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
-        + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
+        + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
         + stickyHtml());
       livePaint();
     } else if (liveOk()) {
@@ -1192,7 +1208,7 @@
         + '<div class="wqc-wpm-track"><i id="wqc-wpm-bar"></i>' + (prev > 0 ? '<em style="inset-inline-start:' + Math.min(100, Math.round(100 * prev / liveScale())) + '%"></em>' : '') + '</div>'
         + (prev > 0 ? '<p class="wqc-wpm-last">' + esc(t.lastTime) + ': ' + esc(ud(prev)) + '</p>' : '') + '</div>'
         + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
-        + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
+        + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
         + stickyHtml());
       livePaint();
     } else {
@@ -1206,6 +1222,7 @@
   }
 
   function stopRec(reason) {
+    lrMic(false);
     clearInterval(rec.timer);
     if (rec.sampler) { clearInterval(rec.sampler); rec.sampler = null; }
     if (!rec.ended) rec.ended = reason || 'done_tap';
@@ -1243,7 +1260,7 @@
     if (!live.v) return;
     livePaint();
     var n = q('wqc-nudge');
-    if (n && !live.failed) n.textContent = Date.now() - live.lastWordAt > NUDGE_MS ? t.keepGoing : t.readNow;
+    if (n && !live.failed) n.textContent = rec.lrAsk && lrCounted() ? lrCopy().doneAsk : (Date.now() - live.lastWordAt > NUDGE_MS ? t.keepGoing : t.readNow);
     var line1 = (S.data.story.lines || [])[0];
     if (line1 && Date.now() - live.started > LINE1_MS) {
       var any = false;
@@ -1277,10 +1294,11 @@
     var d = S.data;
     var good = w > 0;
     show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true)
-      + (good ? '<p class="wqc-score" id="wqc-score">' + esc(t.wcpm(w)) + '</p>' : '<p class="wqc-score" id="wqc-score"></p>')
+      // live reading v3: no rate on a child's screen (the number goes to the teacher)
+      + (good && !lr3() ? '<p class="wqc-score" id="wqc-score">' + esc(t.wcpm(w)) + '</p>' : '<p class="wqc-score" id="wqc-score"></p>')
       + '<p class="wq-sub" id="wqc-growth"></p>'
-      + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live.v.marks) + '</div>'
-      + '<p class="wqc-key"><span><i style="background:var(--right-bg)"></i>' + esc(t.readGreen) + '</span><span><i style="background:#FFF1D6"></i>' + esc(t.notCaught(MASCOT)) + '</span></p>'
+      + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live.v.marks) + '</div>'
+      + '<p class="wqc-key"><span><i style="background:' + (lr3() ? '#BBF7D0' : 'var(--right-bg)') + '"></i>' + esc(t.readGreen) + '</span><span><i style="' + (lr3() ? 'box-shadow:inset 0 -3px 0 #E65100' : 'background:#FFF1D6') + '"></i>' + esc(t.notCaught(MASCOT)) + '</span></p>'
       + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + '</div>' : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>') + '</div>');
     if (good) say(d.clips.done);
     qa.attempted = live.v.attempted;
@@ -1432,7 +1450,7 @@
     var type = (rec.mr && rec.mr.mimeType) || rec.type || 'audio/webm';
     var blob = new Blob(rec.chunks, { type: type });
     rec.blob = blob;
-    show('read-send', jug('thinking', t.sending, true));
+    show('read-send', jug('thinking', lr3() ? lrCopy().checking : t.sending, true));
     if (lr3()) lrCheck();
     api('ch/upload', cons({ ct: d.ct, type: type, size: blob.size })).then(function (u) {
       return fetch(u.put_url, { method: 'PUT', headers: { 'content-type': u.content_type }, body: blob }).then(function (r) {
@@ -1440,7 +1458,7 @@
         return u.key;
       });
     }).then(function (key) {
-      show('read-wait', jug('thinking', t.listening, true));
+      show('read-wait', jug('thinking', lr3() ? lrCopy().checking : t.listening, true));
       return resultCall(resultBody({ key: key, ms: rec.ms || 0 }));
     }).then(function (r) {
       if (r && r.pending) return pollResult(0);
@@ -1495,12 +1513,14 @@
       if (prev != null && r.wcpm > prev) growth = t.more_words(r.wcpm - prev);
       else if (prev != null && r.wcpm === prev) growth = t.same_words;
     }
+    var heardWell = !!score;
+    if (lr3()) { score = ''; growth = ''; }   // live reading v3: no rate and no rate change on a child's screen
     show('read-result', jug(pose, line, true) + (score ? '<p class="wqc-score" id="wqc-score">' + esc(score) + '</p>' : '')
       + (growth ? '<p class="wq-sub" id="wqc-growth">' + esc(growth) + '</p>' : '')
       // Not heard: steer the child to read again — "Try again" is the primary button, "More challenges" the second.
       + '<div class="wq-stack">' + (r.failed
         ? '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>'
-        : (score && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>')) + '</div>');
+        : (heardWell && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>')) + '</div>');
     if (score) say(d.clips.done);
     if (score) qa.attempted = r.score && r.score.attempted;
     on('wqc-menu', refreshMenu);

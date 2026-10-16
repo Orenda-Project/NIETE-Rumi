@@ -6,38 +6,58 @@
  *   lr3.finish.tail_ms          the last word heard ends the reading this long after (the word's own end)
  *   lr3.finish.pct / quiet_ms   most of the passage heard, then a quiet this long, ends the reading ("quiet")
  *   lr3.finish.quiet            false on a counted read: the record's reading ends only on the last word, Done or the
- *                               timer, so the scorer judges every counted reading exactly as before (RULING #C1, #5)
+ *                               timer, so the scorer judges every counted reading exactly as before
  *   lr3.done / done_from        the Done button: always on a practice read; on a counted read only once this share of
  *                               the passage is heard (an early Done loses the reading)
  *   lr3.meter                   'glow': Jugnu glows brighter per word lit, never per second; no number, no bar
  *   lr3.counted                 this run is the record (the card says nothing it cannot keep)
  *
  * The words light up as the child reads wherever real-time works (Story Time included). The read-aloud's own key
- * route (POST /ch/live) is reused for a passage; a story page asks storyKey() for its own one-read temporary key
- * (single use, the run id as reference): no run row, no upload, nothing of the child's voice kept.
- * Off ⇒ forRead() and forMenu() add nothing (every payload is today's) and storyKey() is 404 'off'.
+ * route (POST /ch/live) is reused for a passage; a story page asks web-quiz-live-read-keys.js for its own one-read
+ * temporary key. keysSince() counts every story key since a time, for the day's read budget (web-quiz-challenge-budget.js,
+ * through the Challenge's countAlso).
+ * Off (or web_quiz_challenge_realtime off) ⇒ forRead() and forMenu() add nothing (every payload is today's).
+ * This module reads its two switches itself and requires no other quiz module, so nothing here closes a require loop.
  */
-const crypto = require('crypto');
+const supabase = require('../../config/supabase');
 const { logError } = require('../../utils/logger');
-const { logEvent } = require('../../utils/structured-logger');
-const { WqError } = require('./web-quiz.service');
-const Budget = require('./web-quiz-challenge-budget');
 
 const FLAG_KEY = 'web_quiz_live_read_v3';
+const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
+const TABLE = 'web_quiz_live_read_keys';
 const FINISH_PCT = 0.8;
-const QUIET_MS = 4000;   // RULING #C1: every ORF protocol allows 3 s a word, and the stream adds lag
+const QUIET_MS = 4000;   // every oral-reading protocol allows 3 s a word, and the stream adds lag
 const TAIL_MS = 1000;
 const UI_V = 3;
 // how a reading ended, as the page says it (the row keeps it beside live_ui_v)
 const ENDED = new Set(['last_word', 'quiet', 'done_tap', 'timer', 'line1', 'stuck', 'hidden', 'home', 'silent']);
-// a story page is ~20-40 words: enough for a whole book's pages twice in a day, then "enough for today"
-const STORY_KEYS_PER_DAY = 40;
-const BOOK_RX = /^[A-Za-z0-9_-]{1,64}$/;
-const MAX_PAGE = 200;
+const SETTING_TTL_MS = 30 * 1000;
 
-const fail = (status, error) => { throw new WqError(status, { error }); };
-const Ch = () => require('./web-quiz-challenge');
-const on = () => Ch().settingOn(FLAG_KEY);
+// a switch is on only for a literal true (or "true"); absent, anything else or a failed read is off
+const cache = new Map();
+function isTrue(v) {
+  let x = v;
+  if (typeof x === 'string') { try { x = JSON.parse(x); } catch (_) { /* plain string */ } }
+  return x === true || (typeof x === 'string' && x.trim().toLowerCase() === 'true');
+}
+async function settingOn(key) {
+  const c = cache.get(key);
+  if (c && Date.now() - c.at < SETTING_TTL_MS) return c.v;
+  let v = false;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', key);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    v = !!(data && data[0] && isTrue(data[0].value));
+  } catch (e) {
+    logError('web_quiz.lr_setting_read_failed', { key, error: String((e && e.message) || e).slice(0, 120) });
+    v = false;
+  }
+  cache.set(key, { v, at: Date.now() });
+  return v;
+}
+const on = () => settingOn(FLAG_KEY);
+// live words need real-time: with web_quiz_challenge_realtime off nothing here mints a key or reads this switch
+const liveOn = async () => (await settingOn(LIVE_FLAG_KEY)) && (await on());
 
 /** The read exercise's extra field: {} off; on, how the reading finishes itself (never the quiet end on a counted read). */
 async function forRead({ counted } = {}) {
@@ -46,7 +66,7 @@ async function forRead({ counted } = {}) {
   return { lr3: { meter: 'glow', done: true, done_from: isCounted ? FINISH_PCT : 0, counted: isCounted, finish: { pct: FINISH_PCT, quiet_ms: QUIET_MS, tail_ms: TAIL_MS, quiet: !isCounted } } };
 }
 
-/** What a reading's row keeps from the page under v3 (RULING #C1 line 11): the UI version and how it ended; {} off. */
+/** What a reading's row keeps from the page under v3: the UI version and how it ended; {} off. Never a number. */
 async function metaFor(body = {}, { record = false } = {}) {
   if (Number(body.live_ui_v) !== UI_V || !(await on())) return {};
   const ended = typeof body.ended === 'string' && ENDED.has(body.ended) ? body.ended : null;
@@ -59,44 +79,18 @@ async function forMenu() {
   return (await on()) ? { lr3: true } : {};
 }
 
-// a child's story-page keys today (Pakistan day), in this process: a cap on what one link can spend
-const perDay = new Map();
-const pkDay = (now = Date.now()) => new Date(now + 5 * 3600 * 1000).toISOString().slice(0, 10);
-function countKey(studentId) {
-  const day = pkDay();
-  const k = `${day}|${studentId}`;
-  if (perDay.size > 5000) for (const key of perDay.keys()) if (!key.startsWith(day)) perDay.delete(key);
-  return k;
-}
-
-/**
- * A temporary Soniox key for one story-page reading: the hub token's child on THIS phone (the read-aloud's own
- * entry rule), the child's day cap and the day's read budget checked before anything is spent.
- * → { api_key, expires_at, ws, model, lang, run }. Never logs a key.
- */
-async function storyKey({ st, kid, book, page, lang, device } = {}) {
-  if (!(await on())) fail(404, 'off');
-  const p = Number(page);
-  if (typeof book !== 'string' || !BOOK_RX.test(book) || !Number.isInteger(p) || p < 1 || p > MAX_PAGE) fail(400, 'bad_page');
-  const C = Ch();
-  const entry = await C.entryOf(st, kid, device);
-  const k = countKey(entry.studentId);
-  if ((perDay.get(k) || 0) >= STORY_KEYS_PER_DAY || !(await Budget.readOpen())) fail(429, 'enough_for_today');
-  const Live = require('./web-quiz-soniox-live');
-  if (!Live.configured()) fail(503, 'live_unavailable');
-  const run = crypto.randomUUID();
-  const minted = await Live.mintTempKey(run);
-  if (!minted.ok) {
-    logError('web_quiz.lr_key_failed', { status: minted.status, reason: minted.reason });
-    fail(502, 'live_unavailable');
+/** Every story key since `sinceIso`, for the day's read budget (the caller checks the switches); 0 when unreadable (logged). */
+async function keysSince(sinceIso) {
+  try {
+    const { count, error } = await supabase.from(TABLE).select('id', { count: 'exact', head: true }).gte('created_at', sinceIso);
+    if (error) throw new Error(error.message || 'count failed');
+    return Number(count) || 0;
+  } catch (e) {
+    logError('web_quiz.lr_keys_count_failed', { error: String((e && e.message) || e).slice(0, 120) });
+    return 0;
   }
-  perDay.set(k, (perDay.get(k) || 0) + 1);
-  Budget.noteStarted();
-  const l = lang === 'ur' ? 'ur' : 'en';
-  logEvent('web_quiz.lr_key', { src: 'story_page', lang: l, run });
-  return { api_key: minted.api_key, expires_at: minted.expires_at, ws: Live.WS_URL, model: Live.MODEL, lang: l, run };
 }
 
-function _reset() { perDay.clear(); }
+function _reset() { cache.clear(); }
 
-module.exports = { FLAG_KEY, FINISH_PCT, QUIET_MS, TAIL_MS, UI_V, STORY_KEYS_PER_DAY, on, forRead, forMenu, metaFor, storyKey, _reset };
+module.exports = { FLAG_KEY, LIVE_FLAG_KEY, TABLE, FINISH_PCT, QUIET_MS, TAIL_MS, UI_V, on, liveOn, settingOn, forRead, forMenu, metaFor, keysSince, _reset };
