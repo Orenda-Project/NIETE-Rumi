@@ -348,6 +348,24 @@ class ReportGeneratorService {
         }
       }
 
+      // bd-v0toag.1.5: ONE next step, chosen once — the horizon, the card and the stored focus all read it.
+      const { selectNextStep, focusPatch } = require('./next-step');
+      const nextStep = selectNextStep(enhancedAnalysis, loop);
+      const stepId = nextStep.target && nextStep.target.indicator;
+      if (nextStep.fallback) {
+        logToFile('[next-step] fallback — no valid loop target or focus_area; the weakest scored row is the step', {
+          coachingSessionId, reason: nextStep.reason, scorer_indicator: nextStep.scorerIndicator, indicator: stepId || null,
+        });
+      }
+      const stepFocus = focusPatch(enhancedAnalysis, nextStep.target);
+      if (stepFocus) {
+        Object.assign(enhancedAnalysis, stepFocus);
+        await require('./next-step-store').persistNextStepFocus(coachingSessionId, stepFocus);
+      }
+      const logRuleCard = (card) => {
+        if (card && card._source === 'fallback') logToFile('[next-step] commitment card is the rule-based fallback', { coachingSessionId, indicator: stepId || null, card_indicator: card.indicator });
+      };
+
       let precomputedCommitment = null;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
@@ -366,8 +384,9 @@ class ReportGeneratorService {
           enhancedAnalysis,
           session.conversation_state,
           cardLanguage,
-          { teacherName: teacherFirstNameForCard, priorAction: priorActionForCard, ...(loop ? { loop } : {}) }
+          { teacherName: teacherFirstNameForCard, priorAction: priorActionForCard, target: nextStep.target, ...(loop ? { loop } : {}) }
         );
+        logRuleCard(precomputedCommitment);
       } catch (e) {
         logToFile('⚠️  Pre-compute commitment card failed (non-fatal; hero renders without tryNext)', {
           error: e.message,
@@ -380,7 +399,7 @@ class ReportGeneratorService {
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape.
-      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop);
+      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop, nextStep);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
       // bd-v0toag.1.3 — voice-note seconds (from the session row, never decoded here) + report text length.
       const ReportEvents = require('./report-events');
@@ -547,8 +566,9 @@ class ReportGeneratorService {
             enhancedAnalysis,
             session.conversation_state,
             cardLanguage,
-            { teacherName: teacherFirstName, priorAction, ...(loop ? { loop } : {}) }
+            { teacherName: teacherFirstName, priorAction, target: nextStep.target, ...(loop ? { loop } : {}) }
           );
+          logRuleCard(actionData);
         }
 
         if (actionData) {
@@ -890,7 +910,7 @@ class ReportGeneratorService {
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
-  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, loop = null) {
+  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, loop = null, nextStep = null) {
     logToFile('Generating PDF report', { coachingSessionId: session.id });
 
     // Resolve framework and dispatch to correct transformer
@@ -959,7 +979,8 @@ class ReportGeneratorService {
         // commitment card used, on the same analysis, so the narrative's
         // horizon and the green box name the same thing. With the loop on,
         // the sticky loop target wins (the card and the record use it too).
-        target: (loop && loop.state && loop.state.target) || resolveTarget(analysisForTransformer),
+        // bd-v0toag.1.5: the caller's selected step (the card got the same object) comes first.
+        target: (nextStep && nextStep.target) || (loop && loop.state && loop.state.target) || resolveTarget(analysisForTransformer),
         // Feedback-uptake loop state ({ prior, status, state }) — the hero's
         // uptake block reads it; null when the loop is off.
         loop,
