@@ -147,6 +147,15 @@ describe('a class quiz shared from the card: /q/<CODE>?k=<t>', () => {
     expect(child.body.toString()).toContain('/wq/wq.js?v=');
   });
 
+  test('with the fast first page on, the head a phone gets still names the card picture (one head, both paths)', async () => {
+    answer = (url) => jsonRes(200, { ...payload(), fast: true });
+    await req(srv, '/q/AB12CD'); // the page that teaches this edge the fast page is on
+    const r = await req(srv, `/q/AB12CD?k=${TOK}`);
+    expect(r.body.toString()).toContain('<link rel="preload" href="/wq/wq.js?v=');
+    expect(meta(r.body, 'image')).toBe(`https://portal.example/wq/card/${TOK}.png`);
+    expect(meta(r.body, 'image:type')).toBe('image/png');
+  });
+
   test('golden: no k (or a malformed one) renders the quiz page byte for byte as before', () => {
     const args = { payload: payload(), code: 'AB12CD', view: 'quiz', origin: 'https://portal.example', assetV: 'v1', url: 'https://portal.example/q/AB12CD' };
     const plain = renderQuizPage(args);
