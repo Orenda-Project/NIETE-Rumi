@@ -99,7 +99,7 @@ describe('read-along player: the timing parser', () => {
   });
   test.each([
     ['another version', { ...DATA, v: 2 }],
-    ['no audio', { ...DATA, audio: {} }],
+    ['an audio without a url', { ...DATA, audio: {} }],
     ['no words', { ...DATA, words: [] }],
     ['an index gap', { ...DATA, words: [DATA.words[0], { ...DATA.words[1], i: 2 }] }],
     ['an end before its start', { ...DATA, words: [{ i: 0, t: 'a', s_ms: 500, e_ms: 100 }] }],
@@ -331,6 +331,38 @@ describe('read-along player: the page', () => {
     at(200); expect(lit(el)).toEqual(['0']);
     at(4000); audio().fire('ended');
     expect(fin).toBe(1);
+  });
+
+  test('a page not voiced yet (audio null) still shows its words, with no button, in a silent state; methods do nothing', () => {
+    const { RA, document } = load();
+    const el = document.createElement('div');
+    const states = [];
+    const p = RA.mount(el, { ...DATA, audio: null }, { onState: (s) => states.push(s) });
+    expect(p.state).toBe('silent');
+    expect(states).toEqual(['silent']);
+    expect(byClass(el, 'wqra-w').map((x) => x.textContent)).toEqual(['Asad', 'played', 'cricket.', 'He', 'won.']);
+    expect(byClass(el, 'wqra-btn')).toHaveLength(0);
+    expect(() => { p.play(); p.seekToWord(2); p.playWord(1); p.destroy(); }).not.toThrow();
+  });
+
+  test('band: a second pill on the text-band crop moves on the same clock; hidden for a word outside the band', () => {
+    const { RA, document, at } = load({ imgWidth: 540 });   // picture 1080 px shown at 540; band 540 px wide shown at 540
+    const el = document.createElement('div');
+    const d = { ...DATA, image: { url: 'p.webp', w: 1080, h: 1600 },
+      words: DATA.words.map((w, k) => ({ ...w, box: k < 4 ? [100 + k * 100, 1200, 90, 40] : [100, 100, 90, 40] })) };
+    const p = RA.mount(el, d, { mode: 'overlay', band: { url: 'band.webp', x: 100, y: 1180, w: 540, h: 100 } });
+    const pills = byClass(el, 'wqra-pill');
+    expect(pills).toHaveLength(2);
+    const band = pills[1];
+    p.play();
+    at(700);   // word 1: box x 200 → band x (200 − 100) × (540 / 540) + 2 = 102; y (1200 − 1180) + 2 = 22; w 90 − 4; h 40 − 4
+    expect(band.style.transform).toBe('translate(102px,22px)');
+    expect(band.style.width).toBe('86px');
+    expect(band.style.opacity).toBe('1');
+    expect(pills[0].style.transform).toBe('translate(102px,602px)');   // the print's pill, same word
+    at(2900);  // word 4 lies outside the band
+    expect(band.style.opacity).toBe('0');
+    expect(pills[0].style.opacity).toBe('1');
   });
 
   test('a page whose words lack boxes falls back to text mode (per page)', () => {

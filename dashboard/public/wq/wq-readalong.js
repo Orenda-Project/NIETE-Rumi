@@ -23,7 +23,7 @@
     + 'transition:background-color .1s ease,color .1s ease;-webkit-tap-highlight-color:transparent}'
     + '.wqra-w.wqra-on{background:#BBF7D0;color:#14532D;box-shadow:0 0 0 2px #BBF7D0}'
     + '.wqra-pic{position:relative;line-height:0}'
-    + '.wqra-pic img{width:100%;height:auto;display:block;border-radius:12px}'
+    + '.wqra-pic img{width:100%;height:auto;display:block;border-radius:12px}.wqra-band{margin-top:8px}'
     + '.wqra-pill{position:absolute;left:0;top:0;border-radius:8px;background:rgba(187,247,208,.55);'
     + 'box-shadow:0 0 0 2px #15803D;opacity:0;pointer-events:none;transition:transform .1s ease,width .1s ease,height .1s ease,opacity .1s}'
     + '.wqra-hit{position:absolute;background:transparent;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent}'
@@ -49,7 +49,8 @@
   function parse(d) {
     if (!d || typeof d !== 'object') throw new Error('readalong: no data');
     if (d.v !== 1) throw new Error('readalong: version ' + d.v);
-    if (!d.audio || typeof d.audio.url !== 'string' || !d.audio.url) throw new Error('readalong: no audio');
+    // audio null = a page not voiced yet: its words show, nothing plays
+    if (d.audio != null && (typeof d.audio.url !== 'string' || !d.audio.url)) throw new Error('readalong: no audio');
     if (!Array.isArray(d.words) || !d.words.length) throw new Error('readalong: no words');
     var prev = -1;
     var words = d.words.map(function (w, k) {
@@ -63,7 +64,7 @@
     });
     var img = d.image && d.image.url && d.image.w > 0 && d.image.h > 0 ? { url: String(d.image.url), w: Number(d.image.w), h: Number(d.image.h) } : null;
     return { id: d.id == null ? null : String(d.id), lang: d.lang === 'ur' ? 'ur' : 'en', dir: d.dir === 'rtl' || (d.dir == null && d.lang === 'ur') ? 'rtl' : 'ltr',
-      audio: { url: d.audio.url, ms: Number(d.audio.ms) || 0 }, words: words, image: img };
+      audio: d.audio == null ? null : { url: d.audio.url, ms: Number(d.audio.ms) || 0 }, words: words, image: img };
   }
 
   /** The word lit at t ms (the lead already added): the last word whose start ≤ t; −1 before the first. */
@@ -131,6 +132,10 @@
     var spans = [];
     var pill = null;
     var img = null;
+    // band: the page's text-band crop {url, x, y, w, h} (its rectangle in picture px) gets the same pill, same clock
+    var band = useImage && opts.band && opts.band.url && opts.band.w > 0 && opts.band.h > 0 ? opts.band : null;
+    var bandImg = null;
+    var bandPill = null;
 
     function mk(tag, cls, attrs, text) {
       var n = document.createElement(tag);
@@ -148,6 +153,14 @@
       pic.appendChild(pill);
       words.forEach(function (w) { var b = mk('button', 'wqra-hit', { type: 'button', 'data-i': String(w.i), 'aria-label': w.t }); spans.push(b); pic.appendChild(b); });
       root.appendChild(pic);
+      if (band) {
+        var bp = mk('div', 'wqra-pic wqra-band', {});
+        bandImg = mk('img', '', { src: band.url, alt: '', width: String(band.w), height: String(band.h) });
+        bandPill = mk('span', 'wqra-pill', {});
+        bp.appendChild(bandImg);
+        bp.appendChild(bandPill);
+        root.appendChild(bp);
+      }
     } else {
       var tx = mk('div', 'wqra-text', { dir: d.dir, lang: d.lang });
       words.forEach(function (w, k) {
@@ -158,16 +171,28 @@
       });
       root.appendChild(tx);
     }
-    var ctl = mk('div', 'wqra-ctl', {});
-    var btn = mk('button', 'wqra-btn', { type: 'button', 'aria-label': labels.play || LABEL.play }, ICON.play);
-    ctl.appendChild(btn);
-    root.appendChild(ctl);
+    var btn = null;
+    if (d.audio) {
+      var ctl = mk('div', 'wqra-ctl', {});
+      btn = mk('button', 'wqra-btn', { type: 'button', 'aria-label': labels.play || LABEL.play }, ICON.play);
+      ctl.appendChild(btn);
+      root.appendChild(ctl);
+    }
     el.innerHTML = '';
     el.appendChild(root);
     if (useImage) {
       placeHits();
       img.addEventListener('load', placeHits);
+      if (bandImg) bandImg.addEventListener('load', placeHits);
       window.addEventListener('resize', placeHits);
+    }
+    if (!d.audio) {
+      api.state = 'silent';
+      if (opts.onState) opts.onState('silent');
+      METHODS.forEach(function (k) { api[k] = function () {}; });
+      api.destroy = function () { window.removeEventListener('resize', placeHits); el.innerHTML = ''; };
+      api.mode = useImage ? 'image' : 'text';
+      return api;
     }
 
     var audio = new Audio();
@@ -209,6 +234,17 @@
           pill.style.width = r.w + 'px'; pill.style.height = r.h + 'px';
           pill.style.transform = 'translate(' + r.x + 'px,' + r.y + 'px)';
           pill.style.opacity = '1';
+        }
+        if (bandPill) {
+          var bw = bandImg.clientWidth || (bandImg.getBoundingClientRect && bandImg.getBoundingClientRect().width);
+          var b = i >= 0 ? words[i].box : null;
+          var inside = b && b[0] >= band.x && b[1] >= band.y && b[0] + b[2] <= band.x + band.w && b[1] + b[3] <= band.y + band.h;
+          if (!inside || !(bw > 0)) { bandPill.style.opacity = '0'; } else {
+            var rb = boxStyle([b[0] - band.x, b[1] - band.y, b[2], b[3]], bw / band.w, 0);
+            bandPill.style.width = rb.w + 'px'; bandPill.style.height = rb.h + 'px';
+            bandPill.style.transform = 'translate(' + rb.x + 'px,' + rb.y + 'px)';
+            bandPill.style.opacity = '1';
+          }
         }
       } else {
         if (was >= 0 && spans[was]) spans[was].className = 'wqra-w';

@@ -3,8 +3,9 @@
  * Read-along build: a passage's text → Jugnu's voice at a child's pace + the time of every word.
  *
  *   node scripts/web-quiz/readalong-build.js --out <dir> [--ids en.read.1.story01,ur.read.2.story01 | --all]
- *        [--provider soniox|elevenlabs] [--wpm <n>] [--tempo-floor 0.85] [--spend-log <file.jsonl> --spend-lane <label>] [--force]
+ *        [--provider soniox|elevenlabs] [--wpm <n>] [--tempo-floor 0.85] [--word-max-ms 120] [--spend-log <file.jsonl> --spend-lane <label>] [--force]
  *   node scripts/web-quiz/readalong-build.js --out <dir> --text-file page.txt --id <book>/p3 --lang ur --band 1
+ *        (the page's printed line breaks as newlines in the file: each becomes a pause)
  *
  * For each passage (the item bank's files, bot/shared/data/child-test/passages):
  *   1. speech in the quiz voice (Soniox Grace / Ishita at speed 0.7 with a [pause] after each sentence; or ElevenLabs)
@@ -71,9 +72,11 @@ async function http(url, init, what) {
   }
 }
 
-/** A Soniox [pause] after every sentence end (the tag is spoken as silence, never read out). */
+/** A Soniox [pause] after every sentence end and every printed line break (the tag is spoken as silence, never read). */
 function withPauses(text) {
-  return String(text).trim().split(/\s+/).map((w) => (Tm.SENTENCE_END.test(w) ? `${w} [pause]` : w)).join(' ').replace(/ \[pause\]$/, '');
+  const lines = String(text).trim().split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  return lines.map((line) => line.split(/\s+/).map((w) => (Tm.SENTENCE_END.test(w) ? `${w} [pause]` : w)).join(' ').replace(/ \[pause\]$/, ''))
+    .join(' [pause] ');
 }
 
 async function speak({ provider, lang, text, file, log }) {
@@ -126,8 +129,13 @@ async function recognise({ file, lang, log }) {
 }
 
 /** Silence at the cuts, then the tempo, in one ffmpeg graph per segment; returns nothing (writes `dst`). */
-function pace({ src, dst, cuts, tempo, tmp }) {
+function pace({ src, dst, cuts, tempo, tmp, leadInMs = 0 }) {
   const parts = [];
+  if (leadInMs > 0) {
+    const z = path.join(tmp, 'lead.wav');
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=mono', '-t', ((leadInMs * tempo) / 1000).toFixed(3), z]);
+    parts.push(z);
+  }
   const points = [0, ...cuts.map((c) => c.at_ms)];
   points.forEach((start, k) => {
     const seg = path.join(tmp, `s${k}.wav`);
@@ -148,7 +156,7 @@ function pace({ src, dst, cuts, tempo, tmp }) {
   execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', joined, '-filter:a', `atempo=${tempo.toFixed(4)}`, '-c:a', 'libopus', '-b:a', '32k', '-ar', '48000', '-ac', '1', dst]);
 }
 
-async function build({ id, lang, band, text, out, provider, wpm, log, force, tempoFloor }) {
+async function build({ id, lang, band, text, out, provider, wpm, log, force, tempoFloor, wordMax }) {
   const dir = path.join(out, lang, id.replace(/[^A-Za-z0-9._-]+/g, '-'));
   if (!force && fs.existsSync(path.join(dir, 'report.json')) && JSON.parse(fs.readFileSync(path.join(dir, 'report.json'))).ok) return JSON.parse(fs.readFileSync(path.join(dir, 'report.json')));
   fs.mkdirSync(dir, { recursive: true });
@@ -163,10 +171,14 @@ async function build({ id, lang, band, text, out, provider, wpm, log, force, tem
     // more stretch is audible) and, only if still short, small even gaps between words
     const floor = Number(tempoFloor) || (lang === 'ur' ? 0.9 : 0.85);
     const sentenceMs = provider === 'elevenlabs' ? 700 : 0;
-    const { cuts, tempo } = Tm.planPace(printed, rawTimed, target, { floor, sentenceMs, clauseMs: 250, wordMaxMs: 120 });
+    // a short page with no line break to pause at (≤ 12 words) may take gaps up to 180 ms between words, and starts
+    // after 400 ms of quiet; everything else keeps gaps ≤ 120 ms
+    const short = printed.length <= 12 && !/\n/.test(text.trim());
+    const wordMaxMs = Number(wordMax) || (short ? 180 : 120);
+    const { cuts, tempo } = Tm.planPace(printed, rawTimed, target, { floor, sentenceMs, clauseMs: 250, wordMaxMs });
     const added = cuts.reduce((n, c) => n + c.add_ms, 0);
     const paced = path.join(tmp, 'paced.ogg');
-    pace({ src: raw, dst: paced, cuts, tempo, tmp });
+    pace({ src: raw, dst: paced, cuts, tempo, tmp, leadInMs: short ? 400 : 0 });
     const audioMs = durationMs(paced);
     const pairs = Tm.match(printed, await recognise({ file: paced, lang, log }));
     const words = Tm.finalize(printed, pairs, audioMs);
@@ -201,7 +213,7 @@ async function main() {
   const reports = [];
   for (const it of items) {
     try {
-      const opts = { ...it, out: a.out, provider: a.provider, wpm: a.wpm, log: a['spend-log'], force: a.force, tempoFloor: a['tempo-floor'] };
+      const opts = { ...it, out: a.out, provider: a.provider, wpm: a.wpm, log: a['spend-log'], force: a.force, tempoFloor: a['tempo-floor'], wordMax: a['word-max-ms'] };
       let r = await build(opts);
       if (!r.ok) r = await build({ ...opts, force: true });   // one more voice: recognition misses vary take to take
       reports.push(r);
