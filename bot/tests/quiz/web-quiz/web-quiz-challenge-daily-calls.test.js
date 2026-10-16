@@ -17,7 +17,7 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => ({ isAva
 // global.__absent names the module a fresh registry must not find (the module not deployed)
 jest.mock('../../../shared/services/quiz/web-quiz-challenge-calibration', () => {
   if (global.__absent === 'web-quiz-challenge-calibration') throw new Error("Cannot find module './web-quiz-challenge-calibration'");
-  return { runMonthly: jest.fn(async () => ({ ran: false, reason: 'off' })) };
+  return { runMonthly: jest.fn(async () => ({ ran: false, reason: 'off' })), enabled: jest.fn(async () => true) };
 });
 jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => { throw new Error("Cannot find module './web-quiz-bind-expiry'"); });
 // The rung job (web-quiz-rungs.js). global.__rungs picks what a fresh registry finds: unset → no module;
@@ -58,7 +58,7 @@ const install = (settings, extra = {}) => {
   Object.assign(supabase, fake);
 };
 
-afterEach(() => { jest.clearAllMocks(); });
+afterEach(() => { jest.clearAllMocks(); S.__reset(); });   // S.__reset: this process forgets its day claim
 
 describe('the class sample windows: scheduled here, decided by their own module', () => {
   const PURGE = () => [ON('web_quiz_challenge'), ON('web_quiz_challenge_audio_purge')];
@@ -136,7 +136,7 @@ describe('the monthly calibration call', () => {
     expect(cal().runMonthly.mock.calls[0][0]).toEqual({ period_id: '2026-10', now: new Date(first) });
   });
 
-  test('every switch of ours off: still called on the 1st (the call is ours, the switch is the calibration job\'s own)', async () => {
+  test('every switch of ours off, the calibration\'s own on: called on the 1st (the call is ours, the switch is the calibration job\'s own)', async () => {
     install([]);
     const out = await S.dailyJob({ now: Date.parse('2026-11-01T06:00:00Z') });
     expect(cal().runMonthly).toHaveBeenCalledTimes(1);
@@ -144,6 +144,14 @@ describe('the monthly calibration call', () => {
     install([]);
     await expect(S.dailyJob({ now: NOW })).resolves.toEqual({ ran: false, reason: 'off' });   // any other day: nothing
     expect(cal().runMonthly).toHaveBeenCalledTimes(1);
+  });
+
+  test('the calibration\'s own switches off (enabled() false), every switch of ours off, the 1st: not called, no day claimed', async () => {
+    cal().enabled.mockImplementationOnce(async () => false);
+    install([]);
+    await expect(S.dailyJob({ now: Date.parse('2026-11-01T06:00:00Z') })).resolves.toEqual({ ran: false, reason: 'off' });
+    expect(cal().runMonthly).not.toHaveBeenCalled();
+    expect(fake.calls.filter((c) => c.op !== 'select')).toEqual([]);
   });
 
   test('January 1st calls December of the year before', async () => {

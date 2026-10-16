@@ -23,14 +23,15 @@
  * The daily job runs once per PKT day across every replica. The binding expiry (web-quiz-bind-expiry.js
  * expireBindings, when present) runs UNCONDITIONALLY: retention is a promise that outlives every switch, so it runs
  * on a tier where web_quiz_phone_bind was on and is later off, and with every switch off (the job then claims the
- * day and runs the expiry only). With every switch off and the expiry module absent, nothing happens at all.
+ * day in Redis and runs the expiry only; no row is written). With every switch off and the expiry module absent,
+ * nothing happens at all.
  * The other parts each have their own switch:
  *   - the purge (web_quiz_challenge_audio_purge, off);
  *   - the daily reply-cap snapshot and, on Mondays, the weekly numbers (web_quiz_challenge_sweeper);
  *   - the class sample windows (web-quiz-sample-window.js daily({ now }), when present; it ships with the class
  *     round and carries its own switches): the job only schedules it, like the calibration;
  *   - on the first PKT day of a month, web-quiz-challenge-calibration.js runMonthly({ period_id: the month just
- *     ended, now }), when present: the job only schedules it; the calibration carries its own switches;
+ *     ended, now }), when present and its own switches are on (its enabled());
  *   - every day, the rung job's settleDeferred({ now }) (web-quiz-rungs.js, when present), only with the rung switch
  *     on (web_quiz_challenge_rungs under web_quiz_challenge_v2); absent or without that export, nothing and no log.
  *     When it ran, its count is kept as the day's `lamps_settled_day` row (web-quiz-strip.js settledSnapshot).
@@ -39,12 +40,16 @@
  * result while the sweeper looks at the row wins, and the sweeper leaves the row alone. A row is never touched unless
  * it is still 'scoring'. Each tick is bounded (MAX_PER_TICK per kind); the rest wait for the next tick.
  *
- * The once-a-day claim is a row in web_quiz_strip_weekly (line 'daily_job', cell = the PKT day, the table's primary
- * key makes a second claim fail), so it holds across processes and restarts. Never throws.
+ * The once-a-day claim is a Redis key, `wq:daily_job:<PKT day>` (SET NX, 48-hour TTL), so it holds across processes
+ * and restarts and writes nothing to a table: with every switch off the job writes no row anywhere. Redis down (or a
+ * failed SET) → a process-local claim takes over, as the reply cap's counter does: the job then runs at most once per
+ * process per day (the expiry is idempotent), logged once. The purge's daily count, when the purge runs, is the one
+ * strip row the job writes itself (line 'daily_job', cell = the PKT day). Never throws.
  */
 const supabase = require('../../config/supabase');
 const { logToFile, logError } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const redisService = require('../cache/railway-redis.service');
 
 const PARENT_KEY = 'web_quiz_challenge';
 const SWEEPER_KEY = 'web_quiz_challenge_sweeper';
@@ -165,21 +170,39 @@ async function sweepStuck({ now = Date.now(), max = MAX_PER_TICK, flags = null }
     .order('created_at', { ascending: true }).limit(max);
   if (sErr) logError('web_quiz.ch_sweep_read_failed', { code: sErr.code || null, error: String(sErr.message || sErr).slice(0, 120) });
   for (const row of served || []) {
-    const { data, error: uErr } = await supabase.from(TABLE).update({ status: 'abandoned' }).eq('id', row.id).eq('status', 'served').select('id');
+    // record=false: an abandoned row is never the month's record, so the record index never holds the stop for it.
+    const { data, error: uErr } = await supabase.from(TABLE).update({ status: 'abandoned', record: false }).eq('id', row.id).eq('status', 'served').select('id');
     if (!uErr && data && data.length) out.abandoned += 1;
   }
   if (out.swept || out.abandoned) logToFile('🧹 Challenge stuck runs swept', out);
   return out;
 }
 
-/** Claim today (PKT) for the daily job, once across every process: true when this call won the claim. */
+const CLAIM_TTL_S = 48 * 60 * 60;
+// The days this process has claimed (or run under the local fallback): checked first, so it never runs a day twice.
+const localClaims = new Map();
+let claimLocalLogged = false;
+
+/** Claim today (PKT) for the daily job, once across every process (Redis), else once in this process. */
 async function claimDay(now) {
   const day = pktDay(now);
   const week = require('./web-quiz-strip').isoWeekOf(now);
-  const { error } = await supabase.from(STRIP_TABLE).insert({ week, line: 'daily_job', cell: day, value: null, n: null });
-  if (!error) return { ok: true, week, day };
-  if (error.code !== '23505') logError('web_quiz.ch_daily_claim_failed', { code: error.code || null, error: String(error.message || error).slice(0, 120) });
-  return { ok: false, week, day, reason: error.code === '23505' ? 'already_ran_today' : 'claim_failed' };
+  for (const [d, at] of localClaims) if (now - at > 2 * DAY_MS) localClaims.delete(d);
+  if (localClaims.has(day)) return { ok: false, week, day, reason: 'already_ran_today' };
+  let up = false;
+  try { up = !!redisService.isAvailable() && typeof redisService.setNX === 'function'; } catch (_) { up = false; }
+  if (up) {
+    // setNX answers true when the SET itself failed (it fails open), and so does a throw here; the local map still
+    // holds this process to once.
+    let won = true;
+    try { won = await redisService.setNX(`wq:daily_job:${day}`, String(now), CLAIM_TTL_S); } catch (_) { won = true; }
+    if (!won) { localClaims.set(day, now); return { ok: false, week, day, reason: 'already_ran_today' }; }
+  } else if (!claimLocalLogged) {
+    claimLocalLogged = true;
+    logToFile('⚠️ Challenge daily job: Redis unavailable, the day claim is process-local', { day });
+  }
+  localClaims.set(day, now);
+  return { ok: true, week, day };
 }
 
 /** Delete the kept readings past their keep date; returns { n, oldest_age_d }. */
@@ -227,18 +250,19 @@ function monthJustEnded(now) {
 
 /**
  * The daily job, once per PKT day. The binding expiry runs whatever the switches say (when its module is present);
- * every other part only under its own switch (the module header). Every switch off and no expiry module ⇒ nothing.
+ * every other part only under its own switch (the module header). Every switch off ⇒ no table row is written; and
+ * with the expiry module absent too, nothing at all (no claim).
  */
 async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } = {}) {
   const f = flags || await switches();
   const Bind = optional('./web-quiz-bind-expiry');
   const hasExpiry = !!Bind && typeof Bind.expireBindings === 'function';
   const anyOn = !!(f.purge || f.sweeper);
-  // The first PKT day of a month: the calibration of the month just ended is scheduled whatever our switches say
-  // (the call is ours; the calibration job's own switches decide whether it runs).
+  // The first PKT day of a month: the calibration of the month just ended, only when the calibration's own switches
+  // are on (its enabled()); off ⇒ not scheduled, no day claimed for it.
   const period = monthJustEnded(now);
   const Cal = period ? optional('./web-quiz-challenge-calibration') : null;
-  const hasCal = !!Cal && typeof Cal.runMonthly === 'function';
+  const hasCal = !!Cal && typeof Cal.runMonthly === 'function' && typeof Cal.enabled === 'function' && await Cal.enabled();
   // The rung job's deferred settle (web-quiz-rungs.js settleDeferred, when present): once per daily run, and only with
   // the rung switch on (off ⇒ no day claimed for it, nothing written). Absent ⇒ nothing, no log.
   const Rungs = f.rungs ? optional('./web-quiz-rungs') : null;
@@ -290,7 +314,8 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
     const p = await purgeKept(now, max);
     out.purged = p.n;
     logEvent('web_quiz.ch_audio_purged', { n: p.n, oldest_age_d: p.oldest_age_d, reason: 'age', w: 's' });
-    await supabase.from(STRIP_TABLE).update({ value: p.n, n: p.n }).eq('week', claim.week).eq('line', 'daily_job').eq('cell', claim.day);
+    const { error: pErr } = await supabase.from(STRIP_TABLE).insert({ week: claim.week, line: 'daily_job', cell: claim.day, value: p.n, n: p.n });
+    if (pErr && pErr.code !== '23505') logError('web_quiz.strip_write_failed', { line: 'daily_job', code: pErr.code || null });
   }
 
   // Every day (sweeper switch): yesterday's (PKT) reply-cap counts, before the 24-h Redis counters expire.
@@ -329,5 +354,5 @@ async function tick({ now = Date.now() } = {}) {
 module.exports = {
   tick, sweepStuck, dailyJob, switches, failReasonOf, pktDay,
   FAIL_REASONS, SWEEPER_KEY, PURGE_KEY, STUCK_MS, SERVED_MS, MAX_PER_TICK,
-  __reset: () => {},
+  __reset: () => { localClaims.clear(); claimLocalLogged = false; },
 };

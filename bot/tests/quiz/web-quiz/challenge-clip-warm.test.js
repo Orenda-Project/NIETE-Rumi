@@ -242,7 +242,8 @@ describe('the queue service\'s sweep tick (the hook)', () => {
     const hkCalls = supabase.calls.splice(0);
     const hkEvents = logEvent.mock.calls.splice(0);
     const hkLogs = logToFile.mock.calls.splice(0);
-    db.web_quiz_strip_weekly = JSON.parse(strip) || undefined;   // its once-a-day claim, undone for the scheduled run
+    db.web_quiz_strip_weekly = JSON.parse(strip) || undefined;
+    require('../../../shared/services/quiz/web-quiz-challenge-sweeper').__reset();   // its once-a-day claim, undone for the scheduled run
     Ch.__reset();
     jest.clearAllMocks();
     const s = scheduled();
