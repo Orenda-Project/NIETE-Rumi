@@ -1927,7 +1927,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall });
+      const note = takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held });
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
         : b);

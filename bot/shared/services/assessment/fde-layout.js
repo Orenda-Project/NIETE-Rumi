@@ -1068,7 +1068,8 @@ function sameQuestion(a, b) {
  *
  * What the engine's one re-ask of `section` is told, from the first layout (`examJson`): the
  * facts the slot its items are held against already tests. Social Studies C/D: Section A's
- * questions and answers. English A: Q4's words. Urdu A: Q4's questions and answers, Q3/Q5's
+ * questions and answers (and D: the Q5 items, and its own items `opts.held` names, from
+ * applyLayout's `held`). English A: Q4's words. Urdu A: Q4's questions and answers, Q3/Q5's
  * words and Q6's verse. Null for any
  * other section or subject, so no
  * other prompt changes.
@@ -1128,11 +1129,29 @@ function takenNote(P, section, examJson, opts = {}) {
   if (section.slots.some((s) => s.slot.startsWith('social_studies.D.'))) {
     const note = q5Note(itemsOf(examJson, Q5_SLOT));
     if (note) notes.push(note);
+    // And the items of its own the layout set aside, with what they answer: a re-ask told only what
+    // was kept writes the same restatement again.
+    const aside = heldNote(section, opts.held);
+    if (aside) notes.push(aside);
   }
   // A top-up keeps the first reply's items: name what each short held slot keeps, and ask for spares,
   // since the refill is held against Section A as well.
   if (opts.topUp) notes.push(...keptNotes(P, section, examJson, cross, opts.shortfall));
   return notes.length ? notes.join('\n\n') : null;
+}
+// Social Studies: the held items of a section's slots (`held` from applyLayout), never these.
+function heldNote(section, held) {
+  const own = new Set(section.slots.map((s) => s.slot));
+  const lines = (Array.isArray(held) ? held : []).filter((h) => h && own.has(h.slot) && h.q && typeof h.q.question === 'string' && h.q.question.trim())
+    .map(({ q }) => {
+      const points = (q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
+        .map((p) => (typeof p === 'string' ? p : p && p.text)).filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim());
+      const key = keyText(q).trim();
+      return `- ${q.question.trim()}${key ? ` → ${key}` : ''}${points.length ? `\n  points: ${points.join('; ')}` : ''}`;
+    });
+  if (!lines.length) return null;
+  return `These items were set aside, because a child answering this paper's other items would already have answered them:\n${lines.join('\n')}\n`
+    + 'Never these: write none of them again, and no item answered by any of these answers or points, in any wording.';
 }
 // Social Studies: Section D is told every Q5 item with its marking points. A Q6 written beside C
 // from the same pages set C's own cases again (a purse found on the road in Q5, a wallet in Q6),

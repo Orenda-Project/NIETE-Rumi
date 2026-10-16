@@ -65,6 +65,27 @@ const withItems = (json, slot, list) => {
   return JSON.stringify(tree);
 };
 
+// The engine on chapters_1's recorded sections, D answering with `dReplies` in turn.
+async function run(dReplies, CH1 = paper('chapters_1')) {
+  const replies = { A: [replyOf(CH1, 'A')], B: [replyOf(CH1, 'B')], C: [replyOf(CH1, 'C')], D: [...dReplies] };
+  const asked = [];
+  mockCreate.mockReset();
+  mockLog.mockReset();
+  mockCreate.mockImplementation(async (req) => {
+    const text = req.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
+    const sec = sectionOf(text);
+    asked.push({ sec, text });
+    const content = replies[sec].length > 1 ? replies[sec].shift() : replies[sec][0];
+    return { choices: [{ message: { content }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
+  });
+  const out = await Gen.generatePatternExam({
+    grade: 5, subject: 'social_studies', pattern: 'fde_g5_2027',
+    scope: scopeOf(CH1), pageRanges: '1-20', requestId: 'req-r15',
+  }).catch((e) => ({ error: e }));
+  return { asked, out };
+}
+const dAsks = (asked) => asked.filter((a) => a.sec === 'D');
+
 describe('1. the point-set hold is a list: Q6 ← Q5, Q7 ← Q5 / Q6, Q6 ← Q6', () => {
   const CH1 = paper('chapters_1');
   const CH2 = paper('chapters_2');
@@ -141,6 +162,41 @@ describe('2. D\'s first prompt names C\'s Q5 topics and asks for other topics', 
 
   test('no other subject is told anything', () => {
     for (const key of ['science', 'english', 'maths', 'urdu']) expect(firstAskNote(ALL[key], tree)).toBeNull();
+  });
+});
+
+describe('3. D\'s re-ask is told the held items\' points as never these', () => {
+  const CH1 = paper('chapters_1');
+
+  test('the held Q7 and its points are listed under never these', () => {
+    const laid = lay(CH1, { reasked: false });
+    const note = takenNote(SST, section('D'), laid.examJson, { topUp: true, shortfall: laid.shortfall, held: laid.held });
+    expect(note).toContain('set aside');
+    expect(note).toContain(items(CH1, D7)[7].question.trim());
+  });
+
+  test('the engine\'s D re-ask carries them (D short on its first reply)', async () => {
+    const d = replyOf(CH1, 'D');
+    const { asked } = await run([d, d]);
+    const ds = dAsks(asked);
+    expect(ds.length).toBeGreaterThanOrEqual(2);
+    expect(ds[0].text).not.toContain('These items were set aside');
+    expect(ds[1].text).toContain('These items were set aside');
+    expect(ds[1].text).toContain(items(CH1, D7)[7].question.trim());
+  });
+
+  test('without held items, and for C and every other subject, the note is unchanged', () => {
+    const laid = lay(CH1, { reasked: false });
+    const base = takenNote(SST, section('C'), laid.examJson, { topUp: true, shortfall: laid.shortfall });
+    expect(takenNote(SST, section('C'), laid.examJson, { topUp: true, shortfall: laid.shortfall, held: laid.held })).toBe(base);
+    const plainD = takenNote(SST, section('D'), laid.examJson, { topUp: true, shortfall: laid.shortfall });
+    expect(takenNote(SST, section('D'), laid.examJson, { topUp: true, shortfall: laid.shortfall, held: [] })).toBe(plainD);
+    for (const key of ['english', 'urdu']) {
+      const P = ALL[key];
+      for (const s of P.sections) {
+        expect(takenNote(P, s, laid.examJson, { held: laid.held })).toBe(takenNote(P, s, laid.examJson));
+      }
+    }
   });
 });
 
