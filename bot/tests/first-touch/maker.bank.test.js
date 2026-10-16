@@ -21,10 +21,11 @@ beforeEach(() => { jest.clearAllMocks(); fake = seedMaker(supabase); Bank._reset
 describe('chipTree()', () => {
   test('exactly the live, ready video quizzes of grades 1–5 in a mapped subject', async () => {
     const tree = await Bank.chipTree();
+    // qlang: quizzes.language when set, else the (English) question texts' language — the fixture has no Urdu option
     expect(tree).toEqual({
-      1: { islamic_studies: [{ quizId: qid(4), topic: 'Kalima', qlang: null }] },
+      1: { islamic_studies: [{ quizId: qid(4), topic: 'Kalima', qlang: 'en' }] },
       3: { general_knowledge: [{ quizId: qid(5), topic: 'Our Body', qlang: 'en' }] },
-      4: { maths: [{ quizId: qid(2), topic: 'Fractions', qlang: null }] },
+      4: { maths: [{ quizId: qid(2), topic: 'Fractions', qlang: 'en' }] },
       5: { science: [{ quizId: qid(11), topic: 'Magnets', qlang: 'ur' }] },
     });
   });

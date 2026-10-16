@@ -7,7 +7,10 @@
  *   makerCta({ uid, lang, who, via, phone })     the call the first-touch door makes. The send ledger FIRST
  *                                                (trigger maker_reply, recipient teacher); the send only when it
  *                                                said yes. → { sent:false, capped:true } when refused (nothing sent),
- *                                                else { sent: <the cta_url went out> }.
+ *                                                else { sent: <the cta_url went out> }. The token's `pf` (the
+ *                                                pre-fill, "grade_4|maths") is computed when it mints, by
+ *                                                maker.prefill.js prefillFor with hasCell from the bank's chip tree
+ *                                                (a read error → no pre-fill), unless the caller passes one.
  *
  * Today the ledger's frozen trigger list has no maker_reply, so record() refuses and nothing is sent; this module then
  * logs web_quiz.reply_capped itself (the ledger logs it only for a trigger it knows). The empty-line bodies and the
@@ -20,6 +23,7 @@ const Ledger = require('../quiz/message-ledger');
 const MakerToken = require('./maker.token');
 const { clampLanguage } = require('../../config/ux-strings');
 const { str } = require('./maker.strings');
+const Prefill = require('./maker.prefill');
 
 const TRIGGER = 'maker_reply';
 
@@ -45,6 +49,20 @@ function copyFor(lang) {
   return { body: str('maker.body', lang), buttonText: str('maker.btn', lang) };
 }
 
+/** The pre-fill for a teacher: "grade_<n>|<subject>" when its cell has a bank quiz, else undefined. Never throws. */
+async function prefillOf(uid) {
+  try {
+    const Bank = require('./maker.bank');
+    const hasCell = async (grade, subject) => {
+      const cell = ((await Bank.chipTree())[String(grade).replace(/^grade_/, '')] || {})[subject];
+      return Boolean(cell && cell.length);
+    };
+    return (await Prefill.prefillFor(uid, { hasCell })) || undefined;
+  } catch (_) {
+    return undefined;
+  }
+}
+
 async function makerCta({ uid, lang, who = 'unknown', via = 'door', phone, tour = 0, pf } = {}) {
   const allowed = await Ledger.record({ trigger: TRIGGER, phone, reason: via, initiated: 'user', recipient: 'teacher' });
   if (!allowed) {
@@ -52,7 +70,8 @@ async function makerCta({ uid, lang, who = 'unknown', via = 'door', phone, tour 
     return { sent: false, capped: true };
   }
   const l = lang === 'bi' ? 'bi' : clampLanguage(lang);
-  const url = makerUrl({ uid, lang: l, tour: tour === 1 ? 1 : 0, pf, via, uk: ukeyFor(phone) });
+  const cell = pf === undefined ? await prefillOf(uid) : pf;
+  const url = makerUrl({ uid, lang: l, tour: tour === 1 ? 1 : 0, pf: cell || undefined, via, uk: ukeyFor(phone) });
   if (!url) {
     logToFile('⚠️ maker cta: no page URL (base URL or signing secret missing) — nothing sent', { via, who });
     return { sent: false };
@@ -61,4 +80,4 @@ async function makerCta({ uid, lang, who = 'unknown', via = 'door', phone, tour 
   return { sent: Boolean(sent) };
 }
 
-module.exports = { makerCta, makerUrl, TRIGGER };
+module.exports = { makerCta, makerUrl, prefillOf, TRIGGER };

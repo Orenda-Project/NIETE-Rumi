@@ -63,7 +63,8 @@ test('one quiz_share_codes row for the token\'s teacher; quizzes rows byte-ident
   expect(fake.db.quiz_share_codes).toHaveLength(1);
   const row = fake.db.quiz_share_codes[0];
   expect(row).toMatchObject({ quiz_id: qid(2), teacher_user_id: TEACHER.id, video_id: vid(2), teacher_name: TEACHER.name, topic: 'Fractions', language: 'en' });
-  expect(out).toEqual({ shareCodeId: row.id, message: expect.any(String), qlang: null, preview: 'First question of Fractions' });
+  // the fixture's questions are English with no Urdu first option → the derived question language is 'en'
+  expect(out).toEqual({ shareCodeId: row.id, message: expect.any(String), qlang: 'en', preview: 'First question of Fractions', total: 2 });
   expect(JSON.stringify(fake.db.quizzes)).toBe(before);
   const writes = fake.calls.filter((c) => c.op !== 'select').map((c) => `${c.op}:${c.table}`);
   expect(writes).toEqual(['insert:quiz_share_codes']);
@@ -71,7 +72,9 @@ test('one quiz_share_codes row for the token\'s teacher; quizzes rows byte-ident
   expect(HandoutClass.askAfterHandout).not.toHaveBeenCalled();
 });
 
-test('the message: today\'s exact vqClassMessage, no cta_url, no test word, ≤ 1,024 code points; NULL language → no line', async () => {
+test('the message: today\'s exact vqClassMessage, no cta_url, no test word, ≤ 1,024 code points; unknown question language → no line', async () => {
+  // NULL language and texts the read-aloud voice would read as Urdu (an Urdu first option) → no derived language
+  fake.db.quiz_questions.find((q) => q.quiz_id === qid(2) && q.sort_order === 1).option_a = 'تین';
   const { message } = await (await make({ t: tokenFor(), ...MATHS })).json();
   const code = fake.db.quiz_share_codes[0].code;
   const today = resolveUx('vqClassMessage', { language: 'en', params: { teacher: TEACHER.name, topic: 'Fractions', link: `https://wa.me/${BOT_NO}?text=QUIZ-${code}` } });
@@ -118,7 +121,7 @@ test('today\'s video_quiz.share_code_minted once (fresh mint only), and onboard.
   expect(minted).toEqual([['video_quiz.share_code_minted', { userId: TEACHER.id, quizId: qid(2), code, classBound: false }]]);
   const made = logEvent.mock.calls.filter(([e, f]) => e === 'onboard.maker' && f.step === 'made').map(([, f]) => f);
   expect(made).toHaveLength(2);
-  expect(made[0]).toEqual({ step: 'made', grade: 'grade_4', subject: 'maths', qlang: null, lang: 'en', via: 'menu', quiz_id: qid(2), ukey: UK, w: 's' });
+  expect(made[0]).toEqual({ step: 'made', grade: 'grade_4', subject: 'maths', qlang: 'en', lang: 'en', via: 'menu', quiz_id: qid(2), ukey: UK, w: 's' });
   const flat = JSON.stringify(made);
   expect(flat).not.toContain(code);
   expect(flat).not.toContain(PHONE);

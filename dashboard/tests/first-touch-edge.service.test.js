@@ -85,6 +85,15 @@ test('POST /api/ft/make → JSON body forwarded with known fields only; the bot\
   expect(JSON.parse(res.body)).toEqual({ shareCodeId: 'x', message: 'm', qlang: null, preview: 'p' });
 });
 
+test('POST /api/ft/step → a field outside its shape and a field not on the list are both dropped before the bot', async () => {
+  await boot(() => botRes(204, { body: '' }));
+  const res = await request('POST', '/api/ft/step', { body: {
+    t: TOK, step: 'share_copy', grade: '9', subject: 'Maths<script>', quizId: 'not-a-uuid', phone: '+92300FIXTURE1', uid: 'x',
+  } });
+  expect(res.status).toBe(204);
+  expect(JSON.parse(calls[0].init.body)).toEqual({ t: TOK, step: 'share_copy' });
+});
+
 test('a bot redirect: wa.me and same-site paths pass through, anything else does not', async () => {
   await boot(() => botRes(302, { location: 'https://wa.me/?text=hi' }));
   let res = await request('GET', `/m/${TOK}/send?c=a0000000-0000-4000-8000-000000000001`);

@@ -21,6 +21,26 @@ const STRINGS = Object.freeze({
   'mk.stale': Object.freeze({ en: "This link has expired. For a new one, send “quiz” in the chat.", ur: "اس لنک کی مدت ختم ہو گئی ہے۔ نیا لنک لینے کے لیے چیٹ میں ”کوئز“ لکھ کر بھیجیں۔" }),
   'mk.error': Object.freeze({ en: "That didn't work. Try again in a moment.", ur: "یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔" }),
   'mk.lang.switch': Object.freeze({ en: "اردو", ur: "English" }),
+  // the ready screen (COPY v1.2 §2 A). mk.ready.sub.lang is composed by maker.page readySub from its signed parts:
+  // the grade (mk.grade.n), the REAL subject label, the topic, the language clause and the library clause below.
+  'mk.ready.lang.en': Object.freeze({ en: "questions in English", ur: "سوال انگریزی میں ہیں۔" }),
+  'mk.ready.lang.ur': Object.freeze({ en: "questions in Urdu", ur: "سوال اردو میں ہیں۔" }),
+  // the library clause: the signed tail of mk.ready.sub.lang, verbatim
+  'mk.ready.sub.lib': Object.freeze({ en: "a ready quiz from the NIETE library", ur: "\u2066NIETE\u2069 لائبریری کا تیار کوئز۔" }),
+  // frames: {n} = the question count in the page's digits ("Question 1 of 10" / «سوال نمبر ۱ از ۱۰»)
+  'mk.ready.q': Object.freeze({ en: "Question 1 of {n}", ur: "سوال نمبر ۱ از {n}" }),
+  'mk.send': Object.freeze({ en: "Send to class group", ur: "کلاس گروپ میں بھیجیں" }),
+  'mk.send.note': Object.freeze({ en: "Opens WhatsApp with the message ready. Nothing is sent until you pick the group.", ur: "پیغام تیار ہوگا اور \u2066WhatsApp\u2069 کھل جائے گا۔ گروپ چننے تک کچھ نہیں جائے گا۔" }),
+  'mk.copy': Object.freeze({ en: "Copy the message", ur: "پیغام کاپی کریں" }),
+  'mk.next': Object.freeze({ en: "Next time, /quiz also lists a quiz from your own lesson plan or recording.", ur: "اگلی بار \u2066/quiz\u2069 آپ کے اپنے سبق کے منصوبے یا ریکارڈنگ سے بنا کوئز بھی دکھائے گا۔" }),
+  'mk.topic.mark.en': Object.freeze({ en: "EN", ur: "EN" }),
+  'mk.topic.mark.ur': Object.freeze({ en: "اردو", ur: "اردو" }),
+  // frames: {grade} = mk.grade.n in a sentence, {subject} = the REAL subject label ("Last time: Grade 4, Maths")
+  'mk.prefill': Object.freeze({ en: "Last time: {grade}, {subject}", ur: "پچھلی بار: {grade}، {subject}" }),
+  'mk.prefill.keep': Object.freeze({ en: "Use it", ur: "یہی رکھیں" }),
+  'mk.prefill.change': Object.freeze({ en: "Change", ur: "تبدیل کریں" }),
+  // mk.grade.n in a sentence: "Grade {n}" / «جماعت {n}» (the Urdu-Indic digit is the caller's)
+  'mk.grade.n': Object.freeze({ en: "Grade {n}", ur: "جماعت {n}" }),
   'class.lang.en': Object.freeze({ en: "The questions are in English.", ur: "سوال انگریزی میں ہیں۔" }),
   'class.lang.ur': Object.freeze({ en: "The questions are in Urdu.", ur: "سوال اردو میں ہیں۔" }),
   'maker.body': Object.freeze({ en: "Your first quiz in three taps: grade, subject, topic. Then send it to your class group. It opens right here in WhatsApp.\n\nNot a teacher? Send “child”.", ur: "آپ کا پہلا کوئز تین ٹیپ میں: جماعت، مضمون، موضوع۔ پھر اسے اپنے کلاس گروپ میں بھیجیں۔ یہ یہیں \u2066WhatsApp\u2069 میں کھلے گا۔\n\nٹیچر نہیں ہیں؟ ”بچہ“ لکھ کر بھیجیں۔" }),
@@ -40,6 +60,11 @@ function str(id, lang) {
 // The subject codes a chip may carry (FIRST_QUIZ §5.2), in chip order.
 const SUBJECT_CODES = Object.freeze(['maths', 'english', 'urdu', 'science', 'general_knowledge', 'islamic_studies']);
 
+/** A frame's value with its {name} slots filled (the values are the caller's, already in the page's digits). */
+function fill(id, lang, params = {}) {
+  return str(id, lang).replace(/\{(\w+)\}/g, (m, k) => (params[k] == null ? m : String(params[k])));
+}
+
 /** `mk.subj.<code>`: the REAL catalog label; null for a code with none. */
 function subjectLabel(code, lang) {
   const l = lang === 'bi' ? 'ur' : clampLanguage(lang);
@@ -47,4 +72,4 @@ function subjectLabel(code, lang) {
   return SUBJECT_CODES.includes(code) ? subjectLabelFor(code, l) : null;
 }
 
-module.exports = { STRINGS, SUBJECT_CODES, str, subjectLabel };
+module.exports = { STRINGS, SUBJECT_CODES, str, fill, subjectLabel };
