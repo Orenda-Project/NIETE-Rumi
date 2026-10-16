@@ -124,11 +124,16 @@ describe('a short section is asked once more', () => {
     expect(state.logs.some(([l]) => l === '[assessment] section re-asked')).toBe(false);
   });
 
-  test('a held item is never refilled: Social Studies with the Sermon items fails, with one call per section', async () => {
+  test('a held item is never refilled: Social Studies with the Sermon items fails, and no section is re-asked for them', async () => {
     const { Generation } = load((req) => reply(SST, req));
     await expect(Generation.generatePatternExam({ ...MATHS, subject: 'social_studies' })).rejects.toMatchObject({ code: 'PATTERN_SHORT_SLOT' });
     const sections = require('../../bot/shared/services/assessment/patterns').get('fde_g5_2027').subjects.social_studies.sections.length;
-    expect(state.calls).toHaveLength(sections);
+    // The only re-asks are for Q5/Q7 items the layout set aside for re-asking a Q1 fact (round 9);
+    // Section A, where a Sermon item is the only loss, is never asked again.
+    const reasked = state.logs.filter(([l]) => l === '[assessment] section re-asked').map(([, d]) => d);
+    expect(reasked.map((d) => d.section).sort()).toEqual(['C', 'D']);
+    reasked.forEach((d) => d.shortfall.forEach((f) => expect(['social_studies.C.Q5', 'social_studies.D.Q7']).toContain(f.slot)));
+    expect(state.calls).toHaveLength(sections + reasked.length);
     const held = state.logs.filter(([l]) => l === '[assessment] held item dropped').map(([, d]) => d);
     expect(held.length).toBeGreaterThan(0);
     held.forEach((d) => expect(d.requestId).toBe('req-1'));
