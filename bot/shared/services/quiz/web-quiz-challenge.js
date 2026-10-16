@@ -508,7 +508,7 @@ async function measureOutcome(id) {
 }
 
 async function storedRun(id) {
-  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, exercise, lang, status, score, wcpm, meta').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, exercise, lang, status, score, wcpm, meta, mode, record').eq('id', id).maybeSingle();
   return error ? null : data;
 }
 
@@ -1647,6 +1647,9 @@ async function uploadable(c, mem) {
 }
 
 /** The run's state from what this process knows, else from the table. */
+// A check the scorer judged not a reading (implausible: scored, record lost): no sticker on the card, none in the Book.
+const noiseRun = (row) => row.status === 'scored' && row.record === false && row.mode === 'check';
+
 async function runState(c) {
   const mem = RUNS.get(c.r);
   if (mem && mem.result) return mem.result;
@@ -1655,7 +1658,7 @@ async function runState(c) {
   if (!row || isLiveRow(row) || isServedRow(row)) return null;
   if (row.status === 'scoring') return { pending: true };
   if (row.status === 'failed') return { failed: true, reason: (row.meta && row.meta.reason) || 'failed' };
-  return row.exercise === 'read' ? { score: row.score, wcpm: row.wcpm } : { score: row.score };
+  return { ...(row.exercise === 'read' ? { score: row.score, wcpm: row.wcpm } : { score: row.score }), ...(noiseRun(row) ? { sticker: false } : {}) };
 }
 
 /**
@@ -1865,7 +1868,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   const promise = scoreRead(readRun, key, ext, body.ms, CT, rules, { ended: guardIn.ended, micCheck: guardIn.mic_check, readS: guardIn.read_s, runId: c.r }).then(async (r) => {
     const result = r.failed
       ? { failed: true, reason: r.reason, ...(r.words != null ? { words: r.words } : {}) }
-      : { score: r.score, wcpm: r.wcpm, previous, ...(rules.record ? { ended: r.ended || null } : {}) };
+      : { score: r.score, wcpm: r.wcpm, previous, ...(rules.record ? { ended: r.ended || null } : {}), ...(r.implausible ? { sticker: false } : {}) };
     const before = RUNS.get(c.r) || {};
     RUNS.set(c.r, { ...run, ...(before.comp ? { comp: before.comp } : {}), status: 'done', result });
     // the record rule's stamps ride the final write (which replaces meta); an abandoned reading is an exposure only

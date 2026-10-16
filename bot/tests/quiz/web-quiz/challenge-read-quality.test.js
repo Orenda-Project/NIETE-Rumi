@@ -658,3 +658,25 @@ describe('the lamps (web-quiz-rungs): rapid_perfect never lights N3–N5; implau
     expect(R.computeRung('reading', [{ ...read, meta: { ...read.meta, quality: 'implausible' } }])).toBe(0);
   });
 });
+
+// A read the scorer judged not a reading earns no sticker: the result says so (sticker false) on the reply and on
+// the poll; a kept read (an ordinary one, or the wrong passage read aloud) says nothing, and keeps its sticker.
+describe('an implausible read: no sticker on the card', () => {
+  test('noise: the reply and the poll carry sticker false', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(K5), 'read', D);
+    const r = await readWith(ex.ct, garbled(1), 36, 60);
+    expect(rowOf(ex.ct)).toMatchObject({ status: 'scored', mode: 'check', record: false });
+    expect(r.sticker).toBe(false);
+    Ch.__reset();   // the poll from the row (another instance, or after a restart)
+    expect(await Ch.poll(ex.ct)).toMatchObject({ sticker: false });
+  });
+  test('an ordinary read and the wrong passage: no sticker key, on the reply and on the poll', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL, 'web_quiz_challenge_items');
+    const ex = await Ch.exercise(hub(K5), 'read', D);
+    const r = await readAloud(ex.ct);
+    expect(r).not.toHaveProperty('sticker');
+    Ch.__reset();
+    expect(await Ch.poll(ex.ct)).not.toHaveProperty('sticker');
+  });
+});
