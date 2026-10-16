@@ -97,20 +97,39 @@ describe('the self-joined child on the teacher-confirm queue', () => {
     expect(fake.db.students.find((s) => s.id === S_SARA)).toMatchObject({ merged_into: null, status: 'active' });
   });
 
-  test('ON: the teacher\'s answer on a self-joined pair is its label — join_confirm{tier self_join, same | different | undo}, ids only', async () => {
+  test('ON: the teacher\'s answer on a self-joined pair is its label — join_confirm{tier self_join, same | different | undo}, keyed refs only', async () => {
     const { logEvent } = require('../../../shared/utils/structured-logger');
     const confirms = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.join_confirm').map(([, d]) => d);
-    seed();
-    await Queue.candidatesFor(T1);
-    await Queue.decide({ teacherUserId: T1, looseId: S_SARA, candidateId: R_SARA, decision: 'same' });
-    await Queue.decide({ teacherUserId: T1, looseId: S_SARA, candidateId: R_SARA, decision: 'undo' });
-    seed();
-    Queue._resetQueueCache();
-    await Queue.candidatesFor(T1);
-    await Queue.decide({ teacherUserId: T1, looseId: S_SARA, candidateId: R_SARA, decision: 'no' });
-    expect(confirms().map((d) => [d.tier, d.decision, d.teacher])).toEqual([['self_join', 'same', T1], ['self_join', 'undo', T1], ['self_join', 'different', T1]]);
-    expect(JSON.stringify(confirms())).not.toContain(S_SARA);
-    expect(JSON.stringify(confirms())).not.toContain(R_SARA);
+    const KEY = 'k'.repeat(32);
+    const TK = require('crypto').createHmac('sha256', KEY).update(`t|${T1}`).digest('hex').slice(0, 16);
+    const before = process.env.WEB_QUIZ_KID_KEY;
+    process.env.WEB_QUIZ_KID_KEY = KEY;
+    try {
+      seed();
+      await Queue.candidatesFor(T1);
+      await Queue.decide({ teacherUserId: T1, looseId: S_SARA, candidateId: R_SARA, decision: 'same' });
+      await Queue.decide({ teacherUserId: T1, looseId: S_SARA, candidateId: R_SARA, decision: 'undo' });
+      seed();
+      Queue._resetQueueCache();
+      await Queue.candidatesFor(T1);
+      await Queue.decide({ teacherUserId: T1, looseId: S_SARA, candidateId: R_SARA, decision: 'no' });
+      expect(confirms().map((d) => [d.tier, d.decision, d.tk])).toEqual([['self_join', 'same', TK], ['self_join', 'undo', TK], ['self_join', 'different', TK]]);
+      expect(confirms().every((d) => !('teacher' in d))).toBe(true);
+      expect(JSON.stringify(confirms())).not.toContain(T1);
+      expect(JSON.stringify(confirms())).not.toContain(S_SARA);
+      expect(JSON.stringify(confirms())).not.toContain(R_SARA);
+      // A key under 32 bytes is no key: tk is null, never an unkeyed hash and never the id.
+      process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(31);
+      logEvent.mockClear();
+      seed();
+      Queue._resetQueueCache();
+      await Queue.candidatesFor(T1);
+      await Queue.decide({ teacherUserId: T1, looseId: S_SARA, candidateId: R_SARA, decision: 'no' });
+      expect(confirms().map((d) => [d.decision, d.tk])).toEqual([['different', null]]);
+      expect(JSON.stringify(confirms())).not.toContain(T1);
+    } finally {
+      if (before === undefined) delete process.env.WEB_QUIZ_KID_KEY; else process.env.WEB_QUIZ_KID_KEY = before;
+    }
   });
 
   test('ON: "Different" keeps them apart for good', async () => {

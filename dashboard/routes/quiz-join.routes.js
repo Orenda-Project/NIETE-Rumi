@@ -77,12 +77,12 @@ const COPY = {
     stale: 'اس لنک کی مدت ختم ہو گئی ہے۔ نیا لنک لینے کے لیے چیٹ میں ”کوئز“ لکھ کر بھیجیں۔',
     error: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
     wait: 'کھل رہا ہے…',
-    openWa: 'واٹس ایپ کھولیں',
+    openWa: 'واٹس ایپ کھولیں',
   },
 };
 
 // The bot's WhatsApp number as the bot gave it: digits only, or nothing (never a link built from anything else).
-const BOT_RX = /^\d{8,15}$/;
+const BOT_RX = /^\d{10,15}$/;
 const cleanBot = (n) => (typeof n === 'string' && BOT_RX.test(n) ? n : null);
 const waLink = (bot) => `https://wa.me/${bot}?text=quiz`;
 
@@ -177,7 +177,7 @@ function createQuizJoinRouter(opts = {}) {
   const read = rateLimit({ windowMs: 60 * 1000, standardHeaders: false, legacyHeaders: false, max: 300 });
   let assetV = null;
   let jsV = null;
-  let lastBot = null;   // the number the bot gave last, for an error page drawn while the bot cannot answer
+  let lastBot = null;   // the number the bot gave last, for an error page drawn when the bot answers with a failure
   const phoneLang = (req) => (/^\s*ur\b/i.test(String(req.get('accept-language') || '')) ? 'ur' : 'en');
 
   // The limiter counts only pages the bot agreed to draw: with the switch off, every request still falls through to the
@@ -189,7 +189,7 @@ function createQuizJoinRouter(opts = {}) {
     try {
       out = await callBot('GET', `/api/internal/wq/join/page/${token}`, req, null, { route: '/api/internal/wq/join/page/:token' });
     } catch (_) {
-      out = { status: 502 };
+      return next();   // the bot cannot be reached (the switch may be off): the portal's own answer, no page of ours
     }
     // the switch off (or a bot that has no such route yet): the portal's own answer, byte for byte
     if (out.status === 404) return next();

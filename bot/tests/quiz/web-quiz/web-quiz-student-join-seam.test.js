@@ -105,6 +105,14 @@ beforeEach(() => {
 afterEach(() => { jest.restoreAllMocks(); });
 afterAll(() => { process.env = SAVED; });
 
+// A child whose place is saved on this phone with no code (a guest binding): ON hides the card; every OFF row leaves it.
+async function hideOff() {
+  const kid = 'e0000000-0000-4000-8000-0000000000aa';
+  fake.db.students.push({ id: kid, list_id: null, student_name: 'Dua Testwala', status: 'active', is_active: true, merged_into: null });
+  fake.db.child_phone_bindings.push({ id: 'g-aa', canonical_id: kid, phone_norm: PHONE, phone_tomb: 't', via: 'guest', revoked_at: null, expires_at: '2099-03-31T18:59:59.000Z', bound_at: '2026-10-16T10:00:00Z' });
+  return Join.hideCardIfBound({ bind: { offer: true } }, kid);
+}
+
 describe('the switch off', () => {
   test.each([
     ['absent', { join: false }], ['"yes"', { joinValue: 'yes' }], ['1', { joinValue: 1 }], ['{}', { joinValue: {} }], ['false', { joinValue: false }],
@@ -119,6 +127,8 @@ describe('the switch off', () => {
     expect(await Join.autoBind({ n })).toEqual({ off: true });
     expect(await Join.bindPick({ n, chip: 'x' })).toEqual({ off: true });
     expect(await Join.noteRecognised({ phoneNorm: PHONE })).toBe(false);
+    expect(await Join.siblingJoinToken({ phoneNorm: PHONE, userId: UNKNOWN_USER.id, lang: 'en' })).toBeNull();
+    expect(await hideOff()).toEqual({ bind: { offer: true } });
     ['students', 'child_phone_bindings', 'child_identity', 'user_feature_first_use'].forEach((tb) => expect(writes(tb)).toHaveLength(0));
     expect(sends()).toBe(0);
   });
@@ -384,6 +394,10 @@ describe('the page shell answer', () => {
     delete process.env.WHATSAPP_BOT_NUMBER;
     delete process.env.REFERRAL_BOT_NUMBER;
     expect(await Join.pageInfo({ t: 'x.y' })).toEqual({ stale: true, lang: null });
+    // 10 to 15 digits, the share card's own rule: a 9-digit value is no number
+    process.env.WHATSAPP_BOT_NUMBER = ['1234', '56789'].join('');
+    expect(await Join.pageInfo({ t: 'x.y' })).toEqual({ stale: true, lang: null });
+    delete process.env.WHATSAPP_BOT_NUMBER;
   });
 
   test('the internal route: an expired link → 410 with its language and the bot\'s number', async () => {
@@ -415,6 +429,8 @@ describe('the page shell answer', () => {
     expect(Join.joinUrl({ n, lang: 'en' })).toBeNull();
     expect(await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE })).toEqual({ off: true });
     expect(await Join.autoBind({ n })).toEqual({ off: true });
+    expect(await Join.siblingJoinToken({ phoneNorm: PHONE, userId: UNKNOWN_USER.id, lang: 'en' })).toBeNull();
+    expect(await hideOff()).toEqual({ bind: { offer: true } });
     ['students', 'child_phone_bindings', 'child_identity', 'user_feature_first_use'].forEach((tb) => expect(writes(tb)).toHaveLength(0));
   });
 

@@ -44,6 +44,14 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 
+// The teacher in an event is the events' keyed reference, never the id: HMAC(kid key, 't|' + users.id)[:16];
+// null without the key (never an unkeyed hash).
+const tkOf = (userId) => {
+  const k = process.env.WEB_QUIZ_KID_KEY;
+  if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
+  return crypto.createHmac('sha256', k).update(`t|${userId}`).digest('hex').slice(0, 16);
+};
+
 /** The keyed child id for an event (the event-key module, when present); nothing when it is not. Never a raw id. */
 function kidFor(canonicalId) {
   try {
@@ -725,10 +733,10 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
 /** The tier of this teacher's latest 'same' on the pair (what an undo reverses); null when it carried none. */
 /**
  * The teacher's answer on a self-joined pair IS its label (the tier is measured from these, not from merge_log, whose
- * tier stays NULL for it): join_confirm{tier, decision: same | different | undo, kid, teacher}. Ids only.
+ * tier stays NULL for it): join_confirm{tier, decision: same | different | undo, kid, tk}. Keyed references only.
  */
 function joinConfirm(decision, teacherUserId, looseId) {
-  logEvent('web_quiz.join_confirm', { w: 's', tier: SELF_JOIN_TIER, decision, teacher: String(teacherUserId), ...kidFor(looseId) });
+  logEvent('web_quiz.join_confirm', { w: 's', tier: SELF_JOIN_TIER, decision, tk: tkOf(teacherUserId), ...kidFor(looseId) });
 }
 
 /** A child that joined on its own: a loose row whose place is saved on a family phone (via 'guest'). */

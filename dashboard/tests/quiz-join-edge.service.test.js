@@ -124,6 +124,11 @@ describe('GET /quiz/join/:token', () => {
     }));
   });
 
+  test('the Urdu "Open WhatsApp" is the signed string: «واٹس» and «ایپ» held together by U+00A0, as in every Urdu «واٹس ایپ» here', () => {
+    expect(COPY.ur.openWa).toBe('واٹس\u00A0ایپ کھولیں');
+    Object.values(COPY.ur).filter((v) => typeof v === 'string' && v.includes('واٹس')).forEach((v) => expect(v).not.toMatch(/واٹس ایپ/));
+  });
+
   test('the Urdu practice strip is at least 18 px', async () => {
     page = { status: 200, body: { ok: true, lang: 'ur', practice: true } };
     const res = await req(srv, 'GET', `/quiz/join/${J}`);
@@ -146,7 +151,7 @@ describe('GET /quiz/join/:token', () => {
     const stale = await req(srv, 'GET', `/quiz/join/${J}`);
     expect(stale.body).toContain(`<a class="go" href="https://wa.me/${BOT_NO}?text=quiz">${COPY.ur.openWa}</a>`);
     expect((stale.body.match(/<a /g) || []).length).toBe(1);
-    // the bot unreachable now: the number it gave last time still makes the tap
+    // the bot failing now: the number it gave last time still makes the tap
     page = { status: 500, body: { error: 'server_error' } };
     const err = await req(srv, 'GET', `/quiz/join/${J}`, undefined, { 'accept-language': 'en-GB' });
     expect(err.status).toBe(502);
@@ -156,6 +161,22 @@ describe('GET /quiz/join/:token', () => {
     await boot();
     page = { status: 410, body: { error: 'stale', lang: 'en', bot: '"><script>' } };
     expect((await req(srv, 'GET', `/quiz/join/${J}`)).body).not.toContain('wa.me');
+    // 10 to 15 digits, the share card's own rule: a 9-digit value is no number
+    page = { status: 410, body: { error: 'stale', lang: 'en', bot: ['1234', '56789'].join('') } };
+    expect((await req(srv, 'GET', `/quiz/join/${J}`)).body).not.toContain('wa.me');
+  });
+
+  test('the bot cannot be reached → the portal\'s own answer (the edge draws no page of its own, the switch may be off)', async () => {
+    await new Promise((resolve) => srv.close(resolve));
+    calls = [];
+    const fetchImpl = async () => { throw new Error('connect ECONNREFUSED'); };
+    const app = express();
+    app.use(createQuizJoinRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, logEvent: () => {} }));
+    app.use((r, res) => res.status(418).send('the portal page'));
+    srv = await start(app);
+    const res = await req(srv, 'GET', `/quiz/join/${J}`);
+    expect(res.status).toBe(418);
+    expect(res.body).toBe('the portal page');
   });
 
   test('the join page hands its script the bot\'s number and the tap words', async () => {

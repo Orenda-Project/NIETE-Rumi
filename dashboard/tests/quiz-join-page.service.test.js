@@ -83,6 +83,14 @@ describe('join.js', () => {
     j2.xhr.status = 200; j2.xhr.responseText = JSON.stringify({ off: true }); j2.xhr.onload();
     expect(q.els['jn-out'].innerHTML).toContain('Open the class link.');
     expect(q.els['jn-out'].innerHTML).not.toContain('wa.me');
+    // 10 to 15 digits, the share card's own rule: a 9-digit value is no number
+    const r = run({ boot: { view: 'join', t: 'tok', lang: 'en', practice: true, bot: ['1234', '56789'].join(''), copy } });
+    r.tap({ 'data-tap': 'grade', 'data-grade': '2' });
+    r.tap({ 'data-tap': 'go' });
+    const j3 = r.posts.find((x) => x.path === '/api/wq/join');
+    j3.xhr.status = 200; j3.xhr.responseText = JSON.stringify({ stale: true }); j3.xhr.onload();
+    expect(r.els['jn-out'].innerHTML).toContain('This link has expired.');
+    expect(r.els['jn-out'].innerHTML).not.toContain('wa.me');
   });
 
   test('"Let\'s go!" opens exactly for the names the server accepts', () => {

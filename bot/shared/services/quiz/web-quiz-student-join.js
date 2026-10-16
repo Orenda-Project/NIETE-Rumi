@@ -104,7 +104,7 @@ function redisStore() {
 /** The bot's WhatsApp number (the share links' variables), for the one tap back on an expired page: {bot} | {}. */
 function botField() {
   const n = String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
-  return /^\d{8,15}$/.test(n) ? { bot: n } : {};
+  return /^\d{10,15}$/.test(n) ? { bot: n } : {};
 }
 
 /** The j token: the landing's nonce (none in practice), the page language, practice or not, one hour. */

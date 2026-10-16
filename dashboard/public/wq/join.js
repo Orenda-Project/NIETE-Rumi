@@ -57,7 +57,7 @@
   function line(text) { say('<p class="line">' + esc(text) + '</p>'); }
   // A dead end (the link expired, joining is off): ONE tap back to the bot, when the page knows its number.
   function backTap() {
-    var b = typeof boot.bot === 'string' && /^\d{8,15}$/.test(boot.bot) ? boot.bot : null;
+    var b = typeof boot.bot === 'string' && /^\d{10,15}$/.test(boot.bot) ? boot.bot : null;
     return b ? '<a class="go" href="https://wa.me/' + b + '?text=quiz">' + esc(C.openWa) + '</a>' : '';
   }
   function name() { return nameEl ? String(nameEl.value || '').replace(/\s+/g, ' ').trim() : ''; }
