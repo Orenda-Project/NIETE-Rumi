@@ -129,6 +129,28 @@ describe('a watch code (a class-less child\'s own code under the watch root)', (
   });
 });
 
+describe('a watch code when the root\'s teacher keeps a class list (roll numbers, web_quiz_roster_id on)', () => {
+  const LIST = '55555555-5555-4555-8555-555555555555';
+  function withRoster() {
+    fake.db.app_settings.push({ key: 'web_quiz_roster_id', value: 'true' });
+    fake.db.student_lists.push({ id: LIST, user_id: TEACHER, class_name: '3', section: 'A', is_active: true });
+    fake.db.students.push({ id: KID_C, list_id: LIST, roll_number: 7, student_name: 'Bilal Testwala', student_name_urdu: null, is_active: true });
+  }
+  test('its page never offers the root teacher\'s class to pick from (a class-less child is nobody\'s roll number)', async () => {
+    withRoster();
+    const out = await WQ.getQuiz('WATCHB');
+    expect(out.cls.roster).toBeUndefined();
+    expect(JSON.stringify(out)).not.toMatch(/Bilal/);
+    expect(firsts(out)).toEqual(['Hina']);
+  });
+  test('GOLDEN: a class code of the same teacher still plays against the roster', async () => {
+    withRoster();
+    const out = await WQ.getQuiz('AB12CD');
+    expect(out.cls.roster).toEqual(expect.objectContaining({ lists: 1 }));
+    expect(rootReads).toEqual([]);
+  });
+});
+
 describe('every other code is unchanged', () => {
   test('GOLDEN: a class code of the same teacher pools as today, and never reads the watch root', async () => {
     const out = await WQ.getQuiz('AB12CD');

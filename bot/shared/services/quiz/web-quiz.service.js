@@ -544,7 +544,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // Identity v2: the child types their name and the server matches inside the hand-out's class.
   const idn = await got('idn', () => identityV2(ctx));
   // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
-  const roster = idn ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
+  // A watch code's teacher is the watch root's: the class-less child is on none of that teacher's lists.
+  const roster = idn || (await isWatchCode(ctx)) ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
   // v2 ships no classmates' names at all: only this phone's remembered children (page storage).
   // An invited friend is not in the class: no classmates' names, ever (a pick would score as a classmate).
   const invited = Boolean(ctx.invitedByStudentId);
@@ -630,7 +631,7 @@ const classKey = (ctx, listId) => T.chipId(ctx.shareCodeId, `list:${listId}`);
  */
 async function oneClass(ctx, chosen) {
   const q = await quizInfo(ctx.quizId);
-  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: q.grade });
+  const roster = (await isWatchCode(ctx)) ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: q.grade });
   if (!roster) return { roster: null, grade: q.grade };
   const pick = Roster.pickList(roster, { listId: q.listId, grade: q.grade, chosen: chosen == null ? null : String(chosen) }, (id) => classKey(ctx, id));
   return { roster, grade: q.grade, ask: pick.ask || null, one: pick.ask ? null : Roster.onlyList(roster, pick.list) };
