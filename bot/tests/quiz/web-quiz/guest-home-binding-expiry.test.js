@@ -233,7 +233,8 @@ describe('guest home (web_quiz_guest_home on)', () => {
     redisService.__keys.set(`wq:reply_cap:${day}:${hash}`, 8);
     expect(await say('/quiz')).toBe(true);           // handled (silence is the binder's choice), but
     expect(sends()).toBe(0);                          // nothing sent
-    expect(fake.db.message_ledger).toEqual([]);       // nothing counted
+    // nothing sent, nothing counted as a send: the cap hit is on the ledger's `capped` (count 0, usd 0)
+    expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'guest_reply', count: 0, usd: 0, capped: 1 })]);
     expect(events('web_quiz.reply_capped')).toEqual([expect.objectContaining({ trigger: 'guest_reply', w: 's' })]);
     expect(redisService.__keys.get(`wq:reply_cap:${day}:${hash}`)).toBe(9);
   });

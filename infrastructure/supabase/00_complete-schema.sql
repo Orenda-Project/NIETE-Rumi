@@ -7420,6 +7420,11 @@ comment on table public.message_ledger is
 alter table if exists message_ledger
   add column if not exists minutes numeric(10,2) not null default 0 check (minutes >= 0);
 
+-- message_ledger: cap hits beside sends (bot/database/migrations/web_quiz_message_ledger_capped.sql)
+-- A reply the per-phone daily cap refused: counted here, never on count/usd; message_ledger_add never writes it.
+alter table if exists message_ledger
+  add column if not exists capped integer not null default 0 check (capped >= 0);
+
 drop function if exists public.message_ledger_add(date, text, uuid, text, text, integer, numeric);
 
 create or replace function public.message_ledger_add(

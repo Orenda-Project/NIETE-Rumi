@@ -249,7 +249,9 @@ async function handleStop({ phone, user = null, persona = null, now = new Date()
     for (const [childId, n] of perChild) await emit('web_quiz.bind_undo', { via: 'stop', n, audio_n: 0 }, childId);
     const lang = clampLanguage((user && (user.personaLanguage || user.preferred_language)) || 'en');
     const key = erased.length ? 'jugnuBindStopped' : 'jugnuBindStopNothing';
-    if (await Ledger.record({ trigger: 'bind_reply', recipient: persona === 'teacher' ? 'teacher' : 'family', phone, reason: erased.length ? 'stop' : 'stop_nothing', now })) {
+    // A STOP that erased a binding is answered even at the day's cap (a privacy action is never silent; the reply is
+    // still on the ledger and the bound is the cap plus this one); a STOP with nothing saved stays capped.
+    if (await Ledger.record({ trigger: 'bind_reply', recipient: persona === 'teacher' ? 'teacher' : 'family', phone, reason: erased.length ? 'stop' : 'stop_nothing', uncapped: erased.length > 0, now })) {
       await sendText(phone, key, lang);
     }
     return { n: erased.length, children: perChild.size };
