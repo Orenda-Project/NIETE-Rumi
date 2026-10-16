@@ -391,7 +391,8 @@ async function screen(teacherId, { lang, token } = {}) {
     const mode = cur.s === 'done' ? 'handback' : 'child';
     const l = clampLanguage(lang);
     const tt = mode === 'child' ? turnToken(draw.round, cur.id) : null;
-    return Page.renderRound({ mode, rows, current: { name: rows[st.cur].name } }, { lang, token, turnHref: tt ? `/c/${tt}?lang=${l}` : null });
+    // a child-held screen gets no list at all (IDENTITY §2, L11): only the child's own first name
+    return Page.renderRound({ mode, rows: [], current: { name: rows[st.cur].name } }, { lang, token, turnHref: tt ? `/c/${tt}?lang=${l}` : null });
   }
   return Page.renderRound({ mode: 'teacher', rows, paused: !!st.paused }, { lang, token });
 }

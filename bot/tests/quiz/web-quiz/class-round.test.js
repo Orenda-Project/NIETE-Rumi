@@ -236,6 +236,24 @@ describe('the child view', () => {
     noOtherChild(html, null);
   });
 
+  test('the child-mode input carries no other child: the service hands the turn and hand-back screens no list', async () => {
+    const Page = require('../../../shared/templates/class-round.page');
+    const spy = jest.spyOn(Page, 'renderRound');
+    await Round.start(TEACHER, { rng: seeded(6) });
+    const order = draw().state.order.map((p) => p.id);
+    await post(`/round/${tok()}/next`, HOLD);
+    await get(`/round/${tok()}`);
+    await Round.childFinished(ROUND, order[0], 'run-0');
+    await get(`/round/${tok()}`);
+    const childCalls = spy.mock.calls.filter(([v]) => v.mode === 'child' || v.mode === 'handback');
+    expect(childCalls.map(([v]) => v.mode)).toEqual(['child', 'handback']);
+    for (const [v] of childCalls) {
+      expect(v.rows).toEqual([]);
+      expect(v.current).toEqual({ name: nameOf(order[0]).split(' ')[0] });
+    }
+    spy.mockRestore();
+  });
+
   test('the list and the ticks live on the teacher\'s screen behind the long-press', async () => {
     await Round.start(TEACHER, { rng: seeded(6) });
     const order = draw().state.order.map((p) => p.id);
