@@ -4,8 +4,8 @@
  *   virtual-mock-of-existing-module.test.js (its jest.doMock scan), fresh-profile-pages.test.js, copy-deck-lift.test.js,
  *   select-columns-exist.test.js, unresolved-requires.test.js (its later-merge rule), grade-form-one-home.test.js,
  *   copy-deck-urdu-joiners.test.js, copy-deck-quoted-labels.test.js, copy-deck-readers.test.js,
- *   content-changes-trace.test.js; repo-mocks-partial.test.js also reads jest.doMock, copy-deck-lift.test.js also
- *   reads the child pages (dashboard/public/wq).
+ *   content-changes-trace.test.js, migration-check-lists.test.js (its SQL reader); repo-mocks-partial.test.js also
+ *   reads jest.doMock, copy-deck-lift.test.js also reads the child pages (dashboard/public/wq).
  *
  * Every reader takes source text (or plain objects) and returns plain data, so each gate's rule is executed on
  * in-memory inputs in its own test file before it is run over the tree.
@@ -1076,6 +1076,132 @@ function whatsappWithoutJoiner(deck) {
   return out.sort();
 }
 
+// ---------------------------------------------------------------- migrations: a re-made CHECK list never narrows
+
+/** The SQL with every line comment (`--`) and block comment blanked to spaces (newlines kept, same length); quoted text is kept. */
+function sqlCommentsBlanked(sql) {
+  const src = String(sql);
+  const out = src.split('');
+  let quoted = false;
+  for (let i = 0; i < src.length; i += 1) {
+    if (quoted) { if (src[i] === "'") quoted = false; continue; }
+    if (src[i] === "'") { quoted = true; continue; }
+    let end = -1;
+    if (src.startsWith('--', i)) { end = src.indexOf('\n', i); if (end < 0) end = src.length; }
+    else if (src.startsWith('/*', i)) { end = src.indexOf('*/', i + 2); end = end < 0 ? src.length : end + 2; }
+    if (end < 0) continue;
+    for (let k = i; k < end; k += 1) if (out[k] !== '\n') out[k] = ' ';
+    i = end - 1;
+  }
+  return out.join('');
+}
+
+/** The text inside the balanced ( … ) whose `(` is at `open` (quoted text skipped), or null. */
+function sqlParenBody(text, open) {
+  let depth = 0;
+  let quoted = false;
+  for (let i = open; i < text.length; i += 1) {
+    const ch = text[i];
+    if (quoted) { if (ch === "'") quoted = false; continue; }
+    if (ch === "'") quoted = true;
+    else if (ch === '(') depth += 1;
+    else if (ch === ')') { depth -= 1; if (depth === 0) return text.slice(open + 1, i); }
+  }
+  return null;
+}
+
+const QUOTED = "'(?:[^']|'')*'";
+
+/** `<column> IN ('a', 'b', …)` (outer parentheses peeled) → { column, values }; any other expression → null. */
+function inListOf(expr) {
+  let s = String(expr).trim();
+  while (s.startsWith('(') && sqlParenBody(s, 0) === s.slice(1, -1)) s = s.slice(1, -1).trim();
+  const m = /^"?([A-Za-z_][A-Za-z0-9_]*)"?\s+IN\s*\(([\s\S]*)\)$/i.exec(s);
+  if (!m || !new RegExp(`^\\s*${QUOTED}(?:\\s*,\\s*${QUOTED})*\\s*$`).test(m[2])) return null;
+  const values = [...m[2].matchAll(new RegExp(QUOTED, 'g'))].map((q) => q[0].slice(1, -1).replace(/''/g, "'"));
+  return { column: m[1].toLowerCase(), values };
+}
+
+/**
+ * The named CHECK lists one migration adds: { adds: [{ name, column, values, guarded, line }], skipped }.
+ *   - `ADD CONSTRAINT <name> CHECK (<column> IN (<quoted list>))`, comments removed;
+ *   - a `('<name>', '<column> IN (…)')` row of a DO block whose `EXECUTE format('… ADD CONSTRAINT %I CHECK (%s)', …)`
+ *     adds each row (the row's own line);
+ *   - guarded: the add sits in a DO block that, before it, reads pg_constraint and names the constraint in quotes
+ *     (an `IF NOT EXISTS (SELECT … FROM pg_constraint WHERE conname = '<name>' …)`), so a re-run does not re-add it;
+ *   - skipped: every other ADD CONSTRAINT … CHECK (another expression, a name that is not an identifier) and every
+ *     loop row that is not a quoted IN list.
+ */
+function checkListAdds(sql) {
+  const text = sqlCommentsBlanked(sql);
+  const lineAt = (i) => text.slice(0, i).split('\n').length;
+  const blocks = [...text.matchAll(/\bDO\s+(\$[A-Za-z0-9_]*\$)/gi)].map((m) => {
+    const end = text.indexOf(m[1], m.index + m[0].length);
+    return { start: m.index, end: end < 0 ? text.length : end };
+  });
+  const blockAt = (i) => blocks.find((b) => b.start <= i && i < b.end);
+  const isGuarded = (name, i) => {
+    const b = blockAt(i);
+    const before = b ? text.slice(b.start, i) : '';
+    return Boolean(b) && /\bpg_constraint\b/i.test(before) && before.includes(`'${name}'`);
+  };
+  const adds = [];
+  let skipped = 0;
+  for (const m of text.matchAll(/\bADD\s+CONSTRAINT\s+(\S+)\s+CHECK\s*\(/gi)) {
+    if (/^%I$/i.test(m[1])) {
+      const b = blockAt(m.index);
+      if (!b) { skipped += 1; continue; }
+      const block = text.slice(b.start, m.index);
+      for (const row of block.matchAll(new RegExp(`\\(\\s*'([A-Za-z_][A-Za-z0-9_]*)'\\s*,\\s*(${QUOTED})\\s*\\)`, 'g'))) {
+        const list = inListOf(row[2].slice(1, -1).replace(/''/g, "'"));
+        if (!list) { skipped += 1; continue; }
+        adds.push({ name: row[1].toLowerCase(), ...list, guarded: isGuarded(row[1], m.index), line: lineAt(b.start + row.index) });
+      }
+      continue;
+    }
+    const id = /^"?([A-Za-z_][A-Za-z0-9_]*)"?$/.exec(m[1]);
+    const body = sqlParenBody(text, m.index + m[0].length - 1);
+    const list = id && body !== null ? inListOf(body) : null;
+    if (!list) { skipped += 1; continue; }
+    adds.push({ name: id[1].toLowerCase(), ...list, guarded: isGuarded(id[1], m.index), line: lineAt(m.index) });
+  }
+  return { adds, skipped };
+}
+
+/**
+ * The rule over migrations in apply order ([{ file, sql }]): for each constraint name two or more files add, an
+ * earlier file's add that is not guarded holds every value of every later file's list. Returns
+ * { adds (each with its file), skipped, violations: [{ name, earlier, earlierLine, later, laterLine, missing }] }.
+ */
+function narrowedCheckLists(migrations) {
+  const adds = [];
+  let skipped = 0;
+  for (const m of migrations) {
+    const r = checkListAdds(m.sql);
+    skipped += r.skipped;
+    for (const a of r.adds) adds.push({ file: m.file, ...a });
+  }
+  const violations = [];
+  adds.forEach((early, i) => {
+    if (early.guarded) return;
+    for (const late of adds.slice(i + 1)) {
+      if (late.name !== early.name || late.file === early.file) continue;
+      const missing = [...new Set(late.values.filter((v) => !early.values.includes(v)))];
+      if (missing.length) {
+        violations.push({ name: early.name, earlier: early.file, earlierLine: early.line, later: late.file, laterLine: late.line, missing });
+      }
+    }
+  });
+  return { adds, skipped, violations };
+}
+
+/** { <constraint>: 'narrower:<n>' }, n = the distinct values its earlier lists lack, for copyGapVerdict. */
+function checkListStates(violations) {
+  const lacks = {};
+  for (const v of violations) for (const x of v.missing) (lacks[v.name] = lacks[v.name] || new Set()).add(x);
+  return Object.fromEntries(Object.entries(lacks).map(([k, s]) => [k, `narrower:${s.size}`]));
+}
+
 module.exports = {
   REPO,
   rel,
@@ -1130,4 +1256,7 @@ module.exports = {
   changesTraceProblems,
   urduOrphans,
   whatsappWithoutJoiner,
+  checkListAdds,
+  narrowedCheckLists,
+  checkListStates,
 };
