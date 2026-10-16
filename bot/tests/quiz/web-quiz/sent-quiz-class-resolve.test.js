@@ -23,6 +23,7 @@ jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
+const { OFF_VALUES, throwOn } = require('../../helpers/switch-off-matrix');
 const F = require('./web-quiz-identity-fixture');
 const supabase = require('../../../shared/config/supabase');
 const T = require('../../../shared/services/quiz/web-quiz-token');
@@ -43,8 +44,8 @@ function seed({ home = true } = {}) {
   const db = F.db({ codeClass: null });
   // the author's quiz was made for their 4-A
   db.quizzes[0].list_id = F.LIST_A;
-  // home: true/false → 'true'/'false'; anything else is written as the row's value as it is
-  db.app_settings.push({ key: 'quiz_teacher_home', value: typeof home === 'boolean' ? (home ? 'true' : 'false') : home });
+  // home: true/false → 'true'/'false'; null → no row; anything else is written as the row's value as it is
+  if (home !== null) db.app_settings.push({ key: 'quiz_teacher_home', value: typeof home === 'boolean' ? (home ? 'true' : 'false') : home });
   // the sender's own 4-C: two children
   db.classes.push({ id: CLS_C, school_id: 's2', grade_code: 'grade_4', section: 'C', shift_code: 'morning', is_active: true, merged_into_class_id: null });
   db.class_teachers.push({ id: 'ct-c', class_id: CLS_C, teacher_user_id: SENDER, is_active: true, is_class_teacher: true });
@@ -120,27 +121,14 @@ describe('off: today\'s resolver, unchanged', () => {
     expect(HandoutClass.classIdToMint(resolved)).toBe(F.CLS_A);
   };
 
-  test.each([['false', false], ['"yes"', 'yes'], ['1', 1], ['{}', {}]])('quiz_teacher_home %s: the sender\'s code reads the quiz\'s list as today (the switch is the only difference)', async (_, home) => {
+  test.each(OFF_VALUES)('quiz_teacher_home %s: the sender\'s code reads the quiz\'s list as today (the switch is the only difference)', async (_, home) => {
     seed({ home });
-    await asToday();
-  });
-
-  test('absent: the sender\'s code reads the quiz\'s list as today', async () => {
-    seed({ home: false });
-    fake.db.app_settings = fake.db.app_settings.filter((r) => r.key !== 'quiz_teacher_home');
     await asToday();
   });
 
   test('a failed quiz_teacher_home read: the sender\'s code reads the quiz\'s list as today', async () => {
     seed();
-    const from = supabase.from;
-    supabase.from = (t) => {
-      const b = from(t);
-      if (t !== 'app_settings') return b;
-      const { eq } = b;
-      b.eq = (c, v) => { if (c === 'key' && v === 'quiz_teacher_home') throw new Error('settings down'); return eq.call(b, c, v); };
-      return b;
-    };
+    supabase.from = throwOn(supabase.from, 'quiz_teacher_home');
     await asToday();
   });
 });

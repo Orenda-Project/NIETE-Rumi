@@ -86,7 +86,7 @@ async function statsFor(teacherId, quizzes) {
   let roster = null;
   try { roster = await Data.readRoster(teacherId); } catch (err) {
     // The counts still stand without the class size: "N played".
-    logToFile('⚠️ quiz reports: class list read failed — rows without "of"', { userId: teacherId, error: err.message });
+    logToFile('⚠️ quiz reports: class list read failed — rows without "of"', { tk: tkOf(teacherId), error: err.message });
   }
   quizzes.forEach((q) => {
     // One child per quiz across its codes (as the report page), and with the class known
