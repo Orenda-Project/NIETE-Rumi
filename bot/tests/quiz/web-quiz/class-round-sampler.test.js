@@ -16,11 +16,11 @@ jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({
 jest.mock('../../../shared/services/quiz/message-ledger', () => ({ record: jest.fn() }));
 
 const { makeFake } = require('./fake-supabase');
-const { strictFrom } = require('./class-round-strict-fake');
+const { strictFrom, TERM_BREAKS } = require('./class-round-strict-fake');
 
 const ON = [
   { key: 'web_quiz_challenge', value: true }, { key: 'web_quiz_challenge_v2', value: true }, { key: 'web_quiz_class_round', value: true },
-  { key: 'web_quiz_hub', value: true }, { key: 'web_quiz_events_v2', value: true },
+  { key: 'web_quiz_hub', value: true }, { key: 'web_quiz_events_v2', value: true }, TERM_BREAKS,
 ];
 const NOW = Date.parse('2026-10-15T06:00:00Z');
 // the round's window (term 2026-27b), and one in term 2027-28a
@@ -209,10 +209,12 @@ describe('the draw object (windows, strata, no replacement draws)', () => {
   });
 
   test('the invitation stays a stub: template jugnu_round_invite_<lang>, the category rate as usd_each, trigger class_round; nothing sent', async () => {
-    const d = { class_id: uuid('c', 1), round: '0123456789abcdef' };
+    // with the operator's dated go and no sender injected (production today)
+    seed([...ON, { key: 'web_quiz_class_round_go', value: { by: 'operator', date: '2026-10-15', term: '2026-27b', template: 'jugnu_round_invite', category: 'utility', max_sends: 40, consent_v: 1 } }]);
+    const d = { class_id: uuid('c', 1), round: '0123456789abcdef', term_code: '2026-27b' };
     const { UX_STRINGS } = require('../../../shared/config/ux-strings');
-    expect(await Sampler.inviteTeacher(d, { lang: 'ur', category: 'marketing' })).toEqual({ sent: false, reason: 'stub', template: 'jugnu_round_invite_ur', body: UX_STRINGS.roundInvite.ur, trigger: 'class_round', usd_each: 0.0473 });
-    expect(await Sampler.inviteTeacher(d)).toEqual({ sent: false, reason: 'stub', template: 'jugnu_round_invite_en', body: UX_STRINGS.roundInvite.en, trigger: 'class_round', usd_each: 0.015 });
+    expect(await Sampler.inviteTeacher(d, { lang: 'ur', category: 'marketing', now: NOW })).toEqual({ sent: false, reason: 'stub', template: 'jugnu_round_invite_ur', body: UX_STRINGS.roundInvite.ur, trigger: 'class_round', usd_each: 0.0473 });
+    expect(await Sampler.inviteTeacher(d, { now: NOW })).toEqual({ sent: false, reason: 'stub', template: 'jugnu_round_invite_en', body: UX_STRINGS.roundInvite.en, trigger: 'class_round', usd_each: 0.015 });
     const WA = require('../../../shared/services/whatsapp.service');
     Object.values(WA).forEach((fn) => expect(fn).not.toHaveBeenCalled());
     expect(require('../../../shared/services/quiz/message-ledger').record).not.toHaveBeenCalled();

@@ -2662,3 +2662,18 @@ Feature: NIETE (ICT) Teacher Training
     And a run outside the week, a run from another door, or any of those switches off is stored with no sample arm, exactly as today
     And a class round turn is still stored as "teacher_present" in the "class_round" sample
     # web-quiz-class-week.js openWindowFor → teacher-class-week.js openWeek; web-quiz-challenge-draw.js adminFields; unit: challenge-serve-v2.test.js, challenge-grade1.test.js
+  @quiz @config-gated @negative @wip @draft @P1 @T921
+  Scenario: The term's class round draw is refused when the school break list is missing or a class week falls in a break
+    Given app_settings "web_quiz_class_round" is true and the operator runs this term's draw with its plan and round window
+    When app_settings "web_quiz_term_breaks" is absent or unreadable, or the round window or either order's class week overlaps a stored break, or an order's class week cannot be placed in the term
+    Then no class is drawn and nothing is written, and the refusal is logged once with its dates and counted
+    And a draw whose window and both class weeks are clear of every break draws exactly as before
+    # web-quiz-class-round-sampler.js runTermDraw/termBreaks; unit: class-round-draw-breaks.test.js
+
+  @quiz @config-gated @negative @wip @draft @P1 @T922
+  Scenario: A drawn class's teacher invitation needs the operator's dated go for this term
+    Given my class was drawn for this term's class round
+    When app_settings "web_quiz_class_round_go" is absent, dated after today, for another term, or for another template or category
+    Then no invitation is sent and nothing is counted on the send ledger
+    And with a valid go an invitation is sent only after the send ledger counted it, and never more than the go's limit in a term
+    # web-quiz-class-round-sampler.js inviteTeacher/readGo; unit: class-round-draw-breaks.test.js
