@@ -17,10 +17,9 @@ const TTL_MS = 30 * 1000;
 let cache = null; // { at, on }
 let reading = null;
 
+// On only for JSON true (the value is jsonb: a string, 1, null or anything else is off).
 function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+  return value === true;
 }
 
 function refresh() {
