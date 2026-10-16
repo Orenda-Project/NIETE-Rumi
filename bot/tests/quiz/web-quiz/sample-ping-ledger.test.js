@@ -48,7 +48,7 @@ beforeEach(() => { jest.clearAllMocks(); seed(); });
 describe('sample_ping on the ledger', () => {
   test('sample_ping is accepted beside the counted reply triggers, which stay as they were', () => {
     expect(Ledger.SAMPLE_PING).toBe('sample_ping');
-    expect(Ledger.TRIGGERS).toEqual(['home_reply', 'bind_reply', 'guest_reply', 'teacher_refusal', 'class_link', 'class_round', 'teacher_queue']);
+    expect(Ledger.TRIGGERS).toEqual(['home_reply', 'bind_reply', 'guest_reply', 'teacher_refusal', 'class_link', 'class_round', 'teacher_queue', 'maker_reply']);
   });
 
   test('bot → family, no phone: ONE rpc with exactly these arguments; true; msg_sent{trigger:sample_ping}', async () => {
@@ -85,7 +85,7 @@ describe('sample_ping on the ledger', () => {
 
   test('every OTHER trigger as bot → family is still refused (unchanged), with or without a phone', async () => {
     const others = Ledger.TRIGGERS;
-    expect(others).toHaveLength(7);
+    expect(others).toHaveLength(8);
     for (const trigger of others) {
       expect(await Ledger.record({ ...PING, trigger })).toBe(false);
       expect(await Ledger.record({ ...PING, trigger, phone: PHONE })).toBe(false);
