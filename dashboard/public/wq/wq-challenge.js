@@ -1371,11 +1371,20 @@
       });
     }).then(function (key) {
       show('read-wait', jug('thinking', t.listening, true));
-      return api('ch/result', resultBody({ key: key, ms: rec.ms || 0 }));
+      return resultCall(resultBody({ key: key, ms: rec.ms || 0 }));
     }).then(function (r) {
       if (r && r.pending) return pollResult(0);
       readResult(r);
     }).catch(function (e) { errorScreen(e, function () { open('read'); }); });
+  }
+
+  // The portal answers 502 bot_unreachable when its call to the bot ran out of time; the bot may still be scoring
+  // this read, so the page asks for the result as it does for a pending score (a read the bot never had polls 404).
+  function resultCall(body) {
+    return api('ch/result', body).catch(function (e) {
+      if (e && e.status === 502 && e.message === 'bot_unreachable') return { pending: true };
+      throw e;
+    });
   }
 
   var POLL_MS = 3000;
