@@ -39,7 +39,7 @@
     s5: [[0.2, 0.12, 1318.51 * 2, 1318.51 * 2, 'sine', 0.3]],
     s10: [[0, 0.6, C6, C6, 'sine', 0.25], [0, 0.6, E6, E6, 'sine', 0.25], [0, 0.6, G6, G6, 'sine', 0.25],
       [0.05, 0.08, C7 * 2, C7 * 2, 'sine', 0.12], [0.2, 0.08, G7, G7, 'sine', 0.12], [0.35, 0.08, C7 * 2, C7 * 2, 'sine', 0.12], [0.5, 0.1, G7, G7, 'sine', 0.12]],
-    // fallbacks until the sprite has decoded: a short major fanfare (1.8 s) and the sticker jingle (2.0 s)
+    // until the sprite has decoded: fanfare 1.8 s, jingle 2.0 s
     fanfare: [[0, 0.15, 523.25, 523.25, 'triangle', 0.5], [0.15, 0.15, 659.25, 659.25, 'triangle', 0.5], [0.3, 0.15, 783.99, 783.99, 'triangle', 0.5],
       [0.45, 1.35, C6, C6, 'triangle', 0.5], [0.45, 1.35, E6, E6, 'sine', 0.25], [0.45, 1.35, G6, G6, 'sine', 0.25]],
     badge: [[0, 0.25, G6, G6, 'sine', 0.4], [0.25, 0.25, E6, E6, 'sine', 0.4], [0.5, 0.25, G6, G6, 'sine', 0.4], [0.75, 1.25, C7, C7, 'sine', 0.4]]
@@ -49,15 +49,17 @@
   var KEY = 'wq_sound', KEY2 = 'wq_snd', WORD_MS = 150, PER_MIN = 30, MAX_ANIM = 3;
 
   var ac = null, live = [], timers = [], anims = [], sent = [], lastWord = -1e9, lastChunk = -1e9, duck = false, run = 0;
-  var sprite = null, spriteAsk = null, abort = null;
+  var sprite = null, spriteAsk = null, abort = null, armed = false, mem = null;
   function now() { return W.performance && W.performance.now ? W.performance.now() : Date.now(); }
   function store() { try { return W.localStorage; } catch (e) { return null; } }
-  // one switch for the child, two keys on the phone: the quiz page's own (wq_sound, JSON) and the home's (wq_snd, '1'/'0')
+  // one switch, two keys: the quiz page's (wq_sound) and the home's (wq_snd)
   function get(k) { var s = store(); try { return s ? s.getItem(k) : null; } catch (e) { return null; } }
-  function muted() { return get(KEY) === 'false' || get(KEY2) === '0'; }
+  // storage blocked: kept in memory
+  function muted() { return mem !== null ? mem : get(KEY) === 'false' || get(KEY2) === '0'; }
   function mute(b) {
-    var s = store();
-    try { if (s) { s.setItem(KEY, b ? 'false' : 'true'); s.setItem(KEY2, b ? '0' : '1'); } } catch (e) {}
+    var s = store(), ok = false;
+    try { if (s) { s.setItem(KEY, b ? 'false' : 'true'); s.setItem(KEY2, b ? '0' : '1'); ok = true; } } catch (e) {}
+    mem = ok ? null : !!b;
     if (b) stopAll();
   }
   function hidden() { return D && D.visibilityState === 'hidden'; }
@@ -72,12 +74,13 @@
     try { ac = new A(); } catch (e) { ac = null; }
     return ac;
   }
-  function unlock() {
-    if (muted()) return;
+  function unlock(e) {
+    if (e) armed = true;
+    if (muted() || !armed) return;
     var c = ctx();
     try { if (c && c.state === 'suspended' && c.resume) c.resume(); } catch (e) {}
   }
-  // one sound may play: not muted, the page in view, under 30 a minute (word tinks have their own limit)
+  // not muted, in view, under 30 a minute (tinks aside)
   function may(kind) {
     if (muted() || hidden()) return false;
     var t = now();
@@ -89,9 +92,11 @@
     sent.push(t);
     return true;
   }
+  // only on a context a tap opened; returns notes started
+  function open() { return armed && ac && ac.state !== 'closed' ? ac : null; }
   function notes(list, scale) {
-    var c = ctx();
-    if (!c) return;
+    var c = open(), n0 = live.length;
+    if (!c) return 0;
     var t0 = c.currentTime + 0.01;
     list.forEach(function (n) {
       try {
@@ -108,12 +113,13 @@
         o.onended = function () { var i = live.indexOf(o); if (i >= 0) live.splice(i, 1); };
       } catch (e) {}
     });
+    return live.length - n0;
   }
-  function play(kind, scale) { if (!may(kind)) return false; notes(R[kind], scale); return true; }
-  // the sprite is asked for once, on the first right answer, never on page load
+  function play(kind, scale) { return !!(open() && may(kind) && notes(R[kind], scale)); }
+  // fetched once, on the first right answer
   function loadSprite() {
     if (spriteAsk || muted() || !W.fetch) return;
-    var c = ctx();
+    var c = open();
     if (!c || !c.decodeAudioData) return;
     try { abort = W.AbortController ? new W.AbortController() : null; } catch (e) { abort = null; }
     spriteAsk = W.fetch(SPRITE, abort ? { signal: abort.signal } : {}).then(function (r) { return r.arrayBuffer(); })
@@ -121,8 +127,8 @@
       .then(function (buf) { sprite = buf; }, function () { /* the synthesised fallbacks stay */ });
   }
   function clip(name, fallback) {
-    if (!may(name)) return false;
-    var c = ctx();
+    var c = open();
+    if (!c || !may(name)) return false;
     if (sprite && c) {
       try {
         var s = c.createBufferSource(), g = c.createGain();
@@ -133,8 +139,7 @@
         return true;
       } catch (e) {}
     }
-    if (fallback) notes(R[fallback]);
-    return true;
+    return !!(fallback && notes(R[fallback]));
   }
 
   /* ---------- motion ---------- */
@@ -226,9 +231,7 @@
     var t = now();
     if (t - lastWord < WORD_MS) return false;
     lastWord = t;
-    if (!may('word')) return false;
-    notes(R.word);
-    return true;
+    return !!(open() && may('word') && notes(R.word));
   }
   // under the mic at half gain; the buzz only with its sound
   function sentence() { if (play('sentence', duck ? 0.5 : 1)) buzz(15); }
@@ -239,7 +242,7 @@
     if (el) {
       if (calm()) anim(el, [{ opacity: 0 }, { opacity: 1 }], 150, 'linear', 300);
       else anim(el, [{ transform: 'translateY(48px)', opacity: 0 }, { transform: 'translateY(0)', opacity: 1 }], 400, 'ease-out', 300);
-      // the stars light one by one, 150 ms apart, within 900 ms: together ONE of the 3 animation slots
+      // stars 150 ms apart within 900 ms: ONE animation slot
       var st = !calm() && el.querySelectorAll && anims.length < MAX_ANIM ? el.querySelectorAll('.wq-star.wq-on') : [];
       var pops = [];
       Array.prototype.forEach.call(st, function (s, i) {
@@ -263,7 +266,7 @@
     anim(el, [{ transform: 'scale(.5)', opacity: 0.3 }, { transform: 'scale(1)', opacity: 1 }], 300);
     if (el && el.classList) { el.classList.add('wqj-ring'); after(500, function () { el.classList.remove('wqj-ring'); }); }
   }
-  function tap() { unlock(); }
+  function tap() { unlock(1); }
   function autoNext(root, go) {
     return function () {
       var me = root && root.querySelector ? root.querySelector('#wq-next') : null;
@@ -281,7 +284,7 @@
     var cf = D && D.querySelectorAll ? D.querySelectorAll('.wqj-cf') : [];
     Array.prototype.forEach.call(cf, gone);
   }
-  // a speaker, with waves (on) or a cross (off): inline SVG, never an emoji (old Android draws new emoji as boxes)
+  // a speaker, waves (on) or a cross (off): inline SVG, never an emoji
   var SVG_HEAD = '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/>';
   var SVG_ON = SVG_HEAD + '<path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>';
   var SVG_OFF = SVG_HEAD + '<path d="M16 9l5 6M21 9l-5 6"/></svg>';
@@ -291,7 +294,7 @@
     draw();
     btn.addEventListener('click', function () { mute(!muted()); draw(); if (!muted()) unlock(); });
   }
-  // a page's own button: its click flips aria-pressed first; the kit redraws and follows
+  // a page's own button flips aria-pressed first; the kit follows
   function skin(btn) {
     if (!btn || !btn.addEventListener) return;
     var draw = function () { btn.innerHTML = btn.getAttribute('aria-pressed') === 'false' ? SVG_OFF : SVG_ON; };
@@ -299,7 +302,7 @@
     btn.addEventListener('click', function () { mute(btn.getAttribute('aria-pressed') === 'false'); draw(); if (!muted()) unlock(); });
   }
 
-  // the first tap anywhere unlocks the sound (Android and iOS refuse it before a tap)
+  // the first tap anywhere unlocks the sound
   if (D && D.addEventListener) {
     D.addEventListener('pointerdown', unlock, true);
     D.addEventListener('touchstart', unlock, true);

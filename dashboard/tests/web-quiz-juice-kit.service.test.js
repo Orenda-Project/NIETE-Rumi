@@ -32,7 +32,7 @@ function fakeEl(tag) {
   return el;
 }
 
-function kit({ store = {}, reduced = false, lang = 'en', audio = true } = {}) {
+function kit({ store = {}, reduced = false, lang = 'en', audio = true, noStore = false } = {}) {
   let clock = 1000;
   const nodes = []; // every oscillator / buffer source the kit made
   const contexts = [];
@@ -82,6 +82,8 @@ function kit({ store = {}, reduced = false, lang = 'en', audio = true } = {}) {
     addEventListener: (n, fn) => { (winL[n] = winL[n] || []).push(fn); },
   };
   if (audio) ctx.AudioContext = FakeAudioContext;
+  // a phone that blocks site storage: reading localStorage throws
+  if (noStore) Object.defineProperty(ctx, 'localStorage', { get() { throw new Error('SecurityError'); } });
   ctx.window = ctx;
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
@@ -320,6 +322,34 @@ describe('mute', () => {
     k.J.correct({}); k.J.sentence(); k.J.finish({}); k.J.badge(null);
     for (let i = 0; i < 9; i++) k.J.correct({});
     expect(k.vib).toEqual([]);
+  });
+
+  test('no Web Audio on the phone: no sound, so no vibration either', () => {
+    const k = kit({ audio: false }); k.tapDoc();
+    k.J.correct({}); k.J.sentence(); k.J.finish({}); k.J.badge(null);
+    expect(k.vib).toEqual([]);
+  });
+
+  test('a finish before any tap (a finished quiz reopened): no sound context, no notes queued, no buzz — nothing sounds at the next tap', () => {
+    const k = kit();
+    k.J.finish({}); k.J.correct({});
+    expect(k.contexts.length).toBe(0);
+    expect(k.nodes.length).toBe(0);
+    expect(k.vib).toEqual([]);
+    k.tapDoc();
+    expect(k.nodes.length).toBe(0);
+  });
+
+  test('a phone that blocks storage: mute still holds for the page (kept in memory)', () => {
+    const k = kit({ noStore: true }); k.tapDoc();
+    k.J.mute(true);
+    expect(k.J.muted()).toBe(true);
+    const before = k.nodes.length;
+    k.J.correct({}); k.J.finish({});
+    expect(k.nodes.length).toBe(before);
+    expect(k.vib).toEqual([]);
+    k.J.mute(false);
+    expect(k.J.muted()).toBe(false);
   });
 
   test('the home\'s key (wq_snd "0") is the same switch: muted', () => {
