@@ -93,13 +93,17 @@ function ukey(phoneNorm, { now = Date.now() } = {}) {
   return p ? mac('ukey', p, 16, now) : null;
 }
 
+/** The fields without any id that would join a row back to a phone, a share code or a session. Pure. */
+function stripIds(fields = {}) {
+  const out = { ...fields };
+  for (const k of Object.keys(out)) if (FORBIDDEN.has(k) || FORBIDDEN_RX.test(k)) delete out[k];
+  return out;
+}
+
 /** The v2 envelope of an event's fields; with a kid present the forbidden ids are removed. Pure (but kidV). */
 function envelope(fields = {}) {
   const out = { w: 's', ev_v: 2, kid_v: kidV(), kid: null, ...fields };
-  if (out.kid) {
-    for (const k of Object.keys(out)) if (FORBIDDEN.has(k) || FORBIDDEN_RX.test(k)) delete out[k];
-  }
-  return out;
+  return out.kid ? stripIds(out) : out;
 }
 
 /** One home for "an event under events v2, else today's fields". kind 'envelope' (the binding events): v2 on →
@@ -115,4 +119,4 @@ async function emit(name, fields = {}, { canonicalId = null, device = null, kind
 }
 
 // kidOf / dkOf / clsOf / ukeyOf: the names the callers use (the same functions).
-module.exports = { kid, dk, cls, ukey, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, emit, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };
+module.exports = { kid, dk, cls, ukey, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, stripIds, emit, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };
