@@ -103,10 +103,10 @@ function createRouter(deps = null) {
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
   const fail = (res, status) => { headers(res); res.status(status).json({ error: 'mk.error' }); };
 
-  /** The teacher's event key: HMAC(kid key, 't|' + users.id)[:16]; null without the key (never an unkeyed hash). */
+  /** The teacher's event key: HMAC(kid key, 't|' + users.id)[:16]; null without a key of 32+ bytes (the child side's rule; never an unkeyed hash). */
   function tkOf(uid) {
     const k = process.env.WEB_QUIZ_KID_KEY;
-    if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 16) return null;
+    if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
     return crypto.createHmac('sha256', k).update(`t|${uid}`).digest('hex').slice(0, 16);
   }
   function event(name, uid, fields) {

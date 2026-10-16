@@ -353,6 +353,20 @@ describe('the confirm rows and the events', () => {
     expect(logEvent).toHaveBeenCalledWith('teacher_send', expect.objectContaining({ w: 's', kind: 'video', origin: 'library', again: false, id: qid(2) }));
   });
 
+  test('a kid key shorter than 32 bytes is no key (as for the child side): tk is null; 32 bytes keys it', async () => {
+    const key = process.env.WEB_QUIZ_KID_KEY;
+    try {
+      seed();
+      await boot(deps);
+      process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(31);
+      expect((await post('/api/th/step', { t: tokenFor(), step: 'share_tap', kind: 'video', id: qid(2), origin: 'library' })).status).toBe(204);
+      process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(32);
+      expect((await post('/api/th/step', { t: tokenFor(), step: 'share_tap', kind: 'video', id: qid(2), origin: 'library' })).status).toBe(204);
+      const sends = logEvent.mock.calls.filter(([n]) => n === 'teacher_send').map(([, f]) => f.tk);
+      expect(sends).toEqual([null, expect.stringMatching(/^[0-9a-f]{16}$/)]);
+    } finally { process.env.WEB_QUIZ_KID_KEY = key; }
+  });
+
   test('teacher_send carries prompted (opened from a bot message) and the keyed class of the code (EVENTS_V3)', async () => {
     seed();
     const CLASS = 'd0000000-0000-4000-8000-0000000000c9';
