@@ -190,8 +190,27 @@ async function validateEdit({ userId, paperId, id, kind, edit }) {
     };
   } catch (err) {
     if (err.code !== 'EDIT_REJECTED') throw err;
+    if (err.errorCode === Edit.PATTERN_FIXED_MARKS) return { code: Edit.PATTERN_FIXED_MARKS };
     return { ok: false, message: err.message };
   }
+}
+
+/**
+ * A changed mark on a board-pattern question, found before the edits are applied:
+ * applyChanges files every refusal as INVALID_CHANGES, and the app tells this one
+ * apart by its code.
+ */
+function _fixedMarksErrors(tree, edits) {
+  const index = Selection.indexQuestions(tree);
+  const errors = [];
+  for (const { id, edit } of edits || []) {
+    const hit = index.find((q) => q.id === id);
+    if (!hit) continue;
+    try { Edit.applyEdit(hit.question, edit); } catch (err) {
+      if (err.errorCode === Edit.PATTERN_FIXED_MARKS) errors.push({ id, message: err.message });
+    }
+  }
+  return errors;
 }
 
 async function saveVersion({ userId, parentId, changes }) {
@@ -203,6 +222,10 @@ async function saveVersion({ userId, parentId, changes }) {
   if (!loaded.paper) return { status: 'failed', code: loaded.code };
   if ((changes.added || []).length && Revision.isPatternPaper(loaded.paper)) {
     return { status: 'failed', code: PATTERN_NO_ADD };
+  }
+  if (Revision.isPatternPaper(loaded.paper)) {
+    const errors = _fixedMarksErrors(loaded.paper.exam_json, changes.edits);
+    if (errors.length) return { status: 'failed', code: Edit.PATTERN_FIXED_MARKS, errors };
   }
   const req = loaded.paper.assessment_requests || {};
   const applied = applyChanges(loaded.paper.exam_json, changes, { subject: req.subject_code, grade: _gradeOf(req) });
