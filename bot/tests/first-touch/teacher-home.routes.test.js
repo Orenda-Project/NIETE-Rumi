@@ -134,6 +134,32 @@ describe('the shell', () => {
     const b = await get(`/quiz/teacher/${tokenFor().slice(0, -3)}abc`);
     expect(b.status).toBe(404);
   });
+
+  test('every stale or error page here carries ONE tap back to the chat (wa.me/<bot>?text=quiz), in the page language', async () => {
+    seed();
+    await boot(deps);
+    const old = HomeToken.signTeacherHome({ uid: TEACHER.id, lang: 'ur', via: 'go' }, { now: Date.now() - 25 * 3600 * 1000 });
+    const stale = await (await get(`/quiz/teacher/${old}`)).text();
+    const forged = await (await get(`/quiz/teacher/${tokenFor().slice(0, -3)}abc?lang=en`)).text();
+    const tap = (l) => `<a class="mk-go" href="https://wa.me/15550001111?text=quiz">${str('th.open.wa', l)}</a>`;
+    expect(stale).toContain(tap('ur'));
+    expect(forged).toContain(tap('en'));
+    [stale, forged].forEach((h) => expect(h.match(/<a /g)).toHaveLength(1));
+    expect(str('th.open.wa', 'en')).toBe('Open WhatsApp');
+    expect(str('th.open.wa', 'ur')).toBe('واٹس ایپ کھولیں');
+  });
+
+  test('the maker\'s own message pages are byte-identical to the quiz-maker page\'s (no tap unless one is asked for)', () => {
+    const { buildMessagePage } = require('../../shared/services/first-touch/maker.page');
+    // sha256(html + "\n" + csp)[:16] of the quiz-maker page's own buildMessagePage, before the tap existed
+    const GOLDEN = { 'en|mk.stale': '997e694b47a09e53', 'en|mk.error': 'b1a3b14c8bcaae93', 'ur|mk.stale': 'fb02622a845a9a1f', 'ur|mk.error': 'e5fdde6e0fa4763f' };
+    Object.entries(GOLDEN).forEach(([k, want]) => {
+      const [lang, id] = k.split('|');
+      const b = buildMessagePage({ lang, id });
+      expect(require('crypto').createHash('sha256').update(`${b.html}\n${b.csp}`).digest('hex').slice(0, 16)).toBe(want);
+      expect(b.html).not.toContain('<a ');
+    });
+  });
 });
 
 describe('the home: a teacher with no lesson plans', () => {

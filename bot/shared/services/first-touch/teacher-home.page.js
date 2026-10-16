@@ -118,14 +118,14 @@ function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cl
 function dg(n){var s=String(n);return b.dg?s.replace(/[0-9]/g,function(x){return b.dg.charAt(+x)}):s}
 function fill(k,o){return String(S[k]||'').replace(/\\{(\\w+)\\}/g,function(m,n){return o&&o[n]!=null?String(o[n]):m})}
 function post(p,o){return fetch(p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(o),credentials:'same-origin'})}
-function getj(p){return fetch(p,{credentials:'same-origin'}).then(function(r){if(r.status===410||r.status===404&&p.indexOf('/api/th/home')===0){location.reload();throw 1}if(!r.ok)throw 0;return r.json()})}
+function getj(p){return fetch(p,{credentials:'same-origin'}).then(function(r){if(r.status===410){location.reload();throw 1}if(!r.ok)throw 0;return r.json()})}
 function step(n,x){try{var o={t:b.t,step:n};if(x){if(x.kind)o.kind=x.kind;if(x.id)o.id=x.id;if(x.origin)o.origin=x.origin;if(x.c)o.c=x.c}var s=JSON.stringify(o);if(navigator.sendBeacon&&navigator.sendBeacon('/api/th/step',new Blob([s],{type:'application/json'})))return;post('/api/th/step',o).catch(function(){})}catch(e){}}
 function store(k,v){try{if(v==null)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
 function clear(n){while(n&&n.firstChild)n.removeChild(n.firstChild)}
 function topic(t){var x=el('bdi');x.setAttribute('dir','auto');x.textContent=t||'';return x}
 function btn(cls,txt,tap,fn,primary){var x=el('button',cls,txt);x.type='button';x.setAttribute('data-tap',tap);if(primary)x.setAttribute('data-primary','');x.addEventListener('click',fn);return x}
 function link(cls,txt,href,tap,primary){var x=el('a',cls,txt);x.href=href;x.setAttribute('data-tap',tap);if(primary)x.setAttribute('data-primary','');return x}
-function err(on){q('#th-err').hidden=!on}
+function err(on){q('#th-err').hidden=!on;var g=q('#th-err-go');if(g)g.hidden=!on}
 function hello(){var h=q('#th-h');clear(h);if(d&&d.first){var p=String(S['th.h']||'').split('{first}');h.appendChild(document.createTextNode(p[0]||''));h.appendChild(topic(d.first));h.appendChild(document.createTextNode(p[1]||''))}else h.textContent=S['th.hello.noname']||''}
 var cur=null;
 function sheet(x,title){cur=x;q('#th-sheet-t').textContent='';q('#th-sheet-t').appendChild(topic(title));var m=q('#th-msg');m.value=x.message;m.rows=msgRows(x.message,b.lang==='ur');q('#th-sheet-go').setAttribute('href',x.wa);q('#th-copied').hidden=true;q('#th-long').hidden=true;q('#th-sheet').hidden=false;q('#th-main').setAttribute('aria-hidden','true');try{m.style.height='auto';m.style.height=(m.scrollHeight+4)+'px'}catch(e){}
@@ -230,7 +230,7 @@ function pageLang(tokenLang, asked) {
 }
 
 // The strings the script fills with (textContent only), by id. The page's own static words are not repeated.
-const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return'].includes(id)));
+const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa'].includes(id)));
 
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
@@ -242,6 +242,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
   const style = `${fontFace(l)}${CSS}`;
   const styleHash = sha(style);
   const enc = encodeURIComponent(token);
+  const chat = require('./teacher-home.copy').chatLink();
   const s = {};
   SCRIPT_IDS.forEach((id) => { s[id] = str(id, l); });
   const sw = switchTo
@@ -253,7 +254,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
 <body>
 <main class="th" id="th-main" data-screen="teacher_home" data-home>
 <header class="th-top"><h1 id="th-h">${esc(str('th.hello.noname', l))}</h1>${sw}</header>
-<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>
+<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
 <section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>
 <ul class="th-rows" id="th-confirm" hidden></ul>
 <a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>

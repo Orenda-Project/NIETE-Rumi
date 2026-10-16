@@ -40,3 +40,15 @@ test.each(['en', 'ur'])('%s shell: the message box is never capped to a fixed he
   expect(rule).not.toMatch(/max-height|overflow:hidden/);
   expect(html).toMatch(/<textarea class="th-msg" id="th-msg"[^>]* rows="\d+"/);
 });
+
+test('the page reloads only for a stale link (410); any other refusal shows the error line with ONE tap back to the chat', () => {
+  expect(Page.SCRIPT).toMatch(/function getj\(p\)\{[^\n]*if\(r\.status===410\)\{location\.reload\(\);throw 1\}/);
+  expect(Page.SCRIPT).not.toMatch(/404&&p\.indexOf/);
+  expect(Page.SCRIPT).toContain("function err(on){q('#th-err').hidden=!on;var g=q('#th-err-go');if(g)g.hidden=!on}");
+  process.env.WHATSAPP_BOT_NUMBER = '15550001111';
+  ['en', 'ur'].forEach((lang) => {
+    const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null });
+    const { str } = require('../../shared/services/first-touch/teacher-home.strings');
+    expect(html).toContain(`<a class="th-go2" id="th-err-go" href="https://wa.me/15550001111?text=quiz" hidden>${str('th.open.wa', lang)}</a>`);
+  });
+});

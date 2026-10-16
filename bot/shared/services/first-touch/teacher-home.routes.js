@@ -72,7 +72,10 @@ function createRouter(deps = null) {
     });
   }
   function messagePage(res, status, id, lang) {
-    const built = require('./maker.page').buildMessagePage({ lang, id });
+    // one tap back to the chat on every stale / error page (wa.me/<bot>?text=quiz); none when the number is unknown
+    const href = require('./teacher-home.copy').chatLink();
+    const l = lang === 'en' ? 'en' : 'ur';
+    const built = require('./maker.page').buildMessagePage({ lang, id, tap: href ? { href, text: require('./teacher-home.strings').str('th.open.wa', l) } : null });
     headers(res, built.csp);
     return res.status(status).type('html').send(built.html);
   }
