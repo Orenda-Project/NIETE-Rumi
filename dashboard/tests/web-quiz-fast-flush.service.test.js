@@ -4,6 +4,7 @@
  * payload + scripts when the bot answers — so a phone paints and fetches the page's files during the bot's wait.
  *
  * The bot is the network boundary (a fake fetch the test releases by hand). No first-party module is mocked.
+ * Every request here is a fresh profile phone: no cookie, no device ref, nothing cached — the first open of a link.
  */
 const http = require('http');
 const express = require('express');
@@ -76,7 +77,7 @@ function build(fetchImpl) {
   return app;
 }
 
-describe('fast first page: GET /q/:code', () => {
+describe('fast first page: GET /q/:code (renderQuizPage, a fresh profile phone)', () => {
   let srv;
   afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
@@ -201,7 +202,7 @@ const HUB = (extra = {}) => ({
 });
 const hubVer = (body) => body.match(/wq\.css\?v=([0-9a-f]+)/)[1];
 
-describe('fast first page: GET /h/:token', () => {
+describe('fast first page: GET /h/:token (renderHubPage, a fresh profile phone)', () => {
   let srv;
   afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
