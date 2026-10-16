@@ -10,7 +10,7 @@ const vars = (body) => [...body.matchAll(/\{\{(\d+)\}\}/g)].map((m) => Number(m[
 const codePoints = (s) => [...s].length;
 
 describe.each([
-  ['the report', T.TEMPLATE, 7],
+  ['the report', T.TEMPLATE, 6],
   ['the quiet week', T.QUIET_TEMPLATE, 2],
 ])('%s template', (_, tpl, n) => {
   test('has a versioned name and en_US + ur bodies only', () => {
@@ -45,6 +45,16 @@ test('the two names differ, and the quiet body carries no counts', () => {
   expect(T.TEMPLATE.name).toBe('weekly_usage_v1');
   expect(T.QUIET_TEMPLATE.name).toBe('weekly_usage_quiet_v1');
   expect(T.QUIET_TEMPLATE.bodies.en_US.replace(/\{\{\d+\}\}/g, '')).not.toMatch(/\d/);
+});
+
+test('group B report carries no thing-to-try line (Amena, 16 Oct): no {{7}}, no "thing to try" wording, 6 examples', () => {
+  for (const code of ['en_US', 'ur']) {
+    expect(T.TEMPLATE.bodies[code]).not.toContain('{{7}}');
+    expect(T.TEMPLATE.examples[code]).toHaveLength(6);
+  }
+  expect(T.TEMPLATE.bodies.en_US.toLowerCase()).not.toContain('thing to try');
+  expect(T.TEMPLATE.bodies.ur).not.toContain('آزمانے');
+  expect(T.TEMPLATE.bodies.en_US).toContain('Reports you agreed with: {{6}}');
 });
 
 test('NAMES lists both, for the approval check', () => {

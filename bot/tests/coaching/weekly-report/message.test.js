@@ -12,7 +12,6 @@ const params = (m) => m.components[0].parameters.map((p) => p.text);
 
 const busy = {
   lessonPlans: 4, daysUsed: 3, recordings: 2,
-  move: { did: 1, partly: 1, notDone: 0, checked: 2 },
   thumbs: { up: 2, down: 1 },
 };
 
@@ -27,7 +26,7 @@ describe('weekLabel', () => {
 });
 
 describe('buildMessage — a week with activity uses weekly_usage_v1', () => {
-  test('English: the seven parameters, in order', () => {
+  test('English: the six parameters, in order, no thing to try', () => {
     const m = buildMessage({ summary: busy, week: WEEK, teacher: { name: 'Ayesha Khan', preferred_language: 'en' } });
     expect(m.template).toBe('weekly_usage_v1');
     expect(m.languageCode).toBe('en_US');
@@ -35,8 +34,7 @@ describe('buildMessage — a week with activity uses weekly_usage_v1', () => {
     expect(m.components).toHaveLength(1);
     expect(m.components[0].type).toBe('body');
     expect(params(m)).toEqual([
-      'Ayesha', '12–16 Oct', '4', '3', '2',
-      'done in 1 of 2 recordings, partly in 1', '2 of 3',
+      'Ayesha', '12–16 Oct', '4', '3', '2', '2 of 3',
     ]);
   });
 
@@ -44,23 +42,21 @@ describe('buildMessage — a week with activity uses weekly_usage_v1', () => {
     const m = buildMessage({ summary: busy, week: WEEK, teacher: { name: 'عائشہ', preferred_language: 'ur' } });
     expect(m.languageCode).toBe('ur');
     expect(params(m)).toEqual([
-      'عائشہ', '12 تا 16 اکتوبر', '4', '3', '2',
-      '2 میں سے 1 ریکارڈنگ میں کیا، 1 میں کچھ حد تک', '3 میں سے 2',
+      'عائشہ', '12 تا 16 اکتوبر', '4', '3', '2', '3 میں سے 2',
     ]);
   });
 
-  test('nothing to check or rate yet is said plainly, not as a zero', () => {
-    const s = { ...busy, move: { did: 0, partly: 0, notDone: 0, checked: 0 }, thumbs: { up: 0, down: 0 } };
+  test('nothing rated yet is said plainly, not as a zero', () => {
+    const s = { ...busy, thumbs: { up: 0, down: 0 } };
     const en = params(buildMessage({ summary: s, week: WEEK, teacher: { name: 'A', preferred_language: 'en' } }));
-    expect(en.slice(5)).toEqual(['not checked yet', 'no answers yet']);
+    expect(en.slice(5)).toEqual(['no answers yet']);
     const ur = params(buildMessage({ summary: s, week: WEEK, teacher: { name: 'A', preferred_language: 'ur' } }));
-    expect(ur.slice(5)).toEqual(['ابھی جانچا نہیں گیا', 'ابھی کوئی جواب نہیں']);
+    expect(ur.slice(5)).toEqual(['ابھی کوئی جواب نہیں']);
   });
 
-  test('checked but not done says so without blame', () => {
-    const s = { ...busy, move: { did: 0, partly: 0, notDone: 2, checked: 2 } };
-    expect(params(buildMessage({ summary: s, week: WEEK, teacher: { name: 'A', preferred_language: 'en' } }))[5])
-      .toBe('not seen yet in 2 recordings');
+  test('a summary that still carries a move never sends it', () => {
+    const s = { ...busy, move: { did: 1, partly: 1, notDone: 0, checked: 2 } };
+    expect(params(buildMessage({ summary: s, week: WEEK, teacher: { name: 'A', preferred_language: 'en' } }))).toHaveLength(6);
   });
 });
 

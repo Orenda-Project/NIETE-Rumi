@@ -69,18 +69,6 @@ async function prepare({ now = new Date() } = {}) {
   logToFile('v10 weekly report: scheduled', { week: weekStart, cohort: ids.length, created });
 }
 
-/** Each recording is checked against the thing to try from the session BEFORE it (thing-to-try-pick). */
-function checksFor(sessions, priors) {
-  const { checkThing } = require('../thing-to-try-pick');
-  const out = [];
-  for (const s of sessions) {
-    const prior = priors.find((p) => p.id !== s.id && p.created_at < s.created_at);
-    const c = prior ? checkThing(prior.thing, s.lp) : null;
-    if (c) out.push(c);
-  }
-  return out;
-}
-
 function isBlocked(name, nowMs) {
   const until = blocked.get(name);
   if (until && until > nowMs) return true;
@@ -108,7 +96,7 @@ async function send(row, { now = new Date() } = {}) {
     const teacher = await reader.teacher(userId);
     if (!teacher || !teacher.phone_number) throw new Error('teacher has no live account or no phone');
     const rows = await reader.readWeek(userId, week);
-    summary = summarise({ ...rows, checks: checksFor(rows.sessions, rows.priors) });
+    summary = summarise(rows);
     msg = { ...buildMessage({ summary, week, teacher }), to: teacher.phone_number };
   } catch (err) {
     event('failed', { ...base, stage: 'read', error: err.message });

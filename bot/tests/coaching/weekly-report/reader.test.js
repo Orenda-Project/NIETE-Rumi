@@ -83,9 +83,7 @@ describe('readWeek — every read is bounded to the teacher and the week', () =>
     mockDb.results.conversations = { data: [{ created_at: '2026-10-12T05:00:00' }], error: null };
     mockDb.results.niete_lp_downloads = { data: [{ lesson_id: 'L1', created_at: '2026-10-12T05:00:00Z' }], error: null };
     mockDb.results.niete_lp_opens = { data: [{ plan_ref: 'L2', opened_at: '2026-10-13T05:00:00Z' }], error: null };
-    mockDb.results.coaching_sessions = (ops) => (has(ops, 'not', 'prioritized_action', 'is', null)
-      ? { data: [{ id: 'p0', created_at: '2026-10-09T05:00:00Z', thing: { tag: 't' } }], error: null }
-      : { data: [{ id: 's1', created_at: '2026-10-14T05:00:00Z', lp: { status: 'ok' } }], error: null });
+    mockDb.results.coaching_sessions = { data: [{ id: 's1', created_at: '2026-10-14T05:00:00Z' }], error: null };
     mockDb.results.coaching_quality_metrics = { data: [{ coaching_session_id: 's1', user_satisfaction_rating: 1 }], error: null };
   });
 
@@ -95,7 +93,7 @@ describe('readWeek — every read is bounded to the teacher and the week', () =>
     expect(w.deliveries[0].lesson_id).toBe('L1');
     expect(w.opens[0].plan_ref).toBe('L2');
     expect(w.sessions.map((s) => s.id)).toEqual(['s1']);
-    expect(w.priors.map((s) => s.id)).toEqual(['p0']);
+    expect(w).not.toHaveProperty('priors');
     expect(w.ratings[0].user_satisfaction_rating).toBe(1);
   });
 
@@ -117,13 +115,13 @@ describe('readWeek — every read is bounded to the teacher and the week', () =>
     const [op] = mockDb.callsTo('niete_lp_opens');
     expect(has(op.ops, 'eq', 'plan_kind', 'k5')).toBe(true);
     expect(has(op.ops, 'gte', 'opened_at', WEEK.fromIso)).toBe(true);
-    const [week, priors] = mockDb.callsTo('coaching_sessions');
+    const sessionCalls = mockDb.callsTo('coaching_sessions');
+    expect(sessionCalls).toHaveLength(1); // no prior-session read: no thing to try
+    const [week] = sessionCalls;
     expect(has(week.ops, 'is', 'observation_type', null)).toBe(true);
     expect(has(week.ops, 'not', 'analysis_data->scores', 'is', null)).toBe(true);
     // Class R: the narrow JSON path, never the whole analysis_data.
-    expect(week.ops.find((o) => o[0] === 'select')[1]).toBe('id, created_at, lp:analysis_data->lp_fidelity');
-    expect(priors.ops.find((o) => o[0] === 'select')[1]).toBe('id, created_at, thing:prioritized_action->thing_to_try');
-    expect(has(priors.ops, 'lt', 'created_at', WEEK.toIso)).toBe(true);
+    expect(week.ops.find((o) => o[0] === 'select')[1]).toBe('id, created_at');
     const [q] = mockDb.callsTo('coaching_quality_metrics');
     expect(has(q.ops, 'in', 'coaching_session_id', ['s1'])).toBe(true);
   });
