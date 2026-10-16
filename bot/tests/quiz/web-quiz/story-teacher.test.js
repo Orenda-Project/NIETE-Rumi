@@ -450,6 +450,23 @@ describe('story sends in the teacher\'s other quiz lists', () => {
     const stats = await List.statsFor(TEACHER, [db.quizzes[0]]);
     expect(stats.get(db.quizzes[0].id)).toMatchObject({ played: 1, avg: null });
   });
+  test('the teacher home\'s Stories tile counts: stories sent and the children who opened them (a preview is neither; off = null)', async () => {
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 0, opened: 0 });
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    await Stories.share({ uid: TEACHER, storyId: B(3) });
+    await Stories.preview({ uid: TEACHER, storyId: B(4) });
+    await Stories.share({ uid: OTHER, storyId: B(1) });
+    const [a, b] = db.quiz_share_codes.filter((c) => c.teacher_user_id === TEACHER && c.active !== false);
+    const other = db.quiz_share_codes.find((c) => c.teacher_user_id === OTHER);
+    const s = (id, sc, kid) => ({ id, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: id });
+    db.quiz_sessions.push(s('s1', a, KID_A), s('s2', b, KID_A), s('s3', b, KID_B), s('s4', other, '44444444-4444-4444-8444-666666666666'));
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 2, opened: 2 });
+    expect(await Stories.storyCounts(OTHER)).toEqual({ sent: 1, opened: 1 });
+    expect(await Stories.storyCounts(null)).toBeNull();
+    db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_stories_teacher');
+    Stories._reset();
+    expect(await Stories.storyCounts(TEACHER)).toBeNull();
+  });
   test('the quiz menu never lists a story send as a quiz to cancel', async () => {
     await Stories.preview({ uid: TEACHER, storyId: B(1) });
     const Flow = require('../../../shared/routes/quiz-flow-endpoint');

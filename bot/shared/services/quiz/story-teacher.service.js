@@ -289,6 +289,22 @@ async function send({ uid, storyId, classId = null, now = Date.now() } = {}) {
   return { redirect: p.out.wa_href };
 }
 
+/**
+ * The teacher home's Stories tile line: the stories this teacher has sent and the children who opened them (joined a
+ * story send's class link), or null while the switch is off. A preview is not a send. Reads only.
+ */
+async function storyCounts(uid) {
+  if (!uid || !(await flagOn())) return null;
+  const { data: rows, error } = await supabase.from('quizzes').select('id')
+    .eq('teacher_id', uid).eq('quiz_source', SOURCE).eq('status', 'sent');
+  if (error) return null;
+  const ids = (rows || []).map((r) => r.id).filter(Boolean);
+  if (!ids.length) return { sent: 0, opened: 0 };
+  const { data: sessions, error: e2 } = await supabase.from('quiz_sessions').select('student_id').in('quiz_id', ids);
+  if (e2) return null;
+  return { sent: ids.length, opened: new Set((sessions || []).map((x) => x.student_id).filter(Boolean)).size };
+}
+
 /** The page's story for a code whose quiz is a story send, when the switch is on; null otherwise (today's 404). */
 async function storyForQuiz(quizRow, ctx) {
   const bookId = bookOf(quizRow);
@@ -330,6 +346,6 @@ async function storyDoorOk(session) {
 
 module.exports = {
   FLAG_KEY, NEEDS, SOURCE, StoryError, flagOn, teacherToken, teacherOf, pktDay, dayOrder, bookOf, shelf, prepare, preview, share, send,
-  storyForQuiz, storyBoot, storyTeacher, storyDoorOk, returnLine,
+  storyForQuiz, storyBoot, storyTeacher, storyDoorOk, returnLine, storyCounts,
   _reset: () => { flag = null; },
 };
