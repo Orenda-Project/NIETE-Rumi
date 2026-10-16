@@ -26,6 +26,12 @@
  *
  * A `// <key>` comment alone on the line right above a property line claims that property, when it names one key.
  *
+ * A server-carried line: a key a child page claims with no `en`/`ur` table lift at all is `carried`, not missing,
+ * when a template under bot/shared/templates lifts it `same` (the bot-side state of the bare key): the page shows
+ * the bytes the server sends it (wq-trail.js renders `d.round_handback`, lifted in class-round.page.js and sent by
+ * web-quiz-challenge.js). `carried` is clean. When that template's lift drifts, the page key stays `missing` and the
+ * bot-side key shows the drift. The exact rule is wqCopyStates' third argument.
+ *
  * copy-deck-lift.allowlist.json: { "<key>": "<state>" } for every key not `same` today (key names only). It only
  * shrinks, and a PR that lifts a string is never failed for it: a key new to the gap fails (NEW), and so does a
  * listed key whose gap moved somewhere else (CHANGED, e.g. missing → drift); a listed key that is now `same` or no
@@ -36,6 +42,12 @@
  * same object too (the Urdu child reads that table's other half), whenever the deck has an Urdu line that is not a
  * DRAFT. The exact rule is wqEnWithoutUr. copy-deck-en-only.allowlist.json: { "<key>": "<why>" }, the keys a page
  * shows in English only today; a new one fails, a listed one that gains its Urdu passes with a CLEAN line.
+ *
+ * copy-deck-lift.modules.json: the sorted repo paths of every bot/shared module this gate loads (ux-strings.js, every
+ * template, and what those require inside bot/shared) plus the deck it reads from disk (copy.v2.json), read from
+ * require.cache after the tree's states are built, never kept by hand. A tool that starts a run from a changed file
+ * reads it to know this gate covers that file. The list is recomputed on every run; any drift fails until the file is
+ * updated.
  */
 const fs = require('fs');
 const path = require('path');
@@ -62,9 +74,10 @@ function statesInTree() {
     source: fs.readFileSync(path.join(dir, n), 'utf8'),
     exports: require(path.join(dir, n)),
   }));
+  const bot = copyStates(deck, UX_STRINGS, templates);
   const wq = {};
-  for (const [k, v] of Object.entries(wqCopyStates(deck, scripts))) wq[`wq:${k}`] = v;
-  return { ...copyStates(deck, UX_STRINGS, templates), ...wq };
+  for (const [k, v] of Object.entries(wqCopyStates(deck, scripts, bot))) wq[`wq:${k}`] = v;
+  return { ...bot, ...wq };
 }
 
 describe('the rule, on in-memory sources', () => {
@@ -157,6 +170,25 @@ describe('the rule, on in-memory sources', () => {
     });
   });
 
+  test('a server-carried line: a page that names the key with no table lift, a template lifting it same → carried; drifted → missing', () => {
+    const carryDeck = { _meta: {}, 'jg.round.c_handback': { en: 'Hand the phone back.', ur: 'فون واپس دیں۔' } };
+    const page = [{ id: 'wq-trail.js', source: [
+      '(function () {',
+      '  // the one button hands the phone back to the round page (jg.round.c_handback)',
+      "  var b = btn('wqc-handback', d.round_handback || '');",
+      '})();',
+    ].join('\n') }];
+    const tpl = (en) => [{ id: 'class-round.page.js', source: `cHandback: '${en}', // jg.round.c_handback`, exports: { T: { en: { cHandback: en }, ur: { cHandback: 'فون واپس دیں۔' } } } }];
+    const bot = copyStates(carryDeck, {}, tpl('Hand the phone back.'));
+    expect(bot).toEqual({ 'jg.round.c_handback': 'same' });
+    expect(wqCopyStates(carryDeck, page, bot)).toEqual({ 'jg.round.c_handback': 'carried' });
+    expect(copyGapVerdict({ 'wq:jg.round.c_handback': 'carried' }, {})).toEqual({ failures: [], cleans: [] });
+    const drifted = copyStates(carryDeck, {}, tpl('Give the phone back.'));
+    expect(drifted).toEqual({ 'jg.round.c_handback': 'drift:en' });
+    expect(wqCopyStates(carryDeck, page, drifted)).toEqual({ 'jg.round.c_handback': 'missing' });
+    expect(wqCopyStates(carryDeck, page)).toEqual({ 'jg.round.c_handback': 'missing' });
+  });
+
   test('a lone comment line right above a property claims it, when it names one key', () => {
     const src = [
       '  en: {',
@@ -224,7 +256,24 @@ describe('EN ⇒ UR in the same table, on in-memory child pages', () => {
   });
 });
 
+/** The repo paths (sorted) of every bot/shared module loaded once the tree's states are built. */
+function reachedModules() {
+  statesInTree();
+  const loaded = Object.keys(require.cache).map((f) => path.relative(REPO, f).split(path.sep).join('/'));
+  // the deck itself is read from disk (fs), so it is never in require.cache; it is the file most likely to move
+  return [...new Set([...loaded, 'bot/shared/config/copy.v2.json'])].filter((f) => f.startsWith('bot/shared/')).sort();
+}
+
 describe('the tree', () => {
+  test('the modules this gate reaches are the ones copy-deck-lift.modules.json lists', () => {
+    const file = path.join(__dirname, 'copy-deck-lift.modules.json');
+    const listed = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+    const now = reachedModules();
+    expect(now).toContain('bot/shared/config/ux-strings.js');
+    const why = 'the deck-lift gate now reaches a different set of modules; update copy-deck-lift.modules.json (the train tool reads it to start a union run)';
+    expect({ why, modules: listed }).toEqual({ why, modules: now });
+  });
+
   test('every checked live deck key is lifted byte for byte, or listed; nothing new or moved', () => {
     const { failures, cleans } = copyGapVerdict(statesInTree(), ALLOW);
     for (const line of cleans) console.warn(line);

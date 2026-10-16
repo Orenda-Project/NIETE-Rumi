@@ -3,7 +3,8 @@
  *   repo-mocks-partial.test.js, repo-spy-failure-only.test.js, repo-seam-tests.test.js,
  *   virtual-mock-of-existing-module.test.js (its jest.doMock scan), fresh-profile-pages.test.js, copy-deck-lift.test.js,
  *   select-columns-exist.test.js, unresolved-requires.test.js (its later-merge rule), grade-form-one-home.test.js,
- *   copy-deck-urdu-joiners.test.js; repo-mocks-partial.test.js also reads jest.doMock, copy-deck-lift.test.js also
+ *   copy-deck-urdu-joiners.test.js, copy-deck-quoted-labels.test.js, copy-deck-readers.test.js,
+ *   content-changes-trace.test.js; repo-mocks-partial.test.js also reads jest.doMock, copy-deck-lift.test.js also
  *   reads the child pages (dashboard/public/wq).
  *
  * Every reader takes source text (or plain objects) and returns plain data, so each gate's rule is executed on
@@ -866,11 +867,18 @@ function wqEnLift(key, sites) {
   return null;
 }
 
-function wqCopyStates(deck, scripts) {
+/**
+ * A server-carried line: a key a page claims with no `en`/`ur` table lift at all, whose bytes a bot template lifts
+ * `same` (botStates, copyStates' map, says `same` for the bare key), is `carried`: the page shows what the server
+ * sends (wq-trail.js renders `d.round_handback`, lifted in class-round.page.js). `carried` is clean. Without
+ * botStates, or with the template's lift not `same`, the key stays `missing`.
+ */
+function wqCopyStates(deck, scripts, botStates = {}) {
   const out = {};
   for (const [key, entry, sites] of wqClaims(deck, readScripts(scripts))) {
     const hit = wqEnLift(key, sites);
     let lift = null;
+    if (!hit && botStates[key] === 'same') { out[key] = 'carried'; continue; }
     if (hit) {
       const ur = tableValue(hit.s.source, hit.s.mask, hit.s.ur, hit.name);
       lift = { en: hit.en, ...(ur !== undefined ? { ur } : {}) };
@@ -911,27 +919,131 @@ const GAP_PARTS = {
 };
 
 /**
- * The copy gap against copy-deck-lift.allowlist.json { key: state }: { failures, cleans }.
+ * A gap state's parts: GAP_PARTS for a lift state; else each `+`-joined part, a counted one (`ur:2`) as that many
+ * parts (ur#1, ur#2), so en:1+ur:2 → ur:1 is a strict part of it and ur:1 → ur:2 or en:1 is not.
+ */
+function gapParts(state) {
+  if (GAP_PARTS[state]) return GAP_PARTS[state];
+  return String(state).split('+').flatMap((p) => {
+    const m = /^(.+):(\d+)$/.exec(p);
+    return m ? Array.from({ length: Number(m[2]) }, (_, i) => `${m[1]}#${i + 1}`) : [p];
+  });
+}
+
+/**
+ * The copy gap against copy-deck-lift.allowlist.json { key: state }: { failures, cleans }. `same` and `carried` are clean.
  *   NEW (fails): a key not same and not listed. CHANGED (fails): a listed key whose gap is not a part of the listed one.
  *   CLEAN (warns): a listed key now same or no longer checked. LESS (warns): a listed key whose gap is a strict part of
  *   the listed one (drift:en+ur → drift:ur; missing → missing:ur). A lift PR is never failed for lowering the gap.
+ * opts (another deck gate on the same engine): file (the allowlist's name), fix (what a NEW key's author does),
+ * gone (the word for a key no longer in states).
  */
-function copyGapVerdict(states, allow) {
-  const FILE = 'copy-deck-lift.allowlist.json';
+function copyGapVerdict(states, allow, opts = {}) {
+  const FILE = opts.file || 'copy-deck-lift.allowlist.json';
+  const FIX = opts.fix || "lift the deck's string byte for byte";
+  const GONE = opts.gone || 'no longer checked';
   const failures = [];
   const cleans = [];
   for (const key of [...new Set([...Object.keys(states), ...Object.keys(allow)])].sort()) {
     const now = states[key];
     const ok = allow[key];
-    if (now === 'same' || now === undefined) { if (ok !== undefined) cleans.push(`CLEAN: ${key} is ${now || 'no longer checked'}. Remove it from ${FILE}.`); continue; }
-    if (ok === undefined) { failures.push(`NEW: ${key} is ${now}. Lift the deck's string byte for byte.`); continue; }
+    if (now === 'same' || now === 'carried' || now === undefined) { if (ok !== undefined) cleans.push(`CLEAN: ${key} is ${now || GONE}. Remove it from ${FILE}.`); continue; }
+    if (ok === undefined) { failures.push(`NEW: ${key} is ${now}. ${FIX.charAt(0).toUpperCase()}${FIX.slice(1)}.`); continue; }
     if (ok === now) continue;
-    const was = GAP_PARTS[ok] || [];
-    const is = GAP_PARTS[now] || [now];
+    const was = gapParts(ok);
+    const is = gapParts(now);
     if (is.every((x) => was.includes(x)) && is.length < was.length) cleans.push(`LESS: ${key} is ${now} now, the allowlist says ${ok}. Lower its entry in ${FILE}.`);
     else failures.push(`CHANGED: ${key} is ${now}, the allowlist says ${ok}.`);
   }
   return { failures, cleans };
+}
+
+// ------------------------------------------------------------------------------ the deck's quoted labels
+
+const isLive = (key, entry) => key !== '_meta' && entry && typeof entry === 'object' && !entry.retired && !entry.held;
+const readUr = (entry) => (typeof entry.ur === 'string' && !/DRAFT/.test(entry.ur) ? entry.ur : null);
+
+/**
+ * The deck keys whose quoted button labels name no live label: { key: 'en:<n>' | 'ur:<n>' | 'en:<n>+ur:<m>' }.
+ * Every «…» in a live key's UR (not a DRAFT) is byte-equal to some live key's UR; every "…" in its EN to some live
+ * key's EN. live = neither `retired` nor `held`, as copyStates.
+ */
+function quotedLabelGaps(deck) {
+  const live = Object.entries(deck || {}).filter(([k, e]) => isLive(k, e));
+  const labels = {
+    en: new Set(live.map(([, e]) => e.en).filter((s) => typeof s === 'string')),
+    ur: new Set(live.map(([, e]) => readUr(e)).filter(Boolean)),
+  };
+  const QUOTE = { en: /"([^"\n]*)"/g, ur: /«([^»\n]*)»/g };
+  const out = {};
+  for (const [key, entry] of live) {
+    const text = { en: typeof entry.en === 'string' ? entry.en : '', ur: readUr(entry) || '' };
+    const parts = ['en', 'ur'].map((l) => [l, [...text[l].matchAll(QUOTE[l])].filter((m) => !labels[l].has(m[1])).length])
+      .filter(([, n]) => n > 0).map(([l, n]) => `${l}:${n}`);
+    if (parts.length) out[key] = parts.join('+');
+  }
+  return out;
+}
+
+// ------------------------------------------------------------------------------- the deck's raw readers
+
+/**
+ * The files (ids, sorted) that read the copy deck raw: a `require` in code (never a comment or a string) whose path
+ * ends in `copy.v2.json` or `copy.v2`. The file that defines `deckLine` (the one door, '' for a held or retired key)
+ * is not a raw reader. files: [{ id, source }].
+ */
+function rawDeckReaders(files) {
+  const out = [];
+  for (const { id, source } of files) {
+    const mask = codeMask(source);
+    if (/(^|[^\w$.])(?:function\s+deckLine\s*\(|(?:const|let|var)\s+deckLine\s*=)/.test(mask)) continue;
+    if (calls(source, ['require'], mask).some((c) => /(^|\/)copy\.v2(\.json)?$/.test(c.spec || ''))) out.push(id);
+  }
+  return out.sort();
+}
+
+// ------------------------------------------------------------------------- a content file's changes trace
+
+const TRACE_FIELDS = ['at', 'field', 'what', 'why', 'text_hash_before'];
+const NO_HASH_TRACE = 'a changes trace in a file with no text_hash (an item bank or a Set A pointer file): a fix there '
+  + 'is a new id or a new bank_version, never a same-id edit (ITEMS item 18)';
+// an ISO date (the files' own `2026-10-16`) or an ISO time with its offset
+const ISO_TIME = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))?$/;
+
+/**
+ * The problems (strings, `<where>: <what>`) of every `changes` array in a parsed content file: each entry has the
+ * five fields as non-empty strings, `at` is an ISO date or time, `text_hash_before` is 32 lowercase hex (the files' own
+ * text_hash format) and, when the holding object records a `text_hash`, differs from it. A file that records no
+ * `text_hash` anywhere (an item bank, a Set A pointer file) carries no trace at all: NO_HASH_TRACE first. [] when the
+ * file has no trace.
+ */
+function changesTraceProblems(doc) {
+  const out = [];
+  let hashed = false;
+  let traced = false;
+  const visit = (o, where) => {
+    if (Array.isArray(o)) { o.forEach((x, i) => visit(x, `${where}[${i}]`)); return; }
+    if (!o || typeof o !== 'object') return;
+    for (const [k, v] of Object.entries(o)) {
+      const at = where ? `${where}.${k}` : k;
+      if (k === 'text_hash') hashed = true;
+      if (k !== 'changes') { visit(v, at); continue; }
+      traced = true;
+      if (!Array.isArray(v)) { out.push(`${at}: not an array`); continue; }
+      v.forEach((e, i) => {
+        const w = `${at}[${i}]`;
+        for (const f of TRACE_FIELDS) if (!e || typeof e[f] !== 'string' || !e[f]) out.push(`${w}: ${f} is missing or empty`);
+        if (!e) return;
+        if (typeof e.at === 'string' && e.at && (!ISO_TIME.test(e.at) || Number.isNaN(Date.parse(e.at)))) out.push(`${w}: at is not an ISO date or time`);
+        const h = e.text_hash_before;
+        if (typeof h === 'string' && h && !/^[0-9a-f]{32}$/.test(h)) out.push(`${w}: text_hash_before is not 32 lowercase hex`);
+        else if (typeof h === 'string' && h === o.text_hash) out.push(`${w}: text_hash_before is the current text_hash`);
+      });
+    }
+  };
+  visit(doc, '');
+  if (traced && !hashed) out.unshift(NO_HASH_TRACE);
+  return out;
 }
 
 // --------------------------------------------------------------------------- the deck's Urdu no-break rules
@@ -1013,6 +1125,9 @@ module.exports = {
   wqCopyStates,
   wqEnWithoutUr,
   copyGapVerdict,
+  quotedLabelGaps,
+  rawDeckReaders,
+  changesTraceProblems,
   urduOrphans,
   whatsappWithoutJoiner,
 };
