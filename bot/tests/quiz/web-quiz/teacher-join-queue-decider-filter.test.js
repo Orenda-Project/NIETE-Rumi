@@ -119,14 +119,14 @@ describe('the deciding teacher', () => {
     seed({ mergeLog: mixed() });
     expect(await tierOf()).toMatchObject({ same: 2, no: 1, undo: 0, n: 3, precision: 0.6667, held: false });
     // the decider filter is on the count query itself: one neq per configured test teacher
-    const q = reads.filter((y) => y.table === 'merge_log');
-    expect(q.length).toBeGreaterThan(0);
+    const q = reads.filter((y) => y.table === 'merge_log' && y.eqs.some(([col]) => col === 'decision'));
+    expect(q.length).toBe(Queue.TIERS.length * 3);
     q.forEach((y) => expect(y.neqs).toEqual([['teacher_id', TF]]));
   });
 
   test('a tier with only test-teacher decisions reads 0/0/0/0 and is not held', async () => {
     seed({ mergeLog: [...many(TF, 'same', 30), ...many(TF, 'no', 30)] });
-    expect(await tierOf()).toEqual({ tier: TIER, n: 0, same: 0, no: 0, undo: 0, precision: null, wilson_lower_95: null, held: false });
+    expect(await tierOf()).toEqual({ tier: TIER, n: 0, same: 0, no: 0, undo: 0, excluded_n: 60, precision: null, wilson_lower_95: null, held: false });
     Queue._resetPrecisionCache();
     expect(await Queue.servedTiers()).toEqual([TIER]);
     expect((await Queue.candidatesFor(T1)).map((y) => y.loose_id)).toEqual([c(3), c(8)]);
@@ -151,11 +151,11 @@ describe('golden', () => {
     const first = await Queue.precisionByTier();
     clock = t0 + 59 * 1000;
     expect(await Queue.precisionByTier()).toEqual(first);
-    expect(countReads()).toBe(Queue.TIERS.length * 3);
+    expect(countReads()).toBe(Queue.TIERS.length * 4); // same, no, undo + the excluded count, per tier
     expect(fixtureReads()).toBe(1);
     clock = t0 + 61 * 1000;
     await Queue.precisionByTier();
-    expect(countReads()).toBe(Queue.TIERS.length * 3 * 2);
+    expect(countReads()).toBe(Queue.TIERS.length * 4 * 2);
     expect(fixtureReads()).toBe(2);
   });
 });
