@@ -12,7 +12,8 @@
  * at most WARM_MAX_PER_RUN clips, and never once SERVE_HEADROOM or fewer recordings are left for children's serves.
  * Past either limit the store is still asked and the rest are counted as missing. Read-alouds' daily budget (web-quiz-challenge-budget.js) is STT and is untouched here.
  *
- * One event per run: `web_quiz.ch_clip_warm {n, missing, w:'s'}` (n = clips asked for, missing = still absent).
+ * One event per run: `web_quiz.ch_clip_warm {n, missing, missing_listen, w:'s'}` (n = clips asked for, missing = still
+ * absent, missing_listen = those of them a check-pool listening passage needs: its story, prompts and options).
  * Behind app_settings `web_quiz_challenge_clip_warm`, effective only with `web_quiz_challenge_v2` and
  * `web_quiz_challenge` on (each fails closed). Off ⇒ one switch read and nothing else: clips record on first serve.
  * Cost ≈ US$0.0002 a clip (Soniox by audio time).
@@ -21,6 +22,10 @@
  * cannot play the stop without), then those passages' prompts and options — and only then every other clip (read
  * prompts, practice and Story Time clips) in release order. A capped run so spends its allowance where a cold clip
  * would turn a child away.
+ *
+ * The daily guard (RULING #121): a run that ends capped having recorded at least one clip does not close the Pakistan
+ * day, so the next hourly tick warms again; a capped run that recorded nothing, an uncapped run, or the
+ * MAX_CAPPED_RUNS_PER_DAY-th capped run that day closes it (a recorder that fails every clip cannot spend all day).
  */
 const supabase = require('../../config/supabase');
 const { logToFile, logError } = require('../../utils/logger');
@@ -33,8 +38,10 @@ const V2_KEY = 'web_quiz_challenge_v2';
 const AHEAD_MS = 7 * 24 * 3600 * 1000;
 const WARM_MAX_PER_RUN = 96;   // recordings one run may make
 const SERVE_HEADROOM = 32;     // recordings always left for children's first serves
+const MAX_CAPPED_RUNS_PER_DAY = 8;   // capped runs one Pakistan day may re-arm, per process
 
-let lastDay = null;   // the Pakistan day this process last ran a warm
+let lastDay = null;   // the Pakistan day this process closed its warm for
+let cappedToday = { day: null, cappedRuns: 0 };   // capped runs this Pakistan day
 
 /** The switch and its parents, the switch first (off ⇒ that one read only). */
 async function switchOn() {
@@ -80,7 +87,7 @@ function inWarmOrder(clips, limit) {
 
 /**
  * One warm run. Null when the switch (or a parent) is off, or the passages could not be read; else
- * { n, missing, recorded, had, capped, passages }.
+ * { n, missing, missing_listen, recorded, had, capped, passages }.
  */
 async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
   if (!(await switchOn())) return null;
@@ -107,6 +114,7 @@ async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
   }
   const ordered = inWarmOrder(clips, limit);
   const tally = { recorded: 0, had: 0, missing: 0 };
+  let missingListen = 0;
   let capped = false;
   let attempts = 0;
   for (const c of ordered) {
@@ -114,21 +122,33 @@ async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
     const r = await Ch.warmClip(c.key, c.text, c.lang, { record: !capped });
     if (r !== 'had' && !capped) attempts += 1;
     tally[r] += 1;
+    if (r === 'missing' && c.tier <= CHECK_LISTEN_REST) missingListen += 1;
   }
-  const out = { n: ordered.length, missing: tally.missing, recorded: tally.recorded, had: tally.had, capped, passages };
-  logEvent('web_quiz.ch_clip_warm', { n: out.n, missing: out.missing, w: 's' });
+  const out = { n: ordered.length, missing: tally.missing, missing_listen: missingListen, recorded: tally.recorded, had: tally.had, capped, passages };
+  logEvent('web_quiz.ch_clip_warm', { n: out.n, missing: out.missing, missing_listen: out.missing_listen, w: 's' });
   logToFile('🔊 Challenge clip warm', out);
   return out;
 }
 
-/** The daily entry: at most one run per Pakistan day per process (the first tick after boot runs). */
+/**
+ * The daily entry (the first tick after boot runs): the run's object, or null once the Pakistan day is closed. The day is
+ * claimed before the run (an overlapping tick does nothing) and given back after a capped run that recorded clips,
+ * until the MAX_CAPPED_RUNS_PER_DAY-th capped run that day.
+ */
 async function daily({ now = Date.now() } = {}) {
   const day = AudioStore.pkDay(now);
   if (lastDay === day) return null;
+  const before = lastDay;
   lastDay = day;
-  return warmClips({ now });
+  const out = await warmClips({ now });
+  if (out && out.capped) {
+    if (cappedToday.day !== day) cappedToday = { day, cappedRuns: 0 };
+    cappedToday.cappedRuns += 1;
+    if (out.recorded > 0 && cappedToday.cappedRuns < MAX_CAPPED_RUNS_PER_DAY && lastDay === day) lastDay = before;
+  }
+  return out;
 }
 
-function __reset() { lastDay = null; }
+function __reset() { lastDay = null; cappedToday = { day: null, cappedRuns: 0 }; }
 
-module.exports = { switchOn, warmClips, daily, SWITCH_KEY, WARM_MAX_PER_RUN, SERVE_HEADROOM, __reset };
+module.exports = { switchOn, warmClips, daily, SWITCH_KEY, WARM_MAX_PER_RUN, SERVE_HEADROOM, MAX_CAPPED_RUNS_PER_DAY, __reset };
