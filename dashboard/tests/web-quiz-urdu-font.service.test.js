@@ -15,7 +15,7 @@ const { createWebQuizRouter, renderQuizPage, renderClosedPage } = require('../ro
 const { rule, CSS } = require('./wq-page-harness');
 
 const WQ = path.join(__dirname, '..', 'public', 'wq');
-const FONT_URL = '/wq/fonts/wq-nastaliq-3.woff2';
+const FONT_URL = '/wq/fonts/wq-nastaliq-5.woff2';
 
 const QUIZ = {
   quiz: { id: 'q-1', code: 'AB12CD', topic: 'پودے', lang: 'ur', dir: 'rtl', grade: '3', n: 1,
