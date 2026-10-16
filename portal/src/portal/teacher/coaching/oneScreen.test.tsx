@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
 /**
  * Digital Coaching in the Assessment flow, on one screen (design v6):
@@ -45,6 +45,7 @@ import coachingRoutes from "./routes";
 import * as paths from "./paths";
 import { COACHING_ALL, COACHING_HOME } from "./paths";
 import { clearDraft } from "./draft";
+import { SendError } from "../../lib/coachingSend";
 import { COACHING_V2_COPY as C } from "./copy";
 
 const COACHING_NEW = (paths as Record<string, unknown>).COACHING_NEW as string;
@@ -86,6 +87,24 @@ beforeEach(() => {
 function Where() {
   const loc = useLocation();
   return <div data-testid="where">{loc.pathname}{loc.search}</div>;
+}
+/** The phone's Back (Android / the browser): one step back in history. */
+function PhoneBack() {
+  const navigate = useNavigate();
+  return <button type="button" onClick={() => navigate(-1)}>phone back</button>;
+}
+/** The main page, then the one screen: so Back has somewhere to go. */
+function fromMainPage() {
+  return render(
+    <MemoryRouter initialEntries={[COACHING_HOME, COACHING_NEW]} initialIndex={1}>
+      <Routes>
+        {coachingRoutes.map((r) => <Route key={r.path} path={r.path} element={r.element} />)}
+        <Route path="*" element={null} />
+      </Routes>
+      <Where />
+      <PhoneBack />
+    </MemoryRouter>,
+  );
 }
 function at(path: string) {
   const [pathname, search] = path.split("?");
@@ -175,7 +194,7 @@ describe("the one screen", () => {
     expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
   });
 
-  it("a recording opens Lesson plan, Photos and Submit; Submit sends the class, then progress on the same screen", async () => {
+  it("a recording opens Lesson plan, Photos and Submit; Submit sends the class, then progress on the second screen", async () => {
     at(COACHING_NEW);
     await pickClass();
     fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
@@ -190,7 +209,7 @@ describe("the one screen", () => {
     // no "Back to Digital Coaching" (operator, 16 Oct): the header's Back is the way out
     expect(screen.queryByRole("link", { name: /Back to Digital Coaching/ })).toBeNull();
     expect(screen.getByRole("note")).toBeTruthy();
-    expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
+    expect(screen.getByTestId("where").textContent).toBe(`${COACHING_NEW}?sent=sess-1`);
   });
 
   it("the reflection question is answered on the same screen", async () => {
@@ -249,5 +268,62 @@ describe("Lesson plan before the recording (operator, 16 Oct)", () => {
     expect(screen.queryByRole("dialog", { name: new RegExp(C.lessonPlan) })).toBeNull();
     expect(await recordingCard()).toBeTruthy();
     expect(screen.queryByRole("heading", { name: new RegExp(C.photos) })?.getAttribute("data-step-state")).toBe("upcoming");
+  });
+});
+
+describe("Submit moves to a second screen (operator, 16 Oct)", () => {
+  /** Nothing she could change is on the second screen. */
+  const noEditors = () => {
+    expect(screen.queryByRole("button", { name: new RegExp(C.gradeAndSubject) })).toBeNull();
+    expect(screen.queryByRole("button", { name: new RegExp(`^${C.recording}`) })).toBeNull();
+    expect(screen.queryByRole("button", { name: new RegExp(C.selectPlan) })).toBeNull();
+    expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
+    expect(screen.queryByTestId("dc-recording")).toBeNull();
+    expect(screen.queryByTestId("dc-photos-input")).toBeNull();
+  };
+  const submitted = async () => {
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+  };
+
+  it("the upload runs on the second screen: its % is there and nothing she can edit", async () => {
+    sendLesson.mockImplementationOnce((..._a: unknown[]) => { (_a[2] as (n: number) => void)(40); return new Promise(() => {}); });
+    at(COACHING_NEW);
+    await submitted();
+    expect(await screen.findByText("40%")).toBeTruthy();
+    expect(screen.getByTestId("where").textContent).toBe(`${COACHING_NEW}?sent=uploading`);
+    noEditors();
+  });
+
+  it("once sent, the address names the lesson; Back goes to the main page, never to the screen she edited", async () => {
+    fromMainPage();
+    await submitted();
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(`${COACHING_NEW}?sent=sess-1`));
+    expect(await screen.findByRole("region", { name: C.progress })).toBeTruthy();
+    noEditors();
+    fireEvent.click(screen.getByRole("button", { name: "phone back" }));
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_HOME));
+  });
+
+  it("opened again (a reload) it shows that lesson's progress, not the editors", async () => {
+    at(`${COACHING_NEW}?sent=sess-1`);
+    expect(await screen.findByRole("region", { name: C.progress })).toBeTruthy();
+    noEditors();
+  });
+
+  it("reloaded mid-upload (that upload is gone): the main page, not an empty editor", async () => {
+    at(`${COACHING_NEW}?sent=uploading`);
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_HOME));
+  });
+
+  it("a send that fails comes back to her screen, everything she chose still there, to try again", async () => {
+    sendLesson.mockRejectedValueOnce(new SendError("network"));
+    at(COACHING_NEW);
+    await submitted();
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
+    expect(screen.getByTestId("dc-recording")).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.submit })).toBeTruthy();
   });
 });
