@@ -156,12 +156,18 @@ function textOf(value, ctx) {
  */
 const LATIN_DIGIT_TOKEN = /(?<![0-9A-Za-z])(?:[A-Za-z]+(?:[-–]?[0-9]+)+[A-Za-z]*|[0-9]+[-–]?[A-Za-z]+)(?![0-9A-Za-z])/g;
 
+// A number glued to a unit (5kg, 10cm) is a number: Urdu digits, the unit isolated after it.
+const GLUED_UNIT = /^([0-9]+)(kg|g|mg|km|m|cm|mm|L|l|mL|ml|s|min|h|hr|hrs)$/;
+
 function urduText(text) {
   const run = (t) => urduSeparators(t).replace(NUMERIC_ATOM, (n) => `<span class="num">${pinSeparators(toUrduDigits(n))}</span>`);
   let out = '';
   let last = 0;
   for (const m of text.matchAll(LATIN_DIGIT_TOKEN)) {
-    out += `${run(text.slice(last, m.index))}<bdi class="ltr" dir="ltr">${m[0]}</bdi>`;
+    const unit = GLUED_UNIT.exec(m[0]);
+    out += unit
+      ? `${run(text.slice(last, m.index) + unit[1])}<bdi class="ltr" dir="ltr">${unit[2]}</bdi>`
+      : `${run(text.slice(last, m.index))}<bdi class="ltr" dir="ltr">${m[0]}</bdi>`;
     last = m.index + m[0].length;
   }
   return out + run(text.slice(last));
@@ -439,6 +445,17 @@ function printsWords(slot) {
   return Boolean(p && p.print_words === true);
 }
 
+/*
+ * The same opt-in for `topics`: printed only on a slot whose pattern names it
+ * as a field in its prompt rule (English Q8). A `table` or `passage` always
+ * prints: any data item may carry one, and an item without its data cannot be
+ * answered.
+ */
+function printsField(slot, key) {
+  const rule = typeof slot.prompt_rule === 'string' ? slot.prompt_rule : ((patternSlot(slot.slot) || {}).prompt_rule || '');
+  return rule.includes(`\`${key}\``) && !rule.includes(`no \`${key}\``);
+}
+
 function frameBlock(q, slot, ctx) {
   const lang = ctx.medium;
   const title = String(slot.frame[`title_${lang}`] || '').replace('{q}', String(q.question || '').trim());
@@ -512,7 +529,7 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   if (Array.isArray(q.options) && q.options.length) parts.push(optionsBlock(q, slot, ctx));
   if (q.table) parts.push(tableBlock(q.table, ctx));
   if (q.passage && shape !== 'comprehension') parts.push(`<div class="${shape === 'words' || shape === 'fixed' ? 'verse' : 'passage'}">${textOf(q.passage, ctx)}</div>`);
-  if (Array.isArray(q.topics) && q.topics.length) {
+  if (Array.isArray(q.topics) && q.topics.length && printsField(slot, 'topics')) {
     parts.push(`<div class="topics">${q.topics.map((t, k) => `<span class="topic">${textOf(itemNumber({ numbering: 'alpha_paren' }, k, ctx.medium), ctx)} ${textOf(t, ctx)}</span>`).join('')}</div>`);
   }
   if (printsWords(slot) && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
@@ -625,6 +642,8 @@ function css(medium, kind) {
   .slot-head .ml { margin-${start}: auto; white-space: nowrap; font-weight: 700; }
   .slot-head .ins { font-weight: 700; }
   .q { margin: 3px 0 5px; padding-${start}: 6mm; break-inside: avoid; }
+  /* A slot's last item never sits alone at the top of a page. */
+  .slot > .q:last-child { break-before: avoid; }
   .q .n { display: inline-block; min-width: 6mm; margin-${start}: -6mm; }
   .q.qcont { padding-${start}: 0; }
   .q.qcont .n { margin-${start}: 0; font-weight: 700; min-width: 0; margin-${end}: 4px; }
@@ -772,6 +791,15 @@ function shortLabel(label) {
 // A private-use character no text carries, standing in for the file name until it is escaped.
 const FILE_MARK = '\uE000';
 
+/*
+ * A frame the teacher fills from the book when no book page is confirmed
+ * (the Social Studies map): the scheme names the book's own map and prints no
+ * page, rather than a page nobody has checked.
+ */
+const BOOK_SOURCE = {
+  map: { en: "the book's outline map", ur: 'کتاب کا خاکہ نقشہ' }, // ur: needs fluent-Urdu review
+};
+
 function beforeExamBox(L, live, ctx, paperFileName, grade) {
   const lang = ctx.medium;
   const B = L.before_exam;
@@ -792,9 +820,12 @@ function beforeExamBox(L, live, ctx, paperFileName, grade) {
   if (frameSupply) {
     const slot = L.sections.flatMap((s) => s.slots).find((s) => s.slot === frameSupply.slot);
     const p = L.frame_pages && L.frame_pages[frameSupply.slot];
-    let line = fill(lines[2], { duty: slot.frame[`duty_${lang}`], p: p || B[`unknown_pages_${lang}`], b: frameSupply.book_page });
+    const source = !frameSupply.book_page && BOOK_SOURCE[frameSupply.kind];
+    const duty = source ? source[lang] : slot.frame[`duty_${lang}`];
+    let line = fill(lines[2], { duty, p: p || B[`unknown_pages_${lang}`], b: frameSupply.book_page });
     if (!frameSupply.book_page) line = line.replace(lang === 'ur' ? / \(کتاب ص \{b\}\)/ : / \(book p\. \{b\}\)/, '');
-    if (!p) line = line.replace(lang === 'ur' ? 'صفحہ ' : 'page ', '');
+    // An unknown page sends the teacher to the paper; Urdu then names the paper once.
+    if (!p) line = line.replace(lang === 'ur' ? 'سوالیہ پرچہ صفحہ ' : 'page ', '');
     lines[2] = line;
   } else {
     lines[2] = B[`nothing_${lang}`];
@@ -873,7 +904,11 @@ function suppliesBox(L, ctx) {
   const lang = ctx.medium;
   if (!Array.isArray(L.supplies) || !L.supplies.length) return '';
   const title = lang === 'ur' ? 'استاد مہیا کریں' : 'Teacher supplies'; // ur: needs fluent-Urdu review
-  return `<div class="box supplies"><div class="bt">${textOf(title, ctx)}</div><ul>${L.supplies.map((s) => `<li>${textOf(s[`line_${lang}`], ctx)}</li>`).join('')}</ul></div>`;
+  const lineOf = (s) => {
+    const source = !s.book_page && BOOK_SOURCE[s.kind];
+    return source ? `${s[`line_${lang}`]} (${source[lang]})` : s[`line_${lang}`];
+  };
+  return `<div class="box supplies"><div class="bt">${textOf(title, ctx)}</div><ul>${L.supplies.map((s) => `<li>${textOf(lineOf(s), ctx)}</li>`).join('')}</ul></div>`;
 }
 
 /*
@@ -952,14 +987,19 @@ function writtenRows(slot, list, ctx, Criteria) {
     }
     if (slot.shape === 'situation') {
       const subs = q.questions || [];
+      let anyOwn = false;
       subs.forEach((sub, k) => {
         const each = sub && Number(sub.marks) > 0 ? Number(sub.marks) : (slot.item_parts && slot.item_parts.marks_each) || slot.marks_each / (subs.length || 1);
         const own = sub && sub.answer !== undefined && sub.answer !== null && String(sub.answer).trim() !== '' ? sub.answer : partOfAnswer(q.answer, k);
+        if (own !== null && own !== undefined && String(own).trim() !== '') anyOwn = true;
         rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(`${n} ${String.fromCharCode(97 + k)})`, ctx)}</td><td class="ans"><b>${textOf(own, ctx)}</b></td><td class="pts">${pointsHtml(sub || {}, ctx, Criteria, slot, i, each)}</td></tr>`);
       });
-      // The situation's own scheme (points, accept, common error) once, under its parts.
-      if (hasScheme(q.scheme)) {
-        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n"></td><td class="ans"></td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, i, null)}</td></tr>`);
+      // The situation's own scheme (points, accept, common error) once, under its parts;
+      // a parent answer no part could take (no a)/b)/c) letters) prints there too.
+      const parentAnswer = !anyOwn && q.answer !== undefined && q.answer !== null && String(q.answer).trim() !== ''
+        ? `<b>${textOf(q.answer, ctx)}</b>` : '';
+      if (hasScheme(q.scheme) || parentAnswer) {
+        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n"></td><td class="ans">${parentAnswer}</td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, i, null)}</td></tr>`);
       }
       return;
     }

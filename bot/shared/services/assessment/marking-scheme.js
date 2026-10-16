@@ -123,6 +123,37 @@ function foldUnits(points) {
   return out;
 }
 
+/**
+ * A slot whose items are answered in parts (Science Q2(b): two of three, 2.5
+ * each): { n, marks } for the parts one item is marked on, else null.
+ */
+function partMarks(slot, itemMarks) {
+  const ip = slot && isObject(slot.item_parts) ? slot.item_parts : null;
+  const each = ip ? toNumber(ip.marks_each) : NaN;
+  if (!(each > 0) || !Number.isFinite(itemMarks)) return null;
+  const n = Math.round(itemMarks / each);
+  return n >= 1 && Math.abs(n * each - itemMarks) <= SUM_TOLERANCE ? { n, marks: each } : null;
+}
+
+// Whether `values` can be shared out into `n` groups that each add to `target`.
+function splitsInto(values, n, target) {
+  const sorted = [...values].sort((a, b) => b - a);
+  const groups = new Array(n).fill(0);
+  const place = (i) => {
+    if (i === sorted.length) return groups.every((g) => Math.abs(g - target) <= SUM_TOLERANCE);
+    const tried = new Set();
+    for (let g = 0; g < n; g += 1) {
+      if (tried.has(groups[g]) || groups[g] + sorted[i] > target + SUM_TOLERANCE) continue;
+      tried.add(groups[g]);
+      groups[g] += sorted[i];
+      if (place(i + 1)) return true;
+      groups[g] -= sorted[i];
+    }
+    return false;
+  };
+  return sorted.every((v) => v > 0) && place(0);
+}
+
 /** Rule 4 on one holder of a `scheme` (a question or a comprehension sub-question). */
 function normaliseOne(holder, marks, questionText, slot, label, log) {
   const s = holder.scheme;
@@ -147,11 +178,16 @@ function normaliseOne(holder, marks, questionText, slot, label, log) {
 
       const sum = points.reduce((t, p) => t + p.marks, 0);
       const target = toNumber(marks);
-      if (Number.isFinite(sum) && Number.isFinite(target) && Math.abs(sum - target) <= SUM_TOLERANCE) {
-        s.points = points;
-      } else {
+      const each = partMarks(slot, target);
+      if (!(Number.isFinite(sum) && Number.isFinite(target) && Math.abs(sum - target) <= SUM_TOLERANCE)) {
         delete s.points;
         log.push(`${label}: points add to ${show(sum)}, marks ${show(marks)}; points dropped`);
+      } else if (each && !splitsInto(points.map((p) => p.marks), each.n, each.marks)) {
+        // The parts print their own chips; a parent split that cannot be shared out over them is wrong.
+        delete s.points;
+        log.push(`${label}: points ${show(points.map((p) => p.marks))} do not split into ${each.n} × ${show(each.marks)}; points dropped`);
+      } else {
+        s.points = points;
       }
     }
   }

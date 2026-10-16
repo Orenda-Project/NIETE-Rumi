@@ -204,6 +204,14 @@ const POSITIONAL = [
   /\b(can ?not|can't) be (determined|found|said)\b/i,
   /ان میں سے کوئی نہیں/, /^\s*تمام/, /^\s*دونوں/,
 ];
+// A pair read in its own order: an option set made of exactly these two words, either way round.
+const POSITIONAL_PAIRS = [['true', 'false'], ['yes', 'no'], ['درست', 'غلط'], ['ہاں', 'نہیں']];
+
+function positionalPair(texts) {
+  if (texts.length !== 2) return false;
+  const words = texts.map((t) => t.trim().toLowerCase().replace(/[.!۔]$/, '')).sort();
+  return POSITIONAL_PAIRS.some((pair) => [...pair].sort().every((w, i) => w === words[i]));
+}
 const UNIT_WORDS = /\b(?:rs|rupees?|paisa|cm2?|mm|km|kg|g|ml|l|m2?|sq|units?|hours?|hrs?|minutes?|mins?|seconds?|days?|weeks?|years?|litres?|liters?|metres?|meters?)\b\.?/gi;
 
 // The same reading as the renderer's bareOption: a model's own "a) " / «الف)» removed.
@@ -214,18 +222,35 @@ function bare(text) {
     .trim();
 }
 
-// The value of an option that is only a number ("Rs. 30", "84 cm2", "1 1/2", "75%"), else NaN.
-function numberOf(text) {
-  const raw = bare(text);
+// An option that is only a number ("Rs. 30", "84 cm2", "1 1/2", "75%", "90 degrees", «۹۰ درجے»):
+// its value and the unit around it; value NaN when it is not.
+function measureOf(text) {
+  const raw = bare(text).replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
   const scale = /%/.test(raw) ? 100 : 1;
-  const s = raw.replace(UNIT_WORDS, '').replace(/[%°²³]/g, '').replace(/,/g, '').trim();
+  const unit = raw.replace(/[\d.,/%\s]+/g, ' ').trim().toLowerCase();
+  // A unit is whatever follows the number, in any script.
+  const s = raw.replace(UNIT_WORDS, '').replace(/[%°²³]/g, '').replace(/,/g, '').replace(/^(.*\d)\D*$/u, '$1').trim();
+  let value = NaN;
   let m = /^(\d+(?:\.\d+)?)$/.exec(s);
-  if (m) return Number(m[1]) / scale;
-  m = /^(\d+)\/(\d+)$/.exec(s);
-  if (m && Number(m[2])) return Number(m[1]) / Number(m[2]) / scale;
-  m = /^(\d+)\s+(\d+)\/(\d+)$/.exec(s);
-  if (m && Number(m[3])) return (Number(m[1]) + Number(m[2]) / Number(m[3])) / scale;
-  return NaN;
+  if (m) value = Number(m[1]) / scale;
+  else if ((m = /^(\d+)\/(\d+)$/.exec(s)) && Number(m[2])) value = Number(m[1]) / Number(m[2]) / scale;
+  else if ((m = /^(\d+)\s+(\d+)\/(\d+)$/.exec(s)) && Number(m[3])) value = (Number(m[1]) + Number(m[2]) / Number(m[3])) / scale;
+  return { value, unit };
+}
+
+function numberOf(text) {
+  return measureOf(text).value;
+}
+
+/**
+ * Two options of the same value in the same unit (2/5 and 6/15, 0.5 and 50%)
+ * make two right answers. Such an item cannot be printed and is not placed,
+ * so its slot reports short. Options that are not numbers are never compared.
+ */
+function sameValueTwice(q) {
+  if (!Array.isArray(q.options)) return false;
+  const seen = q.options.map(measureOf).filter((v) => Number.isFinite(v.value));
+  return seen.some((a, i) => seen.slice(i + 1).some((b) => a.unit === b.unit && Math.abs(a.value - b.value) < 1e-9));
 }
 
 // Words with a natural order of their own: roman numerals, ordinals, weekdays, months.
@@ -270,7 +295,7 @@ function readKey(q) {
   if (!opts.every((o) => typeof o === 'string' && bare(o))) return null;
   const texts = opts.map(bare);
   if (new Set(texts).size !== texts.length) return null;
-  if (texts.some((t) => POSITIONAL.some((re) => re.test(t)))) return null;
+  if (texts.some((t) => POSITIONAL.some((re) => re.test(t))) || positionalPair(texts)) return null;
   if (inNumberOrder(texts)) return null;
   const answer = typeof q.answer === 'string' ? q.answer : '';
   const rest = bare(answer);
@@ -337,7 +362,13 @@ function random(seed) {
   };
 }
 
-/** Spread the keys of every MCQ slot's items; returns how many items were turned. */
+/**
+ * Spread the keys of every MCQ slot's items with as few turns as possible:
+ * a letter may hold ceil(n/4) + 1 keys (6 of 20); only items keyed on a letter
+ * above that are turned, each to the emptiest letter it can reach, until no
+ * letter is above it. A balanced paper is left as it is. Returns how many
+ * items were turned.
+ */
 function spreadKeys(slots, bySlot) {
   const mcqs = [];
   for (const slot of slots) {
@@ -346,33 +377,45 @@ function spreadKeys(slots, bySlot) {
   }
   if (!mcqs.length) return 0;
   const next = random(seedOf(mcqs.map((q) => `${q.question || ''}\u0001${(q.options || []).join('\u0002')}`).join('\u0003')));
+  // Every key counts towards its letter (a child sees the whole strip); only movable items turn.
   const counts = [0, 0, 0, 0];
   const movable = [];
   for (const q of mcqs) {
     const key = readKey(q);
-    if (key) movable.push({ q, key });
-    else {
+    if (key) {
+      movable.push({ q, key });
+      counts[key.index] += 1;
+    } else {
       const at = keyAt(q);
       if (at >= 0 && at < 4) counts[at] += 1;
     }
   }
-  // Visit in a seeded order; each item goes to the letter with fewest keys so far
-  // that it can reach (ties broken by the seed).
+  const cap = Math.ceil(mcqs.length / 4) + 1;
+  // Which item on a crowded letter moves first is set by the seed, so the same paper turns the same items.
   const order = movable.map((m, i) => ({ m, r: next(), i })).sort((a, b) => a.r - b.r || a.i - b.i);
   let moved = 0;
   for (const { m } of order) {
+    if (!counts.some((c) => c > cap)) break;
+    const from = m.key.index;
+    if (counts[from] <= cap) continue;
     const n = m.q.options.length;
-    const reach = Array.from({ length: n }, (_, i) => i);
+    const reach = Array.from({ length: n }, (_, i) => i).filter((i) => i !== from);
     const least = Math.min(...reach.map((i) => counts[i]));
+    if (least + 1 > cap) continue;
     const choices = reach.filter((i) => counts[i] === least);
     const to = choices[Math.floor(next() * choices.length)];
+    counts[from] -= 1;
     counts[to] += 1;
-    if (to === m.key.index) continue;
-    m.q.options = turned(m.q.options, (to - m.key.index + n) % n);
+    m.q.options = turned(m.q.options, (to - from + n) % n);
     m.q.answer = m.key.write(to);
     moved += 1;
   }
   return moved;
+}
+
+// An MCQ with two right answers is not placed (see sameValueTwice).
+function printable(slot, q) {
+  return slot.shape !== 'mcq' || !sameValueTwice(q);
 }
 
 /**
@@ -399,13 +442,13 @@ function applyLayout(examJson, P, scope, opts = {}) {
       slot = slots.find((s) => slotKey(s.slot).endsWith(tail));
     }
     if (!slot) { untagged.push(entry); continue; }
-    if (room(slot) && settleVerses(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
+    if (room(slot) && settleVerses(slot, entry.q) && printable(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
     else unplaced += 1;
   }
   for (const entry of untagged) {
     const key = typeKey(entry.type);
     const slot = slots.find((s) => typeKey(s.type) === key && room(s));
-    if (slot && settleVerses(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
+    if (slot && settleVerses(slot, entry.q) && printable(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
     else unplaced += 1;
   }
   spreadKeys(slots, bySlot);
