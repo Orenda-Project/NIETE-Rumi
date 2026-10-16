@@ -375,3 +375,45 @@ describe('the challenge shell loads the live module before the page (an HTTP ren
     } finally { srv.close(); }
   });
 });
+
+// The Trail (v2) read screen shows the words lighting up and "Read now!", never a reading speed: no running
+// number, no bar, no "Last time". With the Trail off, today's live screen is kept byte for byte (the golden).
+describe('the Trail read screen with live words: no reading-speed meter', () => {
+  const GOLDEN = path.join(__dirname, 'fixtures', 'read-live-meter-off.golden.json');
+  const TC = { practice: 'Practice round. Play as much as you like!', stopDone: 'Stop done!', badge: 'Done', next: 'Next', mic: 'uses the microphone' };
+  const TRAIL_MENU = (lang) => ({ ...MENU, lang, record: true, trail: true, trail_copy: TC });
+  const trailRead = (story, lang, extra = {}) => ({ ...READ(story), lang, record: true, trail: true, trail_copy: TC, previous_wcpm: 40, ...extra });
+  const openTrail = async (p) => { p.w.open('read'); await p.flush(); await p.click('wqc-go'); };
+  const METER = /wqc-wpm|words a minute|ایک منٹ میں لفظ|Last time|پچھلی بار/;
+
+  test.each(['en', 'ur'])('%s: a Trail read with live words → no #wqc-wpm, no number, bar or "Last time"; the words still light up', async (lang) => {
+    const story = lang === 'ur' ? UR : EN;
+    const p = page({ lang, menu: TRAIL_MENU(lang), routes: { ...routesFor(story), 'ch/HUB.TOKEN/read': ok(trailRead(story, lang)), 'ch/live': ok({ ...KEY, lang }) } });
+    await openTrail(p);
+    expect(p.w.live()).toBeTruthy();
+    expect(p.screen()).toBe('read-live');
+    expect(p.html()).not.toMatch(METER);
+    expect(p.html()).toContain('id="wqc-live-story"');
+    expect(p.html()).toContain(p.w.T[lang].readNow);
+    const s = p.sockets[0]; s.open();
+    s.msg({ tokens: toks(story.tokens.slice(0, 10), { gap: 1 }) });
+    expect((p.story().match(/wqc-w wqc-ok/g) || [])).toHaveLength(10);
+    expect(p.html()).not.toMatch(METER);
+    expect(p.els['wqc-wpm-n']).toBeUndefined();
+    expect(p.els['wqc-wpm-bar']).toBeUndefined();
+  });
+
+  test('golden: Trail off → the live screen (number, bar, "Last time") is today\'s, string-equal to the base capture', async () => {
+    const shot = async (lang) => {
+      const story = lang === 'ur' ? UR : EN;
+      const p = page({ lang, menu: { ...MENU, lang }, routes: { ...routesFor(story), 'ch/HUB.TOKEN/read': ok({ ...READ(story), lang, previous_wcpm: 40 }), 'ch/live': ok({ ...KEY, lang }) } });
+      await go(p);
+      return p.root.innerHTML;
+    };
+    const now = { en: await shot('en'), ur: await shot('ur') };
+    if (process.env.WRITE_READ_LIVE_GOLDEN === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify(now, null, 2)}\n`);
+    expect(now).toEqual(JSON.parse(fs.readFileSync(GOLDEN, 'utf8')));
+    expect(now.en).toContain('id="wqc-wpm"');
+    expect(now.en).toContain('Last time');
+  });
+});
