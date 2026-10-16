@@ -44,7 +44,7 @@ const EVENTS = new Set(['story_opened', 'story_page_listened', 'story_page_read'
 // What each event may keep (numbers and small enums only: never a word the child said, never a name).
 const KEEP = {
   story_opened: { shelf_position: 'int', from_teacher: 'bool', grade: 'int', lang: 'lang', code: 'code' },
-  story_page_listened: { ms: 'int', completed: 'bool' },
+  story_page_listened: { ms: 'int', completed: 'bool', miss: 'bool' },
   story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended' },
   story_questions_done: {},
   story_done: { pages_listened: 'int', pages_read: 'int', stars: 'int' },

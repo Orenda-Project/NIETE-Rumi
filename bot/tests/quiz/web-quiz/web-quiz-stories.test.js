@@ -303,6 +303,11 @@ describe('events', () => {
     expect(fake.db.story_events[0].data).toEqual({ shelf_position: 1, from_teacher: true, code: 'AB12CD' });
     expect(fake.db.story_events[1].data).toEqual({});
   });
+  test('story_page_listened may say the page had no voice yet (miss)', async () => {
+    seed();
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 2, event: 'story_page_listened', data: { miss: true } });
+    expect(fake.db.story_events[0].data).toEqual({ miss: true });
+  });
   test('story_page_read keeps numbers only (never a transcript)', async () => {
     seed();
     await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { words_total: 5, words_read: 4, skipped: 1, ms: 3000, ended: 'last_word', transcript_final: 'sami sees a kite' } });
