@@ -34,9 +34,37 @@ const rosters = new Map();
 
 const firstToken = (s) => String(s || '').trim().split(/\s+/)[0] || '';
 
-/** 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read). */
-async function identityMode(now = Date.now()) {
+let modeReading = null;
+let modeWarned = false;
+
+/** One background re-read of the setting at a time; a failed one keeps the last reading (logged once until one succeeds). */
+function refreshMode() {
+  if (modeReading) return modeReading;
+  modeReading = (async () => {
+    try {
+      const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', FLAG_KEY);
+      if (error) throw new Error(error.message || 'app_settings read failed');
+      let v = (data || [])[0] ? data[0].value : null;
+      if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
+      flag = { at: Date.now(), mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null };
+      modeWarned = false;
+    } catch (err) {
+      if (!modeWarned) { modeWarned = true; logToFile('⚠️ web quiz identity: setting refresh failed — the last reading kept', { error: err.message }); }
+    } finally {
+      modeReading = null;
+    }
+  })();
+  return modeReading;
+}
+
+/**
+ * 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read).
+ * `swr` (the fast quiz page): a stale reading is answered at once and re-read in the background; with no reading yet
+ * the read is waited for, as without it.
+ */
+async function identityMode(now = Date.now(), { swr = false } = {}) {
   if (flag && now - flag.at < TTL_MS) return flag.mode;
+  if (swr && flag) { refreshMode(); return flag.mode; }
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', FLAG_KEY);
     if (error) throw new Error(error.message || 'app_settings read failed');
@@ -185,11 +213,30 @@ async function loadLegacyList(listId, now = Date.now()) {
   }
 }
 
-/** The roster a resolved class stands on: the class's enrolments, else its legacy list. */
-async function rosterOf(cls) {
+const refreshing = new Map(); // key → the background re-read in flight
+
+/**
+ * A roster read stale-while-revalidate: none cached yet → read and wait, as without it; cached but past 30 s → the
+ * cached children at once, re-read in the background (one at a time; a failed re-read keeps them, logged by the read).
+ */
+function swrRoster(key, load) {
+  const hit = rosters.get(key);
+  if (!hit) return load();
+  if (Date.now() - hit.at >= TTL_MS && !refreshing.has(key)) {
+    const p = Promise.resolve().then(load).catch(() => null).finally(() => refreshing.delete(key));
+    refreshing.set(key, p);
+  }
+  return hit.kids;
+}
+
+/**
+ * The roster a resolved class stands on: the class's enrolments, else its legacy list.
+ * `swr` (the fast quiz page's boot, which only asks whether there is one): a stale roster answers at once.
+ */
+async function rosterOf(cls, { swr = false } = {}) {
   if (!cls) return null;
-  if (cls.id) return loadClassRoster(cls.id);
-  if (cls.listId) return loadLegacyList(cls.listId);
+  if (cls.id) return swr ? swrRoster(`class:${cls.id}`, () => loadClassRoster(cls.id)) : loadClassRoster(cls.id);
+  if (cls.listId) return swr ? swrRoster(`list:${cls.listId}`, () => loadLegacyList(cls.listId)) : loadLegacyList(cls.listId);
   return null;
 }
 
@@ -282,5 +329,5 @@ module.exports = {
   canonicalStudentIds, canonicalStudentId,
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
-  _resetCache: () => { flag = null; rosters.clear(); },
+  _resetCache: () => { flag = null; rosters.clear(); refreshing.clear(); modeReading = null; modeWarned = false; },
 };

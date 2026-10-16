@@ -34,10 +34,37 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-/** The switch, effective only with the hub on. Fail closed (never cached on an error). */
-async function isOn(now = Date.now()) {
+let reading = null;
+let warned = false;
+
+/** One background re-read of the switch at a time; a failed one keeps the last reading (logged once until one succeeds). */
+function refresh() {
+  if (reading) return reading;
+  reading = (async () => {
+    try {
+      const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [LINK_HOME_KEY]);
+      if (error) throw new Error(error.message || 'app_settings read failed');
+      const row = (data || []).find((r) => r.key === LINK_HOME_KEY);
+      cache = { at: Date.now(), on: Boolean(row) && isTrue(row.value) };
+      warned = false;
+    } catch (err) {
+      if (!warned) { warned = true; logToFile('⚠️ web quiz link home: settings refresh failed — the last reading kept', { error: err.message }); }
+    } finally {
+      reading = null;
+    }
+  })();
+  return reading;
+}
+
+/**
+ * The switch, effective only with the hub on. Fail closed (never cached on an error).
+ * `swr` (the fast quiz page): a stale reading is answered at once and re-read in the background; with no reading yet
+ * the read is waited for, as without it.
+ */
+async function isOn(now = Date.now(), { swr = false } = {}) {
   let own = false;
   if (cache && now - cache.at < TTL_MS) own = cache.on;
+  else if (swr && cache) { refresh(); own = cache.on; }
   else {
     try {
       const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [LINK_HOME_KEY]);
@@ -55,10 +82,10 @@ async function isOn(now = Date.now()) {
 }
 
 /** May the quiz payload carry `link_home`? Never on a friend's challenge or the teacher's preview. Never throws. */
-async function field(ctx, { preview = false } = {}) {
+async function field(ctx, { preview = false, swr = false } = {}) {
   try {
     if (!ctx || ctx.invitedByStudentId || preview) return false;
-    return await isOn();
+    return await (swr ? isOn(Date.now(), { swr: true }) : isOn());
   } catch (_) {
     return false;
   }
@@ -102,4 +129,4 @@ async function home(body = {}, resolveCode = null) {
   }
 }
 
-module.exports = { field, home, isOn, LINK_HOME_KEY, _resetCache: () => { cache = null; } };
+module.exports = { field, home, isOn, LINK_HOME_KEY, _resetCache: () => { cache = null; reading = null; warned = false; } };
