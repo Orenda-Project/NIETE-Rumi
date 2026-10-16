@@ -43,7 +43,7 @@ const MAX_TEACHER = 5;
 const EVENTS = new Set(['story_opened', 'story_page_listened', 'story_page_read', 'story_questions_done', 'story_done', 'story_shared']);
 // What each event may keep (numbers and small enums only: never a word the child said, never a name).
 const KEEP = {
-  story_opened: { shelf_position: 'int', from_teacher: 'bool', grade: 'int', lang: 'lang' },
+  story_opened: { shelf_position: 'int', from_teacher: 'bool', grade: 'int', lang: 'lang', code: 'code' },
   story_page_listened: { ms: 'int', completed: 'bool' },
   story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended' },
   story_questions_done: {},
@@ -78,9 +78,42 @@ async function flags(now = Date.now()) {
 }
 async function storiesOn(now = Date.now()) { return (await flags(now)).on; }
 
-/** The hub payload's Stories bit: {} off (the payload stays today's). Never throws. */
-async function hubBits() {
-  try { return (await storiesOn()) ? { stories: { on: 1 } } : {}; } catch (_) { return {}; }
+const RESUME_DAYS = 7;
+const PAGE_EVENTS = new Set(['story_page_listened', 'story_page_read']);
+
+/** The newest ready book of the last 7 days with a page listened/read and no finish: {book_id, title, cover, page_n, pages}. */
+async function resumeOf(studentId, now) {
+  const since = new Date(now - RESUME_DAYS * DAY_MS).toISOString();
+  const { data } = await supabase.from('story_events').select('book_id, page_n, event, at').eq('child_id', studentId).gte('at', since)
+    .order('at', { ascending: false }).limit(300);
+  const done = new Set(); const last = new Map();
+  (data || []).forEach((r) => {
+    if (r.event === 'story_done') done.add(r.book_id);
+    else if (PAGE_EVENTS.has(r.event) && Number.isFinite(Number(r.page_n))) {
+      const was = last.get(r.book_id) || { at: '', page: 0 };
+      last.set(r.book_id, { at: String(r.at) > was.at ? String(r.at) : was.at, page: Math.max(was.page, Number(r.page_n)) });
+    }
+  });
+  const open = [...last.entries()].filter(([id]) => !done.has(id)).sort((a, b) => b[1].at.localeCompare(a[1].at));
+  for (const [id, seen] of open.slice(0, 5)) {
+    const b = await readyBook(id); // eslint-disable-line no-await-in-loop
+    if (b) {
+      const pages = Number(b.pages) || 0;
+      return { book_id: b.id, title: b.title, cover: fileUrl(b.id, b.cover_file), page_n: Math.max(1, Math.min(seen.page + 1, pages || seen.page + 1)), pages };
+    }
+  }
+  return null;
+}
+
+/** The hub payload's Stories bit: {} off (the payload stays today's); on, {stories:{on:1, resume?}}. Never throws. */
+async function hubBits({ studentId, now = Date.now() } = {}) {
+  try {
+    if (!(await storiesOn())) return {};
+    const resume = studentId ? await resumeOf(studentId, now) : null;
+    return { stories: { on: 1, ...(resume ? { resume } : {}) } };
+  } catch (_) {
+    return {};
+  }
 }
 
 async function guard(token, kid, device) {
@@ -147,6 +180,7 @@ function keep(event, data) {
     else if (spec[k] === 'bool' && typeof v === 'boolean') out[k] = v;
     else if (spec[k] === 'lang' && (v === 'en' || v === 'ur')) out[k] = v;
     else if (spec[k] === 'ended' && ENDED.has(v)) out[k] = v;
+    else if (spec[k] === 'code' && typeof v === 'string' && /^[A-Za-z0-9]{4,12}$/.test(v)) out[k] = v;
   });
   return out;
 }
@@ -204,7 +238,9 @@ async function signAudio(key, bookId) {
   }
 }
 
-function bandOf(bookId, band) {
+// The band as one jsonb (text_band) or as columns (band_file, band_w, band_h, band_box): both read the same.
+function bandOf(bookId, row) {
+  const band = row && row.text_band ? row.text_band : row && row.band_file ? { file: row.band_file, w: row.band_w, h: row.band_h, box: row.band_box } : null;
   if (!band || typeof band !== 'object') return null;
   const url = fileUrl(bookId, band.file);
   if (!url || !Array.isArray(band.box) || band.box.length !== 4) return null;
@@ -236,7 +272,7 @@ async function bookData(id) {
   const b = await readyBook(id);
   if (!b) fail(404, 'not_found');
   const { data: pageRows } = await supabase.from('story_pages')
-    .select('id, n, image_file, image_w, image_h, text, words, boxes_ok, is_picture, text_band').eq('book_id', b.id);
+    .select('*').eq('book_id', b.id);
   const pages = (pageRows || []).slice().sort((x, y) => x.n - y.n);
   const { data: voiceRows } = pages.length
     ? await supabase.from('story_page_voices').select('page_id, audio_key, ms, timings, wpm, is_current').in('page_id', pages.map((p) => p.id)).eq('is_current', true)
@@ -252,7 +288,7 @@ async function bookData(id) {
     pages: pages.map((p, i) => {
       const v = voiceOf.get(p.id);
       return {
-        n: p.n, image: { url: fileUrl(b.id, p.image_file), w: p.image_w, h: p.image_h }, text_band: f.band ? bandOf(b.id, p.text_band) : null,
+        n: p.n, image: { url: fileUrl(b.id, p.image_file), w: p.image_w, h: p.image_h }, text_band: f.band ? bandOf(b.id, p) : null,
         text: p.text || '', words: mergeWords(p.words, v && urls[i] ? v.timings : []),
         audio: v && urls[i] ? { url: urls[i], ms: Number(v.ms) || 0 } : null, boxes_ok: Boolean(p.boxes_ok), is_picture: Boolean(p.is_picture),
       };

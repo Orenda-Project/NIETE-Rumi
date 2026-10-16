@@ -26,6 +26,7 @@ const DAY = 86400000;
 const NOON_PKT = Date.UTC(2026, 9, 16, 7, 0, 0); // 12:00 PKT, 16 Oct 2026
 
 let fake;
+const clone = (v) => JSON.parse(JSON.stringify(v));
 function seed({ on = true, book = false, band = false, extra = {} } = {}) {
   const settings = [];
   if (on) settings.push({ key: 'web_quiz_stories', value: true });
@@ -41,9 +42,9 @@ function seed({ on = true, book = false, band = false, extra = {} } = {}) {
   fake = makeFake({
     app_settings: settings,
     story_books: books,
-    story_pages: [F.P2, F.P1, F.P3],
-    story_page_voices: [F.VOICE_P1, F.VOICE_P1_OLD],
-    story_questions: F.QUESTIONS.slice(),
+    story_pages: clone([F.P2, F.P1, F.P3]),
+    story_page_voices: clone([F.VOICE_P1, F.VOICE_P1_OLD]),
+    story_questions: clone(F.QUESTIONS),
     story_events: [],
     ...extra,
   });
@@ -86,6 +87,32 @@ describe('the switch: off is closed everywhere', () => {
     Stories._reset();
     seed();
     expect(await Stories.hubBits()).toEqual({ stories: { on: 1 } });
+  });
+  test('hubBits with a child: resume = the newest half-read ready book of the last 7 days, on its next page', async () => {
+    seed();
+    const at = (h) => new Date(NOON_PKT - h * 3600000).toISOString();
+    fake.db.story_events.push(
+      { child_id: KID, book_id: F.BOOK(2), page_n: 1, event: 'story_page_listened', data: {}, at: at(30) },
+      { child_id: KID, book_id: F.BOOK(1), page_n: 1, event: 'story_page_listened', data: {}, at: at(2) },
+      { child_id: KID, book_id: F.BOOK(3), page_n: 2, event: 'story_page_read', data: {}, at: at(1) },
+      { child_id: KID, book_id: F.BOOK(3), event: 'story_done', data: {}, at: at(0.5) },       // finished: never resumed
+      { child_id: KID, book_id: F.BOOK(8), page_n: 1, event: 'story_page_read', data: {}, at: at(0.2) }, // draft: never
+      { child_id: KID_B, book_id: F.BOOK(4), page_n: 1, event: 'story_page_read', data: {}, at: at(0.1) },
+    );
+    expect(await Stories.hubBits({ studentId: KID, now: NOON_PKT })).toEqual({ stories: { on: 1, resume: { book_id: F.BOOK(1), title: 'Book 1 Testwala', cover: `/s/${F.BOOK(1)}/cover-aaaa0001.webp`, page_n: 2, pages: 2 } } });
+  });
+  test('hubBits: nothing half-read in 7 days → no resume key', async () => {
+    seed();
+    fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: {}, at: new Date(NOON_PKT - 8 * DAY).toISOString() });
+    expect(await Stories.hubBits({ studentId: KID, now: NOON_PKT })).toEqual({ stories: { on: 1 } });
+  });
+  test('the page rows may carry the band as columns (band_file, band_w, band_h, band_box) instead of text_band', async () => {
+    seed({ band: true });
+    const p1 = fake.db.story_pages.find((p) => p.n === 1);
+    delete p1.text_band;
+    Object.assign(p1, { band_file: 'p01-band-cccc0009.webp', band_w: 1440, band_h: 200, band_box: [0, 860, 720, 100] });
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out.pages[0].text_band).toEqual({ url: `/s/${F.BOOK(1)}/p01-band-cccc0009.webp`, w: 1440, h: 200, box: [0, 860, 720, 100] });
   });
   test('a hub link that names nobody on this phone opens nothing (401)', async () => {
     seed();
@@ -223,6 +250,13 @@ describe('events', () => {
     expect(fake.db.story_events).toHaveLength(1);
     expect(fake.db.story_events[0]).toEqual(expect.objectContaining({ child_id: KID, book_id: F.BOOK(1), event: 'story_opened', page_n: null,
       data: { shelf_position: 3, from_teacher: false, grade: 2, lang: 'en' } }));
+  });
+  test('story_opened from a teacher link keeps the share code (the teacher report joins on it); a junk code is dropped', async () => {
+    seed();
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_opened', data: { shelf_position: 1, from_teacher: true, code: 'AB12CD' } });
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_opened', data: { code: 'x y<script>' } });
+    expect(fake.db.story_events[0].data).toEqual({ shelf_position: 1, from_teacher: true, code: 'AB12CD' });
+    expect(fake.db.story_events[1].data).toEqual({});
   });
   test('story_page_read keeps numbers only (never a transcript)', async () => {
     seed();

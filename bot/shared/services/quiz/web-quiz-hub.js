@@ -490,7 +490,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await require('./web-quiz-book').hubBits({ studentId: chosen.id })); // Jugnu's Book: {} while web_quiz_challenge_book is off
-  Object.assign(out, await require('./web-quiz-stories').hubBits()); // Stories: {} while web_quiz_stories is off
+  Object.assign(out, await require('./web-quiz-stories').hubBits({ studentId: chosen.id })); // Stories: {} while web_quiz_stories is off
   return out;
 }
 
