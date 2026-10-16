@@ -87,7 +87,7 @@ const CSS = [
   '.th-foot{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:6px}',
   '.th-cards{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}',
   '.th-sheet{position:fixed;inset:0;background:var(--ground);overflow:auto;z-index:5}',
-  '.th-walk{margin-top:14px;padding:12px;border:2px dashed var(--line);border-radius:14px}.th-walk button{display:block;width:100%;min-height:48px;margin-top:8px;border-radius:12px;border:2px solid var(--line);background:var(--card);font:inherit;color:var(--ink)}',
+  '.th-walk{margin-top:14px;padding:12px;border:2px dashed var(--line);border-radius:14px}.th-walk button{display:block;width:100%;min-height:48px;margin-top:8px;border-radius:12px;border:2px solid var(--line);background:var(--card);font:inherit;color:var(--ink)}html[lang=ur] .th-walk{font-size:18px;line-height:1.9}',
 ].join('\n');
 
 function fontFace(lang) {
