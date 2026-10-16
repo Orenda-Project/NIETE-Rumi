@@ -433,6 +433,91 @@ describe('read-along player: the page', () => {
     expect(p.mode).toBe('text');
   });
 
+  test('sayWord: one word in Jugnu\'s voice with no player on screen — play, then seek to its start, pause past its end; inside the tap', () => {
+    const { RA, at, audio } = load();
+    const h = RA.sayWord(DATA, 2);   // "cricket." 1200–1800 ms
+    const a = audio();
+    expect(a.src).toBe(DATA.audio.url);
+    expect(a.plays).toBe(1);          // play() ran inside this call (the in-app browser's audio unlock)
+    expect(a.currentTime).toBeCloseTo(1.2);
+    at(1500); expect(a.paused).toBe(false);
+    at(1810); expect(a.paused).toBe(true);
+    expect(() => h.stop()).not.toThrow();
+  });
+  test('sayWord: a bad index, a page not voiced yet, or bad data does nothing and never throws', () => {
+    const { RA } = load();
+    expect(RA.sayWord(DATA, 9)).toBeNull();
+    expect(RA.sayWord({ ...DATA, audio: null }, 0)).toBeNull();
+    expect(RA.sayWord({ v: 9 }, 0)).toBeNull();
+  });
+
+  test('quality "low": no word slices — playWord does nothing, sayWord returns null (the word times are not trusted)', () => {
+    const { RA, document, audio } = load();
+    const p = RA.mount(document.createElement('div'), { ...DATA, quality: 'low' }, {});
+    const a = audio();
+    p.playWord(2);
+    expect(a.plays).toBe(0);
+    expect(RA.sayWord({ ...DATA, quality: 'low' }, 2)).toBeNull();
+    expect(RA.sayWord(DATA, 2)).not.toBeNull();   // a word-timed file still says the word
+  });
+  test('a timing passed as its JSON text: sayWord reads the low mark from the parsed file, as from the object', () => {
+    const { RA, audio } = load();
+    expect(RA.parse(JSON.stringify({ ...DATA, quality: 'low' })).quality).toBe('low');
+    expect(RA.parse(DATA).quality).toBe('word');
+    expect(RA.sayWord(JSON.stringify({ ...DATA, quality: 'low' }), 2)).toBeNull();   // low, as text: no word slice
+    expect(audio()).toBeUndefined();
+    const h = RA.sayWord(JSON.stringify(DATA), 2);                                   // word-timed, as text: says it
+    expect(h).not.toBeNull();
+    expect(audio().plays).toBe(1);
+    expect(RA.sayWord('not json', 2)).toBeNull();
+  });
+
+  test('sayLine on a low file: a tapped word plays its sentence (the line\'s ends sit on pauses), inside the tap; the range comes back to light', () => {
+    const { RA, at, audio } = load();
+    const low = { ...DATA, quality: 'low' };
+    expect(RA.sayWord(low, 1)).toBeNull();          // one word from a low file: never
+    const h = RA.sayLine(low, 1);                   // "played" → "Asad played cricket." 200–1800 ms
+    expect(h.from).toBe(0);
+    expect(h.to).toBe(2);
+    const a = audio();
+    expect(a.src).toBe(DATA.audio.url);
+    expect(a.plays).toBe(1);
+    expect(a.currentTime).toBeCloseTo(0.2);
+    at(1700); expect(a.paused).toBe(false);
+    at(1810); expect(a.paused).toBe(true);
+    expect(() => h.stop()).not.toThrow();
+    const h2 = RA.sayLine(JSON.stringify(low), 4);  // the file as its JSON text; "won." → "He won." 2600–3500 ms
+    expect([h2.from, h2.to]).toEqual([3, 4]);
+    expect(audio().currentTime).toBeCloseTo(2.6);
+  });
+  test('sayLine: the page\'s own printed line when it says so; on a picture page, the line from the words\' boxes', () => {
+    const { RA, audio } = load();
+    const h = RA.sayLine({ ...DATA, quality: 'low' }, 2, [1, 3]);   // the page wrapped "played cricket. He" on one line
+    expect([h.from, h.to]).toEqual([1, 3]);
+    expect(audio().currentTime).toBeCloseTo(0.7);
+    expect([RA.sayLine(DATA, 2, [3, 4]).from, RA.sayLine(DATA, 2, [9, 1]).from]).toEqual([0, 0]);   // a line without the word: ignored
+    const boxes = [[100, 1200, 90, 40], [200, 1204, 90, 36], [300, 1200, 120, 40], [100, 1260, 60, 40], [170, 1262, 80, 38]];
+    const pic = { ...DATA, quality: 'low', image: { url: 'p.webp', w: 1080, h: 1600 }, words: DATA.words.map((w, k) => ({ ...w, t: w.t.replace('.', ''), box: boxes[k] })) };
+    const b = RA.sayLine(pic, 1);   // no full stops to go by: the printed line from the boxes, words 0–2
+    expect([b.from, b.to]).toEqual([0, 2]);
+    expect([RA.sayLine(pic, 3).from, RA.sayLine(pic, 3).to]).toEqual([3, 4]);
+  });
+  test('sayLine in Urdu: the sentence ends at «۔» and «؟»', () => {
+    const { RA } = load();
+    const ts = ['ایک', 'دن', 'آیا۔', 'کون', 'آیا؟', 'وہ'];
+    const ur = { ...DATA, lang: 'ur', quality: 'low', words: ts.map((t, i) => ({ i, t, s_ms: i * 500, e_ms: i * 500 + 400 })) };
+    expect([RA.sayLine(ur, 1).from, RA.sayLine(ur, 1).to]).toEqual([0, 2]);
+    expect([RA.sayLine(ur, 3).from, RA.sayLine(ur, 3).to]).toEqual([3, 4]);
+    expect([RA.sayLine(ur, 5).from, RA.sayLine(ur, 5).to]).toEqual([5, 5]);
+  });
+  test('sayLine: a bad index, a page not voiced yet, or bad data does nothing and never throws', () => {
+    const { RA } = load();
+    expect(RA.sayLine(DATA, 9)).toBeNull();
+    expect(RA.sayLine({ ...DATA, audio: null }, 0)).toBeNull();
+    expect(RA.sayLine({ v: 9 }, 0)).toBeNull();
+    expect(RA.sayLine('not json', 0)).toBeNull();
+  });
+
   test('size budget: ≤ 8 KB gzipped', () => {
     expect(SRC.length).toBeGreaterThan(0);
     expect(zlib.gzipSync(Buffer.from(SRC), { level: 9 }).length).toBeLessThanOrEqual(8192);

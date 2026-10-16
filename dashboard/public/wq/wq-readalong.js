@@ -52,6 +52,7 @@
 
   /** The timing object, checked: words in order with whole numbers, or an Error naming what is wrong. */
   function parse(d) {
+    if (typeof d === 'string' && d.charAt(0) === '{') { try { d = JSON.parse(d); } catch (e) { d = null; } }   // the file as its JSON text
     if (!d || typeof d !== 'object') throw new Error('readalong: no data');
     if (d.v !== 1) throw new Error('readalong: version ' + d.v);
     // audio null = a page not voiced yet: its words show, nothing plays
@@ -69,7 +70,7 @@
     });
     var img = d.image && d.image.url && d.image.w > 0 && d.image.h > 0 ? { url: String(d.image.url), w: Number(d.image.w), h: Number(d.image.h) } : null;
     return { id: d.id == null ? null : String(d.id), lang: d.lang === 'ur' ? 'ur' : 'en', dir: d.dir === 'rtl' || (d.dir == null && d.lang === 'ur') ? 'rtl' : 'ltr',
-      audio: d.audio == null ? null : { url: d.audio.url, ms: Number(d.audio.ms) || 0 }, words: words, image: img };
+      audio: d.audio == null ? null : { url: d.audio.url, ms: Number(d.audio.ms) || 0 }, words: words, image: img, quality: d.quality === 'low' ? 'low' : 'word' };
   }
 
   /** The word lit at t ms (the lead already added): the last word whose start ≤ t; −1 before the first. */
@@ -210,22 +211,8 @@
       var r = [b[0] - surf.x, b[1] - surf.y, b[2], b[3]];
       return r[0] < -0.5 || r[1] < -0.5 || r[0] + r[2] > surf.w + 0.5 || r[1] + r[3] > surf.h + 0.5 ? null : r;
     }
-    // printed lines (quality low): a word whose box's middle falls outside the line so far starts the next line
-    function lineBoxes() {
-      var out = [];
-      words.forEach(function (w, k) {
-        var b = w.box;
-        var cur = out[out.length - 1];
-        var mid = b[1] + b[3] / 2;
-        if (cur && mid >= cur[2][1] && mid <= cur[2][1] + cur[2][3]) {
-          var x0 = Math.min(cur[2][0], b[0]);
-          var y0 = Math.min(cur[2][1], b[1]);
-          cur[2] = [x0, y0, Math.max(cur[2][0] + cur[2][2], b[0] + b[2]) - x0, Math.max(cur[2][1] + cur[2][3], b[1] + b[3]) - y0];
-          cur[1] = k;
-        } else out.push([k, k, b.slice()]);
-      });
-      return out;
-    }
+    // printed lines (quality low), from the boxes
+    function lineBoxes() { return boxLines(words); }
     // the same in text mode, from where the browser wrapped the words
     function lineSpans() {
       var out = [];
@@ -392,9 +379,10 @@
     api.toggle = function () { if (api.state === 'playing') pause(); else play(); };
     api.replay = function () { finished = true; play(); };
     api.seekToWord = seekToWord;
-    // one word in the same voice (a missed word, a tapped word): play from its start, stop at its end
+    // one word in the same voice (a missed word, a tapped word): play from its start, stop at its end; never on a
+    // "low" file (its word times are not trusted: a slice could say the neighbour or half a word)
     api.playWord = function (i) {
-      if (dead || !(i >= 0 && i < words.length)) return;
+      if (dead || quality === 'low' || !(i >= 0 && i < words.length)) return;
       playFrom(words[i].s, i);
       stopAt = words[i].e;
     };
@@ -423,5 +411,64 @@
     try { var a = new Audio(); a.preload = 'auto'; a.src = (typeof data === 'string' ? data : data.audio.url); return a; } catch (e) { return null; }
   }
 
-  window.WQReadAlong = { mount: mount, parse: parse, indexAt: indexAt, preload: preload };
+  /** One word in Jugnu's voice with nothing drawn (a skipped word tapped after a read): play, then seek to its start,
+   *  pause once the clock passes its end. Call it inside the tap. Null when there is nothing to say. */
+  function sayWord(data, i) {
+    var d;
+    try { d = parse(data); } catch (e) { return null; }
+    if (!d.audio || (d.quality || (data && data.quality)) === 'low' || !(i >= 0 && i < d.words.length)) return null;
+    return clip(d.audio.url, d.words[i].s, d.words[i].e);
+  }
+  // one Audio on the signed URL, inside the caller's tap: play, seek to s, pause past e, then dropped
+  function clip(url, s, e) {
+    var a = new Audio();
+    var raf = window.requestAnimationFrame ? function (f) { return window.requestAnimationFrame(f); } : function (f) { return setTimeout(f, 16); };
+    var done = false;
+    function stop() { if (done) return; done = true; try { a.pause(); a.removeAttribute('src'); a.load(); } catch (x) { /* gone */ } }
+    (function watch() { if (done) return; if ((a.currentTime || 0) * 1000 >= e + 10) { stop(); return; } raf(watch); }());
+    a.src = url;
+    try { var pr = a.play(); if (pr && pr.catch) pr.catch(stop); } catch (x) { stop(); return null; }
+    try { a.currentTime = s / 1000; } catch (x) { /* not seekable yet */ }
+    return { stop: stop };
+  }
+  // printed lines from the words' boxes: a word whose box's middle falls outside the line so far starts the next line
+  function boxLines(words) {
+    var out = [];
+    words.forEach(function (w, k) {
+      var b = w.box;
+      var cur = out[out.length - 1];
+      var mid = b[1] + b[3] / 2;
+      if (cur && mid >= cur[2][1] && mid <= cur[2][1] + cur[2][3]) {
+        var x0 = Math.min(cur[2][0], b[0]);
+        var y0 = Math.min(cur[2][1], b[1]);
+        cur[2] = [x0, y0, Math.max(cur[2][0] + cur[2][2], b[0] + b[2]) - x0, Math.max(cur[2][1] + cur[2][3], b[1] + b[3]) - y0];
+        cur[1] = k;
+      } else out.push([k, k, b.slice()]);
+    });
+    return out;
+  }
+  /**
+   * Say the printed line holding word i, with nothing drawn (a tapped word on a page whose word times are not trusted:
+   * a line's ends sit on pauses both aligners agree on). The line: the page's own [first, last] when it holds i; else
+   * from the words' boxes (a picture page); else the sentence. Back: {stop, from, to} for the page to light, or null.
+   */
+  function sayLine(data, i, line) {
+    var d;
+    try { d = parse(data); } catch (e) { return null; }
+    var ws = d.words;
+    if (!d.audio || !(i >= 0 && i < ws.length)) return null;
+    var r = null;
+    if (line && line[0] >= 0 && line[0] <= i && i <= line[1] && line[1] < ws.length) r = [line[0], line[1]];
+    else if (ws.every(function (w) { return w.box; })) boxLines(ws).forEach(function (l) { if (i >= l[0] && i <= l[1]) r = l; });
+    else {
+      var end = /[.!?\u06D4\u061F]["'\u201D\u2019)]*$/;
+      r = [i, i];
+      while (r[0] > 0 && !end.test(ws[r[0] - 1].t)) r[0] -= 1;
+      while (r[1] < ws.length - 1 && !end.test(ws[r[1]].t)) r[1] += 1;
+    }
+    var h = clip(d.audio.url, ws[r[0]].s, ws[r[1]].e);
+    return h && { stop: h.stop, from: r[0], to: r[1] };
+  }
+
+  window.WQReadAlong = { mount: mount, parse: parse, indexAt: indexAt, preload: preload, sayWord: sayWord, sayLine: sayLine };
 }());
