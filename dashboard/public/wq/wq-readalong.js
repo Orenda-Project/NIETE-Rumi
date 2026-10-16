@@ -51,6 +51,7 @@
 
   /** The timing object, checked: words in order with whole numbers, or an Error naming what is wrong. */
   function parse(d) {
+    if (typeof d === 'string' && d.charAt(0) === '{') { try { d = JSON.parse(d); } catch (e) { d = null; } }   // the file as its JSON text
     if (!d || typeof d !== 'object') throw new Error('readalong: no data');
     if (d.v !== 1) throw new Error('readalong: version ' + d.v);
     // audio null = a page not voiced yet: its words show, nothing plays
@@ -68,7 +69,7 @@
     });
     var img = d.image && d.image.url && d.image.w > 0 && d.image.h > 0 ? { url: String(d.image.url), w: Number(d.image.w), h: Number(d.image.h) } : null;
     return { id: d.id == null ? null : String(d.id), lang: d.lang === 'ur' ? 'ur' : 'en', dir: d.dir === 'rtl' || (d.dir == null && d.lang === 'ur') ? 'rtl' : 'ltr',
-      audio: d.audio == null ? null : { url: d.audio.url, ms: Number(d.audio.ms) || 0 }, words: words, image: img };
+      audio: d.audio == null ? null : { url: d.audio.url, ms: Number(d.audio.ms) || 0 }, words: words, image: img, quality: d.quality === 'low' ? 'low' : 'word' };
   }
 
   /** The word lit at t ms (the lead already added): the last word whose start ≤ t; −1 before the first. */
@@ -377,9 +378,10 @@
     api.toggle = function () { if (api.state === 'playing') pause(); else play(); };
     api.replay = function () { finished = true; play(); };
     api.seekToWord = seekToWord;
-    // one word in the same voice (a missed word, a tapped word): play from its start, stop at its end
+    // one word in the same voice (a missed word, a tapped word): play from its start, stop at its end; never on a
+    // "low" file (its word times are not trusted: a slice could say the neighbour or half a word)
     api.playWord = function (i) {
-      if (dead || !(i >= 0 && i < words.length)) return;
+      if (dead || quality === 'low' || !(i >= 0 && i < words.length)) return;
       playFrom(words[i].s, i);
       stopAt = words[i].e;
     };
@@ -413,7 +415,7 @@
   function sayWord(data, i) {
     var d;
     try { d = parse(data); } catch (e) { return null; }
-    if (!d.audio || !(i >= 0 && i < d.words.length)) return null;
+    if (!d.audio || (d.quality || (data && data.quality)) === 'low' || !(i >= 0 && i < d.words.length)) return null;
     var w = d.words[i];
     var a = new Audio();
     var raf = window.requestAnimationFrame ? function (f) { return window.requestAnimationFrame(f); } : function (f) { return setTimeout(f, 16); };

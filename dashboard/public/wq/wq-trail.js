@@ -77,7 +77,7 @@
   var ALONG_CAP_MS = 180000;   // a WebView that never reports the clip's end still reaches the read
   // the word-by-word player (wq-readalong.js), fetched only when a story serve carries `readalong`
   // (web_quiz_readalong); its version is the file's sha256, first 10 hex (a test keeps the two in step)
-  var RA_V = 'a617bdb93a';
+  var RA_V = 'a8a85bdd52';
 
   // own styles (only under v2): the chip's second line under the name; Urdu lines at Nastaliq-readable size
   function css() {
@@ -246,6 +246,7 @@
         + btn('wqc-hear-along', t.storyReadAlong) + btn('wqc-hear-read', h.t.ready) + '</div>');
       h.on('wqc-hear-along', function () { if (window.WQReadAlong) timedAlong(h.S.data.hear_first, intro); else intro(); });
       h.on('wqc-hear-read', intro);
+      warm();
     }
     // two equal answers, neither pressed until a tap
     function storyAsk() {
@@ -253,6 +254,7 @@
         + btn('wqc-story-along', t.storyReadAlong) + btn('wqc-story-read', h.t.ready) + '</div>');
       h.on('wqc-story-along', readAlong);
       h.on('wqc-story-read', h.read);
+      warm();
     }
     // the words as printed when they line up with the tokens; the lines as the serve gives them
     function alongWords(st) {
@@ -270,8 +272,18 @@
       try {
         var s = document.createElement('script');
         s.src = '/wq/wq-readalong.js?v=' + RA_V;
+        s.addEventListener('load', warm);
         document.head.appendChild(s);
       } catch (e) { /* the line-lit read-along stays */ }
+    }
+    // the ask screen is where the story is listened to: its clip may preload (one request, no decode, never a play)
+    // so the child's tap starts the voice at once; once per timing object, and only while the ask is on screen
+    function warm() {
+      var d = h.S.data;
+      var ra = d && (d.readalong || d.hear_first);
+      if (!ra || warm.d === ra || !window.WQReadAlong || !window.WQReadAlong.preload || !/^(story|hear)-ask$/.test(h.S.screen)) return;
+      warm.d = ra;
+      try { warm.a = window.WQReadAlong.preload(ra); } catch (e) { /* the tap still plays */ }   // held: a dropped element may stop its request
     }
     // Read along, word by word (the serve's `readalong` and the player loaded): Jugnu reads at a child's pace, the
     // green pill on each word as it is spoken; play/pause, replay, tap a word to hear it from there. Nothing moves on
