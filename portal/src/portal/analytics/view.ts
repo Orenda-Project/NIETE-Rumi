@@ -12,7 +12,8 @@ import type { ObservationKind, PeriodPreset } from './copy';
  *   neither                  this month, to today (PLAN v2 §1's default)
  *
  * bd-97x22y.2 — the tab is the path (/portal/analytics/schools/<tab>, tabs.ts); the query goes with every tab, so the
- * region and the period stay as she moves between them. ?obs=human is the Observations tab's Human toggle.
+ * region and the period stay as she moves between them. ?obs=dc is the Observations tab's Digital Coach toggle (Human is
+ * the default, bd-97x22y.5).
  */
 
 export const PRESETS: readonly PeriodPreset[] = ['week', 'month', 'quarter', 'year'];
@@ -69,8 +70,9 @@ export function useSchoolsView() {
   };
   const setPreset = (p: PeriodPreset) => setParams({ ...presetRange(p, today), period: null });
   const setRegion = (next: string | null) => setParams({ region: next });
-  const obs: ObservationKind = searchParams.get('obs') === 'human' ? 'human' : 'dc';
-  const setObs = (next: ObservationKind) => setParams({ obs: next === 'dc' ? null : next });
+  // bd-97x22y.5 — Human first and by default, as her dashboard; ?obs=dc is the Digital Coach button.
+  const obs: ObservationKind = searchParams.get('obs') === 'dc' ? 'dc' : 'human';
+  const setObs = (next: ObservationKind) => setParams({ obs: next === 'human' ? null : next });
 
   return { from, to, allTime, preset: allTime ? null : presetOf(from, to, today), region, today, setRange, setPreset, setRegion, obs, setObs };
 }

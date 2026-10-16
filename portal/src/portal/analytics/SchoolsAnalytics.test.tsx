@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { fixtureCoaching, fixtureResponse, REGION_ORDER } from "./fixtures";
+import { fixtureCoaching, fixtureObservations, fixtureResponse, REGION_ORDER } from "./fixtures";
 import { fixtureTrainingLevels } from "./trainingLevelsFixture";
+import { sortSchools } from "./table";
 
 /**
  * bd-97x22y.2 — the schools analytics page in the ICT dashboard's structure (PLAN v6): six tabs (a sidebar on a
@@ -19,6 +20,7 @@ const h = vi.hoisted(() => ({
   getCoaching: vi.fn(),
   // bd-97x22y.4 — the Trainings tab's own read (views/TrainingTab.test.tsx covers the tab)
   getTrainingLevels: vi.fn(),
+  getObservations: vi.fn(),
   logout: vi.fn(),
 }));
 
@@ -33,6 +35,7 @@ vi.mock("../services/api", async (orig) => ({
   ...(await orig<typeof import("../services/api")>()),
   analytics: { getSchools: h.getSchools, getCoaching: h.getCoaching },
   trainingLevelsAnalytics: { get: h.getTrainingLevels },
+  observationsAnalytics: { get: h.getObservations },
 }));
 
 import SchoolsAnalytics from "./SchoolsAnalytics";
@@ -83,6 +86,7 @@ beforeEach(() => {
   h.getSchools.mockImplementation(async (p: Params) => fixtureResponse(p));
   h.getCoaching.mockImplementation(async (p: Params) => fixtureCoaching(p));
   h.getTrainingLevels.mockImplementation(async (p: { region: string | null; band: "primary" | "midhigh" }) => fixtureTrainingLevels(p));
+  h.getObservations.mockImplementation(async (p: Params) => fixtureObservations(p));
 });
 afterEach(() => vi.useRealTimers());
 
@@ -430,136 +434,210 @@ describe("Trainings", () => {
   });
 });
 
-describe("Observations", () => {
-  it("a Digital Coach / Human toggle, Digital Coach first", async () => {
-    renderPage("/observations");
-    await screen.findByTestId("tile-dcObservations");
-    expect(screen.getByTestId("obs-kind-dc")).toHaveTextContent("Digital Coach");
-    expect(screen.getByTestId("obs-kind-dc")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("obs-kind-human")).toHaveTextContent("Human");
-    expect(screen.getByTestId("obs-kind-human")).toHaveAttribute("aria-pressed", "false");
-  });
+/**
+ * bd-97x22y.5 — Observations, her tab 1 to 1 (PLAN v7): Human / Digital Coach, her four sections, her whole-number %,
+ * from its own read (GET /api/portal/analytics/observations) holding both kinds.
+ */
+describe("Observations (v7: her tab, 1 to 1)", () => {
+  const OCT = { from: "2026-10-01", to: "2026-10-13" };
+  const fx = (region: string | null = null) => fixtureObservations({ ...OCT, region });
+  const whole = (v: number | null) => (v === null ? "—" : `${Math.round(v)}%`);
 
-  it("her sections, in her order", async () => {
+  it("her two buttons, Human first and on by default; Digital Coach is ?obs=dc", async () => {
     renderPage("/observations");
-    await screen.findByTestId("tile-dcObservations");
-    expect(eyebrows()).toEqual(["Summary", "Avg observation score by sector", "Sector breakdown"]);
-  });
-
-  it("Digital Coach: observations, teachers observed (x of N), Avg FICO % with n", async () => {
-    renderPage("/observations");
-    await screen.findByTestId("tile-dcObservations");
-    expect(testIds("tile-")).toEqual(["dcObservations", "teachersWithDc", "avgFico"]);
-    expect(screen.getByTestId("tile-dcObservations")).toHaveTextContent("188");
-    expect(screen.getByTestId("tile-teachersWithDc")).toHaveTextContent("93");
-    expect(screen.getByTestId("tile-teachersWithDc")).toHaveTextContent("of 442 teachers");
-    expect(screen.getByTestId("tile-avgFico")).toHaveTextContent("64.8%");
-    expect(screen.getByTestId("tile-avgFico")).toHaveTextContent("188 scored");
-  });
-
-  it("Human: observations and Avg HITL % (no teachers-observed count: the answer has none)", async () => {
-    renderPage("/observations");
-    await userEvent.setup().click(await screen.findByTestId("obs-kind-human"));
-    expect(await screen.findByTestId("tile-avgHitl")).toHaveTextContent("57.1%");
-    expect(testIds("tile-")).toEqual(["humanObservations", "avgHitl"]);
-    expect(screen.getByTestId("tile-humanObservations")).toHaveTextContent("77");
-    expect(screen.getByTestId("tile-avgHitl")).toHaveTextContent("77 scored");
+    await screen.findByTestId("observations-human");
+    const buttons = within(screen.getByRole("group", { name: "Observations by" })).getAllByRole("button");
+    expect(buttons.map((b) => b.getAttribute("data-testid"))).toEqual(["obs-kind-human", "obs-kind-dc"]);
+    expect(screen.getByTestId("obs-kind-human")).toHaveTextContent("Human observations");
     expect(screen.getByTestId("obs-kind-human")).toHaveAttribute("aria-pressed", "true");
-    expect(where()).toMatch(/obs=human/);
-    expect(h.getSchools).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("obs-kind-dc")).toHaveTextContent("Digital Coach observations");
+    await userEvent.setup().click(screen.getByTestId("obs-kind-dc"));
+    expect(await screen.findByTestId("observations-dc")).toBeInTheDocument();
+    expect(screen.getByTestId("obs-kind-dc")).toHaveAttribute("aria-pressed", "true");
+    expect(where()).toMatch(/obs=dc/);
   });
 
-  it("the score chart: one bar per sector, the score as %, how many scored under it", async () => {
+  it("her sections, in her order, for each kind", async () => {
     renderPage("/observations");
-    const chart = await screen.findByTestId("chart-avgFico");
-    expect(testIds("column-", chart)).toEqual(SIX);
-    expect(SIX.map((r) => within(within(chart).getByTestId(`column-${r}`)).getByTestId("bar-value").textContent)).toEqual(
-      ["58.1%", "67.3%", "65.3%", "76.2%", "63.3%", "61.4%"],
-    );
-    expect(within(within(chart).getByTestId("column-B.K")).getByTestId("bar-sub")).toHaveTextContent("15 scored");
+    await screen.findByTestId("observations-human");
+    expect(eyebrows()).toEqual(["Observation summary", "FICO score breakdown", "Avg observation scores by sector", "Sector breakdown"]);
+    await userEvent.setup().click(screen.getByTestId("obs-kind-dc"));
+    await screen.findByTestId("observations-dc");
+    expect(eyebrows()).toEqual(["Digital Coach impact", "FICO score breakdown", "Digital Coach — avg scores by sector", "Sector breakdown"]);
   });
 
-  it("the Human chart is HITL", async () => {
-    renderPage("/observations?obs=human");
-    const chart = await screen.findByTestId("chart-avgHitl");
-    expect(within(within(chart).getByTestId("column-B.K")).getByTestId("bar-value")).toHaveTextContent("52.7%");
-    expect(within(within(chart).getByTestId("column-Nilore")).getByTestId("bar-sub")).toHaveTextContent("10 scored");
+  it("summary: total observations, teachers observed (x of N), sectors active — no TEACH, FLN or cycle anywhere", async () => {
+    renderPage("/observations");
+    await screen.findByTestId("observations-human");
+    expect(testIds("tile-")).toEqual(["observations", "teachersObserved", "sectorsActive"]);
+    const ov = fx().human.overview;
+    expect(screen.getByTestId("tile-observations")).toHaveTextContent(String(ov.observations));
+    expect(screen.getByTestId("tile-observations")).toHaveTextContent("Total observations");
+    expect(screen.getByTestId("tile-teachersObserved")).toHaveTextContent(String(ov.teachersObserved));
+    expect(screen.getByTestId("tile-teachersObserved")).toHaveTextContent("of 442 teachers");
+    expect(screen.getByTestId("tile-sectorsActive")).toHaveTextContent("6");
+    expect(screen.getByTestId("tile-sectorsActive")).toHaveTextContent("of 6 regions");
+    expect(document.body.textContent).not.toMatch(/TEACH|FLN|Cycle/);
+
+    await userEvent.setup().click(screen.getByTestId("obs-kind-dc"));
+    await screen.findByTestId("observations-dc");
+    expect(screen.getByTestId("tile-observations")).toHaveTextContent("188");
+    expect(screen.getByTestId("tile-observations")).toHaveTextContent("Total DC observations");
+    expect(screen.getByTestId("tile-teachersObserved")).toHaveTextContent("93");
+    expect(screen.getByTestId("tile-sectorsActive")).toHaveTextContent("Sectors covered");
   });
 
-  it("a sector with nothing scored has no bar and shows —", async () => {
-    h.getSchools.mockImplementation(async (p: Params) => {
-      const r = fixtureResponse(p);
-      return { ...r, regions: r.regions.map((g) => (g.region === "Nilore" ? { ...g, avgFico: null, ficoN: 0 } : g)) };
+  it("FICO score breakdown: her three cards, whole-number %, a bar each, how many scored; under 60 is amber", async () => {
+    renderPage("/observations");
+    const panel = await screen.findByTestId("fico-breakdown");
+    const o = fx().human.overview;
+    expect(testIds("score-", panel).filter((id) => ["b", "c", "d"].includes(id))).toEqual(["b", "c", "d"]);
+    expect(within(panel).getByTestId("score-b")).toHaveTextContent("LP Fidelity score");
+    expect(within(within(panel).getByTestId("score-b")).getByTestId("score-value")).toHaveTextContent(whole(o.sectionB));
+    expect(within(within(panel).getByTestId("score-c")).getByTestId("score-value")).toHaveTextContent(whole(o.sectionC));
+    expect(within(within(panel).getByTestId("score-d")).getByTestId("score-value")).toHaveTextContent(whole(o.sectionD));
+    expect(within(panel).getByTestId("score-b")).toHaveTextContent(`Section B — Human observations · ${o.sectionBN} scored`);
+    // The bar is the score's width.
+    expect(within(within(panel).getByTestId("score-c")).getByTestId("score-bar")).toHaveStyle({ width: `${o.sectionC}%` });
+    // Engagement is under 60 in the fixture: her amber; LP Fidelity is not.
+    expect(o.sectionD!).toBeLessThan(60);
+    expect(within(within(panel).getByTestId("score-d")).getByTestId("score-value")).toHaveAttribute("data-low", "true");
+    expect(within(within(panel).getByTestId("score-b")).getByTestId("score-value")).not.toHaveAttribute("data-low");
+  });
+
+  it("a section with nothing scored reads — with an empty bar, never 0%", async () => {
+    h.getObservations.mockImplementation(async (p: Params) => {
+      const r = fixtureObservations(p);
+      return { ...r, human: { ...r.human, overview: { ...r.human.overview, sectionB: null, sectionBN: 0 } } };
     });
     renderPage("/observations");
-    const bar = within(await screen.findByTestId("chart-avgFico")).getByTestId("column-Nilore");
+    const card = await screen.findByTestId("score-b");
+    expect(within(card).getByTestId("score-value")).toHaveTextContent(/^—$/);
+    expect(within(card).getByTestId("score-bar")).toHaveStyle({ width: "0%" });
+    expect(card).not.toHaveTextContent("scored");
+  });
+
+  it("avg scores by sector: six sectors in order, three bars each with her legend, whole-number % in each bar's label", async () => {
+    renderPage("/observations");
+    const chart = await screen.findByTestId("chart-sections");
+    expect(within(chart).getByTestId("chart-legend")).toHaveTextContent("Section B — LP FidelitySection C — Teaching PracticesSection D — Engagement");
+    expect(testIds("group-", chart)).toEqual(SIX);
+    const bk = fx().human.regions.find((r) => r.region === "B.K")!;
+    for (const [k, v] of [["b", bk.sectionB], ["c", bk.sectionC], ["d", bk.sectionD]] as const) {
+      expect(within(within(chart).getByTestId(`bar-B.K-${k}`)).getByTestId("bar-value")).toHaveTextContent(whole(v));
+    }
+  });
+
+  it("a sector with no score for a section has no bar for it and shows —", async () => {
+    h.getObservations.mockImplementation(async (p: Params) => {
+      const r = fixtureObservations(p);
+      return { ...r, human: { ...r.human, regions: r.human.regions.map((g) => (g.region === "Nilore" ? { ...g, sectionB: null, sectionBN: 0 } : g)) } };
+    });
+    renderPage("/observations");
+    const bar = within(await screen.findByTestId("chart-sections")).getByTestId("bar-Nilore-b");
     expect(within(bar).getByTestId("bar-value")).toHaveTextContent(/^—$/);
     expect(within(bar).queryByTestId("bar-fill")).toBeNull();
   });
 
-  it("sector cards: observations and the average %, then View details opens the schools", async () => {
+  it("on a phone the chart is a block per sector with a bar per section (eighteen columns do not fit 390px)", async () => {
+    setWidth(390);
     renderPage("/observations");
-    const card = await screen.findByTestId("sector-card-B.K");
-    expect(card).toHaveTextContent("15");
-    expect(card).toHaveTextContent("58.1%");
+    const chart = await screen.findByTestId("chart-sections");
+    expect(testIds("group-", chart)).toEqual(SIX);
+    expect(within(chart).queryAllByTestId("bar-fill")).toHaveLength(0);
+    expect(within(chart).getAllByTestId("bar-value")).toHaveLength(18);
+  });
+
+  it("sector cards: observations and her three section %; View details opens that sector's schools, most observed first", async () => {
+    renderPage("/observations");
+    const card = await screen.findByTestId("sector-card-Urban-I");
+    expect(testIds("sector-card-")).toEqual(SIX);
+    const ui = fx().human.regions.find((r) => r.region === "Urban-I")!;
+    expect(within(card).getByTestId("card-observations")).toHaveTextContent(String(ui.observations));
+    expect(within(card).getByTestId("section-b")).toHaveTextContent(whole(ui.sectionB));
+    expect(within(card).getByTestId("section-d")).toHaveTextContent(whole(ui.sectionD));
     expect(card).toHaveTextContent("View details");
+    expect(screen.queryByTestId("obs-schools")).toBeNull();
     await userEvent.setup().click(card);
-    await waitFor(() => expect(rowNames()).toHaveLength(2));
-    const headers = within(screen.getByTestId("schools-table")).getAllByRole("columnheader").map((th) => (th.textContent || "").split(/x of N|\(n scored\)/)[0]);
-    expect(headers).toEqual(["School", "Teachers", "DC observations", "Avg FICO"]);
-    expect(within(screen.getByTestId("school-row-s-01")).getByTestId("cell-avgFico")).toHaveTextContent("59.2% (6)");
+    const list = await screen.findByTestId("obs-schools");
+    expect(where()).toMatch(/region=Urban-I/);
+    const names = within(list).getAllByTestId("obs-school-name").map((n) => n.textContent);
+    const want = fx("Urban-I").human.schools.slice().sort((a, b) => b.observations - a.observations || a.name.localeCompare(b.name)).map((s) => s.name);
+    expect(names).toEqual(want);
+    const s08 = within(list).getByTestId("obs-school-s-08");
+    expect(s08).toHaveTextContent("6 obs");
+    expect(s08).toHaveTextContent("EMIS 68366");
+    expect(within(s08).getByTestId("section-b")).toHaveTextContent("82%");
+    expect(within(s08).getByTestId("section-c")).toHaveTextContent("86%");
   });
 
-  it("Human breakdown columns are human observations and Avg HITL", async () => {
-    renderPage("/observations?obs=human&region=Urban-I");
-    await waitFor(() => expect(rowNames()).toHaveLength(5));
-    const headers = within(screen.getByTestId("schools-table")).getAllByRole("columnheader").map((th) => (th.textContent || "").split(/x of N|\(n scored\)/)[0]);
-    expect(headers).toEqual(["School", "Teachers", "Human observations", "Avg HITL"]);
-    expect(within(screen.getByTestId("school-row-s-08")).getByTestId("cell-avgHitl")).toHaveTextContent("70.3% (6)");
+  it("a school with no observations of the kind shows 0 obs and — for every section", async () => {
+    renderPage("/observations?obs=dc&region=Sihala");
+    const row = await screen.findByTestId("obs-school-s-04");
+    expect(row).toHaveTextContent("0 obs");
+    for (const k of ["b", "c", "d"]) expect(within(row).getByTestId(`section-${k}`)).toHaveTextContent(/^—$/);
   });
 
-  it("no score is a dash; fewer than three scored is muted, n shown", async () => {
-    renderPage("/observations?region=Sihala");
-    await waitFor(() => expect(rowNames()).toHaveLength(3));
-    expect(within(screen.getByTestId("school-row-s-04")).getByTestId("cell-avgFico")).toHaveTextContent(/^—$/);
-    expect(within(screen.getByTestId("school-row-s-04")).getByTestId("cell-dcObservations")).toHaveTextContent(/^0/);
+  it("both kinds come in one read: switching reads nothing; a new region reads again, for the page's window", async () => {
+    renderPage("/observations");
+    await screen.findByTestId("observations-human");
+    expect(h.getObservations).toHaveBeenCalledTimes(1);
+    expect(h.getObservations).toHaveBeenCalledWith({ from: "2026-10-01", to: "2026-10-13", region: "all" });
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("obs-kind-dc"));
+    await screen.findByTestId("observations-dc");
+    expect(h.getObservations).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByTestId("sector-card-Tarnol"));
+    await waitFor(() => expect(h.getObservations).toHaveBeenLastCalledWith({ from: "2026-10-01", to: "2026-10-13", region: "Tarnol" }));
   });
 
-  it("fewer than three scored is muted", async () => {
-    renderPage("/observations?region=Urban-I");
-    await waitFor(() => expect(rowNames()).toHaveLength(5));
-    const two = within(screen.getByTestId("school-row-s-07")).getByTestId("cell-avgFico");
-    expect(two).toHaveTextContent("55.0% (2)");
-    expect(two).toHaveAttribute("data-low-n", "true");
-    expect(within(screen.getByTestId("school-row-s-08")).getByTestId("cell-avgFico")).not.toHaveAttribute("data-low-n");
+  it("a failed observations read says so, shows no numbers, and can be tried again", async () => {
+    h.getObservations.mockRejectedValueOnce({ response: { status: 500 } });
+    renderPage("/observations");
+    expect(await screen.findByTestId("observations-error")).toBeInTheDocument();
+    expect(screen.queryByTestId("tile-observations")).toBeNull();
+    await userEvent.setup().click(screen.getByTestId("observations-retry"));
+    expect(await screen.findByTestId("tile-observations")).toBeInTheDocument();
+    expect(h.getObservations).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["", "/lp", "/training", "/coaching", "/info"])("is not read on %s (its cost never slows the other tabs)", async (rest) => {
+    renderPage(rest);
+    await screen.findByTestId("tab-title");
+    await waitFor(() => expect(h.getSchools).toHaveBeenCalled());
+    expect(h.getObservations).not.toHaveBeenCalled();
   });
 });
 
-describe("Coaching", () => {
-  it("her sections: Coaching, then the sector overview", async () => {
+/** bd-97x22y.5 — Coaching, her tab 1 to 1 (PLAN v7): her two numbers, her sector cards, her coaches by sector. */
+describe("Coaching (v7: her tab, 1 to 1)", () => {
+  it("her sections: the two numbers, the sector overview, coaches by sector", async () => {
     renderPage("/coaching");
     await screen.findByTestId("tile-coaches");
-    expect(eyebrows()).toEqual(["Coaching", "Sector overview"]);
+    expect(eyebrows()).toEqual(["Coaching", "Sector overview", "Coaches by sector"]);
   });
 
-  it("total coaches, coach visits, schools visited (x of N schools), from the coaching read", async () => {
+  it("total coaches and total visits (for the page's window), from the coaching read", async () => {
     renderPage("/coaching");
     await screen.findByTestId("tile-coaches");
-    expect(testIds("tile-")).toEqual(["coaches", "coachVisits", "schoolsVisited"]);
+    expect(testIds("tile-")).toEqual(["coaches", "coachVisits"]);
     expect(screen.getByTestId("tile-coaches")).toHaveTextContent("9");
+    expect(screen.getByTestId("tile-coaches")).toHaveTextContent("Total coaches");
     expect(screen.getByTestId("tile-coachVisits")).toHaveTextContent("42");
-    expect(screen.getByTestId("tile-schoolsVisited")).toHaveTextContent("13");
-    expect(screen.getByTestId("tile-schoolsVisited")).toHaveTextContent("of 16 schools");
+    expect(screen.getByTestId("tile-coachVisits")).toHaveTextContent("Total visits");
+    expect(screen.getByTestId("tile-coachVisits")).toHaveTextContent("1 Oct – 13 Oct 2026");
     expect(h.getCoaching).toHaveBeenCalledWith({ from: "2026-10-01", to: "2026-10-13", region: "all" });
   });
 
-  it("a card per sector: coaches, visits, schools visited", async () => {
+  it("her sector card: schools, coaches and total visits, then View school visits", async () => {
     renderPage("/coaching");
     const card = await screen.findByTestId("sector-card-Urban-I");
     expect(testIds("sector-card-")).toEqual(SIX);
+    expect(within(card).getByTestId("card-schools")).toHaveTextContent("5");
     expect(within(card).getByTestId("card-coaches")).toHaveTextContent("3");
     expect(within(card).getByTestId("card-coachVisits")).toHaveTextContent("10");
-    expect(card).toHaveTextContent("4 of 5 schools visited");
+    expect(card).toHaveTextContent("Total visits");
+    expect(card).toHaveTextContent("View school visits");
   });
 
   it("a sector card opens its schools' visits", async () => {
@@ -570,6 +648,35 @@ describe("Coaching", () => {
     const headers = within(screen.getByTestId("schools-table")).getAllByRole("columnheader").map((th) => th.textContent);
     expect(headers).toEqual(["School", "Coach visits"]);
     expect(within(screen.getByTestId("school-row-s-08")).getByTestId("cell-coachVisits")).toHaveTextContent("4");
+  });
+
+  it("coaches by sector: a list per sector in order, names A to Z with an initial badge, the count beside, N total", async () => {
+    renderPage("/coaching");
+    await screen.findByTestId("coach-list-B.K");
+    expect(testIds("coach-list-")).toEqual(SIX);
+    expect(screen.getByTestId("coaches-total")).toHaveTextContent("9 total");
+    const list = screen.getByTestId("coach-list-Urban-I");
+    const names = within(list).getAllByTestId("coach-name").map((n) => n.textContent);
+    expect(names).toEqual(["KKamran Ali", "MMariam Iqbal", "SSadia Rauf"]);
+    expect(within(list).getByTestId("coach-count")).toHaveTextContent("3 coaches");
+    // A coach covering two sectors is in both lists.
+    expect(screen.getByTestId("coach-list-B.K")).toHaveTextContent("Bilal Ahmed");
+    expect(screen.getByTestId("coach-list-Sihala")).toHaveTextContent("Bilal Ahmed");
+    // Information, not a control: nothing in the lists can be tapped.
+    expect(within(list).queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("with a region chosen, only that region's coaches are listed", async () => {
+    renderPage("/coaching?region=Tarnol");
+    await screen.findByTestId("coach-list-Tarnol");
+    expect(testIds("coach-list-")).toEqual(["Tarnol"]);
+    expect(screen.getByTestId("coach-list-Tarnol")).toHaveTextContent("Farah Naz");
+  });
+
+  it("coaches are staff: the page still names no teacher, and its promise says so", async () => {
+    renderPage("/coaching");
+    await screen.findByTestId("coach-list-B.K");
+    expect(document.body.textContent).not.toMatch(/teacherName|user_?id/i);
   });
 
   it("a failed coaching read says so and can be tried again", async () => {
@@ -594,7 +701,7 @@ describe("Coaching", () => {
     renderPage();
     await screen.findByTestId("tile-coaches");
     await userEvent.setup().click(within(sidebar()).getByTestId("tab-link-coaching"));
-    await screen.findByTestId("tile-schoolsVisited");
+    await screen.findByTestId("coach-list-B.K");
     expect(h.getCoaching).toHaveBeenCalledTimes(1);
   });
 });
@@ -651,10 +758,11 @@ describe("% only on scores (operator, 2026-10-14: scores as %, usage as counts)"
     ["", "tile-avgFico"],
     ["/lp", "chart-lpsOpened"],
     ["/lp?region=Urban-I", "schools-table"],
-    ["/observations", "chart-avgFico"],
-    ["/observations?region=Urban-I", "schools-table"],
-    ["/observations?obs=human", "chart-avgHitl"],
-    ["/coaching", "tile-schoolsVisited"],
+    ["/observations", "chart-sections"],
+    ["/observations?region=Urban-I", "obs-schools"],
+    ["/observations?obs=dc", "chart-sections"],
+    ["/observations?obs=dc&region=Urban-I", "obs-schools"],
+    ["/coaching", "coach-list-B.K"],
     ["/coaching?region=Urban-I", "schools-table"],
     ["/info", "how-counted"],
   ])("on %s every % is a score", async (rest, ready) => {
@@ -667,13 +775,13 @@ describe("% only on scores (operator, 2026-10-14: scores as %, usage as counts)"
   it("and on a phone", async () => {
     setWidth(390);
     renderPage("/observations?region=Urban-I");
-    await screen.findAllByTestId("school-card");
+    await screen.findByTestId("obs-schools");
     expect(percentOutsideScores()).toEqual([]);
   });
 
   it("positive control: the scores do carry a %", async () => {
     renderPage("/observations?region=Urban-I");
-    await screen.findByTestId("schools-table");
+    await screen.findByTestId("obs-schools");
     const scores = Array.from(document.querySelectorAll("[data-score]"));
     expect(scores.length).toBeGreaterThan(0);
     expect(scores.some((s) => /%/.test(s.textContent || ""))).toBe(true);
@@ -705,14 +813,13 @@ describe("a sector's school table", () => {
     expect(screen.getByTestId("sort-lpsOpened").closest("th")).toHaveAttribute("aria-sort", "descending");
   });
 
-  it("no score always last, whichever way", async () => {
-    renderPage("/observations?region=Sihala");
-    await waitFor(() => expect(rowNames()).toHaveLength(3));
-    const user = userEvent.setup();
-    await user.click(screen.getByTestId("sort-avgFico"));
-    expect(rowNames()).toEqual(["IMCB (VI-XII) Chak Jabbar", "IMCG (VI-XII) Sihala", "IMCB (VI-XII) Dhok Jabbar"]);
-    await user.click(screen.getByTestId("sort-avgFico"));
-    expect(rowNames()).toEqual(["IMCG (VI-XII) Sihala", "IMCB (VI-XII) Chak Jabbar", "IMCB (VI-XII) Dhok Jabbar"]);
+  it("no score always last, whichever way", () => {
+    // bd-97x22y.5: no tab shows a score column in this table any more (Observations now has her school rows), so the
+    // rule is checked on the table's own sort, with the same Sihala schools as before.
+    const sihala = fixtureResponse({ region: "Sihala" }).schools;
+    const names = (rows: typeof sihala) => rows.map((r) => r.name);
+    expect(names(sortSchools(sihala, { key: "avgFico", dir: "desc" }))).toEqual(["IMCB (VI-XII) Chak Jabbar", "IMCG (VI-XII) Sihala", "IMCB (VI-XII) Dhok Jabbar"]);
+    expect(names(sortSchools(sihala, { key: "avgFico", dir: "asc" }))).toEqual(["IMCG (VI-XII) Sihala", "IMCB (VI-XII) Chak Jabbar", "IMCB (VI-XII) Dhok Jabbar"]);
   });
 
   it("searches by school name or EMIS code", async () => {
