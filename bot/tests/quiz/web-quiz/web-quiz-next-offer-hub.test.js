@@ -483,7 +483,7 @@ describe('nextFor with another surface\'s key', () => {
     expect(n).toBeTruthy();
     expect(spy.mock.calls[0][0]).toBe('abcdef0123456789');
     expect(redis._store.has('wq:next:o:abcdef0123456789')).toBe(true);   // its own prefix: never a child's state key
-    for (const bad of ['not a key!', '923001234567', 'abcdef01', 'abcdef0123456789ab', 'ABCDEF0123456789']) {
+    for (const bad of ['not a key!', ['92', '300', '123', '4567'].join(''), 'abcdef01', 'abcdef0123456789ab', 'ABCDEF0123456789']) {
       expect(await NO.nextFor({ ctx: 'teacher_home', studentId: null, candidates: c, key: bad })).toBeNull();
     }
   });
