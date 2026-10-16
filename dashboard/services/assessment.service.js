@@ -144,6 +144,11 @@ async function status(requestId, userId) {
     status: data.status,
     paperId: data.paperId || null,
     errorCode: data.errorCode || null,
+    // A board-pattern request also says which pattern and when it was asked for, so a reopened
+    // request can show its chip and class card. A plain request carries neither, and neither key
+    // is added: its body stays exactly as it was.
+    ...(data.pattern ? { pattern: data.pattern } : {}),
+    ...(data.created_at ? { created_at: data.created_at } : {}),
   };
 }
 

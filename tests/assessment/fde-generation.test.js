@@ -406,7 +406,7 @@ describe('the prompts', () => {
     const err = await Gen.generatePatternExam(ARGS('urdu')).catch((e) => e);
     expect(err.code).toBe('PATTERN_SHORT_SLOT');
     expect(err.shortfall).toEqual([{ slot: 'urdu.A.Q1', missing: 1 }]);
-    expect(logged('[assessment] held item dropped')).toEqual([{ slot: 'urdu.A.Q1', reason: 'lesson_1_3' }]);
+    expect(logged('[assessment] held item dropped')).toEqual([{ slot: 'urdu.A.Q1', reason: 'lesson_1_3', kind: 'MCQs', match: expect.any(String) }]);
     expect(mockLoadPages.mock.calls.map(([a]) => a.pageRanges)).toEqual([U_PAGES(), '1-27']);
   });
 
