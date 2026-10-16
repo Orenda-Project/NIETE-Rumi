@@ -9,6 +9,7 @@
  *   POST /share {th, story_id, class?}       {code, link, class_message}, the send marked sent
  *   POST /send {th, story_id, class?}        the teacher's tap (the page's form): the send opened and marked sent, 302 → wa.me
  *   GET  /page/:th[?grade=&lang=&book=]      the Stories page (HTML): the shelf, or one book's preview
+ *                                            (the shelf only, with one line, when `send` is false)
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -74,7 +75,8 @@ async function servePage(req, res) {
   try {
     const { uid, ...shelf } = await shelfFor(th, { grade: q.grade, lang: q.lang, all: '1' });
     let html;
-    if (typeof q.book === 'string' && UUID_RX.test(q.book)) {
+    // No web link for this teacher's class: the shelf and its line, never a preview that would be refused.
+    if (typeof q.book === 'string' && UUID_RX.test(q.book) && shelf.send !== false) {
       let p = null;
       try {
         p = await Stories.preview({ uid, storyId: q.book, ui: shelf.ui });

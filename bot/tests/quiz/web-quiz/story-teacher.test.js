@@ -122,6 +122,16 @@ describe('the story shelf', () => {
     const out = await Stories.shelf({ uid: TEACHER, grade: 2, lang: 'ur' });
     expect(out.books).toEqual([expect.objectContaining({ id: B(8), dir: 'rtl' })]);
   });
+  test('the shelf says whether this teacher\'s class can get a web link (send)', async () => {
+    expect((await Stories.shelf({ uid: TEACHER, grade: 2, lang: 'en' })).send).toBe(true);
+    Stories._reset();
+    require('../../../shared/services/quiz/web-quiz-link')._resetCache();
+    db.app_settings.find((r) => r.key === 'web_quiz_teachers').value = [OTHER];
+    const off = await Stories.shelf({ uid: TEACHER, grade: 2, lang: 'en' });
+    expect(off.send).toBe(false);
+    expect(off.books).toHaveLength(4);
+    expect((await Stories.shelf({ uid: OTHER, grade: 2, lang: 'en' })).send).toBe(true);
+  });
   test('switch off: 404 stories_off and no book is read', async () => {
     seed({ on: false });
     await expect(Stories.shelf({ uid: TEACHER, grade: 2, lang: 'en' })).rejects.toMatchObject({ status: 404, body: { error: 'stories_off' } });
@@ -212,6 +222,25 @@ describe('the send', () => {
   test('with the web quiz off for this teacher there is no page to open: refused, never a WhatsApp quiz link', async () => {
     seed({ web: false });
     await expect(Stories.share({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 409, body: { error: 'web_quiz_off' } });
+  });
+  test('a teacher whose class cannot get a web link is refused before anything is written (no row, no code)', async () => {
+    db.app_settings.find((r) => r.key === 'web_quiz_teachers').value = [OTHER];
+    const Share = require('../../../shared/services/quiz/video-quiz-share.service');
+    const mint = jest.spyOn(Share, 'mintCode');
+    try {
+      for (const fn of ['prepare', 'preview', 'share', 'send']) {
+        await expect(Stories[fn]({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 409, body: { error: 'web_quiz_off' } });
+      }
+      expect(fake.calls.filter((c) => c.table === 'quizzes' && c.op === 'insert')).toHaveLength(0);
+      expect(fake.calls.filter((c) => c.table === 'quiz_share_codes' && c.op !== 'select')).toHaveLength(0);
+      expect(mint).not.toHaveBeenCalled();
+      expect(db.quizzes).toHaveLength(0);
+      expect(db.quiz_share_codes).toHaveLength(0);
+      // a teacher on the list sends as before
+      const out = await Stories.share({ uid: OTHER, storyId: B(1) });
+      expect(out.link).toBe(`https://quiz.example.com/q/${out.code}`);
+      expect(mint).toHaveBeenCalledTimes(1);
+    } finally { mint.mockRestore(); }
   });
   test('switch off: 404 and nothing is written', async () => {
     seed({ on: false });
@@ -311,6 +340,44 @@ describe('the Stories page (the bot renders it)', () => {
     expect(none.code).toBe(200);
     expect(none.body).toContain('data-screen="teacher-story-preview"');
     expect(none.body).not.toContain('<audio');
+  });
+  test('a teacher whose class cannot get a web link: the books with one kind line, no preview and no send form', async () => {
+    db.app_settings.find((r) => r.key === 'web_quiz_teachers').value = [OTHER];
+    const LINE = { en: 'Sending stories to your class is not open for your school yet.', ur: 'آپ کے اسکول کے لیے کلاس کو کہانیاں بھیجنا ابھی شروع نہیں ہوا۔' };
+    for (const ui of ['en', 'ur']) {
+      for (const query of [{ grade: '2', lang: 'en' }, { grade: '2', lang: 'en', book: B(2) }]) {
+        const r = res();
+        await Routes.servePage({ params: { th: th(TEACHER, ui) }, query }, r);
+        expect(r.code).toBe(200);
+        expect(r.body).toContain('data-screen="teacher-stories"');
+        expect(r.body).not.toContain('data-screen="teacher-story-preview"');
+        expect(r.body).toContain('Book 2 Testwala');
+        expect(r.body).toContain(LINE[ui]);
+        expect(r.body.split(LINE[ui])).toHaveLength(2);
+        expect(r.body).not.toContain('<form');
+        expect(r.body).not.toContain('data-tap="book"');
+        expect(r.body).not.toContain('&amp;book=');
+      }
+    }
+    expect(db.quizzes).toHaveLength(0);
+    expect(db.quiz_share_codes).toHaveLength(0);
+    // the API says the same
+    const Router = Routes;
+    const layer = Router.stack.find((l) => l.route && l.route.path === '/stories');
+    const r = res();
+    await layer.route.stack[0].handle({ query: { th: th(TEACHER, 'en'), grade: '2', lang: 'en' } }, r);
+    expect(r.body.send).toBe(false);
+  });
+  test('a teacher whose class can get a web link: no such line, the shelf JSON only gains send: true', async () => {
+    const r = res();
+    await Routes.servePage({ params: { th: th(TEACHER, 'en') }, query: { grade: '2', lang: 'en' } }, r);
+    expect(r.body).not.toContain('Sending stories to your class is not open');
+    expect(r.body).toContain('data-tap="book"');
+    const layer = Routes.stack.find((l) => l.route && l.route.path === '/stories');
+    const j = res();
+    await layer.route.stack[0].handle({ query: { th: th(TEACHER, 'en'), grade: '2', lang: 'en' } }, j);
+    expect(Object.keys(j.body).sort()).toEqual(['books', 'grade', 'lang', 'send', 'ui']);
+    expect(j.body.send).toBe(true);
   });
   test('switch off: 404 stories_off, no page (the portal falls through to today)', async () => {
     seed({ on: false });

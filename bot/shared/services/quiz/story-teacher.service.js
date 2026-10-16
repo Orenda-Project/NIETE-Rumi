@@ -6,6 +6,7 @@
  *   shelf({ uid, grade, lang, all })   the teacher library's story shelf: ready books of that grade and language,
  *                                      the featured book (story_books.featured_rank) first, then a per-teacher-day shuffle;
  *                                      four books unless `all`; each with its cover, first page and page-1 voice file
+ *                                      `send`: whether this teacher's class can get a web link at all
  *   prepare / preview                  the send made ready: one quizzes row per teacher × book (quiz_source 'story',
  *                                      meta.story = {book_id, lang}, no questions) and its class code through the video
  *                                      quiz's own mintCode, minted CLOSED (active false) so a book only looked at never
@@ -142,7 +143,10 @@ async function shelf({ uid, grade, lang, all = false, now = Date.now() } = {}) {
   const rest = dayOrder(rows.filter((b) => b.featured_rank == null), uid, now);
   const ordered = [...featured, ...rest].slice(0, all ? undefined : SHELF_N);
   const { pics, audio } = await firstPages(ordered.map((b) => b.id));
-  return { grade: g, lang: l, books: ordered.map((b) => bookTile(b, pics.get(b.id), audio.get(b.id))) };
+  // `send`: whether this teacher's class can get a web link (a story is read on the web page only); false, the page
+  // shows the books with one line and no way into a send that would be refused.
+  const send = await require('./web-quiz-link').webQuizOn(uid);
+  return { grade: g, lang: l, books: ordered.map((b) => bookTile(b, pics.get(b.id), audio.get(b.id))), send };
 }
 
 /** This teacher's story rows for this book, oldest first (one is kept per teacher × book). */
@@ -225,6 +229,8 @@ async function prepare({ uid, storyId, classId = null, now = Date.now() } = {}) 
   if (typeof storyId !== 'string' || !/^[0-9a-f-]{36}$/i.test(storyId)) fail(400, 'bad_story');
   const { data: book } = await supabase.from('story_books').select(BOOK_COLS).eq('id', storyId).maybeSingle();
   if (!book || book.status !== 'ready') fail(404, 'no_story');
+  // No web link for this teacher's class: refused before the row or a code is written (nothing left behind).
+  if (!(await require('./web-quiz-link').webQuizOn(uid))) fail(409, 'web_quiz_off');
   const lang = clampLanguage(book.lang);
   const quiz = await rowFor(uid, book, lang);
 
@@ -243,7 +249,8 @@ async function prepare({ uid, storyId, classId = null, now = Date.now() } = {}) 
   const link = await require('./web-quiz-link').quizLink(held.code, {
     teacherUserId: uid, whatsapp: `https://wa.me/${Share.botNumber()}?text=QUIZ-${held.code}`, quizId: quiz.id,
   });
-  // A story is read on the web page only: a WhatsApp quiz of a story has nothing to ask.
+  // A story is read on the web page only: a WhatsApp quiz of a story has nothing to ask (the check above, held again
+  // here for a link that still is not a page).
   if (!/\/q\/[A-Za-z0-9]+$/.test(String(link || ''))) fail(409, 'web_quiz_off');
 
   const { data: user } = await supabase.from('users').select('name').eq('id', uid).maybeSingle();
