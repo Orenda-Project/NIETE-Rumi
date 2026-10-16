@@ -14,8 +14,7 @@
 --                          No phone, no name, no child id.
 -- Service role only (RLS on, no policy). Written only by bot/shared/services/quiz/web-quiz-sample-ping.js.
 -- One env = one DB. Apply to sandbox first; staging and prod only on a go.
-
-begin;
+-- No BEGIN/COMMIT here: the tool that applies migrations runs each in its own transaction.
 
 create table if not exists public.sample_ping_consents (
   binding_id   uuid        primary key references public.child_phone_bindings(id) on delete cascade,
@@ -41,5 +40,3 @@ comment on table public.sample_ping_consents is
   'web quiz direct ping: the consent version a live binding agreed to (no phone, no name); service role only';
 comment on table public.sample_pings is
   'web quiz direct ping: one row per phone tombstone per term (no phone, no child id); written by the bot (service role)';
-
-commit;
