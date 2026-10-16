@@ -770,6 +770,8 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
 // (inserted at serve, status 'served'), the page's draw fields and the ch_start fields, and finishes that row later.
 
 const Draw = () => require('./web-quiz-challenge-draw');
+// a served row stays open this long: the sweeper's served → abandoned boundary and the re-serve window (one constant)
+const { SERVED_MS } = require('./web-quiz-challenge-served-window');
 const TRAIL_ORDER = Object.freeze(['missing', 'read', 'listen', 'bigger']);
 const VIA = { hub: 'hub', quiz: 'quiz_card' };
 // meta keys written at serve that every later write of the row keeps
@@ -924,6 +926,95 @@ async function periodTrail(w) {
 }
 
 /**
+ * The child's own record row of this stop this period that was served and left (status served, or abandoned while still
+ * marked record), the newest; null when none. The record key is (stop, language) for read and listen, the stop alone else.
+ */
+function openRecordRow(rows, ex, periodId, lang) {
+  return (rows || []).filter((r) => r.exercise === ex && r.period_id === periodId && r.record === true && (r.status === 'served' || r.status === 'abandoned')
+    && ((ex !== 'read' && ex !== 'listen') || r.lang === lang))
+    .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || ''))).pop() || null;
+}
+
+/**
+ * A served-and-left record row older than the sweeper's served boundary (or abandoned still marked record) gives the month's record up: one
+ * update, only while the row is as read (status and meta), to status 'abandoned', record=false, meta.record_lost
+ * 'reopened'. Its passage stays in the seen set, so the clean check after it draws another. Never throws.
+ */
+async function giveUpRecord(open) {
+  try {
+    const q = supabase.from(TABLE).update({ status: 'abandoned', record: false, meta: { ...(open.meta || {}), record_lost: 'reopened' } })
+      .eq('id', open.id).eq('status', open.status).eq('record', true);
+    const { data, error } = await (open.meta == null ? q.is('meta', null) : q.eq('meta', JSON.stringify(open.meta))).select('id');
+    if (error) { if (!isMissingTable(error)) storeFailed(open.id, error); return; }
+    if (data && data.length) Object.assign(open, { status: 'abandoned', record: false });
+  } catch (e) {
+    logError('web_quiz.ch_record_give_up_failed', { runId: open.id, error: String((e && e.message) || e).slice(0, 120) });
+  }
+}
+
+/**
+ * The child's own served record row of this stop, opened again before the sweeper would close it (its SERVED_MS): served again exactly as it was
+ * (the same run, passage or item set, anchor block, band, exposures, form), nothing drawn, logged or inserted. Its store()
+ * only stamps meta.reopened_at. Null when the row cannot be read whole or is no longer a served record (the caller
+ * serves as today).
+ */
+async function reserveV2(w, ex, open, { D, Bank, pool, canonicalId, ob, now, formNum: formNow }) {
+  const { data: row, error } = await supabase.from(TABLE).select('*').eq('id', open.id).maybeSingle();
+  if (error || !row || row.status !== 'served' || row.record !== true) return null;
+  const formNum = /^G[1-5]$/.test(String(row.form || '')) ? String(row.form).slice(1) : formNow;
+  const form = `G${formNum}`;
+  const passageId = row.passage_id || null; const itemSetId = row.item_set_id || null; const anchorBlock = row.anchor_block || null;
+  let items = null; let tryout = null; let story = null; let dir = null; let clipUrl;
+  if (ex === 'missing' && anchorBlock) {
+    // the fixed anchor block, and the try-out drawn from the row's own seed (the same Bank call the serve made)
+    items = Bank.anchorBlock(anchorBlock).map((i) => ({ item_id: i.item_id, seq: i.seq.slice(), answer: i.answer }));
+    const want = row.meta && row.meta.tryout && row.meta.tryout.item_id;
+    if (want && typeof Bank.listItemsV4 === 'function') {
+      const all = Bank.listItemsV4();
+      let t = row.draw_seed ? D.tryoutItem(all, row.draw_seed) : null;
+      if (!t || t.item_id !== want) t = all.find((i) => i.item_id === want) || null;
+      if (t) tryout = { item_id: t.item_id, task: t.task, ...(t.task === 'missing' ? { seq: t.params.seq.slice() } : { a: t.params.a, b: t.params.b }) };
+    }
+  } else if (ex === 'bigger') {
+    items = pool ? servedPairs(itemSetId, Bank) : null;
+  }
+  if (passageId) {
+    const p = passageFor(passageId, Bank);
+    if (!p) { logError('web_quiz.ch_passage_missing', { passage_id: passageId }); fail(503, 'unavailable'); }
+    story = { text: p.text, tokens: p.tokens, lines: p.lines };
+    dir = p.direction;
+  }
+  if (ex === 'listen') {
+    clipUrl = await storyClip(w.lang, story && story.text);
+    if (!clipUrl) fail(503, 'getting_ready');
+  }
+  const mode = 'check'; const record = true;
+  const exposure = row.exposure_no == null ? null : row.exposure_no;
+  const anchorExp = row.anchor_exposure_no == null ? null : row.anchor_exposure_no;
+  const servesAny = row.anchor_serves_any == null ? (row.meta && row.meta.anchor_serves_any) || null : row.anchor_serves_any;
+  const band = row.band == null ? null : row.band;
+  const via = row.via || null;
+  const periodId = row.period_id;
+  const rung = (ex === 'read' || ex === 'listen') ? ob.rungs.reading : ob.rungs.numbers;
+  const isPassage = ex === 'read' || ex === 'listen';
+  const reopenedAt = new Date(now).toISOString();
+  return {
+    runId: row.id,
+    mem: { passage_id: passageId, item_set_id: itemSetId, anchor_block: anchorBlock, mode, record, tryout: tryout ? tryout.item_id : null },
+    formNum,
+    top: { canonical_id: row.canonical_id || canonicalId, mode, period_id: periodId, band, record, via, exposure_no: exposure, passage_id: passageId, item_set_id: itemSetId,
+      anchor_block: anchorBlock, anchor_exposure_no: anchorExp, form: formNum },
+    payload: { mode, ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' } },
+    event: { w: 's', mode, period_id: periodId, form, band, rung: rung == null ? null : rung, ...(isPassage ? { passage_id: passageId } : { item_set_id: itemSetId }),
+      exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via, reopened: true },
+    items, tryout, story, dir, clipUrl,
+    async store() {
+      await updateRunMeta(row.id, (cur) => ({ meta: { ...(cur.meta || {}), reopened_at: reopenedAt } }));
+    },
+  };
+}
+
+/**
  * What one exercise serves under _v2 and the run row that says so. Returns { on_its_way } (nothing served, the draw
  * logged) or { runId, mem, payload, event, store(), items?, tryout?, story?, dir?, clipUrl? }.
  * `mode` 'practice' from the caller (Story Time, another change) is honoured; a second serve of a stop in the same
@@ -952,6 +1043,16 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   // web_quiz_identity_canon is the record's hard parent: off, a would-be record is served as practice (the Trail still serves)
   const recordBlocked = periodRule && mode === 'check' && !(await canonOnForRecord()) ? 'identity_canon_off' : null;
   if (recordBlocked) mode = 'practice';
+  // the child's own record row of this stop, served and left (RULING #85(a')): younger than the sweeper's served-row
+  // boundary (SERVED_MS, the one constant both read) it is served again as it was; older, or abandoned still marked record, it
+  // gives the record up (record=false) and a clean check follows
+  if (periodRule && mode === 'check') {
+    const open = openRecordRow(rows, ex, periodNow, w.lang);
+    const fresh = !!open && open.status === 'served' && now - Date.parse(open.created_at) < SERVED_MS;
+    const again = fresh ? await reserveV2(w, ex, open, { D, Bank, pool, canonicalId, ob, now, formNum }) : null;
+    if (again) return again;
+    if (open && !fresh) await giveUpRecord(open);
+  }
   const seed = crypto.randomBytes(16).toString('hex');
   const runId = crypto.randomUUID();
   const seen = D.seenIdsOf(rows);
