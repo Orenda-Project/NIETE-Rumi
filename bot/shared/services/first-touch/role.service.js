@@ -34,6 +34,7 @@ const SRCS = Object.freeze(['identity', 'activity', 'bound', 'roster', 'family',
 // The sandbox walk-through personas (switch quiz_test_personas; its own module, optional-modules.js): this file runs
 // the same with or without it; get() answers null whenever that switch is off.
 const MAX_KIDS = 4;
+const ROSTER_SCAN = 40;   // a family number on this many roster rows is a class's number
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 
 /** The first word of a name: the only part of a child's name the door ever shows. */
@@ -108,9 +109,12 @@ async function rosterKids(phone) {
 }
 
 /**
- * Rung 3b — the class-roster record, read only. Active rows on an active list made this school year whose parent_phone
- * is this phone; offered only when they sit in ONE school and number at most 4 (a number written on two schools'
- * registers, or against a whole class, is a wrong number: the page asks instead and shows no name).
+ * Rung 3b — the class-roster record, read only, by the join page's rule word for word (the landing's chips and the
+ * pick's acceptance never disagree about one phone): active, unmerged rows on a list whose parent_phone is this phone
+ * as the teacher typed it (+92…, 92…, 0…), filtered IN the query; a phone on ROSTER_SCAN rows or more is a class's
+ * number, not a family's; then only rows on an active list made this school year; then offered only when they are 1–4
+ * children of ONE school (students.school_id). A number on two schools' registers or against a whole class is a wrong
+ * number: the page asks instead and shows no name. Old or left rows never crowd out this year's child.
  */
 async function familyKids(phone, now = new Date()) {
   const { normalisePhone } = require('../quiz/student-identity.service');
@@ -118,28 +122,25 @@ async function familyKids(phone, now = new Date()) {
   if (!norm) return [];
   const supabase = require('../../config/supabase');
   const { data: rows, error } = await supabase.from('students')
-    .select('id, student_name, list_id')
-    .in('parent_phone', [norm, `+${norm}`])
+    .select('id, student_name, school_id, list_id')
+    .in('parent_phone', [`+${norm}`, norm, `0${norm.slice(2)}`])
     .eq('is_active', true)
     .eq('status', 'active')
+    .is('merged_into', null)
     .not('list_id', 'is', null)
-    .limit(MAX_KIDS + 1);
+    .limit(ROSTER_SCAN);
   if (error) throw new Error(error.message || 'roster read failed');
-  if (!rows || !rows.length || rows.length > MAX_KIDS) return [];
+  if (!rows || !rows.length || rows.length >= ROSTER_SCAN) return [];
   const listIds = [...new Set(rows.map((r) => String(r.list_id)))];
-  const { data: lists, error: lerr } = await supabase.from('student_lists').select('id, user_id, is_active, created_at').in('id', listIds);
+  const { data: lists, error: lerr } = await supabase.from('student_lists').select('id, is_active, created_at').in('id', listIds);
   if (lerr) throw new Error(lerr.message || 'list read failed');
   const since = schoolYearStart(now).getTime();
-  const live = new Map((lists || [])
+  const live = new Set((lists || [])
     .filter((l) => l.is_active !== false && l.created_at && new Date(l.created_at).getTime() >= since)
-    .map((l) => [String(l.id), l]));
+    .map((l) => String(l.id)));
   const kept = rows.filter((r) => live.has(String(r.list_id)));
-  if (!kept.length) return [];
-  const owners = [...new Set(kept.map((r) => String(live.get(String(r.list_id)).user_id || '')))];
-  const { data: teachers, error: terr } = await supabase.from('users').select('id, school_id').in('id', owners);
-  if (terr) throw new Error(terr.message || 'school read failed');
-  const schools = new Set((teachers || []).map((t) => String(t.school_id || `teacher:${t.id}`)));
-  if (schools.size !== 1) return [];
+  const schools = new Set(kept.map((r) => r.school_id || null));
+  if (!kept.length || kept.length > MAX_KIDS || schools.size !== 1) return [];
   return kidsOf(kept);
 }
 

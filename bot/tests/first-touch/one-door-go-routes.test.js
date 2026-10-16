@@ -88,7 +88,7 @@ beforeAll(async () => {
 });
 afterAll(() => new Promise((r) => server.close(r)));
 
-const roster = (id, name, list = 'l-1', phone = PH.family) => ({ id, student_name: name, list_id: list, parent_phone: phone, is_active: true, status: 'active' });
+const roster = (id, name, list = 'l-1', phone = PH.family, school = 'sch-1') => ({ id, student_name: name, list_id: list, parent_phone: phone, school_id: school, is_active: true, status: 'active', merged_into: null });
 function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1', 't-2': 'sch-1' }, quizSessions = [], teacherHome = true, makerPage = false } = {}) {
   const settings = [];
   if (on) settings.push({ key: 'quiz_one_door', value: 'true' });
@@ -222,7 +222,7 @@ describe('land', () => {
   });
 
   test.each([
-    ['two schools', { family: [roster('r-1', 'Ali Testwala'), roster('r-2', 'Hina Testwala', 'l-2')], schools: { 't-1': 'sch-1', 't-2': 'sch-2' } }],
+    ['two schools', { family: [roster('r-1', 'Ali Testwala'), roster('r-2', 'Hina Testwala', 'l-2', PH.family, 'sch-2')] }],
     ['more than 4 children', { family: ['a', 'b', 'c', 'd', 'e'].map((x, i) => roster(`r-${i}`, `${x} Testwala`)) }],
     ['a list from last school year', { family: [roster('r-1', 'Ali Testwala')], lists: [{ id: 'l-1', user_id: 't-1', is_active: true, created_at: LAST_YEAR }] }],
   ])('a roster number on %s → the one question, no names', async (_n, opts) => {
