@@ -233,8 +233,13 @@ function minifiedFiles(dir, logEvent, esbuildOpt) {
   if (!esbuildOpt && minifiedByDir.has(dir)) return minifiedByDir.get(dir);
   const state = { files: new Map(), ready: false, done: null };
   if (!esbuildOpt) minifiedByDir.set(dir, state);
+  // One line: the file, the error's code and a short first-line message with anything path-like removed (a Node
+  // "Cannot find module" carries a Require stack of absolute server paths; never logged).
   const fail = (file, err) => {
-    try { logEvent('web_quiz.minify_error', { file, err: String((err && err.message) || err).slice(0, 300) }); } catch (_) { /* never decides a response */ }
+    try {
+      const msg = String((err && err.message) || err).split('\n')[0].split(/\s+/).map((w) => (w.includes('/') ? '<path>' : w)).join(' ').slice(0, 160);
+      logEvent('web_quiz.minify_error', { file, code: String((err && err.code) || 'ERROR').replace(/[^\w.-]/g, '').slice(0, 40), err: msg });
+    } catch (_) { /* never decides a response */ }
   };
   state.done = new Promise((resolve) => setImmediate(resolve)).then(async () => {
     let names = [];
@@ -250,6 +255,9 @@ function minifiedFiles(dir, logEvent, esbuildOpt) {
         state.files.set(file, Buffer.from(out.code, 'utf8'));
       } catch (err) {
         fail(file, err);
+        // A syntax error is that file's own (esbuild lists them in `errors`); anything else (a missing platform
+        // binary, a crashed child) hits every file the same way: one line, then raw for all.
+        if (!(err && Array.isArray(err.errors) && err.errors.length)) break;
       }
     }
   }).catch(() => {}).then(() => { state.ready = true; });
@@ -913,7 +921,7 @@ function createWebQuizRouter(opts = {}) {
   const minified = minifiedFiles(publicDir, logEvent, opts.esbuild);
   // The last payload's `min` (app_settings web_quiz_minify, read by the bot): link the minified files, once made.
   let lastMin = false;
-  const sfx = () => (lastMin && minified.ready ? 'm' : '');
+  const sfx = () => (lastMin && minified.ready && minified.files.size > 0 ? 'm' : '');
   let assetV = null;
   const version = () => (assetV || (assetV = assetVersion())) + sfx();
   // The brand the bot last named: a closed or unreachable quiz still wears this deployment's brand.
@@ -1450,12 +1458,13 @@ function createWebQuizRouter(opts = {}) {
 
   // A file's minified copy (?v=<hex>m, minifiedFiles) while this edge knows the switch is on (lastMin): the static
   // server's cache headers, an ETag and 304s (res.send). A ?v=<hex>m asked for while it is off (a page cached while it
-  // was on), any other ?v=, wq-tel.js, a file that did not minify, images and fonts: today's static server below, raw.
-  // Asked for before this edge has made its copies (another edge's page, in its first moments): raw, but not kept,
-  // so that phone fetches the minified copy next time.
+  // was on) or before this process has seen min:true and made its copies (a restart, another replica): the raw file,
+  // not kept (no-cache), so that phone fetches the minified copy next time. Any other ?v=, wq-tel.js, a file that
+  // did not minify, images and fonts: today's static server below, raw.
   router.get('/wq/:file', (req, res, next) => {
-    if (!lastMin || typeof req.query.v !== 'string' || !MIN_V_RX.test(req.query.v)) return next();
-    if (!minified.ready) {
+    if (typeof req.query.v !== 'string' || !MIN_V_RX.test(req.query.v)) return next();
+    // Until this process has seen min:true and has its copies, an m URL is answered raw and not kept.
+    if (!lastMin || !minified.ready || minified.files.size === 0) {
       return res.sendFile(req.params.file, { root: publicDir, cacheControl: false, headers: { 'Cache-Control': 'no-cache' }, dotfiles: 'deny' }, (err) => (err && !res.headersSent ? next() : undefined));
     }
     const buf = minified.files.get(req.params.file);
