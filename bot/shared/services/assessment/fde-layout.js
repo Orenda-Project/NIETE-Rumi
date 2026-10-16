@@ -540,6 +540,30 @@ function printable(slot, q) {
   return slot.shape !== 'mcq' || (!sameValueTwice(q) && mcqPropertyVerdict(q).ok !== false && anagramVerdict(q).ok !== false);
 }
 
+// An English Q1(a) MCQ whose stem or options carry one of Q4's words gives Q4 away
+// («What does the word 'invisible' mean?» above «Write the meaning of: invisible …»).
+// That MCQ is held: the slot goes short and Section A is re-asked. Q4 is never touched.
+const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+function holdGiveaways(P, slots, bySlot) {
+  if (P.key !== 'english') return 0;
+  const mcqs = slots.find((s) => s.slot === 'english.A.Q1a');
+  const q4 = slots.find((s) => s.slot === 'english.C.Q4');
+  if (!mcqs || !q4) return 0;
+  const words = bySlot.get(q4.slot)
+    .flatMap((q) => (Array.isArray(q.words) ? q.words : []))
+    .filter((w) => typeof w === 'string' && w.trim())
+    .map((w) => new RegExp(`(?<![A-Za-z])${escapeRe(w.trim())}(?![A-Za-z])`, 'i'));
+  if (!words.length) return 0;
+  const list = bySlot.get(mcqs.slot);
+  const kept = list.filter((q) => {
+    const text = [q.question, ...(Array.isArray(q.options) ? q.options : [])].filter((t) => typeof t === 'string').join('\n');
+    return !words.some((re) => re.test(text));
+  });
+  bySlot.set(mcqs.slot, kept);
+  return list.length - kept.length;
+}
+
 /**
  * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
  *
@@ -574,6 +598,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     if (slot && settleVerses(slot, entry.q) && printable(slot, entry.q)) bySlot.get(slot.slot).push(entry.q);
     else unplaced += 1;
   }
+  unplaced += holdGiveaways(P, slots, bySlot);
   spreadKeys(slots, bySlot);
 
   // Marks, lines and the canonical tag come from the pattern, never the model.

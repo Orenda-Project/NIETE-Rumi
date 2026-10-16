@@ -558,11 +558,18 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   return parts.join('');
 }
 
+// A slot that numbers its items (a), (b) prints that label itself, so the model's own
+// leading «(a)» would print twice: «(a) (a) Write an application…».
+const OWN_LABEL = /^\(?[a-d]\)\s*/;
+function withoutOwnLabel(text, slot) {
+  return slot.numbering === 'alpha_paren' && typeof text === 'string' ? text.replace(OWN_LABEL, '') : text;
+}
+
 function stemOf(q, slot, inlineQ) {
   if (inlineQ) return '';
   if (slot.shape === 'frame' || slot.shape === 'comprehension') return '';
   if (slot.shape === 'words' && !q.question) return '';
-  return q.question || '';
+  return withoutOwnLabel(q.question || '', slot);
 }
 
 function slotBlock(slot, sec, list, ctx) {
@@ -820,10 +827,15 @@ const BOOK_SOURCE = {
   diagram: { en: "the book's diagram", ur: 'کتاب کا خاکہ' }, // ur: needs fluent-Urdu review
 };
 
-// Rows the scheme pass wrote in code (an answer with no points), counted in the box.
+// Rows the scheme pass wrote in code (an answer with no points), counted in the box,
+// in words a teacher acts on.
 const FILLED_BY_CODE = {
-  en: (n) => (n === 1 ? '1 row filled by code' : `${n} rows filled by code`),
-  ur: (n) => (n === 1 ? '1 قطار کوڈ نے بھری' : `${n} قطاریں کوڈ نے بھریں`), // needs fluent-Urdu review
+  en: (n) => (n === 1
+    ? '1 marking row was written from the answer. Check it before marking.'
+    : `${n} marking rows were written from the answer. Check them before marking.`),
+  ur: (n) => (n === 1 // needs fluent-Urdu review
+    ? '1 مارکنگ قطار جواب سے لکھی گئی۔ نمبر دینے سے پہلے اسے جانچ لیں۔'
+    : `${n} مارکنگ قطاریں جواب سے لکھی گئیں۔ نمبر دینے سے پہلے انہیں جانچ لیں۔`),
 };
 
 // `item` is the index in the model's own type list (seen/unseen → category →
@@ -1050,7 +1062,7 @@ function writtenRows(slot, list, ctx, Criteria) {
       return;
     }
     const answer = q.answer !== undefined && q.answer !== null ? `<b>${textOf(q.answer, ctx)}</b>` : '';
-    const stem = q.question ? `<div class="q-line">${textOf(cutAtWord(q.question, 110), ctx)}</div>` : '';
+    const stem = q.question ? `<div class="q-line">${textOf(cutAtWord(withoutOwnLabel(q.question, slot), 110), ctx)}</div>` : '';
     rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(n, ctx)}</td><td class="ans">${answer}${checkedChip(q, ctx)}${stem}</td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, list.indexOf(q), Number(q.marks) || slot.marks_each)}</td></tr>`);
   });
   if (slot.alternatives) {
