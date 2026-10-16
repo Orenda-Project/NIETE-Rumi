@@ -137,7 +137,7 @@ describe.each(['maths', 'science', 'urdu'])('%s: tap → job → two stored file
 
     // One model call per section, each with the section's own slots and the per-section ceiling.
     expect(state.sections.sort()).toEqual(P.subjects[subject].sections.map((s) => s.id).sort());
-    state.calls.forEach((c) => expect(c.max_tokens).toBe(12000));
+    state.calls.forEach((c) => expect(c.max_tokens).toBe(24000));
 
     const row = state.rows.assessment_papers[0];
     expect(row.status).toBe('ready');

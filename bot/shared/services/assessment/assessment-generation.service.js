@@ -730,11 +730,15 @@ const BookContent = () => require('./book-content.service');
 /**
  * One section's ceiling and wait. A whole 48-item paper with a marking scheme
  * on every written item is more than one reply carries, so a pattern paper is
- * written one section per call; the largest section measured fits well inside
- * 12,000 output tokens. The wait is the SDK's request option, not a body field.
+ * written one section per call. The job's model reasons before it answers and
+ * the reasoning spends the same budget: real full-syllabus Maths and Social
+ * Studies sections ran out at 12,000 (Maths A: 7,927 of 11,986 tokens reasoning).
+ * So a section has 24,000 and asks for low reasoning effort, which the client
+ * passes to every lane. The wait is the SDK's request option, not a body field.
  */
-const SECTION_MAX_TOKENS = 12000;
-const SECTION_TIMEOUT_MS = 240000;
+const SECTION_MAX_TOKENS = 24000;
+const SECTION_TIMEOUT_MS = 300000;
+const SECTION_REASONING = { effort: 'low' };
 
 /**
  * The marks split FDE's table of specification asks for, per subject, by
@@ -769,8 +773,9 @@ const RULE = {
 
 // The pages Urdu items are never set from: lessons 1–3 (the Hamd, the Naat, the third).
 const HELD_PAGES = '1-27';
-// A quote this long from those pages is a quote, not a shared phrase.
-const HELD_SHINGLE = 12;
+// A quote this long from those pages is a quote, not a shared phrase. Stock
+// exercise wording runs to 21 characters in real items; a line of verse is 25+.
+const HELD_SHINGLE = 24;
 
 /** "1 mark each", "1.25 marks each", "20 marks (parts 10 + 8 + 2)". */
 function _marksPhrase(slot) {
@@ -952,6 +957,7 @@ async function _writeSection({ messages, model, ownModel, pattern, section }) {
     temperature: 0.7,
     response_format: { type: 'json_object' },
     max_tokens: SECTION_MAX_TOKENS,
+    reasoning: SECTION_REASONING,
   }, { timeout: SECTION_TIMEOUT_MS });
 
   const usages = [];
@@ -1024,10 +1030,21 @@ function _inRanges(page, ranges) {
   return Patterns.parseRanges(ranges).some(([a, b]) => page >= a && page <= b);
 }
 
+/** Every Urdu-script string the subject's pattern data carries, whitespace collapsed. */
+function _urduStringsOf(P) {
+  const out = [];
+  const walk = (v) => {
+    if (typeof v === 'string') { if (/[\u0600-\u06FF]/.test(v)) out.push(_flat(v)); } else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+  };
+  walk(P);
+  return out;
+}
+
 /**
  * Urdu only: drop every item that quotes lessons 1–3 (book pp 1–27: the Hamd,
  * the Naat and the third lesson). The prompt already says so; this makes it
- * true when the model forgets. A quote is any run of 12 characters or more
+ * true when the model forgets. A quote is any run of 24 characters or more
  * from those pages, whitespace collapsed. The pages are loaded once per paper.
  * Mutates the tree; returns what was dropped, [{ slot, reason }].
  */
@@ -1038,15 +1055,19 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '' }
   const text = _flat(String(held.content || '').replace(/=== Page \d+ ===/g, ' '));
   const shingles = new Set();
   for (let i = 0; i + HELD_SHINGLE <= text.length; i += 1) shingles.add(text.slice(i, i + HELD_SHINGLE));
-  // Twelve characters of Urdu is two or three words, so stock exercise wording ("answer the
+  // A short run of Urdu is two or three words, so stock exercise wording ("answer the
   // questions below") sits on the held pages AND in the lessons the paper is set from. Only
   // what the held lessons alone contain marks an item as quoting them; a shared phrase never
   // drops a good item and fails the paper as a short slot.
   // The held pages themselves never count as allowed, even when her chapters reach into them.
   const pages = _splitPages(allowedText);
   const kept = pages ? pages.filter((pg) => !_inRanges(pg.page, HELD_PAGES)).map((pg) => pg.text).join(' ') : allowedText;
-  const allowed = _flat(String(kept || '').replace(/=== Page \d+ ===/g, ' '));
-  for (let i = 0; i + HELD_SHINGLE <= allowed.length; i += 1) shingles.delete(allowed.slice(i, i + HELD_SHINGLE));
+  // The pattern's own Urdu (instructions, closed lists, rules) is what the model is told to
+  // copy, and a held lesson's exercise can print the same instruction: never a quote.
+  const allowedTexts = [_flat(String(kept || '').replace(/=== Page \d+ ===/g, ' ')), ..._urduStringsOf(P)];
+  for (const allowed of allowedTexts) {
+    for (let i = 0; i + HELD_SHINGLE <= allowed.length; i += 1) shingles.delete(allowed.slice(i, i + HELD_SHINGLE));
+  }
 
   const quotes = (q) => _textsOf(q).some((t) => {
     const s = _flat(t);
