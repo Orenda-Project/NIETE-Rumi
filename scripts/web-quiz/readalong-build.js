@@ -3,7 +3,7 @@
  * Read-along build: a passage's text → Jugnu's voice at a child's pace + the time of every word.
  *
  *   node scripts/web-quiz/readalong-build.js --out <dir> [--ids en.read.1.story01,ur.read.2.story01 | --all]
- *        [--provider soniox|elevenlabs] [--wpm <n>] [--tempo-floor 0.85] [--word-max-ms 120] [--spend-log <file.jsonl> --spend-lane <label>] [--force]
+ *        [--provider soniox|elevenlabs] [--wpm <n>] [--tempo-floor 0.85] [--word-max-ms 120] [--spend-log <file.jsonl> --spend-lane <label>] [--max-usd 2.00] [--force]
  *   node scripts/web-quiz/readalong-build.js --out <dir> --text-file page.txt --id <book>/p3 --lang ur --band 1
  *        (the page's printed line breaks as newlines in the file: each becomes a pause)
  *
@@ -17,6 +17,10 @@
  * and writes <out>/<lang>/<id>/current.json + <voice>-<hash8>.ogg + report.json. Uploading is a separate step (the
  * environment's bucket at readalong/<env>/passage/<lang>/<id>/…); nothing here touches a database.
  * A file whose words were > 15 % interpolated is written with report.ok = false and must not be uploaded.
+ *
+ * Money: every paid call is checked against a running total BEFORE it is made (--max-usd, default US$2.00) and logged
+ * after; past the cap the build stops with the total in the message and writes one `web_quiz.readalong_spend_cap` event
+ * line to stderr. A server that voices a page on its first open uses the per-page-per-hour cap in the timing module.
  *
  * Keys: SONIOX_TTS_API_KEY (or SONIOX_API_KEY) for speech and recognition; ELEVENLABS_API_KEY for --provider elevenlabs.
  * Read from the environment only; never printed. Needs ffmpeg and ffprobe on PATH. No npm dependencies.
@@ -38,7 +42,7 @@ const SONIOX_TTS_USD_PER_S = 0.722 / 3600;
 const SONIOX_STT_USD_PER_S = 0.10 / 3600;
 const ELEVEN_USD_PER_CHAR = 0.30 / 1000;   // list-price estimate, logged as such
 const MAX_INTERP = 0.15;
-let spendLane = 'readalong-build';   // the label each spend line carries (--spend-lane)
+const DEFAULT_MAX_USD = 2;
 
 function args(argv) {
   const a = { provider: 'soniox' };
@@ -52,10 +56,23 @@ function args(argv) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sonioxKey = () => process.env.SONIOX_TTS_API_KEY || process.env.SONIOX_API_KEY || '';
 
-function spend(file, provider, what, units, usd) {
-  if (!file) return;
-  fs.appendFileSync(file, `${JSON.stringify({ at: new Date().toISOString().replace(/\.\d+Z$/, 'Z'), lane: spendLane, provider, what, units, usd: Math.round(usd * 1e5) / 1e5 })}\n`);
+/** The build's purse: guard(usd) before a paid call (throws past the cap), spend(...) after it (logs the line, then
+ *  throws if that call passed the cap). One spend-cap event, however often the cap is hit. */
+function makeSpender({ file = null, lane = 'readalong-build', maxUsd, onCap } = {}) {
+  const max = maxUsd == null || maxUsd === '' || !isFinite(Number(maxUsd)) ? DEFAULT_MAX_USD : Number(maxUsd);
+  const cap = Tm.spendCap({ maxUsd: max, onCap: onCap || ((e) => process.stderr.write(`${JSON.stringify(e)}\n`)) });
+  return {
+    max,
+    total: cap.total,
+    guard: (usd) => cap.check(usd),
+    spend(provider, what, units, usd) {
+      if (file) fs.appendFileSync(file, `${JSON.stringify({ at: new Date().toISOString().replace(/\.\d+Z$/, 'Z'), lane, provider, what, units, usd: Math.round(usd * 1e5) / 1e5 })}\n`);
+      cap.add(usd);
+    },
+  };
 }
+// a generous guess of a Soniox voice's length before it is made (speed 0.7 ≈ 2 words a second; a [pause] ≈ 1 s)
+const ttsGuessS = (text) => String(text).trim().split(/\s+/).length / 1.5 + (String(text).match(/[.!?۔؟\n]/g) || []).length + 2;
 
 function durationMs(file) {
   const out = execFileSync('ffprobe', ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]).toString().trim();
@@ -79,16 +96,18 @@ function withPauses(text) {
     .join(' [pause] ');
 }
 
-async function speak({ provider, lang, text, file, log }) {
+async function speak({ provider, lang, text, file, purse }) {
   if (provider === 'elevenlabs') {
+    purse.guard(text.length * ELEVEN_USD_PER_CHAR);
     const r = await http(`https://api.elevenlabs.io/v1/text-to-speech/${VOICES.elevenlabs[lang]}?output_format=mp3_44100_64`, {
       method: 'POST', headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY || '', 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: `[slowly] ${text}`, model_id: 'eleven_v3', voice_settings: { stability: 0.5, similarity_boost: 0.8 } }),
     }, 'elevenlabs tts');
     fs.writeFileSync(file, Buffer.from(await r.arrayBuffer()));
-    spend(log, 'elevenlabs', 'readalong tts', text.length, text.length * ELEVEN_USD_PER_CHAR);
+    purse.spend('elevenlabs', 'readalong tts', text.length, text.length * ELEVEN_USD_PER_CHAR);
     return { provider, voice: VOICES.elevenlabs[lang], model: 'eleven_v3' };
   }
+  purse.guard(ttsGuessS(text) * SONIOX_TTS_USD_PER_S);
   const r = await http('https://tts-rt.soniox.com/tts', {
     method: 'POST', headers: { Authorization: `Bearer ${sonioxKey()}`, 'Content-Type': 'application/json', 'User-Agent': 'voice-gateway/1.0' },
     // measured best for a child: speed 0.7 (the API's slowest) and a [pause] after every sentence end
@@ -97,12 +116,13 @@ async function speak({ provider, lang, text, file, log }) {
   fs.writeFileSync(file, Buffer.from(await r.arrayBuffer()));
   const ms = durationMs(file);
   if (ms < 500) throw new Error('soniox tts: clip too short');
-  spend(log, 'soniox', 'readalong tts', Math.round(ms / 100) / 10, (ms / 1000) * SONIOX_TTS_USD_PER_S);
+  purse.spend('soniox', 'readalong tts', Math.round(ms / 100) / 10, (ms / 1000) * SONIOX_TTS_USD_PER_S);
   return { provider, voice: VOICES.soniox[lang], model: 'tts-rt-v2' };
 }
 
 /** Soniox async recognition with word timestamps; the uploaded file and the transcription are deleted after. */
-async function recognise({ file, lang, log }) {
+async function recognise({ file, lang, purse }) {
+  purse.guard((durationMs(file) / 1000) * SONIOX_STT_USD_PER_S);
   const H = { Authorization: `Bearer ${sonioxKey()}` };
   const form = new FormData();
   form.append('file', new Blob([fs.readFileSync(file)]), path.basename(file));
@@ -120,7 +140,7 @@ async function recognise({ file, lang, log }) {
     if (!s || s.status !== 'completed') throw new Error(`soniox stt: ${s && s.status}`);
     const tr = await (await http(`https://api.soniox.com/v1/transcriptions/${t.id}/transcript`, { headers: H }, 'soniox transcript')).json();
     const ms = durationMs(file);
-    spend(log, 'soniox', 'readalong align', Math.round(ms / 100) / 10, (ms / 1000) * SONIOX_STT_USD_PER_S);
+    purse.spend('soniox', 'readalong align', Math.round(ms / 100) / 10, (ms / 1000) * SONIOX_STT_USD_PER_S);
     return Tm.sttWords(tr.tokens);
   } finally {
     if (t) await fetch(`https://api.soniox.com/v1/transcriptions/${t.id}`, { method: 'DELETE', headers: H }).catch(() => {});
@@ -156,7 +176,7 @@ function pace({ src, dst, cuts, tempo, tmp, leadInMs = 0 }) {
   execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', joined, '-filter:a', `atempo=${tempo.toFixed(4)}`, '-c:a', 'libopus', '-b:a', '32k', '-ar', '48000', '-ac', '1', dst]);
 }
 
-async function build({ id, lang, band, text, out, provider, wpm, log, force, tempoFloor, wordMax }) {
+async function build({ id, lang, band, text, out, provider, wpm, purse, force, tempoFloor, wordMax }) {
   const dir = path.join(out, lang, id.replace(/[^A-Za-z0-9._-]+/g, '-'));
   if (!force && fs.existsSync(path.join(dir, 'report.json')) && JSON.parse(fs.readFileSync(path.join(dir, 'report.json'))).ok) return JSON.parse(fs.readFileSync(path.join(dir, 'report.json')));
   fs.mkdirSync(dir, { recursive: true });
@@ -164,8 +184,8 @@ async function build({ id, lang, band, text, out, provider, wpm, log, force, tem
   try {
     const printed = Tm.printedWords(text);
     const raw = path.join(tmp, provider === 'elevenlabs' ? 'raw.mp3' : 'raw.ogg');
-    const voice = await speak({ provider, lang, text, file: raw, log });
-    const rawTimed = Tm.finalize(printed, Tm.match(printed, await recognise({ file: raw, lang, log })), durationMs(raw));
+    const voice = await speak({ provider, lang, text, file: raw, purse });
+    const rawTimed = Tm.finalize(printed, Tm.match(printed, await recognise({ file: raw, lang, purse })), durationMs(raw));
     const target = Number(wpm) || Tm.PACE_WPM[band] || 100;
     // the voice already pauses at sentence ends ([pause]); the pace comes from a gentle tempo (EN ≥ 0.85, UR ≥ 0.90 —
     // more stretch is audible) and, only if still short, small even gaps between words
@@ -180,7 +200,7 @@ async function build({ id, lang, band, text, out, provider, wpm, log, force, tem
     const paced = path.join(tmp, 'paced.ogg');
     pace({ src: raw, dst: paced, cuts, tempo, tmp, leadInMs: short ? 400 : 0 });
     const audioMs = durationMs(paced);
-    const pairs = Tm.match(printed, await recognise({ file: paced, lang, log }));
+    const pairs = Tm.match(printed, await recognise({ file: paced, lang, purse }));
     const words = Tm.finalize(printed, pairs, audioMs);
     const interp = words.filter((w) => w.src === 'interp').length;
     const tag = `${provider === 'elevenlabs' ? 'el' : 'sx'}-${String(voice.voice).toLowerCase().slice(0, 12)}`;
@@ -200,7 +220,7 @@ async function build({ id, lang, band, text, out, provider, wpm, log, force, tem
 async function main() {
   const a = args(process.argv);
   if (!a.out) throw new Error('--out <dir> is required');
-  if (a['spend-lane']) spendLane = String(a['spend-lane']);
+  const purse = makeSpender({ file: a['spend-log'] || null, lane: a['spend-lane'] ? String(a['spend-lane']) : undefined, maxUsd: a['max-usd'] });
   if (!sonioxKey()) throw new Error('SONIOX_TTS_API_KEY (or SONIOX_API_KEY) is not set');
   let items;
   if (a['text-file']) {
@@ -213,13 +233,14 @@ async function main() {
   const reports = [];
   for (const it of items) {
     try {
-      const opts = { ...it, out: a.out, provider: a.provider, wpm: a.wpm, log: a['spend-log'], force: a.force, tempoFloor: a['tempo-floor'], wordMax: a['word-max-ms'] };
+      const opts = { ...it, out: a.out, provider: a.provider, wpm: a.wpm, purse, force: a.force, tempoFloor: a['tempo-floor'], wordMax: a['word-max-ms'] };
       let r = await build(opts);
       if (!r.ok) r = await build({ ...opts, force: true });   // one more voice: recognition misses vary take to take
       reports.push(r);
       process.stdout.write(`${r.ok ? 'ok ' : 'BAD'} ${it.id} words=${r.words} interp=${r.interpolated} wpm=${r.wpm} audio=${(r.audio_ms / 1000).toFixed(1)}s ${Math.round(r.audio_bytes / 1024)}KB\n`);
     } catch (e) {
       reports.push({ id: it.id, ok: false, error: String(e.message || e).slice(0, 200) });
+      if (/spend cap/.test(String(e.message))) { process.stdout.write(`STOP ${String(e.message)}\n`); break; }
       process.stdout.write(`ERR ${it.id} ${String(e.message || e).slice(0, 200)}\n`);
     }
   }
@@ -227,4 +248,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch((e) => { process.stderr.write(`${e.message}\n`); process.exit(1); });
-module.exports = { build, pace };
+module.exports = { build, pace, args, makeSpender, DEFAULT_MAX_USD };

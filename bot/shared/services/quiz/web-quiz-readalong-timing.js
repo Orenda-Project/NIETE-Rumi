@@ -10,6 +10,8 @@
  *   tempoFor(...)             the pitch-kept slow-down that brings the clip to the wanted words a minute (floor 0.70)
  *   planPace(...)             all of it: pauses + tempo + (short pages) even word gaps, silence given in final-clip ms
  *   timingFile(...)           the stored timing file, with the hash of the words it was made for
+ *   spendCap / pageHourCap    the money caps: a running total for a build, and US$ per page per hour for a server that
+ *                             voices a page on its first open (both throw past the cap, one spend-cap event)
  *
  * Why the final clip is aligned rather than the provider's own timestamps carried through the pacing: on the two test
  * passages the carried timestamps sat 100–230 ms early against the acoustic onsets; speech recognition on the final
@@ -179,4 +181,46 @@ function timingFile({ id, lang, text, audioName, audioMs, words, voice, timingSr
   };
 }
 
-module.exports = { norm, editDistance, sameWord, sttWords, match, finalize, pacePlan, planPace, wpmOf, tempoFor, timingFile, PACE_WPM, printedWords, SENTENCE_END, CLAUSE_END };
+const CAP_EVENT = 'web_quiz.readalong_spend_cap';
+const DEFAULT_PAGE_HOUR_USD = 0.05;
+const usd = (n) => `US$${Number(n).toFixed(2)}`;
+
+/** A running total with a ceiling: check(usd) before a paid call throws when it would pass the ceiling; add(usd) after. */
+function spendCap({ maxUsd, onCap = () => {} } = {}) {
+  const max = Number(maxUsd);
+  let total = 0;
+  let fired = false;
+  function stop(next) {
+    if (!fired) { fired = true; onCap({ event: CAP_EVENT, total_usd: Math.round(total * 1e5) / 1e5, max_usd: max }); }
+    throw new Error(`readalong spend cap: ${usd(total)} spent of ${usd(max)}; ${usd(next)} more would pass it`);
+  }
+  return {
+    max,
+    total: () => total,
+    check(n) { if (total + Number(n) > max + 1e-9) stop(n); },
+    add(n) { total += Number(n); if (total > max + 1e-9) stop(0); },
+  };
+}
+
+/** Per key (a page), a ceiling on what the last hour spent: charge(key, usd) throws instead of passing it. */
+function pageHourCap({ maxUsd = DEFAULT_PAGE_HOUR_USD, windowMs = 3600 * 1000, now = Date.now, onCap = () => {} } = {}) {
+  const spent = new Map();   // key → [{at, usd}] inside the window
+  const fired = new Map();   // key → when its event fired (one per key per window)
+  return {
+    max: Number(maxUsd),
+    charge(key, n) {
+      const t = now();
+      const recent = (spent.get(key) || []).filter((x) => t - x.at < windowMs);
+      const total = recent.reduce((a, x) => a + x.usd, 0);
+      if (total + Number(n) > Number(maxUsd) + 1e-9) {
+        if (!(fired.get(key) > t - windowMs)) { fired.set(key, t); onCap({ event: CAP_EVENT, key, total_usd: Math.round(total * 1e5) / 1e5, max_usd: Number(maxUsd) }); }
+        spent.set(key, recent);
+        throw new Error(`readalong spend cap: ${key} spent ${usd(total)} of ${usd(maxUsd)} this hour`);
+      }
+      recent.push({ at: t, usd: Number(n) });
+      spent.set(key, recent);
+    },
+  };
+}
+
+module.exports = { spendCap, pageHourCap, DEFAULT_PAGE_HOUR_USD, CAP_EVENT, norm, editDistance, sameWord, sttWords, match, finalize, pacePlan, planPace, wpmOf, tempoFor, timingFile, PACE_WPM, printedWords, SENTENCE_END, CLAUSE_END };

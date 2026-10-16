@@ -207,8 +207,9 @@ describe('switch on', () => {
     expect(body.readalong).toEqual({
       v: 1, id: KITE, lang: 'en', dir: 'ltr',
       audio: { url: `https://signed.test/${DIR}/sx-grace-ab12cd34.ogg`, ms: 9000, mime: 'audio/ogg; codecs=opus' },
-      words: f.words, pace_wpm: 100,
+      words: f.words,
     });
+    expect(body.readalong).not.toHaveProperty('pace_wpm');   // a rate is the build's evidence, never the child's payload
     expect(r2.presignKey).toHaveBeenCalledWith(`${DIR}/sx-grace-ab12cd34.ogg`, 6 * 3600, expect.any(Object));
   });
 

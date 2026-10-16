@@ -113,8 +113,8 @@ function createReadAlong({ settingOn, r2, bucket, env = process.env, now = () =>
     return {
       v: 1, id: d.id || passageId, lang: d.lang || lang, dir: d.dir || (lang === 'ur' ? 'rtl' : 'ltr'),
       audio: { url, ms: Number(d.audio.ms) || 0, mime: d.audio.mime || 'audio/ogg; codecs=opus' },
+      // pace_wpm stays in the stored file for the build's evidence; a rate never goes to the child's page
       words: d.words.map((w) => ({ i: w.i, t: w.t, s_ms: w.s_ms, e_ms: w.e_ms })),
-      ...(d.pace_wpm ? { pace_wpm: d.pace_wpm } : {}),
     };
   }
 

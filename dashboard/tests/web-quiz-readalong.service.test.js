@@ -345,24 +345,86 @@ describe('read-along player: the page', () => {
     expect(() => { p.play(); p.seekToWord(2); p.playWord(1); p.destroy(); }).not.toThrow();
   });
 
-  test('band: a second pill on the text-band crop moves on the same clock; hidden for a word outside the band', () => {
-    const { RA, document, at } = load({ imgWidth: 540 });   // picture 1080 px shown at 540; band 540 px wide shown at 540
+  test('band: never a second pill — a band beside the picture (overlay/image) is ignored: one picture, ONE pill', () => {
+    const { RA, document, at } = load({ imgWidth: 540 });
+    const el = document.createElement('div');
+    const d = { ...DATA, image: { url: 'p.webp', w: 1080, h: 1600 }, words: DATA.words.map((w, k) => ({ ...w, box: [100 + k * 100, 1200, 90, 40] })) };
+    const p = RA.mount(el, d, { mode: 'overlay', band: { url: 'band.webp', x: 100, y: 1180, w: 540, h: 100 } });
+    expect(p.mode).toBe('image');
+    expect(byClass(el, 'wqra-pill')).toHaveLength(1);
+    expect(all(el, (x) => x.tag === 'img').map((x) => x.getAttribute('src'))).toEqual(['p.webp']);
+    p.play(); at(700);
+    expect(byClass(el, 'wqra-pill')[0].style.transform).toBe('translate(102px,602px)');
+  });
+
+  test('mode band: the crop REPLACES the picture — the only drawing, ONE pill, boxes moved into the crop; a word outside it shows no pill', () => {
+    const { RA, document, at } = load({ imgWidth: 540 });   // the crop's 540 picture-px shown at 540: scale 1
     const el = document.createElement('div');
     const d = { ...DATA, image: { url: 'p.webp', w: 1080, h: 1600 },
       words: DATA.words.map((w, k) => ({ ...w, box: k < 4 ? [100 + k * 100, 1200, 90, 40] : [100, 100, 90, 40] })) };
-    const p = RA.mount(el, d, { mode: 'overlay', band: { url: 'band.webp', x: 100, y: 1180, w: 540, h: 100 } });
+    const p = RA.mount(el, d, { mode: 'band', band: { url: 'band.webp', x: 100, y: 1180, w: 540, h: 100 } });
+    expect(p.mode).toBe('band');
+    expect(all(el, (x) => x.tag === 'img').map((x) => x.getAttribute('src'))).toEqual(['band.webp']);
     const pills = byClass(el, 'wqra-pill');
-    expect(pills).toHaveLength(2);
-    const band = pills[1];
+    expect(pills).toHaveLength(1);
     p.play();
-    at(700);   // word 1: box x 200 → band x (200 − 100) × (540 / 540) + 2 = 102; y (1200 − 1180) + 2 = 22; w 90 − 4; h 40 − 4
-    expect(band.style.transform).toBe('translate(102px,22px)');
-    expect(band.style.width).toBe('86px');
-    expect(band.style.opacity).toBe('1');
-    expect(pills[0].style.transform).toBe('translate(102px,602px)');   // the print's pill, same word
-    at(2900);  // word 4 lies outside the band
-    expect(band.style.opacity).toBe('0');
+    at(700);   // word 1: box x 200 → (200 − 100) × 1 + 2 = 102; y (1200 − 1180) + 2 = 22; w 90 − 4; h 40 − 4
+    expect(pills[0].style.transform).toBe('translate(102px,22px)');
+    expect(pills[0].style.width).toBe('86px');
     expect(pills[0].style.opacity).toBe('1');
+    at(2900);  // word 4 lies outside the crop
+    expect(pills[0].style.opacity).toBe('0');
+    expect(byClass(el, 'wqra-hit')[4].style.display).toBe('none');
+  });
+
+  test('mode band without a usable band falls back to the picture (never a blank)', () => {
+    const { RA, document } = load();
+    const d = { ...DATA, image: { url: 'p.webp', w: 1080, h: 1600 }, words: DATA.words.map((w, k) => ({ ...w, box: [k * 100, 0, 90, 40] })) };
+    expect(RA.mount(document.createElement('div'), d, { mode: 'band' }).mode).toBe('image');
+  });
+
+  test('the picture pill is a tight inset box (30 % green, 3 px inset #15803D ring), no glow; colour snaps (0 ms), the box slides 100 ms', () => {
+    const { RA, document } = load();
+    RA.mount(document.createElement('div'), DATA, {});
+    const css = all(document.head, (x) => x.id === 'wqra-css')[0].textContent;
+    const pill = /\.wqra-pill\{([^}]*)\}/.exec(css)[1];
+    expect(pill).toContain('background:rgba(187,247,208,.3)');
+    expect(pill).toContain('box-shadow:inset 0 0 0 3px #15803D');
+    expect(pill).not.toMatch(/blur|filter|opacity \.|opacity\s*\.1/);
+    expect(pill).toMatch(/transition:transform \.1s/);
+    const word = /\.wqra-w\{([^}]*)\}/.exec(css)[1];
+    expect(word).not.toMatch(/transition:[^;]*(background|color)/);
+    expect(css).not.toContain('wqra-band');
+  });
+
+  test('timing quality "low": the LINE is lit, not the word — the pill covers the whole printed line of the word being read', () => {
+    const { RA, document, at } = load({ imgWidth: 540 });
+    const el = document.createElement('div');
+    // words 0–2 on one printed line (y 1200), 3–4 on the next (y 1260)
+    const boxes = [[100, 1200, 90, 40], [200, 1204, 90, 36], [300, 1200, 120, 40], [100, 1260, 60, 40], [170, 1262, 80, 38]];
+    const d = { ...DATA, quality: 'low', image: { url: 'p.webp', w: 1080, h: 1600 }, words: DATA.words.map((w, k) => ({ ...w, box: boxes[k] })) };
+    const p = RA.mount(el, d, {});
+    expect(p.quality).toBe('low');
+    const pill = byClass(el, 'wqra-pill')[0];
+    p.play();
+    at(700);   // word 1 → line 0 = x 100…420, y 1200…1240 → (50 + 2, 600 + 2), w 160 − 4, h 20 − 4
+    expect(pill.style.transform).toBe('translate(52px,602px)');
+    expect(pill.style.width).toBe('156px');
+    expect(pill.style.height).toBe('16px');
+    at(2900);  // word 4 → line 1 = x 100…250, y 1260…1300
+    expect(pill.style.transform).toBe('translate(52px,632px)');
+    expect(pill.style.width).toBe('71px');
+  });
+
+  test('timing quality "low" in text mode: every word on the printed line of the current word is lit', () => {
+    const { RA, document, at } = load();
+    const el = document.createElement('div');
+    const p = RA.mount(el, { ...DATA, quality: 'low' }, {});
+    byClass(el, 'wqra-w').forEach((s, k) => { s.offsetTop = k < 3 ? 0 : 40; });   // what the browser's line wrap gives
+    p.play();
+    at(700); expect(lit(el)).toEqual(['0', '1', '2']);
+    at(2600); expect(lit(el)).toEqual(['3', '4']);
+    expect(RA.mount(document.createElement('div'), DATA, {}).quality).toBe('word');
   });
 
   test('a page whose words lack boxes falls back to text mode (per page)', () => {
