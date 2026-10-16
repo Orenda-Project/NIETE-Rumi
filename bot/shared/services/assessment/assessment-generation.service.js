@@ -1424,6 +1424,26 @@ function _heldTermOf(q) {
   return null;
 }
 
+/**
+ * Urdu: an item of a printed-word-list slot (`shape: 'words'`, `print_words`) whose FDE instruction
+ * takes no {q} prints FDE's instruction and the list; a `question` the model wrote for it only says
+ * the instruction again. That restatement is stock exercise wording the held lessons also print, so
+ * the held-lessons filter would read it as a quote and drop the item: it is emptied first.
+ * Every other slot, and every other subject, keeps its question. Mutates the tree.
+ */
+function _blankWordsStems(examJson, P, key) {
+  if (key !== 'urdu' || !P || !Array.isArray(P.sections)) return;
+  const blank = new Set();
+  for (const sec of P.sections) {
+    for (const s of sec.slots || []) {
+      if (s.shape === 'words' && s.print_words && !/\{q\}/.test(s.instruction_ur || '')) blank.add(s.slot);
+    }
+  }
+  _walkQuestions(examJson, (q) => {
+    if (blank.has(q.slot) && typeof q.question === 'string' && q.question) q.question = '';
+  });
+}
+
 /** Drop every item `held(q)` names, logging each; returns [{ slot, reason, ... }]. */
 function _dropHeld(examJson, held, requestId = null) {
   const dropped = [];
@@ -1632,6 +1652,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   let laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
   const firstUnplaced = laid.unplaced;
   examJson = laid.examJson;
+  _blankWordsStems(examJson, P, key);
   const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content, requestId });
   if (dropped.length) {
     laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
@@ -1685,6 +1706,7 @@ module.exports = {
   sectionMaxTokens,
   buildPatternUserPrompt,
   religiousFilter,
+  _blankWordsStems,
   buildSystemPrompt,
   buildUserPrompt,
   planCounts,
