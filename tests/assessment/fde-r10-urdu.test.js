@@ -32,6 +32,11 @@ const mockPoemPages = [
   'یہ گندگی ہے کیسی آئی ہے یہ کہاں سے؟', '', 'شہروں کی یہ غلاظت آئی ہے کیسے بہہ کے؟', '',
   'آبی آلودگی کی کیا وجوہات ہو سکتی ہیں اور', '', 'ہم اسے کیسے کم کر سکتے ہیں؟', '',
   'دم گھٹ رہا ہے میرا بدبوہے جان لیوا', '', 'گرتا ہے مجھ میں آکے شہروں کا گندہ نالہ', '',
+  'ندی کی اس حالت کا انسانوں کی صحت پر', '', 'کیا اثر پڑ سکتا ہے؟', '',
+  'پاکیزہ مجھ کو کر دوکرکے مری صفائی', '', 'میرا بھی فائدہ ہے انساں کی بھی بھلائی', '',
+  'ندی کی صفائی کیسے انسان کے فائدے اور', '', 'بھلائی میں مدد دے سکتی ہے؟', '',
+  'تم مجھ کو صاف رکھ کے خود بھی سکھی رہوگے', '', 'پانی جو صاف ہوگا پیماری سے بچوگے', '',
+  'کیا واقعی ندی کو صاف رکھنے سے ہم', '', 'پیماریوں سے بھی بچ سکتے ہیں؟', '',
   '',
   '=== Page 64 ===',
   'سبق ۷', '', 'ندی کی فریاد', '',
@@ -232,3 +237,78 @@ describe('lessons 4–5 through generatePatternExam', () => {
     expect(q1.map((q) => q.question)).not.toContain('درج ذیل میں سے حرفِ شرط و جزا کا درست جوڑا کون سا ہے؟');
   });
 });
+
+// qa-papers-r5u2's lessons 4–5 sandbox paper built only because Q6's verses alternative printed
+// four sentences of lesson-4 prose (reworded) under «درج ذیل اشعار کا مفہوم واضح کریں». Q6's
+// lines must come from the poem's own pages: an item whose lines do not is taken out before the
+// first layout, so Section C is asked once more; a second prose reply leaves the slot short.
+describe('urdu Q6: verses that are not from the poem are never printed', () => {
+  const PROSE_Q6 = {
+    slot: 'urdu.C.Q6', question: 'درج ذیل عبارت کا مفہوم اپنے الفاظ میں واضح کریں۔', main_question: 'اشعار کا مفہوم',
+    passage: 'محترمہ فاطمہ جناح ایک عہد ساز شخصیت تھیں۔ انھوں نے اپنی زندگی بھائی کی خدمت اور تحریک آزادی کے لیے وقف کر دی تھی۔ انھوں نے خواتین کو بیدار کیا اور منظم کیا۔ آج بھی وہ پاکستانی خواتین کے لیے روشن مثال ہیں۔',
+    answer: 'فاطمہ جناح نے اپنی زندگی بھائی کی خدمت اور آزادی کی جدوجہد کے لیے وقف کی۔',
+  };
+  const VERSES_Q6 = {
+    slot: 'urdu.C.Q6', question: 'درج ذیل اشعار کا مفہوم واضح کریں۔',
+    // As a model writes them: «بیماری» for the store's «پیماری», «بچو گے» for «بچوگے».
+    passage: 'پاکیزہ مجھ کو کر دو کر کے مری صفائی\nمیرا بھی فائدہ ہے انساں کی بھی بھلائی\nتم مجھ کو صاف رکھ کے خود بھی سکھی رہو گے\nپانی جو صاف ہوگا بیماری سے بچو گے',
+    answer: 'ندی کہتی ہے کہ مجھے صاف کرو، اس میں سب کا فائدہ ہے۔',
+    scheme: { points: [{ text: 'صفائی کا فائدہ', marks: 2, band: 'U' }, { text: 'بیماری سے بچاؤ', marks: 2, band: 'U' }, { text: 'زبان', marks: 1, band: 'A' }] },
+  };
+  const reply = (tree) => ({
+    choices: [{ message: { content: JSON.stringify({ unseen: tree }) }, finish_reason: 'stop' }],
+    usage: { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 },
+  });
+  const textOf = (req) => req.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
+  const treeFor = (sec) => {
+    const tree = {};
+    for (const [cat, types] of Object.entries(papers.lessons_4_5_failed.unseen)) {
+      for (const [type, list] of Object.entries(types)) {
+        const mine = list.filter((q) => q.slot.startsWith(`urdu.${sec}.`));
+        if (mine.length) (tree[cat] ||= {})[type] = clone(mine);
+      }
+    }
+    return tree;
+  };
+  // Section C answers Q6 with `first`, then (if asked again) with `second`.
+  function serve(first, second) {
+    const asked = [];
+    mockCreate.mockImplementation(async (req) => {
+      const prompt = textOf(req);
+      const sec = ['A', 'B', 'C'].find((x) => prompt.includes(`"slot": "urdu.${x}.`));
+      asked.push(sec);
+      const tree = treeFor(sec);
+      if (sec === 'C') tree.subjective['Poem Explanation'] = [clone(asked.filter((x) => x === 'C').length === 1 ? first : second)];
+      return reply(tree);
+    });
+    return asked;
+  }
+  const run = () => Gen.generatePatternExam({ grade: 5, subject: 'urdu', pattern: 'fde_g5_2027', scope: L45, pageRanges: '28-49', requestId: 'req-r10u-v' });
+
+  test('prose under the verses instruction: Section C is asked again and the poem\'s verses are printed', async () => {
+    const asked = serve(PROSE_Q6, VERSES_Q6);
+    const out = await run().then((r) => ({ ok: r }), (err) => ({ err }));
+    expect(asked.filter((x) => x === 'C')).toHaveLength(2);
+    expect(out.err).toBeUndefined();
+    const q6 = items(out.ok.examJson, 'urdu.C.Q6');
+    expect(q6).toHaveLength(1);
+    expect(q6[0].passage).toContain('پاکیزہ مجھ کو کر دو');
+    expect(JSON.stringify(out.ok.examJson)).not.toContain('عہد ساز شخصیت');
+  });
+
+  test('prose twice: the paper is not made (Q6 short), never printed with prose', async () => {
+    serve(PROSE_Q6, PROSE_Q6);
+    const out = await run().then((r) => ({ ok: r }), (err) => ({ err }));
+    expect(out.err && out.err.code).toBe('PATTERN_SHORT_SLOT');
+    expect(out.err.shortfall).toEqual(expect.arrayContaining([expect.objectContaining({ slot: 'urdu.C.Q6' })]));
+  });
+
+  test('the poem\'s own lines, as a model spells them, are kept on the first reply', async () => {
+    const asked = serve(VERSES_Q6, PROSE_Q6);
+    const out = await run().then((r) => ({ ok: r }), (err) => ({ err }));
+    expect(asked.filter((x) => x === 'C')).toHaveLength(1);
+    expect(out.err).toBeUndefined();
+    expect(items(out.ok.examJson, 'urdu.C.Q6')[0].passage).toContain('بیماری سے بچو گے');
+  });
+});
+
