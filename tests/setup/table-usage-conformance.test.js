@@ -41,12 +41,10 @@ const ALLOWLIST = new Set([
   'exams',
   'exam_questions',
 
-  // Web quiz Challenge read-side tables, created with the runs provenance
-  // columns so the schema lands in one migration. Their writers ship in the
-  // follow-up PRs that use them: the weekly strip job fills
-  // web_quiz_strip_weekly and the rung job fills child_rungs. Remove each entry
-  // when its writer lands.
-  'child_rungs',
+  // Web quiz Challenge read-side table, created with the runs provenance
+  // columns so the schema lands in one migration. Its writer ships in the
+  // follow-up PR that uses it (the weekly strip job fills
+  // web_quiz_strip_weekly). Remove the entry when its writer lands.
   'web_quiz_strip_weekly',
   // Child identity store: the tables exist (child_identity.sql, mirrored) before their first writer lands.
   // child_identity is written by the Challenge draw service at the first counted play of the year; merge_log by

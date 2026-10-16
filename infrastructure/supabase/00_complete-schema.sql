@@ -6980,6 +6980,11 @@ CREATE INDEX IF NOT EXISTS child_rungs_child_idx ON child_rungs (canonical_id, l
 ALTER TABLE child_rungs ENABLE ROW LEVEL SECURITY;
 COMMENT ON TABLE child_rungs IS
   'Internal. A child''s reading/numbers lamp, append-only and up-only, from check rows only. Written by the bot (service role).';
+-- The stop that set the lamp, and at most one change per child × ladder × stop × period (web_quiz_child_rungs_once.sql).
+ALTER TABLE child_rungs ADD COLUMN IF NOT EXISTS stop text CONSTRAINT child_rungs_stop_chk CHECK (stop IN ('read', 'listen', 'missing', 'bigger'));
+CREATE UNIQUE INDEX IF NOT EXISTS child_rungs_once_per_stop_idx ON child_rungs (canonical_id, ladder, stop, period_id);
+-- One row per rung change, never updated or deleted (BADGES §2.2): the API roles keep INSERT and SELECT only.
+REVOKE UPDATE, DELETE ON child_rungs FROM service_role, authenticated, anon;
 
 -- Columns live on every deployment that the consolidated snapshot above had lost (read by the Challenge's grade lookup).
 ALTER TABLE students ADD COLUMN IF NOT EXISTS self_reported_class text;

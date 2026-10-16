@@ -2,20 +2,21 @@
 /**
  * A swept run reaches the rung job: where the sweeper sets a stuck run to failed, it calls the rung module's
  * onRecordFinal(id) once (a failed record row can light a rung), guarded so a throwing rung job never stops the sweep.
- * The rung module (`web-quiz-rungs`) is not on the base yet: a VIRTUAL mock here, and absent in an isolated registry
- * (the sweep is then exactly what it was).
+ * The rung module (`web-quiz-rungs`) is mocked here, and absent in an isolated registry (the sweep is then exactly
+ * what it was). The daily job calls its settleDeferred only with the rung switch on (web_quiz_challenge_rungs under
+ * web_quiz_challenge_v2 under web_quiz_challenge, read in the sweeper's one settings query): off, nothing is written.
  * Faked boundaries only: Supabase (the in-memory fake), the logger, the event transport.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
 // global.__absent names the module an isolated registry must not find (the module not deployed)
-// held here, not required from the test: the module is not on the base yet, so nothing in this file require()s it
 const mockOnRecordFinal = jest.fn(async () => ({ lit: [] }));
+const mockSettleDeferred = jest.fn(async () => ({ checked: 0, settled: 0 }));
 jest.mock('../../../shared/services/quiz/web-quiz-rungs', () => {
   if (global.__absent === 'web-quiz-rungs') throw new Error("Cannot find module './web-quiz-rungs'");
-  return ({ onRecordFinal: mockOnRecordFinal });
-}, { virtual: true });
+  return ({ onRecordFinal: mockOnRecordFinal, settleDeferred: mockSettleDeferred });
+});
 jest.mock('../../../shared/storage/r2', () => ({ deleteKey: jest.fn(async () => true), listKeys: jest.fn(async () => []), getPresignedUploadUrl: jest.fn() }));
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
@@ -79,4 +80,41 @@ test('the rung module absent: the sweep is unchanged (same rows, same result)', 
     expect(strip(db[RUNS])).toEqual(rowsWith);
   } finally { delete global.__absent; jest.resetModules(); }
   expect(mockOnRecordFinal).not.toHaveBeenCalled();
+});
+
+describe('the daily settle (the rung job\'s settleDeferred) runs only under the rung switch', () => {
+  const RUNG_KEYS = ['web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_challenge_rungs'];
+  const installWith = (keys) => {
+    db = { app_settings: keys.map(ON), [RUNS]: fixture(), web_quiz_strip_weekly: [] };
+    Object.assign(supabase, makeFake(db, { uniques: { web_quiz_strip_weekly: ['week', 'line', 'cell'] } }));
+  };
+
+  // (the binding expiry, when deployed, still claims the day: retention outlives every switch; the settle does not)
+  test('every switch off, the rung module present: settleDeferred is never called, no runs read', async () => {
+    installWith(['web_quiz_challenge']);
+    const out = await S.dailyJob({ now: NOW });
+    expect(mockSettleDeferred).not.toHaveBeenCalled();
+    expect(out.settled == null).toBe(true);
+    expect(supabase.calls.filter((c) => c.table === RUNS)).toEqual([]);
+  });
+
+  test.each([
+    ['web_quiz_challenge_rungs off', ['web_quiz_challenge', 'web_quiz_challenge_v2']],
+    ['web_quiz_challenge_v2 off', ['web_quiz_challenge', 'web_quiz_challenge_rungs']],
+    ['web_quiz_challenge (the parent) off', ['web_quiz_challenge_v2', 'web_quiz_challenge_rungs']],
+  ])('%s: no settle', async (_name, keys) => {
+    installWith(keys);
+    const out = await S.dailyJob({ now: NOW });
+    expect(mockSettleDeferred).not.toHaveBeenCalled();
+    expect(out.settled == null).toBe(true);
+  });
+
+  test('the rung switch on (with its parents): the day is claimed and settleDeferred is called once, with now', async () => {
+    installWith(RUNG_KEYS);
+    const out = await S.dailyJob({ now: NOW });
+    expect(mockSettleDeferred).toHaveBeenCalledTimes(1);
+    expect(mockSettleDeferred).toHaveBeenCalledWith({ now: NOW });
+    expect(out).toMatchObject({ ran: true, settled: { checked: 0, settled: 0 } });
+    expect(await S.switches()).toMatchObject({ rungs: true, sweeper: false, purge: false });
+  });
 });

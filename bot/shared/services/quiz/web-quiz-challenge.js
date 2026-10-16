@@ -468,6 +468,7 @@ async function updateRun(id, patch) {
  * read back from the row as written. Only a v2 row (mode set) has one; with the switch off nothing is read. Never throws.
  */
 async function measureOutcome(id) {
+  await require('./web-quiz-rungs').onRecordFinal(id, { questionsLeft: readQuestionsLeft }).catch(() => null); // the lamps (web_quiz_challenge_rungs; off ⇒ no query)
   try {
     if (!(await Flags.eventsV2On())) return;
     const { data: row, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
@@ -1733,12 +1734,23 @@ async function questions({ ct, attempted, lang } = {}) {
   const c = runOf(ct);
   const { run, row, mem, spec } = await readingOf(c, lang);
   if (c.ex === 'listen') return listenQuestions(c, run, row, spec);
+  const out = [];
+  for (const { q, t } of readQuestionList(spec, row, mem, attempted, run.lang, c.r)) {
+    const k = q.id.split('.').pop();
+    out.push({ id: q.id, prompt: q.prompt, options: t.options, clip: { url: await clipUrl(clipKey('read', k, run.lang, q.prompt), q.prompt, run.lang) } });
+  }
+  logEvent('web_quiz.ch_qs', { lang: run.lang, n: out.length });
+  return { questions: out };
+}
+
+/** The reading's questions the child reached, with their tap options ({ q, t }), at most 3: what questions() serves. */
+function readQuestionList(spec, row, mem, attempted, lang, runId) {
   const n = ((spec.story || {}).tokens || []).length;
-  const checked = (row && row.status === 'scored' && row.score) || (mem.result && mem.result.score) || null;
-  if (checked && checked.stopped && !spec.by_line) return { questions: [] };
+  const checked = (row && row.status === 'scored' && row.score) || (mem && mem.result && mem.result.score) || null;
+  if (checked && checked.stopped && !spec.by_line) return [];
   const live = row && row.meta && row.meta.live;
   let words = checked ? checked.attempted : (live ? live.attempted : (Number.isInteger(Number(attempted)) ? Number(attempted) : null));
-  if (words == null) return { questions: [] };
+  if (words == null) return [];
   words = Math.max(0, Math.min(n, words));
   const { reachedQuestions } = require('../child-test/scoring/reach');
   // challenge v2 passages: a stopped reader gets the questions their stop line reached, all in needs_line order
@@ -1747,13 +1759,32 @@ async function questions({ ct, attempted, lang } = {}) {
   const out = [];
   for (const q of spec.by_line ? byNeedsLine(spec.questions) : spec.questions || []) {
     if (out.length >= QA_MAX || !reached.has(q.id)) continue;
-    const t = tapOptions(q, run.lang, c.r);
+    const t = tapOptions(q, lang, runId);
     if (!t) continue;
-    const k = q.id.split('.').pop();
-    out.push({ id: q.id, prompt: q.prompt, options: t.options, clip: { url: await clipUrl(clipKey('read', k, run.lang, q.prompt), q.prompt, run.lang) } });
+    out.push({ q, t });
   }
-  logEvent('web_quiz.ch_qs', { lang: run.lang, n: out.length });
-  return { questions: out };
+  return out;
+}
+
+/**
+ * The rung job's settle rule (web-quiz-rungs.js): how many of a scored reading's questions the child can still answer
+ * (the questions reached by its checked score, less those answered in meta.comp). 0 when the row is not a scored
+ * reading, the questions are off, or anything cannot be read. Called only with the rung switch on. Never throws.
+ */
+async function readQuestionsLeft(row) {
+  try {
+    if (!row || row.exercise !== 'read' || row.status !== 'scored' || !(await questionsOn())) return 0;
+    const lang = clampLanguage(row.lang);
+    const grade = /^G[1-5]$/.test(String(row.form || '')) ? Number(row.form.slice(1)) : formFor(Number(row.grade));
+    if (!grade) return 0;
+    const { Bank } = childTest();
+    let spec = Bank.getTaskSpec({ grade, set: 'A', task: byId('read').task(lang) });
+    if (row.passage_id) spec = { ...withPassage(spec, passageFor(row.passage_id, Bank)), by_line: true };
+    const asked = Object.keys((row.meta && row.meta.comp && row.meta.comp.a) || {}).length;
+    return Math.max(0, readQuestionList(spec, row, null, null, lang, row.id).length - asked);
+  } catch (_) {
+    return 0;
+  }
 }
 
 /** Listening: the child heard the whole story, so no reach rule; the run is written as scoring when they are served. */
@@ -1808,6 +1839,8 @@ async function answer({ ct, q, pick, lang, helped } = {}) {
       return { meta: { ...(cur.meta || {}), comp: tally(a) } };
     });
     if (written) numbers = written.meta.comp;
+    // the lamps once the answers are in (web_quiz_challenge_rungs; a scored v2 reading only; off ⇒ no query)
+    if (c.ex === 'read' && written && written.status === 'scored' && isV2Meta(written.meta)) await require('./web-quiz-rungs').onRecordFinal(c.r, { questionsLeft: readQuestionsLeft }).catch(() => null);
   }
   // listening: the last answer scores the run ({correct, n}, as "Which is bigger?")
   const n = row && row.meta && Number(row.meta.n);
@@ -1896,7 +1929,7 @@ async function warmClip(key, text, lang, { record = true } = {}) {
 const clipsLeft = () => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecorded);
 
 module.exports = {
-  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, tapOptions, listenOn, optionAudioOn,
+  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
