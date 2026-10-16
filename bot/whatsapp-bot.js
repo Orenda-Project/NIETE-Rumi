@@ -87,6 +87,8 @@ app.use('/api/flows', flowEndpointRoutes);
 app.use('/api/internal/wq', require('./shared/routes/web-quiz-internal.routes'));
 // The teacher's web quiz report (portal /t/<token> -> bot), same x-api-key check.
 app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.routes'));
+// A teacher sends a storybook to the class (portal /api/teacher/stories, /api/teacher/story/share), same x-api-key check.
+app.use('/api/internal/ts', require('./shared/routes/story-teacher-internal.routes'));
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);

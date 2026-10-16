@@ -55,7 +55,10 @@ async function statsFor(teacherId, quizzes) {
   if (!quizzes.length) return out;
   const codes = await Data.classCodes(teacherId, quizzes.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
-  const counted = Data.countedSessions(await Data.sessionsFor(codes.map((c) => c.id)), teacherId);
+  const sessions = await Data.sessionsFor(codes.map((c) => c.id));
+  const counted = Data.countedSessions(sessions, teacherId);
+  // A storybook send's children count once they joined (story-teacher-report.js); a no-op when there is none.
+  require('./story-teacher-report').countStoryJoins(counted, { quizzes, sessions, quizOfCode, count: (rows) => Data.countedSessions(rows, teacherId, { opened: true }) });
   const byQuiz = new Map();
   counted.forEach((s) => {
     const q = quizOfCode.get(s.share_code_id);
@@ -78,7 +81,7 @@ async function statsFor(teacherId, quizzes) {
     // The count and the average are over the SAME children: the class list's when known.
     const counted = ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)) : mine;
     const scores = counted.map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
-    out.set(q.id, { played: counted.length, of: known ? r.of : null, avg: mean(scores) });
+    out.set(q.id, { played: counted.length, of: known ? r.of : null, avg: q.quiz_source === 'story' ? null : mean(scores) });
   });
   return out;
 }
