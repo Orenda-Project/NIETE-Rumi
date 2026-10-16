@@ -32,7 +32,7 @@ const HUB_DEADLINE_MS = 1200;
 const DAY_MS = 86400000;
 const READ_ALOUD = new Set(['read']);
 const GAME_STOPS = new Set(['missing', 'bigger', 'numbers']);
-// The tile's words (a verb phrase a 7-year-old knows; never practice/counted/challenge/trail/test). Urdu: native read owed.
+// The tile's words (a verb phrase a 7-year-old knows; never practice/counted/challenge/trail/test). Urdu: native-read.
 const COPY = {
   quiz: ['From your teacher', 'ٹیچر کی طرف سے'],
   quizOpen: ['Finish your quiz', 'اپنا کوئز پورا کریں'],

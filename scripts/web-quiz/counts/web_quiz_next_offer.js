@@ -15,14 +15,25 @@
  * offer), then the chosen Next in each arm. Never a name, a phone or a raw id on stdout (a child is "new-en-g2" or
  * "child-<n>").
  *
- * Needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY; refuses unless the ref on argv is the sandbox's and SUPABASE_URL
- * carries it ("REFUSED: not sandbox"). Exit 0; 1 = a child has NO eligible candidate (the home would be empty);
+ * Needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY; refuses unless the ref on argv is the sandbox's and SUPABASE_URL's
+ * host is exactly that project's ("REFUSED: not sandbox"). Exit 0; 1 = a child has NO eligible candidate (the home would
+ * be empty) OR a kind today's pick offers (eligible OFF > 0) has none eligible with the switch on (a "LOST" line);
  * 2 = refused or usage.
  */
 const crypto = require('crypto');
 const path = require('path');
 
 const SANDBOX_REF = 'olvritwoqujtjvwfulbh';
+
+/** Is this URL the project's own host (`<ref>.supabase.co`), never a substring of another? Pure. */
+function hostIs(url, ref) {
+  try { return new URL(String(url)).hostname === `${ref}.supabase.co`; } catch (_) { return false; }
+}
+
+/** The kinds today's pick offers (eligible OFF > 0) that the slot cannot (eligible ON = 0). Pure. */
+function lostOf(t) {
+  return t.rows.filter((r) => r.off > 0 && r.on === 0).map((r) => r.kind);
+}
 const KINDS = ['story', 'game', 'quiz', 'video', 'storybook', 'invite', 'sticker'];
 
 /** The eligibility rule of the slot (web-quiz-next-offer.js rank), as counts. Pure. */
@@ -92,7 +103,7 @@ async function candidatesFor(childId, { lang, grade, synthetic }) {
 
 async function main({ argv = process.argv.slice(2), env = process.env, io = process } = {}) {
   const say = (s) => io.stderr.write(`${s}\n`);
-  if (argv[0] !== SANDBOX_REF || !String(env.SUPABASE_URL || '').includes(SANDBOX_REF) || !env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (argv[0] !== SANDBOX_REF || !hostIs(env.SUPABASE_URL, SANDBOX_REF) || !env.SUPABASE_SERVICE_ROLE_KEY) {
     say('REFUSED: not sandbox (usage: web_quiz_next_offer.js olvritwoqujtjvwfulbh [--child <uuid> ...], with the sandbox SUPABASE_URL and key)');
     return 2;
   }
@@ -114,7 +125,9 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
     if (!got) { io.stdout.write(`\n${c.label}: no child context\n`); empty += 1; continue; }
     const t = tableFor(c.label, got.list, { hasRoot: got.hasRoot, rank: NO.rank, weights: sw.weights });
     print(io, t);
-    if (!t.eligible_on) empty += 1;
+    const lost = lostOf(t);
+    if (lost.length) io.stdout.write(`  LOST: ${lost.join(', ')} (offered today, not with the switch on)\n`);
+    if (!t.eligible_on || lost.length) empty += 1;
   }
   io.stdout.write(`\nscores table: ${sw.weights && sw.weights.v}\n`);
   return empty ? 1 : 0;
@@ -124,4 +137,4 @@ if (require.main === module) {
   main().then((code) => process.exit(code), (e) => { process.stderr.write(`${e && e.stack ? e.stack : e}\n`); process.exit(2); });
 }
 
-module.exports = { main, eligibleOf, tableFor, SANDBOX_REF };
+module.exports = { main, eligibleOf, tableFor, lostOf, hostIs, SANDBOX_REF };

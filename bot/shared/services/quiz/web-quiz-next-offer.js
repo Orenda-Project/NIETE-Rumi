@@ -26,28 +26,28 @@
  * Fail closed: a settings or Redis error is "switch off" / "no state"; nothing here ever throws to the caller.
  */
 const crypto = require('crypto');
-const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const FILE_WEIGHTS = require('./next-offer-weights.json');
+// the slot's own keys, the events switch and the per-child state live in a leaf the quiz service's relay requires
+// (web-quiz-next-offer-state.js), so the relay never closes a require loop through the challenge and the home
+const Leaf = require('./web-quiz-next-offer-state');
 
 // This module's own keys. Two more are read through their owners' readers (never parsed here, so the slot and the
 // screen always agree): the counted-passage pool (web-quiz-challenge.js v2On/poolOn), so a stop the draw would answer
 // "on its way" is never offered; the v3 home (web-quiz-hub-home.js flags), whose own player starts a video for a
 // child with no class quiz (watch-only: nothing minted).
-const KEYS = { on: 'web_quiz_next_offer', weights: 'web_quiz_next_offer_weights', events: 'web_quiz_events_v3' };
-const TTL_MS = 30 * 1000;
+const { KEYS } = Leaf;
 const PKT_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PIN_DAYS = 7;
 const MONTH_OPENS = 2;
 const DROP_AFTER = 2;
 const ALTS_MAX = 2;
-const STATE_TTL_S = 40 * 24 * 60 * 60;
 const KINDS = ['story', 'game', 'quiz', 'video', 'storybook', 'invite', 'sticker'];
 // The fields of a candidate the page sees (the next object); everything else is the ranker's.
 const PUBLIC = ['kind', 'variant', 'id', 'href', 'title', 'title_ur', 'sub', 'sub_ur', 'minutes', 'art', 'tag', 'tag_ur'];
 const EVIDENCE = new Set(['significant', 'prior']);
-let cache = null;
+let derived = null;   // { raw, s }: the switches for the leaf's cached raw read (one parse and one owner read per cache life)
 
 // ── pure ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -195,9 +195,6 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
 
 // ── switches and the weights (app_settings, 30 s cache, fail closed) ─────────────────────────────────
 
-// A switch is on only with the JSON value true: a string 'true' (or anything else) is off.
-const isTrue = (value) => value === true;
-
 /** An owner's own switch reader (its cache, its parsing); a throw is off. */
 async function ownerOn(read) {
   try { return (await read()) === true; } catch (_) { return false; }
@@ -235,30 +232,20 @@ function weightsOf(value) {
 const OFF = Object.freeze({ on: false, events: false, pool: false, watch: false, weights: FILE_WEIGHTS });
 
 async function switches(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.s;
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', Object.values(KEYS));
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    const on = isTrue(by[KEYS.on]);
-    const Challenge = () => require('./web-quiz-challenge');
-    // read side by side (each from its owner's 30 s cache, which the hub has usually just filled)
-    const [v2, poolKey, watch] = on ? await Promise.all([ownerOn(() => Challenge().v2On()), ownerOn(() => Challenge().poolOn()),
-      ownerOn(async () => (await require('./web-quiz-hub-home').flags()).home)]) : [false, false, false];
-    const pool = v2 && poolKey;
-    const s = { on, events: isTrue(by[KEYS.events]), pool, watch, weights: weightsOf(by[KEYS.weights]) || FILE_WEIGHTS };
-    cache = { at: now, s };
-    return s;
-  } catch (err) {
-    logToFile('⚠️ web quiz next offer: settings lookup failed — off', { error: err.message });
-    cache = { at: now, s: OFF };   // off for the cache's life: an outage never costs a read per request
-    return OFF;
-  }
+  const raw = await Leaf.raw(now);
+  if (derived && derived.raw === raw) return derived.s;
+  const Challenge = () => require('./web-quiz-challenge');
+  // read side by side (each from its owner's 30 s cache, which the hub has usually just filled)
+  const [v2, poolKey, watch] = raw.on ? await Promise.all([ownerOn(() => Challenge().v2On()), ownerOn(() => Challenge().poolOn()),
+    ownerOn(async () => (await require('./web-quiz-hub-home').flags()).home)]) : [false, false, false];
+  const s = raw.on || raw.events || raw.weights != null
+    ? { on: raw.on, events: raw.events, pool: v2 && poolKey, watch, weights: weightsOf(raw.weights) || FILE_WEIGHTS }
+    : OFF;
+  derived = { raw, s };
+  return s;
 }
 
 // ── the per-child state (Redis, 40 days): month opens, the primary's "shown, not tapped" streak, resume day ──
-
-const redisOf = () => require('../cache/railway-redis.service');
 
 /** The child's key for the arm, the rotation seed and the state: the events kid when the key is set, else a keyed
  *  hash of the id under the token secret (never logged). Null without either. */
@@ -273,22 +260,10 @@ function childKey(studentId) {
   }
 }
 
-const stateKey = (key) => `wq:next:${key}`;
 // Another surface's own key (a teacher home's tk) keeps its state apart from every child's: never one Redis key for both.
 const OWN_KEY = /^[0-9a-f]{16}$/;
 
-async function loadState(key) {
-  try {
-    const st = await redisOf().get(stateKey(key));
-    return st && typeof st === 'object' ? st : {};
-  } catch (_) {
-    return {};
-  }
-}
-
-async function saveState(key, st) {
-  try { await redisOf().set(stateKey(key), st, STATE_TTL_S); } catch (_) { /* no state: rules still hold */ }
-}
+const { loadState, saveState, noteTap } = Leaf;
 
 function offerId() { return crypto.randomBytes(8).toString('base64url').slice(0, 10); }
 
@@ -343,28 +318,10 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
   }
 }
 
-/** A tap on an offer (the page's next_tap, through the event relay, by the child's kid): its streak starts again. */
-async function noteTap(kid, offer) {
-  try {
-    if (!kid || typeof offer !== 'string') return false;
-    const st = await loadState(kid);
-    const id = st.of && st.of[offer];
-    if (!id || !st.s || st.s.id !== id) return false;
-    await saveState(kid, { ...st, s: { id, n: 0 } });
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-/** The events v3 switch from the cache, synchronously (the page relay is synchronous); a stale cache refreshes behind. */
-function eventsV3Now(now = Date.now()) {
-  if (!cache || now - cache.at >= TTL_MS) switches(now).catch(() => {});
-  return Boolean(cache && cache.s && cache.s.events);
-}
+const { eventsV3Now } = Leaf;
 
 module.exports = {
   eventsV3Now,
   rank, armOf, pktDay, pktMonth, switches, weightsOf, rowOf, nextFor, noteTap, childKey, KEYS, FILE_WEIGHTS, KINDS,
-  _resetCache: () => { cache = null; },
+  _resetCache: () => { derived = null; Leaf._resetCache(); },
 };
