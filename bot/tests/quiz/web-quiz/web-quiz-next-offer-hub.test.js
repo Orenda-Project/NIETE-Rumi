@@ -709,9 +709,10 @@ describe('GET /ch/result/:ct with a FINAL result: off -> byte for byte; on -> pl
     app.use(express.json());
     app.use('/wq', require('../../../shared/routes/web-quiz-internal.routes'));
     await new Promise((r) => { server = app.listen(0, r); });
+    server.keepAliveTimeout = 120000;   // the client reuses its socket across these tests: never one closed under it
     base = `http://127.0.0.1:${server.address().port}/wq`;
   });
-  afterAll(() => new Promise((r) => server.close(r)));
+  afterAll(() => new Promise((r) => { server.closeAllConnections(); server.close(r); }));
   test('a scored poll', async () => {
     const H = { 'x-api-key': 'route-key', 'x-wq-device': A.device };
     jest.spyOn(Challenge, 'poll').mockResolvedValue({ score: { correct: 4, n: 5 } });
@@ -723,5 +724,23 @@ describe('GET /ch/result/:ct with a FINAL result: off -> byte for byte; on -> pl
     const { next_offer: n, ...rest } = on;
     expect(rest).toEqual({ score: { correct: 4, n: 5 } });
     expect(n.ctx).toBe('after_game');
+  });
+
+  test('/finish keeps both the finish card\'s field and the next thing; both off -> the service\'s JSON byte for byte', async () => {
+    const H = { 'x-api-key': 'route-key', 'content-type': 'application/json', 'x-wq-device': A.device };
+    const WebQuiz = require('../../../shared/services/quiz/web-quiz.service');
+    jest.spyOn(WebQuiz, 'finishSession').mockImplementation(async () => finished());
+    jest.spyOn(require('../../../shared/services/quiz/web-quiz-share-warm'), 'afterFinish').mockImplementation(() => {});
+    const Card = require('../../../shared/services/quiz/web-quiz-card-image');
+    seed(BASE_ON, pending());
+    Card._reset();
+    expect(await (await fetch(`${base}/finish`, { method: 'POST', headers: H, body: JSON.stringify({ st: st() }) })).text()).toBe(JSON.stringify(finished()));
+    seed([...NEXT_ON, ON('web_quiz_card_v3')], pending());
+    Card._reset();
+    const on = await (await fetch(`${base}/finish`, { method: 'POST', headers: H, body: JSON.stringify({ st: st() }) })).json();
+    expect(on.card_v3).toBe(true);
+    expect(on.next_offer).toMatchObject({ kind: 'quiz', ctx: 'after_quiz', rank_src: 'pinned' });
+    const { card_v3: c, next_offer: n, ...rest } = on;
+    expect(rest).toEqual(finished());
   });
 });

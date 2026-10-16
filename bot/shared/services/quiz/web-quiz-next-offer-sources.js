@@ -3,7 +3,10 @@
  * The candidates the next-thing ranker (web-quiz-next-offer.js) chooses from, built from what the hub already reads,
  * and the three call sites' fields (each `{}` with `web_quiz_next_offer` off or on any failure — today's bytes):
  *
- *   hubField({ out, token, history, collect, lang })    the hub boot's `{ next }` (ctx home)
+ *   hubPrep({ out, token, history, lang, chosenId, grade, stopsOf })   the slot's own reads, started by the hub BESIDE
+ *                                                       Jugnu's corner and the Book (never after them): a promise that
+ *                                                       never rejects
+ *   hubField({ out, token, history, collect, lang, prep })  the hub boot's `{ next }` (ctx home), from that prep
  * (The result cards' fields live in web-quiz-next-offer-result.js, which reads the hub: this module never requires
  * the hub, so the hub's require of it is no cycle.)
  *
@@ -166,15 +169,20 @@ const BOOK_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * previewed; `known` = the codes whose quiz row was read (a failed or empty read leaves a code unknown, and the
  * teacher card's code unknown is never offered: fail closed); `covers` = a sent book's cover. Never throws.
  */
-async function quizIdsOf(codes) {
-  const want = [...new Set(codes.filter(Boolean))];
+async function quizIdsOf(codes, { history = [] } = {}) {
+  const want = [...new Set(codes.filter(Boolean))].slice(0, 20);
   const none = { quizIds: new Map(), storyCodes: new Set(), unsentCodes: new Set(), known: new Set(), covers: new Map() };
   if (!want.length) return none;
   try {
     const { read: dbRead } = require('./web-quiz-db-deadline');
-    const { data, error } = await dbRead('nextOffer:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('code, quiz_id').in('code', want.slice(0, 20)));
+    // the hub's own history already knows the quiz behind every code this child has played: read only the rest
+    const had = new Map((history || []).filter((e) => e && e.code && e.quizId).map((e) => [e.code, e.quizId]));
+    const ask = want.filter((c) => !had.has(c));
+    const { data, error } = ask.length
+      ? await dbRead('nextOffer:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('code, quiz_id').in('code', ask))
+      : { data: [] };
     if (error || !Array.isArray(data)) return none;
-    const quizIds = new Map(data.map((r) => [r.code, r.quiz_id]));
+    const quizIds = new Map([...want.filter((c) => had.has(c)).map((c) => [c, had.get(c)]), ...data.map((r) => [r.code, r.quiz_id])]);
     const ids = [...new Set([...quizIds.values()].filter(Boolean))];
     const { data: rows, error: qErr } = ids.length
       ? await dbRead('nextOffer:quizzes:1', (db) => db.from('quizzes').select('id, quiz_source, status, meta').in('id', ids))
@@ -274,16 +282,31 @@ function withDeadline(work, ms) {
   return Promise.race([p, new Promise((res) => { timer = setTimeout(() => { live.on = false; res(null); }, ms); })]).finally(() => clearTimeout(timer));
 }
 
-async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, live }) {
-  const sw = await NO.switches();
-  if (!sw.on) return {};
-  const watch = sw.watch;
-  const [{ quizIds, storyCodes, unsentCodes, known, covers }, books, onItsWay] = await Promise.all([
-    quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)]),
-    storybooks({ studentId: chosenId, lang, grade, token, chip: out.kid }),
-    onItsWayOf(chosenId, chosenId, collect.trail, lang, grade),
-  ]);
-  const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers, subjectArt, extra: books, watch });
+/**
+ * The slot's own reads for the hub, started beside Jugnu's corner and the Book (they need only the child, the quiz
+ * codes the hub has already chosen and the Trail's stops): the switches, the quiz rows behind the codes, the storybook
+ * candidates, the "on its way" verdicts. Resolves to null when the slot is off; never rejects.
+ */
+function hubPrep({ out, token, history, lang, chosenId, grade, stopsOf } = {}) {
+  return (async () => {
+    const sw = await NO.switches();
+    if (!sw.on || !out || !chosenId) return null;
+    const stops = typeof stopsOf === 'function' ? await Promise.resolve().then(stopsOf).catch(() => []) : [];
+    const [rows, books, onItsWay] = await Promise.all([
+      quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)], { history }),
+      storybooks({ studentId: chosenId, lang, grade, token, chip: out.kid }),
+      onItsWayOf(chosenId, chosenId, stops, lang, grade),
+    ]);
+    return { sw, rows, books, onItsWay };
+  })().catch(() => null);
+}
+
+async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live }) {
+  const p = await (prep || hubPrep({ out, token, history, lang, chosenId, grade, stopsOf: () => collect.trail || [] }));
+  if (!p) return {};
+  const { quizIds, storyCodes, unsentCodes, known, covers } = p.rows;
+  // the verdicts were read for the Trail's stops; the corner offers only the ones still waiting this month
+  const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay: p.onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers, subjectArt, extra: p.books, watch: p.sw.watch });
   const next = await NO.nextFor({ ctx: 'home', studentId: chosenId, candidates, hasRoot: hasRootOf(history), lang, live });
   return next ? { next } : {};
 }
@@ -293,14 +316,14 @@ async function hubNext({ out, token, history, collect, lang, chosenId, grade, su
  * `{}` when off, on any failure, or past the deadline (1.2 s, the settings read inside it): the hub JSON is fetched
  * after paint, and a slow read here must never hold it.
  */
-async function hubField({ out, token, history, collect = {}, lang, chosenId, grade, subjectArt } = {}) {
+async function hubField({ out, token, history, collect = {}, lang, chosenId, grade, subjectArt, prep = null } = {}) {
   try {
     if (!out || !chosenId) return {};
-    return (await withDeadline((live) => hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, live }), HUB_DEADLINE_MS)) || {};
+    return (await withDeadline((live) => hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live }), HUB_DEADLINE_MS)) || {};
   } catch (err) {
     logToFile('⚠️ web quiz next offer: hub field unavailable', { error: err.message });
     return {};
   }
 }
 
-module.exports = { candidatesOf, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, artOr, COPY, TAG, JUGNU_ART, HUB_DEADLINE_MS };
+module.exports = { candidatesOf, hubPrep, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, artOr, COPY, TAG, JUGNU_ART, HUB_DEADLINE_MS };

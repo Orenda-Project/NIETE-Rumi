@@ -72,7 +72,7 @@ async function resultField({ studentId, device, lang: asked = null, ctx, extra =
   if (!snap) return {};
   const { canonical, token, out, history, collect, grade, lang } = snap;
   const [{ quizIds, storyCodes, unsentCodes, known, covers }, books, onItsWay] = await Promise.all([
-    quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)]),
+    quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)], { history }),
     storybooks({ studentId: canonical, lang, grade, token, chip: out.kid }),
     onItsWayOf(canonical, studentId, collect.trail, lang, grade),
   ]);
