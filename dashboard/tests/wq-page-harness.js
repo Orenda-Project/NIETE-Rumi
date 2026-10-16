@@ -20,7 +20,14 @@ function fakeEl(sel) {
   return {
     sel, listeners: {}, attrs: {}, style: {}, textContent: '', parentNode: null,
     addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); },
-    fire(n, e) { (this.listeners[n] || []).forEach((fn) => fn(e || {})); },
+    // as the browser does: a listener's stopImmediatePropagation() keeps the ones registered after it from running
+    fire(n, e) {
+      const ev = e || {};
+      let stop = false;
+      const own = ev.stopImmediatePropagation;
+      ev.stopImmediatePropagation = () => { stop = true; if (typeof own === 'function') own.call(ev); };
+      for (const fn of (this.listeners[n] || []).slice()) { fn(ev); if (stop) break; }
+    },
     setAttribute(k, v) { this.attrs[k] = String(v); },
     getAttribute(k) { return this.attrs[k]; },
     removeAttribute(k) { delete this.attrs[k]; },
