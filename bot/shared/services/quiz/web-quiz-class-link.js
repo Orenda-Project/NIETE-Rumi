@@ -375,6 +375,30 @@ async function chipsFor(link, letter, lang) {
   return list.map((x) => ({ id: x.k.id, chip: kidChip(link.code, x.k.id), first: x.f.shown, homonym: count.get(x.f.canon) > 1 }));
 }
 
+/**
+ * Does this child's first name appear on two or more roster children? The homonym fact of the chip list the child's
+ * own letter renders (chipsFor), so the "Whose turn?" step and the letter step read one rule.
+ */
+async function homonymOnRoster(link, studentId, lang) {
+  const kids = await rosterKids(link);
+  const script = scriptOf(kids, lang);
+  const k = kids.find((x) => x.id === studentId);
+  const shown = k ? firstNameOf(shownName(k, script)).shown : '';
+  if (!shown) return false;
+  const c = (await chipsFor(link, letterOf(shown, script), lang)).find((x) => x.id === studentId);
+  return Boolean(c && c.homonym);
+}
+
+/** Did this phone play a teacher's quiz as this roster child (quiz_sessions.device_ref, aliases folded)? */
+async function playedHereAs(d, k) {
+  const { data } = await supabase.from('quiz_sessions').select('student_id').eq('device_ref', d).limit(50);
+  const played = [...new Set((data || []).map((r) => r.student_id).filter(Boolean).map(String))];
+  if (!played.length) return false;
+  const Roster = require('./web-quiz-identity-roster');
+  const canon = await Roster.canonicalStudentIds(played);
+  return played.map((id) => canon.get(id) || id).some((id) => id === k.id || k.ids.includes(id));
+}
+
 async function letter({ code, s, letter: l } = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
@@ -401,7 +425,15 @@ async function pick({ code, s, chip, device_ref: deviceRef } = {}) {
     const kids = await rosterKids(link);
     const mine = await rememberedInClass(link, deviceRef, kids);
     hit = mine.find((k) => kidChip(code, k.id) === chip) || null;
-    if (hit) cl = { c: link.class_id, s: 'remembered', q: 'high', h: false };
+    if (hit) {
+      // A remembered homonym stays low until promoted (IDENTITY §2(b) rows 1 and 6): this phone's high-pick memory, or
+      // a teacher's quiz played here as this child, keeps it high; the hub's device record alone (written for every hub
+      // open, a low pick's too) does not.
+      const d = T.cleanDeviceRef(deviceRef);
+      const high = d ? Boolean((await memoryOf(code, d))[String(hit.id)]) || await playedHereAs(d, hit) : false;
+      const hom = !high && await homonymOnRoster(link, hit.id, langOf(await teacherRow(link.teacher_id)));
+      cl = hom ? { c: link.class_id, s: 'remembered', q: 'low', h: true } : { c: link.class_id, s: 'remembered', q: 'high', h: false };
+    }
   } else {
     const chips = await chipsFor(link, step.l, langOf(await teacherRow(link.teacher_id)));
     const c = chips.find((x) => x.chip === chip) || null;
