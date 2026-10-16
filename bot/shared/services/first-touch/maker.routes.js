@@ -6,8 +6,13 @@
  *
  *   GET  /m/:token[?lang=en|ur]   the maker page (HTML); a genuine but expired token → the mk.stale page (200),
  *                                  a forged one → the same page (404)
- *   POST /api/ft/make {t, grade, subject, quizId}   → { shareCodeId, message, qlang, preview } (maker.bank.js make)
- *   POST /api/ft/step {t, step, grade?, subject?, quizId?}   → 204; logs onboard.maker for the page's chip taps
+ *   GET  /m/:token/send?c=<shareCodeId>   "Send to class group": the make's message rebuilt on the server (the share
+ *                                  code must be this teacher's, else 404) → 302 https://wa.me/?text=<message>, never
+ *                                  stored; logs share_tap. Stale token → the mk.stale page; forged → 404
+ *   POST /api/ft/make {t, grade, subject, quizId}   → { shareCodeId, message, qlang, preview, total } (maker.bank.js)
+ *   POST /api/ft/step {t, step, grade?, subject?, quizId?}   → 204; logs onboard.maker for the page's steps (chip
+ *                                  taps, share_copy, lang_mark_seen, prefill_kept / prefill_changed — the last two
+ *                                  take their cell from the token's pf, never from the body)
  *
  * Switch quiz_maker_page OFF (read OFF when absent): EVERY route of this router answers 404 {off:true} before
  * anything else is read or verified; the edge then falls through to today's handling.
@@ -41,7 +46,13 @@ router.use(express.json({ limit: '4kb' }));
 router.use(express.urlencoded({ extended: false, limit: '4kb' }));
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CLIENT_STEPS = Object.freeze(['grade', 'subject', 'topic']);
+// Each step the page may post, and the fields it needs ('pf': the token's pre-fill cell).
+const CLIENT_STEPS = Object.freeze({
+  grade: ['grade'], subject: ['grade', 'subject'], topic: ['grade', 'subject', 'quizId'],
+  share_copy: ['grade', 'subject', 'quizId'], lang_mark_seen: ['grade', 'subject'],
+  prefill_kept: ['pf'], prefill_changed: ['pf'],
+});
+const PF_RX = /^grade_([1-5])\|([a-z_]+)$/;
 const ASKABLE = Object.freeze(['en', 'ur']);
 const asked = (v) => (ASKABLE.includes(v) ? v : null);
 const gradeIn = (v) => (typeof v === 'string' && /^[1-5]$/.test(v) ? v : null);
@@ -107,13 +118,24 @@ router.get('/m/:token', handlePage(async (req, res) => {
   const p = v.ok;
   const tree = await Bank.chipTree();
   const { lang, switchTo } = Page.pageLang(p.lang, asked(req.query.lang));
-  const built = Page.buildMakerPage({ token: req.params.token, lang, switchTo, via: p.via, tree });
+  const built = Page.buildMakerPage({ token: req.params.token, lang, switchTo, via: p.via, tree, pf: p.pf });
   makerEvent('open', p);
   headers(res, built.csp);
   return res.status(200).type('html').send(built.html);
 }));
 
-// ── slot: send (the next change adds GET /m/:token/send — logs share_tap, 302 → wa.me/?text=<the message>) ──
+router.get('/m/:token/send', handlePage(async (req, res) => {
+  const v = MakerToken.verifyMaker(req.params.token);
+  if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
+  if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang);
+  const p = v.ok;
+  const shareCodeId = quizIn(req.query.c);
+  const out = shareCodeId ? await Bank.shareMessage({ uid: p.uid, lang: p.lang, shareCodeId }) : null;
+  if (!out) return messagePage(res, 404, 'mk.error', p.lang);
+  makerEvent('share_tap', p, { grade: out.grade, subject: out.subject, qlang: out.qlang, quizId: out.quizId });
+  headers(res);
+  return res.redirect(302, `https://wa.me/?text=${encodeURIComponent(out.message)}`);
+}));
 
 router.post('/api/ft/make', handleJson(async (req, res) => {
   const b = bodyOf(req);
@@ -127,22 +149,27 @@ router.post('/api/ft/make', handleJson(async (req, res) => {
   if (out.error) { headers(res); res.status(out.error === 400 ? 400 : 503).json({ error: 'mk.error' }); return; }
   makerEvent('made', p, { grade, subject, qlang: out.qlang, quizId });
   headers(res);
-  res.status(200).json({ shareCodeId: out.shareCodeId, message: out.message, qlang: out.qlang, preview: out.preview });
+  res.status(200).json({ shareCodeId: out.shareCodeId, message: out.message, qlang: out.qlang, preview: out.preview, total: out.total });
 }));
 
 router.post('/api/ft/step', handleJson(async (req, res) => {
   const b = bodyOf(req);
   const p = authoriseJson(b.t, res);
   if (!p) return;
-  const step = CLIENT_STEPS.includes(b.step) ? b.step : null;
-  const grade = gradeIn(b.grade);
-  const subject = step !== 'grade' ? subjectIn(b.subject) : null;
-  const quizId = step === 'topic' ? quizIn(b.quizId) : null;
-  if (!step || !grade || (step !== 'grade' && !subject) || (step === 'topic' && !quizId)) {
-    headers(res); res.status(400).json({ error: 'mk.error' }); return;
+  const needs = Object.prototype.hasOwnProperty.call(CLIENT_STEPS, b.step) ? CLIENT_STEPS[b.step] : null;
+  let grade = null; let subject = null; let quizId = null;
+  if (needs && needs.includes('pf')) {
+    const m = PF_RX.exec(typeof p.pf === 'string' ? p.pf : '');
+    if (m) { grade = m[1]; subject = subjectIn(m[2]); }
+  } else if (needs) {
+    grade = gradeIn(b.grade);
+    subject = needs.includes('subject') ? subjectIn(b.subject) : null;
+    quizId = needs.includes('quizId') ? quizIn(b.quizId) : null;
   }
-  const chip = step === 'topic' ? await Bank.chipOf(grade, subject, quizId) : null;
-  makerEvent(step, p, { grade, subject, quizId, qlang: chip ? chip.qlang : null });
+  const missing = !needs || !grade || (needs.some((n) => n === 'subject' || n === 'pf') && !subject) || (needs.includes('quizId') && !quizId);
+  if (missing) { headers(res); res.status(400).json({ error: 'mk.error' }); return; }
+  const chip = quizId ? await Bank.chipOf(grade, subject, quizId) : null;
+  makerEvent(b.step, p, { grade, subject, quizId, qlang: chip ? chip.qlang : null });
   headers(res);
   res.status(204).end();
 }));
