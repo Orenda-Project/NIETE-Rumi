@@ -523,10 +523,11 @@ class TranscriptionProcessorService {
       // instead of going out as its own text; a reminder too long for the offer's
       // 1,024 body cap is still sent on its own first.
       let priorReminder = null;
+      let priorSessionId = null;
       try {
         const { data: priorSessions } = await supabase
           .from('coaching_sessions')
-          .select('prioritized_action')
+          .select('id, prioritized_action')
           .eq('user_id', session.user_id)
           .not('prioritized_action', 'is', null)
           .order('created_at', { ascending: false })
@@ -539,6 +540,7 @@ class TranscriptionProcessorService {
           const reminderLang = await getUserLanguage(session.user_id) || 'en';
           priorReminder = getCoachingMessage('priorActionReminder', reminderLang)
             .replace('{{action}}', priorAction.action);
+          priorSessionId = priorSessions[0].id || null;
         }
       } catch (agencyError) {
         logToFile('⚠️ Agency follow-up check failed (non-critical)', { error: agencyError.message });
@@ -569,6 +571,12 @@ class TranscriptionProcessorService {
       const { prompt: photoPrompt, leadMerged } = buildPhotoPromptWithLead(coachingSessionId, userLanguage, priorReminder);
       if (priorReminder && !leadMerged) await WhatsAppService.sendMessage(from, priorReminder);
       await WhatsAppService.sendInteractiveButtons(from, photoPrompt);
+      if (priorReminder) {
+        // bd-v0toag.1.2 — the check-back: her prior commitment, back in front of her.
+        require('./report-events').checkBackSent({
+          userId: session.user_id, sessionId: coachingSessionId, priorSessionId, merged: !!leadMerged,
+        });
+      }
 
       // Update conversation state to AWAITING_PHOTO
       await CoachingSessionService.updateConversationState(coachingSessionId, {

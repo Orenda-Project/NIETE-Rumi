@@ -7126,6 +7126,11 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
       });
     }
 
+    // bd-v0toag.1.2 — she opened her coaching report (only once one exists; the page also serves in-flight sessions).
+    if (session.report_pdf_url || session.report_generated_at || TeacherObservation.isObservation(session)) {
+      telemetry.logEvent('coaching.report.opened', { userId, sessionId, surface: 'portal' });
+    }
+
     // Transform analysis_data structure to match frontend expectations
     // getOverall normalises every framework's score shape (see
     // coaching-frameworks.service) and is already what the leader dashboard

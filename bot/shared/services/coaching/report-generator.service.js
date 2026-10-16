@@ -382,6 +382,15 @@ class ReportGeneratorService {
       // on the shape.
       const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
+      // bd-v0toag.1.3 — voice-note seconds (from the session row, never decoded here) + report text length.
+      const ReportEvents = require('./report-events');
+      const reportFormat = isHeroImage ? 'image' : 'pdf';
+      ReportEvents.reportGenerated({
+        userId: session.user_id, sessionId: coachingSessionId, format: reportFormat,
+        audioDurationSeconds: session.audio_duration_seconds,
+        caption: isHeroImage ? reportResult.caption : undefined,
+        narrative: isHeroImage ? reportResult.narrative : undefined,
+      });
 
       // Upload report to R2 for portal access.
       // Hero renderer returns a PNG → store it as `_report.png` with
@@ -434,11 +443,13 @@ class ReportGeneratorService {
           session.created_at
         );
         voiceStepAnnounced = heroSent !== false && fitted.some((l) => l.key === 'step5');
+        if (heroSent !== false) ReportEvents.reportSent({ userId: session.user_id, sessionId: coachingSessionId, format: reportFormat });
       } else {
         for (const line of extraLines) {
           if (line.key !== 'step5') await WhatsAppService.sendMessage(from, line.text);
         }
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
+        ReportEvents.reportSent({ userId: session.user_id, sessionId: coachingSessionId, format: reportFormat });
       }
 
       // Generate and send voice debrief (optional, won't fail entire process)
