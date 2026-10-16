@@ -265,6 +265,7 @@ describe('the hub card follows the child × device, not the browser tab', () => 
     return BindPage.hubExtras(out, { token, chosen: { id: KIDS[0], student_name: NAMES[0] }, rows: [student(0)], trust: {}, lang: 'en', device: DEV, src: 'home' });
   };
   const today = async () => ({ offer: true, hub: T.signHub([KIDS[0]], 'home'), kid: T.chipId('h', KIDS[0]) });
+  const card = async (state) => ({ ...(await today()), state });
 
   test('the place was saved from this device → no card (the older link no longer asks again)', async () => {
     seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0], { device_ref: DEV, used_at: iso(Date.now() - H), outcome: 'bound' })],
@@ -277,7 +278,7 @@ describe('the hub card follows the child × device, not the browser tab', () => 
     seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0], { device_ref: DEV, used_at: iso(Date.now() - H), outcome: 'bound' })],
       bindings: [binding(KIDS[0], PHONE, { code_id: 'JUGNU-AB2CD', revoked_at: iso(Date.now() - 1000), revoked_by: 'page_undo' })] });
     wayBack();
-    expect((await extras()).bind).toEqual(await today());
+    expect((await extras()).bind).toEqual(await card('none'));
   });
 
   test('refused as a teacher\'s phone from this device in the last week → no card', async () => {
@@ -286,7 +287,13 @@ describe('the hub card follows the child × device, not the browser tab', () => 
     expect((await extras()).bind).toEqual({ offer: false, state: 'refused', reason: 'teacher_phone' });
   });
 
-  test('a refusal older than a week, an expired code, another device\'s code, or none → today\'s card', async () => {
+  test('a live code from this device not sent yet → the card, state pending', async () => {
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0], { device_ref: DEV })] });
+    wayBack();
+    expect((await extras()).bind).toEqual(await card('pending'));
+  });
+
+  test('a refusal older than a week, an expired code, another device\'s code, or none → the card, state none', async () => {
     const cases = [
       [code('JUGNU-AB2CD', KIDS[0], { device_ref: DEV, used_at: iso(Date.now() - 8 * 24 * H), outcome: 'teacher_phone' })],
       [code('JUGNU-AB2CD', KIDS[0], { device_ref: DEV, used_at: iso(Date.now() - H), outcome: 'code_expired' })],
@@ -296,7 +303,7 @@ describe('the hub card follows the child × device, not the browser tab', () => 
     for (const codes of cases) {
       seed({ students: [student(0)], codes });
       wayBack();
-      expect((await extras()).bind).toEqual(await today());
+      expect((await extras()).bind).toEqual(await card('none'));
     }
   });
 

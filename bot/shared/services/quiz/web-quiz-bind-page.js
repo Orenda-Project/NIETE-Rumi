@@ -208,10 +208,10 @@ async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, devi
     if (f.canon && chosen) await recordHubPick({ chosen, rows, device, src });
     if (!f.phoneBind) return out;
     if (chosen) {
-      // web_quiz_bind_way_back: a child already saved, or a phone refused, from this device sees no card (null: off)
+      // web_quiz_bind_way_back: `state` none|pending|bound|refused; saved or refused from this device → no card (off: today's)
       const WayBack = require('./web-quiz-bind-way-back');
       const seen = (await WayBack.on()) ? await WayBack.cardState({ canonicalId: await canonicalOf(chosen.id), device }) : null;
-      out.bind = seen ? { offer: false, ...seen } : { offer: true, hub: token, kid: out.kid };
+      out.bind = seen && (seen.state === 'bound' || seen.state === 'refused') ? { offer: false, ...seen } : { offer: true, hub: token, kid: out.kid, ...(seen || {}) };
       return out;
     }
     out.bind = { offer: false };

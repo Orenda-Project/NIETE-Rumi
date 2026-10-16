@@ -15,11 +15,13 @@
  *                                handled (sent or capped), false when the switch is off (the caller does today's thing).
  *   alreadySaved({phone, norm, row, resolveChild, ...})   a spent code that saved THIS phone's place, still active (the
  *                                family sent it twice) → the saved reply again (true); else false.
- *   cardState({canonicalId, device, now})   what the hub's card does for this child on this device, from the newest code
- *                                this device minted for the child (never from the browser tab): {state:'bound'} — the
- *                                place is saved by that code and still active · {state:'refused', reason} — this phone
- *                                was refused (teacher's phone, four children, three phones) in the last 7 days · null —
- *                                today's card. The device ref decides only whether a card is drawn, never who a child is.
+ *   cardState({canonicalId, device, now})   the card's `bind.state` for this child on this device, from the newest code
+ *                                this device minted for the child (never from the browser tab): 'bound' — the place is
+ *                                saved by that code and still active (no card) · 'refused' + reason — this phone was
+ *                                refused (teacher's phone, four children, three phones) in the last 7 days (no card) ·
+ *                                'pending' — a live code not sent yet (the card) · 'none' — anything else (the card).
+ *                                null when the switch is off or the child/device is unknown (today's card, no state).
+ *                                The device ref decides only whether a card is drawn, never who a child is.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -117,17 +119,18 @@ async function cardState({ canonicalId, device, now = new Date() } = {}) {
       .eq('canonical_id', String(canonicalId)).eq('device_ref', dev).order('minted_at', { ascending: false }).limit(1);
     if (error) throw new Error(error.message || 'read failed');
     const row = (data || [])[0];
-    if (!row || !row.used_at) return null;
     const t = new Date(now).getTime();
+    if (!row) return { state: 'none' };
+    if (!row.used_at) return ms(row.expires_at) > t ? { state: 'pending' } : { state: 'none' };
     if (row.outcome === 'bound') {
       const Bindings = require('./child-phone-bindings.repo');
       const active = (await Bindings.activeForChild(String(canonicalId), now)) || [];
-      return active.some((b) => String(b.code_id || '') === row.code) ? { state: 'bound' } : null;
+      return active.some((b) => String(b.code_id || '') === row.code) ? { state: 'bound' } : { state: 'none' };
     }
     if (PAGE_REFUSALS.has(row.outcome)) {
-      return t - (ms(row.used_at) || 0) > REFUSED_HIDE_MS ? null : { state: 'refused', reason: row.outcome };
+      return t - (ms(row.used_at) || 0) > REFUSED_HIDE_MS ? { state: 'none' } : { state: 'refused', reason: row.outcome };
     }
-    return null;
+    return { state: 'none' };
   } catch (err) {
     logToFile('⚠️ keep my place way back: card state failed — today\'s card', { error: err.message });
     return null;
