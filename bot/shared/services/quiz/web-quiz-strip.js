@@ -57,7 +57,9 @@
  *   reply_cap_hits                          phone-days over the cap (the red line: > 0 is investigated); n = phone-days
  *   reply_cap_days_covered                  the week's PKT days the two lines above cover; n = 7
  *   teacher_accepted_share / <tier>         the teacher-accepted share of the join queue's tier (its Wilson 95% lower
- *                                           bound; a teacher's tap is a judgement, not a label, so never "precision")
+ *                                           bound; a teacher's tap is a judgement, not a label, so never "precision");
+ *                                           n leaves out a configured test teacher's queue rows, and the line's note
+ *                                           names how many each tier left out (excluded_n) when any tier left any
  *   teacher_accepted_held / <tier>          1 when the tier is auto-held on that share, else 0
  *   record_duplicates                       runs created in the week with meta.record_lost = 'duplicate' (a second
  *                                           record of the stop this period, stored as practice); n = the attempts at
@@ -88,6 +90,10 @@
  *                                           n = the cell's rows. Test children are out before the quality is read
  *   rapid / band|lang|ladder|all_right      the same rows with every warm-up item right (score.correct = score.n = 10);
  *                                           n = the same. No earlier figure: a watch only (LINE_NOTES, in `notes`)
+ *   floor_kept_aligned / <lang>             kept failed check reads (record true, status 'failed') that heard fewer
+ *                                           words than the scorer's floor (max(3, 10 % of the passage's tokens)) but
+ *                                           matched at least one passage word: a chance match on a noisy recording
+ *                                           keeps the record; n = the language's kept failed check reads. Near 0
  *   cold_clips                              not measured: no store (the clip warm's last run is an event only); named
  *                                           in `skipped` with its note, no row
  * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, child_bind_codes, students) skips its
@@ -343,7 +349,7 @@ async function replyCapLines({ week, start, now, put }) {
 }
 
 /** The teacher-accepted share per identity tier (the join queue's precisionByTier(); never called precision here). */
-async function acceptedShareLines({ put }) {
+async function acceptedShareLines({ put, notes }) {
   const Q = optional('./web-quiz-join-queue');
   if (!Q || typeof Q.precisionByTier !== 'function') {
     logToFile('Challenge weekly numbers: teacher-accepted share skipped (join queue not available)');
@@ -361,6 +367,9 @@ async function acceptedShareLines({ put }) {
     put('teacher_accepted_share', t.tier, t.wilson_lower_95 == null ? null : Number(t.wilson_lower_95), n);
     put('teacher_accepted_held', t.tier, t.held ? 1 : 0, n);
   }
+  // a configured test teacher's taps count for nothing; say how many each tier left out, so n is never read as all taps
+  const left = tiers.filter((t) => Number(t.excluded_n) > 0).map((t) => `${t.tier} ${Number(t.excluded_n)}`);
+  if (left.length && notes) notes.teacher_accepted_share = `left out of n (queue rows made by a configured test teacher): ${left.join(', ')}`;
   return true;
 }
 
@@ -597,9 +606,9 @@ async function weeklyStrip({ week, now = Date.now(), sink = writeLines } = {}) {
 
   // ── identity: the reply cap and the teacher-accepted share (each only when its input exists) ──
   if (!(await replyCapLines({ week, start, now, put }))) skipped.push('reply_cap');
-  if (!(await acceptedShareLines({ put }))) skipped.push('teacher_accepted_share');
+  if (!(await acceptedShareLines({ put, notes }))) skipped.push('teacher_accepted_share');
   // ── recognised without typing, kept readings under keep-all, sent / capped, the save-code funnel, implausible reads,
-  //    cold clips (web-quiz-strip-lines.js) ──
+  //    kept reads under the heard-words floor, cold clips (web-quiz-strip-lines.js) ──
   await require('./web-quiz-strip-lines').moreLines({ rows, start, end, now, put, skipped, notes, allRows });
   if (lines.some((l) => l.line === 'recognised_without_typing')) notes.recognised_without_typing = LINE_NOTES.recognised_without_typing;
 
