@@ -345,6 +345,8 @@ describe('switch off: today\'s, byte for byte', () => {
     const b = await Data.classReport(SENDER, { now: NOW });
     expect(b.quizzes).toEqual([]);
     expect(JSON.stringify(await Data.quizReport(AUTHOR, LQ))).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
+    // every off state: the author's class tab rows carry no sent key (today's rows)
+    (await Data.classReport(AUTHOR, { now: NOW })).quizzes.forEach((q) => expect(q).not.toHaveProperty('sent'));
   };
 
   test.each(OFF_VALUES)('quiz_teacher_home %s: the sender is refused, the class tab has no library sends', async (_, home) => {
