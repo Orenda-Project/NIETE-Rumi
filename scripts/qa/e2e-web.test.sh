@@ -90,7 +90,7 @@ for drv in "$ROOT"/.claude/qa/web/features/*.cjs; do
     || no "W10 $f: spec and driver name the same scenarios" "spec [$s_ids] code [$c_ids]"
 done
 # W11 — the portal is covered area by area: at least these drivers exist.
-for f in portal-login portal-smoke teacher-home teacher-lessons teacher-coaching teacher-training teacher-classes teacher-assessment coach-portal leader-portal portal-account; do
+for f in portal-login portal-smoke teacher-home teacher-lessons teacher-coaching teacher-training teacher-classes teacher-assessment coach-portal leader-portal portal-account web-quiz-child-page; do
   [ -f "$ROOT/.claude/qa/web/features/$f.cjs" ] && ok "W11 driver $f" || no "W11 driver $f"
 done
 

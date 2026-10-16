@@ -1,16 +1,22 @@
 Feature: Web child quiz page on the portal
   A child opens the quiz link the teacher forwarded and plays it on a web page,
   in WhatsApp's in-app browser or the phone's own browser.
+  # Web lane: `npm run e2e:web -- web-quiz-child-page` drives the @WQnn scenarios (driver .claude/qa/web/features/web-quiz-child-page.cjs)
+  # on the demo seed's quiz AB12CD (bot/scripts/e2e/portal-demo-seed.js). Scenarios without a @WQ tag are not driven yet.
+  # Covers: dashboard/routes/web-quiz.routes.js (/q/<code>), dashboard/public/wq/** (the page), bot/shared/routes/web-quiz-internal.routes.js,
+  # bot/shared/services/quiz/web-quiz.service.js.
 
   Background:
     Given a quiz share code "AB12CD" that is active
 
+  @WQ01
   Scenario: The link opens the quiz page with a link preview
     When the link "/q/AB12CD" is opened
     Then the page carries the quiz as boot data
     And the page has og:title, og:description and og:image tags
     And the page is marked noindex and no-cache
 
+  @WQ02
   Scenario: A new child plays to the class league table
     Given a phone that has never played
     When the child taps "Play", then "I'm new", and types a first name
@@ -20,11 +26,13 @@ Feature: Web child quiz page on the portal
     And the scorecard shows the first name, the topic, 4/5 and 4 stars
     And the class league table highlights the child's own row as "YOU"
 
+  @WQ03
   Scenario: A returning child is remembered on this phone
     Given a child finished a quiz on this phone before
     When the link of a new quiz is opened
     Then the landing offers "Play as <first name>" in one tap
 
+  @WQ04
   Scenario: A reload mid-quiz resumes
     Given a child answered 3 of 5 questions
     When the page is reloaded
@@ -34,6 +42,7 @@ Feature: Web child quiz page on the portal
     When a child types a first name that is already on the class list
     Then the page asks "Are you <name>?" before starting
 
+  @WQ05
   Scenario: A closed quiz explains itself in the quiz language
     Given the share code has expired
     When the link is opened
