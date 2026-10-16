@@ -278,6 +278,19 @@ describe('who / role — the one answer, remembered on the server', () => {
     expect(w.known).toEqual({ pick: expect.stringMatching(/^[0-9a-f]{16}$/), first: 'Zain' });
   });
 
+  test('who: an unknown phone learns no name from a device ref it does not hold (another ref, a malformed ref, an inactive child)', async () => {
+    world({ quizSessions: [{ id: 'qs-1', student_id: 's-9', device_ref: QDEV, created_at: new Date().toISOString() }] });
+    mockJoin = WRITER();
+    const t = await mint(UNKNOWN, PH.unknown);
+    for (const d of ['RRRRRRRRRRRRRRRRRRRRRR', 'QQQQ', `${QDEV}' or 1=1`, ['x'], 42]) {
+      const j = await (await post('who', { t, d })).json();
+      expect(j).toEqual({ side: 'unknown', next: null });
+      expect(JSON.stringify(j)).not.toMatch(/Zain/);
+    }
+    mockDb.tables.students.find((r) => r.id === 's-9').is_active = false;
+    expect(await (await post('who', { t, d: QDEV })).json()).toEqual({ side: 'unknown', next: null });
+  });
+
   test('"I teach a class" → the teacher key ONCE, {next: the teacher home}; the users row untouched', async () => {
     world();
     const t = await mint(UNKNOWN, PH.unknown);
