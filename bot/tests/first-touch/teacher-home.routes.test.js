@@ -366,7 +366,7 @@ describe('the stories shelf and the other seams', () => {
   });
 });
 
-describe('the top card for a teacher with a fresh lesson (F16) and story sends', () => {
+describe('the top card for a teacher with a fresh lesson, and story sends', () => {
   const day = (n) => new Date(Date.now() - n * 86400000).toISOString();
   const lesson = (n, topic) => ({ source: 'lp_v8', lessonRef: `ref${n}`, date: day(n), topic, subject: 'Science', grade: '4' });
 
