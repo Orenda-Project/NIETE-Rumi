@@ -134,4 +134,34 @@ describe('the tour key (TOUR.md §2.4; written by TOUR\'s route through this mod
     fake = seedDb(supabase, { throwOn: TABLE });
     expect(await Keys.tourSeen(UID)).toBe(true);
   });
+
+  test('markTourShown is a NO-OP when the row exists (no second increment, no video_shown_at overwrite) → {created:false}', async () => {
+    expect(await Keys.markTourShown(UID)).toEqual({ created: true });
+    row('quiz_tour').video_shown_at = '2026-10-01T08:00:00.000Z';
+    const before = writes(fake).length;
+    expect(await Keys.markTourShown(UID)).toEqual({ created: false });
+    expect(row('quiz_tour')).toMatchObject({ intro_shown_count: 1, video_shown_at: '2026-10-01T08:00:00.000Z' });
+    expect(writes(fake).length).toBe(before);
+  });
+
+  test('markTourShown on a read error writes nothing → {created:false} (fail-safe)', async () => {
+    fake = seedDb(supabase, { throwOn: TABLE });
+    expect(await Keys.markTourShown(UID)).toEqual({ created: false });
+    expect(writes(fake)).toEqual([]);
+  });
+
+  test('markTourDismissed on an existing row: only the UPDATE — video_shown_at and intro_shown_count untouched', async () => {
+    fake = seedDb(supabase, { rows: [firstUse('quiz_tour', { usedAt: '2026-10-01T08:00:00.000Z', count: 1 })] });
+    row('quiz_tour').feature_used_at = null;
+    await Keys.markTourDismissed(UID);
+    expect(writes(fake)).toEqual([`update:${TABLE}`]);
+    expect(row('quiz_tour')).toMatchObject({ video_shown_at: '2026-10-01T08:00:00.000Z', intro_shown_count: 1, feature_used_at: expect.any(String) });
+  });
+
+  test('markTourDismissed with no row: the upsert WITHOUT an increment, then the UPDATE → both stamps, count 0', async () => {
+    await Keys.markTourDismissed(UID);
+    expect(writes(fake)).toEqual([`upsert:${TABLE}`, `update:${TABLE}`]);
+    expect(fake.calls.find((c) => c.op === 'upsert').payload).not.toHaveProperty('intro_shown_count');
+    expect(row('quiz_tour')).toMatchObject({ video_shown_at: expect.any(String), feature_used_at: expect.any(String), intro_shown_count: 0 });
+  });
 });
