@@ -204,14 +204,14 @@ describe('the noise floor: a counted read with no believable speech is implausib
     expect(Ch.readQuality({ stt_words: 4, align_correct: 4, story_confidence: 0.6 }, { correct: 20, attempted: 25 }, 60)).toBe('low_stt_support');   // 4 heard < 5
   });
 
-  test('a noise-shaped read through the real scorer: one garbled word heard, the model credits 36/60 → implausible, low_stt_support', async () => {
+  test('a noise-shaped read through the real scorer: one garbled word heard, the model credits 36/60 → implausible, named by the floor (no_aligned_words)', async () => {
     on(V2, ...CANON_ON, PERIOD, POOL);
     const ex = await Ch.exercise(hub(K5), 'read', D);
     await readWith(ex.ct, garbled(1), 36, 60);
     const row = rowOf(ex.ct);
     expect(row.status).toBe('scored');
     expect(row.meta.quality).toBe('implausible');
-    expect(row.meta.flags).toEqual(expect.arrayContaining(['low_stt_support']));
+    expect(row.meta.flags).toEqual(expect.arrayContaining(['no_aligned_words']));   // one heard word is under the floor, which runs first
     expect(row).toMatchObject({ record: false, wcpm: null });
     expect(row.meta).toMatchObject({ stt_words: 1, record_lost: 'implausible', raw: { correct: 36 } });
   });
@@ -528,14 +528,116 @@ describe('speech that aligns to nothing is never a scored read', () => {
     expect(row.meta).not.toHaveProperty('quality');
   });
 
-  test('golden: 3 Urdu words heard (under the floor), nothing aligned, the marker credits 2: scored at its rate as today', async () => {
+  test('3 Urdu words heard (under the floor), nothing aligned, the marker credits 2, ended by the timer: implausible (no_aligned_words), record cleared', async () => {
     const ex = await serve();
     await readWith(ex.ct, urdu(3), 2, 3);
     const row = rowOf(ex.ct);
     expect(row.meta).toMatchObject({ stt_words: 3, align_correct: 0 });
     expect(row.status).toBe('scored');
-    expect(row.score).toMatchObject({ correct: 2, attempted: 3, stopped: false });
-    expect(row.wcpm).toBe(2);
+    expect(row.meta.quality).toBe('implausible');
+    expect(row.meta.flags).toEqual(expect.arrayContaining(['no_aligned_words']));
+    expect(row.meta.raw).toMatchObject({ correct: 2, attempted: 3 });
+    expect(row.wcpm).toBeNull();
+    expect(row.record).toBe(false);
+  });
+});
+
+describe('the floor runs on every record read, however it ended', () => {
+  // the three live probe shapes the floor missed while it ran only on silent-ended reads with nothing attempted
+  const readEnded = async (ct, { secs, ended, transcript, right, tried }) => {
+    const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
+    r2.downloadFromR2.mockResolvedValue(clip(secs));
+    AudioService.transcribe.mockResolvedValue(transcript);
+    llm.__create.mockResolvedValue(marks(right, tried));
+    return Ch.submit({ ct, key, ms: secs * 1000, lang: 'en', ended, mic_check: 'level_ok', read_s: secs }, { waitMs: 60000 });
+  };
+  const serve = async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
+    return ex;
+  };
+  const expectImplausible = (row, reason) => {
+    expect(row.status).toBe('scored');
+    expect(row.meta.quality).toBe('implausible');
+    expect(row.meta.flags).toEqual(expect.arrayContaining([reason]));
+    expect(row.record).toBe(false);
+    expect(row.meta.record_lost).toBe('implausible');
+    expect(row.meta.counted).toBe(false);
+    expect(row.wcpm).toBeNull();
+    expect(R.computeRung('reading', [row])).toBe(0);
+  };
+
+  test('white noise ended by the timer, nothing heard, nothing attempted: implausible (no_speech), not unheard', async () => {
+    const ex = await serve();
+    await readEnded(ex.ct, { secs: 61, ended: 'timer', transcript: { text: '', tokens: [] }, right: 0, tried: 0 });
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 0, ended: 'timer' });
+    expectImplausible(row, 'no_speech');
+    const again = await Ch.exercise(hub(K5), 'read', D);
+    expect(rowOf(again.ct)).toMatchObject({ mode: 'check', record: true });
+  });
+
+  test('one word then silence: nothing heard, the marker credits the one word (not a first-line stop), 10 s: implausible (no_speech), not abandoned', async () => {
+    const ex = await serve();
+    await readEnded(ex.ct, { secs: 10, ended: 'silent', transcript: { text: '', tokens: [] }, right: 1, tried: 1 });
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 0, ended: 'silent' });
+    expect(row.meta.raw).toMatchObject({ correct: 1, attempted: 1 });
+    expectImplausible(row, 'no_speech');
+  });
+
+  test('noise with a 0.7-s voice slice ended by the timer: one word heard (under the floor), nothing attempted: implausible (no_aligned_words)', async () => {
+    const ex = await serve();
+    await readEnded(ex.ct, { secs: 61, ended: 'timer', transcript: garbled(1), right: 0, tried: 0 });
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 1, ended: 'timer' });
+    expectImplausible(row, 'no_aligned_words');
+  });
+
+  test('a first-line stop with one word heard (under the floor): implausible, not a reader of 0', async () => {
+    const ex = await serve();
+    await readEnded(ex.ct, { secs: 61, ended: 'timer', transcript: garbled(1), right: 0, tried: 50 });
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 1 });
+    expectImplausible(row, 'no_aligned_words');
+  });
+
+  test('golden: one word under the floor on a read the child ended ("too hard"): implausible, the record given back', async () => {
+    const ex = await serve();
+    await readEnded(ex.ct, { secs: 20, ended: 'stuck', transcript: garbled(1), right: 1, tried: 1 });
+    expectImplausible(rowOf(ex.ct), 'no_aligned_words');
+  });
+
+  test('a weak reader: two words heard, both aligned to the story, the child ended it at 20 s: incomplete as today, the record kept', async () => {
+    const ex = await serve();
+    await readEnded(ex.ct, { secs: 20, ended: 'stuck', transcript: heard(2, 1.1), right: 2, tried: 2 });
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 2, align_correct: 2 });
+    expect(row.status).toBe('failed');
+    expect(row.meta.reason).toBe('incomplete');
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.record).toBe(true);
+  });
+
+  test('golden, the trade kept on purpose: two words heard, one of them a word of the story, timer-ended, nothing credited: unheard, the record kept', async () => {
+    const ex = await serve();
+    const one = heard(1, 1.1).tokens;
+    await readEnded(ex.ct, { secs: 61, ended: 'timer', transcript: { text: '', tokens: [...one, { text: ' xq', start_ms: 2000, end_ms: 2500, speaker: 1 }] }, right: 0, tried: 0 });
+    const row = rowOf(ex.ct);
+    expect(row.meta).toMatchObject({ stt_words: 2, align_correct: 1, ended: 'timer' });
+    expect(row.status).toBe('failed');
+    expect(row.meta.reason).toBe('unheard');
+    expect(row.meta).not.toHaveProperty('quality');
+    expect(row.record).toBe(true);
+  });
+
+  test('golden: enough words heard, the child ended it at 20 s: incomplete as today (the words read kept), no quality key', async () => {
+    const ex = await serve();
+    await readEnded(ex.ct, { secs: 20, ended: 'stuck', transcript: heard(15, 1.1), right: 12, tried: 15 });
+    const row = rowOf(ex.ct);
+    expect(row.status).toBe('failed');
+    expect(row.meta.reason).toBe('incomplete');
     expect(row.meta).not.toHaveProperty('quality');
     expect(row.record).toBe(true);
   });
