@@ -19,8 +19,9 @@
  *      story_pages.watermark is false only for such pages
  *   1. pages: the book's text is settled; every picture ≤ 80 KB; every text page has words, a word band and a
  *      current voice whose words are the page's words (same i), wer ≤ 0.10 (en) / 0.15 (ur), its own checks passed,
- *      a local clip, and two pace numbers: words over the whole clip ≤ 100 wpm (grades 1–2) / 115 (3–5) and over
- *      the spoken span ≤ 130 / 145. A page whose voice fails any of these is stored with no voice. The voice's drift
+ *      a local clip, and two pace numbers: words over the whole clip ≤ 100 wpm (grades 1–2) / 115 (3–5; and any page
+ *      under 10 words) and over the spoken span ≤ 130 / 145, each with a 2 % measurement tolerance. A wer miss passes
+ *      only when the voice build waived it for a listen (listen_asked, and 'wer …' in waived). A page whose voice fails any of these is stored with no voice. The voice's drift
  *      numbers are stored, not gated: the drift gate is the reader's highlight against the audio, measured on the page
  *      (a voice its build marks quality 'low' keeps its voice with that mark: the reader then follows it line by line)
  *   2. questions: 3–5 reviewed
@@ -35,8 +36,12 @@ const MAX_PAGE_BYTES = 80 * 1024;
 const MAX_COVER_BYTES = 15 * 1024;
 const MAX_WER = { en: 0.10, ur: 0.15 };
 const MAX_DRIFT_MS = 120;
-const maxWpm = (grade) => (grade <= 2 ? 100 : 115);
-const maxSpanWpm = (grade) => (grade <= 2 ? 130 : 145);
+// The pace gates keep a 2 % measurement tolerance and no more; a page under 10 words has the whole-clip gate of grades 3–5
+// (one or two words decide its pace) and its span gate decides.
+const SHORT_PAGE_WORDS = 10;
+const tolerant = (gate) => Math.round(gate * 102) / 100;
+const maxWpm = (grade, nWords) => tolerant(grade <= 2 && nWords >= SHORT_PAGE_WORDS ? 100 : 115);
+const maxSpanWpm = (grade) => tolerant(grade <= 2 ? 130 : 145);
 const TYPES = { webp: 'image/webp', ogg: 'audio/ogg', mp3: 'audio/mpeg', png: 'image/png' };
 const pad = (n) => String(n).padStart(2, '0');
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -91,10 +96,12 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
   const pick = (k) => num(qa[k]) != null ? qa[k] : num(j[k]);
   const wer = pick('wer');
   const drift = pick('drift_ms_max');
-  if (wer == null || wer > MAX_WER[lang]) why.push(`voice wer ${wer == null ? 'unknown' : wer}`);
+  // A wer miss ships only when the voice build waived it for a person's listen (a short word every recogniser mishears).
+  const listenWaived = qa.listen_asked === true && Array.isArray(qa.waived) && qa.waived.some((w) => /^wer\b/.test(String(w)));
+  if (wer == null || (wer > MAX_WER[lang] && !listenWaived)) why.push(`voice wer ${wer == null ? 'unknown' : wer}`);
   // Two pace gates: words over the whole clip (what the child sits through), and over the spoken span (what the eye follows).
   const clipWpm = num(j.wpm) != null ? j.wpm : (num(qa.wpm_clip) != null ? qa.wpm_clip : num(qa.wpm));
-  if (clipWpm == null || clipWpm > maxWpm(grade)) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm`);
+  if (clipWpm == null || clipWpm > maxWpm(grade, words.length)) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm`);
   const spanWpm = num(j.pace_wpm) != null ? j.pace_wpm : num(qa.pace_wpm);
   if (spanWpm == null || spanWpm > maxSpanWpm(grade)) why.push(`voice span pace ${spanWpm == null ? 'unknown' : spanWpm} wpm`);
   if (j.ok === false || qa.ok === false) why.push(`voice failed its own checks${Array.isArray(j.fails) && j.fails.length ? ` (${j.fails.slice(0, 2).join(', ')})` : ''}`);
