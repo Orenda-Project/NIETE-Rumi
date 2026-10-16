@@ -56,6 +56,7 @@ const ExamCheckerHandler = require('./shared/handlers/exam-checker.handler');
 // Import Utils
 const { logToFile, logError, LOGS_DIR } = require('./shared/utils/logger');
 const validators = require('./shared/utils/validators');
+const { handleStatusWebhook } = require('./shared/services/whatsapp-status-pricing');
 const constants = require('./shared/utils/constants');
 const { setUserLanguage } = require('./shared/utils/language-cache');
 
@@ -541,7 +542,7 @@ app.post('/webhook', async (req, res) => {
       // Used for broadcast delivery tracking
       const statusValidation = validators.validateWebhookStatus(req);
       if (statusValidation) {
-        await handleBroadcastStatusWebhook(statusValidation.statuses);
+        await handleStatusWebhook(statusValidation, handleBroadcastStatusWebhook);
         ack();
         return;
       }
