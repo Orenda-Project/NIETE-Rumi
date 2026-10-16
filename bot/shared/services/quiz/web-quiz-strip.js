@@ -31,6 +31,9 @@
  *                                           ANOTHER active child with the same canonical first name (canonFirst, the
  *                                           page's rule); n = the same v2 rows. Should read 0
  *   no_class_first_finishes                 scored first exposures with no class
+ *   classes_link_eligible                   D5's denominator (a state, not a week): active classes with an active
+ *                                           class_teachers row and an active class_enrollments row, the class-link
+ *                                           mint's own rule (web-quiz-class-link.js teachesEnrolled); n = active classes
  *   kept_audio_keys                         value = runs naming a kept reading; n = kept_ok runs inside their 90 days
  *   kept_audio_match                        1 when the two are equal, else 0
  *   kept_audio_oldest_d                     days since the oldest kept reading was scored (reported only: the
@@ -155,6 +158,39 @@ async function allRows(build, what, col = 'created_at') {
 }
 
 function count(map, key, by = 1) { map.set(key, (map.get(key) || 0) + by); }
+
+/** The distinct values of `col` over a table's active rows, paged on `col` itself; null when it cannot be read. */
+async function distinctActive(table, col) {
+  const out = new Set();
+  let cursor = null;
+  for (;;) {
+    let q = supabase.from(table).select(col).eq('is_active', true);
+    if (cursor !== null) q = q.gt(col, cursor);
+    const { data, error } = await q.order(col, { ascending: true }).limit(PAGE);
+    if (error) {
+      if (!isMissingTable(error)) logError('web_quiz.strip_read_failed', { what: table, code: error.code || null });
+      return null;
+    }
+    (data || []).forEach((r) => { if (r[col] != null) out.add(r[col]); });
+    if (!data || data.length < PAGE) return out;
+    cursor = data[data.length - 1][col];
+  }
+}
+
+/**
+ * D5's denominator, defined here once: the classes a teacher can get a class link for. The mint's own rule
+ * (web-quiz-class-link.js teachesEnrolled): the class is active, has an active class_teachers row, and has at least
+ * one active class_enrollments row. { eligible, active } (active = active classes), or null when a table cannot be read.
+ */
+async function linkEligibleClasses() {
+  const classes = await distinctActive('classes', 'id');
+  const taught = classes && await distinctActive('class_teachers', 'class_id');
+  const enrolled = taught && await distinctActive('class_enrollments', 'class_id');
+  if (!classes || !taught || !enrolled) return null;
+  let eligible = 0;
+  for (const c of classes) if (taught.has(c) && enrolled.has(c)) eligible += 1;
+  return { eligible, active: classes.size };
+}
 
 /** A module that may not be deployed yet (another change ships it): the module, or null. */
 function optional(name) {
@@ -419,6 +455,10 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
     put('provenance_drift', 'homonym_missed', drift.homonym_missed, drift.n);
   } else skipped.push('provenance_drift');
 
+  // ── D5's denominator (a state, not a week): the link-eligible classes ──
+  const d5 = await linkEligibleClasses();
+  if (d5) put('classes_link_eligible', '', d5.eligible, d5.active); else skipped.push('classes_link_eligible');
+
   // ── kept audio (a state, not a week): every run naming a kept reading vs every kept_ok run inside its 90 days ──
   const keyed = await allRows(() => supabase.from(TABLE).select('id, created_at, scored_at, meta').not('meta->>audio_key', 'is', null), 'kept_keys');
   const okd = await allRows(() => supabase.from(TABLE).select('id, created_at, audio_keep_until').eq('audio_consent', 'kept_ok'), 'kept_ok');
@@ -498,4 +538,4 @@ async function writeLines(lines, now) {
   }
 }
 
-module.exports = { weeklyStrip, replyCapSnapshot, settledSnapshot, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES };
+module.exports = { weeklyStrip, replyCapSnapshot, settledSnapshot, linkEligibleClasses, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES };
