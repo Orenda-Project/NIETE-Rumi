@@ -865,11 +865,20 @@ function verseTwin(q6s) {
 // Urdu: a Q1 MCQ about a word Q3 (meanings) or Q5 (sentences) lists: its stem names the word and
 // asks its meaning, or it is keyed on the meaning Q3's own answer gives it («اقتصادی» → «معاشی
 // حالت سے» beside Q3's «اقتصادی: معاشی، …»). A Q1 item asking a listed word's opposite or its kind
-// of noun, keyed on something else, stays.
+// of noun, keyed on something else, stays. Read the other way, an item that gives the meaning in its
+// stem and is keyed on a listed idiom («بہت زیادہ غصے میں آ جانا» → آگ بگولا ہونا, beside Q5's «آگ
+// بگولا ہونا»; → شرم سے پانی پانی ہونا beside «پانی پانی ہونا») is the same twin: a key of two words
+// or more that holds, or sits inside, a listed word of two words or more. A one-word key («پانی»)
+// inside a listed idiom stays.
 const MEANING_ASK = /مطلب|معنی|معانی|مراد|مفہوم/;
 function meaningTwin(lists) {
   const words = [...new Set(lists.flatMap((q) => (Array.isArray(q.words) ? q.words : [])).map(plain).filter(Boolean))];
   if (!words.length) return null;
+  const phrases = words.filter((w) => w.split(' ').length >= 2);
+  const keyedOn = (q) => {
+    const k = plain(keyText(q));
+    return k.split(' ').length >= 2 && phrases.some((w) => ` ${k} `.includes(` ${w} `) || ` ${w} `.includes(` ${k} `));
+  };
   const meanings = new Map();
   for (const q of lists.filter((x) => x.slot === 'urdu.C.Q3' && typeof x.answer === 'string')) {
     for (const line of q.answer.split('\n')) {
@@ -878,6 +887,7 @@ function meaningTwin(lists) {
     }
   }
   return (q) => {
+    if (keyedOn(q)) return true;
     const stem = ` ${plain(q.question)} `;
     const named = words.filter((w) => stem.includes(` ${w} `));
     if (!named.length) return false;
