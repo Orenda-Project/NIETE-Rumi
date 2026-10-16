@@ -152,7 +152,7 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
     push({ kind: 'story', id: u.pid, href: L.story(u.pid), ...words(listen ? 'listen' : 'read'), ...subOf(u.title), minutes: 2, ...artOr(null, listen ? 'listen' : 'read'),
       released_at: u.released_at, seen: false, read_aloud: !listen, ...(lantern && lantern.kind === 'story' && lantern.pid === u.pid ? { lantern: true } : {}) });
   });
-  if (collect.story && L.ch) push({ kind: 'game', id: 'numbers', href: L.ch, ...words('numbers'), minutes: 1, ...artOr(null, 'game'), ...(lantern && lantern.kind === 'numbers' ? { lantern: true } : {}) });
+  if (collect.story && L.ch) push({ kind: 'game', id: 'numbers', href: `${L.ch}#numbers`, ...words('numbers'), minutes: 1, ...artOr(null, 'game'), ...(lantern && lantern.kind === 'numbers' ? { lantern: true } : {}) });
   if (watch && out.book_on && L.book) push({ kind: 'sticker', id: 'book', href: L.book, ...words('sticker'), minutes: 1, ...artOr(null, 'sticker') });
   // the caller's own (a result's play again / invite, the stories reader's books): Jugnu's picture when they bring none
   (extra || []).forEach((c) => push(c && !c.art && JUGNU_ART[c.kind] ? { ...c, ...artOr(null, c.kind) } : c));

@@ -302,6 +302,8 @@ describe('the VALUE override (web_quiz_next_offer_weights)', () => {
     Challenge.__reset();
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.next).toMatchObject({ kind: 'game', id: 'numbers', rank_src: 'significant', score: 40, score_v: 'ovr-1' });
+    // a game tile names its one game: the numbers warm-up opens at once (#numbers), never Jugnu's list first
+    expect(out.next.href).toMatch(/^\/c\/[^?#]+\?kid=[^#]+#numbers$/);
   });
 });
 

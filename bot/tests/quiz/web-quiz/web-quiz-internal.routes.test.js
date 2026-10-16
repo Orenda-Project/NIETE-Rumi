@@ -115,6 +115,21 @@ test('the library from the hub and a hub video start take the device from x-wq-d
   } finally { lib.mockRestore(); start.mockRestore(); }
 });
 
+test('a video start hands the video module the next-thing slot\'s after-video hook (the route composes; the video module loads none of the slot)', async () => {
+  const Videos = require('../../../shared/services/quiz/web-quiz-videos');
+  const After = require('../../../shared/services/quiz/web-quiz-next-offer-video');
+  const start = jest.spyOn(Videos, 'start').mockResolvedValue({ watch: { vid: 'v' } });
+  const watchNext = jest.spyOn(After, 'watchNext').mockResolvedValue({ next: { kind: 'video' } });
+  try {
+    const body = JSON.stringify({ hub: 'abc.def', kid: '0123456789abcdef', vid: 'v' });
+    expect((await fetch(`${base}/videos/start`, { method: 'POST', headers: { ...KEY, 'x-wq-device': 'DevRefDevRefDevRef_-01' }, body })).status).toBe(200);
+    const hooks = start.mock.calls[0][1];
+    expect(typeof hooks.onWatch).toBe('function');
+    expect(await hooks.onWatch({ studentId: 's', vid: 'v', device: 'd' })).toEqual({ next: { kind: 'video' } });
+    expect(watchNext).toHaveBeenCalledWith({ studentId: 's', vid: 'v', device: 'd' });
+  } finally { start.mockRestore(); watchNext.mockRestore(); }
+});
+
 test('a Challenge result takes the device from x-wq-device (the mic notice is marked seen per phone), never from the body', async () => {
   const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
   const submit = jest.spyOn(Ch, 'submit').mockResolvedValue({ pending: true });

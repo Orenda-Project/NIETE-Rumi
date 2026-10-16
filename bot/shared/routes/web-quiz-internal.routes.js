@@ -47,6 +47,7 @@ const WebQuizArt = require('../services/quiz/web-quiz-art');
 const ShareWarm = require('../services/quiz/web-quiz-share-warm');
 // The ranked next thing on a result (web_quiz_next_offer), required on use.
 const NextOffer = () => require('../services/quiz/web-quiz-next-offer-result');
+const AfterVideo = () => require('../services/quiz/web-quiz-next-offer-video');
 const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
@@ -139,7 +140,8 @@ router.post('/e', handle(async (req, res) => { WebQuiz.events(req.body || {}, { 
 router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, req.params.qid, { k: req.query.k, z: req.query.z })));
 router.get('/videos/:code', handle((req) => WebQuizVideos.list(req.params.code, { st: req.query.st })));
 // device: the phone's device_ref from x-wq-device (the edge's wq_dv cookie), never trusted from the body.
-router.post('/videos/start', handle((req) => WebQuizVideos.start({ ...(req.body || {}), device: req.get('x-wq-device') || undefined })));
+// a class-less child's watch carries the ranked next thing after it (web_quiz_next_offer; nothing when off)
+router.post('/videos/start', handle((req) => WebQuizVideos.start({ ...(req.body || {}), device: req.get('x-wq-device') || undefined }, { onWatch: (a) => AfterVideo().watchNext(a) })));
 router.get('/pulse/:code', handle((req) => WebQuizPulse.poll(req.params.code, { st: req.query.st, since: req.query.since }, WebQuiz)));
 // M4c challenge — required on first use, so the bot boots without it; a missing module answers 503 'unavailable'.
 const challenge = (fn) => handle((req) => {
