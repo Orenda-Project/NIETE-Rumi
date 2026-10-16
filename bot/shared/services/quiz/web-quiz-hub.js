@@ -416,6 +416,59 @@ async function lockedHub(ids, why, asked = null) {
   return { lang, locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, brand: await brandKey() };
 }
 
+// ─── the hub's parallel branches (the seam) ──────────────────────────────────
+//
+// With the fast first page on (web_quiz_fast) and a child picked, everything the hub needs beyond the child, their
+// row/list and their quizzes runs as ONE set of branches, all started together (Promise.all), so the hub costs the
+// longest branch, not the sum. Each branch is { name, run(s) }; its result is read in hubPayload by name (take(name)),
+// at the same place in the payload as before, so the payload is the same, key for key.
+//
+// Adding to the hub? Add ONE branch here, never one more `await` to hubPayload's chain:
+//   1. push { name: 'myField', run: (s) => myModule.myField({ studentId: s.chosen.id, runs: s.runs, ... }) } below
+//      (or call addHubBranch(...) from your module before the first hub request);
+//   2. in hubPayload, `Object.assign(out, await take('myField'))` (or out.x = await take('myField')) where the key goes.
+// What a branch may read: only the shared context `s`, passed down, never re-read from the database:
+//   s.f (the hub switches), s.token, s.chosen (the child's students row), s.kidsRows, s.trust, s.lang, s.device, s.src,
+//   s.canon (the identity map, fast only), s.ctx ({ list, grade, history }: the child's class list, grade and quizzes),
+//   s.history, s.last0 (the last quiz, child home on), s.challengeP (the challenge grade, started above), s.runs (the
+//   child's Jugnu runs, read once; also the place for the reading rung, the passages seen and the child's classes when a
+//   branch needs them: read them ONCE into `s` beside runs, and pass them down), s.shadow (a copy of the payload that
+//   only keep-my-place writes). A branch must not write `out`; it returns its fields.
+// With the switch off (or no child picked) each branch runs, one after another, at the place its result is read:
+// today's order of reads, byte for byte.
+const HUB_BRANCHES = [
+  { name: 'extras', run: (s) => require('./web-quiz-bind-page').hubExtras(s.shadow, { token: s.token, chosen: s.chosen, rows: s.kidsRows, trust: s.trust, lang: s.lang, device: s.device, src: s.src, ...(s.par ? { canon: s.canon } : {}) }) },
+  { name: 'teacher', run: (s) => teacherCard(s.chosen, s.ctx.list, s.history, s.ctx.grade, s.par) },
+  { name: 'answered', run: (s) => (s.last0 && s.last0.state === 'open' ? answeredSoFar(s.history.find((e) => e.code === s.last0.code), s.last0.answered) : Promise.resolve(null)) },
+  { name: 'recs', run: (s) => recsFor(s.chosen.id, s.history, s.ctx.grade, s.par) },
+  { name: 'play', run: (s) => s.challengeP.then((form) => require('./web-quiz-hub-play').playField({ chosenId: s.chosen.id, last: s.last0, lang: s.lang, challenge: form ? { on: true } : null, grade: s.ctx.grade, stopsOf: () => trailStops(form), ...(s.runs ? { runs: s.runs } : {}) })) },
+  { name: 'bits', run: (s) => require('./web-quiz-book').hubBits({ studentId: s.chosen.id, ...(s.runs ? { runs: s.runs } : {}) }) },
+];
+
+/** Adds one parallel branch to the hub ({ name, run(s) }; a name is used once). */
+function addHubBranch(branch) {
+  if (!branch || typeof branch.name !== 'string' || typeof branch.run !== 'function') throw new Error('hub branch: { name, run }');
+  if (HUB_BRANCHES.some((b) => b.name === branch.name)) throw new Error(`hub branch: ${branch.name} is already there`);
+  HUB_BRANCHES.push(branch);
+}
+
+/**
+ * Runs the hub's branches against the shared context `s`, all started now, together (Promise.all); a branch's failure
+ * is kept and thrown where its result is read, as before. Resolves to take(name) -> a promise of that branch's result.
+ */
+async function collectHubBranches(s, branches = HUB_BRANCHES) {
+  const settled = await Promise.all(branches.map((b) => Promise.resolve().then(() => b.run(s)).then((v) => ({ v }), (e) => ({ e }))));
+  const got = new Map(branches.map((b, i) => [b.name, settled[i]]));
+  return (name) => { const r = got.get(name); return 'e' in r ? Promise.reject(r.e) : Promise.resolve(r.v); };
+}
+
+/** The switch off (or no child picked): take(name) runs that branch when it is read, once (today's order of reads). */
+function lazyHubBranches(s, branches = HUB_BRANCHES) {
+  const byName = new Map(branches.map((b) => [b.name, b]));
+  const once = new Map();
+  return (name) => { if (!once.has(name)) once.set(name, byName.get(name).run(s)); return once.get(name); };
+}
+
 // ─── the hub ────────────────────────────────────────────────────────────────
 
 async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
@@ -473,29 +526,26 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   // ...and the page's event batches carry the hub token and the picked chip (hub.js, wq-tel.js setIds). Off: no key.
   if (f.hub && f.eventsV2) out.ev2 = true;
   // Fast first page (web_quiz_fast), a child picked: keep my place, the teacher card, the last quiz's answers, the
-  // recommendations, Jugnu's corner and the Book need only the child and their quizzes, so they all start here
-  // (keep my place on a copy of the payload, merged back below; one read of the child's Jugnu runs for the corner and
-  // the Book) and each is awaited where it was before: the payload is the same, key for key. Off: each runs when awaited.
+  // recommendations, Jugnu's corner and the Book need only the child and their quizzes, so they run as the
+  // hub's branches (HUB_BRANCHES), all together (keep my place on a copy of the payload, merged back below; one read of
+  // the child's Jugnu runs for the corner and the Book), each result read where it was before: the payload is the same,
+  // key for key. Off: each runs when its result is read.
   const par = fast && Boolean(chosen);
-  const start = (fn) => { if (!par) return fn; const p = Promise.resolve().then(fn); p.catch(() => {}); return () => p; };
   const shadow = par ? { ...out, kids: [...out.kids] } : out;
   const runs = par ? require('./web-quiz-book').runsOnce(chosen.id) : null;
   const last0 = chosen && f.childHome ? lastOf(history, chosen.id) : undefined;
-  const extras = start(() => require('./web-quiz-bind-page').hubExtras(shadow, { token, chosen, rows: kidsRows, trust, lang, device, src, ...(par ? { canon } : {}) }));
-  const teacher = start(() => teacherCard(chosen, ctx.list, history, ctx.grade, par));
-  const answered = start(() => (last0 && last0.state === 'open' ? answeredSoFar(history.find((e) => e.code === last0.code), last0.answered) : Promise.resolve(null)));
-  const recs = start(() => recsFor(chosen.id, history, ctx.grade, par));
-  const play = start(() => challengeP.then((form) => require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: last0, lang: out.lang, challenge: form ? { on: true } : null, grade: ctx.grade, stopsOf: () => trailStops(form), ...(runs ? { runs } : {}) })));
-  const bits = start(() => require('./web-quiz-book').hubBits({ studentId: chosen.id, ...(runs ? { runs } : {}) }));
+  // The hub's branches (see HUB_BRANCHES above): all at once when par, else each where it is read.
+  const branchCtx = { par, f, token, chosen, kidsRows, trust, lang, device, src, canon, ctx, history, last0, challengeP, runs, shadow };
+  const take = par ? await collectHubBranches(branchCtx) : lazyHubBranches(branchCtx);
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
-  await extras();
+  await take('extras');
   if (shadow !== out) Object.keys(shadow).forEach((k) => { if (k === 'kids' || !(k in out)) out[k] = shadow[k]; });
   if (!chosen) {
     logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;
   }
   const grade = ctx.grade;
-  out.teacher = await teacher();
+  out.teacher = await take('teacher');
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
   // The Home button is on: the library and challenge links from here say so (hub.js adds home=1).
   if (f.homeButton) out.nav_home = true;
@@ -503,12 +553,12 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (f.childHome) {
     out.home_v = 1;
     out.last = lastOf(history, chosen.id);
-    if (out.last && out.last.state === 'open') out.last.answered = await answered();
+    if (out.last && out.last.state === 'open') out.last.answered = await take('answered');
     if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
     if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
   }
   try {
-    out.recs = await recs();
+    out.recs = await take('recs');
   } catch (err) {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
   }
@@ -522,12 +572,12 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
   // The Library tile wears the child's grade picture (the library opens on that grade).
   if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
-  Object.assign(out, await play()); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
+  Object.assign(out, await take('play')); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
   logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
-  Object.assign(out, await bits()); // Jugnu's Book: {} while web_quiz_challenge_book is off
+  Object.assign(out, await take('bits')); // Jugnu's Book: {} while web_quiz_challenge_book is off
   return out;
 }
 
@@ -542,7 +592,7 @@ async function hub(token, opts = {}) {
 }
 
 module.exports = {
-  hub, kidOf, kidFromHub, deviceTrusted, deviceMayName, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
+  hub, HUB_BRANCHES, addHubBranch, kidOf, kidFromHub, deviceTrusted, deviceMayName, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
   // the switches live in web-quiz-hub-flags.js (student-quiz reads them without loading this module)
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,

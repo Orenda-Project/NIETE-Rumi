@@ -36,9 +36,17 @@ const LIST_C = 'a0000000-0000-4000-8000-00000000000c';
 
 // ─── the school ─────────────────────────────────────────────────────────────
 
-function school(scn, { fast }) {
+// The wave ceiling's case: every child-facing switch the quiz page reads, on (the ceiling test checks this list is complete).
+const CEILING_KEYS = ['web_quiz_back_nav', 'web_quiz_challenge', 'web_quiz_challenge_rungs', 'web_quiz_challenge_v2', 'web_quiz_child_quiz_home',
+  'web_quiz_events_v2', 'web_quiz_home_button', 'web_quiz_hub', 'web_quiz_hub_door', 'web_quiz_invite_ask', 'web_quiz_library',
+  'web_quiz_link_home', 'web_quiz_rich_telemetry', 'web_quiz_ur_polish'];
+// Keys the page reads that are not on/off switches of the child's page (web_quiz_identity is 'v2' in the fixture).
+const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity'];
+
+function school(scn, { fast, every = false }) {
   const db = F.db({ codeClass: scn === 'en_class' || scn === 'invite' ? F.CLS_A : null });
   db.app_settings.push({ key: 'web_quiz_fast', value: fast });
+  if (every) CEILING_KEYS.forEach((key) => db.app_settings.push({ key, value: 'true' }));
   db.app_settings.push({ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_link_home', value: true });
   db.quiz_sessions.push(F.done('s1', F.kid(1), 'Ayesha Testwala', 4, 2, { student_class: '4-A', completed_at: new Date().toISOString() }));
   if (scn === 'ur_list') {
@@ -68,13 +76,21 @@ const SCENARIOS = Object.keys(CODE);
 
 // Every read takes READ_MS; its start and end are recorded (a Supabase round trip, as the page pays it).
 let reads = [];
+const askedKeys = new Set(); // every app_settings key the code asked for
 function install(db) {
   const fake = makeFake(db);
   const from = (t) => {
     const b = fake.from(t);
     const then = b.then;
+    if (t === 'app_settings') {
+      const eq = b.eq; const inn = b.in;
+      b.eq = (c, v) => { if (c === 'key') askedKeys.add(v); return eq(c, v); };
+      b.in = (c, vs) => { if (c === 'key') (vs || []).forEach((k) => askedKeys.add(k)); return inn(c, vs); };
+    }
     b.then = (res, rej) => {
-      const r = { t, start: performance.now(), end: null };
+      // The caller (file:line in the services) rides on every read: the ceiling test prints the wave list.
+      const at = (new Error().stack.split('\n').slice(2).find((l) => l.includes('services/quiz/') || l.includes('config/')) || '').trim().replace(/.*\/(\S+:\d+):\d+\)?$/, '$1');
+      const r = { t, at, start: performance.now(), end: null };
       reads.push(r);
       return new Promise((ok) => setTimeout(ok, READ_MS)).then(() => { r.end = performance.now(); return then.call(b, (x) => x); }).then(res, rej);
     };
@@ -85,7 +101,7 @@ function install(db) {
 }
 
 /** The serial depth of a set of reads: a read is one wave after the latest read that had finished when it started. */
-function waves(rs) {
+function waveOf(rs) {
   const sorted = [...rs].sort((a, b) => a.start - b.start);
   const w = new Map();
   sorted.forEach((r) => {
@@ -93,7 +109,15 @@ function waves(rs) {
     sorted.forEach((x) => { if (x !== r && x.end != null && x.end <= r.start + 0.5) d = Math.max(d, (w.get(x) || 1) + 1); });
     w.set(r, d);
   });
-  return Math.max(0, ...w.values());
+  return w;
+}
+const waves = (rs) => Math.max(0, ...waveOf(rs).values());
+/** The reads of a page, one line per wave: `wave n: table (caller), ...`. */
+function waveList(rs) {
+  const w = waveOf(rs);
+  const by = new Map();
+  rs.forEach((r) => { const n = w.get(r); if (!by.has(n)) by.set(n, []); by.get(n).push(`${r.t} (${r.at || '?'})`); });
+  return [...by.keys()].sort((x, y) => x - y).map((n) => `  wave ${n}: ${by.get(n).join(', ')}`).join('\n');
 }
 
 const SAVED = { ...process.env };
@@ -111,10 +135,10 @@ const settle = () => new Promise((r) => setTimeout(r, READ_MS * 8));
 const stable = (out) => JSON.stringify(out);
 
 /** A fresh process on one school: the first page (the switch is read), then a warm page, then one 31 s later. */
-async function pages(scn, { fast }) {
+async function pages(scn, { fast, every = false }) {
   jest.resetModules();
   const WQ = require('../../../shared/services/quiz/web-quiz.service');
-  install(school(scn, { fast }));
+  install(school(scn, { fast, every }));
   const code = CODE[scn];
   const out = {};
   reads = [];
@@ -126,7 +150,8 @@ async function pages(scn, { fast }) {
   out.warm = stable(await WQ.getQuiz(code));
   out.warmMs = performance.now() - t0;
   out.warmReads = reads.map((r) => r.t);
-  out.warmWaves = waves(reads.filter((r) => r.end != null && r.end <= t0 + out.warmMs + 0.5));
+  out.warmSet = reads.filter((r) => r.end != null && r.end <= t0 + out.warmMs + 0.5);
+  out.warmWaves = waves(out.warmSet);
   await settle();
   shift += 31 * 1000;
   reads = [];
@@ -134,7 +159,8 @@ async function pages(scn, { fast }) {
   out.stale = stable(await WQ.getQuiz(code));
   out.staleMs = performance.now() - t0;
   out.staleReads = reads.map((r) => r.t);
-  out.staleWaves = waves(reads.filter((r) => r.end != null && r.end <= t0 + out.staleMs + 0.5));
+  out.staleSet = reads.filter((r) => r.end != null && r.end <= t0 + out.staleMs + 0.5);
+  out.staleWaves = waves(out.staleSet);
   await settle();
   return out;
 }
@@ -183,6 +209,30 @@ describe.each(SCENARIOS)('%s', (scn) => {
     console.log(`${scn}: warm ${on.warmWaves} read waves (${depth(on.warmMs)} on the clock, ${Math.round(on.warmMs)} ms), stale ${on.staleWaves} (${depth(on.staleMs)}, ${Math.round(on.staleMs)} ms)`);
     expect(on.warmWaves).toBeLessThanOrEqual(limit);
     expect(on.staleWaves).toBeLessThanOrEqual(limit);
+  });
+});
+
+// ─── the standing ceiling ───────────────────────────────────────────────────
+// The quiz page's bot time is serial database round trips (about 250 ms each in production). This is the most it may
+// cost with every child switch on and the fast page on: a change that adds a round trip to getQuiz goes red here.
+// Read what you need beside what is already read (or hand down what getQuiz already has); raise a ceiling only with
+// the reason in the change's description.
+const QUIZ_CEILING = { warm: 4, stale: 4 };
+
+describe('the quiz page\'s round-trip ceiling (every child switch on, fast page on)', () => {
+  test(`at most ${QUIZ_CEILING.warm} waves warm, ${QUIZ_CEILING.stale} stale (31 s, every 30 s cache expired)`, async () => {
+    askedKeys.clear();
+    const on = await pages('en_class', { fast: true, every: true });
+    expect(JSON.parse(on.warm).fast).toBe(true);
+    expect(on.stale).toBe(on.warm);
+    // eslint-disable-next-line no-console
+    console.log(`quiz ceiling: warm ${on.warmWaves} (ceiling ${QUIZ_CEILING.warm}), stale ${on.staleWaves} (ceiling ${QUIZ_CEILING.stale})\n${waveList(on.warmSet)}`);
+    const over = (what, got, max, set) => `${what}: ${got} serial round trips, the ceiling is ${max}. The waves (table, caller):\n${waveList(set)}`;
+    if (on.warmWaves > QUIZ_CEILING.warm) throw new Error(over('getQuiz, warm', on.warmWaves, QUIZ_CEILING.warm, on.warmSet));
+    if (on.staleWaves > QUIZ_CEILING.stale) throw new Error(over('getQuiz, stale', on.staleWaves, QUIZ_CEILING.stale, on.staleSet));
+    // Every switch the page asked for is on in this case (a new switch joins CEILING_KEYS, so the ceiling sees its reads).
+    const missing = [...askedKeys].filter((k) => !CEILING_KEYS.includes(k) && !NOT_SWITCHES.includes(k)).sort();
+    expect(missing).toEqual([]);
   });
 });
 

@@ -53,6 +53,12 @@ const ON_KEYS = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_library', 'web_
   'web_quiz_install_prompt', 'web_quiz_hub_challenge_first', 'web_quiz_identity_canon', 'web_quiz_phone_bind',
   'web_quiz_challenge_record', 'web_quiz_challenge_missing', 'web_quiz_challenge_listen', 'web_quiz_ur_polish'];
 
+// The wave ceiling's case: every child-facing switch the hub reads, on (the ceiling test checks this list is complete).
+const CEILING_KEYS = [...ON_KEYS, 'web_quiz_back_nav', 'web_quiz_hub_door', 'web_quiz_challenge_rungs', 'web_quiz_challenge_trail',
+  'web_quiz_rich_telemetry', 'web_quiz_bind_way_back', 'web_quiz_guest_home', 'quiz_first_door', 'quiz_maker_page'];
+// Keys the hub reads that are not on/off switches of the child's page.
+const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity'];
+
 function code(id, c, quizId, extra = {}) {
   return { id, code: c, quiz_id: quizId, active: true, expires_at: future, topic: `Topic ${c}`, language: 'en', class_id: null,
     teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(48), ...extra };
@@ -73,9 +79,9 @@ const passage = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: '
 // loose: the usual quiz child on prod (no class list, no enrolment; their teacher known from the links they played).
 // sibGone: the second child's row is inactive; otherGrade: the last quiz's video is of another grade than the child;
 // manyRuns: 520 old runs ahead of the child's own (a child at the runs read's 500 cap).
-function tables({ fast, loose = false, sibGone = false, otherGrade = false, manyRuns = false }) {
+function tables({ fast, loose = false, sibGone = false, otherGrade = false, manyRuns = false, every = false }) {
   const t = {
-    app_settings: [...ON_KEYS.map((key) => ({ key, value: 'true' })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : [])],
+    app_settings: [...(every ? CEILING_KEYS : ON_KEYS).map((key) => ({ key, value: 'true' })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : [])],
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, merged_into: null, status: null, created_at: ago(500) },
       { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, merged_into: null, status: null, created_at: ago(400) },
@@ -142,13 +148,20 @@ function tables({ fast, loose = false, sibGone = false, otherGrade = false, many
 let reads = [];
 let doneMax = 0;
 let down = false; // app_settings unreadable (the switches' own failure path)
+const askedKeys = new Set(); // every app_settings key the code asked for
 function seed(opts) {
   const fake = makeFake(tables(opts));
   const from = (t) => {
     const b = fake.from(t);
     const then = b.then;
+    if (t === 'app_settings') {
+      const eq = b.eq; const inn = b.in;
+      b.eq = (c, v) => { if (c === 'key') askedKeys.add(v); return eq(c, v); };
+      b.in = (c, vs) => { if (c === 'key') (vs || []).forEach((k) => askedKeys.add(k)); return inn(c, vs); };
+    }
     b.then = (res, rej) => {
-      const rec = { t, wave: doneMax + 1, at: process.env.WAVES_DEBUG ? (new Error().stack.split('\n').slice(2).find((l) => l.includes('services/quiz/') || l.includes('config/')) || '').trim().replace(/.*\/(\S+:\d+):\d+\)?$/, '$1') : '' };
+      // The caller (file:line in the services) rides on every read: the ceiling test prints the wave list.
+      const rec = { t, wave: doneMax + 1, at: (new Error().stack.split('\n').slice(2).find((l) => l.includes('services/quiz/') || l.includes('config/')) || '').trim().replace(/.*\/(\S+:\d+):\d+\)?$/, '$1') };
       reads.push(rec);
       return new Promise((r) => setTimeout(r, READ_MS))
         .then(() => { doneMax = Math.max(doneMax, rec.wave); return down && t === 'app_settings' ? { data: null, error: { message: 'down' } } : then.call(b, (x) => x); })
@@ -171,6 +184,14 @@ function boot(opts) {
   T = require('../../../shared/services/quiz/web-quiz-token');
 }
 
+let lastReads = [];
+/** The reads of a request, one line per wave: `wave n: table (caller), ...`. */
+const waveList = (rs) => {
+  const by = new Map();
+  rs.forEach((r) => { if (!by.has(r.wave)) by.set(r.wave, []); by.get(r.wave).push(`${r.t} (${r.at || '?'})`); });
+  return [...by.keys()].sort((x, y) => x - y).map((w) => `  wave ${w}: ${by.get(w).join(', ')}`).join('\n');
+};
+
 /** One hub request: the payload as the page gets it, its hub_open line, its waves and its reads per table. */
 async function measure(token, opts) {
   await settle();
@@ -180,6 +201,7 @@ async function measure(token, opts) {
   logEvent.mockClear();
   const out = JSON.stringify(await Hub.hub(token, opts));
   const waves = doneMax;
+  lastReads = reads.slice();
   if (process.env.WAVES_DEBUG) console.log(reads.map((r) => `${r.wave} ${r.t} ${r.at || ''}`).join('\n'));
   const perTable = {};
   reads.forEach((r) => { perTable[r.t] = (perTable[r.t] || 0) + 1; });
@@ -372,6 +394,58 @@ describe('the kid hub, switch off: exactly today\'s (golden: payload, reads per 
     boot({ fast: false });
     await measure(tokenOne(), {});
     same('off_locked', await measure(tokenOne(), {}));
+  });
+});
+
+// ── the standing ceiling ─────────────────────────────────────────────────────────────────────────────
+// The hub's bot time is serial database round trips (about 250 ms each in production). This is the most it may cost
+// with every child switch on and the fast page on: a change that adds a round trip to the hub's chain goes red here.
+// Add your part as a parallel branch instead (HUB_BRANCHES in web-quiz-hub.js), and read nothing the hub already read.
+// Raise a ceiling only with the reason in the change's description.
+const HUB_CEILING = { warm: 9, stale: 12 };
+const overCeiling = (what, got, max) => `${what}: ${got} serial round trips, the ceiling is ${max}. The waves (table, caller):\n${waveList(lastReads)}`;
+
+describe('the hub\'s round-trip ceiling (every child switch on, fast page on)', () => {
+  test(`at most ${HUB_CEILING.warm} waves warm, ${HUB_CEILING.stale} stale (31 s, every 30 s cache expired)`, async () => {
+    boot({ fast: true, every: true });
+    askedKeys.clear();
+    const tok = tokenOne();
+    await measure(tok, { device: DEVICE });
+    const warm = await measure(tok, { device: DEVICE });
+    const warmList = lastReads;
+    const p = JSON.parse(warm.out);
+    expect(p.fast).toBe(true);
+    expect(p.teacher && p.recs.length && p.challenge && p.play && p.book_on).toBeTruthy();
+    jest.setSystemTime(NOW + 31 * 1000);
+    const stale = await measure(tok, { device: DEVICE });
+    console.log(`hub ceiling: warm ${warm.waves} (ceiling ${HUB_CEILING.warm}), stale ${stale.waves} (ceiling ${HUB_CEILING.stale})\n${waveList(warmList)}`);
+    if (warm.waves > HUB_CEILING.warm) { lastReads = warmList; throw new Error(overCeiling('hub, warm', warm.waves, HUB_CEILING.warm)); }
+    if (stale.waves > HUB_CEILING.stale) throw new Error(overCeiling('hub, stale', stale.waves, HUB_CEILING.stale));
+    // Every switch the hub asked for is on in this case (a new switch joins CEILING_KEYS, so the ceiling sees its reads).
+    const missing = [...askedKeys].filter((k) => !CEILING_KEYS.includes(k) && !NOT_SWITCHES.includes(k)).sort();
+    expect(missing).toEqual([]);
+  });
+});
+
+describe('the hub\'s parallel branches (HUB_BRANCHES)', () => {
+  test('one more branch with its own read runs beside the others: no extra wave, the payload unchanged, the shared context handed in', async () => {
+    boot({ fast: true });
+    const tok = tokenOne();
+    await measure(tok, { device: DEVICE });
+    const before = await measure(tok, { device: DEVICE });
+    const seen = [];
+    Hub.addHubBranch({ name: 'probe', run: async (s) => {
+      seen.push({ kid: s.chosen.id, grade: s.ctx.grade, runs: Boolean(s.runs), flags: Boolean(s.f && s.f.hub) });
+      const { data } = await require('../../../shared/config/supabase').from('students').select('id').eq('id', s.chosen.id);
+      return data;
+    } });
+    const after = await measure(tok, { device: DEVICE });
+    expect(seen).toEqual([{ kid: KID, grade: '3', runs: true, flags: true }]);
+    expect(after.out).toBe(before.out);
+    expect(after.perTable.students).toBe(before.perTable.students + 1);
+    expect(after.waves).toBe(before.waves);
+    expect(() => Hub.addHubBranch({ name: 'probe', run: () => null })).toThrow(/already/);
+    expect(Hub.HUB_BRANCHES.map((b) => b.name)).toEqual(['extras', 'teacher', 'answered', 'recs', 'play', 'bits', 'probe']);
   });
 });
 
