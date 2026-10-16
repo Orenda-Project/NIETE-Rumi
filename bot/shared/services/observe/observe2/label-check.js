@@ -9,7 +9,7 @@
  * question as "open question", an instruction as "a real choice"; by hand, 0 of 17 "children led a part"
  * were real), and a coach who answers "yes, this happened" to real words lets rules.js count the label.
  *
- * One batched call per visit, through the moments call's own seam (same job, same model): each moment's
+ * One batched call per visit, through the moments call's own seam (its job, observe2.moments, and its model): each moment's
  * quote, its claimed type, the lines around it in the transcript, and the type definitions the moments
  * prompt uses (moment-types.js). The reply is keep, relabel (to one of the existing types) or drop, and
  * the code enforces it:
@@ -28,6 +28,7 @@
 const { TYPES, GROUP_OF, TYPE_GUIDE } = require('./moment-types');
 const { parseTranscript, speakerAllows, rolesOf, contextOf, clock } = require('./quote-check');
 const { clampLanguage } = require('../../../config/ux-strings');
+const { JOB, unwrap, cutOff } = require('./llm-reply');
 const { getLanguage } = require('../../../config/languages');
 
 const MAX_TOKENS = 16000;
@@ -93,17 +94,12 @@ function buildLabelPrompt(moments, lines, { lang } = {}) {
   ].join('\n');
 }
 
-// A reply as completeJson gives it ({result, usage}); a seam that hands back the bare JSON has no usage.
-function unwrap(reply) {
-  if (reply && typeof reply === 'object' && 'result' in reply && 'usage' in reply) return reply;
-  return { result: reply, usage: null };
-}
 
 const fresh = (checked) => ({ status: 'ok', checked, kept: 0, relabelled: 0, dropped: 0, relabel_invalid: 0, relabel_speaker: 0, missing: 0 });
 
 /**
  * @param {Array} moments  as the quote check left them ({moment, type, minute, quote, why})
- * @param {{transcript: string, lang?: string, llm: Function}} opts  llm: (prompt, {maxTokens}) => completeJson reply
+ * @param {{transcript: string, lang?: string, llm: Function}} opts  llm: (prompt, {maxTokens, job}) => completeJson reply
  * @returns {Promise<{moments: Array, stats: object}>}
  */
 async function checkLabels(moments, { transcript, lang, llm } = {}) {
@@ -114,9 +110,9 @@ async function checkLabels(moments, { transcript, lang, llm } = {}) {
 
   let result;
   try {
-    const { result: r, usage } = unwrap(await llm(buildLabelPrompt(list, lines, { lang }), { maxTokens: MAX_TOKENS }));
-    if (usage && Number(usage.completion_tokens) >= MAX_TOKENS) return failed('cut_off at the output limit');
-    result = r;
+    const reply = unwrap(await llm(buildLabelPrompt(list, lines, { lang }), { maxTokens: MAX_TOKENS, job: JOB }));
+    if (cutOff(reply, MAX_TOKENS)) return failed(`cut_off at the output limit (${reply.finishReason || 'token count'})`);
+    result = reply.result;
   } catch (err) {
     return failed(`error: ${String((err && err.message) || err).slice(0, 200)}`);
   }

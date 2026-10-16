@@ -707,16 +707,16 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
    *
    * @param {string} prompt   must contain the word "JSON" (json_object mode)
    * @param {object} options  { maxTokens = 4000, label = 'completeJson' }
-   * @returns {Promise<{result: object, usage: object}>}
+   * @returns {Promise<{result: object, usage: object, finishReason: string|null}>}
    */
   static async completeJson(prompt, options = {}) {
     const { maxTokens = 4000, label = 'completeJson' } = options;
     try {
       const response = await this.openai.chat.completions.create({
         // The job a caller names decides the model as well as the label: the coach's debrief guide
-        // and feedback card pass coaching.observeDebrief (bd-gr4fy.15); every other consumer
-        // (debrief notes, observe2 moments, remark narrative) runs as coaching.completeJson. The
-        // existing `label` is for logs, not for spend.
+        // and feedback card pass coaching.observeDebrief (bd-gr4fy.15), the /observe2 moments and
+        // their label check pass observe2.moments (bd-08qvls.1); every other consumer (debrief notes,
+        // remark narrative) runs as coaching.completeJson. The existing `label` is for logs, not for spend.
         model: modelFor(options.job || 'coaching.completeJson'),
         job: options.job || 'coaching.completeJson',
         messages: [{ role: 'user', content: prompt }],
@@ -729,7 +729,9 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         logToFile(`⚠️ ${label}: response truncated at max_completion_tokens`, { maxTokens });
       }
       const result = this._safeJsonParse(choice.message.content);
-      return { result, usage: response.usage || {} };
+      // bd-08qvls.1: the finish reason is the truncation signal ('length'; the direct lane maps Anthropic's
+      // 'max_tokens' to it). A token count is not: a moved job is given more room than maxTokens.
+      return { result, usage: response.usage || {}, finishReason: (choice && choice.finish_reason) || null };
     } catch (error) {
       logToFile(`❌ ${label} failed`, { error: error.message, stack: error.stack });
       throw error;
