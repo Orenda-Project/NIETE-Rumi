@@ -194,6 +194,28 @@ describe('the noise floor: a counted read with no believable speech is implausib
     expect(Ch.readQuality({ story_confidence: null }, { correct: 60, attempted: 60 }, 60)).toBeNull();   // no doubt fields: believed, as today
   });
 
+  test('the fourth reason, independent of the passage: the speech service heard a quarter or less of what the count credits', () => {
+    // the two fixture rows' shapes, no child's voice: a tone credited 60/60 and white noise credited 36/60
+    expect(Ch.readQuality({ stt_words: 0, story_confidence: 0.44 }, { correct: 60, attempted: 60 }, 60)).toBe('no_speech');
+    expect(Ch.readQuality({ stt_words: 0, story_confidence: 0.44 }, { correct: 36, attempted: 60 }, 60)).toBe('no_speech');
+    expect(Ch.readQuality({ stt_words: 1, align_correct: 0, story_confidence: 0.44 }, { correct: 36, attempted: 60 }, 60)).toBe('low_stt_support');
+    expect(Ch.readQuality({ stt_words: 9, align_correct: 8, story_confidence: 0.8 }, { correct: 10, attempted: 12 }, 60)).toBeNull();   // a 10-word read with 9 heard
+    expect(Ch.readQuality({ stt_words: 6, align_correct: 4, story_confidence: 0.6 }, { correct: 20, attempted: 25 }, 60)).toBeNull();   // a weak reader: 6 heard ≥ 5
+    expect(Ch.readQuality({ stt_words: 4, align_correct: 4, story_confidence: 0.6 }, { correct: 20, attempted: 25 }, 60)).toBe('low_stt_support');   // 4 heard < 5
+  });
+
+  test('a noise-shaped read through the real scorer: one garbled word heard, the model credits 36/60 → implausible, low_stt_support', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(K5), 'read', D);
+    await readWith(ex.ct, garbled(1), 36, 60);
+    const row = rowOf(ex.ct);
+    expect(row.status).toBe('scored');
+    expect(row.meta.quality).toBe('implausible');
+    expect(row.meta.flags).toEqual(expect.arrayContaining(['low_stt_support']));
+    expect(row).toMatchObject({ record: false, wcpm: null });
+    expect(row.meta).toMatchObject({ stt_words: 1, record_lost: 'implausible', raw: { correct: 36 } });
+  });
+
   test('a tone-shaped read (60 garbled words, the model credits 60/60): quality implausible, record as served, wcpm null, raw counts kept, no items', async () => {
     on(V2, ...CANON_ON, PERIOD, POOL);
     const ex = await Ch.exercise(hub(K5), 'read', D);

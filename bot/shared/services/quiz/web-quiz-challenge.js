@@ -1360,15 +1360,19 @@ function scoreMissing(items, answers, { stopAfter = 4 } = {}) {
 const ENDED_BY_CHILD = new Set(['stuck', 'home', 'hidden']);
 // the noise floor: a counted read whose numbers cannot be believed — the question is whether SPEECH WAS ALIGNED AT ALL.
 //   no_speech              the speech service heard no word, yet the model (given the printed text) credited the passage
+//   low_stt_support        the speech service heard a quarter or less of what the count credits (stt_words < 0.25 × correct)
 //   no_aligned_words       the alignment of what was heard credits 0 words while the model credits ≥ 90% of the tokens
 //   low_story_confidence   the house confidence is under 0.5 while the model credits ≥ 90% (a 220 Hz tone: 0.44 with 60/60)
 // Never the confidence alone. The reason rides meta.flags; the row reads quality 'implausible' (EVENTS §11) and, like a row the
 // sweeper abandons, record=false with meta.record_lost='implausible' (the month stays open). Null = believed (today's rows).
 const IMPLAUSIBLE_CONF = 0.5;
 const IMPLAUSIBLE_SHARE = 0.9;
+const IMPLAUSIBLE_STT_SUPPORT = 0.25;   // heard words must be at least a quarter of the credited count
 function readQuality(m, score, tokensN) {
   if (m && m.stt_words === 0) return 'no_speech';
-  const credited = tokensN > 0 && (score.correct || 0) >= IMPLAUSIBLE_SHARE * tokensN;
+  const correct = score.correct || 0;
+  if (m && m.stt_words > 0 && correct > 0 && m.stt_words < IMPLAUSIBLE_STT_SUPPORT * correct) return 'low_stt_support';
+  const credited = tokensN > 0 && correct >= IMPLAUSIBLE_SHARE * tokensN;
   if (!credited) return null;
   if (m && m.align_correct === 0 && m.stt_words > 0) return 'no_aligned_words';
   const conf = m ? m.story_confidence : null;
