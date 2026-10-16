@@ -82,7 +82,17 @@ describe('the switch', () => {
   test('on: the finish and the Jugnu menu carry card_v3', async () => {
     expect(await Card.field()).toEqual({ card_v3: true });
   });
-  test('a string "true" counts, anything else is off; a settings failure fails closed', async () => {
+  test('only JSON true is on: the string "true", 1, "yes", null are off', async () => {
+    for (const value of ['true', '"true"', 1, 'yes', null, false]) {
+      Object.assign(supabase, { from: () => ({ select: () => ({ eq: async () => ({ data: [{ key: 'web_quiz_card_v3', value }], error: null }) }) }) });
+      Card._reset();
+      expect(await Card.field()).toEqual({});
+    }
+    Object.assign(supabase, { from: () => ({ select: () => ({ eq: async () => ({ data: [{ key: 'web_quiz_card_v3', value: true }], error: null }) }) }) });
+    Card._reset();
+    expect(await Card.field()).toEqual({ card_v3: true });
+  });
+  test('a settings failure fails closed', async () => {
     Object.assign(supabase, { from: () => ({ select: () => ({ eq: async () => ({ data: null, error: { message: 'down' } }) }) }) });
     Card._reset();
     expect(await Card.field()).toEqual({});
