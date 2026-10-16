@@ -240,6 +240,22 @@ describe('applyPlan', () => {
     expect([store.t.pages.size, store.t.voices.size, store.t.questions.size]).toEqual([2, 2, 4]);
   });
 
+  test('every voice row names a clip that was uploaded, with its bytes and audio type: no row points at a missing file', async () => {
+    const f = fixture();
+    const plan = L.planBook(f);
+    const store = memoryStore(); const r = recorder();
+    await L.applyPlan(plan, { store, upload: r.upload, env: 'sandbox' });
+    const voices = [...store.t.voices.values()];
+    expect(voices).toHaveLength(2);
+    for (const v of voices) {
+      const up = r.up.find((u) => u.key === v.audio_key);
+      expect(up).toBeTruthy();
+      expect(up.contentType).toBe('audio/ogg');
+      const n = Number(path.basename(v.audio_key).slice(1, 3));
+      expect(up.n).toBe(fs.readFileSync(path.join(f.voiceDir, `p0${n}.ogg`)).length);
+    }
+  });
+
   test('a re-voice keeps the old row and moves is_current; a book set off stays off; a not-ready book is a draft', async () => {
     const store = memoryStore(); const r = recorder();
     await L.applyPlan(L.planBook(fixture()), { store, upload: r.upload, env: 'sandbox' });

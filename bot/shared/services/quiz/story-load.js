@@ -182,7 +182,11 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
       const v = voiceDir ? voiceFor({ voiceDir, n: p.n, words, lang, grade: book.grade }) : { why: ['no voice'] };
       v.why.forEach((w) => why.push(`${tag}: ${w}`));
       // A voice that fails any check is not stored: the page is served with no voice (Your turn) until it passes.
-      if (v.row && v.file && !v.why.length) voices.push({ pageId: pid, n: p.n, file: v.file, row: v.row });
+      if (v.row && v.file && !v.why.length) {
+        // The clip is stored beside the pictures, so the row's audio_key always names a file /s/ can serve.
+        files.push(v.file);
+        voices.push({ pageId: pid, n: p.n, file: v.file, row: v.row });
+      }
     }
     pages.push({
       id: pid, book_id: bookId, n: p.n, image_file: imgF.name, image_w: p.image.w, image_h: p.image.h,
