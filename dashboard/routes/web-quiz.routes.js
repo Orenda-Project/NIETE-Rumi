@@ -95,7 +95,7 @@ const API_ROUTES = [
   // read aloud, live: a one-run speech-to-text key (the bot mints it; counted by the same per-run limiter)
   { method: 'post', path: '/api/wq/ch/live', limiter: ['challenge', 'challengeIp'] },
   // live reading v3: a story page's one-read speech key (the bot answers 404 while web_quiz_live_read_v3 is off)
-  { method: 'post', path: '/api/wq/lr/key', limiter: ['challengeIp'] },
+  { method: 'post', path: '/api/wq/lr/key', limiter: ['lrKey', 'challengeIp'] },
   // questions after Read aloud: the reached questions (no key), then one answer per tap (counted per run)
   { method: 'post', path: '/api/wq/ch/qs', limiter: ['challenge', 'challengeIp'] },
   { method: 'post', path: '/api/wq/ch/qa', limiter: ['challenge', 'challengeIp'] },
@@ -652,6 +652,8 @@ function createWebQuizRouter(opts = {}) {
       skip: (req) => !(req.body && typeof req.body.ps === 'string' && PS_RX.test(req.body.ps)) }),
     challenge: rateLimit({ ...common, max: 20, keyGenerator: (req) => `ct:${(req.body && typeof req.body.ct === 'string' && req.body.ct.slice(0, 200)) || clientIp(req)}` }),
     challengeIp: rateLimit({ ...common, max: 600, keyGenerator: (req) => `chip:${clientIp(req)}` }),
+    // a story page's one-read speech key, per hub link (a class shares one school IP): 20 a minute is a sentence every 3 s
+    lrKey: rateLimit({ ...common, max: 20, keyGenerator: (req) => `lr:${(req.body && typeof req.body.st === 'string' && req.body.st.slice(0, 200)) || clientIp(req)}` }),
   };
   // Code enumeration: only answers that came back 404 count toward this one.
   const unknownCode = rateLimit({ ...common, max: 20, keyGenerator: (req) => `u:${clientIp(req)}`,

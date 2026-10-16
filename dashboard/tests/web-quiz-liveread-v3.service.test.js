@@ -886,6 +886,20 @@ describe('the finish controls on the paths a real reading takes', () => {
     expect(p.has('wqc-stop')).toBe(true);
     expect(p.has('wqc-stuck')).toBe(true);
   });
+  test('a counted Trail read that could not go live, Done at 0 words, the card switch off: the 10-s card shows no sticker', async () => {
+    const read = SREAD({ lr3: LR3(false), practice_round: false, mode: 'check', story_clip: undefined });
+    const p = H.page({ clock: { t: 1000000 }, menu: MENU, pre: [LIVE_SRC, WS, LR_SRC, TRAIL_SRC], routes: ROUTES(read, { 'ch/live': () => ({ status: 503, body: { error: 'live_unavailable' } }), 'ch/result': ok({ pending: true }) }), session: store() });
+    await p.flush();
+    await p.click('wqc-ex-read'); await p.flush();
+    await p.click('wqc-help-no'); await p.flush();
+    await p.click('wqc-go'); await p.flush();
+    expect(p.screen()).toBe('read-rec');
+    await p.click('wqc-stop');
+    await p.flush();
+    await p.runTimers((x) => x.ms === 10000);
+    expect(p.html()).not.toContain('wqc-sticker');
+    expect(p.html()).not.toContain('A sticker went into your Book');
+  });
   test('the Trail\'s result: ms is first word → finish on the audio clock', async () => {
     // the Trail (Story Time): the 10 words heard 2.0 s → 11.8 s ⇒ 9,800 ms
     const clock = { t: 1000000 };
@@ -898,5 +912,34 @@ describe('the finish controls on the paths a real reading takes', () => {
     t.onmessage({ data: JSON.stringify({ tokens: [], finished: true }) });
     await p.flush();
     expect(p.ctx.__evs.find((e) => e.type === 'wq:liveread:result').detail).toMatchObject({ ended: 'last_word', ms: 9800 });
+  });
+});
+
+describe('the story-page key route', () => {
+  const http = require('http');
+  const express = require('express');
+  const { createWebQuizRouter } = require('../routes/web-quiz.routes');
+  const post = (srv, body) => new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = http.request({ host: '127.0.0.1', port: srv.address().port, path: '/api/wq/lr/key', method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) } }, (res) => {
+      let out = ''; res.on('data', (c) => { out += c; }); res.on('end', () => resolve({ status: res.statusCode, body: out }));
+    });
+    req.on('error', reject); req.end(data);
+  });
+  test('one hub link asking for keys in a burst is slowed per link, not only per school IP (a class shares one IP)', async () => {
+    const calls = [];
+    const app = express();
+    app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async (url) => { calls.push(url); return { status: 200, ok: true, headers: { get: () => 'application/json' }, text: async () => JSON.stringify({ api_key: 'temp:test-only', ws: 'wss://x', model: 'm', lang: 'en', run: 'r' }) }; } }));
+    const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    try {
+      const A = `${'a'.repeat(40)}.${'b'.repeat(22)}`;
+      const B = `${'c'.repeat(40)}.${'d'.repeat(22)}`;
+      const got = [];
+      for (let k = 0; k < 21; k += 1) got.push((await post(srv, { st: A, book: 'b1', page: 1, lang: 'en' })).status);
+      expect(got.slice(0, 20).every((x) => x === 200)).toBe(true);
+      expect(got[20]).toBe(429);
+      expect((await post(srv, { st: B, book: 'b1', page: 1, lang: 'en' })).status).toBe(200);   // another child on the same IP
+      expect(calls).toHaveLength(21);
+    } finally { srv.close(); }
   });
 });

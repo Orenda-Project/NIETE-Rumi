@@ -1,6 +1,6 @@
 /*
  * Live reading v3 (window.WQLiveRead; needs wq-read-live.js for the scorer's own word rules). Loaded by a page only when
- * the bot says so (the read payload's / menu's `lr3`, app_settings web_quiz_live_read_v3). Contract: LIVEREAD.md.
+ * the bot says so (the read payload's / menu's `lr3`, app_settings web_quiz_live_read_v3).
  *
  *   matcher(words, lang)          transcript tokens → passage words. Both sides folded: case, punctuation, diacritics,
  *                                 Urdu letter forms (WQLive.clean), and numerals — digits, Urdu / Arabic-Indic digits and
@@ -97,7 +97,7 @@
     };
   }
 
-  // ── the finish rules (LIVEREAD §4) ───────────────────────────────────────────────────────────────
+  // ── the finish rules: the last word, or most of the passage then a quiet ───────────────────────────────────────────────────────────────
   var QUIET_MS = 4000;
   var TAIL_MS = 1000;
   function shouldFinish(v, now, lastAt, f) {
@@ -115,7 +115,7 @@
     return Math.min(4, 1 + Math.floor(4 * v.heard / v.total));
   }
 
-  // ── the result (LIVEREAD §6) and its hand-off ────────────────────────────────────────────────────
+  // ── the result (no transcript, never a rate) and its hand-off ────────────────────────────────────────────────────
   function result(v, o) {
     var x = o || {};
     var ms = Math.max(0, Math.round(x.ms || 0));
@@ -245,13 +245,13 @@
     });
   }
 
-  // ── the reading, mounted on one element (a story page; LIVEREAD §11) ────────────────────────────
+  // ── the reading, mounted on one element (a story page) ────────────────────────────
   var SLICE_MS = 250;
   var CHECK_MS = 10000;
   function mount(el, o) {
     var lang = o.lang === 'ur' ? 'ur' : 'en';
     var t = Object.assign({}, COPY[lang], o.copy || {});
-    // words: strings, or {t, box:[x,y,w,h]} in image pixels for a story page over its illustration (LIVEREAD §12)
+    // words: strings, or {t, box:[x,y,w,h]} in image pixels for a story page over its illustration
     var items = (o.words || String(o.text || '').split(/\s+/).filter(Boolean)).map(function (w) { return typeof w === 'string' ? { t: w } : w; });
     var m = matcher(items.map(function (x) { return x.t; }));
     var img = o.image && o.image.w > 0 && o.image.h > 0 && items.every(function (x) { return x.box && x.box.length === 4; }) ? o.image : null;
@@ -381,7 +381,7 @@
     };
   }
 
-  // ── first word → finish on the audio clock (LIVEREAD §6 `ms`) ─────────────────────────────────────
+  // ── the result's ms: first word → finish on the audio clock ─────────────────────────────────────
   // o.firstMs / o.lastMs: the first heard word's start and the last heard word's end, from the tokens of each batch that lit a word
   function tokSpan(o, tokens) {
     (tokens || []).forEach(function (tk) {

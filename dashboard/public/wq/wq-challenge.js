@@ -962,13 +962,13 @@
     if ((live.v.finished || live.v.lastHeard) && S.screen === 'read-live' && !lr3()) stopRec('last_word');
   }
 
-  // ── live reading v3 (the read payload's lr3; wq-liveread.js; LIVEREAD.md): the reading finishes itself ──────────────
+  // ── live reading v3 (the read payload's lr3; wq-liveread.js): the reading finishes itself ──────────────
   function lr3() { return !!(S.data && S.data.lr3 && window.WQLiveRead); }
   // its Trail logic lives in wq-liveread.js (loaded only with the switch); this page hands it its state
   var LRT = null;
   function lrT() {
     return LRT || (LRT = window.WQLiveRead.trail({ d: function () { return S.data; }, live: function () { return live; }, rec: rec, lang: function () { return L; }, q: q,
-      screen: function () { return S.screen; }, paint: paintRead, stop: stopRec, later: function () { readResult({ later: true }); }, liveOk: liveOk, guard: guardOn, stuck: function () { return cp('stuck'); } }));
+      screen: function () { return S.screen; }, paint: paintRead, stop: stopRec, later: function () { readResult({ later: true, noSticker: true }); }, liveOk: liveOk, guard: guardOn, stuck: function () { return cp('stuck'); } }));
   }
   function lrCopy() { return lrT().copy(); }
   // the sound kit's microphone window (sounds held back while the child reads); once each way
