@@ -18,6 +18,13 @@
  *
  * Off unless app_settings `web_quiz_library` is true: then 404 library_off and the page keeps
  * today's 8-item list (web-quiz-videos.list).
+ *
+ * app_settings `web_quiz_videos_v3` (off unless the JSON true; off = all of the above unchanged):
+ *   - only the videos in the child's language, plus those with no language (the hub: the child's own
+ *     language, else the page's ?l=; a quiz code: the page's ?l=, else the code's language);
+ *   - chapters and titles with their numbers compared as numbers (Order.compareVideosNatural);
+ *   - each chapter's `art` (its first poster) and `tile: 'neutral'`: a broken poster falls back to the
+ *     chapter's art, then to a plain tile, never to the subject art.
  */
 const supabase = require('../../config/supabase');
 const { logEvent } = require('../../utils/structured-logger');
@@ -37,11 +44,19 @@ const gradeArt = (g) => (Order.GRADE_ORDER.includes(String(g)) ? `/wq/art/grade-
 
 // ─── flag ────────────────────────────────────────────────────────────────────
 
-const { libraryOn, FLAG_KEY } = require('./web-quiz-library-flag');
+const { libraryOn, videosV3On, FLAG_KEY } = require('./web-quiz-library-flag');
+const langOf = (l) => (l === 'en' || l === 'ur' ? l : null);
 
 // ─── the bank, the child, the class's codes (web-quiz-bank.js) ───────────────
 
-const { bank, track, studentFromSt, doneQuizzes, classCodes } = require('./web-quiz-bank');
+const { bank, track, studentFromSt, doneQuizzes, classCodes, languages } = require('./web-quiz-bank');
+
+/** web_quiz_videos_v3: the bank as a child of `lang` sees it (a video with no language is for both). */
+async function inLanguage(ix, lang) {
+  const of = lang ? await languages() : null;
+  if (!of) return ix;
+  return { ...ix, rows: ix.rows.filter((r) => !of.has(r.id) || of.get(r.id) === lang) };
+}
 
 // ─── the views ───────────────────────────────────────────────────────────────
 
@@ -60,10 +75,10 @@ function subjectsView(ix, grade) {
   return { grade, grades, subjects };
 }
 
-async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, hubKid }) {
+async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, hubKid, v3 }) {
   const Videos = require('./web-quiz-videos');
   const Media = require('./web-quiz-media');
-  const rows = ix.rows.filter((r) => String(r.grade) === grade && r.subject === subject).sort(Order.compareVideos);
+  const rows = ix.rows.filter((r) => String(r.grade) === grade && r.subject === subject).sort(v3 ? Order.compareVideosNatural : Order.compareVideos);
   const quizIds = rows.map((r) => ix.quizOf.get(r.id));
   const [done, codes, posters] = await Promise.all([
     doneQuizzes(studentId, quizIds),
@@ -93,14 +108,19 @@ async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, 
   });
   // Lengths and sizes for next time, read after this answer has gone.
   if (missing.length) track(new Promise((res) => setImmediate(res)).then(() => Videos.warmMeta(missing, { fetchImpl })));
-  return { grade, subject, art: subjectArt(subject), chapters };
+  if (!v3) return { grade, subject, art: subjectArt(subject), chapters };
+  for (const c of chapters) {
+    const first = c.videos.find((v) => v.poster);
+    if (first) c.art = first.poster;
+  }
+  return { grade, subject, art: subjectArt(subject), tile: 'neutral', chapters };
 }
 
-async function view(ix, { grade, g, s, studentId, rootId, fetchImpl, hubKid }) {
+async function view(ix, { grade, g, s, studentId, rootId, fetchImpl, hubKid, v3 }) {
   const want = Order.GRADE_ORDER.includes(String(g || '').toUpperCase()) ? String(g).toUpperCase() : grade;
   if (!want) return { grade: null, grades: subjectsView(ix, '').grades, subjects: [] };
   if (!s) return subjectsView(ix, want);
-  return chaptersView(ix, { grade: want, subject: String(s).slice(0, 60), studentId, rootId, fetchImpl, hubKid });
+  return chaptersView(ix, { grade: want, subject: String(s).slice(0, 60), studentId, rootId, fetchImpl, hubKid, v3 });
 }
 
 /** A grade band's quiz ("3-5", 38% of quizzes): the child's own grade when it is inside the band. */
@@ -125,18 +145,19 @@ async function guard() {
   return WebQuiz;
 }
 
-async function lib(code, { st, g, s, fetchImpl } = {}) {
+async function lib(code, { st, g, s, l, fetchImpl } = {}) {
   const WebQuiz = await guard();
+  const v3 = await videosV3On();
   const Videos = require('./web-quiz-videos');
   const ctx = await WebQuiz.resolveCode(code);
   const [ix, { data: quiz }, studentId] = await Promise.all([
-    bank(),
+    v3 ? bank().then((b) => inLanguage(b, langOf(l) || langOf(ctx.lang))) : bank(),
     supabase.from('quizzes').select('id, grade, subject').eq('id', ctx.quizId).maybeSingle(),
     s ? studentFromSt(st, ctx.shareCodeId) : Promise.resolve(null),
   ]);
   const band = Videos.gradesFor(quiz && quiz.grade);
   const grade = (band.length > 1 && !g ? await childGradeIn(band, st, ctx.shareCodeId) : null) || band[0] || null;
-  const out = await view(ix, { grade, g, s, studentId, rootId: Videos.classRootId(ctx), fetchImpl });
+  const out = await view(ix, { grade, g, s, studentId, rootId: Videos.classRootId(ctx), fetchImpl, v3 });
   if (!s) {
     // The quiz's own subject, when the bank has it for this grade: "Watch another video" opens it.
     const mine = Videos.subjectFor(quiz && quiz.subject);
@@ -149,10 +170,11 @@ async function lib(code, { st, g, s, fetchImpl } = {}) {
 
 /**
  * The library from the kid's hub. The hub module (web-quiz-hub.js, M4a) names the child from its
- * token on THIS phone: kidFromHub(token, chip, device) -> {studentId, grade, rootId} | null.
+ * token on THIS phone: kidFromHub(token, chip, device) -> {studentId, grade, rootId, lang} | null.
  */
-async function libHub(token, { kid, g, s, device, fetchImpl } = {}) {
+async function libHub(token, { kid, g, s, l, device, fetchImpl } = {}) {
   const WebQuiz = await guard();
+  const v3 = await videosV3On();
   // The hub module is M4a's and optional here: loaded by path so a deployment without it answers
   // hub_off instead of failing to boot.
   let Hub;
@@ -162,9 +184,9 @@ async function libHub(token, { kid, g, s, device, fetchImpl } = {}) {
   const who = await Hub.kidFromHub(token, kid, device);
   if (!who) throw new WebQuiz.WqError(401, { error: 'bad_token' });
   const Videos = require('./web-quiz-videos');
-  const ix = await bank();
+  const ix = v3 ? await inLanguage(await bank(), langOf(who.lang) || langOf(l)) : await bank();
   const grade = Videos.gradesFor(who.grade)[0] || null;
-  const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true });
+  const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true, v3 });
   logEvent('web_quiz.lib_view', { hub: 1, g: out.grade, s: out.subject || undefined });
   return out;
 }
