@@ -107,8 +107,12 @@ describe('1. which government does a job', () => {
       // A local job, a pronoun carrying the tier.
       { slot: 'social_studies.D.Q7', question: 'مویشی منڈی کون لگاتا ہے؟', answer: 'مقامی حکومت۔ یہ نکاسی آب کا انتظام بھی دیکھتی ہے۔', scheme: { points: [{ kind: 'K', text: 'مقامی حکومت', marks: 2 }] } },
     ];
-    const laid = applyLayout(paper(right), SST, FDE, { reasked: false });
-    for (const q of right) expect(placed(laid, q.slot).map((x) => x.question)).toContain(q.question);
+    // Each on its own paper: the Q6 item's points hold the whole Q5 item (encroachment → provincial),
+    // which round 13 holds as one item asked twice; the tier rule is what is tested here.
+    for (const q of right) {
+      const laid = applyLayout(paper([q]), SST, FDE, { reasked: false });
+      expect(placed(laid, q.slot).map((x) => x.question)).toContain(q.question);
+    }
   });
 
   // Right by p.29, and never held: a contrast opener, a tier named by its short name (صوبہ، وفاق),

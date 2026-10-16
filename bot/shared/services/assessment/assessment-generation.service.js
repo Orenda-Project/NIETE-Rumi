@@ -1885,8 +1885,10 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     || reviewHits.has(section.id) || religiousHits.has(section.id));
   const extraUsages = [];
   if (again.length) {
-    await Promise.all(again.map(async (b) => {
-      const shortfall = short.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+    // One re-ask of `b`: its note reads the layout `laid`; `shortList` names the short slots and
+    // `layoutShortSet` the ones short only because the layout set items aside.
+    const reask = async (b, laid, shortList, layoutShortSet) => {
+      const shortfall = shortList.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
       const reviewText = reviewHits.get(b.section.id) || null;
       const religious = religiousHits.get(b.section.id) || null;
       logToFile('[assessment] section re-asked', {
@@ -1901,15 +1903,30 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       // tagged to a full slot) keeps the first reply and takes the missing items from the second:
       // the layout fills a slot in reply order, so the first reply's items land first. Any other
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
-      const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShort.has(f.slot));
+      const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = takenNote(P, b.section, firstLaid.examJson, { topUp: Boolean(topUp), shortfall });
+      const note = takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall });
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
         : b);
       results[i] = topUp ? { ...second, tree: _topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
       _dropProseVerses(results[i].tree, versesRef, requestId);
-    }));
+    };
+    // Social Studies: Section D's re-ask is told Q5's situations and its Q6 is held against Q5, so
+    // when C is asked again too, D waits for C and reads the layout of C's second reply. A D that
+    // was full but now restates a new Q5 is asked again as well.
+    const inSection = (b, id) => b.section.slots.some((s) => s.slot.startsWith(`social_studies.${id}.`));
+    const afterC = key === 'social_studies' && again.some((b) => inSection(b, 'C'));
+    await Promise.all(again.filter((b) => !(afterC && inSection(b, 'D')))
+      .map((b) => reask(b, firstLaid, short, layoutShort)));
+    if (afterC) {
+      const midLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
+      const midShort = new Set(midLaid.shortfall.map((f) => f.slot));
+      const otherShort = short.filter((f) => !firstLaid.shortfall.includes(f));
+      const later = built.filter((b) => inSection(b, 'D')
+        && (again.includes(b) || b.section.slots.some((s) => midShort.has(s.slot))));
+      await Promise.all(later.map((b) => reask(b, midLaid, otherShort.concat(midLaid.shortfall), midShort)));
+    }
     const still = _reviewTextHits(results);
     if (still.size) {
       throw fail('REVIEW_TEXT', 'A question carries text that must never print.', { sections: [...still.keys()], examJson: merged(), model });
