@@ -693,6 +693,8 @@ async function hub(token, opts = {}) {
   if (opts.st) opts.st.mark('ui');
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
+  // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
+  const min = require('./web-quiz-minify').on();
   const out = await hubPayload(token, opts);
   if (opts.st) opts.st.mark('other');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
@@ -700,16 +702,17 @@ async function hub(token, opts = {}) {
   const listen = !out.locked && (await Flags.flags()).readalong;
   const rt = await Tel.flag();
   if (opts.st) opts.st.mark('tail');
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}) };
 }
 
 async function hubTogether(token, opts) {
   const fast = require('./web-quiz-fast').on();
+  const min = require('./web-quiz-minify').on();
   const [ui, out, rt] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag()]);
   if (opts.st) opts.st.mark('other');
   const listen = !out.locked && (await Flags.flags()).readalong;
   if (opts.st) opts.st.mark('tail');
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}) };
 }
 
 module.exports = {
