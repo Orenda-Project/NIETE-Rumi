@@ -18,6 +18,7 @@
  *                                 "Stop for now" from the first second, "I'm done" only once o.doneFrom (0.8) of the words are lit
  *   askMic(el, o)                 the microphone sheet that works in WhatsApp's in-app browser on Android (below)
  *   doneHtml(copy)                the one Done label: "I'm done" / «میں نے پڑھ لیا» and a drawn tick
+ *   wordTaps(el, marks, playWord) after a practice reading: a skipped word is a tap that says it (o.playWord on mount)
  * The sound kit (window.WQJ, when the page has it): WQJ.mic(true|false) around the microphone, and on a practice read
  * WQJ.word({i, ok}) per word newly lit and WQJ.sentence() at a sentence's last word; never on a counted read.
  * One green on screen: a word heard and a word read draw the same (the difference lives in the result only).
@@ -151,6 +152,21 @@
         if (SENTENCE_END.test(String(words[i] || ''))) juice('sentence');
       }
     }
+  }
+
+  /**
+   * After a PRACTICE reading has ended: a word marked skipped becomes a tap that says it (the host's read-along player,
+   * playWord(i): 0 bytes, 0 calls). Never during the reading (the microphone would hear Jugnu say it and could light a
+   * word the child never read) and never after a counted one. el holds the words as [data-i] spans.
+   */
+  function wordTaps(el, marks, playWord) {
+    if (!el || !el.addEventListener || typeof playWord !== 'function' || !marks) return false;
+    el.addEventListener('click', function (e) {
+      var t = e && e.target;
+      var i = t && t.getAttribute ? Number(t.getAttribute('data-i')) : NaN;
+      if (Number.isInteger(i) && marks[i] === 'skipped') { try { playWord(i); } catch (x) { /* the word stays silent */ } }
+    });
+    return true;
   }
 
   // ── copy (EN + UR; no test words; gender-neutral) ────────────────────────────────────────────────
@@ -313,6 +329,9 @@
     function deliver(r) {
       if (o.onResult) o.onResult(r);
       emit(r);
+      if (!o.counted && o.playWord && wordTaps(el, r.marks, o.playWord)) {
+        for (var i = 0; i < spans.length; i += 1) if (r.marks[i] === 'skipped') spans[i].className += ' lr-tap';
+      }
     }
     function finish(why) {
       if (s.ended) return;
@@ -356,5 +375,5 @@
     };
   }
 
-  window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, COPY: COPY };
+  window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, wordTaps: wordTaps, COPY: COPY };
 })();

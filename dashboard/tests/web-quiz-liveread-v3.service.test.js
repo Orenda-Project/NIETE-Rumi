@@ -490,6 +490,28 @@ describe('mount(): a story page reads itself (the component alone, a fake DOM an
     expect(got).toMatchObject({ v: 1, words_total: 3, words_read: 3, correct: 3, wpm: null, live: false, ended: 'done_tap' });
     expect(got).not.toHaveProperty('transcript');
   });
+
+  test('a story page: after a practice reading the host\'s playWord says a skipped word on a tap (never during the reading)', async () => {
+    const E = env(); const D = dom();
+    const said = [];
+    let got = null;
+    const SIX = ['The', 'kite', 'flew', 'over', 'the', 'hill.'];
+    const h = E.L.mount(D.el, { words: SIX, lang: 'en', getKey: () => Promise.resolve({ ws: 'wss://x', api_key: 'k', model: 'm', lang: 'en' }), stream: {}, playWord: (i) => said.push(i), onResult: (r) => { got = r; } });
+    await E.flush();
+    const s = E.socks[0]; s.onopen({});
+    s.onmessage({ data: JSON.stringify({ tokens: toks(['the', 'flew', 'over', 'the']) }) });   // "kite" passed over
+    expect(D.el.l.click).toBeUndefined();   // nothing to tap while reading
+    const mr = E.recs[0];
+    mr.stop = function () { this.state = 'inactive'; const self = this; Promise.resolve().then(() => { self.onstop && self.onstop(); }); };
+    h.stop('done_tap');
+    await E.flush();
+    s.onmessage({ data: JSON.stringify({ tokens: [], finished: true }) });
+    await E.flush();
+    expect(got.marks.slice(0, 3)).toEqual(['read', 'skipped', 'read']);
+    D.el.l.click({ target: { getAttribute: () => '1' } });
+    expect(said).toEqual([1]);
+    expect(D.el.querySelectorAll('.lr-w')[1].className).toContain('lr-tap');
+  });
 });
 
 // ── one push of fixes: the counted read without the read guard, one green, one Done label, "Listening…", no rate, the sound kit ──
@@ -667,5 +689,50 @@ describe('the sound kit (window.WQJ): a tink per word on a practice read, a sent
     const s = sock(p); s.onopen({});
     expect(() => s.onmessage({ data: JSON.stringify({ tokens: toks(STORY.tokens.slice(0, 6)) }) })).not.toThrow();
     expect(((p.els['wqc-live-story'] || {}).innerHTML.match(/wqc-ok/g) || []).length).toBe(6);
+  });
+});
+
+describe('a held card, the settled result, and "hear this word" after a practice reading', () => {
+  const trailRead = async (read, extra = {}) => {
+    const clock = { t: 1000000 };
+    const p = H.page({ clock, menu: MENU, pre: [LIVE_SRC, WS, ...(extra.pre || []), LR_SRC, TRAIL_SRC], routes: ROUTES(read, extra.routes || {}), session: store() });
+    await p.flush();
+    await p.click('wqc-ex-read'); await p.flush();
+    await p.click('wqc-help-no'); await p.flush();
+    await p.click('wqc-go'); await p.flush();
+    const s = sock(p); s.onopen({});
+    return { p, s, clock };
+  };
+  test('the card held for the server\'s judgement shows no sticker line under lr3 (today: "A sticker went into your Book" before the check)', async () => {
+    const { p, s, clock } = await trailRead(SREAD({ lr3: LR3(false), practice_round: false, mode: 'check', story_clip: undefined }), { routes: { 'ch/result': ok({ pending: true }) } });
+    s.onmessage({ data: JSON.stringify({ tokens: toks(STORY.tokens) }) });
+    clock.t += 1100;
+    await p.runTimers((x) => x.ms === 1000);
+    s.onmessage({ data: JSON.stringify({ tokens: [], finished: true }) });
+    await p.flush(); await p.flush();
+    expect(p.screen()).toBe('read-result');
+    expect(p.html()).not.toContain('wqc-sticker');
+  });
+  test('the settled result reaches the card with how the reading ended (the server sends none on a practice read)', async () => {
+    const SPY = 'var __init = window.WQTRAIL.init; window.WQTRAIL.init = function (h) { var tr = __init(h); var re = tr.readEnd; tr.readEnd = function (r) { window.__ended = r && r.ended; return re.apply(this, arguments); }; return tr; };';
+    const read = SREAD({ lr3: LR3(), story_clip: undefined });
+    const p = H.page({ menu: MENU, pre: [LIVE_SRC, 'window.WebSocket = undefined;', LR_SRC, TRAIL_SRC, SPY], routes: ROUTES(read, { 'ch/result': ok({ score: { correct: 6, attempted: 7 }, wcpm: 12 }) }), session: store() });
+    await p.flush();
+    await p.click('wqc-ex-read'); await p.flush();
+    await p.click('wqc-go'); await p.flush();
+    expect(p.screen()).toBe('read-rec');
+    await p.click('wqc-stop');
+    for (let k = 0; k < 4; k += 1) await p.flush();
+    expect(p.ctx.window.__ended).toBe('done_tap');
+  });
+  test('the component: after a practice reading a skipped word says itself on a tap; never on a counted one', () => {
+    const L = lib();
+    const said = [];
+    const el = { l: {}, addEventListener(n, fn) { this.l[n] = fn; } };
+    expect(L.wordTaps(el, ['read', 'skipped', 'read'], (i) => said.push(i))).toBe(true);
+    el.l.click({ target: { getAttribute: () => '1' } });
+    el.l.click({ target: { getAttribute: () => '0' } });   // a read word: nothing
+    expect(said).toEqual([1]);
+    expect(L.wordTaps(el, ['skipped'], null)).toBe(false);   // no player ⇒ nothing to tap
   });
 });

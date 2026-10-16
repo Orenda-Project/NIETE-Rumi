@@ -927,7 +927,7 @@
       if (m === 'miss' && lrCounted()) m = 'none';   // a counted read lights matched words only, never a skip mark
       if (m === 'okp' && lr3()) m = 'ok';            // one green: a word heard draws like a word read
       var next = live && live.v && live.v.next === i ? ' wqc-next' : '';
-      return '<span class="wqc-w wqc-' + m + next + '">' + esc(w) + '</span>';
+      return '<span class="wqc-w wqc-' + m + next + '"' + (lr3() ? ' data-i="' + i + '"' : '') + '>' + esc(w) + '</span>';
     }).join(' ');
     return spans;
   }
@@ -1290,7 +1290,8 @@
     if (lr3()) lrEmit(true);
     // the Trail's line follows the words heard (heardOk): the live cursor can run to the end on words never heard
     // the first card waits for the server's result before it draws a button the result could change (liveSettle)
-    if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold({ score: { attempted: live.v.attempted } }, null, live.v.heardOk); return; }
+    // live reading v3: a held card never shows a sticker before the reading is judged
+    if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold(lr3() ? { score: { attempted: live.v.attempted }, noSticker: true } : { score: { attempted: live.v.attempted } }, null, live.v.heardOk); return; }
     var d = S.data;
     var good = w > 0;
     show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true)
@@ -1304,6 +1305,24 @@
     qa.attempted = live.v.attempted;
     on('wqc-menu', refreshMenu);
     on('wqc-qa', qa.open);
+    lrSayWords();
+  }
+  // live reading v3, a practice reading that has ended: a skipped word says itself when tapped, in Jugnu's read-along
+  // voice (the serve's timing file; a hidden player mounted on the first tap); no timing file ⇒ nothing to tap
+  function lrSayWords() {
+    var d = S.data;
+    if (!lr3() || lrCounted() || !d.readalong || !window.WQReadAlong || !live || !live.v) return;
+    var marks = live.v.marks.map(function (m) { return m === 'miss' ? 'skipped' : m; });
+    var player = null;
+    window.WQLiveRead.wordTaps(q('wqc-live-story'), marks, function (i) {
+      if (!player) {
+        var box = document.createElement('div');
+        box.hidden = true;
+        document.body.appendChild(box);
+        player = window.WQReadAlong.mount(box, d.readalong, {});
+      }
+      player.playWord(i);
+    });
   }
 
   // ── questions after Read aloud: up to 3 taps about the part the child read; the server holds the answers ──
@@ -1492,6 +1511,8 @@
 
   function readResult(r) {
     if (rec.gaveUp) return;   // live reading v3: the card was shown at the 10-s mark; a late answer moves nothing
+    // live reading v3: the card judges how the reading ended (a silent start is never a reading), so it always has it
+    if (lr3() && r && r.ended == null && rec.ended) r = Object.assign({}, r, { ended: rec.ended });
     if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(r); return; }
     var d = S.data;
     var line; var pose = 'celebrate'; var score = ''; var growth = '';

@@ -12,6 +12,8 @@ html[lang=ur] .lr-text .lr-w, .lr[lang=ur] .lr-text .lr-w { display: inline-bloc
 .lr-heard { background: #BBF7D0; color: #15803D; }
 .lr-skipped { box-shadow: inset 0 -3px 0 #E65100; }
 .lr-current { box-shadow: 0 0 0 2px var(--lr-cur); }
+/* after a practice reading a skipped word says itself when tapped */
+.lr-tap, .lr3 .wqc-w.wqc-miss[data-i] { cursor: pointer; }
 /* the Challenge page's own words under live reading v3: the same one green, a skip is an amber underline (never a fill) */
 .lr3 .wqc-w.wqc-ok { background: #BBF7D0; color: #15803D; }
 .lr3 .wqc-w.wqc-miss { background: none; color: inherit; box-shadow: inset 0 -3px 0 #E65100; }
