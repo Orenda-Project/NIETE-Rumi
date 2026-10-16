@@ -240,9 +240,13 @@ describe("Lesson plan before the recording (operator, 16 Oct)", () => {
     const plan = await screen.findByRole("heading", { name: new RegExp(C.lessonPlan) });
     const rec = screen.getByRole("heading", { name: new RegExp(C.recording) });
     expect(!!(plan.compareDocumentPosition(rec) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
-    // her recent plan for this class, one tap, with no recording yet
-    fireEvent.click(await screen.findByRole("button", { name: "How plants make food" }));
+    // her recent plans are in the Lesson plan tray, not on the screen (operator, 16 Oct); one tap there, no recording yet
+    await expect(screen.findByRole("button", { name: "How plants make food" }, { timeout: 600 })).rejects.toThrow();
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(C.selectPlan) }));
+    const tray = await screen.findByRole("dialog", { name: new RegExp(C.lessonPlan) });
+    fireEvent.click(await within(tray).findByRole("button", { name: /How plants make food/ }));
     expect(await screen.findByText("How plants make food")).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: new RegExp(C.lessonPlan) })).toBeNull();
     expect(await recordingCard()).toBeTruthy();
     expect(screen.queryByRole("heading", { name: new RegExp(C.photos) })?.getAttribute("data-step-state")).toBe("upcoming");
   });
