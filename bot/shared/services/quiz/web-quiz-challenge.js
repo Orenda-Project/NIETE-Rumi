@@ -648,7 +648,8 @@ async function menu(token, { kid, lang, device } = {}) {
   // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
   { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
   const w = await who(token, { kid, lang, device });
-  logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
+  // EVENTS §0.1: the server copy carries the writer's mark under events v2; off, today's event byte for byte
+  logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade, ...((await Flags.eventsV2On()) ? { w: 's' } : {}) });
   if (w.form === Grade1.FORM) return Grade1.menu(w);   // grade-1 form: its one stop
   const rules = await rulesOf();
   const runs = rules.record ? await countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
@@ -668,7 +669,9 @@ async function menu(token, { kid, lang, device } = {}) {
       // the record rule: done from the first counted run, and the menu is not a report — no number on it.
       // On the trail that same first counted run, of any outcome (stopped, incomplete), is the stop's badge.
       return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done, last: rules.record ? null : lastOf(last),
-        ...(rules.trail ? { badge: done, ...(e.mic ? { mic: true } : {}) } : {}), ...(rules.pool && e.id === 'missing' ? { anchor_block: 'A1' } : {}) };
+        ...(rules.trail ? { badge: done, ...(e.mic ? { mic: true } : {}) } : {}), ...(rules.pool && e.id === 'missing' ? { anchor_block: 'A1' } : {}),
+        // the served passage's child-facing title on its stop (RULING #100(a)(2)); nothing before the draw
+        ...(rules.pool && trailNow && (e.id === 'read' || e.id === 'listen') ? menuTitle(trailNow.find((t) => t.stop === e.id)) : {}) };
     }),
     ...(rules.record ? { record: true } : {}),
     ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang) } : {}),
@@ -755,13 +758,14 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
     // the story is heard, never shown: only its clip and how many times EGRA reads it
     const url = v2 ? v2.clipUrl : await storyClip(w.lang);
     if (!url) fail(503, 'getting_ready');
-    return { ...base, read_times: Number(spec.read_times) || 2, story_clip: { url } };
+    return { ...base, read_times: Number(spec.read_times) || 2, story_clip: { url }, ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}) };
   }
   const st = (v2 && v2.story) || spec.story || {};
   const live = await liveOn();
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
   const previousWcpm = live ? (rules.record ? null : ((await previousRun(w.studentId, 'read', w.lang)) || {}).wcpm) : undefined;
-  return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await questionsOn(), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction } };
+  return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await questionsOn(), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
+    ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}) };
 }
 
 // ── challenge v2: the draw, the record decided at serve, the period (web_quiz_challenge_v2 / _period / _pool) ──────
@@ -807,13 +811,30 @@ function passageFor(id, Bank) {
   const p = typeof Bank.getPassage === 'function' ? Bank.getPassage(id) : null;
   if (p && p.text) {
     const tokens = Array.isArray(p.tokens) ? p.tokens : words(p.text);
-    return { id, text: p.text, tokens, lines: linesOf(p.lines, tokens.length), direction: p.direction || p.dir || (p.lang === 'ur' ? 'rtl' : 'ltr'), questions: p.questions || [] };
+    return { id, text: p.text, tokens, lines: linesOf(p.lines, tokens.length), direction: p.direction || p.dir || (p.lang === 'ur' ? 'rtl' : 'ltr'), questions: p.questions || [],
+      title_en: p.title_en == null ? null : p.title_en, title_ur: p.title_ur == null ? null : p.title_ur };
   }
   const m = /^(en|ur)\.(read|listen)\.2\.setA$/.exec(String(id || ''));
   if (!m) return null;
   const spec = Bank.getTaskSpec({ grade: 3, set: 'A', task: `${m[1]}.${m[2] === 'read' ? 'story' : 'listening'}` });
   const st = spec.story || {};
   return { id, text: st.text, tokens: st.tokens, lines: st.lines, direction: spec.direction, questions: spec.questions || [] };
+}
+
+/** The child-facing title of a passage as the page renders it (ITEMS §1 title_en/title_ur): { en, ur } or null when it has none. */
+function titleOf(p) {
+  if (!p || (p.title_en == null && p.title_ur == null)) return null;
+  return { en: p.title_en == null ? null : String(p.title_en), ur: p.title_ur == null ? null : String(p.title_ur) };
+}
+/** One home for every surface that names a passage (the shelf, the stop's intro): passageTitle(id) → { en, ur } | null. */
+function passageTitle(passageId) {
+  const { Bank } = childTest();
+  return titleOf(typeof Bank.getPassage === 'function' ? Bank.getPassage(passageId) : null);
+}
+/** The menu entry's title field for a Trail stop with a passage served this period: {} when none. */
+function menuTitle(trailStop) {
+  const t = trailStop && trailStop.passage_id ? passageTitle(trailStop.passage_id) : null;
+  return t ? { title: t } : {};
 }
 
 /** A v3 task spec with the drawn passage's story and questions (no passage → the spec as it is). */
@@ -981,7 +1002,7 @@ async function reserveV2(w, ex, open, { D, Bank, pool, canonicalId, ob, now, for
   if (passageId) {
     const p = passageFor(passageId, Bank);
     if (!p) { logError('web_quiz.ch_passage_missing', { passage_id: passageId }); fail(503, 'unavailable'); }
-    story = { text: p.text, tokens: p.tokens, lines: p.lines };
+    story = { text: p.text, tokens: p.tokens, lines: p.lines, title: titleOf(p) };   // title: the page's intro names the passage (RULING #100(a)(2))
     dir = p.direction;
   }
   if (ex === 'listen') {
@@ -1004,7 +1025,8 @@ async function reserveV2(w, ex, open, { D, Bank, pool, canonicalId, ob, now, for
     formNum,
     top: { canonical_id: row.canonical_id || canonicalId, mode, period_id: periodId, band, record, via, exposure_no: exposure, passage_id: passageId, item_set_id: itemSetId,
       anchor_block: anchorBlock, anchor_exposure_no: anchorExp, form: formNum },
-    payload: { mode, ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' } },
+    // reopened: the page may say "let's carry on" instead of a fresh intro (r5-redteam-4 025824); the row and the score are untouched
+    payload: { mode, ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' }, reopened: true },
     event: { w: 's', mode, period_id: periodId, form, band, rung: rung == null ? null : rung, ...(isPassage ? { passage_id: passageId } : { item_set_id: itemSetId }),
       exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via, reopened: true },
     items, tryout, story, dir, clipUrl,
@@ -1100,7 +1122,7 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   if (passageId) {
     const p = passageFor(passageId, Bank);
     if (!p) { logError('web_quiz.ch_passage_missing', { passage_id: passageId }); fail(503, 'unavailable'); }
-    story = { text: p.text, tokens: p.tokens, lines: p.lines };
+    story = { text: p.text, tokens: p.tokens, lines: p.lines, title: titleOf(p) };   // title: the page's intro names the passage (RULING #100(a)(2))
     dir = p.direction;
     set = /\.setA$/.test(passageId) ? 'A' : null;
   }
@@ -2038,6 +2060,8 @@ module.exports = {
   updateRunMeta,   // the meta compare-and-set write, reused by the stuck-run sweeper (web-quiz-challenge-sweeper.js)
   __reset,
 };
+// The passage's child-facing title {en, ur} | null: one home for the shelf and the stop's intro (RULING #100(a)(2)).
+module.exports.passageTitle = passageTitle;
 // the class-week arm's switch gate (with its parent web_quiz_class_round), read at the v2 serve
 module.exports.classWeekOpen = classWeekOpen;
 // the runs insert (and its duplicate-record rule), for its test

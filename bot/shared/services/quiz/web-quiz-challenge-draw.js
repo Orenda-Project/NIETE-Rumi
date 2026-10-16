@@ -274,7 +274,9 @@ function tryoutItem(items, seedHex) {
 function trailState(rows, periodId) {
   return STOPS.map((stop) => {
     const recs = (rows || []).filter((r) => r.exercise === stop && r.period_id === periodId && r.record === true);
-    return { stop, served: recs.length > 0, record_row_final: recs.some((r) => FINAL.has(r.status)) };
+    const newest = recs.slice().sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || ''))).pop() || null;
+    // the record row's passage (served or final): the menu names it (RULING #100(a)(2)); null before the draw and for the item stops
+    return { stop, served: recs.length > 0, record_row_final: recs.some((r) => FINAL.has(r.status)), passage_id: (newest && newest.passage_id) || null };
   });
 }
 

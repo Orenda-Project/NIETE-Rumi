@@ -268,16 +268,17 @@ describe('trailStateFor: this period\'s record rows, one implementation for the 
   test('served and final per stop, in Trail order, from record rows of this period only', async () => {
     const db = { web_quiz_challenge_runs: [
       { id: 'row1', student_id: CID, canonical_id: CID, exercise: 'missing', status: 'scored', mode: 'check', record: true, period_id: '2026-11', created_at: '2026-11-02T00:00:00Z' },
-      { id: 'row2', student_id: CID, canonical_id: CID, exercise: 'read', status: 'served', mode: 'check', record: true, period_id: '2026-11', created_at: '2026-11-02T00:01:00Z' },
+      { id: 'row2', student_id: CID, canonical_id: CID, exercise: 'read', status: 'served', mode: 'check', record: true, period_id: '2026-11', created_at: '2026-11-02T00:01:00Z', passage_id: 'en.read.1.ref01' },
       { id: 'row3', student_id: CID, canonical_id: CID, exercise: 'listen', status: 'scored', mode: 'practice', record: false, period_id: '2026-11', created_at: '2026-11-02T00:02:00Z' },
       { id: 'row4', student_id: CID, canonical_id: CID, exercise: 'bigger', status: 'scored', mode: 'check', record: true, period_id: '2026-10', created_at: '2026-10-02T00:02:00Z' },
     ] };
     Object.assign(supabase, guardColumns(makeFake(db)));
+    // passage_id: the record row's passage for the menu's title (null before the draw and on the item stops)
     expect(await D.trailStateFor(CID, '2026-11')).toEqual([
-      { stop: 'missing', served: true, record_row_final: true },
-      { stop: 'read', served: true, record_row_final: false },
-      { stop: 'listen', served: false, record_row_final: false },
-      { stop: 'bigger', served: false, record_row_final: false },
+      { stop: 'missing', served: true, record_row_final: true, passage_id: null },
+      { stop: 'read', served: true, record_row_final: false, passage_id: 'en.read.1.ref01' },
+      { stop: 'listen', served: false, record_row_final: false, passage_id: null },
+      { stop: 'bigger', served: false, record_row_final: false, passage_id: null },
     ]);
   });
 
