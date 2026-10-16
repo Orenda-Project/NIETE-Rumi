@@ -594,6 +594,28 @@ const ONE_LINE = 10;
 // only costs a re-ask now: it comes back when nothing else can take its place).
 const SAME_WORDS = 3;
 const SAME_SHARE = 0.35;
+// A long answer is a Q1 MCQ printed whole when it holds the MCQ's key and what the MCQ asks: a key
+// of a phrase (four words or more) mostly in the answer («کچھ دیر بعد پوسٹ دوبارہ پڑھ کر ٹھنڈے دماغ
+// سے جواب دینا»), or a short key in it beside most of the MCQ's own words («مقامی حکومت … پینے کے پانی
+// کا بندوبست اور نکاسی آب»); and the MCQ's words are a good part of the answer (at least 0.3 of it).
+// One point of a longer answer that Section A also prints is a partial, which FDE's own paper has
+// (its Q5 «Define lines of latitude. How many are these?» beside Q1 «… are ___ in numbers → 180»), and
+// stays. Read on the answer, not point by point (a point names a fact, «مقامی حکومت کی نشاندہی»,
+// without saying it) and not on the stem (a stem that names a Q1 thing is a cue).
+const PHRASE_KEY = 4;
+const PHRASE_SHARE = 0.75;
+const ASKED_SHARE = 0.6;
+const ANSWER_SHARE = 0.3;
+function answeredWhole(m, answered, answer) {
+  const words = new Set([...m.key, ...m.stem]);
+  if ([...answer].filter((w) => words.has(w)).length < ANSWER_SHARE * answer.size) return false;
+  const inAnswer = [...m.key].filter((w) => answered.has(w)).length;
+  if (m.key.size >= PHRASE_KEY && inAnswer / m.key.size >= PHRASE_SHARE) return true;
+  if (inAnswer < m.key.size) return false;
+  const asks = [...m.stem].filter((w) => !m.key.has(w));
+  const both = asks.filter((w) => answered.has(w)).length;
+  return both >= SAME_WORDS && both / asks.length >= ASKED_SHARE;
+}
 
 function sameFact(q1s) {
   const mcqs = q1s.map((m) => ({
@@ -630,6 +652,9 @@ function sameFact(q1s) {
       const ans = new Set(tokensOf(q.answer));
       if (ans.size >= 2 && mcqs.some((m) => [...ans].every((w) => m.options.has(w)))) return true;
     }
+    const answer = new Set(tokensOf(q.answer));
+    const answered = new Set([...answer, ...tokensOf(accept.join(' '))]);
+    if (answer.size && mcqs.some((m) => answeredWhole(m, answered, answer))) return true;
     // Otherwise the points the MCQs give must carry at least half the item's marks: one point of
     // three cued is a hint, not the answer.
     const marks = points.map((p) => (Number(p.marks) > 0 ? Number(p.marks) : 1));
@@ -732,6 +757,12 @@ function q4Twin(q4s) {
 // اونچائی کتنی ہے؟ → 8,611 میٹر» inside «کے ٹو کی اونچائی کتنی ہے اور … → 8,611 میٹر؛ …». Two facts
 // about one place («اونچائی» / «پہاڑی سلسلہ») stay two.
 function sameKeyFact(a, b) {
+  // Two MCQs with one stem and one key are one question whatever distractor a rewrite changed
+  // («قوانین بنانے کا اختیار حکومت کے کس حصے کے پاس ہے؟ → مقننہ», beside «فوج» or «سپریم کورٹ»).
+  if (Array.isArray(a.options) && Array.isArray(b.options)) {
+    const stem = plain(a.question);
+    return Boolean(stem) && stem === plain(b.question) && Boolean(plain(keyText(a))) && plain(keyText(a)) === plain(keyText(b));
+  }
   if (Array.isArray(a.options) || Array.isArray(b.options)) return false;
   const ka = new Set(tokensOf(keyText(a)));
   const kb = new Set(tokensOf(keyText(b)));
@@ -853,7 +884,13 @@ function sameQuestion(a, b) {
  */
 function takenNote(P, section, examJson, opts = {}) {
   const cross = P && CROSS_HOLD[P.key];
-  if (!cross || !section || !Array.isArray(section.slots) || !section.slots.some((s) => cross.held.includes(s.slot))) return null;
+  if (!cross || !section || !Array.isArray(section.slots)) return null;
+  if (!section.slots.some((s) => cross.held.includes(s.slot))) {
+    // Social Studies: a top-up of a section with no held slot (A's Q1) is told what each short slot keeps.
+    if (P.key !== 'social_studies' || !opts.topUp) return null;
+    const kept = keptNotes(P, section, examJson, cross, opts.shortfall);
+    return kept.length ? kept.join('\n\n') : null;
+  }
   const against = [];
   for (const branch of ['seen', 'unseen']) {
     for (const types of Object.values((examJson && examJson[branch]) || {})) {
@@ -883,6 +920,14 @@ function takenNote(P, section, examJson, opts = {}) {
     .map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
   const notes = facts.length ? [`Section A of this paper already asks these questions (question → answer):\n${facts.join('\n')}\n`
     + 'Never ask any of these facts again, in any wording: every question you write here must test something Section A does not.'] : [];
+  // Section D is written beside Section C, never after it: its re-ask is told Q5's situations.
+  if (section.slots.some((s) => s.slot.startsWith('social_studies.D.'))) {
+    const cases = itemsOf(examJson, 'social_studies.C.Q5').map((q) => `- ${q.question.trim()}`);
+    if (cases.length) {
+      notes.push(`Q5 of this paper already sets these situations:\n${cases.join('\n')}\n`
+        + 'No Q6 or Q7 item you write may reuse a Q5 situation or ask what a Q5 item asks: set every item on a different case.');
+    }
+  }
   // A top-up keeps the first reply's items: name what each short held slot keeps, and ask for spares,
   // since the refill is held against Section A as well.
   if (opts.topUp) notes.push(...keptNotes(P, section, examJson, cross, opts.shortfall));
@@ -890,21 +935,28 @@ function takenNote(P, section, examJson, opts = {}) {
 }
 // Spare items asked of a short held slot on a top-up, beyond the ones it is missing.
 const SPARE_ITEMS = 4;
+// The laid-out items of one slot, with a question line.
+function itemsOf(examJson, slotId) {
+  const out = [];
+  for (const types of Object.values((examJson && examJson.unseen) || {})) {
+    for (const list of Object.values(types || {})) {
+      if (Array.isArray(list)) out.push(...list.filter((q) => q && q.slot === slotId && typeof q.question === 'string' && q.question.trim()));
+    }
+  }
+  return out;
+}
+// Every short slot of the section, held or not: a slot that is not held against Section A (A's Q1,
+// D's Q6) is only told to write nothing it keeps.
 function keptNotes(P, section, examJson, cross, shortfall) {
   const out = [];
-  for (const slot of section.slots.filter((s) => cross.held.includes(s.slot))) {
+  for (const slot of section.slots) {
     const gap = (Array.isArray(shortfall) ? shortfall : []).find((f) => f && f.slot === slot.slot);
     if (!gap || !(gap.missing > 0)) continue;
     const label = slot.label_en || slot.slot.split('.').pop();
-    const kept = [];
-    for (const types of Object.values((examJson && examJson.unseen) || {})) {
-      for (const list of Object.values(types || {})) {
-        if (Array.isArray(list)) kept.push(...list.filter((q) => q && q.slot === slot.slot && typeof q.question === 'string' && q.question.trim()));
-      }
-    }
-    const lines = kept.map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
+    const lines = itemsOf(examJson, slot.slot).map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
+    const tests = cross.held.includes(slot.slot) ? `neither Section A nor ${label}'s kept items test` : `${label}'s kept items do not test`;
     out.push(`${lines.length ? `${label} already keeps these items (question → answer):\n${lines.join('\n')}\nNever write any of these again, in any wording. ` : ''}`
-      + `${label} needs ${gap.missing} more: write ${gap.missing + SPARE_ITEMS} new ${label} items, each testing a fact that neither Section A nor ${label}'s kept items test; the paper takes the first ${gap.missing} that are new.`);
+      + `${label} needs ${gap.missing} more: write ${gap.missing + SPARE_ITEMS} new ${label} items, each testing a fact that ${tests}; the paper takes the first ${gap.missing} that are new.`);
   }
   return out;
 }
@@ -933,10 +985,18 @@ function applyLayout(examJson, P, scope, opts = {}) {
     unplaced = 0;
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
     const fallback = new Map(); // slot → held items, in reply order
+    const repeats = new Map(); // Social Studies: slot → items a placed item already asks, in reply order
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
       if (P.key === 'social_studies' && tierSlip(q)) return false;
-      if (!holds(slot)) return true;
+      if (!holds(slot)) {
+        // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
+        // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
+        // after the re-ask only for a place nothing else takes.
+        if (P.key !== 'social_studies' || !bySlot.get(slot.slot).some((p) => twin(p, q))) return true;
+        repeats.set(slot.slot, [...(repeats.get(slot.slot) || []), q]);
+        return false;
+      }
       if (bySlot.get(slot.slot).some((p) => twin(p, q))) return false;
       if (!cross.rule(q)) return true;
       fallback.set(slot.slot, [...(fallback.get(slot.slot) || []), q]);
@@ -973,6 +1033,14 @@ function applyLayout(examJson, P, scope, opts = {}) {
       for (const q of list) {
         if (!room(slot)) break;
         if (bySlot.get(id).some((p) => twin(p, q))) continue;
+        bySlot.get(id).push(q);
+        unplaced -= 1;
+      }
+    });
+    repeats.forEach((list, id) => {
+      const slot = slots.find((s) => s.slot === id);
+      for (const q of list) {
+        if (!room(slot)) break;
         bySlot.get(id).push(q);
         unplaced -= 1;
       }
