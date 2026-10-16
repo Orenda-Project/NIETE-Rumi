@@ -103,7 +103,7 @@ describe('summarise — totals, and missing inputs', () => {
   test('missing arrays are treated as empty, never thrown on', () => {
     expect(summarise({})).toEqual({
       lessonPlans: 0, daysUsed: 0, recordings: 0,
-      thumbs: { up: 0, down: 0 },
+      thumbs: { up: 0, down: 0 }, active: false,
     });
   });
 });
