@@ -1858,8 +1858,10 @@ async function _askReader({ examJson, P, only = null, model, ownModel, job, usag
     reasoning,
   }, { timeout: READER_TIMEOUT_MS });
   usages.push(response?.usage || {});
-  const raw = response?.choices?.[0]?.message?.content || '';
-  return { flags: Reader.parseFlags(extractJsonFromResponse(raw), labels, onlyLabels, blocks), labels };
+  // A client that already parsed the JSON hands back an object: read it, never skip the pass for it.
+  const content = response?.choices?.[0]?.message?.content;
+  const reply = content && typeof content === 'object' ? content : extractJsonFromResponse(content || '');
+  return { flags: Reader.parseFlags(reply, labels, onlyLabels, blocks), labels };
 }
 
 async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId }) {
@@ -1867,11 +1869,16 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
   const readUsages = [];
   const sectionUsages = [];
   const stats = { flagged: 0, replaced: 0, still_flagged: 0, put_back: 0 };
+  // What became of each flag, written on the paper (`_layout.reader`) as well as the log line, so a
+  // panel reads from exam_json which items printed over a flag. The renderers never read it.
+  const items = [];
+  const record = (f, outcome) => items.push({ label: f.item, by: f.by, reason: f.reason, outcome });
   const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
   const done = (exam, laid, error = null) => {
     logToFile('[assessment] reader pass', {
       requestId, subject: key, ...stats, ms: Date.now() - began, tokens: _sumUsage(readUsages).total_tokens || 0, ...(error ? { error } : {}),
     });
+    if (exam && exam._layout) exam._layout.reader = { ...stats, items: error ? [] : items, ...(error ? { error } : {}) };
     return { examJson: exam, laid, usages: readUsages.concat(sectionUsages) };
   };
   const ask = (exam, only = null) => _askReader({ examJson: exam, P, only, model, ownModel, job, usages: readUsages });
@@ -1933,6 +1940,7 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
     }
     // An empty place takes a held item back: in-Q1 give-aways first, the first read's before the re-check's.
     const pool = [...held.filter(Reader.inQ1), ...still.filter(Reader.inQ1), ...held.filter((h) => !Reader.inQ1(h)), ...still.filter((h) => !Reader.inQ1(h))];
+    const back = new Set();
     for (const h of pool) {
       if (!laid.shortfall.some((f) => f.slot === READ_SLOT)) break;
       const next = lay(_addItem(exam, READ_SLOT, h.q));
@@ -1940,7 +1948,10 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
       laid = next;
       exam = next.examJson;
       stats.put_back += 1;
+      back.add(h);
     }
+    held.forEach((h) => record(h, back.has(h) ? 'put_back' : 'replaced'));
+    still.forEach((h) => record(h, back.has(h) ? 'put_back' : 'taken_off'));
     if (laid.shortfall.length) return done(examJson, null, 'top-up left the paper short');
     return done(exam, laid);
   } catch (err) {
