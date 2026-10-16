@@ -11,10 +11,17 @@
  * The suites that held such mocks before this gate are in virtual-mock-of-existing-module.allowlist.json as hit counts
  * per DIRECTORY (so the list names no test file); it only shrinks: a new directory or a higher count fails, and a
  * lower count fails until the entry is lowered (or removed at 0).
+ *
+ * `jest.doMock(<relative path>, …, { virtual: true })` is the same hazard inside a test body, so it is scanned too
+ * (the spec a literal, or a const string the file binds, e.g. `jest.doMock(ID_FLAGS, …)`), with one exception:
+ * `sharp`, the optional native package a suite may fake whether or not it is installed. The doMock hits are counted
+ * apart, in the allowlist's `doMock` section (same per-directory, shrink-only rule), so the jest.mock counts above
+ * did not move when the scan grew.
  */
 const fs = require('fs');
 const path = require('path');
-const ALLOW = require('./virtual-mock-of-existing-module.allowlist.json');
+const { doMock: ALLOW_DO_MOCK = {}, ...ALLOW } = require('./virtual-mock-of-existing-module.allowlist.json');
+const { virtualDoMocksOfExisting, testFiles, byDir, countRatchet } = require('./test-seam-gates-lib');
 
 const REPO = path.resolve(__dirname, '../..');
 const ROOTS = ['bot/tests', 'dashboard/tests', 'tests'];
@@ -114,8 +121,40 @@ describe('the rule, on in-memory sources', () => {
   });
 });
 
+describe('jest.doMock, on in-memory sources', () => {
+  const FILE = path.join(REPO, 'bot/tests/quiz/x.test.js');
+  const here = (set) => (p) => set.has(path.relative(REPO, p).split(path.sep).join('/'));
+
+  test('a virtual doMock of an existing relative module is a hit, by literal or by a const spec', () => {
+    const src = [
+      "const FLAGS = '../../shared/flags';",
+      "jest.doMock('../../shared/a', () => ({}), { virtual: true });",
+      "test('x', () => { jest.doMock(FLAGS, () => { throw new Error('gone (x)'); }, { virtual: true }); });",
+      "jest.doMock('../../shared/gone', () => ({}), { virtual: true });",
+      "jest.doMock('../../shared/a', () => ({}));",
+      "jest.doMock('../../shared/a', () => ({}), { virtual: false });",
+    ].join('\n');
+    expect(virtualDoMocksOfExisting(FILE, src, here(new Set(['bot/shared/a', 'bot/shared/flags'])))).toEqual(['../../shared/a', '../../shared/flags']);
+  });
+
+  test('sharp is the one allowed virtual doMock; a package or a commented-out call is never a hit', () => {
+    const src = [
+      "jest.doMock('sharp', () => { throw new Error('x'); }, installed ? undefined : { virtual: true });",
+      "jest.doMock('bcryptjs', () => ({}), { virtual: true });",
+      "// jest.doMock('../../shared/a', () => ({}), { virtual: true });",
+    ].join('\n');
+    expect(virtualDoMocksOfExisting(FILE, src, () => true)).toEqual([]);
+  });
+});
+
+const scanDoMock = () => byDir(testFiles(ROOTS).map((file) => ({ file, n: virtualDoMocksOfExisting(file, fs.readFileSync(file, 'utf8')).length })));
+
 describe('the tree', () => {
   test('no new virtual mock of a module that exists; the allowlist matches today exactly', () => {
     expect(problems(scan(), ALLOW)).toEqual([]);
+  });
+
+  test('no new virtual doMock of a module that exists; the doMock section matches today exactly', () => {
+    expect(countRatchet(scanDoMock(), ALLOW_DO_MOCK, 'virtual jest.doMock(s) of a module that exists. Drop { virtual: true }')).toEqual([]);
   });
 });

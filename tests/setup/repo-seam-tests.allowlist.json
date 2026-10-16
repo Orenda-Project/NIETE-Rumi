@@ -1,0 +1,18 @@
+{
+  "missing": [
+    "quiz/message-ledger.js > child-phone-bindings.repo",
+    "quiz/student-quiz.service.js > child-phone-bindings.repo",
+    "quiz/teacher-jugnu.data.js > child-phone-bindings.repo",
+    "quiz/web-quiz-bind-expiry.js > child-phone-bindings.repo",
+    "quiz/web-quiz-bind-page.js > child-phone-bindings.repo",
+    "quiz/web-quiz-bind.service.js > child-bind-codes.repo",
+    "quiz/web-quiz-bind.service.js > child-phone-bindings.repo",
+    "quiz/web-quiz-challenge-draw.js > child-phone-bindings.repo",
+    "quiz/web-quiz-challenge.js > child-phone-bindings.repo",
+    "quiz/web-quiz-guest-home.js > child-phone-bindings.repo",
+    "student-ingress.js > child-phone-bindings.repo"
+  ],
+  "pure": {
+    "student-ingress.js > child-bind-codes.repo": "parseCode"
+  }
+}
