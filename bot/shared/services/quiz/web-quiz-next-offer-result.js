@@ -69,12 +69,12 @@ async function resultField({ studentId, device, lang: asked = null, ctx, extra =
   const snap = await snapshot({ studentId, device, lang: asked, watch: sw.watch });
   if (!snap) return {};
   const { canonical, token, out, history, collect, grade, lang } = snap;
-  const [{ quizIds, storyCodes }, books, onItsWay] = await Promise.all([
+  const [{ quizIds, storyCodes, unsentCodes }, books, onItsWay] = await Promise.all([
     quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)]),
     storybooks({ studentId: canonical, lang, grade, token, chip: out.kid }),
     onItsWayOf(canonical, studentId, collect.trail, lang, grade),
   ]);
-  const candidates = [...extra, ...candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, extra: books, watch: sw.watch })]
+  const candidates = [...extra, ...candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, unsentCodes, extra: books, watch: sw.watch })]
     .filter((c, i, a) => !drop(c) && a.findIndex((x) => x.id === c.id) === i);
   const next = await NO.nextFor({ ctx, studentId: canonical, candidates, hasRoot: hasRootOf(history), lang });
   return next ? { next_offer: next } : {};

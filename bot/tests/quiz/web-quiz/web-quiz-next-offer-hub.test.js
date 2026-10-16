@@ -165,12 +165,22 @@ describe('switch on: rule 1 — the teacher\'s quiz from the last 7 days', () =>
 
   test('a storybook the teacher sent (a story send: quiz_source story) -> the pin, kind storybook', async () => {
     const over = pending();
-    over.quizzes[1].quiz_source = 'story';
+    Object.assign(over.quizzes[1], { quiz_source: 'story', status: 'sent', meta: { sent_at: SENT_2D } });
     seed(NEXT_ON, over);
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.next).toMatchObject({ kind: 'storybook', rank_src: 'pinned' });
     expect(out.next.id).toMatch(/^sb\.[0-9a-f]{10}$/);   // keyed: the share code never rides an event id
     expect(out.next.href).toMatch(/^\/q\/SCI002\?k=/);
+  });
+
+  test('a story the teacher only OPENED (its code minted at render, status ready, no sent_at) is never pinned', async () => {
+    const over = pending();
+    Object.assign(over.quizzes[1], { quiz_source: 'story', status: 'ready', meta: {} });
+    seed(NEXT_ON, over);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    const all = out.next ? [out.next, ...out.next.alts] : [];
+    expect(all.filter((x) => /SCI002/.test(x.href))).toEqual([]);
+    if (out.next) expect(out.next.rank_src).not.toBe('pinned');
   });
 
   test('the quiz id is never in `next` (a keyed id only), nor the child\'s name or phone', async () => {
@@ -447,5 +457,18 @@ describe('offerFor: any other activity (a watched video)', () => {
     expect(n.ctx).toBe('after_video');
     expect(n.rank_src).toBe('pinned');   // the teacher's pending quiz still comes first
     expect([n, ...n.alts].length).toBeGreaterThan(1);
+  });
+});
+
+describe('nextFor with another surface\'s key', () => {
+  test('a keyed id (e.g. a teacher home\'s) drives the arm and the state; no child id needed', async () => {
+    seed(NEXT_ON, pending());
+    const spy = jest.spyOn(NO, 'armOf');
+    const c = [{ kind: 'storybook', id: 'b1', href: '/x', title: 'A story' }, { kind: 'quiz', id: 'q1', href: '/y', title: 'A quiz' }];
+    const n = await NO.nextFor({ ctx: 'teacher_home', studentId: null, candidates: c, key: 'abcdef0123456789' });
+    expect(n).toBeTruthy();
+    expect(spy.mock.calls[0][0]).toBe('abcdef0123456789');
+    expect(redis._store.has('wq:next:abcdef0123456789')).toBe(true);
+    expect(await NO.nextFor({ ctx: 'teacher_home', studentId: null, candidates: c, key: 'not a key!' })).toBeNull();
   });
 });

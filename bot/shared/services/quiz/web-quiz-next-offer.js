@@ -251,11 +251,12 @@ function offerId() { return crypto.randomBytes(8).toString('base64url').slice(0,
  * The `next` object for a child in a context, or null (switch off, no child, nothing offerable, any failure: the
  * caller adds no key). `candidates` from the builders below; `hasRoot` = the child has a class quiz (videos need one).
  */
-async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en', now = Date.now() } = {}) {
+async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en', now = Date.now(), key: ownKey = null } = {}) {
   try {
     const s = await switches();
-    if (!s.on || !studentId || !Array.isArray(candidates) || !candidates.length) return null;
-    const key = childKey(studentId);
+    if (!s.on || !(studentId || ownKey) || !Array.isArray(candidates) || !candidates.length) return null;
+    // key: another surface's own keyed id (a teacher home's tk) for its arm, seed and state; else the child's
+    const key = typeof ownKey === 'string' && /^[0-9a-f]{8,32}$/.test(ownKey) ? ownKey : childKey(studentId);
     if (!key) return null;
     const day = pktDay(now);
     const month = pktMonth(now);

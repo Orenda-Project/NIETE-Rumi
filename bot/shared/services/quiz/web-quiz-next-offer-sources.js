@@ -79,14 +79,14 @@ function links({ token, chip, lang, home }) {
  * quizzesForStudents rows; `collect` = what the Jugnu corner read ({ trail, onItsWay, live, unseen, lantern, story });
  * `quizIds` = share code -> quiz id; `extra` = more candidates (storybooks, the finish's own). Returns the list.
  */
-function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en', quizIds = new Map(), storyCodes = new Set(), extra = [], watch = false, nowMs = Date.now() } = {}) {
+function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en', quizIds = new Map(), storyCodes = new Set(), unsentCodes = new Set(), extra = [], watch = false, nowMs = Date.now() } = {}) {
   const L = links({ token, chip: out.kid, lang, home: out.nav_home });
   const list = [];
   const push = (c) => { if (c && c.href && c.id) list.push(c); };
   const entryOf = (code) => history.find((e) => e && e.code === code) || null;
 
   // the teacher's quizzes: the hub's teacher card (an open code from the last 7 days), and the quiz left open
-  if (out.teacher && out.teacher.code) {
+  if (out.teacher && out.teacher.code && !unsentCodes.has(out.teacher.code)) {
     const t = out.teacher;
     // a storybook the teacher sent rides a quiz row + its code (quiz_source 'story'): the same pin, its own kind
     const story = storyCodes.has(t.code);
@@ -141,7 +141,7 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
 /** code -> quiz id, and the codes whose quiz row is a storybook send (quiz_source 'story'). Never throws. */
 async function quizIdsOf(codes) {
   const want = [...new Set(codes.filter(Boolean))];
-  const none = { quizIds: new Map(), storyCodes: new Set() };
+  const none = { quizIds: new Map(), storyCodes: new Set(), unsentCodes: new Set() };
   if (!want.length) return none;
   try {
     const { read: dbRead } = require('./web-quiz-db-deadline');
@@ -149,10 +149,18 @@ async function quizIdsOf(codes) {
     const quizIds = new Map((data || []).map((r) => [r.code, r.quiz_id]));
     const ids = [...new Set([...quizIds.values()].filter(Boolean))];
     const { data: rows } = ids.length
-      ? await dbRead('nextOffer:quizzes:1', (db) => db.from('quizzes').select('id, quiz_source').in('id', ids))
+      ? await dbRead('nextOffer:quizzes:1', (db) => db.from('quizzes').select('id, quiz_source, status, meta').in('id', ids))
       : { data: [] };
-    const story = new Set((rows || []).filter((q) => q.quiz_source === 'story').map((q) => q.id));
-    return { quizIds, storyCodes: new Set([...quizIds].filter(([, id]) => story.has(id)).map(([code]) => code)) };
+    const stories = (rows || []).filter((q) => q.quiz_source === 'story');
+    // a story's code is minted when the teacher OPENS the book (the send link is built at render); only a tapped send
+    // (status 'sent' / meta.sent_at) is the teacher's — a preview is never pinned
+    const sent = (q) => q.status === 'sent' || Boolean(q.meta && (q.meta.sent_at || q.meta.first_sent_at));
+    const codesOf = (pick) => new Set([...quizIds].filter(([, id]) => pick.has(id)).map(([code]) => code));
+    return {
+      quizIds,
+      storyCodes: codesOf(new Set(stories.filter(sent).map((q) => q.id))),
+      unsentCodes: codesOf(new Set(stories.filter((q) => !sent(q)).map((q) => q.id))),
+    };
   } catch (_) {
     return none;
   }
@@ -215,12 +223,12 @@ function withDeadline(p, ms) {
 }
 
 async function hubNext({ out, token, history, collect, lang, chosenId, grade, watch }) {
-  const [{ quizIds, storyCodes }, books, onItsWay] = await Promise.all([
+  const [{ quizIds, storyCodes, unsentCodes }, books, onItsWay] = await Promise.all([
     quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)]),
     storybooks({ studentId: chosenId, lang, grade, token, chip: out.kid }),
     onItsWayOf(chosenId, chosenId, collect.trail, lang, grade),
   ]);
-  const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, extra: books, watch });
+  const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, unsentCodes, extra: books, watch });
   const next = await NO.nextFor({ ctx: 'home', studentId: chosenId, candidates, hasRoot: hasRootOf(history), lang });
   return next ? { next } : {};
 }
