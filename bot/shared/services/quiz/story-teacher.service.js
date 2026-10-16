@@ -157,7 +157,7 @@ async function rowFor(uid, book, lang) {
     teacher_id: uid, quiz_source: SOURCE, topic: book.title, grade: String(book.grade), language: lang, status: 'ready',
     meta: { story: { book_id: book.id, lang } },
   }).select('id, meta, status, created_at').single();
-  if (error || !data) { logToFile('❌ story send: could not write the send', { error: error && error.message }); fail(503, 'unavailable'); }
+  if (error || !data) { logToFile('❌ story send: could not write the send', { error: error && error.message }, 'error'); fail(503, 'unavailable'); }
   const all = await rowsFor(uid, book.id);
   const keep = all[0] || data;
   if (keep.id !== data.id) {
@@ -265,12 +265,13 @@ async function markSent(p, now) {
   if (p.held.active === false) {
     // Never a sent row behind a closed code (the class would get "expired"): no open, no send.
     const { error } = await supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id);
-    if (error) { logToFile('❌ story send: could not open the code', { error: error.message }); fail(503, 'unavailable'); }
+    if (error) { logToFile('❌ story send: could not open the code', { error: error.message }, 'error'); fail(503, 'unavailable'); }
   }
   const meta = { ...(p.quiz.meta || {}), story: { book_id: p.book.id, lang: p.lang }, share_code: p.held.code, share_code_id: p.held.id,
     link: p.out.link, student_message: p.out.class_message, sent_at: new Date(now).toISOString(),
     first_sent_at: (p.quiz.meta && p.quiz.meta.first_sent_at) || new Date(now).toISOString() };
-  await supabase.from('quizzes').update({ meta, status: 'sent' }).eq('id', p.quiz.id);
+  const { error } = await supabase.from('quizzes').update({ meta, status: 'sent' }).eq('id', p.quiz.id);
+  if (error) { logToFile('❌ story send: could not mark the send', { error: error.message }, 'error'); fail(503, 'unavailable'); }
   logEvent('teacher_story_sent', { book_id: p.book.id, quiz_id: p.quiz.id, share_code_id: p.held.id, class_id: p.held.class_id || null, reused: p.reused });
 }
 

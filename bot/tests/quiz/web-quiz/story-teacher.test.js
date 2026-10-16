@@ -184,6 +184,19 @@ describe('the send', () => {
     expect(new Set([a.code, b.code, c.code]).size).toBe(3);
     expect(db.quizzes).toHaveLength(3);
   });
+  test('a picked class binds the code only when it is this teacher\'s; another teacher\'s class id binds nothing', async () => {
+    const HandoutClass = require('../../../shared/services/quiz/handout-class.service');
+    const MINE = ['66666666-6666-4666-8666-000000000001', '66666666-6666-4666-8666-000000000002'];
+    const THEIRS = '66666666-6666-4666-8666-000000000009';
+    const spy = jest.spyOn(HandoutClass, 'resolveClass').mockResolvedValue({ state: 'ambiguous', class: null, classes: MINE.map((id) => ({ id })) });
+    try {
+      await Stories.share({ uid: TEACHER, storyId: B(1), classId: THEIRS });
+      expect(db.quiz_share_codes).toHaveLength(1);
+      expect(db.quiz_share_codes[0].class_id == null).toBe(true);
+      await Stories.share({ uid: TEACHER, storyId: B(3), classId: MINE[1] });
+      expect(db.quiz_share_codes[1].class_id).toBe(MINE[1]);
+    } finally { spy.mockRestore(); }
+  });
   test('an Urdu book sends the Urdu message', async () => {
     const out = await Stories.share({ uid: TEACHER, storyId: B(8) });
     expect(out.class_message).toContain('کہانی');
@@ -306,6 +319,22 @@ describe('the Stories page (the bot renders it)', () => {
     expect(r.code).toBe(404);
     expect(r.body).toEqual({ error: 'stories_off' });
   });
+  test('a fresh profile (no cookie, no stored language, a teacher with no sends, no class and no books on the shelf): today\'s shape', async () => {
+    db.story_books = [];
+    db.story_pages = [];
+    db.story_page_voices = [];
+    const r = res();
+    await Routes.servePage({ params: { th: th(TEACHER, 'en') }, query: {}, headers: {} }, r);
+    expect(r.code).toBe(200);
+    expect(r.ctype).toBe('html');
+    expect(r.body).toContain('<html lang="en" dir="ltr">');
+    expect(r.body).toContain('data-screen="teacher-stories"');
+    expect((r.body.match(/data-tap="grade"/g) || []).length).toBe(5);
+    expect(r.body).toContain('No stories here — pick another grade or language.');
+    expect(r.body).not.toMatch(/localStorage|document\.cookie/);
+    expect(db.quizzes).toHaveLength(0);
+    expect(db.quiz_share_codes).toHaveLength(0);
+  });
 });
 
 describe('the teacher\'s web report of a story send', () => {
@@ -376,7 +405,7 @@ describe('a preview is not a send', () => {
 });
 
 describe('the switch reads (goldens)', () => {
-  const states = { absent: null, false: false, yes: 'yes', 'string true': 'true', object: { enabled: true } };
+  const states = { absent: null, false: false, yes: 'yes', 'string true': 'true', one: 1, object: { enabled: true } };
   for (const [name, v] of Object.entries(states)) {
     test(`web_quiz_stories_teacher ${name}: off — the /q 404 and the hub door are today's`, async () => {
       const sent = await Stories.share({ uid: TEACHER, storyId: B(1) });
@@ -450,6 +479,18 @@ describe('the child opens /q/<code> of a story send', () => {
     expect(out.story).toEqual({ id: B(1), from_teacher: true, code: sent.code });
     expect(out.quiz).toMatchObject({ code: sent.code, n: 0, questions: [] });
     expect(out.cls).toBeTruthy();
+  });
+  test('a story asks for no quiz read-aloud clips (it has no questions to record)', async () => {
+    const Publish = require('../../../shared/services/quiz/web-quiz-publish.service');
+    const sent = await Stories.share({ uid: TEACHER, storyId: B(1) });
+    dbDefaults();
+    const spy = jest.spyOn(Publish, 'requestQuizAudio').mockResolvedValue(null);
+    try {
+      const out = await WQ.getQuiz(sent.code);
+      expect(out.story).toBeTruthy();
+      expect(out.audio_pending).toBeFalsy();
+      expect(spy).not.toHaveBeenCalled();
+    } finally { spy.mockRestore(); }
   });
   test('switch off: the code is the 404 a quiz with no questions always was (golden)', async () => {
     const sent = await Stories.share({ uid: TEACHER, storyId: B(1) });
@@ -603,6 +644,23 @@ describe('a preview never reaches a child, even when the database fails', () => 
     } finally { restore(); }
     expect(db.quizzes[0].status).toBe('ready');
     expect(db.quiz_share_codes[0].active).toBe(false);
+  });
+  test('Send whose row cannot be marked sent is refused (503), never a 200 behind a row still "ready"', async () => {
+    await Stories.preview({ uid: TEACHER, storyId: B(1) });
+    const real = supabase.from;
+    supabase.from = (t) => {
+      const q = real(t);
+      if (t !== 'quizzes') return q;
+      const update = q.update.bind(q);
+      q.update = (p) => (p && p.status === 'sent' ? { eq: async () => ({ data: null, error: { message: 'down' } }) } : update(p));
+      return q;
+    };
+    try {
+      await expect(Stories.send({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 503 });
+    } finally { supabase.from = real; }
+    expect(db.quizzes[0].status).toBe('ready');
+    expect(logEvent).not.toHaveBeenCalledWith('teacher_story_sent', expect.anything());
+    expect(require('../../../shared/utils/logger').logToFile).toHaveBeenCalledWith(expect.stringContaining('could not mark the send'), expect.anything(), 'error');
   });
   test('the sent event says "reused" only when the code was already open before this tap', async () => {
     await Stories.preview({ uid: TEACHER, storyId: B(1) });
