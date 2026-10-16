@@ -59,7 +59,7 @@ jest.mock('../../bot/shared/config/supabase', () => ({
 }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: () => {} }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: (...a) => mockState.logs.push(a) }));
-jest.mock('../../bot/shared/services/e2e-cassette', () => ({ mode: () => 'off', wrapChatCompletions: () => {} }), { virtual: true });
+jest.mock('../../bot/shared/services/e2e-cassette', () => ({ mode: () => 'off', wrapChatCompletions: () => {} }));
 
 const BOOK = {
   science: '=== Page 10 ===\nPlants make food.\n\n=== Page 60 ===\nForces.',
