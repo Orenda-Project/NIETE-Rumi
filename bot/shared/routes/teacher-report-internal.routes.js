@@ -9,7 +9,9 @@
  *   GET /pdf/:token[?lang=&tab=class]                  the same page, print mode, as a PDF
  *   GET /remind/:token?quiz=<id>                       logs the tap, 302 -> wa.me with the reminder
  *   GET /jlink/:token?class=<id>&how=forward|copy      the class link card: 302 -> wa.me with the link only / 303 back, card open
- *   POST /jnew/:token {class}                          the class link card's "Make a new link": 303 back to the class tab
+ *   POST /jnew/:token {class, n}                       the class link card's confirm "Make a new link": 303 back to the class tab
+ *                                                      (400 without the confirm card's signed nonce n; a stale one → 303
+ *                                                      back to the confirm card with a fresh nonce; nothing revoked)
  *   GET /data/:token                                   the report as JSON (tests, QA)
  *   POST /class/:token {quiz, key}                     "Which class was this for?" -> identity v2 whoClass
  *   POST /fix/:token {quiz, ref, add|studentId}        a typed child: add to the class / who it really is -> fixWho
@@ -94,6 +96,12 @@ async function build(req, v) {
   // ── standing class link card (web_quiz_class_link): null when off → the class tab is unchanged ──
   const classLink = await require('../services/quiz/web-quiz-class-link').forTeacher(v.teacherId);
   if (classLink) classData.classLink = { ...classLink, open: uuidOr(req.query.cl_open) };
+  // "Make a new link" asks first (?jconfirm=<class>): that class's card shows the warning and a nonce for this teacher + class.
+  const asked = classLink ? uuidOr(req.query.jconfirm) : null;
+  if (asked && classLink.cards.some((c) => c.classId === asked)) {
+    const n = require('../services/quiz/web-quiz-class-link').signRenewNonce({ teacherId: v.teacherId, classId: asked });
+    if (n) classData.classLink.confirm = { classId: asked, n };
+  }
   // ── end standing class link card ──
   return { tab, lang, data: { class: classData }, report, tokens: { self: req.params.token, quiz: quizTokens } };
 }
@@ -176,11 +184,22 @@ router.get('/jlink/:token', handle(async (req, res) => {
   noStore(res);
   res.redirect(how === 'copy' ? 303 : 302, href);
 }));
-// "Make a new link": the class's own teacher only (the signed report token), switch on; anything else 404, no change.
+// "Make a new link" (the confirm card's form): switch off → 404 as before; no valid nonce for this teacher + class
+// → 400, a stale one (the card left open past 10 minutes) → 303 back to the confirm card (a fresh nonce); not the
+// class's own teacher (the signed report token) → 404. Only the 303 to the class tab changes a row.
 router.post('/jnew/:token', handle(async (req, res) => {
   const v = authorise(req, res);
   if (!v) return;
-  const made = await require('../services/quiz/web-quiz-class-link').renew({ teacherId: v.teacherId, classId: uuidOr((req.body || {}).class) });
+  const body = req.body || {};
+  const made = await require('../services/quiz/web-quiz-class-link').renew({
+    teacherId: v.teacherId, classId: uuidOr(body.class), n: typeof body.n === 'string' ? body.n : null,
+  });
+  if (made && made.refused === 'stale_nonce') {
+    noStore(res);
+    res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}?tab=class&jconfirm=${encodeURIComponent(uuidOr(body.class))}#class-link`);
+    return;
+  }
+  if (made && made.refused) { page(res, 400, 'error', queryLang(req)); return; }
   if (!made) { notFound(req, res, v); return; }
   noStore(res);
   res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}?tab=class#class-link`);

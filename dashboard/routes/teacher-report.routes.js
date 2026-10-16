@@ -7,7 +7,7 @@
  *   GET /r/:token/pdf      the same page as a PDF attachment (the bot renders it)
  *   GET /r/:token/remind   the bot logs the tap and answers 302 -> wa.me; passed through
  *   GET /r/:token/jlink    the class link card: Forward → 302 wa.me (the link only); Copy → 303 back to the report
- *   POST /r/:token/jnew    the class link card's "Make a new link" (303 back to the report)
+ *   POST /r/:token/jnew    the class link card's confirm "Make a new link" {class, n} (303 back to the report; the bot's 400 without n)
  *   POST /r/:token/class   the page's no-JS "Which class was this for?" form
  *   POST /r/:token/fix     the page's no-JS forms for a typed child not on the list
  *   GET /r/:token/fwd      the Jugnu tab's "Forward to the class group": the bot's 302 -> wa.me
@@ -46,6 +46,8 @@ const QUERY = {
   // The class link card (web_quiz_class_link): Forward or Copy, and the class whose link Copy opens.
   how: (v) => v === 'forward' || v === 'copy',
   cl_open: (v) => UUID_RX.test(v),
+  // Its "Make a new link" asks first: the class whose card shows the confirm (the bot signs the nonce).
+  jconfirm: (v) => UUID_RX.test(v),
 };
 
 function forwardQuery(q) {
@@ -63,8 +65,9 @@ const FORM = {
   queue: { loose_id: (v) => UUID_RX.test(v), candidate_id: (v) => UUID_RX.test(v), decision: (v) => ['same', 'no', 'unsure', 'undo', 'link'].includes(v), class: (v) => UUID_RX.test(v) },
   // "Saved on WhatsApp ✓ · Undo": one binding of a child on the teacher's list (the bot checks it is theirs).
   unbind: { binding: (v) => UUID_RX.test(v), class: (v) => UUID_RX.test(v) },
-  // The class link card's "Make a new link" (web_quiz_class_link): the class whose link is renewed.
-  jnew: { class: (v) => UUID_RX.test(v) },
+  // The class link card's confirm "Make a new link" (web_quiz_class_link): the class whose link is renewed, and the
+  // confirm card's signed nonce (web-quiz-token's format; the bot verifies it and answers 400 without it).
+  jnew: { class: (v) => UUID_RX.test(v), n: (v) => TOKEN_RX.test(v) },
 };
 function formBody(kind, body) {
   const out = {};

@@ -85,8 +85,11 @@ function sign(payload) {
   return `${body}.${mac(key, body)}`;
 }
 
-/** The payload when the token is genuine, of `kind`, and unexpired; else null. */
-function verify(token, kind) {
+/**
+ * The payload when the token is genuine, of `kind`, and unexpired; else null. `allowExpired` (opt-in, for telling a
+ * stale-but-genuine token from a forged one) skips only the expiry check; the signature and kind are still required.
+ */
+function verify(token, kind, { allowExpired = false } = {}) {
   try {
     const key = secret();
     if (!key || typeof token !== 'string' || token.length > 1024) return null;
@@ -99,7 +102,7 @@ function verify(token, kind) {
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) return null;
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
     if (!payload || payload.k !== kind) return null;
-    if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    if (!payload.exp || (!allowExpired && payload.exp < Math.floor(Date.now() / 1000))) return null;
     return payload;
   } catch {
     return null;
