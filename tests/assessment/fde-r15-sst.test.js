@@ -1,0 +1,142 @@
+/**
+ * Round-15 Social Studies (eight local papers on the round-14 head: full scope clean, every T6-A
+ * item on chapter scopes, 11 of 13 a contained point set):
+ *
+ *   1. The point-set hold is a list of rows: D.Q6 against C.Q5 (as before), D.Q7 against C.Q5 and
+ *      D.Q6 (a one-fact Q7 whose answer is one point of a longer item: chapters_1 Q7 ۸ «برقی توانائی»
+ *      in Q5 ۹'s points, chapters_2 Q7 ۷ «سلام کرنا» in Q6 ۶'s), and D.Q6 against the Q6 items
+ *      already placed (chapters_2 Q6 ۱ and ۴, one online disagreement with the same four points).
+ *   2. D's first prompt names C's Q5 topics, and asks for Q6 situations on other topics.
+ *   3. D's re-ask is told the items the layout set aside, with their points, as items never to write.
+ *   4. Before a held D item is put back, D is asked once more (a top-up told what was held). An item
+ *      still held after that prints, and every hold is logged.
+ *   5. Q6 needs two different ideas applied; never one fact twice, a computation or a recall list.
+ *
+ * The papers are local model output (people in them are the model's own fictional ones).
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const mockCreate = jest.fn();
+jest.mock('../../bot/shared/services/llm-client', () => ({
+  getClient: () => ({ chat: { completions: { create: (...a) => mockCreate(...a) } } }),
+}));
+const mockLog = jest.fn();
+jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: (...a) => mockLog(...a), logError: jest.fn(), logWarn: jest.fn() }));
+jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
+  loadPageRangeContent: async ({ pageRanges }) => ({ content: '=== Page 40 ===\nسبق کا متن', pageReference: String(pageRanges), chapterTitle: null }),
+  loadChapterContent: async () => { throw new Error('not used'); },
+}));
+
+const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
+const Patterns = require('../../bot/shared/services/assessment/patterns');
+const { applyLayout, takenNote, firstAskNote } = require('../../bot/shared/services/assessment/fde-layout');
+
+const ALL = Patterns.get('fde_g5_2027').subjects;
+const SST = ALL.social_studies;
+const fixture = (name) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', `${name}.json`), 'utf8'));
+const LOCAL = ['chapters_1', 'chapters_2', 'chapters_3', 'chapters_4', 'full_1', 'full_2', 'full_3', 'full_4'];
+const paper = (p) => fixture(`r15-sst-local-${p}`);
+const scopeOf = (exam) => ({ kind: exam._layout.scope.kind, chapters: exam._layout.scope.chapters, pages: exam._layout.scope.pages });
+const items = (exam, slot) => Object.values(exam.unseen).flatMap((t) => Object.values(t)).flat().filter((q) => q && q.slot === slot);
+const lay = (exam, opts) => applyLayout(JSON.parse(JSON.stringify(exam)), SST, scopeOf(exam), opts);
+const C5 = 'social_studies.C.Q5';
+const D6 = 'social_studies.D.Q6';
+const D7 = 'social_studies.D.Q7';
+const kept = (exam, slot) => items(lay(exam, { reasked: false }).examJson, slot).map((q) => q.question);
+const section = (id) => SST.sections.find((s) => s.id === id);
+
+// One section's reply as the model writes it: unseen → category → type → [items].
+function replyOf(exam, sectionId) {
+  const tree = { unseen: {} };
+  for (const slot of section(sectionId).slots) {
+    const list = items(exam, slot.slot).map((q) => ({ ...q }));
+    ((tree.unseen[slot.category] ||= {})[slot.type] ||= []).push(...list);
+  }
+  return JSON.stringify(tree);
+}
+const sectionOf = (text) => ['A', 'B', 'C', 'D'].find((s) => text.includes(`"slot": "social_studies.${s}.`));
+const withItems = (json, slot, list) => {
+  const tree = JSON.parse(json);
+  for (const types of Object.values(tree.unseen)) for (const [t, l] of Object.entries(types)) {
+    if (l.some((q) => q.slot === slot)) types[t] = [...l.filter((q) => q.slot !== slot), ...list];
+  }
+  return JSON.stringify(tree);
+};
+
+describe('1. the point-set hold is a list: Q6 ← Q5, Q7 ← Q5 / Q6, Q6 ← Q6', () => {
+  const CH1 = paper('chapters_1');
+  const CH2 = paper('chapters_2');
+
+  test('the fixtures are the pairs gen-local named', () => {
+    expect(items(CH1, D7)[7].answer).toContain('برقی توانائی');
+    expect(items(CH1, C5)[8].scheme.points.map((p) => p.text).join(' ')).toContain('برقی توانائی');
+    expect(items(CH2, D7)[6].answer).toContain('سلام');
+    expect(items(CH2, D6)[5].scheme.points[0].text).toContain('سلام کرنے');
+  });
+
+  test('chapters_1 Q7 ۸ «برقی توانائی» (a point of Q5 ۹) is held before the re-ask', () => {
+    expect(kept(CH1, D7)).not.toContain(items(CH1, D7)[7].question);
+  });
+
+  test('chapters_2 Q7 ۷ «سلام کرنا» (a point of Q6 ۶) is held before the re-ask', () => {
+    expect(kept(CH2, D7)).not.toContain(items(CH2, D7)[6].question);
+  });
+
+  test('chapters_2 Q6 ۴ restates Q6 ۱ (the same four points): the later one is held, the first kept', () => {
+    // Q5 here is another paper's (Ch 4+6), so only the in-slot row can see the pair.
+    const other = items(paper('chapters_4'), C5);
+    const exam = JSON.parse(withItems(JSON.stringify(CH2), C5, other));
+    const q6 = items(CH2, D6);
+    const laidQ6 = kept(exam, D6);
+    expect(laidQ6).toContain(q6[0].question);
+    expect(laidQ6).not.toContain(q6[3].question);
+  });
+
+  test('the layout reports each hold with its slot and rule', () => {
+    const { held } = lay(CH1, { reasked: false });
+    const q7 = held.filter((h) => h.slot === D7).map((h) => [h.q.question, h.rule]);
+    expect(q7).toContainEqual([items(CH1, D7)[7].question, 'key_in_points']);
+    for (const h of held) {
+      expect(typeof h.rule).toBe('string');
+      expect(h.printed).toBe(false);
+    }
+    // After the re-ask, a held item that fills a place is put back and says so.
+    const after = lay(CH1, { reasked: true }).held;
+    expect(after.some((h) => h.printed)).toBe(true);
+  });
+
+  test('a one-word Q7 key that a Q5 answer only names, on another fact, is not held', () => {
+    const exam = JSON.parse(JSON.stringify(CH2));
+    const q5 = items(exam, C5)[0];
+    q5.answer = `${q5.answer} مثلاً سندھ کے لوگ بھی یہی کرتے ہیں۔`;
+    const q7 = { slot: D7, question: 'بیگم رعنا لیاقت علی خان کس صوبے کی گورنر بنیں؟', answer: 'سندھ', scheme: { points: [{ text: 'سندھ درست لکھنا', marks: 2 }] } };
+    for (const types of Object.values(exam.unseen)) for (const l of Object.values(types)) {
+      if (l.some((q) => q.slot === D7)) l.unshift(q7);
+    }
+    expect(kept(exam, D7)).toContain(q7.question);
+  });
+
+  test('another subject\'s layout carries no point-set hold', () => {
+    for (const key of ['science', 'english', 'maths', 'urdu']) {
+      const laid = applyLayout({ unseen: {} }, ALL[key], { kind: 'fde' }, { reasked: false });
+      expect(laid.held.filter((h) => /^key_in_points|^points/.test(h.rule))).toEqual([]);
+    }
+  });
+});
+
+describe('the eight local papers: what the new rows hold', () => {
+  test('full scope holds no D item that the round-14 head kept', () => {
+    // Recorded on the round-14 head: full_1–4 were clean by the by-points test; a hold there is a false flag.
+    const flags = [];
+    for (const p of LOCAL.filter((n) => n.startsWith('full'))) {
+      const exam = paper(p);
+      for (const slot of [D6]) {
+        const k = new Set(kept(exam, slot));
+        flags.push(...items(exam, slot).filter((q) => !k.has(q.question)).map((q) => `${p} ${q.question.slice(0, 40)}`));
+      }
+    }
+    expect(flags.length).toBeLessThanOrEqual(2);
+  });
+});

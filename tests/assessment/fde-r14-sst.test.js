@@ -152,6 +152,8 @@ describe('2. Q7 ← Q1: a spelling fold, and a fact carried by the MCQ\'s stem',
     expect(held).toEqual([
       'chapters_1 عبدالستار ایدھی نے کون سی فلاحی تنظیم قائم کی؟',
       'chapters_2 پاکستان میں سینٹ کے ارکان کی تعداد کتنی ہے؟',
+      // Round 15: a one-fact Q7 that Q6 ۳'s model answer states («1864ء میں سائنٹیفک سوسائٹی قائم کی»).
+      'chapters_2 سرسید احمد خان نے 1864ء میں کون سا ادارہ قائم کیا؟',
     ]);
   });
 });

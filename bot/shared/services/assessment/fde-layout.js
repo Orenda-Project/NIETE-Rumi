@@ -983,7 +983,36 @@ function samePoints(q5s) {
       >= POINTS_IN * five.length);
   };
 }
-const SAME_POINTS = { held: 'social_studies.D.Q6', against: 'social_studies.C.Q5' };
+// A one-fact Q7 whose answer is one point of a longer Q5 or Q6 item (Q7 «برقی توانائی» beside a Q5
+// point «الیکٹرانک میڈیا … (برقی توانائی کا استعمال)», Q7 «سلام کرنا» beside a Q6 point «سلام کرنے کا
+// ذکر») is answered by that item: a child who writes the long answer has written the Q7's. Read on the
+// same words as `samePoints`, the other way round: every word of the Q7's answer is in one point, or
+// in the answer, of the other item, and the two are about the same thing (a word of the Q7's question,
+// other than its answer, is in the other item). A name inside another name («لیاقت علی خان» in «بیگم
+// رعنا لیاقت علی خان») is not the same thing. Marking words and «پاکستان» say nothing about the topic.
+const QUIET_WORDS = new Set(tokensOf('درست جواب نام لکھا لکھنا پہلا پہلی دوسرا دوسری مثال ذکر بیان چاہیے چاہییں پاکستان'));
+function keyInPoints(others) {
+  const items = others.filter(Boolean).map((q) => ({
+    texts: [...pointSets(q), new Set(tokensOf(q.answer))].filter((t) => t.size),
+    about: new Set(tokensOf(textsOf(q.question, q.answer, pointSets(q).length ? q.scheme.points.map((p) => (typeof p === 'string' ? p : p && p.text)) : []).join(' '))),
+  })).filter((o) => o.texts.length);
+  if (!items.length) return null;
+  return (q) => {
+    if (!q || tokensOf(q.answer).length > ONE_LINE) return false;
+    const key = new Set(tokensOf(q.answer).filter((w) => !QUIET_WORDS.has(w)));
+    if (!key.size) return false;
+    const asked = tokensOf(q.question).filter((w) => !key.has(w) && !QUIET_WORDS.has(w));
+    return items.some((o) => o.texts.some((t) => within(key, t)) && asked.some((w) => o.about.has(w)));
+  };
+}
+// The point-set rows, laid in this order: a Q6 against the Q5s, a Q6 against the Q6s placed before
+// it (one online disagreement told twice with the same four points), then a Q7 against the Q5s and
+// the Q6s now placed. The held slot's item is held, never the other one.
+const SAME_POINTS = [
+  { held: 'social_studies.D.Q6', against: ['social_studies.C.Q5'], rule: samePoints, name: 'points' },
+  { held: 'social_studies.D.Q6', against: ['social_studies.D.Q6'], rule: samePoints, name: 'points_in_slot' },
+  { held: 'social_studies.D.Q7', against: ['social_studies.C.Q5', 'social_studies.D.Q6'], rule: keyInPoints, name: 'key_in_points' },
+];
 
 const CROSS_HOLD = {
   english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words },
@@ -1177,7 +1206,9 @@ function keptNotes(P, section, examJson, cross, shortfall) {
  *
  * P is one subject of a pattern (patterns.get(id).subjects[key]); scope is
  * { kind: 'fde' | 'chapters' | 'pages', chapters, pages }. `opts.reasked` is true once the
- * engine's one re-ask has run (a held item may then fill a place nothing else takes). Never throws.
+ * engine's one re-ask has run (a held item may then fill a place nothing else takes). `held` lists
+ * every item the last pass set aside, { slot, rule, printed, q }, `printed` when it was put back.
+ * Never throws.
  */
 function applyLayout(examJson, P, scope, opts = {}) {
   const src = examJson && typeof examJson === 'object' ? clone(examJson) : {};
@@ -1191,13 +1222,23 @@ function applyLayout(examJson, P, scope, opts = {}) {
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
   const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q)) || (P.key === 'urdu' && sameStemKey(p, q));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
-  // `within`: Social Studies, a Q6 item that restates a Q5 item ({ slot, rule }, SAME_POINTS).
+  // `within`: Social Studies, a D item answered by another item's points ([{ slot, rule, name, inSlot }],
+  // SAME_POINTS); an in-slot row reads the items already placed in its slot.
+  let held = [];
   const place = (cross, within) => {
     bySlot.forEach((list) => { list.length = 0; });
     unplaced = 0;
+    held = [];
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
     const fallback = new Map(); // slot → held items, in reply order
     const repeats = new Map(); // Social Studies: slot → items a placed item already asks, in reply order
+    const hold = (slot, q, rule) => {
+      fallback.set(slot.slot, [...(fallback.get(slot.slot) || []), q]);
+      held.push({ slot: slot.slot, rule, printed: false, q });
+      return false;
+    };
+    const restated = (slot, q) => (within || []).find((w) => w.slot === slot.slot
+      && (w.inSlot ? (samePoints(bySlot.get(slot.slot)) || (() => false))(q) : w.rule(q)));
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
       if (P.key === 'social_studies' && tierSlip(q)) return false;
@@ -1209,14 +1250,13 @@ function applyLayout(examJson, P, scope, opts = {}) {
           repeats.set(slot.slot, [...(repeats.get(slot.slot) || []), q]);
           return false;
         }
-        if (!within || slot.slot !== within.slot || !within.rule(q)) return true;
-        fallback.set(slot.slot, [...(fallback.get(slot.slot) || []), q]);
-        return false;
+        const row = restated(slot, q);
+        return row ? hold(slot, q, row.name) : true;
       }
       if (bySlot.get(slot.slot).some((p) => twin(p, q))) return false;
-      if (!cross.rule(q)) return true;
-      fallback.set(slot.slot, [...(fallback.get(slot.slot) || []), q]);
-      return false;
+      if (cross.rule(q)) return hold(slot, q, 'section_a');
+      const row = restated(slot, q);
+      return row ? hold(slot, q, row.name) : true;
     };
     const offer = (slot, q) => {
       if (room(slot) && fits(slot, q)) bySlot.get(slot.slot).push(q);
@@ -1251,6 +1291,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
         if (bySlot.get(id).some((p) => twin(p, q))) continue;
         bySlot.get(id).push(q);
         unplaced -= 1;
+        held.filter((h) => h.q === q).forEach((h) => { h.printed = true; });
       }
     });
     repeats.forEach((list, id) => {
@@ -1270,12 +1311,20 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Each item as the slot it was placed in (a mis-tag, «urdo.C.Q4», is placed by its tail).
   const rule = against && against.length && cross.rule(against.flatMap((s) => bySlot.get(s.slot).map((q) => ({ ...q, slot: s.slot }))));
   if (rule) place({ held: cross.held, rule });
-  // Social Studies: Q6 is laid out once more against the Q5 items now placed (Q5 itself is held
-  // only against Section A, so laying Q6 again cannot move it).
-  if (P.key === 'social_studies' && bySlot.has(SAME_POINTS.held) && bySlot.has(SAME_POINTS.against)) {
-    const restates = samePoints(bySlot.get(SAME_POINTS.against));
-    if (restates && bySlot.get(SAME_POINTS.held).some(restates)) {
-      place(rule ? { held: cross.held, rule } : null, { slot: SAME_POINTS.held, rule: restates });
+  // Social Studies: D is laid out again against the point sets now placed, one row at a time in
+  // SAME_POINTS order, each row built from the slots the rows before it have settled (Q5 is held only
+  // against Section A, and Q6 never against Q7, so a later row cannot move an earlier one's slot). A
+  // row that holds nothing leaves the paper as it was.
+  if (P.key === 'social_studies') {
+    const rows = [];
+    for (const row of SAME_POINTS) {
+      if (!bySlot.has(row.held) || !row.against.every((id) => bySlot.has(id))) continue;
+      const inSlot = row.against.includes(row.held);
+      // Read against what may print: the items placed and the ones held for the put-back.
+      const test = inSlot ? null : row.rule(row.against.flatMap((id) => [...bySlot.get(id), ...held.filter((h) => h.slot === id).map((h) => h.q)]));
+      if (!inSlot && !test) continue;
+      rows.push({ slot: row.held, rule: test, name: row.name, inSlot });
+      place(rule ? { held: cross.held, rule } : null, rows);
     }
   }
   spreadKeys(slots, bySlot, P.key);
@@ -1332,7 +1381,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     frame_pages: null,
     notes: [],
   };
-  return { examJson: out, placed, unplaced, shortfall };
+  return { examJson: out, placed, unplaced, shortfall, held };
 }
 
 module.exports = { applyLayout, takenNote, firstAskNote, verseLines, typeKey, slotKey, unitWord };
