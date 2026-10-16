@@ -400,8 +400,8 @@ const SCIENCE = {
           prompt_rule: 'One item: `question` is the NAME of a diagram printed in the book (e.g. "Layers of the Earth"), `book_page` the book page it is on, `answer` the five labels in order. The paper prints an empty frame with five label lines; the teacher draws or pastes the diagram. Never describe the picture and never send the child to a picture.',
           frame: {
             kind: 'diagram', height_mm: 70, lines: 5, book_page: 168, word_bank: false,
-            title_en: 'Diagram: {q} (drawn on the board or pasted)',
-            title_ur: 'خاکہ: {q} (بورڈ پر بنائیں یا چسپاں کریں)', // needs fluent-Urdu review
+            title_en: 'Diagram: {q}',
+            title_ur: 'خاکہ: {q}', // needs fluent-Urdu review
             supply_en: 'Diagram: {q}', supply_ur: 'خاکہ: {q}', // ur: needs fluent-Urdu review
             duty_en: 'the diagram to label', duty_ur: 'نشان دہی والا خاکہ', // ur: needs fluent-Urdu review
           },
@@ -1012,7 +1012,7 @@ const SST = {
           families: null, kinds: null,
           prompt_rule: 'One item: `question` = «پاکستان کا نقشہ», `answer` = the ten places to label (four neighbouring countries, the provinces and territories, the Arabian Sea). The paper prints an empty frame with ten label lines; the teacher pastes a blank outline map.',
           frame: {
-            kind: 'map', height_mm: 110, lines: 10, book_page: null, word_bank: false,
+            kind: 'map', height_mm: 100, lines: 10, book_page: null, word_bank: false,
             title_en: 'Map of Pakistan (paste or photocopy a blank outline map; label here)',
             title_ur: 'پاکستان کا نقشہ (خالی خاکہ چسپاں یا فوٹو کاپی کریں؛ نشاندہی یہاں کریں)', // needs fluent-Urdu review
             supply_en: 'Map of Pakistan', supply_ur: 'پاکستان کا نقشہ', // ur: needs fluent-Urdu review

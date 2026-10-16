@@ -769,6 +769,20 @@ const RULE = {
   table: 'Data items: give the data as table: { headers, rows }.',
   picks: 'Section B (ب): the (ب) pick lists must be words that appear in the passage, at least two of each kind.',
   jsonOnly: 'Return the JSON only.',
+  chapterOnly: 'Set every item only from the pages above. Where a slot\'s rule names a unit or topic outside them, keep the slot\'s kind and marks and set the item from these pages (the nearest skill they hold).',
+  scaffold: 'Never write scaffold phrases such as \'based on the passage\', \'based on the text\', \'mentioned in the text\', \'according to the passage\' in a stem. Ask the question directly.',
+  situationParts: 'Write each situation\'s three sub-questions as objects { question, answer, marks: 2.5, scheme } where scheme.points sum to 2.5; do not prefix a sub-question with a letter.',
+  picksVerbatim: 'For each pick kind ask for the count needed plus two extra, copied exactly as the words appear in the passage (same spelling, same form).',
+  gender: 'A child or a person in a stem is \'a child\', \'a student\', \'they\', or a named character. Never she/he, his/her for an unnamed person.',
+  genderUrdu: 'کسی نامعلوم شخص کے لیے صنفی فعل استعمال نہ کریں؛ \'آپ … کریں\' یا نام والا کردار استعمال کریں۔', // needs fluent-Urdu review
+  oneKey: 'An anagram, homophone or spelling MCQ has exactly one option that satisfies the stem.',
+  noUnderline: 'Never refer to an underlined, bold or italic word; name the word in the stem instead.',
+  scienceQ3: 'Q3(a): two of the three long questions are Remember (state, name, define with the book\'s wording); one is Understand. Q3(b): the short questions are reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\') so that the paper carries Apply marks.',
+  unequalOptions: 'MCQ options are pairwise unequal in value (no two options that simplify to the same number, no 2/5 and 6/15) and written in simplest form.',
+  noRepeats: 'No item repeats another item\'s content, numbers or answer on this paper, in any section.',
+  spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
+  sstQ56: 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.',
+  accept: '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.',
 };
 
 // The pages Urdu items are never set from: lessons 1–3 (the Hamd, the Naat, the third).
@@ -841,13 +855,17 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   const sectionLabel = section.label_en || section.label_ur || section.id;
   const hasMcq = list.some((s) => s.shape === 'mcq');
 
+  // The FDE syllabus names units and kinds per slot; a paper set on chosen chapters or
+  // pages keeps each slot's kind and marks but takes its items from those pages only.
+  const fde = Boolean(scope) && scope.kind === 'fde';
   const rules = [RULE.bookOnly];
+  if (!fde) rules.push(RULE.chapterOnly);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) {
     rules.push('Science: a situation comes only from the book activities its slot\'s rule lists, never another.');
   }
   const closed = _closedLists(P, list);
   if (closed) rules.push(closed);
-  if (key === 'urdu') rules.push(`${RULE.held} Set items only from book pages ${P.scope.page_ranges}.`);
+  if (key === 'urdu') rules.push(fde ? `${RULE.held} Set items only from book pages ${P.scope.page_ranges}.` : RULE.held);
   if (scope && scope.kind === 'fde' && P.scope.excluded_pages_note) rules.push(P.scope.excluded_pages_note);
   const tos = TOS[key];
   if (tos) {
@@ -855,15 +873,21 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     rules.push(`Across the whole paper the marks split by thinking level is ${split} (FDE's table of specification). `
       + `Tag each item: ${RULE.r1}${key === 'english' ? `; ${RULE.r1English}` : ''}.`);
   }
-  if (hasMcq) rules.push(`In this section, ${RULE.recall}.`);
-  rules.push(RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme);
-  if (key === 'maths' && list.some((s) => (Array.isArray(s.families) && s.families.length) || (Array.isArray(s.kinds) && s.kinds.length))) {
+  if (hasMcq) rules.push(`In this section, ${RULE.recall}.`, RULE.oneKey, RULE.unequalOptions, RULE.spreadKeys);
+  rules.push(RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept);
+  if (fde && key === 'maths' && list.some((s) => (Array.isArray(s.families) && s.families.length) || (Array.isArray(s.kinds) && s.kinds.length))) {
     rules.push(RULE.families);
   }
   rules.push(RULE.table);
-  if (list.some((s) => Array.isArray(s.parts_spec) && s.parts_spec.some((p) => p.pick)) && medium === 'ur') {
-    rules.push(RULE.picks);
-  }
+  const picks = list.some((s) => Array.isArray(s.parts_spec) && s.parts_spec.some((p) => p.pick));
+  if (picks && medium === 'ur') rules.push(RULE.picks);
+  if (picks) rules.push(RULE.picksVerbatim);
+  if (key === 'science' && list.some((s) => s.shape === 'situation')) rules.push(RULE.situationParts);
+  if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
+  if (key === 'social_studies' && list.some((s) => /\.Q[56]$/.test(s.slot))) rules.push(RULE.sstQ56);
+  rules.push(RULE.scaffold, RULE.noUnderline, RULE.gender);
+  if (medium === 'ur') rules.push(RULE.genderUrdu);
+  rules.push(RULE.noRepeats);
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
