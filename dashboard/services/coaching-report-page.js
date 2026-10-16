@@ -5,7 +5,7 @@
  *   card   — her score, what went well, the one thing to try (its step and why it matters), a way back
  *            to WhatsApp for tomorrow's plan, the report image, voice note and student quiz;
  *   detail — marks, the four sections with bars and the stored why, and her journey so far.
- * C and D are asked "Do you agree?" with their coach one tap away (bd-v0toag.38.9, coach-ping-page.js).
+ * C and D are asked "What do you think of this report?" with their coach one tap away (bd-v0toag.38.9, coach-ping-page.js).
  * Takes the view from coaching-report-view.js. Read-only. Every value is escaped and every link https.
  * Rendered by dashboard/routes/coaching-report.routes.js.
  */
@@ -88,7 +88,7 @@ function trySection(t, c, bot) {
 }
 
 /**
- * "Do you agree with this report?" (bd-v0toag.49; reworded in bd-v0toag.38.9). A POST form, so a link preview
+ * "What do you think of this report?" (bd-v0toag.49; reworded in bd-v0toag.38.9, made neutral in bd-v0toag.79). A POST form, so a link preview
  * never answers it. state: undefined = ask; 'yes' = thanks; 'no' = ask for the reason; 'done' = thanks for the
  * reason. For C and D (coachHref set) No opens the coach ping instead, and the link to it shows from the start.
  */

@@ -7,7 +7,7 @@
  *                    Expired → 302 to the portal sign-in, never a dead page (Amena, 14 Oct).
  *                    Bad, or not her session → a "link not complete" page, 404, no data.
  *   GET /cr/:token/detail   the same report's detailed screen (sections, journey); the same checks and answers.
- *   POST /cr/:token/useful  "Do you agree with this report?" (bd-v0toag.49, reworded in .38.9): useful=yes|no, or
+ *   POST /cr/:token/useful  "What do you think of this report?" (bd-v0toag.49, reworded in .38.9 and .79): useful=yes|no, or
  *                    the 👎 reason, stored on the session's metrics row, then 303 back to the card. For C and D a
  *                    No opens the coach ping instead. POST only, so a link preview never answers; the reason
  *                    text is stored, never logged.

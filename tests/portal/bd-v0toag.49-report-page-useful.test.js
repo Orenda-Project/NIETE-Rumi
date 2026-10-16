@@ -68,23 +68,23 @@ describe('the card asks', () => {
   test('the WhatsApp question, word for word, as a POST form with the two WhatsApp answers', async () => {
     const t = tok();
     const res = await req(await app(), 'GET', `/cr/${t}`);
-    expect(res.body).toContain('Do you agree with this report?');
+    expect(res.body).toContain('What do you think of this report?');
     expect(res.body).toContain(`<form method="post" action="/cr/${t}/useful"`);
     expect(res.body).toContain('name="useful" value="yes"');
-    expect(res.body).toContain('👍 Yes');
+    expect(res.body).toContain('>Accurate<');
     expect(res.body).toContain('name="useful" value="no"');
-    expect(res.body).toContain('👎 No');
+    expect(res.body).toContain('>Not accurate<');
     expect(emitted).toContainEqual({ e: 'coaching.useful.asked', d: { coachingSessionId: S, userId: U, group: 'C', channel: 'page' } });
   });
 
   test('in Urdu for an Urdu teacher, the same words as WhatsApp', async () => {
     const res = await req(await app({ view: { ...VIEW, language: 'ur' } }), 'GET', `/cr/${tok()}`);
-    expect(res.body).toContain('کیا آپ اس رپورٹ سے متفق ہیں؟');
+    expect(res.body).toContain('اس رپورٹ کے بارے میں آپ کی کیا رائے ہے؟');
   });
 
   test('the detail screen does not ask', async () => {
     const res = await req(await app(), 'GET', `/cr/${tok()}/detail`);
-    expect(res.body).not.toContain('Do you agree with this report?');
+    expect(res.body).not.toContain('What do you think of this report?');
     expect(emitted.map((x) => x.e)).not.toContain('coaching.useful.asked');
   });
 });
@@ -100,7 +100,7 @@ describe('the answer', () => {
     expect(emitted).toContainEqual({ e: 'coaching.useful.answered', d: { coachingSessionId: S, userId: U, useful: true, group: 'C', channel: 'page' } });
     const card = await req(srv, 'GET', res.headers.location);
     expect(card.body).toContain('Thank you.');
-    expect(card.body).not.toContain('Do you agree with this report?');
+    expect(card.body).not.toContain('What do you think of this report?');
   });
 
   // C and D's 👎 opens the coach ping instead (bd-v0toag.38.9-agree-ping-page.test.js).
@@ -112,7 +112,7 @@ describe('the answer', () => {
     expect(writes).toEqual([{ sessionId: S, userId: U, useful: false }]);
     expect(emitted).toContainEqual({ e: 'coaching.useful.answered', d: { coachingSessionId: S, userId: U, useful: false, group: 'A', channel: 'page' } });
     const card = await req(srv, 'GET', res.headers.location);
-    expect(card.body).toContain('Thanks for telling us. What didn’t seem right? (one line is enough)');
+    expect(card.body).toContain('Thanks for telling us. What wasn’t accurate? (one line is enough)');
     expect(card.body).toContain('name="reason"');
   });
 

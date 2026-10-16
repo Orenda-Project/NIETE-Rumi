@@ -1,7 +1,8 @@
 'use strict';
 /**
  * The C/D coach ping — v10 coaching test. bd-v0toag.45 built a one-tap "ask my coach"; bd-v0toag.38.9
- * replaced it with "Do you agree with this report?": a teacher who does not agree ticks why, may record a
+ * replaced it with a report question (since bd-v0toag.79 "What do you think of this report?"): a teacher who
+ * answers "Not accurate" ticks why, may record a
  * voice note, and her coach is pinged with her score, her reasons and a link to the coach card.
  *
  * coachesFor: the coaches of the teacher's school (leader_schools x users.school_id; leader_teachers is

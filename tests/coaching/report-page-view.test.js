@@ -151,7 +151,7 @@ test('after the coach ping is sent, the card says the coach was told and does no
   for (const s of ['sent', 'already']) {
     const en = renderReportPage(v(), ENV, links, undefined, s);
     expect(en).toContain('✓ Your coach has been told and will come to see your class.');
-    expect(en).not.toContain('Do you agree with this report?');
+    expect(en).not.toContain('What do you think of this report?');
     expect(renderReportPage(v({ language: 'ur' }), ENV, links, undefined, s))
       .toContain('✓ آپ کے کوچ کو بتا دیا گیا ہے، وہ آ کر آپ کی کلاس دیکھیں گے۔');
   }
