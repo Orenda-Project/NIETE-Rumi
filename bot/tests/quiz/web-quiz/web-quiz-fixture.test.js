@@ -259,3 +259,20 @@ describe('fixtureStudentIds', () => {
     expect(fake.calls.filter((c) => c.table === 'students')).toEqual([]);
   });
 });
+
+// Last in the file, so every module the tests above loaded is in the cache. A train tool reads web-quiz-fixture.modules.json
+// to know which open PRs touch a module this suite's golden records reads for, and runs the union for them.
+describe('the modules this suite reaches', () => {
+  test('are the ones web-quiz-fixture.modules.json lists (sorted repo paths under bot/shared and scripts)', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const REPO = path.resolve(__dirname, '../../../..');
+    const now = [...new Set(Object.keys(require.cache).map((f) => path.relative(REPO, f).split(path.sep).join('/')))]
+      .filter((f) => f.startsWith('bot/shared/') || f.startsWith('scripts/')).sort();
+    const file = path.join(__dirname, 'web-quiz-fixture.modules.json');
+    const listed = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+    expect(now).toContain('bot/shared/services/quiz/web-quiz-fixture.js');
+    const why = 'the fixture rule now reaches a different set of modules; update web-quiz-fixture.modules.json (the train tool reads it to start a union run)';
+    expect({ why, modules: listed }).toEqual({ why, modules: now });
+  });
+});

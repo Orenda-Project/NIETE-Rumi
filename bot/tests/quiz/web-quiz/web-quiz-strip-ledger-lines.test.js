@@ -24,8 +24,9 @@ const GOLDEN = require('./web-quiz-strip-ledger-lines.golden.json');
 const WEEK = '2026-W42';                          // Mon 12 Oct – Sun 18 Oct 2026, PKT (days 2026-10-12 … 2026-10-18)
 const NOW = Date.parse('2026-10-19T06:00:00Z');
 const END = '2026-10-18T19:00:00.000Z';           // the week's cut (Monday 00:00 PKT)
-const NEW_LINES = ['sent', 'bind_funnel', 'implausible'];
+const NEW_LINES = ['sent', 'bind_funnel', 'implausible', 'floor_kept_aligned'];
 const READ_COLS = 'id, student_id, canonical_id, class_id, lang, meta, created_at';   // the implausible line's own read
+const FLOOR_COLS = 'id, student_id, canonical_id, class_id, lang, passage_id, meta, created_at';   // the floor_kept_aligned line's own read
 const STRICT = ['message_ledger', 'child_bind_codes', 'child_phone_bindings', 'web_quiz_challenge_runs'];
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -219,6 +220,7 @@ describe('golden: the lines that were there stay byte-identical', () => {
       if (t === 'child_bind_codes') return MISSING_TABLE(t);
       if (t === 'message_ledger' && /capped/.test(sel)) return MISSING_COL('message_ledger.capped');
       if (t === 'web_quiz_challenge_runs' && sel === READ_COLS) return MISSING_COL('web_quiz_challenge_runs.meta');
+      if (t === 'web_quiz_challenge_runs' && sel === FLOOR_COLS) return MISSING_COL('web_quiz_challenge_runs.passage_id');
       return null;
     });
     const out = await strip();
@@ -233,7 +235,8 @@ describe('golden: the lines that were there stay byte-identical', () => {
     expect(existing()).toEqual(GOLDEN.lines);
     expect(out.skipped).toEqual([...GOLDEN.skipped, 'cold_clips']);
     expect(stripRows().slice(GOLDEN.lines.length).map((r) => `${r.line} / ${r.cell}`)).toEqual(['sent / capped', 'bind_funnel / codes', 'bind_funnel / bound',
-      'implausible / ur', 'implausible / ur|no_speech', 'implausible / ur|low_stt_support', 'implausible / ur|no_aligned_words', 'implausible / ur|low_story_confidence']);
+      'implausible / ur', 'implausible / ur|no_speech', 'implausible / ur|low_stt_support', 'implausible / ur|no_aligned_words', 'implausible / ur|low_story_confidence',
+      'floor_kept_aligned / ur']);
   });
 
   test('the new inputs readable and empty: value 0, n 0 on each new line', async () => {

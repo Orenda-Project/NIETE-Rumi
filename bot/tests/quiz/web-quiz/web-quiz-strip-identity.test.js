@@ -169,6 +169,17 @@ describe('teacher-accepted share per tier (never called precision)', () => {
     expect(db.web_quiz_strip_weekly.some((r) => /precision/i.test(r.line))).toBe(false);
   });
 
+  test('a configured test teacher\'s queue rows: the line\'s note names how many each tier left out of n; none left out, no note', async () => {
+    install();
+    Queue.precisionByTier.mockImplementation(async () => tiers().map((t) => ({ ...t, excluded_n: t.tier === 'probable' ? 0 : 76 })));
+    const out = await Strip.weeklyStrip({ week: WEEK, now: NOW });
+    expect(line('teacher_accepted_share', 'roster_unique_with_loose')).toMatchObject({ value: 0.7995, n: 60 });
+    expect(out.notes.teacher_accepted_share).toBe('left out of n (queue rows made by a configured test teacher): roster_unique_with_loose 76');
+    Queue.precisionByTier.mockImplementation(async () => tiers().map((t) => ({ ...t, excluded_n: 0 })));
+    const quiet = await Strip.weeklyStrip({ week: WEEK, now: NOW });
+    expect(quiet.notes.teacher_accepted_share).toBeUndefined();
+  });
+
   test('a failed queue read (error rows, held fail-closed) writes no accepted-share line and logs once', async () => {
     install();
     Queue.precisionByTier.mockImplementation(async () => tiers().map((t) => ({ ...t, held: true, error: true })));
