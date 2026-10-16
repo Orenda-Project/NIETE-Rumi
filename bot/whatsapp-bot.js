@@ -90,6 +90,9 @@ app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.rou
 // ── first touch: the maker page ──
 try { require('./shared/services/first-touch/maker.mount').mountMaker(app); } catch (_) { /* not mounted; every other route is today's */ }   // /api/internal/ft (quiz_maker_page)
 // ── end first touch ──
+// ── teacher home: /api/internal/th (quiz_teacher_home; off → 404 {off:true} and the edge falls through) ──
+try { require('./shared/services/first-touch/teacher-home.mount').mountTeacherHome(app); } catch (_) { /* not mounted; every other route is today's */ }
+// ── end teacher home ──
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);

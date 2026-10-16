@@ -69,6 +69,15 @@ const subjectIn = (v) => (typeof v === 'string' && SUBJECT_CODES.includes(v) ? v
 const quizIn = (v) => (typeof v === 'string' && UUID_RX.test(v) ? v : null);
 const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {});
 
+// ── teacher home: every class message ends with the "any day: send quiz" line (quiz_teacher_home; off → today's bytes) ──
+async function classText(message, lang) {
+  try {
+    if (await require('./teacher-home.flags').on()) return require('./teacher-home.send').withReturn(message, lang);
+  } catch (_) { /* today's message */ }
+  return message;
+}
+// ── end teacher home ──
+
 function headers(res, csp) {
   res.set({
     'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer',
@@ -150,7 +159,7 @@ router.get('/m/:token/send', handlePage(async (req, res) => {
   if (!out) return messagePage(res, 404, 'mk.error', p.lang);
   makerEvent('share_tap', p, { grade: out.grade, subject: out.subject, qlang: out.qlang, quizId: out.quizId });
   headers(res);
-  return res.redirect(302, `https://wa.me/?text=${encodeURIComponent(out.message)}`);
+  return res.redirect(302, `https://wa.me/?text=${encodeURIComponent(await classText(out.message, p.lang))}`);
 }));
 
 router.post('/api/ft/make', handleJson(async (req, res) => {
@@ -165,7 +174,7 @@ router.post('/api/ft/make', handleJson(async (req, res) => {
   if (out.error) { headers(res); res.status(out.error === 400 ? 400 : 503).json({ error: 'mk.error' }); return; }
   makerEvent('made', p, { grade, subject, qlang: out.qlang, quizId });
   headers(res);
-  res.status(200).json({ shareCodeId: out.shareCodeId, message: out.message, qlang: out.qlang, preview: out.preview, total: out.total });
+  res.status(200).json({ shareCodeId: out.shareCodeId, message: await classText(out.message, p.lang), qlang: out.qlang, preview: out.preview, total: out.total });
 }));
 
 router.post('/api/ft/step', handleJson(async (req, res) => {

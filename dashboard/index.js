@@ -170,6 +170,8 @@ app.get(ASSET_LINKS_PATH, assetLinksHandler);
 // never answer a quiz link.
 const { createWebQuizRouter } = require('./routes/web-quiz.routes');
 app.use(createWebQuizRouter());
+// The teacher home /quiz/teacher/:token and /api/th/* (switch off at the bot → falls through to the SPA).
+app.use(require('./routes/quiz-teacher.routes').createQuizTeacherRouter());
 // The teacher's web quiz report /r/:token (+ /pdf, /remind), same bot client as /q.
 // Not /t: that is the training link, mounted further down.
 const { createTeacherReportRouter } = require('./routes/teacher-report.routes');
