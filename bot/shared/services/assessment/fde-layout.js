@@ -438,8 +438,46 @@ function random(seed) {
  * above that are turned, each to the emptiest letter it can reach, until no
  * letter is above it. A balanced paper is left as it is. Returns how many
  * items were turned.
+ *
+ * Social Studies (`subjectKey`): keys that run in a strict period (الف ب ج د five times over) are
+ * dealt again. A balanced strip passes the count test, but a child who sees the period answers
+ * Section A without reading it. The movable items' letters are shuffled among themselves (each
+ * letter keeps its count) until the strip has no period; an item never takes a letter beyond its
+ * own options.
  */
-function spreadKeys(slots, bySlot) {
+// The shortest strict period, 2 to 4, of a strip at least two periods long; 0 when there is none.
+const KEY_PERIODS = [2, 3, 4];
+const DEALS = 50;
+function periodOf(letters) {
+  return KEY_PERIODS.find((p) => letters.length >= 2 * p && letters.every((x, i) => i < p || x === letters[i - p])) || 0;
+}
+function breakPeriod(mcqs, next) {
+  const strip = mcqs.map((q) => { const key = readKey(q); return { q, key, at: key ? key.index : keyAt(q) }; });
+  if (!periodOf(strip.map((e) => e.at))) return 0;
+  const movable = strip.filter((e) => e.key);
+  for (let deal = 0; deal < DEALS; deal += 1) {
+    const letters = movable.map((e) => e.at);
+    for (let i = letters.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(next() * (i + 1));
+      [letters[i], letters[j]] = [letters[j], letters[i]];
+    }
+    if (movable.some((e, i) => letters[i] >= e.q.options.length)) continue;
+    const dealt = new Map(movable.map((e, i) => [e, letters[i]]));
+    if (periodOf(strip.map((e) => (dealt.has(e) ? dealt.get(e) : e.at)))) continue;
+    let moved = 0;
+    for (const [e, to] of dealt) {
+      if (to === e.at) continue;
+      const n = e.q.options.length;
+      e.q.options = turned(e.q.options, (to - e.at + n) % n);
+      e.q.answer = e.key.write(to);
+      moved += 1;
+    }
+    return moved;
+  }
+  return 0;
+}
+
+function spreadKeys(slots, bySlot, subjectKey = null) {
   const mcqs = [];
   for (const slot of slots) {
     if (slot.shape !== 'mcq') continue;
@@ -480,6 +518,7 @@ function spreadKeys(slots, bySlot) {
     m.q.answer = m.key.write(to);
     moved += 1;
   }
+  if (subjectKey === 'social_studies') moved += breakPeriod(mcqs, next);
   return moved;
 }
 
@@ -1239,7 +1278,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       place(rule ? { held: cross.held, rule } : null, { slot: SAME_POINTS.held, rule: restates });
     }
   }
-  spreadKeys(slots, bySlot);
+  spreadKeys(slots, bySlot, P.key);
 
   // Marks, lines and the canonical tag come from the pattern, never the model.
   const unseen = {};
