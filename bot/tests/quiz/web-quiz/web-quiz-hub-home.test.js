@@ -242,6 +242,43 @@ describe('a bound phone: "Someone new?" and the teacher switch are minted by the
   });
 });
 
+describe('the finish card after a watched video: the home says when the card is on (the card\'s own module decides)', () => {
+  const HOME_ON = [...BASE_ON, ON('web_quiz_home_v3')];
+  beforeEach(() => Home._useModules({}));
+  afterAll(() => Home._useModules(null));
+  test('the card module there and its switch on: card_v3 true on the home payload', async () => {
+    Home._useModules({ card: { field: async () => ({ card_v3: true }) } });
+    seed(HOME_ON);
+    expect(await Hub.hub(T.signHub([KID]), A)).toHaveProperty('card_v3', true);
+  });
+  test('its switch off, the module absent, or a field that throws: no key', async () => {
+    for (const card of [{ field: async () => ({}) }, null, { field: async () => { throw new Error('x'); } }]) {
+      Home._useModules(card ? { card } : {});
+      seed(HOME_ON);
+      expect(await Hub.hub(T.signHub([KID]), A)).not.toHaveProperty('card_v3');
+    }
+  });
+  test('one wave: the card\'s switch is asked while this week\'s runs are still being read (never after them)', async () => {
+    let called; const cardCalled = new Promise((r) => { called = r; });
+    Home._useModules({ card: { field: async () => { called(); return { card_v3: true }; } } });
+    seed(HOME_ON);
+    // the runs read answers only once the card's switch has been asked: a serial chain would wait forever
+    const from = supabase.from;
+    const gate = (q) => new Proxy(q, { get(o, k) { if (k === 'then') return (res, rej) => cardCalled.then(() => o.then(res, rej)); const v = o[k]; return typeof v === 'function' ? (...a) => gate(v.apply(o, a)) : v; } });
+    supabase.from = (t) => (t === 'web_quiz_challenge_runs' ? gate(from(t)) : from(t));
+    try {
+      const out = await Promise.race([Hub.hub(T.signHub([KID]), A), new Promise((r) => setTimeout(() => r('serial'), 1500))]);
+      expect(out).not.toBe('serial');
+      expect(out).toHaveProperty('card_v3', true);
+    } finally { supabase.from = from; }
+  });
+  test('GOLDEN: web_quiz_home_v3 off -> no key even with the card on', async () => {
+    Home._useModules({ card: { field: async () => ({ card_v3: true }) } });
+    seed(BASE_ON);
+    expect(await Hub.hub(T.signHub([KID]), A)).not.toHaveProperty('card_v3');
+  });
+});
+
 describe('the practice home: a `pr:1` hub token (a coach previewing what the class sees), addressed by grade', () => {
   const HOME_ON = [...BASE_ON, ON('web_quiz_home_v3')];
   const prTok = (over = {}) => T.sign({ k: 'h', ids: [], pr: 1, g: 3, lang: 'en', exp: Math.floor(Date.now() / 1000) + 3600, ...over });

@@ -348,13 +348,24 @@ function mediaHelpers() {
 // ─── the class's name chips ────────────────────────────────────────────────
 
 /**
+ * A child's own code under the watch root (a class-less child's quiz after a video): no class, so no classmates. The
+ * root is read only for a code with a parent and no inviter; any failure reads as not a watch code (today's page).
+ */
+async function isWatchCode(ctx) {
+  if (!ctx.moreVideosOf) return false;
+  try { return ctx.moreVideosOf === await require('./web-quiz-videos').watchRoot(); } catch { return false; }
+}
+
+/**
  * Children who played THIS teacher's links in the last 90 days (not invited
  * friends, not the teacher's own runs), most recent first, capped at 40.
  * Internal rows carry studentId; the public chip never does.
  */
 async function classChips(ctx) {
   const since = new Date(Date.now() - CHIP_WINDOW_DAYS * 86400000).toISOString();
-  const { data: codes } = await dbRead('classChips:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id')
+  // A watch code's teacher is the watch root's: its other codes are strangers, so only this code's own players.
+  const watch = await isWatchCode(ctx);
+  const { data: codes } = watch ? { data: [] } : await dbRead('classChips:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id')
     .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since).limit(200));
   const ids = (codes || []).map((c) => c.id);
   if (!ids.includes(ctx.shareCodeId)) ids.push(ctx.shareCodeId);
@@ -439,9 +450,11 @@ function getQuiz(code, opts = {}) {
 }
 
 // The class heading for a code (null until a child has finished): the report's, so the page names the class as the
-// teacher's own texts do. A "watch another video" code is named after the class code it came from.
+// teacher's own texts do. A "watch another video" code is named after the class code it came from; a class-less
+// child's watch code has no class to name.
 async function classLabel(ctx) {
   try {
+    if (await isWatchCode(ctx)) return null;
     const cls = await require('./video-quiz-report.service').loadClassRows(ctx.moreVideosOf || ctx.shareCodeId);
     return (cls && cls.className) || null;
   } catch { return null; }

@@ -97,7 +97,7 @@ describe('wq-home.js: the home', () => {
   });
   test('Urdu next tile with minutes: Urdu digits, «،» and never «·»', () => {
     const html = H.html({ ...HOME, next: { kind: 'story', href: '/c/x', title: 'Read', title_ur: 'جگنو کے ساتھ کہانی پڑھیں', sub_ur: 'لال پتنگ', minutes: 2 } }, ctxOf('ur'));
-    expect(html).toContain('لال پتنگ</bdi>، ۲ منٹ');
+    expect(html).toContain('لال پتنگ</bdi>، <span class="wq-nmin">۲ منٹ</span>'); // the minutes never wrap apart
     expect(html).not.toContain('·');
   });
 });
@@ -277,14 +277,15 @@ function page({ hash = '', conn = null, idle = true, bind = null, search = '' } 
     innerHTML: '', setAttribute() {},
     querySelector: (sel) => (sel === '[data-tap="grownups"]' ? el('grownups') : null),
     querySelectorAll: () => [],
-    appendChild: (b) => sheets.push(b),
+    appendChild: (b) => { b.parentNode = root; sheets.push(b); },
+    removeChild: (b) => { const i = sheets.indexOf(b); if (i >= 0) sheets.splice(i, 1); },
   };
   const win = { addEventListener() {}, scrollTo() {} };
   if (idle) win.requestIdleCallback = (fn) => idleQ.push(fn);
   if (bind) win.WQBIND = bind;
   const document = {
     querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null),
-    createElement: (tag) => ({ tag, className: '', attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = v; }, addEventListener() {}, querySelector: () => null, appendChild(c) { this.kids.push(c); }, innerHTML: '' }),
+    createElement: (tag) => ({ tag, className: '', attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = v; }, addEventListener() {}, querySelector(sel) { if (sel !== '[data-tap="close"]') return null; const f = this.closeFns = this.closeFns || []; return { addEventListener(n, fn) { f.push(fn); } }; }, appendChild(c) { this.kids.push(c); }, innerHTML: '' }),
     head: { appendChild: (x) => head.push(x) },
   };
   const navigator = conn ? { connection: conn } : {};
@@ -376,7 +377,8 @@ describe('one word for the teacher on a child screen, and the pending teacher qu
 describe('hash routes: an empty hash is home again, #book opens the Book on load', () => {
   test('the Book opens on mount when the page lands on #book', () => {
     const p = page({ hash: '#book' }); p.mount({ ...HOME, book_on: true });
-    expect(p.head.map((e) => e.src || e.href)).toEqual(['/wq/wq-book.css?v=abc123', '/wq/wq-book.js?v=abc123']);
+    // (the door screens' own two files follow every paint; they are asserted in web-quiz-doors-v3)
+    expect(p.head.map((e) => e.src || e.href).filter((u) => !/\/wq\/wq-doors\./.test(u))).toEqual(['/wq/wq-book.css?v=abc123', '/wq/wq-book.js?v=abc123']);
   });
 });
 
@@ -509,5 +511,109 @@ describe('a shared phone: the name opens "Who is playing?", with "Someone new?" 
   });
   test('the coach\'s preview never shows it', () => {
     expect(H.html({ ...TWO, practice: 1, grade: 3, kids: [], kid: null, jn: 'eyJrIjoiaiJ9.AbC' }, ctxOf('en'))).not.toContain('data-tap="who"');
+  });
+});
+
+describe('the home\'s smaller fixes: the server tile\'s New tag, no prefetch in a preview, row pictures, the sheet\'s primary, tap sizes, a quiz that may not be the teacher\'s', () => {
+  const H = loadHome();
+  test('the server\'s `next` keeps its New tag in the page\'s language (a storybook says «نئی», a quiz «نیا»)', () => {
+    const next = { kind: 'storybook', href: '/h/x#story/b1', title: 'From your teacher', title_ur: 'ٹیچر کی طرف سے', tag: 'New', tag_ur: 'نئی', sub: 'The red kite' };
+    expect(H.nextOf({ ...HOME, next }, ctxOf('ur'))).toMatchObject({ tag: 'نئی' });
+    expect(H.nextOf({ ...HOME, next }, ctxOf('en'))).toMatchObject({ tag: 'New' });
+    expect(H.html({ ...HOME, lang: 'ur', next }, ctxOf('ur'))).toMatch(/<i class="wq-new">نئی<\/i>/);
+    expect(H.nextOf({ ...HOME, next: { kind: 'video', href: '/lib/x', title: 'Watch' } }, ctxOf('en')).tag).toBeNull();
+  });
+  test('a teacher\'s class preview never prefetches (no child to fetch for)', () => {
+    const p = page();
+    p.mount({ ...HOME, practice: 1, grade: 3, kids: [], kid: null, next: { kind: 'story', href: `/c/${TOKEN}?kid=&lang=en&room=story&pid=p1`, title: 'Read' } });
+    p.idleQ.forEach((fn) => fn());
+    expect(p.head.filter((x) => x.rel === 'prefetch')).toEqual([]);
+  });
+  test('Games rows wear the picture the server sent (the quiz\'s subject), lazily', () => {
+    const art = '/wq/art/maths.webp';
+    const h = H.door({ ...HOME, doors: { ...DOORS_FULL, games: [{ ...DOORS_FULL.games[0], art }] } }, ctxOf('en'), 'games');
+    expect(h).toMatch(/<a class="wq-row wq-rowart" data-primary data-tap="row" data-kind="quiz" href="\/q\/MATH01\?k=kk"><img class="wq-rart" src="\/wq\/art\/maths\.webp" alt="" width="48" height="48" loading="lazy"/);
+  });
+  test('a finished quiz with no topic says "Play a quiz" (it may not be the teacher\'s), on the tile and on its row', () => {
+    const games = [{ kind: 'quiz', code: 'OPEN01', k: 'k9', topic: '', subject: '', done: false }];
+    expect(H.nextOf({ ...HOME, teacher: null, doors: { ...DOORS_EMPTY, games } }, ctxOf('en'))).toMatchObject({ title: 'Play a quiz' });
+    expect(H.nextOf({ ...HOME, teacher: null, doors: { ...DOORS_EMPTY, games } }, ctxOf('ur'))).toMatchObject({ title: 'کوئز کھیلیں' });
+    const again = H.door({ ...HOME, doors: { ...DOORS_EMPTY, games: [{ ...games[0], done: true }] } }, ctxOf('en'), 'games');
+    expect(visible(again)).toContain('Play a quiz');
+    expect(visible(again)).not.toContain("Your teacher's quiz");
+  });
+  test('tap targets are at least 48 px: Jugnu, the name button, the grown-ups pill', () => {
+    const css = fs.readFileSync(CSS_SRC, 'utf8');
+    expect(css).toMatch(/\.wq-hjug\{[^}]*width:48px;height:48px/);
+    expect(css).toMatch(/\.wq-hname\{[^}]*min-height:48px/);
+    expect(css).toMatch(/\.wq-gbtn\{[^}]*min-height:48px/);
+    expect(H.html(HOME, ctxOf('en'))).toMatch(/class="wq-hjug"[^>]*width="48" height="48"/);
+  });
+});
+
+describe('the grown-ups sheet\'s language button is its primary and looks like one', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  test('class wq-btn wq-go (a filled button, not a bare link)', () => {
+    const p = page(); p.mount(HOME);
+    const g = p.el('grownups'); g.fire('pointerdown'); jest.advanceTimersByTime(2100);
+    const sheet = p.sheets.filter((b) => /wq-gsheet/.test(b.className))[0];
+    expect(sheet.innerHTML).toMatch(/<a class="wq-btn wq-go" data-primary data-tap="lang"/);
+  });
+});
+
+describe('keep my place by the server\'s bind.state (none|pending|bound|refused; ABSENT = today\'s card, never "bound")', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  const open = (bindPayload) => {
+    const calls = [];
+    const bind = { card: () => { calls.push(1); return true; }, t: () => ({ noticeStopPhoneOnly: 'STOP line' }) };
+    const p = page({ bind }); p.mount({ ...HOME, bind: bindPayload });
+    p.el('grownups').fire('pointerdown'); jest.advanceTimersByTime(2100);
+    const sheet = p.sheets.filter((b) => /wq-gsheet/.test(b.className))[0];
+    return { card: calls.length, stop: /STOP line/.test(sheet.innerHTML) };
+  };
+  test.each([
+    ['no state (no device ref, or a failed read): the card', { offer: true, hub: 'H' }, { card: 1, stop: false }],
+    ['none: the card', { offer: true, hub: 'H', state: 'none' }, { card: 1, stop: false }],
+    ['pending: the card (it shows its own waiting line)', { offer: true, hub: 'H', state: 'pending' }, { card: 1, stop: false }],
+    ['bound: no card, the STOP line', { offer: false, state: 'bound' }, { card: 0, stop: true }],
+    ['refused: no card, no STOP line', { offer: false, state: 'refused' }, { card: 0, stop: false }],
+  ])('%s', (_, b, want) => { expect(open(b)).toEqual(want); });
+});
+
+// ---- the screenshot pass ----------------------------------------------------------------------------
+const lum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+const homeRules = (selRx) => [...fs.readFileSync(CSS_SRC, 'utf8').matchAll(/([^{}]+)\{([^}]*)\}/g)].filter((m) => selRx.test(m[1])).map((m) => m[2]).join(';');
+
+describe('the grown-ups sheet: contrast, Nastaliq links, and nothing else reachable behind it', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  test('the language button: label/fill contrast is at least 4.5:1, both colours set on the sheet rule', () => {
+    const d = homeRules(/\.wq-gsheet \.wq-go\s*$/);
+    const bg = /background:\s*(#[0-9a-fA-F]{6})/.exec(d); const fg = /(?:^|;)\s*color:\s*(#[0-9a-fA-F]{6})/.exec(d);
+    expect(bg && fg).toBeTruthy();
+    expect(ratio(bg[1], fg[1])).toBeGreaterThanOrEqual(4.5);
+  });
+  test('Urdu sheet links: no underline through the Nastaliq; a border-bottom and a 48 px tap instead', () => {
+    const d = homeRules(/html\[lang=ur\] \.wq-gsheet \.wq-ghost\s*$/);
+    expect(d).toMatch(/text-decoration:\s*none/);
+    expect(d).toMatch(/border-bottom:\s*2px solid/);
+    expect(d).toMatch(/min-height:\s*(4[89]|[5-9]\d)px/);
+  });
+  test('open sheet: the home behind it is inert + aria-hidden (so one primary is reachable); closing restores it', () => {
+    const p = page(); p.mount(HOME);
+    const mk = (cls) => { const a = {}; return { className: cls, attrs: a, setAttribute(k, v) { a[k] = v; }, removeAttribute(k) { delete a[k]; }, hasAttribute: (k) => k in a }; };
+    const home = mk('wq-home'); const bar = mk('wq-doors');
+    p.root.children = [home, bar];
+    const g = p.el('grownups'); g.fire('pointerdown'); jest.advanceTimersByTime(2100);
+    const sheet = p.sheets.filter((b) => /wq-gsheet/.test(b.className))[0];
+    for (const n of [home, bar]) { expect(n.attrs.inert).toBeDefined(); expect(n.attrs['aria-hidden']).toBe('true'); }
+    expect(sheet.attrs.inert).toBeUndefined();
+    expect(sheet.innerHTML.match(/data-primary/g)).toHaveLength(1);
+    sheet.closeFns.forEach((fn) => fn({ preventDefault() {} }));
+    expect(p.sheets).toHaveLength(0);
+    for (const n of [home, bar]) { expect(n.attrs.inert).toBeUndefined(); expect(n.attrs['aria-hidden']).toBeUndefined(); }
   });
 });

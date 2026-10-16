@@ -10,7 +10,7 @@
  *
  * Stories: this week's story first (it is the door's one primary), then every other story this child can open now —
  * the practice passages already released in the child's open bands, read and listen, shuffled per child per PKT day
- * (RULING #8: no fixed order on a child shelf; `pos` rides on every row so the tap logs it), the ones already met last.
+ * (no fixed order on a child's shelf, so `pos` rides on every row and the tap logs it), the ones already met last.
  * A row is listed only when it would open: a read needs its text in the item bank, a listen needs its recorded clip
  * (asking records a missing one in the background, so it appears on a later open) — never a tile that answers "on its
  * way". The storybook shelf (`shelf: true`) is drawn by the stories reader under its own switch (web_quiz_stories).
@@ -63,7 +63,9 @@ async function opens(row, lang) {
   if (row.kind !== 'listen') return true;
   try {
     const Challenge = require('./web-quiz-challenge');
-    return typeof Challenge.storyClip === 'function' && Boolean(await Challenge.storyClip(lang, p.text));
+    // the capped ask: a Stories open never takes the last half of the day's paid recordings
+    const clip = typeof Challenge.storyClipCapped === 'function' ? Challenge.storyClipCapped : Challenge.storyClip;
+    return typeof clip === 'function' && Boolean(await clip(lang, p.text));
   } catch (_) {
     return false;
   }

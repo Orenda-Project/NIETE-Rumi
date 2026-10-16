@@ -4,11 +4,12 @@
  * the hub's boot JSON — one Next thing, three doors (Stories, Games, Videos) and the header's day-dots and sticker jar.
  * Additive only: with the switch off (or any failure) `homeField` returns {} and the hub payload is today's, byte for byte.
  *
- *   homeField({ out, chosenId, history, token })  {} | { home_v3: 1, doors, head }
+ *   homeField({ out, chosenId, history, pre })    {} | { home_v3: 1, doors, head }
  *   doorsOf({ out, stories, hasRoot })            the three doors (pure); every door is always present, an empty
  *                                                 one is [] / null and the page shows its "coming soon" line
  *   headOf(stamps, now)                           { dots, today } (pure): days with a finish this PKT week, as a count
- *   sentOnly(codes)                               the teacher's open codes without a storybook only previewed (switch on)
+ *   prefetch(chosenId)                            the home's reads, started beside the hub's own: { flags, data }
+ *   storyPreviews(quizzes)                        the storybooks a teacher only previewed (pure; switch on)
  *   practiceHub(token, { lang, brandKey })        the coach's preview of the class's home, or null (not a practice
  *                                                 token, or the switch off: the caller goes on to today's path)
  *
@@ -108,18 +109,22 @@ function doorsOf({ out = {}, stories = false, hasRoot = false } = {}) {
   return { stories: story, games, videos };
 }
 
-// This week's finishes: the quizzes in the hub's history and the child's final Jugnu runs (one small read; [] on any error).
-async function stampsOf(chosenId, history, now) {
-  const quiz = (history || []).map((e) => e && e.latest && e.latest.completed_at).filter(Boolean);
+// The child's final Jugnu runs this PKT week (one small read; null on any error).
+async function runsOf(chosenId, now) {
   try {
     const { data, error } = await supabase.from('web_quiz_challenge_runs').select('status, created_at')
       .eq('student_id', chosenId).gte('created_at', new Date(weekStart(now)).toISOString()).limit(200);
-    if (error) return { stamps: quiz, fresh: false };
-    const runs = (data || []).filter((r) => FINAL.has(r.status));
-    return { stamps: quiz.concat(runs.map((r) => r.created_at)), fresh: runs.some((r) => now - Date.parse(r.created_at || '') < DAY_MS) };
+    return error ? null : (data || []).filter((r) => FINAL.has(r.status));
   } catch (_) {
-    return { stamps: quiz, fresh: false };
+    return null;
   }
+}
+
+// This week's finishes (pure): the quizzes in the hub's history and the child's final Jugnu runs.
+function stampsOf(history, runs, now) {
+  const quiz = (history || []).map((e) => e && e.latest && e.latest.completed_at).filter(Boolean);
+  if (!runs) return { stamps: quiz, fresh: false };
+  return { stamps: quiz.concat(runs.map((r) => r.created_at)), fresh: runs.some((r) => now - Date.parse(r.created_at || '') < DAY_MS) };
 }
 
 /*
@@ -130,21 +135,29 @@ async function stampsOf(chosenId, history, now) {
  */
 const JOIN_MODULE = './web-quiz-student-join';
 const DOOR_MODULE = '../first-touch/one-door.service';
+// The finish card (web_quiz_card_v3): its own module says whether it is on, so a watched video ends on the card.
+const CARD_MODULE = './web-quiz-card-image';
 const JN_RX = /^[A-Za-z0-9._-]{8,600}$/;
 const GL_RX = /^(https:\/\/[A-Za-z0-9.-]+(:\d+)?)?\/quiz\/go\/[A-Za-z0-9._~-]{4,600}$/;
 const TEACHER_LABEL = { en: 'I teach a class', ur: 'میں ٹیچر ہوں' };
-let modules = null; // tests inject { join, door } here (null = the real requires)
+let modules = null; // tests inject { join, door, card } here (null = the real requires)
 function optional(name, spec) {
   if (modules) return modules[name] || null;
   try { return require(spec); } catch (_) { return null; }
 }
-async function phoneRows(chosenId, lang) {
+// The phone's active bindings for this child, or null when neither row's module is there (no read then).
+async function bindsOf(chosenId) {
+  const Join = optional('join', JOIN_MODULE);
+  const Door = optional('door', DOOR_MODULE);
+  if (!(Join && typeof Join.siblingJoinToken === 'function') && !(Door && typeof Door.mintLandingForPhone === 'function')) return null;
+  return require('./child-phone-bindings.repo').activeForChild(chosenId);
+}
+async function phoneRows(binds, lang) {
+  if (!binds) return {};
   const Join = optional('join', JOIN_MODULE);
   const Door = optional('door', DOOR_MODULE);
   const sib = Join && typeof Join.siblingJoinToken === 'function' ? Join.siblingJoinToken : null;
   const land = Door && typeof Door.mintLandingForPhone === 'function' ? Door.mintLandingForPhone : null;
-  if (!sib && !land) return {};
-  const binds = await require('./child-phone-bindings.repo').activeForChild(chosenId);
   const newest = binds.filter((b) => b && b.phone_norm)
     .sort((a, b) => String(b.last_played_at || b.bound_at || '').localeCompare(String(a.last_played_at || a.bound_at || '')))[0];
   if (!newest) return {};
@@ -156,17 +169,40 @@ async function phoneRows(chosenId, lang) {
   };
 }
 
+/** `{card_v3: true}` when the finish card's module is there and its switch is on, else `{}`. Never throws. */
+async function cardField() {
+  const Card = optional('card', CARD_MODULE);
+  if (!Card || typeof Card.field !== 'function') return {};
+  try { return (await Card.field()).card_v3 === true ? { card_v3: true } : {}; } catch (_) { return {}; }
+}
+
+/**
+ * The home's reads, started by the hub the moment it knows the chosen child, beside its own reads (never after them):
+ * the switches, this week's runs, the finish card's switch and the phone's bindings depend on nothing but the child.
+ * `{ flags, data }`: two promises that never reject; with the switch off `data` reads nothing more.
+ */
+function prefetch(chosenId, now = Date.now()) {
+  const f = flags();
+  const data = f.then((on) => (on.home && chosenId
+    ? Promise.all([runsOf(chosenId, now), cardField(), bindsOf(chosenId).catch(() => null)]).then(([runs, card, binds]) => ({ runs, card, binds }))
+    : null)).catch(() => null);
+  return { flags: f, data };
+}
+
 /** `{home_v3, doors, head}` for the hub payload of a chosen child, or `{}` (switch off, no child, any failure). Never throws. */
-async function homeField({ out, chosenId, history, now = Date.now() } = {}) {
+async function homeField({ out, chosenId, history, now = Date.now(), pre } = {}) {
   try {
-    const f = await flags();
+    const p = pre || prefetch(chosenId, now);
+    const f = await p.flags;
     if (!f.home || !chosenId || !out) return {};
+    const d = await p.data;
+    if (!d) return {};
     const hasRoot = (history || []).some((e) => e && e.teacherSent);
-    const { stamps, fresh } = await stampsOf(chosenId, history, now);
+    const { stamps, fresh } = stampsOf(history, d.runs, now);
     const head = headOf(stamps, now);
     // The sticker jar leads to Jugnu's Book, so it is there only when the Book is; "new" = a sticker in the last day.
     head.jar = out.book_on ? { fresh } : null;
-    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...(await phoneRows(chosenId, out.lang)) };
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...(await phoneRows(d.binds, out.lang)) };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
     return {};
@@ -174,23 +210,14 @@ async function homeField({ out, chosenId, history, now = Date.now() } = {}) {
 }
 
 /**
- * The teacher's open codes minus the storybooks the teacher only previewed (the preview mints its code at render): a
- * `quiz_source:'story'` quiz counts as sent with `status:'sent'` or `meta.sent_at` / `meta.first_sent_at`. With the
- * switch off: the same array, no read. A read error keeps today's list (never hides a real teacher quiz).
+ * The storybooks the teacher only previewed (the preview mints its code at render), from the teacher card's own quizzes
+ * read (pure): a `quiz_source:'story'` quiz counts as sent with `status:'sent'` or `meta.sent_at` / `meta.first_sent_at`.
+ * The hub asks for these columns only with the switch on (PREVIEW_COLS); with it off it never calls this.
  */
-async function sentOnly(codes) {
-  if (!Array.isArray(codes) || !codes.length) return codes;
-  try {
-    if (!(await flags()).home) return codes;
-    const ids = [...new Set(codes.map((c) => c.quiz_id).filter(Boolean))];
-    const { data, error } = await supabase.from('quizzes').select('id, quiz_source, status, meta').in('id', ids);
-    if (error) return codes;
-    const sent = (q) => q.status === 'sent' || Boolean(q.meta && (q.meta.sent_at || q.meta.first_sent_at));
-    const preview = new Set((data || []).filter((q) => q.quiz_source === 'story' && !sent(q)).map((q) => q.id));
-    return preview.size ? codes.filter((c) => !preview.has(c.quiz_id)) : codes;
-  } catch (_) {
-    return codes;
-  }
+const PREVIEW_COLS = 'quiz_source, status, meta';
+function storyPreviews(quizzes) {
+  const sent = (q) => q.status === 'sent' || Boolean(q.meta && (q.meta.sent_at || q.meta.first_sent_at));
+  return new Set((quizzes || []).filter((q) => q && q.quiz_source === 'story' && !sent(q)).map((q) => q.id));
 }
 
 // ─── the practice home ─────────────────────────────────────────────────────────────────────────────
@@ -258,4 +285,4 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
   }
 }
 
-module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, sentOnly, KEY, STORIES_KEY, _resetCache: () => { cache = null; }, _useModules: (m) => { modules = m; } };
+module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, prefetch, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => { cache = null; }, _useModules: (m) => { modules = m; } };

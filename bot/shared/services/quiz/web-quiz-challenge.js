@@ -2272,3 +2272,13 @@ module.exports.sayClip = async (text, lang) => {
   if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
   return clipUrl(key, String(text), lang);
 };
+// a listen row on the door's Stories list: the listening story's own key, but like the labels it records only while more
+// than half the day's recordings are left (past it, known clips only), so opening Stories never spends the challenge's half
+module.exports.storyClipCapped = (lang, text) => {
+  if (!text) return null;
+  const key = clipKey('listen', 'story', lang, text);
+  if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
+  return clipUrl(key, text, lang);
+};
+// tests only: the day's recordings already made (to stand at a point of the daily cap without recording)
+module.exports.__useClips = (n, now = Date.now()) => { clipsRecordedOn(now); clipsRecorded = n; };

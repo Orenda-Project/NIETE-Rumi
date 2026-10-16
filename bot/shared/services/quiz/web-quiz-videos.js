@@ -334,12 +334,25 @@ async function watchCodeFor({ rootId, vq, video, vid, lang, studentId, fail }) {
   return fail(502, 'db_unavailable');
 }
 
+const OPTIONAL = Object.freeze({ nextOffer: './web-quiz-next-offer', events: './web-quiz-events-v3' });
+/** An optional module by name, or null when its file is not on this deployment (any other load error still throws). */
+function optional(name) {
+  const spec = OPTIONAL[name];
+  try {
+    return require(spec);
+  } catch (e) {
+    if (e && e.code === 'MODULE_NOT_FOUND' && String(e.message).includes(`'${spec}'`)) return null;
+    throw e;
+  }
+}
+
 /** EVENTS_V3 §1 `activity_start` for a watch, under web_quiz_events_v3 (its writer and switch are optional modules: absent = nothing). */
 async function activityStart(vid, studentId) {
   try {
-    const N = require('./web-quiz-next-offer');
-    if (!(await N.switches()).events) return;
-    require('./web-quiz-events-v3').emit3('web_quiz.activity_start', { kind: 'video', item: vid, via: 'hub_door', offer: null }, { canonicalId: studentId });
+    const N = optional('nextOffer');
+    if (!N || !(await N.switches()).events) return;
+    const Ev = optional('events');
+    if (Ev) Ev.emit3('web_quiz.activity_start', { kind: 'video', item: vid, via: 'hub_door', offer: null }, { canonicalId: studentId });
   } catch (_) { /* no events writer on this deployment */ }
 }
 

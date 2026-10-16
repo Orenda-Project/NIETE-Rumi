@@ -20,6 +20,25 @@ const mockCh = {
   nameOf: jest.fn((id, lang) => (lang === 'ur' ? { bigger: 'بڑا کون سا ہے؟', missing: 'غائب عدد' } : { bigger: 'Which is bigger?', missing: 'Missing number' })[id]),
 };
 jest.mock('../../../shared/services/quiz/web-quiz-challenge', () => mockCh);
+// The real clip recorder's boundaries, for the daily-cap rows below (the store and the paid voice).
+const mockHead = jest.fn(async () => ({ exists: false }));
+jest.mock('../../../shared/storage/r2', () => ({
+  headObject: (...a) => mockHead(...a), uploadBuffer: jest.fn(async () => 'ok'), presignKey: jest.fn(async (key) => `https://signed.test/${key}`),
+  listKeys: jest.fn(async () => []), deleteKey: jest.fn(async () => true), deleteAudio: jest.fn(async () => true),
+  getPresignedUploadUrl: jest.fn(), getPresignedUrl: jest.fn(), buildR2PublicUrl: jest.fn((k) => `https://r2.test/${k}`), downloadFromR2: jest.fn(),
+}));
+const mockSynth = jest.fn(async () => ({ audio: Buffer.from('OggS'), provider: 'soniox', voice: 'Grace', durationSec: 1 }));
+jest.mock('../../../shared/services/tts', () => ({ synthesize: (...a) => mockSynth(...a) }));
+jest.mock('../../../shared/services/audio.service', () => ({ transcribe: jest.fn() }));
+jest.mock('../../../shared/services/llm-client', () => ({ getClient: () => ({ chat: { completions: { create: jest.fn() } } }) }));
+jest.mock('../../../shared/services/gpt5-mini.service', () => ({ analyzePedagogy: jest.fn(), extractReflectiveCorpus: jest.fn() }));
+jest.mock('@anthropic-ai/sdk', () => {
+  class Anthropic { constructor() { this.messages = { create: jest.fn() }; } }
+  Anthropic.default = Anthropic;
+  Anthropic.APIError = class APIError extends Error {};
+  return Anthropic;
+}, { virtual: true });
+jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
@@ -31,8 +50,12 @@ const KID = '44444444-4444-4444-8444-000000000091';
 const KID2 = '44444444-4444-4444-8444-000000000092';
 const ON = (k) => ({ key: k, value: 'true' });
 const STORY_ON = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_challenge_story'].map(ON);
-const ago = (d) => new Date(Date.now() - d * 86400000).toISOString();
 const NOW = Date.parse('2026-10-16T12:00:00Z'); // 17:00 PKT
+const ago = (d) => new Date(NOW - d * 86400000).toISOString();
+// The clock is pinned at NOW for every test (release dates, the PKT day of the shuffle, the daily clip count); the
+// timers the code waits on stay real.
+beforeAll(() => jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout', 'queueMicrotask', 'hrtime', 'performance'] }));
+afterAll(() => jest.useRealTimers());
 
 function passage(id, kind, band, releasedDaysAgo, title = `Story ${id}`) {
   mockPassages.set(id, { text: `${title} text.`, title_en: title, title_ur: null, kind, pool: 'practice' });
@@ -125,6 +148,38 @@ describe('Stories: 0 / 1 / many, only what opens', () => {
   });
 });
 
+describe('listen rows and the daily cap on recorded clips (the door takes no more than half, as its labels)', () => {
+  const RealCh = () => jest.requireActual('../../../shared/services/quiz/web-quiz-challenge');
+  const listens = () => [passage('en.listen.1.k21', 'listen', 1, 4, 'Known clip'), passage('en.listen.1.k22', 'listen', 1, 5, 'Unknown clip')];
+  beforeEach(() => {
+    const Ch = RealCh();
+    Ch.__reset();
+    // the door asks the real clip helpers (the stand-in delegates), so the recorder and its cap run for real
+    mockCh.storyClip.mockImplementation((...a) => Ch.storyClip(...a));
+    if (typeof Ch.storyClipCapped === 'function') mockCh.storyClipCapped = (...a) => Ch.storyClipCapped(...a);
+    mockHead.mockImplementation(async (key) => ({ exists: key === Ch.clipKey('listen', 'story', 'en', 'Known clip text.') }));
+  });
+  afterEach(() => { delete mockCh.storyClipCapped; RealCh().__reset(); });
+
+  test('past half the day\'s recordings: an unknown clip starts no recording and is not listed; a known clip still lists', async () => {
+    const Ch = RealCh();
+    expect(await Ch.warmClip(Ch.clipKey('listen', 'story', 'en', 'Known clip text.'), 'Known clip text.', 'en', { record: false })).toBe('had');
+    Ch.__useClips(Ch.MAX_CLIP_RECORDINGS / 2);
+    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: listens() });
+    const ids = (await stories()).stories.map((r) => r.id);
+    expect(mockSynth).not.toHaveBeenCalled();
+    expect(ids).toContain('en.listen.1.k21');
+    expect(ids).not.toContain('en.listen.1.k22');
+  });
+
+  test('under half: a missing clip is recorded in the background as today (listed on a later open)', async () => {
+    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: listens() });
+    const ids = (await stories()).stories.map((r) => r.id);
+    expect(ids).not.toContain('en.listen.1.k22');
+    expect(mockSynth).toHaveBeenCalledWith(expect.objectContaining({ text: 'Unknown clip text.' }));
+  });
+});
+
 describe('the shuffle: stable within a Pakistan day, per child', () => {
   const ten = () => Array.from({ length: 10 }, (_, i) => passage(`en.read.1.s${i}`, 'read', 1, 10 + i));
   test('00:10 PKT and 23:50 PKT give the same order; another day or another child may not', async () => {
@@ -133,6 +188,11 @@ describe('the shuffle: stable within a Pakistan day, per child', () => {
     const early = await at('2026-10-15T19:10:00Z'); // 00:10 PKT on the 16th
     const late = await at('2026-10-16T18:50:00Z');  // 23:50 PKT on the 16th
     expect(late).toBe(early);
+    // the next Pakistan day re-deals the shelf itself, not only the seed (ten rows: an equal order by chance is negligible)
+    const next = await at('2026-10-16T19:10:00Z');  // 00:10 PKT on the 17th
+    expect(next.split(',')).toHaveLength(10);
+    expect(next.split(',').sort()).toEqual(early.split(',').sort());
+    expect(next).not.toBe(early);
     expect(Doors.daySeed(KID, Date.parse('2026-10-15T19:10:00Z'))).toBe(Doors.daySeed(KID, Date.parse('2026-10-16T18:50:00Z')));
     expect(Doors.daySeed(KID, Date.parse('2026-10-16T19:10:00Z'))).not.toBe(Doors.daySeed(KID, Date.parse('2026-10-16T18:50:00Z')));
     expect(Doors.daySeed(KID2, NOW)).not.toBe(Doors.daySeed(KID, NOW));
