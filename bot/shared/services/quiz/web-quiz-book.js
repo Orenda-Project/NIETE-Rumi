@@ -84,6 +84,8 @@ function termStart(ms) {
   return m >= 9 ? pktMidnightUtc(y, 9, 1) : pktMidnightUtc(y - 1, 9, 1);
 }
 const rowAt = (r) => Date.parse(r.scored_at || r.created_at || '') || 0;
+// A run the teacher's class round served (mode or via): the Book follows the child's voluntary stops only (SAMPLING_RULING NC4).
+const roundRow = (r) => r.mode === 'class_round' || r.via === 'class_round';
 
 // ─── reads (each fails closed) ────────────────────────────────────────────────────────────────────────
 
@@ -180,7 +182,7 @@ function daysOf(rows, now) {
   const days = [false, false, false, false, false, false, false];
   rows.forEach((r) => {
     const at = rowAt(r);
-    if (!FINAL.has(r.status) || at < start || at >= start + 7 * DAY_MS) return;
+    if (!FINAL.has(r.status) || roundRow(r) || at < start || at >= start + 7 * DAY_MS) return;
     days[Math.floor((at - start) / DAY_MS)] = true;
   });
   return days;
@@ -189,7 +191,7 @@ function daysOf(rows, now) {
 function storyIdsOf(rows) {
   const first = new Map();
   rows.forEach((r) => {
-    if (!r.passage_id || !FINAL.has(r.status)) return;
+    if (!r.passage_id || !FINAL.has(r.status) || roundRow(r)) return;
     const at = rowAt(r);
     if (!first.has(r.passage_id) || at < first.get(r.passage_id)) first.set(r.passage_id, at);
   });
@@ -199,15 +201,14 @@ function storyIdsOf(rows) {
 /**
  * The class lights from the class's rows in the term (pure; BADGES §4.1). `self` is the child looking: under 5
  * children the line says "your class is playing too", which is only true when some OTHER child has a light; with
- * nobody else, `none: true` and the page prints nothing. A run the teacher's class round served (mode or via
- * 'class_round') lights nothing: the lights follow the child's voluntary stops only (SAMPLING_RULING NC4).
+ * nobody else, `none: true` and the page prints nothing. A class round run lights nothing (roundRow).
  */
 function lightsOf(rows, now, self = null) {
   const week = weekStart(now);
   const keys = new Map();
   rows.forEach((r) => {
     if (!FINAL.has(r.status) || (r.exposure_no != null && Number(r.exposure_no) !== 1)) return;
-    if (r.mode === 'class_round' || r.via === 'class_round') return;
+    if (roundRow(r)) return;
     const child = r.canonical_id || r.student_id;
     if (!child) return;
     const thing = r.passage_id || r.item_set_id || (r.exercise ? `${r.exercise}|${r.period_id || periodOf(rowAt(r))}` : null);
@@ -347,6 +348,6 @@ async function hubBits({ studentId } = {}, now = Date.now()) {
 }
 
 module.exports = {
-  bookFor, hubBits, flags, lightsOf, lampsOf, outlineOf, trailStickersFor, daysOf, levelupOf, periodOf, weekStart, termStart,
+  bookFor, hubBits, flags, lightsOf, lampsOf, outlineOf, trailStickersFor, daysOf, storyIdsOf, levelupOf, periodOf, weekStart, termStart,
   BOOK_KEY, WALL_KEY, V2_KEY, _resetCache: () => { cache = null; },
 };

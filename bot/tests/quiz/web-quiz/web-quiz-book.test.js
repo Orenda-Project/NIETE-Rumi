@@ -203,6 +203,41 @@ describe('class lights ignore the teacher\'s class round', () => {
   });
 });
 
+// The week dots and story stickers follow the same rule as the class lights (RULING #116, #142a).
+describe('week dots and story stickers ignore the teacher\'s class round', () => {
+  const B = require('../../../shared/services/quiz/web-quiz-book');
+  const round = (extra = {}) => run({ mode: 'class_round', record: true, via: 'class_round', class_id: CLASS, ...extra });
+  const NONE = [false, false, false, false, false, false, false];
+
+  test('a round turn adds no week dot and no story sticker; the child\'s later voluntary run adds one', () => {
+    const roundOnly = [round({ passage_id: 'p-round', created_at: MON, scored_at: MON })];
+    expect(B.daysOf(roundOnly, NOW)).toEqual(NONE);
+    expect(B.storyIdsOf(roundOnly)).toEqual([]);
+    const later = [...roundOnly, run({ passage_id: 'p-mine', created_at: WED, scored_at: WED })];
+    expect(B.daysOf(later, NOW)).toEqual([false, false, true, false, false, false, false]);
+    expect(B.storyIdsOf(later)).toEqual(['p-mine']);
+  });
+  test('a row marked only by via (no mode) adds nothing either', () => {
+    const rows = [round({ mode: null, passage_id: 'p-round', created_at: MON, scored_at: MON })];
+    expect(B.daysOf(rows, NOW)).toEqual(NONE);
+    expect(B.storyIdsOf(rows)).toEqual([]);
+  });
+  test('through the Book: a round turn alone gives no dot and no story sticker', async () => {
+    db.web_quiz_challenge_runs.push(round({ passage_id: 'p-round', created_at: MON, scored_at: MON }));
+    const out = await book();
+    expect(out.days_this_week).toEqual(NONE);
+    expect(out.story_stickers).toEqual([]);
+  });
+  test('golden: rows without mode or via (legacy) give today\'s dots and stickers exactly', () => {
+    const legacy = (extra) => { const r = run(extra); delete r.mode; delete r.record; delete r.period_id; delete r.exposure_no; return r; };
+    const rows = [legacy({ passage_id: 'p-b', created_at: WED, scored_at: WED }), legacy({ passage_id: 'p-a', created_at: MON, scored_at: MON }),
+      legacy({ passage_id: 'p-a', created_at: WED, scored_at: WED }), legacy({ status: 'served', passage_id: 'p-s', created_at: THU_LAST, scored_at: THU_LAST }),
+      legacy({ exercise: 'bigger', created_at: THU_LAST, scored_at: THU_LAST })];
+    expect(B.daysOf(rows, NOW)).toEqual([true, false, true, false, false, false, false]);
+    expect(B.storyIdsOf(rows)).toEqual(['p-a', 'p-b']);
+  });
+});
+
 describe('days this week: Mon..Sun PKT, lit only', () => {
   test('Monday and Wednesday lit; last week is not shown', async () => {
     db.web_quiz_challenge_runs.push(run({ created_at: MON, scored_at: MON }), run({ exercise: 'bigger', created_at: WED, scored_at: WED }), run({ created_at: THU_LAST, scored_at: THU_LAST }));
