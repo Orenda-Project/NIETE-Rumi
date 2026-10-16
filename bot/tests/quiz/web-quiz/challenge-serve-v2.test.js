@@ -859,6 +859,84 @@ describe('ruling #43: the exercise payload under _v2 carries only what the page 
   });
 });
 
+// ── RULING #100(a)(2): the child-facing title rides the listen and read payloads and the Trail menu (the page renders it)
+describe('the passage title on the listen/read payload and the menu (title_ur|title_en of the registry passage; absent when the passage has none)', () => {
+  const TITLE = { en: 'The Little Boat', ur: 'چھوٹی کشتی' };
+  beforeEach(() => {
+    // a band-1 listening passage with titles, the only listening passage a G3 child can draw; a read twin without titles stays as is
+    fs.writeFileSync(path.join(PDIR, 'en.listen.1.boat01.json'), JSON.stringify({
+      passage_id: 'en.listen.1.boat01', lang: 'en', kind: 'listen', band: 1, pool: 'check', status_at_authoring: 'reviewed', is_reference: true,
+      title_en: TITLE.en, title_ur: TITLE.ur, text: 'A little boat sat on the lake. It waited for the wind.', tokens: ['A', 'little', 'boat', 'sat', 'on', 'the', 'lake', 'It', 'waited', 'for', 'the', 'wind'],
+      lines: [{ n: 1, from: 0, to: 6 }, { n: 2, from: 7, to: 11 }], questions: [Q('en.listen.1.boat01.q1', 1), Q('en.listen.1.boat01.q2', 2)], twin_of: null, bank_version: 'child-test-items-v4',
+    }));
+    Bank._loadPassagesFrom(PDIR);
+    db.challenge_passages = db.challenge_passages.filter((r) => r.passage_id !== 'en.listen.2.setA');
+    db.challenge_passages.push(reg('en.listen.1.boat01', { is_reference: true }));
+  });
+  afterEach(() => { fs.rmSync(path.join(PDIR, 'en.listen.1.boat01.json'), { force: true }); Bank._loadPassagesFrom(PDIR); });
+
+  test('under _v2 + _pool the listen payload carries title {en, ur}; the read payload of a title-less passage carries no title key', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const l = await Ch.exercise(hub(K3), 'listen', D);
+    expect(rowOf(l.ct)).toMatchObject({ passage_id: 'en.listen.1.boat01', status: 'served' });
+    expect(l.title).toEqual(TITLE);
+    const r = await Ch.exercise(hub(K3), 'read', D);
+    expect(['en.read.1.ref01', 'en.read.1.kite']).toContain(rowOf(r.ct).passage_id);   // the random band-1 draw; neither fixture has a title
+    expect(r).not.toHaveProperty('title');
+  });
+
+  test('the menu names the served passage on its stop (after the serve; never before the draw)', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const before = (await Ch.menu(hub(K3), D)).exercises.find((e) => e.id === 'listen');
+    expect(before).not.toHaveProperty('title');
+    await Ch.exercise(hub(K3), 'listen', D);
+    const after = (await Ch.menu(hub(K3), D)).exercises.find((e) => e.id === 'listen');
+    expect(after.title).toEqual(TITLE);
+  });
+
+  test('the re-served record row (served and left, opened again) carries the same title', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL);
+    const first = await Ch.exercise(hub(K3), 'listen', D);
+    const again = await Ch.exercise(hub(K3), 'listen', D);
+    expect(runOf(again.ct)).toBe(runOf(first.ct));
+    expect(again.title).toEqual(TITLE);
+    // the page is told it is a re-open (r5-redteam-4 025824); a first serve never says so
+    expect(again.reopened).toBe(true);
+    expect(first).not.toHaveProperty('reopened');
+  });
+
+  test('golden: with the new switches off the listen payload has no title key (today\'s payload)', async () => {
+    const l = await Ch.exercise(hub(K3), 'listen', D);
+    expect(l).not.toHaveProperty('title');
+    const m = await Ch.menu(hub(K3), D);
+    for (const e of m.exercises) expect(e).not.toHaveProperty('title');
+  });
+
+  test('one home for the shelf: passageTitle(id) gives {en, ur} or null', () => {
+    expect(Ch.passageTitle('en.listen.1.boat01')).toEqual(TITLE);
+    expect(Ch.passageTitle('en.read.1.ref01')).toBeNull();
+    expect(Ch.passageTitle('no.such.passage')).toBeNull();
+  });
+});
+
+// ── EVENTS §0.1 (r5-redteam-4 row 25): the server ch_open carries the writer's mark under events v2; today's event off
+describe('the server ch_open under web_quiz_events_v2', () => {
+  const opens = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.ch_open').map(([, d]) => d);
+  test('events v2 on: ch_open carries w:\'s\' beside via and grade', async () => {
+    on(V2, ...CANON_ON, PERIOD, 'web_quiz_hub', 'web_quiz_events_v2');
+    require('../../../shared/services/quiz/web-quiz-hub-flags')._resetCache();
+    await Ch.menu(hub(K3), D);
+    expect(opens()).toEqual([{ via: 'hub', grade: 3, w: 's' }]);
+  });
+  test('golden: events v2 off (the parent on or off): ch_open is today\'s {via, grade}, no w', async () => {
+    on(V2, ...CANON_ON, PERIOD, 'web_quiz_hub');
+    require('../../../shared/services/quiz/web-quiz-hub-flags')._resetCache();
+    await Ch.menu(hub(K3), D);
+    expect(opens()).toEqual([{ via: 'hub', grade: 3 }]);
+    expect(Object.keys(opens()[0])).toEqual(['via', 'grade']);
+  });
+});
+
 // ── a class round turn or a practice play never uses up the child's home attempt (rows before the provenance columns count)
 
 describe('a round run or a practice run does not consume the home attempt', () => {
