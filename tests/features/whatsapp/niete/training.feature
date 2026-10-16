@@ -2623,3 +2623,13 @@ Feature: NIETE (ICT) Teacher Training
     When a round turn link or a challenge token carrying a round claim is used
     Then the Challenge refuses it and no run is stored
     And a quiz or hub link on my phone plays as today, with no round column on its runs
+
+  @quiz @config-gated @wip @draft @P2 @T923
+  Scenario: A run that comes by the class link inside my class's open week is stored in the class-week sample
+    Given app_settings "web_quiz_class_week", "web_quiz_class_round", "web_quiz_class_link", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
+    And my class has this term's class week open now
+    When a child of my class opens a challenge game from the class link
+    Then the run is stored with admin_mode "self_run" and sample_arm "class_week", on the v2 serve and the grade-1 form alike
+    And a run outside the week, a run from another door, or any of those switches off is stored with no sample arm, exactly as today
+    And a class round turn is still stored as "teacher_present" in the "class_round" sample
+    # web-quiz-class-week.js openWindowFor → teacher-class-week.js openWeek; web-quiz-challenge-draw.js adminFields; unit: challenge-serve-v2.test.js, challenge-grade1.test.js

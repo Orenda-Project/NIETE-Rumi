@@ -343,6 +343,55 @@ describe('the sampling fields and a class round turn, as the v2 serve writes the
     expect(row.meta).toMatchObject({ admin_mode: 'teacher_present', sample_arm: 'class_round' });
   });
 
+  describe('the class-week arm over the real window read (web-quiz-class-week → teacher-class-week)', () => {
+    const CLS = 'c1a55000-0000-4000-8000-0000000000c1';
+    const DAY = 24 * 3600 * 1000;
+    const WEEK_ON = ['web_quiz_class_week', 'web_quiz_class_round', 'web_quiz_class_link'].map((key) => ({ key, value: true }));
+    const clHub = () => T.sign({ k: 'h', ids: [KID], exp: Math.floor(Date.now() / 1000) + 3600, src: 'cl', cl: { c: CLS, s: 'roster_pick', q: 'high', h: false } });
+    const week = (from, to) => {
+      db.class_round_draws = [{ round: 'R1', class_id: CLS, term_code: require('../../../shared/services/quiz/teacher-class-week').termOf(NOV),
+        week_start: new Date(from).toISOString(), week_end: new Date(to).toISOString() }];
+    };
+    const rowOf = (ex) => runs().find((x) => x.id === T.verify(ex.ct, 'c').r);
+    beforeEach(() => {
+      require('../../../shared/services/quiz/web-quiz-class-week-flags')._resetCache();
+      db.classes = [{ id: CLS, grade_code: 'grade_1', is_active: true }];
+      db.class_enrollments = [{ id: 'e1', class_id: CLS, student_id: KID, is_active: true }];
+    });
+
+    test('a class-link G1 run inside its class\'s open week → sample_arm class_week, admin_mode self_run (row and meta)', async () => {
+      on(V2, G1, ...CANON_ON, PERIOD, ...WEEK_ON);
+      week(NOV - DAY, NOV + 6 * DAY);
+      const ex = await Ch.exercise(clHub(), 'numbers', D);
+      expect(rowOf(ex)).toMatchObject({ via: 'hub', class_id: CLS, admin_mode: 'self_run', sample_arm: 'class_week' });
+      expect(rowOf(ex).meta).toMatchObject({ admin_mode: 'self_run', sample_arm: 'class_week' });
+    });
+
+    test('a class-link G1 run outside the week, or with web_quiz_class_week off → sample_arm NULL', async () => {
+      on(V2, G1, ...CANON_ON, PERIOD, ...WEEK_ON);
+      week(NOV + DAY, NOV + 8 * DAY);
+      const early = await Ch.exercise(clHub(), 'numbers', D);
+      expect(rowOf(early)).toMatchObject({ via: 'hub', admin_mode: 'self_run', sample_arm: null });
+      db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_class_week');
+      require('../../../shared/services/quiz/web-quiz-class-week-flags')._resetCache();
+      Ch.__reset();
+      week(NOV - DAY, NOV + 6 * DAY);
+      const off = await Ch.exercise(clHub(), 'numbers', D);
+      expect(rowOf(off)).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
+    });
+
+    test('golden: a class-link G1 pick with every class-week switch off writes via, admin_mode, sample_arm and meta as today', async () => {
+      on(V2, G1, ...CANON_ON, PERIOD);
+      week(NOV - DAY, NOV + 6 * DAY);
+      const ex = await Ch.exercise(clHub(), 'numbers', D);
+      const row = rowOf(ex);
+      expect({ via: row.via, admin_mode: row.admin_mode, sample_arm: row.sample_arm }).toEqual({ via: 'hub', admin_mode: 'self_run', sample_arm: null });
+      expect({ admin_mode: row.meta.admin_mode, sample_arm: row.meta.sample_arm }).toEqual({ admin_mode: 'self_run', sample_arm: null });
+      // the meta's keys as the base serve writes them (no new key on this path)
+      expect(Object.keys(row.meta).sort()).toEqual(['admin_mode', 'anchor_serves_any', 'draw', 'fixed_band', 'grade_fixed_src', 'grade_source', 'items', 'pick_src', 'sample_arm', 'test']);
+    });
+  });
+
   test('period rule off: a scored class round turn or practice play of numbers never makes the next home serve practice', async () => {
     on(V2, G1);
     const prior = { student_id: KID, canonical_id: KID, exercise: 'numbers', status: 'scored', record: null, period_id: null, anchor_block: 'G1A' };
