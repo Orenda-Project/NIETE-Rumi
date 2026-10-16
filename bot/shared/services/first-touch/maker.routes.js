@@ -67,7 +67,7 @@ function makerEvent(step, p, { grade = null, subject = null, qlang = null, quizI
   try {
     logEvent('onboard.maker', {
       step, grade: grade ? `grade_${grade}` : null, subject: subject || null, qlang: qlang || null,
-      lang: p.lang, via: p.via, quiz_id: quizId || null, ukey: typeof p.uk === 'string' ? p.uk : null,
+      lang: p.lang, via: p.via, quiz_id: quizId || null, ukey: typeof p.uk === 'string' ? p.uk : null, w: 's',
     });
   } catch (_) { /* a failed log never decides a response */ }
 }

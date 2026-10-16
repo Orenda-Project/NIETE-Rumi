@@ -118,7 +118,7 @@ test('today\'s video_quiz.share_code_minted once (fresh mint only), and onboard.
   expect(minted).toEqual([['video_quiz.share_code_minted', { userId: TEACHER.id, quizId: qid(2), code, classBound: false }]]);
   const made = logEvent.mock.calls.filter(([e, f]) => e === 'onboard.maker' && f.step === 'made').map(([, f]) => f);
   expect(made).toHaveLength(2);
-  expect(made[0]).toEqual({ step: 'made', grade: 'grade_4', subject: 'maths', qlang: null, lang: 'en', via: 'menu', quiz_id: qid(2), ukey: UK });
+  expect(made[0]).toEqual({ step: 'made', grade: 'grade_4', subject: 'maths', qlang: null, lang: 'en', via: 'menu', quiz_id: qid(2), ukey: UK, w: 's' });
   const flat = JSON.stringify(made);
   expect(flat).not.toContain(code);
   expect(flat).not.toContain(PHONE);
