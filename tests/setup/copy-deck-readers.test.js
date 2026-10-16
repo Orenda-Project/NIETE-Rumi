@@ -24,21 +24,23 @@ const ROOTS = ['bot/shared/templates', 'bot/shared/services/quiz'];
 
 describe('the detector, on in-memory sources', () => {
   const file = (id, lines) => ({ id, source: lines.join('\n') });
+  // built from parts so the unresolved-requires gate never reads these fixture lines as requires of missing files
+  const R = 'requ' + 'ire';
 
   test('a require of the deck in code is a raw reader; in a comment or a string it is not', () => {
     expect(rawDeckReaders([
-      file('a.page.js', ["const d = require('../config/copy.v2.json')['jg.round.t_paused'];"]),
-      file('b.page.js', ['const DECK = require("../../config/copy.v2");']),
-      file('c.page.js', ['// Copy: copy.v2.json keys only', "/* read require('../config/copy.v2.json') once */", "const s = \"require('copy.v2.json')\";"]),
-      file('d.page.js', ["const ux = require('../config/ux-strings');"]),
+      file('a.page.js', [`const d = ${R}('../config/copy.v2.json')['jg.round.t_paused'];`]),
+      file('b.page.js', [`const DECK = ${R}("../../config/copy.v2");`]),
+      file('c.page.js', ['// Copy: copy.v2.json keys only', `/* read ${R}('../config/copy.v2.json') once */`, `const s = "${R}('copy.v2.json')";`]),
+      file('d.page.js', [`const ux = ${R}('../config/ux-strings');`]),
     ])).toEqual(['a.page.js', 'b.page.js']);
   });
 
   test('the file that defines deckLine is the door; a file that reads through it is not a raw reader', () => {
     expect(rawDeckReaders([
-      file('deck-line.js', ["const DECK = require('../config/copy.v2.json');", 'function deckLine(key, lang) { return DECK[key] || ""; }']),
-      file('e.page.js', ["const { deckLine } = require('../config/deck-line');", "const s = deckLine('jg.round.t_paused', 'en');"]),
-      file('f.page.js', ["const { deckLine } = require('../config/deck-line');", "const raw = require('../config/copy.v2.json');"]),
+      file('deck-line.js', [`const DECK = ${R}('../config/copy.v2.json');`, 'function deckLine(key, lang) { return DECK[key] || ""; }']),
+      file('e.page.js', [`const { deckLine } = ${R}('../config/deck-line');`, "const s = deckLine('jg.round.t_paused', 'en');"]),
+      file('f.page.js', [`const { deckLine } = ${R}('../config/deck-line');`, `const raw = ${R}('../config/copy.v2.json');`]),
     ])).toEqual(['f.page.js']);
   });
 

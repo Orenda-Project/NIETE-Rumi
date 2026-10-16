@@ -1007,11 +1007,12 @@ function rawDeckReaders(files) {
 const TRACE_FIELDS = ['at', 'field', 'what', 'why', 'text_hash_before'];
 const NO_HASH_TRACE = 'a changes trace in a file with no text_hash (an item bank or a Set A pointer file): a fix there '
   + 'is a new id or a new bank_version, never a same-id edit (ITEMS item 18)';
-const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+// an ISO date (the files' own `2026-10-16`) or an ISO time with its offset
+const ISO_TIME = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))?$/;
 
 /**
  * The problems (strings, `<where>: <what>`) of every `changes` array in a parsed content file: each entry has the
- * five fields as non-empty strings, `at` is an ISO time, `text_hash_before` is 32 lowercase hex (the files' own
+ * five fields as non-empty strings, `at` is an ISO date or time, `text_hash_before` is 32 lowercase hex (the files' own
  * text_hash format) and, when the holding object records a `text_hash`, differs from it. A file that records no
  * `text_hash` anywhere (an item bank, a Set A pointer file) carries no trace at all: NO_HASH_TRACE first. [] when the
  * file has no trace.
@@ -1033,7 +1034,7 @@ function changesTraceProblems(doc) {
         const w = `${at}[${i}]`;
         for (const f of TRACE_FIELDS) if (!e || typeof e[f] !== 'string' || !e[f]) out.push(`${w}: ${f} is missing or empty`);
         if (!e) return;
-        if (typeof e.at === 'string' && e.at && (!ISO_TIME.test(e.at) || Number.isNaN(Date.parse(e.at)))) out.push(`${w}: at is not an ISO time`);
+        if (typeof e.at === 'string' && e.at && (!ISO_TIME.test(e.at) || Number.isNaN(Date.parse(e.at)))) out.push(`${w}: at is not an ISO date or time`);
         const h = e.text_hash_before;
         if (typeof h === 'string' && h && !/^[0-9a-f]{32}$/.test(h)) out.push(`${w}: text_hash_before is not 32 lowercase hex`);
         else if (typeof h === 'string' && h === o.text_hash) out.push(`${w}: text_hash_before is the current text_hash`);

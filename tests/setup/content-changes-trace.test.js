@@ -5,13 +5,14 @@
  * `changes: [{ at, field, what, why, text_hash_before }]`. The rule (the exact rule is changesTraceProblems in
  * test-seam-gates-lib.js), for every object in such a file that holds a `changes` array:
  *   - every entry has the five fields, each a non-empty string;
- *   - `at` is an ISO time (2026-10-16T10:52:26Z, with or without milliseconds, Z or ±hh:mm);
+ *   - `at` is an ISO date (2026-10-16, the files' own form) or an ISO time (2026-10-16T10:52:26Z, with or without
+ *     milliseconds, Z or ±hh:mm), and a real calendar day;
  *   - `text_hash_before` has the format of the files' own text_hash (32 lowercase hex: sha256, first 32);
  *   - when the object records a `text_hash` (the passage files do, held to the recomputed hash by
  *     bot/tests/quiz/web-quiz/challenge-passage-gate.test.js), `text_hash_before` differs from it;
  *   - a file that records no `text_hash` anywhere (the three item banks, the four Set A pointer files) carries no
  *     trace at all: the pre-serve carve-out is for the authored passage files only, so a fix there is a new id or a
- *     new bank_version (ITEMS item 18, m-content-7 20261016T120706).
+ *     new bank_version (ITEMS item 18).
  * No file carries a trace when this gate lands; the tree test holds the first one that does.
  */
 const fs = require('fs');
@@ -25,6 +26,7 @@ describe('the rule, on in-memory files', () => {
 
   test('a whole trace whose hash before is not the current one: no problem; no trace: no problem', () => {
     expect(changesTraceProblems({ text_hash: H2, changes: [entry(), entry({ at: '2026-10-16T10:52:26.120+05:00' })] })).toEqual([]);
+    expect(changesTraceProblems({ text_hash: H2, changes: [entry({ at: '2026-10-16' })] })).toEqual([]);
     expect(changesTraceProblems({ text_hash: H2 })).toEqual([]);
     expect(changesTraceProblems({ items: [{ id: 'i1', text_hash: H2, changes: [entry()] }] })).toEqual([]);
   });
@@ -39,7 +41,7 @@ describe('the rule, on in-memory files', () => {
   test('a missing field, a time that is not ISO, a hash in another format, a hash before equal to the current one', () => {
     const { why, ...noWhy } = entry();
     expect(changesTraceProblems({ text_hash: H2, changes: [noWhy] })).toEqual(['changes[0]: why is missing or empty']);
-    expect(changesTraceProblems({ text_hash: H2, changes: [entry({ at: '16 Oct 2026' })] })).toEqual(['changes[0]: at is not an ISO time']);
+    expect(changesTraceProblems({ text_hash: H2, changes: [entry({ at: '16 Oct 2026' }), entry({ at: '2026-13-40' })] })).toEqual(['changes[0]: at is not an ISO date or time', 'changes[1]: at is not an ISO date or time']);
     expect(changesTraceProblems({ text_hash: H2, changes: [entry({ text_hash_before: 'A'.repeat(64) })] })).toEqual(['changes[0]: text_hash_before is not 32 lowercase hex']);
     expect(changesTraceProblems({ text_hash: H1, changes: [entry()] })).toEqual(['changes[0]: text_hash_before is the current text_hash']);
     expect(changesTraceProblems({ items: [{ text_hash: H2, changes: 'none' }] })).toEqual(['items[0].changes: not an array']);
