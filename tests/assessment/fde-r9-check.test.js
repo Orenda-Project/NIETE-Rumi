@@ -143,8 +143,8 @@ describe('2. the before-the-exam box says what code wrote, in plain words', () =
   });
 
   it('Urdu, Urdu digits', () => {
-    expect(box(schemeOf(sst([row(0)], 'ur')))).toContain('۱ مارکنگ قطار جواب سے لکھی گئی۔ نمبر دینے سے پہلے اسے جانچ لیں۔');
-    expect(box(schemeOf(sst([row(0), row(1, 'a')], 'ur')))).toContain('۲ مارکنگ قطاریں جواب سے لکھی گئیں۔ نمبر دینے سے پہلے انہیں جانچ لیں۔');
+    expect(box(schemeOf(sst([row(0)], 'ur')))).toContain('مارکنگ اسکیم کی ۱ سطر جواب سے بنائی گئی ہے۔ نمبر دینے سے پہلے اسے جانچ لیں۔');
+    expect(box(schemeOf(sst([row(0), row(1, 'a')], 'ur')))).toContain('مارکنگ اسکیم کی ۲ سطریں جواب سے بنائی گئی ہیں۔ نمبر دینے سے پہلے انہیں جانچ لیں۔');
   });
 
   it('no shortfall: the box carries no such line', () => {
