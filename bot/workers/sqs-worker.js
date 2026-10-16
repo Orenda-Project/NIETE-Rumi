@@ -982,7 +982,7 @@ class SQSCoachingWorker {
         ready.push([receiptHandle, meta]);
       } else {
         this.releasedHandles.delete(receiptHandle);
-        logToFile('⚠️ Paper row could not be handed back; leaving its message to the visibility window', {
+        logToFile('Paper row could not be handed back; leaving its message to the visibility window', {
           workerId: this.workerId, requestId: meta.requestId || null,
         });
       }
