@@ -22,9 +22,9 @@ const entries = () => Object.entries(load()).filter(([k]) => k !== '_meta');
 const live = () => entries().filter(([, v]) => !v.retired && !v.held);
 
 describe('copy deck: shape', () => {
-  test('the deck is v2.2 and every key has both languages, a surface, a cap and a switch', () => {
+  test('the deck is v2.3 and every key has both languages, a surface, a cap and a switch', () => {
     const deck = load();
-    expect(deck._meta.version).toBe('2.2');
+    expect(deck._meta.version).toBe('2.3');
     for (const [k, v] of entries()) {
       expect([k, typeof v.en, typeof v.ur, typeof v.surface, typeof v.switch]).toEqual([k, 'string', 'string', 'string', 'string']);
       expect([k, Number.isInteger(v.cap_cp)]).toEqual([k, true]);
@@ -149,5 +149,68 @@ describe('copy deck v2.2: the new and retired keys', () => {
       expect([k, d[k] && d[k].retired]).toEqual([k, true]);
     }
     expect(d['jg.round.c_done'].retired).toBeUndefined();
+  });
+});
+
+describe('copy deck v2.3: the new keys and the read FIXes', () => {
+  const d = () => load();
+
+  test('the bind sheet: the code-expiry line and the recordings sentence, name isolated', () => {
+    const v = d()['jg.bind.valid_hour'];
+    expect([v.en, v.surface, v.switch]).toEqual(['This code works for the next hour.', 'page.bind', 'web_quiz_phone_bind']);
+    expect(cp(v.ur)).toBeLessThanOrEqual(40);
+    const r = d()['jg.bind.notice_readings'];
+    expect(r.en).toBe('Readings {name} makes with the microphone are kept too.');
+    expect(r.ur).toContain(`${FSI}{name}${PDI}`);
+    expect([r.surface, cp(r.en) <= 80, cp(r.ur) <= 80]).toEqual(['page.bind', true, true]);
+  });
+
+  test('the re-serve line never blames the child; the card line no longer promises a mic-free Trail', () => {
+    const w = d()['jg.trail.welcome_back'];
+    expect([w.en, w.surface, w.switch]).toEqual(["Welcome back! Let's carry on.", 'page.trail', 'web_quiz_challenge_v2']);
+    expect(w.en).not.toMatch(/left|stopped|quit/i);
+    expect(cp(w.ur)).toBeLessThanOrEqual(40);
+    expect(d()['jg.card.sub'].en).toBe('2 minutes to start, no microphone');
+    expect(d()['jg.card.sub'].ur).toContain('شروع');
+  });
+
+  test('the ping body: no parameter, no selection or test word, names STOP and /quiz, held until the go', () => {
+    const p = d()['bot.ping.invite'];
+    expect(placeholders(p.en).concat(placeholders(p.ur))).toEqual([]);
+    expect(p.en).not.toMatch(/\b(pick|sampl|select|chos|test|exam)/i);
+    expect(p.en).toContain('STOP');
+    expect(p.en).toContain('/quiz');
+    expect(p.ur).toContain(`${LRI}STOP${PDI}`);
+    expect(p.ur).toContain(`${LRI}/quiz${PDI}`);
+    expect([p.surface, p.switch, cp(p.en) <= 160, cp(p.ur) <= 160]).toEqual(['wa.body', 'web_quiz_sample_ping', true, true]);
+    expect(typeof p.held).not.toBe('undefined');
+  });
+
+  test('the listen-error and library lines are keyed; the doubled "to" is gone', () => {
+    expect(d()['jg.trail.listen_down'].en).toBe("The story won't play right now. Try another challenge.");
+    expect(d()['jg.lib.lock_say'].en).toBe('Ask the child who got this link to open it.');
+    expect(d()['jg.lib.lock_say'].en).not.toMatch(/\bto to\b/);
+  });
+
+  test('U+00A0 keeps the last pair together where the 360 px read found an orphan', () => {
+    expect(d()['jg.lantern.trail_many'].ur.endsWith(`رہے${NBSP}ہیں۔`)).toBe(true);
+    expect(d()['jg.card.title'].ur.endsWith(`کھیل${NBSP}ہے`)).toBe(true);
+    expect(d()['jg.trail.welcome_back'].ur.endsWith(`چلتے${NBSP}ہیں۔`)).toBe(true);
+  });
+
+  test('the mic notice names the grown-up and says the reading stays, in both languages', () => {
+    const n = d()['jg.keep.notice'];
+    expect(n.en).toMatch(/A grown-up/);
+    expect(n.en).toMatch(/the reading stays/);
+    expect(n.ur).toContain('گھر کے بڑے');
+    expect(n.ur).toContain('ریکارڈنگ پھر بھی');
+    expect(cp(n.en)).toBeLessThanOrEqual(200);
+    expect(cp(n.ur)).toBeLessThanOrEqual(200);
+  });
+
+  test('the failed save says what failed; the whose-turn exit says what it does', () => {
+    expect(d()['jg.bind.try_again'].ur).toContain('جگہ محفوظ نہیں');
+    expect(d()['jg.bind.try_again'].en).toMatch(/place/);
+    expect([d()['jg.who.someone_else'].en, d()['jg.who.someone_else'].ur]).toEqual(["My name isn't here", 'میرا نام یہاں نہیں']);
   });
 });
