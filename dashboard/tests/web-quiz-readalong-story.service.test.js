@@ -258,3 +258,32 @@ async function toQaDoneFromPlay(p) {
   await p.runTimers(); await p.flush();
 }
 const URDU_SHOW_WORDS = 'الفاظ دکھائیں';
+
+// The first sound: on the ask screen (the LISTEN screen of RULING #C6.5) the mounted item's clip is warmed once the
+// player script is here — WQReadAlong.preload(timing): one request, no decode, no play. Nothing else preloads.
+const PRE_STUB = STUB + 'window.__pre = []; window.WQReadAlong.preload = function (d) { window.__pre.push(d); return {}; };';
+describe('the first sound: the clip is warmed on the ask screen, never played', () => {
+  test('Story Time read: the ask screen warms `readalong` once the player arrives; still nothing plays until the tap', async () => {
+    const p = room({ routes: { 'ch/HUB.TOKEN/read': ok(SREAD({ readalong: TIMED })) }, scripts: { '/wq/wq-readalong.js': PRE_STUB } });
+    await p.flush();
+    expect(p.screen()).toBe('story-ask');
+    expect(p.win.__pre).toEqual([TIMED]);
+    expect(p.win.__ra).toBeUndefined();
+    await p.click('wqc-story-along');
+    expect(p.win.__ra.plays).toBe(1);
+    expect(p.win.__pre).toHaveLength(1);   // warmed once, never again
+  });
+  test('a replayed read: the hear-first ask warms `hear_first`', async () => {
+    const p = trail({ routes: { 'ch/HUB.TOKEN/read': ok(PREAD({ hear_first: TIMED })) }, scripts: { '/wq/wq-readalong.js': PRE_STUB } });
+    await p.flush();
+    await p.click('wqc-ex-read');
+    expect(p.screen()).toBe('hear-ask');
+    expect(p.win.__pre).toEqual([TIMED]);
+  });
+  test('no ask screen (no timing, or a counted read): nothing is warmed', async () => {
+    const p = trail({ routes: { 'ch/HUB.TOKEN/read': ok(PREAD()) }, scripts: { '/wq/wq-readalong.js': PRE_STUB } });
+    await p.flush();
+    await p.click('wqc-ex-read');
+    expect(p.win.__pre).toBeUndefined();
+  });
+});
