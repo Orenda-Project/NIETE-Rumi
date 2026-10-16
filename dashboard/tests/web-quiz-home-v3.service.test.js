@@ -494,7 +494,12 @@ describe('a shared phone: the name opens "Who is playing?", with "Someone new?" 
     expect(count(sh, /data-primary/g)).toBe(0);
     expect(visible(sh)).not.toMatch(BANNED);
   });
-  test('a join link (?jn= or the boot\'s jn): the last row "Someone new?" opens the join', () => {
+  test('a join token in the URL is never read (the server mints it in the boot)', () => {
+    const p = page({ search: '?from=quiz&jn=eyJrIjoiaiJ9.AbC-d_e' });
+    expect(p.H.html(HOME, ctxOf('en'))).not.toContain('data-tap="who"');
+    expect(p.H.who(HOME, ctxOf('en'))).not.toContain('/quiz/join/');
+  });
+  test('the boot\'s jn: the last row "Someone new?" opens the join', () => {
     const sh = H.who({ ...HOME, jn: 'eyJrIjoiaiJ9.AbC-d_e' }, ctxOf('ur'));
     expect(sh).toContain('href="/quiz/join/eyJrIjoiaiJ9.AbC-d_e"');
     expect(visible(sh)).toContain('کوئی اور؟');

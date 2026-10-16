@@ -115,13 +115,10 @@
       '<span class="wq-hhi">' + (whoOn(B) ? '<button class="wq-hname" type="button" data-tap="who">' + esc(hi) + '</button>' : esc(hi)) + dotsHtml(B, t) + '</span>' + jar +
       '<button class="wq-snd" type="button" data-tap="sound" aria-pressed="' + (muted() ? 'false' : 'true') + '" aria-label="' + esc(muted() ? t.sndOff : t.sndOn) + '">' + (muted() ? ICON.sndOff : ICON.sndOn) + '</button></header>';
   }
-  // A shared phone: the child's name opens "Who is playing?" (this phone's children) and, when the join link came
-  // (the boot's `jn` or ?jn=), a last row "Someone new?" for a brother or sister. Never in the coach's preview.
-  function jnOf(B) {
-    var j = B.jn;
-    if (!j) { var m = /[?&]jn=([A-Za-z0-9._-]+)/.exec((typeof location !== 'undefined' && location.search) || ''); j = m && m[1]; }
-    return typeof j === 'string' && /^[A-Za-z0-9._-]{8,600}$/.test(j) ? j : null;
-  }
+  // A shared phone: the child's name opens "Who is playing?" (this phone's children) and, when the server minted a join
+  // token for this phone (the boot's `jn`; never read from a URL a child could forward), a last row "Someone new?" for a
+  // brother or sister. Never in the coach's preview.
+  function jnOf(B) { return typeof B.jn === 'string' && /^[A-Za-z0-9._-]{8,600}$/.test(B.jn) ? B.jn : null; }
   function whoOn(B) { return !B.practice && ((B.kids || []).length > 1 || Boolean(jnOf(B))); }
   function who(B, ctx) {
     var t = C(ctx); var j = jnOf(B);

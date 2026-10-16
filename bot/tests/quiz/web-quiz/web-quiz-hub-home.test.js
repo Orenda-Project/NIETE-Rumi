@@ -192,6 +192,51 @@ describe('"From your teacher": a storybook the teacher only previewed never show
   });
 });
 
+describe('a bound phone: "Someone new?" and the teacher switch are minted by the server at render, never in a URL', () => {
+  const HOME_ON = [...BASE_ON, ON('web_quiz_home_v3')];
+  const BOUND = { child_phone_bindings: [{ id: 'b1', canonical_id: KID, phone_norm: '92300FIXTURE7', phone_tomb: 't', via: 'save', confirmed_at: ago(48), bound_at: ago(48), last_played_at: ago(1), expires_at: ahead(2000), revoked_at: null }] };
+  const calls = [];
+  const join = { siblingJoinToken: async (a) => { calls.push(['jn', a]); return 'eyJrIjoiaiJ9.SibTok-1'; } };
+  const door = { mintLandingForPhone: async (a) => { calls.push(['gl', a]); return 'https://portal.example.test/quiz/go/GoTok_1'; } };
+  beforeEach(() => { calls.length = 0; Home._useModules({}); });
+  afterAll(() => Home._useModules(null));
+  test('both modules there + an active binding: jn and the grown-ups teacher row, from the binding\'s phone', async () => {
+    Home._useModules({ join, door });
+    seed(HOME_ON, BOUND);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.jn).toBe('eyJrIjoiaiJ9.SibTok-1');
+    expect(out.grownups).toEqual({ teacher_href: 'https://portal.example.test/quiz/go/GoTok_1', teacher_label: expect.any(String) });
+    expect(calls.map((c) => [c[0], c[1].phoneNorm])).toEqual([['jn', '92300FIXTURE7'], ['gl', '92300FIXTURE7']]);
+    // The phone itself never rides in the payload.
+    expect(JSON.stringify(out)).not.toContain('FIXTURE7');
+  });
+  test('the modules absent (not merged yet): no key, and the bindings table is not read', async () => {
+    seed(HOME_ON, BOUND);
+    const seen = []; const from = supabase.from; supabase.from = (t) => { seen.push(t); return from(t); };
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out).not.toHaveProperty('jn');
+    expect(out).not.toHaveProperty('grownups');
+    expect(seen).not.toContain('child_phone_bindings');
+  });
+  test('no active binding, or a minted value of the wrong shape: no key', async () => {
+    Home._useModules({ join, door });
+    seed(HOME_ON);
+    expect(await Hub.hub(T.signHub([KID]), A)).not.toHaveProperty('jn');
+    Home._useModules({ join: { siblingJoinToken: async () => 'bad"><x' }, door: { mintLandingForPhone: async () => 'javascript:alert(1)' } });
+    seed(HOME_ON, BOUND);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out).not.toHaveProperty('jn');
+    expect(out).not.toHaveProperty('grownups');
+  });
+  test('GOLDEN: switch off -> nothing minted, nothing read', async () => {
+    Home._useModules({ join, door });
+    seed(BASE_ON, BOUND);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out).not.toHaveProperty('jn');
+    expect(calls).toEqual([]);
+  });
+});
+
 describe('the practice home: a `pr:1` hub token (a coach previewing what the class sees), addressed by grade', () => {
   const HOME_ON = [...BASE_ON, ON('web_quiz_home_v3')];
   const prTok = (over = {}) => T.sign({ k: 'h', ids: [], pr: 1, g: 3, lang: 'en', exp: Math.floor(Date.now() / 1000) + 3600, ...over });

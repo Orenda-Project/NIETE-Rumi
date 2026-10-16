@@ -121,6 +121,40 @@ async function stampsOf(chosenId, history, now) {
   }
 }
 
+/*
+ * A phone that keeps this child (an active binding) gets two rows minted HERE, at render, from the binding's phone, never
+ * from a URL a child could forward: "Someone new?" (`jn`, the join's sibling token) and the grown-ups corner's teacher
+ * switch (`grownups.teacher_href`, a fresh landing). Both come from modules other changes add; a module that is not
+ * there, its own switch off, no binding, or a value of the wrong shape: no key. The phone never rides in the payload.
+ */
+const JOIN_MODULE = './web-quiz-student-join';
+const DOOR_MODULE = '../first-touch/one-door.service';
+const JN_RX = /^[A-Za-z0-9._-]{8,600}$/;
+const GL_RX = /^(https:\/\/[A-Za-z0-9.-]+(:\d+)?)?\/quiz\/go\/[A-Za-z0-9._~-]{4,600}$/;
+const TEACHER_LABEL = { en: 'I teach a class', ur: 'میں ٹیچر ہوں' };
+let modules = null; // tests inject { join, door } here (null = the real requires)
+function optional(name, spec) {
+  if (modules) return modules[name] || null;
+  try { return require(spec); } catch (_) { return null; }
+}
+async function phoneRows(chosenId, lang) {
+  const Join = optional('join', JOIN_MODULE);
+  const Door = optional('door', DOOR_MODULE);
+  const sib = Join && typeof Join.siblingJoinToken === 'function' ? Join.siblingJoinToken : null;
+  const land = Door && typeof Door.mintLandingForPhone === 'function' ? Door.mintLandingForPhone : null;
+  if (!sib && !land) return {};
+  const binds = await require('./child-phone-bindings.repo').activeForChild(chosenId);
+  const newest = binds.filter((b) => b && b.phone_norm)
+    .sort((a, b) => String(b.last_played_at || b.bound_at || '').localeCompare(String(a.last_played_at || a.bound_at || '')))[0];
+  if (!newest) return {};
+  const ask = (fn) => (fn ? Promise.resolve().then(() => fn({ phoneNorm: newest.phone_norm, lang })).catch(() => null) : Promise.resolve(null));
+  const [jn, gl] = await Promise.all([ask(sib), ask(land)]);
+  return {
+    ...(typeof jn === 'string' && JN_RX.test(jn) ? { jn } : {}),
+    ...(typeof gl === 'string' && GL_RX.test(gl) ? { grownups: { teacher_href: gl, teacher_label: TEACHER_LABEL[clampLanguage(lang)] } } : {}),
+  };
+}
+
 /** `{home_v3, doors, head}` for the hub payload of a chosen child, or `{}` (switch off, no child, any failure). Never throws. */
 async function homeField({ out, chosenId, history, now = Date.now() } = {}) {
   try {
@@ -131,7 +165,7 @@ async function homeField({ out, chosenId, history, now = Date.now() } = {}) {
     const head = headOf(stamps, now);
     // The sticker jar leads to Jugnu's Book, so it is there only when the Book is; "new" = a sticker in the last day.
     head.jar = out.book_on ? { fresh } : null;
-    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head };
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...(await phoneRows(chosenId, out.lang)) };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
     return {};
@@ -223,4 +257,4 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
   }
 }
 
-module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, sentOnly, KEY, STORIES_KEY, _resetCache: () => { cache = null; } };
+module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, sentOnly, KEY, STORIES_KEY, _resetCache: () => { cache = null; }, _useModules: (m) => { modules = m; } };
