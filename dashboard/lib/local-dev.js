@@ -29,10 +29,20 @@ function sessionCookie(env) {
   return {
     secure: !local, // HTTPS only, except a local dev run on http://localhost
     httpOnly: true, // Prevents client-side JS from accessing cookie
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    // bd-x7aprz.3: 30 days, and rolling (sessionBehaviour) — counted from her LAST visit, not the sign-in.
+    maxAge: 30 * 24 * 60 * 60 * 1000,
     // 'none' so the Capacitor app can hold a session (see index.js); browsers refuse 'none' without Secure
     sameSite: local ? 'lax' : (env.SESSION_COOKIE_SAMESITE || 'none'),
   };
 }
 
-module.exports = { isLoopbackHost, dbSsl, isLocalDev, sessionCookie };
+/**
+ * bd-x7aprz.3 — how the session lives, beside its cookie. `rolling` re-sends the cookie with a fresh maxAge on every
+ * answer, so a teacher who opens the portal at least once a month stays signed in: a sign-in is now a WhatsApp link
+ * or code, never a password to retype, and the fixed 7 days logged out even a daily user on day 8.
+ */
+function sessionBehaviour() {
+  return { rolling: true };
+}
+
+module.exports = { isLoopbackHost, dbSsl, isLocalDev, sessionCookie, sessionBehaviour };

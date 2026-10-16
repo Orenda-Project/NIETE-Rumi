@@ -2,7 +2,7 @@
   "bot/tests": 1,
   "bot/tests/calls": 50,
   "bot/tests/coaching": 3,
-  "bot/tests/handlers": 13,
+  "bot/tests/handlers": 10,
   "bot/tests/lp-v8": 48,
   "bot/tests/menu": 2,
   "bot/tests/observe": 249,

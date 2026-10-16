@@ -19,19 +19,51 @@ const { verifyAppLink, LANDINGS, COACH_LANDINGS, LEGACY_LANDING } = require('../
 const telemetry = require('../services/telemetry.service');
 
 // Teacher-facing, both languages at once: with no genuine token we do not know hers.
+// bd-x7aprz.3: the page hands her a NEW link in one tap — a button that opens THIS deployment's bot with /portal typed
+// (the bot answers /portal with a fresh signed link). It used to say "send /menu", which opens the menu, not a link.
 const COPY = {
   en: {
     title: 'This link has expired',
-    body: 'Links last 24 hours. Go back to WhatsApp and send /menu. We will send you a new link.',
+    body: 'Links last 24 hours. Tap below and send the message: we will reply with a new link.',
+    // No bot number configured on this deployment: no button, so the words carry the whole instruction.
+    bodyNoButton: 'Links last 24 hours. Go back to WhatsApp and send /portal. We will send you a new link.',
+    button: 'Get a new link',
   },
   ur: {
     title: 'یہ لنک ختم ہو چکا ہے',
-    body: 'لنک 24 گھنٹے تک چلتا ہے۔ واٹس ایپ پر واپس جائیں اور /menu بھیجیں۔ ہم آپ کو نیا لنک بھیج دیں گے۔',
+    body: 'لنک ۲۴ گھنٹے تک چلتا ہے۔ نیچے ٹیپ کریں اور پیغام بھیجیں: ہم آپ کو نیا لنک بھیج دیں گے۔',
+    bodyNoButton: 'لنک ۲۴ گھنٹے تک چلتا ہے۔ واٹس ایپ پر واپس جائیں اور \u2066/portal\u2069 بھیجیں۔ ہم آپ کو نیا لنک بھیج دیں گے۔',
+    button: 'نیا لنک لیں',
   },
 };
 
+/**
+ * This deployment's own WhatsApp number, digits only, or null. WHATSAPP_BOT_NUMBER first, then REFERRAL_BOT_NUMBER
+ * (already on every service — the same order the bot's share links use). No fallback to another number: a sandbox
+ * page that opened the production bot would hand a tester a production link. Read at call time.
+ */
+function botNumber() {
+  const digits = String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
+  return digits.length >= 10 ? digits : null;
+}
+
+/** The chat with THIS deployment's bot with `text` already typed, or null with no bot number configured. */
+function waMeLink(text) {
+  const n = botNumber();
+  return n ? `https://wa.me/${n}?text=${encodeURIComponent(text)}` : null;
+}
+
+/** The chat with this bot, /portal already typed — or null with no number configured. */
+function newLinkUrl() {
+  return waMeLink('/portal');
+}
+
 function renderNewLinkPage() {
   const { en, ur } = COPY;
+  const href = newLinkUrl();
+  const button = href
+    ? `<a class="btn" href="${href}"><span lang="en" dir="ltr">${en.button}</span><span class="sep" aria-hidden="true">·</span><span lang="ur" dir="rtl">${ur.button}</span></a>`
+    : '';
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -40,7 +72,7 @@ function renderNewLinkPage() {
 <meta name="robots" content="noindex">
 <title>${en.title}</title>
 <style>
-  :root { --bg:#ffffff; --fg:#333748; --muted:#5b6475; --accent:#47BA7D; --card:#f3f6f4; }
+  :root { --bg:#ffffff; --fg:#333748; --muted:#5b6475; --accent:#47BA7D; --card:#f3f6f4; --on-accent:#ffffff; }
   @media (prefers-color-scheme: dark) { :root { --bg:#14161c; --fg:#eceef3; --muted:#a6adbb; --card:#1d2129; } }
   * { box-sizing:border-box; }
   body { margin:0; padding:24px 16px; background:var(--bg); color:var(--fg); font:17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
@@ -49,12 +81,16 @@ function renderNewLinkPage() {
   h1 { font-size:20px; margin:0 0 8px; }
   p { margin:0; color:var(--muted); }
   [lang="ur"] { font-family:"Noto Nastaliq Urdu","Noto Naskh Arabic",system-ui,sans-serif; line-height:2.1; }
+  .btn { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px; min-height:56px; padding:12px 20px; margin:0 0 16px;
+         border-radius:999px; background:var(--accent); color:var(--on-accent); font-weight:700; text-decoration:none; }
+  .btn [lang="ur"] { line-height:1.6; }
 </style>
 </head>
 <body>
 <main>
-<section lang="en" dir="ltr"><h1>${en.title}</h1><p>${en.body}</p></section>
-<section lang="ur" dir="rtl"><h1>${ur.title}</h1><p>${ur.body}</p></section>
+<section lang="en" dir="ltr"><h1>${en.title}</h1><p>${href ? en.body : en.bodyNoButton}</p></section>
+<section lang="ur" dir="rtl"><h1>${ur.title}</h1><p>${href ? ur.body : ur.bodyNoButton}</p></section>
+${button}
 </main>
 </body>
 </html>`;
@@ -67,7 +103,7 @@ function log(props) {
 
 async function defaultFindUser(id) {
   const supabase = require('../config/supabase');
-  const { data, error } = await supabase.from('users').select('id, name').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('users').select('id, name, deleted_at').eq('id', id).maybeSingle();
   if (error) throw new Error(error.message || 'users lookup failed');
   return data || null;
 }
@@ -132,6 +168,8 @@ function createAppLoginRouter({
       return newLink(req, res, 'error', { feature: payload.f, userId: payload.u, journeyId, err: String(err && err.message).slice(0, 120) });
     }
     if (!user || !user.id) return newLink(req, res, 'unknown_user', { feature: payload.f, userId: payload.u, journeyId });
+    // bd-x7aprz.3: a link minted before the account was deleted signs nobody in.
+    if (user.deleted_at) return newLink(req, res, 'deleted_user', { feature: payload.f, userId: payload.u, journeyId });
 
     // bd-fmf24g.52 — a coach token (coach_menu, coach_observe) asks the coach-app question and lands on a coach page;
     // a teacher token asks the teacher-app question, exactly as before. Either way, off the app → today's dashboard.
@@ -161,4 +199,4 @@ function createAppLoginRouter({
   return router;
 }
 
-module.exports = { createAppLoginRouter };
+module.exports = { createAppLoginRouter, newLinkUrl, waMeLink };

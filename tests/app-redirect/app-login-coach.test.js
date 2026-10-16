@@ -144,7 +144,7 @@ describe('GET /go/:token', () => {
     for (const f of ['observe', 'coach_lesson_plan']) {
       const res = await get(srv, `/go/${forge(f)}`);
       expect(res.status).toBe(200);
-      expect(res.body).toContain('/menu');
+      expect(res.body).toMatch(/\?text=%2Fportal|send \/portal/); // bd-x7aprz.3: the new-link page asks for /portal
     }
     expect(sessions.every((s) => s.portalUserId === undefined)).toBe(true);
   });

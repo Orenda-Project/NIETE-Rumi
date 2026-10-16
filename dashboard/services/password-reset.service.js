@@ -19,8 +19,36 @@
  * This ensures all WhatsApp messages go through the main bot service
  */
 
+const crypto = require('crypto');
 const supabase = require('../config/supabase');
 const axios = require('axios');
+// The bot's ONE definition of "registered" (a completed run, or a name we already know). Pure, no requires.
+const { isRegistered } = require('../../bot/shared/utils/registration-status');
+
+/**
+ * bd-x7aprz.3 — who may receive a WhatsApp code: a live account that is a registered adult, or that already has a
+ * password. NOT portal_activated: that flag was how 170 form-registered teachers whose setup link lapsed were told
+ * "No account found" by the login AND by Forgot password. The number she messages the bot from is the identity.
+ */
+const ELIGIBILITY_COLUMNS = 'id, name, registration_completed, registration_state, deleted_at, portal_password_hash';
+function mayReceiveCode(user) {
+  if (!user || user.deleted_at) return false;
+  return isRegistered(user) || Boolean(user.portal_password_hash);
+}
+
+const CODE_TTL_MIN = 10;
+/** A new code may be asked for once a minute (it replaces the last); the old rule held her for all ten. */
+const RESEND_AFTER_MS = 60 * 1000;
+/** Wrong codes allowed against one issued code before it is voided (it then has to be asked for again). */
+const MAX_WRONG_CODES = 5;
+/** phone -> { code, n }: wrong tries against the code now stored for that phone. Per process; the void is durable. */
+const wrongTries = new Map();
+
+function sameCode(stored, typed) {
+  const a = Buffer.from(String(stored || ''));
+  const b = Buffer.from(String(typed || ''));
+  return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
+}
 
 // Main Bot internal API configuration
 const MAIN_BOT_URL = process.env.MAIN_BOT_URL || '';
@@ -43,40 +71,28 @@ class PasswordResetService {
       // Generate 6-digit code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-      // Set 10-minute expiry
       const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+      expiresAt.setMinutes(expiresAt.getMinutes() + CODE_TTL_MIN);
 
-      // Check if user exists and has activated portal
       const { data: users, error: userError } = await supabase
         .from('users')
-        .select('id, portal_activated, preferred_language, name')
+        .select(`${ELIGIBILITY_COLUMNS}, preferred_language`)
         .eq('phone_number', phoneNumber);
 
       // Extract first user from array (or null if empty)
       const user = users && users.length > 0 ? users[0] : null;
 
-      if (userError || !user) {
-        console.log('❌ User not found for password reset', {
+      if (userError || !mayReceiveCode(user)) {
+        // The row is never logged: it carries the password-hash column.
+        console.log('❌ No registered account for a WhatsApp code', {
           phoneNumber,
-          supabaseError: userError,
+          found: Boolean(user),
           errorCode: userError?.code,
-          errorMessage: userError?.message,
-          errorDetails: userError?.details,
-          userData: user,
-          usersArrayLength: users?.length || 0
         });
         return {
           success: false,
-          error: 'No portal account found for this phone number'
-        };
-      }
-
-      if (!user.portal_activated) {
-        console.log('❌ Portal not activated for user', { phoneNumber, userId: user.id });
-        return {
-          success: false,
-          error: 'Portal not activated. Please use your invitation link first.'
+          reason: 'not_registered',
+          error: 'This number is not registered yet. Register on WhatsApp first.'
         };
       }
 
@@ -143,6 +159,7 @@ class PasswordResetService {
           });
           return {
             success: false,
+            reason: 'send_failed',
             error: 'Failed to send reset code. Please try again.'
           };
         }
@@ -154,6 +171,7 @@ class PasswordResetService {
         });
         return {
           success: false,
+          reason: 'send_failed',
           error: 'Failed to send reset code. Please try again.'
         };
       }
@@ -166,6 +184,7 @@ class PasswordResetService {
 
       return {
         success: false,
+        reason: 'send_failed',
         error: 'Failed to send reset code. Please try again.'
       };
     }
@@ -181,33 +200,42 @@ class PasswordResetService {
    */
   static async verifyResetCode(phoneNumber, code) {
     try {
-      console.log('🔍 Verifying password reset code', { phoneNumber, code });
-
-      // Query user with matching code
+      // bd-x7aprz.3: looked up by the PHONE, not by phone + code, so a wrong code can be counted against the code
+      // she was sent; five wrong codes void it. The code is never logged: it is now a sign-in.
       const { data: user, error: queryError } = await supabase
         .from('users')
-        .select('id, password_reset_code, password_reset_expires_at, portal_activated')
+        .select(`${ELIGIBILITY_COLUMNS}, password_reset_code, password_reset_expires_at`)
         .eq('phone_number', phoneNumber)
-        .eq('password_reset_code', code)
-        .single();
+        .maybeSingle();
 
-      if (queryError || !user) {
-        console.log('❌ Invalid reset code', { phoneNumber, code });
-        return {
-          valid: false,
-          error: 'Invalid reset code. Please check and try again.'
-        };
+      if (queryError || !user || !user.password_reset_code) {
+        console.log('❌ Invalid reset code (no code issued)', { phoneNumber });
+        return { valid: false, error: 'Invalid reset code. Please check and try again.' };
+      }
+
+      if (!sameCode(user.password_reset_code, code)) {
+        const seen = wrongTries.get(phoneNumber);
+        const n = (seen && seen.code === user.password_reset_code ? seen.n : 0) + 1;
+        wrongTries.set(phoneNumber, { code: user.password_reset_code, n });
+        if (n >= MAX_WRONG_CODES) {
+          wrongTries.delete(phoneNumber);
+          await PasswordResetService.clearResetCode(user.id);
+          console.log('⛔ Code voided after too many wrong tries', { phoneNumber, userId: user.id });
+        } else {
+          console.log('❌ Invalid reset code', { phoneNumber, userId: user.id, tries: n });
+        }
+        return { valid: false, error: 'Invalid reset code. Please check and try again.' };
       }
 
       // Check if code has expired
       const now = new Date();
       const expiresAt = new Date(user.password_reset_expires_at);
 
-      if (now > expiresAt) {
+      if (!(now <= expiresAt)) {
         console.log('❌ Reset code expired', {
           phoneNumber,
           userId: user.id,
-          expiresAt: expiresAt.toISOString(),
+          expiresAt: user.password_reset_expires_at,
           now: now.toISOString()
         });
         return {
@@ -216,18 +244,14 @@ class PasswordResetService {
         };
       }
 
-      // Double-check portal activation
-      if (!user.portal_activated) {
-        console.log('❌ Portal not activated during reset verification', {
-          phoneNumber,
-          userId: user.id
-        });
-        return {
-          valid: false,
-          error: 'Portal not activated. Please use your invitation link first.'
-        };
+      // The account must still be one that may sign in (not deleted, registered or with a password). NOT
+      // portal_activated — see mayReceiveCode.
+      if (!mayReceiveCode(user)) {
+        console.log('❌ Code for an account that may not sign in', { phoneNumber, userId: user.id });
+        return { valid: false, error: 'Invalid reset code. Please check and try again.' };
       }
 
+      wrongTries.delete(phoneNumber);
       console.log('✅ Reset code verified successfully', {
         phoneNumber,
         userId: user.id
@@ -240,7 +264,6 @@ class PasswordResetService {
     } catch (error) {
       console.error('❌ Error verifying reset code', {
         phoneNumber,
-        code,
         error: error.message,
         stack: error.stack
       });
@@ -250,6 +273,21 @@ class PasswordResetService {
         error: 'An error occurred while verifying your code. Please try again.'
       };
     }
+  }
+
+  /**
+   * bd-x7aprz.3 — sign in with the WhatsApp code: the same check as the reset, then the code is SPENT (a code
+   * opens one session, never two).
+   *
+   * @returns {Promise<{valid: boolean, userId?: string}>}
+   */
+  static async signInWithCode(phoneNumber, code) {
+    const result = await PasswordResetService.verifyResetCode(phoneNumber, code);
+    if (!result.valid) return result;
+    const cleared = await PasswordResetService.clearResetCode(result.userId);
+    // A code that cannot be spent must not open a session either: it would stay replayable.
+    if (!cleared.success) return { valid: false, error: 'An error occurred while verifying your code. Please try again.' };
+    return result;
   }
 
   /**
@@ -316,21 +354,19 @@ class PasswordResetService {
         return { allowed: true };
       }
 
-      // Check if previous code is still valid (within 10 minutes)
+      // bd-x7aprz.3: a new code once a minute (it replaces the last one), not once per ten. The code is now how she
+      // signs in; a message that did not arrive must not lock her out for ten minutes.
       const expiresAt = new Date(user.password_reset_expires_at);
-      const now = new Date();
+      const sentAt = expiresAt.getTime() - CODE_TTL_MIN * 60 * 1000;
+      const now = Date.now();
 
-      if (now < expiresAt) {
-        // Code still valid - don't allow new request yet
-        const minutesRemaining = Math.ceil((expiresAt - now) / 1000 / 60);
-        console.log('⚠️ Rate limit hit for password reset', {
-          phoneNumber,
-          minutesRemaining
-        });
-
+      if (now < expiresAt.getTime() && now - sentAt < RESEND_AFTER_MS) {
+        const secondsRemaining = Math.ceil((RESEND_AFTER_MS - (now - sentAt)) / 1000);
+        console.log('⚠️ Rate limit hit for a WhatsApp code', { phoneNumber, secondsRemaining });
         return {
           allowed: false,
-          error: `Please wait ${minutesRemaining} minute(s) before requesting a new code.`
+          reason: 'already_sent',
+          error: 'A code was just sent. Please check WhatsApp.'
         };
       }
 

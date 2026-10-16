@@ -86,6 +86,10 @@ const {
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
 const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role');
+// The bot's ONE definition of "registered" (pure, no requires) — bd-x7aprz.3.
+const { isRegistered } = require('../../bot/shared/utils/registration-status');
+// This deployment's own bot, as a wa.me link with a command typed (WHATSAPP_BOT_NUMBER / REFERRAL_BOT_NUMBER).
+const { waMeLink } = require('./app-login.routes');
 // Analytics-only accounts (federal / sector officials): one app_settings list decides who
 // they are, and they see the school-wise analytics page and nothing else.
 const { makeRequireAnalyticsViewer } = require('../lib/analytics-viewer');
@@ -338,6 +342,25 @@ const WRONG_PASSWORD = Object.freeze({
   success: false,
   error: 'Incorrect password. Please try again.'
 });
+
+/**
+ * bd-x7aprz.3 — the answer for a number that is not a registered adult here. The page turns it into a "Register on
+ * WhatsApp" button, never "No account found": the bot's form is how an account starts. It says no more than the
+ * old 404 did.
+ */
+const REGISTER_ON_WHATSAPP = Object.freeze({
+  success: false,
+  code: 'REGISTER_ON_WHATSAPP',
+  error: 'This number is not registered yet. Register on WhatsApp first.'
+});
+/**
+ * The same answer, carrying THIS deployment's chat link with /register typed (`whatsapp`), so a sandbox page opens the
+ * sandbox bot. Absent when the service has no bot number; the page then uses its own default.
+ */
+function registerOnWhatsApp() {
+  const whatsapp = waMeLink('/register');
+  return whatsapp ? { ...REGISTER_ON_WHATSAPP, whatsapp } : REGISTER_ON_WHATSAPP;
+}
 
 /**
  * A bcrypt hash (cost 10, the cost the setup and reset handlers write) of a random secret that was thrown away. A
@@ -635,19 +658,17 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
         });
       }
 
+      // bd-x7aprz.3: no portal_activated gate. A password hash is enough to sign in with a password; a registered
+      // adult without one is sent to the WhatsApp code (403); anyone else is sent to register on WhatsApp (404).
       const { data: found, error } = await supabase
         .from('users')
-        .select('id, portal_password_hash, portal_activated, name')
+        .select('id, portal_password_hash, portal_activated, name, role, country, registration_completed, registration_state, deleted_at')
         .eq('phone_number', phoneNumber)
-        .eq('portal_activated', true)
         .maybeSingle();
       user = found;
 
-      if (error || !user) {
-        return res.status(404).json({
-          success: false,
-          error: 'No portal account found for this phone number.'
-        });
+      if (error || !user || user.deleted_at || (!user.portal_password_hash && !isRegistered(user))) {
+        return res.status(404).json(registerOnWhatsApp());
       }
 
       // Activated but no password saved (thousands of accounts were flagged this way outside
@@ -736,11 +757,13 @@ router.post('/logout', requirePortalAuth, (req, res) => {
 });
 
 /**
- * POST /api/portal/request-reset
- * Request password reset code via WhatsApp
- * SECURITY: Generic responses to prevent phone number enumeration + rate limiting
+ * Send a 6-digit code to her WhatsApp — for Forgot password (/request-reset) and, since bd-x7aprz.3, for signing in
+ * (/request-code). One handler, one rule: the code goes to a registered adult (or an account with a password), never
+ * gated on portal_activated. Answers:
+ *   200 sent · 400 not a phone (an account name never gets a code) · 404 REGISTER_ON_WHATSAPP · 429 CODE_ALREADY_SENT
+ *   (a code went out under a minute ago; it still works) · 502 the bot could not send · 500 anything else.
  */
-router.post('/request-reset', publicAuthLimiter, async (req, res) => {
+async function sendWhatsAppCode(req, res) {
   try {
     let { phoneNumber } = req.body;
 
@@ -775,6 +798,7 @@ router.post('/request-reset', publicAuthLimiter, async (req, res) => {
     if (!rateLimitCheck.allowed) {
       return res.status(429).json({
         success: false,
+        code: rateLimitCheck.reason === 'already_sent' ? 'CODE_ALREADY_SENT' : undefined,
         error: rateLimitCheck.error || 'Too many attempts. Please wait a moment and try again.'
       });
     }
@@ -782,23 +806,118 @@ router.post('/request-reset', publicAuthLimiter, async (req, res) => {
     const result = await PasswordResetService.sendResetCode(phoneNumber);
 
     if (!result.success) {
-      return res.status(404).json({
+      if (result.reason === 'not_registered') return res.status(404).json(registerOnWhatsApp());
+      // A send that failed is not "no account": she has one, the message did not go.
+      return res.status(502).json({
         success: false,
-        error: result.error || 'No portal account found for this phone number.'
+        error: 'Could not send the code. Please try again.'
       });
     }
 
     res.json({
       success: true,
-      message: 'A reset code has been sent to your WhatsApp.'
+      message: 'A code has been sent to your WhatsApp.'
     });
   } catch (error) {
-    console.error('Request reset error:', error);
+    console.error('WhatsApp code request error:', error);
     // SECURITY: Generic error message
     res.status(500).json({
       success: false,
       error: 'Something went wrong. Please try again.'
     });
+  }
+}
+
+/** POST /api/portal/request-reset — Forgot password: a code on WhatsApp, then a new password. */
+router.post('/request-reset', publicAuthLimiter, sendWhatsAppCode);
+
+/** POST /api/portal/request-code — bd-x7aprz.3: sign in with a code on WhatsApp (no password needed). */
+router.post('/request-code', publicAuthLimiter, sendWhatsAppCode);
+
+/**
+ * Open a NEW portal session for this users row and answer with the same payload as /login. Shared by the code
+ * sign-in and the old set-up link (bd-x7aprz.3). Session fixation: the id is regenerated, never reused.
+ */
+async function openSession(req, res, user, logEventName) {
+  await supabase.from('users').update({ portal_last_login: new Date().toISOString() }).eq('id', user.id);
+  const analyticsOnly = await isAnalyticsOnlyUser(supabase, user.id);
+  req.session.regenerate((err) => {
+    if (err) {
+      console.error('Session regeneration error:', err);
+      return res.status(500).json({ success: false, error: 'Login failed. Please try again.' });
+    }
+    req.session.portalUserId = user.id;
+    req.session.isPortalAuth = true;
+    req.session.portalUserName = user.name;
+    telemetry.logEvent(logEventName, { userId: user.id });
+    return res.json({ success: true, message: 'Login successful', user: publicUserPayload(user, { analyticsOnly }) });
+  });
+}
+
+/**
+ * POST /api/portal/verify-code — bd-x7aprz.3: the WhatsApp code IS the sign-in. Right code → a new session, and the
+ * code is spent; wrong, expired or voided (5 wrong tries) → 400, one generic answer for all of them.
+ */
+router.post('/verify-code', publicAuthLimiter, async (req, res) => {
+  const INVALID = { success: false, error: 'Invalid or expired code. Please request a new code.' };
+  try {
+    let { phoneNumber, code } = req.body;
+    if (!phoneNumber || !code || isAccountNameInput(phoneNumber)) return res.status(400).json(INVALID);
+    phoneNumber = sanitizePhoneNumber(phoneNumber);
+    if (!validatePhoneNumber(phoneNumber) || !/^\d{6}$/.test(String(code))) return res.status(400).json(INVALID);
+
+    const PasswordResetService = require('../services/password-reset.service');
+    const result = await PasswordResetService.signInWithCode(phoneNumber, String(code));
+    if (!result.valid) return res.status(400).json(INVALID);
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, name, role, country')
+      .eq('id', result.userId)
+      .maybeSingle();
+    if (error || !user) return res.status(400).json(INVALID);
+
+    return openSession(req, res, user, 'portal.login.code');
+  } catch (error) {
+    console.error('Verify code error:', error);
+    telemetry.logEvent('portal.login.failed', { err: error && error.message, via: 'code' });
+    return res.status(500).json({ success: false, error: 'Something went wrong. Please try again.' });
+  }
+});
+
+/**
+ * POST /api/portal/setup-sign-in — bd-x7aprz.3: an old /portal/setup/<token> link (the bot sent these for 7 days; some
+ * are still in teachers' chats) now SIGNS HER IN instead of asking for a password. A valid set-up token already let
+ * its holder set the password, so this opens nothing it did not open before; the token is spent on use. Invalid,
+ * used or expired → 400 LINK_EXPIRED, and the page offers a new link from WhatsApp.
+ */
+router.post('/setup-sign-in', tokenValidationLimiter, async (req, res) => {
+  const whatsapp = waMeLink('/portal');
+  const EXPIRED = { success: false, code: 'LINK_EXPIRED', error: 'This link has expired. Get a new one on WhatsApp.', ...(whatsapp ? { whatsapp } : {}) };
+  try {
+    const { token } = req.body;
+    if (!token || !validateUUID(token)) return res.status(400).json(EXPIRED);
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, name, role, country, portal_invite_expires_at, registration_completed, registration_state, deleted_at, portal_password_hash')
+      .eq('portal_invite_token', token)
+      .maybeSingle();
+    if (error || !user || user.deleted_at) return res.status(400).json(EXPIRED);
+    if (!(new Date() <= new Date(user.portal_invite_expires_at))) return res.status(400).json(EXPIRED);
+    if (!user.portal_password_hash && !isRegistered(user)) return res.status(400).json(EXPIRED);
+
+    // Spend the token BEFORE opening the session, so a failure below cannot leave it replayable.
+    const { error: spendError } = await supabase
+      .from('users')
+      .update({ portal_invite_token: null, portal_invite_expires_at: null, portal_activated: true })
+      .eq('id', user.id);
+    if (spendError) throw spendError;
+
+    return openSession(req, res, user, 'portal.login.setup_link');
+  } catch (error) {
+    console.error('Setup sign-in error:', error);
+    return res.status(500).json({ success: false, error: 'Something went wrong. Please try again.' });
   }
 });
 
@@ -905,6 +1024,8 @@ router.post('/reset-password', async (req, res) => {
       .from('users')
       .update({
         portal_password_hash: passwordHash,
+        // A password now exists; the legacy flag follows it (bd-x7aprz.3: no sign-in path reads it any more).
+        portal_activated: true,
         password_reset_code: null,
         password_reset_expires_at: null,
         portal_last_login: new Date().toISOString()

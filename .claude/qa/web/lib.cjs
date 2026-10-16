@@ -21,6 +21,9 @@ async function open(page, ctx) {
 }
 
 async function signIn(page, phone, password) {
+  // bd-x7aprz.3: the login opens on the WhatsApp code; the password sign-in is one tap away.
+  const toPassword = page.getByRole('button', { name: /use password instead/i });
+  if (await toPassword.count()) await toPassword.click();
   await page.fill('#phoneNumber', phone);
   await page.fill('#password', password);
   await page.click('button[type="submit"]');
