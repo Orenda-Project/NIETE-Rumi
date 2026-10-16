@@ -247,7 +247,8 @@ async function bookFor(grade, subject) {
 async function requestStatus(requestId, userId) {
   const { data, error } = await supabase
     .from('assessment_requests')
-    .select('id, user_id, assessment_papers(id, status, error_code, attempt, edited_from)')
+    .select('id, user_id, subject_code, question_types, created_at, '
+      + 'assessment_papers(id, status, error_code, attempt, edited_from, pattern:exam_json->_layout->>preset_id)')
     .eq('id', requestId)
     .maybeSingle();
 
@@ -260,18 +261,39 @@ async function requestStatus(requestId, userId) {
   // Polling asks whether GENERATION finished. A version (edited_from set) is
   // made from WhatsApp after the paper was ready, and is not an attempt.
   const papers = (data.assessment_papers || []).filter((pp) => !pp.edited_from);
-  if (!papers.length) return { status: 'queued' };
+  // A board-pattern request says so, and when it was asked for: a page reopened without its own
+  // record of the job has nothing else to tell an FDE wait from a plain one. A plain request
+  // answers exactly as before — the two keys are absent, not null.
+  const named = (body, paper) => {
+    const pattern = (paper && paper.pattern) || patternOfRequest(data);
+    return pattern ? { ...body, pattern, created_at: data.created_at } : body;
+  };
+  if (!papers.length) return named({ status: 'queued' }, null);
 
   // A retry is a NEW row rather than an overwrite, precisely so a failure stays
   // visible — which means the latest attempt is the answer and the earlier ones
   // are history.
   const latest = papers.reduce((a, b) => ((b.attempt || 0) > (a.attempt || 0) ? b : a));
 
-  return {
+  return named({
     status: latest.status,
     paperId: latest.status === 'ready' ? latest.id : undefined,
     errorCode: latest.status === 'failed' ? (latest.error_code || 'UNKNOWN') : undefined,
-  };
+  }, latest);
+}
+
+/**
+ * The board pattern a request was made for, before any paper of it exists. The request row has
+ * no pattern column; only a pattern request writes slot-tagged question types, and a slot id
+ * belongs to exactly one pattern's subject. Null for a plain request.
+ */
+function patternOfRequest(row) {
+  const slots = new Set((Array.isArray(row && row.question_types) ? row.question_types : [])
+    .map((t) => t && t.slot).filter(Boolean));
+  if (!slots.size) return null;
+  const Patterns = require('./patterns');
+  return Patterns.list().find((id) => Patterns.expandTypes(id, row.subject_code)
+    .some((t) => slots.has(t.slot))) || null;
 }
 
 /**
@@ -385,6 +407,7 @@ module.exports = {
   questionOptions,
   bookFor,
   requestStatus,
+  patternOfRequest,
   listPapers,
   latestVersion,
   paperDownloadUrl,
