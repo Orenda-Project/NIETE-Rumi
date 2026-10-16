@@ -675,7 +675,7 @@ async function sequenceNo(studentId, except = null) {
 /** What the record rule stamps on a row at insert: attempt, exposure, counted, where the grade came from, test. */
 async function provenance(studentId, exercise, lang, run, { except = null } = {}) {
   const { readFailed, ...a } = await attemptInfo(studentId, exercise, lang, { except, step: 'f' });
-  // counted: under v2 the row's own mode and record (a round, a replay or a story is never counted, RULING #116); else the first scored attempt, as today.
+  // counted: under v2 the row's own mode and record (a round, a replay or a story is never counted, RULING #116); else the first scored attempt, as today
   // A run with a mode (a served row read back after a redeploy emptied the memory) follows its mode too: never counted unless a check record.
   const counted = run.v2 || run.mode != null ? run.mode === 'check' && run.record === true : a.attempt_no === 1;
   return { ...a, ...(readFailed ? { runs_read_failed: true } : {}), counted, grade_source: run.gradeSource || null, test: !!run.test, sequence_n: await sequenceNo(studentId, except) };
