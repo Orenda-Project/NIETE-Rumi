@@ -251,6 +251,15 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         { reason: 'needs a lesson plan generated and delivered by the worker on an unregistered account — minutes per run; the worker guard is covered by tests/registration/after-first-feature-invite.test.js' }, 0);
   }
 
+  if (want('R20')) {
+    rec('R20', 'A partly-known adult is offered the form once, after her reply', 'DEFERRED',
+        { reason: 'needs an account with a name but no school (or no teacher role) AND users.registration_started_at NULL — api.db can neither set a name without a school nor clear the stamp; the predicate and the once-only offer are covered by tests/registration/needs-registration-form.test.js and front-door-invite.test.js' }, 0);
+  }
+  if (want('R21')) {
+    rec('R21', 'A registered teacher with no school is asked for it before a school feature', 'DEFERRED',
+        { reason: 'needs a REGISTERED account with users.school_id NULL — api.db has no action that sets one; covered by tests/registration/front-door-invite.test.js (/classes, /roster, completed-without-school, coach)' }, 0);
+  }
+
   if (want('R10')) {
     // R10 needs an unregistered account again — left to the DB step, reported as deferred
     // R10 — abandon a fresh Flow and prove nothing was recorded
