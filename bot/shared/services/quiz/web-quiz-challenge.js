@@ -2203,3 +2203,7 @@ module.exports.insertRun = insertRun;
 // the quality floors (speed, noise), pure, for their tests
 module.exports.readQuality = readQuality;
 module.exports.rapidPerfect = rapidPerfect;
+// the read scorer, the passage lookup and the battery loader, for the one-off re-score of kept readings (scripts/quiz/rescore-kept-reads.js)
+module.exports.scoreRead = scoreRead;
+module.exports.passageFor = passageFor;
+module.exports.childTest = childTest;
