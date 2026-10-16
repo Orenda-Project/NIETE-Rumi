@@ -272,21 +272,28 @@ class ReportGeneratorService {
       // ticker and the LP prompt, so a teacher whose UI is English but who
       // just taught in Urdu gets ALL messages in English (no jarring mix).
       // bd-v0toag.1.5: ONE next step, chosen once — the horizon, the card and the stored focus all read it.
-      const { selectNextStep, focusPatch } = require('./next-step');
-      const nextStep = selectNextStep(enhancedAnalysis, null);
+      // It is part of the new report, so only groups C and D get it (Amena, 16 Oct). Everyone else gets
+      // today's report: target null, the card chooses its own area, the scorer's focus is left as written.
+      const v10 = await require('./ab-v10-arms').groupFor(session.user_id);
+      const oneStep = !!(v10 && v10.report === 'new');
+      let nextStep = { target: null };
+      if (oneStep) {
+        const { selectNextStep, focusPatch } = require('./next-step');
+        nextStep = selectNextStep(enhancedAnalysis, null);
+        if (nextStep.fallback) {
+          logToFile('[next-step] fallback — no valid focus_area; the weakest scored row is the step', {
+            coachingSessionId, reason: nextStep.reason, scorer_indicator: nextStep.scorerIndicator, indicator: (nextStep.target && nextStep.target.indicator) || null,
+          });
+        }
+        const stepFocus = focusPatch(enhancedAnalysis, nextStep.target);
+        if (stepFocus) {
+          Object.assign(enhancedAnalysis, stepFocus);
+          await require('./next-step-store').persistNextStepFocus(coachingSessionId, stepFocus);
+        }
+      }
       const stepId = nextStep.target && nextStep.target.indicator;
-      if (nextStep.fallback) {
-        logToFile('[next-step] fallback — no valid focus_area; the weakest scored row is the step', {
-          coachingSessionId, reason: nextStep.reason, scorer_indicator: nextStep.scorerIndicator, indicator: stepId || null,
-        });
-      }
-      const stepFocus = focusPatch(enhancedAnalysis, nextStep.target);
-      if (stepFocus) {
-        Object.assign(enhancedAnalysis, stepFocus);
-        await require('./next-step-store').persistNextStepFocus(coachingSessionId, stepFocus);
-      }
       const logRuleCard = (card) => {
-        if (card && card._source === 'fallback') logToFile('[next-step] commitment card is the rule-based fallback', { coachingSessionId, indicator: stepId || null, card_indicator: card.indicator });
+        if (oneStep && card && card._source === 'fallback') logToFile('[next-step] commitment card is the rule-based fallback', { coachingSessionId, indicator: stepId || null, card_indicator: card.indicator });
       };
 
       const heroLanguage = outputLanguage; // bd-3b0co: unified resolver (was preferred || analysis || transcript || en)
