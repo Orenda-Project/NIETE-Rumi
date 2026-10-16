@@ -251,6 +251,39 @@ describe('storyKey: a temporary key for one story-page reading', () => {
     expect(ev.filter((c) => c[0] === 'web_quiz.lr_key_rest').map((c) => [c[1].n, c[1].cap])).toEqual([[3, 3]]);
   });
 
+  test('reading the same page again soon (one sentence at a time, a retry) mints a fresh one-stream key but counts once', async () => {
+    db.app_settings.push(LR3, RT, { key: 'web_quiz_live_read_story_keys_per_day', value: 3 }, { key: 'web_quiz_challenge_daily_reads', value: 100 });
+    const Budget = require('../../../shared/services/quiz/web-quiz-challenge-budget');
+    Budget._reset();
+    const t0 = Date.now();
+    const now = jest.spyOn(Date, 'now').mockReturnValue(t0);
+    try {
+      for (let k = 0; k < 5; k += 1) await expect(K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV })).resolves.toMatchObject({ api_key: 'temp:abc-test-only' });
+      expect(db.web_quiz_live_read_keys).toHaveLength(1);           // one count in the child's cap and in the day's budget
+      expect(global.fetch).toHaveBeenCalledTimes(5);                 // a key opens one stream: each sentence gets its own
+      expect(await Budget.readsToday()).toBe(0.25);
+      const ev = require('../../../shared/utils/structured-logger').logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.lr_key');
+      expect(ev.map((c) => [c[1].n, !!c[1].repeat])).toEqual([[1, false], [1, true], [1, true], [1, true], [1, true]]);
+      await K.storyKey({ st: hub(), book: 'b1', page: 2, lang: 'en', device: DEV });
+      await K.storyKey({ st: hub(), book: 'b1', page: 3, lang: 'en', device: DEV });
+      expect(db.web_quiz_live_read_keys).toHaveLength(3);
+      // at the cap: the page being read still reads; a new page rests
+      await expect(K.storyKey({ st: hub(), book: 'b1', page: 3, lang: 'en', device: DEV })).resolves.toMatchObject({ api_key: 'temp:abc-test-only' });
+      await expect(K.storyKey({ st: hub(), book: 'b1', page: 4, lang: 'en', device: DEV })).rejects.toMatchObject({ status: 429, body: { error: 'enough_for_today' } });
+      // the free repeats are bounded per page and in time: past the window the page counts again (and rests at the cap)
+      now.mockReturnValue(t0 + K.REPEAT_MS + 1);
+      await expect(K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV })).rejects.toMatchObject({ status: 429 });
+    } finally { now.mockRestore(); }
+  });
+
+  test('free repeats of one page stop at REPEAT_MAX: the next one is counted like a new page', async () => {
+    db.app_settings.push(LR3, RT);
+    for (let k = 0; k <= K.REPEAT_MAX; k += 1) await K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV });
+    expect(db.web_quiz_live_read_keys).toHaveLength(1);
+    await K.storyKey({ st: hub(), book: 'b1', page: 1, lang: 'en', device: DEV });
+    expect(db.web_quiz_live_read_keys).toHaveLength(2);
+  });
+
   test('the cap absent ⇒ 40 a day; yesterday\'s keys do not count', async () => {
     db.app_settings.push(LR3, RT);
     expect(K.STORY_KEYS_PER_DAY).toBe(40);

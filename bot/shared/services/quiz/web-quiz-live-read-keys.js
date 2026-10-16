@@ -9,6 +9,8 @@
  *   - the child's day cap (app_settings `web_quiz_live_read_story_keys_per_day`, default 40) and the whole day's read
  *     budget (web-quiz-challenge-budget.js), both counted from web_quiz_live_read_keys: one row per key (who, when, the
  *     language; nothing else), so the caps hold across restarts and replicas.
+ *   - the same page again soon (read one sentence at a time, or a retry): a fresh key (a key opens one stream) but
+ *     no new count, up to REPEAT_MAX times within REPEAT_MS; held in this process, so a restart only ever counts more.
  * → { api_key, expires_at, ws, model, lang, run }. Never logs a key. A table that cannot be read or written ⇒ no key (503).
  */
 const crypto = require('crypto');
@@ -31,11 +33,15 @@ const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const MAX_PAGE = 200;
 const CACHE_MS = 30 * 1000;
 const PK_OFFSET_MS = 5 * 3600 * 1000;
+// a page read sentence by sentence is ~3-12 keys in a few minutes; past either bound the page counts again
+const REPEAT_MS = 15 * 60 * 1000;
+const REPEAT_MAX = 12;
 
 const fail = (status, error) => { throw new WqError(status, { error }); };
 const pkMidnightIso = (now = Date.now()) => new Date(Date.parse(`${new Date(now + PK_OFFSET_MS).toISOString().slice(0, 10)}T00:00:00Z`) - PK_OFFSET_MS).toISOString();
 let capCache = null;            // { at, cap }
 const readable = new Map();     // `${book}|${page}` → { at, ok }
+const counted = new Map();      // `${student}|${book}|${page}` → { at, free }: the page's counted key, its free repeats
 
 async function storyCap(now = Date.now()) {
   if (capCache && now - capCache.at < CACHE_MS) return capCache.cap;
@@ -97,30 +103,39 @@ async function storyKey({ st, kid, book, page, lang, device } = {}) {
     fail(503, 'live_unavailable');
   }
   const cap = await storyCap();
-  if (mine >= cap || !(await Budget.readOpen())) {
+  const pk = `${entry.studentId}|${book}|${p}`;
+  const seen = counted.get(pk);
+  const repeat = !!(seen && Date.now() - seen.at < REPEAT_MS && seen.free < REPEAT_MAX);
+  if (!repeat && (mine >= cap || !(await Budget.readOpen()))) {
     logEvent('web_quiz.lr_key_rest', { src: 'story_page', n: mine, cap });
     fail(429, 'enough_for_today');
   }
   const Live = require('./web-quiz-soniox-live');
   if (!Live.configured()) fail(503, 'live_unavailable');
   const run = crypto.randomUUID();
-  // the row first: a key is never handed out that the caps did not count
-  const { error } = await supabase.from(LR.TABLE).insert({ id: run, student_id: entry.studentId, src: 'story_page', lang: l, created_at: new Date().toISOString() });
-  if (error) {
-    logError('web_quiz.lr_keys_write_failed', { error: String(error.message || error).slice(0, 120) });
-    fail(503, 'live_unavailable');
+  // the row first: a key is never handed out that the caps did not count (a repeat was counted with its page)
+  if (!repeat) {
+    const { error } = await supabase.from(LR.TABLE).insert({ id: run, student_id: entry.studentId, src: 'story_page', lang: l, created_at: new Date().toISOString() });
+    if (error) {
+      logError('web_quiz.lr_keys_write_failed', { error: String(error.message || error).slice(0, 120) });
+      fail(503, 'live_unavailable');
+    }
+    if (counted.size > 5000) counted.clear();
+    counted.set(pk, { at: Date.now(), free: 0 });
+  } else {
+    seen.free += 1;
   }
   const minted = await Live.mintTempKey(run);
   if (!minted.ok) {
     logError('web_quiz.lr_key_failed', { status: minted.status, reason: minted.reason });
     fail(502, 'live_unavailable');
   }
-  Budget.noteStarted(LR.STORY_KEY_WEIGHT);
-  // n = this child's story keys today, this one included: the cap is set from that spread, not a guess
-  logEvent('web_quiz.lr_key', { src: 'story_page', lang: l, run, n: mine + 1, cap });
+  if (!repeat) Budget.noteStarted(LR.STORY_KEY_WEIGHT);
+  // n = this child's counted story keys today, this one included: the cap is set from that spread, not a guess
+  logEvent('web_quiz.lr_key', { src: 'story_page', lang: l, run, n: repeat ? mine : mine + 1, cap, ...(repeat ? { repeat: true } : {}) });
   return { api_key: minted.api_key, expires_at: minted.expires_at, ws: Live.WS_URL, model: Live.MODEL, lang: l, run };
 }
 
-function _reset() { capCache = null; readable.clear(); }
+function _reset() { capCache = null; readable.clear(); counted.clear(); }
 
-module.exports = { CAP_KEY, STORIES_FLAG_KEY, STORY_KEYS_PER_DAY, storyKey, pageReadable, _reset };
+module.exports = { CAP_KEY, STORIES_FLAG_KEY, STORY_KEYS_PER_DAY, REPEAT_MS, REPEAT_MAX, storyKey, pageReadable, _reset };
