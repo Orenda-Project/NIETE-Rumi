@@ -31,34 +31,11 @@ const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const { clampLanguage } = require('../../config/ux-strings');
 
-const KEY = 'web_quiz_home_v3';
-const STORIES_KEY = 'web_quiz_stories';
-const TTL_MS = 30 * 1000;
+const HomeFlags = require('./web-quiz-home-flags');
+const { flags, KEY, STORIES_KEY } = HomeFlags;
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
 const FINAL = new Set(['scored', 'failed']);
-let cache = null;
-
-function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
-}
-
-/** { home, stories } — 30 s cache, fails closed (a read error is every switch off). */
-async function flags(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache;
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, STORIES_KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    cache = { at: now, home: isTrue(by[KEY]), stories: isTrue(by[STORIES_KEY]) };
-    return cache;
-  } catch (err) {
-    logToFile('⚠️ web quiz home: settings lookup failed — off', { error: err.message });
-    return { home: false, stories: false };
-  }
-}
 
 // Monday 00:00 PKT of the week `ms` is in, as epoch ms.
 function weekStart(ms) {
@@ -285,4 +262,4 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
   }
 }
 
-module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, prefetch, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => { cache = null; }, _useModules: (m) => { modules = m; } };
+module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, prefetch, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => HomeFlags._resetCache(), _useModules: (m) => { modules = m; } };

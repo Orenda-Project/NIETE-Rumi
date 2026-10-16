@@ -349,11 +349,23 @@ function mediaHelpers() {
 
 /**
  * A child's own code under the watch root (a class-less child's quiz after a video): no class, so no classmates. The
- * root is read only for a code with a parent and no inviter; any failure reads as not a watch code (today's page).
+ * root (app_settings VALUE web_quiz_watch_root, the key the videos module mints under) is read only for a code with a
+ * parent and no inviter, once per page; any failure reads as not a watch code (today's page).
  */
-async function isWatchCode(ctx) {
-  if (!ctx.moreVideosOf) return false;
-  try { return ctx.moreVideosOf === await require('./web-quiz-videos').watchRoot(); } catch { return false; }
+const WATCH_ROOT_KEY = 'web_quiz_watch_root';
+function isWatchCode(ctx) {
+  if (!ctx.moreVideosOf) return Promise.resolve(false);
+  if (!ctx.watchP) {
+    ctx.watchP = (async () => {
+      try {
+        const { data } = await supabase.from('app_settings').select('value').eq('key', WATCH_ROOT_KEY).maybeSingle();
+        let v = data && data.value;
+        if (typeof v === 'string') { try { v = JSON.parse(v); } catch { /* plain string */ } }
+        return typeof v === 'string' && v === ctx.moreVideosOf;
+      } catch { return false; }
+    })();
+  }
+  return ctx.watchP;
 }
 
 /**

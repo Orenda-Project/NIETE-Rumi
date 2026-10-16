@@ -84,7 +84,7 @@ async function sayAll(texts, lang) {
 async function storiesDoor(who, lang, now) {
   const Play = require('./web-quiz-hub-play');
   const s = await Play.switches();
-  const storiesOn = await require('./web-quiz-hub-home').flags().then((f) => f.stories).catch(() => false);
+  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => false);
   // The Story Time room serves a practice story only with its switch (wq-trail.js storyRoom: m.v2.story).
   if (!s.story) return { stories: [], shelf: storiesOn };
   const seen = await Play.seenPassages(who.studentId);
@@ -139,7 +139,7 @@ function safeName(Challenge, id, lang) {
 async function door(token, { kid, d, device, lang, now = Date.now() } = {}) {
   const T = require('./web-quiz-token');
   if (!T.secret()) fail(503, 'web_quiz_off');
-  if (!(await require('./web-quiz-hub-home').flags()).home) fail(404, 'home_off');
+  if (!(await require('./web-quiz-home-flags').flags()).home) fail(404, 'home_off');
   if (d !== 'stories' && d !== 'games') fail(400, 'bad_request');
   const who = await require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device));
   if (!who || !who.studentId) fail(401, 'bad_token');

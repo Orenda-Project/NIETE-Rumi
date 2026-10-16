@@ -137,7 +137,7 @@ function seed(opts) {
     const b = fake.from(t);
     const then = b.then;
     b.then = (res, rej) => {
-      const rec = { t, wave: doneMax + 1, at: process.env.WAVES_DEBUG ? (new Error().stack.split('\n').slice(2).find((l) => l.includes('services/quiz/') || l.includes('config/')) || '').trim().replace(/.*\/(\S+:\d+):\d+\)?$/, '$1') : '' };
+      const rec = { t, wave: doneMax + 1 };
       reads.push(rec);
       return new Promise((r) => setTimeout(r, READ_MS))
         .then(() => { doneMax = Math.max(doneMax, rec.wave); return then.call(b, (x) => x); })
@@ -168,7 +168,6 @@ async function measure(token, opts) {
   logEvent.mockClear();
   const out = JSON.stringify(await Hub.hub(token, opts));
   const waves = doneMax;
-  if (process.env.WAVES_DEBUG) console.log(reads.map((r) => `${r.wave} ${r.t} ${r.at || ''}`).join('\n'));
   const perTable = {};
   reads.forEach((r) => { perTable[r.t] = (perTable[r.t] || 0) + 1; });
   const open = logEvent.mock.calls.filter(([name]) => name === 'web_quiz.hub_open').map(([, f]) => f);

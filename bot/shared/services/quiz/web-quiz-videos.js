@@ -362,7 +362,7 @@ async function activityStart(vid, studentId) {
  * body.after, {code, k} for the quiz after it under the watch root, else 409 no_class.
  */
 async function watchStart(who, vid, body, fail) {
-  if (!(await require('./web-quiz-hub-home').flags()).home) fail(409, 'no_class');
+  if (!(await require('./web-quiz-home-flags').flags()).home) fail(409, 'no_class');
   if (!VID_RX.test(vid)) fail(400, 'bad_request');
   const { video, vq, lang } = await lessonOf(vid, fail);
   const rootId = await watchRoot();
