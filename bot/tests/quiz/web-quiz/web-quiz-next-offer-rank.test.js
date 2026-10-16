@@ -273,3 +273,25 @@ describe('after a read with almost nothing read (after_read_tried)', () => {
     expect(FILE.contexts.after_read_tried.every((x) => x.evidence === 'prior' && x.score === null)).toBe(true);
   });
 });
+
+describe('an unscored kind ranks as a lift of 0 (no different from stopping)', () => {
+  const W = { v: 't', contexts: { home: [
+    { kind: 'game', score: -2.3, ci: null, n: 9, evidence: 'prior' },
+    { kind: 'story', score: null, ci: null, n: 0, evidence: 'prior' },
+    { kind: 'video', score: 1.0, ci: null, n: 9, evidence: 'prior' },
+  ] } };
+  const g = { ...game };
+  const st = story('s-1', daysAgo(1));
+  test('a kind that loses children (−2.3) goes after an unscored one; a kind that keeps them (+1.0) before it', () => {
+    expect(NO.rank('home', [g, st], base(), W).next.id).toBe('s-1');
+    expect(NO.rank('home', [st, g], base(), W).next.id).toBe('s-1');
+    expect(NO.rank('home', [st, video], base(), W).next.id).toBe('vid-1');
+    const r = NO.rank('home', [g, st, video], base(), W);
+    expect([r.next, ...r.next.alts].map((x) => x.id)).toEqual(['vid-1', 's-1', 'numbers']);
+    expect(r.next.alts.find((x) => x.id === 's-1').score).toBeNull();   // the slot still says "no score", never 0
+  });
+  test('the committed home table: a new child\'s story comes before the game (−2.3)', () => {
+    const r = NO.rank('home', [{ ...game, id: 'stop.missing', title: 'Play with Jugnu' }, st], base(), FILE);
+    expect(r.next.id).toBe('s-1');
+  });
+});

@@ -5,7 +5,7 @@
  "owner": "retention analysis",
  "metric": "score = adjusted lift in SELF-INITIATED next-day return (percentage points) vs ending the sitting with nothing, for a child who takes this next thing. 'Self-initiated' = the return is not on a teacher link created after the finish. Logistic g-computation, cluster bootstrap by teacher (300 reps), Holm across contrasts. ci = 95% for the lift.",
  "read_me": [
-  "Within a context, rank by score; null scores go after scored kinds unless a rule/pin applies.",
+  "Within a context, rank by score; an unscored row ranks as a lift of 0 (no different from stopping): after a positive score, before a negative one; a rule or pin still comes first.",
   "'significant' means the kind beats STOPPING. No kind significantly beats another kind tonight; the order among significant kinds is itself a prior.",
   "Selection: children who choose one more thing were already keener; adjustment narrows it, cannot remove it. Only the rand arm gives causal answers.",
   "Offered position was never logged; every score is for TAKING a kind, not for being OFFERED it."

@@ -72,17 +72,20 @@ describe('GOLDEN: web_quiz_events_v3 off -> the relay is today\'s', () => {
     await flush();
     const base = logEvent.mock.calls.map((c) => JSON.stringify(c));
     jest.clearAllMocks();
-    await seed([...v2s, { key: 'web_quiz_events_v3', value: 'false' }]);
-    Svc.events(BATCH(), { device: DEV });
-    await flush();
-    expect(logEvent.mock.calls.map((c) => JSON.stringify(c))).toEqual(base);
+    for (const value of ['false', 'true', false]) {   // a string 'true' is OFF too: JSON true only
+      jest.clearAllMocks();
+      await seed([...v2s, { key: 'web_quiz_events_v3', value }]);
+      Svc.events(BATCH(), { device: DEV });
+      await flush();
+      expect(logEvent.mock.calls.map((c) => JSON.stringify(c))).toEqual(base);
+    }
     expect(logEvent.mock.calls.some(([, f]) => f && f.ev_v === 3)).toBe(false);
   });
 });
 
 describe('events v3 on', () => {
   test('the slot lines: v3 envelope, the child\'s kid and sitting, only the v3 keys', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
     const out = Svc.events(BATCH(), { device: DEV });
     expect(out.logged).toBe(6);
     await flush();
@@ -105,7 +108,7 @@ describe('events v3 on', () => {
   });
 
   test('the door screens\' lines: door_row_tap (pos up to 99), video_open / video_watched (ms) keep their own keys only', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
     Svc.events({ ht: T.signHub([KID]), chip: T.chipId('h', KID), events: [
       { n: 'door_row_tap', door: 'videos', kind: 'subject', item: 'science', pos: 12, ctx: 'home' },
       { n: 'video_open', item: 'vid-9', via: 'hub_door' },
@@ -121,14 +124,14 @@ describe('events v3 on', () => {
   });
 
   test('a page copy of a server-only v3 line (next_set, activity_start/end) is dropped under v3', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
     Svc.events({ events: [{ n: 'next_set', ctx: 'home', offer: 'AbCdEfGhIj' }, { n: 'activity_start', kind: 'quiz' }, { n: 'activity_end', kind: 'quiz' }] }, { device: DEV });
     await flush();
     expect(logEvent.mock.calls.filter(([n]) => /next_set|activity_/.test(n))).toEqual([]);
   });
 
   test('a quiz scorecard batch (no hub token): the child comes from the session token', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
     const st = T.signSession({ sessionId: '66666666-6666-4666-8666-000000000001', deviceRef: DEV, shareCodeId: 'sc-1' });
     Svc.events({ st, events: [{ n: 'next_shown', ctx: 'after_quiz', kind: 'video', id: 'library', pos: 0, offer: 'ZyXwVuTsRq', arm: 'rand', rank_src: 'rand' }] }, { device: DEV });
     await flush();
@@ -138,7 +141,7 @@ describe('events v3 on', () => {
   });
 
   test('next_tap on the offer the slot showed resets its "shown, not tapped" streak', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
     const kid = K.kid(KID);
     redis._store.set(`wq:next:${kid}`, { m: '2026-10', o: 3, s: { id: 'vid-1', n: 2 }, of: { AbCdEfGhIj: 'vid-1' } });
     Svc.events(BATCH(), { device: DEV });
@@ -147,7 +150,7 @@ describe('events v3 on', () => {
   });
 
   test('a forged hub token or chip -> kid null, the line still relayed, the streak untouched', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
     const kid = K.kid(KID);
     redis._store.set(`wq:next:${kid}`, { s: { id: 'vid-1', n: 2 }, of: { AbCdEfGhIj: 'vid-1' } });
     Svc.events({ ht: 'forged', chip: 'nope', events: [{ n: 'next_tap', offer: 'AbCdEfGhIj', pos: 0 }] }, { device: DEV });
@@ -166,7 +169,7 @@ describe('events v3 on: the relay keeps the amended names (EVENTS v3 §2 and §4
   const hub = () => ({ ht: T.signHub([KID]), chip: T.chipId('h', KID) });
 
   test('next_shown kind door; rank_src ctrl', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
     Svc.events({ ...hub(), events: [
       { n: 'next_shown', ctx: 'home', kind: 'door', id: 'stories', pos: 0, source: 'fallback' },
       { n: 'next_shown', ctx: 'after_quiz', kind: 'quiz', id: 'abcdef0123', pos: 0, rank_src: 'ctrl', arm: 'ctrl', offer: 'AbCdEfGhIj', source: 'fallback' },
@@ -180,7 +183,7 @@ describe('events v3 on: the relay keeps the amended names (EVENTS v3 §2 and §4
   });
 
   test('a coach\'s preview (practice 1): kept as practice:1 with kid null even with a real hub token; no streak reset', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
     const kid = K.kid(KID);
     redis._store.set(`wq:next:${kid}`, { s: { id: 'vid-1', n: 2 }, of: { AbCdEfGhIj: 'vid-1' } });
     Svc.events({ ...hub(), events: [
@@ -198,7 +201,7 @@ describe('events v3 on: the relay keeps the amended names (EVENTS v3 §2 and §4
   });
 
   test('who_open { kids, jn }: small whole numbers only', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
     Svc.events({ ...hub(), events: [
       { n: 'who_open', kids: 3, jn: 1 },
       { n: 'who_open', kids: '3', jn: true },
@@ -212,7 +215,7 @@ describe('events v3 on: the relay keeps the amended names (EVENTS v3 §2 and §4
   });
 
   test('card_shown { source, share_ok, tried } and card_share { source, kind, path }: the contract values only', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
     Svc.events({ ...hub(), events: [
       { n: 'card_shown', source: 'read', share_ok: true, tried: false },
       { n: 'card_shown', source: 'exam', share_ok: 'true', tried: 1 },
@@ -230,7 +233,7 @@ describe('events v3 on: the relay keeps the amended names (EVENTS v3 §2 and §4
   });
 
   test('rich telemetry and events v3 both on: a v3 line never carries the device hash or the session id', async () => {
-    await seed([{ key: 'web_quiz_events_v3', value: 'true' }, { key: 'web_quiz_rich_telemetry', value: 'true' }]);
+    await seed([{ key: 'web_quiz_events_v3', value: true }, { key: 'web_quiz_rich_telemetry', value: 'true' }]);
     const Tel = require('../../../shared/services/quiz/web-quiz-telemetry');
     await Tel.flag(Date.now() + 60 * 1000);   // past the cache's life: read the switch now
     expect(Tel.on()).toBe(true);

@@ -36,7 +36,8 @@ const LIST = '55555555-5555-4555-8555-000000000001';
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 const ahead = (h) => new Date(Date.now() + h * 3600000).toISOString();
 const A = { device: 'AAAAAAAAAAAAAAAAAAAAAA' };
-const ON = (k) => ({ key: k, value: 'true' });
+// a switch row as the settings table holds it: JSON true (a string 'true' is OFF for this slot's keys)
+const ON = (k) => ({ key: k, value: true });
 const BASE_ON = [ON('web_quiz_hub'), ON('web_quiz_challenge'), ON('web_quiz_child_quiz_home')];
 
 // The registry's columns, read from the migration that creates challenge_passages (never a hand-kept list).
@@ -94,6 +95,7 @@ function seed(settings, over = {}) {
   Hub._resetCache();
   Play._resetCache();
   NO._resetCache();
+  require('../../../shared/services/quiz/web-quiz-hub-home')._resetCache();
 }
 
 beforeEach(() => {
@@ -125,7 +127,7 @@ describe('GOLDEN: web_quiz_next_offer off -> the hub boot is today\'s', () => {
     seed(BASE_ON, pending());
     const base = await Hub.hub(T.signHub([KID]), A);
     expect(base).not.toHaveProperty('next');
-    for (const value of ['false', false, null, 'yes', '1', 1, 'on', { enabled: true }, '{}', '[true]', '']) {
+    for (const value of ['true', '"true"', 'TRUE', 'false', false, null, 'yes', '1', 1, 'on', { enabled: true }, '{}', '[true]', '']) {
       seed([...BASE_ON, { key: 'web_quiz_next_offer', value }, ON('web_quiz_events_v3')], pending());
       redis._store.clear();
       const off = await Hub.hub(T.signHub([KID]), A);

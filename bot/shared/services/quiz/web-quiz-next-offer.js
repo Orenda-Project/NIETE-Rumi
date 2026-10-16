@@ -30,9 +30,11 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const FILE_WEIGHTS = require('./next-offer-weights.json');
 
-// pool: the counted-passage pool (web-quiz-challenge.js), read so a stop the draw would answer "on its way" is never offered.
-// home: the v3 home, whose own player starts a video for a child with no class quiz (watch-only: nothing minted).
-const KEYS = { on: 'web_quiz_next_offer', weights: 'web_quiz_next_offer_weights', events: 'web_quiz_events_v3', v2: 'web_quiz_challenge_v2', pool: 'web_quiz_challenge_pool', home: 'web_quiz_home_v3' };
+// This module's own keys. Two more are read through their owners' readers (never parsed here, so the slot and the
+// screen always agree): the counted-passage pool (web-quiz-challenge.js v2On/poolOn), so a stop the draw would answer
+// "on its way" is never offered; the v3 home (web-quiz-hub-home.js flags), whose own player starts a video for a
+// child with no class quiz (watch-only: nothing minted).
+const KEYS = { on: 'web_quiz_next_offer', weights: 'web_quiz_next_offer_weights', events: 'web_quiz_events_v3' };
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -92,10 +94,12 @@ function ranked(ctx, list, state, weights) {
     return { c, row, score, at: row ? rows.indexOf(row) : rows.length, i };
   });
   const rel = (x) => (Number.isFinite(Date.parse(x.c.released_at)) ? Date.parse(x.c.released_at) : -Infinity);
+  // An unscored kind ranks as a lift of 0 ("no different from stopping", the honest prior): a kind that measurably
+  // loses children goes after it, one that keeps them before it. Two unscored rows keep the table's own order.
+  const lift = (x) => (x.score == null ? 0 : x.score);
   scored.sort((a, b) => {
-    if (a.score != null && b.score != null && a.score !== b.score) return b.score - a.score;
-    if ((a.score == null) !== (b.score == null)) return a.score == null ? 1 : -1;
-    if (a.score == null && a.at !== b.at) return a.at - b.at;
+    if (lift(a) !== lift(b)) return lift(b) - lift(a);
+    if (a.score == null && b.score == null && a.at !== b.at) return a.at - b.at;
     if (Boolean(a.c.seen) !== Boolean(b.c.seen)) return a.c.seen ? 1 : -1;
     if (rel(a) !== rel(b)) return rel(b) - rel(a);
     return a.i - b.i;
@@ -191,10 +195,12 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
 
 // ── switches and the weights (app_settings, 30 s cache, fail closed) ─────────────────────────────────
 
-function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+// A switch is on only with the JSON value true: a string 'true' (or anything else) is off.
+const isTrue = (value) => value === true;
+
+/** An owner's own switch reader (its cache, its parsing); a throw is off. */
+async function ownerOn(read) {
+  try { return (await read()) === true; } catch (_) { return false; }
 }
 
 /** One scores row as the file has it (a kit kind, a finite or null score, evidence significant|prior), else null. */
@@ -234,7 +240,13 @@ async function switches(now = Date.now()) {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', Object.values(KEYS));
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    const s = { on: isTrue(by[KEYS.on]), events: isTrue(by[KEYS.events]), pool: isTrue(by[KEYS.v2]) && isTrue(by[KEYS.pool]), watch: isTrue(by[KEYS.home]), weights: weightsOf(by[KEYS.weights]) || FILE_WEIGHTS };
+    const on = isTrue(by[KEYS.on]);
+    const Challenge = () => require('./web-quiz-challenge');
+    // read side by side (each from its owner's 30 s cache, which the hub has usually just filled)
+    const [v2, poolKey, watch] = on ? await Promise.all([ownerOn(() => Challenge().v2On()), ownerOn(() => Challenge().poolOn()),
+      ownerOn(async () => (await require('./web-quiz-hub-home').flags()).home)]) : [false, false, false];
+    const pool = v2 && poolKey;
+    const s = { on, events: isTrue(by[KEYS.events]), pool, watch, weights: weightsOf(by[KEYS.weights]) || FILE_WEIGHTS };
     cache = { at: now, s };
     return s;
   } catch (err) {
