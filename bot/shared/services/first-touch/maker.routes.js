@@ -36,6 +36,10 @@ const { SUBJECT_CODES } = require('./maker.strings');
 const Keys = require('./door.keys');
 const Tour = require('./tour.page');
 // ── end tour ──
+// ── cards (TOUR.md §6-§7) ──
+const Cards = require('./cards.page');
+const Share = require('../quiz/video-quiz-share.service');
+// ── end cards ──
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -127,6 +131,9 @@ router.get('/m/:token', handlePage(async (req, res) => {
   const show = p.tour === 0 && !(await Keys.tourSeen(p.uid));
   const addons = [Tour.tourAddon({ lang, show })];
   // ── end tour ──
+  // ── cards: the three branch cards + the forward line; no dialable bot number → nothing ──
+  addons.push(Cards.cardsAddon({ lang, bot: Share.botNumber() }));
+  // ── end cards ──
   const built = Page.buildMakerPage({ token: req.params.token, lang, switchTo, via: p.via, tree, pf: p.pf, addons });
   makerEvent('open', p);
   headers(res, built.csp);

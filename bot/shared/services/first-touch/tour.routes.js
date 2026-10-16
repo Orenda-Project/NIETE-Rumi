@@ -16,6 +16,8 @@ const { logEvent } = require('../../utils/structured-logger');
 const Keys = require('./door.keys');
 
 const HOWS = Object.freeze(['ok', 'chip', 'prefill']);
+const CARD_KINDS = Object.freeze(['lp', 'coach', 'exam']);
+const CARD_SCREENS = Object.freeze(['ready', 'foot']);
 
 function tourEvent(step, p, extra = {}) {
   try {
@@ -43,7 +45,17 @@ const ACTIONS = Object.freeze({
     tourEvent('tour_replayed', p);
     return 204;
   },
-  // ── slot: cards (its PR adds card / forward here) ──
+  // ── cards: the three branch cards and the forward line (TOUR §6, §7) — event only, never a write ──
+  card: async (p, b) => {
+    if (!CARD_KINDS.includes(b.card) || !CARD_SCREENS.includes(b.screen)) return 400;
+    tourEvent(`card_${b.card}`, p, { screen: b.screen });
+    return 204;
+  },
+  forward: async (p) => {
+    tourEvent('forward_tap', p);
+    return 204;
+  },
+  // ── end cards ──
 });
 
 /** Registers the route. `deps` = maker.routes' { headers, handleJson, authoriseJson }. */

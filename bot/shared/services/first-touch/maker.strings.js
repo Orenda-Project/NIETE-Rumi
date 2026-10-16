@@ -52,6 +52,17 @@ const STRINGS = Object.freeze({
   // one value, Urdu block first, a blank line, the English block (COPY v1.2: a composition of two signed values)
   'maker.body.bi': Object.freeze({ en: "آپ کا پہلا کوئز تین ٹیپ میں: جماعت، مضمون، موضوع۔ پھر اسے اپنے کلاس گروپ میں بھیجیں۔ یہ یہیں \u2066WhatsApp\u2069 میں کھلے گا۔\n\nٹیچر نہیں ہیں؟ ”بچہ“ لکھ کر بھیجیں۔\n\nYour first quiz in three taps: grade, subject, topic. Then send it to your class group. It opens right here in WhatsApp.\n\nNot a teacher? Send “child”.", ur: "آپ کا پہلا کوئز تین ٹیپ میں: جماعت، مضمون، موضوع۔ پھر اسے اپنے کلاس گروپ میں بھیجیں۔ یہ یہیں \u2066WhatsApp\u2069 میں کھلے گا۔\n\nٹیچر نہیں ہیں؟ ”بچہ“ لکھ کر بھیجیں۔\n\nYour first quiz in three taps: grade, subject, topic. Then send it to your class group. It opens right here in WhatsApp.\n\nNot a teacher? Send “child”." }),
   'maker.btn.bi': Object.freeze({ en: "Make quiz · بنائیں", ur: "Make quiz · بنائیں" }),
+  // the three branch cards and the forward line (the cards addon, cards.page.js). The .word values are the REAL
+  // words the feature doors match (lp-intent BARE, the coaching trigger, the /assessment command); mk.card.exam is
+  // not here: it is the REAL menu row title, read live (resolveUx("menuRowAssessmentTitle")).
+  'mk.card.lp': Object.freeze({ en: "Lesson plans", ur: "سبق کے منصوبے" }),
+  'mk.card.lp.word': Object.freeze({ en: "lesson plan", ur: "لیسن پلان" }),
+  'mk.card.coach': Object.freeze({ en: "AI coaching", ur: "اے آئی کوچنگ" }),
+  'mk.card.coach.word': Object.freeze({ en: "coaching", ur: "کوچنگ" }),
+  'mk.card.exam.word': Object.freeze({ en: "/assessment", ur: "/assessment" }),
+  // frame: {bot} = this deployment's bot number (digits, read live), never a literal; the Urdu link keeps ?text=quiz
+  'mk.fwd': Object.freeze({ en: "Teachers: make a class quiz in 3 taps with the NIETE bot on WhatsApp. Open this link and send the message:\nhttps://wa.me/{bot}?text=quiz", ur: "ٹیچرز کے لیے: \u2066NIETE\u2069 کے \u2066WhatsApp\u2069 بوٹ سے تین ٹیپ میں اپنی کلاس کا کوئز بنائیں۔ یہ لنک کھولیں اور پیغام بھیج دیں:\nhttps://wa.me/{bot}?text=quiz" }),
+  'mk.fwd.btn': Object.freeze({ en: "Share with teachers", ur: "ٹیچرز کو بھیجیں" }),
 });
 
 /** The value of `id` in `lang` ('bi' → the Urdu slot; anything else through the one clamp). */
