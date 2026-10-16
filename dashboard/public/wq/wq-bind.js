@@ -121,10 +121,11 @@
     var raw = view.ctx.first || '';
     var name = esc(raw);   // the title line inserts it as-is; the notice lines escape the whole sentence, so they take the raw name
     draw('<h3 class="wqb-title">' + t.isYou(name) + '</h3>' +
-      '<div class="wqb-notice"><p>' + chips(esc(t.noticeSave(raw))) + '</p>' + (t.noticeReadings ? '<p>' + chips(esc(t.noticeReadings(raw))) + '</p>' : '') + '<p>' + chips(esc(t.noticeStopPhoneOnly)) + '</p></div>' +
+      // the two answers come before the notice, so both are on screen at 360x640 once the sheet's top is scrolled into view
       '<p class="wqb-sub">' + chips(esc(t.whoSends)) + '</p>' +
       '<div class="wqb-row wqb-stack"><button type="button" class="wqb-btn wqb-go" data-b="yes">' + esc(t.yes) + '</button>' +
-      '<button type="button" class="wqb-btn wqb-ghost" data-b="no">' + esc(t.no) + '</button></div>');
+      '<button type="button" class="wqb-btn wqb-ghost" data-b="no">' + esc(t.no) + '</button></div>' +
+      '<div class="wqb-notice"><p>' + chips(esc(t.noticeSave(raw))) + '</p>' + (t.noticeReadings ? '<p>' + chips(esc(t.noticeReadings(raw))) + '</p>' : '') + '<p>' + chips(esc(t.noticeStopPhoneOnly)) + '</p></div>');
     // the sheet may open below the fold on a small screen: bring its top into view (guarded; older browsers lack it)
     try { if (view.mount && typeof view.mount.scrollIntoView === 'function') view.mount.scrollIntoView({ block: 'start' }); } catch (e) {}
     on('yes', confirm);
