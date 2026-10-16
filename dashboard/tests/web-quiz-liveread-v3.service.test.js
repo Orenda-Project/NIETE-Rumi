@@ -437,6 +437,25 @@ describe('mount(): a story page reads itself (the component alone, a fake DOM an
     expect(calls[calls.length - 1]).toEqual(['mic', false]);
   });
 
+  test('the sound kit hears every mic chunk the reading sends (WQJ.chunk), so no sound lands on a chunk; nothing breaks without it', async () => {
+    const E = env(); const D = dom();
+    const calls = [];
+    E.window.WQJ = { chunk: () => calls.push('chunk'), mic: () => {} };
+    E.L.mount(D.el, { words: PAGE, lang: 'en', getKey: () => Promise.resolve({ ws: 'wss://x', api_key: 'k', model: 'm', lang: 'en' }), stream: {} });
+    await E.flush();
+    const s = E.socks[0]; s.onopen({});
+    E.recs[0].ondataavailable({ data: { size: 9 } });
+    E.recs[0].ondataavailable({ data: { size: 9 } });
+    E.recs[0].ondataavailable({ data: { size: 0 } });
+    expect(calls).toEqual(['chunk', 'chunk']);
+    // an older kit without chunk(), or no kit at all: the chunk still goes out
+    E.window.WQJ = { mic: () => {} };
+    E.recs[0].ondataavailable({ data: { size: 9 } });
+    delete E.window.WQJ;
+    E.recs[0].ondataavailable({ data: { size: 9 } });
+    expect(s.sent.filter((x) => typeof x !== 'string').length).toBe(4);
+  });
+
   test('a counted mount: no tink, a quiet Stop from the first second, "I\'m done" only from 80 % lit', async () => {
     const E = env(); const D = dom();
     const calls = [];
@@ -600,6 +619,13 @@ describe('a counted read with the read guard OFF still gets the counted controls
     expect(p.screen()).toBe('read-live');
     expect(p.els['wqc-stop'].className).toContain('lr-pulse');
     expect(p.els['wqc-nudge'].textContent).toBe('Done?');
+  });
+  test('the Trail read tells the sound kit about each chunk it streams (WQJ.chunk)', async () => {
+    const KIT = 'window.WQJ = { calls: [], chunk: function () { this.calls.push("chunk"); }, mic: function (on) { this.calls.push(["mic", on]); } };';
+    const { p } = await counted({ t: 1000000 }, { pre: [KIT] });
+    p.recs[0].ondataavailable({ data: { size: 9 } });
+    p.recs[0].ondataavailable({ data: { size: 9 } });
+    expect(p.ctx.window.WQJ.calls.filter((c) => c === 'chunk')).toEqual(['chunk', 'chunk']);
   });
   test('a counted read never plays a word or sentence sound (the sound kit present)', async () => {
     const { p, s } = await counted({ t: 1000000 }, { pre: [JUICE] });

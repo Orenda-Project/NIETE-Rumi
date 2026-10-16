@@ -309,7 +309,8 @@
       s.mr.ondataavailable = function (e) {
         if (!(e.data && e.data.size)) return;
         if (o.record) s.chunks.push(e.data);
-        if (s.live && s.sock) s.sock.send(e.data); else if (s.sock == null && s.queue.length < 40) s.queue.push(e.data);
+        // the sound kit holds its sounds for a moment after each chunk sent (none lands on a chunk boundary)
+        if (s.live && s.sock) { s.sock.send(e.data); juice('chunk'); } else if (s.sock == null && s.queue.length < 40) s.queue.push(e.data);
       };
       s.mr.start(SLICE_MS);
     } catch (e) { s.mr = null; }

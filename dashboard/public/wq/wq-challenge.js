@@ -1155,7 +1155,7 @@
     rec.mr.ondataavailable = function (e) {
       if (!(e.data && e.data.size)) return;
       rec.chunks.push(e.data);
-      if (liveOk()) live.sock.send(e.data);
+      if (liveOk()) { live.sock.send(e.data); if (lr3()) window.WQLiveRead.juice('chunk'); }
     };
     rec.mr.onstop = function () { finishRec(); };
     rec.mr.onerror = function () {
