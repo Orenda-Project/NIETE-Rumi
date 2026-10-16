@@ -15,6 +15,14 @@ jest.mock('../../shared/services/cache/railway-redis.service', () => require('./
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/services/whatsapp.service', () => require('./_ingress-mocks').whatsappMock(jest));
+// The walk-through persona module by its real name (it may not be on this branch yet: a virtual stand-in).
+const mockWalk = { forHome: undefined };
+jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk, { virtual: true });
+// The one door's landing link and its module lookup (they land separately: virtual stand-ins, inert unless a test fills them).
+const mockDoor = { mintLanding: undefined };
+const mockModules = { load: undefined };
+jest.mock('../../shared/services/first-touch/one-door.service', () => mockDoor, { virtual: true });
+jest.mock('../../shared/services/first-touch/optional-modules', () => mockModules, { virtual: true });
 
 const express = require('express');
 const supabase = require('../../shared/config/supabase');
@@ -303,6 +311,28 @@ describe('the confirm rows and the events', () => {
     expect(logEvent).toHaveBeenCalledWith('teacher_send', expect.objectContaining({ w: 's', kind: 'video', origin: 'library', again: false, id: qid(2) }));
   });
 
+  test('teacher_send carries prompted (opened from a bot message) and the keyed class of the code (EVENTS_V3)', async () => {
+    seed();
+    const CLASS = 'd0000000-0000-4000-8000-0000000000c9';
+    const CODE = 'f0000000-0000-4000-8000-0000000000c9';
+    fake.db.quiz_share_codes.push({ id: CODE, code: 'KLMNOP', quiz_id: qid(2), teacher_user_id: TEACHER.id, class_id: CLASS, active: true, created_at: new Date().toISOString(), invited_by_student_id: null });
+    fake.db.quiz_share_codes.push({ id: OWN_CODE, code: 'QRSTUV', quiz_id: qid(2), teacher_user_id: OTHER, class_id: CLASS, active: true, created_at: new Date().toISOString(), invited_by_student_id: null });
+    await boot(deps);
+    const Kid = require('../../shared/services/quiz/web-quiz-kid');
+    const sendOf = () => logEvent.mock.calls.filter((c) => c[0] === 'teacher_send').pop()[1];
+    await post('/api/th/step', { t: tokenFor({ via: 'report' }), step: 'share_tap', kind: 'video', id: qid(2), c: CODE, origin: 'library' });
+    expect(sendOf()).toMatchObject({ prompted: true, cls_k: Kid.clsOf(CLASS) });
+    expect(Kid.clsOf(CLASS)).toEqual(expect.any(String));
+    await post('/api/th/step', { t: tokenFor({ via: 'go' }), step: 'share_tap', kind: 'video', id: qid(2), c: CODE, origin: 'library' });
+    expect(sendOf()).toMatchObject({ prompted: false, cls_k: Kid.clsOf(CLASS) });
+    // another teacher's code, or no code: no class key (never a guess)
+    await post('/api/th/step', { t: tokenFor({ via: 'menu' }), step: 'share_tap', kind: 'video', id: qid(2), c: OWN_CODE, origin: 'library' });
+    expect(sendOf()).toMatchObject({ prompted: false, cls_k: null });
+    await post('/api/th/step', { t: tokenFor(), step: 'share_tap', kind: 'again', id: qid(2), origin: 'again' });
+    expect(sendOf()).toMatchObject({ prompted: false, cls_k: null });
+    expect(JSON.stringify(sendOf())).not.toContain(CLASS);
+  });
+
   test('"Not a teacher? Change" is not offered until the one door\'s landing exists; there is no role write here', async () => {
     seed();
     await boot(deps);
@@ -403,19 +433,65 @@ describe('the top card for a teacher with a fresh lesson, and story sends', () =
     expect(home.primary.send.message).toContain('https://portal.example/q/STORY1');
   });
 
-  test('a listed test phone walking as "a teacher with no lessons" sees the library first; absent module → today', async () => {
+  test('a listed test phone walking as "a teacher with no lessons" sees the library first; a module without forHome → today', async () => {
     seed();
     fake.db.users[0].phone_number = 'fixture-phone';
     deps.List = listWith({ lessons: [lesson(1, 'Plants')] });
-    deps.TestPersona = { forHome: async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists) };
+    mockWalk.forHome = jest.fn(async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists));
     await boot(deps);
     const walk = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    expect(mockWalk.forHome).toHaveBeenCalledTimes(1);
     expect(walk.timeline).toEqual([]);
     expect(walk.primary.kind).toBe('video');
-    delete deps.TestPersona;
+    expect(logEvent).toHaveBeenCalledWith('teacher_home_open', expect.objectContaining({ primary_kind: 'video' }));
+    mockWalk.forHome = undefined;
     srv.close(); await boot(deps);
     const real = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
     expect(real.primary.kind).toBe('lesson');
+  });
+});
+
+describe('the walk-through row on the foot (sandbox test phones only)', () => {
+  const ROW = '<section data-screen="walk"><p class="note">Walk</p><button type="button" class="no" data-tap="walk_fresh" data-persona="fresh">New</button></section>';
+  afterEach(() => { mockDoor.mintLanding = undefined; mockModules.load = undefined; });
+
+  test('a listed phone: the row and the go token of the "Change" link; an unlisted teacher\'s home is byte-identical to no module at all', async () => {
+    seed();
+    fake.db.users[0].phone_number = 'fixture-phone';
+    mockDoor.mintLanding = jest.fn(async () => 'https://portal.example/quiz/go/GO.TOKEN_abc');
+    await boot(deps);
+    const t = tokenFor();
+    const without = await (await get(`/api/th/home?t=${t}&g=4`)).text();
+    const row = jest.fn(async ({ token }) => (token === 'GO.TOKEN_abc' ? '' : ROW));
+    mockModules.load = (name) => (name === 'testPersona' ? { row } : null);
+    const unlisted = await (await get(`/api/th/home?t=${t}&g=4`)).text();
+    expect(row).toHaveBeenCalledWith({ lang: 'en', token: 'GO.TOKEN_abc' });
+    expect(unlisted.replace(/"first":(true|false)/, '')).toBe(without.replace(/"first":(true|false)/, ''));
+    expect(JSON.parse(unlisted).change).toBe('/quiz/go/GO.TOKEN_abc');
+    row.mockImplementation(async () => ROW);
+    const listed = await (await get(`/api/th/home?t=${t}&g=4&lang=ur`)).json();
+    expect(listed.walk).toEqual({ html: ROW, t: 'GO.TOKEN_abc' });
+    expect(row).toHaveBeenLastCalledWith({ lang: 'ur', token: 'GO.TOKEN_abc' });
+  });
+
+  test('no "Change" link, a module that throws, or a row of another shape → no walk key', async () => {
+    seed();
+    fake.db.users[0].phone_number = 'fixture-phone';
+    await boot(deps);
+    mockModules.load = () => ({ row: async () => ROW });
+    expect((await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json()).walk).toBeUndefined();
+    mockDoor.mintLanding = jest.fn(async () => 'https://portal.example/quiz/go/GO.TOKEN_abc');
+    mockModules.load = () => { throw new Error('broken'); };
+    expect((await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json()).walk).toBeUndefined();
+    mockModules.load = () => ({ row: async () => '<script>x</script>' });
+    expect((await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json()).walk).toBeUndefined();
+  });
+
+  test('the page inserts only that row, posts the tap to the one door and follows only a landing link', () => {
+    const { SCRIPT } = require('../../shared/services/first-touch/teacher-home.page');
+    expect(SCRIPT).toContain("post('/api/go/persona',{t:k.t,as:x.getAttribute('data-persona')})");
+    expect(SCRIPT).toContain("String(k.html).indexOf('<section data-screen=\"walk\">')!==0");
+    expect(SCRIPT).toContain("o.next.indexOf('/quiz/go/')!==0");
   });
 });
 
@@ -429,6 +505,14 @@ describe('a code minted to show its message is not a send until the tap', () => 
     const again = await (await get(`/api/th/home?t=${t}&g=4`)).json();
     expect(again.primary.kind).toBe('video');
     expect(again.timeline).toEqual([]);
+    // the golden: a mere render never shows the "No one has played — Send again" card, in either language
+    const urAgain = await (await get(`/api/th/home?t=${t}&g=4&lang=ur`)).json();
+    [again, urAgain].forEach((h) => {
+      expect(h.primary.kind).not.toBe('class');
+      expect(JSON.stringify(h)).not.toContain(str('th.zero', 'en'));
+      expect(JSON.stringify(h)).not.toContain(str('th.zero', 'ur'));
+      expect(JSON.stringify(h)).not.toContain('"verb":"again"');
+    });
     expect((await post('/api/th/step', { t, step: 'share_tap', kind: 'video', id: qid(2), c: first.primary.send.c, origin: 'library' })).status).toBe(204);
     const after = await (await get(`/api/th/home?t=${t}&g=4`)).json();
     expect(after.primary).toMatchObject({ kind: 'class', played: 0, title: 'Fractions' });

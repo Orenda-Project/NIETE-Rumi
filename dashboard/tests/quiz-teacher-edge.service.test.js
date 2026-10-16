@@ -142,6 +142,17 @@ describe('path-for-path forwarding', () => {
     ]);
     expect(calls[0].opts).toEqual({ raw: true });
   });
+  test('stories page: a story tile\'s book (uuid) and the grade (1-5) reach the stories page; bad shapes dropped', async () => {
+    await boot({ status: 200, bytes: Buffer.from('<html>x</html>'), contentType: 'text/html' });
+    await request('GET', `/quiz/teacher/${TOK}/stories?book=${UUID}`);
+    await request('GET', `/quiz/teacher/${TOK}/stories?book=${UUID}&grade=3&lang=ur`);
+    await request('GET', `/quiz/teacher/${TOK}/stories?book=not-a-book&grade=9&lang=fr&evil=1`);
+    expect(calls.map((c) => c.path)).toEqual([
+      `/api/internal/th/quiz/teacher/${TOK}/stories?book=${UUID}`,
+      `/api/internal/th/quiz/teacher/${TOK}/stories?book=${UUID}&grade=3&lang=ur`,
+      `/api/internal/th/quiz/teacher/${TOK}/stories`,
+    ]);
+  });
   test('home: only t, g (1-5), lang forwarded', async () => {
     await boot(ok);
     await request('GET', `/api/th/home?t=${TOK}&g=3&lang=en&evil=1`);
@@ -262,6 +273,30 @@ describe('relay', () => {
       expect(res.status).toBe(503);
       expect(JSON.parse(res.body)).toEqual({ error: 'mk.error' });
     }
+  });
+});
+
+describe('the rate limit', () => {
+  test('over the limit: the request falls through to today\'s page (never a 429), with no bot call', async () => {
+    await boot(OFF, { router: { limit: 2 } });
+    const page = [];
+    for (let i = 0; i < 3; i += 1) page.push(await request('GET', `/quiz/teacher/${TOK}`));
+    const json = await request('GET', `/api/th/home?t=${TOK}`);
+    const posted = await request('POST', '/api/th/step', { body: { t: TOK, step: 'more' } });
+    [...page, json, posted].forEach((r) => {
+      expect(r.status).toBe(200);
+      expect(r.body).toBe(SPA);
+      expect(r.headers['retry-after']).toBeUndefined();
+    });
+    expect(calls).toHaveLength(2);
+  });
+  test('switch ON, over the limit: falls through as well (the bot is not called)', async () => {
+    await boot({ status: 200, bytes: Buffer.from('<html>home</html>'), contentType: 'text/html' }, { router: { limit: 1 } });
+    expect((await request('GET', `/quiz/teacher/${TOK}`)).body).toBe('<html>home</html>');
+    const over = await request('GET', `/quiz/teacher/${TOK}`);
+    expect(over.status).toBe(200);
+    expect(over.body).toBe(SPA);
+    expect(calls).toHaveLength(1);
   });
 });
 
