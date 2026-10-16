@@ -253,13 +253,17 @@ const slotTotal = (slot, present) => Math.min(slot.attempt, present) * slot.mark
  * Unremoved, it is FDE's line exactly; after a removal only the count atoms
  * change, and a choice that still exists says how many it is now out of.
  */
-function choiceLine(slot, present, lang) {
+function choiceLine(slot, present, lang, items) {
   const live = Math.min(slot.attempt, present);
   const ctx = { w: live, n: live, t: live * slot.marks_each, g: present };
   const raw = slot[`instruction_${lang}`];
   let instruction = substitute(raw, ctx, lang);
   if (instruction && present < slot.generate && live < present && /\{w:/.test(raw)) {
     instruction = addOutOf(raw, ctx, lang, present);
+  }
+  // "the poem “{q}”": a one-item slot names its item, on the paper and in the scheme alike.
+  if (instruction && /\{q\}/.test(raw) && Array.isArray(items) && items.length === 1) {
+    instruction = instruction.replace('{q}', String(items[0].question || '').trim());
   }
   const marksLine = substitute(slot[`marks_line_${lang}`], ctx, lang);
   const text = [instruction, marksLine].filter(Boolean).join(' ');
@@ -548,10 +552,9 @@ function stemOf(q, slot, inlineQ) {
 function slotBlock(slot, sec, list, ctx) {
   const lang = ctx.medium;
   const live = list.filter((q) => q.removed !== true);
-  const line = choiceLine(slot, live.length, lang);
+  const line = choiceLine(slot, live.length, lang, live);
   const inlineQ = /\{q\}/.test(slot[`instruction_${lang}`] || '') && live.length === 1;
-  let instruction = line.instruction;
-  if (inlineQ) instruction = instruction.replace('{q}', String(live[0].question || '').trim());
+  const instruction = line.instruction;
   const cont = /^continue:/.test(slot.numbering || '');
   const label = cont ? '' : slot[`label_${lang}`];
   const head = (label || instruction || line.marksLine)
@@ -1021,7 +1024,7 @@ function writtenRows(slot, list, ctx, Criteria) {
   // The slot's own head first, so a marker can tell which question a row answers.
   if (rows.length) {
     const label = lang === 'ur' ? slot.label_ur : shortLabel(slot.label_en);
-    const ins = choiceLine(slot, live.length, lang).instruction;
+    const ins = choiceLine(slot, live.length, lang, live).instruction;
     rows.unshift(`<tr class="slot-row" data-slot-head="${esc(slot.slot)}"><td colspan="3"><b>${textOf(label, ctx)}</b>${ins ? ` ${textOf(ins, ctx)}` : ''}</td></tr>`);
   }
   return rows;
