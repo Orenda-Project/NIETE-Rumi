@@ -1528,7 +1528,7 @@ async function createPatternRequest({ Browse, res, userId, grade, subject, patte
     pages = fde.page_ranges;
     chapters = fde.chapters;
   } else if (pageRanges) {
-    // Pages she typed win over chapters, as on an ordinary paper.
+    // Pages the teacher typed win over chapters, as on an ordinary paper.
     kind = 'pages';
     pages = pageRanges;
     chapters = picked.length ? picked : null;
