@@ -168,6 +168,8 @@
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var html = '<div class="wq-bk-hub"><a class="wq-htile wq-bk-tile" id="wq-bk-open" href="#book"><span class="wq-htic" aria-hidden="true">📒</span><b>' + esc(t.bookTitle(me.first || '')) + '</b></a>' +
       lightsHtml(B.class_lights, ctx.lang) + '</div>';
+    // One tile per hub: a late second call (the hub drawn again while this loaded) replaces it, never adds another.
+    Array.prototype.forEach.call(ctx.root.querySelectorAll ? ctx.root.querySelectorAll('.wq-bk-hub') : [], function (el) { if (el.parentNode) el.parentNode.removeChild(el); });
     // After the hub's top block (its tiles), before Play again / Try these next; else before Switch player; else at the end.
     var tiles = ctx.root.querySelector('.wq-htiles');
     var sw = ctx.root.querySelector('#wq-h-switch');

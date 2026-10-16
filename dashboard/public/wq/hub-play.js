@@ -99,7 +99,7 @@
   }
 
   var pending = null;
-  /** The hub's `top` block. parts: {HOME, lastCard, homeTiles, teacher, teacherAny, tiles, T, LANG, MASC, chHref, ROOT, ev}. */
+  /** The hub's `top` block. parts: {HOME, lastCard, homeTiles, teacher, teacherAny, tiles, T, LANG, MASC, chHref, ROOT, ev, afterJug}. */
   function top(B, HT, parts) {
     var L = T[parts.LANG === 'ur' ? 'ur' : 'en'];
     var base = parts.HOME
@@ -115,7 +115,8 @@
         (lt ? lt.html : '') + '</div>';
       // The tiles row without the Jugnu tile; an emptied row goes.
       var rest = base.replace(CH_TILE, '').replace('<div class="wq-htiles"></div>', '');
-      html = card + sh + inst(B) + rest;
+      // afterJug (hub.js: keep my place's mount, or ''): the Jugnu card leads, the keep card right after it.
+      html = card + (parts.afterJug || '') + sh + inst(B) + rest;
     } else {
       html = base + (lt || sh ? (lt ? lt.html : '') + sh : '') + inst(B);
     }
