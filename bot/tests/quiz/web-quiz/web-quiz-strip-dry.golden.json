@@ -343,6 +343,14 @@
    "value": 0,
    "n": 2,
    "computed_at": "2026-10-19T06:00:00.000Z"
+  },
+  {
+   "week": "2026-W42",
+   "line": "floor_kept_aligned",
+   "cell": "ur",
+   "value": 0,
+   "n": 1,
+   "computed_at": "2026-10-19T06:00:00.000Z"
   }
  ],
  "queries": [
@@ -381,6 +389,9 @@
   "web_quiz_challenge_runs.select([\"id, student_id, canonical_id, class_id, lang, meta, created_at\"]).eq([\"exercise\",\"read\"]).eq([\"mode\",\"check\"]).eq([\"status\",\"scored\"]).gte([\"created_at\",\"2026-10-11T19:00:00.000Z\"]).lt([\"created_at\",\"2026-10-18T19:00:00.000Z\"]).order([\"created_at\",{\"ascending\":true}]).limit([1000])",
   "app_settings.select([\"key, value\"]).eq([\"key\",\"web_quiz_fixture_rule\"])",
   "students.select([\"id, student_name, list_id\"]).in([\"id\",[\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee\"]]).order([\"id\",{\"ascending\":true}]).limit([1000])",
+  "web_quiz_challenge_runs.select([\"id, student_id, canonical_id, class_id, lang, passage_id, meta, created_at\"]).eq([\"exercise\",\"read\"]).eq([\"mode\",\"check\"]).eq([\"record\",true]).eq([\"status\",\"failed\"]).gte([\"created_at\",\"2026-10-11T19:00:00.000Z\"]).lt([\"created_at\",\"2026-10-18T19:00:00.000Z\"]).order([\"created_at\",{\"ascending\":true}]).limit([1000])",
+  "app_settings.select([\"key, value\"]).eq([\"key\",\"web_quiz_fixture_rule\"])",
+  "students.select([\"id, student_name, list_id\"]).in([\"id\",[\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\"]]).order([\"id\",{\"ascending\":true}]).limit([1000])",
   "web_quiz_strip_weekly.update([{\"value\":1,\"n\":5,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"fixtures_excluded\"]).eq([\"cell\",\"\"]).select([\"week\"])",
   "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"fixtures_excluded\",\"cell\":\"\",\"value\":1,\"n\":5,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
   "web_quiz_strip_weekly.update([{\"value\":2,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"plays\"]).eq([\"cell\",\"check\"]).select([\"week\"])",
@@ -463,11 +474,13 @@
   "web_quiz_strip_weekly.update([{\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"implausible\"]).eq([\"cell\",\"ur|no_aligned_words\"]).select([\"week\"])",
   "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"implausible\",\"cell\":\"ur|no_aligned_words\",\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
   "web_quiz_strip_weekly.update([{\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"implausible\"]).eq([\"cell\",\"ur|low_story_confidence\"]).select([\"week\"])",
-  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"implausible\",\"cell\":\"ur|low_story_confidence\",\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])"
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"implausible\",\"cell\":\"ur|low_story_confidence\",\"value\":0,\"n\":2,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])",
+  "web_quiz_strip_weekly.update([{\"value\":0,\"n\":1,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}]).eq([\"week\",\"2026-W42\"]).eq([\"line\",\"floor_kept_aligned\"]).eq([\"cell\",\"ur\"]).select([\"week\"])",
+  "web_quiz_strip_weekly.insert([{\"week\":\"2026-W42\",\"line\":\"floor_kept_aligned\",\"cell\":\"ur\",\"value\":0,\"n\":1,\"computed_at\":\"2026-10-19T06:00:00.000Z\"}])"
  ],
  "out": {
   "week": "2026-W42",
-  "lines": 42,
+  "lines": 43,
   "skipped": [
    "reply_cap",
    "cold_clips"
@@ -476,6 +489,7 @@
    "cells_n30": "October (from 17 Oct; v3 forms; no pool)",
    "anchor_retest_gap": "October (from 17 Oct; v3 forms; no pool)",
    "sends": "message_ledger counts the switched replies only; it is not the bill (Meta's billable count is the cost total)",
+   "floor_kept_aligned": "tokens unknown for 1 rows",
    "cold_clips": "not measured: no store (the clip warm run is an event and a log line only; no table holds missing_listen / missing_story)",
    "recognised_without_typing": "homonym picks through the class link read as high until the class-link pick fix lands"
   }

@@ -88,6 +88,10 @@
  *                                           n = the cell's rows. Test children are out before the quality is read
  *   rapid / band|lang|ladder|all_right      the same rows with every warm-up item right (score.correct = score.n = 10);
  *                                           n = the same. No earlier figure: a watch only (LINE_NOTES, in `notes`)
+ *   floor_kept_aligned / <lang>             kept failed check reads (record true, status 'failed') that heard fewer
+ *                                           words than the scorer's floor (max(3, 10 % of the passage's tokens)) but
+ *                                           matched at least one passage word: a chance match on a noisy recording
+ *                                           keeps the record; n = the language's kept failed check reads. Near 0
  *   cold_clips                              not measured: no store (the clip warm's last run is an event only); named
  *                                           in `skipped` with its note, no row
  * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, child_bind_codes, students) skips its
@@ -599,7 +603,7 @@ async function weeklyStrip({ week, now = Date.now(), sink = writeLines } = {}) {
   if (!(await replyCapLines({ week, start, now, put }))) skipped.push('reply_cap');
   if (!(await acceptedShareLines({ put }))) skipped.push('teacher_accepted_share');
   // ── recognised without typing, kept readings under keep-all, sent / capped, the save-code funnel, implausible reads,
-  //    cold clips (web-quiz-strip-lines.js) ──
+  //    kept reads under the heard-words floor, cold clips (web-quiz-strip-lines.js) ──
   await require('./web-quiz-strip-lines').moreLines({ rows, start, end, now, put, skipped, notes, allRows });
   if (lines.some((l) => l.line === 'recognised_without_typing')) notes.recognised_without_typing = LINE_NOTES.recognised_without_typing;
 
