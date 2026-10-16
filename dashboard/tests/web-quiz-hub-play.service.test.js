@@ -342,3 +342,64 @@ describe('hub_open route value: /h/<token>?from=… rides to the bot as src', ()
     expect(hub[3]).toMatch(new RegExp(`/hub/${TOKEN}$`));
   });
 });
+
+// A child's FIRST hub open has no wq_dv cookie yet, so the server render gets the locked payload (no `play`) and
+// the edge leaves hub-play.js out; hub.js then unlocks over POST and gets `play`. The corner must still draw: hub.js
+// loads hub-play.js itself (at its own ?v=) and draws the hub again once it arrives, as it does for the Book.
+describe('first open: the locked server render, then `play` from the unlock', () => {
+  const PLAY = { first: false, lantern: null, install: false, doors: [], shelf: [{ id: 'week_story', nx: 'new', pid: 'en.read.1.story01' }, { id: 'numbers', nx: 'seen' }] };
+  function firstOpen(answer, { playLoaded = false } = {}) {
+    const head = [];
+    const root = { _h: '', attrs: {}, set innerHTML(h) { this._h = h; }, get innerHTML() { return this._h; }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k]; }, querySelector: () => null, querySelectorAll: () => [], appendChild() {} };
+    const timers = [];
+    const ctx = {
+      document: {
+        documentElement: { setAttribute() {}, classList: { toggle() {}, contains: () => false } }, cookie: '',
+        getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? { textContent: JSON.stringify({ lang: 'en', token: 'tok.tok', brand: null, locked: true, kids: [] }) } : head.find((e) => e.id === id) || null),
+        querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null),
+        createElement: (tag) => ({ tag, l: {}, setAttribute() {}, addEventListener(n, fn) { this.l[n] = fn; } }),
+        head: { appendChild: (el) => head.push(el) },
+      },
+      navigator: { userAgent: CHROME_UA, sendBeacon: () => true },
+      history: { replaceState() {} },
+      location: { search: '', protocol: 'https:', host: 'wq.example.test', assign() {}, reload() {} },
+      Blob: function Blob() {},
+      fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve(JSON.stringify(answer)) }),
+      localStorage: { getItem: () => null, setItem() {} },
+      setTimeout: (fn) => { timers.push(fn); return timers.length; },
+      Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent, Uint8Array,
+    };
+    ctx.window = ctx;
+    ctx.window.scrollTo = () => {};
+    ctx.window.addEventListener = () => {};
+    vm.createContext(ctx);
+    if (playLoaded) vm.runInContext(PLAY_SRC, ctx);
+    vm.runInContext(HUB_SRC, ctx);
+    const flush = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); while (timers.length) timers.shift()(); } };
+    return { ctx, head, html: () => root._h, flush };
+  }
+  test('hub-play.js is loaded at hub.js\'s ?v= and the shelf draws once it arrives', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY });
+    await p.flush();
+    const s = p.head.filter((e) => e.tag === 'script' && /hub-play\.js/.test(e.src || ''));
+    expect(s.map((e) => e.src)).toEqual(['/wq/hub-play.js?v=abc123']);
+    expect(p.html()).not.toContain('data-shelf');
+    vm.runInContext(PLAY_SRC, p.ctx);
+    s[0].l.load();
+    await p.flush();
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(p.html()).toContain('&amp;room=story&amp;pid=en.read.1.story01');
+  });
+  test('hub-play.js already on the page: drawn at once, nothing loaded', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY }, { playLoaded: true });
+    await p.flush();
+    expect(p.head.filter((e) => /hub-play/.test(e.src || ''))).toHaveLength(0);
+    expect(p.html()).toContain('data-shelf="1"');
+  });
+  test('no `play` in the unlock answer: nothing loaded', async () => {
+    const p = firstOpen({ ...BOOTS.done });
+    await p.flush();
+    expect(p.head).toHaveLength(0);
+    expect(p.html()).not.toContain('data-shelf');
+  });
+});
