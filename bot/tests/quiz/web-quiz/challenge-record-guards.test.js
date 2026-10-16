@@ -128,6 +128,8 @@ const D = { device: 'FamilyPhoneDeviceRef_1', lang: 'en' };
 const hub = (id = K3) => T.sign({ k: 'h', ids: [id], exp: Math.floor(Date.now() / 1000) + 3600 });
 const runOf = (ct) => T.verify(ct, 'c').r;
 const rowOf = (ct) => db.web_quiz_challenge_runs.find((r) => r.id === runOf(ct));
+const missingAnswers = (items) => items.map((it, i) => ({ i, value: String(it.answer), ms: 3000, first_key_ms: 1200, keys: String(it.answer).length }));
+const biggerTaps = (items) => items.map((it, i) => ({ i, pick: Math.max(it.a, it.b), ms: 2500 }));
 const starts = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.ch_start').map(([, d]) => d);
 const V2_COLS = ['bank_version', 'set', 'form', 'passage_id', 'item_set_id', 'mode', 'period_id', 'exposure_no', 'band', 'anchor_exposure_no', 'anchor_block', 'draw_seed', 'canonical_id', 'id_src', 'id_confidence', 'homonym_in_list', 'via', 'share_code_id', 'record', 'started_at', 'admin_mode', 'sample_arm', 'anchor_serves_any'];
 
@@ -149,10 +151,11 @@ afterEach(() => {
 const CANON = ['web_quiz_hub', 'web_quiz_identity_canon'];
 
 describe('a served-and-left row never consumes the month\'s record', () => {
-  test('one served record row this period: the next open is a check and the record, on another passage', async () => {
+  test('one served record row this period, left longer ago than the sweeper\'s served boundary: the next open is a check and the record, on another passage', async () => {
     on(V2, PERIOD, POOL, ...CANON);
     const first = await Ch.exercise(hub(), 'read', D);
     expect(rowOf(first.ct)).toMatchObject({ status: 'served', mode: 'check', record: true });
+    rowOf(first.ct).created_at = new Date(Date.now() - 25 * 3600 * 1000).toISOString();
     const again = await Ch.exercise(hub(), 'read', D);
     expect(rowOf(again.ct)).toMatchObject({ mode: 'check', record: true });
     expect(rowOf(again.ct).passage_id).not.toBe(rowOf(first.ct).passage_id);
@@ -173,6 +176,154 @@ describe('a served-and-left row never consumes the month\'s record', () => {
     rowOf(first.ct).status = 'scored';
     const again = await Ch.exercise(hub(), 'read', D);
     expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false, passage_id: rowOf(first.ct).passage_id });
+  });
+});
+
+describe('the child\'s own open record row of the stop is served again, not lost (a served row reopened)', () => {
+  // the window is the sweeper's served-row boundary (one constant, shared): within it the row is served again
+  test('the window is the sweeper\'s SERVED_MS (24 h), one constant', () => {
+    const { SERVED_MS } = require('../../../shared/services/quiz/web-quiz-challenge-served-window');
+    expect(SERVED_MS).toBe(24 * 3600 * 1000);
+    expect(require('../../../shared/services/quiz/web-quiz-challenge-sweeper').SERVED_MS).toBe(SERVED_MS);
+  });
+  const MIN = 60 * 1000;
+  // the record unique index as the database holds it (one_record_{lang,stop}_uidx: WHERE record IS TRUE, no status term)
+  const recordIndex = () => {
+    const from = fake.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t !== 'web_quiz_challenge_runs') return b;
+      const insert = b.insert;
+      // checked when the insert runs (as the database would), so two concurrent opens race exactly as they do live
+      b.insert = (row) => ({ then: (ok, no) => {
+        const clash = row && row.record === true && db.web_quiz_challenge_runs.some((r) => r.record === true && r.exercise === row.exercise
+          && r.period_id === row.period_id && r.canonical_id === row.canonical_id && ((row.exercise !== 'read' && row.exercise !== 'listen') || r.lang === row.lang));
+        if (clash) return Promise.resolve({ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } }).then(ok, no);
+        return insert(row).then(ok, no);
+      } });
+      return b;
+    };
+  };
+  const ago = (ct, mins) => { rowOf(ct).created_at = new Date(Date.now() - mins * MIN).toISOString(); };
+  const dupEvents = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.ch_record_duplicate');
+
+  test('bigger, served and left 23 h ago: the same run, one record row, no second draw, exposure unchanged, meta.reopened_at; the play scores that row', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    recordIndex();
+    const first = await Ch.exercise(hub(), 'bigger', D);
+    const id = runOf(first.ct);
+    ago(first.ct, 23 * 60);
+    const before = { ...rowOf(first.ct), meta: { ...rowOf(first.ct).meta } };
+    const again = await Ch.exercise(hub(), 'bigger', D);
+    expect(runOf(again.ct)).toBe(id);
+    expect(again).toMatchObject({ mode: 'check', draw: { outcome: 'served' } });
+    expect(again).not.toHaveProperty('practice_round');
+    expect(again.items).toEqual(first.items);
+    expect(db.web_quiz_challenge_runs).toHaveLength(1);
+    expect(db.challenge_draws).toHaveLength(1);
+    const row = rowOf(again.ct);
+    expect(row).toMatchObject({ status: 'served', mode: 'check', record: true, exposure_no: before.exposure_no, item_set_id: before.item_set_id, created_at: before.created_at });
+    expect(row.meta).toEqual({ ...before.meta, reopened_at: expect.any(String) });
+    expect(starts()[1]).toMatchObject({ mode: 'check', record: true, reopened: true, item_set_id: before.item_set_id, exposure_no: before.exposure_no });
+    expect(starts()[0]).not.toHaveProperty('reopened');
+    expect(dupEvents()).toEqual([]);
+    Ch.__reset();   // a restart between the open and the play: the run is found by its id
+    await Ch.submit({ ct: again.ct, taps: biggerTaps(again.items), ms: 25000 });
+    expect(rowOf(again.ct)).toMatchObject({ status: 'scored', mode: 'check', record: true });
+    expect(db.web_quiz_challenge_runs).toHaveLength(1);
+  });
+
+  test('the warm-up, served and left: the same A1 items and the same try-out, then scored on that row', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    recordIndex();
+    const first = await Ch.exercise(hub(), 'missing', D);
+    ago(first.ct, 23 * 60);
+    const again = await Ch.exercise(hub(), 'missing', D);
+    expect(runOf(again.ct)).toBe(runOf(first.ct));
+    expect(again).toMatchObject({ mode: 'check', anchor_block: 'A1' });
+    expect(again.items).toEqual(first.items);
+    expect(again.tryout).toEqual(first.tryout);
+    expect(db.web_quiz_challenge_runs).toHaveLength(1);
+    expect(db.challenge_draws).toHaveLength(1);
+    const r = await Ch.submit({ ct: again.ct, answers: missingAnswers(again.items), ms: 30000 });
+    expect(r.score).toMatchObject({ n: 10 });
+    expect(rowOf(again.ct)).toMatchObject({ status: 'scored', record: true, anchor_block: 'A1' });
+  });
+
+  test('read, served and left 23 h ago: the same passage, no challenge_draws insert', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    recordIndex();
+    const first = await Ch.exercise(hub(), 'read', D);
+    ago(first.ct, 23 * 60);
+    const passageId = rowOf(first.ct).passage_id;
+    const again = await Ch.exercise(hub(), 'read', D);
+    expect(runOf(again.ct)).toBe(runOf(first.ct));
+    expect(again).toMatchObject({ mode: 'check', story: first.story });
+    expect(rowOf(again.ct)).toMatchObject({ status: 'served', record: true, passage_id: passageId, exposure_no: 1 });
+    expect(db.web_quiz_challenge_runs).toHaveLength(1);
+    expect(db.challenge_draws).toHaveLength(1);
+    expect(starts()[1]).toMatchObject({ passage_id: passageId, reopened: true });
+  });
+
+  test('a served record row 25 h old (past the sweeper\'s served boundary): that row abandoned, record=false, record_lost reopened; a clean check, exposure 1, a new draw, no 23505', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    recordIndex();
+    const first = await Ch.exercise(hub(), 'read', D);
+    ago(first.ct, 25 * 60);
+    const again = await Ch.exercise(hub(), 'read', D);
+    expect(runOf(again.ct)).not.toBe(runOf(first.ct));
+    expect(rowOf(first.ct)).toMatchObject({ status: 'abandoned', record: false, meta: expect.objectContaining({ record_lost: 'reopened' }) });
+    expect(rowOf(again.ct)).toMatchObject({ status: 'served', mode: 'check', record: true, exposure_no: 1 });
+    expect(rowOf(again.ct).passage_id).not.toBe(rowOf(first.ct).passage_id);
+    expect(db.challenge_draws).toHaveLength(2);
+    expect(dupEvents()).toEqual([]);
+    expect(starts()[1]).not.toHaveProperty('reopened');
+  });
+
+  test('an abandoned row still marked record (written before this rule): updated to record=false, then a clean check', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    recordIndex();
+    const first = await Ch.exercise(hub(), 'read', D);
+    rowOf(first.ct).status = 'abandoned';
+    ago(first.ct, 5);
+    const again = await Ch.exercise(hub(), 'read', D);
+    expect(rowOf(first.ct)).toMatchObject({ status: 'abandoned', record: false, meta: expect.objectContaining({ record_lost: 'reopened' }) });
+    expect(rowOf(again.ct)).toMatchObject({ mode: 'check', record: true, exposure_no: 1 });
+    expect(rowOf(again.ct).passage_id).not.toBe(rowOf(first.ct).passage_id);
+    expect(dupEvents()).toEqual([]);
+  });
+
+  test('a scored record row: practice, as today', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    recordIndex();
+    const first = await Ch.exercise(hub(), 'bigger', D);
+    rowOf(first.ct).status = 'scored';
+    const again = await Ch.exercise(hub(), 'bigger', D);
+    expect(runOf(again.ct)).not.toBe(runOf(first.ct));
+    expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false });
+    expect(rowOf(first.ct)).toMatchObject({ status: 'scored', record: true });
+    expect(rowOf(first.ct).meta).not.toHaveProperty('reopened_at');
+  });
+
+  test('two tabs at once (neither row stored when the other reads): one record, the other 23505 and practice, as today', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    recordIndex();
+    const [a, b] = await Promise.all([Ch.exercise(hub(), 'bigger', D), Ch.exercise(hub(), 'bigger', D)]);
+    expect(runOf(a.ct)).not.toBe(runOf(b.ct));
+    expect([rowOf(a.ct), rowOf(b.ct)].map((r) => [r.mode, r.record]).sort()).toEqual([['check', true], ['practice', false]]);
+    expect(dupEvents()).toHaveLength(1);
+    expect(db.web_quiz_challenge_runs.some((r) => r.meta && r.meta.reopened_at)).toBe(false);
+  });
+
+  test('_period off: a served row is not looked for; the serve is today\'s', async () => {
+    on(V2, POOL, ...CANON);
+    const first = await Ch.exercise(hub(), 'bigger', D);
+    ago(first.ct, 5);
+    const again = await Ch.exercise(hub(), 'bigger', D);
+    expect(runOf(again.ct)).not.toBe(runOf(first.ct));
+    expect(db.web_quiz_challenge_runs).toHaveLength(2);
+    expect(rowOf(first.ct).meta).not.toHaveProperty('reopened_at');
+    expect(rowOf(first.ct)).toMatchObject({ status: 'served' });
   });
 });
 
