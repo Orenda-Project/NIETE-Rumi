@@ -212,9 +212,9 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
 }
 
 /**
- * STOP: erase every binding on this phone, ask for the erased children's kept readings to be purged, drop the
- * door's cached verdict, and send ONE reply. → { n, children } or null when the switch is off.
- * There is no per-child kept-audio delete in the code today: the purge is requested in the log only (audio_n 0).
+ * STOP: erase every binding on this phone (the phone link only — the children's kept readings stay, by the operator's
+ * decision), drop the door's cached verdict, and send ONE reply. → { n, children } or null when the switch is off.
+ * No purge is requested anywhere, not even in the log (`web_quiz.audio_purge_requested` is retired, never emitted).
  */
 async function handleStop({ phone, user = null, persona = null, now = new Date() } = {}) {
   try {
@@ -224,7 +224,6 @@ async function handleStop({ phone, user = null, persona = null, now = new Date()
     const erased = await BindRepo.eraseAllForPhone(norm, 'stop', now);
     const perChild = new Map();
     erased.forEach((r) => perChild.set(String(r.canonical_id), (perChild.get(String(r.canonical_id)) || 0) + 1));
-    if (perChild.size) logEvent('web_quiz.audio_purge_requested', { n: perChild.size, reason: 'stop', w: 's' });
     await forgetPhone(phone, norm, 'stop');
     perChild.forEach((n) => logEvent('web_quiz.bind_undo', { via: 'stop', n, audio_n: 0, w: 's' }));
     const lang = clampLanguage((user && (user.personaLanguage || user.preferred_language)) || 'en');

@@ -277,7 +277,7 @@ describe('the seven refusals, one by one (no binding row, the code spent where i
 });
 
 describe('STOP', () => {
-  test('a bound child\'s STOP erases every binding on the phone and replies once', async () => {
+  test('a bound child\'s STOP erases every binding on the phone, replies once, emits bind_undo{via:stop} and NO purge request', async () => {
     seed({ students: [student(0), student(1)], bindings: [binding(KIDS[0]), binding(KIDS[1]), binding(KIDS[2], fixturePhone(799))] });
     expect(await say('  Stop ')).toBe(true);
     const mine = fake.db.child_phone_bindings.filter((b) => b.id.endsWith('-611'));
@@ -285,7 +285,8 @@ describe('STOP', () => {
     expect(fake.db.child_phone_bindings.find((b) => b.id.endsWith('-799')).phone_norm).toBe(fixturePhone(799));
     expect(WhatsApp.sendMessage.mock.calls).toEqual([[PHONE, UX_STRINGS.jugnuBindStopped.en]]);
     expect(events('web_quiz.bind_undo')).toEqual([{ via: 'stop', n: 1, audio_n: 0, w: 's' }, { via: 'stop', n: 1, audio_n: 0, w: 's' }]);
-    expect(events('web_quiz.audio_purge_requested')).toEqual([{ n: 2, reason: 'stop', w: 's' }]);
+    // STOP removes the phone link only; the readings stay (the operator's decision): no purge is requested, in the log or anywhere
+    expect(events('web_quiz.audio_purge_requested')).toEqual([]);
     expect(events('student_ingress.cache_forget')).toEqual([{ why: 'stop', n: 1, w: 's' }]);
     expect(redisService.__keys.has(Ingress.CACHE_KEY(PHONE))).toBe(false);
     expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'bind_reply', count: 1 })]);
