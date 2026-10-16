@@ -87,7 +87,9 @@ async function deviceTrusted(token, device) {
       await Promise.all(out.ids.map((id) => redis.set(kidKey(id, d), '1', ttl)));
       const had = await redis.get(devKidsKey(d));
       const kids = [...new Set([...out.ids, ...(Array.isArray(had) ? had.map(String) : [])])].slice(0, DEVKIDS_MAX);
-      await redis.set(devKidsKey(d), kids, ttl);
+      // The list is one key for all the phone's children: never longer than a hub's 7 days, so a longer-lived token
+      // (a high class-link pick) never stretches a sibling's memory; that pick keeps its own record (web-quiz-class-link).
+      await redis.set(devKidsKey(d), kids, Math.min(ttl, T.HUB_TTL_S));
     } catch (_) { /* naming falls back to deviceKnows */ }
   }
   return out;
@@ -110,7 +112,7 @@ async function rememberKids(studentIds, device, ttlS = T.HUB_TTL_S) {
     if (wrote.some((w) => w === false)) return false;
     const had = await redis.get(devKidsKey(d));
     const kids = [...new Set([...ids, ...(Array.isArray(had) ? had.map(String) : [])])].slice(0, DEVKIDS_MAX);
-    return (await redis.set(devKidsKey(d), kids, ttl)) !== false;
+    return (await redis.set(devKidsKey(d), kids, Math.min(ttl, T.HUB_TTL_S))) !== false;
   } catch (_) {
     return false;
   }
