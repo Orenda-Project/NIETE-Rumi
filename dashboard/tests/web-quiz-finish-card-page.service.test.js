@@ -123,7 +123,7 @@ const CHILD = { first: 'Zara', chip: 'c1', animal: 'owl' };
 const CARD = 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl';
 const RESULT = { card: { first: 'Zara', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5 }, art: { card: CARD } };
 const store = (result) => ({ wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [], result } });
-const waText = (p) => { const m = /id="wq-wa" href="([^"]+)"/.exec(p.html()); return m ? decodeURIComponent(m[1].replace(/&amp;/g, '&').replace(/^https:\/\/wa\.me\/\?text=/, '')) : null; };
+const waText = (p) => { const m = /id="wq-wa"(?: target="_blank" rel="noopener")? href="([^"]+)"/.exec(p.html()); return m ? decodeURIComponent(m[1].replace(/&amp;/g, '&').replace(/^https:\/\/wa\.me\/\?text=/, '')) : null; };
 const MINT = { '/api/wq/card': { token: TOK, url: `/q/TEST?k=${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET.en } };
 
 describe('golden: switch off, the quiz card and its class share are today\'s', () => {
@@ -175,6 +175,23 @@ describe('switch on: the quiz card gains the deed and its class share becomes th
     const t = waText(p);
     expect(t.split('\n')).toEqual([`⭐ ${FC.DEEDS.en.quiz_done}`, '“⁨Plants⁩”', `https://example.test/q/TEST?k=${TOK}`, RET.en.text, RET.en.href]);
     expect(t).not.toMatch(/3\/5|stars|beat/);
+  });
+  test('in WhatsApp\'s own browser (no file share) the "send" screen opens WhatsApp in a new window, never in this page', async () => {
+    const p = onPage('en');
+    await flush(); await flush();
+    p.els['#wq-share'].fire('click');
+    const a = /<a class="wq-btn wq-go" id="wq-wa"[^>]*>/.exec(p.html())[0];
+    expect(a).toContain('target="_blank"');
+    expect(a).toContain('rel="noopener"');
+    expect(a).toContain('href="https://wa.me/?text=');
+  });
+  test('switch off: today\'s "send" screen is unchanged (its link has no target)', () => {
+    for (const lang of ['en', 'ur']) {
+      const p = page({ lang, store: store(RESULT) });
+      p.els['#wq-share'].fire('click');
+      const a = /<a class="wq-btn wq-go" id="wq-wa"[^>]*>/.exec(p.html())[0];
+      expect(a).toMatch(/^<a class="wq-btn wq-go" id="wq-wa" href="https:\/\/wa\.me\/\?text=[^"]*">$/);
+    }
   });
   test('the Next tile comes from the ranked next_offer, never from the chapter video under next', () => {
     const offer = { kind: 'storybook', href: '/s/b1/1', title: 'Read a storybook', minutes: 2, offer: 'o1', arm: 'rank' };

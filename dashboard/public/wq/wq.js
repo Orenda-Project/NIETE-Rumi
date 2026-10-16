@@ -2367,12 +2367,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     fallback(full, what, text, url, art);
   }
   // The preview shows the link on its own left-to-right line: inside an Urdu message it would wrap backwards.
-  function fallback(full, what, text, url, art) {
+  // blank: the finish card's share (web_quiz_card_v3) — WhatsApp opens in a new window, so the child keeps this page.
+  function fallback(full, what, text, url, art, blank) {
     var pic = art && ART[art];
     var h = bar() + '<h2>' + nowrap(esc(T.fbT)) + '</h2><p class="wq-sub">' + nowrap(esc(T.fbSub)) + '</p>' +
       (pic ? '<img class="wq-artprev" src="' + esc(artUrl(art)) + '" alt="">' : '') +
       '<div class="wq-card"><p>' + esc(text != null ? text : full) + '</p>' + (url ? '<p class="wq-url" dir="ltr">' + esc(url) + '</p>' : '') + '</div>' +
-      '<a class="wq-btn wq-go" id="wq-wa" href="https://wa.me/?text=' + encodeURIComponent(full) + '">' + nowrap(esc(T.fbWa)) + '</a>' +
+      '<a class="wq-btn wq-go" id="wq-wa"' + (blank ? ' target="_blank" rel="noopener"' : '') + ' href="https://wa.me/?text=' + encodeURIComponent(full) + '">' + nowrap(esc(T.fbWa)) + '</a>' +
       '<button class="wq-btn wq-soft" id="wq-copy">' + esc(T.fbCopy) + '</button>' +
       (pic ? '<a class="wq-btn wq-soft" id="wq-save" href="' + esc(artUrl(art, 'sq')) + '" download="' + esc(pic.kind + '-' + CODE) + '.jpg">' + esc(T.saveArt) + '</a>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
@@ -2484,7 +2485,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(), function (full) { fallback(full, 'card', full, null, null); }));
+    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(), function (full) { fallback(full, 'card', full, null, null, true); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
     // A tile shares the challenge in its own first-person words; the first name is the card's (c.first), never a full name.
