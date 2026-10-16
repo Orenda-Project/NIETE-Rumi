@@ -107,19 +107,23 @@ test('English: the re-asked Section A is told Q4\'s words; the first call is not
   for (const w of words) expect(a[1].prompt).toContain(w);
 });
 
-test('one question once in Q7 when only the endings differ; «کب» and «کہاں» stay two questions', () => {
+test('one question once in Q7 when only the endings differ; «کب» / «کہاں» and «ہے» / «تھا» stay two questions', () => {
   const P = Patterns.get('fde_g5_2027').subjects.social_studies;
   const exam = JSON.parse(JSON.stringify(fixture('r9-sst-chapters2')));
   const list = Object.values(exam.unseen).flatMap((t) => Object.values(t)).find((l) => l.some((q) => q.slot === 'social_studies.D.Q7'));
-  list.push(
-    { slot: 'social_studies.D.Q7', question: 'پاکستان کا پہلا وزیر اعظم کون تھا؟', answer: 'لیاقت علی خان۔' },
+  // Offered first, so room never decides: the question word and the tense keep them apart.
+  list.unshift(
     { slot: 'social_studies.D.Q7', question: 'قائد اعظم کب پیدا ہوئے؟', answer: '25 دسمبر 1876ء کو۔' },
     { slot: 'social_studies.D.Q7', question: 'قائد اعظم کہاں پیدا ہوئے؟', answer: 'کراچی میں۔' },
+    { slot: 'social_studies.D.Q7', question: 'پاکستان کا دارالحکومت کون سا ہے؟', answer: 'اسلام آباد۔' },
+    { slot: 'social_studies.D.Q7', question: 'پاکستان کا دارالحکومت کون سا تھا؟', answer: 'کراچی۔' },
   );
+  // The recorded paper has «پاکستان کے پہلے وزیر اعظم کون تھے؟»; this one only changes the endings.
+  list.push({ slot: 'social_studies.D.Q7', question: 'پاکستان کا پہلا وزیر اعظم کون تھا؟', answer: 'لیاقت علی خان۔' });
   const out = applyLayout(exam, P, { kind: 'chapters', chapters: [4, 6], pages: null }, { now: '2026-10-20T07:12:00.000Z', reasked: true });
   const q7 = slotItems(out.examJson, 'social_studies.D.Q7').map((q) => q.question);
-  // The recorded paper already has «پاکستان کے پہلے وزیر اعظم کون تھے؟».
-  expect(q7).toContain('پاکستان کے پہلے وزیر اعظم کون تھے؟');
+  expect(q7).toEqual(expect.arrayContaining([
+    'قائد اعظم کب پیدا ہوئے؟', 'قائد اعظم کہاں پیدا ہوئے؟', 'پاکستان کا دارالحکومت کون سا ہے؟', 'پاکستان کا دارالحکومت کون سا تھا؟',
+  ]));
   expect(q7).not.toContain('پاکستان کا پہلا وزیر اعظم کون تھا؟');
-  expect(q7).toEqual(expect.arrayContaining(['قائد اعظم کب پیدا ہوئے؟', 'قائد اعظم کہاں پیدا ہوئے؟']));
 });

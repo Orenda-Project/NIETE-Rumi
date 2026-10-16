@@ -658,12 +658,14 @@ function plain(text) {
 const FRAME_WORDS = new Set(('which what choose pick select find correct right following given below one option answer '
   + 'word words noun verb adjective adverb pronoun preposition is are the a an of from').split(' '));
 // A written item (no options) is also the same question when only its endings, its case markers
-// or its copula differ («پاکستان کے پہلے وزیر اعظم کون تھے؟» / «پاکستان کا پہلا وزیر اعظم کون تھا؟»);
-// the question words stay, so «کب» and «کہاں» are two questions.
-const LINKS = new Set(['کا', 'کی', 'کے', 'تھا', 'تھی', 'تھے', 'ہے', 'ہیں', 'ہو']);
+// or the number and gender of its copula differ («پاکستان کے پہلے وزیر اعظم کون تھے؟» / «پاکستان
+// کا پہلا وزیر اعظم کون تھا؟»); the tense stays («ہے» ≠ «تھا») and so do the question words, so
+// «کب» and «کہاں» are two questions.
+const CASE_MARKERS = new Set(['کا', 'کی', 'کے']);
+const COPULA = { تھا: 'تھا', تھی: 'تھا', تھے: 'تھا', ہے: 'ہے', ہیں: 'ہے' };
 const writtenKey = (text) => plain(text).split(' ')
-  .filter((w) => w && !LINKS.has(w))
-  .map((w) => (/^\p{Script=Arabic}{4,}$/u.test(w) ? w.replace(/(?:وں|یں|ے|ہ|ی|ا)$/, '') : w))
+  .filter((w) => w && !CASE_MARKERS.has(w))
+  .map((w) => COPULA[w] || (/^\p{Script=Arabic}{4,}$/u.test(w) ? w.replace(/(?:وں|یں|ے|ہ|ی|ا)$/, '') : w))
   .join(' ');
 function sameQuestion(a, b) {
   const [sa, sb] = [plain(a.question), plain(b.question)];
@@ -671,7 +673,7 @@ function sameQuestion(a, b) {
   const opts = (q) => (Array.isArray(q.options) ? q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).sort().join('|') : '');
   if (opts(a) !== opts(b)) return false;
   if (sa === sb) return true;
-  if (!opts(a)) return writtenKey(a.question) === writtenKey(b.question);
+  if (!opts(a)) { const k = writtenKey(a.question); return Boolean(k) && k === writtenKey(b.question); }
   if (!opts(a) || plain(keyText(a)) !== plain(keyText(b))) return false;
   const [A, B] = [new Set(sa.split(' ')), new Set(sb.split(' '))];
   const differ = [...A].filter((w) => !B.has(w)).concat([...B].filter((w) => !A.has(w)));
