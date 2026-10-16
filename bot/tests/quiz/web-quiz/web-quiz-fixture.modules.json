@@ -1,0 +1,4 @@
+[
+  "bot/shared/services/quiz/web-quiz-fixture.js",
+  "bot/shared/services/quiz/web-quiz-in-chunks.js"
+]
