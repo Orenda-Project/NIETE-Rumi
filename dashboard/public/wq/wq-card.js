@@ -71,6 +71,7 @@
     var now = Date.now();
     if (now - lastTap < 1000) return;
     lastTap = now;
+    if (!shown) show(c);   // a tap proves the card was seen: door_shown first, still once per view
     door(c, 'door_tap');
     confirm(c);
   }
