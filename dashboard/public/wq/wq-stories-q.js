@@ -49,14 +49,22 @@
       if (g) g.setAttribute('data-primary', '');
     }
     function lrOn(ws, cb) {
-      var p = P[m.i];
-      return (R.lr = W.WQLiveRead.mount(root.querySelector('[data-lr]'), {
+      var p = P[m.i], o = {
         words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false,
         finish: { pct: 0.8, quiet_ms: 4000, tail_ms: 1000, quiet: true },
         copy: { done: t.done, readNow: t.readNow, keepGoing: t.keepGoing, checking: t.checking, wellRead: t.wellRead },
         getKey: function () { return req('POST', '/api/wq/lr/key', { st: ctx.token, kid: ctx.kid, book: b.id, page: p.n, lang: L }).then(function (r) { return r.body; }); },
-        onResult: cb,
-      }));
+        onResult: cb, onFallback: function (why) {
+          if (why !== 'key' && why !== 'rest') return;
+          var el = root.querySelector('[data-lr]'), n = el && el.querySelector('.lr-nudge'), s;
+          if (n && n.parentNode) n.parentNode.removeChild(n);
+          eo = sum = null; m.voice();
+          s = root.querySelector('[data-lrl]');
+          if (s && n) s.appendChild(n);
+        },
+      };
+      if (p.quality === 'low') o.playWord = null;
+      return (R.lr = W.WQLiveRead.mount(root.querySelector('[data-lr]'), o));
     }
 
     function readScreen() {

@@ -253,11 +253,12 @@
     m.err = function () { P[m.i].audio = null; m.set('idle'); };
     m.granted = function () { m.set('reading'); };
     m.denied = function () { m.lr = false; m.set('denied'); };
+    m.voice = function () { m.lr = false; m.set('listening'); fx('play'); };
     m.notNow = function () { m.no[m.i] = 1; m.set('idle'); };
     m.result = function (r) {
       var ok = !!(r && r.words_read > 0 && r.words_read >= 0.1 * (r.words_total || 0));
       m.ratio = ok ? r.words_read / (r.words_total || 1) : 0;
-      m.skip = ok ? (r.marks || []).indexOf('skipped') : -1;
+      m.skip = ok && P[m.i].quality !== 'low' ? (r.marks || []).indexOf('skipped') : -1;
       if (ok) m.r[m.i] = 1;
       m.set(ok ? (m.skip >= 0 ? 'practise' : 'read') : 'together');
     };
@@ -375,14 +376,17 @@
     };
     function fx(n) {
       var p = R.pl;
-      if (n === 'play' && p) { t0 = C.now(); p.play(); zl = -1; camLine(li >= 0 ? li : 0); }
+      if (n === 'play' && p) {
+        t0 = C.now(); zl = -1; camLine(li >= 0 ? li : 0);
+        p.play();
+      }
       else if (n === 'pause' && p) { p.pause(); if (t0 >= 0) { acc += C.now() - t0; t0 = -1; } }
       else if (n === 'stop' && R.lr) R.lr.stop('done_tap');
     }
     function pageScreen() {
       var p = P[m.i], im = p.image, i = m.i;
       paint(scr('story-page', L, top(L, ic(t, 'back', t.back, '‹'), b.title, !!p.audio) + stage(p, (p.audio && p.boxes_ok ? '' : img(im.url, im.w, im.h)) + (p.audio ? '<div data-ra></div>' : '')) +
-        '<div class="wqs-extra" data-extra>' + extra() + '</div><div class="wqs-ctl">' +
+        '<div class="wqs-extra" data-extra>' + extra() + '</div><div class="wqs-lrl" data-lrl></div><div class="wqs-ctl">' +
         '<button class="wqs-arr" data-tap="prev"' + (i ? '' : ' disabled') + ' aria-label="' + esc(t.prevP) + '"><span dir="ltr">‹</span></button>' +
         '<button class="wqs-main" data-main data-primary data-tap="main"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[m.label()]) + '</button>' +
         (p.audio ? '<button class="wqs-slow" data-tap="slow" aria-pressed="' + slow() + '">' + IC.slow + ' ' + esc(t.slow) + '</button>' : '') +
@@ -391,7 +395,7 @@
       if (p.audio) {
         mount(p, {
           onEnd: ended,
-          onState: function (s) { if (s === 'error' && R.pl) m.err(); },
+          onState: function (s) { if (s === 'error' && R.pl) m.err(); else if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } },
           onWordTap: function () { if (/^(idle|paused|listened|together|denied)$/.test(m.st)) { t0 = C.now(); m.set('listening'); } },
         });
       }
@@ -510,7 +514,7 @@
         if (R.au) R.au.muted = v;
         if (s) { s.innerHTML = v ? IC.mute : IC.spk; s.setAttribute('aria-pressed', String(v)); }
       } else if (tap === 'again') { if (R.pl) { if (t0 < 0) t0 = C.now(); R.pl.replay(); if (/^(listened|paused)$/.test(m.st)) m.set('listening'); } }
-      else if (tap === 'word') { if (R.pl) R.pl.playWord(+arg); }
+      else if (tap === 'word') { if (R.pl && P[m.i].quality !== 'low') R.pl.playWord(+arg); }
       else if (tap === 'alt') m.altTap();
       else if (tap === 'slow') { ls('wq_st_slow:' + (ctx.kid || ''), slow() ? '0' : '1'); rate(); var sb = root.querySelector('.wqs-slow'); if (sb) sb.setAttribute('aria-pressed', String(slow())); }
       else if (tap === 'cam') { wu = !wu; zl = -1; if (wu) camTo(null); else if (li >= 0) camLine(li); var wb = root.querySelector('[data-whole]'); if (wb) wb.setAttribute('aria-pressed', String(!!wu)); }

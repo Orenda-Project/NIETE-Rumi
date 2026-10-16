@@ -49,6 +49,8 @@
 .wqs-whole[aria-pressed=true]{background:#ffe26b}
 .wqs-slow{flex:none;min-height:48px;border-radius:24px;padding:0 10px;background:#f4f0e2;font-weight:700;font-size:15px}
 .wqs-slow[aria-pressed=true]{background:#d6f5e3;outline:3px solid var(--hl);outline-offset:-3px}
+.wqs-lrl{text-align:center;font-size:18px;font-weight:700}
+.wqs-lrl:empty{display:none}
 .wqs-ctl{display:flex;align-items:center;gap:10px;margin-top:auto}
 .wqs-arr{width:64px;height:64px;border-radius:32px;background:#fff;box-shadow:0 4px 0 var(--line);font-size:40px;line-height:1;flex:none}
 .wqs-arr:disabled{opacity:.3}

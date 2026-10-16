@@ -53,7 +53,7 @@ function fakeEl(name) {
     setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k] == null ? null : this.attrs[k]; }, removeAttribute(k) { delete this.attrs[k]; },
     addEventListener(n, f) { (L[n] = L[n] || []).push(f); }, removeEventListener() {},
     querySelector(sel) { if (!this._h.includes(key(sel))) return null; els[sel] = els[sel] || fakeEl(sel); return els[sel]; },
-    querySelectorAll() { return []; }, appendChild() {},
+    querySelectorAll() { return []; }, appendChild(c) { (this.kids = this.kids || []).push(c); },
     click() { (L.click || []).forEach((f) => f({ target: this })); },
   };
 }
@@ -1551,6 +1551,100 @@ describe('echo reading on G1-2', () => {
     fire(root, 'eend');
     expect(screenOf(root.innerHTML)).toBe('story-page');
     expect(root.innerHTML).toContain('data-tap="echo"');
+  });
+});
+
+describe('the day\'s readings used up, and low-timed pages', () => {
+  test('onFallback(\'rest\' | \'key\'): the page voice plays like Listen, words on screen, no line of our own, no more Your turn', async () => {
+    for (const why of ['rest', 'key']) {
+      const e = env(); const root = await openReader(e);
+      toMic(e, root); e.calls.ask[0].onStream({});
+      expect(typeof e.calls.lr[0].o.onFallback).toBe('function');
+      const n = e.calls.ra.length;
+      e.calls.lr[0].o.onFallback(why);
+      const h = root.innerHTML;
+      checkScreen(h, 'en');
+      expect(screenOf(h)).toBe('story-page');
+      expect(e.calls.ra).toHaveLength(n + 1);
+      expect(e.calls.ra[n].log).toEqual(['play']);
+      expect(root.querySelector('[data-main]').textContent).toBe('Pause');
+      expect(root.querySelector('[data-extra]').innerHTML).not.toMatch(/<p|Your turn/);
+      expect(e.calls.lr[0].log).toContain('destroy');
+      e.calls.ra[n].o.onEnd();
+      expect(root.querySelector('[data-main]').textContent).toBe('Next');
+      expect(e.calls.posts.filter((x) => x.body.event === 'story_page_read')).toHaveLength(0);
+    }
+    // any other reason: the live reader carries on by itself
+    const o = env(); const r2 = await openReader(o);
+    toMic(o, r2); o.calls.ask[0].onStream({});
+    o.calls.lr[0].o.onFallback('socket');
+    expect(screenOf(r2.innerHTML)).toBe('story-read');
+    expect(o.calls.lr[0].log).not.toContain('destroy');
+    // during Read it together: the same
+    const bk = book(); bk.pages[0].words[1].t = 'Testwala.';
+    const x = env({ replies: { book: { status: 200, body: bk } } }); const r3 = await openReader(x);
+    toMic(x, r3); x.calls.ask[0].onStream({}); x.calls.lr[0].o.onResult(READ(['read', 'ahead', 'ahead', 'ahead', 'ahead']));
+    fire(r3, 'echo'); x.calls.ra[x.calls.ra.length - 1].o.onEnd();
+    expect(x.calls.lr).toHaveLength(2);
+    x.calls.lr[1].o.onFallback('rest');
+    expect(screenOf(r3.innerHTML)).toBe('story-page');
+    expect(x.calls.ra[x.calls.ra.length - 1].log).toEqual(['play']);
+  });
+  test('onFallback(\'rest\'): the live reader\'s OWN kind line is moved onto the page above the main button; it goes on the next page', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    const c = e.calls.lr[0];
+    c.el.innerHTML = '<p class="lr-nudge"></p>';
+    const line = c.el.querySelector('.lr-nudge');
+    line.textContent = 'Jugnu Testwala needs a little rest now.';
+    c.o.onFallback('rest');
+    const h = root.innerHTML;
+    checkScreen(h, 'en');
+    expect(h).toMatch(/<div class="wqs-lrl" data-lrl><\/div><div class="wqs-ctl">/);
+    const slot = root.querySelector('[data-lrl]');
+    expect(slot.kids).toEqual([line]);
+    expect(slot.kids[0].textContent).toBe('Jugnu Testwala needs a little rest now.');
+    expect(text(h)).not.toContain('rest now');   // the live reader's node, not a copy of ours
+    fire(root, 'next');
+    expect(root.querySelector('[data-lrl]').kids || []).toHaveLength(0);
+  });
+  test('the page voice blocked (the player says onState blocked, as wq-readalong.js does): Listen is the one primary, and one tap plays it', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    const mount = e.win.WQReadAlong.mount;
+    // The real player's play() returns nothing; a refused autoplay is reported as onState('blocked').
+    e.win.WQReadAlong.mount = (el, d, o) => { const p = mount(el, d, o); p.play = () => { p.log.push('play'); if (o && o.onState) o.onState('blocked'); }; return p; };
+    e.calls.lr[0].o.onFallback('key');
+    await flush();
+    const h = root.innerHTML;
+    checkScreen(h, 'en');
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    expect(h).toMatch(/data-main data-primary/);
+    const p = e.calls.ra[e.calls.ra.length - 1];
+    fire(root, 'main');
+    expect(p.log.filter((x) => x === 'play')).toHaveLength(2);
+  });
+  test('quality:\'low\': the live reader gets playWord:null and the page offers no word to tap (no practise word); a word-timed page does', async () => {
+    const bk = book(); bk.pages[0].quality = 'low';
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    expect(e.calls.lr[0].o).toHaveProperty('playWord', null);
+    e.calls.lr[0].o.onResult(READ(['read', 'read', 'read', 'skipped', 'read']));
+    let h = root.innerHTML;
+    expect((h.match(/data-tap="word"/g) || []).length).toBe(0);
+    expect(h).not.toContain('Let&#39;s practise this word');
+    expect(h).toContain('Well read!');
+    const p = e.calls.ra[e.calls.ra.length - 1];
+    fire(root, 'word', 3);
+    expect(p.log.filter((x) => /^word:/.test(x))).toHaveLength(0);
+    const e2 = env(); const r2 = await openReader(e2);
+    toMic(e2, r2); e2.calls.ask[0].onStream({});
+    expect(e2.calls.lr[0].o.playWord).toBeUndefined();
+    e2.calls.lr[0].o.onResult(READ(['read', 'read', 'read', 'skipped', 'read']));
+    h = r2.innerHTML;
+    expect((h.match(/data-tap="word"/g) || []).length).toBe(1);
+    fire(r2, 'word', 3);
+    expect(e2.calls.ra[e2.calls.ra.length - 1].log).toContain('word:3');
   });
 });
 
