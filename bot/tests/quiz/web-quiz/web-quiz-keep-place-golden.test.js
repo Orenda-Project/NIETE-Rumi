@@ -20,7 +20,8 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => {
 });
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
-jest.mock('../../../shared/services/quiz/web-quiz-identity-flags', () => ({ flags: jest.fn(async () => ({ canon: false, phoneBind: false, guestHome: false })) }), { virtual: true });
+// non-virtual: the module is real, and a virtual mock can miss when another file in the same worker loaded it first (resolver id cache).
+jest.mock('../../../shared/services/quiz/web-quiz-identity-flags', () => ({ flags: jest.fn(async () => ({ canon: false, phoneBind: false, guestHome: false })) }));
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
