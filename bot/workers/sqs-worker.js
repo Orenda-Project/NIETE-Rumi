@@ -104,25 +104,33 @@ async function withVisibilityHeartbeat(receiptHandle, sessionId, jobType, run, {
 // and never passes the webhook, so a whole portal-started chain spent with no teacher on its cost
 // events. These jobs are keyed by the coaching session, and the session row has its teacher: look
 // them up once, before the job runs, and name them on the job's context, so the job's model spend and
-// every job it queues carry them. Never for a job that already names a user or is not keyed by a
-// coaching session. A failed, empty or slow lookup (capped) names nobody and changes nothing else.
-const COACHING_SESSION_JOBS = new Set(['transcription', 'analysis', 'lesson_plan_extraction', 'report_generation']);
-const SESSION_TEACHER_LOOKUP_MS = 2000;
+// every job it queues carry them. Never for a job that is not keyed by a coaching session.
+// bd-oakmee.11.1: the session's owner (coaching_sessions.user_id: the bound teacher, else whoever
+// recorded it) is named even when the envelope names someone else. A coach who records a teacher's
+// lesson queues it under her own id, so the envelope alone split one session between coach and
+// teacher. A failed, empty or slow lookup (capped) leaves the envelope's user and changes nothing else.
+const COACHING_SESSION_JOBS = new Set(['transcription', 'analysis', 'lesson_plan_extraction', 'report_generation',
+  'observe_debrief', 'observe_teacher_report']);
+const SESSION_OWNER_LOOKUP_MS = 2000;
 
-async function nameSessionTeacher(jobType, sessionId) {
-  if (!COACHING_SESSION_JOBS.has(jobType) || !sessionId) return;
-  const sl = require('../shared/utils/structured-logger');
-  if (typeof sl.getCurrentUserId !== 'function' || sl.getCurrentUserId()) return;
+async function nameSessionOwner(sessionId, requester) {
   let timer;
+  let owner;
   try {
     const lookup = supabase.from('coaching_sessions').select('user_id').eq('id', sessionId).maybeSingle();
-    const capped = new Promise((resolve) => { timer = setTimeout(() => resolve({ data: null }), SESSION_TEACHER_LOOKUP_MS); });
+    const capped = new Promise((resolve) => { timer = setTimeout(() => resolve({ data: null }), SESSION_OWNER_LOOKUP_MS); });
     const { data } = (await Promise.race([lookup, capped])) || {};
-    if (data && data.user_id) sl.setCorrelationUser?.(data.user_id); // a non-uuid is dropped there
+    owner = data && data.user_id;
   } catch (_) {
-    // Naming the teacher is for the cost record; it must never cost the job anything.
+    // Naming the owner is for the cost record; it must never cost the job anything.
   } finally {
     clearTimeout(timer);
+  }
+  try {
+    const sl = require('../shared/utils/structured-logger');
+    if (!sl.setCorrelationUser?.(owner)) sl.setCorrelationUser?.(requester); // a non-uuid is refused there
+  } catch (_) {
+    // Same: the cost record only.
   }
 }
 
@@ -425,6 +433,9 @@ class SQSCoachingWorker {
     // envelopes queued before it existed), so the job's model spend names its user. Anything that is
     // not a users.id is dropped by runWithCorrelation, so a phone in a payload never reaches the logs.
     const requester = body.userId || (payload && (payload.userId || payload.user_id));
+    // bd-oakmee.11.1: a coaching-session job is charged to its session's owner, named inside the job
+    // once the row is read; every other job to the user its envelope names.
+    const sessionOwned = COACHING_SESSION_JOBS.has(jobType) && !!sessionId;
 
     logToFile('📋 Job claimed from SQS', {
       workerId: this.workerId,
@@ -439,7 +450,7 @@ class SQSCoachingWorker {
     // Create job promise wrapped with correlation context
     // All logs within the job will automatically include correlationId
     const jobPromise = runWithCorrelation(correlationId, async () => {
-      await nameSessionTeacher(jobType, sessionId);
+      if (sessionOwned) await nameSessionOwner(sessionId, requester);
       return this.executeJob(sessionId, jobType, payload, receiptHandle, sourceQueue, body)
         .then(async () => {
           // Handed back at shutdown: the message may already be another worker's. Deleting it
@@ -487,7 +498,7 @@ class SQSCoachingWorker {
           this.activeJobs.delete(receiptHandle);
           this.stats.lastJobTime = new Date();
         });
-    }, { userId: requester });
+    }, sessionOwned ? {} : { userId: requester });
 
     // Add to active jobs.
     // bd-yd2kb: store sourceQueue alongside the promise so graceful shutdown can
