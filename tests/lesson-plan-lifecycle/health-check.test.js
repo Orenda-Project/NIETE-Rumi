@@ -343,9 +343,9 @@ describe('a quiet path that has stopped delivering — its last attempts, over t
   test('three failed asks in a row, hours apart, are DOWN — no hourly window ever sees them together', async () => {
     mockDb.tables.lesson_plan_requests = [
       ask({ source: 'niete_portal_share', created_at: ago(20 * 60), delivered_at: ago(20 * 60 - 1) }),
-      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(9 * 60) }),
-      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(4 * 60) }),
-      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(30) }),
+      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(9 * 60), user_id: 'u1' }),
+      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(4 * 60), user_id: 'u2' }),
+      failedAsk({ source: 'niete_portal_share', error_code: 'DELIVERY_FAILED', created_at: ago(30), user_id: 'u3' }),
     ];
     const out = await Health.run({ now: NOW, redis: fakeRedis() });
     expect(out.sources).toEqual([expect.objectContaining({ asks: 1, systemFailures: 1 })]); // the window saw one
@@ -366,11 +366,11 @@ describe('a quiet path that has stopped delivering — its last attempts, over t
   test('content answers and asks still in flight neither count nor break the run', async () => {
     mockDb.tables.lesson_plan_requests = [
       ask({ created_at: ago(10 * 60), delivered_at: ago(10 * 60 - 1) }),
-      failedAsk({ error_code: 'GENERATION_FAILED', created_at: ago(6 * 60) }),
+      failedAsk({ error_code: 'GENERATION_FAILED', created_at: ago(6 * 60), user_id: 'u1' }),
       failedAsk({ error_code: 'NO_ASSET', created_at: ago(5 * 60) }),
-      failedAsk({ error_code: 'GENERATION_FAILED', created_at: ago(3 * 60) }),
+      failedAsk({ error_code: 'GENERATION_FAILED', created_at: ago(3 * 60), user_id: 'u2' }),
       failedAsk({ error_code: 'NOT_ELIGIBLE', created_at: ago(2 * 60) }),
-      failedAsk({ error_code: 'GENERATION_FAILED', created_at: ago(40) }),
+      failedAsk({ error_code: 'GENERATION_FAILED', created_at: ago(40), user_id: 'u3' }),
       ask({ status: 'processing', delivered_at: null, created_at: ago(20) }),
     ];
     const out = await Health.run({ now: NOW, redis: fakeRedis() });
@@ -380,10 +380,31 @@ describe('a quiet path that has stopped delivering — its last attempts, over t
   test('a plan made and then refused by WhatsApp (completed + DELIVERY_FAILED, no delivered_at) is a failed attempt, not a delivery', async () => {
     // markCompleted keeps status completed for the queue when the send is refused, and says DELIVERY_FAILED
     mockDb.tables.lesson_plan_requests = [60, 45, 30].map((m) => ask({
-      source: 'niete_grounded', status: 'completed', error_code: 'DELIVERY_FAILED', delivered_at: null, created_at: ago(m * 10),
+      source: 'niete_grounded', status: 'completed', error_code: 'DELIVERY_FAILED', delivered_at: null, created_at: ago(m * 10), user_id: `u${m}`,
     }));
     const out = await Health.run({ now: NOW, redis: fakeRedis() });
     expect(out.reasons).toEqual(['down:niete_grounded/whatsapp']);
+  });
+
+  test('ONE teacher tapping a send that keeps failing is her problem, not the path\'s: three failed asks from one teacher are not a verdict', async () => {
+    // September 2026 in production: 771 failed menu sends came from 51 teachers — failures cluster on a few phones.
+    mockDb.tables.lesson_plan_requests = [
+      ask({ created_at: ago(5 * 60), delivered_at: ago(5 * 60 - 1), user_id: 'u-other' }),
+      ...[50, 45, 40].map((m) => failedAsk({ error_code: 'DELIVERY_FAILED', created_at: ago(m), user_id: 'u-same' })),
+    ];
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out).toEqual(expect.objectContaining({ verdict: 'healthy', reasons: [] }));
+  });
+
+  test('…while two teachers\' failures in a row are', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      ask({ created_at: ago(5 * 60), delivered_at: ago(5 * 60 - 1), user_id: 'u-other' }),
+      failedAsk({ error_code: 'DELIVERY_FAILED', created_at: ago(50), user_id: 'u-a' }),
+      failedAsk({ error_code: 'DELIVERY_FAILED', created_at: ago(45), user_id: 'u-a' }),
+      failedAsk({ error_code: 'DELIVERY_FAILED', created_at: ago(40), user_id: 'u-b' }),
+    ];
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out.reasons).toEqual(['down:niete_v8_segment/whatsapp']);
   });
 
   test('a curriculum ask with attempts left is still in flight — not yet a failed attempt', async () => {
