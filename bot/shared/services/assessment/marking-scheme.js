@@ -309,8 +309,13 @@ function checkPicks(q, parts, pickSpec, slot, label, log, shortfall) {
   }
 }
 
-// Rule 5: each sub-question's scheme against its part's marks, then the picked words.
-function normaliseComprehension(q, slot, label, log, shortfall) {
+// Rule 5: each sub-question's scheme against its part's marks, then the picked words. A
+// sub-question the scheme prints as its own row (not a pick or antonym part, which print their
+// own chips) left with no points (the model wrote the passage's scheme as lump rows on the item)
+// gets one A point of its part marks on its own answer, listed with the rows code filled. Urdu
+// only: the English papers are live and their comprehension questions carry their own points.
+const PART_FILL = new Set(['urdu']);
+function normaliseComprehension(q, slot, label, log, shortfall, ctx) {
   const specs = Array.isArray(slot.parts_spec) ? slot.parts_spec.filter(isObject) : [];
   if (!Array.isArray(q.parts)) log.push(`${label}: parts is not a list`);
   const parts = Array.isArray(q.parts) ? q.parts : [];
@@ -324,8 +329,15 @@ function normaliseComprehension(q, slot, label, log, shortfall) {
     }
     if (!Array.isArray(part.questions)) return;
     part.questions.forEach((sub, k) => {
-      if (isObject(sub) && 'scheme' in sub) {
-        normaliseOne(sub, spec.marks_each, sub.question, slot, `${label} ${spec.key}[${k}]`, log);
+      if (!isObject(sub)) return;
+      if ('scheme' in sub) normaliseOne(sub, spec.marks_each, sub.question, slot, `${label} ${spec.key}[${k}]`, log);
+      const each = toNumber(spec.marks_each);
+      const answer = answerOf(sub.answer);
+      const ownRow = PART_FILL.has(slot.slot.split('.')[0]) && !isObject(spec.pick) && spec.key !== 'antonyms';
+      if (ownRow && !hasPoints(sub) && answer && each > 0) {
+        fillPoints(sub, each, answer);
+        ctx.filled.push({ slot: slot.slot, item: ctx.item, part: `${spec.key}[${k}]`, filled_by: 'code' });
+        log.push(`${label} ${spec.key}[${k}]: no points; one A point of ${show(each)} written on the answer`);
       }
     });
   });
@@ -418,7 +430,7 @@ function normaliseQuestion(q, slots, where, log, shortfall, ctx) {
 
   if (objective) return;
   if ('scheme' in q) normaliseOne(q, q.marks, q.question, slot, label, log);
-  if (slot.shape === 'comprehension') normaliseComprehension(q, slot, label, log, shortfall);
+  if (slot.shape === 'comprehension') normaliseComprehension(q, slot, label, log, shortfall, ctx);
   if (slot.shape === 'situation') normaliseSituationParts(q, slot, label, log, { ...ctx, shortfall });
 
   // The marks the row prints (the renderer's own fallback), on its answer.
