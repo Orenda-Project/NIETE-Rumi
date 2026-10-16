@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronRight, KeyRound } from 'lucide-react';
+import { Check, ChevronRight, KeyRound } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
 import { LESSONS_VIEWER, dcHref, type DcPrefill } from './paths';
 import { ThingToTryStrip } from './ThingToTryStrip';
+import { attachToDc, PICK_DEPTH, type PickTarget } from '../coaching/libraryPick';
 
 /**
  * bd-fmf24g.3 — a lesson plan, open (v28 canvas LessonViewer): the plan under its title, and above it
@@ -33,9 +34,14 @@ import { ThingToTryStrip } from './ThingToTryStrip';
  * instead. The viewer itself is the portal's one viewer (components/LessonPlanViewer). The page is
  * opened with the plan in its history entry (lib/lessonPlanOpen, `page`), so Back closes it; opened
  * any other way (a reload with no entry) it goes to Lesson Plans.
+ *
+ * bd-fgj73x.5 — opened from Digital Coaching (she is already in a DC observation), no Start DC observation card:
+ *   `pick`    with the eye, from From the library: the dock is Use this lesson plan, which attaches it and steps back
+ *             to her DC screen (coaching/libraryPick)
+ *   `fromDc`  her attached plan, opened to read: Back is her DC screen
  */
 
-type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill } | null;
+type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean } | null;
 
 export function ViewerPage() {
   const C = useCopy(LESSONS);
@@ -51,6 +57,8 @@ export function ViewerPage() {
   // The strip's plan step and her taps on it, for the plan they were read for only: another plan opened from here
   // (the answer key) gets no highlight.
   const [step, setStep] = useState<{ key: string; index: number | null; jump: number }>({ key: '', index: null, jump: 0 });
+  const pick = state?.pick ?? null;
+  const inDc = !!pick || !!state?.fromDc;
 
   const close = useCallback(() => {
     if (location.key !== 'default') navigate(-1);
@@ -78,7 +86,16 @@ export function ViewerPage() {
       crumb={view.crumb}
       title={view.title}
       onBack={close}
-      dock={(
+      dock={pick ? (
+        <button
+          type="button"
+          onClick={() => attachToDc(navigate, pick, PICK_DEPTH.viewer, location.key !== 'default')}
+          className={cn('flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-[#33374a] bg-[#33374a] text-[16px] font-semibold text-white', FOCUS)}
+        >
+          <Check className="h-5 w-5" aria-hidden="true" />
+          {C.usePlan}
+        </button>
+      ) : (
         <ShareActions
           available={canSend}
           onSend={() => shareToWhatsApp('lesson', lessonPlanShareId(source))}
@@ -87,7 +104,7 @@ export function ViewerPage() {
         />
       )}
     >
-      {recording ? null : (
+      {recording || inDc ? null : (
         <Link
           to={dcHref(teacherPath('coaching'), dc)}
           className={cn('flex min-h-[68px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] px-3.5 text-[16px] font-semibold text-[#1d2025]', FOCUS)}

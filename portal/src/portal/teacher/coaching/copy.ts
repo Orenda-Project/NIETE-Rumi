@@ -36,6 +36,7 @@ export const COACHING_V2_COPY = {
   optional: 'Optional',
   /** The empty lesson plan row: a noun, as every prompt (niete-portal: never "Select ..."). */
   selectPlan: 'Lesson plan',
+  viewPlan: 'View lesson plan',
   planPhoto: 'Plan photo',
   planFallback: 'Lesson plan',
   change: 'Change',
@@ -176,6 +177,7 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   lessonPlan: 'لیسن پلان',
   optional: 'اختیاری',
   selectPlan: 'لیسن پلان',
+  viewPlan: 'لیسن پلان دیکھیں',
   planPhoto: 'پلان کی تصویر',
   planFallback: 'لیسن پلان',
   change: 'تبدیل کریں',
