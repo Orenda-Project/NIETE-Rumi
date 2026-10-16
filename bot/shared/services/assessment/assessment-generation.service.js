@@ -17,7 +17,7 @@
  * AI reviewer. The caller never switched any of them on.
  */
 
-const { getClient } = require('../llm-client');
+const { getClient, getClientForModel } = require('../llm-client');
 const { resolveModelForJob } = require('../../config/model-registry');
 const { configForRequest, ensureCurrent } = require('../../config/model-settings');
 const { logToFile } = require('../../utils/logger');
@@ -28,6 +28,17 @@ const PROMPTS = require('./ict-prompts.json');
 /** One question, one answer: what this family should run right now. */
 function familyModel(family) {
   return resolveModelForJob('assessment.generate', { cfg: configForRequest(), family }).model;
+}
+
+/**
+ * A board-pattern paper's model and the job it is billed to. Its own job, so it can move without
+ * moving plain papers; with nothing set or written for that job (or the kill switch on) it is
+ * exactly familyModel, under the plain job's name, as before the job existed.
+ */
+function patternModel(family) {
+  const fde = resolveModelForJob('assessment.generate.fde', { cfg: configForRequest(), family });
+  if (fde.inherited || fde.source === 'kill-switch') return { model: familyModel(family), job: 'assessment.generate' };
+  return { model: fde.model, job: 'assessment.generate.fde' };
 }
 
 /**
@@ -733,12 +744,105 @@ const BookContent = () => require('./book-content.service');
  * written one section per call. The job's model reasons before it answers and
  * the reasoning spends the same budget: real full-syllabus Maths and Social
  * Studies sections ran out at 12,000 (Maths A: 7,927 of 11,986 tokens reasoning).
- * So a section has 24,000 and asks for low reasoning effort, which the client
- * passes to every lane. The wait is the SDK's request option, not a body field.
+ * So a section asks for low reasoning effort, which the client passes to every
+ * lane. The wait is the SDK's request option, not a body field.
+ *
+ * A section's slots can only RAISE that ceiling: about 1,000 tokens per
+ * written item (its marking scheme included) and 400 per MCQ, up to 32,000.
+ * Never below 24,000. That number was set after a real section ran out at
+ * 12,000, and low-effort reasoning has not been measured at the high end, so
+ * the formula is a ceiling-raiser only. No section of today's pattern sizes
+ * above 24,000; a larger section added later gets the room it needs.
  */
-const SECTION_MAX_TOKENS = 24000;
+const SECTION_TOKENS_PER_WRITTEN = 1000;
+const SECTION_TOKENS_PER_MCQ = 400;
+const SECTION_MIN_TOKENS = 24000;
+const SECTION_MAX_TOKENS = 32000;
 const SECTION_TIMEOUT_MS = 300000;
 const SECTION_REASONING = { effort: 'low' };
+
+/** The output ceiling for one section's call, from the items its slots generate. */
+function sectionMaxTokens(section) {
+  const want = (section.slots || []).reduce((sum, slot) => sum + (Number(slot.generate) || 0)
+    * (slot.shape === 'mcq' ? SECTION_TOKENS_PER_MCQ : SECTION_TOKENS_PER_WRITTEN), 0);
+  return Math.min(SECTION_MAX_TOKENS, Math.max(SECTION_MIN_TOKENS, want));
+}
+
+// The direct Anthropic lane caches a marked prefix; every other lane is sent today's strings.
+const DIRECT_LANE = 'anthropic-direct/';
+const CACHE_EPHEMERAL = Object.freeze({ type: 'ephemeral' });
+
+/**
+ * One section's messages. Off the direct lane, exactly today's two strings. On it, the system
+ * prompt and the book text are marked for caching: every section of a paper set from the whole
+ * syllabus shares both, and they come before anything section-specific. The text is unchanged,
+ * only split: the user prompt's parts joined are the same string byte for byte. When the book
+ * block cannot be found exactly, only the system prompt is marked.
+ */
+function _sectionMessages({ system, user, pageContent, model }) {
+  if (!String(model || '').startsWith(DIRECT_LANE)) {
+    return [{ role: 'system', content: system }, { role: 'user', content: user }];
+  }
+  const block = `**Book Text Content:**\n\`\`\`\n${pageContent}\n\`\`\`\n`;
+  const at = user.indexOf(block);
+  const end = at + block.length;
+  const content = at < 0 || end >= user.length
+    ? user
+    : [{ type: 'text', text: user.slice(0, end), cache_control: CACHE_EPHEMERAL }, { type: 'text', text: user.slice(end) }];
+  return [
+    { role: 'system', content: [{ type: 'text', text: system, cache_control: CACHE_EPHEMERAL }] },
+    { role: 'user', content },
+  ];
+}
+
+/** The cached part of a section's messages, as a comparable key; null when nothing past the system is cached. */
+function _cachedPrefixKey(messages) {
+  const user = messages[1] && messages[1].content;
+  if (!Array.isArray(user) || !user[0] || !user[0].cache_control) return null;
+  return JSON.stringify([messages[0].content, user[0]]);
+}
+
+/**
+ * Write each prefix that two or more sections share to the cache, once, before the sections go.
+ *
+ * Sections run in parallel, and a cache entry is readable only once the request writing it has
+ * started answering: sent together, every section writes the same prefix and none reads it. One
+ * call with that exact prefix, the sections' own model, effort and JSON instruction, and no output
+ * (`max_tokens: 0`, which the API accepts with thinking left at its default) writes it; the
+ * sections then read it. Maths sections are set from different pages and share nothing past the
+ * system prompt, so they get no warm call. A failure here never fails the paper: the sections
+ * simply write the cache themselves. Returns each warm call's usage, which is billed.
+ */
+async function _warmSharedPrefixes({ built, model, job, requestId, pattern }) {
+  if (!String(model || '').startsWith(DIRECT_LANE)) return [];
+  const groups = new Map();
+  for (const { section, messages } of built) {
+    const key = _cachedPrefixKey(messages);
+    if (key) groups.set(key, (groups.get(key) || []).concat([{ section, messages }]));
+  }
+  const shared = [...groups.values()].filter((g) => g.length >= 2);
+  return Promise.all(shared.map(async (group) => {
+    const [system, user] = group[0].messages;
+    const sections = group.map((g) => g.section.id);
+    try {
+      const { client } = getClientForModel(model, { job, routed: true });
+      const response = await client.chat.completions.create({
+        model,
+        messages: [system, { role: 'user', content: [user.content[0], { type: 'text', text: 'warmup' }] }],
+        temperature: 0.7,
+        response_format: { type: 'json_object' },
+        max_tokens: 0,
+        reasoning: SECTION_REASONING,
+      }, { timeout: SECTION_TIMEOUT_MS });
+      const usage = (response && response.usage) || {};
+      logToFile('[assessment] cache warmed', { requestId, pattern, sections, model, usage, cost: usage.cost ?? null });
+      return usage;
+    } catch (err) {
+      logToFile('[assessment] cache warm failed', { requestId, pattern, sections, model, error: err.message });
+      return null;
+    }
+  })).then((usages) => usages.filter(Boolean));
+}
 
 /**
  * The marks split FDE's table of specification asks for, per subject, by
@@ -795,6 +899,19 @@ const HELD_PAGES = '1-27';
 // A quote this long from those pages is a quote, not a shared phrase. Stock
 // exercise wording runs to 21 characters in real items; a line of verse is 25+.
 const HELD_SHINGLE = 24;
+// Social Studies: no item may quote, explain or evaluate a religious text, the book's own
+// "importance of the Farewell Sermon" questions included. An item naming one of these is
+// held. Each pattern is matched on _heldNorm text as a whole word, with the endings the word
+// takes (plural, adjective), so «احمد», «ہدایت», «نعمت» or «مدعا» never match.
+const HELD_TERMS_SST = Object.freeze([
+  { term: 'حجۃ الوداع', pattern: 'حجت?ہ ?الوداعی?' },
+  { term: 'حدیث', pattern: 'حدیث(?:یں|وں|ی)?|احادیث' },
+  { term: 'آیت', pattern: 'ایت(?:یں|وں)?|ایات' },
+  { term: 'قرآن', pattern: 'قران(?:ی|ے)?' },
+  { term: 'دعا', pattern: 'دعا(?:ئیں|ئیہ|ئی|ئے|ؤں|وں|یں|ی|ے)?' },
+  { term: 'نعت', pattern: 'نعت(?:یں|وں|یہ)?' },
+  { term: 'حمد', pattern: 'حمد(?:یہ)?' },
+].map(({ term, pattern }) => Object.freeze({ term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, 'u') })));
 
 /** "1 mark each", "1.25 marks each", "20 marks (parts 10 + 8 + 2)". */
 function _marksPhrase(slot) {
@@ -983,15 +1100,15 @@ function _mergeSections(trees) {
  * cut-off reply (the same reply again) or a failed call (an outage). Returns the
  * section's tree and every call's usage, so the tokens add up to what was billed.
  */
-async function _writeSection({ messages, model, ownModel, pattern, section }) {
+async function _writeSection({ messages, model, ownModel, job = 'assessment.generate', pattern, section }) {
   const ask = () => getClient().chat.completions.create({
     model,
-    job: 'assessment.generate',
+    job,
     ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
     messages,
     temperature: 0.7,
     response_format: { type: 'json_object' },
-    max_tokens: SECTION_MAX_TOKENS,
+    max_tokens: sectionMaxTokens(section),
     reasoning: SECTION_REASONING,
   }, { timeout: SECTION_TIMEOUT_MS });
 
@@ -1037,11 +1154,16 @@ async function _writeSection({ messages, model, ownModel, pattern, section }) {
 }
 
 function _sumUsage(usages) {
-  const sum = (k) => {
-    const vals = usages.map((u) => u && u[k]).filter((v) => v != null);
+  const sum = (k, of = (u) => u && u[k]) => {
+    const vals = usages.map(of).filter((v) => v != null);
     return vals.length ? vals.reduce((s, v) => s + Number(v), 0) : null;
   };
-  return { prompt_tokens: sum('prompt_tokens'), completion_tokens: sum('completion_tokens'), total_tokens: sum('total_tokens'), cost: sum('cost') };
+  // Prompt tokens served from a cache, where the lane reports them (already inside prompt_tokens).
+  const cached = sum('cached_tokens', (u) => u && u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens);
+  return {
+    prompt_tokens: sum('prompt_tokens'), completion_tokens: sum('completion_tokens'), total_tokens: sum('total_tokens'), cost: sum('cost'),
+    cached_tokens: cached,
+  };
 }
 
 /** Whitespace collapsed, so a quote laid out differently on the page still matches. */
@@ -1077,14 +1199,73 @@ function _urduStringsOf(P) {
 }
 
 /**
- * Urdu only: drop every item that quotes lessons 1–3 (book pp 1–27: the Hamd,
+ * One spelling for a word however it was typed: vowel marks, tatweel and zero-width
+ * characters gone, Arabic letter forms read as their Urdu ones (ي ى → ی, ك → ک,
+ * ة ۃ ه ۂ ۀ → ہ, آ أ إ ٱ → ا), whitespace collapsed.
+ */
+function _heldNorm(text) {
+  return _flat(String(text ?? '')
+    .replace(/[ً-ٰٟۖ-ۭـ​-‏⁠﻿]/g, '')
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[ةۃهۂۀ]/g, 'ہ')
+    .replace(/[آأإٱ]/g, 'ا'));
+}
+
+/** The first held term a Social Studies item names (its marking scheme included), or null. */
+function _heldTermOf(q) {
+  const texts = [..._textsOf(q)];
+  if (q.scheme && typeof q.scheme === 'object') texts.push(..._textsOf({ parts: q.scheme }));
+  for (const t of texts) {
+    const s = _heldNorm(t);
+    const hit = HELD_TERMS_SST.find(({ re }) => re.test(s));
+    if (hit) return hit.term;
+  }
+  return null;
+}
+
+/** Drop every item `held(q)` names, logging each; returns [{ slot, reason, ... }]. */
+function _dropHeld(examJson, held, requestId = null) {
+  const dropped = [];
+  for (const branch of ['seen', 'unseen']) {
+    const tree = examJson && examJson[branch];
+    if (!tree || typeof tree !== 'object') continue;
+    for (const types of Object.values(tree)) {
+      if (!types || typeof types !== 'object') continue;
+      for (const [type, list] of Object.entries(types)) {
+        if (!Array.isArray(list)) continue;
+        types[type] = list.filter((q) => {
+          if (!q || typeof q !== 'object') return true;
+          const why = held(q);
+          if (!why) return true;
+          const hit = { slot: q.slot || null, ...why };
+          dropped.push(hit);
+          logToFile('[assessment] held item dropped', requestId ? { requestId, ...hit } : hit);
+          return false;
+        });
+      }
+    }
+  }
+  return dropped;
+}
+
+/**
+ * Urdu: drop every item that quotes lessons 1–3 (book pp 1–27: the Hamd,
  * the Naat and the third lesson). The prompt already says so; this makes it
  * true when the model forgets. A quote is any run of 24 characters or more
  * from those pages, whitespace collapsed. The pages are loaded once per paper.
- * Mutates the tree; returns what was dropped, [{ slot, reason }].
+ * Social Studies: drop every item that names a religious text (HELD_TERMS_SST).
+ * Either way the emptied place is a shortfall and the paper fails; it is never refilled.
+ * Mutates the tree; returns what was dropped, [{ slot, reason }] (plus `term` for Social Studies).
  */
-async function religiousFilter(examJson, P, { grade, subject, allowedText = '' } = {}) {
+async function religiousFilter(examJson, P, { grade, subject, allowedText = '', requestId = null } = {}) {
   const key = (P && P.key) || Patterns.normalise(subject);
+  if (key === 'social_studies') {
+    return _dropHeld(examJson, (q) => {
+      const term = _heldTermOf(q);
+      return term ? { reason: 'religious_text', term } : null;
+    }, requestId);
+  }
   if (key !== 'urdu') return [];
   const held = await BookContent().loadPageRangeContent({ grade, subject, pageRanges: HELD_PAGES });
   const text = _flat(String(held.content || '').replace(/=== Page \d+ ===/g, ' '));
@@ -1110,25 +1291,7 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '' }
     return false;
   });
 
-  const dropped = [];
-  for (const branch of ['seen', 'unseen']) {
-    const tree = examJson && examJson[branch];
-    if (!tree || typeof tree !== 'object') continue;
-    for (const types of Object.values(tree)) {
-      if (!types || typeof types !== 'object') continue;
-      for (const [type, list] of Object.entries(types)) {
-        if (!Array.isArray(list)) continue;
-        types[type] = list.filter((q) => {
-          if (!q || typeof q !== 'object' || !quotes(q)) return true;
-          const hit = { slot: q.slot || null, reason: 'lesson_1_3' };
-          dropped.push(hit);
-          logToFile('[assessment] held item dropped', hit);
-          return false;
-        });
-      }
-    }
-  }
-  return dropped;
+  return _dropHeld(examJson, (q) => (quotes(q) ? { reason: 'lesson_1_3' } : null), requestId);
 }
 
 /** Where a pattern paper's pages come from: the pattern's syllabus, the job's pages, or a chapter. */
@@ -1149,7 +1312,7 @@ async function _loadPatternContent({ grade, subject, P, scope, pageRanges, chapt
  */
 // `onSection` is called (and awaited, never thrown from) as each section comes back, so the caller
 // can mark the paper row as alive: a run of several long calls must not look silent.
-async function generatePatternExam({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null }) {
+async function generatePatternExam({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null }) {
   const startedAt = Date.now();
   const def = Patterns.get(pattern);
   const key = Patterns.normalise(subject);
@@ -1166,52 +1329,84 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
 
   const family = URDU_MEDIUM.has(canonical(subject) || 'eng') ? 'urdu' : 'eng';
   if (typeof ensureCurrent === 'function') await ensureCurrent();
-  const model = familyModel(family);
+  const { model, job } = patternModel(family);
   const ownModel = resolveModelForJob('assessment.generate', { family }).model;
   const system = buildSystemPrompt({ subject, includeAnswerKey: true });
 
-  const results = await Promise.all(P.sections.map(async (section) => {
+  const built = P.sections.map((section) => {
     const text = _sectionText(section, loaded, layoutScope.kind, sectionRanges[section.id]);
-    const messages = [
-      { role: 'system', content: system },
-      { role: 'user', content: buildPatternUserPrompt({
+    const messages = _sectionMessages({
+      system,
+      user: buildPatternUserPrompt({
         grade, subject, pageContent: text.content, pageReference: text.pageReference,
         section, slots: section.slots, lang: P.medium, P, scope: layoutScope,
-      }) },
-    ];
+      }),
+      pageContent: text.content,
+      model,
+    });
+    return { section, messages };
+  });
+  // Awaited, so the sections that follow read what it wrote. Empty off the direct lane.
+  const warmUsages = await _warmSharedPrefixes({ built, model, job, requestId, pattern });
+
+  const writeOne = async ({ section, messages }) => {
     const began = Date.now();
-    const { tree, usages } = await _writeSection({ messages, model, ownModel, pattern, section });
+    const { tree, usages } = await _writeSection({ messages, model, ownModel, job, pattern, section });
     const usage = _sumUsage(usages);
     const elapsedMs = Date.now() - began;
     const slots = section.slots.map((s) => s.slot);
     logToFile('[assessment] generating', {
-      pattern, section: section.id, slots, model, usage, cost: usage.cost ?? null, elapsedMs,
+      requestId, pattern, section: section.id, slots, model, usage, cost: usage.cost ?? null,
+      cachedTokens: usage.cached_tokens ?? 0, elapsedMs,
     });
     if (onSection) {
       try { await onSection(section.id); } catch (err) { logToFile('[assessment] section progress not recorded', { section: section.id, error: err.message }); }
     }
     return { id: section.id, slots, usage, elapsedMs, tree, usages };
-  }));
+  };
+  const results = await Promise.all(built.map(writeOne));
+  const now = new Date().toISOString();
+  const merged = () => {
+    const tree = _mergeSections(results.map((r) => r.tree));
+    stripImageKeys(tree);
+    normaliseAnswers(tree);
+    return tree;
+  };
 
-  let examJson = _mergeSections(results.map((r) => r.tree));
-  stripImageKeys(examJson);
-  normaliseAnswers(examJson);
+  // A section that came back short is asked once more before the paper fails: the usual hole
+  // is one whole block of a section (Maths C's Q4–8), and the same call usually comes back
+  // whole. Decided on the reply as the model wrote it, BEFORE the held-content filter, so an
+  // item the filter drops is still never refilled.
+  const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern });
+  const short = firstLaid.shortfall.concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall);
+  const shortSlots = new Set(short.map((f) => f.slot));
+  const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)));
+  const extraUsages = [];
+  if (again.length) {
+    await Promise.all(again.map(async (b) => {
+      const shortfall = short.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+      logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall });
+      const i = results.findIndex((r) => r.id === b.section.id);
+      extraUsages.push(...results[i].usages);
+      results[i] = await writeOne(b);
+    }));
+  }
 
   // Layout first, so the filter sees every item under its pattern slot; a drop
   // then lays the paper out again, and the emptied place is a shortfall — the
   // extras the model wrote were already set aside and never fill it.
-  const now = new Date().toISOString();
+  let examJson = merged();
   let laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
   const firstUnplaced = laid.unplaced;
   examJson = laid.examJson;
-  const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content });
+  const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content, requestId });
   if (dropped.length) {
     laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
     examJson = laid.examJson;
   }
   const layout = { placed: laid.placed, unplaced: firstUnplaced };
   logToFile('[assessment] layout applied', {
-    pattern, placed: layout.placed, unplaced: layout.unplaced, totalMarks: examJson._layout.total_marks,
+    requestId, pattern, placed: layout.placed, unplaced: layout.unplaced, totalMarks: examJson._layout.total_marks,
     sections: P.sections.map((s) => s.id), dropped: dropped.length, shortfall: laid.shortfall,
   });
   if (laid.shortfall.length) {
@@ -1231,11 +1426,12 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     logToFile('[assessment] maths key replaced', { slot: note.slot, n: note.n ?? note.index ?? null, computed: note.computed, model: note.model });
   });
 
-  const all = _sumUsage(results.flatMap((r) => r.usages));
+  // The warm call is billed like any other, so it is in the paper's totals.
+  const all = _sumUsage(warmUsages.concat(extraUsages, results.flatMap((r) => r.usages)));
   return {
     examJson,
     questionCount: countQuestions(examJson),
-    tokenData: { inputTokens: all.prompt_tokens, outputTokens: all.completion_tokens, totalTokens: all.total_tokens, model },
+    tokenData: { inputTokens: all.prompt_tokens, outputTokens: all.completion_tokens, totalTokens: all.total_tokens, cost: all.cost, model },
     pageReference: loaded.pageReference,
     chapterTitle: null,
     sections: results.map(({ id, slots, usage, elapsedMs }) => ({ id, slots, usage, elapsedMs })),
@@ -1247,6 +1443,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
 module.exports = {
   generateExam,
   generatePatternExam,
+  sectionMaxTokens,
   buildPatternUserPrompt,
   religiousFilter,
   buildSystemPrompt,

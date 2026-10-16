@@ -481,7 +481,7 @@ async function listFamily({ paperId, userId }) {
     .eq('id', paperId).maybeSingle();
   if (error || !anchor || anchor.assessment_requests?.user_id !== userId) return { code: 'NOT_FOUND' };
   const { data: rows, error: famErr } = await supabase.from('assessment_papers')
-    .select('id, status, edited_from, created_at, question_count, total_marks')
+    .select('id, status, edited_from, created_at, question_count, total_marks, pattern:exam_json->_layout->>preset_id')
     .eq('request_id', anchor.request_id);
   if (famErr) return { code: 'NOT_FOUND' };
   const asc = [...(rows || [])].sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
@@ -496,8 +496,13 @@ async function listFamily({ paperId, userId }) {
     };
   });
   const latestReady = [...numbered].reverse().find((v) => v.status === 'ready');
+  // Every version of a board-pattern paper is that pattern (a failed edit row may carry no tree,
+  // so the family's own answer is used). A plain family's rows stay exactly as they were.
+  const pattern = (rows || []).map((r) => r.pattern).find(Boolean) || null;
   return {
-    versions: numbered.reverse().map((v) => ({ ...v, latest: !!latestReady && v.paperId === latestReady.paperId })),
+    versions: numbered.reverse().map((v) => ({
+      ...v, latest: !!latestReady && v.paperId === latestReady.paperId, ...(pattern ? { pattern } : {}),
+    })),
   };
 }
 

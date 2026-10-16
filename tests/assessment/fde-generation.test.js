@@ -167,7 +167,7 @@ describe('generatePatternExam: one call per section', () => {
     ]);
   });
 
-  test('max_tokens 24000 per call, low reasoning effort, timeout 300000, the rest as generateExam sends it', async () => {
+  test('max_tokens 24000 per call (the floor; no maths section sizes above it), low reasoning effort, timeout 300000, the rest as generateExam sends it', async () => {
     bookFor('maths');
     fakeModel('maths');
     await Gen.generatePatternExam(ARGS('maths'));

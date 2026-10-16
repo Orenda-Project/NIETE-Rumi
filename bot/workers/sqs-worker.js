@@ -76,9 +76,11 @@ const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 const HEARTBEAT_EXTEND_SECONDS = 900;
 const HEARTBEAT_CEILING_MS = 40 * 60 * 1000;
 
-async function withVisibilityHeartbeat(receiptHandle, sessionId, jobType, run) {
+async function withVisibilityHeartbeat(receiptHandle, sessionId, jobType, run, { isReleased = () => false } = {}) {
   const heartbeat = startVisibilityHeartbeat({
-    extend: (seconds) => SQSQueueService.extendJobTimeout(receiptHandle, seconds),
+    // Once shutdown has handed the message back, one more extension would hide it for another
+    // 900 s from the worker that is meant to pick it up.
+    extend: (seconds) => (isReleased() ? undefined : SQSQueueService.extendJobTimeout(receiptHandle, seconds)),
     intervalMs: HEARTBEAT_INTERVAL_MS,
     extendSeconds: HEARTBEAT_EXTEND_SECONDS,
     ceilingMs: HEARTBEAT_CEILING_MS,
@@ -132,6 +134,10 @@ class SQSCoachingWorker {
   constructor(workerId) {
     this.workerId = workerId;
     this.activeJobs = new Map(); // Map of receiptHandle -> Promise
+    // Papers shutdown has stopped managing (handed back, or left to their visibility window), and
+    // the subset whose message it handed back. See _handBackPapers.
+    this.detachedHandles = new Set();
+    this.releasedHandles = new Set();
     this.isShuttingDown = false;
     this.isRunning = false;
     this.stats = {
@@ -436,6 +442,14 @@ class SQSCoachingWorker {
       await nameSessionTeacher(jobType, sessionId);
       return this.executeJob(sessionId, jobType, payload, receiptHandle, sourceQueue, body)
         .then(async () => {
+          // Handed back at shutdown: the message may already be another worker's. Deleting it
+          // here would take the paper away from the run that now owns it.
+          if (this.releasedHandles.has(receiptHandle)) {
+            logToFile('Job finished after its message was handed back; leaving the message alone', {
+              workerId: this.workerId, sessionId, jobType,
+            });
+            return;
+          }
           // Job succeeded - delete from queue using correct completion method
           if (sourceQueue === 'video') {
             await SQSQueueService.completeVideoJob(receiptHandle);
@@ -483,7 +497,11 @@ class SQSCoachingWorker {
     // an order of magnitude short of the second, while a blanket 10-minute drain would make every
     // coaching deploy ten minutes slower for nothing. Without this field the drain has no way to
     // know which it is holding.
-    this.activeJobs.set(receiptHandle, { promise: jobPromise, sourceQueue, jobType });
+    // A paper also carries its requestId, the only way shutdown can find its row to hand it back.
+    this.activeJobs.set(receiptHandle, {
+      promise: jobPromise, sourceQueue, jobType,
+      ...(jobType === 'assessment_generate' ? { requestId: payload && payload.requestId } : {}),
+    });
     this.stats.jobsProcessed++;
   }
 
@@ -615,10 +633,30 @@ class SQSCoachingWorker {
         // window is the heartbeat's own size, so a worker killed in its first
         // minute hands the job back only once the paper's row reads as stale and
         // the next delivery can take it over.
+        //
+        // The row gets its own heartbeat. A redelivery takes a `generating` row
+        // over after PAPER_STALE_MS (180 s) of silence, and the generator alone
+        // can be silent far longer than that while it waits on the model, so the
+        // worker touches the row every minute for as long as the run is alive.
+        // Both heartbeats stop the moment shutdown hands the paper back.
         await SQSQueueService.extendJobTimeout(receiptHandle, HEARTBEAT_EXTEND_SECONDS);
         const AssessmentOrchestrator = require('../shared/services/assessment/assessment-orchestrator.service');
-        await withVisibilityHeartbeat(receiptHandle, payload && payload.requestId, 'assessment_generate',
-          () => AssessmentOrchestrator.process(payload));
+        const requestId = payload && payload.requestId;
+        const isReleased = () => this.releasedHandles.has(receiptHandle);
+        const rowHeartbeat = startVisibilityHeartbeat({
+          extend: () => (isReleased() ? undefined : AssessmentOrchestrator.touchGeneratingPaper(requestId)),
+          intervalMs: HEARTBEAT_INTERVAL_MS,
+          ceilingMs: HEARTBEAT_CEILING_MS,
+          onExtendError: (err) => logToFile('paper row heartbeat: touch failed, continuing', {
+            sessionId, jobType, error: err.message,
+          }),
+        });
+        try {
+          await withVisibilityHeartbeat(receiptHandle, requestId, 'assessment_generate',
+            () => AssessmentOrchestrator.process(payload), { isReleased });
+        } finally {
+          rowHeartbeat.stop();
+        }
         break;
       }
 
@@ -907,16 +945,60 @@ class SQSCoachingWorker {
    * the redelivered message authors the same lesson again from round 0 — another ~$0.30-0.60 and
    * another 2.5-7 minutes on a teacher who is already waiting.
    *
-   * A paper (`assessment_generate`) is the same case: its row is `generating`, and a delivery that
-   * finds a row written moments ago leaves it to the run that owns it. Handed back at a deploy, the
-   * paper would wait for that row to go stale instead of being finished here, under its heartbeat.
+   * A paper (`assessment_generate`) used to be here too. It is not any more: the drain only works
+   * when the platform gives the process minutes, and on a deploy it gives seconds, so a "drained"
+   * paper simply died with its message hidden for 900 s and its row reading as busy. A paper is
+   * now handed back the moment SIGTERM arrives (_handBackPapers), and its row says so.
    */
-  static LONG_JOB_TYPES = new Set(['lp612_author', 'assessment_generate']);
+  static LONG_JOB_TYPES = new Set(['lp612_author']);
+
+  /**
+   * Hand every in-flight paper back at once: row to `queued` FIRST, then the message to
+   * visibility 0, so the next worker takes it over straight away instead of ~15 minutes later.
+   *
+   * The order matters. A delivery that arrived between the two would read a fresh `generating`
+   * row, skip it as another run's, and ack the paper's only message. For the same reason a paper
+   * whose row could not be marked keeps its message hidden; it comes back when the window runs
+   * out, by which time the row is stale and is taken over then (the old path, never worse).
+   *
+   * Either way shutdown stops managing the paper (detachedHandles): it neither waits on it nor
+   * releases it later. Its run dies with the process.
+   */
+  async _handBackPapers() {
+    const papers = [...this.activeJobs.entries()]
+      .filter(([rh, m]) => m && m.jobType === 'assessment_generate' && !this.detachedHandles.has(rh));
+    if (!papers.length) return;
+    const AssessmentOrchestrator = require('../shared/services/assessment/assessment-orchestrator.service');
+    const ready = [];
+    for (const [receiptHandle, meta] of papers) {
+      this.detachedHandles.add(receiptHandle);
+      // Stop both heartbeats before the row changes, so neither can undo the hand-back.
+      this.releasedHandles.add(receiptHandle);
+      // eslint-disable-next-line no-await-in-loop
+      const marked = await Promise.resolve()
+        .then(() => AssessmentOrchestrator.releasePaperForTakeover(meta.requestId))
+        .catch(() => false);
+      if (marked) {
+        ready.push([receiptHandle, meta]);
+      } else {
+        this.releasedHandles.delete(receiptHandle);
+        logToFile('Paper row could not be handed back; leaving its message to the visibility window', {
+          workerId: this.workerId, requestId: meta.requestId || null,
+        });
+      }
+    }
+    await this._releaseInFlight(ready, 'shutdown: paper handed back for immediate take-over');
+  }
+
+  /** In-flight jobs shutdown still manages: everything except the papers it has handed back. */
+  _managedJobs() {
+    return [...this.activeJobs.entries()].filter(([rh]) => !this.detachedHandles.has(rh));
+  }
 
   _partitionInFlight() {
     const long = [];
     const short = [];
-    for (const [receiptHandle, meta] of this.activeJobs.entries()) {
+    for (const [receiptHandle, meta] of this._managedJobs()) {
       const bucket = SQSCoachingWorker.LONG_JOB_TYPES.has(meta && meta.jobType) ? long : short;
       bucket.push([receiptHandle, meta]);
     }
@@ -999,10 +1081,13 @@ class SQSCoachingWorker {
 
     this.isShuttingDown = true;
 
+    // Phase 0 — papers go back at once; the platform may give us only seconds.
+    await this._handBackPapers();
+
     // Phase 1 — the coaching deadline, unchanged.
     await Promise.race([this.waitForActiveJobs(), this.sleep(GRACEFUL_SHUTDOWN_TIMEOUT_MS)]);
 
-    if (this.activeJobs.size === 0) return;
+    if (this._managedJobs().length === 0) return;
 
     // Phase 2 — hand back the short jobs, keep finishing the long ones.
     const { long, short } = this._partitionInFlight();
@@ -1038,16 +1123,18 @@ class SQSCoachingWorker {
    * Wait for all active jobs to complete
    */
   async waitForActiveJobs() {
-    if (this.activeJobs.size === 0) {
+    // A paper already handed back is not waited on: its run is abandoned by design.
+    const managed = this._managedJobs();
+    if (managed.length === 0) {
       return;
     }
 
-    logToFile(`⏳ Waiting for ${this.activeJobs.size} active jobs to complete...`, {
+    logToFile(`⏳ Waiting for ${managed.length} active jobs to complete...`, {
       workerId: this.workerId
     });
 
     // bd-yd2kb: activeJobs values are { promise, sourceQueue } now — await the promises.
-    await Promise.allSettled(Array.from(this.activeJobs.values()).map((v) => v.promise));
+    await Promise.allSettled(managed.map(([, v]) => v.promise));
 
     logToFile('✅ All active jobs completed', {
       workerId: this.workerId
