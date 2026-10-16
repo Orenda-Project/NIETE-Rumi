@@ -327,6 +327,9 @@ async function bookFor({ hub, kid, device, lang } = {}, now = Date.now()) {
     class_lights: f.wall ? await classLights(who.studentId, rows, now) : null,
     grade_band: bandOf(grade),
   };
+  // Storybooks (web_quiz_stories): one sticker per book finished; off, no key (the Book is today's).
+  const Stories = require('./web-quiz-stories');
+  if (await Stories.storiesOn()) out.book_stickers = await Stories.stickersFor(who.studentId);
   const up = levelupOf(rungs, period, grade, f.story, rows);
   // RULING #59: the room is named only when its shelf has a released story in that band and the child's language.
   if (up && up.opens) {

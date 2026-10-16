@@ -585,3 +585,16 @@ describe('menu(): the Urdu polish switch rides the boot (ui)', () => {
     Ur._reset();
   });
 });
+
+describe('menu(): the sound + motion kit switch rides the boot (juice)', () => {
+  test('juice is absent by default and true with app_settings web_quiz_juice', async () => {
+    const Juice = require('../../../shared/services/quiz/web-quiz-juice');
+    Juice._reset();
+    expect(Object.prototype.hasOwnProperty.call(await Ch.menu(hub(), D), 'juice')).toBe(false);
+    db.app_settings.push({ key: 'web_quiz_juice', value: true });
+    Juice._reset();
+    expect((await Ch.menu(hub(), D)).juice).toBe(true);
+    db.app_settings.splice(db.app_settings.findIndex((r) => r.key === 'web_quiz_juice'), 1);
+    Juice._reset();
+  });
+});

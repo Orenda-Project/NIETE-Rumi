@@ -593,6 +593,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // The Urdu polish (web-quiz-ur-polish.js): one class on the page root when on; absent when off.
   const ui = await got('ui', () => require('./web-quiz-ur-polish').ui());
   if (ui) out.ui = ui;
+  // The sound + motion kit (web-quiz-juice.js): named only when on, so a switched-off payload is today's.
+  if (await require('./web-quiz-juice').field()) out.juice = true;
   // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
   const ask = await got('ask', () => require('./web-quiz-invite-ask').mode());
   if (ask !== 'off') out.invite_ask = ask;

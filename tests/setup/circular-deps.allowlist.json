@@ -24,9 +24,10 @@
   {
     "cycle": [
       "bot/shared/services/quiz/web-quiz-book.js",
-      "bot/shared/services/quiz/web-quiz-hub.js"
+      "bot/shared/services/quiz/web-quiz-hub.js",
+      "bot/shared/services/quiz/web-quiz-stories.js"
     ],
-    "reason": "Both edges are lazy, inside functions: web-quiz-hub.js hubPayload() requires web-quiz-book.js only to add the Book's hub bits, and web-quiz-book.js bookFor() requires web-quiz-hub.js only to resolve the hub chip (kidFromHub). Neither module touches the other at load time."
+    "reason": "Every edge is lazy, inside a function: web-quiz-hub.js hubPayload() requires web-quiz-book.js and web-quiz-stories.js only to add their hub bits; web-quiz-book.js bookFor() requires web-quiz-hub.js only to resolve the hub chip (kidFromHub) and web-quiz-stories.js only for the storybook stickers; web-quiz-stories.js guard() requires web-quiz-hub.js only for kidFromHub and bookOn() requires web-quiz-book.js only for its switch. None of the three touches another at load time."
   },
   {
     "cycle": [

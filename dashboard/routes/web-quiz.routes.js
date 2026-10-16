@@ -32,6 +32,7 @@ const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
+const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 // A page session id (wq-tel.js): 8-16 lower-case letters and digits.
@@ -111,6 +112,13 @@ const API_ROUTES = [
   // Jugnu's Book from the kid's hub (the bot answers 503 while web_quiz_challenge_book is off)
   { method: 'get', path: '/api/wq/book/h/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
+  // storybooks from the kid's hub (the bot answers 404 stories_off while web_quiz_stories is off)
+  { method: 'get', path: '/api/wq/stories/shelf/h/:token', limiter: 'read', token: true },
+  // the covers of one grade × language for anyone (no child data): a join's grade tap warms the thumbnails
+  { method: 'get', path: '/api/wq/stories/shelf', limiter: 'read', cache: 'public, max-age=300' },
+  { method: 'get', path: '/api/wq/stories/book/:id/h/:token', limiter: 'read', token: true },
+  // per child link (a whole class reads behind one school address), with a loose ceiling per address
+  { method: 'post', path: '/api/wq/stories/event/h/:token', limiter: ['stories', 'challengeIp'], token: true },
   { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
   // the results card's door to the child's hub (a session token in the body)
@@ -254,6 +262,13 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
 <style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>`;
 }
 
+// The sound + motion kit (app_settings web_quiz_juice, decided by the bot): its stylesheet and script, before the page's
+// own script so window.WQJ is there when the page boots, only when the payload carries `juice: true`.
+function juiceTags(payload) {
+  if (!payload || payload.juice !== true) return '';
+  return `<link rel="stylesheet" href="/wq/wq-juice.css?v=${challengeVersion('wq-juice.css')}">\n<script src="/wq/wq-juice.js?v=${challengeVersion('wq-juice.js')}" defer></script>\n`;
+}
+
 // Identity v2 (name first) lives in its own script, sent only to quizzes the server switched to it.
 function identityV2(payload) {
   const id = payload && payload.cls && payload.cls.identity;
@@ -292,7 +307,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
     head: head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui, ...cardType(image) }),
     frame: `<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
-${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
+${juiceTags(payload)}${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-lib.js?v=${assetV}" defer></script>
 ${payload && payload.story ? `<script src="/wq/wq-story-link.js?v=${challengeVersion('wq-story-link.js')}" defer></script>\n` : ''}<script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
@@ -617,7 +632,7 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <body>
 <main id="wq" class="wq-app wqc" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(CH_COPY[lang].boot)}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
-<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
+${juiceTags(menu)}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
 ${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
@@ -698,6 +713,8 @@ function createWebQuizRouter(opts = {}) {
       skip: (req) => !(req.body && typeof req.body.ps === 'string' && PS_RX.test(req.body.ps)) }),
     challenge: rateLimit({ ...common, max: 20, keyGenerator: (req) => `ct:${(req.body && typeof req.body.ct === 'string' && req.body.ct.slice(0, 200)) || clientIp(req)}` }),
     challengeIp: rateLimit({ ...common, max: 600, keyGenerator: (req) => `chip:${clientIp(req)}` }),
+    // a storybook's page and question events: ~30 a book, per child link
+    stories: rateLimit({ ...common, max: 200, keyGenerator: (req) => `sh:${String((req.params && req.params.token) || clientIp(req)).slice(0, 200)}` }),
   };
   // Code enumeration: only answers that came back 404 count toward this one.
   const unknownCode = rateLimit({ ...common, max: 20, keyGenerator: (req) => `u:${clientIp(req)}`,
@@ -727,6 +744,7 @@ function createWebQuizRouter(opts = {}) {
         if (out.status >= 300 && out.status < 400 && out.location) return res.redirect(out.status, out.location);
         if (out.status === 204) return res.status(204).end();
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
+        if (r.cache && out.status === 200) res.set('Cache-Control', r.cache);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
         return res.status(out.status).json(out.body == null ? {} : out.body);
       } catch (err) {
@@ -1032,6 +1050,24 @@ function createWebQuizRouter(opts = {}) {
   router.get('/wq-probe', (req, res) => {
     pageHeaders(res);
     res.type('html').sendFile(PROBE_FILE);
+  });
+
+  // The sound + motion kit's demo page (ten answers to tap through): only while web_quiz_juice is on, never cached;
+  // no child page links to it. Off, or the bot not answering, it is not there (404). The file lives in views/, outside
+  // the /wq static handler, so no other spelling of the path reaches it.
+  router.get('/wq/juice-demo.html', limiters.read, async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
+    let on = false;
+    if (botUrl && apiKey) {
+      try {
+        const out = await callBot('GET', '/api/internal/wq/juice', req);
+        on = out.status === 200 && Boolean(out.body) && out.body.on === true;
+      } catch (_) { on = false; }
+    }
+    if (!on) return res.status(404).type('text').send('not found');
+    let html;
+    try { html = fs.readFileSync(JUICE_DEMO_FILE, 'utf8'); } catch (_) { return res.status(404).type('text').send('not found'); }
+    return res.status(200).type('html').send(html.replace(/__JV__/g, challengeVersion('wq-juice.js')).replace(/__CV__/g, challengeVersion('wq-juice.css')));
   });
 
   router.use('/wq', express.static(PUBLIC_DIR, { maxAge: YEAR_S * 1000, immutable: true, index: false, fallthrough: false }));
