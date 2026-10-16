@@ -68,9 +68,10 @@ describe('the switch (web-quiz-minify.js)', () => {
     expect(Min.on()).toBe(true);
   });
 
-  test('missing, false, "false", junk and a failed read are all off (fail closed); "true" strings are on', async () => {
+  test('missing, false, "false", junk, strings (even "true"), 1 and null and a failed read are all off (fail closed); only JSON true is on', async () => {
     for (const [rows, want] of [[[], false], [[{ key: 'web_quiz_minify', value: false }], false], [[{ key: 'web_quiz_minify', value: 'false' }], false],
-      [[{ key: 'web_quiz_minify', value: 'yes' }], false], [[{ key: 'web_quiz_minify', value: '"true"' }], true], [[{ key: 'web_quiz_minify', value: 'true' }], true]]) {
+      [[{ key: 'web_quiz_minify', value: 'yes' }], false], [[{ key: 'web_quiz_minify', value: '"true"' }], false], [[{ key: 'web_quiz_minify', value: 'true' }], false],
+      [[{ key: 'web_quiz_minify', value: 1 }], false], [[{ key: 'web_quiz_minify', value: null }], false], [[{ key: 'web_quiz_minify', value: true }], true]]) {
       Min._reset();
       settings(rows);
       Min.on();
