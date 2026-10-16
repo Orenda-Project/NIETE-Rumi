@@ -1812,7 +1812,8 @@ async function _loadPatternContent({ grade, subject, P, scope, pageRanges, chapt
 // never fails a paper that prints without it.
 const READER_TIMEOUT_MS = 120000;
 const READER_MAX_TOKENS = 4000;
-const READER_REASONING = { effort: 'low' };
+// Medium: at low effort the same eight recorded papers read 8, 8, 7 and 6 of 8 give-aways; at medium, 8 of 8 three times.
+const READER_REASONING = { effort: 'medium' };
 const READ_SLOT = 'urdu.A.Q1';
 
 const _readerId = (q) => `${_flat(q && q.question)}\u0001${Reader.keyOf(q || {})}`;
