@@ -71,7 +71,9 @@ const passage = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: '
   released_at: new Date(NOW - h * 3600000).toISOString(), title_en: `Title ${id}`, title_ur: null });
 
 // loose: the usual quiz child on prod (no class list, no enrolment; their teacher known from the links they played).
-function tables({ fast, loose = false }) {
+// sibGone: the second child's row is inactive; otherGrade: the last quiz's video is of another grade than the child;
+// manyRuns: 520 old runs ahead of the child's own (a child at the runs read's 500 cap).
+function tables({ fast, loose = false, sibGone = false, otherGrade = false, manyRuns = false }) {
   const t = {
     app_settings: [...ON_KEYS.map((key) => ({ key, value: 'true' })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : [])],
     students: [
@@ -124,6 +126,9 @@ function tables({ fast, loose = false }) {
       passage('en.read.1.story03', 'read', 1, -24 * 2),
     ],
   };
+  if (sibGone) t.students[1].is_active = false;
+  if (otherGrade) t.student_videos.find((v) => v.id === V(2)).grade = '4';
+  if (manyRuns) t.web_quiz_challenge_runs.unshift(...Array.from({ length: 520 }, (_, i) => run({ exercise: 'listen', status: 'served', created_at: ago(2000 + i) })));
   if (loose) {
     t.students[0].list_id = null;
     t.class_enrollments = [];
@@ -136,6 +141,7 @@ function tables({ fast, loose = false }) {
 // ── the boundary: every read takes READ_MS and gets its wave ─────────────────────────────────────────
 let reads = [];
 let doneMax = 0;
+let down = false; // app_settings unreadable (the switches' own failure path)
 function seed(opts) {
   const fake = makeFake(tables(opts));
   const from = (t) => {
@@ -145,7 +151,7 @@ function seed(opts) {
       const rec = { t, wave: doneMax + 1, at: process.env.WAVES_DEBUG ? (new Error().stack.split('\n').slice(2).find((l) => l.includes('services/quiz/') || l.includes('config/')) || '').trim().replace(/.*\/(\S+:\d+):\d+\)?$/, '$1') : '' };
       reads.push(rec);
       return new Promise((r) => setTimeout(r, READ_MS))
-        .then(() => { doneMax = Math.max(doneMax, rec.wave); return then.call(b, (x) => x); })
+        .then(() => { doneMax = Math.max(doneMax, rec.wave); return down && t === 'app_settings' ? { data: null, error: { message: 'down' } } : then.call(b, (x) => x); })
         .then(res, rej);
     };
     return b;
@@ -158,6 +164,7 @@ let Hub;
 let T;
 function boot(opts) {
   jest.resetModules();
+  down = false;
   jest.setSystemTime(NOW);
   seed(opts);
   Hub = require('../../../shared/services/quiz/web-quiz-hub');
@@ -213,7 +220,7 @@ const tokenOne = () => T.signHub([KID]);
 const tokenTwo = () => T.signHub([KID, SIB]);
 
 describe('the kid hub, switch on (web_quiz_fast)', () => {
-  test('a child with a teacher card, recommendations, a challenge and the Book: the payload is today\'s, in at most 7 waves warm', async () => {
+  test('a child with a teacher card, recommendations, a challenge and the Book: the payload is today\'s, in at most 6 waves warm', async () => {
     boot({ fast: true });
     await measure(tokenOne(), { device: DEVICE });               // cold: the first read of each switch waits
     const warm = await measure(tokenOne(), { device: DEVICE });
@@ -231,8 +238,8 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     same('on_warm_payload', warm.out);
     same('on_warm_hub_open', warm.open);
     console.log(`hub warm waves (switch on): today ${today('on_warm_waves_today', warm.waves)} -> ${warm.waves}; reads ${JSON.stringify(warm.perTable)}`);
-    // A child on a class list: the canonical ids and the hub each read the list (2 waves a loose child has not).
-    expect(warm.waves).toBeLessThanOrEqual(9);
+    // A child on a class list: the canonical ids and the hub each read the list (1 wave a loose child has not).
+    expect(warm.waves).toBeLessThanOrEqual(6);
   });
 
   test('the child\'s Jugnu runs are read once for the lantern, the shelf and the Book (not three times)', async () => {
@@ -245,7 +252,7 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     expect(warm.perTable.class_enrollments).toBeLessThanOrEqual(4);
   });
 
-  test('every switch stale (31 s later): answered from the cache, read again in the background; same payload, at most 7 waves', async () => {
+  test('every switch stale (31 s later): answered from the cache, read again in the background; same payload, at most 8 waves', async () => {
     boot({ fast: true });
     const tok = tokenOne();
     await measure(tok, { device: DEVICE });
@@ -256,10 +263,10 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     expect(stale.out).toBe(warm.out);
     expect(stale.open).toBe(warm.open);
     // Every switch is answered from its cache; the 2 waves over warm are the class roster's own 30 s cache (identity roster).
-    expect(stale.waves).toBeLessThanOrEqual(11);
+    expect(stale.waves).toBeLessThanOrEqual(8);
   });
 
-  test('a loose child (no class list, no enrolment; the usual quiz child): the payload is today\'s, in at most 7 waves warm', async () => {
+  test('a loose child (no class list, no enrolment; the usual quiz child): the payload is today\'s, in at most 5 waves warm', async () => {
     boot({ fast: true, loose: true });
     const tok = tokenOne();
     await measure(tok, { device: DEVICE });
@@ -274,8 +281,8 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     const stale = await measure(tok, { device: DEVICE });
     expect(stale.out).toBe(warm.out);
     console.log(`hub loose child waves (switch on): warm today ${today('on_loose_waves_today', warm.waves)} -> ${warm.waves}, stale today ${today('on_loose_stale_waves_today', stale.waves)} -> ${stale.waves}`);
-    expect(warm.waves).toBeLessThanOrEqual(7);
-    expect(stale.waves).toBeLessThanOrEqual(7);
+    expect(warm.waves).toBeLessThanOrEqual(5);
+    expect(stale.waves).toBeLessThanOrEqual(5);
   });
 
   test('the "who is playing?" picker (two children, none picked): the payload is today\'s', async () => {
@@ -295,6 +302,46 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     same('on_locked_payload', warm.out);
     console.log(`hub locked waves (switch on): ${warm.waves}`);
     expect(warm.waves).toBeLessThanOrEqual(3);
+  });
+});
+
+// Old vs new on the same fake DB where no recorded case reaches: switch off is today's hub (the golden cases below
+// prove it), and on the hub's payload is the off one plus `fast: true` (as every recorded case shows).
+describe('the kid hub, switch on: the same payload as switch off where the early reads guess', () => {
+  // req(): the request's options, made once the modules are loaded (a chip is signed with the token module).
+  const both = async (opts, tok, req) => {
+    boot({ ...opts, fast: false });
+    await measure(tok(), req());
+    const off = await measure(tok(), req());
+    boot({ ...opts, fast: true });
+    await measure(tok(), req());
+    const on = await measure(tok(), req());
+    const p = JSON.parse(on.out);
+    expect(p.fast).toBe(true);
+    delete p.fast;
+    expect(JSON.stringify(p)).toBe(off.out);
+    expect(on.open).toBe(off.open);
+    return { on, off };
+  };
+  const chip = (id) => T.chipId('h', id);
+
+  test('two children, the second picked by its chip', async () => {
+    const { on } = await both({}, tokenTwo, () => ({ device: DEVICE, kid: chip(SIB) }));
+    expect(JSON.parse(on.out).kid).toBe(chip(SIB));
+  });
+
+  test('the chip names a child whose row is gone: the other child opens (the early reads were for the wrong child)', async () => {
+    const { on } = await both({ sibGone: true }, tokenTwo, () => ({ device: DEVICE, kid: chip(SIB) }));
+    expect(JSON.parse(on.out).kid).toBe(chip(KID));
+  });
+
+  test('the last quiz\'s video is of another grade: the recommendations are of that grade', async () => {
+    await both({ otherGrade: true }, tokenOne, () => ({ device: DEVICE }));
+  });
+
+  test('a child at the runs read\'s 500 cap: the lantern and the shelf read their own runs, as today', async () => {
+    const { on } = await both({ manyRuns: true }, tokenOne, () => ({ device: DEVICE }));
+    expect(JSON.parse(on.out).play).toBeTruthy();
   });
 });
 
@@ -325,5 +372,65 @@ describe('the kid hub, switch off: exactly today\'s (golden: payload, reads per 
     boot({ fast: false });
     await measure(tokenOne(), {});
     same('off_locked', await measure(tokenOne(), {}));
+  });
+});
+
+describe('a stale switch (30 s cache)', () => {
+  const FLAG_MODULES = [
+    ['hub flags', () => require('../../../shared/services/quiz/web-quiz-hub-flags').flags(), (v) => v.hub],
+    ['identity flags', () => require('../../../shared/services/quiz/web-quiz-identity-flags').flags(), (v) => v.canon],
+    ['hub play switches', () => require('../../../shared/services/quiz/web-quiz-hub-play').switches(), (v) => v.v2],
+    ['challenge record switch', () => require('../../../shared/services/quiz/web-quiz-challenge').recordOn(), (v) => v],
+    ['challenge listen switch', () => require('../../../shared/services/quiz/web-quiz-challenge').listenOn(), (v) => v],
+    ['book flags', () => require('../../../shared/services/quiz/web-quiz-book').flags(), (v) => v.book],
+    ['Urdu polish', () => require('../../../shared/services/quiz/web-quiz-ur-polish').ui(), (v) => Boolean(v && v.ur2)],
+  ];
+  const timed = async (fn) => { reads = []; doneMax = 0; const v = await fn(); return { v, waves: doneMax }; };
+
+  test.each(FLAG_MODULES)('%s, switch on: answered from the cache at once; a failed background read keeps the value', async (_, read, pick) => {
+    boot({ fast: true });
+    await require('../../../shared/services/quiz/web-quiz-fast').on();
+    await settle();
+    expect(pick((await timed(read)).v)).toBe(true);                 // cold: waited for, as today
+    jest.setSystemTime(NOW + 31 * 1000);
+    require('../../../shared/services/quiz/web-quiz-fast').on();     // the fast switch itself read fresh (it fails closed)
+    await settle();
+    down = true;
+    const stale = await timed(read);
+    expect(pick(stale.v)).toBe(true);
+    expect(stale.waves).toBe(0);                                     // nothing waited for
+    await settle();
+    expect(reads.filter((r) => r.t === 'app_settings').length).toBeGreaterThanOrEqual(1); // read again in the background
+    expect(pick((await timed(read)).v)).toBe(true);                  // the failed read kept the value
+    await settle();
+    down = false;
+    await timed(read);
+    await settle();
+    jest.setSystemTime(NOW + 32 * 1000);
+    expect(pick((await timed(read)).v)).toBe(true);
+  });
+
+  test.each(FLAG_MODULES)('%s, switch off: a stale cache waits for its read, as today', async (_, read, pick) => {
+    boot({ fast: false });
+    await require('../../../shared/services/quiz/web-quiz-fast').on();
+    await settle();
+    expect(pick((await timed(read)).v)).toBe(true);
+    jest.setSystemTime(NOW + 31 * 1000);
+    expect((await timed(read)).waves).toBeGreaterThanOrEqual(1);
+  });
+
+  test('switch on: a stale switch read by many requests at once is read again only once', async () => {
+    boot({ fast: true });
+    await require('../../../shared/services/quiz/web-quiz-fast').on();
+    await settle();
+    const Flags = require('../../../shared/services/quiz/web-quiz-hub-flags');
+    await Flags.flags();
+    await require('../../../shared/services/quiz/web-quiz-fast').on();
+    jest.setSystemTime(NOW + 31 * 1000);
+    reads = [];
+    await Promise.all([Flags.flags(), Flags.flags(), Flags.flags()]);
+    await settle();
+    // the hub flags' own read once (the fast switch's own background read may be the other app_settings read)
+    expect(reads.filter((r) => r.t === 'app_settings').length).toBeLessThanOrEqual(2);
   });
 });

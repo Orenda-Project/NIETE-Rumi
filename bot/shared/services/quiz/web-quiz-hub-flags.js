@@ -9,6 +9,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
+const Swr = require('./web-quiz-swr');
 
 const HUB_KEY = 'web_quiz_hub';
 const CHALLENGE_KEY = 'web_quiz_challenge';
@@ -35,7 +36,13 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
+// web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
 async function flags(now = Date.now()) {
+  if (Swr.stale(cache, TTL_MS, now)) { Swr.revalidate('hub-flags', () => readFlags(now)); return cache; }
+  return readFlags(now);
+}
+
+async function readFlags(now) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY]);

@@ -18,6 +18,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const HubFlags = require('./web-quiz-hub-flags');
+const Swr = require('./web-quiz-swr');
 
 const CANON_KEY = 'web_quiz_identity_canon';
 const PHONE_BIND_KEY = 'web_quiz_phone_bind';
@@ -38,6 +39,12 @@ function isTrue(value) {
 
 /** → { canon, phoneBind, guestHome, makerPage, firstDoor }; all false on a failed read. Never throws. */
 async function flags(now = Date.now()) {
+  // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
+  if (Swr.stale(cache, TTL_MS, now)) { Swr.revalidate('identity-flags', () => readFlags(now)); return cache; }
+  return readFlags(now);
+}
+
+async function readFlags(now) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [CANON_KEY, PHONE_BIND_KEY, GUEST_HOME_KEY, MAKER_PAGE_KEY, FIRST_DOOR_KEY]);

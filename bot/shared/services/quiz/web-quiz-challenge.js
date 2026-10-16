@@ -49,6 +49,7 @@ const Measure = require('./web-quiz-measure-events');
 const TrailPage = require('./web-quiz-trail-page');
 // Fast pages (app_settings web_quiz_fast, default off; read without waiting): independent lookups run together.
 const Fast = require('./web-quiz-fast');
+const Swr = require('./web-quiz-swr');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
@@ -170,6 +171,13 @@ function __reset() { flagCache = null; liveCache = null; qaCache = null; listenC
 async function settingOn(key) {
   const c = settingCache.get(key);
   if (c && Date.now() - c.at < SETTING_TTL_MS) return c.v;
+  // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
+  if (Swr.stale(c, SETTING_TTL_MS)) { Swr.revalidate(`challenge:${key}`, () => readSetting(key, true)); return c.v; }
+  return readSetting(key);
+}
+
+// keep: a background read that fails leaves the cached value as it was.
+async function readSetting(key, keep = false) {
   let v = false;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', key);
@@ -177,6 +185,7 @@ async function settingOn(key) {
     v = !!(data && data[0] && isTrue(data[0].value));
   } catch (e) {
     logError('web_quiz.ch_setting_read_failed', { key, error: String(e && e.message || e).slice(0, 120) });
+    if (keep && settingCache.has(key)) return settingCache.get(key).v;
     v = false;
   }
   settingCache.set(key, { v, at: Date.now() });
@@ -301,12 +310,20 @@ async function questionsOn(now = Date.now()) {
 /** "Listen and answer": only `true` turns it on; anything else, or a failed read, is off. */
 async function listenOn(now = Date.now()) {
   if (listenCache && now - listenCache.at < FLAG_TTL_MS) return listenCache.on;
+  // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
+  if (Swr.stale(listenCache, FLAG_TTL_MS, now)) { Swr.revalidate('challenge:listen', () => readListen(now, true)); return listenCache.on; }
+  return readListen(now);
+}
+
+// keep: a background read that fails leaves the cached value as it was.
+async function readListen(now, keep = false) {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', LISTEN_FLAG_KEY);
     if (error) throw new Error(error.message || 'app_settings read failed');
     listenCache = { at: now, on: !!(data && data[0]) && isTrue(data[0].value) };
   } catch (e) {
     logToFile('⚠️ web quiz challenge: listen flag lookup failed — off', { error: e.message });
+    if (keep && listenCache) return listenCache.on;
     listenCache = { at: now, on: false };
   }
   return listenCache.on;

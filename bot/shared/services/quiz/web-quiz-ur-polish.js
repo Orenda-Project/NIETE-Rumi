@@ -9,6 +9,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const Swr = require('./web-quiz-swr');
 
 const KEY = 'web_quiz_ur_polish';
 const TTL_MS = 30 * 1000;
@@ -21,7 +22,8 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-function refresh() {
+// keep: a background read (web_quiz_fast on) that fails leaves the cached value as it was.
+function refresh(keep = false) {
   if (!reading) {
     reading = (async () => {
       try {
@@ -30,7 +32,7 @@ function refresh() {
         cache = { at: Date.now(), on: isTrue(data && data.value) };
       } catch (err) {
         logToFile('⚠️ web quiz ur polish: settings lookup failed — off', { error: err.message });
-        cache = { at: Date.now(), on: false };
+        if (!(keep && cache)) cache = { at: Date.now(), on: false };
       } finally {
         reading = null;
       }
@@ -43,6 +45,8 @@ function refresh() {
 /** The switch, waited for (page payloads). Never throws. */
 async function flag(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
+  // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
+  if (Swr.stale(cache, TTL_MS, now)) { refresh(true).catch(() => {}); return cache.on; }
   return refresh();
 }
 

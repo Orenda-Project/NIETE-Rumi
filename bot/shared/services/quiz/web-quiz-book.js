@@ -23,6 +23,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const Swr = require('./web-quiz-swr');
 
 const HUB_KEY = 'web_quiz_hub';
 const CHALLENGE_KEY = 'web_quiz_challenge';
@@ -52,6 +53,12 @@ function isTrue(value) {
 
 /** {book, wall}: each effective only with its parents on. Fails closed. */
 async function flags(now = Date.now()) {
+  // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
+  if (Swr.stale(cache, TTL_MS, now)) { Swr.revalidate('book', () => readFlags(now)); return cache; }
+  return readFlags(now);
+}
+
+async function readFlags(now) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [HUB_KEY, CHALLENGE_KEY, V2_KEY, BOOK_KEY, WALL_KEY, STORY_KEY]);
@@ -107,6 +114,25 @@ async function childRuns(studentId) {
   }
 }
 
+/**
+ * One read of the child's runs, shared by the hub's parts that need them (web_quiz_fast on: the lantern, the shelf and
+ * the Book's class lights): childRuns' own read (the v2 columns, newest first, 500), started by the first part to ask.
+ * get() -> {rows, v2: true}, or null when it could not be read (each part then reads as it does today). Never rejects.
+ */
+function runsOnce(studentId) {
+  let p = null;
+  return {
+    get() {
+      if (!p) {
+        p = Promise.resolve()
+          .then(() => supabase.from('web_quiz_challenge_runs').select(V2_COLS).eq('student_id', studentId).order('created_at', { ascending: false }).limit(500))
+          .then((r) => (r && !r.error ? { rows: r.data || [], v2: true } : null), () => null);
+      }
+      return p;
+    },
+  };
+}
+
 /** The child's rung rows (child_rungs, append-only). No table or an error: none. */
 async function rungRows(canonicalId) {
   try {
@@ -135,11 +161,14 @@ async function titlesOf(passageIds, lang) {
   return new Map(passageIds.map((id) => [id, titleFor(id, lang) || '']));
 }
 
-async function classOf(studentId, rows) {
+const enrolRead = (studentId) => supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true);
+
+// `enrolP` (web_quiz_fast on): enrolRead(studentId), started beside the child's runs; used only when no run names a class.
+async function classOf(studentId, rows, enrolP = null) {
   const hit = rows.find((r) => r.class_id);
   if (hit) return hit.class_id;
   try {
-    const { data, error } = await supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true);
+    const { data, error } = await (enrolP || enrolRead(studentId));
     const r = !error && (data || []).find((x) => x.class_id);
     return r ? r.class_id : null;
   } catch (_) {
@@ -234,8 +263,8 @@ function lightsOf(rows, now, self = null) {
   return out;
 }
 
-async function classLights(studentId, rows, now) {
-  const cls = await classOf(studentId, rows);
+async function classLights(studentId, rows, now, enrolP = null) {
+  const cls = await classOf(studentId, rows, enrolP);
   if (!cls) return null;
   try {
     const { data, error } = await supabase.from('web_quiz_challenge_runs').select(V2_COLS).eq('class_id', cls).gte('created_at', new Date(termStart(now)).toISOString()).limit(5000);
@@ -337,15 +366,21 @@ async function bookFor({ hub, kid, device, lang } = {}, now = Date.now()) {
   return out;
 }
 
-/** The hub payload's Book bits: {} with the Book off (the payload stays today's). Never throws. */
-async function hubBits({ studentId } = {}, now = Date.now()) {
+/**
+ * The hub payload's Book bits: {} with the Book off (the payload stays today's). Never throws.
+ * `runs` (web_quiz_fast on): the hub's one shared read of this child's runs (runsOnce); unreadable -> childRuns, as today.
+ */
+async function hubBits({ studentId, runs = null } = {}, now = Date.now()) {
   try {
     const f = await flags();
     if (!f.book || !studentId) return {};
     const out = { book_on: true };
     if (f.wall) {
-      const { rows } = await childRuns(studentId);
-      out.class_lights = await classLights(studentId, rows, now);
+      // fast (runs given): the child's enrolment is read beside their runs, for a child none of whose runs names a class.
+      const enrolP = runs ? Promise.resolve().then(() => enrolRead(studentId)) : null;
+      if (enrolP) enrolP.catch(() => {});
+      const { rows } = (runs && (await runs.get())) || await childRuns(studentId);
+      out.class_lights = await classLights(studentId, rows, now, enrolP);
     }
     return out;
   } catch (err) {
@@ -355,6 +390,6 @@ async function hubBits({ studentId } = {}, now = Date.now()) {
 }
 
 module.exports = {
-  bookFor, hubBits, flags, lightsOf, lampsOf, outlineOf, trailStickersFor, daysOf, storyIdsOf, levelupOf, periodOf, weekStart, termStart,
+  bookFor, hubBits, runsOnce, flags, lightsOf, lampsOf, outlineOf, trailStickersFor, daysOf, storyIdsOf, levelupOf, periodOf, weekStart, termStart,
   BOOK_KEY, WALL_KEY, V2_KEY, _resetCache: () => { cache = null; },
 };

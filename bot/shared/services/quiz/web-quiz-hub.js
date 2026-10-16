@@ -53,10 +53,12 @@ const TEACHER_DAYS = 7;
 const RESOLVE_MAX = 5;
 // The challenge's form for a child (web-quiz-challenge.js gradeOf + formForChild, the grade-1 switches included), or
 // null when it has none; required on use so the hub never depends on the challenge to boot.
-async function challengeForm(studentId) {
+// fast (web_quiz_fast): gradeInfo reads the enrolment and the child's row together (the same grade).
+async function challengeForm(studentId, fast = false) {
   try {
     const Challenge = require('./web-quiz-challenge');
-    return (await Challenge.formForChild(await Challenge.gradeOf({ studentId }))) || null;
+    const grade = fast ? (await Challenge.gradeInfo({ studentId }, { fast: true })).grade : await Challenge.gradeOf({ studentId });
+    return (await Challenge.formForChild(grade)) || null;
   } catch (err) {
     logToFile('⚠️ web quiz hub: challenge grade unavailable', { error: err.message });
     return null;
@@ -142,15 +144,18 @@ function firstOfEach(rows, max = RECS_MAX) {
 // ─── reads ──────────────────────────────────────────────────────────────────
 
 /** The child's classes: active enrolments, plus the classes of the teacher codes they played (a loose prod child has only these). */
-async function kidClasses(studentId, history) {
+async function kidClasses(studentId, history, fast = false) {
   const ids = new Set();
+  const played = history.filter((e) => e.teacherSent && e.shareCodeId).map((e) => e.shareCodeId);
+  const playedRead = () => dbRead('kidClasses:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id, class_id').in('id', played.slice(0, 50)));
+  // fast (web_quiz_fast): the played codes' classes are read beside the enrolments, not after them.
+  const early = fast && played.length ? require('./web-quiz-fast').early(playedRead()) : null;
   try {
     const { data } = await dbRead('kidClasses:class_enrollments:1', (db) => db.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true));
     (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
   } catch (_) { /* no roster: the played codes only */ }
-  const played = history.filter((e) => e.teacherSent && e.shareCodeId).map((e) => e.shareCodeId);
   if (played.length) {
-    const { data, error } = await dbRead('kidClasses:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id, class_id').in('id', played.slice(0, 50)));
+    const { data, error } = await (early || playedRead());
     if (!error) (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
   }
   return ids;
@@ -171,7 +176,7 @@ async function recentCodes(teachers) {
 
 const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
 
-async function teacherCard(kidRow, list, history, grade) {
+async function teacherCard(kidRow, list, history, grade, fast = false) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
@@ -181,7 +186,7 @@ async function teacherCard(kidRow, list, history, grade) {
   if (!teachers.length) return null;
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
-  const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history)]);
+  const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history, fast)]);
   const open = codes.filter((c) => isOpen(c) && !seen.has(c.id));
   if (!open.length) return null;
   const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
@@ -278,7 +283,17 @@ async function posterOf(row) {
   return { poster, secs: cached.secs || null };
 }
 
-async function recsFor(kidId, history, grade) {
+async function recsFor(kidId, history, grade, fast = false) {
+  const doneRead = () => dbRead('recsFor:quiz_sessions:1', (db) => db.from('quiz_sessions').select('quiz_id')
+    .eq('student_id', kidId).eq('status', 'completed').limit(300));
+  // fast (web_quiz_fast): the child's finished quizzes need nothing read here, so they are read first, beside the rest.
+  const doneEarly = fast ? require('./web-quiz-fast').early(doneRead()) : null;
+  const vidsRead = (g) => dbRead('recsFor:student_videos:2', (db) => db.from('student_videos')
+    .select('id, grade, subject, clean_chapter, clean_title, r2_url')
+    .eq('migration_status', 'done').is('superseded_by', null).eq('grade', g).limit(400));
+  // fast: the grade's videos are read now for the child's own grade, used only when that is the grade chosen below
+  // (the last quiz's video grade, usually the same); another grade is read as today.
+  const vidsEarly = fast && grade ? require('./web-quiz-fast').early(vidsRead(grade)) : null;
   const lastDone = history.filter((e) => e.latest)
     .sort((a, b) => String(b.latest.completed_at || '').localeCompare(String(a.latest.completed_at || '')))[0] || null;
   let last = null;
@@ -295,15 +310,12 @@ async function recsFor(kidId, history, grade) {
     }
   }
   if (!G) return [];
-  const { data: vids, error } = await dbRead('recsFor:student_videos:2', (db) => db.from('student_videos')
-    .select('id, grade, subject, clean_chapter, clean_title, r2_url')
-    .eq('migration_status', 'done').is('superseded_by', null).eq('grade', G).limit(400));
+  const { data: vids, error } = await (vidsEarly && G === grade ? vidsEarly : vidsRead(G));
   if (error || !vids || !vids.length) return [];
   const { data: quizzes } = await dbRead('recsFor:quizzes:1', (db) => db.from('quizzes').select('id, video_id')
     .in('video_id', vids.map((r) => r.id)).eq('quiz_source', 'video').eq('status', 'ready'));
   const quizOf = new Map((quizzes || []).map((q) => [q.video_id, q.id]));
-  const { data: done } = await dbRead('recsFor:quiz_sessions:1', (db) => db.from('quiz_sessions').select('quiz_id')
-    .eq('student_id', kidId).eq('status', 'completed').limit(300));
+  const { data: done } = await (doneEarly || doneRead());
   const finished = new Set((done || []).map((r) => r.quiz_id));
   const playable = vids.filter((r) => quizOf.has(r.id) && !finished.has(quizOf.get(r.id)));
   const chosen = last ? recOrder(playable, last) : firstOfEach(playable);
@@ -355,7 +367,8 @@ async function kidContext(studentId, known = null) {
     ? await dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle())
     : { data: null };
   const StudentQuiz = require('./student-quiz.service');
-  const history = await StudentQuiz.quizzesForStudents([row]);
+  // `known.reads` (web_quiz_fast on): this child's history reads, started before their row was read (hubPayload).
+  const history = await StudentQuiz.quizzesForStudents([row], known && known.reads ? { reads: known.reads } : undefined);
   const grade = gradeNum((list || {}).class_name) || gradeNum(row.self_reported_class)
     || gradeNum((history.find((e) => e.className) || {}).className)
     || (history[0] ? (Videos.gradesFor(history[0].grade)[0] || null) : null);
@@ -415,11 +428,18 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (!trust.ok) return lockedHub(ids, trust.why, asked);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   let mine = ids.filter((id) => trust.ids.includes(id));
+  let canon = null;
   // child identity store (web_quiz_identity_canon): each child once, by the id they are known by (the token keeps raw ids).
   if ((await require('./web-quiz-identity-flags').flags()).canon) {
-    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds(mine);
+    canon = await require('./web-quiz-identity-roster').canonicalStudentIds(mine);
     mine = [...new Set(mine.map((id) => canon.get(id) || id))];
   }
+  // Fast first page (web_quiz_fast): the child the hub will open (the chip asked for, or the only child) is known
+  // here, so their quiz history is read now, beside their row; used only when that child is the one chosen below.
+  const guess = require('./web-quiz-fast').on() ? (mine.find((id) => kidChip(id) === String(kid || '')) || (mine.length === 1 ? mine[0] : null)) : null;
+  const guessReads = guess ? require('./web-quiz-fast').early(require('./student-quiz.service').historyReads([guess])) : null;
+  // ...and so is their challenge grade (challengeForm never rejects).
+  const guessForm = guess && f.challenge ? challengeForm(guess, true) : null;
 
   const { data: rows } = await dbRead('hubPayload:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine));
@@ -431,10 +451,11 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;
 
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
+  const fast = require('./web-quiz-fast').on();
   // Started now, beside the rest of the hub's reads (challengeForm never rejects): it is a few reads of its own.
-  const challengeP = f.challenge && chosen ? challengeForm(chosen.id) : Promise.resolve(null);
+  const challengeP = f.challenge && chosen ? ((fast && guessForm && String(chosen.id) === guess) ? guessForm : challengeForm(chosen.id, fast)) : Promise.resolve(null);
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
-  const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null) : null;
+  const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen), reads: guessReads && String(chosen.id) === guess ? guessReads : null } : null) : null;
   const history = ctx ? ctx.history : [];
   const lang = asked || clampLanguage(require('./student-quiz.service').childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
@@ -451,14 +472,30 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const openEv = (base, studentId) => (f.hub && f.eventsV2 ? require('./web-quiz-measure-events').hubOpen(base, { studentId, device, src }) : base);
   // ...and the page's event batches carry the hub token and the picked chip (hub.js, wq-tel.js setIds). Off: no key.
   if (f.hub && f.eventsV2) out.ev2 = true;
+  // Fast first page (web_quiz_fast), a child picked: keep my place, the teacher card, the last quiz's answers, the
+  // recommendations, Jugnu's corner and the Book need only the child and their quizzes, so they all start here
+  // (keep my place on a copy of the payload, merged back below; one read of the child's Jugnu runs for the corner and
+  // the Book) and each is awaited where it was before: the payload is the same, key for key. Off: each runs when awaited.
+  const par = fast && Boolean(chosen);
+  const start = (fn) => { if (!par) return fn; const p = Promise.resolve().then(fn); p.catch(() => {}); return () => p; };
+  const shadow = par ? { ...out, kids: [...out.kids] } : out;
+  const runs = par ? require('./web-quiz-book').runsOnce(chosen.id) : null;
+  const last0 = chosen && f.childHome ? lastOf(history, chosen.id) : undefined;
+  const extras = start(() => require('./web-quiz-bind-page').hubExtras(shadow, { token, chosen, rows: kidsRows, trust, lang, device, src, ...(par ? { canon } : {}) }));
+  const teacher = start(() => teacherCard(chosen, ctx.list, history, ctx.grade, par));
+  const answered = start(() => (last0 && last0.state === 'open' ? answeredSoFar(history.find((e) => e.code === last0.code), last0.answered) : Promise.resolve(null)));
+  const recs = start(() => recsFor(chosen.id, history, ctx.grade, par));
+  const play = start(() => challengeP.then((form) => require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: last0, lang: out.lang, challenge: form ? { on: true } : null, grade: ctx.grade, stopsOf: () => trailStops(form), ...(runs ? { runs } : {}) })));
+  const bits = start(() => require('./web-quiz-book').hubBits({ studentId: chosen.id, ...(runs ? { runs } : {}) }));
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
-  await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src });
+  await extras();
+  if (shadow !== out) Object.keys(shadow).forEach((k) => { if (k === 'kids' || !(k in out)) out[k] = shadow[k]; });
   if (!chosen) {
     logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;
   }
   const grade = ctx.grade;
-  out.teacher = await teacherCard(chosen, ctx.list, history, grade);
+  out.teacher = await teacher();
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
   // The Home button is on: the library and challenge links from here say so (hub.js adds home=1).
   if (f.homeButton) out.nav_home = true;
@@ -466,12 +503,12 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (f.childHome) {
     out.home_v = 1;
     out.last = lastOf(history, chosen.id);
-    if (out.last && out.last.state === 'open') out.last.answered = await answeredSoFar(history.find((e) => e.code === out.last.code), out.last.answered);
+    if (out.last && out.last.state === 'open') out.last.answered = await answered();
     if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
     if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
   }
   try {
-    out.recs = await recsFor(chosen.id, history, grade);
+    out.recs = await recs();
   } catch (err) {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
   }
@@ -485,21 +522,23 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
   // The Library tile wears the child's grade picture (the library opens on that grade).
   if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
-  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade, stopsOf: () => trailStops(form) })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
+  Object.assign(out, await play()); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
   logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
-  Object.assign(out, await require('./web-quiz-book').hubBits({ studentId: chosen.id })); // Jugnu's Book: {} while web_quiz_challenge_book is off
+  Object.assign(out, await bits()); // Jugnu's Book: {} while web_quiz_challenge_book is off
   return out;
 }
 
 /** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
 async function hub(token, opts = {}) {
+  // Fast first page (web_quiz_fast): the page-events switch is read beside the payload, not after it.
+  const rt = require('./web-quiz-fast').on() ? require('./web-quiz-fast').early(Tel.flag()) : null;
   const ui = await require('./web-quiz-ur-polish').ui();
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
-  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}) };
+  return { ...(await hubPayload(token, opts)), rt: await (rt || Tel.flag()), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}) };
 }
 
 module.exports = {

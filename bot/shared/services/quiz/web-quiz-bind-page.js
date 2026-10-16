@@ -201,10 +201,10 @@ async function whoseTurn({ hub, kid, device, lang } = {}) {
  * The hub's boot JSON under web_quiz_phone_bind: the card's ticket for the chosen child (`bind`), and on the picker
  * ("Who is playing?") each chip's line2 / avatarLine / homonym_in_list / played. Off: `out` untouched.
  */
-async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, device, src } = {}) {
+async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, device, src, canon = null } = {}) {
   try {
     const f = await idFlags();
-    if (f.canon && chosen) await recordHubPick({ chosen, rows, device, src });
+    if (f.canon && chosen) await recordHubPick({ chosen, rows, device, src, canon });
     if (!f.phoneBind) return out;
     if (chosen) {
       // web_quiz_bind_way_back: `state` none|pending|bound|refused; saved or refused from this device → no card (off: today's)
@@ -280,9 +280,12 @@ async function rosterJoined(canonicalId) {
  * no roster (no list, no merged_into) is written `low`, as `forced_new` when that quiz start said so. `at` is this tap's
  * instant (the serve's per-visit guard), never the quiz start's.
  */
-async function recordHubPick({ chosen, rows = [], device, src }) {
+// `canon` (web_quiz_fast on): the hub's own canonicalStudentIds map, already read; used when it names this child as
+// their own canonical id, else the child's canonical id is read as today.
+async function recordHubPick({ chosen, rows = [], device, src, canon = null }) {
   try {
-    const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(chosen.id)) || chosen.id;
+    const known = canon && typeof canon.get === 'function' && canon.get(String(chosen.id)) === String(chosen.id) ? String(chosen.id) : null;
+    const canonicalId = known || (await require('./web-quiz-identity-roster').canonicalStudentId(chosen.id)) || chosen.id;
     const key = hubPickKey(canonicalId, device);
     if (!key) return null;
     const g = Homonym.guard(rows.map((r) => ({ id: String(r.id), first: r.student_name })), { surface: 'who' }).find((r) => r.id === String(chosen.id));

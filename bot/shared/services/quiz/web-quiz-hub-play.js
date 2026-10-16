@@ -9,6 +9,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const Swr = require('./web-quiz-swr');
 
 const KEYS = {
   hub: 'web_quiz_hub',
@@ -43,6 +44,12 @@ const OFF = Object.freeze({ first: false, v2: false, story: false, book: false, 
 
 /** The effective switches (each only with its parent on). Fails closed: a read error is every switch off. */
 async function switches(now = Date.now()) {
+  // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
+  if (Swr.stale(cache, TTL_MS, now)) { Swr.revalidate('hub-play', () => readSwitches(now)); return cache.s; }
+  return readSwitches(now);
+}
+
+async function readSwitches(now) {
   if (cache && now - cache.at < TTL_MS) return cache.s;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', Object.values(KEYS));
@@ -121,9 +128,9 @@ async function runsOf(childId, cols) {
  * module's `trailStateFor(canonicalId, periodId)` once it ships. Reads the v2 columns (`mode='check'`, `record=true`,
  * `period_id`); when they cannot be read, falls back to the list's own `exercises[].done` (absent: every stop waits).
  */
-async function trailWaiting(childId, periodId, exercises) {
+async function trailWaiting(childId, periodId, exercises, rows = null) {
   const list = Array.isArray(exercises) ? exercises : [];
-  const runs = await runsOf(childId, 'exercise, status, mode, record, period_id');
+  const runs = rows || await runsOf(childId, 'exercise, status, mode, record, period_id');
   if (!runs) return list.filter((e) => !e.done).map((e) => e.id);
   // Only a FINAL record row closes a stop: a `served` or `abandoned` row (or one still scoring) leaves it waiting.
   const done = (r, id) => r.exercise === id && r.mode === 'check' && r.record === true && r.period_id === periodId && FINAL.includes(r.status);
@@ -131,8 +138,8 @@ async function trailWaiting(childId, periodId, exercises) {
 }
 
 /** The passages this child has met: any run row of any mode or status (a story sticker is a story run row); null if unknown. */
-async function seenPassages(childId) {
-  const runs = await runsOf(childId, 'passage_id');
+async function seenPassages(childId, rows = null) {
+  const runs = rows || await runsOf(childId, 'passage_id');
   return runs ? new Set(runs.map((r) => r.passage_id).filter(Boolean)) : null;
 }
 
@@ -214,7 +221,7 @@ function shelfOf(live, unseenPids, lang) {
  * `challenge` is the hub's own challenge tile (null when the child's grade has no challenge); `stopsOf()` the stop ids
  * this child's Trail has (the hub's, from the challenge menu's rule), read only when the lantern is.
  */
-async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } = {}) {
+async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, runs = null } = {}) {
   const s = await switches();
   if (!s.first && !s.v2 && !s.install && !s.events) return null;
   const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
@@ -233,10 +240,17 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } 
   };
   if (!s.v2 || !tile || !chosenId) return out;
 
-  const stops = typeof stopsOf === 'function' ? await stopsOf() : [];
-  const trail = await trailWaiting(chosenId, periodOf(nowMs), stops.map((id) => ({ id })));
-  const seenIds = s.story ? await seenPassages(chosenId) : null;
-  const bands = seenIds ? openBands(grade, await readingRungOf(chosenId)) : null;
+  // `runs` (web_quiz_fast on): the hub's one shared read of the child's runs (web-quiz-book.js runsOnce), read beside the
+  // reading rung and the Trail's stops; unreadable -> each reads as below. Off: one read after another, as today.
+  const stopsNow = () => (typeof stopsOf === 'function' ? stopsOf() : []);
+  const pre = runs ? await Promise.all([runs.get(), s.story ? readingRungOf(chosenId) : null, stopsNow()]) : null;
+  // Under 500 rows the shared read (newest first) holds every run of the child, as runsOf's own unordered 500 does;
+  // at the cap the two could hold different rows, so the lantern and the shelf read their own, as today.
+  const rows = pre && pre[0] && pre[0].rows.length < 500 ? pre[0].rows : null;
+  const stops = pre ? pre[2] : await stopsNow();
+  const trail = await trailWaiting(chosenId, periodOf(nowMs), stops.map((id) => ({ id })), rows);
+  const seenIds = s.story ? await seenPassages(chosenId, rows) : null;
+  const bands = seenIds ? openBands(grade, pre ? pre[1] : await readingRungOf(chosenId)) : null;
   const p = seenIds ? await passagesOf(require('../../config/ux-strings').clampLanguage(lang), nowIso, bands) : { live: [], next: null };
   // Unseen: no run row of any mode or status on the passage or its twin (seenIds null: unknown, so nothing is new),
   // and a title in the child's language (a story the lantern cannot name is never NEW on the shelf either).
