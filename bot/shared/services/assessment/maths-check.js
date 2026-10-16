@@ -947,16 +947,27 @@ function roundingVerdict(stem, parts) {
   return verdictOf(parts, (_, i) => values[i] === rounded);
 }
 
+// "the value of the digit 8 in 8,204,631", "the place value of 7 in 573,018": a value (or,
+// for "place value", a place name). "Which place is the digit 9 in 2,395,140?", "in which
+// place is …", "which place does the digit 5 have in …": a place name only.
+const DIGIT_VALUE = /\b(?:place value of (?:the )?(?:digit )?|value of (?:the )?digit )(\d) in (\d[\d,]*)/;
+const NOT_WHOLE_TAIL = /^(?:\.\d|\s*(?:million|billion|thousand|hundred|lakh|crore|arab)\b|\s*[-+×x*÷/=^])/;
+const DIGIT_PLACE = /\bwhich place (?:is|does) (?:the )?digit (\d) (?:(?:have|stand|occupy|take) )?in (\d[\d,]*)/;
+
 function placeValueVerdict(stem, parts) {
-  const m = /\bvalue of (?:the )?digit (\d) in (\d[\d,]*)/.exec(stem);
+  const value = DIGIT_VALUE.exec(stem);
+  const m = value || DIGIT_PLACE.exec(stem);
   if (!m) return null;
+  // "3.5 million", "4,250 thousand", "25 + 30": the number read is not the whole number.
+  if (NOT_WHOLE_TAIL.test(stem.slice(m.index + m[0].length))) return { ok: null };
   const digits = m[2].replace(/,/g, '');
+  // A digit that appears twice (or not at all) names no one place.
   if (digits.split(m[1]).length !== 2) return { ok: null };
   const k = digits.length - 1 - digits.indexOf(m[1]);
   const values = parts.map((p) => wholeValue(p.body));
-  if (!values.some(Number.isNaN)) return verdictOf(parts, (_, i) => values[i] === Number(m[1]) * 10 ** k);
+  if (value && !values.some(Number.isNaN)) return verdictOf(parts, (_, i) => values[i] === Number(m[1]) * 10 ** k);
   const names = parts.map((p) => placeName(p.body));
-  if (!/\bplace value\b/.test(stem) || !names.every((n) => PLACE_NAMES.includes(n))) return { ok: null };
+  if ((value && !/\bplace value\b/.test(stem)) || !names.every((n) => PLACE_NAMES.includes(n))) return { ok: null };
   return verdictOf(parts, (_, i) => names[i] === PLACE_NAMES[k]);
 }
 
