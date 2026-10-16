@@ -302,4 +302,5 @@ async function artImageNow(id, { size = 'og', fresh = false } = {}) {
 
 function _resetCache() { mem.clear(); byId.clear(); }
 
-module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache, _drawForTests: draw, artInput };
+// drawTurn: the one headless queue every server-drawn picture waits in (the finish card's too, web-quiz-card-image.js).
+module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache, _drawForTests: draw, artInput, drawTurn };

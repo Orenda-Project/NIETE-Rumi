@@ -324,6 +324,18 @@
         + '<div class="wq-stack">' + (qa ? h.qaButtons() : btn('wqc-menu', t.endHome)) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
+      finishCard((h.S.data || {}).ex === 'listen' ? 'listen' : 'story', (h.S.data || {}).ex === 'listen' ? 'listen_done' : 'story_read');
+    }
+    // the finish card (wq-finish-card.js; the menu's card_v3, web_quiz_card_v3): Send to class + the Next tile, above
+    // the card's buttons; never on a class round turn or a practice round, never while a card waits for its result
+    function finishCard(kind, deed, r) {
+      var d = h.S.data || {};
+      if (!window.WQFC || !(h.md() || {}).card_v3 || d.round_turn || d.practice_round || (r && r.hold) || !d.ct) return;
+      var ttl = d.title && typeof d.title === 'object' ? (L === 'ur' && d.title.ur) || d.title.en || '' : '';
+      var on = window.WQFC.mount(document.querySelector('#wq .wq-stack'), { kind: kind, deed: deed, lang: L, title: typeof ttl === 'string' ? ttl : '', next: (r && r.next_offer) || d.next_offer, auth: { ct: d.ct }, ev: h.ev });
+      // the tile replaces the plain "Next: …" line (one next thing, not two)
+      var old = on && document.getElementById('wqfc-next') ? document.getElementById('wqc-next') : null;
+      if (old && old.parentNode) old.parentNode.removeChild(old);
     }
     // a stop's minutes and microphone line: in Urdu, Urdu digits and the mic on its own line (no Latin middot)
     function stopLine(x, wait, micLine) {
@@ -428,6 +440,7 @@
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });
       if (r.qa) h.on('wqc-qa', function () { h.qa().open(); });
+      finishCard(name === 'read-result' ? 'read' : d.ex === 'listen' ? 'listen' : 'game', name === 'read-result' ? (line === t.endZeroWords ? 'read_tried' : line === t.endReadAll ? 'read_all' : 'read_some') : d.ex === 'listen' ? 'listen_done' : 'game_done', r);
     }
     function storyLen(d) { return (d && d.story && d.story.tokens && d.story.tokens.length) || 0; }
     // heard: a live reading's words heard; when given, it chooses the line (all = 90% of the story's words heard)
