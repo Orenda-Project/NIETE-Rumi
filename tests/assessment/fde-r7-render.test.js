@@ -220,11 +220,11 @@ describe('3. rows filled by code are counted in the before-the-exam box', () => 
 
   test('Urdu box line, Urdu digits', () => {
     const one = box(schemeOf(sst([{ slot: 'social_studies.A.Q1', item: 0, part: null, filled_by: 'code' }], 'ur'), 'social_studies'));
-    expect(one).toContain('۱ مارکنگ قطار جواب سے لکھی گئی۔');
+    expect(one).toContain('مارکنگ اسکیم کی ۱ سطر جواب سے بنائی گئی ہے۔');
     const two = box(schemeOf(sst([
       { slot: 'social_studies.A.Q1', item: 0, part: null, filled_by: 'code' },
       { slot: 'social_studies.A.Q1', item: 1, part: 'a', filled_by: 'code' },
     ], 'ur'), 'social_studies'));
-    expect(two).toContain('۲ مارکنگ قطاریں جواب سے لکھی گئیں۔');
+    expect(two).toContain('مارکنگ اسکیم کی ۲ سطریں جواب سے بنائی گئی ہیں۔');
   });
 });
