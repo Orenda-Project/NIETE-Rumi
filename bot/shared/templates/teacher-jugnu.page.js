@@ -57,7 +57,7 @@ const T = {
     rungN1: 'Finding numbers',
     rungN2: 'Comparing numbers',
     rungN3: 'Filling number gaps',
-    rungN4: 'Counting past 100',
+    rungN4: 'Counting past a hundred',
     rungN5: 'Filling every number gap',
   },
   ur: {
