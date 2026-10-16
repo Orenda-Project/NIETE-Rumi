@@ -4,7 +4,9 @@
  * T table no longer carries it (EN or UR). Every screen the page renders, EN and UR, is byte-identical to the page
  * before the key left: the digests in __golden__/class-round-pages.json were written by this file on the unchanged
  * template with GOLDEN_WRITE=1. The UR teacher screen and its paused form were retaken when the round count moved to
- * Urdu digits: their HTML differs from the earlier page in those digits only.
+ * Urdu digits: their HTML differs from the earlier page in those digits only. They were retaken again when each name
+ * on the Urdu list became an isolate (U+2068 … U+2069): class-round-paused-continue.test.js proves that HTML, the
+ * isolates taken out, is the earlier digest byte for byte.
  */
 const fs = require('fs');
 const path = require('path');
