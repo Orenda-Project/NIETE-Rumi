@@ -98,7 +98,8 @@ async function start() {
 }
 /** On the one screen: upload a recording, so the lesson plan row and the photos are there. */
 async function attach() {
-  await waitFor(() => expect(screen.getByRole("button", { name: C.uploadRecording })).toBeTruthy(), { timeout: 5000 });
+  // the Recording card is there once the class is picked (Record / Upload are in its tray since 16 Oct)
+  await waitFor(() => expect(screen.getByRole("button", { name: new RegExp(`^${C.recording}`) })).toBeTruthy(), { timeout: 5000 });
   fireEvent.change(screen.getByTestId("dc-audio-input"), { target: { files: [m4a()] } });
   await screen.findByTestId("dc-recording");
 }
