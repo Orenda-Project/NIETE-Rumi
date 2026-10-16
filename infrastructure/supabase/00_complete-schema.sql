@@ -7688,6 +7688,14 @@ CREATE TABLE IF NOT EXISTS story_page_voices (
   created_at    timestamptz DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS story_page_voices_current ON public.story_page_voices (page_id, lang) WHERE is_current;
+-- 'low': the voice is kept but its word timings are not trusted, so the reader follows it line by line.
+ALTER TABLE story_page_voices ADD COLUMN IF NOT EXISTS quality text;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'story_page_voices_quality_check') THEN
+    ALTER TABLE story_page_voices ADD CONSTRAINT story_page_voices_quality_check CHECK (quality IN ('low'));
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS story_questions (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),

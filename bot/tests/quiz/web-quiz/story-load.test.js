@@ -169,6 +169,20 @@ describe('planBook', () => {
     expect(p.voices.every((v) => v.file && Store.FILE_RX.test(v.file.name))).toBe(true);
   });
 
+  test('a voice whose timing is marked low quality keeps its voice and carries the mark (line highlight); others carry none', async () => {
+    const f = fixture();
+    const vj = path.join(f.voiceDir, 'p02.json');
+    fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), ok: true, quality: 'low' }));
+    const p = L.planBook(f);
+    expect(p.why).toEqual([]);
+    expect(p.voices.map((v) => [v.n, v.row.quality])).toEqual([[1, null], [2, 'low']]);
+    fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), quality: 'great' }));
+    expect(L.planBook(f).voices.map((v) => v.row.quality)).toEqual([null, null]);
+    const store = memoryStore(); const r = recorder();
+    await L.applyPlan(p, { store, upload: r.upload, env: 'sandbox' });
+    expect([...store.t.voices.values()].map((v) => v.quality).sort()).toEqual(['low', null]);
+  });
+
   test('two pace gates: the whole clip (100 / 115) and the word span (130 / 145)', () => {
     expect(L.planBook(fixture({ wpm: 104, pace: 98 })).why).toEqual(['p01: voice pace 104 wpm', 'p02: voice pace 104 wpm']);
     expect(L.planBook(fixture({ wpm: 95, pace: 125 })).why).toEqual([]);

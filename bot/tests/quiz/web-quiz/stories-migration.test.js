@@ -43,6 +43,7 @@ test('the schema file mirrors the storybook tables, indexes and row level securi
   ['source_id     text UNIQUE,', "status        text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'ready', 'off')),",
     'text_band     jsonb,', 'CREATE UNIQUE INDEX IF NOT EXISTS story_page_voices_current ON public.story_page_voices (page_id, lang) WHERE is_current;',
     'CREATE INDEX IF NOT EXISTS story_events_child_at ON public.story_events (child_id, at DESC);',
+    'ALTER TABLE story_page_voices ADD COLUMN IF NOT EXISTS quality text;',
   ].forEach((line) => expect(mig).toContain(line));
 });
 
@@ -117,6 +118,14 @@ d('on Postgres', () => {
     expect(fails(`${voice(false, "'forced_align'")}`)).toBeNull();
     expect(fails(`begin; update story_page_voices set is_current = false where page_id = ${page}; ${voice(true)}; commit;`)).toBeNull();
     expect(psql(`select count(*) || '/' || count(*) filter (where is_current) from story_page_voices where page_id = ${page}`)).toBe('3/1');
+  });
+
+  test('a voice may be marked low quality (its words follow by line); nothing else', () => {
+    const page = `(select id from story_pages where book_id = '${BOOK}' and n = 2)`;
+    const voice = (q) => `insert into story_page_voices (page_id, lang, provider, voice, audio_key, ms, timings, timing_source, is_current, quality) values (${page}, 'en', 'soniox', 'Grace', 'story/dev/${BOOK}/a02-0a1b2c3d.ogg', 2100, '[]', 'stt_align', false, ${q})`;
+    expect(fails(voice("'low'"))).toBeNull();
+    expect(fails(voice('null'))).toBeNull();
+    expect(fails(voice("'high'"))).toMatch(/check constraint/);
   });
 
   test('questions: 1-5 per book, a known kind and review status; events: a known kind only', () => {

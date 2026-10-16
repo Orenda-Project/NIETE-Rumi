@@ -22,6 +22,7 @@
  *      a local clip, and two pace numbers: words over the whole clip ≤ 100 wpm (grades 1–2) / 115 (3–5) and over
  *      the spoken span ≤ 130 / 145. A page whose voice fails any of these is stored with no voice. The voice's drift
  *      numbers are stored, not gated: the drift gate is the reader's highlight against the audio, measured on the page
+ *      (a voice its build marks quality 'low' keeps its voice with that mark: the reader then follows it line by line)
  *   2. questions: 3–5 reviewed
  *   +  a cover ≤ 15 KB
  * Gate 3 (a lead opens the book on sandbox) is a person's: the lead sets status 'off' on a book that fails it.
@@ -113,7 +114,7 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
       timing_key: remoteKey && /\.(ogg|mp3)$/.test(remoteKey) ? remoteKey.replace(/\.(ogg|mp3)$/, '.json') : null, ms: ms || 0, timings: ts.map((w) => ({ i: w.i, s_ms: Math.round(w.s_ms), e_ms: Math.round(w.e_ms) })),
       timing_source: ['provider', 'stt_align', 'provider+stt', 'forced_align'].includes(src) ? src : 'stt_align',
       wpm: num(j.pace_wpm) != null ? j.pace_wpm : pick('wpm'), drift_ms_mean: pick('drift_ms_mean'), drift_ms_max: drift, wer,
-      cost_usd: pick('cost_usd'),
+      cost_usd: pick('cost_usd'), quality: j.quality === 'low' ? 'low' : null,
     },
   };
 }
