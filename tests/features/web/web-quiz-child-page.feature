@@ -1739,6 +1739,7 @@ Feature: Web child quiz page on the portal
     When the hub shows the shelf under "Jugnu today"
     Then a story with no run row of any kind for the child, on it or its twin, carries "NEW"
     And the numbers warm-up and a reserve story are never tagged new, and a reserve story is never on the shelf
+    And on the child's first open (no device cookie yet, the server render locked) the shelf still draws once the hub unlocks, without a reload
 
   @T806
   Scenario: The hub's doors are counted once per view, only with the new events on
