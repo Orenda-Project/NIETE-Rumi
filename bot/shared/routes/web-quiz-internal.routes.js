@@ -19,6 +19,7 @@
  *   GET  /videos/:code          E11 "watch another video": lessons of the quiz's grade
  *   POST /videos/start          E12 the code for one of them (minted once per class code)
  *   GET  /pulse/:code           E13 peer pulse: classmates' right answers, from memory
+ *   GET  /ch/:token/back       the class round's hand-back: {to} the round page, or {to:null}
  *   GET  /ch/...  POST /ch/...  the kid's Challenge (POST /ch/live: a temporary key for a live read-aloud) (web-quiz-challenge.js); GET /challenge/results?list=
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
  *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
@@ -134,6 +135,13 @@ router.get('/ch/:token', challenge((C, req) => C.menu(req.params.token, { kid: r
 // Story Time (?room=story&pid=<passage id>, read and listen only): passed on only with web_quiz_challenge_story on; off, ignored.
 const storyAsk = async (C, req) => (req.query.room === 'story' && (req.params.exercise === 'read' || req.params.exercise === 'listen') && typeof C.storyOn === 'function' && (await C.storyOn())
   ? { passageId: typeof req.query.pid === 'string' ? req.query.pid : null, room: 'story' } : {});
+// The class round's hand-back (/c/<turn token>/back at the edge): {to} the round page the teacher opened, or {to:null}
+// (unknown, expired, not a turn) and the edge sends the phone home. Before /ch/:token/:exercise ('back' is no game).
+router.get('/ch/:token/back', handle(async (req) => {
+  let to = null;
+  try { to = await require('../services/quiz/web-quiz-class-round').backTo(req.params.token, { lang: req.query.lang, device: req.get('x-wq-device') || undefined }); } catch (_) { to = null; }
+  return { to };
+}));
 router.get('/ch/:token/:exercise', challenge(async (C, req) => C.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device'), ...(await storyAsk(C, req)) })));
 router.get('/challenge/results', challenge((C, req) => C.listResults({ cls: req.query.class, list: req.query.list })));
 // A link preview fetches this with no session: the signed id is the permission, so anyone may cache it.

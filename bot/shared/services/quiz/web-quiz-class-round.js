@@ -337,11 +337,48 @@ function turnToken(round, studentId) {
   return T.sign({ k: 'r', rd: round, sid: studentId, exp: Math.floor(Date.now() / 1000) + TURN_TTL_S });
 }
 
+// The hand-back (the end card's one button, GET /c/<turn token>/back): the report token the teacher opened the round
+// page with stays on the server, in Redis under a hash of the turn (round|child|exp), for the turn's life, with a hash
+// of the phone the round page was opened on (the edge gives a phone without one a wq_dv). It is never in the child's
+// link, page, the DB, a log or an event. The turn token's claims stay { k, rd, sid, exp }.
+const BACK_RX = /^[A-Za-z0-9_-]{8,600}\.[A-Za-z0-9_-]{22}$/;
+const hash32 = (s) => require('crypto').createHash('sha256').update(s).digest('hex').slice(0, 32);
+const backKey = (c) => `wq:cr:back:${hash32(`${c.rd}|${c.sid}|${c.exp}`)}`;
+const deviceOf = (d) => (typeof d === 'string' && /^[A-Za-z0-9_-]{22}$/.test(d) ? hash32(`wq-cr-back|${d}`) : null);
+async function keepBack(tt, back, device) {
+  const c = tt && T.verify(tt, 'r');
+  if (!c || typeof back !== 'string' || !BACK_RX.test(back)) return;
+  try { await require('../cache/railway-redis.service').set(backKey(c), { b: back, d: deviceOf(device) }, TURN_TTL_S); } catch (_) { /* the button then goes home */ }
+}
+/**
+ * The round page a turn token's phone goes back to, or null (the caller sends it home). Read from the round row: the
+ * kept report token must be the round's own teacher's, the round still on this child's turn (to play, or just done),
+ * and the asking phone the one the round page was opened on. No phone kept: null (the turn's own page; the teacher
+ * reopens the report link), never the round page to whoever holds the turn link.
+ */
+async function backTo(tt, { lang, device } = {}) {
+  const c = typeof tt === 'string' ? T.verify(tt, 'r') : null;
+  if (!c || !ROUND_RX.test(String(c.rd || '')) || !c.sid) return null;
+  let kept = null;
+  try { kept = await require('../cache/railway-redis.service').get(backKey(c)); } catch (_) { kept = null; }
+  if (!kept || typeof kept.b !== 'string' || !BACK_RX.test(kept.b)) return null;
+  if (!kept.d || kept.d !== deviceOf(device)) return null;
+  const v = require('./teacher-report-token').verifyTeacherReport(kept.b);
+  if (!v) return null;
+  const draw = await openDrawFor(v.teacherId);
+  const st = draw && draw.round === c.rd ? draw.state : null;
+  const p = st && st.turn === 'child' ? st.order[st.cur] : null;
+  if (!p || p.id !== c.sid) return null;
+  return `/r/${encodeURIComponent(kept.b)}/round?lang=${clampLanguage(lang, ['en', 'ur'])}`;
+}
+
 /** The Challenge's entry for a round turn token's claims, or null (refused). */
 async function entryOf(claims) {
   const t = claims && (await openTurn(claims.rd, claims.sid));
   if (!t) return null;
-  return { studentId: claims.sid, via: 'class_round', round: t.draw.round, classId: t.draw.class_id, roundMode: t.mode };
+  // roundGames: the games already stored for this turn (ids only)
+  return { studentId: claims.sid, via: 'class_round', round: t.draw.round, classId: t.draw.class_id, roundMode: t.mode,
+    roundGames: [...(t.p.g || [])] };
 }
 
 /**
@@ -385,7 +422,7 @@ async function cardFor(teacherId, { lang, token } = {}) {
 }
 
 /** The round page for the teacher's phone, or null (404). During an open turn only the child's screens render. */
-async function screen(teacherId, { lang, token } = {}) {
+async function screen(teacherId, { lang, token, device } = {}) {
   if (!(await Flags.roundOn())) return null;
   const draw = await openDrawFor(teacherId);
   if (!draw) return null;
@@ -398,6 +435,7 @@ async function screen(teacherId, { lang, token } = {}) {
     const mode = cur.s === 'done' ? 'handback' : 'child';
     const l = clampLanguage(lang);
     const tt = mode === 'child' ? turnToken(draw.round, cur.id) : null;
+    if (tt) await keepBack(tt, token, device);
     // a child-held screen gets no list at all (IDENTITY §2, L11): only the child's own first name
     return Page.renderRound({ mode, rows: [], current: { name: rows[st.cur].name } }, { lang, token, turnHref: tt ? `/c/${tt}?lang=${l}` : null });
   }
@@ -407,5 +445,5 @@ async function screen(teacherId, { lang, token } = {}) {
 module.exports = {
   start, absent, declined, pause, notThisTerm, closeRound, next, toTeacher, childFinished, gameStored, turnToken, entryOf, claimFor, cardFor, screen, openDrawFor,
   declinableDrawFor, aggregatesOf, POS_BINS,
-  shuffle, held, GAMES, HOLD_MS, TURN_TTL_S,
+  shuffle, held, GAMES, HOLD_MS, TURN_TTL_S, backTo,
 };
