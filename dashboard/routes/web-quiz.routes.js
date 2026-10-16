@@ -132,7 +132,8 @@ function assetVersion() {
   // The hub's Jugnu corner (hub-play.js): its own line, so a change to it busts the cached hub page too.
   try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, 'hub-play.js'))); } catch (_) { /* absent in some tests */ }
   // Jugnu's Book (hub.js loads wq-book.js / .css at its own ?v=): a change to either busts the hub's version too.
-  for (const f of ['wq-book.js', 'wq-book.css']) {
+  // wq-tel.js (on every page at this ?v=) holds the pages' link helper WQT.withLang: a change to it busts it too.
+  for (const f of ['wq-book.js', 'wq-book.css', 'wq-tel.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -655,9 +656,11 @@ function createWebQuizRouter(opts = {}) {
     const kid = typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid) ? `?kid=${req.query.kid}` : '';
     // The route that brought the child (?from=…) rides to the bot as `src` (hub_open.src, read as opts.src).
     const src = typeof req.query.from === 'string' && HUB_SRC_RX.test(req.query.from) ? `${kid ? '&' : '?'}src=${req.query.from}` : '';
+    // The language the page that sent the child here was in (?lang=, only en|ur): the bot decides whether it wins.
+    const lang = req.query.lang === 'en' || req.query.lang === 'ur' ? `${kid || src ? '&' : '?'}lang=${req.query.lang}` : '';
     let out;
     try {
-      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}`, req);
+      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
       return closed(502, 'off');
     }

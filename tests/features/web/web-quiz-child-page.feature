@@ -1294,6 +1294,7 @@ Feature: Web child quiz page on the portal
     And every question the child reaches after the clips land is read in the quiz's recorded voice, in Urdu as in English
     And a quiz whose clips are already recorded never asks again
 
+    And the hub link carries the card's language (lang=en or ur), and with web_quiz_challenge_v2 on the hub, its challenge and library links open in it
   @T592
   Scenario: Every portal worker answers a link preview fast, whichever one the phone reaches
     Given the portal runs several worker processes and only one of them served the child's quiz page
@@ -1673,6 +1674,7 @@ Feature: Web child quiz page on the portal
     And a phone that remembers one child, who finished the quiz behind the teacher's /q/<code> link on that phone
     When the same link is opened again on that phone
     Then the page asks the server once and opens that child's own hub at /h/<token>?from=link
+    And that link carries the page's language (lang=en or ur), which the hub honours only with web_quiz_challenge_v2 on
     And the hub token names that child only and is bound to that phone, so a copy opened on another phone names nobody
     And the server writes door_shown with door "link_home" and surface "hub"
     But a reply that is not a hub link, an error, or no reply in 3 seconds shows today's screen

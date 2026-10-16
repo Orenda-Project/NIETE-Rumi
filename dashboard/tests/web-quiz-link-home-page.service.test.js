@@ -22,7 +22,8 @@ describe('switch on: one remembered child who finished, on this phone', () => {
     await flush(); await flush();
     expect(asks(p)).toHaveLength(1);
     expect(JSON.parse(asks(p)[0].init.body)).toEqual({ code: 'TEST', device_ref: DEV });
-    expect(p.hist.assigned).toEqual([HOME]);
+    // In the page's language (the pages' link helper, wq-tel.js WQT.withLang).
+    expect(p.hist.assigned).toEqual([`${HOME}&lang=en`]);
   });
 
   test('the server says no (null, an error, offline), or a reply that is not a hub link: today\'s card', async () => {
