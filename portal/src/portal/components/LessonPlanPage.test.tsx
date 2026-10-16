@@ -42,12 +42,25 @@ describe("PdfPage", () => {
   });
 
   it("draws the step outline only on the marked page", () => {
-    const mark = { page: 1, top: 0.4, height: 0.02 };
+    const mark = { page: 1, top: 0.4, height: 0.02, bands: [] };
     const props = { doc: docOf(makePage()), width: 300, ratio: 1.4, onRatio: vi.fn(), onFailed: vi.fn(), mark };
     const { unmount } = render(<PdfPage {...props} pageNumber={1} />);
     expect(document.querySelector('[data-page="1"] [aria-hidden="true"].absolute')).not.toBeNull();
     unmount();
     render(<PdfPage {...props} pageNumber={2} />);
     expect(document.querySelector('[data-page="2"] [aria-hidden="true"].absolute')).toBeNull();
+  });
+
+  // bd-v0toag.78: the whole step is washed on each page it runs over, with a star on the pages after the heading's.
+  it("washes the step on every page it runs over, starring the pages after the heading's", () => {
+    const mark = { page: 1, top: 0.4, height: 0.02, bands: [{ page: 1, top: 0.4, bottom: 0.955 }, { page: 2, top: 0.025, bottom: 0.3 }] };
+    const props = { doc: docOf(makePage()), width: 300, ratio: 1.4, onRatio: vi.fn(), onFailed: vi.fn(), mark };
+    const { unmount } = render(<PdfPage {...props} pageNumber={1} />);
+    expect(document.querySelectorAll('[data-page="1"] [data-testid="step-band"]')).toHaveLength(1);
+    expect(document.querySelector('[data-page="1"] [data-testid="band-star"]')).toBeNull();
+    unmount();
+    render(<PdfPage {...props} pageNumber={2} />);
+    expect(document.querySelectorAll('[data-page="2"] [data-testid="step-band"]')).toHaveLength(1);
+    expect(document.querySelector('[data-page="2"] [data-testid="band-star"]')).not.toBeNull();
   });
 });

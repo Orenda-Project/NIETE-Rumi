@@ -79,6 +79,21 @@ describe("ThingToTryStrip", () => {
     expect(strip.className).toMatch(/min-h-\[(5[6-9]|[6-9]\d)px\]/);
   });
 
+  // bd-v0toag.77 (Amena, 16 Oct): "neither does the yellow box". A solid amber block with a thick edge and a
+  // shadow, not a pale cream one; the star sits in a dark badge, bigger; the label is bold.
+  it("loud: solid amber, thick edge, shadow, a big star in a badge", async () => {
+    render(<ThingToTryStrip lessonId="a" />);
+    const strip = await screen.findByRole("button", { name: new RegExp(C.thingToTry) });
+    expect(strip.className).toMatch(/bg-\[#fbbf24\]/);
+    expect(strip.className).not.toMatch(/#fffbeb/);
+    expect(Number(/border-\[(\d+)px\]/.exec(strip.className)?.[1] ?? 0)).toBeGreaterThanOrEqual(3);
+    expect(strip.className).toMatch(/shadow-/);
+    const badge = strip.querySelector("[data-testid='strip-star']") as HTMLElement;
+    expect(badge.className).toMatch(/bg-\[#b45309\]/);
+    expect(badge.querySelector("svg")!.getAttribute("class")).toMatch(/h-(6|7|8)\b/);
+    expect(strip.querySelector("span.font-bold")?.textContent).toContain(C.thingToTry);
+  });
+
   describe("the step (PR3)", () => {
     const STEP = { name: "We Do", index: 3 };
     beforeEach(() => {
