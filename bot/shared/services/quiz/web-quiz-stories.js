@@ -256,7 +256,7 @@ function optionOf(bookId, o) {
 }
 
 async function reviewedQuestions(bookId) {
-  const { data } = await supabase.from('story_questions').select('n, kind, q, options, answer_i, review_status').eq('book_id', bookId).eq('review_status', 'reviewed');
+  const { data } = await supabase.from('story_questions').select('n, kind, q, options, answer_i, page_ref, review_status').eq('book_id', bookId).eq('review_status', 'reviewed');
   return (data || []).slice().sort((a, b) => a.n - b.n);
 }
 
@@ -293,7 +293,9 @@ async function bookData(id) {
         audio: v && urls[i] ? { url: urls[i], ms: Number(v.ms) || 0 } : null, boxes_ok: Boolean(p.boxes_ok), is_picture: Boolean(p.is_picture),
       };
     }),
-    questions: questions.map((q) => ({ n: q.n, kind: q.kind, q: q.q, options: (Array.isArray(q.options) ? q.options : []).map((o) => optionOf(b.id, o)) })),
+    // page_ref: the page that answers it ("Look back" after a miss); it says where to look, not which option is right.
+    questions: questions.map((q) => ({ n: q.n, kind: q.kind, q: q.q, options: (Array.isArray(q.options) ? q.options : []).map((o) => optionOf(b.id, o)),
+      ...(Number.isFinite(Number(q.page_ref)) && q.page_ref != null ? { page_ref: Number(q.page_ref) } : {}) })),
   };
 }
 
@@ -315,9 +317,17 @@ async function bookOn() {
 
 async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, data } = {}, { device } = {}) {
   const who = await guard(token, kid, device);
-  if (!EVENTS.has(name)) fail(400, 'bad_event');
+  if (!EVENTS.has(name) && name !== 'story_answer') fail(400, 'bad_event');
   const b = await readyBook(bookId);
   if (!b) fail(404, 'not_found');
+  // One tap checked (the reader's "Look back" after a miss): right or not, no row kept, the answer never sent.
+  if (name === 'story_answer') {
+    const q = (await reviewedQuestions(b.id)).find((x) => x.n === int(data && data.n));
+    if (!q) fail(400, 'bad_question');
+    const right = int(data.pick) === Number(q.answer_i);
+    logEvent('web_quiz.story_answer', { n: q.n, kind: q.kind, right });
+    return { ok: true, right };
+  }
   const page = pageN == null ? null : int(pageN);
   if (pageN != null && (page === null || page < 0 || page > (Number(b.pages) || 0) + 1)) fail(400, 'bad_page');
   let kept = keep(name, data);
@@ -327,8 +337,11 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
     const picks = Array.isArray(data && data.answers) ? data.answers.slice(0, qs.length).map(int) : [];
     const correct = qs.filter((q, i) => picks[i] !== null && picks[i] === Number(q.answer_i)).length;
     const stars = effortOf(await childEvents(who.studentId, b.id), true);
-    kept = { correct, total: qs.length, stars };
-    Object.assign(out, kept);
+    Object.assign(out, { correct, total: qs.length, stars });
+    // Per kind ("finds facts / works out why") for the teacher's report only: kept, never answered to the child.
+    const byKind = {};
+    qs.forEach((q, i) => { const k = byKind[q.kind] || (byKind[q.kind] = { correct: 0, total: 0 }); k.total += 1; if (picks[i] !== null && picks[i] === Number(q.answer_i)) k.correct += 1; });
+    kept = { correct, total: qs.length, stars, by_kind: byKind };
   }
   if (name === 'story_done') {
     const before = await supabase.from('story_events').select('id').eq('child_id', who.studentId).eq('book_id', b.id).eq('event', 'story_done').limit(1);

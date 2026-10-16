@@ -212,8 +212,8 @@ describe('the book', () => {
     seed();
     const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
     expect(out.questions).toEqual([
-      { n: 1, kind: 'literal', q: 'What does Sami Testwala see?', options: [{ t: 'A kite' }, { t: 'A cat' }, { t: 'A bus' }] },
-      { n: 2, kind: 'inference', q: 'Where does the kite go?', options: [{ t: 'Down' }, { t: 'Up high', img: `/s/${F.BOOK(1)}/q2o1-eeee0001.webp` }, { t: 'Home' }] },
+      { n: 1, kind: 'literal', q: 'What does Sami Testwala see?', options: [{ t: 'A kite' }, { t: 'A cat' }, { t: 'A bus' }], page_ref: 1 },
+      { n: 2, kind: 'inference', q: 'Where does the kite go?', options: [{ t: 'Down' }, { t: 'Up high', img: `/s/${F.BOOK(1)}/q2o1-eeee0001.webp` }, { t: 'Home' }], page_ref: 2 },
     ]);
     expect(JSON.stringify(out)).not.toMatch(/answer_i|review_status|"answer"/);
   });
@@ -275,7 +275,20 @@ describe('events', () => {
     seed();
     const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_questions_done', data: { answers: [0, 2] } });
     expect(out).toEqual({ ok: true, correct: 1, total: 2, stars: expect.any(Number) });
-    expect(fake.db.story_events[0].data).toEqual({ correct: 1, total: 2, stars: out.stars });
+    expect(fake.db.story_events[0].data).toEqual(expect.objectContaining({ correct: 1, total: 2, stars: out.stars }));
+  });
+  test('story_answer checks one tap (for "Look back") and keeps no row; the answer itself never comes back', async () => {
+    seed();
+    expect(await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_answer', data: { n: 2, pick: 0 } })).toEqual({ ok: true, right: false });
+    expect(await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_answer', data: { n: 2, pick: 1 } })).toEqual({ ok: true, right: true });
+    expect(await status(Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_answer', data: { n: 3, pick: 2 } }))).toBe(400); // a draft question
+    expect(fake.db.story_events).toHaveLength(0);
+  });
+  test('story_questions_done keeps by_kind for the teacher\'s report, and the child\'s response has no per-kind numbers', async () => {
+    seed();
+    const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_questions_done', data: { answers: [0, 0] } });
+    expect(out).not.toHaveProperty('by_kind');
+    expect(fake.db.story_events[0].data.by_kind).toEqual({ literal: { correct: 1, total: 1 }, inference: { correct: 0, total: 1 } });
   });
   test('effort stars: one for listening, one for reading aloud, one for answering — never for being right', () => {
     expect(Stories.effortStars({ listened: 0, read: 0, answered: false })).toBe(0);
