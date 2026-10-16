@@ -1028,6 +1028,9 @@ const SAME_LETTER = [[/[يى]/g, 'ی'], [/ك/g, 'ک'], [/ه/g, 'ہ']];
 const asWritten = (t) => SAME_LETTER.reduce((x, [re, to]) => x.replace(re, to), String(t).normalize('NFC')).replace(OPTION_HEAD, '').replace(/^[\s«»’‘“”"'(]+|[\s«»’‘“”"').,،۔؟?!]+$/gu, '');
 // A spelling item prints its key wherever its stem holds it, inside a longer quote too («جس چیز سے
 // … یعنی گرم مصالحہ» کا درست املا → مصالحہ): the word it tests, as written, among the stem's words.
+// Beside another option too («عمارت» اور «اِمارت» میں سے درست املا …): the right spelling is printed,
+// and the other-option exemption below is for items that ask something else (a meaning). A key of
+// function words only («میں») is the stem's own frame, and stays.
 const SPELLING_ASK = /املا|ہجے/;
 const wordsAsWritten = (t) => asWritten(t).split(/[^\p{L}\p{M}\p{N}]+/u).filter(Boolean);
 function spellingPrints(stem, key) {
@@ -1040,7 +1043,7 @@ function printsOwnKey(q) {
   const options = q.options.map(asWritten);
   if (!plain(key) || !options.includes(key)) return false;
   const stem = String(q.question || '');
-  if (SPELLING_ASK.test(stem) && spellingPrints(stem, key)) return true;
+  if (SPELLING_ASK.test(stem) && tokensOf(key).length > 0 && spellingPrints(stem, key)) return true;
   const quotes = (stem.match(QUOTE_SPAN) || []).map(asWritten);
   const outside = stem.split(QUOTE_SPAN).map((part) => ` ${plain(part)} `);
   // Outside the quotes only a key with a content word counts: a function word («میں») is in most
@@ -1276,7 +1279,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
         const slot = slots.find((s) => s.slot === id);
         for (const q of list) {
           if (!room(slot)) return;
-          if (bySlot.get(id).some((p) => twin(p, q))) continue;
+          if (bySlot.get(id).some((p) => twin(p, q)) || (holds(slot) && cross.rule(q))) continue;
           bySlot.get(id).push(q);
           putBack.push({ slot: id, rule: 'asks_two' });
           unplaced -= 1;

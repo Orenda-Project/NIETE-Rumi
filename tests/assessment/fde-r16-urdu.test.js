@@ -187,6 +187,26 @@ describe('(e) the put-back: spares sized to the gap, one more A-only top-up, and
     expect(after.putBack).toEqual([{ slot: 'urdu.A.Q1', rule: 'asks_two' }]);
   });
 
+  test('a two-question stem that is also held against Section C never comes back', () => {
+    const full2 = read('full2');
+    const exam = clone({ unseen: full2.unseen, _scope: full2._scope });
+    const q = items(exam, 'urdu.A.Q1').find((x) => /بہت زیادہ غصے میں آ جانا/.test(x.question));
+    q.question = '«بہت زیادہ غصے میں آ جانا» کے لیے کون سا محاورہ درست ہے؟ اس کا مطلب کیا ہے؟';
+    const after = lay(exam, true);
+    expect(q1Stems(after.examJson)).not.toContain(q.question);
+    expect(after.putBack).toBeUndefined();
+  });
+
+  test('a spelling item keyed on a function word in its stem\'s own frame stays («درج ذیل میں سے …» → میں)', () => {
+    const full2 = read('full2');
+    const exam = clone({ unseen: full2.unseen, _scope: full2._scope });
+    const q = items(exam, 'urdu.A.Q1').find((x) => /یعنی گرم مصالحہ/.test(x.question));
+    q.question = 'درج ذیل میں سے کس لفظ کا املا درست ہے؟';
+    q.options = ['الف) مے', 'ب) میں', 'ج) مئیں', 'د) میںن'];
+    q.answer = 'ب) میں';
+    expect(q1Stems(lay(exam, false).examJson)).toContain(q.question);
+  });
+
   describe('through generatePatternExam, with chapters_3\'s replies as recorded', () => {
     const rec = read('ch3-replies');
     beforeEach(() => { mockCreate.mockReset(); logToFile.mockClear(); });
