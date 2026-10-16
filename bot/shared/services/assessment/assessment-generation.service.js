@@ -1106,19 +1106,21 @@ function _emptyQuestionParts(examJson) {
 }
 
 /**
- * The first reply, plus the second reply's items for the given slots whose question is not already
- * in it. Nothing else of the second reply is kept.
+ * The first reply, plus the second reply's items for the given slots that are not already in it. Nothing else of the second reply is kept.
  */
 function _topUp(firstTree, secondTree, slots) {
+  // Keyed on everything the item says, not its question line alone: an item whose stem sits in
+  // another field has no question line, and two of those are not the same item.
+  const keyOf = (q) => _textsOf(q).map((t) => _flat(t).toLowerCase()).join('\u0001');
   const seen = new Set();
-  _walkQuestions(firstTree, (q) => seen.add(_flat(q.question).toLowerCase()));
+  _walkQuestions(firstTree, (q) => seen.add(keyOf(q)));
   const extra = JSON.parse(JSON.stringify(secondTree || {}));
   for (const branch of ['seen', 'unseen']) {
     for (const types of Object.values((extra && extra[branch]) || {})) {
       if (!types || typeof types !== 'object') continue;
       for (const [type, list] of Object.entries(types)) {
         if (!Array.isArray(list)) continue;
-        types[type] = list.filter((q) => q && slots.has(q.slot) && !seen.has(_flat(q.question).toLowerCase()));
+        types[type] = list.filter((q) => q && slots.has(q.slot) && !seen.has(keyOf(q)));
       }
     }
   }
