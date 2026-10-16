@@ -198,6 +198,25 @@ function guestAsksForQuiz(type, body) {
 }
 // ── end guest home ──
 
+// ── first touch (quiz_first_door; off → nothing here reads anything but the switch, which rides the identity flags) ──
+const FIRST_DOOR_REASON = 'first_door';
+const FIRST_DOOR_TTL_SECS = 60;   // the door's verdict never outlives a minute, as the guest's: a tap is honoured within one
+
+/**
+ * An unknown phone's quiz-shaped text (the same shape as the guest's, guestAsksForQuiz) with the first-touch door on →
+ * the door's verdict (the guest pattern's shape plus `door`); null for everything else, on any error, and when the
+ * switch is off = today's path. Runs after boundVerdict() and before guestVerdict(); a known phone never reaches it.
+ * The door module is required HERE, lazily: a module that throws at load costs exactly this branch, never the door
+ * every WhatsApp message passes through.
+ */
+async function doorVerdict({ user, phone, body }) {
+  try {
+    const FirstDoor = require('./first-touch/door.service');
+    return await FirstDoor.doorVerdict({ user, phone, body, quizShaped: guestAsksForQuiz('text', body) });
+  } catch (_) { return null; }
+}
+// ── end first touch ──
+
 /**
  * THE DECISION. Never throws. `persona` is 'student' only for a proven child;
  * every other outcome is null, which the caller treats as "today".
@@ -226,7 +245,7 @@ async function classify({ user, phone, body } = {}) {
         const students = await StudentMode.quizStudentsForPhone(phone);
         if (!students.length) {
           // family phone binding: a phone bound to a page child is that child's (read before an unknown is cached)
-          verdict = (await boundVerdict(phone)) || (await guestVerdict()) || NONE('unknown', 'no_student_row');
+          verdict = (await boundVerdict(phone)) || (await doorVerdict({ user: full, phone, body })) || (await guestVerdict()) || NONE('unknown', 'no_student_row');
         } else {
           const { language, studentClass } = await StudentMode.lastQuizSessionForStudents(students.map((s) => s.id));
           verdict = {
@@ -237,7 +256,7 @@ async function classify({ user, phone, body } = {}) {
         }
       }
     }
-    await VerdictCache.set(phone, verdict, verdict.reason === GUEST_REASON ? GUEST_TTL_SECS : undefined);
+    await VerdictCache.set(phone, verdict, verdict.reason === GUEST_REASON ? GUEST_TTL_SECS : (verdict.reason === FIRST_DOOR_REASON ? FIRST_DOOR_TTL_SECS : undefined));
     logEvent('student_ingress.decided', { mode: verdict.mode, reason: verdict.reason, userId: full.id, ...(await unknownPhoneKey(verdict, phone, body)) });
     return verdict;
   } catch (err) {
