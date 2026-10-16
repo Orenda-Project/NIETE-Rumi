@@ -397,6 +397,13 @@ function rosterChip(ctx, { kid, label }, one = null) {
 
 // ─── live counts ────────────────────────────────────────────────────────────
 
+// A child's page never gets a class count under 5 ("1 in your class played today" tells the next child who): under 5
+// the boot sends class_today 0 and no now, so the page draws neither line. The ICT-wide count is not a class count.
+const CLASS_COUNT_FLOOR = 5;
+function childLive(counts, now) {
+  return { ...counts, class_today: counts.class_today >= CLASS_COUNT_FLOOR ? counts.class_today : 0, ...(now >= CLASS_COUNT_FLOOR ? { now } : {}) };
+}
+
 async function liveCounts(ctx) {
   const since = pktMidnightIso();
   const out = { class_today: 0, ict_today_floor: 0 };
@@ -535,7 +542,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     // now: classmates with a right answer in the last 2 minutes (peer pulse ring), sent only when there are some.
     // A friend's challenge gets neither the class count nor who is playing now: the friend is not in the class.
     live: invited ? { ...(await liveCounts(ctx)), class_today: 0 }
-      : { ...(await liveCounts(ctx)), ...(Pulse.liveNow(ctx.shareCodeId) ? { now: Pulse.liveNow(ctx.shareCodeId) } : {}) },
+      : childLive(await liveCounts(ctx), Pulse.liveNow(ctx.shareCodeId)),
     video,
     preview,
     // Which brand the page wears: a key only; the edge owns the brand's look.

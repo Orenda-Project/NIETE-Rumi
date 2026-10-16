@@ -163,7 +163,8 @@ describe('E2 GET quiz', () => {
     expect(q1.options.find((o) => o.slot === 'A')).toMatchObject({ fb: 'Roots hold the plant.', img: `/api/wq/media/AB12CD/${qid(1)}?k=A` });
     expect(q1.img).toBe(`/api/wq/media/AB12CD/${qid(1)}?k=q`);
     expect(out.cls.chips).toEqual([{ chip: chipOf(KID_A), first: 'Zara', animal: T.animalFor(KID_A) }]);
-    expect(out.live).toEqual({ class_today: 1, ict_today_floor: 1 });
+    // one child finished today: under 5, so the child's page gets no class count (the ICT-wide count is not one)
+    expect(out.live).toEqual({ class_today: 0, ict_today_floor: 1 });
     expect(out.video).toBeNull();
     expect(out.preview).toBe(false);
     // The teacher is named as the forwarded WhatsApp text names them; the parent's phone never leaves.
