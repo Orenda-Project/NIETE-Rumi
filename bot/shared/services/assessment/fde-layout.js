@@ -1051,7 +1051,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // from what the first pass placed in the slot that could be given away.
   const cross = CROSS_HOLD[P.key];
   const against = cross && slots.filter((s) => [].concat(cross.against).includes(s.slot));
-  const rule = against && against.length && cross.rule(against.flatMap((s) => bySlot.get(s.slot)));
+  // Each item as the slot it was placed in (a mis-tag, «urdo.C.Q4», is placed by its tail).
+  const rule = against && against.length && cross.rule(against.flatMap((s) => bySlot.get(s.slot).map((q) => ({ ...q, slot: s.slot }))));
   if (rule) place({ held: cross.held, rule });
   spreadKeys(slots, bySlot);
 
