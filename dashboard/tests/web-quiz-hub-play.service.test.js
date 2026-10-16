@@ -386,9 +386,18 @@ describe('hub_open route value: /h/<token>?from=… rides to the bot as src', ()
 // loads hub-play.js itself (at its own ?v=) and draws the hub again once it arrives, as it does for the Book.
 describe('first open: the locked server render, then `play` from the unlock', () => {
   const PLAY = { first: false, lantern: null, install: false, doors: [], shelf: [{ id: 'week_story', nx: 'new', pid: 'en.read.1.story01' }, { id: 'numbers', nx: 'seen' }] };
-  function firstOpen(answer, { playLoaded = false } = {}) {
+  // taps: buttons found by id (and tapped with tap('#id')), so a test can leave the hub and come back to it.
+  function firstOpen(answer, { playLoaded = false, taps = false } = {}) {
     const head = [];
-    const root = { _h: '', attrs: {}, set innerHTML(h) { this._h = h; }, get innerHTML() { return this._h; }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k]; }, querySelector: () => null, querySelectorAll: () => [], appendChild() {} };
+    const beacons = [];
+    const winL = {};
+    const btns = {};
+    const root = { _h: '', attrs: {}, set innerHTML(h) { this._h = h; for (const k of Object.keys(btns)) delete btns[k]; }, get innerHTML() { return this._h; }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k]; }, querySelectorAll: () => [], appendChild() {},
+      querySelector(sel) {
+        if (!taps || !/^#[\w-]+$/.test(sel) || this._h.indexOf('id="' + sel.slice(1) + '"') < 0) return null;
+        btns[sel] = btns[sel] || { l: [], addEventListener(n, fn) { if (n === 'click') this.l.push(fn); }, getAttribute: () => null };
+        return btns[sel];
+      } };
     const timers = [];
     const ctx = {
       document: {
@@ -398,10 +407,10 @@ describe('first open: the locked server render, then `play` from the unlock', ()
         createElement: (tag) => ({ tag, l: {}, setAttribute() {}, addEventListener(n, fn) { this.l[n] = fn; } }),
         head: { appendChild: (el) => head.push(el) },
       },
-      navigator: { userAgent: CHROME_UA, sendBeacon: () => true },
+      navigator: { userAgent: CHROME_UA, sendBeacon: (u, b) => { beacons.push(...JSON.parse(b.parts[0]).events); return true; } },
       history: { replaceState() {} },
       location: { search: '', protocol: 'https:', host: 'wq.example.test', assign() {}, reload() {} },
-      Blob: function Blob() {},
+      Blob: function Blob(parts) { this.parts = parts; },
       fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve(JSON.stringify(answer)) }),
       localStorage: { getItem: () => null, setItem() {} },
       setTimeout: (fn) => { timers.push(fn); return timers.length; },
@@ -409,12 +418,15 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     };
     ctx.window = ctx;
     ctx.window.scrollTo = () => {};
-    ctx.window.addEventListener = () => {};
+    ctx.window.addEventListener = (n, fn) => { (winL[n] = winL[n] || []).push(fn); };
     vm.createContext(ctx);
     if (playLoaded) vm.runInContext(PLAY_SRC, ctx);
     vm.runInContext(HUB_SRC, ctx);
     const flush = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); while (timers.length) timers.shift()(); } };
-    return { ctx, head, html: () => root._h, flush };
+    const tap = (sel) => (btns[sel] ? btns[sel].l : []).forEach((fn) => fn.call(btns[sel], { preventDefault() {} }));
+    // Back to this page from the back/forward cache: hub.js draws the screen it keeps again.
+    const backAgain = async () => { (winL.pageshow || []).forEach((fn) => fn({ persisted: true })); await flush(); };
+    return { ctx, head, html: () => root._h, moment: () => root.attrs['data-m'], flush, beacons, tap, backAgain };
   }
   test('hub-play.js is loaded at hub.js\'s ?v= and the shelf draws once it arrives', async () => {
     const p = firstOpen({ ...BOOTS.done, play: PLAY });
@@ -497,6 +509,86 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     const p = firstOpen({ ...BOOTS.done, play: PLAY }, { playLoaded: true });
     await p.flush();
     expect(p.head.filter((e) => /wq-bind/.test((e.src || '') + (e.href || '')))).toHaveLength(0);
+  });
+  // hub-play.js arriving late or failing: the corner is still drawn on the next hub, and a failure asks again once.
+  const plays = (p) => p.head.filter((e) => e.tag === 'script' && /hub-play\.js/.test(e.src || ''));
+  const TWO = { ...BOOTS.done, kids: [...BOOTS.done.kids, { chip: '0000000000000002', first: 'Kid Testwala', animal: 'cat', grade: '3' }] };
+  test('hub-play.js arrives after the hub was left ("Who is playing?"): no redraw there, and the hub drawn next has the corner', async () => {
+    const p = firstOpen({ ...TWO, play: PLAY }, { taps: true });
+    await p.flush();
+    expect(p.moment()).toBe('H2');
+    p.tap('#wq-h-switch');
+    expect(p.moment()).toBe('H1');
+    const who = p.html();
+    vm.runInContext(PLAY_SRC, p.ctx);
+    plays(p)[0].l.load();
+    await p.flush();
+    expect(p.moment()).toBe('H1');
+    expect(p.html()).toBe(who);
+    await p.backAgain();
+    expect(p.moment()).toBe('H2');
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(plays(p).map((e) => e.src)).toEqual(['/wq/hub-play.js?v=abc123']);
+  });
+  test('hub-play.js fails once while the child stays on the hub: asked again at once, the corner drawn without any other navigation', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY });
+    await p.flush();
+    expect(plays(p)).toHaveLength(1);
+    plays(p)[0].l.error();
+    await p.flush();
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toEqual([expect.objectContaining({ n: 'hub_play_load_failed', file: 'hub-play.js', i: 1 })]);
+    expect(plays(p).map((e) => e.src)).toEqual(['/wq/hub-play.js?v=abc123', '/wq/hub-play.js?v=abc123']);
+    vm.runInContext(PLAY_SRC, p.ctx);
+    plays(p)[1].l.load();
+    await p.flush();
+    expect(p.moment()).toBe('H2');
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toHaveLength(1);
+  });
+  test('hub-play.js fails once on another screen ("Who is playing?"): nothing asked there, the next hub asks again and draws the corner', async () => {
+    const p = firstOpen({ ...TWO, play: PLAY }, { taps: true });
+    await p.flush();
+    p.tap('#wq-h-switch');
+    expect(p.moment()).toBe('H1');
+    const who = p.html();
+    plays(p)[0].l.error();
+    await p.flush();
+    expect(plays(p)).toHaveLength(1);
+    expect(p.html()).toBe(who);
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toHaveLength(1);
+    await p.backAgain();
+    expect(plays(p)).toHaveLength(2);
+    vm.runInContext(PLAY_SRC, p.ctx);
+    plays(p)[1].l.load();
+    await p.flush();
+    expect(p.moment()).toBe('H2');
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toHaveLength(1);
+  });
+  test('hub-play.js fails twice: no third ask however often the hub is drawn, one event, the hub as without the corner', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY });
+    await p.flush();
+    const bare = p.html();
+    plays(p)[0].l.error();
+    await p.flush();
+    expect(plays(p)).toHaveLength(2);
+    plays(p)[1].l.error();
+    await p.flush();
+    expect(plays(p)).toHaveLength(2);
+    await p.backAgain();
+    await p.backAgain();
+    expect(plays(p)).toHaveLength(2);
+    expect(p.html()).toBe(bare);
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toHaveLength(1);
+  });
+  test('golden: a normal load sends no hub_play_load_failed and asks once', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY });
+    await p.flush();
+    vm.runInContext(PLAY_SRC, p.ctx);
+    plays(p)[0].l.load();
+    await p.backAgain();
+    expect(plays(p)).toHaveLength(1);
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toEqual([]);
   });
   test('no `play` in the unlock answer: nothing loaded', async () => {
     const p = firstOpen({ ...BOOTS.done });
