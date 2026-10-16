@@ -240,6 +240,22 @@
   }
 
   /* ---------------- H2 the hub ---------------- */
+  // The Jugnu corner's script when the server render had no `play`: a child's first open has no wq_dv cookie yet,
+  // so the render was the locked one and the edge left hub-play.js out; unlock() then brings `play`. Loaded once,
+  // at hub.js's own ?v=, and the hub drawn again when it arrives (still on the hub, still with `play`).
+  var playAsked = false;
+  function playIn() {
+    if (playAsked) return;
+    playAsked = true;
+    try {
+      var me = document.querySelector('script[src*="/wq/hub.js"]');
+      var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
+      var s = document.createElement('script');
+      s.src = '/wq/hub-play.js' + (v ? '?v=' + v[1] : '');
+      s.addEventListener('load', function () { if (window.WQPLAY && B.play && ROOT.getAttribute('data-m') === 'H2') hub(); });
+      document.head.appendChild(s);
+    } catch (e) {}
+  }
   // With the Home button on (nav_home), the library and the challenge are told to show it too.
   function withHome(h) { return B.nav_home ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'home=1' : h; }
   function teacherCard(t) {
@@ -296,6 +312,8 @@
     // With no teacher quiz the empty card already holds the library button: no second library tile.
     var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
       (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG)) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
+    // A first open's server render was locked (no wq_dv cookie yet), so the edge left hub-play.js out: load it now.
+    if (B.play && !window.WQPLAY) playIn();
     // The Jugnu corner (hub-play.js, loaded only when the server sent `play`): it may put the Jugnu card first.
     var top = B.play && window.WQPLAY
       ? window.WQPLAY.top(B, T, { HOME: HOME, lastCard: lastCard(B.last), homeTiles: homeTiles(), teacher: B.teacher ? teacherCard(B.teacher) : '', teacherAny: teacherCard(B.teacher), tiles: tiles, LANG: LANG, MASC: MASC, chHref: '/c/' + withHome(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG), ROOT: ROOT, ev: ev })

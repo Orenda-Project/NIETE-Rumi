@@ -80,7 +80,10 @@ describe('golden: /q/<code> is byte-identical (the class link touches nothing on
     const got = { quiz: { status: quiz.status, body: quiz.body }, unknown: { status: unknown.status, body: unknown.body } };
     if (process.env.GOLDEN_WRITE === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify(got, null, 2)}\n`);
     const want = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
-    expect(got).toEqual(want);
+    // The asset stamp (?v=, a hash of every wq page script, routes assetVersion) moves with ANY page-script change;
+    // what this golden guards is that the class link changes nothing else on /q/.
+    const stamp = (o) => JSON.parse(JSON.stringify(o).replace(/\?v=[0-9a-f]{10}\b/g, '?v=<assets>'));
+    expect(stamp(got)).toEqual(stamp(want));
   });
 });
 
