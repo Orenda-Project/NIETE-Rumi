@@ -2730,3 +2730,15 @@ Feature: NIETE (ICT) Teacher Training
     But a child's own check run outside the round still ends with "A sticker went into your Book." and Home
     # web-quiz-challenge.js roundPayload round_turn/round_back, menu done from the turn's stored games; wq-trail.js endCard;
     # unit: class-round-endcard.test.js, dashboard class-round-endcard-page.service.test.js
+
+  @quiz @config-gated @wip @draft @P2 @T963
+  Scenario: A read that was not a reading earns no sticker on my card and nothing in my Book
+    Given app_settings "web_quiz_challenge_v2" and "web_quiz_challenge_book" are true
+    And my reading check this month heard no reading at all (a silent room, a tone or a fan), so it is scored with its record lost
+    When the read result card shows
+    Then it says "You tried a whole new story!" with no "A sticker went into your Book." line under it
+    And the result I am given carries sticker false, on the first reply and on every poll
+    And my Book keeps no story sticker and lights no day for that read, and my class's lights do not count it
+    And an ordinary read, or a real read of the wrong story, keeps its sticker line, its story sticker and its day as before
+    # web-quiz-challenge.js submit + runState (noiseRun); web-quiz-book.js storyIdsOf, daysOf, lightsOf (noiseRow); wq-trail.js endCard;
+    # unit: challenge-read-quality.test.js, web-quiz-book-noise.test.js, dashboard web-quiz-trail-noise-sticker.service.test.js
