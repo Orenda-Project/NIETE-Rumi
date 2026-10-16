@@ -29,7 +29,7 @@ const QUIZ = (extra = {}) => ({
     id: 'q-1', code: 'AB12CD', topic: 'Parts of a plant', lang: 'en', dir: 'ltr', grade: '3', subject: 'Science', n: 1,
     questions: [{ qid: 'x1', i: 1, text: 'Which part drinks water?', options: [{ slot: 'A', text: 'Roots' }, { slot: 'B', text: 'Leaves' }], correct_slot: 'A' }],
   },
-  cls: { label: 'Class 3', teacher: 'Teacher', chips: [] },
+  cls: { label: 'Class 3', teacher: 'Teacher Testwala', chips: [] },
   live: { class_today: 0, ict_today_floor: 40 },
   video: null,
   preview: false,
@@ -49,7 +49,7 @@ const QUIZ_BIG = (extra = {}) => {
 };
 const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
 const HUB = (extra = {}) => ({
-  lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
+  lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana Testwala', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, ...extra,
 });
 const ver = (body) => body.match(/wq\.css\?v=([0-9a-f]+)/)[1];
@@ -190,6 +190,42 @@ describe('fast first page, compressed: GET /q/:code', () => {
     const again = await get(srv, '/q/AB12CD?nf=1', { headers: { 'accept-encoding': AE, 'if-none-match': first.headers.etag } });
     expect(again.status).toBe(304);
     expect(again.wire).toBe(0);
+  });
+
+  it('switch on, the phone goes away mid-page (after the head, before the bot answers): the compressor is let go, nothing throws, the next phone is served', async () => {
+    const made = [];
+    const real = zlib.createBrotliCompress;
+    // zlib's exports are read-only properties (configurable): count the compressors the portal opens.
+    const swap = (fn) => Object.defineProperty(zlib, 'createBrotliCompress', { value: fn, writable: false, enumerable: true, configurable: true });
+    swap((...a) => { const z = real.apply(zlib, a); made.push(z); return z; });
+    const errors = [];
+    const onErr = (e) => errors.push(e);
+    process.on('uncaughtException', onErr);
+    try {
+      const bot = heldBot([jsonRes(200, QUIZ({ fast: true })), { hold: true, res: jsonRes(200, QUIZ({ fast: true })) }, jsonRes(200, QUIZ({ fast: true }))]);
+      srv = await start(build(bot.fetchImpl));
+      await get(srv, '/q/AB12CD');
+      await new Promise((resolve, reject) => {
+        const r = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'GET', path: '/q/AB12CD', headers: { host: 'portal.example', 'accept-encoding': AE } }, (res) => {
+          res.once('data', () => { r.destroy(); setTimeout(resolve, 50); });
+        });
+        r.on('error', () => {});
+        r.on('close', () => {});
+        r.end();
+        setTimeout(() => reject(new Error('no head before the bot answered')), 1000);
+      });
+      expect(made.length).toBe(1);
+      expect(made[0].destroyed).toBe(true);
+      bot.release();
+      await new Promise((r) => setTimeout(r, 50));
+      const next = await get(srv, '/q/AB12CD', { headers: { 'accept-encoding': AE } });
+      expect(next.status).toBe(200);
+      expect(next.body).toMatch(/<script id="boot"/);
+      expect(errors).toEqual([]);
+    } finally {
+      swap(real);
+      process.removeListener('uncaughtException', onErr);
+    }
   });
 
   it('switch off, the phone takes br: today\'s render byte for byte, no content-encoding of the portal\'s own (the edge compresses it)', async () => {
