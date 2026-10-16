@@ -1763,6 +1763,12 @@ function schedulePeriodicChecks({ worker: w = null } = {}) {
   } catch (error) {
     logToFile('Error scheduling the lesson-plan health check (non-fatal)', { error: error && error.message }, 'error');
   }
+  try {
+    // bd-v0toag.10 — day-3 quiz retest; a no-op until app_settings quiz_slo_retest_enabled is on.
+    require('./quiz-retest-schedule').scheduleQuizRetest({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the quiz retest sweep (non-fatal)', { error: error && error.message }, 'error');
+  }
 }
 
 function scheduleLessonPlanHealth({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {
