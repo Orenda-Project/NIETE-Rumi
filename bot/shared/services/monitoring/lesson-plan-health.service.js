@@ -11,8 +11,8 @@
  * WHAT IT EMITS. `lesson_plan.health.checked` (Axiom), every tick: { windowStart, windowEnd, windowMin,
  * verdict, reasons, stuck, rowsRead, truncated, sources: [{ source, channel, asks, delivered, inFlight,
  * failed, systemFailures, systemFailureRate, codes, p50DeliverSec, p90DeliverSec }], down: [{ source,
- * channel, attempts, latestId, latestAt, code }], writeFailures: { count, codes } | null }. Not healthy,
- * it is also said at error level and sent to Slack (THE ALERT, below).
+ * channel, attempts, teachers, latestId, latestAt, code }], writeFailures: { count, codes } | null }.
+ * Not healthy, it is also said at error level and sent to Slack (THE ALERT, below).
  *
  *   degraded — a request crossed STUCK_HOURS still pending/processing during the window (reason 'stuck';
  *              each one is reported once, in the window it crosses, never every hour after), or a
@@ -26,7 +26,10 @@
  *              window rules cannot see a path that rare: on the 2026-10-14 sandbox run a curriculum ask
  *              failed all three attempts and its hour read "asks 2, failed 1, rate 0.5" — healthy. A
  *              curriculum ask that failed every attempt counts as its attempts; content answers and asks
- *              in flight neither count nor break the run. A path the window flags keeps that one reason.
+ *              in flight neither count nor break the run. A run needs a second teacher, unless one ask failed
+ *              every one of its own attempts: failures cluster on a few phones (in production, September
+ *              2026, 771 failed menu sends came from 51 teachers), and one teacher tapping a send that keeps
+ *              failing is her problem, not the path's. A path the window flags keeps that one reason.
  *            — >= WRITE_FAILED_MIN lifecycle writes failed in the window (reason 'write_failed'), counted
  *              from the `lesson_plan.lifecycle.write_failed` events in Axiom, in this deployment's dataset
  *              and env: the writers run in the web service and in the workers, so no one process sees
@@ -212,15 +215,20 @@ function summarize(rows) {
 
 /**
  * Per path and channel, from the last day's rows newest first: the failed attempts in a row since the
- * path last delivered — only the runs of at least DOWN_ATTEMPTS. Pure. An ask in flight, or answered
- * with content (NO_ASSET, NOT_ELIGIBLE), neither proves the path works nor that it is broken: skipped.
+ * path last delivered — only the runs of at least DOWN_ATTEMPTS, from at least two teachers or with one
+ * ask that failed all of them. Pure. An ask in flight, or answered with content (NO_ASSET,
+ * NOT_ELIGIBLE), neither proves the path works nor that it is broken: skipped.
  */
 function downPaths(rows) {
   const runs = new Map();
   for (const r of rows) {
     const channel = r.channel || 'whatsapp';
     const key = `${r.source}/${channel}`;
-    if (!runs.has(key)) runs.set(key, { source: r.source, channel, attempts: 0, latestId: null, latestAt: null, code: null, over: false });
+    if (!runs.has(key)) {
+      runs.set(key, {
+        source: r.source, channel, attempts: 0, latestId: null, latestAt: null, code: null, over: false, teachers: new Set(), longest: 0,
+      });
+    }
     const run = runs.get(key);
     if (run.over) continue;
     // Delivered is delivered_at, never the status: the queue keeps a plan WhatsApp refused 'completed'
@@ -228,10 +236,15 @@ function downPaths(rows) {
     if (r.delivered_at) { run.over = true; continue; }
     if (standing(r).inFlight || !SYSTEM_FAILURES.has(r.error_code)) continue;
     // A curriculum ask that failed every attempt is that many failed attempts; any other ask is one.
-    run.attempts += Math.max(1, Number(r.retry_count) || 0);
+    const tries = Math.max(1, Number(r.retry_count) || 0);
+    run.attempts += tries;
+    run.longest = Math.max(run.longest, tries);
+    run.teachers.add(r.user_id || r.id);
     if (!run.latestId) Object.assign(run, { latestId: r.id, latestAt: r.created_at, code: r.error_code });
   }
-  return [...runs.values()].filter((r) => r.attempts >= DOWN_ATTEMPTS).map(({ over, ...r }) => r);
+  return [...runs.values()]
+    .filter((r) => r.attempts >= DOWN_ATTEMPTS && (r.teachers.size >= 2 || r.longest >= DOWN_ATTEMPTS))
+    .map(({ over, longest, teachers, ...r }) => ({ ...r, teachers: teachers.size }));
 }
 
 function verdictFor(sources, stuck, truncated = false, down = []) {
@@ -277,7 +290,7 @@ async function snapshot({ start, end, db = supabase }) {
       .gte('created_at', stuckFrom)
       .lt('created_at', stuckTo),
     db.from('lesson_plan_requests')
-      .select('id, source, channel, status, error_code, retry_count, created_at, delivered_at')
+      .select('id, user_id, source, channel, status, error_code, retry_count, created_at, delivered_at')
       .not('source', 'is', null)
       .gte('created_at', dayFrom)
       .lt('created_at', end.toISOString())
