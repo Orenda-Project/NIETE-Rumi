@@ -2834,6 +2834,44 @@ const UX_STRINGS = {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}*.\n\nTap here to start:\n{link}\n\nIt takes about 10 minutes. You\'ll need to type your name and class first.',
     ur: '‏📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 10 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
+  // A storybook the teacher sends to the class (story-teacher.service.js, web_quiz_stories_teacher): the link
+  // opens the book on its first page, so the message names the story and the one tap, nothing else.
+  storyClassMessage: {
+    en: '📖 *A story for you!*\n\n{teacher} has sent you a story: *{title}*.\n\nTap here to listen and read along with Jugnu:\n{link}',
+    ur: '‏📖 *آپ کے لیے ایک کہانی!*\n\n{teacher} نے آپ کو ایک کہانی بھیجی ہے: *{title}*۔\n\nجگنو کے ساتھ سننے اور پڑھنے کے لیے یہاں ٹیپ کریں:\n{link}',
+  },
+  // The class report of a story send: who opened it, who listened, who read aloud, who answered the questions.
+  storyReportHead: {
+    en: '📖 *{title}* — your class\'s story\n\n{joined} opened it\n🎧 {listened} listened\n🗣️ {read} read aloud\n⭐ {questions} answered the questions',
+    ur: '‏📖 *{title}* — آپ کی کلاس کی کہانی\n\n{joined} بچوں نے کہانی کھولی\n🎧 {listened} نے سنی\n🗣️ {read} نے اونچی آواز میں پڑھی\n⭐ {questions} نے سوالوں کے جواب دیے',
+  },
+  storyReportLine: {
+    en: '• {name}: 🎧 {listened} · 🗣️ {read} · ⭐ {questions}',
+    ur: '‏• {name}: 🎧 {listened}، 🗣️ {read}، ⭐ {questions}',
+  },
+  storyPage1: { en: '{n} page', ur: '{n} صفحہ' },
+  storyPagesN: { en: '{n} pages', ur: '{n} صفحے' },
+  storyReportNoName: {
+    en: '(no name)',
+    ur: '(نام نہیں)',
+  },
+  // Nobody joined by the report's time: said in story words, with the one thing to do (the link stays open).
+  storyReportNoOne: {
+    en: '📖 *{title}* — no one in your class has opened the story yet. The link is still open: forward the class message again.',
+    ur: '‏📖 *{title}* — آپ کی کلاس میں ابھی تک کسی نے کہانی نہیں کھولی۔ لنک اب بھی کام کر رہا ہے: کلاس کو پیغام دوبارہ بھیج دیں۔',
+  },
+  // The class reads this name when the teacher has none on record: neutral, the word children use.
+  storyYourTeacher: { en: 'Your teacher', ur: 'آپ کے ٹیچر' },
+  // The same, with the teacher's name, on a story's landing (the quiz landing keeps its own word).
+  storyTeacherNamed: { en: 'Teacher {name}', ur: '{name} ٹیچر' },
+  // Under Send on the teacher's story page: the honest way back after WhatsApp opens.
+  storyComeBack: { en: 'After sending, come back from the button in your chat.', ur: 'بھیجنے کے بعد اپنی چیٹ میں بٹن دبا کر یہاں واپس آئیں۔' },
+  storyReportKind_literal: { en: 'Finds facts in the story: {right}/{total}', ur: '‏کہانی میں لکھی بات ڈھونڈنا: {right}/{total}' },
+  storyReportKind_inference: { en: 'Works out why: {right}/{total}', ur: '‏وجہ سمجھنا: {right}/{total}' },
+  storyReportKind_vocab: { en: 'Word meanings: {right}/{total}', ur: '‏لفظوں کے معنی: {right}/{total}' },
+  storyReportWords: { en: 'Words the class skipped most: {words}', ur: '‏کلاس نے یہ لفظ سب سے زیادہ چھوڑے: {words}' },
+  // Under the teacher's Send button on the story page.
+  storyReportWhere: { en: 'The report comes to you on WhatsApp, as usual.', ur: 'رپورٹ ہمیشہ کی طرح آپ کو واٹس ایپ پر ملے گی۔' },
   // The same schedule as tqReportPromise (one report service): 12 hours after
   // the first child joins, 07:00 PKT at night — never "tomorrow morning", never
   // "as soon as everyone has finished". A video-lesson quiz has no /quiz entry,
