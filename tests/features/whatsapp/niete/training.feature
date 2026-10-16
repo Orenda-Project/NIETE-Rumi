@@ -2570,6 +2570,15 @@ Feature: NIETE (ICT) Teacher Training
     But an hour after my queue was worked out, my next visit works it out afresh once
     # web-quiz-join-queue.js cachedCompute slide + QUEUE_MAX_AGE_S; unit: teacher-join-queue-cache-slide.test.js
 
+  @quiz @config-gated @wip @draft @P2 @T941
+  Scenario: My kept "same child?" queue waits half an hour for my tap, and a configured test teacher's taps never hold a tier
+    Given web_quiz_hub and web_quiz_identity_canon are on and my queue has been worked out
+    When I read the tab for 25 minutes without reloading it and then tap "Different"
+    Then my tap answers from my kept queue without working it out again
+    And the tier's teacher-accepted share counts only the taps of teachers not listed in web_quiz_fixture_rule
+    But with web_quiz_fixture_rule absent or malformed every teacher's taps count, as before
+    # web-quiz-join-queue.js QUEUE_TTL_S + precisionByTier decider filter; unit: teacher-join-queue-decider-filter.test.js
+
   # ── Challenge clip warm job (app_settings web_quiz_challenge_clip_warm, off by default) ──────────────────
 
   @quiz @config-gated @wip @draft @P2 @T850
