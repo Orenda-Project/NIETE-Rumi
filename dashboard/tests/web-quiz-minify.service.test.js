@@ -209,6 +209,18 @@ describe('switch on (`min: true` in the payload): minified files at their own UR
     expect(off).not.toMatch(/\?v=[0-9a-f]+m"/);
   });
 
+  it('the challenge page with the sound kit on too: the kit\'s tags (raw, its own version) and the minified page scripts, both', () => {
+    const menu = { ...MENU, v2: true, juice: true };
+    const args = { menu, token: TOKEN, kid: null, origin: ORIGIN, assetV: HEX, chV: fileV('wq-challenge.js'), brandKey: 'niete' };
+    const on = renderChallengePage({ ...args, sfx: 'm' });
+    expect(on).toContain(`/wq/wq-juice.js?v=${fileV('wq-juice.js')}"`);
+    expect(on).toContain(`/wq/wq-juice.css?v=${fileV('wq-juice.css')}"`);
+    expect(on).toContain(`/wq/wq-trail.js?v=${fileV('wq-trail.js')}m"`);
+    expect(on.indexOf('wq-juice.js')).toBeLessThan(on.indexOf('wq-challenge.js'));
+    const off = renderChallengePage({ ...args, menu: { ...MENU, v2: true } });
+    expect(off).not.toContain('wq-juice');
+  });
+
   it('GET /wq/wq.js?v=<hex>m: 200, smaller, still JavaScript that compiles, immutable for a year, with an ETag (304 on a repeat)', async () => {
     srv = await onEdge();
     const r = await get(srv, `/wq/wq.js?v=${HEX}m`);
