@@ -5,10 +5,10 @@
 const fs = require('fs');
 const path = require('path');
 
-/** The file's code lines only: block comments and whole-line // comments removed. */
+/** The file's code lines only: whole-line // comments removed first (one may hold a path like /api/th/*), then block comments. */
 function codeOf(file) {
-  return fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
+  return fs.readFileSync(file, 'utf8').split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 test('dashboard/index.js mounts the teacher home edge before the static files and the SPA catch-all', () => {
