@@ -380,7 +380,8 @@
       // a class round turn (round_turn): no sticker line (a round run is no counted stop of the child's own), and the
       // one button hands the phone back to the round page (jg.round.c_handback); no Home
       var round = !!d.round_turn;
-      var sticker = !round && !d.practice_round && !r.noSticker ? '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>' : '';
+      // sticker false: the server judged it not a reading (an implausible check) — no sticker went into the Book
+      var sticker = !round && !d.practice_round && !r.noSticker && r.sticker !== false ? '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>' : '';
       var next = nx && nx.title ? '<p class="wq-sub" id="wqc-next">' + esc(t.endNext(nx.title)) + '</p>' : '';
       var b3 = (r.read_along_first || d.read_along_first) ? '<p class="wq-sub" id="wqc-b3">' + esc(t.endB3Next) + '</p>' : '';
       var again = r.again ? btn('wqc-again', h.t.again, 'wq-soft') : '';
