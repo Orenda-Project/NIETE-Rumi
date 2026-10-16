@@ -785,6 +785,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   // One switch for every sound on the page (the voice and the tap tones), remembered on this phone; on by default.
   var SOUND = sget('wq_sound', true) !== false;
+  if (window.WQJ && WQJ.muted()) SOUND = false; // the kit (web_quiz_juice): one sound switch with the home's key
 
   /* ---------------- analytics (E8) ---------------- */
   var evq = [];

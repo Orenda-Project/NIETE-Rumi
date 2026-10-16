@@ -256,3 +256,16 @@ describe('the quiz page\'s sound button with the kit on (inline SVG, never an em
   });
 });
 
+describe('one sound switch with the home (the home\'s key wq_snd)', () => {
+  test('kit on: a phone muted on the home opens the quiz page muted (the bar says so, Jugnu stays quiet)', () => {
+    const p = page({ realKit: true, store: { wq_snd: '0' } });
+    p.wq.question(0, false);
+    expect(p.html()).toContain('id="wq-snd" aria-label="Sounds" aria-pressed="false"');
+  });
+  test('kit off: today — the quiz page reads only its own key', () => {
+    const p = page({ store: { wq_snd: '0' } });
+    p.wq.question(0, false);
+    expect(p.html()).toContain('id="wq-snd" aria-label="Sounds" aria-pressed="true"');
+  });
+});
+
