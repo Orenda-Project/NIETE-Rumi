@@ -33,7 +33,7 @@ const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 const PS_RX = /^[a-z0-9]{8,16}$/;
 // hub_open.src's route values (EVENTS row 3). Mirrors SRC_VALUES in bot/shared/services/quiz/web-quiz-hub-play.js:
 // the edge cannot load the bot's modules, so keep the two lists the same.
-const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend|quiz|join)$/;
+const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join)$/;
 // A signed hub token (bot web-quiz-token.js): base64url payload "." 22-char signature.
 const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
@@ -103,6 +103,9 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/hubdoor', limiter: 'session' },
   // an old, finished class link opened again: the child's hub, for one remembered child on this phone
   { method: 'post', path: '/api/wq/linkhome', limiter: 'session' },
+  // a child joins on their own (quiz_student_join; the bot answers {off:true} with it off): the grade tap, the one write
+  { method: 'post', path: '/api/wq/join/grade', limiter: 'read' },
+  { method: 'post', path: '/api/wq/join', limiter: 'session' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
@@ -580,14 +583,6 @@ function createWebQuizRouter(opts = {}) {
     closedPage: (req, res, status, kind) => res.status(status).type('html').send(renderClosedPage({ lang: 'en', kind, origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi })),
   });
   // ── end standing class link ──
-  // ── a child joins on their own /quiz/join/<token> (quiz_student_join, decided by the bot): web-quiz-join.js ──
-  let jnV = null;
-  require('./web-quiz-join').registerJoin(router, {
-    callBot, limiters, jsonBody, noStore, configured, ready: () => Boolean(botUrl && apiKey), pageHeaders: pageHeadersCl, version,
-    jsVersion: () => jnV || (jnV = challengeVersion('join.js')), esc, bootJson,
-    closedPage: (req, res, status, kind) => res.status(status).type('html').send(renderClosedPage({ lang: 'en', kind, origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi })),
-  });
-  // ── end join ──
   router.all('/api/wq/*', (req, res) => res.status(404).json({ error: 'not_found' }));
 
   // Body over the cap (or malformed JSON) on /api/wq: answer in JSON, never the HTML error page.

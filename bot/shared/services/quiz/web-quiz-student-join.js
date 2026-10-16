@@ -12,8 +12,11 @@
  *   joinUrl({ n, lang, mode })       → '/quiz/join/<j>' | null (the switch off, no nonce outside practice)
  *   gradeTap({ t, grade, device })   → { ok, prefetch[] } | { off } | { stale }   the grade chip: join_grade, the home's warm list
  *   join({ t, grade, name, device, same, force })   the ONE write (below) → { next } | { ask } | { refused, next? } | { stale } | { off }
- *   autoBind({ n, device })          the `/quiz` landing of a phone with children but no binding (ROLE §4.2)
- *   bindPick({ n, chip })            the landing's "Whose turn?" tap → the binding
+ *   practiceJoinUrl({ uid, lang })   the coach's "Try it as a student": a practice j token (no nonce) → its URL
+ *   pageInfo({ t })                  the join page's shell answer (the switch, the token): { lang, practice } | { stale } | { off }
+ *   autoBind({ n })                  the `/quiz` landing of a phone with children but no binding (ROLE §4.2): never
+ *                                    a silent bind — the confirm sheet's chips ("Is it <First>?" + the notice)
+ *   bindPick({ n, chip })            the sheet's "Yes, it's me" → the binding (via 'guest'), home with from=bind
  *   noteRecognised({ phoneNorm })    join_recognised: a self-joined child's phone is known again (once a PKT day)
  *
  * THE WRITE (one request; each step guards the next, and a failure after the row undoes the row):
@@ -25,8 +28,10 @@
  * Before step 1: the token, its device, the nonce, a teacher's phone (refused, practice offered), the same first name
  * already on this phone ("Is this you?", never a twin row), and > 4 children on the phone (refused with a line).
  *
- * Practice (`mode:'practice'`, the coach's "Try it as a student"): no row, no binding, no key, no nonce.
- * Events carry ids only (kid from the event-key module): join_grade, join_done, join_recognised, bind_auto.
+ * Practice (`mode:'practice'`, the coach's "Try it as a student"): the grade only (no name), no row, no binding, no key,
+ * no nonce. A family phone on a teacher's class list (rung 3b, `students.parent_phone`) is offered its own roster
+ * children (first names, ≤ 4, one school) on the same sheet; the tap writes ONE binding and nothing on `students`.
+ * Events carry ids only (kid from the event-key module): join_grade, join_done, join_refused, join_recognised, bind_confirm.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -101,6 +106,11 @@ async function joinUrl({ n, lang, mode } = {}) {
   return t ? `${JOIN_PATH}${t}` : null;
 }
 
+/** The coach's "Try it as a student" (m-teacher-home's foot): a practice join, nothing written. null with the switch off. */
+async function practiceJoinUrl({ lang } = {}) {
+  return joinUrl({ lang, mode: 'practice' });
+}
+
 /** The first device to use a j token keeps it (SET NX, read back). Practice needs no device. */
 async function deviceHolds(t, device) {
   const d = T.cleanDeviceRef(device);
@@ -170,6 +180,17 @@ function practiceHome(grade, lang) {
 
 const emit = (name, fields, canonicalId = null, device = null) => K.emit(`web_quiz.${name}`, fields, { canonicalId, device });
 
+/** The join page's shell (no database read but the cached switch): the language and the mode the screen is drawn in. */
+async function pageInfo({ t } = {}) {
+  if (!(await flags()).on) return { off: true };
+  const r = readToken(t);
+  if (!r) {
+    const old = T.verify(t, 'j', { allowExpired: true });
+    return { stale: true, lang: old ? langOf(old.l) : null };
+  }
+  return { ok: true, lang: langOf(r.tok.l), practice: r.practice };
+}
+
 /** The grade chip: the join_grade line and the home's warm list (fired before the name is typed). */
 async function gradeTap({ t, grade, device } = {}) {
   const f = await flags();
@@ -217,13 +238,13 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
     if (!r) return { stale: true };
     const lang = langOf(r.tok.l);
     const g = cleanGrade(grade);
-    const first = cleanFirstName(name);
-    if (!g || !first) return { error: 'bad_request', why: !g ? 'grade' : 'name' };
-
+    if (!g) return { error: 'bad_request', why: 'grade' };
     if (r.practice) {
       await emit('join_done', { grade: g, mode: 'practice', kids_n: 0 }, null, device);
       return { next: practiceHome(g, lang), practice: true };
     }
+    const first = cleanFirstName(name);
+    if (!first) return { error: 'bad_request', why: 'name' };
     if (!f.bind) return { off: true };
     if (!(await deviceHolds(t, device))) return { stale: true, why: 'other_device' };
     const who = await GoNonce.peek(r.tok.n);
@@ -287,16 +308,45 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
   }
 }
 
-/** The landing's chips for several children on a phone: first names through the homonym guard, never a stranger. */
+/** The confirm sheet's chips: first names through the homonym guard, never a stranger, never a surname. */
 function pickChips(set) {
   const guarded = Homonym.guard(set.map((k) => ({ id: String(k.id), first: String(k.student_name || '').split(/\s+/)[0], avatar: T.animalFor(k.id) })), { surface: 'who' });
   return guarded.map((c) => ({ chip: T.chipId('go', c.id), first: c.first, animal: c.avatar, ...(c.line2 ? { line2: c.line2 } : {}) }));
 }
 
 /**
- * A `/quiz` landing for a phone the resolver called `child` (ROLE §4.2): ONE child and no binding → the binding is
- * written here (0 replies) and the child goes home; SEVERAL → the chips for "Whose turn?"; none → the join screen.
- * → { next } | { pick } | { join } | { refused, next? } | { off } | { stale }. Never throws.
+ * Rung 3b: the roster children whose family phone (students.parent_phone, as the teacher typed it) is this phone —
+ * only when they are 1–4 children of ONE school (a wrong number on a roster then exposes one first name at most,
+ * never a class). [] otherwise, and on any read error.
+ */
+async function rosterForPhone(phoneNorm) {
+  try {
+    const local = `0${String(phoneNorm).slice(2)}`;
+    const { data, error } = await supabase.from('students').select('id, student_name, school_id, list_id, status, merged_into, is_active')
+      .in('parent_phone', [`+${phoneNorm}`, String(phoneNorm), local]).limit(MAX_KIDS + 1);
+    if (error) return [];
+    const kids = (data || []).filter((k) => k.list_id && k.is_active !== false && k.status !== 'merged' && !k.merged_into);
+    const schools = new Set(kids.map((k) => k.school_id || null));
+    if (!kids.length || kids.length > MAX_KIDS || schools.size !== 1) return [];
+    return kids;
+  } catch (_) {
+    return [];
+  }
+}
+
+/** Who the sheet may offer on this phone: its own children (bound ∪ chat), else its roster children (rung 3b). */
+async function offerFor(phoneNorm) {
+  const set = await phoneSet(phoneNorm);
+  if (set.length) return { set, kids: set, src: 'quiz' };
+  return { set, kids: await rosterForPhone(phoneNorm), src: 'roster' };
+}
+
+/**
+ * A `/quiz` landing for a phone the resolver called `child` (ROLE §4.2). Never a silent bind (IDENTITY §8): every
+ * child already bound → home (from=quiz, no toast); a child not yet bound → the confirm sheet's chips ("Is it
+ * <First>?" + the three notice sentences + "Yes, it's me"; m-quiz-route draws it); none at all → the join screen;
+ * a roster number that is not one family (two schools, > 4) → { none } (the role question).
+ * → { next } | { confirm: { src, kids } } | { join } | { none } | { off } | { stale }. Writes nothing. Never throws.
  */
 async function autoBind({ n, lang = 'en' } = {}) {
   try {
@@ -304,43 +354,49 @@ async function autoBind({ n, lang = 'en' } = {}) {
     if (!f.bind) return { off: true };
     const who = await GoNonce.peek(n);
     if (!who) return { stale: true };
-    const set = await phoneSet(who.phoneNorm);
-    if (!set.length) return { join: await joinUrl({ n, lang }) };
-    if (set.length > 1) {
+    const { set, kids, src } = await offerFor(who.phoneNorm);
+    if (set.length) {
       const bound = await BindRepo.activeForPhone(who.phoneNorm);
-      if (set.every((k) => bound.some((b) => String(b.canonical_id) === String(k.id)))) return { next: homeUrl(set, null, 'quiz', lang) };
-      return { pick: pickChips(set) };
+      if (set.every((k) => bound.some((b) => String(b.canonical_id) === String(k.id)))) return { next: homeUrl(set, set.length === 1 ? set[0].id : null, 'quiz', lang) };
     }
-    const only = set[0];
-    const bound = (await BindRepo.activeForPhone(who.phoneNorm)).some((b) => String(b.canonical_id) === String(only.id));
-    if (!bound) {
-      if (await teacherPhone(who.userId)) return { refused: 'teacher_phone', next: homeUrl(set, only.id, 'quiz', lang) };
-      const b = await bindChild(who.phoneNorm, String(only.id));
-      if (b && b.ok) await emit('bind_auto', { src: 'quiz' }, String(only.id));
-      else return { refused: (b && b.reason) || 'unavailable', next: homeUrl(set, only.id, 'quiz', lang) };
+    if (!kids.length) {
+      // a roster number with no family match → the role question; a phone with nothing at all → the join screen
+      return src === 'roster' && (await rosterHits(who.phoneNorm)) ? { none: true } : { join: await joinUrl({ n, lang }) };
     }
-    return { next: homeUrl(set, only.id, 'quiz', lang) };
+    return { confirm: { src, kids: pickChips(kids) } };
   } catch (err) {
-    logToFile('⚠️ student join: auto bind threw', { error: err.message });
+    logToFile('⚠️ student join: the landing offer threw', { error: err.message });
     return { error: 'unavailable' };
   }
 }
 
-/** "Yes, it's me" on the landing's chips → that child's binding on this phone. → { next } | { refused, next? }. */
+/** Does any roster row carry this phone at all (for "not one family" vs "nobody")? */
+async function rosterHits(phoneNorm) {
+  try {
+    const local = `0${String(phoneNorm).slice(2)}`;
+    const { data, error } = await supabase.from('students').select('id').in('parent_phone', [`+${phoneNorm}`, String(phoneNorm), local]).limit(1);
+    return !error && (data || []).length > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+/** The sheet's "Yes, it's me" → that child's binding on this phone (via 'guest'), home with from=bind. */
 async function bindPick({ n, chip, lang = 'en' } = {}) {
   try {
     const f = await flags();
     if (!f.bind) return { off: true };
     const who = await GoNonce.peek(n);
     if (!who) return { stale: true };
-    const set = await phoneSet(who.phoneNorm);
-    const kid = set.find((k) => T.chipId('go', k.id) === String(chip || ''));
+    const { set, kids, src } = await offerFor(who.phoneNorm);
+    const kid = kids.find((k) => T.chipId('go', k.id) === String(chip || ''));
     if (!kid) return { refused: 'child_unknown' };
-    if (await teacherPhone(who.userId)) return { refused: 'teacher_phone', next: homeUrl(set, kid.id, 'quiz', lang) };
+    const home = [kid, ...set.filter((k) => String(k.id) !== String(kid.id))];
+    if (await teacherPhone(who.userId)) return { refused: 'teacher_phone', next: homeUrl(home, kid.id, 'quiz', lang) };
     const b = await bindChild(who.phoneNorm, String(kid.id));
-    if (!b || !b.ok) return { refused: (b && b.reason) || 'unavailable', next: homeUrl(set, kid.id, 'quiz', lang) };
-    await emit('bind_auto', { src: 'quiz', pick: true }, String(kid.id));
-    return { next: homeUrl(set, kid.id, 'quiz', lang) };
+    if (!b || !b.ok) return { refused: (b && b.reason) || 'unavailable', next: set.length ? homeUrl(set, set[0].id, 'quiz', lang) : null };
+    await emit('bind_confirm', { src }, String(kid.id));
+    return { next: homeUrl(home, kid.id, 'bind', lang) };
   } catch (err) {
     logToFile('⚠️ student join: bind pick threw', { error: err.message });
     return { error: 'unavailable' };
@@ -368,7 +424,7 @@ async function noteRecognised({ phoneNorm } = {}) {
 
 module.exports = {
   SWITCH_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
-  flags, signJoin, joinUrl, gradeTap, join, autoBind, bindPick, noteRecognised,
-  cleanFirstName, cleanGrade, pickChips,
+  flags, signJoin, joinUrl, practiceJoinUrl, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised,
+  cleanFirstName, cleanGrade, pickChips, rosterForPhone,
   _resetCache: () => { cache = null; },
 };

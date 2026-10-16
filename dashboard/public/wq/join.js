@@ -1,4 +1,5 @@
-/* The join screen (/quiz/join/<token>; quiz_student_join): grade chips, a first name, "Let's go!" → the child's home.
+/* The join screen (/quiz/join/<token>; quiz_student_join): grade chips, a first name, the saving notice (filled with
+ * the name as it is typed, shown before "Let's go!" can be tapped), then the child's home. Practice: the grade only.
  * The grade tap tells the server at once and warms the home's long-cached files, so the home paints from cache.
  * The page keeps nothing that decides who the child is: the server answers every step. ES5, no dependencies. */
 (function () {
@@ -9,7 +10,9 @@
   var grade = null;
   var busy = false;
   var warmed = false;
+  var practice = boot.practice === true;
   var nameEl = document.getElementById('jn-name');
+  var noticeEl = document.getElementById('jn-notice');
   var goEl = document.getElementById('jn-go');
   var outEl = document.getElementById('jn-out');
 
@@ -49,9 +52,19 @@
 
   function say(html) { outEl.innerHTML = html; }
   function line(text) { say('<p class="line">' + esc(text) + '</p>'); }
-  function name() { return String(nameEl.value || '').replace(/\s+/g, ' ').trim(); }
+  function name() { return nameEl ? String(nameEl.value || '').replace(/\s+/g, ' ').trim() : ''; }
   function okName(n) { return n.length >= 1 && n.length <= 20 && !/[0-9٠-٩۰-۹]/.test(n); }
-  function sync() { goEl.disabled = busy || !grade || !okName(name()); }
+  function fill(tpl, n) { return String(tpl || '').split('{n}').join(n); }
+  // IDENTITY §8: what is kept, until when, how to remove it — on screen with the child's own name before the tap
+  function notice() {
+    if (!noticeEl) return;
+    var n = name();
+    if (!okName(n)) { noticeEl.hidden = true; return; }
+    document.getElementById('jn-n1').textContent = fill(C.noticeSave, n);
+    document.getElementById('jn-n2').textContent = fill(C.noticeReadings, n);
+    noticeEl.hidden = false;
+  }
+  function sync() { notice(); goEl.disabled = busy || !grade || (!practice && !okName(name())); }
   function go(url) { try { location.replace(url); } catch (e) { location.href = url; } }
 
   // The home's files, fetched at low priority while the child types (cancelled by the browser if the page leaves).
@@ -70,7 +83,7 @@
   function answer(status, b) {
     busy = false;
     if (b.next && typeof b.next === 'string' && b.next.charAt(0) === '/') {
-      if (b.refused === 'max_kids') return say('<p class="line">' + esc(C.full) + '</p><a class="go" style="line-height:60px;text-align:center;text-decoration:none" href="' + esc(b.next) + '">' + esc(C.open) + '</a>');
+      if (b.refused === 'max_kids') return say('<p class="line">' + esc(C.full) + '</p><a class="go" href="' + esc(b.next) + '">' + esc(C.open) + '</a>');
       if (b.refused === 'teacher_phone') { line(C.teacher); return setTimeout(function () { go(b.next); }, 1800); }
       if (b.refused) { line(C.error); return sync(); }
       return go(b.next);
@@ -78,9 +91,9 @@
     if (b.ask === 'is_this_you' && b.kids && b.kids.length) {
       var k = b.kids[0];
       var first = String(k.first || '');
-      return say('<p class="line">' + esc(String(C.isYou || '').replace('{n}', first)) + '</p>' +
+      return say('<p class="line">' + esc(fill(C.isYou, first)) + '</p>' +
         '<button type="button" class="pick" data-tap="same" data-chip="' + esc(k.chip) + '">' + esc(C.yesMe) + '</button>' +
-        '<button type="button" class="pick" data-tap="new">' + esc(String(C.diff || '').replace('{n}', first)) + '</button>');
+        '<button type="button" class="pick" data-tap="new">' + esc(fill(C.diff, first)) + '</button>');
     }
     if (b.off) return say('<p class="line">' + esc(C.off) + '</p><p class="small">' + esc(C.offNone) + '</p>');
     if (b.stale) { goEl.disabled = true; return line(C.stale); }
@@ -93,7 +106,8 @@
     busy = true;
     sync();
     say('<p class="small">' + esc(C.wait) + '</p>');
-    var body = { t: boot.t, grade: grade, name: name() };
+    var body = { t: boot.t, grade: grade };
+    if (!practice) body.name = name();
     if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) body[k] = extra[k];
     post('/api/wq/join', body, answer);
   }
@@ -113,7 +127,7 @@
         if (b && b.off) answer(s, b);
       });
       sync();
-      if (!name()) try { nameEl.focus(); } catch (er) {}
+      if (nameEl && !name()) try { nameEl.focus(); } catch (er) {}
     } else if (tap === 'go') {
       if (!goEl.disabled) send(null);
     } else if (tap === 'same') {
@@ -122,7 +136,9 @@
       send({ force: true });
     }
   });
-  nameEl.addEventListener('input', sync);
-  nameEl.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !goEl.disabled) send(null); });
+  if (nameEl) {
+    nameEl.addEventListener('input', sync);
+    nameEl.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !goEl.disabled) send(null); });
+  }
   sync();
 })();
