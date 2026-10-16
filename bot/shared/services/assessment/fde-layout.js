@@ -910,10 +910,67 @@ const writtenKey = (text) => plain(text).split(' ')
   .map((w) => COPULA[w] || (/^\p{Script=Arabic}{4,}$/u.test(w) ? w.replace(/(?:وں|یں|ے|ہ|ی|ا)$/, '') : w))
   .join(' ');
 // Urdu: the same stem keyed the same is one question, whatever distractor a rewrite changed (a
-// top-up told to write nothing it kept rewrote one with a single option swapped).
+// top-up told to write nothing it kept rewrote one with a single option swapped). So is a kept
+// fact asked again under a new stem: the same key (one key's words all in the other's, the shorter
+// more than half the longer: «مینا بازار» / «مینا بازاروں» / «مینا بازار لگانے», never «کاش» beside
+// «کاش میں پرندہ ہوتا») and stems that, keys aside, share two words or one's words all in the other's
+// («… کس شعبے کی ڈگری حاصل کی؟» / «… کس پیشے کی ڈگری حاصل کی تھی؟» → دندان سازی). One shared word
+// («شہر»: where she was born / the biggest city, both «کراچی») is two questions.
+const TWIN_WORDS = 2;
 function sameStemKey(a, b) {
   const s = plain(a.question);
-  return Boolean(s) && s === plain(b.question) && Boolean(plain(keyText(a))) && plain(keyText(a)) === plain(keyText(b));
+  if (Boolean(s) && s === plain(b.question) && Boolean(plain(keyText(a))) && plain(keyText(a)) === plain(keyText(b))) return true;
+  const [ka, kb] = [new Set(tokensOf(keyText(a))), new Set(tokensOf(keyText(b)))];
+  if (!ka.size || !kb.size) return false;
+  const [small, big] = ka.size <= kb.size ? [ka, kb] : [kb, ka];
+  if (small.size * 2 <= big.size || ![...small].every((w) => big.has(w))) return false;
+  const sa = new Set(tokensOf(a.question).filter((w) => !ka.has(w)));
+  const sb = new Set(tokensOf(b.question).filter((w) => !kb.has(w)));
+  if (!sa.size || !sb.size) return false;
+  const shared = [...sa].filter((w) => sb.has(w)).length;
+  return shared >= TWIN_WORDS || shared === sa.size || shared === sb.size;
+}
+// Urdu: a Q1 stem that prints another Q1 item's key gives that item away («سدرہ نے اپنی تھیڑ کمپنی
+// کس مقصد کے لیے بنائی؟» beside «… کیا بنایا؟ → تھیڑ کمپنی»): a key of two words or more, all in the
+// stem. A one-word key a stem merely names («… کس چیز کی علامت ہیں؟ → امن» beside ««امن» کا متضاد …»)
+// stays, unless each item's stem prints the other's key («ہیروشیما کس ملک کا شہر ہے؟ → جاپان» beside
+// «جاپان کا کون سا شہر …؟ → ہیروشیما»). An item that names the kind of a quoted example («'میری دعا
+// ہے کہ …' یہ کس قسم کا جملہ ہے؟ → تمنائی جملہ») is not given away by a stem that names the kind
+// («کون سا لفظ تمنائی جملے میں استعمال ہوتا ہے؟»): its question is the example.
+const GIVEN_WORDS = 2;
+const QUOTES_EXAMPLE = /«[^»]+»|[’‘]{2}[^’‘]+[’‘]{2}|“[^”]+”|"[^"]+"|'[^']+'/u;
+function stemGivesKey(a, b) {
+  const key = (q) => new Set(tokensOf(keyText(q)));
+  const prints = (stemOf, keyOf) => {
+    const k = key(keyOf);
+    const stem = new Set(tokensOf(stemOf.question));
+    return k.size > 0 && [...k].every((w) => stem.has(w));
+  };
+  const given = (q) => key(q).size >= GIVEN_WORDS && !QUOTES_EXAMPLE.test(String(q.question || ''));
+  const [ab, ba] = [prints(a, b), prints(b, a)];
+  return (ab && ba) || (ab && given(b)) || (ba && given(a));
+}
+// Urdu Q4: an item with four options (in `options`, or on the stem's lines below it) keyed on one
+// option and accepting another («ج) بارش», accepting «د) فلکیات») has two answers. It is held and
+// never comes back: the key a teacher marks from would be a guess. An accepted answer that is no
+// option («جب، تو» beside «اگر، تو») is another way of writing the key, and stays.
+const OPTION_LETTER = /^\s*\(?([a-dA-D]|الف|ب|ج|د)\s*[).:۔-]/;
+function keyAcceptSplit(q) {
+  const options = Array.isArray(q.options) && q.options.length
+    ? q.options.map(String)
+    : String(q.question || '').split('\n').slice(1).filter((l) => OPTION_HEAD.test(l));
+  if (options.length !== 4) return false;
+  const letterOf = (t) => { const m = String(t).match(OPTION_LETTER); return m ? m[1].toLowerCase() : null; };
+  const texts = options.map((o) => plain(String(o).replace(OPTION_HEAD, '')));
+  const which = (t) => {
+    const letter = letterOf(t);
+    const byLetter = letter ? options.findIndex((o) => letterOf(o) === letter) : -1;
+    return byLetter >= 0 ? byLetter : texts.indexOf(plain(String(t).replace(OPTION_HEAD, '')));
+  };
+  const keyAt = typeof q.answer === 'string' ? which(q.answer) : -1;
+  if (keyAt < 0) return false;
+  const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept.filter((a) => typeof a === 'string') : [];
+  return accept.some((a) => { const at = which(a); return at >= 0 && at !== keyAt; });
 }
 function sameQuestion(a, b) {
   const [sa, sb] = [plain(a.question), plain(b.question)];
@@ -934,7 +991,7 @@ function sameQuestion(a, b) {
  * What the engine's one re-ask of `section` is told, from the first layout (`examJson`): the
  * facts the slot its items are held against already tests. Social Studies C/D: Section A's
  * questions and answers. English A: Q4's words. Urdu A: Q4's questions and answers, Q3/Q5's
- * words and Q6's verse. Null for any
+ * words and Q6's verse, and on a top-up the Q1 items it keeps with their keys. Null for any
  * other section or subject, so no
  * other prompt changes.
  */
@@ -982,6 +1039,10 @@ function takenNote(P, section, examJson, opts = {}) {
       notes.push(`Q6 of this paper prints these verses:\n${verses.join('\n')}\n`
         + 'No MCQ you write in this section may ask about these verses or be answered from them.');
     }
+    // A top-up keeps the first reply's Q1 items: name them and their keys, or the re-ask writes a
+    // whole Section A again and its first items ask kept facts under new stems, keyed the same.
+    // Its count is the section's own, so a held twin's place goes to the next new item.
+    if (opts.topUp) notes.push(...urduKeptNotes(section, examJson, opts.shortfall));
     return notes.length ? notes.join('\n\n') : null;
   }
   const facts = against.filter((q) => typeof q.question === 'string' && q.question.trim())
@@ -1028,6 +1089,23 @@ function keptNotes(P, section, examJson, cross, shortfall) {
   }
   return out;
 }
+// Urdu Section A on a top-up: each short held slot's kept items and their keys. The re-ask writes
+// the section's full count (no spare count asked), so the paper has a new item for every twin it holds.
+function urduKeptNotes(section, examJson, shortfall) {
+  const out = [];
+  for (const slot of section.slots) {
+    const gap = (Array.isArray(shortfall) ? shortfall : []).find((f) => f && f.slot === slot.slot);
+    if (!gap || !(gap.missing > 0)) continue;
+    const label = slot.label_en || slot.slot.split('.').pop();
+    const kept = itemsOf(examJson, slot.slot).filter((q) => keyText(q).trim());
+    if (!kept.length) continue;
+    const keys = [...new Set(kept.map((q) => keyText(q).trim().replace(/\s*\n\s*/g, '; ')))];
+    out.push(`${label} already keeps these items (question → answer):\n${kept.map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`).join('\n')}\n`
+      + `Never write any of these again, in any wording, and never key a new item on any of these answers: ${keys.join('، ')}\n`
+      + `${label} needs ${gap.missing} more: the paper takes the first ${gap.missing} of your items that test a fact none of these tests.`);
+  }
+  return out;
+}
 
 /**
  * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
@@ -1046,7 +1124,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
 
   const all = walk(src);
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
-  const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q)) || (P.key === 'urdu' && sameStemKey(p, q));
+  const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q))
+    || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
   const place = (cross) => {
     bySlot.forEach((list) => { list.length = 0; });
@@ -1057,6 +1136,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
       if (P.key === 'social_studies' && tierSlip(q)) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return false;
       if (!holds(slot)) {
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
