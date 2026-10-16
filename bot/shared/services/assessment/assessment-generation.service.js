@@ -920,6 +920,10 @@ const HELD_TERMS_SST = Object.freeze([
   { term: 'حمد', pattern: 'حمد(?:یہ)?' },
 ].map(({ term, pattern }) => Object.freeze({ term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, 'u') })));
 
+// Maths Section A's slot rule asks for 3 to 5 recall MCQs; the ToS floor needs at least 8.
+const MATHS_RECALL_FROM = '3 to 5 of them pure recall';
+const MATHS_RECALL_TO = 'at least 8 of them pure recall';
+
 /** "1 mark each", "1.25 marks each", "20 marks (parts 10 + 8 + 2)". */
 function _marksPhrase(slot) {
   if (Array.isArray(slot.parts) && slot.parts.length) {
@@ -989,11 +993,16 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   // FDE's Units 11–12 syllabus, so it is not asked for; marks and shape stay.
   const mathsC = !fde && key === 'maths' && section.id === 'C';
   const given = Array.isArray(slots) && slots.length ? slots : section.slots;
-  const list = mathsC
-    ? given.map((s) => (Array.isArray(s.kinds) && s.kinds.length
-      ? { ...s, kinds: null, prompt_rule: null, grain: s.grain && { ...s.grain, kind: 'a word problem or a calculation' } }
-      : s))
-    : given;
+  const list = given.map((s) => {
+    if (mathsC && Array.isArray(s.kinds) && s.kinds.length) {
+      return { ...s, kinds: null, prompt_rule: null, grain: s.grain && { ...s.grain, kind: 'a word problem or a calculation' } };
+    }
+    // Maths MCQs: the ToS floor's recall count replaces the slot's 3-to-5.
+    if (key === 'maths' && typeof s.prompt_rule === 'string' && s.prompt_rule.includes(MATHS_RECALL_FROM)) {
+      return { ...s, prompt_rule: s.prompt_rule.replace(MATHS_RECALL_FROM, MATHS_RECALL_TO) };
+    }
+    return s;
+  });
   const hasMcq = list.some((s) => s.shape === 'mcq');
   const rules = [RULE.bookOnly, RULE.religious];
   if (!fde) rules.push(RULE.chapterOnly);
@@ -1015,7 +1024,8 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (key === 'maths') rules.push(RULE.mathsTosFloor, RULE.unitsNumerals);
   if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
-    rules.push(`In this section, ${RULE.recall}.`, RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
+    if (key !== 'maths') rules.push(`In this section, ${RULE.recall}.`);
+    rules.push(RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
     // Word MCQs (anagram, homophone, spelling) on the language papers; number options on Maths and Science.
     if (key === 'english' || key === 'urdu') rules.push(RULE.oneKey);
     if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
