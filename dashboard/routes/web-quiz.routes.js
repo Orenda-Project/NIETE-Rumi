@@ -111,6 +111,13 @@ const API_ROUTES = [
   // Jugnu's Book from the kid's hub (the bot answers 503 while web_quiz_challenge_book is off)
   { method: 'get', path: '/api/wq/book/h/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
+  // storybooks from the kid's hub (the bot answers 404 stories_off while web_quiz_stories is off)
+  { method: 'get', path: '/api/wq/stories/shelf/h/:token', limiter: 'read', token: true },
+  // the covers of one grade × language for anyone (no child data): a join's grade tap warms the thumbnails
+  { method: 'get', path: '/api/wq/stories/shelf', limiter: 'read', cache: 'public, max-age=300' },
+  { method: 'get', path: '/api/wq/stories/book/:id/h/:token', limiter: 'read', token: true },
+  // per child link (a whole class reads behind one school address), with a loose ceiling per address
+  { method: 'post', path: '/api/wq/stories/event/h/:token', limiter: ['stories', 'challengeIp'], token: true },
   { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
   // the results card's door to the child's hub (a session token in the body)
@@ -698,6 +705,8 @@ function createWebQuizRouter(opts = {}) {
       skip: (req) => !(req.body && typeof req.body.ps === 'string' && PS_RX.test(req.body.ps)) }),
     challenge: rateLimit({ ...common, max: 20, keyGenerator: (req) => `ct:${(req.body && typeof req.body.ct === 'string' && req.body.ct.slice(0, 200)) || clientIp(req)}` }),
     challengeIp: rateLimit({ ...common, max: 600, keyGenerator: (req) => `chip:${clientIp(req)}` }),
+    // a storybook's page and question events: ~30 a book, per child link
+    stories: rateLimit({ ...common, max: 200, keyGenerator: (req) => `sh:${String((req.params && req.params.token) || clientIp(req)).slice(0, 200)}` }),
   };
   // Code enumeration: only answers that came back 404 count toward this one.
   const unknownCode = rateLimit({ ...common, max: 20, keyGenerator: (req) => `u:${clientIp(req)}`,
@@ -727,6 +736,7 @@ function createWebQuizRouter(opts = {}) {
         if (out.status >= 300 && out.status < 400 && out.location) return res.redirect(out.status, out.location);
         if (out.status === 204) return res.status(204).end();
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
+        if (r.cache && out.status === 200) res.set('Cache-Control', r.cache);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
         return res.status(out.status).json(out.body == null ? {} : out.body);
       } catch (err) {
