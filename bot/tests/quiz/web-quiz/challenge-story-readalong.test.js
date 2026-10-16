@@ -215,6 +215,16 @@ describe('switch on', () => {
     expect(r2.presignKey).toHaveBeenCalledWith(`${DIR}/sx-grace-ab12cd34.ogg`, 6 * 3600, expect.any(Object));
   });
 
+  test('a file marked quality "low" (over the timing bar) carries the mark to the page, so the player lights lines; a word-timed file carries none', async () => {
+    putFile(`${DIR}/current.json`, timingFile(kiteText(), { quality: 'low' }));
+    const { body } = await story('read', KITE);
+    expect(body.readalong.quality).toBe('low');
+    RA.readAlong({ settingOn: Ch.settingOn })._reset();
+    putFile(`${DIR}/current.json`, timingFile(kiteText(), { quality: 'word' }));
+    const again = await story('read', KITE);
+    expect(again.body.readalong).not.toHaveProperty('quality');
+  });
+
   test('no timing file: no field, and the miss is remembered (one read for two serves)', async () => {
     const a = await story('read', KITE);
     const b = await story('read', KITE);

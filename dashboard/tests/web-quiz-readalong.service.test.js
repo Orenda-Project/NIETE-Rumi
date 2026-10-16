@@ -451,6 +451,27 @@ describe('read-along player: the page', () => {
     expect(RA.sayWord({ v: 9 }, 0)).toBeNull();
   });
 
+  test('quality "low": no word slices — playWord does nothing, sayWord returns null (the word times are not trusted)', () => {
+    const { RA, document, audio } = load();
+    const p = RA.mount(document.createElement('div'), { ...DATA, quality: 'low' }, {});
+    const a = audio();
+    p.playWord(2);
+    expect(a.plays).toBe(0);
+    expect(RA.sayWord({ ...DATA, quality: 'low' }, 2)).toBeNull();
+    expect(RA.sayWord(DATA, 2)).not.toBeNull();   // a word-timed file still says the word
+  });
+  test('a timing passed as its JSON text: sayWord reads the low mark from the parsed file, as from the object', () => {
+    const { RA, audio } = load();
+    expect(RA.parse(JSON.stringify({ ...DATA, quality: 'low' })).quality).toBe('low');
+    expect(RA.parse(DATA).quality).toBe('word');
+    expect(RA.sayWord(JSON.stringify({ ...DATA, quality: 'low' }), 2)).toBeNull();   // low, as text: no word slice
+    expect(audio()).toBeUndefined();
+    const h = RA.sayWord(JSON.stringify(DATA), 2);                                   // word-timed, as text: says it
+    expect(h).not.toBeNull();
+    expect(audio().plays).toBe(1);
+    expect(RA.sayWord('not json', 2)).toBeNull();
+  });
+
   test('size budget: ≤ 8 KB gzipped', () => {
     expect(SRC.length).toBeGreaterThan(0);
     expect(zlib.gzipSync(Buffer.from(SRC), { level: 9 }).length).toBeLessThanOrEqual(8192);
