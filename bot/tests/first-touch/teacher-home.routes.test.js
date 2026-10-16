@@ -23,11 +23,11 @@ const mockDoor = { mintLanding: undefined };
 const mockModules = { load: undefined };
 jest.mock('../../shared/services/first-touch/one-door.service', () => mockDoor, { virtual: true });
 jest.mock('../../shared/services/first-touch/optional-modules', () => mockModules, { virtual: true });
-// The stories page's router and service (another change): virtual stand-ins, absent unless a test fills them.
+// The stories page's router and service: stand-ins, empty unless a test fills them.
 const mockStoryRoutes = { servePage: undefined };
 const mockStorySvc = { flagOn: undefined };
-jest.mock('../../shared/routes/story-teacher-internal.routes', () => mockStoryRoutes, { virtual: true });
-jest.mock('../../shared/services/quiz/story-teacher.service', () => mockStorySvc, { virtual: true });
+jest.mock('../../shared/routes/story-teacher-internal.routes', () => mockStoryRoutes);
+jest.mock('../../shared/services/quiz/story-teacher.service', () => mockStorySvc);
 
 const express = require('express');
 const supabase = require('../../shared/config/supabase');
