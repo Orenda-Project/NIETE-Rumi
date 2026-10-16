@@ -1129,7 +1129,7 @@ function _topUp(firstTree, secondTree, slots) {
 
 // The markers the paper refuses in a question's own text (the renderer's item list). The renderer's
 // own list is used when it exports one; this copy is the fallback.
-const REVIEW_ITEM_FALLBACK = Object.freeze([/needs review/i, /\bfil{2}er\b/i, /MODEL PAPER FOR/i, /\u26A0/]);
+const REVIEW_ITEM_FALLBACK = Object.freeze([/needs review/i, /\bfil{2}er\b/i, /\u26A0/, /Islamabad\sModel\sSchool/i, /MODEL PAPER FOR/i]);
 
 function _reviewItemList() {
   try {
