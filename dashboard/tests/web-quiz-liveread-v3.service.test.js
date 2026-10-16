@@ -741,6 +741,33 @@ describe('a held card, the settled result, and "hear this word" after a practice
     for (let k = 0; k < 4; k += 1) await p.flush();
     expect(p.ctx.window.__ended).toBe('done_tap');
   });
+  test('the Challenge: a skipped word says itself in the read-along voice; not when the word times are not trusted', async () => {
+    const RA = 'window.__ra = []; document.body = { appendChild() {} }; window.WQReadAlong = { mount: function () { var m = { said: [], playWord: function (i) { m.said.push(i); } }; window.__ra.push(m); return m; } };';
+    const tapped = async (quality) => {
+      const clock = { t: 1000000 };
+      const timed = { id: 'p1', audio: { url: '/clips/story-kite.mp3' }, words: STORY.tokens.map((w, i) => ({ w, s: i * 400, e: i * 400 + 300 })), ...(quality ? { quality } : {}) };
+      // today's page (no Trail): the words card is the Challenge's own
+      const p = H.page({ clock, menu: { ...MENU, v2: undefined, trail: false }, pre: [LIVE_SRC, WS, RA, LR_SRC, TRAIL_SRC], routes: ROUTES(SREAD({ lr3: LR3(), readalong: timed, trail: false, v2: undefined, story_clip: undefined })), session: store() });
+      await p.flush();
+      await p.click('wqc-ex-read'); await p.click('wqc-go'); await p.flush();
+      const s = sock(p); s.onopen({});
+      s.onmessage({ data: JSON.stringify({ tokens: toks(STORY.tokens.filter((w, i) => i !== 2)) }) });   // "up" skipped
+      clock.t += 1100;
+      await p.runTimers((x) => x.ms === 1000);
+      s.onmessage({ data: JSON.stringify({ tokens: [], finished: true }) });
+      await p.flush();
+      expect(p.screen()).toBe('read-result');
+      const box = p.els['wqc-live-story'];
+      (box.listeners.click || []).forEach((fn) => fn({ target: { getAttribute: (k) => (k === 'data-i' ? '2' : null) } }));
+      return { box, ra: p.ctx.window.__ra };
+    };
+    const good = await tapped();
+    expect(good.ra.length).toBe(1);
+    expect(good.ra[0].said).toEqual([2]);
+    const low = await tapped('low');   // the player itself lights whole lines for such a file: a word slice would be wrong
+    expect(low.ra.length).toBe(0);
+    expect((low.box.listeners.click || []).length).toBe(0);
+  });
   test('the component: after a practice reading a skipped word says itself on a tap; never on a counted one', () => {
     const L = lib();
     const said = [];

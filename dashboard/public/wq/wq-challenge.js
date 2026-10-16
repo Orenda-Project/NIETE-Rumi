@@ -1308,10 +1308,11 @@
     lrSayWords();
   }
   // live reading v3, a practice reading that has ended: a skipped word says itself when tapped, in Jugnu's read-along
-  // voice (the serve's timing file; a hidden player mounted on the first tap); no timing file ⇒ nothing to tap
+  // voice (the serve's timing file; a hidden player mounted on the first tap); no timing file ⇒ nothing to tap, and a
+  // file whose word times are not trusted (quality "low": the player lights whole lines) ⇒ nothing to tap either
   function lrSayWords() {
     var d = S.data;
-    if (!lr3() || lrCounted() || !d.readalong || !window.WQReadAlong || !live || !live.v) return;
+    if (!lr3() || lrCounted() || !d.readalong || d.readalong.quality === 'low' || !window.WQReadAlong || !live || !live.v) return;
     var marks = live.v.marks.map(function (m) { return m === 'miss' ? 'skipped' : m; });
     var player = null;
     window.WQLiveRead.wordTaps(q('wqc-live-story'), marks, function (i) {
