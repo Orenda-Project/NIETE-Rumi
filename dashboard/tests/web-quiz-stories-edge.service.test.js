@@ -63,4 +63,13 @@ describe('/api/wq/stories/*', () => {
     expect(r.status).toBe(404);
     expect(calls).toHaveLength(0);
   });
+  test('a classroom behind one address is limited per child link, not per address: 61 events from 3 links all pass', async () => {
+    const tokens = ['a', 'b', 'c'].map((x) => `eyJrIjoiaCIsImlkcyI6WyJ${x}IiwiZXhwIjo5OTk5OTk5OTk5fQ.AbCdEfGhIjKlMnOpQrStUv`);
+    const codes = [];
+    for (let i = 0; i < 61; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      codes.push((await call('POST', `/api/wq/stories/event/h/${tokens[i % 3]}`, { body: { book_id: BOOK, event: 'story_page_listened', page_n: 1, data: {} } })).status);
+    }
+    expect(codes.filter((c) => c === 429)).toHaveLength(0);
+  });
 });
