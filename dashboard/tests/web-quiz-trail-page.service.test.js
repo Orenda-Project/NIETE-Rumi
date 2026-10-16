@@ -149,6 +149,15 @@ describe('help: once per sitting, before the first scored stop, sent as a string
     await p.flush();
     expect(bodies(p, /ch\/result$/)[1].helped).toBe('helped');
   });
+  test('never in the teacher\'s class round (round_turn): a round game starts with no helped prompt; a home check run still asks', async () => {
+    const p = v2page({ routes: { 'ch/HUB.TOKEN/bigger': ok(BIGGER({ round_turn: true })) } });
+    await p.click('wqc-ex-bigger');
+    expect(p.screen()).toBe('intro');
+    expect(p.html()).not.toContain('Is someone helping you today?');
+    const home = v2page({ routes: { 'ch/HUB.TOKEN/bigger': ok(BIGGER()) } });
+    await home.click('wqc-ex-bigger');
+    expect(home.screen()).toBe('help-ask');
+  });
   test('never before a practice round', async () => {
     const p = v2page({ routes: { 'ch/HUB.TOKEN/bigger': ok(BIGGER({ practice_round: true })) } });
     await p.click('wqc-ex-bigger');
