@@ -31,8 +31,8 @@
  *     round and carries its own switches): the job only schedules it, like the calibration;
  *   - on the first PKT day of a month, web-quiz-challenge-calibration.js runMonthly({ period_id: the month just
  *     ended, now }), when present: the job only schedules it; the calibration carries its own switches;
- *   - every day, the rung job's settleDeferred({ now }) (web-quiz-rungs.js, when present), like the expiry: whatever
- *     our switches say (the rung job's own switches decide); absent or without that export, nothing and no log.
+ *   - every day, the rung job's settleDeferred({ now }) (web-quiz-rungs.js, when present), only with the rung switch
+ *     on (web_quiz_challenge_rungs under web_quiz_challenge_v2); absent or without that export, nothing and no log.
  *
  * Every write to a run's meta goes through the Challenge's compare-and-set (updateRunMeta): a scorer that lands its
  * result while the sweeper looks at the row wins, and the sweeper leaves the row alone. A row is never touched unless
@@ -51,6 +51,9 @@ const PURGE_KEY = 'web_quiz_challenge_audio_purge';
 // m_lost is a v2 event: only with web_quiz_events_v2 on (itself under web_quiz_hub), EVENTS §0.6.
 const EVENTS_V2_KEY = 'web_quiz_events_v2';
 const HUB_KEY = 'web_quiz_hub';
+// The rung job's daily settle runs only with its switch on (web_quiz_challenge_rungs under web_quiz_challenge_v2).
+const CHALLENGE_V2_KEY = 'web_quiz_challenge_v2';
+const RUNGS_KEY = 'web_quiz_challenge_rungs';
 const TABLE = 'web_quiz_challenge_runs';
 const STRIP_TABLE = 'web_quiz_strip_weekly';
 const STUCK_MS = 10 * 60 * 1000;
@@ -72,7 +75,7 @@ function isTrue(v) {
 async function switches() {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value')
-      .in('key', [PARENT_KEY, SWEEPER_KEY, PURGE_KEY, EVENTS_V2_KEY, HUB_KEY]);
+      .in('key', [PARENT_KEY, SWEEPER_KEY, PURGE_KEY, EVENTS_V2_KEY, HUB_KEY, CHALLENGE_V2_KEY, RUNGS_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, isTrue(r.value)]));
     const parent = !!by[PARENT_KEY];
@@ -80,10 +83,11 @@ async function switches() {
       sweeper: parent && !!by[SWEEPER_KEY],
       purge: parent && !!by[PURGE_KEY],
       eventsV2: !!by[HUB_KEY] && !!by[EVENTS_V2_KEY],
+      rungs: parent && !!by[CHALLENGE_V2_KEY] && !!by[RUNGS_KEY],
     };
   } catch (e) {
     logToFile('⚠️ web quiz challenge housekeeping: settings lookup failed — off', { error: String(e && e.message || e).slice(0, 120) });
-    return { sweeper: false, purge: false, eventsV2: false };
+    return { sweeper: false, purge: false, eventsV2: false, rungs: false };
   }
 }
 
@@ -234,9 +238,9 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   const period = monthJustEnded(now);
   const Cal = period ? optional('./web-quiz-challenge-calibration') : null;
   const hasCal = !!Cal && typeof Cal.runMonthly === 'function';
-  // The rung job's deferred settle (web-quiz-rungs.js settleDeferred, when present): called like the expiry, once per
-  // daily run whatever our switches say; the rung job's own switches decide what it does. Absent ⇒ nothing, no log.
-  const Rungs = optional('./web-quiz-rungs');
+  // The rung job's deferred settle (web-quiz-rungs.js settleDeferred, when present): once per daily run, and only with
+  // the rung switch on (off ⇒ no day claimed for it, nothing written). Absent ⇒ nothing, no log.
+  const Rungs = f.rungs ? optional('./web-quiz-rungs') : null;
   const hasSettle = !!Rungs && typeof Rungs.settleDeferred === 'function';
   // The class sample windows (web-quiz-sample-window.js daily, shipped with the class round): scheduled here, its own
   // switches decide. Absent ⇒ nothing, no log.
