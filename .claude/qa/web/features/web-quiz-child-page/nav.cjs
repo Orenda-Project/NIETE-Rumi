@@ -260,6 +260,8 @@ on('WQ226', 'off', async (page, ctx) => {
   await L.setFlag(ctx, page, 'web_quiz_challenge_card', 'true'); await L.setFlag(ctx, page, 'web_quiz_events_v2', 'true');
   const ev = L.events(page);
   await L.finishAsNew(page, ctx, CODES.OPEN, 'Jug1'); await toCard(page);
+  // the card's own script (wq-card.js) is fetched the first time the card is drawn, which then redraws: wait for it
+  await page.waitForSelector('.wq-jc', { state: 'visible', timeout: WAIT }).catch(() => {});
   const card = await inner(page, '.wq-jc').catch(() => '');
   if (!card) {
     const saved = await L.stored(page, 'wq_s_' + CODES.OPEN);

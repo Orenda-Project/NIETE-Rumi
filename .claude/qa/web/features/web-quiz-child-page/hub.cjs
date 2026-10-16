@@ -7,7 +7,8 @@ const L = require('./lib.cjs');
 const { expect, WAIT, CODES, text, inner, count, onScreen, openQuiz, startAsNew, play, toResults, sleep, q } = L;
 const M = (m) => onScreen(m);
 const modes = {}, runs = {};
-const on = (id, mode, fn) => { modes[id] = mode; runs[id] = fn; };
+let BASE = '';   // this run's portal origin, set as each scenario starts (openHub needs it without a ctx)
+const on = (id, mode, fn) => { modes[id] = mode; runs[id] = (page, ctx) => { BASE = ctx.baseUrl; return fn(page, ctx); }; };
 const PHONE = '923009990001', PHONE2 = '923009990002', PHONE3 = '923009990003';
 
 async function api(page, ctx, method, p, body) {
@@ -49,8 +50,10 @@ async function whatsapp(ctx, phone, textBody) {
 const hubUrlOf = (items) => { const it = items.find((x) => x.cta && /\/h\//.test(x.cta.url)); return it ? it.cta.url : null; };
 const tokenOf = (url) => (url.match(/\/h\/([^?#]+)/) || [])[1];
 const payload = (token) => JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
+// the bot's link is the https spelling of this run's portal (dev-portal.sh WEB_QUIZ_BASE_URL): open it on the run
+const toRun = (page, url) => String(url || '').replace(/^https?:\/\/[^/]+/, BASE);
 async function openHub(page, url) {
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.goto(toRun(page, url), { waitUntil: 'domcontentloaded' });
   await page.waitForSelector(M('H1') + ', ' + M('H2') + ', ' + M('H0') + ', ' + M('H-lock') + ', .wq-closed', { state: 'attached', timeout: WAIT });
   return page.$eval('#wq', (e) => e.getAttribute('data-m')).catch(() => null);
 }
@@ -310,7 +313,7 @@ on('WQ197', 'roster', async (page, ctx) => {
   const u = new URL(it.cta.url);
   expect(/^#x=[A-Za-z0-9_.-]+$/.test(u.hash), 'the address carries ' + u.hash.slice(0, 20) + ', not a fragment nonce');
   expect(!u.href.includes(PHONE) && !u.href.includes(tooba) && !u.search, 'the address carries the phone, a child id or a query');
-  await page.goto(it.cta.url, { waitUntil: 'domcontentloaded' });
+  await page.goto(L.local(ctx, it.cta.url), { waitUntil: 'domcontentloaded' });
   await page.waitForSelector(M('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
   expect(!page.url().includes('#x='), 'the fragment is still in the address bar: ' + page.url());
   const [row] = await L.rows(ctx, "select coalesce(student_id::text, '') from quiz_sessions where share_code_id = (select id from quiz_share_codes where code = " + q(CODES.OPEN) + ') order by created_at desc limit 1');
@@ -323,7 +326,7 @@ on('WQ198', 'roster', async (page, ctx) => {
   await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala']);
   const items = await whatsapp(ctx, PHONE, 'QUIZ-' + CODES.OPEN);
   const it = items.find((x) => x.cta && /#x=/.test(x.cta.url)); expect(it, 'no handset button');
-  await page.goto(it.cta.url, { waitUntil: 'domcontentloaded' });
+  await page.goto(L.local(ctx, it.cta.url), { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#wq-play, #wq-play-as, .wq-kid, ' + M('M4-roll'), { state: 'attached', timeout: WAIT });
   if (await page.$('#wq-play')) await page.click('#wq-play');
   if (await page.$('#wq-play-as')) await page.click('#wq-notme');
@@ -344,8 +347,8 @@ on('WQ199', 'roster', async (page, ctx) => {
   const it = items.find((x) => x.cta && /#x=/.test(x.cta.url)); expect(it, 'no handset button');
   const before = Number(await L.one(ctx, 'select count(*) from students'));
   const F = await L.newPhone(page);
-  try { await F.page.goto(it.cta.url, { waitUntil: 'domcontentloaded' }); await F.page.waitForSelector('#wq-play, ' + M('M6') + ', .wq-kid', { state: 'attached', timeout: WAIT }); } finally { await F.close(); }
-  await page.goto(it.cta.url, { waitUntil: 'domcontentloaded' });
+  try { await F.page.goto(L.local(ctx, it.cta.url), { waitUntil: 'domcontentloaded' }); await F.page.waitForSelector('#wq-play, ' + M('M6') + ', .wq-kid', { state: 'attached', timeout: WAIT }); } finally { await F.close(); }
+  await page.goto(L.local(ctx, it.cta.url), { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#wq-play, #wq-play-as, ' + M('M4-roll'), { state: 'attached', timeout: WAIT });
   expect(!(await page.$(M('M6'))), 'the owner\'s page started a quiz from a spent button');
   expect(!/Tooba/.test(await text(page)), 'the spent button still names the child');
@@ -363,7 +366,7 @@ on('WQ200', 'roster', async (page, ctx) => {
     const it = items.find((x) => x.cta && /\/q\//.test(x.cta.url)); expect(it, 'no button at all: ' + JSON.stringify(items.map((i) => i.type)));
     expect(!/#x=/.test(it.cta.url), 'the button still carries a handset fragment');
     const binds = []; page.on('request', (r) => { if (/\/api\/wq\/bind$/.test(r.url())) binds.push(1); });
-    await page.goto(it.cta.url, { waitUntil: 'domcontentloaded' }); await page.waitForSelector('#wq-play', { state: 'visible', timeout: WAIT }); await sleep(1000);
+    await page.goto(L.local(ctx, it.cta.url), { waitUntil: 'domcontentloaded' }); await page.waitForSelector('#wq-play', { state: 'visible', timeout: WAIT }); await sleep(1000);
     expect(binds.length === 0, 'the page called the bind endpoint');
   } finally { await L.setFlag(ctx, page, 'web_quiz_handset_link', 'true'); }
   return { plain: true };
@@ -421,11 +424,11 @@ on('WQ235', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
   await family(ctx, PHONE, ['Tooba Testwala']); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
-  const before = await (await page.request.get(url)).text();
+  const before = await (await page.request.get(L.local(ctx, url))).text();
   expect(!/rel="manifest"/.test(before), 'a manifest link without the switch');
   await L.setFlag(ctx, page, 'web_quiz_install_prompt', 'true');
   try {
-    const after = await (await page.request.get(url)).text();
+    const after = await (await page.request.get(L.local(ctx, url))).text();
     const link = (after.match(/<link rel="manifest" href="([^"]+)"/) || [])[1];
     expect(link && /\/manifest\.webmanifest$/.test(link), 'no manifest link with the switch on');
     const m = await page.request.get(ctx.baseUrl + link);

@@ -50,7 +50,11 @@ up() {
   printf '%s' "$key" > "$RUN/internal-key"; chmod 600 "$RUN/internal-key"
   # PORTAL_URL: the bot's portal links (/menu's one-tap /go link, /portal) must open THIS stack's portal, not the
   # Vite dev port local-lane.env names — or a WhatsApp → portal round trip leaves the stack (bd-hnhlgn.7).
-  bash "$E2E/local-stack.sh" restart bot "$RUN" "INTERNAL_API_KEY=$key" "PORTAL_URL=http://localhost:$PORTAL_PORT" >/dev/null 2>&1 || { log "bot did not restart with the internal key — $RUN/bot.log"; down; exit 4; }
+  # WEB_QUIZ_BASE_URL: the child's links the bot sends on WhatsApp (the hub's Open button, the guest home, the class
+  # link) go out as WhatsApp cta_url messages, which must be https (whatsapp.service sendCtaUrl refuses anything else).
+  # This stack serves plain http, so the bot is given the https spelling of THIS portal; a test maps it back to
+  # http://localhost:<port> before opening it. The page's own share links use its origin and are unaffected.
+  bash "$E2E/local-stack.sh" restart bot "$RUN" "INTERNAL_API_KEY=$key" "PORTAL_URL=http://localhost:$PORTAL_PORT" "WEB_QUIZ_BASE_URL=${WEB_QUIZ_BASE_URL:-https://localhost:$PORTAL_PORT}" >/dev/null 2>&1 || { log "bot did not restart with the internal key — $RUN/bot.log"; down; exit 4; }
 
   if [ "${DATA:-sandbox}" = sandbox ]; then
     log "copying the sandbox's data (first time ~15 min; then from the cache — SANDBOX_REFRESH=1 pulls again)…"

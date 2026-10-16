@@ -50,6 +50,8 @@ function tokens(ctx) {
   return require(path.join(ctx.runDir, 'src', 'bot', 'shared', 'services', 'quiz', 'web-quiz-token.js'));
 }
 // The bot's internal API, as the portal calls it (x-api-key).
+// A link the bot built (WEB_QUIZ_BASE_URL is the https spelling of this run's portal: dev-portal.sh) opened on THIS run.
+const local = (ctx, url) => String(url || '').replace(/^https?:\/\/[^/]+/, ctx.baseUrl);
 async function bot(ctx, method, p, body, headers) {
   const r = await fetch(ctx.botUrl + p, { method, headers: { 'content-type': 'application/json', 'x-api-key': ctx.internalKey, ...(headers || {}) }, body: body ? JSON.stringify(body) : undefined });
   let json = null; try { json = await r.json(); } catch (_) { /* not JSON */ }
@@ -134,9 +136,12 @@ async function startAsNew(page, ctx, code, name) {
   // the landing of a phone that remembers one child is "Play as <name>" / "Not <name>?"; of several, the cards and
   // "Someone else"; of none, "Play" → "I'm new". Whichever it is, reach the typed-name path.
   await page.waitForSelector('#wq-play, #wq-notme, #wq-someone', { state: 'visible', timeout: WAIT });
-  if (await page.$('#wq-notme')) { await tap(page, '#wq-notme'); await page.waitForSelector('#wq-someone, #wq-play', { state: 'visible', timeout: WAIT }); }
-  await tap(page, (await page.$('#wq-someone')) ? '#wq-someone' : '#wq-play');
-  await page.waitForSelector('#wq-new, #wq-name', { state: 'visible', timeout: WAIT });
+  // "Not <name>?" opens "Who is playing?" (the phone's children and "I'm new"), not the landing again
+  if (await page.$('#wq-notme')) { await tap(page, '#wq-notme'); await page.waitForSelector('#wq-someone, #wq-play, #wq-new, #wq-name', { state: 'visible', timeout: WAIT }); }
+  if (!(await page.$('#wq-new')) && !(await page.$('#wq-name'))) {
+    await tap(page, (await page.$('#wq-someone')) ? '#wq-someone' : '#wq-play');
+    await page.waitForSelector('#wq-new, #wq-name', { state: 'visible', timeout: WAIT });
+  }
   if (await page.$('#wq-new')) await tap(page, '#wq-new');
   await page.fill('#wq-name', name);
   await page.click('#wq-start');
@@ -241,6 +246,6 @@ function events(page) {
   };
 }
 
-module.exports = { tap, flatLog, answerRight, nextQ, unesc, og, setFlag, botLog, workerLog, portalLog, expect, watch, WAIT, CODES, TOPIC, text, inner, count, boot, onScreen, screen, sleep, healthy,
+module.exports = { local, tap, flatLog, answerRight, nextQ, unesc, og, setFlag, botLog, workerLog, portalLog, expect, watch, WAIT, CODES, TOPIC, text, inner, count, boot, onScreen, screen, sleep, healthy,
   q, one, rows, codeRow, teacherOf, studentNamed, tokens, bot, setMode, openQuiz, startAsNew, current, wrongSlot,
   tapAndNext, play, toResults, finishAsNew, newPhone, stored, remember, chipFor, events, base };

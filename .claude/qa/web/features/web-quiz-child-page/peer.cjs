@@ -154,19 +154,22 @@ on('WQ086', 'off', async (page, ctx) => {
 
 on('WQ087', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
-  // a fresh code today: the first finisher
-  const first = await L.finishAsNew(page, ctx, 'IT34CD', 'Nth1');
+  // a code nobody has finished today (scenarios share the run database): one minted for this scenario
+  await ctx.sql("insert into quiz_share_codes select (json_populate_record(c, json_build_object('id', gen_random_uuid(), 'code', 'NTH087', 'created_at', now())::json)).* from quiz_share_codes c where c.code = 'IT34CD' on conflict do nothing");
+  const done0 = Number(await L.one(ctx, "select count(*) from quiz_sessions where share_code_id = (select id from quiz_share_codes where code = 'NTH087') and status = 'completed'"));
+  expect(done0 === 0, 'NTH087 already has ' + done0 + ' finishes');
+  const first = await L.finishAsNew(page, ctx, 'NTH087', 'Nth1');
   await page.click('#wq-card'); await page.waitForSelector('.wq-scorecard', { state: 'visible', timeout: WAIT });
   const l1 = await page.$eval('.wq-nth', (e) => e.innerText.trim()).catch(() => '');
   expect(l1 === "You're the first in your class to finish today!", 'the first finisher sees "' + l1 + '"');
-  await other(page, ctx, 'IT34CD', 'Nth2', { rightAt: [0, 1, 2, 3, 4, 5, 6], finish: true });
+  await other(page, ctx, 'NTH087', 'Nth2', { rightAt: [0, 1, 2, 3, 4, 5, 6], finish: true });
   await page.evaluate(() => localStorage.clear());
-  await L.finishAsNew(page, ctx, 'IT34CD', 'Nth3');
+  await L.finishAsNew(page, ctx, 'NTH087', 'Nth3');
   await page.click('#wq-card'); await page.waitForSelector('.wq-scorecard', { state: 'visible', timeout: WAIT });
   const l3 = await page.$eval('.wq-nth', (e) => e.innerText.replace(/\s+/g, ' ').trim()).catch(() => '');
   expect(l3 === "You're the 3rd in your class to finish today", 'the third finisher sees "' + l3 + '"');
   // a friend gets no such line
-  const chal = (await L.stored(page, 'wq_s_IT34CD')).result.challenge_code;
+  const chal = (await L.stored(page, 'wq_s_NTH087')).result.challenge_code;
   const F = await L.newPhone(page);
   try {
     const fr = await other(F.page, ctx, chal, 'NthF', { rightAt: [0, 1, 2, 3, 4, 5, 6], finish: true });
