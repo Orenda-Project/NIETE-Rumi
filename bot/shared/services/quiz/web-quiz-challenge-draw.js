@@ -21,7 +21,8 @@ const { logError } = require('../../utils/logger');
 const STOPS = Object.freeze(['missing', 'read', 'listen', 'bigger']);
 const WEIGHTS = Object.freeze({ w1: Object.freeze({ reference: 0.35, provisional_each: 0.15, provisional_max: 2 }) });
 const DRAWABLE = new Set(['calibrated', 'provisional']);
-// ITEMS §1.1 provenance, §8.1: the counted pool (mode 'check') admits only these; 'generated' is practice and Story Time only
+// ITEMS §1.1 provenance, §8.1: the counted pool (mode 'check') admits only these, unconditionally (RULING #105 (iii));
+// 'generated' is practice and Story Time only
 const COUNTED_PROVENANCE = new Set(['published_calibrated', 'reviewer_levelled']);
 /** A passage the counted pool may draw: a cited published instrument or a reviewer-levelled passage (the one rule). */
 const isCountedSource = (r) => !!r && COUNTED_PROVENANCE.has(r.provenance);
@@ -179,7 +180,7 @@ function storyPassageFor({ rows, pid, kind, lang, bands, reserve = false, now = 
 }
 
 /** ITEMS §5.2, ordered: the reference first, then by id. */
-// `counted` (the CHECK draw under web_quiz_challenge_sourced_only): only sourced passages (isCountedSource)
+// `counted` (every CHECK draw, RULING #105 (iii): no switch): only sourced passages (isCountedSource)
 function eligible({ rows, seenIds, kind, lang, band, now = new Date(), counted = false } = {}) {
   const seen = seenIds instanceof Set ? seenIds : new Set(seenIds || []);
   const all = rows || [];
