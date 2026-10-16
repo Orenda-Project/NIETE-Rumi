@@ -1568,7 +1568,7 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   // The card's remaining reads, in the order the payload used to await them, each timed.
   const best = earlier && !s.user_id ? await bestField(s) : {};
   mark('best');
-  const place = counted.counted && !s.user_id && !s.invited_by_student_id ? placeToday(await classFinishersToday(s.share_code_id), s.id) : {};
+  const place = counted.counted && !s.user_id && !s.invited_by_student_id ? childPlace(placeToday(await classFinishersToday(s.share_code_id), s.id)) : {};
   mark('place');
   const vs = s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {};
   mark('versus');
@@ -1641,6 +1641,12 @@ async function classFinishersToday(shareCodeId) {
     logToFile('⚠️ web-quiz: class finishers unavailable', { error: e.message });
     return [];
   }
+}
+
+/** The card's class line, never a count under 5: nth from 5 up; under 5 only done_today (the page's "You finished this quiz today!"). */
+function childPlace(p) {
+  if (!p || !p.nth) return {};
+  return p.nth >= CLASS_COUNT_FLOOR ? { nth: p.nth } : { done_today: true };
 }
 
 /** The card's "6 children in your class finished this quiz today.": how many finished up to and including this session ({} when it is not one). Pure. */

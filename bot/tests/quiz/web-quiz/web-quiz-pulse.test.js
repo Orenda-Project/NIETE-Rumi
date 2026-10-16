@@ -235,11 +235,17 @@ describe("the card's place among today's class finishers", () => {
     return { k, fin: await WQ.finishSession({ st: k.st }) };
   };
 
-  test('the first finisher today is 1st, the next is 2nd', async () => {
+  test('finishers 1 to 4 today get done_today and no count; the 5th gets nth 5', async () => {
     const one = await finish('Sara Testwala');
-    expect(one.fin.card.nth).toBe(1);
-    const two = await finish('Ali Testwala', 1);
-    expect(two.fin.card.nth).toBe(2);
+    expect(one.fin.card.nth).toBeUndefined();
+    expect(one.fin.card.done_today).toBe(true);
+    for (const name of ['Ali Testwala', 'Hina Testwala']) await finish(name, 1);
+    const four = await finish('Omar Testwala');
+    expect(four.fin.card.nth).toBeUndefined();
+    expect(four.fin.card.done_today).toBe(true);
+    const five = await finish('Bilal Testwala');
+    expect(five.fin.card.nth).toBe(5);
+    expect(five.fin.card.done_today).toBeUndefined();
   });
 
   test('a practice round, an invited friend and the teacher preview get no place', async () => {
@@ -250,6 +256,7 @@ describe("the card's place among today's class finishers", () => {
     const fin2 = await WQ.finishSession({ st: again.st });
     expect(fin2.counted).toBe(false);
     expect(fin2.card.nth).toBeUndefined();
+    expect(fin2.card.done_today).toBeUndefined();
     fake.db.quiz_share_codes.find((c) => c.code === one.fin.challenge_code).active = true;
     const friend = await WQ.startSession({ code: one.fin.challenge_code, new: { name: 'Friend Testwala', force: true } });
     await WQ.recordAnswers({ st: friend.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });

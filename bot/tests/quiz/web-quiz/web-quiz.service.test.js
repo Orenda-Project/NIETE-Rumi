@@ -365,8 +365,8 @@ describe('E4 POST answers + E5 POST finish', () => {
     const { s } = await play('Sana Example', ['B', 'B', 'A', 'B']);
     const out = await WQ.finishSession({ st: s.st });
     expect(out.score).toEqual({ correct: 3, total: 4, pct: 75, level: 'developing' });
-    // nth: Zara finished earlier today, so Sana is the class's 2nd finisher today.
-    expect(out.card).toEqual({ first: 'Sana', animal: expect.any(String), correct: 3, total: 4, stars: 3, nth: 2 });
+    // Zara finished earlier today, so Sana is the class's 2nd finisher today: under 5, no count, only done_today.
+    expect(out.card).toEqual({ first: 'Sana', animal: expect.any(String), correct: 3, total: 4, stars: 3, done_today: true });
     expect(out.counted).toBe(true);
     expect(out.review[2]).toMatchObject({ qid: qid(3), picked: 'A', correct_slot: 'B', ok: false, why: 'Because 3' });
     expect(out.challenge_code).toMatch(/^[A-Z0-9]{6}$/);
