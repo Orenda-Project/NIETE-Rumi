@@ -707,7 +707,7 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
    *
    * @param {string} prompt   must contain the word "JSON" (json_object mode)
    * @param {object} options  { maxTokens = 4000, label = 'completeJson' }
-   * @returns {Promise<{result: object, usage: object}>}
+   * @returns {Promise<{result: object, usage: object, finishReason: string|null}>}
    */
   static async completeJson(prompt, options = {}) {
     const { maxTokens = 4000, label = 'completeJson' } = options;
@@ -729,7 +729,9 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         logToFile(`⚠️ ${label}: response truncated at max_completion_tokens`, { maxTokens });
       }
       const result = this._safeJsonParse(choice.message.content);
-      return { result, usage: response.usage || {} };
+      // bd-08qvls.1: the finish reason is the truncation signal ('length'; the direct lane maps Anthropic's
+      // 'max_tokens' to it). A token count is not: a moved job is given more room than maxTokens.
+      return { result, usage: response.usage || {}, finishReason: (choice && choice.finish_reason) || null };
     } catch (error) {
       logToFile(`❌ ${label} failed`, { error: error.message, stack: error.stack });
       throw error;
