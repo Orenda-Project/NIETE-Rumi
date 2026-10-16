@@ -902,6 +902,15 @@ const RULE = {
   // Social Studies Apply marks come from situations; the model follows a counted slot rule, not sstQ56's wording alone.
   sstSituations: (q, n, total) => `Of the ${total} ${q} items, at least ${n} give a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and ask the child to use a concept from these pages to decide or explain; the rest may explain or compare book facts.`,
   spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
+  // The page store runs p.29's three columns together line by line, so a model read the provincial
+  // cell (encroachments on public roads) as local work. Given column by column when the pages hold it.
+  sstTiers: [
+    'The book\'s table on p.29 says which government does what. The page text above runs its three columns together; these are its rows, column by column:',
+    '- وفاقی حکومت: ملکی دفاع (مسلح افواج کے امور) کی نگرانی کرتی ہے؛ ملکی معیشت کو سنبھالتی ہے؛ خارجہ پالیسی (بیرونی ممالک سے تعلقات کے معاملات) کی نگرانی کرتی ہے۔',
+    '- صوبائی حکومت: صوبے کا نظم و نسق (قانون سازی، عوامی سڑکوں اور راستوں سے تجاوزات ہٹانا، امن و امان کا قیام) چلاتی ہے؛ صوبائی محصولات کی نگرانی کرتی ہے؛ صوبوں کی داخلی پالیسی کے معاملات سنبھالتی ہے۔',
+    '- مقامی حکومت: مویشی منڈیاں اور عوامی میلے منعقد کرتی ہے؛ پینے کے پانی کا بندوبست اور نکاسی آب کا انتظام دیکھتی ہے؛ بیواؤں، یتیموں، معذوروں اور قدرتی آفات کے متاثرین کی مدد کرتی ہے۔',
+    '  An item, key or marking point that says which government (وفاقی، صوبائی یا مقامی) does a job takes it from these rows only; a job the rows do not name is not asked as a which-government item.',
+  ].join('\n'),
   sstQ56: 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.',
   accept: '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.',
   mathsSectionC: 'Section C is also set from the pages above: keep each slot\'s marks and item shape (a word problem stays a word problem, a calculation a calculation) and take the topic from these pages.',
@@ -1053,6 +1062,13 @@ function _closedLists(P, slots) {
   return `Composition topics come only from these closed lists, exactly as written:\n${lists.join('\n')}`;
 }
 
+// Social Studies p.29: two of the table's own cells, matched with the page store's spacing (and any zero-width mark) removed.
+const SST_TIER_CELLS = ['مویشیمنڈیاں', 'تجاوزاتہٹانا'];
+function _holdsTierTable(pageContent) {
+  const flat = String(pageContent || '').replace(/[\s\u200b-\u200f]+/g, '');
+  return SST_TIER_CELLS.every((cell) => flat.includes(cell));
+}
+
 /**
  * What one section of a board-pattern paper asks for. The book text block is
  * the same as buildUserPrompt's (which stays untouched for every other paper);
@@ -1186,6 +1202,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
       rules.push(RULE.sstSituations(s.slot.split('.').pop(), Math.ceil(s.generate / 2), s.generate));
     }
   }
+  if (key === 'social_studies' && _holdsTierTable(pageContent)) rules.push(RULE.sstTiers);
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
