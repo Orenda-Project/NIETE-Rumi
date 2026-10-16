@@ -100,10 +100,13 @@ export function minutesText(ms: number): string {
 }
 
 /**
- * The recording's length in seconds, read by the browser from the file's own
- * metadata — used ONLY to warn about a short recording. Resolves null when the
- * browser cannot read it (some .amr/.3gp files), which shows no warning; the
- * server measures the real duration with ffprobe either way.
+ * An uploaded recording's length in seconds, read by the browser from the file's
+ * own metadata. Digital Coaching holds back a file under DC_MIN_SECONDS with it
+ * (bd-fgj73x.7: no Submit). Resolves null when the browser cannot tell: a format
+ * it cannot play (some .amr/.3gp, some .ogg/.opus on iPhones), a file whose header
+ * carries no length (duration Infinity), an error, or no answer within 8 seconds.
+ * A null is NOT held back, so a real lesson in such a format can still be sent;
+ * the server measures the true duration with ffprobe after upload.
  */
 export function readAudioDuration(file: File): Promise<number | null> {
   return new Promise((resolve) => {
