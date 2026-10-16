@@ -23,7 +23,7 @@ const webp = (w, h, tag) => {
 const h8 = (buf) => crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);
 
 let dir;
-function fixture({ voices = [1, 2], questionsReviewed = 3, band = true, wer = 0.0, drift = 60, wpm = 92, grade = 1, mismatch = false, pageWatermark = false, bigPage = false } = {}) {
+function fixture({ voices = [1, 2], questionsReviewed = 3, band = true, wer = 0.0, drift = 60, wpm = 92, pace = null, grade = 1, mismatch = false, pageWatermark = false, bigPage = false } = {}) {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wqsl-'));
   const serve = path.join(dir, 'serve'); const vdir = path.join(dir, 'voices'); fs.mkdirSync(serve); fs.mkdirSync(vdir);
   fs.writeFileSync(path.join(serve, 'thumb.webp'), webp(240, 357, 'cover'));
@@ -42,7 +42,7 @@ function fixture({ voices = [1, 2], questionsReviewed = 3, band = true, wer = 0.
   for (const n of voices) {
     const words = book.pages[n - 1].words.map((w) => ({ i: w.i, t: w.t, s_ms: 400 + 500 * w.i, e_ms: 850 + 500 * w.i }));
     if (mismatch && n === 2) words.pop();
-    fs.writeFileSync(path.join(vdir, `p0${n}.json`), JSON.stringify({ v: 1, lang: 'en', audio: { ms: 2100, mime: 'audio/ogg' }, words, pace_wpm: wpm, voice: { provider: 'soniox', voice: 'Grace', model: 'tts-rt-v2' }, timing_src: 'stt_align' }));
+    fs.writeFileSync(path.join(vdir, `p0${n}.json`), JSON.stringify({ v: 1, lang: 'en', audio: { ms: 2100, mime: 'audio/ogg' }, words, wpm, pace_wpm: pace == null ? wpm : pace, voice: { provider: 'soniox', voice: 'Grace', model: 'tts-rt-v2' }, timing_src: 'stt_align' }));
     fs.writeFileSync(path.join(vdir, `p0${n}.qa.json`), JSON.stringify({ wer, drift_ms_max: drift, drift_ms_mean: 40, cost_usd: 0.0012 }));
     fs.writeFileSync(path.join(vdir, `p0${n}.ogg`), Buffer.from(`OggS-page-${n}`));
   }
@@ -148,8 +148,57 @@ describe('planBook', () => {
     expect(p.pages[0].lines).toEqual([{ i0: 0, i1: 2, box: [10, 800, 300, 40] }]);
     expect(p.pages[1].lines).toBeNull();
     expect(p.why).toEqual(['p02: voice failed its own checks (wpm 140)']);
-    expect(p.voices[1].row.timing_key).toBe('readalong/sandbox/story/en/x-p02/sx-grace-0a1b2c3d.json');
+    expect(p.voices.map((v) => v.n)).toEqual([1]);
     expect(p.voices[0].row.timing_key).toBeNull();
+    fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), ok: true, fails: [] }));
+    const q = L.planBook(f);
+    expect(q.why).toEqual([]);
+    expect(q.voices[1].row.timing_key).toBe('readalong/sandbox/story/en/x-p02/sx-grace-0a1b2c3d.json');
+    expect(q.voices[1].file.name).toMatch(/^a02-[0-9a-f]{8}\.ogg$/);
+  });
+
+  test('a page whose voice has a stored key but no local clip is not voiced: the book stays a draft', () => {
+    const f = fixture();
+    const vj = path.join(f.voiceDir, 'p01.json');
+    fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), audio: { ms: 2100, key: 'readalong/sandbox/story/en/x-p01/sx-grace-0a1b2c3d.ogg' } }));
+    fs.rmSync(path.join(f.voiceDir, 'p01.ogg'));
+    const p = L.planBook(f);
+    expect(p.why).toEqual(['p01: voice clip missing']);
+    expect(p.ready).toBe(false);
+    expect(p.voices.map((v) => v.n)).toEqual([2]);
+    expect(p.voices.every((v) => v.file && Store.FILE_RX.test(v.file.name))).toBe(true);
+  });
+
+  test('two pace gates: the whole clip (100 / 115) and the word span (130 / 145)', () => {
+    expect(L.planBook(fixture({ wpm: 104, pace: 98 })).why).toEqual(['p01: voice pace 104 wpm', 'p02: voice pace 104 wpm']);
+    expect(L.planBook(fixture({ wpm: 95, pace: 125 })).why).toEqual([]);
+    expect(L.planBook(fixture({ wpm: 95, pace: 131 })).why).toEqual(['p01: voice span pace 131 wpm', 'p02: voice span pace 131 wpm']);
+    expect(L.planBook(fixture({ wpm: 110, pace: 140, grade: 3 })).why).toEqual([]);
+    expect(L.planBook(fixture({ wpm: 110, pace: 146, grade: 5 })).why).toEqual(['p01: voice span pace 146 wpm', 'p02: voice span pace 146 wpm']);
+    const f = fixture({ pace: 120 });
+    for (const n of [1, 2]) {
+      const vj = path.join(f.voiceDir, `p0${n}.json`); const j = JSON.parse(fs.readFileSync(vj, 'utf8')); delete j.wpm; fs.writeFileSync(vj, JSON.stringify(j));
+      const qj = path.join(f.voiceDir, `p0${n}.qa.json`); fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), wpm_clip: n === 1 ? 99 : 101 }));
+    }
+    expect(L.planBook(f).why).toEqual(['p02: voice pace 101 wpm']);
+    const g = fixture({ pace: 120 });
+    const vj = path.join(g.voiceDir, 'p01.json'); const j = JSON.parse(fs.readFileSync(vj, 'utf8')); delete j.wpm; fs.writeFileSync(vj, JSON.stringify(j));
+    expect(L.planBook(g).why).toEqual(['p01: voice pace unknown wpm']);
+  });
+
+  test('a page whose voice fails any check is loaded with no voice (Your turn), never as voiced', async () => {
+    const f = fixture();
+    const vj = path.join(f.voiceDir, 'p02.json');
+    fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), ok: false, fails: ['drift 148'] }));
+    const p = L.planBook(f);
+    expect(p.why).toEqual(['p02: voice failed its own checks (drift 148)']);
+    expect(p.voices.map((v) => v.n)).toEqual([1]);
+    expect(p.counts.voiced).toBe(1);
+    expect(L.planBook(fixture({ wer: 0.2 })).voices).toEqual([]);
+    const store = memoryStore(); const r = recorder();
+    await L.applyPlan(p, { store, upload: r.upload, env: 'sandbox' });
+    expect([...store.t.voices.values()].map((v) => v.page_id)).toEqual([Store.uuidV5(BOOK_ID, 'p01')]);
+    expect(store.t.books.get(BOOK_ID).status).toBe('draft');
   });
 
   test('a picture page needs no words, band or voice; the uuid ids never change between runs', () => {

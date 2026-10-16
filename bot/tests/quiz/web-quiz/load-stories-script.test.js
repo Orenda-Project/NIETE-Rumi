@@ -18,7 +18,7 @@ beforeEach(() => {
   const serve = path.join(dir, 'serve', SRC); fs.mkdirSync(serve, { recursive: true });
   ['thumb.webp', 'p01.webp', 'p01-band.webp'].forEach((f) => fs.writeFileSync(path.join(serve, f), webp(f)));
   const v = path.join(dir, 'voices', SRC); fs.mkdirSync(v, { recursive: true });
-  fs.writeFileSync(path.join(v, 'p01.json'), JSON.stringify({ audio: { ms: 1500 }, words: [{ i: 0, t: 'Sara', s_ms: 400, e_ms: 900 }, { i: 1, t: 'reads.', s_ms: 950, e_ms: 1400 }], pace_wpm: 90, voice: { provider: 'soniox', voice: 'Grace' } }));
+  fs.writeFileSync(path.join(v, 'p01.json'), JSON.stringify({ audio: { ms: 1500 }, words: [{ i: 0, t: 'Sara', s_ms: 400, e_ms: 900 }, { i: 1, t: 'reads.', s_ms: 950, e_ms: 1400 }], wpm: 80, pace_wpm: 90, voice: { provider: 'soniox', voice: 'Grace' } }));
   fs.writeFileSync(path.join(v, 'p01.qa.json'), JSON.stringify({ wer: 0 }));
   fs.writeFileSync(path.join(v, 'p01.ogg'), Buffer.from('OggS'));
   const q = path.join(dir, 'questions'); fs.mkdirSync(q);
