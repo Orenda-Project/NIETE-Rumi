@@ -24,13 +24,20 @@ const ONLY_HEAD = 'Judge ONLY these items:';
 
 const OPTION_HEAD = /^\s*\(?(?:[a-dA-D]|الف|ب|ج|د)\s*[).]\s*/u;
 const strip = (t) => String(t == null ? '' : t).replace(/\s+/g, ' ').trim();
-// Letters only, one form each (Arabic ي/ك/ه/ة as Urdu), no diacritics, spaces or punctuation: how a
-// quote the reader copied is found in the text it was copied from.
-const fold = (t) => String(t == null ? '' : t).normalize('NFC')
+// One form per letter (Arabic ي/ك/ه/ة as Urdu, Arabic-Indic digits as Urdu), no diacritics or
+// punctuation, word by word: how a quote the reader copied is found in the text it was copied from.
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+const foldWord = (w) => w.normalize('NFC')
   .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
   .replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[هة]/g, 'ہ')
+  .replace(/[٠-٩]/g, (d) => String.fromCharCode(0x06F0 + ARABIC_DIGITS.indexOf(d)))
   .replace(/[^\p{L}\p{N}]/gu, '')
   .toLowerCase();
+const wordsOf = (t) => String(t == null ? '' : t).split(/[\s\p{P}\p{S}]+/u).map(foldWord).filter(Boolean);
+// ' w1 w2 … ': a quote matches whole words in order, never the inside of a word.
+const fold = (t) => { const w = wordsOf(t); return w.length ? ` ${w.join(' ')} ` : ''; };
+// A quote names something only with a word of three letters or more («کا» is everywhere).
+const QUOTE_WORD = 3;
 
 function itemsOf(examJson, slotId) {
   const out = [];
@@ -135,7 +142,8 @@ function buildReaderPrompt(examJson, P, opts = {}) {
     '{"candidates":[{"item":"Q1.<n>","by":"<the label of the text that gives it away: Q1.13, Q2, Q3, Q4.2, Q5, Q6 …>","evidence":"<the words, copied exactly from the text printed under that label, that answer the item>","reason":"<one short line>","given_away":true}]}',
     'Inside a JSON string never use the character "; quote Urdu with « ». Use the labels exactly as printed below.',
     '{"candidates":[]} is the right answer when nothing is given away.',
-    ...(only ? ['', `${ONLY_HEAD} ${only.join(', ')}. The other items were already checked; flag none of them.`] : []),
+    ...(only ? ['', `${ONLY_HEAD} ${only.join(', ')}. The other items were already checked: flag one of these when it is`,
+      'given away, or when its own text gives away another item (then item is the item given away and by is this one).'] : []),
     '',
     PAPER_HEAD,
     ...paper,
@@ -150,9 +158,10 @@ function buildReaderPrompt(examJson, P, opts = {}) {
  * once each. Throws when the reply carries no flags list: that is a failed read, not a clean one.
  */
 // The labels a flag's `by` names that are on the paper: «Q4» names every Q4 item, «Q3/Q5» both.
+// A bare «Q1» names no item: twenty stems are not a giver.
 function giversOf(by, blocks) {
-  const named = String(by || '').split(/[\s,،/&+]+|and/).map((x) => x.trim()).filter((x) => /^Q\d+(\.\d+)?$/.test(x));
-  return [...blocks.keys()].filter((label) => named.some((n) => label === n || label.startsWith(`${n}.`)));
+  const named = String(by || '').split(/[\s,،/&+]+|\band\b/i).map((x) => x.trim().replace(/[.:]+$/, '')).filter((x) => /^Q\d+(\.\d+)?$/.test(x));
+  return [...blocks.keys()].filter((label) => named.some((n) => label === n || (n !== 'Q1' && label.startsWith(`${n}.`))));
 }
 
 /**
@@ -167,19 +176,29 @@ function parseFlags(reply, labels, only = null, blocks = null) {
   const out = [];
   for (const f of reply.candidates) {
     if (!f || typeof f !== 'object' || typeof f.item !== 'string' || f.given_away !== true) continue;
-    const item = f.item.trim();
-    if (!labels.has(item) || seen.has(item) || (only && !only.includes(item))) continue;
-    const by = typeof f.by === 'string' ? f.by.trim() : '';
+    let item = f.item.trim();
+    let by = typeof f.by === 'string' ? f.by.trim() : '';
+    if (!labels.has(item)) continue;
     const evidence = typeof f.evidence === 'string' ? strip(f.evidence) : '';
+    let gives = false;
     if (blocks) {
-      // The quote is printed under the giver, or, when the Q1 item gives another section away, under the item.
+      // The quote is printed under the giver, never the item's own block (its options are what the
+      // child picks from), or in the item's own stem (it prints its key, or answers another section).
       const quote = fold(evidence);
-      // Under the item it is its stem's, never its options': its own options are what the child picks from.
+      const real = quote && quote.trim().split(' ').some((w) => w.length >= QUOTE_WORD);
+      const givers = giversOf(by, blocks).filter((label) => label !== item && blocks.get(label).includes(quote));
       const stem = fold(labels.get(item) && labels.get(item).question);
-      if (quote.length < 2 || !(giversOf(by, blocks).some((label) => blocks.get(label).includes(quote)) || stem.includes(quote))) continue;
-    }
+      if (!real || !(givers.length || stem.includes(quote))) continue;
+      // On a re-check, a kept item given away BY a replacement takes the replacement off.
+      if (only && !only.includes(item)) {
+        const repl = givers.find((label) => only.includes(label));
+        if (!repl) continue;
+        [item, by, gives] = [repl, item, true];
+      }
+    } else if (only && !only.includes(item)) continue;
+    if (seen.has(item)) continue;
     seen.add(item);
-    out.push({ item, by, evidence, reason: typeof f.reason === 'string' ? strip(f.reason) : '' });
+    out.push({ item, by, evidence, reason: typeof f.reason === 'string' ? strip(f.reason) : '', ...(gives ? { gives } : {}) });
   }
   return out;
 }
