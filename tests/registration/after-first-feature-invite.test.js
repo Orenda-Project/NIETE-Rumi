@@ -74,3 +74,22 @@ test('sendNameQuestion with a Flow configured goes through the one sender (no th
   expect(wa.sendFlow).not.toHaveBeenCalled();
   expect(wa.sendMessage).not.toHaveBeenCalled();
 });
+
+test('a worker WITHOUT the Flow id (production workers today) never asks her name in chat once the bot has offered her the Flow', async () => {
+  // Production, 2026-10-16: REGISTRATION_FLOW_ID is set on the bot service only, not on sqs-worker /
+  // sqs-worker-video, where this trigger runs after a lesson plan or video. Without this guard she gets
+  // the Flow after her first message, then "By the way, what should I call you?" after her first lesson
+  // plan — and her next message is captured as her name.
+  const { Svc, wa, invite } = load({ flowId: null, row: { ...UNREGISTERED, registration_started_at: '2026-10-16T08:00:00Z' } });
+  Svc.countUserFeatures = jest.fn().mockResolvedValue(1);
+  expect(await Svc.checkAndTriggerRegistration('u1', 'lesson_plan', '923001234567', 'en', 'text')).toBe(false);
+  expect(wa.sendMessage).not.toHaveBeenCalled();
+  expect(invite.offerRegistrationOnce).not.toHaveBeenCalled();
+});
+
+test('a worker without the Flow id and no Flow offered yet keeps the open-source name question on the first feature', async () => {
+  const { Svc, wa } = load({ flowId: null, row: UNREGISTERED });
+  Svc.countUserFeatures = jest.fn().mockResolvedValue(1);
+  expect(await Svc.checkAndTriggerRegistration('u1', 'lesson_plan', '923001234567', 'en', 'text')).toBe(true);
+  expect(wa.sendMessage).toHaveBeenCalledTimes(1);
+});
