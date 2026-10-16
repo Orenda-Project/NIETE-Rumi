@@ -146,13 +146,15 @@ test('Urdu links carry no ‹ › arrow: Nastaliq draws it like a comma (bd-v0to
 });
 
 // bd-v0toag.66: the coach ask must not promise a visit the coach may not make.
-test('after a coach is asked, the page says they will try to visit, never that a visit is coming', () => {
+test('after the coach ping is sent, the card says the coach was told and does not ask again (bd-v0toag.38.9)', () => {
   const links = { ...LINKS, coach: '/cr/T/coach' };
   for (const s of ['sent', 'already']) {
-    expect(renderReportPage(v(), ENV, links, undefined, s))
-      .toContain('We have told your coach. They will try to visit your class when they can.');
+    const en = renderReportPage(v(), ENV, links, undefined, s);
+    expect(en).toContain('✓ Your coach has been told and will come to see your class.');
+    expect(en).not.toContain('Do you agree with this report?');
     expect(renderReportPage(v({ language: 'ur' }), ENV, links, undefined, s))
-      .toContain('ہم نے آپ کے کوچ کو بتا دیا ہے۔ وہ جب ممکن ہو آپ کی کلاس کا دورہ کرنے کی کوشش کریں گے۔');
+      .toContain('✓ آپ کے کوچ کو بتا دیا گیا ہے، وہ آ کر آپ کی کلاس دیکھیں گے۔');
   }
-  for (const lang of ['en', 'ur']) expect(COPY[lang].coachAsked).not.toMatch(/asked to visit|درخواست کر دی گئی/);
+  // Without the coach link (A, B, switch off) a stray ?coach= changes nothing.
+  expect(renderReportPage(v(), ENV, LINKS, undefined, 'sent')).not.toContain('Your coach has been told');
 });

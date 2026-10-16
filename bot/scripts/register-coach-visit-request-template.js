@@ -1,5 +1,6 @@
 /**
- * bd-v0toag.45 — register the coach visit-request UTILITY template (coach_visit_request_v1) in en_US and ur.
+ * bd-v0toag.45 — register the coach visit-request UTILITY template in en_US and ur. Since bd-v0toag.38.9 it
+ * submits coach_visit_request_v2 (score, reasons, card link); pass --v1 for the original.
  *
  * The bodies come from shared/templates/coach-visit-request.template.js — the same module the sender reads —
  * so what Meta approves is what we fill.
@@ -16,18 +17,21 @@
  */
 
 /* eslint-disable no-console */
-const { TEMPLATE, EXAMPLES } = require('../shared/templates/coach-visit-request.template');
+const V = require('../shared/templates/coach-visit-request.template');
+
+const PICK = process.argv.includes('--v1') ? { t: V.TEMPLATE, ex: V.EXAMPLES } : { t: V.TEMPLATE_V2, ex: V.EXAMPLES_V2 };
+const TEMPLATE = PICK.t;
 
 const WABA_ID = process.env.WABA_ID;
 const TOKEN = process.env.WHATSAPP_TOKEN;
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
-function payloads() {
-  return Object.entries(TEMPLATE.bodies).map(([language, text]) => ({
-    name: TEMPLATE.name,
+function payloads(t = V.TEMPLATE_V2, ex = t === V.TEMPLATE ? V.EXAMPLES : V.EXAMPLES_V2) {
+  return Object.entries(t.bodies).map(([language, text]) => ({
+    name: t.name,
     language,
     category: 'UTILITY',
-    components: [{ type: 'BODY', text, example: { body_text: [EXAMPLES[language]] } }],
+    components: [{ type: 'BODY', text, example: { body_text: [ex[language]] } }],
   }));
 }
 
@@ -44,7 +48,7 @@ async function status() {
 }
 
 async function submit() {
-  for (const body of payloads()) {
+  for (const body of payloads(PICK.t, PICK.ex)) {
     const r = await fetch(`${GRAPH}/${WABA_ID}/message_templates`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },

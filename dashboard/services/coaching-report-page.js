@@ -5,6 +5,7 @@
  *   card   — her score, what went well, the one thing to try (its step and why it matters), a way back
  *            to WhatsApp for tomorrow's plan, the report image, voice note and student quiz;
  *   detail — marks, the four sections with bars and the stored why, and her journey so far.
+ * C and D are asked "Do you agree?" with their coach one tap away (bd-v0toag.38.9, coach-ping-page.js).
  * Takes the view from coaching-report-view.js. Read-only. Every value is escaped and every link https.
  * Rendered by dashboard/routes/coaching-report.routes.js.
  */
@@ -12,6 +13,7 @@ const { esc, shell } = require('./coaching-report-style');
 const { pktDate } = require('./coaching-report-view');
 // The survey's words come from the bot's catalog, so the page asks exactly what A and B are asked on WhatsApp.
 const { resolveUx } = require('../../bot/shared/config/ux-strings');
+const { PING } = require('./coach-ping-page');
 
 const COPY = {
   en: {
@@ -38,15 +40,6 @@ const COPY = {
     notFoundBody: 'Open the report from your WhatsApp message again.',
     errorTitle: 'Something went wrong',
     errorBody: 'Please try again in a few minutes.',
-    disagree: 'If you disagree and want a person to observe instead, tap here',
-    coachTitle: 'Ask a coach to observe your class',
-    coachPick: 'Which coach should we ask?',
-    coachNone: 'None of these',
-    coachNoneFound: 'We could not find a coach for your school.',
-    coachSend: 'Ask for a visit',
-    coachAsked: 'We have told your coach. They will try to visit your class when they can.',
-    coachFailed: 'We could not reach your coach just now. Your request is saved.',
-    coachNoted: 'Thank you. We have noted that you want a person to observe your class.',
   },
   ur: {
     title: 'آپ کی کوچنگ رپورٹ',
@@ -72,15 +65,6 @@ const COPY = {
     notFoundBody: 'رپورٹ اپنے واٹس ایپ پیغام سے دوبارہ کھولیں۔',
     errorTitle: 'کچھ غلط ہو گیا',
     errorBody: 'براہ کرم چند منٹ بعد دوبارہ کوشش کریں۔',
-    disagree: 'اگر آپ اس رپورٹ سے متفق نہیں ہیں اور چاہتی ہیں کہ کوئی شخص آ کر آپ کی کلاس کا مشاہدہ کرے تو یہاں ٹیپ کریں',
-    coachTitle: 'کوچ سے اپنی کلاس کا مشاہدہ کروائیں',
-    coachPick: 'ہم کس کوچ سے درخواست کریں؟',
-    coachNone: 'ان میں سے کوئی نہیں',
-    coachNoneFound: 'ہمیں آپ کے اسکول کا کوئی کوچ نہیں ملا۔',
-    coachSend: 'دورے کی درخواست کریں',
-    coachAsked: 'ہم نے آپ کے کوچ کو بتا دیا ہے۔ وہ جب ممکن ہو آپ کی کلاس کا دورہ کرنے کی کوشش کریں گے۔',
-    coachFailed: 'ہم ابھی آپ کے کوچ تک نہیں پہنچ سکے۔ آپ کی درخواست محفوظ ہے۔',
-    coachNoted: 'شکریہ۔ ہم نے نوٹ کر لیا ہے کہ آپ چاہتی ہیں کوئی شخص آپ کی کلاس کا مشاہدہ کرے۔',
   },
 };
 
@@ -104,55 +88,34 @@ function trySection(t, c, bot) {
 }
 
 /**
- * "Was this coaching report useful to you?" (bd-v0toag.49). A POST form, so a link preview never answers it.
- * state: undefined = ask; 'yes' = thanks; 'no' = ask for the reason; 'done' = thanks for the reason.
+ * "Do you agree with this report?" (bd-v0toag.49; reworded in bd-v0toag.38.9). A POST form, so a link preview
+ * never answers it. state: undefined = ask; 'yes' = thanks; 'no' = ask for the reason; 'done' = thanks for the
+ * reason. For C and D (coachHref set) No opens the coach ping instead, and the link to it shows from the start.
  */
-function usefulSection(action, state, language) {
+function usefulSection(action, state, language, coachHref) {
   if (!action) return '';
   const ux = (key) => esc(resolveUx(key, { language }));
   if (state === 'yes') return `<section class="useful"><p>${ux('coachingSurveyThanks')}</p></section>`;
   if (state === 'done') return `<section class="useful"><p>${ux('coachingSurveyReasonThanks')}</p></section>`;
   const form = `<form method="post" action="${esc(action)}">`;
-  if (state === 'no') {
+  if (state === 'no' && !coachHref) {
     return `<section class="useful">${form}<label for="reason">${ux('coachingSurveyAskReason')}</label>`
       + '<textarea id="reason" name="reason" rows="3" maxlength="1000" required></textarea>'
       + `<button class="btn" type="submit">✓</button></form></section>`;
   }
+  const help = coachHref ? `<a class="more" href="${esc(coachHref)}">${esc(PING[language].help)}</a>` : '';
   return `<section class="useful"><h2>${ux('coachingSurveyAsk')}</h2>${form}`
     + `<button class="btn" type="submit" name="useful" value="yes">${ux('coachingSurveyYesButton')}</button> `
-    + `<button class="btn" type="submit" name="useful" value="no">${ux('coachingSurveyNoButton')}</button></form></section>`;
+    + `<button class="btn" type="submit" name="useful" value="no">${ux('coachingSurveyNoButton')}</button></form>${help}</section>`;
 }
 
-/**
- * "Ask my coach to visit" (bd-v0toag.45), C and D only (links.coach is set only for them). After a 👎 it
- * offers the coach page; once she has answered it says what happened (coachState from ?coach=).
- */
-const COACH_SAID = { sent: 'coachAsked', already: 'coachAsked', failed: 'coachFailed', invalid: 'coachFailed', no_coach: 'coachNoted' };
-function coachSection(href, usefulState, coachState, c) {
-  if (!href) return '';
-  if (COACH_SAID[coachState]) return `<section class="useful"><p>${esc(c[COACH_SAID[coachState]])}</p></section>`;
-  if (usefulState !== 'no' && usefulState !== 'done') return '';
-  return `<a class="more" href="${esc(href)}">${esc(c.disagree)}</a>`;
-}
-
-/** Her school's coaches and "None of these", one POST form. */
-function renderCoachPage(view, coaches, action) {
-  const l = lang(view);
-  const c = COPY[l];
-  const list = Array.isArray(coaches) ? coaches : [];
-  const pick = (value, label, i) => `<label class="pick"><input type="radio" name="coach" id="c${i}" value="${esc(value)}" required>`
-    + `<span>${esc(label)}</span></label>`;
-  const body = `<section class="useful"><h2>${esc(c.coachTitle)}</h2>`
-    + `${list.length ? '' : `<p class="muted">${esc(c.coachNoneFound)}</p>`}`
-    + `<form method="post" action="${esc(action)}"><p>${esc(c.coachPick)}</p>`
-    + `${list.map((x, i) => pick(x.id, x.name, i)).join('')}${pick('none', c.coachNone, list.length)}`
-    + `<button class="btn" type="submit">${esc(c.coachSend)}</button></form></section>`;
-  return shell(l, c.coachTitle, body);
-}
+/** What happened once a C/D teacher sent the coach ping (coachState from ?coach=). */
+const COACH_SAID = { sent: 'helped', already: 'helped', failed: 'failed', invalid: 'failed', no_coach: 'noCoach' };
+const coachSection = (coachState, l) => `<section class="useful"><p>${esc(PING[l][COACH_SAID[coachState]])}</p></section>`;
 
 /**
  * The card screen. links = { detail, card, useful, coach }; env gives the bot number (defaults to process.env).
- * usefulState is the survey's step after an answer (see usefulSection); coachState is ?coach= (coachSection).
+ * usefulState is the survey's step after an answer (see usefulSection); coachState is ?coach= (COACH_SAID).
  */
 function renderReportPage(view, env = process.env, links = {}, usefulState, coachState) {
   const v = view || {};
@@ -174,9 +137,9 @@ function renderReportPage(view, env = process.env, links = {}, usefulState, coac
     const share = `https://wa.me/?text=${encodeURIComponent(v.quizMessage)}`;
     parts.push(`<section><h2>${esc(c.quiz)}</h2><p>${esc(v.quizMessage)}</p><a class="btn" href="${esc(share)}">${esc(c.sendQuiz)}</a></section>`);
   }
-  // Once she has asked her coach (only reachable after a 👎), the question is answered: don't ask again.
-  if (!COACH_SAID[coachState]) parts.push(usefulSection(links.useful, usefulState, l));
-  parts.push(coachSection(links.coach, usefulState, coachState, c));
+  // Once she has sent the coach ping (C and D only), the question is answered: don't ask again.
+  if (links.coach && COACH_SAID[coachState]) parts.push(coachSection(coachState, l));
+  else parts.push(usefulSection(links.useful, usefulState, l, links.coach));
   return shell(l, c.title, parts.filter(Boolean).join('\n'));
 }
 
@@ -224,4 +187,4 @@ function renderMessagePage(kind) {
   return shell('en', COPY.en[`${k}Title`], body);
 }
 
-module.exports = { renderReportPage, renderDetailPage, renderMessagePage, renderCoachPage, pktDate, COPY };
+module.exports = { renderReportPage, renderDetailPage, renderMessagePage, pktDate, COPY };
