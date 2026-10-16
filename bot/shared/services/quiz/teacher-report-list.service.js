@@ -22,7 +22,6 @@
  * their send date, counted on the teacher's own codes only (teacher-report.data).
  */
 
-const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
@@ -43,13 +42,8 @@ const SEP = ' · ';
 const cpLen = (s) => [...String(s)].length;
 const mean = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 const pct = (correct, total) => (total > 0 ? Math.round((100 * correct) / total) : 0);
-// A log line names the teacher by the events' keyed reference, never by id: HMAC(kid key, 't|' + users.id)[:16];
-// null without the key (never an unkeyed hash).
-const tkOf = (userId) => {
-  const k = process.env.WEB_QUIZ_KID_KEY;
-  if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
-  return crypto.createHmac('sha256', k).update(`t|${userId}`).digest('hex').slice(0, 16);
-};
+// A log line names the teacher by the events' keyed reference, never by id (null without the key).
+const { tk: tkOf } = require('./web-quiz-kid');
 
 /** The teacher's sent quizzes, newest first — enough for page `p` and one more. */
 async function loadSentQuizzes(teacherId, needed) {

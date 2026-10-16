@@ -433,6 +433,27 @@ describe('the sender-side log lines', () => {
     };
     expect(await emitted('k'.repeat(32))).toBe('e815e81977411f12');
     expect(await emitted('k'.repeat(31))).toBeNull();
+    // the shared helper gives the same value, so the log line joins its events
+    const { tk } = require('../../../shared/services/quiz/web-quiz-kid');
+    process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(32);
+    expect(tk(PIN_ID)).toBe('e815e81977411f12');
+    process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(31);
+    expect(tk(PIN_ID)).toBeNull();
+  });
+
+  test('the three lines take the reference from the shared helper (one helper, no copy of its own)', async () => {
+    process.env.WEB_QUIZ_KID_KEY = KID_KEY;
+    const Kid = require('../../../shared/services/quiz/web-quiz-kid');
+    const spy = jest.spyOn(Kid, 'tk').mockReturnValue('5e1ec7ed5e1ec7ed');
+    const [list, pick] = await failBoth();
+    Data.sentQuizzes.mockRestore(); // the list reads its rows again, so the class-list read is reached
+    jest.spyOn(Data, 'readRoster').mockRejectedValue(new Error('boom-roster'));
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    await List.showReports({ id: SENDER, preferred_language: 'en' }, '000b', 'en');
+    const roster = calls('class list read failed');
+    expect(roster).toHaveLength(1);
+    expect([list.tk, pick.tk, roster[0][1].tk]).toEqual(['5e1ec7ed5e1ec7ed', '5e1ec7ed5e1ec7ed', '5e1ec7ed5e1ec7ed']);
+    expect(spy).toHaveBeenCalledWith(SENDER);
   });
 });
 

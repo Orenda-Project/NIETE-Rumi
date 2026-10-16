@@ -9,9 +9,9 @@
  *      id a0000000-0000-4000-8000-000000000001 give e815e81977411f12. A listed copy without one prints a WARN line
  *      for now; once the shared helper lands the copies go, and this rule becomes "no copies".
  *
- * The listed copies: bot/shared/services/quiz/teacher-report-list.service.js (PR #2662),
- * bot/shared/services/first-touch/teacher-home.routes.js (PR #2655), bot/shared/services/quiz/web-quiz-join-queue.js
- * (PR #2653), bot/shared/services/first-touch/maker.fallback.js (its two log lines, in the PR that adds it).
+ * The listed copies: bot/shared/services/first-touch/teacher-home.routes.js (PR #2655),
+ * bot/shared/services/quiz/web-quiz-join-queue.js (PR #2653). teacher-report-list.service.js and maker.fallback.js
+ * take tk() from bot/shared/services/quiz/web-quiz-kid.js, the shared helper.
  */
 const fs = require('fs');
 const path = require('path');
