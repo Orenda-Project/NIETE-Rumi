@@ -84,6 +84,14 @@ describe('the Book screen', () => {
     expect(html).toContain('Your class is playing too');
     expect(DIGIT.test(text(html))).toBe(false);
   });
+  test('nobody else in the class has played (none): no lights line at all, on the Book and the hub', () => {
+    const B = loadBook();
+    const html = B._bookHtml({ ...BOOK, class_lights: { shown: false, none: true } }, ctxOf(), false);
+    expect(html).not.toContain('wq-bk-lights');
+    expect(html).not.toContain('Your class is playing too');
+    expect(B._lightsHtml({ shown: false, none: true }, 'ur')).toBe('');
+    expect(B._lightsHtml({ shown: false }, 'en')).toContain('Your class is playing too');
+  });
   test('lights shown: the term total and +7; the only digits on the Book are the class\'s numbers', () => {
     const B = loadBook();
     const html = B._bookHtml(BOOK, ctxOf(), false);

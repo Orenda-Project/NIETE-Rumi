@@ -196,8 +196,12 @@ function storyIdsOf(rows) {
   return [...first.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id);
 }
 
-/** The class lights from the class's rows in the term (pure; BADGES §4.1). */
-function lightsOf(rows, now) {
+/**
+ * The class lights from the class's rows in the term (pure; BADGES §4.1). `self` is the child looking: under 5
+ * children the line says "your class is playing too", which is only true when some OTHER child has a light; with
+ * nobody else, `none: true` and the page prints nothing.
+ */
+function lightsOf(rows, now, self = null) {
   const week = weekStart(now);
   const keys = new Map();
   rows.forEach((r) => {
@@ -212,7 +216,12 @@ function lightsOf(rows, now) {
   });
   const lights = [...keys.values()];
   const children = new Set(lights.map((l) => l.child));
-  if (children.size < MIN_CHILDREN) return { shown: false };
+  if (children.size < MIN_CHILDREN) {
+    // the looking child under either id (a row keys a child by canonical_id || student_id)
+    const me = new Set(self ? [String(self)] : []);
+    if (self) rows.forEach((r) => { if (String(r.student_id) === String(self) && r.canonical_id) me.add(String(r.canonical_id)); });
+    return [...children].some((c) => !me.has(String(c))) ? { shown: false } : { shown: false, none: true };
+  }
   const thisWeek = lights.filter((l) => l.at >= week);
   const weekKids = new Set(thisWeek.map((l) => l.child));
   const out = { shown: true, term_total: lights.length };
@@ -226,7 +235,7 @@ async function classLights(studentId, rows, now) {
   try {
     const { data, error } = await supabase.from('web_quiz_challenge_runs').select(V2_COLS).eq('class_id', cls).gte('created_at', new Date(termStart(now)).toISOString()).limit(5000);
     if (error) return null;
-    return lightsOf(data || [], now);
+    return lightsOf(data || [], now, studentId);
   } catch (_) {
     return null;
   }
