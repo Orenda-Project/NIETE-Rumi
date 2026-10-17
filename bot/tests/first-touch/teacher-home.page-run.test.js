@@ -38,7 +38,7 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location }.
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200 } = {}) {
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [] } = {}) {
   const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null });
   const doc = adopt(parse(html));
   const fetches = [];
@@ -60,7 +60,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200 } = {
     location,
     navigator: { sendBeacon: (p, blob) => { beacons.push({ path: p, body: JSON.parse(blob.text) }); return true; } },
     Blob,
-    setTimeout() {},
+    setTimeout(fn) { timers.push(fn); },
     fetch: (p, opts = {}) => {
       const body = opts.body ? JSON.parse(opts.body) : undefined;
       fetches.push({ path: p, body });
@@ -223,5 +223,50 @@ describe('"My lessons" rows', () => {
     expect(row(p, 0).children.map((c) => c.getAttribute('data-tap'))).toEqual([null, 'again', 'report']);
     expect(row(p, 1).querySelector('.th-row-k').textContent).toBe('Lesson plan');
     expect(row(p, 1).querySelector('[data-tap="report"]')).toBeNull();
+  });
+});
+
+describe('"Quiz this" starts one quiz, wherever it is tapped', () => {
+  const LESSON = { kind: 'lp', verb: 'quiz_this', id: 'lp_9', make: 'lesson', sendKind: null, title: 'Water' };
+  const home = () => ({ primary: { kind: 'lesson', id: 'lp_9', make: 'lesson', from: 'lp', title: 'Water' }, library: LIB, timeline: [{ ...LESSON }] });
+  const answer = (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' } : {});
+  const makes = (p) => p.fetches.filter((f) => f.path === '/api/th/quiz/make');
+  const rowOf = (p) => p.q('#th-rows').querySelectorAll('li')[0];
+
+  test('from the top card: the same lesson\'s row no longer offers "Quiz this" and says the quiz is being made', async () => {
+    const p = await open(home(), { answer });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    expect(makes(p)).toHaveLength(1);
+    expect(rowOf(p).querySelector('[data-tap="quiz_this"]')).toBeNull();
+    expect(rowOf(p).textContent).toContain('Making your quiz…');
+  });
+
+  test('from the row: the top card no longer offers "Quiz this" for that lesson and says the quiz is being made', async () => {
+    const p = await open(home(), { answer });
+    await p.tap(rowOf(p).querySelector('[data-tap="quiz_this"]'));
+    expect(makes(p)).toHaveLength(1);
+    expect(p.q('#th-top').querySelector('[data-tap="quiz_this"]')).toBeNull();
+    expect(p.q('#th-top').textContent).toContain('Making your quiz…');
+  });
+
+  test('once the quiz is ready: the top card sends it and the row offers "Send again" for that quiz', async () => {
+    const timers = [];
+    const p = await open(home(), { timers, answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' }
+      : path.indexOf('/api/th/quiz/qz1?') === 0 ? { state: 'ready', title: 'Water', message: 'M', wa: 'https://wa.me/?text=M' }
+        : path === '/api/th/send' ? { message: 'M', wa: 'https://wa.me/?text=M' } : {}) });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    timers.splice(0).forEach((fn) => fn());
+    await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(p.q('#th-top').querySelector('[data-tap="send"]')).not.toBeNull();
+    expect(rowOf(p).querySelector('[data-tap="quiz_this"]')).toBeNull();
+    await p.tap(rowOf(p).querySelector('[data-tap="again"]'));
+    expect(p.fetches.filter((f) => f.path === '/api/th/send').map((f) => [f.body.kind, f.body.id])).toEqual([['again', 'qz1']]);
+  });
+
+  test('a refused make leaves both buttons as they were', async () => {
+    const p = await open(home(), { answer: (path) => (path === '/api/th/quiz/make' ? {} : {}) });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    expect(rowOf(p).querySelector('[data-tap="quiz_this"]')).not.toBeNull();
+    expect(p.q('#th-top').querySelector('[data-tap="quiz_this"]')).not.toBeNull();
   });
 });

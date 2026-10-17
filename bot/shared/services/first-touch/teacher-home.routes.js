@@ -143,9 +143,10 @@ function createRouter(deps = null) {
   async function makerOn() {
     try { return (await require('../quiz/web-quiz-identity-flags').flags()).makerPage === true; } catch (_) { return false; }
   }
-  function storiesBaseFor(token) {
+  /** The stories page for this token, in the page's own language (the stories page follows `lang`, not the token's bi). */
+  function storiesBaseFor(token, lang) {
     const S = Data.dep(deps, 'Stories');
-    return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories` : null;
+    return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories?lang=${lang === 'en' ? 'en' : 'ur'}` : null;
   }
   function cardsFor(lang) {
     const Cards = byName('cardsPage', './cards.page');
@@ -201,7 +202,7 @@ function createRouter(deps = null) {
   async function libraryFor({ p, token, lang, grade, tree, pfSubject }) {
     const [stories] = await Promise.all([Data.within(Data.storyShelf(p.uid, grade, lang, deps), Data.SIDE_BUDGET_MS, null, 'stories')]);
     const video = Data.videoPick(tree, grade, pfSubject);
-    return { stories, video, storiesBase: stories && stories.length ? storiesBaseFor(token) : null };
+    return { stories, video, storiesBase: stories && stories.length ? storiesBaseFor(token, lang) : null };
   }
   /** Adds the class message + wa.me link to a card that sends from the page; a card that cannot is dropped to null. */
   async function withSend(card, p, lang) {
