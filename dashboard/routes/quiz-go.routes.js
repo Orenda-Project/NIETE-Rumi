@@ -21,6 +21,7 @@ const crypto = require('crypto');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 const GoPage = require('../../bot/shared/services/first-touch/go.page');
 
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
@@ -79,6 +80,8 @@ function createQuizGoRouter(opts = {}) {
     configured = Boolean(botUrl && apiKey);
   }
   const router = express.Router();
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
 
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 120, standardHeaders: false, legacyHeaders: false, validate: false,
@@ -117,6 +120,7 @@ function createQuizGoRouter(opts = {}) {
     }
     if (out.status >= 500) return sendPage(res, errorPage(req), 503);
     res.set(PRIVATE);   // the bot's page carries its own Content-Security-Policy <meta>
+    carryBotSecurity(res, out, securityOn);   // and, with quiz_edge_security_headers on, the bot's header (frame-ancestors)
     return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
   });
 
