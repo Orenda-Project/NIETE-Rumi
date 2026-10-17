@@ -94,6 +94,9 @@ const KEY_FIELD = {
   appLinkButtonAttendance: 'buttonText',
   appLinkBodyClasses: 'body',
   appLinkButtonClasses: 'buttonText',
+  // bd-s42dye.3 — the coach's Training Library link.
+  appLinkBodyCoachTraining: 'body',
+  appLinkButtonCoachTraining: 'buttonText',
 };
 
 /**
