@@ -615,6 +615,25 @@ describe('a plan whose voice has no recorded set of Jugnu\'s shared lines is ref
     expect(refusals()).toEqual([]);
   });
 
+  // The English voice matched to the bank's recordings of people (option A): Shanaya, eleven_v4, the steadier stability.
+  const SHANAYA = { provider: 'elevenlabs', voice: 'ZeK6O9RfGNGj0cJT2HoJ', name: 'Shanaya', model: 'eleven_v4',
+    settings: { ...MATCHED_SETTINGS, stability: 0.75 } };
+  test('the matched English voice (Shanaya) has its set: a plan naming it with Reva, keeping the human question and options, is on', () => {
+    const plan = { voices: { en: SHANAYA, ur: REVA }, bank: ['q', 'opts'], loudness_lufs: -21 };
+    expect(Voice.setIdOf(SHANAYA)).toBe('el-shanaya-e228e6');
+    expect(OneVoice.take(plan)).toMatchObject({ bank: ['q', 'opts'], loudness_lufs: -21 });
+    const sets = Voice.sharedSets(OneVoice.normalize(plan));
+    expect(sets.en).toEqual({ path: 'el-shanaya-e228e6', v: Voice.SHARED_SETS['el-shanaya-e228e6'] });
+    expect(sets.ur).toEqual({ path: 'el-reva-cc0c3b', v: Voice.SHARED_SETS['el-reva-cc0c3b'] });
+    expect(refusals()).toEqual([]);
+  });
+
+  test('a quiz can be mapped to the English set by its name alone', () => {
+    const p = OneVoice.take({ voices: { ur: REVA }, quiz_voices: { [QUIZ]: 'el-shanaya-e228e6' } });
+    expect(OneVoice.forQuiz(p, QUIZ, 'en').voices.en).toMatchObject({ voice: SHANAYA.voice, model: 'eleven_v4', settings: SHANAYA.settings });
+    expect(refusals()).toEqual([]);
+  });
+
   test('a tool given the plan directly (backfill --plan, before its set exists) still records in that voice', async () => {
     const fake = seed(ROWS(), {});
     await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from }, oneVoice: OneVoice.normalize({ voices: { en: JESSICA } }) });

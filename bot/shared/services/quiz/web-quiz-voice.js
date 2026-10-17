@@ -69,6 +69,8 @@ const SHARED_SETS = Object.freeze({
   'el-bella-cff2e4': '3a274a11', // Bella on eleven_multilingual_v2 at speed 0.9 (the storyteller pace of the passages)
   // Urdu Reva (eleven_v4), matched to the bank's recordings of people, each line levelled to -21 LUFS.
   'el-reva-cc0c3b': 'cbfa2478',
+  // English Shanaya (eleven_v4, stability 0.75), matched to the bank's recordings of people, levelled to -21 LUFS.
+  'el-shanaya-e228e6': '4da1fca4',
 });
 
 // The voice each recorded set was recorded in, for a plan that names a set by its name alone (`quiz_voices`):
@@ -77,6 +79,8 @@ const SET_VOICES = Object.freeze({
   'el-bella-cff2e4': Object.freeze({ ...ONE_VOICE.en, model: 'eleven_multilingual_v2', settings: Object.freeze({ ...ONE_SETTINGS, speed: 0.9 }) }),
   'el-reva-cc0c3b': Object.freeze({ provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4',
     settings: Object.freeze({ stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 }) }),
+  'el-shanaya-e228e6': Object.freeze({ provider: 'elevenlabs', voice: 'ZeK6O9RfGNGj0cJT2HoJ', name: 'Shanaya', model: 'eleven_v4',
+    settings: Object.freeze({ stability: 0.75, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 }) }),
 });
 
 /**
