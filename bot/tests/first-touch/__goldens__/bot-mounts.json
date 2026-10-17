@@ -1,0 +1,2435 @@
+[
+  {
+    "m": "use",
+    "path": null,
+    "handlers": [
+      {
+        "name": "jsonParser"
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/flows",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "path": "/observe-mewaka",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe-visit",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe2-form",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe2-check",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/child-test-check",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/registration",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/attendance-setup",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/class-manager",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/roster",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/attendance-marking",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/edit-class",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/remark",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/settings",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/status",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/quiz",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training-msq",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/teacher-training",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/assessment-gen",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/student-videos",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/student-quiz",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/transcript-quiz",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/homework-request",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/exam-confirm-students",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/pakistan-lp",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/internal/wq",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "path": "/quiz/:code",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/og/:code",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/juice",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/session",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/linkhome",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/bind",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/answers",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/finish",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/board/:code",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/schools/:code",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/me",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/who",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/who/fix",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/who/class",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/book/h/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/bind/mint",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/bind/status",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/bind/undo",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/join/page/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/join/grade",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/join",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/e",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/media/:code/:qid",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/videos/:code",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/videos/start",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/pulse/:code",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/ch/result/:ct",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/ch/upload",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/ch/live",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lr/key",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/ch/qs",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/ch/qa",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/ch/result",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/ch/words/:ct",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/listen/h/:token/:pid",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/ch/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/ch/:token/back",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/ch/:token/:exercise",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/challenge/results",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/art/:id",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/card",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/card/:token.png",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/card/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/hub/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lib/h/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/doors/h/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lib/:code",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/videos/dl/:code",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/stories/shelf",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/stories/shelf/h/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/stories/book/:id/h/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/stories/event/h/:token",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/hub/:token",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/hubdoor",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/teacher/queue",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/teacher/queue/decide",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/teacher/queue/link-codes",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "name": "router",
+            "stack": [
+              {
+                "path": "/arrive",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/teacher",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/letter",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/pick",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/:code",
+                "methods": [
+                  "get"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/internal/tr",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "path": "/page/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/pdf/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/remind/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/jlink/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/jnew/:token",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/data/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/class/:token",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/fix/:token",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/wfwd/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/fwd/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/queue/:token",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/unbind/:token",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "name": "router",
+            "stack": [
+              {
+                "path": "/:token",
+                "methods": [
+                  "get"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/:token/start",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/:token/absent",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/:token/declined",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/:token/pause",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/:token/resume",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/:token/next",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/:token/teacher",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/:token/not-this-term",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/internal/ts",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "path": "/stories",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/preview",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/share",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/send",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/page/:th",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "servePage"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/internal/ft",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "<anonymous>"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "name": "urlencodedParser"
+          },
+          {
+            "path": "/m/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/m/:token/send",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/ft/make",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/ft/step",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/ft/tour",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/internal/th",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "<anonymous>"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "path": "/quiz/teacher/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/home",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/library",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/send",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/quiz/make",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/quiz/:id",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/confirm",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/step",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/quiz/teacher/:token/send",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/quiz/teacher/:token/stories",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/internal/go",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "<anonymous>"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "path": "/land/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/who",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/role",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/bind",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/persona",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/internal",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "path": "/queue-lesson-plan",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/level-states",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/level-unlocked",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/module-unlocked",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/exam-gate",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/exam-gate-by-level",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/grand-quiz-state",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/module-quiz-verdict",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/exam-verdict",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/level-grade",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/certify-level",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/unit-locks",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/module-exam-gate",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/module-exam-start",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/module-exam-draft",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/module-exam-draft-load",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/module-exam-attempts",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/module-exam-submit",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/mark-paper",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/serve-paper",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/certificates",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/certificate-pdf",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/classes/list",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/classes/options",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/classes/create",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/classes/students/list",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/classes/students/add",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/classes/students/remove",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp/v8/grades",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp/v8/subjects",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp/v8/chapters",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp/v8/lessons",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp/v8/pdf",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp/health",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp/describe",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp/open-survey",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/assessment/options",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/assessment/chapters",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/assessment/create",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/assessment/status",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/assessment/download",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/assessment/papers",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "name": "router",
+            "stack": [
+              {
+                "path": "/assessment/edit/versions",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/assessment/edit/questions",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/assessment/edit/add-kinds",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/assessment/edit/validate",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/assessment/edit/save",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "router",
+            "stack": [
+              {
+                "path": "/assessment/paper/view",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "router",
+            "stack": [
+              {
+                "path": "/attendance/classes",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/attendance/roster",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/attendance/mark",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/attendance/day",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/attendance/month",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/attendance/register",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/attendance/register/send",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "router",
+            "stack": [
+              {
+                "path": "/share/send",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/share/availability",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "requireInternalKey",
+                  "<anonymous>"
+                ]
+              }
+            ]
+          },
+          {
+            "path": "/coaching/breakdown",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp612/grades",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp612/subjects",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp612/chapters",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp612/lessons",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp612/request",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp612/status",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/lp612/mine",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/bands/state",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/training/bands/apply",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/me/language",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe/notify-teacher",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe/teacher-move",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe/teacher-remove",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe/teacher-edit",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe/school-search",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe/school-add",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe/school-remove",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe/teacher-add-check",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe/teacher-add",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/observe/teacher-remove-many",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/presign-upload",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/start",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/recent-plans",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/reflection",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "name": "router",
+            "stack": [
+              {
+                "name": "requireInternalKey"
+              },
+              {
+                "path": "/visits",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/list",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/outcome",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/card",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/presign",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/media",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/session",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/check",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              }
+            ]
+          },
+          {
+            "path": "/coaching/observe/start",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/observe/recent-plans",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/observe/list",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/observe/view",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/observe/draft",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/observe/draft/save",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/observe/talk/guide",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/observe/talk/start",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/observe/talk/retry",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/observe/report/preview",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/coaching/observe/report/send",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "requireInternalKey",
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "get",
+    "path": "/webhook",
+    "handlers": [
+      {
+        "name": "<anonymous>"
+      }
+    ]
+  },
+  {
+    "m": "post",
+    "path": "/webhook",
+    "handlers": [
+      {
+        "name": "<anonymous>"
+      }
+    ]
+  },
+  {
+    "m": "get",
+    "path": "/",
+    "handlers": [
+      {
+        "name": "<anonymous>"
+      }
+    ]
+  },
+  {
+    "m": "post",
+    "path": "/clear-history/:userId",
+    "handlers": [
+      {
+        "name": "<anonymous>"
+      }
+    ]
+  },
+  {
+    "m": "get",
+    "path": "/stats",
+    "handlers": [
+      {
+        "name": "<anonymous>"
+      }
+    ]
+  },
+  {
+    "m": "get",
+    "path": "/health",
+    "handlers": [
+      {
+        "name": "<anonymous>"
+      }
+    ]
+  },
+  {
+    "m": "post",
+    "path": "/api/internal/send-password-reset",
+    "handlers": [
+      {
+        "name": "<anonymous>"
+      }
+    ]
+  }
+]
