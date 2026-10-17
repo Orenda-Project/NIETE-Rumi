@@ -108,19 +108,22 @@ describe('every door screen, both languages', () => {
   });
 });
 
-describe('Games: Jugnu\'s read-aloud and listen steps (the Stories door shows storybooks only)', () => {
-  const READS = { games: [{ kind: 'numbers', stop: 'bigger', name: 'Which is bigger?' }, { kind: 'read', stop: 'read', name: 'Read aloud' }, { kind: 'read', stop: 'listen', name: 'Listen and answer' }] };
-  test.each(['en', 'ur'])('%s: a section of their own, each row opens its step on the games page by id; one primary', (lang) => {
+describe('Games: Jugnu\'s passages beside the games (the Stories door shows storybooks only)', () => {
+  const READS = { games: [{ kind: 'numbers', stop: 'bigger', name: 'Which is bigger?' }, { kind: 'passage', id: 'en.read.1.k02', title: 'The red kite' }, { kind: 'read', stop: 'read', name: 'Read aloud' }, { kind: 'listen', id: 'en.listen.1.k05', title: 'The rain song' }] };
+  test.each([['en', 'Read along', 'Listen'], ['ur', 'جگنو کے ساتھ ساتھ پڑھیں', 'سنیں']])('%s: under the games — read along and listen open the story room by id, read aloud the games page; one primary', (lang, along, listen) => {
     const W = load();
     const B = { ...HUB, lang, home_v3: 1, doors: { stories: [], games: [], videos: null } };
     const h = W.WQDOORS.html(B, ctxOf(lang), 'games', READS);
+    expect(h).toContain('room=story&amp;pid=en.read.1.k02"');
+    expect(h).toContain('room=story&amp;pid=en.listen.1.k05&amp;ex=listen"');
     expect(h).toMatch(/href="\/c\/[^"]*#read"/);
-    expect(h).toMatch(/href="\/c\/[^"]*#listen"/);
-    expect(visible(h)).toContain(lang === 'ur' ? 'جگنو کے ساتھ کہانی' : 'A story with Jugnu');
+    const v = visible(h);
+    expect(v).toContain(along); expect(v).toContain(listen); expect(v).toContain('The red kite');
+    expect(h.indexOf('Which is bigger?')).toBeLessThan(h.indexOf('pid=en.read.1.k02'));
     expect(count(h, /data-primary/g)).toBe(1);
     expect(count(h, /data-tap="say"/g)).toBe(count(h, /class="wq-row wq-drow"/g));
   });
-  test('GOLDEN: no read rows from the server -> the Games door as today', () => {
+  test('GOLDEN: no passage rows from the server -> the Games door as today', () => {
     const W = load();
     const B = { ...HUB, lang: 'en', home_v3: 1, doors: { stories: [], games: [], videos: null } };
     expect(W.WQDOORS.html(B, ctxOf('en'), 'games', { games: READS.games.slice(0, 1) })).not.toContain('A story with Jugnu');

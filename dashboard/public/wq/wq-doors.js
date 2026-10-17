@@ -19,7 +19,7 @@
   var COPY = {
     en: {
       weekStory: 'This week\'s story', toRead: 'Stories to read', toListen: 'Stories to listen to', books: 'Storybooks',
-      listen: 'Listen to a story', story: 'A story with Jugnu', newTag: 'New', doneTag: 'Done',
+      listen: 'Listen to a story', story: 'A story with Jugnu', readAlong: 'Read along', listenW: 'Listen', newTag: 'New', doneTag: 'Done',
       numbers: 'Number games', fromTeacher: 'From your teacher', again: 'Play again', quiz: 'Your teacher\'s quiz',
       warm: 'Number warm-up', missing: 'Missing number', bigger: 'Which is bigger?', g1: 'Numbers with Jugnu',
       pick: 'Pick a subject', back: 'Back', opening: 'Opening the video…', none: 'No videos here yet.',
@@ -31,7 +31,7 @@
     },
     ur: {
       weekStory: 'اس ہفتے کی کہانی', toRead: 'پڑھنے کی کہانیاں', toListen: 'سننے کی کہانیاں', books: 'کہانیوں کی کتابیں',
-      listen: 'کہانی سنیں', story: 'جگنو کے ساتھ کہانی', newTag: 'نئی', doneTag: 'مکمل',
+      listen: 'کہانی سنیں', story: 'جگنو کے ساتھ کہانی', readAlong: 'جگنو کے ساتھ ساتھ پڑھیں', listenW: 'سنیں', newTag: 'نئی', doneTag: 'مکمل',
       numbers: 'گنتی کے کھیل', fromTeacher: 'ٹیچر کی طرف سے', again: 'دوبارہ کھیلیں', quiz: 'ٹیچر کا کوئز',
       warm: 'گنتی کا کھیل', missing: 'کون سا عدد غائب ہے؟', bigger: 'کون سا عدد بڑا ہے؟', g1: 'جگنو کے ساتھ گنتی',
       pick: 'ایک مضمون چنیں', back: 'واپس', opening: 'ویڈیو کھل رہی ہے…', none: 'یہاں ابھی کوئی ویڈیو نہیں۔',
@@ -118,13 +118,18 @@
     var open = quizzes.filter(function (g) { return !g.done; });
     var done = quizzes.filter(function (g) { return g.done; });
     var all = data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
-    var nums = all.filter(function (g) { return g.kind !== 'read'; });
-    // Jugnu's read-aloud and listen steps (the server lists them only when the games page would offer them)
-    var reads = all.filter(function (g) { return g.kind === 'read' && g.stop && g.name; });
+    var nums = all.filter(function (g) { return g.kind === 'numbers'; });
+    // Jugnu's passages beside the games (the server lists each only when it would open): read along and listen in the
+    // story room by id, read aloud on the games page
+    var reads = all.filter(function (g) { return (g.kind === 'read' && g.stop && g.name) || ((g.kind === 'passage' || g.kind === 'listen') && g.id); });
+    var readRow = function (g, i) {
+      if (g.kind === 'read') return row({ href: gameHref(B, ctx, g), title: g.name, kind: 'passage', item: g.stop, pos: i, say: g.say }, ctx);
+      return row({ href: storyHref(B, ctx, g), title: g.kind === 'listen' ? t.listenW : t.readAlong, sub: g.title || '', kind: g.kind, item: g.id, pos: i, say: g.say }, ctx);
+    };
     var quizRow = function (g, i) { return row({ href: quizHref(g.code, g.k, g.done), title: g.topic || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
     var h = section(t.fromTeacher, open.map(quizRow).join('')) +
-      section(t.story, reads.map(function (g, i) { return row({ href: gameHref(B, ctx, g), title: g.name, kind: g.stop === 'listen' ? 'listen' : 'passage', item: g.stop, pos: i, say: g.say }, ctx); }).join('')) +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
+      section(t.story, reads.map(readRow).join('')) +
       section(t.again, done.map(quizRow).join(''));
     if (!open.length && !reads.length && !nums.length && !done.length) return emptyNote(t.gamesNone, 'stories', t.toStories);
     return primaryFirst(h);
