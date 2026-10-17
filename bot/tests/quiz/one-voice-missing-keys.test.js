@@ -123,3 +123,62 @@ test('a plan voice with no shared-line set is not ok, even with every clip prese
   expect(r).toMatchObject({ ok: false, missing: 0, shared: { en: null, ur: 'el-sara' } });
   expect(lines).toContain('missing\tshared-lines\ten\tel-jessica');
 });
+
+/*
+ * --record-short: the short lines (prompts and options) are recorded BEFORE the flip by the bot's own recorder under the
+ * pinned plan, each through a light gate: a clip of a plausible length for its words, and for a question of 4+ words one
+ * transcription with WER ≤ 0.20 (EN) / 0.25 (UR). A clip that fails is recorded once more; failing again it is deleted
+ * and listed. The long clips (listening stories, Story Time read-along) are never recorded here: they are gated takes.
+ */
+describe('--record-short', () => {
+  const ok = (text) => ({ audio: Buffer.from('OggS'), provider: 'elevenlabs', voice: 'v', durationSec: Math.max(0.6, [...String(text)].length / 15) });
+  const echo = async (_audio, _lang, text) => text;   // a transcription that hears exactly the words
+  async function rec(argv, deps = {}) {
+    const lines = [];
+    const r = await MK.main(argv, { env: ENV, print: (l) => lines.push(l), now: NOW, ...deps });
+    return { r, lines };
+  }
+  const isLong = (k) => /\/story-/.test(k);
+  beforeEach(() => { r2.headObject.mockResolvedValue({ exists: false }); });   // nothing in the store yet
+
+  test('records every missing prompt and option in the plan voice, never a story; each passes the gate', async () => {
+    tts.synthesize.mockImplementation(async ({ text }) => ok(text));
+    const stt = jest.fn(async (a, l, text) => text);
+    const { r, lines } = await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5'], { stt: (a, l, t) => stt(a, l, t) });
+    const keys = r2.uploadBuffer.mock.calls.map(([, k]) => k);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys.some(isLong)).toBe(false);
+    expect(keys.filter((k) => k.includes('/en/')).every((k) => k.includes('-el-bella-cff2e4-'))).toBe(true);
+    tts.synthesize.mock.calls.forEach(([a]) => { if (a.language === 'en') expect(a).toMatchObject({ model: 'eleven_multilingual_v2', outputFormat: 'opus_48000_32' }); });
+    expect(r.recorded).toBe(keys.length);
+    expect(r.gateFailed).toBe(0);
+    expect(stt).toHaveBeenCalled();                                      // the questions of 4+ words were heard
+    expect(lines.some((l) => /^SPEND usd=\d+\.\d+ chars=\d+$/.test(l))).toBe(true);
+    expect(lines.filter((l) => l.startsWith('recorded\t')).length).toBe(keys.length);
+  });
+
+  test('a question heard wrong is recorded once more, then deleted and listed (never kept, never dropped)', async () => {
+    tts.synthesize.mockImplementation(async ({ text }) => ok(text));
+    const { r, lines } = await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5'],
+      { stt: async (_a, _l, text) => (String(text).split(/\s+/).length >= 4 ? 'something else entirely here today' : text) });
+    expect(r.gateFailed).toBeGreaterThan(0);
+    const failed = lines.filter((l) => l.startsWith('gate_failed\t'));
+    expect(failed.length).toBe(r.gateFailed);
+    expect(failed[0]).toMatch(/\twer=/);
+    expect(r2.deleteKey.mock.calls.length).toBe(r.gateFailed * 2);   // each failed take removed, both times
+  });
+
+  test('a clip far too long or short for its words fails the length gate the same way', async () => {
+    tts.synthesize.mockImplementation(async ({ text }) => ({ ...ok(text), durationSec: 40 }));
+    const { r, lines } = await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5'], { stt: echo });
+    expect(r.recorded).toBe(0);
+    expect(lines.find((l) => l.startsWith('gate_failed\t'))).toMatch(/\tlength=/);
+  });
+
+  test('stops before the next clip once the spend reaches --max-usd', async () => {
+    tts.synthesize.mockImplementation(async ({ text }) => ok(text));
+    const { r, lines } = await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '0.001'], { stt: echo });
+    expect(r.recorded).toBe(1);
+    expect(lines[lines.length - 1]).toMatch(/stopped=max_usd/);
+  });
+});

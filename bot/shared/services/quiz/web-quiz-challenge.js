@@ -579,8 +579,9 @@ function voiceOfKey(key, lang) {
   return (m && voiceOfTag(m[1], OneVoice.currentPlan())) || quizVoice(lang);
 }
 
+// → the voice's result ({ audio, durationSec, … }) once the clip is stored, else null (capped, busy or failed).
 async function recordClip(key, text, lang, now = Date.now()) {
-  if (clipRecording.has(key) || clipsRecordedOn(now) >= MAX_CLIP_RECORDINGS) return;
+  if (clipRecording.has(key) || clipsRecordedOn(now) >= MAX_CLIP_RECORDINGS) return null;
   clipRecording.add(key);
   clipsRecorded += 1;
   try {
@@ -595,8 +596,10 @@ async function recordClip(key, text, lang, now = Date.now()) {
     await r2.uploadBuffer(out.audio, key, 'audio/ogg', { bucket: AudioStore.quizAudioBucket() });
     clipKnown.set(key, true);
     logEvent('web_quiz.ch_clip_recorded', { lang, provider: out.provider, voice: out.voice, audioSec: Math.round((out.durationSec || 0) * 10) / 10, chars: [...String(text)].length, costUsd: clipCostUsd(out) });
+    return out;
   } catch (e) {
     logError('web_quiz.ch_clip_failed', { lang, error: String(e && e.message || e).slice(0, 200) });
+    return null;
   } finally {
     clipRecording.delete(key);
   }
@@ -2327,6 +2330,7 @@ module.exports = {
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, TRAIL_ORDER, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
+  recordClip,      // the one-voice pre-flip recording of the short lines (scripts/quiz/one-voice-missing-keys.js)
   updateRunMeta,   // the meta compare-and-set write, reused by the stuck-run sweeper (web-quiz-challenge-sweeper.js)
   __reset,
 };
