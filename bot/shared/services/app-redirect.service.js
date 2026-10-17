@@ -32,6 +32,13 @@
  *      coach_app_link — true, "teachers", an object, no row — is OFF, and so is a failed read. It is asked before the
  *      teacher link and only decides for someone on the list; everyone else goes on exactly as below. Old code never
  *      reads coach_app_link, so a rollback reads it as OFF: no notice, no link, for anyone.
+ *   2c. COACH /training (bd-s42dye.3): a third COACH_LINKS request with its OWN switch, `coach_app_training` (see
+ *      COACH_LINK_FLAGS), so it never moves /menu or /observe and they never move it. It takes `true` (every coach), "coaches"
+ *      (every users.role = coach) or a JSON list of users.id; no row, any other value, or a failed read is OFF. The same
+ *      two conditions as 2b still hold: role coach, on the coach app (portal_coach_v2). It lands the coach app's Training
+ *      Library (/portal/coach/training) and only for the doors that mean "open training" (COACH_LINK_DOORS) — typed
+ *      /training, the chip, the menu row and openTrainingFlow — never /certificates or an exam/capstone button. Old
+ *      code never reads the key, so a rollback reads it as OFF.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -83,6 +90,7 @@ const APP_LINK_COPY = Object.freeze({
   menu: ['appLinkBody', 'appLinkButton'],
   coach_menu: ['appLinkBodyCoachHome', 'appLinkButtonCoachHome'], // bd-fmf24g.52
   coach_observe: ['appLinkBodyCoachObserve', 'appLinkButtonCoachObserve'], // bd-fmf24g.52
+  coach_training: ['appLinkBodyCoachTraining', 'appLinkButtonCoachTraining'], // bd-s42dye.3
   lesson_plan: ['appLinkBodyLessonPlan', 'appLinkButtonLessonPlan'],
   assessment_generator: ['appLinkBodyAssessment', 'appLinkButtonAssessment'],
   ai_coaching: ['appLinkBodyCoaching', 'appLinkButtonCoaching'],
@@ -109,16 +117,30 @@ function funnelEvent(name, props) {
 function startJourney({ userId, feature, door, verdict, why, audience = 'teacher' }) {
   const journeyId = newJourneyId();
   funnelEvent('app_funnel.command', { journeyId, userId, feature, door, verdict, ...(why ? { why } : {}), audience });
-  return { journeyId, feature, door, userId };
+  return { journeyId, feature, door, userId, audience };
 }
 
 /**
  * bd-fmf24g.52 — the coach app link. Request → the coach-app page it lands on (app-login-link.js COACH_LANDINGS).
  * Only these two; any other request a coach makes is today's path.
  */
-const COACH_LINKS = Object.freeze({ menu: 'coach_menu', observe: 'coach_observe' });
+const COACH_LINKS = Object.freeze({ menu: 'coach_menu', observe: 'coach_observe', teacher_training: 'coach_training' });
 /** Who gets it: a JSON list of users.id, and nothing else. Not an app_redirect_* key — old code never reads it. */
 const COACH_LINK_KEY = 'coach_app_link';
+/**
+ * bd-s42dye.3 — which switch each coach request rides. /menu and /observe stay on `coach_app_link` (a LIST only);
+ * /training has its own, `coach_app_training`, so the three never move each other. Not app_redirect_* keys.
+ */
+const COACH_TRAINING_KEY = 'coach_app_training';
+const COACH_LINK_FLAGS = Object.freeze({ menu: COACH_LINK_KEY, observe: COACH_LINK_KEY, teacher_training: COACH_TRAINING_KEY });
+/** The requests whose switch also takes `true` and "coaches" (everyone), not only a list. */
+const COACH_LINK_EVERYONE = Object.freeze(['teacher_training']);
+/**
+ * A request listed here goes to the coach app only from these doors (the `reason` the caller gives). /training reaches
+ * teacher_training from /certificates and the exam and capstone buttons too; those are not "open training" and keep
+ * their WhatsApp behaviour. A request not listed has no door restriction (menu, observe: as before).
+ */
+const COACH_LINK_DOORS = Object.freeze({ teacher_training: ['command', 'chip', 'menu', 'training_door'] });
 /** The coach app's own switch (dashboard/lib/feature-flags.js PORTAL_COACH_V2_KEY): true or a list of users.id. */
 const COACH_APP_KEY = 'portal_coach_v2';
 
@@ -151,6 +173,12 @@ function isOn(value) {
   return false;
 }
 
+/** "coaches" — the value that means every users.role = coach (bd-s42dye.3). Trimmed and case-folded, as "teachers" is. */
+function isCoachesValue(value) {
+  const v = parseValue(value);
+  return typeof v === 'string' && v.trim().toLowerCase() === 'coaches';
+}
+
 /** A pilot list: a JSON array of users.id strings holding this teacher (bd-fmf24g.35). Anything else is not a pilot. */
 function listHas(value, userId) {
   const v = parseValue(value);
@@ -165,7 +193,7 @@ async function settingValues(now) {
     const { data, error } = await supabase
       .from('app_settings')
       .select('key,value')
-      .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_APP_KEY]);
+      .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -253,11 +281,17 @@ async function linkVerdict(feature, userId, now, note = {}) {
  * is checked first, so nobody off it pays a users read. On it: their role must be coach and they must be on the coach
  * app, as the portal reads portal_coach_v2 (isFlagEnabledForUser: true or a list holding them; "teachers" never
  * covers a coach). A failed read is null — today's flow, never silence.
+ * bd-s42dye.3: each request has its own switch (COACH_LINK_FLAGS), and /training's also takes true and "coaches"
+ * (COACH_LINK_EVERYONE) and only from its own doors (COACH_LINK_DOORS). Those are still the same two role/app checks.
  */
-async function coachLink(feature, userId, now) {
+async function coachLink(feature, userId, now, reason) {
   if (!Object.prototype.hasOwnProperty.call(COACH_LINKS, feature)) return null;
+  const doors = COACH_LINK_DOORS[feature];
+  if (doors && !doors.includes(reason)) return null;
   const values = await settingValues(now);
-  if (!listHas(values.get(COACH_LINK_KEY), userId)) return null;
+  const flag = values.get(COACH_LINK_FLAGS[feature]);
+  const everyone = COACH_LINK_EVERYONE.includes(feature) && (isOn(flag) || isCoachesValue(flag));
+  if (!everyone && !listHas(flag, userId)) return null;
   let why = null;
   try {
     const a = await loadAccount(userId);
@@ -338,6 +372,7 @@ async function sendAppLink(feature, { userId, from, language, reason, journey })
   const token = base ? signAppLink(userId, feature, journey && journey.journeyId) : null;
   // The funnel names the request she made (menu, observe…), not the page the token lands on (coach_menu…).
   const fx = { journeyId: journey && journey.journeyId, userId, feature: (journey && journey.feature) || feature, door: reason };
+  if (journey && journey.audience === 'coach') fx.audience = 'coach'; // bd-s42dye.3 — the coach's funnel rows say so
   if (!token) {
     logToFile('⚠️ App link: no portal url or signing key on this deployment — the flow runs', { userId, feature }, 'warn');
     funnelEvent('app_funnel.link_failed', { ...fx, reason: 'no_portal_or_key' });
@@ -362,10 +397,10 @@ async function sendAppLink(feature, { userId, from, language, reason, journey })
   }
   // The token is the credential: it is never logged.
   if (sent) {
-    logToFile('🔗 App link sent', { userId, feature, reason });
+    logToFile('🔗 App link sent', { userId, feature, reason, ...(fx.audience ? { audience: fx.audience } : {}) });
     funnelEvent('app_funnel.link_sent', { ...fx, via });
   } else {
-    logToFile('❌ App link not delivered — the flow runs', { userId, feature, reason }, 'error');
+    logToFile('❌ App link not delivered — the flow runs', { userId, feature, reason, ...(fx.audience ? { audience: fx.audience } : {}) }, 'error');
     funnelEvent('app_funnel.link_failed', { ...fx, reason: threw ? 'send_threw' : 'send_refused' });
   }
   return Boolean(sent);
@@ -373,7 +408,7 @@ async function sendAppLink(feature, { userId, from, language, reason, journey })
 
 async function redirectIfFlagged(feature, { userId, from, language, reason = 'unspecified', now = Date.now() } = {}) {
   if (userId && from) {
-    const coach = await coachLink(feature, userId, now);
+    const coach = await coachLink(feature, userId, now, reason);
     if (coach) {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'coach' });
       return sendAppLink(coach, { userId, from, language, reason, journey });
