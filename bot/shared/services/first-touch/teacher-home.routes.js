@@ -328,6 +328,7 @@ function createRouter(deps = null) {
     else if (b.kind === 'share') out = await Send.shareSend({ uid: p.uid, lang, shareCodeId: id }, deps);
     else if (b.kind === 'again') out = await Send.againSend({ uid: p.uid, lang, quizId: id }, deps);
     else { fail(res, 400); return; }
+    dropPlayed(p.uid); // again after the write: a read that began during it holds nothing
     if (!out) { fail(res, 404); return; }
     headers(res);
     res.status(200).json({ message: out.message, wa: out.wa, c: out.shareCodeId || null });
@@ -345,6 +346,7 @@ function createRouter(deps = null) {
     const user = await Data.teacherOf(p.uid, deps);
     if (!user) { fail(res, 404); return; }
     const out = await Send.startQuiz({ user, kind, id, lang }, deps);
+    dropPlayed(p.uid);
     event('teacher_home.quiz_make', p.uid, { kind, outcome: out.quizId ? 'started' : out.error });
     if (!out.quizId) { fail(res, out.error === 'not_found' ? 404 : 409); return; }
     headers(res);
@@ -373,6 +375,7 @@ function createRouter(deps = null) {
     // "Not sure" leaves the pair in the queue and writes nothing (as the report page's queue does).
     if (b.decision !== 'unsure') {
       const r = await Data.dep(deps, 'Queue').decide({ teacherUserId: p.uid, looseId, candidateId, decision: b.decision });
+      dropPlayed(p.uid);
       if (!r || !r.ok) { fail(res, r && r.off ? 404 : 409); return; }
     }
     event('teacher_home.step', p.uid, { step: `confirm_${b.decision}` });
@@ -400,7 +403,9 @@ function createRouter(deps = null) {
   async function sent(p, { kind, origin, again, id, c }) {
     dropPlayed(p.uid);
     const code = await codeOf(p.uid, c);
-    if (code.mine && !(await require('./teacher-home.sent').markSent(c))) {
+    const marked = !code.mine || await require('./teacher-home.sent').markSent(c);
+    dropPlayed(p.uid);
+    if (!marked) {
       logToFile('⚠️ teacher home: a send could not be marked sent', { kind });
       return false;
     }
