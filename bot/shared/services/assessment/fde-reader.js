@@ -297,9 +297,11 @@ function parseFlags(reply, labels, only = null, blocks = null, opts = {}) {
       // The quote is printed under the giver, never the item's own block (its options are what the
       // child picks from), or in the item's own stem (it prints its key, or answers another section).
       // With `split` (Social Studies), facts printed in two places come as two quotes, « | » between
-      // them, and each must be printed under a label `by` names.
-      const quotes = (opts.split ? evidence.split(/\s*\|\s*/) : [evidence]).map(fold).filter(Boolean);
-      const real = quotes.length > 0 && quotes.every((q) => q.trim().split(' ').some((w) => w.length >= QUOTE_WORD));
+      // them, and each must be printed under a label `by` names. A quote that runs a Q1 stem into its
+      // key («… کس ادارے کے پاس ہے؟ مقننہ») is read a sentence at a time: the options print between them.
+      const quotes = (opts.split ? evidence.split(/\s*\|\s*/).flatMap((q) => q.split(/[؟?۔()]+/)) : [evidence]).map(fold).filter(Boolean);
+      const real = quotes.length > 0 && quotes.some((q) => q.trim().split(' ').some((w) => w.length >= QUOTE_WORD))
+        && (opts.split || quotes.every((q) => q.trim().split(' ').some((w) => w.length >= QUOTE_WORD)));
       const named = giversOf(by, blocks).filter((label) => label !== item);
       const placed = quotes.map((q) => named.filter((label) => blocks.get(label).includes(q)));
       const givers = [...new Set(placed.flat())];
