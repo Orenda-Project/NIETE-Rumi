@@ -1468,6 +1468,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
       const outside = slot.slot === 'urdu.A.Q1' && outsideLessons(q, lessons);
       if (outside) { held.push({ slot: slot.slot, rule: 'grammar_outside_lessons', concept: outside }); return false; }
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
+      // Urdu Q1's own twin rules run on every pass, not only once Section C gives a rule: a paper laid
+      // out before Section C is in prints no Q1 twin either.
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && !holds(slot) && bySlot.get(slot.slot).some((p) => twin(p, q, slot.slot))) return false;
       if (!holds(slot)) {
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back

@@ -87,14 +87,14 @@ describe('one grammar concept once', () => {
     expect(stems).not.toContain(s);
     expect((laid.putBack || []).length).toBe(0);
   });
-  test('DOC: a paper with no Section C lays Q1 out once, without the in-Q1 rules (two شکیہ items both print)', () => {
+  test('a paper with no Section C still runs the in-Q1 rules on its first layout (one of two شکیہ items prints)', () => {
     const exam = read();
     for (const types of Object.values(exam.unseen)) for (const k of Object.keys(types)) types[k] = types[k].filter((q) => q.slot === 'urdu.A.Q1');
     const q1 = items(exam, 'urdu.A.Q1');
     Object.assign(q1[3], mcq('کون سا جملہ شکیہ ہے؟', ['الف) شاید وہ آئے', 'ب) وہ آیا', 'ج) آؤ', 'د) کاش وہ آئے'], 'الف) شاید وہ آئے'));
     Object.assign(q1[5], mcq('شکیہ جملے میں کون سا لفظ آتا ہے؟', ['الف) کاش', 'ب) نہ جانے', 'ج) آؤ', 'د) واہ'], 'ب) نہ جانے'));
     const stems = items(applyLayout(exam, U, FDE, { reasked: false }).examJson, 'urdu.A.Q1').map((q) => q.question);
-    expect(stems.filter((s) => /شکیہ/.test(s))).toHaveLength(2);
+    expect(stems.filter((s) => /شکیہ/.test(s))).toHaveLength(1);
   });
 });
 
