@@ -1253,12 +1253,14 @@
       // Nothing heard live is no result: the checked count decides, on today's screens.
       if (!live.v.attempted) {
         // live reading v3 with the card: nothing heard live is the kind card at once, never "Listening…" then "wait";
-        // the recording still goes up for the record (first, so the card can wait for it), and its check moves nothing
-        // on this card (live.zero)
+        // the recording still goes up for the record, and its check moves nothing on this card (live.zero). With
+        // "Hear it again" on (zero_listen) the recording starts up first, so the card can wait for it before asking
         if (lr3() && TR && menuData.card_v3 && window.WQFC) {
           live.zero = true; lrT().hand(true);
-          try { uploadQuiet(lc); } catch (e) { /* the card still comes */ }
-          readResult({ score: { correct: 0, attempted: 0 }, sticker: false });
+          if (d.zero_listen === true) {
+            try { uploadQuiet(lc); } catch (e) { /* the card still comes */ }
+            readResult({ score: { correct: 0, attempted: 0 }, sticker: false });
+          } else { readResult({ score: { correct: 0, attempted: 0 }, sticker: false }); uploadQuiet(lc); }
           return;
         }
         upload(); return;

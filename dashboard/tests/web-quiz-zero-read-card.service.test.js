@@ -36,11 +36,14 @@ class FakeSocket {
 function trail(lang, { fold = false, liveKey = true, read = {}, words = null } = {}) {
   FakeSocket.all = [];
   const server = { now: { status: 200, body: { pending: true } } };
-  const p = H.page({ lang, menu: MENU(lang, fold), freshEls: true, pre: [LIVE_SRC, LR_SRC, TRAIL_SRC, FC_SRC], routes: {
+  let p = null;
+  const up = H.ok({ put_url: 'https://r2.test/put/abc', key: 'child-voice/sandbox/r/read-1.webm', content_type: 'audio/webm' });
+  p = H.page({ lang, menu: MENU(lang, fold), freshEls: true, pre: [LIVE_SRC, LR_SRC, TRAIL_SRC, FC_SRC], routes: {
     'ch/HUB.TOKEN/read': H.ok({ ...READ(lang), ...read }),
     'ch/words/': (u, i) => (typeof words === 'function' ? words(u, i) : words) || { status: 404, body: { error: 'no_words' } },
     'ch/live': liveKey ? H.ok({ ...KEY, lang }) : () => ({ status: 503, body: { error: 'no_key' } }),
-    'ch/upload': H.ok({ put_url: 'https://r2.test/put/abc', key: 'child-voice/sandbox/r/read-1.webm', content_type: 'audio/webm' }),
+    // the screen as it stood when the recording started up (the order the card and the upload come in)
+    'ch/upload': (...a) => { if (p && !server.atUpload) server.atUpload = p.screen(); return up(...a); },
     'r2.test/put': () => ({ status: 200, body: {} }),
     'ch/result': () => server.now,
   } });
@@ -201,6 +204,15 @@ describe('on the fold: a 0-word read\'s ONE Next is "Hear it again" when the pas
     expect(words).toBeGreaterThan(at(p, /ch\/result/));
     expect(p.html()).toContain(`>${REPLAY.en}</button>`);
   });
+  test('switch on: the recording starts up before the kind card is drawn', async () => {
+    const p = trail('en', { fold: true, read: ZL, words: pendingThen(0) });
+    player(p);
+    await stopAtZero(p);
+    await p.flush();
+    expect(p.server.atUpload).toBeDefined();
+    expect(p.server.atUpload).not.toBe('read-result');
+    kindCard(p, 'en');
+  });
   test('pending every time: asked again after about 1 s, 2 s and 4 s, then never again; the slot\'s tile stays the ONE Next', async () => {
     const p = trail('en', { fold: true, read: ZL, words: pendingThen(99) });
     player(p);
@@ -275,5 +287,13 @@ describe('"Hear it again" switch off: no words call and no tile on the kind card
         expect(homes(h)).toBe(1);
       }
     }
+  });
+  test.each(['en', 'ur'])('%s, switch off: the kind card is drawn first, then the recording starts up (as before the switch)', async (lang) => {
+    const p = trail(lang, { fold: true, words: WORDS });
+    player(p);
+    await stopAtZero(p);
+    await p.flush();
+    expect(p.server.atUpload).toBe('read-result');
+    kindCard(p, lang);
   });
 });
