@@ -53,7 +53,7 @@ describe('the read-along preload line', () => {
 
   test('off: the page is the base golden, byte for byte', () => {
     const text = norm(page(MENU));
-    if (process.env.RA_PRE_RECORD) fs.writeFileSync(GOLDEN, text);
+    // The golden was recorded once from the base code (write `text` to GOLDEN by hand to re-record).
     expect(text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
   });
 

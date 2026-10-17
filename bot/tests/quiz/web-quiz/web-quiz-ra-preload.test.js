@@ -152,7 +152,7 @@ describe('the read-along preload mark on the games menu', () => {
   test('off (no switch row): the menu is the base golden, byte for byte', async () => {
     const { out } = await primed([RA]);
     const text = JSON.stringify(out, null, 1);
-    if (process.env.RA_PRE_RECORD) fs.writeFileSync(GOLDEN, `${text}\n`);
+    // The golden was recorded once from the base code (write `${text}\n` to GOLDEN by hand to re-record).
     expect(`${text}\n`).toBe(fs.readFileSync(GOLDEN, 'utf8'));
   });
 
