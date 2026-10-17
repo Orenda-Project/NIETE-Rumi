@@ -29,8 +29,9 @@ const RUNGS_KEY = 'web_quiz_challenge_rungs';
 // The read-along preview on the hub (#listen/<pid>): the hub JSON names it so the edge adds its script (web-quiz-hub.js).
 const READALONG_KEY = 'web_quiz_readalong';
 // The child's language (web-quiz-return-lang.js): read here with the rest and handed to its own cache, so the hub's
-// kept-language read costs no settings read of its own.
-const RETURN_LANG_KEY = require('./web-quiz-return-lang').KEY;
+// kept-language read costs no settings read of its own. A literal (equal to that module's KEY), so loading this module
+// pulls no other module in; the require stays inside flags().
+const RETURN_LANG_KEY = 'web_quiz_return_lang';
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong }
 
