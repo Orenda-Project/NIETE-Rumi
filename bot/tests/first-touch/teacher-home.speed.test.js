@@ -280,4 +280,25 @@ describe('the send-again check: the lessons\' half does not wait for the class r
     expect(rowOf(half.text, `q_${QUIZ_C}`)).toMatchObject({ verb: 'again', id: QUIZ_C, sendKind: 'again' }); // offered as before
     expect(half.text).toBe(whole.text);
   });
+
+  test('the lessons\' half fails: offered as before, the same JSON as when the whole check fails', async () => {
+    const open = async (failIf) => { // each open on a fresh server and seed: nothing held from the one before
+      jest.restoreAllMocks(); if (srv) { await new Promise((r) => srv.close(r)); srv = null; }
+      const deps = setup({ report: reportOnly() });
+      seedReportOnly();
+      await boot(deps);
+      jest.spyOn(Data, 'sendableOwn').mockImplementation(async (uid, ids, ...rest) => {
+        if (failIf(ids || [])) throw new Error('down');
+        return realSendableOwn(uid, ids, ...rest);
+      });
+      return home();
+    };
+    const both = await open(() => false);
+    const half = await open((ids) => ids.includes(OWN_QUIZ));
+    const whole = await open(() => true);
+    expect(rowOf(both.text, `q_${QUIZ_C}`)).toMatchObject({ verb: null }); // both halves answer: the expired code is not offered
+    expect(half.status).toBe(200);
+    expect(rowOf(half.text, `q_${QUIZ_C}`)).toMatchObject({ verb: 'again', id: QUIZ_C, sendKind: 'again' }); // offered as before
+    expect(half.text).toBe(whole.text);
+  });
 });

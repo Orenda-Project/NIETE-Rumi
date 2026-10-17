@@ -216,6 +216,33 @@ describe('switch OFF (absent, false, anything but true)', () => {
   });
 });
 
+describe('switch OFF (absent): today\'s reads and round trips, pinned', () => {
+  // Recorded with the key absent. The plain base gives long 45 / 17, small 44 / 17, big 45 / 17 and the shell 1 / 1.
+  // Reads +1 everywhere: the quick answer's own switch read. It starts beside the user read, so it adds no round trip.
+  // Waves -2 on the home: the class report's fold switch is read beside its sessions (base wave 10), and the report
+  // gate starts with the lesson reads (base wave 13). The shell +1 wave: it must know the switch before it serves.
+  // An extra serial or unconditional read on today's path turns this red (wave list in the failure message).
+  // The send-again check in two halves: long and big ask the lessons' quizzes and their codes as their own pair (+2 reads);
+  // small makes the same reads, its lessons' half starting as soon as the lessons are in (2 round trips sooner).
+  const PINS = { long: { reads: 48, waves: 15 }, small: { reads: 45, waves: 13 }, big: { reads: 48, waves: 15 }, shell: { reads: 2, waves: 2 } };
+  test.each([
+    ['long', {}],
+    ['small', { sessions: 3, quizzes: 2, quizzed: 1 }],
+    ['big', { sessions: 100, quizzes: 120, quizzed: 40 }],
+  ])('the home, %s history', async (name, opts) => {
+    await boot({ ...opts, paged: null });
+    const m = await Fx.measure(() => home());
+    expect(m.value.status).toBe(200);
+    expect({ reads: m.reads, waves: m.waves, list: m.list }).toEqual({ ...PINS[name], list: m.list });
+  });
+  test('the shell', async () => {
+    await boot({ paged: null });
+    const m = await Fx.measure(() => getJson(`/quiz/teacher/${tokenAt()}`));
+    expect(m.value.status).toBe(200);
+    expect({ reads: m.reads, waves: m.waves, list: m.list }).toEqual({ ...PINS.shell, list: m.list });
+  });
+});
+
 /** The next app_settings read of `key` fails (the database answers an error). */
 function failSetting(key) {
   const sb = require('../../shared/config/supabase');
