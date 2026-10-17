@@ -47,7 +47,8 @@ const { v21On } = require('./quiz-v21-flag');
 const V21 = require('./teacher-report-v21');
 const SloCode = require('./quiz-slo-code');
 const FoldFlag = require('./report-fold-flag');
-const { inChunks } = require('./web-quiz-in-chunks');
+// the fold-by-child rule and its facts read: one home, shared with the WhatsApp report's count
+const { childFacts, foldByChild, typedKey } = require('./report-fold');
 
 const QUIZ_COLS = 'id, teacher_id, topic, subject, grade, language, quiz_source, status, list_id, meta, created_at';
 const SESSION_COLS = 'id, quiz_id, share_code_id, student_id, student_name, user_id, status, correct_answers, '
@@ -365,75 +366,13 @@ async function fromIdentity(code, quizId, { foldOn = false } = {}) {
 }
 
 /** The provisional list by child (quiz_report_fold_by_child on, facts read), else by typed name (today). */
-function provisionalRows(rows, facts) {
+function provisionalRows(rows, facts, listedIds = new Set()) {
   if (!facts) return groupProvisional(rows);
-  const sorted = rows.slice().sort((a, b) => String(a.finishedAt || '').localeCompare(String(b.finishedAt || '')));
+  // a typed record merged into a child on the list who played is that child, not a provisional one
+  const isListed = (r) => { const f = r.studentId && facts.get(String(r.studentId)); return Boolean(f && listedIds.has(f.who)); };
+  const sorted = rows.filter((r) => !isListed(r)).sort((a, b) => String(a.finishedAt || '').localeCompare(String(b.finishedAt || '')));
   return foldByChild(sorted, { idOf: (r) => r.studentId, nameOf: (r) => r.typed, facts })
     .map((c) => ({ ...c.first, repeats: c.n }));
-}
-
-/**
- * quiz_report_fold_by_child: for off-list records, who each one is (`merged_into ?? id`) and the phones it is bound
- * to (child_phone_bindings.phone_tomb, revoked or not: a phone the child used) — its own and its merged-into record's.
- * → Map id → { who, phones }, or null when either read fails (the caller then folds by typed name, as today).
- * `merged_into` is followed ONE step (A → B); a chain A → B → C is not resolved further (the merge path writes the
- * surviving record directly, so a chain is not expected).
- */
-async function childFacts(ids, quizId) {
-  const uniq = [...new Set(ids.filter(Boolean).map(String))];
-  const out = new Map();
-  if (!uniq.length) return out;
-  try {
-    const kids = await inChunks(() => supabase.from('students').select('id, merged_into'), 'id', uniq);
-    const whoOf = new Map(uniq.map((id) => [id, id]));
-    kids.forEach((k) => { if (whoOf.has(String(k.id)) && k.merged_into) whoOf.set(String(k.id), String(k.merged_into)); });
-    const lookup = [...new Set([...uniq, ...whoOf.values()])];
-    const binds = await inChunks(() => supabase.from('child_phone_bindings').select('canonical_id, phone_tomb'), 'canonical_id', lookup);
-    const phonesOf = new Map();
-    binds.forEach((b) => {
-      if (!b.phone_tomb) return;
-      const k = String(b.canonical_id);
-      if (!phonesOf.has(k)) phonesOf.set(k, new Set());
-      phonesOf.get(k).add(String(b.phone_tomb));
-    });
-    uniq.forEach((id) => {
-      const who = whoOf.get(id);
-      out.set(id, { who, phones: new Set([...(phonesOf.get(id) || []), ...(phonesOf.get(who) || [])]) });
-    });
-    return out;
-  } catch (err) {
-    logToFile('⚠️ teacher report: child facts unreadable — same-name rows fold as before', { quizId, error: err.message });
-    return null;
-  }
-}
-
-/**
- * Off-list records (earliest finish first) → one cluster per child: { first, n }. A record joins the first cluster
- * that is the same child (`who`), or has its typed name and shares a phone with it, or where either side has no
- * binding (a fresh browser cannot be told apart). The same typed name on two different phones starts a new cluster.
- */
-function foldByChild(records, { idOf, nameOf, facts }) {
-  const clusters = [];
-  records.forEach((r) => {
-    const id = idOf(r) ? String(idOf(r)) : null;
-    const f = (id && facts.get(id)) || { who: id, phones: new Set() };
-    const name = typedKey(nameOf(r));
-    const sharesPhone = (c) => f.phones.size === 0 || c.phones.size === 0 || [...f.phones].some((ph) => c.phones.has(ph));
-    const c = clusters.find((x) => (f.who && x.whos.has(f.who)) || (name && x.name === name && sharesPhone(x)));
-    if (c) {
-      c.n += 1;
-      if (f.who) c.whos.add(f.who);
-      f.phones.forEach((ph) => c.phones.add(ph));
-    } else {
-      clusters.push({ first: r, n: 1, name, whos: new Set(f.who ? [f.who] : []), phones: new Set(f.phones) });
-    }
-  });
-  return clusters;
-}
-
-/** A typed name's grouping key: identity v2's canonical form (case, spaces, script folded). */
-function typedKey(name) {
-  try { return require('./web-quiz-identity').canon(name || '') || ''; } catch { return String(name || '').trim().toLowerCase(); }
 }
 
 /** Provisional rows of one typed name collapse to the FIRST finish, with how many times it was typed. */
@@ -498,7 +437,10 @@ async function onePerChildOffList(counted, who, quizId, foldOn) {
   const offList = foldOn ? byFinish.filter((s) => !who.listed(s)) : [];
   const provisionalRaw = foldOn ? who.provisionalRaw || [] : [];
   const facts = foldOn ? await childFacts([...offList.map((s) => s.student_id), ...provisionalRaw.map((r) => r.studentId)], quizId) : null;
-  const kept = facts ? new Set(foldByChild(offList, { idOf: (s) => s.student_id, nameOf: (s) => s.student_name, facts }).map((c) => c.first)) : null;
+  // an off-list record merged into a listed child who played this quiz is that child: it never counts a second time
+  const listedIds = new Set(byFinish.filter((s) => who.listed(s) && s.student_id).map((s) => String(s.student_id)));
+  const sameAsListed = (s) => { const f = facts && s.student_id && facts.get(String(s.student_id)); return Boolean(f && listedIds.has(f.who)); };
+  const kept = facts ? new Set(foldByChild(offList.filter((s) => !sameAsListed(s)), { idOf: (s) => s.student_id, nameOf: (s) => s.student_name, facts }).map((c) => c.first)) : null;
   const sameTyped = new Map();
   const counting = byFinish
     .filter((s) => {
@@ -510,7 +452,7 @@ async function onePerChildOffList(counted, who, quizId, foldOn) {
       sameTyped.set(k, s.id);
       return true;
     });
-  return { counting, provisionalRaw, facts };
+  return { counting, provisionalRaw, facts, listedIds };
 }
 
 /**
@@ -528,6 +470,23 @@ async function storySendChildren(teacherId, quizId, shareCodeId, rawSessions) {
   const foldOn = await FoldFlag.on();
   const who = await whoFor(teacherId, quiz, { id: shareCodeId }, null, counted, clampLanguage(quiz.language), { foldOn });
   return (await onePerChildOffList(counted, who, quiz.id, foldOn)).counting;
+}
+
+/**
+ * The 12 h WhatsApp quiz report's finished children for ONE class code, folded as the web report folds them when
+ * quiz_report_fold_by_child is on: children on the class list as they are, a child off it once per CHILD. Off, or
+ * when the quiz or the child facts cannot be read, the rows come back untouched (the WhatsApp report's own count:
+ * one per record). `rows` = that report's finished rows (one attempt per child already applied); order kept.
+ */
+async function foldFinishers(teacherId, quizId, shareCodeId, rows) {
+  if (!rows.length || !(await FoldFlag.on())) return rows;
+  const { data: quiz, error } = await supabase.from('quizzes').select(QUIZ_COLS).eq('id', quizId).maybeSingle();
+  if (error || !quiz) return rows;
+  const who = await whoFor(teacherId, quiz, { id: shareCodeId }, null, rows, clampLanguage(quiz.language), { foldOn: true });
+  const { counting, facts } = await onePerChildOffList(rows, who, quiz.id, true);
+  if (!facts) return rows;
+  const kept = new Set(counting);
+  return rows.filter((r) => kept.has(r));
 }
 
 /**
@@ -564,7 +523,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     : codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
   const foldOn = await FoldFlag.on();
   const who = await whoFor(teacherId, quiz, primary, listId, counted, lang, { foldOn });
-  const { counting, provisionalRaw, facts } = await onePerChildOffList(counted, who, quiz.id, foldOn);
+  const { counting, provisionalRaw, facts, listedIds } = await onePerChildOffList(counted, who, quiz.id, foldOn);
   const played = counting.map((s) => {
     const listed = who.listed(s);
     const correct = s.correct_answers || 0;
@@ -578,7 +537,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     };
   }).sort((a, b) => (b.pct - a.pct) || ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first));
   const { roster: rosterView, notPlayed } = who;
-  const provisional = who.provisional !== null && who.provisional !== undefined ? who.provisional : provisionalRows(provisionalRaw, facts);
+  const provisional = who.provisional !== null && who.provisional !== undefined ? who.provisional : provisionalRows(provisionalRaw, facts, listedIds);
 
   const questions = await questionStats(quiz.id, counting, v21 ? { codeOf: (ext) => SloCode.codeOf(meta, ext) } : {});
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
@@ -676,12 +635,27 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   try { roster = await readRoster(teacherId); } catch (err) {
     logToFile('⚠️ teacher report: class list read failed — no class sizes', { error: err.message });
   }
+  // quiz_report_fold_by_child: a child not on the class list counts once per CHILD here too, so the teacher home
+  // (which reads this count) names the same children as the quiz's own report; off, one row per record (today).
+  const foldOn = await FoldFlag.on();
+  const listedOf = (q) => { const { one } = classOf(roster, q, null); return one ? new Set(one.kids.map((k) => k.id)) : null; };
+  const offListOf = (q, rows, ids) => rows.filter((x) => !(ids && x.student_id && ids.has(x.student_id)));
+  const facts = foldOn
+    ? await childFacts(qs.flatMap((q) => offListOf(q, onePerChildAcrossCodes(sessionsOf.get(q.id) || []), listedOf(q)).map((x) => x.student_id)), null)
+    : null;
   const rows = qs.map((q) => {
     // One child per quiz across its codes (as the quiz page), and "N of M" counts the
     // class list only: a typed child who is not on it is never set against the class size.
-    const mine = onePerChildAcrossCodes(sessionsOf.get(q.id) || []);
+    const once = onePerChildAcrossCodes(sessionsOf.get(q.id) || []);
     const { roster: view, one } = classOf(roster, q, null);
     const ids = one ? new Set(one.kids.map((k) => k.id)) : null;
+    const byFinish = (list) => list.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')));
+    const playedIds = new Set(once.filter((x) => ids && x.student_id && ids.has(x.student_id)).map((x) => String(x.student_id)));
+    const sameAsListed = (x) => { const f = facts && x.student_id && facts.get(String(x.student_id)); return Boolean(f && playedIds.has(f.who)); };
+    const kept = facts
+      ? new Set(foldByChild(byFinish(offListOf(q, once, ids).filter((x) => !sameAsListed(x))), { idOf: (x) => x.student_id, nameOf: (x) => x.student_name, facts }).map((c) => c.first))
+      : null;
+    const mine = kept ? once.filter((x) => (ids && x.student_id && ids.has(x.student_id)) || kept.has(x)) : once;
     // the same children for the average as for "N of M"
     // A storybook send has no questions: its children count as played, never as a 0 % score in an average.
     const scores = q.quiz_source === 'story' ? [] : (ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)) : mine)
@@ -719,7 +693,7 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
 }
 
 module.exports = {
-  quizReport, classReport, reminderText, weekStart, gradesOf, listLabel,
+  quizReport, classReport, foldFinishers, reminderText, weekStart, gradesOf, listLabel,
   // The counting pieces, for /quiz "My quiz reports" (teacher-report-list): its rows must
   // show the numbers the report page shows, so they count with this module, not a copy.
   readRoster, classOf, countedSessions, classCodes, sessionsFor, onePerChildAcrossCodes,
