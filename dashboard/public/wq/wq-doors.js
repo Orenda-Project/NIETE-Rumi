@@ -141,6 +141,7 @@
   function subjectsBody(ctx, lib, B) {
     var t = C(ctx);
     if (shelfOn(B) && lib && !lib.err && (lib.subjects || []).length) return shelvesBody(ctx, lib);
+    if (shelfOn(B) && !lib) return waitShelves();
     if (!lib) return '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
     if (lib.err) return '<div class="wq-dempty"><p class="wq-soon">' + esc(t.oops) + '</p><button class="wq-btn wq-go" type="button" data-primary data-tap="retry">' + esc(t.retry) + '</button></div>';
     var subs = lib.subjects || [];
@@ -153,6 +154,7 @@
     var t = C(ctx);
     var back = '<button class="wq-dback" type="button" data-tap="subjects">' + esc(t.back) + '</button>';
     if (shelfOn(B) && lib && (lib.chapters || []).length) return back + gridBody(ctx, lib);
+    if (shelfOn(B) && !lib) return back + '<div class="wq-vgrid" data-primary aria-busy="true">' + SKEL + SKEL + SKEL + SKEL + '</div>';
     if (shelfOn(B) && lib && lib.err) return back + '<div class="wq-dempty">' + oopsHtml(ctx, subj, 0).replace('type="button"', 'type="button" data-primary') + '</div>';
     if (!lib) return back + '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
     var art = lib.art || null; var i = 0;
@@ -181,6 +183,11 @@
         '<button class="wq-btn wq-btn--secondary wq-vsall" type="button"' + (i === 0 ? ' data-primary' : '') + ' data-tap="subj" data-kind="subject" data-item="' + esc(s.key) + '" data-pos="' + i + '">' + esc(t.seeAll) + '</button></div>' +
         '<div class="wq-vrow" data-vshelf="' + esc(s.key) + '">' + SKEL + SKEL + SKEL + '</div></section>';
     }).join('');
+  }
+  // While the subjects load: two placeholder shelves (a heading bar and a row of cards), never words.
+  function waitShelves() {
+    var sec = '<section class="wq-vsec"><span class="wq-vskh"></span><div class="wq-vrow">' + SKEL + SKEL + SKEL + '</div></section>';
+    return '<div class="wq-vwait" data-primary aria-busy="true">' + sec + sec + '</div>';
   }
   function lessonsOf(lib) { var all = []; ((lib && lib.chapters) || []).forEach(function (c) { (c.videos || []).forEach(function (v) { all.push(v); }); }); return all; }
   function card(v, ctx, quiz, pos, eager) {
