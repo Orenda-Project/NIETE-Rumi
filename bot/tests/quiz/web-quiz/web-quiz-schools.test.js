@@ -226,6 +226,32 @@ describe('the board (loaded through Supabase)', () => {
     expect(JSON.stringify(b)).not.toMatch(/SA|SB|ka1|kb1|teacher/i); // no ids, no teacher on the wire
   });
 
+  // A class-less child's own quiz after a video hangs under the watch root (app_settings VALUE web_quiz_watch_root) and
+  // copies the root teacher; it is nobody's school, so it never lands on the root teacher's school's tally.
+  const ROOT = '33333333-3333-4333-8333-777777777777';
+  const WATCH = '33333333-3333-4333-8333-aaaaaaaaaaaa';
+  function watchPlay({ root }) {
+    require('../../../shared/services/quiz/web-quiz-identity-roster')._resetCache();
+    fake.db.app_settings = root ? [{ key: 'web_quiz_watch_root', value: JSON.stringify(ROOT) }] : [];
+    fake.db.quiz_share_codes.push(
+      { id: ROOT, code: 'ROOT01', quiz_id: 'q', teacher_user_id: T2, language: 'en', active: false, expires_at: future },
+      { id: WATCH, code: 'WATCHA', quiz_id: 'q', teacher_user_id: T2, language: 'en', active: true, expires_at: future, parent_share_code_id: ROOT },
+    );
+    fake.db.quiz_sessions.push(sess('s8', WATCH, 'kw1', 100, '2026-10-05T08:00:00Z'));
+  }
+
+  test('a watch child\'s finish (a code under the watch root) credits no school, never the root teacher\'s', async () => {
+    watchPlay({ root: true });
+    const b = await S.board('ALPHA1', { now: NOW });
+    expect(b.rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ points: 15 + 15 + 18, kids: 3 }));
+  });
+
+  test('GOLDEN: no watch root set -> the board counts that code as today (for its teacher\'s school)', async () => {
+    watchPlay({ root: false });
+    const b = await S.board('ALPHA1', { now: NOW });
+    expect(b.rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ points: 15 + 15 + 18 + 20, kids: 4 }));
+  });
+
   test("a test teacher's quizzes do not count", async () => {
     fake.db.users.find((u) => u.id === T2).is_test_user = true;
     const b = await S.board('ALPHA1', { now: NOW });
