@@ -430,7 +430,7 @@
       sp = p; LN = lines(p); zl = -1; li = -1; wu = 0; sm = '';
       if (ws.length && !p.is_picture) {
         d = dims();
-        sm = (p.lines || p.boxes_ok) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok; }) ? 'z' : tb && tb.box ? 'l' : 's';
+        sm = (p.boxes_ok || p.lines && !(tb && tb.box)) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok; }) ? 'z' : tb && tb.box ? 'l' : 's';
       }
       var bx = sm === 'l' && tb.box, wh = sm === 'z' || sm === 'l';
       return '<div class="wqs-stage' + (wh ? ' wqs-st2' : '') + '" data-stage><div class="wqs-cam" data-cam style="width:' + im.w + 'px;height:' + im.h + 'px">' + inner +
