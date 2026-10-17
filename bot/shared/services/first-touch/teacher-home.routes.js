@@ -84,13 +84,13 @@ function createRouter(deps = null) {
 
   // The switch, first: off → 404 {off:true} for every path of this router, whatever the token.
   router.use(async (req, res, next) => {
-    const start = process.hrtime.bigint();
+    const start = process.hrtime.bigint(); // Server-Timing's clock; its one cost with the timing switch off
     let on = false;
     try { on = (await Flags.on()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
-    // Server-Timing's clock (its switch rides the home's read): from here; the switch reads so far count as settings
+    // the timing switch rides the home's read (no read, no wait); on → the switch reads so far count as settings
     let timed = false;
-    try { timed = (await Flags.timing()) === true; } catch (_) { timed = false; }
+    try { timed = Flags.timing() === true; } catch (_) { timed = false; }
     req.thTime = timed ? { start, settings: process.hrtime.bigint() - start, db: null } : null;
     // the quick answer's switch, asked only once the home is on (its own 30 s cache), by the home and its shell
     req.thPaged = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.paged().then((v) => v === true, () => false) : null;
@@ -159,7 +159,7 @@ function createRouter(deps = null) {
     const t = req.thTime;
     if (!t) return;
     const now = process.hrtime.bigint();
-    const ms = (ns) => (Number(ns) / 1e6).toFixed(1);
+    const ms = (ns) => Math.round(Number(ns) / 1e6); // whole ms
     res.set('Server-Timing', `settings;dur=${ms(t.settings)}, db;dur=${ms(t.db == null ? 0n : now - t.db)}, total;dur=${ms(now - t.start)}`);
   }
 
@@ -353,7 +353,7 @@ function createRouter(deps = null) {
   router.get('/api/th/home', handleJson(async (req, res) => {
     const p = authorise(req.query.t, res);
     if (!p) return;
-    const asked0 = process.hrtime.bigint();
+    const asked0 = req.thTime ? process.hrtime.bigint() : null;
     const quick = await req.thPaged;
     waited(req, asked0);
     if (quick) { await quickHome(req, res, p); return; }

@@ -60,8 +60,8 @@ async function paged(now = Date.now()) {
   }
 }
 
-/** → true only when `quiz_teacher_server_timing` was JSON `true` at the home switch's last read (within 30 s). Never reads. */
-async function timing(now = Date.now()) {
+/** → true only when `quiz_teacher_server_timing` was JSON `true` at the home switch's last read (within 30 s). Never reads, never waits. */
+function timing(now = Date.now()) {
   return Boolean(timingCache && now - timingCache.at < TTL_MS && timingCache.on);
 }
 
