@@ -1,8 +1,10 @@
 'use strict';
 /**
  * The class table and the school league with the child home on (app_settings `web_quiz_class_doors`, default OFF):
+ *  - the hub boot JSON gets `class_doors: {class, schools}` (the quiz page's /q/<code>/class and /schools for the
+ *    child's newest class quiz, with its hub key) beside `home_v3`; a child no teacher's quiz reached gets none;
  *  - finish's fold (web-quiz-hub-door.foldField) gets `class_doors: true` beside `card_fold` for a class child's own run.
- * Off, absent, the string 'true', or the home off -> the fold is today's, byte for byte. Set-up copied from
+ * Off, absent, the string 'true', or the home off -> the payloads are today's, byte for byte. Set-up copied from
  * web-quiz-hub-home-fallback.test.js. Invented children only.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
@@ -79,6 +81,84 @@ const prTok = (over = {}) => T.sign({ k: 'h', ids: [], pr: 1, g: 3, lang: 'en', 
 const CD = 'web_quiz_class_doors';
 const Door = require('../../../shared/services/quiz/web-quiz-hub-door');
 const RUN = { id: 's1', student_id: KID, user_id: null, invited_by_student_id: null, status: 'completed', share_code_id: 'sc-1' };
+
+describe('web_quiz_class_doors on the hub', () => {
+  test('on with the home on: class_doors names the newest class quiz\'s class table and league, with its hub key', async () => {
+    seed([...HOME_ON, ON(CD)]);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.home_v3).toBe(1);
+    const k = T.chipId('sc-1', KID);
+    expect(out.class_doors).toEqual({ class: `/q/MATH01/class?k=${encodeURIComponent(k)}`, schools: `/q/MATH01/schools?k=${encodeURIComponent(k)}` });
+  });
+
+  test('the newest class quiz wins; a friend\'s challenge code or a library lesson code is never the class', async () => {
+    seed([...HOME_ON, ON(CD)], {
+      quizzes: [{ id: 'q-1', topic: 'Fractions quiz', subject: 'Maths', language: 'en', grade: '3', video_id: null }, { id: 'q-2', topic: 'Plants', subject: 'Science', language: 'en', grade: '3', video_id: null }],
+      quiz_share_codes: [
+        { id: 'sc-1', code: 'MATH01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(30) },
+        { id: 'sc-2', code: 'SCI002', quiz_id: 'q-2', active: true, expires_at: ahead(240), topic: 'Plants', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(20) },
+        { id: 'sc-3', code: 'FRND03', quiz_id: 'q-2', active: true, expires_at: ahead(240), topic: 'Plants', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: 'sc-2', invited_by_student_id: KID, created_at: ago(2) },
+      ],
+      quiz_sessions: [
+        { id: 's1', share_code_id: 'sc-1', quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 8, total_questions_answered: 10, mastery_percentage: 80, completed_at: ago(9), created_at: ago(9), student_class: '3' },
+        { id: 's2', share_code_id: 'sc-2', quiz_id: 'q-2', student_id: KID, status: 'completed', correct_answers: 5, total_questions_answered: 10, mastery_percentage: 50, completed_at: ago(5), created_at: ago(5), student_class: '3' },
+        { id: 's3', share_code_id: 'sc-3', quiz_id: 'q-2', student_id: KID, status: 'completed', correct_answers: 9, total_questions_answered: 10, mastery_percentage: 90, completed_at: ago(1), created_at: ago(1), student_class: '3' },
+      ],
+    });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.class_doors.class).toMatch(/^\/q\/SCI002\/class\?k=/);
+    expect(out.class_doors.schools).toMatch(/^\/q\/SCI002\/schools\?k=/);
+  });
+
+  // The watch root (app_settings VALUE web_quiz_watch_root) has no parent, so the hub counts it as teacher-sent; its table
+  // is every school's strangers. A newer run on it (or on a video code under it) never takes the home's class doors.
+  // (The fold tests' ids: watch-root.js caches the root's id for 30 s across tests.)
+  test('the watch root and a video code under it are never the class: the doors name the class quiz', async () => {
+    const ROOT = '66666666-6666-4666-8666-000000000071';
+    const WATCH = '77777777-7777-4777-8777-000000000071';
+    seed([...HOME_ON, ON(CD), { key: 'web_quiz_watch_root', value: ROOT }], {
+      quiz_share_codes: [
+        { id: 'sc-1', code: 'MATH01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(30) },
+        { id: ROOT, code: 'ROOT01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(3) },
+        { id: WATCH, code: 'WTCH01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: ROOT, invited_by_student_id: null, created_at: ago(3) },
+      ],
+      quiz_sessions: [
+        { id: 's1', share_code_id: 'sc-1', quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 8, total_questions_answered: 10, mastery_percentage: 80, completed_at: ago(9), created_at: ago(9), student_class: '3' },
+        { id: 's3', share_code_id: WATCH, quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 6, total_questions_answered: 10, mastery_percentage: 60, completed_at: ago(2), created_at: ago(2), student_class: '3' },
+        { id: 's2', share_code_id: ROOT, quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 5, total_questions_answered: 10, mastery_percentage: 50, completed_at: ago(1), created_at: ago(1), student_class: '3' },
+      ],
+    });
+    jest.setSystemTime(NOW + 60 * 1000); // past watch-root.js's own 30 s cache, which earlier tests filled with "no root"
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.class_doors.class).toMatch(/^\/q\/MATH01\/class\?k=/);
+    expect(out.class_doors.schools).toMatch(/^\/q\/MATH01\/schools\?k=/);
+  });
+
+  test('a child no teacher\'s quiz has reached: no class_doors', async () => {
+    seed([...HOME_ON, ON(CD)], { quiz_sessions: [] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.home_v3).toBe(1);
+    expect(out).not.toHaveProperty('class_doors');
+  });
+
+  test('GOLDEN: absent, false and the string \'true\' -> the payload is today\'s, string-equal', async () => {
+    const tok = T.signHub([KID]);
+    seed(HOME_ON);
+    const base = await Hub.hub(tok, A);
+    expect(base).not.toHaveProperty('class_doors');
+    for (const row of [{ key: CD, value: false }, STR(CD)]) {
+      seed([...HOME_ON, row]);
+      expect(JSON.stringify(await Hub.hub(tok, A))).toBe(JSON.stringify(base));
+    }
+  });
+
+  test('GOLDEN: on, but the home off -> today\'s hub', async () => {
+    const tok = T.signHub([KID]);
+    const base = await Hub.hub(tok, A);
+    seed([...BASE_ON, ON(CD)]);
+    expect(JSON.stringify(await Hub.hub(tok, A))).toBe(JSON.stringify(base));
+  });
+});
 
 describe('web_quiz_class_doors on finish\'s fold', () => {
   test('on with the home on: {card_fold, class_doors} for a class child\'s own run', async () => {
