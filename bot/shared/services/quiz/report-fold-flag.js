@@ -3,7 +3,8 @@
  * The report's fold-by-child switch: app_settings `quiz_report_fold_by_child`. On, a child NOT on the class list is
  * one row per child (merged_into ?? student_id; the same typed name folds only on a shared phone or with no binding).
  * Only JSON `true` is on; an absent row, `false`, any other value (the strings "true" and "\"true\"", "yes", 1, {},
- * "TRUE", " true ") and a failed read are all OFF. 30 s cache.
+ * "TRUE", " true ") and a failed read are all OFF. 30 s cache. The read also carries `quiz_report_send_checked`
+ * (report-send-check), so the report's send check costs no read of its own.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -21,6 +22,12 @@ function isTrue(value) {
 async function on(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
   try {
+    // One read carries the class report's send check too (report-send-check readAlong); that failing, this key alone.
+    const row = await require('./report-send-check').readAlong(KEY, now);
+    if (row) {
+      cache = { at: now, on: row.found && isTrue(row.value) };
+      return cache.on;
+    }
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
     if (error) throw new Error(error.message || 'app_settings read failed');
     cache = { at: now, on: Boolean(data) && isTrue(data.value) };
