@@ -332,7 +332,7 @@ async function nonAttempters({ shareCodeId } = {}) {
 
 module.exports = {
   FLAG_KEY,
-  identityMode, watchRoot, WATCH_ROOT_KEY, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
+  identityMode, watchRoot, WATCH_ROOT_KEY, rootOf, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
   canonicalStudentIds, canonicalStudentId,
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },

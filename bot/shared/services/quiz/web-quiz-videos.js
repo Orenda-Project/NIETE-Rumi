@@ -283,13 +283,12 @@ async function lessonLanguage(vq) {
 
 const WATCH_ROOT_KEY = 'web_quiz_watch_root';
 
-/** The watch root: a share code id from the VALUE key (a JSON string or plain), or null. Fails closed. */
+/** The watch root: a share code id from the VALUE key (a JSON string or plain; one spelling, trimmed and lower case,
+ * as the other watch-root readers parse it), or null. Fails closed. */
 async function watchRoot() {
   try {
     const { data } = await supabase.from('app_settings').select('value').eq('key', WATCH_ROOT_KEY).maybeSingle();
-    let v = data && data.value;
-    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-    return typeof v === 'string' && VID_RX.test(v) ? v : null;
+    return require('./web-quiz-identity-roster').rootOf(data && data.value);
   } catch (_) {
     return null;
   }
@@ -396,9 +395,17 @@ async function watchStart(who, vid, body, fail, hooks = {}) {
   return {
     watch: {
       vid, url: media.url, ...(media.poster ? { poster: media.poster } : {}), ...(meta.secs ? { secs: meta.secs } : {}),
-      title: video.clean_title || '', lang, after: Boolean(rootId), ...(next ? { next } : {}),
+      title: video.clean_title || '', ...(await urTitleOf(vid)), lang, after: Boolean(rootId), ...(next ? { next } : {}),
     },
   };
+}
+
+/** web_quiz_videos_ur_titles: {title_ur} when the lesson has an Urdu-script name, else nothing (off = not read). */
+async function urTitleOf(vid) {
+  if (!(await require('./web-quiz-library-flag').urTitlesOn())) return {};
+  const of = await require('./web-quiz-bank').urTitles();
+  const u = of && of.get(vid);
+  return u && u.t ? { title_ur: u.t } : {};
 }
 
 /**

@@ -382,6 +382,8 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
     }
     const kids = [{ id }, ...set];
     await emit('join_done', { grade: g, kids_n: kids.length }, id, device);
+    // the home this opens says once "Jugnu will remember you on this phone", with Undo (web_quiz_home_v3; off: nothing)
+    await require('./web-quiz-home-remember').note({ device, bindingId: b.bindingId, canonicalId: id, userId: who.userId });
     // "Someone new?" (a brother or sister on the same phone) is the home's to draw: it mints their own link at render
     // (siblingJoinToken), so no join token ever rides this URL
     return { next: homeUrl(kids, id, 'join', lang) };
@@ -535,6 +537,7 @@ async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = nul
     const b = await bindChild(who.phoneNorm, String(kid.id));
     if (!b || !b.ok) return { refused: (b && b.reason) || 'unavailable', next: set.length ? homeUrl(set, set[0].id, 'quiz', lang) : null };
     await emit('bind_confirm', { src }, String(kid.id));
+    if (!b.renewed) await require('./web-quiz-home-remember').note({ device, bindingId: b.bindingId, canonicalId: String(kid.id), userId: who.userId });
     return { next: homeUrl(home, kid.id, 'bind', lang) };
   } catch (err) {
     logToFile('⚠️ student join: bind pick threw', { error: err.message });
