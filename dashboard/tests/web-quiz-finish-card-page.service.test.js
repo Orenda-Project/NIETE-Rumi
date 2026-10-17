@@ -519,6 +519,7 @@ describe('WQFC.mount({source}) — the result object the reader hands over', () 
     expect(m.out).toContain('Let&#39;s read it together');
     expect(m.out).not.toContain('data-sticker');
     expect(m.out).not.toMatch(/pages? (read|heard)/);
+    expect(m.out).not.toContain('id="wqfc-share"');
     await flush();
     expect(JSON.parse(m.fetches[0].init.body).deed).toBe('read_tried');
   });
@@ -620,10 +621,11 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
     expect(FC.CSS).toMatch(/\.wqfc-cov\{[^}]*object-fit:cover/);
   });
   // Hashed from the card file before this change (this harness, these fixtures; the share's label masked): without lead/cover every card is today's.
+  // The try card (read_tried, and a 0-word mount) is hashed again without its Share: a read that never happened is not shared.
   test('golden: without lead and cover, the quiz, read and story cards are today\'s, byte for byte', () => {
-    const GOLD = { html_en_quiz_quiz_done: '01e1a0f735903633', html_en_read_read_all: 'b043be6aa264e61d', html_en_read_read_tried: 'b2842bdc5339f484', html_en_book_book_read: '0ece46b785ebfbbd', html_en_book_read_tried: 'b2842bdc5339f484',
-      mount_en_read_3: '3510ec0aa9772488', mount_en_listened_0: '9d857b57ddae0921', mount_en_read_0: 'c2fce765ca3fe8f5', html_ur_quiz_quiz_done: '9cfaf40c1eb8cc71', html_ur_read_read_all: '98ce274286322afc', html_ur_read_read_tried: 'f1bf08ba8287d328',
-      html_ur_book_book_read: 'd6591dbc87955742', html_ur_book_read_tried: 'f1bf08ba8287d328', mount_ur_read_3: 'f7b33b8fbb2ad4de', mount_ur_listened_0: '75b94e63734cbf11', mount_ur_read_0: '8ed89c79f28c9edc' };
+    const GOLD = { html_en_quiz_quiz_done: '01e1a0f735903633', html_en_read_read_all: 'b043be6aa264e61d', html_en_read_read_tried: 'f6488ede30499302', html_en_book_book_read: '0ece46b785ebfbbd', html_en_book_read_tried: 'f6488ede30499302',
+      mount_en_read_3: '3510ec0aa9772488', mount_en_listened_0: '9d857b57ddae0921', mount_en_read_0: '4f8d27d894cfa346', html_ur_quiz_quiz_done: '9cfaf40c1eb8cc71', html_ur_read_read_all: '98ce274286322afc', html_ur_read_read_tried: '47af56b36e1f7352',
+      html_ur_book_book_read: 'd6591dbc87955742', html_ur_book_read_tried: '47af56b36e1f7352', mount_ur_read_3: 'f7b33b8fbb2ad4de', mount_ur_listened_0: '75b94e63734cbf11', mount_ur_read_0: '8976893727a1390d' };
     const out = {};
     for (const l of ['en', 'ur']) {
       for (const [k, d] of [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_tried'], ['book', 'book_read'], ['book', 'read_tried']]) out[`html_${l}_${k}_${d}`] = shaS(fcPage().html({ kind: k, deed: d, lang: l, next: NEXT, home: '/h/tok' }));
@@ -757,21 +759,21 @@ describe('golden: switch off, the Urdu Trail cards, Story Time\'s end and a held
   });
 });
 
-describe('a card that certified nothing: the Next tile is the one primary, Share a soft secondary', () => {
+describe('a card that certified nothing: the Next tile is the one primary, and no Share (a read that never happened is not shared)', () => {
   const NEXT = { kind: 'readalong', href: '/c/tok?kid=k1#along', title: 'Read along with Jugnu', minutes: 2, offer: 'o9' };
-  test('the try card leads with the tile; the sticker card keeps Share first', () => {
+  test('the try card leads with the tile and draws no Share; the sticker card keeps Share first', () => {
     const tried = FC.html({ kind: 'read', deed: 'read_tried', lang: 'en', next: NEXT });
     expect((tried.match(/data-primary/g) || []).length).toBe(1);
     expect(tried).toMatch(/<a class="wqfc-next wqfc-lead" id="wqfc-next" data-primary data-tap="next"/);
-    expect(tried).toMatch(/<a class="wq-btn wq-soft wqfc-share" id="wqfc-share" data-tap="card_share" target="_blank"/);
-    expect(tried.indexOf('id="wqfc-next"')).toBeLessThan(tried.indexOf('id="wqfc-share"'));
+    expect(tried).not.toContain('wqfc-share');
     const won = FC.html({ kind: 'read', deed: 'read_all', lang: 'en', next: NEXT });
     expect(won.indexOf('id="wqfc-share"')).toBeLessThan(won.indexOf('id="wqfc-next"'));
     expect(won).toMatch(/class="wq-btn wq-go wqfc-share" id="wqfc-share" data-primary/);
   });
-  test('no tile to lead with: Share stays the primary', () => {
+  test('no tile to lead with: no Share either (the host\'s own buttons are the way on)', () => {
     const h = FC.html({ kind: 'read', deed: 'read_tried', lang: 'en' });
-    expect(h).toMatch(/class="wq-btn wq-go wqfc-share" id="wqfc-share" data-primary/);
+    expect(h).not.toContain('wqfc-share');
+    expect(h).not.toContain('data-primary');
   });
   test('the tile\'s slot events say it came after a try', () => {
     const events = [];
@@ -856,7 +858,7 @@ describe('switch on: a live read\'s held card is the card at once (the hand-off 
     const t = on();
     t.TR.readHold({ score: { attempted: 0 }, noSticker: true }, null, 0);
     expect(t.html()).toContain('Let&#39;s read it together');
-    expect(t.html()).toContain('id="wqfc-share"');
+    expect(t.html()).not.toContain('id="wqfc-share"');
     await flush();
     expect(mintOf(t).deed).toBe('read_tried');
   });
