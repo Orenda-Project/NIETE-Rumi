@@ -263,6 +263,29 @@ describe('the timing switch rides the home switch\'s read (never a read of its o
     const libraryCold = await reads(library);
     expect({ homeCold, homeWarm, libraryWarm, libraryCold }).toEqual(TODAY);
   });
+
+  // the first home of a fresh process (every deploy restarts one): the file's warm-up above hides the reads of modules
+  // loaded on first use, so this row loads every module new and pins that first answer's settings reads too
+  const FIRST_BOOT = { homeFirst: 8 };
+  test.each([['absent', []], ['the string "true"', [{ key: TIMING, value: 'true' }]], ['false', [{ key: TIMING, value: false }]]])('switch OFF (%s): the first home of a fresh process, today\'s settings reads exactly', async (_, rows) => {
+    let homeFirst;
+    await jest.isolateModulesAsync(async () => {
+      const sb = require('../../shared/config/supabase');
+      const fx = require('./maker-fixture');
+      const f = fx.seedMaker(sb, { on: false });
+      f.db.app_settings = [...f.db.app_settings, { key: HOST, value: true }, ...rows];
+      const L = require('../../shared/services/quiz/transcript-quiz-list.service');
+      const d = { List: { ...L, loadLessonPage: jest.fn(async () => ({ sessions: [], quizzes: [], counts: {}, lessons: [] })) } };
+      const app = express();
+      app.use('/api/internal/th', require('../../shared/services/first-touch/teacher-home.routes').createRouter(d));
+      await new Promise((r) => { srv = app.listen(0, r); });
+      const before = fx.tableReads(f, 'app_settings');
+      const res = await home();
+      expect(res.status).toBe(200);
+      homeFirst = fx.tableReads(f, 'app_settings') - before;
+    });
+    expect({ homeFirst }).toEqual(FIRST_BOOT);
+  });
 });
 
 describe('a failed read of the home\'s switch', () => {
