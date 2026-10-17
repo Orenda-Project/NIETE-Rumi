@@ -301,13 +301,31 @@ async function send({ uid, storyId, classId = null, now = Date.now() } = {}) {
   return { redirect: p.out.wa_href };
 }
 
-// The server's max-rows: a story_events read past it is paged.
+// The server's max-rows: a read past it is paged.
 const EVENTS_PAGE = 1000;
+const COUNT_CHUNK = 300;
+const COUNT_SESSION_COLS = 'id, quiz_id, share_code_id, student_id, user_id, status, invited_by_student_id, created_at, completed_at, device_ref';
+
+/** Every row of `make().in(column, ids)`: the ids in chunks of COUNT_CHUNK, each chunk paged by id. Throws on a read error. */
+async function pagedIn(make, column, ids) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += COUNT_CHUNK) {
+    const part = ids.slice(i, i + COUNT_CHUNK);
+    for (let from = 0; ; from += EVENTS_PAGE) {
+      const { data, error } = await make().in(column, part).order('id', { ascending: true }).range(from, from + EVENTS_PAGE - 1);
+      if (error) throw new Error(error.message || 'read failed');
+      out.push(...(data || []));
+      if (!data || data.length < EVENTS_PAGE) break;
+    }
+  }
+  return out;
+}
 
 /**
  * The teacher home's Stories tile line: the stories this teacher has sent (only these books with `bookIds`) and the
  * children of those sends who read: a child who joined a send's class link and has any story_events row on that send's
- * book since it was first sent. A child reading the same book from the shelf, or before the send, is not counted.
+ * book since it was first sent. A child reading the same book from the shelf, or before the send, is not counted; the
+ * children are the ones both reports count (no teacher's own try, no invited friend).
  * Null while the switch is off, and on any read error (never throws). A preview is not a send. Reads only.
  */
 async function storyCounts(uid, { bookIds = null } = {}) {
@@ -319,22 +337,18 @@ async function storyCounts(uid, { bookIds = null } = {}) {
     const want = Array.isArray(bookIds) ? new Set(bookIds.map(String)) : null;
     const sends = (rows || []).filter((q) => q && q.id && bookOf(q) && (!want || want.has(bookOf(q))));
     if (!sends.length) return { sent: 0, read: 0 };
-    const { data: sessions, error: e2 } = await supabase.from('quiz_sessions').select('quiz_id, student_id').in('quiz_id', sends.map((q) => q.id));
-    if (e2) return null;
-    const kidsOf = new Map(sends.map((q) => [q.id, new Set()]));
-    (sessions || []).forEach((x) => { if (x && x.student_id && kidsOf.has(x.quiz_id)) kidsOf.get(x.quiz_id).add(x.student_id); });
-    const kids = [...new Set((sessions || []).map((x) => x && x.student_id).filter(Boolean))];
+    // The children both reports count (joined, no teacher's own try, no invited friend, one attempt per child),
+    // read in chunks and pages: a big class is neither cut at the server's 1000-row cap nor too long for one request.
+    const { countedSessions } = require('./teacher-report.data');
+    const sessions = countedSessions(await pagedIn(() => supabase.from('quiz_sessions').select(COUNT_SESSION_COLS),
+      'quiz_id', sends.map((q) => q.id)), uid, { opened: true });
+    const kids = [...new Set(sessions.map((x) => x && x.student_id).filter(Boolean))];
     if (!kids.length) return { sent: sends.length, read: 0 };
-    // Paged: the server answers at most 1000 rows a read, and a big class has more events than that.
     const books = [...new Set(sends.map(bookOf))];
-    const events = [];
-    for (let from = 0; ; from += EVENTS_PAGE) {
-      const { data, error: e3 } = await supabase.from('story_events').select('child_id, book_id, at')
-        .in('book_id', books).in('child_id', kids).order('id', { ascending: true }).range(from, from + EVENTS_PAGE - 1);
-      if (e3) return null;
-      events.push(...(data || []));
-      if (!data || data.length < EVENTS_PAGE) break;
-    }
+    const events = await pagedIn(() => supabase.from('story_events').select('child_id, book_id, at').in('book_id', books),
+      'child_id', kids);
+    const kidsOf = new Map(sends.map((q) => [q.id, new Set()]));
+    sessions.forEach((x) => { if (x && x.student_id && kidsOf.has(x.quiz_id)) kidsOf.get(x.quiz_id).add(x.student_id); });
     const read = new Set();
     sends.forEach((q) => {
       // As times, not strings: the database writes "+00:00" where the send's time has "Z".

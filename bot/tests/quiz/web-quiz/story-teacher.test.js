@@ -578,8 +578,47 @@ describe('story sends in the teacher\'s other quiz lists', () => {
     const s = (id, kid) => ({ id, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: id });
     db.quiz_sessions.push(s('s1', KID_A), s('s2', KID_B));
     // 1200 rows of KID_B's reading from before the send (not this send's), then KID_A's one row after it.
-    for (let i = 0; i < 1200; i += 1) db.story_events.push({ id: i + 1, child_id: KID_B, book_id: B(1), page_n: 1, event: 'story_page_listened', data: {}, at: ago(5) });
-    db.story_events.push({ id: 1201, child_id: KID_A, book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) });
+    // ids from 10000 so the fake's text order is the numeric order: KID_A's row really is past the first 1000
+    for (let i = 0; i < 1200; i += 1) db.story_events.push({ id: 10000 + i, child_id: KID_B, book_id: B(1), page_n: 1, event: 'story_page_listened', data: {}, at: ago(5) });
+    db.story_events.push({ id: 11200, child_id: KID_A, book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) });
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 1 });
+  });
+  test('the Stories tile counts page past the 1000-row cap on the sends\' sessions: a child who joined after the first 1000 is counted', async () => {
+    fake = makeFake(db, { maxRows: { quiz_sessions: 1000 } });
+    Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quizzes[0].meta.first_sent_at = ago(3);
+    const kid = (i) => `44444444-4444-4444-8444-${String(i).padStart(12, '0')}`;
+    for (let i = 0; i < 1100; i += 1) {
+      db.quiz_sessions.push({ id: `s-${10000 + i}`, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid(i), student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: `d-${i}` });
+    }
+    db.story_events.push({ id: 1, child_id: kid(1099), book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) });
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 1 });
+  });
+  test('the Stories tile counts read a big class in chunks: 450 joined children still give a number, not none', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quizzes[0].meta.first_sent_at = ago(3);
+    const kid = (i) => `44444444-4444-4444-8444-${String(i).padStart(12, '0')}`;
+    for (let i = 0; i < 450; i += 1) {
+      db.quiz_sessions.push({ id: `s-${10000 + i}`, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid(i), student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: `d-${i}` });
+    }
+    db.story_events.push(
+      { id: 1, child_id: kid(0), book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) },
+      { id: 2, child_id: kid(449), book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) });
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 2 });
+    expect(fake.calls.filter((c) => c.overflow)).toHaveLength(0);
+  });
+  test('the Stories tile counts the children both reports count: an invited friend and the teacher\'s own try are not readers of the send', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quizzes[0].meta.first_sent_at = ago(3);
+    const KID_C = '44444444-4444-4444-8444-666666666666';
+    const s = (id, kid, extra = {}) => ({ id, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: id, ...extra });
+    db.quiz_sessions.push(s('s1', KID_A), s('s2', KID_B, { invited_by_student_id: KID_A }), s('s3', KID_C, { user_id: TEACHER, device_ref: null }));
+    const ev = (child) => ({ child_id: child, book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) });
+    db.story_events.push(ev(KID_A), ev(KID_B), ev(KID_C));
     expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 1 });
   });
   test('the Stories tile counts compare times as times: "+00:00" and "Z" at the same second is since the send; a second before is not', async () => {
