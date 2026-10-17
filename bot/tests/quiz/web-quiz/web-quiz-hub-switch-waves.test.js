@@ -41,6 +41,7 @@ const ROWS = [
   [['web_quiz_live_read_v3', 'web_quiz_challenge_realtime']],
   [['web_quiz_card_v3']],
   [['web_quiz_next_offer', 'web_quiz_events_v3']],
+  [['web_quiz_minify']],
 ];
 
 const SAVED = { ...process.env };

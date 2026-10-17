@@ -149,7 +149,7 @@ describe('a switch reads the same through the seam as through its own read', () 
     expect(S.reads.filter((r) => r.t === 'app_settings').length).toBe(1);
     const primed = {};
     for (const e of Seam().entries()) primed[e.name] = noAt(e.peek());
-    expect(Object.keys(primed).length).toBe(14);  // every module the hub reads a switch through, but the fast switch itself (challenge: 3 switches; stories: 4 keys; the next thing: 3 keys)
+    expect(Object.keys(primed).length).toBe(15);  // every module the hub reads a switch through, but the fast switch itself (challenge: 3 switches; stories: 4 keys; the next thing: 3 keys; the minified files: 1)
     // The same cache, but where the module's own read reads nothing (keep my place's way back with its parent off:
     // it answers false before its cache; primed, its cache holds what its read would hold).
     const skipped = Object.keys(own).filter((n) => own[n] === null);
@@ -174,7 +174,7 @@ describe('a switch reads the same through the seam as through its own read', () 
     const keys = Seam().ALL_KEYS();
     expect(keys).not.toContain('web_quiz_fast');
     expect([...Fx.askedKeys].filter((k) => k !== 'web_quiz_fast' && !keys.includes(k)).sort()).toEqual([]);
-    expect(keys).toEqual(expect.arrayContaining(['web_quiz_brand', 'web_quiz_db_deadline']));
+    expect(keys).toEqual(expect.arrayContaining(['web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_minify']));
   });
 });
 
