@@ -179,9 +179,15 @@ describe('path-for-path forwarding', () => {
     await boot(ok);
     await request('GET', `/api/th/timeline?t=${TOK}&after=1791180000000.lp_c1000000-0000-4000-8000-000000000041&n=10&lang=ur&g=3&evil=1`);
     await request('GET', `/api/th/timeline?t=${TOK}&after=..%2Fx&n=999`);
+    await request('GET', `/api/th/timeline?t=${TOK}&n=21`);
+    await request('GET', `/api/th/timeline?t=${TOK}&n=0`);
+    await request('GET', `/api/th/timeline?t=${TOK}&n=20`);
     expect(calls.map((c) => c.path)).toEqual([
       `/api/internal/th/api/th/timeline?t=${TOK}&after=1791180000000.lp_c1000000-0000-4000-8000-000000000041&n=10&lang=ur`,
       `/api/internal/th/api/th/timeline?t=${TOK}`,
+      `/api/internal/th/api/th/timeline?t=${TOK}`,
+      `/api/internal/th/api/th/timeline?t=${TOK}`,
+      `/api/internal/th/api/th/timeline?t=${TOK}&n=20`,
     ]);
   });
   test('quiz/:id with a uuid', async () => {
