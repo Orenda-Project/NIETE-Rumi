@@ -165,7 +165,9 @@ var TAG={lp:'th.tag.lp',coach:'th.tag.coach',quiz:'th.tag.quiz',story:'th.tag.st
 function poll(row,box,v){var id=row.quizId,t0=Date.now();if(polls[id])return;polls[id]=1;var note=el('p','th-note',S['th.quiz.making']);note.setAttribute('role','status');box.appendChild(note);if(v)v.hidden=true;
 function tick(){getj('/api/th/quiz/'+encodeURIComponent(id)+'?t='+T+(b.ask?'&lang='+b.ask:'')).then(function(x){if(x&&x.state==='ready'&&x.message){note.textContent='';d.primary={kind:'made',id:id,title:x.title||row.title,send:{message:x.message,wa:x.wa},origin:row.kind==='coach'?'coaching':'lesson_plan'};top();
 (d.timeline||[]).forEach(function(t){if(t.verb==='quiz_this'&&t.id===row.id&&row.make)Object.assign(t,{verb:'again',id:id,sendKind:'again'})});rows();window.scrollTo(0,0);return}
-if(x&&x.state==='failed'){note.textContent=S['th.error'];return}if(Date.now()-t0>180000){note.textContent=S['th.quiz.late'];return}setTimeout(tick,5000)}).catch(function(){if(Date.now()-t0>180000)note.textContent=S['th.quiz.late'];else setTimeout(tick,5000)})}
+if(x&&x.state==='failed'){note.textContent=S['th.error'];return}later()}).catch(later)}
+// after 3 min the late line, and the page keeps asking every 15 s until 10 min (the card still becomes the quiz)
+function later(){var e=Date.now()-t0;if(e>180000)note.textContent=S['th.quiz.late'];if(e<600000)setTimeout(tick,e>180000?15000:5000)}
 setTimeout(tick,5000)}
 function make(row,box,v){if(busy)return;busy=true;err(false);v.disabled=true;
 post('/api/th/quiz/make',{t:b.t,kind:row.make,id:row.id,lang:b.lang}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(x){if(!x||!x.quizId)throw 0;box.appendChild(el('p','th-note',S['th.job']));row.quizId=x.quizId;poll(row,box,v);made[row.id]=1;if(box===q('#th-top'))rows();else if(d.primary&&d.primary.kind==='lesson'&&d.primary.id===row.id)top()})
