@@ -12,7 +12,7 @@
  *       unfinished open or an untapped show rotates it; its words follow what the child was doing, by the tile's word
  *       key `w`: a read says "Carry on reading", a listen / read-along story / storybook "Carry on with your story")
  *   1b. a half-finished storybook / a video watched < 90 %, at most once a PKT day     rank_src 'rule'
- *       (spent by a tap from the view that showed it, never by a render, while the tap is heard: events v3, #C50)
+ *       (spent by a tap from the view that showed it, never by a render, while the tap is heard: events v3)
  *   3.  the rest, by the scores table for this context (next-offer-weights.json; the VALUE key
  *       `web_quiz_next_offer_weights` overrides it without a deploy): scored kinds first, ties -> newest unseen,
  *       the top two rotate when their CIs overlap (seeded by child + day), a primary shown twice and not tapped
@@ -182,7 +182,7 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
     && nowMs - Date.parse(c.sent_at) <= PIN_DAYS * DAY_MS)
     .sort((a, b) => Date.parse(b.sent_at) - Date.parse(a.sent_at));
   // The tile tapped last and not finished (still offered as it was: the same id and variant), on the home only; the
-  // once-a-day resume keeps its own rule (#C50). Used up (an unfinished open + one more) it neither leads nor holds a rule.
+  // once-a-day resume keeps its own rule. Used up (an unfinished open + one more) it neither leads nor holds a rule.
   const t = state.carry;
   const spent = (c) => Boolean(t && t.id === c.id && (t.x || usedOf(state, c) >= DROP_AFTER));
   const carry = ctx === 'home' && t ? eligible.find((c) => c.id === t.id && (c.variant || null) === (t.v || null) && c.rule !== 'resume' && !spent(c)) : null;
@@ -364,7 +364,7 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
       ...(s.events && r.meta.rule === 'resume' ? { rs: { id: next.id, day } } : {}),
       ...(t ? { t } : {}),
       of: Object.fromEntries(keep.map((k) => [k, offers[k]])),
-      // this view's tiles as shown (a tap keeps its own copy for #C49a's carry-on)
+      // this view's tiles as shown (a tap keeps its own copy for the carry-on)
       vw: Object.fromEntries([next, ...next.alts].map((x) => [x.offer, Leaf.copyOf(x)])),
     });
     if (s.events && alive()) {

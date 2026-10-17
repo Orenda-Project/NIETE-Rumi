@@ -59,7 +59,7 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false, 
   if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
   if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
   if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}&l=${lang}` };
-  // the recommended lesson, wherever the v3 home's player can play it: a child with a class too (#C46; their lesson
+  // the recommended lesson, wherever the v3 home's player can play it: a child with a class too (their lesson
   // starts on the class's own lesson code, the Videos door's rule)
   if (watch) {
     try { out.recs = await parts.recsFor(canonical, history, grade); } catch (_) { out.recs = []; }
