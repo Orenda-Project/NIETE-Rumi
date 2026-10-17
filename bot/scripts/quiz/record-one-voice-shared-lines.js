@@ -47,6 +47,31 @@ function planVoice(raw, lang) {
   return v;
 }
 
+// The models that take a language code (ElevenLabs refuses one on eleven_multilingual_v2 and older models).
+const LANGUAGE_CODE_MODELS = /^eleven_(turbo_v2_5|flash_v2_5|v3|v4)/;
+const takesLanguageCode = (model) => LANGUAGE_CODE_MODELS.test(String(model || ''));
+
+/**
+ * A set's folder is keyed by the voice id, its rendering (model, settings) and the language. A folder already there
+ * must name exactly these in its manifest, or the run is refused before any call: one voice recorded for Urdu after
+ * English never reuses the English lines. A folder with lines and no manifest is refused too (its origin is unknown).
+ */
+function guardSetDir(dir, voice, lang) {
+  if (!fs.existsSync(dir)) return;
+  const mp3s = fs.readdirSync(dir).filter((f) => f.endsWith('.mp3'));
+  const file = path.join(dir, 'manifest.json');
+  if (!fs.existsSync(file)) {
+    if (mp3s.length) throw new Error(`set folder ${path.basename(dir)} has lines and no manifest: refused`);
+    return;
+  }
+  let m = null;
+  try { m = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) { m = null; }
+  const Voice = require('../../shared/services/quiz/web-quiz-voice');
+  const mv = (m && m.voice) || {};
+  const same = m && m.lang === lang && mv.voice === voice.voice && Voice.renderOf(mv) === Voice.renderOf(voice);
+  if (!same) throw new Error(`set folder ${path.basename(dir)} names another voice id, rendering or language: refused`);
+}
+
 /** The hash a set is known by (web-quiz-voice.js SHARED_SETS): its mp3 files, by name, in order. */
 function setHash(dir) {
   const h = crypto.createHash('sha1');
@@ -65,18 +90,23 @@ async function run(argv, { fetchImpl = globalThis.fetch, out = console.log, voic
   const lines = JSON.parse(fs.readFileSync(path.join(voiceDir, 'manifest.json'), 'utf8'))[args.lang];
   const jobs = Object.entries(lines).flatMap(([name, arr]) => arr.map((text, i) => ({ file: `${name}-${i}.mp3`, text })));
   const chars = jobs.reduce((n, j) => n + j.text.length, 0);
+  const dir = path.join(voiceDir, 'one', set);
+  guardSetDir(dir, voice, args.lang);
   out(`set=${set} lang=${args.lang} lines=${jobs.length} chars=${chars} usd≈${(chars * USD_PER_CHAR).toFixed(3)}${args.apply ? '' : ' (dry run)'}`);
   if (!args.apply) return { set, lines: jobs.length, chars, recorded: 0 };
   const key = env.ELEVENLABS_API_KEY;
   if (!key) throw new Error('ELEVENLABS_API_KEY is not set');
-  const dir = path.join(voiceDir, 'one', set);
   fs.mkdirSync(dir, { recursive: true });
+  // The manifest first, so a run stopped part way leaves a folder that still names its voice and language.
+  const writeManifest = () => fs.writeFileSync(path.join(dir, 'manifest.json'), `${JSON.stringify({ lang: args.lang, voice, lines }, null, 1)}\n`);
+  writeManifest();
   let usd = 0; let recorded = 0;
   for (const { file, text } of jobs) {
     const target = path.join(dir, file);
     if (fs.existsSync(target) && fs.statSync(target).size > 1000) continue;
     if (usd >= args.maxUsd) { out(`stopped: max_usd ${args.maxUsd}`); return { set, recorded, usd, stopped: 'max_usd' }; }
-    const body = JSON.stringify({ text, model_id: voice.model, language_code: args.lang, voice_settings: voice.settings });
+    const body = JSON.stringify({ text, model_id: voice.model, ...(takesLanguageCode(voice.model) ? { language_code: args.lang } : {}),
+      voice_settings: voice.settings });
     let audio = null;
     for (let a = 0; a < 3 && !audio; a += 1) {
       const r = await fetchImpl(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice.voice)}?output_format=mp3_44100_64`,
@@ -92,7 +122,7 @@ async function run(argv, { fetchImpl = globalThis.fetch, out = console.log, voic
         provider: 'elevenlabs', what: `shared line ${set} ${file}`, units: text.length, usd: Math.round(cost * 1e6) / 1e6 })}\n`);
     }
   }
-  fs.writeFileSync(path.join(dir, 'manifest.json'), `${JSON.stringify({ lang: args.lang, voice, lines }, null, 1)}\n`);
+  writeManifest();
   const hash = setHash(dir);
   out(`SPEND usd=${usd.toFixed(4)} recorded=${recorded}`);
   out(`add to web-quiz-voice.js SHARED_SETS: '${set}': '${hash}'`);
@@ -103,4 +133,4 @@ if (require.main === module) {
   run(process.argv.slice(2)).catch((e) => { console.error(String((e && e.message) || e)); process.exit(1); });
 }
 
-module.exports = { run, parseArgs, setHash, planVoice };
+module.exports = { run, parseArgs, setHash, planVoice, guardSetDir, takesLanguageCode };
