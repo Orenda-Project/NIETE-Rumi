@@ -38,6 +38,8 @@ const Gate = require('../../shared/services/quiz/teacher-report-gate');
 const List = require('../../shared/services/quiz/transcript-quiz-list.service');
 const Bank = require('../../shared/services/first-touch/maker.bank');
 const Flags = require('../../shared/services/first-touch/teacher-home.flags');
+const MoreFlags = require('../../shared/services/first-touch/teacher-home.more-flags');
+const Page = require('../../shared/services/first-touch/teacher-home.page');
 const HomeToken = require('../../shared/services/first-touch/teacher-home.token');
 const { createRouter } = require('../../shared/services/first-touch/teacher-home.routes');
 const { str, fill } = require('../../shared/services/first-touch/teacher-home.strings');
@@ -68,7 +70,7 @@ const nonSwitchReads = () => fake.calls.filter((c) => c.table !== 'app_settings'
 function seed({ on = true, value = true, extra = {}, settings = [] } = {}) {
   fake = seedMaker(supabase, { on: true, extra });
   fake.db.app_settings = [...fake.db.app_settings, ...(on ? [{ key: 'quiz_teacher_home', value }] : []), ...settings];
-  Flags.reset(); IdFlags._resetCache(); HubFlags._resetCache(); Gate._resetCache(); Bank._resetCache();
+  Flags.reset(); IdFlags._resetCache(); HubFlags._resetCache(); Gate._resetCache(); Bank._resetCache(); MoreFlags._resetCache();
 }
 /** /quiz's own list, stood in for (its providers read a dozen tables); lessonItems + quizState stay real. */
 function listWith({ sessions = [], quizzes = [], lessons = [] } = {}) {
@@ -871,5 +873,66 @@ describe('a code minted to show its message is not a send until the tap', () => 
     expect(after.timeline[0]).toMatchObject({ kind: 'quiz', verb: 'again', sendKind: 'share', id: first.primary.send.c });
     // one row per send: the class report's sender row for the same library quiz is not a second, "own" row
     expect(after.timeline.filter((r) => r.id === qid(2))).toEqual([]);
+  });
+});
+
+describe('the top card\'s named item and the early grade pick: two switches of their own', () => {
+  const NAMED = 'quiz_teacher_home_named_item';
+  const EARLY = 'quiz_teacher_home_early_pick';
+  function seedSent(settings) {
+    const at = new Date(Date.now()).toISOString(); // Date.now is held in the byte-for-byte rows
+    seed({ extra: { coaching_sessions: [], quiz_sessions: [] }, settings });
+    fake.db.quizzes.push({
+      id: OWN_QUIZ, teacher_id: TEACHER.id, quiz_source: 'transcript', status: 'sent', topic: 'Photosynthesis', subject: 'Science',
+      coaching_session_id: SESSION, created_at: at,
+      meta: { student_message: 'Class, play this quiz: https://portal.example/q/ABCDEF', share_code_id: OWN_CODE, share_code: 'ABCDEF' },
+    });
+    fake.db.quiz_share_codes.push({ id: OWN_CODE, code: 'ABCDEF', quiz_id: OWN_QUIZ, teacher_user_id: TEACHER.id, active: true, expires_at: new Date(Date.now() + 86400000).toISOString(), created_at: at, invited_by_student_id: null });
+    const quiz = fake.db.quizzes.find((q) => q.id === OWN_QUIZ);
+    deps = { List: listWith({ sessions: [{ id: SESSION, created_at: at, transcript_text: 'x', analysis_data: { topic: 'Photosynthesis' } }], quizzes: [quiz] }) };
+  }
+  const homeText = async () => { const r = await get(`/api/th/home?t=${tokenFor()}`); expect(r.status).toBe(200); return r.text(); };
+  const pageOf = async (lang = 'en') => { const r = await get(`/quiz/teacher/${tokenFor({ lang })}`); expect(r.status).toBe(200); return { html: await r.text(), csp: r.headers.get('content-security-policy') }; };
+
+  test('both ON (JSON true): the page is the variant built with both, and the class card names its item', async () => {
+    seedSent([{ key: NAMED, value: true }, { key: EARLY, value: true }]);
+    await boot(deps);
+    const page = await pageOf();
+    const want = Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null, named: true, early: true });
+    expect(page.html).toBe(want.html);
+    expect(page.csp).toBe(want.csp);
+    expect(page.html).not.toBe(Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null }).html);
+    const home = JSON.parse(await homeText());
+    expect(home.primary).toMatchObject({ kind: 'class', title: 'Photosynthesis', item: 'quiz' });
+  });
+
+  test('one ON, the other absent: each switch alone picks its own variant', async () => {
+    seedSent([{ key: EARLY, value: true }]);
+    await boot(deps);
+    expect((await pageOf('ur')).html).toBe(Page.buildShell({ token: tokenFor({ lang: 'ur' }), lang: 'ur', switchTo: null, asked: null, early: true }).html);
+    expect('item' in JSON.parse(await homeText()).primary).toBe(false);
+  });
+
+  test.each([
+    ['absent', []],
+    ['the string "true"', [{ key: NAMED, value: 'true' }, { key: EARLY, value: 'true' }]],
+    ['false', [{ key: NAMED, value: false }, { key: EARLY, value: false }]],
+  ])('%s → today\'s page and today\'s home JSON, byte for byte', async (_name, settings) => {
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now()); // both homes sign their maker link in the same second
+    seedSent(settings);
+    await boot(deps);
+    const page = await pageOf();
+    const today = Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null });
+    expect(page.html).toBe(today.html);
+    expect(page.csp).toBe(today.csp);
+    const text = await homeText();
+    expect('item' in JSON.parse(text).primary).toBe(false);
+    srv.close();
+    seedSent([]);
+    await boot(deps);
+    const again = await homeText();
+    expect(JSON.parse(again)).toEqual(JSON.parse(text));
+    expect(again).toBe(text);
+    clock.mockRestore();
   });
 });
