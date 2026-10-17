@@ -60,9 +60,10 @@ const binding = (kid, extra = {}) => ({ id: `b-${kid.slice(-3)}`, canonical_id: 
   bound_at: iso(Date.now() - 86400000), expires_at: '2099-03-31T18:59:59.000Z', revoked_at: null, revoked_by: null, ...extra });
 
 let fake;
-function seed({ join = true, joinValue = true, students = [], bindings = [], user = UNKNOWN_USER, lists = [] } = {}) {
+function seed({ join = true, joinValue = true, students = [], bindings = [], user = UNKNOWN_USER, lists = [], early } = {}) {
   const settings = { web_quiz_hub: true, web_quiz_identity_canon: true, web_quiz_phone_bind: true };
   if (join) settings.quiz_student_join = joinValue;
+  if (early !== undefined) settings.quiz_join_early_tap = early;
   fake = makeFake({
     app_settings: Object.entries(settings).map(([key, value]) => ({ key, value })),
     users: [user], students, child_phone_bindings: bindings, child_identity: [], user_feature_first_use: [],
@@ -403,6 +404,35 @@ describe('the page shell answer', () => {
     expect(await Join.pageInfo({ t: old })).toEqual({ stale: true, lang: 'ur' });
   });
 
+  test('quiz_join_early_tap: only JSON true adds earlyTap to the page answer; every other value, unset or a failed read: no field (today\'s answer)', async () => {
+    const { t } = await landing();
+    const ON = { ok: true, lang: 'ur', practice: false, earlyTap: true };
+    const OFF = { ok: true, lang: 'ur', practice: false };
+    for (const [early, want] of [[true, ON], ['true', OFF], ['"true"', OFF], [' TRUE ', OFF], ['yes', OFF], ['on', OFF], [1, OFF],
+      [null, OFF], [{ enabled: true }, OFF], [false, OFF], [undefined, OFF]]) {
+      seed({ early });
+      Join._resetCache();
+      expect([early, await Join.pageInfo({ t })]).toEqual([early, want]);
+    }
+    // a read of the early-tap key that throws: OFF, the join itself unaffected
+    seed({ early: true });
+    Join._resetCache();
+    const real = supabase.from;
+    supabase.from = (tb) => { const b = real(tb); const eq = b.eq; b.eq = (c, v) => { if (v === 'quiz_join_early_tap') throw new Error('boom'); return eq.call(b, c, v); }; return b; };
+    try {
+      expect(await Join.pageInfo({ t })).toEqual(OFF);
+    } finally { supabase.from = real; }
+    // the join switch off: still {off:true}, and the early-tap key is never read
+    seed({ join: false, early: true });
+    Join._resetCache();
+    const keys = [];
+    supabase.from = (tb) => { const b = real(tb); const eq = b.eq; b.eq = (c, v) => { keys.push(v); return eq.call(b, c, v); }; return b; };
+    try {
+      expect(await Join.pageInfo({ t })).toEqual({ off: true });
+      expect(keys).not.toContain('quiz_join_early_tap');
+    } finally { supabase.from = real; }
+  });
+
   test('the bot\'s WhatsApp number rides the answer, for the expired page\'s one tap back; none configured → no number', async () => {
     const BOT_NO = fixturePhone(100);
     process.env.WHATSAPP_BOT_NUMBER = `+${BOT_NO}`;
@@ -734,14 +764,14 @@ describe('the nonce map', () => {
 });
 
 // last in the file: it loads a fresh module registry (the persona module mocked), wired to the same fake database
-describe('the sandbox walk-through persona (module absent = today)', () => {
-  test('a teacher\'s phone playing a new family (as: fresh) joins and binds like a family; absent module → refused as today', async () => {
+describe('the sandbox walk-through persona (switch off = today)', () => {
+  test('a teacher\'s phone playing a new family (as: fresh) joins and binds like a family; with no persona → refused as today', async () => {
     seed({ user: TEACHER_USER });
     const l1 = await landing(TEACHER_USER);
     expect((await Join.join({ t: l1.t, grade: 3, name: 'Sara', device: DEVICE })).refused).toBe('teacher_phone');
     expect(writes('students')).toHaveLength(0);
     jest.resetModules();
-    jest.doMock('../../../shared/services/first-touch/walk-persona', () => ({ get: async () => ({ as: 'fresh', since: Date.now() }) }), { virtual: true });
+    jest.doMock('../../../shared/services/first-touch/walk-persona', () => ({ get: async () => ({ as: 'fresh', since: Date.now() }) }));
     const sb = require('../../../shared/config/supabase');
     sb.from = supabase.from; sb.rpc = supabase.rpc;
     const J2 = require('../../../shared/services/quiz/web-quiz-student-join');

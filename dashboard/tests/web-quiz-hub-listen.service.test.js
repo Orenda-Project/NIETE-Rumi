@@ -177,6 +177,27 @@ describe('#listen/<pid> on the hub page', () => {
     await p.flush();
     expect(p.html()).toContain('id="wq-listen-ra"');
   });
+  test('the v3 home on: the phone\'s Back from a tile\'s preview draws the home ONCE (the preview owns that hashchange)', async () => {
+    const HOME_SRC = fs.readFileSync(path.join(WQ, 'wq-home.js'), 'utf8');
+    const p = open({ boot: { ...BOOTS.done, lang: 'en', home_v3: true }, routes: { 'listen/h/': ok({ readalong: TIMED }) } });
+    const evs = [];
+    p.ctx.Blob = function (parts) { evs.push(String(parts[0])); };   // each event's body, as hub.js beacons it
+    // the browser's dispatch: listeners in the order they were added, until one stops the event
+    const hash = (h) => { p.ctx.location.hash = h; let stop = false; const e = { stopImmediatePropagation() { stop = true; } }; for (const fn of p.wl.hashchange.slice()) { if (stop) break; fn(e); } };
+    await p.flush();
+    await p.arrive(/wq-home\.js/, HOME_SRC);
+    const homes = () => evs.filter((x) => /home_view/.test(x)).length;
+    expect(homes()).toBe(1);
+    hash('#listen/' + PID);
+    await p.flush();
+    await p.arrive(/wq-readalong\.js/, STUB);
+    expect(p.html()).toContain('id="wq-listen-ra"');
+    hash('');
+    await p.flush();
+    expect(p.ctx.__ra.destroyed).toBe(1);
+    expect(p.html()).not.toContain('id="wq-listen-ra"');
+    expect(homes()).toBe(2);
+  });
   test('a locked hub (the link on another phone) never opens the preview, even with the hash', async () => {
     const p = open({ hash: '#listen/' + PID, boot: { ...BOOTS.done, lang: 'en', locked: true, kids: [], kid: null }, routes: { 'listen/h/': ok({ readalong: TIMED }) } });
     await p.flush();
@@ -202,7 +223,10 @@ describe('the switch off: the edge sends no preview script, and hub.js is today\
   test('hub.js holds one guard expression for the preview: no hash test, no listener, no loader of its own', () => {
     expect(HUB_SRC.match(/WQLISTEN/g)).toHaveLength(2);
     expect(HUB_SRC).toContain('else if (!(window.WQLISTEN && WQLISTEN.take(boot, render, bar))) boot();');
-    expect(HUB_SRC).not.toMatch(/hashchange|#listen|readalong/);
+    expect(HUB_SRC).not.toMatch(/#listen|readalong/);
+    // hub.js's one hash listener is the storybook link's (web_quiz_stories, the v3 home off), never the preview's
+    expect(HUB_SRC.match(/hashchange/g)).toHaveLength(1);
+    expect(HUB_SRC).toContain("window.addEventListener('hashchange', storyIn)");
   });
 });
 

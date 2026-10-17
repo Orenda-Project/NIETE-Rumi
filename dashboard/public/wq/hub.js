@@ -38,7 +38,7 @@
       againT: 'Play again', againRow: function (score, n) { return 'Best ' + score + ' · ' + n + (n === 1 ? ' try' : ' tries'); },
       practice: 'Practice: your first score is the one your teacher sees.',
       libT: 'Video library', libSub: 'Pick a subject and a chapter',
-      recT: 'Try these next', chT: function (m) { return m + '\'s Challenge'; }, chSub: 'Short games for reading and numbers',
+      recT: 'Try these next', chT: function (m) { return m + '\'s Challenge'; }, chV3: function (m) { return m + '\'s games'; }, chSub: 'Short games for reading and numbers',
       switchKid: 'Switch player', oops: 'Something went wrong. Try again.', offline: 'No internet. Try again when you are online.',
       lockT: 'This link was sent to another player', lockSay: 'Ask the child who got this link to open it.',
       someone: 'Someone else / new player', newT: 'New here?', mineDoor: 'Finish your own quiz, then tap “My quizzes, videos and challenges”.',
@@ -56,7 +56,7 @@
       againT: 'دوبارہ کھیلیں', againRow: function (score, n) { return 'بہترین ' + score + ' · <bdi>' + n + ' بار</bdi>'; },
       practice: 'مشق: ٹیچر کو آپ کا پہلا اسکور ہی نظر آتا ہے۔',
       libT: 'ویڈیو لائبریری', libSub: 'مضمون اور باب چنیں',
-      recT: 'یہ بھی کریں', chT: function (m) { return m + ' کا چیلنج'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
+      recT: 'یہ بھی کریں', chT: function (m) { return m + ' کا چیلنج'; }, chV3: function (m) { return m + ' کے کھیل'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
       switchKid: 'کھلاڑی بدلیں', oops: 'کچھ گڑبڑ ہو گئی۔ دوبارہ کوشش کریں۔', offline: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔',
       lockT: 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', lockSay: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔',
       someone: 'کوئی اور / نیا کھلاڑی', newT: 'پہلی بار؟', mineDoor: 'اپنا کوئز مکمل کریں، پھر «میرے کوئز، ویڈیوز اور چیلنج» دبائیں۔',
@@ -371,19 +371,20 @@
   function homeTiles() {
     return '<div class="wq-htiles">' +
       (B.lib ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">🎬</span>') + '<b>' + esc(T.vidT) + '</b><small>' + esc(T.vidSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc((B.home_v3 ? T.chV3 : T.chT)(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
       '</div>';
   }
   // The v3 child home (B.home_v3, web_quiz_home_v3): wq-home.js draws the whole page; a failed load draws today's hub.
   var homeFail = false;
   function hub() {
     batchIds(B.kid);
+    storyIn();
     if (B.home_v3 && !homeFail) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return loadOnce('wq-home', true, hub, null, function () { homeFail = true; hub(); }); }
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
     // With no teacher quiz the empty card already holds the library button: no second library tile.
     var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc((B.home_v3 ? T.chV3 : T.chT)(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
     // A first open's server render was locked (no wq_dv cookie yet), so the edge left hub-play.js out: load it now.
     if (B.play && !window.WQPLAY) playIn();
     if (B.bind && !window.WQBIND) bindIn();
@@ -439,6 +440,21 @@
     starting = false;
     if (B.locked) locked(); else if (B.kid) hub(); else if ((B.kids || []).length) picker();
   });
+
+  // A story link (#story/<id>, a teacher's class link) without the v3 home, stories on (`stories.on`): the reader
+  // (wq-stories.js) is fetched once and opens the book; leaving it draws the hub again. Switch off: nothing runs.
+  var inStory = false, storyWired = false;
+  // The reader takes its child from WQSTORIES_CTX before the page's boot JSON, which a first open rendered locked (no child).
+  function storyIn() {
+    if (!(B.stories && B.stories.on && B.kid)) return;
+    window.WQSTORIES_CTX = { token: TOKEN, kid: B.kid, lang: LANG };
+    if (B.home_v3 && !homeFail) return;
+    if (!storyWired) { storyWired = true; window.addEventListener('hashchange', storyIn); }
+    var was = inStory;
+    inStory = /^#story\//.test(location.hash || '');
+    if (inStory) { if (!window.WQSTORIES) loadOnce('wq-stories', true); }
+    else if (was) hub();
+  }
 
   /* ---------------- boot ---------------- */
   function boot() {

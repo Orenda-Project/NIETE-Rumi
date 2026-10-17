@@ -214,7 +214,7 @@ function shelfOf(live, unseenPids, lang) {
  * `challenge` is the hub's own challenge tile (null when the child's grade has no challenge); `stopsOf()` the stop ids
  * this child's Trail has (the hub's, from the challenge menu's rule), read only when the lantern is.
  */
-async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } = {}) {
+async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, collect } = {}) {
   const s = await switches();
   if (!s.first && !s.v2 && !s.install && !s.events) return null;
   const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
@@ -256,6 +256,11 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } 
     out.lantern = nx.kind === 'story' ? { ...nx, pid: (ownTile.find((u) => u.title === nx.title) || {}).pid || null } : nx;
   }
   if (seenIds) out.shelf = shelfOf(p.live, new Set(unseen.map((u) => u.pid)), lang);
+  // The next-thing ranker (web-quiz-next-offer-sources.js) reads what this corner read; the payload is untouched. Its
+  // lantern is the one the child is shown (the control arm's primary), never a same-titled twin.
+  if (collect && typeof collect === 'object') {
+    Object.assign(collect, { trail, unseen, live: p.live, story: s.story, lantern: out.lantern || null });
+  }
   return out;
 }
 

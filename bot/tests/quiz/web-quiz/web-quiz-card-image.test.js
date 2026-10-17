@@ -204,9 +204,11 @@ describe('the picture', () => {
 });
 
 // every kind of finish the card is for, and every deed it may say
-const EVERY_DEED = [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_some'], ['read', 'read_tried'], ['listen', 'listen_done'],
-  ['story', 'story_read'], ['story', 'answered'], ['story', 'read_tried'], ['game', 'game_done'], ['book', 'book_read'], ['book', 'listen_done'], ['book', 'read_tried'],
-  ['video', 'video_watched']];
+// A stop played again (practice, the child home on) has its own deeds: no "today", no sticker (the Book is counted runs only).
+const PRACTICE = [['read', 'read_practice'], ['read', 'read_some_practice'], ['listen', 'listen_practice'], ['story', 'story_practice'], ['game', 'game_practice']];
+const EVERY_DEED = [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_some'], ['read', 'read_tried'], ['read', 'read_practice'], ['read', 'read_some_practice'],
+  ['listen', 'listen_done'], ['listen', 'listen_practice'], ['story', 'story_read'], ['story', 'answered'], ['story', 'read_tried'], ['story', 'story_practice'],
+  ['game', 'game_done'], ['game', 'game_practice'], ['book', 'book_read'], ['book', 'listen_done'], ['book', 'read_tried'], ['video', 'video_watched']];
 describe('what the card says', () => {
   test('the deed list is exactly these', () => {
     expect(Object.entries(Card.DEEDS).flatMap(([k, ds]) => ds.map((d) => [k, d]))).toEqual(EVERY_DEED);
@@ -225,6 +227,15 @@ describe('what the card says', () => {
     expect(Card.renderCard({ lang: 'en', first: 'Amal', deed: 'read_tried' }, { fonts: false })).not.toContain('class="st"');
     const one = Card.renderCard({ lang: 'en', first: 'Amal', deed: 'read_all' }, { fonts: false });
     expect(one.match(/class="st"/g)).toHaveLength(1);
+  });
+  test.each(PRACTICE)('a stop played again (%s/%s): no sticker, no "today" / «آج» on the picture', (kind, deed) => {
+    for (const lang of ['en', 'ur']) {
+      const html = Card.renderCard({ lang, first: 'Amal', deed }, { fonts: false });
+      expect(html).not.toContain('class="st"');
+      expect(Card.COPY[lang][deed]).not.toMatch(/today|آج/);
+    }
+    expect(Card.COPY.en.read_practice).toBe('I read a whole story out loud!');
+    expect(Card.COPY.ur.read_practice).toBe('میں نے پوری کہانی اونچی آواز میں پڑھی!');
   });
   test('Urdu draws right to left; a Latin name keeps its own direction', () => {
     const html = Card.renderCard({ lang: 'ur', first: 'Amal', deed: 'read_all' }, { fonts: false });

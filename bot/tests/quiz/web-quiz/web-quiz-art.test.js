@@ -143,6 +143,19 @@ describe('the id: signed, short, one per thing', () => {
     expect(Art.parseArtId('x.CLS001.aaaaaaaaaaaa')).toBeNull();
     expect(Art.parseArtId(null)).toBeNull();
   });
+
+  test("the class link's picture: its own letter, keyed by the class code's id, never a child-keyed kind", () => {
+    const SC_ID = '33333333-3333-4333-8333-333333333301';
+    const t = Art.artId('t', SC_ID);
+    expect(t).toMatch(/^t\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{12}$/);
+    expect(Art.parseArtId(t)).toEqual({ kind: 't', ref: SC_ID });
+    // the same ref under a child-keyed letter, or the card's mac under 't', is not this picture
+    expect(Art.parseArtId(`c.${t.split('.')[1]}.${t.split('.')[2]}`)).toBeNull();
+    const c = Art.artId('c', SC_ID);
+    expect(Art.parseArtId(`t.${c.split('.')[1]}.${c.split('.')[2]}`)).toBeNull();
+    // a code is never its ref: only a class code's id
+    expect(Art.artId('t', 'CLS001')).toBeNull();
+  });
 });
 
 describe('render + cache', () => {

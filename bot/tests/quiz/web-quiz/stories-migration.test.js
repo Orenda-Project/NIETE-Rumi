@@ -53,6 +53,15 @@ test('the schema file mirrors the video language column byte for byte', () => {
   expect(between(fs.readFileSync(SCHEMA, 'utf8'), ...VIDEOS)).toBe(mig);
 });
 
+test('the schema file mirrors the story_page_unvoiced event name byte for byte, after the storybook tables', () => {
+  const UNVOICED = ['DO $$', 'END $$;'];
+  const mig = between(fs.readFileSync(path.join(MIG, 'web_quiz_story_unvoiced.sql'), 'utf8'), ...UNVOICED);
+  expect(mig).toContain("'story_page_unvoiced'");
+  const schema = fs.readFileSync(SCHEMA, 'utf8');
+  const at = schema.indexOf(mig);
+  expect(at).toBeGreaterThan(schema.indexOf('ALTER TABLE public.story_events ENABLE ROW LEVEL SECURITY;'));
+});
+
 let dir;
 let sock;
 const PORT = String(57000 + (process.pid % 900));
@@ -137,6 +146,56 @@ d('on Postgres', () => {
     expect(fails(qn(3, "'literal'", "'ok'"))).toMatch(/check constraint/);
     expect(fails(`insert into story_events (book_id, event, data) values ('${BOOK}', 'story_opened', '{"shelf_position":2}')`)).toBeNull();
     expect(fails(`insert into story_events (book_id, event) values ('${BOOK}', 'story_liked')`)).toMatch(/check constraint/);
+  });
+
+  test('story_page_unvoiced: a seventh event name, applied twice; the rollback turns its rows back into miss listens', () => {
+    const ev = (name, data = '{}') => `insert into story_events (book_id, page_n, event, data) values ('${BOOK}', 3, '${name}', '${data}')`;
+    expect(fails(ev('story_page_unvoiced'))).toMatch(/check constraint/);
+    apply('web_quiz_story_unvoiced.sql');
+    apply('web_quiz_story_unvoiced.sql');
+    expect(fails(ev('story_page_unvoiced'))).toBeNull();
+    ['story_opened', 'story_page_listened', 'story_page_read', 'story_questions_done', 'story_done', 'story_shared']
+      .forEach((name) => expect(fails(ev(name))).toBeNull());
+    expect(fails(ev('story_liked'))).toMatch(/check constraint/);
+    expect(psql("select count(*) from pg_constraint where conname = 'story_events_event_check'")).toBe('1');
+    apply('web_quiz_story_unvoiced_rollback.sql');
+    expect(psql("select count(*) from story_events where event = 'story_page_unvoiced'")).toBe('0');
+    expect(psql(`select count(*) from story_events where event = 'story_page_listened' and page_n = 3 and data->>'miss' = 'true'`)).toBe('1');
+    expect(fails(ev('story_page_unvoiced'))).toMatch(/check constraint/);
+    expect(fails(ev('story_done'))).toBeNull();
+    apply('web_quiz_story_unvoiced.sql');
+    expect(fails(ev('story_page_unvoiced'))).toBeNull();
+  });
+
+  test('story_page_unvoiced: the six-name check is replaced whatever name the database gave it (one event check after)', () => {
+    const ev = (name) => `insert into story_events (book_id, page_n, event) values ('${BOOK}', 4, '${name}')`;
+    const eventChecks = "select count(*) from pg_constraint where conrelid = 'public.story_events'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%story_opened%'";
+    apply('web_quiz_story_unvoiced_rollback.sql');
+    psql('alter table story_events rename constraint story_events_event_check to story_events_event_check1');
+    expect(fails(ev('story_page_unvoiced'))).toMatch(/check constraint/);
+    apply('web_quiz_story_unvoiced.sql');
+    expect(fails(ev('story_page_unvoiced'))).toBeNull();
+    expect(fails(ev('story_liked'))).toMatch(/check constraint/);
+    expect(psql(eventChecks)).toBe('1');
+    apply('web_quiz_story_unvoiced.sql');
+    expect(psql(eventChecks)).toBe('1');
+  });
+
+  test('story_page_unvoiced rollback: the seven-name check goes whatever name it has (one six-name event check after)', () => {
+    const ev = (name) => `insert into story_events (book_id, page_n, event) values ('${BOOK}', 5, '${name}')`;
+    const eventChecks = "select count(*) from pg_constraint where conrelid = 'public.story_events'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%story_opened%'";
+    apply('web_quiz_story_unvoiced.sql');
+    psql('alter table story_events rename constraint story_events_event_check to story_events_event_check_seven');
+    expect(fails(ev('story_page_unvoiced'))).toBeNull();
+    apply('web_quiz_story_unvoiced_rollback.sql');
+    expect(fails(ev('story_page_unvoiced'))).toMatch(/check constraint/);
+    expect(fails(ev('story_done'))).toBeNull();
+    expect(psql(eventChecks)).toBe('1');
+    apply('web_quiz_story_unvoiced_rollback.sql');
+    expect(psql(eventChecks)).toBe('1');
+    apply('web_quiz_story_unvoiced.sql');
+    expect(fails(ev('story_page_unvoiced'))).toBeNull();
+    expect(psql(eventChecks)).toBe('1');
   });
 
   test('the video language: nullable, en or ur only, applies twice', () => {

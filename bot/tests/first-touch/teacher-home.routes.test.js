@@ -15,9 +15,9 @@ jest.mock('../../shared/services/cache/railway-redis.service', () => require('./
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/services/whatsapp.service', () => require('./_ingress-mocks').whatsappMock(jest));
-// The walk-through persona module by its real name (it may not be on this branch yet: a virtual stand-in).
+// The walk-through persona module by its real name: a stand-in.
 const mockWalk = { forHome: undefined };
-jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk, { virtual: true });
+jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk);
 // The one door's landing link and its module lookup: stand-ins, inert unless a test fills them.
 const mockDoor = { mintLanding: undefined };
 const mockModules = { load: undefined };
@@ -42,6 +42,7 @@ const HomeToken = require('../../shared/services/first-touch/teacher-home.token'
 const { createRouter } = require('../../shared/services/first-touch/teacher-home.routes');
 const { str, fill } = require('../../shared/services/first-touch/teacher-home.strings');
 const { seedMaker, TEACHER, qid } = require('./maker-fixture');
+const { jsonPathSelect } = require('./_json-path-select');
 
 const OTHER = 'a0000000-0000-4000-8000-0000000000f2';
 const OWN_QUIZ = 'c0000000-0000-4000-8000-0000000000a1';
@@ -450,11 +451,71 @@ describe('the stories shelf and the other seams', () => {
     await boot(deps);
     const t = tokenFor();
     const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
-    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories`;
+    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories?lang=en`;
     expect(deps.Stories.shelf).toHaveBeenCalledWith({ uid: TEACHER.id, grade: 3, lang: 'en' });
-    expect(home.primary).toMatchObject({ kind: 'story', id: 'b1', href: `${base}?book=b1` });
-    expect(home.library.stories.map((b) => b.href)).toEqual([`${base}?book=b1`, `${base}?book=b2`]);
+    expect(home.primary).toMatchObject({ kind: 'story', id: 'b1', href: `${base}&book=b1` });
+    expect(home.library.stories.map((b) => b.href)).toEqual([`${base}&book=b1`, `${base}&book=b2`]);
     expect(home.library.all).toBe(base);
+  });
+
+  test.each([['bi', '', 'ur'], ['bi', '&lang=en', 'en'], ['ur', '', 'ur']])('a %s token%s: every stories link carries the page\'s language (%s)', async (tl, q, want) => {
+    seed();
+    deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'Rain' }] })) };
+    await boot(deps);
+    const t = tokenFor({ lang: tl });
+    const home = await (await get(`/api/th/home?t=${t}&g=3${q}`)).json();
+    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories?lang=${want}`;
+    expect(home.library.stories.map((b) => b.href)).toEqual([`${base}&book=b1`]);
+    expect(home.library.all).toBe(base);
+    const lib = await (await get(`/api/th/library?t=${t}&g=3${q}`)).json();
+    expect(lib.stories.map((b) => b.href)).toEqual([`${base}&book=b1`]);
+  });
+
+  test('a book the teacher sent this month: the home and another grade\'s library both pick the next book and date the sent one', async () => {
+    seed();
+    const at = new Date(Date.now() - 5 * 86400000).toISOString();
+    fake.db.quizzes.push({ id: OWN_QUIZ, teacher_id: TEACHER.id, quiz_source: 'story', status: 'sent', topic: 'The Thirsty Crow', created_at: at,
+      meta: { story: { book_id: 'b1', lang: 'en' }, student_message: 'Read with Jugnu: https://portal.example/q/STORY1', share_code_id: OWN_CODE } });
+    fake.db.quiz_sessions = [];
+    deps.supabase = jsonPathSelect(supabase);
+    deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'The Thirsty Crow' }, { id: 'b2', title: 'Rain' }] })) };
+    await boot(deps);
+    const t = tokenFor();
+    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories?lang=en`;
+    const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
+    expect(home.primary).toMatchObject({ kind: 'story', id: 'b2' });
+    expect(home.library.stories).toEqual([{ id: 'b1', title: 'The Thirsty Crow', href: `${base}&book=b1`, sent: at }, { id: 'b2', title: 'Rain', href: `${base}&book=b2` }]);
+    const lib = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+    expect(lib.pick).toMatchObject({ kind: 'story', id: 'b2', href: `${base}&book=b2` });
+    expect(lib.stories).toEqual(home.library.stories);
+    expect(deps.supabase.selects.filter((x) => x.table === 'quizzes' && /story_book/.test(x.cols))).toHaveLength(2); // one per request, in playedOwn's own read
+    // the class report failing → today's library: no skip, no date
+    deps.Report = { ...require('../../shared/services/quiz/teacher-report.data'), classReport: async () => { throw new Error('report down'); } };
+    srv.close(); await boot(deps);
+    const down = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+    expect(down.pick).toMatchObject({ kind: 'story', id: 'b1' });
+    expect(down.stories.every((b) => !('sent' in b))).toBe(true);
+  });
+
+  test('a listed test phone walking as "a teacher with no lessons": another grade\'s library shows no pill either, as its home', async () => {
+    seed();
+    fake.db.users[0].phone_number = 'fixture-phone';
+    const at = new Date(Date.now() - 5 * 86400000).toISOString();
+    fake.db.quizzes.push({ id: OWN_QUIZ, teacher_id: TEACHER.id, quiz_source: 'story', status: 'sent', topic: 'The Thirsty Crow', created_at: at,
+      meta: { story: { book_id: 'b1', lang: 'en' }, student_message: 'Read with Jugnu: https://portal.example/q/STORY1', share_code_id: OWN_CODE } });
+    fake.db.quiz_sessions = [];
+    deps.supabase = jsonPathSelect(supabase);
+    deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'The Thirsty Crow' }, { id: 'b2', title: 'Rain' }] })) };
+    mockWalk.forHome = jest.fn(async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists));
+    try {
+      await boot(deps);
+      const t = tokenFor();
+      const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
+      const lib = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+      expect(home.library.stories.every((b) => !('sent' in b))).toBe(true);
+      expect(lib.stories.every((b) => !('sent' in b))).toBe(true);
+      expect(lib.pick).toMatchObject({ kind: 'story', id: 'b1' });
+    } finally { mockWalk.forHome = undefined; }
   });
 
   test('a stories module whose switch is off → no tiles, the video card is the library pick', async () => {

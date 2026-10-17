@@ -209,6 +209,15 @@ describe('start — the tap makes the quiz, once', () => {
     expect(second).toEqual(expect.objectContaining({ outcome: 'already', quizId: first.quizId }));
   });
 
+  test('two taps on "Quiz this" from the teacher home make one quiz and queue one job', async () => {
+    const jobsBefore = mockJobs.length;
+    const first = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE, via: 'home' });
+    const second = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE, via: 'home' });
+    expect(mockDb.table('quizzes')).toHaveLength(1);
+    expect(mockJobs.length - jobsBefore).toBe(1);
+    expect(second).toEqual(expect.objectContaining({ outcome: 'already', quizId: first.quizId }));
+  });
+
   test('"already" is answered by the caller: the provider hands back the quiz that covers the lesson and says nothing', async () => {
     // The registry contract: the list/Flow caller answers `already` with the existing quiz
     // (the same answer as a tap on that quiz's own row). A provider that also answered would

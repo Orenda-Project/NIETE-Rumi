@@ -2877,7 +2877,7 @@ const UX_STRINGS = {
   vqWhoNameClass: { en: '\u2068{name}\u2069, \u2068{cls}\u2069', ur: '\u2068{name}\u2069، \u2068{cls}\u2069' },
   vqExpired: {
     en: 'That quiz link has expired. Ask your teacher for a new one!',
-    ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے استاد سے نیا link لیں!',
+    ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے ٹیچر سے نیا link لیں!',
   },
 
   // ─── the join Flow a child we have never met opens (screen WHO) ─────────
@@ -2897,7 +2897,7 @@ const UX_STRINGS = {
   vqJoinNameLabel: { en: 'Your name', ur: 'آپ کا نام' },
   vqJoinNameHelp: {
     en: 'So your teacher can see how you did',
-    ur: 'تاکہ آپ کے استاد دیکھ سکیں کہ آپ نے کیسا کیا',
+    ur: 'تاکہ آپ کے ٹیچر دیکھ سکیں کہ آپ نے کیسا کیا',
   },
   vqJoinClassLabel: { en: 'Your class', ur: 'آپ کی جماعت' },
   vqJoinClassHelp: { en: 'For example: Grade 4, or 1-B', ur: 'مثلاً: جماعت 4' },
@@ -3078,7 +3078,7 @@ const UX_STRINGS = {
   vqHelpedPick: { en: 'Who helped?', ur: 'کس نے مدد کی؟' },
   vqHelpedNoOne: { en: 'No one', ur: 'کسی نے نہیں' },
   vqHelpedClassmate: { en: 'A classmate', ur: 'ہم جماعت' },
-  vqHelpedTeacher: { en: 'My teacher', ur: 'استاد' },
+  vqHelpedTeacher: { en: 'My teacher', ur: 'ٹیچر' },
   vqHelpedFamily: { en: 'My family', ur: 'گھر والے' },
   vqHelpedThanks: { en: 'Thank you!', ur: 'شکریہ!' },
   // A tap on the class question is always answered (Rule 24d: name the state, never silence).
@@ -3144,6 +3144,8 @@ const UX_STRINGS = {
   storyReportWords: { en: 'Words the class skipped most: {words}', ur: '‏کلاس نے یہ لفظ سب سے زیادہ چھوڑے: {words}' },
   // Under the teacher's Send button on the story page.
   storyReportWhere: { en: 'The report comes to you on WhatsApp, as usual.', ur: 'رپورٹ ہمیشہ کی طرح آپ کو واٹس ایپ پر ملے گی۔' },
+  // Under the books on the teacher's story page when this teacher's class cannot get a web link yet (no Send then).
+  storySendNotOpen: { en: 'Sending stories to your class is not open for your school yet.', ur: 'آپ کے اسکول میں اپنی کلاس کو کہانیاں بھیجنے کی سہولت ابھی شروع نہیں ہوئی۔' },
   // The same schedule as tqReportPromise (one report service): 12 hours after
   // the first child joins, 07:00 PKT at night — never "tomorrow morning", never
   // "as soon as everyone has finished". A video-lesson quiz has no /quiz entry,

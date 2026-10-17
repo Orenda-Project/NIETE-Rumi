@@ -33,8 +33,8 @@ jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logErro
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
 const mockEmit3 = jest.fn();
 const mockEvSw = jest.fn();
-jest.mock('../../../shared/services/quiz/web-quiz-events-v3', () => ({ emit3: (...a) => mockEmit3(...a) }), { virtual: true });
-jest.mock('../../../shared/services/quiz/web-quiz-next-offer', () => ({ switches: (...a) => mockEvSw(...a) }), { virtual: true });
+jest.mock('../../../shared/services/quiz/web-quiz-events-v3', () => ({ emit3: (...a) => mockEmit3(...a) }));
+jest.mock('../../../shared/services/quiz/web-quiz-next-offer', () => ({ switches: (...a) => mockEvSw(...a) }));
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 const mockS3Send = jest.fn();
 jest.mock('@aws-sdk/client-s3', () => {
@@ -184,6 +184,20 @@ describe('switch on: a child with no class WATCHES', () => {
     expect(a.code).toBeUndefined();
     expect(codesNow()).toBe(n);
     expect(SQS.queueJob).not.toHaveBeenCalled();
+  });
+
+  test('the lesson\'s Urdu-script name rides as title_ur only under web_quiz_videos_ur_titles; off, the watch is today\'s', async () => {
+    fake.db.student_videos.find((r) => r.id === V(1)).title_ur = 'مرغی کی زندگی';
+    const off = await Videos.start({ hub: 'x', kid: 'y', vid: V(1) });
+    expect('title_ur' in off.watch).toBe(false);
+    seed([HOME_ON, { key: 'web_quiz_library', value: true }, { key: 'web_quiz_videos_ur_titles', value: true }]); Home()._resetCache(); classless();
+    require('../../../shared/services/quiz/web-quiz-library')._reset();
+    fake.db.student_videos.find((r) => r.id === V(1)).title_ur = 'مرغی کی زندگی';
+    const on = await Videos.start({ hub: 'x', kid: 'y', vid: V(1) });
+    expect(on.watch).toMatchObject({ vid: V(1), title: 'Life Cycle of a Hen', title_ur: 'مرغی کی زندگی' });
+    fake.db.student_videos.find((r) => r.id === V(1)).title_ur = null;
+    require('../../../shared/services/quiz/web-quiz-library')._reset();
+    expect('title_ur' in (await Videos.start({ hub: 'x', kid: 'y', vid: V(1) })).watch).toBe(false);
   });
 
   test('activity_start (EVENTS_V3 §1) for the watch only under the events switch', async () => {

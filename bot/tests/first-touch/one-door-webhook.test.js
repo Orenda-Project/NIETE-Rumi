@@ -28,56 +28,17 @@ const { fixturePhone } = require('../quiz/web-quiz/fixture-phone');
 const PHONE = fixturePhone(41);
 const ROW = { registration_completed: false, registration_state: null, name: null, teacher_uuid: null, school_id: null, portal_activated: false, preferred_language: 'en' };
 
-/** The fake database: tables of rows; head counts; updates applied; a write hands back what it wrote; a table may be made to fail. */
+const { tableDouble } = require('../helpers/table-double');
+
+/**
+ * The fake database: the shared table double (filters apply, head counts, writes persist and hand back what they
+ * wrote); a table may be made to fail. `writes` shows an insert's `rows` as the product passed it (the double's `raw`).
+ */
 function db(tables, { failTables = [] } = {}) {
-  const writes = [];
-  const match = (row, f) => f.every(([op, col, val]) => {
-    const v = row[col];
-    if (op === 'eq') return String(v) === String(val);
-    if (op === 'in') return val.map(String).includes(String(v));
-    if (op === 'is') return val === null ? v == null : v === val;
-    return true;
-  });
+  const d = tableDouble(tables, { failTables: Object.fromEntries(failTables.map((t) => [t, `${t} down`])) });
   return {
-    tables,
-    writes,
-    rpc: async () => ({ data: null, error: null }),
-    from(table) {
-      const filters = [];
-      const q = { head: false, order: null, limit: null, update: null, write: false };
-      const b = {};
-      b.select = (cols, opts) => { q.head = Boolean(opts && opts.head); return b; };
-      b.eq = (c, v) => { filters.push(['eq', c, v]); return b; };
-      b.in = (c, v) => { filters.push(['in', c, v]); return b; };
-      b.is = (c, v) => { filters.push(['is', c, v]); return b; };
-      b.order = (c, o) => { q.order = [c, o]; return b; };
-      b.limit = (n) => { q.limit = n; return b; };
-      b.range = (a, z) => { q.limit = z - a + 1; return b; };
-      ['not', 'gte', 'lte', 'gt', 'lt', 'or', 'neq', 'ilike', 'like', 'contains', 'filter', 'match'].forEach((m) => { b[m] = () => b; });
-      b.update = (fields) => { q.update = fields; return b; };
-      ['insert', 'upsert', 'delete'].forEach((m) => { b[m] = (rows) => { writes.push({ table, op: m, rows }); q.write = rows || true; return b; }; });
-      const run = () => {
-        if (failTables.includes(table)) return { data: null, count: null, error: { message: `${table} down` } };
-        if (q.write) return { data: q.write === true ? [] : [].concat(q.write).map((r, i) => ({ id: `${table}-w${writes.length}-${i}`, ...r })), error: null };
-        let rows = (tables[table] || []).filter((r) => match(r, filters));
-        if (q.update) {
-          writes.push({ table, fields: q.update, filters: [...filters] });
-          rows.forEach((r) => Object.assign(r, q.update));
-          return { data: rows.map((r) => ({ id: r.id })), error: null };
-        }
-        if (q.head) return { data: null, count: rows.length, error: null };
-        if (q.order) {
-          const [c, o] = q.order;
-          rows = [...rows].sort((a, z) => (String(a[c]) < String(z[c]) ? -1 : 1) * (o && o.ascending === false ? -1 : 1));
-        }
-        if (q.limit != null) rows = rows.slice(0, q.limit);
-        return { data: rows, count: rows.length, error: null };
-      };
-      b.maybeSingle = async () => { const r = run(); return { data: (r.data || [])[0] || null, error: r.error || null }; };
-      b.single = b.maybeSingle;
-      b.then = (ok, ko) => Promise.resolve(run()).then(ok, ko);
-      return b;
-    },
+    tables, reads: d.reads, from: d.from, rpc: d.rpc,
+    get writes() { return d.writes.map((w) => (w.raw !== undefined ? { ...w, rows: w.raw } : w)); },
   };
 }
 
@@ -273,13 +234,13 @@ describe('a known child (a chat-joined row on this phone)', () => {
     } finally { await app.close(); }
   });
 
-  test('ON: the same ONE hub link, with the child words (stories, videos and quizzes — no retired door word)', async () => {
+  test('ON: the same ONE hub link, with the child words (stories, games and videos — no retired door word)', async () => {
     const app = await boot(worldOf({ users: [CHILD_USER()], students: [CHILD_ROW()], settings: ON }));
     try {
       const out = await app.text('/quiz');
       expect(ctas(out)).toHaveLength(1);
       expect(out[0].p.url).toMatch(/^https:\/\/portal\.example\/h\//);
-      expect(out[0].p.body).toBe('Your stories, videos and quizzes are here.');
+      expect(out[0].p.body).toBe('Your stories, games and videos are here.');
       expect(out[0].p.buttonText).toBe('Open');
     } finally { await app.close(); }
   });
