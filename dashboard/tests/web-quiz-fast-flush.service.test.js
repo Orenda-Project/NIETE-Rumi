@@ -137,7 +137,7 @@ describe('fast first page: GET /q/:code (renderQuizPage, a fresh profile phone)'
     srv = await start(build(bot.fetchImpl));
     await get(srv, '/q/UR12CD');
     const res = await get(srv, '/q/UR12CD');
-    expect(res.chunks[0]).toMatch(/<html lang="ur" dir="rtl" class="wq-ur2 wq-uf">/);
+    expect(res.chunks[0]).toMatch(/<html lang="ur" dir="rtl" class="wq-ur2">/);
     expect(res.chunks[0]).toMatch(/rel="preload" href="\/wq\/fonts\/wq-nastaliq-[0-9]+\.woff2" as="font"/);
     expect(res.body).not.toMatch(/h\.lang=/);
   });

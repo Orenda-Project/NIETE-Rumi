@@ -497,7 +497,7 @@ html[lang=ur] .wq-who .wq-kid{font-weight:700;line-height:1.7;font-size:16px}
 .wq-askon .wq-in{gap:4px;padding:10px 14px}
 html[lang=ur] .wq-askon .wq-name,html[lang=ur] .wq-askon .wq-praise{line-height:1.5;margin:0}
 
-/* ===== one Urdu face ===== web_quiz_fast on → <html class="wq-uf">: the plain look draws with the polished face ("WQ Nastaliq 2",
+/* ===== one Urdu face ===== web_quiz_one_face on → <html class="wq-uf">: the plain look draws with the polished face ("WQ Nastaliq 2",
    declared in the block below), the one face the head preloads, so a page never fetches wq-nastaliq-5 as well; the polished look
    already uses it. Switch off: no class, the cascade untouched. */
 html.wq-uf[lang=ur]{--fu:"WQ Nastaliq 2","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
