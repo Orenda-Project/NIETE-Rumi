@@ -50,6 +50,8 @@ const OLD = '55555555-5555-4555-8555-000000000003';     // an earlier record of 
 const DEV = 'dddddddddddddddddddddd';                   // the family phone's browser
 const FRESH = 'eeeeeeeeeeeeeeeeeeeeee';                 // a phone the link was forwarded to
 const chip = (id) => T.chipId(F.SC, id);
+// the hub's "this phone may name this child" key (web-quiz-hub-device kidKey)
+const kidKey = (id, d = DEV) => `wq:hub:kid:${require('crypto').createHash('sha256').update(`${id}|${d}`).digest('hex').slice(0, 32)}`;
 
 let db;
 function seed({ flag = 'v2', known = true, canon = false } = {}) {
@@ -288,22 +290,17 @@ describe('the class filter adds no serial wave', () => {
     expect(ids[0]).toBeGreaterThan(at('students'));
   });
 
-  test('the "may this phone name them" checks of the held children start together, not one after another', async () => {
+  test('the "may this phone name them" checks cost ONE quiz_sessions read however many children the phone holds', async () => {
     seed();
-    await homeOpened([F.kid(1)]);
-    await homeOpened([F.kid(2)]);
-    await homeOpened([SELF]);
-    const real = HubDevice.deviceMayName;
-    let inflight = 0;
-    let most = 0;
-    const spy = jest.spyOn(HubDevice, 'deviceMayName').mockImplementation(async (...a) => {
-      inflight += 1; most = Math.max(most, inflight);
-      try { await new Promise((r) => setImmediate(r)); return await real(...a); } finally { inflight -= 1; }
-    });
-    let r;
-    try { r = await known(); } finally { spy.mockRestore(); }
-    expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF), chip(F.kid(2)), chip(F.kid(1))]);
-    expect(most).toBe(3);
+    const ids = Array.from({ length: 8 }, (_, i) => `55555555-5555-4555-8555-0000000003${i}0`);
+    ids.forEach((id, i) => db.students.push({ id, student_name: `Held${i} Testwala`, list_id: null, is_active: true, status: 'active' }));
+    for (const id of ids) await homeOpened([id]);
+    const real = supabase.from;
+    const tables = [];
+    supabase.from = (t) => { tables.push(t); return real(t); };
+    try { await known(); } finally { supabase.from = real; }
+    // one for the eight checks together, one for the link's own "a session on this code" read
+    expect(tables.filter((t) => t === 'quiz_sessions')).toHaveLength(2);
   });
 
   test('a phone that holds nobody makes none of the filter\'s reads', async () => {
@@ -337,13 +334,11 @@ describe('the one id the child is known by', () => {
     seed();
     await homeOpened([SELF]);
     await homeOpened([SIB]);
-    const real = HubDevice.deviceMayName;
-    const spy = jest.spyOn(HubDevice, 'deviceMayName').mockImplementation(async (ids, d) => {
-      if (ids.includes(SIB)) throw new Error('down');
-      return real(ids, d);
-    });
+    const down = kidKey(SIB);
+    const real = redis.get.getMockImplementation();
+    redis.get.mockImplementation(async function get(k) { if (k === down) throw new Error('down'); return real.call(this, k); });
     let r;
-    try { r = await known(); } finally { spy.mockRestore(); }
+    try { r = await known(); } finally { redis.get.mockImplementation(real); }
     expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF)]);
   });
 
@@ -351,13 +346,10 @@ describe('the one id the child is known by', () => {
     seed();
     await homeOpened([SELF]);
     await homeOpened([SIB]);
-    const real = HubDevice.deviceMayName;
-    const spy = jest.spyOn(HubDevice, 'deviceMayName').mockImplementation(async (ids, d) => (ids.includes(SIB) ? false : real(ids, d)));
-    try {
-      const r = await known();
-      expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF)]);
-      await expect(play({ code: 'AB12CD', chip: chip(SIB), via: 'known', device_ref: DEV })).rejects.toMatchObject({ status: 404 });
-    } finally { spy.mockRestore(); }
+    redis._store.delete(kidKey(SIB));   // the phone's list still holds them; their own trust key is gone
+    const r = await known();
+    expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF)]);
+    await expect(play({ code: 'AB12CD', chip: chip(SIB), via: 'known', device_ref: DEV })).rejects.toMatchObject({ status: 404 });
   });
 
   test('an Urdu class link shows the name as written in Urdu', async () => {
@@ -389,6 +381,51 @@ describe('the one id the child is known by', () => {
     expect(r.kids.map((k) => k.chip)).toEqual([chip(F.kid(1))]);
     await play({ code: 'AB12CD', chip: chip(F.kid(1)), via: 'known', device_ref: DEV });
     expect(db.quiz_sessions.filter((x) => x.student_id === F.kid(1))).toHaveLength(1);
+  });
+});
+
+describe('the hub device module: one answer per child, all at once (deviceMayNameEach)', () => {
+  const OTHER = 'ffffffffffffffffffffff';   // another phone
+  test('each answer is the one deviceMayName gives that child alone', async () => {
+    seed();
+    await homeOpened([SIB]);                                  // trusted by a hub on this phone (Redis)
+    db.quiz_sessions.push({ id: 'qs-dev', student_id: F.kid(1), device_ref: DEV });     // played on this phone
+    db.quiz_sessions.push({ id: 'qs-oth', student_id: F.kid(2), device_ref: OTHER });   // played on another phone only
+    const groups = [[SIB], [F.kid(1)], [F.kid(2)], [SELF], [OLD, SELF], []];
+    const one = [];
+    for (const g of groups) one.push(await HubDevice.deviceMayName(g, DEV));
+    expect(one).toEqual([true, true, false, false, false, false]);
+    expect(await HubDevice.deviceMayNameEach(groups, DEV)).toEqual(one);
+  });
+
+  test('a child with many plays on this phone does not hide another child from the one read (it is cut at its limit)', async () => {
+    seed();
+    for (let i = 0; i < 60; i += 1) db.quiz_sessions.push({ id: `qs-many-${i}`, student_id: F.kid(1), device_ref: DEV });
+    db.quiz_sessions.push({ id: 'qs-once', student_id: F.kid(2), device_ref: DEV });
+    expect(await HubDevice.deviceMayNameEach([[F.kid(1)], [F.kid(2)], [SELF]], DEV)).toEqual([true, true, false]);
+  });
+
+  test('no device, a bad device, no children, or Redis down: every answer false, never a throw', async () => {
+    seed();
+    await homeOpened([SIB]);
+    expect(await HubDevice.deviceMayNameEach([[SIB]], undefined)).toEqual([false]);
+    expect(await HubDevice.deviceMayNameEach([[SIB]], 'not a device')).toEqual([false]);
+    expect(await HubDevice.deviceMayNameEach([], DEV)).toEqual([]);
+    redis._up = false;
+    expect(await HubDevice.deviceMayNameEach([[SIB], [SELF]], DEV)).toEqual([false, false]);
+  });
+
+  test('a read that throws, even before it is sent: false for every child, never a rejection', async () => {
+    seed();
+    await homeOpened([SIB]);
+    const real = supabase.from;
+    supabase.from = () => { throw new Error('boom'); };
+    try {
+      await expect(HubDevice.deviceMayNameEach([[SIB]], DEV)).resolves.toEqual([true]);   // Redis still answers
+      redis._up = false;
+      await expect(HubDevice.deviceMayNameEach([[SIB]], DEV)).resolves.toEqual([false]);
+      await expect(HubDevice.deviceMayName([SIB], DEV)).resolves.toBe(false);
+    } finally { supabase.from = real; }
   });
 });
 
