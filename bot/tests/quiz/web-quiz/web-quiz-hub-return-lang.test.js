@@ -140,7 +140,7 @@ describe('switch on: the home opens in the language the reply spoke', () => {
 
   test('the token carries a two-letter code only: never a name, never the phone', async () => {
     const { token } = await returnVisit(ON, 'ur');
-    expect(Object.keys(T.verify(token, 'h')).sort()).toEqual(['exp', 'ids', 'k', 'l']);
+    expect(Object.keys(T.verify(token, 'h'))).toEqual(['k', 'ids', 'l', 'exp']); // the order pinned: k, ids, l, exp
     const raw = Buffer.from(token.split('.')[0], 'base64url').toString('utf8');
     expect(raw).not.toContain('Zara');
     expect(raw).not.toContain(String(PHONE).replace(/\D/g, '').slice(-7));
@@ -320,4 +320,96 @@ describe('a child whose only quizzes are library lessons: the lesson\'s language
     expect(SQ.classLanguage([])).toBeNull();
     for (const x of [h, [{ lessonCode: true, language: 'en' }], [], null]) expect(SQ.classLanguage(x) || SQ.childLanguage(x)).toBe(SQ.childLanguage(x));
   });
+});
+
+describe('the one-door landing\'s server answer (destination): a known child\'s `next` carries the landing\'s language', () => {
+  const GoRoutes = require('../../../shared/services/first-touch/go.routes');
+  const Role = require('../../../shared/services/first-touch/role.service');
+  const tokenOf = (next) => /^\/h\/([^/?#]+)\?from=quiz$/.exec(next)[1];
+  const land = async (lang) => {
+    const spy = jest.spyOn(Role, 'resolveRole').mockResolvedValue({ side: 'child', src: 'chat', children: [KID], kids: [] });
+    try {
+      return await GoRoutes._destination({ userId: 'u-family', phoneNorm: '920000000000', p: { lang, n: 'n'.repeat(22) } });
+    } finally { spy.mockRestore(); }
+  };
+
+  test('switch on, an Urdu landing: child_home, the hub token carries l=ur', async () => {
+    seed(ON);
+    const d = await land('ur');
+    expect(d.how).toBe('child_home');
+    expect(T.verify(tokenOf(d.next), 'h')).toMatchObject({ ids: [KID], l: 'ur' });
+  });
+
+  test('switch on, a bilingual landing: no `l`', async () => {
+    seed(ON);
+    expect(T.verify(tokenOf((await land('bi')).next), 'h')).not.toHaveProperty('l');
+  });
+
+  test('GOLDEN: switch off, an Urdu landing: today\'s `next`, byte for byte', async () => {
+    const realNow = Date.now;
+    Date.now = () => NOW;
+    try {
+      seed(HUB);
+      expect((await land('ur')).next).toBe(`/h/${T.signHub([KID], 'one_door')}?from=quiz`);
+    } finally { Date.now = realNow; }
+  });
+});
+
+describe('GOLDEN: the shared switch-off matrix, end to end on the reply, the link and the page', () => {
+  const { OFF_VALUES, throwOn } = require('../../helpers/switch-off-matrix');
+  const { resolveUx } = require('../../../shared/config/ux-strings');
+  const Words = require('../../../shared/services/first-touch/one-door.strings');
+  const settingsFor = (value) => (value === null ? HUB : [...HUB, RET(value)]);
+
+  async function todayAndThen(prepare) {
+    const realNow = Date.now;
+    Date.now = () => NOW;
+    try {
+      redis._store.clear();
+      seed(HUB, { quizLang: 'en', lessonOnly: true });
+      const today = await Hub.hub(T.signHub([KID]), A);
+      const run = async (lessonOnly) => {
+        jest.clearAllMocks();
+        redis._store.clear();
+        prepare(lessonOnly);
+        expect(await SQ.open(PHONE, { language: 'ur' })).toBe(true);
+        return WhatsAppService.sendCtaUrl.mock.calls[0][1];
+      };
+      // a lessons-only phone (the reply's own switch read) and a no-quiz phone (the link's)
+      const lesson = await run(true);
+      expect([resolveUx('sqHubBody', { language: 'en' }), Words.str('od.child.body', 'en')]).toContain(lesson.body);
+      expect(lesson.url).toBe(`https://portal.example.test/h/${T.signHub([KID])}`);
+      expect(await Hub.hub(/\/h\/([^/?#]+)$/.exec(lesson.url)[1], A)).toEqual(today);
+      const none = await run(false);
+      expect(none.url).toBe(`https://portal.example.test/h/${T.signHub([KID])}`);
+      expect((await Hub.hub(/\/h\/([^/?#]+)$/.exec(none.url)[1], A)).lang).toBe('en');
+    } finally { Date.now = realNow; }
+  }
+
+  test.each(OFF_VALUES)('%s: today\'s reply, link and page', async (_label, value) => {
+    await todayAndThen((lessonOnly) => seed(settingsFor(value), lessonOnly ? { quizLang: 'en', lessonOnly: true } : {}));
+  });
+
+  test('the switch\'s own read throws: today\'s reply, link and page', async () => {
+    await todayAndThen((lessonOnly) => {
+      seed(ON, lessonOnly ? { quizLang: 'en', lessonOnly: true } : {});
+      supabase.from = throwOn(supabase.from, 'web_quiz_return_lang');
+    });
+  });
+});
+
+describe('open(): the switch is read only for a lessons-only phone', () => {
+  const R = require('../../../shared/services/quiz/web-quiz-return-lang');
+  const spyOpen = async (opts) => {
+    seed([], opts); // the hub off: open() alone, no link built
+    const spy = jest.spyOn(R, 'on');
+    try {
+      await SQ.open(PHONE, { language: 'ur' });
+      return spy.mock.calls.length;
+    } finally { spy.mockRestore(); }
+  };
+
+  test('a class quiz: not read', async () => { expect(await spyOpen({ quizLang: 'en' })).toBe(0); });
+  test('no quiz: not read', async () => { expect(await spyOpen({})).toBe(0); });
+  test('lessons only: read once', async () => { expect(await spyOpen({ quizLang: 'en', lessonOnly: true })).toBe(1); });
 });
