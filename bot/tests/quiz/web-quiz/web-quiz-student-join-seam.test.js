@@ -734,14 +734,14 @@ describe('the nonce map', () => {
 });
 
 // last in the file: it loads a fresh module registry (the persona module mocked), wired to the same fake database
-describe('the sandbox walk-through persona (module absent = today)', () => {
-  test('a teacher\'s phone playing a new family (as: fresh) joins and binds like a family; absent module → refused as today', async () => {
+describe('the sandbox walk-through persona (switch off = today)', () => {
+  test('a teacher\'s phone playing a new family (as: fresh) joins and binds like a family; with no persona → refused as today', async () => {
     seed({ user: TEACHER_USER });
     const l1 = await landing(TEACHER_USER);
     expect((await Join.join({ t: l1.t, grade: 3, name: 'Sara', device: DEVICE })).refused).toBe('teacher_phone');
     expect(writes('students')).toHaveLength(0);
     jest.resetModules();
-    jest.doMock('../../../shared/services/first-touch/walk-persona', () => ({ get: async () => ({ as: 'fresh', since: Date.now() }) }), { virtual: true });
+    jest.doMock('../../../shared/services/first-touch/walk-persona', () => ({ get: async () => ({ as: 'fresh', since: Date.now() }) }));
     const sb = require('../../../shared/config/supabase');
     sb.from = supabase.from; sb.rpc = supabase.rpc;
     const J2 = require('../../../shared/services/quiz/web-quiz-student-join');
