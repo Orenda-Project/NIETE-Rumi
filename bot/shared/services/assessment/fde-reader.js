@@ -301,9 +301,12 @@ function parseFlags(reply, labels, only = null, blocks = null, opts = {}) {
       // them, and each must be printed under a label `by` names. A quote that runs a Q1 stem into its
       // key («… کس ادارے کے پاس ہے؟ (key: مقننہ)») is read a piece at a time: the options print between
       // them, and the reader's own «key:» or «…» is not on the paper.
-      const quotes = (opts.split ? evidence.split(/\s*\|\s*/).flatMap((q) => q.split(/[؟?۔()…]+|\.{2,}|\b(?:key|answer)\s*:/i)) : [evidence]).map(fold).filter(Boolean);
-      const real = quotes.length > 0 && quotes.some((q) => q.trim().split(' ').some((w) => w.length >= QUOTE_WORD))
-        && (opts.split || quotes.every((q) => q.trim().split(' ').some((w) => w.length >= QUOTE_WORD)));
+      const named3 = (q) => q.trim().split(' ').some((w) => w.length >= QUOTE_WORD);
+      const segments = opts.split ? evidence.split(/\s*\|\s*/) : [evidence];
+      const quotes = (opts.split ? segments.flatMap((q) => q.split(/[؟?۔()…]+|\.{2,}|\b(?:key|answer)\s*:/i)) : segments).map(fold).filter(Boolean);
+      // Every quote the reader separated names something: «… | کا» is one fact, not two.
+      const real = quotes.length > 0 && segments.every((q) => named3(fold(q)))
+        && (opts.split ? quotes.some(named3) : quotes.every(named3));
       const named = giversOf(by, blocks).filter((label) => label !== item);
       const placed = quotes.map((q) => named.filter((label) => blocks.get(label).includes(q)));
       const givers = [...new Set(placed.flat())];

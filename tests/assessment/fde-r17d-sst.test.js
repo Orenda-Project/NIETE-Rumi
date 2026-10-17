@@ -113,6 +113,13 @@ describe('1. the reader names the composite give-away: the facts a C/D answer ne
     expect(prompt).toContain('an item Section A answers only in part');
   });
 
+  test('a two-quote flag whose second quote names nothing («… | کا») is dropped', () => {
+    const { prompt, labels, blocks, split } = Reader.buildReaderPrompt(exam, SST);
+    const item = labelOf(prompt, q5.question);
+    const reply = { candidates: [{ item, by: 'Q1.1, Q1.11', evidence: 'قوانین بنانے کا اختیار | کا', reason: 'x', given_away: true }] };
+    expect(Reader.parseFlags(reply, labels, null, blocks, { split })).toEqual([]);
+  });
+
   test('a composite flag with one quote that is not on the paper is still dropped', () => {
     const { prompt, labels, blocks, split } = Reader.buildReaderPrompt(exam, SST);
     const item = labelOf(prompt, q5.question);
