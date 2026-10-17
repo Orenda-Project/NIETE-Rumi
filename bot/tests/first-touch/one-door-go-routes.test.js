@@ -573,3 +573,49 @@ describe('the sandbox walk-through hooks (the module present; its own switch dec
     });
   });
 });
+
+describe('the door\'s v3 lines join the sitting (web_quiz_events_v3)', () => {
+  const KEY = 'k'.repeat(32);
+  const v3Lines = (name) => logEvent.mock.calls.filter(([n]) => n === `web_quiz.${name}`).map(([, d]) => d);
+  let was;
+  beforeEach(() => { was = process.env.WEB_QUIZ_KID_KEY; process.env.WEB_QUIZ_KID_KEY = KEY; });
+  afterEach(() => { if (was === undefined) delete process.env.WEB_QUIZ_KID_KEY; else process.env.WEB_QUIZ_KID_KEY = was; });
+  const eventsOn = () => { mockDb.tables.app_settings.push({ key: 'web_quiz_events_v3', value: 'true' }); OneDoorFlags._resetCache(); };
+
+  test('on: role_asked and role_answered carry kid_v and ONE sitting id keyed by this phone, no raw id', async () => {
+    world();
+    eventsOn();
+    const t = await mint(UNKNOWN, PH.unknown);
+    await post('who', { t });
+    await post('role', { t, side: 'child' });
+    const [asked] = v3Lines('role_asked');
+    const [answered] = v3Lines('role_answered');
+    expect(asked).toMatchObject({ w: 's', ev_v: 3, v3: 1, kid: null, sit: expect.stringMatching(/^[a-z2-9]{10}$/) });
+    expect(answered).toMatchObject({ w: 's', ev_v: 3, v3: 1, kid: null, role: 'student', sit: asked.sit });
+    [asked, answered].forEach((d) => {
+      expect(d).toHaveProperty('kid_v');
+      const s = JSON.stringify(d);
+      expect(s).not.toContain('u-unknown');
+      expect(s).not.toContain(PH.unknown);
+      expect(s).not.toContain(DEV);
+    });
+  });
+
+  test('on: a stale link\'s go_stale line carries the sitting too', async () => {
+    world();
+    eventsOn();
+    const old = GoToken.signGo({ uid: 'u-unknown', side: 'unknown', n: 'm'.repeat(22), lang: 'bi', src: 'typed' }, { now: Date.now() - 25 * 3600 * 1000 });
+    await land(old);
+    expect(v3Lines('go_stale')).toEqual([expect.objectContaining({ ev_v: 3, kid: null, why: 'expired', sit: expect.stringMatching(/^[a-z2-9]{10}$/) })]);
+  });
+
+  test('off: no v3 line at all (today)', async () => {
+    world();
+    const t = await mint(UNKNOWN, PH.unknown);
+    await post('who', { t });
+    await post('role', { t, side: 'child' });
+    const old = GoToken.signGo({ uid: 'u-unknown', side: 'unknown', n: 'm'.repeat(22), lang: 'bi', src: 'typed' }, { now: Date.now() - 25 * 3600 * 1000 });
+    await land(old);
+    expect(['role_asked', 'role_answered', 'go_stale'].flatMap(v3Lines)).toEqual([]);
+  });
+});
