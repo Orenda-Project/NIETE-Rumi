@@ -625,6 +625,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (ask !== 'off') out.invite_ask = ask;
   // An old, finished class link opens the child's hub (web-quiz-link-home.js): named only when on, so a switched-off payload is today's.
   if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
+  // A lesson video under app_settings web_quiz_videos_v3: the page opened from the child home's Videos door puts the play first (named only when on).
+  if (video && video.url && await require('./web-quiz-library-flag').videosV3On()) out.videos_v3 = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
