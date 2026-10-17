@@ -346,7 +346,7 @@ class ElevenLabsService {
         voiceId,
         error: error.message,
         status: error.response?.status
-      });
+      }, 'error');
       throw error;
     }
   }
