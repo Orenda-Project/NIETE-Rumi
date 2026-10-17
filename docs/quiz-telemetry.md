@@ -76,6 +76,14 @@ cleanly — the fields simply come out `null` on the matching `offer_answered`.
 `video_quiz.invite_result_sent`, `video_quiz.share_code_minted`,
 `video_quiz.share_code_opened`, `video_quiz.join_flow_completed`.
 
+`video_quiz.join_flow_completed` (`handleJoinFlowReply`, after the child's quiz has
+started) carries `kid` and `qk` only: `kid` is the child's keyed reference
+(`web-quiz-kid.js` `kid()` of the merge-folded id from
+`web-quiz-identity-roster.canonicalStudentId`, else of the child's own id; `null`
+with no child row), `qk` the quiz's key (`qk(quizId)`). It no longer carries
+`shareCodeId`, `quizId` or `studentId`: a quiz id or a share code id is never
+logged beside a kid. Count joins per quiz by `qk`, per child by `kid`.
+
 **Known gap, not fixed here**: `student_video.feedback_prompt.scheduled`
 (the survey-scheduling event, distinct from `feedback_answered` above) logs a
 raw `phone` field. It predates this funnel and was left alone per the

@@ -1772,13 +1772,6 @@
    "1028 studentId: key"
   ]
  },
- "bot/shared/services/quiz/video-quiz-share.service.js": {
-  "n": 1,
-  "area": "quiz",
-  "at": [
-   "565 studentId: student?.id || null"
-  ]
- },
  "bot/shared/services/quiz/video-quiz.service.js": {
   "n": 2,
   "area": "quiz",
