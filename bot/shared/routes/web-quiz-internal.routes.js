@@ -291,5 +291,9 @@ router.post('/teacher/queue/link-codes', handle((req) => JoinQueue().linkClassCo
 // ── standing class link (web_quiz_class_link; off → every /cl answer is 404 not_found) ──
 router.use('/cl', require('./web-quiz-class-link.routes'));
 // ── end standing class link ──
+// ── GET /edge: the page switches a fresh portal process would learn from its first payload (web-quiz-edge-learn.js;
+// web_quiz_edge_learn, off -> {learn:false}, else {learn:true, fast, brand, rt, ui?, one_face?}) ──
+router.get('/edge', handle(() => require('../services/quiz/web-quiz-edge-learn').answer()));
+// ── end GET /edge ──
 
 module.exports = router;

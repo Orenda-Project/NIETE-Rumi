@@ -761,6 +761,10 @@ function createWebQuizRouter(opts = {}) {
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl, logEvent, now, timeoutMs: opts.botTimeoutMs || BOT_TIMEOUT_MS });
   const ogKnown = Preview.ttlCache({ max: 2000, now });
   const artKept = Preview.ttlCache({ max: 200, now });
+  // A fresh process asks the bot for the switches it would learn from a first payload (web_quiz_edge_learn, read by the bot;
+  // lib/edge-learn.js): in the background, every 60 s; a payload still wins. A test's own fake bot opts in with edgeLearn.
+  const edge = (opts.edgeLearn != null ? opts.edgeLearn : !opts.fetchImpl) && botUrl && apiKey ? require('../lib/edge-learn').startEdgeLearn({ callBot, timers: opts.edgeLearn && opts.edgeLearn.timers,
+    apply: (b) => { if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand; if (typeof b.rt === 'boolean') lastRt = b.rt; lastUi = shellUi(b); lastFast = b.fast === true; } }) : null;
 
   // A child page on any host but the canonical one goes there first (one origin = one remembered child).
   router.use(createCanonicalRedirect(opts.canonicalBase != null ? opts.canonicalBase : process.env.WEB_QUIZ_BASE_URL));
@@ -900,6 +904,7 @@ function createWebQuizRouter(opts = {}) {
       return res.status(404).type('html').send(renderClosedPage({ lang: out.body.quiz && out.body.quiz.lang === 'ur' ? 'ur' : 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     if (out.status === 200 && out.body && out.body.quiz) {
+      if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
@@ -963,6 +968,7 @@ function createWebQuizRouter(opts = {}) {
     }
     if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return wire.again();
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
+      if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
