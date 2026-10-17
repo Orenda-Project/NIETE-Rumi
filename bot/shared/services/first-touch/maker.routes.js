@@ -92,8 +92,16 @@ function headers(res, csp) {
   });
 }
 
-function messagePage(res, status, id, lang) {
-  const built = Page.buildMessagePage({ lang, id });
+/**
+ * mk.stale / mk.error. Switch web_quiz_closed_way_back ON → never a dead end: ONE tap back to WhatsApp (the signed go.back
+ * sentence; wa.me/<bot>?text=quiz, or whatsapp://send?text=quiz with no number). OFF (or a failed read) → today's page.
+ */
+async function messagePage(res, status, id, lang) {
+  let tap = null; // in the page's own language (maker.page: 'bi' → Urdu)
+  try {
+    if ((await require('./closed-way-back.flags').on()) === true) tap = require('./chat-tap').backTap(clampLanguage(lang === 'bi' ? 'ur' : lang), Share.botNumber());
+  } catch (_) { tap = null; }
+  const built = Page.buildMessagePage({ lang, id, tap });
   headers(res, built.csp);
   return res.status(status).type('html').send(built.html);
 }
@@ -114,7 +122,7 @@ const handlePage = (fn) => async (req, res) => {
     await fn(req, res);
   } catch (err) {
     logToFile('❌ maker page route failed', { error: err && err.message }, 'error');
-    if (!res.headersSent) messagePage(res, 200, 'mk.error', clampLanguage(asked(req.query && req.query.lang)));
+    if (!res.headersSent) await messagePage(res, 200, 'mk.error', clampLanguage(asked(req.query && req.query.lang)));
   }
 };
 /** The JSON routes' wrapper: a throw → 503 {error:'mk.error'}. */

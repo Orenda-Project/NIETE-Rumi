@@ -88,18 +88,26 @@ function createRouter(deps = null) {
       'X-Content-Type-Options': 'nosniff', ...(csp ? { 'Content-Security-Policy': csp } : {}),
     });
   }
-  function messagePage(res, status, id, lang) {
-    // one tap back to the chat on every stale / error page (wa.me/<bot>?text=quiz); none when the number is unknown
-    const href = require('./teacher-home.copy').chatLink();
-    const l = lang === 'en' ? 'en' : 'ur';
-    const built = require('./maker.page').buildMessagePage({ lang, id, tap: href ? { href, text: require('./teacher-home.strings').str('th.open.wa', l) } : null });
+  async function messagePage(res, status, id, lang) {
+    // one tap back to the chat on every stale / error page (wa.me/<bot>?text=quiz); none when the number is unknown —
+    // with web_quiz_closed_way_back ON always ONE tap: the signed go.back sentence, wa.me/<bot>?text=quiz or whatsapp://send?text=quiz
+    let tap = null;
+    try {
+      if ((await require('./closed-way-back.flags').on()) === true) tap = require('./chat-tap').backTap(clampLanguage(lang === 'bi' ? 'ur' : lang), botDigits());
+    } catch (_) { tap = null; }
+    if (!tap) {
+      const href = require('./teacher-home.copy').chatLink();
+      const l = lang === 'en' ? 'en' : 'ur';
+      tap = href ? { href, text: require('./teacher-home.strings').str('th.open.wa', l) } : null;
+    }
+    const built = require('./maker.page').buildMessagePage({ lang, id, tap });
     headers(res, built.csp);
     return res.status(status).type('html').send(built.html);
   }
   const handlePage = (fn) => async (req, res) => {
     try { await fn(req, res); } catch (err) {
       logToFile('❌ teacher home page failed', { error: err && err.message }, 'error');
-      if (!res.headersSent) messagePage(res, 200, 'mk.error', clampLanguage(asked(req.query && req.query.lang)));
+      if (!res.headersSent) await messagePage(res, 200, 'mk.error', clampLanguage(asked(req.query && req.query.lang)));
     }
   };
   const handleJson = (fn) => async (req, res) => {
