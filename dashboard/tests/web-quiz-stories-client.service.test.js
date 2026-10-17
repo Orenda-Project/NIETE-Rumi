@@ -361,6 +361,41 @@ async function openReader(e, over = {}) {
   return root;
 }
 function toMic(e, root) { fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onEnd(); fire(root, 'main'); }
+describe('the voice player comes with the book (the hub page never loads it)', () => {
+  // env() puts a WQReadAlong stub on the page; these tests take it off and hand it back only when the reader fetches it
+  const without = (opt = {}) => {
+    let RA = null;
+    const e = env({ ...opt, onLoad: (w) => { if (RA && !w.WQReadAlong) w.WQReadAlong = RA; } });
+    RA = e.win.WQReadAlong; delete e.win.WQReadAlong;
+    return e;
+  };
+  const scripts = (e, rx) => e.calls.loaded.filter((x) => x.tag === 'script' && rx.test(x.src)).map((x) => x.src);
+  test('no player on the page: the reader fetches wq-readalong.js once, at its own ?v=, and the page has its voice (Listen, one player)', async () => {
+    const e = without(); const root = await openReader(e);
+    expect(scripts(e, /wq-readalong\.js/)).toEqual(['/wq/wq-readalong.js?v=abc123']);
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    expect(e.calls.ra).toHaveLength(1);
+    e.S.open('b-1', e.ctx({ root })); await flush();
+    expect(scripts(e, /wq-readalong\.js/)).toHaveLength(1);
+  });
+  test('the player already on the page: nothing more is fetched', async () => {
+    const e = env(); await openReader(e);
+    expect(scripts(e, /wq-readalong\.js/)).toHaveLength(0);
+  });
+  test('the player cannot load (offline): the book still opens, without a voice, never stuck on the wait screen', async () => {
+    const e = without(); e.win.__noRA = true;
+    const root = fakeEl('root');
+    // the script tag is added but never answers; the reader gives up after its 8 s wait
+    e.calls.loaded.length = 0;
+    const realAppend = e.doc.head.appendChild; e.doc.head.appendChild = (x) => { e.calls.loaded.push(x); };
+    e.S.open('b-1', e.ctx({ root })); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-wait');
+    e.advance(8000); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+    expect(root.querySelector('[data-main]').textContent).not.toBe('Listen');
+    e.doc.head.appendChild = realAppend;
+  });
+});
 describe('the reader', () => {
   test('page 1: the picture, one big button, ONE player (overlay) on the print; a zoomable page shows no band', async () => {
     const e = env(); const root = await openReader(e);

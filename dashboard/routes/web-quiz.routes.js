@@ -170,6 +170,11 @@ function assetVersion() {
   for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
+  // The stories reader (loaded by the home and the hub at this ?v=), its lazy questions file and the voice player it brings
+  // (both at the reader's ?v=, this one): a reader-only change busts a phone's year-long cache too.
+  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js', 'wq-readalong.js']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
   return h.digest('hex').slice(0, 10);
 }
 

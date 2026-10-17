@@ -292,6 +292,14 @@
     qw = [cb];
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
+  // the voice player comes with the first book (nothing else loads it); 8 s, else no voice
+  var pw = null;
+  function withRA(cb) {
+    if (W.WQReadAlong) return cb();
+    if (pw) return pw.push(cb);
+    pw = [cb];
+    load('wq-readalong.js', 0, function () { var w = pw; pw = null; w.forEach(function (f) { f(); }); });
+  }
 
   function reader(id, ctx, root) {
     var C = clockOf(ctx), tch = ctx.role === 'teacher', R = { id: id, root: root, ctx: ctx, C: C, tch: tch, pl: null, lr: null, poll: null, au: null };
@@ -312,11 +320,12 @@
     function oops() { paint(retryHtml(L, ic(t, 'back', t.back, '‹'))); }
     function load(q) {
       wait();
+      withRA(function () {});
       (cache[id] && !tch ? Promise.resolve({ ok: true, body: cache[id] }) : req('GET', bookUrl())).then(function (r) {
         if (cur !== R) return;
         if (r.status === 404) return paint(kind('stories-off', L, t.off, '<button class="wqs-main" data-primary data-home data-tap="home">' + esc(t.home) + '</button>'));
         if (!r.ok) return oops();
-        start(r.body, q);
+        withRA(function () { if (cur === R) start(r.body, q); });
       }, function () { if (cur === R) oops(); });
     }
     function start(bk, q) {
