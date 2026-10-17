@@ -289,10 +289,11 @@
   // goes — #after/<vid> the quiz after it (minted on the tap), #watch/<vid> another lesson here, another #hash of this
   // page, or a /path of this site. Anything else (no title, another site) is ignored and today's rule stands.
   // The server's offer words for next_shown / next_tap (EVENTS_V3 §2), so a ranked tile joins its next_set: only short
-  // plain strings, only the keys the relay keeps; `source` is the slot's own (ranked | pinned), never invented.
+  // plain strings, only the keys the relay keeps; `source` is the server's own (pinned | ranked | fallback: the control
+  // arm), anything else reads ranked.
   var JOIN = ['offer', 'rank_src', 'arm', 'score_v', 'id'];
   function joinOf(n) {
-    var j = { source: n.source === 'pinned' ? 'pinned' : 'ranked' };
+    var j = { source: /^(pinned|ranked|fallback)$/.test(n.source) ? n.source : 'ranked' };
     JOIN.forEach(function (k) { if (typeof n[k] === 'string' && /^[A-Za-z0-9._:-]{1,64}$/.test(n[k])) j[k] = n[k]; });
     return j;
   }

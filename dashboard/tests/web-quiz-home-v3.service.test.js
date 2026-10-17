@@ -342,6 +342,17 @@ describe('events: home_view on every home render; the Next tile carries the rank
     expect(p.evs.find((e) => e[0] === 'home_view')[1]).toEqual({ src: 'home' });
     expect(p.evs.find((e) => e[0] === 'next_shown')[1]).not.toHaveProperty('arm');
   });
+  test('the control arm\'s tile (server source fallback) logs source fallback on next_shown, never ranked; no source = ranked as before', () => {
+    const p = page();
+    p.mount({ ...HOME, next: { kind: 'story', href: '/c/x?kid=k', title: 'Read', arm: 'ctrl', offer: 'o-1', rank_src: 'ctrl', source: 'fallback' } });
+    expect(p.evs.find((e) => e[0] === 'next_shown')[1]).toMatchObject({ ctx: 'home', pos: 0, source: 'fallback', arm: 'ctrl', rank_src: 'ctrl' });
+    const q = page();
+    q.mount({ ...HOME, next: { kind: 'story', href: '/c/x?kid=k', title: 'Read', source: 'pinned' } });
+    expect(q.evs.find((e) => e[0] === 'next_shown')[1].source).toBe('pinned');
+    const r = page();
+    r.mount({ ...HOME, next: { kind: 'story', href: '/c/x?kid=k', title: 'Read', source: '<x>' } });
+    expect(r.evs.find((e) => e[0] === 'next_shown')[1].source).toBe('ranked');
+  });
   test('a door screen is not a home render', () => {
     const p = page({ hash: '#games' }); p.mount(HOME);
     expect(p.evs.map((e) => e[0])).not.toContain('home_view');
