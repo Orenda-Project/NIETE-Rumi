@@ -362,7 +362,7 @@
   }
   // The jar opens Jugnu's Book (wq-book.js); Back returns to the home.
   function book(root, B, ctx) {
-    var open = function () { if (window.WQBOOK) window.WQBOOK.open({ root: root, token: ctx.token, kid: B.kid, lang: langOf(ctx), ev: ctx.ev, back: function () { mount(root, B, ctx); } }); };
+    var open = function () { if (window.WQBOOK) window.WQBOOK.open({ root: root, token: ctx.token, kid: B.kid, lang: langOf(ctx), v3: true, ev: ctx.ev, back: function () { mount(root, B, ctx); } }); };
     if (window.WQBOOK) return open();
     loadOnce('wq-book', open, 'wq-bk-js');
   }

@@ -9,6 +9,7 @@
     en: {
       lanternTrailOne: 'A game is waiting for you on the Trail.',
       lanternTrailMany: 'Games are waiting for you on the Trail.',
+      lanternGameOne: 'A game is waiting for you.', lanternGameMany: 'Games are waiting for you.',
       lanternNewStory: function (title) { return 'A new story is here: ' + title; },
       // A tile's story title as the deck's {title} places it.
       tileTitle: function (title) { return title; },
@@ -22,6 +23,7 @@
     ur: {
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔',
       lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
+      lanternGameOne: 'ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternGameMany: 'کچھ کھیل آپ کا انتظار کر رہے ہیں۔',
       lanternNewStory: function (title) { return 'ایک نئی کہانی آ گئی ہے: ⁨' + title + '⁩'; },
       tileTitle: function (title) { return '⁨' + title + '⁩'; },
       lanternTomorrow: 'کل نئی کہانی آئے گی۔',
@@ -73,7 +75,8 @@
     var x = B.play.lantern;
     if (!x || !x.kind) return null;
     var line = null; var dr = null; var nx = null; var href = chHref;
-    if (x.kind === 'trail') { line = Number(x.stops) > 1 ? L.lanternTrailMany : L.lanternTrailOne; dr = 'next'; nx = 'trail'; }
+    // the hub a v3 home falls back to (web_quiz_home_v3 on, its page failed to load) says "games", never the Trail
+    if (x.kind === 'trail') { line = Number(x.stops) > 1 ? (B.home_v3 ? L.lanternGameMany : L.lanternTrailMany) : (B.home_v3 ? L.lanternGameOne : L.lanternTrailOne); dr = 'next'; nx = 'trail'; }
     else if (x.kind === 'story' && x.title) {
       line = L.lanternNewStory(x.title); dr = 'next'; nx = 'story';
       if (x.pid) href = chHref + '&room=story&pid=' + encodeURIComponent(x.pid);
