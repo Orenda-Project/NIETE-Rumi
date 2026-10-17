@@ -212,3 +212,79 @@ describe('golden: no VALUE (absent, or not an id) — both readers answer exactl
     expect(fake.db.quiz_share_codes.map((x) => x.class_id)).toEqual([C1, C1, C1, C1, C1]);
   });
 });
+
+describe('the VALUE set: the exclusion fails closed', () => {
+  // a chain of n codes of the root teacher, each under the one before, the first under `top`; → the deepest code's id
+  const chain = (top, n, tag) => {
+    let parent = top;
+    for (let i = 1; i <= n; i += 1) {
+      const id = `3${tag}000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+      fake.db.quiz_share_codes.push({ id, teacher_user_id: T1, class_id: null, parent_share_code_id: parent, invited_by_student_id: w(9) });
+      parent = id;
+    }
+    return parent;
+  };
+  const playOn = (code) => {
+    fake.db.students.push(watchKid(w(8), 'Hamza'));
+    fake.db.quiz_sessions.push(onWatch('w8', w(8), code, { parent_phone: P(28), device_ref: 'dev-28' }));
+  };
+  const ownCodesLinked = async (n) => {
+    expect(await Queue.linkClassCodes({ teacherUserId: T1, classId: C1 })).toEqual({ linked: n });
+    return fake.db.quiz_share_codes.filter((x) => x.class_id).map((x) => x.id);
+  };
+
+  test('a friend\'s friend\'s friend code (three codes below a watch child\'s) is out: the walk itself, not the query, drops it', async () => {
+    seed({ value: ROOT });
+    playOn(chain(W1, 3, 'b'));
+    expect(await Queue.computeCandidates(T1)).toEqual(OWN_ROWS);
+    expect(await ownCodesLinked(1)).toEqual([SC1]);
+  });
+
+  test('a class code\'s own chain four codes deep stays the teacher\'s: the walk follows it to its top, it is not cut short', async () => {
+    seed({ value: ROOT });
+    const deep = chain(SC1, 4, 'd');
+    Object.assign(fake.db.quiz_sessions.find((x) => x.id === 's7'), { quiz_id: QV, share_code_id: deep });
+    expect(await Queue.computeCandidates(T1)).toEqual(OWN_ROWS);
+    expect((await ownCodesLinked(5)).sort()).toEqual([SC1, ...fake.db.quiz_share_codes.filter((x) => x.id.startsWith('3d')).map((x) => x.id)].sort());
+  });
+
+  test('a chain deeper than the walk\'s cap is out, not taken for the teacher\'s own', async () => {
+    seed({ value: ROOT });
+    playOn(chain(W1, 60, 'c'));
+    expect(await Queue.computeCandidates(T1)).toEqual(OWN_ROWS);
+    expect(await ownCodesLinked(1)).toEqual([SC1]);
+  });
+
+  test('a parent chain that loops on itself is out', async () => {
+    seed({ value: ROOT });
+    const A = '30000000-0000-4000-8000-0000000000e1';
+    const B = '30000000-0000-4000-8000-0000000000e2';
+    fake.db.quiz_share_codes.push(
+      { id: A, teacher_user_id: T1, class_id: null, parent_share_code_id: B, invited_by_student_id: w(9) },
+      { id: B, teacher_user_id: T1, class_id: null, parent_share_code_id: A, invited_by_student_id: w(9) },
+    );
+    playOn(A);
+    expect(await Queue.computeCandidates(T1)).toEqual(OWN_ROWS);
+    expect(await ownCodesLinked(1)).toEqual([SC1]);
+  });
+
+  test('the VALUE unreadable: the queue is empty, nothing is joined, no code is linked (the report still reads on, as today)', async () => {
+    seed({ value: ROOT });
+    const from = fake.from;
+    supabase.from = (table) => {
+      const q = from(table);
+      if (table !== 'app_settings') return q;
+      const eq = q.eq.bind(q);
+      q.eq = (col, v) => (col === 'key' && v === 'web_quiz_watch_root'
+        ? { maybeSingle: async () => ({ data: null, error: { message: 'read failed' } }) } : eq(col, v));
+      return q;
+    };
+    expect(await Queue.computeCandidates(T1)).toEqual([]);
+    const job = await Queue.runBackwardJoin({ dryRun: false });
+    expect(job.counts.joined).toBe(0);
+    expect(fake.db.students.filter((s) => s.merged_into)).toEqual([]);
+    expect(await Queue.linkClassCodes({ teacherUserId: T1, classId: C1 })).toEqual({ linked: 0, reason: 'failed' });
+    expect(fake.db.quiz_share_codes.filter((x) => x.class_id)).toEqual([]);
+    expect(await require('../../../shared/services/quiz/teacher-report.data').watchRootId()).toBeNull();
+  });
+});
