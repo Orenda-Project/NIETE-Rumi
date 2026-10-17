@@ -241,8 +241,9 @@ describe.each([['a child on a class list', 'class', false], ['a loose child', 'l
       // OFF(head) <= OFF(base)
       expect(off.warm.waves).toBeLessThanOrEqual(b.warm);
       expect(off.stale.waves).toBeLessThanOrEqual(b.stale);
-      // warm: no settings read at all of its own; stale: at most its own row and the adventure look's
-      // (web_quiz_adventure_look, the same never-waited shape), each read in the background beside the hub's first wave
+      // warm: no settings read at all of its own; stale: at most its own row and the one button system's
+      // (web_quiz_one_button, the same never-waited shape), each read in the background beside the hub's first wave.
+      // The adventure look adds none: it is not read while the one button system is off.
       expect(settingsOf(off.warm)).toBeLessThanOrEqual(b.settingsWarm);
       expect(settingsOf(off.stale)).toBeLessThanOrEqual(b.settingsStale + 2);
     });

@@ -13,6 +13,8 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+// The look only re-colours the one button system's buttons, so it is on only when that switch is on too.
+const OneButton = require('./web-quiz-one-button');
 
 const KEY = 'web_quiz_adventure_look';
 const FIELD = 'adv';
@@ -62,11 +64,12 @@ async function flag(now = Date.now()) {
 }
 
 /**
- * A page answer with the switch's field: `adv: true` only when on, nothing added when off. The switch is looked
- * at when this is called (before the answer is awaited), so its background refresh starts beside the page's own reads.
+ * A page answer with the switch's field: `adv: true` only when on AND the one button system is on, nothing added
+ * otherwise (with web_quiz_one_button off the look's own row is not even read). The switches are looked at when this
+ * is called (before the answer is awaited), so a background refresh starts beside the page's own reads.
  */
 function carry(answerP) {
-  const one = on();
+  const one = OneButton.on() && on();
   return Promise.resolve(answerP).then((out) => (one && out && typeof out === 'object' && !Array.isArray(out) ? Object.assign(out, { [FIELD]: true }) : out));
 }
 

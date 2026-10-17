@@ -13,6 +13,7 @@ jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const KEY = 'web_quiz_adventure_look';
+const ONE_BUTTON = 'web_quiz_one_button';
 let rows = [];
 let fail = false;
 let settingsReads = 0;
@@ -162,16 +163,37 @@ async function serve(fn) {
 const GOLDEN = { quiz: JSON.stringify(QUIZ), hubGet: JSON.stringify(HUB), hubPost: JSON.stringify(HUB), menu: JSON.stringify(MENU) };
 
 describe('the routes', () => {
-  test('on: the quiz, hub (GET and POST) and challenge menu answers say adv: true, and nothing else changes', async () => {
-    rows = [{ key: KEY, value: true }];
+  test('on (with the one button system on): the quiz, hub (GET and POST) and challenge menu answers say adv: true, and nothing else changes', async () => {
+    rows = [{ key: KEY, value: true }, { key: ONE_BUTTON, value: true }];
     await AdvLook.flag();
+    await require('../../../shared/services/quiz/web-quiz-one-button').flag();
     await serve(async (ask) => {
       const out = await ask();
       for (const k of Object.keys(GOLDEN)) {
         expect(JSON.parse(out[k]).adv).toBe(true);
-        expect(out[k].replace(/,"adv":true/, '')).toBe(GOLDEN[k]);
+        expect(JSON.parse(out[k]).one_button).toBe(true);
+        expect(out[k].replace(/,"one_button":true/, '').replace(/,"adv":true/, '')).toBe(GOLDEN[k]);
       }
     });
+  });
+
+  test('on, but the one button system off: every answer byte for byte the OFF golden (the look never paints the old buttons)', async () => {
+    rows = [{ key: KEY, value: true }, { key: ONE_BUTTON, value: false }];
+    await AdvLook.flag();
+    await require('../../../shared/services/quiz/web-quiz-one-button').flag();
+    await serve(async (ask) => {
+      expect(await ask()).toEqual(GOLDEN);
+    });
+  });
+
+  test('the one button system off: the look adds no settings read of its own to a page', async () => {
+    rows = [{ key: KEY, value: true }];
+    await require('../../../shared/services/quiz/web-quiz-one-button').flag();
+    await serve(async (ask) => {
+      await ask();
+      await ask();
+    });
+    expect(settingsReads).toBe(0);
   });
 
   test.each([...OFF_VALUES, ['no row', undefined], ['a failed read', 'FAIL']])('%s: every answer byte for byte the OFF golden', async (_n, value) => {
@@ -184,9 +206,10 @@ describe('the routes', () => {
   });
 
   test('a cold switch never holds the answer: the first answers are today\'s while the read runs behind them', async () => {
-    rows = [{ key: KEY, value: true }];
+    rows = [{ key: KEY, value: true }, { key: ONE_BUTTON, value: true }];
+    await require('../../../shared/services/quiz/web-quiz-one-button').flag();
     await serve(async (ask) => {
-      expect((await ask()).quiz).toBe(GOLDEN.quiz);
+      expect((await ask()).quiz).toBe(GOLDEN.quiz.replace(/}$/, ',"one_button":true}'));
       const later = await ask();
       expect(JSON.parse(later.hubGet).adv).toBe(true);
     });
