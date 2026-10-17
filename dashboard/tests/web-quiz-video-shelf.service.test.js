@@ -65,6 +65,22 @@ describe('the shelves (switch on)', () => {
     const ur = W.WQDOORS.shelfHtml(CH, { token: TOKEN, lang: 'ur' }, 'Science');
     expect(visible(ur)).toContain('کوئز');
   });
+  test.each(['en', 'ur'])('%s: while the subjects load, placeholder shelves (never words saying a video is opening), one primary', (lang) => {
+    const W = F.load();
+    const h = W.WQDOORS.html(F.boot(lang, SHELF()), { token: TOKEN, lang }, 'videos', { lib: null });
+    expect(h).not.toContain(lang === 'ur' ? 'ویڈیو کھل رہی ہے…' : 'Opening the video…');
+    expect(count(h, /class="wq-vcard wq-vskel"/g)).toBe(6);
+    expect(h).toMatch(/aria-busy="true"/);
+    expect(count(h, /data-primary/g)).toBe(1);
+  });
+  test('a subject opened while its lessons load: a placeholder grid under Back (never "Opening the video…"), one primary', () => {
+    const W = F.load();
+    const h = W.WQDOORS.html(F.boot('en', SHELF()), { token: TOKEN, lang: 'en' }, 'videos', { subject: 'Science', lib: null });
+    expect(h).not.toContain('Opening the video…');
+    expect(h).toMatch(/data-tap="subjects"/);
+    expect(count(h, /class="wq-vcard wq-vskel"/g)).toBe(4);
+    expect(count(h, /data-primary/g)).toBe(1);
+  });
   test('a subject opened: a grid of cards under its chapter heads, Back, one primary', () => {
     const W = F.load();
     const h = W.WQDOORS.html(F.boot('en', SHELF()), { token: TOKEN, lang: 'en' }, 'videos', { subject: 'Science', lib: CH });
