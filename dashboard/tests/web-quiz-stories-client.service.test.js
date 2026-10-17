@@ -117,6 +117,7 @@ function env(opt = {}) {
     else if (/\/stories\/event\//.test(url)) {
       if (body.event === 'story_questions_done') r = { status: 200, body: { ok: true, correct: 1, total: 2, stars: 2 } };
       else if (body.event === 'story_answer') { const ok = opt.right ? opt.right(body.data) : true; r = { status: 200, body: ok || body.data.try !== 2 ? { ok: true, right: ok } : { ok: true, right: false, show: 0 } }; }
+      else if (body.event === 'story_done' && replies.done) r = replies.done;
       else if (body.event === 'story_done') r = { status: 200, body: { ok: true, sticker: opt.alwaysSticker ? true : opt.noSticker ? false : body.data.pages_read > 0 || body.data.pages_listened > 0 } };
       else r = { status: 200, body: { ok: true } };
     } else if (/\/lr\/key/.test(url)) r = replies.key || { status: 200, body: { ws: 'wss://x', api_key: 'k', model: 'm', lang: 'en' } };
@@ -3000,5 +3001,69 @@ describe('a kind screen on every stall: the edges', () => {
     expect(typeof im.l.load).toBe('function');
     im.l.load();
     expect(ph.style.display).toBe('none');
+  });
+});
+
+// ---- the reading moment (the book says read_fb: 1; app_settings web_quiz_read_feedback) ----------------------------
+describe('every read-aloud answered: the page after Your turn and the book\'s end', () => {
+  const MSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.js'), 'utf8');
+  const withMoment = (e) => { vm.runInContext(MSRC, vm.createContext({ window: e.win, document: {} })); return e; };
+  const RFB = (over = {}) => ({ status: 200, body: book({ read_fb: 1, ...over }) });
+  const readPage1 = (e, root, marks) => { toMic(e, root); e.calls.ask[0].onStream({}); e.calls.lr[0].o.onResult(READ(marks)); return root.innerHTML; };
+  test('the book says nothing (key off): "Well read!" as today, no moment, the moment file never asked for', async () => {
+    const e = withMoment(env()); const root = await openReader(e);
+    const h = readPage1(e, root, ['read', 'read', 'read', 'read', 'read']);
+    expect(h).toContain('Well read!');
+    expect(h).not.toContain('data-rf');
+    expect(e.calls.loaded.filter((x) => /wq-moment/.test(x.src || x.href || ''))).toHaveLength(0);
+  });
+  test('read_fb, the file not here yet: the reader asks for it once; the page stays today\'s until it is', async () => {
+    const e = env({ replies: { book: RFB() } }); const root = await openReader(e);
+    const h = readPage1(e, root, ['read', 'read', 'read', 'read', 'read']);
+    expect(e.calls.loaded.filter((x) => x.tag === 'script' && /wq-moment\.js/.test(x.src))).toHaveLength(1);
+    expect(h).toContain('Well read!');
+  });
+  test.each(['en', 'ur'])('%s, read_fb: a page read well is answered with words, stars and lights (small), the speed hidden on a short page', async (lang) => {
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } })); const root = await openReader(e, { lang });
+    const h = readPage1(e, root, ['read', 'read', 'read', 'read', 'read']);
+    expect(h).toContain('data-rf');
+    expect(h).toContain('wq-moment--s');
+    expect(h).toContain(lang === 'ur' ? 'آپ نے ۵ لفظ پڑھے!' : 'You read 5 words!');
+    expect(h).toContain('data-stars="3"');
+    expect(h).not.toContain(lang === 'ur' ? 'ایک منٹ میں' : 'a minute');
+    checkScreen(h, lang);
+  });
+  test('read_fb, a word skipped: the moment AND the word to practise; 4 of 5 is two stars', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    const h = readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
+    expect(h).toContain('You read 4 words!');
+    expect(h).toContain('data-stars="2"');
+    expect(h).toContain('data-tap="word"');
+  });
+  test('read_fb, nothing read: the kind moment ("let\'s read it together", a brave-try badge), no stars', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    const h = readPage1(e, root, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
+    expect(h).toContain('data-badge="try"');
+    expect(h).not.toContain('wq-moment-star');
+    expect(text(/<section class="wq-moment[\s\S]*?<\/section>/.exec(h)[0])).not.toMatch(/\b(test|exam|slower)\b/i);   // (the page's own "Slower" pill is the voice speed)
+  });
+  test.each(['en', 'ur'])('%s, read_fb: the book\'s end shows the whole read — words, the jar with the speed beside it, faster than the last book', async (lang) => {
+    const done = { status: 200, body: { ok: true, sticker: true, reading: { words_read: 48, words_total: 50, ms: 40000, wcpm: 72, prev_wcpm: 60 } } };
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', questions: [] }), done }, wqj: true })); const root = await openReader(e, { lang });
+    runBook(e, root); await flush(); await flush(); await flush();
+    const h = root.innerHTML;
+    expect(screenOf(h)).toBe('story-done');
+    expect(h).toContain(lang === 'ur' ? 'آپ نے ۴۸ لفظ پڑھے!' : 'You read 48 words!');
+    expect(h).toContain(lang === 'ur' ? 'ایک منٹ میں ۷۲ لفظ' : '72 words a minute');
+    expect(h).toContain(lang === 'ur' ? 'پچھلی بار سے تیز!' : 'Faster than last time!');
+    expect(h.indexOf('data-rf')).toBeLessThan(h.indexOf('data-col'));
+    expect(primaries(h)).toBeLessThanOrEqual(1);
+  });
+  test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
+    const done = { status: 200, body: { ok: true, sticker: true } };
+    const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done } })); const root = await openReader(e);
+    runBook(e, root); await flush(); await flush(); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-done');
+    expect(root.innerHTML).not.toContain('data-rf');
   });
 });

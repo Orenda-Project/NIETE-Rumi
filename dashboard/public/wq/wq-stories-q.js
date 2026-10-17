@@ -54,7 +54,15 @@
 
   S._q = function (R) {
     var ctx = R.ctx, C = R.C, id = R.id, root = R.root, paint = R.paint, b = R.b, P = R.P, m = R.m, L = R.L, t = R.t;
-    var eo = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, D = null, dw = null;
+    var eo = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, D = null, dw = null, rd = null;
+    // the reading moment (the book's read_fb: web_quiz_read_feedback): its file comes with this one, once
+    if (b.read_fb && !W.WQMoment && !S._rfAsked) { S._rfAsked = 1; K.load('wq-moment.js', 'wq-moment.css', function () {}); }
+    // this page's read answered after Your turn (small): the words, stars, the lights; '' with the file not here
+    function rfHtml() {
+      if (!b.read_fb || !W.WQMoment || !rd || rd.i !== m.i) return '';
+      rd.fb = W.WQMoment.feedback({ words_read: rd.s.words_read, words_total: rd.s.words_total, ms: rd.s.ms });
+      return W.WQMoment.html(rd.fb, L, { grade: b.grade, size: 's' });
+    }
     // the questions and the done screen come in their own file, the first time a child gets there
     function dv(v) {
       return function () {
@@ -76,8 +84,10 @@
     R.ex = function (s, p) {
       var w = p.words && p.words[m.skip], h = '';
       var echo = b.lr3 && b.grade < 3 && p.audio && !R.keyNo && (s === 'together' || /^(read|practise)$/.test(s) && m.ratio <= 0.5);
-      if (s === 'practise' && w) h = '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + (L === 'ur' ? 'rtl' : 'ltr') + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
-      else if (s === 'read' || s === 'practise') h = '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
+      var rf = /^(read|practise|together)$/.test(s) ? rfHtml() : '';
+      if (s === 'practise' && w) h = rf + '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + (L === 'ur' ? 'rtl' : 'ltr') + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
+      else if (s === 'read' || s === 'practise') h = rf || '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
+      else if (s === 'together' && rf) h = rf + (rd.fb.zero ? '' : '<p>' + esc(t.together) + '</p>');
       else if (s === 'denied' || s === 'together') h = '<p>' + esc(t[s]) + '</p>';
       if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(t.echoB) + '</button>';
       return h;
@@ -150,7 +160,10 @@
       var sk = [];
       s.marks.forEach(function (x, i) { if (x === 'skipped') sk.push(i); });
       R.pp('story_page_read', { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read' }, m.i);
+      rd = { s: s, i: m.i };
       m.result(s);
+      // Jugnu's sound for it (the badge jingle; the soft chime after a 0-word try)
+      if (rd.fb && W.WQMoment) W.WQMoment.sound(root.querySelector('[data-rf]'), rd.fb);
     }
 
     function eGo() { eo = { s: sents(P[m.i].words), k: 0, f: m.st }; m.set('echo'); }

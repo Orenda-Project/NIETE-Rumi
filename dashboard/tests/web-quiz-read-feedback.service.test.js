@@ -64,6 +64,7 @@ describe('WQMoment, pure', () => {
     const h = M.html(fb, 'en', { grade: 1, size: 's' });
     expect(h).toContain('You read 5 words!');
     expect(h).not.toContain('a minute');
+    expect(h).not.toContain('wq-moment-meter');   // nor the jar's light count
     expect(h).toContain('wq-moment--s');
     // a long page read: the number, from its own words and time
     const long = M.feedback({ words_read: 30, words_total: 32, ms: 40000 });
@@ -322,12 +323,15 @@ describe('the Jugnu page: the checked result reaches the settled card', () => {
     expect(held).toContain(lang === 'ur' ? 'آپ نے ۱۰ لفظ پڑھے!' : 'You read 10 words!');
     expect(settled).toContain(lang === 'ur' ? 'آپ نے ۹ لفظ پڑھے!' : 'You read 9 words!');
     expect(settled).toContain('data-stars="3"');
-    expect(settled).toContain('data-level="3"');   // 48 a minute, grade 3: three lights
+    // 9 words is too short to be honest: no jar, no light count, no growth (each names the speed's band)
+    expect(settled).not.toContain('data-level');
+    expect(settled).not.toContain('last time');
     expect(text(settled)).not.toMatch(BANNED);
   });
   test('key on, a long checked read: the number beside the jar and "faster than last time"', async () => {
     const { settled } = await readAndSettle(page('en', RF), { score: { correct: 46, attempted: 50, stopped: false }, wcpm: 48, previous: { wcpm: 40 } });
     expect(settled).toContain('48 words a minute');
+    expect(settled).toContain('data-level="3"');   // an honest read: the jar, 48 a minute in grade 3 = three lights
     expect(settled).toContain('Faster than last time!');
   });
 });
