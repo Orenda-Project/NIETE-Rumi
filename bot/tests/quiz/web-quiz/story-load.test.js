@@ -228,6 +228,33 @@ describe('planBook', () => {
     expect(L.planBook(fixture({ wpm: 108.9, pace: 128.4, long: true })).why).toEqual(['p01: voice pace 108.9 wpm', 'p02: voice pace 108.9 wpm']);
   });
 
+  test('a clip timed on other words than the page\'s (same count) is not voiced: a one-for-one spelling fix needs a new take', () => {
+    const f = fixture();
+    const vj = path.join(f.voiceDir, 'p02.json'); const j = JSON.parse(fs.readFileSync(vj, 'utf8'));
+    j.words[1].t = 'cot'; fs.writeFileSync(vj, JSON.stringify(j));
+    const p = L.planBook(f);
+    expect(p.why).toEqual(['p02: voice words differ from the page words']);
+    expect(p.ready).toBe(false);
+    expect(p.voices.map((v) => v.n)).toEqual([1]);
+    // the same word in another Unicode form (composed vs decomposed) is the same word
+    const g = fixture();
+    const gj = path.join(g.voiceDir, 'p01.json'); const k = JSON.parse(fs.readFileSync(gj, 'utf8'));
+    g.book.pages[0].words[0].t = 'Asa\u0301d'; k.words[0].t = 'As\u00e1d';
+    fs.writeFileSync(gj, JSON.stringify(k));
+    expect(L.planBook(g).why).toEqual([]);
+  });
+
+  test('a printed spelling rides on its word as alt (strings, composed, no repeats, never the word itself); a word without one is unchanged', () => {
+    const f = fixture();
+    f.book.pages[0].words[2].alt = ['reeds', 'reeds', '', 7, 'reads.', ' re\u0301ads ', 'reads'];
+    const p = L.planBook(f);
+    expect(p.pages[0].words[2]).toEqual({ i: 2, t: 'reads.', box: [90, 800, 36, 40], alt: ['reeds', 'r\u00e9ads', 'reads'] });
+    expect(p.pages[0].words[0]).toEqual({ i: 0, t: 'Asad', box: [10, 800, 36, 40] });
+    expect(p.pages[1].words.every((w) => !('alt' in w))).toBe(true);
+    expect(L.cleanWords([{ i: 0, t: 'a', alt: 'b' }, { i: 1, t: 'c', alt: [] }])).toEqual([{ i: 0, t: 'a' }, { i: 1, t: 'c' }]);
+    expect(p.ready).toBe(true);
+  });
+
   test('a wer miss ships only when the voice build waived it for a listen (both marks), never on one mark alone', () => {
     const qa = (f, extra) => {
       const qj = path.join(f.voiceDir, 'p02.qa.json');
