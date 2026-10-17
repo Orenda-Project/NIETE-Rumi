@@ -45,12 +45,12 @@ const gradeArt = (g) => (Order.GRADE_ORDER.includes(String(g)) ? `/wq/art/grade-
 
 // ─── flag ────────────────────────────────────────────────────────────────────
 
-const { libraryOn, videosV3On, FLAG_KEY } = require('./web-quiz-library-flag');
+const { libraryOn, videosV3On, urTitlesOn, FLAG_KEY } = require('./web-quiz-library-flag');
 const langOf = (l) => (l === 'en' || l === 'ur' ? l : null);
 
 // ─── the bank, the child, the class's codes (web-quiz-bank.js) ───────────────
 
-const { bank, track, studentFromSt, doneQuizzes, classCodes, languages } = require('./web-quiz-bank');
+const { bank, track, studentFromSt, doneQuizzes, classCodes, languages, urTitles } = require('./web-quiz-bank');
 
 /**
  * web_quiz_videos_v3: the bank as a child of `lang` sees it. Inside a grade's subject that is in the child's language
@@ -104,16 +104,20 @@ async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, 
   // web_quiz_videos_v3: in a thin subject the child's language comes first, each part in the usual order.
   if (ix.ownFirst && ix.ownFirst.size) rows.sort((a, b) => (ix.ownFirst.has(b.id) ? 1 : 0) - (ix.ownFirst.has(a.id) ? 1 : 0));
   const quizIds = rows.map((r) => ix.quizOf.get(r.id));
-  const [done, codes, posters] = await Promise.all([
+  const [done, codes, posters, ur] = await Promise.all([
     doneQuizzes(studentId, quizIds),
     classCodes(rootId, quizIds),
     Promise.all(rows.map((r) => Media.signPoster(r.r2_url))),
+    // web_quiz_videos_ur_titles: each lesson's Urdu-script name and its chapter's; off = not read at all
+    urTitlesOn().then((on) => (on ? urTitles() : null)),
   ]);
   const chapters = [];
   const missing = [];
   rows.forEach((r, i) => {
     const qid = quizIds[i];
     const v = { vid: r.id, title: r.clean_title || '' };
+    const u = ur && ur.get(r.id);
+    if (u && u.t) v.title_ur = u.t;
     const m = Videos.peekMeta(r.id);
     if (m === undefined) missing.push(r.id);
     if (m && m.secs) v.secs = m.secs;
@@ -129,6 +133,8 @@ async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, 
     const last = chapters[chapters.length - 1];
     if (last && last.name.toLowerCase() === name.toLowerCase()) last.videos.push(v);
     else chapters.push({ name, videos: [v] });
+    const ch = chapters[chapters.length - 1];
+    if (u && u.c && !ch.name_ur) ch.name_ur = u.c;
   });
   // Lengths and sizes for next time, read after this answer has gone.
   if (missing.length) track(new Promise((res) => setImmediate(res)).then(() => Videos.warmMeta(missing, { fetchImpl })));

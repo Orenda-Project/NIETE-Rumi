@@ -379,9 +379,17 @@ async function watchStart(who, vid, body, fail) {
   return {
     watch: {
       vid, url: media.url, ...(media.poster ? { poster: media.poster } : {}), ...(meta.secs ? { secs: meta.secs } : {}),
-      title: video.clean_title || '', lang, after: Boolean(rootId),
+      title: video.clean_title || '', ...(await urTitleOf(vid)), lang, after: Boolean(rootId),
     },
   };
+}
+
+/** web_quiz_videos_ur_titles: {title_ur} when the lesson has an Urdu-script name, else nothing (off = not read). */
+async function urTitleOf(vid) {
+  if (!(await require('./web-quiz-library-flag').urTitlesOn())) return {};
+  const of = await require('./web-quiz-bank').urTitles();
+  const u = of && of.get(vid);
+  return u && u.t ? { title_ur: u.t } : {};
 }
 
 /**
