@@ -30,9 +30,18 @@ async function on(now = Date.now()) {
   }
 }
 
+/**
+ * The kid hub's one switch read (web-quiz-hub-flags.js flags()) carries this switch's row too and fills this cache from
+ * it, so a hub open reads no settings row of its own for it. `value`: the row's value (undefined: no row, off).
+ */
+function prime(value, now = Date.now()) {
+  cache = { at: now, on: isTrue(value) };
+  return cache.on;
+}
+
 /** A language a hub link may carry: en or ur, else null. */
 function linkLang(lang) {
   return lang === 'en' || lang === 'ur' ? lang : null;
 }
 
-module.exports = { on, linkLang, KEY, _resetCache: () => { cache = null; } };
+module.exports = { on, prime, linkLang, KEY, _resetCache: () => { cache = null; } };
