@@ -763,6 +763,8 @@ function createWebQuizRouter(opts = {}) {
     return next();
   }
 
+  // With the fast switch on: br scripts/styles, a day for unversioned files, versioned Jugnu pictures (web-quiz-static.js).
+  router.use(require('./web-quiz-static').createWqStatic({ publicDir: PUBLIC_DIR, fast: () => lastFast }));
   for (const r of API_ROUTES) {
     const chain = [noStore, configured];
     if (r.unknownCode) chain.push(unknownCode);

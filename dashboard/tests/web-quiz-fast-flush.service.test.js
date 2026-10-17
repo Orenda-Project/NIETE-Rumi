@@ -109,7 +109,8 @@ describe('fast first page: GET /q/:code (renderQuizPage, a fresh profile phone)'
     // Sent while the bot had not answered: the styles, the script preloads and Jugnu, but no quiz yet.
     expect(early).toMatch(/<link rel="stylesheet" href="\/wq\/wq\.css\?v=/);
     expect(early).toMatch(/<link rel="preload" href="\/wq\/wq\.js\?v=[0-9a-f]+" as="script">/);
-    expect(early).toMatch(/<div class="wq-boot"><img src="\/wq\/jugnu\/hello\.webp"/);
+    // (with the switch on the picture carries its version: web-quiz-static.js)
+    expect(early).toMatch(/<div class="wq-boot"><img src="\/wq\/jugnu\/hello\.webp\?v=[0-9a-f]{10}"/);
     expect(early).not.toMatch(/id="boot"/);
     // The whole page: the boot JSON, then the same scripts in the same order as today's render.
     const boot = JSON.parse(res.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
