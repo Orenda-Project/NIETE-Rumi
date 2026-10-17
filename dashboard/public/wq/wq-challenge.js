@@ -1253,8 +1253,14 @@
       // Nothing heard live is no result: the checked count decides, on today's screens.
       if (!live.v.attempted) {
         // live reading v3 with the card: nothing heard live is the kind card at once, never "Listening…" then "wait";
-        // the recording still goes up for the record, and its check moves nothing on this card (live.zero)
-        if (lr3() && TR && menuData.card_v3 && window.WQFC) { live.zero = true; lrT().hand(true); readResult({ score: { correct: 0, attempted: 0 }, sticker: false }); uploadQuiet(lc); return; }
+        // the recording still goes up for the record (first, so the card can wait for it), and its check moves nothing
+        // on this card (live.zero)
+        if (lr3() && TR && menuData.card_v3 && window.WQFC) {
+          live.zero = true; lrT().hand(true);
+          try { uploadQuiet(lc); } catch (e) { /* the card still comes */ }
+          readResult({ score: { correct: 0, attempted: 0 }, sticker: false });
+          return;
+        }
         upload(); return;
       }
       var w = r.secs > 0 ? Math.round(live.v.correct / r.secs * 60) : 0;
@@ -1405,6 +1411,7 @@
     // the questions wait for this reading's result call (qa.open), so no answer can be written before it
     var settle;
     live.submitted = new Promise(function (res) { settle = res; });
+    d.sent = live.submitted;   // the read's card asks for its words only once this has gone up
     api('ch/upload', cons({ ct: d.ct, type: type, size: blob.size })).then(function (u) {
       return fetch(u.put_url, { method: 'PUT', headers: { 'content-type': u.content_type }, body: blob }).then(function (r) {
         if (!r.ok) { var e = new Error('put_' + r.status); e.status = r.status; throw e; }

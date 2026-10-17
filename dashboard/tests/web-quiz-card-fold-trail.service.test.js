@@ -33,7 +33,13 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, top = false, 
     get className() { const t = tagOf(id); const m = t && /class="([^"]*)"/.exec(t[0]); return m ? m[1] : ''; },
     set className(v) { const t = tagOf(id); if (t) screen = screen.replace(t[0], t[0].replace(/class="[^"]*"/, `class="${v}"`)); },
     removeAttribute(a) { const t = tagOf(id); if (t) screen = screen.replace(t[0], t[0].replace(new RegExp(` ${a}(="[^"]*")?(?=[ >])`), '')); },
-    setAttribute() {},
+    setAttribute(a, v) {
+      const t = tagOf(id);
+      if (!t) return;
+      const val = v === '' || v == null ? '' : `="${v}"`;
+      const re = new RegExp(` ${a}(="[^"]*")?(?=[ >])`);
+      screen = screen.replace(t[0], re.test(t[0]) ? t[0].replace(re, ` ${a}${val}`) : t[0].replace(/>$/, ` ${a}${val}>`));
+    },
     get parentNode() {
       return { removeChild() {
         if (id === 'wqc-next') { screen = screen.replace(/<p class="wq-sub" id="wqc-next">[^<]*<\/p>/, ''); return; }
@@ -301,5 +307,35 @@ describe('the tap', () => {
     t.tap('wqfc-next');
     await flush();
     expect(t.events.map((e) => e.n)).toContain('next_tap');
+  });
+});
+
+// A read that certified nothing (the try card: no Share) with no tile to lead with: the screen still has exactly one
+// primary — the host's Home stays the way on; with a tile, the tile is the one primary.
+describe('the try card: exactly one primary on the screen', () => {
+  const CARD = { card_v3: true, v2: {} };
+  const zero = (t) => t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false });
+  test.each(['en', 'ur'])('%s, off the fold, no next offer: no Share, no tile; Home is the one primary', (lang) => {
+    const t = trail({ lang, menu: CARD });
+    zero(t);
+    const h = t.html();
+    expect(h).toContain('data-screen="card"');
+    expect(h).not.toContain('id="wqfc-share"');
+    expect(h).not.toContain('id="wqfc-next"');
+    expect(primaries(h)).toBe(1);
+    expect(h).toMatch(/<button class="wq-btn wq-go" id="wqc-menu"[^>]*data-primary/);
+  });
+  test.each(['en', 'ur'])('%s, off the fold, with a next offer: the tile is the one primary; Home is soft', (lang) => {
+    const t = trail({ lang, menu: CARD, data: { next_offer: NEXT } });
+    zero(t);
+    const h = t.html();
+    expect(primaries(h)).toBe(1);
+    expect(h).toContain('id="wqfc-next" data-primary');
+    expect(h).toMatch(/<button class="wq-btn wq-soft" id="wqc-menu"/);
+  });
+  test.each(['en', 'ur'])('%s, on the fold, no next offer: one primary', (lang) => {
+    const t = trail({ lang, menu: FOLD });
+    zero(t);
+    expect(primaries(t.html())).toBe(1);
   });
 });

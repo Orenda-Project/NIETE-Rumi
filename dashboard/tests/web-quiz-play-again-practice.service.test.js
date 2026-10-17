@@ -12,7 +12,7 @@ const { page, flush } = require('./wq-page-harness');
 
 const CHILD = { first: 'Zara Testwala', chip: '0123456789abcdef', animal: 'owl' };
 const OTHER = { en: 'another phone', ur: 'کسی اور فون' };
-const PREVIEW = { en: "This is your preview. It isn&#39;t saved for your class.", ur: 'یہ صرف آپ کے دیکھنے کے لیے ہے۔ یہ کلاس کے لیے محفوظ نہیں ہوا۔' };
+const PREVIEW = { en: "This is your preview. It isn&#39;t saved for your class.", ur: 'یہ صرف آپ کے دیکھنے کے لیے تھا۔ آپ کے جوابات کلاس کے ریکارڈ میں محفوظ نہیں کیے گئے۔' };
 const PRACTICE = { en: 'Practice round · your first score 4/5 is the one that counts', ur: 'مشق کا راؤنڈ · پہلی بار کا اسکور ۴/۵ شمار ہوتا ہے' };
 const finishBody = (reason, cardV3 = true) => ({
   score: { correct: 2, total: 5, pct: 40 }, counted: false, reason, ...(cardV3 ? { card_v3: true } : {}),

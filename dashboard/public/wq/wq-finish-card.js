@@ -420,7 +420,11 @@
       var old = document.getElementById('wqfc-next') ? document.getElementById('wqc-next') : null;
       if (old && old.parentNode) old.parentNode.removeChild(old);
       var home = document.getElementById('wqc-menu');
-      if (home && /\bwq-go\b/.test(home.className)) home.className = home.className.replace(/\bwq-go\b/, 'wq-soft');
+      // the try card with no tile to lead with draws no primary of its own (no Share): the host's Home stays the one
+      if (home && /\bwq-go\b/.test(home.className)) {
+        if (deed === 'read_tried' && !document.getElementById('wqfc-next')) home.setAttribute('data-primary', '');
+        else home.className = home.className.replace(/\bwq-go\b/, 'wq-soft');
+      }
     } catch (e) { /* the card still works */ }
     return true;
   }
