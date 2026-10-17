@@ -269,3 +269,23 @@ describe('one sound switch with the home (the home\'s key wq_snd)', () => {
   });
 });
 
+describe('the end of the quiz: one primary with the kit on', () => {
+  const STORE = () => ({ wq_s_TEST: JSON.stringify({ st: 's1', child: { first: 'Ali Testwala', chip: 'c1' }, answers: {}, queue: [], result: { score: { correct: 2, total: 2 }, card: {} } }) });
+  test('kit on: «See my card» is the one data-primary; «See my class» is outlined', async () => {
+    const p = page({ juice: recorder(), store: STORE() });
+    p.wq.results(0);
+    await flush(); await flush();
+    expect(p.moment()).toBe('M9');
+    expect((p.html().match(/data-primary/g) || []).length).toBe(1);
+    expect(p.html()).toContain('<button class="wq-btn wq-go" id="wq-card" data-primary>');
+    expect(p.html()).toContain('<button class="wq-btn wq-soft" id="wq-class">');
+  });
+  test('kit off: today\'s two filled buttons, no mark', async () => {
+    const p = page({ store: STORE() });
+    p.wq.results(0);
+    await flush(); await flush();
+    expect(p.html()).not.toContain('data-primary');
+    expect(p.html()).toContain('<button class="wq-btn wq-navy" id="wq-class">');
+  });
+});
+

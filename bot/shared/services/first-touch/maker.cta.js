@@ -84,7 +84,7 @@ async function makerCta({ uid, lang, who = 'unknown', via = 'door', phone, tour 
   const sent = await WhatsAppService.sendCtaUrl(phone, { ...copyFor(l, { body, button }), url });
   // ── first touch: on the empty line only, a refused cta_url → the 3-button fallback, the SAME counted reply (no second
   // ledger row). On the door and menu paths the door owns that fallback and reads { sent:false } from here. ──
-  if (!sent && via === 'empty') return { sent: await require('./maker.fallback').sendFallback({ phone, lang: l, who }), fallback: true };
+  if (!sent && via === 'empty') return { sent: await require('./maker.fallback.send').sendFallback({ phone, lang: l, who }), fallback: true };
   // ── end first touch ──
   return { sent: Boolean(sent) };
 }
