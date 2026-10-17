@@ -85,7 +85,7 @@
   var RA_WAIT_MS = 4000;       // a tap that beat the player waits this long for it (inside the tap's 5-s audio window)
   // the word-by-word player (wq-readalong.js), fetched only when a story serve carries `readalong`
   // (web_quiz_readalong); its version is the file's sha256, first 10 hex (a test keeps the two in step)
-  var RA_V = 'be7fe1dc23';
+  var RA_V = '050a5500b8';
 
   // own styles (only under v2): the chip's second line under the name; Urdu lines at Nastaliq-readable size
   function css() {

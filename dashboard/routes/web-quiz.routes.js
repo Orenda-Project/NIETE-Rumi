@@ -390,10 +390,17 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(payload)}${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-lib.js?v=${assetV}" defer></script>
-${payload && payload.story ? `<script src="/wq/wq-story-link.js?v=${challengeVersion('wq-story-link.js')}" defer></script>\n` : ''}<script src="/wq/wq.js?v=${assetV}" defer></script>
+${payload && payload.story ? `<script src="/wq/wq-story-link.js?v=${challengeVersion('wq-story-link.js')}" defer></script>\n` : ''}${questionReadAlongTag(payload)}<script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };
+}
+
+// Jugnu's read-along on the question (the bot's web_quiz_question_readalong, a quiz with one voice): the shared player,
+// before wq.js, only when the payload says `question_readalong: true`. Its own version, so the page's version and HTML
+// stay today's while the switch is off.
+function questionReadAlongTag(payload) {
+  return payload && payload.question_readalong === true ? `<script src="/wq/wq-readalong.js?v=${challengeVersion('wq-readalong.js')}" defer></script>\n` : '';
 }
 
 function renderQuizPage(args) {

@@ -526,20 +526,27 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   const helpers = mediaHelpers();
   let audio = {};
   let video = null;
+  // One voice per quiz (web-quiz-one-voice-flag.js): no recorded person's voice beside the quiz voice. Its clips are
+  // in their own slot (meta.web_one): the page is served from it, and meta.web is left as it is. Read in the page's
+  // own settings read (web-quiz-identity-roster.js), so the switch costs the page no read.
+  const oneVoice = story ? null : await IdRoster.oneVoicePlan();
+  const quizMeta = (quizRow && quizRow.meta) || {};
+  const audioMeta = oneVoice ? { ...quizMeta, web: quizMeta.web_one || {} } : quizMeta;
   // The signed media of a code are reused for 5 minutes (they live 6 h): the library's prefetch and
   // the tap that follows it, or a class opening the same link together, sign them once. The key is
   // everything the links are made from, so new clips or edited questions are signed at once.
   const mediaKey = require('crypto').createHash('sha1').update(JSON.stringify([
     ctx.code, ctx.quizId, ctx.parent.video_id || (quizRow && quizRow.video_id) || null,
-    (quizRow && quizRow.meta && quizRow.meta.web) || null,
+    audioMeta.web || null,   // the slot the page is served from (meta.web_one with one voice)
     questions.map((q) => [q.id, q.question_text, q.media || null]),
+    ...(oneVoice ? ['one_voice', oneVoice.sig] : []),
   ])).digest('base64');
   const cached = quizMediaCache.get(mediaKey);
   const hit = Boolean(cached && Date.now() - cached.at < QUIZ_MEDIA_CACHE_MS);
   if (hit) {
     ({ audio, video } = cached);
   } else if (helpers) {
-    try { audio = (await helpers.presignAudio((quizRow && quizRow.meta) || {}, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
+    try { audio = (await helpers.presignAudio(audioMeta, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
     const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
     if (videoId) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
@@ -556,12 +563,19 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   let audioPending = false;
   if (!story) try {
     const Publish = require('./web-quiz-publish.service');
-    audioPending = !Publish.isCurrent(((quizRow && quizRow.meta) || {}).web);
-    Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
+    audioPending = !Publish.isCurrent(Publish.webOf(quizMeta, { oneVoice }), { oneVoice });
+    Publish.requestQuizAudio(ctx.quizId, { meta: quizMeta, ...(oneVoice ? { oneVoice } : {}) }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   if (!hit) {
-    try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+    try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S, oneVoice }); } catch { /* the page reads aloud */ }
+    // The voice-mix alarm: a one-voice page that still carries two voices (clips of an older plan, a shared-line set
+    // in another voice). The plan's kept bank recordings are expected and do not count. A quiz key, never its id.
+    if (oneVoice) try {
+      const set = require('./web-quiz-voice').sharedSets(oneVoice)[voiceLang];
+      const mix = require('./web-quiz-one-voice-flag').mixOf(audio, { sharedTag: set ? set.path : null });
+      if (mix.mixed) logEvent('web_quiz.voice_mix', { qk: require('./web-quiz-kid').qk(ctx.quizId), tags: mix.tags, bank: [...oneVoice.bank] });
+    } catch { /* an alarm never breaks the page */ }
     if (helpers) {
       if (quizMediaCache.size >= QUIZ_MEDIA_CACHE_MAX) quizMediaCache.clear();
       quizMediaCache.set(mediaKey, { at: Date.now(), audio, video });
@@ -648,6 +662,22 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
+  // One voice per quiz: the page shows a line with no clip instead of reading it in the phone's voice, and plays the
+  // shared lines from the plan voice's set (named only when on).
+  if (oneVoice) { out.one_voice = true; out.voice_sets = require('./web-quiz-voice').sharedSets(oneVoice); }
+  // Jugnu's read-along on the question (web-quiz-question-readalong.js, web_quiz_question_readalong), for a quiz with one
+  // voice: a question whose clip carries its word times (meta.web_one q_ra) gets audio.ra for the page's shared player.
+  // Named only when on, so a switched-off payload is today's. Read in the page's own settings read with one voice
+  // (web-quiz-identity-roster.js), so the switch costs the page no read.
+  if (oneVoice && await IdRoster.questionReadalongOn()) {
+    const QuestionRA = require('./web-quiz-question-readalong');
+    const map = (quizMeta.web_one && quizMeta.web_one.audio) || {};
+    out.question_readalong = true;
+    out.quiz.questions.forEach((qq) => {
+      const ra = qq.audio && qq.audio.q ? QuestionRA.raFor({ entry: map[qq.qid], url: qq.audio.q, printed: qq.text, lang: voiceLang }) : null;
+      if (ra) qq.audio = { ...qq.audio, ra };   // a copy: the signed map is cached
+    });
+  }
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
   return out;
 }

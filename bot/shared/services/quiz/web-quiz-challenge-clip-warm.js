@@ -165,4 +165,5 @@ async function daily({ now = Date.now() } = {}) {
 
 function __reset() { lastDay = null; cappedToday = { day: null, cappedRuns: 0 }; }
 
-module.exports = { switchOn, warmClips, daily, SWITCH_KEY, WARM_MAX_PER_RUN, SERVE_HEADROOM, MAX_CAPPED_RUNS_PER_DAY, __reset };
+module.exports = { switchOn, warmClips, daily, passageRows, clipsOf,   // the list: also the one-voice pre-flip check's
+  SWITCH_KEY, WARM_MAX_PER_RUN, SERVE_HEADROOM, MAX_CAPPED_RUNS_PER_DAY, __reset };
