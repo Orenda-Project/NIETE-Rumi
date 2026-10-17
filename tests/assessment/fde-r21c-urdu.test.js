@@ -136,7 +136,10 @@ describe('through generatePatternExam: a hold made after the re-ask reaches the 
     expect(out.err && { code: out.err.code, shortfall: out.err.shortfall }).toBeUndefined();
     const printed = JSON.stringify(out.ok.examJson);
     expect(printed).not.toContain(TOOL.question);
-    expect(printed).not.toMatch(/grammar_outside_lessons/);
+    // The paper keeps the hold as a count only ({ slot, rule, n }): no item, no concept.
+    const { holds, ...rest } = out.ok.examJson._layout;
+    expect(JSON.stringify({ ...out.ok.examJson, _layout: rest })).not.toMatch(/grammar_outside_lessons/);
+    (holds || []).forEach((h) => expect(Object.keys(h).sort()).toEqual(['n', 'rule', 'slot']));
     // The first layout never saw the re-asked item: its line cannot name it.
     const first = logToFile.mock.calls.find(([msg]) => msg === '[assessment] held items');
     expect(JSON.stringify(first ? first[1].held : [])).not.toMatch(/"tool"/);

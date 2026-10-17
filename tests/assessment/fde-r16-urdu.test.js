@@ -195,7 +195,9 @@ describe('(e) the put-back: spares sized to the gap, one more A-only top-up, and
     const after = lay(exam, true);
     expect(q1Stems(after.examJson)).toContain(q.question);
     expect(q1Stems(after.examJson)).toHaveLength(q1Stems(before.examJson).length + 1);
-    expect(after.putBack).toEqual([{ slot: 'urdu.A.Q1', rule: 'asks_two' }]);
+    // Q1's put-back only (this recorded paper's Q4 ارکان item, whose key and accept split a word
+    // apart, is put back for its own place too).
+    expect(after.putBack.filter((x) => x.slot === 'urdu.A.Q1')).toEqual([{ slot: 'urdu.A.Q1', rule: 'asks_two' }]);
   });
 
   test('a two-question stem that is also held against Section C never comes back', () => {

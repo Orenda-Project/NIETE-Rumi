@@ -86,7 +86,10 @@ describe('the hold, per lesson', () => {
   test('the held record never rides on the printed paper (the renderer scans _layout for review text)', () => {
     const laid = applyLayout(withItem(TOOL), U, ch(6, 7), { reasked: false });
     expect(laid.held).toBeDefined();
-    expect(JSON.stringify(laid.examJson)).not.toMatch(/grammar_outside_lessons/);
+    // The paper keeps the hold as a count only ({ slot, rule, n }): no item, no concept.
+    const { holds, ...rest } = laid.examJson._layout;
+    expect(JSON.stringify({ ...laid.examJson, _layout: rest })).not.toMatch(/grammar_outside_lessons/);
+    holds.forEach((h) => expect(Object.keys(h).sort()).toEqual(['n', 'rule', 'slot']));
   });
   test('a pages scope across a lesson edge (pp 60–61) takes both lessons\' grammar', () => {
     expect(scopeLessons(U, { kind: 'pages', chapters: null, pages: '60-61' }).map((l) => l.lesson)).toEqual([6, 7]);
