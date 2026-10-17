@@ -219,6 +219,53 @@ describe('the Stories door never says "no stories" while the shelf loads', () =>
     script.fire('load');
     expect(shelf).toHaveBeenCalledWith(sh, expect.anything(), expect.objectContaining({ token: TOKEN }));
   });
+  // the door drawn twice before the reader script arrives (its rows came back and redrew it): the shelf is asked once
+  const storiesRoot = (cur) => ({ innerHTML: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k] == null ? null : this.attrs[k]; }, removeAttribute(k) { delete this.attrs[k]; }, querySelector: (q) => (q === '[data-stories-shelf]' ? cur() : null), querySelectorAll: () => [] });
+  const STORIES_B = { ...B_ON, doors: { stories: [{ kind: 'shelf' }], games: [], videos: null } };
+  test('the reader arrives after the rows redrew the door: one shelf read, not one per draw', () => {
+    const script = el();
+    const { W } = live({ scripts: { 'wq-stories.js': script } });
+    const sh1 = el(); const sh2 = el(); sh2.setAttribute('data-host', 'doors');
+    let cur = sh1;
+    const root = storiesRoot(() => cur);
+    W.WQHOME.loadOnce('wq-stories');
+    W.WQDOORS.mount(root, STORIES_B, C, 'stories');
+    cur = sh2; // the rows came back: the door drew again, its own slot replacing the first
+    W.WQDOORS.mount(root, STORIES_B, C, 'stories');
+    const shelf = jest.fn();
+    W.WQSTORIES = { shelf };
+    script.fire('load');
+    expect(shelf).toHaveBeenCalledTimes(1);
+    expect(shelf).toHaveBeenCalledWith(sh2, expect.anything(), expect.anything());
+  });
+  test('the reader script fails to load: a retry in the slot, and the door root says failed (not pending)', () => {
+    const script = el();
+    const { W } = live({ scripts: { 'wq-stories.js': script } });
+    const sh = el();
+    const root = storiesRoot(() => sh);
+    W.WQHOME.loadOnce('wq-stories');
+    W.WQDOORS.mount(root, STORIES_B, C, 'stories');
+    script.fire('error');
+    expect(sh.innerHTML).toMatch(/data-primary/);
+    expect(visible(sh.innerHTML)).toMatch(/Try again/);
+    expect(root.attrs['data-fetch']).toBe('failed');
+  });
+  test('a reader whose shelf throws: the retry, never a skeleton left forever', () => {
+    const { W } = live({ win: { WQSTORIES: { shelf() { throw new Error('boom'); } } } });
+    const sh = el();
+    const root = storiesRoot(() => sh);
+    W.WQDOORS.mount(root, STORIES_B, C, 'stories');
+    expect(visible(sh.innerHTML || '')).toMatch(/Try again/);
+    expect(root.attrs['data-fetch']).toBe('failed');
+  });
+  test('switch off: a reader whose shelf throws is left as today (no retry painted)', () => {
+    const { W } = live({ win: { WQSTORIES: { shelf() { throw new Error('boom'); } } } });
+    const sh = el();
+    const root = storiesRoot(() => sh);
+    W.WQDOORS.mount(root, { ...STORIES_B, list_states: 0 }, C, 'stories');
+    expect(sh.innerHTML).toBeUndefined();
+    expect(root.attrs['data-fetch']).toBeUndefined();
+  });
 });
 
 describe('one tap lights only the card', () => {
