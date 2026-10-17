@@ -50,6 +50,16 @@
  *   node scripts/rehost-legacy-training-media.js --apply
  *   node scripts/rehost-legacy-training-media.js --apply --only=pdf
  *   node scripts/rehost-legacy-training-media.js --apply --limit=5
+ *
+ * bd-s42dye.4 — the legacy "Taleemabad" provider (vendor TALEEMABAD_LEGACY):
+ *   node scripts/rehost-legacy-training-media.js --target=sandbox --env-file=<sandbox.env> \
+ *        --vendor=TALEEMABAD_LEGACY --only-bad-content-type            # dry run
+ *   ... --apply
+ *   --target      sandbox | staging | prod (default prod, as before); the project ref is asserted.
+ *   --env-file    the TARGET's env (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, R2_*). Default: repo .env.
+ *   --vendor      only that vendor's modules. Objects go to training/rehosted-legacy/<fde module id>/ (same key in
+ *                 every environment: staging and prod share one bucket) and an object already there is reused.
+ *   --only-bad-content-type   HEAD each source first and re-host only a generic-binary Content-Type.
  */
 
 // Runtime deps live in bot/node_modules (the repo root has none) — resolve
@@ -57,7 +67,10 @@
 const path = require('path');
 const fromBot = (mod) => require(path.join(__dirname, '..', 'bot', 'node_modules', mod));
 
-fromBot('dotenv').config({ path: path.join(__dirname, '..', '.env'), quiet: true });
+const args = process.argv.slice(2);
+const argValue = (name) => (args.find((a) => a.startsWith(`--${name}=`)) || '').split('=').slice(1).join('=') || null;
+const ENV_FILE = argValue('env-file') || path.join(__dirname, '..', '.env');
+fromBot('dotenv').config({ path: ENV_FILE, quiet: true });
 
 const https = require('https');
 const { createClient } = fromBot('@supabase/supabase-js');
@@ -75,8 +88,8 @@ const {
   effectiveMediaUrl,
   isControlledMediaHost,
 } = require('../bot/shared/services/training/media-host');
+const { needsRehost, legacyRehostKey, assertTarget } = require('./lib/legacy-media-rehost.rules');
 
-const NIETE_PROJECT_REF = 'ihzciabopbttygxxgrkm';
 const BUCKET = process.env.R2_BUCKET_NAME;
 // R2 multipart requires every part except the last to be >= 5 MiB.
 const PART_SIZE = 16 * 1024 * 1024;
@@ -96,25 +109,19 @@ const CONTENT_TYPES = {
   jpeg: 'image/jpeg',
 };
 
-const args = process.argv.slice(2);
 const APPLY = args.includes('--apply');
+const TARGET = argValue('target') || 'prod';
+const VENDOR = argValue('vendor');
+const ONLY_BAD_CT = args.includes('--only-bad-content-type');
 const ONLY = (args.find((a) => a.startsWith('--only=')) || '').split('=')[1] || null;
 const LIMIT = Number((args.find((a) => a.startsWith('--limit=')) || '').split('=')[1]) || Infinity;
 
 /**
- * Refuse to run against the wrong production database (bd-2536).
+ * Refuse to run against the wrong database (bd-2536). The env file's project ref must match --target
+ * (default prod, the original behaviour).
  */
 function assertNieteTarget() {
-  const url = process.env.SUPABASE_URL || '';
-  const m = url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/i);
-  if (!m) throw new Error(`Unrecognized SUPABASE_URL: ${url}`);
-  if (m[1] !== NIETE_PROJECT_REF) {
-    throw new Error(
-      `ABORT: target ref '${m[1]}' is not the NIETE project ('${NIETE_PROJECT_REF}').\n` +
-        `A worktree is seeded with the MAIN BOT's .env — copy NIETE-Rumi/.env in first.`
-    );
-  }
-  return m[1];
+  return assertTarget(TARGET, process.env.SUPABASE_URL);
 }
 
 function extensionOf(url) {
@@ -148,6 +155,25 @@ function fetchSource(url, redirectsLeft = 5) {
     });
     req.on('timeout', () => req.destroy(new Error('source timeout')));
     req.on('error', reject);
+  });
+}
+
+/** HEAD the source object: its Content-Type (undefined when absent), following redirects. */
+function headSource(url, redirectsLeft = 5) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, { method: 'HEAD', timeout: 30000 }, (res) => {
+      const { statusCode, headers } = res;
+      res.resume();
+      if ([301, 302, 303, 307, 308].includes(statusCode) && headers.location) {
+        if (redirectsLeft <= 0) return reject(new Error('too many redirects'));
+        return resolve(headSource(new URL(headers.location, url).toString(), redirectsLeft - 1));
+      }
+      if (statusCode !== 200) return reject(new Error(`source HEAD returned HTTP ${statusCode}`));
+      resolve(headers['content-type']);
+    });
+    req.on('timeout', () => req.destroy(new Error('source HEAD timeout')));
+    req.on('error', reject);
+    req.end();
   });
 }
 
@@ -286,23 +312,40 @@ async function main() {
   }
 
   console.log(`\nbd-2666 — re-host legacy training media`);
-  console.log(`  supabase : ${ref}`);
+  console.log(`  supabase : ${ref} (--target ${TARGET})`);
+  if (VENDOR) console.log(`  vendor   : ${VENDOR}${ONLY_BAD_CT ? ' · only generic-binary Content-Type' : ''}`);
   console.log(`  bucket   : ${BUCKET}`);
   console.log(`  mode     : ${APPLY ? 'APPLY (writes R2 + DB)' : 'DRY RUN (no writes)'}`);
   if (ONLY) console.log(`  filter   : ${ONLY} only`);
 
   const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data, error } = await sb
-    .from('training_modules')
-    .select('id,title,video_url,source_media_url,is_active')
-    .eq('is_active', true)
-    .limit(2000);
+  const base = sb.from('training_modules');
+  const { data, error } = VENDOR
+    ? await base
+        .select('id,source_module_id,title,video_url,source_media_url,is_active,training_courses!inner(training_levels!inner(training_vendors!inner(key)))')
+        .eq('is_active', true)
+        .eq('training_courses.training_levels.training_vendors.key', VENDOR)
+        .limit(2000)
+    : await base.select('id,title,video_url,source_media_url,is_active').eq('is_active', true).limit(2000);
   if (error) throw new Error(`module fetch failed: ${error.message}`);
 
   let candidates = data
     .map((m) => ({ m, url: effectiveMediaUrl(m), kind: isPdfModule(m) ? 'pdf' : 'video' }))
     .filter((c) => c.url && !isControlledMediaHost(c.url));
   if (ONLY) candidates = candidates.filter((c) => c.kind === ONLY);
+  if (ONLY_BAD_CT) {
+    const kept = [];
+    for (const c of candidates) {
+      try {
+        if (needsRehost(await headSource(c.url))) kept.push(c);
+      } catch (err) {
+        console.log(`  ⚠️  module ${c.m.id}: HEAD failed (${err.message}), treated as needing a re-host`);
+        kept.push(c);
+      }
+    }
+    console.log(`  ${candidates.length - kept.length} of ${candidates.length} already serve a renderable Content-Type and stay put`);
+    candidates = kept;
+  }
   candidates = candidates.slice(0, LIMIT);
 
   console.log(`\n  ${candidates.length} module(s) on an uncontrolled host\n`);
@@ -336,12 +379,24 @@ async function main() {
     }
 
     const ext = extensionOf(url);
-    const key = `training/rehosted/${m.id}/${extensionOf(url) ? `asset.${ext}` : 'asset'}`;
+    const key = VENDOR
+      ? legacyRehostKey(m.source_module_id, ext)
+      : `training/rehosted/${m.id}/${extensionOf(url) ? `asset.${ext}` : 'asset'}`;
 
     try {
       console.log(`  ⏳ ${label} · ${String(m.title).slice(0, 44)}`);
-      const source = await fetchSource(url);
-      const bytes = await uploadToR2(client, key, contentType, source);
+      // A legacy object another environment already put at this key (shared bucket) is reused, not re-uploaded.
+      let bytes = 0;
+      const already = VENDOR
+        ? await client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key })).catch(() => null)
+        : null;
+      if (already && already.ContentType === contentType) {
+        bytes = Number(already.ContentLength) || 0;
+        console.log(`      reusing existing object ${key}`);
+      } else {
+        const source = await fetchSource(url);
+        bytes = await uploadToR2(client, key, contentType, source);
+      }
 
       // Prove the object is really there and really renderable BEFORE the DB
       // is repointed — "uploaded" is a hypothesis until R2 confirms the type.

@@ -1528,7 +1528,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       nfYes: 'جی ہاں، یہی میرا نام ہے', nfFix: 'دوبارہ لکھیں',
       nsT: function (t, c, n) { return (c ? c + ' میں ' : '') + t + ' نام کے ' + n + ' بچے ہیں۔'; },
       nsSay: 'کھیلنے کے لیے جی ہاں دبائیں۔ ٹیچر خود دیکھ لیں گے کہ آپ کون ہیں۔',
-      knIs: function (n) { return 'کیا آپ ' + n + ' ہیں؟'; }, knYes: 'جی ہاں، میں ہوں', knElse: 'نہیں، میں کوئی اور ہوں'
+      knIs: function (n) { return 'کیا آپ ' + n + ' ہیں؟'; }, knYes: 'جی ہاں، میں ہی ہوں', knElse: 'نہیں، میں کوئی اور ہوں'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
   // The roll pad and its lists: 0-9, Urdu included. The roll number is matched to the teacher's

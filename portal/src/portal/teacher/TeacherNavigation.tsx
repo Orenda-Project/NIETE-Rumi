@@ -5,7 +5,7 @@ import { TEACHER_FRAME } from "./copy";
 import { useCopy } from "./i18n";
 import { teacherPath } from "./routes";
 import { FeatureGlyph, type GlyphName } from "./icons";
-import { COACH_MENU_PATHS, COACH_NAV_KEYS, currentCoachMenuItem, currentMenuItem, type CoachNavKey, type NavFeature } from "./menu";
+import { COACH_MENU_PATHS, COACH_NAV_KEYS, coachNavKeysFor, currentCoachMenuItem, currentMenuItem, type CoachNavKey, type NavFeature } from "./menu";
 
 /**
  * bd-fmf24g.1 — the teacher v2 menu (canvas v28): a white bottom bar on a phone with
@@ -35,17 +35,18 @@ const COACH_ICONS: Record<CoachNavKey, GlyphName> = {
   schedule: "schedule",
   observe: "observations",
   schools: "schools",
+  training: "training",
   more: "more",
 };
 
 export type MenuRole = "teacher" | "coach";
 
-/** `role` picks the items (default: the teacher's); the bar, the glyphs and the current-item rule are the same. */
-const TeacherNavigation = ({ role = "teacher" }: { role?: MenuRole } = {}) => {
+/** `ready` (coach only): the features that are ready, others are left out (bd-s42dye.2). `role` picks the items (default: the teacher's); the bar, the glyphs and the current-item rule are the same. */
+const TeacherNavigation = ({ role = "teacher", ready }: { role?: MenuRole; ready?: readonly string[] } = {}) => {
   const C = useCopy(TEACHER_FRAME);
   const { pathname } = useLocation();
   const items: { feature: string; label: string; to: string; glyph: GlyphName }[] = role === "coach"
-    ? COACH_NAV_KEYS.map((k) => ({ feature: k, label: C.coachNav[k], to: COACH_MENU_PATHS[k], glyph: COACH_ICONS[k] }))
+    ? (ready ? coachNavKeysFor(ready) : COACH_NAV_KEYS).map((k) => ({ feature: k, label: C.coachNav[k], to: COACH_MENU_PATHS[k], glyph: COACH_ICONS[k] }))
     : ITEMS.map((f) => ({ feature: f, label: C.nav[f], to: teacherPath(f), glyph: NAV_ICONS[f] }));
   const current: string | null = role === "coach" ? currentCoachMenuItem(pathname) : currentMenuItem(pathname);
 
