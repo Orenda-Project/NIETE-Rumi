@@ -351,10 +351,12 @@ function mediaHelpers() {
 /**
  * A child's own code under the watch root (a class-less child's quiz after a video), or the root code itself: no class,
  * so no classmates. The root (app_settings VALUE web_quiz_watch_root, the key the videos module mints under) comes in
- * the page's own identity-mode settings read, so no code pays a read for it; no root (or a failed read) = today's page.
+ * the page's own identity-mode settings read, so no code pays a read for it; no root = today's page. A failed read may
+ * hide a root, so it fails closed: every code is treated as no class (only its own players, no roster).
  */
 async function isWatchCode(ctx) {
-  const root = await IdRoster.watchRoot();
+  const { root, unreadable } = await IdRoster.watchRootState();
+  if (unreadable) return true;
   if (!root) return false;
   if (ctx.moreVideosOf === root || ctx.shareCodeId === root) return true;
   // deeper: a watch child's lesson code, a friend's code under it, ... (by ancestry; once per request)
