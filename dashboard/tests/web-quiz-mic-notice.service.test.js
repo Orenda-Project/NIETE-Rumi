@@ -91,12 +91,14 @@ describe('the words: true, a parent\'s, EN + UR', () => {
     expect(ur).toContain('ریکارڈنگ');
     expect(ur).toContain('⁦STOP⁩');
     expect(ur).toContain('کہانی کے صفحوں کی ریکارڈنگ کبھی نہیں رکھی جاتی');
-    expect(ur).toContain('صرف جگنو بنانے والے لوگ سن سکتے ہیں');
+    expect(ur).toContain('یہ ریکارڈنگ صرف جگنو بنانے والے لوگ سن سکتے ہیں');
     expect(ur).toContain('فون نمبر ہٹا دیا جاتا ہے، لیکن جو ریکارڈنگ پہلے سے رکھی جا چکی ہے وہ موجود رہتی ہے');
+    expect(copyOf('ur').facts).toContain('کہانی کے صفحے پر کچھ بھی رکھا نہیں جاتا');
+    expect(copyOf('ur').facts).not.toContain('محفوظ');
   });
-  test('nothing kept: "Nothing is kept. Jugnu listens only while you read." and its Urdu (passive: no gendered verb for the reader)', () => {
+  test('nothing kept: "Nothing is kept. Jugnu listens only while you read." and its Urdu', () => {
     expect(copyOf('en').noticeNone).toBe('Nothing is kept. Jugnu listens only while you read.');
-    expect(copyOf('ur').noticeNone).toBe('کچھ بھی ریکارڈ نہیں ہوتا، نہ کہیں رکھا جاتا ہے۔ جگنو صرف اسی وقت سنتا ہے جب یہ صفحہ پڑھا جا رہا ہو۔');
+    expect(copyOf('ur').noticeNone).toBe('کچھ بھی نہیں رکھا جاتا۔ جگنو صرف اسی وقت سنتا ہے جب آپ پڑھ رہے ہوں۔');
   });
   test('no assessment word, no "just for fun", no deletion claimed, in either language, anywhere in the sheet\'s copy', () => {
     ['en', 'ur'].forEach((l) => {

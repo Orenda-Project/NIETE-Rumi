@@ -301,10 +301,10 @@ describe('the notice copy (deck v2.2: jg.keep.notice, jg.keep.notice_ok)', () =>
       expect(trailT()[l].noticeOk).toBe(keys['jg.keep.notice_ok'][l]);
     }
   });
-  test('each notice is at most 200 code points with {name} unfilled (RULING #97 amended); the control at most 12', () => {
+  test('each notice is at most 230 code points with {name} unfilled (the deck cap; the native-signed Urdu is 212); the control at most 12', () => {
     for (const l of ['en', 'ur']) {
       expect(trailT()[l].noticeT).toContain('{name}');
-      expect([...trailT()[l].noticeT].length).toBeLessThanOrEqual(200);
+      expect([...trailT()[l].noticeT].length).toBeLessThanOrEqual(230);
       expect([...trailT()[l].noticeOk].length).toBeLessThanOrEqual(12);
     }
   });

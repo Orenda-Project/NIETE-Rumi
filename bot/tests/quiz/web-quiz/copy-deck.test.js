@@ -204,12 +204,12 @@ describe('copy deck v2.3: the new keys and the read FIXes', () => {
     expect(d()['jg.trail.welcome_back'].ur.endsWith(`چلتے${NBSP}ہیں۔`)).toBe(true);
   });
 
-  test('the mic notice says the recordings stay after STOP, in both languages, within 200 code points', () => {
+  test('the mic notice says the recordings stay after STOP, in both languages, within its cap (230: the native-signed Urdu is 212 + a long name)', () => {
     const n = d()['jg.keep.notice'];
     expect(n.en).toMatch(/the recordings stay/);
-    expect(n.ur).toContain('لیکن ریکارڈنگ رہتی');
-    expect(cp(n.en)).toBeLessThanOrEqual(200);
-    expect(cp(n.ur)).toBeLessThanOrEqual(200);
+    expect(n.ur).toContain('لیکن ریکارڈنگ موجود رہتی');
+    expect(cp(n.en)).toBeLessThanOrEqual(230);
+    expect(cp(n.ur)).toBeLessThanOrEqual(230);
   });
 
   test('the failed save says what failed; the whose-turn exit says what it does', () => {
