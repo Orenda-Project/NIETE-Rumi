@@ -152,7 +152,10 @@ describe('wq-home.js: the Next tile', () => {
     expect(nx).toMatchObject({ kind: 'story', title: 'Read a story with Jugnu', sub: 'The red kite', src: 'lantern' });
     expect(nx.href).toBe(`/c/${encodeURIComponent(TOKEN)}?kid=${KID}&room=story&pid=en.read.1.k07`);
     const trail = H.nextOf({ ...HOME, play: { lantern: { kind: 'trail', stops: 2 } } }, ctxOf('en'));
-    expect(trail).toMatchObject({ kind: 'game', href: `/c/${encodeURIComponent(TOKEN)}?kid=${KID}`, src: 'lantern' });
+    expect(trail).toMatchObject({ kind: 'game', href: `/c/${encodeURIComponent(TOKEN)}?kid=${KID}#next`, src: 'lantern' });
+    // the tile opens the one game it names (wq-trail.js starts it): the first not done, or the number warm-up
+    expect(H.nextOf({ ...HOME, play: { lantern: { kind: 'numbers' } } }, ctxOf('en')).href).toBe(`/c/${encodeURIComponent(TOKEN)}?kid=${KID}#numbers`);
+    expect(H.nextOf({ ...HOME, doors: { stories: [], games: [{ kind: 'numbers' }], videos: null } }, ctxOf('en')).href).toBe(`/c/${encodeURIComponent(TOKEN)}?kid=${KID}#numbers`);
     expect(trail.title).not.toMatch(BANNED);
   });
   test('nothing at all: one Next element still, and it opens the Stories door', () => {
@@ -382,6 +385,30 @@ describe('one word for the teacher on a child screen, and the pending teacher qu
   });
   test('Jugnu\'s giggle is declared for the audit: data-sound + data-trigger on the header image', () => {
     expect(H.html(HOME, ctxOf('en'))).toMatch(/<img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap"/);
+  });
+});
+
+describe('the home\'s next_tap says where it was tapped (ctx home) and how long after the tile showed (ms_to_tap)', () => {
+  function tapNext(B) {
+    const evs = []; const l = {};
+    const tile = { attrs: { 'data-tap': 'next', 'data-kind': 'story', href: '#stories' }, getAttribute(a) { return this.attrs[a] == null ? null : this.attrs[a]; }, addEventListener(n, fn) { (l[n] = l[n] || []).push(fn); }, classList: { add() {}, remove() {} } };
+    const root = { innerHTML: '', setAttribute() {}, querySelector: () => null, querySelectorAll: (sel) => (sel === '[data-tap]' ? [tile] : []), appendChild() {} };
+    const win = { addEventListener() {}, scrollTo() {} };
+    const document = { querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null), createElement: (tag) => ({ tag, addEventListener() {} }), head: { appendChild() {} } };
+    vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, document, location: { hash: '', pathname: '/h/x', search: '' }, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, JSON, Math, String, Number, Array, Object, encodeURIComponent, RegExp, Date });
+    win.WQHOME.mount(root, B, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]) });
+    (l.click || []).forEach((fn) => fn({ preventDefault() {} }));
+    return evs.find(([n]) => n === 'next_tap')[1];
+  }
+  test('the fallback tile (no offer): ctx home + a whole ms_to_tap >= 0', () => {
+    const e = tapNext(HOME);
+    expect(e).toMatchObject({ ctx: 'home', pos: 0, kind: 'story' });
+    expect(Number.isInteger(e.ms_to_tap) && e.ms_to_tap >= 0).toBe(true);
+  });
+  test('a ranked tile: the same, beside its offer words', () => {
+    const e = tapNext({ ...HOME, next: { kind: 'story', href: '#stories', title: 'Read', arm: 'rank', offer: 'o-1', rank_src: 'prior' } });
+    expect(e).toMatchObject({ ctx: 'home', pos: 0, offer: 'o-1', arm: 'rank', rank_src: 'prior' });
+    expect(Number.isInteger(e.ms_to_tap) && e.ms_to_tap >= 0).toBe(true);
   });
 });
 
