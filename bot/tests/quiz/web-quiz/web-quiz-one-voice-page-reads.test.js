@@ -106,10 +106,11 @@ function boot(kind, flag, { failKey = false, extra = [] } = {}) {
     app_settings: [...(flag === undefined ? [] : [{ key: KEY, value: flag }]), ...extra],
   });
   let settings = 0;
+  const state = { failKey };
   const from = (t) => {
     if (t === 'app_settings') settings += 1;
     const b = fake.from(t);
-    if (t !== 'app_settings' || !failKey) return b;
+    if (t !== 'app_settings' || !state.failKey) return b;
     const failed = { data: null, error: { message: 'read failed' } };
     const fail = () => ({ ...b, then: (res, rej) => Promise.resolve(failed).then(res, rej), maybeSingle: () => Promise.resolve(failed) });
     const { eq, in: inn } = b;
@@ -121,7 +122,7 @@ function boot(kind, flag, { failKey = false, extra = [] } = {}) {
   jest.spyOn(require('../../../shared/services/quiz/web-quiz-media'), 'presignAudio').mockResolvedValue({});
   const WQ = require('../../../shared/services/quiz/web-quiz.service');
   return {
-    WQ,
+    WQ, fake, state,
     reads: () => settings,
     async page() {
       const before = settings;
@@ -289,5 +290,45 @@ describe('the plan\'s `enabled` is the JSON true only', () => {
     const OneVoice = require('../../../shared/services/quiz/web-quiz-one-voice-flag');
     expect(OneVoice.normalize({ enabled: true, kbps: 32 })).toMatchObject({ kbps: 32 });
     expect(OneVoice.normalize({ kbps: 32 })).toMatchObject({ kbps: 32 });
+  });
+});
+
+/*
+ * The switch rides the page's settings read (the host): its reading is never older than that read's 30 s, a value
+ * held from an earlier read is dropped when a later read fails, and the string "true" is off on the switch's own read
+ * (the path its other readers take when the page has not read it).
+ */
+describe('the rider: the switch read with the page\'s settings read', () => {
+  const T0 = 1_800_000_000_000;
+  afterEach(() => jest.restoreAllMocks());
+  const at = (ms) => jest.spyOn(Date, 'now').mockReturnValue(ms);
+
+  test('stale host: 31 s after an on read, the switch turned off is read off, with no more reads than the first page', async () => {
+    at(T0);
+    const p = boot('teacher', true);
+    const first = await p.page();
+    expect(first.out.one_voice).toBe(true);
+    p.fake.db.app_settings.find((r) => r.key === KEY).value = false;
+    at(T0 + 31 * 1000);
+    const r = await p.page();
+    expect(r.out.one_voice).toBeUndefined();
+    expect(r.settings).toBeLessThanOrEqual(first.settings);
+  });
+
+  test('held value: 31 s after an on read, a failed read is off (the earlier plan is not held)', async () => {
+    at(T0);
+    const p = boot('teacher', true);
+    expect((await p.page()).out.one_voice).toBe(true);
+    p.state.failKey = true;
+    at(T0 + 31 * 1000);
+    expect((await p.page()).out.one_voice).toBeUndefined();
+    expect(await require('../../../shared/services/quiz/web-quiz-identity-roster').oneVoicePlan(T0 + 31 * 1000)).toBe(null);
+  });
+
+  test('the string "true" on the switch\'s own read (the path off the page): off', async () => {
+    boot('teacher', 'true');
+    const OneVoice = require('../../../shared/services/quiz/web-quiz-one-voice-flag');
+    expect(await OneVoice.plan()).toBe(null);
+    expect(await OneVoice.on()).toBe(false);
   });
 });

@@ -95,7 +95,7 @@ const CLIP_FORMAT = `opus${CLIP_KBPS}m`;
 // rate, 64 or 32 kb/s), never re-encoded: a second encode at 24 kb/s is the loss the storybook voice-overs dropped
 // (Oct 2026). Their format tag names the rate and the voice's rendering, so a change of either gets new clips.
 const oneFormat = (plan, voice) => `opus${plan.kbps || 64}.${OneVoice.renderOf(voice)}`;
-// ElevenLabs v4 as the team's spend log counts it, for the one voice's clips (the estimate the backfill stops on).
+// ElevenLabs v4 at its published per-character rate, for the one voice's clips (the estimate the backfill stops on).
 const ONE_USD_PER_CHAR = 0.30 / 1000;
 
 /** A clip's key (web-quiz-audio-store.js), in the quiz voice of `language`, for this deployment. */
@@ -238,7 +238,8 @@ function recordedParts(q) {
  */
 function partsFor(q, { oneVoice = null } = {}) {
   const parts = [];
-  const bank = oneVoice && Array.isArray(oneVoice.bank) ? oneVoice.bank : [];
+  // A plan's `bank` (web-quiz-one-voice-flag.js); `true` or a plan naming none keeps the question and the options.
+  const bank = oneVoice && Array.isArray(oneVoice.bank) ? oneVoice.bank : OneVoice.DEFAULT_BANK;
   const have = oneVoice
     ? new Set([...recordedParts(q || {})].filter((p) => (p === 'q' ? bank.includes('q') : bank.includes('opts'))))
     : recordedParts(q || {});

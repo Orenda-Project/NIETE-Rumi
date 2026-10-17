@@ -126,7 +126,8 @@ const RECORDED_FIRST = new Set(['q', 'stim']);
 async function withRecordedClips(rows, generated, { expiresIn, oneVoice = null } = {}) {
   const out = { ...(generated || {}) };
   // With a plan, only the sound to identify and the parts the plan keeps from the bank (its `bank`) are merged.
-  const bank = oneVoice && Array.isArray(oneVoice.bank) ? oneVoice.bank : [];
+  // `true` or a plan naming no `bank` keeps the question and the options (web-quiz-one-voice-flag.js DEFAULT_BANK).
+  const bank = oneVoice && Array.isArray(oneVoice.bank) ? oneVoice.bank : ['q', 'opts'];
   await Promise.all((rows || []).map(async (row) => {
     const clips = recordedClips(row);
     const keys = Object.keys(clips).filter((k) => !oneVoice || k === 'stim' || bank.includes(k));
