@@ -151,7 +151,10 @@ function buildReaderPrompt(examJson, P, opts = {}) {
     'Inside a JSON string never use the character "; quote Urdu with « ». Use the labels exactly as printed below.',
     '{"candidates":[]} is the right answer when nothing is given away.',
     ...(only ? ['', `${ONLY_HEAD} ${only.join(', ')}. The other items were already checked: flag one of these when it is`,
-      'given away, or when its own text gives away another item (then item is the item given away and by is this one).'] : []),
+      'given away, or when its own text gives away another item (then item is the item given away and by is this one).',
+      'Read each of these against EVERY other Q1 item on the paper, one pair at a time: one that asks the same fact of the',
+      'book as another item, in other words or with another form of its key (singular or plural: «فاختہ» / «فاختائیں»), is',
+      'given away by that item (item is this one, by is the other, evidence is the words of the other that state the fact).'] : []),
     '',
     PAPER_HEAD,
     ...paper,
@@ -214,11 +217,18 @@ function parseFlags(reply, labels, only = null, blocks = null) {
 // A flag whose giver is another Q1 item: the give-away stays inside Section A.
 const inQ1 = (flag) => /^Q1(\.|$)/.test(flag.by || '');
 
-/** The note the Section A top-up carries: what was taken off and why. */
-function readerNote(flags, labels) {
+/**
+ * The note a Section A top-up carries: what was taken off and why. Each flag carries its item (`q`)
+ * and, when another Q1 item gave it away, that kept `partner`: the top-up is told the partner's fact
+ * too, or it writes the same fact again in a new shape (a plural key, another stem). `labels`, when
+ * given, finds an item a flag names only by label.
+ */
+function readerNote(flags, labels = null) {
   const lines = flags.map((f) => {
-    const q = labels.get(f.item);
-    return `- ${strip(q && q.question)} → ${q ? keyOf(q) : ''}${f.reason ? `: ${f.reason}` : ''}`;
+    const q = f.q || (labels && labels.get(f.item));
+    const p = f.partner;
+    const line = `- ${strip(q && q.question)} → ${q ? keyOf(q) : ''}${f.reason ? `: ${f.reason}` : ''}`;
+    return p ? `${line}\n  The paper keeps ${strip(p.question)} → ${keyOf(p)}: never ask that fact again, in any wording, in the singular or the plural.` : line;
   });
   return 'A reader of this paper found that these Section A items can be answered from text printed elsewhere on '
     + `the paper, so they are taken off it; never write these again, in any wording:\n${lines.join('\n')}\n`

@@ -1740,12 +1740,13 @@ function _dropHeld(examJson, held, requestId = null) {
  * Urdu: drop every item that quotes lessons 1–3 (book pp 1–27: the Hamd,
  * the Naat and the third lesson). The prompt already says so; this makes it
  * true when the model forgets. A quote is any run of 24 characters or more
- * from those pages, whitespace collapsed. The pages are loaded once per paper.
+ * from those pages, whitespace collapsed. The pages are loaded each time the filter runs.
  * Social Studies: drop every item that names a religious text (HELD_TERMS_SST).
- * Either way the emptied place is a shortfall and the paper fails; it is never refilled.
+ * The emptied place is a shortfall. Urdu: a place a quote emptied is asked again once by the caller
+ * (`quotes` collects each matched run for that re-ask's note); a second quote fails the paper.
  * Mutates the tree; returns what was dropped, [{ slot, reason }] (plus `term` for Social Studies).
  */
-async function religiousFilter(examJson, P, { grade, subject, allowedText = '', requestId = null } = {}) {
+async function religiousFilter(examJson, P, { grade, subject, allowedText = '', requestId = null, quotes = null } = {}) {
   const key = (P && P.key) || Patterns.normalise(subject);
   if (key === 'social_studies') {
     return _dropHeld(examJson, (q) => {
@@ -1786,7 +1787,11 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '', 
   const book = _heldNorm(kept);
   return _dropHeld(examJson, (q) => {
     const match = quoteOf(q);
-    if (match) return { reason: 'lesson_1_3', match };
+    if (match) {
+      // The caller's re-ask is told the run, so it writes the place again without it.
+      if (Array.isArray(quotes)) quotes.push({ slot: q.slot || null, match });
+      return { reason: 'lesson_1_3', match };
+    }
     const term = _authoredReligiousOf(q, book);
     return term ? { reason: 'authored_religious', term } : null;
   }, requestId);
@@ -1804,12 +1809,12 @@ async function _loadPatternContent({ grade, subject, P, scope, pageRanges, chapt
 //
 // After the final layout, one call reads the question paper as the child sees it, with Q1's keys
 // beside it, and names the Q1 items a child could answer from text printed elsewhere on it. Those
-// are held, Section A is asked ONCE for replacements, the paper is laid out again, and the reader
-// checks the replacements only. A replacement still flagged is taken off; a place left empty takes
-// a held item back, an in-Q1 one first (its give-away stays inside Q1), never a second loop.
+// are held, Section A is asked for replacements, the paper is laid out again, and the reader
+// checks the replacements against the whole paper. A caught item never prints: a place still empty
+// after one more top-up fails the paper closed (PATTERN_SHORT_SLOT, the record on the paper).
 // Runs only when the caller says so (the reader setting, read by the orchestrator) and only for
-// READER_SUBJECTS. Any failure of the read or the top-up keeps the paper as it was: the reader
-// never fails a paper that prints without it.
+// READER_SUBJECTS. A failed READ (a timeout, a reply with no candidates) keeps the paper as it was:
+// the reader erroring never fails a paper that prints without it.
 const READER_TIMEOUT_MS = 120000;
 // The longest recorded read wrote 3,768 tokens (reasoning included); a cut-off read skips the pass.
 const READER_MAX_TOKENS = 8000;
@@ -1818,6 +1823,8 @@ const READER_MAX_TOKENS = 8000;
 // misses the by-meaning shapes. High thought on 64 of 64 reads and found 12 of 12, twice.
 const READER_REASONING = { effort: 'high' };
 const READ_SLOT = 'urdu.A.Q1';
+// The Section A top-ups a reader pass may run: the first, and one more for a place the first leaves.
+const READER_TOP_UPS = 2;
 
 const _readerId = (q) => `${_flat(q && q.question)}\u0001${Reader.keyOf(q || {})}`;
 
@@ -1868,20 +1875,25 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
   const began = Date.now();
   const readUsages = [];
   const sectionUsages = [];
-  const stats = { flagged: 0, replaced: 0, still_flagged: 0, put_back: 0 };
+  // put_back stays 0: a reader-caught item never prints (a place it leaves fails the paper closed).
+  const stats = { flagged: 0, replaced: 0, still_flagged: 0, put_back: 0, top_ups: 0 };
   // What became of each flag, written on the paper (`_layout.reader`) as well as the log line, so a
   // panel reads from exam_json which items printed over a flag. The renderers never read it.
   const items = [];
   const record = (f, outcome) => items.push({ label: f.item, by: f.by, reason: f.reason, outcome });
   const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
+  // The record keeps its items on every path, an error's included: a failed paper still names them.
   const done = (exam, laid, error = null) => {
     logToFile('[assessment] reader pass', {
       requestId, subject: key, ...stats, ms: Date.now() - began, tokens: _sumUsage(readUsages).total_tokens || 0, ...(error ? { error } : {}),
     });
-    if (exam && exam._layout) exam._layout.reader = { ...stats, items: error ? [] : items, ...(error ? { error } : {}) };
+    if (exam && exam._layout) exam._layout.reader = { ...stats, items, ...(error ? { error } : {}) };
     return { examJson: exam, laid, usages: readUsages.concat(sectionUsages) };
   };
   const ask = (exam, only = null) => _askReader({ examJson: exam, P, only, model, ownModel, job, usages: readUsages });
+  // A flag with its item and, when another Q1 item gives it away, that partner: the top-up is told both.
+  const withItems = (read) => read.flags.map((f) => ({ ...f, q: read.labels.get(f.item), partner: read.labels.get(f.by) || null }));
+  const idsOf = (list) => new Set(list.map((h) => _readerId(h.q)));
 
   let first;
   try {
@@ -1891,72 +1903,110 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
   }
   if (!first.flags.length) return done(examJson, null);
   stats.flagged = first.flags.length;
-  const held = first.flags.map((f) => ({ ...f, q: first.labels.get(f.item) }));
+  const held = withItems(first);
+  held.forEach((h) => record(h, 'replaced'));
+  // Every item a read has caught: none of them prints, and every top-up is told all of them.
+  let taken = held;
+  let laid = lay(_dropItems(examJson, READ_SLOT, idsOf(held)));
+  const short = (l) => l.shortfall.filter((f) => f.slot === READ_SLOT);
 
   try {
-    const kept = lay(_dropItems(examJson, READ_SLOT, new Set(held.map((h) => _readerId(h.q)))));
-    const shortfall = kept.shortfall.filter((f) => f.slot === READ_SLOT);
     const b = built.find((x) => x.section.slots.some((s) => s.slot === READ_SLOT));
-    // Ask twice what is missing (plus the note's spares): on a narrow scope the layout holds most of a
-    // top-up's items (5 asked, 4 held on a local lessons 6-7 paper), and the extras never print.
-    const ask2 = shortfall.map((f) => ({ ...f, missing: f.missing * 2 }));
-    const note = [takenNote(P, b.section, kept.examJson, { topUp: true, shortfall: ask2 }), Reader.readerNote(first.flags, first.labels)]
-      .filter(Boolean).join('\n\n');
-    logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall, reader: first.flags });
-    const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
-    sectionUsages.push(...second.usages);
-    // A replacement carrying text the paper refuses to print would fail the paper at render.
-    if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return done(examJson, null, 'top-up: refused text');
-    stripImageKeys(second.tree);
-    normaliseAnswers(second.tree);
-    // Only new Q1 items: a held item written again is not a replacement.
-    const fresh = _dropItems(second.tree, READ_SLOT, new Set(held.map((h) => _readerId(h.q))));
-    let laid = lay(_topUp(kept.examJson, fresh, new Set([READ_SLOT])));
-    let exam = laid.examJson;
-    _blankWordsStems(exam, P, key);
-    if ((await religiousFilter(exam, P, { grade, subject, allowedText: loaded.content, requestId })).length) {
-      laid = lay(exam);
-      exam = laid.examJson;
-    }
+    for (let round = 0; round < READER_TOP_UPS && short(laid).length; round += 1) {
+      const kept = laid;
+      const shortfall = short(kept);
+      // Ask twice what is missing (plus the note's spares): on a narrow scope the layout holds most of a
+      // top-up's items (5 asked, 4 held on a local lessons 6-7 paper), and the extras never print.
+      const ask2 = shortfall.map((f) => ({ ...f, missing: f.missing * 2 }));
+      const note = [takenNote(P, b.section, kept.examJson, { topUp: true, shortfall: ask2 }), Reader.readerNote(taken)]
+        .filter(Boolean).join('\n\n');
+      logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall, reader: taken.map(({ q, partner, ...f }) => f) });
+      stats.top_ups += 1;
+      const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+      sectionUsages.push(...second.usages);
+      // A replacement carrying text the paper refuses to print would fail the paper at render.
+      if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return done(kept.examJson, kept, 'top-up: refused text');
+      stripImageKeys(second.tree);
+      normaliseAnswers(second.tree);
+      // Only new Q1 items: a caught item written again is not a replacement.
+      const fresh = _dropItems(second.tree, READ_SLOT, idsOf(taken));
+      let next = lay(_topUp(kept.examJson, fresh, new Set([READ_SLOT])));
+      _blankWordsStems(next.examJson, P, key);
+      if ((await religiousFilter(next.examJson, P, { grade, subject, allowedText: loaded.content, requestId })).length) next = lay(next.examJson);
 
-    const keptIds = new Set(Reader.itemsOf(kept.examJson, READ_SLOT).map(_readerId));
-    const replacements = Reader.itemsOf(exam, READ_SLOT).filter((q) => !keptIds.has(_readerId(q)));
-    let still = [];
-    if (replacements.length) {
-      try {
-        const again = await ask(exam, replacements);
-        still = again.flags.map((f) => ({ ...f, q: again.labels.get(f.item) }));
-        stats.rechecked = true;
-      } catch (err) {
-        stats.rechecked = false;
-        logToFile('[assessment] reader re-check failed, replacements kept', { requestId, error: err.message });
+      const keptIds = new Set(Reader.itemsOf(kept.examJson, READ_SLOT).map(_readerId));
+      const replacements = Reader.itemsOf(next.examJson, READ_SLOT).filter((q) => !keptIds.has(_readerId(q)));
+      let still = [];
+      if (replacements.length) {
+        try {
+          still = withItems(await ask(next.examJson, replacements));
+          stats.rechecked = true;
+        } catch (err) {
+          stats.rechecked = false;
+          logToFile('[assessment] reader re-check failed, replacements kept', { requestId, error: err.message });
+        }
       }
+      stats.still_flagged += still.length;
+      stats.replaced += replacements.length - still.length;
+      still.forEach((h) => record(h, 'taken_off'));
+      taken = taken.concat(still);
+      laid = still.length ? lay(_dropItems(next.examJson, READ_SLOT, idsOf(still))) : next;
     }
-    stats.still_flagged = still.length;
-    stats.replaced = replacements.length - still.length;
-    if (still.length) {
-      laid = lay(_dropItems(exam, READ_SLOT, new Set(still.map((h) => _readerId(h.q)))));
-      exam = laid.examJson;
-    }
-    // An empty place takes a held item back: in-Q1 give-aways first, the first read's before the re-check's.
-    const pool = [...held.filter(Reader.inQ1), ...still.filter(Reader.inQ1), ...held.filter((h) => !Reader.inQ1(h)), ...still.filter((h) => !Reader.inQ1(h))];
-    const back = new Set();
-    for (const h of pool) {
-      if (!laid.shortfall.some((f) => f.slot === READ_SLOT)) break;
-      const next = lay(_addItem(exam, READ_SLOT, h.q));
-      if (Reader.itemsOf(next.examJson, READ_SLOT).length <= Reader.itemsOf(exam, READ_SLOT).length) continue;
-      laid = next;
-      exam = next.examJson;
-      stats.put_back += 1;
-      back.add(h);
-    }
-    held.forEach((h) => record(h, back.has(h) ? 'put_back' : 'replaced'));
-    still.forEach((h) => record(h, back.has(h) ? 'put_back' : 'taken_off'));
-    if (laid.shortfall.length) return done(examJson, null, 'top-up left the paper short');
-    return done(exam, laid);
+    // Still short after the top-ups: the paper fails closed (PATTERN_SHORT_SLOT, with this record),
+    // never printing a caught item to fill the place.
+    if (laid.shortfall.length) return done(laid.examJson, laid, 'the paper would be short');
+    return done(laid.examJson, laid);
   } catch (err) {
-    return done(examJson, null, `top-up: ${err.message}`);
+    return done(laid.examJson, laid, `top-up: ${err.message}`);
   }
+}
+
+/**
+ * Urdu: the places the lessons 1–3 filter emptied are asked again ONCE, for exactly what each slot
+ * lacks. The filter matches any run of 24 characters only the held lessons print, and an everyday
+ * phrase in a model answer can be one («… کی عادت اپنانی چاہیے۔»); one such run used to fail the whole
+ * paper, since the slot was never refilled. The re-ask is told the runs that matched, and the filter
+ * then reads the paper again exactly as strictly: a second quote leaves the slot short and the paper
+ * fails as it always has. A section call that fails, or carries text the paper refuses, leaves it short too.
+ */
+async function _reaskQuoted({ examJson, laid, quotes, P, key, layoutScope, now, pattern, built, writeOne, system, model, loaded, grade, subject, requestId, versesRef }) {
+  const usages = [];
+  const short = laid.shortfall.filter((f) => quotes.some((x) => x.slot === f.slot));
+  if (!short.length) return { examJson, laid, usages };
+  const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
+  const asked = built.filter((b) => b.section.slots.some((s) => short.some((f) => f.slot === s.slot)));
+  const replies = await Promise.all(asked.map(async (b) => {
+    const mine = short.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+    const label = (id) => { const slot = b.section.slots.find((s) => s.slot === id); return (slot && slot.label_en) || id.split('.').pop(); };
+    const runs = [...new Set(quotes.filter((x) => mine.some((f) => f.slot === x.slot)).map((x) => x.match))];
+    const note = 'This paper cannot print what you wrote for '
+      + `${mine.map((f) => label(f.slot)).join(', ')}: it repeats words from a lesson the paper must never quote. `
+      + `Never write these words, or any longer run that holds them, anywhere in an item, its answer or its scheme:\n${runs.map((r) => `- «${r}»`).join('\n')}\n`
+      + mine.map((f) => `${label(f.slot)} needs ${f.missing} more. Write ${f.missing} new item${f.missing === 1 ? '' : 's'} for it, in your own everyday words.`).join('\n');
+    logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall: mine, quoted: runs });
+    try {
+      const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+      usages.push(...second.usages);
+      if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return null;
+      stripImageKeys(second.tree);
+      normaliseAnswers(second.tree);
+      _dropProseVerses(second.tree, versesRef, requestId);
+      return { slots: new Set(mine.map((f) => f.slot)), tree: second.tree };
+    } catch (err) {
+      logToFile('[assessment] held quote re-ask failed', { requestId, section: b.section.id, error: err.message });
+      return null;
+    }
+  }));
+  let exam = examJson;
+  for (const r of replies) if (r) exam = _topUp(exam, r.tree, r.slots);
+  let next = lay(exam);
+  _blankWordsStems(next.examJson, P, key);
+  const again = await religiousFilter(next.examJson, P, { grade, subject, allowedText: loaded.content, requestId });
+  if (again.length) next = lay(next.examJson);
+  logToFile('[assessment] held quote re-asked', {
+    requestId, slots: short.map((f) => f.slot), refilled: !next.shortfall.some((f) => short.some((x) => x.slot === f.slot)), held_again: again.length,
+  });
+  return { examJson: next.examJson, laid: next, usages };
 }
 
 /**
@@ -2107,10 +2157,20 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   const firstUnplaced = laid.unplaced;
   examJson = laid.examJson;
   _blankWordsStems(examJson, P, key);
-  const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content, requestId });
+  const quotes = [];
+  const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content, requestId, quotes });
   if (dropped.length) {
     laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern, reasked: again.length > 0 });
     examJson = laid.examJson;
+  }
+  // Urdu: a place the lessons 1–3 filter emptied is asked again once, told the run it matched.
+  if (quotes.length && laid.shortfall.length) {
+    const re = await _reaskQuoted({
+      examJson, laid, quotes, P, key, layoutScope, now, pattern, built, writeOne, system, model, loaded, grade, subject, requestId, versesRef,
+    });
+    examJson = re.examJson;
+    laid = re.laid;
+    extraUsages.push(...re.usages);
   }
   // The reader pass reads a whole paper only: a short one fails below as it always has.
   if (readerPass && Reader.READER_SUBJECTS.includes(key) && !laid.shortfall.length && !_emptyQuestionParts(examJson).length) {

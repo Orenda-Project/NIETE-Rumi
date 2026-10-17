@@ -132,10 +132,9 @@ describe('RT reader2: the reader record on the paper must never stop it printing
   });
 });
 
-describe('RT reader2: failure paths print as today', () => {
+describe('RT reader2: failure paths', () => {
   const offPaper = async () => { serve(); const off = await run(); mockCreate.mockReset(); mockLog.mockReset(); return off; };
-  test('top-up call throws -> the original paper, error on the record, renders', async () => {
-    const off = await offPaper();
+  test('top-up call throws -> the paper fails closed, the caught item not printed, the record and its items on it', async () => {
     let nA = 0;
     serve({ reader: async (p, n) => (n === 1 ? JSON.stringify({ candidates: [{ item: labelOf(p, RULE_STEM), by: 'Q1.13', evidence: 'شاید کل بارش ہو جائے', reason: 'r', given_away: true }] }) : JSON.stringify({ candidates: [] })) });
     const base = mockCreate.getMockImplementation();
@@ -145,11 +144,10 @@ describe('RT reader2: failure paths print as today', () => {
       return base(req);
     });
     const on = await run({ readerPass: true });
-    expect(on.err).toBeUndefined();
-    expect(stable(on.ok.examJson)).toEqual(stable(off.ok.examJson));
-    expect(on.ok.examJson._layout.reader).toMatchObject({ flagged: 1, items: [] });
-    expect(on.ok.examJson._layout.reader.error).toMatch(/^top-up:/);
-    expect(renders(on.ok.examJson)).toBe('ok');
+    expect(on.err && on.err.code).toBe('PATTERN_SHORT_SLOT');
+    expect(q1Stems(on.err.examJson).some((s) => RULE_STEM.test(s))).toBe(false);
+    expect(on.err.examJson._layout.reader).toMatchObject({ flagged: 1, items: [expect.objectContaining({ outcome: 'replaced' })] });
+    expect(on.err.examJson._layout.reader.error).toMatch(/^top-up:/);
   });
   test.each([
     ['an array content', []],
