@@ -146,7 +146,7 @@
         var draw = function (fc) {
           paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own><h2>' + esc(head) + '</h2>' +
             (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + '</div>' +
-            (rfb ? W.WQMoment.html(rfb, L, { grade: b.grade }) : '') +
+            (rfb ? W.WQMoment.html(rfb, L, { grade: b.grade, moment: 'story-done' }) : '') +
             '<div class="wqs-col" data-col>' + (fc && nx ? '' : '<button class="' + (fc ? 'wqs-sec"' : 'wqs-main" data-primary') + ' data-tap="more">' + esc(t.more) + '</button>') +
             '<button class="wqs-sec" data-home data-tap="home">' + esc(t.home) + '</button></div>', 'wqs-sheet'));
         };

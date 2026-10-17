@@ -32,6 +32,7 @@
   var C = {
     en: {
       words: function (n) { return n === 1 ? 'You read 1 word!' : 'You read ' + n + ' words!'; },
+      some: 'You read it out loud!', all: 'You read the whole story!',
       zero: "Let's read it together!",
       num: function (n) { return n + ' words a minute'; },
       lights: function (n) { return n + ' of 5 lights'; },
@@ -42,6 +43,7 @@
     },
     ur: {
       words: function (n) { return n === 1 ? 'آپ نے ۱ لفظ پڑھا!' : 'آپ نے ' + ud(n) + ' لفظ پڑھے!'; },
+      some: 'آپ نے اونچی آواز میں پڑھا!', all: 'آپ نے پوری کہانی پڑھی!',
       zero: 'آئیں مل کر پڑھیں!',
       num: function (n) { return 'ایک منٹ میں ' + ud(n) + ' لفظ'; },
       lights: function (n) { return 'روشنیاں: ۵ میں سے ' + ud(n); },
@@ -70,11 +72,12 @@
     var acc = sc && tried ? Math.min(1, num(sc.correct) / tried) : (total ? Math.min(1, words / total) : (o.acc != null ? Math.min(1, num(o.acc) / 100) : null));
     // another phone's body (or a cookie miss): no speed and no words-right, only the server's coarse band — drawn as is
     var band = o.feedback && typeof o.feedback === 'object' && !checked && !(sc && sc.correct != null) ? o.feedback : null;
-    if (band) words = num(band.words_heard) || (num(band.stars) ? words : 0);
+    // its words heard, or (another phone) only none / some / all of the story: then the deed says that, never a count
+    if (band) words = band.read ? (band.read === 'none' ? 0 : words || 1) : num(band.words_heard) || (num(band.stars) ? words : 0);
     var zero = !(words > 0);
     var showNum = !zero && !!wcpm && words >= MIN_WORDS && (checked > 0 || ms >= MIN_MS);
     var fb = { words: words, total: total, wcpm: zero ? null : wcpm, prev: prev, acc: zero ? null : acc, zero: zero, showNum: showNum };
-    if (band && !zero) { fb.wcpm = null; fb.showNum = false; fb.band = { stars: Math.max(1, Math.min(3, num(band.stars))) }; }
+    if (band && !zero) { fb.wcpm = null; fb.showNum = false; fb.band = { stars: Math.max(1, Math.min(3, num(band.stars))) }; if (band.read === 'some' || band.read === 'all') fb.read = band.read; }
     return fb;
   }
   function bands(grade) {
@@ -110,12 +113,12 @@
   function html(fb, lang, o) {
     o = o || {};
     var l = L(lang), c = C[l], lv = level(fb, o.grade), dir = l === 'ur' ? 'rtl' : 'ltr', i;
-    var out = '<section class="wq-moment' + (o.size === 's' ? ' wq-moment--s' : '') + '" data-deed="read" data-rf' + (lv.lights ? ' data-level="' + lv.lights + '"' : '') + ' role="status" aria-live="polite" lang="' + l + '" dir="' + dir + '">' +
+    var out = '<section class="wq-moment' + (o.size === 's' ? ' wq-moment--s' : '') + '" data-deed="read" data-moment="' + esc(o.moment || 'read-result') + '" data-rf' + (lv.lights ? ' data-level="' + lv.lights + '"' : '') + ' role="status" aria-live="polite" lang="' + l + '" dir="' + dir + '">' +
       '<div class="wq-moment-sky" aria-hidden="true"></div>';
     if (fb.zero) {
       out += '<p class="wq-moment-deed">' + esc(c.zero) + '</p>';
     } else {
-      out += '<p class="wq-moment-deed">' + esc(c.words(fb.words)) + '</p>';
+      out += '<p class="wq-moment-deed">' + esc(fb.read ? c[fb.read] : c.words(fb.words)) + '</p>';
       var lights = '';
       for (i = 0; i < 5; i++) lights += light(i < lv.lights);
       // Jugnu's jar with the number beside it: an honest read on the child's own phone only (a short read, another
@@ -127,7 +130,7 @@
       out += '<div class="wq-moment-stars" data-stars="' + lv.stars + '" role="img" aria-label="' + esc(c.stars(lv.stars)) + '">' + stars + '</div>';
       if (lv.growth) out += '<p class="wq-moment-growth" data-growth="' + lv.growth + '">' + esc(c[lv.growth]) + '</p>';
     }
-    out += '<div class="wq-moment-badge" data-badge="' + lv.badge + '">' + BADGE + '<span>' + esc(c.badge[lv.badge]) + '</span></div></section>';
+    out += '<div class="wq-moment-badge" data-badge="' + lv.badge + '"' + (fb.zero ? ' data-stamp' : '') + '>' + BADGE + '<span>' + esc(c.badge[lv.badge]) + '</span></div></section>';
     return out;
   }
 

@@ -191,17 +191,25 @@ const withNext = async (out, ct, req) => {
   if (ok) return { ...out, ...next };
   // nor what it is worked out from: wcpm = correct / (60 - time_left) * 60 (a whole minute's `correct` is the speed itself)
   const { wcpm, previous, ...rest } = out;
-  if (rest.score && typeof rest.score === 'object') { const { correct, time_left, finished_early, ...heard } = rest.score; rest.score = await coarseScore(heard, ct); }
+  const len = once(() => readLen(ct));
+  if (rest.score && typeof rest.score === 'object') { const { correct, time_left, finished_early, ...heard } = rest.score; rest.score = await coarseScore(heard, len); }
+  // the feedback band's words heard are the words attempted: another phone hears only none / some / all of the story
+  if (rest.feedback && typeof rest.feedback === 'object' && 'words_heard' in rest.feedback) {
+    const { words_heard, ...fb } = rest.feedback;
+    const n = rest.score && typeof rest.score.attempted === 'number' ? rest.score.attempted : 0;
+    const L = n > 1 ? await len() : 0;
+    rest.feedback = { ...fb, read: !(words_heard > 0) || !n ? 'none' : L && n >= L ? 'all' : 'some' };
+  }
   return { ...rest, ...next };
 };
 // and the words attempted (a timer-ended minute's count is the speed itself) only as a coarse count by the story's
 // length as the page counts it (web-quiz-read-coarse.js); the length unknown: only none / some (0 / 1)
-const coarseScore = async (score, ct) => {
+const coarseScore = async (score, len) => {
   if (typeof score.attempted !== 'number') return score;
-  let len = 0;
-  try { len = await require('../services/quiz/web-quiz-challenge').readLength(ct); } catch (_) { len = 0; }
-  return { ...score, attempted: require('../services/quiz/web-quiz-read-coarse').coarseAttempted(score.attempted, len) };
+  return { ...score, attempted: require('../services/quiz/web-quiz-read-coarse').coarseAttempted(score.attempted, await len()) };
 };
+const readLen = async (ct) => { try { return await require('../services/quiz/web-quiz-challenge').readLength(ct); } catch (_) { return 0; } };
+const once = (fn) => { let p = null; return () => (p = p || fn()); };
 router.get('/ch/result/:ct', challenge(async (C, req) => withNext(await ReadFeedback().withBand(await C.poll(req.params.ct)), req.params.ct, req)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {}, { device: req.get('x-wq-device') })));
 // Read aloud, live: a temporary Soniox key for one run (web-quiz-soniox-live.js); the server key never leaves the bot.
