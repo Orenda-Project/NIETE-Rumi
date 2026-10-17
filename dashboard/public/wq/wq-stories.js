@@ -290,13 +290,13 @@
     qw = [cb];
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
-  // the voice player and (lr3) live reading come with the book: nothing else loads them; 8 s each, else without
-  var got = {}, RA_V = '3fdfdd875a';   // the player's own content version (sha256, 10 hex; a test keeps the two in step)
+  // the player (and, lr3, live reading) come with the book; 8 s each, else without, asked again by the next book
+  var got = {}, RA_V = 'be7fe1dc23';   // the player's content hash (a test pins it)
   function need(f, g, css, cb) {
     if (W[g] || got[f] === 1) return cb();
     if (got[f]) return got[f].push(cb);
     got[f] = [cb];
-    load(f, css, function () { var w = got[f]; got[f] = 1; w.forEach(function (x) { x(); }); });
+    load(f, css, function () { var w = got[f]; got[f] = W[g] ? 1 : 0; w.forEach(function (x) { x(); }); });
   }
 
   function reader(id, ctx, root) {
@@ -408,7 +408,7 @@
       if (p.audio) {
         mount(p, {
           onEnd: ended,
-          onState: function (s) { if (s === 'error' && R.pl) { m.err(); if (view === 'page' && m.i === i) { drop(); pageScreen(); } } else if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } },
+          onState: function (s) { if (s === 'error' && R.pl) { m.err(); if (view === 'page' && m.i === i) { drop(); pageScreen(); } } else if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } else if (s === 'paused' && m.st === 'listening') { if (t0 >= 0) { acc += C.now() - t0; t0 = -1; } m.set(m.l[m.i] ? 'listened' : 'paused'); } },
           onWordTap: function () { if (/^(idle|paused|listened|together|denied)$/.test(m.st)) { t0 = C.now(); m.set('listening'); } },
         });
       }
@@ -476,7 +476,7 @@
     R.word = word;
     function mount(p, op) {
       var ra = root.querySelector('[data-ra]');
-      op.mode = p.boxes_ok ? 'overlay' : 'strip'; op.leadMs = 50; op.labels = { play: t.listen, pause: t.pause, replay: t.again }; op.onWord = word;
+      op.mode = p.boxes_ok ? 'overlay' : 'strip'; op.leadMs = 50; op.tap = 'sentence'; if (p.lines && p.lines.length) op.lines = p.lines.map(function (x) { return [x.i0, x.i1]; }); op.labels = { play: t.listen, pause: t.pause, replay: t.again }; op.onWord = word;
       try { R.pl = W.WQReadAlong.mount(ra, { v: 1, id: b.id + '/p' + p.n, lang: b.lang, dir: b.dir, audio: p.audio, words: p.words, image: p.image, quality: p.quality }, op); } catch (x) { R.pl = null; }
       if (R.pl && R.pl.audio) R.pl.audio.muted = muted();
       rate();

@@ -462,8 +462,6 @@ const HUB_BRANCHES = [
   { name: 'bits', run: (s) => require('./web-quiz-book').hubBits({ studentId: s.chosen.id, ...(s.runs ? { runs: s.runs } : {}) }) },
   // a place saved on a phone with no code hides the "keep my place" card (quiz_student_join); applied after keep my place
   { name: 'bound', run: (s) => require('./web-quiz-student-join').guestBound(s.chosen.id, { canon: s.canon }) },
-  // Stories (web_quiz_stories): keyed on the child
-  { name: 'stories', run: (s) => require('./web-quiz-stories').hubBits({ studentId: s.chosen.id }) },
   // the ranked next thing's own reads (web_quiz_next_offer; null while it is off): the teacher card, the last quiz and
   // Play again as hubPayload computes them, from the teacher branch; the rest needs only the child
   { name: 'next', run: (s, after) => require('./web-quiz-next-offer-sources').hubPrep({ out: after('teacher').then((teacher) => cardsOf(s, teacher)),
@@ -553,6 +551,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const challengeP = f.challenge && chosen ? ((fast && guessForm && String(chosen.id) === guess) ? guessForm : challengeForm(chosen.id, fast)) : Promise.resolve(null);
   // The child home's reads (web_quiz_home_v3), started here too: keyed on the child alone, so they add no wait.
   const homeP = chosen ? require('./web-quiz-hub-home').prefetch(chosen.id) : null;
+  // Stories too (hubBits never rejects; {} while web_quiz_stories is off): its reads run beside the hub's own.
+  const storiesP = chosen ? require('./web-quiz-stories').hubBits({ studentId: chosen.id }) : null;
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
   const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen), reads: guessReads && String(chosen.id) === guess ? guessReads : null } : null) : null;
   const history = ctx ? ctx.history : [];
@@ -634,11 +634,10 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await take('bits')); // Jugnu's Book: {} while web_quiz_challenge_book is off
-  // Stories, the v3 home's doors + header and the ranked next thing are independent fields (none reads another): read
-  // side by side, so neither Stories nor the slot adds a serial wave. Each is {} while its switch is off (the home's
-  // reads were started with challengeP; fast: Stories ran with the branches above).
+  // Stories (started with the challenge's reads), the v3 home's doors + header and the ranked next thing are independent
+  // fields (none reads another): read side by side, so neither Stories nor the slot adds a serial wave. Each is {} while off.
   const [storyBits, homeBits, nextField] = await Promise.all([
-    par ? take('stories') : require('./web-quiz-stories').hubBits({ studentId: chosen.id }),
+    storiesP,
     require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP }),
     require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
   ]);
