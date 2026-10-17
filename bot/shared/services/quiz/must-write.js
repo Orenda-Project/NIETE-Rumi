@@ -4,8 +4,8 @@
  * logged at error level and refused. One shape for every send door, so an ignored `{ error }` behind a 200 cannot be
  * written by accident.
  *
- *   const row = await mustWrite(supabase.from('quizzes').insert(…).select().single(), 'story send: could not write the send',
- *     { needRow: true, refuse: () => new StoryError(503, 'unavailable') });
+ *   const MUST_ROW = { needRow: true, refuse: () => new StoryError(503, 'unavailable') };
+ *   const row = await mustWrite(<a write ending in .select().single()>, 'story send: could not write the send', MUST_ROW);
  *
  * `{ error }` (or no row with `needRow`: null, or an empty list — an update(…).eq(…).select('id') that matched nothing) → logToFile('❌ <what>', { error: <message> }, 'error') and `throw refuse()`
  * (default: an Error with status 503 and body { error: 'unavailable' }). A write that throws is not caught here: the

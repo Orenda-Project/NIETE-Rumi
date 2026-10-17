@@ -61,6 +61,8 @@ class StoryError extends Error {
 const fail = (status, error) => { throw new StoryError(status, error); };
 // A write the teacher's "sent" depends on that does not land (must-write.js): this module's own refusal.
 const unavailable = () => new StoryError(503, 'unavailable');
+// A send write that must land on a row; otherwise the send is refused as unavailable.
+const MUST_ROW = { needRow: true, refuse: unavailable };
 
 /**
  * The teacher behind a teacher-home token (`{k:'th', uid, lang, via, exp}`); null when not genuine or stale.
@@ -163,7 +165,7 @@ async function rowFor(uid, book, lang) {
   const data = await mustWrite(supabase.from('quizzes').insert({
     teacher_id: uid, quiz_source: SOURCE, topic: book.title, grade: String(book.grade), language: lang, status: 'ready',
     meta: { story: { book_id: book.id, lang } },
-  }).select('id, meta, status, created_at').single(), 'story send: could not write the send', { needRow: true, refuse: unavailable });
+  }).select('id, meta, status, created_at').single(), 'story send: could not write the send', MUST_ROW);
   const all = await rowsFor(uid, book.id);
   const keep = all[0] || data;
   if (keep.id !== data.id) {
@@ -276,12 +278,12 @@ async function preview({ uid, storyId, classId = null, ui = null, now = Date.now
 async function markSent(p, now) {
   if (p.held.active === false) {
     // Never a sent row behind a closed code (the class would get "expired"): no open, no send.
-    await mustWrite(supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id).select('id'), 'story send: could not open the code', { needRow: true, refuse: unavailable });
+    await mustWrite(supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id).select('id'), 'story send: could not open the code', MUST_ROW);
   }
   const meta = { ...(p.quiz.meta || {}), story: { book_id: p.book.id, lang: p.lang }, share_code: p.held.code, share_code_id: p.held.id,
     link: p.out.link, student_message: p.out.class_message, sent_at: new Date(now).toISOString(),
     first_sent_at: (p.quiz.meta && p.quiz.meta.first_sent_at) || new Date(now).toISOString() };
-  await mustWrite(supabase.from('quizzes').update({ meta, status: 'sent' }).eq('id', p.quiz.id).select('id'), 'story send: could not mark the send', { needRow: true, refuse: unavailable });
+  await mustWrite(supabase.from('quizzes').update({ meta, status: 'sent' }).eq('id', p.quiz.id).select('id'), 'story send: could not mark the send', MUST_ROW);
   logEvent('teacher_story_sent', { book_id: p.book.id, quiz_id: p.quiz.id, share_code_id: p.held.id, class_id: p.held.class_id || null, reused: p.reused });
 }
 
