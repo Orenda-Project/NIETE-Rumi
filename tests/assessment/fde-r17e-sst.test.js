@@ -1,5 +1,5 @@
 /**
- * Social Studies, round 6: scheme points that state no fact («پہلی وجہ درست بتانا») no longer decide
+ * Social Studies: scheme points that state no fact («پہلی وجہ درست بتانا») no longer decide
  * the point-set hold, two Section A MCQs that ask one job of one government are one question, and a
  * Q6 whose answer only names a government, court or body is recall, whatever its story.
  */

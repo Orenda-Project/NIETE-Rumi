@@ -105,7 +105,7 @@ beforeEach(() => { mockCreate.mockReset(); mockLog.mockReset(); });
 
 describe('2. a caught question never prints', () => {
   // chapters_6's which-government Q6 («… کس حکومت کی ذمہ داری ہے؟») only names who does each job, so it
-  // is held as recall (fde-r17e-sst); here it is a fictional two-idea situation, so these tests read Q7.
+  // is held as recall; here it is a fictional two-idea situation, so these tests read Q7.
   const CH6 = (() => {
     const ex = paper('chapters_6');
     const q = items(ex, D6).find((x) => /کس حکومت کی ذمہ داری/.test(x.question));
@@ -213,7 +213,7 @@ describe('3. an empty mind map: B\'s re-ask names it', () => {
     return JSON.stringify(tree);
   };
   // The recorded D replies (chapters 4 + 6) carry which-government Q6s that only name who does each job,
-  // held as recall since round 6 (fde-r17e-sst). Here they explain with two ideas, so D fills and the
+  // held as recall. Here they explain with two ideas, so D fills and the
   // test reads B alone.
   const explained = (json) => {
     const tree = JSON.parse(json);
