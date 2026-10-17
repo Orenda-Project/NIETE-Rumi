@@ -96,14 +96,18 @@ async function pageNav() {
 
 /**
  * `<portal>/h/<token>` for these children, or null (hub off, no base URL, no secret, no child). Never throws.
- * `caller` names the builder on a dropped-id log line (signHub's default when omitted).
+ * `caller` names the builder on a dropped-id log line (signHub's default when omitted); or `{ caller, lang }` in its
+ * place: `lang` (en|ur) is the language the reply or landing speaks, carried in the token only with web_quiz_return_lang on.
  */
 async function hubLink(studentIds, caller) {
   try {
     const Link = require('./web-quiz-link');
     const base = Link.webBaseUrl();
     if (!base || !(await flags()).hub) return null;
-    const token = T.signHub(studentIds, caller);
+    const opts = caller && typeof caller === 'object' ? caller : { caller };
+    const R = require('./web-quiz-return-lang');
+    const lang = R.linkLang(opts.lang) && (await R.on()) ? opts.lang : null;
+    const token = lang ? T.signHub(studentIds, opts.caller, { lang }) : T.signHub(studentIds, opts.caller);
     return token ? `${base}/h/${token}` : null;
   } catch (err) {
     logToFile('⚠️ web quiz hub: no hub link', { error: err.message });
