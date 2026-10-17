@@ -181,7 +181,12 @@ test("a reading's speed leaves the result only for the child's own phone; a forw
   const Device = require('../../../shared/services/quiz/web-quiz-hub-device');
   const own = 'OwnPhoneOwnPhoneOwnP_1';
   const ct = T.signChallenge({ studentId: 'kid-1', ex: 'read', runId: 'run-1' });
-  const scored = { score: { correct: 40, attempted: 44, stopped: false }, wcpm: 42, previous: { wcpm: 30, correct: 28, at: 'then' } };
+  // the scorer's real shape: wcpm = round(correct / (60 - time_left) * 60), so correct + time_left give the speed back
+  const scored = { score: { correct: 40, attempted: 44, stopped: false, finished_early: true, time_left: 3 }, wcpm: 42, previous: { wcpm: 30, correct: 28, at: 'then' }, ended: 'self' };
+  // what another phone may see: whether it was heard and how it ended, nothing the speed can be worked out from
+  const shown = { score: { attempted: 44, stopped: false }, ended: 'self' };
+  const SPEED_KEYS = ['wcpm', 'previous', 'correct', 'time_left', 'finished_early'];
+  const keysDeep = (o) => (o && typeof o === 'object' ? Object.keys(o).flatMap((k) => [k, ...keysDeep(o[k])]) : []);
   const poll = jest.spyOn(Ch, 'poll').mockImplementation(async () => ({ ...scored, previous: { ...scored.previous } }));
   const submit = jest.spyOn(Ch, 'submit').mockImplementation(async () => ({ ...scored, previous: { ...scored.previous } }));
   const field = jest.spyOn(R, 'challengeField').mockResolvedValue({});
@@ -195,10 +200,13 @@ test("a reading's speed leaves the result only for the child's own phone; a forw
     // no device, or another phone holding the forwarded link: the score stays, no speed anywhere in the body
     for (const h of [{}, { 'x-wq-device': 'OtherPhoneOtherPhone_2' }]) {
       for (const body of [await get(h), await post(h)]) {
-        expect(body).toEqual({ score: scored.score });
-        expect(JSON.stringify(body)).not.toMatch(/wcpm/);
+        expect(body).toEqual(shown);
+        expect(keysDeep(body).filter((k) => SPEED_KEYS.includes(k))).toEqual([]);
       }
     }
+    // the phone check failing in any way: closed, never open (the score stays, the speed goes)
+    may.mockRejectedValueOnce(new Error('redis down'));
+    expect(await get({ 'x-wq-device': own })).toEqual(shown);
     // a result with no speed in it (a pending read, a tap game) never asks who the phone is
     may.mockClear();
     poll.mockResolvedValueOnce({ pending: true });

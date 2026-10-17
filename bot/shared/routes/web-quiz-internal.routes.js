@@ -182,8 +182,11 @@ const withNext = async (out, ct, req) => {
   if (!out || typeof out !== 'object') return out;
   const device = req.get('x-wq-device') || null;
   const [ok, next] = await Promise.all([speedOk(out, ct, device), NextOffer().challengeField(out, ct, { device })]);
+  if (ok) return { ...out, ...next };
+  // nor what it is worked out from: wcpm = correct / (60 - time_left) * 60 (a whole minute's `correct` is the speed itself)
   const { wcpm, previous, ...rest } = out;
-  return { ...(ok ? out : rest), ...next };
+  if (rest.score && typeof rest.score === 'object') { const { correct, time_left, finished_early, ...heard } = rest.score; rest.score = heard; }
+  return { ...rest, ...next };
 };
 router.get('/ch/result/:ct', challenge(async (C, req) => withNext(await C.poll(req.params.ct), req.params.ct, req)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {}, { device: req.get('x-wq-device') })));
