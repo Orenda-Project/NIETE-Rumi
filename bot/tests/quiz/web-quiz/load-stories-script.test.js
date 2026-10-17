@@ -96,8 +96,12 @@ test('the voice method gate is read once from app_settings web_quiz_story_voice_
   const today = await run(undefined);
   expect(today[0]).toMatchObject({ status: 'draft', why: ['p01: voice pace 150 wpm', 'p01: voice span pace 160 wpm'] });
   expect(today[1]).toEqual({ books: 1, ready: 0, draft: 1, failed: 0, dry_run: true });
-  expect(await run(db(undefined))).toEqual(today);
-  expect(await run(db(false))).toEqual(today);
+  // Off (no row, the string "true", false): today's plan, and the run's only read is the one switch read.
+  for (const value of [undefined, 'true', false]) {
+    reads.length = 0;
+    expect(await run(db(value))).toEqual(today);
+    expect(reads).toEqual(['app_settings']);
+  }
   reads.length = 0;
   const on = await run(db(true));
   expect(on[0]).toMatchObject({ status: 'ready', why: [], voiced: '1/1', kept_voice: [], misses: [], question_kept: [] });
