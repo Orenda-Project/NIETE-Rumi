@@ -21,6 +21,7 @@ jest.mock('../../../shared/utils/html-to-pdf', () => ({ htmlToPdf: jest.fn(async
 jest.mock('../../../shared/services/llm-client', () => ({ getClientForModel: () => ({ chat: { completions: { create: async () => ({ choices: [{ message: { content: '' } }] }) } } }) }));
 
 const { makeFake } = require('./fake-supabase');
+const { throwOn } = require('../../helpers/switch-off-matrix');
 const { fixturePhone } = require('./fixture-phone');
 const F = require('./web-quiz-identity-fixture');
 
@@ -47,7 +48,7 @@ const CASES = {
 };
 
 let Data;
-function wire({ on, second, secondName, bindings }) {
+function wire({ on, value = true, second, secondName, bindings }) {
   const sessions = [done('s1', F.kid(1), 'Ayesha Testwala', 4, 20), done('s3', F.TYPED, 'Dansh', 5, 18), done('s4', TYPED2, secondName, 2, 10)];
   const tables = F.db({ sessions });
   tables.quizzes = tables.quizzes.map((q) => ({ ...q, teacher_id: F.TEACHER, status: 'sent', created_at: ago(30), quiz_source: 'transcript', meta: { share_code_id: F.SC } }));
@@ -55,7 +56,7 @@ function wire({ on, second, secondName, bindings }) {
   fake.db.students.push(loose(TYPED2, secondName, second));
   fake.db.child_phone_bindings = bindings;
   fake.db.users = [...(fake.db.users || []).filter((u) => u.id !== F.TEACHER), { id: F.TEACHER, name: 'Asma Testwala', phone_number: fixturePhone(61), preferred_language: 'en' }];
-  fake.db.app_settings = [...(fake.db.app_settings || []), ...(on ? [{ key: KEY, value: true }] : [])];
+  fake.db.app_settings = [...(fake.db.app_settings || []), ...(on ? [{ key: KEY, value }] : [])];
   jest.resetModules();
   process.env.INTERNAL_API_KEY = 'test-key';
   Object.assign(require('../../../shared/config/supabase'), { from: fake.from, rpc: fake.rpc });
@@ -96,5 +97,19 @@ describe('off: today\'s numbers, named (the web report folds typed names; the ho
   ])('%s', async (name, expected) => {
     wire({ on: false, ...CASES[name] });
     expect(await counts()).toEqual(expected);
+  });
+});
+
+describe('a value that is not a real true: today\'s three counts', () => {
+  const TODAY = { web: 2, home: 3, whatsapp: 3 };
+  test.each([['the string "true"', 'true'], ['the JSON string "\\"true\\""', '"true"'], ['" TRUE "', ' TRUE '], ['1', 1], ['{enabled:true}', { enabled: true }]])('%s', async (_, value) => {
+    wire({ on: true, value, ...CASES['two children, one typed name, two phones'] });
+    expect(await counts()).toEqual(TODAY);
+  });
+
+  test('a failed read of the switch', async () => {
+    const fake = wire({ on: true, ...CASES['two children, one typed name, two phones'] });
+    require('../../../shared/config/supabase').from = throwOn(fake.from, KEY);
+    expect(await counts()).toEqual(TODAY);
   });
 });

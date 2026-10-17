@@ -174,7 +174,7 @@ describe('off: today\'s report, byte for byte (golden recorded on the base)', ()
     expect(got).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
   });
 
-  test.each([['"TRUE"', 'TRUE'], ['" true "', ' true '], ['JSON "TRUE"', '"TRUE"']])('quiz_report_fold_by_child %s is not a real true: today\'s report', async (_, value) => {
+  test.each([['"TRUE"', 'TRUE'], ['" true "', ' true '], ['JSON "TRUE"', '"TRUE"'], ['the string "true"', 'true'], ['the JSON string "\\"true\\""', '"true"']])('quiz_report_fold_by_child %s is not a real true: today\'s report', async (_, value) => {
     wire({ on: value, bindings: BINDINGS() });
     expect(await record()).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
   });
