@@ -11,6 +11,9 @@ import { MemoryRouter } from "react-router-dom";
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../services/api", () => ({ portal: { getConfig: vi.fn() } }));
+// bd-s42dye.2 — these tests are the FULL coach menu; the shipped allow-list (training only) has its own test
+// (PortalNavigation.coachLibrary.test.tsx).
+vi.mock("../coach/training/appReady", async (orig) => ({ ...(await orig<any>()), COACH_APP_READY: ["home", "schedule", "observe", "schools"] }));
 import { useAuth } from "../hooks/useAuth";
 import { portal } from "../services/api";
 import PortalNavigation from "./PortalNavigation";

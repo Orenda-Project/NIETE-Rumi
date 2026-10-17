@@ -107,6 +107,8 @@ const PROVIDERS: Record<string, { label: string; short: string; initials: string
     initials: 'GB',
     rank: 3,
   },
+  // bd-s42dye: the old platform's trainings, a provider of their own.
+  TALEEMABAD_LEGACY: { label: 'Taleemabad', short: 'Taleemabad', initials: 'T', rank: 4 },
 };
 
 export function providerLabel(

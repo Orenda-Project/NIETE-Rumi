@@ -19,20 +19,14 @@
  *   ft_fb_coach → the record-a-lesson prompt       (what a typed "coaching" sends)
  * With `quiz_maker_page` off, or an id that is not ours, → false and the caller's chain runs as today.
  */
-const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
 const { clampLanguage } = require('../../config/ux-strings');
 // The message and its send live in a leaf (maker.fallback.send.js) so the cta never requires this file.
 const { IDS, ALL_IDS, fallbackMessage, sendFallback } = require('./maker.fallback.send');
 
 const REASON = 'ft_fallback';
-// A log line names the teacher by the events' keyed reference, never by id: HMAC(kid key, 't|' + users.id)[:16];
-// null without the key (never an unkeyed hash).
-const tkOf = (userId) => {
-  const k = process.env.WEB_QUIZ_KID_KEY;
-  if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
-  return crypto.createHmac('sha256', k).update(`t|${userId}`).digest('hex').slice(0, 16);
-};
+// A log line names the teacher by the events' keyed reference, never by id (null without the key).
+const { tk: tkOf } = require('../quiz/web-quiz-kid');
 
 async function makerPageOn() {
   try {
