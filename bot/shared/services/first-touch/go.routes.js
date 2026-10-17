@@ -21,6 +21,8 @@
  *
  * Switch quiz_one_door OFF: EVERY route answers 404 {off:true} before anything is read; the edge then falls through.
  * Never a 500: a thrown read → the go.error page (200) on /land, 503 {error:'go.error'} on the JSON routes.
+ * The adventure look (web_quiz_adventure_look, JSON true only) comes with the switch's own cached read: every page drawn
+ * here carries it or none does, with no read added.
  * Nothing here writes the users row (role, registration, language). 0 WhatsApp messages.
  *
  * Events (ids only): one_door.landed{side, src, how}, one_door.role{side, writer}, one_door.bind{src, ok}; with
@@ -163,14 +165,19 @@ async function personaRow(lang, t) {
     return typeof row === 'string' ? row : '';
   } catch (_) { return ''; }
 }
-const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber() }));
+/** The adventure look: the switch's cached answer (the router read it before this request); false on anything else. */
+async function advOf() {
+  try { return (await Flags.flags()).adv === true; } catch (_) { return false; }
+}
+const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber(), adv: await advOf() }));
 
-function render(res, d, t, lang) {
+async function render(res, d, t, lang) {
   if (d.next) { headers(res); return res.redirect(302, d.next); }
-  if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber() }));
+  const adv = await advOf();
+  if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber(), adv }));
   if (d.page === 'role') return rolePage(res, t, lang);
-  if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang }));
-  return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber() }));
+  if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang, adv }));
+  return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber(), adv }));
 }
 
 router.get('/land/:token', async (req, res) => {
@@ -182,7 +189,7 @@ router.get('/land/:token', async (req, res) => {
     if (o.stale) {
       event('one_door.landed', { side: null, src: null, how: `stale_${o.stale}` });
       await v3('go_stale', { why: o.stale, lang }, deviceOf(req));
-      return page(res, Page.buildMessagePage({ id: 'go.stale', lang, bot: botNumber() }));
+      return page(res, Page.buildMessagePage({ id: 'go.stale', lang, bot: botNumber(), adv: await advOf() }));
     }
     // the one question paints before any database read; who this phone is, is asked after paint
     if (o.p.side === 'unknown' || req.query.ask === '1') {
@@ -191,10 +198,10 @@ router.get('/land/:token', async (req, res) => {
     }
     const d = await destination(o);
     event('one_door.landed', { side: d.side, src: d.src, how: d.next || d.page ? d.how : `${d.how}_missing` });
-    return render(res, d, t, lang);
+    return await render(res, d, t, lang);
   } catch (err) {
     logToFile('❌ one door: landing failed', { error: err && err.message }, 'error');
-    return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber() }));
+    return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber(), adv: await advOf() }));
   }
 });
 

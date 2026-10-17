@@ -92,12 +92,13 @@ beforeAll(async () => {
 afterAll(() => new Promise((r) => server.close(r)));
 
 const roster = (id, name, list = 'l-1', phone = PH.family, school = 'sch-1') => ({ id, student_name: name, list_id: list, parent_phone: phone, school_id: school, is_active: true, status: 'active', merged_into: null });
-function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1', 't-2': 'sch-1' }, quizSessions = [], teacherHome = true, makerPage = false } = {}) {
+function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1', 't-2': 'sch-1' }, quizSessions = [], teacherHome = true, makerPage = false, adv } = {}) {
   const settings = [];
   if (on) settings.push({ key: 'quiz_one_door', value: 'true' });
   if (teacherHome) settings.push({ key: 'quiz_teacher_home', value: 'true' });
   if (makerPage) settings.push({ key: 'quiz_maker_page', value: 'true' });
   settings.push({ key: 'web_quiz_hub', value: 'true' });
+  if (adv !== undefined) settings.push({ key: 'web_quiz_adventure_look', value: adv });
   mockDb = fakeDb({
     app_settings: settings,
     users: [{ ...UNKNOWN }, { ...TEACHER }, { ...PARENT }, { ...FAMILY },
@@ -633,5 +634,41 @@ describe('the door\'s v3 lines join the sitting (web_quiz_events_v3)', () => {
     const old = GoToken.signGo({ uid: 'u-unknown', side: 'unknown', n: 'm'.repeat(22), lang: 'bi', src: 'typed' }, { now: Date.now() - 25 * 3600 * 1000 });
     await land(old);
     expect(['role_asked', 'role_answered', 'go_stale'].flatMap(v3Lines)).toEqual([]);
+  });
+});
+
+describe('the adventure look (web_quiz_adventure_look, JSON true only): the same pages in the new look, the same reads', () => {
+  const advClass = (html) => /<html[^>]*class="wq-adv"/.test(html);
+  test.each([[true, true], ['true', false], [false, false], [1, false], [undefined, false]])('stored %p → the look %p; the reads are today\'s', async (v, want) => {
+    world({ adv: v });
+    const t = await mint(UNKNOWN, PH.unknown);
+    OneDoorFlags._resetCache();
+    mockReads = 0;
+    const cold = await land(t);
+    expect(mockReads).toBe(1);                       // the one switch read, as today: the look rides it
+    expect(advClass(await cold.text())).toBe(want);
+    mockReads = 0;
+    const warm = await land(t);
+    expect(mockReads).toBe(0);                       // the one question still paints with NO database read
+    const html = await warm.text();
+    expect(advClass(html)).toBe(want);
+    if (want) expect(warm.headers.get('content-security-policy')).toContain(`style-src 'sha256-${require('crypto').createHash('sha256').update(/<style>([\s\S]*?)<\/style>/.exec(html)[1], 'utf8').digest('base64')}'`);
+    mockReads = 0;
+    const stale = await (await land('x.y')).text();
+    expect(mockReads).toBe(0);
+    expect(stale).toContain('data-screen="go.stale"');
+    expect(advClass(stale)).toBe(want);
+  });
+
+  test('the "Is it <First>?" sheet a known family phone lands on carries the look too', async () => {
+    world({ adv: true, family: [roster('r-1', 'Ali Testwala')] });
+    mockJoin = WRITER();
+    const t = await mint(FAMILY, PH.family, 'child');
+    const r = await land(t);
+    const html = await r.text();
+    expect(html).toContain('data-screen="pick"');
+    expect(advClass(html)).toBe(true);
+    expect(html).toContain('class="yes wq-btn wq-btn--primary"');
+    expect(r.headers.get('content-security-policy')).toContain(`style-src 'sha256-${require('crypto').createHash('sha256').update(/<style>([\s\S]*?)<\/style>/.exec(html)[1], 'utf8').digest('base64')}'`);
   });
 });

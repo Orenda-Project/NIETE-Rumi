@@ -46,6 +46,7 @@ const BindRepo = require('./child-phone-bindings.repo');
 const Homonym = require('./web-quiz-homonym');
 const GoNonce = require('../first-touch/go-nonce');
 const { clampLanguage } = require('../../config/ux-strings');
+const { ADV_KEY, advOn } = require('../first-touch/adventure-look');
 
 const SWITCH_KEY = 'quiz_student_join';
 // The join page keeps a grade tap made before its script has loaded (the page draws it; join.js replays it). Read only
@@ -87,20 +88,24 @@ async function earlyTapOn() {
   }
 }
 
-/** → { on, bind, earlyTap }; all false on a failed read. Never throws. */
+/**
+ * → { on, bind, earlyTap, adv }; all false on a failed read. Never throws. The adventure look (web_quiz_adventure_look,
+ * JSON true only) rides the switch's own read: no read is added.
+ */
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', SWITCH_KEY);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [SWITCH_KEY, ADV_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const on = isTrue(((data || [])[0] || {}).value);
+    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+    const on = isTrue(by[SWITCH_KEY]);
     const bind = on && Boolean((await IdFlags.flags()).phoneBind);
     const earlyTap = on && (await earlyTapOn());
-    cache = { at: now, on, bind, earlyTap };
+    cache = { at: now, on, bind, earlyTap, adv: on && advOn(by[ADV_KEY]) };
     return cache;
   } catch (err) {
     logToFile('⚠️ student join: settings lookup failed — switch off', { error: err.message });
-    return { on: false, bind: false, earlyTap: false };
+    return { on: false, bind: false, earlyTap: false, adv: false };
   }
 }
 
@@ -264,9 +269,9 @@ async function pageInfo({ t } = {}) {
   const r = readToken(t);
   if (!r) {
     const old = T.verify(t, 'j', { allowExpired: true });
-    return { stale: true, lang: old ? langOf(old.l) : null, ...botField() };
+    return { stale: true, lang: old ? langOf(old.l) : null, ...botField(), ...(f.adv ? { adv: true } : {}) };
   }
-  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField(), ...(f.earlyTap ? { earlyTap: true } : {}) };
+  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField(), ...(f.earlyTap ? { earlyTap: true } : {}), ...(f.adv ? { adv: true } : {}) };
 }
 
 /** The grade chip: the join_grade line and the home's warm list (fired before the name is typed). */
