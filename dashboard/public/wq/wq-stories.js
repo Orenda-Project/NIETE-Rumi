@@ -146,7 +146,7 @@
       if (el._gen !== gen) return;
       if (r.status === 404) { el.innerHTML = ''; el.hidden = true; return; }
       if (!r.ok) return fail();
-      el._d = r.body; el._open = false;
+      el._d = shelf.d = r.body; el._open = false;
       el.innerHTML = np(shelfHtml(r.body, false, ctx.host));
       evt(ctx, 'story_shelf_shown', { n: (r.body.books || []).length, grade: +r.body.grade, lang: r.body.lang });
     }, fail);
