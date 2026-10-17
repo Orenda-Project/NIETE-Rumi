@@ -330,13 +330,15 @@
       var cur = root.querySelector('[data-stories-shelf]');
       var slot = cur === sh || (cur && cur.getAttribute('data-host') === 'doors') ? cur : null;
       if (!slot) return;
+      // `list_states`: an earlier draw already gave the reader this very slot (the rows redrew the door in between)
+      if (B.list_states && shelfKept && shelfKept.key === key && shelfKept.el === slot) { filled = true; return; }
       var fb = root.querySelector('[data-shelf-fallback]');
       if (shelfKept && shelfKept.key === key && shelfKept.el !== slot && slot.parentNode) {
         try { slot.parentNode.replaceChild(shelfKept.el, slot); if (fb) shelfPrimary(shelfKept.el, fb, B.list_states && root); filled = true; return; } catch (e) {}
       }
       if (fb) shelfPrimary(slot, fb, B.list_states && root);
       filled = true;
-      try { window.WQSTORIES.shelf(slot, B, { token: tok(B, ctx), lang: langOf(ctx), ev: ctx.ev || function () {}, go: ctx.go, primary: Boolean(fb) }); shelfKept = { el: slot, key: key }; } catch (e) {}
+      try { window.WQSTORIES.shelf(slot, B, { token: tok(B, ctx), lang: langOf(ctx), ev: ctx.ev || function () {}, go: ctx.go, primary: Boolean(fb) }); shelfKept = { el: slot, key: key }; } catch (e) { if (B.list_states) slotFailed(root, sh, ctx, true); }
     };
     if (window.WQSTORIES) return fill();
     var H = home();
@@ -349,12 +351,15 @@
     if (s1) s1.addEventListener('error', function () { slotFailed(root, sh, ctx); });
   }
   function readerScript() { try { return document.querySelector('script[src*="/wq/wq-stories.js"]'); } catch (e) { return null; } }
-  function slotFailed(root, sh, ctx) {
+  // the reader never arrived, or its shelf threw (`thrown`): a reload in the slot, and the door root says failed
+  function slotFailed(root, sh, ctx, thrown) {
     var cur = root.querySelector('[data-stories-shelf]');
-    if (!cur || (cur !== sh && cur.getAttribute('data-host') !== 'doors') || window.WQSTORIES) return;
+    if (!cur || (cur !== sh && cur.getAttribute('data-host') !== 'doors') || (window.WQSTORIES && !thrown)) return;
     var t = C(ctx);
     cur.innerHTML = '<div class="wq-dempty"><p class="wq-soon">' + esc(t.oops) + '</p><a class="wq-btn wq-go" data-primary href="' + esc(String(location.href || '')) + '">' + esc(t.retry) + '</a></div>';
     cur.setAttribute('data-filled', '1');
+    cur.setAttribute('data-failed', '1');
+    if (typeof root.setAttribute === 'function') root.setAttribute('data-fetch', 'failed');
   }
   // `wait` (list_states): while the shelf has not answered (the reader has not filled it, or shows its own skeleton) the
   // note stays hidden; it shows only for a shelf that answered with nothing to open. `wait` is the door root, which
@@ -362,15 +367,16 @@
   function shelfPrimary(sh, fb, wait) {
     var sync = function () {
       var has = !sh.hidden && Boolean(sh.querySelector('[data-primary]'));
-      var busy = Boolean(wait) && !sh.hidden && (sh.getAttribute('data-filled') !== '1' || Boolean(sh.querySelector('[aria-busy="true"]')));
-      fb.hidden = has || busy;
+      var failed = Boolean(wait) && !sh.hidden && sh.getAttribute('data-failed') === '1';
+      var busy = Boolean(wait) && !sh.hidden && !failed && (sh.getAttribute('data-filled') !== '1' || Boolean(sh.querySelector('[aria-busy="true"]')));
+      fb.hidden = has || busy || failed;
       if (wait && typeof wait.getAttribute === 'function') {
-        wait.setAttribute('data-fetch', busy ? 'pending' : 'done');
+        wait.setAttribute('data-fetch', failed ? 'failed' : busy ? 'pending' : 'done');
         if (!busy && wait.getAttribute('data-skel-from') != null && wait.getAttribute('data-skel-to') == null) wait.setAttribute('data-skel-to', now());
         if (!fb.hidden && wait.getAttribute('data-empty-at') == null) wait.setAttribute('data-empty-at', now());
       }
       var b = fb.querySelector('.wq-go');
-      if (b) { if (has) b.removeAttribute('data-primary'); else b.setAttribute('data-primary', ''); }
+      if (b) { if (has || failed) b.removeAttribute('data-primary'); else b.setAttribute('data-primary', ''); }
     };
     sync();
     try { new MutationObserver(sync).observe(sh, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-primary', 'hidden'] }); } catch (e) {}
