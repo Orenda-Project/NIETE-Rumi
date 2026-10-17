@@ -222,9 +222,11 @@ describe('switch OFF (absent): today\'s reads and round trips, pinned', () => {
   // Waves -2 on the home: the class report's fold switch is read beside its sessions (base wave 10), and the report
   // gate starts with the lesson reads (base wave 13). The shell +1 wave: it must know the switch before it serves.
   // An extra serial or unconditional read on today's path turns this red (wave list in the failure message).
+  // The send-again check in two halves: long and big ask the lessons' quizzes and their codes as their own pair (+2 reads);
+  // small makes the same reads, its lessons' half starting as soon as the lessons are in (2 round trips sooner).
   // + the named-item switch's own read on the home (+1), and the named-item + early-pick reads on the shell (+2), each
   // beside a read already in flight (no new round trip)
-  const PINS = { long: { reads: 47, waves: 15 }, small: { reads: 46, waves: 15 }, big: { reads: 47, waves: 15 }, shell: { reads: 4, waves: 2 } };
+  const PINS = { long: { reads: 49, waves: 15 }, small: { reads: 46, waves: 13 }, big: { reads: 49, waves: 15 }, shell: { reads: 4, waves: 2 } };
   test.each([
     ['long', {}],
     ['small', { sessions: 3, quizzes: 2, quizzed: 1 }],
@@ -255,7 +257,7 @@ function failSetting(key) {
     return b;
   };
 }
-/** Counts the app_settings reads of `key` from now on. → { n } */
+/** Counts the app_settings reads of `key` from now on (by .eq, or among the keys of an .in read). → { n } */
 function watchSetting(key) {
   const seen = { n: 0 };
   const sb = require('../../shared/config/supabase');
@@ -264,7 +266,9 @@ function watchSetting(key) {
     const b = from0(t);
     if (t !== 'app_settings') return b;
     const eq0 = b.eq.bind(b);
+    const in0 = b.in.bind(b);
     b.eq = (k, v) => { if (v === key) seen.n += 1; return eq0(k, v); };
+    b.in = (k, vs) => { if ((vs || []).includes(key)) seen.n += 1; return in0(k, vs); };
     return b;
   };
   return seen;
