@@ -1,6 +1,6 @@
 /**
  * A class link on a phone that already holds a child (boot link_known, app_settings web_quiz_link_known_child): the
- * page asks POST known {code, device_ref} once at boot and, when the server answers this phone's own children, asks
+ * page asks POST known {code} once at boot (the edge forwards the phone's own cookie) and, when the server answers this phone's own children, asks
  * "Is it <First>?" (one) or "Whose turn is it?" (two or more) before the name box. "Yes" / a card starts the session as
  * that child (via 'known'); "Someone else" is today's landing. Asked once per quiz on this phone. A phone with no
  * device, an answer of nobody, an error, offline, or no answer in 3 s: today's screen, drawn exactly as today. Never on
@@ -57,6 +57,26 @@ describe('switch on: a phone that holds ONE child', () => {
     const p = on({ lang: 'ur', api: { '/api/wq/known': { kids: [{ ...ZAR, first: 'سعدیہ' }] } } });
     await flush(); await flush();
     expect(p.html()).toContain('کیا آپ <bdi>سعدیہ</bdi> ہیں؟');
+  });
+
+  test('Urdu: "Yes" reads «جی ہاں، میں ہی ہوں» and "Someone else" «نہیں، میں کوئی اور ہوں»', async () => {
+    const p = on({ lang: 'ur', api: { '/api/wq/known': { kids: [{ ...ZAR, first: 'سعدیہ' }] } } });
+    await flush(); await flush();
+    expect(p.html()).toContain('جی ہاں، میں ہی ہوں');
+    expect(p.html()).not.toContain('جی ہاں، میں ہوں<');
+    expect(p.html()).toContain('نہیں، میں کوئی اور ہوں');
+  });
+
+  test('Urdu with a name saved in Latin letters: the name is isolated, so «؟» stays at the end of the question', async () => {
+    const p = on({ lang: 'ur' });
+    await flush(); await flush();
+    expect(p.html()).toContain('<h2>کیا آپ <bdi>Sadia</bdi> ہیں؟</h2>');
+  });
+
+  test('a name carrying markup or a direction mark is escaped inside its isolate', async () => {
+    const p = on({ lang: 'ur', api: { '/api/wq/known': { kids: [{ ...ZAR, first: '<b>\u202eSadia' }] } } });
+    await flush(); await flush();
+    expect(p.html()).toContain('<bdi>&lt;b&gt;\u202eSadia</bdi>');
   });
 
   test('identity v2 page: "Someone else" goes to v2\'s own landing, as the switch-off page shows it', async () => {
