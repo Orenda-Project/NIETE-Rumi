@@ -220,7 +220,6 @@ const BASE_ON = { warm: 24, stale: 37 };
 test('#C46: the class child\'s video tile is the lesson in the home\'s player; waves ON = OFF and ON <= the base, warm and stale', async () => {
   const off = await wavesOf(OFF, false);
   const on = await wavesOf(ON, false);
-  if (process.env.NV_PRINT) console.log('NV_WAVES', JSON.stringify({ off: [off.warm, off.stale], on: [on.warm, on.stale], vids: [on.next, ...on.next.alts].filter((x) => x.kind === 'video') }));
   const vids = [on.next, ...on.next.alts].filter((x) => x.kind === 'video');
   expect(vids).toEqual([expect.objectContaining({ variant: 'recommended', href: expect.stringMatching(/^\/h\/[^?]+\?kid=[^&]+(&lang=[a-z]{2})?#watch\//) })]);
   expect(on.warm).toBeLessThanOrEqual(off.warm);

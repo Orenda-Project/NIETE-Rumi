@@ -1014,7 +1014,8 @@ describe('a child WITH a class: a "Watch a video" tile plays the lesson it names
   });
 
   // GOLDEN: a class-less child's whole `next` (offer ids aside: random per render) equals the base's, written once on
-  // the base commit with NEXT_VIDEO_GOLDEN_WRITE=1 (fixtures/next-video-classless.golden.json) and compared here.
+  // the base commit (fixtures/next-video-classless.golden.json) and compared here. To re-record on a base commit, put
+  // `require('fs').writeFileSync(file, `${got}\n`);` above the expect for one run, then remove it.
   test('GOLDEN: a class-less child\'s `next` is today\'s byte for byte (the recommended lesson in the home\'s player)', async () => {
     withArm('rank');
     seed(ALL_ON(), { ...lessons(), quiz_sessions: [], quiz_share_codes: [] });
@@ -1022,7 +1023,6 @@ describe('a child WITH a class: a "Watch a video" tile plays the lesson it names
     const strip = (n) => JSON.parse(JSON.stringify(n, (k, v) => (k === 'offer' ? undefined : v)).replace(/\/h\/[^?"]+\?kid=[^&"]+/g, '/h/<t>?kid=<c>').replace(/\/lib\/[^?"]+\?kid=[^&"]+/g, '/lib/<t>?kid=<c>'));
     const got = JSON.stringify(strip(out.next));
     const file = require('path').join(__dirname, 'fixtures', 'next-video-classless.golden.json');
-    if (process.env.NEXT_VIDEO_GOLDEN_WRITE === '1') { require('fs').mkdirSync(require('path').dirname(file), { recursive: true }); require('fs').writeFileSync(file, `${got}\n`); }
     expect(got).toBe(require('fs').readFileSync(file, 'utf8').trimEnd());
     expect(videosOf(out)[0]).toMatchObject({ variant: 'recommended', id: VID, title: 'Watch a video' });
   });
