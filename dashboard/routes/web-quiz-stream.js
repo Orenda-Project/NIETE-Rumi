@@ -12,19 +12,21 @@ const BR_PARAMS = { [zlib.constants.BROTLI_PARAM_QUALITY]: 5, [zlib.constants.BR
 
 /** Opens the streamed answer (status 200, html) and returns { write(text) — sent at once, end(text) }. */
 function open(req, res) {
+  // the page's html as the edge sends it (web-quiz-static.js: Jugnu's pictures versioned, with the switch on)
+  const html = (res.locals && res.locals.wqHtml) || ((s) => s);
   res.vary('Accept-Encoding');
   res.status(200).type('html');
   // br whenever the phone takes it (a phone lists gzip first; the order is not a preference), else gzip.
   const enc = req.acceptsEncodings('br') === 'br' ? 'br' : req.acceptsEncodings('gzip') === 'gzip' ? 'gzip' : null;
-  if (!enc) return { write: (s) => res.write(s), end: (s) => res.end(s) };
+  if (!enc) return { write: (s) => res.write(html(s)), end: (s) => res.end(html(s)) };
   const z = enc === 'br' ? zlib.createBrotliCompress({ params: BR_PARAMS }) : zlib.createGzip();
   res.set('Content-Encoding', enc);
   z.on('error', () => res.destroy());
   res.on('close', () => { if (!res.writableFinished) z.destroy(); });
   z.pipe(res);
   return {
-    write: (s) => { z.write(s); z.flush(enc === 'gzip' ? zlib.constants.Z_SYNC_FLUSH : zlib.constants.BROTLI_OPERATION_FLUSH); },
-    end: (s) => z.end(s),
+    write: (s) => { z.write(html(s)); z.flush(enc === 'gzip' ? zlib.constants.Z_SYNC_FLUSH : zlib.constants.BROTLI_OPERATION_FLUSH); },
+    end: (s) => z.end(html(s)),
   };
 }
 
