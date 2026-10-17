@@ -549,6 +549,27 @@ describe('the voice method gate (app_settings web_quiz_story_voice_gate; absent 
     expect(plan.why).toEqual([]);
   });
 
+  test('on: a natural take timed on other words than the page\'s is a miss, so the page keeps the voice it has; printed spellings still ride on their word', async () => {
+    const store = memoryStore(); const r = recorder();
+    const f = naturalize(fixture({ long: true }));
+    await L.applyPlan(L.planBook({ ...f, voiceGate: true }), { store, upload: r.upload, env: 'sandbox' });
+    const before = [...store.t.voices.values()].filter((v) => v.is_current).map((v) => v.audio_key).sort();
+    naturalize(f);
+    const vj = path.join(f.voiceDir, 'p02.json'); const j = JSON.parse(fs.readFileSync(vj, 'utf8'));
+    j.words[1].t = 'cot'; fs.writeFileSync(vj, JSON.stringify(j));
+    f.book.pages[0].words[2].alt = ['reeds'];
+    const plan = L.planBook({ ...f, voiceGate: true });
+    expect(plan.why).toEqual([]);
+    expect(plan.misses.map((m) => [m.n, m.why])).toEqual([[2, ['voice words differ from the page words']]]);
+    expect(plan.voices.map((v) => v.n)).toEqual([1]);
+    expect(plan.pages[0].words[2].alt).toEqual(['reeds']);
+    const out = await L.applyPlan(plan, { store, upload: r.upload, env: 'sandbox' });
+    expect(out.status).toBe('ready');
+    expect(out.kept).toEqual([2]);
+    const cur = [...store.t.voices.values()].filter((v) => v.is_current);
+    expect(cur.find((v) => v.page_id === Store.uuidV5(BOOK_ID, 'p02')).audio_key).toBe(before.find((k) => /\/a02-/.test(k)));
+  });
+
   test('on: a failed take on a page with no voice yet still leaves the book a draft, with the reason', async () => {
     const store = memoryStore(); const r = recorder();
     const f = naturalize(fixture({ long: true }), { pages: [2], qa: { atempo: 0.85 } });
