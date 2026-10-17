@@ -77,7 +77,7 @@ function listWith({ sessions = [], quizzes = [], lessons = [] } = {}) {
   return { ...List, loadLessonPage: jest.fn(async () => ({ sessions, quizzes, counts: {}, lessons })) };
 }
 
-beforeEach(() => { jest.clearAllMocks(); deps = { List: listWith() }; });
+beforeEach(() => { jest.clearAllMocks(); mockModules.load = undefined; deps = { List: listWith() }; });
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
 describe('switch OFF', () => {
@@ -509,6 +509,7 @@ describe('the stories shelf and the other seams', () => {
     deps.supabase = jsonPathSelect(supabase);
     deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'The Thirsty Crow' }, { id: 'b2', title: 'Rain' }] })) };
     mockWalk.forHome = jest.fn(async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists));
+    mockModules.load = (name) => (name === 'testPersona' ? mockWalk : null);
     try {
       await boot(deps);
       const t = tokenFor();
@@ -519,7 +520,7 @@ describe('the stories shelf and the other seams', () => {
       expect(home.library.stories.every((b) => !('sent' in b))).toBe(true);
       expect(lib.stories.every((b) => !('sent' in b))).toBe(true);
       expect(lib.pick).toMatchObject({ kind: 'story', id: 'b1' });
-    } finally { mockWalk.forHome = undefined; }
+    } finally { mockWalk.forHome = undefined; mockModules.load = undefined; }
   });
 
   test('a stories module whose switch is off → no tiles, the video card is the library pick', async () => {
@@ -611,6 +612,7 @@ describe('the top card for a teacher with a fresh lesson, and story sends', () =
     fake.db.users[0].phone_number = 'fixture-phone';
     deps.List = listWith({ lessons: [lesson(1, 'Plants')] });
     mockWalk.forHome = jest.fn(async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists));
+    mockModules.load = (name) => (name === 'testPersona' ? mockWalk : null);
     await boot(deps);
     const walk = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
     expect(mockWalk.forHome).toHaveBeenCalledTimes(1);
@@ -621,6 +623,7 @@ describe('the top card for a teacher with a fresh lesson, and story sends', () =
     mockWalk.forHome = undefined;
     srv.close(); await boot(deps);
     const real = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    mockModules.load = undefined;
     expect(real.primary.kind).toBe('lesson');
   });
 });
