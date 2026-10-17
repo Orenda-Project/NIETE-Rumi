@@ -923,10 +923,14 @@ const RULE = {
       + 'A Q6 situation needs the child to apply two different ideas from these pages; never one fact said twice (never "name the tier" twice, never the same government or body as the answer to both parts). '
       + 'No computation in a Q6 item (no degrees, hours or numbers to work out), and never a list of names or book facts to recall dressed as a situation (a poster of names, a quiz). '
       + 'A Q6 situation never asks a history fact; history recall goes to Q7. '
-      + 'Nor does it ask only civics or geography facts (who heads or chairs a body, what it is called, how many, when): that recall goes to Q7 too.',
+      + 'Nor does it ask only civics or geography facts (who heads or chairs a body, what it is called, how many, when): that recall goes to Q7 too. '
+      + 'Nor is a Q6 answered by naming which government, court or body does a job, even with the book\'s one-line reason; its answer explains with two ideas, and at most one marking point names a government, court or body.',
     Q7: 'Every Q7 item is Remember: one fact (who, what, where, when, how many) answered in one line. No Q7 item asks why or sets a situation.',
   },
   sstGroups: 'The child chooses which items of a question to answer, so every item of Q5, of Q6 and of Q7 is the same kind as the others in its question and as hard.',
+  // Social Studies: a marking point that names no fact («پہلی وجہ درست بتانا») tells the teacher nothing
+  // to look for, and the layout compares items by their points.
+  sstFactPoints: 'Each marking point states its fact (e.g. «آئین بنیادی حقوق کا تحفظ کرتا ہے»), never «پہلی وجہ», «دوسری وجہ», «درست وضاحت».',
   spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
   // The page store runs p.29's three columns together line by line, so a model read the provincial
   // cell (encroachments on public roads) as local work. Given column by column when the pages hold
@@ -1235,6 +1239,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (key === 'social_studies') {
     const bands = list.map((s) => RULE.sstBand[s.slot.split('.').pop()]).filter(Boolean);
     if (bands.length) rules.push(...bands, RULE.sstGroups);
+    if (list.some((s) => /\.[CD]\./.test(s.slot))) rules.push(RULE.sstFactPoints);
   }
   if (key === 'social_studies') {
     const inPages = _holdsTierTable(pageContent);

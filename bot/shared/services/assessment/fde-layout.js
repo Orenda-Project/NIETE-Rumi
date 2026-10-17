@@ -1010,6 +1010,25 @@ function asksRecall(q) {
   return facts >= 2 && facts > reasons;
 }
 
+// Social Studies: a Q6 whose answer only names who does a job («تجاوزات ہٹانے کے لیے صوبائی حکومت کا
+// درست نام», «سب سے بڑی عدالت سپریم کورٹ کا ذکر») is recall in a story, even with the book's line for
+// a reason: an Apply item's answer explains with two ideas or more. Read on the marking points: an
+// item that asks which government, court or body («کون سی حکومت», «کس ادارے», «کیا کہتے ہیں»), or
+// marks one by name («… کے لیے صوبائی حکومت کا درست نام»), is held when fewer than two of its points
+// explain without naming a government, court or body, and without being only how it is marked.
+const BODY = /(?:وفاقی|صوبائی|مقامی|ضلعی)\s*(?:حکومت|اسمبلی)|عدالت|کورٹ|اسمبلی|سینی?ٹ|مقننہ|انتظامیہ|عدلیہ|پارلیمان|پارلیمنٹ|الیکشن کمیشن|کابینہ/;
+const WHICH_BODY = /(?:کون|کس)[^؟?۔،]{0,16}(?:حکومت|ادارے|ادارہ|عدالت|حصے|سطح|اعضا|ایوان)|کون\s*(?:کرے|کرتا|کرتی|دیکھے|دیکھتا|دیکھتی|طے)/;
+const CALLED = /کیا\s*(?:کہتے|کہلات)|کو\s*کیا\s*کہا\s*جاتا/;
+const NAMING = /(?:^|\s)(?:نام|نشان\s*دہی|نشاندہی|پہچان|پہچاننا|شناخت)(?:\s|$|۔)/;
+const EXPLAINING_POINTS = 2;
+function namesBody(q) {
+  const points = (q && q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
+    .map((p) => String(typeof p === 'string' ? p : (p && p.text) || ''));
+  const stem = String((q && q.question) || '');
+  if (!points.some((t) => NAMING.test(t) && BODY.test(t)) && !WHICH_BODY.test(stem) && !CALLED.test(stem)) return false;
+  return points.filter((t) => !BODY.test(t) && !NAMING.test(t) && statesFact(t)).length < EXPLAINING_POINTS;
+}
+
 // Urdu: a Q1 MCQ keyed on a word of a Q6 verse line it asks about: its key's words are all in the
 // line and its stem carries at least two of the line's other words («ندی کا پانی صاف ہو گا تو ہم کس
 // چیز سے بچیں گے؟ → بیماری» beside «پانی جو صاف ہوگا بیماری سے بچوگے»), or it quotes a line. A
@@ -1100,19 +1119,32 @@ function urduTwin(placed) {
 // A Q5 point is in the Q6 item when at least half of its words are in one Q6 point; the Q6 item
 // restates the Q5 item when at least half of the Q5 points are in it. Points are compared, not
 // stems, since the two name different things. The Q6 item is held, never the Q5 one.
+// A point that only says how it is marked («پہلی وجہ درست بتانا», «مربوط وضاحت», «موسم کی درست
+// وضاحت»: fewer than two words left once the marking words are set aside) states no fact. It is never
+// found in another item, so two items that share only such points share nothing, and it still counts
+// among its item's points. An item whose points all state no fact is read by its answer, a sentence to
+// a point. Points that state a fact are read whole, as before.
 const POINT_IN = 0.5;
 const POINTS_IN = 0.5;
+const PLACEHOLDER_WORDS = new Set(tokensOf('پہلی پہلا دوسری دوسرا تیسری تیسرا ایک دو ہر درست وجہ وجوہات فائدہ فوائد اثر اثرات '
+  + 'وضاحت مربوط واضح مکمل مناسب نکتہ نکات خصوصیت بیان کرنا اقدام فعل مثال نقصان بتانا بتایا لکھنا لکھی لکھا ذکر جملوں جملہ صحیح'));
+const FACT_WORDS_MIN = 2;
+const statesFact = (text) => tokensOf(text).filter((w) => !PLACEHOLDER_WORDS.has(w)).length >= FACT_WORDS_MIN;
+// Each point's words, or null for a point that states no fact.
 function pointSets(q) {
-  const points = q && q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [];
-  return points.map((p) => new Set(tokensOf(typeof p === 'string' ? p : p && p.text))).filter((s) => s.size);
+  const points = (q && q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
+    .map((p) => (typeof p === 'string' ? p : p && p.text)).filter((t) => typeof t === 'string' && tokensOf(t).length);
+  const sets = points.map((t) => (statesFact(t) ? new Set(tokensOf(t)) : null));
+  if (sets.some(Boolean) || !points.length || typeof q.answer !== 'string') return sets;
+  return q.answer.split(/[۔؟?!\n]+/).filter(statesFact).map((t) => new Set(tokensOf(t)));
 }
 function samePoints(q5s) {
-  const sets = q5s.map(pointSets).filter((s) => s.length);
+  const sets = q5s.map(pointSets).filter((s) => s.some(Boolean));
   if (!sets.length) return null;
   return (q) => {
-    const mine = pointSets(q);
+    const mine = pointSets(q).filter(Boolean);
     if (!mine.length) return false;
-    return sets.some((five) => five.filter((a) => mine.some((b) => [...a].filter((w) => b.has(w)).length >= POINT_IN * a.size)).length
+    return sets.some((five) => five.filter((a) => a && mine.some((b) => [...a].filter((w) => b.has(w)).length >= POINT_IN * a.size)).length
       >= POINTS_IN * five.length);
   };
 }
@@ -1154,7 +1186,7 @@ function keyInPoints(others) {
 const SAME_POINTS = [
   { held: 'social_studies.D.Q6', against: ['social_studies.C.Q5'], rule: samePoints, name: 'points' },
   { held: 'social_studies.D.Q6', against: ['social_studies.D.Q6'], rule: samePoints, name: 'points_in_slot' },
-  { held: 'social_studies.D.Q7', against: ['social_studies.C.Q5', 'social_studies.D.Q6'], rule: keyInPoints, name: 'key_in_points', withHeld: true },
+  { held: 'social_studies.D.Q7', against: ['social_studies.C.Q5', 'social_studies.D.Q6'], rule: keyInPoints, name: 'key_in_points' },
 ];
 
 const CROSS_HOLD = {
@@ -1207,6 +1239,19 @@ function sameStemKey(a, b) {
   if (!sa.size || !sb.size) return false;
   const shared = [...sa].filter((w) => sb.has(w)).length;
   return shared >= TWIN_WORDS || shared === sa.size || shared === sb.size;
+}
+// Social Studies: two MCQs keyed the same that name the same job are one question asked twice
+// («پینے کے پانی کا بندوبست اور نکاسی آب کا انتظام کون سی حکومت دیکھتی ہے؟» beside «… بارش کے بعد
+// سڑکوں پر پانی جمع … نکاسی کا انتظام … کون سی حکومت کرے گی؟», both → مقامی حکومت). Urdu's same-key
+// read, with the words every which-government stem shares («حکومت», «کام», «انتظام») set aside, so
+// two jobs of one government («مویشی منڈی», «نکاسی آب») stay two questions. Only a key that names a
+// government or body: two facts about one person («APWA کس نے قائم کی؟», «پہلی خاتون صوبائی گورنر کون
+// تھیں؟», both → بیگم رعنا لیاقت علی خان) are two questions.
+const TASK_FRAME = new Set(tokensOf('حکومت حکومتیں کام انتظام ذمہ داری سطح ادارہ ادارے دیکھتی دیکھے کرے گی کرتی کرنا'));
+function sameTask(a, b) {
+  if (!Array.isArray(a.options) || !Array.isArray(b.options) || !/حکومت/.test(keyText(a)) && !BODY.test(keyText(a))) return false;
+  const bare = (q) => ({ ...q, question: tokensOf(q.question).filter((w) => !TASK_FRAME.has(w)).join(' ') });
+  return sameStemKey(bare(a), bare(b));
 }
 // Urdu: a Q1 stem that prints another Q1 item's key gives that item away («سدرہ نے اپنی تھیڑ کمپنی
 // کس مقصد کے لیے بنائی؟» beside «… کیا بنایا؟ → تھیڑ کمپنی»): a key of two words or more, all in the
@@ -1418,7 +1463,7 @@ function takenNote(P, section, examJson, opts = {}) {
 // Social Studies: the held items of a section's slots (`held` from applyLayout), never these.
 function heldNote(section, held) {
   const own = new Set(section.slots.map((s) => s.slot));
-  const lines = (Array.isArray(held) ? held : []).filter((h) => h && h.rule !== 'recall' && own.has(h.slot) && h.q && typeof h.q.question === 'string' && h.q.question.trim())
+  const lines = (Array.isArray(held) ? held : []).filter((h) => h && !RECALL_RULES.has(h.rule) && own.has(h.slot) && h.q && typeof h.q.question === 'string' && h.q.question.trim())
     .map(({ q }) => {
       const points = (q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
         .map((p) => (typeof p === 'string' ? p : p && p.text)).filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim());
@@ -1429,13 +1474,15 @@ function heldNote(section, held) {
   return `These items were set aside, because a child answering this paper's other items would already have answered them:\n${lines.join('\n')}\n`
     + 'Never these: write none of them again, and no item answered by any of these answers or points, in any wording.';
 }
-// Social Studies: the Q6 items set aside as book-fact recall (asksRecall), and what a Q6 is instead.
+// Social Studies: the Q6 items set aside as book-fact recall (asksRecall, namesBody), and what a Q6 is instead.
+const RECALL_RULES = new Set(['recall', 'names_body']);
 function recallNote(section, held) {
   if (!section.slots.some((s) => s.slot === Q6_SLOT)) return null;
-  const lines = (Array.isArray(held) ? held : []).filter((h) => h && h.rule === 'recall' && h.slot === Q6_SLOT && h.q && typeof h.q.question === 'string')
-    .map(({ q }) => `- ${q.question.trim()}`);
+  const list = (Array.isArray(held) ? held : []).filter((h) => h && RECALL_RULES.has(h.rule) && h.slot === Q6_SLOT && h.q && typeof h.q.question === 'string');
+  const lines = list.map(({ q }) => `- ${q.question.trim()}`);
   if (!lines.length) return null;
-  return `These Q6 items were set aside: each asks only book facts (who heads or chairs a body, what it is called, how many, when, what was done), whatever the story around them:\n${lines.join('\n')}\n`
+  const why = list.some((h) => h.rule === 'names_body') ? ', or only names a government, court or body as its answer' : '';
+  return `These Q6 items were set aside: each asks only book facts (who heads or chairs a body, what it is called, how many, when, what was done)${why}, whatever the story around them:\n${lines.join('\n')}\n`
     + 'A Q6 is a situation that needs two ideas applied; history recall goes to Q7. Write each new Q6 so the child decides, advises or explains what to do in the case, using two different ideas from these pages.';
 }
 // Social Studies: Section D is told every Q5 item with its marking points. A Q6 written beside C
@@ -1575,7 +1622,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
 
   const all = walk(src);
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); if (P.key === 'urdu') stripStemOptions(entry.q, true); });
-  const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q))
+  const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q)))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
   // `within`: Social Studies, a D item answered by another item's points ([{ slot, rule, name, inSlot }],
@@ -1606,6 +1653,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
       if (!holds(slot)) {
         if (P.key === 'social_studies' && slot.slot === Q6_SLOT && asksRecall(q)) return hold(slot, q, 'recall');
+        if (P.key === 'social_studies' && slot.slot === Q6_SLOT && namesBody(q)) return hold(slot, q, 'names_body');
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
         // after the re-ask only for a place nothing else takes.
@@ -1703,9 +1751,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
     for (const row of SAME_POINTS) {
       if (!bySlot.has(row.held) || !row.against.every((id) => bySlot.has(id))) continue;
       const inSlot = row.against.includes(row.held);
-      // A Q7 is read against what may print: the items placed and the ones held for the put-back
-      // (a held Q6 that comes back would print the Q7's answer).
-      const test = inSlot ? null : row.rule(row.against.flatMap((id) => [...bySlot.get(id), ...(row.withHeld ? held.filter((h) => h.slot === id).map((h) => h.q) : [])]));
+      // Read against the items placed: a held Social Studies item never prints, so it gives nothing away.
+      const test = inSlot ? null : row.rule(row.against.flatMap((id) => bySlot.get(id)));
       if (!inSlot && !test) continue;
       rows.push({ slot: row.held, rule: test, name: row.name, inSlot });
       place(rule ? { held: cross.held, rule } : null, rows);

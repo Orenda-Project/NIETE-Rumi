@@ -158,14 +158,14 @@ describe('4. a Q6 whose answer only names a government, court or body is recall'
     expect(note).toContain('or only names a government, court or body as its answer');
   });
   test('a Q7 is not held against a Q6 that never prints', () => {
-    const base = fixture('r17e-sst-local-chapters_6');
-    const laid0 = lay(base);
-    const target = items(laid0.examJson, D7)[0];
+    const base = fixture('r17d-sst-local-chapters_4');
+    const target = items(lay(base).examJson, D7)[0];
     const e = clone(base);
-    const extra = { ...clone(q6[0]), question: 'بلال کا شہر: یہ کام کون سی حکومت کرے گی؟', answer: target.answer, scheme: { points: [{ text: `${target.answer} مقامی حکومت کا نام`, marks: 6, kind: 'K' }] } };
-    e.unseen.subjective['Long Question'].push(extra);
+    const list = e.unseen.subjective['Long Question'];
+    const recallQ6 = 'بلال اپنے صوبے کی سیر کر رہا ہے۔ صوبے کا سربراہ کون ہوتا ہے؟ صوبائی اسمبلی کے ارکان کتنے ہوتے ہیں؟';
+    list.push({ ...clone(items(base, D6)[0]), question: recallQ6, answer: target.answer, scheme: { points: [{ text: target.answer, marks: 3, kind: 'K' }, { text: target.answer, marks: 3, kind: 'K' }] } });
     const laid = lay(e);
-    expect(items(laid.examJson, D6).map((q) => q.question)).not.toContain(extra.question);
+    expect(items(laid.examJson, D6).map((q) => q.question)).not.toContain(recallQ6);
     expect(items(laid.examJson, D7).map((q) => q.question)).toContain(target.question);
   });
 });
