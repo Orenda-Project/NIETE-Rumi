@@ -341,10 +341,94 @@ describe('the Jugnu page shell', () => {
     expect(h).toMatch(/<link rel="stylesheet" href="\/wq\/wq-moment\.css\?v=[0-9a-f]{10}">/);
     expect(h).toMatch(/<script src="\/wq\/wq-moment\.js\?v=[0-9a-f]{10}" defer><\/script>/);
     expect(h.indexOf('wq-moment.js')).toBeLessThan(h.indexOf('wq-trail.js'));
+    // the page's own card (no Trail) draws it too
+    expect(renderChallengePage({ menu: { lang: 'ur', exercises: [], read_feedback: true }, token: 't', kid: null, origin: 'https://x', assetV: 'v1', chV: 'c', brandKey: 'niete' })).toContain('/wq/wq-moment.js?v=');
   });
   test.each([['absent', {}], ['false', { read_feedback: false }], ['the string "true"', { read_feedback: 'true' }]])('%s: no moment file, the shell is today\'s', (_n, extra) => {
     const h = shell(extra);
     expect(h).not.toContain('wq-moment');
     expect(h.replace(/,"read_feedback":(false|"true")/, '')).toBe(shell({}));
+  });
+});
+
+// ---- the Read aloud card without the Trail (the page's own card): the moment there too ------------------------------
+describe('Read aloud without the Trail', () => {
+  const PLAIN_MENU = (lang, extra) => ({ lang, form: 'G3', record: true, exercises: [{ id: 'read', name: 'Read aloud', mins: 2, done: false, last: null }], ...extra });
+  const PLAIN_READ = (lang) => ({ ex: 'read', ct: 'CT1', secs: 60, live: true, lang, clips: H.CLIPS, record: true, story: H.STORY });
+  function plain(lang, menuExtra, { withMoment = true } = {}) {
+    FakeSocket.all = [];
+    const server = { now: { status: 200, body: { pending: true } } };
+    const pre = [LIVE_SRC].concat(withMoment && MOMENT_SRC ? [MOMENT_SRC] : []);
+    const p = H.page({ lang, menu: PLAIN_MENU(lang, menuExtra), freshEls: true, pre, routes: {
+      'ch/HUB.TOKEN/read': H.ok(PLAIN_READ(lang)), 'ch/live': H.ok({ ...KEY, lang }),
+      'ch/upload': H.ok({ put_url: 'https://r2.test/put/abc', key: 'child-voice/sandbox/r/read-1.webm', content_type: 'audio/webm' }),
+      'r2.test/put': () => ({ status: 200, body: {} }), 'ch/result': () => server.now,
+    } });
+    p.win.WebSocket = FakeSocket;
+    p.server = server;
+    return p;
+  }
+  async function live(p, body, words = H.STORY.tokens) {
+    p.w.open('read'); await p.flush();
+    if (p.has('wqc-help-no')) await p.click('wqc-help-no');
+    await p.click('wqc-go');
+    const s = FakeSocket.all[0]; s.open(); await p.flush();
+    if (words.length) { s.msg({ tokens: toks(words) }); await p.flush(); }
+    await p.click('wqc-stop');
+    s.msg({ tokens: [], finished: true }); await p.flush(); await p.flush();
+    const held = p.html();
+    p.server.now = { status: 200, body };
+    for (let i = 0; i < 3; i += 1) await p.runTimers((x) => x.ms === 3000);
+    // the checked result redraws the moment's own box in place (the page's DOM; the harness keeps that box apart)
+    const box = p.els['wqc-rf'] && p.els['wqc-rf'].innerHTML;
+    return { held, settled: box ? p.html().replace(/<div id="wqc-rf">[\s\S]*?<\/section><\/div>/, `<div id="wqc-rf">${box}</div>`) : p.html() };
+  }
+  test.each(['en', 'ur'])('%s, key absent (the file even there): the live and checked cards are today\'s', async (lang) => {
+    const off = await live(plain(lang, {}, { withMoment: false }), SETTLE);
+    const fileThere = await live(plain(lang, {}), SETTLE);
+    expect(fileThere).toEqual(off);
+    expect(off.settled).not.toContain('data-rf');
+  });
+  test.each(['en', 'ur'])('%s, key on: the live card answers at once, the checked result redraws it with stars and growth', async (lang) => {
+    const { held, settled } = await live(plain(lang, RF), SETTLE);
+    expect(held).toContain('data-rf');
+    expect(held).toContain(lang === 'ur' ? 'آپ نے ۱۰ لفظ پڑھے!' : 'You read 10 words!');
+    expect(settled).toContain(lang === 'ur' ? 'آپ نے ۹ لفظ پڑھے!' : 'You read 9 words!');
+    expect(settled).toContain('data-stars="3"');
+    expect(settled.match(/data-rf/g)).toHaveLength(1);   // one moment, redrawn, never two
+    expect(text(settled)).not.toMatch(BANNED);
+  });
+  test('key on, another phone\'s body (no speed, no words-right; only the band): stars and a badge, never a blank', async () => {
+    const { settled } = await live(plain('en', RF), { score: { attempted: 10, stopped: false }, feedback: { stars: 2, badge: 'reader', words_heard: 10 } });
+    expect(settled).toContain('You read 10 words!');
+    expect(settled).toContain('data-stars="2"');
+    expect(settled).toContain('Brave reader');
+    expect(/<div id="wqc-rf">[\s\S]*?<\/section><\/div>/.exec(settled)[0]).not.toContain('a minute');   // no speed in the band
+  });
+  test.each(['en', 'ur'])('%s, key on, a checked read with no live words (the recording path): the moment on the checked card', async (lang) => {
+    const p = plain(lang, RF);
+    p.w.open('read'); await p.flush();
+    p.w.readResult({ score: { correct: 46, attempted: 50, stopped: false }, wcpm: 48, previous: { wcpm: 40 } });
+    await p.flush();
+    const h = p.html();
+    expect(h).toContain(lang === 'ur' ? 'ایک منٹ میں ۴۸ لفظ' : '48 words a minute');
+    expect(h).toContain(lang === 'ur' ? 'پچھلی بار سے تیز!' : 'Faster than last time!');
+  });
+  test.each(['en', 'ur'])('%s, key on, nothing heard: the kind moment and Try again leads', async (lang) => {
+    const p = plain(lang, RF);
+    p.w.open('read'); await p.flush();
+    p.w.readResult({ failed: true, reason: 'unheard' });
+    await p.flush();
+    const h = p.html();
+    expect(h).toContain(lang === 'ur' ? 'آئیں مل کر پڑھیں!' : "Let's read it together!");
+    expect(h).toContain('data-badge="try"');
+    expect(h.indexOf('data-rf')).toBeLessThan(h.indexOf('id="wqc-again"'));
+  });
+  test('key on, "we\'ll check it later": no moment yet (nothing judged)', async () => {
+    const p = plain('en', RF);
+    p.w.open('read'); await p.flush();
+    p.w.readResult({ later: true });
+    await p.flush();
+    expect(p.html()).not.toContain('data-rf');
   });
 });
