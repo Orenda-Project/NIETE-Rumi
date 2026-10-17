@@ -135,7 +135,7 @@ const FINISHED = ['done', 'scored', 'failed', 'scoring'];
 
 /**
  * The passages this child has met: any run row of any mode or status (a story sticker is a story run row); null if
- * unknown. Its `open` (a Set) = the ones opened and never finished (the next-thing slot's carry-on, #C49a).
+ * unknown. Its `open` (a Set) = the ones opened and never finished (the next-thing slot's carry-on).
  */
 async function seenPassages(childId) {
   const runs = await runsOf(childId, 'passage_id, status');

@@ -3,7 +3,7 @@
  * The home's ONE Next tile across views (web-quiz-next-offer.js nextFor + the state's taps), with the taps heard
  * (web_quiz_events_v3 on):
  *   - an activity opened and left unfinished counts as ONE shown-without-a-tap, not as done: the same tile comes back
- *     on the next home view; a second unfinished open, or one more untapped show, rotates it (the two of #C3); a read
+ *     on the next home view; a second unfinished open, or one more untapped show, rotates it (two shows without a tap move a tile); a read
  *     or a storybook comes back as "Carry on reading" / «پڑھنا جاری رکھیں», a game keeps its words; finished (its
  *     finish card shown) it rotates as today;
  *   - a render never uses up the once-a-day tile ("Finish your story"): only a tap on it, or a tap on another tile or
@@ -67,7 +67,7 @@ beforeEach(() => {
 });
 afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers(); });
 
-describe('#C49a: an opened, unfinished activity counts as one shown-without-a-tap, not as done', () => {
+describe('an opened, unfinished activity counts as one shown-without-a-tap, not as done', () => {
   // The game is the ranked alt under the video, so "the same tile came back" is the carry-on and nothing else.
   async function gameIsTheAlt() {
     await seed(true);
@@ -93,7 +93,7 @@ describe('#C49a: an opened, unfinished activity counts as one shown-without-a-ta
     expect(v3.id).not.toBe('numbers');
   });
 
-  test('left, then shown once more without a tap (the open is the first of #C3\'s two): rotated', async () => {
+  test('left, then shown once more without a tap (the open is the first of the two untapped shows): rotated', async () => {
     const v1 = await gameIsTheAlt();
     await tap(v1, 'numbers');
     expect((await view([video, game, invite])).id).toBe('numbers');
@@ -148,7 +148,7 @@ describe('#C49a: an opened, unfinished activity counts as one shown-without-a-ta
   });
 });
 
-describe('#C50: a render never uses up the once-a-day tile', () => {
+describe('a render never uses up the once-a-day tile', () => {
   test('rendered twice (a reload, a background return, a second /quiz reply): the same "Finish your story" tile', async () => {
     await seed(true);
     expect((await view([video, book])).id).toBe('sb-7');

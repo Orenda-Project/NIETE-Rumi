@@ -229,11 +229,11 @@ test.each([['a child on a class list', false], ['the usual loose child', true]])
   expect(on.stale).toBeLessThanOrEqual(off.stale);
 }, 60000);
 
-// #C46: a class child's "Watch a video" tile plays the lesson it names (the hub already reads the lesson for every
+// a class child's "Watch a video" tile plays the lesson it names (the hub already reads the lesson for every
 // child: the tile's choice is a pure step), so the home costs no wave more. The base's own counts on this fixture
 // (sandbox d0f451e45, measured with the switches ON) are the ceiling.
 const BASE_ON = { warm: 24, stale: 37 };
-test('#C46: the class child\'s video tile is the lesson in the home\'s player; waves OFF = the recorded 24 / 37, ON <= OFF and ON <= the base, warm and stale', async () => {
+test('the class child\'s video tile is the lesson in the home\'s player; waves OFF = the recorded 24 / 37, ON <= OFF and ON <= the base, warm and stale', async () => {
   const off = await wavesOf(OFF, false);
   const on = await wavesOf(ON, false);
   expect(off.warm).toBe(OFF_WAVES.class.warm);
@@ -247,11 +247,11 @@ test('#C46: the class child\'s video tile is the lesson in the home\'s player; w
 }, 60000);
 
 
-// #C49a through the hub itself (Hub.hub -> Jugnu's corner reads the child's runs -> the slot's sources -> the ranker),
+// The carry-on through the hub itself (Hub.hub -> Jugnu's corner reads the child's runs -> the slot's sources -> the ranker),
 // never `nextFor` by hand: a story the child tapped and left (its only run row served or listening) is no longer
 // "unseen", so no builder offers it; the hub's own `open` set brings it back as "Carry on reading". A story with a
 // finished row (scored, done) is not carried.
-describe('#C49a through the hub: a story opened and left comes back as «Carry on reading»; a finished one does not', () => {
+describe('the carry-on through the hub: a story opened and left comes back as «Carry on reading»; a finished one does not', () => {
   const PIDS = { en: 'en.read.2.story01', ur: 'ur.read.2.story01' };
   async function opened(status, lang) {
     const PID = PIDS[lang];

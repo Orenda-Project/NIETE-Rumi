@@ -10,9 +10,9 @@
  *   eventsV3Now(now)         the events switch from the cache, synchronously (a stale cache refreshes behind)
  *   loadState(key) / saveState(key, st)   the slot's per-child state ({} on any failure; a lost write is no state)
  *   noteTap(kid, offer)      a tap on an offer resets its "shown, not tapped" streak, is remembered as opened and not
- *                            yet finished (#C49a's carry-on: `t`), and spends the once-a-day tile its view showed (#C50)
- *   noteDoor(kid)            a door tapped from the home spends the once-a-day tile that home showed (#C50)
- *   noteDone(kid, card)      a finish card of the carried-on tile's kind: it was finished, so it is carried no more (#C49a)
+ *                            yet finished (the carry-on: `t`), and spends the once-a-day tile its view showed
+ *   noteDoor(kid)            a door tapped from the home spends the once-a-day tile that home showed
+ *   noteDone(kid, card)      a finish card of the carried-on tile's kind: it was finished, so it is carried no more
  *   copyOf(tile)             the fields of a shown tile the state keeps (what the page drew, nothing else)
  */
 const supabase = require('../../config/supabase');
@@ -74,13 +74,13 @@ function copyOf(x) {
   return out;
 }
 
-// #C50: the once-a-day tile (`rs`, the view that showed it today) is spent by a tap from that view
+// the once-a-day tile (`rs`, the view that showed it today) is spent by a tap from that view
 const spend = (st, now) => (st.rs && st.rs.day === pktDay(now) ? { rd: st.rs.day, rs: null } : {});
 
 /**
  * A tap on an offer (the page's next_tap, through the event relay, by the child's kid): its streak starts again; the
  * tapped tile is remembered as opened and not yet finished (`t`: id, variant, unfinished opens `u`, its copy `c`) —
- * the slot's carry-on, which counts it as one shown-without-a-tap (#C49a); and its view's once-a-day tile is spent.
+ * the slot's carry-on, which counts it as one shown-without-a-tap; and its view's once-a-day tile is spent.
  */
 async function noteTap(kid, offer, now = Date.now()) {
   try {
