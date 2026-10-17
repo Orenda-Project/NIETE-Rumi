@@ -403,19 +403,38 @@ async function brandKey() {
 /**
  * The language the child chose on the page that sent them here (?lang=en|ur), when it may win over the guess from
  * their history: only under web_quiz_challenge_v2 (with its parents; web-quiz-hub-play.js switches, 30 s cache,
- * fail closed). Anything else, or the switch off: null, and the hub is today's. Asked only when a lang came.
+ * fail closed) or web_quiz_return_lang (the join's first home; web-quiz-return-lang.js, the same). Anything else, or
+ * both off: null, and the hub is today's. Asked only when a lang came.
  */
 async function askedLang(lang) {
   if (lang !== 'en' && lang !== 'ur') return null;
   try {
-    return (await require('./web-quiz-hub-play').switches()).v2 ? lang : null;
+    if ((await require('./web-quiz-hub-play').switches()).v2) return lang;
+  } catch (_) { /* v2 closed; the return switch may still say yes */ }
+  try {
+    return (await require('./web-quiz-return-lang').on()) ? lang : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * The language the /quiz reply spoke, carried by the hub link (`l`, en|ur), for a child with no class quiz yet: only under
+ * web_quiz_return_lang (web-quiz-return-lang.js, 30 s cache, fails closed). No `l`, or the switch off: null (today's).
+ */
+async function linkedLang(token) {
+  const tok = T.verify(token, 'h');
+  const R = require('./web-quiz-return-lang');
+  if (!tok || !R.linkLang(tok.l)) return null;
+  try {
+    return (await R.on()) ? tok.l : null;
   } catch (_) {
     return null;
   }
 }
 
 /** A phone that may not see the children: their language only, never a name, a chip or a quiz. */
-async function lockedHub(ids, why, asked = null) {
+async function lockedHub(ids, why, asked = null, linked = null) {
   let lang = 'en';
   try {
     const { data: rows } = await dbRead('lockedHub:students:1', (db) => db.from('students').select('id, is_active').in('id', ids));
@@ -423,8 +442,8 @@ async function lockedHub(ids, why, asked = null) {
     if (live.length) {
       const StudentQuiz = require('./student-quiz.service');
       const history = await StudentQuiz.quizzesForStudents(live);
-      lang = clampLanguage(StudentQuiz.childLanguage(history));
-    }
+      lang = clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
+    } else if (linked) lang = linked;
   } catch (_) { /* English */ }
   if (asked) lang = asked;
   logEvent('web_quiz.hub_locked', { kids: ids.length, why });
@@ -527,8 +546,9 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
   const asked = await askedLang(wanted);
+  const linked = await linkedLang(token);
   const trust = await deviceTrusted(token, device);
-  if (!trust.ok) return lockedHub(ids, trust.why, asked);
+  if (!trust.ok) return lockedHub(ids, trust.why, asked, linked);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   let mine = ids.filter((id) => trust.ids.includes(id));
   let canon = null;
@@ -564,7 +584,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
   const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen), reads: guessReads && String(chosen.id) === guess ? guessReads : null } : null) : null;
   const history = ctx ? ctx.history : [];
-  const lang = asked || clampLanguage(require('./student-quiz.service').childLanguage(history));
+  const StudentQuiz = require('./student-quiz.service');
+  const lang = asked || clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     lang,

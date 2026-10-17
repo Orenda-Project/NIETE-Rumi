@@ -13,7 +13,8 @@
  *   timeline    "My lessons": lesson plans, coaching sessions and sent quizzes, newest first, 5 rows + "More"; each row
  *               one verb: "Quiz this" (the existing job, then the page polls until the class message exists) /
  *               "Send again" / "See report"; topic names verbatim with dir=auto
- *   library     "Chosen for Grade n", grade chips 1–5, up to four stories (links to the stories page) + "All stories",
+ *   library     "Chosen for Grade n", grade chips 1–5, up to four stories (links to the stories page; one sent this month
+ *               says "Sent ✓ <day/month>" by its title) + "All stories",
  *               then one card "Ready video quizzes" → the maker page
  *   foot        "Make a new quiz", the maker's three cards (lesson plans / coaching / test paper), "Try it as a student"
  *               (coaches), "Not a teacher? Change"
@@ -69,6 +70,7 @@ const CSS = [
   '.th-row-t{flex:1 1 160px;min-width:0;display:flex;flex-direction:column}',
   '.th-row-k{font-size:14px;color:var(--muted);font-weight:800}html[lang=ur] .th-row-k{font-weight:400;font-size:18px;line-height:1.8}',
   '.th-row-n{font-size:16px;font-weight:800;line-height:1.4;overflow-wrap:anywhere}html[lang=ur] .th-row-n{font-weight:400;font-size:18px;line-height:1.9}',
+  '.th-sent{display:inline-block;unicode-bidi:isolate;margin-inline-start:8px;padding:0 8px;border-radius:999px;background:#E8F6EE;color:var(--brand-d);font-size:14px;font-weight:800;white-space:nowrap}html[lang=ur] .th-sent{font-weight:400;font-size:16px}',
   '.th-row-v{flex:none;min-height:48px;min-width:48px;padding:4px 12px;border-radius:12px;border:2px solid var(--brand);background:var(--card);color:var(--brand-d);font:800 15px/1.2 var(--f);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}',
   'html[lang=ur] .th-row-v{font-family:var(--fu);font-weight:400;font-size:18px;line-height:1.8}',
   '.th-row-v:disabled{opacity:.5}',
@@ -116,6 +118,7 @@ var S=b.s||{},d=null,grade=null,busy=false,T=encodeURIComponent(b.t),shown=5,pol
 function q(s){return document.querySelector(s)}
 function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
 function dg(n){var s=String(n);return b.dg?s.replace(/[0-9]/g,function(x){return b.dg.charAt(+x)}):s}
+function day(v){var t=new Date(v);return isNaN(t.getTime())?'':dg(t.getDate()+'/'+(t.getMonth()+1))}
 function fill(k,o){return String(S[k]||'').replace(/\\{(\\w+)\\}/g,function(m,n){return o&&o[n]!=null?String(o[n]):m})}
 function post(p,o){return fetch(p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(o),credentials:'same-origin'})}
 function getj(p){return fetch(p,{credentials:'same-origin'}).then(function(r){if(r.status===410){location.reload();throw 1}if(!r.ok)throw 0;return r.json()})}
@@ -182,7 +185,7 @@ else if(r.status==='making'&&r.quizId){poll(r,tx,null)}
 ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown}
 function lib(L){Array.prototype.forEach.call(q('#th-grades').querySelectorAll('[data-grade]'),function(x){x.setAttribute('aria-pressed',String(x.getAttribute('data-grade')===String(L.grade)))});
 q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});
-var ul=q('#th-stories');clear(ul);(L.stories||[]).forEach(function(s){var li=el('li','th-row');li.setAttribute('data-row','story');var tx=el('div','th-row-t');var n=el('span','th-row-n');n.appendChild(topic(s.title));tx.appendChild(n);li.appendChild(tx);li.appendChild(link('th-row-v',S['th.send'],s.href,'story_tile'));ul.appendChild(li)});
+var ul=q('#th-stories');clear(ul);(L.stories||[]).forEach(function(s){var li=el('li','th-row');li.setAttribute('data-row','story');var tx=el('div','th-row-t');var n=el('span','th-row-n');n.appendChild(topic(s.title));if(s.sent)n.appendChild(el('span','th-sent',fill('th.sent.on',{day:day(s.sent)})));tx.appendChild(n);li.appendChild(tx);li.appendChild(link('th-row-v',S['th.send'],s.href,'story_tile'));ul.appendChild(li)});
 ul.hidden=!(L.stories&&L.stories.length);var a=q('#th-all');a.hidden=!L.all;if(L.all)a.setAttribute('href',L.all);
 var v=q('#th-videos');v.hidden=!d.maker;if(d.maker)v.setAttribute('href',d.maker)}
 function pickGrade(n){if(String(n)===String(grade))return;grade=n;store('th.grade',String(n));step('grade');

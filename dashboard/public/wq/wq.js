@@ -1497,7 +1497,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       nfT: function (t, c) { return "I can't find " + t + (c ? ' in ' + c : '') + '. Is that how your name is written?'; },
       nfYes: "Yes, that's my name", nfFix: 'Let me fix it',
       nsT: function (t, c, n) { return 'There are ' + n + ' children called ' + t + (c ? ' in ' + c : '') + '.'; },
-      nsSay: 'Tap Yes to play. Your teacher will check which one you are.'
+      nsSay: 'Tap Yes to play. Your teacher will check which one you are.',
+      // a class link on a phone that holds a child (web_quiz_link_known_child): asked before the name box
+      knIs: function (n) { return 'Is it ' + n + '?'; }, knYes: "Yes, that's me", knElse: 'Someone else'
     },
     ur: {
       rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
@@ -1525,7 +1527,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       nfT: function (t, c) { return (c ? c + ' میں ' : '') + t + ' کا نام نہیں ملا۔ کیا آپ کا نام ایسے ہی لکھا جاتا ہے؟'; },
       nfYes: 'جی ہاں، یہی میرا نام ہے', nfFix: 'دوبارہ لکھیں',
       nsT: function (t, c, n) { return (c ? c + ' میں ' : '') + t + ' نام کے ' + n + ' بچے ہیں۔'; },
-      nsSay: 'کھیلنے کے لیے جی ہاں دبائیں۔ ٹیچر خود دیکھ لیں گے کہ آپ کون ہیں۔'
+      nsSay: 'کھیلنے کے لیے جی ہاں دبائیں۔ ٹیچر خود دیکھ لیں گے کہ آپ کون ہیں۔',
+      knIs: function (n) { return 'کیا آپ ' + n + ' ہیں؟'; }, knYes: 'جی ہاں، میں ہوں', knElse: 'نہیں، میں کوئی اور ہوں'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
   // The roll pad and its lists: 0-9, Urdu included. The roll number is matched to the teacher's
@@ -1785,7 +1788,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         return who();
       }
       // A hub link's session that cannot start: the landing asks who is playing (it never asked while starting).
-      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset') landing(); return; }
+      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset' || pick.via === 'known') landing(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -1798,7 +1801,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (ID) ID.started(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (B.story && window.WQSTORYLINK) window.WQSTORYLINK.open({ st: S.st, story: B.story, preview: Boolean(B.preview), lang: LANG, T: T, api: api, flushQueue: flushQueue, ev: ev, flushEv: flushEv, toast: toast, landing: landing, withLang: withLang, go: function (u) { location.assign(u); } }); else if (wantsVideo()) video(); else nextQuestion();
-    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset') landing(); });
+    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset' || pick.via === 'known') landing(); });
   }
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
@@ -3138,6 +3141,53 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       location.replace(withLang(h));
     }, fall);
   }
+  // A class link on a phone that already holds a child (boot link_known, app_settings web_quiz_link_known_child): the
+  // server answers the children THIS phone holds (never a classmate; nobody on a forwarded link) and the page asks
+  // "Is it <First>?" (two or more: "Whose turn is it?") before the name box, so a child who joined on their own plays
+  // as themselves. Asked once per quiz on this phone; "Someone else", nobody, an error or no answer in 3 s: today's screen.
+  var KN_KEY = 'wq_kn_' + CODE;
+  function knownOk() {
+    return Boolean(B.link_known) && !B.preview && !B.invited && !B.challenge && !params.k && !S.st && !S.queue.length && !S.pending
+      && Boolean(sget('wq_d', null)) && !sget(KN_KEY, null);
+  }
+  function knownAsk() {
+    var done = false;
+    function fall() { if (!done) { done = true; landing(); } }
+    setTimeout(fall, 3000);
+    // The server reads this phone's own wq_dv cookie (the edge forwards it), never a device the page sends.
+    api('POST', 'known', { code: CODE }).then(function (r) {
+      if (done) return;
+      // A child already a card on this phone's landing is offered there; only the others are asked about here.
+      var have = {};
+      kids().forEach(function (k) { have[k.chip] = 1; });
+      var got = r && r.ok && r.body && Array.isArray(r.body.kids) ? r.body.kids : [];
+      var list = got.filter(function (k) { return k && typeof k.chip === 'string' && k.chip && typeof k.first === 'string' && k.first && !have[k.chip]; }).slice(0, 4);
+      if (!list.length) return fall();
+      done = true;
+      knownCards(list);
+    }, fall);
+  }
+  function knownCards(list) {
+    var one = list.length === 1 ? list[0] : null;
+    var nm = function (k) { return '<bdi>' + esc(k.first) + '</bdi>'; };
+    var h = bar() +
+      jug('hello', one ? T.hello : T.whoSay, true, true) +
+      '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p></div>' +
+      (one
+        ? '<h2>' + TW.knIs(nm(one)) + '</h2><button class="wq-btn wq-go" id="wq-kn-yes">' + ani(one.animal) + esc(TW.knYes) + '</button>'
+        : '<h2>' + esc(T.whoT) + '</h2><div class="wq-kids-big">' + list.map(function (k, i) {
+          return '<button class="wq-kid wq-kid-big" id="wq-kn-' + i + '">' + ani(k.animal) + nm(k) + '</button>';
+        }).join('') + '</div>') +
+      '<button class="wq-btn wq-ghost" id="wq-kn-else">' + esc(TW.knElse) + '</button>';
+    render(h, 'M4-known');
+    wireBar();
+    ev('known_ask', { kids: list.length });
+    function pick(k) { sset(KN_KEY, 1); ev('identity_pick', { src: 'known' }); startSession({ chip: k.chip, via: 'known' }, k); }
+    if (one) on('#wq-kn-yes', function () { pick(one); });
+    else list.forEach(function (k, i) { on('#wq-kn-' + i, function () { pick(k); }); });
+    on('#wq-kn-else', function () { sset(KN_KEY, 1); ev('identity_pick', { src: 'known_else' }); landing(); });
+  }
   var HX = B.view === 'class' || B.view === 'schools' || B.preview ? '' : handsetX();
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();
@@ -3147,5 +3197,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   else if (S.pending && S.st) results(S.fixed || 0);
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();
   else if (HX) handsetBind(HX);
+  else if (knownOk()) knownAsk();
   else landing();
 })();
