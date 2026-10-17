@@ -67,6 +67,8 @@ function setIdOf(voice) {
 const SHARED_SETS = Object.freeze({
   'el-bella': '365969a7', 'el-sana': '76bc9453', 'el-sara': 'f2d8d2ef',
   'el-bella-cff2e4': '3a274a11', // Bella on eleven_multilingual_v2 at speed 0.9 (the storyteller pace of the passages)
+  // Urdu Reva (eleven_v4), matched to the bank's recordings of people, each line levelled to -21 LUFS.
+  'el-reva-cc0c3b': 'cbfa2478',
 });
 
 /**

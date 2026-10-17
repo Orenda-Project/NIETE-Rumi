@@ -602,6 +602,17 @@ describe('a plan whose voice has no recorded set of Jugnu\'s shared lines is ref
     expect(refusals()).toEqual([]);
   });
 
+  // The Urdu voice matched to the bank's recordings of people (option A): Reva, eleven_v4.
+  const MATCHED_SETTINGS = { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 };
+  const REVA = { provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4', settings: MATCHED_SETTINGS };
+  test('the matched Urdu voice (Reva) has its set: a plan naming it, keeping the human question and options, is on', () => {
+    const plan = { voices: { ur: REVA }, bank: ['q', 'opts'] };
+    expect(Voice.setIdOf(REVA)).toBe('el-reva-cc0c3b');
+    expect(OneVoice.take(plan)).toMatchObject({ bank: ['q', 'opts'] });
+    expect(Voice.sharedSets(OneVoice.normalize(plan)).ur).toEqual({ path: 'el-reva-cc0c3b', v: Voice.SHARED_SETS['el-reva-cc0c3b'] });
+    expect(refusals()).toEqual([]);
+  });
+
   test('a tool given the plan directly (backfill --plan, before its set exists) still records in that voice', async () => {
     const fake = seed(ROWS(), {});
     await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from }, oneVoice: OneVoice.normalize({ voices: { en: JESSICA } }) });
