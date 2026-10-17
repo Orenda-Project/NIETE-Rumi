@@ -92,17 +92,27 @@
       return k;
     }
     function view() {
-      var hw = hypWords(st.F + st.N);
+      var hw = hypWords(st.F + st.N); var all = hw;
       if (rep) hw = absorb(hw);
+      var fz = function (x) { return x.end < st.F.length || (x.end === st.F.length && (st.done || !st.N || /^\s/.test(st.N))); };
       var hyp = hw.map(function (x) { return x.w; });
-      var final = hw.map(function (x) { return x.end < st.F.length || (x.end === st.F.length && (st.done || !st.N || /^\s/.test(st.N))); });
+      var final = hw.map(fz);
       var a = W.alignPrefix(ref, hyp, eq, jo);
       var reached = 0; var i;
       for (i = 0; i < ref.length; i += 1) if (a.status[i] !== 'omit' && a.hypIdx[i] >= 0) reached = i + 1;
+      // ON: the absorb only ever adds words; a word today's alignment (every word as heard) hears is never made a skip
+      // by it: that word keeps today's state (a stumble or repeat then a real skip, a word printed two apart, neighbours one letter apart)
+      var a0 = null;
+      if (rep) {
+        a0 = W.alignPrefix(ref, all.map(function (x) { return x.w; }), eq);
+        for (i = 0; i < ref.length; i += 1) if (a0.status[i] === 'correct' && a.status[i] !== 'correct' && i + 1 > reached) reached = i + 1;
+      }
       var states = []; var read = 0; var heard = 0; var skipped = 0; var cur = -1;
       for (i = 0; i < ref.length; i += 1) {
         var ok = a.status[i] === 'correct';
-        if (ok && final[a.hypIdx[i]]) { states.push('read'); read += 1; heard += 1; }
+        if (!ok && a0 && a0.status[i] === 'correct') {
+          if (fz(all[a0.hypIdx[i]])) { states.push('read'); read += 1; heard += 1; } else { states.push('heard'); heard += 1; }
+        } else if (ok && final[a.hypIdx[i]]) { states.push('read'); read += 1; heard += 1; }
         else if (ok) { states.push('heard'); heard += 1; }
         else if (i < reached) { states.push('skipped'); skipped += 1; }
         else { if (cur < 0) cur = i; states.push(cur === i ? 'current' : 'ahead'); }

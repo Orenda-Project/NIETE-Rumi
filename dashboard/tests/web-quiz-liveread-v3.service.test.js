@@ -145,6 +145,48 @@ describe('the matcher: transcript tokens → passage words', () => {
       expect(lib().practice({ marks: ['skipped', 'read', 'read', 'read', 'read'] }, words, true).marks).toEqual(['skipped', 'read', 'read', 'read', 'read']);
       for (const off of [undefined, false, 'true', 1]) expect(lib().practice(r, words, off)).toBe(r);
     });
+    // ON is never worse than OFF: a word today's matcher hears (read / heard) is never a skip with the absorb on
+    const lit = (s) => s === 'read' || s === 'heard';
+    const neverWorse = (page, heard, lang = 'en') => {
+      const off = lib().matcher(page, lang).push(toks(heard.split(' ')));
+      const on = said(page, heard, lang);
+      expect(off.states.map((s, i) => (lit(s) && on.states[i] === 'skipped' ? i : -1)).filter((i) => i >= 0)).toEqual([]);
+      expect(on.skipped).toBeLessThanOrEqual(off.skipped);
+      return [...on.states];
+    };
+    const S = (s) => s.split('').map((c) => ({ r: 'read', s: 'skipped', c: 'current', a: 'ahead' }[c]));
+    test('a stumble or a repeat followed by a real skip: the word read stays read, only the word passed over is skipped (EN and Urdu)', () => {
+      expect(neverWorse('friend quickly sun she came in'.split(' '), 'friend qu quickly quickly she came in')).toEqual(S('rrsrrr'));
+      expect(neverWorse('friend big a girl came she'.split(' '), 'friend bi big girl came came she')).toEqual(S('rrsrrr'));
+      expect(neverWorse('we found at on happy of tree'.split(' '), 'we fo found on happy happy of')).toEqual(S('rrsrrrc'));
+      expect(neverWorse('دوست بلی کتا گھر گیا'.split(' '), 'دوست بل بلی بلی گھر گیا', 'ur')).toEqual(S('rrsrr'));
+    });
+    test('a page printing the same word two apart: a stumble on it, then the word between passed over, is that one skip only', () => {
+      expect(neverWorse('a little cat little came home'.split(' '), 'a little li little came home')).toEqual(S('rrsrrr'));
+      expect(neverWorse('وہ چھوٹا باغ چھوٹا گیا'.split(' '), 'وہ چھوٹا چھ چھوٹا گیا', 'ur')).toEqual(S('rrsrr'));
+    });
+    test('two printed neighbours one letter apart («tani … dani», «them … they») are never taken for a word said again', () => {
+      expect(neverWorse('we met tani then dani today'.split(' '), 'we met tani dani today')).toEqual(S('rrrsrr'));
+      expect(neverWorse('the boy kept them because they ran'.split(' '), 'the boy kept them they ran')).toEqual(S('rrrrsrr'));
+    });
+    test('property (seeded synthetic pages, EN and Urdu-like): a perfect read is 0 skips both ways; each word said twice, or one word dropped, is never more skips ON than OFF and never a skip on a word OFF hears', () => {
+      let a = 20261017;
+      const rnd = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
+      const WL = {
+        en: ['the a and to is in on it he she we my of at', 'cat dog sun tree ball kite bird house girl boy tani dani them they mani sat ran saw went played found looked happy little big red'],
+        ur: ['اور کے کی کا میں سے نے کو پر ہے یہ وہ', 'بلی کتا سورج درخت گیند پتنگ پرندہ گھر لڑکی لڑکا باغ بازار لال بڑا چھوٹا خوش دوڑا دیکھا گیا کھیلا پانی دوست'],
+      };
+      for (let t = 0; t < 160; t += 1) {
+        const lang = t % 2 ? 'ur' : 'en';
+        const [fw, cw] = WL[lang].map((s) => s.split(' '));
+        const page = Array.from({ length: 4 + Math.floor(rnd() * 10) }, () => (rnd() < 0.35 ? pick(fw) : pick(cw)));
+        const off0 = lib().matcher(page, lang).push(toks(page)); const on0 = said(page, page.join(' '), lang);
+        expect([off0.skipped, on0.skipped]).toEqual([0, 0]);
+        neverWorse(page, page.flatMap((w) => [w, w]).join(' '), lang);
+        for (let i = 0; i < page.length; i += 1) neverWorse(page, page.filter((_, k) => k !== i).join(' '), lang);
+      }
+    });
   });
   test('web_quiz_lr_repeat OFF (absent, or the string "true"): the matcher is today\'s byte for byte on every pin\'s input (golden from ca8714f1c)', () => {
     const P = 'My cat plays with me in the sun every single day';
