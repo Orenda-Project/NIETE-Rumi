@@ -1444,7 +1444,9 @@ describe('the done screen with the real finish card (card_v3): ONE primary = Mor
     const root = await openReader(e); runBook(e, root); await flush(); await flush();
     return { e, root, sink, screen: () => (sink.card || '') + root.innerHTML };
   }
-  test.each([['en', 'More stories', 'Next', 'Send to class', 'Home'], ['ur', 'اور کہانیاں', 'اگلا', 'کلاس کو بھیجیں', 'ہوم']])('%s: exactly one data-primary and it is the More stories tile; the share is present and not primary; Home third', async (lang, more, nextW, send, home) => {
+  // the share keeps the card's own word, whatever it is today
+  const SEND = (l) => new RegExp(l + ": \\{ send: '([^']*)'").exec(FCSRC)[1];
+  test.each([['en', 'More stories', 'Next', SEND('en'), 'Home'], ['ur', 'اور کہانیاں', 'اگلا', SEND('ur'), 'ہوم']])('%s: exactly one data-primary and it is the More stories tile; the share is present and not primary; Home third', async (lang, more, nextW, send, home) => {
     const d = await done({}, lang);
     const h = d.screen();
     expect(screenOf(d.root.innerHTML)).toBe('story-done');

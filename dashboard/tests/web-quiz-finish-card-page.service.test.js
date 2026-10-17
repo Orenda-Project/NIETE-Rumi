@@ -541,6 +541,8 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
   const MORE = { kind: 'stories', href: '/h/tok?x=1#stories', title: 'More stories' };
   const MORE_UR = { kind: 'stories', href: '/h/tok?x=1#stories', title: 'اور کہانیاں' };
   const NEXT = { kind: 'storybook', id: 'b1', href: '/s/b1/1', title: 'Read a storybook', title_ur: 'کہانی کی کتاب پڑھیں', sub: 'Sunny Day', minutes: 2, art: '/wq/art/story-1.webp' };
+  // The share's label is the card's own word and is pinned elsewhere; these goldens hash everything else.
+  const shaS = (h) => sha(String(h).replace(/(id="wqfc-share"[^>]*>)[^<]*(<\/a>)/g, '$1$2'));
   function fcPage() {
     return fcAlone({ fetch: () => Promise.resolve({ ok: false }), document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
   }
@@ -598,7 +600,7 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
   test('golden: a quiz / read / game card whose Next is a storybook shows the book\'s cover in the tile; the rest of the card unchanged', () => {
     const STORY = { kind: 'storybook', id: '6f165633-0000-4000-8000-000000000001', href: '/h/tok#story/6f165633-0000-4000-8000-000000000001', title: 'Read a storybook', title_ur: 'کہانی کی کتاب پڑھیں', sub: 'Sunny Day', minutes: 2, art: '/s/6f165633-0000-4000-8000-000000000001/cover.webp' };
     const PLAY_MARK = { ...STORY, art: null };
-    const GOLD = { en_quiz: 'aa736915cbe30a0a', en_read_all: 'dfff707dd6244214', en_game: '63c7ec300a399ff5', ur_quiz: '6f76a8574fa05ba6', ur_read_all: 'cc86272e8fc092b1', ur_game: 'c92d14f9b31e505a' };
+    const GOLD = { en_quiz: '50281ee68c71aaee', en_read_all: 'b9d6b4835c3333f8', en_game: '74df2a5101c7aff5', ur_quiz: '2b62795af1df837a', ur_read_all: '5249b5183ef69480', ur_game: '2d52167017f9e574' };
     const out = {};
     for (const l of ['en', 'ur']) {
       for (const [k, d] of [['quiz', 'quiz_done'], ['read', 'read_all'], ['game', 'game_done']]) {
@@ -607,7 +609,7 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
         // the only difference from a tile without art: the play mark gives way to the cover
         const h0 = fcPage().html({ kind: k, deed: d, lang: l, next: PLAY_MARK, home: '/h/tok' });
         expect(h.replace(/<img class="wqfc-art"[^>]*>/, 'ART')).toBe(h0.replace(/<span class="wqfc-art" aria-hidden="true"><svg[^]*?<\/svg><\/span>/, 'ART'));
-        out[`${l}_${k === 'read' ? 'read_all' : k}`] = sha(h);
+        out[`${l}_${k === 'read' ? 'read_all' : k}`] = shaS(h);
       }
     }
     expect(out).toEqual(GOLD);
@@ -615,18 +617,18 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
   test('the cover has its own style in the card\'s CSS', () => {
     expect(FC.CSS).toMatch(/\.wqfc-cov\{[^}]*object-fit:cover/);
   });
-  // Hashed from the card file before this change (this harness, these fixtures): without lead/cover every card is today's.
+  // Hashed from the card file before this change (this harness, these fixtures; the share's label masked): without lead/cover every card is today's.
   test('golden: without lead and cover, the quiz, read and story cards are today\'s, byte for byte', () => {
-    const GOLD = { html_en_quiz_quiz_done: '124a29cea475ff26', html_en_read_read_all: 'fed23561a38a34e9', html_en_read_read_tried: '7e3cd2c8777010fe', html_en_book_book_read: '5d0dd27751cbaf69', html_en_book_read_tried: '7e3cd2c8777010fe',
-      mount_en_read_3: '3ac9c2fa9e456990', mount_en_listened_0: '922beb039a25a05a', mount_en_read_0: '6c6a2a5de545a6ed', html_ur_quiz_quiz_done: 'ea723a6f9b0744c6', html_ur_read_read_all: 'c5e9c7271141512f', html_ur_read_read_tried: 'b7ceadbe23aa0c8d',
-      html_ur_book_book_read: '50eef6c8040f295d', html_ur_book_read_tried: 'b7ceadbe23aa0c8d', mount_ur_read_3: '3b2b857469e62a3b', mount_ur_listened_0: 'fd2bf8d107e27437', mount_ur_read_0: 'dfbc299b4cd0e700' };
+    const GOLD = { html_en_quiz_quiz_done: '01e1a0f735903633', html_en_read_read_all: 'b043be6aa264e61d', html_en_read_read_tried: 'b2842bdc5339f484', html_en_book_book_read: '0ece46b785ebfbbd', html_en_book_read_tried: 'b2842bdc5339f484',
+      mount_en_read_3: '3510ec0aa9772488', mount_en_listened_0: '9d857b57ddae0921', mount_en_read_0: 'c2fce765ca3fe8f5', html_ur_quiz_quiz_done: '9cfaf40c1eb8cc71', html_ur_read_read_all: '98ce274286322afc', html_ur_read_read_tried: 'f1bf08ba8287d328',
+      html_ur_book_book_read: 'd6591dbc87955742', html_ur_book_read_tried: 'f1bf08ba8287d328', mount_ur_read_3: 'f7b33b8fbb2ad4de', mount_ur_listened_0: '75b94e63734cbf11', mount_ur_read_0: '8ed89c79f28c9edc' };
     const out = {};
     for (const l of ['en', 'ur']) {
-      for (const [k, d] of [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_tried'], ['book', 'book_read'], ['book', 'read_tried']]) out[`html_${l}_${k}_${d}`] = sha(fcPage().html({ kind: k, deed: d, lang: l, next: NEXT, home: '/h/tok' }));
+      for (const [k, d] of [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_tried'], ['book', 'book_read'], ['book', 'read_tried']]) out[`html_${l}_${k}_${d}`] = shaS(fcPage().html({ kind: k, deed: d, lang: l, next: NEXT, home: '/h/tok' }));
       for (const [e, pr] of [['read', 3], ['listened', 0], ['read', 0]]) {
         let h = '';
         fcPage().mount({ insertAdjacentHTML: (p, x) => { h += x; } }, { source: 'story', ended: e, pages_read: pr, pages_listened: 2, title: 'Mina Testwala', lang: l, auth: { hub: 'H', kid: 'K' }, next: NEXT, home: '#' });
-        out[`mount_${l}_${e}_${pr}`] = sha(h);
+        out[`mount_${l}_${e}_${pr}`] = shaS(h);
       }
     }
     expect(out).toEqual(GOLD);
