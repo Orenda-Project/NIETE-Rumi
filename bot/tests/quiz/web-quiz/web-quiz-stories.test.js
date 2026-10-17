@@ -378,6 +378,11 @@ describe('the book', () => {
     expect(end[1]).toEqual({ i: 1, t: '(exits)', silent: true, s_ms: 1500, e_ms: 1500 });
     expect(Stories.mergeWords([{ i: 0, t: 'Go.' }, { i: 1, t: '(exits)', silent: true }], [])).toEqual([{ i: 0, t: 'Go.' }, { i: 1, t: '(exits)', silent: true }]);
   });
+  test('mergeWords: a word printed differently from its stored spelling keeps its alt (strings only, at most 3); a word without one is unchanged', () => {
+    const out = Stories.mergeWords([{ i: 0, t: 'My' }, { i: 1, t: 'mum', alt: ['mom', '', 7, 'ma', 'mama', 'mummy'] }], [{ i: 0, s_ms: 0, e_ms: 200 }, { i: 1, s_ms: 250, e_ms: 600 }]);
+    expect(out).toEqual([{ i: 0, t: 'My', s_ms: 0, e_ms: 200 }, { i: 1, t: 'mum', s_ms: 250, e_ms: 600, alt: ['mom', 'ma', 'mama'] }]);
+    expect(Stories.mergeWords([{ i: 0, t: 'My', alt: [] }], [])).toEqual([{ i: 0, t: 'My' }]);   // nothing to add: no key
+  });
   test('mergeWords: timings joined by i, not by position', () => {
     const w = Stories.mergeWords([{ i: 0, t: 'a' }, { i: 1, t: 'b', box: [1, 2, 3, 4] }], [{ i: 1, s_ms: 10, e_ms: 20 }, { i: 0, s_ms: 0, e_ms: 5 }]);
     expect(w).toEqual([{ i: 0, t: 'a', s_ms: 0, e_ms: 5 }, { i: 1, t: 'b', s_ms: 10, e_ms: 20, box: [1, 2, 3, 4] }]);

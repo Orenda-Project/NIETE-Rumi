@@ -2,7 +2,7 @@
  * Live reading v3 (window.WQLiveRead; needs wq-read-live.js for the scorer's own word rules). Loaded by a page only when
  * the bot says so (the read payload's / menu's `lr3`, app_settings web_quiz_live_read_v3).
  *
- *   matcher(words, lang)          transcript tokens → passage words. Both sides folded: case, punctuation, diacritics,
+ *   matcher(words, lang, items?)  transcript tokens → passage words (items[i].alt: printed spellings that also count). Both sides folded: case, punctuation, diacritics,
  *                                 Urdu letter forms (WQLive.clean), and numerals — digits, Urdu / Arabic-Indic digits and
  *                                 number words are one word ("3" = "three" = "۳" = "تین"). The child reads a PREFIX: a
  *                                 word passed over is `skipped` (never wrong), an extra or repeated word costs nothing.
@@ -54,13 +54,16 @@
   }
 
   // ── the matcher ──────────────────────────────────────────────────────────────────────────────────
-  function matcher(words) {
+  function matcher(words, lang, items) {
     var raw = (words || []).map(String).filter(function (x) { return x.trim(); });
     var ref = raw.map(fold);
+    // a word printed differently from its stored spelling (items[i].alt): the printed form counts as the word
+    var alt = {};
+    (items || []).forEach(function (x) { (x && x.alt || []).forEach(function (a) { var f = fold(a); if (f) alt[f] = fold(x.t); }); });
     var st = { F: '', N: '', fin: [], done: false };
     function view() {
       var hw = hypWords(st.F + st.N);
-      var hyp = hw.map(function (x) { return x.w; });
+      var hyp = hw.map(function (x) { return alt[x.w] || x.w; });
       var final = hw.map(function (x) { return x.end < st.F.length || (x.end === st.F.length && (st.done || !st.N || /^\s/.test(st.N))); });
       var a = W.alignPrefix(ref, hyp);
       var reached = 0; var i;
@@ -253,7 +256,7 @@
     var t = Object.assign({}, COPY[lang], o.copy || {});
     // words: strings, or {t, box:[x,y,w,h]} in image pixels for a story page over its illustration
     var items = (o.words || String(o.text || '').split(/\s+/).filter(Boolean)).map(function (w) { return typeof w === 'string' ? { t: w } : w; });
-    var m = matcher(items.map(function (x) { return x.t; }));
+    var m = matcher(items.map(function (x) { return x.t; }), o.lang, items);
     var img = o.image && o.image.w > 0 && o.image.h > 0 && items.every(function (x) { return x.box && x.box.length === 4; }) ? o.image : null;
     var pc = function (v, of) { return Math.round(1000 * v / of) / 10 + '%'; };
     var fin = o.finish || { pct: lang === 'ur' ? 0.75 : 0.8, quiet_ms: QUIET_MS, tail_ms: TAIL_MS, quiet: !o.counted };

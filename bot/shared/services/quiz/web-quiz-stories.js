@@ -173,6 +173,9 @@ function mergeWords(words, timings, endMs) {
     if (w.silent === true) out.silent = true;
     else if (tm && Number.isFinite(Number(tm.s_ms)) && Number.isFinite(Number(tm.e_ms))) { out.s_ms = Number(tm.s_ms); out.e_ms = Number(tm.e_ms); }
     if (Array.isArray(w.box) && w.box.length === 4) out.box = w.box.map(Number);
+    // the printed spelling(s) of a word stored in its dictionary form: Your turn counts them as the word
+    const alt = Array.isArray(w.alt) ? w.alt.filter((x) => typeof x === 'string' && x).slice(0, 3) : [];
+    if (alt.length) out.alt = alt;
     return out;
   });
   // The player needs every word timed and in order: a silent word gets zero length at the next spoken word's start
