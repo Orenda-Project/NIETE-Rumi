@@ -151,7 +151,7 @@ async function showReports(user, phone, language, page = 1) {
   const visible = quizzes.slice((p - 1) * PER_PAGE, p * PER_PAGE);
   if (!visible.length) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqrListEmpty', { language: lang }));
-    logEvent('quiz_menu.reports_empty', { userId: user.id });
+    logEvent('quiz_menu.reports_empty', { tk: tkOf(user.id) });
     return true;
   }
   const stats = await statsFor(user.id, visible);
@@ -164,7 +164,7 @@ async function showReports(user, phone, language, page = 1) {
       sections: [{ title: resolveUx('tqrListSection', { language: lang }), rows }],
     },
   });
-  logEvent('quiz_menu.reports_shown', { userId: user.id, rows: rows.length, page: p });
+  logEvent('quiz_menu.reports_shown', { tk: tkOf(user.id), rows: rows.length, page: p });
   return true;
 }
 
