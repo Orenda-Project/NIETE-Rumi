@@ -36,7 +36,7 @@ const DAY = 86400000;
 
 let srv;
 let R; // the router module of the last boot
-const url = (p) => `http://127.0.0.1:${srv.address().port}/api/internal/th${p}`;
+const url = (p, base = '/api/internal/th') => `http://127.0.0.1:${srv.address().port}${base}${p}`;
 const H = () => ({ 'x-api-key': process.env.INTERNAL_API_KEY });
 const tokenAt = (now = Date.now()) => HomeToken.signTeacherHome({ uid: Fx.TEACHER.id, lang: 'en', via: 'go' }, { now });
 
@@ -66,9 +66,9 @@ async function stop() {
  * One GET on its own socket (no pooled keep-alive connection: a socket another file's server left open on a reused
  * port would answer for that server).
  */
-function getJson(p) {
+function getJson(p, base) {
   return new Promise((resolve, reject) => {
-    const req = http.get(url(p), { headers: H(), agent: false }, (res) => {
+    const req = http.get(url(p, base), { headers: H(), agent: false }, (res) => {
       let text = '';
       res.setEncoding('utf8');
       res.on('data', (c) => { text += c; });
