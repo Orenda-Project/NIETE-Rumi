@@ -892,11 +892,15 @@ const RULE = {
   urduSpelling: 'A spelling (املا) MCQ quotes a meaning or a picture-word in its stem, never the word whose spelling is tested.',
   oneQuestion: 'Each MCQ stem asks one question and ends with its one «؟».',
   urduTermWord: 'A grammar-term item (اسم صفت، حرفِ عطف، فعل …) never prints a word of its own answer in its stem: describe what the term does, and quote an example.',
-  urduConceptOnce: 'Q1 asks each grammar concept (شکیہ، تمنائی، شرط و جزا، حرفِ عطف, and so on) in one item only: no other Q1 item names its words, states its rule or gives its example. Q4 on this paper asks گروہی الفاظ, حروفِ شرط و جزا, a present-to-future tense change and ارکان سازی; no Q1 item asks any of these.',
+  urduConceptOnce: 'Q1 asks each grammar concept (شکیہ، تمنائی، شرط و جزا، حرفِ عطف, and so on) in one item only: no other Q1 item names its words, states its rule or gives its example. Each of these is a concept of its own: اسم صوت، اسم آلہ، اسم معرفہ، اسم نکرہ، صفت، موصوف; a definition item asks its concept, so an item that says what a term is («جو لفظ … آواز ظاہر کرے») and an item that asks for that term are one concept asked twice. Q4 on this paper asks گروہی الفاظ, حروفِ شرط و جزا, a present-to-future tense change and ارکان سازی; no Q1 item asks any of these.',
+  urduHomograph: 'A homograph (ایک ہی املا) item never quotes the pair\'s word in its stem, not even inside a longer word or phrase; it gives both meanings only.',
+  urduOneTable: 'Q1 takes at most 3 items from one word table of the book (a متشابہ، متضاد or مترادف list), and a distractor is never another Q1 item\'s key.',
   oneCorrect: 'Every MCQ has exactly one correct option: check that no other option is also true (another number that fits the rule, a second work by the same author, a value equal to the key).',
   optionsOnly: 'Write the four options only in `options`; never list (a), (b), (c), (d) inside the question.',
   urduQ4: 'Each Q4 item\'s `question` starts with its own directive in Urdu (what to do: choose the group word, choose the conditional word, change to the future tense, split into syllables), then the sentence or words.',
   urduQ4Group: 'In the Q4 group-word item the group word is one of its four options and is its key; its scheme `accept` names that option only, never another one.',
+  urduQ4GroupNotListed: 'In the Q4 group-word item the group word is NOT one of the words the item lists: it names what all of them belong to (تھرمامیٹر، نبض، دوا، ڈاکٹر → اسپتال), never the odd one out.',
+  urduQ6Points: 'Q6 (ب) scheme: one idea per point, no point above 2 marks.',
   religious: 'Never set an item that quotes, explains or evaluates a religious text (Qur\'an, hadith, the Farewell Sermon, du\'a, Naat, Hamd); set it from another part of the scope.',
   noUnderline: 'Never refer to an underlined, bold or italic word; name the word in the stem instead.',
   scienceQ3: 'Q3(a): two of the three long questions are Remember (state, name, define with the book\'s wording); one is Understand. Q3(b): the short questions are reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\') so that the paper carries Apply marks.',
@@ -951,6 +955,7 @@ const RULE = {
   // Urdu Q6 on lessons with no poem: lesson 7's poem page text is given below the book text.
   urduQ6Given: (p) => `Q6's verses (درج ذیل اشعار کا مفہوم واضح کریں) come from this poem, lesson ${p.unit} «${p.title}» (book pp. ${p.pages}), whatever lessons the paper covers: \`passage\` = four consecutive verse lines copied exactly as given, never a question or note printed between the couplets.`,
   urduNoMaxims: 'Model answers, passages, dialogues and stories carry no religious maxim, hadith, verse, dua or act of worship; keep them to everyday life.',
+  urduNoDates: 'Never ask an item whose answer is a year, a date or a day of the month; the page text\'s numerals are not reliable.',
 };
 
 // Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
@@ -1157,6 +1162,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (closed) rules.push(closed);
   if (key === 'urdu') rules.push(fde ? `${RULE.held} Set items only from book pages ${P.scope.page_ranges}.` : RULE.held);
   if (key === 'urdu') rules.push(RULE.urduNoMaxims);
+  if (key === 'urdu' && list.some((s) => /^urdu\.[AC]\./.test(s.slot))) rules.push(RULE.urduNoDates);
   if (urduPoem) rules.push(RULE.urduQ6Given(urduPoem));
   if (scope && scope.kind === 'fde' && P.scope.excluded_pages_note) rules.push(P.scope.excluded_pages_note);
   const tos = TOS[key];
@@ -1188,7 +1194,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     // Word MCQs (anagram, homophone, spelling) on the language papers; number options on Maths and Science.
     if (key === 'english') rules.push(RULE.oneKeyEnglish);
     if (key === 'urdu') rules.push(RULE.oneKey, RULE.urduSpelling, RULE.oneQuestion);
-    if (key === 'urdu' && list.some((s) => s.slot === 'urdu.A.Q1')) rules.push(RULE.urduConceptOnce, RULE.urduTermWord);
+    if (key === 'urdu' && list.some((s) => s.slot === 'urdu.A.Q1')) rules.push(RULE.urduConceptOnce, RULE.urduTermWord, RULE.urduHomograph, RULE.urduOneTable);
     if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
     if (key === 'maths') rules.push(RULE.propertyOneKey);
   }
@@ -1204,7 +1210,8 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (key === 'science' && list.some((s) => s.shape === 'situation')) rules.push(RULE.situationParts);
   if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
   if (key === 'social_studies' && list.some((s) => /\.Q[56]$/.test(s.slot))) rules.push(RULE.sstQ56);
-  if (key === 'urdu' && list.some((s) => /\.Q4$/.test(s.slot))) rules.push(RULE.urduQ4, RULE.urduQ4Group);
+  if (key === 'urdu' && list.some((s) => /\.Q4$/.test(s.slot))) rules.push(RULE.urduQ4, RULE.urduQ4Group, RULE.urduQ4GroupNotListed);
+  if (key === 'urdu' && list.some((s) => s.slot === 'urdu.C.Q6')) rules.push(RULE.urduQ6Points);
   rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender, RULE.people);
   if (medium === 'ur') rules.push(RULE.genderUrdu);
   rules.push(RULE.noRepeats);
