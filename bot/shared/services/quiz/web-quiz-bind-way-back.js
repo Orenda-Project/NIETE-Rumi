@@ -25,6 +25,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const Swr = require('./web-quiz-swr');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 
 const KEY = 'web_quiz_bind_way_back';
@@ -56,16 +57,29 @@ async function on(now = Date.now()) {
   try {
     if (!(await require('./web-quiz-identity-flags').flags()).phoneBind) return false;
     if (cache && now - cache.at < TTL_MS) return cache.on;
+    // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a second read.
+    const seam = Swr.covered(SEAM_NAME);
+    if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache.on; }
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const row = (data || []).find((r) => r.key === KEY);
-    cache = { at: now, on: Boolean(row && isTrue(row.value)) };
-    return cache.on;
+    return fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ keep my place way back: switch read failed — off', { error: err.message });
     return false;
   }
 }
+
+function fromRows(data, now) {
+  const row = (data || []).find((r) => r.key === KEY);
+  cache = { at: now, on: Boolean(row && isTrue(row.value)) };
+  return cache.on;
+}
+
+// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
+// cache from the raw rows, parsed here exactly as this module's own read parses them.
+const SEAM_NAME = 'bind-way-back';
+const hubSwitches = { name: SEAM_NAME, keys: [KEY], swr: [SEAM_NAME], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => r.key === KEY), now), read: () => on(), peek: () => cache };
 
 const ms = (t) => { const n = Date.parse(t); return Number.isFinite(n) ? n : null; };
 
@@ -113,10 +127,12 @@ async function reply({ phone, reason, code = null, row, user = null, asked = nul
   }
 }
 
-async function cardState({ canonicalId, device, now = new Date() } = {}) {
+// `early` (web_quiz_fast on): the child's bindings are read beside the code row (needed only when the code was bound).
+async function cardState({ canonicalId, device, now = new Date(), early = false } = {}) {
   try {
     const dev = require('./web-quiz-token').cleanDeviceRef(device);
     if (!canonicalId || !dev || !(await on())) return null;
+    const bindingsP = early ? require('./web-quiz-fast').early(Promise.resolve().then(() => require('./child-phone-bindings.repo').activeForChild(String(canonicalId), now))) : null;
     const { data, error } = await supabase.from('child_bind_codes').select('code, canonical_id, minted_at, expires_at, used_at, outcome')
       .eq('canonical_id', String(canonicalId)).eq('device_ref', dev).order('minted_at', { ascending: false }).limit(1);
     if (error) throw new Error(error.message || 'read failed');
@@ -126,7 +142,7 @@ async function cardState({ canonicalId, device, now = new Date() } = {}) {
     if (!row.used_at) return ms(row.expires_at) > t ? { state: 'pending' } : { state: 'none' };
     if (row.outcome === 'bound') {
       const Bindings = require('./child-phone-bindings.repo');
-      const active = (await Bindings.activeForChild(String(canonicalId), now)) || [];
+      const active = (await (bindingsP || Bindings.activeForChild(String(canonicalId), now))) || [];
       return active.some((b) => String(b.code_id || '') === row.code) ? { state: 'bound' } : { state: 'none' };
     }
     if (PAGE_REFUSALS.has(row.outcome)) {
@@ -159,4 +175,4 @@ async function alreadySaved({ phone, norm, row, resolveChild, user = null, asked
   }
 }
 
-module.exports = { on, reply, cardState, alreadySaved, KEY, LINES, LINK_WINDOW_MS, REFUSED_HIDE_MS, _resetCache: () => { cache = null; } };
+module.exports = { on, hubSwitches, reply, cardState, alreadySaved, KEY, LINES, LINK_WINDOW_MS, REFUSED_HIDE_MS, _resetCache: () => { cache = null; } };

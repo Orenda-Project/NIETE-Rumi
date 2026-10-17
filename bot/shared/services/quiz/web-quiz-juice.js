@@ -16,11 +16,10 @@ let cache = null; // { at, on }
 let reading = null;
 
 // JSON true only: a string 'true' row is off, like every child-page switch
-function isTrue(value) {
-  return value === true;
-}
+const { isTrue } = require('./is-true');
 
-function refresh() {
+// keep (the background re-read of a stale value, web_quiz_fast on): a failed read keeps the value it was refreshing.
+function refresh({ keep = false } = {}) {
   if (!reading) {
     reading = (async () => {
       try {
@@ -29,7 +28,7 @@ function refresh() {
         cache = { at: Date.now(), on: isTrue(data && data.value) };
       } catch (err) {
         logToFile('⚠️ web quiz juice: settings lookup failed — off', { error: err.message });
-        cache = { at: Date.now(), on: false };
+        if (!(keep && cache)) cache = { at: Date.now(), on: false };
       } finally {
         reading = null;
       }
@@ -39,9 +38,11 @@ function refresh() {
   return reading;
 }
 
-/** The switch, waited for (page payloads). Never throws. */
+/** The switch, waited for (page payloads); with web_quiz_fast on, a stale value is answered at once and read again in
+ * the background (web-quiz-swr.js). Never throws. */
 async function flag(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
+  if (require('./web-quiz-swr').stale(cache, TTL_MS, now)) { refresh({ keep: true }).catch(() => {}); return cache.on; }
   return refresh();
 }
 

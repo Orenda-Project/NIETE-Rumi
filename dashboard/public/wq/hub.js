@@ -511,5 +511,15 @@
     else if (!B.kid) picker();
     else hub();
   }
-  if (LOCKED_BOOT) unlock(); else if (!(window.WQLISTEN && WQLISTEN.take(boot, render, bar))) boot();
+  // A locked render that already used this phone's device_ref (the edge's `dv` mark, web_quiz_fast on): asking again
+  // with the same ref can only answer "locked", so that screen shows now. Anything else asks again as this phone.
+  function seenLocked() {
+    if (B.dv !== 1) return false;
+    var c = null;
+    var d = null;
+    try { c = (/(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/.exec(document.cookie || '') || [])[1] || null; } catch (e) { c = null; }
+    try { d = JSON.parse(localStorage.getItem('wq_d') || 'null'); } catch (e) { d = null; }
+    return Boolean(c) && d === c;
+  }
+  if (LOCKED_BOOT && seenLocked()) { deviceRef(); locked(); } else if (LOCKED_BOOT) unlock(); else if (!(window.WQLISTEN && WQLISTEN.take(boot, render, bar))) boot();
 })();

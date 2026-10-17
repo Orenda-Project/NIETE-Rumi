@@ -9,6 +9,7 @@
   "bot/shared/services/quiz/web-quiz-provenance.js",
   "bot/shared/services/quiz/web-quiz-strip-lines.js",
   "bot/shared/services/quiz/web-quiz-strip.js",
+  "bot/shared/services/quiz/web-quiz-swr.js",
   "bot/shared/services/quiz/web-quiz-token.js",
   "scripts/web-quiz/strip-dry.js"
 ]
