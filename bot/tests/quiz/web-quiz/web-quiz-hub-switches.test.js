@@ -116,6 +116,28 @@ describe('cold process (first hub after a start, the fast switch already read), 
     expect(failed.out).toBe(ok.out);
     expect(failed.open).toBe(ok.open);
   });
+
+  test('the page events\' sync read (the relay) is filled by the one read alone: the next-offer switches\' own read never runs', async () => {
+    await coldWithFastWarm({ fast: true, every: true, json: true });   // rows as the flips write them (JSON true)
+    const State = require('../../../shared/services/quiz/web-quiz-next-offer-state');
+    State._resetCache();
+    const own = Object.values(State.KEYS).sort().join();
+    const db = require('../../../shared/config/supabase');
+    const from = db.from;
+    let ownReads = 0;
+    db.from = (t) => {
+      const b = from(t);
+      if (t !== 'app_settings') return b;
+      const inn = b.in;
+      b.in = (c, vs) => { if (c === 'key' && [...vs].sort().join() === own) { ownReads += 1; throw new Error('the switches\' own read'); } return inn(c, vs); };
+      return b;
+    };
+    expect(State.hubSwitches.peek()).toBeNull();   // cold: nothing cached yet
+    expect(await Seam().ensure()).toBe(true);
+    db.from = from;
+    expect(ownReads).toBe(0);
+    expect(State.eventsV3Now()).toBe(true);
+  });
 });
 
 describe('a switch reads the same through the seam as through its own read', () => {
