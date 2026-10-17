@@ -294,3 +294,29 @@ describe('kind \'off\' (the service is down) is unchanged with the switch ON', (
     expect(r.body).toBe(plainPage('off', 'en'));
   });
 });
+
+describe('the closed page never waits on the switch (read from the cache only)', () => {
+  /** settingsClient(true) whose app_settings read answers after `delayMs`. */
+  function slowClient(delayMs) {
+    const c = settingsClient(true);
+    return {
+      from: (t) => {
+        const b = c.from(t);
+        return { select: (...s) => { const q = b.select(...s); return { eq: (...e) => { const m = q.eq(...e); return { maybeSingle: async () => { await new Promise((r) => setTimeout(r, delayMs)); return m.maybeSingle(); } }; } }; } };
+      },
+    };
+  }
+
+  test('cold cache, switch ON behind a slow read: the first page is today\'s bytes at once; the next one, after the read, has the tap', async () => {
+    number('whatsapp');
+    next = () => jsonRes(500, {});
+    await boot({ inject: false, locals: slowClient(300) });
+    const t0 = Date.now();
+    const first = await req(srv, '/h/not-a-token');
+    expect(Date.now() - t0).toBeLessThan(250);
+    expect(first.body).toBe(plainPage('hub', 'en'));
+    await new Promise((r) => setTimeout(r, 400));
+    const second = await req(srv, '/h/not-a-token');
+    expectOneTap(second.body, WA, EN);
+  });
+});
