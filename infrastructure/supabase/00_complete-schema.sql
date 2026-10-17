@@ -4401,6 +4401,10 @@ BEGIN
     END IF;
 END$$;
 CREATE INDEX IF NOT EXISTS idx_users_school_id ON users(school_id) WHERE school_id IS NOT NULL;
+
+-- bot/database/migrations/student_identity.sql: the child's school (backfilled from the class, else the list owner's school).
+ALTER TABLE students ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES schools(id);
+CREATE INDEX IF NOT EXISTS idx_students_school ON students (school_id) WHERE school_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_role      ON users(role)      WHERE role IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS teacher_attendance_records (
@@ -6827,6 +6831,22 @@ COMMENT ON COLUMN web_quiz_challenge_runs.score IS
 COMMENT ON COLUMN web_quiz_challenge_runs.wcpm IS
   'Internal. Read aloud: words correct per minute (EGRA Toolkit 10.3); 0 when stopped on the first line.';
 
+-- ─── live reading v3: a story page's speech keys (bot/database/migrations/web_quiz_live_read_keys.sql) ──
+-- One row per story-page speech key (who, when, the language): the child's day cap and the day's read budget hold
+-- across restarts. Never a transcript, a book's text, a word count or a score.
+CREATE TABLE IF NOT EXISTS web_quiz_live_read_keys (
+  id          uuid PRIMARY KEY,
+  student_id  uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  src         text NOT NULL DEFAULT 'story_page' CHECK (src IN ('story_page')),
+  lang        text CHECK (lang IN ('en', 'ur')),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS web_quiz_live_read_keys_student_idx
+  ON web_quiz_live_read_keys (student_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS web_quiz_live_read_keys_created_idx
+  ON web_quiz_live_read_keys (created_at);
+ALTER TABLE web_quiz_live_read_keys ENABLE ROW LEVEL SECURITY;
+
 -- ─── web quiz Challenge runs: provenance columns, served/abandoned, weekly numbers, lamps (bot/database/migrations/web_quiz_challenge_runs_v2.sql) ──
 ALTER TABLE web_quiz_challenge_runs
   ADD COLUMN IF NOT EXISTS bank_version       text,
@@ -7349,6 +7369,7 @@ CREATE TABLE IF NOT EXISTS child_phone_bindings (
   revoked_by     text        CHECK (revoked_by IN ('page_undo','stop','expiry','teacher','teacher_claim')),
   rebind_of      uuid        REFERENCES child_phone_bindings(id),
   code_id        text        REFERENCES child_bind_codes(code),   -- the JUGNU- code that made / last renewed it (child_phone_bindings_code.sql)
+  device_hash    text,                              -- hex(sha256(device_ref))[:32] of the browser a child joined on; NULL once revoked (child_phone_bindings_device.sql)
   CHECK (phone_norm IS NULL OR revoked_at IS NULL)  -- a revoked row never keeps the phone
 );
 CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
@@ -7356,6 +7377,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
 CREATE INDEX IF NOT EXISTS cpb_phone_active ON child_phone_bindings (phone_norm) WHERE phone_norm IS NOT NULL;
 CREATE INDEX IF NOT EXISTS cpb_expiry ON child_phone_bindings (expires_at) WHERE phone_norm IS NOT NULL;
 CREATE INDEX IF NOT EXISTS cpb_tomb ON child_phone_bindings (phone_tomb);
+CREATE INDEX IF NOT EXISTS cpb_device ON child_phone_bindings (device_hash) WHERE device_hash IS NOT NULL;
+CREATE OR REPLACE FUNCTION cpb_clear_device_on_revoke() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.revoked_at IS NOT NULL THEN
+    NEW.device_hash := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS cpb_clear_device ON child_phone_bindings;
+CREATE TRIGGER cpb_clear_device BEFORE INSERT OR UPDATE ON child_phone_bindings
+  FOR EACH ROW EXECUTE FUNCTION cpb_clear_device_on_revoke();
 
 CREATE TABLE IF NOT EXISTS child_bind_codes (
   code           text        PRIMARY KEY,           -- 'JUGNU-' + 5 of [A-Z2-9], single use
@@ -7458,6 +7492,13 @@ alter table if exists message_ledger
 -- A reply the per-phone daily cap refused: counted here, never on count/usd; message_ledger_add never writes it.
 alter table if exists message_ledger
   add column if not exists capped integer not null default 0 check (capped >= 0);
+
+-- message_ledger: the one /quiz reply and the quiz-maker reply (bot/database/migrations/web_quiz_message_ledger_one_door.sql)
+-- The trigger CHECK widened by two; every trigger above is still allowed.
+alter table if exists message_ledger drop constraint if exists message_ledger_trigger_check;
+alter table if exists message_ledger add constraint message_ledger_trigger_check
+  check (trigger in ('home_reply','bind_reply','guest_reply','class_link','class_round','teacher_queue','teacher_refusal',
+                     'one_door_reply','maker_reply'));
 
 drop function if exists public.message_ledger_add(date, text, uuid, text, text, integer, numeric);
 
@@ -7618,5 +7659,150 @@ comment on table public.sample_ping_consents is
   'web quiz direct ping: the consent version a live binding agreed to (no phone, no name); service role only';
 comment on table public.sample_pings is
   'web quiz direct ping: one row per phone tombstone per term (no phone, no child id); written by the bot (service role)';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Storybooks for the web quiz child app (mirror of bot/database/migrations/web_quiz_stories.sql): books, pages
+-- with each word's box on the picture, versioned page voices with word timings, questions, a small event log.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS story_books (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_id     text UNIQUE,
+  slug          text UNIQUE NOT NULL,
+  title         text NOT NULL,
+  grade         smallint NOT NULL CHECK (grade BETWEEN 1 AND 5),
+  lang          text NOT NULL CHECK (lang IN ('en', 'ur')),
+  slo           text,
+  slo_english   text,
+  author        text,
+  illustrator   text,
+  pages         smallint NOT NULL DEFAULT 0,
+  cover_file    text,
+  cover_w       smallint,
+  cover_h       smallint,
+  pdf_r2_key    text,
+  minutes       numeric(4,1),
+  status        text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'ready', 'off')),
+  featured_rank smallint,
+  questions_sprite jsonb,
+  created_at    timestamptz DEFAULT now(),
+  updated_at    timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS story_books_shelf ON public.story_books (grade, lang) WHERE status = 'ready';
+
+CREATE TABLE IF NOT EXISTS story_pages (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  book_id       uuid NOT NULL REFERENCES story_books(id) ON DELETE CASCADE,
+  n             smallint NOT NULL CHECK (n >= 1),
+  image_file    text NOT NULL,
+  image_w       smallint NOT NULL,
+  image_h       smallint NOT NULL,
+  text          text NOT NULL DEFAULT '',
+  words         jsonb NOT NULL DEFAULT '[]',
+  text_band     jsonb,
+  lines         jsonb,
+  boxes_ok      boolean NOT NULL DEFAULT false,
+  text_source   text CHECK (text_source IN ('pdf', 'read+boxes', 'read')),
+  confidence    numeric(3,2),
+  is_picture    boolean NOT NULL DEFAULT false,
+  watermark     boolean NOT NULL DEFAULT false,
+  UNIQUE (book_id, n)
+);
+
+CREATE TABLE IF NOT EXISTS story_page_voices (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_id       uuid NOT NULL REFERENCES story_pages(id) ON DELETE CASCADE,
+  lang          text NOT NULL,
+  provider      text NOT NULL,
+  voice         text NOT NULL,
+  model         text,
+  audio_key     text NOT NULL,
+  timing_key    text,
+  ms            integer NOT NULL,
+  timings       jsonb NOT NULL,
+  timing_source text NOT NULL CHECK (timing_source IN ('provider', 'stt_align', 'provider+stt', 'forced_align')),
+  wpm           numeric(5,1),
+  drift_ms_mean numeric(6,1),
+  drift_ms_max  numeric(6,1),
+  wer           numeric(4,3),
+  cost_usd      numeric(8,5),
+  is_current    boolean NOT NULL DEFAULT true,
+  created_at    timestamptz DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS story_page_voices_current ON public.story_page_voices (page_id, lang) WHERE is_current;
+-- 'low': the voice is kept but its word timings are not trusted, so the reader follows it line by line.
+ALTER TABLE story_page_voices ADD COLUMN IF NOT EXISTS quality text;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'story_page_voices_quality_check') THEN
+    ALTER TABLE story_page_voices ADD CONSTRAINT story_page_voices_quality_check CHECK (quality IN ('low'));
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS story_questions (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  book_id       uuid NOT NULL REFERENCES story_books(id) ON DELETE CASCADE,
+  n             smallint NOT NULL CHECK (n BETWEEN 1 AND 5),
+  kind          text NOT NULL CHECK (kind IN ('literal', 'inference', 'vocab')),
+  q             text NOT NULL,
+  options       jsonb NOT NULL,
+  answer_i      smallint NOT NULL CHECK (answer_i >= 0),
+  page_ref      smallint,
+  review_status text NOT NULL DEFAULT 'draft' CHECK (review_status IN ('draft', 'reviewed', 'rejected')),
+  reviewer_note text,
+  audio         jsonb,
+  UNIQUE (book_id, n)
+);
+
+CREATE TABLE IF NOT EXISTS story_events (
+  id            bigserial PRIMARY KEY,
+  at            timestamptz NOT NULL DEFAULT now(),
+  child_id      uuid,
+  hub_token_hash text,
+  book_id       uuid NOT NULL,
+  page_n        smallint,
+  event         text NOT NULL CHECK (event IN ('story_opened', 'story_page_listened', 'story_page_read', 'story_questions_done', 'story_done', 'story_shared')),
+  data          jsonb NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS story_events_child_at ON public.story_events (child_id, at DESC);
+CREATE INDEX IF NOT EXISTS story_events_book_at ON public.story_events (book_id, at DESC);
+
+ALTER TABLE public.story_books ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.story_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.story_page_voices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.story_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.story_events ENABLE ROW LEVEL SECURITY;
+-- story_page_unvoiced (mirror of web_quiz_story_unvoiced.sql): a page a child opened before it had a voice
+DO $$
+DECLARE c record;
+BEGIN
+  -- Every check on the event names that lacks the new one goes, whatever name the database gave it (an inline CHECK is
+  -- auto-named), so no six-name check is left beside the new one to refuse it.
+  FOR c IN SELECT conname FROM pg_constraint WHERE conrelid = 'public.story_events'::regclass AND contype = 'c'
+             AND pg_get_constraintdef(oid) LIKE '%story_opened%' AND pg_get_constraintdef(oid) NOT LIKE '%story_page_unvoiced%' LOOP
+    EXECUTE format('ALTER TABLE public.story_events DROP CONSTRAINT %I', c.conname);
+  END LOOP;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.story_events'::regclass AND contype = 'c'
+                 AND pg_get_constraintdef(oid) LIKE '%story_page_unvoiced%') THEN
+    ALTER TABLE public.story_events ADD CONSTRAINT story_events_event_check
+      CHECK (event IN ('story_opened', 'story_page_listened', 'story_page_read', 'story_questions_done', 'story_done', 'story_shared', 'story_page_unvoiced'));
+  END IF;
+END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- student_videos.language (mirror of web_quiz_student_videos_language.sql): the lesson's language, NULL = unknown
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS language text;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'student_videos_language_chk' AND conrelid = 'student_videos'::regclass) THEN
+    ALTER TABLE student_videos ADD CONSTRAINT student_videos_language_chk CHECK (language IN ('en', 'ur'));
+  END IF;
+END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- student_videos.title_ur / chapter_ur (mirror of web_quiz_student_videos_title_ur.sql): Urdu-script names, NULL = none
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS title_ur text;
+ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS chapter_ur text;
 
 NOTIFY pgrst, 'reload schema';

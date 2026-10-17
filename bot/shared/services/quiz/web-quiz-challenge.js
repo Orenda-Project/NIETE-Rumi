@@ -47,6 +47,10 @@ const Flags = require('./web-quiz-hub-flags');
 const Measure = require('./web-quiz-measure-events');
 // The Trail page v2 (web_quiz_challenge_v2 and its children): {} / null with v2 off, so today's paths are untouched.
 const TrailPage = require('./web-quiz-trail-page');
+// Fast pages (app_settings web_quiz_fast, default off; read without waiting): independent lookups run together.
+const Fast = require('./web-quiz-fast');
+// Live reading v3 (web_quiz_live_read_v3): {} with the switch off, so today's payloads are untouched.
+const LiveReadV3 = () => require('./web-quiz-live-read-v3');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
@@ -162,7 +166,7 @@ function clipsRecordedOn(now = Date.now()) {
 const settingCache = new Map();  // key → { v, at } for the record switches
 const SETTING_TTL_MS = 30 * 1000;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
 
 /** An app_settings switch, true only when its value reads true (fails closed), cached for 30 s. */
 async function settingOn(key) {
@@ -203,7 +207,14 @@ const poolOn = () => settingOn(POOL_FLAG_KEY);
 // Story Time (SPEC §1 web_quiz_challenge_story, child of _v2): the route reads room/pid only when this is on
 const STORY_FLAG_KEY = 'web_quiz_challenge_story';
 const storyOn = async () => (await v2On()) && settingOn(STORY_FLAG_KEY);
-const rulesOf = async () => {
+const rulesOf = async ({ fast = false } = {}) => {
+  if (fast) {
+    // Fast pages: every rule switch is read at once (each a 30 s cached app_settings read); a child switch whose parent
+    // is off is read and set aside, so the rules are exactly the one-by-one answer.
+    const [record, v2, guard, items, trail, missing, period, pool] = await Promise.all([
+      recordOn(), v2On(), readGuardOn(), itemsOn(), trailOn(), missingOn(), periodOn(), poolOn()]);
+    return { record, guard, items, trail: record && trail, missing: record && missing, v2, period: v2 && period, pool: v2 && pool };
+  }
   const record = await recordOn();
   const v2 = await v2On();
   const head = { record, guard: await readGuardOn(), items: await itemsOn(), trail: record && (await trailOn()), missing: record && (await missingOn()),
@@ -368,10 +379,12 @@ async function entryOf(token, kid, device) {
  * class, then that quiz's grade. Most quiz children are LOOSE students rows (no list, no enrolment). A band is
  * unknown, never its first digit.
  */
-async function gradeInfo(entry) {
+async function gradeInfo(entry, { fast = false } = {}) {
+  // Fast pages: the enrolment and the child's row need only the child's id, so they are read together.
+  const kidP = fast ? Fast.early(Promise.resolve(supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle())) : null;
   const { data: enr } = await supabase.from('class_enrollments').select('id, class_id, student_id, is_active')
     .eq('student_id', entry.studentId).eq('is_active', true);
-  const { data: kid, error: kidErr } = await supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle();
+  const { data: kid, error: kidErr } = await (kidP || supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle());
   // A refused read (a column that is not there, a pooler error) is logged at error level: silently falling through
   // to the next grade source is how a wrong column name once passed every test.
   if (kidErr) logError('web_quiz.ch_student_read_failed', { code: kidErr.code || null, error: String(kidErr.message || kidErr).slice(0, 160) });
@@ -442,14 +455,19 @@ async function languageOf(entry, asked) {
   return clampLanguage(null);
 }
 
-async function who(token, { kid, lang, device } = {}) {
+async function who(token, { kid, lang, device } = {}, { fast = false, early = null } = {}) {
   if (!(await challengeOn())) fail(503, 'challenge_off');
   const entry = await entryOf(token, kid, device);
-  const gi = await gradeInfo(entry);
+  // Fast pages: a caller's own lookups that need only the child start here, beside the grade and the language.
+  if (early) early(entry);
+  // Fast pages: the child's language needs only the entry, so it is read beside the grade (and set aside when the
+  // child is not eligible, as today's answer is then the refusal).
+  const langP = fast ? Fast.early(languageOf(entry, lang)) : null;
+  const gi = await gradeInfo(entry, { fast });
   // grade-1 form: formForChild reads its switches for a grade-1 child only (off ⇒ null ⇒ not_eligible, as today)
   const form = await formForChild(gi.grade);
   if (!form) fail(403, 'not_eligible');
-  return { ...entry, grade: gi.grade, gradeSource: gi.source, test: isTestName(gi.name), form, lang: await languageOf(entry, lang) };
+  return { ...entry, grade: gi.grade, gradeSource: gi.source, test: isTestName(gi.name), form, lang: await (langP || languageOf(entry, lang)) };
 }
 
 // ── runs (stored) ─────────────────────────────────────────────────────────────────────────────────────
@@ -684,19 +702,41 @@ async function provenance(studentId, exercise, lang, run, { except = null } = {}
 async function menu(token, { kid, lang, device } = {}) {
   // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
   { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
-  const w = await who(token, { kid, lang, device });
+  const fast = Fast.on();
+  // Fast pages: the card's no_class (the child home on) needs only the child, so it starts as soon as the child is known.
+  let noClassP = null;
+  const early = fast ? (e) => { noClassP = Fast.early(require('./web-quiz-hub-door').noClassField(e.studentId)); } : null;
+  const w = await who(token, { kid, lang, device }, { fast, early });
+  // Fast pages: the rule switches are read beside the events switch (set aside for a grade-1 child, as today).
+  const rulesP = fast ? Fast.early(rulesOf({ fast })) : null;
   // EVENTS §0.1: the server copy carries the writer's mark under events v2; off, today's event byte for byte
   logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade, ...((await Flags.eventsV2On()) ? { w: 's' } : {}) });
   if (w.form === Grade1.FORM) return Grade1.menu(w);   // grade-1 form: its one stop
-  const rules = await rulesOf();
-  const runs = rules.record ? await countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
+  const rules = await (rulesP || rulesOf());
+  // Fast pages: the menu's lookups need only the child and the rules, so they start together and are awaited where
+  // today's code reads them. The listening story's clip (asking for it may start a recording) still waits for the
+  // runs check, as today.
+  const pre = fast ? {
+    runs: Fast.early(rules.record ? countedRuns(w.studentId) : storedRuns(w.studentId).then((rs) => rs.filter((r) => r.status === 'scored'))),
+    readOk: Fast.early(Budget.readOpen()),
+    listen: Fast.early(listenOn()),
+    trail: rules.period ? Fast.early(periodTrail(w)) : null,
+    rt: Fast.early(Tel.flag()),
+    ui: Fast.early(require('./web-quiz-ur-polish').ui()),
+    juice: Fast.early(require('./web-quiz-juice').field()),
+    bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    lr3: Fast.early(LiveReadV3().forMenu()),
+    no_class: noClassP,
+  } : null;
+  const got = (key, start) => (pre ? pre[key] : start());
+  const runs = await got('runs', async () => (rules.record ? countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored')));
   if (runs.readFailed) fail(503, 'unavailable');   // fail closed: a missing provenance column (isMissingColumn)
   // Today's read-aloud cap reached (web-quiz-challenge-budget.js): "Which is bigger?" only until Pakistan midnight.
-  const readOk = await Budget.readOpen();
+  const readOk = await got('readOk', () => Budget.readOpen());
   // "Listen and answer" only once its story is recorded (asking for it starts the recording): never silence to listen to
-  const listenOk = (await listenOn()) && !!(await storyClip(w.lang));
+  const listenOk = (await got('listen', () => listenOn())) && !!(await storyClip(w.lang));
   // challenge v2: under _period a stop is done from THIS period's record row (trailStateFor); under _pool the Trail order
-  const trailNow = rules.period ? await periodTrail(w) : null;
+  const trailNow = rules.period ? await got('trail', () => periodTrail(w)) : null;
   return {
     form: `G${w.form}`,
     lang: w.lang,
@@ -716,9 +756,14 @@ async function menu(token, { kid, lang, device } = {}) {
     // a round turn is served only under _v2 (exercise() refuses it 409 without), so the hand-back card is drawn only then
     ...(w.round && rules.v2 ? { round_turn: true } : {}),
     // Whether the page sends its page-session events (wq-tel.js).
-    rt: await Tel.flag(),
-    ...((await require('./web-quiz-ur-polish').ui()) ? { ui: { ur2: true } } : {}),
-    ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    rt: await got('rt', () => Tel.flag()),
+    ...((await got('ui', () => require('./web-quiz-ur-polish').ui())) ? { ui: { ur2: true } } : {}),
+    // the sound + motion kit (web-quiz-juice.js): named only when on
+    ...((await got('juice', () => require('./web-quiz-juice').field())) ? { juice: true } : {}),
+    ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
+    ...(await got('lr3', () => LiveReadV3().forMenu())),   // live reading v3: the page loads its component (off ⇒ nothing)
+    // the child home on: a child with no class shares with "Share" (web-quiz-hub-door.js; off ⇒ nothing)
+    ...(await got('no_class', () => require('./web-quiz-hub-door').noClassField(w.studentId))),
   };
 }
 
@@ -730,20 +775,29 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const def = byId(ex);
   // grade-1 form: 'numbers' exists only with its switches on; a grade-1 child gets only that stop (else 404 as today)
   if (!def && !(ex === Grade1.EXERCISE && (await Grade1.on()))) fail(404, 'not_found');
-  const w = await who(token, { kid, lang, device });
+  const fast = Fast.on();
+  const w = await who(token, { kid, lang, device }, { fast });
   if (w.round && !ROUND_GAMES.includes(ex)) fail(404, 'not_found'); // class round: the tap games only
   if (w.form === Grade1.FORM || !def) {   // grade-1 form: served there; its ch_start leaves by the one call site below
     const g1 = await Grade1.exercise(w, ex, { device, mode: (arguments[2] || {}).mode });
     await emitChStart(g1.startEv, g1.run, w.studentId);
     return g1.payload;
   }
-  if (ex === 'read' && !(await Budget.readOpen())) fail(429, 'enough_for_today');
-  if (ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
-  const rules = await rulesOf();
+  // Fast pages: the day's reading cap, the listening switch and the rule switches are read together, then checked in
+  // today's order (each a read only).
+  const gate = fast ? {
+    readOk: ex === 'read' ? Fast.early(Budget.readOpen()) : null,
+    listen: ex === 'listen' ? Fast.early(listenOn()) : null,
+    rules: Fast.early(rulesOf({ fast })),
+  } : null;
+  if (ex === 'read' && !(await (gate ? gate.readOk : Budget.readOpen()))) fail(429, 'enough_for_today');
+  if (ex === 'listen' && !(await (gate ? gate.listen : listenOn()))) fail(503, 'listen_off');
+  const rules = await (gate ? gate.rules : rulesOf());
   if (ex === 'missing' && !rules.missing) fail(503, 'missing_off');
   // fail closed before anything is served: the runs read names a column this tier lacks (isMissingColumn); under _v2
   // the serve's own read answers "on its way" instead (serveV2)
-  if (!rules.v2 && (rules.record || rules.trail) && (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).readFailed) fail(503, 'unavailable');
+  let attempt = null;
+  if (!rules.v2 && (rules.record || rules.trail) && (attempt = await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).readFailed) fail(503, 'unavailable');
   // Story Time: a practice story by id (room/pid reach here only with web_quiz_challenge_story on); served under _pool
   // only, and a story room never falls back to a check serve
   const storyAsk = (arguments[2] || {}).room === 'story' && (ex === 'read' || ex === 'listen');
@@ -768,10 +822,23 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const startEv = { step: ex, grade: w.grade, run: runId, ...(v2 ? v2.event : {}) };
   // the measurement envelope reads the run's v2 fields (kid from canonical_id) over the event's: the run as served
   await emitChStart(startEv, v2 ? { ...RUNS.get(runId), ...v2.event, canonical_id: v2.top.canonical_id } : RUNS.get(runId), w.studentId);
+  // Fast pages: the page's remaining lookups need only the child, the game and the rules, so they start together and
+  // are awaited where today's code reads them. Without _v2 nothing was written since the attempt check above, so its
+  // answer is the practice-round answer too (the same read, made once).
+  const page = fast ? {
+    attempt: !rules.trail || w.round ? null : (attempt && !v2 ? attempt : Fast.early(attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null))),
+    clips: Fast.early(clipsFor(ex, w.lang)),
+    bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    story: ex === 'listen' && !v2 ? Fast.early(storyClip(w.lang)) : null,
+    live: ex === 'read' ? Fast.early(liveOn()) : null,
+    previous: ex === 'read' && !rules.record ? Fast.early(previousRun(w.studentId, 'read', w.lang)) : null,
+    questions: ex === 'read' ? Fast.early(questionsOn()) : null,
+  } : null;
+  const got = (key, start) => (page ? page[key] : start());
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
-  const practiceRound = !w.round && ((rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice'));
-  const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
-    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload, token) : {}), ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+  const practiceRound = !w.round && ((rules.trail ? (await got('attempt', () => attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null))).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice'));
+  const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await got('clips', () => clipsFor(ex, w.lang)), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload, token) : {}), ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
     // a teacher's own visit through the class link (played as practice): the page's banner says nothing counts on their phone
     ...(w.cl && w.cl.m === 'practice' ? { teacher_preview: true } : {}) };
   if (ex === 'missing' && v2 && v2.items) {
@@ -802,16 +869,18 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   }
   if (ex === 'listen') {
     // the story is heard, never shown: only its clip and how many times EGRA reads it
-    const url = v2 ? v2.clipUrl : await storyClip(w.lang);
+    const url = v2 ? v2.clipUrl : await got('story', () => storyClip(w.lang));
     if (!url) fail(503, 'getting_ready');
     return { ...base, read_times: Number(spec.read_times) || 2, story_clip: { url }, ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}) };
   }
   const st = (v2 && v2.story) || spec.story || {};
-  const live = await liveOn();
+  const live = await got('live', () => liveOn());
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
-  const previousWcpm = live ? (rules.record ? null : ((await previousRun(w.studentId, 'read', w.lang)) || {}).wcpm) : undefined;
-  return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await questionsOn(), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
-    ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}) };
+  const previousWcpm = live ? (rules.record ? null : ((await got('previous', () => previousRun(w.studentId, 'read', w.lang))) || {}).wcpm) : undefined;
+  return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await got('questions', () => questionsOn()), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
+    ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}),
+    // live reading v3 (web_quiz_live_read_v3, read only when real-time is on; off ⇒ nothing): how the reading finishes itself
+    ...(live && await LiveReadV3().forRead({ lang: w.lang, counted: async () => (v2 ? v2.mem.record === true : !!rules.record && !w.round && (await attemptInfo(w.studentId, 'read', w.lang)).attempt_no === 1) })) };
 }
 
 // ── challenge v2: the draw, the record decided at serve, the period (web_quiz_challenge_v2 / _period / _pool) ──────
@@ -1186,6 +1255,13 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   // Story Time read-along: the story in the quiz voice, played with the line lit before the child reads (the lazy clip
   // path; null until recorded, and asking records it); only on a story serve, never on a check
   const readAlong = storyDraw && ex === 'read' ? { url: await readAlongClip(w.lang, story && story.text) } : null;
+  // the word-by-word read-along (web_quiz_readalong, web-quiz-readalong.js): the same story serve only; off ⇒ null
+  const timed = storyDraw && ex === 'read' ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: w.lang, passageId, text: story && story.text }) : null;
+  // the same player on practice runs only (never a counted run, never a class round): a replayed read may be heard
+  // first (hear_first, inlined); a practice listen may show its words AFTER its questions (show_words: a flag only —
+  // the listen payload never carries the story's words; the page asks for them by the run token, listenWords())
+  const practiceTimed = mode === 'practice' && ((ex === 'read' && !storyDraw) || ex === 'listen')
+    ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: w.lang, passageId, text: story && story.text }) : null;
 
   const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // the anchor_serves_any column (and meta, kept one period)
   const prev2 = anchorBlock ? D.anchorPrev2(rows, anchorBlock) : null;   // of which before the provenance columns: meta.draw.anchor_prev2
@@ -1221,7 +1297,8 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     top: { canonical_id: canonicalId, mode, period_id: periodId, band, record, via, exposure_no: exposure, passage_id: passageId, item_set_id: itemSetId,
       anchor_block: anchorBlock, anchor_exposure_no: anchorExp, form: formNum },
     // the page gets only what it renders (ruling #43); every other field is on the row, in meta.draw and in ch_start
-    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' }, ...(readAlong ? { story_clip: readAlong } : {}) },
+    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' }, ...(readAlong ? { story_clip: readAlong } : {}), ...(timed ? { readalong: timed } : {}),
+      ...(practiceTimed && ex === 'read' ? { hear_first: practiceTimed } : {}), ...(practiceTimed && ex === 'listen' ? { show_words: true } : {}) },
     event: { w: 's', mode, period_id: periodId, form, band, rung: rung == null ? null : rung, ...(isPassage ? { passage_id: passageId } : { item_set_id: itemSetId }),
       exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via },
     items, tryout, story, dir, clipUrl,
@@ -1851,7 +1928,9 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   // The key decides, never the switch at this moment: a kept key stays whatever the switch now says; a plain key with
   // the switch now on is still deleted, and the row says so (calibration then knows why there is no audio).
   const audio = isKeptKey(key) ? { audio_key: key } : ((await keepAudioOn()) ? { audio_kept: false } : {});
-  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio };
+  // live reading v3 (off ⇒ {}): the UI version and how the page says it ended, kept through the scorer's final write too
+  const lr3Meta = await LiveReadV3().metaFor(body, { record: !!rules.record });
+  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio, ...lr3Meta };
   // the mic notice (web_quiz_challenge_audio_consent; null with it off): on the row, one event per run; a run that
   // showed it marks this child's notice seen on this phone (x-wq-device), so it is not shown again
   const consent = await TrailPage.consentFor(body);
@@ -1880,11 +1959,11 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     await updateRunMeta(c.r, (cur) => {
       const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
       return r.failed
-        ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp, reason: r.reason }, scored_at: nowIso() }
+        ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...lr3Meta, ...comp, reason: r.reason }, scored_at: nowIso() }
         : { status: 'scored', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), score: r.score, wcpm: r.wcpm,
           // an implausible row never became a reading: record cleared (the sweeper's `abandoned` shape), record_lost says why, the month stays open
           ...(r.implausible && isV2Meta(cur.meta) ? { record: false } : {}),
-          meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...(r.implausible && isV2Meta(cur.meta) ? { record_lost: 'implausible', counted: false } : {}), ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
+          meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...(r.implausible && isV2Meta(cur.meta) ? { record_lost: 'implausible', counted: false } : {}), ...audio, ...(live ? { live } : {}), ...lr3Meta, ...comp }, scored_at: nowIso() };
     }, { force: true });
     await measureOutcome(c.r);
     await renewBindings(c.sid);
@@ -1981,6 +2060,44 @@ async function readingOf(c, lang) {
   const sv = mem.v2 || (row && (isServedRow(row) || (await rulesOf()).v2) ? await servedInfo(c.r) : null);
   if (sv && sv.passage_id) return { run, row, mem, spec: { ...withPassage(spec, passageFor(sv.passage_id, Bank)), by_line: true } };
   return { run, row, mem, spec };
+}
+
+/**
+ * "Show me the words" after a practice listen's questions: the story's timing file (web_quiz_readalong), by the run
+ * token. Only a practice listen run gets it — a counted listen never shows its text (it is heard, never shown).
+ */
+async function listenWords({ ct, lang } = {}) {
+  const c = runOf(ct);
+  if (c.ex !== 'listen') fail(400, 'bad_request');
+  const { run, row, mem, spec } = await readingOf(c, lang);
+  const sv = mem.v2 || (await servedInfo(c.r)) || {};
+  const mode = sv.mode || (row && row.mode) || mem.mode;
+  if (mode !== 'practice') fail(403, 'not_practice');
+  const st = spec.story || {};
+  const t = sv.passage_id ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: run.lang, passageId: sv.passage_id, text: st.text }) : null;
+  if (!t) fail(404, 'no_words');
+  return { readalong: t };
+}
+
+/**
+ * A grown-up's preview of a practice story (#listen/<pid> on the practice home): the stored clip + its word timings,
+ * for a hub token on the phone it is bound to (as entryOf: a forwarded hub link opens nothing on another phone);
+ * no run, no event keyed by a child. Only a story Story Time could show (released, reviewed, the practice pool, not
+ * withdrawn) — never a counted passage.
+ */
+async function listenPreview(hub, pid, { lang, device } = {}) {
+  if (!T.verify(hub, 'h')) fail(401, 'bad_token');
+  if (!(await require('./web-quiz-hub-device').deviceTrusted(hub, device)).ok) fail(403, 'other_device');
+  const m = /^(en|ur)\.(read|listen)\.([1-5])\.[a-z0-9_-]+$/i.exec(String(pid || ''));
+  if (!m) fail(400, 'bad_request');
+  if (!(await settingOn(require('./web-quiz-readalong').SWITCH_KEY))) fail(404, 'no_words');
+  const { Bank } = childTest();
+  const own = typeof Bank.getPassage === 'function' ? Bank.getPassage(pid) : null;
+  const s = own ? Draw().storyPassageFor({ rows: await Draw().registryPassages(), pid, kind: m[2], lang: m[1], bands: new Set([1, 2, 3, 4, 5]), reserve: own.reserve === true, now: new Date() }) : null;
+  if (!s) fail(404, 'no_words');
+  const t = await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: m[1], passageId: s.passage_id, text: own.text });
+  if (!t) fail(404, 'no_words');
+  return { readalong: t };
 }
 
 /**
@@ -2185,8 +2302,12 @@ async function warmClip(key, text, lang, { record = true, now = Date.now() } = {
 }
 const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecordedOn(now));
 
+// Live reading v3: a story page's speech keys spend the same daily read budget (read from the cached switches: with
+// real-time or v3 off nothing is counted and nothing more is read)
+Budget.countAlso(async (sinceIso) => ((await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0));
+
 module.exports = {
-  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
+  menu, exercise, entryOf, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, TRAIL_ORDER, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
@@ -2207,3 +2328,24 @@ module.exports.rapidPerfect = rapidPerfect;
 module.exports.scoreRead = scoreRead;
 module.exports.passageFor = passageFor;
 module.exports.childTest = childTest;
+// the v3 home's door screens (web-quiz-hub-doors.js): a listening story opens only once its clip is recorded, and a
+// row's words in the quiz voice (the clips' own scheme and recorder; a missing one is recorded in the background, so
+// the row has it on a later open, under the same daily cap as every clip)
+module.exports.storyClip = storyClip;
+module.exports.sayClip = async (text, lang) => {
+  if (!text) return null;
+  const key = clipKey('door', 'say', lang, String(text));
+  // a door label never takes the last half of the day's recordings from the challenge's own clips: past it, known clips only
+  if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
+  return clipUrl(key, String(text), lang);
+};
+// a listen row on the door's Stories list: the listening story's own key, but like the labels it records only while more
+// than half the day's recordings are left (past it, known clips only), so opening Stories never spends the challenge's half
+module.exports.storyClipCapped = (lang, text) => {
+  if (!text) return null;
+  const key = clipKey('listen', 'story', lang, text);
+  if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
+  return clipUrl(key, text, lang);
+};
+// tests only: the day's recordings already made (to stand at a point of the daily cap without recording)
+module.exports.__useClips = (n, now = Date.now()) => { clipsRecordedOn(now); clipsRecorded = n; };

@@ -144,6 +144,12 @@ html[lang=ur] .wq-qtext{font-weight:700;font-size:21px;line-height:2.15}
 .wq-qimg{width:100%;max-height:220px;object-fit:contain;border-radius:16px;background:#fff}
 .wq-spk{min-width:var(--tap);min-height:var(--tap);border-radius:50%;border:0;background:var(--green-l);color:var(--green-d);display:inline-grid;place-items:center;cursor:pointer;flex:0 0 auto;font-size:22px}
 .wq-spk.wq-speaking{box-shadow:0 0 0 4px var(--green)}
+/* the inline SVG speaker / bell sit in the box the emoji glyph had */
+.wq-spk svg,.wq-ohear svg,.wq-shear>span:not(.wq-shp) svg,#wq-stim svg{width:1em;height:1em;display:block}
+#wq-stim svg{display:inline-block;vertical-align:-.15em}
+/* the sound kit's marks (wq.js ic()): one em, like the glyph each replaces */
+.wq-i{width:1em;height:1em;flex:0 0 auto;display:inline-block;vertical-align:-.15em}
+.wq-best .wq-i{color:var(--gold)}
 .wq-opts{display:grid;gap:10px}
 .wq-opt{display:flex;align-items:center;gap:12px;min-height:66px;border-radius:18px;border:3px solid transparent;box-shadow:0 4px 0 var(--line);padding:6px 10px;cursor:pointer;font-weight:900;font-size:21px;color:var(--ink);text-align:start;width:100%}
 html[lang=ur] .wq-opt{font-weight:700;font-size:20px;line-height:1.9}
@@ -367,7 +373,8 @@ html[lang=ur] .wq-srow .wq-tag{display:table;font-family:var(--fu);line-height:1
 .wq-zero-list ul{margin:8px 0 0;padding-inline-start:18px;font-weight:600;font-size:14px;line-height:1.6}
 /* The phone's own voice is speaking (no recorded clip for that line): a small phone on the speaker button. */
 .wq-phonevoice .wq-spk{position:relative}
-.wq-phonevoice .wq-spk::after{content:"📱";position:absolute;inset-inline-end:-6px;bottom:-6px;font-size:13px;line-height:1}
+/* the phone-voice mark: a small phone drawn in CSS (no emoji: old Android phones draw newer emoji as empty boxes) */
+.wq-phonevoice .wq-spk::after{content:"";position:absolute;inset-inline-end:-6px;bottom:-6px;width:7px;height:10px;border:2px solid;border-bottom-width:3px;border-radius:3px;background:#fff}
 /* The browser would not start the voice before a tap: the speaker button pulses until the child taps it. */
 .wq-tap .wq-spk{animation:wq-tap-pulse 1.2s ease-in-out infinite}
 @keyframes wq-tap-pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,0,0,.18)}50%{box-shadow:0 0 0 10px rgba(0,0,0,0)}}
@@ -489,6 +496,11 @@ html[lang=ur] .wq-who .wq-kid{font-weight:700;line-height:1.7;font-size:16px}
 .wq-askon img{width:56px!important;height:56px!important}
 .wq-askon .wq-in{gap:4px;padding:10px 14px}
 html[lang=ur] .wq-askon .wq-name,html[lang=ur] .wq-askon .wq-praise{line-height:1.5;margin:0}
+
+/* ===== one Urdu face ===== web_quiz_one_face on → <html class="wq-uf">: the plain look draws with the polished face ("WQ Nastaliq 2",
+   declared in the block below), the one face the head preloads, so a page never fetches wq-nastaliq-5 as well; the polished look
+   already uses it. Switch off: no class, the cascade untouched. */
+html.wq-uf[lang=ur]{--fu:"WQ Nastaliq 2","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 
 /* ===== ur2 ===== the Urdu polish (app_settings web_quiz_ur_polish → <html lang="ur" class="wq-ur2">). Every rule below is scoped to
    html.wq-ur2[lang=ur]: switch off = the cascade above, untouched; English pages never match. ===== */

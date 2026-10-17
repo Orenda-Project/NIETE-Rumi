@@ -20,7 +20,14 @@ function fakeEl(sel) {
   return {
     sel, listeners: {}, attrs: {}, style: {}, textContent: '', parentNode: null,
     addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); },
-    fire(n, e) { (this.listeners[n] || []).forEach((fn) => fn(e || {})); },
+    // as the browser does: a listener's stopImmediatePropagation() keeps the ones registered after it from running
+    fire(n, e) {
+      const ev = e || {};
+      let stop = false;
+      const own = ev.stopImmediatePropagation;
+      ev.stopImmediatePropagation = () => { stop = true; if (typeof own === 'function') own.call(ev); };
+      for (const fn of (this.listeners[n] || []).slice()) { fn(ev); if (stop) break; }
+    },
     setAttribute(k, v) { this.attrs[k] = String(v); },
     getAttribute(k) { return this.attrs[k]; },
     removeAttribute(k) { delete this.attrs[k]; },
@@ -126,6 +133,8 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     const set = root.setAttribute;
     root.setAttribute = function (k, v) { set.call(this, k, v); if (k === 'data-m') obs.forEach((fn) => fn([])); };
   }
+  // wqj: a sound kit object on the page (web_quiz_juice on), set before wq.js as the edge loads the kit first.
+  if (arguments[0] && arguments[0].wqj) ctx.WQJ = arguments[0].wqj;
   vm.createContext(ctx);
   // wq-tel.js is on every page the edge renders, before wq.js: its stub (and the link helper WQT.withLang) is always
   // there; the telemetry itself runs only with `tel` (boot rt).

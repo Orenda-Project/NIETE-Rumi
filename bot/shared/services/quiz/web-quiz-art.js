@@ -7,6 +7,7 @@
  *   l  my class       ref = the class code, or the sharer's session (top rows as place + animal +
  *                     score; only the sharer's own row is named, "(me)")
  *   s  my school      ref = the class code     (the school board around this class's school)
+ *   t  the class link ref = the class code's id  (drawn by web-quiz-class-pic.js: the teacher's own link, a PNG)
  *
  * The id is signed: "<kind>.<ref>.<mac12>". A link preview fetches the picture
  * with no session, so the id itself is the permission, and the mac stops
@@ -186,7 +187,8 @@ async function facts(kind, ref) {
   if (kind === 'c') return cardFacts(ref);
   if (kind === 'i') return inviteFacts(ref);
   if (kind === 'l') return classFacts(ref);
-  return schoolFacts(ref);
+  if (kind === 's') return schoolFacts(ref);
+  return notFound();
 }
 
 // ─── draw + cache ───────────────────────────────────────────────────────────
@@ -240,7 +242,10 @@ function served(input, t0, from, steps = {}) {
 const inflight = new Map();
 
 // fresh: the caller knows this picture was never drawn (a card at the finish of its session), so R2 is not asked.
-function artImage(id, { size = 'og', fresh = false } = {}) {
+// code: the /q/<CODE> the picture was asked under; only the class link's picture (kind t) reads it.
+function artImage(id, { size = 'og', fresh = false, code = null } = {}) {
+  // The class link's picture (web-quiz-class-pic.js): its own facts, switches and PNG; never this module's kinds.
+  if (typeof id === 'string' && id.startsWith('t.')) return require('./web-quiz-class-pic').image(id, { code, drawTurn, ArtError });
   const k = `${id}|${SIZES[size] ? size : 'og'}`;
   if (inflight.has(k)) return inflight.get(k);
   const p = artImageNow(id, { size, fresh }).finally(() => inflight.delete(k));
@@ -302,4 +307,5 @@ async function artImageNow(id, { size = 'og', fresh = false } = {}) {
 
 function _resetCache() { mem.clear(); byId.clear(); }
 
-module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache, _drawForTests: draw, artInput };
+// drawTurn: the one headless queue every server-drawn picture waits in (the finish card's too, web-quiz-card-image.js).
+module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache, _drawForTests: draw, artInput, drawTurn };

@@ -8,6 +8,8 @@
  *   teacher_phone · code_unknown · code_used · code_expired · child_unknown · max_phones · max_kids
  *   A teacher's phone gets ONE refusal line (ledger teacher_refusal); a full phone gets ONE line (ledger bind_reply);
  *   the other refusals have no bot copy, so the binder stays silent (the page shows the state).
+ *   With web_quiz_bind_way_back on, every outcome answers ONCE instead, and a recent code's carries the button back
+ *   to the child's page (web-quiz-bind-way-back.js); off, all of the above is today's, byte for byte.
  *   Every reply is counted on the ledger BEFORE it is sent, with the phone (the per-phone daily reply cap): a
  *   reply over the cap is not sent.
  * Bound (new, renewed or a re-bind): the code is spent, the door's cached verdict is dropped, and ONE reply is
@@ -26,6 +28,7 @@ const Codes = require('./child-bind-codes.repo');
 const StudentIdentity = require('./student-identity.service');
 const Ledger = require('./message-ledger');
 const K = require('./web-quiz-kid');
+const WayBack = require('./web-quiz-bind-way-back');
 
 const MAX_PHONES_PER_CHILD = 3;
 const MAX_KIDS_PER_PHONE = require('./web-quiz-token').HUB_MAX_KIDS;
@@ -42,6 +45,14 @@ const ukeyOf = (phoneNorm) => BindRepo.ukeyOf(phoneNorm);
 
 async function on() {
   try { return Boolean((await IdFlags.flags()).phoneBind); } catch (_) { return false; }
+}
+
+/** A listed test phone walking as a new phone (walk-persona.js, sandbox only) is not a teacher's here. Never throws. */
+async function walksAsNewPhone(norm) {
+  try {
+    const P = require('../first-touch/walk-persona');
+    return typeof P.get === 'function' && ((await P.get(norm)) || {}).as === 'fresh';
+  } catch (_) { return false; }
 }
 
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
@@ -150,34 +161,42 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
     let asked = null;
     try { asked = require('./web-quiz-bind-page').prefillLanguage(body); } catch (_) { asked = null; }
 
-    if (mode === 'teacher') {
+    if (mode === 'teacher' && !(await walksAsNewPhone(norm))) {
       await Codes.markUsed(code, 'teacher_phone', now);
       const out = await refused('teacher_phone');
       const lang = clampLanguage((user && user.preferred_language) || 'en');
+      if (await WayBack.reply({ phone, reason: 'teacher_phone', code, asked, language: lang, now })) return out;
       // counted first (the per-phone reply cap); sent only when the ledger says so
-      if (await Ledger.record({ trigger: 'teacher_refusal', recipient: 'teacher', phone, reason: 'teacher_phone', now })) {
+      if (await Ledger.record({ trigger: 'teacher_refusal', recipient: 'teacher', phone, reason: 'teacher_phone', ownReply: true, now })) {
         await sendText(phone, 'jugnuBindTeacherRefused', lang);
       }
       return out;
     }
 
+    // the way back's reply language for a code with a child: the family's prefill, else the child's, else the user's
+    const langOf = (r) => (r && r.canonical_id ? languageFor({ id: String(r.canonical_id) }, user, asked) : null);
+    const back = (out, reason, r) => WayBack.reply({ phone, reason, row: r, user, asked, language: langOf, now }).then(() => out);
     const row = await Codes.get(code);
-    if (!row) return refused('code_unknown');
-    if (row.used_at) return refused('code_used', {}, row.canonical_id);
+    if (!row) return back(await refused('code_unknown'), 'code_unknown', null);
+    if (row.used_at) {
+      const out = await refused('code_used', {}, row.canonical_id);
+      if (await WayBack.alreadySaved({ phone, norm, row, user, asked, now, sendSaved, languageFor, resolveChild: () => liveChild(row.canonical_id) })) return out;
+      return back(out, 'code_used', row);
+    }
     if (!row.expires_at || new Date(row.expires_at).getTime() <= new Date(now).getTime()) {
       await Codes.markUsed(code, 'code_expired', now);
-      return refused('code_expired', {}, row.canonical_id);
+      return back(await refused('code_expired', {}, row.canonical_id), 'code_expired', row);
     }
     const child = await liveChild(row.canonical_id);
     if (!child) {
       await Codes.markUsed(code, 'child_unknown', now);
-      return refused('child_unknown');
+      return back(await refused('child_unknown'), 'child_unknown', null);
     }
 
     const phones = await BindRepo.activeForChild(child.id, now);
     if (phones.length >= MAX_PHONES_PER_CHILD && !phones.some((b) => b.phone_norm === norm)) {
       await Codes.markUsed(code, 'max_phones', now);
-      return refused('max_phones', {}, child.id);
+      return back(await refused('max_phones', {}, child.id), 'max_phones', row);
     }
     const set = await BindRepo.childrenForPhone(phone);
     const inSet = set.some((k) => String(k.id) === child.id);
@@ -185,7 +204,8 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
       await Codes.markUsed(code, 'max_kids', now);
       const out = await refused('max_kids', { kids_n: set.length }, child.id);
       const lang = await languageFor(child, user, asked);
-      if (await Ledger.record({ trigger: 'bind_reply', phone, reason: 'max_kids', now })) await sendText(phone, 'jugnuBindFullRefused', lang);
+      if (await WayBack.reply({ phone, reason: 'max_kids', row, language: lang, now })) return out;
+      if (await Ledger.record({ trigger: 'bind_reply', phone, reason: 'max_kids', ownReply: true, now })) await sendText(phone, 'jugnuBindFullRefused', lang);
       return out;
     }
 
@@ -221,10 +241,67 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
     await emit('web_quiz.bind_bound', ev, child.id);
 
     const lang = await languageFor(child, user, asked);
-    if (await Ledger.record({ trigger: 'bind_reply', phone, reason: renewed ? 'renew' : 'bind', now })) await sendSaved(phone, kids.length ? kids : [{ id: child.id }], child, lang);
+    if (await Ledger.record({ trigger: 'bind_reply', phone, reason: renewed ? 'renew' : 'bind', ownReply: true, now })) await sendSaved(phone, kids.length ? kids : [{ id: child.id }], child, lang);
     return { ok: true, outcome: 'bound', bindingId: binding.id, canonicalId: child.id, renewed, rebind };
   } catch (err) {
     logToFile('⚠️ phone binder: code handling threw (silent)', { error: err.message });
+    return { ok: false, outcome: 'error' };
+  }
+}
+
+/**
+ * The page-side bind (quiz_student_join): a phone the bot already proved — it sent `/quiz`, and the landing's nonce
+ * names it — keeps a child's place with NO code and NO reply. The same refusals as a code, in the same order
+ * (teacher_phone · child_unknown · max_phones · max_kids), the same renew-or-insert (a re-bind when the phone's
+ * tombstone matches), the same forget and the same bind_bound event with its `via`. Nothing is sent on WhatsApp.
+ * → null when web_quiz_phone_bind is off; {ok:true, outcome:'bound', bindingId, canonicalId, renewed, rebind} |
+ *   {ok:false, outcome:'refused', reason} | {ok:false, outcome:'error', reason?}. Never throws.
+ * @param {{phone:string, canonicalId:string, via?:'guest'|'teacher', mode?:'teacher'|'student'|'unknown', now?:Date}} p
+ */
+async function bindOnPhone({ phone, canonicalId, via = 'guest', mode = 'unknown', now = new Date() } = {}) {
+  try {
+    if (!(await on())) return null;
+    const norm = StudentIdentity.normalisePhone(phone);
+    if (!norm || !canonicalId || !['guest', 'teacher'].includes(via)) return { ok: false, outcome: 'error', reason: 'bad_request' };
+    // a sandbox walk-through phone playing a new family (the walk-persona module, absent everywhere else)
+    let fresh = false;
+    try { const P = require('../first-touch/walk-persona'); fresh = Boolean(P && typeof P.get === 'function' && ((await P.get(norm)) || {}).as === 'fresh'); } catch (_) { fresh = false; }
+    if (mode === 'teacher' && !fresh) return refused('teacher_phone', { via });
+    const child = await liveChild(canonicalId);
+    if (!child) return refused('child_unknown', { via });
+    const phones = await BindRepo.activeForChild(child.id, now);
+    if (phones.length >= MAX_PHONES_PER_CHILD && !phones.some((b) => b.phone_norm === norm)) return refused('max_phones', { via }, child.id);
+    const set = await BindRepo.childrenForPhone(phone);
+    if (!set.some((k) => String(k.id) === child.id) && set.length >= MAX_KIDS_PER_PHONE) return refused('max_kids', { via, kids_n: set.length }, child.id);
+
+    const mine = (await BindRepo.activeForPhone(norm, now)).find((b) => String(b.canonical_id) === child.id);
+    let binding = null;
+    let renewed = false;
+    let rebind = false;
+    let rebindPrior = null;
+    if (mine) {
+      binding = await BindRepo.renew(mine.id, BindRepo.expiresAtFor(now), now);
+      renewed = Boolean(binding);
+    } else {
+      const prior = await priorOnPhone(norm, child.id);
+      binding = await BindRepo.insert({
+        canonicalId: child.id, phoneNorm: norm, via, confirmedAt: now, expiresAt: BindRepo.expiresAtFor(now), rebindOf: prior ? prior.id : null,
+      });
+      if (binding && prior) { rebind = true; rebindPrior = prior.revoked_by || null; }
+    }
+    if (!binding) {
+      const reason = BindRepo.tombOf(norm) ? 'db_error' : 'no_salt';
+      logEvent('web_quiz.bind_write_failed', { reason, via, w: 's' });
+      return { ok: false, outcome: 'error', reason };
+    }
+    await forgetPhone(phone, norm, `bind_${via}`);
+    const kids = await BindRepo.childrenForPhone(phone);
+    const ev = { via, kids_n: kids.length, renewed, rebind };
+    if (rebind && rebindPrior) ev.rebind_prior = rebindPrior;
+    await emit('web_quiz.bind_bound', ev, child.id);
+    return { ok: true, outcome: 'bound', bindingId: binding.id, canonicalId: child.id, renewed, rebind };
+  } catch (err) {
+    logToFile('⚠️ phone binder: page-side bind threw (nothing promised)', { error: err.message });
     return { ok: false, outcome: 'error' };
   }
 }
@@ -248,7 +325,7 @@ async function handleStop({ phone, user = null, persona = null, now = new Date()
     const key = erased.length ? 'jugnuBindStopped' : 'jugnuBindStopNothing';
     // A STOP that erased a binding is answered even at the day's cap (a privacy action is never silent; the reply is
     // still on the ledger and the bound is the cap plus this one); a STOP with nothing saved stays capped.
-    if (await Ledger.record({ trigger: 'bind_reply', recipient: persona === 'teacher' ? 'teacher' : 'family', phone, reason: erased.length ? 'stop' : 'stop_nothing', uncapped: erased.length > 0, now })) {
+    if (await Ledger.record({ trigger: 'bind_reply', recipient: persona === 'teacher' ? 'teacher' : 'family', phone, reason: erased.length ? 'stop' : 'stop_nothing', uncapped: erased.length > 0, ownReply: true, now })) {
       await sendText(phone, key, lang);
     }
     return { n: erased.length, children: perChild.size };
@@ -287,6 +364,6 @@ async function stopForBoundNonChild({ from, body, user = null, persona = null } 
 }
 
 module.exports = {
-  handleCode, handleStop, stopForBoundNonChild, isStop, ukeyOf,
+  handleCode, bindOnPhone, handleStop, stopForBoundNonChild, isStop, ukeyOf,
   STOP_WORDS, MAX_PHONES_PER_CHILD, MAX_KIDS_PER_PHONE,
 };

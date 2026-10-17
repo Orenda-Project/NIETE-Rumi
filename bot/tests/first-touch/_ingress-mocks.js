@@ -11,7 +11,7 @@ function redisMock(jestRef) {
     get: jestRef.fn(async (k) => (keys.has(k) ? keys.get(k) : null)),
     set: jestRef.fn(async (k, v) => { keys.set(k, v); return true; }),
     setNX: jestRef.fn(async (k, v) => { if (keys.has(k)) return false; keys.set(k, v); return true; }),
-    delete: jestRef.fn(async (k) => keys.delete(k)),
+    delete: jestRef.fn(async (k) => { keys.delete(k); return true; }), // the real client: true once the del ran, key or not
     incr: jestRef.fn(async (k) => { const v = (Number(keys.get(k)) || 0) + 1; keys.set(k, v); return v; }),
     expire: jestRef.fn(async () => true),
     isAvailable: () => true,
