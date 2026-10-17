@@ -70,7 +70,7 @@ const ROWS = () => [
   bankRow(QID2, {}),
 ];
 // The quiz voice's clips for every part of both questions, as the publish step names them (the voice tag is in the key):
-// TODAY = the quiz voice with the switch off; TAG = the one voice with it on (the stories' and passages' voice, #S72/#C61).
+// TODAY = the quiz voice with the switch off; TAG = the one voice with it on (the stories' and passages' voice).
 const TODAY = Voice.voiceTag('en');
 const TAG = Voice.voiceTag('en', { oneVoice: true });
 const gen = (qid, tag = TAG) => ({
@@ -200,7 +200,7 @@ describe('the publish step', () => {
     const calls = tts.synthesize.mock.calls.map(([a]) => `${a.provider}:${a.voice}:${a.model}`);
     expect([...new Set(calls)]).toEqual(['elevenlabs:hpp4J3VqNfWAUOO0d1Us:eleven_v4']);
     expect(tts.synthesize.mock.calls[0][0].voiceSettings).toEqual({ stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true });
-    // the provider's own bytes are stored (no 24 kb/s re-encode: the loss #S72 removed from the stories)
+    // the provider's own bytes are stored (no 24 kb/s re-encode: the loss the stories' voice already dropped)
     const r2 = require('../../../shared/storage/r2');
     r2.uploadBuffer.mock.calls.forEach((c) => expect(c[0].toString()).toBe('OggS-fake'));
     const { web: today, web_one: web } = fake.db.quizzes[0].meta;
