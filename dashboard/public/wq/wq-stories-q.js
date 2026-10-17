@@ -57,11 +57,12 @@
     var eo = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, D = null, dw = null, rd = null;
     // the reading moment (the book's read_fb: web_quiz_read_feedback): its file comes with this one, once
     if (b.read_fb && !W.WQMoment && !S._rfAsked) { S._rfAsked = 1; K.load('wq-moment.js', 'wq-moment.css', function () {}); }
-    // this page's read answered after Your turn (small): the words, stars, the lights; '' with the file not here
-    function rfHtml() {
+    // this page's read answered after Your turn (wq-moment.js page(): small, and "Hear Jugnu say it" on a skipped word)
+    function rfHtml(st) {
       if (!b.read_fb || !W.WQMoment || !rd || rd.i !== m.i) return '';
-      rd.fb = W.WQMoment.feedback({ words_read: rd.s.words_read, words_total: rd.s.words_total, ms: rd.s.ms });
-      return W.WQMoment.html(rd.fb, L, { grade: b.grade, size: 's' });
+      var x = W.WQMoment.page(rd.s, P[m.i], L, { grade: b.grade, hear: st === 'practise', sents: sents });
+      rd.fb = x.fb;
+      return x.html;
     }
     // the questions and the done screen come in their own file, the first time a child gets there
     function dv(v) {
@@ -84,7 +85,7 @@
     R.ex = function (s, p) {
       var w = p.words && p.words[m.skip], h = '';
       var echo = b.lr3 && b.grade < 3 && p.audio && !R.keyNo && (s === 'together' || /^(read|practise)$/.test(s) && m.ratio <= 0.5);
-      var rf = /^(read|practise|together)$/.test(s) ? rfHtml() : '';
+      var rf = /^(read|practise|together)$/.test(s) ? rfHtml(s) : '';
       if (s === 'practise' && w) h = rf + '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + (L === 'ur' ? 'rtl' : 'ltr') + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
       else if (s === 'read' || s === 'practise') h = rf || '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
       else if (s === 'together' && rf) h = rf + (rd.fb.zero ? '' : '<p>' + esc(t.together) + '</p>');
@@ -330,6 +331,7 @@
         else if (tap === 'close') { if (m.st === 'mic') micO.onNotNow(); else m.notNow(); }
         else if (tap === 'word') { if (R.pl && P[m.i].quality !== 'low') R.pl.playWord(+arg); }   // the word to practise (drawn by R.ex)
         else if (tap === 'echo') eGo();
+        else if (tap === 'rfhear') { if (W.WQMoment && R.pl && rd) W.WQMoment.hear(R.pl, P[m.i], rd.s, { sents: sents, set: C.set, clear: C.clear }); }
         else if (eo && (tap === 'main' || tap === 'hush' && !eo.pz)) eTog();
         else if (tap === 'eend' && eo) eEnd();
         else if (D) return D.act(tap, arg);
