@@ -29,7 +29,6 @@
  * teacher_home.step. `prompted`: the page was opened from a message the bot sent (the token's door is the report);
  * `cls_k`: the keyed class of the code sent (web-quiz-kid clsOf), null when the code is not this teacher's or has none.
  */
-const crypto = require('crypto');
 const express = require('express');
 const { requireInternalKey } = require('../../middleware/require-internal-key');
 const { logToFile } = require('../../utils/logger');
@@ -120,12 +119,9 @@ function createRouter(deps = null) {
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
   const fail = (res, status) => { headers(res); res.status(status).json({ error: 'mk.error' }); };
 
-  /** The teacher's event key: HMAC(kid key, 't|' + users.id)[:16]; null without a key of 32+ bytes (the child side's rule; never an unkeyed hash). */
-  function tkOf(uid) {
-    const k = process.env.WEB_QUIZ_KID_KEY;
-    if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
-    return crypto.createHmac('sha256', k).update(`t|${uid}`).digest('hex').slice(0, 16);
-  }
+  /** The teacher's event key, from the shared helper: null without a key of 32+ bytes. It also names the first-open mark,
+   *  so a WEB_QUIZ_KID_KEY rotation re-arms every teacher's first open. */
+  const tkOf = (uid) => require('../quiz/web-quiz-kid').tk(uid);
   function event(name, uid, fields) {
     try { logEvent(name, { w: 's', ev_v: 3, tk: tkOf(uid), ...fields }); } catch (_) { /* a failed log never decides a response */ }
   }
