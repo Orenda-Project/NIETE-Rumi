@@ -193,7 +193,6 @@ async function measure(token, opts) {
   const out = JSON.stringify(await S.Hub.hub(token, opts));
   const waves = S.doneMax;
   S.lastReads = S.reads.slice();
-  if (process.env.WAVES_DEBUG) console.log(S.reads.map((r) => `${r.wave} ${r.t} ${r.at || ''}`).join('\n'));
   const perTable = {};
   S.reads.forEach((r) => { perTable[r.t] = (perTable[r.t] || 0) + 1; });
   const open = logEvent.mock.calls.filter(([name]) => name === 'web_quiz.hub_open').map(([, f]) => f);

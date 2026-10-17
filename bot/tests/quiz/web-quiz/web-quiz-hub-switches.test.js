@@ -198,20 +198,24 @@ describe('the hub payload with the switches as strings or JSON: fast on is fast 
 });
 
 describe('the 25 s timer (one per process)', () => {
-  test('fast off: the timer reads nothing and stops', async () => {
+  test('fast off: the timer (started at boot) reads nothing; a hub request with fast off never arms it', async () => {
     boot({ fast: false, every: true });
     await measure(tokenOne(), { device: DEVICE });
     S.reads = [];
     Seam().start({ everyMs: 15 });
     await realWait(150);
     expect(S.reads.filter((r) => r.t === 'app_settings')).toEqual([]);
-    expect(Seam().running()).toBe(false);
+    expect(Seam().armed()).toBe(false);
+    Seam().stop();
   });
 
-  test('never started by a hub request under test, and never keeps the process alive', async () => {
+  test('never started by a hub request (the bot starts it at boot), armed by a fast one, and never keeps the process alive', async () => {
     await coldWithFastWarm({ fast: true, every: true });
     await measure(tokenOne(), { device: DEVICE });
     expect(Seam().running()).toBe(false);
+    expect(Seam().armed()).toBe(true);
+    const boot = require('fs').readFileSync(require('path').join(__dirname, '../../../whatsapp-bot.js'), 'utf8');
+    expect(boot).toMatch(/require\('\.\/shared\/services\/quiz\/web-quiz-hub-switches'\)\.start\(\)/);
     Seam().start();
     expect(Seam().running()).toBe(true);
     expect(Seam()._handle().hasRef()).toBe(false);
@@ -257,14 +261,18 @@ describe('the 25 s timer (one per process)', () => {
     expect(settingsReads(next)).toBe(0);
   });
 
-  test('the fast switch flipped off: the timer\'s next tick reads it and stops', async () => {
+  test('the fast switch flipped off: the timer\'s next tick reads it, disarms, and reads nothing more', async () => {
     await coldWithFastWarm({ fast: true, every: true });
     await measure(tokenOne(), { device: DEVICE });
     S.db.app_settings.find((r) => r.key === 'web_quiz_fast').value = false;
     Seam().start({ everyMs: 15 });
     await realWait(120);
-    expect(Seam().running()).toBe(false);
+    expect(Seam().armed()).toBe(false);
     expect(require('../../../shared/services/quiz/web-quiz-fast').fresh()).toBe(false);
+    S.reads = [];
+    await realWait(80);
+    expect(S.reads.filter((r) => r.t === 'app_settings')).toEqual([]);
+    Seam().stop();
   });
 
   test('no value older than twice its cache time is served while it is re-read (a quiet spell waits, as today)', async () => {

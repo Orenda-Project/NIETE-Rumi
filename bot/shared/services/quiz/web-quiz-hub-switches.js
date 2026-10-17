@@ -20,14 +20,13 @@
  *   A failed read primes nothing: every module stays as it was and reads its own switch, by its own rules.
  *   Never throws.
  *
- * One timer per process (start/stop): every 25 s, while web_quiz_fast is on, the same one read (plus the fast switch's
- * own row, so the timer keeps itself going through a quiet spell) primes every module: a hub request finds every
- * switch fresh, and a flipped switch, the fast one included, lands within 25 s. A switch is never answered from a value
- * older than twice its cache time (web-quiz-swr.js), so a flip lands within 60 s even with the timer's reads failing.
- * It never blocks a request, never keeps the process alive (unref), reads nothing and stops while web_quiz_fast is off
- * (the next fast hub request starts it again). It starts from the hub's first fast request, never at require time, and
- * never under jest unless a test calls start().
- *
+ * One timer per process (start/stop), started by the bot at boot: every 25 s, once a fast hub request has armed it, the
+ * same one read (plus the fast switch's own row, so it keeps itself going through a quiet spell) primes every module:
+ * a hub request finds every switch fresh, and a flipped switch, the fast one included, lands within 25 s. A switch is
+ * never answered from a value older than twice its cache time (web-quiz-swr.js), so a flip lands within 60 s even with
+ * the timer's reads failing. It never blocks a request and never keeps the process alive (unref); until a fast hub
+ * request arms it, and from a tick that reads the fast switch off, it reads nothing (web_quiz_fast off = today).
+
  * web_quiz_fast off: nothing here runs; every module reads its own switch, exactly as before.
  * The fast switch itself is read here only by the timer (it decides whether this runs).
  */
@@ -60,6 +59,8 @@ let list = null;
 let keys = null;
 let reading = null;
 let timer = null;
+// The timer reads only once a fast hub request has armed it (ensure()), and disarms itself when it reads the fast switch off.
+let armed = false;
 
 /** Each module's hubSwitches, in priming order. */
 function entries() {
@@ -123,7 +124,7 @@ const ageOf = (e, now) => { try { return e.age(now); } catch (_) { return 'cold'
 function ensure(now = Date.now()) {
   try {
     if (!fastOn()) return null;
-    autoStart();
+    armed = true;
     const ages = entries().map((e) => ageOf(e, now));
     return ages.includes('cold') || ages.includes('stale') ? load(now) : null;
   } catch (_) {
@@ -132,21 +133,23 @@ function ensure(now = Date.now()) {
 }
 
 /**
- * One tick of the timer: the one read (with the fast switch's own row) while web_quiz_fast is on; stops (reading
- * nothing) while it is off, and after a tick that read it off. A failed read keeps the timer: the next tick tries again.
+ * One tick of the timer: the one read (with the fast switch's own row) once a fast hub request has armed it; nothing
+ * (no read) until then, and from a tick that read the fast switch off until a fast hub request arms it again. A failed
+ * read keeps it armed: the next tick tries again.
  */
 async function tick() {
   try {
-    if (!fastCached()) { stop(); return false; }
+    if (!armed) return false;
+    if (!fastCached()) { armed = false; return false; }
     const ok = await load(Date.now(), { withFast: true });
-    if (!fastCached()) stop();
+    if (!fastCached()) armed = false;
     return ok;
   } catch (_) {
     return false;
   }
 }
 
-/** The process's one timer (a second start is a no-op). Never keeps the process alive. */
+/** The process's one timer (a second start is a no-op), started by the bot at boot (whatsapp-bot.js). Never keeps the process alive. */
 function start({ everyMs = EVERY_MS } = {}) {
   if (timer) return;
   timer = setInterval(() => { tick(); }, everyMs);
@@ -158,14 +161,10 @@ function stop() {
   timer = null;
 }
 
-// The hub's first fast request starts the timer; a test starts it itself.
-function autoStart() {
-  if (!timer && !process.env.JEST_WORKER_ID) start();
-}
-
 module.exports = {
   ensure, start, stop, tick, entries, ALL_KEYS, EVERY_MS,
   running: () => Boolean(timer),
+  armed: () => armed,
   _handle: () => timer,
-  _reset: () => { stop(); list = null; keys = null; reading = null; },
+  _reset: () => { stop(); armed = false; list = null; keys = null; reading = null; },
 };
