@@ -1013,6 +1013,37 @@ describe('a child WITH a class: a "Watch a video" tile plays the lesson it names
     expect(snap.out.recs.map((r) => r.vid)).toContain(VID);
   });
 
+  // #C72: the result snapshot's reads. OFF (no lesson asked, `watch` off) = the recorded 16 tables on a cold start:
+  // 12 data reads, exactly, + up to 4 switch reads (app_settings; a warm switch cache skips some, so they are a
+  // ceiling). ON (a class child, the lesson named) <= OFF + its own named rows: the sessions, the quizzes and the
+  // lessons behind the class's quiz (the recs a class-less child already gets), one each; never another table.
+  const SNAP_OFF_DATA = { students: 2, student_lists: 2, class_enrollments: 2, quiz_share_codes: 3, quiz_sessions: 2, quizzes: 1 };
+  const SNAP_SWITCH_MAX = 4;
+  const SNAP_ON_ROWS = { quiz_sessions: 1, quizzes: 1, student_videos: 1 };
+  test('#C72: the result snapshot reads 16 tables with the lesson off (12 data + up to 4 switches); on, at most those + quiz_sessions, quizzes, student_videos (one each)', async () => {
+    const readsOf = async (watch) => {
+      seed(ALL_ON(), lessons());
+      const R = require('../../../shared/services/quiz/web-quiz-next-offer-result');
+      const per = {};
+      const from = supabase.from;
+      supabase.from = (t) => { per[t] = (per[t] || 0) + 1; return from(t); };
+      try { await R._snapshot({ studentId: KID, device: A.device, watch }); } finally { supabase.from = from; }
+      const { app_settings: sw = 0, ...data } = per;
+      return { sw, data };
+    };
+    const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+    const off = await readsOf(false);
+    const on = await readsOf(true);
+    expect(off.data).toEqual(SNAP_OFF_DATA);
+    expect(off.sw).toBeLessThanOrEqual(SNAP_SWITCH_MAX);
+    expect(sum(SNAP_OFF_DATA) + SNAP_SWITCH_MAX).toBe(16);
+    // per table: never a table OFF does not read, except the named ones, and never more than OFF + its named row
+    const over = Object.keys(on.data).filter((t) => on.data[t] > (SNAP_OFF_DATA[t] || 0) + (SNAP_ON_ROWS[t] || 0));
+    expect(over).toEqual([]);
+    expect(on.sw).toBeLessThanOrEqual(SNAP_SWITCH_MAX);
+    expect(sum(on.data) + on.sw).toBeLessThanOrEqual(16 + sum(SNAP_ON_ROWS));
+  });
+
   // GOLDEN: a class-less child's whole `next` (offer ids aside: random per render) equals the base's, written once on
   // the base commit (fixtures/next-video-classless.golden.json) and compared here. To re-record on a base commit, put
   // `require('fs').writeFileSync(file, `${got}\n`);` above the expect for one run, then remove it.
