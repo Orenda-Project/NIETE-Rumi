@@ -35,6 +35,7 @@ const ago = (h) => new Date(NOW - h * 3600000).toISOString();
 const ahead = (h) => new Date(NOW + h * 3600000).toISOString();
 const TRUE = (k) => ({ key: k, value: true });
 const HOME = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_child_quiz_home', 'web_quiz_library', 'web_quiz_home_v3'].map(TRUE);
+const HUB = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_child_quiz_home', 'web_quiz_library'].map(TRUE); // today's hub, no v3 home
 const A = { device: 'AAAAAAAAAAAAAAAAAAAAAA' };
 
 let waves = 0;
@@ -72,10 +73,10 @@ async function warmWaves(settings, halfRead) {
 
 beforeEach(() => { process.env.WEB_QUIZ_TOKEN_SECRET = 'hub-stories-waves-secret'; });
 
-test('Stories on adds no serial wave to a warm hub, a half-read book included', async () => {
-  const off = await warmWaves(HOME, true);
-  const on = await warmWaves([...HOME, TRUE('web_quiz_stories')], false);
-  const half = await warmWaves([...HOME, TRUE('web_quiz_stories')], true);
+test.each([['the v3 home', HOME], ['today\'s hub', HUB]])('Stories on adds no serial wave to a warm hub (%s), a half-read book included', async (_, base) => {
+  const off = await warmWaves(base, true);
+  const on = await warmWaves([...base, TRUE('web_quiz_stories')], false);
+  const half = await warmWaves([...base, TRUE('web_quiz_stories')], true);
   expect(off.out).not.toHaveProperty('stories');
   expect(on.out.stories).toEqual({ on: 1 });
   expect(half.out.stories.resume).toEqual(expect.objectContaining({ book_id: BOOK, page_n: 2 }));
