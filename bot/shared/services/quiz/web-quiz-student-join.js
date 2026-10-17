@@ -49,6 +49,9 @@ const { clampLanguage } = require('../../config/ux-strings');
 const Swr = require('./web-quiz-swr');
 
 const SWITCH_KEY = 'quiz_student_join';
+// The join page keeps a grade tap made before its script has loaded (the page draws it; join.js replays it). Read only
+// while the join switch is on; OFF (or a failed read) → the page is today's, byte for byte.
+const EARLY_TAP_KEY = 'quiz_join_early_tap';
 const TTL_MS = 30 * 1000;
 const JOIN_TTL_S = 60 * 60;
 const GRADES = Object.freeze([1, 2, 3, 4, 5]);
@@ -73,7 +76,19 @@ let cache = null;
 
 function isTrue(v) { return IdFlags.isTrue(v); }
 
-/** → { on, bind }; all false on a failed read. Never throws. */
+async function earlyTapOn() {
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', EARLY_TAP_KEY);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    // JSON true only (a new key): the string 'true', 1, 'yes' or an object are all off
+    return ((data || [])[0] || {}).value === true;
+  } catch (err) {
+    logToFile('⚠️ student join: early-tap setting lookup failed — off', { error: err.message });
+    return false;
+  }
+}
+
+/** → { on, bind, earlyTap }; all false on a failed read. Never throws. */
 // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
 async function flags(now = Date.now()) {
   if (Swr.stale(cache, TTL_MS, now)) { Swr.revalidate('student-join-flags', () => readFlags(now)); return cache; }
@@ -91,21 +106,23 @@ async function readFlags(now) {
     return await fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ student join: settings lookup failed — switch off', { error: err.message });
-    return { on: false, bind: false };
+    return { on: false, bind: false, earlyTap: false };
   }
 }
 
-async function fromRows(data, now) {
+// tapRows: the early-tap key's rows when the hub's one read carried them; else its own read after the switch, as today.
+async function fromRows(data, now, tapRows = null) {
   const on = isTrue(((data || [])[0] || {}).value);
   const bind = on && Boolean((await IdFlags.flags()).phoneBind);
-  cache = { at: now, on, bind };
+  const earlyTap = on && (tapRows ? ((tapRows[0] || {}).value === true) : (await earlyTapOn()));
+  cache = { at: now, on, bind, earlyTap };
   return cache;
 }
 
 // The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the cache
 // from the raw rows, parsed here exactly as this module's own read parses them (after the identity flags: `bind` reads their cache).
-const hubSwitches = { name: 'student-join-flags', keys: [SWITCH_KEY], swr: ['student-join-flags'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
-  prime: (rows, now) => fromRows(rows.filter((r) => r.key === SWITCH_KEY), now), read: () => flags(), peek: () => cache };
+const hubSwitches = { name: 'student-join-flags', keys: [SWITCH_KEY, EARLY_TAP_KEY], swr: ['student-join-flags'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => r.key === SWITCH_KEY), now, rows.filter((r) => r.key === EARLY_TAP_KEY)), read: () => flags(), peek: () => cache };
 
 const langOf = (l) => clampLanguage(l);
 const nowS = () => Math.floor(Date.now() / 1000);
@@ -262,13 +279,14 @@ const emit = (name, fields, canonicalId = null, device = null) => K.emit(`web_qu
  * and the bot's number for the page's one tap back to WhatsApp when a link has expired.
  */
 async function pageInfo({ t } = {}) {
-  if (!(await flags()).on) return { off: true };
+  const f = await flags();
+  if (!f.on) return { off: true };
   const r = readToken(t);
   if (!r) {
     const old = T.verify(t, 'j', { allowExpired: true });
     return { stale: true, lang: old ? langOf(old.l) : null, ...botField() };
   }
-  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField() };
+  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField(), ...(f.earlyTap ? { earlyTap: true } : {}) };
 }
 
 /** The grade chip: the join_grade line and the home's warm list (fired before the name is typed). */
@@ -597,7 +615,7 @@ async function noteRecognised({ phoneNorm } = {}) {
 }
 
 module.exports = {
-  SWITCH_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
+  SWITCH_KEY, EARLY_TAP_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
   flags, hubSwitches, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound, guestBound,
   cleanFirstName, cleanGrade, pickChips, rosterForPhone, schoolYearStart,
   _resetCache: () => { cache = null; },
