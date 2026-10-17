@@ -2619,7 +2619,7 @@ describe('a kind screen on every stall', () => {
       expect(root.querySelector('[data-main]').textContent).toBe(lang === 'ur' ? 'اب آپ پڑھیں' : 'Your turn');
       fire(root, 'main');
       expect(screenOf(root.innerHTML)).toBe('story-mic');
-      expect(text(root.innerHTML)).toContain(lang === 'ur' ? 'مائیک دوبارہ آزمائیں' : 'Try the mic again');
+      expect(text(root.innerHTML)).toContain(lang === 'ur' ? 'مائیک پھر سے چلا کر دیکھیں' : 'Try the mic again');
       expect(e.calls.ask).toHaveLength(2);
     }
   });
@@ -2628,7 +2628,7 @@ describe('a kind screen on every stall', () => {
     for (const lang of ['en', 'ur']) {
       const bk = lang === 'ur' ? urBook() : book(); bk.pages[0].text = lang === 'ur' ? 'مینا کے پاس پتنگ ہے' : 'Mina Testwala has a kite';
       const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e, { lang });
-      expect(root.innerHTML).toContain('<div class="wqs-ph" data-ph><p>' + bk.pages[0].text + '</p><i>' + (lang === 'ur' ? 'کھل رہی ہے…' : 'Opening…') + '</i></div><div class="wqs-cam"');
+      expect(root.innerHTML).toContain('<div class="wqs-ph" data-ph><p>' + bk.pages[0].text + '</p><i>' + (lang === 'ur' ? 'صفحہ کھل رہا ہے…' : 'Opening…') + '</i></div><div class="wqs-cam"');
     }
     const css = fs.readFileSync(CSS, 'utf8');
     expect(css).toMatch(/\.wqs-ph\{position:absolute;inset:0/);
