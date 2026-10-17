@@ -172,11 +172,8 @@ const { createWebQuizRouter } = require('./routes/web-quiz.routes');
 app.use(createWebQuizRouter());
 // The teacher home /quiz/teacher/:token and /api/th/* (switch off at the bot → falls through to the SPA).
 app.use(require('./routes/quiz-teacher.routes').createQuizTeacherRouter());
-// the one door: /quiz/go/:token, /api/go/* (switch quiz_one_door at the bot; off → falls through to today's handling)
-app.use(require('./routes/quiz-go.routes').createQuizGoRouter());
-// A child joins on their own: /quiz/join/:token (quiz_student_join, decided by the bot; off → the routes below answer).
-const { createQuizJoinRouter } = require('./routes/quiz-join.routes');
-app.use(createQuizJoinRouter());
+// The edge routers in routes/edge-mounts.js, one line each in name order (a new edge adds its line there; off → falls through).
+for (const [, file, make] of require('./routes/edge-mounts')) app.use(require(`./routes/${file}`)[make]());
 // The teacher's web quiz report /r/:token (+ /pdf, /remind), same bot client as /q.
 // Not /t: that is the training link, mounted further down.
 const { createTeacherReportRouter } = require('./routes/teacher-report.routes');

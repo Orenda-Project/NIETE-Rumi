@@ -89,12 +89,11 @@ app.use('/api/internal/wq', require('./shared/routes/web-quiz-internal.routes'))
 app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.routes'));
 // A teacher sends a storybook to the class (portal /api/teacher/stories, /api/teacher/story/share), same x-api-key check.
 app.use('/api/internal/ts', require('./shared/routes/story-teacher-internal.routes'));
-// ── first touch: the maker page ──
-try { require('./shared/services/first-touch/maker.mount').mountMaker(app); } catch (_) { /* not mounted; every other route is today's */ }   // /api/internal/ft (quiz_maker_page)
+// ── first touch: the optional mounts in shared/services/first-touch/mounts.js, one line each in name order ──
+for (const [, file, mount] of require('./shared/services/first-touch/mounts')) {
+  try { require(`./shared/services/first-touch/${file}`)[mount](app); } catch (_) { /* not mounted; every other route is today's */ }
+}
 // ── end first touch ──
-// ── teacher home: /api/internal/th (quiz_teacher_home; off → 404 {off:true} and the edge falls through) ──
-try { require('./shared/services/first-touch/teacher-home.mount').mountTeacherHome(app); } catch (_) { /* not mounted; every other route is today's */ }
-// ── end teacher home ──
 // ── the one door (quiz_one_door): /quiz/go landing, the one question (portal edge -> bot), same x-api-key check ──
 try { require('./shared/services/first-touch/go.mount').mountGo(app); } catch (_) { /* not mounted; every other route is today's */ }
 // ── end the one door ──
