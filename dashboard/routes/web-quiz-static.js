@@ -1,6 +1,6 @@
 /**
- * The child pages' own files at /wq/* with the fast switch on (app_settings web_quiz_fast; the edge keeps the bot's
- * last `fast`). Mounted once at the top of the web quiz router, so it runs before every route and the static server.
+ * The child pages' own files at /wq/* with the switch app_settings web_quiz_brotli on (web-quiz-brotli-flag.js: default
+ * OFF, JSON true only, remembered 30 s, never read per request, fail OFF). Mounted once at the top of the web quiz router, so it runs before every route and the static server.
  *
  *   1. A versioned script or style (/wq/<name>.js|.css?v=<10 lower-hex>, the edge's plain asset version) goes out
  *      brotli-compressed to a phone that takes br. The hosting edge only gzips a buffered answer; br at quality 11 is
@@ -13,13 +13,14 @@
  *   3. The page shells name Jugnu's pictures with ?v=<sha256 of the picture, 10 hex>: html sent with res.send, and
  *      the streamed page (web-quiz-stream.js reads res.locals.wqHtml). Not on a link-preview fetch (today's page).
  *
- * Switch off: nothing here touches the request or the answer (today's bytes and headers).
+ * Switch off: nothing here touches the request or the answer (today's bytes and headers), whatever web_quiz_fast says.
  */
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const { isPreviewFetch } = require('./web-quiz-preview');
+const { brotliOn } = require('./web-quiz-brotli-flag');
 
 const V_RX = /^[0-9a-f]{10}$/;
 const NAME_RX = /^[A-Za-z0-9._-]+\.(js|css)$/;
@@ -46,11 +47,13 @@ function versionOf(req) {
 }
 
 /**
- * createWqStatic({ publicDir, fast }) → express middleware. `fast()` answers whether the switch is on now.
- * The middleware carries `.stats()`: the br copies ready and their bytes (memory).
+ * createWqStatic({ publicDir, on }) → express middleware. `on()` answers whether the switch is on now, at once
+ * (default: the process's web_quiz_brotli switch). The middleware carries `.stats()`: the br copies ready and their bytes.
  */
-function createWqStatic({ publicDir, fast }) {
+function createWqStatic({ publicDir, on }) {
   const dir = path.resolve(publicDir);
+  const ask = typeof on === 'function' ? on : brotliOn;
+  const switchOn = () => { try { return ask() === true; } catch (_) { return false; } };
   const copies = new Map();   // name -> { key, etag, br } (ready) | { key, pending } (in the works)
   const picV = new Map();     // '/wq/…webp' -> { key, v }
   let warmed = false;
@@ -112,7 +115,7 @@ function createWqStatic({ publicDir, fast }) {
     return req.method === 'HEAD' ? res.end() : res.end(c.br);
   }
 
-  /** The pictures' ?v= in a page's html (the switch's on). */
+  /** The pictures' ?v= in a page's html (the switch is on: read once, when the page's answer starts). */
   function versionPics(html) {
     return html.replace(PIC_RX, (all, src, url) => {
       const file = path.join(dir, url.slice('/wq/'.length));
@@ -127,11 +130,11 @@ function createWqStatic({ publicDir, fast }) {
       return `${src}${url}?v=${p.v}"`;
     });
   }
-  const pageHtml = (s) => (typeof s === 'string' && fast() ? versionPics(s) : s);
+  const pageHtml = (s) => (typeof s === 'string' ? versionPics(s) : s);
 
   function onPage(req, res, next) {
     // a link-preview fetch (a crawler: no pictures loaded) keeps today's page, byte for byte
-    if (!fast() || isPreviewFetch(req)) return next();
+    if (!switchOn() || isPreviewFetch(req)) return next();
     res.locals.wqHtml = pageHtml;
     const send = res.send;
     res.send = function sendPage(body) {
@@ -142,7 +145,7 @@ function createWqStatic({ publicDir, fast }) {
   }
 
   function onFile(req, res, next) {
-    if (!fast()) return next();
+    if (!switchOn()) return next();
     const sub = req.path.slice('/wq'.length);
     const v = versionOf(req);
     if (!v) {

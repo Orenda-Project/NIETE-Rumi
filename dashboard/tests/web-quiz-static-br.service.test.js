@@ -1,11 +1,12 @@
 /**
- * The child pages' own files at /wq/* with the fast switch on (app_settings web_quiz_fast; the bot's payload says
- * `fast: true`): a versioned script or style (?v=<10 hex>) goes out brotli-compressed (quality 11, made once per file
+ * The child pages' own files at /wq/* with the switch app_settings web_quiz_brotli on (its own switch, default OFF,
+ * JSON true only, remembered 30 s, fail OFF; independent of web_quiz_fast): a versioned script or style (?v=<10 hex>) goes out brotli-compressed (quality 11, made once per file
  * in the background) to a phone that takes br; an unversioned file is kept a day, not a year (a redrawn Jugnu reaches
  * phones); the page shells name Jugnu's pictures with ?v=<hash of the picture>. Switch off: today's answers, byte for
- * byte and header for header.
+ * byte and header for header, whatever web_quiz_fast says.
  *
- * The bot is the network boundary (a fake fetch). No first-party module is mocked.
+ * The bot (a fake fetch) and the database (a fake client handed to the switch) are the boundaries. No first-party
+ * module is mocked.
  */
 const crypto = require('crypto');
 const fs = require('fs');
@@ -52,11 +53,37 @@ function bot(fast) {
 }
 
 const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
-function build(fetchImpl) {
+/** brotliOn: the switch the router is handed (undefined = the process's own web_quiz_brotli switch). */
+function build(fetchImpl, brotliOn) {
   const app = express();
   app.set('trust proxy', 1);
-  app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl }));
+  app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, ...(brotliOn ? { brotliOn } : {}) }));
   return app;
+}
+
+/** A database client whose app_settings read answers `answer()` (or throws); counts the reads. */
+function fakeDb(answer) {
+  const calls = { n: 0, keys: [] };
+  const client = {
+    from: (table) => ({
+      select: () => ({
+        eq: (col, key) => ({
+          maybeSingle: async () => { calls.n += 1; calls.keys.push(`${table}.${col}=${key}`); return answer(); },
+        }),
+      }),
+    }),
+  };
+  return { db: () => client, calls };
+}
+const row = (value) => () => ({ data: { value }, error: null });
+// Loaded inside the tests, so this file also runs (and shows what is missing) on code without the switch.
+const Flag = () => require('../routes/web-quiz-brotli-flag');
+/** The real switch over a fake database, its first read landed. */
+async function primedFlag(answer, now) {
+  const on = Flag().createBrotliFlag({ db: fakeDb(answer).db, ...(now ? { now } : {}) });
+  on();
+  await on.ready();
+  return on;
 }
 
 /** GET (or HEAD) path; resolves with the status, headers, raw bytes and the decoded bytes. */
@@ -99,15 +126,22 @@ const stable = (h) => Object.fromEntries(Object.entries(h)
 let srv;
 afterEach(() => new Promise((r) => (srv ? srv.close(() => { srv = null; r(); }) : r())));
 
-async function fastOn() {
-  srv = await start(build(bot(true)));
-  await get(srv, `/h/${TOKEN}`);   // the bot's payload says fast: true; the edge remembers it
+/** The brotli switch on (web_quiz_fast off: the bot's payload says fast: false). */
+async function brOn() {
+  srv = await start(build(bot(false), () => true));
+  await get(srv, `/h/${TOKEN}`);
+  return srv;
+}
+/** Both switches on: web_quiz_fast (the bot's payload says fast: true; the edge remembers it) and web_quiz_brotli. */
+async function bothOn() {
+  srv = await start(build(bot(true), await primedFlag(row(true))));
+  await get(srv, `/h/${TOKEN}`);
   return srv;
 }
 
-describe('fast on: versioned scripts and styles go out brotli-compressed', () => {
+describe('switch on: versioned scripts and styles go out brotli-compressed', () => {
   test('(a) a phone sending "gzip, deflate, br" gets br: the exact file, a year, immutable, Vary', async () => {
-    await fastOn();
+    await brOn();
     const res = await getBr(srv, `/wq/wq.js?v=${V}`);
     expect(res.status).toBe(200);
     expect(res.headers['content-encoding']).toBe('br');
@@ -122,7 +156,7 @@ describe('fast on: versioned scripts and styles go out brotli-compressed', () =>
   });
 
   test('a style too: text/css, the exact bytes; a repeat with the ETag is a 304', async () => {
-    await fastOn();
+    await brOn();
     const res = await getBr(srv, `/wq/wq.css?v=${V}`);
     expect(res.headers['content-encoding']).toBe('br');
     expect(res.headers['content-type']).toBe('text/css; charset=UTF-8');
@@ -138,14 +172,14 @@ describe('fast on: versioned scripts and styles go out brotli-compressed', () =>
   });
 
   test('(b) a hand-written "br, gzip" gets br too', async () => {
-    await fastOn();
+    await brOn();
     const res = await getBr(srv, `/wq/hub.js?v=${V}`, { 'accept-encoding': 'br, gzip' });
     expect(res.headers['content-encoding']).toBe('br');
     expect(res.body.equals(fs.readFileSync(path.join(PUB, 'hub.js')))).toBe(true);
   });
 
   test('HEAD of a ready file: br headers, no body', async () => {
-    await fastOn();
+    await brOn();
     await getBr(srv, `/wq/wq-home.js?v=${V}`);
     const res = await get(srv, `/wq/wq-home.js?v=${V}`, { 'accept-encoding': AE }, 'HEAD');
     expect(res.headers['content-encoding']).toBe('br');
@@ -153,7 +187,7 @@ describe('fast on: versioned scripts and styles go out brotli-compressed', () =>
   });
 
   test('(c) a gzip-only phone gets today\'s answer (the plain file, a year)', async () => {
-    await fastOn();
+    await brOn();
     await getBr(srv, `/wq/wq.js?v=${V}`);
     const res = await get(srv, `/wq/wq.js?v=${V}`, { 'accept-encoding': 'gzip, deflate' });
     expect(res.headers['content-encoding']).toBeUndefined();
@@ -162,7 +196,7 @@ describe('fast on: versioned scripts and styles go out brotli-compressed', () =>
   });
 
   test('a picture or a version not in the plain form is not compressed here', async () => {
-    await fastOn();
+    await brOn();
     await getBr(srv, `/wq/wq.js?v=${V}`);
     const other = await get(srv, '/wq/wq.js?v=0123456789abcdef', { 'accept-encoding': AE });
     expect(other.headers['content-encoding']).toBeUndefined();
@@ -172,27 +206,35 @@ describe('fast on: versioned scripts and styles go out brotli-compressed', () =>
   });
 });
 
-describe('(d) fast off: today\'s answers, byte for byte and header for header', () => {
-  for (const p of Object.keys(GOLDEN)) {
-    test(p, async () => {
-      srv = await start(build(bot(false)));
-      await get(srv, `/h/${TOKEN}`);
-      for (let i = 0; i < 3; i += 1) {
-        const res = await get(srv, p, { 'accept-encoding': AE });
-        expect(stable(res.headers)).toEqual(GOLDEN[p]);
-        if (res.status === 200) {
-          const file = path.join(PUB, p.replace(/^\/wq\//, '').replace(/\?.*$/, ''));
-          expect(res.body.equals(fs.readFileSync(file))).toBe(true);
+describe('(d) switch off: today\'s answers, byte for byte and header for header', () => {
+  // The golden was captured from the code without this change. OFF with web_quiz_fast off, and OFF with it ON.
+  const OFF = {
+    'fast off, no row': async () => build(bot(false), await primedFlag(() => ({ data: null, error: null }))),
+    'fast ON, no row': async () => build(bot(true), await primedFlag(() => ({ data: null, error: null }))),
+    'fast ON, the process\'s own switch (no database here)': async () => build(bot(true)),
+  };
+  for (const [name, make] of Object.entries(OFF)) {
+    for (const p of Object.keys(GOLDEN)) {
+      test(`${name}: ${p}`, async () => {
+        srv = await start(await make());
+        await get(srv, `/h/${TOKEN}`);
+        for (let i = 0; i < 3; i += 1) {
+          const res = await get(srv, p, { 'accept-encoding': AE });
+          expect(stable(res.headers)).toEqual(GOLDEN[p]);
+          if (res.status === 200) {
+            const file = path.join(PUB, p.replace(/^\/wq\//, '').replace(/\?.*$/, ''));
+            expect(res.body.equals(fs.readFileSync(file))).toBe(true);
+          }
+          await new Promise((r) => setTimeout(r, 20));
         }
-        await new Promise((r) => setTimeout(r, 20));
-      }
-    });
+      });
+    }
   }
 });
 
-describe('(e) fast on: only a versioned URL is kept for a year', () => {
+describe('(e) switch on: only a versioned URL is kept for a year', () => {
   test('an unversioned picture: a day, not immutable', async () => {
-    await fastOn();
+    await brOn();
     for (const p of ['/wq/jugnu/hello.webp', '/wq/jugnu/correct.webp', '/wq/jugnu_sleep.webp', '/wq/manifest.webmanifest']) {
       const res = await get(srv, p, { 'accept-encoding': AE });
       expect(res.status).toBe(200);
@@ -200,13 +242,13 @@ describe('(e) fast on: only a versioned URL is kept for a year', () => {
     }
   });
   test('a font whose name is its version stays immutable', async () => {
-    await fastOn();
+    await brOn();
     const res = await get(srv, '/wq/fonts/wq-nastaliq-6.woff2', { 'accept-encoding': AE });
     expect(res.status).toBe(200);
     expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
   });
   test('a versioned picture keeps its year', async () => {
-    await fastOn();
+    await brOn();
     const res = await get(srv, `/wq/jugnu/hello.webp?v=${hash10('jugnu/hello.webp')}`, { 'accept-encoding': AE });
     expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
   });
@@ -214,7 +256,7 @@ describe('(e) fast on: only a versioned URL is kept for a year', () => {
 
 describe('(f) a minified copy\'s URL (?v=<hex>m) is not this handler\'s', () => {
   test('passes to whatever serves it next (today: the plain file, a year)', async () => {
-    await fastOn();
+    await brOn();
     await getBr(srv, `/wq/wq.js?v=${V}`);
     const res = await get(srv, `/wq/wq.js?v=${V}m`, { 'accept-encoding': AE });
     expect(res.headers['content-encoding']).toBeUndefined();
@@ -225,7 +267,7 @@ describe('(f) a minified copy\'s URL (?v=<hex>m) is not this handler\'s', () => 
 
 describe('(g) a path outside the folder or a missing file: today\'s 404', () => {
   test.each([`/wq/..%2fx.js?v=${V}`, `/wq/..%2f..%2fpackage.js?v=${V}`, `/wq/nope.js?v=${V}`, `/wq/%2e%2e%2findex.js?v=${V}`])('%s', async (p) => {
-    await fastOn();
+    await brOn();
     const first = await get(srv, p, { 'accept-encoding': AE });
     await new Promise((r) => setTimeout(r, 50));
     const res = await get(srv, p, { 'accept-encoding': AE });
@@ -238,10 +280,10 @@ describe('(g) a path outside the folder or a missing file: today\'s 404', () => 
   });
 });
 
-describe('(h) the page shells name Jugnu\'s pictures with their version, only with fast on', () => {
+describe('(h) the page shells name Jugnu\'s pictures with their version, only with the switch on', () => {
   const HELLO = () => `/wq/jugnu/hello.webp?v=${hash10('jugnu/hello.webp')}`;
   test('the hub page (streamed and buffered) and the quiz page', async () => {
-    await fastOn();
+    await brOn();
     const streamed = await get(srv, `/h/${TOKEN}`, { 'accept-encoding': AE });
     expect(streamed.body.toString('utf8')).toContain(`src="${HELLO()}"`);
     expect(streamed.body.toString('utf8')).not.toContain('src="/wq/jugnu/hello.webp"');
@@ -253,12 +295,12 @@ describe('(h) the page shells name Jugnu\'s pictures with their version, only wi
     expect(quiz.body.toString('utf8')).toContain(`src="${HELLO()}"`);
   });
   test('the closed page names the sleeping Jugnu with its version', async () => {
-    await fastOn();
+    await brOn();
     const res = await get(srv, '/h/not-a-token');
     expect(res.body.toString('utf8')).toContain(`src="/wq/jugnu_sleep.webp?v=${hash10('jugnu_sleep.webp')}"`);
   });
-  test('fast off: the hub and quiz pages are today\'s render, byte for byte', async () => {
-    srv = await start(build(bot(false)));
+  test('switch off: the hub and quiz pages are today\'s render, byte for byte', async () => {
+    srv = await start(build(bot(false), () => false));
     const hub = await get(srv, `/h/${TOKEN}`);
     const html = hub.body.toString('utf8');
     const assetV = html.match(/wq\.css\?v=([0-9a-f]+)/)[1];
@@ -268,5 +310,97 @@ describe('(h) the page shells name Jugnu\'s pictures with their version, only wi
     expect(quiz.body.toString('utf8')).toBe(renderQuizPage({ payload: QUIZ({ fast: false }), code: 'AB12CD', view: 'quiz', origin: 'http://portal.example', assetV, url: 'http://portal.example/q/AB12CD' }));
     const closed = await get(srv, '/h/not-a-token');
     expect(closed.body.toString('utf8')).toContain('src="/wq/jugnu_sleep.webp"');
+  });
+});
+
+describe('the switch web_quiz_brotli: JSON true only, remembered 30 s, never read per request, fail OFF', () => {
+  const OFF_VALUES = [['the string true', 'true'], ['a quoted string', '"true"'], ['yes', 'yes'], ['1', 1],
+    ['an object', { enabled: true }], ['false', false], ['null', null]];
+  test.each(OFF_VALUES)('%s is OFF', async (_, value) => {
+    expect((await primedFlag(row(value)))()).toBe(false);
+  });
+  test('no row, a read error, a throwing read, no database client: OFF', async () => {
+    expect((await primedFlag(() => ({ data: null, error: null })))()).toBe(false);
+    expect((await primedFlag(() => ({ data: null, error: { message: 'down' } })))()).toBe(false);
+    expect((await primedFlag(() => { throw new Error('socket'); }))()).toBe(false);
+    const none = Flag().createBrotliFlag({ db: () => null });
+    none();
+    await none.ready();
+    expect(none()).toBe(false);
+  });
+  test('the JSON boolean true is ON; it reads its own key', async () => {
+    const f = fakeDb(row(true));
+    const on = Flag().createBrotliFlag({ db: f.db });
+    expect(on()).toBe(false);          // the first answer never waits: OFF until the read lands
+    await on.ready();
+    expect(on()).toBe(true);
+    expect(f.calls.keys).toEqual(['app_settings.key=web_quiz_brotli']);
+    expect(Flag().KEY).toBe('web_quiz_brotli');
+  });
+  test('one read per 30 s, however many requests; none while one is in flight; a failed read is OFF for 30 s', async () => {
+    let t = 1000;
+    let answer = row(true);
+    const f = fakeDb(() => answer());
+    const on = Flag().createBrotliFlag({ db: f.db, now: () => t });
+    for (let i = 0; i < 50; i += 1) on();   // 50 asks while the first read is in flight
+    expect(f.calls.n).toBe(1);
+    await on.ready();
+    for (let i = 0; i < 500; i += 1) expect(on()).toBe(true);
+    t += 29999;
+    on();
+    expect(f.calls.n).toBe(1);
+    t += 1;
+    answer = () => ({ data: null, error: { message: 'down' } });
+    expect(on()).toBe(true);               // the stale value answers at once; the read goes in the background
+    expect(f.calls.n).toBe(2);
+    await on.ready();
+    expect(on()).toBe(false);              // read error = OFF
+    answer = row(true);
+    t += 29999;
+    expect(on()).toBe(false);
+    expect(f.calls.n).toBe(2);
+    t += 1;
+    on();
+    await on.ready();
+    expect(f.calls.n).toBe(3);
+    expect(on()).toBe(true);
+  });
+  test.each(OFF_VALUES.concat([['no row', undefined]]))('%s through the edge (web_quiz_fast ON): today\'s file and page', async (_, value) => {
+    srv = await start(build(bot(true), await primedFlag(value === undefined ? () => ({ data: null, error: null }) : row(value))));
+    await get(srv, `/h/${TOKEN}`);
+    for (let i = 0; i < 5; i += 1) {
+      const res = await get(srv, `/wq/wq.js?v=${V}`, { 'accept-encoding': AE });
+      expect(res.headers['content-encoding']).toBeUndefined();
+      expect(stable(res.headers)).toEqual(GOLDEN['/wq/wq.js?v=0123456789']);
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    const pic = await get(srv, '/wq/jugnu/hello.webp', { 'accept-encoding': AE });
+    expect(stable(pic.headers)).toEqual(GOLDEN['/wq/jugnu/hello.webp']);
+    const hub = await get(srv, `/h/${TOKEN}`, { 'accept-encoding': AE });
+    expect(hub.body.toString('utf8')).toContain('src="/wq/jugnu/hello.webp"');
+    expect(hub.body.toString('utf8')).not.toContain('hello.webp?v=');
+  });
+});
+
+describe('both switches on (web_quiz_fast and web_quiz_brotli)', () => {
+  const HELLO = () => `/wq/jugnu/hello.webp?v=${hash10('jugnu/hello.webp')}`;
+  test('br scripts, a day for an unversioned picture, and the streamed fast page names Jugnu with its version', async () => {
+    await bothOn();
+    const js = await getBr(srv, `/wq/wq.js?v=${V}`);
+    expect(js.headers['content-encoding']).toBe('br');
+    expect(js.body.equals(fs.readFileSync(path.join(PUB, 'wq.js')))).toBe(true);
+    const pic = await get(srv, '/wq/jugnu/hello.webp', { 'accept-encoding': AE });
+    expect(pic.headers['cache-control']).toBe('public, max-age=86400');
+    const page = await get(srv, `/h/${TOKEN}`, { 'accept-encoding': AE });
+    expect(page.headers['content-encoding']).toBe('br');   // the fast page's own stream
+    expect(page.body.toString('utf8')).toContain(`src="${HELLO()}"`);
+    const quiz = await get(srv, '/q/AB12CD', { 'accept-encoding': AE });
+    expect(quiz.body.toString('utf8')).toMatch(/<div class="wq-boot"><img src="\/wq\/jugnu\/hello\.webp\?v=[0-9a-f]{10}"/);
+  });
+  test('web_quiz_fast on alone (brotli off) is today\'s fast page: Jugnu without a version', async () => {
+    srv = await start(build(bot(true), () => false));
+    await get(srv, `/h/${TOKEN}`);
+    const quiz = await get(srv, '/q/AB12CD', { 'accept-encoding': AE });
+    expect(quiz.body.toString('utf8')).toMatch(/<div class="wq-boot"><img src="\/wq\/jugnu\/hello\.webp"/);
   });
 });
