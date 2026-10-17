@@ -955,6 +955,7 @@ const RULE = {
   // Urdu Q6 on lessons with no poem: lesson 7's poem page text is given below the book text.
   urduQ6Given: (p) => `Q6's verses (درج ذیل اشعار کا مفہوم واضح کریں) come from this poem, lesson ${p.unit} «${p.title}» (book pp. ${p.pages}), whatever lessons the paper covers: \`passage\` = four consecutive verse lines copied exactly as given, never a question or note printed between the couplets.`,
   urduNoMaxims: 'Model answers, passages, dialogues and stories carry no religious maxim, hadith, verse, dua or act of worship; keep them to everyday life.',
+  urduNoDates: 'Never ask an item whose answer is a year, a date or a day of the month; the page text\'s numerals are not reliable.',
 };
 
 // Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
@@ -1161,6 +1162,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (closed) rules.push(closed);
   if (key === 'urdu') rules.push(fde ? `${RULE.held} Set items only from book pages ${P.scope.page_ranges}.` : RULE.held);
   if (key === 'urdu') rules.push(RULE.urduNoMaxims);
+  if (key === 'urdu' && list.some((s) => /^urdu\.[AC]\./.test(s.slot))) rules.push(RULE.urduNoDates);
   if (urduPoem) rules.push(RULE.urduQ6Given(urduPoem));
   if (scope && scope.kind === 'fde' && P.scope.excluded_pages_note) rules.push(P.scope.excluded_pages_note);
   const tos = TOS[key];

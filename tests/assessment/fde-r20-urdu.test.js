@@ -227,3 +227,88 @@ describe('urdu Q4: the group word is never one of the listed words', () => {
     expect(prompt('urdu', sectionWith(U, 'urdu.C.Q4'))).toMatch(/the group word is NOT one of the words the item lists/);
   });
 });
+
+// The Urdu page text's numeral dates are not reliable (years lose a digit, «۱۹۱۳ء» reads «۱۹۳ ء»),
+// so a board-pattern item keyed on a year, a date or a day of the month is held, and the Section A
+// and C prompts say never to ask one.
+describe('urdu: no item keyed on a year or a date', () => {
+  const stemsOf = (exam, slot) => items(exam, slot).map((q) => q.question);
+  const yearStem = 'محترمہ فاطمہ جناح نے کس سال سینئر کیمبرج کا امتحان پاس کیا، جس کے بعد انھوں نے کلکتہ میں داخلہ لیا؟';
+
+  test('chapters_1 Q1 ۲۰ keyed «۱۹۱۹ء» is held, and every other Q1 item prints', () => {
+    const ch1 = read('chapters_1');
+    const q = items(ch1, 'urdu.A.Q1').find((x) => x.question === yearStem);
+    expect(q.answer).toBe('ب) ۱۹۱۹ء');
+    const out = stemsOf(laid(ch1).examJson, 'urdu.A.Q1');
+    expect(out).not.toContain(yearStem);
+    expect(out).toEqual(stemsOf(ch1, 'urdu.A.Q1').filter((s) => s !== yearStem));
+  });
+
+  test('after the re-ask the held year item is not put back', () => {
+    const ch1 = read('chapters_1');
+    const out = applyLayout(clone(ch1), U, FDE, { reasked: true });
+    expect(stemsOf(out.examJson, 'urdu.A.Q1')).not.toContain(yearStem);
+  });
+
+  // One Q1 item of chapters_1, its key and accept replaced.
+  const withKey = (answer, accept) => {
+    const ch1 = read('chapters_1');
+    const q = items(ch1, 'urdu.A.Q1').find((x) => x.question !== yearStem);
+    q.question = 'یہ سوال کس کا ہے؟';
+    q.options = ['الف) ایک', 'ب) دو', 'ج) تین', 'د) چار'];
+    q.answer = answer;
+    q.scheme = { ...(q.scheme || {}), accept: accept || [answer] };
+    return { ch1, held: !stemsOf(laid(ch1).examJson, 'urdu.A.Q1').includes(q.question) };
+  };
+
+  test.each([
+    ['a Latin-digit year', 'الف) 1947ء'],
+    ['a year with a space before «ء»', 'الف) ۱۸۷۷ ء'],
+    ['a day and a month', 'الف) ۱۴ اگست'],
+    ['a month and a day', 'الف) اگست ۱۴'],
+    ['a day of an Islamic month', 'الف) ۱۲ ربیع الاول'],
+    ['a bare four-digit year', 'الف) ۱۹۴۷'],
+  ])('a key carrying %s is held', (_, answer) => {
+    expect(withKey(answer).held).toBe(true);
+  });
+
+  test('a year in the accept list only is held', () => {
+    expect(withKey('الف) ایک', ['الف) ایک', 'سن ۱۹۴۷ء']).held).toBe(true);
+  });
+
+  test.each([
+    ['a word', 'الف) ایک'],
+    ['a small number', 'الف) ۲۵'],
+    ['a month without a day', 'الف) اگست'],
+  ])('a key carrying %s is kept', (_, answer) => {
+    expect(withKey(answer).held).toBe(false);
+  });
+
+  test('a Section C item keyed on a date is held there too', () => {
+    const ch1 = read('chapters_1');
+    const q = items(ch1, 'urdu.C.Q4').find((x) => /مستقبل/.test(x.question));
+    q.question = 'فعلِ حال کو فعلِ مستقبل میں بدل کر جملہ دوبارہ لکھیں: میلہ ۲۵ دسمبر کو لگتا ہے۔';
+    q.answer = 'میلہ ۲۵ دسمبر کو لگے گا۔';
+    q.scheme.accept = [q.answer];
+    expect(stemsOf(laid(ch1).examJson, 'urdu.C.Q4')).not.toContain(q.question);
+  });
+
+  test('a dated letter or essay is a model, not a key, and prints', () => {
+    const ch1 = read('chapters_1');
+    for (const slot of ['urdu.C.Q8', 'urdu.C.Q10']) items(ch1, slot)[0].answer = `۱۵ مئی ۲۰۲۴ء\n${items(ch1, slot)[0].answer}`;
+    for (const slot of ['urdu.C.Q8', 'urdu.C.Q10']) expect(stemsOf(laid(ch1).examJson, slot)).toEqual(stemsOf(ch1, slot));
+  });
+
+  test('the Section A and C prompts say never to ask a year or a date; Section B does not', () => {
+    const rule = /Never ask an item whose answer is a year, a date or a day of the month/;
+    expect(prompt('urdu', sectionWith(U, 'urdu.A.Q1'))).toMatch(rule);
+    expect(prompt('urdu', sectionWith(U, 'urdu.C.Q4'))).toMatch(rule);
+    expect(prompt('urdu', sectionWith(U, 'urdu.B.Q2'))).not.toMatch(rule);
+  });
+
+  test('other subjects do not carry the line', () => {
+    for (const subject of ['science', 'maths', 'english', 'social_studies']) {
+      for (const section of PAT.subjects[subject].sections) expect(prompt(subject, section)).not.toMatch(/a year, a date or a day of the month/);
+    }
+  });
+});

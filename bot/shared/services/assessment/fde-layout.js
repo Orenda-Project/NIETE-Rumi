@@ -1073,6 +1073,30 @@ function groupWordListed(q) {
   const inList = options.filter((o) => listed.includes(o));
   return listed.length > 1 && inList.length === 1 && inList[0] === key;
 }
+// Urdu: the page text's numeral dates are not reliable (a year loses a digit, «۱۹۱۳ء» reads
+// «۱۹۳ ء»), so an item keyed on a year, a date or a day of the month is held: its key, or any entry
+// of its scheme's accept list, carries digits with «ء», «سن» and a year, a four-digit year alone, or
+// a month beside a number. The written pieces (picture, essay or dialogue, story, letter) are
+// models, not keys: a letter is dated by its form, so they are not read.
+const DATE_KEY_SLOTS = new Set(['urdu.A.Q1', 'urdu.B.Q2', 'urdu.C.Q3', 'urdu.C.Q4', 'urdu.C.Q5', 'urdu.C.Q6']);
+// Month names are matched as `plain` writes them (one letter form, no hamza seat).
+const DATE_MONTHS = `(?:${['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر',
+  'محرم', 'صفر', 'ربیع الاول', 'ربیع الثانی', 'ربیع الآخر', 'جمادی الاول', 'جمادی الاولیٰ', 'جمادی الثانی', 'جمادی الآخر', 'رجب',
+  'شعبان', 'رمضان', 'شوال', 'ذوالقعدہ', 'ذی قعدہ', 'ذوالحجہ', 'ذی الحجہ', 'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december'].map(plain).join('|')})`;
+const DATE_TEXT = [
+  /(?:^| )\d{3,4} ?ء(?: |$)/,
+  /(?:^| )سنہ? \d{3,4}(?: |$)/,
+  /^[12]\d{3}$/,
+  new RegExp(`(?:^| )\\d{1,2} ${DATE_MONTHS}(?: |$)`),
+  new RegExp(`(?:^| )${DATE_MONTHS} \\d{1,4}(?: |$)`),
+  /(?:^| )\d{1,2} تاریخ(?: |$)/,
+];
+function keyedOnDate(q) {
+  const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept.filter((a) => typeof a === 'string') : [];
+  return [keyText(q), ...accept.map((a) => a.replace(OPTION_HEAD, ''))]
+    .map(plain).some((t) => t && DATE_TEXT.some((re) => re.test(t)));
+}
 // Urdu Q1: an MCQ whose stem prints its own key gives itself away («لفظ «سانپ» کی درست املا کون سی
 // ہے؟» → سانپ; «سَحَر» … درست اعراب والا لفظ → سَحَر), the key being one of its options: a quote that is the key as written, marks and
 // all, or the key's words in order outside the stem's quotes. A quote that holds the key among other
@@ -1305,6 +1329,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
       if (P.key === 'social_studies' && tierSlip(q)) return false;
+      if (P.key === 'urdu' && DATE_KEY_SLOTS.has(slot.slot) && keyedOnDate(q)) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && (keyAcceptSplit(q) || groupWordListed(q))) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && (printsOwnKey(q) || namesOwnTerm(q))) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
