@@ -30,16 +30,9 @@ const ROW = { registration_completed: false, registration_state: null, name: nul
 
 const { tableDouble } = require('../helpers/table-double');
 
-/**
- * The fake database: the shared table double (filters apply, head counts, writes persist and hand back what they
- * wrote); a table may be made to fail. `writes` shows an insert's `rows` as the product passed it (the double's `raw`).
- */
+/** The fake database: the shared table double (filters apply, head counts, writes persist and hand back what they wrote); a table may be made to fail. */
 function db(tables, { failTables = [] } = {}) {
-  const d = tableDouble(tables, { failTables: Object.fromEntries(failTables.map((t) => [t, `${t} down`])) });
-  return {
-    tables, reads: d.reads, from: d.from, rpc: d.rpc,
-    get writes() { return d.writes.map((w) => (w.raw !== undefined ? { ...w, rows: w.raw } : w)); },
-  };
+  return tableDouble(tables, { failTables: Object.fromEntries(failTables.map((t) => [t, `${t} down`])) });
 }
 
 function memRedis() {
@@ -342,7 +335,7 @@ describe('replies to a person\'s own message ride their own counter (the shared 
       const store = require('../../shared/config/supabase');
       const out = await app.text('JUGNU-EF3GH');
       // the binding is written either way (the save is not a reply); only the reply rides the counter
-      expect(store.writes.filter((w) => w.table === 'child_phone_bindings' && w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['st-2']);
+      expect(store.writes.filter((w) => w.table === 'child_phone_bindings' && w.op === 'insert').map((w) => w.raw.canonical_id)).toEqual(['st-2']);
       expect(out.map((s) => s.kind)).toEqual(n ? ['cta'] : []);
       if (n) expect(out[0].p.url).toMatch(/^https:\/\/portal\.example\/h\//);
       expect(records.map((r) => [r.trigger, r.reason, r.ownReply, r.ok])).toEqual([['bind_reply', 'bind', true, n === 1]]);
