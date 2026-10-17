@@ -33,4 +33,38 @@ async function watchRootId(now = Date.now()) {
 // a code query without the watch root's children (a NULL parent is kept: `neq` alone would drop it)
 const notUnderWatchRoot = (q, root) => (root ? q.or(`parent_share_code_id.is.null,parent_share_code_id.neq.${root}`) : q);
 
-module.exports = { watchRootId, notUnderWatchRoot };
+// The ids of `codes` (rows with id + parent_share_code_id) that ARE the root or whose parent chain reaches it, at any
+// depth (a watch child's lesson code, a friend's code under it, a friend's friend's code, ...). Parents not in `codes`
+// are read with `readCodes(ids)` (rows with id + parent_share_code_id), one read per level. Fail closed: a loop, a
+// chain past MAX_DEPTH or a failed read counts as under; a parent that no longer exists ends the chain. No root: none.
+const MAX_DEPTH = 50;
+async function underWatchRoot(codes, root, readCodes) {
+  const under = new Set();
+  if (!root) return under;
+  const parentOf = new Map(codes.map((c) => [c.id, c.parent_share_code_id || null]));
+  const top = (cid) => { // the first id on the chain whose parent is not known yet, or null (the chain ends or loops)
+    const seen = new Set();
+    for (let cur = cid; cur && cur !== root && !seen.has(cur); cur = parentOf.get(cur)) {
+      seen.add(cur);
+      if (!parentOf.has(cur)) return cur;
+    }
+    return null;
+  };
+  for (let level = 0; level < MAX_DEPTH; level++) {
+    const missing = [...new Set(codes.map((c) => top(c.id)).filter(Boolean))];
+    if (!missing.length) break;
+    let got;
+    try { got = await readCodes(missing); } catch (_) { break; }   // the chains left unknown count as under
+    const byId = new Map((got || []).map((r) => [r.id, r.parent_share_code_id || null]));
+    for (const m of missing) parentOf.set(m, byId.has(m) ? byId.get(m) : null);
+  }
+  for (const c of codes) {
+    const seen = new Set();
+    let cur = c.id;
+    while (cur && cur !== root && !seen.has(cur) && parentOf.has(cur) && seen.size <= MAX_DEPTH) { seen.add(cur); cur = parentOf.get(cur); }
+    if (cur) under.add(c.id);   // reached the root, looped, ran past the cap, or stopped at an unread parent
+  }
+  return under;
+}
+
+module.exports = { watchRootId, notUnderWatchRoot, underWatchRoot };
