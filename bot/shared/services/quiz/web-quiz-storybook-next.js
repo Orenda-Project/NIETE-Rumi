@@ -7,8 +7,8 @@
  *
  * First the newest half-read ready book of the last 7 days (`rule:'resume'`, the same rule as the hub's
  * `stories.resume`), then up to MAX_UNREAD unread ready books of the child's grade and language in the child's shelf
- * order; `minutes` is pages × 0.4, rounded, at least 1. `href` opens the reader on the child's own hub link (the
- * half-read book at its `resume.page_n`: `#story/<id>/p<N>`). `[]` while `web_quiz_stories` is off, when no link can be
+ * order; `minutes` is pages × 0.4, rounded, at least 1. `href` opens the reader on the child's own hub link (with
+ * web_quiz_stories_steady, the half-read book at its `resume.page_n`: `#story/<id>/p<N>`). `[]` while `web_quiz_stories` is off, when no link can be
  * built, or on any failure: it never throws.
  */
 const { clampLanguage } = require('../../config/ux-strings');
@@ -31,7 +31,8 @@ async function candidates({ studentId, lang, grade, token, chip, now = Date.now(
   try {
     if (!studentId || !token || !chip) return [];
     const S = require('./web-quiz-stories'); // eslint-disable-line global-require
-    if (!(await S.storiesOn(now))) return [];
+    const f = await S.flags(now);
+    if (!f.on) return [];
     const l = clampLanguage(lang);
     const link = (id) => `/h/${enc(token)}?kid=${enc(chip)}&lang=${l}#story/${enc(id)}`;
     const [resume, { ordered, done }] = await Promise.all([
@@ -39,8 +40,8 @@ async function candidates({ studentId, lang, grade, token, chip, now = Date.now(
       S.orderedBooks(studentId, { grade: S.gradeOf(grade) || 1, lang: l, now }),
     ]);
     const out = [];
-    // the half-read book opens on the page after the last one the child heard or read (the reader reads /p<N>)
-    if (resume) out.push(row({ id: resume.book_id, title: resume.title, pages: resume.pages }, resume.cover, (id) => `${link(id)}/p${resume.page_n}`, 'resume'));
+    // with the reader's stall setting, the half-read book opens on the page after the last one heard or read (/p<N>)
+    if (resume) out.push(row({ id: resume.book_id, title: resume.title, pages: resume.pages }, resume.cover, f.steady ? (id) => `${link(id)}/p${resume.page_n}` : link, 'resume'));
     ordered.filter((b) => !done.has(b.id) && !(resume && b.id === resume.book_id)).slice(0, MAX_UNREAD)
       .forEach((b) => out.push(row(b, S.fileUrl(b.id, b.cover_file), link)));
     return out;

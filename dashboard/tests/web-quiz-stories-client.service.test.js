@@ -16,8 +16,11 @@ const KID = 'kidchipabcdefghi';
 const BANNED = /\b(test|exam|wpm|words per minute)\b|امتحان|ٹیسٹ|استاد/i;
 
 const W = (i, t, s, box) => (box ? { i, t, s_ms: s, e_ms: s + 400, box } : { i, t, s_ms: s, e_ms: s + 400 });
+// the stall setting (web_quiz_stories_steady): the book says `steady`; on only inside its own describe
+let STEADY = false;
 function book(over = {}) {
   return {
+    ...(STEADY ? { steady: 1 } : {}),
     id: 'b-1', title: 'Mina Testwala', lang: 'en', dir: 'ltr', grade: 1, pace_wpm: 90, lr3: true,
     pages: [
       { n: 1, image: { url: '/s/b-1/p01.webp', w: 720, h: 1080 }, text_band: { url: '/s/b-1/p01-band.webp', w: 1440, h: 260, box: [100, 800, 520, 130] },
@@ -244,13 +247,11 @@ describe('the reader state machine (pure, fake clock)', () => {
     m.go(2); m.primary(); m.granted(); m.result(READ(['read', 'skipped']));
     expect(m.counts()).toEqual({ pages_listened: 1, pages_read: 2 });
   });
-  test('a denied mic: kind state, Listen offered; Your turn is off for THIS page only, the next text page asks again', () => {
+  test('a denied mic: kind state, Listen offered, no more asking in this book', () => {
     const e = env(); const m = mk(e);
     m.primary(); m.end(); m.primary(); m.denied();
     expect(m.st).toBe('denied'); expect(m.label()).toBe('listen');
-    m.primary(); m.end(); expect(m.label()).toBe('next');   // this page: no Your turn again
-    expect(m.dn).toBe(1);
-    m.go(2); expect(m.label()).toBe('yourTurn');            // the next text page: the mic is offered again
+    m.go(2); expect(m.label()).toBe('next');
   });
 });
 
@@ -1291,8 +1292,6 @@ describe('the text lens wins over unsure word boxes (band setting)', () => {
     e.calls.ra[0].o.onEnd(); fire(root, 'main'); fire(root, 'mic'); e.calls.ask[0].onStream({});
     return { e, h, after, mic: root.innerHTML };
   }
-  // the stage's "Opening…" frame (the page's words under the picture until it loads) is the one later addition
-  const noPh = (h) => h.replace(/<div class="wqs-ph" data-ph>.*?<\/div>/g, '');
   // pinned from the reader BEFORE the lens rule (the setting OFF, and a good-box page, must not move a byte); re-pinned on the lines-stay-whole reader
   const PIN = {
     off: {"h":"<section class=\"wqs \" data-screen=\"story-page\" lang=\"en\" dir=\"ltr\"><div class=\"wqs-top\" dir=\"ltr\"><button class=\"wqs-ic\" data-back data-tap=\"back\" aria-label=\"Back\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z\"/></svg></button><h2 lang=\"en\" dir=\"ltr\">Mina Testwala</h2><button class=\"wqs-ic wqs-snd\" data-snd data-tap=\"snd\" aria-pressed=\"false\" aria-label=\"Sound\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z\"/></svg></button></div><div class=\"wqs-stage wqs-st2\" data-stage><div class=\"wqs-cam\" data-cam style=\"width:720px;height:1080px\"><img src=\"/s/b-1/p01.webp\" width=\"720\" height=\"1080\" alt=\"\" onerror=\"WQSTORIES._bad(this)\"><div data-ra></div><i class=\"wqs-mk\" data-mk></i></div></div><button class=\"wqs-whole\" data-whole data-tap=\"cam\" aria-pressed=\"false\">Whole page</button><div class=\"wqs-extra\" data-extra><button class=\"wqs-sec\" data-tap=\"alt\">Your turn</button></div><div class=\"wqs-lrl\" data-lrl></div><div class=\"wqs-ctl\"><button class=\"wqs-arr\" data-tap=\"prev\" disabled aria-label=\"Page before\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z\"/></svg></button><button class=\"wqs-main\" data-main data-primary data-tap=\"main\" data-sound data-trigger=\"tap\">Listen</button><button class=\"wqs-slow\" data-tap=\"slow\" aria-pressed=\"false\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 16a9 7 0 0 1 18 0zm17-3a2 2 0 1 0 2.5-2.5zM6 16v3h3v-3zm9 0v3h3v-3z\"/></svg> Slower</button><button class=\"wqs-arr\" data-tap=\"next\" aria-label=\"Next page\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M8.6 7.4 10 6l6 6-6 6-1.4-1.4 4.6-4.6z\"/></svg></button></div></section>","after":{"cam":"translate(-78.6px,-480.6px) scale(1.034)","mk":["160px","810px","30px","50px","1","wqs-mk"]},"mic":"<section class=\"wqs \" data-screen=\"story-read\" lang=\"en\" dir=\"ltr\"><div class=\"wqs-top\" dir=\"ltr\"><button class=\"wqs-ic\" data-back data-tap=\"close\" aria-label=\"Close\">✕</button><h2 lang=\"en\" dir=\"ltr\"></h2></div><img class=\"wqs-jg wqs-g0\" src=\"/wq/jugnu/hello.webp\" width=\"72\" height=\"72\" alt=\"\" data-jg onerror=\"WQSTORIES._bad(this)\"><div class=\"wqs-stage wqs-st2\" data-stage><div class=\"wqs-cam\" data-cam style=\"width:720px;height:1080px\"><img src=\"/s/b-1/p01.webp\" width=\"720\" height=\"1080\" alt=\"\" onerror=\"WQSTORIES._bad(this)\"><div class=\"wqs-lr\" data-lr></div><i class=\"wqs-mk\" data-mk></i></div></div><button class=\"wqs-whole\" data-whole data-tap=\"cam\" aria-pressed=\"false\">Whole page</button><button class=\"wqs-main wqs-done\" data-primary data-tap=\"main\">I&#39;m done <svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z\"/></svg></button></section>"},
@@ -1334,12 +1333,11 @@ describe('the text lens wins over unsure word boxes (band setting)', () => {
   });
   test('the same page with the setting OFF (no band): byte-identical to before', async () => {
     const r = await run(page({ boxes_ok: false, text_band: null }));
-    expect(r.h).toContain('<div class="wqs-ph" data-ph><p>Mina Testwala has a kite</p><i>Opening…</i></div>');
-    expect({ h: noPh(r.h), after: r.after, mic: noPh(r.mic) }).toEqual(PIN.off);
+    expect({ h: r.h, after: r.after, mic: r.mic }).toEqual(PIN.off);
   });
   test('good boxes + lines: the zoomed print as before, byte-identical', async () => {
     const r = await run(page({ boxes_ok: true }));
-    expect({ h: noPh(r.h), after: r.after, mic: noPh(r.mic) }).toEqual(PIN.good);
+    expect({ h: r.h, after: r.after, mic: r.mic }).toEqual(PIN.good);
   });
   test('boxes unsure, no lines, a band: the lens as before', async () => {
     const bk = book(); bk.pages[0].boxes_ok = false;
@@ -2059,23 +2057,15 @@ describe('echo reading on G1-2', () => {
 });
 
 describe('the next page is fetched ahead', () => {
-  test('the next page\'s picture and voice are warmed only once this page\'s voice plays (never on the book\'s open or a page turn); none past the last page', async () => {
-    const bk = book(); bk.pages[1] = { ...bk.pages[1], audio: { url: '/a/p2.ogg', ms: 900 }, words: [W(0, 'Up', 100)], is_picture: false, text: 'Up' };
-    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
-    expect(e.calls.imgs).toEqual([]);
-    expect(e.calls.preload).toBeUndefined();
-    fire(root, 'main');
-    const p = e.calls.ra[0]; p.audio = { currentTime: 0, readyState: 1, paused: false }; p.o.onState('playing');
-    e.advance(600);
-    expect(e.calls.imgs).toEqual([]);                                  // asked, not yet playing: nothing warmed
-    p.audio.currentTime = 0.4; p.audio.readyState = 4; e.advance(500);
-    expect(e.calls.imgs).toEqual(['/s/b-1/p02.webp']);
-    expect(e.calls.preload).toEqual(['b-1/p2']);
-    e.advance(2000);
-    expect(e.calls.imgs).toHaveLength(1);                              // once per page
+  test('on a page, the next page\'s picture is asked for (and its voice preloaded when the player can); none past the last page', async () => {
+    const e = env(); const root = await openReader(e);
+    expect(e.calls.imgs).toContain('/s/b-1/p02.webp');
     fire(root, 'next'); fire(root, 'next');
-    const q = e.calls.ra[e.calls.ra.length - 1]; expect(q.data.id).toBe('b-1/p2');
-    expect(e.calls.imgs).toHaveLength(1);                              // a turn alone warms nothing
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+    const n = e.calls.imgs.length;
+    expect(e.calls.imgs).toContain('/s/b-1/p03.webp');
+    fire(root, 'prev'); fire(root, 'next');
+    expect(e.calls.imgs.slice(n).filter((u) => /p04/.test(u))).toHaveLength(0);
   });
 });
 
@@ -2251,17 +2241,14 @@ describe('the day\'s readings used up, and low-timed pages', () => {
     fire(root, 'main');
     expect(p.log.filter((x) => x === 'play')).toHaveLength(2);
   });
-  test('a page voice that fails to load: never a bare redraw; Listen and Slower stay, the kind line says why, Listen fetches it anew', async () => {
+  test('a page voice that fails to load: the Slower pill and the sound toggle go with it', async () => {
     const e = env(); const root = await openReader(e);
-    fire(root, 'main');
-    e.calls.ra[0].o.onState('error');
     expect(root.innerHTML).toContain('class="wqs-slow"');
-    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
-    expect(root.querySelector('[data-lrl]').innerHTML).toContain('Jugnu&#39;s voice is waiting for the internet…');
+    e.calls.ra[e.calls.ra.length - 1].o.onState('error');
+    expect(root.innerHTML).not.toContain('class="wqs-slow"');
+    expect(root.innerHTML).not.toContain('data-snd');
     checkScreen(root.innerHTML, 'en');
-    fire(root, 'main');
-    expect(e.calls.ra).toHaveLength(2);                                // the page and its voice, fetched anew
-    expect(e.calls.ra[1].log).toEqual(['play']);                       // and played inside the tap
+    expect(root.innerHTML).toMatch(/class="wqs-top" dir="ltr"/);
   });
   test('quality:\'low\': the live reader gets playWord:null and the page offers no word to tap (no practise word); a word-timed page does', async () => {
     const bk = book(); bk.pages[0].quality = 'low';
@@ -2482,6 +2469,46 @@ describe('hear a sentence again (a tapped word replays its sentence)', () => {
 
 // ---- a kind screen on every stall --------------------------------------------------------------------------------
 describe('a kind screen on every stall', () => {
+  beforeAll(() => { STEADY = true; });
+  afterAll(() => { STEADY = false; });
+  test('a denied mic: kind state, Listen offered; Your turn is off for THIS page only, the next text page asks again', () => {
+    const e = env(); const m = e.S._machine(book(), { lr: true, clock: e.clock });
+    m.primary(); m.end(); m.primary(); m.denied();
+    expect(m.st).toBe('denied'); expect(m.label()).toBe('listen');
+    m.primary(); m.end(); expect(m.label()).toBe('next');   // this page: no Your turn again
+    expect(m.dn).toBe(1);
+    m.go(2); expect(m.label()).toBe('yourTurn');            // the next text page: the mic is offered again
+  });
+  test('the next page\'s picture and voice are warmed only once this page\'s voice plays (never on the book\'s open or a page turn); none past the last page', async () => {
+    const bk = book(); bk.pages[1] = { ...bk.pages[1], audio: { url: '/a/p2.ogg', ms: 900 }, words: [W(0, 'Up', 100)], is_picture: false, text: 'Up' };
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    expect(e.calls.imgs).toEqual([]);
+    expect(e.calls.preload).toBeUndefined();
+    fire(root, 'main');
+    const p = e.calls.ra[0]; p.audio = { currentTime: 0, readyState: 1, paused: false }; p.o.onState('playing');
+    e.advance(600);
+    expect(e.calls.imgs).toEqual([]);                                  // asked, not yet playing: nothing warmed
+    p.audio.currentTime = 0.4; p.audio.readyState = 4; e.advance(500);
+    expect(e.calls.imgs).toEqual(['/s/b-1/p02.webp']);
+    expect(e.calls.preload).toEqual(['b-1/p2']);
+    e.advance(2000);
+    expect(e.calls.imgs).toHaveLength(1);                              // once per page
+    fire(root, 'next'); fire(root, 'next');
+    const q = e.calls.ra[e.calls.ra.length - 1]; expect(q.data.id).toBe('b-1/p2');
+    expect(e.calls.imgs).toHaveLength(1);                              // a turn alone warms nothing
+  });
+  test('a page voice that fails to load: never a bare redraw; Listen and Slower stay, the kind line says why, Listen fetches it anew', async () => {
+    const e = env(); const root = await openReader(e);
+    fire(root, 'main');
+    e.calls.ra[0].o.onState('error');
+    expect(root.innerHTML).toContain('class="wqs-slow"');
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    expect(root.querySelector('[data-lrl]').innerHTML).toContain('Jugnu&#39;s voice is waiting for the internet…');
+    checkScreen(root.innerHTML, 'en');
+    fire(root, 'main');
+    expect(e.calls.ra).toHaveLength(2);                                // the page and its voice, fetched anew
+    expect(e.calls.ra[1].log).toEqual(['play']);                       // and played inside the tap
+  });
   const NET = { en: 'Jugnu&#39;s voice is waiting for the internet…', ur: 'جگنو کی آواز انٹرنیٹ کا انتظار کر رہی ہے…' };
   const urBook = () => ({ ...book(), lang: 'ur', dir: 'rtl', title: 'مینا کی پتنگ' });
   // Listen tapped; the player's element plays (currentTime moving, data on hand)
@@ -2569,7 +2596,7 @@ describe('a kind screen on every stall', () => {
   });
   test('a book that is not here (unpublished, a mistyped link): "This story is not here any more." + More stories, EN and UR; stories off keeps its own words', async () => {
     for (const lang of ['en', 'ur']) {
-      const e = env({ replies: { book: { status: 404, body: { error: 'not_found' } } } });
+      const e = env({ replies: { book: { status: 404, body: { error: 'gone' } } } });
       const root = await openReader(e, { lang }); await flush();
       const h = root.innerHTML;
       expect(screenOf(h)).toBe('stories-gone');
@@ -2633,6 +2660,7 @@ describe('a kind screen on every stall', () => {
       expect(screenOf(root.innerHTML)).toBe('story-mic');
       expect(text(root.innerHTML)).toContain(lang === 'ur' ? 'مائیک پھر سے چلا کر دیکھیں' : 'Try the mic again');
       expect(e.calls.ask).toHaveLength(2);
+      expect(e.calls.ask[0].hash).toBe(true);                         // Open in Chrome keeps #story/<id>/p<N>
     }
   });
 
@@ -2694,7 +2722,7 @@ describe('a kind screen on every stall', () => {
 
   test('an Urdu title is never cut at its first letter: the clipped title row keeps room at its start', () => {
     const css = fs.readFileSync(CSS, 'utf8');
-    expect(css).toMatch(/\.wqs-top h2\[dir=rtl\]\{padding-inline-start:\.3em\}/);
+    expect(css).toMatch(/\[data-steady\] \.wqs-top h2\[dir=rtl\]\{padding-inline-start:\.3em\}/);
   });
   // every reader state: one visible button that leads somewhere, and no wait on the voice without an end
   test('the way-out lint: listening, echo, mic sheet, denied, the drop, together, questions, done — each has a way on; no state waits on the voice for ever', async () => {
@@ -2718,5 +2746,54 @@ describe('a kind screen on every stall', () => {
     e = env({ replies: { book: { status: 200, body: book({ questions: [] }) } } }); root = await openReader(e); runBook(e, root); await flush(); await flush();
     expect(screenOf(root.innerHTML)).toBe('story-done'); look('done', root);
     expect(Object.keys(seen).sort()).toEqual(['denied', 'done', 'drop', 'echo', 'listening', 'mic', 'questions', 'together']);
+  });
+});
+
+// ---- the stall setting OFF: today's reader, step for step ---------------------------------------------------------
+// One scripted walk (EN + UR: open, Listen, the voice's error, a page voiced late, Your turn, a blocked mic, the
+// internet events, the questions, the done screen, a missing book). Its transcript (every screen, the main button, the
+// extras, every request, post, picture warm, voice preload, address write and file loaded; the split-off questions
+// file excepted, a file move) is hashed. PIN = the hash on the reader before the setting existed (sandbox 5c574c638).
+describe('the stall setting OFF (no `steady` on the book): byte-identical to today', () => {
+  const OFF_PIN = 'd5c805a4bf3ecc1bfffe16c17ca146f0c648bd5e952023935f47006295c1f400';
+  async function walk(lang) {
+    const T = [];
+    const bk0 = () => ({ ...book(), lang, dir: lang === 'ur' ? 'rtl' : 'ltr' });
+    const snap = (e, root, tag) => {
+      const m = root.querySelector('[data-main]'); const x = root.querySelector('[data-extra]'); const l = root.querySelector('[data-lrl]');
+      T.push([tag, root.innerHTML, m && m.textContent, m && m.className, x && x.innerHTML, l && l.innerHTML,
+        e.calls.gets.slice(), e.calls.posts.map((p) => [p.url, p.body]), e.calls.imgs.slice(), e.calls.preload || null, e.calls.hist.slice(),
+        e.calls.loaded.map((x) => x.src || x.href).filter((u) => !/wq-stories-d\.js/.test(u)), e.calls.ra.map((p) => [p.data.id, p.log.slice(), p.audio.preload || null])]);
+    };
+    const fireAll = (e, n) => (e.winL[n] || []).forEach((f) => f());
+    // 1. open, Listen, the voice fails, the internet events
+    let e = env({ replies: { book: { status: 200, body: bk0() } } }); let root = await openReader(e, { lang });
+    snap(e, root, 'open');
+    fire(root, 'main'); snap(e, root, 'listen');
+    e.calls.ra[0].audio = { currentTime: 0.3, readyState: 1, paused: false }; e.calls.ra[0].o.onState('playing'); e.advance(4000); snap(e, root, 'starve');
+    fireAll(e, 'offline'); fireAll(e, 'online'); fireAll(e, 'pagehide'); snap(e, root, 'net');
+    e.calls.ra[e.calls.ra.length - 1].o.onState('error'); snap(e, root, 'error');
+    fire(root, 'next'); fire(root, 'next'); e.advance(3500); await flush(); snap(e, root, 'late');
+    // 2. Your turn, blocked, the next page
+    e = env({ replies: { book: { status: 200, body: bk0() } } }); root = await openReader(e, { lang });
+    toMic(e, root); snap(e, root, 'mic');
+    e.calls.ask[0].onDenied('notallowederror'); snap(e, root, 'denied');
+    fire(root, 'next'); fire(root, 'next'); fire(root, 'main'); snap(e, root, 'p3');
+    // 3. the whole book to the done screen
+    e = env({ replies: { book: { status: 200, body: bk0() } } }); root = await openReader(e, { lang });
+    runBook(e, root); await flush(); await flush(); snap(e, root, 'questions');
+    fire(root, 'ans', 0); await flush(); e.advance(1000); await flush(); fire(root, 'ans', 0); await flush(); e.advance(1000); await flush(); await flush(); snap(e, root, 'done');
+    // 4. a book that is not there
+    e = env({ replies: { book: { status: 404, body: { error: 'not_found' } } } }); root = await openReader(e, { lang }); await flush(); snap(e, root, '404');
+    return T;
+  }
+  test('the microphone sheet is not asked to keep the page in its Chrome link', async () => {
+    const e = env(); const root = await openReader(e); toMic(e, root);
+    expect(e.calls.ask[0].hash).toBe(false);
+  });
+  test('the walk\'s transcript hash, EN and UR, equals today\'s', async () => {
+    const h = require('crypto').createHash('sha256').update(JSON.stringify([await walk('en'), await walk('ur')])).digest('hex');
+    if (process.env.PRINT_OFF_PIN) console.log('OFF_PIN', h);
+    expect(h).toBe(OFF_PIN);
   });
 });

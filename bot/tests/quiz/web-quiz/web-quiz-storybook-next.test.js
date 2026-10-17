@@ -56,7 +56,7 @@ describe('candidates', () => {
     const rows = await Next.candidates(ARGS);
     expect(rows[0]).toEqual({
       kind: 'storybook', id: F.BOOK(1), rule: 'resume',
-      href: `/h/${TOKEN}?kid=a&lang=en#story/${F.BOOK(1)}/p2`,   // the page after the last one heard: the reader opens there
+      href: `/h/${TOKEN}?kid=a&lang=en#story/${F.BOOK(1)}`,
       title: 'Book 1 Testwala', title_ur: 'Book 1 Testwala', minutes: 1, art: `/s/${F.BOOK(1)}/cover-aaaa0001.webp`,
     });
     const rest = rows.slice(1);
@@ -69,6 +69,13 @@ describe('candidates', () => {
       .map((x) => x.id).filter((id) => id !== F.BOOK(1) && id !== F.BOOK(3));
     expect(ids).toEqual(order.slice(0, Next.MAX_UNREAD));
     expect(ids).toHaveLength(3);
+  });
+  test('with the reader\'s stall setting on, the half-read book opens on the page after the last one heard', async () => {
+    seed({ events: [{ child_id: KID, book_id: F.BOOK(1), page_n: 1, event: 'story_page_listened', data: {}, at: at(2) }] });
+    fake.db.app_settings.push({ key: 'web_quiz_stories_steady', value: true });
+    const rows = await Next.candidates(ARGS);
+    expect(rows[0].href).toBe(`/h/${TOKEN}?kid=a&lang=en#story/${F.BOOK(1)}/p2`);
+    expect(rows.slice(1).every((r) => r.href.endsWith(`#story/${r.id}`))).toBe(true);
   });
   test('Urdu grade 2: the Urdu book only; no words of a test anywhere', async () => {
     seed();

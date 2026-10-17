@@ -108,4 +108,4 @@
 .wqs-ph i{color:var(--soft);font-style:normal;font-size:16px}
 .wqs-net{margin:0;text-align:center;color:var(--soft);font-size:17px}
 .wqs-lk{pointer-events:none}
-.wqs-top h2[dir=rtl]{padding-inline-start:.3em}
+[data-steady] .wqs-top h2[dir=rtl]{padding-inline-start:.3em}

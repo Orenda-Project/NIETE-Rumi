@@ -70,7 +70,7 @@
     }
     function live() { return R.live(); }
     var micO = {
-      lang: L, src: 'story', ev: ctx.ev,
+      lang: L, src: 'story', ev: ctx.ev, hash: !!b.steady,
       onStream: function (s) { if (m.st === 'mic') { stream = s; m.granted(); } },
       onDenied: function (why) { if (m.st !== 'mic') return; if (why === 'not_now') return micO.onNotNow(); m.denied(); },
       onNotNow: function () { if (m.st === 'mic') m.notNow(); },
@@ -147,7 +147,7 @@
         R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + '<div data-ra></div><div data-es></div><div class="wqs-lr" data-lr></div>') +
         '<button class="wqs-main" data-main data-primary data-tap="main" data-sound data-trigger="tap"></button>'));
       R.camTo(null);
-      R.mount(p, { onEnd: function () { if (eo && !eo.ph) eMic(); }, onState: function (s) { if (s === 'error') down(); } });
+      R.mount(p, { onEnd: function () { if (eo && !eo.ph) eMic(); }, onState: function (s) { if (s === 'error' && on) down(); } });
       eSay();
     }
     function eBtn() { var e = root.querySelector('[data-main]'); if (e) e.textContent = t[eo.pz ? 'listen' : 'pause']; }
@@ -193,7 +193,8 @@
     }
 
     // ---- never a silent stall: the voice waiting for the internet, the picture, the page's place, a late tap ----
-    var nt = 0, ns = -1, wq = {}, ask = {}, H = W.history;
+    // (the book's `steady`, setting web_quiz_stories_steady; without it every line below keeps today's reader)
+    var on = !!b.steady, nt = 0, ns = -1, wq = {}, ask = {}, H = W.history;
     function aud() { return R.pl && R.pl.audio; }
     function lrl(h) { var e = root.querySelector('[data-lrl]'); if (e) e.innerHTML = h; }
     function line(x) { lrl('<p class="wqs-net" role="status">' + esc(t.netWait) + '</p>' + (x || '')); }
@@ -210,7 +211,7 @@
     // 3 s; the rest at 3 s once the voice had played (10 s while it first loads), or at once when the phone is offline.
     // Once it plays, the next page's voice and picture are warmed (never before the child's first Listen).
     function watch() {
-      if (nt) return;
+      if (nt || !on) return;
       nt = C.set(function tk() {
         nt = 0;
         var a = aud(), w;
@@ -225,6 +226,7 @@
         nt = C.set(tk, 500);
       }, 500);
     }
+    // the next page's picture and voice (today: on every page drawn; with the setting: once this page's voice plays)
     function warm() {
       var nx = P[m.i + 1];
       wq[m.i] = 1;
@@ -233,12 +235,13 @@
       try { if (nx.audio && W.WQReadAlong.preload) W.WQReadAlong.preload({ id: b.id + '/p' + nx.n, audio: nx.audio, words: nx.words }); } catch (e) { /* the tap fetches it */ }
     }
     R.os = function (s, i) {
+      if (!on) { if (s === 'error' && R.pl) { m.err(); if (m.i === i) R.re(); } return; }   // today: the page without its voice
       if (!live() || i !== m.i) return;
       if (s === 'playing') { if (!R.nw) lrl(''); watch(); } else if (s === 'error') down();
     };
     // the page's place in the address (#story/<id>/p<N>): a closed in-app browser reopened lands on the same page
     function here() {
-      if (!R.tch && live() && /^#story\//.test(W.location.hash || '') && !/^(questions|done)$/.test(m.st)) try { H.replaceState(null, '', '#story/' + id + '/p' + (m.i + 1)); } catch (e) { /* the page still turns */ }
+      if (on && !R.tch && live() && /^#story\//.test(W.location.hash || '') && !/^(questions|done)$/.test(m.st)) try { H.replaceState(null, '', '#story/' + id + '/p' + (m.i + 1)); } catch (e) { /* the page still turns */ }
     }
     var go1 = m.go;
     m.go = function () { var r = go1.apply(m, arguments); here(); return r; };
@@ -254,7 +257,7 @@
           if (!np || !np.audio || !W.WQReadAlong || !live()) return;
           P[i].audio = np.audio; P[i].words = np.words || P[i].words;
           if (m.i === i && m.st === 'idle') R.re();
-        }).catch(function () { if (live() && m.i === i) { ask[i] = 0; line('<button class="wqs-again" data-tap="late">' + esc(t.retry) + '</button>'); } });
+        }).catch(function () { if (on && live() && m.i === i) { ask[i] = 0; line('<button class="wqs-again" data-tap="late">' + esc(t.retry) + '</button>'); } });
       }, 3000);
     }
     // until the page's picture has loaded, the stage shows the page's words and "Opening…" under it
@@ -269,19 +272,26 @@
     // the main button keeps its old meaning (and colour) for 600 ms after it changes: a late tap never lands on the new one
     R.sy = function (mb, lab) {
       var o = R.ml;
-      ph(); late(m.i);
+      ph();
+      if (mb !== R.mb) { R.mb = mb; late(m.i); if (!on) warm(); }   // a page drawn
       R.ml = lab;
-      if (o == null || o === lab) return;
+      if (!on || o == null || o === lab) return;
       R.lk = C.now(); mb.className = 'wqs-main wqs-' + o + ' wqs-lk';
       C.set(function () { if (R.ml === lab && / wqs-lk/.test(mb.className)) mb.className = 'wqs-main wqs-' + lab; }, 600);
     };
-    if (W.addEventListener) {
-      W.addEventListener('offline', function () { if (live() && (m.st === 'listening' || eo)) down(); });
-      W.addEventListener('online', function () { if (live() && (R.nw || root.querySelector('.wqs-bad')) && /^(idle|paused|listened|together|denied|read|practise|picture)$/.test(m.st)) { R.nw = 0; R.re(); } });
-      W.addEventListener('pagehide', function () { if (live()) R.fl(); });
+    // window events while this book is open (each handler goes the first time it fires after the book is left)
+    function onW(n, f) { var g = function () { if (!live()) return W.removeEventListener(n, g); f(); }; W.addEventListener(n, g); }
+    // a clip already buffered to its end plays on offline
+    function full(a) { try { return a.buffered.end(a.buffered.length - 1) >= a.duration - 0.2; } catch (e) { return false; } }
+    if (on && W.addEventListener) {
+      if (root.setAttribute) root.setAttribute('data-steady', '');
+      onW('offline', function () { if ((m.st === 'listening' || eo) && !full(aud())) down(); });
+      onW('online', function () { if ((R.nw || root.querySelector('.wqs-bad')) && /^(idle|paused|listened|together|denied|read|practise|picture)$/.test(m.st)) { R.nw = 0; R.re(); } });
+      onW('pagehide', function () { R.fl(); });
     }
     if (m.st === 'listening') watch();
-    R.ml = m.label(); here(); ph(); late(m.i);
+    R.ml = m.label(); R.mb = root.querySelector('[data-main]'); here(); ph(); late(m.i);
+    if (!on && R.mb) warm();
 
     return {
       mic: micScreen, read: function () { sum = null; readScreen(); }, q: dv('q'), d: dv('d'), e: eScreen,
