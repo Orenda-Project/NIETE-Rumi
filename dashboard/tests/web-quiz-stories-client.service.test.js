@@ -388,6 +388,32 @@ async function openReader(e, over = {}) {
   return root;
 }
 function toMic(e, root) { fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onEnd(); fire(root, 'main'); }
+describe('OFF goldens', () => {
+  const scripts = (e) => e.calls.loaded.filter((x) => x.tag === 'script').map((x) => x.src.replace(/\?.*/, ''));
+  test('live reading off (the book says lr3:false, no live reader on the page): no live-reading file, and the page is byte-identical to a book that does not mention lr3', async () => {
+    for (const lang of ['en', 'ur']) {
+      const dir = lang === 'ur' ? 'rtl' : 'ltr';
+      const off = env({ lr: false, replies: { book: { status: 200, body: { ...book({ lang, dir }), lr3: false } } } });
+      const ro = await openReader(off, { lang });
+      const plain = book({ lang, dir }); delete plain.lr3;
+      const none = env({ lr: false, replies: { book: { status: 200, body: plain } } });
+      const rn = await openReader(none, { lang });
+      expect(ro.innerHTML).toBe(rn.innerHTML);
+      expect(scripts(off).filter((u) => /wq-read-live|wq-liveread/.test(u))).toEqual([]);
+      expect(ro.innerHTML).not.toMatch(/data-tap="alt"[^>]*>(Your turn|اب آپ پڑھیں)</);   // no Your turn without the live reader
+    }
+  });
+  test('stories off (the server answers 404 stories_off): the shelf draws nothing, a book link shows one kind way home, and no reader file is fetched', async () => {
+    const e = env({ replies: { shelf: { status: 404, body: { error: 'stories_off' } }, book: { status: 404, body: { error: 'stories_off' } } } });
+    const el = fakeEl('shelf'); e.S.shelf(el, e.ctx()); await flush();
+    expect(el.innerHTML).toBe('');
+    const root = await openReader(e);
+    expect(screenOf(root.innerHTML)).toBe('stories-off');
+    expect(primaries(root.innerHTML)).toBe(1);
+    expect(scripts(e).filter((u) => /wq-readalong|wq-read-live|wq-liveread|wq-stories-q|wq-finish-card/.test(u))).toEqual([]);
+  });
+});
+
 describe('the voice player comes with the book (the hub page never loads it)', () => {
   // env() puts a WQReadAlong stub on the page; these tests take it off and hand it back only when the reader fetches it
   const without = (opt = {}) => {
