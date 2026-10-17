@@ -424,14 +424,14 @@ describe('a figure pointer line plays its recorded clip from the shared voice se
 describe('one voice per quiz: the shared lines are the plan voice\'s', () => {
   const ONE_DIR = path.join(VOICE_DIR, 'one');
   const Voice = require('../../bot/shared/services/quiz/web-quiz-voice');
-  const LANG_OF = { 'el-bella': 'en', 'el-sana': 'ur', 'el-sara': 'ur' };
+  const LANG_OF = { 'el-bella': 'en', 'el-sana': 'ur', 'el-sara': 'ur' }; // by the set's voice tag
   test('every set says exactly today\'s words, every line recorded, in the voice its folder names; the bot knows each set by its files\' hash', () => {
     const sets = fs.readdirSync(ONE_DIR).filter((d) => fs.statSync(path.join(ONE_DIR, d)).isDirectory()).sort();
     expect(sets).toEqual(Object.keys(Voice.SHARED_SETS).sort());
     for (const tag of sets) {
       const m = JSON.parse(fs.readFileSync(path.join(ONE_DIR, tag, 'manifest.json'), 'utf8'));
-      expect(Voice.tagOf(m.voice)).toBe(tag);
-      expect(m.lines).toEqual(MANIFEST[LANG_OF[tag]]);
+      expect(Voice.setIdOf(m.voice)).toBe(tag);                // the folder names the voice AND its rendering
+      expect(m.lines).toEqual(MANIFEST[LANG_OF[tag.split('.')[0]]]);
       Object.entries(m.lines).forEach(([set, lines]) => lines.forEach((_, i) => expect(fs.existsSync(path.join(ONE_DIR, tag, `${set}-${i}.mp3`))).toBe(true)));
       const crypto = require('crypto');
       const h = crypto.createHash('sha1');

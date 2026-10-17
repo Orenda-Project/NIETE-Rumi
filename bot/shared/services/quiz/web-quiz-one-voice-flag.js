@@ -61,13 +61,8 @@ function normalize(value) {
   return withSig({ voices: { en: voiceOf(voices.en, 'en'), ur: voiceOf(voices.ur, 'ur') }, bank, kbps });
 }
 
-// How a voice is rendered (its model and settings, keys sorted), short: part of the stamp and of a clip's key.
-function renderOf(voice) {
-  const v = voice || {};
-  const settings = v.settings && typeof v.settings === 'object'
-    ? Object.keys(v.settings).sort().reduce((o, k) => ({ ...o, [k]: v.settings[k] }), {}) : null;
-  return crypto.createHash('sha1').update(JSON.stringify([v.model || null, settings])).digest('hex').slice(0, 6);
-}
+// How a voice is rendered (web-quiz-voice.js): part of the stamp and of a clip's key.
+const { renderOf } = Voice;
 
 // The plan's stamp: its voice per language (by tag, model and settings), its bank parts and its rate. A quiz recorded
 // under another plan is recorded again; clips of an unchanged voice keep their keys, so only what changed is paid for.

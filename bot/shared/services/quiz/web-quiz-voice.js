@@ -1,4 +1,5 @@
 'use strict';
+const crypto = require('crypto');
 /**
  * The ONE voice a child hears in a web quiz, per language.
  *
@@ -39,10 +40,30 @@ function baseLang(language) {
   return String(language || '').trim().toLowerCase().split(/[-_]/)[0];
 }
 
-// Jugnu's shared lines recorded in a one voice (dashboard/public/wq/voice/one/<tag>/, a manifest beside them): the
-// tag → the hash of its files (a test holds it), so a page can ask for the set of the plan's voice. A plan voice
-// with no set here has no shared-line audio: the page shows those lines.
-const SHARED_SETS = Object.freeze({ 'el-bella': '365969a7', 'el-sana': '76bc9453', 'el-sara': 'f2d8d2ef' });
+// How a voice is rendered (its model and settings, keys sorted), short: part of a plan's stamp, a clip's key and a
+// shared-line set's name.
+function renderOf(voice) {
+  const v = voice || {};
+  const settings = v.settings && typeof v.settings === 'object'
+    ? Object.keys(v.settings).sort().reduce((o, k) => ({ ...o, [k]: v.settings[k] }), {}) : null;
+  return crypto.createHash('sha1').update(JSON.stringify([v.model || null, settings])).digest('hex').slice(0, 6);
+}
+const ONE_RENDER = renderOf({ model: 'eleven_v4', settings: ONE_SETTINGS });
+
+/** A shared-line set's name: the voice's tag ("el-bella"), plus its rendering when it is not the one voice's v4 default. */
+function setIdOf(voice) {
+  const tag = tagOf(voice || {});
+  const r = renderOf(voice);
+  return r === ONE_RENDER ? tag : `${tag}.${r}`;
+}
+
+// Jugnu's shared lines recorded in a one voice (dashboard/public/wq/voice/one/<set>/, a manifest beside them): the
+// set (setIdOf) → the hash of its files (a test holds it), so a page can ask for the set of the plan's voice as the
+// plan renders it. A plan voice with no set here has no shared-line audio: the page shows those lines.
+const SHARED_SETS = Object.freeze({
+  'el-bella': '365969a7', 'el-sana': '76bc9453', 'el-sara': 'f2d8d2ef',
+  'el-bella.cff2e4': '3a274a11', // Bella on eleven_multilingual_v2 at speed 0.9 (the storyteller pace of the passages)
+});
 
 /**
  * { provider, voice } for a quiz language, or null. `oneVoice`: true (ONE_VOICE) or a plan (web-quiz-one-voice-flag.js:
@@ -76,10 +97,10 @@ function voiceOfTag(tag, plan) {
 function sharedSets(plan) {
   const out = {};
   ['en', 'ur'].forEach((lang) => {
-    const tag = voiceTag(lang, { oneVoice: plan || true });
-    if (SHARED_SETS[tag]) out[lang] = { path: tag, v: SHARED_SETS[tag] };
+    const id = setIdOf(quizVoice(lang, { oneVoice: plan || true }));
+    if (SHARED_SETS[id]) out[lang] = { path: id, v: SHARED_SETS[id] };
   });
   return out;
 }
 
-module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, quizVoice, voiceTag, tagOf, voiceOfTag, sharedSets };
+module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSets };
