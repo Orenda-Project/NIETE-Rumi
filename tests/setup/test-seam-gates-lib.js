@@ -382,11 +382,39 @@ function navigablePages(templates, routes) {
   return pages.sort((a, b) => a.id.localeCompare(b.id));
 }
 
-/** Whether one test text names the page (its id, or a script only that page loads) and carries the fresh-profile marker. */
+/**
+ * The text of every `describe(` / `test(` / `it(` block (also .only/.skip/.each(…)), a describe with everything nested
+ * in it. Read on the code mask, so a `)` in a string, template or comment never ends a block; an unbalanced block runs
+ * to the end of the text. A text with no block at all is one block (an in-memory snippet).
+ */
+function testBlocks(text, mask = codeMask(text)) {
+  const out = [];
+  const rx = /(^|[^\w$.])(?:describe|test|it)\b/g;
+  for (let m = rx.exec(mask); m; m = rx.exec(mask)) {
+    // skip .only / .skip / .each(…) (its table may hold calls, so its parens are matched, not pattern-read)
+    let j = m.index + m[0].length;
+    for (let mod = /^\s*\.\s*(only|skip|each)\b\s*/.exec(mask.slice(j)); mod; mod = /^\s*\.\s*(only|skip|each)\b\s*/.exec(mask.slice(j))) {
+      j += mod[0].length;
+      if (mod[1] === 'each' && mask[j] === '(') { const e = closeParen(mask, j); if (e < 0) break; j = e + 1; }
+    }
+    const open = j + /^\s*/.exec(mask.slice(j))[0].length;
+    if (mask[open] !== '(') continue;
+    const end = closeParen(mask, open);
+    out.push(text.slice(m.index + m[1].length, end < 0 ? undefined : end + 1));
+  }
+  return out.length ? out : [text];
+}
+
+/** Whether one block names the page (its id, or a script only that page loads). */
+function namesPage(block, page) {
+  if (block.includes(page.id)) return true;
+  return page.scripts.some((s) => new RegExp(`(^|[^\\w-])${s.replace(/[.]/g, '\\.')}`).test(block));
+}
+
+/** Whether ONE test block of a test text both names the page and carries the fresh-profile marker (title or body). */
 function coversFreshProfile(text, page) {
   if (!FRESH.test(text)) return false;
-  if (text.includes(page.id)) return true;
-  return page.scripts.some((s) => new RegExp(`(^|[^\\w-])${s.replace(/[.]/g, '\\.')}`).test(text));
+  return testBlocks(text).some((b) => FRESH.test(b) && namesPage(b, page));
 }
 
 /** The page ids no test covers with a fresh profile. tests: [text]. */
