@@ -3,9 +3,7 @@
 (function () {
   'use strict';
   var W = window;
-  /* Copy rules: no test words (test, exam, assessment, امتحان, ٹیسٹ); gender-neutral آپ; ergative past
-   agreeing with the story («آپ نے … پڑھ لی»); teacher is «ٹیچر», never the formal word; «دبائیں» not «ٹیپ کریں»; «کھویا ہوا» not «گم شدہ»;
-   Urdu digits in Urdu prose; no U+00B7; every Urdu run in dir="rtl"; short lines. */
+  // Copy rules (both files' copy): the header of wq-stories-q.js; the banned words are a test.
   var T = {
     en: {
       shelf: 'Storybooks', gl: function (g, l) { return 'Grade ' + g + ', ' + (l === 'ur' ? 'Urdu' : 'English'); },
@@ -292,13 +290,13 @@
     qw = [cb];
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
-  // the voice player comes with the first book (nothing else loads it); 8 s, else no voice
-  var pw = null;
-  function withRA(cb) {
-    if (W.WQReadAlong) return cb();
-    if (pw) return pw.push(cb);
-    pw = [cb];
-    load('wq-readalong.js', 0, function () { var w = pw; pw = null; w.forEach(function (f) { f(); }); });
+  // the voice player and (lr3) live reading come with the book: nothing else loads them; 8 s each, else without
+  var got = {};
+  function need(f, g, css, cb) {
+    if (W[g] || got[f] === 1) return cb();
+    if (got[f]) return got[f].push(cb);
+    got[f] = [cb];
+    load(f, css, function () { var w = got[f]; got[f] = 1; w.forEach(function (x) { x(); }); });
   }
 
   function reader(id, ctx, root) {
@@ -320,12 +318,13 @@
     function oops() { paint(retryHtml(L, ic(t, 'back', t.back, '‹'))); }
     function load(q) {
       wait();
-      withRA(function () {});
+      need('wq-readalong.js', 'WQReadAlong', 0, function () {});
       (cache[id] && !tch ? Promise.resolve({ ok: true, body: cache[id] }) : req('GET', bookUrl())).then(function (r) {
         if (cur !== R) return;
         if (r.status === 404) return paint(kind('stories-off', L, t.off, '<button class="wqs-main" data-primary data-home data-tap="home">' + esc(t.home) + '</button>'));
         if (!r.ok) return oops();
-        withRA(function () { if (cur === R) start(r.body, q); });
+        var go = function () { if (cur === R) start(r.body, q); };
+        need('wq-readalong.js', 'WQReadAlong', 0, r.body.lr3 && !tch && !W.WQLiveRead ? function () { need('wq-read-live.js', 'WQLive', 0, function () { need('wq-liveread.js', 'WQLiveRead', 'wq-liveread.css', go); }); } : go);
       }, function () { if (cur === R) oops(); });
     }
     function start(bk, q) {

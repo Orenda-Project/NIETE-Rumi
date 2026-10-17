@@ -140,6 +140,8 @@ function env(opt = {}) {
       if (x.tag !== 'script') return;
       if (/wq-stories-q\.js\?v=abc123$/.test(x.src)) { if (opt.qFail) return x.onerror(); vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); return x.onload(); }
       if (opt.onLoad) { opt.onLoad(win); x.onload(); }
+      // a file the reader brings that this test does not serve answers as a 404 does (not on this server)
+      else if (/wq-readalong\.js|wq-read-live\.js|wq-liveread\.js/.test(x.src)) x.onerror();
     } },
   };
   win.history = { replaceState(a, b, u) { calls.hist.push(u); } };
@@ -377,6 +379,32 @@ describe('the voice player comes with the book (the hub page never loads it)', (
     expect(e.calls.ra).toHaveLength(1);
     e.S.open('b-1', e.ctx({ root })); await flush();
     expect(scripts(e, /wq-readalong\.js/)).toHaveLength(1);
+  });
+  test('live reading on (the book\'s lr3) and not on the page: wq-read-live.js, THEN wq-liveread.js + its css (it reads WQLive as it loads), then Your turn', async () => {
+    let RA = null; let LR = null; const order = [];
+    const e = env({ replies: { book: { status: 200, body: { ...book(), lr3: true } } }, onLoad: (w) => {
+      const src = e.calls.loaded[e.calls.loaded.length - 1].src; order.push(src.replace(/\?.*/, ''));
+      if (/wq-readalong\.js/.test(src)) w.WQReadAlong = RA;
+      if (/wq-read-live\.js/.test(src)) w.WQLive = {};
+      if (/wq-liveread\.js/.test(src)) { expect(w.WQLive).toBeTruthy(); w.WQLiveRead = LR; }
+    } });
+    RA = e.win.WQReadAlong; LR = e.win.WQLiveRead; delete e.win.WQReadAlong; delete e.win.WQLiveRead;
+    const root = await openReader(e);
+    expect(order).toEqual(['/wq/wq-readalong.js', '/wq/wq-read-live.js', '/wq/wq-liveread.js']);
+    expect(e.calls.loaded.filter((x) => x.rel === 'stylesheet').map((x) => x.href)).toEqual(['/wq/wq-liveread.css?v=abc123']);
+    fire(root, 'main'); e.calls.ra[0].o.onEnd();
+    expect(root.querySelector('[data-main]').textContent).toBe('Your turn');
+  });
+  test('live reading off (lr3 false), or a teacher\'s preview: no live-reading file is fetched', async () => {
+    const e = without({ replies: { book: { status: 200, body: { ...book(), lr3: false } } } }); delete e.win.WQLiveRead; await openReader(e);
+    expect(scripts(e, /wq-read-live|wq-liveread/)).toHaveLength(0);
+    const t = without(); delete t.win.WQLiveRead;
+    t.S.open('b-1', { role: 'teacher', bookUrl: '/api/teacher/story/b-1', root: fakeEl('root'), lang: 'en', clock: t.clock }); await flush();
+    expect(scripts(t, /wq-read-live|wq-liveread/)).toHaveLength(0);
+  });
+  test('the live reader already on the page: no live-reading file is fetched', async () => {
+    const e = without(); await openReader(e);
+    expect(scripts(e, /wq-read-live|wq-liveread/)).toHaveLength(0);
   });
   test('the player already on the page: nothing more is fetched', async () => {
     const e = env(); await openReader(e);
