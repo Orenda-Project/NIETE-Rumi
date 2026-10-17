@@ -3158,7 +3158,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-kn-else', function () { sset(KN_KEY, 1); ev('identity_pick', { src: 'known_else' }); landing(); });
   }
   if (B.view === 'schools') schools(afterResult);
-  else if (B.view === 'class') board();
+  // a story has no class board: its class view (/q/<code>/class) opens the story's landing below
+  else if (B.view === 'class' && !B.story) board();
   else if (FROM) { ev('more_arrive', {}); if (FROM.t) ev('more_timing', { nav_ms: Date.now() - FROM.t }); startSession({ from_st: FROM.st }, null, ''); }
   else if (B.link_home && !AGAIN && !B.preview && !B.invited && !B.challenge && !S.queue.length && !S.pending && (S.result ? S.st : !S.st) && kids().length === 1 && sget('wq_d', null)) linkHome(function () { if (S.result) card(); else landing(); });
   else if (S.result && S.st) card();
