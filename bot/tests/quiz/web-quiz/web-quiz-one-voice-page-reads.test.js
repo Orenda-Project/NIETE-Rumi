@@ -155,6 +155,44 @@ describe.each(Object.keys(KINDS))('%s page: app_settings reads', (kind) => {
   });
 });
 
+// RULING #C81: the switch rides the identity read (the host). Another caller in the process (the hub, a second page)
+// keeps the host warm while the switch's own reading is cold (forgotten) or never taken: the page must still read as
+// often as today, because its plan comes from the host's row, never from a read of the switch alone. The base is
+// measured in the same run (#C72): the same page after the same host read, with no switch row and nothing forgotten.
+// HOST_WARM_READS is that base recorded on the page before the switch existed (#C72 AMENDED (1)).
+const HOST_WARM_READS = { library: 12, teacher: 12, classLink: 12 };
+
+describe.each(Object.keys(KINDS))('%s page, identity read warm and the switch\'s own reading cold (#C81)', (kind) => {
+  async function hostWarmRiderCold(flag) {
+    const p = boot(kind, flag);
+    // The host's own read, as another caller would make it (it also hands the switch its row).
+    await require('../../../shared/services/quiz/web-quiz-identity-roster').identityMode();
+    // Only the switch's own reading is forgotten (cold, or past its 30 s); the identity read stays cached.
+    require('../../../shared/services/quiz/web-quiz-one-voice-flag').reset();
+    return p.page();
+  }
+  async function base() {
+    const p = boot(kind, undefined);
+    await require('../../../shared/services/quiz/web-quiz-identity-roster').identityMode();
+    return p.page();
+  }
+
+  test.each(OFF)('switch %s (off): exactly the same-run base\'s reads', async (_, flag) => {
+    const b = await base();
+    expect(b.settings).toBe(HOST_WARM_READS[kind]);
+    const r = await hostWarmRiderCold(flag);
+    expect(r.out.one_voice).toBeUndefined();
+    expect(r.settings).toBe(b.settings);
+  });
+
+  test.each(ON)('switch %s (on): no more than the base + the named rows, and the page has one voice from the host\'s row', async (_, flag) => {
+    const b = await base();
+    const r = await hostWarmRiderCold(flag);
+    expect(r.out.one_voice).toBe(true);
+    expect(r.settings).toBeLessThanOrEqual(b.settings + NAMED_ON.length);
+  });
+});
+
 describe('a tool\'s pinned plan', () => {
   test('wins over the page\'s read: pinned off, the page has no one voice whatever the switch says', async () => {
     const p = boot('library', true);
