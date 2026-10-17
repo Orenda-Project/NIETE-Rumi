@@ -1544,26 +1544,40 @@ describe('the done screen with the real finish card (card_v3): ONE primary = Mor
   });
   test('the More stories tile shows the next unread shelf book\'s cover (the shelf\'s own data; no extra request)', async () => {
     const sink = {};
-    const slot = fakeEl('shelf'); slot._d = SHELF;
-    const e = env({ slot, replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(sink) });
+    const e = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(sink) });
     e.win.document = e.doc;
+    e.S.shelf(fakeEl('shelf'), e.ctx()); await flush();
+    const n = e.calls.gets.length;
     const root = await openReader(e); runBook(e, root); await flush(); await flush();
     // b-9 (the teacher's, unread) is first; b-1 is this book; b-4 is done
     expect(sink.o.next.art).toBe('/s/b-9/cover.webp');
     expect(/<a [^>]*id="wqfc-next"[^>]*>[^]*?<\/a>/.exec(d0(sink))[0]).toContain('<img class="wqfc-art" src="/s/b-9/cover.webp"');
-    const gets = e.calls.gets.filter((u) => /shelf/.test(u));
-    expect(gets).toHaveLength(0);
+    expect(e.calls.gets.slice(n).filter((u) => /shelf/.test(u))).toHaveLength(0);
     // every other shelf book read, or no shelf on the page: the plain tile
-    const s2 = fakeEl('shelf'); s2._d = { books: [{ id: 'b-1', cover: '/s/b-1/cover.webp' }, { id: 'b-4', cover: '/s/b-4/cover.webp', done: true }] };
     const k2 = {};
-    const e2 = env({ slot: s2, replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(k2) });
+    const e2 = env({ replies: { shelf: { status: 200, body: { books: [{ id: 'b-1', cover: '/s/b-1/cover.webp' }, { id: 'b-4', cover: '/s/b-4/cover.webp', done: true }] } }, book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(k2) });
     e2.win.document = e2.doc;
+    e2.S.shelf(fakeEl('shelf'), e2.ctx()); await flush();
     const r2 = await openReader(e2); runBook(e2, r2); await flush(); await flush();
     expect(k2.o.next.art).toBeUndefined();
     const k3 = {};
     const e3 = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(k3) });
     const r3 = await openReader(e3); runBook(e3, r3); await flush(); await flush();
     expect(k3.o.next.art).toBeUndefined();
+  });
+  // The real flow: the child picks the book on the shelf, and the page then draws the reader in the shelf's place, so
+  // no shelf element is left by the done screen. The cover still comes from the shelf's own answer (no request).
+  test('the More stories cover survives the shelf leaving the page (picked on the shelf, finished in the reader)', async () => {
+    const sink = {};
+    const e = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(sink) });
+    e.win.document = e.doc;
+    e.S.shelf(fakeEl('shelf'), e.ctx()); await flush();
+    const n = e.calls.gets.length;
+    const root = await openReader(e); runBook(e, root); await flush(); await flush();
+    expect(e.doc.querySelector('[data-stories-shelf], .wq-shelf[data-shelf]')).toBeNull();
+    expect(sink.o.next.art).toBe('/s/b-9/cover.webp');
+    expect(/<a [^>]*id="wqfc-next"[^>]*>[^]*?<\/a>/.exec(d0(sink))[0]).toContain('<img class="wqfc-art" src="/s/b-9/cover.webp"');
+    expect(e.calls.gets.slice(n).filter((u) => /shelf/.test(u))).toHaveLength(0);
   });
   test('tapping More stories on the card goes to the shelf (never turns a page)', async () => {
     const d = await done({});
