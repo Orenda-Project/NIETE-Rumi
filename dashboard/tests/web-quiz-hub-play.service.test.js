@@ -169,9 +169,19 @@ describe('lantern + shelf', () => {
     const ur = page({ ...BOOTS.done, lang: 'ur', home_v3: 1, play: play({ kind: 'trail', stops: 2 }, null) }, { homeFails: true });
     expect(ur.html()).toContain('کچھ کھیل آپ کا انتظار کر رہے\u00a0ہیں۔');
     expect(ur.html()).not.toMatch(/راستے/);
+    // the Jugnu tile on that hub is "Jugnu's games" (the games list's own name), never "Challenge"
+    expect(many.html()).toContain("<b>Jugnu&#39;s games</b>");
+    expect(many.html()).not.toMatch(/Challenge/);
+    expect(ur.html()).toContain('<b>جگنو کے کھیل</b>');
+    expect(ur.html()).not.toMatch(/چیلنج/);
+    const bare = page({ ...BOOTS.done, home_v3: 1 }, { play: false, homeFails: true });
+    expect(bare.html()).toContain("<b>Jugnu&#39;s games</b>");
+    expect(bare.html()).not.toMatch(/Challenge/);
     // GOLDEN: the switch off -> today's line, byte for byte
     const off = page({ ...BOOTS.done, play: play({ kind: 'trail', stops: 2 }, null) });
     expect(off.html()).toContain('Games are waiting for you on the Trail.');
+    expect(off.html()).toContain("<b>Jugnu&#39;s Challenge</b>");
+    expect(page({ ...BOOTS.done }, { play: false }).html()).toContain("<b>Jugnu&#39;s Challenge</b>");
   });
 
   test('new story: its title, a link into Story Time; tomorrow: shown only; all seen (Monday)', () => {

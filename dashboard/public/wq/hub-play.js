@@ -117,7 +117,7 @@
     var html;
     if (B.play.first && chOn && base.indexOf('id="wq-h-ch"') >= 0) {
       var card = '<div class="wq-card wq-hcard wqp-jug"><a class="wqp-go" id="wq-h-ch" href="' + esc(parts.chHref) + '">' +
-        '<img src="/wq/jugnu/hello.webp" alt="" width="64" height="64"><span><b>' + esc(HT.chT(parts.MASC[parts.LANG])) + '</b><small>' + esc(HT.chSub) + '</small></span></a>' +
+        '<img src="/wq/jugnu/hello.webp" alt="" width="64" height="64"><span><b>' + esc((B.home_v3 && HT.chV3 ? HT.chV3 : HT.chT)(parts.MASC[parts.LANG])) + '</b><small>' + esc(HT.chSub) + '</small></span></a>' +
         (lt ? lt.html : '') + '</div>';
       // The tiles row without the Jugnu tile; an emptied row goes.
       var rest = base.replace(CH_TILE, '').replace('<div class="wq-htiles"></div>', '');
