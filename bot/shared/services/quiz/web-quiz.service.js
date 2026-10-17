@@ -1242,7 +1242,11 @@ async function handsetCard(ctx, body) {
     const want = Identity.canon(name);
     if (!want) return null;
     const { data: rows } = await dbRead('handsetCard:students:1', (db) => db.from('students').select('id, student_name, student_name_urdu, is_active, status').in('id', ids));
-    const hits = (rows || []).filter((r) => r.is_active !== false && r.status !== 'merged' && Identity.canon(r.student_name) === want);
+    const live = (rows || []).filter((r) => r.is_active !== false && r.status !== 'merged');
+    let hits = live.filter((r) => Identity.canon(r.student_name) === want);
+    // web_quiz_link_known_child: a child types the name they are called by — their FIRST name — so on THIS phone's own
+    // children (never a classmate) a first-name match is the same child too.
+    if (!hits.length && await require('./web-quiz-link-known').isOn()) hits = live.filter((r) => Identity.canon(firstName(r.student_name)) === want);
     if (hits.length !== 1) return null;
     const k = hits[0];
     const shown = ctx.lang === 'ur' && k.student_name_urdu && String(k.student_name_urdu).trim() ? k.student_name_urdu : k.student_name;

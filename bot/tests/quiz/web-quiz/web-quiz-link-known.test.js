@@ -146,6 +146,19 @@ for (const [label, flag] of [['identity v2', 'v2'], ['legacy path', null]]) {
       expect(db.students.length).toBe(before + 1);
     });
 
+    test('after "Someone else", the held child typing only their FIRST name gets their one card, never a second child', async () => {
+      await homeOpened();
+      const before = db.students.length;
+      await expect(WQ.startSession({ code: 'AB12CD', new: { name: 'sadia' }, device_ref: DEV }))
+        .rejects.toMatchObject({ status: 409, body: { error: 'is_this_you', candidates: [expect.objectContaining({ chip: chip(SELF), first: 'Sadia' })] } });
+      expect(db.students.length).toBe(before);
+      // two held children with that first name: no card (today's path asks the name step's own questions)
+      db.students.push({ id: '55555555-5555-4555-8555-000000000009', student_name: 'Sadia Khan Testwala', list_id: null, is_active: true, status: 'active' });
+      await homeOpened(['55555555-5555-4555-8555-000000000009']);
+      const r = await WQ.startSession({ code: 'AB12CD', new: { name: 'sadia' }, device_ref: DEV }).catch((e) => e);
+      expect(Boolean(r && r.body && r.body.error === 'is_this_you' && JSON.stringify(r.body).includes(chip(SELF)))).toBe(false);
+    });
+
     test('never on a friend\'s challenge code, nor the teacher\'s preview', async () => {
       await homeOpened();
       expect(await known(DEV, 'FR13ND')).toEqual({ kids: [] });
@@ -205,6 +218,13 @@ describe('golden: switch off', () => {
       expect(db.quiz_sessions.length).toBe(before);
     });
   }
+
+  test('off: a typed first name on the holding phone takes today\'s path (no card from the first name)', async () => {
+    seed({ known: false });
+    await homeOpened();
+    const r = await WQ.startSession({ code: 'AB12CD', new: { name: 'sadia' }, device_ref: DEV }).catch((e) => e);
+    expect(Boolean(r && r.body && r.body.error === 'is_this_you' && JSON.stringify(r.body).includes(chip(SELF)))).toBe(false);
+  });
 
   test('off: the payload is byte-identical to a code with no switch row at all', async () => {
     seed({ known: false });
