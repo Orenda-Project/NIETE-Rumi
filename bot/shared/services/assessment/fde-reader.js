@@ -15,12 +15,19 @@
  */
 
 // Only these subjects are ever read, whatever the setting lists.
-const READER_SUBJECTS = Object.freeze(['urdu']);
+const READER_SUBJECTS = Object.freeze(['urdu', 'social_studies']);
+// The slots whose items the reader judges, per subject. Social Studies: T6-A, the Section C/D items
+// a child could answer from Section A, or from another C/D item's answer.
+const JUDGED = Object.freeze({
+  urdu: Object.freeze(['urdu.A.Q1']),
+  social_studies: Object.freeze(['social_studies.C.Q5', 'social_studies.D.Q6', 'social_studies.D.Q7']),
+});
 
 const READER_MARK = 'READER PASS: board-pattern question paper check';
 const PAPER_HEAD = '=== THE QUESTION PAPER, AS PRINTED (no answers) ===';
 const KEYS_HEAD = '=== Q1 ANSWER KEY (for you only; the paper does not print it) ===';
 const ONLY_HEAD = 'Judge ONLY these items:';
+const ANSWERS_HEAD = '=== ANSWERS (for you only; the paper does not print them) ===';
 
 const OPTION_HEAD = /^\s*\(?(?:[a-dA-D]|الف|ب|ج|د)\s*[).]\s*/u;
 const strip = (t) => String(t == null ? '' : t).replace(/\s+/g, ' ').trim();
@@ -83,6 +90,7 @@ function printedLines(q) {
  * asks the reader to judge those alone (the re-check of replacements).
  */
 function buildReaderPrompt(examJson, P, opts = {}) {
+  if (P && P.key === 'social_studies') return buildSstReaderPrompt(examJson, P, opts);
   const labels = new Map();
   const blocks = new Map(); // label → the text printed under it, folded (for the evidence check)
   const paper = [];
@@ -177,6 +185,110 @@ function buildReaderPrompt(examJson, P, opts = {}) {
   return { prompt, labels, only, blocks };
 }
 
+// What a Social Studies item answers, for the reader's eyes only: a key or model answer, and its
+// marking points.
+function answerOf(q) {
+  const points = (q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
+    .map((p) => (typeof p === 'string' ? p : p && p.text)).filter((t) => typeof t === 'string' && t.trim()).map(strip);
+  return { key: keyOf(q), points };
+}
+
+/**
+ * Social Studies: the reader judges the Q5, Q6 and Q7 items (T6-A, "a child who answers one has
+ * answered the other"): a duplicate, an item whose whole answer Section A prints (a Q1 key, or a fact a
+ * Q1 stem states), and an item whose marking points another C/D item's answer already contains.
+ * `blocks` hold each label's printed text and its answer, so a quote copied from an answer is found.
+ */
+function buildSstReaderPrompt(examJson, P, opts = {}) {
+  const judged = new Set(JUDGED.social_studies);
+  const labels = new Map();
+  const blocks = new Map();
+  const paper = [];
+  const answers = [];
+  for (const section of P.sections) {
+    for (const slot of section.slots) {
+      const list = itemsOf(examJson, slot.slot);
+      if (!list.length) continue;
+      const name = slot.slot.split('.').pop();
+      const heading = strip(list[0].main_question || slot.label_ur || slot.label_en || '');
+      paper.push(`${name}${heading ? `: ${heading}` : ''}`);
+      list.forEach((q, i) => {
+        const label = list.length > 1 || name === 'Q1' ? `${name}.${i + 1}` : name;
+        if (judged.has(slot.slot)) labels.set(label, q);
+        const lines = printedLines(q);
+        const [first, ...rest] = lines;
+        const { key, points } = answerOf(q);
+        blocks.set(label, fold([...lines, key, ...points].join(' ')));
+        paper.push(`${label} ${first || ''}`.trim());
+        rest.forEach((l) => paper.push(`    ${l}`));
+        if (name === 'Q1' || judged.has(slot.slot)) {
+          answers.push(`${label} → ${key}${points.length && name !== 'Q1' ? ` | points: ${points.join('; ')}` : ''}`);
+        }
+      });
+      paper.push('');
+    }
+  }
+  const only = Array.isArray(opts.only) && opts.only.length
+    ? [...labels.entries()].filter(([, q]) => opts.only.includes(q)).map(([label]) => label)
+    : null;
+
+  const prompt = [
+    READER_MARK,
+    '',
+    'You check a Grade 5 Social Studies board exam paper before it prints. A child must not be able to answer a',
+    'Section C or D item (Q5, Q6, Q7) from text printed ELSEWHERE on the question paper, and no two of those items',
+    'may be answered by the same answer.',
+    '',
+    'The test: a child who answers one has answered the other. Flag a Q5, Q6 or Q7 item when:',
+    '- another item on the paper asks the same question, in any wording (a duplicate);',
+    '- a Q1 key, or a fact a Q1 stem states, is its whole answer: Q1 «پاکستان 1947ء میں کس رہنما کی قیادت میں …»',
+    '  answers «پاکستان کس سال ابھرا؟ → 1947ء»; two Q1 items that together print its whole answer count too;',
+    '- EVERY fact its answer needs is printed in Section A: in a Q1 stem, in a Q1 key, or across two Q1 items. Read every',
+    '  Q1 stem as well as its key: a stem that states two facts to ask which idea they describe gives away a Q5 that asks',
+    '  for those facts, and a Q5 that asks how two things differ is given away when one Q1 item prints what the first',
+    '  does and another prints what the second does. A marking point that only asks for a clear or complete answer adds',
+    '  no fact: judge the facts;',
+    '- EACH of its marking points is printed in Section A as a Q1 key, across any number of Q1 items (three points,',
+    '  three Q1 keys): a child who knows those keys has written its answer. The short reason a point adds after the act',
+    '  («… سے غصے میں کہی گئی بات سے بچا جا سکتا ہے») does not save it when the act itself is the key. Name every Q1 label',
+    '  in "by" and quote each key;',
+    '- a Q1 item asks which act is right («کون سا عمل درست ہے؟», «سب سے بہتر رویہ کون سا ہے؟»), so it tells the child',
+    '  that its wrong options are wrong acts: a C/D item EVERY one of whose points is one of those acts, not done, is',
+    '  given away by it («بغیر اجازت شیئر نہ کریں» beside the option «… بغیر اجازت شیئر کرنا»). Quote the wrong options.',
+    '  When even one point is an act no Q1 item prints, or a reason, a benefit or a definition of its own, it is partial;',
+    '- its key is the same answer as a Q1 key in another form (plural, oblique, a longer sentence of the same fact);',
+    '- its marking points are contained in another Q5, Q6 or Q7 item\'s answer or marking points: a child who answers',
+    '  that item has already written this one\'s answer.',
+    'Do NOT flag:',
+    '- an item whose fact appears in Q1 only as a wrong option (a distractor), unless that Q1 item asks which act is',
+    '  right and the item\'s points are its wrong acts, not done (above);',
+    '- the same name, place or tier with a DIFFERENT fact asked about it;',
+    '- an item Section A answers only in part: one of its two parts, or its answer without the reasons its points ask for',
+    '  (the one exception is the rule above where EACH point\'s act is a Q1 key);',
+    '- two items on the same chapter that need different facts.',
+    'Which one to flag: when a Q5 and a Q6 or Q7 item answer each other, flag the Q6 or Q7; when a Q6 and a Q7 do,',
+    'flag the Q7; two items in one question, the higher-numbered one. A Q5 is flagged only when Section A gives it away.',
+    '',
+    'Reply with ONE JSON object and nothing after it. List every item you considered as a candidate and decide',
+    'each one in its own entry: "given_away": true only when a child really can answer it from that text, false',
+    'when, on a closer look, it cannot. Never write a correction or a second object after the first; change the',
+    'verdict inside the entry instead.',
+    '{"candidates":[{"item":"Q7.<n>","by":"<the label of the text that gives it away: Q1.5, Q5.3, Q6.2 …>","evidence":"<the words, copied exactly from that label\'s printed text, answer or points, that answer the item>","reason":"<one short line>","given_away":true}]}',
+    'When the facts are printed in two places, name both labels in "by" (Q1.1, Q1.11) and quote each fact from its own',
+    'label in "evidence", the quotes separated by " | ".',
+    'Inside a JSON string never use the character "; quote Urdu with « ». Use the labels exactly as printed below.',
+    '{"candidates":[]} is the right answer when nothing is given away.',
+    ...(only ? ['', `${ONLY_HEAD} ${only.join(', ')}. The other items were already checked: flag one of these when it is`,
+      'given away, or when its own text gives away another item (then item is the item given away and by is this one).'] : []),
+    '',
+    PAPER_HEAD,
+    ...paper,
+    ANSWERS_HEAD,
+    ...answers,
+  ].join('\n');
+  return { prompt, labels, only, blocks, split: true };
+}
+
 /**
  * The reply's flags that name a Q1 label of this prompt (and, on a re-check, one it asked about),
  * once each. Throws when the reply carries no flags list: that is a failed read, not a clean one.
@@ -194,7 +306,7 @@ function giversOf(by, blocks) {
  * a flag whose quote is not on the paper where it says is dropped: the reader saw nothing there.
  * Throws when the reply carries no candidates list: that is a failed read, not a clean one.
  */
-function parseFlags(reply, labels, only = null, blocks = null) {
+function parseFlags(reply, labels, only = null, blocks = null, opts = {}) {
   if (!reply || typeof reply !== 'object' || !Array.isArray(reply.candidates)) throw new Error('reader reply has no candidates list');
   const seen = new Set();
   const out = [];
@@ -208,11 +320,21 @@ function parseFlags(reply, labels, only = null, blocks = null) {
     if (blocks) {
       // The quote is printed under the giver, never the item's own block (its options are what the
       // child picks from), or in the item's own stem (it prints its key, or answers another section).
-      const quote = fold(evidence);
-      const real = quote && quote.trim().split(' ').some((w) => w.length >= QUOTE_WORD);
-      const givers = giversOf(by, blocks).filter((label) => label !== item && blocks.get(label).includes(quote));
+      // With `split` (Social Studies), facts printed in two places come as two quotes, « | » between
+      // them, and each must be printed under a label `by` names. A quote that runs a Q1 stem into its
+      // key («… کس ادارے کے پاس ہے؟ (key: مقننہ)») is read a piece at a time: the options print between
+      // them, and the reader's own «key:» or «…» is not on the paper.
+      const named3 = (q) => q.trim().split(' ').some((w) => w.length >= QUOTE_WORD);
+      const segments = opts.split ? evidence.split(/\s*\|\s*/) : [evidence];
+      const quotes = (opts.split ? segments.flatMap((q) => q.split(/[؟?۔()…]+|\.{2,}|\b(?:key|answer)\s*:/i)) : segments).map(fold).filter(Boolean);
+      // Every quote the reader separated names something: «… | کا» is one fact, not two.
+      const real = quotes.length > 0 && segments.every((q) => named3(fold(q)))
+        && (opts.split ? quotes.some(named3) : quotes.every(named3));
+      const named = giversOf(by, blocks).filter((label) => label !== item);
+      const placed = quotes.map((q) => named.filter((label) => blocks.get(label).includes(q)));
+      const givers = [...new Set(placed.flat())];
       const stem = fold(labels.get(item) && labels.get(item).question);
-      if (!real || !(givers.length || stem.includes(quote))) continue;
+      if (!real || !quotes.every((q, i) => placed[i].length || stem.includes(q))) continue;
       // On a re-check, a kept item given away BY a replacement takes the replacement off.
       if (only && !only.includes(item)) {
         const repl = givers.find((label) => only.includes(label));
@@ -231,12 +353,21 @@ function parseFlags(reply, labels, only = null, blocks = null) {
 const inQ1 = (flag) => /^Q1(\.|$)/.test(flag.by || '');
 
 /**
- * The note a Section A top-up carries: what was taken off and why. Each flag carries its item (`q`)
- * and, when another Q1 item gave it away, that kept `partner`: the top-up is told the partner's fact
- * too, or it writes the same fact again in a new shape (a plural key, another stem). `labels`, when
- * given, finds an item a flag names only by label.
+ * The note a top-up carries: what was taken off and why (Section A for Urdu, Section D for Social Studies).
+ * An Urdu flag carries its item (`q`) and, when another Q1 item gave it away, that kept `partner`: the
+ * top-up is told the partner's fact too, or it writes the same fact again in a new shape (a plural key,
+ * another stem). `labels`, when given, finds an item a flag names only by label.
  */
-function readerNote(flags, labels = null) {
+function readerNote(flags, labels = null, P = null) {
+  if (P && P.key === 'social_studies') {
+    const lines = flags.map((f) => {
+      const q = labels.get(f.item);
+      return `- ${strip(q && q.question)} → ${q ? keyOf(q) : ''}${f.reason ? `: ${f.reason}` : ''}`;
+    });
+    return 'A reader of this paper found that these items can be answered from Section A or from another item\'s answer, '
+      + `so they are taken off it; never write these again, in any wording:\n${lines.join('\n')}\n`
+      + 'Every new item must need an answer that no Section A item prints and no other item on this paper asks for.';
+  }
   const lines = flags.map((f) => {
     const q = f.q || (labels && labels.get(f.item));
     const p = f.partner;
@@ -249,6 +380,6 @@ function readerNote(flags, labels = null) {
 }
 
 module.exports = {
-  READER_SUBJECTS, READER_MARK, PAPER_HEAD, KEYS_HEAD, ONLY_HEAD,
+  READER_SUBJECTS, JUDGED, READER_MARK, PAPER_HEAD, KEYS_HEAD, ONLY_HEAD, ANSWERS_HEAD,
   buildReaderPrompt, parseFlags, readerNote, inQ1, itemsOf, keyOf, fold, giversOf,
 };
