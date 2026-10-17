@@ -1716,6 +1716,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   mark('hub_door');
   // The Jugnu card (web-quiz-card.js; app_settings web_quiz_challenge_card): {} with the switch off.
   const jugnu = await got('jugnu', () => require('./web-quiz-card').field(s));
+  // The child home on (web_quiz_home_v3): the card folds to the card and one next thing; {} with it off.
+  const fold = await require('./web-quiz-hub-door').foldField(s);
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -1744,6 +1746,7 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     // The card's door to this child's hub (web-quiz-hub-door.js), with the hub and the door switched on.
     ...door,
     ...jugnu,
+    ...fold,
   };
 }
 
