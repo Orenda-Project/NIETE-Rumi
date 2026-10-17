@@ -15,13 +15,18 @@
  * The bot answers 404 {off:true} when the switch is off: the edge then calls next() — today's handling (the SPA
  * catch-all) answers, byte for byte. A malformed token, a bot that cannot be reached and a caller over the rate limit
  * all fall through the same way: the edge draws a page only after the bot answered with the switch on (a Location off
- * this site, a bot 5xx → go.error with its one "Open WhatsApp" tap). The edge never touches the database.
+ * this site, a bot 5xx → go.error with its one "Open WhatsApp" tap). The edge reads no table of its own, except the
+ * switch web_quiz_closed_way_back (lib/closed-way-back-switch.js, default OFF, cached 30 s, fail OFF), and only to draw
+ * its own go.error page: ON →
+ * that page ALWAYS carries ONE tap back to WhatsApp (the signed go.back sentence; wa.me/<bot>?text=quiz, or
+ * whatsapp://send?text=quiz with no number); OFF → today's page.
  */
 const crypto = require('crypto');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
 const GoPage = require('../../bot/shared/services/first-touch/go.page');
+const WayBackSwitch = require('../lib/closed-way-back-switch');
 
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const BOT_BASE = '/api/internal/go';
@@ -53,8 +58,8 @@ const langOf = (req) => (/^\s*ur\b/i.test(String((req.get && req.get('accept-lan
 /** This deployment's dialable bot number (WHATSAPP_BOT_NUMBER, else REFERRAL_BOT_NUMBER — the share links' source). */
 const botNumber = () => String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '') || null;
 
-/** The go.error page for an answer the bot gave that this edge cannot pass on, with its one "Open WhatsApp" tap. */
-const errorPage = (req) => GoPage.buildMessagePage({ id: 'go.error', lang: langOf(req), bot: botNumber() });
+/** The go.error page for an answer the bot gave that this edge cannot pass on, with its one tap back to WhatsApp. */
+const errorPage = (req, door = false) => GoPage.buildMessagePage({ id: 'go.error', lang: langOf(req), bot: botNumber(), door: door === true });
 
 function sendPage(res, built, status = 200) {
   res.set({ ...PRIVATE, 'Content-Security-Policy': built.csp });
@@ -78,6 +83,11 @@ function createQuizGoRouter(opts = {}) {
     callBot = createBotClient({ botUrl, apiKey, fetchImpl });
     configured = Boolean(botUrl && apiKey);
   }
+  // web_quiz_closed_way_back for the edge's own go.error page; `opts.wayBackOn(req)` stands in for the read (tests)
+  const wayBackOn = typeof opts.wayBackOn === 'function'
+    ? opts.wayBackOn
+    : (req) => WayBackSwitch.on(req && req.app && req.app.locals ? req.app.locals.supabase : null);
+  const doorOf = async (req) => { try { return (await wayBackOn(req)) === true; } catch (_) { return false; } };
   const router = express.Router();
 
   const limiter = rateLimit({
@@ -111,11 +121,11 @@ function createQuizGoRouter(opts = {}) {
     if (isOff(out)) return next();   // nothing was set on the response: today's handling answers
     if (dv.minted) res.append('Set-Cookie', dv.minted);
     if (out.status >= 300 && out.status < 400) {
-      if (!okLocation(out.location)) return sendPage(res, errorPage(req), 502);
+      if (!okLocation(out.location)) return sendPage(res, errorPage(req, await doorOf(req)), 502);
       res.set(PRIVATE);
       return res.redirect(302, out.location);
     }
-    if (out.status >= 500) return sendPage(res, errorPage(req), 503);
+    if (out.status >= 500) return sendPage(res, errorPage(req, await doorOf(req)), 503);
     res.set(PRIVATE);   // the bot's page carries its own Content-Security-Policy <meta>
     return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
   });
