@@ -416,7 +416,7 @@ describe('(e) a read run whose result settled as not a reading: "Hear it again"'
     expect(readalongReads()).toHaveLength(0);
   });
   test.each([
-    ['absent', null], ['the string "true"', 'true'], ['1', 1], ['{}', {}], ['false', false],
+    ['absent', null], ['the string "true"', 'true'], ['the quoted string \'"true"\'', '"true"'], ['1', 1], ['{}', {}], ['false', false],
   ])('its own switch %s: a read run\'s answer is today\'s — 400 bad_request in every state, no timing file read', async (_, value) => {
     for (const [state, set] of Object.entries(STATES)) {
       fresh();

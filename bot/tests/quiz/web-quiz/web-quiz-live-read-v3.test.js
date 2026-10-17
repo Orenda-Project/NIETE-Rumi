@@ -208,11 +208,11 @@ describe('"Hear it again" switch: the live v3 read says zero_listen only when th
     const { zero_listen: zl, ...rest } = out;
     expect(JSON.stringify(rest)).toBe(JSON.stringify(off));
   });
-  test.each([['the string "true"', 'true'], ['1', 1], ['{}', {}], ['false', false]])('%s: off, the read is today\'s byte for byte', async (_, value) => {
+  test.each([['absent', undefined], ['the string "true"', 'true'], ['the quoted string \'"true"\'', '"true"'], ['1', 1], ['{}', {}], ['false', false]])('%s: off, the read is today\'s byte for byte', async (_, value) => {
     db.app_settings.push(LR3, RT);
     const before = strip(await Ch.exercise(hub(), 'read', { ...D, lang: 'en' }));
     Ch.__reset();
-    db.app_settings.push({ key: ZL, value });
+    if (value !== undefined) db.app_settings.push({ key: ZL, value });
     const after = strip(await Ch.exercise(hub(), 'read', { ...D, lang: 'en' }));
     expect(JSON.stringify(after)).toBe(JSON.stringify(before));
   });
