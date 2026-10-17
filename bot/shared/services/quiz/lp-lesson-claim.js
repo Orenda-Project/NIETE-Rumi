@@ -31,6 +31,7 @@ const redisService = require('../cache/railway-redis.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { LP_V8 } = require('./quiz-sources');
+const { tk: tkOf } = require('./web-quiz-kid');
 
 /** Long enough for insert + re-read; short enough that a crashed holder frees the lesson. */
 const LOCK_TTL_SECS = 30;
@@ -119,7 +120,7 @@ async function claimLessons({ teacherId, lessonIds, since = null, insert, via = 
       if (!(await lock(key))) {
         // eslint-disable-next-line no-await-in-loop
         const existing = (await coveringQuizzes(teacherId, ids, { since }))[0] || null;
-        logEvent('quiz_menu.lesson_claimed', { userId: teacherId, won: false, reason: 'locked', via, quizId: existing ? existing.id : null });
+        logEvent('quiz_menu.lesson_claimed', { tk: tkOf(teacherId), won: false, reason: 'locked', via, quizId: existing ? existing.id : null });
         return { won: false, reason: 'locked', existing };
       }
       held.push(key);
@@ -127,7 +128,7 @@ async function claimLessons({ teacherId, lessonIds, since = null, insert, via = 
 
     const before = await coveringQuizzes(teacherId, ids, { since });
     if (before.length) {
-      logEvent('quiz_menu.lesson_claimed', { userId: teacherId, won: false, reason: 'covered', via, quizId: before[0].id });
+      logEvent('quiz_menu.lesson_claimed', { tk: tkOf(teacherId), won: false, reason: 'covered', via, quizId: before[0].id });
       return { won: false, reason: 'covered', existing: before[0] };
     }
 
@@ -139,10 +140,10 @@ async function claimLessons({ teacherId, lessonIds, since = null, insert, via = 
       if (error) {
         logToFile('❌ lesson claim: could not remove the losing quiz row', { quizId, error: error.message }, 'error');
       }
-      logEvent('quiz_menu.lesson_claimed', { userId: teacherId, won: false, reason: 'raced', via, quizId: winner.id, lostQuizId: quizId });
+      logEvent('quiz_menu.lesson_claimed', { tk: tkOf(teacherId), won: false, reason: 'raced', via, quizId: winner.id, lostQuizId: quizId });
       return { won: false, reason: 'raced', existing: winner };
     }
-    logEvent('quiz_menu.lesson_claimed', { userId: teacherId, won: true, via, quizId, lessons: ids.length });
+    logEvent('quiz_menu.lesson_claimed', { tk: tkOf(teacherId), won: true, via, quizId, lessons: ids.length });
     return { won: true, quizId };
   } finally {
     for (const key of held) {

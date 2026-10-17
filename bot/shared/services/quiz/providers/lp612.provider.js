@@ -37,6 +37,7 @@ const { logToFile } = require('../../../utils/logger');
 const { logEvent } = require('../../../utils/structured-logger');
 const { resolveUx } = require('../../../config/ux-strings');
 const { LP612, lp612SourceOn } = require('../quiz-sources');
+const { tk: tkOf } = require('../web-quiz-kid');
 const {
   canonicalSubject, needsLanguageAsk, quizLanguageFor, teacherLanguageFor,
 } = require('../transcript-quiz-language');
@@ -160,11 +161,11 @@ async function list(teacherId, { since = null, limit = 20 } = {}) {
       .map((r) => toItem(r, segments.get(r.segment_id)))
       .filter(Boolean)
       .sort((a, b) => (new Date(b.date) - new Date(a.date)) || (new Date(b.deliveredAt) - new Date(a.deliveredAt)));
-    logEvent('quiz_menu.lesson_listed', { userId: teacherId, source: SOURCE, listed: items.length, delivered: rows.length });
+    logEvent('quiz_menu.lesson_listed', { tk: tkOf(teacherId), source: SOURCE, listed: items.length, delivered: rows.length });
     return items.slice(0, Math.max(0, limit));
   } catch (err) {
-    logToFile('❌ quiz menu: 6-12 lessons could not be listed — none offered', { userId: teacherId, error: err.message }, 'error');
-    logEvent('quiz_menu.lesson_list_failed', { userId: teacherId, source: SOURCE, reason: 'read_failed', error: err.message });
+    logToFile('❌ quiz menu: 6-12 lessons could not be listed — none offered', { tk: tkOf(teacherId), error: err.message }, 'error');
+    logEvent('quiz_menu.lesson_list_failed', { tk: tkOf(teacherId), source: SOURCE, reason: 'read_failed', error: err.message });
     return [];
   }
 }
@@ -254,7 +255,7 @@ async function start(teacher, lessonRef, { phone, quizLanguage = null, via = 'li
   const lang = teacherLanguageFor({ preferredLanguage: teacher && teacher.preferred_language });
   const userId = (teacher && teacher.id) || null;
   const done = (outcome, quizId = null) => {
-    logEvent('quiz_menu.lesson_picked', { userId, source: SOURCE, quizId, outcome, via });
+    logEvent('quiz_menu.lesson_picked', { tk: tkOf(userId), source: SOURCE, quizId, outcome, via });
     return { outcome, ...(quizId ? { quizId } : {}) };
   };
 
