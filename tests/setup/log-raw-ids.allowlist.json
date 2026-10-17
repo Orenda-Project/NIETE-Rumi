@@ -1587,18 +1587,6 @@
    "34 teacherId (shorthand)"
   ]
  },
- "bot/shared/services/quiz/quiz-intent-router.service.js": {
-  "n": 6,
-  "area": "quiz",
-  "at": [
-   "126 userId: user.id",
-   "217 userId: user.id",
-   "258 userId: user.id",
-   "270 from (shorthand)",
-   "310 userId: user.id",
-   "318 userId: user.id"
-  ]
- },
  "bot/shared/services/quiz/quiz-menu-entry.service.js": {
   "n": 1,
   "area": "quiz",
