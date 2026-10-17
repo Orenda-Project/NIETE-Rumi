@@ -15,7 +15,7 @@ jest.mock('../../shared/services/cache/railway-redis.service', () => require('./
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/services/whatsapp.service', () => require('./_ingress-mocks').whatsappMock(jest));
-jest.mock('../../shared/services/first-touch/walk-persona', () => ({}), { virtual: true });
+jest.mock('../../shared/services/first-touch/walk-persona', () => ({}));
 jest.mock('../../shared/services/first-touch/one-door.service', () => ({}));
 jest.mock('../../shared/services/first-touch/optional-modules', () => ({}));
 
@@ -116,7 +116,7 @@ describe('the reads start together', () => {
     await boot(deps);
     const out = await home();
     expect(out.status).toBe(200);
-    if (process.env.RECORD_GOLDEN === '1') fs.writeFileSync(GOLDEN, out.text);
+    if (process.env.TEACHER_HOME_RECORD === '1') fs.writeFileSync(GOLDEN, out.text);
     expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
   });
 
