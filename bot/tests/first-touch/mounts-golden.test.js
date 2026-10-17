@@ -1,21 +1,35 @@
 'use strict';
 /**
- * bot/whatsapp-bot.js registers the same ordered routes as the golden: every app.use/get/post/… call in order, with
- * its path, its handler names and, for a mounted router, that router's own layers (route paths, methods, handler
- * names). The optional first-touch mounts sit in that list, so their order and paths are pinned with everything
- * around them. Only the edges are doubled (no database, no Redis, no WhatsApp). Record once with UPDATE_GOLDEN=1.
+ * The optional first-touch mount block of bot/whatsapp-bot.js (from its first "── first touch:" marker through
+ * "── end the one door ──") registers the same ordered routes as the golden: every app.use/get/post/… call in order,
+ * with its path, its handler names and, for a mounted router, that router's own layers (route paths, methods, handler
+ * names). Only that block is run, against a bare express app, so a route added anywhere else never touches it.
+ * Only the edges are doubled (no database, no Redis). Record once with UPDATE_GOLDEN=1.
  */
-process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost';
-process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-key';
-process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-key';
-process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
 process.env.INTERNAL_API_KEY = 'unit-internal-key-not-a-secret';
+jest.mock('../../shared/config/supabase', () => ({}));
+jest.mock('../../shared/services/cache/railway-redis.service', () => require('./_ingress-mocks').redisMock(jest));
+jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
+jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 
 const fs = require('fs');
 const path = require('path');
+const express = require('express');
 
+const BOT = path.join(__dirname, '..', '..');
 const GOLDEN = path.join(__dirname, '__goldens__', 'bot-mounts.json');
+const FROM = '// ── first touch:';
+const TO = '// ── end the one door ──\n';
 const METHODS = ['use', 'get', 'post', 'put', 'patch', 'delete', 'all'];
+
+function mountBlock() {
+  const src = fs.readFileSync(path.join(BOT, 'whatsapp-bot.js'), 'utf8');
+  const a = src.indexOf(FROM);
+  const b = src.indexOf(TO, a);
+  expect(a).toBeGreaterThan(-1);
+  expect(b).toBeGreaterThan(a);
+  return src.slice(a, b + TO.length);
+}
 
 function routerOf(stack) {
   return stack.map((l) => (l.route
@@ -24,35 +38,22 @@ function routerOf(stack) {
 }
 const handler = (h) => (Array.isArray(h && h.stack) ? { name: h.name || '<anonymous>', stack: routerOf(h.stack) } : { name: (h && h.name) || '<anonymous>' });
 
-test('whatsapp-bot.js registers the golden routes, in the golden order', () => {
+test('the first-touch mount block registers the golden routes, in the golden order', () => {
+  const app = express();
   const calls = [];
-  jest.doMock('express', () => {
-    const real = jest.requireActual('express');
-    const make = (...a) => {
-      const app = real(...a);
-      for (const m of METHODS) {
-        const orig = app[m];
-        app[m] = function record(...args) {
-          if (!(m === 'get' && args.length === 1)) {   // app.get('setting') reads, it registers nothing
-            const hasPath = typeof args[0] === 'string' || args[0] instanceof RegExp || Array.isArray(args[0]);
-            const fns = hasPath ? args.slice(1) : args;
-            calls.push({ app, call: { m, path: hasPath ? String(args[0]) : null, handlers: fns.flat().map(handler) } });
-          }
-          return orig.apply(this, args);
-        };
-      }
-      return app;
+  for (const m of METHODS) {
+    const orig = app[m];
+    app[m] = function record(...args) {
+      const hasPath = typeof args[0] === 'string' || args[0] instanceof RegExp || Array.isArray(args[0]);
+      calls.push({ m, path: hasPath ? String(args[0]) : null, handlers: (hasPath ? args.slice(1) : args).flat().map(handler) });
+      return orig.apply(this, args);
     };
-    return Object.assign(make, real);
-  });
-  jest.doMock('../../shared/config/supabase', () => ({ from: () => ({}), rpc: async () => ({ data: null, error: null }) }));
-  jest.doMock('../../shared/services/cache/railway-redis.service', () => require('./_ingress-mocks').redisMock(jest));
-  jest.doMock('../../shared/services/whatsapp.service', () => require('./_ingress-mocks').whatsappMock(jest));
-  jest.doMock('../../shared/utils/web-drain', () => ({
-    trackWebhookWork: (w) => w, installWebDrain: () => {}, inFlightCount: () => 0, waitForIdle: async () => true,
-  }));
-  const { app } = require('../../whatsapp-bot');
-  const got = JSON.stringify(calls.filter((c) => c.app === app).map((c) => c.call), null, 2) + '\n';
+  }
+  const req = (p) => require(p.startsWith('.') ? path.join(BOT, p) : p);
+  // eslint-disable-next-line no-new-func
+  new Function('app', 'require', mountBlock())(app, req);
+  expect(calls.length).toBeGreaterThan(0);
+  const got = JSON.stringify(calls, null, 2) + '\n';
   if (process.env.UPDATE_GOLDEN === '1') fs.writeFileSync(GOLDEN, got);
   expect(got).toBe(fs.readFileSync(GOLDEN, 'utf8'));
 });
