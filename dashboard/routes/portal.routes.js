@@ -4698,17 +4698,8 @@ function _reportImageRawUrl(session) {
   return session.report_pdf_url || null;
 }
 
-async function _resolveMediaUrl(url, expiresIn = 3600, options) {
-  if (!url) return null;
-  if (isValidR2Url(url)) return generatePresignedUrl(url, expiresIn, options);
-  if (/^https?:\/\//i.test(url)) return url;
-  return null;
-}
-
-/** True when a module's source_media_url points at a PDF document. */
-function _isPdfSourceUrl(url) {
-  return !!url && /\.pdf(\?|$)/i.test(url);
-}
+// bd-s42dye.1 — defined in lib/media-url.js so the Training Library presigns the same way.
+const { resolveMediaUrl: _resolveMediaUrl, isPdfSourceUrl: _isPdfSourceUrl } = require('../lib/media-url');
 
 /**
  * bd-2480 — the level gate, answered by the bot.
