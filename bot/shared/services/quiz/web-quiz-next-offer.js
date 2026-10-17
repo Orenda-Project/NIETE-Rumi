@@ -8,7 +8,7 @@
  *   2.  in the first 2 home opens of a PKT month, a Trail stop not played this month   rank_src 'rule'
  *       (never one the server would answer "on its way")
  *   1a. on the home, the tile the child tapped last and has not finished (still offered) rank_src 'rule'
- *       (#C49a: an unfinished open counts as one shown-without-a-tap; it moves after one more, so a second
+ *       (an unfinished open counts as one shown-without-a-tap; it moves after one more, so a second
  *       unfinished open or an untapped show rotates it; its words follow what the child was doing, by the tile's word
  *       key `w`: a read says "Carry on reading", a listen / read-along story / storybook "Carry on with your story")
  *   1b. a half-finished storybook / a video watched < 90 %, at most once a PKT day     rank_src 'rule'
@@ -53,7 +53,7 @@ const MONTH_OPENS = 2;
 const DROP_AFTER = 2;
 const ALTS_MAX = 2;
 const KINDS = ['story', 'game', 'quiz', 'video', 'storybook', 'invite', 'sticker'];
-// #C49a: an opened, unfinished activity comes back saying it is a resume, in words that follow what the child was
+// an opened, unfinished activity comes back saying it is a resume, in words that follow what the child was
 // doing. Chosen by the tile's word key `w` (the key its words were made from), never guessed from the href: a passage
 // read aloud carries on reading; a story listened to, read along or a storybook carries on with the story. Any other
 // key (a game, a quiz, a video, a tile with no key) keeps its own words.
@@ -131,7 +131,7 @@ function ranked(ctx, list, state, weights) {
     [scored[0], scored[1]] = [scored[1], scored[0]];
   }
   // A primary shown twice in a row and never tapped drops one place, so the tile moves; an unfinished open counts as
-  // one of the two (#C49a). The drops are the day's own list (Leaf.noteShown / noteTap write it), replayed in order on
+  // one of the two. The drops are the day's own list (Leaf.noteShown / noteTap write it), replayed in order on
   // every render, so a drop holds: a render never undoes one or makes one.
   dropsOf(state).forEach((id) => {
     const i = scored.findIndex((x) => x.c.id === id);
@@ -142,7 +142,7 @@ function ranked(ctx, list, state, weights) {
 
 const dropsOf = (state) => (Array.isArray(state.drops) ? state.drops.filter((x) => typeof x === 'string') : []);
 
-/** Shown-without-a-tap for a candidate: the untapped streak + the unfinished opens (the last tap, #C49a). */
+/** Shown-without-a-tap for a candidate: the untapped streak + the unfinished opens (the last tap). */
 function usedOf(state, c) {
   const s = state.streak;
   const t = state.carry;
@@ -335,7 +335,7 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
     // a month's home open is a PKT day with a home view: a reload or a second fetch the same day is the same open
     const first = ctx === 'home' && !(st.m === month && st.od === day);
     const opens = (st.m === month ? Number(st.o) || 0 : 0) + (first ? 1 : 0);
-    // #C49a: the tile tapped last; a story opened and left (it is no longer "unseen", so no longer built) comes back
+    // the tile tapped last; a story opened and left (it is no longer "unseen", so no longer built) comes back
     // from the tap's own copy while the child's runs on it are all unfinished (`open`: the hub's read)
     const t = st.t && typeof st.t === 'object' && st.t.id ? st.t : null;
     const list = t && t.c && t.c.kind === 'story' && open && typeof open.has === 'function' && open.has(t.id)
@@ -358,7 +358,7 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
       ...(st.s ? { s: st.s } : {}),
       ...(st.dq && st.dq.d === day ? { dq: st.dq } : {}),
       ...(r.meta.drawn ? { rk: { d: day, k: r.meta.drawn } } : st.rk && st.rk.d === day ? { rk: st.rk } : {}),
-      // #C50: with the taps heard (events v3) a render never spends the once-a-day tile: `rs` marks the view that
+      // with the taps heard (events v3) a render never spends the once-a-day tile: `rs` marks the view that
       // showed it, and a tap from that view spends it (Leaf.noteTap / noteDoor). Without them, today's rule.
       rd: s.events ? st.rd || null : r.meta.rule === 'resume' ? day : st.rd || null,
       ...(s.events && r.meta.rule === 'resume' ? { rs: { id: next.id, day } } : {}),
