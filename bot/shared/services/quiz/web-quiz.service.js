@@ -1853,6 +1853,8 @@ function rankRows(rows) {
 
 async function board(code, { st } = {}) {
   requireOn();
+  // app_settings web_quiz_class_doors: `class_doors: true` marks the table's one primary on the page
+  const doors = require('./web-quiz-class-doors-flag').on().catch(() => false);
   const ctx = await resolveCode(code);
   // A friend's challenge code is not the class: its table (classmates' first names) is not theirs to see.
   if (ctx.invitedByStudentId) fail(404, 'not_found');
@@ -1881,6 +1883,7 @@ async function board(code, { st } = {}) {
       if (mine) out.you = { place: mine.place, correct: mine.correct, total: mine.total, pct: mine.pct };
     }
   }
+  if (await doors) out.class_doors = true;
   return out;
 }
 

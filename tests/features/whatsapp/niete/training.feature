@@ -1484,8 +1484,12 @@ Feature: NIETE (ICT) Teacher Training
     When the child taps "See my class" or "School league"
     Then the class table or the school league opens, with the same rows as the quiz page's own class and league views
     But a friend who came through a challenge code, the teacher's own test run and a child no teacher's quiz has reached get neither button
-    And with web_quiz_class_doors off the card and the results are exactly as they are today
-    # web-quiz-hub-door foldField -> {class_doors: true} (web-quiz-class-doors-flag on); wq.js classDoors on foldCard + results.
+    And a run on the shared watch quiz, or on a video code under it, gets neither button: its table is not the child's class
+    And on the league, "Play and add points for <school>" reads as one line and is the one primary, and a sector code like "ict" reads "ICT"
+    And on the class table, "Share the class table" is the one primary
+    And with web_quiz_class_doors off the card, the results, the class table and the league are exactly as they are today
+    # web-quiz-hub-door foldField -> {class_doors: true} (web-quiz-class-doors-flag on + ownClass, never the watch root);
+    # web-quiz.service board + web-quiz-schools board -> class_doors; wq.js classDoors on foldCard + results, board, drawSchools.
     # unit: bot/tests/quiz/web-quiz/web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
   @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver

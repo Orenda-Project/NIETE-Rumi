@@ -99,3 +99,51 @@ describe('the results screen (class_doors)', () => {
     expect(p.html()).not.toContain('id="wq-class"');
   });
 });
+
+// The league and the class table with the switch on (the bot adds `class_doors` to both answers): the cold recipient's
+// "Play and add points for <school>" is ONE label (the button is a flex row: the words and the school's name were two
+// side-by-side columns), the one primary is marked, and a short lower-case sector code reads as a name ("ict" -> "ICT").
+describe('the league and the class table (class_doors on their answers)', () => {
+  const LEAGUE = { mine: { name: 'Model School Testwala', place: 2, points: 40, kids: 4, sector: 'ict' }, rows: [{ place: 1, name: 'Other School', points: 50, kids: 5, sector: 'ict' }, { place: 2, name: 'Model School Testwala', points: 40, kids: 4, sector: 'ict', mine: true }], ranked_n: 2 };
+  const cold = async (lang, body) => { const p = page({ lang, store: {}, view: 'schools', api: { '/schools/TEST': body } }); await flush(); await flush(); return p; };
+  const playBtn = (h) => /<button[^>]*id="wq-play-s"[^>]*>([\s\S]*?)<\/button>/.exec(h);
+  for (const lang of ['en', 'ur']) {
+    test(`${lang}, on: the play button holds one label and is the one primary; the sector chip says ICT`, async () => {
+      const h = (await cold(lang, { ...LEAGUE, class_doors: true })).html();
+      const m = playBtn(h);
+      expect(m).not.toBeNull();
+      expect(m[0]).toMatch(/\sdata-primary[\s>]/);
+      expect(m[1]).toMatch(/^<span class="wq-btn-t">[\s\S]*<\/span>$/);
+      expect(primaries(h)).toBe(1);
+      expect(h).toMatch(/<bdi>ICT<\/bdi><\/button>/);
+    });
+    test(`${lang}, off: the league is today's (no wrapper, no primary mark, the sector as stored)`, async () => {
+      const h = (await cold(lang, LEAGUE)).html();
+      expect(playBtn(h)[1]).not.toContain('wq-btn-t');
+      expect(primaries(h)).toBe(0);
+      expect(h).toMatch(/<bdi>ict<\/bdi><\/button>/);
+    });
+  }
+  test('a played child, on: Share is the league\'s one primary; a sector that is a name stays as it is', async () => {
+    const p = page({ lang: 'en', store: store({ ...RESULT }), api: { 'board/': BOARD, 'schools/': { ...LEAGUE, mine: { ...LEAGUE.mine, sector: 'Sector One' }, class_doors: true } } });
+    p.wq.board();
+    await flush(); await flush();
+    p.els['#wq-schools'].fire('click');
+    await flush(); await flush();
+    const h = p.html();
+    expect(h).toMatch(/<button[^>]*id="wq-share-s"[^>]*\sdata-primary[\s>]/);
+    expect(primaries(h)).toBe(1);
+    expect(h).toContain('<bdi>Sector One</bdi>');
+  });
+  test('the class table, on: "Share the class table" is its one primary; off: no mark', async () => {
+    for (const [extra, n] of [[{ class_doors: true }, 1], [{}, 0]]) {
+      const p = page({ lang: 'en', store: store({ ...RESULT }), api: { 'board/': { ...BOARD, ...extra } } });
+      p.wq.board();
+      await flush(); await flush();
+      const h = p.html();
+      expect(h).toContain('data-m="M11"');
+      expect(primaries(h)).toBe(n);
+      if (n) expect(h).toMatch(/<button[^>]*id="wq-share-t"[^>]*\sdata-primary[\s>]/);
+    }
+  });
+});

@@ -354,6 +354,8 @@ async function addedBy(st, data, week, now) {
 async function board(code, { now = Date.now(), st } = {}) {
   // The same on/off switch as every web quiz route: off, nothing is read.
   if (!T.secret()) throw new WebQuiz.WqError(503, { error: 'web_quiz_off' });
+  // app_settings web_quiz_class_doors: `class_doors: true` tells the page to draw its fixed play button and sector chip
+  const doors = require('./web-quiz-class-doors-flag').on().catch(() => false);
   const ctx = await WebQuiz.resolveCode(code);
   const data = await snapshot(now);
   let mySchoolId = null;
@@ -367,7 +369,7 @@ async function board(code, { now = Date.now(), st } = {}) {
   const fresh = st ? await addedBy(st, data, weekStartIso(now), now) : { added: undefined, plays: data.plays };
   const out = scoreSchools({ plays: fresh.plays, schools: data.schools, mySchoolId, splitAt: dayStartIso(now) });
   const week = new Date(Date.parse(weekStartIso(now)) + PKT_OFFSET_MS).toISOString().slice(0, 10);
-  return { week_start: week, ...out, ...(fresh.added ? { added: fresh.added } : {}) };
+  return { week_start: week, ...out, ...(fresh.added ? { added: fresh.added } : {}), ...((await doors) ? { class_doors: true } : {}) };
 }
 
 module.exports = { board, scoreSchools, countedPlays, neighbours, pointsFor, weekStartIso, dayStartIso, CACHE_MS, _reset };

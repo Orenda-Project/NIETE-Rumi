@@ -2878,7 +2878,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         (yourPct != null ? '<span>' + esc(T.yourScore) + '</span><span>' + yourPct + '%</span><div class="wq-meter" style="grid-column:1/3"><b style="width:' + yourPct + '%"></b></div>' : '') +
         '<span>' + esc(T.avg) + '</span><span>' + esc(b.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (b.class_avg_pct || 0) + '%"></b></div></div>' +
         '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
-        '<button class="wq-btn wq-go" id="wq-share-t">' + esc(T.shareTable) + '</button>' +
+        '<button class="wq-btn wq-go" id="wq-share-t"' + (b.class_doors ? ' data-primary' : '') + '>' + esc(T.shareTable) + '</button>' +
         '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' +
         (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
       render(h, 'M11');
@@ -2942,8 +2942,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       on('#wq-retry', function () { schools(SCH.back); });
     });
   }
+  // With web_quiz_class_doors (the league's class_doors): a short lower-case sector code reads as a name ("ict" -> "ICT").
+  function sectorName(s, on) { return on && /^[a-z]{2,4}$/.test(String(s)) ? String(s).toUpperCase() : s; }
   function drawSchools() {
     var b = SCH.data || {};
+    var cd = Boolean(b.class_doors);
     var mine = b.mine || null;
     var rows = b.rows || [];
     if (SCH.sector && mine && mine.sector) rows = rows.filter(function (x) { return x.sector === mine.sector; });
@@ -2957,7 +2960,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         (b.added ? '<p class="wq-added">' + T.added(esc(b.added), nm) + '</p>' : '') + '</div>';
     var chips = mine && mine.sector && (b.rows || []).length
       ? '<div class="wq-chips wq-schips"><button class="wq-chip' + (SCH.sector ? '' : ' wq-on') + '" id="wq-all">' + esc(T.allSchools) + '</button>' +
-        '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + ' · <bdi>' + esc(mine.sector) + '</bdi></button></div>' : '';
+        '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + ' · <bdi>' + esc(sectorName(mine.sector, cd)) + '</bdi></button></div>' : '';
     var zn = b.zero_names || [];
     var zero = b.zero_n && !SCH.sector
       ? '<details class="wq-zero-list"><summary>' + esc(T.zeroN(b.zero_n)) + '</summary>' +
@@ -2965,8 +2968,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() + '<h2>' + esc(T.schoolsT) + '</h2><p class="wq-sub">' + esc(T.schoolsRule) + '</p>' + top + chips +
       (list ? '<ol class="wq-slist">' + list + '</ol>' : mine ? '' : '<div class="wq-card">' + esc(T.noSchools) + '</div>') + zero +
       // A cold recipient of the league link (never played here): the next step is to play, for their school.
-      (mine && !S.st && !S.result ? '<button class="wq-btn wq-go" id="wq-play-s">' + T.playFor(nm) + '</button>' : '') +
-      (mine ? '<button class="wq-btn ' + (!S.st && !S.result ? 'wq-soft' : 'wq-go') + '" id="wq-share-s">' + esc(mine.ghost ? T.inviteSchool : T.shareSchools) + '</button>' : '') +
+      // (class_doors: the label is one flex item, never the words and the name side by side; the go button is the primary)
+      (mine && !S.st && !S.result ? '<button class="wq-btn wq-go" id="wq-play-s"' + (cd ? ' data-primary><span class="wq-btn-t">' + T.playFor(nm) + '</span>' : '>' + T.playFor(nm)) + '</button>' : '') +
+      (mine ? '<button class="wq-btn ' + (!S.st && !S.result ? 'wq-soft' : 'wq-go') + '" id="wq-share-s"' + (cd && (S.st || S.result) ? ' data-primary' : '') + '>' + esc(mine.ghost ? T.inviteSchool : T.shareSchools) + '</button>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
     render(h, 'M16');
     wireBar();
