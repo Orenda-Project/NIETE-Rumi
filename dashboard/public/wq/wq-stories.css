@@ -102,3 +102,10 @@
 @media (prefers-reduced-motion:reduce){.wqs *{animation:none!important;transition:none!important}}
 .wqs-g{width:1.15em;height:1.15em;vertical-align:-.2em;fill:currentColor;flex:none}
 .wqs-ic .wqs-g{width:26px;height:26px}
+/* never a blank stage: the page's words and "Opening…" under the picture until it loads; the stall line; the 600 ms tap lock */
+.wqs-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;box-sizing:border-box;text-align:center;font-size:20px;line-height:1.6;color:var(--ink)}
+.wqs-ph p{margin:0;max-height:80%;overflow:hidden}
+.wqs-ph i{color:var(--soft);font-style:normal;font-size:16px}
+.wqs-net{margin:0;text-align:center;color:var(--soft);font-size:17px}
+.wqs-lk{pointer-events:none}
+[data-steady] .wqs-top h2[dir=rtl]{padding-inline-start:.3em}
