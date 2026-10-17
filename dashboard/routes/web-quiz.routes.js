@@ -187,7 +187,7 @@ function assetVersion() {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   // The child home (wq-home.*, the home tags) and its door screens (wq-doors.*, loaded by wq-home.js) ride this ?v= too.
-  for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css', 'wq-vshelf.css']) {
+  for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   // The stories reader (loaded by the home and the hub at this ?v=) and its lazy files (Your turn; the questions and done, at the reader's ?v=, this
