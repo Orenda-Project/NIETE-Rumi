@@ -43,6 +43,16 @@ const ROWS = [
   [['web_quiz_next_offer', 'web_quiz_events_v3']],
 ];
 
+// What each switch adds when it is on, so a row can never pass with its switch silently off (a JSON-true-only read of a
+// string row): the payload's own field, or (the Stories band, read by the book page only) the module's own cache.
+const ADDS = {
+  'web_quiz_home_v3 + web_quiz_stories': (p) => p.home_v3 === 1 && Boolean(p.doors),
+  web_quiz_stories: (p) => Boolean(p.stories && p.stories.on === 1),
+  web_quiz_stories_band: () => require('../../../shared/services/quiz/web-quiz-stories').hubSwitches.peek().band === true,
+  web_quiz_card_v3: (p) => p.card_v3 === true,
+  'web_quiz_next_offer + web_quiz_events_v3': (p) => Boolean(p.next && p.next.kind),
+};
+
 const SAVED = { ...process.env };
 beforeAll(() => Fx.useClock());
 afterAll(() => { jest.useRealTimers(); process.env = SAVED; });
@@ -52,8 +62,11 @@ describe('a hub switch ON adds no wave over OFF (fast page on, every other switc
   test.each(ROWS.map((r) => [r[0].join(' + '), r]))('%s', async (_, [keys, allow]) => {
     const extra = (allow && allow.extra) || 0;
     const staleExtra = allow && allow.staleExtra !== undefined ? allow.staleExtra : extra;
+    const name = keys.join(' + ');
     const off = await Fx.hubWaves({ switches: keys });
+    if (ADDS[name]) expect(ADDS[name](JSON.parse(off.out))).toBe(false);
     const on = await Fx.hubWaves({ switches: [] });
+    if (ADDS[name]) expect(ADDS[name](JSON.parse(on.out))).toBe(true);
     const show = (what, a, b, la, lb, ok) => `${keys.join(' + ')}, ${what}: OFF ${a} waves, ON ${b} (allowed +${ok}).\nOFF (table, caller):\n${la}\nON (table, caller):\n${lb}`;
     console.log(`${keys.join(' + ')}: warm OFF ${off.warm.waves} ON ${on.warm.waves}; stale OFF ${off.stale.waves} ON ${on.stale.waves}`);
     if (on.warm.waves !== off.warm.waves + extra) throw new Error(show('warm', off.warm.waves, on.warm.waves, off.list, on.list, extra));
@@ -71,6 +84,10 @@ describe('the hub with every child switch on', () => {
     expect(p.fast).toBe(true);
     expect(p.home_v).toBe(1);
     expect(p.next).toEqual(expect.objectContaining({ ctx: 'home', offer: expect.any(String) }));
+    // each strict (JSON true only) switch is really on here: the v3 home, Stories, the finish card
+    expect(p.home_v3).toBe(1);
+    expect(p.stories).toEqual(expect.objectContaining({ on: 1 }));
+    expect(p.card_v3).toBe(true);
     expect(all.warm.waves).toBeLessThanOrEqual(6);
     expect(all.stale.waves).toBeLessThanOrEqual(8);
     // the fast page's payload is the one the hub builds with it off, `next` included (each offer id is a fresh random one)

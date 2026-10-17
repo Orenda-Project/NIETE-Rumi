@@ -342,8 +342,9 @@ function listenFrom(data, now) { listenCache = { at: now, on: !!(data && data[0]
 
 // The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
 // cache from the raw rows, parsed here exactly as this module's own read parses them.
-// The hub reads the record and missing switches (the Trail's stops) and Listen.
-const HUB_SETTING_KEYS = [RECORD_FLAG_KEY, MISSING_FLAG_KEY];
+// The hub reads the record and missing switches (the Trail's stops) and Listen; with the v3 home on, its challenge
+// draw reads the v2 switch and its child, the pool.
+const HUB_SETTING_KEYS = [RECORD_FLAG_KEY, MISSING_FLAG_KEY, V2_FLAG_KEY, POOL_FLAG_KEY];
 const hubSwitches = {
   name: 'challenge', keys: [...HUB_SETTING_KEYS, LISTEN_FLAG_KEY], swr: [...HUB_SETTING_KEYS.map((k) => `challenge:${k}`), 'challenge:listen'],
   age: (now) => {
@@ -354,7 +355,7 @@ const hubSwitches = {
     HUB_SETTING_KEYS.forEach((k) => settingCache.set(k, { v: settingOf(rows.filter((r) => r.key === k)), at: now }));
     listenFrom(rows.filter((r) => r.key === LISTEN_FLAG_KEY), now);
   },
-  read: async () => { await recordOn(); await missingOn(); await listenOn(); },
+  read: async () => { await recordOn(); await missingOn(); await v2On(); await poolOn(); await listenOn(); },
   peek: () => ({ ...Object.fromEntries(HUB_SETTING_KEYS.map((k) => [k, settingCache.get(k) || null])), listen: listenCache }),
 };
 

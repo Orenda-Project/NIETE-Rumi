@@ -54,6 +54,7 @@ const MODULES = [
   () => require('../../config/web-quiz-brand'),
   () => require('./web-quiz-stories'),
   () => require('./web-quiz-next-offer-state'),
+  () => require('./web-quiz-card-image'),
 ];
 
 let list = null;

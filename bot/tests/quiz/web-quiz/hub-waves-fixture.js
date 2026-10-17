@@ -67,11 +67,12 @@ const passage = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: '
   released_at: new Date(NOW - h * 3600000).toISOString(), title_en: `Title ${id}`, title_ur: null });
 
 // loose: the usual quiz child on prod (no class list, no enrolment; their teacher known from the links they played).
-// off: switches present but set to 'false'.
+// off: switches present but set to false.
 // sibGone: the second child's row is inactive; otherGrade: the last quiz's video is of another grade than the child;
 // manyRuns: 520 old runs ahead of the child's own (a child at the runs read's 500 cap).
-// json: the switches' rows hold JSON true / false (as a jsonb column returns them) instead of the strings 'true' / 'false'.
-function tables({ fast, off = [], loose = false, sibGone = false, otherGrade = false, manyRuns = false, every = false, json = false }) {
+// json: the switches' rows hold JSON true / false, as the flips write them and a jsonb column returns them (the real home);
+// json: false holds the strings 'true' / 'false' instead (the parity test: string rows read as the JSON ones).
+function tables({ fast, off = [], loose = false, sibGone = false, otherGrade = false, manyRuns = false, every = false, json = true }) {
   const t = {
     app_settings: [...(every ? CEILING_KEYS : ON_KEYS).map((key) => ({ key, value: json ? !off.includes(key) : (off.includes(key) ? 'false' : 'true') })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : [])],
     students: [

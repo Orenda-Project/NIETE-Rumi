@@ -45,6 +45,8 @@ const Seam = () => require('../../../shared/services/quiz/web-quiz-hub-switches'
 const Fast = () => require('../../../shared/services/quiz/web-quiz-fast');
 const settingsReads = (m) => m.perTable.app_settings || 0;
 const realWait = (ms) => new Promise((r) => setTimeout(r, ms));
+// The next thing's offer ids are fresh random ones on every answer (its switch is on in the every-switch case).
+const noOffer = (json) => json.replace(/"offer":"[A-Za-z0-9_-]{10}"/g, '"offer":"-"');
 /** A process whose fast switch is read (on) and every other switch cold. */
 async function coldWithFastWarm(opts) {
   boot(opts);
@@ -86,7 +88,7 @@ describe('cold process (first hub after a start, the fast switch already read), 
     expect(S.lastReads.length).toBeGreaterThan(0);
     expect(cold.waves).toBeLessThanOrEqual(BEFORE.coldWaves - 6);
     expect(settingsReads(warm)).toBe(0);
-    expect(cold.out).toBe(warm.out);
+    expect(noOffer(cold.out)).toBe(noOffer(warm.out));
   });
 
   test('the usual switches: the cold payload is the recorded one', async () => {
@@ -113,7 +115,7 @@ describe('cold process (first hub after a start, the fast switch already read), 
     const failed = await measure(tokenOne(), { device: DEVICE });
     db.from = from;
     expect(settingsReads(failed)).toBeGreaterThan(settingsReads(ok));
-    expect(failed.out).toBe(ok.out);
+    expect(noOffer(failed.out)).toBe(noOffer(ok.out));
     expect(failed.open).toBe(ok.open);
   });
 
@@ -171,7 +173,7 @@ describe('a switch reads the same through the seam as through its own read', () 
     expect(S.reads.filter((r) => r.t === 'app_settings').length).toBe(1);
     const primed = {};
     for (const e of Seam().entries()) primed[e.name] = noAt(e.peek());
-    expect(Object.keys(primed).length).toBe(14);  // every module the hub reads a switch through, but the fast switch itself (challenge: 3 switches; stories: 4 keys; the next thing: 3 keys)
+    expect(Object.keys(primed).length).toBe(15);  // every module the hub reads a switch through, but the fast switch itself (challenge: 5 switches; stories: 4 keys; the next thing: 3 keys; the finish card: 1)
     // The same cache, but where the module's own read reads nothing (keep my place's way back with its parent off:
     // it answers false before its cache; primed, its cache holds what its read would hold).
     const skipped = Object.keys(own).filter((n) => own[n] === null);

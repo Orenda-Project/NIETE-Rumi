@@ -238,6 +238,11 @@ describe('the hub\'s round-trip ceiling (every child switch on, fast page on)', 
     const p = JSON.parse(warm.out);
     expect(p.fast).toBe(true);
     expect(p.teacher && p.recs.length && p.challenge && p.play && p.book_on).toBeTruthy();
+    // the strict (JSON true only) switches are really on: the v3 home, Stories, the finish card, the next thing
+    expect(p.home_v3).toBe(1);
+    expect(p.stories && p.stories.on).toBe(1);
+    expect(p.card_v3).toBe(true);
+    expect(p.next && p.next.kind).toBeTruthy();
     jest.setSystemTime(NOW + 31 * 1000);
     const stale = await measure(tok, { device: DEVICE });
     console.log(`hub ceiling: warm ${warm.waves} (ceiling ${HUB_CEILING.warm}), stale ${stale.waves} (ceiling ${HUB_CEILING.stale})\n${waveList(warmList)}`);

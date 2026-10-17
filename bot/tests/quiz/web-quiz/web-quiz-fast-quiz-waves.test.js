@@ -46,7 +46,8 @@ const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline',
 function school(scn, { fast, every = false }) {
   const db = F.db({ codeClass: scn === 'en_class' || scn === 'invite' ? F.CLS_A : null });
   db.app_settings.push({ key: 'web_quiz_fast', value: fast });
-  if (every) CEILING_KEYS.forEach((key) => db.app_settings.push({ key, value: 'true' }));
+  // JSON true, as the flips write them (a switch read that takes JSON true only is on here too)
+  if (every) CEILING_KEYS.forEach((key) => db.app_settings.push({ key, value: true }));
   db.app_settings.push({ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_link_home', value: true });
   db.quiz_sessions.push(F.done('s1', F.kid(1), 'Ayesha Testwala', 4, 2, { student_class: '4-A', completed_at: new Date().toISOString() }));
   if (scn === 'ur_list') {
@@ -56,7 +57,7 @@ function school(scn, { fast, every = false }) {
   }
   if (scn.startsWith('handed')) {
     db.quizzes[0].list_id = F.LIST_A;
-    db.app_settings.push({ key: 'quiz_teacher_home', value: scn === 'handed_home_on' ? 'true' : 'false' });
+    db.app_settings.push({ key: 'quiz_teacher_home', value: scn === 'handed_home_on' });
     db.classes.push({ id: CLS_C, school_id: 's2', grade_code: 'grade_4', section: 'C', shift_code: 'morning', is_active: true, merged_into_class_id: null });
     db.class_teachers.push({ id: 'ct-c', class_id: CLS_C, teacher_user_id: SENDER, is_active: true, is_class_teacher: true });
     db.student_lists.push({ id: LIST_C, user_id: SENDER, class_name: 'Grade 4 - C', section: 'C', class_id: CLS_C, is_active: true });
@@ -224,6 +225,8 @@ describe('the quiz page\'s round-trip ceiling (every child switch on, fast page 
     askedKeys.clear();
     const on = await pages('en_class', { fast: true, every: true });
     expect(JSON.parse(on.warm).fast).toBe(true);
+    // a strict (JSON true only) switch is really on here: the sound + motion kit
+    expect(JSON.parse(on.warm).juice).toBe(true);
     expect(on.stale).toBe(on.warm);
     // eslint-disable-next-line no-console
     console.log(`quiz ceiling: warm ${on.warmWaves} (ceiling ${QUIZ_CEILING.warm}), stale ${on.staleWaves} (ceiling ${QUIZ_CEILING.stale})\n${waveList(on.warmSet)}`);
