@@ -6,7 +6,9 @@
  *                                         other spoken line is the one voice of web-quiz-voice.js ONE_VOICE
  *   { "voices": { "en": { "provider": "elevenlabs", "voice": "<id>", "name": "Bella", "model": "eleven_v4",
  *                         "settings": { "stability": 0.5, ... } },
- *                 "ur": { ... } },        the voice per language (a language left out, or invalid, takes ONE_VOICE's)
+ *                 "ur": { ... } },        the voice per language: a language left out keeps today's quiz voice and
+ *                                         today's shared lines (its quizzes are as with the switch off); a language
+ *                                         named with an invalid voice, or a plan naming no voices, takes ONE_VOICE's
  *     "bank": ["q", "opts"],              the parts still served from the bank's own recordings of people (a subset
  *                                         of q, opts, why; default ["q", "opts"]). Only an explicit [] voices the
  *                                         recorded question and options again in the plan's voice
@@ -15,7 +17,7 @@
  *     "loudness_lufs": -21 }              optional: every clip the plan records is levelled to this loudness (LUFS,
  *                                         -31 to -10), one Opus encode at the plan's rate; part of the stamp and keys
  *
- * A plan is live only when every language's voice (as the plan renders it, web-quiz-voice.js setIdOf) has a
+ * A plan is live only when every language it voices (as the plan renders it, web-quiz-voice.js setIdOf) has a
  * recorded set of Jugnu's shared lines (web-quiz-voice.js SHARED_SETS): the page would show those lines silent
  * otherwise. A plan without one reads as off, and the refusal is logged. The tools given a plan directly (the
  * backfill's --plan, the missing-keys check) are not refused: they record before the flip.
@@ -82,12 +84,25 @@ function normalize(value) {
   const hasKbps = KBPS.includes(Number(v.kbps));
   if (!hasVoices && !hasBank && !hasKbps) return null;
   const voices = hasVoices ? v.voices : {};
+  // A plan that names `voices` for some languages only: a language it leaves out keeps today's quiz voice (null).
+  const voiceFor = (lang) => (hasVoices && !(lang in v.voices) ? null : voiceOf(voices[lang], lang));
   const bank = hasBank ? BANK_PARTS.filter((p) => v.bank.includes(p)) : [...DEFAULT_BANK];
   const kbps = hasKbps ? Number(v.kbps) : DEFAULT_KBPS;
   // The loudness every clip of the plan is levelled to (a number, LUFS, -31 to -10); absent, the provider's own level.
   const lufs = typeof v.loudness_lufs === 'number' && v.loudness_lufs >= -31 && v.loudness_lufs <= -10 ? v.loudness_lufs : null;
-  return withSig({ voices: { en: voiceOf(voices.en, 'en'), ur: voiceOf(voices.ur, 'ur') }, bank, kbps,
+  return withSig({ voices: { en: voiceFor('en'), ur: voiceFor('ur') }, bank, kbps,
     ...(lufs === null ? {} : { loudness_lufs: lufs }) });
+}
+
+/**
+ * The plan as it applies to ONE quiz in `lang`, or null: the quiz keeps today's voice (the switch is off for it).
+ * A quiz in a language the plan leaves out keeps today's; `lang` unknown, the plan as it is.
+ */
+function forQuiz(p, quizId, lang = null) {
+  if (!p) return null;
+  const base = lang ? String(lang).trim().toLowerCase().split(/[-_]/)[0] : null;
+  if (base && p.voices && p.voices[base] === null) return null;
+  return p;
 }
 
 // How a voice is rendered (web-quiz-voice.js): part of the stamp and of a clip's key.
@@ -96,7 +111,7 @@ const { renderOf } = Voice;
 // The plan's stamp: its voice per language (by tag, model and settings), its bank parts and its rate. A quiz recorded
 // under another plan is recorded again; clips of an unchanged voice keep their keys, so only what changed is paid for.
 function withSig(plan) {
-  const voice = (lang) => [Voice.tagOf(plan.voices[lang]), renderOf(plan.voices[lang])];
+  const voice = (lang) => (plan.voices[lang] === null ? null : [Voice.tagOf(plan.voices[lang]), renderOf(plan.voices[lang])]);
   const sig = crypto.createHash('sha1')
     .update(JSON.stringify({ en: voice('en'), ur: voice('ur'), bank: plan.bank, kbps: plan.kbps,
       ...(plan.loudness_lufs === undefined ? {} : { lufs: plan.loudness_lufs }) }))
@@ -109,7 +124,9 @@ function withSig(plan) {
 const refused = new Set();
 function live(p) {
   if (!p) return null;
-  const missing = ['en', 'ur'].map((lang) => Voice.setIdOf(Voice.quizVoice(lang, { oneVoice: p }))).filter((id) => !Voice.SHARED_SETS[id]);
+  // Every language the plan voices (a language it leaves out keeps today's voice and today's lines).
+  const missing = ['en', 'ur'].filter((lang) => p.voices[lang] !== null)
+    .map((lang) => Voice.setIdOf(Voice.quizVoice(lang, { oneVoice: p }))).filter((id) => !Voice.SHARED_SETS[id]);
   if (!missing.length) return p;
   if (!refused.has(p.sig)) {
     refused.add(p.sig);
@@ -195,4 +212,4 @@ function pin(p) { pinned = p || null; }
 /** Tests only: forget the cached reading (and a pin). */
 function reset() { cache = null; pinned = undefined; refused.clear(); }
 
-module.exports = { on, plan, take, normalize, renderOf, mixOf, current, currentPlan, keepFresh, pin, reset, KEY, TTL_MS, BANK_PARTS, DEFAULT_BANK, KBPS };
+module.exports = { on, plan, take, normalize, forQuiz, renderOf, mixOf, current, currentPlan, keepFresh, pin, reset, KEY, TTL_MS, BANK_PARTS, DEFAULT_BANK, KBPS };

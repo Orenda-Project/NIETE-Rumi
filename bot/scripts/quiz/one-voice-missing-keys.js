@@ -126,7 +126,9 @@ async function main(argv, deps = {}) {
   const CW = require('../../shared/services/quiz/web-quiz-challenge-clip-warm');
   const Bank = require('../../shared/services/child-test/item-bank');
 
-  print(`one-voice-missing-keys: plan=${args.plan.sig} en=${Voice.setIdOf(args.plan.voices.en)} ur=${Voice.setIdOf(args.plan.voices.ur)}`);
+  // A language the plan leaves out keeps today's voice: "today" (its keys and shared lines are today's).
+  const setOf = (lang) => (args.plan.voices[lang] === null ? 'today' : Voice.setIdOf(args.plan.voices[lang]));
+  print(`one-voice-missing-keys: plan=${args.plan.sig} en=${setOf('en')} ur=${setOf('ur')}`);
   const optAudio = await Ch.optionAudioOn();
   const clips = new Map();
   for (const r of await CW.passageRows(now)) {
@@ -179,8 +181,9 @@ async function main(argv, deps = {}) {
   const sets = Voice.sharedSets(args.plan);
   const shared = {};
   ['en', 'ur'].forEach((lang) => {
+    if (args.plan.voices[lang] === null) { shared[lang] = 'today'; return; }
     shared[lang] = sets[lang] ? sets[lang].path : null;
-    if (!sets[lang]) print(`missing\tshared-lines\t${lang}\t${Voice.setIdOf(args.plan.voices[lang])}`);
+    if (!sets[lang]) print(`missing\tshared-lines\t${lang}\t${setOf(lang)}`);
   });
   const ok = missing === 0 && Boolean(shared.en && shared.ur);
   print(`SUMMARY present=${present} total=${clips.size} missing=${missing} shared=en:${shared.en || 'none'},ur:${shared.ur || 'none'} ok=${ok ? 'yes' : 'no'}${rec.stopped ? ` stopped=${rec.stopped}` : ''}`);

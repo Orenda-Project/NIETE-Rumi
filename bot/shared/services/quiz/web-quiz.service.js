@@ -512,7 +512,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // One voice per quiz (web-quiz-one-voice-flag.js): no recorded person's voice beside the quiz voice. Its clips are
   // in their own slot (meta.web_one): the page is served from it, and meta.web is left as it is. Read in the page's
   // own settings read (web-quiz-identity-roster.js), so the switch costs the page no read.
-  const oneVoice = story ? null : await IdRoster.oneVoicePlan();
+  // The plan as it applies to this quiz (its language): null keeps today's voice, as with the switch off.
+  const oneVoice = story ? null : require('./web-quiz-one-voice-flag').forQuiz(await IdRoster.oneVoicePlan(), ctx.quizId, voiceLang);
   const quizMeta = (quizRow && quizRow.meta) || {};
   const audioMeta = oneVoice ? { ...quizMeta, web: quizMeta.web_one || {} } : quizMeta;
   // The signed media of a code are reused for 5 minutes (they live 6 h): the library's prefetch and

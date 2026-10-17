@@ -78,6 +78,8 @@ const SHARED_SETS = Object.freeze({
 function quizVoice(language, { oneVoice = false } = {}) {
   const lang = baseLang(language);
   if (!oneVoice) return QUIZ_VOICE[lang] || null;
+  // A language the plan leaves out (its voice null) keeps today's quiz voice.
+  if (typeof oneVoice === 'object' && oneVoice.voices && oneVoice.voices[lang] === null) return QUIZ_VOICE[lang] || null;
   return (typeof oneVoice === 'object' && oneVoice.voices && oneVoice.voices[lang]) || ONE_VOICE[lang] || null;
 }
 
@@ -104,6 +106,7 @@ function voiceOfTag(tag, plan) {
 function sharedSets(plan) {
   const out = {};
   ['en', 'ur'].forEach((lang) => {
+    if (plan && typeof plan === 'object' && plan.voices && plan.voices[lang] === null) return;   // today's voice, today's lines
     const id = setIdOf(quizVoice(lang, { oneVoice: plan || true }));
     if (SHARED_SETS[id]) out[lang] = { path: id, v: SHARED_SETS[id] };
   });

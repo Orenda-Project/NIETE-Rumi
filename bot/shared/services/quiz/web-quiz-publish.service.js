@@ -364,7 +364,8 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     if (qsErr) throw qsErr;
 
     const language = quizLanguage(quiz, questions);
-    const one = oneVoice === undefined ? await OneVoice.plan({ db: client }) : planOf(oneVoice);
+    // The plan as it applies to this quiz (web-quiz-one-voice-flag.js forQuiz): null records it as today.
+    const one = OneVoice.forQuiz(oneVoice === undefined ? await OneVoice.plan({ db: client }) : planOf(oneVoice), quizId, language);
     const allowed = await Store.recordingAllowed({ db: client, quizId, logEvent, logError });
     if (!allowed.ok) return done({ ok: false, reason: allowed.reason });
     const voice = Voice.quizVoice(language, { oneVoice: one });
@@ -588,8 +589,9 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
   if (!quizId) return { ok: false, reason: 'no_quiz' };
   const attempt = Number(payload.attempt) || 0;
   const client = db || require('../../config/supabase');
-  const { data } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
-  const oneVoice = await OneVoice.plan({ db: client });
+  const { data } = await client.from('quizzes').select('meta, language').eq('id', quizId).maybeSingle();
+  // The plan as it applies to this quiz (its language when the row names one): null keeps today's voice.
+  const oneVoice = OneVoice.forQuiz(await OneVoice.plan({ db: client }), quizId, data && data.language);
   const web = webOf(data && data.meta, { oneVoice });
   if (isCurrent(web, { oneVoice })) return { skipped: 'current' };
   const out = (await publish(quizId, oneVoice ? { db: client, oneVoice } : { db: client })) || {};

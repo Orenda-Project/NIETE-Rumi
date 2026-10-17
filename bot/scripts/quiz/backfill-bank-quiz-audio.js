@@ -179,6 +179,12 @@ async function main(argv, deps = {}) {
   for (let i = 0; i < chosen.length; i += 1) {
     const b = chosen[i];
     const p = await planQuiz(db, Publish, b, { oneVoice: args.oneVoice });
+    // A quiz the plan leaves to today's voice (a language it does not voice) is not recorded under it: "keep".
+    if (plan && !require('../../shared/services/quiz/web-quiz-one-voice-flag').forQuiz(plan, b.id, p.language)) {
+      print([i + 1, b.id, p.language, b.grade, b.subject, b.opens, 0, 0, usd(0), 'keep'].join('\t'));
+      sum.skipped += 1;
+      continue;
+    }
     const current = Publish.isCurrent(b.web, { oneVoice: args.oneVoice });
     const est = (p.chars / 1000) * per1k;
     const status = current ? 'current' : (p.clips ? 'record' : 'no_clips');

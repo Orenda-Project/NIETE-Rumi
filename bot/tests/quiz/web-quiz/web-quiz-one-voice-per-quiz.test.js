@@ -372,7 +372,8 @@ describe('the switch value is the voice plan', () => {
     // A string row is OFF, as under every switch reader of the app (the JSON string "true" too); the CLI parses first.
     expect(OneVoice.normalize('true')).toBe(null);
     expect(OneVoice.normalize(JSON.stringify(PLAN))).toBe(null);
-    expect(OneVoice.normalize(JSON.parse(JSON.stringify(PLAN)))).toMatchObject({ voices: { en: { voice: JESSICA.voice, model: 'eleven_v4' }, ur: Voice.ONE_VOICE.ur }, bank: ['q', 'opts'] });
+    // a language the plan's voices leave out keeps today's voice (null)
+    expect(OneVoice.normalize(JSON.parse(JSON.stringify(PLAN)))).toMatchObject({ voices: { en: { voice: JESSICA.voice, model: 'eleven_v4' }, ur: null }, bank: ['q', 'opts'] });
     expect(OneVoice.normalize({ voices: { en: { provider: 'nope', voice: 'x' } }, bank: ['q', 'stim', 'x'] })).toMatchObject({ voices: { en: Voice.ONE_VOICE.en }, bank: ['q'] });
     [false, null, 'yes', 1, [], { enabled: false }].forEach((v) => expect(OneVoice.normalize(v)).toBe(null));
     // An object is a plan only when it names a valid voices, bank or kbps: a stray or malformed row is off.
@@ -390,7 +391,8 @@ describe('the switch value is the voice plan', () => {
     expect(q1.audio.fbs[1]).toMatch(/xb-el-bella-cff2e4-/);
     const q2 = out.quiz.questions.find((q) => q !== q1);
     expect(q2.audio.q).toMatch(/q-el-bella-cff2e4-/);
-    expect(out.voice_sets).toEqual({ en: { path: 'el-bella-cff2e4', v: Voice.SHARED_SETS['el-bella-cff2e4'] }, ur: { path: 'el-sara', v: Voice.SHARED_SETS['el-sara'] } });
+    // Urdu is left out of this plan: today's lines, so no Urdu set
+    expect(out.voice_sets).toEqual({ en: { path: 'el-bella-cff2e4', v: Voice.SHARED_SETS['el-bella-cff2e4'] } });
   });
 
   test('published: the kept parts are not recorded, the rest in the plan voice, stamped with the plan', async () => {
@@ -691,4 +693,66 @@ describe('a plan\'s loudness: the AI lines are levelled to the plan\'s LUFS', ()
       expect(plainKeys).not.toContain(c[1]);
     });
   }, 60000);
+});
+
+/*
+ * A plan that names `voices` for some languages only: a quiz in a language it leaves out keeps today's quiz voice and
+ * today's lines (the switch is off for it): its page, its recording, its job and Jugnu's challenge lines in that
+ * language. A plan with no `voices` (true, a bank or rate only) is the one voice in both languages, as before.
+ */
+describe('a plan that leaves a language out: that language keeps today\'s voice', () => {
+  const SETTINGS = { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 };
+  const REVA = { provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4', settings: SETTINGS };
+  const UR_ONLY = { voices: { ur: REVA }, bank: ['q', 'opts'] };
+  const strip = (o) => JSON.stringify(o, (k, v) => (/token|expires|_at$|^t$|nonce|sig/i.test(k) ? undefined : v));
+  const today = async () => { const none = strip(await page(ROWS(), GENERATED(TODAY), {})); WQ._resetQuizCache(); OneVoice.reset(); IdRoster._resetCache(); return none; };
+
+  test('normalize: the left-out language is today\'s voice, with no shared-line set; the plan is live on the other\'s set', () => {
+    const p = OneVoice.normalize(UR_ONLY);
+    expect(p.voices.en).toBe(null);
+    expect(Voice.setIdOf(p.voices.ur)).toBe('el-reva-cc0c3b');
+    expect(Voice.quizVoice('en', { oneVoice: p })).toEqual(Voice.QUIZ_VOICE.en);
+    expect(Voice.sharedSets(p)).toEqual({ ur: { path: 'el-reva-cc0c3b', v: Voice.SHARED_SETS['el-reva-cc0c3b'] } });
+    expect(OneVoice.take(UR_ONLY)).toEqual(p);
+    expect(OneVoice.forQuiz(p, QUIZ, 'en')).toBe(null);
+    expect(OneVoice.forQuiz(p, QUIZ, 'en-US')).toBe(null);
+    expect(OneVoice.forQuiz(p, QUIZ, 'ur')).toBe(p);
+    expect(OneVoice.forQuiz(p, QUIZ)).toBe(p);
+    expect(OneVoice.normalize({ bank: [] }).voices).toEqual({ en: Voice.ONE_VOICE.en, ur: Voice.ONE_VOICE.ur });
+  });
+
+  test('an English quiz under an Urdu-only plan: the page is today\'s, byte for byte', async () => {
+    const none = await today();
+    const out = await page(ROWS(), GENERATED(TODAY), { flag: UR_ONLY });
+    expect('one_voice' in out).toBe(false);
+    expect(strip(out)).toBe(none);
+  });
+
+  test('an English quiz under an Urdu-only plan is published as today: today\'s voice, meta.web, no one-voice slot', async () => {
+    const fake = seed(ROWS(), { flag: UR_ONLY });
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
+    expect(fake.db.quizzes[0].meta.web_one).toBeUndefined();
+    expect([...new Set(tts.synthesize.mock.calls.map(([a]) => a.voice))]).toEqual([Voice.QUIZ_VOICE.en.voice]);
+  });
+
+  test('the worker\'s job for an English quiz under an Urdu-only plan asks no one-voice recording', async () => {
+    const fake = seed(ROWS(), { flag: UR_ONLY });
+    fake.db.quizzes[0].language = 'en';
+    const publish = jest.fn(async () => ({ ok: true, failed: 0 }));
+    await Publish.runQuizAudioJob({ quizId: QUIZ }, { db: { from: fake.from }, publish, queue });
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish.mock.calls[0][1].oneVoice).toBeUndefined();
+  });
+
+  test('Jugnu\'s challenge lines: English keeps today\'s key and voice, Urdu is the plan\'s voice', async () => {
+    const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
+    seed([], { flag: UR_ONLY });
+    await OneVoice.on();
+    expect(Ch.clipKey('listen', 'story', 'en', 'One day it rained.')).toContain(`-${Voice.voiceTag('en')}-`);
+    expect(Ch.clipKey('listen', 'story', 'ur', 'ایک دن بارش ہوئی۔')).toContain('-el-reva-cc0c3b-');
+    OneVoice.reset(); seed([], {}); await OneVoice.on();
+    const off = Ch.clipKey('listen', 'story', 'en', 'One day it rained.');
+    OneVoice.reset(); seed([], { flag: UR_ONLY }); await OneVoice.on();
+    expect(Ch.clipKey('listen', 'story', 'en', 'One day it rained.')).toBe(off);
+  });
 });
