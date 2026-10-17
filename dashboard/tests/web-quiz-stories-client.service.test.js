@@ -9,6 +9,7 @@ const vm = require('vm');
 
 const SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.js');
 const QSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-q.js');
+const DSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-d.js');
 const CSS = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.css');
 const TOKEN = 'eyJrIjoiaCJ9.AbCdEfGhIjKlMnOpQrStUv';
 const KID = 'kidchipabcdefghi';
@@ -139,6 +140,7 @@ function env(opt = {}) {
       calls.loaded.push(x);
       if (x.tag !== 'script') return;
       if (/wq-stories-q\.js\?v=abc123$/.test(x.src)) { if (opt.qFail) return x.onerror(); vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); return x.onload(); }
+      if (/wq-stories-d\.js\?v=abc123$/.test(x.src)) { if (opt.dFail) return x.onerror(); vm.runInContext(fs.readFileSync(DSRC, 'utf8'), sb); return x.onload(); }
       if (opt.onLoad) { opt.onLoad(win); x.onload(); }
       // a file the reader brings that this test does not serve answers as a 404 does (not on this server)
       else if (/wq-readalong\.js|wq-read-live\.js|wq-liveread\.js/.test(x.src)) x.onerror();
