@@ -200,10 +200,14 @@ describe('switch ON: the same answer, in a few round trips', () => {
 });
 
 describe('switch OFF (absent, false, anything but true)', () => {
-  test.each([[null], [false], ['yes'], [1], ['true'], ['"true"'], [' TRUE '], [{ enabled: true }]])('%p: today\'s answer byte for byte', async (paged) => {
+  let todayReads = null; // the absent row's read count: every OFF value takes today's reads, not only today's bytes
+  test.each([[null], [false], ['yes'], [1], ['true'], ['"true"'], [' TRUE '], [{ enabled: true }]])('%p: today\'s answer byte for byte, by today\'s reads', async (paged) => {
     await boot({ paged });
-    const out = await home();
+    const m = await Fx.measure(() => home());
+    const out = m.value;
     expect(out.status).toBe(200);
+    if (paged === null) todayReads = m.reads;
+    expect(m.reads).toBe(todayReads);
     if (process.env.RECORD_GOLDEN === '1' && paged === null) fs.writeFileSync(GOLDEN, out.text);
     expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
   });
@@ -221,7 +225,20 @@ function failSetting(key) {
     return b;
   };
 }
-const settingReads = (fake, key) => fake.calls.filter((c) => c.table === 'app_settings' && JSON.stringify(c).includes(key)).length;
+/** Counts the app_settings reads of `key` from now on. → { n } */
+function watchSetting(key) {
+  const seen = { n: 0 };
+  const sb = require('../../shared/config/supabase');
+  const from0 = sb.from;
+  sb.from = (t) => {
+    const b = from0(t);
+    if (t !== 'app_settings') return b;
+    const eq0 = b.eq.bind(b);
+    b.eq = (k, v) => { if (v === key) seen.n += 1; return eq0(k, v); };
+    return b;
+  };
+  return seen;
+}
 
 describe('the quick answer\'s switch, read', () => {
   test('a failed read of the switch: today\'s answer byte for byte', async () => {
@@ -235,13 +252,17 @@ describe('the quick answer\'s switch, read', () => {
   test('never while the home itself is off (today\'s 404 reads one switch), never on another route', async () => {
     const fake = await boot({ paged: true });
     fake.db.app_settings = fake.db.app_settings.filter((r) => r.key !== 'quiz_teacher_home');
-    fake.calls.length = 0;
+    const off = watchSetting('quiz_teacher_home_paged');
+    const home0 = watchSetting('quiz_teacher_home');
     expect((await home()).status).toBe(404);
-    expect(settingReads(fake, 'quiz_teacher_home_paged')).toBe(0);
-    const fake2 = await boot({ paged: true });
-    fake2.calls.length = 0;
+    expect({ paged: off.n, home: home0.n }).toEqual({ paged: 0, home: 1 });
+    await boot({ paged: true });
+    const lib = watchSetting('quiz_teacher_home_paged');
     await getJson(`/api/th/library?t=${tokenAt()}&g=3`);
-    expect(settingReads(fake2, 'quiz_teacher_home_paged')).toBe(0);
+    expect(lib.n).toBe(0);
+    const homeOn = watchSetting('quiz_teacher_home_paged');
+    await home();
+    expect(homeOn.n).toBe(1); // the counter counts: the home itself asks
   });
 });
 
