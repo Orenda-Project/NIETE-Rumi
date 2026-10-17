@@ -14,10 +14,8 @@ const KEY = 'web_quiz_return_lang';
 const TTL_MS = 30 * 1000;
 let cache = null;
 
-/** Only the JSON boolean the flip writes turns the switch on (app_settings.value is jsonb); the string 'true' is off. */
-function isTrue(value) {
-  return value === true;
-}
+// Only the JSON boolean the flip writes turns the switch on (app_settings.value is jsonb); the string 'true' is off.
+const { isTrue } = require('./is-true');
 
 function fromRow(row, now) {
   cache = { at: now, on: isTrue((row || {}).value) };

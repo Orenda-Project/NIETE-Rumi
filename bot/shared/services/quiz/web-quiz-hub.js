@@ -545,10 +545,15 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
-  const asked = await askedLang(wanted);
-  const linked = await linkedLang(token);
+  // Fast first page (web_quiz_fast): the two language switches are started here and waited for only where the
+  // language is chosen, so a link that carries a language does not hold the child's reads behind a stale switch read.
+  const langsEarly = require('./web-quiz-fast').on();
+  const askedP = askedLang(wanted);
+  if (!langsEarly) await askedP;
+  const linkedP = linkedLang(token);
+  if (!langsEarly) await linkedP;
   const trust = await deviceTrusted(token, device);
-  if (!trust.ok) return lockedHub(ids, trust.why, asked, linked);
+  if (!trust.ok) return lockedHub(ids, trust.why, await askedP, await linkedP);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   let mine = ids.filter((id) => trust.ids.includes(id));
   let canon = null;
@@ -578,13 +583,14 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   // Started now, beside the rest of the hub's reads (challengeForm never rejects): it is a few reads of its own.
   const challengeP = f.challenge && chosen ? ((fast && guessForm && String(chosen.id) === guess) ? guessForm : challengeForm(chosen.id, fast)) : Promise.resolve(null);
   // The child home's reads (web_quiz_home_v3), started here too: keyed on the child alone, so they add no wait.
-  const homeP = chosen ? require('./web-quiz-hub-home').prefetch(chosen.id) : null;
+  const homeP = chosen ? require('./web-quiz-hub-home').prefetch(chosen.id, Date.now(), device) : null;
   // Stories too (hubBits never rejects; {} while web_quiz_stories is off): its reads run beside the hub's own.
   const storiesP = chosen ? require('./web-quiz-stories').hubBits({ studentId: chosen.id }) : null;
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
   const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen), reads: guessReads && String(chosen.id) === guess ? guessReads : null } : null) : null;
   const history = ctx ? ctx.history : [];
   const StudentQuiz = require('./student-quiz.service');
+  const [asked, linked] = await Promise.all([askedP, linkedP]);
   const lang = asked || clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {

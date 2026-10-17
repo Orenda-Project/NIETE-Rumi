@@ -38,9 +38,11 @@ const LIST_C = 'a0000000-0000-4000-8000-00000000000c';
 
 // The wave ceiling's case: every child-facing switch the quiz page reads, on (the ceiling test checks this list is complete).
 // quiz_teacher_home: the teacher's switch, read by the page for the class link's picture (web-quiz-class-pic.js).
+// web_quiz_link_known_child: "Is it <First>?" on a class link (web-quiz-link-known.js).
 const CEILING_KEYS = ['web_quiz_back_nav', 'web_quiz_challenge', 'web_quiz_challenge_rungs', 'web_quiz_challenge_v2', 'web_quiz_child_quiz_home',
   'web_quiz_events_v2', 'web_quiz_home_button', 'web_quiz_hub', 'web_quiz_hub_door', 'web_quiz_invite_ask', 'web_quiz_library',
-  'web_quiz_link_home', 'web_quiz_rich_telemetry', 'web_quiz_ur_polish', 'web_quiz_juice', 'web_quiz_readalong', 'web_quiz_card_v3', 'quiz_teacher_home'];
+  'web_quiz_link_home', 'web_quiz_rich_telemetry', 'web_quiz_ur_polish', 'web_quiz_juice', 'web_quiz_readalong', 'web_quiz_card_v3', 'quiz_teacher_home',
+  'web_quiz_link_known_child'];
 // Keys the page reads that are not on/off switches of the child's page (web_quiz_identity is 'v2' in the fixture).
 const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity', 'web_quiz_watch_root'];
 
@@ -174,14 +176,15 @@ const depth = (ms) => Math.round(ms / READ_MS);
 // to the author's class, which is not one of the sender's: its class row is one read after the list (4). A friend's
 // challenge resolves through two code reads and reads the challenger's run after the page is built: not this change.
 const LIMIT = { handed_home_off: 4, invite: null };
-// The page's serial round trips on sandbox's own code (no fast page; measured on 417daaf20 with this file's JSON true
+// The page's serial round trips on sandbox's own code (no fast page; measured on d0f451e45 with this file's JSON true
 // seeds, fast off): OFF(head) and ON(head) are never above these. every: en_class with CEILING_KEYS on.
-// Stale +1 since 7b3cfbced for en_class, ur_list, no_class and every: sandbox #2699's class link picture reads
-// quiz_teacher_home (web-quiz-class-pic.js) after the page's other switches, one more round trip of its own.
+// Stale since 7b3cfbced: +1 for en_class, ur_list, no_class and every from #2699's class link picture (its
+// quiz_teacher_home read, web-quiz-class-pic.js), and +1 for every case but the friend's challenge from #2717's known
+// child question (its web_quiz_link_known_child read, web-quiz-link-known.js): each one more round trip at the page's end.
 const BASE_OFF = Object.freeze({
-  en_class: { warm: 9, stale: 19 }, ur_list: { warm: 10, stale: 20 }, no_class: { warm: 11, stale: 19 },
-  handed_home_on: { warm: 12, stale: 22 }, handed_home_off: { warm: 10, stale: 20 }, invite: { warm: 8, stale: 14 },
-  every: { warm: 9, stale: 19 },
+  en_class: { warm: 9, stale: 20 }, ur_list: { warm: 10, stale: 21 }, no_class: { warm: 11, stale: 20 },
+  handed_home_on: { warm: 12, stale: 23 }, handed_home_off: { warm: 10, stale: 21 }, invite: { warm: 8, stale: 14 },
+  every: { warm: 9, stale: 20 },
 });
 
 // The goldens: recorded once from the code before this change, then compared byte for byte.

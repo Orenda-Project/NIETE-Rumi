@@ -41,6 +41,7 @@ const SITES = [
   ['web-quiz-card-image', 'web_quiz_card_v3', (M) => M.on()],
   ['web-quiz-next-offer-state', 'web_quiz_next_offer', async (M) => (await M.raw()).on],
   ['web-quiz-juice', 'web_quiz_juice', (M) => M.flag()],
+  ['web-quiz-return-lang', 'web_quiz_return_lang', (M) => M.on()],
 ];
 const OFF = ['true', '"true"', ' TRUE ', 'yes', 'on', 1, null, { enabled: true }];
 

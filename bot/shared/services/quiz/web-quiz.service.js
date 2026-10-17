@@ -500,6 +500,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     ui: Fast.early(require('./web-quiz-ur-polish').ui()),
     ask: Fast.early(require('./web-quiz-invite-ask').mode()),
     linkHome: Fast.early(require('./web-quiz-link-home').field(ctx, { preview: Boolean(p) && isPreviewFor(p, ctx), swr: true })),
+    // "Is it <First>?" (web-quiz-link-known.js): its switch needs only the code
+    linkKnown: Fast.early(require('./web-quiz-link-known').field(ctx, { preview: Boolean(p) && isPreviewFor(p, ctx) })),
     // the class link's picture (web-quiz-class-pic.js): its switch and facts need only the code; a story's picture
     // waits for the page's story below
     teach: Fast.early(require('./web-quiz-class-pic').field(ctx, { story: () => storyKnown })),
@@ -649,7 +651,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // A lesson video under app_settings web_quiz_videos_v3: the page opened from the child home's Videos door puts the play first (named only when on).
   if (video && video.url && await require('./web-quiz-library-flag').videosV3On()) out.videos_v3 = true;
   // A class link on a phone that holds a child asks "Is it <First>?" first (web-quiz-link-known.js): named only when on.
-  if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
+  if (await got('linkKnown', () => require('./web-quiz-link-known').field(ctx, { preview }))) out.link_known = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);

@@ -2,7 +2,8 @@
 /**
  * One row per kid-hub switch: turning the switch ON must not add a round trip (wave) to the hub.
  *
- * A change that adds a hub switch adds ONE row here: [its switch keys]. For each row the hub is booted with web_quiz_fast
+ * A change that adds a hub switch adds ONE row here: [its switch keys] (a third element: hubWaves options the switch
+ * needs to be asked at all, e.g. a link that carries a language). For each row the hub is booted with web_quiz_fast
  * on and every other ceiling switch on, once with the row's switches OFF and once with them ON, on the same fixture
  * (hub-waves-fixture.js). Warm waves ON must equal OFF, and so must the stale ones (31 s later, every 30 s cache expired).
  *
@@ -41,6 +42,9 @@ const ROWS = [
   [['web_quiz_live_read_v3', 'web_quiz_challenge_realtime']],
   [['web_quiz_card_v3']],
   [['web_quiz_next_offer', 'web_quiz_events_v3']],
+  // the hub link carries the language the /quiz reply spoke (`l`): only then does the hub ask this switch
+  [['web_quiz_return_lang'], null, { lang: 'ur' }],
+  [['web_quiz_remember_column']],
 ];
 
 // What each switch adds when it is on, so a row can never pass with its switch silently off (a JSON-true-only read of a
@@ -50,6 +54,8 @@ const ADDS = {
   web_quiz_stories: (p) => Boolean(p.stories && p.stories.on === 1),
   web_quiz_stories_band: () => require('../../../shared/services/quiz/web-quiz-stories').hubSwitches.peek().band === true,
   web_quiz_card_v3: (p) => p.card_v3 === true,
+  // the link's language only shows for a child with no class quiz: the module's own cache, as the hub read it
+  web_quiz_return_lang: () => require('../../../shared/services/quiz/web-quiz-return-lang').hubSwitches.peek().on === true,
   'web_quiz_next_offer + web_quiz_events_v3': (p) => Boolean(p.next && p.next.kind),
 };
 
@@ -59,13 +65,13 @@ afterAll(() => { jest.useRealTimers(); process.env = SAVED; });
 beforeEach(() => { process.env = Fx.hubEnv(SAVED); });
 
 describe('a hub switch ON adds no wave over OFF (fast page on, every other switch on)', () => {
-  test.each(ROWS.map((r) => [r[0].join(' + '), r]))('%s', async (_, [keys, allow]) => {
+  test.each(ROWS.map((r) => [r[0].join(' + '), r]))('%s', async (_, [keys, allow, opts]) => {
     const extra = (allow && allow.extra) || 0;
     const staleExtra = allow && allow.staleExtra !== undefined ? allow.staleExtra : extra;
     const name = keys.join(' + ');
-    const off = await Fx.hubWaves({ switches: keys });
+    const off = await Fx.hubWaves({ switches: keys, ...opts });
     if (ADDS[name]) expect(ADDS[name](JSON.parse(off.out))).toBe(false);
-    const on = await Fx.hubWaves({ switches: [] });
+    const on = await Fx.hubWaves({ switches: [], ...opts });
     if (ADDS[name]) expect(ADDS[name](JSON.parse(on.out))).toBe(true);
     const show = (what, a, b, la, lb, ok) => `${keys.join(' + ')}, ${what}: OFF ${a} waves, ON ${b} (allowed +${ok}).\nOFF (table, caller):\n${la}\nON (table, caller):\n${lb}`;
     console.log(`${keys.join(' + ')}: warm OFF ${off.warm.waves} ON ${on.warm.waves}; stale OFF ${off.stale.waves} ON ${on.stale.waves}`);
@@ -100,5 +106,15 @@ describe('the hub with every child switch on', () => {
     const noOffer = (json) => json.replace(/"offer":"[A-Za-z0-9_-]{10}"/g, '"offer":"-"');
     delete p.fast;
     expect(noOffer(JSON.stringify(p))).toBe(noOffer(slow.out));
+  });
+
+  // A hub link that carries the language the /quiz reply spoke (`l`, web_quiz_return_lang): the language switches are
+  // asked beside the child's reads, so the link costs the same line as one without a language.
+  test('a link that carries the language: in at most 6 waves warm and 8 stale', async () => {
+    const all = await Fx.hubWaves({ switches: [], lang: 'ur' });
+    console.log(`every switch on, link with a language: warm ${all.warm.waves}, stale ${all.stale.waves}\nstale (table, caller):\n${all.staleList}`);
+    expect(require('../../../shared/services/quiz/web-quiz-return-lang').hubSwitches.peek().on).toBe(true);
+    expect(all.warm.waves).toBeLessThanOrEqual(6);
+    expect(all.stale.waves).toBeLessThanOrEqual(8);
   });
 });

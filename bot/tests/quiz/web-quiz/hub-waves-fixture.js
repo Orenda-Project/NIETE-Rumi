@@ -46,22 +46,27 @@ const CEILING_KEYS = [...ON_KEYS, 'web_quiz_back_nav', 'web_quiz_hub_door', 'web
   'web_quiz_rich_telemetry', 'web_quiz_bind_way_back', 'web_quiz_guest_home', 'quiz_first_door', 'quiz_maker_page',
   'web_quiz_home_v3', 'web_quiz_stories', 'quiz_student_join', 'web_quiz_readalong', 'web_quiz_stories_band', 'web_quiz_live_read_v3',
   'web_quiz_challenge_realtime', 'web_quiz_card_v3', 'web_quiz_next_offer', 'web_quiz_events_v3', 'web_quiz_challenge_pool',
-  'web_quiz_return_lang'];
-// The hub's serial round trips on sandbox's own code (no fast page; measured on 7b3cfbced with this fixture's JSON true
+  'web_quiz_return_lang', 'web_quiz_remember_column'];
+// The hub's serial round trips on sandbox's own code (no fast page; measured on d0f451e45 with this fixture's JSON true
 // seeds, fast off): the most the hub may cost with the fast page off, and what the fast page is measured against.
 //   classList / loose / picker / locked: the usual switches (ON_KEYS); every: CEILING_KEYS (hubWaves());
 //   rows: hubWaves({ switches: that row }); coldEvery: a cold process, CEILING_KEYS; staleUsual: 31 s later, ON_KEYS.
+// Since 7b3cfbced: every case with web_quiz_remember_column on (#2717, the home's remembered phone on the binding row) is one
+// read more on sandbox's own code; a cold process reads one switch fewer (22).
 const BASE_OFF = Object.freeze({
   classList: { warm: 26, stale: 39 }, loose: { warm: 21, stale: 32 }, picker: { warm: 5 }, locked: { warm: 3 },
-  every: { warm: 32, stale: 45 },
+  every: { warm: 33, stale: 46 },
   rows: {
-    'web_quiz_home_v3 + web_quiz_stories': { warm: 32, stale: 45 }, quiz_student_join: { warm: 29, stale: 42 },
-    web_quiz_challenge_book: { warm: 29, stale: 42 }, web_quiz_phone_bind: { warm: 26, stale: 37 }, web_quiz_stories: { warm: 32, stale: 45 },
-    web_quiz_stories_band: { warm: 32, stale: 45 }, web_quiz_readalong: { warm: 32, stale: 45 },
-    'web_quiz_live_read_v3 + web_quiz_challenge_realtime': { warm: 32, stale: 45 }, web_quiz_card_v3: { warm: 32, stale: 45 },
-    'web_quiz_next_offer + web_quiz_events_v3': { warm: 32, stale: 45 },
+    'web_quiz_home_v3 + web_quiz_stories': { warm: 32, stale: 45 }, quiz_student_join: { warm: 30, stale: 43 },
+    web_quiz_challenge_book: { warm: 30, stale: 43 }, web_quiz_phone_bind: { warm: 27, stale: 38 }, web_quiz_stories: { warm: 33, stale: 46 },
+    web_quiz_stories_band: { warm: 33, stale: 46 }, web_quiz_readalong: { warm: 33, stale: 46 },
+    'web_quiz_live_read_v3 + web_quiz_challenge_realtime': { warm: 33, stale: 46 }, web_quiz_card_v3: { warm: 33, stale: 46 },
+    'web_quiz_next_offer + web_quiz_events_v3': { warm: 33, stale: 46 },
+    // a link that carries the language (`l`): the hub asks web_quiz_return_lang (#2702) when the page is stale
+    web_quiz_return_lang: { warm: 33, stale: 47 },
+    web_quiz_remember_column: { warm: 32, stale: 45 },
   },
-  coldEvery: { settingsReads: 23, waves: 47 }, staleUsual: { settingsReads: 15, waves: 39 },
+  coldEvery: { settingsReads: 22, waves: 48 }, staleUsual: { settingsReads: 15, waves: 39 },
 });
 // Keys the hub S.reads that are not on/off switches of the child's page.
 const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity', 'web_quiz_watch_root', 'web_quiz_next_offer_weights'];
@@ -233,12 +238,13 @@ const tokenTwo = () => S.T.signHub([KID, SIB]);
  * are the warm request's reads per table, payload and wave list (table, caller), and staleList is the stale one's.
  * Calls jest.resetModules, so call it from a jest test whose file has the boundary mocks and the clock.
  *   switches: keys set to 'false' (present, off); fast: web_quiz_fast; every: all ceiling switches present (else ON_KEYS);
- *   loose: the usual quiz child (no class list); stale: false skips the stale request.
+ *   loose: the usual quiz child (no class list); stale: false skips the stale request; lang: the hub link carries the
+ *   language the /quiz reply spoke (`l`, as web_quiz_return_lang's links do).
  */
 // json: the rows as the flips write them (JSON true / false), so a switch read that takes JSON true only is measured too.
-async function hubWaves({ switches = [], fast = true, every = true, loose = false, stale = true, json = true } = {}) {
+async function hubWaves({ switches = [], fast = true, every = true, loose = false, stale = true, json = true, lang = null } = {}) {
   boot({ fast, every, loose, off: switches, json });
-  const tok = tokenOne();
+  const tok = lang ? S.T.signHub([KID], 'hub_link', { lang }) : tokenOne();
   await measure(tok, { device: DEVICE });
   const warm = await measure(tok, { device: DEVICE });
   const list = waveList(S.lastReads);
