@@ -162,6 +162,15 @@ const routesFor = (story, extra = {}) => ({
 });
 
 describe('live off: today\'s path is untouched', () => {
+  test("a scored reading whose body carries no speed (another phone's view is stripped; the child's own never is) still praises a reading that was heard", async () => {
+    const p = page({ routes: { ...routesFor(EN, { 'ch/result$': ok({ score: { attempted: 32, stopped: false } }) }), 'ch/HUB.TOKEN/read': ok(READ(EN, false)) } });
+    await go(p);
+    await p.click('wqc-stop');
+    await p.flush();
+    expect(p.html()).toContain('Great reading! Well done.');
+    expect(p.html()).not.toContain('Good try!');
+    expect(p.html()).not.toContain('undefined');
+  });
   test('no key is asked for, no socket opens, the recorder keeps its 1-s slices', async () => {
     const p = page({ routes: { ...routesFor(EN), 'ch/HUB.TOKEN/read': ok(READ(EN, false)) } });
     await go(p);
