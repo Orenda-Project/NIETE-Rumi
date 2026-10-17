@@ -316,6 +316,22 @@ describe('over HTTP', () => {
     expect([meta.width, meta.height]).toEqual([1080, 1080]);
   });
 
+  test('GET /art/<class picture> for a storybook code with web_quiz_story_board_refuse on: 404 JSON, never a 500', async () => {
+    const StoryBoard = require('../../../shared/services/quiz/story-board');
+    fake.db.quizzes[0].quiz_source = 'story';
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    StoryBoard._reset();
+    try {
+      for (const ref of ['CLS001', SID]) {
+        const r = await fetch(`${base}/art/${Art.artId('l', ref)}?f=sq`, { headers: { 'x-api-key': 'art-key' } });
+        expect(r.status).toBe(404);
+        expect(r.headers.get('content-type')).toMatch(/json/);
+      }
+    } finally {
+      StoryBoard._reset();
+    }
+  });
+
   test('a bad id: 404 JSON', async () => {
     const r = await fetch(`${base}/art/c.bad.bad`, { headers: { 'x-api-key': 'art-key' } });
     expect(r.status).toBe(404);

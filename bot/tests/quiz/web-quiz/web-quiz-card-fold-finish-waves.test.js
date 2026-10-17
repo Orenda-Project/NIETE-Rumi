@@ -43,11 +43,13 @@ const ago = (h) => new Date(NOW - h * 3600000).toISOString();
 const BASE = { class: { warm: 6, stale: 6 }, lesson: { warm: 6, stale: 6 } };
 
 // lesson: the quiz's code is a library lesson's (under a teacher's), so no teacher sent this child a quiz
-function tables({ home, lesson, storyBoard }) {
+// fastOff: no web_quiz_fast row. storyKey: web_quiz_story_board_refuse's row with this value (absent when undefined).
+function tables({ home, lesson, storyBoard, fastOff, storyKey }) {
   return {
-    app_settings: [{ key: 'web_quiz_teachers', value: '"all"' }, { key: 'web_quiz_hub', value: true }, { key: 'web_quiz_fast', value: true },
+    app_settings: [{ key: 'web_quiz_teachers', value: '"all"' }, { key: 'web_quiz_hub', value: true }, ...(fastOff ? [] : [{ key: 'web_quiz_fast', value: true }]),
       ...(home ? [{ key: 'web_quiz_home_v3', value: true }] : []),
-      ...(storyBoard ? [{ key: 'web_quiz_story_board_refuse', value: true }] : [])],
+      ...(storyBoard ? [{ key: 'web_quiz_story_board_refuse', value: true }] : []),
+      ...(storyKey !== undefined ? [{ key: 'web_quiz_story_board_refuse', value: storyKey }] : [])],
     quizzes: [{ id: QUIZ, topic: 'Fractions', grade: '3', subject: 'maths', quiz_source: storyBoard ? 'story' : 'transcript', video_id: null }],
     quiz_share_codes: [{ id: SC, code: 'AB12CD', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER, language: 'en', active: true,
       expires_at: future, invited_by_student_id: null, parent_share_code_id: lesson ? 'sc-parent' : null, created_at: ago(30) }],
@@ -91,7 +93,9 @@ async function measure(opts) {
   const out = await WQ.finishSession({ st: T.signSession({ sessionId: 's1', deviceRef: D1, shareCodeId: SC }) });
   const waves = doneMax;
   await settle();
-  return { out, waves };
+  // Every app_settings read this finish caused, the ones it left running in the background included.
+  const settings = reads.filter((r) => r.t === 'app_settings').length;
+  return { out, waves, settings };
 }
 async function warmAndStale(opts) {
   jest.resetModules();
@@ -99,11 +103,11 @@ async function warmAndStale(opts) {
   seed(opts);
   WQ = require('../../../shared/services/quiz/web-quiz.service');
   T = require('../../../shared/services/quiz/web-quiz-token');
-  await measure(opts);
+  const cold = await measure(opts);
   const warm = await measure(opts);
   jest.setSystemTime(NOW + 31 * 1000);
   const stale = await measure(opts);
-  return { warm, stale };
+  return { cold, warm, stale };
 }
 
 const SAVED = { ...process.env };
@@ -141,4 +145,39 @@ test('a storybook finish with web_quiz_story_board_refuse on: no class picture, 
   expect(on.warm.out.art.table).toBeNull();
   expect(on.warm.waves).toBeLessThanOrEqual(BASE.class.warm);
   expect(on.stale.waves).toBeLessThanOrEqual(BASE.class.stale);
+});
+
+// The base's own counts on this fixture with web_quiz_story_board_refuse absent (measured on the base before the
+// switch, sandbox 14de0aaac): the finish's app_settings reads and its waves, on a cold process, warm, and 31 s later.
+const BASE_OFF = {
+  fast: { cold: { settings: 6, waves: 16 }, warm: { settings: 0, waves: 6 }, stale: { settings: 4, waves: 6 } },
+  slow: { cold: { settings: 6, waves: 16 }, warm: { settings: 0, waves: 11 }, stale: { settings: 4, waves: 14 } },
+};
+const counts = (r) => ({ cold: { settings: r.cold.settings, waves: r.cold.waves }, warm: { settings: r.warm.settings, waves: r.warm.waves },
+  stale: { settings: r.stale.settings, waves: r.stale.waves } });
+
+// Off, the switch is answered by a settings read the finish already makes (web-quiz-fast.js's): not one read or wave more.
+describe.each([['fast', false], ['slow', true]])('web_quiz_story_board_refuse off, web_quiz_fast %s', (mode, fastOff) => {
+  test.each([['absent', undefined], ['false', false], ['the string true', 'true'], ['a padded TRUE', ' TRUE '], ['{enabled: true}', { enabled: true }]])(
+    'key %s: the finish\'s settings reads and waves are the base\'s, cold, warm and stale; the class picture is minted', async (_n, storyKey) => {
+      for (const lesson of [false, true]) {
+        const r = await warmAndStale({ fastOff, storyKey, lesson });
+        expect(counts(r)).toEqual(BASE_OFF[mode]);
+        expect(r.warm.out.art.class).not.toBeNull();
+        expect(r.warm.out.art.table).not.toBeNull();
+      }
+    });
+});
+
+// On, a storybook finish reads no setting more than the base; it pays only its quiz-source read (one per quiz per process).
+test.each([['fast', false], ['slow', true]])('web_quiz_story_board_refuse on, web_quiz_fast %s: the base\'s settings reads; waves warm and stale the base\'s', async (mode, fastOff) => {
+  const r = await warmAndStale({ storyBoard: true, fastOff });
+  const c = counts(r);
+  expect({ cold: c.cold.settings, warm: c.warm.settings, stale: c.stale.settings })
+    .toEqual({ cold: BASE_OFF[mode].cold.settings, warm: BASE_OFF[mode].warm.settings, stale: BASE_OFF[mode].stale.settings });
+  expect(c.warm.waves).toBe(BASE_OFF[mode].warm.waves);
+  expect(c.stale.waves).toBe(BASE_OFF[mode].stale.waves);
+  expect(c.cold.waves).toBeLessThanOrEqual(BASE_OFF[mode].cold.waves + 1);
+  expect(r.warm.out.art.class).toBeNull();
+  expect(r.stale.out.art.table).toBeNull();
 });
