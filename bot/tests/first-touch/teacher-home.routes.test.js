@@ -450,11 +450,24 @@ describe('the stories shelf and the other seams', () => {
     await boot(deps);
     const t = tokenFor();
     const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
-    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories`;
+    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories?lang=en`;
     expect(deps.Stories.shelf).toHaveBeenCalledWith({ uid: TEACHER.id, grade: 3, lang: 'en' });
-    expect(home.primary).toMatchObject({ kind: 'story', id: 'b1', href: `${base}?book=b1` });
-    expect(home.library.stories.map((b) => b.href)).toEqual([`${base}?book=b1`, `${base}?book=b2`]);
+    expect(home.primary).toMatchObject({ kind: 'story', id: 'b1', href: `${base}&book=b1` });
+    expect(home.library.stories.map((b) => b.href)).toEqual([`${base}&book=b1`, `${base}&book=b2`]);
     expect(home.library.all).toBe(base);
+  });
+
+  test.each([['bi', '', 'ur'], ['bi', '&lang=en', 'en'], ['ur', '', 'ur']])('a %s token%s: every stories link carries the page\'s language (%s)', async (tl, q, want) => {
+    seed();
+    deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'Rain' }] })) };
+    await boot(deps);
+    const t = tokenFor({ lang: tl });
+    const home = await (await get(`/api/th/home?t=${t}&g=3${q}`)).json();
+    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories?lang=${want}`;
+    expect(home.library.stories.map((b) => b.href)).toEqual([`${base}&book=b1`]);
+    expect(home.library.all).toBe(base);
+    const lib = await (await get(`/api/th/library?t=${t}&g=3${q}`)).json();
+    expect(lib.stories.map((b) => b.href)).toEqual([`${base}&book=b1`]);
   });
 
   test('a stories module whose switch is off → no tiles, the video card is the library pick', async () => {
