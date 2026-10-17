@@ -170,8 +170,6 @@ app.get(ASSET_LINKS_PATH, assetLinksHandler);
 // never answer a quiz link.
 const { createWebQuizRouter } = require('./routes/web-quiz.routes');
 app.use(createWebQuizRouter());
-// The teacher home /quiz/teacher/:token and /api/th/* (switch off at the bot → falls through to the SPA).
-app.use(require('./routes/quiz-teacher.routes').createQuizTeacherRouter());
 // The edge routers in routes/edge-mounts.js, one line each in name order (a new edge adds its line there; off → falls through).
 for (const [, file, make] of require('./routes/edge-mounts')) app.use(require(`./routes/${file}`)[make]());
 // The teacher's web quiz report /r/:token (+ /pdf, /remind), same bot client as /q.
@@ -180,11 +178,9 @@ const { createTeacherReportRouter } = require('./routes/teacher-report.routes');
 app.use(createTeacherReportRouter());
 // A teacher sends a storybook to the class (/api/teacher/stories, /api/teacher/story/share, /quiz/teacher/:th/stories);
 // the bot answers 404 while web_quiz_stories_teacher is off and the page falls through.
+// After the edge list: its /quiz/teacher/:th/stories is the teacher home's page too, which answers first.
 const { createTeacherStoriesRouter } = require('./routes/teacher-stories.routes');
 app.use(createTeacherStoriesRouter());
-// ── first touch: the maker page ──
-app.use(require('./routes/first-touch.routes').createFirstTouchRouter());   // /m/:token, /f/:token, /api/ft/... (switch off at the bot → falls through)
-// ── end first touch ──
 // The phone test page for WhatsApp's in-app browser (/iab/:token, /api/iab-probe/*): camera,
 // gallery, file picker and microphone, each file confirmed by the server and thrown away. Before
 // the body parsers, so it reads every upload as bytes under its own size cap.

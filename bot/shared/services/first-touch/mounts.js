@@ -7,6 +7,7 @@
  *   [name, module in this folder, mount function]   → require(module)[mount](app)
  */
 module.exports = Object.freeze([
+  ['go', 'go.mount', 'mountGo'],                                 // /api/internal/go (quiz_one_door: the /quiz/go landing, the one question)
   ['maker', 'maker.mount', 'mountMaker'],                        // /api/internal/ft (quiz_maker_page)
   ['teacher-home', 'teacher-home.mount', 'mountTeacherHome'],    // /api/internal/th (quiz_teacher_home; off → 404 {off:true} and the edge falls through)
 ].map(Object.freeze));

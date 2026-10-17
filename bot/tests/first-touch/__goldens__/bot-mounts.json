@@ -1,6 +1,71 @@
 [
   {
     "m": "use",
+    "path": "/api/internal/go",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "<anonymous>"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "path": "/land/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/who",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/role",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/bind",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/persona",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
     "path": "/api/internal/ft",
     "handlers": [
       {
@@ -168,71 +233,6 @@
             "path": "/quiz/teacher/:token/stories",
             "methods": [
               "get"
-            ],
-            "handlers": [
-              "<anonymous>"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "m": "use",
-    "path": "/api/internal/go",
-    "handlers": [
-      {
-        "name": "router",
-        "stack": [
-          {
-            "name": "requireInternalKey"
-          },
-          {
-            "name": "<anonymous>"
-          },
-          {
-            "name": "jsonParser"
-          },
-          {
-            "path": "/land/:token",
-            "methods": [
-              "get"
-            ],
-            "handlers": [
-              "<anonymous>"
-            ]
-          },
-          {
-            "path": "/who",
-            "methods": [
-              "post"
-            ],
-            "handlers": [
-              "<anonymous>"
-            ]
-          },
-          {
-            "path": "/role",
-            "methods": [
-              "post"
-            ],
-            "handlers": [
-              "<anonymous>"
-            ]
-          },
-          {
-            "path": "/bind",
-            "methods": [
-              "post"
-            ],
-            "handlers": [
-              "<anonymous>"
-            ]
-          },
-          {
-            "path": "/persona",
-            "methods": [
-              "post"
             ],
             "handlers": [
               "<anonymous>"

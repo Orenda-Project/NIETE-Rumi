@@ -94,9 +94,6 @@ for (const [, file, mount] of require('./shared/services/first-touch/mounts')) {
   try { require(`./shared/services/first-touch/${file}`)[mount](app); } catch (_) { /* not mounted; every other route is today's */ }
 }
 // ── end first touch ──
-// ── the one door (quiz_one_door): /quiz/go landing, the one question (portal edge -> bot), same x-api-key check ──
-try { require('./shared/services/first-touch/go.mount').mountGo(app); } catch (_) { /* not mounted; every other route is today's */ }
-// ── end the one door ──
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);

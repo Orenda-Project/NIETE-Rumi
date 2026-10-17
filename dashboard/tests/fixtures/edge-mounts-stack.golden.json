@@ -966,6 +966,217 @@
     "stack": [
       {
         "name": "bound dispatch",
+        "re": "/^\\/m(?:\\/([^/]+?))\\/?$/i",
+        "path": "/m/:token",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/m(?:\\/([^/]+?))\\/send\\/?$/i",
+        "path": "/m/:token/send",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/ft\\/make\\/?$/i",
+        "path": "/api/ft/make",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/ft\\/step\\/?$/i",
+        "path": "/api/ft/step",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/f(?:\\/([^/]+?))\\/?$/i",
+        "path": "/f/:token",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/f(?:\\/([^/]+?))\\/teacher\\/?$/i",
+        "path": "/f/:token/teacher",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/ft\\/code\\/?$/i",
+        "path": "/api/ft/code",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/ft\\/door\\/?$/i",
+        "path": "/api/ft/door",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/ft\\/tour\\/?$/i",
+        "path": "/api/ft/tour",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "router",
+    "re": "/^\\/?(?=\\/|$)/i",
+    "stack": [
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/quiz\\/go(?:\\/([^/]+?))\\/?$/i",
+        "path": "/quiz/go/:token",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/go\\/who\\/?$/i",
+        "path": "/api/go/who",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/go\\/role\\/?$/i",
+        "path": "/api/go/role",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/go\\/bind\\/?$/i",
+        "path": "/api/go/bind",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/go\\/persona\\/?$/i",
+        "path": "/api/go/persona",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "router",
+    "re": "/^\\/?(?=\\/|$)/i",
+    "stack": [
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/quiz\\/join(?:\\/([^/]+?))\\/?$/i",
+        "path": "/quiz/join/:token",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "router",
+    "re": "/^\\/?(?=\\/|$)/i",
+    "stack": [
+      {
+        "name": "bound dispatch",
         "re": "/^\\/quiz\\/teacher(?:\\/([^/]+?))\\/?$/i",
         "path": "/quiz/teacher/:token",
         "methods": [
@@ -1085,93 +1296,6 @@
         "handlers": [
           "<anonymous>",
           "jsonParser",
-          "<anonymous>"
-        ]
-      }
-    ]
-  },
-  {
-    "name": "router",
-    "re": "/^\\/?(?=\\/|$)/i",
-    "stack": [
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/quiz\\/go(?:\\/([^/]+?))\\/?$/i",
-        "path": "/quiz/go/:token",
-        "methods": [
-          "get"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/api\\/go\\/who\\/?$/i",
-        "path": "/api/go/who",
-        "methods": [
-          "post"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/api\\/go\\/role\\/?$/i",
-        "path": "/api/go/role",
-        "methods": [
-          "post"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/api\\/go\\/bind\\/?$/i",
-        "path": "/api/go/bind",
-        "methods": [
-          "post"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/api\\/go\\/persona\\/?$/i",
-        "path": "/api/go/persona",
-        "methods": [
-          "post"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      }
-    ]
-  },
-  {
-    "name": "router",
-    "re": "/^\\/?(?=\\/|$)/i",
-    "stack": [
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/quiz\\/join(?:\\/([^/]+?))\\/?$/i",
-        "path": "/quiz/join/:token",
-        "methods": [
-          "get"
-        ],
-        "handlers": [
           "<anonymous>"
         ]
       }
@@ -1535,130 +1659,6 @@
         ],
         "handlers": [
           "pageOn",
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      }
-    ]
-  },
-  {
-    "name": "router",
-    "re": "/^\\/?(?=\\/|$)/i",
-    "stack": [
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/m(?:\\/([^/]+?))\\/?$/i",
-        "path": "/m/:token",
-        "methods": [
-          "get"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/m(?:\\/([^/]+?))\\/send\\/?$/i",
-        "path": "/m/:token/send",
-        "methods": [
-          "get"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/api\\/ft\\/make\\/?$/i",
-        "path": "/api/ft/make",
-        "methods": [
-          "post"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/api\\/ft\\/step\\/?$/i",
-        "path": "/api/ft/step",
-        "methods": [
-          "post"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/f(?:\\/([^/]+?))\\/?$/i",
-        "path": "/f/:token",
-        "methods": [
-          "get"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/f(?:\\/([^/]+?))\\/teacher\\/?$/i",
-        "path": "/f/:token/teacher",
-        "methods": [
-          "get"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/api\\/ft\\/code\\/?$/i",
-        "path": "/api/ft/code",
-        "methods": [
-          "post"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/api\\/ft\\/door\\/?$/i",
-        "path": "/api/ft/door",
-        "methods": [
-          "post"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>",
-          "<anonymous>"
-        ]
-      },
-      {
-        "name": "bound dispatch",
-        "re": "/^\\/api\\/ft\\/tour\\/?$/i",
-        "path": "/api/ft/tour",
-        "methods": [
-          "post"
-        ],
-        "handlers": [
-          "<anonymous>",
-          "<anonymous>",
           "<anonymous>",
           "<anonymous>"
         ]
