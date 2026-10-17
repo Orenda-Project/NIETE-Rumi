@@ -124,7 +124,10 @@
     function helped() { return helpedNow() || mem; }
 
     function btn(id, label, cls) { return '<button class="wq-btn ' + (cls || 'wq-go') + '" id="' + id + '" type="button">' + esc(label) + '</button>'; }
-    function home() { return '<div class="wq-stack">' + btn('wqc-menu', t.endHome) + '</div>'; }
+    // the button back to the list says where it goes («Back to Jugnu's games») with the child home on (the menu's
+    // card_fold, web_quiz_home_v3): the list is not the home there. Off, it is today's "Home".
+    function toGames() { return (h.md() || {}).card_fold ? trailCopy('back') : t.endHome; }
+    function home() { return '<div class="wq-stack">' + btn('wqc-menu', toGames()) + '</div>'; }
 
     // ── the child home on (the menu's card_fold; app_settings web_quiz_home_v3): an end card is the card and ONE next
     // thing — the ranked Next (the first offer this page can open, else "Pick a story": the home on its Stories door), or
@@ -264,7 +267,8 @@
         if (x) { h.open(x.id); return true; }
         return false;
       }
-      if (hash && (m.exercises || []).some(function (x) { return x.id === hash; })) { h.open(hash); return true; }
+      // a game opened by its own id (a tile's link: the ranked tile, a Games door row) is the same: the list draws no Next
+      if (hash && (m.exercises || []).some(function (x) { return x.id === hash; })) { games = true; h.open(hash); return true; }
       return false;
     }
     // Story Time (?room=story&pid=…, web_quiz_challenge_story): the story named by the link is asked for once (the
@@ -461,7 +465,7 @@
       // folded, a practice run (Story Time is one) puts no sticker in the Book, so it says none
       if (fold()) { var sd = h.S.data || {}; foldEnd(name, h.jug('celebrate', t.storyAgain, true) + (sd.practice_round ? '' : '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'), !!qa, (sd.story_r && sd.story_r.next_offer) || sd.next_offer, { name: name, story: true, t: t, r: sd.story_r }); return; }
       h.show(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
-        + '<div class="wq-stack">' + wordsBtn() + (qa ? h.qaButtons() : btn('wqc-menu', t.endHome)) + '</div>');
+        + '<div class="wq-stack">' + wordsBtn() + (qa ? h.qaButtons() : btn('wqc-menu', toGames())) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
       wordsAfter(function () { storyEnd(name, qa, r); });
@@ -496,7 +500,7 @@
     }
     function showWords(ra) {
       h.show('listen-words', h.jug('hello', t.storyReadAlong, true) + '<div id="wqc-along-ra"></div>'
-        + '<div class="wq-stack">' + btn('wqc-menu', t.endHome) + '</div>');
+        + '<div class="wq-stack">' + btn('wqc-menu', toGames()) + '</div>');
       var p = window.WQReadAlong.mount(h.q('wqc-along-ra'), ra, { labels: t.ra });
       h.on('wqc-menu', function () { try { p.destroy(); } catch (e) { /* gone */ } h.refreshMenu(); });
       p.play();   // inside the child's tap
@@ -598,7 +602,7 @@
       var again = r.again && !hold ? btn('wqc-again', h.t.again, 'wq-soft') : '';
       // the questions about the story read still follow a reading (today's step; its own back button)
       var qa = r.qa && !hold ? h.qaButtons() : '';
-      var home = hold && d.questions_on ? '' : btn('wqc-menu', t.endHome);
+      var home = hold && d.questions_on ? '' : btn('wqc-menu', toGames());
       // the sound + motion kit (web_quiz_juice): the finish beat on a card that celebrates
       if (window.WQJ && pose === 'celebrate') window.WQJ.finish({ kind: name });
       if (round) {
