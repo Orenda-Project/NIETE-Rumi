@@ -243,6 +243,23 @@ describe('the reader state machine (pure, fake clock)', () => {
 
 // ---- the shelf ----------------------------------------------------------------------------------------------------
 describe('the shelf', () => {
+  test('the shelf\'s one primary is the first UNFINISHED book (a finished teacher book keeps its card and ribbon, not the primary); all finished -> the first card', async () => {
+    const shelfWith = (books) => ({ status: 200, body: { ...SHELF, books } });
+    const B = SHELF.books;   // b-9 teacher (unfinished), b-1 unfinished, b-4 finished
+    const prim = (h) => (/data-id="([^"]+)"[^>]*data-primary/.exec(h) || [])[1];
+    const run = async (books) => { const e = env({ replies: { shelf: shelfWith(books) } }); const el = fakeEl('shelf'); e.S.shelf(el, e.ctx()); await flush(); return el.innerHTML; };
+    let h = await run(B);
+    expect(prim(h)).toBe('b-9');                                         // an unfinished teacher book leads
+    h = await run([{ ...B[0], done: true }, B[1], B[2]]);
+    expect(prim(h)).toBe('b-1');                                         // a finished teacher book: the first unfinished card leads
+    expect(h).toContain('wqs-tcard');                                    // the teacher's card stays
+    expect((h.match(/data-primary/g) || []).length).toBe(1);
+    h = await run([{ ...B[2] }, { ...B[1], done: true }].concat([{ ...B[1], id: 'b-5', done: false }]));
+    expect(prim(h)).toBe('b-5');                                         // no teacher book, the first card finished: the first unfinished
+    h = await run([{ ...B[0], done: true }, { ...B[1], done: true }, B[2]]);
+    expect(prim(h)).toBe('b-9');                                         // every book finished: the first card, as today
+    expect((h.match(/data-primary/g) || []).length).toBe(1);
+  });
   test('every book card (the teacher card too) carries its book id, so a tap can name the book and not its position', async () => {
     const e = env(); const el = fakeEl('shelf');
     e.S.shelf(el, e.ctx()); await flush();

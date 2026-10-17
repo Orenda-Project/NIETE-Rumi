@@ -91,17 +91,19 @@
   }
 
   function shelfHtml(d, open, host) {
-    var l = lg(d.lang), t = T[l], bk = d.books || [], tk = -1, k, cards = '', first;
+    var l = lg(d.lang), t = T[l], bk = d.books || [], tk = -1, k, cards = '', pk = -1;
     for (k = 0; k < bk.length && tk < 0; k++) if (bk[k].from_teacher) tk = k;
-    first = tk < 0;
+    // the one primary: the teacher's unfinished book, else the first unfinished card, else the first card
+    if (tk >= 0 && !bk[tk].done) pk = tk;
+    for (k = 0; k < bk.length && pk < 0; k++) if (k !== tk && !bk[k].done) pk = k;
+    if (pk < 0) pk = tk >= 0 ? tk : 0;
     var cov = function (b) { return img(b.cover, 160, 240, '', ' loading="lazy"'); };
     bk.forEach(function (b, k) {
       if (k === tk) return;
       var bl = lg(b.lang);
-      cards += '<li><button class="wqs-book" data-tap="book" data-arg="' + k + '" data-id="' + esc(b.id) + '"' + (first ? ' data-primary' : '') + (b.done ? ' data-done' : '') + '><span class="wqs-cov">' + cov(b) +
+      cards += '<li><button class="wqs-book" data-tap="book" data-arg="' + k + '" data-id="' + esc(b.id) + '"' + (k === pk ? ' data-primary' : '') + (b.done ? ' data-done' : '') + '><span class="wqs-cov">' + cov(b) +
         (b.from_teacher ? '<i class="wqs-rib">' + esc(t.teacher) + '</i>' : '') + (b.done ? '<i class="wqs-tick" aria-label="' + esc(t.read) + '">' + IC.tick + '</i>' : '') +
         '</span><b lang="' + bl + '" dir="' + dirOf(bl) + '">' + esc(b.title) + '</b>' + (b.by ? '<small>' + esc(t.by(b.by)) + '</small>' : '') + '</button></li>';
-      first = false;
     });
     var chips = '';
     if (open) {
@@ -113,7 +115,7 @@
     return scr('stories-shelf', l,
       '<div class="wqs-top">' + hm(l) + '<h2>' + esc(t.shelf) + '</h2></div>' +
       '<button class="wqs-gl" data-tap="gl"' + (bk.length ? '' : ' data-primary') + ' aria-expanded="' + !!open + '">' + esc(t.gl(dg(d.grade, l), l)) + ' ▾</button>' + (open ? '<div class="wqs-pick">' + chips + '</div>' : '') +
-      (tb ? '<button class="wqs-tcard" data-tap="book" data-arg="' + tk + '" data-id="' + esc(tb.id) + '" data-primary>' + cov(tb) + '<span><i class="wqs-rib">' + esc(t.teacher) + '</i><b>' + IC.play + ' ' + t.readWith('<bdi lang="' + lg(tb.lang) + '" dir="' + dirOf(lg(tb.lang)) + '">' + esc(tb.title) + '</bdi>') + '</b>' + (tb.by ? '<small>' + esc(t.by(tb.by)) + '</small>' : '') + '</span></button>' : '') +
+      (tb ? '<button class="wqs-tcard" data-tap="book" data-arg="' + tk + '" data-id="' + esc(tb.id) + '"' + (tk === pk ? ' data-primary' : '') + '>' + cov(tb) + '<span><i class="wqs-rib">' + esc(t.teacher) + '</i><b>' + IC.play + ' ' + t.readWith('<bdi lang="' + lg(tb.lang) + '" dir="' + dirOf(lg(tb.lang)) + '">' + esc(tb.title) + '</bdi>') + '</b>' + (tb.by ? '<small>' + esc(t.by(tb.by)) + '</small>' : '') + '</span></button>' : '') +
       (bk.length ? '<ul class="wqs-grid">' + cards + '</ul>' : '<p class="wqs-say">' + esc(t.empty) + '</p>'), 'wqs-shelf');
   }
   function shelf(el, ctx, q) {
