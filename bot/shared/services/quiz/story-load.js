@@ -82,8 +82,22 @@ function fileOf(buf, stem, ext) {
 
 /** The page's words as the contract keeps them: {i, t, box?} only. */
 function cleanWords(words) {
-  return (Array.isArray(words) ? words : []).map((w) => (Array.isArray(w.box) && w.box.length === 4
-    ? { i: w.i, t: w.t, box: w.box.map((x) => Math.round(x)) } : { i: w.i, t: w.t }));
+  return (Array.isArray(words) ? words : []).map((w) => {
+    const o = Array.isArray(w.box) && w.box.length === 4 ? { i: w.i, t: w.t, box: w.box.map((x) => Math.round(x)) } : { i: w.i, t: w.t };
+    // A spelling the page prints instead of the stored word (a "print differs" page): Your turn accepts either.
+    const alt = altOf(w);
+    if (alt.length) o.alt = alt;
+    return o;
+  });
+}
+
+const nfc = (s) => String(s).normalize('NFC').trim();
+
+/** The word's printed alternatives: strings only, composed, no repeats, never the word itself, at most 3. */
+function altOf(w) {
+  if (!Array.isArray(w.alt)) return [];
+  const t = nfc(w.t);
+  return [...new Set(w.alt.filter((a) => typeof a === 'string').map(nfc).filter((a) => a && a !== t))].slice(0, 3);
 }
 
 /** Each printed line as {i0, i1, box} (integers), or null when the page has none. */
@@ -117,7 +131,9 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = false }) {
   const why = [];
   const ts = Array.isArray(j.words) ? j.words : [];
   const want = words.map((w) => w.i).join(',');
-  if (ts.map((w) => w.i).join(',') !== want) why.push('voice words differ from the page words');
+  // Same positions AND the same words: a clip timed on an older spelling of the page is not its voice.
+  const tOf = new Map(words.map((w) => [w.i, nfc(w.t)]));
+  if (ts.map((w) => w.i).join(',') !== want || ts.some((w) => w.t != null && tOf.get(w.i) !== nfc(w.t))) why.push('voice words differ from the page words');
   const bad = ts.some((w) => !(Number.isFinite(w.s_ms) && Number.isFinite(w.e_ms) && w.e_ms >= w.s_ms));
   if (bad) why.push('voice timings malformed');
   const pick = (k) => num(qa[k]) != null ? qa[k] : num(j[k]);
