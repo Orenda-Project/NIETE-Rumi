@@ -233,6 +233,22 @@ describe('the rand arm draws once per child per PKT day', () => {
     }
     expect(days.size).toBeGreaterThan(1);
   });
+
+  // A new draw (the kept kind is no longer offered) is over the kinds in the kit's order: the day's drops, which move
+  // the ranked order, never change which kind a child-day lands on.
+  test('a draw lands on the same kind whatever drops have moved the ranked order', () => {
+    const list = [video, again, story, game, sticker];
+    const at = new Date(NOW).toISOString();
+    let moved = 0;
+    for (let i = 0; i < 40; i += 1) {
+      const st = (drops) => ({ arm: 'rand', seed: `child-${i}|${Math.floor(NOW / DAY)}`, now: at, monthOpens: 3, drops });
+      const plain = NO.rank('home', list, st([]));
+      const dropped = NO.rank('home', list, st(['vid-1', 'ur.listen.1.story01']));
+      if (plain.meta.order.join() !== dropped.meta.order.join()) moved += 1;
+      expect(dropped.next.kind).toBe(plain.next.kind);
+    }
+    expect(moved).toBeGreaterThan(0);
+  });
 });
 
 describe('rule 2: a month\'s home open is a PKT day with a home view, never a render', () => {
