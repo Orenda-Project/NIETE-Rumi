@@ -781,10 +781,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   // Urdu digits (U+06F0–06F9) for a number inside Urdu prose.
   function urDigits(n) { return String(n).replace(/[0-9]/g, function (d) { return String.fromCharCode(0x06F0 + Number(d)); }); }
-  // The class's name as the page draws it: an Urdu label («جماعتیں 1، 3، 5») takes Urdu digits on an Urdu page, like the
-  // score beside it (the server's label is shared with the teacher's report, so it stays Latin there); a Latin label
-  // («3-B», drawn as a Latin isolate) is kept as sent.
-  function clsName(s) { return LANG === 'ur' && s && !/[A-Za-z]/.test(s) ? urDigits(s) : s; }
+  // The class's name as the page draws it. With app_settings web_quiz_ur_class_digits on (the payload's
+  // `ur_class_digits: true`, JSON true only), an Urdu label («جماعتیں 1، 3، 5») takes Urdu digits on an Urdu page, like
+  // the score beside it (the server's label is shared with the teacher's report, so it stays Latin there); a Latin label
+  // («3-B», drawn as a Latin isolate) is kept as sent. Off (absent): every label exactly as sent, today's page.
+  var UR_CLS_DIGITS = B.ur_class_digits === true;
+  function clsName(s) { return UR_CLS_DIGITS && LANG === 'ur' && s && !/[A-Za-z]/.test(s) ? urDigits(s) : s; }
 
   /* ---------------- storage that survives being blocked ---------------- */
   var mem = {};

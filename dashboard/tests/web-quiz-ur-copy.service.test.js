@@ -23,7 +23,7 @@ describe('the landing and identity copy under the class', () => {
     // an Urdu child screen prints every number in Urdu digits (still isolated)
     expect(h).toContain('<p class="wq-small">⁦۵⁩ سوال، ⁦۳⁩ منٹ</p>');
     expect(h).not.toContain('تقریباً');
-    expect(h).toContain('کی طرف سے\nجماعت ۳</p>');
+    expect(h).toContain('کی طرف سے\nجماعت 3</p>');
     expect(h).toContain('<div class="wq-say">السلام علیکم! کوئز کھیلیں؟</div>');
   });
   test('off: the same screen is today\'s, word for word', () => {
@@ -31,8 +31,7 @@ describe('the landing and identity copy under the class', () => {
     p.ctx.__wq.landing();
     const h = p.html();
     expect(h).toContain('تقریباً');
-    // the class's own digits are Urdu on an Urdu page in both (a script rule, not this key's)
-    expect(h).toContain(' · جماعت ۳</p>');
+    expect(h).toContain(' · جماعت 3</p>');
     expect(h).toContain('<div class="wq-say">السلام علیکم! آئیں، کوئز کھیلیں۔</div>');
   });
   test('an English page never changes with ui.ur2', () => {
