@@ -295,3 +295,29 @@ describe('an unscored kind ranks as a lift of 0 (no different from stopping)', (
     expect(r.next.id).toBe('s-1');
   });
 });
+
+
+describe('a tile the child can reach, with words that say what to do', () => {
+  const S = require('../../../shared/services/quiz/web-quiz-next-offer-sources');
+  const NOr = require('../../../shared/services/quiz/web-quiz-next-offer');
+
+  test('a storybook row: the verb is the tile\'s title, the book\'s own title its subtitle (resume: "Finish your story")', () => {
+    const resume = S.titled({ kind: 'storybook', id: 'b1', rule: 'resume', href: '/h/t?kid=k#story/b1', title: 'Drip! Drip!', title_ur: 'Drip! Drip!', minutes: 2 });
+    expect(resume).toMatchObject({ title: 'Finish your story', title_ur: 'اپنی کہانی پوری کریں', sub: 'Drip! Drip!', sub_ur: 'Drip! Drip!', rule: 'resume', minutes: 2 });
+    const unread = S.titled({ kind: 'storybook', id: 'b2', href: '/h/t?kid=k#story/b2', title: 'Lost Deer', title_ur: 'Lost Deer', minutes: 3 });
+    expect(unread).toMatchObject({ title: 'Listen to a story', title_ur: 'کہانی سنیں', sub: 'Lost Deer' });
+    // a teacher-sent book keeps the slot's own words (it is built elsewhere)
+    expect(S.titled({ kind: 'quiz', id: 'q', href: '/q/X', title: 'From your teacher' }).title).toBe('From your teacher');
+  });
+
+  test('a candidate with no step to open (no href, an empty hash, a bare hash) is never offered; the next reachable one is, in every arm', () => {
+    const dead = { kind: 'game', id: 'g', href: '#', title: 'Play with Jugnu', minutes: 2 };
+    const dead2 = { kind: 'game', id: 'g2', href: '/c/t?kid=k#', title: 'Play with Jugnu', minutes: 2 };
+    const ok = { kind: 'story', id: 's', href: '/c/t?kid=k&room=story&pid=p', title: 'Listen to a story', minutes: 2 };
+    for (const arm of ['rank', 'rand', 'ctrl']) {
+      const r = NOr.rank('home', [{ ...dead, lantern: true }, dead2, ok], { arm, seed: 'x', now: new Date().toISOString() });
+      expect(r.next.id).toBe('s');
+      expect(r.next.alts).toEqual([]);
+    }
+  });
+});

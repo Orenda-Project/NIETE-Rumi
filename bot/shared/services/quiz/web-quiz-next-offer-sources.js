@@ -44,6 +44,7 @@ const COPY = {
   numbers: ['Play the numbers game', 'گنتی کا کھیل کھیلیں'],
   sticker: ['See your stickers', 'اپنے اسٹیکرز دیکھیں'],
   invite: ['Invite a friend', 'دوست کو بلائیں'],
+  resume: ['Finish your story', 'اپنی کہانی پوری کریں'],
 };
 const words = (k) => ({ title: COPY[k][0], title_ur: COPY[k][1] });
 // A teacher's new item: "New" (Urdu agrees with the tile's noun: کوئز is masculine, a book's کہانی feminine).
@@ -255,12 +256,19 @@ async function onItsWayOf(canonicalId, rawId, stops, lang, grade) {
   }
 }
 
+/** A storybook row from the shelf's module: the verb is the tile's title (a half-read book "Finish your story", else
+ *  "Listen to a story": the reader opens with Jugnu reading), the book's own title its subtitle. Other kinds as they are. */
+function titled(r) {
+  if (!r || r.kind !== 'storybook' || typeof r.title !== 'string') return r;
+  return { ...r, ...words(r.rule === 'resume' ? 'resume' : 'listen'), sub: r.title, sub_ur: r.title_ur || r.title };
+}
+
 async function storybooks(args) {
   let mod = null;
   try { mod = require('./web-quiz-storybook-next'); } catch (_) { return []; }
   try {
     const rows = typeof mod.candidates === 'function' ? await mod.candidates(args) : [];
-    return Array.isArray(rows) ? rows : [];
+    return Array.isArray(rows) ? rows.map(titled) : [];
   } catch (_) {
     return [];
   }
@@ -326,4 +334,4 @@ async function hubField({ out, token, history, collect = {}, lang, chosenId, gra
   }
 }
 
-module.exports = { candidatesOf, hubPrep, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, artOr, COPY, TAG, JUGNU_ART, HUB_DEADLINE_MS };
+module.exports = { titled, candidatesOf, hubPrep, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, artOr, COPY, TAG, JUGNU_ART, HUB_DEADLINE_MS };

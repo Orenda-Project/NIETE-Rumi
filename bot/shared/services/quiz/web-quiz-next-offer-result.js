@@ -94,7 +94,9 @@ async function childCandidates({ studentId, device, lang: asked = null, watch = 
 // ones minted for (and bound to) that phone; no name is kept. A card that comes while its warm-up is still reading
 // waits for it (one read, not two). ──
 const WARM_TTL_S = 15 * 60;
-const warmKey = (studentId, device) => `wq:nxs:${crypto.createHash('sha256').update(`${studentId}|${T.cleanDeviceRef(device) || ''}`).digest('hex').slice(0, 24)}`;
+// keyed (HMAC under the token secret), never a bare hash a reader could recompute from an id; the value holds the
+// child's internal id beside the list (server-side only, 15 minutes, never sent to a phone, no name)
+const warmKey = (studentId, device) => `wq:nxs:${crypto.createHmac('sha256', T.secret() || 'wq-next-warm').update(`${studentId}|${T.cleanDeviceRef(device) || ''}`).digest('hex').slice(0, 24)}`;
 const inflight = new Map();   // warmKey -> the warm-up's promise (this process)
 const redisOf = () => require('../cache/railway-redis.service');
 

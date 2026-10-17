@@ -61,7 +61,9 @@ function armOf(key, day) {
   return b <= 6 ? 'rank' : b <= 8 ? 'rand' : 'ctrl';
 }
 
-const offerable = (c) => c && KINDS.includes(c.kind) && c.id && typeof c.href === 'string' && c.href && c.title;
+// a tile opens the thing it names: no href, or one that ends in a bare '#' (no step), is never offered
+const reachable = (h) => typeof h === 'string' && h.length > 0 && !/#$/.test(h);
+const offerable = (c) => c && KINDS.includes(c.kind) && c.id && reachable(c.href) && c.title;
 
 // The table's names for the same thing in another context (the home's rows name the hub's picks: a teacher quiz is
 // `teacher`, play again is `last`, a library video `library`/`recommended`).
