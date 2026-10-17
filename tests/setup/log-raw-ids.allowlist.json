@@ -1570,16 +1570,6 @@
    "201 studentId: firstStudent.id"
   ]
  },
- "bot/shared/services/quiz/quiz-follow-up.service.js": {
-  "n": 4,
-  "area": "quiz",
-  "at": [
-   "40 from (shorthand)",
-   "54 userId: user.id",
-   "201 userId (shorthand)",
-   "201 from (shorthand)"
-  ]
- },
  "bot/shared/services/quiz/quiz-generation.service.js": {
   "n": 1,
   "area": "quiz",
