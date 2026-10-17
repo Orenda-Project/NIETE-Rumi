@@ -98,7 +98,7 @@
     if (tk >= 0 && !bk[tk].done) pk = tk;
     for (k = 0; k < bk.length && pk < 0; k++) if (k !== tk && !bk[k].done) pk = k;
     if (pk < 0) pk = tk >= 0 ? tk : 0;
-    var cov = function (b) { return img(b.cover, 160, 240, '', W.WQLZ || ' loading="lazy"'); };
+    var cov = function (b) { return img(b.cover, 160, 240, '', ' loading="lazy"'); };
     bk.forEach(function (b, k) {
       if (k === tk) return;
       var bl = lg(b.lang);

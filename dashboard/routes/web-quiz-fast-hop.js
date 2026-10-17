@@ -15,15 +15,15 @@
  *                    any script runs. A script's own GET of one of those URLs (wq-doors.js, wq-stories.js) is answered
  *                    from that early read (window.fetch is wrapped for those URLs only, for one minute); a failed or
  *                    non-OK early read is asked again from the network.
- * The shelf's covers (wq-stories.js reads window.WQLZ): each starts as a blank and gets its picture when it scrolls into
- * view; the first four are fetched the moment the shelf's JSON lands, so the ones on screen are already there.
+ * The shelf's covers (the shelf draws them with native lazy loading; a watcher here turns each one blank-first as the page
+ * adds it): each starts as a blank and gets its picture when it scrolls into view; the first four are fetched the moment the shelf's JSON lands, so the ones on screen are already there.
  * The switch (the hub's answer says `one_hop: true`, only with both switches on): the head is sent before the hub's
  * answer is known, so it follows the LAST hub answer this edge saw (as the fast page itself follows the last `fast`):
  * after a start the edge has seen none, so the first fast hub opens are today's; the tail then learns the switch from
  * its own answer, and from the next open on the head carries the early reads. A flip (either way) lands one open later
  * on each edge process. The tail follows its own answer at once: no `one_hop`, the tail is today's.
- * Switch off: head() is empty and tail() is today's tail, so the page is today's byte for byte, and with no WQPRE (and no
- * WQLZ, no chip in the door's answer) the scripts behave as today.
+ * Switch off: head() is empty and tail() is today's tail, so the page is today's byte for byte, and with no WQPRE (no cover
+ * watcher, no chip in the door's answer) the scripts behave as today.
  */
 let last = false; // the last hub answer's `one_hop` (app_settings web_quiz_one_hop, with web_quiz_fast)
 
@@ -40,7 +40,8 @@ see:function(im){if(!im.getAttribute("srcset"))return;var go=function(){im.remov
 if(!w.IntersectionObserver)return go();
 io=io||new w.IntersectionObserver(function(es,o){es.forEach(function(x){if(x.isIntersecting){o.unobserve(x.target);x.target.removeAttribute("srcset")}})},{rootMargin:"0px 0px 200px 0px"});
 io.observe(im)}};
-w.WQLZ=' srcset="'+G+'" onload="WQPRE.see(this)"';
+var S="img[loading='lazy'][width='160'][height='240']",fix=function(i){i.removeAttribute("loading");i.setAttribute("srcset",G);i.setAttribute("onload","WQPRE.see(this)")};
+if(w.MutationObserver&&d.documentElement)new w.MutationObserver(function(ms){ms.forEach(function(m){[].forEach.call(m.addedNodes,function(n){if(n.nodeType!==1)return;var l=n.matches&&n.matches(S)?[n]:[];if(n.querySelectorAll)l=l.concat([].slice.call(n.querySelectorAll(S)));l.forEach(fix)})})}).observe(d.documentElement,{childList:true,subtree:true});
 w.fetch=function(u,i){var r=typeof u==="string"&&!(i&&i.method&&i.method!=="GET")&&P.take(u);return r?r.then(null,function(){return F.call(w,u,i)}):F.apply(w,arguments)};
 var h=String(w.location.hash||""),door=/^#(stories|games|videos|watch\\/)/.test(h),st=/^#(stories$|story\\/)/.test(h),home=door||st;
 try{if(w.localStorage.getItem("wq_h3")==="1")home=1}catch(x){}

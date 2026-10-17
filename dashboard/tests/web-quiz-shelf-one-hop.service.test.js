@@ -99,6 +99,7 @@ function phone({ hash = '', search = '', store = {}, answers = {} } = {}) {
   const head = [];
   const fetches = [];
   const pictures = [];
+  const watchers = [];
   const ls = new Map(Object.entries(store));
   const answer = (url) => {
     const k = Object.keys(answers).find((a) => url.indexOf(a) >= 0);
@@ -112,6 +113,7 @@ function phone({ hash = '', search = '', store = {}, answers = {} } = {}) {
     localStorage: { getItem: (k) => (ls.has(k) ? ls.get(k) : null), setItem: (k, v) => ls.set(k, String(v)) },
     fetch: (url, init) => { fetches.push({ url, init }); return Promise.resolve(answer(url)); },
     Image: function Image() { const im = {}; pictures.push(im); return im; },
+    MutationObserver: function MO(fn) { this.fn = fn; this.observe = () => { watchers.push(this); }; },
     encodeURIComponent, JSON, Date, Promise, String, RegExp, Object, Array, Math, Number, setTimeout, clearTimeout,
   };
   win.window = win;
@@ -122,7 +124,7 @@ function phone({ hash = '', search = '', store = {}, answers = {} } = {}) {
     getElementById: () => null, querySelector: () => null, addEventListener() {},
   };
   vm.createContext(win);
-  return { win, head, fetches, pictures, ls, run: (src) => vm.runInContext(src, win) };
+  return { win, head, fetches, pictures, watchers, ls, run: (src) => vm.runInContext(src, win) };
 }
 const preloads = (p) => p.head.filter((l) => l.rel === 'preload').map((l) => `${l.as}:${l.href}`).sort();
 const flush = () => new Promise((r) => setImmediate(r));
@@ -278,6 +280,22 @@ describe.each(['en', 'ur'])('switch on (%s): the door and the shelf take the ear
   });
 });
 
+describe('switch on: the early preload of the home script is the page\'s own script file', () => {
+  test('wq-home.js: the head\'s preload href is exactly the page\'s own script tag href, with no crossorigin (a second preload of it shares one download)', async () => {
+    const { early, body } = await fastOpen(HUB({ fast: true, one_hop: true, home_v3: 1 }));
+    const p = phone({ hash: '#stories' });
+    inline(early).forEach(p.run);
+    const pre = p.head.filter((e) => /wq-home\.js/.test(e.href || ''));
+    expect(pre.length).toBe(1);
+    const own = /<script src="(\/wq\/wq-home\.js\?v=[^"]+)" defer><\/script>/.exec(body);
+    expect(own).not.toBeNull();
+    expect(pre[0].href).toBe(own[1]);
+    expect(pre[0].as).toBe('script');
+    expect(Object.keys(pre[0]).filter((k) => /cross/i.test(k))).toEqual([]);
+    expect(early).not.toMatch(/crossorigin/i);
+  });
+});
+
 describe('switch on: the shelf\'s covers below the fold wait until they scroll into view', () => {
   test('every cover starts blank; the first four are fetched as the shelf lands; one gets its picture when seen', async () => {
     const { early, body } = await fastOpen(HUB({ fast: true, one_hop: true }));
@@ -296,7 +314,14 @@ describe('switch on: the shelf\'s covers below the fold wait until they scroll i
     expect(p.pictures.map((i) => i.src)).toEqual(['/s/b1/c.webp', '/s/b2/c.webp', '/s/b3/c.webp', '/s/b4/c.webp']);
     const imgs = sh.innerHTML.match(/<img[^>]*>/g);
     expect(imgs.length).toBe(9);
-    imgs.forEach((h) => { expect(h).toMatch(/ srcset="data:image\/gif;base64,[^"]+"/); expect(h).toMatch(/ onload="WQPRE\.see\(this\)"/); expect(h).toMatch(/ src="\/s\/b\d\/c\.webp"/); });
+    // the shelf (unchanged script) draws them with native lazy loading; the page's watcher turns each one blank-first
+    imgs.forEach((h) => { expect(h).toMatch(/ loading="lazy"/); expect(h).toMatch(/ src="\/s\/b\d\/c\.webp"/); });
+    expect(p.watchers.length).toBe(1);
+    const fake = (h) => { const a = { loading: 'lazy', width: '160', height: '240', src: /src="([^"]+)"/.exec(h)[1] }; return { a, removeAttribute(k) { delete a[k]; }, setAttribute(k, v) { a[k] = v; } }; };
+    const els = imgs.map(fake);
+    const node = { nodeType: 1, matches: () => false, querySelectorAll: (sel) => { expect(sel).toBe("img[loading='lazy'][width='160'][height='240']"); return els; } };
+    p.watchers[0].fn([{ addedNodes: [{ nodeType: 3 }, node] }]);
+    els.forEach((e) => { expect(e.a.loading).toBeUndefined(); expect(e.a.srcset).toMatch(/^data:image\/gif;base64,/); expect(e.a.onload).toBe('WQPRE.see(this)'); expect(e.a.src).toMatch(/^\/s\/b\d\/c\.webp$/); });
     // the blank loads → watched; scrolled into view → the srcset goes and the cover's own src loads
     const im = { attrs: { srcset: 'data:x' }, getAttribute(k) { return this.attrs[k] == null ? null : this.attrs[k]; }, removeAttribute(k) { delete this.attrs[k]; } };
     p.win.WQPRE.see(im);
