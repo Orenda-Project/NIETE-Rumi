@@ -35,6 +35,10 @@ const ROWS = [
   [['quiz_student_join']],
   [['web_quiz_challenge_book']],
   [['web_quiz_phone_bind']],
+  [['web_quiz_stories']],
+  [['web_quiz_stories_band']],
+  [['web_quiz_readalong']],
+  [['web_quiz_live_read_v3', 'web_quiz_challenge_realtime']],
 ];
 
 const SAVED = { ...process.env };
