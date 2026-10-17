@@ -2410,17 +2410,6 @@
    "399 from (shorthand)"
   ]
  },
- "dashboard/routes/portal.routes.js": {
-  "n": 5,
-  "area": "dashboard/routes",
-  "at": [
-   "286 userId: req.session.portalUserId",
-   "411 userId: found ? found.id : undefined",
-   "680 userId: user.id",
-   "853 userId: user.id",
-   "7131 userId (shorthand)"
-  ]
- },
  "dashboard/routes/web-quiz.routes.js": {
   "n": 2,
   "area": "dashboard/routes",

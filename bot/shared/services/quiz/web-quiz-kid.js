@@ -20,7 +20,6 @@
  * every id that would let a row be joined back to a phone, a share code or a session is removed from it.
  */
 const crypto = require('crypto');
-const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 
 const KEY_ENV = 'WEB_QUIZ_KID_KEY';
@@ -36,6 +35,15 @@ const FORBIDDEN = new Set(['device_ref', 'dr', 'dh', 'sid', 'code', 'code_h', 't
 const FORBIDDEN_RX = /^phone/i;
 
 let missingDay = null;
+
+// The structured logger is required at the call, not at load: it needs pino, which the teacher portal's deploy
+// (dashboard/node_modules only) does not install, and the portal reads tk() from this module. A logger that cannot
+// load is no log line, never a throw out of kid() / tk() / emit(). Same pattern as web-quiz-token's logIdsDropped.
+function logEvent(name, fields) {
+  let L = null;
+  try { L = require('../../utils/structured-logger'); } catch (_) { return undefined; }
+  return L.logEvent(name, fields);
+}
 
 const pktDay = (now = Date.now()) => new Date(now + PKT_MS).toISOString().slice(0, 10);
 
@@ -122,7 +130,8 @@ function envelope(fields = {}) {
 /** One home for "an event under events v2, else today's fields". kind 'envelope' (the binding events): v2 on →
  *  envelope({kid, dk?, ...fields}); off → {...fields, w:'s'}. kind 'mark' (the hub door, whose envelope is not yet
  *  decided): v2 on → {...fields, w:'s'}; off → fields untouched. The switch read is fail-closed (a throw = off).
- *  The switch module is required lazily so this module stays leaf-like (no require cycle). */
+ *  The switch module and the logger are required lazily so this module stays leaf-like (no require cycle, and it
+ *  loads where pino is not installed). */
 async function emit(name, fields = {}, { canonicalId = null, device = null, kind = 'envelope' } = {}) {
   let v2 = false;
   try { v2 = Boolean(await require('./web-quiz-hub-flags').eventsV2On()); } catch (_) { v2 = false; }

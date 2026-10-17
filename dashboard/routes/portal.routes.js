@@ -66,6 +66,10 @@ const TrainingRules = require('../services/training-rules.service');
 const { isMultiKey } = require('../../bot/shared/services/training/paper-marking.service');
 const { readingsForCourse } = require('../../bot/shared/services/training/isaps-readings.rules');
 const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isaps-score-sheet.rules');
+// The teacher's keyed reference (HMAC under WEB_QUIZ_KID_KEY, 16 hex; null without the key): what a log line carries
+// instead of their users.id. web-quiz-kid's only load-time requires are crypto and web-quiz-token (crypto only); its
+// logger is required at the call and may fail to load here (no pino in dashboard/node_modules) without a throw.
+const { tk: tkOf } = require('../../bot/shared/services/quiz/web-quiz-kid');
 // bd-2460 — Assessment Generator availability. Fail-closed, shared with the
 // bot via one app_settings row (see dashboard/lib/feature-flags.js).
 const {
@@ -284,7 +288,7 @@ const requirePortalAuth = (req, res, next) => {
   }
 
   console.log('✅ Portal Auth Success:', {
-    userId: req.session.portalUserId,
+    tk: tkOf(req.session.portalUserId),
     sessionId: req.session.id
   });
 
@@ -410,7 +414,7 @@ async function loginByAccountName(rawName, password) {
   if (account && passwordMatches) return account;
   telemetry.logEvent('portal.login.name_rejected', {
     reason: account ? 'wrong_password' : reason,
-    userId: found ? found.id : undefined,
+    tk: found ? tkOf(found.id) : undefined,
   });
   return null;
 }
@@ -677,7 +681,7 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
       // whatever she typed. There is nothing to check her password against — send her to
       // Forgot password, which writes the hash.
       if (!user.portal_password_hash) {
-        telemetry.logEvent('portal.login.no_password', { userId: user.id });
+        telemetry.logEvent('portal.login.no_password', { tk: tkOf(user.id) });
         return res.status(403).json({
           success: false,
           code: 'PASSWORD_NOT_SET',
@@ -850,7 +854,7 @@ async function openSession(req, res, user, logEventName) {
     req.session.portalUserId = user.id;
     req.session.isPortalAuth = true;
     req.session.portalUserName = user.name;
-    telemetry.logEvent(logEventName, { userId: user.id });
+    telemetry.logEvent(logEventName, { tk: tkOf(user.id) });
     return res.json({ success: true, message: 'Login successful', user: publicUserPayload(user, { analyticsOnly }) });
   });
 }
@@ -7119,7 +7123,7 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
 
     // bd-v0toag.1.2 — she opened her coaching report (only once one exists; the page also serves in-flight sessions).
     if (session.report_pdf_url || session.report_generated_at || TeacherObservation.isObservation(session)) {
-      telemetry.logEvent('coaching.report.opened', { userId, sessionId, surface: 'portal' });
+      telemetry.logEvent('coaching.report.opened', { tk: tkOf(userId), sessionId, surface: 'portal' });
     }
 
     // Transform analysis_data structure to match frontend expectations

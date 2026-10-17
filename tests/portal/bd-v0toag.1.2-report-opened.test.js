@@ -89,9 +89,13 @@ async function invoke(method, path, { userId = 'teacher-1', params = {}, body = 
 }
 
 const UID = '0b9c3f1e-1111-4222-8333-444444444444';
+// The teacher's keyed reference (web-quiz-kid tk): what their log lines carry instead of their users.id.
+const KID_KEY = 'test-only-kid-key-0123456789abcdef0123456789';
+const tkOf = (id) => require('crypto').createHmac('sha256', KID_KEY).update(`t|${id}`).digest('hex').slice(0, 16);
 
 beforeEach(() => {
   jest.resetModules();
+  process.env.WEB_QUIZ_KID_KEY = KID_KEY;
   tableRows = { app_settings: [] };
   selects = {};
   telemetry = { logEvent: jest.fn(), flush: jest.fn(), isEnabled: () => false };
@@ -108,16 +112,17 @@ beforeEach(() => {
   jest.doMock('express-rate-limit', () => jest.fn(() => (_req, _res, next) => next()), { virtual: true });
   jest.doMock('@aws-sdk/client-s3', () => ({ S3Client: jest.fn(), GetObjectCommand: jest.fn() }), { virtual: true });
 });
-afterEach(() => jest.resetModules());
+afterEach(() => { jest.resetModules(); delete process.env.WEB_QUIZ_KID_KEY; });
 
 const opened = () => telemetry.logEvent.mock.calls.filter((c) => c[0] === 'coaching.report.opened').map((c) => c[1]);
 const row = (extra) => ({ id: 'cs-1', user_id: UID, status: 'completed', created_at: '2026-10-15T09:00:00Z', analysis_data: null, ...extra });
 
-test('her report opened in the portal: one opened event, uuid + session + surface', async () => {
+test('a teacher report opened in the portal: one opened event, the keyed teacher reference + session + surface (no raw id)', async () => {
   tableRows.coaching_sessions = [row({ report_pdf_url: 'https://r2.example/r.png' })];
   const { statusCode } = await invoke('get', '/coaching-session/:id', { userId: UID, params: { id: 'cs-1' } });
   expect(statusCode).toBe(200);
-  expect(opened()).toEqual([{ userId: UID, sessionId: 'cs-1', surface: 'portal' }]);
+  expect(opened()).toEqual([{ tk: tkOf(UID), sessionId: 'cs-1', surface: 'portal' }]);
+  expect(JSON.stringify(opened())).not.toContain(UID);
 });
 
 test('no report yet (still analysing): the page opened, but no report did — nothing logged', async () => {
