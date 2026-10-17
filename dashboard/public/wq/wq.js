@@ -1071,9 +1071,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   var player = null;
   var voiceGen = 0; // bumped on every stop: a line that was stopped or replaced never speaks again
+  var qra = null; // the question's read-along player (qraMount), when the page has one
   function stopVoice() {
     voiceGen += 1;
     try { if (player) { player.pause(); player = null; } } catch (e) {}
+    try { if (qra) { qra.end = null; qra.p.pause(); } } catch (e) {}
     try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
   }
   // Recorded clip when the payload has one, else the phone's own voice. done() runs when it ends.
@@ -1170,6 +1172,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     lateHook = null;
     clearTimers();
     stopVoice();
+    qraDrop();
     try { ROOT.classList.remove('wq-novoice'); ROOT.classList.remove('wq-phonevoice'); ROOT.classList.remove('wq-tap'); } catch (e) {}
     ROOT.innerHTML = '<section class="wq-screen" data-m="' + moment + '">' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
     ROOT.setAttribute('data-m', moment);
@@ -1967,8 +1970,66 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     (function nextPart() {
       if (i >= parts.length) { if (done) done(); return; }
       var k = i, part = parts[i++];
-      speak(part.text, part.url, nextPart, qid ? { qid: qid, part: part.p || k } : null);
+      var meta = qid ? { qid: qid, part: part.p || k } : null;
+      if (part.p === 'q' && qid && qra && qra.qid === qid && !qra.bad && part.url === qra.url && SOUND) { qraPlay(part, nextPart, meta); return; }
+      speak(part.text, part.url, nextPart, meta);
     })();
+  }
+
+  // Jugnu's read-along on the question (boot question_readalong, app_settings web_quiz_question_readalong, a quiz
+  // with one voice): the question's words glide as its clip plays, through the shared player (wq-readalong.js)
+  // mounted on the stem, with the clip's word times (audio.ra). The page's own speaker button and reading stay the
+  // one control: the player's button is hidden, the q part of the reading is played through it and the reading goes
+  // on when it ends. No player, no times or a mount that fails: the question is read as before.
+  var QRA_ON = Boolean(B.question_readalong);
+  var QRA_CSS = '.wq-raq .wqra{margin:0}.wq-raq .wqra-ctl{display:none}.wq-raq .wqra .wqra-text{font:inherit;line-height:inherit;color:inherit}';
+  function qraDrop() {
+    if (!qra) return;
+    var o = qra;
+    qra = null;
+    try { o.p.destroy(); } catch (e) {}
+  }
+  function qraMount(q) {
+    var au = q && q.audio;
+    if (!QRA_ON || !au || !au.q || !au.ra || !window.WQReadAlong) return;
+    if (qra && qra.qid === q.qid && qra.url === au.q) return;
+    qraDrop();
+    var el = $('.wq-qtext');
+    if (!el) return;
+    var html = el.innerHTML;
+    var o = { qid: q.qid, url: au.q, p: null, end: null, bad: false, part: null };
+    try {
+      if (!document.getElementById('wq-raq-css')) {
+        var st = document.createElement('style');
+        st.id = 'wq-raq-css';
+        st.textContent = QRA_CSS;
+        (document.head || document.body).appendChild(st);
+      }
+      el.classList.add('wq-raq');
+      o.p = WQReadAlong.mount(el, { v: 1, id: 'q/' + q.qid, lang: au.ra.lang, dir: au.ra.dir, audio: { url: au.q, ms: au.ra.ms }, words: au.ra.words }, {
+        mode: 'text', leadMs: 50,
+        onEnd: function () { var f = o.end; o.end = null; if (f) f(); },
+        onState: function (s) {
+          var f = o.end;
+          if (s === 'error') o.bad = true;
+          if (!f || (s !== 'error' && s !== 'paused')) return;
+          o.end = null;
+          // refused before a tap (the speaker button pulses, as for the page's own clip), or a clip that cannot play
+          // here: the page's own reading of it, as before
+          if (s === 'paused') { try { ROOT.classList.add('wq-tap'); } catch (e) {} f(); return; }
+          speak(o.part.text, o.part.url, f, o.part.meta);
+        },
+      });
+    } catch (e) { o.p = null; }
+    if (!o.p || o.p.state === 'error') { try { el.innerHTML = html; el.classList.remove('wq-raq'); } catch (e) {} return; }
+    qra = o;
+  }
+  function qraPlay(part, done, meta) {
+    stopVoice();
+    var o = qra, gen = voiceGen;
+    o.part = { text: part.text, url: part.url, meta: meta };
+    o.end = function () { if (gen === voiceGen) done(); };
+    try { if (o.p.state === 'paused') o.p.replay(); else o.p.play(); } catch (e) { o.end = null; o.bad = true; speak(part.text, part.url, done, meta); }
   }
 
   // What the voice says after an answer, in order: a recorded library line (right / fixed / not
@@ -2069,6 +2130,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var readBare = false; // the last reading had no recorded clip (the phone's voice, or silence in Urdu)
     function read() {
       readBare = !(q.audio && q.audio.q);
+      qraMount(q);
       var b = $('#wq-spk'); if (b) b.classList.add('wq-speaking');
       speakSeq(readParts(q), function () { var b2 = $('#wq-spk'); if (b2) b2.classList.remove('wq-speaking'); armHelp(); }, q.qid);
     }

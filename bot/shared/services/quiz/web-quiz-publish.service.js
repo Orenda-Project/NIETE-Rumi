@@ -60,6 +60,7 @@ const r2 = require('../../storage/r2');
 const Voice = require('./web-quiz-voice');
 const OneVoice = require('./web-quiz-one-voice-flag');
 const Store = require('./web-quiz-audio-store');
+const QuestionRA = require('./web-quiz-question-readalong');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
 const { resolveUx } = require('../../config/ux-strings');
@@ -347,12 +348,17 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     // itself), so a 5-question quiz is recorded in a fraction of the one-after-another time.
     const entries = new Map();
     const tasks = [];
+    // One voice, ElevenLabs: the question's clip is asked with its characters' times (the question's read-along,
+    // web-quiz-question-readalong.js), against the words the page prints for it.
+    const timed = Boolean(one) && voice.provider === 'elevenlabs';
     for (const q of questions || []) {
       entries.set(q.id, { q: null, opts: [null, null, null, null], why: null, fbs: [null, null, null, null], hint: null });
       for (const { part, text } of partsFor(q, { oneVoice: one })) {
         // The key is made from the words the voice is given: a clip recorded with other words is recorded again.
         const say = voiceText(text, language);
-        tasks.push({ q, part, text: say, key: Store.clipKey({ format, env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text: say }) });
+        const task = { q, part, text: say, key: Store.clipKey({ format, env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text: say }) };
+        if (timed && part === 'q') { const w = webItemOf(q); task.printed = w ? w.stem : q.question_text; }
+        tasks.push(task);
       }
     }
     // The quiz's clips in meta.web: the map of every entry so far, merged into the freshest meta so a
@@ -368,6 +374,11 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
       const meta = (fresh && fresh.meta) || quiz.meta || {};
       const web = meta[slot] && typeof meta[slot] === 'object' ? meta[slot] : {};
       const complete = final && stats.failed === 0 && !stats.capped;
+      // A question clip kept from an earlier run (not recorded again) keeps the word times it was recorded with.
+      Object.keys(audio).forEach((qid) => {
+        const was = (web.audio || {})[qid];
+        if (audio[qid].q && !audio[qid].q_ra && was && was.q === audio[qid].q && was.q_ra) audio[qid] = { ...audio[qid], q_ra: was.q_ra };
+      });
       const nextMeta = { ...meta, [slot]: {
         ...web, audio: { ...(web.audio || {}), ...audio }, audio_bucket: bucket, audio_voice: voiceTag,
         ...(stats.synthesized ? { audio_day: allowed.day } : {}), ...(complete ? { audio_v: AUDIO_VERSION } : {}),
@@ -383,8 +394,9 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     let firstLeft = firstQid ? tasks.filter((t) => t.q.id === firstQid).length : 0;
     let early = Promise.resolve();
     let started = 0;
-    const recordOne = async ({ q, part, text, key }) => {
+    const recordOne = async ({ q, part, text, key, printed }) => {
       let have = await exists(key, bucket);
+      let ra = null;
       if (have) {
         stats.skipped += 1;
       } else if (started >= maxClips) {
@@ -395,6 +407,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
           const res = await tts.synthesize({
             text, language, useCase: 'reading', site: 'web_quiz_read_aloud', ...(voice ? { provider: voice.provider, voice: voice.voice } : {}),
             ...(one ? { model: voice.model, voiceSettings: voice.settings, outputFormat: `opus_48000_${one.kbps || 64}` } : {}),
+            ...(printed !== undefined ? { timestamps: true } : {}),
           });
           const clip = one ? res.audio : await compactClip(res.audio);
           await r2.uploadBuffer(clip, key, 'audio/ogg', { bucket });
@@ -405,6 +418,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
           stats.providers[res.provider] = (stats.providers[res.provider] || 0) + 1;
           costUsd += one && res.provider === 'elevenlabs' ? text.length * ONE_USD_PER_CHAR : clipCostUsd(res, text);
           have = true;
+          if (printed !== undefined) ra = await recordTimings({ q, key, printed, res });
         } catch (error) {
           stats.failed += 1;
           logError('web_quiz.publish_audio.clip_failed', {
@@ -415,11 +429,27 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
       }
       if (!have) return;
       const entry = entries.get(q.id);
-      if (part === 'q') entry.q = key;
+      if (part === 'q') { entry.q = key; if (ra) entry.q_ra = ra; }
       else if (part === 'why') entry.why = key;
       else if (part === 'hint') entry.hint = key;
       else if (PARTS_FB.includes(part)) entry.fbs[PARTS_FB.indexOf(part)] = key;
       else entry.opts[PARTS_OPTS.indexOf(part)] = key;
+    };
+    // The question's word times, when the words spoken are the words printed: kept inline and as a v1 file beside the
+    // clip. A file that cannot be written leaves the question untimed (the page reads it as before).
+    const recordTimings = async ({ q, key, printed, res }) => {
+      const ra = QuestionRA.timings({ printed, alignment: res.alignment, ms: Math.round((res.durationSec || 0) * 1000) });
+      if (!ra) return null;
+      try {
+        const file = QuestionRA.timingFile({ qid: q.id, lang: language, printed, clipKey: key, ra, voice });
+        await r2.uploadBuffer(Buffer.from(JSON.stringify(file)), QuestionRA.fileKey(key), 'application/json', { bucket });
+        return ra;
+      } catch (error) {
+        logError('web_quiz.publish_audio.timings_failed', {
+          event: 'web_quiz.publish_audio.timings_failed', quizId, questionId: q.id, error: String(error.message || error).slice(0, 200),
+        });
+        return null;
+      }
     };
     const record = async (task) => {
       await recordOne(task);

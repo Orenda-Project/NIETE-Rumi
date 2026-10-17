@@ -54,7 +54,7 @@ function createTtsGateway({
   env = process.env,
   cassette = () => require('../e2e-cassette'),
 } = {}) {
-  async function runChain({ chain, text, language, useCase, site, correlationId, voice, model, voiceSettings, outputFormat }) {
+  async function runChain({ chain, text, language, useCase, site, correlationId, voice, model, voiceSettings, outputFormat, timestamps }) {
     const failures = [];
     for (const name of chain) {
       const provider = providers[name];
@@ -66,7 +66,7 @@ function createTtsGateway({
       try {
         const out = await provider.synthesize({
           text, language, useCase, site, correlationId, ...(voice ? { voice } : {}), ...(model ? { model } : {}), ...(voiceSettings ? { voiceSettings } : {}),
-          ...(outputFormat ? { outputFormat } : {}),
+          ...(outputFormat ? { outputFormat } : {}), ...(timestamps ? { timestamps } : {}),
         });
         const check = checkComplete(out.audio);
         if (!check.ok) {
@@ -111,8 +111,9 @@ function createTtsGateway({
   // feature whose lines must all sound alike (the web quiz) a clip in another voice is worse than
   // none: the call fails and the caller retries later. Every other caller is unchanged. With a pin,
   // `model` and `voiceSettings` name the provider's model and settings for that voice, `outputFormat` its own
-  // output format (ElevenLabs).
-  async function synthesize({ text, language, useCase, site, correlationId, deadlineMs, provider: pin, voice, model, voiceSettings, outputFormat } = {}) {
+  // output format (ElevenLabs), `timestamps` the time of every character in the same generation (ElevenLabs; the
+  // result then carries `alignment`; the cassette ignores it).
+  async function synthesize({ text, language, useCase, site, correlationId, deadlineMs, provider: pin, voice, model, voiceSettings, outputFormat, timestamps } = {}) {
     const resolved = resolveChain({ useCase, site, env });
     if (pin && !Object.prototype.hasOwnProperty.call(providers, pin)) throw new TypeError(`tts.synthesize: unknown provider "${pin}"`);
     const chain = pin ? [pin] : resolved.chain;
@@ -142,7 +143,7 @@ function createTtsGateway({
           durationSec: checkComplete(audio).durationSec || 0, failures: [], dropped: [], cassette: 'replay',
         };
       } else {
-        result = await withDeadline(runChain({ chain, text, language: lang, useCase, site, correlationId: corr, voice, ...(pin ? { model, voiceSettings, outputFormat } : {}) }), deadlineMs);
+        result = await withDeadline(runChain({ chain, text, language: lang, useCase, site, correlationId: corr, voice, ...(pin ? { model, voiceSettings, outputFormat, timestamps } : {}) }), deadlineMs);
       }
     } catch (error) {
       logError('tts.synthesize.failed', {
@@ -194,6 +195,7 @@ function createTtsGateway({
       latencyMs,
       fallbackFrom,
       cassette: result.cassette,
+      ...(result.alignment ? { alignment: result.alignment } : {}),
     };
   }
 

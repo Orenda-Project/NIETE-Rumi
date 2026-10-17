@@ -647,6 +647,18 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // One voice per quiz: the page shows a line with no clip instead of reading it in the phone's voice, and plays the
   // shared lines from the plan voice's set (named only when on).
   if (oneVoice) { out.one_voice = true; out.voice_sets = require('./web-quiz-voice').sharedSets(oneVoice); }
+  // Jugnu's read-along on the question (web-quiz-question-readalong.js, web_quiz_question_readalong), for a quiz with one
+  // voice: a question whose clip carries its word times (meta.web_one q_ra) gets audio.ra for the page's shared player.
+  // Named only when on, so a switched-off payload is today's.
+  if (oneVoice && await require('./web-quiz-question-readalong').on()) {
+    const QuestionRA = require('./web-quiz-question-readalong');
+    const map = (quizMeta.web_one && quizMeta.web_one.audio) || {};
+    out.question_readalong = true;
+    out.quiz.questions.forEach((qq) => {
+      const ra = qq.audio && qq.audio.q ? QuestionRA.raFor({ entry: map[qq.qid], url: qq.audio.q, printed: qq.text, lang: voiceLang }) : null;
+      if (ra) qq.audio = { ...qq.audio, ra };   // a copy: the signed map is cached
+    });
+  }
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
   return out;
 }

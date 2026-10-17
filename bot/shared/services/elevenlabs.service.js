@@ -35,10 +35,10 @@ class ElevenLabsService {
    *   remains the net for true outages. Never burn the fallback on a 500.
    * @private
    */
-  static async _postTts(url, body) {
+  static async _postTts(url, body, { json = false } = {}) {
     const post = (key) => axios.post(url, body, {
       headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
-      responseType: 'arraybuffer',
+      responseType: json ? 'json' : 'arraybuffer',
       timeout: 120000,
     });
 
@@ -55,6 +55,14 @@ class ElevenLabsService {
   }
 
   /**
+   * _postTts for an endpoint that answers JSON (the /with-timestamps call): the same primary → fallback-key rule.
+   * @private
+   */
+  static async _postTtsJson(url, body) {
+    return ElevenLabsService._postTts(url, body, { json: true });
+  }
+
+  /**
    * TRUE only when the key has genuinely RUN OUT of characters (operator,
    * 2026-08-23: "use fallback only if main NIETE key runs out"). A 429 is
    * load, not exhaustion — falling back on it would silently shift NIETE's
@@ -65,7 +73,10 @@ class ElevenLabsService {
   static _isQuotaError(error) {
     if (error.response?.status !== 401) return false;
     try {
-      const parsed = JSON.parse(Buffer.from(error.response?.data || '').toString('utf8'));
+      const data = error.response?.data;
+      // a JSON call's error body arrives parsed; an audio call's as bytes
+      const parsed = data && typeof data === 'object' && !Buffer.isBuffer(data) && !(data instanceof ArrayBuffer)
+        ? data : JSON.parse(Buffer.from(data || '').toString('utf8'));
       return parsed?.detail?.status === 'quota_exceeded';
     } catch (_) {
       return false;
@@ -278,6 +289,59 @@ class ElevenLabsService {
 
     } catch (error) {
       logToFile('❌ Error generating speech with ElevenLabs', {
+        language: languageCode,
+        voiceId,
+        error: error.message,
+        status: error.response?.status
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * generateSpeechWithVoice's pinned call, with the time of every character in the same generation (ElevenLabs
+   * /with-timestamps: no second call, no extra characters). The web quiz's one voice asks it for a question's clip,
+   * whose word times drive the read-along on the page.
+   *
+   * @param {string} text
+   * @param {string} voiceId
+   * @param {string} languageCode - for logging
+   * @param {object} [voiceSettings]
+   * @param {object} [opts] - { modelId, languageCode, outputFormat }, as generateSpeechWithVoice
+   * @returns {Promise<{audio: Buffer, alignment: {characters: string[], character_start_times_seconds: number[],
+   *   character_end_times_seconds: number[]}|null}>} the audio (Ogg Opus) and the provider's alignment of `text`
+   */
+  static async generateSpeechWithTimestamps(text, voiceId, languageCode, voiceSettings, opts = {}) {
+    try {
+      logToFile('Generating speech with timestamps with ElevenLabs', {
+        textLength: text.length,
+        voiceId,
+        language: languageCode
+      });
+
+      const response = await ElevenLabsService._postTtsJson(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps?output_format=${OPUS_FORMATS.has(opts.outputFormat) ? opts.outputFormat : 'opus_48000_64'}`,
+        {
+          text: text,
+          model_id: opts.modelId || 'eleven_v3',
+          voice_settings: voiceSettings,
+          ...(opts.modelId && opts.languageCode ? { language_code: opts.languageCode } : {}),
+        }
+      );
+
+      const data = response.data || {};
+      const audioBuffer = Buffer.from(String(data.audio_base64 || ''), 'base64');
+
+      logToFile('✅ ElevenLabs speech with timestamps generated successfully', {
+        audioSize: audioBuffer.length,
+        voiceId,
+        language: languageCode
+      });
+
+      return { audio: audioBuffer, alignment: data.alignment || null };
+
+    } catch (error) {
+      logToFile('❌ Error generating speech with timestamps with ElevenLabs', {
         language: languageCode,
         voiceId,
         error: error.message,
