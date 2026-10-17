@@ -39,3 +39,11 @@
 .wq-moment-badge{animation-delay:1.2s}
 @media (prefers-reduced-motion:reduce){.wq-moment *{animation:wq-moment-fade .15s both!important}}
 @keyframes wq-moment-fade{from{opacity:0}to{opacity:1}}
+/* Jugnu on the result (a host with no Jugnu of its own) hops in; leaning in on a quiet read */
+.wq-moment-jg{display:block;margin:0 auto 6px;animation:wq-moment-hop 900ms var(--ease-pop,cubic-bezier(.34,1.56,.64,1)) both}
+@keyframes wq-moment-hop{0%{transform:translateY(12px) scale(.6);opacity:0}55%{transform:translateY(-8px) scale(1.06);opacity:1}100%{transform:none}}
+.wqs-jg.wq-moment-lean{animation:wq-moment-lean 1.6s ease-in-out infinite}
+@keyframes wq-moment-lean{0%,100%{transform:none}50%{transform:translateY(6px) scale(1.12)}}
+.wqs-near{margin:8px 16px;text-align:center;font-weight:700;color:var(--ink,#1F2937)}
+.wqs-near .wqs-sec{margin-top:8px}
+@media (prefers-reduced-motion:reduce){.wqs-jg.wq-moment-lean{animation:none;transform:scale(1.08)}}

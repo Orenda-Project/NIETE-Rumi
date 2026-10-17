@@ -39,6 +39,7 @@
       stars: function (n) { return n + ' of 3 stars'; },
       up: 'Faster than last time!', same: 'Steady, just like last time!', hear: 'Hear Jugnu say it',
       again: 'Read it again to light one more!', again3: 'Read it again for 3 stars!',
+      near: "I can't hear you yet. Come a little closer!", withJ: 'Read with Jugnu',
       badge: { reader: 'Brave reader', star: 'Star reader', faster: 'Faster reader', try: 'Brave try' }
     },
     ur: {
@@ -50,6 +51,7 @@
       stars: function (n) { return 'ستارے: ۳ میں سے ' + ud(n); },
       up: 'پچھلی بار سے تیز!', same: 'بالکل پچھلی بار کی طرح، شاباش!', hear: 'جگنو سے سنیں',
       again: 'ایک اور روشنی کے لیے پھر سے پڑھیں!', again3: 'تین ستاروں کے لیے پھر سے پڑھیں!',
+      near: 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!', withJ: 'جگنو کے ساتھ پڑھیں',
       badge: { reader: 'ہمت کا تمغہ', star: 'پڑھائی کا ستارہ', faster: 'رفتار کا تمغہ', try: 'زبردست کوشش' }
     }
   };
@@ -115,6 +117,9 @@
     var l = L(lang), c = C[l], lv = level(fb, o.grade), dir = l === 'ur' ? 'rtl' : 'ltr', i;
     var out = '<section class="wq-moment' + (o.size === 's' ? ' wq-moment--s' : '') + '" data-deed="read" data-moment="' + esc(o.moment || 'read-result') + '" data-rf' + (lv.lights ? ' data-level="' + lv.lights + '"' : '') + ' role="status" aria-live="polite" lang="' + l + '" dir="' + dir + '">' +
       '<div class="wq-moment-sky" aria-hidden="true"></div>';
+    // Jugnu stays and reacts (o.jg: a host with no Jugnu of its own on the result): cheering 3 stars, happy for fewer,
+    // hello after a 0-word try
+    if (o.jg) out += '<img class="wq-moment-jg" src="/wq/jugnu/' + (fb.zero ? 'hello' : lv.stars === 3 ? 'celebrate' : 'correct') + '.webp" width="' + (o.size === 's' ? 56 : 72) + '" height="' + (o.size === 's' ? 56 : 72) + '" alt="" aria-hidden="true">';
     if (fb.zero) {
       out += '<p class="wq-moment-deed">' + esc(c.zero) + '</p>';
     } else {
@@ -170,7 +175,7 @@
   function page(s, p, lang, o) {
     o = o || {};
     var fb = feedback({ words_read: s.words_read, words_total: s.words_total, ms: s.ms });
-    var h = html(fb, lang, { grade: o.grade, size: 's' });
+    var h = html(fb, lang, { grade: o.grade, size: 's', jg: 1 });
     if (o.hear && slice(p, s, o)) h += '<button class="wqs-sec" data-tap="rfhear" data-sound data-trigger="tap">' + esc(C[L(lang)].hear) + '</button>';
     // read it again for 3 stars (a page is too short for lights); never after a 0-word try (that card leads with it)
     if (!fb.zero && level(fb, o.grade).stars < 3) h += '<button class="wqs-sec" data-tap="rfagain">' + esc(C[L(lang)].again3) + '</button>';
@@ -198,5 +203,32 @@
     return n > 0 && n < 5 ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)].again) + '</button>' : '';
   }
 
-  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, BANDS: BANDS };
+  // a read with no voice yet (the storybook's Your turn, every tick): at 6 s Jugnu leans in with "come a little
+  // closer", at 15 s the offer to read with Jugnu (data-tap="rfwith"); a word heard takes it away. el: the read screen's
+  // [data-near] line; g: Jugnu ([data-jg]); v: the live reader's view; ms since the read began
+  function near(el, g, v, ms, lang) {
+    if (!el) return;
+    var c = C[L(lang)], k = v && v.heard > 0 ? 0 : ms >= 15000 ? 2 : ms >= 6000 ? 1 : 0;
+    el.hidden = !k;
+    if (g) g.className = String(g.className || '').replace(/ ?wq-moment-lean/g, '') + (k ? ' wq-moment-lean' : '');
+    if (el.rfK === k) return;
+    el.rfK = k;
+    el.innerHTML = k ? '<span>' + esc(c.near) + '</span>' + (k === 2 ? ' <button class="wqs-sec" data-tap="rfwith">' + esc(c.withJ) + '</button>' : '') : '';
+  }
+  function say(k, lang) { return C[L(lang)][k]; }
+  // the storybook reader's glue (wq-stories-q.js keeps its size budget): q(k, R, m, x) with the reader R, its machine m
+  //   'page': this page's read, drawn (x {rd, st, sents}); 'hear': its skipped sentence played; 'withJ': the chip's "Read with Jugnu"; 'line': the read screen's [data-near] line; 'tick': near() for this read
+  //   (x {g, v, ms}); 'with': stop the quiet read; 'after': after the result, Jugnu reads the page when that was tapped
+  function q(k, R, m, x) {
+    var y;
+    if (k === 'page') { y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', sents: x.sents }); x.rd.fb = y.fb; return y.html; }
+    if (k === 'hear') return R.pl && hear(R.pl, R.P[m.i], x.rd.s, { sents: x.sents, set: R.C.set, clear: R.C.clear });
+    if (k === 'withJ') return say(k, R.L);
+    if (k === 'line') return '<p class="wqs-near" data-near hidden></p>';
+    if (k === 'tick') return near(R.root.querySelector('[data-near]'), x.g, x.v, x.ms, R.L);
+    if (k === 'with') { R.rfw = 1; if (R.lr) R.lr.stop('done_tap'); return; }
+    if (R.rfw) { R.rfw = 0; if (m.label() === 'listen') m.primary(); }
+  }
+
+  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, near: near, say: say, q: q, BANDS: BANDS };
 })();
