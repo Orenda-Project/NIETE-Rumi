@@ -53,6 +53,9 @@ const chip = (id) => T.chipId(F.SC, id);
 // the hub's "this phone may name this child" key (web-quiz-hub-device kidKey)
 const kidKey = (id, d = DEV) => `wq:hub:kid:${require('crypto').createHash('sha256').update(`${id}|${d}`).digest('hex').slice(0, 32)}`;
 
+// the tables a class-link "who does this phone hold" ask reads with the switch off (recorded on the base)
+const OFF_TABLES = ['app_settings'];
+
 let db;
 function seed({ flag = 'v2', known = true, canon = false } = {}) {
   db = F.db({ flag, classes: 'one' });
@@ -303,6 +306,28 @@ describe('the class filter adds no serial wave', () => {
     expect(tables.filter((t) => t === 'quiz_sessions')).toHaveLength(2);
   });
 
+  for (const [name, value] of [['false', false], ['no row', undefined]]) {
+    test(`switch off (${name}): the same eight-child phone makes exactly today's reads, and no "may this phone name them" read`, async () => {
+      seed({ known: value });
+      if (value === undefined) db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
+      const ids = Array.from({ length: 8 }, (_, i) => `55555555-5555-4555-8555-0000000003${i}0`);
+      ids.forEach((id, i) => db.students.push({ id, student_name: `Held${i} Testwala`, list_id: null, is_active: true, status: 'active' }));
+      for (const id of ids) await homeOpened([id]);
+      const Db = require('../../../shared/services/quiz/web-quiz-db-deadline');
+      const spy = jest.spyOn(Db, 'read');
+      const real = supabase.from;
+      const tables = [];
+      supabase.from = (t) => { tables.push(t); return real(t); };
+      let r;
+      try { r = await known(); } finally { supabase.from = real; }
+      const labels = spy.mock.calls.map((c) => String(c[0]));
+      spy.mockRestore();
+      expect(r).toEqual({ kids: [] });
+      expect(tables).toEqual(OFF_TABLES);
+      expect(labels.filter((l) => l.startsWith('mayNameEach:'))).toEqual([]);
+    });
+  }
+
   test('a phone that holds nobody makes none of the filter\'s reads', async () => {
     seed();
     const Db = require('../../../shared/services/quiz/web-quiz-db-deadline');
@@ -418,6 +443,47 @@ describe('the hub device module: one answer per child, all at once (deviceMayNam
     expect(await HubDevice.deviceMayNameEach([], DEV)).toEqual([]);
     redis._up = false;
     expect(await HubDevice.deviceMayNameEach([[SIB], [SELF]], DEV)).toEqual([false, false]);
+  });
+
+  test('Redis\'s isAvailable throws: a child trusted only by the hub key is false, a child played on this phone still true', async () => {
+    seed();
+    await homeOpened([SIB]);
+    db.quiz_sessions.push({ id: 'qs-dev', student_id: F.kid(1), device_ref: DEV });
+    const real = redis.isAvailable;
+    redis.isAvailable = () => { throw new Error('down'); };
+    try { expect(await HubDevice.deviceMayNameEach([[SIB], [F.kid(1)]], DEV)).toEqual([false, true]); } finally { redis.isAvailable = real; }
+  });
+
+  test('a hub key holding anything but 1 is not trust', async () => {
+    seed();
+    for (const v of ['0', 0, 'yes', '11', true, '']) {
+      redis._store.set(kidKey(SIB), v);
+      expect(await HubDevice.deviceMayNameEach([[SIB]], DEV)).toEqual([false]);
+    }
+    redis._store.set(kidKey(SIB), '1');
+    expect(await HubDevice.deviceMayNameEach([[SIB]], DEV)).toEqual([true]);
+  });
+
+  test('no device: false for every child, with no database read and no Redis read', async () => {
+    seed();
+    await homeOpened([SIB]);
+    redis.get.mockClear();
+    const Db = require('../../../shared/services/quiz/web-quiz-db-deadline');
+    const spy = jest.spyOn(Db, 'read');
+    try {
+      expect(await HubDevice.deviceMayNameEach([[SIB], [SELF]], undefined)).toEqual([false, false]);
+      expect(spy).not.toHaveBeenCalled();
+      expect(redis.get).not.toHaveBeenCalled();
+    } finally { spy.mockRestore(); }
+  });
+
+  test('Redis down: a child trusted only by the hub key is false', async () => {
+    seed();
+    await homeOpened([SIB]);
+    redis._up = false;
+    redis.get.mockClear();
+    expect(await HubDevice.deviceMayNameEach([[SIB]], DEV)).toEqual([false]);
+    expect(redis.get).not.toHaveBeenCalled();
   });
 
   test('a read that throws, even before it is sent: false for every child, never a rejection', async () => {

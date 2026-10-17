@@ -105,6 +105,7 @@ async function heldBy(device, onHeld = null) {
     each.push({ id: String(id), c });
   }
   // read-only: the child (or the record the phone was trusted with) on THIS browser, as the next offer checks it — one read for all
+  // (deviceMayNameEach never rejects today; the catch keeps a future rejection a "nobody", never a thrown ask)
   const may = await Device.deviceMayNameEach(each.map((x) => [...new Set([x.id, x.c])]), d).catch(() => each.map(() => false));
   const out = each.filter((_, i) => may[i]);
   if (!out.length) return [];
