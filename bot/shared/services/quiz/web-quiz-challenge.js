@@ -508,7 +508,7 @@ async function measureOutcome(id) {
 }
 
 async function storedRun(id) {
-  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, exercise, lang, status, score, wcpm, meta').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, exercise, lang, status, score, wcpm, meta, mode, record').eq('id', id).maybeSingle();
   return error ? null : data;
 }
 
@@ -676,7 +676,8 @@ async function sequenceNo(studentId, except = null) {
 async function provenance(studentId, exercise, lang, run, { except = null } = {}) {
   const { readFailed, ...a } = await attemptInfo(studentId, exercise, lang, { except, step: 'f' });
   // counted: under v2 the row's own mode and record (a round, a replay or a story is never counted, RULING #116); else the first scored attempt, as today
-  const counted = run.v2 ? run.mode === 'check' && run.record === true : a.attempt_no === 1;
+  // A run with a mode (a served row read back after a redeploy emptied the memory) follows its mode too: never counted unless a check record.
+  const counted = run.v2 || run.mode != null ? run.mode === 'check' && run.record === true : a.attempt_no === 1;
   return { ...a, ...(readFailed ? { runs_read_failed: true } : {}), counted, grade_source: run.gradeSource || null, test: !!run.test, sequence_n: await sequenceNo(studentId, except) };
 }
 
@@ -1370,9 +1371,10 @@ const ENDED_BY_CHILD = new Set(['stuck', 'home', 'hidden']);
 //   low_story_confidence   the house confidence is under 0.5 while the model credits ≥ 90% (a 220 Hz tone: 0.44 with 60/60)
 // Never the confidence alone. The reason rides meta.flags; the row reads quality 'implausible' (EVENTS §11) and, like a row the
 // sweeper abandons, record=false with meta.record_lost='implausible' (the month stays open). Null = believed (today's rows).
-// A read the page ended on silence with nothing credited is judged first by the words the speech service heard (silentFloor):
-// at least max(3, 10% of the story's tokens) is real speech that aligns to nothing — unheard, the record kept; fewer is not a
-// reading at all — implausible, no_speech when nothing was heard, else no_aligned_words. A silent room is never a reader of 0.
+// Every record read is judged first by the words the speech service heard (silentFloor), however it ended: fewer than
+// max(3, 10% of the story's tokens) is not a reading at all — implausible, no_speech when nothing was heard, else
+// no_aligned_words; at least that many falls through (real speech that aligns to nothing is unheard, the record kept).
+// A silent or noisy room is never a reader of 0.
 const IMPLAUSIBLE_CONF = 0.5;
 const IMPLAUSIBLE_SHARE = 0.9;
 const IMPLAUSIBLE_STT_SUPPORT = 0.25;   // heard words must be at least a quarter of the credited count
@@ -1441,10 +1443,12 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
       return { score: { correct: 0, attempted: 0, stopped: false, finished_early: false, time_left: 0 }, wcpm: null, ended: ctx.ended || null, implausible: doubt,
         meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: [...(m.flags || []), doubt], ...rest, quality: 'implausible', raw: { correct: score.correct, attempted: score.attempted, wcpm: rate } } };
     };
-    // Ended on silence with nothing credited: the floor on the words heard runs first (enough of them falls through to unheard)
-    if (rules.record && ctx.ended === 'silent' && !stopped && score.attempted === 0) {
+    // The floor on the words heard runs first on every record read, however it ended, stopped or not, whatever the marker
+    // credited: fewer words than the floor, none of them aligned to the story, is not a reading. A few words that DO align
+    // are a weak reader's own (the bottom of the distribution): they, and enough words heard, fall through to today's paths.
+    if (rules.record && !(Number(m && m.align_correct) > 0)) {
       const floor = silentFloor(m, tokensN);
-      if (floor) return implausibleRow(floor, wcpm(score.correct, score.time_left));
+      if (floor) return implausibleRow(floor, stopped ? 0 : wcpm(score.correct, score.time_left));
     }
     // Not one word of the story was heard: that is not a reading of 0 words — no score, no ✓, no growth baseline,
     // nothing in the class results; the child is asked to try again.
@@ -1644,6 +1648,9 @@ async function uploadable(c, mem) {
 }
 
 /** The run's state from what this process knows, else from the table. */
+// A check the scorer judged not a reading (implausible: scored, record lost): no sticker on the card, none in the Book.
+const noiseRun = (row) => row.status === 'scored' && row.record === false && row.mode === 'check';
+
 async function runState(c) {
   const mem = RUNS.get(c.r);
   if (mem && mem.result) return mem.result;
@@ -1652,7 +1659,7 @@ async function runState(c) {
   if (!row || isLiveRow(row) || isServedRow(row)) return null;
   if (row.status === 'scoring') return { pending: true };
   if (row.status === 'failed') return { failed: true, reason: (row.meta && row.meta.reason) || 'failed' };
-  return row.exercise === 'read' ? { score: row.score, wcpm: row.wcpm } : { score: row.score };
+  return { ...(row.exercise === 'read' ? { score: row.score, wcpm: row.wcpm } : { score: row.score }), ...(noiseRun(row) ? { sticker: false } : {}) };
 }
 
 /**
@@ -1757,6 +1764,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   // challenge v2: a run served under _v2 already has its row: it is finished in place, never inserted a second time
   const sv = mem.v2 || (isServedRow(storedRow) ? await servedInfo(c.r) : null);
   if (sv && sv.form && !mem.task) run = { ...run, form: sv.form };   // M8: the served row's (fixed-grade) form
+  if (sv && !run.v2 && sv.mode != null) run = { ...run, mode: sv.mode, record: sv.record };   // the served row's mode, when the memory is gone
   const writeRun = sv ? (row) => finishServed(c.r, row) : insertRun;
   const helpedV2 = sv ? { helped: helpedCol(helpedOf(body.helped)) } : {};
 
@@ -1862,7 +1870,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   const promise = scoreRead(readRun, key, ext, body.ms, CT, rules, { ended: guardIn.ended, micCheck: guardIn.mic_check, readS: guardIn.read_s, runId: c.r }).then(async (r) => {
     const result = r.failed
       ? { failed: true, reason: r.reason, ...(r.words != null ? { words: r.words } : {}) }
-      : { score: r.score, wcpm: r.wcpm, previous, ...(rules.record ? { ended: r.ended || null } : {}) };
+      : { score: r.score, wcpm: r.wcpm, previous, ...(rules.record ? { ended: r.ended || null } : {}), ...(r.implausible ? { sticker: false } : {}) };
     const before = RUNS.get(c.r) || {};
     RUNS.set(c.r, { ...run, ...(before.comp ? { comp: before.comp } : {}), status: 'done', result });
     // the record rule's stamps ride the final write (which replaces meta); an abandoned reading is an exposure only

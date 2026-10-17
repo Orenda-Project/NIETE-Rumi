@@ -630,9 +630,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
       pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right ✓'; },
       liveNow: function (n) { return n + ' classmates are playing right now — join them!'; },
-      // how many children of the class finished today (the child's own finish counts them all); never a place
+      // how many children of the class finished today (the child's own finish counts them all); never a place, and
+      // never a count under 5 ("2 children" tells a child exactly one classmate finished): 1–4 say the one-finisher line
       nth: function (n) {
-        if (n === 1) return 'You finished this quiz today!';
+        if (n < 5) return 'You finished this quiz today!';
         return ['', '<bdi>' + n + '</bdi>', ' children in your class finished this quiz today.'];
       }
     },
@@ -702,7 +703,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + n + ' ٹھیک کیا ✓'; },
       liveNow: function (n) { return 'ابھی ' + n + ' ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!'; },
       nth: function (n) {
-        if (n === 1) return 'آج آپ نے یہ کوئز مکمل کر لیا۔';
+        if (n < 5) return 'آج آپ نے یہ کوئز مکمل کر لیا۔';
         return ['آج آپ کی کلاس میں ', '<bdi>' + urDigits(n) + '</bdi>', ' بچوں نے یہ کوئز مکمل کیا۔'];
       }
     }
@@ -806,6 +807,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The hub token and the chip when the Jugnu card set them (wq-card.js, events v2): on the body, never an event.
     var body = { events: evq.splice(0, 20) }, x = window.WQT && window.WQT.batchIds ? window.WQT.batchIds() : {}, k;
     for (k in x) body[k] = x[k];
+    // The Jugnu card's events (finish's jugnu_ev): this quiz's session and this phone's device ref on the body too, so
+    // the server can key the card's door lines to the child without the page-session telemetry (wq-tel.js).
+    if (S.result && S.result.jugnu_ev) {
+      if (body.st == null && typeof S.st === 'string') body.st = S.st;
+      var dref = sget('wq_d', null);
+      if (body.dr == null && typeof dref === 'string' && dref) body.dr = dref;
+    }
     body = JSON.stringify(body);
     try {
       if (beacon && navigator.sendBeacon && navigator.sendBeacon('/api/wq/e', new Blob([body], { type: 'application/json' }))) return;
@@ -1395,9 +1403,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
-      (LIVE.class_today && !B.challenge ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
+      (LIVE.class_today >= 5 && !B.challenge ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
       // Classmates with a right answer in the last 2 minutes (a count from the bot's memory); never on a friend's challenge.
-      (LIVE.now >= 2 && !ch ? '<p class="wq-proof">🟢 ' + esc(T.liveNow(LIVE.now)) + '</p>' : '');
+      (LIVE.now >= 5 && !ch ? '<p class="wq-proof">🟢 ' + esc(T.liveNow(LIVE.now)) + '</p>' : '');
     render(h, 'M3');
     wireBar();
     wireChPic();
@@ -2422,7 +2430,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (panel ? '' : '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>') +
       (friend ? '' : '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>') +
       '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>';
-    var place = c.nth ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth) + '</span></p>' : '';
+    // done_today: this child's counted finish today, the class too small for a count (the server sends none under 5)
+    var place = c.nth || c.done_today ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth || 1) + '</span></p>' : '';
     // The practice note is framing, not a control: on a door card it goes under the door with the place note.
     var practice = (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '');
     var notes = (firstTwo ? '' : practice) +

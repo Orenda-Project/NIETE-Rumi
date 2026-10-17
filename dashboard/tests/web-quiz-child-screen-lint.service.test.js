@@ -42,6 +42,10 @@ const FORBID = [
   { what: 'lock (EN)', rx: /\block(ed|s)?\b/i },
   { what: 'lock (UR)', rx: UR_W('بند') },
   { what: 'rank sentence (UR)', rx: /آپ کا نمبر[^۔!؟\n]{0,6}?[0-9۰-۹][^۔!؟\n]{0,6}?ہے/ },
+  // a class count under 5 tells a child how few classmates finished ("2 children" = exactly one other): never shown
+  // (the finish card's "N children in your class", the landing's "N in your class played today" / "N classmates")
+  { what: 'class count under 5 (EN)', rx: /(?<![0-9])[1-4][\s\u2066-\u2069]*(children in your class|in your class|classmates?\b)/i },
+  { what: 'class count under 5 (UR)', rx: /(?<![0-9۰-۹])[1-4۱-۴][\s\u2066-\u2069]*(بچوں نے|نے کھیلا|ہم جماعت|ساتھی)/ },
   // Urdu prose writes Urdu digits; a Western digit there only inside a left-to-right isolate (the Trail's counter:
   // «⁦10⁩ میں سے ⁦1⁩»). Urdu screens only: an English screen is all Western digits. Prose only: a maths tile (a
   // button or a cell holding nothing but a number, Western beside the Western keypad) is not prose.
@@ -272,6 +276,45 @@ describe.each(['en', 'ur'])('%s: no child screen shows a speed, a rank, a test w
 // The quiz page's grade-1 finish card (wq.js, its own page, run whole in wq-page-harness.js): it says how many children
 // of the class finished today, never the child's place, the count in Urdu digits. The lint reads the whole card for the
 // rank sentence and the class line for every row (the card's other text is the quiz page's own, outside this lint).
+describe('the quiz page finish card: no class count under 5, any count, any grade, EN + UR', () => {
+  const QP = require('./wq-page-harness');
+  const lineOf = (lang, nth, grade) => {
+    const p = QP.page({ lang, grade });
+    p.wq.S.result = { score: { correct: 4, total: 5 }, card: { first: '<Name> Testwala', animal: 'cat', correct: 4, total: 5, stars: 4, nth } };
+    p.wq.card();
+    return /<p class="wq-proof wq-nth">[\s\S]*?<\/p>/.exec(p.html())[0];
+  };
+  test.each(['en', 'ur'])('%s: n = 1…12, grades 1, 3, 5', (lang) => {
+    for (let n = 1; n <= 12; n += 1) for (const g of [1, 3, 5]) check(`${lang}:quiz-finish-card-n${n}-g${g}`, lineOf(lang, n, g), lang);
+  });
+  test('the row reads the count, not the line: 5 and 12 pass, 10 and 14 are not "1" or "4"', () => {
+    expect(lint('<p><bdi>5</bdi> children in your class finished this quiz today.</p>', 'en')).toEqual([]);
+    expect(lint('<p><bdi>14</bdi> children in your class finished this quiz today.</p>', 'en')).toEqual([]);
+    expect(lint('<p>آج آپ کی کلاس میں <bdi>۱۰</bdi> بچوں نے یہ کوئز مکمل کیا۔</p>', 'ur')).toEqual([]);
+  });
+});
+
+// The quiz page's two landings (wq.js M3, and the identity v2 landing wq-identity.js M4-who-v2): "N in your class
+// played today" and "N classmates are playing right now" only from 5 up. Only the class-count rows run here: the
+// landing's other lines are the quiz page's own, outside this lint.
+describe('the quiz page landings: no class count under 5, n = 1…12, EN + UR', () => {
+  const QP = require('./wq-page-harness');
+  const COUNT = FORBID.filter((f) => /^class count under 5/.test(f.what));
+  const V2 = { label: 'Class 4-A', teacher: '<Name> Testwala', chips: [], identity: { mode: 'v2', class: { state: 'known', label: '4-A', ask: null }, roster: true, invited: false } };
+  const landing = (lang, n, v2) => QP.page({ lang, live: { class_today: n, now: n, ict_today_floor: 40 }, ...(v2 ? { cls: V2, ident: true } : {}) }).html();
+  test.each([['en', false], ['ur', false], ['en', true], ['ur', true]])('%s, identity v2 %s', (lang, v2) => {
+    for (let n = 1; n <= 12; n += 1) {
+      const h = landing(lang, n, v2);
+      expect(h).toContain(v2 ? 'M4-who-v2' : 'data-m="M3"');
+      const v = visible(h);
+      const hits = COUNT.filter((f) => f.rx.exec(v)).map((f) => f.what);
+      if (hits.length) throw new Error(`${lang}:landing${v2 ? '-v2' : ''}-n${n} shows ${hits.join('; ')}\n  visible text: ${v}`);
+      // from 5 up the class lines are there (the count is shown, not just hidden everywhere)
+      if (n >= 5) expect(v).toMatch(lang === 'en' ? /in your class played today/ : /نے کھیلا/);
+    }
+  });
+});
+
 describe('the quiz page finish card, grade 1 (Urdu)', () => {
   const QP = require('./wq-page-harness');
   test('ur:quiz-finish-card-g1', () => {
@@ -316,6 +359,15 @@ describe('the lint catches each forbidden thing (a fake screen per row)', () => 
     ['lock (UR)', '<small>یہ کھیل بند ہے</small>'],
     ['rank sentence (UR)', '<p>آپ کا نمبر ۲ ہے</p>'],
     ['bare Western digit in Urdu prose', '<p>آپ کا نمبر 2 ہے</p>'],
+    ['class count under 5 (EN)', '<p><bdi>2</bdi> children in your class finished this quiz today.</p>'],
+    ['class count under 5 (EN)', '<p>4 children in your class finished this quiz today.</p>'],
+    ['class count under 5 (UR)', '<p>آج آپ کی کلاس میں <bdi>۲</bdi> بچوں نے یہ کوئز مکمل کیا۔</p>'],
+    ['class count under 5 (UR)', '<p>آج آپ کی کلاس میں ⁦4⁩ بچوں نے یہ کوئز مکمل کیا۔</p>'],
+    ['class count under 5 (EN)', '<p class="wq-small">1 in your class played today</p>'],
+    ['class count under 5 (EN)', '<p class="wq-proof">🟢 2 classmates are playing right now — join them!</p>'],
+    ['class count under 5 (UR)', '<p class="wq-small">آج آپ کی کلاس میں 3 نے کھیلا</p>'],
+    ['class count under 5 (UR)', '<p class="wq-proof">🟢 ابھی 4 ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!</p>'],
+    ['class count under 5 (UR)', '<p class="wq-proof">🟢 ابھی ⁦2⁩ ساتھی کھیل رہے ہیں!</p>'],
   ];
   // every fake screen is read as an Urdu screen (so the Urdu-only row runs too)
   test.each(BAD)('%s ← %s', (what, html) => {

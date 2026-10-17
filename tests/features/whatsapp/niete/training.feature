@@ -2466,6 +2466,7 @@ Feature: NIETE (ICT) Teacher Training
     Then my tap answers from my kept queue without working it out again
     And the tier's teacher-accepted share counts only the taps of teachers not listed in web_quiz_fixture_rule
     But with web_quiz_fixture_rule absent or malformed every teacher's taps count, as before
+    And the tier's result says how many of its taps came from the configured test teachers (excluded_n; unit: teacher-join-queue-excluded-count.test.js)
     # web-quiz-join-queue.js QUEUE_TTL_S + precisionByTier decider filter; unit: teacher-join-queue-decider-filter.test.js
 
   # ── Challenge clip warm job (app_settings web_quiz_challenge_clip_warm, off by default) ──────────────────
@@ -2556,9 +2557,21 @@ Feature: NIETE (ICT) Teacher Training
     Given app_settings "web_quiz_class_round" is true
     And my class's round is paused with 3 of its 9 positions played
     When I open my class tab
-    Then the round card shows "3 of 9 played. Continue another day." above its Start button, with no child's name
+    Then the round card shows "3 of 9 played. Continue another day." above its one button, with no child's name
+    And under it the card says 'To carry on, tap "Continue". The list stays as it is.' and "Until then, the children see nothing about the round."
+    And its one button reads "Continue" and carries the round on in one tap, never "Start the round"
     And with the round not started, running, resumed or closed the card is exactly as before
-    # web-quiz-class-round.js cardFor/pausedOf; class-round.page.js renderCard/pausedLine; unit: class-round-paused-card.test.js
+    # web-quiz-class-round.js cardFor/pausedOf; class-round.page.js renderCard/pausedLine; unit: class-round-paused-card.test.js, class-round-paused-continue.test.js
+
+  @quiz @config-gated @wip @draft @P2 @T962
+  Scenario: My Urdu round list keeps each name whole, and a round turn is never counted, even across a restart
+    Given app_settings "web_quiz_class_round" and "web_quiz_challenge_v2" are true
+    And my class's round lists two children who share a first name, shown as "Bilal T." and "Bilal A."
+    When I open the round in Urdu
+    Then each name reads with its initial's full stop on its own side, and the count is in Urdu digits
+    And a child's round turn that was served before the bot restarted and finished after it is stored as not counted
+    And a child's own check that straddled the same restart is still its record
+    # class-round.page.js renderRound (Urdu name isolate); web-quiz-challenge.js provenance + submit (the served row's mode); unit: class-round-paused-continue.test.js, challenge-counted-meta.test.js
   @quiz @config-gated @wip @draft @P2 @T923
   Scenario: A run that comes by the class link inside my class's open week is stored in the class-week sample
     Given app_settings "web_quiz_class_week", "web_quiz_class_round", "web_quiz_class_link", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
@@ -2606,3 +2619,15 @@ Feature: NIETE (ICT) Teacher Training
     But a child's own check run outside the round still ends with "A sticker went into your Book." and Home
     # web-quiz-challenge.js roundPayload round_turn/round_back, menu done from the turn's stored games; wq-trail.js endCard;
     # unit: class-round-endcard.test.js, dashboard class-round-endcard-page.service.test.js
+
+  @quiz @config-gated @wip @draft @P2 @T963
+  Scenario: A read that was not a reading earns no sticker on my card and nothing in my Book
+    Given app_settings "web_quiz_challenge_v2" and "web_quiz_challenge_book" are true
+    And my reading check this month heard no reading at all (a silent room, a tone or a fan), so it is scored with its record lost
+    When the read result card shows
+    Then it says "You tried a whole new story!" with no "A sticker went into your Book." line under it
+    And the result I am given carries sticker false, on the first reply and on every poll
+    And my Book keeps no story sticker and lights no day for that read, and my class's lights do not count it
+    And an ordinary read, or a real read of the wrong story, keeps its sticker line, its story sticker and its day as before
+    # web-quiz-challenge.js submit + runState (noiseRun); web-quiz-book.js storyIdsOf, daysOf, lightsOf (noiseRow); wq-trail.js endCard;
+    # unit: challenge-read-quality.test.js, web-quiz-book-noise.test.js, dashboard web-quiz-trail-noise-sticker.service.test.js
