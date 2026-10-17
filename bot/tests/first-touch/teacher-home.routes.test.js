@@ -873,3 +873,59 @@ describe('a code minted to show its message is not a send until the tap', () => 
     expect(after.timeline.filter((r) => r.id === qid(2))).toEqual([]);
   });
 });
+
+describe('the library card\'s story counts', () => {
+  const shelf = () => jest.fn(async () => ({ books: [{ id: 'b1', title: 'Rain' }] }));
+  const homeText = async () => { const res = await get(`/api/th/home?t=${tokenFor()}&g=3`); expect(res.status).toBe(200); return res.text(); };
+
+  test('the teacher\'s sends and readers → library.counts on the home, read for the whole teacher', async () => {
+    seed();
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+    await boot(deps);
+    const home = JSON.parse(await homeText());
+    expect(home.library.counts).toEqual({ sent: 3, read: 7 });
+    expect(deps.Stories.storyCounts).toHaveBeenCalledTimes(1);
+    expect(deps.Stories.storyCounts.mock.calls[0][0]).toBe(TEACHER.id);
+    expect(deps.Stories.storyCounts.mock.calls[0][1]).toBeUndefined();
+  });
+
+  test('the grade change\'s library answer carries no counts (the page keeps the home\'s)', async () => {
+    seed();
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+    await boot(deps);
+    const lib = await (await get(`/api/th/library?t=${tokenFor()}&g=4`)).json();
+    expect('counts' in lib).toBe(false);
+  });
+
+  test.each([
+    ['nothing sent', async () => ({ sent: 0, read: 0 })],
+    ['the switch off (null)', async () => null],
+    ['a read that throws', async () => { throw new Error('down'); }],
+    ['a sync throw', () => { throw new Error('boom'); }],
+  ])('%s → no counts key: the home JSON is byte-identical to a home without the counts read (golden)', async (_name, fn) => {
+    seed();
+    deps.Stories = { flagOn: async () => true, shelf: shelf() };
+    await boot(deps);
+    const without = await homeText();
+    srv.close();
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(fn) };
+    await boot(deps);
+    const withCounts = await homeText();
+    expect(withCounts).toBe(without);
+    expect('counts' in JSON.parse(withCounts).library).toBe(false);
+  });
+
+  test('a counts read past the side budget → no key, and the home still answers', async () => {
+    seed();
+    let timer;
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(() => new Promise((r) => { timer = setTimeout(() => r({ sent: 5, read: 9 }), 6000); })) };
+    await boot(deps);
+    try {
+      const t0 = Date.now();
+      const home = JSON.parse(await homeText());
+      expect(Date.now() - t0).toBeLessThan(5500);
+      expect('counts' in home.library).toBe(false);
+      expect(home.library.stories.map((b) => b.id)).toEqual(['b1']);
+    } finally { clearTimeout(timer); }
+  }, 15000);
+});

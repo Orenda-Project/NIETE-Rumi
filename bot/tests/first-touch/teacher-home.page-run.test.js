@@ -349,3 +349,53 @@ describe('the words while a quiz is made', () => {
     expect(Strings.str('th.job', 'ur')).toBe('کوئز تیار ہونے میں چند منٹ لگیں گے — یہ اسی چیٹ میں بھی آ جائے گا');
   });
 });
+
+describe('the library card\'s story counts line', () => {
+  const STORIES = [{ id: 'b1', title: 'Rain', href: '/s?book=b1' }];
+  const home = (counts) => ({ primary: { kind: 'none' }, library: { grade: 3, stories: STORIES, all: '/all', ...(counts ? { counts } : {}) } });
+  const line = (p) => { const c = p.q('#th-counts'); expect(c).not.toBeNull(); return c; };
+
+  test('EN: the line shows the stories sent and the children who read, under "Chosen for Grade n" and above the story rows', async () => {
+    const p = await open(home({ sent: 3, read: 7 }));
+    const c = line(p);
+    expect(c.hidden).toBe(false);
+    expect(c.textContent).toBe('3 stories sent · 7 children read');
+    const kids = p.q('#th-lib').children.map((x) => x.getAttribute('id'));
+    expect(kids.indexOf('th-counts')).toBeGreaterThan(kids.indexOf('th-chosen'));
+    expect(kids.indexOf('th-counts')).toBeLessThan(kids.indexOf('th-stories'));
+  });
+
+  test('EN: one story sent → the singular line', async () => {
+    const p = await open(home({ sent: 1, read: 2 }));
+    expect(line(p).textContent).toBe('1 story sent · 2 children read');
+  });
+
+  test('no counts on the home → the line stays hidden and empty', async () => {
+    const p = await open(home(null));
+    expect(line(p).hidden).toBe(true);
+    expect(line(p).textContent).toBe('');
+  });
+
+  test('counts with nothing sent → the line stays hidden and empty', async () => {
+    const p = await open(home({ sent: 0, read: 0 }));
+    expect(line(p).hidden).toBe(true);
+    expect(line(p).textContent).toBe('');
+  });
+
+  test('a grade chip tap whose library answer has no counts keeps the home\'s line', async () => {
+    const p = await open(home({ sent: 3, read: 7 }), { answer: (path) => (path.indexOf('/api/th/library?') === 0 ? { grade: 4, stories: [{ id: 'b5', title: 'Kites', href: '/s?book=b5' }] } : {}) });
+    await p.tap(p.q('#th-grades').querySelector('[data-grade="4"]'));
+    expect(p.q('#th-chosen').textContent).toBe('Chosen for Grade 4');
+    expect(line(p).hidden).toBe(false);
+    expect(line(p).textContent).toBe('3 stories sent · 7 children read');
+  });
+
+  test.each([
+    [{ sent: 3, read: 7 }, '۳ کہانیاں بھیجی گئیں · ۷ بچوں نے پڑھیں'],
+    [{ sent: 1, read: 12 }, '۱ کہانی بھیجی گئی · ۱۲ بچوں نے پڑھی'],
+  ])('UR: %j → the Urdu line in Urdu digits', async (counts, want) => {
+    const p = await open(home(counts), { lang: 'ur' });
+    expect(line(p).hidden).toBe(false);
+    expect(line(p).textContent).toBe(want);
+  });
+});
