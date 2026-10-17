@@ -99,7 +99,7 @@ const flushCache = () => redis.__keys.clear();
 const rowOf = (kidId) => fake.db.child_phone_bindings.find((b) => b.canonical_id === kidId);
 const OUT = { lang: 'en', kids: [], book_on: false };
 
-async function joinNew(name = 'Sara', device = DEVICE) {
+async function joinNew(name = 'Sara Testwala', device = DEVICE) {
   const n = await GoNonce.mint({ phoneNorm: PHONE, userId: USER.id });
   const t = Join.signJoin({ n, lang: 'en' });
   const out = await Join.join({ t, grade: 3, name, device });
@@ -151,8 +151,8 @@ describe('switch ON: the join writes the device hash on the binding it made', ()
 
 describe('switch ON: the row is read first, the cache second', () => {
   test('a cache flush: the corner still has "Forget this phone", and one tap erases that link only', async () => {
-    const a = await joinNew('Sara');
-    const b = await joinNew('Bilal');
+    const a = await joinNew('Sara Testwala');
+    const b = await joinNew('Bilal Testwala');
     flushCache();
     expect(await Remember().owns({ device: DEVICE, chosenId: a.kidId })).toBe(true);
     expect((await HubHome().homeField({ out: OUT, chosenId: a.kidId, history: [], device: DEVICE, src: 'quiz' })).forget_phone).toBe(true);
