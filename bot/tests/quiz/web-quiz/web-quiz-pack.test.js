@@ -116,14 +116,21 @@ describe('the hub payload, every child switch on (hub-waves fixture)', () => {
     expect(off.stale.perTable.app_settings || 0).toBeLessThanOrEqual(BASE.fastOn.staleApp);
   });
 
-  test('the string "true" is off: no `pack` key', async () => {
-    Fx.boot({ fast: true, every: true, json: true });
-    Fx.S.db.app_settings.find((r) => r.key === 'web_quiz_pack').value = 'true';
-    const tok = Fx.tokenOne();
-    await Fx.measure(tok, { device: Fx.DEVICE });
-    const warm = await Fx.measure(tok, { device: Fx.DEVICE });
-    expect(JSON.parse(warm.out)).not.toHaveProperty('pack');
-  });
+  // Every stored value but JSON true is off, as the page sees it: no `pack` key in the hub payload (so the edge writes
+  // today's separate tags, dashboard web-quiz-pack.service.test.js), the rest of the payload as with the row false.
+  test.each([['the string "true"', 'true'], ['the string \'"true"\'', '"true"'], ['the string "yes"', 'yes'], ['1', 1], ['{ enabled: true }', { enabled: true }], ['null', null]])(
+    '%s is off: no `pack` key, the payload as with false', async (_, v) => {
+      const at = async (value) => {
+        Fx.boot({ fast: true, every: true, json: true });
+        Fx.S.db.app_settings.find((r) => r.key === 'web_quiz_pack').value = value;
+        const tok = Fx.tokenOne();
+        await Fx.measure(tok, { device: Fx.DEVICE });
+        return (await Fx.measure(tok, { device: Fx.DEVICE })).out;
+      };
+      const out = await at(v);
+      expect(JSON.parse(out)).not.toHaveProperty('pack');
+      expect(noOffer(out)).toBe(noOffer(await at(false)));
+    });
 
   test('fast page off: on says `pack: true` with the same waves; at most its own background read more', async () => {
     const off = await Fx.hubWaves({ switches: ['web_quiz_pack'], fast: false });

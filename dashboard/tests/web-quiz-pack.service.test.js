@@ -115,7 +115,11 @@ describe('switch off: the hub page is today\'s, byte for byte (golden recorded b
     const strip = (h) => h.replace(`,"pack":${JSON.stringify(v)}`, '');
     expect(strip(pages.plain)).toBe(golden.plain);
     expect(strip(pages.fast)).toBe(golden.fast);
-    expect(pages.plain).not.toContain('/wq/pack/');
+    // the ON-only marks are absent, plain and streamed: no pack tag or preload, the home's files as their own tags
+    for (const html of [pages.plain, pages.fast]) {
+      expect(html).not.toContain('/wq/pack/');
+      for (const f of ['wq-tel.js', 'wq-bind.js', 'wq-bind.css', 'wq-home.js', 'wq-home.css', 'hub-play.js']) expect(html).toContain(`/wq/${f}?v=<V>`);
+    }
   });
 });
 
@@ -356,16 +360,18 @@ describe('the page\'s scripts with the pack on (a vm, the shipped files as the e
 // hub.js, as shipped, in a vm whose document holds the page's own tags (from the rendered html): what it asks for when
 // the pack's script or stylesheet fails to load. hub.js finds no window.WQHOME and asks for wq-home by its own name
 // (loadOnce), once; from there the home's existing failure path takes over (today: a failed wq-home.js draws the hub).
-function hubVm(html, { before = [], hash = '' } = {}) {
+function hubVm(html, { before = [], hash = '', cookie = '', store = new Map() } = {}) {
   const asked = [];
   const fetches = [];
+  const timers = [];
+  const beacons = [];
   const tags = tagsOf(html).map((u) => ({ getAttribute: (k) => (k === 'src' || k === 'href' ? u : null) }));
   const root = { _h: '', set innerHTML(h) { this._h = h; }, get innerHTML() { return this._h; }, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; },
     getAttribute(k) { return k === 'data-m' ? (this.attrs[k] || 'H2') : null; }, querySelector: () => null, querySelectorAll: () => [], appendChild() {} };
   const boot = /<script id="boot" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1];
   const win = { scrollTo() {}, addEventListener() {} };
   const document = {
-    documentElement: { setAttribute() {}, classList: { toggle() {}, contains: () => false } }, cookie: '',
+    documentElement: { setAttribute() {}, classList: { toggle() {}, contains: () => false } }, cookie,
     getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? { textContent: boot } : null),
     querySelector: (sel) => {
       const m = /^(?:script|link)\[(?:src|href)\*="([^"]+)"\]$/.exec(sel);
@@ -376,13 +382,13 @@ function hubVm(html, { before = [], hash = '' } = {}) {
   };
   win.document = document;
   const sandbox = {
-    window: win, document, navigator: { sendBeacon: () => true }, history: { replaceState() {} }, location: { search: '', hash, protocol: 'https:', pathname: `/h/${TOKEN}` }, Blob: function Blob() {},
-    localStorage: { getItem: () => null, setItem() {} }, fetch: (u) => { fetches.push(String(u)); return new Promise(() => {}); }, MutationObserver: function MO() { this.observe = () => {}; },
-    setTimeout: () => 0, clearTimeout() {}, Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent, Uint8Array, RegExp,
+    window: win, document, navigator: { sendBeacon: (u, b) => { beacons.push(JSON.parse(b.parts[0])); return true; } }, history: { replaceState() {} }, location: { search: '', hash, protocol: 'https:', pathname: `/h/${TOKEN}` }, Blob: function Blob(parts) { this.parts = parts; },
+    localStorage: { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); } }, fetch: (u) => { fetches.push(String(u)); return new Promise(() => {}); }, MutationObserver: function MO() { this.observe = () => {}; },
+    setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout() {}, Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent, Uint8Array, RegExp,
   };
   vm.createContext(sandbox);
   for (const src of before) vm.runInContext(src, sandbox);
-  return { sandbox, asked, fetches, root, urls: () => asked.map((x) => x.src || x.href), run: () => vm.runInContext(fs.readFileSync(path.join(WQ, 'hub.js'), 'utf8'), sandbox) };
+  return { sandbox, asked, fetches, timers, beacons, root, urls: () => asked.map((x) => x.src || x.href), run: () => vm.runInContext(fs.readFileSync(path.join(WQ, 'hub.js'), 'utf8'), sandbox) };
 }
 // The pack stylesheet's tag as the browser builds it: its inline onerror (when the edge writes one) becomes the
 // element's handler, fired with the element as `this`.
@@ -517,5 +523,80 @@ describe('the read-along preview in the pack (web_quiz_pack and the read-along s
     expect(today.player).toBe(`/wq/wq-readalong.js?v=${LISTEN_V}`);
     // the pack's version holds the preview's own (the player and the preview change together)
     expect(packed.player).toBe(`/wq/wq-readalong.js?v=${HEX}l${LISTEN_V}`);
+  });
+});
+
+// ── with the home's retry and plain home (web_quiz_home_fallback_v3, `home_fb`) on the base ──────────────────────────
+// The pack adds no failure path of its own: a pack script that does not load leaves no window.WQHOME, and hub.js's one
+// home line asks for wq-home by name. Where hub.js carries the retry and the plain home (homeAsk / homeErr), that line
+// is homeAsk, so a failed pack goes through it: one retry, then the plain home, each failure counted. Where it does not,
+// the line is today's loadOnce (the tests above). These run only on a hub.js that has them (a merge with that change).
+const HUB_SRC = fs.readFileSync(path.join(WQ, 'hub.js'), 'utf8');
+const HAS_FB = /function homeAsk\(/.test(HUB_SRC) && /function homeErr\(/.test(HUB_SRC);
+(HAS_FB ? describe : describe.skip)('the pack fails to load, with the home\'s retry and plain home on the base', () => {
+  const failed = (H) => H.beacons.flatMap((b) => b.events).filter((e) => e.n === 'home_load_failed').map((e) => [e.file, e.i]);
+  const homeJs = (H) => H.asked.filter((x) => x.src === `/wq/wq-home.js?v=${HEX}`);
+
+  test('home_fb on: the pack script fails, wq-home.js is asked once, then once more 1.5 s after it fails, then the plain home', () => {
+    const html = renderHubPage({ payload: BARE({ pack: true, home_fb: 1 }), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const H = hubVm(html);
+    H.run();
+    expect(homeJs(H)).toHaveLength(1);
+    homeJs(H)[0].l.error();
+    expect(failed(H)).toEqual([['wq-home.js', 1]]);
+    expect(homeJs(H)).toHaveLength(1);                  // the retry waits
+    H.timers.filter((t) => t.ms === 1500).forEach((t) => t.fn());
+    expect(homeJs(H)).toHaveLength(2);                  // once more, same address
+    expect(H.urls().filter((u) => /\/wq\/pack\//.test(u))).toEqual([]);
+    homeJs(H)[1].l.error();
+    expect(failed(H)).toEqual([['wq-home.js', 1], ['wq-home.js', 2]]);
+    expect(H.root.innerHTML).toContain('wq-fbdoor');   // the plain home with its three doors, never today's hub
+    expect(H.root.innerHTML).not.toContain('wq-htile');
+  });
+
+  test('home_fb off: the pack script fails, wq-home.js is asked once and its failure draws today\'s hub (no retry)', () => {
+    const html = renderHubPage({ payload: BARE({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const H = hubVm(html);
+    H.run();
+    expect(homeJs(H)).toHaveLength(1);
+    homeJs(H)[0].l.error();
+    H.timers.forEach((t) => t.fn());
+    expect(homeJs(H)).toHaveLength(1);
+    expect(failed(H)).toEqual([]);
+    expect(H.root.innerHTML).not.toBe('');
+    expect(H.root.innerHTML).not.toContain('wq-fbdoor');
+  });
+});
+
+// ── this phone's device_ref with the pack on ─────────────────────────────────────────────────────────────────────────
+// hub.js adopts a valid wq_dv cookie the server already gave this phone into localStorage wq_d (deviceRef), the ref the
+// class link's "Is it <name>?" reads later. The pack moves the scripts before hub.js, not hub.js: the copy still runs.
+describe('with the pack on, hub.js still adopts this phone\'s wq_dv cookie into localStorage wq_d', () => {
+  let srv;
+  beforeAll(async () => { srv = await start(build([])); });
+  afterAll(() => new Promise((r) => srv.close(r)));
+  const DV = 'Ab3_dE6-gH9jK2mN5pQ8sT';
+
+  // A first open on a phone the server already marked (the class link set wq_dv): the render is locked, hub.js asks the
+  // hub again as this phone (unlock -> hubFor -> deviceRef), and the cookie's ref lands in wq_d. Pack on, as today.
+  async function firstOpen(pack) {
+    const payload = BARE({ locked: true, ...(pack ? { pack: true } : {}) });
+    const html = renderHubPage({ payload, token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const store = new Map();
+    const before = [];
+    const tags = tagsOf(html).filter((u) => /\.js(\?|$|&)/.test(u));
+    for (const u of tags.slice(0, tags.indexOf(`/wq/hub.js?v=${HEX}`))) before.push((await get(srv, u)).body);
+    const H = hubVm(html, { before, cookie: `other=1; wq_dv=${DV}`, store });
+    H.run();
+    return { tags, store, fetches: H.fetches };
+  }
+  test('pack on: wq_d is the cookie\'s ref after boot, as with the pack off', async () => {
+    const on = await firstOpen(true);
+    expect(on.tags).toContain(`/wq/pack/tel.home.doors.js?v=${HEX}`);
+    expect(on.store.get('wq_d')).toBe(JSON.stringify(DV));
+    const off = await firstOpen(false);
+    expect(off.tags.some((u) => u.startsWith('/wq/pack/'))).toBe(false);
+    expect(off.store.get('wq_d')).toBe(JSON.stringify(DV));
+    expect(on.fetches).toEqual(off.fetches);   // the same ask as this phone
   });
 });
