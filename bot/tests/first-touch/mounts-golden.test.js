@@ -1,7 +1,7 @@
 'use strict';
 /**
- * The optional first-touch mount block of bot/whatsapp-bot.js (from its first "── first touch:" marker through
- * "── end the one door ──") registers the same ordered routes as the golden: every app.use/get/post/… call in order,
+ * The optional first-touch mount block of bot/whatsapp-bot.js (from its first "── first touch:" marker up to the
+ * general internal router) registers the same ordered routes as the golden: every app.use/get/post/… call in order,
  * with its path, its handler names and, for a mounted router, that router's own layers (route paths, methods, handler
  * names). Only that block is run, against a bare express app, so a route added anywhere else never touches it.
  * Only the edges are doubled (no database, no Redis). Record once with UPDATE_GOLDEN=1.
@@ -19,7 +19,7 @@ const express = require('express');
 const BOT = path.join(__dirname, '..', '..');
 const GOLDEN = path.join(__dirname, '__goldens__', 'bot-mounts.json');
 const FROM = '// ── first touch:';
-const TO = '// ── end the one door ──\n';
+const TO = '\nconst internalApiRoutes';
 const METHODS = ['use', 'get', 'post', 'put', 'patch', 'delete', 'all'];
 
 function mountBlock() {
@@ -28,7 +28,7 @@ function mountBlock() {
   const b = src.indexOf(TO, a);
   expect(a).toBeGreaterThan(-1);
   expect(b).toBeGreaterThan(a);
-  return src.slice(a, b + TO.length);
+  return src.slice(a, b);
 }
 
 function routerOf(stack) {

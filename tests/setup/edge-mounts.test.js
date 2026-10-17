@@ -13,10 +13,10 @@ const DASH_ROUTES = path.join(ROOT, 'dashboard', 'routes');
 const FT = path.join(ROOT, 'bot', 'shared', 'services', 'first-touch');
 
 const sorted = (names) => names.every((n, i) => i === 0 || names[i - 1] < n);
-/** Two path prefixes overlap when one, segment by segment, starts the other. */
+/** Two path prefixes overlap when one, segment by segment, starts the other (a :param segment matches any). */
 const overlaps = (a, b) => {
   const [x, y] = [a.split('/'), b.split('/')].sort((p, q) => p.length - q.length);
-  return x.every((s, i) => s === y[i]);
+  return x.every((s, i) => s === y[i] || s.startsWith(':') || y[i].startsWith(':'));
 };
 /** The list, or [] with the load error kept for the first test to report. */
 const loadList = (file) => { try { return { list: require(file) }; } catch (err) { return { list: [], err }; } };
