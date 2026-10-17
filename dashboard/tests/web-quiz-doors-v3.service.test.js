@@ -88,11 +88,10 @@ describe('every door screen, both languages', () => {
 
   test('a speaker on every row (a clip when the server has one, else the words)', () => {
     const s = screens(load(), 'en');
-    for (const h of [s.storiesMany, s.gamesMany, s.videosSubjects, s.videosChapters]) {
+    for (const h of [s.gamesMany, s.videosSubjects, s.videosChapters]) {
       expect(count(h, /class="wq-row wq-drow"/g)).toBeGreaterThan(0);
       expect(count(h, /data-tap="say"/g)).toBe(count(h, /class="wq-row wq-drow"/g));
     }
-    expect(s.storiesMany).toContain('data-url="https://r2.example.test/say.ogg"');
   });
 
   test('pictures are SVG, never an emoji or a symbol glyph (a symbol glyph is a blank box on Android 9)', () => {
@@ -109,58 +108,46 @@ describe('every door screen, both languages', () => {
   });
 });
 
+describe('the Stories door is the storybooks\' door (Jugnu\'s passages open from the Games door and the Next tile)', () => {
+  test.each(['en', 'ur'])('%s: no passage or listen row and no /c/ link under the door, before and after the fetch; the shelf slot is the content', (lang) => {
+    const s = screens(load(), lang);
+    for (const name of ['storiesBoot', 'storiesMany', 'storiesOne']) {
+      expect([name, s[name]]).not.toEqual([name, expect.stringMatching(/href="\/c\//)]);
+      expect([name, count(s[name], /class="wq-row wq-drow"/g)]).toEqual([name, 0]);
+    }
+    expect(s.storiesMany).toContain('data-stories-shelf="1" data-host="doors"');
+    expect(s.storiesBoot).toContain('data-stories-shelf="1" data-host="doors"');
+    expect(count(s.storiesMany, /data-primary/g)).toBe(1); // the fallback until the shelf draws its own
+  });
+  test('the shelf off: the door points at Games (never a dead end, never a passage)', () => {
+    const h = screens(load(), 'en').storiesOne; // rows came, the shelf flag is off
+    expect(h).toMatch(/data-primary data-tap="door" data-door="games" href="#games"/);
+    expect(h).not.toMatch(/href="\/c\//);
+  });
+  test('the home\'s own door screen (wq-doors.js not loaded yet): no passage row, no /c/ link', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, doors: { stories: [{ kind: 'passage', id: 'en.read.1.k02', fresh: true, title: 'The red kite' }, { kind: 'listen', id: 'en.listen.1.k05', title: 'The rain song' }, { kind: 'shelf' }], games: [], videos: null } };
+    const h = W.WQHOME.door(B, ctxOf('en'), 'stories');
+    expect(h).not.toMatch(/href="\/c\//);
+    expect(h).toContain('data-stories-shelf="1"');
+  });
+});
+
 describe('Stories', () => {
-  test('many: this week\'s story is the primary; reads, the storybook shelf slot, listens; met ones marked done', () => {
+  test('many rows from the server: the storybook shelf slot only, under its heading; the passages are not listed', () => {
     const h = screens(load(), 'en').storiesMany;
-    const primary = h.slice(h.indexOf('data-primary') - 200, h.indexOf('data-primary') + 300);
-    expect(primary).toContain('en.read.1.k02');
-    expect(h.indexOf('The red kite')).toBeLessThan(h.indexOf('A cat and a hat'));
-    expect(h.indexOf('A cat and a hat')).toBeLessThan(h.indexOf('data-stories-shelf="1"'));
-    expect(h.indexOf('data-stories-shelf="1"')).toBeLessThan(h.indexOf('The rain song'));
     expect(h).not.toMatch(/ data-shelf=/); // the Jugnu corner's own tile attribute is never the storybook slot
     expect(h).toContain('data-stories-shelf="1" data-host="doors"'); // the reader's own self-mount leaves a host's slot to the host
-    expect(h).toMatch(/class="wq-dli done"[\s\S]*My school bag/);
-    expect(h).toMatch(/data-pos="2"/);
+    expect(visible(h)).toContain('Storybooks');
+    for (const title of ['The red kite', 'A cat and a hat', 'The rain song', 'My school bag']) expect(h).not.toContain(title);
   });
-  test('this week\'s story already finished: it keeps its label and first place, the one primary is the first story not done', () => {
-    const W = load();
-    const B = { ...HUB, lang: 'en', home_v3: 1, doors: { stories: [], games: [], videos: null } };
-    const weekDone = [{ ...STORIES_MANY.stories[0], done: true, fresh: undefined }, ...STORIES_MANY.stories.slice(1)];
-    const h = W.WQDOORS.html(B, ctxOf('en'), 'stories', { stories: weekDone, shelf: true });
-    expect(count(h, /data-primary/g)).toBe(1);
-    expect(h).toMatch(/<a class="wq-row wq-drow" data-primary[^>]*data-item="en\.read\.1\.k03"/);
-    expect(h).toMatch(/<ul class="wq-rows wq-week"><li class="wq-dli done"><a class="wq-row wq-drow" data-tap[^>]*data-item="en\.read\.1\.k02"/);
-    expect(h.indexOf('The red kite')).toBeLessThan(h.indexOf('A cat and a hat'));
-    expect(visible(h)).toContain('This week\'s story');
-    // every story finished: the first row stays the primary, as before
-    const allDone = STORIES_MANY.stories.map((s) => ({ ...s, done: true, fresh: undefined }));
-    const a = W.WQDOORS.html(B, ctxOf('ur'), 'stories', { stories: allDone, shelf: false });
-    expect(count(a, /data-primary/g)).toBe(1);
-    expect(a).toMatch(/<ul class="wq-rows wq-week"><li class="wq-dli done"><a class="wq-row wq-drow" data-primary[^>]*data-item="en\.read\.1\.k02"/);
-  });
-  test('GOLDEN: this week\'s story not finished -> the primary stays on the first row, every Stories screen as today', () => {
-    for (const lang of ['en', 'ur']) {
-      for (const [name, h] of Object.entries(screens(load(), lang)).filter(([k]) => /^stories/.test(k))) {
-        const first = h.indexOf('class="wq-row wq-drow"');
-        if (first < 0) continue;
-        expect([lang, name, h.indexOf('class="wq-row wq-drow" data-primary')]).toEqual([lang, name, first]);
-      }
-    }
-  });
-  test('serve-able: a listen row opens the LISTEN (ex=listen), a read row the read; never the "more stories" dead end', () => {
-    const h = screens(load(), 'en').storiesMany;
-    expect(h).toContain('room=story&amp;pid=en.listen.1.k05&amp;ex=listen');
-    expect(h).toMatch(/pid=en\.read\.1\.k03"/);
-    expect(h).not.toMatch(/room=story"/);
-  });
-  test('one / none: one row is the primary; none points at Games (never a dead end)', () => {
+  test('none: the door points at Games (never a dead end)', () => {
     const s = screens(load(), 'en');
-    expect(count(s.storiesOne, /class="wq-row wq-drow"/g)).toBe(1);
     expect(s.storiesNone).toMatch(/data-primary data-tap="door" data-door="games" href="#games"/);
   });
-  test('before the fetch: the boot\'s own rows (this week\'s story) and the shelf slot', () => {
+  test('before the fetch: the shelf slot from the boot (its passage row is not drawn)', () => {
     const h = screens(load(), 'en').storiesBoot;
-    expect(h).toContain('The red kite');
+    expect(h).not.toContain('The red kite');
     expect(h).toContain('data-stories-shelf="1"');
   });
   test('only storybooks (no rows of its own): one primary that points at Games until the shelf draws its own', () => {

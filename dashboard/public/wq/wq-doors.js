@@ -85,11 +85,6 @@
   function section(title, rows) { return rows ? '<h3 class="wq-dsec"><bdi' + lat(title) + '>' + esc(title) + '</bdi></h3><ul class="wq-rows">' + rows + '</ul>' : ''; }
   // Exactly one primary per screen: the first row there is, else the screen's own fallback button.
   function primaryFirst(h) { return h.replace(/<(a|button) class="wq-row wq-drow"/, '<$1 class="wq-row wq-drow" data-primary'); }
-  // Stories: the first row the child has not finished (this week's story keeps its place and label once done), else the first.
-  function primaryOpen(h) {
-    var at = h.replace(/<li class="wq-dli"><(a|button) class="wq-row wq-drow"/, '<li class="wq-dli"><$1 class="wq-row wq-drow" data-primary');
-    return at !== h ? at : primaryFirst(h);
-  }
   function frame(B, ctx, name, title, body) {
     var H = home();
     var bar = H && typeof H.bar === 'function' ? H.bar(ctx, DOORS.indexOf(name) >= 0 ? name : 'videos') : '';
@@ -103,25 +98,15 @@
   }
 
   /* ---------------- Stories ---------------- */
+  // The storybooks' door: its content is the shelf (wq-stories.js fills the slot, its first unfinished book the primary).
+  // Jugnu's passages open from the Games door and the home's Next tile, never from here.
   function storiesBody(B, ctx, data) {
     var t = C(ctx);
-    var list = data && data.stories ? data.stories : bootDoors(B).stories.filter(function (s) { return s.kind === 'passage' || s.kind === 'listen'; }).map(function (s, i) { return { kind: s.kind, id: s.id, title: s.title, fresh: s.fresh, week: i === 0 && s.kind === 'passage', pos: i }; });
     var shelfOn = data ? Boolean(data.shelf) : bootDoors(B).stories.some(function (s) { return s.kind === 'shelf'; });
-    var mk = function (s) {
-      var title = s.title || (s.kind === 'listen' ? t.listen : (s.week ? t.weekStory : t.story));
-      return row({ href: storyHref(B, ctx, s), title: title, sub: s.week && s.title ? t.weekStory : '', tag: s.fresh && !s.done ? t.newTag : '', done: s.done, kind: s.kind === 'listen' ? 'listen' : 'passage', pos: s.pos, item: s.id, say: s.say }, ctx);
-    };
-    var week = list.filter(function (s) { return s.week; });
-    var reads = list.filter(function (s) { return !s.week && s.kind !== 'listen'; });
-    var listens = list.filter(function (s) { return s.kind === 'listen'; });
-    var h = (week.length ? '<ul class="wq-rows wq-week">' + week.map(mk).join('') + '</ul>' : '') +
-      section(t.toRead, reads.map(mk).join('')) +
-      (shelfOn ? '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors"></div></div>' : '') +
-      section(t.toListen, listens.map(mk).join(''));
-    if (!list.length && !shelfOn) return emptyNote(t.storiesNone, 'games', t.toGames);
-    // Only the storybooks: the screen still has its one primary until the shelf draws its own (then this one steps aside).
-    if (!list.length) return h + '<div data-shelf-fallback="1">' + emptyNote(t.storiesNone, 'games', t.toGames) + '</div>';
-    return primaryOpen(h);
+    if (!shelfOn) return emptyNote(t.storiesNone, 'games', t.toGames);
+    // the screen still has its one primary until the shelf draws its own (then this one steps aside)
+    return '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors"></div></div>' +
+      '<div data-shelf-fallback="1">' + emptyNote(t.storiesNone, 'games', t.toGames) + '</div>';
   }
 
   /* ---------------- Games ---------------- */

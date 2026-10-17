@@ -172,10 +172,8 @@
   function door(B, ctx, name) {
     var t = C(ctx); var d = doorsOf(B); var rows = '';
     if (name === 'stories') {
-      rows = d.stories.map(function (s) {
-        if (s.kind === 'shelf') return '<li class="wq-stories-shelf" data-stories-shelf="1"></li>';
-        return rowHtml(storyHref(B, ctx, s), s.title || (s.kind === 'listen' ? t.listen : t.weekStory), s.title ? (s.kind === 'listen' ? t.listen : t.weekStory) : '', s.fresh ? t.newTag : '', s.kind);
-      }).join('');
+      // the storybooks' door: the shelf only (a passage opens from the Games door and the Next tile)
+      rows = d.stories.filter(function (s) { return s.kind === 'shelf'; }).map(function () { return '<li class="wq-stories-shelf" data-stories-shelf="1"></li>'; }).join('');
     } else if (name === 'games') {
       rows = d.games.map(function (g) {
         if (g.kind === 'numbers') return rowHtml(chHref(B, ctx), t.numbers, '', '', 'numbers');

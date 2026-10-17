@@ -112,9 +112,10 @@ describe('wq-home.js: the doors', () => {
     expect(count(empty, /class="wq-door[ "]/g)).toBe(3);
     expect(count(empty, /data-primary/g)).toBe(1);
     expect(empty).toContain('data-home');
-    const full = H.door(HOME, ctxOf('en'), d);
+    // the Stories door's content is the storybook shelf (the reader fills the slot and draws its primary)
+    const full = H.door(d === 'stories' ? { ...HOME, doors: { ...DOORS_FULL, stories: [...DOORS_FULL.stories, { kind: 'shelf' }] } } : HOME, ctxOf('en'), d);
     expect(full).not.toContain('data-soon');
-    expect(count(full, /data-primary/g)).toBe(1);
+    expect(count(full, /data-primary/g)).toBe(d === 'stories' ? 0 : 1);
   });
   test('Games: the teacher quiz opens the quiz; a done quiz opens Play again; no score shown', () => {
     const html = H.door(HOME, ctxOf('en'), 'games');
@@ -122,15 +123,12 @@ describe('wq-home.js: the doors', () => {
     expect(html).toContain('href="/q/SCI001?again=1&amp;k=k2"');
     expect(visible(html)).not.toMatch(/\d+\s*\/\s*\d+/);
   });
-  test('Stories: a passage opens the story room; the shelf stub is a slot for the stories reader', () => {
+  test('Stories: the shelf stub is a slot for the stories reader; a passage is not a row here (it opens from the Next tile)', () => {
     const html = H.door({ ...HOME, doors: { ...DOORS_FULL, stories: [...DOORS_FULL.stories, { kind: 'shelf' }] } }, ctxOf('en'), 'stories');
-    expect(html).toContain('&amp;room=story&amp;pid=en.read.1.k07');
+    expect(html).not.toContain('room=story');
     expect(html).toContain('data-stories-shelf="1"');
   });
-  test('Stories: a listening story asks the story room for a listen (&ex=listen), a read story does not', () => {
-    const html = H.door(HOME, ctxOf('en'), 'stories');
-    expect(html).toContain('pid=en.listen.1.k02&amp;ex=listen');
-    expect(html).not.toContain('pid=en.read.1.k07&amp;ex=listen');
+  test('the Next tile: a listening story asks the story room for a listen (&ex=listen)', () => {
     const nx = H.nextOf({ ...HOME, doors: { ...DOORS_FULL, stories: [{ kind: 'listen', id: 'en.listen.1.k02', fresh: true }] } }, ctxOf('en'));
     expect(nx.href).toMatch(/&ex=listen$/);
   });
