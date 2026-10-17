@@ -206,6 +206,27 @@ describe('the walk itself (watch-root.js underWatchRoot): fail closed', () => {
   });
 });
 
+describe('a failed settings read may hide a root: the page\'s readers fail closed', () => {
+  function failSettings() {
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t === 'app_settings') b.then = (res, rej) => Promise.resolve({ data: null, error: { message: 'db down' } }).then(res, rej);
+      return b;
+    };
+    require('../../../shared/services/quiz/web-quiz-identity-roster')._resetCache();
+  }
+  test('a class code shows only its own players (never the teacher\'s other codes)', async () => {
+    failSettings();
+    expect(await chipsOf('AB12CD')).toEqual(['Bilal']);
+    expect(await chipsOf('WFRND1')).not.toEqual(expect.arrayContaining(['Bilal']));
+  });
+  test('the league answers no board rather than a count that may credit a class-less child', async () => {
+    failSettings();
+    await expect(Schools.board('ALPHA1', { now: Date.now() })).rejects.toMatchObject({ status: 502 });
+  });
+});
+
 describe('GOLDEN: no watch root set, every reader answers as today', () => {
   beforeEach(() => seed({ root: false }));
   test('a class code pools every non-invited code of the teacher, the watch side included, as today', async () => {
