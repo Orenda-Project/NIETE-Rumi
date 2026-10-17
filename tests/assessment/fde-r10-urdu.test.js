@@ -101,7 +101,10 @@ describe('urdu Q1 ↔ Q4: Section A never gives a Q4 answer away', () => {
     const { examJson } = applyLayout(exam, U, L67, { reasked: false });
     const q1 = items(examJson, 'urdu.A.Q1');
     expect(q1.some((q) => q.question.startsWith('قلم، کاپی، بستہ، تختی'))).toBe(false);
-    expect(q1).toHaveLength(19);
+    // 18, not 19: «… اس کا نتیجہ کیا نکلے گا؟» is held too, its option «د) تھیڑ کمپنی ختم ہو جائے گی»
+    // stating «… کیا بنایا؟ → تھیڑ کمپنی» (an option that states a key, fde-r17-urdu.test.js (b)).
+    expect(q1).toHaveLength(18);
+    expect(q1.some((q) => q.question.endsWith('اس کا نتیجہ کیا نکلے گا؟'))).toBe(false);
     expect(items(examJson, 'urdu.C.Q4').map((q) => q.answer)).toContain('الف) اسکول');
   });
 
