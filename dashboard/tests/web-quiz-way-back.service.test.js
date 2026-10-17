@@ -11,7 +11,7 @@
  * Switch OFF in every state (absent, false, a garbage string, the string "true", a read that throws): every page is byte-identical to the
  * page before this change — the route's bytes equal the renderer's with no tap, and the renderer's bytes are pinned
  * (sha256) in __golden__/way-back-closed-off.json, recorded by running this file on the code before the change
- * (WAY_BACK_RECORD=1). The bot is the network boundary (a fake fetch); the switch's table read is a fake client.
+ * (delete the file and run this once: that run records it and fails, the next run checks it). The bot is the network boundary (a fake fetch); the switch's table read is a fake client.
  */
 const fs = require('fs');
 const path = require('path');
@@ -35,7 +35,8 @@ const UR = 'واٹس ایپ کھولیں اور جگنو کو "کوئز" لکھ
 const HOST = 'portal.example';
 
 const GOLDEN_FILE = path.join(__dirname, '__golden__', 'way-back-closed-off.json');
-const RECORD = process.env.WAY_BACK_RECORD === '1';
+// no golden file → this run records one and fails (never a silent pass); no env knob
+const RECORD = !fs.existsSync(GOLDEN_FILE);
 const recorded = {};
 const golden = RECORD ? {} : JSON.parse(fs.readFileSync(GOLDEN_FILE, 'utf8'));
 // hex in groups of 8 (no long digit run in the pinned file)
@@ -319,4 +320,8 @@ describe('the closed page never waits on the switch (read from the cache only)',
     const second = await req(srv, '/h/not-a-token');
     expectOneTap(second.body, WA, EN);
   });
+});
+
+test('the switch-off goldens are pinned (a missing file is recorded by this run, which then fails)', () => {
+  expect({ goldenFile: path.basename(GOLDEN_FILE), recorded: RECORD }).toEqual({ goldenFile: path.basename(GOLDEN_FILE), recorded: false });
 });
