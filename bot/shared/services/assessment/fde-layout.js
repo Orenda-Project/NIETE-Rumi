@@ -1016,17 +1016,21 @@ function asksRecall(q) {
 // item that asks which government, court or body («کون سی حکومت», «کس ادارے», «کیا کہتے ہیں»), or
 // marks one by name («… کے لیے صوبائی حکومت کا درست نام»), is held when fewer than two of its points
 // explain without naming a government, court or body, and without being only how it is marked.
-const BODY = /(?:وفاقی|صوبائی|مقامی|ضلعی)\s*(?:حکومت|اسمبلی)|عدالت|کورٹ|اسمبلی|سینی?ٹ|مقننہ|انتظامیہ|عدلیہ|پارلیمان|پارلیمنٹ|الیکشن کمیشن|کابینہ/;
+// A point that says which government does a job («… صوبائی حکومت کا کام ہے», «… مدد مقامی حکومت
+// کرتی ہے») names it as surely as «… کا نام» does, and a province («صوبہ», «صوبے») is a body too.
+const BODY = /(?:وفاقی|صوبائی|مقامی|ضلعی)\s*(?:حکومت|اسمبلی)|عدالت|کورٹ|اسمبلی|سینی?ٹ|مقننہ|انتظامیہ|عدلیہ|پارلیمان|پارلیمنٹ|الیکشن کمیشن|کابینہ|(?:^|\s)صوب(?:ہ|ے)(?:\s|$|۔)/;
 const WHICH_BODY = /(?:کون|کس)[^؟?۔،]{0,16}(?:حکومت|ادارے|ادارہ|عدالت|حصے|سطح|اعضا|ایوان)|کون\s*(?:کرے|کرتا|کرتی|دیکھے|دیکھتا|دیکھتی|طے)/;
 const CALLED = /کیا\s*(?:کہتے|کہلات)|کو\s*کیا\s*کہا\s*جاتا/;
 const NAMING = /(?:^|\s)(?:نام|نشان\s*دہی|نشاندہی|پہچان|پہچاننا|شناخت)(?:\s|$|۔)/;
+const DOES_JOB = /حکومت(?:وں)?\s*(?:کا\s*کام|کی\s*ذمہ\s*داری)|حکومت(?:یں)?\s*(?:کرتی|کرتا|دیکھتی|دیکھتا)/;
+const names = (t) => NAMING.test(t) || DOES_JOB.test(t);
 const EXPLAINING_POINTS = 2;
 function namesBody(q) {
   const points = (q && q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
     .map((p) => String(typeof p === 'string' ? p : (p && p.text) || ''));
   const stem = String((q && q.question) || '');
-  if (!points.some((t) => NAMING.test(t) && BODY.test(t)) && !WHICH_BODY.test(stem) && !CALLED.test(stem)) return false;
-  return points.filter((t) => !BODY.test(t) && !NAMING.test(t) && statesFact(t)).length < EXPLAINING_POINTS;
+  if (!points.some((t) => names(t) && BODY.test(t)) && !WHICH_BODY.test(stem) && !CALLED.test(stem)) return false;
+  return points.filter((t) => !BODY.test(t) && !names(t) && statesFact(t)).length < EXPLAINING_POINTS;
 }
 
 // Urdu: a Q1 MCQ keyed on a word of a Q6 verse line it asks about: its key's words are all in the
