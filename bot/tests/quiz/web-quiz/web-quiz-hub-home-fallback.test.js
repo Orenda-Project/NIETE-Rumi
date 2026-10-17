@@ -120,7 +120,19 @@ describe('web_quiz_home_fallback_v3', () => {
     supabase.from = () => { throw new Error('down'); };
     Flag._resetCache();
     expect(await Flag.on()).toBe(false);
-    const out = await Flag.withFallback({});
-    expect(out).toEqual({});
+  });
+
+  test('the home off: the switch is never read (a child\'s hub, a class preview, a plain hub open); the home on: read once', async () => {
+    const Flag = require('../../../shared/services/quiz/web-quiz-home-fallback-flag');
+    const spy = jest.spyOn(Flag, 'on');
+    seed([...BASE_ON, ON(FB)]);
+    await Hub.hub(T.signHub([KID]), A);
+    await expect(Hub.hub(prTok(), {})).rejects.toThrow('bad_token'); // no home: a preview link is no link
+    expect(spy).not.toHaveBeenCalled();
+    seed([...HOME_ON, ON(FB)]);
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.home_fb).toBe(1);
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });

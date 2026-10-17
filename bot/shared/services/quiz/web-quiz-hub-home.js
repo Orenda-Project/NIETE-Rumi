@@ -270,5 +270,20 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
   }
 }
 
+// The fallback switch is read beside the home's own reads (once its flags say the home is on), never after them: no wave.
 const Fallback = require('./web-quiz-home-fallback-flag');
-module.exports = { homeField: (a) => homeField(a).then(Fallback.withFallback), doorsOf, headOf, flags, practiceHub: (t, o) => practiceHub(t, o).then(Fallback.withFallback), practiceOf, prefetch, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => { HomeFlags._resetCache(); Fallback._resetCache(); }, _useModules: (m) => { modules = m; } };
+const fbOf = (f) => f.then((on) => (on.home ? Fallback.on() : false)).catch(() => false);
+function prefetchFb(chosenId, now) {
+  const p = prefetch(chosenId, now);
+  p.fb = fbOf(p.flags);
+  return p;
+}
+function homeFieldFb(a = {}) {
+  const pre = a.pre || prefetchFb(a.chosenId, a.now);
+  return Promise.all([homeField({ ...a, pre }), pre.fb || fbOf(pre.flags)]).then(([field, on]) => (on && field && field.home_v3 ? { ...field, home_fb: 1 } : field));
+}
+function practiceHubFb(token, o) {
+  const fb = practiceOf(token) ? fbOf(flags()) : false;
+  return Promise.all([practiceHub(token, o), fb]).then(([out, on]) => (on && out && out.home_v3 ? { ...out, home_fb: 1 } : out));
+}
+module.exports = { homeField: homeFieldFb, doorsOf, headOf, flags, practiceHub: practiceHubFb, practiceOf, prefetch: prefetchFb, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => { HomeFlags._resetCache(); Fallback._resetCache(); }, _useModules: (m) => { modules = m; } };

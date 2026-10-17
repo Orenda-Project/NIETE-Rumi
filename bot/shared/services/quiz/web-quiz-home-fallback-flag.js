@@ -24,10 +24,4 @@ async function on(now = Date.now()) {
   }
 }
 
-/** The home's payload with `home_fb: 1` added when the switch is on; anything without `home_v3` is returned as it is. */
-async function withFallback(field) {
-  if (!field || !field.home_v3) return field;
-  return (await on()) ? { ...field, home_fb: 1 } : field;
-}
-
-module.exports = { on, withFallback, KEY, _resetCache: () => { cache = null; } };
+module.exports = { on, KEY, _resetCache: () => { cache = null; } };
