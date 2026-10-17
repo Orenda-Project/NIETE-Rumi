@@ -28,7 +28,8 @@
  * preview. Telemetry: counts and reasons only (`web_quiz.link_known`), never an id or a name.
  */
 const supabase = require('../../config/supabase');
-const { read: dbRead } = require('./web-quiz-db-deadline');
+const Db = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
+const dbRead = (...args) => Db.read(...args);
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
@@ -85,11 +86,13 @@ async function canonical(ids) {
  * The children this browser holds, newest first: [{id, student_name, student_name_urdu, self_reported_class}] (≤ KIDS_MAX).
  * [] with no device, nobody trusted, Redis down, or any read error.
  */
-async function heldBy(device) {
+async function heldBy(device, onHeld = null) {
   const d = T.cleanDeviceRef(device);
   if (!d) return [];
   const held = await Device.deviceKids(d);
   if (!held.length) return [];
+  // the caller's reads that need no child start now, beside the reads below (only for a phone that holds someone)
+  if (onHeld) onHeld();
   const map = await canonical(held);
   const out = [];
   const seen = new Set();
@@ -108,25 +111,34 @@ async function heldBy(device) {
   return out.map((x) => by.get(x.c)).filter(Boolean).slice(0, KIDS_MAX);
 }
 
+const safe = (p) => Promise.resolve(p).then((r) => (r && !r.error ? r.data || [] : []), () => []);
+
+/** The link's own reads, which need no child: started beside the held-children read, never after it. */
+function linkReads(ctx) {
+  return {
+    resolved: require('./web-quiz-identity').resolveQuizClass({ teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId }).catch(() => null),
+    quiz: safe(dbRead('linkKnown:quizzes:1', (db) => db.from('quizzes').select('grade').eq('id', ctx.quizId).limit(1))),
+  };
+}
+
 /**
  * Of the held children, those who belong to THIS link (a privacy filter, never a lookup of other children): enrolled in
- * the link's class or on its list, a session on this code, or of no class at all with the quiz's grade. The reads run
- * together; a read that fails names nobody by it.
+ * the link's class or on its list, a session on this code, or of no class at all with the quiz's grade. `early` is
+ * linkReads(ctx), started beside heldBy; the reads that need the ids start together the moment they land (+0 serial
+ * waves). A read that fails names nobody by it.
  */
-async function ofLink(ctx, kids) {
+async function ofLink(ctx, kids, early) {
   if (!kids.length) return [];
   const ids = kids.map((k) => String(k.id));
-  const safe = (p) => Promise.resolve(p).then((r) => (r && !r.error ? r.data || [] : []), () => []);
-  const [resolved, enrolled, played, quiz, fixed] = await Promise.all([
-    require('./web-quiz-identity').resolveQuizClass({ teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId }).catch(() => null),
+  const listIds = [...new Set(kids.map((k) => k.list_id).filter(Boolean).map(String))];
+  const [resolved, quiz, enrolled, played, fixed, lists] = await Promise.all([
+    early.resolved, early.quiz,
     safe(dbRead('linkKnown:class_enrollments:1', (db) => db.from('class_enrollments').select('student_id, class_id').in('student_id', ids).eq('is_active', true))),
     safe(dbRead('linkKnown:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id').in('student_id', ids).eq('share_code_id', ctx.shareCodeId).limit(50))),
-    safe(dbRead('linkKnown:quizzes:1', (db) => db.from('quizzes').select('grade').eq('id', ctx.quizId).limit(1))),
     safe(dbRead('linkKnown:child_identity:1', (db) => db.from('child_identity').select('canonical_id, fixed_grade').in('canonical_id', ids))),
+    listIds.length ? safe(dbRead('linkKnown:student_lists:1', (db) => db.from('student_lists').select('id, class_id').in('id', listIds))) : [],
   ]);
   const classIds = new Set(((resolved && resolved.classes) || []).map((c) => c && c.id).filter(Boolean).map(String));
-  const listIds = [...new Set(kids.map((k) => k.list_id).filter(Boolean).map(String))];
-  const lists = listIds.length ? await safe(dbRead('linkKnown:student_lists:1', (db) => db.from('student_lists').select('id, class_id').in('id', listIds))) : [];
   const listClass = new Map(lists.map((l) => [String(l.id), l.class_id ? String(l.class_id) : null]));
   const quizGrade = gradeOf(quiz[0] && quiz[0].grade);
   return kids.filter((k) => {
@@ -140,6 +152,13 @@ async function ofLink(ctx, kids) {
     const grade = f && f.fixed_grade != null ? Number(f.fixed_grade) : gradeOf(k.self_reported_class);
     return grade != null && quizGrade != null && grade === quizGrade;
   });
+}
+
+/** The held children this link may name: the link's own reads start beside the held read, once someone is held. */
+async function namedOn(ctx, device) {
+  let early = null;
+  const kids = await heldBy(device, () => { early = linkReads(ctx); });
+  return early ? ofLink(ctx, kids, early) : [];
 }
 
 function shownFirst(lang, k) {
@@ -156,7 +175,7 @@ async function known(body = {}, resolveCode = null, { device = null } = {}) {
     let ctx;
     try { ctx = await resolveCode(body.code); } catch (_) { return none('no_code'); }
     if (ctx.invitedByStudentId) return none('challenge');
-    const kids = await ofLink(ctx, await heldBy(device));
+    const kids = await namedOn(ctx, device);
     if (!kids.length) return none('nobody');
     logEvent('web_quiz.link_known', { ok: true, kids: kids.length });
     return { kids: kids.map((k) => ({ chip: T.chipId(ctx.shareCodeId, k.id), first: shownFirst(ctx.lang, k), animal: T.animalFor(k.id) })) };
@@ -170,7 +189,7 @@ async function known(body = {}, resolveCode = null, { device = null } = {}) {
 async function kidFor(ctx, chip, device) {
   try {
     if (!ctx || ctx.invitedByStudentId || !(await isOn())) return null;
-    const k = (await ofLink(ctx, await heldBy(device))).find((x) => T.chipId(ctx.shareCodeId, x.id) === String(chip));
+    const k = (await namedOn(ctx, device)).find((x) => T.chipId(ctx.shareCodeId, x.id) === String(chip));
     return k ? { id: k.id, student_name: k.student_name, self_reported_class: k.self_reported_class || null } : null;
   } catch (_) {
     return null;

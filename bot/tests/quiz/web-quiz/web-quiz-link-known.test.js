@@ -263,6 +263,39 @@ describe('a class link names only a held child of THAT class (the sibling and ot
   });
 });
 
+describe('the class filter adds no serial wave', () => {
+  test('its id-free reads start beside the held-children read; its id reads start together, the moment the ids land', async () => {
+    seed();
+    await homeOpened([F.kid(1)]);   // on 4-A's list: the list read is one of the id reads
+    await homeOpened([SELF]);
+    const Db = require('../../../shared/services/quiz/web-quiz-db-deadline');
+    const real = Db.read;
+    let settled = 0;
+    const log = [];
+    const spy = jest.spyOn(Db, 'read').mockImplementation((label, ...rest) => {
+      log.push({ label, at: settled });
+      const p = real(label, ...rest);
+      Promise.resolve(p).then(() => { settled += 1; }, () => { settled += 1; });
+      return p;
+    });
+    let r;
+    try { r = await known(); } finally { spy.mockRestore(); }
+    expect(r.kids).toHaveLength(2);
+    const at = (t) => { const x = log.find((e) => e.label === `linkKnown:${t}:1`); if (!x) throw new Error(`no ${t} read`); return x.at; };
+    expect(at('quizzes')).toBeLessThanOrEqual(at('students'));
+    const ids = ['class_enrollments', 'quiz_sessions', 'child_identity', 'student_lists'].map(at);
+    expect(new Set(ids).size).toBe(1);
+    expect(ids[0]).toBeGreaterThan(at('students'));
+  });
+
+  test('a phone that holds nobody makes none of the filter\'s reads', async () => {
+    seed();
+    const Db = require('../../../shared/services/quiz/web-quiz-db-deadline');
+    const spy = jest.spyOn(Db, 'read');
+    try { expect(await known(FRESH)).toEqual({ kids: [] }); } finally { expect(spy.mock.calls.filter((c) => String(c[0]).startsWith('linkKnown:'))).toEqual([]); spy.mockRestore(); }
+  });
+});
+
 describe('the one id the child is known by', () => {
   test('a phone trusted with an older, merged record offers the child it was merged into, and the session is on that child', async () => {
     seed({ canon: true });
