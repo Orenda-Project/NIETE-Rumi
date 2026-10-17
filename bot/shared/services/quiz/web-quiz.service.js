@@ -623,6 +623,10 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     class: Art.artId('l', ctx.parent.code || ctx.code), schools: Art.artId('s', ctx.parent.code || ctx.code),
     invite: ctx.invitedByStudentId ? Art.artId('i', ctx.code) : null,
   };
+  // The teacher's own class link previews as its class (web-quiz-class-pic.js; quiz_teacher_home, and the story send's
+  // switch for a story): named only when on, so a switched-off payload is today's.
+  const teach = await require('./web-quiz-class-pic').field(ctx, { story });
+  if (teach) Object.assign(out.art, teach);
   // Whether the page sends its page-session events (wq-tel.js).
   out.rt = await got('rt', () => Tel.flag());
   // The Urdu polish (web-quiz-ur-polish.js): one class on the page root when on; absent when off.

@@ -424,6 +424,7 @@
     var allDone = playable.length > 0 && playable.every(function (x) { return x.badge; });
     var next = null;
     playable.forEach(function (x) { if (!next && !x.badge) next = x.id; });
+    if (TR && TR.games && TR.games()) next = null; // from the home's Next tile: the home owns "Next", the list draws none
     var stops = xs.map(function (x) {
       var wait = x.mic && micAbsent();
       var cls = x.badge ? ' wqc-gold' : (wait ? ' wqc-wait' : (x.id === next ? ' wqc-nextup' : ''));
@@ -1363,6 +1364,7 @@
     // that card is still open; a child who has gone on is never pulled back to it
     if (TR) {
       if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) { if (live) live.held = false; readResult(r); return; }
+      if (TR.storySettled) TR.storySettled(r);
       liveSettle();
       return;
     }

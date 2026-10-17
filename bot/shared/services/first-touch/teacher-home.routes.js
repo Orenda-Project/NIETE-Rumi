@@ -49,11 +49,11 @@ const asked = (v) => (ASKABLE.includes(v) ? v : null);
 const uuidIn = (v) => (typeof v === 'string' && UUID_RX.test(v) ? v : null);
 const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {});
 const optional = (path) => { try { return require(path); } catch (_) { return null; } };
-/** The bot's dialable number, digits only (10-15), or null. */
+/** The bot's dialable number, digits only, from the return line's own link (one source), or null. */
 function botDigits() {
   try {
-    const d = String(require('../quiz/video-quiz-share.service').botNumber() || '').replace(/\D/g, '');
-    return /^\d{10,15}$/.test(d) ? d : null;
+    const m = /^https:\/\/wa\.me\/(\d{10,15})\?text=quiz$/.exec(require('./teacher-home.copy').chatLink() || '');
+    return m ? m[1] : null;
   } catch (_) { return null; }
 }
 /** A first-touch module by its name in the registry (`./optional-modules`) when that is on the branch, else by its path; absent or broken → null. */
@@ -129,7 +129,7 @@ function createRouter(deps = null) {
   /**
    * The teacher's first open of the home ever (a year-long SET NX on the event key); false when it cannot be told. The
    * client's setNX answers true when the store is down or fails (it never blocks its callers), so a true is believed
-   * only when the key now reads back.
+   * only when the key now reads back. The key is the teacher's tk, so a rotated kid key re-arms every first open.
    */
   async function firstOpen(uid) {
     const tk = tkOf(uid);
@@ -143,9 +143,10 @@ function createRouter(deps = null) {
   async function makerOn() {
     try { return (await require('../quiz/web-quiz-identity-flags').flags()).makerPage === true; } catch (_) { return false; }
   }
-  function storiesBaseFor(token) {
+  /** The stories page for this token, in the page's own language (the stories page follows `lang`, not the token's bi). */
+  function storiesBaseFor(token, lang) {
     const S = Data.dep(deps, 'Stories');
-    return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories` : null;
+    return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories?lang=${lang === 'en' ? 'en' : 'ur'}` : null;
   }
   function cardsFor(lang) {
     const Cards = byName('cardsPage', './cards.page');
@@ -201,7 +202,7 @@ function createRouter(deps = null) {
   async function libraryFor({ p, token, lang, grade, tree, pfSubject }) {
     const [stories] = await Promise.all([Data.within(Data.storyShelf(p.uid, grade, lang, deps), Data.SIDE_BUDGET_MS, null, 'stories')]);
     const video = Data.videoPick(tree, grade, pfSubject);
-    return { stories, video, storiesBase: stories && stories.length ? storiesBaseFor(token) : null };
+    return { stories, video, storiesBase: stories && stories.length ? storiesBaseFor(token, lang) : null };
   }
   /** Adds the class message + wa.me link to a card that sends from the page; a card that cannot is dropped to null. */
   async function withSend(card, p, lang) {
@@ -256,9 +257,11 @@ function createRouter(deps = null) {
       if (on) ownSent.forEach((id) => { const u = Data.dep(deps, 'Gate').reportUrls({ teacherId: p.uid, quizId: id }); if (u) reports.set(id, { live: u.live, remind: u.remind }); });
     }
     const change = await changeLanding(user, lang);
+    // "Send again" only where the send would answer; a read that fails or runs late → offered as before (null)
+    const againable = await Data.within(Data.sendableOwn(p.uid, [...ownSent, ...played.keys()], deps), Data.SIDE_BUDGET_MS, null, 'send-again check');
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
-      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
+      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change, againable,
     });
     const walk = await walkRow(change, lang);
     if (walk) home.walk = walk;
