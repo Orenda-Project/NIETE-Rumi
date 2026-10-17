@@ -7369,6 +7369,7 @@ CREATE TABLE IF NOT EXISTS child_phone_bindings (
   revoked_by     text        CHECK (revoked_by IN ('page_undo','stop','expiry','teacher','teacher_claim')),
   rebind_of      uuid        REFERENCES child_phone_bindings(id),
   code_id        text        REFERENCES child_bind_codes(code),   -- the JUGNU- code that made / last renewed it (child_phone_bindings_code.sql)
+  device_hash    text,                              -- hex(sha256(device_ref))[:32] of the browser a child joined on; NULL once revoked (child_phone_bindings_device.sql)
   CHECK (phone_norm IS NULL OR revoked_at IS NULL)  -- a revoked row never keeps the phone
 );
 CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
@@ -7376,6 +7377,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
 CREATE INDEX IF NOT EXISTS cpb_phone_active ON child_phone_bindings (phone_norm) WHERE phone_norm IS NOT NULL;
 CREATE INDEX IF NOT EXISTS cpb_expiry ON child_phone_bindings (expires_at) WHERE phone_norm IS NOT NULL;
 CREATE INDEX IF NOT EXISTS cpb_tomb ON child_phone_bindings (phone_tomb);
+CREATE INDEX IF NOT EXISTS cpb_device ON child_phone_bindings (device_hash) WHERE device_hash IS NOT NULL;
+CREATE OR REPLACE FUNCTION cpb_clear_device_on_revoke() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.revoked_at IS NOT NULL THEN
+    NEW.device_hash := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS cpb_clear_device ON child_phone_bindings;
+CREATE TRIGGER cpb_clear_device BEFORE INSERT OR UPDATE ON child_phone_bindings
+  FOR EACH ROW EXECUTE FUNCTION cpb_clear_device_on_revoke();
 
 CREATE TABLE IF NOT EXISTS child_bind_codes (
   code           text        PRIMARY KEY,           -- 'JUGNU-' + 5 of [A-Z2-9], single use
