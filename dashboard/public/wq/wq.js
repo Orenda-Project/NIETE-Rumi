@@ -3204,10 +3204,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     render(h, 'M4-known');
     wireBar();
     ev('known_ask', { kids: list.length });
+    // A finger already on its way to «Play» can come down on a button this sheet just drew there: for 500 ms the
+    // buttons ignore taps, and a press that began inside that window is ignored when it lifts.
+    var armed = false, early = false;
+    setTimeout(function () { armed = true; }, 500);
+    function tap(sel, fn) {
+      var el = on(sel, function () { var skip = !armed || early; early = false; if (!skip) fn(); });
+      if (el) el.addEventListener('pointerdown', function () { early = !armed; });
+    }
     function pick(k) { sset(KN_KEY, 1); ev('identity_pick', { src: 'known' }); startSession({ chip: k.chip, via: 'known' }, k); }
-    if (one) on('#wq-kn-yes', function () { pick(one); });
-    else list.forEach(function (k, i) { on('#wq-kn-' + i, function () { pick(k); }); });
-    on('#wq-kn-else', function () { sset(KN_KEY, 1); ev('identity_pick', { src: 'known_else' }); landing(); });
+    if (one) tap('#wq-kn-yes', function () { pick(one); });
+    else list.forEach(function (k, i) { tap('#wq-kn-' + i, function () { pick(k); }); });
+    tap('#wq-kn-else', function () { sset(KN_KEY, 1); ev('identity_pick', { src: 'known_else' }); landing(); });
   }
   var HX = B.view === 'class' || B.view === 'schools' || B.preview ? '' : handsetX();
   if (B.view === 'schools') schools(afterResult);

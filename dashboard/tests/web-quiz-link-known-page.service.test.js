@@ -20,6 +20,8 @@ const SESSION = { st: 's1', device_ref: DEV, child: ZAR, resume: { answered: [] 
 // the page's queued events, as the pagehide beacon sends them
 const evs = (p) => { p.fireWin('pagehide'); return p.fetches.filter((f) => f.url === '/api/wq/e').flatMap((f) => JSON.parse(f.init.body).events); };
 const named = (p, n) => evs(p).filter((e) => e.n === n);
+// the sheet's buttons take a tap once 500 ms have passed since it was drawn
+const armed = (p) => p.runTimers(500);
 const on = (o = {}) => page({ lang: 'en', store: { wq_d: DEV }, bootExtra: { link_known: true }, api: { '/api/wq/known': { kids: [ZAR] }, '/api/wq/session': SESSION }, ...o });
 
 describe('switch on: a phone that holds ONE child', () => {
@@ -40,6 +42,7 @@ describe('switch on: a phone that holds ONE child', () => {
   test('"Yes" starts the session as that child (via known) and the question is not asked again on this phone', async () => {
     const p = on();
     await flush(); await flush();
+    armed(p);
     p.els['#wq-kn-yes'].fire('click');
     await flush(); await flush();
     expect(starts(p)).toEqual([expect.objectContaining({ code: 'TEST', chip: 'cz', via: 'known', device_ref: DEV })]);
@@ -49,6 +52,7 @@ describe('switch on: a phone that holds ONE child', () => {
   test('"Someone else": today\'s landing, drawn exactly as with the switch off; asked once — never again for this quiz', async () => {
     const p = on();
     await flush(); await flush();
+    armed(p);
     p.els['#wq-kn-else'].fire('click');
     const off = page({ lang: 'en', store: { wq_d: DEV } });
     await flush();
@@ -92,6 +96,7 @@ describe('switch on: a phone that holds ONE child', () => {
     const p = on({ cls, ident: true });
     await flush(); await flush();
     expect(p.moment()).toBe('M4-known');
+    armed(p);
     p.els['#wq-kn-else'].fire('click');
     const off = page({ lang: 'en', cls, ident: true, store: { wq_d: DEV } });
     expect(p.moment()).toBe(off.moment());
@@ -108,6 +113,7 @@ describe('switch on: a phone that holds TWO children', () => {
     expect(p.html()).toContain('Iqra');
     expect(p.html()).toContain('Sadia');
     expect(p.html()).toContain('Someone else');
+    armed(p);
     p.els['#wq-kn-1'].fire('click');
     await flush(); await flush();
     expect(starts(p)).toEqual([expect.objectContaining({ chip: 'cz', via: 'known' })]);
@@ -238,6 +244,66 @@ describe('a slow answer: the question still lands while the child has not touche
     p.fireWin('scroll');
     expect(p.moment()).toBe('M4-known');
     expect(named(p, 'link_known_late')).toEqual([]);
+  });
+});
+
+describe('a tap that lands just after the question is drawn', () => {
+  // A finger already on its way to «Play» can come down on the button the answer just drew there. For 500 ms after
+  // the sheet is drawn its buttons ignore taps, and a press that began inside that window is ignored when it lifts.
+  const slow = () => { let answer; const p = on({ api: { '/api/wq/known': () => new Promise((r) => { answer = r; }), '/api/wq/session': SESSION } }); return { p, answer: (b) => answer(b) }; };
+  const tap = (el) => { el.fire('pointerdown'); el.fire('click'); };
+  const picks = (p) => evs(p).filter((e) => e.n === 'identity_pick');
+
+  test('a tap 100 ms after a late answer is drawn: no bind, the question stays', async () => {
+    const { p, answer } = slow();
+    p.runTimers(3500);
+    answer({ kids: [ZAR] }); await flush(); await flush();
+    expect(p.moment()).toBe('M4-known');
+    p.runTimers(100);
+    tap(p.els['#wq-kn-yes']);
+    await flush(); await flush();
+    expect(starts(p)).toEqual([]);
+    expect(p.moment()).toBe('M4-known');
+    expect(p.ls.get('wq_kn_TEST')).toBeUndefined();
+    expect(picks(p)).toEqual([]);
+  });
+
+  test('"Someone else" in the same window is ignored too: the question stays', async () => {
+    const p = on();
+    await flush(); await flush();
+    tap(p.els['#wq-kn-else']);
+    expect(p.moment()).toBe('M4-known');
+    expect(p.ls.get('wq_kn_TEST')).toBeUndefined();
+  });
+
+  test('two children: a card tapped in the window starts nobody', async () => {
+    const p = on({ api: { '/api/wq/known': { kids: [MAH, ZAR] }, '/api/wq/session': SESSION } });
+    await flush(); await flush();
+    tap(p.els['#wq-kn-0']);
+    await flush(); await flush();
+    expect(starts(p)).toEqual([]);
+    expect(p.moment()).toBe('M4-known');
+  });
+
+  test('a press that began in the window and lifts after it is still ignored', async () => {
+    const p = on();
+    await flush(); await flush();
+    p.els['#wq-kn-yes'].fire('pointerdown');
+    armed(p);
+    p.els['#wq-kn-yes'].fire('click');
+    await flush(); await flush();
+    expect(starts(p)).toEqual([]);
+    expect(p.moment()).toBe('M4-known');
+  });
+
+  test('after 500 ms a fresh tap is taken: the session starts as that child', async () => {
+    const p = on();
+    await flush(); await flush();
+    tap(p.els['#wq-kn-yes']);
+    armed(p);
+    tap(p.els['#wq-kn-yes']);
+    await flush(); await flush();
+    expect(starts(p)).toEqual([expect.objectContaining({ chip: 'cz', via: 'known' })]);
   });
 });
 
