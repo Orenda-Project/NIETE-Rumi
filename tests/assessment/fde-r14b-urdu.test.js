@@ -190,6 +190,10 @@ describe('a stem that states another item\'s one-word answer on its topic', () =
       { slot: 'urdu.A.Q1', marks: 1, question: '"اگر بارش ہوئی تو ہم گھر رہیں گے۔" اس جملے میں حرفِ شرط کون سا ہے؟', options: OPTS, answer: 'الف) اگر' },
       { slot: 'urdu.A.Q1', marks: 1, question: 'حرفِ شرط «اگر» کے ساتھ کون سا حرفِ جزا آتا ہے؟', options: ['الف) تو', 'ب) اور', 'ج) مگر', 'د) کہ'], answer: 'الف) تو' },
     ] } } };
+    // Both ask شرط و جزا, so one is held as one grammar concept asked twice (Q1's own rules run on
+    // the first layout too); neither is held as a given-away key.
+    expect(q1Stems(laid(exam))).toHaveLength(1);
+    exam.unseen.objective.MCQs[1] = { slot: 'urdu.A.Q1', marks: 1, question: 'بارش کے بعد بچے کہاں کھیلنے گئے؟', options: ['الف) باغ میں', 'ب) گھر میں', 'ج) اسکول میں', 'د) بازار میں'], answer: 'الف) باغ میں' };
     expect(q1Stems(laid(exam))).toHaveLength(2);
   });
 });
