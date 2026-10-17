@@ -100,14 +100,33 @@ describe('the switch', () => {
     expect(OneFace.on()).toBe(false);
   });
 
-  test('a value older than twice the cache time is off (a refresh that never comes back cannot keep it on)', async () => {
+  test('a quiet process keeps the switch: the first page after minutes without a page answers the cached value, the refresh runs behind it', async () => {
+    rows = [{ key: KEY, value: true }];
+    const t0 = Date.now();
+    await OneFace.flag(t0);
+    expect(settingsReads).toBe(1);
+    // ten quiet minutes, then a child opens a page: still the one face (no -5 then -6 between two pages)
+    expect(OneFace.on(t0 + 10 * 60 * 1000)).toBe(true);
+    await new Promise((r) => setImmediate(r));
+    expect(settingsReads).toBe(2);
+    expect(OneFace.on()).toBe(true);
+    // and a flip off made during the quiet time lands on the page after the refresh
+    rows = [{ key: KEY, value: false }];
+    const t1 = Date.now();
+    expect(OneFace.on(t1 + 10 * 60 * 1000)).toBe(true);
+    await new Promise((r) => setImmediate(r));
+    expect(OneFace.on()).toBe(false);
+  });
+
+  test('a refresh that never comes back cannot keep it on: off once a read has hung for twice the cache time', async () => {
     rows = [{ key: KEY, value: true }];
     const t0 = Date.now();
     await OneFace.flag(t0);
     // every read from here hangs
     require('../../../shared/config/supabase').from = () => ({ select() { return this; }, eq() { return this; }, maybeSingle: () => new Promise(() => {}) });
-    expect(OneFace.on(t0 + 59 * 1000)).toBe(true);
-    expect(OneFace.on(t0 + 61 * 1000)).toBe(false);
+    expect(OneFace.on(t0 + 31 * 1000)).toBe(true); // stale: the hung read starts here
+    expect(OneFace.on(t0 + 31 * 1000 + 59 * 1000)).toBe(true);
+    expect(OneFace.on(t0 + 31 * 1000 + 61 * 1000)).toBe(false);
   });
 
   test('the hub\'s one settings read: its rows fill this cache by the same rule (true on; anything else, or no row, off)', () => {

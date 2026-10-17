@@ -8,8 +8,9 @@
  * 'true', '"true"', 'yes', 1, {enabled:true}, no row or a failed read are all off.
  *
  * on() never waits: it answers from the cache and refreshes it in the background (web-quiz-fast.js's shape), so the
- * switch adds no database round trip to a child's page. The first answer after a start is off; a value older than
- * twice the cache time is off too (a refresh that never comes back cannot keep the switch on).
+ * switch adds no database round trip to a child's page. The first answer after a start is off. A stale value keeps
+ * answering while its refresh runs, however long the process was quiet, so two pages of one child never draw two
+ * faces; only a refresh that has hung for twice the cache time turns it off (it cannot keep the switch on).
  *
  * hubSwitches: this module's row for the hub's one settings read (the seam's shape: name, keys, age, prime, read, peek),
  * so that read can fill this cache from its own rows, parsed by this module's rule, instead of a read of its own.
@@ -22,6 +23,7 @@ const FIELD = 'one_face';
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, on }
 let reading = null;
+let readingAt = 0; // when the read in flight started (the caller's clock)
 
 /** Only the JSON boolean the flip writes (app_settings.value is jsonb). */
 function isTrue(value) {
@@ -33,8 +35,9 @@ function fromRow(row, now) {
   return cache.on;
 }
 
-function refresh() {
+function refresh(now = Date.now()) {
   if (!reading) {
+    readingAt = now;
     reading = (async () => {
       try {
         const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
@@ -54,14 +57,14 @@ function refresh() {
 
 /** The switch, never waited for: the cached value, refreshed in the background when stale. Never throws. */
 function on(now = Date.now()) {
-  if (!cache || now - cache.at >= TTL_MS) refresh().catch(() => {});
-  return Boolean(cache && cache.on && now - cache.at < 2 * TTL_MS);
+  if (!cache || now - cache.at >= TTL_MS) refresh(now).catch(() => {});
+  return Boolean(cache && cache.on && !(reading && now - readingAt >= 2 * TTL_MS));
 }
 
 /** The switch, waited for (tests, and the seam's own-read check). */
 async function flag(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
-  return refresh();
+  return refresh(now);
 }
 
 /**
@@ -77,4 +80,4 @@ const ageOf = (now) => (!cache ? 'cold' : now - cache.at < TTL_MS ? 'fresh' : 's
 const hubSwitches = { name: FIELD, keys: [KEY], swr: [], age: ageOf,
   prime: (rows, now) => fromRow((rows || []).find((r) => r && r.key === KEY) || null, now), read: () => flag(), peek: () => cache };
 
-module.exports = { on, flag, carry, hubSwitches, KEY, FIELD, TTL_MS, _reset: () => { cache = null; reading = null; } };
+module.exports = { on, flag, carry, hubSwitches, KEY, FIELD, TTL_MS, _reset: () => { cache = null; reading = null; readingAt = 0; } };
