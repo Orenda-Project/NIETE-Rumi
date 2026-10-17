@@ -91,6 +91,11 @@ describe('wq.css: the one button component', () => {
     expect(CSS).toMatch(/html\.wq-1b\[lang=ur\] \.wq-btn:not\(\[class\*="wq-btn--"\]\)\{[^}]*height:var\(--btn-h\);min-height:0/);
     expect(CSS).toContain('html[lang=ur][lang] .wq-btn.wq-btn--primary{height:var(--btn-h);min-height:0;');
   });
+  test('three radii per screen under wq-1b: cards --r-card, buttons and the tiles inside boxes --r-btn, icons a circle', () => {
+    expect(CSS).toContain('--r-card:22px');
+    expect(CSS).toContain('html.wq-1b .wq-card,html.wq-1b .wq-qcard,html.wq-1b .wq-next{border-radius:var(--r-card)}');
+    expect(CSS).toContain('html.wq-1b .wq-door,html.wq-1b .wq-nart,html.wq-1b .wq-tile,html.wq-1b .wq-opt .wq-shp,html.wq-1b .wq-ptile .wq-shp,html.wq-1b .wq-shear .wq-shp{border-radius:var(--r-btn)}');
+  });
   test('every icon-only control is a 48 circle, and the row speakers never stretch to the row', () => {
     expect(CSS).toMatch(/html\.wq-1b \.wq-homebtn,[^{]*\.wq-jar\{flex:none;width:var\(--btn-icon\)[^}]*border-radius:var\(--r-icon\)\}/);
     expect(CSS).toMatch(/html\.wq-1b button\.wq-dspk\{[^}]*align-self:center;[^}]*height:var\(--btn-icon\);min-height:0;[^}]*border-radius:var\(--r-icon\)/);

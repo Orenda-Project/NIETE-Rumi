@@ -16,7 +16,7 @@
   --s1-bg:#EEE8FA;--s2-bg:#E4ECFA;--s3-bg:#F6E6F1;--s4-bg:#E0F2F3;
   --tap:48px;
   /* the one button system's tokens (html.wq-1b, web_quiz_one_button; today's values; the adventure look redefines them) */
-  --gutter:16px;--btn-h:56px;--btn-h2:52px;--btn-h-2l:76px;--btn-icon:48px;--r-btn:18px;--r-icon:50%;--btn-d:5px;--btn-d2:4px;--btn-fs:20px;--btn-fs2:17px;--btn-fs-ur:19px;--btn-fs-ur-sm:18px;--btn-fs2-ur:18px;--btn-lh-ur:1.9;--press-y:4px;--press-s:.97;--press-dim:.92;
+  --gutter:16px;--btn-h:56px;--btn-h2:52px;--btn-h-2l:76px;--btn-icon:48px;--r-btn:18px;--r-card:22px;--r-icon:50%;--btn-d:5px;--btn-d2:4px;--btn-fs:20px;--btn-fs2:17px;--btn-fs-ur:19px;--btn-fs-ur-sm:18px;--btn-fs2-ur:18px;--btn-lh-ur:1.9;--press-y:4px;--press-s:.97;--press-dim:.92;
   --land-st:var(--brand);--land-st-edge:var(--brand-d);--land-st-on:var(--brand-on);--land-gm:var(--brand);--land-gm-edge:var(--brand-d);--land-gm-on:var(--brand-on);--land-vd:var(--brand);--land-vd-edge:var(--brand-d);--land-vd-on:var(--brand-on);
   --f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --fu:"WQ Nastaliq",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Nastaliq Urdu",sans-serif;
@@ -549,6 +549,10 @@ html.wq-1b .wq-gsheet{left:var(--gutter);right:var(--gutter)}
 html.wq-1b .wqs-main{display:flex;align-items:center;justify-content:center;min-height:var(--btn-h);border-radius:var(--r-btn);-webkit-tap-highlight-color:transparent}
 html.wq-1b .wqs-ic{width:var(--btn-icon);height:var(--btn-icon);border:2px solid var(--line);border-radius:var(--r-icon);box-shadow:0 var(--btn-d2) 0 var(--line);-webkit-tap-highlight-color:transparent}
 html.wq-1b .wqs-ic:active{transform:translateY(2px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--line)}
+/* three radii per screen, from the tokens: a button (and every small tile or picture inside a box) --r-btn, a card
+   --r-card, an icon or dot a circle */
+html.wq-1b .wq-card,html.wq-1b .wq-qcard,html.wq-1b .wq-next{border-radius:var(--r-card)}
+html.wq-1b .wq-door,html.wq-1b .wq-nart,html.wq-1b .wq-tile,html.wq-1b .wq-opt .wq-shp,html.wq-1b .wq-ptile .wq-shp,html.wq-1b .wq-shear .wq-shp{border-radius:var(--r-btn)}
 /* the tap: no page, section or list paints the system's tap box (it inherits down to every child); every link and
    button on the page darkens a little on its own while pressed instead, so a tap always answers, and only where it landed */
 html.wq-1b body{-webkit-tap-highlight-color:transparent}

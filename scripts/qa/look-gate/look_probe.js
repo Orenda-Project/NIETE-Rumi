@@ -8,6 +8,7 @@
  *   buttons  each Home / back / share / main button: size, radius, shadow, border, fill, and how far its label's
  *            middle sits from the box's middle
  *   primary  the [data-primary]'s bottom against innerHeight
+ *   radii    the distinct corner radii of the boxes a child sees (a circle counts once, as 'circle')
  * It reads only; it changes nothing on the page.
  */
 () => {
@@ -55,7 +56,8 @@
       }
     }
     const home = e.matches('[data-home],.wq-homebtn,a.wq-home,button.wq-home,[data-tap=home]') || /^(home|ہوم)$/i.test(txt.replace(/[^\p{L}]/gu, ''));
-    buttons.push({ el: name(e), home, text: txt.slice(0, 30), w: Math.round(r.width), h: Math.round(r.height), radius: s.borderTopLeftRadius, shadow: s.boxShadow, border: s.borderTopWidth + ' ' + s.borderTopStyle + ' ' + s.borderTopColor, bg: s.backgroundColor, color: s.color, labelOff: off, left: Math.round(r.left), right: Math.round(vw - r.right) });
+    const icon = off === null; // no visible words: an icon-only control
+    buttons.push({ el: name(e), home, icon, text: txt.slice(0, 30), w: Math.round(r.width), h: Math.round(r.height), radius: s.borderTopLeftRadius, r: s.borderTopLeftRadius, shadow: s.boxShadow, border: s.borderTopWidth + ' ' + s.borderTopStyle + ' ' + s.borderTopColor, bg: s.backgroundColor, color: s.color, labelOff: off, left: Math.round(r.left), right: Math.round(vw - r.right) });
   });
   const targets = [];
   document.querySelectorAll('a[href],button,[role=button],[data-tap]').forEach((e) => {
@@ -71,7 +73,14 @@
     const m = n.textContent.match(/\p{Extended_Pictographic}/gu);
     if (m) emoji.push({ el: name(p), chars: m.join('') });
   }
+  const radii = new Set();
+  document.querySelectorAll('body *').forEach((e) => {
+    if (!vis(e) || !boxy(e) || e.closest('svg') || e.matches('.wq-app,.wq-boot,.wq-boot *')) return;
+    const s = cs(e); const r = e.getBoundingClientRect(); const v = parseFloat(s.borderTopLeftRadius) || 0;
+    if (v <= 0) return;
+    radii.add(/%$/.test(s.borderTopLeftRadius) || v >= Math.min(r.width, r.height) / 2 - EPS ? 'circle' : Math.round(v) + 'px');
+  });
   const prim = document.querySelector('[data-primary]');
   const pr = prim && vis(prim) ? prim.getBoundingClientRect() : null;
-  return { vw, vh, dir: document.documentElement.dir || 'ltr', scrollW: document.documentElement.scrollWidth, oneButton: document.documentElement.classList.contains('wq-1b'), gutter, targets, emoji, buttons, primary: pr ? { el: name(prim), bottom: Math.round(pr.bottom), ok: pr.bottom <= vh } : null, screen: (document.querySelector('[data-screen]') || {}).getAttribute ? document.querySelector('[data-screen]').getAttribute('data-screen') : null };
+  return { vw, vh, dir: document.documentElement.dir || 'ltr', scrollW: document.documentElement.scrollWidth, oneButton: document.documentElement.classList.contains('wq-1b'), gutter, targets, emoji, buttons, radii: Array.from(radii).sort(), primary: pr ? { el: name(prim), bottom: Math.round(pr.bottom), ok: pr.bottom <= vh } : null, screen: (document.querySelector('[data-screen]') || {}).getAttribute ? document.querySelector('[data-screen]').getAttribute('data-screen') : null };
 }

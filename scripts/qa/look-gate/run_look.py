@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PUBLIC = os.path.normpath(os.path.join(HERE, '..', '..', '..', 'dashboard', 'public'))
 UA = ('Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 '
       '[FB_IAB/FB4A;FBAV/400.0.0.0;] WhatsApp')
-WIDTHS = (360, 390)
+WIDTHS = tuple(int(x) for x in os.environ.get('LOOK_WIDTHS', '360,390').split(','))
 
 
 def server(out_dir):
@@ -233,6 +233,14 @@ def verdict(results):
         off = [b for b in r['buttons'] if b['labelOff'] is not None and abs(b['labelOff']) > 2]
         if off:
             why.append('label off-centre: ' + ', '.join('%s %+.1fpx' % (b['el'][:30], b['labelOff']) for b in off[:4]))
+        if r.get('oneButton'):
+            # the one button system's sizes (only when it is on): text buttons 56 / 52 (76 two-line), icon-only a 48 circle
+            bad = [b for b in r['buttons'] if (b['w'] != 48 or b['h'] != 48 or not (b['radius'].endswith('%') or parseFloat(b['radius'] or 0) >= 24)) and b.get('icon')]
+            bad += [b for b in r['buttons'] if not b.get('icon') and b['h'] not in (52, 56, 76)]
+            if bad:
+                why.append('size: ' + ', '.join('%s %dx%d r%s' % (b['el'][:30], b['w'], b['h'], b['radius']) for b in bad[:4]))
+            if len(r.get('radii') or []) > 3:
+                why.append('radii %d > 3: %s' % (len(r['radii']), ' '.join(r['radii'])))
         if r.get('targets'):
             why.append('targets < 48: ' + ', '.join('%s %dx%d' % (t['el'][:30], t['w'], t['h']) for t in r['targets'][:4]))
         h = r.get('hold')
