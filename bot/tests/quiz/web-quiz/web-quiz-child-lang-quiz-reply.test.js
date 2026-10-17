@@ -109,6 +109,13 @@ describe('switch on: the language the child joined in answers the /quiz reply', 
     expect(r.urdu).toBe(false);
     expect((await Hub.hub(r.raw, { device: 'AAAAAAAAAAAAAAAAAAAAAA' })).lang).toBe('en');
   });
+  test.each([['en'], ['ur']])('a new home link with no language of its own and no ?lang= (an Urdu family row on the phone) → the language the child joined in, %s', async (joinedIn) => {
+    seed(ON, { kept: [joined(KID, joinedIn)] });
+    await reply('ur');
+    const raw = T.signHub([KID]);
+    expect(T.verify(raw, 'h')).not.toHaveProperty('l');
+    expect((await Hub.hub(raw, { device: 'AAAAAAAAAAAAAAAAAAAAAA' })).lang).toBe(joinedIn);
+  });
   test('only an English library lesson, joined in Urdu → Urdu (a lesson is not the child\'s language)', async () => {
     seed(ON, { quizLang: 'en', lesson: true, kept: [joined(KID, 'ur')] });
     const r = await reply();
@@ -151,5 +158,12 @@ describe('switch off: today\'s reply, nothing read', () => {
       expect(r.urdu).toBe(opts.quizLang === 'ur');
       expect(langCalls()).toEqual([]);
     }
+  });
+  test.each([['absent', HUB], ['false', [...HUB, { key: 'web_quiz_return_lang', value: false }]]])('switch row %s: joined in English on an Urdu family row → today\'s Urdu reply, no language on its link', async (_l, settings) => {
+    seed(settings, { kept: [joined(KID, 'en')] });
+    const r = await reply('ur');
+    expect(r.tok).not.toHaveProperty('l');
+    expect(r.urdu).toBe(true);
+    expect(langCalls()).toEqual([]);
   });
 });
