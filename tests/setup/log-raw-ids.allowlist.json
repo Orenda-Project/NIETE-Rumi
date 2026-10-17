@@ -1664,15 +1664,6 @@
    "35 userId (shorthand)"
   ]
  },
- "bot/shared/services/quiz/teacher-report-link.js": {
-  "n": 3,
-  "area": "quiz",
-  "at": [
-   "60 userId: teacherId",
-   "75 userId: teacherId",
-   "81 userId: teacherId"
-  ]
- },
  "bot/shared/services/quiz/teacher-report-list.service.js": {
   "n": 2,
   "area": "quiz",
