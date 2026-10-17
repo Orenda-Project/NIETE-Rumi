@@ -223,7 +223,9 @@ router.get('/pdf/:token', handle(async (req, res) => {
   const day = new Date(Date.now() + PKT_MS).toISOString().slice(0, 10);
   logEvent('teacher_report.pdf', { teacherId: v.teacherId, quizId: v.quizId, scope: v.quizId ? 'quiz' : 'all' });
   noStore(res);
-  res.set('Content-Disposition', `attachment; filename="quiz-report-${day}.pdf"`);
+  // A storybook send's own report downloads as a story report; a quiz's, and the class tab's, as before.
+  const kind = b.tab === 'quiz' && b.data.quiz && b.data.quiz.story ? 'story' : 'quiz';
+  res.set('Content-Disposition', `attachment; filename="${kind}-report-${day}.pdf"`);
   res.status(200).type('application/pdf').send(pdf);
 }));
 

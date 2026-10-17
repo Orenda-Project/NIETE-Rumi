@@ -577,7 +577,16 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   }
 
   // A storybook the teacher sent: its own report (story-teacher-report.js), same trigger, same teacher, same stamp.
-  if (quizRow && quizRow.quiz_source === 'story') return require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: all, quizRow, reason, stamp, send: (to, text) => WhatsAppService.sendMessage(to, text), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel });
+  // Its children are the ones the send's web report counts (teacher-report.data storySendChildren), never a second count.
+  if (quizRow && quizRow.quiz_source === 'story') {
+    let children = all;
+    try {
+      children = await require('./teacher-report.data').storySendChildren(sc.teacher_user_id, sc.quiz_id, shareCodeId, rawAll);
+    } catch (e) {
+      logToFile('⚠️ story report: could not count as the web report does — one attempt per child instead', { shareCodeId, error: e.message });
+    }
+    return require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: children, quizRow, reason, stamp, send: (to, text) => WhatsAppService.sendMessage(to, text), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel });
+  }
 
   if (!all.length) {
     await WhatsAppService.sendMessage(teacher.phone_number,

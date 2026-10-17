@@ -273,7 +273,7 @@ describe('hub.js', () => {
 });
 
 // ---- a live-ish page for mount(): elements that keep their listeners, a head, timers from the test -------------
-function page({ hash = '', conn = null, idle = true, bind = null, search = '' } = {}) {
+function page({ hash = '', conn = null, idle = true, bind = null, search = '', book = null } = {}) {
   const els = {}; const sheets = []; const head = []; const evs = []; const idleQ = [];
   const el = (name) => {
     if (els[name]) return els[name];
@@ -296,6 +296,7 @@ function page({ hash = '', conn = null, idle = true, bind = null, search = '' } 
   const win = { addEventListener() {}, scrollTo() {} };
   if (idle) win.requestIdleCallback = (fn) => idleQ.push(fn);
   if (bind) win.WQBIND = bind;
+  if (book) win.WQBOOK = book;
   const document = {
     querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null),
     createElement: (tag) => ({ tag, className: '', attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = v; }, addEventListener() {}, querySelector(sel) { if (sel !== '[data-tap="close"]') return null; const f = this.closeFns = this.closeFns || []; return { addEventListener(n, fn) { f.push(fn); } }; }, appendChild(c) { this.kids.push(c); }, innerHTML: '' }),
@@ -468,6 +469,15 @@ describe('hash routes: an empty hash is home again, #book opens the Book on load
     const p = page({ hash: '#book' }); p.mount({ ...HOME, book_on: true });
     // (the door screens' own two files follow every paint; they are asserted in web-quiz-doors-v3)
     expect(p.head.map((e) => e.src || e.href).filter((u) => !/\/wq\/wq-doors\./.test(u))).toEqual(['/wq/wq-book.css?v=abc123', '/wq/wq-book.js?v=abc123']);
+  });
+});
+
+describe('the Book from the v3 home says so (ctx.v3): its sticker head is the games\' word, never "Trail"', () => {
+  test('WQBOOK.open gets v3: true from the home', () => {
+    const opened = [];
+    const p = page({ hash: '#book', book: { open: (c) => opened.push(c) } }); p.mount({ ...HOME, book_on: true });
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toEqual(expect.objectContaining({ v3: true, kid: KID, lang: 'en' }));
   });
 });
 

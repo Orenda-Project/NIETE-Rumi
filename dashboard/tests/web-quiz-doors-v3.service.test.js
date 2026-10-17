@@ -430,7 +430,7 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
   const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: false } };
   // videos/start answers the watch; the library (after the card's Next) answers no subjects
   const answer = (url) => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(WATCH)), json: () => Promise.resolve(/\/lib\//.test(url) ? { grade: '3', subjects: [] } : WATCH) });
-  function watchPage({ card, wqfc }) {
+  function watchPage({ card, wqfc, watch = true }) {
     const nextEl = el();
     const t = live({ win: wqfc ? { WQFC: wqfc } : {}, fetchImpl: answer, byId: { 'wqfc-next': nextEl } });
     const holder = { removeChild: jest.fn() };
@@ -439,7 +439,7 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
     const vEl = el({ duration: 100, currentTime: 0 }); const play = el(); play.setAttribute('data-primary', '');
     const root = fakeRoot({ '.wq-vid': vEl, '.wq-vplay': play, '.wq-after': after });
     const evs = [];
-    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, ...(card ? { card_v3: true } : {}), doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]) }, `watch/${VID}`);
+    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, ...(card ? { card_v3: true } : {}), doors: { stories: [], games: [], videos: { href: '/lib/x', ...(watch ? { watch: true } : {}) } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]) }, `watch/${VID}`);
     return { ...t, root, after, holder, tile, vEl, play, nextEl, evs };
   }
   test('card_v3 + the card there: WQFC.mount(the tile holder, {kind video, deed video_watched, title, next → this page, auth {hub, kid}}); our own tile goes; its Next does what ours did', async () => {
@@ -456,6 +456,27 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
     expect(p.play.getAttribute('data-primary')).toBeNull();
     p.nextEl.fire('click');
     expect(p.location.hash).toBe('#videos');
+  });
+  test('the card and ONE next thing: the card\'s Next tile leads (lead: true), so Share is the soft secondary', async () => {
+    const mount = jest.fn(() => true);
+    const p = watchPage({ card: true, wqfc: { mount } });
+    await flush();
+    p.vEl.fire('ended');
+    expect(mount.mock.calls[0][1].lead).toBe(true);
+  });
+  test('a child with no class (the Videos door is watch-only: no teacher\'s quiz yet): the card\'s share says "Share" (plain)', async () => {
+    const mount = jest.fn(() => true);
+    const p = watchPage({ card: true, wqfc: { mount } });
+    await flush();
+    p.vEl.fire('ended');
+    expect(mount.mock.calls[0][1].plain).toBe(true);   // HUB's videos door is { watch: true } in this suite
+  });
+  test('a class child (a teacher\'s quiz played: the Videos door is not watch-only): the class words (plain false)', async () => {
+    const mount = jest.fn(() => true);
+    const p = watchPage({ card: true, wqfc: { mount }, watch: false });
+    await flush();
+    p.vEl.fire('ended');
+    expect(mount.mock.calls[0][1].plain).toBe(false);
   });
   test('GOLDEN: no card_v3 -> today\'s end (our tile shown and primary, next_shown logged), the card never asked', async () => {
     const mount = jest.fn(() => true);
@@ -703,5 +724,26 @@ describe('the screenshot pass: door screens', () => {
       expect(screens(load(), lang).videosChapters).toMatch(rx);
     }
     expect(rulesFor(ALL_CSS, /\.wq-nmin/)).toMatch(/white-space:\s*nowrap/);
+  });
+});
+
+describe('a child with a class: a video row opens the lesson page marked as coming from the Videos door', () => {
+  test('videos/start answers a class code: the lesson link carries via=videos after its key', async () => {
+    const CODE = { code: 'ABC123', k: 'kk' };
+    const answer = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(CODE)), json: () => Promise.resolve(CODE) });
+    const t = live({ fetchImpl: answer });
+    const go = jest.fn();
+    t.W.WQDOORS.mount(fakeRoot({ '.wq-vid': null }), { ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev() {}, go }, `watch/${VID}`);
+    await flush();
+    expect(go).toHaveBeenCalledWith('/q/ABC123?k=kk&via=videos', 'door_video');
+  });
+  test('a code without a key still carries the mark', async () => {
+    const CODE = { code: 'ABC123' };
+    const answer = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(CODE)), json: () => Promise.resolve(CODE) });
+    const t = live({ fetchImpl: answer });
+    const go = jest.fn();
+    t.W.WQDOORS.mount(fakeRoot({ '.wq-vid': null }), { ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev() {}, go }, `watch/${VID}`);
+    await flush();
+    expect(go).toHaveBeenCalledWith('/q/ABC123?via=videos', 'door_video');
   });
 });

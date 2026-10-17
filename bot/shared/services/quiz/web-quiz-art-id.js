@@ -6,6 +6,9 @@
  *   i  the invite  ref = the challenge code
  *   l  my class    ref = the class code, or the sharer's session
  *   s  my school   ref = the class code
+ *   t  the class link  ref = the class share code's id (a teacher's own /q/<CODE>; web-quiz-class-pic.js).
+ *                     Never a child's: no session, no challenge code, and its own letter, so no child-keyed id
+ *                     can stand in for it
  *
  * A link preview fetches the picture with no session, so the id itself is the
  * permission; the mac stops anyone making the server draw for an id it never
@@ -18,9 +21,9 @@ const crypto = require('crypto');
 const T = require('./web-quiz-token');
 
 const MAC_LEN = 12;
-const KIND_RX = /^[cils]$/;
+const KIND_RX = /^[cilst]$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ID_RX = /^([cils])\.([A-Za-z0-9_-]{4,24})\.([A-Za-z0-9_-]{12})$/;
+const ID_RX = /^([cilst])\.([A-Za-z0-9_-]{4,24})\.([A-Za-z0-9_-]{12})$/;
 
 function mac(kind, ref) {
   const key = T.secret();
@@ -41,6 +44,8 @@ function decRef(enc) {
 /** The signed id of one picture, or null when signing is off (no secret). */
 function artId(kind, ref) {
   if (!KIND_RX.test(kind) || !ref) return null;
+  // the class link's picture is keyed by a share code's id only
+  if (kind === 't' && !UUID_RX.test(String(ref))) return null;
   const m = mac(kind, String(ref));
   return m ? `${kind}.${encRef(ref)}.${m}` : null;
 }
@@ -50,6 +55,7 @@ function parseArtId(id) {
   const x = ID_RX.exec(typeof id === 'string' ? id : '');
   if (!x) return null;
   const ref = decRef(x[2]);
+  if (x[1] === 't' && !UUID_RX.test(ref)) return null;
   const want = mac(x[1], ref);
   if (!want || want.length !== x[3].length || !crypto.timingSafeEqual(Buffer.from(want), Buffer.from(x[3]))) return null;
   return { kind: x[1], ref };

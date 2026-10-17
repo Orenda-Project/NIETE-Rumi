@@ -384,9 +384,25 @@ describe('the edge\'s own error page carries ONE tap back to the chat', () => {
     expect(bad.status).toBe(502);
     expect(bad.body).toContain(`href="https://wa.me/${BOT}?text=quiz"`);
   });
+  test('before any home answer, the portal\'s own setting gives the number (digits only), so a restart never drops the tap', async () => {
+    const was = process.env.WHATSAPP_BOT_NUMBER;
+    process.env.WHATSAPP_BOT_NUMBER = `+${['1', '555', '000', '1111'].join(' ')}`;
+    try {
+      await boot({ status: 500, bytes: Buffer.from('boom') });
+      const res = await request('GET', `/quiz/teacher/${TOK}`);
+      expect(res.status).toBe(503);
+      expect(res.body).toContain(`href="https://wa.me/${BOT}?text=quiz"`);
+    } finally { if (was === undefined) delete process.env.WHATSAPP_BOT_NUMBER; else process.env.WHATSAPP_BOT_NUMBER = was; }
+  });
+
   test('no number yet, or one that is not digits: the words alone, no link', async () => {
+    const was = [process.env.WHATSAPP_BOT_NUMBER, process.env.REFERRAL_BOT_NUMBER];
+    delete process.env.WHATSAPP_BOT_NUMBER; delete process.env.REFERRAL_BOT_NUMBER;
     let answer = { status: 500, bytes: Buffer.from('boom') };
-    await boot(() => (typeof answer === "function" ? answer() : answer));
+    try { await boot(() => (typeof answer === "function" ? answer() : answer)); } finally {
+      if (was[0] !== undefined) process.env.WHATSAPP_BOT_NUMBER = was[0];
+      if (was[1] !== undefined) process.env.REFERRAL_BOT_NUMBER = was[1];
+    }
     const none = await request('GET', `/quiz/teacher/${TOK}`);
     expect(none.body).not.toContain('wa.me');
     answer = homeWith('+92 300 <script>');
