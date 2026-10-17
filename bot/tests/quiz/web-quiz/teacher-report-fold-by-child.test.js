@@ -166,3 +166,18 @@ describe('off: today\'s report, byte for byte (golden recorded on the base)', ()
     expect(fake.calls.filter((c) => c.table === 'child_phone_bindings')).toHaveLength(0);
   });
 });
+
+describe('a storybook send\'s 12 h WhatsApp report counts the children its web report counts', () => {
+  const kids = async () => (await Data.storySendChildren(F.TEACHER, F.QUIZ, F.SC, SESSIONS)).map((s) => s.id).sort();
+
+  test('on: the same typed name on two different phones is two children, as on the web report', async () => {
+    wire({ on: true, bindings: [bind(F.TYPED, 'tomb-a'), bind(TYPED2, 'tomb-b')] });
+    expect(await kids()).toEqual(['s1', 's2', 's3', 's4']);
+    expect((await Data.quizReport(F.TEACHER, F.QUIZ)).summary.played).toBe(4);
+  });
+
+  test('off: today\'s count, the same typed name is one child (the first finish)', async () => {
+    wire({ on: false, bindings: [bind(F.TYPED, 'tomb-a'), bind(TYPED2, 'tomb-b')] });
+    expect(await kids()).toEqual(['s1', 's2', 's3']);
+  });
+});

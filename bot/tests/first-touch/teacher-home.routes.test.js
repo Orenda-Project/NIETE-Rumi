@@ -42,6 +42,7 @@ const HomeToken = require('../../shared/services/first-touch/teacher-home.token'
 const { createRouter } = require('../../shared/services/first-touch/teacher-home.routes');
 const { str, fill } = require('../../shared/services/first-touch/teacher-home.strings');
 const { seedMaker, TEACHER, qid } = require('./maker-fixture');
+const { jsonPathSelect } = require('./_json-path-select');
 
 const OTHER = 'a0000000-0000-4000-8000-0000000000f2';
 const OWN_QUIZ = 'c0000000-0000-4000-8000-0000000000a1';
@@ -255,6 +256,25 @@ describe('the home after a send nobody played', () => {
     expect(home.timeline[0]).toMatchObject({ kind: 'coach', verb: 'again', id: OWN_QUIZ, sendKind: 'again', played: 0 });
   });
 
+  test('a row offers "Send again" only when the send would work: a quiz whose code has ended or has no stored message keeps its report, not the button', async () => {
+    seedSent();
+    fake.db.quiz_share_codes.find((c) => c.id === OWN_CODE).expires_at = new Date(Date.now() - 60000).toISOString();
+    await boot(deps);
+    const t = tokenFor();
+    const ended = await (await get(`/api/th/home?t=${t}`)).json();
+    expect(ended.timeline[0]).toMatchObject({ id: null, verb: null, sendKind: null });
+    expect(ended.primary.kind).not.toBe('class'); // no "No one has played — Send again" for a send that cannot be sent again
+    fake.db.quiz_share_codes.find((c) => c.id === OWN_CODE).expires_at = new Date(Date.now() + 86400000).toISOString();
+    delete fake.db.quizzes.find((q) => q.id === OWN_QUIZ).meta.student_message;
+    const nomessage = await (await get(`/api/th/home?t=${t}`)).json();
+    expect(nomessage.timeline[0]).toMatchObject({ verb: null, sendKind: null });
+    // every "Send again" the home offers is one the send answers
+    fake.db.quizzes.find((q) => q.id === OWN_QUIZ).meta.student_message = 'Class, play this quiz: https://portal.example/q/ABCDEF';
+    const live = await (await get(`/api/th/home?t=${t}`)).json();
+    expect(live.timeline[0]).toMatchObject({ verb: 'again', id: OWN_QUIZ, sendKind: 'again' });
+    expect((await post('/api/th/send', { t, kind: 'again', id: OWN_QUIZ })).status).toBe(200);
+  });
+
   test('"Send again" is refused for a quiz that is not this teacher\'s', async () => {
     seedSent({ owner: OTHER });
     await boot(deps);
@@ -353,6 +373,19 @@ describe('the confirm rows and the events', () => {
     expect(logEvent).toHaveBeenCalledWith('teacher_send', expect.objectContaining({ w: 's', kind: 'video', origin: 'library', again: false, id: qid(2) }));
   });
 
+  test('a kid key shorter than 32 bytes: the home open carries no tk and is never a first open', async () => {
+    const key = process.env.WEB_QUIZ_KID_KEY;
+    try {
+      seed();
+      await boot(deps);
+      require('../../shared/services/cache/railway-redis.service').__keys.clear();
+      process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(31);
+      await get(`/api/th/home?t=${tokenFor()}&g=4`);
+      const open = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => f);
+      expect(open).toEqual([expect.objectContaining({ tk: null, first: false })]);
+    } finally { process.env.WEB_QUIZ_KID_KEY = key; }
+  });
+
   test('a kid key shorter than 32 bytes is no key (as for the child side): tk is null; 32 bytes keys it', async () => {
     const key = process.env.WEB_QUIZ_KID_KEY;
     try {
@@ -418,11 +451,71 @@ describe('the stories shelf and the other seams', () => {
     await boot(deps);
     const t = tokenFor();
     const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
-    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories`;
+    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories?lang=en`;
     expect(deps.Stories.shelf).toHaveBeenCalledWith({ uid: TEACHER.id, grade: 3, lang: 'en' });
-    expect(home.primary).toMatchObject({ kind: 'story', id: 'b1', href: `${base}?book=b1` });
-    expect(home.library.stories.map((b) => b.href)).toEqual([`${base}?book=b1`, `${base}?book=b2`]);
+    expect(home.primary).toMatchObject({ kind: 'story', id: 'b1', href: `${base}&book=b1` });
+    expect(home.library.stories.map((b) => b.href)).toEqual([`${base}&book=b1`, `${base}&book=b2`]);
     expect(home.library.all).toBe(base);
+  });
+
+  test.each([['bi', '', 'ur'], ['bi', '&lang=en', 'en'], ['ur', '', 'ur']])('a %s token%s: every stories link carries the page\'s language (%s)', async (tl, q, want) => {
+    seed();
+    deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'Rain' }] })) };
+    await boot(deps);
+    const t = tokenFor({ lang: tl });
+    const home = await (await get(`/api/th/home?t=${t}&g=3${q}`)).json();
+    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories?lang=${want}`;
+    expect(home.library.stories.map((b) => b.href)).toEqual([`${base}&book=b1`]);
+    expect(home.library.all).toBe(base);
+    const lib = await (await get(`/api/th/library?t=${t}&g=3${q}`)).json();
+    expect(lib.stories.map((b) => b.href)).toEqual([`${base}&book=b1`]);
+  });
+
+  test('a book the teacher sent this month: the home and another grade\'s library both pick the next book and date the sent one', async () => {
+    seed();
+    const at = new Date(Date.now() - 5 * 86400000).toISOString();
+    fake.db.quizzes.push({ id: OWN_QUIZ, teacher_id: TEACHER.id, quiz_source: 'story', status: 'sent', topic: 'The Thirsty Crow', created_at: at,
+      meta: { story: { book_id: 'b1', lang: 'en' }, student_message: 'Read with Jugnu: https://portal.example/q/STORY1', share_code_id: OWN_CODE } });
+    fake.db.quiz_sessions = [];
+    deps.supabase = jsonPathSelect(supabase);
+    deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'The Thirsty Crow' }, { id: 'b2', title: 'Rain' }] })) };
+    await boot(deps);
+    const t = tokenFor();
+    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories?lang=en`;
+    const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
+    expect(home.primary).toMatchObject({ kind: 'story', id: 'b2' });
+    expect(home.library.stories).toEqual([{ id: 'b1', title: 'The Thirsty Crow', href: `${base}&book=b1`, sent: at }, { id: 'b2', title: 'Rain', href: `${base}&book=b2` }]);
+    const lib = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+    expect(lib.pick).toMatchObject({ kind: 'story', id: 'b2', href: `${base}&book=b2` });
+    expect(lib.stories).toEqual(home.library.stories);
+    expect(deps.supabase.selects.filter((x) => x.table === 'quizzes' && /story_book/.test(x.cols))).toHaveLength(2); // one per request, in playedOwn's own read
+    // the class report failing → today's library: no skip, no date
+    deps.Report = { ...require('../../shared/services/quiz/teacher-report.data'), classReport: async () => { throw new Error('report down'); } };
+    srv.close(); await boot(deps);
+    const down = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+    expect(down.pick).toMatchObject({ kind: 'story', id: 'b1' });
+    expect(down.stories.every((b) => !('sent' in b))).toBe(true);
+  });
+
+  test('a listed test phone walking as "a teacher with no lessons": another grade\'s library shows no pill either, as its home', async () => {
+    seed();
+    fake.db.users[0].phone_number = 'fixture-phone';
+    const at = new Date(Date.now() - 5 * 86400000).toISOString();
+    fake.db.quizzes.push({ id: OWN_QUIZ, teacher_id: TEACHER.id, quiz_source: 'story', status: 'sent', topic: 'The Thirsty Crow', created_at: at,
+      meta: { story: { book_id: 'b1', lang: 'en' }, student_message: 'Read with Jugnu: https://portal.example/q/STORY1', share_code_id: OWN_CODE } });
+    fake.db.quiz_sessions = [];
+    deps.supabase = jsonPathSelect(supabase);
+    deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'The Thirsty Crow' }, { id: 'b2', title: 'Rain' }] })) };
+    mockWalk.forHome = jest.fn(async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists));
+    try {
+      await boot(deps);
+      const t = tokenFor();
+      const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
+      const lib = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+      expect(home.library.stories.every((b) => !('sent' in b))).toBe(true);
+      expect(lib.stories.every((b) => !('sent' in b))).toBe(true);
+      expect(lib.pick).toMatchObject({ kind: 'story', id: 'b1' });
+    } finally { mockWalk.forHome = undefined; }
   });
 
   test('a stories module whose switch is off → no tiles, the video card is the library pick', async () => {
@@ -533,7 +626,7 @@ describe('the store and the lists when something fails', () => {
     seed();
     await boot(deps);
     const t = tokenFor();
-    R().set.mockImplementationOnce(async () => false);
+    R().set.mockImplementationOnce(async () => false).mockImplementationOnce(async () => false); // refused, and refused again
     const first = await (await get(`/api/th/home?t=${t}&g=4`)).json();
     expect(first.primary && first.primary.send).toBeFalsy();
     expect(fake.db.quiz_share_codes).toHaveLength(1);
@@ -591,6 +684,19 @@ describe('the store and the lists when something fails', () => {
     await boot(deps);
     const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
     expect(home.bot).toBe(['1555', '000', '1111'].join(''));
+  });
+
+  test('the number the page is given is the one the return line links (one source), whatever spacing the setting has', async () => {
+    const was = process.env.WHATSAPP_BOT_NUMBER;
+    process.env.WHATSAPP_BOT_NUMBER = `+${['1', '555', '000', '1111'].join(' ')}`;
+    try {
+      seed();
+      await boot(deps);
+      const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+      const link = require('../../shared/services/first-touch/teacher-home.copy').chatLink();
+      expect(home.bot).toBe(['1555', '000', '1111'].join(''));
+      expect(link).toBe(`https://wa.me/${home.bot}?text=quiz`);
+    } finally { process.env.WHATSAPP_BOT_NUMBER = was; }
   });
 });
 
