@@ -44,6 +44,7 @@ const COPY = {
   numbers: ['Play the numbers game', 'گنتی کا کھیل کھیلیں'],
   sticker: ['See your stickers', 'اپنے اسٹیکرز دیکھیں'],
   invite: ['Invite a friend', 'دوست کو بلائیں'],
+  resume: ['Finish your story', 'اپنی کہانی پوری کریں'],
 };
 const words = (k) => ({ title: COPY[k][0], title_ur: COPY[k][1] });
 // A teacher's new item: "New" (Urdu agrees with the tile's noun: کوئز is masculine, a book's کہانی feminine).
@@ -77,7 +78,8 @@ function links({ token, chip, lang, home }) {
   return {
     ch,
     stop: (ex) => (ch ? `${ch}#${ex}` : null),
-    story: (pid) => (ch ? `${ch}&room=story&pid=${encodeURIComponent(pid)}` : null),
+    // a listening story asks the story room for a listen (wq-trail.js reads &ex=listen), else it is served as a read
+    story: (pid, listen) => (ch ? `${ch}&room=story&pid=${encodeURIComponent(pid)}${listen ? '&ex=listen' : ''}` : null),
     quiz: (code, k, again) => (code ? `/q/${encodeURIComponent(code)}?${again ? 'again=1&' : ''}k=${encodeURIComponent(k || '')}` : null),
     lib: token && chip ? `/lib/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}&l=${lc}${h}` : null,
     book: token && chip ? `/h/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}${l}#book` : null,
@@ -149,10 +151,10 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
   const kindOf = new Map((collect.live || []).map((r) => [r.passage_id, r.kind]));
   (collect.unseen || []).forEach((u) => {
     const listen = kindOf.get(u.pid) === 'listen';
-    push({ kind: 'story', id: u.pid, href: L.story(u.pid), ...words(listen ? 'listen' : 'read'), ...subOf(u.title), minutes: 2, ...artOr(null, listen ? 'listen' : 'read'),
+    push({ kind: 'story', id: u.pid, href: L.story(u.pid, listen), ...words(listen ? 'listen' : 'read'), ...subOf(u.title), minutes: 2, ...artOr(null, listen ? 'listen' : 'read'),
       released_at: u.released_at, seen: false, read_aloud: !listen, ...(lantern && lantern.kind === 'story' && lantern.pid === u.pid ? { lantern: true } : {}) });
   });
-  if (collect.story && L.ch) push({ kind: 'game', id: 'numbers', href: L.ch, ...words('numbers'), minutes: 1, ...artOr(null, 'game'), ...(lantern && lantern.kind === 'numbers' ? { lantern: true } : {}) });
+  if (collect.story && L.ch) push({ kind: 'game', id: 'numbers', href: `${L.ch}#numbers`, ...words('numbers'), minutes: 1, ...artOr(null, 'game'), ...(lantern && lantern.kind === 'numbers' ? { lantern: true } : {}) });
   if (watch && out.book_on && L.book) push({ kind: 'sticker', id: 'book', href: L.book, ...words('sticker'), minutes: 1, ...artOr(null, 'sticker') });
   // the caller's own (a result's play again / invite, the stories reader's books): Jugnu's picture when they bring none
   (extra || []).forEach((c) => push(c && !c.art && JUGNU_ART[c.kind] ? { ...c, ...artOr(null, c.kind) } : c));
@@ -255,12 +257,19 @@ async function onItsWayOf(canonicalId, rawId, stops, lang, grade) {
   }
 }
 
+/** A storybook row from the shelf's module: the verb is the tile's title (a half-read book "Finish your story", else
+ *  "Listen to a story": the reader opens with Jugnu reading), the book's own title its subtitle. Other kinds as they are. */
+function titled(r) {
+  if (!r || r.kind !== 'storybook' || typeof r.title !== 'string') return r;
+  return { ...r, ...words(r.rule === 'resume' ? 'resume' : 'listen'), sub: r.title, sub_ur: r.title_ur || r.title };
+}
+
 async function storybooks(args) {
   let mod = null;
   try { mod = require('./web-quiz-storybook-next'); } catch (_) { return []; }
   try {
     const rows = typeof mod.candidates === 'function' ? await mod.candidates(args) : [];
-    return Array.isArray(rows) ? rows : [];
+    return Array.isArray(rows) ? rows.map(titled) : [];
   } catch (_) {
     return [];
   }
@@ -326,4 +335,4 @@ async function hubField({ out, token, history, collect = {}, lang, chosenId, gra
   }
 }
 
-module.exports = { candidatesOf, hubPrep, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, artOr, COPY, TAG, JUGNU_ART, HUB_DEADLINE_MS };
+module.exports = { titled, candidatesOf, hubPrep, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, artOr, COPY, TAG, JUGNU_ART, HUB_DEADLINE_MS };

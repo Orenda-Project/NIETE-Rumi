@@ -25,7 +25,9 @@ const same = (cell, v) => {
   return cell === v;
 };
 
-function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_id'], quiz_share_codes: ['code'] } } = {}) {
+// `maxRows` ({ table: n }, default none): PostgREST's max-rows — a read of that table answers at most n rows, whatever
+// range or limit it asked for, as the server does; a read that does not page past it goes red.
+function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_id'], quiz_share_codes: ['code'] }, maxRows = {} } = {}) {
   const calls = [];
   const rpcs = [];
   const table = (t) => { db[t] = db[t] || []; return db[t]; };
@@ -123,6 +125,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     }
     if (st.range) hit = hit.slice(st.range[0], st.range[1] + 1);
     if (st.limit != null) hit = hit.slice(0, st.limit);
+    if (maxRows[st.t] != null) hit = hit.slice(0, maxRows[st.t]);
     if (st.count) return { data: st.head ? null : hit, count: hit.length, error: null };
     if (st.single) return { data: hit[0] ? { ...hit[0] } : null, error: null };
     return { data: hit.map((r) => ({ ...r })), error: null };

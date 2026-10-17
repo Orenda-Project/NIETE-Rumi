@@ -178,10 +178,15 @@ async function underCap(phone, trigger, now) {
 // the shared pool above: a 9th /quiz after eight bot replies still gets its link. Only with the switch ON and only for
 // a caller that marks the reply `ownReply`; with the switch OFF that caller is capped exactly as before.
 const OWN_COUNTER = 'reply_to_own_message';
-async function ownCounterCap() {
+// web_quiz_door_uncapped ON: the answer to a quiz request (the one door's reply, a known child's Home reply) is counted
+// on the ledger as a send but neither checked against nor added to this counter — a /quiz is never silenced
+const DOOR_TRIGGERS = Object.freeze(['one_door_reply', 'home_reply']);
+const DOOR_UNCAPPED = 'door_uncapped';
+async function ownCounterCap(trigger) {
   try {
     const f = await require('../first-touch/one-door.flags').flags();
-    return f && f.on ? f.ownCap : null;
+    if (!(f && f.on)) return null;
+    return f.doorUncapped === true && DOOR_TRIGGERS.includes(trigger) ? DOOR_UNCAPPED : f.ownCap;
   } catch (_) { return null; }
 }
 
@@ -262,6 +267,7 @@ async function countCapped({ trigger, classId, initiated, recipient, now }) {
 /**
  * `ownReply: true` (a reply to the person's own message: the one /quiz reply, a JUGNU- code's answer, STOP's): with
  * quiz_one_door ON it is checked against the `reply_to_own_message` counter instead of the shared cap; OFF → as before.
+ * With web_quiz_door_uncapped ON too, a quiz request's answer (one_door_reply, home_reply) skips that counter: counted, never capped.
  * `uncapped: true` (the binder's STOP that erased a binding — a privacy action is never silent): the reply is counted
  * on the ledger as a send but neither checked against nor added to the phone's day counter, so a phone-day's bound is
  * the cap plus that one reply.
@@ -274,8 +280,8 @@ async function record({ trigger, phone = null, reason = null, classId = null, in
   }
   if (initiated === 'bot' && recipient === 'family') return false;
   if (phone) {
-    const own = ownReply && !uncapped ? await ownCounterCap() : null;
-    if (!uncapped && !(own ? await underOwnCap(phone, trigger, now, own) : await underCap(phone, trigger, now))) {
+    const own = ownReply && !uncapped ? await ownCounterCap(trigger) : null;
+    if (!uncapped && own !== DOOR_UNCAPPED && !(own ? await underOwnCap(phone, trigger, now, own) : await underCap(phone, trigger, now))) {
       await countCapped({ trigger, classId, initiated, recipient, now });
       return false;
     }

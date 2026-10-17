@@ -29,6 +29,8 @@
   var T = {
     en: {
       homeBtn: 'Home',
+      // the end with the child home on (the menu's card_fold): the home's own Next with nothing ranked (wq-home.js)
+      foldPick: 'Pick a story',
       title: function (m) { return m + "'s Challenge"; },
       pick: 'Pick one. Each one takes about 2 minutes.',
       mins: function (n) { return n + ' min'; },
@@ -84,6 +86,7 @@
     },
     ur: {
       homeBtn: 'ہوم',
+      foldPick: 'کہانی چنیں',
       title: function (m) { return m + ' کا چیلنج'; },
       pick: 'ایک چنیں۔ ہر ایک تقریباً ' + ud(2) + ' منٹ کا ہے۔',
       mins: function (n) { return ud(n) + ' منٹ'; },
@@ -424,6 +427,7 @@
     var allDone = playable.length > 0 && playable.every(function (x) { return x.badge; });
     var next = null;
     playable.forEach(function (x) { if (!next && !x.badge) next = x.id; });
+    if (TR && TR.games && TR.games()) next = null; // from the home's Next tile: the home owns "Next", the list draws none
     var stops = xs.map(function (x) {
       var wait = x.mic && micAbsent();
       var cls = x.badge ? ' wqc-gold' : (wait ? ' wqc-wait' : (x.id === next ? ' wqc-nextup' : ''));
@@ -537,6 +541,16 @@
   }
   // the end card: what was done, never a number (the stop's badge on the trail, then back)
   function g1End() {
+    // the child home on (the menu's card_fold): ONE next thing (the home's Stories door) and ONE Home row to the child's
+    // home, in place of the Back to this menu
+    if (menuData.card_fold && boot.token) {
+      var hh = '/h/' + encodeURIComponent(boot.token) + '?' + (boot.kid ? 'kid=' + encodeURIComponent(boot.kid) + '&' : '') + 'from=home';
+      show('numbers-result', '<div class="wq-g1">' + jug('celebrate', t.done, true) + medal('numbers')
+        + '<div class="wq-stack"><a class="wq-btn wq-go" id="wqc-fnext" data-primary href="' + esc(hh + '#stories') + '">' + esc(t.foldPick) + '</a>'
+        + '<a class="wq-btn wq-soft" id="wqc-fhome" data-home href="' + esc(hh) + '">' + esc(t.homeBtn) + '</a></div></div>');
+      try { var top = document.getElementById('wq-home'); if (top && top.parentNode) top.parentNode.removeChild(top); } catch (e) { /* one more Home */ }
+      return;
+    }
     show('numbers-result', '<div class="wq-g1">' + jug('celebrate', t.done, true) + medal('numbers')
       + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button></div></div>');
     on('wqc-menu', refreshMenu);
@@ -1363,6 +1377,7 @@
     // that card is still open; a child who has gone on is never pulled back to it
     if (TR) {
       if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) { if (live) live.held = false; readResult(r); return; }
+      if (TR.storySettled) TR.storySettled(r);
       liveSettle();
       return;
     }

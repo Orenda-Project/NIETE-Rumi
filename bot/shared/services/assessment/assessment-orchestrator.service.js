@@ -52,7 +52,9 @@ const ENV = globalThis.process.env;
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 const { resolveUx } = require('../../config/ux-strings');
 const Delivery = require('./assessment-delivery');
-const { isAssessmentVersionsEnabled } = require('../../config/feature-flags');
+const { isAssessmentVersionsEnabled, fdeReaderPassSubjects } = require('../../config/feature-flags');
+const { READER_SUBJECTS } = require('./fde-reader');
+const Patterns = require('./patterns');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a
@@ -227,8 +229,13 @@ async function _buildPatternPaper({ job, user, paperId }) {
     userId, requestId, grade, subject, chapterNumber, pageRanges, pattern, scope, answerLines = true,
   } = job;
   // `totalMarks` on the job is not read: the pattern's total is the paper's.
+  // The reader pass, per paper, for a subject it was built for and the setting names; the setting is
+  // never read for any other subject, so their papers are built as before.
+  const readKey = Patterns.normalise(subject);
+  const readerPass = READER_SUBJECTS.includes(readKey) && (await fdeReaderPassSubjects()).includes(readKey);
   const generated = await Generation.generatePatternExam({
     grade, subject, pattern, scope, pageRanges, chapterNumber, requestId,
+    ...(readerPass ? { readerPass: true } : {}),
     // A write per section, so the row reads as a live run. Only while it IS this run's: a paper a
     // stopping worker handed back (`queued`) is never flipped back to `generating`, or the next
     // delivery would skip it and ack its only message.

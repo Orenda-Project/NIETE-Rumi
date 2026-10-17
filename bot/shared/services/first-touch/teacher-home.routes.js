@@ -9,7 +9,8 @@
  *   GET  /api/th/home?t&g&lang           the home's JSON (teacher-home.model) with the cards that send from the page
  *                                        already carrying their class message and wa.me link (no fetch between the
  *                                        tap and the navigation); logs teacher_home_open
- *   GET  /api/th/library?t&g&lang        the library card for another grade (the grade chips)
+ *   GET  /api/th/library?t&g&lang        the library card for another grade (the grade chips); a story sent this
+ *                                        month is skipped by the pick and dated, as on the home
  *   POST /api/th/send {t, kind, id}      a row's class message: kind video (a library quiz id) | share (a library
  *                                        share code id) | again (the teacher's own quiz id) → { message, wa }
  *   POST /api/th/quiz/make {t, kind, id} "Quiz this": kind lesson (the /quiz list key) | coaching (the session id)
@@ -28,7 +29,6 @@
  * teacher_home.step. `prompted`: the page was opened from a message the bot sent (the token's door is the report);
  * `cls_k`: the keyed class of the code sent (web-quiz-kid clsOf), null when the code is not this teacher's or has none.
  */
-const crypto = require('crypto');
 const express = require('express');
 const { requireInternalKey } = require('../../middleware/require-internal-key');
 const { logToFile } = require('../../utils/logger');
@@ -40,20 +40,23 @@ const Page = require('./teacher-home.page');
 const Data = require('./teacher-home.data');
 const Model = require('./teacher-home.model');
 const Send = require('./teacher-home.send');
+const StaleWords = require('./teacher-stories-stale.flag');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const KEY_RX = /^[A-Za-z0-9_:.-]{1,200}$/;
 const ASKABLE = Object.freeze(['en', 'ur']);
 const COACH_ROLES = new Set(['coach', 'principal', 'school_leader', 'supervisor', 'aeo', 'head']);
 const asked = (v) => (ASKABLE.includes(v) ? v : null);
+// A page request: anything but a JSON-only caller (Accept names application/json and not text/html).
+const wantsPage = (req) => { const a = String((req.headers && req.headers.accept) || ''); return !/application\/json/i.test(a) || /text\/html/i.test(a); };
 const uuidIn = (v) => (typeof v === 'string' && UUID_RX.test(v) ? v : null);
 const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {});
 const optional = (path) => { try { return require(path); } catch (_) { return null; } };
-/** The bot's dialable number, digits only (10-15), or null. */
+/** The bot's dialable number, digits only, from the return line's own link (one source), or null. */
 function botDigits() {
   try {
-    const d = String(require('../quiz/video-quiz-share.service').botNumber() || '').replace(/\D/g, '');
-    return /^\d{10,15}$/.test(d) ? d : null;
+    const m = /^https:\/\/wa\.me\/(\d{10,15})\?text=quiz$/.exec(require('./teacher-home.copy').chatLink() || '');
+    return m ? m[1] : null;
   } catch (_) { return null; }
 }
 /** A first-touch module by its name in the registry (`./optional-modules`) when that is on the branch, else by its path; absent or broken → null. */
@@ -127,12 +130,9 @@ function createRouter(deps = null) {
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
   const fail = (res, status) => { headers(res); res.status(status).json({ error: 'mk.error' }); };
 
-  /** The teacher's event key: HMAC(kid key, 't|' + users.id)[:16]; null without a key of 32+ bytes (the child side's rule; never an unkeyed hash). */
-  function tkOf(uid) {
-    const k = process.env.WEB_QUIZ_KID_KEY;
-    if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
-    return crypto.createHmac('sha256', k).update(`t|${uid}`).digest('hex').slice(0, 16);
-  }
+  /** The teacher's event key, from the shared helper: null without a key of 32+ bytes. It also names the first-open mark,
+   *  so a WEB_QUIZ_KID_KEY rotation re-arms every teacher's first open. */
+  const tkOf = (uid) => require('../quiz/web-quiz-kid').tk(uid);
   function event(name, uid, fields) {
     try { logEvent(name, { w: 's', ev_v: 3, tk: tkOf(uid), ...fields }); } catch (_) { /* a failed log never decides a response */ }
   }
@@ -140,7 +140,7 @@ function createRouter(deps = null) {
   /**
    * The teacher's first open of the home ever (a year-long SET NX on the event key); false when it cannot be told. The
    * client's setNX answers true when the store is down or fails (it never blocks its callers), so a true is believed
-   * only when the key now reads back.
+   * only when the key now reads back. The key is the teacher's tk, so a rotated kid key re-arms every first open.
    */
   async function firstOpen(uid) {
     const tk = tkOf(uid);
@@ -154,9 +154,10 @@ function createRouter(deps = null) {
   async function makerOn() {
     try { return (await require('../quiz/web-quiz-identity-flags').flags()).makerPage === true; } catch (_) { return false; }
   }
-  function storiesBaseFor(token) {
+  /** The stories page for this token, in the page's own language (the stories page follows `lang`, not the token's bi). */
+  function storiesBaseFor(token, lang) {
     const S = Data.dep(deps, 'Stories');
-    return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories` : null;
+    return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories?lang=${lang === 'en' ? 'en' : 'ur'}` : null;
   }
   function cardsFor(lang) {
     const Cards = byName('cardsPage', './cards.page');
@@ -212,7 +213,7 @@ function createRouter(deps = null) {
   async function libraryFor({ p, token, lang, grade, tree, pfSubject }) {
     const [stories] = await Promise.all([Data.within(Data.storyShelf(p.uid, grade, lang, deps), Data.SIDE_BUDGET_MS, null, 'stories')]);
     const video = Data.videoPick(tree, grade, pfSubject);
-    return { stories, video, storiesBase: stories && stories.length ? storiesBaseFor(token) : null };
+    return { stories, video, storiesBase: stories && stories.length ? storiesBaseFor(token, lang) : null };
   }
   /** Adds the class message + wa.me link to a card that sends from the page; a card that cannot is dropped to null. */
   async function withSend(card, p, lang) {
@@ -267,9 +268,11 @@ function createRouter(deps = null) {
       if (on) ownSent.forEach((id) => { const u = Data.dep(deps, 'Gate').reportUrls({ teacherId: p.uid, quizId: id }); if (u) reports.set(id, { live: u.live, remind: u.remind }); });
     }
     const change = await changeLanding(user, lang);
+    // "Send again" only where the send would answer; a read that fails or runs late → offered as before (null)
+    const againable = await Data.within(Data.sendableOwn(p.uid, [...ownSent, ...played.keys()], deps), Data.SIDE_BUDGET_MS, null, 'send-again check');
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
-      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
+      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change, againable,
     });
     const walk = await walkRow(change, lang);
     if (walk) home.walk = walk;
@@ -289,9 +292,15 @@ function createRouter(deps = null) {
     if (!p) return;
     const lang = langFor(p, req);
     const grade = Data.gradeOf(req.query.g, null);
+    // the teacher's own sends (which books went out this month), read alongside the bank and the shelf; late or failed → no skip, no date
+    // (a listed walk-through phone sees the same lists here as on its home)
+    const played = Promise.all([
+      Data.within(Data.playedOwn(p.uid, deps), Data.SIDE_BUDGET_MS, new Map(), 'class report'),
+      Data.within(Data.teacherOf(p.uid, deps), Data.SIDE_BUDGET_MS, null, 'teacher'),
+    ]).then(([pl, user]) => walkLists(user, { lessons: [], played: pl, shares: [] })).then((l) => l.played);
     const tree = await Data.within(Data.dep(deps, 'Bank').chipTree(), Data.SIDE_BUDGET_MS, {}, 'video bank');
     const lib = await libraryFor({ p, token: String(req.query.t), lang, grade, tree, pfSubject: null });
-    const shaped = Model.buildHome({ grade, stories: lib.stories, video: lib.video, storiesBase: lib.storiesBase });
+    const shaped = Model.buildHome({ grade, played: await played, stories: lib.stories, video: lib.video, storiesBase: lib.storiesBase });
     const pick = shaped.primary.kind === 'story' || shaped.primary.kind === 'video' ? await withSend(shaped.primary, p, lang) : null;
     headers(res);
     res.status(200).json({ ...shaped.library, pick: pick || null });
@@ -426,6 +435,13 @@ function createRouter(deps = null) {
     let on = true;
     try { on = !Svc || typeof Svc.flagOn !== 'function' || (await Svc.flagOn()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
+    // An expired or forged link asked for as a page (quiz_teacher_stories_stale_words): the home's own stale page, as
+    // `/` and `/send` answer; a JSON caller keeps the stories router's answer.
+    if (wantsPage(req) && (await StaleWords.on())) {
+      const v = HomeToken.verifyTeacherHome(req.params.token);
+      if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
+      if (v.stale) return messagePage(res, 200, 'mk.stale', asked(req.query.lang) || (v.stale.lang === 'en' ? 'en' : 'ur'));
+    }
     return Stories.servePage(req, res, next);
   });
 

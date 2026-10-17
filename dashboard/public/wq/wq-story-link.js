@@ -6,9 +6,9 @@
   'use strict';
   var BOOK_RX = /^[0-9a-f-]{36}$/i;
   var COPY = {
-    en: { meta: 'A story to listen to and read', play: 'Open the story', playAs: function (n) { return 'Open the story as ' + n; },
+    en: { hello: 'Assalam o Alaikum! Let\'s read a story together.', meta: 'A story to listen to and read', play: 'Open the story', playAs: function (n) { return 'Open the story as ' + n; },
       forClass: 'This link opens the story for your class.' },
-    ur: { meta: 'سننے اور پڑھنے کے لیے ایک کہانی', play: 'کہانی کھولیں', playAs: function (n) { return n + '، کہانی کھولیں'; },
+    ur: { hello: 'السلام علیکم! آئیں، کہانی پڑھیں۔', meta: 'سننے اور پڑھنے کے لیے ایک کہانی', play: 'کہانی کھولیں', playAs: function (n) { return n + '، کہانی کھولیں'; },
       forClass: 'یہ لنک آپ کی کلاس کے لیے کہانی کھولتا ہے۔' },
   };
   function words(lang) { return COPY[lang === 'ur' ? 'ur' : 'en']; }
@@ -17,6 +17,7 @@
     var w = words(lang);
     var out = {};
     for (var k in T) if (Object.prototype.hasOwnProperty.call(T, k)) out[k] = T[k];
+    out.hello = w.hello;
     out.meta = function () { return w.meta; };
     out.play = w.play;
     out.playAs = w.playAs;
