@@ -81,17 +81,17 @@
       paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg') +
         (R.mode() === 'z' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
       var z = R.mode() === 'z';
-      if (z) R.camLine(c[0]);
+      // the camera frames every line of the part being read, once, and holds still while the child reads (a line's own
+      // zoom would push the longer lines off the edge)
+      if (z) { var LN = R.lines(), bs = [], seen = {}; for (var i = c[0]; i <= c[1]; i++) { var n = LN.of[i]; if (n != null && !seen[n]) { seen[n] = 1; bs = bs.concat(LN.l[n].bs); } } R.camTo(bs); }
       var ws = p.words.slice(c[0], c[1] + 1), sw = spoken(ws);
       // the live reader is asked only the spoken words; its marks come back on the page's own word numbers
       var back = function (r) { var k = 0, mk = (r = r || {}).marks || []; r.marks = ws.map(function (w) { return w.silent ? 'silent' : mk[k++]; }); result(r); };
       if (!sw.length) return back({ words_total: 0 });
       try { lrOn(sw, back); } catch (e) { m.denied(); return; }
       R.poll = C.set(function tick() {
-        var v = R.lr && R.lr.view && R.lr.view(), g = root.querySelector('[data-jg]'), k = 0, ss = (v && v.states) || [];
+        var v = R.lr && R.lr.view && R.lr.view(), g = root.querySelector('[data-jg]');
         if (v && g && LR.glowLevel) g.className = 'wqs-jg wqs-g' + LR.glowLevel(v);
-        while (k < ss.length - 1 && /read|heard|skipped/.test(ss[k])) k++;
-        if (z && ss.length) R.camLine(c[0] + k);
         if (R.lr) R.poll = C.set(tick, 500);
       }, 500);
     }

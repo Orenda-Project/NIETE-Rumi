@@ -507,6 +507,25 @@ describe('the reader', () => {
     expect(primaries(root.innerHTML)).toBe(0);
     expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
   });
+  test('Your turn on a zoomed page: the camera frames ALL the lines being read and holds still (a short line never zooms the long ones off the edge)', async () => {
+    const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({ id: 'stream' });
+    expect(screenOf(root.innerHTML)).toBe('story-read');
+    const cam = root.querySelector('[data-cam]');
+    const t0 = cam.style.transform;
+    const s0 = Number((/scale\(([\d.]+)\)/.exec(t0) || [])[1]);
+    expect(s0 * 500).toBeLessThanOrEqual(360);   // the long line fits the stage (360 px in this page)
+    e.calls.lr[0].view = () => ({ states: ['read', 'read', 'read', 'current', 'ahead'] });   // the child reaches the short line
+    e.advance(1000);
+    expect(cam.style.transform).toBe(t0);
+  });
+  test('Your turn: the word to read next is outlined, never covered (the current box is see-through)', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    const rule = (/\.wqs-cam \.lr-box\.lr-current\{([^}]*)\}/.exec(css) || [])[1] || '';
+    expect(rule).toMatch(/outline:3px solid #15803D/);
+    expect(rule).toMatch(/background:(transparent|rgba\([^)]*,\s*0?\.\d+\))/);
+  });
   test('Your turn: reading with "I\'m done ✓" from the first render', async () => {
     const e = env(); const root = await openReader(e);
     toMic(e, root);
@@ -1031,7 +1050,8 @@ describe('the reader zooms to the printed line', () => {
     fire(root, 'main'); fire(root, 'mic'); e.calls.ask[0].onStream({});
     const r = root.innerHTML;
     expect(r).toMatch(/data-cam[^>]*><div class="wqs-lr" data-lr><\/div>/);
-    expect(root.querySelector('[data-cam]').style.transform).toBe('translate(-67.5px,-874.5px) scale(1.5)');
+    // Your turn frames both lines of the page at once (not line 1 at the zoom cap), so no line runs off the stage
+    expect(root.querySelector('[data-cam]').style.transform).toBe('translate(-97.1px,-580.7px) scale(1.108)');
     checkScreen(r, 'en');
   });
   test('print too small to zoom + a text band (boxed page): OUR crop over the print region and a tight mark on it; no band to the player', async () => {

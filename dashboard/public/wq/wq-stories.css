@@ -44,7 +44,7 @@
 .wqs-cam [data-ra]~.wqs-lr{position:absolute;left:0;top:0;width:100%;z-index:1}
 .wqs-cam .lr-box.lr-read,.wqs-cam .lr-box.lr-heard{background:linear-gradient(transparent 78%,rgba(21,128,61,.85) 78%);border-radius:3px;box-shadow:none}
 .wqs-cam .lr-box.lr-skipped{background:none;box-shadow:none;border-bottom:5px dashed #E65100;border-radius:0}
-.wqs-cam .lr-box.lr-cur,.wqs-cam .lr-box.lr-current{background:#BBF7D0;outline:3px solid #15803D;border-radius:8px}
+.wqs-cam .lr-box.lr-cur,.wqs-cam .lr-box.lr-current{background:rgba(187,247,208,.3);outline:3px solid #15803D;border-radius:8px}
 .wqs-cam .lr,.wqs-cam .lr-ov{margin:0;padding:0}
 .wqs-whole{position:absolute;top:8px;right:8px;z-index:3;min-height:48px;border-radius:22px;padding:0 12px;background:rgba(255,255,255,.92);font-weight:700;box-shadow:0 2px 0 var(--line)}
 .wqs-whole[aria-pressed=true]{background:#ffe26b}
