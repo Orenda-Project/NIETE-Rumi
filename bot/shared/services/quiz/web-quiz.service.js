@@ -627,6 +627,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
   // A lesson video under app_settings web_quiz_videos_v3: the page opened from the child home's Videos door puts the play first (named only when on).
   if (video && video.url && await require('./web-quiz-library-flag').videosV3On()) out.videos_v3 = true;
+  // A class link on a phone that holds a child asks "Is it <First>?" first (web-quiz-link-known.js): named only when on.
+  if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
@@ -896,12 +898,13 @@ async function countJoin(shareCodeId) {
 }
 
 /** E3, timed: one web_quiz.session_timing line per call (path, steps, total). */
-function startSession(body = {}) {
+// opts.device: the phone's own wq_dv (x-wq-device), for the reads that name a child this phone holds — never the body.
+function startSession(body = {}, opts = {}) {
   const path = body.p ? 'preview' : body.roll != null ? 'roll' : body.chip ? 'chip' : body.from_st ? 'from_st' : body.new ? 'new' : 'other';
-  return Steps.run('session', { path, ...(body.resume_st ? { resume: 1 } : {}) }, (mark) => startSessionTimed(body, mark));
+  return Steps.run('session', { path, ...(body.resume_st ? { resume: 1 } : {}) }, (mark) => startSessionTimed(body, mark, opts));
 }
 
-async function startSessionTimed(body = {}, mark = () => {}) {
+async function startSessionTimed(body = {}, mark = () => {}, { device = null } = {}) {
   requireOn();
   const fast = Fast.on();
   const ctx = await resolveCode(body.code);
@@ -970,6 +973,11 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   } else if (body.chip && body.via === 'hub' && (found = await hubChipKid(ctx, String(body.chip), body.device_ref))) {
     // A hub link on the phone the hub trusted: the child is one of that phone's own, however long ago they
     // last played (the teacher's recent-player chips below only reach the 40 newest players).
+    student = found;
+    found = null;
+  } else if (body.chip && body.via === 'known' && (found = await require('./web-quiz-link-known').kidFor(ctx, String(body.chip), device))) {
+    // "Is it <First>?" on a class link (web_quiz_link_known_child): a child this browser holds, as the one id they
+    // are known by, so the finish reaches the home `/quiz` opens and no second child is made.
     student = found;
     found = null;
   } else if (body.chip) {
@@ -2238,6 +2246,8 @@ async function media(code, qid, { k, z } = {}) {
 
 module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media, _resetQuizCache: () => quizMediaCache.clear(),
+  // the children this browser holds, for a class link's "Is it <First>?" (web-quiz-link-known.js)
+  knownKids: (body = {}, { device = null } = {}) => require('./web-quiz-link-known').known(body, resolveCode, { device }),
   // exported for tests and the router
   WqError, rankRows, cleanEvent, NAME_PROPS, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
