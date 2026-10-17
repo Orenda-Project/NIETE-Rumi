@@ -725,9 +725,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       const text = await res.text();
       let json = null;
       try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
-      // The bot's step timings (hub answer): `st`; and `stOn` when the page-beacon switch (web_quiz_server_timing) is on.
-      const stOn = st && res.headers.get('x-wq-st') === '1';
-      return { status: res.status, body: json, location, ...(st ? { st } : {}), ...(stOn ? { stOn: true } : {}) };
+      // The bot's step timings (its hub answer, only with web_quiz_server_timing on): `st`. Off: today's result.
+      return { status: res.status, body: json, location, ...(st ? { st } : {}) };
     } catch (err) {
       const timedOut = Boolean(controller && controller.signal.aborted);
       record(method, where, t0, timedOut ? { outcome: 'timeout' }
@@ -1040,11 +1039,17 @@ function createWebQuizRouter(opts = {}) {
       lastFast = out.body.fast === true;
       learnMedia(out.body);
       const payload = hubBootPayload(out.body, req);
-      // web_quiz_server_timing on (the bot says so): the bot's step timings ride the tail's boot JSON for the page's beacon.
-      if (flush) return wire.page(withBotMark(renderHubFlushTail({ guess: flush.guess, payload: out.stOn ? { ...payload, st: out.st } : payload, token, origin, assetV: version() }), res.locals.wqBotMs));
-      // Headers not sent yet: the bot's step timings go to the browser beside our own.
-      if (out.st && !res.headersSent) res.set('Server-Timing', [res.get('Server-Timing'), out.st].filter(Boolean).join(', '));
-      return res.status(200).type('html').send(renderHubPage({ payload, token, origin, assetV: version(), media: mediaIfFast() }));
+      // Step timings (web_quiz_server_timing on: the bot's answer carried them). The flushed page's headers went before
+      // the bot answered, so the timings ride the tail's boot JSON (`st`, sent by the home's home_view beacon); a page
+      // whose headers have not gone yet says them as Server-Timing, beside the bot's wait and this page's render.
+      // Off: no `st`, and the page and its headers are today's.
+      if (flush) return wire.page(withBotMark(renderHubFlushTail({ guess: flush.guess, payload: out.st ? { ...payload, st: out.st } : payload, token, origin, assetV: version() }), res.locals.wqBotMs));
+      if (!out.st) return res.status(200).type('html').send(renderHubPage({ payload, token, origin, assetV: version(), media: mediaIfFast() }));
+      const r0 = process.hrtime.bigint();
+      const html = renderHubPage({ payload, token, origin, assetV: version(), media: mediaIfFast() });
+      const renderMs = Math.round(Number(process.hrtime.bigint() - r0) / 1e6);
+      if (!res.headersSent) res.set('Server-Timing', [res.get('Server-Timing') || `bot;dur=${res.locals.wqBotMs}`, out.st, `render;dur=${renderMs}`].join(', '));
+      return res.status(200).type('html').send(html);
     }
     if (out.status === 401) return closed(401, 'hub');
     return closed(out.status === 503 ? 503 : 502, 'off');

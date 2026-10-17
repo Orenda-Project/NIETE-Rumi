@@ -2,7 +2,8 @@
 /**
  * The bot's internal hub answer (GET /api/internal/wq/hub/:token) names its own step timings in a Server-Timing header:
  * one `name;dur=<ms>` per awaited step of the build. A header only: the JSON body is byte for byte the hub's own.
- * `x-wq-st: 1` rides along only while app_settings web_quiz_server_timing is on (the edge then puts the timing in the page).
+ * Only while app_settings web_quiz_server_timing is the JSON boolean true; off (absent, false, 'true', '"true"', 1, a failed
+ * read): no stopwatch, no header, the answer byte for byte today's, and no settings read beyond the switch's own key.
  * Supabase and Redis are the boundaries and are faked; every first-party module on the path runs for real.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
@@ -35,6 +36,7 @@ const ago = (h) => new Date(NOW - h * 3600000).toISOString();
 const ahead = (h) => new Date(NOW + h * 3600000).toISOString();
 const DEV = 'AAAAAAAAAAAAAAAAAAAAAA';
 const ON = (k) => ({ key: k, value: 'true' });
+const ST_KEY = 'web_quiz_server_timing';
 const BASE = [ON('web_quiz_hub'), ON('web_quiz_challenge'), ON('web_quiz_library')];
 
 function seed(settings) {
@@ -51,7 +53,20 @@ function seed(settings) {
   Hub._resetCache(); Play._resetCache();
   require('../../../shared/services/quiz/web-quiz-server-timing')._reset();
   redis._store.clear();
+  // every app_settings read, and the keys it asked for (eq or in)
+  reads.length = 0;
+  const from = supabase.from;
+  supabase.from = (t) => {
+    const b = from(t);
+    if (t !== 'app_settings') return b;
+    const r = { keys: [] }; reads.push(r);
+    const eq = b.eq; const inn = b.in;
+    b.eq = (c, v) => { if (c === 'key') r.keys.push(v); return eq.call(b, c, v); };
+    b.in = (c, v) => { if (c === 'key') r.keys.push(...v); return inn.call(b, c, v); };
+    return b;
+  };
 }
+const reads = [];
 
 let server; let base;
 beforeAll(async () => {
@@ -67,51 +82,103 @@ beforeAll(async () => {
 afterAll(() => new Promise((r) => server.close(r)));
 beforeEach(() => { jest.clearAllMocks(); seed(BASE); });
 
+const Timing = require('../../../shared/services/quiz/web-quiz-server-timing');
 const KEY = { 'x-api-key': 'route-key', 'x-wq-device': DEV };
-const getHub = async () => { const r = await fetch(`${base}/hub/${T.signHub([KID])}`, { headers: KEY }); return { r, text: await r.text() }; };
-const ITEM = /^[a-z]+;dur=\d+(\.\d+)?$/;
+const getHub = async (headers = KEY) => { const r = await fetch(`${base}/hub/${T.signHub([KID])}`, { headers }); return { r, text: await r.text() }; };
+const ITEM = /^[a-z]+;dur=\d+$/;
 const tick = () => new Promise((r) => setTimeout(r, 20));
+// the switch read once (as a warm process has it), then one hub answer whose settings reads are counted
+const warmHub = async () => { await getHub(); await tick(); await getHub(); await tick(); reads.length = 0; const out = await getHub(); await tick(); return out; };
+// the library link's token carries its expiry second: a run that crosses a second signs it anew
+const norm = (t) => t.replace(/\/lib\/[A-Za-z0-9_.-]+\?/g, '/lib/T?');
+const ownReads = () => reads.filter((r) => r.keys.includes(ST_KEY)).length;
+const withSwitch = (value) => seed([...BASE, { key: ST_KEY, value }]);
 
-describe('Server-Timing on the internal hub answer', () => {
-  test('one name;dur= per awaited step, fixed short names, total last', async () => {
-    const { r } = await getHub();
+// The hub's settings reads on a warm answer with the switch off (recorded on this tree): the OFF constant.
+const OFF_READS = 0;
+const CEILING = 6;
+
+describe('off: no stopwatch, no header, today\'s bytes, no extra settings read', () => {
+  test('absent: no Server-Timing; the body is the hub\'s own JSON; reads == the OFF constant', async () => {
+    const { r, text } = await warmHub();
     expect(r.status).toBe(200);
-    const items = String(r.headers.get('server-timing')).split(', ');
+    expect(r.headers.get('server-timing')).toBeNull();
+    expect(reads.length).toBe(OFF_READS);
+    seed(BASE);
+    expect(norm(text)).toBe(norm(JSON.stringify(await Hub.hub(T.signHub([KID]), { device: DEV }))));
+  });
+
+  test.each([[false], ['true'], ['"true"'], [1], [{ on: true }]])('value %p is off (only the JSON boolean true is on)', async (v) => {
+    withSwitch(v);
+    const { r } = await warmHub();
+    expect(r.headers.get('server-timing')).toBeNull();
+  });
+
+  test('the settings read fails: off, and no header', async () => {
+    const from = supabase.from;
+    supabase.from = (t) => { if (t === 'app_settings') throw new Error('down'); return from(t); };
+    try {
+      Timing.on(); await tick();
+      expect(Timing.on()).toBe(false);
+      expect((await getHub()).r.headers.get('server-timing')).toBeNull();
+    } finally { supabase.from = from; }
+  });
+});
+
+describe('on (JSON true): Server-Timing on the internal hub answer', () => {
+  test('one name;dur= per awaited step, fixed short names, total last, no child data', async () => {
+    withSwitch(true);
+    const { r } = await warmHub();
+    const v = String(r.headers.get('server-timing'));
+    const items = v.split(', ');
     expect(items.every((i) => ITEM.test(i))).toBe(true);
     const names = items.map((i) => i.split(';')[0]);
     expect(names).toEqual(expect.arrayContaining(['ui', 'gate', 'kids', 'ctx', 'take', 'teacher', 'recs', 'play', 'home', 'tail', 'total']));
     expect(names[names.length - 1]).toBe('total');
     expect(new Set(names).size).toBe(names.length);
-    expect(String(r.headers.get('server-timing')).length).toBeLessThan(200);
+    expect(v.length).toBeLessThan(200);
+    expect(v).not.toMatch(/Zara|زارا|4444|5555|1111|MATH01|q-1/);
   });
 
-  test('a locked or refused hub still says what it spent', async () => {
-    await getHub(); // binds the link to DEV
-    const r = await fetch(`${base}/hub/${T.signHub([KID])}`, { headers: { ...KEY, 'x-wq-device': 'BBBBBBBBBBBBBBBBBBBBBB' } });
-    expect((await r.json()).locked).toBe(true);
-    expect(String(r.headers.get('server-timing'))).toMatch(/total;dur=\d+/);
-  });
-
-  test('GOLDEN: the JSON body is byte for byte the hub\'s own (no stopwatch)', async () => {
-    const { text } = await getHub();
+  test('three asserts: OFF == constant; ON <= OFF + the switch\'s own key; ON <= ceiling', async () => {
     seed(BASE);
-    const direct = await Hub.hub(T.signHub([KID]), { device: DEV });
-    expect(text).toBe(JSON.stringify(direct));
+    await warmHub();
+    const off = reads.length;
+    withSwitch(true);
+    const { r } = await warmHub();
+    expect(r.headers.get('server-timing')).toMatch(/total;dur=\d+$/);
+    const on = reads.length;
+    expect(off).toBe(OFF_READS);
+    expect(on).toBeLessThanOrEqual(off + ownReads());
+    expect(on).toBeLessThanOrEqual(CEILING);
+  });
+
+  test('GOLDEN: the JSON body is byte for byte the off answer', async () => {
+    const off = (await warmHub()).text;
+    withSwitch(true);
+    const { r, text } = await warmHub();
+    expect(r.headers.get('server-timing')).not.toBeNull();
+    expect(norm(text)).toBe(norm(off));
     expect(text).not.toMatch(/dur=|"st"/);
   });
 
+  test('a locked hub (another phone) still says what it spent', async () => {
+    withSwitch(true);
+    await warmHub(); // binds the link to DEV
+    const { r, text } = await getHub({ ...KEY, 'x-wq-device': 'BBBBBBBBBBBBBBBBBBBBBB' });
+    expect(JSON.parse(text).locked).toBe(true);
+    expect(String(r.headers.get('server-timing'))).toMatch(/total;dur=\d+$/);
+  });
+
   test('the stopwatch changes no key of the payload (hub with and without opts.st)', async () => {
-    const Timing = require('../../../shared/services/quiz/web-quiz-server-timing');
-    seed(BASE);
     const a = await Hub.hub(T.signHub([KID]), { device: DEV });
     seed(BASE);
     const b = await Hub.hub(T.signHub([KID]), { device: DEV, st: Timing.steps() });
-    expect(JSON.stringify(b)).toBe(JSON.stringify(a));
+    expect(norm(JSON.stringify(b))).toBe(norm(JSON.stringify(a)));
   });
 
   test('costs under 0.1 ms per hub call (every mark of a build, plus the header)', () => {
-    const Timing = require('../../../shared/services/quiz/web-quiz-server-timing');
-    const names = ['ui', 'gate', 'gate', 'kids', 'ctx', 'take', 'teacher', 'recs', 'play', 'home', 'rest', 'tail'];
+    const names = ['ui', 'gate', 'gate', 'kids', 'ctx', 'take', 'teacher', 'recs', 'play', 'home', 'other', 'tail'];
     const N = 20000;
     const t0 = process.hrtime.bigint();
     for (let i = 0; i < N; i += 1) { const st = Timing.steps(); names.forEach((n) => st.mark(n)); st.header(); }
@@ -119,41 +186,6 @@ describe('Server-Timing on the internal hub answer', () => {
     // eslint-disable-next-line no-console
     console.log(`server-timing instrumentation: ${perCallMs.toFixed(5)} ms per hub call`);
     expect(perCallMs).toBeLessThan(0.1);
-  });
-});
-
-describe('x-wq-st: the page-beacon switch (web_quiz_server_timing)', () => {
-  test('absent or false: no x-wq-st', async () => {
-    const Timing = require('../../../shared/services/quiz/web-quiz-server-timing');
-    Timing.on(); await tick();
-    expect((await getHub()).r.headers.get('x-wq-st')).toBeNull();
-    seed([...BASE, { key: 'web_quiz_server_timing', value: 'false' }]);
-    Timing.on(); await tick();
-    expect((await getHub()).r.headers.get('x-wq-st')).toBeNull();
-    seed([...BASE, { key: 'web_quiz_server_timing', value: '"true"' }]);
-    Timing.on(); await tick();
-    expect((await getHub()).r.headers.get('x-wq-st')).toBeNull();
-  });
-
-  test('on (JSON true): x-wq-st: 1, and the body is the same bytes', async () => {
-    const off = (await getHub()).text;
-    seed([...BASE, { key: 'web_quiz_server_timing', value: 'true' }]);
-    const Timing = require('../../../shared/services/quiz/web-quiz-server-timing');
-    Timing.on(); await tick();
-    const { r, text } = await getHub();
-    expect(r.headers.get('x-wq-st')).toBe('1');
-    expect(text).toBe(off);
-  });
-
-  test('the settings read fails: off', async () => {
-    seed(BASE);
-    const from = supabase.from;
-    supabase.from = (t) => { if (t === 'app_settings') throw new Error('down'); return from(t); };
-    try {
-      const Timing = require('../../../shared/services/quiz/web-quiz-server-timing');
-      Timing.on(); await tick();
-      expect(Timing.on()).toBe(false);
-    } finally { supabase.from = from; }
   });
 });
 

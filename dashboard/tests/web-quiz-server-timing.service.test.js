@@ -1,9 +1,11 @@
 /**
- * The bot's step timings (Server-Timing on its internal hub answer) at the edge.
+ * The bot's step timings (Server-Timing on its internal hub answer, sent only with app_settings web_quiz_server_timing
+ * on) at the edge:
  *  - the bot client puts them on its slow-call log line (sanitized: only `name;dur=<ms>` items, 200 characters at most);
- *  - on a hub page whose headers have not gone yet (fast switch off, nf=1) they are forwarded to the browser: a header only;
- *  - on the flushed page (headers gone before the bot answers) no header is added and the body bytes are today's;
- *  - app_settings web_quiz_server_timing on (the bot says so, x-wq-st: 1): the flushed tail's boot JSON carries one `st`.
+ *  - on a hub page whose headers have not gone yet (fast switch off, nf=1) they are forwarded to the browser beside the
+ *    bot's wait and the page's render: a header only, the body today's bytes;
+ *  - on the flushed page (headers gone before the bot answers) the tail's boot JSON carries one `st` for the beacon;
+ *  - off (the bot sent no timing): no header, no `st`, every page byte for byte today's.
  * The bot is the network boundary (a fake fetch). No first-party module is mocked.
  */
 const http = require('http');
@@ -58,7 +60,6 @@ describe('the bot client: step timings on the log line', () => {
     const out = await slowClient({ 'server-timing': ST }, logged)('GET', '/api/internal/wq/hub/abc', rq);
     expect(calls(logged)).toEqual([expect.objectContaining({ outcome: 'slow', st: ST })]);
     expect(out.st).toBe(ST);
-    expect(out.stOn).toBeUndefined();
   });
 
   test('only name;dur= items survive, at most 200 characters', async () => {
@@ -80,50 +81,47 @@ describe('the bot client: step timings on the log line', () => {
     expect(Object.keys(out).sort()).toEqual(['body', 'location', 'status']);
   });
 
-  test('x-wq-st: 1 (the page-beacon switch is on) is carried as stOn', async () => {
-    const out = await slowClient({ 'server-timing': ST, 'x-wq-st': '1' }, [])('GET', '/api/internal/wq/hub/abc', rq);
-    expect(out.stOn).toBe(true);
-  });
 });
 
 describe('GET /h/:token', () => {
   let srv;
   afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
-  test('fast off (headers not sent yet): the bot\'s timings go to the browser as Server-Timing; the body is today\'s bytes', async () => {
+  test('fast off (headers not sent yet): bot wait, the bot\'s steps and the render go to the browser; the body is today\'s bytes', async () => {
     const { app } = build([jsonRes(200, HUB(), { 'server-timing': ST }), jsonRes(200, HUB())]);
     srv = await start(app);
     const a = await get(srv, `/h/${TOKEN}`);
     const b = await get(srv, `/h/${TOKEN}`);
-    expect(a.headers['server-timing']).toBe(ST);
+    expect(a.headers['server-timing']).toMatch(new RegExp(`^bot;dur=\\d+, ${ST}, render;dur=\\d+$`));
     expect(b.headers['server-timing']).toBeUndefined();
     expect(a.body).toBe(b.body);
     expect(a.body).toBe(renderHubPage({ payload: HUB(), token: TOKEN, origin: 'http://portal.example', assetV: verOf(a.body) }));
   });
 
   test('fast on, nf=1: beside the portal\'s own bot;dur=, and no st in the page', async () => {
-    const { app } = build([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true }), { 'server-timing': ST, 'x-wq-st': '1' })]);
+    const { app } = build([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true }), { 'server-timing': ST })]);
     srv = await start(app);
     await get(srv, `/h/${TOKEN}`);
     const res = await get(srv, `/h/${TOKEN}?nf=1`);
-    expect(res.headers['server-timing']).toMatch(/^bot;dur=\d+, ui;dur=5, gate;dur=40/);
+    expect(res.headers['server-timing']).toMatch(/^bot;dur=\d+, ui;dur=5, gate;dur=40.*, total;dur=3600, render;dur=\d+$/);
     expect(res.body).not.toMatch(/"st"/);
   });
 
-  test('flushed page, key off: no Server-Timing header at all, and the body is the same bytes with or without the bot\'s timing', async () => {
-    const { app } = build([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true }), { 'server-timing': ST }), jsonRes(200, HUB({ fast: true }))]);
+  test('flushed page, off (the bot sent no timing): no Server-Timing header, no st, today\'s bytes', async () => {
+    const { app } = build([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true }))]);
     srv = await start(app);
     await get(srv, `/h/${TOKEN}`);
-    const withSt = await get(srv, `/h/${TOKEN}`);
-    const without = await get(srv, `/h/${TOKEN}`);
-    expect(withSt.headers['server-timing']).toBeUndefined();
-    const bare = (b) => b.replace(/<script>performance\.mark\("wq-bot",\{detail:\d+\}\)<\/script>\n/, '');
-    expect(bare(withSt.body)).toBe(bare(without.body));
-    expect(withSt.body).not.toMatch(/"st"|dur=/);
+    const a = await get(srv, `/h/${TOKEN}`);
+    const b = await get(srv, `/h/${TOKEN}`);
+    expect(a.headers['server-timing']).toBeUndefined();
+    const bare = (x) => x.replace(/<script>performance\.mark\("wq-bot",\{detail:\d+\}\)<\/script>\n/, '');
+    expect(bare(a.body)).toBe(bare(b.body));
+    expect(a.body).not.toMatch(/"st"|dur=/);
+    expect(boot(a.body)).not.toHaveProperty('st');
   });
 
   test('flushed page, key on: one st in the tail\'s boot JSON, nothing else changes', async () => {
-    const { app } = build([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true }), { 'server-timing': ST, 'x-wq-st': '1' }), jsonRes(200, HUB({ fast: true }))]);
+    const { app } = build([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true }), { 'server-timing': ST }), jsonRes(200, HUB({ fast: true }))]);
     srv = await start(app);
     await get(srv, `/h/${TOKEN}`);
     const on = await get(srv, `/h/${TOKEN}`);
@@ -136,7 +134,7 @@ describe('GET /h/:token', () => {
   });
 
   test('flushed page, key on but the timing is not clean: nothing but clean items reaches the page', async () => {
-    const { app } = build([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true }), { 'server-timing': `gate;dur=4, </script><b>;dur=1, x;desc="y"`, 'x-wq-st': '1' })]);
+    const { app } = build([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true }), { 'server-timing': `gate;dur=4, </script><b>;dur=1, x;desc="y"` })]);
     srv = await start(app);
     await get(srv, `/h/${TOKEN}`);
     const res = await get(srv, `/h/${TOKEN}`);

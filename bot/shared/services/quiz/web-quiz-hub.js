@@ -709,7 +709,7 @@ async function hub(token, opts = {}) {
   // Fast first page: the hub switches (the read-along preview's among them) are read beside the payload, like `rt`.
   const flagsP = fast ? require('./web-quiz-fast').early(Flags.flags()) : null;
   const out = await hubPayload(token, opts);
-  if (opts.st) opts.st.mark('rest');
+  if (opts.st) opts.st.mark('other');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
   const listen = !out.locked && (await (flagsP || Flags.flags())).readalong;
