@@ -239,8 +239,19 @@ async function libHub(token, { kid, g, s, l, device, fetchImpl } = {}) {
 const THUMB_PATH = (vid) => `/wq/vt/${vid}.webp?v=${require('./web-quiz-video-thumb').VERSION}`;
 async function shelfOf(out, rootId) {
   for (const c of out.chapters) for (const v of c.videos) if (v.poster) v.thumb = THUMB_PATH(v.vid);
-  out.quiz = Boolean(rootId || (await require('./web-quiz-videos').watchRoot()));
+  out.quiz = Boolean(rootId || (await shelfRoot()));
   return out;
+}
+// The watch root for the shelves' Quiz buttons, held 30 s: one read per Videos open, not one per subject's shelf (the
+// quiz itself is made on the tap with a fresh read).
+const ROOT_HOLD_MS = 30 * 1000;
+let rootHeld = null;
+async function shelfRoot() {
+  const now = Date.now();
+  if (rootHeld && now - rootHeld.at < ROOT_HOLD_MS) return rootHeld.v;
+  const v = await require('./web-quiz-videos').watchRoot();
+  rootHeld = { at: now, v };
+  return v;
 }
 
 /**
@@ -299,6 +310,6 @@ async function download(code, { st, vid } = {}) {
 module.exports = {
   lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY, nextLesson, lessonOrder, THUMB_PATH,
   inLanguage,
-  _reset: () => { require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
+  _reset: () => { rootHeld = null; require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
   _idle: () => require('./web-quiz-bank')._idle(),
 };

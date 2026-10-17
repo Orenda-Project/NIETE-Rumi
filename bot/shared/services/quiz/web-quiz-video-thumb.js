@@ -6,7 +6,7 @@
  * 160 px card), at most MAX_BYTES, and kept in memory; the edge keeps it too, so a phone's second visit and the next
  * child's never reach here. Only a lesson the library lists (the bank) has one; nothing is written to storage.
  * Null when the switch is off, the lesson is not in the bank, it has no poster, or anything fails (the page then shows
- * the full poster, then a plain tile).
+ * the full poster, then a plain tile); a lesson found with no picture is remembered as such for NONE_MS.
  */
 const { logToFile } = require('../../utils/logger');
 
@@ -18,7 +18,10 @@ const H = 180;
 const MAX_BYTES = 20 * 1024;
 const QUALITIES = [55, 40, 28];
 const KEEP_MAX = 600;
-const kept = new Map();       // vid -> { bytes, contentType }
+const NONE_MS = 10 * 60 * 1000; // a lesson with no poster is not asked of storage again for 10 minutes
+let keepMax = KEEP_MAX;
+const kept = new Map();       // vid -> { bytes, contentType }, least recently shown first
+const none = new Map();       // vid -> when it was found to have no picture
 const inFlight = new Map();   // vid -> Promise
 
 async function draw(vid) {
@@ -43,20 +46,24 @@ async function draw(vid) {
 async function thumb(vid) {
   if (!(await require('./web-quiz-library-flag').videoShelfOn())) return null;
   const id = String(vid || '').toLowerCase();
-  if (kept.has(id)) return kept.get(id);
+  if (kept.has(id)) { const pic = kept.get(id); kept.delete(id); kept.set(id, pic); return pic; }
+  if (none.has(id)) { if (Date.now() - none.get(id) < NONE_MS) return null; none.delete(id); }
   if (inFlight.has(id)) return inFlight.get(id);
+  const miss = () => { if (none.size >= keepMax) none.delete(none.keys().next().value); none.set(id, Date.now()); return null; };
   const p = draw(id).then((pic) => {
-    if (pic) {
-      if (kept.size >= KEEP_MAX) kept.delete(kept.keys().next().value);
-      kept.set(id, pic);
-    }
+    if (!pic) return miss();
+    if (kept.size >= keepMax) kept.delete(kept.keys().next().value);
+    kept.set(id, pic);
     return pic;
   }, (err) => {
     logToFile('⚠️ web quiz video thumb: not drawn', { error: err.message });
-    return null;
+    return miss();
   }).finally(() => inFlight.delete(id));
   inFlight.set(id, p);
   return p;
 }
 
-module.exports = { thumb, VERSION, W, H, MAX_BYTES, _reset: () => { kept.clear(); inFlight.clear(); } };
+// True when this lesson was just found to have no picture (the internal route then says no_picture, which may be kept).
+function noPicture(vid) { const at = none.get(String(vid || '').toLowerCase()); return at != null && Date.now() - at < NONE_MS; }
+
+module.exports = { thumb, noPicture, VERSION, W, H, MAX_BYTES, NONE_MS, _reset: (max) => { kept.clear(); none.clear(); inFlight.clear(); keepMax = max || KEEP_MAX; } };
