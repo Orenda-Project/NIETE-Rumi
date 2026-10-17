@@ -1129,7 +1129,13 @@ const POINTS_IN = 0.5;
 const PLACEHOLDER_WORDS = new Set(tokensOf('پہلی پہلا دوسری دوسرا تیسری تیسرا ایک دو ہر درست وجہ وجوہات فائدہ فوائد اثر اثرات '
   + 'وضاحت مربوط واضح مکمل مناسب نکتہ نکات خصوصیت بیان کرنا اقدام فعل مثال نقصان بتانا بتایا لکھنا لکھی لکھا ذکر جملوں جملہ صحیح'));
 const FACT_WORDS_MIN = 2;
-const statesFact = (text) => tokensOf(text).filter((w) => !PLACEHOLDER_WORDS.has(w)).length >= FACT_WORDS_MIN;
+// A point states a fact when it has two words that are not marking words, or when every word in it
+// is one (a name, like «مقننہ»).
+const statesFact = (text) => {
+  const words = tokensOf(text);
+  const facts = words.filter((w) => !PLACEHOLDER_WORDS.has(w)).length;
+  return facts >= FACT_WORDS_MIN || (facts > 0 && facts === words.length);
+};
 // Each point's words, or null for a point that states no fact.
 function pointSets(q) {
   const points = (q && q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
