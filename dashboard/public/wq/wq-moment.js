@@ -6,7 +6,8 @@
  *
  *   WQMoment.feedback(o)        pure: one read as {words, total, wcpm, prev, acc, zero, showNum}, from a checked read
  *                               {wcpm, previous: {wcpm}, score: {correct, attempted}}, a live count {score, secs}, or a
- *                               page / book read {words_read, words_total, ms, prev_wcpm}
+ *                               page / book read {words_read, words_total, ms, prev_wcpm}; a body with only the server's
+ *                               band {feedback: {stars, badge, words_heard}} (another phone) draws that band as is
  *   WQMoment.level(fb, grade)   pure: {lights 0-5, stars 0-3, growth 'up'|'same'|null, badge 'try'|'reader'|'star'|'faster'}
  *                               (a share card takes this, never the number)
  *   WQMoment.html(fb, lang, o)  the block (no buttons: the host keeps its own Next / Share / Home); o = {grade?, size?: 's'}
@@ -60,9 +61,14 @@
     var wcpm = checked ? Math.round(checked) : (words && ms ? Math.round(words / (ms / 60000)) : null);
     var prev = num(o.previous && o.previous.wcpm) || num(o.prev_wcpm) || null;
     var acc = sc && tried ? Math.min(1, num(sc.correct) / tried) : (total ? Math.min(1, words / total) : (o.acc != null ? Math.min(1, num(o.acc) / 100) : null));
+    // another phone's body (or a cookie miss): no speed and no words-right, only the server's coarse band — drawn as is
+    var band = o.feedback && typeof o.feedback === 'object' && !checked && !(sc && sc.correct != null) ? o.feedback : null;
+    if (band) words = num(band.words_heard) || (num(band.stars) ? words : 0);
     var zero = !(words > 0);
     var showNum = !zero && !!wcpm && words >= MIN_WORDS && (checked > 0 || ms >= MIN_MS);
-    return { words: words, total: total, wcpm: zero ? null : wcpm, prev: prev, acc: zero ? null : acc, zero: zero, showNum: showNum };
+    var fb = { words: words, total: total, wcpm: zero ? null : wcpm, prev: prev, acc: zero ? null : acc, zero: zero, showNum: showNum };
+    if (band && !zero) { fb.wcpm = null; fb.showNum = false; fb.band = { stars: Math.max(1, Math.min(3, num(band.stars))), up: band.badge === 'faster' }; }
+    return fb;
   }
   function bands(grade) {
     var g = parseInt(String(grade == null ? '' : grade).replace(/[^0-9]/g, ''), 10);
@@ -71,6 +77,7 @@
   function level(fb, grade) {
     fb = fb || {};
     if (fb.zero) return { lights: 0, stars: 0, growth: null, badge: 'try' };
+    if (fb.band) return { lights: 1, stars: fb.band.stars, growth: fb.band.up ? 'up' : null, badge: fb.band.up ? 'faster' : fb.band.stars === 3 ? 'star' : 'reader' };
     var b = bands(grade), lights = 0, i;
     if (fb.wcpm) { for (i = 0; i < b.length; i++) if (fb.wcpm >= b[i]) lights = i + 1; }
     else lights = 1;

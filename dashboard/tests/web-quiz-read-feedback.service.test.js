@@ -331,3 +331,20 @@ describe('the Jugnu page: the checked result reaches the settled card', () => {
     expect(settled).toContain('Faster than last time!');
   });
 });
+
+// ---- the edge: the moment's files ride the page only when the menu says so ------------------------------------------
+describe('the Jugnu page shell', () => {
+  const { renderChallengePage } = require('../routes/web-quiz.routes');
+  const shell = (extra) => renderChallengePage({ menu: { lang: 'en', v2: { x: 1 }, card_v3: true, exercises: [], ...extra }, token: 't', kid: null, origin: 'https://x', assetV: 'v1', chV: 'c', brandKey: 'niete' });
+  test('key on (menu read_feedback: true): the moment\'s style and script, ahead of the trail that draws it', () => {
+    const h = shell({ read_feedback: true });
+    expect(h).toMatch(/<link rel="stylesheet" href="\/wq\/wq-moment\.css\?v=[0-9a-f]{10}">/);
+    expect(h).toMatch(/<script src="\/wq\/wq-moment\.js\?v=[0-9a-f]{10}" defer><\/script>/);
+    expect(h.indexOf('wq-moment.js')).toBeLessThan(h.indexOf('wq-trail.js'));
+  });
+  test.each([['absent', {}], ['false', { read_feedback: false }], ['the string "true"', { read_feedback: 'true' }]])('%s: no moment file, the shell is today\'s', (_n, extra) => {
+    const h = shell(extra);
+    expect(h).not.toContain('wq-moment');
+    expect(h.replace(/,"read_feedback":(false|"true")/, '')).toBe(shell({}));
+  });
+});
