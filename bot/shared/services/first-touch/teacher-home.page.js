@@ -70,7 +70,7 @@ const CSS = [
   '.th-row-t{flex:1 1 160px;min-width:0;display:flex;flex-direction:column}',
   '.th-row-k{font-size:14px;color:var(--muted);font-weight:800}html[lang=ur] .th-row-k{font-weight:400;font-size:18px;line-height:1.8}',
   '.th-row-n{font-size:16px;font-weight:800;line-height:1.4;overflow-wrap:anywhere}html[lang=ur] .th-row-n{font-weight:400;font-size:18px;line-height:1.9}',
-  '.th-sent{display:inline-block;margin-inline-start:8px;padding:0 8px;border-radius:999px;background:#E8F6EE;color:var(--brand-d);font-size:14px;font-weight:800;white-space:nowrap}html[lang=ur] .th-sent{font-weight:400;font-size:16px}',
+  '.th-sent{display:inline-block;unicode-bidi:isolate;margin-inline-start:8px;padding:0 8px;border-radius:999px;background:#E8F6EE;color:var(--brand-d);font-size:14px;font-weight:800;white-space:nowrap}html[lang=ur] .th-sent{font-weight:400;font-size:16px}',
   '.th-row-v{flex:none;min-height:48px;min-width:48px;padding:4px 12px;border-radius:12px;border:2px solid var(--brand);background:var(--card);color:var(--brand-d);font:800 15px/1.2 var(--f);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}',
   'html[lang=ur] .th-row-v{font-family:var(--fu);font-weight:400;font-size:18px;line-height:1.8}',
   '.th-row-v:disabled{opacity:.5}',
