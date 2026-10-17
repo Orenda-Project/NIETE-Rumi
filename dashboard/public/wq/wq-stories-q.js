@@ -268,6 +268,8 @@
       K.load('wq-finish-card.js', 'wq-finish-card.css', function () { var w = fcw; fcw = true; w.forEach(function (f) { f(); }); });
     }
 
+    // the done card drew its own "More stories" tile (a link to the shelf): its tap is ours too, never a page turn
+    var fin = 0;
     function finish() {
       if (R.tch) return paint(preview());
       var c = m.counts(), tp = [], k;
@@ -279,19 +281,21 @@
       post(ctx, id, 'story_done', { pages_listened: c.pages_listened, pages_read: c.pages_read, stars: qs }).then(function (r) { need(function () {
         if (!live()) return;
         var deed = function (k) { return t[rd ? 'pagesRead' : 'pagesHeard'](K.dg(k, L), k); };
-        // with the finish card (card_v3) the card leads with its own one primary, so "More stories" is a secondary;
-        // a card that refuses leaves today's screen, drawn again with our primary
+        // with the finish card (card_v3) "More stories" is the card's Next tile and it leads (ONE primary, the share
+        // soft under it), so ours is not drawn beside it; a card that refuses leaves today's screen with our primary
+        var lo = W.location, nx = /^\/[^/]/.test(lo.pathname || '') ? { kind: 'stories', href: lo.pathname + (lo.search || '') + '#stories', title: t.more } : null;
         var draw = function (fc) {
           paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own><h2>' + esc(head) + '</h2>' +
             (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + '</div>' +
-            '<div class="wqs-col" data-col><button class="' + (fc ? 'wqs-sec"' : 'wqs-main" data-primary') + ' data-tap="more">' + esc(t.more) + '</button>' +
+            '<div class="wqs-col" data-col>' + (fc && nx ? '' : '<button class="' + (fc ? 'wqs-sec"' : 'wqs-main" data-primary') + ' data-tap="more">' + esc(t.more) + '</button>') +
             '<button class="wqs-sec" data-home data-tap="home">' + esc(t.home) + '</button></div>', 'wqs-sheet'));
         };
         var ok = false, fc = n && b.card_v3 && W.WQFC && W.WQFC.mount;
         draw(fc);
         if (fc) {
-          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: null, sticker: !!(r && r.sticker) }) !== false; } catch (e) {}
+          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: nx, lead: true, sticker: !!(r && r.sticker) }) !== false; } catch (e) {}
           if (!ok) draw(false);
+          else fin = nx ? 1 : 0;
         }
         var own = root.querySelector('[data-own]');
         if (own) own.hidden = ok;
@@ -316,7 +320,7 @@
         else if (tap === 'lplay') { if (R.pl) R.pl.play(); }
         else if (tap === 'qnext') adv();
         else if (tap === 'lret') { R.drop(); qlock = 0; chosen = -1; qPaint(); }
-        else if (tap === 'more') { R.kill(); W.location.hash = '#stories'; }
+        else if (tap === 'more' || tap === 'next' && fin) { R.kill(); W.location.hash = '#stories'; }
         else return false;
         return true;
       },

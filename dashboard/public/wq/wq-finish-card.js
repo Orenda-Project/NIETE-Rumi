@@ -165,10 +165,16 @@
     return '<a class="wqfc-next' + (lead ? ' wqfc-lead" id="wqfc-next" data-primary' : '" id="wqfc-next"') + ' data-tap="next" href="' + esc(nx.href) + '">' + art +
       '<span class="wqfc-nt"><small>' + esc(W[l].next) + '</small><b dir="auto">' + esc(title) + '</b>' + (sub ? '<span dir="auto">' + esc(sub) + '</span>' : '') + mins + '</span></a>';
   }
+  // The book's cover (a same-origin path only), its title as the words; one that fails to load leaves no box.
+  function coverHtml(src, title) {
+    if (typeof src !== 'string' || !/^\/[^/"'<>\s][^"'<>\s]*$/.test(src)) return '';
+    return '<img class="wqfc-cov" src="' + esc(src) + '" alt="' + esc(String(title == null ? '' : title).trim()) + '" width="96" height="144" onerror="this.hidden=true">';
+  }
   function html(o) {
     var l = L(o.lang);
     // A card that certified nothing (the try card) leads with the next thing to do; sending it is a soft secondary.
-    var lead = o.deed === 'read_tried' && !!nextHtml(l, o.next);
+    // A host may ask the same (o.lead: a storybook's "More stories" is the child's next thing, never the share).
+    var lead = (o.lead === true || o.deed === 'read_tried') && !!nextHtml(l, o.next);
     var tile = nextHtml(l, o.next, lead);
     var text = shareText({ lang: l, deed: o.deed, title: o.title, ret: o.ret });
     return '<div class="wqfc" data-screen="card" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '">' + (o.top || '') +
@@ -187,6 +193,7 @@
     '.wqfc-share{display:block;text-align:center;text-decoration:none;min-height:56px}' +
     '.wqfc-next{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:#EFF6FF;border:2px solid var(--brand-ink,#1E3A8A);color:var(--brand-ink,#1E3A8A);text-decoration:none;min-height:72px}' +
     '.wqfc-lead{background:var(--brand,#47BA7D);border-color:var(--brand,#47BA7D);color:#fff}.wqfc-lead .wqfc-art{background:#fff;color:var(--brand-ink,#1E3A8A)}' +
+    '.wqfc-cov{display:block;justify-self:center;width:96px;height:144px;object-fit:cover;border-radius:12px;box-shadow:0 2px 8px rgba(15,23,42,.18)}.wqfc-cov[hidden]{display:none}' +
     '.wqfc-art{width:64px;height:64px;flex:0 0 64px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#DBEAFE;object-fit:cover}' +
     '.wqfc-snd{justify-self:end;width:48px;height:48px;border-radius:24px;border:2px solid #CBD5E1;background:#fff;color:#334155;display:flex;align-items:center;justify-content:center;padding:0}' +
     '.wqfc-nt{display:grid;gap:2px;min-width:0}.wqfc-nt b{font-size:19px}.wqfc-nt small{opacity:.8}' +
@@ -318,10 +325,10 @@
       var f = fromSource(o);
       if (!f) return false;
       var l = L(o.lang);
-      var top = f.head ? '<h2 class="wqfc-head" dir="auto">' + esc(f.head) + '</h2>' +
+      var top = f.head ? coverHtml(o.cover, o.title) + '<h2 class="wqfc-head" dir="auto">' + esc(f.head) + '</h2>' +
         (f.count ? '<p class="wqfc-count" data-n>' + esc(f.count.text(f.count.n)) + '</p>' : '') +
         (f.tried ? '' : '<p class="wqfc-st" data-sticker>' + STICKER + '<span>' + esc(S[l].sticker) + '</span></p>') : '';
-      o = { kind: f.kind, deed: f.deed, lang: l, title: o.title, next: o.next, home: o.home, auth: o.auth, ev: o.ev, top: top, count: f.count };
+      o = { kind: f.kind, deed: f.deed, lang: l, title: o.title, next: o.next, lead: o.lead, home: o.home, auth: o.auth, ev: o.ev, top: top, count: f.count };
     }
     if (!stack || typeof stack.insertAdjacentHTML !== 'function' || !o || !KIND_DEEDS[o.kind] || KIND_DEEDS[o.kind].indexOf(o.deed) < 0) return false;
     // drawn first, then the one request for its link: a card never waits for the network (a live read leaves it

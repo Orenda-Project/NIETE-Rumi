@@ -1272,11 +1272,14 @@ describe('the finish card and Home', () => {
     const root = await toDone(e);
     expect(e.calls.loaded.map((x) => x.src || x.href).filter((u) => /finish-card/.test(u))).toEqual(['/wq/wq-finish-card.css?v=abc123', '/wq/wq-finish-card.js?v=abc123']);
     expect(got.el).toBe(root.querySelector('[data-col]'));
-    expect(got.o).toEqual({ source: 'story', ended: 'read', pages_read: 2, pages_listened: expect.any(Number), stars: null, title: 'Mina Testwala', cover: undefined, lang: 'en', auth: { hub: TOKEN, kid: KID }, ev: expect.any(Function), home: '#', next: null, sticker: true });
+    // the card's Next tile is "More stories" (this page's own shelf) and it leads; the share steps back
+    expect(got.o).toEqual({ source: 'story', ended: 'read', pages_read: 2, pages_listened: expect.any(Number), stars: null, title: 'Mina Testwala', cover: undefined, lang: 'en', auth: { hub: TOKEN, kid: KID }, ev: expect.any(Function), home: '#',
+      next: { kind: 'stories', href: '/h/tok?x=1#stories', title: 'More stories' }, lead: true, sticker: true });
     expect(root.querySelector('[data-own]').hidden).toBe(true);
-    // the card leads with its own one primary: ours ("More stories") steps back to a secondary
+    // one "More stories": the card's tile, so our own button is not drawn beside it; Home stays ours
     expect(primaries(root.innerHTML)).toBe(0);
-    expect(root.innerHTML).toMatch(/<button class="wqs-sec" data-tap="more">More stories</);
+    expect(root.innerHTML).not.toContain('data-tap="more"');
+    expect(root.innerHTML).toMatch(/<button class="wqs-sec" data-home data-tap="home">Home</);
     let g2 = null;
     const e2 = env({ noSticker: true, replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: (w) => { w.WQFC = { mount(el, o) { g2 = o; return true; } }; } });
     await toDone(e2);
@@ -1420,6 +1423,82 @@ describe('hooks, hush, back controls, the own done screen', () => {
     const e2 = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true, cover: '/s/b-1/cover.webp' }) } }, onLoad: (w) => { w.WQFC = { mount(el, o) { got = o; return true; } }; } });
     const r2 = await openReader(e2); runBook(e2, r2); await flush(); await flush();
     expect(got.cover).toBe('/s/b-1/cover.webp');
+  });
+});
+
+// ---- the done screen with the real finish card: the child's next thing leads, the book's cover on the card ----------
+describe('the done screen with the real finish card (card_v3): ONE primary = More stories, the cover', () => {
+  const FCSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-finish-card.js'), 'utf8');
+  // the real WQFC in its own vm; its block lands before our button row, so the screen = card block + our row
+  function realCard(sink) {
+    return (w) => {
+      const c = { window: {}, document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } }, location: { origin: 'https://portal.example' }, navigator: {}, fetch: () => Promise.resolve({ ok: false }) };
+      c.window = c; vm.createContext(c); vm.runInContext(FCSRC, c);
+      w.WQFC = { mount(el, o) { sink.o = o; return c.WQFC.mount({ insertAdjacentHTML: (pos, h) => { sink.card = (sink.card || '') + h; } }, o); } };
+    };
+  }
+  async function done(over, lang) {
+    const sink = {};
+    const e = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true, lang: lang || 'en', ...over }) } }, onLoad: realCard(sink) });
+    const root = await openReader(e); runBook(e, root); await flush(); await flush();
+    return { e, root, sink, screen: () => (sink.card || '') + root.innerHTML };
+  }
+  test.each([['en', 'More stories', 'Next', 'Send to class', 'Home'], ['ur', 'اور کہانیاں', 'اگلا', 'کلاس کو بھیجیں', 'ہوم']])('%s: exactly one data-primary and it is the More stories tile; the share is present and not primary; Home third', async (lang, more, nextW, send, home) => {
+    const d = await done({}, lang);
+    const h = d.screen();
+    expect(screenOf(d.root.innerHTML)).toBe('story-done');
+    expect(primaries(h)).toBe(1);
+    const prim = /<a [^>]*data-primary[^>]*>[^]*?<\/a>/.exec(h)[0];
+    expect(prim).toContain('id="wqfc-next"');
+    expect(prim).toContain('href="/h/tok?x=1#stories"');
+    expect(prim).toContain('<small>' + nextW + '</small><b dir="auto">' + more + '</b>');
+    const share = /<a [^>]*id="wqfc-share"[^>]*>([^<]*)<\/a>/.exec(h);
+    expect(share).not.toBeNull();
+    expect(share[0]).not.toContain('data-primary');
+    expect(share[0]).toContain('wq-soft');
+    expect(share[1]).toBe(send);
+    // the order on the screen: More stories, the share, Home; one More stories, not two
+    const iHome = h.indexOf('data-home data-tap="home">' + home + '<');
+    expect(h.indexOf('id="wqfc-next"')).toBeLessThan(h.indexOf('id="wqfc-share"'));
+    expect(h.indexOf('id="wqfc-share"')).toBeLessThan(iHome);
+    expect(h.split(more).length - 1).toBe(1);
+  });
+  test('the card shows the book\'s cover (src = the book\'s cover file, alt = its title); no cover -> no box', async () => {
+    const d = await done({ cover: '/s/b-1/cover.webp' });
+    expect(d.sink.o.cover).toBe('/s/b-1/cover.webp');
+    expect(d.screen()).toMatch(/<img class="wqfc-cov" src="\/s\/b-1\/cover\.webp" alt="Mina Testwala"/);
+    const d2 = await done({ cover: null });
+    expect(d2.screen()).not.toContain('wqfc-cov');
+    expect(d2.screen()).not.toMatch(/<img/);
+  });
+  test('tapping More stories on the card goes to the shelf (never turns a page)', async () => {
+    const d = await done({});
+    const before = d.e.calls.ra.length;
+    fire(d.root, 'next');
+    expect(d.e.win.location.hash).toBe('#stories');
+    expect(d.e.calls.ra.length).toBe(before);
+  });
+  // Hashed from the reader before this change (this harness, these fixtures): card switch off, or a card that refuses.
+  test('golden: card_v3 off (and a card that refuses), the done screen is today\'s, byte for byte, EN and UR', async () => {
+    const GOLD = { en_off: 'd52d1313a86a18cc', ur_off: '30d6c83d78038e97', en_refused: 'd52d1313a86a18cc', ur_refused: '30d6c83d78038e97' };
+    const hash = (h) => require('crypto').createHash('sha256').update(h).digest('hex').slice(0, 16);
+    const out = {};
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: book({ questions: [], lang, cover: '/s/b-1/cover.webp' }) } } });
+      const root = await openReader(e); runBook(e, root); await flush(); await flush();
+      out[lang + '_off'] = hash(root.innerHTML);
+      const e2 = env({ replies: { book: { status: 200, body: book({ questions: [], lang, card_v3: true, cover: '/s/b-1/cover.webp' }) } }, onLoad: (w) => { w.WQFC = { mount: () => false }; } });
+      const r2 = await openReader(e2); runBook(e2, r2); await flush(); await flush();
+      out[lang + '_refused'] = hash(r2.innerHTML);
+    }
+    expect(out).toEqual(GOLD);
+  });
+  test('the card refuses: our own screen, More stories our one primary, no tile', async () => {
+    const e = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true, cover: '/s/b-1/cover.webp' }) } }, onLoad: (w) => { w.WQFC = { mount: () => false }; } });
+    const root = await openReader(e); runBook(e, root); await flush(); await flush();
+    expect(primaries(root.innerHTML)).toBe(1);
+    expect(root.innerHTML).toMatch(/<button class="wqs-main" data-primary data-tap="more">More stories</);
+    expect(root.innerHTML).not.toMatch(/wqfc|<img/);
   });
 });
 
