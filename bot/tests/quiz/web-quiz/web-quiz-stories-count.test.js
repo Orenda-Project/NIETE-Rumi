@@ -3,7 +3,15 @@
  * The read-only storybook count (scripts/web-quiz/counts/web_quiz_stories.js): the per grade × language table is pure,
  * and the script refuses anything but sandbox. Rows are invented.
  */
+jest.mock('../../../shared/config/supabase', () => ({}));
+jest.mock('../../../shared/storage/r2', () => ({ presignKey: async (key) => `https://r2.example.test/${key}` }));
+jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
+jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
+
 const { tableOf, main, SANDBOX_REF } = require('../../../../scripts/web-quiz/counts/web_quiz_stories');
+const { makeFake } = require('./fake-supabase');
+const supabase = require('../../../shared/config/supabase');
+const F = require('./__fixtures__/stories-testwala');
 
 describe('tableOf', () => {
   test('live vs not live by status; text / picture pages; word-timed, line-timed and unvoiced text pages; reviewed questions', () => {
@@ -43,4 +51,21 @@ describe('main', () => {
     expect(await main({ argv: [SANDBOX_REF], env: { SUPABASE_URL: `https://${SANDBOX_REF}.supabase.co` }, io })).toBe(2);
     expect(err.join('')).toContain('REFUSED: not sandbox');
   });
+  test('past the guard: the table, then each new child\'s shelf and the storybooks the next-thing slot may offer (exit 0)', async () => {
+    process.env.WEB_QUIZ_TOKEN_SECRET = process.env.WEB_QUIZ_TOKEN_SECRET || 'count-test-secret';
+    const books = [1, 2, 3, 4].map((n) => F.book(n));
+    books.push(F.book(5, { grade: 1, lang: 'ur', title: 'کتاب ٹیسٹ والا', slug: 'g1-ur-testwala-5' }));
+    Object.assign(supabase, makeFake({ app_settings: [], story_books: books, story_pages: [], story_page_voices: [], story_questions: [], story_events: [] }));
+    const out = []; const err = [];
+    const io = { stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) } };
+    const env = { SUPABASE_URL: `https://${SANDBOX_REF}.supabase.co`, SUPABASE_SERVICE_ROLE_KEY: 'x', WEB_QUIZ_TOKEN_SECRET: process.env.WEB_QUIZ_TOKEN_SECRET };
+    expect(await main({ argv: [SANDBOX_REF], env, io })).toBe(0);
+    const text = out.join('');
+    expect(text).toContain('5 live; 0 not live yet');
+    expect(text).toMatch(/new-en-g2 \(nothing read\): shelf 4 books \(4 with a cover\); next-thing slot: 3 storybooks \(resume 0, unread 3\)/);
+    expect(text).toMatch(/new-ur-g1 \(nothing read\): shelf 1 books \(1 with a cover\); next-thing slot: 1 storybooks \(resume 0, unread 1\)/);
+    expect(text).not.toMatch(/Testwala|کتاب/);   // counts only: never a title
+    expect(err.join('')).toBe('');
+  });
 });
+

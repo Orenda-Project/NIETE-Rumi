@@ -30,7 +30,7 @@ const KID = '44444444-4444-4444-8444-000000000081';
 const TEACHER = '11111111-1111-4111-8111-000000000081';
 const LIST = '55555555-5555-4555-8555-000000000081';
 const BOOK = '5b000081-0000-4000-8000-000000000000';
-const NOW = Date.parse('2026-10-14T07:00:00Z');
+const NOW = Date.now(); // the real clock: hubBits' 7-day resume window reads it too
 const ago = (h) => new Date(NOW - h * 3600000).toISOString();
 const ahead = (h) => new Date(NOW + h * 3600000).toISOString();
 const TRUE = (k) => ({ key: k, value: true });
