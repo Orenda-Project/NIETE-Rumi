@@ -300,6 +300,13 @@ describe('urdu Q6: verses that are not from the poem are never printed', () => {
       // A Section A top-up writes new items (helpers/urdu-spares.js); every other call, the recording.
       const tree = (sec === 'A' && topUpTree(prompt)) || treeFor(sec);
       if (sec === 'C') tree.subjective['Poem Explanation'] = [clone(asked.filter((x) => x === 'C').length === 1 ? first : second)];
+      // The recording's Q4 ارکان key splits «تواضع» apart from its own accepted answer, which asks
+      // Section C again for Q4; these tests are about Q6, so the key here agrees with the answer.
+      if (sec === 'C') {
+        Object.values(tree).flatMap((t) => Object.values(t)).flat()
+          .filter((q) => q.slot === 'urdu.C.Q4' && String(q.answer).includes('+'))
+          .forEach((q) => { q.answer = q.answer.replace('تو + اضع', 'ت + وا + ضع'); });
+      }
       return reply(tree);
     });
     return asked;
