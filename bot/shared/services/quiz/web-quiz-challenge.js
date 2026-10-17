@@ -756,6 +756,8 @@ async function menu(token, { kid, lang, device } = {}) {
     ...((await got('juice', () => require('./web-quiz-juice').field())) ? { juice: true } : {}),
     ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
     ...(await got('lr3', () => LiveReadV3().forMenu())),   // live reading v3: the page loads its component (off ⇒ nothing)
+    // the child home on: a child with no class shares with "Share" (web-quiz-hub-door.js; off ⇒ nothing)
+    ...(await require('./web-quiz-hub-door').noClassField(w.studentId)),
   };
 }
 

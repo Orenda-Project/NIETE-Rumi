@@ -406,6 +406,13 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
     p.vEl.fire('ended');
     expect(mount.mock.calls[0][1].lead).toBe(true);
   });
+  test('a child with no class (the Videos door is watch-only: no teacher\'s quiz yet): the card\'s share says "Share" (plain)', async () => {
+    const mount = jest.fn(() => true);
+    const p = watchPage({ card: true, wqfc: { mount } });
+    await flush();
+    p.vEl.fire('ended');
+    expect(mount.mock.calls[0][1].plain).toBe(true);   // HUB's videos door is { watch: true } in this suite
+  });
   test('GOLDEN: no card_v3 -> today\'s end (our tile shown and primary, next_shown logged), the card never asked', async () => {
     const mount = jest.fn(() => true);
     const p = watchPage({ card: false, wqfc: { mount } });

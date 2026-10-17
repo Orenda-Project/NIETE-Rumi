@@ -55,9 +55,10 @@
     }
   };
   var W = {
-    en: { send: 'Share to class group', next: 'Next', home: 'Home', sound: 'Sound', mins: function (n) { return n + ' min'; },
+    // sendPlain: a child with no class (the child home on: the menu's no_class / a watch-only Videos door)
+    en: { send: 'Share to class group', sendPlain: 'Share', next: 'Next', home: 'Home', sound: 'Sound', mins: function (n) { return n + ' min'; },
       ret: 'Play with Jugnu any day. Tap, then send:', words: 'quiz please', quizDeed: 'You finished the whole quiz!' },
-    ur: { send: 'کلاس گروپ میں بھیجیں', next: 'اگلا', home: 'واپس جائیں', sound: 'آواز', mins: function (n) { return urDigits(n) + ' منٹ'; },
+    ur: { send: 'کلاس گروپ میں بھیجیں', sendPlain: 'شیئر کریں', next: 'اگلا', home: 'واپس جائیں', sound: 'آواز', mins: function (n) { return urDigits(n) + ' منٹ'; },
       ret: 'جب دل چاہے جگنو کے ساتھ کھیلیں! یہاں دبائیں، پھر بھیجیں:', words: 'کوئز دکھائیں', quizDeed: 'شاباش! آپ نے پورا کوئز کر لیا!' }
   };
   var KIND_DEEDS = { quiz: ['quiz_done'], read: ['read_all', 'read_some', 'read_tried'], listen: ['listen_done'], story: ['story_read', 'answered', 'read_tried'],
@@ -175,7 +176,7 @@
     return '<div class="wqfc" data-screen="card" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '">' + (o.top || '') +
       (o.sound === false ? '' : '<button class="wqfc-snd" id="wqfc-snd" type="button" data-tap="sound" aria-label="' + esc(W[l].sound) + '" aria-pressed="' + (muted() ? 'true' : 'false') + '">' + (muted() ? SND_OFF : SND_ON) + '</button>') +
       (lead ? tile : '') +
-      '<a class="wq-btn ' + (lead ? 'wq-soft' : 'wq-go') + ' wqfc-share" id="wqfc-share"' + (lead ? '' : ' data-primary') + ' data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(text)) + '">' + esc(W[l].send) + '</a>' +
+      '<a class="wq-btn ' + (lead ? 'wq-soft' : 'wq-go') + ' wqfc-share" id="wqfc-share"' + (lead ? '' : ' data-primary') + ' data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(text)) + '">' + esc(o.plain === true ? W[l].sendPlain : W[l].send) + '</a>' +
       (lead ? '' : tile) +
       (o.home && /^\/[^/]/.test(o.home) ? '<a class="wq-btn wq-soft wqfc-home" id="wqfc-home" data-home data-tap="home" href="' + esc(o.home) + '">' + esc(W[l].home) + '</a>' : '') +
       '</div>';
@@ -382,7 +383,8 @@
     else { kind = 'game'; deed = 'game_done'; }
     var ttl = d.title && typeof d.title === 'object' ? (h.L === 'ur' && d.title.ur) || d.title.en || '' : '';
     // o.fold (the child home on): the host's one next thing leads (the share soft under it); none = the host's questions
-    var on = mount(document.querySelector('#wq .wq-stack'), { kind: kind, deed: deed, lang: h.L, title: typeof ttl === 'string' ? ttl : '', next: o.fold ? o.fold.next : r.next_offer || d.next_offer, lead: !!o.fold, auth: { ct: d.ct }, ev: h.ev });
+    var on = mount(document.querySelector('#wq .wq-stack'), { kind: kind, deed: deed, lang: h.L, title: typeof ttl === 'string' ? ttl : '', next: o.fold ? o.fold.next : r.next_offer || d.next_offer, lead: !!o.fold,
+      plain: !!o.fold && (h.md() || {}).no_class === true, auth: { ct: d.ct }, ev: h.ev });
     if (!on) return false;
     try {
       var old = document.getElementById('wqfc-next') ? document.getElementById('wqc-next') : null;

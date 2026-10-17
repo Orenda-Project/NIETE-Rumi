@@ -180,6 +180,28 @@ describe('home on: a listening story, a numbers game, Story Time', () => {
   });
 });
 
+describe('home on: a child with no class (the menu\'s no_class) — the share says "Share", not "Share to class group"', () => {
+  test.each([['en', 'Share'], ['ur', 'شیئر کریں']])('%s', (lang, word) => {
+    const t = trail({ lang, menu: { ...FOLD, no_class: true }, data: { next_offer: NEXT } });
+    t.TR.tapEnd('bigger-result', {});
+    expectFold(t.html());
+    expect(t.html()).toMatch(new RegExp(`id="wqfc-share"[^>]*>${word}</a>`));
+    expect(t.html()).not.toMatch(/class group|کلاس گروپ/);
+  });
+  test('a class child keeps "Share to class group" / «کلاس گروپ میں بھیجیں» byte for byte', () => {
+    for (const [lang, word] of [['en', 'Share to class group'], ['ur', 'کلاس گروپ میں بھیجیں']]) {
+      const t = trail({ lang, menu: FOLD });
+      t.TR.tapEnd('bigger-result', {});
+      expect(t.html()).toMatch(new RegExp(`id="wqfc-share"[^>]*>${word}</a>`));
+    }
+  });
+  test('no_class without the fold (home off): today\'s label', () => {
+    const t = trail({ menu: { card_v3: true, no_class: true, v2: {} } });
+    t.TR.tapEnd('bigger-result', {});
+    expect(t.html()).toMatch(/id="wqfc-share"[^>]*>Share to class group<\/a>/);
+  });
+});
+
 describe('home on, without the finish card (card_v3 off) or where the card is never drawn', () => {
   test('card_v3 off: the page\'s own Next and one Home, one primary', () => {
     const t = trail({ menu: { card_fold: true, v2: {} }, data: { next_offer: NEXT } });

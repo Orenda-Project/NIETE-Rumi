@@ -422,7 +422,7 @@
     var next = nx.path ? { kind: nx.kind, title: nx.title, sub: nx.sub || '', href: nx.path }
       : /^\/[^/]/.test(here) ? { kind: nx.kind, title: nx.title, sub: nx.sub || '', href: here + (nx.hash || '#videos') } : null;
     var ok = false;
-    try { ok = window.WQFC.mount(a, { kind: 'video', deed: 'video_watched', lang: langOf(ctx), title: w.title || '', next: next, lead: true, auth: { hub: tok(B, ctx), kid: B.kid || '' }, ev: ev }); } catch (e) { ok = false; }
+    try { ok = window.WQFC.mount(a, { kind: 'video', deed: 'video_watched', lang: langOf(ctx), title: w.title || '', next: next, lead: true, plain: !!(B.doors && B.doors.videos && B.doors.videos.watch === true), auth: { hub: tok(B, ctx), kid: B.kid || '' }, ev: ev }); } catch (e) { ok = false; }
     if (!ok) return false;
     if (a && a.parentNode) a.parentNode.removeChild(a);
     var t = document.getElementById('wqfc-next');

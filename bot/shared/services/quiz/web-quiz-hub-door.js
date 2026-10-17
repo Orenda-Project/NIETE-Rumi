@@ -9,6 +9,7 @@
  *                   own card is the card and ONE next thing, and its Home row (POST /hubdoor {home}) opens on a
  *                   finished run without the card's door or the Home button switched on; else {} (today's payload)
  *   menuFoldField() the Jugnu page's menu's {card_fold: true} with the child home on (its end cards fold too), else {}
+ *   noClassField(id) the same menu's {no_class: true} with the home on for a child no teacher's quiz has reached, else {}
  *   door({st, home}, Err) {href: '/h/<token>'}: a hub token for THIS session's child only (no name in it), bound to the
  *                   phone in the session token — the body's device_ref is never trusted — so a forwarded copy
  *                   meets the hub's lock on any other phone, like a forwarded /quiz hub link.
@@ -62,6 +63,18 @@ async function menuFoldField() {
   }
 }
 
+// The same menu's {no_class: true} with the child home on, for a child no teacher's quiz has reached (the hub's own
+// rule, hasRoot: no teacher-sent code in their quizzes): the card's share says "Share", not "Share to class group".
+async function noClassField(studentId) {
+  try {
+    if (!studentId || !(await HomeFlags.flags()).home) return {};
+    const list = await require('./student-quiz.service').quizzesForStudents([{ id: studentId }]);
+    return list.some((e) => e && e.teacherSent) ? {} : { no_class: true };
+  } catch (_) {
+    return {};
+  }
+}
+
 async function door(body = {}, Err = Error) {
   const fail = async (status, error, why) => {
     await K.emit('web_quiz.hub_door', { ok: false, reason: why || error }, { kind: 'mark' });
@@ -92,4 +105,4 @@ async function door(body = {}, Err = Error) {
   return { href: `/h/${token}` };
 }
 
-module.exports = { field, foldField, menuFoldField, door };
+module.exports = { field, foldField, menuFoldField, noClassField, door };
