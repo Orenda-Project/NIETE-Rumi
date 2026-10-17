@@ -82,7 +82,9 @@ describe('the card block, for every kind of finish', () => {
       // share = an anchor to wa.me in a new window, the primary
       expect(h).toMatch(/<a class="wq-btn wq-go wqfc-share" id="wqfc-share" data-primary data-tap="card_share" target="_blank" rel="noopener" href="https:\/\/wa\.me\/\?text=/);
       expect((h.match(/data-primary/g) || []).length).toBe(1);
-      expect(h).toContain(lang === 'ur' ? 'کلاس کو بھیجیں' : '>Send to class<');
+      // the child's share: one wording on every card (the quiz card's own button says the same), never the teacher's "Send to class"
+      expect(h).toContain(lang === 'ur' ? 'کلاس گروپ میں بھیجیں' : '>Share to class group<');
+      expect(h).not.toMatch(/Send to class|کلاس کو بھیجیں/);
       expect(h).toContain('id="wqfc-next" data-tap="next" href="/s/b1/1"');
       expect(h).toContain(lang === 'ur' ? '۲ منٹ' : '2 min');
       expect(h).toContain('data-home');
@@ -265,7 +267,7 @@ describe('switch on: the class share never goes without a link (the card link on
   });
 });
 
-describe('switch on: Send to class (the card\'s own link) tapped before its link is in', () => {
+describe('switch on: Share to class group (the card\'s own link) tapped before its link is in', () => {
   test('the tap is held (soft) at most 2 s; when the link lands the same link opens with it, once', async () => {
     let answer;
     const pending = new Promise((res) => { answer = res; });
@@ -355,7 +357,7 @@ describe('golden: switch off, the Trail end cards are today\'s', () => {
 
 describe('switch on: every Trail finish gets the card', () => {
   const on = (o = {}) => trail({ withFc: true, menu: { card_v3: true }, ...o });
-  test('a read: Send to class sits above the card\'s own buttons; the deed matches the line', async () => {
+  test('a read: Share to class group sits above the card\'s own buttons; the deed matches the line', async () => {
     const t = on();
     t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
     const h = t.html();
@@ -400,7 +402,7 @@ describe('switch on: every Trail finish gets the card', () => {
   test('Urdu', () => {
     const t = on({ lang: 'ur' });
     t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
-    expect(t.html()).toContain('کلاس کو بھیجیں');
+    expect(t.html()).toContain('کلاس گروپ میں بھیجیں');
     expect(t.html()).toContain('dir="rtl"');
   });
   test('never on a practice round or a class round turn', () => {
@@ -620,7 +622,7 @@ describe('switch on: a live read\'s held card is the card at once (the hand-off 
   test.each([
     ['all 12 heard', 12, 'read_all'],
     ['5 of 12 heard', 5, 'read_some'],
-  ])('%s: Send to class + the Next tile under the listening line, no sticker yet', async (_, heard, deed) => {
+  ])('%s: Share to class group + the Next tile under the listening line, no sticker yet', async (_, heard, deed) => {
     const NEXT = { kind: 'story', href: '/c/tok?kid=k1#read', title: 'Read a story with Jugnu', minutes: 2 };
     const t = on({ data: { next_offer: NEXT } });
     expect(t.TR.readHold({ score: { attempted: heard }, noSticker: true }, null, heard)).toBe(true);

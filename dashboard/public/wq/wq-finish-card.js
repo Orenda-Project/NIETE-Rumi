@@ -55,9 +55,9 @@
     }
   };
   var W = {
-    en: { send: 'Send to class', next: 'Next', home: 'Home', sound: 'Sound', mins: function (n) { return n + ' min'; },
+    en: { send: 'Share to class group', next: 'Next', home: 'Home', sound: 'Sound', mins: function (n) { return n + ' min'; },
       ret: 'Play with Jugnu any day. Tap, then send:', words: 'quiz please', quizDeed: 'You finished the whole quiz!' },
-    ur: { send: 'کلاس کو بھیجیں', next: 'اگلا', home: 'واپس جائیں', sound: 'آواز', mins: function (n) { return urDigits(n) + ' منٹ'; },
+    ur: { send: 'کلاس گروپ میں بھیجیں', next: 'اگلا', home: 'واپس جائیں', sound: 'آواز', mins: function (n) { return urDigits(n) + ' منٹ'; },
       ret: 'جب دل چاہے جگنو کے ساتھ کھیلیں! یہاں دبائیں، پھر بھیجیں:', words: 'کوئز دکھائیں', quizDeed: 'شاباش! آپ نے پورا کوئز کر لیا!' }
   };
   var KIND_DEEDS = { quiz: ['quiz_done'], read: ['read_all', 'read_some', 'read_tried'], listen: ['listen_done'], story: ['story_read', 'answered', 'read_tried'],
