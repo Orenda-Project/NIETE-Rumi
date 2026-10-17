@@ -500,6 +500,64 @@ describe('E6 GET board (the class league table)', () => {
   });
 });
 
+describe('E6 GET board for a storybook code (app_settings web_quiz_story_board_refuse)', () => {
+  const StoryBoard = require('../../../shared/services/quiz/story-board');
+  const story = () => { fake.db.quizzes[0].quiz_source = 'story'; };
+  const reads = (t) => fake.calls.filter((c) => c.table === t && c.op === 'select').length;
+  beforeEach(() => StoryBoard._reset());
+
+  test('on: a storybook code has no class table (404 no_board); a quiz\'s table is byte for byte what it is off', async () => {
+    const off = await WQ.board('AB12CD');
+    StoryBoard._reset();
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    expect(await WQ.board('AB12CD')).toEqual(off);
+    story();
+    StoryBoard._reset();
+    await expect(WQ.board('AB12CD')).rejects.toMatchObject({ status: 404, body: { error: 'no_board' } });
+  });
+
+  // board() reads `quizzes` already (the class rows); the refusal's cost is what it adds to one board call.
+  const perCall = async () => { const q = reads('quizzes'); const a = reads('app_settings'); await WQ.board('AB12CD'); return [reads('quizzes') - q, reads('app_settings') - a]; };
+
+  test('off (absent, false, or anything but JSON true): a storybook code\'s board is today\'s, and it reads no quiz row more than today', async () => {
+    story();
+    fake.db.app_settings = [];
+    StoryBoard._reset();
+    const [today] = await perCall();
+    for (const value of [false, 'true', '"true"', 1, null]) {
+      StoryBoard._reset();
+      fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value }];
+      const out = await WQ.board('AB12CD');
+      expect(out).toMatchObject({ finishers_n: 1, rows: [expect.objectContaining({ first: 'Zara' })] });
+      StoryBoard._reset();
+      expect((await perCall())[0]).toBe(today);
+    }
+  });
+
+  test('on: one quiz-source read per quiz, kept (a quiz never changes source); the switch at most every 30 s', async () => {
+    fake.db.app_settings = [];
+    StoryBoard._reset();
+    const [today] = await perCall();
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    StoryBoard._reset();
+    expect(await perCall()).toEqual([today + 1, 1]);
+    expect(await perCall()).toEqual([today, 0]);
+    expect(await perCall()).toEqual([today, 0]);
+  });
+
+  test('a settings or quiz read that fails is off: today\'s table, never an error', async () => {
+    story();
+    expect(await StoryBoard.refused(QUIZ, { db: { from: () => { throw new Error('down'); } } })).toBe(false);
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    StoryBoard._reset();
+    expect(await StoryBoard.refused(null)).toBe(false);
+  });
+
+  test('the source it refuses is the story send\'s own', () => {
+    expect(StoryBoard.SOURCE).toBe(require('../../../shared/services/quiz/story-teacher.service').SOURCE);
+  });
+});
+
 describe('E7 POST me', () => {
   test('history of this phone\'s children and friends who finished their challenge', async () => {
     fake.db.quiz_sessions.push({ id: 'fr', quiz_id: QUIZ, share_code_id: SC, student_id: 'kid-friend', student_name: 'Rida Friend',

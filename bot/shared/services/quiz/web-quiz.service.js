@@ -1839,6 +1839,8 @@ async function board(code, { st } = {}) {
   const ctx = await resolveCode(code);
   // A friend's challenge code is not the class: its table (classmates' first names) is not theirs to see.
   if (ctx.invitedByStudentId) fail(404, 'not_found');
+  // A storybook the teacher sent has no class table (web_quiz_story_board_refuse; off: today's board, no extra read).
+  if (await require('./story-board').refused(ctx.quizId)) fail(404, 'no_board');
   const report = require('./video-quiz-report.service');
   // The teacher report's own loader: self-tests and invited friends out, one
   // attempt per child (first finished for a web-arm quiz).
