@@ -968,6 +968,48 @@ function tierSlip(q) {
   return tiersIn(stem).size === 0 && !jobsOf(stem, tier) && otherJob(stem, tier);
 }
 
+// Social Studies Q6: a situation whose questions ask only book facts. FDE's Q6 brings a book idea
+// to a case the book does not answer; who heads or chairs a body, what it is called, how many, when
+// and what was done are Remember wherever they sit, and belong in Q7. Each asking clause of the stem
+// is read: one that asks the child to decide, advise or act on the case (apply) or to give a reason,
+// effect or comparison (explain) keeps the item; «which government does this job» is the case put to
+// a book idea, and keeps it too. Held: two or more book-fact clauses, none to apply, and more facts
+// than reasons («ریاستی مذہب کیوں اسلام ہے» beside «قومی زبان کیا ہے» keeps an item).
+const Q6_SLOT = 'social_studies.D.Q6';
+const ASK_WORDS = new Set(['کون', 'کونسا', 'کونسی', 'کیا', 'کیوں', 'کیسے', 'کتنے', 'کتنی', 'کتنا', 'کب', 'کہاں', 'کس', 'کن']);
+const FACT_WORDS = new Set(['کون', 'کونسا', 'کونسی', 'کتنے', 'کتنی', 'کتنا', 'کب', 'کہاں', 'کس', 'کن']);
+const ASKS = /بتائیں|بتاؤ|لکھیں|وضاحت|سمجھائیں|بیان کریں|جواب دیں|پوچھت|جاننا چاہت/;
+const APPLIES = /چاہیے|چاہئے|چاہییں|مشورہ|تجویز|اقدام|طریق|مراحل|اپنائیں|کرائیں|کریں گے|سکتے ہیں|سکتی ہے|سکتا ہے|ہوتے تو|فیصلہ کریں|منتخب کرے|لاگو|درست ہے|صحیح ہے|مناسب|استعمال|انتظامات|اپنا حل/;
+const EXPLAINS = /کیوں|وجہ|اثر|فائدہ|فائدے|نقصان|اہمیت|ضروری|فرق|موازنہ|جیسے|مشابہ|ملتا|ملتی|مختلف|خوبی|کیسے(?!\s*(چنا|چنے|چنی|منتخب))/;
+const WHICH_TIER = /(کون|کس)\s+(کس\s+)?(سی\s+|سا\s+)?(کام\s+)?(سطح\s+(کی\s+)?)?(مقامی\s+|صوبائی\s+|وفاقی\s+)?حکومت/;
+const DONE = /^(تھا|تھی|تھے|کیا|کی|کیے|اٹھایا|دیا|گیا|گئی|گئے|ہوا|ہوئی)$/;
+const askTokens = (text) => text.replace(/[؟?!۔،,:؛«»"'()]/g, ' ').split(/\s+/).filter(Boolean);
+function factClause(clause) {
+  const t = askTokens(clause);
+  if (t.some((w) => FACT_WORDS.has(w))) return true;
+  if (/کیسے\s+(چنا|چنے|چنی|منتخب)/.test(clause)) return true;
+  const k = t.lastIndexOf('کیا');
+  if (k < 0) return false;
+  const after = t.slice(k + 1);
+  if (after[0] && /^کہلات/.test(after[0])) return true;
+  if (after.length && after.length <= 2 && after.every((w) => /^(ہے|ہیں|ہوگا|ہوگی)$/.test(w))) return true;
+  return after.length > 0 && DONE.test(t[t.length - 1]);
+}
+function asksRecall(q) {
+  const sentences = String((q && q.question) || '').split(/(?<=[۔؟?!])|\n/).map((x) => x.trim()).filter(Boolean);
+  let facts = 0;
+  let reasons = 0;
+  for (const sentence of sentences.filter((x) => /[؟?]$/.test(x) || ASKS.test(x))) {
+    for (const clause of sentence.split(/[،,]|\sاور\s|\sکہ\s/).map((x) => x.trim()).filter(Boolean)) {
+      if (!askTokens(clause).some((w) => ASK_WORDS.has(w)) && !ASKS.test(clause)) continue;
+      if (APPLIES.test(clause)) return false;
+      if (EXPLAINS.test(clause)) reasons += 1;
+      else if (!WHICH_TIER.test(clause) && factClause(clause)) facts += 1;
+    }
+  }
+  return facts >= 2 && facts > reasons;
+}
+
 // Urdu: a Q1 MCQ keyed on a word of a Q6 verse line it asks about: its key's words are all in the
 // line and its stem carries at least two of the line's other words («ندی کا پانی صاف ہو گا تو ہم کس
 // چیز سے بچیں گے؟ → بیماری» beside «پانی جو صاف ہوگا بیماری سے بچوگے»), or it quotes a line. A
@@ -1365,6 +1407,8 @@ function takenNote(P, section, examJson, opts = {}) {
     // was kept writes the same restatement again.
     const aside = heldNote(section, opts.held);
     if (aside) notes.push(aside);
+    const recall = recallNote(section, opts.held);
+    if (recall) notes.push(recall);
   }
   // A top-up keeps the first reply's items: name what each short held slot keeps, and ask for spares,
   // since the refill is held against Section A as well.
@@ -1374,7 +1418,7 @@ function takenNote(P, section, examJson, opts = {}) {
 // Social Studies: the held items of a section's slots (`held` from applyLayout), never these.
 function heldNote(section, held) {
   const own = new Set(section.slots.map((s) => s.slot));
-  const lines = (Array.isArray(held) ? held : []).filter((h) => h && own.has(h.slot) && h.q && typeof h.q.question === 'string' && h.q.question.trim())
+  const lines = (Array.isArray(held) ? held : []).filter((h) => h && h.rule !== 'recall' && own.has(h.slot) && h.q && typeof h.q.question === 'string' && h.q.question.trim())
     .map(({ q }) => {
       const points = (q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
         .map((p) => (typeof p === 'string' ? p : p && p.text)).filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim());
@@ -1384,6 +1428,15 @@ function heldNote(section, held) {
   if (!lines.length) return null;
   return `These items were set aside, because a child answering this paper's other items would already have answered them:\n${lines.join('\n')}\n`
     + 'Never these: write none of them again, and no item answered by any of these answers or points, in any wording.';
+}
+// Social Studies: the Q6 items set aside as book-fact recall (asksRecall), and what a Q6 is instead.
+function recallNote(section, held) {
+  if (!section.slots.some((s) => s.slot === Q6_SLOT)) return null;
+  const lines = (Array.isArray(held) ? held : []).filter((h) => h && h.rule === 'recall' && h.slot === Q6_SLOT && h.q && typeof h.q.question === 'string')
+    .map(({ q }) => `- ${q.question.trim()}`);
+  if (!lines.length) return null;
+  return `These Q6 items were set aside: each asks only book facts (who heads or chairs a body, what it is called, how many, when, what was done), whatever the story around them:\n${lines.join('\n')}\n`
+    + 'A Q6 is a situation that needs two ideas applied; history recall goes to Q7. Write each new Q6 so the child decides, advises or explains what to do in the case, using two different ideas from these pages.';
 }
 // Social Studies: Section D is told every Q5 item with its marking points. A Q6 written beside C
 // from the same pages set C's own cases again (a purse found on the road in Q5, a wallet in Q6),
@@ -1552,6 +1605,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && printsOwnKey(q)) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
       if (!holds(slot)) {
+        if (P.key === 'social_studies' && slot.slot === Q6_SLOT && asksRecall(q)) return hold(slot, q, 'recall');
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
         // after the re-ask only for a place nothing else takes.

@@ -142,7 +142,8 @@ describe('2. a caught question never prints', () => {
     expect(stems(r.examJson, D7)).not.toContain('پاکستان کے پہلے وزیر اعظم کون تھے؟');
     expect(stems(r.examJson, D7)).toHaveLength(7);
     expect(r.shortfall).toEqual([]);
-    expect(r.examJson._layout.short_choice).toEqual([{ slot: D7, printed: 7, generate: 8 }]);
+    // Q6 «… گلگت بلتستان … تین جون کے منصوبے …» asks only what was done (book recall), so Q6 prints 5 of 6 too.
+    expect(r.examJson._layout.short_choice).toEqual([{ slot: D6, printed: 5, generate: 6 }, { slot: D7, printed: 7, generate: 8 }]);
   });
 
   test('full_2 Q7 ۸ (= Q1 ۱۶) and full_1 Q6 ۶ (held on points) do not print', () => {
