@@ -24,7 +24,7 @@
  * A held attempt whose background CRQ grading failed (answer_score null) is
  * re-scored through the existing scoreAnswer and stored exactly as the live
  * path stores it (answer_score + feedback_text on (attempt_id, question_index)).
- * The question is read WITH its rubric, i.e. as bd-60161 intended.
+ * The question is read WITH its rubric, i.e. as the rubric-grounded marking intends.
  * --dry-run never calls the LLM; it only counts those.
  *
  * Idempotent: only status='pending_review' rows are selected, and each update
