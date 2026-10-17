@@ -30,6 +30,7 @@ const supabase = require('../../config/supabase');
 const { logEvent } = require('../../utils/structured-logger');
 const { WqError } = require('./web-quiz-error');
 const Timing = require('./web-quiz-timing');
+const Swr = require('./web-quiz-swr');
 
 const FLAG_KEY = 'web_quiz_db_deadline';
 const FLAG_TTL_MS = 60 * 1000;
@@ -73,8 +74,7 @@ async function load() {
     if (typeof q.abortSignal === 'function') q = q.abortSignal(AbortSignal.timeout(FLAG_READ_MS));
     const { data, error } = await q;
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const row = (data || []).find((r) => r.key === FLAG_KEY);
-    flag = { at: Date.now(), ...parse(row && row.value) };
+    fromRows(data, Date.now());
   } catch (_) {
     flag = { at: Date.now(), ...(flag ? { on: flag.on, ms: flag.ms, inject: flag.inject } : OFF) };
   } finally {
@@ -83,11 +83,28 @@ async function load() {
   return flag;
 }
 
+function fromRows(data, now) {
+  const row = (data || []).find((r) => r.key === FLAG_KEY);
+  flag = { at: now, ...parse(row && row.value) };
+  return flag;
+}
+
 async function settings() {
   if (flag && Date.now() - flag.at < FLAG_TTL_MS) return flag;
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch (it refreshes it): no read of its own.
+  if (flag && Swr.covered(SEAM_NAME)) return flag;
+  // ...and with no value yet (a cold start), that read's answer, not a read of its own
+  const seam = !flag && Swr.covered(SEAM_NAME);
+  if (seam) { await seam; if (flag && Date.now() - flag.at < FLAG_TTL_MS) return flag; }
   if (!loading) loading = load();
   return flag || loading;       // stale value while it refreshes; only the very first read waits
 }
+
+// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
+// cache from the raw rows, parsed here exactly as this module's own read parses them.
+const SEAM_NAME = 'db-deadline';
+const hubSwitches = { name: SEAM_NAME, keys: [FLAG_KEY], swr: [SEAM_NAME], age: (now) => Swr.ageOf(flag, FLAG_TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => r.key === FLAG_KEY), now), read: () => settings(), peek: () => flag };
 
 /** One attempt with its own deadline. `hung` = our deadline fired (a transit stall), not an answer from the database. */
 async function attempt(q, ms) {
@@ -125,4 +142,4 @@ async function read(label, build) {
   return b.res;
 }
 
-module.exports = { read, retryMs, FLAG_KEY, DEADLINE_MS, _reset: () => { flag = null; loading = null; } };
+module.exports = { read, retryMs, hubSwitches, FLAG_KEY, DEADLINE_MS, _reset: () => { flag = null; loading = null; } };

@@ -409,6 +409,23 @@ describe('class story (quiz_teacher_home AND the story send on)', () => {
     expect(drawn).toHaveLength(1);
   });
 
+  test('the fast page starts the picture before it knows the story: a story\'s picture waits for the page\'s story', async () => {
+    const on = await ClassPic.factsFor(SC_ST);
+    expect(on && on.kind).toBe('story');
+    const ctx = { shareCodeId: SC_ST, code: 'ST12CD' };
+    // the page opens the story: the same picture as when it was known
+    expect(await ClassPic.field(ctx, { story: () => Promise.resolve({ id: 'b' }) })).toEqual({ teach: tId(SC_ST), teach_v: on.v });
+    // the page does not open it (a story row with questions): no picture, as with story null
+    expect(await ClassPic.field(ctx, { story: () => Promise.resolve(null) })).toBeNull();
+    expect(await ClassPic.field(ctx, { story: null })).toBeNull();
+    // a class quiz's picture never asks for the story
+    const ask = jest.fn(() => Promise.resolve(null));
+    const quizCtx = { shareCodeId: SC, code: 'AB12CD' };
+    expect(await ClassPic.field(quizCtx, { story: null })).toEqual(expect.objectContaining({ teach: tId(SC) }));
+    expect(await ClassPic.field(quizCtx, { story: ask })).toEqual(await ClassPic.field(quizCtx, { story: null }));
+    expect(ask).not.toHaveBeenCalled();
+  });
+
   test('a cover storage cannot give: the picture is still drawn, without it', async () => {
     r2.downloadFromR2.mockReset().mockRejectedValue(Object.assign(new Error('NoSuchKey'), { name: 'NoSuchKey' }));
     const p = await pic(SC_ST, 'ST12CD');

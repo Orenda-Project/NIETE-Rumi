@@ -340,6 +340,14 @@ describe('events: home_view on every home render; the Next tile carries the rank
     expect(p.evs.find((e) => e[0] === 'home_view')[1]).toEqual({ src: 'quiz' });
     expect(p.evs.find((e) => e[0] === 'next_shown')[1]).toMatchObject({ pos: 0, arm: 'rank', score_v: 3, offer: 'o-1', rank_src: 'prior' });
   });
+  test('the bot\'s step timings (B.st, web_quiz_server_timing on) ride home_view; absent, the beacon is unchanged', () => {
+    const p = page();
+    p.mount({ ...HOME, src: 'quiz', st: 'gate;dur=12, home;dur=3400, total;dur=3900' });
+    expect(p.evs.find((e) => e[0] === 'home_view')[1]).toEqual({ src: 'quiz', st: 'gate;dur=12, home;dur=3400, total;dur=3900' });
+    const q = page();
+    q.mount({ ...HOME, src: 'quiz' });
+    expect(JSON.stringify(q.evs.find((e) => e[0] === 'home_view')[1])).toBe('{"src":"quiz"}');
+  });
   test('the fallback tile: home_view too, and no ranking fields invented', () => {
     const p = page(); p.mount(HOME);
     expect(p.evs.map((e) => e[0])).toEqual(expect.arrayContaining(['home_view', 'next_shown']));

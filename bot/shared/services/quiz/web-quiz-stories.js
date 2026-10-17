@@ -61,10 +61,8 @@ const ENDED = new Set(['last_word', 'quiet', 'done_tap', 'timer', 'line1', 'stuc
 const fail = (status, error) => { throw new WqError(status, { error }); };
 let cache = null;
 
-/** Only a literal true turns it on (app_settings.value is jsonb: the flip writes the boolean); a read error is off. */
-function isTrue(value) {
-  return value === true;
-}
+// Only a literal true turns it on (app_settings.value is jsonb: the flip writes the boolean); a read error is off.
+const { isTrue } = require('./is-true');
 
 // A finish counts (the shelf's tick, the Book's sticker, "the first time") only if the child listened to or read a page.
 function counted(row) {
@@ -72,20 +70,43 @@ function counted(row) {
   return (Number(d.pages_listened) || 0) + (Number(d.pages_read) || 0) > 0;
 }
 
+const FLAG_KEYS = [FLAG_KEY, BAND_KEY, STEADY_KEY, ...LR3_KEYS];
+
+// web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
 async function flags(now = Date.now()) {
+  if (require('./web-quiz-swr').stale(cache, TTL_MS, now)) { require('./web-quiz-swr').revalidate('stories', () => readFlags(now, { keep: true })); return cache; }
+  return readFlags(now);
+}
+
+// keep (the background re-read of a stale value, web_quiz_fast on): a failed read keeps the value it was refreshing.
+async function readFlags(now, { keep = false } = {}) {
   if (cache && now - cache.at < TTL_MS) return cache;
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = require('./web-quiz-swr').covered('stories');
+  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache; }
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, BAND_KEY, STEADY_KEY, ...LR3_KEYS]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', FLAG_KEYS);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = new Map((data || []).map((r) => [r.key, r.value]));
-    const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
-    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3: on && LR3_KEYS.every((k) => isTrue(by.get(k))), steady: on && isTrue(by.get(STEADY_KEY)) };
+    fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ web quiz stories: settings lookup failed — stories off', { error: err.message });
-    cache = { at: now, on: false, band: false, lr3: false, steady: false };
+    if (!(keep && cache)) cache = { at: now, on: false, band: false, lr3: false, steady: false };
   }
   return cache;
 }
+
+// The rows of the read (or of the hub's one switch read, web-quiz-hub-switches.js) -> the cache.
+function fromRows(data, now) {
+  const by = new Map((data || []).map((r) => [r.key, r.value]));
+  const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
+  cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3: on && LR3_KEYS.every((k) => isTrue(by.get(k))), steady: on && isTrue(by.get(STEADY_KEY)) };
+  return cache;
+}
+
+// The hub's one switch read (web_quiz_fast on): this module's keys, its cache's age, and the cache from the raw rows,
+// parsed here exactly as this module's own read parses them.
+const hubSwitches = { name: 'stories', keys: FLAG_KEYS, swr: ['stories'], age: (now) => require('./web-quiz-swr').ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => FLAG_KEYS.includes(r.key)), now), read: () => flags(), peek: () => cache };
 async function storiesOn(now = Date.now()) { return (await flags(now)).on; }
 
 const RESUME_DAYS = 7;
@@ -512,6 +533,7 @@ async function stickersFor(studentId) {
 }
 
 module.exports = {
+  hubSwitches,
   shelf, shelfPublic, book, bookData, event, hubBits, stickersFor, storiesOn, pageReadable,
   pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY, STEADY_KEY, flags, resumeOf, orderedBooks, gradeOf, fileUrl,
   _reset: () => { cache = null; },

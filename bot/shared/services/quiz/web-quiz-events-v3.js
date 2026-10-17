@@ -142,6 +142,8 @@ function clean3(e) {
   if (e.n === 'video_watched' && num('ms')) out.ms = Math.round(Number(e.ms));
   for (const [k, [lo, hi]] of Object.entries(INTS[e.n] || {})) if (Number.isInteger(e[k]) && e[k] >= lo && e[k] <= hi) out[k] = e[k];
   for (const k of (BOOLS[e.n] || [])) if (typeof e[k] === 'boolean') out[k] = e[k];
+  // home_view: the bot's step timings the page carried (web_quiz_server_timing), only `name;dur=<ms>` items
+  if (e.n === 'home_view' && typeof e.st === 'string' && e.st.length <= 200 && /^[a-z]+;dur=\d+(\.\d+)?(, [a-z]+;dur=\d+(\.\d+)?)*$/.test(e.st)) out.st = e.st;
   if (practiceOf(e)) out.practice = 1;
   return out;
 }

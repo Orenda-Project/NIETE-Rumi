@@ -2936,6 +2936,12 @@ if (require.main === module) {
   } catch (err) {
     logToFile('child_test.score_sweep_start_failed', { error: err.message }, 'error');
   }
+  // The kid hub's switch refresh (web_quiz_fast): every 25 s, but it reads nothing until a fast hub request arms it.
+  try {
+    require('./shared/services/quiz/web-quiz-hub-switches').start();
+  } catch (err) {
+    logToFile('web_quiz.switch_refresh_start_failed', { error: err.message }, 'error');
+  }
 }
 
 module.exports = { app, startServer };

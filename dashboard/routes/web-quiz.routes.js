@@ -282,8 +282,30 @@ const URDU_FONT = '/wq/fonts/wq-nastaliq-5.woff2';
 const URDU_FONT_2 = '/wq/fonts/wq-nastaliq-6.woff2';
 const ur2On = (ui, lang) => Boolean(ui && ui.ur2 === true && lang === 'ur');
 
+// The audio host (web_quiz_fast on): the page's presigned sounds live on this environment's R2 storage, so the head
+// opens that connection early and the first sound skips DNS + TCP + TLS. Derived from config: the portal's own
+// R2_ENDPOINT (the same value the bot signs with, see lib/lesson-plan-file.js), and the bucket label the bot's
+// payload names in front of it (the bot signs virtual-hosted URLs, https://<bucket>.<endpoint host>/<key>; the quiz
+// audio bucket is the bot's WEB_QUIZ_AUDIO_BUCKET, which the portal does not know). No endpoint, no preconnect.
+const SAFE_HOST_RX = /^[a-z0-9.-]{1,253}$/;
+function mediaHostMatcher(endpoint) {
+  let host = null;
+  try { host = endpoint ? new URL(String(endpoint)).hostname.toLowerCase() : null; } catch (_) { host = null; }
+  if (!host || !SAFE_HOST_RX.test(host)) return () => null;
+  const rx = new RegExp(`https://((?:[a-z0-9][a-z0-9-]{1,62}\\.)?${host.replace(/[.-]/g, '\\$&')})(?=/)`, 'i');
+  return (payload) => {
+    let text;
+    try { text = JSON.stringify(payload); } catch (_) { return null; }
+    const m = typeof text === 'string' ? rx.exec(text) : null;
+    return m ? m[1].toLowerCase() : null;
+  };
+}
+const preconnectTag = (host) => (host && SAFE_HOST_RX.test(host) ? `\n<link rel="preconnect" href="https://${host}" crossorigin>` : '');
+// A streamed page's head is gone with its headers: the bot's wait rides in the tail as a mark (Server-Timing's twin).
+const withBotMark = (tail, ms) => (Number.isFinite(ms) ? tail.replace(/<\/body>\n<\/html>$/, `<script>performance.mark("wq-bot",{detail:${Math.round(ms)}})</script>\n</body>\n</html>`) : tail);
+
 // Every share picture and brand picture is a 1200x630 JPEG: the head says so, so the phone knows what it fetches.
-function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, imageType = 'image/jpeg' }) {
+function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, imageType = 'image/jpeg', media = null }) {
   const img = image || `${origin}${brand.og.image}`;
   // web_quiz_one_face on: ONE face for both looks, so the preload below names the polished one either way (urduLook).
   const { ur2, cls, URDU_FONT } = urduLook(ui, lang);
@@ -306,7 +328,7 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
 <meta property="og:image:alt" content="${esc(title)}">
 <meta property="og:url" content="${esc(url)}">
 <link rel="icon" href="${esc(WebQuizBrand.faviconHref(brand))}">${lang === 'ur' ? `\n<link rel="preload" href="${ur2 ? URDU_FONT_2 : URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
-<link rel="stylesheet" href="/wq/wq.css?v=${assetV}">
+<link rel="stylesheet" href="/wq/wq.css?v=${assetV}">${preconnectTag(media)}
 <style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>`;
 }
 
@@ -371,7 +393,7 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
 
 // The quiz page in three parts (the head, the Jugnu boot frame, the boot JSON + scripts): renderQuizPage joins them;
 // the fast first page sends the first two before the bot answers and the third when it does.
-function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
+function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, media = null }) {
   const q = (payload && payload.quiz) || {};
   const lang = q.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
@@ -382,7 +404,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
   const image = ogImageFor({ payload, code, view, origin, a, v, k });
   return {
     lang, dir, ur2: ur2On(payload && payload.ui, lang), title: og.title, bootsay: BOOT_COPY[lang],
-    head: head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui, ...cardType(image) }),
+    head: head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui, ...cardType(image), media }),
     frame: `<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(payload)}${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
@@ -406,9 +428,9 @@ ${p.tail}`;
 // The head is drawn from what this edge already knows about the code (its link-preview facts), else English with
 // the last brand; the page's scripts are preloaded so they download while the bot works. When the bot's page is
 // another language/look than the guess, one inline line sets it before any script runs.
-function renderQuizFlushTop({ facts, code, origin, assetV, url, brandKey, ui, a, v, k }) {
+function renderQuizFlushTop({ facts, code, origin, assetV, url, brandKey, ui, a, v, k, media = null }) {
   const payload = facts ? { ...facts, ui } : { quiz: { lang: 'en' }, cls: {}, art: {}, brand: brandKey, ui };
-  const p = quizPageParts({ payload, code, view: 'quiz', origin, assetV, url, a, v, k });
+  const p = quizPageParts({ payload, code, view: 'quiz', origin, assetV, url, a, v, k, media });
   const preload = ['wq-tel.js', 'wq-lib.js', 'wq.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
@@ -470,6 +492,9 @@ function renderCardPage({ facts, token, origin, url, brandKey, oneFace = false }
  */
 function flushWire(req, res, top) {
   const out = Stream.open(req, res);
+  // A streamed page names the bot's wait in its tail, never in a header (the compressor may still hold the headers
+  // when the bot answers; the plain wire has sent them): one place, whichever wire.
+  res.locals.wqStreamed = true;
   out.write(top);
   return { again: () => out.end(FLUSH_AGAIN), page: (tail) => out.end(tail) };
 }
@@ -523,7 +548,7 @@ function listenTag(payload) {
 
 // The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
 // renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
-function hubPageParts({ payload, token, origin, assetV }) {
+function hubPageParts({ payload, token, origin, assetV, media = null }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const boot = { ...payload, token, view: 'hub', brand };
@@ -532,7 +557,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
   const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
   return {
     lang, dir: lang === 'ur' ? 'rtl' : 'ltr', ur2: ur2On(payload && payload.ui, lang), title: HUB_TITLE[lang], bootsay: HUB_BOOT[lang],
-    head: head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui }),
+    head: head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui, media }),
     manifest: play && play.install ? `/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}` : null,
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
@@ -554,8 +579,8 @@ ${p.tail}`;
 
 // Fast first page for the hub: the head guessed from the phone's language and the last brand/look, the scripts
 // preloaded, the Jugnu frame; then the corrections (and the install manifest) and today's tail when the bot answers.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui }) {
-  const p = hubPageParts({ payload: { lang, brand: brandKey, ui }, token, origin, assetV });
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, media = null }) {
+  const p = hubPageParts({ payload: { lang, brand: brandKey, ui }, token, origin, assetV, media });
   const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
@@ -620,6 +645,14 @@ function deviceCookie(req) {
   return m ? m[1] : null;
 }
 
+// The hub's boot payload: with web_quiz_fast on, a locked answer that was asked WITH this phone's wq_dv cookie says
+// so (`dv: 1`), and hub.js shows the locked screen without asking the bot again with the same ref. Otherwise the
+// bot's object itself (switch off: today's bytes).
+function hubBootPayload(body, req) {
+  if (!body || body.fast !== true || body.locked !== true || !deviceCookie(req)) return body;
+  return { ...body, dv: 1 };
+}
+
 // A bot route as it is logged: the caller's template, else the path cut to its first four
 // segments with ":x" for the rest, so a code or a token in the path is never written down.
 function botRouteOf(pathname) {
@@ -634,6 +667,20 @@ function timingOf(res) {
   const one = (h) => { const v = res.headers && res.headers.get ? res.headers.get(h) : null; return typeof v === 'string' && TIMING_RX.test(v) ? v : null; };
   const t = { render: one('x-render-ms'), queue: one('x-queue-age') };
   return t.render != null || t.queue != null ? t : null;
+}
+
+// The bot's step timings on its hub answer (Server-Timing): only `name;dur=<ms>` items, at most 200 characters, else null.
+const ST_ITEM_RX = /^[a-z]+;dur=\d+(?:\.\d+)?$/;
+function stOf(res) {
+  const v = res.headers && res.headers.get ? res.headers.get('server-timing') : null;
+  if (typeof v !== 'string') return null;
+  let out = '';
+  for (const raw of v.split(',')) {
+    const item = raw.trim();
+    if (!ST_ITEM_RX.test(item) || out.length + item.length + (out ? 2 : 0) > 200) continue;
+    out += (out ? ', ' : '') + item;
+  }
+  return out || null;
 }
 
 const defaultLogEvent = (e, p) => { try { require('../services/telemetry.service').logEvent(e, p); } catch (_) { /* never decides a response */ } };
@@ -663,8 +710,9 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
         init.body = JSON.stringify(body || {});
       }
       const res = await fetchImpl(`${botUrl}${pathname}`, init);
-      if (res.status >= 500 && res.status !== 503) record(method, where, t0, { outcome: 'upstream_5xx', status: res.status });
-      else if (now() - t0 >= BOT_SLOW_MS) record(method, where, t0, { outcome: 'slow', status: res.status });
+      const st = stOf(res);
+      if (res.status >= 500 && res.status !== 503) record(method, where, t0, { outcome: 'upstream_5xx', status: res.status, ...(st ? { st } : {}) });
+      else if (now() - t0 >= BOT_SLOW_MS) record(method, where, t0, { outcome: 'slow', status: res.status, ...(st ? { st } : {}) });
       const location = res.headers && res.headers.get ? res.headers.get('location') : null;
       // A picture the bot answers as bytes (a cropped option, an inline option picture) is passed
       // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
@@ -677,7 +725,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       const text = await res.text();
       let json = null;
       try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
-      return { status: res.status, body: json, location };
+      // The bot's step timings (its hub answer, only with web_quiz_server_timing on): `st`. Off: today's result.
+      return { status: res.status, body: json, location, ...(st ? { st } : {}) };
     } catch (err) {
       const timedOut = Boolean(controller && controller.signal.aborted);
       record(method, where, t0, timedOut ? { outcome: 'timeout' }
@@ -702,12 +751,12 @@ function challengeVersion(file = 'wq-challenge.js') {
   try { return crypto.createHash('sha256').update(fs.readFileSync(path.join(PUBLIC_DIR, file))).digest('hex').slice(0, 10); } catch (_) { return '0'; }
 }
 
-function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }) {
+function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey, media = null }) {
   const lang = menu.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey);
   const title = CH_COPY[lang].title(brand.mascot[lang]);
   const boot = { token, kid: kid || null, menu, brand, mascot: brand.mascot[lang], rt: menu.rt === true };
-  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: `${origin}/c/`, assetV, brand, ui: menu && menu.ui })}
+  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: `${origin}/c/`, assetV, brand, ui: menu && menu.ui, media })}
 </head>
 <body>
 <main id="wq" class="wq-app wqc" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(CH_COPY[lang].boot)}</p></div></main>
@@ -755,10 +804,30 @@ function createWebQuizRouter(opts = {}) {
   let lastRt = false;
   let lastUi = null;   // the last payload's `ui` (the Urdu polish switch), for the shells that call no bot
   let lastFast = false; // the last quiz payload's `fast` (app_settings web_quiz_fast): send the page's head first
+  let lastMedia = null; // the audio host the last quiz/hub/challenge payload named (preconnected while fast is on)
+  const mediaHostOf = mediaHostMatcher(opts.r2Endpoint !== undefined ? opts.r2Endpoint : process.env.R2_ENDPOINT);
+  const learnMedia = (payload) => { const h = mediaHostOf(payload); if (h) lastMedia = h; };
+  const mediaIfFast = () => (lastFast ? lastMedia : null);
 
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
   const now = opts.now || Date.now;
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl, logEvent, now, timeoutMs: opts.botTimeoutMs || BOT_TIMEOUT_MS });
+  // A bot call that names its wait (web_quiz_fast on): the ms add up on res.locals.wqBotMs, and an answer whose headers
+  // have not gone yet says Server-Timing: bot;dur=<ms>. A quiz or hub payload's own word on the switch wins over the last one.
+  const botTimed = async (res, ...args) => {
+    const t0 = now();
+    let out = null;
+    try {
+      out = await callBot(...args);
+      return out;
+    } finally {
+      const ms = Math.max(0, Math.round(now() - t0));
+      res.locals.wqBotMs = (res.locals.wqBotMs || 0) + ms;
+      const b = out && out.body;
+      const fast = b && (b.quiz || Array.isArray(b.kids) || typeof b.fast === 'boolean') ? b.fast === true : lastFast;
+      if (fast && !res.headersSent && !res.locals.wqStreamed) res.set('Server-Timing', `bot;dur=${res.locals.wqBotMs}`);
+    }
+  };
   const ogKnown = Preview.ttlCache({ max: 2000, now });
   const artKept = Preview.ttlCache({ max: 200, now });
 
@@ -824,7 +893,7 @@ function createWebQuizRouter(opts = {}) {
       const qs = req.originalUrl.indexOf('?') >= 0 ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
       const pathname = req.path.replace(/^\/api\/wq\//, '/api/internal/wq/') + qs;
       try {
-        const out = await callBot(r.method.toUpperCase(), pathname, req, req.body, { route: r.path.replace(/^\/api\/wq\//, '/api/internal/wq/') });
+        const out = await botTimed(res, r.method.toUpperCase(), pathname, req, req.body, { route: r.path.replace(/^\/api\/wq\//, '/api/internal/wq/') });
         if (out.status >= 300 && out.status < 400 && out.location) return res.redirect(out.status, out.location);
         if (out.status === 204) return res.status(204).end();
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
@@ -874,7 +943,7 @@ function createWebQuizRouter(opts = {}) {
     // and answers them without a quiz render. Anything but facts (an older bot, a closed code) takes the full path.
     if (preview && !known) {
       try {
-        const f = await callBot('GET', `/api/internal/wq/og/${upper}`, req);
+        const f = await botTimed(res, 'GET', `/api/internal/wq/og/${upper}`, req);
         if (f.status === 200 && f.body && f.body.quiz) { known = f.body; ogKnown.set(upper, known, ogKeepMs(known)); }
       } catch (_) { /* the full path below */ }
     }
@@ -884,12 +953,12 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the quiz when the bot answers (never on a teacher's preview
     // link, never on a link-preview fetch: a crawler gets the preview page below, never the quiz).
     const flush = lastFast && view === 'quiz' && !p && !preview && req.query.nf !== '1'
-      ? renderQuizFlushTop({ facts: ogKnown.get(upper), code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v, k: req.query.k })
+      ? renderQuizFlushTop({ facts: ogKnown.get(upper), code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v, k: req.query.k, media: lastMedia })
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
     try {
-      out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
+      out = await botTimed(res, 'GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
       if (flush) return wire.again();
       return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
@@ -904,12 +973,13 @@ function createWebQuizRouter(opts = {}) {
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
+      learnMedia(out.body);
       if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
-      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      if (flush) return wire.page(withBotMark(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }), res.locals.wqBotMs));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }
-      return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, media: mediaIfFast() }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
     // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot
@@ -951,12 +1021,12 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, media: lastMedia })
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
     try {
-      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
+      out = await botTimed(res, 'GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
       if (flush) return wire.again();
       return closed(502, 'off');
@@ -967,8 +1037,19 @@ function createWebQuizRouter(opts = {}) {
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
-      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
-      return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
+      learnMedia(out.body);
+      const payload = hubBootPayload(out.body, req);
+      // Step timings (web_quiz_server_timing on: the bot's answer carried them). The flushed page's headers went before
+      // the bot answered, so the timings ride the tail's boot JSON (`st`, sent by the home's home_view beacon); a page
+      // whose headers have not gone yet says them as Server-Timing, beside the bot's wait and this page's render.
+      // Off: no `st`, and the page and its headers are today's.
+      if (flush) return wire.page(withBotMark(renderHubFlushTail({ guess: flush.guess, payload: out.st ? { ...payload, st: out.st } : payload, token, origin, assetV: version() }), res.locals.wqBotMs));
+      if (!out.st) return res.status(200).type('html').send(renderHubPage({ payload, token, origin, assetV: version(), media: mediaIfFast() }));
+      const r0 = process.hrtime.bigint();
+      const html = renderHubPage({ payload, token, origin, assetV: version(), media: mediaIfFast() });
+      const renderMs = Math.round(Number(process.hrtime.bigint() - r0) / 1e6);
+      if (!res.headersSent) res.set('Server-Timing', [res.get('Server-Timing') || `bot;dur=${res.locals.wqBotMs}`, out.st, `render;dur=${renderMs}`].join(', '));
+      return res.status(200).type('html').send(html);
     }
     if (out.status === 401) return closed(401, 'hub');
     return closed(out.status === 503 ? 503 : 502, 'off');
@@ -1009,14 +1090,15 @@ function createWebQuizRouter(opts = {}) {
     const qs = q.toString() ? `?${q}` : '';
     let out;
     try {
-      out = await callBot('GET', `/api/internal/wq/ch/${encodeURIComponent(token)}${qs}`, req);
+      out = await botTimed(res, 'GET', `/api/internal/wq/ch/${encodeURIComponent(token)}${qs}`, req);
     } catch (_) {
       return res.status(502).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey, ui: lastUi }));
     }
     // One Urdu face: the menu's own `one_face` (the bot's word) reaches the head as `ui.uf`; off, the menu untouched.
     if (out.body && typeof out.body === 'object') out.body = withOneFace(out.body);
     if (out.status === 200 && out.body && Array.isArray(out.body.exercises)) {
-      return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey }));
+      learnMedia(out.body);
+      return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey, media: mediaIfFast() }));
     }
     const err = out.body && out.body.error;
     if (err === 'not_eligible' || err === 'pick_kid' || err === 'other_device') {
@@ -1178,4 +1260,4 @@ function createWebQuizRouter(opts = {}) {
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderCardPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, assetVersion };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderCardPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, hubBootPayload, assetVersion };

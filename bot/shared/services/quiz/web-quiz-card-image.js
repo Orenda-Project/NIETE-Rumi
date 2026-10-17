@@ -11,6 +11,7 @@
  *   image(token)     GET /card/<t>.png: the 1200x630 picture (≤ 40 KB PNG), first name + the deed + one sticker,
  *                    drawn through web-quiz-art.js's own headless turn queue and kept in memory by token.
  *   field()          {card_v3: true} on the quiz finish and the Jugnu page's menu when the switch is on, else {}.
+ *   hubSwitches      its part of the hub's one switch read (web-quiz-hub-switches.js, web_quiz_fast on only)
  *   facts(token)     {kind, deed, lang, first, code} for a genuine token, else null (the og head of /k/<t>).
  *
  * The token is the card's facts sealed with AES-256-GCM under a key derived from the web-quiz token secret: a
@@ -22,6 +23,7 @@ const fs = require('fs');
 const path = require('path');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const Swr = require('./web-quiz-swr');
 const T = require('./web-quiz-token');
 const { clampLanguage } = require('../../config/ux-strings');
 // The card speaks the deployment's two languages only.
@@ -109,22 +111,41 @@ const fail = (status, error) => { throw new CardError(status, error); };
 
 let cache = null;
 // On only as JSON true: a string "true" row is off, as every child-page switch reads it (one truth across the pages).
-function isTrue(value) {
-  return value === true;
-}
+const { isTrue } = require('./is-true');
 /** true only with app_settings web_quiz_card_v3 literally true; 30 s cache; fails closed. Never throws. */
 async function on(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
+  // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
+  if (Swr.stale(cache, TTL_MS, now)) { Swr.revalidate('card-v3', () => readOn(now, true)); return cache.on; }
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = Swr.covered('card-v3');
+  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache.on; }
+  return readOn(now);
+}
+
+// keep: a background read that fails leaves the cached value as it was.
+async function readOn(now, keep = false) {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    cache = { at: now, on: isTrue(((data || [])[0] || {}).value) };
-    return cache.on;
+    return fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ web quiz card v3: settings lookup failed — card off', { error: err.message });
+    if (keep && cache) return cache.on;
     return false;
   }
 }
+
+// The rows of the read (or of the hub's one switch read, web-quiz-hub-switches.js) -> the cache.
+function fromRows(data, now) {
+  cache = { at: now, on: isTrue(((data || [])[0] || {}).value) };
+  return cache.on;
+}
+
+// The hub's one switch read (web_quiz_fast on): this module's key, its cache's age, and the cache from the raw rows,
+// parsed here exactly as this module's own read parses them (JSON true only).
+const hubSwitches = { name: 'card-v3', keys: [KEY], swr: ['card-v3'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => r.key === KEY), now), read: () => on(), peek: () => cache };
 async function field() {
   try { return (await on()) ? { card_v3: true } : {}; } catch (_) { return {}; }
 }
@@ -347,5 +368,5 @@ function _reset() { cache = null; mem.clear(); inflight.clear(); }
 
 module.exports = {
   KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES,
-  on, field, mint, image, facts, landing, returnLine, renderCard, _reset, _seal: seal,
+  on, field, hubSwitches, mint, image, facts, landing, returnLine, renderCard, _reset, _seal: seal,
 };

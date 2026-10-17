@@ -5,7 +5,8 @@
  *
  *   hubPrep({ out, token, history, lang, chosenId, grade, stopsOf })   the slot's own reads, started by the hub BESIDE
  *                                                       Jugnu's corner and the Book (never after them): a promise that
- *                                                       never rejects
+ *                                                       never rejects (web_quiz_fast: one of the hub's parallel
+ *                                                       branches, `out` a promise of the cards it needs)
  *   hubField({ out, token, history, collect, lang, prep })  the hub boot's `{ next }` (ctx home), from that prep
  * (The result cards' fields live in web-quiz-next-offer-result.js, which reads the hub: this module never requires
  * the hub, so the hub's require of it is no cycle.)
@@ -171,7 +172,7 @@ const BOOK_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * previewed; `known` = the codes whose quiz row was read (a failed or empty read leaves a code unknown, and the
  * teacher card's code unknown is never offered: fail closed); `covers` = a sent book's cover. Never throws.
  */
-async function quizIdsOf(codes, { history = [] } = {}) {
+async function quizIdsOf(codes, { history = [], seen = null } = {}) {
   const want = [...new Set(codes.filter(Boolean))].slice(0, 20);
   const none = { quizIds: new Map(), storyCodes: new Set(), unsentCodes: new Set(), known: new Set(), covers: new Map() };
   if (!want.length) return none;
@@ -179,17 +180,24 @@ async function quizIdsOf(codes, { history = [] } = {}) {
     const { read: dbRead } = require('./web-quiz-db-deadline');
     // the hub's own history already knows the quiz behind every code this child has played: read only the rest
     const had = new Map((history || []).filter((e) => e && e.code && e.quizId).map((e) => [e.code, e.quizId]));
-    const ask = want.filter((c) => !had.has(c));
+    // fast (the hub's parallel branches): the teacher card's own reads, its codes and the quiz rows it read with these
+    // same columns, are not read again
+    const pre = seen && Array.isArray(seen.codes) && Array.isArray(seen.rows) && seen.ids instanceof Set ? seen : null;
+    const preCode = new Map(pre ? pre.codes.filter((c) => c && c.code).map((c) => [c.code, c.quiz_id]) : []);
+    const ask = want.filter((c) => !had.has(c) && !preCode.has(c));
     const { data, error } = ask.length
       ? await dbRead('nextOffer:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('code, quiz_id').in('code', ask))
       : { data: [] };
     if (error || !Array.isArray(data)) return none;
-    const quizIds = new Map([...want.filter((c) => had.has(c)).map((c) => [c, had.get(c)]), ...data.map((r) => [r.code, r.quiz_id])]);
+    const quizIds = new Map([...want.filter((c) => had.has(c)).map((c) => [c, had.get(c)]),
+      ...want.filter((c) => !had.has(c) && preCode.has(c)).map((c) => [c, preCode.get(c)]), ...data.map((r) => [r.code, r.quiz_id])]);
     const ids = [...new Set([...quizIds.values()].filter(Boolean))];
-    const { data: rows, error: qErr } = ids.length
-      ? await dbRead('nextOffer:quizzes:1', (db) => db.from('quizzes').select('id, quiz_source, status, meta').in('id', ids))
+    const readIds = pre ? ids.filter((id) => !pre.ids.has(id)) : ids;
+    const { data: read, error: qErr } = readIds.length
+      ? await dbRead('nextOffer:quizzes:1', (db) => db.from('quizzes').select('id, quiz_source, status, meta').in('id', readIds))
       : { data: [] };
-    if (qErr || !Array.isArray(rows)) return { ...none, quizIds };
+    if (qErr || !Array.isArray(read)) return { ...none, quizIds };
+    const rows = pre ? [...pre.rows.filter((q) => q && ids.includes(q.id)), ...read] : read;
     const stories = rows.filter((q) => q.quiz_source === 'story');
     // a story's code is minted when the teacher OPENS the book (the send link is built at render); only a tapped send
     // (status 'sent' / 'report_sent' / meta.sent_at) is the teacher's — a preview is never pinned
@@ -227,7 +235,8 @@ async function coversOf(quizIds, books, dbRead) {
  * from the draw module's exported parts: only a read/listen stop in check mode with the pool on can be; a read that
  * fails is "yes" (fail closed: never offer what may not open).
  */
-async function onItsWayOf(canonicalId, rawId, stops, lang, grade) {
+// early (the hub's parallel branches): the passage registry is read beside the child's rows, not after them.
+async function onItsWayOf(canonicalId, rawId, stops, lang, grade, { early = false } = {}) {
   const out = {};
   const ask = (stops || []).filter((ex) => ex === 'read' || ex === 'listen');
   if (!ask.length) return out;
@@ -237,10 +246,12 @@ async function onItsWayOf(canonicalId, rawId, stops, lang, grade) {
     const D = require('./web-quiz-challenge-draw');
     // the draw compares grades as numbers (serveV2 passes the visit's number); the hub's grade is a string
     const g = Number(grade) || null;
+    const registryP = early ? D.registryPassages() : null;
+    if (registryP) registryP.catch(() => {});
     const [rows, periodRows, fixed] = await Promise.all([D.childRows(canonicalId, [rawId]), D.periods(), D.fixedGradeOf(canonicalId, g)]);
     if (rows.readFailed) { ask.forEach((ex) => { out[ex] = true; }); return out; }
     const periodNow = D.periodIdFor(new Date(), periodRows);
-    const registry = await D.registryPassages();
+    const registry = await (registryP || D.registryPassages());
     const ob = await D.openBand(canonicalId, fixed.grade);
     const band = D.drawBand({ fixedGrade: fixed.grade, openBand: ob.band, lastCountedRead: D.lastCountedRead(rows) });
     ask.forEach((ex) => {
@@ -296,7 +307,8 @@ function withDeadline(work, ms) {
  * codes the hub has already chosen and the Trail's stops): the switches, the quiz rows behind the codes, the storybook
  * candidates, the "on its way" verdicts. Resolves to null when the slot is off; never rejects.
  */
-function hubPrep({ out, token, history, lang, chosenId, grade, stopsOf } = {}) {
+function hubPrep({ out, token, history, lang, chosenId, grade, stopsOf, chip, seen } = {}) {
+  if (out && typeof out.then === 'function') return branchPrep({ out, token, history, lang, chosenId, grade, stopsOf, chip, seen });
   return (async () => {
     const sw = await NO.switches();
     if (!sw.on || !out || !chosenId) return null;
@@ -305,6 +317,26 @@ function hubPrep({ out, token, history, lang, chosenId, grade, stopsOf } = {}) {
       quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)], { history }),
       storybooks({ studentId: chosenId, lang, grade, token, chip: out.kid }),
       onItsWayOf(chosenId, chosenId, stops, lang, grade),
+    ]);
+    return { sw, rows, books, onItsWay };
+  })().catch(() => null);
+}
+
+/**
+ * hubPrep as one of the hub's parallel branches (web_quiz_fast): `out` is a promise of { teacher, last, again } (the
+ * payload's, computed as the hub computes them) and `chip` the child's chip. The storybook candidates and the "on its
+ * way" verdicts need none of them and start at once; the quiz rows wait for the teacher card and reuse its reads (`seen`).
+ */
+function branchPrep({ out, token, history, lang, chosenId, grade, stopsOf, chip, seen }) {
+  Promise.resolve(out).catch(() => {});   // a failed teacher card is the hub's to report (where it reads it), not this one's
+  return (async () => {
+    const sw = await NO.switches();
+    if (!sw.on || !chosenId) return null;
+    const stops = typeof stopsOf === 'function' ? Promise.resolve().then(stopsOf).catch(() => []) : Promise.resolve([]);
+    const [rows, books, onItsWay] = await Promise.all([
+      out.then((o) => quizIdsOf([o.teacher && o.teacher.code, o.last && o.last.code, ...(o.again || []).map((a) => a.code)], { history, seen })),
+      storybooks({ studentId: chosenId, lang, grade, token, chip }),
+      stops.then((st) => onItsWayOf(chosenId, chosenId, st, lang, grade, { early: true })),
     ]);
     return { sw, rows, books, onItsWay };
   })().catch(() => null);

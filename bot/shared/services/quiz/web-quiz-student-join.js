@@ -46,6 +46,7 @@ const BindRepo = require('./child-phone-bindings.repo');
 const Homonym = require('./web-quiz-homonym');
 const GoNonce = require('../first-touch/go-nonce');
 const { clampLanguage } = require('../../config/ux-strings');
+const Swr = require('./web-quiz-swr');
 
 const SWITCH_KEY = 'quiz_student_join';
 // The join page keeps a grade tap made before its script has loaded (the page draws it; join.js replays it). Read only
@@ -88,21 +89,40 @@ async function earlyTapOn() {
 }
 
 /** → { on, bind, earlyTap }; all false on a failed read. Never throws. */
+// web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
 async function flags(now = Date.now()) {
+  if (Swr.stale(cache, TTL_MS, now)) { Swr.revalidate('student-join-flags', () => readFlags(now)); return cache; }
+  return readFlags(now);
+}
+
+async function readFlags(now) {
   if (cache && now - cache.at < TTL_MS) return cache;
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = Swr.covered('student-join-flags');
+  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache; }
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', SWITCH_KEY);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const on = isTrue(((data || [])[0] || {}).value);
-    const bind = on && Boolean((await IdFlags.flags()).phoneBind);
-    const earlyTap = on && (await earlyTapOn());
-    cache = { at: now, on, bind, earlyTap };
-    return cache;
+    return await fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ student join: settings lookup failed — switch off', { error: err.message });
     return { on: false, bind: false, earlyTap: false };
   }
 }
+
+// tapRows: the early-tap key's rows when the hub's one read carried them; else its own read after the switch, as today.
+async function fromRows(data, now, tapRows = null) {
+  const on = isTrue(((data || [])[0] || {}).value);
+  const bind = on && Boolean((await IdFlags.flags()).phoneBind);
+  const earlyTap = on && (tapRows ? ((tapRows[0] || {}).value === true) : (await earlyTapOn()));
+  cache = { at: now, on, bind, earlyTap };
+  return cache;
+}
+
+// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the cache
+// from the raw rows, parsed here exactly as this module's own read parses them (after the identity flags: `bind` reads their cache).
+const hubSwitches = { name: 'student-join-flags', keys: [SWITCH_KEY, EARLY_TAP_KEY], swr: ['student-join-flags'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => r.key === SWITCH_KEY), now, rows.filter((r) => r.key === EARLY_TAP_KEY)), read: () => flags(), peek: () => cache };
 
 const langOf = (l) => clampLanguage(l);
 const nowS = () => Math.floor(Date.now() / 1000);
@@ -550,14 +570,28 @@ async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = nul
  */
 async function hideCardIfBound(out, studentId) {
   try {
-    if (!out || !studentId || !(await flags()).bind) return out;
-    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds([String(studentId)]);
-    const id = canon.get(String(studentId)) || String(studentId);
-    const rows = await BindRepo.activeForChild(id);
-    if (rows.some((b) => b.via === 'guest')) out.bind = { offer: false, state: 'bound' };
+    if (!out || !studentId) return out;
+    if (await guestBound(studentId)) out.bind = { offer: false, state: 'bound' };
     return out;
   } catch (_) {
     return out;
+  }
+}
+
+/**
+ * True when this child's place is saved on a phone with no code (a `guest` binding; the switch on). Never rejects.
+ * `canon` (the hub's identity map, web_quiz_fast on): when it names the child as their own canonical id, no re-read.
+ */
+async function guestBound(studentId, { canon = null } = {}) {
+  try {
+    if (!studentId || !(await flags()).bind) return false;
+    const known = canon && typeof canon.get === 'function' && canon.get(String(studentId)) === String(studentId) ? String(studentId) : null;
+    const map = known ? null : await require('./web-quiz-identity-roster').canonicalStudentIds([String(studentId)]);
+    const id = known || map.get(String(studentId)) || String(studentId);
+    const rows = await BindRepo.activeForChild(id);
+    return rows.some((b) => b.via === 'guest');
+  } catch (_) {
+    return false;
   }
 }
 
@@ -582,7 +616,7 @@ async function noteRecognised({ phoneNorm } = {}) {
 
 module.exports = {
   SWITCH_KEY, EARLY_TAP_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
-  flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound,
+  flags, hubSwitches, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound, guestBound,
   cleanFirstName, cleanGrade, pickChips, rosterForPhone, schoolYearStart,
   _resetCache: () => { cache = null; },
 };

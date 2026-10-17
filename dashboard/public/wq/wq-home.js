@@ -272,7 +272,7 @@
     var shownAt = null;
     // Every home render is a home_view (the funnel's denominator); the tile it shows is a next_shown beside it.
     if (nx) {
-      ev('home_view', { src: arrivedFrom(B) });
+      ev('home_view', { src: arrivedFrom(B), st: B.st });
       shownAt = Date.now();
       ev('next_shown', rankOf(B, { ctx: 'home', kind: nx.kind, pos: 0, source: nx.src === 'next' ? (/^(pinned|ranked|fallback)$/.test(B.next.source) ? B.next.source : 'ranked') : 'fallback' }));
       if (!B.practice) prefetchOnce(nx.href, ctx);

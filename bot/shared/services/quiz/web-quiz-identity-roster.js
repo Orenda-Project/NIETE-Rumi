@@ -43,10 +43,13 @@ const firstToken = (s) => String(s || '').trim().split(/\s+/)[0] || '';
  * code the class-less children's own codes hang under; the page must know it to keep their names private). 30 s cache;
  * a failed read is today's identity path and no root.
  */
-async function pageSettings(now = Date.now()) {
+// `swr` (the fast quiz page): a reading past its 30 s (but younger than twice that) is answered at once and re-read in
+// the background (a failed re-read keeps it); with no reading yet, or an older one, the read is waited for, as without it.
+async function pageSettings(now = Date.now(), { swr = false } = {}) {
   if (flag && now - flag.at < TTL_MS) return flag;
   // Callers that start together (the fast page's early reads) share the one read in flight.
   if (!inflight) inflight = readSettings(now).finally(() => { inflight = null; });
+  if (swr && flag && now - flag.at < require('./web-quiz-swr').MAX_STALE * TTL_MS) { inflight.catch(() => {}); return flag; }
   return inflight;
 }
 
@@ -73,13 +76,13 @@ function rootOf(value) {
 }
 
 /** 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read). */
-async function identityMode(now = Date.now()) {
-  return (await pageSettings(now)).mode;
+async function identityMode(now = Date.now(), { swr = false } = {}) {
+  return (await pageSettings(now, { swr })).mode;
 }
 
 /** The watch root's share code id, or null (absent, not an id, or a failed read). */
-async function watchRoot(now = Date.now()) {
-  return (await pageSettings(now)).watchRoot;
+async function watchRoot(now = Date.now(), { swr = false } = {}) {
+  return (await pageSettings(now, { swr })).watchRoot;
 }
 
 /** A students row as the matcher and the teacher's lists use it (number = the list number). */
@@ -217,11 +220,30 @@ async function loadLegacyList(listId, now = Date.now()) {
   }
 }
 
-/** The roster a resolved class stands on: the class's enrolments, else its legacy list. */
-async function rosterOf(cls) {
+const refreshing = new Map(); // key → the background re-read in flight
+
+/**
+ * A roster read stale-while-revalidate: none cached yet → read and wait, as without it; cached but past 30 s → the
+ * cached children at once, re-read in the background (one at a time; a failed re-read keeps them, logged by the read).
+ */
+function swrRoster(key, load) {
+  const hit = rosters.get(key);
+  if (!hit) return load();
+  if (Date.now() - hit.at >= TTL_MS && !refreshing.has(key)) {
+    const p = Promise.resolve().then(load).catch(() => null).finally(() => refreshing.delete(key));
+    refreshing.set(key, p);
+  }
+  return hit.kids;
+}
+
+/**
+ * The roster a resolved class stands on: the class's enrolments, else its legacy list.
+ * `swr` (the fast quiz page's boot, which only asks whether there is one): a stale roster answers at once.
+ */
+async function rosterOf(cls, { swr = false } = {}) {
   if (!cls) return null;
-  if (cls.id) return loadClassRoster(cls.id);
-  if (cls.listId) return loadLegacyList(cls.listId);
+  if (cls.id) return swr ? swrRoster(`class:${cls.id}`, () => loadClassRoster(cls.id)) : loadClassRoster(cls.id);
+  if (cls.listId) return swr ? swrRoster(`list:${cls.listId}`, () => loadLegacyList(cls.listId)) : loadLegacyList(cls.listId);
   return null;
 }
 
@@ -314,5 +336,5 @@ module.exports = {
   canonicalStudentIds, canonicalStudentId,
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
-  _resetCache: () => { flag = null; inflight = null; rosters.clear(); },
+  _resetCache: () => { flag = null; inflight = null; rosters.clear(); refreshing.clear(); },
 };
