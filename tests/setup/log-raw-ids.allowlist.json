@@ -1062,13 +1062,6 @@
    "570 userId (shorthand)"
   ]
  },
- "bot/shared/services/first-touch/maker.bank.js": {
-  "n": 1,
-  "area": "first-touch",
-  "at": [
-   "194 userId: uid"
-  ]
- },
  "bot/shared/services/first-touch/one-door.service.js": {
   "n": 2,
   "area": "first-touch",
@@ -1664,28 +1657,12 @@
    "35 userId (shorthand)"
   ]
  },
- "bot/shared/services/quiz/teacher-report-link.js": {
-  "n": 3,
-  "area": "quiz",
-  "at": [
-   "60 userId: teacherId",
-   "75 userId: teacherId",
-   "81 userId: teacherId"
-  ]
- },
  "bot/shared/services/quiz/teacher-report-list.service.js": {
   "n": 2,
   "area": "quiz",
   "at": [
    "160 userId: user.id",
    "173 userId: user.id"
-  ]
- },
- "bot/shared/services/quiz/teacher-self-test.js": {
-  "n": 1,
-  "area": "quiz",
-  "at": [
-   "71 userId: teacher.id"
   ]
  },
  "bot/shared/services/quiz/transcript-lesson-provider.js": {
@@ -1793,15 +1770,6 @@
    "1007 studentId: key",
    "1021 studentId: key",
    "1028 studentId: key"
-  ]
- },
- "bot/shared/services/quiz/video-quiz-share.service.js": {
-  "n": 3,
-  "area": "quiz",
-  "at": [
-   "280 userId: ctx.userId",
-   "421 userId: selfTest.userId",
-   "564 studentId: student?.id || null"
   ]
  },
  "bot/shared/services/quiz/video-quiz.service.js": {
