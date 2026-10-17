@@ -51,6 +51,7 @@ function page({ lang = 'en', cls = V2(), kids = [], replies = [], params = {} } 
       isYou: (n) => `Are you ${n}?`, isYouSub: 'Tap Yes only if this is your own name.', yesMe: "Yes, it's me", next: 'Next',
       oops: 'oops', offline: 'offline', challenged: () => '', challengedBy: () => '', proof: () => '', classToday: () => '' },
     esc: (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
+    clsName: (s) => s,
     ani: (a) => `[${a}]`, bar: () => '', jug: (m, say) => `<p class="jug">${say}</p>`, wireBar: () => {},
     render: (h, name) => { screens.push({ h, name }); byId = {}; },
     on: (sel, fn) => { byId[sel] = fn; },
