@@ -177,6 +177,15 @@ describe('switch ON: the row is read first, the cache second', () => {
     expect(rowOf(kidId).revoked_by).toBe('page_undo');
   });
 
+  test('the cache down on the first home: NO line (never twice beats once), the corner row still drawn from the row', async () => {
+    const { kidId } = await joinNew();
+    redis.__up = false;
+    const f = await HubHome().homeField({ out: OUT, chosenId: kidId, history: [], device: DEVICE, src: 'join' });
+    expect(f.home_v3).toBe(1);
+    expect(f).not.toHaveProperty('remember');
+    expect(f.forget_phone).toBe(true);
+  });
+
   test('a link erased elsewhere (STOP) hides the row even with the hash still on it', async () => {
     const { kidId } = await joinNew();
     flushCache();
