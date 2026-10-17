@@ -379,13 +379,14 @@ async function fromIdentity(code, quizId, { foldOn = false } = {}) {
     notPlayed: known && na.notPlayed
       ? na.notPlayed.map((k) => ({ studentId: k.studentId, first: k.first, roll: k.number != null ? Number(k.number) : null }))
       : null,
-    provisional: known ? await provisionalRows(na.provisional || [], { foldOn, quizId }) : [],
+    // with quiz_report_fold_by_child on, quizReport folds these with the played rows' facts (one read for both)
+    provisional: known ? (foldOn ? null : groupProvisional(na.provisional || [])) : [],
+    provisionalRaw: known && foldOn ? na.provisional || [] : [],
   };
 }
 
-/** The provisional list: by child when quiz_report_fold_by_child is on and the facts read, else by typed name (today). */
-async function provisionalRows(rows, { foldOn, quizId }) {
-  const facts = foldOn ? await childFacts(rows.map((r) => r.studentId), quizId) : null;
+/** The provisional list by child (quiz_report_fold_by_child on, facts read), else by typed name (today). */
+function provisionalRows(rows, facts) {
   if (!facts) return groupProvisional(rows);
   const sorted = rows.slice().sort((a, b) => String(a.finishedAt || '').localeCompare(String(b.finishedAt || '')));
   return foldByChild(sorted, { idOf: (r) => r.studentId, nameOf: (r) => r.typed, facts })
@@ -394,8 +395,10 @@ async function provisionalRows(rows, { foldOn, quizId }) {
 
 /**
  * quiz_report_fold_by_child: for off-list records, who each one is (`merged_into ?? id`) and the phones it is bound
- * to (child_phone_bindings.phone_tomb, revoked or not: a phone the child used). → Map id → { who, phones }, or null
- * when either read fails (the caller then folds by typed name, as today).
+ * to (child_phone_bindings.phone_tomb, revoked or not: a phone the child used) — its own and its merged-into record's.
+ * → Map id → { who, phones }, or null when either read fails (the caller then folds by typed name, as today).
+ * `merged_into` is followed ONE step (A → B); a chain A → B → C is not resolved further (the merge path writes the
+ * surviving record directly, so a chain is not expected).
  */
 async function childFacts(ids, quizId) {
   const uniq = [...new Set(ids.filter(Boolean).map(String))];
@@ -403,10 +406,21 @@ async function childFacts(ids, quizId) {
   if (!uniq.length) return out;
   try {
     const kids = await inChunks(() => supabase.from('students').select('id, merged_into'), 'id', uniq);
-    const binds = await inChunks(() => supabase.from('child_phone_bindings').select('canonical_id, phone_tomb'), 'canonical_id', uniq);
-    uniq.forEach((id) => out.set(id, { who: id, phones: new Set() }));
-    kids.forEach((k) => { if (out.has(String(k.id)) && k.merged_into) out.get(String(k.id)).who = String(k.merged_into); });
-    binds.forEach((b) => { if (out.has(String(b.canonical_id)) && b.phone_tomb) out.get(String(b.canonical_id)).phones.add(String(b.phone_tomb)); });
+    const whoOf = new Map(uniq.map((id) => [id, id]));
+    kids.forEach((k) => { if (whoOf.has(String(k.id)) && k.merged_into) whoOf.set(String(k.id), String(k.merged_into)); });
+    const lookup = [...new Set([...uniq, ...whoOf.values()])];
+    const binds = await inChunks(() => supabase.from('child_phone_bindings').select('canonical_id, phone_tomb'), 'canonical_id', lookup);
+    const phonesOf = new Map();
+    binds.forEach((b) => {
+      if (!b.phone_tomb) return;
+      const k = String(b.canonical_id);
+      if (!phonesOf.has(k)) phonesOf.set(k, new Set());
+      phonesOf.get(k).add(String(b.phone_tomb));
+    });
+    uniq.forEach((id) => {
+      const who = whoOf.get(id);
+      out.set(id, { who, phones: new Set([...(phonesOf.get(id) || []), ...(phonesOf.get(who) || [])]) });
+    });
     return out;
   } catch (err) {
     logToFile('⚠️ teacher report: child facts unreadable — same-name rows fold as before', { quizId, error: err.message });
@@ -527,7 +541,8 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   // on a shared phone / no binding; the same name on two different phones is two children.
   const byFinish = counted.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')));
   const offList = foldOn ? byFinish.filter((s) => !who.listed(s)) : [];
-  const facts = foldOn ? await childFacts(offList.map((s) => s.student_id), quizId) : null;
+  const provisionalRaw = foldOn ? who.provisionalRaw || [] : [];
+  const facts = foldOn ? await childFacts([...offList.map((s) => s.student_id), ...provisionalRaw.map((r) => r.studentId)], quizId) : null;
   const kept = facts ? new Set(foldByChild(offList, { idOf: (s) => s.student_id, nameOf: (s) => s.student_name, facts }).map((c) => c.first)) : null;
   const sameTyped = new Map();
   const counting = byFinish
@@ -552,7 +567,8 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       ...(tries ? { attempts: tries.get(V21.childKey(s)) || 1 } : {}),
     };
   }).sort((a, b) => (b.pct - a.pct) || ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first));
-  const { roster: rosterView, notPlayed, provisional } = who;
+  const { roster: rosterView, notPlayed } = who;
+  const provisional = who.provisional !== null && who.provisional !== undefined ? who.provisional : provisionalRows(provisionalRaw, facts);
 
   const questions = await questionStats(quiz.id, counting, v21 ? { codeOf: (ext) => SloCode.codeOf(meta, ext) } : {});
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)

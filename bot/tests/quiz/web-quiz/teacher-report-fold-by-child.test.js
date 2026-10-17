@@ -112,6 +112,22 @@ describe('on: off-list rows fold by child', () => {
     expect(r.played.filter((p) => p.first === 'Ali').map((p) => [p.onList, p.roll]).sort()).toEqual([[true, 2], [true, 3]]);
   });
 
+  test('a merged record carries the phones of the record it was merged into', async () => {
+    // TYPED2 has no binding of its own but was merged into SURV, bound to another phone: the same typed name on two
+    // phones is two children (without the merged-into record's phone it would read as "unbound" and fold)
+    const SURV = '44444444-4444-4444-8444-4444444444aa';
+    const fake = wire({ on: true, bindings: [bind(F.TYPED, 'tomb-a'), bind(SURV, 'tomb-b')], second: { merged_into: SURV, status: 'merged' } });
+    fake.db.students.push(loose(SURV, 'Dansh'));
+    const r = await Data.quizReport(F.TEACHER, F.QUIZ);
+    expect(shape(r)).toEqual({ played: 4, dansh: 2, provisional: [['s3', 1], ['s4', 1]] });
+  });
+
+  test('on, the child facts are read once per report (one bindings read for the played rows and the provisional list)', async () => {
+    const fake = wire({ on: true, bindings: [bind(F.TYPED, 'tomb-a'), bind(TYPED2, 'tomb-b')] });
+    await Data.quizReport(F.TEACHER, F.QUIZ);
+    expect(fake.calls.filter((c) => c.table === 'child_phone_bindings')).toHaveLength(1);
+  });
+
   test('a failed read of the child facts: today\'s fold, and the failure is logged', async () => {
     const fake = wire({ on: true, bindings: [bind(F.TYPED, 'tomb-a'), bind(TYPED2, 'tomb-b')] });
     const from = fake.from;
@@ -144,7 +160,7 @@ describe('off: today\'s report, byte for byte (golden recorded on the base)', ()
     expect(await record()).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
   });
 
-  test('off makes no extra read: no students-by-id or child_phone_bindings read beyond today\'s', async () => {
+  test('off makes no extra read: no child_phone_bindings read', async () => {
     const fake = wire({ on: false, bindings: BINDINGS() });
     await record();
     expect(fake.calls.filter((c) => c.table === 'child_phone_bindings')).toHaveLength(0);
