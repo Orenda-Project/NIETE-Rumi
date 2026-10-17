@@ -1,0 +1,13 @@
+[
+  "bot/shared/services/quiz/web-quiz-fixture.js",
+  "bot/shared/services/quiz/web-quiz-homonym.js",
+  "bot/shared/services/quiz/web-quiz-hub-flags.js",
+  "bot/shared/services/quiz/web-quiz-identity-flags.js",
+  "bot/shared/services/quiz/web-quiz-in-chunks.js",
+  "bot/shared/services/quiz/web-quiz-join-queue.js",
+  "bot/shared/services/quiz/web-quiz-provenance.js",
+  "bot/shared/services/quiz/web-quiz-strip-lines.js",
+  "bot/shared/services/quiz/web-quiz-strip.js",
+  "bot/shared/services/quiz/web-quiz-token.js",
+  "scripts/web-quiz/strip-dry.js"
+]

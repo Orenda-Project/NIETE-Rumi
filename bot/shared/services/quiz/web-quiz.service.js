@@ -397,6 +397,13 @@ function rosterChip(ctx, { kid, label }, one = null) {
 
 // ─── live counts ────────────────────────────────────────────────────────────
 
+// A child's page never gets a class count under 5 ("1 in your class played today" tells the next child who): under 5
+// the boot sends class_today 0 and no now, so the page draws neither line. The ICT-wide count is not a class count.
+const CLASS_COUNT_FLOOR = 5;
+function childLive(counts, now) {
+  return { ...counts, class_today: counts.class_today >= CLASS_COUNT_FLOOR ? counts.class_today : 0, ...(now >= CLASS_COUNT_FLOOR ? { now } : {}) };
+}
+
 async function liveCounts(ctx) {
   const since = pktMidnightIso();
   const out = { class_today: 0, ict_today_floor: 0 };
@@ -535,7 +542,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     // now: classmates with a right answer in the last 2 minutes (peer pulse ring), sent only when there are some.
     // A friend's challenge gets neither the class count nor who is playing now: the friend is not in the class.
     live: invited ? { ...(await liveCounts(ctx)), class_today: 0 }
-      : { ...(await liveCounts(ctx)), ...(Pulse.liveNow(ctx.shareCodeId) ? { now: Pulse.liveNow(ctx.shareCodeId) } : {}) },
+      : childLive(await liveCounts(ctx), Pulse.liveNow(ctx.shareCodeId)),
     video,
     preview,
     // Which brand the page wears: a key only; the edge owns the brand's look.
@@ -1531,7 +1538,7 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   // The card's remaining reads, in the order the payload used to await them, each timed.
   const best = earlier && !s.user_id ? await bestField(s) : {};
   mark('best');
-  const place = counted.counted && !s.user_id && !s.invited_by_student_id ? placeToday(await classFinishersToday(s.share_code_id), s.id) : {};
+  const place = counted.counted && !s.user_id && !s.invited_by_student_id ? childPlace(placeToday(await classFinishersToday(s.share_code_id), s.id)) : {};
   mark('place');
   const vs = s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {};
   mark('versus');
@@ -1604,6 +1611,12 @@ async function classFinishersToday(shareCodeId) {
     logToFile('⚠️ web-quiz: class finishers unavailable', { error: e.message });
     return [];
   }
+}
+
+/** The card's class line, never a count under 5: nth from 5 up; under 5 only done_today (the page's "You finished this quiz today!"). */
+function childPlace(p) {
+  if (!p || !p.nth) return {};
+  return p.nth >= CLASS_COUNT_FLOOR ? { nth: p.nth } : { done_today: true };
 }
 
 /** The card's "6 children in your class finished this quiz today.": how many finished up to and including this session ({} when it is not one). Pure. */
@@ -1939,6 +1952,25 @@ function doorKeys(body, device) {
 }
 
 /**
+ * The scorecard card's child: its door lines leave the page before Play, so they carry no hub token or chip, but the
+ * batch carries the quiz session's signed token (st) and that session IS this child. The session id comes from the
+ * telemetry's own verifier; ONE read by that id gives the session's student, folded to the canonical child (merges
+ * followed), then its kid. An unknown session, a session with no student or a failed read: null. Never throws; the
+ * token, the session id and the student id are never logged.
+ */
+async function sessionKid(sid) {
+  try {
+    const { data } = await dbRead('cardDoorKid:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id').eq('id', sid).maybeSingle());
+    const studentId = data && data.student_id ? String(data.student_id) : null;
+    if (!studentId) return null;
+    const canon = await IdRoster.canonicalStudentIds([studentId]);
+    return require('./web-quiz-kid').kid(canon.get(studentId) || null);
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
  * The page's events, relayed. `device`: this phone's device_ref from the request's x-wq-device (the edge's wq_dv
  * cookie); it keys the door lines only.
  */
@@ -1955,6 +1987,7 @@ function events(body = {}, { device = null } = {}) {
   if (forged) logEvent('web_quiz.ev_dropped', require('./web-quiz-kid').envelope({ n: forged, why: 'server_only' }));
   let logged = 0;
   let keys = null;
+  let card = null; // the card's door lines waiting for the session's child: { sid, lines }
   for (const e of list) {
     const c = cleanEvent(e, { rich, v2 });
     if (!c) continue;
@@ -1962,11 +1995,29 @@ function events(body = {}, { device = null } = {}) {
       // A door line: the child's and the phone's keys; never the share code, the session or the unkeyed device hash.
       if (!keys) keys = doorKeys(body, device);
       const K = require('./web-quiz-kid');
-      logEvent(`web_quiz.${c.name}`, K.envelope({ ...K.stripIds({ ...c.props, ...ids }), kid: keys.kid, dk: keys.dk }));
+      const fields = K.stripIds({ ...c.props, ...ids });
+      // The scorecard card with no child from the hub token: keyed by the batch's quiz session once it is read.
+      if (!keys.kid && c.props.door === 'card') {
+        if (!card) card = { sid: Tel.batchIds(body).sid || null, lines: [] };
+        if (card.sid) {
+          card.lines.push([`web_quiz.${c.name}`, fields]);
+          logged += 1;
+          continue;
+        }
+      }
+      logEvent(`web_quiz.${c.name}`, K.envelope({ ...fields, kid: keys.kid, dk: keys.dk }));
     } else logEvent(`web_quiz.${c.name}`, { ...c.props, ...ids });
     // The old-link re-offer stands down once the page has opened on that code (web-quiz-old-link.js).
     if (c.name === 'page_open' && c.props.code) require('./web-quiz-old-link').noteOpen(c.props.code);
     logged += 1;
+  }
+  if (card && card.lines.length) {
+    // The page is answered at once; the card's lines follow the one session read (kid null when it finds no child).
+    const K = require('./web-quiz-kid');
+    const { dk } = keys;
+    sessionKid(card.sid)
+      .then((kid) => { for (const [name, fields] of card.lines) logEvent(name, K.envelope({ ...fields, kid, dk })); })
+      .catch(() => {});
   }
   return { logged };
 }

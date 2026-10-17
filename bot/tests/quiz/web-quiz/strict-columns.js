@@ -9,6 +9,7 @@
  *                             `extra` {table: [column]} admits a column the base code already reads and the mirror
  *                             lacks (a known item of the base's own column-completeness list, not this change's)
  *   COLUMNS                   table -> Set of column names, parsed from the mirror
+ *   parse(sql)                the same parser, for any schema text (tests/setup/select-columns-exist.test.js reuses it)
  */
 const fs = require('fs');
 const path = require('path');
@@ -66,4 +67,4 @@ function strictFrom(from, tables, extra = {}) {
   };
 }
 
-module.exports = { strictFrom, COLUMNS };
+module.exports = { strictFrom, COLUMNS, parse };

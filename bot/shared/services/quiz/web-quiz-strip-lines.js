@@ -41,6 +41,14 @@
  *       reads, per language. Per reason (meta.flags, in the scorer's order: no_speech, low_stt_support,
  *       no_aligned_words, low_story_confidence; a row with several counts under each), every reason printed for a
  *       language, 0 included; `not_given` only when a marked row names none. Red above 5 % in a language.
+ *   floor_kept_aligned / <lang>
+ *       Kept failed reads that heard fewer words than the floor but matched at least one passage word: a chance match
+ *       on a noisy recording keeps the record; this count should stay near 0. Of the week's failed check reads that
+ *       kept their record (exercise 'read', mode 'check', record true, status 'failed'), test children left out
+ *       (web-quiz-fixture.js): value = those with meta.stt_words < max(3, ceil(0.1 × the passage's tokens)) and
+ *       meta.align_correct ≥ 1; n = those reads, per language, a row only for a language with n > 0. The tokens come
+ *       from challenge_passages (passage_id, tokens) in one read, only when there is a failed row to look up; a row
+ *       whose passage has no tokens counts in n, not in value, and the line's note says how many.
  *   cold_clips (not measured: no store)
  *       The clip warm's last run (missing_listen / missing_story) is an event and a log line only: no table holds it,
  *       so the strip cannot read it. No row is written; the line is named in `skipped` with its note, every week.
@@ -229,6 +237,54 @@ async function implausibleLines({ start, end, put, skipped, notes, allRows }) {
   }
 }
 
+// The heard-words floor, the same numbers as the scorer's (web-quiz-challenge.js SILENT_FLOOR_MIN / SILENT_FLOOR_SHARE).
+const FLOOR_MIN = 3;
+const FLOOR_SHARE = 0.1;
+const FLOOR_COLS = 'id, student_id, canonical_id, class_id, lang, passage_id, meta, created_at';
+
+/** Per language: { n, value, unknown } over kept failed check reads, given passage_id → tokens. Pure. */
+function floorKeptByLang(reads, tokensOf) {
+  const out = new Map();
+  for (const r of reads) {
+    const lang = r.lang || 'unknown';
+    if (!out.has(lang)) out.set(lang, { n: 0, value: 0, unknown: 0 });
+    const c = out.get(lang);
+    c.n += 1;
+    const tokens = r.passage_id != null ? tokensOf.get(r.passage_id) : null;
+    if (!(Number(tokens) > 0)) { c.unknown += 1; continue; }
+    const m = r.meta && typeof r.meta === 'object' ? r.meta : {};
+    const heard = Number(m.stt_words) || 0;
+    if (heard < Math.max(FLOOR_MIN, Math.ceil(FLOOR_SHARE * Number(tokens))) && (Number(m.align_correct) || 0) >= 1) c.value += 1;
+  }
+  return out;
+}
+
+async function floorKeptLines({ start, end, put, skipped, notes, allRows }) {
+  const got = await allRows(() => supabase.from(TABLE).select(FLOOR_COLS)
+    .eq('exercise', 'read').eq('mode', 'check').eq('record', true).eq('status', 'failed').gte('created_at', start).lt('created_at', end), 'floor_kept');
+  if (got.error) { skipped.push('floor_kept_aligned'); return; }
+  if (!got.rows.length) return;
+  const fixtures = await fixtureStudentIds({ ids: [], rows: got.rows });
+  const said = fixtures.unreadable.length ? [`${fixtures.unreadable.join(', ')} unreadable: the rules reading it left nothing out`] : [];
+  const reads = got.rows.filter((r) => !isFixtureRow(r, fixtures));
+  const ids = [...new Set(reads.map((r) => r.passage_id).filter((id) => id != null))];
+  const tokensOf = new Map();
+  if (ids.length) {
+    let res;
+    try { res = await supabase.from('challenge_passages').select('passage_id, tokens').in('passage_id', ids); } catch (err) { res = { error: err }; }
+    if (res.error) { skipped.push('floor_kept_aligned'); return; }
+    for (const p of res.data || []) tokensOf.set(p.passage_id, p.tokens);
+  }
+  const byLang = floorKeptByLang(reads, tokensOf);
+  let unknown = 0;
+  for (const [lang, c] of [...byLang].sort(([a], [b]) => a.localeCompare(b))) {
+    put('floor_kept_aligned', lang, c.value, c.n);
+    unknown += c.unknown;
+  }
+  if (unknown) said.push(`tokens unknown for ${unknown} rows`);
+  if (said.length) notes.floor_kept_aligned = said.join('; ');
+}
+
 const COLD_CLIPS_NOTE = 'not measured: no store (the clip warm run is an event and a log line only; no table holds missing_listen / missing_story)';
 
 /** Cold clips at the last warm: nothing the strip can read, so it is named, never guessed. */
@@ -244,9 +300,11 @@ async function moreLines(ctx) {
   await sentCappedLine(ctx);
   await bindFunnelLines(ctx);
   await implausibleLines(ctx);
+  await floorKeptLines(ctx);
   coldClipsLine(ctx);
 }
 
 module.exports = {
-  moreLines, recognisedBuckets, keptAll, sentCapped, activeAt, implausibleByLang, bucketOf, RECOGNISED, REASONS, COLD_CLIPS_NOTE, CHUNK, LOOKBACK_DAYS,
+  moreLines, recognisedBuckets, keptAll, sentCapped, activeAt, implausibleByLang, floorKeptByLang, bucketOf, RECOGNISED, REASONS, COLD_CLIPS_NOTE, CHUNK, LOOKBACK_DAYS,
+  FLOOR_MIN, FLOOR_SHARE,
 };

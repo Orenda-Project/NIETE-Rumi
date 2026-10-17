@@ -140,7 +140,7 @@ describe('the per-tier auto-hold (n >= 50 and Wilson 95% lower bound < 0.85)', (
     expect(t).toMatchObject({ tier: RUL, n: 49, same: 49, no: 1, undo: 1, held: false });
     expect(t.precision).toBeCloseTo(48 / 49, 4);
     expect(tierOf(await Queue.precisionByTier(), 'probable')).toEqual({
-      tier: 'probable', n: 0, same: 0, no: 0, undo: 0, precision: null, wilson_lower_95: null, held: false,
+      tier: 'probable', n: 0, same: 0, no: 0, undo: 0, excluded_n: 0, precision: null, wilson_lower_95: null, held: false,
     });
   });
 
