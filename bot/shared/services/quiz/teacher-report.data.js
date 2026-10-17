@@ -715,4 +715,5 @@ module.exports = {
   readRoster, classOf, countedSessions, classCodes, sessionsFor, onePerChildAcrossCodes,
   // A library quiz's sender (quiz_teacher_home): the report list and the 12 h report's quiz-row guard read these.
   sentQuiz, sentQuizzes, sentQuizzesOn,
+  watchRootId, notUnderWatchRoot,   // the watch root's VALUE read and code rule, shared with the join queue
 };
