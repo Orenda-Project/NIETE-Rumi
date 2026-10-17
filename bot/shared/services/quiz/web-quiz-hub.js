@@ -383,12 +383,16 @@ async function brandKey() {
 /**
  * The language the child chose on the page that sent them here (?lang=en|ur), when it may win over the guess from
  * their history: only under web_quiz_challenge_v2 (with its parents; web-quiz-hub-play.js switches, 30 s cache,
- * fail closed). Anything else, or the switch off: null, and the hub is today's. Asked only when a lang came.
+ * fail closed) or web_quiz_return_lang (the join's first home; web-quiz-return-lang.js, the same). Anything else, or
+ * both off: null, and the hub is today's. Asked only when a lang came.
  */
 async function askedLang(lang) {
   if (lang !== 'en' && lang !== 'ur') return null;
   try {
-    return (await require('./web-quiz-hub-play').switches()).v2 ? lang : null;
+    if ((await require('./web-quiz-hub-play').switches()).v2) return lang;
+  } catch (_) { /* v2 closed; the return switch may still say yes */ }
+  try {
+    return (await require('./web-quiz-return-lang').on()) ? lang : null;
   } catch (_) {
     return null;
   }

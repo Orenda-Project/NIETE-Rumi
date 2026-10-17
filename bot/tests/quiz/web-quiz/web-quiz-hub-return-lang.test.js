@@ -237,3 +237,36 @@ describe('the one-door landing (/go): a known child\'s home link carries the lan
     } finally { Date.now = realNow; }
   });
 });
+
+describe('?lang= (the join\'s first home): honoured with web_quiz_return_lang on, even without web_quiz_challenge_v2', () => {
+  const page = async (settings, opts, quizLang = null) => {
+    redis._store.clear();
+    seed(settings, { quizLang });
+    return Hub.hub(T.signHub([KID], 'student_join_join'), { ...A, ...opts });
+  };
+
+  test('v2 off, switch on, ?lang=ur on a just-joined child: an Urdu home', async () => {
+    const out = await page(ON, { lang: 'ur' });
+    expect(out.lang).toBe('ur');
+    expect(out.kids[0].first).toBe('زارا');
+  });
+
+  test('v2 off, switch on, ?lang=en over an Urdu quiz: English (the asked language wins, as under v2)', async () => {
+    expect((await page(ON, { lang: 'en' }, 'ur')).lang).toBe('en');
+  });
+
+  test('v2 off, switch on, a ?lang= that is not en/ur: today\'s page', async () => {
+    for (const lang of ['', 'fr', 'UR', ['ur']]) expect(await page(ON, { lang })).toEqual(await page(ON, {}));
+  });
+
+  test.each([
+    ['absent', HUB],
+    ['false', [...HUB, RET(false)]],
+    ['the string \'true\'', [...HUB, RET('true')]],
+  ])('GOLDEN: v2 off and the switch %s: ?lang=ur changes nothing (today\'s page, deep-equal)', async (_n, settings) => {
+    const base = await page(settings, {});
+    const asked = await page(settings, { lang: 'ur' });
+    expect(asked).toEqual(base);
+    expect(asked.lang).toBe('en');
+  });
+});
