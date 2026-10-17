@@ -124,8 +124,9 @@
     function helped() { return helpedNow() || mem; }
 
     function btn(id, label, cls) { return '<button class="wq-btn ' + (cls || 'wq-go') + '" id="' + id + '" type="button">' + esc(label) + '</button>'; }
-    // the button back to the list says where it goes («Back to Jugnu's games»), never "Home" (the list is not the home)
-    function toGames() { return trailCopy('back'); }
+    // the button back to the list says where it goes («Back to Jugnu's games») with the child home on (the menu's
+    // card_fold, web_quiz_home_v3): the list is not the home there. Off, it is today's "Home".
+    function toGames() { return (h.md() || {}).card_fold ? trailCopy('back') : t.endHome; }
     function home() { return '<div class="wq-stack">' + btn('wqc-menu', toGames()) + '</div>'; }
 
     // ── the child home on (the menu's card_fold; app_settings web_quiz_home_v3): an end card is the card and ONE next

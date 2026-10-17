@@ -334,8 +334,7 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = false, href = 'http
 }
 
 describe('golden: switch off, the Trail end cards are today\'s', () => {
-  // Re-hashed once for the games' way back («Back to Jugnu's games», no longer "Home"): with the old words the old hashes return.
-  const GOLD = { read_all: 'f7b86833e2ab9930', read_zero: 'c584f86d1fa63591', listen: '931aec16656a5a1e' };
+  const GOLD = { read_all: 'c247689a7b897e57', read_zero: 'cd1049d1491e4362', listen: '9c71f1b63448d47e' };
   test('read all / read none / listen, with the card script even present', () => {
     for (const withFc of [false, true]) {
       const got = {};
@@ -712,8 +711,7 @@ describe('wq.js / wq-trail.js carry guard lines, the card lives in wq-finish-car
 
 describe('golden: switch off, the Urdu Trail cards, Story Time\'s end and a held card are today\'s', () => {
   // Hashed from origin/sandbox ad10e50fc's wq-trail.js (this harness, these fixtures) before this change.
-  // Re-hashed once for the games' way back («Back to Jugnu's games», no longer "Home"): with the old words the old hashes return.
-  const GOLD = { ur_read_all: '054436d921d923c7', ur_read_zero: 'bdbe9c29f799d42d', ur_listen: '39e980588c9d0d70', en_story_end: '6ab018521ed14c2b', ur_story_end: '6308d99ee883810a', en_hold: '3a585fdae8a962bb', en_later: 'a386245472017364' };
+  const GOLD = { ur_read_all: '5fd11c96d988ff65', ur_read_zero: '4234b39a29b107b6', ur_listen: '60c9b1d21df7cb88', en_story_end: '343db7dd3b03ef46', ur_story_end: '5140be996c852a58', en_hold: 'a81be8ad568eaaeb', en_later: '85395ff3222f9033' };
   test('with the card script present and the switch off', () => {
     for (const withFc of [false, true]) {
       const got = {};

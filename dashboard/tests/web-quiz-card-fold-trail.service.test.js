@@ -269,8 +269,7 @@ describe('home on, without the finish card (card_v3 off) or where the card is ne
 });
 
 describe('golden: card_fold absent, the end cards are today\'s (hashed on the base)', () => {
-  // Re-hashed once for the games' way back («Back to Jugnu's games», no longer "Home"): with the old words the old hashes return.
-  const GOLD = { read_all: 'f7b86833e2ab9930', read_zero: 'c584f86d1fa63591', listen: '931aec16656a5a1e' };
+  const GOLD = { read_all: 'c247689a7b897e57', read_zero: 'cd1049d1491e4362', listen: '9c71f1b63448d47e' };
   test('menu without card_fold (card script present or not)', () => {
     for (const withFc of [false, true]) {
       const got = {};

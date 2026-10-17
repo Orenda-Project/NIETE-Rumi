@@ -429,8 +429,12 @@ describe('from the new home\'s Next tile (#next / #numbers): the one game it nam
     expect(p.html()).not.toContain('wqc-pnext');
     expect(text(p.html())).toContain("Jugnu's games");
   });
-  test.each([['en', "Back to Jugnu's games"], ['ur', 'جگنو کے کھیلوں پر واپس']])('%s: the button back to the list says where it goes («%s»), never "Home"', async (lang, back) => {
-    const menu = { ...TRAIL(), lang };
+  // the new words ride the child home (web_quiz_home_v3: the menu's card_fold); with it off the button is today's Home
+  test.each([
+    ['en', true, "Back to Jugnu's games"], ['ur', true, 'جگنو کے کھیلوں پر واپس'],
+    ['en', false, 'Home'], ['ur', false, 'واپس جائیں'],
+  ])('%s, home on %s: the button back to the list says «%s»', async (lang, homeOn, back) => {
+    const menu = { ...TRAIL(), lang, ...(homeOn ? { card_fold: true } : {}) };
     const p = v2page({ lang, href: 'https://portal.test/c/HUB.TOKEN?kid=K1&home=1#next', menu, routes: { 'ch/HUB.TOKEN/missing': ok({ ex: 'missing', draw: { outcome: 'on_its_way' } }), 'ch/HUB.TOKEN\\?': ok(menu) } });
     await p.flush();
     expect(p.screen()).toBe('on-its-way');
