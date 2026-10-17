@@ -369,7 +369,7 @@ describe('web_quiz_remember_shown_row: "shown" is kept on the row too, so a cach
     expect('remember_shown_at' in rowOf(kidId)).toBe(false);
   });
 
-  test('a failed read on the shown key\'s own row: the home, the shelf and the column stay as they are, shown is off, the line comes from the cache', async () => {
+  test('a failed read on the shown key\'s own row: the home and the shelf stay as they are, the column and shown are off, the line comes from the cache', async () => {
     const { throwOn } = require('../../helpers/switch-off-matrix');
     seed({ shown: true });
     fake.db.app_settings.push({ key: 'web_quiz_stories', value: true });
@@ -378,7 +378,7 @@ describe('web_quiz_remember_shown_row: "shown" is kept on the row too, so a cach
     supabase.from = (t) => { if (t === 'app_settings') reads += 1; return faulty(t); };
     HomeFlags._resetCache();
     const f = await HomeFlags.flags();
-    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: true, stories: true, column: true, shown: false });
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: true, stories: true, column: false, shown: false });
     // one extra settings read, on the failure only (the home's own keys, read again alone); then the 30 s cache holds
     expect(reads).toBe(2);
     await HomeFlags.flags();
@@ -389,11 +389,50 @@ describe('web_quiz_remember_shown_row: "shown" is kept on the row too, so a cach
     expect(home.home_v3).toBe(1);
     expect(home.remember).toEqual({ s: 20 });
     expect(touched.join(',')).not.toContain('remember_shown_at');
-    // the cache's rule, as with the key off: a reload draws nothing, a flush draws it again
+    // the cache's rule, as with both extras off: a reload draws nothing; after a flush the same join URL reopened
+    // writes the cache note again and the line is drawn again
     expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({});
     flushCache();
+    expect(await Remember().note({ device: DEVICE, bindingId: rowOf(kidId).id, canonicalId: kidId, userId: USER.id })).toBe(true);
     expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
     expect('remember_shown_at' in rowOf(kidId)).toBe(false);
+  });
+
+  test('a failed read on the column key\'s own row: the home and the shelf stay on, the column and shown are off, and the answer is cached', async () => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed({ shown: true });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: true });
+    let reads = 0;
+    const faulty = throwOn(supabase.from, 'web_quiz_remember_column');
+    supabase.from = (t) => { if (t === 'app_settings') reads += 1; return faulty(t); };
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags();
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: true, stories: true, column: false, shown: false });
+    // the home's own two keys are read again alone, once; the next call is served from the 30 s cache with no read
+    expect(reads).toBe(2);
+    const g = await HomeFlags.flags();
+    expect(reads).toBe(2);
+    expect({ home: g.home, stories: g.stories, column: g.column, shown: g.shown }).toEqual({ home: true, stories: true, column: false, shown: false });
+  });
+
+  test('the extras (column, shown) are listed as riders, and the read made again after a failure names none of them', async () => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    expect(HomeFlags.RIDERS).toEqual([HomeFlags.COLUMN_KEY, HomeFlags.SHOWN_KEY]);
+    for (const failing of HomeFlags.RIDERS) {
+      seed({ shown: true });
+      const lists = [];
+      const faulty = throwOn(supabase.from, failing);
+      supabase.from = (t) => {
+        const b = faulty(t);
+        if (t === 'app_settings') { const within = b.in; b.in = (col, vs) => { lists.push([].concat(vs)); return within.call(b, col, vs); }; }
+        return b;
+      };
+      HomeFlags._resetCache();
+      await HomeFlags.flags();
+      expect(lists).toHaveLength(2);
+      expect(lists[1].filter((k) => HomeFlags.RIDERS.includes(k))).toEqual([]);
+      expect(lists[1].sort()).toEqual([HomeFlags.KEY, HomeFlags.STORIES_KEY].sort());
+    }
   });
 
   test('a failed read on the home switch itself still turns every switch off (fails closed, as today)', async () => {
@@ -405,7 +444,7 @@ describe('web_quiz_remember_shown_row: "shown" is kept on the row too, so a cach
     expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: false, stories: false, column: false, shown: false });
   });
 
-  test('settings reads on the first home (#C72): OFF is the recorded count; ON adds no read; ON stays under the ceiling', async () => {
+  test('settings reads on the first home: OFF is the recorded count; ON adds no read; ON stays under the ceiling', async () => {
     const OFF_READS = 3; // recorded on this head (home, hub and identity switches, each one read, cache cold)
     const NAMED_ROWS = 0; // the shown key rides that same read
     const count = async (shown) => {
