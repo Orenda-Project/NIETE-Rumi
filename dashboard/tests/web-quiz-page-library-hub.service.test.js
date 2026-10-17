@@ -86,7 +86,7 @@ test('no teacher\'s quiz played yet (409 no_class): says so, in Urdu too, and st
   p.els[`[data-v="${V(2)}"]`].fire('click');
   await flush(); await flush();
   expect(p.assigned).toEqual([]);
-  expect(p.html()).toContain('پہلے اپنے استاد کا کوئی کوئز کھیلیں');
+  expect(p.html()).toContain('پہلے اپنے ٹیچر کا کوئی کوئز کھیلیں');
 });
 
 test('a child with no class (the child home on): start() answers a watch, and the lesson plays on the home\'s own player', async () => {

@@ -143,7 +143,7 @@ const BOOT_COPY = { en: 'Opening the quiz…', ur: 'کوئز کھل رہا ہے�
 const CLOSED_COPY = {
   en: { title: 'This quiz has closed', say: 'Ask your teacher for a new link.', off: 'The quiz is not open right now', offSay: 'Please try again in a little while.',
     hub: 'This link has expired', hubSay: 'Send /quiz on WhatsApp to get a new one.' },
-  ur: { title: 'یہ کوئز بند ہو چکا ہے', say: 'اپنے استاد سے نیا لنک لیں۔', off: 'کوئز ابھی کھلا نہیں ہے', offSay: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  ur: { title: 'یہ کوئز بند ہو چکا ہے', say: 'اپنے ٹیچر سے نیا لنک لیں۔', off: 'کوئز ابھی کھلا نہیں ہے', offSay: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔',
     hub: 'یہ لنک پرانا ہو چکا ہے', hubSay: 'نیا لنک لینے کے لیے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔' },
 };
 

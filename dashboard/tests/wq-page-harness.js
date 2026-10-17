@@ -133,6 +133,8 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     const set = root.setAttribute;
     root.setAttribute = function (k, v) { set.call(this, k, v); if (k === 'data-m') obs.forEach((fn) => fn([])); };
   }
+  // wqj: a sound kit object on the page (web_quiz_juice on), set before wq.js as the edge loads the kit first.
+  if (arguments[0] && arguments[0].wqj) ctx.WQJ = arguments[0].wqj;
   vm.createContext(ctx);
   // wq-tel.js is on every page the edge renders, before wq.js: its stub (and the link helper WQT.withLang) is always
   // there; the telemetry itself runs only with `tel` (boot rt).
