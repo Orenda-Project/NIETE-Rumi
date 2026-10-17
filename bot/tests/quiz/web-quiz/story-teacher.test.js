@@ -560,6 +560,30 @@ describe('story sends in the teacher\'s other quiz lists', () => {
       expect(await Stories.storyCounts(TEACHER)).toBeNull();
     } finally { supabase.from = from; }
   });
+  test('the Stories tile counts page past the server\'s 1000-row cap: a reader beyond the first 1000 events is counted', async () => {
+    fake = makeFake(db, { maxRows: { story_events: 1000 } });
+    Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quizzes[0].meta.first_sent_at = ago(3);
+    const s = (id, kid) => ({ id, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: id });
+    db.quiz_sessions.push(s('s1', KID_A), s('s2', KID_B));
+    // 1200 rows of KID_B's reading from before the send (not this send's), then KID_A's one row after it.
+    for (let i = 0; i < 1200; i += 1) db.story_events.push({ id: i + 1, child_id: KID_B, book_id: B(1), page_n: 1, event: 'story_page_listened', data: {}, at: ago(5) });
+    db.story_events.push({ id: 1201, child_id: KID_A, book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) });
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 1 });
+  });
+  test('the Stories tile counts compare times as times: "+00:00" and "Z" at the same second is since the send; a second before is not', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quizzes[0].meta.first_sent_at = '2026-10-17T10:00:00.000Z';
+    const s = (id, kid) => ({ id, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: id });
+    db.quiz_sessions.push(s('s1', KID_A), s('s2', KID_B));
+    db.story_events.push(
+      { id: 1, child_id: KID_A, book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: '2026-10-17T10:00:00+00:00' },
+      { id: 2, child_id: KID_B, book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: '2026-10-17T09:59:59+00:00' });
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 1 });
+  });
   test('the quiz menu never lists a story send as a quiz to cancel', async () => {
     await Stories.preview({ uid: TEACHER, storyId: B(1) });
     const Flow = require('../../../shared/routes/quiz-flow-endpoint');

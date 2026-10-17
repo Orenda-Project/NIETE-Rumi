@@ -296,6 +296,9 @@ async function send({ uid, storyId, classId = null, now = Date.now() } = {}) {
   return { redirect: p.out.wa_href };
 }
 
+// The server's max-rows: a story_events read past it is paged.
+const EVENTS_PAGE = 1000;
+
 /**
  * The teacher home's Stories tile line: the stories this teacher has sent (only these books with `bookIds`) and the
  * children of those sends who read: a child who joined a send's class link and has any story_events row on that send's
@@ -317,14 +320,23 @@ async function storyCounts(uid, { bookIds = null } = {}) {
     (sessions || []).forEach((x) => { if (x && x.student_id && kidsOf.has(x.quiz_id)) kidsOf.get(x.quiz_id).add(x.student_id); });
     const kids = [...new Set((sessions || []).map((x) => x && x.student_id).filter(Boolean))];
     if (!kids.length) return { sent: sends.length, read: 0 };
-    const { data: events, error: e3 } = await supabase.from('story_events').select('child_id, book_id, at')
-      .in('book_id', [...new Set(sends.map(bookOf))]).in('child_id', kids);
-    if (e3) return null;
+    // Paged: the server answers at most 1000 rows a read, and a big class has more events than that.
+    const books = [...new Set(sends.map(bookOf))];
+    const events = [];
+    for (let from = 0; ; from += EVENTS_PAGE) {
+      const { data, error: e3 } = await supabase.from('story_events').select('child_id, book_id, at')
+        .in('book_id', books).in('child_id', kids).order('id', { ascending: true }).range(from, from + EVENTS_PAGE - 1);
+      if (e3) return null;
+      events.push(...(data || []));
+      if (!data || data.length < EVENTS_PAGE) break;
+    }
     const read = new Set();
     sends.forEach((q) => {
-      const since = (q.meta && (q.meta.first_sent_at || q.meta.sent_at)) || '';
+      // As times, not strings: the database writes "+00:00" where the send's time has "Z".
+      const since = (q.meta && (q.meta.first_sent_at || q.meta.sent_at)) || null;
+      const sinceMs = since ? Date.parse(since) : -Infinity;
       const mine = kidsOf.get(q.id);
-      (events || []).forEach((e) => { if (e && mine.has(e.child_id) && String(e.book_id) === bookOf(q) && String(e.at || '') >= since) read.add(e.child_id); });
+      events.forEach((e) => { if (e && mine.has(e.child_id) && String(e.book_id) === bookOf(q) && Date.parse(e.at) >= sinceMs) read.add(e.child_id); });
     });
     return { sent: sends.length, read: read.size };
   } catch (e) {
