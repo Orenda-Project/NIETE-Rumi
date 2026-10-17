@@ -32,13 +32,13 @@ const { tableDouble } = require('../helpers/table-double');
 
 /**
  * The fake database: the shared table double (filters apply, head counts, writes persist and hand back what they
- * wrote); a table may be made to fail. `writes` shows a one-row insert's `rows` as that row, as this file reads it.
+ * wrote); a table may be made to fail. `writes` shows an insert's `rows` as the product passed it (the double's `raw`).
  */
 function db(tables, { failTables = [] } = {}) {
   const d = tableDouble(tables, { failTables: Object.fromEntries(failTables.map((t) => [t, `${t} down`])) });
   return {
     tables, reads: d.reads, from: d.from, rpc: d.rpc,
-    get writes() { return d.writes.map((w) => (Array.isArray(w.rows) && w.rows.length === 1 ? { ...w, rows: w.rows[0] } : w)); },
+    get writes() { return d.writes.map((w) => (w.raw !== undefined ? { ...w, rows: w.raw } : w)); },
   };
 }
 

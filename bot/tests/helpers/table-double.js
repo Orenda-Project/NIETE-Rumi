@@ -13,7 +13,8 @@
  *     a given id, else gets a UUID);
  *   - single() on zero or many rows is PGRST116; maybeSingle() on zero rows is null data and no error.
  *
- * Every read and write is recorded ({ table, op, filters }) so a test can count round-trips.
+ * Every read and write is recorded ({ table, op, filters }) so a test can count round-trips; a write also keeps
+ * `rows` (always an array) and `raw` (the insert/upsert payload exactly as the product passed it: an object or an array).
  * Options: failTables { [table]: message } — any op on that table answers { data: null, error: { message } };
  *          rpcs { [name]: (args) => answer } — rpc() otherwise answers { data: null, error: null }.
  * Not modelled: column projection (select('a,b') returns whole rows), embedded joins, unique constraints.
@@ -108,7 +109,7 @@ function tableDouble(tables = {}, { failTables = {}, rpcs = {} } = {}) {
 
   function from(table) {
     const st = { op: 'select', filters: [], preds: [], order: [], limit: null, range: null, returning: false,
-      count: null, head: false, payload: null, opts: {}, single: null };
+      count: null, head: false, payload: null, raw: undefined, opts: {}, single: null };
     const where = (rec, pred) => { st.filters.push(rec); st.preds.push(pred); return b; };
     const b = {};
 
@@ -137,8 +138,8 @@ function tableDouble(tables = {}, { failTables = {}, rpcs = {} } = {}) {
     b.limit = (n) => { st.limit = n; return b; };
     b.range = (a, z) => { st.range = [a, z]; return b; };
 
-    b.insert = (r) => { st.op = 'insert'; st.payload = [].concat(r); return b; };
-    b.upsert = (r, opts = {}) => { st.op = 'upsert'; st.payload = [].concat(r); st.opts = opts; return b; };
+    b.insert = (r) => { st.op = 'insert'; st.payload = [].concat(r); st.raw = r; return b; };
+    b.upsert = (r, opts = {}) => { st.op = 'upsert'; st.payload = [].concat(r); st.raw = r; st.opts = opts; return b; };
     b.update = (patch) => { st.op = 'update'; st.payload = patch; return b; };
     b.delete = () => { st.op = 'delete'; return b; };
 
@@ -206,7 +207,7 @@ function tableDouble(tables = {}, { failTables = {}, rpcs = {} } = {}) {
   function run(table, st) {
     const rec = { table, op: st.op, filters: st.filters.map((f) => [...f]) };
     if (st.op === 'select') reads.push(rec);
-    else writes.push({ ...rec, rows: st.op === 'update' ? undefined : st.payload, fields: st.op === 'update' ? st.payload : undefined });
+    else writes.push({ ...rec, rows: st.op === 'update' ? undefined : st.payload, raw: st.raw, fields: st.op === 'update' ? st.payload : undefined });
     if (Object.prototype.hasOwnProperty.call(failTables, table)) {
       return { data: null, count: null, error: { message: failTables[table] } };
     }
