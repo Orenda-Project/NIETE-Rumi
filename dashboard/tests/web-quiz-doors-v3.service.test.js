@@ -119,6 +119,9 @@ describe('a video\'s Urdu title (the server sends title_ur only with web_quiz_vi
     const en = W.WQDOORS.html({ ...B(), lang: 'en' }, ctxOf('en'), 'videos', { subject: 'Science', lib: CH_UR });
     expect(en).toContain('Murghi ki zindagi');
     expect(en).not.toContain('مرغی کی زندگی');
+    const urCh = W.WQDOORS.html({ ...B(), lang: 'ur' }, ctxOf('ur'), 'videos', { subject: 'Science', lib: { ...CH_UR, chapters: [{ ...CH_UR.chapters[0], name: 'Akhlaqi Kahaniyan', name_ur: 'اخلاقی کہانیاں' }] } });
+    expect(urCh).toContain('اخلاقی کہانیاں'); // the chapter heading too (name_ur), never half the screen in Roman letters
+    expect(urCh).not.toContain('Akhlaqi Kahaniyan');
     const w = W.WQDOORS.html({ ...B(), lang: 'ur' }, ctxOf('ur'), `watch/${VID}`, { watch: { vid: VID, url: 'https://r2.example.test/v.mp4', title: 'Murghi ki zindagi', title_ur: 'مرغی کی زندگی' }, next: null });
     expect(w).toContain('<p class="wq-vtitle"><bdi>مرغی کی زندگی</bdi></p>');
   });

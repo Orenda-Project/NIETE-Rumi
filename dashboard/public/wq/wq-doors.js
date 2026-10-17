@@ -143,7 +143,7 @@
     if (!lib) return back + '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
     var art = lib.art || null; var i = 0;
     var body = (lib.chapters || []).map(function (ch) {
-      return section(ch.name, (ch.videos || []).map(function (v) {
+      return section((langOf(ctx) === 'ur' && ch.name_ur) || ch.name, (ch.videos || []).map(function (v) {
         var m = minsOf(v.secs);
         return row({ title: vTitle(v, ctx), sub: m ? t.mins(m) : '', mins: Boolean(m), done: v.done, kind: 'video', item: v.vid, pos: i++, art: art, tap: 'vid' }, ctx);
       }).join(''));
