@@ -1,0 +1,2445 @@
+{
+ "bot/calls-server.js": {
+  "n": 1,
+  "area": "bot",
+  "at": [
+   "239 userId (shorthand)"
+  ]
+ },
+ "bot/shared/calls/call-log.service.js": {
+  "n": 1,
+  "area": "calls",
+  "at": [
+   "168 from (shorthand)"
+  ]
+ },
+ "bot/shared/handlers/exam-checker.handler.js": {
+  "n": 9,
+  "area": "handlers",
+  "at": [
+   "93 userId: user.id",
+   "132 userId: user.id",
+   "168 userId: user.id",
+   "185 userId: user.id",
+   "209 userId: user.id",
+   "235 userId: user.id",
+   "269 userId: user.id",
+   "307 userId: user.id",
+   "341 userId: user.id"
+  ]
+ },
+ "bot/shared/handlers/flow-response.handler.js": {
+  "n": 36,
+  "area": "handlers",
+  "at": [
+   "110 phoneNumber (shorthand)",
+   "110 userId (shorthand)",
+   "158 phoneNumber (shorthand)",
+   "158 userId (shorthand)",
+   "190 phoneNumber (shorthand)",
+   "190 userId (shorthand)",
+   "415 phoneNumber (shorthand)",
+   "415 userId (shorthand)",
+   "524 phoneNumber (shorthand)",
+   "524 userId (shorthand)",
+   "570 userId (shorthand)",
+   "580 userId (shorthand)",
+   "590 userId (shorthand)",
+   "593 phoneNumber (shorthand)",
+   "593 userId (shorthand)",
+   "629 userId (shorthand)",
+   "632 userId (shorthand)",
+   "645 from (shorthand)",
+   "646 from (shorthand)",
+   "649 from (shorthand)",
+   "679 phoneNumber (shorthand)",
+   "679 userId (shorthand)",
+   "710 phoneNumber (shorthand)",
+   "710 userId (shorthand)",
+   "863 userId (shorthand)",
+   "920 userId (shorthand)",
+   "966 from (shorthand)",
+   "972 from (shorthand)",
+   "981 from (shorthand)",
+   "1019 from (shorthand)",
+   "1127 userId: user?.id",
+   "1145 userId: user?.id",
+   "1164 from (shorthand)",
+   "1169 userId: user?.id",
+   "1183 userId: user?.id",
+   "1183 from (shorthand)"
+  ]
+ },
+ "bot/shared/handlers/image-message.handler.js": {
+  "n": 12,
+  "area": "handlers",
+  "at": [
+   "46 userId: user?.id",
+   "46 phoneNumber: from",
+   "75 from (shorthand)",
+   "161 userId: user.id",
+   "206 userId: user?.id",
+   "213 userId: user?.id",
+   "271 userId: user.id",
+   "280 userId: user.id",
+   "308 userId: user.id",
+   "372 userId: user.id",
+   "415 userId: user.id",
+   "454 userId: user.id"
+  ]
+ },
+ "bot/shared/handlers/lesson-plan-v2.handler.js": {
+  "n": 4,
+  "area": "handlers",
+  "at": [
+   "132 phoneNumber (shorthand)",
+   "144 phoneNumber (shorthand)",
+   "193 userId (shorthand)",
+   "299 userId (shorthand)"
+  ]
+ },
+ "bot/shared/handlers/observe-command.handler.js": {
+  "n": 6,
+  "area": "handlers",
+  "at": [
+   "147 userId: user && user.id",
+   "177 userId: user && user.id",
+   "199 userId: user.id",
+   "219 userId: user && user.id",
+   "219 phoneNumber: from",
+   "276 userId: user.id"
+  ]
+ },
+ "bot/shared/handlers/observe-visit-flow.handler.js": {
+  "n": 6,
+  "area": "handlers",
+  "at": [
+   "489 userId (shorthand)",
+   "633 userId (shorthand)",
+   "674 userId (shorthand)",
+   "690 userId (shorthand)",
+   "697 userId (shorthand)",
+   "733 userId (shorthand)"
+  ]
+ },
+ "bot/shared/handlers/portal-command.handler.js": {
+  "n": 5,
+  "area": "handlers",
+  "at": [
+   "54 userId: user && user.id",
+   "61 userId: user.id",
+   "75 userId: user.id",
+   "78 userId: user.id",
+   "81 userId: user && user.id"
+  ]
+ },
+ "bot/shared/handlers/remark-command.handler.js": {
+  "n": 7,
+  "area": "handlers",
+  "at": [
+   "120 userId: user.id",
+   "129 userId: user.id",
+   "163 userId: user.id",
+   "170 userId: user.id",
+   "184 userId: user.id",
+   "188 userId: user.id",
+   "195 userId: user.id"
+  ]
+ },
+ "bot/shared/handlers/roster-command.js": {
+  "n": 1,
+  "area": "handlers",
+  "at": [
+   "61 userId: user.id"
+  ]
+ },
+ "bot/shared/handlers/text-message.handler.js": {
+  "n": 95,
+  "area": "handlers",
+  "at": [
+   "138 userId: user?.id",
+   "306 from (shorthand)",
+   "370 userId: user?.id",
+   "492 from (shorthand)",
+   "532 userId: user?.id",
+   "532 phoneNumber: from",
+   "537 phoneNumber: from",
+   "542 userId: user.id",
+   "542 phoneNumber: from",
+   "591 userId: user.id",
+   "591 from (shorthand)",
+   "597 userId: user.id",
+   "607 userId: user.id",
+   "607 from (shorthand)",
+   "614 userId: user.id",
+   "632 userId: user.id",
+   "632 from (shorthand)",
+   "638 userId: user.id",
+   "661 userId: user.id",
+   "676 userId: user.id",
+   "678 userId: user.id",
+   "701 userId: user?.id",
+   "711 userId: user?.id",
+   "737 from: currentLanguage",
+   "737 phoneNumber: from",
+   "783 userId: user.id",
+   "803 userId: user?.id",
+   "803 phoneNumber: from",
+   "850 userId: user.id",
+   "883 userId: user && user.id",
+   "906 userId: user.id",
+   "936 userId: user?.id",
+   "936 phoneNumber: from",
+   "963 userId: user.id",
+   "965 userId: user.id",
+   "1036 userId: user && user.id",
+   "1046 userId: user && user.id",
+   "1061 userId: user && user.id",
+   "1089 userId: user?.id",
+   "1089 phoneNumber: from",
+   "1124 userId: user.id",
+   "1124 phoneNumber: from",
+   "1154 userId: user.id",
+   "1168 userId: user.id",
+   "1178 userId: user?.id",
+   "1228 userId: user?.id",
+   "1249 userId: user?.id",
+   "1249 phoneNumber: from",
+   "1284 userId: user?.id",
+   "1284 phoneNumber: from",
+   "1340 userId: user.id",
+   "1354 userId: user?.id",
+   "1387 userId: user?.id",
+   "1387 phoneNumber: from",
+   "1412 userId: user.id",
+   "1421 userId: user.id",
+   "1423 userId: user?.id",
+   "1452 userId: user?.id",
+   "1452 phoneNumber: from",
+   "1481 userId: user?.id",
+   "1481 phoneNumber: from",
+   "1518 userId: user.id",
+   "1520 userId: user?.id",
+   "1544 userId: user.id",
+   "1566 userId: user?.id",
+   "1584 userId: user.id",
+   "1615 userId: user?.id",
+   "1781 userId: user?.id",
+   "1806 userId: user?.id",
+   "2144 userId: user?.id",
+   "2144 phoneNumber: from",
+   "2176 userId: user?.id",
+   "2176 phoneNumber: from",
+   "2225 userId: user?.id",
+   "2225 phoneNumber: from",
+   "2256 userId: user?.id",
+   "2256 phoneNumber: from",
+   "2278 userId: user.id",
+   "2294 userId: user.id",
+   "2302 userId: user.id",
+   "2312 userId: user.id",
+   "2321 userId: user?.id",
+   "2350 userId: user.id",
+   "2387 userId: user.id",
+   "2418 userId: user.id",
+   "2619 userId: user.id",
+   "2664 userId: user.id",
+   "2689 userId: user.id",
+   "2912 from (shorthand)",
+   "2912 userId: user?.id",
+   "2945 from (shorthand)",
+   "2945 userId: user?.id",
+   "3075 userId: user?.id",
+   "3180 userId (shorthand)",
+   "3188 userId (shorthand)"
+  ]
+ },
+ "bot/shared/handlers/voice-message.handler.js": {
+  "n": 28,
+  "area": "handlers",
+  "at": [
+   "128 userId: user.id",
+   "150 userId: user.id",
+   "152 userId: user.id",
+   "197 userId: user.id",
+   "266 userId: user.id",
+   "275 userId: user?.id",
+   "452 userId: user.id",
+   "546 userId: user.id",
+   "584 userId: user.id",
+   "584 from (shorthand)",
+   "649 userId: user.id",
+   "670 userId: user.id",
+   "679 userId: user.id",
+   "679 from (shorthand)",
+   "718 userId: user.id",
+   "726 userId: user.id",
+   "912 userId: user.id",
+   "1046 userId: user?.id",
+   "1080 userId: user?.id",
+   "1094 userId: user?.id",
+   "1103 from: currentUserLanguage",
+   "1266 userId: user?.id",
+   "1276 userId: user?.id",
+   "1357 userId: user?.id",
+   "1482 from (shorthand)",
+   "1482 userId: user?.id",
+   "1502 from (shorthand)",
+   "1502 userId: user?.id"
+  ]
+ },
+ "bot/shared/handlers/welcome.handler.js": {
+  "n": 2,
+  "area": "handlers",
+  "at": [
+   "47 from (shorthand)",
+   "54 from (shorthand)"
+  ]
+ },
+ "bot/shared/routes/assessment-gen-endpoint.js": {
+  "n": 6,
+  "area": "routes",
+  "at": [
+   "1188 userId: state.userId",
+   "1318 userId (shorthand)",
+   "1622 userId: state.userId",
+   "1714 userId (shorthand)",
+   "1732 userId: state.userId",
+   "1834 userId: state.userId"
+  ]
+ },
+ "bot/shared/routes/attendance-marking-endpoint.js": {
+  "n": 4,
+  "area": "routes",
+  "at": [
+   "172 userId (shorthand)",
+   "705 userId (shorthand)",
+   "718 userId (shorthand)",
+   "1016 userId: ctx.userId"
+  ]
+ },
+ "bot/shared/routes/attendance-setup-endpoint.js": {
+  "n": 7,
+  "area": "routes",
+  "at": [
+   "84 userId (shorthand)",
+   "95 userId (shorthand)",
+   "186 userId (shorthand)",
+   "206 userId (shorthand)",
+   "218 userId (shorthand)",
+   "231 userId (shorthand)",
+   "237 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/child-test-app.routes.js": {
+  "n": 2,
+  "area": "routes",
+  "at": [
+   "60 userId: args.userId",
+   "63 userId: args.userId"
+  ]
+ },
+ "bot/shared/routes/class-manager-endpoint.js": {
+  "n": 7,
+  "area": "routes",
+  "at": [
+   "148 userId (shorthand)",
+   "571 userId (shorthand)",
+   "571 studentId (shorthand)",
+   "581 userId (shorthand)",
+   "657 userId (shorthand)",
+   "674 userId (shorthand)",
+   "689 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/edit-class-endpoint.js": {
+  "n": 1,
+  "area": "routes",
+  "at": [
+   "173 studentId: row.id"
+  ]
+ },
+ "bot/shared/routes/flow-endpoint.routes.js": {
+  "n": 1,
+  "area": "routes",
+  "at": [
+   "947 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/homework-request-endpoint.js": {
+  "n": 3,
+  "area": "routes",
+  "at": [
+   "172 userId (shorthand)",
+   "280 userId (shorthand)",
+   "280 phone (shorthand)"
+  ]
+ },
+ "bot/shared/routes/internal-api.routes.js": {
+  "n": 23,
+  "area": "routes",
+  "at": [
+   "71 userId (shorthand)",
+   "76 userId (shorthand)",
+   "746 userId (shorthand)",
+   "789 userId (shorthand)",
+   "801 userId (shorthand)",
+   "804 userId (shorthand)",
+   "867 userId (shorthand)",
+   "905 userId (shorthand)",
+   "961 userId (shorthand)",
+   "1000 userId (shorthand)",
+   "1027 userId (shorthand)",
+   "1032 userId (shorthand)",
+   "1055 userId (shorthand)",
+   "1080 userId (shorthand)",
+   "1114 userId (shorthand)",
+   "1122 userId (shorthand)",
+   "1132 userId (shorthand)",
+   "1161 userId (shorthand)",
+   "1166 userId (shorthand)",
+   "2720 userId: body.userId",
+   "2724 userId: body.userId",
+   "2795 userId: body.userId",
+   "2799 userId: body.userId"
+  ]
+ },
+ "bot/shared/routes/internal-attendance.routes.js": {
+  "n": 1,
+  "area": "routes",
+  "at": [
+   "36 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/observe-mewaka-endpoint.js": {
+  "n": 1,
+  "area": "routes",
+  "at": [
+   "101 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/pakistan-lp-endpoint.js": {
+  "n": 21,
+  "area": "routes",
+  "at": [
+   "611 userId (shorthand)",
+   "614 userId (shorthand)",
+   "691 userId (shorthand)",
+   "702 userId (shorthand)",
+   "705 userId (shorthand)",
+   "726 userId (shorthand)",
+   "736 userId (shorthand)",
+   "736 phone: user.phone_number",
+   "753 userId (shorthand)",
+   "763 userId (shorthand)",
+   "763 phone (shorthand)",
+   "765 userId (shorthand)",
+   "765 phone (shorthand)",
+   "771 userId (shorthand)",
+   "771 phone (shorthand)",
+   "781 userId (shorthand)",
+   "784 userId (shorthand)",
+   "932 userId (shorthand)",
+   "1037 userId (shorthand)",
+   "1074 userId (shorthand)",
+   "1089 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/quiz-flow-endpoint.js": {
+  "n": 5,
+  "area": "routes",
+  "at": [
+   "33 userId (shorthand)",
+   "38 userId (shorthand)",
+   "69 userId (shorthand)",
+   "388 userId (shorthand)",
+   "418 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/registration-endpoint.js": {
+  "n": 22,
+  "area": "routes",
+  "at": [
+   "71 userId (shorthand)",
+   "72 userId (shorthand)",
+   "74 userId (shorthand)",
+   "108 userId (shorthand)",
+   "113 userId (shorthand)",
+   "193 userId (shorthand)",
+   "218 userId (shorthand)",
+   "311 userId (shorthand)",
+   "329 userId (shorthand)",
+   "353 userId (shorthand)",
+   "375 userId (shorthand)",
+   "434 userId (shorthand)",
+   "471 userId (shorthand)",
+   "519 userId (shorthand)",
+   "532 userId (shorthand)",
+   "732 userId (shorthand)",
+   "734 userId (shorthand)",
+   "739 userId (shorthand)",
+   "751 userId (shorthand)",
+   "755 userId (shorthand)",
+   "792 userId (shorthand)",
+   "843 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/remark-endpoint.js": {
+  "n": 6,
+  "area": "routes",
+  "at": [
+   "255 teacherId: teacher.id",
+   "316 userId (shorthand)",
+   "316 teacherId (shorthand)",
+   "345 userId: user.id",
+   "345 teacherId: teacher.id",
+   "369 userId: user.id"
+  ]
+ },
+ "bot/shared/routes/roster-flow-endpoint.js": {
+  "n": 3,
+  "area": "routes",
+  "at": [
+   "970 from: { gradeCode: cur.gradeCode",
+   "1115 teacherUserId: picked",
+   "1124 teacherUserId: picked"
+  ]
+ },
+ "bot/shared/routes/settings-endpoint.js": {
+  "n": 10,
+  "area": "routes",
+  "at": [
+   "44 userId (shorthand)",
+   "79 userId (shorthand)",
+   "87 userId (shorthand)",
+   "110 userId (shorthand)",
+   "157 userId (shorthand)",
+   "169 userId (shorthand)",
+   "169 from: currentLanguage",
+   "176 userId (shorthand)",
+   "211 userId (shorthand)",
+   "222 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/status-flow-endpoint.js": {
+  "n": 3,
+  "area": "routes",
+  "at": [
+   "21 userId (shorthand)",
+   "26 userId (shorthand)",
+   "90 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/student-quiz-flow-endpoint.js": {
+  "n": 3,
+  "area": "routes",
+  "at": [
+   "80 studentId: child.studentId || null",
+   "183 studentId: child.studentId",
+   "191 studentId: child.studentId"
+  ]
+ },
+ "bot/shared/routes/student-videos-endpoint.js": {
+  "n": 7,
+  "area": "routes",
+  "at": [
+   "252 studentId (shorthand)",
+   "259 studentId (shorthand)",
+   "276 studentId (shorthand)",
+   "284 userId (shorthand)",
+   "290 userId (shorthand)",
+   "299 userId (shorthand)",
+   "362 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/teacher-report-internal.routes.js": {
+  "n": 6,
+  "area": "routes",
+  "at": [
+   "75 teacherId (shorthand)",
+   "149 teacherId: v.teacherId",
+   "224 teacherId: v.teacherId",
+   "239 teacherId: v.teacherId",
+   "353 teacherId: v.teacherId",
+   "369 teacherId: v.teacherId"
+  ]
+ },
+ "bot/shared/routes/teacher-training-endpoint.js": {
+  "n": 20,
+  "area": "routes",
+  "at": [
+   "78 userId (shorthand)",
+   "158 userId (shorthand)",
+   "174 userId (shorthand)",
+   "208 userId (shorthand)",
+   "240 userId (shorthand)",
+   "362 userId (shorthand)",
+   "375 userId (shorthand)",
+   "468 userId (shorthand)",
+   "475 userId (shorthand)",
+   "494 userId (shorthand)",
+   "509 userId (shorthand)",
+   "531 userId (shorthand)",
+   "628 userId (shorthand)",
+   "710 userId (shorthand)",
+   "1053 userId (shorthand)",
+   "1069 userId (shorthand)",
+   "1089 userId (shorthand)",
+   "1465 userId (shorthand)",
+   "1600 userId (shorthand)",
+   "1963 userId (shorthand)"
+  ]
+ },
+ "bot/shared/routes/transcript-quiz-flow-endpoint.js": {
+  "n": 13,
+  "area": "routes",
+  "at": [
+   "698 userId: teacher.id",
+   "723 userId: teacher.id",
+   "750 userId: teacher.id",
+   "760 userId: teacher.id",
+   "771 userId: teacher.id",
+   "777 userId: teacher.id",
+   "780 userId: teacher.id",
+   "818 userId: teacher.id",
+   "831 userId: teacher.id",
+   "880 userId: teacher.id",
+   "898 userId: teacher.id",
+   "916 userId: teacher.id",
+   "928 userId: teacher.id"
+  ]
+ },
+ "bot/shared/services/app-redirect.service.js": {
+  "n": 14,
+  "area": "services",
+  "at": [
+   "243 userId (shorthand)",
+   "246 userId (shorthand)",
+   "270 userId (shorthand)",
+   "274 userId (shorthand)",
+   "293 userId (shorthand)",
+   "315 userId (shorthand)",
+   "351 userId (shorthand)",
+   "370 userId (shorthand)",
+   "374 userId (shorthand)",
+   "377 userId (shorthand)",
+   "407 userId (shorthand)",
+   "422 userId (shorthand)",
+   "427 userId (shorthand)",
+   "430 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/assessment-entry.service.js": {
+  "n": 2,
+  "area": "services",
+  "at": [
+   "42 userId (shorthand)",
+   "57 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/assessment/assessment-browse.service.js": {
+  "n": 1,
+  "area": "assessment",
+  "at": [
+   "364 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/assessment/assessment-orchestrator.service.js": {
+  "n": 10,
+  "area": "assessment",
+  "at": [
+   "186 userId (shorthand)",
+   "640 userId (shorthand)",
+   "692 userId (shorthand)",
+   "724 userId (shorthand)",
+   "806 userId (shorthand)",
+   "809 userId (shorthand)",
+   "838 userId (shorthand)",
+   "842 userId (shorthand)",
+   "848 userId (shorthand)",
+   "885 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/assessment/assessment-request.service.js": {
+  "n": 2,
+  "area": "assessment",
+  "at": [
+   "152 userId (shorthand)",
+   "238 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/assessment/assessment-revision.service.js": {
+  "n": 12,
+  "area": "assessment",
+  "at": [
+   "232 userId (shorthand)",
+   "240 userId (shorthand)",
+   "342 userId (shorthand)",
+   "346 userId (shorthand)",
+   "352 userId (shorthand)",
+   "358 userId (shorthand)",
+   "410 userId (shorthand)",
+   "530 userId (shorthand)",
+   "645 userId (shorthand)",
+   "690 userId (shorthand)",
+   "699 userId (shorthand)",
+   "780 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/attendance-entry.service.js": {
+  "n": 2,
+  "area": "services",
+  "at": [
+   "181 userId: user.id",
+   "184 userId: user?.id"
+  ]
+ },
+ "bot/shared/services/attendance-register-delivery.service.js": {
+  "n": 4,
+  "area": "services",
+  "at": [
+   "195 userId: who",
+   "253 userId: who",
+   "257 userId: who",
+   "264 userId: who"
+  ]
+ },
+ "bot/shared/services/attendance-write.service.js": {
+  "n": 3,
+  "area": "services",
+  "at": [
+   "151 userId (shorthand)",
+   "168 userId (shorthand)",
+   "172 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/audio.service.js": {
+  "n": 1,
+  "area": "services",
+  "at": [
+   "518 from: path.extname(audioPath)"
+  ]
+ },
+ "bot/shared/services/child-test/check-flow/check-store.js": {
+  "n": 1,
+  "area": "child-test",
+  "at": [
+   "170 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/child-test/check-flow/review.js": {
+  "n": 2,
+  "area": "child-test",
+  "at": [
+   "331 userId: user.id",
+   "496 userId: user.id"
+  ]
+ },
+ "bot/shared/services/child-test/conversation/context.js": {
+  "n": 4,
+  "area": "child-test",
+  "at": [
+   "29 teacherUserId (shorthand)",
+   "83 teacherUserId (shorthand)",
+   "107 teacherUserId: r.teacher_user_id",
+   "124 teacherUserId (shorthand)"
+  ]
+ },
+ "bot/shared/services/child-test/conversation/machine.js": {
+  "n": 6,
+  "area": "child-test",
+  "at": [
+   "446 teacherUserId: targetId",
+   "452 teacherUserId: targetId",
+   "460 teacherUserId: targetId",
+   "463 teacherUserId: targetId",
+   "1293 teacherUserId: tc.userId",
+   "1300 teacherUserId: tc.userId"
+  ]
+ },
+ "bot/shared/services/classes/class-entry.service.js": {
+  "n": 3,
+  "area": "classes",
+  "at": [
+   "33 userId: user?.id",
+   "45 userId: user.id",
+   "60 userId: user.id"
+  ]
+ },
+ "bot/shared/services/classes/class.service.js": {
+  "n": 7,
+  "area": "classes",
+  "at": [
+   "533 studentId (shorthand)",
+   "898 studentId (shorthand)",
+   "903 studentId (shorthand)",
+   "962 studentId: student.id",
+   "1004 studentId (shorthand)",
+   "1248 studentId: student.id",
+   "1481 teacherUserId (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/analysis-processor.service.js": {
+  "n": 2,
+  "area": "coaching",
+  "at": [
+   "280 userId: session.user_id",
+   "773 phoneNumber (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/classroom-photo/add-another.service.js": {
+  "n": 6,
+  "area": "coaching",
+  "at": [
+   "90 userId: user.id",
+   "97 userId: user.id",
+   "107 userId: user.id",
+   "115 userId: user.id",
+   "130 userId: user.id",
+   "170 userId: user.id"
+  ]
+ },
+ "bot/shared/services/coaching/classroom-photo/photo-yes.service.js": {
+  "n": 1,
+  "area": "coaching",
+  "at": [
+   "85 from (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/coaching-feedback.service.js": {
+  "n": 6,
+  "area": "coaching",
+  "at": [
+   "141 userId (shorthand)",
+   "141 phone (shorthand)",
+   "147 userId (shorthand)",
+   "169 userId (shorthand)",
+   "202 userId (shorthand)",
+   "263 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/coaching-session.service.js": {
+  "n": 2,
+  "area": "coaching",
+  "at": [
+   "43 userId (shorthand)",
+   "113 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/coaching-trend.service.js": {
+  "n": 8,
+  "area": "coaching",
+  "at": [
+   "94 userId (shorthand)",
+   "114 userId (shorthand)",
+   "146 userId (shorthand)",
+   "163 userId (shorthand)",
+   "196 userId (shorthand)",
+   "201 userId (shorthand)",
+   "232 userId (shorthand)",
+   "237 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/continue-coaching.service.js": {
+  "n": 1,
+  "area": "coaching",
+  "at": [
+   "40 from (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/finish-early.service.js": {
+  "n": 1,
+  "area": "coaching",
+  "at": [
+   "37 from (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/lp-coaching/lp-text-paste.service.js": {
+  "n": 2,
+  "area": "coaching",
+  "at": [
+   "74 userId: user.id",
+   "83 userId: user.id"
+  ]
+ },
+ "bot/shared/services/coaching/lp-coaching/recent-fidelity-lps.service.js": {
+  "n": 1,
+  "area": "coaching",
+  "at": [
+   "34 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/media-attach.service.js": {
+  "n": 8,
+  "area": "coaching",
+  "at": [
+   "68 userId: user.id",
+   "84 userId: user.id",
+   "95 userId: user.id",
+   "104 userId: user.id",
+   "141 userId: user.id",
+   "155 userId: user.id",
+   "208 userId: user.id",
+   "234 userId: user.id"
+  ]
+ },
+ "bot/shared/services/coaching/media-session-resolver.js": {
+  "n": 2,
+  "area": "coaching",
+  "at": [
+   "103 userId (shorthand)",
+   "119 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/media-target.service.js": {
+  "n": 1,
+  "area": "coaching",
+  "at": [
+   "41 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/report-events.js": {
+  "n": 1,
+  "area": "coaching",
+  "at": [
+   "38 userId: uuidOrNull(data.userId)"
+  ]
+ },
+ "bot/shared/services/coaching/report-generator.service.js": {
+  "n": 7,
+  "area": "coaching",
+  "at": [
+   "758 userId (shorthand)",
+   "769 userId (shorthand)",
+   "777 userId (shorthand)",
+   "837 userId (shorthand)",
+   "850 userId (shorthand)",
+   "1257 userId: session.user_id",
+   "1655 phoneNumber (shorthand)"
+  ]
+ },
+ "bot/shared/services/coaching/transcription-processor.service.js": {
+  "n": 5,
+  "area": "coaching",
+  "at": [
+   "348 userId: session.user_id",
+   "357 userId: session.user_id",
+   "366 userId: session.user_id",
+   "376 userId: session.user_id",
+   "752 phoneNumber (shorthand)"
+  ]
+ },
+ "bot/shared/services/context.service.js": {
+  "n": 3,
+  "area": "services",
+  "at": [
+   "131 userId (shorthand)",
+   "195 userId (shorthand)",
+   "344 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/conversation-resume.service.js": {
+  "n": 6,
+  "area": "services",
+  "at": [
+   "300 userId: row.userId",
+   "315 userId: row.userId",
+   "318 userId: row.userId",
+   "347 userId: user.id",
+   "357 userId: user.id",
+   "374 userId: user.id"
+  ]
+ },
+ "bot/shared/services/conversation-state.service.js": {
+  "n": 4,
+  "area": "services",
+  "at": [
+   "99 userId (shorthand)",
+   "137 userId (shorthand)",
+   "144 userId (shorthand)",
+   "154 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/exam-checker/delivery.service.js": {
+  "n": 2,
+  "area": "exam-checker",
+  "at": [
+   "19 userId (shorthand)",
+   "186 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/exam-checker/exam-session.service.js": {
+  "n": 5,
+  "area": "exam-checker",
+  "at": [
+   "116 userId (shorthand)",
+   "120 userId (shorthand)",
+   "284 userId (shorthand)",
+   "295 userId (shorthand)",
+   "304 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/feature-intro.service.js": {
+  "n": 12,
+  "area": "services",
+  "at": [
+   "61 userId (shorthand)",
+   "66 userId (shorthand)",
+   "88 userId (shorthand)",
+   "93 userId (shorthand)",
+   "127 userId (shorthand)",
+   "129 userId (shorthand)",
+   "132 userId (shorthand)",
+   "150 userId (shorthand)",
+   "153 userId (shorthand)",
+   "173 userId (shorthand)",
+   "190 userId (shorthand)",
+   "206 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/feature-keyword-detector.service.js": {
+  "n": 7,
+  "area": "services",
+  "at": [
+   "176 userId (shorthand)",
+   "190 userId (shorthand)",
+   "218 userId (shorthand)",
+   "257 userId (shorthand)",
+   "291 userId (shorthand)",
+   "316 userId (shorthand)",
+   "349 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/feature-linker.service.js": {
+  "n": 6,
+  "area": "services",
+  "at": [
+   "161 userId (shorthand)",
+   "186 from: completedFeature",
+   "186 userId (shorthand)",
+   "273 userId (shorthand)",
+   "295 userId (shorthand)",
+   "317 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/feature-registration.service.js": {
+  "n": 26,
+  "area": "services",
+  "at": [
+   "43 userId (shorthand)",
+   "53 userId (shorthand)",
+   "64 userId (shorthand)",
+   "70 userId (shorthand)",
+   "78 userId (shorthand)",
+   "84 userId (shorthand)",
+   "94 userId (shorthand)",
+   "102 userId (shorthand)",
+   "109 userId (shorthand)",
+   "113 userId (shorthand)",
+   "159 userId (shorthand)",
+   "170 userId (shorthand)",
+   "225 userId (shorthand)",
+   "239 userId (shorthand)",
+   "239 phoneNumber (shorthand)",
+   "241 userId (shorthand)",
+   "259 userId (shorthand)",
+   "265 userId (shorthand)",
+   "297 userId (shorthand)",
+   "311 userId (shorthand)",
+   "320 userId (shorthand)",
+   "464 phoneNumber (shorthand)",
+   "542 phoneNumber (shorthand)",
+   "544 phoneNumber (shorthand)",
+   "564 userId (shorthand)",
+   "570 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/first-touch/maker.bank.js": {
+  "n": 1,
+  "area": "first-touch",
+  "at": [
+   "194 userId: uid"
+  ]
+ },
+ "bot/shared/services/first-touch/one-door.service.js": {
+  "n": 2,
+  "area": "first-touch",
+  "at": [
+   "93 userId: (user && user.id) || null",
+   "139 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/gpt5-mini.service.js": {
+  "n": 4,
+  "area": "services",
+  "at": [
+   "1196 userId (shorthand)",
+   "1400 userId (shorthand)",
+   "1407 userId (shorthand)",
+   "1414 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lesson-plan-queue.service.js": {
+  "n": 1,
+  "area": "services",
+  "at": [
+   "102 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/llm-client.js": {
+  "n": 2,
+  "area": "services",
+  "at": [
+   "340 from: params.model",
+   "346 from: params.model"
+  ]
+ },
+ "bot/shared/services/lp-ab-ch310.service.js": {
+  "n": 1,
+  "area": "services",
+  "at": [
+   "62 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lp-browse-entry.service.js": {
+  "n": 9,
+  "area": "services",
+  "at": [
+   "65 userId (shorthand)",
+   "70 userId (shorthand)",
+   "75 userId (shorthand)",
+   "80 userId (shorthand)",
+   "92 userId (shorthand)",
+   "98 userId (shorthand)",
+   "110 userId (shorthand)",
+   "113 userId (shorthand)",
+   "116 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lp-context.service.js": {
+  "n": 5,
+  "area": "services",
+  "at": [
+   "143 userId (shorthand)",
+   "392 userId (shorthand)",
+   "399 userId (shorthand)",
+   "746 userId (shorthand)",
+   "756 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lp-delivery-marker.service.js": {
+  "n": 3,
+  "area": "services",
+  "at": [
+   "64 userId (shorthand)",
+   "69 userId (shorthand)",
+   "72 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lp-feedback.service.js": {
+  "n": 16,
+  "area": "services",
+  "at": [
+   "183 userId (shorthand)",
+   "183 phone (shorthand)",
+   "189 userId (shorthand)",
+   "189 phone (shorthand)",
+   "218 userId (shorthand)",
+   "227 userId (shorthand)",
+   "236 userId (shorthand)",
+   "236 phone (shorthand)",
+   "315 userId: lp.user_id",
+   "350 userId: lp.user_id",
+   "369 userId: lp.user_id",
+   "382 userId: lp.user_id",
+   "385 userId: lp.user_id",
+   "467 userId (shorthand)",
+   "484 userId (shorthand)",
+   "514 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lp-shelf.service.js": {
+  "n": 2,
+  "area": "services",
+  "at": [
+   "82 userId (shorthand)",
+   "117 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lp-v8-delivery.service.js": {
+  "n": 10,
+  "area": "services",
+  "at": [
+   "222 userId (shorthand)",
+   "245 userId (shorthand)",
+   "250 userId (shorthand)",
+   "317 userId (shorthand)",
+   "325 userId (shorthand)",
+   "343 userId (shorthand)",
+   "378 userId (shorthand)",
+   "408 userId (shorthand)",
+   "451 userId (shorthand)",
+   "544 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lp612-edit-router.service.js": {
+  "n": 5,
+  "area": "services",
+  "at": [
+   "71 userId (shorthand)",
+   "84 userId (shorthand)",
+   "96 userId (shorthand)",
+   "109 userId (shorthand)",
+   "119 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lp612-feedback.service.js": {
+  "n": 21,
+  "area": "services",
+  "at": [
+   "143 userId (shorthand)",
+   "143 phone (shorthand)",
+   "149 userId (shorthand)",
+   "157 userId (shorthand)",
+   "188 userId (shorthand)",
+   "192 userId (shorthand)",
+   "208 userId (shorthand)",
+   "233 phone (shorthand)",
+   "234 phone (shorthand)",
+   "259 userId: user.id",
+   "282 userId: user.id",
+   "286 userId: user.id",
+   "295 userId: user.id",
+   "315 userId: user.id",
+   "363 phone (shorthand)",
+   "364 phone (shorthand)",
+   "376 userId: user.id",
+   "377 userId: user.id",
+   "379 userId: user.id",
+   "420 userId (shorthand)",
+   "444 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lp612-serving.service.js": {
+  "n": 7,
+  "area": "services",
+  "at": [
+   "667 userId (shorthand)",
+   "789 userId: userId || null",
+   "826 phone (shorthand)",
+   "826 userId: userId || null",
+   "850 userId: userId || null",
+   "906 userId (shorthand)",
+   "1118 userId: (req && req.userId) || null"
+  ]
+ },
+ "bot/shared/services/menu.service.js": {
+  "n": 23,
+  "area": "services",
+  "at": [
+   "91 from (shorthand)",
+   "91 userId (shorthand)",
+   "123 from (shorthand)",
+   "129 from (shorthand)",
+   "186 userId: user.id",
+   "220 userId: user.id",
+   "235 userId: user.id",
+   "254 userId: user.id",
+   "286 userId: user.id",
+   "325 userId: user.id",
+   "390 userId: user?.id",
+   "423 from (shorthand)",
+   "437 userId (shorthand)",
+   "437 from (shorthand)",
+   "472 from (shorthand)",
+   "474 from (shorthand)",
+   "535 userId (shorthand)",
+   "558 userId (shorthand)",
+   "580 userId (shorthand)",
+   "616 userId (shorthand)",
+   "707 userId (shorthand)",
+   "717 userId (shorthand)",
+   "727 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/nudges/lp-coaching-ask.service.js": {
+  "n": 16,
+  "area": "nudges",
+  "at": [
+   "129 userId (shorthand)",
+   "134 userId (shorthand)",
+   "149 userId (shorthand)",
+   "154 userId (shorthand)",
+   "196 userId (shorthand)",
+   "439 userId: row.user_id",
+   "506 userId (shorthand)",
+   "514 userId (shorthand)",
+   "519 userId (shorthand)",
+   "522 userId (shorthand)",
+   "529 userId (shorthand)",
+   "604 userId (shorthand)",
+   "609 userId (shorthand)",
+   "657 userId: user.id",
+   "667 userId: user.id",
+   "670 userId: user.id"
+  ]
+ },
+ "bot/shared/services/nudges/lp-quiz-offer.service.js": {
+  "n": 9,
+  "area": "nudges",
+  "at": [
+   "808 userId: row.user_id",
+   "932 userId: row.user_id",
+   "1039 userId: row.user_id",
+   "1048 userId: row.user_id",
+   "1066 userId: row.user_id",
+   "1080 userId: row.user_id",
+   "1106 userId: row.user_id",
+   "1115 userId: row.user_id",
+   "1138 userId: row.user_id"
+  ]
+ },
+ "bot/shared/services/nudges/open-question.js": {
+  "n": 1,
+  "area": "nudges",
+  "at": [
+   "67 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/nudges/teacher-nudges.sweeper.js": {
+  "n": 1,
+  "area": "nudges",
+  "at": [
+   "138 userId: row.user_id"
+  ]
+ },
+ "bot/shared/services/observe/observe-audio-router.js": {
+  "n": 10,
+  "area": "observe",
+  "at": [
+   "112 userId (shorthand)",
+   "129 userId: user.id",
+   "162 userId: user.id",
+   "176 userId: user.id",
+   "182 userId: user.id",
+   "186 userId: user.id",
+   "205 userId: user.id",
+   "208 userId: user.id",
+   "224 userId: user.id",
+   "240 userId: user.id"
+  ]
+ },
+ "bot/shared/services/observe/observe-binding.service.js": {
+  "n": 9,
+  "area": "observe",
+  "at": [
+   "46 userId (shorthand)",
+   "71 userId: user.id",
+   "111 userId: user.id",
+   "129 userId: user.id",
+   "268 userId: user.id",
+   "307 userId: user.id",
+   "337 userId: user.id",
+   "361 userId: user.id",
+   "371 userId: user.id"
+  ]
+ },
+ "bot/shared/services/observe/observe-capture.service.js": {
+  "n": 4,
+  "area": "observe",
+  "at": [
+   "86 userId: user.id",
+   "105 userId: user.id",
+   "121 userId: user.id",
+   "166 userId: user.id"
+  ]
+ },
+ "bot/shared/services/observe/observe-debrief.service.js": {
+  "n": 4,
+  "area": "observe",
+  "at": [
+   "464 phoneNumber: from",
+   "683 userId: user.id",
+   "769 userId: user.id",
+   "785 userId: user.id"
+  ]
+ },
+ "bot/shared/services/observe/observe-people.js": {
+  "n": 1,
+  "area": "observe",
+  "at": [
+   "40 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/observe/observe-roster.js": {
+  "n": 1,
+  "area": "observe",
+  "at": [
+   "41 userId: user.id"
+  ]
+ },
+ "bot/shared/services/observe/observe-send.service.js": {
+  "n": 1,
+  "area": "observe",
+  "at": [
+   "1259 from: payload.from"
+  ]
+ },
+ "bot/shared/services/observe/observe-state.service.js": {
+  "n": 1,
+  "area": "observe",
+  "at": [
+   "32 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/observe/observe-who.service.js": {
+  "n": 8,
+  "area": "observe",
+  "at": [
+   "183 userId: user.id",
+   "186 userId: user && user.id",
+   "252 userId: user.id",
+   "257 userId: user.id",
+   "296 userId: user.id",
+   "301 userId: user.id",
+   "396 userId: user.id",
+   "403 userId: user.id"
+  ]
+ },
+ "bot/shared/services/observe/observe2/capture-link.js": {
+  "n": 3,
+  "area": "observe",
+  "at": [
+   "61 userId: user.id",
+   "68 userId: user.id",
+   "104 userId: user.id"
+  ]
+ },
+ "bot/shared/services/observe/observe2/hold.js": {
+  "n": 4,
+  "area": "observe",
+  "at": [
+   "49 userId (shorthand)",
+   "57 userId (shorthand)",
+   "90 userId: user.id",
+   "94 userId: user.id"
+  ]
+ },
+ "bot/shared/services/observe/observe2/start.js": {
+  "n": 8,
+  "area": "observe",
+  "at": [
+   "50 userId: user && user.id",
+   "68 userId: user.id",
+   "102 userId: user.id",
+   "114 userId: user.id",
+   "132 userId (shorthand)",
+   "158 userId: user.id",
+   "181 userId: user.id",
+   "213 userId: user.id"
+  ]
+ },
+ "bot/shared/services/openai.service.js": {
+  "n": 3,
+  "area": "services",
+  "at": [
+   "49 userId (shorthand)",
+   "79 userId (shorthand)",
+   "545 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/oxbridge-lp.service.js": {
+  "n": 6,
+  "area": "services",
+  "at": [
+   "199 phone (shorthand)",
+   "211 phone (shorthand)",
+   "221 phone (shorthand)",
+   "263 phone (shorthand)",
+   "310 phone (shorthand)",
+   "321 phone (shorthand)"
+  ]
+ },
+ "bot/shared/services/portal-invite.service.js": {
+  "n": 20,
+  "area": "services",
+  "at": [
+   "31 userId (shorthand)",
+   "31 phoneNumber (shorthand)",
+   "48 userId (shorthand)",
+   "56 userId (shorthand)",
+   "99 userId (shorthand)",
+   "105 userId (shorthand)",
+   "105 phoneNumber (shorthand)",
+   "119 userId (shorthand)",
+   "119 phoneNumber (shorthand)",
+   "143 userId (shorthand)",
+   "160 userId (shorthand)",
+   "164 userId (shorthand)",
+   "176 userId (shorthand)",
+   "220 userId: user.id",
+   "234 userId: user.id",
+   "241 userId: user.id",
+   "283 userId (shorthand)",
+   "283 phoneNumber (shorthand)",
+   "297 userId (shorthand)",
+   "307 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/portal-ready-whatsapp.service.js": {
+  "n": 1,
+  "area": "services",
+  "at": [
+   "308 userId: c.userId"
+  ]
+ },
+ "bot/shared/services/portal-web-link.js": {
+  "n": 1,
+  "area": "services",
+  "at": [
+   "108 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/handout-class.service.js": {
+  "n": 2,
+  "area": "quiz",
+  "at": [
+   "80 teacherUserId (shorthand)",
+   "180 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/lp-app-opens.store.js": {
+  "n": 1,
+  "area": "quiz",
+  "at": [
+   "279 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/lp-lesson-claim.js": {
+  "n": 4,
+  "area": "quiz",
+  "at": [
+   "122 userId: teacherId",
+   "130 userId: teacherId",
+   "142 userId: teacherId",
+   "145 userId: teacherId"
+  ]
+ },
+ "bot/shared/services/quiz/lp-v8-lesson-provider.js": {
+  "n": 7,
+  "area": "quiz",
+  "at": [
+   "136 userId: teacherId",
+   "175 userId: held[0].user_id",
+   "217 userId: teacherId",
+   "227 userId: teacherId",
+   "230 userId: teacherId",
+   "231 userId: teacherId",
+   "315 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/providers/lp612.provider.js": {
+  "n": 4,
+  "area": "quiz",
+  "at": [
+   "163 userId: teacherId",
+   "166 userId: teacherId",
+   "167 userId: teacherId",
+   "257 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/quiz-delivery.service.js": {
+  "n": 1,
+  "area": "quiz",
+  "at": [
+   "201 studentId: firstStudent.id"
+  ]
+ },
+ "bot/shared/services/quiz/quiz-follow-up.service.js": {
+  "n": 4,
+  "area": "quiz",
+  "at": [
+   "40 from (shorthand)",
+   "54 userId: user.id",
+   "201 userId (shorthand)",
+   "201 from (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/quiz-generation.service.js": {
+  "n": 1,
+  "area": "quiz",
+  "at": [
+   "34 teacherId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/quiz-intent-router.service.js": {
+  "n": 6,
+  "area": "quiz",
+  "at": [
+   "126 userId: user.id",
+   "217 userId: user.id",
+   "258 userId: user.id",
+   "270 from (shorthand)",
+   "310 userId: user.id",
+   "318 userId: user.id"
+  ]
+ },
+ "bot/shared/services/quiz/quiz-menu-entry.service.js": {
+  "n": 1,
+  "area": "quiz",
+  "at": [
+   "74 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/quiz-orchestrator.service.js": {
+  "n": 5,
+  "area": "quiz",
+  "at": [
+   "39 userId: user.id",
+   "90 userId: user?.id",
+   "116 userId: user.id",
+   "220 userId: user.id",
+   "507 userId: teacher.id"
+  ]
+ },
+ "bot/shared/services/quiz/quiz-readiness.service.js": {
+  "n": 3,
+  "area": "quiz",
+  "at": [
+   "43 userId (shorthand)",
+   "60 userId (shorthand)",
+   "77 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/quiz-retest-sweep.js": {
+  "n": 1,
+  "area": "quiz",
+  "at": [
+   "93 userId: original.teacher_id"
+  ]
+ },
+ "bot/shared/services/quiz/student-identity.service.js": {
+  "n": 2,
+  "area": "quiz",
+  "at": [
+   "120 studentId: data.id",
+   "140 studentId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/student-quiz.service.js": {
+  "n": 2,
+  "area": "quiz",
+  "at": [
+   "262 studentId (shorthand)",
+   "287 studentId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/teacher-quiz-home.service.js": {
+  "n": 2,
+  "area": "quiz",
+  "at": [
+   "52 userId: (user && user.id) || null",
+   "64 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/teacher-quiz-make.service.js": {
+  "n": 1,
+  "area": "quiz",
+  "at": [
+   "35 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/teacher-report-link.js": {
+  "n": 3,
+  "area": "quiz",
+  "at": [
+   "60 userId: teacherId",
+   "75 userId: teacherId",
+   "81 userId: teacherId"
+  ]
+ },
+ "bot/shared/services/quiz/teacher-report-list.service.js": {
+  "n": 2,
+  "area": "quiz",
+  "at": [
+   "160 userId: user.id",
+   "173 userId: user.id"
+  ]
+ },
+ "bot/shared/services/quiz/teacher-self-test.js": {
+  "n": 1,
+  "area": "quiz",
+  "at": [
+   "71 userId: teacher.id"
+  ]
+ },
+ "bot/shared/services/quiz/transcript-lesson-provider.js": {
+  "n": 7,
+  "area": "quiz",
+  "at": [
+   "190 userId: user.id",
+   "201 userId: user.id",
+   "249 userId: user.id",
+   "256 userId: user.id",
+   "256 from: claimed.from",
+   "281 userId: user.id",
+   "281 from: claimed.from"
+  ]
+ },
+ "bot/shared/services/quiz/transcript-quiz-digest.service.js": {
+  "n": 2,
+  "area": "quiz",
+  "at": [
+   "192 userId (shorthand)",
+   "217 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/transcript-quiz-generate.service.js": {
+  "n": 15,
+  "area": "quiz",
+  "at": [
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "2576 teacherId: quiz.teacher_id",
+   "3127 teacherId: quiz.teacher_id",
+   "3127 teacherId: quiz.teacher_id",
+   "3127 phone (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/transcript-quiz-handoff.service.js": {
+  "n": 1,
+  "area": "quiz",
+  "at": [
+   "242 userId: quiz.teacher_id"
+  ]
+ },
+ "bot/shared/services/quiz/transcript-quiz-list.service.js": {
+  "n": 9,
+  "area": "quiz",
+  "at": [
+   "258 userId (shorthand)",
+   "306 userId: user.id",
+   "312 userId: user.id",
+   "323 userId: user.id",
+   "347 userId: user?.id || null",
+   "417 userId: user.id",
+   "425 userId: user.id",
+   "440 userId: user.id",
+   "456 userId: user.id"
+  ]
+ },
+ "bot/shared/services/quiz/transcript-quiz-offer.service.js": {
+  "n": 11,
+  "area": "quiz",
+  "at": [
+   "114 userId (shorthand)",
+   "118 userId (shorthand)",
+   "122 userId (shorthand)",
+   "129 userId (shorthand)",
+   "284 userId: session.user_id",
+   "353 userId: quiz.teacher_id",
+   "388 userId: quiz.teacher_id",
+   "449 userId: quiz.teacher_id",
+   "456 userId: quiz.teacher_id",
+   "569 userId: quiz.teacher_id",
+   "604 userId: quiz.teacher_id"
+  ]
+ },
+ "bot/shared/services/quiz/video-quiz-binge.service.js": {
+  "n": 2,
+  "area": "quiz",
+  "at": [
+   "57 studentId: ctx.studentId",
+   "71 phone (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/video-quiz-invite.service.js": {
+  "n": 2,
+  "area": "quiz",
+  "at": [
+   "146 studentId: ctx.studentId",
+   "165 studentId: ctx.studentId"
+  ]
+ },
+ "bot/shared/services/quiz/video-quiz-report.service.js": {
+  "n": 4,
+  "area": "quiz",
+  "at": [
+   "994 studentId: key",
+   "998 studentId: key",
+   "1012 studentId: key",
+   "1019 studentId: key"
+  ]
+ },
+ "bot/shared/services/quiz/video-quiz-share.service.js": {
+  "n": 3,
+  "area": "quiz",
+  "at": [
+   "280 userId: ctx.userId",
+   "421 userId: selfTest.userId",
+   "564 studentId: student?.id || null"
+  ]
+ },
+ "bot/shared/services/quiz/video-quiz.service.js": {
+  "n": 2,
+  "area": "quiz",
+  "at": [
+   "200 userId (shorthand)",
+   "327 userId: offer.userId"
+  ]
+ },
+ "bot/shared/services/quiz/web-quiz-art.js": {
+  "n": 1,
+  "area": "quiz",
+  "at": [
+   "235 from (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/web-quiz-handset.js": {
+  "n": 4,
+  "area": "quiz",
+  "at": [
+   "206 from (shorthand)",
+   "207 from (shorthand)",
+   "208 from (shorthand)",
+   "254 from: c.from"
+  ]
+ },
+ "bot/shared/services/quiz/web-quiz-join-queue.js": {
+  "n": 1,
+  "area": "quiz",
+  "at": [
+   "781 teacherUserId (shorthand)"
+  ]
+ },
+ "bot/shared/services/quiz/web-quiz.service.js": {
+  "n": 3,
+  "area": "quiz",
+  "at": [
+   "504 from: ctx.lang",
+   "1428 studentId: typedId",
+   "1433 studentId: typedId"
+  ]
+ },
+ "bot/shared/services/reading-assessment.service.js": {
+  "n": 16,
+  "area": "services",
+  "at": [
+   "22 userId (shorthand)",
+   "41 userId (shorthand)",
+   "136 userId (shorthand)",
+   "144 userId (shorthand)",
+   "159 userId (shorthand)",
+   "262 userId (shorthand)",
+   "270 userId (shorthand)",
+   "285 userId (shorthand)",
+   "337 userId (shorthand)",
+   "391 userId (shorthand)",
+   "406 userId (shorthand)",
+   "422 userId (shorthand)",
+   "429 userId (shorthand)",
+   "451 userId (shorthand)",
+   "477 userId (shorthand)",
+   "532 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/reading/analysis.service.js": {
+  "n": 6,
+  "area": "reading",
+  "at": [
+   "45 userId (shorthand)",
+   "426 phoneNumber (shorthand)",
+   "853 from: assessment.language",
+   "1127 phoneNumber (shorthand)",
+   "1435 from: assessment.language",
+   "1545 phoneNumber (shorthand)"
+  ]
+ },
+ "bot/shared/services/reading/auto-level-orchestrator.service.js": {
+  "n": 2,
+  "area": "reading",
+  "at": [
+   "80 userId (shorthand)",
+   "328 from: currentLevel"
+  ]
+ },
+ "bot/shared/services/reading/passage-generation.service.js": {
+  "n": 1,
+  "area": "reading",
+  "at": [
+   "288 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/redis-comprehension.service.js": {
+  "n": 6,
+  "area": "services",
+  "at": [
+   "58 userId (shorthand)",
+   "137 userId (shorthand)",
+   "154 userId (shorthand)",
+   "163 userId (shorthand)",
+   "278 userId (shorthand)",
+   "298 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/registration-invite.service.js": {
+  "n": 7,
+  "area": "services",
+  "at": [
+   "98 userId (shorthand)",
+   "126 userId: user && user.id",
+   "153 userId: user.id",
+   "157 userId: user.id",
+   "162 userId: user.id",
+   "193 userId: user.id",
+   "198 userId: user.id"
+  ]
+ },
+ "bot/shared/services/remark/remark-delivery.deps.js": {
+  "n": 2,
+  "area": "remark",
+  "at": [
+   "129 teacherId: teacher.id",
+   "162 teacherId (shorthand)"
+  ]
+ },
+ "bot/shared/services/roster-entry.service.js": {
+  "n": 3,
+  "area": "services",
+  "at": [
+   "47 userId: user?.id",
+   "52 userId: user?.id",
+   "68 userId: user.id"
+  ]
+ },
+ "bot/shared/services/share-send.service.js": {
+  "n": 2,
+  "area": "services",
+  "at": [
+   "298 userId (shorthand)",
+   "303 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/student-ingress.js": {
+  "n": 4,
+  "area": "services",
+  "at": [
+   "179 userId: full.id",
+   "179 phone (shorthand)",
+   "389 userId: user.id || null",
+   "401 userId: user.id || null"
+  ]
+ },
+ "bot/shared/services/student-list.service.js": {
+  "n": 2,
+  "area": "services",
+  "at": [
+   "389 studentId (shorthand)",
+   "393 studentId (shorthand)"
+  ]
+ },
+ "bot/shared/services/student-mode.service.js": {
+  "n": 3,
+  "area": "services",
+  "at": [
+   "385 userId: user?.id || null",
+   "397 userId: user?.id || null",
+   "407 userId: user?.id || null"
+  ]
+ },
+ "bot/shared/services/student-video-feedback.service.js": {
+  "n": 19,
+  "area": "services",
+  "at": [
+   "93 userId (shorthand)",
+   "93 phone (shorthand)",
+   "96 userId (shorthand)",
+   "96 phone (shorthand)",
+   "156 userId (shorthand)",
+   "156 phone (shorthand)",
+   "205 phone (shorthand)",
+   "224 userId (shorthand)",
+   "224 phone (shorthand)",
+   "271 userId (shorthand)",
+   "271 phone (shorthand)",
+   "289 userId (shorthand)",
+   "289 phone (shorthand)",
+   "350 userId (shorthand)",
+   "350 phone (shorthand)",
+   "365 userId (shorthand)",
+   "365 phone (shorthand)",
+   "395 userId (shorthand)",
+   "395 phone (shorthand)"
+  ]
+ },
+ "bot/shared/services/student-videos-entry.service.js": {
+  "n": 2,
+  "area": "services",
+  "at": [
+   "28 userId (shorthand)",
+   "40 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/teacher-state.service.js": {
+  "n": 4,
+  "area": "services",
+  "at": [
+   "87 userId (shorthand)",
+   "104 userId (shorthand)",
+   "134 userId (shorthand)",
+   "160 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/training/band-selection.service.js": {
+  "n": 6,
+  "area": "training",
+  "at": [
+   "215 userId (shorthand)",
+   "232 userId (shorthand)",
+   "263 userId (shorthand)",
+   "277 userId (shorthand)",
+   "289 userId (shorthand)",
+   "292 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/training/capstone-delivery.service.js": {
+  "n": 15,
+  "area": "training",
+  "at": [
+   "192 userId (shorthand)",
+   "198 userId (shorthand)",
+   "214 userId (shorthand)",
+   "214 phoneNumber (shorthand)",
+   "218 userId (shorthand)",
+   "225 userId (shorthand)",
+   "230 userId (shorthand)",
+   "232 userId (shorthand)",
+   "252 userId (shorthand)",
+   "260 userId (shorthand)",
+   "304 userId (shorthand)",
+   "308 userId (shorthand)",
+   "315 userId (shorthand)",
+   "524 userId: user.id",
+   "534 userId: user.id"
+  ]
+ },
+ "bot/shared/services/training/certificate-pdf.service.js": {
+  "n": 4,
+  "area": "training",
+  "at": [
+   "641 userId (shorthand)",
+   "670 userId (shorthand)",
+   "926 userId (shorthand)",
+   "930 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/training/certificate.service.js": {
+  "n": 4,
+  "area": "training",
+  "at": [
+   "139 userId (shorthand)",
+   "163 userId (shorthand)",
+   "302 userId (shorthand)",
+   "369 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/training/content-delivery.service.js": {
+  "n": 14,
+  "area": "training",
+  "at": [
+   "110 userId (shorthand)",
+   "146 userId (shorthand)",
+   "157 userId (shorthand)",
+   "166 userId (shorthand)",
+   "173 user_id: userId || null",
+   "225 userId (shorthand)",
+   "286 userId (shorthand)",
+   "344 userId (shorthand)",
+   "510 userId (shorthand)",
+   "513 userId (shorthand)",
+   "669 userId (shorthand)",
+   "730 userId (shorthand)",
+   "739 userId (shorthand)",
+   "751 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/training/progress.service.js": {
+  "n": 1,
+  "area": "training",
+  "at": [
+   "45 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/training/quiz-delivery.service.js": {
+  "n": 20,
+  "area": "training",
+  "at": [
+   "405 userId (shorthand)",
+   "414 userId (shorthand)",
+   "420 userId (shorthand)",
+   "438 userId (shorthand)",
+   "449 userId (shorthand)",
+   "467 userId (shorthand)",
+   "528 userId (shorthand)",
+   "545 userId (shorthand)",
+   "564 userId (shorthand)",
+   "569 userId (shorthand)",
+   "603 userId (shorthand)",
+   "619 userId (shorthand)",
+   "689 userId (shorthand)",
+   "724 userId (shorthand)",
+   "773 userId (shorthand)",
+   "780 userId (shorthand)",
+   "796 userId (shorthand)",
+   "865 userId (shorthand)",
+   "2300 userId: attempt.user_id",
+   "2666 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/training/training-entry.service.js": {
+  "n": 4,
+  "area": "training",
+  "at": [
+   "57 userId: user.id",
+   "62 userId: user?.id",
+   "69 userId: user?.id",
+   "86 userId: user.id"
+  ]
+ },
+ "bot/shared/services/video/video-assembly.service.js": {
+  "n": 4,
+  "area": "video",
+  "at": [
+   "62 from (shorthand)",
+   "171 from (shorthand)",
+   "196 from (shorthand)",
+   "198 from (shorthand)"
+  ]
+ },
+ "bot/shared/services/video/video-orchestrator.service.js": {
+  "n": 20,
+  "area": "video",
+  "at": [
+   "56 userId: user?.id",
+   "56 from (shorthand)",
+   "78 userId: user.id",
+   "96 userId: user.id",
+   "111 userId: user.id",
+   "122 userId: user.id",
+   "125 userId: user?.id",
+   "165 userId (shorthand)",
+   "187 userId (shorthand)",
+   "237 userId (shorthand)",
+   "267 userId (shorthand)",
+   "284 userId: user.id",
+   "291 userId: user.id",
+   "350 userId (shorthand)",
+   "407 userId (shorthand)",
+   "441 userId (shorthand)",
+   "464 userId (shorthand)",
+   "482 userId: user.id",
+   "489 userId: user.id",
+   "566 userId: user?.id"
+  ]
+ },
+ "bot/shared/services/video/video-session.service.js": {
+  "n": 5,
+  "area": "video",
+  "at": [
+   "65 userId (shorthand)",
+   "65 phoneNumber (shorthand)",
+   "81 userId (shorthand)",
+   "108 userId (shorthand)",
+   "110 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/whatsapp-status-pricing.js": {
+  "n": 1,
+  "area": "services",
+  "at": [
+   "52 userId: ids.get(phone)"
+  ]
+ },
+ "bot/shared/utils/language-cache.js": {
+  "n": 11,
+  "area": "utils",
+  "at": [
+   "69 userId (shorthand)",
+   "81 userId (shorthand)",
+   "92 userId (shorthand)",
+   "103 userId (shorthand)",
+   "107 userId (shorthand)",
+   "145 userId (shorthand)",
+   "165 userId (shorthand)",
+   "182 userId (shorthand)",
+   "191 userId (shorthand)",
+   "262 userId (shorthand)",
+   "266 userId (shorthand)"
+  ]
+ },
+ "bot/shared/utils/language-detector.js": {
+  "n": 1,
+  "area": "utils",
+  "at": [
+   "297 from: currentLanguage"
+  ]
+ },
+ "bot/shared/utils/model-cost.js": {
+  "n": 1,
+  "area": "utils",
+  "at": [
+   "38 userId (shorthand)"
+  ]
+ },
+ "bot/shared/utils/validators.js": {
+  "n": 2,
+  "area": "utils",
+  "at": [
+   "32 phoneNumber (shorthand)",
+   "49 from (shorthand)"
+  ]
+ },
+ "bot/whatsapp-bot.js": {
+  "n": 124,
+  "area": "bot",
+  "at": [
+   "376 from (shorthand)",
+   "376 userId: user?.id",
+   "420 userId (shorthand)",
+   "447 userId (shorthand)",
+   "453 userId (shorthand)",
+   "611 from (shorthand)",
+   "631 from (shorthand)",
+   "649 from (shorthand)",
+   "695 userId: user.id",
+   "695 phoneNumber: from",
+   "702 phoneNumber: from",
+   "752 from (shorthand)",
+   "1055 from (shorthand)",
+   "1081 from (shorthand)",
+   "1117 from (shorthand)",
+   "1221 userId: user.id",
+   "1227 from (shorthand)",
+   "1227 userId: user?.id",
+   "1234 userId: user.id",
+   "1237 from (shorthand)",
+   "1242 from (shorthand)",
+   "1242 userId: user?.id",
+   "1249 userId: user.id",
+   "1252 from (shorthand)",
+   "1257 from (shorthand)",
+   "1257 userId: user?.id",
+   "1270 userId: user.id",
+   "1287 userId: user.id",
+   "1293 from (shorthand)",
+   "1301 from (shorthand)",
+   "1308 from (shorthand)",
+   "1313 from (shorthand)",
+   "1320 from (shorthand)",
+   "1325 from (shorthand)",
+   "1340 from (shorthand)",
+   "1340 userId: user?.id",
+   "1381 from (shorthand)",
+   "1390 from (shorthand)",
+   "1398 from (shorthand)",
+   "1406 from (shorthand)",
+   "1419 from (shorthand)",
+   "1427 from (shorthand)",
+   "1433 userId: user?.id",
+   "1433 from (shorthand)",
+   "1474 from (shorthand)",
+   "1474 userId: user?.id",
+   "1485 from (shorthand)",
+   "1485 userId: user?.id || null",
+   "1513 userId: user.id",
+   "1530 userId: user.id",
+   "1539 from (shorthand)",
+   "1546 userId: user.id",
+   "1561 from (shorthand)",
+   "1579 userId: user?.id || null",
+   "1589 from (shorthand)",
+   "1589 userId: user?.id || null",
+   "1599 from (shorthand)",
+   "1599 userId: user?.id || null",
+   "1621 from (shorthand)",
+   "1626 from (shorthand)",
+   "1641 from (shorthand)",
+   "1700 from (shorthand)",
+   "1711 from (shorthand)",
+   "1720 from (shorthand)",
+   "1722 from (shorthand)",
+   "1725 from (shorthand)",
+   "1734 from (shorthand)",
+   "1752 from (shorthand)",
+   "1771 from (shorthand)",
+   "1780 from (shorthand)",
+   "1801 from (shorthand)",
+   "1833 from (shorthand)",
+   "1840 from (shorthand)",
+   "1847 from (shorthand)",
+   "1858 from (shorthand)",
+   "1869 from (shorthand)",
+   "1872 from (shorthand)",
+   "1894 from (shorthand)",
+   "1903 from (shorthand)",
+   "1907 from (shorthand)",
+   "1913 from (shorthand)",
+   "1917 from (shorthand)",
+   "1926 from (shorthand)",
+   "1934 from (shorthand)",
+   "1940 from (shorthand)",
+   "1947 from (shorthand)",
+   "1954 from (shorthand)",
+   "1972 from (shorthand)",
+   "1976 from (shorthand)",
+   "1991 from (shorthand)",
+   "2012 from (shorthand)",
+   "2036 from (shorthand)",
+   "2123 userId: user?.id",
+   "2144 userId: user.id",
+   "2146 userId: user.id",
+   "2178 userId: user.id",
+   "2180 userId: user.id",
+   "2195 userId: user?.id",
+   "2211 userId: user.id",
+   "2225 userId: user.id",
+   "2227 userId: user?.id",
+   "2238 userId: user?.id",
+   "2251 userId: user.id",
+   "2268 userId: user.id",
+   "2274 from (shorthand)",
+   "2279 userId: user?.id",
+   "2284 userId: user.id",
+   "2299 from (shorthand)",
+   "2304 userId: user?.id",
+   "2318 userId: user.id",
+   "2321 userId: user?.id",
+   "2324 userId: user?.id",
+   "2382 from (shorthand)",
+   "2456 from (shorthand)",
+   "2505 userId: user.id",
+   "2511 userId: user.id",
+   "2632 userId: user && user.id",
+   "2632 from (shorthand)",
+   "2657 userId: user && user.id",
+   "2686 userId: user && user.id",
+   "2686 from (shorthand)",
+   "2783 phoneNumber (shorthand)",
+   "2813 phoneNumber (shorthand)",
+   "2822 phoneNumber (shorthand)"
+  ]
+ },
+ "bot/workers/exam-grading.worker.js": {
+  "n": 3,
+  "area": "bot/workers",
+  "at": [
+   "45 userId (shorthand)",
+   "274 userId (shorthand)",
+   "303 userId (shorthand)"
+  ]
+ },
+ "bot/workers/homework-bundle.worker.js": {
+  "n": 6,
+  "area": "bot/workers",
+  "at": [
+   "113 userId (shorthand)",
+   "121 userId (shorthand)",
+   "199 userId (shorthand)",
+   "199 phone (shorthand)",
+   "243 userId (shorthand)",
+   "244 userId (shorthand)"
+  ]
+ },
+ "bot/workers/lesson-plan-generation.worker.js": {
+  "n": 1,
+  "area": "bot/workers",
+  "at": [
+   "49 userId (shorthand)"
+  ]
+ },
+ "bot/workers/lp612-author.worker.js": {
+  "n": 3,
+  "area": "bot/workers",
+  "at": [
+   "424 userId: w.user_id || null",
+   "426 phone: w.phone",
+   "1581 phone: w.phone"
+  ]
+ },
+ "bot/workers/stale-session.worker.js": {
+  "n": 5,
+  "area": "bot/workers",
+  "at": [
+   "177 userId: session.user_id",
+   "243 userId (shorthand)",
+   "261 userId (shorthand)",
+   "279 userId (shorthand)",
+   "459 userId: session.user_id"
+  ]
+ },
+ "bot/workers/video-generation.worker.js": {
+  "n": 3,
+  "area": "bot/workers",
+  "at": [
+   "97 userId (shorthand)",
+   "388 from (shorthand)",
+   "399 from (shorthand)"
+  ]
+ },
+ "dashboard/routes/portal.routes.js": {
+  "n": 1,
+  "area": "dashboard/routes",
+  "at": [
+   "286 userId: req.session.portalUserId"
+  ]
+ },
+ "dashboard/routes/web-quiz.routes.js": {
+  "n": 2,
+  "area": "dashboard/routes",
+  "at": [
+   "1000 from (shorthand)",
+   "1033 from (shorthand)"
+  ]
+ },
+ "dashboard/services/password-reset.service.js": {
+  "n": 26,
+  "area": "dashboard/services",
+  "at": [
+   "69 phoneNumber (shorthand)",
+   "87 phoneNumber (shorthand)",
+   "109 userId: user.id",
+   "122 phoneNumber (shorthand)",
+   "148 userId: user.id",
+   "148 phoneNumber (shorthand)",
+   "156 phoneNumber (shorthand)",
+   "167 phoneNumber (shorthand)",
+   "179 phoneNumber (shorthand)",
+   "212 phoneNumber (shorthand)",
+   "223 phoneNumber (shorthand)",
+   "223 userId: user.id",
+   "225 phoneNumber (shorthand)",
+   "225 userId: user.id",
+   "235 phoneNumber (shorthand)",
+   "235 userId: user.id",
+   "250 phoneNumber (shorthand)",
+   "250 userId: user.id",
+   "255 phoneNumber (shorthand)",
+   "255 userId: user.id",
+   "265 phoneNumber (shorthand)",
+   "302 userId (shorthand)",
+   "316 userId (shorthand)",
+   "319 userId (shorthand)",
+   "365 phoneNumber (shorthand)",
+   "376 phoneNumber (shorthand)"
+  ]
+ }
+}
