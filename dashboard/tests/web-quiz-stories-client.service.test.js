@@ -507,6 +507,14 @@ describe('the reader', () => {
     expect(primaries(root.innerHTML)).toBe(0);
     expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
   });
+  test('the mic notice: the sheet is handed this child\'s chip and whether Jugnu keeps passage recordings (lr3_keep), one mark for the live reader to keep', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    expect(e.calls.ask[0].notice).toEqual({ kid: KID, keep: false });
+    const e2 = env({ replies: { book: { status: 200, body: book({ lr3_keep: true }) } } }); const r2 = await openReader(e2);
+    toMic(e2, r2);
+    expect(e2.calls.ask[0].notice).toEqual({ kid: KID, keep: true });
+  });
   test('Your turn: reading with "I\'m done ✓" from the first render', async () => {
     const e = env(); const root = await openReader(e);
     toMic(e, root);

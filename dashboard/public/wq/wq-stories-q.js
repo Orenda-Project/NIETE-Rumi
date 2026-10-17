@@ -40,7 +40,7 @@
     var qi = 0, ans = [], dim = -1, rv = -1, chosen = -1, qlock = 0, la = 0, eo = null, qs = null, fcw = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, spr = null, end = 0;
     function live() { return R.live(); }
     var micO = {
-      lang: L, src: 'story', ev: ctx.ev,
+      lang: L, src: 'story', ev: ctx.ev, notice: { kid: ctx.kid, keep: !!b.lr3_keep },
       onStream: function (s) { if (m.st === 'mic') { stream = s; m.granted(); } },
       onDenied: function (why) { if (m.st !== 'mic') return; if (why === 'not_now') return micO.onNotNow(); m.denied(); },
       onNotNow: function () { if (m.st === 'mic') m.notNow(); },

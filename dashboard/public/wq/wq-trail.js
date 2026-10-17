@@ -443,13 +443,19 @@
       return t.noticeT.split('{name}').join(n);
     }
     // then: the microphone, exactly as the stop would have gone on (micStart). false = no notice, go on now.
+    // under live reading v3 (the payload's lr3) the words and the mark are the live reader's: one notice for the storybook's
+    // sheet and the passage, shown on whichever is the child's first microphone use (WQLiveRead.noticeSeen / noticeMark)
+    function lrNotice(d) { var LR = window.WQLiveRead; return d.lr3 && LR && LR.noticeText ? LR : null; }
     function notice(then) {
       var d = h.S.data;
-      if (!d || !d.v2 || !d.v2.consent || !d.v2.notice || noticeRun === d.ct || noticeSeenHere(d.v2.notice)) return false;
+      if (!d || !d.v2 || !d.v2.consent || !d.v2.notice || noticeRun === d.ct) return false;
+      var LR = lrNotice(d);
+      var kid = h.boot && h.boot.kid;
+      if (LR ? LR.noticeSeen(kid, true) : noticeSeenHere(d.v2.notice)) return false;
       var v = d.v2.notice;
       // one card, one control: nothing to choose, nothing preselected
-      h.show('mic-notice', h.jug('hello', noticeLine(d.v2.name), true) + '<div class="wq-stack">' + btn('wqc-notice-ok', t.noticeOk) + '</div>');
-      h.on('wqc-notice-ok', function () { noticeRun = d.ct; noteNoticeHere(v); then(); });
+      h.show('mic-notice', h.jug('hello', LR ? LR.noticeText(L, true) : noticeLine(d.v2.name), true) + '<div class="wq-stack">' + btn('wqc-notice-ok', t.noticeOk) + '</div>');
+      h.on('wqc-notice-ok', function () { noticeRun = d.ct; if (LR) LR.noticeMark(kid, true); else noteNoticeHere(v); then(); });
       return true;
     }
     function consent(b) {
