@@ -86,11 +86,12 @@ beforeEach(() => {
   redis._store.clear();
 });
 
-/** The /quiz reply for an English family row: its words and its link's token. */
-async function reply() {
-  expect(await SQ.open(PHONE, { language: 'en' })).toBe(true);
+/** The /quiz reply for a family row in `family` (English unless named): its words, its link's token and the raw token. */
+async function reply(family = 'en') {
+  expect(await SQ.open(PHONE, { language: family })).toBe(true);
   const [, msg] = WhatsAppService.sendCtaUrl.mock.calls[WhatsAppService.sendCtaUrl.mock.calls.length - 1];
-  return { urdu: URDU.test(JSON.stringify(msg)), tok: T.verify(/\/h\/([^/?#]+)$/.exec(msg.url)[1], 'h') };
+  const raw = /\/h\/([^/?#]+)$/.exec(msg.url)[1];
+  return { urdu: URDU.test(JSON.stringify(msg)), tok: T.verify(raw, 'h'), raw };
 }
 const joined = (id, language) => ({ canonical_id: id, language, source: 'join' });
 
@@ -100,6 +101,13 @@ describe('switch on: the language the child joined in answers the /quiz reply', 
     const r = await reply();
     expect(r.tok.l).toBe('ur');
     expect(r.urdu).toBe(true);
+  });
+  test('0 quizzes, joined in English, an Urdu family row (a new phone\'s row is born Urdu) → the reply is English, its link l "en", and the home it opens is English', async () => {
+    seed(ON, { kept: [joined(KID, 'en')] });
+    const r = await reply('ur');
+    expect(r.tok.l).toBe('en');
+    expect(r.urdu).toBe(false);
+    expect((await Hub.hub(r.raw, { device: 'AAAAAAAAAAAAAAAAAAAAAA' })).lang).toBe('en');
   });
   test('only an English library lesson, joined in Urdu → Urdu (a lesson is not the child\'s language)', async () => {
     seed(ON, { quizLang: 'en', lesson: true, kept: [joined(KID, 'ur')] });
