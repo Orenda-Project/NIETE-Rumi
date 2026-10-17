@@ -192,7 +192,8 @@
     }
     if (w.box) return w.box.slice(0, 4);
     x = (p.lines || []).filter(function (y) { return y.i0 <= i && i <= y.i1; })[0];
-    if (x && x.box) { var b = x.box, g = (i - x.i0 + 1) / (x.i1 - x.i0 + 1); return [b[0] + (rtl ? b[2] * (1 - g) : 0), b[1] + b[3] - 6, b[2] * g, 6, 1]; }
+    var b = x && (x.box || a && [a[0], a[1] + a[3] / p.lines.length * p.lines.indexOf(x), a[2], a[3] / p.lines.length]);
+    if (b) { var g = (i - x.i0 + 1) / (x.i1 - x.i0 + 1); return [b[0] + (rtl ? b[2] * (1 - g) : 0), b[1] + b[3] - 6, b[2] * g, 6, 1]; }
     x = 0;
     a = a || [0, p.image.h - 40, p.image.w, 40];
     for (k = 1; !x && k < ws.length; k++) x = (ws[i - k] || {}).box || (ws[i + k] || {}).box;
@@ -430,7 +431,7 @@
       sp = p; LN = lines(p); zl = -1; li = -1; wu = 0; sm = '';
       if (ws.length && !p.is_picture) {
         d = dims();
-        sm = (p.lines || p.boxes_ok) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok; }) ? 'z' : tb && tb.box ? 'l' : 's';
+        sm = (p.boxes_ok || p.lines && !(tb && tb.box)) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok; }) ? 'z' : tb && tb.box ? 'l' : 's';
       }
       var bx = sm === 'l' && tb.box, wh = sm === 'z' || sm === 'l';
       return '<div class="wqs-stage' + (wh ? ' wqs-st2' : '') + '" data-stage><div class="wqs-cam" data-cam style="width:' + im.w + 'px;height:' + im.h + 'px">' + inner +
