@@ -9,6 +9,9 @@
  *   GET  /api/th/home?t&g&lang           the home's JSON (teacher-home.model) with the cards that send from the page
  *                                        already carrying their class message and wa.me link (no fetch between the
  *                                        tap and the navigation); logs teacher_home_open
+ *   GET  /api/th/timeline?t&after&n&lang  (switch quiz_teacher_home_paged) the timeline rows after the cursor `after`
+ *                                        (`<ms>.<row key>`, from the last answer), n of them (1–20, default 10):
+ *                                        { timeline, more, after }; the paged home's first answer carries the first five
  *   GET  /api/th/library?t&g&lang        the library card for another grade (the grade chips)
  *   POST /api/th/send {t, kind, id}      a row's class message: kind video (a library quiz id) | share (a library
  *                                        share code id) | again (the teacher's own quiz id) → { message, wa }
@@ -20,8 +23,9 @@
  *   GET  /quiz/teacher/:token/send?c&o&lang   a library code's send: marked sent here, teacher_send, 302 → wa.me
  *
  * Switch quiz_teacher_home_paged ON: /api/th/home starts every read at once (the light list reads, the class report's
- * own-quiz rows, the send-again rows by teacher, the gate, the user, the prefill, the stories shelf) and answers the
- * same JSON as OFF in a few round trips. OFF: today's reads, one after another.
+ * own-quiz rows, the send-again rows by teacher, the gate) and answers the newest five timeline rows + `more` (the
+ * rows after them) + `after` (their cursor); the whole list is held a minute per teacher for «More» (dropped like the
+ * class report's counts). OFF: today's answer, and /api/th/timeline answers 404 {off:true}.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
  * Never a 500: a thrown read → the mk.error page (200) on the page route, 503 {error:'mk.error'} on the JSON routes.
@@ -50,6 +54,10 @@ const ASKABLE = Object.freeze(['en', 'ur']);
 const COACH_ROLES = new Set(['coach', 'principal', 'school_leader', 'supervisor', 'aeo', 'head']);
 const PLAYED_MS = 60000;
 const PLAYED_MAX = 500;
+const FIRST_ROWS = 5;
+const PAGE_ROWS = 10;
+const PAGE_MAX = 20;
+const CURSOR_RX = /^(\d{1,15})\.([A-Za-z0-9_:.-]{1,200})$/;
 const ownSentOf = (lessons) => lessons.filter((r) => (r.state === 'sent' || r.state === 'report_sent') && r.quizId).map((r) => r.quizId);
 const asked = (v) => (ASKABLE.includes(v) ? v : null);
 const uuidIn = (v) => (typeof v === 'string' && UUID_RX.test(v) ? v : null);
@@ -78,8 +86,8 @@ function createRouter(deps = null) {
 
   // The switch, first: off → 404 {off:true} for every path of this router, whatever the token.
   router.use(async (req, res, next) => {
-    // the quick home's switch is asked alongside the home's own (never after it), by the home only
-    const pagedSoon = req.path === '/api/th/home' ? Flags.paged().catch(() => false) : null;
+    // the paged switch is asked alongside the home's own (never after it) by the two routes that read it
+    const pagedSoon = req.path === '/api/th/home' || req.path === '/api/th/timeline' ? Flags.paged().catch(() => false) : null;
     let on = false;
     try { on = (await Flags.on()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
@@ -138,7 +146,18 @@ function createRouter(deps = null) {
       return v;
     });
   }
-  const dropPlayed = (uid) => { drops += 1; memo.delete(uid); };
+  const dropPlayed = (uid) => { drops += 1; memo.delete(uid); held.delete(uid); };
+  /** The paged home's whole timeline, held 60 s per teacher (the newest 500) for «More»; a list built before a drop is never held. */
+  const held = new Map();
+  function hold(uid, rows, gen) {
+    if (gen !== drops) return;
+    held.delete(uid); held.set(uid, { at: Date.now(), rows });
+    if (held.size > PLAYED_MAX) held.delete(held.keys().next().value);
+  }
+  function heldRows(uid) {
+    const hit = held.get(uid);
+    return hit && Date.now() - hit.at < PLAYED_MS ? hit.rows : null;
+  }
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
   const fail = (res, status) => { headers(res); res.status(status).json({ error: 'mk.error' }); };
 
@@ -251,11 +270,30 @@ function createRouter(deps = null) {
     return res.status(200).type('html').send(built.html);
   }));
 
+  /** A row's cursor: `<its time in ms>.<its key>`. */
+  const cursorOf = (r) => `${Math.max(0, new Date((r && r.date) || 0).getTime() || 0)}.${r.key}`;
+  /** The rows after `after` (by its key; a key no longer listed → the first row older than its time), n of them. */
+  function pageAfter(rows, after, n) {
+    let i = 0;
+    if (after) {
+      const [, t, key] = CURSOR_RX.exec(after);
+      const at = rows.findIndex((r) => r.key === key);
+      if (at >= 0) i = at + 1;
+      else {
+        const older = rows.findIndex((r) => (new Date(r.date || 0).getTime() || 0) < Number(t));
+        i = older >= 0 ? older : rows.length;
+      }
+    }
+    const timeline = rows.slice(i, i + n);
+    const more = Math.max(0, rows.length - (i + timeline.length));
+    return { timeline, more, after: more > 0 && timeline.length ? cursorOf(timeline[timeline.length - 1]) : null };
+  }
+
   /**
-   * The quick home's lists, every read started at once: the light /quiz list (Data.lessons light), the class report's
+   * The paged home's lists, every read started at once: the light /quiz list (Data.lessons light), the class report's
    * own-quiz rows (held 60 s), the library shares, the send-again rows by teacher, the report gate. The walk-through's
-   * view applied as on the full answer. → { lessons, played, shares, reports, againable, sendRows }.
-   * `soon` = the reads already started by the home.
+   * view applied as on the full answer. → { lessons, played, shares, reports, againable, sendRows, rows } (rows: the
+   * whole timeline, today's order). `soon` = the reads already started by the home (the timeline route starts its own).
    */
   async function quickLists(p, user, soon) {
     const [lessons0, played0, shares0, gateOn, sendRows] = await Promise.all([soon.lessons, soon.played, soon.shares, soon.gate, soon.sendRows]);
@@ -265,7 +303,8 @@ function createRouter(deps = null) {
     if (ownSent.length && gateOn) ownSent.forEach((id) => { const u = Data.dep(deps, 'Gate').reportUrls({ teacherId: p.uid, quizId: id }); if (u) reports.set(id, { live: u.live, remind: u.remind }); });
     // "Send again" only where the send would answer (the same rule as sendableOwn); rows unread or late → offered as before
     const againable = sendRows ? new Set([...ownSent, ...played.keys()].filter((id) => sendRows.has(id))) : null;
-    return { lessons, played, shares, reports, againable, sendRows };
+    const rows = Model.buildHome({ lessons, played, shares, reports, againable, maxRows: Infinity }).timeline;
+    return { lessons, played, shares, reports, againable, sendRows, rows };
   }
   function quickReads(uid) {
     return {
@@ -277,10 +316,11 @@ function createRouter(deps = null) {
     };
   }
 
-  /** The quick home: the same JSON as today's, its reads started together. */
+  /** The paged home: the same JSON as the full one, the timeline cut to its newest five + `more` + `after`. */
   async function quickHome(req, res, p) {
     const token = String(req.query.t);
     const lang = langFor(p, req);
+    const gen = drops;
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');
     const userP = Data.teacherOf(p.uid, deps);
@@ -308,7 +348,7 @@ function createRouter(deps = null) {
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons: lists.lessons, played: lists.played, shares: lists.shares, reports: lists.reports,
       stories: lib.stories, video: lib.video, maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
-      againable: lists.againable,
+      againable: lists.againable, maxRows: Infinity,
     });
     if (walk) home.walk = walk;
     // the class card's "Send again" from the rows already read; anything else (a library pick) as on the full answer
@@ -321,11 +361,36 @@ function createRouter(deps = null) {
     home.bot = botDigits();
     const { facts } = home;
     delete home.facts;
+    const all = home.timeline;
+    hold(p.uid, all, gen);
+    const first = pageAfter(all, null, FIRST_ROWS);
+    home.timeline = first.timeline;
+    home.more = first.more;
+    home.after = first.after;
     event('teacher_home_open', p.uid, { first: await firstP, ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
     headers(res);
     res.status(200).json(home);
   }
   const pick = (out) => ({ message: out.message, wa: out.wa, c: out.shareCodeId || null });
+
+  router.get('/api/th/timeline', handleJson(async (req, res) => {
+    if (!(await req.thPaged)) { res.status(404).json({ off: true }); return; }
+    const p = authorise(req.query.t, res);
+    if (!p) return;
+    const after = req.query.after;
+    if (after !== undefined && (typeof after !== 'string' || !CURSOR_RX.test(after))) { fail(res, 400); return; }
+    const n = Math.min(PAGE_MAX, Math.max(1, Number.parseInt(req.query.n, 10) || PAGE_ROWS));
+    let rows = heldRows(p.uid);
+    if (!rows) {
+      const gen = drops;
+      const [user, soon] = [await Data.teacherOf(p.uid, deps), quickReads(p.uid)];
+      if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
+      ({ rows } = await quickLists(p, user, soon));
+      hold(p.uid, rows, gen);
+    }
+    headers(res);
+    res.status(200).json(pageAfter(rows, after, n));
+  }));
 
   router.get('/api/th/home', handleJson(async (req, res) => {
     const p = authorise(req.query.t, res);

@@ -176,7 +176,7 @@ if(r.verb==='again')li.appendChild(btn('th-row-v',S['th.again'],'again',function
 if(r.report)li.appendChild(link('th-link',S['th.report'],r.report,'report'));
 if(r.verb==='quiz_this'){var v=btn('th-row-v',S['th.quiz.this'],'quiz_this',function(){make(r,tx,v)});li.appendChild(v)}
 else if(r.status==='making'&&r.quizId){poll(r,tx,null)}
-ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown}
+ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown&&!(d.more>0)}
 function lib(L){Array.prototype.forEach.call(q('#th-grades').querySelectorAll('[data-grade]'),function(x){x.setAttribute('aria-pressed',String(x.getAttribute('data-grade')===String(L.grade)))});
 q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});
 var ul=q('#th-stories');clear(ul);(L.stories||[]).forEach(function(s){var li=el('li','th-row');li.setAttribute('data-row','story');var tx=el('div','th-row-t');var n=el('span','th-row-n');n.appendChild(topic(s.title));tx.appendChild(n);li.appendChild(tx);li.appendChild(link('th-row-v',S['th.send'],s.href,'story_tile'));ul.appendChild(li)});
@@ -192,7 +192,8 @@ Array.prototype.forEach.call(w.querySelectorAll('[data-persona]'),function(x){x.
 post('/api/go/persona',{t:k.t,as:x.getAttribute('data-persona')}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(o){if(!o||typeof o.next!=='string'||o.next.indexOf('/quiz/go/')!==0)throw 0;location.href=o.next})
 .catch(function(){busy=false;err(true)})})})}
 function render(){hello();top();under();rows();lib(d.library||{grade:2});foot();q('#th-main').setAttribute('data-ready','1')}
-q('#th-more').addEventListener('click',function(){shown+=10;rows();step('more')});
+q('#th-more').addEventListener('click',function(){step('more');var all=d.timeline||[];if(!(d.more>0&&d.after&&shown+10>all.length)){shown+=10;rows();return}
+if(busy)return;busy=true;getj('/api/th/timeline?t='+T+'&after='+encodeURIComponent(d.after)+'&n=10'+(b.ask?'&lang='+b.ask:'')).then(function(x){d.timeline=all.concat(x.timeline||[]);d.more=x.more;d.after=x.after;shown+=10;rows()}).catch(function(e){if(e!==1)err(true)}).then(function(){busy=false})});
 q('#th-back').addEventListener('click',function(){try{history.back()}catch(e){unsheet()}});
 q('#th-copy').addEventListener('click',copy);
 q('#th-cards').addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('[data-card]'):null;if(a)step('card_'+a.getAttribute('data-card'))});

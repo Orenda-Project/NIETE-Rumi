@@ -9,6 +9,7 @@
  *                                        tile's book: its send sheet), ?grade (1-5) and ?lang reach it
  *   GET  /api/th/home  ?t&g&lang         the home's JSON
  *   GET  /api/th/library ?t&g&lang       the library card for a grade
+ *   GET  /api/th/timeline ?t&after&n&lang  the next timeline rows (the paged home's «More»)
  *   GET  /api/th/quiz/:id ?t&lang        the "Quiz this" poll
  *   POST /api/th/send | quiz/make | confirm | step    JSON in, JSON (or 204) out
  *
@@ -38,6 +39,8 @@ const ONE_OF = (...vals) => (v) => vals.includes(v);
 
 // The query keys each GET may carry to the bot; anything else is dropped.
 const QUERY = { t: (v) => TOKEN_RX.test(v), g: (v) => /^[1-5]$/.test(v), lang: LANG };
+// The timeline's next rows: the cursor the last answer gave (`<ms>.<row key>`) and how many.
+const TIMELINE_QUERY = { t: QUERY.t, after: (v) => /^\d{1,15}\.[A-Za-z0-9_:.-]{1,200}$/.test(v), n: (v) => /^\d{1,2}$/.test(v), lang: LANG };
 // The query keys a page may carry: the shell reads lang; the stories page also the tile's book and the grade; the send
 // the library code and where the send started.
 const PAGE_QUERY = { book: (v) => UUID_RX.test(v), grade: (v) => /^[1-5]$/.test(v), lang: LANG };
@@ -159,7 +162,7 @@ function createQuizTeacherRouter(opts = {}) {
     };
   }
 
-  function forwardGetJson(path) {
+  function forwardGetJson(path, keys = QUERY) {
     return async (req, res, next) => {
       const t = req.query && typeof req.query.t === 'string' ? req.query.t : '';
       if (!TOKEN_RX.test(t) || !configured) return next();
@@ -167,7 +170,7 @@ function createQuizTeacherRouter(opts = {}) {
       if (id !== undefined && !UUID_RX.test(id)) return next();
       let out;
       try {
-        out = await callBot('GET', `${BOT_BASE}${path}${id !== undefined ? `/${id}` : ''}${forwardQuery(req.query || {})}`, req, null, { raw: true });
+        out = await callBot('GET', `${BOT_BASE}${path}${id !== undefined ? `/${id}` : ''}${forwardQuery(req.query || {}, keys)}`, req, null, { raw: true });
       } catch (_) {
         return errorJson(res);
       }
@@ -199,6 +202,7 @@ function createQuizTeacherRouter(opts = {}) {
   router.get('/quiz/teacher/:token/send', limiter, forwardPage('/send'));
   router.get('/api/th/home', limiter, forwardGetJson('/api/th/home'));
   router.get('/api/th/library', limiter, forwardGetJson('/api/th/library'));
+  router.get('/api/th/timeline', limiter, forwardGetJson('/api/th/timeline', TIMELINE_QUERY));
   router.get('/api/th/quiz/:id', limiter, forwardGetJson('/api/th/quiz'));
   ['send', 'quiz/make', 'confirm', 'step'].forEach((kind) => router.post(`/api/th/${kind}`, limiter, parse, forwardPost(kind)));
   return router;
