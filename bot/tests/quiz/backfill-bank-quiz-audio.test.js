@@ -199,6 +199,15 @@ describe('--one-voice: the parts the bank recorded are recorded in the quiz voic
     expect(stamped.audio_one).toBe(require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(value).sig);
     await expect(run(['--expect-ref', REF, '--plan', 'true-ish'], { db })).rejects.toThrow(/no voice plan/);
   });
+  test('the dry run prices one voice at the one voice\'s rate (ElevenLabs per character), not the old voice\'s', async () => {
+    const { r, lines } = await run(['--expect-ref', REF, '--limit', '5', '--one-voice'], { db: fakeDb(world()) });
+    const line = lines[lines.length - 1];
+    const chars = Number(/ chars=(\d+)/.exec(line)[1]);
+    expect(chars).toBeGreaterThan(0);
+    expect(Number(/ est_usd=([\d.]+)/.exec(line)[1])).toBeCloseTo((chars / 1000) * 0.30, 3);
+    expect(line).toMatch(/\(at 0\.3 per 1k chars\)/);
+    expect(r.estUsd).toBeCloseTo((chars / 1000) * 0.30, 6);
+  });
   test('without it, the same quiz is current and nothing is recorded (today)', async () => {
     const w = world();
     w.quizzes.find((q) => q.id === 'q-g3sci-2').meta = { web: { audio_v: Publish.AUDIO_VERSION, audio_voice: 'sx-grace', audio: {} } };

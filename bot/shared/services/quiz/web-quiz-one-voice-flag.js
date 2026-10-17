@@ -37,6 +37,7 @@ const PROVIDERS = Object.freeze(['elevenlabs', 'soniox']);
 const KBPS = Object.freeze([32, 64]);
 const DEFAULT_KBPS = 64;
 let cache = null; // { at, plan }
+let pinned; // a read-only tool's plan (pin): every reader in the process sees it, the switch is never read
 
 
 function voiceOf(raw, lang) {
@@ -76,11 +77,13 @@ function withSig(plan) {
 
 /** → the plan when the switch is on, else null. `db`: a Supabase client (defaults to the bot's). Never throws. */
 async function plan({ db, now = Date.now() } = {}) {
+  if (pinned !== undefined) return pinned;
   if (cache && now - cache.at < TTL_MS) return cache.plan;
   try {
     const client = db || require('../../config/supabase');
     const { data, error } = await client.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
     if (error) throw new Error(error.message || 'app_settings read failed');
+    if (pinned !== undefined) return pinned;   // pinned while this read was in flight
     cache = { at: now, plan: data ? normalize(data.value) : null };
     return cache.plan;
   } catch (err) {
@@ -93,7 +96,7 @@ async function plan({ db, now = Date.now() } = {}) {
 async function on(opts) { return Boolean(await plan(opts)); }
 
 /** The last reading, without asking (null before the first): for a caller that must name a clip's key at once. */
-function currentPlan() { return (cache && cache.plan) || null; }
+function currentPlan() { return pinned !== undefined ? pinned : (cache && cache.plan) || null; }
 function current() { return Boolean(currentPlan()); }
 
 // Reads the switch every TTL in the background, so currentPlan() is fresh in a process whose requests never ask
@@ -129,7 +132,13 @@ function mixOf(audio, { sharedTag = null } = {}) {
   return { tags: sorted, mixed: sorted.length > 1 };
 }
 
-/** Tests only: forget the cached reading. */
-function reset() { cache = null; }
+/**
+ * A read-only tool only (scripts/quiz/one-voice-missing-keys.js): every reader in this process sees `p` (a plan, or
+ * null = off) and the switch is never read again, so the keys it computes are those of the plan it was given.
+ */
+function pin(p) { pinned = p || null; }
 
-module.exports = { on, plan, normalize, renderOf, mixOf, current, currentPlan, keepFresh, reset, KEY, TTL_MS, BANK_PARTS, KBPS };
+/** Tests only: forget the cached reading (and a pin). */
+function reset() { cache = null; pinned = undefined; }
+
+module.exports = { on, plan, normalize, renderOf, mixOf, current, currentPlan, keepFresh, pin, reset, KEY, TTL_MS, BANK_PARTS, KBPS };

@@ -34,6 +34,8 @@
 const GRADE_ORDER = ['NURSERY', 'KG', '1', '2', '3', '4', '5', '6'];
 // Measured on sandbox publishes (Soniox, 64 quizzes, 5-6 Oct 2026): USD per 1,000 characters spoken.
 const USD_PER_1K_CHARS = 0.0145;
+// The one voice (ElevenLabs, per character; web-quiz-publish.service.js ONE_USD_PER_CHAR): the dry run's price under a plan.
+const ONE_USD_PER_1K_CHARS = 0.30;
 const PAGE = 1000;
 const QUIZ_CONCURRENCY = 2;
 const DEFAULT_MAX_USD = 15;
@@ -169,6 +171,7 @@ async function main(argv, deps = {}) {
   const plan = args.oneVoice ? (args.oneVoice === true ? require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(true) : args.oneVoice) : null;
   print(`backfill-bank-quiz-audio: mode=${mode} bank=${bank.length} opened_in_${args.days}d=${bank.filter((b) => opens.has(b.id)).length} limit=${args.limit} max_usd=${args.maxUsd}${plan ? ` one_voice=${plan.sig}` : ''}`);
   print('rank\tquiz_id\tlang\tgrade\tsubject\topens\tclips\tchars\test_usd\tstatus');
+  const per1k = plan ? ONE_USD_PER_1K_CHARS : USD_PER_1K_CHARS;
 
   const sum = { done: 0, skipped: 0, failed: 0, chars: 0, usd: 0, estChars: 0, estUsd: 0, stopped: null };
   const todo = [];
@@ -176,7 +179,7 @@ async function main(argv, deps = {}) {
     const b = chosen[i];
     const p = await planQuiz(db, Publish, b, { oneVoice: args.oneVoice });
     const current = Publish.isCurrent(b.web, { oneVoice: args.oneVoice });
-    const est = (p.chars / 1000) * USD_PER_1K_CHARS;
+    const est = (p.chars / 1000) * per1k;
     const status = current ? 'current' : (p.clips ? 'record' : 'no_clips');
     print([i + 1, b.id, p.language, b.grade, b.subject, b.opens, current ? 0 : p.clips, current ? 0 : p.chars, usd(current ? 0 : est), status].join('\t'));
     if (current || !p.clips) { sum.skipped += 1; continue; }
@@ -205,12 +208,12 @@ async function main(argv, deps = {}) {
 
   const line = args.apply
     ? `SUMMARY mode=apply quizzes done=${sum.done} skipped=${sum.skipped} failed=${sum.failed} not_started=${todo.length - sum.done - sum.failed} chars=${sum.chars} usd=${usd(sum.usd)}${sum.stopped ? ` stopped=${sum.stopped}` : ''}`
-    : `SUMMARY mode=dry-run quizzes to_record=${todo.length} skipped=${sum.skipped} chars=${sum.estChars} est_usd=${usd(sum.estUsd)} (at ${USD_PER_1K_CHARS} per 1k chars)`;
+    : `SUMMARY mode=dry-run quizzes to_record=${todo.length} skipped=${sum.skipped} chars=${sum.estChars} est_usd=${usd(sum.estUsd)} (at ${per1k} per 1k chars)`;
   print(line);
   return { ...sum, planned: todo.length, line };
 }
 
-module.exports = { main, parseArgs, projectRef, rank, USD_PER_1K_CHARS };
+module.exports = { main, parseArgs, projectRef, rank, USD_PER_1K_CHARS, ONE_USD_PER_1K_CHARS };
 
 if (require.main === module) {
   main(process.argv.slice(2)).then((r) => { process.exit(r && r.refused ? 2 : 0); })
