@@ -425,6 +425,18 @@ async function bookOn() {
   try { return Boolean((await require('./web-quiz-book').flags()).book); } catch (_) { return false; }
 }
 
+// The storybook sheet showed the microphone notice (wq-liveread.js), and this page read says so (`notice`: its version):
+// the Trail's own record "this child has seen it on this phone", only with lr3 + the notice and keep switches + the exact
+// version. The story_events row never carries the field (keep() drops it). Best effort, never throws.
+async function noticeShown(studentId, device, v) {
+  try {
+    const TrailPage = require('./web-quiz-trail-page');
+    if (v !== TrailPage.NOTICE_V || !(await flags()).keep) return;
+    const tp = await TrailPage.flags();
+    if (tp.consent && tp.keep) await TrailPage.noteNoticeShown(studentId, device);
+  } catch (_) { /* the phone's own mark still holds */ }
+}
+
 async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, data } = {}, { device } = {}) {
   const who = await guard(token, kid, device);
   if (!EVENTS.has(name) && name !== 'story_answer') fail(400, 'bad_event');
@@ -446,6 +458,7 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   }
   const page = pageN == null ? null : int(pageN);
   if (pageN != null && (page === null || page < 1 || page > (Number(b.pages) || 0))) fail(400, 'bad_page');
+  if (name === 'story_page_read' && data && data.notice != null) await noticeShown(who.studentId, device, data.notice);
   let kept = keep(name, data);
   const out = { ok: true };
   if (name === 'story_questions_done') {
