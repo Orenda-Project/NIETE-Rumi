@@ -1,0 +1,54 @@
+/* Live reading v3 (wq-liveread.js): the words as they are read. Loaded only with the bot's lr3 (web_quiz_live_read_v3). */
+/* one green on screen: a word heard and a word read look the same (the difference lives in the result only) */
+:root { --wq-hl: #15803D; --wq-hl-read: #BBF7D0; --wq-hl-miss: #E65100; --lr-ink: #1f2a37; --lr-cur: #1c6dd0; }
+.lr { position: relative; padding: 8px 4px 96px; color: var(--lr-ink); }
+.lr-nudge { margin: 0 0 12px; font-size: 18px; font-weight: 700; text-align: center; }
+.lr-text { font-size: 24px; line-height: 2; word-spacing: 2px; }
+html[lang=ur] .lr-text, .lr[lang=ur] .lr-text { font-size: 26px; line-height: 2.3; }
+/* Nastaliq's tall glyph box would make a word's pill cover the lines above and below: each Urdu word is its own box */
+html[lang=ur] .lr-text .lr-w, .lr[lang=ur] .lr-text .lr-w { display: inline-block; line-height: 1.9; padding: 0 6px; margin: 2px 0; }
+.lr-w { padding: 2px 4px; border-radius: 8px; transition: background-color 120ms ease-out; }
+.lr-read { background: #BBF7D0; color: #15803D; }
+.lr-heard { background: #BBF7D0; color: #15803D; }
+.lr-skipped { box-shadow: inset 0 -3px 0 #E65100; }
+.lr-current { box-shadow: 0 0 0 2px var(--lr-cur); }
+/* after a practice reading a skipped word says itself when tapped */
+.lr-tap, .lr3 .wqc-w.wqc-miss[data-i] { cursor: pointer; }
+/* the Challenge page's own words under live reading v3: the same one green, a skip is an amber underline (never a fill) */
+.lr3 .wqc-w.wqc-ok { background: #BBF7D0; color: #15803D; }
+.lr3 .wqc-w.wqc-miss { background: none; color: inherit; box-shadow: inset 0 -3px 0 #E65100; }
+/* a story page: each word's state over the illustration — read = a green bar in the bottom 22 % of the word's box,
+   skipped = a dashed amber bar there, current = the only filled and outlined box, ahead = nothing */
+.lr-ov { position: relative; width: 100%; border-radius: 12px; overflow: hidden; }
+.lr-ov img { display: block; width: 100%; height: auto; }
+.lr-box { position: absolute; padding: 0; border-radius: 6px; }
+.lr-box.lr-read { background: linear-gradient(to top, #15803D 0, #15803D 22%, transparent 22%); box-shadow: none; }
+.lr-box.lr-heard { background: linear-gradient(to top, #15803D 0, #15803D 22%, transparent 22%); box-shadow: none; }
+.lr-box.lr-skipped { background: repeating-linear-gradient(90deg, #E65100 0 6px, transparent 6px 10px); background-size: 100% 22%; background-position: bottom; background-repeat: no-repeat; box-shadow: none; }
+.lr-box.lr-current { background: rgba(187, 247, 208, .3); box-shadow: inset 0 0 0 3px #15803D; }
+.lr-box.lr-ahead { background: none; box-shadow: none; }
+/* Jugnu's glow: brighter per word lit, never per second, never a number */
+.lr-glow { width: 56px; height: 56px; margin: 0 auto 8px; border-radius: 50%; background: radial-gradient(circle, #fffbe0 0, #ffd84d 40%, rgba(255, 216, 77, 0) 70%); opacity: .25; transform: scale(.8); transition: opacity 300ms ease-out, transform 300ms ease-out; }
+.lr-glow-1 { opacity: .45; transform: scale(.88); }
+.lr-glow-2 { opacity: .65; transform: scale(.96); }
+.lr-glow-3 { opacity: .85; transform: scale(1.04); }
+.lr-glow-4 { opacity: 1; transform: scale(1.12); box-shadow: 0 0 24px 6px rgba(255, 216, 77, .55); }
+.lr-bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(rgba(255,255,255,0), #fff 30%); }
+.lr-bar .wq-btn { width: 100%; min-height: 52px; }
+.lr-bar .wq-btn[hidden] { display: none; }
+.lr-bar .lr-stop { margin-top: 8px; background: none; border: 0; box-shadow: none; min-height: 44px; text-decoration: underline; font-weight: 600; }
+.lr-ask, .lr-check { padding: 24px 16px; text-align: center; }
+.lr-ask .wq-btn { width: 100%; min-height: 56px; margin-top: 12px; }
+.lr-tick, .lr-mic { display: inline-block; vertical-align: -3px; }
+.lr-os-pic { margin: 0 auto 8px; max-width: 220px; }
+.lr-os { display: block; width: 100%; height: auto; }
+.lr-os-say { margin: 6px 0 0; font-size: 16px; }
+.lr-grown { margin-top: 16px; text-align: start; font-size: 15px; color: #4b5563; }
+.lr-grown summary { cursor: pointer; min-height: 44px; line-height: 44px; font-weight: 600; }
+.lr-say { font-size: 20px; margin: 0 0 16px; }
+/* a counted read's quiet way out: a text-weight control, never a primary button, never pulsing */
+.wqc-sticky .lr-stop { background: none; border: 0; box-shadow: none; min-height: 44px; text-decoration: underline; font-weight: 600; }
+/* a counted read past 80 % and quiet: the Done button pulses once (the child decides; nothing ends by itself) */
+.lr-pulse { animation: lr-pulse 900ms ease-out 2; }
+@keyframes lr-pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(21, 128, 61, .5); } 60% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(21, 128, 61, 0); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .lr-w, .lr-glow { transition: none; } .lr-pulse { animation: none; } }

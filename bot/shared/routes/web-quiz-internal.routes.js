@@ -22,6 +22,7 @@
  *   GET  /pulse/:code           E13 peer pulse: classmates' right answers, from memory
  *   GET  /ch/:token/back       the class round's hand-back: {to} the round page, or {to:null}
  *   GET  /ch/...  POST /ch/...  the kid's Challenge (POST /ch/live: a temporary key for a live read-aloud) (web-quiz-challenge.js); GET /challenge/results?list=
+ *   POST /lr/key                a story page's one-read speech key (web-quiz-live-read-keys.js, web_quiz_live_read_v3)
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
  *   POST /card  GET /card/:t.png  the finish card (web_quiz_card_v3): a card token for this child's finish, its picture
  *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
@@ -73,14 +74,17 @@ const serve = async (fn, req, res) => {
   }
 };
 
+// The finish card's switch rides the page and its preview facts (named only when on): the edge then counts an Urdu
+// link's preview in Urdu digits. Read beside the quiz, never after it; off, the payload is today's.
+const withCard = (quizP) => Promise.all([quizP, CardImage.field()]).then(([out, card]) => (out && typeof out === 'object' ? Object.assign(out, card) : out));
 router.get('/quiz/:code', handle(async (req) => {
-  const out = await WebQuiz.getQuiz(req.params.code, { p: req.query.p });
+  const out = await withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p }));
   // Every child's page load teaches the preview facts (not a teacher's ?p= preview, which answers differently).
   if (!req.query.p) WebQuizOg.remember(req.params.code, out);
   return out;
 }));
 // A shared link's preview facts (web-quiz-og.js): from memory, so a portal worker answers a link preview fast.
-router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => WebQuiz.getQuiz(c))));
+router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => withCard(WebQuiz.getQuiz(c)))));
 // Whether the sound + motion kit is on (web_quiz_juice): the edge serves the kit's demo page only then.
 router.get('/juice', handle(async () => ({ on: await require('../services/quiz/web-quiz-juice').flag() })));
 router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
@@ -148,6 +152,8 @@ router.get('/ch/result/:ct', challenge((C, req) => C.poll(req.params.ct)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {}, { device: req.get('x-wq-device') })));
 // Read aloud, live: a temporary Soniox key for one run (web-quiz-soniox-live.js); the server key never leaves the bot.
 router.post('/ch/live', challenge((C, req) => C.liveKey(req.body || {})));
+// Live reading v3: a story page's own one-read temporary key (web-quiz-live-read-keys.js; 404 'off' with the switch off).
+router.post('/lr/key', handle((req) => { const b = req.body || {}; return require('../services/quiz/web-quiz-live-read-keys').storyKey({ st: b.st, kid: b.kid, book: b.book, page: b.page, lang: b.lang, device: req.get('x-wq-device') || undefined }); }));
 // Questions after Read aloud: the reached questions with their 3 options (no key), then one answer per tap.
 router.post('/ch/qs', challenge((C, req) => C.questions(req.body || {})));
 router.post('/ch/qa', challenge((C, req) => C.answer(req.body || {})));

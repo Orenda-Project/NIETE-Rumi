@@ -283,7 +283,7 @@ async function insertQuiz(teacherId, item, { askLanguage, quizLanguage, via }) {
         ...(askLanguage ? { awaiting_language: true } : {}),
         ...(quizLanguage ? { language_choice: quizLanguage } : {}),
         ...(askLanguage ? {} : { accepted_at: new Date().toISOString() }),
-        source: via === 'flow' ? 'flow' : 'list',
+        source: Funnel.metaSourceOf(via),
         lessons: [item.lesson],
         class: { grade: item.grade, subject: item.subject },
         lesson_date: O.cohortRuleDate(item.deliveredAt),
@@ -353,7 +353,7 @@ async function start(teacher, lessonRef, { phone, quizLanguage = null, via = 'li
     // No language left to ask (Urdu/Islamiyat, or chosen on the Flow): the tap IS
     // the commitment. The asked path emits it when the language is answered.
     Funnel.emit('accepted', {
-      quiz_id: claim.quizId, teacher_id: userId, source: SOURCE, channel: Funnel.channelOf(via === 'flow' ? 'flow' : 'list'),
+      quiz_id: claim.quizId, teacher_id: userId, source: SOURCE, channel: Funnel.channelOf(Funnel.metaSourceOf(via)),
     });
   }
   return done(queued ? 'queued' : 'queue_failed', claim.quizId);

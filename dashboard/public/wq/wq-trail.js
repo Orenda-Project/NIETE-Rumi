@@ -77,7 +77,7 @@
   var ALONG_CAP_MS = 180000;   // a WebView that never reports the clip's end still reaches the read
   // the word-by-word player (wq-readalong.js), fetched only when a story serve carries `readalong`
   // (web_quiz_readalong); its version is the file's sha256, first 10 hex (a test keeps the two in step)
-  var RA_V = 'a8a85bdd52';
+  var RA_V = '3fdfdd875a';
 
   // own styles (only under v2): the chip's second line under the name; Urdu lines at Nastaliq-readable size
   function css() {
@@ -234,7 +234,7 @@
       if (ex === 'listen' && !clipUrl(d)) { gettingReady(ex); return; }
       tries = 0;
       d.story_room = true;
-      d.live = false;   // no words-a-minute bar in Story Time
+      if (!d.lr3) d.live = false;   // no words-a-minute bar in Story Time (live reading v3 keeps the words lighting, no meter)
       h.S.data = d;
       h.ev('ch_start', { step: ex });
       if (ex === 'read' && d.readalong) raLoad();   // fetched now, so the child's tap can start the voice
@@ -251,7 +251,7 @@
     // two equal answers, neither pressed until a tap
     function storyAsk() {
       h.show('story-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
-        + btn('wqc-story-along', t.storyReadAlong) + btn('wqc-story-read', h.t.ready) + '</div>');
+        + (window.WQJ ? btn('wqc-story-along', t.storyReadAlong).replace('type="button"', 'type="button" data-primary') + btn('wqc-story-read', h.t.ready, 'wq-soft') : btn('wqc-story-along', t.storyReadAlong) + btn('wqc-story-read', h.t.ready)) + '</div>'); // the kit (web_quiz_juice): one primary
       h.on('wqc-story-along', readAlong);
       h.on('wqc-story-read', h.read);
       warm();
