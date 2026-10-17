@@ -37,11 +37,12 @@ const { createRouter } = require('../../shared/services/first-touch/teacher-home
 const { seedMaker, TEACHER, tableReads } = require('./maker-fixture');
 
 const GOLDEN = path.join(__dirname, '__goldens__', 'teacher-home-server-timing-off.json');
+const GOLDEN_RICH = path.join(__dirname, '__goldens__', 'teacher-home-server-timing-off-rich.json');
 const HOST = 'quiz_teacher_home';
 const PAGED = 'quiz_teacher_home_paged';
 const TIMING = 'quiz_teacher_server_timing';
 const SWITCHES = [HOST, PAGED, TIMING];
-const TIMING_RX = /^settings;dur=\d+(\.\d)?, db;dur=\d+(\.\d)?, total;dur=\d+(\.\d)?$/;
+const TIMING_RX = /^settings;dur=\d+, db;dur=\d+, total;dur=\d+$/; // whole ms
 // not compared: set per request by the server, or derived from the body (compared on its own)
 const VOLATILE = ['date', 'etag', 'connection', 'keep-alive'];
 const tokenFor = () => HomeToken.signTeacherHome({ uid: TEACHER.id, lang: 'en', via: 'go' });
@@ -71,9 +72,9 @@ function seed({ host = true, rows = [] } = {}) {
 }
 function coldCaches() { Flags.reset(); IdFlags._resetCache(); HubFlags._resetCache(); Gate._resetCache(); Bank._resetCache(); }
 const deps = () => ({ List: { ...List, loadLessonPage: jest.fn(async () => ({ sessions: [], quizzes: [], counts: {}, lessons: [] })) } });
-async function boot() {
+async function boot(d = deps()) {
   const app = express();
-  app.use('/api/internal/th', createRouter(deps()));
+  app.use('/api/internal/th', createRouter(d));
   await new Promise((r) => { srv = app.listen(0, r); });
 }
 async function get(p) {
@@ -92,6 +93,8 @@ const down = () => {
   return b;
 };
 
+// one home and one library answer before any row, so lazily loaded modules never add a read to the file's first row
+beforeAll(async () => { seed(); await boot(); await home(); await library(); await new Promise((r) => srv.close(r)); srv = null; });
 afterEach(async () => { jest.restoreAllMocks(); await new Promise((r) => (srv ? srv.close(r) : r())); srv = null; });
 
 describe('switch ON (JSON true)', () => {
@@ -159,6 +162,48 @@ describe('switch OFF: today\'s headers and body (golden recorded on the base)', 
   });
 });
 
+describe('switch OFF, a home with a sent quiz, its plays and its code (golden recorded on the base)', () => {
+  const QUIZ = 'c0000000-0000-4000-8000-0000000000a1';
+  const CODE = 'f0000000-0000-4000-8000-0000000000a1';
+  const SESSION = 'e0000000-0000-4000-8000-0000000000c1';
+  const AT = '2026-01-05T08:00:00.000Z';
+  /** One lesson with its sent quiz (played by 2 of 5) and a live share code; the class report and its gate stood in for. */
+  function richDeps() {
+    fake.db.quizzes.push({
+      id: QUIZ, teacher_id: TEACHER.id, quiz_source: 'transcript', status: 'sent', topic: 'Photosynthesis', subject: 'Science',
+      coaching_session_id: SESSION, created_at: AT,
+      meta: { student_message: 'Class, play this quiz: https://portal.example/q/ABCDEF', share_code_id: CODE, share_code: 'ABCDEF' },
+    });
+    fake.db.quiz_share_codes.push({ id: CODE, code: 'ABCDEF', quiz_id: QUIZ, teacher_user_id: TEACHER.id, active: true, expires_at: '2099-01-01T00:00:00.000Z', created_at: AT, invited_by_student_id: null });
+    const quiz = fake.db.quizzes.find((q) => q.id === QUIZ);
+    return {
+      List: { ...List, loadLessonPage: jest.fn(async () => ({ sessions: [{ id: SESSION, created_at: AT, transcript_text: 'x'.repeat(500), analysis_data: { topic: 'Photosynthesis' } }], quizzes: [quiz], counts: {}, lessons: [] })) },
+      Report: { ...require('../../shared/services/quiz/teacher-report.data'), classReport: jest.fn(async () => ({ quizzes: [{ id: QUIZ, played: 2, of: 5, date: AT, topic: 'Photosynthesis', source: 'transcript' }] })) },
+      Gate: { ...Gate, teacherReportOn: jest.fn(async () => true), reportUrls: ({ quizId }) => ({ live: `/r/${quizId}/live`, remind: `/r/${quizId}/remind` }) },
+    };
+  }
+  test('absent row and the string "true": home and library, every header but the volatile ones, and the body', async () => {
+    const out = {};
+    for (const [label, rows] of [['absent', []], ['string', [{ key: TIMING, value: 'true' }]]]) {
+      if (srv) { await new Promise((r) => srv.close(r)); srv = null; }
+      seed({ rows });
+      await boot(richDeps());
+      for (const [name, ask] of [['home', home], ['library', library]]) {
+        const res = await ask();
+        expect(res.status).toBe(200);
+        expect(res.headers['server-timing']).toBeUndefined();
+        out[`${label}_${name}`] = { headers: stable(res.headers), body: res.text };
+      }
+    }
+    expect(JSON.parse(out.absent_home.body).timeline.length).toBeGreaterThan(0); // a rich fixture, not an empty home
+    expect(out.string_home).toEqual(out.absent_home);
+    expect(out.string_library).toEqual(out.absent_library);
+    const g = { home: out.absent_home, library: out.absent_library };
+    if (process.env.TEACHER_HOME_RECORD === '1') fs.writeFileSync(GOLDEN_RICH, `${JSON.stringify(g, null, 2)}\n`);
+    expect(g).toEqual(JSON.parse(fs.readFileSync(GOLDEN_RICH, 'utf8')));
+  });
+});
+
 describe('the timing switch rides the home switch\'s read (never a read of its own)', () => {
   /** app_settings reads of one home request after the home's switch was read by another caller (host warm). */
   async function warmHostRequest({ riderCold, rows = [] }) {
@@ -203,18 +248,20 @@ describe('the timing switch rides the home switch\'s read (never a read of its o
     expect(res.headers['server-timing']).toMatch(TIMING_RX);
   });
 
-  test('switch OFF: the same settings reads per request as today (home and library, cold and warm)', async () => {
-    seed({ rows: [{ key: TIMING, value: 'true' }] });
+  // today's app_settings reads per request (the base's product, the same fixture): every switch and flag cache cold, then warm
+  const TODAY = { homeCold: 6, homeWarm: 0, libraryWarm: 0, libraryCold: 1 };
+  test.each([['absent', []], ['the string "true"', [{ key: TIMING, value: 'true' }]], ['false', [{ key: TIMING, value: false }]]])('switch OFF (%s): today\'s settings reads per request, exactly (home cold / warm, library warm, library cold)', async (_, rows) => {
+    const reads = async (ask) => { const before = tableReads(fake, 'app_settings'); await ask(); return tableReads(fake, 'app_settings') - before; };
+    seed({ rows });
     await boot();
-    const counts = [];
-    for (const ask of [home, home, library]) {
-      const before = tableReads(fake, 'app_settings');
-      const sw0 = switchReads.length;
-      await ask();
-      counts.push([tableReads(fake, 'app_settings') - before > 0, switchReads.slice(sw0).length]);
-    }
-    // cold: the home's switch + the quick answer's; warm: none; the library: none
-    expect(counts.map((c) => c[1])).toEqual([2, 0, 0]);
+    const homeCold = await reads(home);
+    const homeWarm = await reads(home);
+    const libraryWarm = await reads(library);
+    await new Promise((r) => srv.close(r)); srv = null;
+    seed({ rows }); // a fresh fixture and cold caches: the library first
+    await boot();
+    const libraryCold = await reads(library);
+    expect({ homeCold, homeWarm, libraryWarm, libraryCold }).toEqual(TODAY);
   });
 });
 
