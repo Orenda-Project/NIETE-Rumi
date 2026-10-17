@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The C/D coach ping's pages (pure HTML) — v10 coaching test, bd-v0toag.38.9, the teammate's "Do you agree?"
+ * The C/D coach ping's pages (pure HTML) — v10 coaching test, bd-v0toag.38.9, the teammate's "Do you agree?" (since bd-v0toag.79 the neutral "What do you think of this report?")
  * prototype. Replaces bd-v0toag.45's one-tap coach page.
  *   reasons page — what wasn't right (four ticks), an optional voice note up to 20 s, her school's coaches
  *                  only when there is more than one, then "Send to my coach". Nothing is sent before that.
@@ -13,7 +13,7 @@ const { REASONS, CODES } = require('./coach-ping-reasons');
 
 const PING = {
   en: {
-    help: 'Don’t agree? Your coach will come and see your class',
+    help: 'Report not accurate? Your coach will come and see your class',
     helped: '✓ Your coach has been told and will come to see your class.',
     failed: 'We could not reach your coach just now. Your answer is saved.',
     noCoach: 'We could not find a coach for your school. Your answer is saved.',
@@ -35,7 +35,7 @@ const PING = {
     visited: '✓ Visit done. Thank you.',
   },
   ur: {
-    help: 'متفق نہیں؟ آپ کے کوچ آ کر کلاس دیکھیں گے',
+    help: 'رپورٹ درست نہیں؟ آپ کے کوچ آ کر کلاس دیکھیں گے',
     helped: '✓ آپ کے کوچ کو بتا دیا گیا ہے، وہ آ کر آپ کی کلاس دیکھیں گے۔',
     failed: 'ہم ابھی آپ کے کوچ تک نہیں پہنچ سکے۔ آپ کا جواب محفوظ ہے۔',
     noCoach: 'ہمیں آپ کے اسکول کا کوئی کوچ نہیں ملا۔ آپ کا جواب محفوظ ہے۔',

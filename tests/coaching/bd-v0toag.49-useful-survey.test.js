@@ -66,10 +66,10 @@ describe('askIfInTest: only groups A and B, only while the test is on', () => {
     mockArms.groupFor.mockResolvedValue({ group: letter, plan: letter === 'A' ? 'v9' : 'v10', report: 'today' });
     expect(await svc.askIfInTest({ coachingSessionId: S, userId: U, phone: PHONE })).toBe(true);
     expect(mockWA.sendInteractiveButtons).toHaveBeenCalledWith(PHONE, {
-      body: 'Do you agree with this report?',
+      body: 'What do you think of this report?',
       buttons: [
-        { id: `coaching_fb_yes_${S}`, title: '👍 Yes' },
-        { id: `coaching_fb_no_${S}`, title: '👎 No' },
+        { id: `coaching_fb_yes_${S}`, title: 'Accurate' },
+        { id: `coaching_fb_no_${S}`, title: 'Not accurate' },
       ],
     });
     expect(logEvent).toHaveBeenCalledWith('coaching.useful.asked', { coachingSessionId: S, userId: U, group: letter });
@@ -78,7 +78,7 @@ describe('askIfInTest: only groups A and B, only while the test is on', () => {
   test('in her language: Urdu', async () => {
     mockDb.rows.users = { preferred_language: 'ur' };
     await svc.askIfInTest({ coachingSessionId: S, userId: U, phone: PHONE });
-    expect(mockWA.sendInteractiveButtons.mock.calls[0][1].body).toBe('کیا آپ اس رپورٹ سے متفق ہیں؟');
+    expect(mockWA.sendInteractiveButtons.mock.calls[0][1].body).toBe('اس رپورٹ کے بارے میں آپ کی کیا رائے ہے؟');
   });
 
   test('never throws: a failed send is false', async () => {
@@ -110,7 +110,7 @@ describe('the tap', () => {
     mockDb.rows.coaching_quality_metrics = { id: 7 };
     await svc.handleFeedbackButton(`coaching_fb_no_${S}`, PHONE);
     expect(mockDb.writes).toContainEqual(['coaching_quality_metrics', 'update', { user_satisfaction_rating: 0 }, [['coaching_session_id', S]]]);
-    expect(mockWA.sendMessage).toHaveBeenCalledWith(PHONE, 'Thanks for telling us. What didn’t seem right? (one line is enough)');
+    expect(mockWA.sendMessage).toHaveBeenCalledWith(PHONE, 'Thanks for telling us. What wasn’t accurate? (one line is enough)');
     expect(mockRedis.set).toHaveBeenCalledWith(`coaching_feedback_pending:${U}`, expect.objectContaining({ coachingSessionId: S }), 600);
   });
 
