@@ -232,3 +232,22 @@ describe('3. a re-ask says in the log why its slot was short', () => {
     expect(rows.find((x) => x.slot === Q1).rule).toEqual(expect.any(String));
   });
 });
+
+describe('4. Social Studies logs its held items once, as rows per rule', () => {
+  // The first-layout held-items line is for the other subjects' scope holds. Social Studies always
+  // returns `held` (its Section D reads it), so it must not log that raw line as well: one line, rows
+  // of { slot, rule, held, printed }, never whole items.
+  test('one held items line, and no row carries an item', async () => {
+    await replay(fixture('r17g-sst-replies-chapters_2'), {
+      edit: (r) => {
+        const a = JSON.parse(r.replies.A[0]);
+        const mcqs = a.unseen.objective.MCQs;
+        mcqs.push(clone(mcqs[0]), clone(mcqs[1]));
+        r.replies.A[0] = JSON.stringify(a);
+      },
+    });
+    const lines = logged('[assessment] held items');
+    expect(lines).toHaveLength(1);
+    expect(lines[0].held.every((row) => !('q' in row))).toBe(true);
+  });
+});
