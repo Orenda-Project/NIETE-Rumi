@@ -283,7 +283,11 @@ function createRouter(deps = null) {
     const lang = langFor(p, req);
     const grade = Data.gradeOf(req.query.g, null);
     // the teacher's own sends (which books went out this month), read alongside the bank and the shelf; late or failed → no skip, no date
-    const played = Data.within(Data.playedOwn(p.uid, deps), Data.SIDE_BUDGET_MS, new Map(), 'class report');
+    // (a listed walk-through phone sees the same lists here as on its home)
+    const played = Promise.all([
+      Data.within(Data.playedOwn(p.uid, deps), Data.SIDE_BUDGET_MS, new Map(), 'class report'),
+      Data.within(Data.teacherOf(p.uid, deps), Data.SIDE_BUDGET_MS, null, 'teacher'),
+    ]).then(([pl, user]) => walkLists(user, { lessons: [], played: pl, shares: [] })).then((l) => l.played);
     const tree = await Data.within(Data.dep(deps, 'Bank').chipTree(), Data.SIDE_BUDGET_MS, {}, 'video bank');
     const lib = await libraryFor({ p, token: String(req.query.t), lang, grade, tree, pfSubject: null });
     const shaped = Model.buildHome({ grade, played: await played, stories: lib.stories, video: lib.video, storiesBase: lib.storiesBase });
