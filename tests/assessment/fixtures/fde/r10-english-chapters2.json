@@ -1,0 +1,1029 @@
+{
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) who",
+     "blooms": "Understand",
+     "options": [
+      "a) which",
+      "b) who",
+      "c) whose",
+      "d) where"
+     ],
+     "question": "Which relative pronoun completes the sentence? The boy ___ won the race was proud.",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) whose",
+     "blooms": "Apply",
+     "options": [
+      "a) whose",
+      "b) who",
+      "c) which",
+      "d) that"
+     ],
+     "question": "Which relative pronoun completes the sentence? The girl ___ kite flew away was sad.",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) where",
+     "blooms": "Apply",
+     "options": [
+      "a) whose",
+      "b) who",
+      "c) where",
+      "d) whom"
+     ],
+     "question": "Which relative pronoun completes the sentence? This is the park ___ we play every evening.",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) each other",
+     "blooms": "Understand",
+     "options": [
+      "a) themselves",
+      "b) each other",
+      "c) himself",
+      "d) who"
+     ],
+     "question": "Which reciprocal pronoun completes the sentence? The two sisters help ___ with homework.",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) one another",
+     "blooms": "Apply",
+     "options": [
+      "a) one another",
+      "b) whose",
+      "c) which",
+      "d) that"
+     ],
+     "question": "Which reciprocal pronoun completes the sentence? The children in the team trusted ___.",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "d) could not",
+     "blooms": "Remember",
+     "options": [
+      "a) can not",
+      "b) could is",
+      "c) could have",
+      "d) could not"
+     ],
+     "question": "What is the full form of the contraction \"couldn't\"?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) hasn't",
+     "blooms": "Remember",
+     "options": [
+      "a) hasn't",
+      "b) has'nt",
+      "c) hasnt'",
+      "d) has't"
+     ],
+     "question": "Which word is the contraction of \"hasn't\"'s full form \"has not\"?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) knife",
+     "blooms": "Understand",
+     "options": [
+      "a) kite",
+      "b) king",
+      "c) knife",
+      "d) milk"
+     ],
+     "question": "Which word has a silent letter 'k'?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) thumb",
+     "blooms": "Understand",
+     "options": [
+      "a) bread",
+      "b) thumb",
+      "c) bring",
+      "d) table"
+     ],
+     "question": "Which word has a silent letter 'b'?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "d) magical",
+     "blooms": "Apply",
+     "options": [
+      "a) magically",
+      "b) magician",
+      "c) magicness",
+      "d) magical"
+     ],
+     "question": "Which adjective is formed from the noun \"magic\"?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) helpful",
+     "blooms": "Apply",
+     "options": [
+      "a) helpful",
+      "b) helping",
+      "c) helper",
+      "d) helpment"
+     ],
+     "question": "Which adjective is formed from the verb \"help\"?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) cities",
+     "blooms": "Apply",
+     "options": [
+      "a) citys",
+      "b) cityes",
+      "c) cities",
+      "d) citis"
+     ],
+     "question": "Which is the correct plural of \"city\"?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) making",
+     "blooms": "Apply",
+     "options": [
+      "a) makeing",
+      "b) making",
+      "c) makking",
+      "d) makes"
+     ],
+     "question": "Which is the correct present continuous form of \"make\"?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) twenty-five",
+     "blooms": "Understand",
+     "options": [
+      "a) twentyfive",
+      "b) twenty five",
+      "c) twenty-five",
+      "d) twen-tyfive"
+     ],
+     "question": "Which is the correct hyphenated word?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) huge",
+     "blooms": "Remember",
+     "options": [
+      "a) tiny",
+      "b) huge",
+      "c) quiet",
+      "d) weak"
+     ],
+     "question": "Which word means the same as \"big\"?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) weak",
+     "blooms": "Remember",
+     "options": [
+      "a) weak",
+      "b) loud",
+      "c) mighty",
+      "d) tall"
+     ],
+     "question": "Which word means the opposite of \"strong\"?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) Those",
+     "blooms": "Apply",
+     "options": [
+      "a) This",
+      "b) That",
+      "c) Those",
+      "d) Each"
+     ],
+     "question": "Which word completes the sentence? ___ birds on that tree are singing.",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "c) little",
+     "blooms": "Apply",
+     "options": [
+      "a) few",
+      "b) many",
+      "c) little",
+      "d) both"
+     ],
+     "question": "Which quantifier completes the sentence? We need a ___ water to fill the jug.",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "a) post meridiem",
+     "blooms": "Remember",
+     "options": [
+      "a) post meridiem",
+      "b) pre meridiem",
+      "c) past morning",
+      "d) per minute"
+     ],
+     "question": "What does the abbreviation \"p.m.\" stand for?",
+     "main_question": "Choose the correct option"
+    },
+    {
+     "slot": "english.A.Q1a",
+     "lines": 0,
+     "marks": 1,
+     "answer": "b) Her voice was like a bell.",
+     "blooms": "Understand",
+     "options": [
+      "a) The river flows across the land.",
+      "b) Her voice was like a bell.",
+      "c) Time is a thief.",
+      "d) The wind whispered to the trees."
+     ],
+     "question": "Which sentence uses a simile?",
+     "main_question": "Choose the correct option"
+    }
+   ],
+   "Rewrite Sentences": [
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "The boy who found my pen was kind.",
+     "blooms": "Apply",
+     "question": "The boy found my pen. The boy was kind. (Join the sentences using \"who\".)",
+     "main_question": "Rewrite the sentence as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "They didn't go to the market.",
+     "blooms": "Apply",
+     "question": "They did not go to the market. (Write using a contraction.)",
+     "main_question": "Rewrite the sentence as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "The girl has a bag that is red.",
+     "blooms": "Apply",
+     "question": "The girl has a bag. The bag is red. (Join the sentences using \"which\" or \"that\".)",
+     "main_question": "Rewrite the sentence as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "I am baking a cake.",
+     "blooms": "Apply",
+     "question": "I bake a cake every Sunday. (Change to present continuous.)",
+     "main_question": "Rewrite the sentence as directed"
+    },
+    {
+     "slot": "english.A.Q1b",
+     "lines": 2,
+     "marks": 1,
+     "answer": "The babies cry when they are hungry.",
+     "blooms": "Apply",
+     "question": "The baby cry when it is hungry. (Correct the sentence using the plural \"babies\".)",
+     "main_question": "Rewrite the sentence as directed"
+    }
+   ]
+  },
+  "subjective": {
+   "Mind Map": [
+    {
+     "slot": "english.C.Q6",
+     "lines": 0,
+     "marks": 5,
+     "answer": "Possible branches: helping in community clean-up; being responsible at school; caring for pets; helping at home; following rules.",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Ideas such as keeping the park clean",
+       "Ideas such as feeding a pet and giving it water",
+       "Ideas such as doing homework on time"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Topic written in the centre of the map",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Five branches drawn and joined to the centre",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "First two relevant ideas on branches",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Next two relevant ideas on branches",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Fifth relevant idea on a branch",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing full sentences or unrelated ideas instead of short key words."
+     },
+     "question": "Being a Responsible Citizen",
+     "main_question": "Draw a mind map on the given topic"
+    }
+   ],
+   "Punctuation": [
+    {
+     "slot": "english.C.Q3",
+     "lines": 0,
+     "marks": 5,
+     "answer": "The students helped each other clean the classroom. Did they finish before the bell? What a tidy room it was, and Ali's desk looked the best!",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Full stop instead of exclamation mark at the end if the rest is correct and the sentence ends clearly",
+       "Comma omitted before 'and' if all other marks are earned"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Capital letters used correctly at the start of sentences and for the name Ali",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Full stop placed correctly after the first sentence",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Question mark placed correctly after the question",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Exclamation mark and comma placed correctly",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Apostrophe in Ali's placed correctly",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Forgetting the capital letter for Ali or placing the apostrophe after the s."
+     },
+     "question": "the students helped each other clean the classroom did they finish before the bell what a tidy room it was and ali's desk looked the best",
+     "main_question": "Rewrite the passage with capital letters and correct punctuation"
+    }
+   ],
+   "Rhyming Words": [
+    {
+     "slot": "english.C.Q5",
+     "lines": 0,
+     "marks": 4,
+     "answer": "white – night; wet – yet",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Pairs written in either order",
+       "Words written in a list as long as they are paired correctly"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "white – night pair written correctly (both words)",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "wet – yet pair written correctly (both words)",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Pairing words from different lines that do not sound alike, such as green and brown."
+     },
+     "passage": "My skin is kind of sort of brownish pinkish yellowish white.\nMy eyes are greyish blueish green,\nBut I'm told they look orange at night.\nMy hair is reddish blondish brown,\nBut it's silver when it's wet.\nAnd all the colours I am inside\nHave not been invented yet.",
+     "question": "Colours (Unit 2)",
+     "main_question": "Read the poem and write the four pairs of rhyming words"
+    }
+   ],
+   "Story Writing": [
+    {
+     "slot": "english.C.Q9",
+     "lines": 0,
+     "marks": 5,
+     "answer": "A story following every cue in order: the girl gets a puppy, forgets her duties, the puppy becomes weak, the vet advises, she promises to take care and the puppy recovers. Moral: We must always do our responsibilities.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Moral such as 'Responsibility brings happiness'",
+       "Moral such as 'Care for those who depend on us'",
+       "Added names and small details that fit the cues"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Story follows the cues in the right order",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Beginning, middle and end clearly shown",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Correct grammar, spelling and past tense",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Suitable moral written at the end",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaving out the moral or changing the order of the cues."
+     },
+     "question": "A girl wants a pet — Parents agree if they take care of it — Brings home a puppy — Plays with it daily — Slowly forgets to feed it — Puppy becomes weak — Vet gives advice — Girl feels sorry — Promises to care again — Puppy gets well — Moral",
+     "main_question": "Write a story using the outline given below"
+    }
+   ],
+   "Word Sentences": [
+    {
+     "slot": "english.C.Q4",
+     "lines": 0,
+     "marks": 10,
+     "words": [
+      "responsibility",
+      "freedom",
+      "cherish",
+      "sacrifice",
+      "nervousness",
+      "knots"
+     ],
+     "answer": "responsibility: the duty to take care of someone or something. Model: It is my responsibility to water the plants.\nfreedom: being free to do, learn and speak without barriers. Model: Freedom lets us learn and share ideas.\ncherish: to keep something close to your heart and love it. Model: I cherish the card my friend made for me.\nsacrifice: to give up something you like for someone else. Model: Sara made a sacrifice and gave her toy to her brother.\nnervousness: a worried feeling before something big. Model: Ali felt nervousness before the race.\nknots: tangles in fur or hair. Model: Mum combed the knots out of my hair.",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Meaning shown through a sentence that clearly demonstrates it",
+       "Any correct sentence using the word in its right sense"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Word 1: correct meaning shown (1) and correct sentence (1)",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Word 2: correct meaning shown (1) and correct sentence (1)",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Word 3: correct meaning shown (1) and correct sentence (1)",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Word 4: correct meaning shown (1) and correct sentence (1)",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Word 5: correct meaning shown (1) and correct sentence (1)",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a sentence that does not show the meaning of the word."
+     },
+     "question": "Write the meaning of each given word and use it in a sentence of your own. Any five words will be marked.",
+     "main_question": "Write the meaning of each given word and use it in a sentence of your own. Any five words will be marked."
+    }
+   ],
+   "Paragraph Writing": [
+    {
+     "slot": "english.C.Q8",
+     "lines": 0,
+     "marks": 10,
+     "answer": "Key points: a topic sentence introducing the chosen topic; 5 to 7 sentences with facts, examples or experiences; a concluding sentence; simple correct sentences.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Any one of the three topics",
+       "Ideas from the child's own experience"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Clear topic sentence",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Relevant ideas and details in supporting sentences",
+        "marks": 4
+       },
+       {
+        "kind": "A",
+        "text": "Concluding sentence",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Correct grammar and sentence formation",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Correct spelling and punctuation",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing disconnected sentences with no opening or closing."
+     },
+     "topics": [
+      "My Responsibility as a Student",
+      "My Country",
+      "Recycling"
+     ],
+     "question": "Write a paragraph of about 8 to 10 sentences on any one of the given topics.",
+     "main_question": "Write a paragraph on any one of the following topics"
+    }
+   ],
+   "Application Writing": [
+    {
+     "slot": "english.C.Q7",
+     "lines": 0,
+     "marks": 10,
+     "answer": "Key points: proper heading with the principal's title and school; date; subject line about sick leave; salutation 'Respected Sir/Madam'; body with the reason (fever or illness) and the number of days; polite request to grant leave; closing 'Yours obediently' with name, class and roll number.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Formal opening such as 'With due respect, I beg to say'",
+       "Closing such as 'Yours truly' or 'Yours faithfully'"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct format: date, to the principal, and subject line",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Correct salutation",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Clear reason for illness and number of days",
+        "marks": 3
+       },
+       {
+        "kind": "A",
+        "text": "Polite request for leave",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Correct closing with name, class and roll number",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Correct spelling, grammar and punctuation",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Using informal language or leaving out the subject line."
+     },
+     "question": "Write an application to your principal for sick leave.",
+     "main_question": "Write an application to your principal for sick leave"
+    },
+    {
+     "slot": "english.C.Q7",
+     "lines": 0,
+     "marks": 10,
+     "answer": "Key points: address and date; greeting 'Dear (friend's name)'; opening line asking about their health; name of the book and what it is about; why it is liked; invitation to read it; closing 'Your friend' with name.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Closing such as 'Yours lovingly' or 'Your friend'",
+       "Any suitable book the child likes"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct format: address and date",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Correct greeting",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Name and story of the book",
+        "marks": 3
+       },
+       {
+        "kind": "A",
+        "text": "Reason why the book is liked",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Friendly closing with name",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Correct spelling, grammar and punctuation",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing about many books instead of one, or forgetting the date and greeting."
+     },
+     "question": "Write a letter to your friend telling them about your favourite book.",
+     "main_question": "Write a letter to your friend telling them about your favourite book"
+    }
+   ],
+   "Picture Description": [
+    {
+     "slot": "english.C.Q10",
+     "lines": 0,
+     "marks": 6,
+     "words": [
+      "children",
+      "garden",
+      "rake",
+      "leaves",
+      "watering can",
+      "plants",
+      "together",
+      "busy",
+      "neat"
+     ],
+     "answer": "Model: Some children are busy in the school garden. They work together to keep it neat. One child is using a rake to collect the leaves. Another child is pouring water on the plants with a watering can. The children look happy.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Sentences in the present continuous tense",
+       "Extra suitable words not in the word bank"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Sentences clearly describe the scene",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "At least five words from the word bank used correctly",
+        "marks": 2
+       },
+       {
+        "kind": "A",
+        "text": "Correct grammar and use of present tense",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Correct spelling and punctuation",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Listing the words instead of writing full sentences about the scene."
+     },
+     "question": "children helping to clean a school garden",
+     "main_question": "Look at the picture your teacher shows and write 5 to 6 sentences about it using the given words"
+    }
+   ],
+   "Comprehension Passage": [
+    {
+     "slot": "english.B.Q2",
+     "lines": 0,
+     "marks": 20,
+     "parts": [
+      {
+       "key": "questions",
+       "lines": 0,
+       "marks": 10,
+       "questions": [
+        {
+         "lines": 2,
+         "marks": 2,
+         "answer": "Tara lived in a small town near a river.",
+         "blooms": "Remember",
+         "scheme": {
+          "accept": [
+           "In a town beside a river",
+           "Near a river in a small town"
+          ],
+          "points": [
+           {
+            "kind": "K",
+            "text": "Names a small town near a river",
+            "marks": 2
+           }
+          ],
+          "checked": null,
+          "common_error": "Writing only 'town' or naming the market"
+         },
+         "question": "Where did Tara live?"
+        },
+        {
+         "lines": 2,
+         "marks": 2,
+         "answer": "Heavy rain washed the road away.",
+         "blooms": "Remember",
+         "scheme": {
+          "accept": [
+           "Because the rain destroyed the road",
+           "The road was broken by the storm"
+          ],
+          "points": [
+           {
+            "kind": "K",
+            "text": "States the road was washed away",
+            "marks": 1
+           },
+           {
+            "kind": "K",
+            "text": "States heavy rain was the cause",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Saying the farmers were tired"
+         },
+         "question": "Why could the farmers not bring their fruit to the market?"
+        },
+        {
+         "lines": 2,
+         "marks": 2,
+         "answer": "They carried old planks.",
+         "blooms": "Remember",
+         "scheme": {
+          "accept": [
+           "Wooden boards",
+           "Some old wooden planks"
+          ],
+          "points": [
+           {
+            "kind": "K",
+            "text": "Identifies old planks",
+            "marks": 2
+           }
+          ],
+          "checked": null,
+          "common_error": "Answering vegetables or baskets"
+         },
+         "question": "What did Tara and her grandfather carry to the muddy road?"
+        },
+        {
+         "lines": 2,
+         "marks": 2,
+         "answer": "They joined them and worked together to build the path.",
+         "blooms": "Understand",
+         "scheme": {
+          "accept": [
+           "They helped build the road",
+           "They shared the work"
+          ],
+          "points": [
+           {
+            "kind": "K",
+            "text": "States they joined in",
+            "marks": 1
+           },
+           {
+            "kind": "K",
+            "text": "States they worked together on the path",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Saying the neighbours stayed at their shops"
+         },
+         "question": "How did the neighbours help after they saw Tara and her grandfather working?"
+        },
+        {
+         "lines": 3,
+         "marks": 2,
+         "answer": "Sharing duties and working together can solve big problems.",
+         "blooms": "Understand",
+         "scheme": {
+          "accept": [
+           "Teamwork can fix difficult things",
+           "Helping each other solves problems"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "Mentions working together or sharing duties (Links it to solving big problems)",
+            "marks": 2
+           }
+          ],
+          "checked": null,
+          "common_error": "Giving only a story event instead of a lesson"
+         },
+         "question": "What lesson did Tara learn?"
+        }
+       ]
+      },
+      {
+       "key": "do_as_directed",
+       "lines": 0,
+       "marks": 4,
+       "questions": [
+        {
+         "lines": 1,
+         "marks": 1,
+         "answer": "Adjective",
+         "blooms": "Understand",
+         "scheme": {
+          "accept": [
+           "Describing word"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "Names adjective",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Calling it a noun"
+         },
+         "question": "What part of speech is the word \"heavy\" in the passage?"
+        },
+        {
+         "lines": 1,
+         "marks": 1,
+         "answer": "The farmers cheer loudly.",
+         "blooms": "Apply",
+         "scheme": {
+          "accept": [
+           "The farmers are cheering loudly."
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "Correct present tense: cheer",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Keeping 'cheered'"
+         },
+         "question": "Change the sentence to the past continuous or present tense: \"The farmers cheered loudly.\" Rewrite it in the present tense."
+        },
+        {
+         "lines": 1,
+         "marks": 1,
+         "answer": "planks",
+         "blooms": "Remember",
+         "scheme": {
+          "accept": [
+           "old planks"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "Writes planks",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Writing a different object"
+         },
+         "question": "Fill in the blank: Tara and her grandfather gathered some old ______ for the muddy road."
+        },
+        {
+         "lines": 1,
+         "marks": 1,
+         "answer": "False",
+         "blooms": "Remember",
+         "scheme": {
+          "accept": [
+           "False, it was heavy rain"
+          ],
+          "points": [
+           {
+            "kind": "A",
+            "text": "Writes False",
+            "marks": 1
+           }
+          ],
+          "checked": null,
+          "common_error": "Writing True"
+         },
+         "question": "Write True or False: The road was washed away by strong wind."
+        }
+       ]
+      },
+      {
+       "key": "pick",
+       "pick": {
+        "Nouns": [
+         "river",
+         "grandfather",
+         "market"
+        ],
+        "Verbs": [
+         "walked",
+         "helped",
+         "washed"
+        ]
+       },
+       "lines": 0,
+       "marks": 6,
+       "instruction": "Pick words from the passage, copied exactly as written. Write 5 nouns and 5 verbs (three needed, two spares of each)."
+      }
+     ],
+     "blooms": "Understand",
+     "passage": "Tara lived in a small town near a river. Every morning, her grandfather walked to the market with a basket, and Tara helped him carry the vegetables. One day, a heavy rain washed the road away. The farmers could not bring their fruit to the market. Tara saw many tired neighbours standing outside their shops. She ran home and told her grandfather, \"We must help them!\" Together they gathered some old planks and carried them to the muddy road. Soon, the neighbours joined them, and everyone worked happily. By evening, a strong path stood across the mud. The farmers cheered loudly as their carts rolled into the market. Tara smiled proudly. She learned that small acts of sharing duties can solve big problems when people work together.",
+     "main_question": "Read the passage and answer the questions"
+    }
+   ]
+  }
+ }
+}

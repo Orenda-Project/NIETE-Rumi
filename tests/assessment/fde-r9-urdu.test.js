@@ -147,7 +147,7 @@ describe('urdu words slots: the model\'s restated instruction is not a quote', (
 });
 
 describe('other subjects are untouched', () => {
-  test('english words slots keep the model\'s question (Q3\'s question is the passage)', () => {
+  test('english Q3 keeps the model\'s question (it is the passage); Q4 (printed words) is blanked as Urdu\'s', () => {
     const tree = () => ({
       unseen: {
         subjective: {
@@ -158,7 +158,9 @@ describe('other subjects are untouched', () => {
     });
     const exam = tree();
     Gen._blankWordsStems(exam, P.subjects.english, 'english');
-    expect(exam).toEqual(tree());
+    const want = tree();
+    want.unseen.subjective['Word Sentences'][0].question = '';
+    expect(exam).toEqual(want);
   });
 
   test('the urdu fixture without a restatement is unchanged by the blanking', () => {
