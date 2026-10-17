@@ -1500,8 +1500,9 @@ Feature: NIETE (ICT) Teacher Training
     Then "My class" and "My school" sit side by side under the Next tile
     And they open the class table and the school league of the child's newest class quiz from a teacher
     But a child who has only played a friend's challenge or a library lesson sees neither, and a practice home shows neither
+    And a newer run on the shared watch quiz, or on a video code under it, never takes the place of the class quiz
     And with web_quiz_class_doors off the home page is exactly as it is today
-    # web-quiz-hub-home homeField -> {class_doors: {class, schools}} (web-quiz-class-doors-flag linksOf, the hub's own history);
+    # web-quiz-hub-home homeField -> {class_doors: {class, schools}} (web-quiz-class-doors-flag linksOf with the watch root, the hub's own history);
     # wq-home.js socialHtml. unit: bot/tests/quiz/web-quiz/web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
   @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver

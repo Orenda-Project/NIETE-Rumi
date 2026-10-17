@@ -110,6 +110,30 @@ describe('web_quiz_class_doors on the hub', () => {
     expect(out.class_doors.schools).toMatch(/^\/q\/SCI002\/schools\?k=/);
   });
 
+  // The watch root (app_settings VALUE web_quiz_watch_root) has no parent, so the hub counts it as teacher-sent; its table
+  // is every school's strangers. A newer run on it (or on a video code under it) never takes the home's class doors.
+  // (The fold tests' ids: watch-root.js caches the root's id for 30 s across tests.)
+  test('the watch root and a video code under it are never the class: the doors name the class quiz', async () => {
+    const ROOT = '66666666-6666-4666-8666-000000000071';
+    const WATCH = '77777777-7777-4777-8777-000000000071';
+    seed([...HOME_ON, ON(CD), { key: 'web_quiz_watch_root', value: ROOT }], {
+      quiz_share_codes: [
+        { id: 'sc-1', code: 'MATH01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(30) },
+        { id: ROOT, code: 'ROOT01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(3) },
+        { id: WATCH, code: 'WTCH01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: ROOT, invited_by_student_id: null, created_at: ago(3) },
+      ],
+      quiz_sessions: [
+        { id: 's1', share_code_id: 'sc-1', quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 8, total_questions_answered: 10, mastery_percentage: 80, completed_at: ago(9), created_at: ago(9), student_class: '3' },
+        { id: 's3', share_code_id: WATCH, quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 6, total_questions_answered: 10, mastery_percentage: 60, completed_at: ago(2), created_at: ago(2), student_class: '3' },
+        { id: 's2', share_code_id: ROOT, quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 5, total_questions_answered: 10, mastery_percentage: 50, completed_at: ago(1), created_at: ago(1), student_class: '3' },
+      ],
+    });
+    jest.setSystemTime(NOW + 60 * 1000); // past watch-root.js's own 30 s cache, which earlier tests filled with "no root"
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.class_doors.class).toMatch(/^\/q\/MATH01\/class\?k=/);
+    expect(out.class_doors.schools).toMatch(/^\/q\/MATH01\/schools\?k=/);
+  });
+
   test('a child no teacher\'s quiz has reached: no class_doors', async () => {
     seed([...HOME_ON, ON(CD)], { quiz_sessions: [] });
     const out = await Hub.hub(T.signHub([KID]), A);

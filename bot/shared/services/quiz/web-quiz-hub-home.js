@@ -173,12 +173,13 @@ function prefetch(chosenId, now = Date.now()) {
   return { flags: f, data };
 }
 
-// `{class_doors}` with web_quiz_class_doors on and a class quiz in the hub's own history, else {}. Never throws.
-// onP: the switch's read, started by prefetchFb beside the home's own reads (no added wave).
+// `{class_doors}` with web_quiz_class_doors on and a class quiz in the hub's own history (never the watch root), else {}.
+// Never throws. onP: the switch's read, started by prefetchFb beside the home's own reads (no added wave); rootP: the
+// watch root's id, read only once the switch is on.
 const ClassDoors = require('./web-quiz-class-doors-flag');
-async function classDoorsOf(history, chosenId, onP) {
+async function classDoorsOf(history, chosenId, onP, rootP) {
   try {
-    const links = (await (onP || ClassDoors.on())) ? ClassDoors.linksOf(history, chosenId) : null;
+    const links = (await (onP || ClassDoors.on())) ? ClassDoors.linksOf(history, chosenId, await (rootP || ClassDoors.root())) : null;
     return links ? { class_doors: links } : {};
   } catch (_) {
     return {};
@@ -203,7 +204,7 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre, device
     const R = require('./web-quiz-home-remember');
     // (one read of the binding rows for both, beside the phone rows: no added wave)
     const rows = R.rowsFor(device);
-    const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd)]);
+    const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd, p.cdRoot)]);
     if (own) remember.forget_phone = true;
     return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...phones, ...remember, ...cd };
   } catch (err) {
@@ -297,6 +298,7 @@ function prefetchFb(chosenId, now) {
   const p = prefetch(chosenId, now);
   p.fb = fbOf(p.flags);
   p.cd = cdOf(p.flags);
+  p.cdRoot = p.cd.then((on) => (on ? ClassDoors.root() : null));
   return p;
 }
 function homeFieldFb(a = {}) {
