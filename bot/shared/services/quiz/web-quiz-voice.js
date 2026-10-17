@@ -71,6 +71,14 @@ const SHARED_SETS = Object.freeze({
   'el-reva-cc0c3b': 'cbfa2478',
 });
 
+// The voice each recorded set was recorded in, for a plan that names a set by its name alone (`quiz_voices`):
+// the set's name (setIdOf) → its voice, as the set's manifest names it (a test holds both).
+const SET_VOICES = Object.freeze({
+  'el-bella-cff2e4': Object.freeze({ ...ONE_VOICE.en, model: 'eleven_multilingual_v2', settings: Object.freeze({ ...ONE_SETTINGS, speed: 0.9 }) }),
+  'el-reva-cc0c3b': Object.freeze({ provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4',
+    settings: Object.freeze({ stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 }) }),
+});
+
 /**
  * { provider, voice } for a quiz language, or null. `oneVoice`: true (ONE_VOICE) or a plan (web-quiz-one-voice-flag.js:
  * its voice for the language), with the voice's name, model and settings.
@@ -98,7 +106,7 @@ function voiceTag(language, opts) {
 /** The voice a tag or a rendering's name (setIdOf) names ({ provider, voice, … }): in `plan`'s voices, else either table; or null. */
 function voiceOfTag(tag, plan) {
   const planVoices = plan && typeof plan === 'object' && plan.voices ? Object.values(plan.voices) : [];
-  const all = [...planVoices, ...Object.values(ONE_VOICE), ...Object.values(QUIZ_VOICE)].filter(Boolean);
+  const all = [...planVoices, ...Object.values(ONE_VOICE), ...Object.values(QUIZ_VOICE), ...Object.values(SET_VOICES)].filter(Boolean);
   return all.find((v) => setIdOf(v) === tag) || all.find((v) => tagOf(v) === tag) || null;
 }
 
@@ -113,4 +121,4 @@ function sharedSets(plan) {
   return out;
 }
 
-module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSets };
+module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, SET_VOICES, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSets };
