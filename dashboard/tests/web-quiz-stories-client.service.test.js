@@ -1264,6 +1264,62 @@ describe('the reader zooms to the printed line', () => {
   });
 });
 
+describe('the text lens wins over unsure word boxes (band setting)', () => {
+  const LINES = [{ i0: 0, i1: 2, box: [100, 800, 300, 60] }, { i0: 3, i1: 4, box: [220, 860, 200, 60] }];
+  const LENS = /<img class="wqs-lens" src="\/s\/b-1\/p01-band.webp" width="1440" height="260"[^>]*style="left:100px;top:800px;width:520px;height:130px"/;
+  function page(over) { const bk = book(); bk.pages[0] = { ...bk.pages[0], lines: LINES, ...over }; return bk; }
+  async function run(bk) {
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    const h = root.innerHTML; const cam = root.querySelector('[data-cam]');
+    fire(root, 'main'); e.calls.ra[0].o.onWord(1);
+    const mk = root.querySelector('[data-mk]');
+    const after = { cam: cam.style.transform, mk: mk ? [mk.style.left, mk.style.top, mk.style.width, mk.style.height, mk.style.opacity, mk.className] : null };
+    e.calls.ra[0].o.onEnd(); fire(root, 'main'); fire(root, 'mic'); e.calls.ask[0].onStream({});
+    return { e, h, after, mic: root.innerHTML };
+  }
+  // pinned from the reader BEFORE the lens rule (the setting OFF, and a good-box page, must not move a byte); re-pinned on the lines-stay-whole reader
+  const PIN = {
+    off: {"h":"<section class=\"wqs \" data-screen=\"story-page\" lang=\"en\" dir=\"ltr\"><div class=\"wqs-top\" dir=\"ltr\"><button class=\"wqs-ic\" data-back data-tap=\"back\" aria-label=\"Back\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z\"/></svg></button><h2 lang=\"en\" dir=\"ltr\">Mina Testwala</h2><button class=\"wqs-ic wqs-snd\" data-snd data-tap=\"snd\" aria-pressed=\"false\" aria-label=\"Sound\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z\"/></svg></button></div><div class=\"wqs-stage wqs-st2\" data-stage><div class=\"wqs-cam\" data-cam style=\"width:720px;height:1080px\"><img src=\"/s/b-1/p01.webp\" width=\"720\" height=\"1080\" alt=\"\" onerror=\"WQSTORIES._bad(this)\"><div data-ra></div><i class=\"wqs-mk\" data-mk></i></div></div><button class=\"wqs-whole\" data-whole data-tap=\"cam\" aria-pressed=\"false\">Whole page</button><div class=\"wqs-extra\" data-extra><button class=\"wqs-sec\" data-tap=\"alt\">Your turn</button></div><div class=\"wqs-lrl\" data-lrl></div><div class=\"wqs-ctl\"><button class=\"wqs-arr\" data-tap=\"prev\" disabled aria-label=\"Page before\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z\"/></svg></button><button class=\"wqs-main\" data-main data-primary data-tap=\"main\" data-sound data-trigger=\"tap\">Listen</button><button class=\"wqs-slow\" data-tap=\"slow\" aria-pressed=\"false\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 16a9 7 0 0 1 18 0zm17-3a2 2 0 1 0 2.5-2.5zM6 16v3h3v-3zm9 0v3h3v-3z\"/></svg> Slower</button><button class=\"wqs-arr\" data-tap=\"next\" aria-label=\"Next page\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M8.6 7.4 10 6l6 6-6 6-1.4-1.4 4.6-4.6z\"/></svg></button></div></section>","after":{"cam":"translate(-78.6px,-480.6px) scale(1.034)","mk":["160px","810px","30px","50px","1","wqs-mk"]},"mic":"<section class=\"wqs \" data-screen=\"story-read\" lang=\"en\" dir=\"ltr\"><div class=\"wqs-top\" dir=\"ltr\"><button class=\"wqs-ic\" data-back data-tap=\"close\" aria-label=\"Close\">✕</button><h2 lang=\"en\" dir=\"ltr\"></h2></div><img class=\"wqs-jg wqs-g0\" src=\"/wq/jugnu/hello.webp\" width=\"72\" height=\"72\" alt=\"\" data-jg onerror=\"WQSTORIES._bad(this)\"><div class=\"wqs-stage wqs-st2\" data-stage><div class=\"wqs-cam\" data-cam style=\"width:720px;height:1080px\"><img src=\"/s/b-1/p01.webp\" width=\"720\" height=\"1080\" alt=\"\" onerror=\"WQSTORIES._bad(this)\"><div class=\"wqs-lr\" data-lr></div><i class=\"wqs-mk\" data-mk></i></div></div><button class=\"wqs-whole\" data-whole data-tap=\"cam\" aria-pressed=\"false\">Whole page</button><button class=\"wqs-main wqs-done\" data-primary data-tap=\"main\">I&#39;m done <svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z\"/></svg></button></section>"},
+    good: {"h":"<section class=\"wqs \" data-screen=\"story-page\" lang=\"en\" dir=\"ltr\"><div class=\"wqs-top\" dir=\"ltr\"><button class=\"wqs-ic\" data-back data-tap=\"back\" aria-label=\"Back\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z\"/></svg></button><h2 lang=\"en\" dir=\"ltr\">Mina Testwala</h2><button class=\"wqs-ic wqs-snd\" data-snd data-tap=\"snd\" aria-pressed=\"false\" aria-label=\"Sound\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z\"/></svg></button></div><div class=\"wqs-stage wqs-st2\" data-stage><div class=\"wqs-cam\" data-cam style=\"width:720px;height:1080px\"><div data-ra></div></div></div><button class=\"wqs-whole\" data-whole data-tap=\"cam\" aria-pressed=\"false\">Whole page</button><div class=\"wqs-extra\" data-extra><button class=\"wqs-sec\" data-tap=\"alt\">Your turn</button></div><div class=\"wqs-lrl\" data-lrl></div><div class=\"wqs-ctl\"><button class=\"wqs-arr\" data-tap=\"prev\" disabled aria-label=\"Page before\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z\"/></svg></button><button class=\"wqs-main\" data-main data-primary data-tap=\"main\" data-sound data-trigger=\"tap\">Listen</button><button class=\"wqs-slow\" data-tap=\"slow\" aria-pressed=\"false\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 16a9 7 0 0 1 18 0zm17-3a2 2 0 1 0 2.5-2.5zM6 16v3h3v-3zm9 0v3h3v-3z\"/></svg> Slower</button><button class=\"wqs-arr\" data-tap=\"next\" aria-label=\"Next page\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M8.6 7.4 10 6l6 6-6 6-1.4-1.4 4.6-4.6z\"/></svg></button></div></section>","after":{"cam":"translate(-78.6px,-480.6px) scale(1.034)","mk":null},"mic":"<section class=\"wqs \" data-screen=\"story-read\" lang=\"en\" dir=\"ltr\"><div class=\"wqs-top\" dir=\"ltr\"><button class=\"wqs-ic\" data-back data-tap=\"close\" aria-label=\"Close\">✕</button><h2 lang=\"en\" dir=\"ltr\"></h2></div><img class=\"wqs-jg wqs-g0\" src=\"/wq/jugnu/hello.webp\" width=\"72\" height=\"72\" alt=\"\" data-jg onerror=\"WQSTORIES._bad(this)\"><div class=\"wqs-stage wqs-st2\" data-stage><div class=\"wqs-cam\" data-cam style=\"width:720px;height:1080px\"><div class=\"wqs-lr\" data-lr></div></div></div><button class=\"wqs-whole\" data-whole data-tap=\"cam\" aria-pressed=\"false\">Whole page</button><button class=\"wqs-main wqs-done\" data-primary data-tap=\"main\">I&#39;m done <svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z\"/></svg></button></section>"},
+  };
+  test('boxes unsure + lines that fit + a band: the lens replaces the zoomed print; the box glides on the lens', async () => {
+    const { e, h, after } = await run(page({ boxes_ok: false }));
+    expect(h).toMatch(LENS);
+    expect(h).toContain('Whole page');
+    expect(h).toContain('data-mk');
+    const c = e.S._cam([[100, 800, 520, 130]], 360, 540, 720, 1080, false, 6);
+    expect(after.cam).toBe(`translate(${c.tx}px,${c.ty}px) scale(${c.s})`);
+    expect(after.mk[4]).toBe('1');
+  });
+  test('Your turn on a lens page: the picture and the lens under the live-read layer (never a white stage); the camera frames the band and holds still', async () => {
+    for (const lang of ['en', 'ur']) {
+      const bk = page({ boxes_ok: false }); bk.lang = lang; bk.dir = lang === 'ur' ? 'rtl' : 'ltr';
+      const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e, { lang });
+      toMic(e, root); e.calls.ask[e.calls.ask.length - 1].onStream({ id: 'stream' });
+      const h = root.innerHTML;
+      expect(screenOf(h)).toBe('story-read');
+      expect(h).toMatch(/data-cam[^>]*><img src="\/s\/b-1\/p01\.webp"[^>]*><div class="wqs-lr" data-lr><\/div>/);
+      expect(h).toMatch(LENS);
+      const c = e.S._cam([[100, 800, 520, 130]], 360, 540, 720, 1080, lang === 'ur', 6, 1);
+      expect(root.querySelector('[data-cam]').style.transform).toBe(`translate(${c.tx}px,${c.ty}px) scale(${c.s})`);
+    }
+  });
+  test('the same page with the setting OFF (no band): byte-identical to before', async () => {
+    const r = await run(page({ boxes_ok: false, text_band: null }));
+    expect({ h: r.h, after: r.after, mic: r.mic }).toEqual(PIN.off);
+  });
+  test('good boxes + lines: the zoomed print as before, byte-identical', async () => {
+    const r = await run(page({ boxes_ok: true }));
+    expect({ h: r.h, after: r.after, mic: r.mic }).toEqual(PIN.good);
+  });
+  test('boxes unsure, no lines, a band: the lens as before', async () => {
+    const bk = book(); bk.pages[0].boxes_ok = false;
+    const { h } = await run(bk);
+    expect(h).toMatch(LENS);
+    expect(h).toContain('Whole page');
+  });
+});
+
 describe('the finish card and Home', () => {
   async function toDone(e) { const root = await openReader(e); runBook(e, root); await flush(); await flush(); return root; }
   test('card_v3: loads wq-finish-card at our ?v=, mounts on our button row with the real API, hides our block', async () => {

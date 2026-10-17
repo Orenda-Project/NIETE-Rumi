@@ -94,11 +94,12 @@
       c = ck[ci];
       st = R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + lh);   // the live reader draws the picture itself on a boxed page
       paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg') +
-        (R.mode() === 'z' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
+        (R.mode() === 'z' || R.mode() === 'l' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
       var z = R.mode() === 'z';
       // the camera frames every line of the part being read, whole (both edges, any writing direction), once, and holds
       // still while the child reads (a line's own zoom, or the larger-print floor, would push lines off the edge)
       if (z) { var LN = R.lines(), bs = [], seen = {}; for (var i = c[0]; i <= c[1]; i++) { var n = LN.of[i]; if (n != null && !seen[n]) { seen[n] = 1; bs = bs.concat(LN.l[n].bs); } } R.camTo(bs, 1); }
+      else if (R.mode() === 'l') R.camTo([p.text_band.box], 1);   // a lens page: the band framed, held still, the live-read marks on the picture
       var ws = p.words.slice(c[0], c[1] + 1), sw = spoken(ws);
       // the live reader is asked only the spoken words; its marks come back on the page's own word numbers
       var back = function (r) { var k = 0, mk = (r = r || {}).marks || []; r.marks = ws.map(function (w) { return w.silent ? 'silent' : mk[k++]; }); result(r); };
