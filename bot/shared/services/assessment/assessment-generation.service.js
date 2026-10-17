@@ -729,7 +729,7 @@ async function generateExam(args) {
 // calls it, so a paper without a pattern is built exactly as it always was.
 
 const Patterns = require('./patterns');
-const { applyLayout, takenNote, verseLines } = require('./fde-layout');
+const { applyLayout, takenNote, verseLines, scopeLessons } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 const Reader = require('./fde-reader');
@@ -895,6 +895,7 @@ const RULE = {
   urduConceptOnce: 'Q1 asks each grammar concept (شکیہ، تمنائی، شرط و جزا، حرفِ عطف, and so on) in one item only: no other Q1 item names its words, states its rule or gives its example. Each of these is a concept of its own: اسم صوت، اسم آلہ، اسم معرفہ، اسم نکرہ، صفت، موصوف; a definition item asks its concept, so an item that says what a term is («جو لفظ … آواز ظاہر کرے») and an item that asks for that term are one concept asked twice. Q4 on this paper asks گروہی الفاظ, حروفِ شرط و جزا, a present-to-future tense change and ارکان سازی; no Q1 item asks any of these.',
   urduHomograph: 'A homograph (ایک ہی املا) item never quotes the pair\'s word in its stem, not even inside a longer word or phrase; it gives both meanings only.',
   urduVerbSense: 'Give a verb sense by a paraphrase or a sentence, never by its infinitive («بننا», «ڈالنا»): the infinitive prints the letters of the word it asks for.',
+  urduFormFamily: 'In a واحد/جمع or مذکر/مؤنث item, every option is a form of the asked word\'s family.',
   urduOneTable: 'Q1 takes at most 3 items from one word table of the book (a متشابہ، متضاد or مترادف list), and a distractor is never another Q1 item\'s key.',
   oneCorrect: 'Every MCQ has exactly one correct option: check that no other option is also true (another number that fits the rule, a second work by the same author, a value equal to the key).',
   optionsOnly: 'Write the four options only in `options`; never list (a), (b), (c), (d) inside the question.',
@@ -977,6 +978,17 @@ const ENGLISH_PAGES_SLOTS = Object.freeze({
     prompt_rule: 'Five one-line items, each ending with its direction in round brackets.',
     grain_kind: 'one-line transformation',
   },
+});
+
+// Urdu Q1 on chosen lessons or pages: grammar only from those lessons' own «قواعد کا میدان» sections,
+// less the kinds Q4 asks; the rest of Q1 is their vocabulary, word meanings and comprehension. The
+// slot's rule keeps its lessons 1–3 and options sentences from `keepFrom` on.
+const URDU_LESSONS_Q1 = Object.freeze({
+  keepFrom: 'Never lessons 1, 2 or 3',
+  kind: (terms) => `one point per item: lesson facts, word meanings and comprehension from these lessons${terms.length ? `, and grammar only from their قواعد sections (${terms.join('، ')})` : ''}`,
+  rule: (terms) => (terms.length
+    ? `Twenty four-option MCQs. Grammar only from these lessons' قواعد sections, each concept once: ${terms.join('، ')}; every other item is vocabulary, word meaning or comprehension from these lessons. `
+    : 'Twenty four-option MCQs. These lessons\' قواعد sections give Q1 no grammar point to ask (Q4 asks theirs); every item is vocabulary, word meaning or comprehension from these lessons. '),
 });
 
 // The pages Urdu items are never set from: lessons 1–3 (the Hamd, the Naat, the third).
@@ -1103,6 +1115,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   // Maths Section C on chosen pages: the fixed one-of-each-kind list (draw, area, …) is
   // FDE's Units 11–12 syllabus, so it is not asked for; marks and shape stay.
   const mathsC = !fde && key === 'maths' && section.id === 'C';
+  const urduLessons = !fde && key === 'urdu' ? scopeLessons(P, scope) : null;
   const given = Array.isArray(slots) && slots.length ? slots : section.slots;
   const shaped = given.map((s) => {
     if (mathsC && Array.isArray(s.kinds) && s.kinds.length) {
@@ -1121,6 +1134,16 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
           number_size: mathsSlot.number_size,
         },
         families: null,
+      };
+    }
+    // Urdu on chosen lessons: Q1's grammar is those lessons' own, never "half grammar" from lessons 4–10.
+    if (urduLessons && s.slot === 'urdu.A.Q1' && typeof s.prompt_rule === 'string') {
+      const terms = [...new Set(urduLessons.flatMap((l) => l.grammar.filter((g) => !g.q4).map((g) => g.ur)))];
+      const at = s.prompt_rule.indexOf(URDU_LESSONS_Q1.keepFrom);
+      return {
+        ...s,
+        prompt_rule: URDU_LESSONS_Q1.rule(terms) + (at >= 0 ? s.prompt_rule.slice(at) : ''),
+        grain: s.grain && { ...s.grain, kind: URDU_LESSONS_Q1.kind(terms) },
       };
     }
     // English on chosen pages: the slot's FDE topic list goes; the points come from the pages.
@@ -1195,7 +1218,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     // Word MCQs (anagram, homophone, spelling) on the language papers; number options on Maths and Science.
     if (key === 'english') rules.push(RULE.oneKeyEnglish);
     if (key === 'urdu') rules.push(RULE.oneKey, RULE.urduSpelling, RULE.oneQuestion);
-    if (key === 'urdu' && list.some((s) => s.slot === 'urdu.A.Q1')) rules.push(RULE.urduConceptOnce, RULE.urduTermWord, RULE.urduHomograph, RULE.urduVerbSense, RULE.urduOneTable);
+    if (key === 'urdu' && list.some((s) => s.slot === 'urdu.A.Q1')) rules.push(RULE.urduConceptOnce, RULE.urduTermWord, RULE.urduHomograph, RULE.urduVerbSense, RULE.urduFormFamily, RULE.urduOneTable);
     if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
     if (key === 'maths') rules.push(RULE.propertyOneKey);
   }
@@ -2096,6 +2119,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // whole. Decided on the reply as the model wrote it, BEFORE the held-content filter, so an
   // item the filter drops is still never refilled.
   const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
+  if (firstLaid.held) logToFile('[assessment] held items', { requestId, pattern, held: firstLaid.held });
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall
     .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
