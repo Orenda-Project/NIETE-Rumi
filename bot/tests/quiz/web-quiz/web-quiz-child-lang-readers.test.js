@@ -17,7 +17,7 @@ const CALL = /\b(childLanguage|classLanguage)\(/;
 // file → the number of calling lines it may have, and why
 const KNOWN = {
   'web-quiz-child-lang.js': [1, 'the order itself (ladder)'],
-  'student-quiz.service.js': [2, 'the /quiz reply: the newest quiz, else the family\'s; library lessons only → the family\'s'],
+  'student-quiz.service.js': [1, 'the /quiz reply: whether its quizzes are library lessons only (the switch read last), beside its ladder line'],
   'web-quiz-hub.js': [2, 'switch off: the teacher pick and the library\'s read of the child, beside their ladder lines'],
   'web-quiz-next-offer-result.js': [1, 'after childLang(): a library lesson\'s language before English'],
   'web-quiz-bind.service.js': [1, 'after childLang(): a library lesson\'s language before the family row\'s'],

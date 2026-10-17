@@ -60,6 +60,25 @@ async function chosenOf(studentIds) {
   }
 }
 
+/**
+ * These children's kept row for one reply to their phone: the first grown-up's choice, else the language they joined
+ * in when every joined child agrees (siblings who joined in two languages: none). Switch off: null, nothing read.
+ */
+async function keptOf(studentIds) {
+  const ids = [...new Set((studentIds || []).filter(Boolean).map(String))];
+  if (!ids.length) return null;
+  try {
+    if (!(await R.on())) return null;
+    const rows = await readRows(ids);
+    const chosen = ids.map((id) => rows[id]).find((r) => r && r.source === 'chosen');
+    if (chosen) return chosen;
+    const joins = [...new Set(ids.map((id) => rows[id]).filter((r) => r && r.source === 'join').map((r) => r.language))];
+    return joins.length === 1 ? { language: joins[0], source: 'join' } : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /** The join: the language a child joined in, once (an existing row is never changed). Switch decided by the caller. */
 async function joined(canonicalId, language) {
   if (!canonicalId || !R.linkLang(language)) return false;
@@ -88,4 +107,4 @@ async function choose(canonicalId, language) {
   }
 }
 
-module.exports = { stored, chosenOf, joined, choose, TABLE };
+module.exports = { stored, chosenOf, keptOf, joined, choose, TABLE };

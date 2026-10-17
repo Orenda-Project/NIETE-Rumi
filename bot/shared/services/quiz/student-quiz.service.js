@@ -151,15 +151,15 @@ async function open(phone, { language = 'en' } = {}) {
   const bound = Boolean((await require('./web-quiz-identity-flags').flags()).phoneBind);
   const known = bound ? await require('./child-phone-bindings.repo').childrenForPhone(phone) : await StudentIdentity.findByPhone(phone);
   const quizzes = await quizzesForStudents(known);
-  let lang = clampLanguage(childLanguage(quizzes) || language);
-  // web_quiz_return_lang: a phone whose quizzes are all library lessons speaks the family's language, not a lesson's
-  // (the switch is read only then; off: today's)
-  if (quizzes.length && !classLanguage(quizzes) && await require('./web-quiz-return-lang').on()) lang = clampLanguage(language);
-  // ...and a grown-up's choice kept on the home's grown-ups corner (child_language 'chosen') speaks before any quiz: read
-  // only while the home is on, where that choice is made (switch off: nothing read beyond the cached switch row)
-  const chosen = known.length && (await require('./web-quiz-hub-flags').flags()).hub
-    ? await require('./child-language.repo').chosenOf(known.map((s) => s.id)) : null;
-  if (chosen) lang = chosen;
+  // web_quiz_return_lang: a phone whose quizzes are all library lessons speaks the child's or the family's language, not
+  // a lesson's (the switch is read only then, last in the &&; off: today's)
+  const lessonsOnly = Boolean(quizzes.length && !classLanguage(quizzes) && await require('./web-quiz-return-lang').on());
+  // the child's kept row (child_language: a grown-up's choice, else the language they joined in): read only while the
+  // home is on, where that choice is made (switch off: null, nothing read beyond the cached switch row)
+  const own = known.length && (await require('./web-quiz-hub-flags').flags()).hub
+    ? await require('./child-language.repo').keptOf(known.map((s) => s.id)) : null;
+  // the one order (web-quiz-child-lang.js): chosen → the newest class quiz → joined → a library lesson → the family's
+  const lang = clampLanguage(require('./web-quiz-child-lang').ladder({ own, history: quizzes, lessons: !lessonsOnly }) || language);
   // guest home (web_quiz_guest_home): no child on this phone → ONE guest reply; false → today's path below.
   if (!known.length && await require('./web-quiz-guest-home').offer(phone, lang)) return true;
   // The kid hub (app_settings web_quiz_hub): ONE link button to this phone's own children's hub;
