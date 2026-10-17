@@ -143,9 +143,10 @@ router.post('/bind/undo', handle((req) => {
 const StudentJoin = () => require('../services/quiz/web-quiz-student-join');
 // the page's shell answer: 404 with the switch off (the edge then falls through to the portal's own page), else the language
 router.get('/join/page/:token', handle(async (req, res) => {
-  const out = await StudentJoin().pageInfo({ t: req.params.token });
+  // web_quiz_one_face: `one_face: true` only when on (never waited for); off, the answer is the module's own, byte for byte
+  const out = await OneFace.carry(StudentJoin().pageInfo({ t: req.params.token }));
   if (out.off) return res.status(404).json({ error: 'off' });
-  if (out.stale) return res.status(410).json({ error: 'stale', lang: out.lang, ...(out.bot ? { bot: out.bot } : {}) });
+  if (out.stale) return res.status(410).json({ error: 'stale', lang: out.lang, ...(out.bot ? { bot: out.bot } : {}), ...(out.one_face === true ? { one_face: true } : {}) });
   return out;
 }));
 router.post('/join/grade', handle((req) => StudentJoin().gradeTap({ t: (req.body || {}).t, grade: (req.body || {}).grade, device: req.get('x-wq-device') || undefined })));
