@@ -94,6 +94,27 @@ describe('web_quiz_class_doors on finish\'s fold', () => {
     expect(await Door.foldField({ ...RUN, invited_by_student_id: 'someone-else' })).toEqual({});
     expect(await Door.foldField({ ...RUN, user_id: TEACHER })).toEqual({});
   });
+  // The watch root (app_settings VALUE web_quiz_watch_root) is a code with no parent, so the hub counts it as teacher-sent;
+  // its table is every school's strangers. Its video codes hang under it. Neither is the child's class.
+  const ROOT = '66666666-6666-4666-8666-000000000071';
+  const WATCH = '77777777-7777-4777-8777-000000000071';
+  const rootCodes = (over = {}) => ({
+    quiz_share_codes: [...db.quiz_share_codes,
+      { id: ROOT, code: 'ROOT01', quiz_id: 'q-1', active: true, expires_at: ahead(240), teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(2) },
+      { id: WATCH, code: 'WTCH01', quiz_id: 'q-1', active: true, expires_at: ahead(240), teacher_user_id: TEACHER, parent_share_code_id: ROOT, invited_by_student_id: null, created_at: ago(2) }],
+    quiz_sessions: [...db.quiz_sessions,
+      { id: 's2', share_code_id: ROOT, quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 5, total_questions_answered: 10, completed_at: ago(0.5), created_at: ago(0.5) },
+      { id: 's3', share_code_id: WATCH, quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 6, total_questions_answered: 10, completed_at: ago(0.2), created_at: ago(0.2) }],
+    ...over,
+  });
+  test('a run on the watch root or on a video code under it: never class_doors (a class child keeps no_class off)', async () => {
+    seed([...HOME_ON, ON(CD), { key: 'web_quiz_watch_root', value: ROOT }]);
+    seed([...HOME_ON, ON(CD), { key: 'web_quiz_watch_root', value: ROOT }], rootCodes());
+    jest.setSystemTime(NOW + 60 * 1000); // past watch-root.js's own 30 s cache, which earlier tests filled with "no root"
+    expect(await Door.foldField({ ...RUN, id: 's2', share_code_id: ROOT })).toEqual({ card_fold: true });
+    expect(await Door.foldField({ ...RUN, id: 's3', share_code_id: WATCH })).toEqual({ card_fold: true });
+    expect(await Door.foldField(RUN)).toEqual({ card_fold: true, class_doors: true });
+  });
   test('GOLDEN: absent, false, the string \'true\' -> today\'s fold; home off -> {}', async () => {
     for (const rows of [HOME_ON, [...HOME_ON, { key: CD, value: false }], [...HOME_ON, STR(CD)]]) {
       seed(rows);
