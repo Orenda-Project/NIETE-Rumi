@@ -53,7 +53,7 @@ const V2 = [...ON, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_qui
 
 let db;
 // A child who just joined on their own: a name and a grade, no class, no quiz yet.
-function seed(settings, { quizLang = null, failSettings = false } = {}) {
+function seed(settings, { quizLang = null, lessonOnly = false, failSettings = false } = {}) {
   db = {
     app_settings: settings,
     students: [{ id: KID, student_name: 'Zara Testwala', student_name_urdu: 'زارا', self_reported_class: '2', list_id: null, is_active: true, phone: PHONE, created_at: ago(1) }],
@@ -62,7 +62,8 @@ function seed(settings, { quizLang = null, failSettings = false } = {}) {
   };
   if (quizLang) {
     db.quizzes.push({ id: 'q-1', topic: 'Shapes', subject: 'Maths', language: quizLang, grade: '2', video_id: null });
-    db.quiz_share_codes.push({ id: 'sc-1', code: 'SHAP01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Shapes', language: quizLang, teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(30) });
+    // lessonOnly: a library lesson code (the only kind a self-joined child gets from the home's videos)
+    db.quiz_share_codes.push({ id: 'sc-1', code: 'SHAP01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Shapes', language: quizLang, teacher_user_id: TEACHER, parent_share_code_id: lessonOnly ? 'sc-root' : null, invited_by_student_id: null, created_at: ago(30) });
     db.quiz_sessions.push({ id: 's1', share_code_id: 'sc-1', quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 4, total_questions_answered: 5, mastery_percentage: 80, completed_at: ago(20), created_at: ago(20), student_class: '2' });
   }
   const fake = makeFake(db);
@@ -90,9 +91,9 @@ beforeEach(() => {
 });
 
 /** WhatsApp /quiz for the family's language (the users row the ingress passes), then the page it links to. */
-async function returnVisit(settings, family, { quizLang = null, page = {} } = {}) {
+async function returnVisit(settings, family, { quizLang = null, lessonOnly = false, page = {} } = {}) {
   redis._store.clear();
-  seed(settings, { quizLang });
+  seed(settings, { quizLang, lessonOnly });
   expect(await SQ.open(PHONE, { language: family })).toBe(true);
   const [, msg] = WhatsAppService.sendCtaUrl.mock.calls[WhatsAppService.sendCtaUrl.mock.calls.length - 1];
   const token = /\/h\/([^/?#]+)$/.exec(msg.url)[1];
@@ -268,5 +269,55 @@ describe('?lang= (the join\'s first home): honoured with web_quiz_return_lang on
     const asked = await page(settings, { lang: 'ur' });
     expect(asked).toEqual(base);
     expect(asked.lang).toBe('en');
+  });
+});
+
+describe('a child whose only quizzes are library lessons: the lesson\'s language never outvotes the family\'s', () => {
+  const { resolveUx } = require('../../../shared/config/ux-strings');
+  const Words = require('../../../shared/services/first-touch/one-door.strings');
+  const replyBody = (lang) => [resolveUx('sqHubBody', { language: lang }), Words.str('od.child.body', lang)];
+
+  test('switch on, Urdu family, one English lesson code: an Urdu reply, l=ur, an Urdu home', async () => {
+    const { msg, token, out } = await returnVisit(ON, 'ur', { quizLang: 'en', lessonOnly: true });
+    expect(replyBody('ur')).toContain(msg.body);
+    expect(T.verify(token, 'h').l).toBe('ur');
+    expect(out.lang).toBe('ur');
+  });
+
+  test('switch on, a lesson code beside a class quiz: the class quiz decides (today)', async () => {
+    seed(ON, { quizLang: 'en' });
+    db.quizzes.push({ id: 'q-2', topic: 'Birds', subject: 'Science', language: 'ur', grade: '2', video_id: null });
+    db.quiz_share_codes.push({ id: 'sc-2', code: 'BIRD01', quiz_id: 'q-2', active: true, expires_at: ahead(240), topic: 'Birds', language: 'ur', teacher_user_id: TEACHER, parent_share_code_id: 'sc-1', invited_by_student_id: null, created_at: ago(2) });
+    db.quiz_sessions.push({ id: 's2', share_code_id: 'sc-2', quiz_id: 'q-2', student_id: KID, status: 'completed', correct_answers: 3, total_questions_answered: 5, mastery_percentage: 60, completed_at: ago(1), created_at: ago(1), student_class: '2' });
+    expect(await SQ.open(PHONE, { language: 'ur' })).toBe(true);
+    const [, msg] = WhatsAppService.sendCtaUrl.mock.calls[0];
+    const token = /\/h\/([^/?#]+)$/.exec(msg.url)[1];
+    expect(T.verify(token, 'h').l).toBe('en');
+    expect((await Hub.hub(token, A)).lang).toBe('en');
+  });
+
+  test.each([
+    ['absent', HUB],
+    ['the string \'true\'', [...HUB, RET('true')]],
+  ])('GOLDEN: switch %s, the same child: today\'s English reply, today\'s link, today\'s page', async (_n, settings) => {
+    const realNow = Date.now;
+    Date.now = () => NOW;
+    try {
+      const { msg, out } = await returnVisit(settings, 'ur', { quizLang: 'en', lessonOnly: true });
+      expect(replyBody('en')).toContain(msg.body);
+      expect(msg.url).toBe(`https://portal.example.test/h/${T.signHub([KID])}`);
+      expect(out.lang).toBe('en');
+      redis._store.clear();
+      seed(HUB, { quizLang: 'en', lessonOnly: true });
+      expect(out).toEqual(await Hub.hub(T.signHub([KID]), A));
+    } finally { Date.now = realNow; }
+  });
+
+  test('classLanguage: the newest class quiz\'s language, else null; with childLanguage it is childLanguage', () => {
+    const h = [{ lessonCode: true, language: 'en' }, { lessonCode: false, language: 'ur' }];
+    expect(SQ.classLanguage(h)).toBe('ur');
+    expect(SQ.classLanguage([{ lessonCode: true, language: 'en' }])).toBeNull();
+    expect(SQ.classLanguage([])).toBeNull();
+    for (const x of [h, [{ lessonCode: true, language: 'en' }], [], null]) expect(SQ.classLanguage(x) || SQ.childLanguage(x)).toBe(SQ.childLanguage(x));
   });
 });

@@ -399,7 +399,7 @@ async function askedLang(lang) {
 }
 
 /**
- * The language the /quiz reply spoke, carried by the hub link (`l`, en|ur), for a child with no quiz yet: only under
+ * The language the /quiz reply spoke, carried by the hub link (`l`, en|ur), for a child with no class quiz yet: only under
  * web_quiz_return_lang (web-quiz-return-lang.js, 30 s cache, fails closed). No `l`, or the switch off: null (today's).
  */
 async function linkedLang(token) {
@@ -422,7 +422,7 @@ async function lockedHub(ids, why, asked = null, linked = null) {
     if (live.length) {
       const StudentQuiz = require('./student-quiz.service');
       const history = await StudentQuiz.quizzesForStudents(live);
-      lang = clampLanguage(StudentQuiz.childLanguage(history) || linked);
+      lang = clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
     } else if (linked) lang = linked;
   } catch (_) { /* English */ }
   if (asked) lang = asked;
@@ -468,7 +468,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
   const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null) : null;
   const history = ctx ? ctx.history : [];
-  const lang = asked || clampLanguage(require('./student-quiz.service').childLanguage(history) || linked);
+  const StudentQuiz = require('./student-quiz.service');
+  const lang = asked || clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     lang,
