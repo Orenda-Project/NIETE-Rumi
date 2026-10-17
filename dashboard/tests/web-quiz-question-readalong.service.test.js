@@ -33,16 +33,16 @@ function fakeEl(sel) {
 
 const Q_URL = (n) => `https://r2.example/q${n}.ogg`;
 const WORDS = [{ i: 0, t: 'Which', s_ms: 0, e_ms: 200 }, { i: 1, t: 'month?', s_ms: 240, e_ms: 600 }];
-function questions({ ra = true } = {}) {
+function questions({ ra = true, text = 'Which month?' } = {}) {
   return [1, 2].map((n) => ({
-    qid: `q${n}`, i: n, text: 'Which month?', correct_slot: 'A',
+    qid: `q${n}`, i: n, text, correct_slot: 'A',
     options: [{ slot: 'A', text: 'February' }, { slot: 'B', text: 'May' }],
     audio: { q: Q_URL(n), opts: [`https://r2.example/a${n}.ogg`, `https://r2.example/b${n}.ogg`, null, null], why: null,
       ...(ra ? { ra: { v: 1, lang: 'en', dir: 'ltr', ms: 800, words: WORDS } } : {}) },
   }));
 }
 
-function page({ flag = false, player = true, ra = true } = {}) {
+function page({ flag = false, player = true, ra = true, sound = true, text } = {}) {
   const voiced = [];
   const clips = [];
   const utterances = [];
@@ -61,7 +61,7 @@ function page({ flag = false, player = true, ra = true } = {}) {
   const boot = {
     textContent: JSON.stringify({
       code: 'TEST', cls: { label: 'Class 3', teacher: 'Teacher Example', chips: [] }, live: {}, video: null,
-      quiz: { code: 'TEST', lang: 'en', topic: 'Months', grade: 1, questions: questions({ ra }) },
+      quiz: { code: 'TEST', lang: 'en', topic: 'Months', grade: 1, questions: questions({ ra, text }) },
       one_voice: true, voice_sets: {}, ...(flag ? { question_readalong: true } : {}),
     }),
   };
@@ -76,7 +76,7 @@ function page({ flag = false, player = true, ra = true } = {}) {
     },
     location: { search: '', origin: 'https://example.test' },
     navigator: { userAgent: 'test' },
-    localStorage: { setItem() {}, getItem: () => null, removeItem() {} },
+    localStorage: { setItem() {}, getItem: (k) => (k === 'wq_sound' && !sound ? 'false' : null), removeItem() {} },
     fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve('{}'), json: () => Promise.resolve({}) }),
     Audio: FakeAudio,
     AudioContext: function AudioContext() { return { state: 'running', resume() {}, suspend() {} }; },
@@ -96,6 +96,12 @@ function page({ flag = false, player = true, ra = true } = {}) {
           pause() { this.pauses += 1; if (this.state === 'playing') this.state = 'paused'; },
           destroy() { this.destroyed = true; },
           end() { this.state = 'ended'; if (opts.onEnd) opts.onEnd(); },
+          // a tap on printed word i, as the shared player handles it: the page's canTap first, then a seek and a play
+          seeks: [],
+          tap(i) {
+            if (opts.canTap && opts.canTap(i) === false) return;
+            this.seeks.push(i); this.plays += 1; this.state = 'playing'; voiced.push({ ra: data.audio.url, from: i });
+          },
         };
         mounts.push(p);
         return p;
@@ -168,6 +174,69 @@ describe('on (question_readalong + timings + the shared player)', () => {
     p.ctx.WQReadAlong.mount = () => { throw new Error('boom'); };
     p.wq.question(0);
     expect(p.voiced[0]).toEqual({ url: Q_URL(1) });
+  });
+});
+
+describe('a tap on a word of the stem: a control of the page\'s one voice', () => {
+  test('sound off on the page: a word tap plays nothing (the player is told no)', () => {
+    const p = page({ flag: true, sound: false });
+    p.wq.question(0);
+    const m = p.mounts[0];
+    const plays = m.plays;
+    const heard = p.voiced.length;
+    m.tap(1);
+    expect(m.plays).toBe(plays);
+    expect(m.seeks).toEqual([]);
+    expect(p.voiced).toHaveLength(heard);
+    expect(p.clips.filter((c) => !c.paused)).toEqual([]);
+  });
+
+  test('an option is being read: a word tap stops it first, then the stem plays from that word (one voice at a time)', async () => {
+    const p = page({ flag: true });
+    p.wq.question(0);
+    const m = p.mounts[0];
+    m.end();
+    await flush();
+    const opt = p.clips[p.clips.length - 1];
+    expect(opt.url).toBe('https://r2.example/a1.ogg');
+    expect(opt.paused).toBe(false);
+    m.tap(1);
+    expect(opt.paused).toBe(true);
+    expect(m.seeks).toEqual([1]);
+    expect(m.state).toBe('playing');
+    expect(p.clips.filter((c) => !c.paused)).toEqual([]);   // the stem is the only voice
+    // the stopped reading does not go on to the next option when the stem ends
+    const n = p.clips.length;
+    m.end();
+    await flush();
+    expect(p.clips).toHaveLength(n);
+  });
+
+  test('sound on: a word tap plays the stem from that word (control)', () => {
+    const p = page({ flag: true });
+    p.wq.question(0);
+    const m = p.mounts[0];
+    m.tap(1);
+    expect(m.seeks).toEqual([1]);
+    expect(m.state).toBe('playing');
+    expect(p.voiced[p.voiced.length - 1]).toEqual({ ra: Q_URL(1), from: 1 });
+  });
+});
+
+describe('a stem with maths in it ($…$): no read-along, the maths drawn as today', () => {
+  test('a $5$ stem with timings and the switch on: nothing is mounted, the maths element is drawn, the clip plays as today', () => {
+    const p = page({ flag: true, text: 'What is $5$ more than 7?' });
+    p.wq.question(0);
+    expect(p.mounts).toHaveLength(0);
+    expect(p.ctx.document.getElementById('wq').innerHTML).toContain('<math class="wq-m"');
+    expect(p.voiced[0]).toEqual({ url: Q_URL(1) });
+  });
+
+  test('a plain stem with the switch on: the player is mounted (control)', () => {
+    const p = page({ flag: true, text: 'What is 5 more than 7?' });
+    p.wq.question(0);
+    expect(p.mounts).toHaveLength(1);
+    expect(p.voiced[0]).toEqual({ ra: Q_URL(1) });
   });
 });
 

@@ -63,9 +63,11 @@ function spokenWords(alignment) {
 
 /**
  * The printed question's word times from the voice's alignment, or null: the spoken words must be the printed words
- * (punctuation and case aside), every word inside the clip, in order. → { ms, w: [[s_ms, e_ms], ...] }. Pure.
+ * (punctuation and case aside), every word inside the clip, in order. A stem with maths in it ($…$) has none: the page
+ * draws its maths, which has no printed word to light. → { ms, w: [[s_ms, e_ms], ...] }. Pure.
  */
 function timings({ printed, alignment, ms }) {
+  if (String(printed || '').includes('$')) return null;   // maths ($…$) is drawn, not printed as words: nothing to light
   const shown = printedWords(printed);
   const said = spokenWords(alignment);
   const end = Math.round(Number(ms) || 0);
@@ -107,6 +109,7 @@ const fileKey = (clipKey) => String(clipKey).replace(/\.ogg$/, '.json');
  */
 function raFor({ entry, url, printed, lang }) {
   const ra = entry && entry.q_ra;
+  if (String(printed || '').includes('$')) return null;   // maths: drawn as today, never lit word by word
   if (!ra || !Array.isArray(ra.w) || !entry.q || typeof url !== 'string' || url.indexOf(String(entry.q).split('/').pop()) < 0) return null;
   const words = printedWords(printed);
   if (!words.length || words.length !== ra.w.length) return null;

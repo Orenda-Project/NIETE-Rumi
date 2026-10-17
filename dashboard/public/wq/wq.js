@@ -1980,7 +1980,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // with one voice): the question's words glide as its clip plays, through the shared player (wq-readalong.js)
   // mounted on the stem, with the clip's word times (audio.ra). The page's own speaker button and reading stay the
   // one control: the player's button is hidden, the q part of the reading is played through it and the reading goes
-  // on when it ends. No player, no times or a mount that fails: the question is read as before.
+  // on when it ends. A tap on a word is that voice too: nothing with the page's sound off, else the page's voice
+  // stops first and the stem plays from that word (one voice at a time). No player, no times, a stem with maths in it
+  // ($…$, drawn as maths, no word to light) or a mount that fails: the question is read as before.
   var QRA_ON = Boolean(B.question_readalong);
   var QRA_CSS = '.wq-raq .wqra{margin:0}.wq-raq .wqra-ctl{display:none}.wq-raq .wqra .wqra-text{font:inherit;line-height:inherit;color:inherit}';
   function qraDrop() {
@@ -1991,7 +1993,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   function qraMount(q) {
     var au = q && q.audio;
-    if (!QRA_ON || !au || !au.q || !au.ra || !window.WQReadAlong) return;
+    if (!QRA_ON || !au || !au.q || !au.ra || !window.WQReadAlong || String(q.text || '').indexOf('$') >= 0) return;
     if (qra && qra.qid === q.qid && qra.url === au.q) return;
     qraDrop();
     var el = $('.wq-qtext');
@@ -2008,6 +2010,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       el.classList.add('wq-raq');
       o.p = WQReadAlong.mount(el, { v: 1, id: 'q/' + q.qid, lang: au.ra.lang, dir: au.ra.dir, audio: { url: au.q, ms: au.ra.ms }, words: au.ra.words }, {
         mode: 'text', leadMs: 50,
+        canTap: function () {
+          if (!SOUND) return false;
+          stopVoice();
+          var b = $('#wq-spk'); if (b) b.classList.remove('wq-speaking');
+          return true;
+        },
         onEnd: function () { var f = o.end; o.end = null; if (f) f(); },
         onState: function (s) {
           var f = o.end;

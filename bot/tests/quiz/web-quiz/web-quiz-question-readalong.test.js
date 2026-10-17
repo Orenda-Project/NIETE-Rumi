@@ -149,6 +149,19 @@ describe('A · the question\'s clip is recorded with its word times', () => {
     expect(QRA.timings({ printed: 'Go now', alignment: align('Go now'), ms: 100 })).toBe(null);
   });
 
+  test('a stem with maths in it ($…$) gets no times, even when its maths is said as the same words; a plain stem does', async () => {
+    const MATHS = 'What is $5$ more than 7?';
+    expect(QRA.timings({ printed: MATHS, alignment: align('What is 5 more than 7?'), ms: 2000 })).toBe(null);
+    expect(QRA.timings({ printed: 'What is 5 more than 7?', alignment: align('What is 5 more than 7?'), ms: 2000 }).w).toHaveLength(6);
+    const fake = seed([row(QID, { question_text: MATHS }), row(QID2)], { one: true });
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
+    const audio = fake.db.quizzes[0].meta.web_one.audio;
+    expect(audio[QID].q).toBeTruthy();
+    expect('q_ra' in audio[QID]).toBe(false);   // the page draws its maths as today
+    expect(audio[QID2].q_ra).toBeTruthy();       // the plain stem is timed
+    expect(jsonUploads().map((c) => c[1])).toEqual([audio[QID2].q.replace(/\.ogg$/, '.json')]);
+  });
+
   test('a clip already recorded is not recorded again just for its times', async () => {
     r2.headObject.mockImplementation(async () => ({ exists: true }));
     const fake = seed(ROWS(), { one: true });
@@ -212,6 +225,13 @@ describe('B · the page is told, behind web_quiz_question_readalong', () => {
     });
     expect('ra' in q2.audio).toBe(false);
     expect(JSON.stringify(out)).not.toContain('q_ra');
+  });
+
+  test('a stem with maths in it ($…$) is never served word times, even with times stored for its clip', () => {
+    const entry = { q: qKey(QID), q_ra: { ms: 2000, w: [[0, 100], [120, 200], [220, 300], [320, 400], [420, 500], [520, 600]] } };
+    const url = `https://r2.example/${qKey(QID)}?X-Amz-Signature=x`;
+    expect(QRA.raFor({ entry, url, printed: 'What is $5$ more than 7?', lang: 'en' })).toBe(null);
+    expect(QRA.raFor({ entry, url, printed: 'What is 5 more than 7?', lang: 'en' }).words).toHaveLength(6);
   });
 
   test('a question edited after its times were made (another word count) gets none', async () => {

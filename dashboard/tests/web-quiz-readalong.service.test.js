@@ -211,6 +211,28 @@ describe('read-along player: the highlight scheduler (fake clock)', () => {
     expect(p.state).toBe('playing');
   });
 
+  test('canTap: the page decides each word tap first; false = nothing plays, nothing is lit, no tap_word', () => {
+    const { RA, document, audio, events } = load();
+    const el = document.createElement('div');
+    const asked = [];
+    let allow = false;
+    const taps = [];
+    RA.mount(el, DATA, { canTap: (i) => { asked.push(i); return allow; }, onWordTap: (i) => taps.push(i) });
+    byClass(el, 'wqra-w')[3].click();
+    expect(asked).toEqual([3]);
+    expect(audio().plays).toBe(0);
+    expect(lit(el)).toEqual([]);
+    expect(taps).toEqual([]);
+    expect(events.map((e) => e.type)).not.toContain('tap_word');
+    allow = true;
+    byClass(el, 'wqra-w')[3].click();
+    expect(audio().plays).toBe(1);
+    expect(audio().currentTime).toBeCloseTo(2.55, 5);
+    expect(lit(el)).toEqual(['3']);
+    expect(taps).toEqual([3]);
+    expect(events.map((e) => e.type)).toContain('tap_word');
+  });
+
   test('tap a word AFTER the story ended: it plays from that word, not from the start (play() on an ended clip rewinds)', () => {
     const { RA, document, audio, at } = load();
     const el = document.createElement('div');
