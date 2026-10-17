@@ -171,28 +171,44 @@ describe('switch off: every route and the read count are exactly as before the s
 });
 
 describe('switch on: the bot is the gate', () => {
+  // The words on that page: the story page's own reviewed line (bot ux-strings storySendNotOpen), never "expired".
+  const { UX_STRINGS } = require('../../bot/shared/config/ux-strings');
+  const { str: makerStr } = require('../../bot/shared/services/first-touch/maker.strings');
+  const NOT_OPEN = {
+    en: 'Sending stories to your class is not open for your school yet.',
+    ur: 'آپ کے اسکول میں اپنی کلاس کو کہانیاں بھیجنے کی سہولت ابھی شروع نہیں ہوئی۔',
+  };
+  const escHtml = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  async function offPage(query, headers = {}) {
+    setRows({ teacher: true, gate: true });
+    clock = 0;
+    const srv = await start(build(bot('off').fetchImpl));
+    try { return await req(srv, 'GET', `/quiz/teacher/${TH}/stories${query}`, undefined, headers); } finally { await stop(srv); }
+  }
+  test('the bot\'s line is the one this page shows (byte for byte)', () => {
+    expect(UX_STRINGS.storySendNotOpen).toEqual(NOT_OPEN);
+  });
+  for (const [lang, query, headers] of [['en', '?lang=en', {}], ['en', '', {}], ['ur', '?lang=ur', {}], ['ur', '', { 'accept-language': 'ur-PK' }]]) {
+    test(`stories not open (${lang}${query ? ` ${query}` : ', from the phone'}): the story page's own words in the home's page, never "expired"`, async () => {
+      const page = await offPage(query, headers);
+      expect(page.status).toBe(200);
+      expect(page.body).toContain(`<p class="mk-say">${escHtml(NOT_OPEN[lang])}</p>`);
+      expect(page.body).toContain(`<title>${escHtml(NOT_OPEN[lang])}</title>`);
+      expect(page.body).toContain(`<html lang="${lang}" dir="${lang === 'ur' ? 'rtl' : 'ltr'}">`);
+      for (const l of ['en', 'ur']) expect(page.body).not.toContain(escHtml(makerStr('mk.stale', l)));
+      expect(page.body).not.toMatch(/expired/i);
+      expect(page.headers['content-security-policy']).toBe(buildMessagePage({ lang, id: 'mk.stale' }).csp);
+      expect(page.headers['cache-control']).toBe('private, no-store');
+    });
+  }
   test('the teacher key true and the hub off (the bot answers 404 stories_off): the page is the home\'s stale page, never a fall-through', async () => {
     setRows({ teacher: true, gate: true });
     const r = await runAll('off');
     const page = r.responses[4];
     expect(page.status).toBe(200);
-    expect(page.body).toBe(buildMessagePage({ lang: 'en', id: 'mk.stale' }).html);
+    expect(page.body).toContain('<main class="mk">');
+    expect(page.body).not.toBe('fell through');
     expect(page.cache).toBe('private, no-store');
-  });
-
-  test('the stale page reads Urdu with ?lang=ur, and with an Urdu phone', async () => {
-    setRows({ teacher: true, gate: true });
-    const b = bot('off');
-    clock = 0;
-    const srv = await start(build(b.fetchImpl));
-    try {
-      const ur = await req(srv, 'GET', `/quiz/teacher/${TH}/stories?lang=ur`);
-      expect(ur.status).toBe(200);
-      expect(ur.body).toBe(buildMessagePage({ lang: 'ur', id: 'mk.stale' }).html);
-      const phone = await req(srv, 'GET', `/quiz/teacher/${TH}/stories`, undefined, { 'accept-language': 'ur-PK' });
-      expect(phone.body).toBe(buildMessagePage({ lang: 'ur', id: 'mk.stale' }).html);
-      expect(ur.headers['content-security-policy']).toBe(buildMessagePage({ lang: 'ur', id: 'mk.stale' }).csp);
-    } finally { await stop(srv); }
   });
 
   test('the teacher key off at the edge: still forwarded; the bot\'s 200 page is passed on byte for byte', async () => {

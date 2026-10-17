@@ -14,7 +14,8 @@
  * Switch app_settings quiz_teacher_stories_bot_gate (JSON true only; absent, any other value or a failed read = off),
  * read in the same one read as web_quiz_stories_teacher. On: the edge no longer decides from its own reading, it always
  * forwards and the bot's answer is the gate. The API passes the bot's status on unchanged; the page, on the bot's
- * 404 stories_off, gets the teacher home's own stale page (mk.stale) instead of falling through. Off: exactly today.
+ * 404 stories_off, gets the teacher home's one-line page with the Stories page's own line (storySendNotOpen) instead
+ * of falling through. Off: exactly today.
  *
  * `th` is the teacher-home token. Like /q/:code and /r/:token, the edge checks shapes, forwards only the
  * keys the bot reads and calls the bot with the internal key through the child quiz's bot client.
@@ -24,6 +25,7 @@ const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
 const { buildMessagePage } = require('../../bot/shared/services/first-touch/maker.page');
 const { str } = require('../../bot/shared/services/first-touch/teacher-home.strings');
+const { UX_STRINGS } = require('../../bot/shared/config/ux-strings');
 
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -108,12 +110,15 @@ function isStoriesOff(out) {
   try { return JSON.parse(Buffer.from(out.bytes || '').toString('utf8')).error === 'stories_off'; } catch (_) { return false; }
 }
 
-/** The teacher home's stale page (mk.stale, status 200, its headers), with one tap back to the chat when the number is known. */
-function stalePage(req, res) {
+/**
+ * Stories not open: the teacher home's one-line page (status 200, its headers) with the Stories page's own reviewed
+ * line (storySendNotOpen), never "expired", and one tap back to the chat when the number is known.
+ */
+function notOpenPage(req, res) {
   const lang = langOf(req);
   const digits = String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
   const tap = /^\d{10,15}$/.test(digits) ? { href: `https://wa.me/${digits}?text=quiz`, text: str('th.open.wa', lang) } : null;
-  const built = buildMessagePage({ lang, id: 'mk.stale', tap });
+  const built = buildMessagePage({ lang, id: 'mk.stale', tap, say: UX_STRINGS.storySendNotOpen[lang] });
   res.set({ 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer',
     'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': built.csp });
   return res.status(200).type('html').send(built.html);
@@ -196,8 +201,8 @@ function createTeacherStoriesRouter(opts = {}) {
     } catch (_) {
       return next();
     }
-    // Gate on: the bot's switch-off answer is the home's stale page, never a fall-through.
-    if (res.locals.tsGate === true && isStoriesOff(out)) return stalePage(req, res);
+    // Gate on: the bot's switch-off answer is the home's one-line page with the "not open yet" line, never a fall-through.
+    if (res.locals.tsGate === true && isStoriesOff(out)) return notOpenPage(req, res);
     if (out.status !== 200 || !out.bytes || !/^text\/html/i.test(out.contentType || '')) return next();
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
     return res.status(200).type('html').send(out.bytes);
