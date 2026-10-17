@@ -59,6 +59,20 @@ describe('(a) a Q1 meaning item on a Q5 idiom in another verb form is held', () 
     q.question = 'محاورے «شور مچ جانا» کا کیا مطلب ہے؟';
     expect(q1Stems(lay(exam, false).examJson)).toContain(q.question);
   });
+
+  // Only a «…انا» verb is read as «… جانا»: a plain «…نا» verb is another idiom, matched as written.
+  test.each([
+    ['دل لگنا', 'دل لگانا'],
+    ['بات بننا', 'بات بنانا'],
+    ['آنکھ لگنا', 'آنکھ لگانا'],
+  ])('a Q1 idiom «%s» stays beside a Q5 «%s» (an intransitive verb is not its transitive)', (asked, set) => {
+    const exam = clone(ch3);
+    const q = items(exam, 'urdu.A.Q1').find((x) => x.question === idiom.question);
+    q.question = `محاورے «${asked}» کا کیا مطلب ہے؟`;
+    const q5 = items(exam, 'urdu.C.Q5').find((x) => Array.isArray(x.words) && x.words.includes('دھوم مچانا'));
+    q5.words = q5.words.map((w) => (w === 'دھوم مچانا' ? set : w));
+    expect(q1Stems(lay(exam, false).examJson)).toContain(q.question);
+  });
 });
 
 describe('(b) a Q1 key of two words or more printed in another Q1 item\'s option is held', () => {
