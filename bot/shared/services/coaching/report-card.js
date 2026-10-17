@@ -51,9 +51,14 @@ function cardHeader(s, a, firstName, l) {
   };
 }
 
-/** What she did well: a better swap first (the grader's lp_fidelity strengths), then its strengths; three at most. */
-function wells(a, l) {
-  const c = COPY[l] || COPY.en;
+/**
+ * What she did well: a better swap first (the grader's lp_fidelity strengths), then its strengths; three at most.
+ * The grader writes those in English for everyone, so in any other language (bd-v0toag.85) the line is the report
+ * narrative's strength_note, written in her language: the stored one, or n before it is stored. Nothing else.
+ */
+function wells(a, l, n = a.report_narrative) {
+  if (l !== 'en') return n && n._language === l && text(n.strength_note) ? [text(n.strength_note)] : [];
+  const c = COPY.en;
   const lf = a.lp_fidelity || {};
   const swaps = (Array.isArray(lf.strengths) ? lf.strengths : []).map((x) => text(x && x.text)).filter(Boolean).map(c.swap);
   const own = (Array.isArray(a.strengths) ? a.strengths : []).map((x) => text(typeof x === 'string' ? x : x && x.title)).filter(Boolean);

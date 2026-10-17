@@ -24,7 +24,7 @@ test('stepOf: the plan phase → the template step, null for an unknown phase', 
 
 test('wells: a better swap first, then the grader\'s strengths, three at most', () => {
   expect(wells(A, 'en')).toEqual(['You did “Count in tens with sticks” your own way, and it worked better.', 'Clear board work', 'Called children by name']);
-  expect(wells(A, 'ur')[0]).toBe('آپ نے «Count in tens with sticks» اپنے طریقے سے کیا، اور وہ بہتر رہا۔');
+  expect(wells(A, 'ur')).toEqual([]); // no English grader text in Urdu (bd-v0toag.85)
   expect(wells({}, 'en')).toEqual([]);
   expect(wells({ strengths: ['  ', null, { title: '' }] }, 'en')).toEqual([]);
 });
