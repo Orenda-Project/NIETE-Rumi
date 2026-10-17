@@ -272,6 +272,7 @@ describe('«More» on the timeline', () => {
   test('the paged answer (five rows, `more`, `after`): «More» asks for the next ten after the cursor, then hides at the end', async () => {
     const pages = { 'lp_4': { timeline: rowsOf(5, 15), more: 3, after: 'c15' }, c15: { timeline: rowsOf(15, 18), more: 0, after: null } };
     const p = await open({ primary: { kind: 'none' }, library: LIB, timeline: rowsOf(0, 5), more: 13, after: 'lp_4' }, {
+      paged: true,
       answer: (path) => pages[decodeURIComponent((/[?&]after=([^&]+)/.exec(path) || [])[1] || '')] || {},
     });
     expect(drawn(p)).toBe(5);
@@ -398,6 +399,12 @@ describe('the home\'s answer does not come (switch quiz_teacher_home_paged ON)',
 });
 
 describe('switch OFF: today\'s page', () => {
+  test('«More» with an answer that carries `more` (a switch flipped between the page and its answer): ten more from the answer, never the server', async () => {
+    const row = (i) => ({ kind: 'lp', key: `lp_${i}`, title: `Lesson ${i}`, date: new Date(Date.UTC(2026, 9, 14) - i * 3600000).toISOString(), verb: null, id: null, sendKind: null });
+    const p = await open({ primary: { kind: 'none' }, library: LIB, timeline: Array.from({ length: 5 }, (_, k) => row(k)), more: 13, after: 'lp_4' });
+    expect(p.q('#th-more').hidden).toBe(true); // today's rule: five rows drawn, five held → nothing more to show
+    expect(p.fetches.filter((f) => f.path.indexOf('/api/th/timeline') === 0)).toEqual([]);
+  });
   const crypto = require('crypto');
   const GOLD = require('./__goldens__/teacher-home-shell-off.json');
   test('the shell, byte for byte as today\'s (18 shapes: language × switch link × asked; recorded on the base)', () => {
@@ -417,7 +424,9 @@ describe('switch OFF: today\'s page', () => {
   });
   test('the quick answer\'s page is today\'s script with only the home\'s ask swapped, under its own hash', () => {
     expect(Page.SCRIPT_PAGED).not.toBe(Page.SCRIPT);
-    expect(Page.SCRIPT_PAGED.replace(/var g0=store[\s\S]*?home\(\);/, 'X')).toBe(Page.SCRIPT.replace(/var g0=store[\s\S]*?\}\}\);/, 'X'));
+    // every swap undone gives today's script back, and each part it swaps is in today's script once
+    expect(Page.PAGED_SWAPS.reduce((out, [from, to]) => out.replace(to, () => from), Page.SCRIPT_PAGED)).toBe(Page.SCRIPT);
+    Page.PAGED_SWAPS.forEach(([from]) => expect(Page.SCRIPT.split(from)).toHaveLength(2));
     const on = Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, paged: true });
     expect(on.csp).toContain(`'sha256-${Page.SCRIPT_PAGED_HASH}'`);
     expect(on.html).toContain(`<script>${Page.SCRIPT_PAGED}</script>`);

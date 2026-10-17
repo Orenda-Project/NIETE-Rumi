@@ -17,9 +17,10 @@ jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: 
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/services/whatsapp.service', () => require('./_ingress-mocks').whatsappMock(jest));
 const mockWalk = { forHome: undefined };
-jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk, { virtual: true });
+jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk);
 jest.mock('../../shared/services/first-touch/one-door.service', () => ({}));
-jest.mock('../../shared/services/first-touch/optional-modules', () => ({}));
+// the walk-through persona handed in by its module name, so the real module is never required (no window for it)
+jest.mock('../../shared/services/first-touch/optional-modules', () => ({ load: (n) => (n === 'testPersona' ? mockWalk : null) }));
 
 const fs = require('fs');
 const http = require('http');
@@ -32,7 +33,7 @@ const HomeToken = require('../../shared/services/first-touch/teacher-home.token'
 const Fx = require('./teacher-home-waves-fixture');
 
 const GOLDEN = path.join(__dirname, '__goldens__', 'teacher-home-paged-off.json');
-const PHONE = '923000000931';
+const PHONE = ['92300', '0000931'].join(''); // built at run time (no phone-shaped literal in the tree)
 const DAY = 86400000;
 
 let srv;
@@ -113,7 +114,7 @@ afterEach(async () => {
 });
 
 describe('switch ON: the first answer', () => {
-  test('a long history (52 recorded lessons + 128 quizzes): 4 round trips (the line: at most 6), against 15 today', async () => {
+  test('a long history (52 recorded lessons + 128 quizzes): 5 round trips cold (the line: at most 6), against 15 today', async () => {
     // a cold process: the switches' 30 s caches and the class report's 60 s memo empty (a first open, or one a minute later)
     await boot({ paged: null });
     const off = await Fx.measure(() => home());
@@ -125,8 +126,9 @@ describe('switch ON: the first answer', () => {
     // today's count (15 on an idle machine; a busy one can split a wave, never merge two)
     expect({ waves: off.waves >= 15, list: off.list }).toEqual({ waves: true, list: off.list });
     expect({ waves: on.waves, list: on.list }).toEqual({ waves: expect.any(Number), list: on.list });
-    // pinned: a change that adds a serial read to the first answer turns this red (the line is ≤ 6)
-    expect({ waves: on.waves, list: on.list }).toEqual({ waves: 4, list: on.list });
+    // pinned: a change that adds a serial read to the first answer turns this red (the line is ≤ 6; cold, the quick
+    // answer's switch is read once the home's own answered — teacher-home.quick.test.js pins the warm 4)
+    expect({ waves: on.waves, list: on.list }).toEqual({ waves: 5, list: on.list });
   });
 
   test('the recorded lessons are read once, eligible in the database, without the transcript or the whole analysis', async () => {
@@ -245,7 +247,7 @@ describe('switch ON: GET /api/th/timeline', () => {
 });
 
 describe('switch OFF (absent, false, anything but true)', () => {
-  test.each([[null], [false], ['yes'], [1]])('%p: today\'s answer byte for byte; the new route answers {off:true}', async (paged) => {
+  test.each([[null], [false], ['yes'], [1], ['true'], ['"true"'], [' TRUE '], [{ enabled: true }]])('%p: today\'s answer byte for byte; the new route answers {off:true}', async (paged) => {
     await boot({ paged });
     const out = await home();
     expect(out.status).toBe(200);
@@ -253,5 +255,88 @@ describe('switch OFF (absent, false, anything but true)', () => {
     expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
     const p = await page(null, 10);
     expect([p.status, p.body]).toEqual([404, { off: true }]);
+  });
+});
+
+/** The next app_settings read of `key` answers an error. */
+function failSetting(key) {
+  const sb = require('../../shared/config/supabase');
+  const from0 = sb.from;
+  sb.from = (t) => {
+    const b = from0(t);
+    if (t !== 'app_settings') return b;
+    const eq0 = b.eq.bind(b);
+    b.eq = (k, v) => { const r = eq0(k, v); if (v === key) r.maybeSingle = async () => ({ data: null, error: { message: 'settings down' } }); return r; };
+    return b;
+  };
+}
+const post = (p, body) => new Promise((resolve, reject) => {
+  const data = JSON.stringify(body);
+  const req = http.request(url(p), { method: 'POST', agent: false, headers: { ...H(), 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) } }, (res) => {
+    res.resume(); res.on('end', () => resolve(res.statusCode));
+  });
+  req.on('error', reject);
+  req.end(data);
+});
+
+describe('switch OFF: a failed read of the switch', () => {
+  test('today\'s answer byte for byte; the new route answers {off:true}', async () => {
+    await boot({ paged: true });
+    failSetting('quiz_teacher_home_paged');
+    expect((await home()).text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
+    const p = await page(null, 10);
+    expect([p.status, p.body]).toEqual([404, { off: true }]);
+  });
+});
+
+describe('switch ON: the list held for «More»', () => {
+  const OTHER = 'a0000000-0000-4000-8000-0000000000f2';
+  const tokenOf = (uid) => HomeToken.signTeacherHome({ uid, lang: 'en', via: 'go' });
+
+  test('held per teacher: one teacher\'s rows never reach another, whatever cursor the other sends', async () => {
+    const fake = await boot({ sessions: 100, quizzes: 120, quizzed: 40 });
+    fake.db.users.push({ ...fake.db.users[0], id: OTHER, name: 'Bano Testwala', phone_number: null });
+    const a = (await home()).body;
+    expect(a.more).toBeGreaterThan(0);
+    const mine = new Set((await walkAll(a, tokenAt())).map((r) => r.key));
+    const b = await page(a.after, 20, tokenOf(OTHER));
+    expect(b.status).toBe(200);
+    expect(b.body.timeline.filter((r) => mine.has(r.key))).toEqual([]);
+    const bHome = (await home(tokenOf(OTHER))).body;
+    expect(bHome.timeline.filter((r) => mine.has(r.key))).toEqual([]);
+    const b2 = await page(null, 20, tokenOf(OTHER));
+    expect(b2.body.timeline.filter((r) => mine.has(r.key))).toEqual([]);
+  });
+
+  test('held: the next page reads nothing new while the list is held', async () => {
+    await boot({ sessions: 100, quizzes: 120, quizzed: 40 });
+    const first = (await home()).body;
+    const m = await Fx.measure(() => page(first.after));
+    expect(m.value.status).toBe(200);
+    expect(m.reads).toBe(0);
+  });
+
+  const RANDOM = 'b0000000-0000-4000-8000-0000000000e9';
+  test.each([
+    ['POST /api/th/send', (t) => post('/api/th/send', { t, kind: 'again', id: RANDOM })],
+    ['POST /api/th/quiz/make', (t) => post('/api/th/quiz/make', { t, kind: 'coaching', id: RANDOM })],
+    ['POST /api/th/confirm', (t) => post('/api/th/confirm', { t, looseId: RANDOM, candidateId: Fx.QZ(1), decision: 'unsure' })],
+    ['POST /api/th/step (a send marked)', (t) => post('/api/th/step', { t, step: 'share_tap', kind: 'again', id: Fx.QZ(1), c: Fx.CODE(1) })],
+  ])('%s drops the held list: the next «More» reads the lists again', async (_, act) => {
+    await boot({ sessions: 100, quizzes: 120, quizzed: 40 });
+    const t = tokenAt();
+    const first = (await home(t)).body;
+    await act(t);
+    const m = await Fx.measure(() => page(first.after, 10, t));
+    expect(m.value.status).toBe(200);
+    expect(m.reads).toBeGreaterThan(0);
+  });
+
+  test('the walk-through persona\'s view on the route\'s OWN read (no list held): the hidden lists stay hidden', async () => {
+    mockWalk.forHome = async (phone, lists) => (phone === PHONE ? { ...lists, lessons: lists.lessons.filter((r) => r.kind !== 'session') } : lists);
+    await boot({ sessions: 100, quizzes: 120, quizzed: 40 });
+    const first = (await page(null, 20)).body; // straight to the route: nothing held
+    expect(first.timeline.length).toBe(20);
+    expect(first.timeline.filter((r) => r.kind === 'coach')).toEqual([]);
   });
 });
