@@ -2303,8 +2303,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
         (res.counted === false ? pracBanner(res, total) : '') +
         '<button class="wq-btn wq-go" id="wq-card"' + (window.WQJ ? ' data-primary' : '') + '>' + esc(T.seeCard) + '</button>' + // the kit (web_quiz_juice): one primary
-        // The home on (finish's card_fold): the card is the one way on from here; the class table and the videos live on the home.
-        (foldOn(res) ? '' : (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn());
+        // The home on (finish's card_fold): the card is the one way on from here; the videos live on the home. The class
+        // table stays with web_quiz_class_doors (finish's class_doors).
+        (foldOn(res) ? (classDoors(res) ? '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' : '') : (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn());
       render(h, 'M9');
       if (!foldOn(res)) libPrefetch();   // the folded card opens no video list
       wireBar();
@@ -2581,6 +2582,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // as the secondary, one Home row. The doors, the class and the league live on the home; "Challenge a friend" is the
   // slot's invite when it ranks first. Without card_fold the card below is today's.
   function foldOn(res) { return Boolean(res && res.card_fold) && Boolean(S.st) && !friendRun() && !B.preview; }
+  // The class table and the school league on the folded card and results (app_settings web_quiz_class_doors, finish's
+  // class_doors): a class child's own run only, never a child with no class.
+  // TODO(one button system): the two buttons are today's wq-soft; the sweep swaps the class.
+  function classDoors(res) { return Boolean(res && res.class_doors) && res.no_class !== true && !friendRun(); }
   // The slot's offer, or the next of its alternatives, that opens on this site (an invite's WhatsApp message never).
   function foldOffer(nx) {
     var all = nx && typeof nx === 'object' ? [nx].concat(Array.isArray(nx.alts) ? nx.alts : []) : [];
@@ -2614,6 +2619,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       tile +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-soft" id="wq-share">' + esc(res.no_class === true ? T.sharePlain : T.shareBtn) + '</button>' +
+      (classDoors(res) ? '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' +
+        '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-fhome" data-home>' + esc(T.homeBtn) + '</button>';
     render(h, 'M10');
     wireBar();
@@ -2630,6 +2637,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (fc) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-fhome', function () { homeGo('card'); });
+    on('#wq-class', board);
+    on('#wq-schools', function () { schools(card); });
     // No answer from the slot: the home, on its Stories door (the home's own Next when it has nothing ranked).
     if (!nx) on('#wq-fnext', function () { homeGo('card', '#stories'); });
     else {
@@ -2869,7 +2878,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         (yourPct != null ? '<span>' + esc(T.yourScore) + '</span><span>' + yourPct + '%</span><div class="wq-meter" style="grid-column:1/3"><b style="width:' + yourPct + '%"></b></div>' : '') +
         '<span>' + esc(T.avg) + '</span><span>' + esc(b.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (b.class_avg_pct || 0) + '%"></b></div></div>' +
         '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
-        '<button class="wq-btn wq-go" id="wq-share-t">' + esc(T.shareTable) + '</button>' +
+        '<button class="wq-btn wq-go" id="wq-share-t"' + (b.class_doors ? ' data-primary' : '') + '>' + esc(T.shareTable) + '</button>' +
         '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' +
         (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
       render(h, 'M11');
@@ -2933,8 +2942,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       on('#wq-retry', function () { schools(SCH.back); });
     });
   }
+  // With web_quiz_class_doors (the league's class_doors): a short lower-case sector code reads as a name ("ict" -> "ICT").
+  function sectorName(s, on) { return on && /^[a-z]{2,4}$/.test(String(s)) ? String(s).toUpperCase() : s; }
   function drawSchools() {
     var b = SCH.data || {};
+    var cd = Boolean(b.class_doors);
     var mine = b.mine || null;
     var rows = b.rows || [];
     if (SCH.sector && mine && mine.sector) rows = rows.filter(function (x) { return x.sector === mine.sector; });
@@ -2948,7 +2960,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         (b.added ? '<p class="wq-added">' + T.added(esc(b.added), nm) + '</p>' : '') + '</div>';
     var chips = mine && mine.sector && (b.rows || []).length
       ? '<div class="wq-chips wq-schips"><button class="wq-chip' + (SCH.sector ? '' : ' wq-on') + '" id="wq-all">' + esc(T.allSchools) + '</button>' +
-        '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + ' · <bdi>' + esc(mine.sector) + '</bdi></button></div>' : '';
+        '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + ' · <bdi>' + esc(sectorName(mine.sector, cd)) + '</bdi></button></div>' : '';
     var zn = b.zero_names || [];
     var zero = b.zero_n && !SCH.sector
       ? '<details class="wq-zero-list"><summary>' + esc(T.zeroN(b.zero_n)) + '</summary>' +
@@ -2956,8 +2968,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() + '<h2>' + esc(T.schoolsT) + '</h2><p class="wq-sub">' + esc(T.schoolsRule) + '</p>' + top + chips +
       (list ? '<ol class="wq-slist">' + list + '</ol>' : mine ? '' : '<div class="wq-card">' + esc(T.noSchools) + '</div>') + zero +
       // A cold recipient of the league link (never played here): the next step is to play, for their school.
-      (mine && !S.st && !S.result ? '<button class="wq-btn wq-go" id="wq-play-s">' + T.playFor(nm) + '</button>' : '') +
-      (mine ? '<button class="wq-btn ' + (!S.st && !S.result ? 'wq-soft' : 'wq-go') + '" id="wq-share-s">' + esc(mine.ghost ? T.inviteSchool : T.shareSchools) + '</button>' : '') +
+      // (class_doors: the label is one flex item, never the words and the name side by side; the go button is the primary)
+      (mine && !S.st && !S.result ? '<button class="wq-btn wq-go" id="wq-play-s"' + (cd ? ' data-primary><span class="wq-btn-t">' + T.playFor(nm) + '</span>' : '>' + T.playFor(nm)) + '</button>' : '') +
+      (mine ? '<button class="wq-btn ' + (!S.st && !S.result ? 'wq-soft' : 'wq-go') + '" id="wq-share-s"' + (cd && (S.st || S.result) ? ' data-primary' : '') + '>' + esc(mine.ghost ? T.inviteSchool : T.shareSchools) + '</button>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
     render(h, 'M16');
     wireBar();
