@@ -41,6 +41,7 @@ const WQ = require('../../../shared/services/quiz/web-quiz.service');
 const Publish = require('../../../shared/services/quiz/web-quiz-publish.service');
 const Voice = require('../../../shared/services/quiz/web-quiz-voice');
 const OneVoice = require('../../../shared/services/quiz/web-quiz-one-voice-flag');
+const IdRoster = require('../../../shared/services/quiz/web-quiz-identity-roster');
 const tts = require('../../../shared/services/tts');
 const queue = require('../../../shared/services/queue/sqs-queue.service');
 
@@ -97,7 +98,8 @@ function seed(rows, { flag, meta = {} } = {}) {
 const SAVED = { ...process.env };
 beforeEach(() => {
   process.env = { ...SAVED, INTERNAL_API_KEY: 'test-key' }; delete process.env.WEB_QUIZ_TOKEN_SECRET;
-  WQ._resetQuizCache(); OneVoice.reset(); tts.synthesize.mockClear(); queue.queueJob.mockClear();
+  // The page reads the switch in its own settings read (web-quiz-identity-roster.js): each test starts with neither cached.
+  WQ._resetQuizCache(); OneVoice.reset(); IdRoster._resetCache(); tts.synthesize.mockClear(); queue.queueJob.mockClear();
 });
 afterAll(() => { process.env = SAVED; });
 
