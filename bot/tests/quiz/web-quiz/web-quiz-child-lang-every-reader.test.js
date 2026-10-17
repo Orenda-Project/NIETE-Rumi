@@ -46,7 +46,8 @@ const A = { device: 'AAAAAAAAAAAAAAAAAAAAAA' };
 const B = { device: 'BBBBBBBBBBBBBBBBBBBBBB' };
 const BASE = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_library', value: true }];
 const ON = [...BASE, { key: 'web_quiz_return_lang', value: true }];
-const OFFS = [['absent', BASE], ['false', [...BASE, { key: 'web_quiz_return_lang', value: false }]], ['the string "true"', [...BASE, { key: 'web_quiz_return_lang', value: 'true' }]]];
+const OFFS = [['absent', BASE], ['false', [...BASE, { key: 'web_quiz_return_lang', value: false }]], ['the string "true"', [...BASE, { key: 'web_quiz_return_lang', value: 'true' }]],
+  ['the JSON string "\\"true\\""', [...BASE, { key: 'web_quiz_return_lang', value: '"true"' }]]];
 const CHIP = Hub._parts.kidChip(KID);
 
 let db;
@@ -181,5 +182,28 @@ describe('keep names its child', () => {
     expect(db.child_language).toEqual([]);
     await Hub.hub(T.signHub([KID]), { ...A, kid: CHIP, lang: 'ur', keep: true });
     expect(db.child_language).toEqual([expect.objectContaining({ canonical_id: KID, language: 'ur', source: 'chosen' })]);
+  });
+});
+
+// The switch's own read failing is off: every reader today's, the kept row never read.
+describe('the switch read throws', () => {
+  test.each(CASES)('%s → today\'s', async (_c, opts, asked, _want, today) => {
+    seed(ON, opts);
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t === 'app_settings') {
+        // only this switch's own read fails (the hub's other switches are read as usual)
+        const eq = b.eq.bind(b);
+        b.eq = (c, v) => { if (v === 'web_quiz_return_lang') throw new Error('settings down'); return eq(c, v); };
+      }
+      return b;
+    };
+    const Ret2 = require('../../../shared/services/quiz/web-quiz-return-lang');
+    Ret2._resetCache();
+    expect(await Ret2.on()).toBe(false);
+    const out = await Hub.hub(T.signHub([KID]), { ...A, kid: CHIP, ...(asked ? { lang: asked } : {}) });
+    expect(out.lang).toBe(today.page);
+    expect(langCalls()).toEqual([]);
   });
 });

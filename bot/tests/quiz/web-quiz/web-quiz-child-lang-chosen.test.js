@@ -178,7 +178,7 @@ describe('switch on: the join\'s kept language on the home (where the link\'s `l
 });
 
 describe('switch off: keep is ignored, nothing is written, today\'s payload and link', () => {
-  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true']])('switch row %s', async (_l, value) => {
+  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true'], ['the JSON string "\\"true\\""', '"true"']])('switch row %s', async (_l, value) => {
     seed(off(value), { quizLang: 'en', kept: { language: 'ur', source: 'chosen' } });
     const t = T.signHub([KID]);
     const withKeep = await Hub.hub(t, { ...A, kid: CHIP, lang: 'ur', keep: true });
@@ -239,7 +239,7 @@ describe('a kept choice outranks a ?lang= the URL still carries', () => {
     seed(ON, { kept: { language: 'en', source: 'join' } });
     expect((await Hub.hub(T.signHub([KID]), { ...A, kid: CHIP, lang: 'ur' })).lang).toBe('ur');
   });
-  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true']])('switch row %s: ?lang=en wins as today (the row is not read)', async (_l, value) => {
+  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true'], ['the JSON string "\\"true\\""', '"true"']])('switch row %s: ?lang=en wins as today (the row is not read)', async (_l, value) => {
     seed(off(value), { quizLang: 'en', kept: { language: 'ur', source: 'chosen' } });
     expect((await Hub.hub(T.signHub([KID]), { ...A, kid: CHIP, lang: 'en' })).lang).toBe('en');
     expect(langCalls()).toEqual([]);

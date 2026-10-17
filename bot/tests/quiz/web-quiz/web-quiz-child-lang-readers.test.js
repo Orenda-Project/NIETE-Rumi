@@ -5,6 +5,8 @@
  * lines listed here — each the switch-off line beside its ladder call, or the /quiz reply's own (student-quiz.service).
  * A new reader that picks a language on its own fails this test: route it through web-quiz-child-lang.js, or add it
  * here with the reason.
+ * Outside these services, student-ingress.js's childLanguage(user) is a different function: the language of the
+ * family's own chat (the typed-message replies), not a page's — a known line, not a reader of this order.
  */
 const fs = require('fs');
 const path = require('path');

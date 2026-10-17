@@ -63,7 +63,7 @@ function seed({ ret = true, lesson = false, quizLang = 'en', joined = 'ur', cano
     app_settings: settings,
     quizzes: [{ id: QUIZ, topic: 'Fractions', grade: '2', subject: 'maths', quiz_source: 'transcript', video_id: null, meta: {}, language: quizLang }],
     quiz_share_codes: [{ id: SC, code: 'AB12CD', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER, language: quizLang, active: true,
-      expires_at: at(240), invited_by_student_id: null, parent_share_code_id: lesson ? ROOT : null, created_at: at(-30) }],
+      expires_at: new Date(new Date().getTime() + 240 * 3600000).toISOString(), invited_by_student_id: null, parent_share_code_id: lesson ? ROOT : null, created_at: at(-30) }],
     quiz_questions: [1, 2].map((n) => ({ id: Q(n), quiz_id: QUIZ, external_id: `q${n}`, sort_order: n, question_text: `Q${n}`,
       option_a: 'A', option_b: 'B', option_c: null, option_d: null, correct_option: 'A', explanation: null, option_feedback: null, media: {}, render_pattern: null })),
     quiz_sessions: [{ id: 's1', quiz_id: QUIZ, share_code_id: SC, student_id: KID, status: 'completed', user_id: null, invited_by_student_id: null,
@@ -130,7 +130,7 @@ describe('switch on: a child with a class quiz keeps that quiz\'s language', () 
 });
 
 describe('switch off: today\'s links, byte for byte, and today\'s card language', () => {
-  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true']])('switch row %s', async (_l, ret) => {
+  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true'], ['the JSON string "\\"true\\""', '"true"']])('switch row %s', async (_l, ret) => {
     seed({ ret, lesson: true });
     expect(await doorHref()).toBe(`/h/${T.signHub([KID])}`);
     seed({ ret, lesson: true });

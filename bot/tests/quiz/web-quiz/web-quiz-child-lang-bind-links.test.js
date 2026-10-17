@@ -126,7 +126,7 @@ describe('switch on: the link opens in the child\'s own language', () => {
 });
 
 describe('switch off: today\'s link, byte for byte', () => {
-  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true']])('switch row %s → saved reply and way back links equal today\'s', async (_l, ret) => {
+  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true'], ['the JSON string "\\"true\\""', '"true"']])('switch row %s → saved reply and way back links equal today\'s', async (_l, ret) => {
     seed({ ret });
     expect((await saved()).outcome).toBe('bound');
     expect(linkUrl()).toBe(todays([KID], 'bind'));
@@ -153,7 +153,7 @@ describe('the saved reply\'s words', () => {
     expect((await saved()).outcome).toBe('bound');
     expect(button()).toBe(resolveUx('jugnuBindOpenBtn', { language: 'ur' }));
   });
-  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true']])('switch row %s → today\'s English reply', async (_l, ret) => {
+  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true'], ['the JSON string "\\"true\\""', '"true"']])('switch row %s → today\'s English reply', async (_l, ret) => {
     seed({ ret });
     expect((await saved()).outcome).toBe('bound');
     expect(button()).toBe(resolveUx('jugnuBindOpenBtn', { language: 'en' }));

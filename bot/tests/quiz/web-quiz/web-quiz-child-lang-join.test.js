@@ -179,7 +179,7 @@ describe('switch on before the table exists (the migration not yet applied)', ()
 });
 
 describe('switch off: nothing kept, today\'s identity row, and nothing read', () => {
-  test.each([['absent', undefined], ['false', false], ['the string "true"', 'true']])('switch row %s → 0 child_language calls; childLang()/stored()/chosenOf()/choose() null or false', async (_l, value) => {
+  test.each([['absent', undefined], ['false', false], ['the string "true"', 'true'], ['the JSON string "\\"true\\""', '"true"']])('switch row %s → 0 child_language calls; childLang()/stored()/chosenOf()/choose() null or false', async (_l, value) => {
     seed(value);
     const kid = await joinIn('ur');
     expect(Object.keys(identityInserts()[0]).sort()).toEqual([...TODAY_KEYS].sort());
