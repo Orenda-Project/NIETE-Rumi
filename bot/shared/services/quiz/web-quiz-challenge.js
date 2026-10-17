@@ -737,7 +737,7 @@ async function menu(token, { kid, lang, device } = {}) {
   const listenOk = (await got('listen', () => listenOn())) && !!(await storyClip(w.lang));
   // challenge v2: under _period a stop is done from THIS period's record row (trailStateFor); under _pool the Trail order
   const trailNow = rules.period ? await got('trail', () => periodTrail(w)) : null;
-  return {
+  const menuOut = {
     form: `G${w.form}`,
     lang: w.lang,
     exercises: (rules.pool ? TRAIL_ORDER.map(byId) : EXERCISES).filter((e) => !w.round || ROUND_GAMES.includes(e.id)).filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk) && (e.id !== 'missing' || rules.missing)).map((e) => {
@@ -765,6 +765,8 @@ async function menu(token, { kid, lang, device } = {}) {
     // the child home on: a child with no class shares with "Share" (web-quiz-hub-door.js; off ⇒ nothing)
     ...(await got('no_class', () => require('./web-quiz-hub-door').noClassField(w.studentId))),
   };
+  // the read-along player's preload (web_quiz_ra_preload): a cached answer, never waited for; off ⇒ the menu untouched
+  return require('./web-quiz-ra-preload').mark(menuOut);
 }
 
 // ── E: one exercise ───────────────────────────────────────────────────────────────────────────────────
