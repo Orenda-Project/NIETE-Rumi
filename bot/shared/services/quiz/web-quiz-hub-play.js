@@ -9,6 +9,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const Swr = require('./web-quiz-swr');
 
 const KEYS = {
   hub: 'web_quiz_hub',
@@ -43,29 +44,47 @@ const OFF = Object.freeze({ first: false, v2: false, story: false, book: false, 
 
 /** The effective switches (each only with its parent on). Fails closed: a read error is every switch off. */
 async function switches(now = Date.now()) {
+  // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
+  if (Swr.stale(cache, TTL_MS, now)) { Swr.revalidate('hub-play', () => readSwitches(now)); return cache.s; }
+  return readSwitches(now);
+}
+
+async function readSwitches(now) {
   if (cache && now - cache.at < TTL_MS) return cache.s;
+  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
+  const seam = Swr.covered('hub-play');
+  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache.s; }
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', Object.values(KEYS));
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, isTrue(r.value)]));
-    const hub = Boolean(by[KEYS.hub]);
-    const challenge = hub && Boolean(by[KEYS.challenge]);
-    const v2 = challenge && Boolean(by[KEYS.v2]);
-    const s = {
-      first: challenge && Boolean(by[KEYS.first]),
-      v2,
-      story: v2 && Boolean(by[KEYS.story]),
-      book: v2 && Boolean(by[KEYS.book]),
-      install: hub && Boolean(by[KEYS.install]),
-      events: hub && Boolean(by[KEYS.events]),
-    };
-    cache = { at: now, s };
-    return s;
+    return fromRows(data, now);
   } catch (err) {
     logToFile('⚠️ web quiz hub play: settings lookup failed — off', { error: err.message });
     return OFF;
   }
 }
+
+function fromRows(data, now) {
+  const by = Object.fromEntries((data || []).map((r) => [r.key, isTrue(r.value)]));
+  const hub = Boolean(by[KEYS.hub]);
+  const challenge = hub && Boolean(by[KEYS.challenge]);
+  const v2 = challenge && Boolean(by[KEYS.v2]);
+  const s = {
+    first: challenge && Boolean(by[KEYS.first]),
+    v2,
+    story: v2 && Boolean(by[KEYS.story]),
+    book: v2 && Boolean(by[KEYS.book]),
+    install: hub && Boolean(by[KEYS.install]),
+    events: hub && Boolean(by[KEYS.events]),
+  };
+  cache = { at: now, s };
+  return s;
+}
+
+// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
+// cache from the raw rows, parsed here exactly as this module's own read parses them.
+const hubSwitches = { name: 'hub-play', keys: Object.values(KEYS), swr: ['hub-play'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
+  prime: (rows, now) => fromRows(rows.filter((r) => Object.values(KEYS).includes(r.key)), now), read: () => switches(), peek: () => cache };
 
 // ── the resolver (BADGES §6, verbatim) ───────────────────────────────────────────────────────────────
 
@@ -121,9 +140,9 @@ async function runsOf(childId, cols) {
  * module's `trailStateFor(canonicalId, periodId)` once it ships. Reads the v2 columns (`mode='check'`, `record=true`,
  * `period_id`); when they cannot be read, falls back to the list's own `exercises[].done` (absent: every stop waits).
  */
-async function trailWaiting(childId, periodId, exercises) {
+async function trailWaiting(childId, periodId, exercises, rows = null) {
   const list = Array.isArray(exercises) ? exercises : [];
-  const runs = await runsOf(childId, 'exercise, status, mode, record, period_id');
+  const runs = rows || await runsOf(childId, 'exercise, status, mode, record, period_id');
   if (!runs) return list.filter((e) => !e.done).map((e) => e.id);
   // Only a FINAL record row closes a stop: a `served` or `abandoned` row (or one still scoring) leaves it waiting.
   const done = (r, id) => r.exercise === id && r.mode === 'check' && r.record === true && r.period_id === periodId && FINAL.includes(r.status);
@@ -131,8 +150,8 @@ async function trailWaiting(childId, periodId, exercises) {
 }
 
 /** The passages this child has met: any run row of any mode or status (a story sticker is a story run row); null if unknown. */
-async function seenPassages(childId) {
-  const runs = await runsOf(childId, 'passage_id');
+async function seenPassages(childId, rows = null) {
+  const runs = rows || await runsOf(childId, 'passage_id');
   return runs ? new Set(runs.map((r) => r.passage_id).filter(Boolean)) : null;
 }
 
@@ -214,7 +233,7 @@ function shelfOf(live, unseenPids, lang) {
  * `challenge` is the hub's own challenge tile (null when the child's grade has no challenge); `stopsOf()` the stop ids
  * this child's Trail has (the hub's, from the challenge menu's rule), read only when the lantern is.
  */
-async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } = {}) {
+async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, runs = null, collect } = {}) {
   const s = await switches();
   if (!s.first && !s.v2 && !s.install && !s.events) return null;
   const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
@@ -233,10 +252,17 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } 
   };
   if (!s.v2 || !tile || !chosenId) return out;
 
-  const stops = typeof stopsOf === 'function' ? await stopsOf() : [];
-  const trail = await trailWaiting(chosenId, periodOf(nowMs), stops.map((id) => ({ id })));
-  const seenIds = s.story ? await seenPassages(chosenId) : null;
-  const bands = seenIds ? openBands(grade, await readingRungOf(chosenId)) : null;
+  // `runs` (web_quiz_fast on): the hub's one shared read of the child's runs (web-quiz-book.js runsOnce), read beside the
+  // reading rung and the Trail's stops; unreadable -> each reads as below. Off: one read after another, as today.
+  const stopsNow = () => (typeof stopsOf === 'function' ? stopsOf() : []);
+  const pre = runs ? await Promise.all([runs.get(), s.story ? readingRungOf(chosenId) : null, stopsNow()]) : null;
+  // Under 500 rows the shared read (newest first) holds every run of the child, as runsOf's own unordered 500 does;
+  // at the cap the two could hold different rows, so the lantern and the shelf read their own, as today.
+  const rows = pre && pre[0] && pre[0].rows.length < 500 ? pre[0].rows : null;
+  const stops = pre ? pre[2] : await stopsNow();
+  const trail = await trailWaiting(chosenId, periodOf(nowMs), stops.map((id) => ({ id })), rows);
+  const seenIds = s.story ? await seenPassages(chosenId, rows) : null;
+  const bands = seenIds ? openBands(grade, pre ? pre[1] : await readingRungOf(chosenId)) : null;
   const p = seenIds ? await passagesOf(require('../../config/ux-strings').clampLanguage(lang), nowIso, bands) : { live: [], next: null };
   // Unseen: no run row of any mode or status on the passage or its twin (seenIds null: unknown, so nothing is new),
   // and a title in the child's language (a story the lantern cannot name is never NEW on the shelf either).
@@ -256,6 +282,11 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } 
     out.lantern = nx.kind === 'story' ? { ...nx, pid: (ownTile.find((u) => u.title === nx.title) || {}).pid || null } : nx;
   }
   if (seenIds) out.shelf = shelfOf(p.live, new Set(unseen.map((u) => u.pid)), lang);
+  // The next-thing ranker (web-quiz-next-offer-sources.js) reads what this corner read; the payload is untouched. Its
+  // lantern is the one the child is shown (the control arm's primary), never a same-titled twin.
+  if (collect && typeof collect === 'object') {
+    Object.assign(collect, { trail, unseen, live: p.live, story: s.story, lantern: out.lantern || null });
+  }
   return out;
 }
 
@@ -273,7 +304,7 @@ async function playField(input) {
 /** The hub_open route value from a request's `from`/`src`, or undefined. */
 function srcOf(v) { return typeof v === 'string' && SRC_VALUES.includes(v) ? v : undefined; }
 
-module.exports = { playFor, playField, trailWaiting, openBands, nextThing, dayOf, switches, srcOf, SRC_VALUES, KEYS, _resetCache: () => { cache = null; } };
+module.exports = { playFor, playField, trailWaiting, openBands, nextThing, dayOf, switches, hubSwitches, srcOf, SRC_VALUES, KEYS, _resetCache: () => { cache = null; } };
 // the v3 home's Stories door (web-quiz-hub-doors.js) lists the same passages by the same rules
 module.exports.passagesOf = passagesOf;
 module.exports.seenPassages = seenPassages;

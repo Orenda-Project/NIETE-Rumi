@@ -125,12 +125,24 @@ async function resolveBrandKey({ db, orgName = process.env.ORG_NAME, botName = p
   if (db && typeof db.from === 'function') {
     try {
       const { data, error } = await db.from('app_settings').select('key, value').eq('key', SETTING_KEY).maybeSingle();
-      if (!error && data && data.key === SETTING_KEY) setting = data.value;
+      if (!error) setting = settingOf(data);
     } catch (_) { setting = null; }
   }
   cache = { at: Date.now(), setting };
   return brandKey({ setting, orgName, botName });
 }
+
+function settingOf(data) { return data && data.key === SETTING_KEY ? data.value : null; }
+
+// The kid hub's one switch read (web_quiz_fast on, services/quiz/web-quiz-hub-switches.js): this setting's key, its
+// cache's age, and the cache from the raw rows, read here exactly as resolveBrandKey reads its row.
+const hubSwitches = {
+  name: 'brand', keys: [SETTING_KEY], swr: ['brand'],
+  age: (now) => (!cache ? 'cold' : (now - cache.at < CACHE_MS ? 'fresh' : 'stale')),
+  prime: (rows, now) => { cache = { at: now, setting: settingOf(rows.find((r) => r.key === SETTING_KEY) || null) }; },
+  read: () => resolveBrandKey({ db: require('./supabase') }),
+  peek: () => cache,
+};
 
 /** The brand as the page sees it (boot JSON). Unknown keys get the default brand. */
 function publicBrand(key) {
@@ -167,4 +179,4 @@ function faviconHref(brand) {
 
 function _resetCache() { cache = null; }
 
-module.exports = { DEFAULT_BRAND, SETTING_KEY, BRANDS, brandKey, resolveBrandKey, publicBrand, cssVars, faviconHref, _resetCache };
+module.exports = { DEFAULT_BRAND, SETTING_KEY, BRANDS, brandKey, resolveBrandKey, hubSwitches, publicBrand, cssVars, faviconHref, _resetCache };

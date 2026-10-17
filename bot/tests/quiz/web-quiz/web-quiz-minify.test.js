@@ -240,4 +240,32 @@ describe('the hub payload (Hub.hub)', () => {
     delete both.min;
     expect(both).toEqual(listenOnly);
   });
+
+  test('with the fast page on too (the one-read switch path): `fast`, `listen` and `min`, and otherwise the minify-off payload', async () => {
+    const fastRows = () => db.app_settings.push({ key: 'web_quiz_fast', value: true }, { key: 'web_quiz_readalong', value: true });
+    load();
+    seed();
+    fastRows();
+    await open();
+    await wait();
+    await open();
+    await wait();
+    const fastOnly = await open();
+    expect(fastOnly.fast).toBe(true);
+    expect(fastOnly.listen).toBe(true);
+    expect(fastOnly).not.toHaveProperty('min');
+    load();
+    seed(true);
+    fastRows();
+    await open();
+    await wait();
+    await open();
+    await wait();
+    const all = await open();
+    expect(all.fast).toBe(true);
+    expect(all.listen).toBe(true);
+    expect(all.min).toBe(true);
+    delete all.min;
+    expect(all).toEqual(fastOnly);
+  });
 });

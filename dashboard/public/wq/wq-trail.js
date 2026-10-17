@@ -77,7 +77,7 @@
   var ALONG_CAP_MS = 180000;   // a WebView that never reports the clip's end still reaches the read
   // the word-by-word player (wq-readalong.js), fetched only when a story serve carries `readalong`
   // (web_quiz_readalong); its version is the file's sha256, first 10 hex (a test keeps the two in step)
-  var RA_V = '3fdfdd875a';
+  var RA_V = 'be7fe1dc23';
 
   // own styles (only under v2): the chip's second line under the name; Urdu lines at Nastaliq-readable size
   function css() {
@@ -244,16 +244,16 @@
     function hearAsk(intro) {
       h.show('hear-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
         + btn('wqc-hear-along', t.storyReadAlong) + btn('wqc-hear-read', h.t.ready) + '</div>');
-      h.on('wqc-hear-along', function () { if (window.WQReadAlong) timedAlong(h.S.data.hear_first, intro); else intro(); });
-      h.on('wqc-hear-read', intro);
+      h.on('wqc-hear-along', function () { if (window.WQReadAlong) timedAlong(h.S.data.hear_first, intro); else intro(); unwarm(); });
+      h.on('wqc-hear-read', function () { unwarm(); intro(); });
       warm();
     }
     // two equal answers, neither pressed until a tap
     function storyAsk() {
       h.show('story-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
         + (window.WQJ ? btn('wqc-story-along', t.storyReadAlong).replace('type="button"', 'type="button" data-primary') + btn('wqc-story-read', h.t.ready, 'wq-soft') : btn('wqc-story-along', t.storyReadAlong) + btn('wqc-story-read', h.t.ready)) + '</div>'); // the kit (web_quiz_juice): one primary
-      h.on('wqc-story-along', readAlong);
-      h.on('wqc-story-read', h.read);
+      h.on('wqc-story-along', function () { readAlong(); unwarm(); });
+      h.on('wqc-story-read', function () { unwarm(); h.read(); });
       warm();
     }
     // the words as printed when they line up with the tokens; the lines as the serve gives them
@@ -284,6 +284,12 @@
       if (!ra || warm.d === ra || !window.WQReadAlong || !window.WQReadAlong.preload || !/^(story|hear)-ask$/.test(h.S.screen)) return;
       warm.d = ra;
       try { warm.a = window.WQReadAlong.preload(ra); } catch (e) { /* the tap still plays */ }   // held: a dropped element may stop its request
+    }
+    // the ask answered: the warmed element is let go (after the player's own play() has asked for the clip)
+    function unwarm() {
+      var a = warm.a;
+      warm.a = null;
+      try { if (a) { a.removeAttribute('src'); a.load(); } } catch (e) { /* gone */ }
     }
     // Read along, word by word (the serve's `readalong` and the player loaded): Jugnu reads at a child's pace, the
     // green pill on each word as it is spoken; play/pause, replay, tap a word to hear it from there. Nothing moves on

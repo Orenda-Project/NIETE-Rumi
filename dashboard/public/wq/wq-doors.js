@@ -219,14 +219,26 @@
   // The storybook shelf (wq-stories.js, the boot's `stories.on`): the reader fills [data-stories-shelf]. With rows of
   // its own the door keeps its primary (primary: false); with none the shelf's first cover (or the teacher's book) is
   // the primary, and the door's fallback button steps aside while the shelf shows one (back if the shelf goes away).
+  // One shelf per door visit: the rows arriving redraw the door, and the shelf the reader already filled moves into the
+  // new slot (no second GET, no repaint of covers still loading); a reader that loads late fills the door's slot on
+  // screen, and nothing when the child has left the door.
+  var shelfKept = null;
   function storiesShelf(root, B, ctx) {
     var sh = root.querySelector('[data-stories-shelf]');
     if (!sh || !(B.stories && B.stories.on)) return;
-    var fb = root.querySelector('[data-shelf-fallback]');
+    var key = tok(B, ctx) + '|' + (B.kid || '') + '|' + langOf(ctx);
     var fill = function () {
       if (!window.WQSTORIES || typeof window.WQSTORIES.shelf !== 'function') return;
-      if (fb) shelfPrimary(sh, fb);
-      try { window.WQSTORIES.shelf(sh, B, { token: tok(B, ctx), lang: langOf(ctx), ev: ctx.ev || function () {}, go: ctx.go, primary: Boolean(fb) }); } catch (e) {}
+      // the slot asked for, or the door's own slot that replaced it; never another screen's (Home drawn meanwhile)
+      var cur = root.querySelector('[data-stories-shelf]');
+      var slot = cur === sh || (cur && cur.getAttribute('data-host') === 'doors') ? cur : null;
+      if (!slot) return;
+      var fb = root.querySelector('[data-shelf-fallback]');
+      if (shelfKept && shelfKept.key === key && shelfKept.el !== slot && slot.parentNode) {
+        try { slot.parentNode.replaceChild(shelfKept.el, slot); if (fb) shelfPrimary(shelfKept.el, fb); return; } catch (e) {}
+      }
+      if (fb) shelfPrimary(slot, fb);
+      try { window.WQSTORIES.shelf(slot, B, { token: tok(B, ctx), lang: langOf(ctx), ev: ctx.ev || function () {}, go: ctx.go, primary: Boolean(fb) }); shelfKept = { el: slot, key: key }; } catch (e) {}
     };
     if (window.WQSTORIES) return fill();
     var H = home();
@@ -252,6 +264,7 @@
   }
   function mount(root, B, ctx, name) {
     view.name = name;
+    shelfKept = null;
     if (name === 'stories' || name === 'games') {
       draw(root, B, ctx, name, cache[name] || null);
       if (!cache[name] && !B.practice) {
@@ -288,12 +301,27 @@
   // The server's ranked Next after this video (`watch.next`), or null: its words in the page's language and where it
   // goes — #after/<vid> the quiz after it (minted on the tap), #watch/<vid> another lesson here, another #hash of this
   // page, or a /path of this site. Anything else (no title, another site) is ignored and today's rule stands.
+  // The server's offer words for next_shown / next_tap (EVENTS_V3 §2), so a ranked tile joins its next_set: only short
+  // plain strings, only the keys the relay keeps; `source` is the server's own (pinned | ranked | fallback: the control
+  // arm), anything else reads ranked.
+  var JOIN = ['offer', 'rank_src', 'arm', 'score_v', 'id'];
+  function joinOf(n) {
+    var j = { source: /^(pinned|ranked|fallback)$/.test(n.source) ? n.source : 'ranked' };
+    JOIN.forEach(function (k) { if (typeof n[k] === 'string' && /^[A-Za-z0-9._:-]{1,64}$/.test(n[k])) j[k] = n[k]; });
+    return j;
+  }
+  function nextLine(next) {
+    var o = { ctx: 'after_video', kind: (next || {}).kind, pos: 0 };
+    var j = (next && next.ranked && next.join) || { source: 'fallback' };
+    for (var k in j) if (Object.prototype.hasOwnProperty.call(j, k)) o[k] = j[k];
+    return o;
+  }
   function rankedNext(n, ctx) {
     if (!n || typeof n !== 'object') return null;
     var title = (langOf(ctx) === 'ur' && n.title_ur) || n.title;
     var href = typeof n.href === 'string' ? n.href : '';
     if (typeof title !== 'string' || !title || !/^(#[A-Za-z0-9/_-]*|\/[A-Za-z0-9][^\s]*)$/.test(href)) return null;
-    var o = { kind: String(n.kind || ''), title: title, sub: typeof n.sub === 'string' ? n.sub : '', href: '#', ranked: true };
+    var o = { kind: String(n.kind || ''), title: title, sub: typeof n.sub === 'string' ? n.sub : '', href: '#', ranked: true, join: joinOf(n) };
     var m = /^#after\/([0-9a-f-]{36})$/.exec(href); var w = /^#watch\/([0-9a-f-]{36})$/.exec(href);
     if (m) o.quiz = true; else if (w) o.vid = w[1]; else if (href.charAt(0) === '#') o.hash = href; else o.path = href;
     return o;
@@ -347,7 +375,7 @@
         }
         if (tap === 'after') {
           e.preventDefault();
-          ev('next_tap', { ctx: 'after_video', kind: (view.next || {}).kind, pos: 0 });
+          ev('next_tap', nextLine(view.next));
           return afterGo(root, B, ctx);
         }
       });
@@ -408,7 +436,7 @@
       if (endCard(root, B, ctx, ev)) return;
       a.hidden = false;
       var nx = a.querySelector('.wq-vnext'); if (nx) nx.setAttribute('data-primary', '');
-      ev('next_shown', { ctx: 'after_video', kind: (view.next || {}).kind, pos: 0, source: (view.next || {}).ranked ? 'server' : 'fallback' });
+      ev('next_shown', nextLine(view.next));
     };
     if (playBtn) playBtn.addEventListener('click', function () { try { var p = vEl.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} });
     vEl.addEventListener('play', function () {

@@ -52,6 +52,8 @@ const HUB = (extra = {}) => ({
   lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana Testwala', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, ...extra,
 });
+// The streamed tail names the bot's wait in ms (a performance mark); two visits differ only in that number.
+const sameWait = (body) => body.replace(/performance\.mark\("wq-bot",\{detail:\d+\}\)/g, 'performance.mark("wq-bot",{detail:0})');
 const ver = (body) => body.match(/wq\.css\?v=([0-9a-f]+)/)[1];
 
 const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
@@ -159,8 +161,8 @@ describe('fast first page, compressed: GET /q/:code', () => {
     const br = await get(srv, '/q/AB12CD', { headers: { 'accept-encoding': AE } });
     const gz = await get(srv, '/q/AB12CD', { headers: { 'accept-encoding': 'gzip' } });
     expect(plain.headers['content-encoding']).toBeUndefined();
-    expect(br.body).toBe(plain.body);
-    expect(gz.body).toBe(plain.body);
+    expect(sameWait(br.body)).toBe(sameWait(plain.body));
+    expect(sameWait(gz.body)).toBe(sameWait(plain.body));
   });
 
   it('switch on, a repeat visit (the phone holds a copy): the head again before the bot answers, compressed, a full page under 15 KB on the wire', async () => {
@@ -176,7 +178,7 @@ describe('fast first page, compressed: GET /q/:code', () => {
     expect(early).toMatch(/<div class="wq-boot">/);
     expect(res.headers['content-encoding']).toBe('br');
     expect(res.headers.etag).toBeUndefined();
-    expect(res.body).toBe(first.body);
+    expect(sameWait(res.body)).toBe(sameWait(first.body));
     expect(res.wire).toBeLessThan(15 * 1024);
   });
 
@@ -266,7 +268,7 @@ describe('fast first page, compressed: GET /h/:token', () => {
     expect(res.status).toBe(200);
     expect(answeredAtFirstText).toBe(false);
     expect(res.headers['content-encoding']).toBe('br');
-    expect(res.body).toBe(first.body);
+    expect(sameWait(res.body)).toBe(sameWait(first.body));
   });
 
   it('switch off: the hub is today\'s render byte for byte, no content-encoding of the portal\'s own', async () => {

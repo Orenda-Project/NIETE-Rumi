@@ -238,10 +238,13 @@ async function schoolsOfCodes(codeIds, now) {
     if (teachers.length) {
       for (const u of await inChunks('users', 'id, school_id, is_test_user', teachers)) teacherSchool.set(u.id, (!u.is_test_user && u.school_id) || null);
     }
+    // A class-less child's own code under the watch root copies the root's teacher but is nobody's school.
+    const watchRoot = await require('./web-quiz-identity-roster').watchRoot();
     // A friend's challenge code plays its parent's quiz: one quiz for "first finish" and the friend cap.
     for (const c of codes) {
       const root = c.invited_by_student_id && c.parent_share_code_id ? c.parent_share_code_id : c.id;
-      codeSchool.set(c.id, { schoolId: teacherSchool.get(c.teacher_user_id) || null, root, inviter: c.invited_by_student_id || null });
+      const watch = Boolean(watchRoot) && c.parent_share_code_id === watchRoot && !c.invited_by_student_id;
+      codeSchool.set(c.id, { schoolId: watch ? null : teacherSchool.get(c.teacher_user_id) || null, root, inviter: c.invited_by_student_id || null });
     }
     for (const id of newCodes) if (!codeSchool.has(id)) codeSchool.set(id, { schoolId: null, root: id, inviter: null });
   }

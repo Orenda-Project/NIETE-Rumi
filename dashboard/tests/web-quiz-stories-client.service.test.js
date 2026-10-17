@@ -140,6 +140,8 @@ function env(opt = {}) {
       if (x.tag !== 'script') return;
       if (/wq-stories-q\.js\?v=abc123$/.test(x.src)) { if (opt.qFail) return x.onerror(); vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); return x.onload(); }
       if (opt.onLoad) { opt.onLoad(win); x.onload(); }
+      // a file the reader brings that this test does not serve answers as a 404 does (not on this server)
+      else if (/wq-readalong\.js|wq-read-live\.js|wq-liveread\.js/.test(x.src)) x.onerror();
     } },
   };
   win.history = { replaceState(a, b, u) { calls.hist.push(u); } };
@@ -148,6 +150,8 @@ function env(opt = {}) {
   calls.audios = [];
   win.Audio = function (u) { const a = this; a.src = u || ''; a.currentTime = 0; a.paused = true; a.play = () => { a.paused = false; return Promise.resolve(); }; a.pause = () => { a.paused = true; }; calls.audios.push(a); };
   win.dispatchEvent = (e) => calls.disp.push(e.type);
+  calls.imgs = [];
+  win.Image = function () { const im = this; Object.defineProperty(im, 'src', { set(v) { calls.imgs.push(v); }, get() { return ''; } }); };
   const sb = vm.createContext({ window: win, document: doc, JSON, Math, String, Number, Array, Object, Promise, encodeURIComponent, Date });
   vm.runInContext(fs.readFileSync(SRC, 'utf8'), sb);
   const S = win.WQSTORIES;
@@ -361,6 +365,73 @@ async function openReader(e, over = {}) {
   return root;
 }
 function toMic(e, root) { fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onEnd(); fire(root, 'main'); }
+describe('the voice player comes with the book (the hub page never loads it)', () => {
+  // env() puts a WQReadAlong stub on the page; these tests take it off and hand it back only when the reader fetches it
+  const without = (opt = {}) => {
+    let RA = null;
+    const e = env({ ...opt, onLoad: (w) => { if (RA && !w.WQReadAlong) w.WQReadAlong = RA; } });
+    RA = e.win.WQReadAlong; delete e.win.WQReadAlong;
+    return e;
+  };
+  const scripts = (e, rx) => e.calls.loaded.filter((x) => x.tag === 'script' && rx.test(x.src)).map((x) => x.src);
+  test('no player on the page: the reader fetches wq-readalong.js once, at its own ?v=, and the page has its voice (Listen, one player)', async () => {
+    const e = without(); const root = await openReader(e);
+    // at the player's own content version (as the Trail fetches it): a player change alone busts its cached copy
+    const v = require('crypto').createHash('sha256').update(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js'))).digest('hex').slice(0, 10);
+    expect(scripts(e, /wq-readalong\.js/)).toEqual([`/wq/wq-readalong.js?v=${v}`]);
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    expect(e.calls.ra).toHaveLength(1);
+    e.S.open('b-1', e.ctx({ root })); await flush();
+    expect(scripts(e, /wq-readalong\.js/)).toHaveLength(1);
+  });
+  test('live reading on (the book\'s lr3) and not on the page: wq-read-live.js, THEN wq-liveread.js + its css (it reads WQLive as it loads), then Your turn', async () => {
+    let RA = null; let LR = null; const order = [];
+    const e = env({ replies: { book: { status: 200, body: { ...book(), lr3: true } } }, onLoad: (w) => {
+      const src = e.calls.loaded[e.calls.loaded.length - 1].src; order.push(src.replace(/\?.*/, ''));
+      if (/wq-readalong\.js/.test(src)) w.WQReadAlong = RA;
+      if (/wq-read-live\.js/.test(src)) w.WQLive = {};
+      if (/wq-liveread\.js/.test(src)) { expect(w.WQLive).toBeTruthy(); w.WQLiveRead = LR; }
+    } });
+    RA = e.win.WQReadAlong; LR = e.win.WQLiveRead; delete e.win.WQReadAlong; delete e.win.WQLiveRead;
+    const root = await openReader(e);
+    expect(order).toEqual(['/wq/wq-readalong.js', '/wq/wq-read-live.js', '/wq/wq-liveread.js']);
+    expect(e.calls.loaded.filter((x) => x.rel === 'stylesheet').map((x) => x.href)).toEqual(['/wq/wq-liveread.css?v=abc123']);
+    fire(root, 'main'); e.calls.ra[0].o.onEnd();
+    expect(root.querySelector('[data-main]').textContent).toBe('Your turn');
+  });
+  test('live reading off (lr3 false), or a teacher\'s preview: no live-reading file is fetched', async () => {
+    const e = without({ replies: { book: { status: 200, body: { ...book(), lr3: false } } } }); delete e.win.WQLiveRead; await openReader(e);
+    expect(scripts(e, /wq-read-live|wq-liveread/)).toHaveLength(0);
+    const t = without(); delete t.win.WQLiveRead;
+    t.S.open('b-1', { role: 'teacher', bookUrl: '/api/teacher/story/b-1', root: fakeEl('root'), lang: 'en', clock: t.clock }); await flush();
+    expect(scripts(t, /wq-read-live|wq-liveread/)).toHaveLength(0);
+  });
+  test('the live reader already on the page: no live-reading file is fetched', async () => {
+    const e = without(); await openReader(e);
+    expect(scripts(e, /wq-read-live|wq-liveread/)).toHaveLength(0);
+  });
+  test('the player already on the page: nothing more is fetched', async () => {
+    const e = env(); await openReader(e);
+    expect(scripts(e, /wq-readalong\.js/)).toHaveLength(0);
+  });
+  test('the player cannot load (offline): the book still opens, without a voice, never stuck on the wait screen', async () => {
+    const e = without(); e.win.__noRA = true;
+    const root = fakeEl('root');
+    // the script tag is added but never answers; the reader gives up after its 8 s wait
+    e.calls.loaded.length = 0;
+    const realAppend = e.doc.head.appendChild; e.doc.head.appendChild = (x) => { e.calls.loaded.push(x); };
+    e.S.open('b-1', e.ctx({ root })); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-wait');
+    e.advance(8000); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+    expect(root.querySelector('[data-main]').textContent).not.toBe('Listen');
+    e.doc.head.appendChild = realAppend;
+    // the next book asks again (a failed load is not remembered as done), and this time the player comes
+    e.S.open('b-2', e.ctx({ root })); await flush();
+    expect(scripts(e, /wq-readalong\.js/)).toHaveLength(2);
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+  });
+});
 describe('the reader', () => {
   test('page 1: the picture, one big button, ONE player (overlay) on the print; a zoomable page shows no band', async () => {
     const e = env(); const root = await openReader(e);
@@ -654,7 +725,7 @@ describe('questions and the done card', () => {
     h = root.innerHTML;
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('story-done');
-    expect(h).toContain('Let&#39;s read it together');
+    expect(h).toContain('You looked through the whole book.');
     expect(text(h)).not.toMatch(/\d\s*\/\s*\d|wrong|★|⭐|whole story/i);
     expect(h).not.toContain('sticker');
     expect(e.calls.juice).not.toContain('finish:3');
@@ -773,7 +844,7 @@ describe('questions and the done card', () => {
     fire(r2, 'ans', 2); await flush(); e2.advance(900);
     expect(r2.innerHTML).toContain('Where does the kite go?');
   });
-  test('zero-input chain: skip Listen, Done at 0 words, no questions -> "Let\'s read it together", no sticker, no confetti', async () => {
+  test('zero-input chain: skip Listen, Done at 0 words, no questions -> "You looked through the whole book.", no sticker, no confetti', async () => {
     const e = env({ wqj: true, alwaysSticker: true, replies: { book: { status: 200, body: book({ questions: [] }) } } });
     const root = await openReader(e);
     fire(root, 'next'); fire(root, 'next');
@@ -787,14 +858,16 @@ describe('questions and the done card', () => {
     const h = root.innerHTML;
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('story-done');
-    expect(h).toContain('Let&#39;s read it together');
+    // the done line says what happened (the book was paged through), not an offer to read together
+    expect(h).toContain('You looked through the whole book.');
+    expect(h).not.toContain('Let&#39;s read it together');
     expect(text(h)).not.toMatch(/whole story|sticker|page|tried/i);
     expect(e.calls.juice.filter((x) => /^finish/.test(x))).toHaveLength(0);
     const e2 = env({ replies: { book: { status: 200, body: book({ lang: 'ur', dir: 'rtl', questions: [] }) } } });
     const r2 = await openReader(e2, { lang: 'ur' });
     fire(r2, 'next'); fire(r2, 'next'); fire(r2, 'next'); await flush(); await flush();
     checkScreen(r2.innerHTML, 'ur');
-    expect(r2.innerHTML).toContain('آئیں مل کر پڑھیں');
+    expect(r2.innerHTML).toContain('آپ نے پوری کتاب دیکھ لی۔');
     expect(screenOf(r2.innerHTML)).toBe('story-done');
   });
 });
@@ -1025,6 +1098,9 @@ describe('the finish card and Home', () => {
     expect(got.el).toBe(root.querySelector('[data-col]'));
     expect(got.o).toEqual({ source: 'story', ended: 'read', pages_read: 2, pages_listened: expect.any(Number), stars: null, title: 'Mina Testwala', cover: undefined, lang: 'en', auth: { hub: TOKEN, kid: KID }, ev: expect.any(Function), home: '#', next: null, sticker: true });
     expect(root.querySelector('[data-own]').hidden).toBe(true);
+    // the card leads with its own one primary: ours ("More stories") steps back to a secondary
+    expect(primaries(root.innerHTML)).toBe(0);
+    expect(root.innerHTML).toMatch(/<button class="wqs-sec" data-tap="more">More stories</);
     let g2 = null;
     const e2 = env({ noSticker: true, replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: (w) => { w.WQFC = { mount(el, o) { g2 = o; return true; } }; } });
     await toDone(e2);
@@ -1035,6 +1111,9 @@ describe('the finish card and Home', () => {
     const root = await toDone(e);
     expect(root.querySelector('[data-own]').hidden).toBe(false);
     expect(root.innerHTML).toContain('You read the whole story!');
+    // no card: today's screen, "More stories" our one primary again
+    expect(primaries(root.innerHTML)).toBe(1);
+    expect(root.innerHTML).toMatch(/<button class="wqs-main" data-primary data-tap="more">More stories</);
     expect(root.innerHTML).not.toMatch(/sticker|jugnu_celebrate|wa\.me/);
     const e2 = env({ replies: { book: { status: 200, body: book({ questions: [] }) } } });
     await toDone(e2);
@@ -1131,6 +1210,14 @@ describe('hooks, hush, back controls, the own done screen', () => {
     const el2 = fakeEl('shelf2');
     e.S.shelf(el2, e.ctx({ primary: false }));
     expect(primaries(el2.innerHTML)).toBe(0);
+  });
+  test('a block the reader hides with [hidden] is gone even when its class sets a display (the done screen\'s own block under the card)', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs \[hidden\]\{display:none!important\}/);
+  });
+  test('the look-back screen (a centred sheet) stretches the page stage: the stage\'s only child is absolute, so a centred stage would be 0 px wide', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs-sheet \.wqs-stage[^{]*\{[^}]*align-self:stretch/);
   });
   test('the look-back screen has a back control; the shelf retry has a home link', async () => {
     const e = env({ hash: '#story/b-1/q', right: () => false });
@@ -1479,6 +1566,15 @@ describe('echo reading on G1-2', () => {
     const ws = ['Mina', 'runs.', '"Up!"', 'Is', 'it', 'red?', 'یہ', 'پتنگ', 'ہے۔', 'کیا', 'اڑی؟', 'Then'].map((t, i) => ({ i, t }));
     expect(e.S._sents(ws)).toEqual([[0, 1], [2, 2], [3, 5], [6, 8], [9, 10], [11, 11]]);
   });
+  test('one sentence rule with the player: a closing » stays with its sentence, a silent word never ends one; the end test is the player\'s, letter for letter', async () => {
+    const e = env(); await openReader(e);
+    const ws = [{ i: 0, t: '«چلو' }, { i: 1, t: 'چلیں۔»' }, { i: 2, t: '(آہستہ۔)', silent: true }, { i: 3, t: 'وہ' }, { i: 4, t: 'گیا۔' }];
+    expect(e.S._sents(ws)).toEqual([[0, 1], [2, 4]]);
+    const fs = require('fs'); const path = require('path');
+    const rx = (f) => (fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', f), 'utf8').match(/\/\[\.!\?[^/]*\/\.test/) || [])[0];
+    expect(rx('wq-stories-q.js')).toBeTruthy();
+    expect(rx('wq-stories-q.js')).toBe(rx('wq-readalong.js'));
+  });
   test('Read it together: Jugnu plays ONE sentence (seek its first word, pause at its last e_ms), its boxes outlined, then the mic on that sentence only, then the next; ends back on the page', async () => {
     const e = env({ replies: { book: { status: 200, body: two() } } });
     const root = await afterRead(e, ['read', 'ahead', 'ahead', 'ahead', 'ahead']);
@@ -1557,6 +1653,56 @@ describe('echo reading on G1-2', () => {
     fire(root, 'eend');
     expect(screenOf(root.innerHTML)).toBe('story-page');
     expect(root.innerHTML).toContain('data-tap="echo"');
+  });
+});
+
+describe('the next page is fetched ahead', () => {
+  test('on a page, the next page\'s picture is asked for (and its voice preloaded when the player can); none past the last page', async () => {
+    const e = env(); const root = await openReader(e);
+    expect(e.calls.imgs).toContain('/s/b-1/p02.webp');
+    fire(root, 'next'); fire(root, 'next');
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+    const n = e.calls.imgs.length;
+    expect(e.calls.imgs).toContain('/s/b-1/p03.webp');
+    fire(root, 'prev'); fire(root, 'next');
+    expect(e.calls.imgs.slice(n).filter((u) => /p04/.test(u))).toHaveLength(0);
+  });
+});
+
+describe('silent words (a stage direction the voice does not read): never asked of the child, never lit', () => {
+  // "(smiling)" is printed on the page but carries silent:true and no timing
+  const play = () => {
+    const bk = book();
+    bk.pages[0].words = [W(0, 'Mina', 100, [110, 810, 40, 50]), { i: 1, t: '(smiling)', silent: true, box: [160, 810, 60, 50] }, W(2, 'runs.', 600, [230, 810, 50, 50]),
+      W(3, 'The', 1100, [110, 870, 30, 50]), W(4, 'kite', 1600, [150, 870, 40, 50]), W(5, 'flies!', 2100, [200, 870, 60, 50])];
+    return bk;
+  };
+  test('Your turn: the live reader gets the words without it; the page\'s marks keep the page\'s own word numbers', async () => {
+    const e = env({ replies: { book: { status: 200, body: play() } } });
+    const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    const c = e.calls.lr[0];
+    expect(c.o.words.map((w) => w.t)).toEqual(['Mina', 'runs.', 'The', 'kite', 'flies!']);
+    c.o.onResult(READ(['read', 'skipped', 'read', 'read', 'read']));
+    const pr = e.calls.posts.filter((x) => x.body.event === 'story_page_read').pop();
+    expect(pr.body.data).toMatchObject({ words_total: 5, words_read: 4, skipped: 1, skipped_words: [2] });
+    expect(root.innerHTML).toMatch(/data-tap="word" data-arg="2"[^>]*>[^<]*(<svg[^>]*>.*?<\/svg>)?\s*runs\.</);
+  });
+  test('Read it together: the sentence holding it is outlined and asked without it; Jugnu still stops at the sentence\'s last spoken word', async () => {
+    const e = env({ replies: { book: { status: 200, body: play() } } });
+    const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({ id: 'st' });
+    e.calls.lr[0].o.onResult(READ(['read', 'ahead', 'ahead', 'ahead', 'ahead']));
+    const nra = e.calls.ra.length;
+    fire(root, 'echo');
+    const p = e.calls.ra[nra];
+    expect(p.log).toEqual(['seek:0', 'play']);
+    const es = root.querySelector('[data-es]').innerHTML;
+    expect((es.match(/class="wqs-es"/g) || []).length).toBe(2);
+    expect(es).not.toContain('left:160px');
+    p.audio.currentTime = 1.0; e.advance(100);
+    expect(e.calls.lr).toHaveLength(2);
+    expect(e.calls.lr[1].o.words.map((w) => w.t)).toEqual(['Mina', 'runs.']);
   });
 });
 
@@ -1862,5 +2008,61 @@ describe('the host slot and the host call shape', () => {
     expect(e.calls.gets[1]).toMatch(new RegExp(`^/api/wq/stories/shelf/h/${TOKEN.replace('.', '\\.')}\\?kid=${KID}&l=`));
     const el3 = fakeEl('s3'); e.S.shelf(el3, e.ctx()); await flush();
     expect(e.calls.gets[2]).toBe(`/api/wq/stories/shelf/h/${TOKEN}?kid=${KID}&l=en`);
+  });
+});
+
+describe('hear a sentence again (a tapped word replays its sentence)', () => {
+  // the real player's pause() reports onState('paused') when it was playing; a sentence replay pauses itself at its end
+  const real = (e) => {
+    const mount = e.win.WQReadAlong.mount;
+    e.win.WQReadAlong.mount = (el, d, o) => { const p = mount(el, d, o); p.pause = () => { p.log.push('pause'); if (o.onState) o.onState('paused'); }; return p; };
+  };
+  test('the reader asks the player for the sentence tap', async () => {
+    const e = env(); await openReader(e);
+    expect(e.calls.ra[0].o.tap).toBe('sentence');
+    expect(e.calls.ra[0].o.lines).toBeUndefined();   // a page without its own lines: the player finds them
+  });
+  test('a page with its own lines hands them to the player as [first, last] pairs (a low page replays those, not the browser\'s wrap)', async () => {
+    const bk = book(); bk.pages[0].quality = 'low'; bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 300, 60] }, { i0: 3, i1: 4, box: [220, 860, 200, 60] }];
+    const e = env({ replies: { book: { status: 200, body: bk } } }); await openReader(e);
+    expect(e.calls.ra[0].o.lines).toEqual([[0, 2], [3, 4]]);
+  });
+  test('while listening: the replayed sentence ends by itself -> the button says Listen, not Pause; the time heard counts', async () => {
+    const e = env(); real(e); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    fire(root, 'main');
+    expect(root.querySelector('[data-main]').textContent).toBe('Pause');
+    p.o.onWordTap(2); e.advance(1500);
+    p.o.onState('paused');                              // the player stopped after the sentence's last word
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    fire(root, 'main');
+    expect(p.log.filter((x) => x === 'play')).toHaveLength(2);
+    e.advance(1000); p.o.onEnd();
+    const ev = e.calls.posts.filter((x) => x.body.event === 'story_page_listened');
+    expect(ev).toHaveLength(1);
+    expect(ev[0].body.data).toMatchObject({ ms: 2500, completed: true });
+  });
+  test('after the page was heard: a sentence replay goes back to Your turn when it ends, and sends nothing new', async () => {
+    const e = env(); real(e); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    fire(root, 'main'); p.o.onEnd();
+    expect(root.querySelector('[data-main]').textContent).toBe('Your turn');
+    p.o.onWordTap(1);
+    expect(root.querySelector('[data-main]').textContent).toBe('Pause');
+    p.o.onState('paused');
+    expect(root.querySelector('[data-main]').textContent).toBe('Your turn');
+    expect(e.calls.posts.filter((x) => x.body.event === 'story_page_listened')).toHaveLength(1);
+  });
+  test('the child\'s own Pause (the player then says paused) is one pause: Listen, and one tap plays again', async () => {
+    const e = env(); real(e); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    fire(root, 'main'); e.advance(700); fire(root, 'main');
+    expect(p.log).toEqual(['play', 'pause']);
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    fire(root, 'main');
+    expect(p.log).toEqual(['play', 'pause', 'play']);
+    expect(root.querySelector('[data-main]').textContent).toBe('Pause');
+    e.advance(300); p.o.onEnd();
+    expect(e.calls.posts.find((x) => x.body.event === 'story_page_listened').body.data.ms).toBe(1000);
   });
 });

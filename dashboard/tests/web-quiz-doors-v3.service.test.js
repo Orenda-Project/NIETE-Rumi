@@ -277,6 +277,70 @@ describe('the storybook shelf: the reader fills the slot, keyed on the boot\'s s
   });
 });
 
+describe('the storybook shelf is asked for once per door visit (the rows arriving redraw the door)', () => {
+  // a root whose every draw gives a fresh slot, as a real innerHTML does
+  function drawingRoot() {
+    const parent = { replaceChild: jest.fn() };
+    const slots = []; let draws = 0;
+    const root = {
+      attrs: {}, setAttribute(k, v) { this.attrs[k] = v; },
+      get innerHTML() { return ''; }, set innerHTML(v) { draws += 1; const x = el({ parentNode: parent }); x.setAttribute('data-host', 'doors'); slots.push(x); },
+      querySelector: (sel) => (sel === '[data-stories-shelf]' ? slots[slots.length - 1] || null : null),
+      querySelectorAll: () => [],
+    };
+    // Home drawn over the door: the home's own slot (no data-host), as wq-home.js draws it
+    const home = () => { draws += 1; slots.push(el({ parentNode: parent })); };
+    return { root, slots, parent, draws: () => draws, home };
+  }
+  const ROWS = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(STORIES_MANY)), json: () => Promise.resolve(STORIES_MANY) });
+  test('the reader already here: one shelf fill; the redraw moves the filled shelf into the new slot (no second GET, no repaint)', async () => {
+    const shelf = jest.fn((x) => x.setAttribute('data-filled', '1'));
+    const { W } = live({ win: { WQSTORIES: { shelf } }, fetchImpl: ROWS });
+    const r = drawingRoot();
+    W.WQDOORS.mount(r.root, BOOK_B, { token: TOKEN, lang: 'en', ev() {} }, 'stories');
+    await flush();
+    expect(r.draws()).toBe(2);
+    expect(shelf).toHaveBeenCalledTimes(1);
+    expect(shelf.mock.calls[0][0]).toBe(r.slots[0]);
+    expect(r.parent.replaceChild).toHaveBeenCalledWith(r.slots[0], r.slots[1]);
+  });
+  test('the reader arrives after the rows redrew the door: it fills the slot on screen, not the one the first draw made', async () => {
+    const { W, head } = live({ fetchImpl: ROWS });
+    const r = drawingRoot();
+    W.WQDOORS.mount(r.root, BOOK_B, { token: TOKEN, lang: 'en', ev() {} }, 'stories');
+    await flush();
+    expect(r.draws()).toBe(2);
+    const shelf = jest.fn();
+    W.WQSTORIES = { shelf };
+    head.filter((x) => /wq-stories\.js/.test(x.src || '')).forEach((x) => x.fire('load'));
+    expect(shelf).toHaveBeenCalledTimes(1);
+    expect(shelf.mock.calls[0][0]).toBe(r.slots[1]);
+  });
+  test('Home tapped before the reader answers: the late reader paints nothing on the Home screen; the next Stories visit gets its shelf', async () => {
+    const { W, head } = live({ fetchImpl: ROWS });
+    const r = drawingRoot();
+    W.WQDOORS.mount(r.root, BOOK_B, { token: TOKEN, lang: 'en', ev() {} }, 'stories');
+    await flush();
+    r.home();
+    const shelf = jest.fn((x) => x.setAttribute('data-filled', '1'));
+    W.WQSTORIES = { shelf };
+    head.filter((x) => /wq-stories\.js/.test(x.src || '')).forEach((x) => x.fire('load'));
+    expect(shelf).not.toHaveBeenCalled();
+    W.WQDOORS.mount(r.root, BOOK_B, { token: TOKEN, lang: 'en', ev() {} }, 'stories');
+    expect(shelf).toHaveBeenCalledTimes(1);
+    expect(shelf.mock.calls[0][0]).toBe(r.slots[r.slots.length - 1]);
+  });
+  test('a new visit to the door asks again (a book read since may have changed the shelf)', async () => {
+    const shelf = jest.fn((x) => x.setAttribute('data-filled', '1'));
+    const { W } = live({ win: { WQSTORIES: { shelf } }, fetchImpl: ROWS });
+    const r = drawingRoot();
+    W.WQDOORS.mount(r.root, BOOK_B, { token: TOKEN, lang: 'en', ev() {} }, 'stories');
+    await flush();
+    W.WQDOORS.mount(r.root, BOOK_B, { token: TOKEN, lang: 'en', ev() {} }, 'stories');
+    expect(shelf).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('a teacher\'s class preview (no child): the boot\'s rows only, nothing fetched, a row tap shows the one line', () => {
   const PR_B = { ...HUB, practice: 1, kid: null, home_v3: 1, doors: { stories: [{ kind: 'passage', id: 'en.read.1.k02', title: 'The red kite' }], games: [{ kind: 'numbers' }], videos: { watch: true, practice: true, grade: 3 } } };
   test.each(['stories', 'games', 'videos', `watch/${VID}`])('%s: no fetch (never /api/wq/door… or the library with an empty kid)', (name) => {
@@ -409,15 +473,51 @@ describe('after a watched video: a ranked Next from the server (watch.next) when
     q.nextEl.fire('click');
     expect(q.go).toHaveBeenCalledWith('/c/tok#bigger', 'after_video');
   });
-  test('no card: our own tile; next_shown carries source server for a ranked Next, fallback without one', async () => {
+  test('no card: our own tile; next_shown carries source ranked for a ranked Next, fallback without one', async () => {
     const p = watchWith({ kind: 'story', title: 'Read a story', title_ur: 'کہانی پڑھیں', href: '#stories' }, { card: false });
     await flush();
     p.vEl.fire('ended');
-    expect(p.evs.filter(([n]) => n === 'next_shown')).toEqual([['next_shown', { ctx: 'after_video', kind: 'story', pos: 0, source: 'server' }]]);
+    expect(p.evs.filter(([n]) => n === 'next_shown')).toEqual([['next_shown', { ctx: 'after_video', kind: 'story', pos: 0, source: 'ranked' }]]);
     const q = watchWith(null, { card: false });
     await flush();
     q.vEl.fire('ended');
     expect(q.evs.filter(([n]) => n === 'next_shown')).toEqual([['next_shown', { ctx: 'after_video', kind: 'quiz', pos: 0, source: 'fallback' }]]);
+  });
+  test('a ranked Next joins the server\'s offer: next_shown and next_tap carry its offer, source, rank_src, arm, score_v and id (the relay\'s own words)', async () => {
+    const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: true,
+      next: { kind: 'story', title: 'Read a story', href: '#stories', offer: 'abcdefghij', source: 'pinned', rank_src: 'ctrl', arm: 'b', score_v: 'v1', id: 'en.read.1.k02', bogus: '<x>' } } };
+    const answer = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(WATCH)), json: () => Promise.resolve(WATCH) });
+    const t = live({ fetchImpl: answer });
+    const tap = el(); tap.setAttribute('data-tap', 'after'); tap.closest = () => tap;
+    const after = el({ hidden: true, parentNode: { removeChild() {} }, querySelector: () => el() });
+    const vEl = el({ duration: 100, currentTime: 0 });
+    const root = fakeRoot({ '.wq-vid': vEl, '.wq-vplay': el(), '.wq-after': after }, [tap]);
+    const evs = [];
+    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]), go: jest.fn() }, `watch/${VID}`);
+    await flush();
+    vEl.fire('ended');
+    const join = { offer: 'abcdefghij', source: 'pinned', rank_src: 'ctrl', arm: 'b', score_v: 'v1', id: 'en.read.1.k02' };
+    expect(evs.find(([n]) => n === 'next_shown')[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join });
+    tap.fire('click', { preventDefault() {}, stopPropagation() {}, target: tap });
+    expect(evs.find(([n]) => n === 'next_tap')[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join });
+  });
+  test('the control arm\'s tile (the server marks it source fallback) logs source fallback beside rank_src ctrl, never ranked', async () => {
+    const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: true,
+      next: { kind: 'story', title: 'Read a story', href: '#stories', offer: 'abcdefghij', source: 'fallback', rank_src: 'ctrl', arm: 'ctrl' } } };
+    const answer = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(WATCH)), json: () => Promise.resolve(WATCH) });
+    const t = live({ fetchImpl: answer });
+    const tap = el(); tap.setAttribute('data-tap', 'after'); tap.closest = () => tap;
+    const after = el({ hidden: true, parentNode: { removeChild() {} }, querySelector: () => el() });
+    const vEl = el({ duration: 100, currentTime: 0 });
+    const root = fakeRoot({ '.wq-vid': vEl, '.wq-vplay': el(), '.wq-after': after }, [tap]);
+    const evs = [];
+    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]), go: jest.fn() }, `watch/${VID}`);
+    await flush();
+    vEl.fire('ended');
+    const join = { offer: 'abcdefghij', source: 'fallback', rank_src: 'ctrl', arm: 'ctrl' };
+    expect(evs.find(([n]) => n === 'next_shown')[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join });
+    tap.fire('click', { preventDefault() {}, stopPropagation() {}, target: tap });
+    expect(evs.find(([n]) => n === 'next_tap')[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join });
   });
   test('a malformed next (no title, an outside href, javascript:) is ignored: today\'s rule', async () => {
     for (const bad of [{ href: '#stories' }, { title: 'x', href: 'https://evil.example/' }, { title: 'x', href: 'javascript:alert(1)' }, { title: 'x', href: '//evil.example/p' }, 'nope']) {
