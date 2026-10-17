@@ -50,11 +50,15 @@ function renderOf(voice) {
 }
 const ONE_RENDER = renderOf({ model: 'eleven_v4', settings: ONE_SETTINGS });
 
-/** A shared-line set's name: the voice's tag ("el-bella"), plus its rendering when it is not the one voice's v4 default. */
+/**
+ * The name of ONE rendering of a voice: its tag ("el-bella"), plus its rendering ("el-bella-cff2e4") when that is not
+ * the one voice's v4 default. A one-voice clip's key, its quiz's stamp and Jugnu's shared-line set all carry it, so the
+ * same voice id on another model or speed is another voice everywhere (the voice-mix alarm too). Key-safe.
+ */
 function setIdOf(voice) {
   const tag = tagOf(voice || {});
   const r = renderOf(voice);
-  return r === ONE_RENDER ? tag : `${tag}.${r}`;
+  return r === ONE_RENDER ? tag : `${tag}-${r}`;
 }
 
 // Jugnu's shared lines recorded in a one voice (dashboard/public/wq/voice/one/<set>/, a manifest beside them): the
@@ -62,7 +66,7 @@ function setIdOf(voice) {
 // plan renders it. A plan voice with no set here has no shared-line audio: the page shows those lines.
 const SHARED_SETS = Object.freeze({
   'el-bella': '365969a7', 'el-sana': '76bc9453', 'el-sara': 'f2d8d2ef',
-  'el-bella.cff2e4': '3a274a11', // Bella on eleven_multilingual_v2 at speed 0.9 (the storyteller pace of the passages)
+  'el-bella-cff2e4': '3a274a11', // Bella on eleven_multilingual_v2 at speed 0.9 (the storyteller pace of the passages)
 });
 
 /**
@@ -87,10 +91,11 @@ function voiceTag(language, opts) {
   return v ? tagOf(v) : 'default';
 }
 
-/** The voice a tag names ({ provider, voice, … }): in `plan`'s voices, else either table; or null. */
+/** The voice a tag or a rendering's name (setIdOf) names ({ provider, voice, … }): in `plan`'s voices, else either table; or null. */
 function voiceOfTag(tag, plan) {
   const planVoices = plan && typeof plan === 'object' && plan.voices ? Object.values(plan.voices) : [];
-  return [...planVoices, ...Object.values(ONE_VOICE), ...Object.values(QUIZ_VOICE)].find((v) => v && tagOf(v) === tag) || null;
+  const all = [...planVoices, ...Object.values(ONE_VOICE), ...Object.values(QUIZ_VOICE)].filter(Boolean);
+  return all.find((v) => setIdOf(v) === tag) || all.find((v) => tagOf(v) === tag) || null;
 }
 
 /** The shared-line sets for a plan, per language: { en: { path, v }, ur: { path, v } } (a language with no set left out). */

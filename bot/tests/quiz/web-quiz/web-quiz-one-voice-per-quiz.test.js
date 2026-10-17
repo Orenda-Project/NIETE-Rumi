@@ -428,7 +428,7 @@ describe('Jugnu\'s shared lines are the set of the plan voice\'s exact rendering
   test('the default rendering keeps its folder name; another model or settings names its own set, and none is served until it exists', async () => {
     expect(Voice.setIdOf(Voice.ONE_VOICE.en)).toBe('el-bella');
     const v2 = { ...Voice.ONE_VOICE.en, model: 'eleven_multilingual_v2', settings: { ...Voice.ONE_VOICE.en.settings, speed: 0.95 } };
-    expect(Voice.setIdOf(v2)).toMatch(/^el-bella\.[0-9a-f]{6}$/);
+    expect(Voice.setIdOf(v2)).toMatch(/^el-bella-[0-9a-f]{6}$/);
     expect(Voice.voiceTag('en', { oneVoice: OneVoice.normalize({ voices: { en: v2 } }) })).toBe('el-bella');
     const out = await page(ROWS(), GENERATED(), { flag: { voices: { en: v2 } } });
     expect(out.voice_sets.en).toBeUndefined();               // the v4 Bella set is NOT played beside v2 Bella's lines
@@ -439,8 +439,40 @@ describe('Jugnu\'s shared lines are the set of the plan voice\'s exact rendering
     const { logEvent } = require('../../../shared/utils/structured-logger');
     logEvent.mockClear(); process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(32);
     const v2 = { ...Voice.ONE_VOICE.en, model: 'eleven_multilingual_v2', settings: { ...Voice.ONE_VOICE.en.settings, speed: 0.9 } };
-    const out = await page(ROWS(), GENERATED(), { flag: { voices: { en: v2 } } });
-    expect(out.voice_sets.en).toEqual({ path: 'el-bella.cff2e4', v: Voice.SHARED_SETS['el-bella.cff2e4'] });
+    const out = await page(ROWS(), GENERATED('el-bella-cff2e4'), { flag: { voices: { en: v2 } } });
+    expect(out.voice_sets.en).toEqual({ path: 'el-bella-cff2e4', v: Voice.SHARED_SETS['el-bella-cff2e4'] });
     expect(logEvent.mock.calls.filter(([n]) => n === 'web_quiz.voice_mix')).toEqual([]);
+  });
+});
+
+describe('one voice is one RENDER: the voice tag, its model and its settings', () => {
+  const v2 = { ...Voice.ONE_VOICE.en, model: 'eleven_multilingual_v2', settings: { ...Voice.ONE_VOICE.en.settings, speed: 0.9 } };
+  test('published under another rendering of the same voice: every key names that rendering, the default plan\'s keys are unchanged', async () => {
+    const fake = seed(ROWS(), { flag: { voices: { en: v2 } } });
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
+    const web = fake.db.quizzes[0].meta.web_one;
+    expect(web.audio[QID2].q).toMatch(/\/q-el-bella-cff2e4-[0-9a-f]{8}\.ogg$/);
+    expect(web.audio_voice).toBe('el-bella-cff2e4');
+    expect(Voice.setIdOf(Voice.ONE_VOICE.en)).toBe('el-bella');
+  });
+
+  test('the alarm: the same tag in another model fires; the plan\'s own rendering does not', async () => {
+    const { logEvent } = require('../../../shared/utils/structured-logger');
+    process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(32);
+    logEvent.mockClear();
+    await page(ROWS(), GENERATED('el-bella'), { flag: { voices: { en: v2 } } });   // v4 Bella clips beside the v2 Bella set
+    const lines = logEvent.mock.calls.filter(([n]) => n === 'web_quiz.voice_mix').map(([, f]) => f);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].tags).toEqual(['el-bella', 'el-bella-cff2e4']);
+  });
+
+  test('a challenge clip under that plan: its key names the rendering and it is recorded in it', async () => {
+    const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
+    seed([], { flag: { voices: { en: v2 } } });
+    await OneVoice.on();
+    const key = Ch.clipKey('listen', 'story', 'en', 'One day it rained.');
+    expect(key).toContain('-el-bella-cff2e4-');
+    await Ch.warmClip(key, 'One day it rained.', 'en');
+    expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ voice: v2.voice, model: 'eleven_multilingual_v2', voiceSettings: { speed: 0.9 } });
   });
 });

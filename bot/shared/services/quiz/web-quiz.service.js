@@ -555,7 +555,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     // in another voice). The plan's kept bank recordings are expected and do not count. A quiz key, never its id.
     if (oneVoice) try {
       const set = require('./web-quiz-voice').sharedSets(oneVoice)[voiceLang];
-      const mix = require('./web-quiz-one-voice-flag').mixOf(audio, { sharedTag: set ? set.path.split('.')[0] : null }); // the set's voice tag
+      const mix = require('./web-quiz-one-voice-flag').mixOf(audio, { sharedTag: set ? set.path : null });
       if (mix.mixed) logEvent('web_quiz.voice_mix', { qk: require('./web-quiz-kid').qk(ctx.quizId), tags: mix.tags, bank: [...oneVoice.bank] });
     } catch { /* an alarm never breaks the page */ }
     if (helpers) {

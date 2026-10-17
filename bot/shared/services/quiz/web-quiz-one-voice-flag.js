@@ -107,8 +107,9 @@ function keepFresh() {
   if (fresh.unref) fresh.unref();
 }
 
-// A generated clip's voice is in its key: `<part>-<tag>-<hash8>.ogg` (web-quiz-audio-store.js clipKey).
-const TAG_RX = /\/[a-z0-9]+-((?:sx|el|oa)-[a-z0-9]+)-[0-9a-f]{8}\.ogg(?:[?#]|$)/;
+// A generated clip's voice is in its key: `<part>-<tag>[-<render6>]-<hash8>.ogg` (web-quiz-audio-store.js clipKey; the
+// rendering's name, web-quiz-voice.js setIdOf).
+const TAG_RX = /\/[a-z0-9]+-((?:sx|el|oa)-[a-z0-9]+(?:-[0-9a-f]{6})?)-[0-9a-f]{8}\.ogg(?:[?#]|$)/;
 
 /**
  * The voices a served page carries, for the voice-mix alarm (web_quiz.voice_mix): the tags of its clips (every spoken

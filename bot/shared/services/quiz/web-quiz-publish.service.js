@@ -337,7 +337,8 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     const voice = Voice.quizVoice(language, { oneVoice: one });
     // Never a clip in no quiz voice: it would be a second voice beside the shared lines.
     if (!voice) return done({ ok: false, reason: 'no_voice', language: language || null });
-    const voiceTag = Voice.voiceTag(language, { oneVoice: one });
+    // With one voice, the name of the plan voice's exact rendering (tag, model, settings): web-quiz-voice.js setIdOf.
+    const voiceTag = one ? Voice.setIdOf(voice) : Voice.voiceTag(language);
     const format = one ? oneFormat(one, voice) : CLIP_FORMAT;
     const slot = one ? 'web_one' : 'web';
     const bucket = Store.quizAudioBucket();

@@ -132,7 +132,7 @@ const nameOf = (ex, lang) => resolveUx(`wqCh${KEY[ex]}Name`, { language: lang })
 const lineOf = (ex, part, lang) => resolveUx(`wqCh${KEY[ex]}${PART_KEY[part]}`, { language: lang });
 const PARTS = ['intro', 'start', 'stop', 'done'];
 // The quiz's one voice per language (web-quiz-voice.js QUIZ_VOICE), pinned per call: never a fallback provider.
-const { quizVoice, voiceTag, voiceOfTag } = require('./web-quiz-voice');
+const { quizVoice, voiceTag, voiceOfTag, setIdOf } = require('./web-quiz-voice');
 const OneVoice = require('./web-quiz-one-voice-flag');
 OneVoice.keepFresh();   // clipKey names its voice at once: the switch is read in the background, never on a child's request
 const AudioStore = require('./web-quiz-audio-store');
@@ -566,14 +566,16 @@ async function updateRunMeta(id, build, { force = false } = {}) {
 // ── clips: the mascot's lines, recorded once per env in the quiz voice ───────────────────────────────
 
 // quiz-audio/<env>/challenge/<lang>/<exercise>/<part>-<voiceTag>-<hash8>.ogg — the quiz clips' own scheme and bucket.
-// With one voice per quiz (web-quiz-one-voice-flag.js, as last read) the tag is the one voice's.
+// With one voice per quiz (web-quiz-one-voice-flag.js, as last read) the tag names the plan voice's exact rendering.
 function clipKey(ex, part, lang, text) {
-  return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: voiceTag(lang, { oneVoice: OneVoice.currentPlan() }), text });
+  const plan = OneVoice.currentPlan();
+  const one = plan ? quizVoice(lang, { oneVoice: plan }) : null;
+  return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: one ? setIdOf(one) : voiceTag(lang), text });
 }
 
 // The voice a clip's key names (its tag), so a clip is always recorded in the voice its key says; else the quiz voice.
 function voiceOfKey(key, lang) {
-  const m = /-([a-z]{2}-[a-z0-9]+)-[0-9a-f]{8}\.ogg$/.exec(String(key || ''));
+  const m = /-([a-z]{2}-[a-z0-9]+(?:-[0-9a-f]{6})?)-[0-9a-f]{8}\.ogg$/.exec(String(key || ''));
   return (m && voiceOfTag(m[1], OneVoice.currentPlan())) || quizVoice(lang);
 }
 
