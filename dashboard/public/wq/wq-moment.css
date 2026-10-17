@@ -1,6 +1,7 @@
 /* The reading moment (wq-moment.js; web_quiz_read_feedback). Colours come from the page's tokens when they are there
    (the adventure layer overrides them); the fallbacks are today's look. No buttons here: the host keeps its own. */
-.wq-moment{position:relative;box-sizing:border-box;margin:12px auto 16px;padding:16px;max-width:420px;width:100%;
+/* its own 16 px gutter on both sides, whatever the host's padding (nothing touches the screen edge) */
+.wq-moment{position:relative;box-sizing:border-box;margin:12px auto 16px;padding:16px;max-width:420px;width:calc(100% - 32px);
   border-radius:var(--r-card,20px);background:var(--card,#fff);box-shadow:0 2px 0 rgba(0,0,0,.06);
   border:2px solid var(--line,#E5E7EB);text-align:center;overflow:hidden}
 .wq-moment-sky{position:absolute;inset:0;pointer-events:none;
@@ -25,7 +26,7 @@
 .wq-moment[dir="rtl"] .wq-moment-badge{padding:6px 8px 6px 14px}
 .wq-moment-disc{fill:#FDE68A;stroke:#F59E0B;stroke-width:6}
 .wq-moment-mark{fill:#F59E0B}
-.wq-moment--s{margin:8px auto;padding:10px 12px}
+.wq-moment--s{margin:8px auto;padding:10px 12px;width:calc(100% - 32px)}
 .wq-moment--s .wq-moment-deed{font-size:var(--fs-3,18px);margin-bottom:6px}
 .wq-moment--s .wq-moment-star{width:28px;height:28px}
 .wq-moment--s .wq-moment-light{width:22px;height:22px}
