@@ -637,8 +637,12 @@ function weekStart(iso) {
  * @param {string} teacherId
  * @param {{days?: number, now?: number, ownOnly?: boolean}} [opts] `ownOnly` (the teacher home's quick answer): the
  *   teacher's own quizzes only, never the library quizzes they sent (each own quiz's row is the same either way: it
- *   counts its own codes' sessions), with the class list read alongside the quizzes instead of after them.
+ *   counts its own codes' sessions), with the class list read alongside the quizzes instead of after them; a story
+ *   row also carries its `book` (meta.story.book_id or null).
  */
+/** A story send's book id (as the jsonb path `meta->story->>book_id` reads it), or null. */
+const bookOf = (q) => { const b = q.meta && q.meta.story && q.meta.story.book_id; return b ? String(b) : null; };
+
 async function classReport(teacherId, { days = 60, now = Date.now(), ownOnly = false } = {}) {
   if (!teacherId) return null;
   const since = new Date(now - days * 86400000).toISOString();
@@ -686,6 +690,8 @@ async function classReport(teacherId, { days = 60, now = Date.now(), ownOnly = f
       subject: q.subject || null, source: q.quiz_source, played: mine.length, avg: mean(scores), scores,
       // a library quiz this teacher SENT (sentQuizzes gives it sent_at); their own quizzes carry no key
       ...(q.sent_at ? { sent: true } : {}),
+      // the quick answer: a story send's book from this read's own meta (the home's "sent" pill, the pick's skip)
+      ...(ownOnly && q.quiz_source === 'story' ? { book: bookOf(q) } : {}),
     };
   });
 

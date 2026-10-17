@@ -295,7 +295,7 @@ function createRouter(deps = null) {
     const storiesP = gradeP.then((grade) => Data.within(Data.storyShelf(p.uid, grade, lang, deps), Data.SIDE_BUDGET_MS, null, 'stories'));
     const libP = Promise.all([gradeP, pfP, treeP, storiesP]).then(([grade, pf, tree, stories]) => {
       const pfSubject = (/^grade_[1-5]\|([a-z_]+)$/.exec(String(pf || '')) || [])[1] || null;
-      return { grade, lib: { stories, video: Data.videoPick(tree, grade, pfSubject), storiesBase: stories && stories.length ? storiesBaseFor(token) : null } };
+      return { grade, lib: { stories, video: Data.videoPick(tree, grade, pfSubject), storiesBase: stories && stories.length ? storiesBaseFor(token, lang) : null } };
     });
     const confirmP = Data.within(Data.confirmRows(p.uid, deps), Data.SIDE_BUDGET_MS, [], 'confirm queue');
     const makerP = makerOn().then((on) => (on ? Data.within(Data.makerLink(p.uid, lang, null, deps), Data.SIDE_BUDGET_MS, null, 'maker link') : null));

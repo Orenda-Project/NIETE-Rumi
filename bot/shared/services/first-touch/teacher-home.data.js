@@ -111,9 +111,11 @@ async function playedOwn(uid, deps, { light = false } = {}) {
   const out = new Map();
   if (light) {
     // the quick answer: the report's own rows for the teacher's own quizzes only (no library send in them, so no
-    // "which are mine" read after; the same rows as below)
+    // "which are mine" read after; the same rows as below, a story's `book` from the report's own quizzes read)
     const own = await Report.classReport(uid, { days: 60, ownOnly: true });
-    ((own && own.quizzes) || []).filter((q) => !q.sent).forEach((q) => out.set(q.id, { played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null }));
+    ((own && own.quizzes) || []).filter((q) => !q.sent).forEach((q) => out.set(q.id, {
+      played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null, ...(q.source === 'story' ? { book: q.book == null ? null : q.book } : {}),
+    }));
     return out;
   }
   const r = await Report.classReport(uid, { days: 60 });
