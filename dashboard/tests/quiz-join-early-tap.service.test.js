@@ -52,16 +52,18 @@ function page({ keeper = true } = {}) {
     localStorage: { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, v) } };
   vm.createContext(ctx);
   if (keeper) vm.runInContext(keeperSource(), ctx);
-  // a tap: capture listeners first, then bubble ones, as a browser dispatches a click that reaches the document
-  const tap = (grade) => {
+  // a tap: capture listeners first, then bubble ones, as a browser dispatches a click that reaches the document.
+  // stoppedAtTarget: something on the page stops the click at the chip (stopPropagation), so only document's
+  // capture-phase listeners ever see it.
+  const tap = (grade, { stoppedAtTarget = false } = {}) => {
     const target = chips[grade - 1];
-    listeners.filter((l) => l.capture).concat(listeners.filter((l) => !l.capture)).forEach((l) => l.f({ target }));
+    listeners.filter((l) => l.capture).concat(stoppedAtTarget ? [] : listeners.filter((l) => !l.capture)).forEach((l) => l.f({ target }));
   };
   const loadScript = () => vm.runInContext(JOIN_JS, ctx);
   const pressed = () => chips.map((c) => c.getAttribute('aria-pressed') === 'true');
   const grades = () => posts.filter((p) => p.path === '/api/wq/join/grade').map((p) => p.body.grade);
   const type = (v) => { els['jn-name'].value = v; els['jn-name'].listeners.input(); };
-  return { els, root, tap, loadScript, pressed, grades, type, posts };
+  return { els, root, tap, loadScript, pressed, grades, type, posts, listeners };
 }
 
 describe('the join page with quiz_join_early_tap', () => {
@@ -125,6 +127,16 @@ describe('a grade tapped before join.js has bound', () => {
     expect(p.els['jn-go'].disabled).toBe(true);
     p.type('Sara');
     expect(p.els['jn-go'].disabled).toBe(false);
+  });
+
+  test('the keeper listens in the capture phase, so a click stopped at the chip still reaches it', () => {
+    const p = page();
+    expect(p.listeners.map((l) => l.capture)).toEqual([true]);
+    p.tap(2, { stoppedAtTarget: true });
+    expect(p.root.getAttribute('data-early')).toBe('2');
+    expect(p.pressed()).toEqual([false, true, false, false, false]);
+    p.loadScript();
+    expect(p.grades()).toEqual([2]);
   });
 
   test('two taps before it binds: the last one (the chip shown pressed) is the one sent, once', () => {
