@@ -1979,10 +1979,12 @@ async function _reaskQuoted({ examJson, laid, quotes, P, key, layoutScope, now, 
     const mine = short.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
     const label = (id) => { const slot = b.section.slots.find((s) => s.slot === id); return (slot && slot.label_en) || id.split('.').pop(); };
     const runs = [...new Set(quotes.filter((x) => mine.some((f) => f.slot === x.slot)).map((x) => x.match))];
+    // Section A's own top-up note names what Q1 keeps (and its spares), so a refill is not a twin of a kept item.
+    const kept = takenNote(P, b.section, examJson, { topUp: true, shortfall: mine });
     const note = 'This paper cannot print what you wrote for '
       + `${mine.map((f) => label(f.slot)).join(', ')}: it repeats words from a lesson the paper must never quote. `
       + `Never write these words, or any longer run that holds them, anywhere in an item, its answer or its scheme:\n${runs.map((r) => `- «${r}»`).join('\n')}\n`
-      + mine.map((f) => `${label(f.slot)} needs ${f.missing} more. Write ${f.missing} new item${f.missing === 1 ? '' : 's'} for it, in your own everyday words.`).join('\n');
+      + (kept || mine.map((f) => `${label(f.slot)} needs ${f.missing} more. Write ${f.missing} new item${f.missing === 1 ? '' : 's'} for it, in your own everyday words.`).join('\n'));
     logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall: mine, quoted: runs });
     try {
       const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });

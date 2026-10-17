@@ -153,6 +153,24 @@ describe.each([
   });
 });
 
+describe('a Section A item that quotes the held lessons', () => {
+  test('the A re-ask is told the run and what Q1 already keeps, with its count and spares', async () => {
+    const rec = fixture('r18-urdu-refused-full1');
+    book(rec);
+    // The paragraph is clean; one MCQ's answer carries the run instead.
+    const a1 = JSON.parse(rec.replies.A1);
+    a1.unseen.objective.MCQs[0].answer = `الف) ہر بچے کو صبح سویرے اٹھ${RUN}`;
+    a1.unseen.objective.MCQs[0].options[0] = a1.unseen.objective.MCQs[0].answer;
+    const cleanC = rec.replies.C.split('کی عادت اپنانی چاہیے').join('کی عادت ڈالنی ہو گی');
+    const asked = serve(rec, { a: (n) => (n === 1 ? JSON.stringify(a1) : null), c: () => cleanC });
+    await run(rec.scope);
+    const reask = asked.filter((x) => x.sec === 'A' && /it repeats words from a lesson the paper must never quote/.test(x.prompt));
+    expect(reask).toHaveLength(1);
+    expect(reask[0].prompt).toMatch(/already keeps these items \(question → answer\)/);
+    expect(reask[0].prompt).toMatch(/needs 1 more\. Write \d+ new items/);
+  });
+});
+
 // ── 2. A reader-caught item never prints ───────────────────────────────────────────────────────
 
 describe('sandbox chapters_2 (lessons 6–7): ۱۱ prints ۲۰\'s answer, and the reader caught it', () => {
