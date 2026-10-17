@@ -192,6 +192,45 @@ function fillPoints(holder, marks, answer) {
   holder.scheme.points = [{ kind: 'A', marks, text: capCodePoints(answer, POINT_TEXT_MAX) }];
 }
 
+// A meaning written over several lines of verse marks one idea per sentence: one A point of the
+// row's whole marks would let a teacher give all or nothing. The answer is cut at each sentence
+// end, sentences past one per mark are joined to the last point, and the marks are shared out in
+// halves (the first points take the odd half). One sentence is one point, as before. Urdu Q6 (ب)
+// only: the live subjects' rows keep their one point.
+const SENTENCE_FILL = new Set(['urdu.C.Q6']);
+function fillSentences(holder, marks, answer) {
+  const sentences = answer.split(/(?<=[۔؟!?])\s+/u).map((s) => s.trim()).filter(Boolean);
+  const n = Math.min(sentences.length, Math.floor(marks), Math.floor(marks * 2));
+  if (n < 2) return fillPoints(holder, marks, answer);
+  const texts = sentences.slice(0, n - 1).concat(sentences.slice(n - 1).join(' '));
+  // The halves left over are fewer than the points (base is marks / n rounded down to a half).
+  const base = Math.floor((marks / n) * 2) / 2;
+  const odd = Math.round((marks - base * n) * 2);
+  if (!isObject(holder.scheme)) holder.scheme = { checked: null };
+  holder.scheme.points = texts.map((text, i) => ({ kind: 'A', marks: base + (i < odd ? 0.5 : 0), text: capCodePoints(text, POINT_TEXT_MAX) }));
+}
+
+// A meaning point above 2 marks that joins several ideas («… فائدے کا ذکر (صاف پانی سے بچاؤ اور
+// خوشی کا ذکر)», A4) lets a teacher give all or nothing for them. It is cut at its brackets and
+// commas into one point per idea, at most one per half mark, the marks shared out in halves as
+// above. A point with one idea stays as written, except a lone point of the whole row: that is the
+// lump again, so it is dropped and the row is written on the answer's sentences (fillSentences).
+// Urdu Q6 (ب) only, whoever wrote the points.
+const IDEA_SPLIT = new Set(['urdu.C.Q6']);
+const IDEA_MAX = 2;
+function splitIdeas(points) {
+  return points.flatMap((p) => {
+    if (!(p.marks > IDEA_MAX)) return [p];
+    const ideas = p.text.split(/[()（）،,؛;]+/u).map((t) => t.trim()).filter(Boolean);
+    const n = Math.min(ideas.length, Math.floor(p.marks * 2));
+    if (n < 2) return [p];
+    const texts = ideas.slice(0, n - 1).concat(ideas.slice(n - 1).join('، '));
+    const base = Math.floor((p.marks / n) * 2) / 2;
+    const odd = Math.round((p.marks - base * n) * 2);
+    return texts.map((text, i) => ({ text, marks: base + (i < odd ? 0.5 : 0), kind: p.kind }));
+  });
+}
+
 // Rows marked by criteria, or by their own sub-rows, never print the bare chip.
 function fillsWhole(slot) {
   return !['comprehension', 'situation', 'composition'].includes(slot.shape)
@@ -231,7 +270,11 @@ function normaliseOne(holder, marks, questionText, slot, label, log) {
         delete s.points;
         log.push(`${label}: points ${show(points.map((p) => p.marks))} do not split into ${each.n} × ${show(each.marks)}; points dropped`);
       } else {
-        s.points = points;
+        s.points = IDEA_SPLIT.has(slot.slot) ? splitIdeas(points) : points;
+        if (IDEA_SPLIT.has(slot.slot) && s.points.length === 1 && s.points[0].marks > IDEA_MAX) {
+          delete s.points;
+          log.push(`${label}: one point of ${show(marks)} with one idea; points dropped`);
+        }
       }
     }
   }
@@ -437,9 +480,10 @@ function normaliseQuestion(q, slots, where, log, shortfall, ctx) {
   const marks = Number(q.marks) || toNumber(slot.marks_each);
   const answer = answerOf(q.answer);
   if (fillsWhole(slot) && !hasPoints(q) && answer && Number.isFinite(marks) && marks > 0) {
-    fillPoints(q, marks, answer);
+    (SENTENCE_FILL.has(slot.slot) ? fillSentences : fillPoints)(q, marks, answer);
     ctx.filled.push({ slot: slot.slot, item: ctx.item, part: null, filled_by: 'code' });
-    log.push(`${label}: no points; one A point of ${show(marks)} written on the answer`);
+    const n = q.scheme.points.length;
+    log.push(`${label}: no points; ${n > 1 ? `${n} A points of ${show(marks)} written on its sentences` : `one A point of ${show(marks)} written on the answer`}`);
   }
 }
 

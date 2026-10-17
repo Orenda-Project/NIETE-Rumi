@@ -22,6 +22,8 @@ const { logToFile } = require('../../utils/logger');
 const REPORT_BUDGET_MS = 4000;
 const SIDE_BUDGET_MS = 2500;
 const LESSON_ROWS = 30;
+// The quick answer (quiz_teacher_home_paged) reads each list up to PostgREST's row cap, in one request.
+const HISTORY_ROWS = 1000;
 const SHARE_DAYS = 30;
 
 // The stories service ships in its own pull request: looked up by name, absent → no stories section.
@@ -83,9 +85,11 @@ const topicOfSession = (s) => {
  * The lessons timeline's raw rows from /quiz's own list: [{ kind:'session'|'lp'|'lesson', key, date, state, quizId,
  * topic, subject, meta }] newest first. `meta` is the quiz's meta (for the class message), never sent to the page.
  */
-async function lessons(uid, deps) {
+async function lessons(uid, deps, { light = false } = {}) {
   const List = dep(deps, 'List');
-  const { sessions, quizzes, lessons: plans } = await List.loadLessonPage(uid, LESSON_ROWS);
+  // light: the quick answer's reads (the list service's loadLessonPageLight), each source up to the row cap: every
+  // recorded lesson is listed with its quiz (today's scan stops after 50 sessions; a light row costs bytes, not trips)
+  const { sessions, quizzes, lessons: plans } = await (light ? List.loadLessonPage(uid, HISTORY_ROWS, { light: true }) : List.loadLessonPage(uid, LESSON_ROWS));
   return List.lessonItems(sessions, quizzes, plans).map((it) => {
     const q = it.quiz || null;
     const topic = (q && q.topic) || topicOfSession(it.session) || (it.lesson && (it.lesson.topic || it.lesson.title)) || null;
@@ -103,11 +107,20 @@ async function lessons(uid, deps) {
  * report also lists the library quizzes the teacher sent (their sender's report); those are this page's library shares
  * (by their code), so they are left out here — one row per send, never two.
  */
-async function playedOwn(uid, deps) {
+async function playedOwn(uid, deps, { light = false } = {}) {
   const Report = dep(deps, 'Report');
+  const out = new Map();
+  if (light) {
+    // the quick answer: the report's own rows for the teacher's own quizzes only (no library send in them, so no
+    // "which are mine" read after; the same rows as below, a story's `book` from the report's own quizzes read)
+    const own = await Report.classReport(uid, { days: 60, ownOnly: true });
+    ((own && own.quizzes) || []).filter((q) => !q.sent).forEach((q) => out.set(q.id, {
+      played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null, ...(q.source === 'story' ? { book: q.book == null ? null : q.book } : {}),
+    }));
+    return out;
+  }
   const r = await Report.classReport(uid, { days: 60 });
   const rows = (r && r.quizzes) || [];
-  const out = new Map();
   if (!rows.length) return out;
   const mine = new Map(); // quizId → the story's book id or null
   const ids = rows.map((q) => q.id);
@@ -126,7 +139,7 @@ async function playedOwn(uid, deps) {
  * The teacher's sends of LIBRARY quizzes (codes they hold on a quiz that is not theirs, i.e. the maker's sends),
  * newest first, each with the report's own count of children who finished: [{ shareCodeId, quizId, topic, at, played }].
  */
-async function libraryShares(uid, deps, now = Date.now()) {
+async function libraryShares(uid, deps, now = Date.now(), { light = false } = {}) {
   const supabase = dep(deps, 'supabase');
   const Report = dep(deps, 'Report');
   const since = new Date(now - SHARE_DAYS * 86400000).toISOString();
@@ -138,10 +151,13 @@ async function libraryShares(uid, deps, now = Date.now()) {
   if (error) throw new Error(error.message);
   const codes = (data || []).filter((c) => c.active !== false && (!c.expires_at || new Date(c.expires_at).getTime() > now));
   if (!codes.length) return [];
-  const { data: own, error: e2 } = await supabase.from('quizzes').select('id, teacher_id').in('id', codes.map((c) => c.quiz_id));
+  const ownRead = supabase.from('quizzes').select('id, teacher_id').in('id', codes.map((c) => c.quiz_id));
+  // light (the quick answer): the "prepared" marks asked alongside the quizzes read, not after it
+  const notYetSoon = light ? require('./teacher-home.sent').prepared(codes.map((c) => c.id)) : null;
+  const { data: own, error: e2 } = await ownRead;
   if (e2) throw new Error(e2.message);
   const mine = new Set((own || []).filter((q) => q.teacher_id === uid).map((q) => q.id));
-  const notYet = await require('./teacher-home.sent').prepared(codes.map((c) => c.id));
+  const notYet = await (notYetSoon || require('./teacher-home.sent').prepared(codes.map((c) => c.id)));
   const lib = codes.filter((c) => !mine.has(c.quiz_id) && !notYet.has(c.id));
   if (!lib.length) return [];
   const counted = Report.countedSessions(await Report.sessionsFor(lib.map((c) => c.id)), uid);
@@ -177,6 +193,34 @@ async function sendableOwn(uid, quizIds, deps, now = Date.now()) {
     });
   }
   return new Set([...codeOf.entries()].filter(([, c]) => live.has(c)).map(([q]) => q));
+}
+
+/**
+ * The quick answer's send-again rows, read from the teacher id alone (so they start with the other reads): every sent
+ * quiz of the teacher's (newest first, up to the row cap) whose stored message and code pass teacher-home.send ownFrom,
+ * the same rule sendableOwn applies to a list of ids → Map quizId → own message ({ message, shareCodeId, topic, source }).
+ */
+async function sendableRows(uid, deps, now = Date.now()) {
+  const supabase = dep(deps, 'supabase');
+  const Send = require('./teacher-home.send');
+  // the two fields of meta the rule reads, never the whole meta
+  const { data, error } = await supabase.from('quizzes')
+    .select('id, teacher_id, status, quiz_source, topic, student_message:meta->student_message, share_code_id:meta->share_code_id')
+    .eq('teacher_id', uid).in('status', ['sent', 'report_sent']).order('created_at', { ascending: false }).limit(HISTORY_ROWS);
+  if (error) throw new Error(error.message);
+  const quizzes = (data || [])
+    .map((q) => ({ id: q.id, teacher_id: q.teacher_id, status: q.status, quiz_source: q.quiz_source, topic: q.topic, meta: q.meta || { student_message: q.student_message, share_code_id: q.share_code_id } }))
+    .filter((q) => Send.storedCodeOf(q));
+  const codeIds = [...new Set(quizzes.map((q) => q.meta.share_code_id))];
+  const reads = [];
+  for (let i = 0; i < codeIds.length; i += 300) { // under PostgREST's .in() header cap; the chunks go together
+    reads.push(supabase.from('quiz_share_codes').select('id, active, expires_at, teacher_user_id').in('id', codeIds.slice(i, i + 300))
+      .then(({ data: rows, error: e }) => { if (e) throw new Error(e.message); return rows || []; }));
+  }
+  const codes = new Map((await Promise.all(reads)).flat().map((c) => [c.id, c]));
+  const out = new Map();
+  quizzes.forEach((q) => { const own = Send.ownFrom(uid, q, codes.get(q.meta.share_code_id), now); if (own) out.set(q.id, own); });
+  return out;
 }
 
 /** Report links for one of the teacher's own quizzes, or null when the report page is not on for them. */
@@ -246,6 +290,6 @@ async function makerLink(uid, lang, pf, deps) {
 }
 
 module.exports = {
-  teacherOf, firstNameOf, lessons, playedOwn, libraryShares, sendableOwn, reportLinks, videoPick, gradeOf, storyShelf,
-  childrenLink, confirmRows, makerLink, within, dep, REPORT_BUDGET_MS, SIDE_BUDGET_MS,
+  teacherOf, firstNameOf, lessons, playedOwn, libraryShares, sendableOwn, sendableRows, reportLinks, videoPick, gradeOf, storyShelf,
+  childrenLink, confirmRows, makerLink, within, dep, REPORT_BUDGET_MS, SIDE_BUDGET_MS, HISTORY_ROWS,
 };

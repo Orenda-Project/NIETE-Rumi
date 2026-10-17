@@ -77,8 +77,9 @@ describe('urdu Q1 ↔ Q4: a Q1 stem that prints a Q4 sentence is held', () => {
     expect(items(examJson, 'urdu.A.Q1')).toHaveLength(20);
   });
 
-  test('after the one re-ask, the held item comes back only for a place nothing else takes', () => {
+  test('after the one re-ask a held Section C give-away still stays out (the engine tops Section A up again instead)', () => {
     const { examJson } = applyLayout(clone(full1), U, FDE, { reasked: true });
-    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(20);
+    const held = applyLayout(clone(full1), U, FDE, { reasked: false }).examJson;
+    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(items(held, 'urdu.A.Q1').length);
   });
 });
