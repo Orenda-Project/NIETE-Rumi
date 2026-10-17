@@ -94,9 +94,9 @@ describe('the words: true, a parent\'s, EN + UR', () => {
     expect(ur).toContain('صرف جگنو بنانے والے لوگ سن سکتے ہیں');
     expect(ur).toContain('فون نمبر ہٹا دیا جاتا ہے، لیکن جو ریکارڈنگ پہلے سے رکھی جا چکی ہے وہ موجود رہتی ہے');
   });
-  test('nothing kept: "Nothing is kept. Jugnu listens only while you read." and its Urdu', () => {
+  test('nothing kept: "Nothing is kept. Jugnu listens only while you read." and its Urdu (passive: no gendered verb for the reader)', () => {
     expect(copyOf('en').noticeNone).toBe('Nothing is kept. Jugnu listens only while you read.');
-    expect(copyOf('ur').noticeNone).toBe('کچھ بھی نہیں رکھا جاتا۔ جگنو صرف اسی وقت سنتا ہے جب آپ پڑھ رہے ہوں۔');
+    expect(copyOf('ur').noticeNone).toBe('کچھ بھی ریکارڈ نہیں ہوتا، نہ کہیں رکھا جاتا ہے۔ جگنو صرف اسی وقت سنتا ہے جب یہ صفحہ پڑھا جا رہا ہو۔');
   });
   test('no assessment word, no "just for fun", no deletion claimed, in either language, anywhere in the sheet\'s copy', () => {
     ['en', 'ur'].forEach((l) => {
@@ -208,6 +208,14 @@ describe('keeping switched off or on later', () => {
     const LR = sheetLib(store());
     const a = sheetEl(); LR.askMic(a, { lang: 'en', src: 'story' });
     expect(a.innerHTML).not.toContain('lr-notice');
+  });
+});
+
+describe('the microphone again (micAgain): only the live reader calls getUserMedia', () => {
+  test('a promise of a stream when the phone has a microphone; null when it has none', async () => {
+    const LR = sheetLib(store());
+    const s = await LR.micAgain();
+    expect(typeof s.getTracks).toBe('function');
   });
 });
 

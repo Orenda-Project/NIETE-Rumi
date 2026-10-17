@@ -188,8 +188,8 @@
       notNow: 'ابھی نہیں، صرف سنیں', stop: 'ابھی کے لیے بس', grownUps: 'بڑوں کے لیے', okListen: 'کوئی بات نہیں۔ آئیں، جگنو سے سنتے ہیں۔',
       osAsk: 'جب فون پوچھے تو «اجازت دیں» (\u2066Allow\u2069) دبائیں۔', rest: 'جگنو کے کانوں کو اب تھوڑا آرام چاہیے۔ آئیں، یہ کہانی مل کر سنتے ہیں!',
       facts: 'آواز صرف پڑھتے وقت الفاظ کو روشن کرنے کے لیے سنی جاتی ہے۔ کہانی کے صفحے پر کچھ بھی محفوظ نہیں ہوتا۔ «ابھی نہیں، صرف سنیں» کسی بھی وقت دبا سکتے ہیں۔',
-      noticeKept: 'بڑوں کے لیے: جگنو کی عبارتیں پڑھنے کی ریکارڈنگ جگنو رکھتا ہے، اور ابھی یہ طے نہیں کہ کب تک رکھے گا۔ یہ ریکارڈنگ صرف جگنو بنانے والے لوگ سن سکتے ہیں، تاکہ جگنو بچوں کی آواز بہتر سمجھ سکے۔ کہانی کے صفحوں کی ریکارڈنگ کبھی نہیں رکھی جاتی۔ واٹس ایپ پر \u2066STOP\u2069 بھیجنے سے یہ فون نمبر ہٹا دیا جاتا ہے، لیکن جو ریکارڈنگ پہلے سے رکھی جا چکی ہے وہ موجود رہتی ہے۔',
-      noticeNone: 'کچھ بھی نہیں رکھا جاتا۔ جگنو صرف اسی وقت سنتا ہے جب آپ پڑھ رہے ہوں۔' },
+      noticeKept: 'بڑوں کے لیے: جگنو کی عبارتیں پڑھنے کی ریکارڈنگ جگنو رکھتا ہے، اور ابھی یہ طے نہیں کہ کب تک رکھے گا۔ یہ ریکارڈنگ صرف جگنو بنانے والے لوگ سن سکتے ہیں، تاکہ جگنو بچوں کی آواز بہتر سمجھ سکے۔ کہانی کے صفحوں کی ریکارڈنگ کبھی نہیں رکھی جاتی۔ واٹس\u00a0ایپ پر \u2066STOP\u2069 بھیجنے سے یہ فون نمبر ہٹا دیا جاتا ہے، لیکن جو ریکارڈنگ پہلے سے رکھی جا چکی ہے وہ موجود رہتی ہے۔',
+      noticeNone: 'کچھ بھی ریکارڈ نہیں ہوتا، نہ کہیں رکھا جاتا ہے۔ جگنو صرف اسی وقت سنتا ہے جب یہ صفحہ پڑھا جا رہا ہو۔' },
   };
   // the controls' glyphs are drawn, never a font character (a ✓ or an emoji falls into the Nastaliq face)
   var TICK = '<svg class="lr-tick" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -274,6 +274,12 @@
         o.onStream(stream);
       }).catch(function (e) { off(String((e && e.name) || 'error').toLowerCase().replace(/[^a-z]/g, '').slice(0, 24)); });
     });
+  }
+
+  /** The microphone again after a host gave it back (permission already given): a promise of a stream, or null. */
+  function micAgain() {
+    var md = navigator.mediaDevices;
+    return md && typeof md.getUserMedia === 'function' ? md.getUserMedia({ audio: true }) : null;
   }
 
   // ── the reading, mounted on one element (a story page) ────────────────────────────
@@ -514,5 +520,5 @@
   }
 
   window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, wordTaps: wordTaps, spanMs: spanMs, trail: trail, COPY: COPY,
-    noticeSeen: noticeSeen, noticeMark: noticeMark, noticeText: noticeText };
+    noticeSeen: noticeSeen, noticeMark: noticeMark, noticeText: noticeText, micAgain: micAgain };
 })();
