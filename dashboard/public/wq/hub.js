@@ -104,8 +104,9 @@
   function subjectName(s) { var k = subjectKey(s); return LANG === 'ur' && SUBJECT_UR[k] ? SUBJECT_UR[k] : k; }
   // The mascot, as on the quiz page (wq.js jugImg/jug): a still pose and the speech bubble.
   var JUG_DIR = '/wq/jugnu/';
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function jug(pose, line) {
-    return '<div class="wq-jug"><span class="wq-jimg" data-jpose="' + pose + '"><img src="' + JUG_DIR + pose + '.webp" alt="" width="92" height="92"></span><div class="wq-say">' + esc(line) + '</div></div>';
+    return '<div class="wq-jug"><span class="wq-jimg" data-jpose="' + pose + '"><img src="' + jv(JUG_DIR + pose + '.webp') + '" alt="" width="92" height="92"></span><div class="wq-say">' + esc(line) + '</div></div>';
   }
   // Urdu: a run of Latin words (an English video title) keeps its own face and direction (wq.js latinRuns).
   var LAT_RUN = /[A-Za-z0-9&("'“‘][^\s<>؀-ۿ]*(?:[  ]+[A-Za-z0-9&("'“‘][^\s<>؀-ۿ]*)*/g;
@@ -223,7 +224,7 @@
     });
   }
   function pick(chip) {
-    render(bar() + '<div class="wq-boot"><img src="' + JUG_DIR + 'thinking.webp" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H1-wait');
+    render(bar() + '<div class="wq-boot"><img src="' + jv(JUG_DIR + 'thinking.webp') + '" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H1-wait');
     hubFor(chip).then(function (r) {
       // An expired or forged link: the server's closed page says what to do (never "No internet").
       if (r.status === 401) { location.reload(); return; }
@@ -253,7 +254,7 @@
   }
   // The server render has no device: ask again as this phone, then show what the bot allows.
   function unlock() {
-    render(bar() + '<div class="wq-boot"><img src="' + JUG_DIR + 'hello.webp" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H0-wait');
+    render(bar() + '<div class="wq-boot"><img src="' + jv(JUG_DIR + 'hello.webp') + '" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H0-wait');
     hubFor(null).then(function (r) {
       if (r.status === 401) { location.reload(); return; }
       if (!r.ok || !r.body) throw new Error('hub_' + r.status);
