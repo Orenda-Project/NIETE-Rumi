@@ -74,12 +74,9 @@
     // the mic is on only while a child reads: off when a read ends, the page or reader is left, or it comes too late
     function stopTracks(s) { try { s.getTracks().forEach(function (x) { x.stop(); }); } catch (e) {} }
     function free() { stopTracks(stream); stream = null; }
-    var set0 = m.set, go0 = m.go, kill0 = R.kill;
+    var set0 = m.set, go0 = m.go;
     m.set = function (st) { if (st != 'reading' && st != 'echo') free(); return set0.apply(m, arguments); };
     m.go = function () { free(); return go0.apply(m, arguments); };
-    R.kill = function () { free(); return kill0.apply(R, arguments); };
-    // Back / Home leave by the hash; a closed tab by pagehide
-    ['hashchange', 'pagehide'].forEach(function (n) { W.addEventListener(n, function () { if (n == 'pagehide' || !R.live()) free(); }); });
     // the page's lines after Your turn (the states below are reached only through this file): praise, a word to
     // practise, the kind words, Read it together
     R.ex = function (s, p) {
@@ -317,8 +314,13 @@
       if (root.setAttribute) root.setAttribute('data-steady', '');
       onW('offline', function () { if ((m.st === 'listening' || eo) && !full(aud())) down(); });
       onW('online', function () { if ((R.nw || root.querySelector('.wqs-bad')) && /^(idle|paused|listened|together|denied|read|practise|picture)$/.test(m.st)) { R.nw = 0; R.re(); } });
-      onW('pagehide', function () { R.fl(1); });   // keepalive: the send outlives the closing in-app browser
+      onW('pagehide', function () { free(); R.fl(1); });   // keepalive: the send outlives the closing in-app browser
     }
+    // the mic is given back when the book is left (Back, Home, another book: kill -> R.un) and when the tab closes
+    // (pagehide: with the setting on, the listener above); no listener of its own stays on the window
+    else if (W.addEventListener) onW('pagehide', free);
+    var un0 = R.un;
+    R.un = function () { free(); un0(); };
     if (m.st === 'listening') watch();
     R.ml = m.label(); R.mb = root.querySelector('[data-main]'); here(); ph(); late(m.i);
 

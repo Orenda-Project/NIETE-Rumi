@@ -3014,6 +3014,25 @@ describe('a kind screen on every stall: the edges', () => {
     e.S.open('b-1', e.ctx({ root })); await flush();                   // a second open: the first book's go, the new one's stay
     expect(n(e)).toEqual([1, 1, 1]);
   });
+  test('the stall setting on: the microphone is still given back when the tab closes and when the book is left, through the book\'s own one pagehide listener', async () => {
+    const n = (e) => ['offline', 'online', 'pagehide'].map((k) => (e.winL[k] || []).length);
+    const micStream = (id) => { const tr = { stops: 0, stop() { tr.stops += 1; } }; return { id, tr, getTracks: () => [tr] }; };
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    const st = micStream('a');
+    e.calls.ask[0].onStream(st);
+    expect(n(e)).toEqual([1, 1, 1]);                               // no listener of the microphone's own
+    expect(st.tr.stops).toBe(0);
+    (e.winL.pagehide || []).forEach((f) => f({}));                 // the tab closed mid-read
+    expect(st.tr.stops).toBeGreaterThanOrEqual(1);
+    const e2 = env(); const r2 = await openReader(e2);
+    toMic(e2, r2);
+    const st2 = micStream('b');
+    e2.calls.ask[0].onStream(st2);
+    fire(r2, 'back');                                              // the book left: its listeners and the microphone go at once
+    expect(st2.tr.stops).toBeGreaterThanOrEqual(1);
+    expect(n(e2)).toEqual([0, 0, 0]);
+  });
   test('a book that is not here while the second file cannot load: the kind retry screen with Back, never the waiting screen', async () => {
     const e = env({ qFail: true, replies: { book: { status: 404, body: { error: 'gone' } } } });
     const root = await openReader(e); await flush();
