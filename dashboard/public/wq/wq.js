@@ -2303,8 +2303,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
         (res.counted === false ? pracBanner(res, total) : '') +
         '<button class="wq-btn wq-go" id="wq-card"' + (window.WQJ ? ' data-primary' : '') + '>' + esc(T.seeCard) + '</button>' + // the kit (web_quiz_juice): one primary
-        // The home on (finish's card_fold): the card is the one way on from here; the class table and the videos live on the home.
-        (foldOn(res) ? '' : (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn());
+        // The home on (finish's card_fold): the card is the one way on from here; the videos live on the home. The class
+        // table stays with web_quiz_class_doors (finish's class_doors).
+        (foldOn(res) ? (classDoors(res) ? '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' : '') : (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn());
       render(h, 'M9');
       if (!foldOn(res)) libPrefetch();   // the folded card opens no video list
       wireBar();
@@ -2581,6 +2582,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // as the secondary, one Home row. The doors, the class and the league live on the home; "Challenge a friend" is the
   // slot's invite when it ranks first. Without card_fold the card below is today's.
   function foldOn(res) { return Boolean(res && res.card_fold) && Boolean(S.st) && !friendRun() && !B.preview; }
+  // The class table and the school league on the folded card and results (app_settings web_quiz_class_doors, finish's
+  // class_doors): a class child's own run only, never a child with no class.
+  // TODO(one button system): the two buttons are today's wq-soft; the sweep swaps the class.
+  function classDoors(res) { return Boolean(res && res.class_doors) && res.no_class !== true && !friendRun(); }
   // The slot's offer, or the next of its alternatives, that opens on this site (an invite's WhatsApp message never).
   function foldOffer(nx) {
     var all = nx && typeof nx === 'object' ? [nx].concat(Array.isArray(nx.alts) ? nx.alts : []) : [];
@@ -2614,6 +2619,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       tile +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-soft" id="wq-share">' + esc(res.no_class === true ? T.sharePlain : T.shareBtn) + '</button>' +
+      (classDoors(res) ? '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' +
+        '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-fhome" data-home>' + esc(T.homeBtn) + '</button>';
     render(h, 'M10');
     wireBar();
@@ -2630,6 +2637,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (fc) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-fhome', function () { homeGo('card'); });
+    on('#wq-class', board);
+    on('#wq-schools', function () { schools(card); });
     // No answer from the slot: the home, on its Stories door (the home's own Next when it has nothing ranked).
     if (!nx) on('#wq-fnext', function () { homeGo('card', '#stories'); });
     else {
@@ -3156,28 +3165,35 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // A class link on a phone that already holds a child (boot link_known, app_settings web_quiz_link_known_child): the
   // server answers the children THIS phone holds (never a classmate; nobody on a forwarded link) and the page asks
   // "Is it <First>?" (two or more: "Whose turn is it?") before the name box, so a child who joined on their own plays
-  // as themselves. Asked once per quiz on this phone; "Someone else", nobody, an error or no answer in 3 s: today's screen.
+  // as themselves. Asked once per quiz on this phone. Today's landing is drawn at once while it asks (never a blank
+  // wait); the answer swaps it for the question only while the child has not touched the page (no tap, key, touch or
+  // scroll) and the landing is still the screen. After a touch a late answer is dropped (link_known_late {ms}); every
+  // answer is timed (link_known_answer {ms, kids}). "Someone else", nobody, an error or no answer: today's screen.
   var KN_KEY = 'wq_kn_' + CODE;
   function knownOk() {
     return Boolean(B.link_known) && !B.preview && !B.invited && !B.challenge && !params.k && !S.st && !S.queue.length && !S.pending
       && Boolean(sget('wq_d', null)) && !sget(KN_KEY, null);
   }
   function knownAsk() {
-    var done = false;
-    function fall() { if (!done) { done = true; landing(); } }
-    setTimeout(fall, 3000);
+    var t0 = Date.now(), touched = false;
+    function touch() { touched = true; }
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function (n) { document.addEventListener(n, touch, true); });
+    window.addEventListener('scroll', touch, { passive: true });
+    landing();
+    var painted = ROOT.getAttribute('data-m');
     // The server reads this phone's own wq_dv cookie (the edge forwards it), never a device the page sends.
     api('POST', 'known', { code: CODE }).then(function (r) {
-      if (done) return;
       // A child already a card on this phone's landing is offered there; only the others are asked about here.
       var have = {};
       kids().forEach(function (k) { have[k.chip] = 1; });
       var got = r && r.ok && r.body && Array.isArray(r.body.kids) ? r.body.kids : [];
       var list = got.filter(function (k) { return k && typeof k.chip === 'string' && k.chip && typeof k.first === 'string' && k.first && !have[k.chip]; }).slice(0, 4);
-      if (!list.length) return fall();
-      done = true;
+      var ms = Math.max(0, Date.now() - t0);
+      ev('link_known_answer', { ms: ms, kids: list.length });
+      if (!list.length) return;
+      if (touched || ROOT.getAttribute('data-m') !== painted) return ev('link_known_late', { ms: ms });
       knownCards(list);
-    }, fall);
+    }, function () {});
   }
   function knownCards(list) {
     var one = list.length === 1 ? list[0] : null;
