@@ -226,6 +226,11 @@ describe('(e) the put-back: spares sized to the gap, one more A-only top-up, and
         const nA = asked.filter((a) => a.sec === 'A').length;
         let content = rec.replies[sec === 'A' ? 'A1' : sec];
         if (sec === 'A' && nA === 2) content = rec.replies.A2;
+        // Q4's «… متعلق ہیں: سورج، کرنیں، دھوپ، روشنی» → سورج is held (the key is the one option its
+        // list prints); a later C call writes that item with the group named in the stem.
+        if (sec === 'C' && asked.filter((a) => a.sec === 'C').length > 1) {
+          content = content.replace('گروہی الفاظ میں سے وہ لفظ چنیں جس سے یہ سب الفاظ متعلق ہیں: سورج، کرنیں، دھوپ، روشنی', '«کرنیں، دھوپ، روشنی، گرمی» یہ گروہی الفاظ کس لفظ سے متعلق ہیں؟');
+        }
         if (sec === 'A' && nA > 2) {
           const m = prompt.match(/Write (\d+) new items/);
           content = JSON.stringify({ unseen: { objective: { MCQs: clone(SPARES).slice(0, m ? Number(m[1]) : 0) } } });
@@ -249,7 +254,8 @@ describe('(e) the put-back: spares sized to the gap, one more A-only top-up, and
       // The first reply holds 8: the Q6-verse item, six Q3/Q5 meaning items and «آتش دان» (c).
       expect(a[1].prompt).toMatch(/Q1 needs 8 more\. Write 12 new items/);
       expect(a[2].prompt).toMatch(/Q1 needs \d+ more\. Write \d+ new items/);
-      expect(asked.filter((x) => x.sec !== 'A')).toHaveLength(2);
+      // B once; C twice: its Q4 «… سورج» item is held and Section C is asked once more for it.
+      expect(asked.filter((x) => x.sec !== 'A')).toHaveLength(3);
       expect(logToFile.mock.calls.some(([msg, data]) => msg === '[assessment] section topped up again' && data.section === 'A')).toBe(true);
     });
   });
