@@ -221,7 +221,7 @@
     // Every home render is a home_view (the funnel's denominator); the tile it shows is a next_shown beside it.
     if (nx) {
       ev('home_view', { src: arrivedFrom(B) });
-      ev('next_shown', rankOf(B, { ctx: 'home', kind: nx.kind, pos: 0, source: nx.src === 'next' ? 'ranked' : 'fallback' }));
+      ev('next_shown', rankOf(B, { ctx: 'home', kind: nx.kind, pos: 0, source: nx.src === 'next' ? (/^(pinned|ranked|fallback)$/.test(B.next.source) ? B.next.source : 'ranked') : 'fallback' }));
       if (!B.practice) prefetchOnce(nx.href, ctx);
     }
     each(root, '[data-tap]', function (el) {
@@ -252,11 +252,15 @@
     if (!window.WQDOORS) loadOnce('wq-doors', function () { var n = String(location.hash || '').replace(/^#/, ''); if (window.WQDOORS && window.WQDOORS.owns(n)) mount(root, B, ctx); });
     try { window.scrollTo(0, 0); } catch (e) {}
   }
-  // An empty hash (the reader's way home) reads as '' — home again; a door or #watch/<video id> draws its screen.
+  // An empty hash (the reader's way home) reads as '' — home again; a door or #watch/<video id> draws its screen;
+  // #story/<id> set in the page (the Next tile, a resume tile) fetches the reader, which routes the hash on load.
   function hashOnce(root, B, ctx) {
     if (wired) return;
     wired = true;
-    try { window.addEventListener('hashchange', function () { if (/^(#(stories|games|videos|watch\/[0-9a-f-]{36})?)?$/i.test(location.hash || '')) mount(root, B, ctx); }); } catch (e) {}
+    try { window.addEventListener('hashchange', function () {
+      if (/^#story\//.test(location.hash || '')) { if (B.stories && B.stories.on && !window.WQSTORIES) loadOnce('wq-stories'); return; }
+      if (/^(#(stories|games|videos|watch\/[0-9a-f-]{36})?)?$/i.test(location.hash || '')) mount(root, B, ctx);
+    }); } catch (e) {}
   }
   // The arrival (?from= on the home's URL) as EVENTS_V3's home_view.src: door | home | link | quiz | who.
   var FROM = { quiz: 'quiz', door: 'door', link: 'link', class_link: 'link', card: 'link', wa: 'link', who: 'who' };
