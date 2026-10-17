@@ -455,9 +455,11 @@ async function languageOf(entry, asked) {
   return clampLanguage(null);
 }
 
-async function who(token, { kid, lang, device } = {}, { fast = false } = {}) {
+async function who(token, { kid, lang, device } = {}, { fast = false, early = null } = {}) {
   if (!(await challengeOn())) fail(503, 'challenge_off');
   const entry = await entryOf(token, kid, device);
+  // Fast pages: a caller's own lookups that need only the child start here, beside the grade and the language.
+  if (early) early(entry);
   // Fast pages: the child's language needs only the entry, so it is read beside the grade (and set aside when the
   // child is not eligible, as today's answer is then the refusal).
   const langP = fast ? Fast.early(languageOf(entry, lang)) : null;
@@ -701,7 +703,10 @@ async function menu(token, { kid, lang, device } = {}) {
   // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
   { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
   const fast = Fast.on();
-  const w = await who(token, { kid, lang, device }, { fast });
+  // Fast pages: the card's no_class (the child home on) needs only the child, so it starts as soon as the child is known.
+  let noClassP = null;
+  const early = fast ? (e) => { noClassP = Fast.early(require('./web-quiz-hub-door').noClassField(e.studentId)); } : null;
+  const w = await who(token, { kid, lang, device }, { fast, early });
   // Fast pages: the rule switches are read beside the events switch (set aside for a grade-1 child, as today).
   const rulesP = fast ? Fast.early(rulesOf({ fast })) : null;
   // EVENTS §0.1: the server copy carries the writer's mark under events v2; off, today's event byte for byte
@@ -721,6 +726,7 @@ async function menu(token, { kid, lang, device } = {}) {
     juice: Fast.early(require('./web-quiz-juice').field()),
     bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
     lr3: Fast.early(LiveReadV3().forMenu()),
+    no_class: noClassP,
   } : null;
   const got = (key, start) => (pre ? pre[key] : start());
   const runs = await got('runs', async () => (rules.record ? countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored')));
@@ -756,6 +762,8 @@ async function menu(token, { kid, lang, device } = {}) {
     ...((await got('juice', () => require('./web-quiz-juice').field())) ? { juice: true } : {}),
     ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
     ...(await got('lr3', () => LiveReadV3().forMenu())),   // live reading v3: the page loads its component (off ⇒ nothing)
+    // the child home on: a child with no class shares with "Share" (web-quiz-hub-door.js; off ⇒ nothing)
+    ...(await got('no_class', () => require('./web-quiz-hub-door').noClassField(w.studentId))),
   };
 }
 

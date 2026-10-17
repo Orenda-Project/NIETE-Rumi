@@ -39,10 +39,11 @@ const CODE_RX = /^[A-Z0-9]{4,12}$/;
 // What a child did, by kind. A deed outside its kind's list is refused (400), so the picture only ever says these.
 const DEEDS = Object.freeze({
   quiz: ['quiz_done'],
-  read: ['read_all', 'read_some', 'read_tried'],
-  listen: ['listen_done'],
-  story: ['story_read', 'answered', 'read_tried'],
-  game: ['game_done'],
+  // *_practice: a stop played again with the child home on (no "today", no sticker: the Book is counted runs only)
+  read: ['read_all', 'read_some', 'read_tried', 'read_practice', 'read_some_practice'],
+  listen: ['listen_done', 'listen_practice'],
+  story: ['story_read', 'answered', 'read_tried', 'story_practice'],
+  game: ['game_done', 'game_practice'],
   // a storybook (the reader's one result object, source 'story'): read, only listened to, or opened with nothing read
   book: ['book_read', 'listen_done', 'read_tried'],
   video: ['video_watched'],
@@ -62,6 +63,11 @@ const COPY = {
     game_done: 'I played a numbers game with Jugnu today!',
     book_read: 'I read a storybook with Jugnu today!',
     video_watched: 'I watched a video with Jugnu today!',
+    read_practice: 'I read a whole story out loud!',
+    read_some_practice: 'I read out loud with Jugnu!',
+    listen_practice: 'I listened to a story with Jugnu!',
+    story_practice: 'I read a story with Jugnu!',
+    game_practice: 'I played a numbers game with Jugnu!',
     sticker: 'A new sticker!',
     with: 'Jugnu',
     ret: 'Play with Jugnu any day. Tap, then send:',
@@ -78,6 +84,11 @@ const COPY = {
     game_done: 'میں نے آج جگنو کے ساتھ گنتی کا کھیل کھیلا!',
     book_read: 'میں نے آج جگنو کے ساتھ کہانی کی کتاب پڑھی!',
     video_watched: 'میں نے آج جگنو کے ساتھ ویڈیو دیکھی!',
+    read_practice: 'میں نے پوری کہانی اونچی آواز میں پڑھی!',
+    read_some_practice: 'میں نے جگنو کے ساتھ اونچی آواز میں پڑھا!',
+    listen_practice: 'میں نے جگنو کے ساتھ کہانی سنی!',
+    story_practice: 'میں نے جگنو کے ساتھ کہانی پڑھی!',
+    game_practice: 'میں نے جگنو کے ساتھ گنتی کا کھیل کھیلا!',
     sticker: 'ایک نیا اسٹیکر!',
     with: 'جگنو',
     ret: 'جب دل چاہے جگنو کے ساتھ کھیلیں! یہاں دبائیں، پھر بھیجیں:',
@@ -248,7 +259,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const URDU_RX = /[؀-ۿ]/;
 
 // One sticker, drawn (the renderer has no emoji font): a gold star on a ribbon disc — never a count of stars. A try
-// (read_tried: Done with almost nothing read) earns no sticker, so its picture draws none.
+// (read_tried: Done with almost nothing read) earns no sticker, so its picture draws none; nor does a stop played again.
 const STICKER = '<svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="56" fill="#FDE68A" stroke="#F59E0B" stroke-width="6"/>'
   + '<path d="M60 22l11 23 25 3-18 17 5 25-23-12-23 12 5-25-18-17 25-3z" fill="#F59E0B"/></svg>';
 
@@ -278,7 +289,7 @@ body{width:${W}px;height:${H}px;overflow:hidden;background:#FFF8E7}
 </style></head><body><div class="card">${jug}<div class="txt">
 <div class="name" dir="${nameDir}">${esc(f.first || '')}</div>
 <div class="deed">${esc(t[f.deed] || '')}</div>
-${f.deed === 'read_tried' ? '' : `<div class="st">${STICKER}<span>${esc(t.sticker)}</span></div>`}
+${f.deed === 'read_tried' || /_practice$/.test(f.deed) ? '' : `<div class="st">${STICKER}<span>${esc(t.sticker)}</span></div>`}
 </div><div class="brand">JUGNU</div></div></body></html>`;
 }
 
