@@ -2617,6 +2617,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-btn wq-ghost" id="wq-fhome" data-home>' + esc(T.homeBtn) + '</button>';
     render(h, 'M10');
     wireBar();
+    // a tap while offline (the quiz's offline_guard): the card's Next waits for the connection (wq-finish-card.js)
+    if (B.offline_guard === true && fc && fc.og) fc.og(LANG);
     var pct = res.score && res.score.pct != null ? res.score.pct : (total ? Math.round(100 * (c.correct || 0) / total) : 0);
     if (S.st && sget('wq_cv', null) !== S.st) {
       sset('wq_cv', S.st);

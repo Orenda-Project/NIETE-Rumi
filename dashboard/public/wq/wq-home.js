@@ -27,6 +27,7 @@
       who: 'Who is playing?', someoneNew: 'Someone new?',
       remember: 'Jugnu will remember you on this phone.', remUndo: 'Undo', forget: 'Forget this phone',
       cls: function (n) { return 'Class ' + n; }, prSees: 'This is what your class sees', prBack: 'Back', prNote: 'Children open this from their own link',
+      off: 'No internet. Try again when you are online.', offAgain: 'Try again',
     },
     ur: {
       hi: function (n) { return n ? '⁨' + n + '⁩، السلام علیکم!' : 'السلام علیکم!'; },
@@ -44,6 +45,7 @@
       who: 'کس کی باری ہے؟', someoneNew: 'کوئی اور؟',
       remember: 'جگنو آپ کو اس فون پر یاد رکھے گا۔', remUndo: 'یاد نہ رکھیں', forget: 'اس فون پر یاد نہ رکھیں',
       cls: function (n) { return 'کلاس ' + urDigits(n); }, prSees: 'آپ کی کلاس کو یہی نظر آتا ہے', prBack: 'واپس', prNote: 'بچے اسے اپنے لنک سے کھولیں گے',
+      off: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔', offAgain: 'دوبارہ کوشش کریں',
     },
   };
   // The door icons (inline, one colour, currentColor): a book, a die, a play button.
@@ -260,6 +262,7 @@
   function mount(root, B, ctx) {
     var name = String((typeof location !== 'undefined' && location.hash) || '').replace(/^#/, '');
     if (B.practice) ctx = practiceCtx(ctx);
+    if (B.offline_guard === true) offGuard(ctx);
     hashOnce(root, B, ctx);
     // The door screens (wq-doors.js, fetched after the home paints): theirs once loaded; until then the rows below.
     if (window.WQDOORS && window.WQDOORS.owns(name)) return window.WQDOORS.mount(root, B, ctx, name);
@@ -362,14 +365,51 @@
     prefetched = true;
     var run = function () {
       try {
-        var c = typeof navigator !== 'undefined' && navigator.connection;
-        if (c && (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || '')))) return;
+        if (slowNet()) return;
         var l = document.createElement('link'); l.rel = 'prefetch'; l.href = url; document.head.appendChild(l);
       } catch (e) {}
     };
     try { if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 4000 }); else setTimeout(run, 1500); } catch (e) {}
   }
   function go(ctx, href, what) { if (!href) return; if (ctx.go) ctx.go(href, what); else location.assign(href); }
+  function slowNet() { var c = typeof navigator !== 'undefined' && navigator.connection; return !!(c && (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || '')))); }
+  // A tap while offline (the hub's offline_guard): every page the home and its doors open goes through ctx.go. Offline:
+  // stay, the offline line + Try again; `online` or Try again opens it once. A slow line HEADs it first (2 s, then opens).
+  var held = null;
+  function offGuard(ctx) {
+    if (ctx.og) return;
+    var go0 = ctx.go;
+    ctx.og = 1;
+    ctx.go = function (href, what) {
+      var nav = function () { if (go0) go0(href, what); else location.assign(href); };
+      if (held) { held.nav = nav; return; }
+      if (navigator.onLine === false) return offHold(ctx, nav);
+      if (!slowNet() || typeof fetch !== 'function') return nav();
+      held = { nav: nav };
+      var t = setTimeout(function () { end(1); }, 2000);
+      var end = function (ok) { if (!held || held.box) return; clearTimeout(t); var n = held.nav; held = null; if (ok) n(); else offHold(ctx, n); };
+      fetch(href, { method: 'HEAD', cache: 'no-store', credentials: 'same-origin' }).then(function () { end(1); }, function () { end(0); });
+    };
+  }
+  function offHold(ctx, nav) {
+    var t = C(ctx), box = document.createElement('div');
+    box.className = 'wq-off';
+    box.setAttribute('role', 'status');
+    box.setAttribute('style', 'position:fixed;left:16px;right:16px;bottom:16px;z-index:50;background:#fff;border-radius:16px;padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.2);text-align:center');
+    box.innerHTML = '<p dir="auto">' + esc(t.off) + '</p><button class="wq-btn wq-go" type="button" data-primary>' + esc(t.offAgain) + '</button>';
+    held = { nav: nav, box: box };
+    var fire = function () {
+      if (!held || navigator.onLine === false) return;
+      var n = held.nav;
+      held = null;
+      window.removeEventListener('online', fire);
+      if (box.parentNode) box.parentNode.removeChild(box);
+      n();
+    };
+    box.querySelector('button').addEventListener('click', fire);
+    window.addEventListener('online', fire);
+    document.body.appendChild(box);
+  }
   function each(root, sel, fn) { Array.prototype.forEach.call(root.querySelectorAll(sel), fn); }
   // The grown-ups corner opens only on a ~2 s press-and-hold (IA §2; never a tap, never arithmetic).
   function hold(el, done) {
