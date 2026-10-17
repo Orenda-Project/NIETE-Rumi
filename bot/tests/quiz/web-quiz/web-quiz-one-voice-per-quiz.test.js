@@ -634,6 +634,18 @@ describe('a plan whose voice has no recorded set of Jugnu\'s shared lines is ref
     expect(refusals()).toEqual([]);
   });
 
+  // A second English voice for the quizzes whose recordings are nearer it: Anjura, same rendering as Shanaya.
+  const ANJURA = { ...SHANAYA, voice: 'a6XidOEnTywSiWFoBUhm', name: 'Anjura' };
+  test('the second English voice (Anjura) has its set: a quiz mapped to it is voiced in it, the plan stays on', () => {
+    expect(Voice.setIdOf(ANJURA)).toBe('el-anjura-e228e6');
+    const other = '33333333-3333-4333-8333-333333333333';
+    const p = OneVoice.take({ voices: { en: SHANAYA, ur: REVA }, bank: ['q', 'opts'], quiz_voices: { [QUIZ]: 'el-anjura-e228e6', [other]: 'keep' } });
+    expect(OneVoice.forQuiz(p, QUIZ, 'en').voices.en).toMatchObject({ voice: ANJURA.voice, model: 'eleven_v4', settings: ANJURA.settings });
+    expect(OneVoice.forQuiz(p, other, 'en')).toBe(null);
+    expect(Voice.sharedSets(OneVoice.forQuiz(p, QUIZ, 'en')).en).toEqual({ path: 'el-anjura-e228e6', v: Voice.SHARED_SETS['el-anjura-e228e6'] });
+    expect(refusals()).toEqual([]);
+  });
+
   test('a tool given the plan directly (backfill --plan, before its set exists) still records in that voice', async () => {
     const fake = seed(ROWS(), {});
     await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from }, oneVoice: OneVoice.normalize({ voices: { en: JESSICA } }) });
