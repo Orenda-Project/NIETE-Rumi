@@ -16,12 +16,12 @@ const Juice = require('../../../shared/services/quiz/web-quiz-juice');
 describe('web_quiz_juice', () => {
   beforeEach(() => { Juice._reset(); supabase.__state.rows = []; supabase.__state.fail = false; });
   test('absent → off; field() → null', async () => { expect(await Juice.flag()).toBe(false); expect(await Juice.field()).toBeNull(); });
-  test.each([[true], ['true'], [' TRUE '], ['"true"']])('%p → on; field() → true', async (v) => {
+  test.each([[true]])('%p (JSON true only) → on; field() → true', async (v) => {
     supabase.__state.rows = [{ key: Juice.KEY, value: v }];
     expect(await Juice.flag()).toBe(true);
     expect(await Juice.field()).toBe(true);
   });
-  test.each([[false], ['false'], ['yes'], [1], [{ enabled: true }]])('%p → off', async (v) => {
+  test.each([[false], ['false'], ['yes'], [1], [{ enabled: true }], ['true'], [' TRUE '], ['"true"']])('%p → off (a string \'true\' row is off)', async (v) => {
     supabase.__state.rows = [{ key: Juice.KEY, value: v }];
     expect(await Juice.flag()).toBe(false);
   });

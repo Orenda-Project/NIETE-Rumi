@@ -55,7 +55,7 @@ const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 const todayPkt = () => new Date(Date.now() - 60000).toISOString();
 
 let fake;
-function seed() {
+function seed(settings = []) {
   const questions = [1, 2, 3, 4].map((n) => ({
     id: qid(n), quiz_id: QUIZ, external_id: `tq:${n}`, sort_order: n,
     question_text: `Question ${n}`, option_a: 'Root', option_b: 'Leaf', option_c: 'Stem', option_d: null,
@@ -86,6 +86,7 @@ function seed() {
     ],
     students: [{ id: KID_A, student_name: 'Zara Example', self_reported_class: '3', phone: '0000' }],
     quiz_answers: [],
+    app_settings: settings,
   });
   let reads = 0;
   Object.assign(supabase, { from: (t) => { reads += 1; return fake.from(t); }, rpc: fake.rpc });
@@ -143,4 +144,19 @@ test('an expired or unknown code keeps its answer (410 / 404) and is never kept'
 
 test('no key: 401', async () => {
   expect((await fetch(`${base}/og/AB12CD`)).status).toBe(401);
+});
+
+describe('the finish card\'s switch (web_quiz_card_v3) rides the page and the facts, so the Urdu preview counts in Urdu digits', () => {
+  const Card = require('../../../shared/services/quiz/web-quiz-card-image');
+  const page = async () => (await fetch(`${base}/quiz/AB12CD`, { headers: KEY })).json();
+  test('on (JSON true): the page payload and the kept facts say card_v3: true', async () => {
+    seed([{ key: 'web_quiz_card_v3', value: true }]); Og._reset(); Card._reset();
+    expect((await page()).card_v3).toBe(true);
+    expect((await og('AB12CD')).body.card_v3).toBe(true);
+  });
+  test.each([['absent', []], ['the string "true"', [{ key: 'web_quiz_card_v3', value: 'true' }]], ['false', [{ key: 'web_quiz_card_v3', value: false }]]])('off (%s): neither carries the key', async (_, settings) => {
+    seed(settings); Og._reset(); Card._reset();
+    expect(await page()).not.toHaveProperty('card_v3');
+    expect((await og('AB12CD')).body).not.toHaveProperty('card_v3');
+  });
 });

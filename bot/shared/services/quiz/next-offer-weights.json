@@ -1,0 +1,890 @@
+{
+ "_source": "Copied from the retention analysis's next_offer_scores.json v 2026-10-16.2 (made 2026-10-16T17:2xZ). The VALUE key web_quiz_next_offer_weights (same shape) overrides this file without a deploy.",
+ "v": "2026-10-16.2",
+ "made": "2026-10-16T17:2xZ",
+ "owner": "retention analysis",
+ "metric": "score = adjusted lift in SELF-INITIATED next-day return (percentage points) vs ending the sitting with nothing, for a child who takes this next thing. 'Self-initiated' = the return is not on a teacher link created after the finish. Logistic g-computation, cluster bootstrap by teacher (300 reps), Holm across contrasts. ci = 95% for the lift.",
+ "read_me": [
+  "Within a context, rank by score; an unscored row ranks as a lift of 0 (no different from stopping): after a positive score, before a negative one; a rule or pin still comes first.",
+  "'significant' means the kind beats STOPPING. No kind significantly beats another kind tonight; the order among significant kinds is itself a prior.",
+  "Selection: children who choose one more thing were already keener; adjustment narrows it, cannot remove it. Only the rand arm gives causal answers.",
+  "Offered position was never logged; every score is for TAKING a kind, not for being OFFERED it."
+ ],
+ "contexts": {
+  "after_quiz": [
+   {
+    "kind": "video",
+    "score": 11.6,
+    "ci": [
+     7.6,
+     15.5
+    ],
+    "n": 429,
+    "evidence": "significant",
+    "note": "A video picked from the library/'watch more' right after a quiz. Significant ONLY vs ending the sitting (Holm p<0.001; self-initiated next-day return 17.3% vs 5.6%). Its lead over 'play again' (+3.0 pp [-1.1, 7.2], Holm p=0.49) is NOT significant: order between these two is a prior.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "score": 8.6,
+    "ci": [
+     5.9,
+     11.3
+    ],
+    "n": 681,
+    "evidence": "significant",
+    "note": "Play the same (or an earlier) quiz again. Significant vs ending (Holm p<0.001). Also the only after-scorecard action significant on the phone-level data: +9.0 pp D1, OR 1.50 [1.19-1.89], Holm p=0.009.",
+    "vs": "stop",
+    "variant": "again",
+    "data": "replica hub era + Axiom phone-level"
+   },
+   {
+    "kind": "quiz",
+    "score": 4.8,
+    "ci": [
+     0.4,
+     11.0
+    ],
+    "n": 234,
+    "evidence": "prior",
+    "note": "Another teacher quiz not yet played (IA step 1 pins it anyway). Holm p=0.32 vs ending in the hub era; significant pooled Sep-Oct (+5.7 pp self D1).",
+    "vs": "stop",
+    "variant": "new",
+    "data": "replica hub era"
+   },
+   {
+    "kind": "invite",
+    "score": 3.8,
+    "ci": null,
+    "n": 530,
+    "evidence": "prior",
+    "note": "Invite a friend (share a challenge link). Phone-level after-scorecard model (Axiom 10-15 Oct, n=3,099 phone-days): (ANY next-day return, not self-initiated: a different metric from the replica rows) adjusted +3.8 pp next-day return, OR 1.19 [0.97-1.47], Holm p=1.00."
+   },
+   {
+    "kind": "invite",
+    "score": 3.7,
+    "ci": null,
+    "n": 1464,
+    "evidence": "prior",
+    "note": "Share my card (the share doubles as the invite). Phone-level after-scorecard model (Axiom 10-15 Oct, n=3,099 phone-days): (ANY next-day return, not self-initiated: a different metric from the replica rows) adjusted +3.7 pp next-day return, OR 1.19 [1.00-1.41], Holm p=0.76.",
+    "variant": "card_share"
+   },
+   {
+    "kind": "game",
+    "score": 0.8,
+    "ci": null,
+    "n": 50,
+    "evidence": "prior",
+    "note": "A Jugnu game/stop (n=50 phone-days took one after a scorecard: too few). Phone-level after-scorecard model (Axiom 10-15 Oct, n=3,099 phone-days): (ANY next-day return, not self-initiated: a different metric from the replica rows) adjusted +0.8 pp next-day return, OR 1.04 [0.59-1.83], Holm p=1.00."
+   },
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No NIETE data: stories/storybooks did not exist. Ranked by the operator's priority (point 8) and the child-app design; the 'rand' arm is how it earns a score."
+   },
+   {
+    "kind": "storybook",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "As story. Rumi Global send counts are menu-order effects, not a quality signal; not used."
+   },
+   {
+    "kind": "sticker",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (Jugnu's Book is not on prod)."
+   }
+  ],
+  "home": [
+   {
+    "kind": "video",
+    "score": 8.2,
+    "ci": null,
+    "n": 49,
+    "evidence": "prior",
+    "note": "Hub pick 'lib' (Axiom 10-15 Oct, first hub view of the day, n=1,248): adjusted next-day return 47.8% vs 39.6% picking nothing, Holm p=1.00. Not significant.",
+    "variant": "library"
+   },
+   {
+    "kind": "video",
+    "score": 7.7,
+    "ci": null,
+    "n": 68,
+    "evidence": "prior",
+    "note": "Hub pick 'rec' (Axiom 10-15 Oct, first hub view of the day, n=1,248): adjusted next-day return 47.3% vs 39.6% picking nothing, Holm p=1.00. Not significant.",
+    "variant": "recommended"
+   },
+   {
+    "kind": "quiz",
+    "score": 1.0,
+    "ci": null,
+    "n": 34,
+    "evidence": "prior",
+    "note": "Hub pick 'teacher' (Axiom 10-15 Oct, first hub view of the day, n=1,248): adjusted next-day return 40.6% vs 39.6% picking nothing, Holm p=1.00. Not significant.",
+    "variant": "teacher"
+   },
+   {
+    "kind": "quiz",
+    "score": 0.3,
+    "ci": null,
+    "n": 637,
+    "evidence": "prior",
+    "note": "Hub pick 'last' (Axiom 10-15 Oct, first hub view of the day, n=1,248): adjusted next-day return 39.9% vs 39.6% picking nothing, Holm p=1.00. Not significant.",
+    "variant": "last"
+   },
+   {
+    "kind": "game",
+    "score": -2.3,
+    "ci": null,
+    "n": 38,
+    "evidence": "prior",
+    "note": "Hub pick 'challenge' (Axiom 10-15 Oct, first hub view of the day, n=1,248): adjusted next-day return 37.3% vs 39.6% picking nothing, Holm p=1.00. Not significant.",
+    "variant": null
+   },
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data; operator priority."
+   }
+  ],
+  "ftue": [
+   {
+    "kind": "video",
+    "score": 11.6,
+    "ci": [
+     7.6,
+     15.5
+    ],
+    "n": 429,
+    "evidence": "prior",
+    "note": "A video picked from the library/'watch more' right after a quiz. Significant ONLY vs ending the sitting (Holm p<0.001; self-initiated next-day return 17.3% vs 5.6%). Its lead over 'play again' (+3.0 pp [-1.1, 7.2], Holm p=0.49) is NOT significant: order between these two is a prior. FTUE uses after_quiz order: first-ever-day children stop 69% of the time; raw self D1 after a teacher video 22%, quiz again 20%, library video 19%, stopping 8% (replica, 13,129 first-day child-days).",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "score": 8.6,
+    "ci": [
+     5.9,
+     11.3
+    ],
+    "n": 681,
+    "evidence": "prior",
+    "note": "Play the same (or an earlier) quiz again. Significant vs ending (Holm p<0.001). Also the only after-scorecard action significant on the phone-level data: +9.0 pp D1, OR 1.50 [1.19-1.89], Holm p=0.009. FTUE uses after_quiz order: first-ever-day children stop 69% of the time; raw self D1 after a teacher video 22%, quiz again 20%, library video 19%, stopping 8% (replica, 13,129 first-day child-days).",
+    "vs": "stop",
+    "variant": "again",
+    "data": "replica hub era + Axiom phone-level"
+   },
+   {
+    "kind": "quiz",
+    "score": 4.8,
+    "ci": [
+     0.4,
+     11.0
+    ],
+    "n": 234,
+    "evidence": "prior",
+    "note": "Another teacher quiz not yet played (IA step 1 pins it anyway). Holm p=0.32 vs ending in the hub era; significant pooled Sep-Oct (+5.7 pp self D1). FTUE uses after_quiz order: first-ever-day children stop 69% of the time; raw self D1 after a teacher video 22%, quiz again 20%, library video 19%, stopping 8% (replica, 13,129 first-day child-days).",
+    "vs": "stop",
+    "variant": "new",
+    "data": "replica hub era"
+   },
+   {
+    "kind": "invite",
+    "score": 3.8,
+    "ci": null,
+    "n": 530,
+    "evidence": "prior",
+    "note": "Invite a friend (share a challenge link). Phone-level after-scorecard model (Axiom 10-15 Oct, n=3,099 phone-days): (ANY next-day return, not self-initiated: a different metric from the replica rows) adjusted +3.8 pp next-day return, OR 1.19 [0.97-1.47], Holm p=1.00. FTUE uses after_quiz order: first-ever-day children stop 69% of the time; raw self D1 after a teacher video 22%, quiz again 20%, library video 19%, stopping 8% (replica, 13,129 first-day child-days)."
+   },
+   {
+    "kind": "invite",
+    "score": 3.7,
+    "ci": null,
+    "n": 1464,
+    "evidence": "prior",
+    "note": "Share my card (the share doubles as the invite). Phone-level after-scorecard model (Axiom 10-15 Oct, n=3,099 phone-days): (ANY next-day return, not self-initiated: a different metric from the replica rows) adjusted +3.7 pp next-day return, OR 1.19 [1.00-1.41], Holm p=0.76. FTUE uses after_quiz order: first-ever-day children stop 69% of the time; raw self D1 after a teacher video 22%, quiz again 20%, library video 19%, stopping 8% (replica, 13,129 first-day child-days).",
+    "variant": "card_share"
+   },
+   {
+    "kind": "game",
+    "score": 0.8,
+    "ci": null,
+    "n": 50,
+    "evidence": "prior",
+    "note": "A Jugnu game/stop (n=50 phone-days took one after a scorecard: too few). Phone-level after-scorecard model (Axiom 10-15 Oct, n=3,099 phone-days): (ANY next-day return, not self-initiated: a different metric from the replica rows) adjusted +0.8 pp next-day return, OR 1.04 [0.59-1.83], Holm p=1.00. FTUE uses after_quiz order: first-ever-day children stop 69% of the time; raw self D1 after a teacher video 22%, quiz again 20%, library video 19%, stopping 8% (replica, 13,129 first-day child-days)."
+   },
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No NIETE data: stories/storybooks did not exist. Ranked by the operator's priority (point 8) and the child-app design; the 'rand' arm is how it earns a score. FTUE uses after_quiz order: first-ever-day children stop 69% of the time; raw self D1 after a teacher video 22%, quiz again 20%, library video 19%, stopping 8% (replica, 13,129 first-day child-days)."
+   },
+   {
+    "kind": "storybook",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "As story. Rumi Global send counts are menu-order effects, not a quality signal; not used. FTUE uses after_quiz order: first-ever-day children stop 69% of the time; raw self D1 after a teacher video 22%, quiz again 20%, library video 19%, stopping 8% (replica, 13,129 first-day child-days)."
+   },
+   {
+    "kind": "sticker",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (Jugnu's Book is not on prod). FTUE uses after_quiz order: first-ever-day children stop 69% of the time; raw self D1 after a teacher video 22%, quiz again 20%, library video 19%, stopping 8% (replica, 13,129 first-day child-days)."
+   }
+  ],
+  "after_video": [
+   {
+    "kind": "video",
+    "score": 11.6,
+    "ci": [
+     7.6,
+     15.5
+    ],
+    "n": 429,
+    "evidence": "prior",
+    "note": "No separate model: inherits after_quiz. A video picked from the library/'watch more' right after a quiz. Significant ONLY vs ending the sitting (Holm p<0.001; self-initiated next-day return 17.3% vs 5.6%). Its lead over 'play again' (+3.0 pp [-1.1, 7.2], Holm p=0.49) is NOT significant: order between these two is a prior.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "score": 8.6,
+    "ci": [
+     5.9,
+     11.3
+    ],
+    "n": 681,
+    "evidence": "prior",
+    "note": "No separate model: inherits after_quiz. Play the same (or an earlier) quiz again. Significant vs ending (Holm p<0.001). Also the only after-scorecard action significant on the phone-level data: +9.0 pp D1, OR 1.50 [1.19-1.89], Holm p=0.009.",
+    "vs": "stop",
+    "variant": "again",
+    "data": "replica hub era + Axiom phone-level"
+   },
+   {
+    "kind": "quiz",
+    "score": 4.8,
+    "ci": [
+     0.4,
+     11.0
+    ],
+    "n": 234,
+    "evidence": "prior",
+    "note": "No separate model: inherits after_quiz. Another teacher quiz not yet played (IA step 1 pins it anyway). Holm p=0.32 vs ending in the hub era; significant pooled Sep-Oct (+5.7 pp self D1).",
+    "vs": "stop",
+    "variant": "new",
+    "data": "replica hub era"
+   },
+   {
+    "kind": "invite",
+    "score": 3.8,
+    "ci": null,
+    "n": 530,
+    "evidence": "prior",
+    "note": "No separate model: inherits after_quiz. Invite a friend (share a challenge link). Phone-level after-scorecard model (Axiom 10-15 Oct, n=3,099 phone-days): (ANY next-day return, not self-initiated: a different metric from the replica rows) adjusted +3.8 pp next-day return, OR 1.19 [0.97-1.47], Holm p=1.00."
+   },
+   {
+    "kind": "invite",
+    "score": 3.7,
+    "ci": null,
+    "n": 1464,
+    "evidence": "prior",
+    "note": "No separate model: inherits after_quiz. Share my card (the share doubles as the invite). Phone-level after-scorecard model (Axiom 10-15 Oct, n=3,099 phone-days): (ANY next-day return, not self-initiated: a different metric from the replica rows) adjusted +3.7 pp next-day return, OR 1.19 [1.00-1.41], Holm p=0.76.",
+    "variant": "card_share"
+   },
+   {
+    "kind": "game",
+    "score": 0.8,
+    "ci": null,
+    "n": 50,
+    "evidence": "prior",
+    "note": "No separate model: inherits after_quiz. A Jugnu game/stop (n=50 phone-days took one after a scorecard: too few). Phone-level after-scorecard model (Axiom 10-15 Oct, n=3,099 phone-days): (ANY next-day return, not self-initiated: a different metric from the replica rows) adjusted +0.8 pp next-day return, OR 1.04 [0.59-1.83], Holm p=1.00."
+   },
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No separate model: inherits after_quiz. No NIETE data: stories/storybooks did not exist. Ranked by the operator's priority (point 8) and the child-app design; the 'rand' arm is how it earns a score."
+   },
+   {
+    "kind": "storybook",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No separate model: inherits after_quiz. As story. Rumi Global send counts are menu-order effects, not a quality signal; not used."
+   },
+   {
+    "kind": "sticker",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No separate model: inherits after_quiz. No data (Jugnu's Book is not on prod)."
+   }
+  ],
+  "after_read": [
+   {
+    "kind": "video",
+    "score": 11.6,
+    "ci": [
+     7.6,
+     15.5
+    ],
+    "n": 429,
+    "evidence": "prior",
+    "note": "No data (live reading after-flows not on prod). Inherits after_quiz.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "score": 8.6,
+    "ci": [
+     5.9,
+     11.3
+    ],
+    "n": 681,
+    "evidence": "prior",
+    "note": "No data (live reading after-flows not on prod). Inherits after_quiz.",
+    "vs": "stop",
+    "variant": "again",
+    "data": "replica hub era + Axiom phone-level"
+   },
+   {
+    "kind": "quiz",
+    "score": 4.8,
+    "ci": [
+     0.4,
+     11.0
+    ],
+    "n": 234,
+    "evidence": "prior",
+    "note": "No data (live reading after-flows not on prod). Inherits after_quiz.",
+    "vs": "stop",
+    "variant": "new",
+    "data": "replica hub era"
+   },
+   {
+    "kind": "invite",
+    "score": 3.8,
+    "ci": null,
+    "n": 530,
+    "evidence": "prior",
+    "note": "No data (live reading after-flows not on prod). Inherits after_quiz."
+   },
+   {
+    "kind": "invite",
+    "score": 3.7,
+    "ci": null,
+    "n": 1464,
+    "evidence": "prior",
+    "note": "No data (live reading after-flows not on prod). Inherits after_quiz.",
+    "variant": "card_share"
+   },
+   {
+    "kind": "game",
+    "score": 0.8,
+    "ci": null,
+    "n": 50,
+    "evidence": "prior",
+    "note": "No data (live reading after-flows not on prod). Inherits after_quiz."
+   },
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (live reading after-flows not on prod). Inherits after_quiz."
+   },
+   {
+    "kind": "storybook",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (live reading after-flows not on prod). Inherits after_quiz."
+   },
+   {
+    "kind": "sticker",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (live reading after-flows not on prod). Inherits after_quiz."
+   }
+  ],
+  "after_story": [
+   {
+    "kind": "video",
+    "score": 11.6,
+    "ci": [
+     7.6,
+     15.5
+    ],
+    "n": 429,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "score": 8.6,
+    "ci": [
+     5.9,
+     11.3
+    ],
+    "n": 681,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz.",
+    "vs": "stop",
+    "variant": "again",
+    "data": "replica hub era + Axiom phone-level"
+   },
+   {
+    "kind": "quiz",
+    "score": 4.8,
+    "ci": [
+     0.4,
+     11.0
+    ],
+    "n": 234,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz.",
+    "vs": "stop",
+    "variant": "new",
+    "data": "replica hub era"
+   },
+   {
+    "kind": "invite",
+    "score": 3.8,
+    "ci": null,
+    "n": 530,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz."
+   },
+   {
+    "kind": "invite",
+    "score": 3.7,
+    "ci": null,
+    "n": 1464,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz.",
+    "variant": "card_share"
+   },
+   {
+    "kind": "game",
+    "score": 0.8,
+    "ci": null,
+    "n": 50,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz."
+   },
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz."
+   },
+   {
+    "kind": "storybook",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz."
+   },
+   {
+    "kind": "sticker",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz."
+   }
+  ],
+  "after_game": [
+   {
+    "kind": "video",
+    "score": 11.6,
+    "ci": [
+     7.6,
+     15.5
+    ],
+    "n": 429,
+    "evidence": "prior",
+    "note": "Challenge runs: 270 rows ever, too few. Inherits after_quiz.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "score": 8.6,
+    "ci": [
+     5.9,
+     11.3
+    ],
+    "n": 681,
+    "evidence": "prior",
+    "note": "Challenge runs: 270 rows ever, too few. Inherits after_quiz.",
+    "vs": "stop",
+    "variant": "again",
+    "data": "replica hub era + Axiom phone-level"
+   },
+   {
+    "kind": "quiz",
+    "score": 4.8,
+    "ci": [
+     0.4,
+     11.0
+    ],
+    "n": 234,
+    "evidence": "prior",
+    "note": "Challenge runs: 270 rows ever, too few. Inherits after_quiz.",
+    "vs": "stop",
+    "variant": "new",
+    "data": "replica hub era"
+   },
+   {
+    "kind": "invite",
+    "score": 3.8,
+    "ci": null,
+    "n": 530,
+    "evidence": "prior",
+    "note": "Challenge runs: 270 rows ever, too few. Inherits after_quiz."
+   },
+   {
+    "kind": "invite",
+    "score": 3.7,
+    "ci": null,
+    "n": 1464,
+    "evidence": "prior",
+    "note": "Challenge runs: 270 rows ever, too few. Inherits after_quiz.",
+    "variant": "card_share"
+   },
+   {
+    "kind": "game",
+    "score": 0.8,
+    "ci": null,
+    "n": 50,
+    "evidence": "prior",
+    "note": "Challenge runs: 270 rows ever, too few. Inherits after_quiz."
+   },
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "Challenge runs: 270 rows ever, too few. Inherits after_quiz."
+   },
+   {
+    "kind": "storybook",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "Challenge runs: 270 rows ever, too few. Inherits after_quiz."
+   },
+   {
+    "kind": "sticker",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "Challenge runs: 270 rows ever, too few. Inherits after_quiz."
+   }
+  ],
+  "after_quiz_low": [
+   {
+    "kind": "video",
+    "score": 11.6,
+    "ci": [
+     7.6,
+     15.5
+    ],
+    "n": 429,
+    "evidence": "prior",
+    "note": "Inherits after_quiz order; raw self D1 after a < 50 % quiz (hub era, n=622): stop 6% (n=412), again 16% (n=117), video 26% (n=62). Too few to model. 'Finish on a win': prefer an easy, finishable kind; never a second hard read.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "score": 8.6,
+    "ci": [
+     5.9,
+     11.3
+    ],
+    "n": 681,
+    "evidence": "prior",
+    "note": "Inherits after_quiz order; raw self D1 after a < 50 % quiz (hub era, n=622): stop 6% (n=412), again 16% (n=117), video 26% (n=62). Too few to model. 'Finish on a win': prefer an easy, finishable kind; never a second hard read.",
+    "vs": "stop",
+    "variant": "again",
+    "data": "replica hub era + Axiom phone-level"
+   },
+   {
+    "kind": "quiz",
+    "score": 4.8,
+    "ci": [
+     0.4,
+     11.0
+    ],
+    "n": 234,
+    "evidence": "prior",
+    "note": "Inherits after_quiz order; raw self D1 after a < 50 % quiz (hub era, n=622): stop 6% (n=412), again 16% (n=117), video 26% (n=62). Too few to model. 'Finish on a win': prefer an easy, finishable kind; never a second hard read.",
+    "vs": "stop",
+    "variant": "new",
+    "data": "replica hub era"
+   },
+   {
+    "kind": "invite",
+    "score": 3.8,
+    "ci": null,
+    "n": 530,
+    "evidence": "prior",
+    "note": "Inherits after_quiz order; raw self D1 after a < 50 % quiz (hub era, n=622): stop 6% (n=412), again 16% (n=117), video 26% (n=62). Too few to model. 'Finish on a win': prefer an easy, finishable kind; never a second hard read."
+   },
+   {
+    "kind": "invite",
+    "score": 3.7,
+    "ci": null,
+    "n": 1464,
+    "evidence": "prior",
+    "note": "Inherits after_quiz order; raw self D1 after a < 50 % quiz (hub era, n=622): stop 6% (n=412), again 16% (n=117), video 26% (n=62). Too few to model. 'Finish on a win': prefer an easy, finishable kind; never a second hard read.",
+    "variant": "card_share"
+   },
+   {
+    "kind": "game",
+    "score": 0.8,
+    "ci": null,
+    "n": 50,
+    "evidence": "prior",
+    "note": "Inherits after_quiz order; raw self D1 after a < 50 % quiz (hub era, n=622): stop 6% (n=412), again 16% (n=117), video 26% (n=62). Too few to model. 'Finish on a win': prefer an easy, finishable kind; never a second hard read."
+   },
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "Inherits after_quiz order; raw self D1 after a < 50 % quiz (hub era, n=622): stop 6% (n=412), again 16% (n=117), video 26% (n=62). Too few to model. 'Finish on a win': prefer an easy, finishable kind; never a second hard read."
+   },
+   {
+    "kind": "storybook",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "Inherits after_quiz order; raw self D1 after a < 50 % quiz (hub era, n=622): stop 6% (n=412), again 16% (n=117), video 26% (n=62). Too few to model. 'Finish on a win': prefer an easy, finishable kind; never a second hard read."
+   },
+   {
+    "kind": "sticker",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "Inherits after_quiz order; raw self D1 after a < 50 % quiz (hub era, n=622): stop 6% (n=412), again 16% (n=117), video 26% (n=62). Too few to model. 'Finish on a win': prefer an easy, finishable kind; never a second hard read."
+   }
+  ],
+  "after_read_weak": [
+   {
+    "kind": "video",
+    "score": 11.6,
+    "ci": [
+     7.6,
+     15.5
+    ],
+    "n": 429,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz; a read-aloud kind is NOT eligible after a weak read: the story entry here means a LISTEN-only story.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "score": 8.6,
+    "ci": [
+     5.9,
+     11.3
+    ],
+    "n": 681,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz; a read-aloud kind is NOT eligible after a weak read: the story entry here means a LISTEN-only story.",
+    "vs": "stop",
+    "variant": "again",
+    "data": "replica hub era + Axiom phone-level"
+   },
+   {
+    "kind": "quiz",
+    "score": 4.8,
+    "ci": [
+     0.4,
+     11.0
+    ],
+    "n": 234,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz; a read-aloud kind is NOT eligible after a weak read: the story entry here means a LISTEN-only story.",
+    "vs": "stop",
+    "variant": "new",
+    "data": "replica hub era"
+   },
+   {
+    "kind": "invite",
+    "score": 3.8,
+    "ci": null,
+    "n": 530,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz; a read-aloud kind is NOT eligible after a weak read: the story entry here means a LISTEN-only story."
+   },
+   {
+    "kind": "invite",
+    "score": 3.7,
+    "ci": null,
+    "n": 1464,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz; a read-aloud kind is NOT eligible after a weak read: the story entry here means a LISTEN-only story.",
+    "variant": "card_share"
+   },
+   {
+    "kind": "game",
+    "score": 0.8,
+    "ci": null,
+    "n": 50,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz; a read-aloud kind is NOT eligible after a weak read: the story entry here means a LISTEN-only story."
+   },
+   {
+    "kind": "storybook",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz; a read-aloud kind is NOT eligible after a weak read: the story entry here means a LISTEN-only story."
+   },
+   {
+    "kind": "sticker",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz; a read-aloud kind is NOT eligible after a weak read: the story entry here means a LISTEN-only story."
+   },
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data. Inherits after_quiz; a read-aloud kind is NOT eligible after a weak read: the story entry here means a LISTEN-only story."
+   }
+  ],
+  "after_read_tried": [
+   {
+    "kind": "story",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "storybook",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "video",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "variant": "again",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "game",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "quiz",
+    "variant": "new",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "invite",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   },
+   {
+    "kind": "sticker",
+    "score": null,
+    "ci": null,
+    "n": 0,
+    "evidence": "prior",
+    "note": "No data (a new context: a read with almost nothing read). Reading WITH Jugnu first (a listening story, then a storybook read to the child), then a video, play again, a game, a new quiz, inviting a friend and the stickers; every score null, so the order is this table's own.",
+    "vs": "stop",
+    "data": "replica 7-15 Oct (hub era), 5,660 child-days, self-initiated D1"
+   }
+  ]
+ }
+}
