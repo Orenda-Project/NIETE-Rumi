@@ -70,7 +70,7 @@
     function spoken(ws) { return ws.filter(function (w) { return !w.silent; }); }
     function lrOn(ws, cb) {
       var p = P[m.i], o = {
-        words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false,
+        words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false, repeat: b.lrr,
         finish: { pct: 0.8, quiet_ms: 4000, tail_ms: 1000, quiet: true },
         copy: { done: t.done, readNow: t.readNow, keepGoing: t.keepGoing, checking: t.checking, wellRead: t.wellRead },
         getKey: function () { return req('POST', '/api/wq/lr/key', { st: ctx.token, kid: ctx.kid, book: b.id, page: p.n, lang: L }).then(function (r) { if (!r.ok || r.body.error) R.keyNo = 1; return r.body; }, function (x) { R.keyNo = 1; throw x; }); },
@@ -90,7 +90,7 @@
 
     function readScreen() {
       var p = P[m.i], LR = W.WQLiveRead, c, lh = '<div class="wqs-lr" data-lr></div>', st;
-      if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, marks: [] }; }
+      if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, absorbed: 0, marks: [] }; }
       c = ck[ci];
       st = R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + lh);   // the live reader draws the picture itself on a boxed page
       paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg') +
@@ -114,15 +114,15 @@
     function result(r) {
       if (m.st !== 'reading') return;
       r = r || {};
-      ['words_total', 'words_read', 'skipped', 'ms'].forEach(function (k) { sum[k] += +r[k] || 0; });
+      ['words_total', 'words_read', 'skipped', 'ms', 'absorbed'].forEach(function (k) { sum[k] += +r[k] || 0; });
       sum.ended = r.ended; sum.marks = sum.marks.concat(r.marks || []);
       if (++ci < ck.length && !stopAll && r.ended !== 'hidden') { R.drop(); return readScreen(); }
       var s = sum;
       sum = null;
       var sk = [];
       s.marks.forEach(function (x, i) { if (x === 'skipped') sk.push(i); });
-      R.pp('story_page_read', { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read' }, m.i);
-      m.result(s);
+      R.pp('story_page_read', { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read', absorbed: s.absorbed || void 0 }, m.i);
+      m.result(W.WQLiveRead.practice(s, P[m.i].words, b.lrr));
     }
 
     function eGo() { eo = { s: sents(P[m.i].words), k: 0, f: m.st }; m.set('echo'); }

@@ -2,23 +2,31 @@
  * Live reading v3 (window.WQLiveRead; needs wq-read-live.js for the scorer's own word rules). Loaded by a page only when
  * the bot says so (the read payload's / menu's `lr3`, app_settings web_quiz_live_read_v3).
  *
- *   matcher(words, lang)          transcript tokens → passage words. Both sides folded: case, punctuation, diacritics,
+ *   matcher(words, lang, items?, opt?)  transcript tokens → passage words (items[i].alt: printed spellings that also count). Both sides folded: case, punctuation, diacritics,
  *                                 Urdu letter forms (WQLive.clean), and numerals — digits, Urdu / Arabic-Indic digits and
  *                                 number words are one word ("3" = "three" = "۳" = "تین"). The child reads a PREFIX: a
- *                                 word passed over is `skipped` (never wrong), an extra or repeated word costs nothing.
+ *                                 word passed over is `skipped` (never wrong), an extra or repeated word costs nothing:
+ *                                 with opt.repeat (web_quiz_lr_repeat) a word said again (or re-read after a stumble) is
+ *                                 absorbed before the alignment, and a word heard as two printed ones run together (or
+ *                                 one printed word heard in two) counts at its own places, and a printed word that folds
+ *                                 to nothing (a dash) takes its neighbour's state, never skipped; without it, today's matcher.
  *                                 States per word: read (heard, final) · heard (not final yet) · skipped · current · ahead
  *   shouldFinish(v, now, lastAt, f)   'last_word' | 'quiet' | null — the last word heard, f.tail_ms (1 s)
  *                                 after it; or ≥ f.pct of the words heard and f.quiet_ms (4 s) with no new word (never
  *                                 when f.quiet is false: a counted read)
  *   glowLevel(v)                  0–4: Jugnu's glow, by the share of words lit — never by speed, never a number
- *   result(v, o)                  the result object handed to the card (no transcript in it, never a rate: wpm is null)
+ *   result(v, o)                  the result object handed to the card (no transcript in it, never a rate: wpm is null;
+ *                                 absorbed: words said again that were absorbed, only when there were some)
  *   emit(result)                  window event `wq:liveread:result` (the finish card listens)
  *   mount(el, o)                  the whole reading on one element (a story page): words, Done, the stream, the finish
  *                                 rules, the fallback; → { stop(reason), destroy() }. A counted mount (o.counted): a quiet
  *                                 "Stop for now" from the first second, "I'm done" only once o.doneFrom (0.8) of the words are lit
+ *                                 o.repeat: the matcher's opt.repeat (true only from the book's lrr)
  *   askMic(el, o)                 the microphone sheet that works in WhatsApp's in-app browser on Android (below)
  *   doneHtml(copy)                the one Done label: "I'm done" / «میں نے پڑھ لیا» and a drawn tick
  *   wordTaps(el, marks, playWord) after a practice reading: a skipped word is a tap that says it (o.playWord on mount)
+ *   practice(r, words, on)        on (the book's lrr, exactly true): the word to practise is the longest skipped (the earlier
+ *                                 on a tie), the only one left skipped; otherwise r as it is (the first skipped, as today)
  * The sound kit (window.WQJ, when the page has it): WQJ.mic(true|false) around the microphone, and on a practice read
  * WQJ.word({i, ok}) per word newly lit and WQJ.sentence() at a sentence's last word; never on a counted read.
  * One green on screen: a word heard and a word read draw the same (the difference lives in the result only).
@@ -54,30 +62,85 @@
   }
 
   // ── the matcher ──────────────────────────────────────────────────────────────────────────────────
-  function matcher(words) {
+  function matcher(words, lang, items, opt) {
     var raw = (words || []).map(String).filter(function (x) { return x.trim(); });
     var ref = raw.map(fold);
+    // a word printed differently from its stored spelling (items[i].alt): at that word's own place, the printed form counts
+    var alt = {};
+    (items || []).forEach(function (x) { var k = x && fold(x.t); (x && x.alt || []).forEach(function (a) { var f = fold(a); if (k && f) (alt[k] = alt[k] || []).push(f); }); });
+    var eq = function (a, b) { return W.same(a, b) || !!(alt[a] && alt[a].indexOf(b) >= 0); };
     var st = { F: '', N: '', fin: [], done: false };
+    // opt.repeat (the book's lrr, app_settings web_quiz_lr_repeat; off unless exactly true) turns on, before the alignment,
+    // the absorb below and, inside it, the joined words (WQLive.alignPrefix o.join); off, today's matcher exactly
+    var rep = !!(opt && opt.repeat === true); var jo = rep ? { join: true } : undefined;
+    // a word said again — the word just read («plays plays»), or the current word re-read after a stumble — is absorbed
+    // before the alignment; never where the page prints it again next, never a word two back (a real skip-and-return)
+    function absorb(hw) {
+      var k = []; st.ab = 0;
+      hw.forEach(function (x) {
+        var h = x.w; var n = k.length; var p = 0; var i; var a;
+        if (n && (W.same(k[n - 1].w, h) || (n > 1 && W.same(k[n - 2].w, h)))) {
+          a = W.alignPrefix(ref, k.map(function (y) { return y.w; }), eq, jo);
+          for (i = 0; i < ref.length; i += 1) if (a.status[i] === 'correct') p = i + 1;
+          // the word read is the last one heard, or the one before a stumble (a sound that is no word ahead on the page)
+          var by = p > 0 ? a.hypIdx[p - 1] : -1; var stum = by === n - 2;
+          for (i = p; stum && i < ref.length; i += 1) if (eq(ref[i], k[n - 1].w)) stum = false;
+          if ((by === n - 1 || stum) && eq(ref[p - 1], h) && !(p < ref.length && eq(ref[p], h))) { st.ab += 1; return; }
+        }
+        k.push(x);
+      });
+      return k;
+    }
     function view() {
-      var hw = hypWords(st.F + st.N);
+      var hw = hypWords(st.F + st.N); var all = hw;
+      if (rep) hw = absorb(hw);
+      var fz = function (x) { return x.end < st.F.length || (x.end === st.F.length && (st.done || !st.N || /^\s/.test(st.N))); };
       var hyp = hw.map(function (x) { return x.w; });
-      var final = hw.map(function (x) { return x.end < st.F.length || (x.end === st.F.length && (st.done || !st.N || /^\s/.test(st.N))); });
-      var a = W.alignPrefix(ref, hyp);
+      var final = hw.map(fz);
+      var a = W.alignPrefix(ref, hyp, eq, jo);
       var reached = 0; var i;
       for (i = 0; i < ref.length; i += 1) if (a.status[i] !== 'omit' && a.hypIdx[i] >= 0) reached = i + 1;
+      // ON: the absorb only ever adds words; a word today's alignment (every word as heard) hears is never made a skip
+      // by it: that word keeps today's state (a stumble or repeat then a real skip, a word printed two apart, neighbours one letter apart)
+      var a0 = null;
+      if (rep) {
+        a0 = W.alignPrefix(ref, all.map(function (x) { return x.w; }), eq);
+        for (i = 0; i < ref.length; i += 1) if (a0.status[i] === 'correct' && a.status[i] !== 'correct' && i + 1 > reached) reached = i + 1;
+      }
       var states = []; var read = 0; var heard = 0; var skipped = 0; var cur = -1;
       for (i = 0; i < ref.length; i += 1) {
         var ok = a.status[i] === 'correct';
-        if (ok && final[a.hypIdx[i]]) { states.push('read'); read += 1; heard += 1; }
+        if (!ok && a0 && a0.status[i] === 'correct') {
+          if (fz(all[a0.hypIdx[i]])) { states.push('read'); read += 1; heard += 1; } else { states.push('heard'); heard += 1; }
+        } else if (ok && final[a.hypIdx[i]]) { states.push('read'); read += 1; heard += 1; }
         else if (ok) { states.push('heard'); heard += 1; }
         else if (i < reached) { states.push('skipped'); skipped += 1; }
         else { if (cur < 0) cur = i; states.push(cur === i ? 'current' : 'ahead'); }
+      }
+      // ON: a printed word that folds to nothing (a dash, a lone «۔"») is never a skip nor the word to practise: it takes
+      // the state of the word before it (of the next one when it is first); same total, same indices
+      if (rep && ref.some(function (w) { return !w; })) {
+        for (i = 0; i < ref.length; i += 1) {
+          if (ref[i]) continue;
+          var nb = i > 0 ? states[i - 1] : states[i + 1]; var nx = states[i + 1];
+          if (nb === 'read' || nb === 'heard') states[i] = nb;
+          else if (states[i] === 'skipped') states[i] = nx === 'read' || nx === 'heard' ? nx : 'ahead';
+        }
+        read = heard = skipped = 0; cur = states.indexOf('current');
+        if (cur < 0 && (cur = states.indexOf('ahead')) >= 0) states[cur] = 'current';
+        for (i = 0; i < ref.length; i += 1) {
+          if (states[i] === 'read') read += 1;
+          if (states[i] === 'read' || states[i] === 'heard') heard += 1;
+          if (states[i] === 'skipped') skipped += 1;
+        }
       }
       var last = ref.length - 1;
       var lastHeard = last >= 0 && (states[last] === 'read' || states[last] === 'heard');
       var endMs = null;
       for (var k = 0; k < st.fin.length; k += 1) endMs = st.fin[k].endMs;
-      return { states: states, read: read, heard: heard, skipped: skipped, total: ref.length, current: cur, lastHeard: lastHeard, endMs: endMs, any: hyp.length > 0 };
+      var out = { states: states, read: read, heard: heard, skipped: skipped, total: ref.length, current: cur, lastHeard: lastHeard, endMs: endMs, any: hyp.length > 0 };
+      if (rep) out.absorbed = st.ab;
+      return out;
     }
     return {
       words: raw,
@@ -121,12 +184,14 @@
     var ms = Math.max(0, Math.round(x.ms || 0));
     var counted = !!x.counted;
     var marks = (v.states || []).map(function (s) { return s === 'read' || s === 'heard' ? 'read' : (s === 'skipped' ? 'skipped' : 'ahead'); });
-    return {
+    var r = {
       v: 1, source: x.source || 'passage', id: x.id == null ? null : x.id, lang: x.lang === 'ur' ? 'ur' : 'en',
       words_total: v.total, words_read: v.heard, correct: v.read, skipped: v.skipped,
       wpm: null,
       ms: ms, ended: x.ended || 'done_tap', marks: marks, counted: counted, live: x.live !== false,
     };
+    if (v.absorbed > 0) r.absorbed = v.absorbed;   // how many words said again were absorbed (a count only)
+    return r;
   }
   function emit(r) {
     try {
@@ -167,6 +232,19 @@
       if (Number.isInteger(i) && marks[i] === 'skipped') { try { playWord(i); } catch (x) { /* the word stays silent */ } }
     });
     return true;
+  }
+
+  /**
+   * The word to practise after a reading: the longest one skipped (letters only; the earlier on a tie). r: a result whose
+   * marks are on the page's words (words[i].t); → r with only that word left `skipped` (the reader practises the first).
+   * Only when on is exactly true (web_quiz_lr_repeat); else r itself, unchanged.
+   */
+  function practice(r, words, on) {
+    if (on !== true) return r;
+    var n = function (i) { return String(((words || [])[i] || {}).t || '').replace(/[^\w\u0621-\u064a\u066e-\u06d3]/g, '').length; };
+    var pw = -1; var mk = (r && r.marks) || [];
+    mk.forEach(function (x, i) { if (x === 'skipped' && (pw < 0 || n(i) > n(pw))) pw = i; });
+    return Object.assign({}, r, { marks: mk.map(function (x, i) { return x === 'skipped' && i !== pw ? 'passed' : x; }) });
   }
 
   // ── copy (EN + UR; no test words; gender-neutral) ────────────────────────────────────────────────
@@ -253,7 +331,7 @@
     var t = Object.assign({}, COPY[lang], o.copy || {});
     // words: strings, or {t, box:[x,y,w,h]} in image pixels for a story page over its illustration
     var items = (o.words || String(o.text || '').split(/\s+/).filter(Boolean)).map(function (w) { return typeof w === 'string' ? { t: w } : w; });
-    var m = matcher(items.map(function (x) { return x.t; }));
+    var m = matcher(items.map(function (x) { return x.t; }), o.lang, items, { repeat: o.repeat });
     var img = o.image && o.image.w > 0 && o.image.h > 0 && items.every(function (x) { return x.box && x.box.length === 4; }) ? o.image : null;
     var pc = function (v, of) { return Math.round(1000 * v / of) / 10 + '%'; };
     var fin = o.finish || { pct: lang === 'ur' ? 0.75 : 0.8, quiet_ms: QUIET_MS, tail_ms: TAIL_MS, quiet: !o.counted };
@@ -482,5 +560,5 @@
     return { copy: C, counted: counted, view: view, doneOpen: doneOpen, heard: heard, hand: hand, check: check, sayWords: sayWords, sticky: sticky };
   }
 
-  window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, wordTaps: wordTaps, spanMs: spanMs, trail: trail, COPY: COPY };
+  window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, wordTaps: wordTaps, practice: practice, spanMs: spanMs, trail: trail, COPY: COPY };
 })();
