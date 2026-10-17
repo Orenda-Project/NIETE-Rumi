@@ -47,6 +47,9 @@ const { openQuizMenu } = require('../../shared/services/quiz/quiz-menu-entry.ser
 const Gate = require('../../shared/services/quiz/teacher-report-gate');
 const Ledger = require('../../shared/services/quiz/message-ledger');
 const OneDoorFlags = require('../../shared/services/first-touch/one-door.flags');
+const IdFlags = require('../../shared/services/quiz/web-quiz-identity-flags');
+const HubFlags = require('../../shared/services/quiz/web-quiz-hub-flags');
+const BindRepo = require('../../shared/services/quiz/child-phone-bindings.repo');
 
 // 11:00 PKT on a fixed day: far from midnight, so only the explicit day jump crosses it
 const T0 = Date.parse('2026-10-17T06:00:00.000Z');
@@ -64,8 +67,8 @@ const PERSONAS = {
 };
 
 /** settings: { dedupe, ceiling } are the RAW app_settings values (undefined = no row). */
-function world({ oneDoor = true, uncapped = true, dedupe, ceiling, throws = false } = {}) {
-  const settings = [];
+function world({ oneDoor = true, uncapped = true, dedupe, ceiling, throws = false, extra = [], bindings = [] } = {}) {
+  const settings = [...extra];
   if (oneDoor) settings.push({ key: 'quiz_one_door', value: 'true' });
   if (uncapped) settings.push({ key: 'web_quiz_door_uncapped', value: true });
   if (dedupe !== undefined) settings.push({ key: 'web_quiz_door_dedupe', value: dedupe });
@@ -74,7 +77,8 @@ function world({ oneDoor = true, uncapped = true, dedupe, ceiling, throws = fals
     app_settings: settings,
     users: Object.values(PERSONAS).map((p) => ({ ...p.user })),
     lesson_plans: [], coaching_sessions: [], quizzes: [], quiz_sessions: [], quiz_share_codes: [],
-    student_lists: [], students: [], user_feature_first_use: [], child_phone_bindings: [], transcript_quiz_offers: [],
+    student_lists: [], students: [{ id: 'k-1', student_name: 'Sara Testwala', phone: null, list_id: null, is_active: true, status: 'active' }],
+    user_feature_first_use: [], child_phone_bindings: bindings, transcript_quiz_offers: [],
   });
   if (throws) {
     const from = mockDb.from.bind(mockDb);
@@ -88,6 +92,7 @@ function world({ oneDoor = true, uncapped = true, dedupe, ceiling, throws = fals
   }
   OneDoorFlags._resetCache();
   Gate._resetCache && Gate._resetCache();
+  IdFlags._resetCache(); HubFlags._resetCache();
   Ledger._resetCap();
   try { require('../../shared/services/first-touch/door-bound')._reset(); } catch (_) { /* the base: no such module */ }
   redis.__keys.clear();
@@ -185,6 +190,16 @@ describe('web_quiz_door_dedupe ON: the same text inside 10 s gets ONE door reply
     const keys = redis.__keys;
     redis.setNX.mockImplementation(async (k, v) => { if (keys.has(k)) return false; keys.set(k, v); return true; });
     redis.get.mockImplementation(async (k) => (keys.has(k) ? keys.get(k) : null));
+  });
+
+  test('Redis throws on the claim → the door answers both: a thrown dedupe read is never a silence', async () => {
+    world({ dedupe: true });
+    const real = redis.setNX.getMockImplementation();
+    redis.setNX.mockImplementation(async () => { throw new Error('redis down'); });
+    try {
+      expect(await burst('unknown', 2, 3000)).toBe(2);
+      expect(events('web_quiz.door_dedup')).toHaveLength(0);
+    } finally { redis.setNX.mockImplementation(real); }
   });
 });
 
@@ -347,5 +362,33 @@ describe('web_quiz_door_ceiling ABSENT (or not a positive JSON integer) → no c
     }
     world({ dedupe: true });
     expect((await OneDoorFlags.flags()).doorDedupe).toBe(true);
+  });
+});
+
+// ───────────── a child the DOOR resolves (a live phone binding; not the menu's handset routing) ─────────────
+
+describe('a known child resolved BY THE DOOR is never under the bound (one-door.service child branch)', () => {
+  const SISTERS = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_identity_canon', value: true }, { key: 'web_quiz_phone_bind', value: true }];
+  const FUTURE = new Date(T0 + 30 * DAY_MS).toISOString();
+  const bound = () => [{ id: 'b-1', canonical_id: 'k-1', phone_norm: BindRepo.normalisePhone(PERSONAS.unknown.phone), revoked_at: null, expires_at: FUTURE, bound_at: '2026-10-01T00:00:00Z', via: 'guest' }];
+  beforeAll(() => { process.env.WQ_TOMB_SALT = 'unit-salt-not-a-secret'; });
+  afterAll(() => { delete process.env.WQ_TOMB_SALT; });
+
+  test('dedupe ON + ceiling 1: 3 taps 3 s apart from a bound phone → 3 hub replies, the door\'s own child branch each time', async () => {
+    world({ dedupe: true, ceiling: 1, extra: SISTERS, bindings: bound() });
+    await burst('unknown', 3, 3000);
+    expect(mockSent.map((m) => m.kind)).toEqual(['child_hub', 'child_hub', 'child_hub']);
+    // the door answered (not the menu's persona routing): its child-hub event, once a tap
+    expect(events('onboard.quiz_door').filter((p) => p.verdict === 'child' && p.how === 'child_hub')).toHaveLength(3);
+    expect(events('web_quiz.door_dedup')).toHaveLength(0);
+    expect(ceilingCaps()).toHaveLength(0);
+  });
+
+  test('the bound child\'s hub replies are not door replies: ceiling 2 → 3 hub replies, and another phone still gets its own 2', async () => {
+    world({ ceiling: 2, extra: SISTERS, bindings: bound() });
+    expect(await burst('unknown', 3, 12000)).toBe(0);   // three hub replies, not door replies
+    expect(mockSent.filter((m) => m.kind === 'child_hub')).toHaveLength(3);
+    expect(await burst('other', 3, 12000)).toBe(2);     // the unbound phone still has its own two
+    expect(ceilingCaps()).toHaveLength(1);
   });
 });
