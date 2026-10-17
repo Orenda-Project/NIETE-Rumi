@@ -47,6 +47,7 @@ const { childTeacherLabel } = require('./quiz-teacher-label');
 const Roster = require('./web-quiz-roster');
 const Identity = require('./web-quiz-identity');
 const IdRoster = require('./web-quiz-identity-roster');
+const { underWatchRoot } = require('./watch-root');
 const Pulse = require('./web-quiz-pulse');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
@@ -354,7 +355,20 @@ function mediaHelpers() {
  */
 async function isWatchCode(ctx) {
   const root = await IdRoster.watchRoot();
-  return Boolean(root) && (ctx.moreVideosOf === root || ctx.shareCodeId === root);
+  if (!root) return false;
+  if (ctx.moreVideosOf === root || ctx.shareCodeId === root) return true;
+  // deeper: a watch child's lesson code, a friend's code under it, ... (by ancestry; once per request)
+  if (!watchMemo.has(ctx)) {
+    const rows = [ctx.row, ctx.parent].filter((r) => r && r.id);
+    watchMemo.set(ctx, rows.length ? underWatchRoot(rows, root, readCodeParents).then((u) => u.size > 0) : Promise.resolve(false));
+  }
+  return watchMemo.get(ctx);
+}
+const watchMemo = new WeakMap();
+async function readCodeParents(ids) {
+  const { data, error } = await dbRead('watchRoot:quiz_share_codes', (db) => db.from('quiz_share_codes').select('id, parent_share_code_id').in('id', ids));
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 /**
@@ -370,11 +384,12 @@ async function classChips(ctx) {
   if (root && ctx.shareCodeId === root) return [];
   const watch = await isWatchCode(ctx);
   const { data: codes } = watch ? { data: [] } : await dbRead('classChips:quiz_share_codes:1', (db) => {
-    const q = db.from('quiz_share_codes').select('id')
+    const q = db.from('quiz_share_codes').select(root ? 'id, parent_share_code_id' : 'id')
       .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since);
     return (root ? q.or(`parent_share_code_id.is.null,parent_share_code_id.neq.${root}`) : q).limit(200);
   });
-  const ids = (codes || []).map((c) => c.id);
+  const deep = root && (codes || []).length ? await underWatchRoot(codes, root, readCodeParents) : new Set();
+  const ids = (codes || []).filter((c) => c.id === root || !deep.has(c.id)).map((c) => c.id);   // the root's own old finishes stay, as today
   if (!ids.includes(ctx.shareCodeId)) ids.push(ctx.shareCodeId);
   const { data: sessions } = await dbRead('classChips:quiz_sessions:1', (db) => db.from('quiz_sessions')
     .select('student_id, student_name, user_id, created_at, share_code_id')
