@@ -515,8 +515,77 @@ describe('a CLOSED class link on a phone that holds a child: the way home (close
     expect(await LinkKnown().closedHome({ device: DEV })).toEqual({ on: true, home: null });
   });
 
-  for (const value of [false, 'true', undefined]) {
-    test(`switch off (${String(value)}): {on: false}, nothing minted`, async () => {
+  test('a held child whose trust on this phone has lapsed is left out of the home, and not trusted again', async () => {
+    seed();
+    await homeOpened([SELF]);
+    await homeOpened([SIB]);
+    const lapsed = `wq:hub:kid:${require('crypto').createHash('sha256').update(`${SIB}|${DEV}`).digest('hex').slice(0, 32)}`;
+    redis._store.delete(lapsed);   // still in the phone's list; its own trust key is gone
+    const r = await LinkKnown().closedHome({ device: DEV });
+    expect(T.verify(r.home.slice(3, r.home.indexOf('?')), 'h').ids).toEqual([SELF]);
+    expect(redis._store.has(lapsed)).toBe(false);
+  });
+
+  test('a phone the hub will not bind: on, but no home', async () => {
+    seed();
+    await homeOpened();
+    const spy = jest.spyOn(HubDevice, 'deviceTrusted').mockResolvedValue({ ok: false, why: 'foreign', ids: [] });
+    try { expect(await LinkKnown().closedHome({ device: DEV })).toEqual({ on: true, home: null }); } finally { spy.mockRestore(); }
+  });
+
+  describe('the routes', () => {
+    const express = require('express');
+    let server; let base;
+    beforeAll(async () => {
+      const app = express();
+      app.use(express.json());
+      app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
+      await new Promise((r) => { server = app.listen(0, r); });
+      base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
+    });
+    afterAll(() => new Promise((r) => server.close(r)));
+    const H = { 'x-api-key': 'test-key', 'content-type': 'application/json' };
+    const closeCode = () => { db.quiz_share_codes.find((c) => c.id === F.SC).active = false; };
+
+    test('POST /known/home: the device comes from the header only; in the body it is nobody', async () => {
+      seed();
+      await homeOpened();
+      const body = await (await fetch(`${base}/known/home`, { method: 'POST', headers: H, body: JSON.stringify({ device: DEV, device_ref: DEV }) })).json();
+      expect(body).toEqual({ on: true, home: null });
+    });
+
+    test('GET /quiz/:code on a closed class link says `known: true` with the switch on, so the edge may ask', async () => {
+      seed();
+      closeCode();
+      const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+      expect(res.status).toBe(410);
+      expect(await res.json()).toEqual(expect.objectContaining({ error: 'expired', known: true }));
+    });
+
+    for (const [name, value] of [['no row', undefined], ['false', false], ['the string "true"', 'true'], ['the quoted string', '"true"'], ['a number', 1], ['an object', {}]]) {
+      test(`switch off (${name}): the closed answer is today's, byte for byte (no \`known\`)`, async () => {
+        seed({ known: false });
+        db.app_settings = db.app_settings.filter((r) => r.key !== KEY);   // today: no switch row at all
+        closeCode();
+        const today = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).text();
+        seed({ known: value });
+        if (value === undefined) db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
+        closeCode();
+        const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+        expect(res.status).toBe(410);
+        expect(await res.text()).toBe(today);
+      });
+    }
+
+    test('an open class link\'s answer never carries `known` (only a closed one does)', async () => {
+      seed();
+      const body = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).json();
+      expect(Object.prototype.hasOwnProperty.call(body, 'known')).toBe(false);
+    });
+  });
+
+  for (const value of [false, 'true', '"true"', 1, {}, undefined]) {
+    test(`switch off (${JSON.stringify(value)}): {on: false}, nothing minted`, async () => {
       seed({ known: value });
       if (value === undefined) db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
       await homeOpened();

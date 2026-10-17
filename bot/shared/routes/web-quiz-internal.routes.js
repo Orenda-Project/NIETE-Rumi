@@ -84,8 +84,15 @@ const serve = async (fn, req, res) => {
 // The finish card's switch rides the page and its preview facts (named only when on): the edge then counts an Urdu
 // link's preview in Urdu digits. Read beside the quiz, never after it; off, the payload is today's.
 const withCard = (quizP) => Promise.all([quizP, CardImage.field()]).then(([out, card]) => (out && typeof out === 'object' ? Object.assign(out, card) : out));
+// A closed class link (404 / 410 with its reason) says `known: true` while web_quiz_link_known_child is ON, so the edge asks
+// /known/home for this phone's way home only then; switch off, the answer is today's, byte for byte.
+async function closedKnows(err) {
+  if (err instanceof WebQuiz.WqError && (err.status === 404 || err.status === 410) && err.body && typeof err.body.error === 'string'
+    && await require('../services/quiz/web-quiz-link-known').isOn()) err.body = { ...err.body, known: true };
+  return err;
+}
 router.get('/quiz/:code', handle(async (req) => {
-  const out = await OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p })));
+  const out = await OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p }))).catch(async (err) => { throw await closedKnows(err); });
   // Every child's page load teaches the preview facts (not a teacher's ?p= preview, which answers differently).
   if (!req.query.p) WebQuizOg.remember(req.params.code, out);
   return out;

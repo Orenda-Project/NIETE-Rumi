@@ -36,7 +36,6 @@ const Stream = require('./web-quiz-stream');
 // The one tap back to WhatsApp on a dead-end page (web_quiz_closed_way_back ON): the bot's signed words and its href rule.
 const ChatTap = require('../../bot/shared/services/first-touch/chat-tap');
 const WayBackSwitch = require('../lib/closed-way-back-switch');
-const LinkKnownSwitch = require('../lib/link-known-child-switch');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
@@ -591,6 +590,8 @@ function renderLibPage({ hub, kid, lang, origin, assetV, brandKey, rt = false, u
 
 // A closed class link's way home (the bot's known/home, web_quiz_link_known_child): only a hub path of this shape is drawn.
 const CLOSED_HOME_RX = /^\/h\/[A-Za-z0-9._-]{16,700}\?from=link$/;
+// How long a closed class link waits for the bot's answer about this phone's home before it is drawn without one.
+const HOME_WAIT_MS = 1500;
 /**
  * The closed page: kind 'hub' (an expired or forged child home link), 'closed' (a closed quiz / challenge link) or
  * 'off' (the service is not open right now). `back` (an href, given only while web_quiz_closed_way_back is ON) adds ONE tap back
@@ -795,21 +796,19 @@ function createWebQuizRouter(opts = {}) {
       return ChatTap.chatHref(String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '') || null);
     } catch (_) { return null; }
   };
-  // web_quiz_link_known_child (app_settings, default OFF): ON → a closed class link asks the bot once for this phone's way
-  // home. Read from the cache only (lib/link-known-child-switch.js peek: OFF = no ask, today's page). `opts.linkKnownOn(req)`
-  // stands in for the read (tests).
-  const linkKnownOn = typeof opts.linkKnownOn === 'function'
-    ? opts.linkKnownOn
-    : (req) => LinkKnownSwitch.peek(req && req.app && req.app.locals ? req.app.locals.supabase : null);
-  // {href} (the bot minted this phone's home), {href: null} (a phone with no device cookie, or the bot's own "nobody"),
-  // or undefined (switch off, or no answer from the bot: today's page, or the tap when web_quiz_closed_way_back is ON).
-  const homeFor = async (req) => {
+  // A closed class link's way home (web_quiz_link_known_child): asked only when the bot's closed answer says `known: true`
+  // (the switch is on) and the phone has its wq_dv cookie. {href} (the bot minted this phone's home), {href: null} (a phone
+  // with no cookie, or the bot's own "nobody"), or undefined (switch off, or no answer within HOME_WAIT_MS: today's page, or
+  // the tap when web_quiz_closed_way_back is ON). A slow bot never holds the page longer than that.
+  const homeFor = async (req, closed) => {
+    if (!(closed && closed.known === true)) return undefined;
+    if (!deviceCookie(req)) return { href: null };
+    let timer = null;
     try {
-      if (linkKnownOn(req) !== true) return undefined;
-      if (!deviceCookie(req)) return { href: null };
-      const h = await callBot('POST', '/api/internal/wq/known/home', req, {});
-      if (h.status === 200 && h.body && h.body.on === true) return { href: typeof h.body.home === 'string' ? h.body.home : null };
-    } catch (_) { /* no answer */ }
+      const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), HOME_WAIT_MS); });
+      const h = await Promise.race([callBot('POST', '/api/internal/wq/known/home', req, {}), late]);
+      if (h && h.status === 200 && h.body && h.body.on === true) return { href: typeof h.body.home === 'string' ? h.body.home : null };
+    } catch (_) { /* no answer */ } finally { if (timer) clearTimeout(timer); }
     return undefined;
   };
   // ON: the page speaks the LINK's language before the phone's (?lang=, then the token's own lang, then today's choice)
@@ -973,7 +972,7 @@ function createWebQuizRouter(opts = {}) {
     const contractAnswer = out.body && typeof out.body.error === 'string';
     if ((out.status === 404 || out.status === 410) && contractAnswer) {
       // A phone that holds a child (web_quiz_link_known_child; the bot reads this phone's wq_dv as x-wq-device): its way home.
-      return res.status(out.status).type('html').send(closedHtml(req, { lang, kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi, home: await homeFor(req) }));
+      return res.status(out.status).type('html').send(closedHtml(req, { lang, kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi, home: await homeFor(req, out.body) }));
     }
     return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(closedHtml(req, { lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
   }
