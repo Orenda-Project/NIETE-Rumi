@@ -99,10 +99,11 @@
       body + '</section>' + bar;
   }
   // A list still on its way (`list_states`): row-shaped blocks, never an empty note; `primary` when it is the screen's one.
-  // `bk`: the Stories shelf's shape (covers two by two), so the shelf replaces it without a jump.
-  function skel(n, primary, bk) {
+  // `mod` 'bk': the Stories shelf's shape (covers two by two), so the shelf replaces it without a jump; 'in': rows under
+  // a section heading already drawn, so the first grey row sits where the first real row will.
+  function skel(n, primary, mod) {
     var r = ''; for (var i = 0; i < n; i++) r += '<i class="wq-skrow"></i>';
-    return '<div class="wq-dskel' + (bk ? ' wq-dskel-bk' : '') + '"' + (primary ? ' data-primary' : '') + ' aria-busy="true">' + r + '</div>';
+    return '<div class="wq-dskel' + (mod ? ' wq-dskel-' + mod : '') + '"' + (primary ? ' data-primary' : '') + ' aria-busy="true">' + r + '</div>';
   }
   function errNote(t) { return '<div class="wq-dempty"><p class="wq-soon">' + esc(t.oops) + '</p><button class="wq-btn wq-go" type="button" data-primary data-tap="retry">' + esc(t.retry) + '</button></div>'; }
   // `mark` (list_states): a true empty says so (data-empty), so a walker can tell it from a list still on its way
@@ -122,7 +123,7 @@
     var wait = Boolean(B.list_states && B.stories && B.stories.on);
     // (the skeleton is the screen's one primary while it waits; the note's button takes it back only if it shows)
     var note = emptyNote(t.storiesNone, 'games', t.toGames, B.list_states);
-    return '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors">' + (wait ? skel(4, true, true) : '') + '</div></div>' +
+    return '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors">' + (wait ? skel(4, true, 'bk') : '') + '</div></div>' +
       '<div data-shelf-fallback="1"' + (wait ? ' hidden' : '') + '>' + (wait ? note.replace(' data-primary', '') : note) + '</div>';
   }
 
@@ -133,8 +134,10 @@
     // `list_states`: before its rows the door is a skeleton (the boot's one numbers stand-in never shows), and rows that
     // failed are a retry above the teacher's quizzes the boot already has (never the empty note)
     var ls = Boolean(B.list_states && !B.practice);
-    if (ls && !data) return skel(5, true);
-    var failed = ls && Boolean(data.err);
+    // before the rows, what the boot already knows is drawn for real (the teacher's quizzes, the numbers' heading) and
+    // only the rows still on their way are grey, so the primary is where it stays when they arrive
+    var wait = ls && !data;
+    var failed = ls && !wait && Boolean(data.err);
     var boot = bootDoors(B).games;
     var quizzes = boot.filter(function (g) { return g.kind === 'quiz'; });
     var open = quizzes.filter(function (g) { return !g.done; });
@@ -143,7 +146,8 @@
     var last = ls ? open.filter(function (g) { return g.from === 'last'; }) : [];
     if (ls) open = open.filter(function (g) { return g.from !== 'last'; });
     var done = quizzes.filter(function (g) { return g.done; });
-    var all = failed ? [] : data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
+    var hasNums = boot.some(function (g) { return g.kind === 'numbers'; });
+    var all = failed || wait ? [] : data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
     var nums = all.filter(function (g) { return g.kind === 'numbers'; });
     // Jugnu's passages beside the games (the server lists each only when it would open): read along and listen in the
     // story room by id, read aloud on the games page
@@ -153,12 +157,14 @@
       return row({ href: storyHref(B, ctx, g), title: g.kind === 'listen' ? t.listenW : t.readAlong, sub: g.title || '', kind: g.kind, item: g.id, pos: i, say: g.say }, ctx);
     };
     var quizRow = function (g, i) { return row({ href: quizHref(g.code, g.k, g.done), title: g.topic || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
-    var h = section(t.fromTeacher, open.map(quizRow).join('')) +
+    var numsH = !wait ? '' : hasNums ? '<h3 class="wq-dsec"><bdi' + lat(t.numbers) + '>' + esc(t.numbers) + '</bdi></h3>' + skel(2, !open.length, 'in') : skel(3, !open.length);
+    var h = section(t.fromTeacher, open.map(quizRow).join('')) + numsH +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
       section(t.story, reads.map(readRow).join('')) +
       section(t.lastQ, last.map(function (g, i) { return row({ href: quizHref(g.code, g.k, false), title: g.topic || t.lastQ, kind: 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); }).join('')) +
       section(t.again, done.map(quizRow).join(''));
     if (failed) return errNote(t) + h;
+    if (wait) return open.length ? primaryFirst(h) : h;
     if (!open.length && !reads.length && !nums.length && !done.length && !last.length) return emptyNote(t.gamesNone, 'stories', t.toStories, ls);
     return primaryFirst(h);
   }
@@ -367,7 +373,7 @@
   }
   // `wait` (list_states): while the shelf has not answered (the reader has not filled it, or shows its own skeleton) the
   // note stays hidden; it shows only for a shelf that answered with nothing to open. `wait` is the door root, which
-  // carries the walkers' tripwires.
+  // carries the test markers.
   // `words` (list_states): the reader's own Try again sheet on a shelf that did not load names the stories, not one book
   function shelfPrimary(sh, fb, wait, words) {
     var sync = function () {
@@ -400,7 +406,7 @@
     wire(root, B, ctx, name);
     try { window.scrollTo(0, 0); } catch (e) {}
   }
-  // The walkers' tripwires (`list_states` only): data-fetch pending|done|failed, when the skeleton came and went, and
+  // The test markers (`list_states` only): data-fetch pending|done|failed, when the skeleton came and went, and
   // when an empty note showed (a visible empty note beside data-fetch=pending is a FAIL for them).
   function now() { try { return String(Math.round(window.performance.now())); } catch (e) { return String(Date.now()); } }
   function trip(root, name, h, data) {
