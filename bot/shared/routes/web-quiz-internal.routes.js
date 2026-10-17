@@ -48,6 +48,8 @@ const ShareWarm = require('../services/quiz/web-quiz-share-warm');
 // The ranked next thing on a result (web_quiz_next_offer), required on use.
 const NextOffer = () => require('../services/quiz/web-quiz-next-offer-result');
 const AfterVideo = () => require('../services/quiz/web-quiz-next-offer-video');
+// a scored read's coarse feedback band on every result body, and the menu's read_feedback (web_quiz_read_feedback)
+const ReadFeedback = () => require('../services/quiz/web-quiz-read-feedback');
 // Warm the next thing for the result while the child plays (web_quiz_next_offer; off -> nothing): after the answer, never in it.
 const warmNext = (run) => { setImmediate(() => { Promise.resolve().then(run).catch(() => {}); }); };
 const WebQuizOg = require('../services/quiz/web-quiz-og');
@@ -200,7 +202,7 @@ const coarseScore = async (score, ct) => {
   try { len = await require('../services/quiz/web-quiz-challenge').readLength(ct); } catch (_) { len = 0; }
   return { ...score, attempted: require('../services/quiz/web-quiz-read-coarse').coarseAttempted(score.attempted, len) };
 };
-router.get('/ch/result/:ct', challenge(async (C, req) => withNext(await C.poll(req.params.ct), req.params.ct, req)));
+router.get('/ch/result/:ct', challenge(async (C, req) => withNext(await ReadFeedback().withBand(await C.poll(req.params.ct)), req.params.ct, req)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {}, { device: req.get('x-wq-device') })));
 // Read aloud, live: a temporary Soniox key for one run (web-quiz-soniox-live.js); the server key never leaves the bot.
 router.post('/ch/live', challenge((C, req) => C.liveKey(req.body || {})));
@@ -210,13 +212,13 @@ router.post('/lr/key', handle((req) => { const b = req.body || {}; return requir
 router.post('/ch/qs', challenge((C, req) => C.questions(req.body || {})));
 router.post('/ch/qa', challenge((C, req) => C.answer(req.body || {})));
 // x-wq-device on a result: the phone the mic notice was shown on (marked seen for that child on that phone)
-router.post('/ch/result', challenge(async (C, req) => withNext(await C.submit(req.body || {}, { device: req.get('x-wq-device') }), (req.body || {}).ct, req)));
+router.post('/ch/result', challenge(async (C, req) => withNext(await ReadFeedback().withBand(await C.submit(req.body || {}, { device: req.get('x-wq-device') })), (req.body || {}).ct, req)));
 // the read-along on practice runs: a practice listen's words after its questions; a grown-up's preview of a practice story
 router.get('/ch/words/:ct', challenge((C, req) => C.listenWords({ ct: req.params.ct, lang: req.query.lang })));
 // x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
 router.get('/listen/h/:token/:pid', challenge((C, req) => C.listenPreview(req.params.token, req.params.pid, { lang: req.query.lang, device: req.get('x-wq-device') })));
 // The child home on (web_quiz_home_v3): {card_fold: true}, so the end cards are the card and one next thing.
-router.get('/ch/:token', challenge(async (C, req) => Object.assign(await OneFace.carry(C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })), await CardImage.field(), await require('../services/quiz/web-quiz-hub-door').menuFoldField())));
+router.get('/ch/:token', challenge(async (C, req) => Object.assign(await OneFace.carry(C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })), await CardImage.field(), await require('../services/quiz/web-quiz-hub-door').menuFoldField(), await ReadFeedback().menuField())));
 // Story Time (?room=story&pid=<passage id>, read and listen only): passed on only with web_quiz_challenge_story on; off, ignored.
 const storyAsk = async (C, req) => (req.query.room === 'story' && (req.params.exercise === 'read' || req.params.exercise === 'listen') && typeof C.storyOn === 'function' && (await C.storyOn())
   ? { passageId: typeof req.query.pid === 'string' ? req.query.pid : null, room: 'story' } : {});
