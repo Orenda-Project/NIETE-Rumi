@@ -48,8 +48,21 @@ describe('the field', () => {
     expect(await Card.field()).toEqual({});
     expect(await Card.shareOn()).toBe(false);
   });
+  test('the read that names the share key fails: the card stays as today (its own read), only the share is off', async () => {
+    let n = 0;
+    Object.assign(supabase, { from: () => ({ select: () => ({
+      in: async () => { n += 1; return { data: null, error: { message: 'down' } }; },
+      eq: async (col, key) => { n += 1; return key === 'web_quiz_card_v3' ? { data: [CARD_ON], error: null } : { data: [], error: null }; },
+    }) }) });
+    Card._reset();
+    expect(await Card.field()).toEqual({ card_v3: true });
+    expect(await Card.shareOn()).toBe(false);
+    expect(await Card.field()).toEqual({ card_v3: true });
+    // the failure path: two reads, then the cache
+    expect(n).toBe(2);
+  });
   test('a failed read: off, nothing added', async () => {
-    Object.assign(supabase, { from: () => ({ select: () => ({ in: async () => ({ data: null, error: { message: 'down' } }) }) }) });
+    Object.assign(supabase, { from: () => ({ select: () => ({ in: async () => ({ data: null, error: { message: 'down' } }), eq: async () => ({ data: null, error: { message: 'down' } }) }) }) });
     Card._reset();
     expect(await Card.field()).toEqual({});
     expect(await Card.shareOn()).toBe(false);

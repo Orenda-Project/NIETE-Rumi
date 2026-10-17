@@ -125,8 +125,16 @@ async function on(now = Date.now()) {
     cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)) };
     return cache.on;
   } catch (err) {
-    logToFile('⚠️ web quiz card v3: settings lookup failed — card off', { error: err.message });
-    return false;
+    // the read that names the share failed: the card reads its own key as before, and only the share is off
+    try {
+      const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY);
+      if (error) throw new Error(error.message || 'app_settings read failed');
+      cache = { at: now, on: isTrue(((data || [])[0] || {}).value), share: false };
+      return cache.on;
+    } catch (err2) {
+      logToFile('⚠️ web quiz card v3: settings lookup failed — card off', { error: err2.message });
+      return false;
+    }
   }
 }
 /** true only with the card on AND app_settings web_quiz_share_v4 literally true (the same read and cache). */
