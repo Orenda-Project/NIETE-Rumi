@@ -906,6 +906,14 @@ describe('the top card\'s named item and the early grade pick: two switches of t
     expect(home.primary).toMatchObject({ kind: 'class', title: 'Photosynthesis', item: 'quiz' });
   });
 
+  test('the quick answer (paged ON) names the item too, and its page is the paged variant with both parts', async () => {
+    seedSent([{ key: 'quiz_teacher_home_paged', value: true }, { key: NAMED, value: true }, { key: EARLY, value: true }]);
+    await boot(deps);
+    expect(JSON.parse(await homeText()).primary).toMatchObject({ kind: 'class', title: 'Photosynthesis', item: 'quiz' });
+    const page = await pageOf();
+    expect(page.html).toBe(Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null, paged: true, named: true, early: true }).html);
+  });
+
   test('one ON, the other absent: each switch alone picks its own variant', async () => {
     seedSent([{ key: EARLY, value: true }]);
     await boot(deps);
