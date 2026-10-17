@@ -332,12 +332,16 @@ async function withList(cls) {
  * The quiz's list is ANOTHER teacher's (a library quiz sent by someone who did not make it, quiz_teacher_home): it
  * is the author's class, never the sender's — the sender's own classes answer instead. Off: today's reading.
  */
-async function othersList(list, teacherUserId) {
+async function othersList(list, teacherUserId, homeOn = null) {
   if (!teacherUserId || !list.user_id || list.user_id === teacherUserId) return false;
-  try { return await require('../first-touch/teacher-home.flags').on(); } catch (_) { return false; }
+  try { return await (homeOn || require('../first-touch/teacher-home.flags').on()); } catch (_) { return false; }
 }
 
-async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = null, grade = null, gradeSoft = false } = {}) {
+async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = null, grade = null, gradeSoft = false, codeClassId, quizRow } = {}) {
+  // The quiz page hands what it already read (web_quiz_fast): the same answer, its reads started together.
+  if (codeClassId !== undefined || quizRow !== undefined) {
+    return resolveHanded({ teacherUserId, quizId, shareCodeId, grade, gradeSoft, codeClassId, quizRow });
+  }
   let quizGrade = grade;
   let soft = Boolean(gradeSoft);
   // 1. the hand-out's class
@@ -385,6 +389,108 @@ async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = nu
     const { data: lists } = await supabase.from('student_lists').select('id, class_name, section, class_id').eq('user_id', teacherUserId).eq('is_active', true);
     classes = (lists || []).filter((l) => !l.class_id).map((l) => ({ id: null, listId: l.id, legacy: true, grade: gradeOrdinal(l.class_name), section: l.section || null, shift: null }));
   }
+  classes = classes.map((c) => ({ ...c, label: labelOf(c, classes) }));
+  classes.sort((a, b) => ((a.grade || 0) - (b.grade || 0)) || String(a.section || '').localeCompare(String(b.section || '')));
+  const picked = pickClass(classes, { grade: quizGrade, gradeSoft: soft });
+  return { ...picked, bound: picked.bound || null };
+}
+
+// ─── the same resolver, handed the quiz page's own reads (web_quiz_fast) ───
+
+/** Step 1's read on its own: this code's class id, or null (a missing column warns once, a failed read is logged). */
+async function codeClassOf(shareCodeId) {
+  try {
+    const { data, error } = await supabase.from('quiz_share_codes').select('class_id').eq('id', shareCodeId).maybeSingle();
+    if (error && isMissingColumn(error)) {
+      if (!warnedNoColumn) { warnedNoColumn = true; logToFile('⚠️ web quiz identity: quiz_share_codes.class_id is not on this database yet — hand-outs resolve by quiz/teacher only', {}); }
+      return null;
+    }
+    return (data && data.class_id) || null;
+  } catch (err) {
+    logToFile('⚠️ web quiz identity: share code read failed', { error: err.message });
+    return null;
+  }
+}
+
+/** Step 3's reads on their own: the teacher's active classes with their lists, else (no class) the legacy lists. */
+async function teacherClassesOf(teacherUserId) {
+  const { data: ct } = await supabase.from('class_teachers').select('class_id').eq('teacher_user_id', teacherUserId).eq('is_active', true);
+  const ids = [...new Set((ct || []).map((t) => t.class_id).filter(Boolean))];
+  if (ids.length) {
+    const [{ data: rows }, lists] = await Promise.all([
+      supabase.from('classes').select('id, grade_code, section, shift_code, is_active').in('id', ids).eq('is_active', true),
+      listIdsFor(ids),
+    ]);
+    // a merged class is deactivated by the merge (is_active=false), so the filter above already drops it
+    return { ids, rows: rows || [], classes: (rows || []).map((c) => ({ ...shape(c), listId: lists.get(c.id) || null })) };
+  }
+  // a legacy-only teacher (lists never mirrored to a class): the lists stand in for classes
+  const { data: lists } = await supabase.from('student_lists').select('id, class_name, section, class_id').eq('user_id', teacherUserId).eq('is_active', true);
+  return { ids, rows: [], classes: (lists || []).filter((l) => !l.class_id).map((l) => ({ id: null, listId: l.id, legacy: true, grade: gradeOrdinal(l.class_name), section: l.section || null, shift: null })) };
+}
+
+const quiet = (p) => { p.catch(() => {}); return p; };
+
+/**
+ * resolveQuizClass for the quiz page (web_quiz_fast): the same three steps, in the same order, with the same answer.
+ *   codeClassId  THIS code's own quiz_share_codes.class_id, read with the code (the one /who/class binds); undefined:
+ *                read here, exactly as step 1 reads it. Never a class worked out from the quiz's list.
+ *   quizRow      the page's own quizzes row ({grade, list_id, meta} or null), or a promise of it.
+ * Only the reads move: the teacher's classes (step 3 needs only the teacher) start beside the quiz row, and the classes
+ * and their lists are read together. Step 2 skips another teacher's list exactly as resolveQuizClass does
+ * (othersList), so a quiz handed out by a teacher who did not make it never resolves to the author's class.
+ */
+async function resolveHanded({ teacherUserId, quizId, shareCodeId, grade, gradeSoft, codeClassId, quizRow }) {
+  let quizGrade = grade;
+  let soft = Boolean(gradeSoft);
+  const handedClass = Boolean(shareCodeId) && codeClassId !== undefined;
+  const classIdP = !shareCodeId ? null : handedClass ? Promise.resolve(codeClassId || null) : quiet(codeClassOf(shareCodeId));
+  const rowP = !quizId ? null : quizRow !== undefined
+    ? quiet(Promise.resolve(quizRow).catch(() => null))
+    : quiet(supabase.from('quizzes').select('grade, list_id, meta').eq('id', quizId).maybeSingle().then(({ data }) => data));
+  let teacherP = null;
+  const teacher = () => { if (!teacherP) teacherP = quiet(teacherClassesOf(teacherUserId)); return teacherP; };
+  // A class handed with the code answers in step 1: the teacher's classes are read only if it does not.
+  if (teacherUserId && !(handedClass && codeClassId)) teacher();
+  // 1. the hand-out's class
+  if (classIdP) {
+    const classId = await classIdP;
+    if (classId) {
+      try {
+        const [c, m] = await Promise.all([classById(classId), listIdsFor([classId])]);
+        const cls = c ? { ...c, listId: m.get(c.id) || null, label: c.label || labelOf(c, []) } : null;
+        if (cls) return { state: 'known', class: cls, classes: [cls], bound: 'code' };
+      } catch (err) {
+        logToFile('⚠️ web quiz identity: share code read failed', { error: err.message });
+      }
+      if (teacherUserId) teacher();
+    }
+  }
+  // 2. the quiz's list
+  if (rowP) {
+    const q = await rowP;
+    if (q) {
+      if (quizGrade == null) quizGrade = q.grade || null;
+      // A coaching-born quiz's grade is the digest's reading of the transcript — a guess, not a fact.
+      if (grade == null && q.meta && q.meta.grade_source === 'digest') soft = true;
+      if (q.list_id) {
+        // The switch othersList may need is read beside the list (the same reading, started one read earlier).
+        const homeOn = teacherUserId ? quiet(Promise.resolve().then(() => require('../first-touch/teacher-home.flags').on())) : null;
+        const { data: l } = await supabase.from('student_lists').select('id, class_id, class_name, section, user_id').eq('id', q.list_id).maybeSingle();
+        if (l && l.class_id && !(await othersList(l, teacherUserId, homeOn))) {
+          // The class row is the one step 3 read when it is one of the teacher's classes (the same columns, the same filter).
+          const mine = teacherP ? await teacherP.catch(() => null) : null;
+          const cls = mine && mine.ids.includes(l.class_id)
+            ? ((row) => (row ? shape(row) : null))(mine.rows.find((r) => r.id === l.class_id))
+            : await classById(l.class_id);
+          if (cls) return { state: 'known', class: { ...cls, listId: l.id, label: labelOf(cls, []) }, classes: [{ ...cls, listId: l.id, label: labelOf(cls, []) }], bound: 'quiz' };
+        }
+      }
+    }
+  }
+  // 3. the teacher's classes
+  if (!teacherUserId) return { state: 'none', class: null, classes: [], bound: null };
+  let { classes } = await teacher();
   classes = classes.map((c) => ({ ...c, label: labelOf(c, classes) }));
   classes.sort((a, b) => ((a.grade || 0) - (b.grade || 0)) || String(a.section || '').localeCompare(String(b.section || '')));
   const picked = pickClass(classes, { grade: quizGrade, gradeSoft: soft });

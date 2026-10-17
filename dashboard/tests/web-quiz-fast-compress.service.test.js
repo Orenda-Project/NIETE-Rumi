@@ -52,6 +52,8 @@ const HUB = (extra = {}) => ({
   lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana Testwala', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, ...extra,
 });
+// The streamed tail names the bot's wait in ms (a performance mark); two visits differ only in that number.
+const sameWait = (body) => body.replace(/performance\.mark\("wq-bot",\{detail:\d+\}\)/g, 'performance.mark("wq-bot",{detail:0})');
 const ver = (body) => body.match(/wq\.css\?v=([0-9a-f]+)/)[1];
 
 const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
@@ -159,8 +161,8 @@ describe('fast first page, compressed: GET /q/:code', () => {
     const br = await get(srv, '/q/AB12CD', { headers: { 'accept-encoding': AE } });
     const gz = await get(srv, '/q/AB12CD', { headers: { 'accept-encoding': 'gzip' } });
     expect(plain.headers['content-encoding']).toBeUndefined();
-    expect(br.body).toBe(plain.body);
-    expect(gz.body).toBe(plain.body);
+    expect(sameWait(br.body)).toBe(sameWait(plain.body));
+    expect(sameWait(gz.body)).toBe(sameWait(plain.body));
   });
 
   it('switch on, a repeat visit (the phone holds a copy): the head again before the bot answers, compressed, a full page under 15 KB on the wire', async () => {
@@ -176,7 +178,7 @@ describe('fast first page, compressed: GET /q/:code', () => {
     expect(early).toMatch(/<div class="wq-boot">/);
     expect(res.headers['content-encoding']).toBe('br');
     expect(res.headers.etag).toBeUndefined();
-    expect(res.body).toBe(first.body);
+    expect(sameWait(res.body)).toBe(sameWait(first.body));
     expect(res.wire).toBeLessThan(15 * 1024);
   });
 
@@ -266,7 +268,7 @@ describe('fast first page, compressed: GET /h/:token', () => {
     expect(res.status).toBe(200);
     expect(answeredAtFirstText).toBe(false);
     expect(res.headers['content-encoding']).toBe('br');
-    expect(res.body).toBe(first.body);
+    expect(sameWait(res.body)).toBe(sameWait(first.body));
   });
 
   it('switch off: the hub is today\'s render byte for byte, no content-encoding of the portal\'s own', async () => {
@@ -276,5 +278,47 @@ describe('fast first page, compressed: GET /h/:token', () => {
     const res = await get(srv, `/h/${TOKEN}`, { headers: { 'accept-encoding': AE } });
     expect(res.headers['content-encoding']).toBeUndefined();
     expect(res.body).toBe(renderHubPage({ payload: HUB(), token: TOKEN, origin: 'http://portal.example', assetV: ver(res.body) }));
+  });
+});
+
+describe('fast first page, compressed, with minified scripts (web_quiz_fast and web_quiz_minify both on)', () => {
+  let srv;
+  afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
+
+  async function minApp(bot) {
+    const router = createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: bot.fetchImpl });
+    await router.minifyReady;
+    const app = express();
+    app.set('trust proxy', 1);
+    app.use(router);
+    return app;
+  }
+
+  it('GET /h/:token: compressed, the head before the bot answers, and the streamed tail links the minified scripts (?v=<hash>m)', async () => {
+    const hub = HUB({ fast: true, min: true });
+    const bot = heldBot([jsonRes(200, hub), { hold: true, res: jsonRes(200, hub) }]);
+    srv = await start(await minApp(bot));
+    await get(srv, `/h/${TOKEN}`);
+    const { res, early, answeredAtFirstText } = await earlyGet(srv, bot, `/h/${TOKEN}`, { 'accept-encoding': AE });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-encoding']).toBe('br');
+    expect(answeredAtFirstText).toBe(false);
+    expect(early).toMatch(/<div class="wq-boot">/);
+    const tail = res.body.slice(res.body.indexOf('id="boot"'));
+    expect(tail).toMatch(/<script src="\/wq\/hub\.js\?v=[0-9a-f]+m" defer><\/script>/);
+    expect(tail).not.toMatch(/\/wq\/[\w-]+\.js\?v=[0-9a-f]+"/);
+    const js = await get(srv, tail.match(/\/wq\/hub\.js\?v=[0-9a-f]+m/)[0], { headers: { 'accept-encoding': AE } });
+    expect(js.status).toBe(200);
+  });
+
+  it('GET /q/:code: compressed, the head before the bot answers, and the streamed tail links wq.js?v=<hash>m', async () => {
+    const q = QUIZ({ fast: true, min: true });
+    const bot = heldBot([jsonRes(200, q), { hold: true, res: jsonRes(200, q) }]);
+    srv = await start(await minApp(bot));
+    await get(srv, '/q/AB12CD');
+    const { res, answeredAtFirstText } = await earlyGet(srv, bot, '/q/AB12CD', { 'accept-encoding': 'gzip' });
+    expect(res.headers['content-encoding']).toBe('gzip');
+    expect(answeredAtFirstText).toBe(false);
+    expect(res.body).toMatch(/<script src="\/wq\/wq\.js\?v=[0-9a-f]+m" defer><\/script>/);
   });
 });

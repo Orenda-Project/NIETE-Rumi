@@ -11,7 +11,8 @@
  *   GET  /k/:t             a shared finish card: its og head (the picture) and one way in, the bot's chat
  *   *    /api/wq/*         forwarded to the bot's /api/internal/wq/* with the internal key
  *   GET  /wq-probe         a capability probe for real phones; posts its result as one event
- *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>)
+ *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>);
+ *                          ?v=<hash>m is the same JS/CSS minified at start-up (web_quiz_minify, minifiedFiles below)
  *
  * The edge never touches the database. It checks shape and size, applies the rate
  * limits and adds x-forwarded-for; the bot owns every rule about the quiz itself.
@@ -181,6 +182,62 @@ function assetVersion() {
   return h.digest('hex').slice(0, 10);
 }
 
+// ── Minified page files (app_settings web_quiz_minify, read by the bot; the payload says `min: true`) ──────────────
+// Each top-level .js/.css in the folder, minified once per process at start-up and kept in memory, served at
+// ?v=<hex>m (its own immutable URL: a raw copy and a minified copy never share one). wq-tel.js stays raw: the error
+// columns our logs carry are its own. The sources are ES5 for old phones, so the JS target is es5 (no newer syntax
+// is ever introduced: esbuild with no target writes `??` and template strings) and the CSS target is old engines
+// (no #rrggbbaa colours). A file that does not minify, or esbuild missing, is served raw: one log line, never a throw.
+// The minifying runs in the background (esbuild's own process, async): the router is made, and the portal listens,
+// at once. Until it is done the pages link the raw files (?v=<hex>), whatever the switch says.
+const MIN_V_RX = /^[0-9a-f]+m$/;
+const MIN_SKIP = new Set(['wq-tel.js']);
+const MIN_CSS_TARGET = ['chrome49', 'safari10', 'firefox52'];
+const minOptions = (css) => ({ loader: css ? 'css' : 'js', minify: true, legalComments: 'none', charset: 'utf8', target: css ? MIN_CSS_TARGET : 'es5' });
+const minifiedByDir = new Map();
+/** One file's minified text (esbuild, the options above); throws when it does not minify or esbuild is missing. */
+function minifySource(src, css, esbuild = require('esbuild')) {
+  return esbuild.transformSync(src, minOptions(css)).code;
+}
+/**
+ * The folder's minified files: { files: Map<name, Buffer>, ready: false } at once, filled in the background;
+ * `ready` turns true (and `done` resolves) when every file has been tried. `esbuild` is test-only (a slow minifier).
+ */
+function minifiedFiles(dir, logEvent, esbuildOpt) {
+  if (!esbuildOpt && minifiedByDir.has(dir)) return minifiedByDir.get(dir);
+  const state = { files: new Map(), ready: false, done: null };
+  if (!esbuildOpt) minifiedByDir.set(dir, state);
+  // One line: the file, the error's code and a short first-line message with anything path-like removed (a Node
+  // "Cannot find module" carries a Require stack of absolute server paths; never logged).
+  const fail = (file, err) => {
+    try {
+      const msg = String((err && err.message) || err).split('\n')[0].split(/\s+/).map((w) => (w.includes('/') ? '<path>' : w)).join(' ').slice(0, 160);
+      logEvent('web_quiz.minify_error', { file, code: String((err && err.code) || 'ERROR').replace(/[^\w.-]/g, '').slice(0, 40), err: msg });
+    } catch (_) { /* never decides a response */ }
+  };
+  state.done = new Promise((resolve) => setImmediate(resolve)).then(async () => {
+    let names = [];
+    try { names = fs.readdirSync(dir).filter((f) => /\.(js|css)$/.test(f) && !MIN_SKIP.has(f)); } catch (_) { return; }
+    let esbuild = esbuildOpt || null;
+    if (!esbuild) {
+      try { esbuild = require('esbuild'); } catch (err) { fail('*', err); return; }
+    }
+    for (const file of names) {
+      try {
+        const src = await fs.promises.readFile(path.join(dir, file), 'utf8');
+        const out = await esbuild.transform(src, minOptions(file.endsWith('.css')));
+        state.files.set(file, Buffer.from(out.code, 'utf8'));
+      } catch (err) {
+        fail(file, err);
+        // A syntax error is that file's own (esbuild lists them in `errors`); anything else (a missing platform
+        // binary, a crashed child) hits every file the same way: one line, then raw for all.
+        if (!(err && Array.isArray(err.errors) && err.errors.length)) break;
+      }
+    }
+  }).catch(() => {}).then(() => { state.ready = true; });
+  return state;
+}
+
 function originOf(req) {
   return `${req.protocol}://${req.get('host')}`;
 }
@@ -268,8 +325,30 @@ const URDU_FONT = '/wq/fonts/wq-nastaliq-5.woff2';
 const URDU_FONT_2 = '/wq/fonts/wq-nastaliq-6.woff2';
 const ur2On = (ui, lang) => Boolean(ui && ui.ur2 === true && lang === 'ur');
 
+// The audio host (web_quiz_fast on): the page's presigned sounds live on this environment's R2 storage, so the head
+// opens that connection early and the first sound skips DNS + TCP + TLS. Derived from config: the portal's own
+// R2_ENDPOINT (the same value the bot signs with, see lib/lesson-plan-file.js), and the bucket label the bot's
+// payload names in front of it (the bot signs virtual-hosted URLs, https://<bucket>.<endpoint host>/<key>; the quiz
+// audio bucket is the bot's WEB_QUIZ_AUDIO_BUCKET, which the portal does not know). No endpoint, no preconnect.
+const SAFE_HOST_RX = /^[a-z0-9.-]{1,253}$/;
+function mediaHostMatcher(endpoint) {
+  let host = null;
+  try { host = endpoint ? new URL(String(endpoint)).hostname.toLowerCase() : null; } catch (_) { host = null; }
+  if (!host || !SAFE_HOST_RX.test(host)) return () => null;
+  const rx = new RegExp(`https://((?:[a-z0-9][a-z0-9-]{1,62}\\.)?${host.replace(/[.-]/g, '\\$&')})(?=/)`, 'i');
+  return (payload) => {
+    let text;
+    try { text = JSON.stringify(payload); } catch (_) { return null; }
+    const m = typeof text === 'string' ? rx.exec(text) : null;
+    return m ? m[1].toLowerCase() : null;
+  };
+}
+const preconnectTag = (host) => (host && SAFE_HOST_RX.test(host) ? `\n<link rel="preconnect" href="https://${host}" crossorigin>` : '');
+// A streamed page's head is gone with its headers: the bot's wait rides in the tail as a mark (Server-Timing's twin).
+const withBotMark = (tail, ms) => (Number.isFinite(ms) ? tail.replace(/<\/body>\n<\/html>$/, `<script>performance.mark("wq-bot",{detail:${Math.round(ms)}})</script>\n</body>\n</html>`) : tail);
+
 // Every share picture and brand picture is a 1200x630 JPEG: the head says so, so the phone knows what it fetches.
-function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, imageType = 'image/jpeg' }) {
+function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, imageType = 'image/jpeg', media = null }) {
   const img = image || `${origin}${brand.og.image}`;
   const ur2 = ur2On(ui, lang);
   return `<!doctype html>
@@ -291,7 +370,7 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
 <meta property="og:image:alt" content="${esc(title)}">
 <meta property="og:url" content="${esc(url)}">
 <link rel="icon" href="${esc(WebQuizBrand.faviconHref(brand))}">${lang === 'ur' ? `\n<link rel="preload" href="${ur2 ? URDU_FONT_2 : URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
-<link rel="stylesheet" href="/wq/wq.css?v=${assetV}">
+<link rel="stylesheet" href="/wq/wq.css?v=${assetV}">${preconnectTag(media)}
 <style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>`;
 }
 
@@ -327,7 +406,7 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
 
 // The quiz page in three parts (the head, the Jugnu boot frame, the boot JSON + scripts): renderQuizPage joins them;
 // the fast first page sends the first two before the bot answers and the third when it does.
-function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
+function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, media = null }) {
   const q = (payload && payload.quiz) || {};
   const lang = q.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
@@ -337,7 +416,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
   const image = ogImageFor({ payload, code, view, origin, a, v, k });
   return {
     lang, dir, ur2: ur2On(payload && payload.ui, lang), title: og.title, bootsay: BOOT_COPY[lang],
-    head: head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui, ...cardType(image) }),
+    head: head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui, ...cardType(image), media }),
     frame: `<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(payload)}${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
@@ -361,9 +440,9 @@ ${p.tail}`;
 // The head is drawn from what this edge already knows about the code (its link-preview facts), else English with
 // the last brand; the page's scripts are preloaded so they download while the bot works. When the bot's page is
 // another language/look than the guess, one inline line sets it before any script runs.
-function renderQuizFlushTop({ facts, code, origin, assetV, url, brandKey, ui, a, v, k }) {
+function renderQuizFlushTop({ facts, code, origin, assetV, url, brandKey, ui, a, v, k, media = null }) {
   const payload = facts ? { ...facts, ui } : { quiz: { lang: 'en' }, cls: {}, art: {}, brand: brandKey, ui };
-  const p = quizPageParts({ payload, code, view: 'quiz', origin, assetV, url, a, v, k });
+  const p = quizPageParts({ payload, code, view: 'quiz', origin, assetV, url, a, v, k, media });
   const preload = ['wq-tel.js', 'wq-lib.js', 'wq.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
@@ -425,6 +504,9 @@ function renderCardPage({ facts, token, origin, url, brandKey }) {
  */
 function flushWire(req, res, top) {
   const out = Stream.open(req, res);
+  // A streamed page names the bot's wait in its tail, never in a header (the compressor may still hold the headers
+  // when the bot answers; the plain wire has sent them): one place, whichever wire.
+  res.locals.wqStreamed = true;
   out.write(top);
   return { again: () => out.end(FLUSH_AGAIN), page: (tail) => out.end(tail) };
 }
@@ -478,7 +560,7 @@ function listenTag(payload) {
 
 // The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
 // renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
-function hubPageParts({ payload, token, origin, assetV }) {
+function hubPageParts({ payload, token, origin, assetV, media = null }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const boot = { ...payload, token, view: 'hub', brand };
@@ -486,7 +568,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
   const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
   return {
     lang, dir: lang === 'ur' ? 'rtl' : 'ltr', ur2: ur2On(payload && payload.ui, lang), title: HUB_TITLE[lang], bootsay: HUB_BOOT[lang],
-    head: head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui }),
+    head: head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui, media }),
     manifest: play && play.install ? `/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}` : null,
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
@@ -508,8 +590,8 @@ ${p.tail}`;
 
 // Fast first page for the hub: the head guessed from the phone's language and the last brand/look, the scripts
 // preloaded, the Jugnu frame; then the corrections (and the install manifest) and today's tail when the bot answers.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui }) {
-  const p = hubPageParts({ payload: { lang, brand: brandKey, ui }, token, origin, assetV });
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, media = null }) {
+  const p = hubPageParts({ payload: { lang, brand: brandKey, ui }, token, origin, assetV, media });
   const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
@@ -572,6 +654,14 @@ const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/;
 function deviceCookie(req) {
   const m = DEVICE_COOKIE_RX.exec(String((req.get && req.get('cookie')) || ''));
   return m ? m[1] : null;
+}
+
+// The hub's boot payload: with web_quiz_fast on, a locked answer that was asked WITH this phone's wq_dv cookie says
+// so (`dv: 1`), and hub.js shows the locked screen without asking the bot again with the same ref. Otherwise the
+// bot's object itself (switch off: today's bytes).
+function hubBootPayload(body, req) {
+  if (!body || body.fast !== true || body.locked !== true || !deviceCookie(req)) return body;
+  return { ...body, dv: 1 };
 }
 
 // A bot route as it is logged: the caller's template, else the path cut to its first four
@@ -655,19 +745,20 @@ function challengeVersion(file = 'wq-challenge.js') {
   try { return crypto.createHash('sha256').update(fs.readFileSync(path.join(PUBLIC_DIR, file))).digest('hex').slice(0, 10); } catch (_) { return '0'; }
 }
 
-function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }) {
+// sfx: 'm' when the pages link the minified files (web_quiz_minify), so this page's own files ride along; '' is today's.
+function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey, media = null, sfx = '' }) {
   const lang = menu.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey);
   const title = CH_COPY[lang].title(brand.mascot[lang]);
   const boot = { token, kid: kid || null, menu, brand, mascot: brand.mascot[lang], rt: menu.rt === true };
-  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: `${origin}/c/`, assetV, brand, ui: menu && menu.ui })}
+  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: `${origin}/c/`, assetV, brand, ui: menu && menu.ui, media })}
 </head>
 <body>
 <main id="wq" class="wq-app wqc" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(CH_COPY[lang].boot)}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(menu)}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-<script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
-${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
+<script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}${sfx}" defer></script>
+${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}${sfx}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}${sfx}" defer></script>\n` : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}${sfx}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}${sfx}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
 }
@@ -699,8 +790,14 @@ function createWebQuizRouter(opts = {}) {
   // The portal's event sink (Axiom): the share pictures it hands out are logged here.
   const logEvent = opts.logEvent || ((e, p) => { try { require('../services/telemetry.service').logEvent(e, p); } catch (_) { /* never decides a response */ } });
   const router = express.Router();
+  // Test-only: the folder the /wq files (and their minified copies) come from. The pages' versions read PUBLIC_DIR.
+  const publicDir = opts.publicDir || PUBLIC_DIR;
+  const minified = minifiedFiles(publicDir, logEvent, opts.esbuild);
+  // The last payload's `min` (app_settings web_quiz_minify, read by the bot): link the minified files, once made.
+  let lastMin = false;
+  const sfx = () => (lastMin && minified.ready && minified.files.size > 0 ? 'm' : '');
   let assetV = null;
-  const version = () => (assetV || (assetV = assetVersion()));
+  const version = () => (assetV || (assetV = assetVersion())) + sfx();
   // The brand the bot last named: a closed or unreachable quiz still wears this deployment's brand.
   let lastBrand = null;
   // Whether the pages send their page-session events (wq-tel.js): the bot's last word, for the library page,
@@ -708,10 +805,30 @@ function createWebQuizRouter(opts = {}) {
   let lastRt = false;
   let lastUi = null;   // the last payload's `ui` (the Urdu polish switch), for the shells that call no bot
   let lastFast = false; // the last quiz payload's `fast` (app_settings web_quiz_fast): send the page's head first
+  let lastMedia = null; // the audio host the last quiz/hub/challenge payload named (preconnected while fast is on)
+  const mediaHostOf = mediaHostMatcher(opts.r2Endpoint !== undefined ? opts.r2Endpoint : process.env.R2_ENDPOINT);
+  const learnMedia = (payload) => { const h = mediaHostOf(payload); if (h) lastMedia = h; };
+  const mediaIfFast = () => (lastFast ? lastMedia : null);
 
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
   const now = opts.now || Date.now;
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl, logEvent, now, timeoutMs: opts.botTimeoutMs || BOT_TIMEOUT_MS });
+  // A bot call that names its wait (web_quiz_fast on): the ms add up on res.locals.wqBotMs, and an answer whose headers
+  // have not gone yet says Server-Timing: bot;dur=<ms>. A quiz or hub payload's own word on the switch wins over the last one.
+  const botTimed = async (res, ...args) => {
+    const t0 = now();
+    let out = null;
+    try {
+      out = await callBot(...args);
+      return out;
+    } finally {
+      const ms = Math.max(0, Math.round(now() - t0));
+      res.locals.wqBotMs = (res.locals.wqBotMs || 0) + ms;
+      const b = out && out.body;
+      const fast = b && (b.quiz || Array.isArray(b.kids) || typeof b.fast === 'boolean') ? b.fast === true : lastFast;
+      if (fast && !res.headersSent && !res.locals.wqStreamed) res.set('Server-Timing', `bot;dur=${res.locals.wqBotMs}`);
+    }
+  };
   const ogKnown = Preview.ttlCache({ max: 2000, now });
   const artKept = Preview.ttlCache({ max: 200, now });
 
@@ -775,7 +892,7 @@ function createWebQuizRouter(opts = {}) {
       const qs = req.originalUrl.indexOf('?') >= 0 ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
       const pathname = req.path.replace(/^\/api\/wq\//, '/api/internal/wq/') + qs;
       try {
-        const out = await callBot(r.method.toUpperCase(), pathname, req, req.body, { route: r.path.replace(/^\/api\/wq\//, '/api/internal/wq/') });
+        const out = await botTimed(res, r.method.toUpperCase(), pathname, req, req.body, { route: r.path.replace(/^\/api\/wq\//, '/api/internal/wq/') });
         if (out.status >= 300 && out.status < 400 && out.location) return res.redirect(out.status, out.location);
         if (out.status === 204) return res.status(204).end();
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
@@ -792,7 +909,7 @@ function createWebQuizRouter(opts = {}) {
   const pageHeadersCl = (res) => res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
   require('./web-quiz-class-link').registerClassLink(router, {
     callBot, limiters, unknownCode, jsonBody, noStore, configured, ready: () => Boolean(botUrl && apiKey), pageHeaders: pageHeadersCl, originOf,
-    version, jsVersion: () => clV || (clV = challengeVersion('class-link.js')), brand: () => brandOf(lastBrand), ui: () => lastUi, head, esc, bootJson, isPreviewFetch: (req) => Preview.isPreviewFetch(req),
+    version, jsVersion: () => (clV || (clV = challengeVersion('class-link.js'))) + sfx(), brand: () => brandOf(lastBrand), ui: () => lastUi, head, esc, bootJson, isPreviewFetch: (req) => Preview.isPreviewFetch(req),
     closedPage: (req, res, status, kind) => res.status(status).type('html').send(renderClosedPage({ lang: 'en', kind, origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi })),
   });
   // ── end standing class link ──
@@ -825,7 +942,7 @@ function createWebQuizRouter(opts = {}) {
     // and answers them without a quiz render. Anything but facts (an older bot, a closed code) takes the full path.
     if (preview && !known) {
       try {
-        const f = await callBot('GET', `/api/internal/wq/og/${upper}`, req);
+        const f = await botTimed(res, 'GET', `/api/internal/wq/og/${upper}`, req);
         if (f.status === 200 && f.body && f.body.quiz) { known = f.body; ogKnown.set(upper, known, OG_KEEP_MS); }
       } catch (_) { /* the full path below */ }
     }
@@ -835,12 +952,12 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the quiz when the bot answers (never on a teacher's preview
     // link, never on a link-preview fetch: a crawler gets the preview page below, never the quiz).
     const flush = lastFast && view === 'quiz' && !p && !preview && req.query.nf !== '1'
-      ? renderQuizFlushTop({ facts: ogKnown.get(upper), code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v, k: req.query.k })
+      ? renderQuizFlushTop({ facts: ogKnown.get(upper), code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v, k: req.query.k, media: lastMedia })
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
     try {
-      out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
+      out = await botTimed(res, 'GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
       if (flush) return wire.again();
       return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
@@ -855,12 +972,14 @@ function createWebQuizRouter(opts = {}) {
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
       lastFast = out.body.fast === true;
+      learnMedia(out.body);
+      lastMin = out.body.min === true;
       if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
-      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      if (flush) return wire.page(withBotMark(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }), res.locals.wqBotMs));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }
-      return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, media: mediaIfFast() }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
     // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot
@@ -902,12 +1021,12 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, media: lastMedia })
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
     try {
-      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
+      out = await botTimed(res, 'GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
       if (flush) return wire.again();
       return closed(502, 'off');
@@ -918,8 +1037,11 @@ function createWebQuizRouter(opts = {}) {
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
       lastFast = out.body.fast === true;
-      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
-      return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
+      learnMedia(out.body);
+      lastMin = out.body.min === true;
+      const payload = hubBootPayload(out.body, req);
+      if (flush) return wire.page(withBotMark(renderHubFlushTail({ guess: flush.guess, payload, token, origin, assetV: version() }), res.locals.wqBotMs));
+      return res.status(200).type('html').send(renderHubPage({ payload, token, origin, assetV: version(), media: mediaIfFast() }));
     }
     if (out.status === 401) return closed(401, 'hub');
     return closed(out.status === 503 ? 503 : 502, 'off');
@@ -960,12 +1082,13 @@ function createWebQuizRouter(opts = {}) {
     const qs = q.toString() ? `?${q}` : '';
     let out;
     try {
-      out = await callBot('GET', `/api/internal/wq/ch/${encodeURIComponent(token)}${qs}`, req);
+      out = await botTimed(res, 'GET', `/api/internal/wq/ch/${encodeURIComponent(token)}${qs}`, req);
     } catch (_) {
       return res.status(502).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey, ui: lastUi }));
     }
     if (out.status === 200 && out.body && Array.isArray(out.body.exercises)) {
-      return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey }));
+      learnMedia(out.body);
+      return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion() + sfx(), brandKey, media: mediaIfFast(), sfx: sfx() }));
     }
     const err = out.body && out.body.error;
     if (err === 'not_eligible' || err === 'pick_kid' || err === 'other_device') {
@@ -1105,7 +1228,23 @@ function createWebQuizRouter(opts = {}) {
     return res.status(200).type('html').send(html.replace(/__JV__/g, challengeVersion('wq-juice.js')).replace(/__CV__/g, challengeVersion('wq-juice.css')));
   });
 
-  router.use('/wq', express.static(PUBLIC_DIR, { maxAge: YEAR_S * 1000, immutable: true, index: false, fallthrough: false }));
+  // A file's minified copy (?v=<hex>m, minifiedFiles) while this edge knows the switch is on (lastMin): the static
+  // server's cache headers, an ETag and 304s (res.send). A ?v=<hex>m asked for while it is off (a page cached while it
+  // was on) or before this process has seen min:true and made its copies (a restart, another replica): the raw file,
+  // not kept (no-cache), so that phone fetches the minified copy next time. Any other ?v=, wq-tel.js, a file that
+  // did not minify, images and fonts: today's static server below, raw.
+  router.get('/wq/:file', (req, res, next) => {
+    if (typeof req.query.v !== 'string' || !MIN_V_RX.test(req.query.v)) return next();
+    // Until this process has seen min:true and has its copies, an m URL is answered raw and not kept.
+    if (!lastMin || !minified.ready || minified.files.size === 0) {
+      return res.sendFile(req.params.file, { root: publicDir, cacheControl: false, headers: { 'Cache-Control': 'no-cache' }, dotfiles: 'deny' }, (err) => (err && !res.headersSent ? next() : undefined));
+    }
+    const buf = minified.files.get(req.params.file);
+    if (!buf) return next();
+    res.set('Cache-Control', `public, max-age=${YEAR_S}, immutable`);
+    return res.type(path.extname(req.params.file)).send(buf);
+  });
+  router.use('/wq', express.static(publicDir, { maxAge: YEAR_S * 1000, immutable: true, index: false, fallthrough: false }));
   // A missing file (a page cached before a deploy asking for a renamed one) is the static server's own 404 or 400,
   // answered here: the portal's last-resort handler would call it a 500 and the error monitors would count it.
   router.use('/wq', (err, req, res, next) => {
@@ -1114,8 +1253,10 @@ function createWebQuizRouter(opts = {}) {
     return next(err);
   });
 
+  // Test-only: resolves when the minified copies are made (the portal never waits for it).
+  router.minifyReady = minified.done;
   return router;
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderCardPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, assetVersion };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderCardPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, hubBootPayload, assetVersion, minifySource };

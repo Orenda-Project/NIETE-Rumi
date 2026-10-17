@@ -201,18 +201,25 @@ async function whoseTurn({ hub, kid, device, lang } = {}) {
  * The hub's boot JSON under web_quiz_phone_bind: the card's ticket for the chosen child (`bind`), and on the picker
  * ("Who is playing?") each chip's line2 / avatarLine / homonym_in_list / played. Off: `out` untouched.
  */
-async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, device, src } = {}) {
+async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, device, src, canon = null } = {}) {
   try {
     const f = await idFlags();
-    if (f.canon && chosen) await recordHubPick({ chosen, rows, device, src });
-    if (!f.phoneBind) return out;
+    // `canon` (web_quiz_fast on): the pick record is written beside the card's reads (nothing below reads it), and the
+    // child's canonical id comes from the hub's map when it names the child as their own; off: one after another.
+    const pick = f.canon && chosen ? recordHubPick({ chosen, rows, device, src, canon }) : null;
+    if (pick && !canon) await pick;
+    const fast = Boolean(canon);
+    if (!f.phoneBind) { if (fast) await pick; return out; }
     if (chosen) {
       // web_quiz_bind_way_back: `state` none|pending|bound|refused; saved or refused from this device → no card (off: today's)
       const WayBack = require('./web-quiz-bind-way-back');
-      const seen = (await WayBack.on()) ? await WayBack.cardState({ canonicalId: await canonicalOf(chosen.id), device }) : null;
+      const known = fast && typeof canon.get === 'function' && canon.get(String(chosen.id)) === String(chosen.id) ? String(chosen.id) : null;
+      const seen = (await WayBack.on()) ? await WayBack.cardState({ canonicalId: known || (await canonicalOf(chosen.id)), device, early: fast }) : null;
       out.bind = seen && (seen.state === 'bound' || seen.state === 'refused') ? { offer: false, ...seen } : { offer: true, hub: token, kid: out.kid, ...(seen || {}) };
+      if (fast) await pick;
       return out;
     }
+    if (fast) await pick;
     out.bind = { offer: false };
     const played = trust.why === 'played' ? (trust.ids || []).map(String) : [];
     const guarded = await chipsOf(rows.map((r) => String(r.id)), { lang, played });
@@ -280,9 +287,12 @@ async function rosterJoined(canonicalId) {
  * no roster (no list, no merged_into) is written `low`, as `forced_new` when that quiz start said so. `at` is this tap's
  * instant (the serve's per-visit guard), never the quiz start's.
  */
-async function recordHubPick({ chosen, rows = [], device, src }) {
+// `canon` (web_quiz_fast on): the hub's own canonicalStudentIds map, already read; used when it names this child as
+// their own canonical id, else the child's canonical id is read as today.
+async function recordHubPick({ chosen, rows = [], device, src, canon = null }) {
   try {
-    const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(chosen.id)) || chosen.id;
+    const known = canon && typeof canon.get === 'function' && canon.get(String(chosen.id)) === String(chosen.id) ? String(chosen.id) : null;
+    const canonicalId = known || (await require('./web-quiz-identity-roster').canonicalStudentId(chosen.id)) || chosen.id;
     const key = hubPickKey(canonicalId, device);
     if (!key) return null;
     const g = Homonym.guard(rows.map((r) => ({ id: String(r.id), first: r.student_name })), { surface: 'who' }).find((r) => r.id === String(chosen.id));

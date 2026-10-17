@@ -97,10 +97,17 @@ const SC_COLS = 'id, code, quiz_id, video_id, teacher_user_id, teacher_name, top
  * parent and NO inviter is a "watch another video" code (web-quiz-videos.js):
  * it plays its own video quiz, so it is not collapsed.
  */
-async function resolveCode(rawCode) {
+async function resolveCode(rawCode, { withClass = false } = {}) {
   const code = String(rawCode || '').trim().toUpperCase();
   if (!CODE_RX.test(code)) fail(404, 'not_found');
-  const { data: sc, error } = await dbRead('resolveCode:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select(SC_COLS).eq('code', code).maybeSingle());
+  // withClass (the fast quiz page): the code's own class (quiz_share_codes.class_id, bound by /who/class) rides on this
+  // read, so the class resolver need not read it again. A database without the column yet is read as without it.
+  let cols = withClass ? `${SC_COLS}, class_id` : SC_COLS;
+  let { data: sc, error } = await dbRead('resolveCode:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select(cols).eq('code', code).maybeSingle());
+  if (withClass && error && (error.code === '42703' || /does not exist/i.test(error.message || ''))) {
+    cols = SC_COLS;
+    ({ data: sc, error } = await dbRead('resolveCode:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select(cols).eq('code', code).maybeSingle()));
+  }
   if (error) fail(502, 'db_unavailable');
   if (!sc) fail(404, 'not_found');
   const lang = clampLanguage(sc.language);
@@ -108,7 +115,7 @@ async function resolveCode(rawCode) {
   if (!sc.active || (sc.expires_at && new Date(sc.expires_at) < new Date())) fail(410, 'expired', { lang });
   let parent = sc;
   if (sc.parent_share_code_id && sc.invited_by_student_id) {
-    const { data: p } = await dbRead('resolveCode:quiz_share_codes:2', (db) => db.from('quiz_share_codes').select(SC_COLS).eq('id', sc.parent_share_code_id).maybeSingle());
+    const { data: p } = await dbRead('resolveCode:quiz_share_codes:2', (db) => db.from('quiz_share_codes').select(cols).eq('id', sc.parent_share_code_id).maybeSingle());
     if (p) parent = p;
   }
   return {
@@ -118,6 +125,8 @@ async function resolveCode(rawCode) {
     teacherUserId: parent.teacher_user_id,
     invitedByStudentId: sc.invited_by_student_id || null,
     moreVideosOf: sc.parent_share_code_id && !sc.invited_by_student_id ? sc.parent_share_code_id : null,
+    // The class bound to THIS code (the row of shareCodeId), only when it was read with it.
+    ...(cols !== SC_COLS ? { codeClassId: parent.class_id == null ? null : parent.class_id } : {}),
   };
 }
 
@@ -353,7 +362,7 @@ function mediaHelpers() {
  * the page's own identity-mode settings read, so no code pays a read for it; no root (or a failed read) = today's page.
  */
 async function isWatchCode(ctx) {
-  const root = await IdRoster.watchRoot();
+  const root = await IdRoster.watchRoot(Date.now(), { swr: require('./web-quiz-fast').on() });
   return Boolean(root) && (ctx.moreVideosOf === root || ctx.shareCodeId === root);
 }
 
@@ -366,7 +375,7 @@ async function classChips(ctx) {
   const since = new Date(Date.now() - CHIP_WINDOW_DAYS * 86400000).toISOString();
   // A watch code's teacher is the watch root's: its other codes are strangers, so only this code's own players; the
   // root code itself is no class at all. Every other code of that teacher leaves the watch children's codes out.
-  const root = await IdRoster.watchRoot();
+  const root = await IdRoster.watchRoot(Date.now(), { swr: require('./web-quiz-fast').on() });
   if (root && ctx.shareCodeId === root) return [];
   const watch = await isWatchCode(ctx);
   const { data: codes } = watch ? { data: [] } : await dbRead('classChips:quiz_share_codes:1', (db) => {
@@ -470,12 +479,16 @@ async function classLabel(ctx) {
 async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   requireOn();
   const fast = Fast.on();
-  const ctx = await resolveCode(code);
+  const ctx = await (fast ? resolveCode(code, { withClass: true }) : resolveCode(code));
   mark('resolve', { shareCodeId: ctx.shareCodeId });
+  const quizRead = () => dbRead('getQuizTimed:quizzes:1', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle());
   // Fast first page (web_quiz_fast): every read below that needs only the resolved code starts now, beside the
-  // questions, and is awaited where today's code reads it; off, each one starts there as today.
+  // questions, and is awaited where today's code reads it; off, each one starts there as today. The class resolver
+  // is handed the quiz row read here and the code's class read with the code; stale 30 s settings and rosters on
+  // this path answer at once and are re-read behind the page.
+  const quizP = fast ? Fast.early(quizRead()) : null;
   const pre = fast ? {
-    idn: Fast.early(identityV2(ctx)),
+    idn: Fast.early(identityV2(ctx, { fast: true, quizRow: Fast.early(quizP.then((r) => (r && r.data) || null)) })),
     label: Fast.early(classLabel(ctx)),
     live: Fast.early(liveCounts(ctx, { together: true })),
     brand: Fast.early(WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName })),
@@ -483,12 +496,13 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     rt: Fast.early(Tel.flag()),
     ui: Fast.early(require('./web-quiz-ur-polish').ui()),
     ask: Fast.early(require('./web-quiz-invite-ask').mode()),
+    linkHome: Fast.early(require('./web-quiz-link-home').field(ctx, { preview: Boolean(p) && isPreviewFor(p, ctx), swr: true })),
   } : null;
   const got = (key, start) => (pre ? pre[key] : start());
-  if (pre) pre.boot = Fast.early(pre.idn.then((idn) => (idn ? identityBoot(ctx, idn) : null)));
+  if (pre) pre.boot = Fast.early(pre.idn.then((idn) => (idn ? identityBoot(ctx, idn, { swr: true }) : null)));
   const [questions, { data: quizRow }] = await Promise.all([
     loadQuestions(ctx.quizId, { log: true }),
-    dbRead('getQuizTimed:quizzes:1', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle()),
+    quizP || quizRead(),
   ]);
   mark('questions');
   // A storybook the teacher sent (story-teacher.service, web_quiz_stories_teacher) has no questions: the page joins the
@@ -620,10 +634,12 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   const ask = await got('ask', () => require('./web-quiz-invite-ask').mode());
   if (ask !== 'off') out.invite_ask = ask;
   // An old, finished class link opens the child's hub (web-quiz-link-home.js): named only when on, so a switched-off payload is today's.
-  if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
+  if (await got('linkHome', () => require('./web-quiz-link-home').field(ctx, { preview }))) out.link_home = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
+  // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
+  if (require('./web-quiz-minify').on()) out.min = true;
   return out;
 }
 
@@ -1186,14 +1202,17 @@ const ARABIC_SCRIPT = /[؀-ۿݐ-ݿ]/;
  * invited friend (a challenge code) never meets the class roster: no class, no
  * matching, a provisional child (their class is not the inviter's).
  */
-async function identityV2(ctx) {
-  if ((await IdRoster.identityMode()) !== 'v2') return null;
+async function identityV2(ctx, { fast = false, quizRow } = {}) {
+  if ((await (fast ? IdRoster.identityMode(Date.now(), { swr: true }) : IdRoster.identityMode())) !== 'v2') return null;
   if (ctx.invitedByStudentId) return { invited: true, resolved: NONE_CLASS };
   // A class-less child's own code under the watch root (or the root): nobody's class, so no class to match a name in.
   if (await isWatchCode(ctx)) return { invited: false, resolved: NONE_CLASS };
   try {
+    // Fast (getQuiz): the quiz row the page read, and the code's own class when it was read with THIS code's row (a
+    // "watch another video" code resolves by the code it came from, whose class is read by the resolver as today).
+    const handed = fast ? { quizRow, ...(ctx.moreVideosOf || ctx.codeClassId === undefined ? {} : { codeClassId: ctx.codeClassId }) } : {};
     const resolved = await Identity.resolveQuizClass({
-      teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId,
+      teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId, ...handed,
     });
     return { invited: false, resolved: resolved || NONE_CLASS };
   } catch (e) {
@@ -1205,10 +1224,10 @@ async function identityV2(ctx) {
 const askOf = (ctx, classes) => (classes || []).map((c) => ({ key: IdRoster.classKeyV2(ctx.shareCodeId, c), label: c.label || '' }));
 
 /** E2's `cls.identity`: how the page should ask. Never a name, never a class id. */
-async function identityBoot(ctx, idn) {
+async function identityBoot(ctx, idn, { swr = false } = {}) {
   const r = idn.resolved;
   let roster = !idn.invited && r.state === 'ambiguous';
-  if (!idn.invited && r.state === 'known') roster = Boolean(((await IdRoster.rosterOf(r.class)) || []).length);
+  if (!idn.invited && r.state === 'known') roster = Boolean(((await (swr ? IdRoster.rosterOf(r.class, { swr: true }) : IdRoster.rosterOf(r.class))) || []).length);
   return {
     mode: 'v2',
     class: {

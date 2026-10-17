@@ -52,25 +52,21 @@ async function quizzesForHandset(phone) {
 }
 
 /**
- * The same list for given students rows ({id, student_name, self_reported_class}) — the
- * kid hub names its children by id, not by phone. `teacherSent` is a code the teacher
- * sent (no parent code, no inviter): not a "watch more" code and not a friend's challenge.
+ * The reads behind quizzesForStudents, which need only the student ids: their sessions, then those sessions' codes
+ * and quizzes together. -> {list, codes, quizzes}, or null when the sessions could not be read (logged).
  */
-async function quizzesForStudents(known) {
-  if (!known || !known.length) return [];
-  const byStudent = new Map(known.map((s) => [s.id, s]));
-
+async function historyReads(ids) {
   const { data: sessions, error } = await supabase
     .from('quiz_sessions')
     .select('id, quiz_id, share_code_id, student_id, status, correct_answers, total_questions_answered, '
             + 'mastery_percentage, completed_at, created_at, student_class')
-    .in('student_id', known.map((s) => s.id))
+    .in('student_id', ids)
     .not('share_code_id', 'is', null)
     .order('created_at', { ascending: false })
     .limit(400);
   if (error) {
     logToFile('⚠️ student-quiz: sessions read failed', { error: error.message });
-    return [];
+    return null;
   }
   const groups = new Map();
   (sessions || []).forEach((s) => {
@@ -91,7 +87,7 @@ async function quizzesForStudents(known) {
     groups.set(s.share_code_id, g);
   });
   const list = [...groups.values()].slice(0, MAX_QUIZZES);
-  if (!list.length) return [];
+  if (!list.length) return { list, codes: [], quizzes: [] };
 
   const [{ data: codes }, { data: quizzes }] = await Promise.all([
     supabase.from('quiz_share_codes')
@@ -100,6 +96,21 @@ async function quizzesForStudents(known) {
     supabase.from('quizzes').select('id, topic, subject, language, grade, video_id')
       .in('id', list.map((g) => g.quizId)),
   ]);
+  return { list, codes, quizzes };
+}
+
+/**
+ * The same list for given students rows ({id, student_name, self_reported_class}) — the
+ * kid hub names its children by id, not by phone. `teacherSent` is a code the teacher
+ * sent (no parent code, no inviter): not a "watch more" code and not a friend's challenge.
+ */
+async function quizzesForStudents(known, opts) {
+  if (!known || !known.length) return [];
+  const byStudent = new Map(known.map((s) => [s.id, s]));
+  // `reads` (the kid hub, web_quiz_fast on): historyReads for exactly these ids, started before the rows were read.
+  const r = await ((opts && opts.reads) || historyReads(known.map((s) => s.id)));
+  if (!r || !r.list.length) return [];
+  const { list, codes, quizzes } = r;
   const codeById = new Map((codes || []).map((c) => [c.id, c]));
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
   return list.map((g) => {
@@ -294,6 +305,6 @@ async function sendCard(phone, { shareCodeId, studentId, language = 'en' }) {
 }
 
 module.exports = {
-  quizzesForHandset, quizzesForStudents, childLanguage, open, handleButton, retry, sendCard, flowId,
+  quizzesForHandset, quizzesForStudents, historyReads, childLanguage, open, handleButton, retry, sendCard, flowId,
   RETRY_ID, CARD_ID, FALLBACK_KEY, MAX_QUIZZES,
 };
