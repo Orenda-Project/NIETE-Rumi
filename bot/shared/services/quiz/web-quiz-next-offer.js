@@ -9,7 +9,7 @@
  *       (never one the server would answer "on its way")
  *   1a. on the home, the tile the child tapped last and has not finished (still offered) rank_src 'rule'
  *       (#C49a: an unfinished open counts as one shown-without-a-tap; it moves after one more, so a second
- *       unfinished open or an untapped show rotates it; a read or story says "Carry on reading")
+ *       unfinished open or an untapped show rotates it; a read or storybook says "Carry on reading", a listen keeps its words)
  *   1b. a half-finished storybook / a video watched < 90 %, at most once a PKT day     rank_src 'rule'
  *       (spent by a tap from the view that showed it, never by a render, while the tap is heard: events v3, #C50)
  *   3.  the rest, by the scores table for this context (next-offer-weights.json; the VALUE key
@@ -54,6 +54,9 @@ const ALTS_MAX = 2;
 const KINDS = ['story', 'game', 'quiz', 'video', 'storybook', 'invite', 'sticker'];
 // #C49a: an opened, unfinished read or storybook comes back with these words (a game, a quiz, a video keep their own)
 const CARRY_ON = Object.freeze({ title: 'Carry on reading', title_ur: 'پڑھنا جاری رکھیں' });
+// a listening story (a stop or a story served with &ex=listen) is not a read: it keeps its own words
+const isRead = (c) => c.kind === 'storybook'
+  || (c.kind === 'story' && !/(?:[?&]ex=|#)listen(?:&|$)/.test(String(c.href || '')));
 // The fields of a candidate the page sees (the next object); everything else is the ranker's.
 const PUBLIC = ['kind', 'variant', 'id', 'href', 'title', 'title_ur', 'sub', 'sub_ur', 'minutes', 'art', 'tag', 'tag_ur'];
 const EVIDENCE = new Set(['significant', 'prior']);
@@ -188,7 +191,7 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
   let src = null;
   let drawn = null;
   if (pinned.length) { primary = pinned[0]; rule = 'teacher_quiz'; src = 'pinned'; }
-  else if (carry) { primary = carry.kind === 'story' || carry.kind === 'storybook' ? { ...carry, ...CARRY_ON } : carry; rule = 'carry_on'; src = 'rule'; }
+  else if (carry) { primary = isRead(carry) ? { ...carry, ...CARRY_ON } : carry; rule = 'carry_on'; src = 'rule'; }
   else if (stop) { primary = stop; rule = 'month_stop'; src = 'rule'; }
   else if (resume) { primary = resume; rule = 'resume'; src = 'rule'; }
 
