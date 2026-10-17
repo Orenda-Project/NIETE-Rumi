@@ -167,12 +167,12 @@
     });
     return { l: l, of: of };
   }
-  function cam(bs, vw, vh, pw, ph, rtl, cap) {
+  function cam(bs, vw, vh, pw, ph, rtl, cap, fit) {
     var w0 = Math.min(vw / pw, vh / ph), r = function (v) { return Math.round(v * 10) / 10; };
     if (!bs || !bs.length) return { s: Math.round(w0 * 1000) / 1000, tx: r((vw - pw * w0) / 2), ty: r((vh - ph * w0) / 2), ok: false };
     var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, mh = 1e9;
     bs.forEach(function (b) { x0 = Math.min(x0, b[0]); x1 = Math.max(x1, b[0] + b[2]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[1] + b[3]); mh = Math.min(mh, b[3]); });
-    var s = Math.max(w0, Math.min(Math.max(vw / ((x1 - x0) * 1.16), 26 / mh), w0 * (cap || 3)));
+    var s = Math.max(w0, Math.min(fit ? vw / ((x1 - x0) * 1.16) : Math.max(vw / ((x1 - x0) * 1.16), 26 / mh), w0 * (cap || 3)));
     var tx = (x1 - x0) * s <= vw * 0.92 ? vw / 2 - (x0 + x1) / 2 * s : rtl ? vw * 0.96 - x1 * s : vw * 0.04 - x0 * s;
     tx = Math.min(0, Math.max(vw - pw * s, tx));
     var ty = Math.min(0, Math.max(vh - ph * s, vh * 0.7 - (y0 + y1) / 2 * s));
@@ -441,11 +441,11 @@
     R.stage = stage;
     R.mode = function () { return sm; };
     R.lines = function () { return LN; };
-    function camTo(bs) {
+    function camTo(bs, fit) {
       var c = root.querySelector('[data-cam]'), d, k;
       if (!c || !sp) return;
       d = dims();
-      k = cam(wu ? null : bs, d[0], d[1], sp.image.w, sp.image.h, rtl(), sm === 'l' ? 6 : 3);
+      k = cam(wu ? null : bs, d[0], d[1], sp.image.w, sp.image.h, rtl(), sm === 'l' ? 6 : 3, fit);
       c.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
     }
     function camLine(i) {

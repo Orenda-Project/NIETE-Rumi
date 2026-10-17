@@ -556,6 +556,20 @@ describe('the reader', () => {
     expect(primaries(root.innerHTML)).toBe(0);
     expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
   });
+  test('Your turn on a wide line of small print: every line is whole on screen, both edges, in English (left to right) and Urdu (right to left)', async () => {
+    const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [40, 800, 640, 22] }, { i0: 3, i1: 4, box: [60, 830, 600, 22] }];
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' } } } }); const root = await openReader(e, { lang });
+      toMic(e, root); e.calls.ask[e.calls.ask.length - 1].onStream({ id: 's' });
+      expect(screenOf(root.innerHTML)).toBe('story-read');
+      const m = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(root.querySelector('[data-cam]').style.transform);
+      const tx = Number(m[1]); const sc = Number(m[3]);
+      bk.pages[0].lines.forEach((l) => {
+        expect(l.box[0] * sc + tx).toBeGreaterThanOrEqual(-0.5);              // the line's left end on screen
+        expect((l.box[0] + l.box[2]) * sc + tx).toBeLessThanOrEqual(360.5);   // the line's right end on screen
+      });
+    }
+  });
   test('the "Whole page" pill sits OUTSIDE the page (under the stage, at the end of the row), never over a word or a heading, in every state', async () => {
     const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
     // inside the stage the pill is the stage's last child (its </div> follows); outside, the next thing is the screen's own
