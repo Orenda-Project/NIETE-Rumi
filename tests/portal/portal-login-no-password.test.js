@@ -67,9 +67,13 @@ async function postLogin(body) {
 }
 
 const PHONE = '923000000000';
+// The teacher's keyed reference (web-quiz-kid tk): what their log lines carry instead of their users.id.
+const KID_KEY = 'test-only-kid-key-0123456789abcdef0123456789';
+const tkOf = (id) => require('crypto').createHmac('sha256', KID_KEY).update(`t|${id}`).digest('hex').slice(0, 16);
 
 beforeEach(() => {
   jest.resetModules();
+  process.env.WEB_QUIZ_KID_KEY = KID_KEY;
   tableStates = {};
   supabaseFrom = jest.fn((tbl) => makeChain(tbl));
   jest.doMock('../../dashboard/config/supabase', () => ({
@@ -95,7 +99,7 @@ beforeEach(() => {
   jest.doMock('../../dashboard/services/telemetry.service', () => ({ logEvent, flush: jest.fn(), isEnabled: () => true }));
 });
 
-afterEach(() => jest.resetModules());
+afterEach(() => { jest.resetModules(); delete process.env.WEB_QUIZ_KID_KEY; });
 
 const user = (over) => ({ id: 'u-1', name: 'QA 6', phone_number: PHONE, role: 'teacher', portal_activated: true, ...over });
 
@@ -118,7 +122,16 @@ describe('POST /login — activated account with no password saved', () => {
   it('emits portal.login.no_password so it shows up in Axiom', async () => {
     tableStates.users = { rows: [user({ portal_password_hash: null })] };
     await postLogin({ phoneNumber: '03000000000', password: 'whatever1' });
-    expect(logEvent).toHaveBeenCalledWith('portal.login.no_password', expect.objectContaining({ userId: 'u-1' }));
+    expect(logEvent).toHaveBeenCalledWith('portal.login.no_password', { tk: tkOf('u-1') });
+  });
+
+  it('portal.login.no_password carries the keyed teacher reference, never the raw id', async () => {
+    tableStates.users = { rows: [user({ portal_password_hash: null })] };
+    await postLogin({ phoneNumber: '03000000000', password: 'whatever1' });
+    const [, fields] = logEvent.mock.calls.find((c) => c[0] === 'portal.login.no_password');
+    expect(fields.tk).toMatch(/^[0-9a-f]{16}$/);
+    expect(fields).not.toHaveProperty('userId');
+    expect(JSON.stringify(fields)).not.toContain('u-1');
   });
 });
 

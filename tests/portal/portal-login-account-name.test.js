@@ -78,9 +78,13 @@ async function post(path, body) {
 }
 
 const login = (phoneNumber, password) => post('/login', { phoneNumber, password });
+// The account's keyed reference (web-quiz-kid tk): what a log line carries instead of its users.id.
+const KID_KEY = 'test-only-kid-key-0123456789abcdef0123456789';
+const tkOf = (id) => require('crypto').createHmac('sha256', KID_KEY).update(`t|${id}`).digest('hex').slice(0, 16);
 
 beforeEach(() => {
   jest.resetModules();
+  process.env.WEB_QUIZ_KID_KEY = KID_KEY;
   tableStates = {};
   lookups = [];
   supabaseFrom = jest.fn((tbl) => makeChain(tbl));
@@ -113,7 +117,7 @@ beforeEach(() => {
   jest.doMock('../../dashboard/services/password-reset.service', () => resetService);
 });
 
-afterEach(() => jest.resetModules());
+afterEach(() => { jest.resetModules(); delete process.env.WEB_QUIZ_KID_KEY; });
 
 const ACCOUNT = {
   id: 'acct-fde', name: 'FDE Islamabad', phone_number: 'analytics:fde-islamabad', role: 'unregistered',
@@ -264,6 +268,14 @@ describe('POST /login with an account name — every refusal is the wrong-passwo
     const logged = JSON.stringify(logEvent.mock.calls);
     expect(logged).not.toMatch(/fde-islamabad/);
     expect(logged).not.toMatch(/secret123/);
+  });
+
+  it('name_rejected carries the account\'s keyed reference, never its raw id', async () => {
+    tableStates = { users: { rows: [ACCOUNT] }, app_settings: listed(['someone-else']) };
+    await login('fde-islamabad', 'secret123');
+    const rejected = logEvent.mock.calls.filter((c) => c[0] === 'portal.login.name_rejected').map((c) => c[1]);
+    expect(rejected).toEqual([{ reason: 'not_listed', tk: tkOf('acct-fde') }]);
+    expect(JSON.stringify(logEvent.mock.calls)).not.toContain('acct-fde');
   });
 });
 
