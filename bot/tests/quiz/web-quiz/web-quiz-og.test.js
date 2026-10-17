@@ -160,3 +160,14 @@ describe('the finish card\'s switch (web_quiz_card_v3) rides the page and the fa
     expect((await og('AB12CD')).body).not.toHaveProperty('card_v3');
   });
 });
+
+describe('a storybook send\'s class link: the kept preview facts say it is a story', () => {
+  const Og = require('../../../shared/services/quiz/web-quiz-og');
+  const QUIZ = { quiz: { lang: 'en', topic: 'Book 1 Testwala', n: 0, questions: [] }, cls: { label: 'Class 2' }, art: {}, brand: null };
+  test('a story payload (the story switch on): the facts carry story: true, so the preview reads as a story', () => {
+    expect(Og.facts({ ...QUIZ, story: { id: 'b-1', from_teacher: true, code: 'AB12CD' } }).story).toBe(true);
+  });
+  test('a quiz payload: the facts are as before (no story key)', () => {
+    expect(Object.keys(Og.facts(QUIZ))).toEqual(['quiz', 'cls', 'challenge', 'art', 'brand', 'invited']);
+  });
+});
