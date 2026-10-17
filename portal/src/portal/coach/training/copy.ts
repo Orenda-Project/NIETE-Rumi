@@ -9,16 +9,11 @@ import type { CopyEntry } from "../../teacher/copyRegistry";
 
 export const COACH_LIBRARY_EN = {
   title: "Training Library",
-  providers: "Providers",
-  loading: "Loading",
-  loadFailed: "Could not load",
   nothingYet: "Nothing yet",
   courses: (n: number) => (n === 1 ? "1 course" : `${n} courses`),
   parts: (n: number) => (n === 1 ? "1 part" : `${n} parts`),
-  minutes: (n: number) => `${n} min`,
-  levels: (n: number) => (n === 1 ? "1 level" : `${n} levels`),
-  course: "Course",
-  part: "Part",
+  /** The breadcrumb over a page: its parts joined ("Training Library · Routines"). */
+  crumb: (...parts: Array<string | null | undefined>) => ["Training Library", ...parts.filter(Boolean)].join(" · "),
   previewQuestions: "Preview questions",
   previewLevelExam: "Preview level exam",
   previewCourseExam: "Preview course exam",
@@ -30,29 +25,16 @@ export const COACH_LIBRARY_EN = {
   typeOne: "Select one",
   typeMany: "Select all",
   typeWritten: "Written answer",
-  video: "Video",
-  audio: "Audio",
-  handout: "Handout",
-  pdf: "PDF",
-  quickCheck: "Quick check",
   requiredReading: "Required reading",
   notAvailable: "Not available",
-  open: "Open",
-  by: (author: string) => `By ${author}`,
 };
 
 export const COACH_LIBRARY_UR: Words<typeof COACH_LIBRARY_EN> = {
   title: "ٹریننگ لائبریری",
-  providers: "ادارے",
-  loading: "لوڈ ہو رہا ہے",
-  loadFailed: "لوڈ نہیں ہو سکا",
   nothingYet: "ابھی کچھ نہیں",
   courses: (n: number) => `${n} کورس`,
   parts: (n: number) => `${n} حصہ`,
-  minutes: (n: number) => `${n} منٹ`,
-  levels: (n: number) => `${n} درجہ`,
-  course: "کورس",
-  part: "حصہ",
+  crumb: (...parts: Array<string | null | undefined>) => ["ٹریننگ لائبریری", ...parts.filter(Boolean)].join(" · "),
   previewQuestions: "سوالات دیکھیں",
   previewLevelExam: "درجے کا امتحان دیکھیں",
   previewCourseExam: "کورس کا امتحان دیکھیں",
@@ -63,15 +45,8 @@ export const COACH_LIBRARY_UR: Words<typeof COACH_LIBRARY_EN> = {
   typeOne: "ایک منتخب کریں",
   typeMany: "سب منتخب کریں",
   typeWritten: "تحریری جواب",
-  video: "ویڈیو",
-  audio: "آڈیو",
-  handout: "ہینڈ آؤٹ",
-  pdf: "PDF",
-  quickCheck: "فوری جانچ",
   requiredReading: "لازمی مطالعہ",
   notAvailable: "دستیاب نہیں",
-  open: "کھولیں",
-  by: (author: string) => `${author} کی طرف سے`,
 };
 
 export const COACH_LIBRARY = bilingual(COACH_LIBRARY_EN, COACH_LIBRARY_UR);
@@ -79,6 +54,5 @@ export const COACH_LIBRARY = bilingual(COACH_LIBRARY_EN, COACH_LIBRARY_UR);
 export const COPY_ENTRY: CopyEntry = {
   screen: "Coach Training Library",
   module: COACH_LIBRARY as Bilingual<unknown>,
-  same: ["pdf"],
   longOk: ["previewBanner"],
 };

@@ -30,10 +30,11 @@ jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.
 
 const { makeFake } = require('./fake-supabase');
 
-// OFF(base): the hub's waves and app_settings reads through GET /hub/:token on the code before this switch.
+// OFF(base): the hub's waves and app_settings reads through GET /hub/:token on the code before this switch (settingsStale
+// includes the child's language switch row, web_quiz_return_lang, read in the background beside the first wave).
 const BASE = {
-  class: { fastOff: { warm: 26, stale: 39, settingsWarm: 0, settingsStale: 15 }, fastOn: { warm: 24, stale: 37, settingsWarm: 0, settingsStale: 15 } },
-  loose: { fastOff: { warm: 21, stale: 32, settingsWarm: 0, settingsStale: 15 }, fastOn: { warm: 20, stale: 31, settingsWarm: 0, settingsStale: 15 } },
+  class: { fastOff: { warm: 26, stale: 39, settingsWarm: 0, settingsStale: 16 }, fastOn: { warm: 24, stale: 37, settingsWarm: 0, settingsStale: 16 } },
+  loose: { fastOff: { warm: 21, stale: 32, settingsWarm: 0, settingsStale: 16 }, fastOn: { warm: 20, stale: 31, settingsWarm: 0, settingsStale: 16 } },
 };
 
 
