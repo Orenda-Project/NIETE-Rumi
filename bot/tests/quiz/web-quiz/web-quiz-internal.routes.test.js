@@ -173,3 +173,36 @@ test("the results card's hub door is mounted behind the key and keeps the servic
   expect(r.status).toBe(401);
   expect(await r.json()).toEqual({ error: 'bad_token' });
 });
+
+test("a reading's speed leaves the result only for the child's own phone; a forwarded result link gets the score without it", async () => {
+  const T = require('../../../shared/services/quiz/web-quiz-token');
+  const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
+  const R = require('../../../shared/services/quiz/web-quiz-next-offer-result');
+  const Device = require('../../../shared/services/quiz/web-quiz-hub-device');
+  const own = 'OwnPhoneOwnPhoneOwnP_1';
+  const ct = T.signChallenge({ studentId: 'kid-1', ex: 'read', runId: 'run-1' });
+  const scored = { score: { correct: 40, attempted: 44, stopped: false }, wcpm: 42, previous: { wcpm: 30, correct: 28, at: 'then' } };
+  const poll = jest.spyOn(Ch, 'poll').mockImplementation(async () => ({ ...scored, previous: { ...scored.previous } }));
+  const submit = jest.spyOn(Ch, 'submit').mockImplementation(async () => ({ ...scored, previous: { ...scored.previous } }));
+  const field = jest.spyOn(R, 'challengeField').mockResolvedValue({});
+  const may = jest.spyOn(Device, 'deviceMayName').mockImplementation(async (ids, d) => d === own && ids.includes('kid-1'));
+  try {
+    const get = async (h) => (await fetch(`${base}/ch/result/${encodeURIComponent(ct)}`, { headers: { ...KEY, ...h } })).json();
+    const post = async (h) => (await fetch(`${base}/ch/result`, { method: 'POST', headers: { ...KEY, ...h }, body: JSON.stringify({ ct, key: 'k' }) })).json();
+    // the child's own phone: today's body, byte for byte
+    expect(await get({ 'x-wq-device': own })).toEqual(scored);
+    expect(await post({ 'x-wq-device': own })).toEqual(scored);
+    // no device, or another phone holding the forwarded link: the score stays, no speed anywhere in the body
+    for (const h of [{}, { 'x-wq-device': 'OtherPhoneOtherPhone_2' }]) {
+      for (const body of [await get(h), await post(h)]) {
+        expect(body).toEqual({ score: scored.score });
+        expect(JSON.stringify(body)).not.toMatch(/wcpm/);
+      }
+    }
+    // a result with no speed in it (a pending read, a tap game) never asks who the phone is
+    may.mockClear();
+    poll.mockResolvedValueOnce({ pending: true });
+    expect(await get({ 'x-wq-device': 'OtherPhoneOtherPhone_2' })).toEqual({ pending: true });
+    expect(may).not.toHaveBeenCalled();
+  } finally { poll.mockRestore(); submit.mockRestore(); field.mockRestore(); may.mockRestore(); }
+});
