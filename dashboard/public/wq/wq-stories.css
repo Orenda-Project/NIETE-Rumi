@@ -53,7 +53,7 @@
 .wqs-lrl{text-align:center;font-size:18px;font-weight:700}
 .wqs-lrl:empty{display:none}
 .wqs-ctl{display:flex;align-items:center;gap:10px;margin-top:auto}
-.wqs-arr{width:64px;height:64px;border-radius:32px;background:#fff;box-shadow:0 4px 0 var(--line);font-size:40px;line-height:1;flex:none}
+.wqs-arr{width:64px;height:64px;border-radius:32px;background:#fff;box-shadow:0 4px 0 var(--line);font-size:40px;line-height:1;flex:none;display:flex;align-items:center;justify-content:center}
 .wqs-arr:disabled{opacity:.3}
 [dir=rtl] .wqs-arr{transform:scaleX(-1)}
 .wqs-main{flex:1;min-height:60px;border-radius:30px;background:#ffcf33;box-shadow:0 5px 0 #d29d00;font-size:22px;font-weight:800;padding:0 16px}

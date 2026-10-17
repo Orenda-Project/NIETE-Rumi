@@ -29,6 +29,7 @@
     spk: sv('M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z'),
     mute: sv('M3 9v6h4l5 5V4L7 9zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z'),
     slow: sv('M3 16a9 7 0 0 1 18 0zm17-3a2 2 0 1 0 2.5-2.5zM6 16v3h3v-3zm9 0v3h3v-3z'),
+    prev: sv('M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z'), next: sv('M8.6 7.4 10 6l6 6-6 6-1.4-1.4 4.6-4.6z'),
   };
   var cache = {}, opened = {}, codes = {}, cur = null;
 
@@ -388,10 +389,10 @@
       var p = P[m.i], im = p.image, i = m.i;
       paint(scr('story-page', L, top(L, ic(t, 'back', t.back, '‹'), b.title, !!p.audio) + stage(p, (p.audio && p.boxes_ok ? '' : img(im.url, im.w, im.h)) + (p.audio ? '<div data-ra></div>' : '')) +
         '<div class="wqs-extra" data-extra>' + extra() + '</div><div class="wqs-lrl" data-lrl></div><div class="wqs-ctl">' +
-        '<button class="wqs-arr" data-tap="prev"' + (i ? '' : ' disabled') + ' aria-label="' + esc(t.prevP) + '"><span dir="ltr">‹</span></button>' +
+        '<button class="wqs-arr" data-tap="prev"' + (i ? '' : ' disabled') + ' aria-label="' + esc(t.prevP) + '">' + IC.prev + '</button>' +
         '<button class="wqs-main" data-main data-primary data-tap="main"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[m.label()]) + '</button>' +
         (p.audio ? '<button class="wqs-slow" data-tap="slow" aria-pressed="' + slow() + '">' + IC.slow + ' ' + esc(t.slow) + '</button>' : '') +
-        '<button class="wqs-arr" data-tap="next" aria-label="' + esc(t.nextP) + '"><span dir="ltr">›</span></button></div>'));
+        '<button class="wqs-arr" data-tap="next" aria-label="' + esc(t.nextP) + '">' + IC.next + '</button></div>'));
       camTo(null);
       if (p.audio) {
         mount(p, {

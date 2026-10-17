@@ -530,6 +530,15 @@ describe('the reader', () => {
     expect(primaries(root.innerHTML)).toBe(0);
     expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
   });
+  test('the page-turn arrows are drawn chevrons (no text glyph a Nastaliq font turns into a bracket), the same in English and Urdu', async () => {
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: book({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } } }); const root = await openReader(e, { lang });
+      const h = root.innerHTML;
+      const arr = h.match(/<button class="wqs-arr"[^>]*>[\s\S]*?<\/button>/g) || [];
+      expect(arr).toHaveLength(2);
+      arr.forEach((a) => { expect(a).toMatch(/<svg class="wqs-g"[^>]*><path d="[^"]+"\/><\/svg>/); expect(a).not.toMatch(/[‹›<>]\s*<\/span>|>[‹›]</); });
+    }
+  });
   test('Your turn on a zoomed page keeps the page picture under the lines being read (never a white stage)', async () => {
     const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
     for (const lang of ['en', 'ur']) {
@@ -695,8 +704,8 @@ describe('the reader', () => {
     expect(root.innerHTML).toContain('سنیں');
     // In Urdu the next page is to the LEFT: the glyphs are isolated from the browser's own mirroring, and the stylesheet
     // flips them once, so each arrow points outward (a double flip pointed both inward).
-    expect(root.innerHTML).toMatch(/data-tap="prev"[^>]*><span dir="ltr">‹<\/span>/);
-    expect(root.innerHTML).toMatch(/data-tap="next"[^>]*><span dir="ltr">›<\/span>/);
+    expect(root.innerHTML).toMatch(/data-tap="prev"[^>]*><svg class="wqs-g"/);   // drawn chevrons; RTL mirrors the buttons (CSS)
+    expect(root.innerHTML).toMatch(/data-tap="next"[^>]*><svg class="wqs-g"/);
     expect(require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'wq', 'wq-stories.css'), 'utf8')).toContain('[dir=rtl] .wqs-arr{transform:scaleX(-1)}');
     // The top bar runs right to left too: back sits on the right and its ‹ is mirrored by the browser to point right.
     expect(root.innerHTML).toMatch(/class="wqs-top" dir="rtl"/);
