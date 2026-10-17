@@ -245,8 +245,9 @@ describe('4. one more D-only re-ask before a held D item is put back', () => {
         return { choices: [{ message: { content: '{"unseen":{}}' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
       });
       await Gen.generatePatternExam({ grade: 5, subject, pattern: 'fde_g5_2027', scope: { kind: 'pages', chapters: null, pages: '10-20' }, pageRanges: '10-20' }).catch(() => null);
-      // One first ask and one re-ask per section, nothing more.
-      expect(calls).toBeLessThanOrEqual(2 * ALL[subject].sections.length);
+      // One first ask and one re-ask per section, nothing more (Urdu: plus Section A's own second
+      // top-up, which is Urdu's and not this one).
+      expect(calls).toBeLessThanOrEqual(2 * ALL[subject].sections.length + (subject === 'urdu' ? 1 : 0));
     }
   });
 });

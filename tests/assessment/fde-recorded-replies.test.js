@@ -35,6 +35,7 @@ jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
 }));
 
 const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
+const { topUpTree } = require('./helpers/urdu-spares');
 
 const FIXTURES = path.join(__dirname, 'fixtures', 'fde');
 const fixture = (name) => JSON.parse(fs.readFileSync(path.join(FIXTURES, `${name}.json`), 'utf8'));
@@ -78,6 +79,9 @@ function recordedUrdu(edit = (s, tree) => tree) {
     ? loaded(HELD_PAGES, '1-27') : loaded(LESSON_PAGES, String(pageRanges))));
   mockCreate.mockImplementation(async (params) => {
     const s = sectionOf(params);
+    // A Section A top-up writes new items (helpers/urdu-spares.js); every other call, the recording.
+    const spares = s === 'A' && topUpTree(params.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n'));
+    if (spares) return reply(JSON.stringify({ unseen: spares }));
     return reply(JSON.stringify(edit(s, JSON.parse(URDU.sections[s]))));
   });
 }
