@@ -567,16 +567,27 @@ async function updateRunMeta(id, build, { force = false } = {}) {
 
 // quiz-audio/<env>/challenge/<lang>/<exercise>/<part>-<voiceTag>-<hash8>.ogg — the quiz clips' own scheme and bucket.
 // With one voice per quiz (web-quiz-one-voice-flag.js, as last read) the tag names the plan voice's exact rendering.
+// A one-voice clip's key names the plan's rate when it is not the default 64 kb/s ("-k32"), so a clip made at another
+// rate is never served as this one (and the pre-flip check counts it missing); a 64 kb/s key is unchanged.
 function clipKey(ex, part, lang, text) {
   const plan = OneVoice.currentPlan();
   const one = plan ? quizVoice(lang, { oneVoice: plan }) : null;
-  return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: one ? setIdOf(one) : voiceTag(lang), text });
+  const rate = one && plan.kbps && plan.kbps !== 64 ? `-k${plan.kbps}` : '';
+  return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: one ? `${setIdOf(one)}${rate}` : voiceTag(lang), text });
 }
+
+const KEY_VOICE = /-([a-z]{2}-[a-z0-9]+(?:-[0-9a-f]{6})?)(?:-k(\d+))?-[0-9a-f]{8}\.ogg$/;
 
 // The voice a clip's key names (its tag), so a clip is always recorded in the voice its key says; else the quiz voice.
 function voiceOfKey(key, lang) {
-  const m = /-([a-z]{2}-[a-z0-9]+(?:-[0-9a-f]{6})?)-[0-9a-f]{8}\.ogg$/.exec(String(key || ''));
+  const m = KEY_VOICE.exec(String(key || ''));
   return (m && voiceOfTag(m[1], OneVoice.currentPlan())) || quizVoice(lang);
+}
+
+// The rate a clip's key names, else 64.
+function kbpsOfKey(key) {
+  const m = KEY_VOICE.exec(String(key || ''));
+  return (m && Number(m[2])) || 64;
 }
 
 // → the voice's result ({ audio, durationSec, … }) once the clip is stored, else null (capped, busy or failed).
@@ -590,8 +601,8 @@ async function recordClip(key, text, lang, now = Date.now()) {
     // The provider and voice pinned per call, no fallback: a clip that cannot be made in this voice stays missing.
     const out = await tts.synthesize({
       text, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice,
-      // the one voice: its model, settings and the plan's rate, asked of the provider (its own bytes, never re-encoded)
-      ...(v.model ? { model: v.model, voiceSettings: v.settings, outputFormat: `opus_48000_${(OneVoice.currentPlan() || {}).kbps || 64}` } : {}),
+      // the one voice: its model, settings and the key's rate, asked of the provider (its own bytes, never re-encoded)
+      ...(v.model ? { model: v.model, voiceSettings: v.settings, outputFormat: `opus_48000_${kbpsOfKey(key)}` } : {}),
     });
     await r2.uploadBuffer(out.audio, key, 'audio/ogg', { bucket: AudioStore.quizAudioBucket() });
     clipKnown.set(key, true);

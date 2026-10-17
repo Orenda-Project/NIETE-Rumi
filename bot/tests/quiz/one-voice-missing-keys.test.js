@@ -116,6 +116,17 @@ test('every key present and both shared-line sets exist: ok, 0 missing', async (
   expect(lines[lines.length - 1]).toMatch(/^SUMMARY present=\d+ total=\d+ missing=0 shared=en:el-bella-cff2e4,ur:el-sara ok=yes$/);
 });
 
+test('the rate is in the key: clips present at 64 kb/s under a 32 kb/s plan are missing (wrong rate), at 64 they are ok', async () => {
+  r2.headObject.mockImplementation(async (k) => ({ exists: !/-k32-/.test(k) }));   // only 64 kb/s clips in the store
+  const at32 = await run(['--expect-ref', REF, '--plan', PLAN]);
+  expect(at32.r).toMatchObject({ ok: false, present: 0 });
+  expect(at32.r.missing).toBe(at32.r.total);
+  OneVoice.reset(); r2.headObject.mockClear();
+  const at64 = await run(['--expect-ref', REF, '--plan', JSON.stringify({ voices: { en: V2_BELLA }, kbps: 64 })]);
+  expect(at64.r).toMatchObject({ ok: true, missing: 0 });
+  expect(r2.headObject.mock.calls.some(([k]) => /-k\d+-/.test(k))).toBe(false);
+});
+
 test('a plan voice with no shared-line set is not ok, even with every clip present', async () => {
   r2.headObject.mockResolvedValue({ exists: true });
   const jessica = JSON.stringify({ voices: { en: { provider: 'elevenlabs', voice: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica', model: 'eleven_v4' } } });

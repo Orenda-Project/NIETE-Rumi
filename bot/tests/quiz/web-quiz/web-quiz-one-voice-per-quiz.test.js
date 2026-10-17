@@ -313,6 +313,23 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
     await Ch.warmClip(key, 'One day it rained.', 'en');
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ voice: Voice.ONE_VOICE.en.voice, outputFormat: 'opus_48000_32' });
   });
+
+  test('the rate is in the key when it is not 64: a clip at another rate is another clip (never served as this one)', async () => {
+    seed([], { flag: { kbps: 32 } });
+    await OneVoice.on();
+    const k32 = Ch.clipKey('listen', 'story', 'en', 'The rain came down.');
+    expect(k32).toMatch(/\/story-el-bella-k32-[0-9a-f]{8}\.ogg$/);
+    await Ch.warmClip(k32, 'The rain came down.', 'en');
+    expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: Voice.ONE_VOICE.en.voice, outputFormat: 'opus_48000_32' });
+
+    // 64 (the default): no rate in the key, the same key as the plain `true` plan
+    OneVoice.reset(); seed([], { flag: { kbps: 64 } }); await OneVoice.on();
+    const k64 = Ch.clipKey('listen', 'story', 'en', 'The rain came down.');
+    OneVoice.reset(); seed([], { flag: true }); await OneVoice.on();
+    expect(Ch.clipKey('listen', 'story', 'en', 'The rain came down.')).toBe(k64);
+    expect(k64).toMatch(/\/story-el-bella-[0-9a-f]{8}\.ogg$/);
+    expect(k64).not.toBe(k32);
+  });
 });
 
 /*
