@@ -174,10 +174,11 @@ function prefetch(chosenId, now = Date.now()) {
 }
 
 // `{class_doors}` with web_quiz_class_doors on and a class quiz in the hub's own history, else {}. Never throws.
+// onP: the switch's read, started by prefetchFb beside the home's own reads (no added wave).
 const ClassDoors = require('./web-quiz-class-doors-flag');
-async function classDoorsOf(history, chosenId) {
+async function classDoorsOf(history, chosenId, onP) {
   try {
-    const links = (await ClassDoors.on()) ? ClassDoors.linksOf(history, chosenId) : null;
+    const links = (await (onP || ClassDoors.on())) ? ClassDoors.linksOf(history, chosenId) : null;
     return links ? { class_doors: links } : {};
   } catch (_) {
     return {};
@@ -202,7 +203,7 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre, device
     const R = require('./web-quiz-home-remember');
     // (one read of the binding rows for both, beside the phone rows: no added wave)
     const rows = R.rowsFor(device);
-    const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId)]);
+    const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd)]);
     if (own) remember.forget_phone = true;
     return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...phones, ...remember, ...cd };
   } catch (err) {
@@ -290,9 +291,12 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
 // The fallback switch is read beside the home's own reads (once its flags say the home is on), never after them: no wave.
 const Fallback = require('./web-quiz-home-fallback-flag');
 const fbOf = (f) => f.then((on) => (on.home ? Fallback.on() : false)).catch(() => false);
+// ...and so is web_quiz_class_doors (classDoorsOf).
+const cdOf = (f) => f.then((on) => (on.home ? ClassDoors.on() : false)).catch(() => false);
 function prefetchFb(chosenId, now) {
   const p = prefetch(chosenId, now);
   p.fb = fbOf(p.flags);
+  p.cd = cdOf(p.flags);
   return p;
 }
 function homeFieldFb(a = {}) {
