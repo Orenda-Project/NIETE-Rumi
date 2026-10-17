@@ -598,3 +598,33 @@ describe('menu(): the sound + motion kit switch rides the boot (juice)', () => {
     Juice._reset();
   });
 });
+
+// ── the child home on: a child with no class shares with "Share" (the menu's no_class) ───────────────────────────
+describe('the menu\'s no_class (app_settings web_quiz_home_v3): no quiz a teacher sent → the card says "Share"', () => {
+  const HomeFlags = require('../../../shared/services/quiz/web-quiz-home-flags');
+  beforeEach(() => HomeFlags._resetCache());
+  const homeOn = () => db.app_settings.push({ key: 'web_quiz_home_v3', value: true });
+  test('home on, a child who joined on their own (no session from a teacher\'s link): no_class', async () => {
+    homeOn();
+    db.quiz_sessions = [];
+    db.students[0].list_id = null;
+    db.students[0].self_reported_class = '3';
+    expect((await Ch.menu(hub(), D)).no_class).toBe(true);
+  });
+  test('home on, a child who played a teacher\'s link: no key; a friend\'s challenge or a "watch more" code is not a teacher\'s', async () => {
+    homeOn();
+    db.quiz_share_codes = [{ id: SC, code: 'ABCD12', language: 'en', parent_share_code_id: null, invited_by_student_id: null }];
+    expect(await Ch.menu(hub(), D)).not.toHaveProperty('no_class');
+    HomeFlags._resetCache();
+    db.quiz_share_codes = [{ id: SC, code: 'ABCD12', language: 'en', parent_share_code_id: null, invited_by_student_id: KID2 }];
+    expect((await Ch.menu(hub(), D)).no_class).toBe(true);
+  });
+  test('home off, absent or the string "true": no key (the menu is today\'s)', async () => {
+    db.quiz_sessions = [];
+    for (const v of [undefined, false, 'true']) {
+      HomeFlags._resetCache();
+      db.app_settings = [{ key: 'web_quiz_challenge', value: true }, ...(v === undefined ? [] : [{ key: 'web_quiz_home_v3', value: v }])];
+      expect(await Ch.menu(hub(), D)).not.toHaveProperty('no_class');
+    }
+  });
+});

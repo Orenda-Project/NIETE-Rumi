@@ -1639,6 +1639,7 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     next: Fast.early(nextLesson(s)),
     door: Fast.early(require('./web-quiz-hub-door').field(s)),
     jugnu: Fast.early(require('./web-quiz-card').field(s)),
+    fold: Fast.early(require('./web-quiz-hub-door').foldField(s)),
   } : null;
 
   if (s.status !== 'completed') {
@@ -1690,6 +1691,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   mark('hub_door');
   // The Jugnu card (web-quiz-card.js; app_settings web_quiz_challenge_card): {} with the switch off.
   const jugnu = await got('jugnu', () => require('./web-quiz-card').field(s));
+  // The child home on (web_quiz_home_v3): the card folds to the card and one next thing; {} with it off.
+  const fold = await got('fold', () => require('./web-quiz-hub-door').foldField(s));
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -1718,6 +1721,7 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     // The card's door to this child's hub (web-quiz-hub-door.js), with the hub and the door switched on.
     ...door,
     ...jugnu,
+    ...fold,
   };
 }
 
@@ -2002,6 +2006,9 @@ function uaApp(ua) {
  * telemetry switch (TEL_NAMES / TEL_PROPS / TEL_NUMS are dropped while it is off). `v2`: web_quiz_events_v2
  * (ch_helped keeps its three-valued answer). Pure.
  */
+// The folded card's next_pick kinds: the slot's own, a list (a child's name never rides `kind`).
+const NEXT_PICK_KINDS = new Set(['story', 'storybook', 'game', 'read', 'listen', 'video', 'quiz', 'trail']);
+
 function cleanEvent(e, { rich = false, v2 = false } = {}) {
   if (!e || typeof e !== 'object' || !EVENT_NAME_RX.test(String(e.n || ''))) return null;
   if (!rich && TEL_NAMES.has(e.n)) return null;
@@ -2044,6 +2051,9 @@ function cleanEvent(e, { rich = false, v2 = false } = {}) {
   // In-app browser (WhatsApp's own browser): the page sends 1/0; kept as 0/1 so the logs can split on it.
   // A friend's own run (card_view): 0/1.
   if (e.friend === 0 || e.friend === 1) props.friend = e.friend;
+  // The folded card (the child home on): card_view's fold 1, and the one next thing's kind on its next_pick.
+  if (e.n === 'card_view' && e.fold === 1) props.fold = 1;
+  if (e.n === 'next_pick' && NEXT_PICK_KINDS.has(e.kind)) props.kind = e.kind;
   if (e.iab === 0 || e.iab === 1) props.iab = e.iab;
   else if (typeof e.iab === 'boolean') props.iab = e.iab ? 1 : 0;
   // A page_open's UA names the app: the page's own flag missed WhatsApp's browser (WA4A) and counted other apps'
