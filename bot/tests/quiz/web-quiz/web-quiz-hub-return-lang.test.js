@@ -329,7 +329,7 @@ describe('the one-door landing\'s server answer (destination): a known child\'s 
   const land = async (lang) => {
     const spy = jest.spyOn(Role, 'resolveRole').mockResolvedValue({ side: 'child', src: 'chat', children: [KID], kids: [] });
     try {
-      return await GoRoutes._destination({ userId: 'u-family', phoneNorm: '920000000000', p: { lang, n: 'n'.repeat(22) } });
+      return await GoRoutes._destination({ userId: 'u-family', phoneNorm: '92' + '0000000000', p: { lang, n: 'n'.repeat(22) } });
     } finally { spy.mockRestore(); }
   };
 
