@@ -91,7 +91,9 @@ async function home(body = {}, resolveCode = null) {
     const kids = [...new Set(own.map((s) => String(s.student_id)))];
     if (kids.length !== 1) return no(kids.length ? 'many_children' : 'no_child');
     if (own.some((s) => s.status !== 'completed')) return no('not_finished');
-    const token = T.signHub([kids[0]]);
+    // web_quiz_return_lang: the child's own language rides the link (off: today's token)
+    const lang = await require('./web-quiz-child-lang').childLang(kids[0]);
+    const token = lang ? T.signHub([kids[0]], undefined, { lang }) : T.signHub([kids[0]]);
     if (!token) return no('no_secret');
     const bound = await Device.deviceTrusted(token, d);
     if (!bound.ok) return no(bound.why);

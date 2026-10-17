@@ -356,6 +356,9 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
       if (b && b.outcome === 'refused') return { refused: b.reason, next: set.length ? homeUrl(set, null, 'join', lang) : null };
       return { error: 'unavailable' };
     }
+    // web_quiz_return_lang: the child keeps the language they joined in (child_language 'join'; off: nothing written)
+    const Ret = require('./web-quiz-return-lang');
+    if (Ret.linkLang(r.tok.l) && (await Ret.on())) await require('./child-language.repo').joined(id, r.tok.l);
     try {
       await require('../first-touch/door.keys').markChild(who.userId, who.phoneNorm);
     } catch (err) {

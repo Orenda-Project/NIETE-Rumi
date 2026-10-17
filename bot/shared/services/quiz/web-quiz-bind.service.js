@@ -130,7 +130,9 @@ async function languageFor(child, user, asked = null) {
 async function sendSaved(phone, kids, child, language) {
   const WhatsAppService = require('../whatsapp.service');
   const body = resolveUx('jugnuBindSaved', { language, params: { name: firstName(child.name) } });
-  const url = await require('./web-quiz-hub-flags').hubLink(kids.map((k) => k.id), 'bind');
+  // web_quiz_return_lang: the child's own language (class quiz → the one they joined in), else the reply's (off: today's link)
+  const own = await require('./web-quiz-child-lang').childLang(child.id);
+  const url = await require('./web-quiz-hub-flags').hubLink(kids.map((k) => k.id), { caller: 'bind', lang: own || language });
   let sent = false;
   if (url) {
     try {

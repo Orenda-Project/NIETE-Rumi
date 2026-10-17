@@ -612,6 +612,13 @@ describe('the grown-ups sheet\'s language button is its primary and looks like o
     const sheet = p.sheets.filter((b) => /wq-gsheet/.test(b.className))[0];
     expect(sheet.innerHTML).toMatch(/<a class="wq-btn wq-go" data-primary data-tap="lang"/);
   });
+  test('its link asks the server to keep the language for this child (keep=1; the server ignores it while that is off)', () => {
+    const p = page(); p.mount(HOME);
+    const g = p.el('grownups'); g.fire('pointerdown'); jest.advanceTimersByTime(2100);
+    const sheet = p.sheets.filter((b) => /wq-gsheet/.test(b.className))[0];
+    const href = /data-tap="lang" href="([^"]*)"/.exec(sheet.innerHTML)[1].replace(/&amp;/g, '&');
+    expect(href).toMatch(/^\/h\/[^?]*\?kid=[^&]*(&lang=(en|ur))?&keep=1$/);
+  });
 });
 
 describe('keep my place by the server\'s bind.state (none|pending|bound|refused; ABSENT = today\'s card, never "bound")', () => {

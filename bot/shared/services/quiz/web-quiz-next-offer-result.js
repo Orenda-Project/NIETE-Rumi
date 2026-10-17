@@ -40,7 +40,10 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false, 
   // read-only first: the run's child or the id they are known by, on THIS phone; a stranger phone gets nothing
   if (!(await Device.deviceMayName([...new Set([String(studentId), String(canonical)])], device))) return null;
   if (live && live.on === false) return null;   // past the deadline: nothing minted, nothing bound
-  const token = T.signHub([canonical]);
+  // web_quiz_return_lang: the child's own language (class quiz → the one they joined in) rides the link and speaks the
+  // card when the page asked none (off: null — today's token and today's language)
+  const own = await require('./web-quiz-child-lang').childLang(canonical);
+  const token = own ? T.signHub([canonical], undefined, { lang: own }) : T.signHub([canonical]);
   if (!token) return null;
   const bound = await Device.deviceTrusted(token, device);
   if (!bound.ok) return null;
@@ -49,7 +52,7 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false, 
   if (!ctx) return null;
   const { history, grade } = ctx;
   const { clampLanguage } = require('../../config/ux-strings');
-  const lang = asked ? clampLanguage(asked) : clampLanguage(require('./student-quiz.service').childLanguage(history));
+  const lang = asked ? clampLanguage(asked) : clampLanguage(own || require('./student-quiz.service').childLanguage(history));
   const chosen = { id: canonical };
   const out = { kid: parts.kidChip(canonical), lang, teacher: null, again: [], lib: null, challenge: null };
   if (f.homeButton) out.nav_home = true;

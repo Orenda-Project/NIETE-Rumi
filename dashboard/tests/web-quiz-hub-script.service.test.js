@@ -156,6 +156,17 @@ test('server render (no device): the page asks the bot again WITH this phone\'s 
   expect(p.html()).toContain('ثنا');
 });
 
+test('the grown-ups corner\'s language link (?lang=ur&keep=1): the body asks the bot to keep it; keep without a language, or a bare ?lang=, does not', async () => {
+  const bodyFor = async (search) => {
+    const p = page(LOCKED(), { search, store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'ur', kids: [KIDS[0]], kid: KIDS[0].chip, teacher: null, again: [], recs: [] } } });
+    await flush(); await flush();
+    return JSON.parse(p.fetches.find((f) => f.url.indexOf('/api/wq/hub/') === 0).init.body);
+  };
+  expect(await bodyFor('?kid=x&lang=ur&keep=1')).toMatchObject({ device_ref: DEV, lang: 'ur', keep: 1 });
+  expect(await bodyFor('?kid=x&keep=1')).not.toHaveProperty('keep');
+  expect(await bodyFor('?kid=x&lang=ur')).not.toHaveProperty('keep');
+});
+
 test('a phone with no device_ref yet mints one (22 url-safe chars), keeps it where the quiz page reads it, and sends it', async () => {
   const p = page(LOCKED(), { api: { '/api/wq/hub/': LOCKED() } });
   await flush(); await flush();
