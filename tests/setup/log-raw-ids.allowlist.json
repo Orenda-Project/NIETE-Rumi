@@ -1672,13 +1672,6 @@
    "173 userId: user.id"
   ]
  },
- "bot/shared/services/quiz/teacher-self-test.js": {
-  "n": 1,
-  "area": "quiz",
-  "at": [
-   "71 userId: teacher.id"
-  ]
- },
  "bot/shared/services/quiz/transcript-lesson-provider.js": {
   "n": 7,
   "area": "quiz",
