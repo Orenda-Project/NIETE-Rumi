@@ -297,3 +297,47 @@ describe('GOLDEN: no watch root set, every reader answers as today', () => {
     expect(b.rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ kids: 7 }));
   });
 });
+
+/**
+ * Settings reads with NO watch root set (#C72 / #C81). The chips read exactly as before this change. The league
+ * now reads the root setting on a load whose code map is warm (before, only when the load met a new code): that read
+ * is what lets it fail closed and rebuild its map after the root changes. It rides the page's 30 s settings cache,
+ * so it is one named `watchRootState` read when that cache is cold and none when it is warm.
+ * `named` counts the reads made inside `watchRootState`; total − named is the base's own count on the same load.
+ */
+describe('READS: no watch root set, settings reads as before plus the league\'s one named read', () => {
+  const IdR = require('../../../shared/services/quiz/web-quiz-identity-roster');
+  const reads = () => fake.calls.filter((c) => c.table === 'app_settings').length;
+  let real; let named;
+  beforeEach(() => {
+    seed({ root: false });
+    real = IdR.watchRootState; named = 0;
+    IdR.watchRootState = async (...a) => { const n = reads(); try { return await real(...a); } finally { named += reads() - n; } };
+  });
+  afterEach(() => { IdR.watchRootState = real; });
+
+  test('the class chips read as before: 1 read cold, 0 warm', async () => {
+    const ctx = await WQ.resolveCode('AB12CD');
+    let n = reads(); await WQ.classChips(ctx); const cold = reads() - n;
+    n = reads(); await WQ.classChips(ctx); const warm = reads() - n;
+    expect(cold).toBe(1);
+    expect(warm).toBe(0);
+  });
+  test('the league, code map warm, settings cache cold: the base\'s 0 + 1 named watchRootState read', async () => {
+    const t0 = Date.now();
+    await Schools.board('ALPHA1', { now: t0 });   // the code map is warm, no new code finishes after this
+    IdR._resetCache();                              // the 30 s settings cache has run out; no page read in between
+    named = 0;
+    const n = reads(); await Schools.board('ALPHA1', { now: t0 + 61 * 1000 }); const total = reads() - n;
+    expect(total - named).toBe(0);   // the base: a warm map with no new code read no settings
+    expect(named).toBe(1);
+    expect(total).toBe(1);
+  });
+  test('the league, code map warm, settings cache warm (a page read within 30 s): 0 reads', async () => {
+    const t0 = Date.now();
+    await Schools.board('ALPHA1', { now: t0 });
+    IdR._resetCache(); await IdR.identityMode();   // another page in the process read settings just now
+    const n = reads(); await Schools.board('ALPHA1', { now: t0 + 61 * 1000 });
+    expect(reads() - n).toBe(0);
+  });
+});
