@@ -151,9 +151,10 @@ function createRouter(deps = null) {
   }
   /**
    * The library card's one counts line for the whole teacher: { sent, read } once at least one story went out; null
-   * otherwise (no stories module, its switch off, nothing sent, a failed read).
+   * otherwise (its own switch off, no stories module, the stories switch off, nothing sent, a failed read).
    */
   async function storyCountsOf(uid) {
+    if (!(await Data.dep(deps, 'CountsFlag').on())) return null;
     const S = Data.dep(deps, 'Stories');
     if (!S || typeof S.storyCounts !== 'function') return null;
     const c = await S.storyCounts(uid);
