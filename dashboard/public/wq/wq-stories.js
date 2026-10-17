@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   var W = window;
-  // Copy rules (both files' copy): the header of wq-stories-q.js; the banned words are a test.
+  // Copy rules: see wq-stories-q.js.
   var T = {
     en: {
       shelf: 'Storybooks', gl: function (g, l) { return 'Grade ' + g + ', ' + (l === 'ur' ? 'Urdu' : 'English'); },
@@ -94,7 +94,7 @@
   function shelfHtml(d, open, host) {
     var l = lg(d.lang), t = T[l], bk = d.books || [], tk = -1, k, cards = '', pk = -1;
     for (k = 0; k < bk.length && tk < 0; k++) if (bk[k].from_teacher) tk = k;
-    // the one primary: the teacher's unfinished book, else the first unfinished card, else the first card
+    // the primary: the first unfinished book
     if (tk >= 0 && !bk[tk].done) pk = tk;
     for (k = 0; k < bk.length && pk < 0; k++) if (k !== tk && !bk[k].done) pk = k;
     if (pk < 0) pk = tk >= 0 ? tk : 0;
@@ -172,10 +172,12 @@
     if (!bs || !bs.length) return { s: Math.round(w0 * 1000) / 1000, tx: r((vw - pw * w0) / 2), ty: r((vh - ph * w0) / 2), ok: false };
     var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, mh = 1e9;
     bs.forEach(function (b) { x0 = Math.min(x0, b[0]); x1 = Math.max(x1, b[0] + b[2]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[1] + b[3]); mh = Math.min(mh, b[3]); });
-    var s = Math.max(w0, Math.min(fit ? vw / ((x1 - x0) * 1.16) : Math.max(vw / ((x1 - x0) * 1.16), 26 / mh), w0 * (cap || 3)));
+    var s = Math.max(w0, Math.min(fit ? Math.min(vw / ((x1 - x0) * 1.16), vh / ((y1 - y0) * 1.16)) : Math.max(vw / ((x1 - x0) * 1.16), 26 / mh), w0 * (cap || 3)));
     var tx = (x1 - x0) * s <= vw * 0.92 ? vw / 2 - (x0 + x1) / 2 * s : rtl ? vw * 0.96 - x1 * s : vw * 0.04 - x0 * s;
     tx = Math.min(0, Math.max(vw - pw * s, tx));
-    var ty = Math.min(0, Math.max(vh - ph * s, vh * 0.7 - (y0 + y1) / 2 * s));
+    var ty = vh * 0.7 - (y0 + y1) / 2 * s;
+    if (fit) ty = Math.max(-y0 * s, Math.min(ty, vh - y1 * s));
+    ty = Math.min(0, Math.max(vh - ph * s, ty));
     return { s: Math.round(s * 1000) / 1000, tx: r(tx), ty: r(ty), px: mh * s, ok: mh * s >= 25.5 };
   }
   function mark(p, i, a, rtl) {
@@ -279,7 +281,7 @@
     qw = [cb];
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
-  // the player (and, lr3, live reading) come with the book; 8 s each, else without, asked again by the next book
+  // the player (and lr3's live reader) come with the book
   var got = {}, RA_V = 'be7fe1dc23';   // the player's content hash (a test pins it)
   function need(f, g, css, cb) {
     if (W[g] || got[f] === 1) return cb();
@@ -307,7 +309,6 @@
     function oops() { paint(retryHtml(L, ic(t, 'back', t.back, '‹'))); }
     function load(q) {
       wait();
-      need('wq-readalong.js?v=' + RA_V, 'WQReadAlong', 0, function () {});
       (cache[id] && !tch ? Promise.resolve({ ok: true, body: cache[id] }) : req('GET', bookUrl())).then(function (r) {
         if (cur !== R) return;
         if (r.status === 404) return paint(kind('stories-off', L, t.off, '<button class="wqs-main" data-primary data-home data-tap="home">' + esc(t.home) + '</button>'));
@@ -451,7 +452,7 @@
     function camLine(i) {
       li = i;
       var n = sm === 'z' ? LN.of[i] || 0 : 0;
-      if (sm && sm !== 's' && n !== zl) { zl = n; camTo(sm === 'z' ? LN.l[n].bs : [sp.text_band.box]); }
+      if (sm && sm !== 's' && n !== zl) { zl = n; camTo(sm === 'z' ? LN.l[n].bs : [sp.text_band.box], 1); }
     }
     R.camTo = camTo; R.camLine = camLine;
     function word(i) {

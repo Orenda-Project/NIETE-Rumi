@@ -403,8 +403,8 @@ describe('OFF goldens', () => {
       expect(ro.innerHTML).not.toMatch(/data-tap="alt"[^>]*>(Your turn|اب آپ پڑھیں)</);   // no Your turn without the live reader
     }
   });
-  test('stories off (the server answers 404 stories_off): the shelf draws nothing, a book link shows one kind way home, and no reader file is fetched', async () => {
-    const e = env({ replies: { shelf: { status: 404, body: { error: 'stories_off' } }, book: { status: 404, body: { error: 'stories_off' } } } });
+  test('stories off (the server answers 404 stories_off): the shelf draws nothing, a book link shows one kind way home, and no reader file is fetched (no player on the page, as on the real hub)', async () => {
+    const e = env({ ra: false, lr: false, replies: { shelf: { status: 404, body: { error: 'stories_off' } }, book: { status: 404, body: { error: 'stories_off' } } } });
     const el = fakeEl('shelf'); e.S.shelf(el, e.ctx()); await flush();
     expect(el.innerHTML).toBe('');
     const root = await openReader(e);
@@ -556,19 +556,39 @@ describe('the reader', () => {
     expect(primaries(root.innerHTML)).toBe(0);
     expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
   });
-  test('Your turn on a wide line of small print: every line is whole on screen, both edges, in English (left to right) and Urdu (right to left)', async () => {
+  test('a wide line of small print is whole on screen, both edges, in page view, while listening and while reading, in English (left to right) and Urdu (right to left)', async () => {
     const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [40, 800, 640, 22] }, { i0: 3, i1: 4, box: [60, 830, 600, 22] }];
     for (const lang of ['en', 'ur']) {
       const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' } } } }); const root = await openReader(e, { lang });
+      const whole = (lines) => {
+        const m = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(root.querySelector('[data-cam]').style.transform);
+        const tx = Number(m[1]); const ty = Number(m[2]); const sc = Number(m[3]);
+        lines.forEach((l) => {
+          expect(l.box[0] * sc + tx).toBeGreaterThanOrEqual(-0.5);              // the line's left end on screen
+          expect((l.box[0] + l.box[2]) * sc + tx).toBeLessThanOrEqual(360.5);   // the line's right end on screen
+          expect(l.box[1] * sc + ty).toBeGreaterThanOrEqual(-0.5);              // its top on screen
+          expect((l.box[1] + l.box[3]) * sc + ty).toBeLessThanOrEqual(540.5);   // its bottom on screen
+        });
+      };
+      whole(bk.pages[0].lines);                                                   // page view
+      fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onWord(0);
+      whole([bk.pages[0].lines[0]]);                                              // listening: the line being read
+      e.calls.ra[e.calls.ra.length - 1].o.onWord(3);
+      whole([bk.pages[0].lines[1]]);
+      e.calls.ra[e.calls.ra.length - 1].o.onEnd();
       toMic(e, root); e.calls.ask[e.calls.ask.length - 1].onStream({ id: 's' });
       expect(screenOf(root.innerHTML)).toBe('story-read');
-      const m = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(root.querySelector('[data-cam]').style.transform);
-      const tx = Number(m[1]); const sc = Number(m[3]);
-      bk.pages[0].lines.forEach((l) => {
-        expect(l.box[0] * sc + tx).toBeGreaterThanOrEqual(-0.5);              // the line's left end on screen
-        expect((l.box[0] + l.box[2]) * sc + tx).toBeLessThanOrEqual(360.5);   // the line's right end on screen
-      });
+      whole(bk.pages[0].lines);                                                   // reading: every line of the part
     }
+  });
+  test('Your turn on a tall column (five lines read at once): the last line is not cut at the bottom of the stage', async () => {
+    const bk = book(); bk.pages[0].words = Array.from({ length: 10 }, (_, i) => ({ i, t: 'w' + i, s_ms: i * 300, e_ms: i * 300 + 250 }));
+    bk.pages[0].lines = [0, 1, 2, 3, 4].map((k) => ({ i0: k * 2, i1: k * 2 + 1, box: [100, 500 + k * 110, 400, 60] }));
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    fire(root, 'main'); e.calls.ra[0].o.onEnd(); toMic(e, root); e.calls.ask[e.calls.ask.length - 1].onStream({ id: 's' });
+    const m = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(root.querySelector('[data-cam]').style.transform);
+    expect((500 + 4 * 110 + 60) * Number(m[3]) + Number(m[2])).toBeLessThanOrEqual(540.5);
+    expect(500 * Number(m[3]) + Number(m[2])).toBeGreaterThanOrEqual(-0.5);
   });
   test('the "Whole page" pill sits OUTSIDE the page (under the stage, at the end of the row), never over a word or a heading, in every state', async () => {
     const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
@@ -599,7 +619,7 @@ describe('the reader', () => {
       expect(back).toMatch(/^<svg class="wqs-g"/);
       expect(root.innerHTML).not.toMatch(/>‹</);
     }
-    expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\[dir=rtl\] \.wqs-ic\[data-back\] svg\{transform:scaleX\(-1\)\}/);
+    expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\.wqs\[dir=rtl\] \.wqs-ic\[data-back\] svg\{transform:scaleX\(-1\)\}/);
   });
   test('the page-turn arrows are drawn chevrons (no text glyph a Nastaliq font turns into a bracket), the same in English and Urdu', async () => {
     for (const lang of ['en', 'ur']) {
@@ -610,15 +630,21 @@ describe('the reader', () => {
       arr.forEach((a) => { expect(a).toMatch(/<svg class="wqs-g"[^>]*><path d="[^"]+"\/><\/svg>/); expect(a).not.toMatch(/[‹›<>]\s*<\/span>|>[‹›]</); });
     }
   });
-  test('Your turn on a zoomed page keeps the page picture under the lines being read (never a white stage)', async () => {
+  test('Your turn never shows a white stage: an unboxed page gets the reader\'s picture under the live-read layer; a boxed page is drawn by the live reader itself (one picture, its marks on it)', async () => {
     const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
     for (const lang of ['en', 'ur']) {
-      const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' } } } }); const root = await openReader(e, { lang });
-      toMic(e, root); e.calls.ask[0].onStream({ id: 'stream' });
-      const h = root.innerHTML;
-      expect(screenOf(h)).toBe('story-read');
-      expect(h).toMatch(/data-cam[^>]*><img src="\/s\/b-1\/p01\.webp"[^>]*><div class="wqs-lr" data-lr><\/div>/);
+      for (const boxed of [false, true]) {
+        const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr', pages: [{ ...bk.pages[0], boxes_ok: boxed }, ...bk.pages.slice(1)] } } } });
+        const root = await openReader(e, { lang });
+        toMic(e, root); e.calls.ask[e.calls.ask.length - 1].onStream({ id: 'stream' });
+        const h = root.innerHTML;
+        expect(screenOf(h)).toBe('story-read');
+        if (boxed) expect(h).toMatch(/data-cam[^>]*><div class="wqs-lr" data-lr><\/div>/);
+        else expect(h).toMatch(/data-cam[^>]*><img src="\/s\/b-1\/p01\.webp"[^>]*><div class="wqs-lr" data-lr><\/div>/);
+      }
     }
+    // the live-read layer sits on the picture whichever draws it (it was positioned only after a player's [data-ra])
+    expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\.wqs-cam \[data-ra\]~\.wqs-lr,\.wqs-cam img~\.wqs-lr\{position:absolute;left:0;top:0/);
   });
   test('Your turn on a zoomed page: the camera frames ALL the lines being read and holds still (a short line never zooms the long ones off the edge)', async () => {
     const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
@@ -633,11 +659,28 @@ describe('the reader', () => {
     e.advance(1000);
     expect(cam.style.transform).toBe(t0);
   });
-  test('Your turn: the word to read next is outlined, never covered (the current box is see-through)', () => {
+  test('Your turn: the word to read next is outlined, never covered (the current box is see-through, alpha under one half)', () => {
     const css = fs.readFileSync(CSS, 'utf8');
     const rule = (/\.wqs-cam \.lr-box\.lr-current\{([^}]*)\}/.exec(css) || [])[1] || '';
     expect(rule).toMatch(/outline:3px solid #15803D/);
-    expect(rule).toMatch(/background:(transparent|rgba\([^)]*,\s*0?\.\d+\))/);
+    const a = /background:rgba\(\s*\d+,\s*\d+,\s*\d+,\s*([\d.]+)\)/.exec(rule);
+    expect(a).toBeTruthy();
+    expect(Number(a[1])).toBeLessThan(0.5);
+  });
+  test('the stage gives the "Whole page" pill its row (so the screen does not grow), and the look-back sheet\'s stage leaves its primary on screen', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs-st2\{height:calc\(62vh - 52px\)\}/);
+    expect(css).toMatch(/\.wqs-sheet \.wqs-stage\{height:calc\(100vh - 400px\);min-height:150px\}/);
+  });
+  test('the page arrows are two different chevrons, mirrored only by their own screen\'s direction (an English book inside an Urdu app keeps its arrows)', async () => {
+    const e = env(); const root = await openReader(e);
+    const prev = (/data-tap="prev"[^>]*><svg[^>]*><path d="([^"]+)"/.exec(root.innerHTML) || [])[1];
+    const next = (/data-tap="next"[^>]*><svg[^>]*><path d="([^"]+)"/.exec(root.innerHTML) || [])[1];
+    expect(prev).toBeTruthy(); expect(next).toBeTruthy(); expect(prev).not.toBe(next);
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs\[dir=rtl\] \.wqs-arr\{transform:scaleX\(-1\)\}/);
+    expect(css).toMatch(/\.wqs\[dir=rtl\] \.wqs-ic\[data-back\] svg\{transform:scaleX\(-1\)\}/);
+    expect(css).not.toMatch(/(^|[\s}])\[dir=rtl\] \.wqs-(arr|ic)/);   // never keyed to ANY right-to-left ancestor
   });
   test('Your turn: reading with "I\'m done ✓" from the first render', async () => {
     const e = env(); const root = await openReader(e);
@@ -1162,7 +1205,7 @@ describe('the reader zooms to the printed line', () => {
     expect(cam.style.transform).toBe(T0);
     fire(root, 'main'); fire(root, 'mic'); e.calls.ask[0].onStream({});
     const r = root.innerHTML;
-    expect(r).toMatch(/data-cam[^>]*><img src="[^"]+"[^>]*><div class="wqs-lr" data-lr><\/div>/);   // the page picture under the read
+    expect(r).toMatch(/data-cam[^>]*><div class="wqs-lr" data-lr><\/div>/);   // a boxed page: the live reader draws the picture and its marks itself
     // Your turn frames both lines of the page at once (not line 1 at the zoom cap), so no line runs off the stage
     expect(root.querySelector('[data-cam]').style.transform).toBe('translate(-97.1px,-580.7px) scale(1.108)');
     checkScreen(r, 'en');
@@ -1411,7 +1454,7 @@ describe('server lines[] and chunked Your turn', () => {
     const p = e.calls.ra[0];
     expect(p.o.mode).toBe('strip');
     fire(root, 'main'); p.o.onWord(14);
-    const c = e.S._cam([[40, 160, 640, 40]], 360, 540, 720, 1080, false);
+    const c = e.S._cam([[40, 160, 640, 40]], 360, 540, 720, 1080, false, 3, 1);   // framed whole (fit)
     expect(root.querySelector('[data-cam]').style.transform).toBe(`translate(${c.tx}px,${c.ty}px) scale(${c.s})`);
     const mk = root.querySelector('[data-mk]');
     expect([mk.style.left, mk.style.top, mk.style.width, mk.style.height]).toEqual(['40px', '194px', '320px', '6px']);
@@ -1506,14 +1549,18 @@ describe('lines without a box (the full export)', () => {
     expect(e.S._lines(p).l[1].bs).toEqual([]);
     const pl = e.calls.ra[0]; const cam = root.querySelector('[data-cam]');
     fire(root, 'main');
-    const z0 = cam.style.transform;
-    expect(z0).not.toBe('translate(0px,0px) scale(0.5)');
+    // a boxed line is framed WHOLE (a full-width line can only be shown at the page's width; it is never cut)
+    const m0 = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(cam.style.transform);
+    expect(40 * Number(m0[3]) + Number(m0[1])).toBeGreaterThanOrEqual(0);
+    expect(680 * Number(m0[3]) + Number(m0[1])).toBeLessThanOrEqual(360);
     pl.o.onWord(12);
     expect(cam.style.transform).toBe('translate(0px,0px) scale(0.5)');
     const mk = root.querySelector('[data-mk]');
     expect([mk.style.left, mk.style.top, mk.style.height]).toEqual(['0px', '1040px', '40px']);
-    pl.o.onWord(25);
-    expect(cam.style.transform).not.toBe('translate(0px,0px) scale(0.5)');
+    pl.o.onWord(25);   // a boxed line again: framed whole
+    const m1 = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(cam.style.transform);
+    expect(40 * Number(m1[3]) + Number(m1[1])).toBeGreaterThanOrEqual(0);
+    expect(680 * Number(m1[3]) + Number(m1[1])).toBeLessThanOrEqual(360);
   });
 });
 
