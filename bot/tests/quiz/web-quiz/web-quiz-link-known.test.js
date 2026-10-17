@@ -347,6 +347,19 @@ describe('the one id the child is known by', () => {
     expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF)]);
   });
 
+  test('a child whose trust on this phone has lapsed (still in the phone\'s list) is not named, and cannot be started by their chip', async () => {
+    seed();
+    await homeOpened([SELF]);
+    await homeOpened([SIB]);
+    const real = HubDevice.deviceMayName;
+    const spy = jest.spyOn(HubDevice, 'deviceMayName').mockImplementation(async (ids, d) => (ids.includes(SIB) ? false : real(ids, d)));
+    try {
+      const r = await known();
+      expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF)]);
+      await expect(play({ code: 'AB12CD', chip: chip(SIB), via: 'known', device_ref: DEV })).rejects.toMatchObject({ status: 404 });
+    } finally { spy.mockRestore(); }
+  });
+
   test('an Urdu class link shows the name as written in Urdu', async () => {
     seed();
     db.quiz_share_codes.find((c) => c.id === F.SC).language = 'ur';
