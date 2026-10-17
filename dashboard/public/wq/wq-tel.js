@@ -30,6 +30,10 @@
  *
  * window.WQT.nowrap(html) is the pages' one helper for «واٹس ایپ» (WhatsApp), here for the same reason: the word is
  * never broken across a line («واٹس / ایپ»). Always there, switch on or off.
+ *
+ * window.WQT.oneButton(answer) puts the one-button look's class (`wq-1b`, wq.css) on <html> when a bot answer says
+ * `one_button: true` (app_settings web_quiz_one_button); run here on the boot, before any page script draws, and by a
+ * page that gets its answer later (the library). Anything else: nothing changes.
  */
 (function () {
   'use strict';
@@ -56,9 +60,11 @@
     if (HC.ht && typeof o.chip === 'string' && o.chip) HC.chip = o.chip;
   }
   function batchIds() { var o = {}, k; for (k in HC) o[k] = HC[k]; return o; }
-  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang, nowrap: nowrap, setIds: setIds, batchIds: batchIds };
+  function oneButton(o) { try { if (o && o.one_button === true) document.documentElement.classList.add('wq-1b'); } catch (e) {} }
+  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang, nowrap: nowrap, setIds: setIds, batchIds: batchIds, oneButton: oneButton };
   var B;
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return; }
+  oneButton(B);
   if (!B || B.rt !== true) return;
 
   var ROOT = document.getElementById('wq');

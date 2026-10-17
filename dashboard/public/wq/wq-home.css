@@ -67,3 +67,10 @@ html[lang=ur] .wq-gsheet .wq-ghost{text-decoration:none;border-bottom:2px solid 
 .wq-remember.wq-remgone{opacity:0}
 html[lang=ur] .wq-remember{font-family:var(--fu);font-size:17px;line-height:1.9}
 html[lang=ur] .wq-remundo{text-decoration:none;border-bottom:2px solid currentColor;border-radius:0}
+/* The grown-ups hold, one-button look (html.wq-1b): the button is the component's hold kind (wq.css .wq-btn--hold:
+   "Hold for grown-ups", a ring around the lock that fills over the 2 s, the words above it); a short tap shows
+   "Keep holding" under it. */
+html.wq-1b .wq-grown{flex-direction:column;align-items:center}
+html.wq-1b .wq-ghint{margin:8px 0 0;color:var(--brand-d);font-weight:800;font-size:15px;text-align:center}
+html.wq-1b .wq-ghint[hidden]{display:none}
+html.wq-1b[lang=ur] .wq-ghint{font-family:var(--fu);font-weight:400;font-size:17px;line-height:1.9}
