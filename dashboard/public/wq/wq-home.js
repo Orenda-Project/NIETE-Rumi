@@ -17,7 +17,7 @@
       storiesSay: 'Stories you read with Jugnu', gamesSay: 'Games with numbers and sounds', videosSay: 'Videos your teacher chose',
       soon: 'Coming soon', home: 'Home',
       nextQuiz: 'Your teacher\'s quiz', nextCont: 'Finish your quiz', nextStory: 'Read a story with Jugnu', nextListen: 'Listen to a story',
-      nextGame: 'Play a game with Jugnu', nextNumbers: 'Play the numbers game', nextVideo: 'Watch a video', nextAgain: 'Play again',
+      nextGame: 'Come along with Jugnu', nextNumbers: 'Play the numbers game', nextVideo: 'Watch a video', nextAgain: 'Play again',
       nextNone: 'Ask your teacher for a quiz link', nextPick: 'Pick a story', playQuiz: 'Play a quiz',
       weekStory: 'This week\'s story', listen: 'Listen to a story', shelf: 'Storybooks', numbers: 'Numbers with Jugnu',
       fromTeacher: 'From your teacher', again: 'Play again', newTag: 'New', newQuiz: 'New', openVideos: 'Open the videos',
@@ -34,7 +34,7 @@
       storiesSay: 'جگنو کے ساتھ کہانیاں پڑھیں اور سنیں', gamesSay: 'گنتی اور آوازوں کے کھیل', videosSay: 'ٹیچر کی چنی ہوئی ویڈیوز',
       soon: 'جلد آ رہا ہے', home: 'ہوم',
       nextQuiz: 'ٹیچر کا کوئز', nextCont: 'اپنا کوئز مکمل کریں', nextStory: 'جگنو کے ساتھ کہانی پڑھیں', nextListen: 'کہانی سنیں',
-      nextGame: 'جگنو کے ساتھ کھیلیں', nextNumbers: 'گنتی کا کھیل کھیلیں', nextVideo: 'ویڈیو دیکھیں', nextAgain: 'دوبارہ کھیلیں',
+      nextGame: 'جگنو کے ساتھ چلیں', nextNumbers: 'گنتی کا کھیل کھیلیں', nextVideo: 'ویڈیو دیکھیں', nextAgain: 'دوبارہ کھیلیں',
       nextNone: 'ٹیچر سے کوئز کا لنک لیں', nextPick: 'کہانی چنیں', playQuiz: 'کوئز کھیلیں',
       weekStory: 'اس ہفتے کی کہانی', listen: 'کہانی سنیں', shelf: 'کہانیوں کی کتابیں', numbers: 'جگنو کے ساتھ گنتی',
       fromTeacher: 'ٹیچر کی طرف سے', again: 'دوبارہ کھیلیں', newTag: 'نئی', newQuiz: 'نیا', openVideos: 'ویڈیوز کھولیں',
@@ -83,7 +83,9 @@
     // A game tile opens the one game it names (#next: the first not done; #numbers: the warm-up; wq-trail.js), never the list.
     var x = B.play && B.play.lantern;
     if (x && B.challenge && B.challenge.on) {
-      if (x.kind === 'trail') return { kind: 'game', title: t.nextGame, sub: '', href: chHref(B, ctx) + '#next', src: 'lantern', minutes: 2 };
+      // the games list's first open step may be a game, a read or a listen: the tile names it when the server does (in
+      // the page's language), else neutral words that promise none of them
+      if (x.kind === 'trail') return { kind: 'game', title: (x.first && x.first.label && x.first.lang === l) ? x.first.label : t.nextGame, sub: '', href: chHref(B, ctx) + '#next', src: 'lantern', minutes: 2 };
       if (x.kind === 'story' && x.title) return { kind: 'story', title: t.nextStory, sub: x.title, href: chHref(B, ctx) + (x.pid ? '&room=story&pid=' + encodeURIComponent(x.pid) : ''), src: 'lantern', minutes: 2 };
       if (x.kind === 'numbers') return { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx) + '#numbers', src: 'lantern', minutes: 1 };
     }
@@ -223,10 +225,8 @@
   function door(B, ctx, name) {
     var t = C(ctx); var d = doorsOf(B); var rows = '';
     if (name === 'stories') {
-      rows = d.stories.map(function (s) {
-        if (s.kind === 'shelf') return '<li class="wq-stories-shelf" data-stories-shelf="1"></li>';
-        return rowHtml(storyHref(B, ctx, s), s.title || (s.kind === 'listen' ? t.listen : t.weekStory), s.title ? (s.kind === 'listen' ? t.listen : t.weekStory) : '', s.fresh ? t.newTag : '', s.kind);
-      }).join('');
+      // the storybooks' door: the shelf only (a passage opens from the Games door and the Next tile)
+      rows = d.stories.filter(function (s) { return s.kind === 'shelf'; }).map(function () { return '<li class="wq-stories-shelf" data-stories-shelf="1"></li>'; }).join('');
     } else if (name === 'games') {
       rows = d.games.map(function (g) {
         if (g.kind === 'numbers') return rowHtml(chHref(B, ctx), t.numbers, '', '', 'numbers');

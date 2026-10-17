@@ -1483,6 +1483,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       fixT: function (n) { return 'Roll number for ' + n + '?'; }, fixSay: 'Type the roll number from your class list.',
       isKid: function (n) { return 'Is this ' + n + '?'; }, yes: 'Yes', fixed: 'Fixed.',
       practice: function (c, t) { return 'Practice round · your first score ' + c + '/' + t + ' is the one that counts'; },
+      preview: "This is your preview. It isn't saved for your class.",
       newBest: 'New best!', wasBest: 'was',
       tFor: 'For you, the teacher', tLead: 'Your class plays this from the link you forwarded. See who has played, or try it yourself.',
       sumOf: function (p, of) { return p + ' of ' + of + ' played'; }, sumN: function (p) { return p + ' played'; },
@@ -1514,6 +1515,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       fixT: function (n) { return n + ' کا رول نمبر؟'; }, fixSay: 'کلاس لسٹ سے رول نمبر لکھیں۔',
       isKid: function (n) { return 'کیا یہ ' + n + ' ہے؟'; }, yes: 'جی ہاں', fixed: 'درست ہو گیا۔',
       practice: function (c, t) { return 'مشق کا راؤنڈ · پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; },
+      preview: 'یہ صرف آپ کے دیکھنے کے لیے تھا۔ آپ کے جوابات کلاس کے ریکارڈ میں محفوظ نہیں کیے گئے۔',
       newBest: 'نیا ریکارڈ!', wasBest: 'پہلے',
       tFor: 'استاد کے لیے', tLead: 'آپ کی کلاس یہ کوئز آپ کے بھیجے ہوئے لنک سے کھیلتی ہے۔ دیکھیں کس نے کھیلا، یا خود آزمائیں۔',
       sumOf: function (p, of) { return of + ' میں سے ' + p + ' نے کھیلا'; }, sumN: function (p) { return p + ' نے کھیلا'; },
@@ -2277,6 +2279,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var lastRetryOk = false;
 
   /* ---------------- results (M9) ---------------- */
+  // A round that does not count (the finish card on, card_v3): a teacher's own run (preview) says it is not saved;
+  // "Play again" on this phone (?again=1) or the finish naming this device shows the card's practice line (the kept
+  // first score); "another phone" only when it was another phone.
+  function pracBanner(res, total) {
+    if (res.card_v3 && res.reason === 'preview') return '<div class="wq-banner">' + esc(TW.preview) + '</div>';
+    if (!res.card_v3 || (!AGAIN && res.reason !== 'already_finished')) return '<div class="wq-banner">' + esc(T.prac) + '</div>';
+    // no kept first score on the card: this round's score is the one shown
+    var k = (res.card && res.card.kept) || { correct: (res.score || {}).correct || 0, total: total };
+    return '<div class="wq-banner">' + esc(TW.practice(scoreN(k.correct), scoreN(k.total || total))) + '</div>';
+  }
   function results(fixed) {
     render(bar() + '<div class="wq-boot"><img src="' + jv(IMG + 'thinking.webp') + '" alt="" width="96"></div>', 'M9-wait');
     wireBar();
@@ -2290,7 +2302,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<h1>' + esc(T.got(sc.correct, total)) + '</h1>' + stars(sc.correct, total) +
         (fixed ? '<p class="wq-sub">' + esc(T.fixedLine(fixed)) + '</p>' : '') +
         '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
-        (res.counted === false ? '<div class="wq-banner">' + esc(T.prac) + '</div>' : '') +
+        (res.counted === false ? pracBanner(res, total) : '') +
         '<button class="wq-btn wq-go" id="wq-card"' + (window.WQJ ? ' data-primary' : '') + '>' + esc(T.seeCard) + '</button>' + // the kit (web_quiz_juice): one primary
         // The home on (finish's card_fold): the card is the one way on from here; the class table and the videos live on the home.
         (foldOn(res) ? '' : (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn());
@@ -3191,7 +3203,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   var HX = B.view === 'class' || B.view === 'schools' || B.preview ? '' : handsetX();
   if (B.view === 'schools') schools(afterResult);
-  else if (B.view === 'class') board();
+  // a story has no class board: its class view (/q/<code>/class) opens the story's landing below
+  else if (B.view === 'class' && !B.story) board();
   else if (FROM) { ev('more_arrive', {}); if (FROM.t) ev('more_timing', { nav_ms: Date.now() - FROM.t }); startSession({ from_st: FROM.st }, null, ''); }
   else if (B.link_home && !AGAIN && !B.preview && !B.invited && !B.challenge && !HX && !S.queue.length && !S.pending && (S.result ? S.st : !S.st) && kids().length === 1 && sget('wq_d', null)) linkHome(function () { if (S.result) card(); else landing(); });
   else if (S.result && S.st) card();
