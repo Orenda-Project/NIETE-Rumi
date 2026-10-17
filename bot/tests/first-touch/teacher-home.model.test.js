@@ -75,3 +75,23 @@ describe('a story the teacher sent this month', () => {
     expect(require('crypto').createHash('sha256').update(JSON.stringify(h)).digest('hex').slice(0, 16)).toBe('f90b85165ab766f6');
   });
 });
+
+describe('the top card names what it sends again (only with `named`)', () => {
+  const sent = (src) => new Map([['s1', { played: 0, of: 30, date: day(0.1), topic: "What's Next?", source: src, book: src === 'story' ? 'b1' : null }]]);
+
+  test('a story send → item "story"; any other send → item "quiz"', () => {
+    expect(home({ played: sent('story'), named: true }).primary).toMatchObject({ kind: 'class', title: "What's Next?", item: 'story' });
+    expect(home({ played: sent('video'), named: true }).primary).toMatchObject({ kind: 'class', item: 'quiz' });
+    expect(home({ shares: [share(0.1, 0)], named: true }).primary).toMatchObject({ kind: 'class', title: 'Shapes', item: 'quiz' });
+    const own = { kind: 'lesson', key: 'lsn_own', date: day(0.1), state: 'sent', quizId: 'qo', topic: 'Water' };
+    expect(home({ lessons: [own], played: new Map([['qo', { played: 0, of: 30, date: day(0.1), topic: 'Water' }]]), named: true }).primary)
+      .toMatchObject({ kind: 'class', title: 'Water', item: 'quiz' });
+  });
+
+  test('without `named` the card is today\'s: no item key, the same JSON', () => {
+    const off = home({ played: sent('story') });
+    expect(off.primary.kind).toBe('class');
+    expect('item' in off.primary).toBe(false);
+    expect(JSON.stringify(home({ played: sent('story'), named: false }))).toBe(JSON.stringify(off));
+  });
+});

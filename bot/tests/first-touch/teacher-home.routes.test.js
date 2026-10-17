@@ -40,6 +40,9 @@ const Gate = require('../../shared/services/quiz/teacher-report-gate');
 const List = require('../../shared/services/quiz/transcript-quiz-list.service');
 const Bank = require('../../shared/services/first-touch/maker.bank');
 const Flags = require('../../shared/services/first-touch/teacher-home.flags');
+const CountsFlag = require('../../shared/services/first-touch/teacher-home-counts.flag');
+const MoreFlags = require('../../shared/services/first-touch/teacher-home.more-flags');
+const Page = require('../../shared/services/first-touch/teacher-home.page');
 const HomeToken = require('../../shared/services/first-touch/teacher-home.token');
 const { createRouter } = require('../../shared/services/first-touch/teacher-home.routes');
 const { str, fill } = require('../../shared/services/first-touch/teacher-home.strings');
@@ -70,7 +73,7 @@ const nonSwitchReads = () => fake.calls.filter((c) => c.table !== 'app_settings'
 function seed({ on = true, value = true, extra = {}, settings = [] } = {}) {
   fake = seedMaker(supabase, { on: true, extra });
   fake.db.app_settings = [...fake.db.app_settings, ...(on ? [{ key: 'quiz_teacher_home', value }] : []), ...settings];
-  Flags.reset(); IdFlags._resetCache(); HubFlags._resetCache(); Gate._resetCache(); Bank._resetCache();
+  Flags.reset(); IdFlags._resetCache(); HubFlags._resetCache(); Gate._resetCache(); Bank._resetCache(); CountsFlag._resetCache(); MoreFlags._resetCache();
 }
 /** /quiz's own list, stood in for (its providers read a dozen tables); lessonItems + quizState stay real. */
 function listWith({ sessions = [], quizzes = [], lessons = [] } = {}) {
@@ -925,6 +928,227 @@ describe('a code minted to show its message is not a send until the tap', () => 
     expect(after.timeline[0]).toMatchObject({ kind: 'quiz', verb: 'again', sendKind: 'share', id: first.primary.send.c });
     // one row per send: the class report's sender row for the same library quiz is not a second, "own" row
     expect(after.timeline.filter((r) => r.id === qid(2))).toEqual([]);
+  });
+});
+
+describe('the library card\'s story counts', () => {
+  const shelf = () => jest.fn(async () => ({ books: [{ id: 'b1', title: 'Rain' }] }));
+  const COUNTS_ON = [{ key: 'quiz_teacher_story_counts', value: true }];
+  const homeText = async () => { const res = await get(`/api/th/home?t=${tokenFor()}&g=3`); expect(res.status).toBe(200); return res.text(); };
+
+  test('the teacher\'s sends and readers → library.counts on the home, read for the whole teacher', async () => {
+    seed({ settings: COUNTS_ON });
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+    await boot(deps);
+    const home = JSON.parse(await homeText());
+    expect(home.library.counts).toEqual({ sent: 3, read: 7 });
+    expect(deps.Stories.storyCounts).toHaveBeenCalledTimes(1);
+    expect(deps.Stories.storyCounts.mock.calls[0][0]).toBe(TEACHER.id);
+    expect(deps.Stories.storyCounts.mock.calls[0][1]).toBeUndefined();
+  });
+
+  test('the grade change\'s library answer carries no counts (the page keeps the home\'s)', async () => {
+    seed({ settings: COUNTS_ON });
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+    await boot(deps);
+    const lib = await (await get(`/api/th/library?t=${tokenFor()}&g=4`)).json();
+    expect('counts' in lib).toBe(false);
+  });
+
+  test.each([
+    ['nothing sent', async () => ({ sent: 0, read: 0 })],
+    ['the switch off (null)', async () => null],
+    ['a read that throws', async () => { throw new Error('down'); }],
+    ['a sync throw', () => { throw new Error('boom'); }],
+  ])('%s → no counts key: the home JSON is byte-identical to a home without the counts read (golden)', async (_name, fn) => {
+    seed({ settings: COUNTS_ON });
+    deps.Stories = { flagOn: async () => true, shelf: shelf() };
+    await boot(deps);
+    const without = await homeText();
+    srv.close();
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(fn) };
+    await boot(deps);
+    const withCounts = await homeText();
+    expect(withCounts).toBe(without);
+    expect('counts' in JSON.parse(withCounts).library).toBe(false);
+  });
+
+  test('the counts read runs alongside the other reads: a slow lessons read and a slow counts read cost the slower one, not their sum', async () => {
+    seed({ settings: COUNTS_ON });
+    const LESSONS_MS = 900;
+    const COUNTS_MS = 700;
+    const slowList = listWith();
+    const load = slowList.loadLessonPage;
+    slowList.loadLessonPage = jest.fn((...a) => new Promise((r) => setTimeout(() => r(load(...a)), LESSONS_MS)));
+    deps.List = slowList;
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(() => new Promise((r) => setTimeout(() => r({ sent: 3, read: 7 }), COUNTS_MS))) };
+    await boot(deps);
+    const t0 = Date.now();
+    const home = JSON.parse(await homeText());
+    const took = Date.now() - t0;
+    expect(home.library.counts).toEqual({ sent: 3, read: 7 });
+    expect(slowList.loadLessonPage).toHaveBeenCalled();
+    expect(took).toBeGreaterThanOrEqual(LESSONS_MS);
+    expect(took).toBeLessThan(LESSONS_MS + COUNTS_MS - 200); // in series it would be ≥ 1600 ms
+  });
+
+  test('a counts read past the side budget → no key, and the home still answers', async () => {
+    seed({ settings: COUNTS_ON });
+    let timer;
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(() => new Promise((r) => { timer = setTimeout(() => r({ sent: 5, read: 9 }), 6000); })) };
+    await boot(deps);
+    try {
+      const t0 = Date.now();
+      const home = JSON.parse(await homeText());
+      expect(Date.now() - t0).toBeLessThan(5500);
+      expect('counts' in home.library).toBe(false);
+      expect(home.library.stories.map((b) => b.id)).toEqual(['b1']);
+    } finally { clearTimeout(timer); }
+  }, 15000);
+  test.each([
+    ['absent', []],
+    ['the string "true"', [{ key: 'quiz_teacher_story_counts', value: 'true' }]],
+    ['false', [{ key: 'quiz_teacher_story_counts', value: false }]],
+    ['1', [{ key: 'quiz_teacher_story_counts', value: 1 }]],
+  ])('the counts switch %s → the counts are never read; the home JSON is byte-identical to a home without them', async (_name, settings) => {
+    seed({ settings });
+    deps.Stories = { flagOn: async () => true, shelf: shelf() };
+    await boot(deps);
+    const without = await homeText();
+    srv.close();
+    CountsFlag._resetCache();
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+    await boot(deps);
+    const withCounts = await homeText();
+    expect(deps.Stories.storyCounts).not.toHaveBeenCalled();
+    expect(withCounts).toBe(without);
+    expect('counts' in JSON.parse(withCounts).library).toBe(false);
+  });
+
+  test('the shell with the counts switch on is the counts page; absent, false or the string "true" → today\'s page, byte for byte', async () => {
+    const shellOf = async () => { const r = await get(`/quiz/teacher/${tokenFor()}`); expect(r.status).toBe(200); return r.text(); };
+    seed({ settings: COUNTS_ON });
+    await boot(deps);
+    expect(await shellOf()).toBe(Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null, counts: true }).html);
+    for (const settings of [[], [{ key: 'quiz_teacher_story_counts', value: false }], [{ key: 'quiz_teacher_story_counts', value: 'true' }]]) {
+      srv.close();
+      CountsFlag._resetCache();
+      seed({ settings });
+      await boot(deps);
+      expect(await shellOf()).toBe(Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null }).html);
+    }
+  });
+
+  // the quick answer (quiz_teacher_home_paged ON) carries the same counts line as the full answer
+  const PAGED = { key: 'quiz_teacher_home_paged', value: true };
+  test('the quick answer (paged ON) → the same library.counts as the full answer, read once for the whole teacher', async () => {
+    seed({ settings: [...COUNTS_ON, PAGED] });
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+    await boot(deps);
+    const home = JSON.parse(await homeText());
+    expect(home.library.counts).toEqual({ sent: 3, read: 7 });
+    expect(deps.Stories.storyCounts).toHaveBeenCalledTimes(1);
+    expect(deps.Stories.storyCounts.mock.calls[0][0]).toBe(TEACHER.id);
+  });
+
+  test('the quick answer and the full answer give the same JSON with the counts line (paged ON == OFF, counts ON)', async () => {
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now()); // both homes sign their maker link in the same second
+    try {
+      seed({ settings: COUNTS_ON });
+      deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+      await boot(deps);
+      const full = JSON.parse(await homeText());
+      srv.close();
+      seed({ settings: [...COUNTS_ON, PAGED] });
+      deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+      await boot(deps);
+      const quick = JSON.parse(await homeText());
+      expect(quick.library).toEqual(full.library);
+    } finally { clock.mockRestore(); }
+  });
+
+  test.each([
+    ['the counts switch absent', [], async () => ({ sent: 3, read: 7 })],
+    ['nothing sent', COUNTS_ON, async () => ({ sent: 0, read: 0 })],
+    ['a read that throws', COUNTS_ON, async () => { throw new Error('down'); }],
+  ])('the quick answer, %s → no counts key', async (_name, settings, fn) => {
+    seed({ settings: [...settings, PAGED] });
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(fn) };
+    await boot(deps);
+    const home = JSON.parse(await homeText());
+    expect('counts' in home.library).toBe(false);
+    if (!settings.length) expect(deps.Stories.storyCounts).not.toHaveBeenCalled();
+  });
+
+});
+
+
+describe('the top card\'s named item and the early grade pick: two switches of their own', () => {
+  const NAMED = 'quiz_teacher_home_named_item';
+  const EARLY = 'quiz_teacher_home_early_pick';
+  function seedSent(settings) {
+    const at = new Date(Date.now()).toISOString(); // Date.now is held in the byte-for-byte rows
+    seed({ extra: { coaching_sessions: [], quiz_sessions: [] }, settings });
+    fake.db.quizzes.push({
+      id: OWN_QUIZ, teacher_id: TEACHER.id, quiz_source: 'transcript', status: 'sent', topic: 'Photosynthesis', subject: 'Science',
+      coaching_session_id: SESSION, created_at: at,
+      meta: { student_message: 'Class, play this quiz: https://portal.example/q/ABCDEF', share_code_id: OWN_CODE, share_code: 'ABCDEF' },
+    });
+    fake.db.quiz_share_codes.push({ id: OWN_CODE, code: 'ABCDEF', quiz_id: OWN_QUIZ, teacher_user_id: TEACHER.id, active: true, expires_at: new Date(Date.now() + 86400000).toISOString(), created_at: at, invited_by_student_id: null });
+    const quiz = fake.db.quizzes.find((q) => q.id === OWN_QUIZ);
+    deps = { List: listWith({ sessions: [{ id: SESSION, created_at: at, transcript_text: 'x', analysis_data: { topic: 'Photosynthesis' } }], quizzes: [quiz] }) };
+  }
+  const homeText = async () => { const r = await get(`/api/th/home?t=${tokenFor()}`); expect(r.status).toBe(200); return r.text(); };
+  const pageOf = async (lang = 'en') => { const r = await get(`/quiz/teacher/${tokenFor({ lang })}`); expect(r.status).toBe(200); return { html: await r.text(), csp: r.headers.get('content-security-policy') }; };
+
+  test('both ON (JSON true): the page is the variant built with both, and the class card names its item', async () => {
+    seedSent([{ key: NAMED, value: true }, { key: EARLY, value: true }]);
+    await boot(deps);
+    const page = await pageOf();
+    const want = Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null, named: true, early: true });
+    expect(page.html).toBe(want.html);
+    expect(page.csp).toBe(want.csp);
+    expect(page.html).not.toBe(Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null }).html);
+    const home = JSON.parse(await homeText());
+    expect(home.primary).toMatchObject({ kind: 'class', title: 'Photosynthesis', item: 'quiz' });
+  });
+
+  test('the quick answer (paged ON) names the item too, and its page is the paged variant with both parts', async () => {
+    seedSent([{ key: 'quiz_teacher_home_paged', value: true }, { key: NAMED, value: true }, { key: EARLY, value: true }]);
+    await boot(deps);
+    expect(JSON.parse(await homeText()).primary).toMatchObject({ kind: 'class', title: 'Photosynthesis', item: 'quiz' });
+    const page = await pageOf();
+    expect(page.html).toBe(Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null, paged: true, named: true, early: true }).html);
+  });
+
+  test('one ON, the other absent: each switch alone picks its own variant', async () => {
+    seedSent([{ key: EARLY, value: true }]);
+    await boot(deps);
+    expect((await pageOf('ur')).html).toBe(Page.buildShell({ token: tokenFor({ lang: 'ur' }), lang: 'ur', switchTo: null, asked: null, early: true }).html);
+    expect('item' in JSON.parse(await homeText()).primary).toBe(false);
+  });
+
+  test.each([
+    ['absent', []],
+    ['the string "true"', [{ key: NAMED, value: 'true' }, { key: EARLY, value: 'true' }]],
+    ['false', [{ key: NAMED, value: false }, { key: EARLY, value: false }]],
+  ])('%s → today\'s page and today\'s home JSON, byte for byte', async (_name, settings) => {
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now()); // both homes sign their maker link in the same second
+    seedSent(settings);
+    await boot(deps);
+    const page = await pageOf();
+    const today = Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null });
+    expect(page.html).toBe(today.html);
+    expect(page.csp).toBe(today.csp);
+    const text = await homeText();
+    expect('item' in JSON.parse(text).primary).toBe(false);
+    srv.close();
+    seedSent([]);
+    await boot(deps);
+    const again = await homeText();
+    expect(JSON.parse(again)).toEqual(JSON.parse(text));
+    expect(again).toBe(text);
+    clock.mockRestore();
   });
 });
 
