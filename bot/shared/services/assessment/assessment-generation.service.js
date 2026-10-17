@@ -729,7 +729,7 @@ async function generateExam(args) {
 // calls it, so a paper without a pattern is built exactly as it always was.
 
 const Patterns = require('./patterns');
-const { applyLayout, takenNote, verseLines, scopeLessons } = require('./fde-layout');
+const { applyLayout, takenNote, firstAskNote, verseLines, scopeLessons } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 const Reader = require('./fde-reader');
@@ -762,9 +762,18 @@ const SECTION_MAX_TOKENS = 32000;
 const SECTION_TIMEOUT_MS = 300000;
 const SECTION_REASONING = { effort: 'low' };
 
+/**
+ * Social Studies C and D: the first ask writes spares past what prints, and the layout keeps the
+ * first items that are new. A held item (a Section A fact asked again, a point set another item
+ * answers) then leaves no gap, and a reader flag later is less likely to take a choice slot below
+ * what it must offer. Every other slot asks exactly what it prints.
+ */
+const FIRST_ASK_SPARES = Object.freeze({ 'social_studies.C.Q5': 2, 'social_studies.D.Q6': 2, 'social_studies.D.Q7': 2 });
+const firstAsk = (slot) => (Number(slot.generate) || 0) + (FIRST_ASK_SPARES[slot.slot] || 0);
+
 /** The output ceiling for one section's call, from the items its slots generate. */
 function sectionMaxTokens(section) {
-  const want = (section.slots || []).reduce((sum, slot) => sum + (Number(slot.generate) || 0)
+  const want = (section.slots || []).reduce((sum, slot) => sum + firstAsk(slot)
     * (slot.shape === 'mcq' ? SECTION_TOKENS_PER_MCQ : SECTION_TOKENS_PER_WRITTEN), 0);
   return Math.min(SECTION_MAX_TOKENS, Math.max(SECTION_MIN_TOKENS, want));
 }
@@ -911,8 +920,25 @@ const RULE = {
   // Social Studies: a paraphrase of a fact is not a repeated stem, so noRepeats lets Q5 and Q7 re-ask it.
   // The sections are written in parallel, so the rule names the slots, not their items.
   sstNoReask: 'Q5 and Q7 never ask a fact that a Section A item (stem or key) or a Q6 item on this paper already tests.',
-  // Social Studies Apply marks come from situations; the model follows a counted slot rule, not sstQ56's wording alone.
-  sstSituations: (q, n, total) => `Of the ${total} ${q} items, at least ${n} give a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and ask the child to use a concept from these pages to decide or explain; the rest may explain or compare book facts.`,
+  // Social Studies: one thinking level per choice group, as FDE's own paper sets them (Q7 recall,
+  // Q5 define / explain / compare, Q6 explain or apply in a situation). A mixed slot put one book-recall
+  // item among situations, so the child's choice changed how hard the paper was. Q6's situations carry
+  // the Apply marks the counted situation rule used to spread over Q5 and Q6.
+  sstBand: {
+    Q5: 'Every Q5 item is Understand: define a term, explain why, give two reasons, or compare two things from these pages. No Q5 item sets a situation to decide, and none is a one-fact recall item.',
+    Q6: 'Every Q6 item is Apply: it sets a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and asks the child to use a concept from these pages to decide or explain. No Q6 item asks to define, list or recall a book fact. '
+      + 'A Q6 situation needs the child to apply two different ideas from these pages; never one fact said twice (never "name the tier" twice, never the same government or body as the answer to both parts). '
+      + 'No computation in a Q6 item (no degrees, hours or numbers to work out), and never a list of names or book facts to recall dressed as a situation (a poster of names, a quiz). '
+      + 'A Q6 situation never asks a history fact; history recall goes to Q7. '
+      + 'Nor does it ask only civics or geography facts (who heads or chairs a body, what it is called, how many, when): that recall goes to Q7 too. '
+      + 'Nor is a Q6 answered by naming which government, court or body does a job, even with the book\'s one-line reason: besides any marking point that names a government, court or body, at least two of its marking points explain an idea without naming one. '
+      + 'A Q6 is never "which map, which medium or which government for each need": such items go to Q7 as one-fact items.',
+    Q7: 'Every Q7 item is Remember: one fact (who, what, where, when, how many) answered in one line. No Q7 item asks why or sets a situation.',
+  },
+  sstGroups: 'The child chooses which items of a question to answer, so every item of Q5, of Q6 and of Q7 is the same kind as the others in its question and as hard.',
+  // Social Studies: a marking point that names no fact («پہلی وجہ درست بتانا») tells the teacher nothing
+  // to look for, and the layout compares items by their points.
+  sstFactPoints: 'Each marking point states its fact (e.g. «آئین بنیادی حقوق کا تحفظ کرتا ہے»), never «پہلی وجہ», «دوسری وجہ», «درست وضاحت».',
   spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
   // The page store runs p.29's three columns together line by line, so a model read the provincial
   // cell (encroachments on public roads) as local work. Given column by column when the pages hold
@@ -926,7 +952,6 @@ const RULE = {
     '  An item, key or marking point that says which government (وفاقی، صوبائی یا مقامی) does a job takes it from these rows only; a job the rows do not name is not asked as a which-government item.',
     '  A which-government item asks about one job; a situation with two jobs names each job\'s government from its own row, never both under one government.',
   ].join('\n'),
-  sstQ56: 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.',
   accept: '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.',
   mathsSectionC: 'Section C is also set from the pages above: keep each slot\'s marks and item shape (a word problem stays a word problem, a calculation a calculation) and take the topic from these pages.',
   grammarFromPages: 'Q1(a) grammar MCQs test only the grammar these pages teach. If the pages teach fewer grammar points than there are MCQs, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.',
@@ -1049,12 +1074,17 @@ function _marksPhrase(slot) {
 /** One slot as the model is asked for it: every field read from the pattern, nothing typed. */
 function _slotBlock(slot, lang) {
   const label = lang === 'ur' && slot.label_ur ? `${slot.label_en} (${slot.label_ur})` : slot.label_en;
+  const asked = firstAsk(slot);
   const lines = [
-    `• ${label} — generate EXACTLY ${slot.generate} item${slot.generate === 1 ? '' : 's'} under unseen.${slot.category}."${slot.type}"; `
+    `• ${label} — generate EXACTLY ${asked} item${asked === 1 ? '' : 's'} under unseen.${slot.category}."${slot.type}"; `
       + `tag every item "slot": "${slot.slot}"; ${_marksPhrase(slot)}.`,
   ];
   if (slot.attempt < slot.generate) {
     lines.push(`  Choice: the child chooses ${slot.attempt} of ${slot.generate}; make all ${slot.generate} the same difficulty.`);
+  }
+  if (asked > slot.generate) {
+    lines.push(`  Spares: the last ${asked - slot.generate} are spares, the same difficulty; the paper prints the first ${slot.generate} `
+      + 'that ask nothing another item on this paper asks.');
   }
   if (slot.prompt_rule) lines.push(`  Rule: ${slot.prompt_rule}`);
   const g = slot.grain;
@@ -1233,7 +1263,6 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if ((key === 'science' || key === 'social_studies') && list.some((s) => s.shape === 'frame')) rules.push(RULE.frameLabels);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) rules.push(RULE.situationParts);
   if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
-  if (key === 'social_studies' && list.some((s) => /\.Q[56]$/.test(s.slot))) rules.push(RULE.sstQ56);
   if (key === 'urdu' && list.some((s) => /\.Q4$/.test(s.slot))) rules.push(RULE.urduQ4, RULE.urduQ4Group, RULE.urduQ4GroupNotListed);
   if (key === 'urdu' && list.some((s) => s.slot === 'urdu.C.Q6')) rules.push(RULE.urduQ6Points);
   rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender, RULE.people);
@@ -1241,9 +1270,9 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   rules.push(RULE.noRepeats);
   if (key === 'social_studies' && list.some((s) => /\.Q[57]$/.test(s.slot))) rules.push(RULE.sstNoReask);
   if (key === 'social_studies') {
-    for (const s of list.filter((x) => /\.Q[56]$/.test(x.slot))) {
-      rules.push(RULE.sstSituations(s.slot.split('.').pop(), Math.ceil(s.generate / 2), s.generate));
-    }
+    const bands = list.map((s) => RULE.sstBand[s.slot.split('.').pop()]).filter(Boolean);
+    if (bands.length) rules.push(...bands, RULE.sstGroups);
+    if (list.some((s) => /\.[CD]\./.test(s.slot))) rules.push(RULE.sstFactPoints);
   }
   if (key === 'social_studies') {
     const inPages = _holdsTierTable(pageContent);
@@ -1447,6 +1476,17 @@ function _emptyQuestionParts(examJson) {
 /**
  * The first reply, plus the second reply's items for the given slots that are not already in it. Nothing else of the second reply is kept.
  */
+// For each short slot: the items a section's reply wrote under it and the layout's holds of it, by rule.
+function _shortWhy(shortfall, tree, held) {
+  return shortfall.map((f) => {
+    let written = 0;
+    _walkQuestions(tree, (q) => { if (q && q.slot === f.slot) written += 1; });
+    const rules = {};
+    for (const h of held || []) if (h.slot === f.slot) rules[h.rule] = (rules[h.rule] || 0) + 1;
+    return { slot: f.slot, written, held: rules };
+  });
+}
+
 function _topUp(firstTree, secondTree, slots) {
   // Keyed on everything the item says, not its question line alone: an item whose stem sits in
   // another field has no question line, and two of those are not the same item.
@@ -1885,7 +1925,7 @@ function _addItem(examJson, slotId, q) {
 }
 
 async function _askReader({ examJson, P, only = null, model, ownModel, job, usages, reasoning = READER_REASONING }) {
-  const { prompt, labels, only: onlyLabels, blocks } = Reader.buildReaderPrompt(examJson, P, { only });
+  const { prompt, labels, only: onlyLabels, blocks, split } = Reader.buildReaderPrompt(examJson, P, { only });
   const response = await getClient().chat.completions.create({
     model,
     job,
@@ -1900,7 +1940,7 @@ async function _askReader({ examJson, P, only = null, model, ownModel, job, usag
   // A client that already parsed the JSON hands back an object: read it, never skip the pass for it.
   const content = response?.choices?.[0]?.message?.content;
   const reply = content && typeof content === 'object' ? content : extractJsonFromResponse(content || '');
-  return { flags: Reader.parseFlags(reply, labels, onlyLabels, blocks), labels };
+  return { flags: Reader.parseFlags(reply, labels, onlyLabels, blocks, { split }), labels };
 }
 
 async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId }) {
@@ -1990,6 +2030,178 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
     return done(laid.examJson, laid);
   } catch (err) {
     return done(laid.examJson, laid, `top-up: ${err.message}`);
+  }
+}
+
+/**
+ * Social Studies: the first-ask spares a D slot could take when the reader's re-check might leave it
+ * short. A slot is at risk when it is short with every replacement taken off; its spares are the items
+ * of `source` (the model's replies) that a layout of the paper, without the replacements, places in
+ * it: new against everything the layout holds against, and not an item the reader caught. Laid out
+ * (their slot, marks and lines set). None when no slot is at risk.
+ */
+function _sstSpares({ exam, source, replacements, caught, lay }) {
+  if (!source) return [];
+  const without = replacements.reduce((e, q) => _dropItems(e, q.slot, new Set([_readerId(q)])), exam);
+  const risk = new Set(lay(without).shortfall.map((f) => f.slot).filter((slot) => SST_D_SLOTS.includes(slot)));
+  if (!risk.size) return [];
+  const onPaper = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
+  const caughtIds = new Set(caught.map((h) => _readerId(h.q)));
+  const trial = lay(_topUp(without, source, risk)).examJson;
+  return [...risk].flatMap((slot) => Reader.itemsOf(trial, slot))
+    .filter((q) => !onPaper.has(_readerId(q)) && !caughtIds.has(_readerId(q)));
+}
+
+// The paper with the given laid-out items added at the end of their slots' lists.
+function _withItems(examJson, list) {
+  const out = JSON.parse(JSON.stringify(examJson));
+  for (const q of list) {
+    const slot = q.slot;
+    const lists = Object.values(out.unseen || {}).flatMap((types) => Object.values(types || {})).filter(Array.isArray);
+    const home = lists.find((l) => l.some((x) => x && x.slot === slot));
+    if (home) home.push(JSON.parse(JSON.stringify(q)));
+    else out.unseen = _mergeSections([out, { unseen: { _spares: { [slot]: [JSON.parse(JSON.stringify(q))] } } }]).unseen;
+  }
+  return out;
+}
+
+// ── The reader pass (Social Studies) ───────────────────────────────────
+//
+// The same read for T6-A: the reader judges the Q5, Q6 and Q7 items (a duplicate, a whole answer
+// Section A prints, a point set another C/D item's answer contains). Every flagged item is taken off.
+// A flagged D item leaves a place that Section D fills in ONE top-up (told what was taken off, asked
+// twice what is missing plus spares), the paper is laid out again and the reader checks the
+// replacements only; one still flagged is taken off too. A flagged Q5 is taken off with no re-ask:
+// Q5 offers more than the child answers. Nothing taken off comes back: a choice slot prints fewer
+// items (applyLayout), and a paper the pass would leave short fails closed (PATTERN_SHORT_SLOT, with
+// this record on it), never printing a caught item to fill the place. A read that fails prints the
+// paper as it was: no caught item is known.
+// A D slot the replacements alone could not fill also offers its first-ask spares (`source`: what the
+// model wrote, before the layout): the items the layout finds new but had no room for. They are read
+// in the same re-check as the replacements, and one fills a place only when the slot is short without
+// it; a spare the re-check flags never prints either.
+const SST_D_SLOTS = ['social_studies.D.Q6', 'social_studies.D.Q7'];
+const _labelSlot = (label) => ({ Q5: 'social_studies.C.Q5', Q6: 'social_studies.D.Q6', Q7: 'social_studies.D.Q7' })[String(label).split('.')[0]];
+
+async function _readerPassSst({ examJson, source = null, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId }) {
+  const began = Date.now();
+  const readUsages = [];
+  const sectionUsages = [];
+  const stats = { flagged: 0, replaced: 0, still_flagged: 0, taken_off: 0, spares_read: 0, spares: 0 };
+  const items = [];
+  const record = (f, outcome) => items.push({ label: f.item, by: f.by, reason: f.reason, outcome });
+  const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
+  const done = (exam, laid, error = null) => {
+    logToFile('[assessment] reader pass', {
+      requestId, subject: key, ...stats, ms: Date.now() - began, tokens: _sumUsage(readUsages).total_tokens || 0, ...(error ? { error } : {}),
+    });
+    // The record keeps its items on every path, an error's included: a refused paper still names them.
+    if (exam && exam._layout) exam._layout.reader = { ...stats, items, ...(error ? { error } : {}) };
+    return { examJson: exam, laid, usages: readUsages.concat(sectionUsages) };
+  };
+  const ask = (exam, only = null) => _askReader({ examJson: exam, P, only, model, ownModel, job, usages: readUsages });
+  const without = (exam, list) => list.reduce((e, h) => _dropItems(e, h.slot, new Set([_readerId(h.q)])), exam);
+  const count = (exam, slot) => Reader.itemsOf(exam, slot).length;
+
+  let first;
+  try {
+    first = await ask(examJson);
+  } catch (err) {
+    return done(examJson, null, `read: ${err.message}`);
+  }
+  if (!first.flags.length) return done(examJson, null);
+  stats.flagged = first.flags.length;
+  const held = first.flags.map((f) => ({ ...f, q: first.labels.get(f.item), slot: _labelSlot(f.item) }));
+
+  const dHeld = held.filter((h) => SST_D_SLOTS.includes(h.slot));
+  // From here on no caught item prints: every exit returns the paper with them taken off, and one the
+  // pass leaves short fails closed in the engine (PATTERN_SHORT_SLOT) with this record attached.
+  let laid = lay(without(examJson, held));
+  let exam = laid.examJson;
+  let still = [];
+  let replacements = [];
+  const settle = (error = null) => {
+    stats.still_flagged = still.length;
+    stats.replaced = error ? 0 : replacements.length - still.length;
+    stats.taken_off = held.length + still.length;
+    held.forEach((h) => record(h, !error && SST_D_SLOTS.includes(h.slot) ? 'replaced' : 'taken_off'));
+    still.forEach((h) => record(h, 'taken_off'));
+    return done(exam, laid, error);
+  };
+  try {
+    if (dHeld.length) {
+      const b = built.find((x) => x.section.slots.some((s) => s.slot === SST_D_SLOTS[0]));
+      const missing = b.section.slots.map((s) => ({ slot: s.slot, missing: s.generate - count(exam, s.slot) })).filter((f) => f.missing > 0);
+      // Asked twice what is missing (and the note's spares): the layout holds some of a top-up's items too.
+      const ask2 = missing.map((f) => ({ ...f, missing: f.missing * 2 }));
+      const note = [takenNote(P, b.section, exam, { topUp: true, shortfall: ask2, held: laid.held }), Reader.readerNote(dHeld, first.labels, P)]
+        .filter(Boolean).join('\n\n');
+      logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall: missing, reader: dHeld.map(({ q, ...f }) => f) });
+      const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+      sectionUsages.push(...second.usages);
+      if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return settle('top-up: refused text');
+      stripImageKeys(second.tree);
+      normaliseAnswers(second.tree);
+      // Only new items: an item taken off and written again is not a replacement.
+      const fresh = without(second.tree, dHeld);
+      const keptIds = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
+      laid = lay(_topUp(exam, fresh, new Set(SST_D_SLOTS)));
+      exam = laid.examJson;
+      _blankWordsStems(exam, P, key);
+      if ((await religiousFilter(exam, P, { grade, subject, allowedText: loaded.content, requestId })).length) {
+        laid = lay(exam);
+        exam = laid.examJson;
+      }
+      replacements = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot)).filter((q) => !keptIds.has(_readerId(q)));
+      const replacedIds = new Set(replacements.map(_readerId));
+      const spares = _sstSpares({ exam, source, replacements, caught: held, lay });
+      let spareFlags = [];
+      if (replacements.length || spares.length) {
+        // The paper as the re-check reads it: the replacements in place, the spares after them.
+        const readExam = _withItems(exam, spares);
+        const ids = new Set([...replacedIds, ...spares.map(_readerId)]);
+        const judged = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(readExam, slot)).filter((q) => ids.has(_readerId(q)));
+        stats.spares_read = spares.length;
+        try {
+          const again = await ask(readExam, judged);
+          const flags = again.flags.map((f) => ({ ...f, q: again.labels.get(f.item), slot: _labelSlot(f.item) }));
+          still = flags.filter((h) => replacedIds.has(_readerId(h.q)));
+          spareFlags = flags.filter((h) => !replacedIds.has(_readerId(h.q)));
+          stats.rechecked = true;
+        } catch (err) {
+          stats.rechecked = false;
+          // An unread spare is never offered: only the replacements are kept, as before.
+          spareFlags = spares.map((q) => ({ q, slot: q.slot }));
+          logToFile('[assessment] reader re-check failed, replacements kept', { requestId, error: err.message });
+        }
+      }
+      if (still.length) {
+        laid = lay(without(exam, still));
+        exam = laid.examJson;
+      }
+      const flaggedSpares = new Set(spareFlags.map((h) => _readerId(h.q)));
+      const clean = spares.filter((q) => !flaggedSpares.has(_readerId(q)));
+      if (clean.length && laid.shortfall.some((f) => SST_D_SLOTS.includes(f.slot))) {
+        const before = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
+        laid = lay(_withItems(exam, clean));
+        exam = laid.examJson;
+        _blankWordsStems(exam, P, key);
+        if ((await religiousFilter(exam, P, { grade, subject, allowedText: loaded.content, requestId })).length) {
+          laid = lay(exam);
+          exam = laid.examJson;
+        }
+        // Nothing the reader caught comes back as a spare, whatever form the model wrote it in.
+        const gone = [...held, ...still, ...spareFlags];
+        if (gone.some((h) => SST_D_SLOTS.some((slot) => Reader.itemsOf(exam, slot).some((q) => _readerId(q) === _readerId(h.q))))) {
+          laid = lay(without(exam, gone.map((h) => ({ ...h, slot: h.slot || h.q.slot }))));
+          exam = laid.examJson;
+        }
+        stats.spares = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot)).filter((q) => !before.has(_readerId(q))).length;
+      }
+    }
+    return settle(laid.shortfall.length ? 'the paper would be short' : null);
+  } catch (err) {
+    return settle(`top-up: ${err.message}`);
   }
 }
 
@@ -2102,7 +2314,24 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     }
     return { id: section.id, slots, usage, elapsedMs, tree, usages };
   };
-  const results = await Promise.all(built.map(writeOne));
+  // Social Studies: Section D is written after Section C's first reply, told C's Q5 items and their
+  // marking points, so its first Q6s are not C's cases again; A and B are still written beside C.
+  const iC = key === 'social_studies' ? built.findIndex((b) => b.section.slots.some((s) => s.slot === 'social_studies.C.Q5')) : -1;
+  const iD = iC >= 0 ? built.findIndex((b) => b.section.slots.some((s) => s.slot === 'social_studies.D.Q6')) : -1;
+  let results;
+  if (iD < 0) {
+    results = await Promise.all(built.map(writeOne));
+  } else {
+    const writes = built.map((b, i) => (i === iD ? null : writeOne(b)));
+    const d = built[iD];
+    writes[iD] = writes[iC].then((c) => {
+      const note = firstAskNote(P, c.tree);
+      return writeOne(note
+        ? { ...d, messages: _sectionMessages({ system, user: `${d.user}\n\n${note}`, pageContent: d.pageContent, model }) }
+        : d);
+    });
+    results = await Promise.all(writes);
+  }
   // Urdu Q6: verses that are not the poem's are taken out before the layout, so Section C is asked again.
   const versesRef = key === 'urdu' ? _versesReference(P, poem, loaded.content) : '';
   results.forEach((r) => _dropProseVerses(r.tree, versesRef, requestId));
@@ -2119,7 +2348,8 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // whole. Decided on the reply as the model wrote it, BEFORE the held-content filter, so an
   // item the filter drops is still never refilled.
   const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
-  if (firstLaid.held) logToFile('[assessment] held items', { requestId, pattern, held: firstLaid.held });
+  // Social Studies always returns `held` (Section D reads it) and logs its own rows per rule after the last layout.
+  if (firstLaid.held && key !== 'social_studies') logToFile('[assessment] held items', { requestId, pattern, held: firstLaid.held });
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall
     .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
@@ -2135,15 +2365,20 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     || reviewHits.has(section.id) || religiousHits.has(section.id));
   const extraUsages = [];
   if (again.length) {
-    await Promise.all(again.map(async (b) => {
-      const shortfall = short.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+    // One re-ask of `b`: its note reads the layout `laid`; `shortList` names the short slots and
+    // `layoutShortSet` the ones short only because the layout set items aside.
+    const reask = async (b, laid, shortList, layoutShortSet) => {
+      const shortfall = shortList.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
       const reviewText = reviewHits.get(b.section.id) || null;
       const religious = religiousHits.get(b.section.id) || null;
-      logToFile('[assessment] section re-asked', {
-        requestId, pattern, section: b.section.id, shortfall, ...(reviewText ? { reviewText } : {}), ...(religious ? { religious } : {}),
-      });
       const i = results.findIndex((r) => r.id === b.section.id);
       const first = results[i];
+      // Social Studies: why each slot is short, so a re-ask can be read from the log alone: how many
+      // items the reply wrote for it, and how many the layout held, by rule.
+      const why = key === 'social_studies' ? { why: _shortWhy(shortfall, first.tree, [...(laid.held || []), ...(laid.repeated || [])]) } : {};
+      logToFile('[assessment] section re-asked', {
+        requestId, pattern, section: b.section.id, shortfall, ...why, ...(reviewText ? { reviewText } : {}), ...(religious ? { religious } : {}),
+      });
       extraUsages.push(...first.usages);
       // The re-ask is told what the first replies already test (Section A's facts, Q4's words), so
       // it writes something new instead of the item the layout set aside, again.
@@ -2151,15 +2386,46 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       // tagged to a full slot) keeps the first reply and takes the missing items from the second:
       // the layout fills a slot in reply order, so the first reply's items land first. Any other
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
-      const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShort.has(f.slot));
+      const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = takenNote(P, b.section, firstLaid.examJson, { topUp: Boolean(topUp), shortfall });
+      const note = takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held });
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
         : b);
       results[i] = topUp ? { ...second, tree: _topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
       _dropProseVerses(results[i].tree, versesRef, requestId);
-    }));
+    };
+    // Social Studies: Section D's re-ask is told Q5's situations and its Q6 is held against Q5, so
+    // when C is asked again too, D waits for C and reads the layout of C's second reply. A D that
+    // was full but now restates a new Q5 is asked again as well.
+    const inSection = (b, id) => b.section.slots.some((s) => s.slot.startsWith(`social_studies.${id}.`));
+    const afterC = key === 'social_studies' && again.some((b) => inSection(b, 'C'));
+    await Promise.all(again.filter((b) => !(afterC && inSection(b, 'D')))
+      .map((b) => reask(b, firstLaid, short, layoutShort)));
+    if (afterC) {
+      const midLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
+      const midShort = new Set(midLaid.shortfall.map((f) => f.slot));
+      const otherShort = short.filter((f) => !firstLaid.shortfall.includes(f));
+      // A D that C's second reply left whole (the Q5 its Q6 restated is gone) keeps its first reply;
+      // only a D still short, or with a review or religious hit, is asked again.
+      const later = built.filter((b) => inSection(b, 'D')
+        && (b.section.slots.some((s) => midShort.has(s.slot) || otherShort.some((f) => f.slot === s.slot))
+          || reviewHits.has(b.section.id) || religiousHits.has(b.section.id)));
+      await Promise.all(later.map((b) => reask(b, midLaid, otherShort.concat(midLaid.shortfall), midShort)));
+    }
+    // Social Studies: a D item the layout still sets aside never prints, so before the paper is laid
+    // out D is asked once more, a top-up told what was held. A slot still short of a held item after it
+    // prints fewer items when it is a choice (applyLayout).
+    if (key === 'social_studies' && iD >= 0) {
+      const preLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
+      const dShort = preLaid.shortfall.filter((f) => f.slot.startsWith('social_studies.D.') && preLaid.held.some((h) => h.slot === f.slot));
+      if (dShort.length) {
+        logToFile('[assessment] D asked once more', {
+          requestId, pattern, shortfall: dShort, held: preLaid.held.filter((h) => dShort.some((f) => f.slot === h.slot)).map((h) => ({ slot: h.slot, rule: h.rule })),
+        });
+        await reask(built[iD], preLaid, dShort, new Set(dShort.map((f) => f.slot)));
+      }
+    }
     // Urdu Section A still short after its re-ask (the top-up's own items held as twins of kept
     // facts, or a new hold against the re-asked Section C) is topped up once more, for exactly what
     // it misses plus spares: a held Section C give-away is never put back to fill the place.
@@ -2207,10 +2473,22 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     laid = re.laid;
     extraUsages.push(...re.usages);
   }
+  // Social Studies: every item the layout set aside, by slot and rule (a repeat of a placed item
+  // among them), and how many were put back.
+  if (key === 'social_studies' && ((laid.held && laid.held.length) || (laid.repeated && laid.repeated.length))) {
+    const rows = new Map();
+    for (const h of [...(laid.held || []), ...(laid.repeated || [])]) {
+      const row = rows.get(`${h.slot}|${h.rule}`) || { slot: h.slot, rule: h.rule, held: 0, printed: 0 };
+      row.held += 1;
+      if (h.printed) row.printed += 1;
+      rows.set(`${h.slot}|${h.rule}`, row);
+    }
+    logToFile('[assessment] held items', { requestId, pattern, held: [...rows.values()], ...(laid.shortChoice && laid.shortChoice.length ? { shortChoice: laid.shortChoice } : {}) });
+  }
   // The reader pass reads a whole paper only: a short one fails below as it always has.
   if (readerPass && Reader.READER_SUBJECTS.includes(key) && !laid.shortfall.length && !_emptyQuestionParts(examJson).length) {
-    const read = await _readerPass({
-      examJson, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId,
+    const read = await (key === 'social_studies' ? _readerPassSst : _readerPass)({
+      examJson, source: key === 'social_studies' ? merged() : null, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId,
     });
     examJson = read.examJson;
     if (read.laid) laid = read.laid;
