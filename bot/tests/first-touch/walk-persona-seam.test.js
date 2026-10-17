@@ -126,6 +126,8 @@ const post = (p, body) => fetch(`${base}/${p}`, { method: 'POST', headers: H, bo
 const tap = async (as, t) => post('persona', { t: t || await mint(), as });
 const resolve = (user = COACH, phone = PH.coach) => Role.resolveRole({ user: { id: user.id }, phone });
 const activeOnCoach = () => mockDb.tables.child_phone_bindings.filter((b) => b.phone_norm === NORM.coach && !b.revoked_at);
+// the shared double records each write's rows as an array and keeps an inserted row in its table, as the database does
+const inserted = () => mockDb.writes.filter((w) => w.op === 'insert').flatMap((w) => w.rows);
 
 beforeEach(() => { jest.clearAllMocks(); delete process.env.RAILWAY_ENVIRONMENT_NAME; delete process.env.ENVIRONMENT; });
 
@@ -315,9 +317,11 @@ describe('5 · "Back to my real self"', () => {
     expect(await r.json()).toEqual({ done: true, as: 'real', next: expect.stringMatching(NEXT) });
     expect(await persona().get(PH.coach)).toBeNull();
     expect((await resolve()).side).toBe('teacher');
-    expect(activeOnCoach()).toHaveLength(0);                       // the walk's own link (b-walk) erased …
-    const back = mockDb.writes.filter((w) => w.table === 'child_phone_bindings' && w.op === 'insert').map((w) => w.rows);
-    expect(back).toEqual([expect.objectContaining({ canonical_id: 's-old', phone_norm: NORM.coach, via: 'save' })]);   // … the phone's own put back
+    const live = activeOnCoach();
+    expect(live.map((b) => b.id)).not.toContain('b-walk');           // the walk's own link erased …
+    expect(live.map((b) => b.canonical_id)).toEqual(['s-old']);      // … and the phone's own the only live one, put back
+    const back = mockDb.writes.filter((w) => w.table === 'child_phone_bindings' && w.op === 'insert').flatMap((w) => w.rows);
+    expect(back).toEqual([expect.objectContaining({ canonical_id: 's-old', phone_norm: NORM.coach, via: 'save' })]);
     const land302 = await land(await mint(COACH, PH.coach, 'teacher'));
     expect(land302.status).toBe(302);
     expect(land302.headers.get('location')).toMatch(/^\/(quiz\/teacher|m)\//);
@@ -345,7 +349,7 @@ describe('5 · "Back to my real self"', () => {
     ] });
     await tap('fresh');
     await tap('real');
-    const back = mockDb.writes.filter((w) => w.table === 'child_phone_bindings' && w.op === 'insert').map((w) => w.rows);
+    const back = mockDb.writes.filter((w) => w.table === 'child_phone_bindings' && w.op === 'insert').flatMap((w) => w.rows);
     const exp = BindRepo.expiresAtFor(new Date()).toISOString();
     expect(back).toEqual([
       expect.objectContaining({ canonical_id: 's-old', via: 'teacher', expires_at: exp }),
@@ -360,17 +364,18 @@ describe('5 · "Back to my real self"', () => {
     expect(redis.set).toHaveBeenCalledWith(persona()._keptKey(NORM.coach), expect.any(String), 7 * 24 * 3600);
     redis.__keys.delete(persona()._key(NORM.coach));            // a day of silence
     await tap('real');
-    expect(mockDb.writes.filter((w) => w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['s-old']);
+    expect(inserted().map((r) => r.canonical_id)).toEqual(['s-old']);
     expect(await keptRec()).toBeNull();
 
     world();
     await tap('fresh');
     redis.__keys.delete(persona()._key(NORM.coach));
     expect(await persona().get(PH.coach)).toBeNull();             // the resolver's read on the next /quiz
-    expect(mockDb.writes.filter((w) => w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['s-old']);
+    expect(inserted().map((r) => r.canonical_id)).toEqual(['s-old']);
     expect(await keptRec()).toBeNull();
     await persona().get(PH.coach);
-    expect(mockDb.writes.filter((w) => w.op === 'insert')).toHaveLength(1);   // once
+    expect(mockDb.writes.filter((w) => w.op === 'insert')).toHaveLength(1);   // once: one insert per link put back
+    expect(inserted()).toHaveLength(1);
   });
 });
 
@@ -395,7 +400,7 @@ describe('the persona\'s keys and clock', () => {
     sw.value = 'true'; persona()._resetCache();
     const r = await tap('real');
     expect(r.status).toBe(200);
-    expect(mockDb.writes.filter((w) => w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['s-old']);
+    expect(inserted().map((r) => r.canonical_id)).toEqual(['s-old']);
     expect(redis.__keys.has(persona()._keptKey(NORM.coach))).toBe(false);
   });
 
@@ -418,7 +423,7 @@ describe('the persona\'s keys and clock', () => {
     await tap('fresh');
     redis.__keys.delete(persona()._key(NORM.coach));            // a day of silence
     await Promise.all([persona().get(PH.coach), persona().get(PH.coach)]);   // e.g. the resolver and the binder
-    expect(mockDb.writes.filter((w) => w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['s-old']);
+    expect(inserted().map((r) => r.canonical_id)).toEqual(['s-old']);
     expect(await keptRec()).toBeNull();
     for (const k of redis.__keys.keys()) expect(k).not.toMatch(/^wq:persona:lock:/);   // the hold is let go
   });
@@ -438,7 +443,7 @@ describe('the persona\'s keys and clock', () => {
       await Promise.all([persona().get(PH.coach), persona().get(PH.coach)]);
     } finally { redis.setNX.mockImplementation(realNX); redis.delete.mockImplementation(realDel); }
     expect(calls).toBe(2);
-    expect(mockDb.writes.filter((w) => w.op === 'insert').map((w) => w.rows.canonical_id)).toEqual(['s-old']);
+    expect(inserted().map((r) => r.canonical_id)).toEqual(['s-old']);
   });
 
   test('one hashed persona key and one hashed record key; each read slides the persona\'s day', async () => {
