@@ -1452,6 +1452,17 @@ function _emptyQuestionParts(examJson) {
 /**
  * The first reply, plus the second reply's items for the given slots that are not already in it. Nothing else of the second reply is kept.
  */
+// For each short slot: the items a section's reply wrote under it and the layout's holds of it, by rule.
+function _shortWhy(shortfall, tree, held) {
+  return shortfall.map((f) => {
+    let written = 0;
+    _walkQuestions(tree, (q) => { if (q && q.slot === f.slot) written += 1; });
+    const rules = {};
+    for (const h of held || []) if (h.slot === f.slot) rules[h.rule] = (rules[h.rule] || 0) + 1;
+    return { slot: f.slot, written, held: rules };
+  });
+}
+
 function _topUp(firstTree, secondTree, slots) {
   // Keyed on everything the item says, not its question line alone: an item whose stem sits in
   // another field has no question line, and two of those are not the same item.
@@ -2334,11 +2345,14 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       const shortfall = shortList.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
       const reviewText = reviewHits.get(b.section.id) || null;
       const religious = religiousHits.get(b.section.id) || null;
-      logToFile('[assessment] section re-asked', {
-        requestId, pattern, section: b.section.id, shortfall, ...(reviewText ? { reviewText } : {}), ...(religious ? { religious } : {}),
-      });
       const i = results.findIndex((r) => r.id === b.section.id);
       const first = results[i];
+      // Social Studies: why each slot is short, so a re-ask can be read from the log alone: how many
+      // items the reply wrote for it, and how many the layout held, by rule.
+      const why = key === 'social_studies' ? { why: _shortWhy(shortfall, first.tree, [...(laid.held || []), ...(laid.repeated || [])]) } : {};
+      logToFile('[assessment] section re-asked', {
+        requestId, pattern, section: b.section.id, shortfall, ...why, ...(reviewText ? { reviewText } : {}), ...(religious ? { religious } : {}),
+      });
       extraUsages.push(...first.usages);
       // The re-ask is told what the first replies already test (Section A's facts, Q4's words), so
       // it writes something new instead of the item the layout set aside, again.
@@ -2433,10 +2447,11 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     laid = re.laid;
     extraUsages.push(...re.usages);
   }
-  // Social Studies: every item the layout set aside, by slot and rule, and how many were put back.
-  if (key === 'social_studies' && laid.held && laid.held.length) {
+  // Social Studies: every item the layout set aside, by slot and rule (a repeat of a placed item
+  // among them), and how many were put back.
+  if (key === 'social_studies' && ((laid.held && laid.held.length) || (laid.repeated && laid.repeated.length))) {
     const rows = new Map();
-    for (const h of laid.held) {
+    for (const h of [...(laid.held || []), ...(laid.repeated || [])]) {
       const row = rows.get(`${h.slot}|${h.rule}`) || { slot: h.slot, rule: h.rule, held: 0, printed: 0 };
       row.held += 1;
       if (h.printed) row.printed += 1;

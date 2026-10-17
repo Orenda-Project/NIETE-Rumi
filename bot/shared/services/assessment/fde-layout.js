@@ -1697,10 +1697,14 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // `within`: Social Studies, a D item answered by another item's points ([{ slot, rule, name, inSlot }],
   // SAME_POINTS); an in-slot row reads the items already placed in its slot.
   let held = [];
+  // Social Studies: the items set aside as a repeat of one already placed, with the test that matched.
+  let repeated = [];
+  const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : 'same_task');
   const place = (cross, within) => {
     bySlot.forEach((list) => { list.length = 0; });
     unplaced = 0;
     held = [];
+    repeated = [];
     putBack = [];
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
     const fallback = new Map(); // slot → held items, in reply order
@@ -1727,14 +1731,20 @@ function applyLayout(examJson, P, scope, opts = {}) {
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
         // after the re-ask only for a place nothing else takes.
-        if (P.key === 'social_studies' && bySlot.get(slot.slot).some((p) => twin(p, q))) {
+        const first = P.key === 'social_studies' ? bySlot.get(slot.slot).find((p) => twin(p, q)) : null;
+        if (first) {
           repeats.set(slot.slot, [...(repeats.get(slot.slot) || []), q]);
+          repeated.push({ slot: slot.slot, rule: twinRule(first, q), q });
           return false;
         }
         const row = restated(slot, q);
         return row ? hold(slot, q, row.name) : true;
       }
-      if (bySlot.get(slot.slot).some((p) => twin(p, q))) return false;
+      const again = bySlot.get(slot.slot).find((p) => twin(p, q));
+      if (again) {
+        if (P.key === 'social_studies') repeated.push({ slot: slot.slot, rule: twinRule(again, q), q });
+        return false;
+      }
       if (cross.rule(q, slot.slot)) return hold(slot, q, 'section_a');
       const row = restated(slot, q);
       return row ? hold(slot, q, row.name) : true;
@@ -1888,11 +1898,11 @@ function applyLayout(examJson, P, scope, opts = {}) {
     frame_pages: null,
     notes: [],
   };
-  // `held` is Social Studies' only (the engine reads it for Section D); `putBack` (Urdu: the held
+  // `held` and `repeated` are Social Studies' only (the engine reads `held` for Section D, and logs both); `putBack` (Urdu: the held
   // items that came back, with their rule) only when there are some; every other result is as before.
   if (shortChoice.length) out._layout.short_choice = shortChoice;
   const base = { examJson: out, placed, unplaced, shortfall, ...(putBack.length ? { putBack } : {}) };
-  return P.key === 'social_studies' ? { ...base, held, shortChoice } : base;
+  return P.key === 'social_studies' ? { ...base, held, shortChoice, repeated } : base;
 }
 
 module.exports = { applyLayout, takenNote, firstAskNote, verseLines, typeKey, slotKey, unitWord };
