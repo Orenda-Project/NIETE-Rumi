@@ -1,4 +1,5 @@
 [
+  "bot/shared/services/quiz/watch-root.js",
   "bot/shared/services/quiz/web-quiz-fixture.js",
   "bot/shared/services/quiz/web-quiz-homonym.js",
   "bot/shared/services/quiz/web-quiz-hub-flags.js",

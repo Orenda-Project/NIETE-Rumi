@@ -369,6 +369,24 @@ describe('the book', () => {
       expect(fake.calls.filter((c) => c.table === 'app_settings').length - before).toBe(1);
     }
   });
+  test('steady (the reader\'s stall setting): the book says steady:1 only when web_quiz_stories_steady is the boolean true; off, the book has no key at all (byte-identical); one settings query', async () => {
+    const cases = [[[], false], [[['web_quiz_stories_steady', 'true']], false], [[['web_quiz_stories_steady', false]], false], [[['web_quiz_stories_steady', true]], true]];
+    for (const [extra, want] of cases) {
+      Stories._reset(); seed();
+      extra.forEach(([key, value]) => fake.db.app_settings.push({ key, value }));
+      const before = fake.calls.filter((c) => c.table === 'app_settings').length;
+      const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+      if (want) expect(out.steady).toBe(1); else expect(Object.prototype.hasOwnProperty.call(out, 'steady')).toBe(false);
+      expect(fake.calls.filter((c) => c.table === 'app_settings').length - before).toBe(1);
+    }
+  });
+  test('steady on: a draft or unknown book answers 404 gone (the reader says the story is not here any more); off it stays not_found', async () => {
+    seed(); fake.db.app_settings.push({ key: 'web_quiz_stories_steady', value: true });
+    expect(await body(Stories.book(F.BOOK(8), TOKEN, { kid: 'a' }))).toEqual({ error: 'gone' });
+    expect(await body(Stories.book('5b0000ff-0000-4000-8000-000000000000', TOKEN, { kid: 'a' }))).toEqual({ error: 'gone' });
+    Stories._reset(); seed({ on: false }); fake.db.app_settings.push({ key: 'web_quiz_stories_steady', value: true });
+    expect(await body(Stories.book(F.BOOK(8), TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
+  });
   test('the share card: no card_v3 key while the card module is absent or off', async () => {
     seed();
     const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });

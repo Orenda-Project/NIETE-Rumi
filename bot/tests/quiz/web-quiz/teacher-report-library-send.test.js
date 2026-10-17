@@ -433,6 +433,70 @@ describe('the sender-side log lines', () => {
     };
     expect(await emitted('k'.repeat(32))).toBe('e815e81977411f12');
     expect(await emitted('k'.repeat(31))).toBeNull();
+    // the shared helper gives the same value, so the log line joins its events
+    const { tk } = require('../../../shared/services/quiz/web-quiz-kid');
+    process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(32);
+    expect(tk(PIN_ID)).toBe('e815e81977411f12');
+    process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(31);
+    expect(tk(PIN_ID)).toBeNull();
+  });
+
+  test('the three lines take the reference from the shared helper (one helper, no copy of its own)', async () => {
+    process.env.WEB_QUIZ_KID_KEY = KID_KEY;
+    const Kid = require('../../../shared/services/quiz/web-quiz-kid');
+    const spy = jest.spyOn(Kid, 'tk').mockReturnValue('5e1ec7ed5e1ec7ed');
+    const [list, pick] = await failBoth();
+    Data.sentQuizzes.mockRestore(); // the list reads its rows again, so the class-list read is reached
+    jest.spyOn(Data, 'readRoster').mockRejectedValue(new Error('boom-roster'));
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    await List.showReports({ id: SENDER, preferred_language: 'en' }, '000b', 'en');
+    const roster = calls('class list read failed');
+    expect(roster).toHaveLength(1);
+    expect([list.tk, pick.tk, roster[0][1].tk]).toEqual(['5e1ec7ed5e1ec7ed', '5e1ec7ed5e1ec7ed', '5e1ec7ed5e1ec7ed']);
+    expect(spy).toHaveBeenCalledWith(SENDER);
+  });
+
+  // "My quiz reports" opened: the list's two events (shown / empty) carry the keyed reference, never the teacher's id
+  const listEvents = () => require('../../../shared/utils/structured-logger').logEvent.mock.calls
+    .filter(([name]) => name === 'quiz_menu.reports_shown' || name === 'quiz_menu.reports_empty');
+
+  test('the report list\'s shown and empty events carry the keyed reference, never the teacher\'s id', async () => {
+    process.env.WEB_QUIZ_KID_KEY = KID_KEY;
+    const tkOf = (id) => crypto.createHmac('sha256', KID_KEY).update(`t|${id}`).digest('hex').slice(0, 16);
+    seed();
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    await List.showReports({ id: SENDER, preferred_language: 'en' }, '000b', 'en');
+    await List.showReports({ id: AUTHOR, preferred_language: 'en' }, '000a', 'en');
+    const UNSENT = '11111111-1111-4111-8111-11111111111d'; // a teacher with no sent quiz: the empty list
+    await List.showReports({ id: UNSENT, preferred_language: 'en' }, '000d', 'en');
+    const events = listEvents();
+    expect(events.map(([name]) => name)).toEqual(['quiz_menu.reports_shown', 'quiz_menu.reports_shown', 'quiz_menu.reports_empty']);
+    expect(events[0][1]).toEqual({ tk: tkOf(SENDER), rows: expect.any(Number), page: 1 });
+    expect(events[1][1]).toEqual({ tk: tkOf(AUTHOR), rows: expect.any(Number), page: 1 });
+    expect(events[2][1]).toEqual({ tk: tkOf(UNSENT) });
+    events.forEach(([, payload]) => {
+      expect(payload.tk).toMatch(/^[0-9a-f]{16}$/);
+      expect(payload).not.toHaveProperty('userId');
+      expect(JSON.stringify(payload)).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    });
+  });
+
+  test('the report list\'s events: the pinned id gives e815e81977411f12 with a 32-byte key; without a key the reference is null', async () => {
+    const PIN_ID = 'a0000000-0000-4000-8000-000000000001';
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    const emitted = async (key) => {
+      if (key === undefined) delete process.env.WEB_QUIZ_KID_KEY; else process.env.WEB_QUIZ_KID_KEY = key;
+      seed();
+      require('../../../shared/utils/structured-logger').logEvent.mockClear();
+      await List.showReports({ id: PIN_ID, preferred_language: 'en' }, '000b', 'en');
+      const events = listEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0][1]).not.toHaveProperty('userId');
+      return events[0][1].tk;
+    };
+    expect(await emitted('k'.repeat(32))).toBe('e815e81977411f12');
+    expect(await emitted('k'.repeat(31))).toBeNull();
+    expect(await emitted(undefined)).toBeNull();
   });
 });
 
