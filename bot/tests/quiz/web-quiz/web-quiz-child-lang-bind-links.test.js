@@ -159,3 +159,16 @@ describe('the saved reply\'s words', () => {
     expect(button()).toBe(resolveUx('jugnuBindOpenBtn', { language: 'en' }));
   });
 });
+
+// One saved reply reads the child's kept row once and their quizzes once: its words and its link share the read.
+describe('the saved reply reads once', () => {
+  const reads = (t) => fake.calls.filter((c) => c.table === t && c.op === 'select').length;
+  test('switch on: one child_language read and one quiz_sessions read for the words and the link together', async () => {
+    seed({ quizLang: 'en' });
+    fake.calls.length = 0;
+    expect((await saved()).outcome).toBe('bound');
+    expect(tokenOf(linkUrl()).l).toBe('en');
+    expect(reads('child_language')).toBe(1);
+    expect(reads('quiz_sessions')).toBe(1);
+  });
+});

@@ -116,14 +116,23 @@ async function priorOnPhone(norm, childId) {
  * card → an Urdu confirmation, whatever the child's class quiz is in), else the child's (their quizzes', skipping
  * lesson codes), else the user's, else English.
  */
+// One reply's reads of the child, shared by its words (languageFor) and its link (sendSaved): keyed on the child object
+// the caller resolved for this reply, so it lives as long as that reply.
+const replyMemos = new WeakMap();
+function replyMemo(child) {
+  if (!child || typeof child !== 'object') return new Map();
+  if (!replyMemos.has(child)) replyMemos.set(child, new Map());
+  return replyMemos.get(child);
+}
+
 async function languageFor(child, user, asked = null) {
   if (asked === 'ur' || asked === 'en') return asked;
   try {
     const SQ = require('./student-quiz.service');
     const quizzes = await SQ.quizzesForStudents([{ id: child.id, student_name: child.name }]);
     // web_quiz_return_lang: the child's own language (a grown-up's choice → class quiz → the join's) before a lesson's
-    // (off: null, today's)
-    const lang = (await require('./web-quiz-child-lang').childLang(child.id, { history: quizzes })) || SQ.childLanguage(quizzes);
+    // (off: null, today's); kept for this reply's link
+    const lang = (await require('./web-quiz-child-lang').childLang(child.id, { history: quizzes, memo: replyMemo(child) })) || SQ.childLanguage(quizzes);
     if (lang) return lang;
   } catch (_) { /* the user's */ }
   return clampLanguage((user && (user.personaLanguage || user.preferred_language)) || 'en');
@@ -134,7 +143,7 @@ async function sendSaved(phone, kids, child, language) {
   const WhatsAppService = require('../whatsapp.service');
   const body = resolveUx('jugnuBindSaved', { language, params: { name: firstName(child.name) } });
   // web_quiz_return_lang: the child's own language (class quiz → the one they joined in), else the reply's (off: today's link)
-  const own = await require('./web-quiz-child-lang').childLang(child.id);
+  const own = await require('./web-quiz-child-lang').childLang(child.id, { memo: replyMemo(child) });
   const url = await require('./web-quiz-hub-flags').hubLink(kids.map((k) => k.id), { caller: 'bind', lang: own || language });
   let sent = false;
   if (url) {
