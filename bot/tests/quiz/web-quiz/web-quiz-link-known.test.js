@@ -336,7 +336,12 @@ describe('the one id the child is known by', () => {
     await homeOpened([SIB]);
     const down = kidKey(SIB);
     const real = redis.get.getMockImplementation();
-    redis.get.mockImplementation(async function get(k) { if (k === down) throw new Error('down'); return real.call(this, k); });
+    // the failing read answers first, the healthy one a moment later: a failure must not cut the others' answers short
+    redis.get.mockImplementation(async function get(k) {
+      if (k === down) throw new Error('down');
+      await new Promise((r) => setTimeout(r, 5));
+      return real.call(this, k);
+    });
     let r;
     try { r = await known(); } finally { redis.get.mockImplementation(real); }
     expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF)]);
