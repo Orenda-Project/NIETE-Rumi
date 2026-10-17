@@ -286,7 +286,7 @@ router.get('/vt/:vid.webp', async (req, res) => {
   try {
     const Thumb = require('../services/quiz/web-quiz-video-thumb');
     const pic = await Thumb.thumb(req.params.vid);
-    if (!pic && Thumb.noPicture(req.params.vid)) return res.status(404).set('Cache-Control', `public, max-age=${Math.round(Thumb.NONE_MS / 1000)}`).json({ error: 'no_picture' });
+    if (!pic && (await Thumb.noPicture(req.params.vid))) return res.status(404).set('Cache-Control', `public, max-age=${Math.round(Thumb.NONE_MS / 1000)}`).json({ error: 'no_picture' });
     if (!pic) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
     return res.status(200).set({ 'Content-Type': pic.contentType, 'Cache-Control': 'public, max-age=31536000, immutable' }).send(pic.bytes);
   } catch (err) {

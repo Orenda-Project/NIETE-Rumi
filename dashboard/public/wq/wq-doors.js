@@ -176,12 +176,14 @@
   function shelfOn(B) { return Boolean(B && B.doors && B.doors.videos && B.doors.videos.shelf === true); }
   var EAGER = 3; // the first shelf's cards a 360-390 px screen shows before any scroll
   var SKEL = '<span class="wq-vcard wq-vskel" aria-hidden="true"><span class="wq-vthumb"></span><b></b></span>';
+  // The watch screen while its lesson loads: a placeholder player and title, never words.
+  var WATCH_WAIT = '<div class="wq-vbox wq-vskel" data-primary aria-busy="true"></div><span class="wq-vskh"></span>';
   function shelvesBody(ctx, lib) {
     var t = C(ctx);
     return (lib.subjects || []).map(function (s, i) {
       return '<section class="wq-vsec"><div class="wq-vshead"><h3 class="wq-dsec"><bdi' + lat(t.subj(s.key)) + '>' + esc(t.subj(s.key)) + '</bdi></h3>' +
         '<button class="wq-btn wq-btn--secondary wq-vsall" type="button"' + (i === 0 ? ' data-primary' : '') + ' data-tap="subj" data-kind="subject" data-item="' + esc(s.key) + '" data-pos="' + i + '">' + esc(t.seeAll) + '</button></div>' +
-        '<div class="wq-vrow" data-vshelf="' + esc(s.key) + '">' + SKEL + SKEL + SKEL + '</div></section>';
+        '<div class="wq-vrow" data-vshelf="' + esc(s.key) + '" data-fetch="pending">' + SKEL + SKEL + SKEL + '</div></section>';
     }).join('');
   }
   // While the subjects load: two placeholder shelves (a heading bar and a row of cards), never words.
@@ -235,7 +237,7 @@
     if (name === 'stories') return frame(B, ctx, name, ht.stories || 'Stories', storiesBody(B, ctx, data));
     if (name === 'games') return frame(B, ctx, name, ht.games || 'Games', gamesBody(B, ctx, data));
     if (name === 'videos') return frame(B, ctx, name, ht.videos || 'Videos', data && data.subject ? chaptersBody(ctx, data.lib, data.subject, B) : subjectsBody(ctx, data && data.lib, B));
-    if (/^watch\//.test(name)) return frame(B, ctx, name, ht.videos || 'Videos', data && data.watch ? watchHtml(data.watch, ctx, data.next, shelfOn(B)) : '<p class="wq-soon wq-wait" data-primary>' + esc(C(ctx).opening) + '</p>');
+    if (/^watch\//.test(name)) return frame(B, ctx, name, ht.videos || 'Videos', data && data.watch ? watchHtml(data.watch, ctx, data.next, shelfOn(B)) : shelfOn(B) ? WATCH_WAIT : '<p class="wq-soon wq-wait" data-primary>' + esc(C(ctx).opening) + '</p>');
     return '';
   }
 
@@ -338,12 +340,46 @@
     view.subject = subject || null;
     if (!subject) {
       draw(root, B, ctx, 'videos', { lib: lib.subjects });
-      if (!lib.subjects || lib.subjects.err) getJson(libUrl(B, ctx), function (err, j) { lib.subjects = err || !j ? { err: true } : j; if (view.name === 'videos' && !view.subject) { draw(root, B, ctx, 'videos', { lib: lib.subjects }); shelves(root, B, ctx); } });
-      else shelves(root, B, ctx);
+      if (!lib.subjects || lib.subjects.err) { subjState(root, B, true); getJson(libUrl(B, ctx), function (err, j) { lib.subjects = err || !j ? { err: true } : j; if (view.name === 'videos' && !view.subject) { draw(root, B, ctx, 'videos', { lib: lib.subjects }); shelves(root, B, ctx); subjState(root, B); } }); }
+      else { shelves(root, B, ctx); subjState(root, B); }
       return;
     }
     draw(root, B, ctx, 'videos', { subject: subject, lib: lib.chapters[subject] || null });
-    if (!lib.chapters[subject]) getJson(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if (shelfOn(B) && view.name === 'videos' && view.subject === subject) draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) draw(root, B, ctx, 'videos', { subject: subject, lib: j }); });
+    var see = function (st, l) { if (shelfOn(B)) vtrip(root, 'videos/' + subject, st, st === 'done' && !lessonsOf(l).length); };
+    if (lib.chapters[subject]) return see('done', lib.chapters[subject]);
+    see('pending');
+    getJson(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if (shelfOn(B) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
+  }
+  // The walkers' list-state tripwires on the door root (web_quiz_video_shelf; the four attributes every child list
+  // writes): data-fetch pending|done|failed, when its placeholders came and went (a Try again starts a new spell), and
+  // when a true empty showed (never while pending). `key` is the list (the subjects' shelves, or one subject's grid).
+  var vrows = {};       // a subject's shelf -> pending | done | failed | gone (no lessons: its row is removed)
+  function vnow() { try { return String(Math.round(window.performance.now())); } catch (e) { return String(Date.now()); } }
+  function vtrip(root, key, st, empty) {
+    if (!root || typeof root.getAttribute !== 'function') return;
+    if (root.getAttribute('data-vtrip') !== key) {
+      root.setAttribute('data-vtrip', key);
+      ['data-skel-from', 'data-skel-to', 'data-empty-at'].forEach(function (k) { root.removeAttribute(k); });
+    }
+    root.setAttribute('data-fetch', st);
+    if (st === 'pending') {
+      if (root.getAttribute('data-skel-from') == null || root.getAttribute('data-skel-to') != null) { root.setAttribute('data-skel-from', vnow()); root.removeAttribute('data-skel-to'); }
+      return;
+    }
+    if (root.getAttribute('data-skel-from') != null && root.getAttribute('data-skel-to') == null) root.setAttribute('data-skel-to', vnow());
+    if (empty && root.getAttribute('data-empty-at') == null) root.setAttribute('data-empty-at', vnow());
+  }
+  // The subjects' screen: pending while the subjects or any shelf loads, failed when one did not load (its Try again is
+  // on screen), else done; a true empty is no subject with a lesson.
+  function subjState(root, B, loading) {
+    if (!shelfOn(B) || view.name !== 'videos' || view.subject) return;
+    var s = lib.subjects;
+    if (loading || !s) return vtrip(root, 'videos', 'pending');
+    if (s.err) return vtrip(root, 'videos', 'failed');
+    var keys = (s.subjects || []).map(function (x) { return x.key; });
+    var has = function (st) { return keys.some(function (k) { return (vrows[k] || 'pending') === st; }); };
+    var st = has('pending') ? 'pending' : has('failed') ? 'failed' : 'done';
+    vtrip(root, 'videos', st, st === 'done' && !keys.some(function (k) { return vrows[k] === 'done'; }));
   }
   // web_quiz_video_shelf: each subject's shelf fills in place from its own lessons (kept for See all and the quiz taps).
   function shelves(root, B, ctx) {
@@ -354,15 +390,18 @@
   function shelf(root, B, ctx, key, si) {
     var at = function () { return view.name === 'videos' && !view.subject ? root.querySelector('[data-vshelf="' + String(key).replace(/["\\]/g, '') + '"]') : null; };
     var put = function (sh, h) { sh.innerHTML = h; if (typeof sh.querySelectorAll === 'function') { each(sh, '[data-tap]', function (el) { bindTap(el, root, B, ctx, 'videos'); }); thumbFallback(sh); } };
+    var state = function (sh, st) { vrows[key] = st; if (sh && typeof sh.setAttribute === 'function') sh.setAttribute('data-fetch', st); subjState(root, B); };
     var fill = function (j) {
       var sh = at(); if (!sh) return;
       var cards = shelfHtml(j, ctx, si === 0 ? EAGER : 0);
-      if (!cards) { var sec = sh.parentNode; if (sec && sec.parentNode) sec.parentNode.removeChild(sec); return; }
+      if (!cards) { var sec = sh.parentNode; if (sec && sec.parentNode) sec.parentNode.removeChild(sec); return state(null, 'gone'); }
       put(sh, cards);
+      state(sh, 'done');
     };
     if (lib.chapters[key]) return fill(lib.chapters[key]);
+    state(at(), 'pending');
     getJson(libUrl(B, ctx, key), function (err, j) {
-      if (err || !j) { var sh = at(); if (sh) put(sh, oopsHtml(ctx, key, si)); return; }
+      if (err || !j) { var sh = at(); if (sh) { put(sh, oopsHtml(ctx, key, si)); state(sh, 'failed'); } return; }
       lib.chapters[key] = j; fill(j);
     });
   }

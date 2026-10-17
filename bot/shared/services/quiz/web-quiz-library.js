@@ -242,16 +242,15 @@ async function shelfOf(out, rootId) {
   out.quiz = Boolean(rootId || (await shelfRoot()));
   return out;
 }
-// The watch root for the shelves' Quiz buttons, held 30 s: one read per Videos open, not one per subject's shelf (the
-// quiz itself is made on the tap with a fresh read).
+// The watch root for the shelves' Quiz buttons, held 30 s from its read (shared while it is in flight): one read per
+// Videos open, not one per subject's shelf (the quiz itself is made on the tap with a fresh read).
 const ROOT_HOLD_MS = 30 * 1000;
 let rootHeld = null;
-async function shelfRoot() {
+function shelfRoot() {
   const now = Date.now();
   if (rootHeld && now - rootHeld.at < ROOT_HOLD_MS) return rootHeld.v;
-  const v = await require('./web-quiz-videos').watchRoot();
-  rootHeld = { at: now, v };
-  return v;
+  rootHeld = { at: now, v: require('./web-quiz-videos').watchRoot() };
+  return rootHeld.v;
 }
 
 /**
