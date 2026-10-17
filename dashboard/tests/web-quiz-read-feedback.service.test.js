@@ -266,6 +266,18 @@ describe('the key on: the moment answers the read on the end card', () => {
       expect(before(h, 'wq-say', 'data-rf')).toBe(true);
     }
   });
+  test('Story Time\'s checked result redraws the card (its ranked Next): the moment stays, now with the checked speed', () => {
+    for (const lang of ['en', 'ur']) {
+      const t = trail({ lang, href: STORY_HREF, menu: { ...FOLD, v2: { story: true }, ...RF }, data: { story_room: true, practice_round: true } });
+      t.TR.menu();
+      t.TR.readHold({ score: { attempted: 50 }, rf: { score: { correct: 50, attempted: 50 }, secs: 70 } }, null, 50);
+      expect(t.html()).toContain('data-rf');
+      t.TR.storySettled({ ...CHECKED, next_offer: NEXT });
+      const h = t.html();
+      expect(h).toContain('data-rf');
+      expect(h).toContain(lang === 'ur' ? 'ایک منٹ میں ۴۸ لفظ' : '48 words a minute');
+    }
+  });
   test('Jugnu reacts with sound: the badge jingle with a read, the soft chime with a 0-word read', () => {
     const a = trail({ menu: RF });
     a.TR.readEnd({ ...CHECKED, rf: CHECKED }, null, 4);
