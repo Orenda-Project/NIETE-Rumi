@@ -23,6 +23,8 @@
  * Switch quiz_teacher_home_paged ON: /api/th/home starts every read at once (the light list reads, the class report's
  * own-quiz rows, the send-again rows by teacher, the gate, the user, the prefill, the stories shelf) and answers the
  * same JSON as OFF in a few round trips. OFF: today's reads, one after another.
+ * Switch quiz_teacher_home_grade_fast (a JSON true, answered by the quick answer's own app_settings read): the page
+ * shell carries the script whose grade chips answer from the page (teacher-home.page FAST_SWAPS); off → today's shell.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
  * Never a 500: a thrown read → the mk.error page (200) on the page route, 503 {error:'mk.error'} on the JSON routes.
@@ -85,7 +87,10 @@ function createRouter(deps = null) {
     try { on = (await Flags.on()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
     // the quick answer's switch, asked only once the home is on (its own 30 s cache), by the home and its shell
-    req.thPaged = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.paged().then((v) => v === true, () => false) : null;
+    // (the same read answers quiz_teacher_home_grade_fast, used by the shell alone)
+    const sw = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.pagedSwitches().then((v) => v || {}, () => ({})) : null;
+    req.thPaged = sw ? sw.then((v) => v.paged === true) : null;
+    req.thGradeFast = sw ? sw.then((v) => v.gradeFast === true) : null;
     return next();
   });
   router.use(express.json({ limit: '4kb' }));
@@ -246,7 +251,9 @@ function createRouter(deps = null) {
     if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
     if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur');
     const { lang, switchTo } = Page.pageLang(v.ok.lang, asked(req.query.lang));
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}) });
+    // quiz_teacher_home_grade_fast: answered by the quick answer's switch read above, never a read of its own
+    const gradeFast = (await req.thGradeFast) === true;
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), ...(gradeFast ? { gradeFast } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));

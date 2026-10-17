@@ -252,6 +252,9 @@ function failSetting(key) {
     if (t !== 'app_settings') return b;
     const eq0 = b.eq.bind(b);
     b.eq = (k, v) => { const r = eq0(k, v); if (v === key) r.maybeSingle = async () => ({ data: null, error: { message: 'settings down' } }); return r; };
+    // a read of several keys at once (.in) that asks for `key` fails too
+    const in0 = b.in.bind(b);
+    b.in = (k, v) => ([].concat(v).includes(key) ? { then: (ok, no) => Promise.resolve({ data: null, error: { message: 'settings down' } }).then(ok, no) } : in0(k, v));
     return b;
   };
 }
@@ -265,6 +268,8 @@ function watchSetting(key) {
     if (t !== 'app_settings') return b;
     const eq0 = b.eq.bind(b);
     b.eq = (k, v) => { if (v === key) seen.n += 1; return eq0(k, v); };
+    const in0 = b.in.bind(b); // a read of several keys at once (.in) that asks for `key` counts once
+    b.in = (k, v) => { if ([].concat(v).includes(key)) seen.n += 1; return in0(k, v); };
     return b;
   };
   return seen;

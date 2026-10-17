@@ -239,6 +239,39 @@ function swapped(base, swaps) {
 const SCRIPT_PAGED = swapped(SCRIPT, PAGED_SWAPS);
 const SCRIPT_PAGED_HASH = sha(SCRIPT_PAGED);
 
+// app_settings quiz_teacher_home_grade_fast ON: the grade chips answer from the page. The tapped chip is pressed at the
+// tap (the story list is aria-busy and dimmed until its answer is drawn); each grade's library answer is kept in memory for this page (this token, this language); once the home is
+// painted and the page is idle, the neighbouring grades are asked for ONE AT A TIME (none while another library request
+// is open, none at all when the phone saves data or is on 2G); a tap on a grade already held (the home's own grade is,
+// from its answer) draws at once, with no request.
+const FAST_SWAPS = Object.freeze([
+  [`function pickGrade(n){if(String(n)===String(grade))return;grade=n;store('th.grade',String(n));step('grade');
+getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}).catch(function(e){if(e!==1)err(true)})}`,
+  `var C={},P={},pf=[],pfOn=false;
+function ck(n){return T+'|'+(b.ask||'')+'|'+n}
+function libGet(n){var k=ck(n);if(P[k])return P[k];P[k]=getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){delete P[k];C[k]=L;return L},function(e){delete P[k];throw e});return P[k]}
+function press(n){Array.prototype.forEach.call(q('#th-grades').querySelectorAll('[data-grade]'),function(x){x.setAttribute('aria-pressed',String(x.getAttribute('data-grade')===String(n)))})}
+function libWait(on){var u=q('#th-stories');if(on)u.setAttribute('aria-busy','true');else u.removeAttribute('aria-busy');u.style.opacity=on?'.5':''}
+function show(L){libWait(false);d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}
+function pickGrade(n){if(String(n)===String(grade))return;grade=n;press(n);store('th.grade',String(n));step('grade');
+var L=C[ck(n)];if(L){show(L);soon();return}
+libWait(true);
+libGet(n).then(function(L){if(String(grade)!==String(n))return;show(L);soon()}).catch(function(e){if(String(grade)!==String(n))return;libWait(false);grade=d.library&&d.library.grade;press(grade);if(e!==1)err(true)})}
+// the home's own grade is held from the start: its library card, and its top card when that is the library's pick
+function seed(){var L=d.library,p=d.primary||{},o={},k;if(!L||!L.grade||C[ck(L.grade)])return;for(k in L)o[k]=L[k];o.pick=p.kind==='story'||p.kind==='video'?p:null;C[ck(L.grade)]=o}
+function lite(){var c=navigator.connection;return !!(c&&(c.saveData===true||/(^|-)2g$/.test(String(c.effectiveType||''))))}
+function soon(){if(lite())return;var g=+grade;[g+1,g-1].forEach(function(x){if(x>=1&&x<=5&&!C[ck(x)]&&pf.indexOf(x)<0)pf.push(x)});
+if(pfOn||!pf.length)return;pfOn=true;(window.requestIdleCallback||function(f){return setTimeout(f,300)})(next)}
+function next(){var k;for(k in P){P[k].then(next,next);return}var x=pf.shift();if(x==null){pfOn=false;return}if(C[ck(x)])return next();libGet(x).then(next,next)}`],
+  [`foot();q('#th-main').setAttribute('data-ready','1')}`, `foot();q('#th-main').setAttribute('data-ready','1');seed();soon()}`],
+]);
+// Each part is found exactly once in today's script and in the quick answer's (swapped() throws at load otherwise):
+// the two switches compose, each variant under its own hash.
+const FAST_SCRIPT = swapped(SCRIPT, FAST_SWAPS);
+const FAST_SCRIPT_HASH = sha(FAST_SCRIPT);
+const SCRIPT_PAGED_FAST = swapped(SCRIPT_PAGED, FAST_SWAPS);
+const SCRIPT_PAGED_FAST_HASH = sha(SCRIPT_PAGED_FAST);
+
 function csp(styleHash, scriptHash, { meta = false } = {}) {
   return `default-src 'none'; style-src 'sha256-${styleHash}'; ${scriptHash ? `script-src 'sha256-${scriptHash}'; connect-src 'self'; ` : ''}`
     + `img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'${meta ? '' : "; frame-ancestors 'none'"}`;
@@ -272,11 +305,13 @@ const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.s
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
  * caller) rides only in the boot block; every teacher-specific word arrives from /api/th/home after paint. `asked` is
- * the ?lang the page was opened with (bi tokens only). → { html, csp } (the header value for the response).
+ * the ?lang the page was opened with (bi tokens only); `gradeFast` (only a real true) swaps in the fast grade chips'
+ * script and its own hash. → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false }) {
-  const script = paged ? SCRIPT_PAGED : SCRIPT;
-  const scriptHash = paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH;
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, gradeFast = false }) {
+  const fast = gradeFast === true;
+  const script = paged ? (fast ? SCRIPT_PAGED_FAST : SCRIPT_PAGED) : (fast ? FAST_SCRIPT : SCRIPT);
+  const scriptHash = paged ? (fast ? SCRIPT_PAGED_FAST_HASH : SCRIPT_PAGED_HASH) : (fast ? FAST_SCRIPT_HASH : SCRIPT_HASH);
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}`;
   const styleHash = sha(style);
@@ -339,4 +374,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
   return { html, csp: csp(styleHash, scriptHash) };
 }
 
-module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH, digits };
+module.exports = {
+  buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH,
+  FAST_SCRIPT, FAST_SCRIPT_HASH, SCRIPT_PAGED_FAST, SCRIPT_PAGED_FAST_HASH, swapped, digits,
+};
