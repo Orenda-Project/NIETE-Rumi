@@ -197,3 +197,31 @@ describe('when the home cannot load', () => {
     expect(p.q('#th-main').getAttribute('data-ready')).toBe('err');
   });
 });
+
+describe('"My lessons" rows', () => {
+  const row = (p, i) => p.q('#th-rows').querySelectorAll('li')[i];
+
+  test('a sent quiz that can no longer be sent again keeps its played count and its report link, with no "Send again"', async () => {
+    const p = await open({ primary: { kind: 'none' }, library: LIB, timeline: [
+      { kind: 'lp', verb: null, id: null, sendKind: null, played: 15, report: '/r/live-1', title: 'Fractions' },
+      { kind: 'quiz', verb: null, id: null, sendKind: null, played: 0, title: 'Plants' },
+    ] });
+    expect(row(p, 0).querySelector('.th-row-k').textContent).toBe('Lesson plan · 15 in your class played');
+    expect(row(p, 0).querySelector('[data-tap="report"]').href).toBe('/r/live-1');
+    expect(row(p, 0).querySelector('[data-tap="again"]')).toBeNull();
+    expect(row(p, 1).querySelector('.th-row-k').textContent).toBe('Quiz sent · No one in your class has played yet');
+    expect(row(p, 1).querySelector('[data-tap="report"]')).toBeNull();
+    expect(row(p, 1).querySelector('[data-tap="again"]')).toBeNull();
+  });
+
+  test('a row that can be sent again: count, "Send again", then the report link, as before; a lesson with no quiz has no count', async () => {
+    const p = await open({ primary: { kind: 'none' }, library: LIB, timeline: [
+      { kind: 'lp', verb: 'again', id: 'q1', sendKind: 'again', played: 3, report: '/r/live-2', title: 'Seasons' },
+      { kind: 'lp', verb: 'quiz_this', id: 'lp_9', make: 'lesson', sendKind: null, title: 'Water' },
+    ] });
+    expect(row(p, 0).querySelector('.th-row-k').textContent).toBe('Lesson plan · 3 in your class played');
+    expect(row(p, 0).children.map((c) => c.getAttribute('data-tap'))).toEqual([null, 'again', 'report']);
+    expect(row(p, 1).querySelector('.th-row-k').textContent).toBe('Lesson plan');
+    expect(row(p, 1).querySelector('[data-tap="report"]')).toBeNull();
+  });
+});
