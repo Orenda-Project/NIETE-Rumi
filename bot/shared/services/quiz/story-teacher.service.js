@@ -269,16 +269,19 @@ async function preview({ uid, storyId, classId = null, ui = null, now = Date.now
     report_line: resolveUx('storyReportWhere', { language: uiLang }), back_line: resolveUx('storyComeBack', { language: uiLang }) };
 }
 
-/** The teacher's tap: the code opened, the row marked sent; the meta carries the code, the message and the times. */
+/**
+ * The teacher's tap: the code opened, the row marked sent; the meta carries the code, the message and the times. An
+ * update that matched no row (the code or the row gone) is refused like one that failed.
+ */
 async function markSent(p, now) {
   if (p.held.active === false) {
     // Never a sent row behind a closed code (the class would get "expired"): no open, no send.
-    await mustWrite(supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id), 'story send: could not open the code', { refuse: unavailable });
+    await mustWrite(supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id).select('id'), 'story send: could not open the code', { needRow: true, refuse: unavailable });
   }
   const meta = { ...(p.quiz.meta || {}), story: { book_id: p.book.id, lang: p.lang }, share_code: p.held.code, share_code_id: p.held.id,
     link: p.out.link, student_message: p.out.class_message, sent_at: new Date(now).toISOString(),
     first_sent_at: (p.quiz.meta && p.quiz.meta.first_sent_at) || new Date(now).toISOString() };
-  await mustWrite(supabase.from('quizzes').update({ meta, status: 'sent' }).eq('id', p.quiz.id), 'story send: could not mark the send', { refuse: unavailable });
+  await mustWrite(supabase.from('quizzes').update({ meta, status: 'sent' }).eq('id', p.quiz.id).select('id'), 'story send: could not mark the send', { needRow: true, refuse: unavailable });
   logEvent('teacher_story_sent', { book_id: p.book.id, quiz_id: p.quiz.id, share_code_id: p.held.id, class_id: p.held.class_id || null, reused: p.reused });
 }
 

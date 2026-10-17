@@ -820,7 +820,7 @@ describe('a preview never reaches a child, even when the database fails', () => 
       const q = real(t);
       if (t !== 'quiz_share_codes') return q;
       const update = q.update.bind(q);
-      q.update = (p) => (p && p.active === active ? { eq: async () => ({ data: null, error: { message: 'down' } }) } : update(p));
+      q.update = (p) => (p && p.active === active ? { eq: () => ({ select: async () => ({ data: null, error: { message: 'down' } }) }) } : update(p));
       return q;
     };
     return () => { supabase.from = real; };
@@ -863,7 +863,7 @@ describe('a preview never reaches a child, even when the database fails', () => 
       const q = real(t);
       if (t !== 'quizzes') return q;
       const update = q.update.bind(q);
-      q.update = (p) => (p && p.status === 'sent' ? { eq: async () => ({ data: null, error: { message: 'down' } }) } : update(p));
+      q.update = (p) => (p && p.status === 'sent' ? { eq: () => ({ select: async () => ({ data: null, error: { message: 'down' } }) }) } : update(p));
       return q;
     };
     try {
@@ -872,6 +872,28 @@ describe('a preview never reaches a child, even when the database fails', () => 
     expect(db.quizzes[0].status).toBe('ready');
     expect(logEvent).not.toHaveBeenCalledWith('teacher_story_sent', expect.anything());
     expect(require('../../../shared/utils/logger').logToFile).toHaveBeenCalledWith(expect.stringContaining('could not mark the send'), expect.anything(), 'error');
+  });
+  test.each([
+    ['the code row', 'quiz_share_codes', 'could not open the code'],
+    ['the quiz row', 'quizzes', 'could not mark the send'],
+  ])('Send whose update matches no row (%s gone at mark time) is refused (503), and the row is not marked sent', async (_, gone, what) => {
+    await Stories.preview({ uid: TEACHER, storyId: B(1) });
+    const real = supabase.from;
+    // The row this update targets is gone (another id) the moment the update runs: the write matches nothing.
+    supabase.from = (t) => {
+      const q = real(t);
+      if (t !== gone) return q;
+      const update = q.update.bind(q);
+      q.update = (p) => { db[gone][0].id = 'gone-elsewhere'; return update(p); };
+      return q;
+    };
+    try {
+      await expect(Stories.share({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 503 });
+    } finally { supabase.from = real; }
+    expect(db.quizzes[0].status).toBe('ready');
+    expect(db.quizzes[0].meta.sent_at).toBeUndefined();
+    expect(logEvent).not.toHaveBeenCalledWith('teacher_story_sent', expect.anything());
+    expect(require('../../../shared/utils/logger').logToFile).toHaveBeenCalledWith(expect.stringContaining(what), expect.anything(), 'error');
   });
   test.each([
     ['answers an error', { data: null, error: { message: 'down' } }],

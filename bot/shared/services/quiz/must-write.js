@@ -7,7 +7,7 @@
  *   const row = await mustWrite(supabase.from('quizzes').insert(…).select().single(), 'story send: could not write the send',
  *     { needRow: true, refuse: () => new StoryError(503, 'unavailable') });
  *
- * `{ error }` (or no row with `needRow`) → logToFile('❌ <what>', { error: <message> }, 'error') and `throw refuse()`
+ * `{ error }` (or no row with `needRow`: null, or an empty list — an update(…).eq(…).select('id') that matched nothing) → logToFile('❌ <what>', { error: <message> }, 'error') and `throw refuse()`
  * (default: an Error with status 503 and body { error: 'unavailable' }). A write that throws is not caught here: the
  * caller sees the same rejection it would see without this helper.
  */
@@ -17,7 +17,8 @@ const unavailable = () => Object.assign(new Error('unavailable'), { status: 503,
 
 async function mustWrite(write, what, { needRow = false, refuse = unavailable } = {}) {
   const { data, error } = (await write) || {};
-  if (error || (needRow && !data)) {
+  // No row: null, or the empty list an update(...).select() answers when it matched nothing.
+  if (error || (needRow && (!data || (Array.isArray(data) && !data.length)))) {
     logToFile(`❌ ${what}`, { error: error ? error.message : null }, 'error');
     throw refuse();
   }

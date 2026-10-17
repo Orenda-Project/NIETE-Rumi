@@ -28,6 +28,13 @@ describe('mustWrite', () => {
     expect(logToFile).toHaveBeenCalledWith('❌ x: no row', { error: null }, 'error');
   });
 
+  test('needRow: an update that matched no row (an empty list) is refused the same way; one row lands', async () => {
+    await expect(mustWrite(Promise.resolve({ data: [], error: null }), 'x: matched nothing', { needRow: true }))
+      .rejects.toMatchObject({ status: 503, body: { error: 'unavailable' } });
+    expect(logToFile).toHaveBeenCalledWith('❌ x: matched nothing', { error: null }, 'error');
+    await expect(mustWrite(Promise.resolve({ data: [{ id: 1 }], error: null }), 'x', { needRow: true })).resolves.toEqual([{ id: 1 }]);
+  });
+
   test('refuse: the caller\'s own error type is what is thrown', async () => {
     class Mine extends Error { constructor() { super('mine'); this.status = 503; } }
     await expect(mustWrite(Promise.resolve({ error: { message: 'e' } }), 'x', { refuse: () => new Mine() })).rejects.toBeInstanceOf(Mine);
