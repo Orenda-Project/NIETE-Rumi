@@ -192,7 +192,8 @@
     }
     if (w.box) return w.box.slice(0, 4);
     x = (p.lines || []).filter(function (y) { return y.i0 <= i && i <= y.i1; })[0];
-    if (x && x.box) { var b = x.box, g = (i - x.i0 + 1) / (x.i1 - x.i0 + 1); return [b[0] + (rtl ? b[2] * (1 - g) : 0), b[1] + b[3] - 6, b[2] * g, 6, 1]; }
+    var b = x && (x.box || a && [a[0], a[1] + a[3] / p.lines.length * p.lines.indexOf(x), a[2], a[3] / p.lines.length]);
+    if (b) { var g = (i - x.i0 + 1) / (x.i1 - x.i0 + 1); return [b[0] + (rtl ? b[2] * (1 - g) : 0), b[1] + b[3] - 6, b[2] * g, 6, 1]; }
     x = 0;
     a = a || [0, p.image.h - 40, p.image.w, 40];
     for (k = 1; !x && k < ws.length; k++) x = (ws[i - k] || {}).box || (ws[i + k] || {}).box;

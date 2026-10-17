@@ -1320,6 +1320,18 @@ describe('the text lens wins over unsure word boxes (band setting)', () => {
       expect(root.querySelector('[data-cam]').style.transform).toBe(`translate(${c.tx}px,${c.ty}px) scale(${c.s})`);
     }
   });
+  test('a page whose lines have no boxes at all (the poem case): the sweep sits under the line being read, one row of the band, never a block over every line', async () => {
+    for (const rtl of [false, true]) {
+      const bk = book(); bk.lang = rtl ? 'ur' : 'en'; bk.dir = rtl ? 'rtl' : 'ltr';
+      const ws = ['Aa', 'Bb', 'Cc', 'Dd', 'Ee', 'Ff', 'Gg', 'Hh'].map((t, i) => W(i, t, 100 + i * 400));   // no word boxes
+      bk.pages[0] = { ...bk.pages[0], words: ws, boxes_ok: false, lines: [{ i0: 0, i1: 1 }, { i0: 2, i1: 3 }, { i0: 4, i1: 5 }, { i0: 6, i1: 7 }] };
+      const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e, { lang: bk.lang });
+      expect(e.S._mark(bk.pages[0], 2, bk.pages[0].text_band.box, rtl)).toEqual([rtl ? 100 + 520 / 2 : 100, 800 + 130 / 4 * 2 - 6, 520 / 2, 6, 1]);
+      fire(root, 'main'); e.calls.ra[0].o.onWord(5);
+      const mk = root.querySelector('[data-mk]');
+      expect([mk.style.left, mk.style.top, mk.style.width, mk.style.height, mk.className]).toEqual([rtl ? '100px' : '100px', `${800 + 130 / 4 * 3 - 6}px`, '520px', '6px', 'wqs-mk wqs-sw']);
+    }
+  });
   test('the same page with the setting OFF (no band): byte-identical to before', async () => {
     const r = await run(page({ boxes_ok: false, text_band: null }));
     expect(r.h).toContain('<div class="wqs-ph" data-ph><p>Mina Testwala has a kite</p><i>Opening…</i></div>');
