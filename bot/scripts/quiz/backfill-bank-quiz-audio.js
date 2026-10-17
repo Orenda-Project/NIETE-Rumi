@@ -23,9 +23,10 @@
  *   cap in app_settings still apply: "disabled" or "capped" stops the run).
  * - Stops before starting another quiz once the run's spend reaches --max-usd (default 15).
  * - Refuses to run unless SUPABASE_URL's project ref equals --expect-ref. Neither ref is printed.
- * - --one-voice: records every spoken part in the one voice, the parts the bank recorded too, and counts a
- *   quiz current only once it is stamped so (web-quiz-one-voice-flag.js). --plan '<json>': the same under the
- *   plan that value names (its voices, and the bank parts it keeps), i.e. exactly what the switch will serve. Run it before app_settings
+ * - --one-voice: records every line the quiz makes (the why, the wrong-answer lines, the hint, a question or option
+ *   the bank did not record) in the one voice; the bank's recordings of people keep the question and the options.
+ *   It counts a quiz current only once it is stamped so (web-quiz-one-voice-flag.js). --plan '<json>': the same under
+ *   the plan that value names (its voices, and the bank parts it keeps), i.e. exactly what the switch will serve. Run it before app_settings
  *   web_quiz_one_voice goes on and the first child after the flip hears one voice at once. With the switch
  *   still off the page plays exactly what it played before (the recorded clips win), so it is safe early.
  * - Prints ids, grades and subjects only — never a child's or a teacher's name.
