@@ -87,7 +87,7 @@ const {
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const MAX_OPTIONS = 10;         // WhatsApp interactive list row cap
 const OPTION_DESC_MAX = 72;     // WhatsApp row description length cap
-const COOLDOWN_HOURS = 24;
+const { COOLDOWN_HOURS, cooldownUntilFor, retryLine } = require('./retry-cooldown.rules');
 
 // ─── Multi-answer delivery surface ─────────────────────────────────────────
 //
@@ -1905,25 +1905,7 @@ async function getVendorPassingPctByLevel(levelId, kind = 'exam') {
   }
 }
 
-/**
- * When a failed attempt may be retaken (bd-vej4h).
- *
- * The hours come from training_vendors.cooldown_hours. This was a hardcoded
- * 24 for every vendor, so a vendor row set to 0 changed nothing — which is how
- * I-SAPS kept a 24-hour wait it never asked for. Unreadable falls back to the
- * old 24 (fail closed: an unknown vendor keeps the wait it always had).
- *
- * @param {number|null|undefined} hours
- * @param {number} [nowMs]
- * @returns {string|null} ISO timestamp, or null for no cooldown
- */
-function cooldownUntilFor(hours, nowMs = Date.now()) {
-  const h = Number(hours);
-  const use = (hours === null || hours === undefined || !Number.isFinite(h) || h < 0) ? COOLDOWN_HOURS : h;
-  if (use === 0) return null;
-  return new Date(nowMs + use * 3_600_000).toISOString();
-}
-
+/** training_vendors.cooldown_hours for a level's vendor (undefined = unreadable → 24h default). The rule lives in retry-cooldown.rules. */
 async function getVendorCooldownHoursByLevel(levelId) {
   if (!levelId) return undefined;
   try {
@@ -2301,7 +2283,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
     await WhatsAppService.sendMessage(
       phoneNumber,
       `❌ *Not this time.*\n\nYou scored *${score}/${attempt.total_questions}* (${Math.round(examPct)}%). This exam requires ${examPassingPct}%.\n\n` +
-      `Try again in *${COOLDOWN_HOURS} hours*. Use that time to review the modules you struggled with.\n\n` +
+      `${retryLine(cooldownHours)}\n\n` +
       `Send /training when you're ready.`
     );
   }
