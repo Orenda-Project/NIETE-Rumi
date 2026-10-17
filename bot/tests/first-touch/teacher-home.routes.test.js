@@ -546,7 +546,7 @@ describe('the store and the lists when something fails', () => {
     seed();
     await boot(deps);
     const t = tokenFor();
-    R().set.mockImplementationOnce(async () => false);
+    R().set.mockImplementationOnce(async () => false).mockImplementationOnce(async () => false); // refused, and refused again
     const first = await (await get(`/api/th/home?t=${t}&g=4`)).json();
     expect(first.primary && first.primary.send).toBeFalsy();
     expect(fake.db.quiz_share_codes).toHaveLength(1);
@@ -604,6 +604,19 @@ describe('the store and the lists when something fails', () => {
     await boot(deps);
     const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
     expect(home.bot).toBe(['1555', '000', '1111'].join(''));
+  });
+
+  test('the number the page is given is the one the return line links (one source), whatever spacing the setting has', async () => {
+    const was = process.env.WHATSAPP_BOT_NUMBER;
+    process.env.WHATSAPP_BOT_NUMBER = `+${['1', '555', '000', '1111'].join(' ')}`;
+    try {
+      seed();
+      await boot(deps);
+      const home = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+      const link = require('../../shared/services/first-touch/teacher-home.copy').chatLink();
+      expect(home.bot).toBe(['1555', '000', '1111'].join(''));
+      expect(link).toBe(`https://wa.me/${home.bot}?text=quiz`);
+    } finally { process.env.WHATSAPP_BOT_NUMBER = was; }
   });
 });
 

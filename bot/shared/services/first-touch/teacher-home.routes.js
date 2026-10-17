@@ -49,11 +49,11 @@ const asked = (v) => (ASKABLE.includes(v) ? v : null);
 const uuidIn = (v) => (typeof v === 'string' && UUID_RX.test(v) ? v : null);
 const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {});
 const optional = (path) => { try { return require(path); } catch (_) { return null; } };
-/** The bot's dialable number, digits only (10-15), or null. */
+/** The bot's dialable number, digits only, from the return line's own link (one source), or null. */
 function botDigits() {
   try {
-    const d = String(require('../quiz/video-quiz-share.service').botNumber() || '').replace(/\D/g, '');
-    return /^\d{10,15}$/.test(d) ? d : null;
+    const m = /^https:\/\/wa\.me\/(\d{10,15})\?text=quiz$/.exec(require('./teacher-home.copy').chatLink() || '');
+    return m ? m[1] : null;
   } catch (_) { return null; }
 }
 /** A first-touch module by its name in the registry (`./optional-modules`) when that is on the branch, else by its path; absent or broken → null. */
