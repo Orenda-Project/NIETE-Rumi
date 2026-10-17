@@ -74,10 +74,36 @@ describe('the shelves (switch on)', () => {
     expect(count(h, /data-primary/g)).toBe(1);
     expect(count(h, /class="wq-vcard"/g)).toBe(2);
   });
-  test('the shelves\' own stylesheet is asked for only when the switch is on', () => {
+  test('no extra stylesheet request: the shelf rules ride the door screens\' own wq-doors.css (new class names only)', () => {
     const W = F.load();
-    expect(W.WQDOORS.html(F.boot('en', SHELF()), { token: TOKEN, lang: 'en' }, 'videos', { lib: LIB_SUBJECTS })).toMatch(/wq-vshelf\.css/);
-    expect(JSON.stringify(F.offScreens())).not.toMatch(/wq-vshelf/);
+    const on = W.WQDOORS.html(F.boot('en', SHELF()), { token: TOKEN, lang: 'en' }, 'videos', { lib: LIB_SUBJECTS })
+      + W.WQDOORS.html(F.boot('en', SHELF()), { token: TOKEN, lang: 'en' }, `watch/${VID}`, { watch: WATCH, next: null });
+    expect(on).not.toMatch(/<link/);
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-doors.css'), 'utf8');
+    ['.wq-vrow', '.wq-vgrid', '.wq-vcard', '.wq-vthumb', '.wq-vskel', '.wq-vq', '.wq-vquiz'].forEach((c) => expect(css).toContain(c));
+    expect(fs.existsSync(path.join(__dirname, '..', 'public', 'wq', 'wq-vshelf.css'))).toBe(false);
+  });
+  test('one record per card: the thumbnail, the title, the minutes and both taps name the same lesson', () => {
+    const W = F.load();
+    const h = W.WQDOORS.shelfHtml(CH, { token: TOKEN, lang: 'en' });
+    const cards = h.split('<div class="wq-vcard">').slice(1);
+    expect(cards).toHaveLength(2);
+    CH.chapters[0].videos.forEach((v, i) => {
+      const c = cards[i];
+      expect(c).toContain(`src="/wq/vt/${v.vid}.webp"`);
+      expect(c).toContain(`data-tap="vid" data-item="${v.vid}"`);
+      expect(c).toContain(v.title);
+      expect((c.match(/data-item="([^"]+)"/g) || []).every((m) => m === `data-item="${v.vid}"`)).toBe(true);
+    });
+  });
+  test('the Quiz and See all buttons come from the one button system (wq-btn + one kind)', () => {
+    const W = F.load();
+    const shelf = W.WQDOORS.shelfHtml(CH, { token: TOKEN, lang: 'en' });
+    const subj = W.WQDOORS.html(F.boot('en', SHELF()), { token: TOKEN, lang: 'en' }, 'videos', { lib: LIB_SUBJECTS });
+    const watch = W.WQDOORS.html(F.boot('en', SHELF()), { token: TOKEN, lang: 'en' }, `watch/${VID}`, { watch: WATCH, next: null });
+    expect(shelf).toMatch(/<button class="wq-btn wq-btn--secondary wq-vq" type="button" data-tap="vquiz"/);
+    expect(subj).toMatch(/<button class="wq-btn wq-btn--secondary wq-vsall" type="button"/);
+    expect(watch).toMatch(/<button class="wq-btn wq-btn--secondary wq-vquiz" type="button" data-tap="vquiz"/);
   });
 });
 
@@ -86,7 +112,7 @@ describe('the watch screen offers the quiz from the first second (switch on)', (
     const W = F.load();
     const h = W.WQDOORS.html(F.boot(lang, SHELF()), { token: TOKEN, lang }, `watch/${VID}`, { watch: WATCH, next: { kind: 'quiz', title: 'Play the quiz', sub: WATCH.title, href: '#' } });
     expect(h).toMatch(/class="wq-vplay" type="button" data-primary/);
-    expect(h).toMatch(/<button class="wq-btn wq-vquiz" type="button" data-tap="vquiz" data-item="aaaaaaa1/);
+    expect(h).toMatch(/<button class="wq-btn wq-btn--secondary wq-vquiz" type="button" data-tap="vquiz" data-item="aaaaaaa1/);
     expect(h.indexOf('wq-vquiz')).toBeLessThan(h.indexOf('wq-after'));
     expect(count(h, /data-primary/g)).toBe(1);
   });
@@ -205,7 +231,7 @@ describe('the watch screen\'s Quiz button outlives the end card (switch on, card
     expect(after.gone).toBe(true);
     // what the end card leaves: the screen without its .wq-after block still holds the Quiz button
     const left = drawn.replace(/<div class="wq-after"[\s\S]*$/, '');
-    expect(left).toMatch(/<button class="wq-btn wq-vquiz" type="button" data-tap="vquiz" data-item="aaaaaaa1/);
+    expect(left).toMatch(/<button class="wq-btn wq-btn--secondary wq-vquiz" type="button" data-tap="vquiz" data-item="aaaaaaa1/);
     q.fire('click');
     await flush();
     expect(go).toHaveBeenCalledWith('/q/WAT001?k=kw&to=q', 'door_quiz');
