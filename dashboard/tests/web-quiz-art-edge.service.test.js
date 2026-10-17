@@ -111,3 +111,18 @@ describe('every picture the edge hands out is logged, with no id or code', () =>
     expect(edge()[0]).toEqual(expect.objectContaining({ kind: 'card', from: 'none', status: 404 }));
   });
 });
+
+describe("the class link's picture rides the same path and the same log", () => {
+  const edge = () => events.filter(([e]) => e === 'web_quiz.art_edge').map(([, p]) => p);
+  const TEACH = 't.MzMzMzMzMzNDM0MzMzMzMw.abcdefghijkl';
+
+  test('first fetch asked of the bot, then kept at the edge (a HEAD too); logged as its kind, with no id or code', async () => {
+    answer = (url) => (url.indexOf('/art/') >= 0
+      ? { status: 200, ok: true, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'image/png' : null) }, arrayBuffer: async () => Buffer.from([0x89, 0x50]), text: async () => '' }
+      : jsonRes(200, payload()));
+    await req(srv, `/q/AB12CD/art/teach.png?a=${TEACH}&v=0a1b2c3d`, { ua: WA });
+    await req(srv, `/q/AB12CD/art/teach.png?a=${TEACH}&v=0a1b2c3d`, { ua: WA, method: 'HEAD' });
+    expect(edge().map((p) => [p.kind, p.from, p.head])).toEqual([['teach', 'bot', false], ['teach', 'edge', true]]);
+    expect(JSON.stringify(edge())).not.toMatch(/AB12CD|MzMzMz|abcdefghijkl/);
+  });
+});
