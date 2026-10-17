@@ -62,7 +62,7 @@ const S = Object.freeze({
   'go.stale': Object.freeze({ en: 'This link has expired. For a new one, send “quiz” in the chat.', ur: 'اس لنک کی مدت ختم ہو گئی ہے۔ نیا لنک لینے کے لیے چیٹ میں ”کوئز“ لکھ کر بھیجیں۔' }),
   'go.error': Object.freeze({ en: "That didn't work. Try again in a moment.", ur: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔' }),
   'go.wa': Object.freeze({ en: 'Open WhatsApp', ur: 'واٹس\u00a0ایپ کھولیں' }),
-  // the one tap back on a dead-end page (switch quiz_one_door ON): the signed sentence, verbatim (a no-break space
+  // the one tap back on a dead-end page (switch web_quiz_closed_way_back ON): the signed sentence, verbatim (a no-break space
   // inside the brand name; the straight quotes around «کوئز» are the signed form)
   'go.back': Object.freeze({ en: "Open WhatsApp and send 'quiz' to Jugnu.", ur: 'واٹس\u00a0ایپ کھولیں اور جگنو کو "کوئز" لکھ کر بھیجیں۔' }),
   'go.family.h': Object.freeze({ en: 'Playing from home?', ur: 'گھر سے کھیلنا ہے؟' }),

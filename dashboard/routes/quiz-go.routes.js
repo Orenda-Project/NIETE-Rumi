@@ -16,7 +16,8 @@
  * catch-all) answers, byte for byte. A malformed token, a bot that cannot be reached and a caller over the rate limit
  * all fall through the same way: the edge draws a page only after the bot answered with the switch on (a Location off
  * this site, a bot 5xx → go.error with its one "Open WhatsApp" tap). The edge reads no table of its own, except the
- * switch quiz_one_door (lib/one-door-switch.js, cached 30 s, fail OFF), and only to draw its own go.error page: ON →
+ * switch web_quiz_closed_way_back (lib/closed-way-back-switch.js, default OFF, cached 30 s, fail OFF), and only to draw
+ * its own go.error page: ON →
  * that page ALWAYS carries ONE tap back to WhatsApp (the signed go.back sentence; wa.me/<bot>?text=quiz, or
  * whatsapp://send?text=quiz with no number); OFF → today's page.
  */
@@ -25,7 +26,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
 const GoPage = require('../../bot/shared/services/first-touch/go.page');
-const OneDoorSwitch = require('../lib/one-door-switch');
+const WayBackSwitch = require('../lib/closed-way-back-switch');
 
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const BOT_BASE = '/api/internal/go';
@@ -82,11 +83,11 @@ function createQuizGoRouter(opts = {}) {
     callBot = createBotClient({ botUrl, apiKey, fetchImpl });
     configured = Boolean(botUrl && apiKey);
   }
-  // quiz_one_door for the edge's own go.error page; `opts.oneDoorOn(req)` stands in for the read (tests)
-  const oneDoorOn = typeof opts.oneDoorOn === 'function'
-    ? opts.oneDoorOn
-    : (req) => OneDoorSwitch.on(req && req.app && req.app.locals ? req.app.locals.supabase : null);
-  const doorOf = async (req) => { try { return (await oneDoorOn(req)) === true; } catch (_) { return false; } };
+  // web_quiz_closed_way_back for the edge's own go.error page; `opts.wayBackOn(req)` stands in for the read (tests)
+  const wayBackOn = typeof opts.wayBackOn === 'function'
+    ? opts.wayBackOn
+    : (req) => WayBackSwitch.on(req && req.app && req.app.locals ? req.app.locals.supabase : null);
+  const doorOf = async (req) => { try { return (await wayBackOn(req)) === true; } catch (_) { return false; } };
   const router = express.Router();
 
   const limiter = rateLimit({

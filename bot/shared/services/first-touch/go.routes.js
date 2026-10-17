@@ -162,8 +162,8 @@ async function personaRow(lang, t) {
   } catch (_) { return ''; }
 }
 const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber() }));
-/** go.stale / go.error: never a dead end while the switch is on (ONE tap back to WhatsApp, with or without a number). */
-const deadEnd = async (res, id, lang) => page(res, Page.buildMessagePage({ id, lang, bot: botNumber(), door: (await Flags.on()) === true }));
+/** go.stale / go.error: never a dead end while web_quiz_closed_way_back is on (ONE tap back to WhatsApp, number or not). */
+const deadEnd = async (res, id, lang) => page(res, Page.buildMessagePage({ id, lang, bot: botNumber(), door: (await require('./closed-way-back.flags').on()) === true }));
 
 async function render(res, d, t, lang) {
   if (d.next) { headers(res); return res.redirect(302, d.next); }

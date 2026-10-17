@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The one way back to WhatsApp on a dead-end page (an expired, forged or failed link) while quiz_one_door is ON:
+ * The one way back to WhatsApp on a dead-end page (an expired, forged or failed link) while web_quiz_closed_way_back is ON:
  *
  *   chatHref(bot)    → https://wa.me/<digits>?text=quiz when `bot` is a dialable number (cards.page botOf: 10–15
  *                      digits once everything else is stripped), else whatsapp://send?text=quiz (opens the installed
@@ -8,7 +8,7 @@
  *   backText(lang)   → the signed sentence (one-door.strings go.back) in 'en', else Urdu ('ur' / 'bi').
  *   backTap(lang, bot) → { href, text } — the shape maker.page buildMessagePage takes as its `tap`.
  *
- * Callers decide the switch (one-door.flags on() in the bot, dashboard/lib/one-door-switch.js on the portal); with
+ * Callers decide the switch (closed-way-back.flags on() in the bot, dashboard/lib/closed-way-back-switch.js on the portal); with
  * it OFF nobody calls this and every page is today's. Pure: no read, no write, no message.
  */
 const { str } = require('./one-door.strings');

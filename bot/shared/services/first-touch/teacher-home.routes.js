@@ -87,10 +87,10 @@ function createRouter(deps = null) {
   }
   async function messagePage(res, status, id, lang) {
     // one tap back to the chat on every stale / error page (wa.me/<bot>?text=quiz); none when the number is unknown —
-    // with quiz_one_door ON always ONE tap: the signed go.back sentence, wa.me/<bot>?text=quiz or whatsapp://send?text=quiz
+    // with web_quiz_closed_way_back ON always ONE tap: the signed go.back sentence, wa.me/<bot>?text=quiz or whatsapp://send?text=quiz
     let tap = null;
     try {
-      if ((await require('./one-door.flags').on()) === true) tap = require('./chat-tap').backTap(clampLanguage(lang === 'bi' ? 'ur' : lang), botDigits());
+      if ((await require('./closed-way-back.flags').on()) === true) tap = require('./chat-tap').backTap(clampLanguage(lang === 'bi' ? 'ur' : lang), botDigits());
     } catch (_) { tap = null; }
     if (!tap) {
       const href = require('./teacher-home.copy').chatLink();

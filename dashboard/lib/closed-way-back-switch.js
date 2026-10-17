@@ -1,6 +1,7 @@
 /**
- * The portal's read of app_settings `quiz_one_door` (the one door's switch, the same row the bot reads in
- * bot/shared/services/first-touch/one-door.flags.js). Fail closed, like lib/feature-flags.js, and STRICT: only a
+ * The portal's read of app_settings `web_quiz_closed_way_back` (default OFF; the same row the bot reads in
+ * bot/shared/services/first-touch/closed-way-back.flags.js): ON → a closed page of kind 'hub' / 'closed' and the
+ * edge's go.error page carry ONE tap back to WhatsApp. Fail closed, like lib/feature-flags.js, and STRICT: only a
  * JSON boolean `true` (value === true) is on. A string ("true" or anything else), a number, an object, no row, no
  * client, a failed or slow read — all OFF.
  *
@@ -11,18 +12,18 @@
  *
  * The client is passed per call (the app's own: app.locals.supabase), so a route with no client reads nothing.
  */
-const ONE_DOOR_KEY = 'quiz_one_door';
+const WAY_BACK_KEY = 'web_quiz_closed_way_back';
 const TTL_MS = 30 * 1000;
 const TIMEOUT_MS = 800;
 
 /** The row's value is the JSON boolean true → true; anything else (or an error) → false. */
 async function readStrict(supabase) {
-  const { data, error } = await supabase.from('app_settings').select('value').eq('key', ONE_DOOR_KEY).maybeSingle();
+  const { data, error } = await supabase.from('app_settings').select('value').eq('key', WAY_BACK_KEY).maybeSingle();
   if (error || !data) return false;
   return data.value === true;
 }
 
-function createOneDoorSwitch({ now = Date.now, ttlMs = TTL_MS, timeoutMs = TIMEOUT_MS } = {}) {
+function createWayBackSwitch({ now = Date.now, ttlMs = TTL_MS, timeoutMs = TIMEOUT_MS } = {}) {
   let cache = null; // { at, on }
   let inflight = null;
   let gen = 0; // a reset forgets a read still in flight
@@ -70,12 +71,12 @@ function createOneDoorSwitch({ now = Date.now, ttlMs = TTL_MS, timeoutMs = TIMEO
 }
 
 // One cache for the whole portal (the closed pages and the one door's edge share it).
-const shared = createOneDoorSwitch();
+const shared = createWayBackSwitch();
 
 module.exports = {
-  createOneDoorSwitch,
+  createWayBackSwitch,
   on: (supabase) => shared.on(supabase),
   peek: (supabase) => shared.peek(supabase),
   _reset: () => shared._reset(),
-  ONE_DOOR_KEY,
+  WAY_BACK_KEY,
 };

@@ -31,9 +31,9 @@ const Preview = require('./web-quiz-preview');
 const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
-// The one tap back to WhatsApp on a dead-end page (quiz_one_door ON): the bot's signed words and its href rule.
+// The one tap back to WhatsApp on a dead-end page (web_quiz_closed_way_back ON): the bot's signed words and its href rule.
 const ChatTap = require('../../bot/shared/services/first-touch/chat-tap');
-const OneDoorSwitch = require('../lib/one-door-switch');
+const WayBackSwitch = require('../lib/closed-way-back-switch');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
@@ -544,7 +544,7 @@ function renderLibPage({ hub, kid, lang, origin, assetV, brandKey, rt = false, u
 
 /**
  * The closed page: kind 'hub' (an expired or forged child home link), 'closed' (a closed quiz / challenge link) or
- * 'off' (the service is not open right now). `back` (an href, given only while quiz_one_door is ON) adds ONE tap back
+ * 'off' (the service is not open right now). `back` (an href, given only while web_quiz_closed_way_back is ON) adds ONE tap back
  * to WhatsApp under the line on a 'hub' or 'closed' page, its words the signed sentence; 'off' never has one. Without
  * `back` the page is byte for byte today's.
  */
@@ -726,17 +726,17 @@ function createWebQuizRouter(opts = {}) {
   const ogKnown = Preview.ttlCache({ max: 2000, now });
   const artKept = Preview.ttlCache({ max: 200, now });
 
-  // quiz_one_door (app_settings, the bot's row): ON → a 'hub' / 'closed' page carries ONE tap back to WhatsApp. Read
-  // from the cache only (lib/one-door-switch.js peek: never waits, a cold or failed read is OFF = today's page).
-  // `opts.oneDoorOn(req)` stands in for the read (tests).
-  const oneDoorOn = typeof opts.oneDoorOn === 'function'
-    ? opts.oneDoorOn
-    : (req) => OneDoorSwitch.peek(req && req.app && req.app.locals ? req.app.locals.supabase : null);
+  // web_quiz_closed_way_back (app_settings, default OFF): ON → a 'hub' / 'closed' page carries ONE tap back to
+  // WhatsApp. Read from the cache only (lib/closed-way-back-switch.js peek: never waits, a cold or failed read is OFF =
+  // today's page). `opts.wayBackOn(req)` stands in for the read (tests).
+  const wayBackOn = typeof opts.wayBackOn === 'function'
+    ? opts.wayBackOn
+    : (req) => WayBackSwitch.peek(req && req.app && req.app.locals ? req.app.locals.supabase : null);
   // This deployment's number for the tap (WHATSAPP_BOT_NUMBER, else REFERRAL_BOT_NUMBER, digits only — the same
   // rule as quiz-go.routes botNumber()); none → the app's own link (chat-tap.js).
   const backFor = (req) => {
     try {
-      if (oneDoorOn(req) !== true) return null;
+      if (wayBackOn(req) !== true) return null;
       return ChatTap.chatHref(String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '') || null);
     } catch (_) { return null; }
   };

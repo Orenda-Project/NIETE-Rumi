@@ -91,13 +91,13 @@ function headers(res, csp) {
 }
 
 /**
- * mk.stale / mk.error. Switch quiz_one_door ON → never a dead end: ONE tap back to WhatsApp (the signed go.back
+ * mk.stale / mk.error. Switch web_quiz_closed_way_back ON → never a dead end: ONE tap back to WhatsApp (the signed go.back
  * sentence; wa.me/<bot>?text=quiz, or whatsapp://send?text=quiz with no number). OFF (or a failed read) → today's page.
  */
 async function messagePage(res, status, id, lang) {
   let tap = null; // in the page's own language (maker.page: 'bi' → Urdu)
   try {
-    if ((await require('./one-door.flags').on()) === true) tap = require('./chat-tap').backTap(clampLanguage(lang === 'bi' ? 'ur' : lang), Share.botNumber());
+    if ((await require('./closed-way-back.flags').on()) === true) tap = require('./chat-tap').backTap(clampLanguage(lang === 'bi' ? 'ur' : lang), Share.botNumber());
   } catch (_) { tap = null; }
   const built = Page.buildMessagePage({ lang, id, tap });
   headers(res, built.csp);

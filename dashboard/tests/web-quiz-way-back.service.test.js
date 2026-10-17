@@ -1,5 +1,6 @@
 /**
- * An expired, forged or closed child link on the portal is never a dead end (switch quiz_one_door ON): the closed page
+ * An expired, forged or closed child link on the portal is never a dead end (switch web_quiz_closed_way_back ON, default
+ * OFF): the closed page
  * of kind 'hub' (/h/:token) and 'closed' (/q/:code, /c/:token, /c/:token/back) carries ONE tap back to WhatsApp whose
  * words are the signed sentence (EN "Open WhatsApp and send 'quiz' to Jugnu.", UR with U+00A0 inside «واٹس ایپ»), its
  * href https://wa.me/<digits>?text=quiz when this deployment knows its number (WHATSAPP_BOT_NUMBER, else
@@ -81,7 +82,10 @@ afterAll(() => {
   if (saved.R === undefined) delete process.env.REFERRAL_BOT_NUMBER; else process.env.REFERRAL_BOT_NUMBER = saved.R;
 });
 
-/** A table client whose app_settings row for quiz_one_door is `row` (undefined → no row; 'throw' → the read throws). */
+/**
+ * A table client whose app_settings row for web_quiz_closed_way_back is `row` (undefined → no row; 'throw' → the read
+ * throws). quiz_one_door always reads true: the way back rides its own switch only.
+ */
 function settingsClient(row) {
   return {
     from: () => ({
@@ -90,14 +94,16 @@ function settingsClient(row) {
           maybeSingle: async () => {
             if (row === 'throw') throw new Error('app_settings down');
             if (row === 'error') return { data: null, error: { message: 'down' } };
-            return { data: key === 'quiz_one_door' && row !== undefined ? { value: row } : null, error: null };
+            if (row === 'null-value' && key === 'web_quiz_closed_way_back') return { data: { value: null }, error: null };
+            if (key === 'quiz_one_door') return { data: { value: true }, error: null };
+            return { data: key === 'web_quiz_closed_way_back' && row !== undefined ? { value: row } : null, error: null };
           },
         }),
       }),
     }),
   };
 }
-const resetSwitch = () => { try { require('../lib/one-door-switch')._reset(); } catch (_) { /* not on this code */ } };
+const resetSwitch = () => { try { require('../lib/closed-way-back-switch')._reset(); } catch (_) { /* not on this code */ } };
 
 let srv;
 let next;
@@ -108,7 +114,7 @@ async function boot({ inject = true, locals = undefined, bot = true } = {}) {
   const app = express();
   if (locals !== undefined) app.locals.supabase = locals;
   const opts = { botUrl: bot ? BOT : '', apiKey: bot ? KEY : '', canonicalBase: '', fetchImpl: async () => next() };
-  if (inject) opts.oneDoorOn = () => door;
+  if (inject) opts.wayBackOn = () => door;
   app.use(createWebQuizRouter(opts));
   app.use((r, res) => res.status(418).send('fell through'));
   await new Promise((r) => { srv = app.listen(0, r); });
@@ -154,7 +160,7 @@ describe('switch ON, no number configured', () => {
   test('the edge\'s own go.error page (/quiz/go/:token, the bot answered 5xx): ONE tap, the app link, both languages', async () => {
     resetSwitch();
     const app = express();
-    app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), oneDoorOn: async () => true }));
+    app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), wayBackOn: async () => true }));
     await new Promise((r) => { srv = app.listen(0, r); });
     const r = await req(srv, `/quiz/go/${GO_TOK}`);
     expect(r.status).toBe(503);
@@ -181,7 +187,7 @@ describe('switch ON, number configured', () => {
   test('the edge\'s go.error: ONE tap to wa.me, no second "Open WhatsApp"', async () => {
     number('whatsapp');
     const app = express();
-    app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), oneDoorOn: async () => true }));
+    app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), wayBackOn: async () => true }));
     await new Promise((r) => { srv = app.listen(0, r); });
     const r = await req(srv, `/quiz/go/${GO_TOK}`);
     expectOneTap(r.body, WA, [UR, EN]);
@@ -191,7 +197,7 @@ describe('switch ON, number configured', () => {
 });
 
 describe('the switch read from app_settings (app.locals.supabase): only the JSON boolean true is on', () => {
-  test.each([[true]])('quiz_one_door = %j → the tap (once the cached read has landed)', async (value) => {
+  test.each([[true]])('web_quiz_closed_way_back = %j → the tap (once the cached read has landed)', async (value) => {
     number(null);
     next = () => jsonRes(500, {});
     await boot({ inject: false, locals: settingsClient(value) });
@@ -203,8 +209,8 @@ describe('the switch read from app_settings (app.locals.supabase): only the JSON
 });
 
 describe('switch OFF in every state: byte-identical to the page before the change', () => {
-  const OFF_STATES = [['absent', undefined], ['false', false], ['garbage', 'yes please'], ['string "true"', 'true'], ['quoted string "true"', '"true"'],
-    ['number 1', 1], ['throws', 'throw'], ['error', 'error'], ['no client', null]];
+  const OFF_STATES = [['absent', undefined], ['false', false], ['yes', 'yes'], ['string "true"', 'true'], ['quoted string "true"', '"true"'],
+    ['number 1', 1], ['object', {}], ['null', 'null-value'], ['throws', 'throw'], ['error', 'error'], ['no client', null]];
 
   test('the renderer with no tap is the page from before (pinned bytes), every kind and language', () => {
     for (const kind of ['hub', 'closed', 'off']) {
@@ -252,10 +258,10 @@ describe('switch OFF in every state: byte-identical to the page before the chang
   test('the edge\'s go.error with the switch off (given, or no client to read it): the page from before', async () => {
     for (const which of [null, 'whatsapp']) {
       number(which);
-      for (const oneDoorOn of [async () => false, undefined]) {
+      for (const wayBackOn of [async () => false, undefined]) {
         resetSwitch();
         const app = express();
-        app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), ...(oneDoorOn ? { oneDoorOn } : {}) }));
+        app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), ...(wayBackOn ? { wayBackOn } : {}) }));
         await new Promise((r) => { srv = app.listen(0, r); });
         const r = await req(srv, `/quiz/go/${GO_TOK}`);
         const bot = which ? WA_BOT : null;

@@ -15,7 +15,7 @@
  *                                 BEFORE "Yes, it's me" (POST /api/go/bind), and "None of these" → the one question.
  *   buildMessagePage({ id, lang, bot?, door? })  one line: go.stale (send "quiz" again), go.error, go.family; the first two
  *                                   carry ONE "Open WhatsApp" tap (wa.me/<bot>?text=quiz) when `bot` is a dialable number;
- *                                   with `door: true` (quiz_one_door ON, read by the caller) they ALWAYS carry ONE tap
+ *                                   with `door: true` (web_quiz_closed_way_back ON, read by the caller) they ALWAYS carry ONE tap
  *                                   instead, its words the signed go.back sentence, its href wa.me/<bot>?text=quiz or,
  *                                   with no number, whatsapp://send?text=quiz (chat-tap.js)
  *
