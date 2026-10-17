@@ -509,6 +509,11 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   const helpers = mediaHelpers();
   let audio = {};
   let video = null;
+  // One voice per quiz (web-quiz-one-voice-flag.js): no recorded person's voice beside the quiz voice. Its clips are
+  // in their own slot (meta.web_one): the page is served from it, and meta.web is left as it is.
+  const oneVoice = !story && await require('./web-quiz-one-voice-flag').on();
+  const quizMeta = (quizRow && quizRow.meta) || {};
+  const audioMeta = oneVoice ? { ...quizMeta, web: quizMeta.web_one || {} } : quizMeta;
   // The signed media of a code are reused for 5 minutes (they live 6 h): the library's prefetch and
   // the tap that follows it, or a class opening the same link together, sign them once. The key is
   // everything the links are made from, so new clips or edited questions are signed at once.
@@ -516,13 +521,14 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     ctx.code, ctx.quizId, ctx.parent.video_id || (quizRow && quizRow.video_id) || null,
     (quizRow && quizRow.meta && quizRow.meta.web) || null,
     questions.map((q) => [q.id, q.question_text, q.media || null]),
+    ...(oneVoice ? ['one_voice'] : []),
   ])).digest('base64');
   const cached = quizMediaCache.get(mediaKey);
   const hit = Boolean(cached && Date.now() - cached.at < QUIZ_MEDIA_CACHE_MS);
   if (hit) {
     ({ audio, video } = cached);
   } else if (helpers) {
-    try { audio = (await helpers.presignAudio((quizRow && quizRow.meta) || {}, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
+    try { audio = (await helpers.presignAudio(audioMeta, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
     const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
     if (videoId) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
@@ -539,12 +545,12 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   let audioPending = false;
   if (!story) try {
     const Publish = require('./web-quiz-publish.service');
-    audioPending = !Publish.isCurrent(((quizRow && quizRow.meta) || {}).web);
-    Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
+    audioPending = !Publish.isCurrent(Publish.webOf(quizMeta, { oneVoice }), { oneVoice });
+    Publish.requestQuizAudio(ctx.quizId, { meta: quizMeta, ...(oneVoice ? { oneVoice } : {}) }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   if (!hit) {
-    try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+    try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S, oneVoice }); } catch { /* the page reads aloud */ }
     if (helpers) {
       if (quizMediaCache.size >= QUIZ_MEDIA_CACHE_MAX) quizMediaCache.clear();
       quizMediaCache.set(mediaKey, { at: Date.now(), audio, video });
@@ -631,6 +637,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
+  // One voice per quiz: the page shows a line with no clip instead of reading it in the phone's voice (named only when on).
+  if (oneVoice) out.one_voice = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
   return out;
 }

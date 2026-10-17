@@ -132,7 +132,8 @@ const nameOf = (ex, lang) => resolveUx(`wqCh${KEY[ex]}Name`, { language: lang })
 const lineOf = (ex, part, lang) => resolveUx(`wqCh${KEY[ex]}${PART_KEY[part]}`, { language: lang });
 const PARTS = ['intro', 'start', 'stop', 'done'];
 // The quiz's one voice per language (web-quiz-voice.js QUIZ_VOICE), pinned per call: never a fallback provider.
-const { quizVoice, voiceTag } = require('./web-quiz-voice');
+const { quizVoice, voiceTag, voiceOfTag } = require('./web-quiz-voice');
+const OneVoice = require('./web-quiz-one-voice-flag');
 const AudioStore = require('./web-quiz-audio-store');
 
 const nowIso = () => new Date().toISOString();
@@ -564,8 +565,15 @@ async function updateRunMeta(id, build, { force = false } = {}) {
 // ── clips: the mascot's lines, recorded once per env in the quiz voice ───────────────────────────────
 
 // quiz-audio/<env>/challenge/<lang>/<exercise>/<part>-<voiceTag>-<hash8>.ogg — the quiz clips' own scheme and bucket.
+// With one voice per quiz (web-quiz-one-voice-flag.js, as last read) the tag is the one voice's.
 function clipKey(ex, part, lang, text) {
-  return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: voiceTag(lang), text });
+  return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: voiceTag(lang, { oneVoice: OneVoice.current() }), text });
+}
+
+// The voice a clip's key names (its tag), so a clip is always recorded in the voice its key says; else the quiz voice.
+function voiceOfKey(key, lang) {
+  const m = /-([a-z]{2}-[a-z0-9]+)-[0-9a-f]{8}\.ogg$/.exec(String(key || ''));
+  return (m && voiceOfTag(m[1])) || quizVoice(lang);
 }
 
 async function recordClip(key, text, lang, now = Date.now()) {
@@ -574,9 +582,12 @@ async function recordClip(key, text, lang, now = Date.now()) {
   clipsRecorded += 1;
   try {
     const tts = require('../tts');
-    const v = quizVoice(lang);
+    const v = voiceOfKey(key, lang);
     // The provider and voice pinned per call, no fallback: a clip that cannot be made in this voice stays missing.
-    const out = await tts.synthesize({ text, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice });
+    const out = await tts.synthesize({
+      text, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice,
+      ...(v.model ? { model: v.model, voiceSettings: v.settings } : {}),
+    });
     await r2.uploadBuffer(out.audio, key, 'audio/ogg', { bucket: AudioStore.quizAudioBucket() });
     clipKnown.set(key, true);
     logEvent('web_quiz.ch_clip_recorded', { lang, provider: out.provider, voice: out.voice, audioSec: Math.round((out.durationSec || 0) * 10) / 10, chars: [...String(text)].length, costUsd: clipCostUsd(out) });
@@ -594,6 +605,7 @@ function clipCostUsd(out) {
 }
 
 async function clipUrl(key, text, lang) {
+  OneVoice.on().catch(() => {});   // keeps the switch's reading fresh for the next key (never throws, 30 s cache)
   const known = clipKnown.get(key);
   let exists = known === true;
   if (!exists && !(typeof known === 'number' && Date.now() - known < 10 * 60 * 1000)) {

@@ -37,7 +37,10 @@
  *
  * - Idempotent: a clip already in R2 is not recorded again.
  * - Records only what is missing: a question or option the bank already voices (its own recorded
- *   clip, web-quiz-sound recordedParts) is not recorded — the page plays the recorded one.
+ *   clip, web-quiz-sound recordedParts) is not recorded — the page plays the recorded one. With one
+ *   voice per quiz (web-quiz-one-voice-flag.js) those are recorded too, in the one voice, and the map is
+ *   written to its own slot, quizzes.meta.web_one (same fields, plus audio_one = the voice tag once the
+ *   whole quiz is in it): meta.web is never touched, so turning the switch off serves exactly today's clips.
  * - Capped per quiz (maxClips), so a bad quiz cannot spend without limit.
  * - Fails soft: a clip that cannot be made is counted and skipped; the page
  *   falls back to the phone's own voice for it. Never throws.
@@ -55,6 +58,7 @@ const { mathToText } = require('./quiz-math');
 const { cleanWrongFeedback } = require('./web-quiz-feedback');
 const r2 = require('../../storage/r2');
 const Voice = require('./web-quiz-voice');
+const OneVoice = require('./web-quiz-one-voice-flag');
 const Store = require('./web-quiz-audio-store');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
@@ -86,6 +90,11 @@ function clipCostUsd(res, text) {
 // in another format gets new clips on its next publish.
 const CLIP_KBPS = 24;
 const CLIP_FORMAT = `opus${CLIP_KBPS}m`;
+// The one voice's clips (web-quiz-one-voice-flag.js) are the provider's own bytes (Ogg Opus 48 kHz 64 kb/s), never
+// re-encoded: a second encode at 24 kb/s is the loss the storybook voice-overs dropped (Oct 2026). Its own format tag.
+const ONE_FORMAT = 'opus64';
+// ElevenLabs v4 as the team's spend log counts it, for the one voice's clips (the estimate the backfill stops on).
+const ONE_USD_PER_CHAR = 0.30 / 1000;
 
 /** A clip's key (web-quiz-audio-store.js), in the quiz voice of `language`, for this deployment. */
 function audioKey(quizId, questionId, part, text, language, { env } = {}) {
@@ -220,10 +229,13 @@ function recordedParts(q) {
   try { return require('./web-quiz-sound').recordedParts(q); } catch (_) { return new Set(); }
 }
 
-/** The clips one question needs, in order: [{ part, text }]. A part the bank already has a recorded clip for is not one. */
-function partsFor(q) {
+/**
+ * The clips one question needs, in order: [{ part, text }]. A part the bank already has a recorded clip for is
+ * not one, unless the quiz has one voice (`oneVoice`): then every part is the quiz voice's.
+ */
+function partsFor(q, { oneVoice = false } = {}) {
   const parts = [];
-  const have = recordedParts(q || {});
+  const have = oneVoice ? new Set() : recordedParts(q || {});
   const add = (part, text) => { if (text && SAYABLE.test(text) && !have.has(part)) parts.push({ part, text }); };
   const w = webItemOf(q);
   if (w) {
@@ -291,7 +303,7 @@ async function exists(key, bucket) {
  * @returns {Promise<{ok:boolean, reason?:string, synthesized:number, skipped:number, failed:number,
  *   capped:boolean, chars:number, bytes:number, estimatedCostUsd:number}>}
  */
-async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {}) {
+async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneVoice } = {}) {
   const client = db || require('../../config/supabase');
   const stats = { synthesized: 0, skipped: 0, failed: 0, capped: false, chars: 0, bytes: 0, audioSec: 0, providers: {} };
   let costUsd = 0;
@@ -314,12 +326,15 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     if (qsErr) throw qsErr;
 
     const language = quizLanguage(quiz, questions);
+    const one = oneVoice === undefined ? await OneVoice.on({ db: client }) : Boolean(oneVoice);
     const allowed = await Store.recordingAllowed({ db: client, quizId, logEvent, logError });
     if (!allowed.ok) return done({ ok: false, reason: allowed.reason });
-    const voice = Voice.quizVoice(language);
+    const voice = Voice.quizVoice(language, { oneVoice: one });
     // Never a clip in no quiz voice: it would be a second voice beside the shared lines.
     if (!voice) return done({ ok: false, reason: 'no_voice', language: language || null });
-    const voiceTag = Voice.voiceTag(language);
+    const voiceTag = Voice.voiceTag(language, { oneVoice: one });
+    const format = one ? ONE_FORMAT : CLIP_FORMAT;
+    const slot = one ? 'web_one' : 'web';
     const bucket = Store.quizAudioBucket();
     const env = Store.deployEnv();
     // Every clip of the quiz is one task; CLIP_WORKERS run at once (the vendor caps a process's calls
@@ -328,10 +343,10 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     const tasks = [];
     for (const q of questions || []) {
       entries.set(q.id, { q: null, opts: [null, null, null, null], why: null, fbs: [null, null, null, null], hint: null });
-      for (const { part, text } of partsFor(q)) {
+      for (const { part, text } of partsFor(q, { oneVoice: one })) {
         // The key is made from the words the voice is given: a clip recorded with other words is recorded again.
         const say = voiceText(text, language);
-        tasks.push({ q, part, text: say, key: clipKey({ env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text: say }) });
+        tasks.push({ q, part, text: say, key: Store.clipKey({ format, env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text: say }) });
       }
     }
     // The quiz's clips in meta.web: the map of every entry so far, merged into the freshest meta so a
@@ -345,11 +360,12 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
       }
       const { data: fresh } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
       const meta = (fresh && fresh.meta) || quiz.meta || {};
-      const web = meta.web && typeof meta.web === 'object' ? meta.web : {};
+      const web = meta[slot] && typeof meta[slot] === 'object' ? meta[slot] : {};
       const complete = final && stats.failed === 0 && !stats.capped;
-      const nextMeta = { ...meta, web: {
+      const nextMeta = { ...meta, [slot]: {
         ...web, audio: { ...(web.audio || {}), ...audio }, audio_bucket: bucket, audio_voice: voiceTag,
         ...(stats.synthesized ? { audio_day: allowed.day } : {}), ...(complete ? { audio_v: AUDIO_VERSION } : {}),
+        ...(complete && one ? { audio_one: voiceTag } : {}),
       } };
       const { error: uErr } = await client.from('quizzes').update({ meta: nextMeta }).eq('id', quizId);
       if (uErr) throw uErr;
@@ -372,15 +388,16 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
         try {
           const res = await tts.synthesize({
             text, language, useCase: 'reading', site: 'web_quiz_read_aloud', ...(voice ? { provider: voice.provider, voice: voice.voice } : {}),
+            ...(one ? { model: voice.model, voiceSettings: voice.settings } : {}),
           });
-          const clip = await compactClip(res.audio);
+          const clip = one ? res.audio : await compactClip(res.audio);
           await r2.uploadBuffer(clip, key, 'audio/ogg', { bucket });
           stats.synthesized += 1;
           stats.chars += text.length;
           stats.bytes += clip.length;
           stats.audioSec += res.durationSec || 0;
           stats.providers[res.provider] = (stats.providers[res.provider] || 0) + 1;
-          costUsd += clipCostUsd(res, text);
+          costUsd += one && res.provider === 'elevenlabs' ? text.length * ONE_USD_PER_CHAR : clipCostUsd(res, text);
           have = true;
         } catch (error) {
           stats.failed += 1;
@@ -447,19 +464,31 @@ function quizLanguage(quiz, questions) {
   return /[\u0600-\u06FF]/.test(text) ? 'ur' : 'en';
 }
 
-/** Recorded at this version, in a real quiz voice (a "default" voice is a quiz to record again). */
-function isCurrent(web) {
-  return Number(web && web.audio_v) >= AUDIO_VERSION && (web.audio_voice || '') !== 'default';
+// The voice tags of the one voice: a one-voice stamp in any other voice (an older pick) is a quiz to record again.
+const ONE_VOICE_TAGS = new Set(Object.values(Voice.ONE_VOICE).map(Voice.tagOf));
+
+/**
+ * Recorded at this version, in a real quiz voice (a "default" voice is a quiz to record again). With one voice
+ * per quiz (`oneVoice`), also stamped as recorded whole in one of today's quiz voices (meta.web.audio_one).
+ */
+function isCurrent(web, { oneVoice = false } = {}) {
+  const current = Number(web && web.audio_v) >= AUDIO_VERSION && (web.audio_voice || '') !== 'default';
+  return oneVoice ? current && ONE_VOICE_TAGS.has(web.audio_one) : current;
 }
 
-function ensureQuizAudio(quizId, { meta, db, publish = module.exports.publishQuizAudio } = {}) {
-  const web = (meta && meta.web) || {};
-  if (!quizId || isCurrent(web)) return Promise.resolve({ skipped: 'current' });
+/** The clip map a quiz is served from: meta.web, or with one voice meta.web_one (its own slot). */
+function webOf(meta, { oneVoice = false } = {}) {
+  return (meta && (oneVoice ? meta.web_one : meta.web)) || {};
+}
+
+function ensureQuizAudio(quizId, { meta, db, oneVoice = false, publish = module.exports.publishQuizAudio } = {}) {
+  const web = webOf(meta, { oneVoice });
+  if (!quizId || isCurrent(web, { oneVoice })) return Promise.resolve({ skipped: 'current' });
   if (inflight.has(quizId)) return inflight.get(quizId);
   const failedAt = lastFail.get(quizId);
   if (failedAt && Date.now() - failedAt < RETRY_AFTER_MS) return Promise.resolve({ skipped: 'cooldown' });
   const run = Promise.resolve()
-    .then(() => publish(quizId, { db }))
+    .then(() => publish(quizId, oneVoice ? { db, oneVoice } : { db }))
     .then((out) => { if (!out || !out.ok) lastFail.set(quizId, Date.now()); else lastFail.delete(quizId); return out || {}; })
     .catch((error) => {
       lastFail.set(quizId, Date.now());
@@ -483,19 +512,22 @@ const REQUEST_AGAIN_MS = 10 * 60 * 1000;
  * AUDIO_VERSION is not queued. If the queue cannot take the job, the clips are made here instead
  * (ensureQuizAudio), so a child is never left without them. Never throws.
  */
-async function requestQuizAudio(quizId, { meta, queue, publish, db } = {}) {
-  const web = (meta && meta.web) || {};
-  if (!quizId || isCurrent(web)) return { skipped: 'current' };
-  const at = requested.get(quizId);
+async function requestQuizAudio(quizId, { meta, queue, publish, db, oneVoice = false } = {}) {
+  const web = webOf(meta, { oneVoice });
+  if (!quizId || isCurrent(web, { oneVoice })) return { skipped: 'current' };
+  // A one-voice request is not the same request: a quiz asked for just before the switch went on is asked again.
+  const ask = oneVoice ? `${quizId}:one` : quizId;
+  const at = requested.get(ask);
   if (at && Date.now() - at < REQUEST_AGAIN_MS) return { skipped: 'requested' };
-  requested.set(quizId, Date.now());
+  requested.set(ask, Date.now());
   try {
     const q = queue || require('../queue');
-    await q.queueJob(quizId, JOB, { quizId }, { deduplicationId: `${quizId}-${JOB}-v${AUDIO_VERSION}` });
+    // One voice is its own job: the queue must not drop it as a repeat of the quiz's earlier recording.
+    await q.queueJob(quizId, JOB, { quizId }, { deduplicationId: `${quizId}-${JOB}-v${AUDIO_VERSION}${oneVoice ? '-one' : ''}` });
     return { queued: true };
   } catch (error) {
     logError('web_quiz.publish_audio.queue_failed', { event: 'web_quiz.publish_audio.queue_failed', quizId, error: String(error.message || error).slice(0, 200) });
-    return ensureQuizAudio(quizId, { meta, db, ...(publish ? { publish } : {}) });
+    return ensureQuizAudio(quizId, { meta, db, ...(oneVoice ? { oneVoice } : {}), ...(publish ? { publish } : {}) });
   }
 }
 
@@ -511,9 +543,10 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
   const attempt = Number(payload.attempt) || 0;
   const client = db || require('../../config/supabase');
   const { data } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
-  const web = (data && data.meta && data.meta.web) || {};
-  if (isCurrent(web)) return { skipped: 'current' };
-  const out = (await publish(quizId, { db: client })) || {};
+  const oneVoice = await OneVoice.on({ db: client });
+  const web = webOf(data && data.meta, { oneVoice });
+  if (isCurrent(web, { oneVoice })) return { skipped: 'current' };
+  const out = (await publish(quizId, oneVoice ? { db: client, oneVoice } : { db: client })) || {};
   if (out.ok && !out.failed) return out;
   // Switched off or over today's cap: a retry would only be refused again (the next page open asks anew).
   if (out.reason === 'disabled' || out.reason === 'capped' || out.reason === 'no_voice') return out;
@@ -529,5 +562,5 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
 }
 
 module.exports = {
-  quizLanguage, isCurrent, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, spokenOption, speakableMaths, spokenOperators, voiceText, whyText, withoutPraise, AUDIO_VERSION,
+  quizLanguage, isCurrent, webOf, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, spokenOption, speakableMaths, spokenOperators, voiceText, whyText, withoutPraise, AUDIO_VERSION,
 };

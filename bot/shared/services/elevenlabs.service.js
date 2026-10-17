@@ -230,9 +230,11 @@ class ElevenLabsService {
    * @param {string} languageCode - Language code for logging
    * @param {object} [voiceSettingsOverride] - replaces the per-language settings
    *   (video narration keeps its own expressive settings)
+   * @param {object} [opts] - { modelId, languageCode }: another model, and the language named to it
+   *   (the web quiz's one voice); without it the request is exactly as before
    * @returns {Promise<Buffer>} Audio buffer (Ogg Opus)
    */
-  static async generateSpeechWithVoice(text, voiceId, languageCode, voiceSettingsOverride) {
+  static async generateSpeechWithVoice(text, voiceId, languageCode, voiceSettingsOverride, opts = {}) {
     try {
       logToFile('Generating speech with ElevenLabs', {
         textLength: text.length,
@@ -254,8 +256,9 @@ class ElevenLabsService {
         `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=opus_48000_64`,
         {
           text: text,
-          model_id: 'eleven_v3', // v3 supports audio tags and emotion control
-          voice_settings: voiceSettings
+          model_id: opts.modelId || 'eleven_v3', // v3 supports audio tags and emotion control
+          voice_settings: voiceSettings,
+          ...(opts.modelId && opts.languageCode ? { language_code: opts.languageCode } : {}),
         }
       );
 

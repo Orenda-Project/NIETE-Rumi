@@ -166,6 +166,38 @@ describe('--apply records through publishQuizAudio, idempotent on isCurrent', ()
   });
 });
 
+describe('--one-voice: the parts the bank recorded are recorded in the quiz voice too', () => {
+  test('a quiz current before (its recorded question skipped) is recorded again in the one voice, its question included, then stamped and skipped', async () => {
+    const w = world();
+    w.quizzes.find((q) => q.id === 'q-g3sci-2').meta = { web: { audio_v: Publish.AUDIO_VERSION, audio_voice: 'sx-grace', audio: {} } };
+    w.quiz_questions.filter((q) => q.quiz_id === 'q-g3sci-2').forEach((q) => { q.media = { question_audio: ['https://clips.example/bank/q.ogg'] }; });
+    const db = fakeDb(w);
+    const { r, lines } = await run(['--expect-ref', REF, '--limit', '1', '--apply', '--one-voice'], { db });
+    expect(lines[0]).toMatch(/ one_voice=1$/);
+    const parts = r2.uploadBuffer.mock.calls.map((c) => c[1].split('/').pop().split('-')[0]);
+    expect(parts.filter((x) => x === 'q')).toHaveLength(2); // both questions' recorded question, now in the one voice
+    tts.synthesize.mock.calls.forEach((c) => expect(c[0]).toMatchObject({ provider: 'elevenlabs', voice: 'hpp4J3VqNfWAUOO0d1Us', model: 'eleven_v4' }));
+    expect(r).toMatchObject({ done: 1, skipped: 0, failed: 0 });
+    const meta = db.writes.filter((x) => x.id === 'q-g3sci-2').pop().v.meta;
+    expect(meta.web).toEqual({ audio_v: Publish.AUDIO_VERSION, audio_voice: 'sx-grace', audio: {} }); // today's map untouched
+    const stamped = meta.web_one;
+    expect(stamped.audio_one).toBe('el-bella');
+    expect(Publish.isCurrent(stamped, { oneVoice: true })).toBe(true);
+
+    jest.clearAllMocks();
+    const again = await run(['--expect-ref', REF, '--limit', '1', '--apply', '--one-voice'], { db });
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    expect(again.r).toMatchObject({ done: 0, skipped: 1 });
+  });
+  test('without it, the same quiz is current and nothing is recorded (today)', async () => {
+    const w = world();
+    w.quizzes.find((q) => q.id === 'q-g3sci-2').meta = { web: { audio_v: Publish.AUDIO_VERSION, audio_voice: 'sx-grace', audio: {} } };
+    const { r } = await run(['--expect-ref', REF, '--limit', '1', '--apply'], { db: fakeDb(w) });
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ done: 0, skipped: 1 });
+  });
+});
+
 describe('refuses a database it was not pointed at', () => {
   test.each([
     ['another project', { SUPABASE_URL: 'https://someotherref.supabase.co' }, ['--expect-ref', REF, '--apply', '--limit', '5']],
