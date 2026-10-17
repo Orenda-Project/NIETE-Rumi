@@ -165,12 +165,29 @@
         if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
       } catch (e) { /* the card still works */ }
     }
+    // a read that heard nothing (the kind card, never the 10-s "later" one), with its switch on (zero_listen): its ONE
+    // Next is "Hear it again" — Jugnu reads the passage word by word — when the passage's timings are here (on the
+    // serve, or asked for by the run token once the recording has gone up); "I'm ready" opens the read again
+    function replayRa(d, card) {
+      var r = (card && card.r) || {};
+      if (d.ex !== 'read' || d.zero_listen !== true || !r.tried || r.later || r.hold) return null;
+      var ra = d.readalong || d.hear_first || d.words_ra;
+      return ra ? (window.WQReadAlong ? ra : 'wait') : false;   // false: no timings yet; 'wait': the player is on its way
+    }
     function foldEnd(name, top, qa, nx, card) {
+      var d = h.S.data || {};
+      var want = qa ? null : replayRa(d, card);
+      var ra = want && want !== 'wait' ? want : null;
       var fx = foldNext(nx);
-      h.show(name, top + foldHtml(fx, qa));
+      h.show(name, top + (ra ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
-      if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa ? null : fx } }));
+      if (ra) h.on('wqc-fnext', function () { timedAlong(ra, function () { h.open(d.ex); }); });
+      if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa || ra ? null : fx } }));
       foldAfter(qa);
+      // no timings on the serve (a counted read): asked for now (once the recording is up); drawn again with "Hear it again"
+      var redraw = function () { if (h.S.data === d && h.S.screen === name) foldEnd(name, top, qa, nx, card); };
+      if (want === false && d.ct) askWords(d, redraw);
+      if (want === 'wait') { raLoad(); if (!raLoad.failed) raWaits.push(function (ok) { if (ok) redraw(); }); }
     }
     function outcome(d) { return (d && (d.outcome || (d.draw && d.draw.outcome))) || null; }
     function isWarmup(d) { return !!(d && d.anchor_block); }
@@ -480,23 +497,38 @@
       var d = h.S.data;
       if (!wordsOk(d)) return;
       if (d.words_ra) { if (window.WQReadAlong) h.on('wqc-show-words', function () { showWords(d.words_ra); }); return; }
+      askWords(d, redraw);
+    }
+    // the passage's timings, asked for once by the run token (d.words_ra); redraw() once they and the player are here.
+    // A read run asks only after its recording has gone up (d.sent); while the server is still checking it (409) the
+    // page asks again after 1, 2 and 4 s, and stops when the card is gone
+    function askWords(d, redraw) {
       if (d.words_asked) return;
       d.words_asked = true;
       raLoad();
       var shown = h.S.screen;
-      fetch('/api/wq/ch/words/' + encodeURIComponent(d.ct) + '?lang=' + L, { credentials: 'same-origin' })
-        .then(function (r) { return r.ok ? r.text().then(function (x) { try { return JSON.parse(x); } catch (e) { return null; } }) : null; })
-        .then(function (j) {
-          if (!j || !j.readalong || h.S.data !== d) return;
-          d.words_ra = j.readalong;
-          var tries = 0;
-          // the player script may still be on its way: look again for a short while, then leave the card as it is
-          (function again() {
-            if (h.S.data !== d || h.S.screen !== shown) return;
-            if (window.WQReadAlong) { redraw(); return; }
-            if ((tries += 1) <= 20) setTimeout(again, 150);
-          }());
-        }, function () { /* no words: the card stays as it is */ });
+      var waits = [1000, 2000, 4000];
+      var here = function () { return h.S.data === d && h.S.screen === shown; };
+      var ask = function () {
+        fetch('/api/wq/ch/words/' + encodeURIComponent(d.ct) + '?lang=' + L, { credentials: 'same-origin' })
+          .then(function (r) {
+            if (r.status === 409 && waits.length && here()) { setTimeout(function () { if (here()) ask(); }, waits.shift()); return null; }
+            return r.ok ? r.text().then(function (x) { try { return JSON.parse(x); } catch (e) { return null; } }) : null;
+          })
+          .then(got, function () { /* no words: the card stays as it is */ });
+      };
+      if (d.ex === 'read' && d.sent && typeof d.sent.then === 'function') d.sent.then(ask, ask); else ask();
+      function got(j) {
+        if (!j || !j.readalong || h.S.data !== d) return;
+        d.words_ra = j.readalong;
+        var tries = 0;
+        // the player script may still be on its way: look again for a short while, then leave the card as it is
+        (function again() {
+          if (h.S.data !== d || h.S.screen !== shown) return;
+          if (window.WQReadAlong) { redraw(); return; }
+          if ((tries += 1) <= 20) setTimeout(again, 150);
+        }());
+      }
     }
     function showWords(ra) {
       h.show('listen-words', h.jug('hello', t.storyReadAlong, true) + '<div id="wqc-along-ra"></div>'
