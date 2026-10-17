@@ -193,6 +193,45 @@ describe('switch on: the read says how it finishes itself', () => {
   });
 });
 
+// "Hear it again" on the kind card (its own switch, web_quiz_zero_read_listen, JSON true only): a live v3 read's payload
+// says `zero_listen: true`; anything else, and every other payload, is today's.
+describe('"Hear it again" switch: the live v3 read says zero_listen only when the switch is JSON true', () => {
+  const ZL = 'web_quiz_zero_read_listen';
+  test('on: the read carries zero_listen: true; the rest of the payload is untouched', async () => {
+    db.app_settings.push(LR3, RT);
+    const off = strip(await Ch.exercise(hub(), 'read', { ...D, lang: 'en' }));
+    expect(off).not.toHaveProperty('zero_listen');
+    Ch.__reset();
+    db.app_settings.push({ key: ZL, value: true });
+    const out = strip(await Ch.exercise(hub(), 'read', { ...D, lang: 'en' }));
+    expect(out.zero_listen).toBe(true);
+    const { zero_listen: zl, ...rest } = out;
+    expect(JSON.stringify(rest)).toBe(JSON.stringify(off));
+  });
+  test.each([['absent', undefined], ['the string "true"', 'true'], ['the quoted string \'"true"\'', '"true"'], ['1', 1], ['{}', {}], ['false', false]])('%s: off, the read is today\'s byte for byte', async (_, value) => {
+    db.app_settings.push(LR3, RT);
+    const before = strip(await Ch.exercise(hub(), 'read', { ...D, lang: 'en' }));
+    Ch.__reset();
+    if (value !== undefined) db.app_settings.push({ key: ZL, value });
+    const after = strip(await Ch.exercise(hub(), 'read', { ...D, lang: 'en' }));
+    expect(JSON.stringify(after)).toBe(JSON.stringify(before));
+  });
+  test('live reading v3 off: the switch is not even read, the read is today\'s', async () => {
+    db.app_settings.push(RT, { key: ZL, value: true });
+    const reads = [];
+    const from = supabase.from.bind(supabase);
+    supabase.from = (t) => { const q = from(t); const eq = q.eq && q.eq.bind(q); if (t === 'app_settings' && eq) q.eq = (k, v) => { reads.push(v); return eq(k, v); }; return q; };
+    const out = await Ch.exercise(hub(), 'read', { ...D, lang: 'en' });
+    supabase.from = from;
+    expect(out).not.toHaveProperty('zero_listen');
+    expect(reads).not.toContain(ZL);
+  });
+  test('only a read carries it', async () => {
+    db.app_settings.push(LR3, RT, { key: ZL, value: true });
+    expect(await Ch.exercise(hub(), 'bigger', { ...D, lang: 'en' })).not.toHaveProperty('zero_listen');
+  });
+});
+
 describe('storyKey: a temporary key for one story-page reading', () => {
   // the books the child app can read: ready books, their pages (a picture-only page has no words to read)
   const B1 = 'b1000000-0000-4000-8000-000000000001';
