@@ -78,7 +78,8 @@ function links({ token, chip, lang, home }) {
   return {
     ch,
     stop: (ex) => (ch ? `${ch}#${ex}` : null),
-    story: (pid) => (ch ? `${ch}&room=story&pid=${encodeURIComponent(pid)}` : null),
+    // a listening story asks the story room for a listen (wq-trail.js reads &ex=listen), else it is served as a read
+    story: (pid, listen) => (ch ? `${ch}&room=story&pid=${encodeURIComponent(pid)}${listen ? '&ex=listen' : ''}` : null),
     quiz: (code, k, again) => (code ? `/q/${encodeURIComponent(code)}?${again ? 'again=1&' : ''}k=${encodeURIComponent(k || '')}` : null),
     lib: token && chip ? `/lib/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}&l=${lc}${h}` : null,
     book: token && chip ? `/h/${encodeURIComponent(token)}?kid=${encodeURIComponent(chip)}${l}#book` : null,
@@ -150,7 +151,7 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
   const kindOf = new Map((collect.live || []).map((r) => [r.passage_id, r.kind]));
   (collect.unseen || []).forEach((u) => {
     const listen = kindOf.get(u.pid) === 'listen';
-    push({ kind: 'story', id: u.pid, href: L.story(u.pid), ...words(listen ? 'listen' : 'read'), ...subOf(u.title), minutes: 2, ...artOr(null, listen ? 'listen' : 'read'),
+    push({ kind: 'story', id: u.pid, href: L.story(u.pid, listen), ...words(listen ? 'listen' : 'read'), ...subOf(u.title), minutes: 2, ...artOr(null, listen ? 'listen' : 'read'),
       released_at: u.released_at, seen: false, read_aloud: !listen, ...(lantern && lantern.kind === 'story' && lantern.pid === u.pid ? { lantern: true } : {}) });
   });
   if (collect.story && L.ch) push({ kind: 'game', id: 'numbers', href: `${L.ch}#numbers`, ...words('numbers'), minutes: 1, ...artOr(null, 'game'), ...(lantern && lantern.kind === 'numbers' ? { lantern: true } : {}) });

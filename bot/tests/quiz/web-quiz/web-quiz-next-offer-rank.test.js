@@ -321,3 +321,20 @@ describe('a tile the child can reach, with words that say what to do', () => {
     }
   });
 });
+
+
+describe('a Story Time tile opens the exercise it names', () => {
+  const S = require('../../../shared/services/quiz/web-quiz-next-offer-sources');
+  test('a listening story asks the story room for a listen (&ex=listen); a read story is served as a read', () => {
+    const list = S.candidatesOf({
+      out: { kid: 'k1' }, token: 'tok', lang: 'en',
+      collect: { unseen: [{ pid: 'en.listen.1.story01', title: 'Ice Cream in the Sun' }, { pid: 'en.read.1.p01', title: 'The Kite' }],
+        live: [{ passage_id: 'en.listen.1.story01', kind: 'listen' }, { passage_id: 'en.read.1.p01', kind: 'read' }] },
+    });
+    const listen = list.find((c) => c.id === 'en.listen.1.story01');
+    const read = list.find((c) => c.id === 'en.read.1.p01');
+    expect(listen.href).toMatch(/&room=story&pid=en\.listen\.1\.story01&ex=listen$/);
+    expect(listen.title).toBe('Listen to a story');
+    expect(read.href).toMatch(/&room=story&pid=en\.read\.1\.p01$/);
+  });
+});
