@@ -219,14 +219,22 @@
   // The storybook shelf (wq-stories.js, the boot's `stories.on`): the reader fills [data-stories-shelf]. With rows of
   // its own the door keeps its primary (primary: false); with none the shelf's first cover (or the teacher's book) is
   // the primary, and the door's fallback button steps aside while the shelf shows one (back if the shelf goes away).
+  // One shelf per door visit: the rows arriving redraw the door, and the shelf the reader already filled moves into the
+  // new slot (no second GET, no repaint of covers still loading); a reader that loads late fills the slot on screen.
+  var shelfKept = null;
   function storiesShelf(root, B, ctx) {
     var sh = root.querySelector('[data-stories-shelf]');
     if (!sh || !(B.stories && B.stories.on)) return;
-    var fb = root.querySelector('[data-shelf-fallback]');
+    var key = tok(B, ctx) + '|' + (B.kid || '') + '|' + langOf(ctx);
     var fill = function () {
       if (!window.WQSTORIES || typeof window.WQSTORIES.shelf !== 'function') return;
-      if (fb) shelfPrimary(sh, fb);
-      try { window.WQSTORIES.shelf(sh, B, { token: tok(B, ctx), lang: langOf(ctx), ev: ctx.ev || function () {}, go: ctx.go, primary: Boolean(fb) }); } catch (e) {}
+      var slot = root.querySelector('[data-stories-shelf]') || sh;
+      var fb = root.querySelector('[data-shelf-fallback]');
+      if (shelfKept && shelfKept.key === key && shelfKept.el !== slot && slot.parentNode) {
+        try { slot.parentNode.replaceChild(shelfKept.el, slot); if (fb) shelfPrimary(shelfKept.el, fb); return; } catch (e) {}
+      }
+      if (fb) shelfPrimary(slot, fb);
+      try { window.WQSTORIES.shelf(slot, B, { token: tok(B, ctx), lang: langOf(ctx), ev: ctx.ev || function () {}, go: ctx.go, primary: Boolean(fb) }); shelfKept = { el: slot, key: key }; } catch (e) {}
     };
     if (window.WQSTORIES) return fill();
     var H = home();
@@ -252,6 +260,7 @@
   }
   function mount(root, B, ctx, name) {
     view.name = name;
+    shelfKept = null;
     if (name === 'stories' || name === 'games') {
       draw(root, B, ctx, name, cache[name] || null);
       if (!cache[name] && !B.practice) {
