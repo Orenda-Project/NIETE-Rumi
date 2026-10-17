@@ -1,0 +1,332 @@
+{
+ "menu_en": {
+  "form": "G3",
+  "lang": "en",
+  "exercises": [
+   {
+    "id": "~",
+    "name": "Which is bigger?",
+    "mins": 2,
+    "done": false,
+    "last": null
+   },
+   {
+    "id": "~",
+    "name": "Read aloud",
+    "mins": 2,
+    "done": false,
+    "last": null
+   }
+  ],
+  "rt": false
+ },
+ "menu_ur": {
+  "form": "G3",
+  "lang": "ur",
+  "exercises": [
+   {
+    "id": "~",
+    "name": "کون سا بڑا ہے؟",
+    "mins": 2,
+    "done": false,
+    "last": null
+   },
+   {
+    "id": "~",
+    "name": "اونچی آواز میں پڑھیں",
+    "mins": 2,
+    "done": false,
+    "last": null
+   }
+  ],
+  "rt": false
+ },
+ "read_ur": {
+  "ex": "read",
+  "name": "اونچی آواز میں پڑھیں",
+  "lang": "ur",
+  "ct": "~",
+  "clips": {
+   "intro": {
+    "text": "یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں پڑھیں۔ کوئی لفظ مشکل لگے تو اگلا لفظ پڑھیں۔",
+    "url": "~"
+   },
+   "start": {
+    "text": "تیار ہو جائیں۔ شروع کریں!",
+    "url": "~"
+   },
+   "stop": {
+    "text": "رک جائیں۔ شکریہ!",
+    "url": "~"
+   },
+   "done": {
+    "text": "بہت اچھا پڑھا! شاباش!",
+    "url": "~"
+   }
+  },
+  "secs": 60,
+  "live": true,
+  "previous_wcpm": null,
+  "questions_on": false,
+  "story": {
+   "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہیں۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔",
+   "tokens": [
+    "آج",
+    "بلال",
+    "اپنے",
+    "والد",
+    "کے",
+    "ساتھ",
+    "دریائے",
+    "جہلم",
+    "کے",
+    "کنارے",
+    "گیا",
+    "وہاں",
+    "ٹھنڈی",
+    "ہوا",
+    "چل",
+    "رہی",
+    "تھی",
+    "اور",
+    "پانی",
+    "آہستہ",
+    "بہہ",
+    "رہا",
+    "تھا",
+    "بلال",
+    "نے",
+    "کشتی",
+    "کو",
+    "حرکت",
+    "کرتے",
+    "دیکھا",
+    "اس",
+    "کے",
+    "والد",
+    "نے",
+    "اسے",
+    "بتایا",
+    "کہ",
+    "دریا",
+    "ہمارے",
+    "ملک",
+    "کے",
+    "لیے",
+    "اہم",
+    "ہیں",
+    "واپسی",
+    "پر",
+    "بلال",
+    "نے",
+    "خوبصورت",
+    "پتھر",
+    "جمع",
+    "کیے",
+    "اور",
+    "مسکراتا",
+    "رہا",
+    "وہ",
+    "بہت",
+    "خوش",
+    "بھی",
+    "تھا"
+   ],
+   "lines": [
+    {
+     "n": 1,
+     "from": 0,
+     "to": 10
+    },
+    {
+     "n": 2,
+     "from": 11,
+     "to": 22
+    },
+    {
+     "n": 3,
+     "from": 23,
+     "to": 29
+    },
+    {
+     "n": 4,
+     "from": 30,
+     "to": 43
+    },
+    {
+     "n": 5,
+     "from": 44,
+     "to": 54
+    },
+    {
+     "n": 6,
+     "from": 55,
+     "to": 59
+    }
+   ],
+   "dir": "rtl"
+  }
+ },
+ "read_en": {
+  "ex": "read",
+  "name": "Read aloud",
+  "lang": "en",
+  "ct": "~",
+  "clips": {
+   "intro": {
+    "text": "Here is a short story. Read it out loud, as well as you can. If a word is hard, go on to the next one.",
+    "url": "~"
+   },
+   "start": {
+    "text": "Ready? Begin.",
+    "url": "~"
+   },
+   "stop": {
+    "text": "Stop. Thank you!",
+    "url": "~"
+   },
+   "done": {
+    "text": "Great reading! Well done.",
+    "url": "~"
+   }
+  },
+  "secs": 60,
+  "live": true,
+  "previous_wcpm": null,
+  "questions_on": false,
+  "story": {
+   "text": "Imran woke up early for school. Today his class was planting trees. He took a small plant in a bag. The teacher asked Imran to show the class how to plant it. Imran dug a hole, put the plant in the soil and put water in it slowly. The teacher was happy with his work. His friends clapped for him.",
+   "tokens": [
+    "Imran",
+    "woke",
+    "up",
+    "early",
+    "for",
+    "school",
+    "Today",
+    "his",
+    "class",
+    "was",
+    "planting",
+    "trees",
+    "He",
+    "took",
+    "a",
+    "small",
+    "plant",
+    "in",
+    "a",
+    "bag",
+    "The",
+    "teacher",
+    "asked",
+    "Imran",
+    "to",
+    "show",
+    "the",
+    "class",
+    "how",
+    "to",
+    "plant",
+    "it",
+    "Imran",
+    "dug",
+    "a",
+    "hole",
+    "put",
+    "the",
+    "plant",
+    "in",
+    "the",
+    "soil",
+    "and",
+    "put",
+    "water",
+    "in",
+    "it",
+    "slowly",
+    "The",
+    "teacher",
+    "was",
+    "happy",
+    "with",
+    "his",
+    "work",
+    "His",
+    "friends",
+    "clapped",
+    "for",
+    "him"
+   ],
+   "lines": [
+    {
+     "n": 1,
+     "from": 0,
+     "to": 5
+    },
+    {
+     "n": 2,
+     "from": 6,
+     "to": 11
+    },
+    {
+     "n": 3,
+     "from": 12,
+     "to": 19
+    },
+    {
+     "n": 4,
+     "from": 20,
+     "to": 31
+    },
+    {
+     "n": 5,
+     "from": 32,
+     "to": 47
+    },
+    {
+     "n": 6,
+     "from": 48,
+     "to": 54
+    },
+    {
+     "n": 7,
+     "from": 55,
+     "to": 59
+    }
+   ],
+   "dir": "ltr"
+  }
+ },
+ "result": {
+  "score": {
+   "correct": 20,
+   "attempted": 24,
+   "stopped": false,
+   "finished_early": false,
+   "time_left": 0
+  },
+  "wcpm": 20,
+  "previous": null
+ },
+ "row": {
+  "status": "scored",
+  "exercise": "read",
+  "wcpm": 20,
+  "score": {
+   "correct": 20,
+   "attempted": 24,
+   "stopped": false,
+   "finished_early": false,
+   "time_left": 0
+  },
+  "meta": {
+   "cost_usd": 0.00435,
+   "seconds": "~",
+   "duration_s": 60,
+   "flags": [
+    "clock_given"
+   ]
+  }
+ }
+}
