@@ -173,6 +173,11 @@ function assetVersion() {
   for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
+  // The stories reader (loaded by the home and the hub at this ?v=) and its lazy questions file (at the reader's ?v=, this
+  // one): a reader-only change busts a phone's year-long cache too. The player it brings carries its own content version.
+  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
   return h.digest('hex').slice(0, 10);
 }
 
