@@ -38,7 +38,7 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location }.
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null } = {}) {
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false } = {}) {
   const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null });
   const doc = adopt(parse(html));
   const fetches = [];
@@ -56,7 +56,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200, time
     },
     addEventListener() {},
     scrollTo() {},
-    history: { pushState() {}, back() {} },
+    history: { pushState() {}, back() { if (backThrows) throw new Error('no history'); } },
     location,
     navigator: { sendBeacon: (p, blob) => { beacons.push({ path: p, body: JSON.parse(blob.text) }); return true; } },
     Blob,
@@ -322,5 +322,29 @@ describe('the words while a quiz is made', () => {
   test('no number of minutes is promised; the chat is named as the other way it arrives', () => {
     expect(Strings.str('th.job', 'en')).toBe('Your quiz is on its way — it takes a few minutes and arrives in this chat too');
     expect(Strings.str('th.job', 'ur')).toBe('کوئز تیار ہونے میں چند منٹ لگیں گے — یہ اسی چیٹ میں بھی آ جائے گا');
+  });
+});
+
+describe('one primary action on the screen', () => {
+  const MSG = 'Assalam o Alaikum class! Your teacher sent you a quiz.';
+  const home = () => ({ primary: { kind: 'class', played: 0, title: 'Seasons', again: { id: 'own1' }, send: { message: MSG, wa: `https://wa.me/?text=${encodeURIComponent(MSG)}`, c: 'own-code', sendKind: 'again' } }, library: LIB });
+  const primaries = (p) => p.q('main').parentNode.querySelectorAll('[data-primary]');
+
+  test('the home carries ONE data-primary: the top card\'s; the closed send sheet carries none', async () => {
+    const p = await open(home());
+    const all = primaries(p);
+    expect(all).toHaveLength(1);
+    expect(all[0].getAttribute('data-tap')).toBe('again');
+    expect(p.q('#th-sheet-go').getAttribute('data-primary')).toBeNull();
+  });
+
+  test('with the sheet open its "Send to my class" is the one primary; closed again, the top card\'s is', async () => {
+    const p = await open(home(), { backThrows: true });
+    await p.tap(p.q('#th-top').querySelector('[data-primary]'));
+    expect(p.q('#th-sheet').hidden).toBe(false);
+    expect(primaries(p).map((x) => x.getAttribute('id') || x.getAttribute('data-tap'))).toEqual(['th-sheet-go']);
+    await p.tap(p.q('#th-back'));
+    expect(p.q('#th-sheet').hidden).toBe(true);
+    expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['again']);
   });
 });
