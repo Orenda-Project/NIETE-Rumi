@@ -393,6 +393,7 @@
   function trailEnd(h, o) {
     var d = h.S.data || {};
     var r = o.r || {};
+    if ((h.md() || {}).offline_guard === true) og(h.L);
     // o.fold (the child home on): a practice run (Story Time, a stop played again) gets the card too
     if (!(h.md() || {}).card_v3 || d.round_turn || (d.practice_round && !o.fold) || !d.ct) return false;
     var t = o.t || {};
@@ -463,7 +464,54 @@
     };
   }
 
-  window.WQFC = { mount: mount, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,
+  // A tap while offline (og(): only with the page's offline_guard): the card's and the fold's Next and Home. Offline:
+  // stay, the offline line + Try again; `online` or Try again taps the link again once. A slow line HEADs it first (2 s).
+  var OFF = { en: ['No internet. Try again when you are online.', 'Try again'], ur: ['انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔', 'دوبارہ کوشش کریں'] };
+  var ogL = 'en', ogOn = 0, ogPass = 0, ogHeld = null;
+  function og(lang) {
+    ogL = L(lang);
+    if (ogOn) return;
+    ogOn = 1;
+    document.addEventListener('click', function (e) {
+      var a = !ogPass && e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      var href = a && /^(wqfc-next|wqfc-home|wqc-fnext|wqc-fhome|wq-fnext)$/.test(a.id) ? a.getAttribute('href') || '' : '';
+      if (!href || href.charAt(0) === '#') return;
+      var nav = function () { if (document.contains(a)) { ogPass = 1; try { a.click(); } finally { ogPass = 0; } } else location.assign(href); };
+      if (ogHeld) { ogHeld.nav = nav; }
+      else if (navigator.onLine === false) ogHold(nav);
+      else {
+        var c = navigator.connection;
+        if (!(c && (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || '')))) || typeof fetch !== 'function') return;
+        ogHeld = { nav: nav };
+        var t = setTimeout(function () { end(1); }, 2000);
+        var end = function (ok) { if (!ogHeld || ogHeld.box) return; clearTimeout(t); var n = ogHeld.nav; ogHeld = null; if (ok) n(); else ogHold(n); };
+        fetch(href, { method: 'HEAD', cache: 'no-store', credentials: 'same-origin' }).then(function () { end(1); }, function () { end(0); });
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+  }
+  function ogHold(nav) {
+    var box = document.createElement('div');
+    box.className = 'wqfc-off';
+    box.setAttribute('role', 'status');
+    box.setAttribute('style', 'position:fixed;left:16px;right:16px;bottom:16px;z-index:50;background:#fff;border-radius:16px;padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.2);text-align:center');
+    box.innerHTML = '<p dir="auto">' + esc(OFF[ogL][0]) + '</p><button class="wq-btn wq-go" type="button">' + esc(OFF[ogL][1]) + '</button>';
+    ogHeld = { nav: nav, box: box };
+    var fire = function () {
+      if (!ogHeld || navigator.onLine === false) return;
+      var n = ogHeld.nav;
+      ogHeld = null;
+      window.removeEventListener('online', fire);
+      if (box.parentNode) box.parentNode.removeChild(box);
+      n();
+    };
+    box.querySelector('button').addEventListener('click', fire);
+    window.addEventListener('online', fire);
+    document.body.appendChild(box);
+  }
+
+  window.WQFC = { og: og, mount: mount, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,
     deedFor: deedFor, deedText: deedText, numbersFor: numbersFor, unheard: unheard, together: together, triedLine: triedLine, trailEnd: trailEnd,
     html: html, nextHtml: nextHtml, DEEDS: DEEDS, W: W, S: S, CSS: CSS };
 })();

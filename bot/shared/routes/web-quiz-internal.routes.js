@@ -59,6 +59,8 @@ const router = express.Router();
 router.use(requireInternalKey);
 // Every route logs its time and database round trips (web_quiz.timing; slow always, fast sampled).
 Timing.patch(require('../config/supabase'));
+// A tap while offline (web_quiz_offline_guard): the hub, menu and quiz answers say `offline_guard: true` only when on.
+require('../services/quiz/web-quiz-offline-guard').mount(router);
 
 const handle = (fn) => (req, res) => Timing.run(() => (req.route && req.route.path) || 'other', () => serve(fn, req, res), () => res.statusCode);
 const serve = async (fn, req, res) => {
