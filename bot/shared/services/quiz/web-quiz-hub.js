@@ -477,7 +477,7 @@ const HUB_BRANCHES = [
   { name: 'teacher', run: (s) => teacherCard(s.chosen, s.ctx.list, s.history, s.ctx.grade, s.homeP, s.par, s.par ? s.teacherReads : null) },
   { name: 'answered', run: (s) => (s.last0 && s.last0.state === 'open' ? answeredSoFar(s.history.find((e) => e.code === s.last0.code), s.last0.answered) : Promise.resolve(null)) },
   { name: 'recs', run: (s) => recsFor(s.chosen.id, s.history, s.ctx.grade, s.par) },
-  { name: 'play', run: (s) => s.challengeP.then((form) => require('./web-quiz-hub-play').playField({ chosenId: s.chosen.id, last: s.last0, lang: s.lang, challenge: form ? { on: true } : null, grade: s.ctx.grade, stopsOf: () => trailStops(form), collect: s.collect, ...(s.runs ? { runs: s.runs } : {}) })) },
+  { name: 'play', run: (s) => s.challengeP.then((form) => require('./web-quiz-hub-play').playField({ chosenId: s.chosen.id, last: s.last0, lang: s.lang, challenge: form ? { on: true } : null, grade: s.ctx.grade, stopsOf: () => trailStops(form), steps: () => require('./web-quiz-challenge'), collect: s.collect, ...(s.runs ? { runs: s.runs } : {}) })) },
   { name: 'bits', run: (s) => require('./web-quiz-book').hubBits({ studentId: s.chosen.id, ...(s.runs ? { runs: s.runs } : {}) }) },
   // a place saved on a phone with no code hides the "keep my place" card (quiz_student_join); applied after keep my place
   { name: 'bound', run: (s) => require('./web-quiz-student-join').guestBound(s.chosen.id, { canon: s.canon }) },

@@ -24,6 +24,9 @@
  * storybook shelf is a stub the stories reader fills (web_quiz_stories). Never a tile the server would answer "on its
  * way": the Trail's "more stories" list and an empty shelf are left out; a child with no class quiz gets the Videos
  * door too (`watch: true`: videos/start answers a watch-only start under this switch, not 409 no_class).
+ *
+ * `home_fb: 1` beside the home (web_quiz_home_fallback_v3, web-quiz-home-fallback-flag.js; homeField and practiceHub as
+ * exported): when wq-home.js never arrives, hub.js draws a plain home from this payload instead of the old hub. Off: absent.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -272,4 +275,20 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
   }
 }
 
-module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, prefetch, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => HomeFlags._resetCache(), _useModules: (m) => { modules = m; } };
+// The fallback switch is read beside the home's own reads (once its flags say the home is on), never after them: no wave.
+const Fallback = require('./web-quiz-home-fallback-flag');
+const fbOf = (f) => f.then((on) => (on.home ? Fallback.on() : false)).catch(() => false);
+function prefetchFb(chosenId, now) {
+  const p = prefetch(chosenId, now);
+  p.fb = fbOf(p.flags);
+  return p;
+}
+function homeFieldFb(a = {}) {
+  const pre = a.pre || prefetchFb(a.chosenId, a.now);
+  return Promise.all([homeField({ ...a, pre }), pre.fb || fbOf(pre.flags)]).then(([field, on]) => (on && field && field.home_v3 ? { ...field, home_fb: 1 } : field));
+}
+function practiceHubFb(token, o) {
+  const fb = practiceOf(token) ? fbOf(flags()) : false;
+  return Promise.all([practiceHub(token, o), fb]).then(([out, on]) => (on && out && out.home_v3 ? { ...out, home_fb: 1 } : out));
+}
+module.exports = { homeField: homeFieldFb, doorsOf, headOf, flags, practiceHub: practiceHubFb, practiceOf, prefetch: prefetchFb, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => { HomeFlags._resetCache(); Fallback._resetCache(); }, _useModules: (m) => { modules = m; } };

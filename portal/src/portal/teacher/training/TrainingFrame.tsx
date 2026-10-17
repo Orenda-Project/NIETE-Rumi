@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useCopy } from '../i18n';
 import { cn } from '@/lib/utils';
 import { TrainingFrameContext, type TrainingFrameProps } from '../../newui/training/frame';
 import TeacherPage from '../TeacherPage';
-import { FOCUS } from '../ui/styles';
+import { CARD, FOCUS } from '../ui/styles';
 import { TRAINING } from './copy';
 import { SkeletonList } from '../../components/Skeleton';
 
@@ -13,10 +14,10 @@ import { SkeletonList } from '../../components/Skeleton';
  * header (`context`, the teaching level on the main page), then the column.
  */
 export function TrainingPageV2({
-  crumb, title, backTo, onBack, right, context, dock, children,
-}: TrainingFrameProps & { context?: ReactNode; dock?: ReactNode }) {
+  crumb, title, backTo, onBack, right, context, dock, testId, children,
+}: TrainingFrameProps & { context?: ReactNode; dock?: ReactNode; testId?: string }) {
   return (
-    <TeacherPage feature="training" crumb={crumb} title={title} backTo={backTo} onBack={onBack} action={right} chips={context} dock={dock}>
+    <TeacherPage feature="training" crumb={crumb} title={title} backTo={backTo} onBack={onBack} action={right} chips={context} dock={dock} testId={testId}>
       {children}
     </TeacherPage>
   );
@@ -53,6 +54,11 @@ export function LoadState({ loading, failed, onRetry }: { loading: boolean; fail
   return null;
 }
 
+/** A slim card that says there is nothing yet (no training, no questions). */
+export function EmptyNote({ children }: { children: ReactNode }) {
+  return <p className="rounded-2xl border border-[#e5e7eb] bg-white p-5 text-center text-[15px] text-[#6b7280]">{children}</p>;
+}
+
 /** A provider's logo (the real file), or its initials on a neutral tile when there is none. */
 export function ProviderMark({ logo, initials, size = 28, className }: { logo: string | null; initials: string; size?: number; className?: string }) {
   if (logo) return <img src={logo} alt="" width={size} height={size} className={cn('shrink-0 object-contain', className)} style={{ width: size, height: size }} />;
@@ -60,5 +66,55 @@ export function ProviderMark({ logo, initials, size = 28, className }: { logo: s
     <span aria-hidden="true" className={cn('flex shrink-0 items-center justify-center rounded-[6px] bg-[#33374a] text-[10px] font-extrabold text-white', className)} style={{ width: size, height: size }}>
       {initials}
     </span>
+  );
+}
+
+/**
+ * bd-s42dye.6 — a provider's tile (the teacher hub's, extracted so the coach's Training Library draws the same one):
+ * its mark inside a ring (or, in the library, alone on a white tile), its name, a line under it (`children`). `ring` is the hub's progress ring (parts done, or a
+ * full green disc when all are); with none the mark stands alone on a white tile, so the library shows no progress.
+ * The name steps down a size when it runs long (the renamed programmes reach 80 characters, bd-2gia5l).
+ */
+export function ProviderTile({
+  to, testId, label, logo, initials, ring, className, children,
+}: {
+  to: string;
+  testId: string;
+  label: string;
+  logo: string | null;
+  initials: string;
+  ring: { pct: number; done: boolean; label: string } | null;
+  /** A tile that spans both columns (an odd one out). */
+  className?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      data-testid={testId}
+      className={cn(CARD, 'flex min-h-[150px] flex-col items-start justify-between gap-3 rounded-[18px] p-4', FOCUS, className)}
+    >
+      {ring ? (
+        <span
+          role="img"
+          aria-label={ring.label}
+          className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full"
+          style={{ background: ring.done ? '#2f7a52' : `conic-gradient(#2f7a52 0 ${ring.pct}%, #e5e7eb ${ring.pct}% 100%)` }}
+        >
+          <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white">
+            <ProviderMark logo={logo} initials={initials} size={28} />
+          </span>
+        </span>
+      ) : (
+        // No ring, no progress: the mark alone on a white tile, as the page's feature tile is drawn.
+        <span aria-hidden="true" className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-[14px] border border-[#e5e7eb] bg-white">
+          <ProviderMark logo={logo} initials={initials} size={40} />
+        </span>
+      )}
+      <span className="flex flex-col items-start gap-1">
+        <b className={cn('font-semibold leading-tight', Array.from(label).length > 32 ? 'text-[15px]' : 'text-[18px]')}>{label}</b>
+        {children}
+      </span>
+    </Link>
   );
 }

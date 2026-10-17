@@ -15,9 +15,11 @@ jest.mock('../../shared/services/cache/railway-redis.service', () => require('./
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/services/whatsapp.service', () => require('./_ingress-mocks').whatsappMock(jest));
-// The walk-through persona module by its real name: a stand-in.
+// The walk-through persona: the persona tests hand `mockWalk` in through the module registry (`mockModules.load`), so
+// the real file is never required. The module by its path is a tripwire: a persona test that reaches it fails.
 const mockWalk = { forHome: undefined };
-jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk);
+const mockWalkByPath = { forHome: jest.fn(async (phone, lists) => lists) };
+jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalkByPath);
 // The one door's landing link and its module lookup: stand-ins, inert unless a test fills them.
 const mockDoor = { mintLanding: undefined };
 const mockModules = { load: undefined };
@@ -75,7 +77,7 @@ function listWith({ sessions = [], quizzes = [], lessons = [] } = {}) {
   return { ...List, loadLessonPage: jest.fn(async () => ({ sessions, quizzes, counts: {}, lessons })) };
 }
 
-beforeEach(() => { jest.clearAllMocks(); deps = { List: listWith() }; });
+beforeEach(() => { jest.clearAllMocks(); mockModules.load = undefined; deps = { List: listWith() }; });
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
 describe('switch OFF', () => {
@@ -135,7 +137,7 @@ describe('the shell', () => {
     expect(html).toContain('data-screen="teacher_home"');
     expect(html).toContain('data-screen="teacher_send"');
     const markup = html.replace(/<script[\s\S]*?<\/script>/g, '');
-    expect((markup.match(/ data-primary[ >]/g) || []).length).toBe(1); // the sheet's send; the home's is filled after paint
+    expect((markup.match(/ data-primary[ >]/g) || []).length).toBe(0); // none before paint: the top card's comes with it, the sheet's only while open
     expect(res.headers.get('content-security-policy')).toMatch(/script-src 'sha256-/);
     expect(res.headers.get('cache-control')).toBe('private, no-store');
     expect(html).not.toContain(TEACHER.name);
@@ -507,15 +509,18 @@ describe('the stories shelf and the other seams', () => {
     deps.supabase = jsonPathSelect(supabase);
     deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'The Thirsty Crow' }, { id: 'b2', title: 'Rain' }] })) };
     mockWalk.forHome = jest.fn(async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists));
+    mockModules.load = (name) => (name === 'testPersona' ? mockWalk : null);
     try {
       await boot(deps);
       const t = tokenFor();
       const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
       const lib = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+      expect(mockWalk.forHome).toHaveBeenCalled();
+      expect(mockWalkByPath.forHome).not.toHaveBeenCalled();
       expect(home.library.stories.every((b) => !('sent' in b))).toBe(true);
       expect(lib.stories.every((b) => !('sent' in b))).toBe(true);
       expect(lib.pick).toMatchObject({ kind: 'story', id: 'b1' });
-    } finally { mockWalk.forHome = undefined; }
+    } finally { mockWalk.forHome = undefined; mockModules.load = undefined; }
   });
 
   test('a stories module whose switch is off → no tiles, the video card is the library pick', async () => {
@@ -607,15 +612,18 @@ describe('the top card for a teacher with a fresh lesson, and story sends', () =
     fake.db.users[0].phone_number = 'fixture-phone';
     deps.List = listWith({ lessons: [lesson(1, 'Plants')] });
     mockWalk.forHome = jest.fn(async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists));
+    mockModules.load = (name) => (name === 'testPersona' ? mockWalk : null);
     await boot(deps);
     const walk = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
     expect(mockWalk.forHome).toHaveBeenCalledTimes(1);
+    expect(mockWalkByPath.forHome).not.toHaveBeenCalled();
     expect(walk.timeline).toEqual([]);
     expect(walk.primary.kind).toBe('video');
     expect(logEvent).toHaveBeenCalledWith('teacher_home_open', expect.objectContaining({ primary_kind: 'library' }));
     mockWalk.forHome = undefined;
     srv.close(); await boot(deps);
     const real = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    mockModules.load = undefined;
     expect(real.primary.kind).toBe('lesson');
   });
 });
@@ -660,6 +668,49 @@ describe('the store and the lists when something fails', () => {
     await get(`/api/th/home?t=${t}&g=4`);
     const firsts = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => f.first);
     expect(firsts).toEqual([false, true, false]);
+  });
+
+  // The first-open mark is keyed by the teacher's reference, so it is the agreed value or nothing.
+  const PIN_ID = 'a0000000-0000-4000-8000-000000000001';
+  const withKey = async (key, fn) => {
+    const was = process.env.WEB_QUIZ_KID_KEY;
+    process.env.WEB_QUIZ_KID_KEY = key;
+    try { return await fn(); } finally { process.env.WEB_QUIZ_KID_KEY = was; }
+  };
+  const openKeys = () => [...R().__keys.keys()].filter((k) => String(k).startsWith('th:open:'));
+
+  test('the first-open mark is keyed by the agreed reference: a 32-byte key and the pinned teacher id → th:open:e815e81977411f12', async () => {
+    seed();
+    fake.db.users.push({ ...TEACHER, id: PIN_ID });
+    await boot(deps);
+    R().__keys.clear();
+    await withKey('k'.repeat(32), () => get(`/api/th/home?t=${tokenFor({ uid: PIN_ID })}&g=4`));
+    expect(openKeys()).toEqual(['th:open:e815e81977411f12']);
+    const firsts = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => [f.first, f.tk]);
+    expect(firsts).toEqual([[true, 'e815e81977411f12']]);
+  });
+
+  test('a 31-byte key is no key: no reference, no first-open mark, first is false', async () => {
+    seed();
+    await boot(deps);
+    R().__keys.clear();
+    await withKey('k'.repeat(31), () => get(`/api/th/home?t=${tokenFor()}&g=4`));
+    expect(openKeys()).toEqual([]);
+    const firsts = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => [f.first, f.tk]);
+    expect(firsts).toEqual([[false, null]]);
+  });
+
+  test('the reference (events and the first-open mark) comes from the shared helper, no copy of its own', async () => {
+    seed();
+    await boot(deps);
+    R().__keys.clear();
+    const Kid = require('../../shared/services/quiz/web-quiz-kid');
+    const spy = jest.spyOn(Kid, 'tk').mockReturnValue('5e1ec7ed5e1ec7ed');
+    try {
+      await get(`/api/th/home?t=${tokenFor()}&g=4`);
+      expect(openKeys()).toEqual(['th:open:5e1ec7ed5e1ec7ed']);
+      expect(spy).toHaveBeenCalledWith(TEACHER.id);
+    } finally { spy.mockRestore(); }
   });
 
   test('codes that are not the teacher\'s own sends (a watch child, a class child\'s lesson code) are never a send on the home', async () => {
@@ -732,10 +783,13 @@ describe('the walk-through row on the foot (sandbox test phones only)', () => {
     mockDoor.mintLanding = jest.fn(async () => 'https://portal.example/quiz/go/GO.TOKEN_abc');
     await boot(deps);
     const t = tokenFor();
+    // the two homes compared byte for byte are signed in the same second (the maker link carries its expiry)
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now());
     const without = await (await get(`/api/th/home?t=${t}&g=4`)).text();
     const row = jest.fn(async ({ token }) => (token === 'GO.TOKEN_abc' ? '' : ROW));
     mockModules.load = (name) => (name === 'testPersona' ? { row } : null);
     const unlisted = await (await get(`/api/th/home?t=${t}&g=4`)).text();
+    clock.mockRestore();
     expect(row).toHaveBeenCalledWith({ lang: 'en', token: 'GO.TOKEN_abc' });
     expect(unlisted.replace(/"first":(true|false)/, '')).toBe(without.replace(/"first":(true|false)/, ''));
     expect(JSON.parse(unlisted).change).toBe('/quiz/go/GO.TOKEN_abc');
