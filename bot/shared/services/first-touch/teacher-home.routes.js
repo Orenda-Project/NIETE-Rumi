@@ -9,7 +9,8 @@
  *   GET  /api/th/home?t&g&lang           the home's JSON (teacher-home.model) with the cards that send from the page
  *                                        already carrying their class message and wa.me link (no fetch between the
  *                                        tap and the navigation); logs teacher_home_open
- *   GET  /api/th/library?t&g&lang        the library card for another grade (the grade chips)
+ *   GET  /api/th/library?t&g&lang        the library card for another grade (the grade chips); a story sent this
+ *                                        month is skipped by the pick and dated, as on the home
  *   POST /api/th/send {t, kind, id}      a row's class message: kind video (a library quiz id) | share (a library
  *                                        share code id) | again (the teacher's own quiz id) → { message, wa }
  *   POST /api/th/quiz/make {t, kind, id} "Quiz this": kind lesson (the /quiz list key) | coaching (the session id)
@@ -281,9 +282,15 @@ function createRouter(deps = null) {
     if (!p) return;
     const lang = langFor(p, req);
     const grade = Data.gradeOf(req.query.g, null);
+    // the teacher's own sends (which books went out this month), read alongside the bank and the shelf; late or failed → no skip, no date
+    // (a listed walk-through phone sees the same lists here as on its home)
+    const played = Promise.all([
+      Data.within(Data.playedOwn(p.uid, deps), Data.SIDE_BUDGET_MS, new Map(), 'class report'),
+      Data.within(Data.teacherOf(p.uid, deps), Data.SIDE_BUDGET_MS, null, 'teacher'),
+    ]).then(([pl, user]) => walkLists(user, { lessons: [], played: pl, shares: [] })).then((l) => l.played);
     const tree = await Data.within(Data.dep(deps, 'Bank').chipTree(), Data.SIDE_BUDGET_MS, {}, 'video bank');
     const lib = await libraryFor({ p, token: String(req.query.t), lang, grade, tree, pfSubject: null });
-    const shaped = Model.buildHome({ grade, stories: lib.stories, video: lib.video, storiesBase: lib.storiesBase });
+    const shaped = Model.buildHome({ grade, played: await played, stories: lib.stories, video: lib.video, storiesBase: lib.storiesBase });
     const pick = shaped.primary.kind === 'story' || shaped.primary.kind === 'video' ? await withSend(shaped.primary, p, lang) : null;
     headers(res);
     res.status(200).json({ ...shaped.library, pick: pick || null });

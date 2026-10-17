@@ -6,7 +6,8 @@
  *   class    the newest send of the last 72 h that FEW children have finished (< 5): the class line in words + "Send
  *            again" (the report page's own re-forward when the report is on for this teacher, else the class message
  *            again) + "See report" when there is one
- *   story    else the stories shelf's first book for the class's grade (a link to the stories page's own sheet)
+ *   story    else the stories shelf's first book for the class's grade that the teacher has not sent in the last 30
+ *            days (a link to the stories page's own sheet); a sent book's library item carries `sent` (its newest send)
  *   video    else the bank's ready video quiz for that grade, its class message already built ("Send to my class")
  *   make     else the maker page
  * (between class and story: an un-quizzed lesson plan or coaching session of the last 7 days, newer than the teacher's
@@ -18,6 +19,7 @@ const SEND_WINDOW_MS = 72 * 3600 * 1000;
 const LESSON_WINDOW_MS = 7 * 86400000;
 const FEW = 5;
 const MAX_ROWS = 30;
+const STORY_SENT_MS = 30 * 86400000;
 const SENT = new Set(['sent', 'report_sent']);
 
 const ms = (v) => { const t = new Date(v || 0).getTime(); return Number.isFinite(t) ? t : 0; };
@@ -58,6 +60,16 @@ const extraOwn = (lessons, played) => {
   const shown = new Set(lessons.map((r) => r.quizId).filter(Boolean));
   return [...played.entries()].filter(([id]) => !shown.has(id));
 };
+
+/** The books the teacher sent as a story in the last 30 days: Map bookId → the newest send's ISO date. */
+function sentBooks(played, now) {
+  const at = new Map();
+  played.forEach((p) => {
+    const t = ms(p.date);
+    if (p.source === 'story' && p.book && t && now - t <= STORY_SENT_MS && t > (at.get(p.book) || 0)) at.set(p.book, t);
+  });
+  return new Map([...at].map(([b, t]) => [b, new Date(t).toISOString()]));
+}
 
 /** One timeline row from a library send (the maker's). */
 const shareRow = (s) => ({
@@ -104,11 +116,13 @@ function buildHome({
   const can = againable instanceof Set ? (id) => againable.has(id) : anyCan;
   const rows = [...lessons.map((r) => lessonRow(r, played, reports, can)), ...extraOwn(lessons, played).map(([id, p]) => ownRow(id, p, reports, can)), ...shares.map(shareRow)]
     .sort((a, b) => ms(b.date) - ms(a.date)).slice(0, MAX_ROWS);
+  const sent = sentBooks(played, now);
   const books = Array.isArray(stories) && stories.length && storiesBase
-    ? stories.map((b) => ({ id: b.id, title: b.title, href: `${storiesBase}${storiesBase.includes('?') ? '&' : '?'}book=${encodeURIComponent(b.id)}` })) : [];
+    ? stories.map((b) => ({ id: b.id, title: b.title, href: `${storiesBase}${storiesBase.includes('?') ? '&' : '?'}book=${encodeURIComponent(b.id)}`, ...(sent.has(b.id) ? { sent: sent.get(b.id) } : {}) })) : [];
+  const unsent = books.find((b) => !b.sent);
   let primary = classCard({ lessons, played, shares, reports, now, can });
   if (!primary) primary = lastLesson(rows, now, Math.max(0, ...sendsOf({ lessons, played, shares }).map((x) => x.at)));
-  if (!primary && books.length) primary = { kind: 'story', id: books[0].id, title: books[0].title, href: books[0].href, grade };
+  if (!primary && unsent) primary = { kind: 'story', id: unsent.id, title: unsent.title, href: unsent.href, grade };
   if (!primary && video) primary = { kind: 'video', id: video.quizId, title: video.topic, grade };
   if (!primary && maker) primary = { kind: 'make', href: maker };
   const zeroKidsOpen = lessons.filter((r) => SENT.has(r.state) && r.quizId && now - ms((played.get(r.quizId) || {}).date || r.date) <= 7 * 86400000
@@ -142,4 +156,4 @@ function primaryKind(p) {
   return p.kind;
 }
 
-module.exports = { buildHome, classCard, lessonRow, shareRow, ownRow, lastLesson, primaryKind, SEND_WINDOW_MS, LESSON_WINDOW_MS, FEW, MAX_ROWS };
+module.exports = { buildHome, classCard, lessonRow, shareRow, ownRow, lastLesson, primaryKind, sentBooks, SEND_WINDOW_MS, LESSON_WINDOW_MS, FEW, MAX_ROWS };
