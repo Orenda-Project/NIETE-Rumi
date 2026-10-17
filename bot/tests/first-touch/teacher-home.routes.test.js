@@ -38,6 +38,7 @@ const Gate = require('../../shared/services/quiz/teacher-report-gate');
 const List = require('../../shared/services/quiz/transcript-quiz-list.service');
 const Bank = require('../../shared/services/first-touch/maker.bank');
 const Flags = require('../../shared/services/first-touch/teacher-home.flags');
+const CountsFlag = require('../../shared/services/first-touch/teacher-home-counts.flag');
 const HomeToken = require('../../shared/services/first-touch/teacher-home.token');
 const { createRouter } = require('../../shared/services/first-touch/teacher-home.routes');
 const { str, fill } = require('../../shared/services/first-touch/teacher-home.strings');
@@ -68,7 +69,7 @@ const nonSwitchReads = () => fake.calls.filter((c) => c.table !== 'app_settings'
 function seed({ on = true, value = true, extra = {}, settings = [] } = {}) {
   fake = seedMaker(supabase, { on: true, extra });
   fake.db.app_settings = [...fake.db.app_settings, ...(on ? [{ key: 'quiz_teacher_home', value }] : []), ...settings];
-  Flags.reset(); IdFlags._resetCache(); HubFlags._resetCache(); Gate._resetCache(); Bank._resetCache();
+  Flags.reset(); IdFlags._resetCache(); HubFlags._resetCache(); Gate._resetCache(); Bank._resetCache(); CountsFlag._resetCache();
 }
 /** /quiz's own list, stood in for (its providers read a dozen tables); lessonItems + quizState stay real. */
 function listWith({ sessions = [], quizzes = [], lessons = [] } = {}) {
@@ -876,10 +877,11 @@ describe('a code minted to show its message is not a send until the tap', () => 
 
 describe('the library card\'s story counts', () => {
   const shelf = () => jest.fn(async () => ({ books: [{ id: 'b1', title: 'Rain' }] }));
+  const COUNTS_ON = [{ key: 'quiz_teacher_story_counts', value: true }];
   const homeText = async () => { const res = await get(`/api/th/home?t=${tokenFor()}&g=3`); expect(res.status).toBe(200); return res.text(); };
 
   test('the teacher\'s sends and readers → library.counts on the home, read for the whole teacher', async () => {
-    seed();
+    seed({ settings: COUNTS_ON });
     deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
     await boot(deps);
     const home = JSON.parse(await homeText());
@@ -890,7 +892,7 @@ describe('the library card\'s story counts', () => {
   });
 
   test('the grade change\'s library answer carries no counts (the page keeps the home\'s)', async () => {
-    seed();
+    seed({ settings: COUNTS_ON });
     deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
     await boot(deps);
     const lib = await (await get(`/api/th/library?t=${tokenFor()}&g=4`)).json();
@@ -903,7 +905,7 @@ describe('the library card\'s story counts', () => {
     ['a read that throws', async () => { throw new Error('down'); }],
     ['a sync throw', () => { throw new Error('boom'); }],
   ])('%s → no counts key: the home JSON is byte-identical to a home without the counts read (golden)', async (_name, fn) => {
-    seed();
+    seed({ settings: COUNTS_ON });
     deps.Stories = { flagOn: async () => true, shelf: shelf() };
     await boot(deps);
     const without = await homeText();
@@ -916,7 +918,7 @@ describe('the library card\'s story counts', () => {
   });
 
   test('a counts read past the side budget → no key, and the home still answers', async () => {
-    seed();
+    seed({ settings: COUNTS_ON });
     let timer;
     deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(() => new Promise((r) => { timer = setTimeout(() => r({ sent: 5, read: 9 }), 6000); })) };
     await boot(deps);
@@ -928,4 +930,25 @@ describe('the library card\'s story counts', () => {
       expect(home.library.stories.map((b) => b.id)).toEqual(['b1']);
     } finally { clearTimeout(timer); }
   }, 15000);
+  test.each([
+    ['absent', []],
+    ['the string "true"', [{ key: 'quiz_teacher_story_counts', value: 'true' }]],
+    ['false', [{ key: 'quiz_teacher_story_counts', value: false }]],
+    ['1', [{ key: 'quiz_teacher_story_counts', value: 1 }]],
+  ])('the counts switch %s → the counts are never read; the home JSON is byte-identical to a home without them', async (_name, settings) => {
+    seed({ settings });
+    deps.Stories = { flagOn: async () => true, shelf: shelf() };
+    await boot(deps);
+    const without = await homeText();
+    srv.close();
+    CountsFlag._resetCache();
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+    await boot(deps);
+    const withCounts = await homeText();
+    expect(deps.Stories.storyCounts).not.toHaveBeenCalled();
+    expect(withCounts).toBe(without);
+    expect('counts' in JSON.parse(withCounts).library).toBe(false);
+  });
+
 });
+
