@@ -95,7 +95,7 @@ async function main(argv) {
 
   const ref = assertTargetRef(args.target, process.env.SUPABASE_URL);
   assertKeyRef(args.target, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  console.error(`[release-isaps] target=${args.target} ref=${ref} mode=${args.apply ? 'APPLY' : 'dry-run'}`);
+  process.stderr.write(`[release-isaps] target=${args.target} ref=${ref} mode=${args.apply ? 'APPLY' : 'dry-run'}\n`);
 
   // Only now is anything that connects loaded.
   const supabase = require('../bot/shared/config/supabase');
@@ -106,9 +106,9 @@ async function main(argv) {
 
   let summary;
   try {
-    summary = await releaseHeldAttempts({ supabase, apply: args.apply, scoreAnswer, onlyUserIds: args.onlyUsers, log: m => console.error(`[release-isaps] ${m}`) });
+    summary = await releaseHeldAttempts({ supabase, apply: args.apply, scoreAnswer, onlyUserIds: args.onlyUsers, log: m => process.stderr.write(`[release-isaps] ${m}\n`) });
   } catch (e) {
-    if (e && e.code === 'FLAG_STILL_HELD') { console.error(`\n${e.message}`); process.exitCode = 3; return null; }
+    if (e && e.code === 'FLAG_STILL_HELD') { process.stderr.write(`\n${e.message}\n`); process.exitCode = 3; return null; }
     throw e;
   }
   const json = JSON.stringify({ target: args.target, ref, at: new Date().toISOString(), ...summary }, null, 2);
