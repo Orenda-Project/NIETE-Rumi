@@ -7696,4 +7696,10 @@ BEGIN
   END IF;
 END $$;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- student_videos.title_ur / chapter_ur (mirror of web_quiz_student_videos_title_ur.sql): Urdu-script names, NULL = none
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS title_ur text;
+ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS chapter_ur text;
+
 NOTIFY pgrst, 'reload schema';
