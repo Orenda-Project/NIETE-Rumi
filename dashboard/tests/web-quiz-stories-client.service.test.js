@@ -150,6 +150,8 @@ function env(opt = {}) {
   calls.audios = [];
   win.Audio = function (u) { const a = this; a.src = u || ''; a.currentTime = 0; a.paused = true; a.play = () => { a.paused = false; return Promise.resolve(); }; a.pause = () => { a.paused = true; }; calls.audios.push(a); };
   win.dispatchEvent = (e) => calls.disp.push(e.type);
+  calls.imgs = [];
+  win.Image = function () { const im = this; Object.defineProperty(im, 'src', { set(v) { calls.imgs.push(v); }, get() { return ''; } }); };
   const sb = vm.createContext({ window: win, document: doc, JSON, Math, String, Number, Array, Object, Promise, encodeURIComponent, Date });
   vm.runInContext(fs.readFileSync(SRC, 'utf8'), sb);
   const S = win.WQSTORIES;
@@ -241,6 +243,29 @@ describe('the reader state machine (pure, fake clock)', () => {
 
 // ---- the shelf ----------------------------------------------------------------------------------------------------
 describe('the shelf', () => {
+  test('the shelf\'s one primary is the first UNFINISHED book (a finished teacher book keeps its card and ribbon, not the primary); all finished -> the first card', async () => {
+    const shelfWith = (books) => ({ status: 200, body: { ...SHELF, books } });
+    const B = SHELF.books;   // b-9 teacher (unfinished), b-1 unfinished, b-4 finished
+    const prim = (h) => (/data-id="([^"]+)"[^>]*data-primary/.exec(h) || [])[1];
+    const run = async (books) => { const e = env({ replies: { shelf: shelfWith(books) } }); const el = fakeEl('shelf'); e.S.shelf(el, e.ctx()); await flush(); return el.innerHTML; };
+    let h = await run(B);
+    expect(prim(h)).toBe('b-9');                                         // an unfinished teacher book leads
+    h = await run([{ ...B[0], done: true }, B[1], B[2]]);
+    expect(prim(h)).toBe('b-1');                                         // a finished teacher book: the first unfinished card leads
+    expect(h).toContain('wqs-tcard');                                    // the teacher's card stays
+    expect((h.match(/data-primary/g) || []).length).toBe(1);
+    h = await run([{ ...B[2] }, { ...B[1], done: true }].concat([{ ...B[1], id: 'b-5', done: false }]));
+    expect(prim(h)).toBe('b-5');                                         // no teacher book, the first card finished: the first unfinished
+    h = await run([{ ...B[0], done: true }, { ...B[1], done: true }, B[2]]);
+    expect(prim(h)).toBe('b-9');                                         // every book finished: the first card, as today
+    expect((h.match(/data-primary/g) || []).length).toBe(1);
+  });
+  test('every book card (the teacher card too) carries its book id, so a tap can name the book and not its position', async () => {
+    const e = env(); const el = fakeEl('shelf');
+    e.S.shelf(el, e.ctx()); await flush();
+    const h = el.innerHTML;
+    SHELF.books.forEach((b) => expect(h).toMatch(new RegExp('data-tap="book" data-arg="\\d+" data-id="' + b.id + '"')));
+  });
   test('one primary: none at all when the host screen already has its own (ctx.primary === false)', async () => {
     const e = env(); const el = fakeEl('shelf');
     e.S.shelf(el, e.ctx({ primary: false }));
@@ -292,7 +317,7 @@ describe('the shelf', () => {
     e.S.shelf(el, e.ctx()); await flush();
     checkScreen(el.innerHTML, 'en');
     expect(el.innerHTML).not.toContain('wqs-tcard');
-    expect(el.innerHTML).toMatch(/class="wqs-book" data-tap="book" data-arg="0" data-primary/);
+    expect(el.innerHTML).toMatch(/class="wqs-book" data-tap="book" data-arg="0" data-id="[^"]+" data-primary/);
   });
   test('tap a book: story_opened carries shelf_position/from_teacher/grade/lang, then #story/<id>', async () => {
     const e = env(); const el = fakeEl('shelf');
@@ -363,6 +388,32 @@ async function openReader(e, over = {}) {
   return root;
 }
 function toMic(e, root) { fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onEnd(); fire(root, 'main'); }
+describe('OFF goldens', () => {
+  const scripts = (e) => e.calls.loaded.filter((x) => x.tag === 'script').map((x) => x.src.replace(/\?.*/, ''));
+  test('live reading off (the book says lr3:false, no live reader on the page): no live-reading file, and the page is byte-identical to a book that does not mention lr3', async () => {
+    for (const lang of ['en', 'ur']) {
+      const dir = lang === 'ur' ? 'rtl' : 'ltr';
+      const off = env({ lr: false, replies: { book: { status: 200, body: { ...book({ lang, dir }), lr3: false } } } });
+      const ro = await openReader(off, { lang });
+      const plain = book({ lang, dir }); delete plain.lr3;
+      const none = env({ lr: false, replies: { book: { status: 200, body: plain } } });
+      const rn = await openReader(none, { lang });
+      expect(ro.innerHTML).toBe(rn.innerHTML);
+      expect(scripts(off).filter((u) => /wq-read-live|wq-liveread/.test(u))).toEqual([]);
+      expect(ro.innerHTML).not.toMatch(/data-tap="alt"[^>]*>(Your turn|اب آپ پڑھیں)</);   // no Your turn without the live reader
+    }
+  });
+  test('stories off (the server answers 404 stories_off): the shelf draws nothing, a book link shows one kind way home, and no reader file is fetched (no player on the page, as on the real hub)', async () => {
+    const e = env({ ra: false, lr: false, replies: { shelf: { status: 404, body: { error: 'stories_off' } }, book: { status: 404, body: { error: 'stories_off' } } } });
+    const el = fakeEl('shelf'); e.S.shelf(el, e.ctx()); await flush();
+    expect(el.innerHTML).toBe('');
+    const root = await openReader(e);
+    expect(screenOf(root.innerHTML)).toBe('stories-off');
+    expect(primaries(root.innerHTML)).toBe(1);
+    expect(scripts(e).filter((u) => /wq-readalong|wq-read-live|wq-liveread|wq-stories-q|wq-finish-card/.test(u))).toEqual([]);
+  });
+});
+
 describe('the voice player comes with the book (the hub page never loads it)', () => {
   // env() puts a WQReadAlong stub on the page; these tests take it off and hand it back only when the reader fetches it
   const without = (opt = {}) => {
@@ -424,6 +475,10 @@ describe('the voice player comes with the book (the hub page never loads it)', (
     expect(screenOf(root.innerHTML)).toBe('story-page');
     expect(root.querySelector('[data-main]').textContent).not.toBe('Listen');
     e.doc.head.appendChild = realAppend;
+    // the next book asks again (a failed load is not remembered as done), and this time the player comes
+    e.S.open('b-2', e.ctx({ root })); await flush();
+    expect(scripts(e, /wq-readalong\.js/)).toHaveLength(2);
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
   });
 });
 describe('the reader', () => {
@@ -500,6 +555,132 @@ describe('the reader', () => {
     expect(root.innerHTML).not.toMatch(/<img|<h2 class="wqs-say"|data-tap="notnow"|data-tap="mic"/);
     expect(primaries(root.innerHTML)).toBe(0);
     expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
+  });
+  test('a wide line of small print is whole on screen, both edges, in page view, while listening and while reading, in English (left to right) and Urdu (right to left)', async () => {
+    const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [40, 800, 640, 22] }, { i0: 3, i1: 4, box: [60, 830, 600, 22] }];
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' } } } }); const root = await openReader(e, { lang });
+      const whole = (lines) => {
+        const m = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(root.querySelector('[data-cam]').style.transform);
+        const tx = Number(m[1]); const ty = Number(m[2]); const sc = Number(m[3]);
+        lines.forEach((l) => {
+          expect(l.box[0] * sc + tx).toBeGreaterThanOrEqual(-0.5);              // the line's left end on screen
+          expect((l.box[0] + l.box[2]) * sc + tx).toBeLessThanOrEqual(360.5);   // the line's right end on screen
+          expect(l.box[1] * sc + ty).toBeGreaterThanOrEqual(-0.5);              // its top on screen
+          expect((l.box[1] + l.box[3]) * sc + ty).toBeLessThanOrEqual(540.5);   // its bottom on screen
+        });
+      };
+      whole(bk.pages[0].lines);                                                   // page view
+      fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onWord(0);
+      whole([bk.pages[0].lines[0]]);                                              // listening: the line being read
+      e.calls.ra[e.calls.ra.length - 1].o.onWord(3);
+      whole([bk.pages[0].lines[1]]);
+      e.calls.ra[e.calls.ra.length - 1].o.onEnd();
+      toMic(e, root); e.calls.ask[e.calls.ask.length - 1].onStream({ id: 's' });
+      expect(screenOf(root.innerHTML)).toBe('story-read');
+      whole(bk.pages[0].lines);                                                   // reading: every line of the part
+    }
+  });
+  test('Your turn on a tall column (five lines read at once): the last line is not cut at the bottom of the stage', async () => {
+    const bk = book(); bk.pages[0].words = Array.from({ length: 10 }, (_, i) => ({ i, t: 'w' + i, s_ms: i * 300, e_ms: i * 300 + 250 }));
+    bk.pages[0].lines = [0, 1, 2, 3, 4].map((k) => ({ i0: k * 2, i1: k * 2 + 1, box: [100, 500 + k * 110, 400, 60] }));
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    fire(root, 'main'); e.calls.ra[0].o.onEnd(); toMic(e, root); e.calls.ask[e.calls.ask.length - 1].onStream({ id: 's' });
+    const m = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(root.querySelector('[data-cam]').style.transform);
+    expect((500 + 4 * 110 + 60) * Number(m[3]) + Number(m[2])).toBeLessThanOrEqual(540.5);
+    expect(500 * Number(m[3]) + Number(m[2])).toBeGreaterThanOrEqual(-0.5);
+  });
+  test('the "Whole page" pill sits OUTSIDE the page (under the stage, at the end of the row), never over a word or a heading, in every state', async () => {
+    const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
+    // inside the stage the pill is the stage's last child (its </div> follows); outside, the next thing is the screen's own
+    const outside = (h) => { const m = /<button class="wqs-whole"[^>]*>[^<]*<\/button>(<\/div>)?/.exec(h); return !!m && !m[1]; };
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' } } } }); const root = await openReader(e, { lang });
+      expect(root.innerHTML).toContain('data-whole');
+      expect(outside(root.innerHTML)).toBe(true);                          // page view
+      fire(root, 'main');
+      expect(outside(root.innerHTML)).toBe(true);                          // listening
+      e.calls.ra[0].o.onEnd(); toMic(e, root); e.calls.ask[0] && e.calls.ask[e.calls.ask.length - 1].onStream({ id: 's' });
+      if (screenOf(root.innerHTML) === 'story-read') expect(outside(root.innerHTML)).toBe(true);   // reading
+      expect(root.innerHTML).toMatch(/class="wqs-stage wqs-st2" data-stage/);   // the stage gives up the pill's row
+    }
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect((/\.wqs-whole\{([^}]*)\}/.exec(css) || [])[1]).not.toMatch(/position:absolute/);
+  });
+  test('the page\'s main button keeps its label on one line (an Urdu label wrapped and made the row jump)', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs-ctl \.wqs-main\{[^}]*white-space:nowrap/);
+    expect(css).toMatch(/\.wqs\[lang=ur\] \.wqs-ctl \.wqs-main\{[^}]*font-size:18px/);
+  });
+  test('every Back is a drawn chevron (a Nastaliq font draws the ‹ glyph like the letter ر), mirrored on right-to-left screens', async () => {
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: book({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } } }); const root = await openReader(e, { lang });
+      const back = (/<button class="wqs-ic" data-back[^>]*>([\s\S]*?)<\/button>/.exec(root.innerHTML) || [])[1];
+      expect(back).toMatch(/^<svg class="wqs-g"/);
+      expect(root.innerHTML).not.toMatch(/>‹</);
+    }
+    expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\.wqs\[dir=rtl\] \.wqs-ic\[data-back\] svg\{transform:scaleX\(-1\)\}/);
+  });
+  test('the page-turn arrows are drawn chevrons (no text glyph a Nastaliq font turns into a bracket), the same in English and Urdu', async () => {
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: book({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } } }); const root = await openReader(e, { lang });
+      const h = root.innerHTML;
+      const arr = h.match(/<button class="wqs-arr"[^>]*>[\s\S]*?<\/button>/g) || [];
+      expect(arr).toHaveLength(2);
+      arr.forEach((a) => { expect(a).toMatch(/<svg class="wqs-g"[^>]*><path d="[^"]+"\/><\/svg>/); expect(a).not.toMatch(/[‹›<>]\s*<\/span>|>[‹›]</); });
+    }
+  });
+  test('Your turn never shows a white stage: an unboxed page gets the reader\'s picture under the live-read layer; a boxed page is drawn by the live reader itself (one picture, its marks on it)', async () => {
+    const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
+    for (const lang of ['en', 'ur']) {
+      for (const boxed of [false, true]) {
+        const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr', pages: [{ ...bk.pages[0], boxes_ok: boxed }, ...bk.pages.slice(1)] } } } });
+        const root = await openReader(e, { lang });
+        toMic(e, root); e.calls.ask[e.calls.ask.length - 1].onStream({ id: 'stream' });
+        const h = root.innerHTML;
+        expect(screenOf(h)).toBe('story-read');
+        if (boxed) expect(h).toMatch(/data-cam[^>]*><div class="wqs-lr" data-lr><\/div>/);
+        else expect(h).toMatch(/data-cam[^>]*><img src="\/s\/b-1\/p01\.webp"[^>]*><div class="wqs-lr" data-lr><\/div>/);
+      }
+    }
+    // the live-read layer sits on the picture whichever draws it (it was positioned only after a player's [data-ra])
+    expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\.wqs-cam \[data-ra\]~\.wqs-lr,\.wqs-cam img~\.wqs-lr\{position:absolute;left:0;top:0/);
+  });
+  test('Your turn on a zoomed page: the camera frames ALL the lines being read and holds still (a short line never zooms the long ones off the edge)', async () => {
+    const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({ id: 'stream' });
+    expect(screenOf(root.innerHTML)).toBe('story-read');
+    const cam = root.querySelector('[data-cam]');
+    const t0 = cam.style.transform;
+    const s0 = Number((/scale\(([\d.]+)\)/.exec(t0) || [])[1]);
+    expect(s0 * 500).toBeLessThanOrEqual(360);   // the long line fits the stage (360 px in this page)
+    e.calls.lr[0].view = () => ({ states: ['read', 'read', 'read', 'current', 'ahead'] });   // the child reaches the short line
+    e.advance(1000);
+    expect(cam.style.transform).toBe(t0);
+  });
+  test('Your turn: the word to read next is outlined, never covered (the current box is see-through, alpha under one half)', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    const rule = (/\.wqs-cam \.lr-box\.lr-current\{([^}]*)\}/.exec(css) || [])[1] || '';
+    expect(rule).toMatch(/outline:3px solid #15803D/);
+    const a = /background:rgba\(\s*\d+,\s*\d+,\s*\d+,\s*([\d.]+)\)/.exec(rule);
+    expect(a).toBeTruthy();
+    expect(Number(a[1])).toBeLessThan(0.5);
+  });
+  test('the stage gives the "Whole page" pill its row (so the screen does not grow), and the look-back sheet\'s stage leaves its primary on screen', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs-st2\{height:calc\(62vh - 52px\)\}/);
+    expect(css).toMatch(/\.wqs-sheet \.wqs-stage\{height:calc\(100vh - 400px\);min-height:150px\}/);
+  });
+  test('the page arrows are two different chevrons, mirrored only by their own screen\'s direction (an English book inside an Urdu app keeps its arrows)', async () => {
+    const e = env(); const root = await openReader(e);
+    const prev = (/data-tap="prev"[^>]*><svg[^>]*><path d="([^"]+)"/.exec(root.innerHTML) || [])[1];
+    const next = (/data-tap="next"[^>]*><svg[^>]*><path d="([^"]+)"/.exec(root.innerHTML) || [])[1];
+    expect(prev).toBeTruthy(); expect(next).toBeTruthy(); expect(prev).not.toBe(next);
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs\[dir=rtl\] \.wqs-arr\{transform:scaleX\(-1\)\}/);
+    expect(css).toMatch(/\.wqs\[dir=rtl\] \.wqs-ic\[data-back\] svg\{transform:scaleX\(-1\)\}/);
+    expect(css).not.toMatch(/(^|[\s}])\[dir=rtl\] \.wqs-(arr|ic)/);   // never keyed to ANY right-to-left ancestor
   });
   test('Your turn: reading with "I\'m done ✓" from the first render', async () => {
     const e = env(); const root = await openReader(e);
@@ -637,8 +818,8 @@ describe('the reader', () => {
     expect(root.innerHTML).toContain('سنیں');
     // In Urdu the next page is to the LEFT: the glyphs are isolated from the browser's own mirroring, and the stylesheet
     // flips them once, so each arrow points outward (a double flip pointed both inward).
-    expect(root.innerHTML).toMatch(/data-tap="prev"[^>]*><span dir="ltr">‹<\/span>/);
-    expect(root.innerHTML).toMatch(/data-tap="next"[^>]*><span dir="ltr">›<\/span>/);
+    expect(root.innerHTML).toMatch(/data-tap="prev"[^>]*><svg class="wqs-g"/);   // drawn chevrons; RTL mirrors the buttons (CSS)
+    expect(root.innerHTML).toMatch(/data-tap="next"[^>]*><svg class="wqs-g"/);
     expect(require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'wq', 'wq-stories.css'), 'utf8')).toContain('[dir=rtl] .wqs-arr{transform:scaleX(-1)}');
     // The top bar runs right to left too: back sits on the right and its ‹ is mirrored by the browser to point right.
     expect(root.innerHTML).toMatch(/class="wqs-top" dir="rtl"/);
@@ -719,7 +900,7 @@ describe('questions and the done card', () => {
     h = root.innerHTML;
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('story-done');
-    expect(h).toContain('Let&#39;s read it together');
+    expect(h).toContain('You looked through the whole book.');
     expect(text(h)).not.toMatch(/\d\s*\/\s*\d|wrong|★|⭐|whole story/i);
     expect(h).not.toContain('sticker');
     expect(e.calls.juice).not.toContain('finish:3');
@@ -838,7 +1019,7 @@ describe('questions and the done card', () => {
     fire(r2, 'ans', 2); await flush(); e2.advance(900);
     expect(r2.innerHTML).toContain('Where does the kite go?');
   });
-  test('zero-input chain: skip Listen, Done at 0 words, no questions -> "Let\'s read it together", no sticker, no confetti', async () => {
+  test('zero-input chain: skip Listen, Done at 0 words, no questions -> "You looked through the whole book.", no sticker, no confetti', async () => {
     const e = env({ wqj: true, alwaysSticker: true, replies: { book: { status: 200, body: book({ questions: [] }) } } });
     const root = await openReader(e);
     fire(root, 'next'); fire(root, 'next');
@@ -852,14 +1033,16 @@ describe('questions and the done card', () => {
     const h = root.innerHTML;
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('story-done');
-    expect(h).toContain('Let&#39;s read it together');
+    // the done line says what happened (the book was paged through), not an offer to read together
+    expect(h).toContain('You looked through the whole book.');
+    expect(h).not.toContain('Let&#39;s read it together');
     expect(text(h)).not.toMatch(/whole story|sticker|page|tried/i);
     expect(e.calls.juice.filter((x) => /^finish/.test(x))).toHaveLength(0);
     const e2 = env({ replies: { book: { status: 200, body: book({ lang: 'ur', dir: 'rtl', questions: [] }) } } });
     const r2 = await openReader(e2, { lang: 'ur' });
     fire(r2, 'next'); fire(r2, 'next'); fire(r2, 'next'); await flush(); await flush();
     checkScreen(r2.innerHTML, 'ur');
-    expect(r2.innerHTML).toContain('آئیں مل کر پڑھیں');
+    expect(r2.innerHTML).toContain('آپ نے پوری کتاب دیکھ لی۔');
     expect(screenOf(r2.innerHTML)).toBe('story-done');
   });
 });
@@ -1022,8 +1205,9 @@ describe('the reader zooms to the printed line', () => {
     expect(cam.style.transform).toBe(T0);
     fire(root, 'main'); fire(root, 'mic'); e.calls.ask[0].onStream({});
     const r = root.innerHTML;
-    expect(r).toMatch(/data-cam[^>]*><div class="wqs-lr" data-lr><\/div>/);
-    expect(root.querySelector('[data-cam]').style.transform).toBe('translate(-67.5px,-874.5px) scale(1.5)');
+    expect(r).toMatch(/data-cam[^>]*><div class="wqs-lr" data-lr><\/div>/);   // a boxed page: the live reader draws the picture and its marks itself
+    // Your turn frames both lines of the page at once (not line 1 at the zoom cap), so no line runs off the stage
+    expect(root.querySelector('[data-cam]').style.transform).toBe('translate(-97.1px,-580.7px) scale(1.108)');
     checkScreen(r, 'en');
   });
   test('print too small to zoom + a text band (boxed page): OUR crop over the print region and a tight mark on it; no band to the player', async () => {
@@ -1080,6 +1264,74 @@ describe('the reader zooms to the printed line', () => {
   });
 });
 
+describe('the text lens wins over unsure word boxes (band setting)', () => {
+  const LINES = [{ i0: 0, i1: 2, box: [100, 800, 300, 60] }, { i0: 3, i1: 4, box: [220, 860, 200, 60] }];
+  const LENS = /<img class="wqs-lens" src="\/s\/b-1\/p01-band.webp" width="1440" height="260"[^>]*style="left:100px;top:800px;width:520px;height:130px"/;
+  function page(over) { const bk = book(); bk.pages[0] = { ...bk.pages[0], lines: LINES, ...over }; return bk; }
+  async function run(bk) {
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    const h = root.innerHTML; const cam = root.querySelector('[data-cam]');
+    fire(root, 'main'); e.calls.ra[0].o.onWord(1);
+    const mk = root.querySelector('[data-mk]');
+    const after = { cam: cam.style.transform, mk: mk ? [mk.style.left, mk.style.top, mk.style.width, mk.style.height, mk.style.opacity, mk.className] : null };
+    e.calls.ra[0].o.onEnd(); fire(root, 'main'); fire(root, 'mic'); e.calls.ask[0].onStream({});
+    return { e, h, after, mic: root.innerHTML };
+  }
+  // pinned from the reader BEFORE the lens rule (the setting OFF, and a good-box page, must not move a byte); re-pinned on the lines-stay-whole reader
+  const PIN = {
+    off: {"h":"<section class=\"wqs \" data-screen=\"story-page\" lang=\"en\" dir=\"ltr\"><div class=\"wqs-top\" dir=\"ltr\"><button class=\"wqs-ic\" data-back data-tap=\"back\" aria-label=\"Back\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z\"/></svg></button><h2 lang=\"en\" dir=\"ltr\">Mina Testwala</h2><button class=\"wqs-ic wqs-snd\" data-snd data-tap=\"snd\" aria-pressed=\"false\" aria-label=\"Sound\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z\"/></svg></button></div><div class=\"wqs-stage wqs-st2\" data-stage><div class=\"wqs-cam\" data-cam style=\"width:720px;height:1080px\"><img src=\"/s/b-1/p01.webp\" width=\"720\" height=\"1080\" alt=\"\" onerror=\"WQSTORIES._bad(this)\"><div data-ra></div><i class=\"wqs-mk\" data-mk></i></div></div><button class=\"wqs-whole\" data-whole data-tap=\"cam\" aria-pressed=\"false\">Whole page</button><div class=\"wqs-extra\" data-extra><button class=\"wqs-sec\" data-tap=\"alt\">Your turn</button></div><div class=\"wqs-lrl\" data-lrl></div><div class=\"wqs-ctl\"><button class=\"wqs-arr\" data-tap=\"prev\" disabled aria-label=\"Page before\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z\"/></svg></button><button class=\"wqs-main\" data-main data-primary data-tap=\"main\" data-sound data-trigger=\"tap\">Listen</button><button class=\"wqs-slow\" data-tap=\"slow\" aria-pressed=\"false\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 16a9 7 0 0 1 18 0zm17-3a2 2 0 1 0 2.5-2.5zM6 16v3h3v-3zm9 0v3h3v-3z\"/></svg> Slower</button><button class=\"wqs-arr\" data-tap=\"next\" aria-label=\"Next page\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M8.6 7.4 10 6l6 6-6 6-1.4-1.4 4.6-4.6z\"/></svg></button></div></section>","after":{"cam":"translate(-78.6px,-480.6px) scale(1.034)","mk":["160px","810px","30px","50px","1","wqs-mk"]},"mic":"<section class=\"wqs \" data-screen=\"story-read\" lang=\"en\" dir=\"ltr\"><div class=\"wqs-top\" dir=\"ltr\"><button class=\"wqs-ic\" data-back data-tap=\"close\" aria-label=\"Close\">✕</button><h2 lang=\"en\" dir=\"ltr\"></h2></div><img class=\"wqs-jg wqs-g0\" src=\"/wq/jugnu/hello.webp\" width=\"72\" height=\"72\" alt=\"\" data-jg onerror=\"WQSTORIES._bad(this)\"><div class=\"wqs-stage wqs-st2\" data-stage><div class=\"wqs-cam\" data-cam style=\"width:720px;height:1080px\"><img src=\"/s/b-1/p01.webp\" width=\"720\" height=\"1080\" alt=\"\" onerror=\"WQSTORIES._bad(this)\"><div class=\"wqs-lr\" data-lr></div><i class=\"wqs-mk\" data-mk></i></div></div><button class=\"wqs-whole\" data-whole data-tap=\"cam\" aria-pressed=\"false\">Whole page</button><button class=\"wqs-main wqs-done\" data-primary data-tap=\"main\">I&#39;m done <svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z\"/></svg></button></section>"},
+    good: {"h":"<section class=\"wqs \" data-screen=\"story-page\" lang=\"en\" dir=\"ltr\"><div class=\"wqs-top\" dir=\"ltr\"><button class=\"wqs-ic\" data-back data-tap=\"back\" aria-label=\"Back\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z\"/></svg></button><h2 lang=\"en\" dir=\"ltr\">Mina Testwala</h2><button class=\"wqs-ic wqs-snd\" data-snd data-tap=\"snd\" aria-pressed=\"false\" aria-label=\"Sound\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z\"/></svg></button></div><div class=\"wqs-stage wqs-st2\" data-stage><div class=\"wqs-cam\" data-cam style=\"width:720px;height:1080px\"><div data-ra></div></div></div><button class=\"wqs-whole\" data-whole data-tap=\"cam\" aria-pressed=\"false\">Whole page</button><div class=\"wqs-extra\" data-extra><button class=\"wqs-sec\" data-tap=\"alt\">Your turn</button></div><div class=\"wqs-lrl\" data-lrl></div><div class=\"wqs-ctl\"><button class=\"wqs-arr\" data-tap=\"prev\" disabled aria-label=\"Page before\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z\"/></svg></button><button class=\"wqs-main\" data-main data-primary data-tap=\"main\" data-sound data-trigger=\"tap\">Listen</button><button class=\"wqs-slow\" data-tap=\"slow\" aria-pressed=\"false\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 16a9 7 0 0 1 18 0zm17-3a2 2 0 1 0 2.5-2.5zM6 16v3h3v-3zm9 0v3h3v-3z\"/></svg> Slower</button><button class=\"wqs-arr\" data-tap=\"next\" aria-label=\"Next page\"><svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M8.6 7.4 10 6l6 6-6 6-1.4-1.4 4.6-4.6z\"/></svg></button></div></section>","after":{"cam":"translate(-78.6px,-480.6px) scale(1.034)","mk":null},"mic":"<section class=\"wqs \" data-screen=\"story-read\" lang=\"en\" dir=\"ltr\"><div class=\"wqs-top\" dir=\"ltr\"><button class=\"wqs-ic\" data-back data-tap=\"close\" aria-label=\"Close\">✕</button><h2 lang=\"en\" dir=\"ltr\"></h2></div><img class=\"wqs-jg wqs-g0\" src=\"/wq/jugnu/hello.webp\" width=\"72\" height=\"72\" alt=\"\" data-jg onerror=\"WQSTORIES._bad(this)\"><div class=\"wqs-stage wqs-st2\" data-stage><div class=\"wqs-cam\" data-cam style=\"width:720px;height:1080px\"><div class=\"wqs-lr\" data-lr></div></div></div><button class=\"wqs-whole\" data-whole data-tap=\"cam\" aria-pressed=\"false\">Whole page</button><button class=\"wqs-main wqs-done\" data-primary data-tap=\"main\">I&#39;m done <svg class=\"wqs-g\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z\"/></svg></button></section>"},
+  };
+  test('boxes unsure + lines that fit + a band: the lens replaces the zoomed print; the box glides on the lens', async () => {
+    const { e, h, after } = await run(page({ boxes_ok: false }));
+    expect(h).toMatch(LENS);
+    expect(h).toContain('Whole page');
+    expect(h).toContain('data-mk');
+    const c = e.S._cam([[100, 800, 520, 130]], 360, 540, 720, 1080, false, 6);
+    expect(after.cam).toBe(`translate(${c.tx}px,${c.ty}px) scale(${c.s})`);
+    expect(after.mk[4]).toBe('1');
+  });
+  test('Your turn on a lens page: the picture and the lens under the live-read layer (never a white stage); the camera frames the band and holds still', async () => {
+    for (const lang of ['en', 'ur']) {
+      const bk = page({ boxes_ok: false }); bk.lang = lang; bk.dir = lang === 'ur' ? 'rtl' : 'ltr';
+      const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e, { lang });
+      toMic(e, root); e.calls.ask[e.calls.ask.length - 1].onStream({ id: 'stream' });
+      const h = root.innerHTML;
+      expect(screenOf(h)).toBe('story-read');
+      expect(h).toMatch(/data-cam[^>]*><img src="\/s\/b-1\/p01\.webp"[^>]*><div class="wqs-lr" data-lr><\/div>/);
+      expect(h).toMatch(LENS);
+      const c = e.S._cam([[100, 800, 520, 130]], 360, 540, 720, 1080, lang === 'ur', 6, 1);
+      expect(root.querySelector('[data-cam]').style.transform).toBe(`translate(${c.tx}px,${c.ty}px) scale(${c.s})`);
+    }
+  });
+  test('a page whose lines have no boxes at all (the poem case): the sweep sits under the line being read, one row of the band, never a block over every line', async () => {
+    for (const rtl of [false, true]) {
+      const bk = book(); bk.lang = rtl ? 'ur' : 'en'; bk.dir = rtl ? 'rtl' : 'ltr';
+      const ws = ['Aa', 'Bb', 'Cc', 'Dd', 'Ee', 'Ff', 'Gg', 'Hh'].map((t, i) => W(i, t, 100 + i * 400));   // no word boxes
+      bk.pages[0] = { ...bk.pages[0], words: ws, boxes_ok: false, lines: [{ i0: 0, i1: 1 }, { i0: 2, i1: 3 }, { i0: 4, i1: 5 }, { i0: 6, i1: 7 }] };
+      const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e, { lang: bk.lang });
+      expect(e.S._mark(bk.pages[0], 2, bk.pages[0].text_band.box, rtl)).toEqual([rtl ? 100 + 520 / 2 : 100, 800 + 130 / 4 * 2 - 6, 520 / 2, 6, 1]);
+      fire(root, 'main'); e.calls.ra[0].o.onWord(5);
+      const mk = root.querySelector('[data-mk]');
+      expect([mk.style.left, mk.style.top, mk.style.width, mk.style.height, mk.className]).toEqual([rtl ? '100px' : '100px', `${800 + 130 / 4 * 3 - 6}px`, '520px', '6px', 'wqs-mk wqs-sw']);
+    }
+  });
+  test('the same page with the setting OFF (no band): byte-identical to before', async () => {
+    const r = await run(page({ boxes_ok: false, text_band: null }));
+    expect({ h: r.h, after: r.after, mic: r.mic }).toEqual(PIN.off);
+  });
+  test('good boxes + lines: the zoomed print as before, byte-identical', async () => {
+    const r = await run(page({ boxes_ok: true }));
+    expect({ h: r.h, after: r.after, mic: r.mic }).toEqual(PIN.good);
+  });
+  test('boxes unsure, no lines, a band: the lens as before', async () => {
+    const bk = book(); bk.pages[0].boxes_ok = false;
+    const { h } = await run(bk);
+    expect(h).toMatch(LENS);
+    expect(h).toContain('Whole page');
+  });
+});
+
 describe('the finish card and Home', () => {
   async function toDone(e) { const root = await openReader(e); runBook(e, root); await flush(); await flush(); return root; }
   test('card_v3: loads wq-finish-card at our ?v=, mounts on our button row with the real API, hides our block', async () => {
@@ -1088,8 +1340,14 @@ describe('the finish card and Home', () => {
     const root = await toDone(e);
     expect(e.calls.loaded.map((x) => x.src || x.href).filter((u) => /finish-card/.test(u))).toEqual(['/wq/wq-finish-card.css?v=abc123', '/wq/wq-finish-card.js?v=abc123']);
     expect(got.el).toBe(root.querySelector('[data-col]'));
-    expect(got.o).toEqual({ source: 'story', ended: 'read', pages_read: 2, pages_listened: expect.any(Number), stars: null, title: 'Mina Testwala', cover: undefined, lang: 'en', auth: { hub: TOKEN, kid: KID }, ev: expect.any(Function), home: '#', next: null, sticker: true });
+    // the card's Next tile is "More stories" (this page's own shelf) and it leads; the share steps back
+    expect(got.o).toEqual({ source: 'story', ended: 'read', pages_read: 2, pages_listened: expect.any(Number), stars: null, title: 'Mina Testwala', cover: undefined, lang: 'en', auth: { hub: TOKEN, kid: KID }, ev: expect.any(Function), home: '#',
+      next: { kind: 'stories', href: '/h/tok?x=1#stories', title: 'More stories' }, lead: true, whole: true, answered: 0, sticker: true });
     expect(root.querySelector('[data-own]').hidden).toBe(true);
+    // one "More stories": the card's tile, so our own button is not drawn beside it; Home stays ours
+    expect(primaries(root.innerHTML)).toBe(0);
+    expect(root.innerHTML).not.toContain('data-tap="more"');
+    expect(root.innerHTML).toMatch(/<button class="wqs-sec" data-home data-tap="home">Home</);
     let g2 = null;
     const e2 = env({ noSticker: true, replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: (w) => { w.WQFC = { mount(el, o) { g2 = o; return true; } }; } });
     await toDone(e2);
@@ -1100,6 +1358,9 @@ describe('the finish card and Home', () => {
     const root = await toDone(e);
     expect(root.querySelector('[data-own]').hidden).toBe(false);
     expect(root.innerHTML).toContain('You read the whole story!');
+    // no card: today's screen, "More stories" our one primary again
+    expect(primaries(root.innerHTML)).toBe(1);
+    expect(root.innerHTML).toMatch(/<button class="wqs-main" data-primary data-tap="more">More stories</);
     expect(root.innerHTML).not.toMatch(/sticker|jugnu_celebrate|wa\.me/);
     const e2 = env({ replies: { book: { status: 200, body: book({ questions: [] }) } } });
     await toDone(e2);
@@ -1197,6 +1458,14 @@ describe('hooks, hush, back controls, the own done screen', () => {
     e.S.shelf(el2, e.ctx({ primary: false }));
     expect(primaries(el2.innerHTML)).toBe(0);
   });
+  test('a block the reader hides with [hidden] is gone even when its class sets a display (the done screen\'s own block under the card)', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs \[hidden\]\{display:none!important\}/);
+  });
+  test('the look-back screen (a centred sheet) stretches the page stage: the stage\'s only child is absolute, so a centred stage would be 0 px wide', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs-sheet \.wqs-stage[^{]*\{[^}]*align-self:stretch/);
+  });
   test('the look-back screen has a back control; the shelf retry has a home link', async () => {
     const e = env({ hash: '#story/b-1/q', right: () => false });
     const root = fakeEl('root');
@@ -1225,6 +1494,140 @@ describe('hooks, hush, back controls, the own done screen', () => {
   });
 });
 
+// ---- the done screen with the real finish card: the child's next thing leads, the book's cover on the card ----------
+describe('the done screen with the real finish card (card_v3): ONE primary = More stories, the cover', () => {
+  const FCSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-finish-card.js'), 'utf8');
+  // the real WQFC in its own vm; its block lands before our button row, so the screen = card block + our row
+  function realCard(sink) {
+    return (w) => {
+      const c = { window: {}, document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } }, location: { origin: 'https://portal.example' }, navigator: {}, fetch: () => Promise.resolve({ ok: false }) };
+      c.window = c; vm.createContext(c); vm.runInContext(FCSRC, c);
+      w.WQFC = { mount(el, o) { sink.o = o; return c.WQFC.mount({ insertAdjacentHTML: (pos, h) => { sink.card = (sink.card || '') + h; } }, o); } };
+    };
+  }
+  const d0 = (sink) => sink.card || '';
+  async function done(over, lang) {
+    const sink = {};
+    const e = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true, lang: lang || 'en', ...over }) } }, onLoad: realCard(sink) });
+    const root = await openReader(e); runBook(e, root); await flush(); await flush();
+    return { e, root, sink, screen: () => (sink.card || '') + root.innerHTML };
+  }
+  // the share keeps the card's own word, whatever it is today
+  const SEND = (l) => new RegExp(l + ": \\{ send: '([^']*)'").exec(FCSRC)[1];
+  test.each([['en', 'More stories', 'Next', SEND('en'), 'Home'], ['ur', 'اور کہانیاں', 'اگلا', SEND('ur'), 'ہوم']])('%s: exactly one data-primary and it is the More stories tile; the share is present and not primary; Home third', async (lang, more, nextW, send, home) => {
+    const d = await done({}, lang);
+    const h = d.screen();
+    expect(screenOf(d.root.innerHTML)).toBe('story-done');
+    expect(primaries(h)).toBe(1);
+    const prim = /<a [^>]*data-primary[^>]*>[^]*?<\/a>/.exec(h)[0];
+    expect(prim).toContain('id="wqfc-next"');
+    expect(prim).toContain('href="/h/tok?x=1#stories"');
+    expect(prim).toContain('<small>' + nextW + '</small><b dir="auto">' + more + '</b>');
+    const share = /<a [^>]*id="wqfc-share"[^>]*>([^<]*)<\/a>/.exec(h);
+    expect(share).not.toBeNull();
+    expect(share[0]).not.toContain('data-primary');
+    expect(share[0]).toContain('wq-soft');
+    expect(share[1]).toBe(send);
+    // the order on the screen: More stories, the share, Home; one More stories, not two
+    const iHome = h.indexOf('data-home data-tap="home">' + home + '<');
+    expect(h.indexOf('id="wqfc-next"')).toBeLessThan(h.indexOf('id="wqfc-share"'));
+    expect(h.indexOf('id="wqfc-share"')).toBeLessThan(iHome);
+    expect(h.split(more).length - 1).toBe(1);
+  });
+  test('the card shows the book\'s cover (src = the book\'s cover file, alt = its title); no cover -> no box', async () => {
+    const d = await done({ cover: '/s/b-1/cover.webp' });
+    expect(d.sink.o.cover).toBe('/s/b-1/cover.webp');
+    expect(d.screen()).toMatch(/<img class="wqfc-cov" src="\/s\/b-1\/cover\.webp" alt="Mina Testwala"/);
+    const d2 = await done({ cover: null });
+    expect(d2.screen()).not.toContain('wqfc-cov');
+    expect(d2.screen()).not.toMatch(/<img/);
+  });
+  test('the More stories tile shows the next unread shelf book\'s cover (the shelf\'s own data; no extra request)', async () => {
+    const sink = {};
+    const slot = fakeEl('shelf'); slot._d = SHELF;
+    const e = env({ slot, replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(sink) });
+    e.win.document = e.doc;
+    const root = await openReader(e); runBook(e, root); await flush(); await flush();
+    // b-9 (the teacher's, unread) is first; b-1 is this book; b-4 is done
+    expect(sink.o.next.art).toBe('/s/b-9/cover.webp');
+    expect(/<a [^>]*id="wqfc-next"[^>]*>[^]*?<\/a>/.exec(d0(sink))[0]).toContain('<img class="wqfc-art" src="/s/b-9/cover.webp"');
+    const gets = e.calls.gets.filter((u) => /shelf/.test(u));
+    expect(gets).toHaveLength(0);
+    // every other shelf book read, or no shelf on the page: the plain tile
+    const s2 = fakeEl('shelf'); s2._d = { books: [{ id: 'b-1', cover: '/s/b-1/cover.webp' }, { id: 'b-4', cover: '/s/b-4/cover.webp', done: true }] };
+    const k2 = {};
+    const e2 = env({ slot: s2, replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(k2) });
+    e2.win.document = e2.doc;
+    const r2 = await openReader(e2); runBook(e2, r2); await flush(); await flush();
+    expect(k2.o.next.art).toBeUndefined();
+    const k3 = {};
+    const e3 = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(k3) });
+    const r3 = await openReader(e3); runBook(e3, r3); await flush(); await flush();
+    expect(k3.o.next.art).toBeUndefined();
+  });
+  test('tapping More stories on the card goes to the shelf (never turns a page)', async () => {
+    const d = await done({});
+    const before = d.e.calls.ra.length;
+    fire(d.root, 'next');
+    expect(d.e.win.location.hash).toBe('#stories');
+    expect(d.e.calls.ra.length).toBe(before);
+  });
+  // Hashed from the reader before this change (this harness, these fixtures): card switch off, or a card that refuses.
+  test('golden: card_v3 off (and a card that refuses), the done screen is today\'s, byte for byte, EN and UR', async () => {
+    const GOLD = { en_off: 'd52d1313a86a18cc', ur_off: '30d6c83d78038e97', en_refused: 'd52d1313a86a18cc', ur_refused: '30d6c83d78038e97' };
+    const hash = (h) => require('crypto').createHash('sha256').update(h).digest('hex').slice(0, 16);
+    const out = {};
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: book({ questions: [], lang, cover: '/s/b-1/cover.webp' }) } } });
+      const root = await openReader(e); runBook(e, root); await flush(); await flush();
+      out[lang + '_off'] = hash(root.innerHTML);
+      const e2 = env({ replies: { book: { status: 200, body: book({ questions: [], lang, card_v3: true, cover: '/s/b-1/cover.webp' }) } }, onLoad: (w) => { w.WQFC = { mount: () => false }; } });
+      const r2 = await openReader(e2); runBook(e2, r2); await flush(); await flush();
+      out[lang + '_refused'] = hash(r2.innerHTML);
+    }
+    expect(out).toEqual(GOLD);
+  });
+  test('the card refuses: our own screen, More stories our one primary, no tile', async () => {
+    const e = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true, cover: '/s/b-1/cover.webp' }) } }, onLoad: (w) => { w.WQFC = { mount: () => false }; } });
+    const root = await openReader(e); runBook(e, root); await flush(); await flush();
+    expect(primaries(root.innerHTML)).toBe(1);
+    expect(root.innerHTML).toMatch(/<button class="wqs-main" data-primary data-tap="more">More stories</);
+    expect(root.innerHTML).not.toMatch(/wqfc|<img/);
+  });
+});
+
+// ---- the end of the book names the biggest true thing ------------------------------------------------------------
+describe('the end of the book (card_v3): the card hears the finish and the questions answered', () => {
+  function cap(sink) { return (w) => { w.WQFC = { mount(el, o) { sink.o = o; return true; } }; }; }
+  test('1 page heard + both questions answered -> whole: true, answered: 2 (the card draws the finish)', async () => {
+    const bk = book({ card_v3: true }); bk.pages = bk.pages.slice(0, 2);
+    const sink = {};
+    const e = env({ lr: false, replies: { book: { status: 200, body: bk } }, onLoad: cap(sink) });
+    const root = await openReader(e);
+    fire(root, 'main'); e.calls.ra[0].o.onEnd(); fire(root, 'main'); fire(root, 'next');
+    fire(root, 'ans', 0); await flush(); e.advance(900); fire(root, 'ans', 1); await flush(); e.advance(900); await flush(); await flush();
+    expect(sink.o).toMatchObject({ source: 'story', ended: 'listened', pages_read: 0, whole: true, answered: 2 });
+  });
+  test('nothing heard or read, the questions answered -> the card still mounts (the finish + the questions line)', async () => {
+    const bk = book({ card_v3: true }); bk.pages = bk.pages.slice(0, 2);
+    const sink = {};
+    const e = env({ lr: false, replies: { book: { status: 200, body: bk } }, onLoad: cap(sink) });
+    const root = await openReader(e);
+    fire(root, 'next'); fire(root, 'next');
+    fire(root, 'ans', 0); await flush(); e.advance(900); fire(root, 'ans', 1); await flush(); e.advance(900); await flush(); await flush();
+    expect(sink.o).toMatchObject({ pages_read: 0, pages_listened: 0, whole: true, answered: 2 });
+    expect(root.querySelector('[data-own]').hidden).toBe(true);
+  });
+  test('paged through with nothing heard, read or answered -> no card, "You looked through the whole book."', async () => {
+    const bk = book({ card_v3: true, questions: [] }); bk.pages = bk.pages.slice(0, 2);
+    const sink = {};
+    const e = env({ lr: false, replies: { book: { status: 200, body: bk } }, onLoad: cap(sink) });
+    const root = await openReader(e);
+    fire(root, 'next'); fire(root, 'next'); await flush(); await flush();
+    expect(sink.o).toBeUndefined();
+    expect(root.innerHTML).toContain('You looked through the whole book.');
+  });
+});
 // ---- server lines[] and chunked Your turn ------------------------------------------------------------------------
 function longPage(n, perLine, withLines) {
   const words = []; const lines = [];
@@ -1240,8 +1643,8 @@ describe('server lines[] and chunked Your turn', () => {
     expect(ln.of[0]).toBe(0); expect(ln.of[9]).toBe(0); expect(ln.of[10]).toBe(1); expect(ln.of[29]).toBe(2);
     expect(ln.l[1].bs).toEqual([[40, 160, 640, 40]]);
   });
-  test('the chunk split: <= 40 words is one chunk; longer pages go by consecutive lines, <= 25 words a chunk; no lines -> 25-word slices', () => {
-    const e = env();
+  test('the chunk split: <= 40 words is one chunk; longer pages go by consecutive lines, <= 25 words a chunk; no lines -> 25-word slices', async () => {
+    const e = env(); toMic(e, await openReader(e));   // the split lives in the lazy part (wq-stories-q.js), loaded by Your turn
     expect(e.S._chunks(longPage(30, 10, true), e.S._lines(longPage(30, 10, true)))).toEqual([[0, 29]]);
     const p = longPage(60, 10, true);
     expect(e.S._chunks(p, e.S._lines(p))).toEqual([[0, 19], [20, 39], [40, 59]]);
@@ -1256,7 +1659,7 @@ describe('server lines[] and chunked Your turn', () => {
     const p = e.calls.ra[0];
     expect(p.o.mode).toBe('strip');
     fire(root, 'main'); p.o.onWord(14);
-    const c = e.S._cam([[40, 160, 640, 40]], 360, 540, 720, 1080, false);
+    const c = e.S._cam([[40, 160, 640, 40]], 360, 540, 720, 1080, false, 3, 1);   // framed whole (fit)
     expect(root.querySelector('[data-cam]').style.transform).toBe(`translate(${c.tx}px,${c.ty}px) scale(${c.s})`);
     const mk = root.querySelector('[data-mk]');
     expect([mk.style.left, mk.style.top, mk.style.width, mk.style.height]).toEqual(['40px', '194px', '320px', '6px']);
@@ -1351,14 +1754,18 @@ describe('lines without a box (the full export)', () => {
     expect(e.S._lines(p).l[1].bs).toEqual([]);
     const pl = e.calls.ra[0]; const cam = root.querySelector('[data-cam]');
     fire(root, 'main');
-    const z0 = cam.style.transform;
-    expect(z0).not.toBe('translate(0px,0px) scale(0.5)');
+    // a boxed line is framed WHOLE (a full-width line can only be shown at the page's width; it is never cut)
+    const m0 = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(cam.style.transform);
+    expect(40 * Number(m0[3]) + Number(m0[1])).toBeGreaterThanOrEqual(0);
+    expect(680 * Number(m0[3]) + Number(m0[1])).toBeLessThanOrEqual(360);
     pl.o.onWord(12);
     expect(cam.style.transform).toBe('translate(0px,0px) scale(0.5)');
     const mk = root.querySelector('[data-mk]');
     expect([mk.style.left, mk.style.top, mk.style.height]).toEqual(['0px', '1040px', '40px']);
-    pl.o.onWord(25);
-    expect(cam.style.transform).not.toBe('translate(0px,0px) scale(0.5)');
+    pl.o.onWord(25);   // a boxed line again: framed whole
+    const m1 = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(cam.style.transform);
+    expect(40 * Number(m1[3]) + Number(m1[1])).toBeGreaterThanOrEqual(0);
+    expect(680 * Number(m1[3]) + Number(m1[1])).toBeLessThanOrEqual(360);
   });
 });
 
@@ -1544,6 +1951,15 @@ describe('echo reading on G1-2', () => {
     const ws = ['Mina', 'runs.', '"Up!"', 'Is', 'it', 'red?', 'یہ', 'پتنگ', 'ہے۔', 'کیا', 'اڑی؟', 'Then'].map((t, i) => ({ i, t }));
     expect(e.S._sents(ws)).toEqual([[0, 1], [2, 2], [3, 5], [6, 8], [9, 10], [11, 11]]);
   });
+  test('one sentence rule with the player: a closing » stays with its sentence, a silent word never ends one; the end test is the player\'s, letter for letter', async () => {
+    const e = env(); await openReader(e);
+    const ws = [{ i: 0, t: '«چلو' }, { i: 1, t: 'چلیں۔»' }, { i: 2, t: '(آہستہ۔)', silent: true }, { i: 3, t: 'وہ' }, { i: 4, t: 'گیا۔' }];
+    expect(e.S._sents(ws)).toEqual([[0, 1], [2, 4]]);
+    const fs = require('fs'); const path = require('path');
+    const rx = (f) => (fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', f), 'utf8').match(/\/\[\.!\?[^/]*\/\.test/) || [])[0];
+    expect(rx('wq-stories-q.js')).toBeTruthy();
+    expect(rx('wq-stories-q.js')).toBe(rx('wq-readalong.js'));
+  });
   test('Read it together: Jugnu plays ONE sentence (seek its first word, pause at its last e_ms), its boxes outlined, then the mic on that sentence only, then the next; ends back on the page', async () => {
     const e = env({ replies: { book: { status: 200, body: two() } } });
     const root = await afterRead(e, ['read', 'ahead', 'ahead', 'ahead', 'ahead']);
@@ -1622,6 +2038,56 @@ describe('echo reading on G1-2', () => {
     fire(root, 'eend');
     expect(screenOf(root.innerHTML)).toBe('story-page');
     expect(root.innerHTML).toContain('data-tap="echo"');
+  });
+});
+
+describe('the next page is fetched ahead', () => {
+  test('on a page, the next page\'s picture is asked for (and its voice preloaded when the player can); none past the last page', async () => {
+    const e = env(); const root = await openReader(e);
+    expect(e.calls.imgs).toContain('/s/b-1/p02.webp');
+    fire(root, 'next'); fire(root, 'next');
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+    const n = e.calls.imgs.length;
+    expect(e.calls.imgs).toContain('/s/b-1/p03.webp');
+    fire(root, 'prev'); fire(root, 'next');
+    expect(e.calls.imgs.slice(n).filter((u) => /p04/.test(u))).toHaveLength(0);
+  });
+});
+
+describe('silent words (a stage direction the voice does not read): never asked of the child, never lit', () => {
+  // "(smiling)" is printed on the page but carries silent:true and no timing
+  const play = () => {
+    const bk = book();
+    bk.pages[0].words = [W(0, 'Mina', 100, [110, 810, 40, 50]), { i: 1, t: '(smiling)', silent: true, box: [160, 810, 60, 50] }, W(2, 'runs.', 600, [230, 810, 50, 50]),
+      W(3, 'The', 1100, [110, 870, 30, 50]), W(4, 'kite', 1600, [150, 870, 40, 50]), W(5, 'flies!', 2100, [200, 870, 60, 50])];
+    return bk;
+  };
+  test('Your turn: the live reader gets the words without it; the page\'s marks keep the page\'s own word numbers', async () => {
+    const e = env({ replies: { book: { status: 200, body: play() } } });
+    const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    const c = e.calls.lr[0];
+    expect(c.o.words.map((w) => w.t)).toEqual(['Mina', 'runs.', 'The', 'kite', 'flies!']);
+    c.o.onResult(READ(['read', 'skipped', 'read', 'read', 'read']));
+    const pr = e.calls.posts.filter((x) => x.body.event === 'story_page_read').pop();
+    expect(pr.body.data).toMatchObject({ words_total: 5, words_read: 4, skipped: 1, skipped_words: [2] });
+    expect(root.innerHTML).toMatch(/data-tap="word" data-arg="2"[^>]*>[^<]*(<svg[^>]*>.*?<\/svg>)?\s*runs\.</);
+  });
+  test('Read it together: the sentence holding it is outlined and asked without it; Jugnu still stops at the sentence\'s last spoken word', async () => {
+    const e = env({ replies: { book: { status: 200, body: play() } } });
+    const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({ id: 'st' });
+    e.calls.lr[0].o.onResult(READ(['read', 'ahead', 'ahead', 'ahead', 'ahead']));
+    const nra = e.calls.ra.length;
+    fire(root, 'echo');
+    const p = e.calls.ra[nra];
+    expect(p.log).toEqual(['seek:0', 'play']);
+    const es = root.querySelector('[data-es]').innerHTML;
+    expect((es.match(/class="wqs-es"/g) || []).length).toBe(2);
+    expect(es).not.toContain('left:160px');
+    p.audio.currentTime = 1.0; e.advance(100);
+    expect(e.calls.lr).toHaveLength(2);
+    expect(e.calls.lr[1].o.words.map((w) => w.t)).toEqual(['Mina', 'runs.']);
   });
 });
 
@@ -1927,5 +2393,61 @@ describe('the host slot and the host call shape', () => {
     expect(e.calls.gets[1]).toMatch(new RegExp(`^/api/wq/stories/shelf/h/${TOKEN.replace('.', '\\.')}\\?kid=${KID}&l=`));
     const el3 = fakeEl('s3'); e.S.shelf(el3, e.ctx()); await flush();
     expect(e.calls.gets[2]).toBe(`/api/wq/stories/shelf/h/${TOKEN}?kid=${KID}&l=en`);
+  });
+});
+
+describe('hear a sentence again (a tapped word replays its sentence)', () => {
+  // the real player's pause() reports onState('paused') when it was playing; a sentence replay pauses itself at its end
+  const real = (e) => {
+    const mount = e.win.WQReadAlong.mount;
+    e.win.WQReadAlong.mount = (el, d, o) => { const p = mount(el, d, o); p.pause = () => { p.log.push('pause'); if (o.onState) o.onState('paused'); }; return p; };
+  };
+  test('the reader asks the player for the sentence tap', async () => {
+    const e = env(); await openReader(e);
+    expect(e.calls.ra[0].o.tap).toBe('sentence');
+    expect(e.calls.ra[0].o.lines).toBeUndefined();   // a page without its own lines: the player finds them
+  });
+  test('a page with its own lines hands them to the player as [first, last] pairs (a low page replays those, not the browser\'s wrap)', async () => {
+    const bk = book(); bk.pages[0].quality = 'low'; bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 300, 60] }, { i0: 3, i1: 4, box: [220, 860, 200, 60] }];
+    const e = env({ replies: { book: { status: 200, body: bk } } }); await openReader(e);
+    expect(e.calls.ra[0].o.lines).toEqual([[0, 2], [3, 4]]);
+  });
+  test('while listening: the replayed sentence ends by itself -> the button says Listen, not Pause; the time heard counts', async () => {
+    const e = env(); real(e); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    fire(root, 'main');
+    expect(root.querySelector('[data-main]').textContent).toBe('Pause');
+    p.o.onWordTap(2); e.advance(1500);
+    p.o.onState('paused');                              // the player stopped after the sentence's last word
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    fire(root, 'main');
+    expect(p.log.filter((x) => x === 'play')).toHaveLength(2);
+    e.advance(1000); p.o.onEnd();
+    const ev = e.calls.posts.filter((x) => x.body.event === 'story_page_listened');
+    expect(ev).toHaveLength(1);
+    expect(ev[0].body.data).toMatchObject({ ms: 2500, completed: true });
+  });
+  test('after the page was heard: a sentence replay goes back to Your turn when it ends, and sends nothing new', async () => {
+    const e = env(); real(e); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    fire(root, 'main'); p.o.onEnd();
+    expect(root.querySelector('[data-main]').textContent).toBe('Your turn');
+    p.o.onWordTap(1);
+    expect(root.querySelector('[data-main]').textContent).toBe('Pause');
+    p.o.onState('paused');
+    expect(root.querySelector('[data-main]').textContent).toBe('Your turn');
+    expect(e.calls.posts.filter((x) => x.body.event === 'story_page_listened')).toHaveLength(1);
+  });
+  test('the child\'s own Pause (the player then says paused) is one pause: Listen, and one tap plays again', async () => {
+    const e = env(); real(e); const root = await openReader(e);
+    const p = e.calls.ra[0];
+    fire(root, 'main'); e.advance(700); fire(root, 'main');
+    expect(p.log).toEqual(['play', 'pause']);
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    fire(root, 'main');
+    expect(p.log).toEqual(['play', 'pause', 'play']);
+    expect(root.querySelector('[data-main]').textContent).toBe('Pause');
+    e.advance(300); p.o.onEnd();
+    expect(e.calls.posts.find((x) => x.body.event === 'story_page_listened').body.data.ms).toBe(1000);
   });
 });

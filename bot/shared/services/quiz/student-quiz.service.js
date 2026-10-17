@@ -136,13 +136,25 @@ function childLanguage(history) {
   return e ? clampLanguage(e.language) : null;
 }
 
+/**
+ * The language of the child's newest class quiz (library lesson codes skipped), else null. `classLanguage(h) ||
+ * childLanguage(h)` is `childLanguage(h)`; with web_quiz_return_lang the link's language sits between the two.
+ */
+function classLanguage(history) {
+  const e = (history || []).find((x) => !x.lessonCode);
+  return e ? clampLanguage(e.language) : null;
+}
+
 /** Open the child's /quiz: the Flow when configured, else two buttons for the latest quiz. */
 async function open(phone, { language = 'en' } = {}) {
   // family phone binding (web_quiz_phone_bind): the door's own set — bound ∪ chat children, folded, deduped.
   const bound = Boolean((await require('./web-quiz-identity-flags').flags()).phoneBind);
   const known = bound ? await require('./child-phone-bindings.repo').childrenForPhone(phone) : await StudentIdentity.findByPhone(phone);
   const quizzes = await quizzesForStudents(known);
-  const lang = clampLanguage(childLanguage(quizzes) || language);
+  let lang = clampLanguage(childLanguage(quizzes) || language);
+  // web_quiz_return_lang: a phone whose quizzes are all library lessons speaks the family's language, not a lesson's
+  // (the switch is read only then; off: today's)
+  if (quizzes.length && !classLanguage(quizzes) && await require('./web-quiz-return-lang').on()) lang = clampLanguage(language);
   // guest home (web_quiz_guest_home): no child on this phone → ONE guest reply; false → today's path below.
   if (!known.length && await require('./web-quiz-guest-home').offer(phone, lang)) return true;
   // The kid hub (app_settings web_quiz_hub): ONE link button to this phone's own children's hub;
@@ -193,7 +205,8 @@ async function open(phone, { language = 'en' } = {}) {
  * `home`: the Home body and button; a refused emoji label is retried once with the plain one.
  */
 async function sendHub(phone, known, lang, { home = false, trueCount = false } = {}) {
-  const url = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id));
+  // web_quiz_return_lang: the link carries the language this reply speaks (off: today's link)
+  const url = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id), { lang });
   if (!url) return false;
   // family phone binding on: the Home reply is counted on the ledger with the phone BEFORE it is sent (the per-phone
   // daily reply cap); over the cap nothing is sent and the /quiz is still handled. Off: today's path, uncounted.
@@ -294,6 +307,6 @@ async function sendCard(phone, { shareCodeId, studentId, language = 'en' }) {
 }
 
 module.exports = {
-  quizzesForHandset, quizzesForStudents, childLanguage, open, handleButton, retry, sendCard, flowId,
+  quizzesForHandset, quizzesForStudents, childLanguage, classLanguage, open, handleButton, retry, sendCard, flowId,
   RETRY_ID, CARD_ID, FALLBACK_KEY, MAX_QUIZZES,
 };

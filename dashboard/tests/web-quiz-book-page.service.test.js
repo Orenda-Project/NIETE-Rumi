@@ -154,6 +154,13 @@ describe('the Book screen', () => {
     expect(h).toContain('<h2>Trail stickers</h2>');
     expect(B._bookHtml(BOOK, ctxOf({ lang: 'ur' }), false)).toContain('ہر پوری کہانی پر ایک اسٹیکر');
     expect(B._bookHtml({ ...BOOK, trail_stickers: [] }, ctxOf(), false)).not.toContain('Trail stickers');
+    // the v3 home (web_quiz_home_v3) opens the Book with ctx.v3: its sticker head is "Game stickers", never "Trail"
+    expect(B._bookHtml(BOOK, ctxOf({ v3: true }), false)).toContain('<h2>Game stickers</h2>');
+    expect(B._bookHtml(BOOK, ctxOf({ v3: true }), false)).not.toMatch(/Trail/);
+    const urV3 = B._bookHtml(BOOK, ctxOf({ lang: 'ur', v3: true }), false);
+    expect(urV3).toContain('<h2>کھیلوں کے اسٹیکر</h2>');
+    expect(urV3).not.toMatch(/راستے/);
+    expect(B._bookHtml(BOOK, ctxOf({ lang: 'ur' }), false)).toContain('<h2>جگنو کے راستے کے اسٹیکر</h2>'); // switch off: today's
     const none = B._bookHtml({ ...BOOK, story_stickers: [] }, ctxOf(), false);
     expect(none).not.toContain('class="wq-bk-st"');
   });
