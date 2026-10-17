@@ -108,6 +108,8 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/hub/:token', limiter: 'read' },
   // M4b library
   { method: 'get', path: '/api/wq/lib/h/:token', limiter: 'read', token: true },
+  // the v3 home's door screens (Stories / Games rows; the bot answers 404 while web_quiz_home_v3 is off)
+  { method: 'get', path: '/api/wq/doors/h/:token', limiter: 'read', token: true },
   // Jugnu's Book from the kid's hub (the bot answers 503 while web_quiz_challenge_book is off)
   { method: 'get', path: '/api/wq/book/h/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
@@ -161,6 +163,10 @@ function assetVersion() {
   // Jugnu's Book (hub.js loads wq-book.js / .css at its own ?v=): a change to either busts the hub's version too.
   // wq-tel.js (on every page at this ?v=) holds the pages' link helper WQT.withLang: a change to it busts it too.
   for (const f of ['wq-book.js', 'wq-book.css', 'wq-tel.js']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
+  // The child home (wq-home.*, the home tags) and its door screens (wq-doors.*, loaded by wq-home.js) ride this ?v= too.
+  for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
