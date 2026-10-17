@@ -500,6 +500,103 @@ describe('E6 GET board (the class league table)', () => {
   });
 });
 
+describe('E6 GET board for a storybook code (app_settings web_quiz_story_board_refuse)', () => {
+  const StoryBoard = require('../../../shared/services/quiz/story-board');
+  const story = () => { fake.db.quizzes[0].quiz_source = 'story'; };
+  const reads = (t) => fake.calls.filter((c) => c.table === t && c.op === 'select').length;
+  beforeEach(() => StoryBoard._reset());
+  async function play(name, picks) {
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name, force: true } });
+    await WQ.recordAnswers({ st: s.st, a: picks.map((slot, i) => ({ qid: qid(i + 1), slot, ms: 3000, seq: i + 1 })) });
+    return { s };
+  }
+
+  test('on: a storybook code has no class table (404 no_board); a quiz\'s table is byte for byte what it is off', async () => {
+    const off = await WQ.board('AB12CD');
+    StoryBoard._reset();
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    expect(await WQ.board('AB12CD')).toEqual(off);
+    story();
+    StoryBoard._reset();
+    await expect(WQ.board('AB12CD')).rejects.toMatchObject({ status: 404, body: { error: 'no_board' } });
+  });
+
+  // board() reads `quizzes` already (the class rows); the refusal's cost is what it adds to one board call.
+  const perCall = async () => { const q = reads('quizzes'); const a = reads('app_settings'); await WQ.board('AB12CD'); return [reads('quizzes') - q, reads('app_settings') - a]; };
+
+  test('off (absent, false, or anything but JSON true): a storybook code\'s board is today\'s, and it reads no quiz row more than today', async () => {
+    story();
+    fake.db.app_settings = [];
+    StoryBoard._reset();
+    const [today] = await perCall();
+    for (const value of [false, 'true', '"true"', ' TRUE ', { enabled: true }, 1, null]) {
+      StoryBoard._reset();
+      fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value }];
+      const out = await WQ.board('AB12CD');
+      expect(out).toMatchObject({ finishers_n: 1, rows: [expect.objectContaining({ first: 'Zara' })] });
+      StoryBoard._reset();
+      expect((await perCall())[0]).toBe(today);
+    }
+  });
+
+  test('on: one quiz-source read per quiz, kept (a quiz never changes source); the switch at most every 30 s', async () => {
+    fake.db.app_settings = [];
+    StoryBoard._reset();
+    const [today] = await perCall();
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    StoryBoard._reset();
+    expect(await perCall()).toEqual([today + 1, 1]);
+    expect(await perCall()).toEqual([today, 0]);
+    expect(await perCall()).toEqual([today, 0]);
+  });
+
+  test('a settings or quiz read that fails is off: today\'s table, never an error', async () => {
+    story();
+    expect(await StoryBoard.refused(QUIZ, { db: { from: () => { throw new Error('down'); } } })).toBe(false);
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    StoryBoard._reset();
+    expect(await StoryBoard.refused(null)).toBe(false);
+  });
+
+  test('on, a quiz read that fails: today\'s table, never an error', async () => {
+    story();
+    const db = { from: (t) => (t === 'app_settings' ? fake.from(t) : { select: () => { throw new Error('down'); } }) };
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    StoryBoard._reset();
+    expect(await StoryBoard.refused(QUIZ, { db })).toBe(false);
+  });
+
+  test('on: a storybook finish mints no class picture (art.class, art.table null); a quiz\'s finish keeps both', async () => {
+    const Art = require('../../../shared/services/quiz/web-quiz-art');
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    const quiz = await WQ.finishSession({ st: (await play('Sana Example', ['B', 'B', 'A', 'B'])).s.st });
+    expect(Art.parseArtId(quiz.art.class)).toMatchObject({ kind: 'l' });
+    expect(Art.parseArtId(quiz.art.table)).toEqual({ kind: 'l', ref: 'AB12CD' });
+    story();
+    StoryBoard._reset();
+    const book = await WQ.finishSession({ st: (await play('Rafi Example', ['B', 'B', 'A', 'B'])).s.st });
+    expect(book.art.class).toBeNull();
+    expect(book.art.table).toBeNull();
+    expect(Art.parseArtId(book.art.card)).toMatchObject({ kind: 'c' });
+  });
+
+  test('off: a storybook finish mints today\'s class picture', async () => {
+    const Art = require('../../../shared/services/quiz/web-quiz-art');
+    story();
+    for (const value of [undefined, false, 'true']) {
+      fake.db.app_settings = value === undefined ? [] : [{ key: 'web_quiz_story_board_refuse', value }];
+      StoryBoard._reset();
+      const out = await WQ.finishSession({ st: (await play(`Rafi ${String(value)}`, ['B', 'B', 'A', 'B'])).s.st });
+      expect(Art.parseArtId(out.art.table)).toEqual({ kind: 'l', ref: 'AB12CD' });
+      expect(Art.parseArtId(out.art.class)).toMatchObject({ kind: 'l' });
+    }
+  });
+
+  test('the source it refuses is the story send\'s own', () => {
+    expect(StoryBoard.SOURCE).toBe(require('../../../shared/services/quiz/story-teacher.service').SOURCE);
+  });
+});
+
 describe('E7 POST me', () => {
   test('history of this phone\'s children and friends who finished their challenge', async () => {
     fake.db.quiz_sessions.push({ id: 'fr', quiz_id: QUIZ, share_code_id: SC, student_id: 'kid-friend', student_name: 'Rida Friend',
