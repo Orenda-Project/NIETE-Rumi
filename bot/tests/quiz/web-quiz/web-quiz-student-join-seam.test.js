@@ -404,19 +404,28 @@ describe('the page shell answer', () => {
     expect(await Join.pageInfo({ t: old })).toEqual({ stale: true, lang: 'ur' });
   });
 
-  test('quiz_join_early_tap on: the page answer carries earlyTap; off, unset or a non-true value: no field (today\'s answer)', async () => {
+  test('quiz_join_early_tap: only JSON true adds earlyTap to the page answer; every other value, unset or a failed read: no field (today\'s answer)', async () => {
     const { t } = await landing();
-    for (const [early, want] of [[true, { ok: true, lang: 'ur', practice: false, earlyTap: true }], ['true', { ok: true, lang: 'ur', practice: false, earlyTap: true }],
-      [false, { ok: true, lang: 'ur', practice: false }], ['yes', { ok: true, lang: 'ur', practice: false }], [undefined, { ok: true, lang: 'ur', practice: false }]]) {
+    const ON = { ok: true, lang: 'ur', practice: false, earlyTap: true };
+    const OFF = { ok: true, lang: 'ur', practice: false };
+    for (const [early, want] of [[true, ON], ['true', OFF], ['"true"', OFF], [' TRUE ', OFF], ['yes', OFF], ['on', OFF], [1, OFF],
+      [null, OFF], [{ enabled: true }, OFF], [false, OFF], [undefined, OFF]]) {
       seed({ early });
       Join._resetCache();
       expect([early, await Join.pageInfo({ t })]).toEqual([early, want]);
     }
+    // a read of the early-tap key that throws: OFF, the join itself unaffected
+    seed({ early: true });
+    Join._resetCache();
+    const real = supabase.from;
+    supabase.from = (tb) => { const b = real(tb); const eq = b.eq; b.eq = (c, v) => { if (v === 'quiz_join_early_tap') throw new Error('boom'); return eq.call(b, c, v); }; return b; };
+    try {
+      expect(await Join.pageInfo({ t })).toEqual(OFF);
+    } finally { supabase.from = real; }
     // the join switch off: still {off:true}, and the early-tap key is never read
     seed({ join: false, early: true });
     Join._resetCache();
     const keys = [];
-    const real = supabase.from;
     supabase.from = (tb) => { const b = real(tb); const eq = b.eq; b.eq = (c, v) => { keys.push(v); return eq.call(b, c, v); }; return b; };
     try {
       expect(await Join.pageInfo({ t })).toEqual({ off: true });

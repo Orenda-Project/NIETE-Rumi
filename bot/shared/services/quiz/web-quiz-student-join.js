@@ -79,7 +79,8 @@ async function earlyTapOn() {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', EARLY_TAP_KEY);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    return isTrue(((data || [])[0] || {}).value);
+    // JSON true only (a new key): the string 'true', 1, 'yes' or an object are all off
+    return ((data || [])[0] || {}).value === true;
   } catch (err) {
     logToFile('⚠️ student join: early-tap setting lookup failed — off', { error: err.message });
     return false;

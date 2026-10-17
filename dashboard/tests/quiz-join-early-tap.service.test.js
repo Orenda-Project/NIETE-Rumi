@@ -84,9 +84,30 @@ describe('the join page with quiz_join_early_tap', () => {
     expect(Buffer.byteLength(EARLY_TAP)).toBeLessThan(400);
   });
 
-  test('the edge passes the bot\'s earlyTap through, and only a literal true turns it on', () => {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'routes', 'quiz-join.routes.js'), 'utf8');
-    expect(src).toContain('earlyTap: out.body.earlyTap === true');
+  test('the edge draws the keeper only when the bot answers earlyTap: true; any other value is today\'s page', async () => {
+    const http = require('http');
+    const express = require('express');
+    const { createQuizJoinRouter } = require('../routes/quiz-join.routes');
+    // a token of the edge's shape (base64url payload "." 22 characters), as quiz-join-edge.service.test.js builds it
+    const TOKEN = `${Buffer.from(JSON.stringify({ k: 'j', n: 'N'.repeat(22), l: 'en', exp: 4102444800 })).toString('base64url')}.${'s'.repeat(22)}`;
+    const draw = async (earlyTap) => {
+      const body = { ok: true, lang: 'en', practice: false, ...(earlyTap === undefined ? {} : { earlyTap }) };
+      const fetchImpl = async () => ({ status: 200, ok: true, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) });
+      const app = express();
+      app.use(createQuizJoinRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl, logEvent: () => {} }));
+      const srv = await new Promise((r) => { const x = app.listen(0, () => r(x)); });
+      try {
+        return await new Promise((resolve, reject) => {
+          http.get({ host: '127.0.0.1', port: srv.address().port, path: `/quiz/join/${TOKEN}` }, (res) => {
+            let out = ''; res.on('data', (c) => { out += c; }); res.on('end', () => resolve(out));
+          }).on('error', reject);
+        });
+      } finally { srv.close(); }
+    };
+    expect(await draw(true)).toContain(EARLY_TAP);
+    for (const v of ['true', '"true"', 1, 'yes', { enabled: true }, null, false, undefined]) {
+      expect([v, (await draw(v)).includes(EARLY_TAP)]).toEqual([v, false]);
+    }
   });
 });
 
