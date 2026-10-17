@@ -12,7 +12,8 @@
  * its own switch (web_quiz_stories); no Jugnu passage is listed here (they open from the Games door and the home's
  * Next tile), so nothing is read about passages and no clip is asked for or recorded. `stories` stays an empty list.
  * Games: the number games this child's grade has (the Trail's own rule: the grade-1 form's one game; else the warm-up /
- * missing number with its switches, and which is bigger), each opened by its id on /c/<token>#<id>; the teacher's
+ * missing number with its switches, and which is bigger), then Jugnu's read-aloud and listen steps when the games
+ * page would offer them, each opened by its id on /c/<token>#<id>; the teacher's
  * quizzes come with the hub boot (doors.games), not from here. Nothing here is a count about the child.
  */
 const crypto = require('crypto');
@@ -82,8 +83,24 @@ async function gamesDoor(who, lang) {
   // Under the pool the missing-number stop opens as the Number warm-up (wq-trail.js isWarmup: its anchor block).
   const warm = ids.includes('missing') && (await Challenge.poolOn());
   const names = ids.map((id) => (id === 'missing' && warm ? null : safeName(Challenge, id, lang)));
-  const say = await sayAll(names.map((n) => n || ''), lang);
-  return { games: ids.map((id, i) => ({ kind: 'numbers', stop: id, ...(id === 'missing' && warm ? { warm: true } : {}), ...(names[i] ? { name: names[i] } : {}), ...(say[i] ? { say: say[i] } : {}) })) };
+  const reads = form === G1.FORM ? [] : await readStops(Challenge, lang);
+  const say = await sayAll([...names.map((n) => n || ''), ...reads.map((r) => r.name)], lang);
+  return { games: [
+    ...ids.map((id, i) => ({ kind: 'numbers', stop: id, ...(id === 'missing' && warm ? { warm: true } : {}), ...(names[i] ? { name: names[i] } : {}), ...(say[i] ? { say: say[i] } : {}) })),
+    ...reads.map((r, j) => ({ ...r, ...(say[ids.length + j] ? { say: say[ids.length + j] } : {}) })),
+  ] };
+}
+
+// Jugnu's read-aloud and listen steps (the Stories door shows storybooks only), each opened by its id on the games page,
+// listed only when the games page would offer it: the day's read-aloud cap not reached; the listening story recorded.
+async function readStops(Challenge, lang) {
+  const out = [];
+  const name = (id) => { try { return typeof Challenge.nameOf === 'function' ? Challenge.nameOf(id, lang) || null : null; } catch (_) { return null; } };
+  const readOk = await require('./web-quiz-challenge-budget').readOpen().catch(() => false);
+  if (readOk && name('read')) out.push({ kind: 'read', stop: 'read', name: name('read') });
+  const listenOk = typeof Challenge.listenOn === 'function' && (await Challenge.listenOn().catch(() => false)) && Boolean(await Promise.resolve(Challenge.storyClip(lang)).catch(() => null));
+  if (listenOk && name('listen')) out.push({ kind: 'read', stop: 'listen', name: name('listen') });
+  return out;
 }
 
 function safeName(Challenge, id, lang) {

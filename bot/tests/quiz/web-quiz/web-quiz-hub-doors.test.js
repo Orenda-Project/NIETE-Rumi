@@ -19,6 +19,8 @@ const mockCh = {
   nameOf: jest.fn((id, lang) => (lang === 'ur' ? { bigger: 'بڑا کون سا ہے؟', missing: 'غائب عدد' } : { bigger: 'Which is bigger?', missing: 'Missing number' })[id]),
 };
 jest.mock('../../../shared/services/quiz/web-quiz-challenge', () => mockCh);
+const mockReadOpen = jest.fn();
+jest.mock('../../../shared/services/quiz/web-quiz-challenge-budget', () => ({ readOpen: (...a) => mockReadOpen(...a) }));
 // The real clip recorder's boundaries, for the daily-cap rows below (the store and the paid voice).
 const mockHead = jest.fn(async () => ({ exists: false }));
 jest.mock('../../../shared/storage/r2', () => ({
@@ -83,6 +85,8 @@ beforeEach(() => {
   mockCh.recordOn.mockResolvedValue(true);
   mockCh.missingOn.mockResolvedValue(true);
   mockCh.poolOn.mockResolvedValue(false);
+  mockReadOpen.mockResolvedValue(false);
+  delete mockCh.listenOn;
 });
 
 const stories = (opts) => Doors.door('tok', { kid: 'chip', d: 'stories', lang: 'en', now: NOW, ...opts });
@@ -156,6 +160,18 @@ describe('Games: the number games by the Trail\'s own rule', () => {
   test('without the missing-number switch: which is bigger only', async () => {
     mockCh.missingOn.mockResolvedValue(false);
     expect((await games()).games.map((g) => g.stop)).toEqual(['bigger']);
+  });
+  test('Jugnu\'s read-aloud and listen steps are rows here (the Stories door has storybooks only), by the games page\'s own rules', async () => {
+    mockReadOpen.mockResolvedValue(true);
+    mockCh.listenOn = jest.fn(async () => true);
+    mockCh.storyClip.mockResolvedValue('https://r2.example.test/listen.ogg');
+    mockCh.nameOf.mockImplementation((id, lang) => ({ en: { bigger: 'Which is bigger?', missing: 'Missing number', read: 'Read aloud', listen: 'Listen and answer' }, ur: { read: 'اونچی آواز میں پڑھیں', listen: 'سنیں اور جواب دیں' } })[lang === 'ur' ? 'ur' : 'en'][id]);
+    expect((await games()).games.slice(-2)).toEqual([{ kind: 'read', stop: 'read', name: 'Read aloud' }, { kind: 'read', stop: 'listen', name: 'Listen and answer' }]);
+    expect((await games('ur')).games.filter((g) => g.kind === 'read').map((g) => g.name)).toEqual(['اونچی آواز میں پڑھیں', 'سنیں اور جواب دیں']);
+    // the day's read-aloud cap reached: no read row (the games page would not open it); no listen clip yet: no listen row
+    mockReadOpen.mockResolvedValue(false);
+    mockCh.storyClip.mockResolvedValue(null);
+    expect((await games()).games.filter((g) => g.kind === 'read')).toEqual([]);
   });
   test('the grade-1 form: its one game', async () => {
     mockCh.formForChild.mockResolvedValue('1');

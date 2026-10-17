@@ -117,12 +117,16 @@
     var quizzes = boot.filter(function (g) { return g.kind === 'quiz'; });
     var open = quizzes.filter(function (g) { return !g.done; });
     var done = quizzes.filter(function (g) { return g.done; });
-    var nums = data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
+    var all = data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
+    var nums = all.filter(function (g) { return g.kind !== 'read'; });
+    // Jugnu's read-aloud and listen steps (the server lists them only when the games page would offer them)
+    var reads = all.filter(function (g) { return g.kind === 'read' && g.stop && g.name; });
     var quizRow = function (g, i) { return row({ href: quizHref(g.code, g.k, g.done), title: g.topic || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
     var h = section(t.fromTeacher, open.map(quizRow).join('')) +
+      section(t.story, reads.map(function (g, i) { return row({ href: gameHref(B, ctx, g), title: g.name, kind: g.stop === 'listen' ? 'listen' : 'passage', item: g.stop, pos: i, say: g.say }, ctx); }).join('')) +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
       section(t.again, done.map(quizRow).join(''));
-    if (!open.length && !nums.length && !done.length) return emptyNote(t.gamesNone, 'stories', t.toStories);
+    if (!open.length && !reads.length && !nums.length && !done.length) return emptyNote(t.gamesNone, 'stories', t.toStories);
     return primaryFirst(h);
   }
 
