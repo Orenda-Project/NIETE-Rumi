@@ -103,6 +103,18 @@ describe('a chapter list', () => {
     out.chapters.filter((c) => c !== ch).forEach((c) => { expect('name_ur' in c).toBe(false); c.videos.forEach((v) => expect('title_ur' in v).toBe(false)); });
   });
 
+  test('ON: a name that is only spaces is no name (no key), never an empty Urdu title', async () => {
+    const fake = await urSeed([LIB, UR]);
+    fake.db.student_videos.find((r) => r.id === F.V(21)).title_ur = '   ';
+    fake.db.student_videos.find((r) => r.id === F.V(21)).chapter_ur = ' ';
+    fake.db.student_videos.find((r) => r.id === F.V(22)).chapter_ur = '\t';
+    const ch = (await Lib.lib('AB12CD', { s: 'Urdu' })).chapters.find((c) => c.name === 'Haroof Ki Awaaz');
+    expect('name_ur' in ch).toBe(false);
+    const by = Object.fromEntries(ch.videos.map((v) => [v.title, v]));
+    expect('title_ur' in by['Choti Yay Ki Awaaz']).toBe(false);
+    expect(by['Bari Yay Ki Awaaz'].title_ur).toBe('بڑی ے کی آواز');
+  });
+
   test('OFF: the answer is byte-identical to a library with no Urdu names at all, and the names are never read', async () => {
     await urSeed([LIB]);
     const seen = spySelects();
