@@ -162,9 +162,10 @@ describe('on (home_v3 + home_fb): wq-home.js fails', () => {
     const r = runHub(FB);
     let mounts = 0;
     const fire = (ms) => { const t = r.timers.filter((x) => x.ms === ms && !x.done); t.forEach((x) => { x.done = true; x.fn(); }); return t.length; };
-    const arrive = (i) => { r.win.WQHOME = { mount: (root, B, ctx) => { mounts += 1; ctx.ev('home_view', { src: 'link' }); } }; r.scripts()[i].l.load(); };
+    const mods = [];
+    const arrive = (i) => { r.win.WQHOME = { mount: (root, B, ctx) => { mounts += 1; ctx.ev('home_view', { src: 'link' }); } }; mods.push(r.win.WQHOME); r.scripts()[i].l.load(); };
     const seen = () => ({ tags: r.scripts().length, mounts, home_view: r.beacons.filter((e) => e.n === 'home_view').length });
-    return { r, fire, arrive, seen };
+    return { r, fire, arrive, seen, mods };
   }
   test('a stalled ask whose script then arrives late: no second ask, one home, one home_view', () => {
     const { r, fire, arrive, seen } = slow();
@@ -176,7 +177,7 @@ describe('on (home_v3 + home_fb): wq-home.js fails', () => {
     expect(r.root.innerHTML).not.toContain('H3-fb');
   });
   test('the retry already sent, then both scripts arrive: one home, one home_view', () => {
-    const { r, fire, arrive, seen } = slow();
+    const { r, fire, arrive, seen, mods } = slow();
     expect(fire(5000)).toBe(1);
     expect(fire(1500)).toBe(1);
     expect(r.scripts()).toHaveLength(2);
@@ -184,6 +185,8 @@ describe('on (home_v3 + home_fb): wq-home.js fails', () => {
     arrive(1);
     fire(5000);
     expect(seen()).toEqual({ tags: 2, mounts: 1, home_view: 1 });
+    // the page keeps the home it mounted (its door handlers), not the second copy
+    expect(r.win.WQHOME).toBe(mods[0]);
     expect(r.root.innerHTML).not.toContain('H3-fb');
   });
   test('an empty boot (no doors at all): three links still, each back to this home at its door', () => {

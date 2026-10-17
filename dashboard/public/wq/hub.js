@@ -378,12 +378,13 @@
   // With B.home_fb (web_quiz_home_fallback_v3) a failed load is asked for once more, at the same address, 1.5 s later,
   // and a second failure draws the plain home (homeFb), never today's hub; each failure is counted (home_load_failed).
   // An ask that neither loads nor fails within 5 s is a failure; a script that still arrives later draws the v3 home,
-  // once: the first arrival mounts it, a later one (both asks out) does nothing, and no retry is asked once it is here.
-  var homeFail = false, homeTries = 0, homeIn = false;
+  // once: the first arrival mounts it, a later one (both asks out) only puts the first copy back, and no retry is asked
+  // once it is here.
+  var homeFail = false, homeTries = 0, homeIn = null;
   function homeAsk(css) {
     var done = false;
     function fail() { if (done) return; done = true; homeErr(); }
-    loadOnce('wq-home', css, function () { done = true; if (homeIn) return; homeIn = true; hub(); }, null, fail);
+    loadOnce('wq-home', css, function () { done = true; if (homeIn) { window.WQHOME = homeIn; return; } homeIn = window.WQHOME; hub(); }, null, fail);
     if (B.home_fb) setTimeout(fail, 5000);
   }
   function homeErr() {
