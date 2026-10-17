@@ -871,17 +871,18 @@ function verseTwin(q6s) {
 // or more that holds, or sits inside, a listed word of two words or more. A one-word key («پانی»)
 // inside a listed idiom stays.
 const MEANING_ASK = /مطلب|معنی|معانی|مراد|مفہوم/;
-// An idiom read without the form of its verb: a trailing «جانا/ہونا/کرنا/دینا» is dropped and the
-// verb left last is cut to its root («مچانا» → «مچ»), so «دھوم مچ جانا» and «دھوم مچانا» are one idiom
-// («دھوم مچ»), and «شور مچ جانا» another. Two words at least, and a verb form actually set aside:
-// a phrase with no verb («دھوم دھام») is matched as written.
+// An idiom read without the form of its verb: a trailing «جانا/ہونا/کرنا/دینا» is dropped and a
+// «…انا» verb left last is cut to its root («مچانا» → «مچ»), so «دھوم مچ جانا» and «دھوم مچانا» are one
+// idiom («دھوم مچ»), and «شور مچ جانا» another. A plain «…نا» verb is not cut: «دل لگنا» is not «دل
+// لگانا». Two words at least, and a verb form actually set aside: a phrase with no verb («دھوم دھام»)
+// is matched as written.
 const LIGHT_VERBS = new Set(['جانا', 'ہونا', 'کرنا', 'دینا']);
 function idiomOf(text) {
   const w = plain(text).split(' ').filter(Boolean);
   let cut = false;
   while (w.length > 2 && LIGHT_VERBS.has(w[w.length - 1])) { w.pop(); cut = true; }
   if (w.length < 2) return '';
-  const root = w[w.length - 1].replace(/(?:انا|نا)$/, '');
+  const root = w[w.length - 1].replace(/انا$/, '');
   if (root.length >= 2 && root !== w[w.length - 1]) { w[w.length - 1] = root; cut = true; }
   return cut ? w.join(' ') : '';
 }
