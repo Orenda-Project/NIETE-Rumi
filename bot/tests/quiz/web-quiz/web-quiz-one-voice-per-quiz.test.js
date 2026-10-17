@@ -303,6 +303,15 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
     await Ch.warmClip(today, 'ایک دن بارش ہوئی۔', 'ur');
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'soniox', voice: 'Ishita' });
     expect(tts.synthesize.mock.calls[0][0].model).toBeUndefined();
+    expect(tts.synthesize.mock.calls[0][0].outputFormat).toBeUndefined();
+  });
+
+  test('a plan at 32 kb/s: a missing challenge clip is asked of the voice at that rate', async () => {
+    seed([], { flag: { kbps: 32 } });
+    await OneVoice.on();
+    const key = Ch.clipKey('listen', 'story', 'en', 'One day it rained.');
+    await Ch.warmClip(key, 'One day it rained.', 'en');
+    expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ voice: Voice.ONE_VOICE.en.voice, outputFormat: 'opus_48000_32' });
   });
 });
 

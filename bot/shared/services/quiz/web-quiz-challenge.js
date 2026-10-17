@@ -587,7 +587,8 @@ async function recordClip(key, text, lang, now = Date.now()) {
     // The provider and voice pinned per call, no fallback: a clip that cannot be made in this voice stays missing.
     const out = await tts.synthesize({
       text, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice,
-      ...(v.model ? { model: v.model, voiceSettings: v.settings } : {}),
+      // the one voice: its model, settings and the plan's rate, asked of the provider (its own bytes, never re-encoded)
+      ...(v.model ? { model: v.model, voiceSettings: v.settings, outputFormat: `opus_48000_${(OneVoice.currentPlan() || {}).kbps || 64}` } : {}),
     });
     await r2.uploadBuffer(out.audio, key, 'audio/ogg', { bucket: AudioStore.quizAudioBucket() });
     clipKnown.set(key, true);
