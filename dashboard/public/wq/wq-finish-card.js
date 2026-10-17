@@ -365,7 +365,8 @@
   function trailEnd(h, o) {
     var d = h.S.data || {};
     var r = o.r || {};
-    if (!(h.md() || {}).card_v3 || d.round_turn || d.practice_round || !d.ct) return false;
+    // o.fold (the child home on): a practice run (Story Time, a stop played again) gets the card too
+    if (!(h.md() || {}).card_v3 || d.round_turn || (d.practice_round && !o.fold) || !d.ct) return false;
     var t = o.t || {};
     var kind, deed;
     if (o.name === 'read-result' && !o.story) {

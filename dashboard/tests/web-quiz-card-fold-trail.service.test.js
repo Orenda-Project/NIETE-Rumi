@@ -19,12 +19,13 @@ const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex').s
 const flush = () => new Promise((r) => setImmediate(r));
 const HOME_TOP = '<div class="wq-hometop"><a class="wq-home wq-home-top" id="wq-home" href="/h/tok?kid=k1&amp;from=home">Home</a></div>';
 
-function trail({ lang = 'en', data = {}, menu = {}, withFc = true, top = false } = {}) {
+const STORY_HREF = 'https://portal.example/c/tok?room=story&pid=p1';
+function trail({ lang = 'en', data = {}, menu = {}, withFc = true, top = false, href = 'https://portal.example/c/tok' } = {}) {
   let screen = '';
   const listeners = {};
   const events = [];
   // one element of the screen string, by id: its opening tag, and the whole element for <a>/<button>
-  const tagOf = (id) => { const m = new RegExp(`<(a|button)\\b[^>]*\\bid="${id}"[^>]*>`).exec(screen); return m; };
+  const tagOf = (id) => { const m = new RegExp(`<(a|button|p)\\b[^>]*\\bid="${id}"[^>]*>`).exec(screen); return m; };
   const el = (id) => ({
     id,
     tagName: /^<a\b/.test((tagOf(id) || [''])[0]) ? 'A' : 'BUTTON',
@@ -42,7 +43,7 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, top = false }
     addEventListener(n, fn) { (listeners[id] = listeners[id] || []).push(fn); },
   });
   const ctx = {
-    location: { origin: 'https://portal.example', hash: '', href: 'https://portal.example/c/tok' }, navigator: {}, URL,
+    location: { origin: 'https://portal.example', hash: '', href, search: href.indexOf('?') >= 0 ? href.slice(href.indexOf('?')) : '' }, navigator: {}, URL,
     sessionStorage: { getItem: () => null, setItem() {} }, localStorage: { getItem: () => null, setItem() {} },
     fetch: () => Promise.resolve({ ok: false, status: 503, text: () => Promise.resolve('') }),
     document: {
@@ -61,7 +62,8 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, top = false }
   const h = {
     L: lang, t: { again: 'Again', later: 'Later', listening: 'Listening' }, tc: (k) => k, boot: { kid: 'k1', token: 'tok' }, S, esc,
     on: (id, fn) => { (listeners[id] = listeners[id] || []).push(fn); }, q: () => null,
-    show: (name, html) => { S.screen = name; screen = (top ? HOME_TOP : '') + html; }, jug: (pose, line) => `<p class="wq-say">${esc(line)}</p>`,
+    // the page's show(): its top Home link (?home=1) and, on a practice run, the banner on every screen but the menu
+    show: (name, html) => { S.screen = name; screen = (top ? HOME_TOP : '') + (S.data.practice_round ? '<p class="wqc-banner" id="wqc-practice">Story Time: just for fun</p>' : '') + html; }, jug: (pose, line) => `<p class="wq-say">${esc(line)}</p>`,
     ev: (n, p) => events.push({ n, ...p }), open() {}, refreshMenu() {}, md: () => menu, read() {}, backLabel: () => 'Back',
     qa: () => ({ open() {} }), qaButtons: () => '<button class="wq-btn wq-go" id="wqc-qa" type="button">Story questions</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">Back</button>',
   };
@@ -148,14 +150,27 @@ describe('home on: a listening story, a numbers game, Story Time', () => {
     t.TR.tapEnd('bigger-result', { stopped: true });
     expectFold(t.html());
   });
-  test('Story Time\'s end: the ranked tile or "Pick a story"; with the questions on, the questions are the one next thing', () => {
-    const story = { story_room: true };
-    let t = trail({ menu: { ...FOLD, v2: { story: true } }, data: { ...story, ex: 'listen' } });
+  test('Story Time\'s end (a practice run): the card at last, the ranked tile or "Pick a story"; with the questions on, the questions are the one next thing; no banner on the card', () => {
+    const story = { story_room: true, practice_round: true };
+    let t = trail({ href: STORY_HREF + '&ex=listen', menu: { ...FOLD, v2: { story: true } }, data: { ...story, ex: 'listen' } });
+    t.TR.menu();   // the room opens its story from the link
     t.TR.tapEnd('listen-result', {});
+    expect(t.html()).not.toContain('You listened to the whole story!');   // Story Time's own end (storyEnd), not a stop's
     expectFold(t.html());
-    t = trail({ menu: { ...FOLD, v2: { story: true } }, data: { ...story, questions_on: true } });
+    expect(t.html()).not.toContain('id="wqc-practice"');
+    t = trail({ href: STORY_HREF, menu: { ...FOLD, v2: { story: true } }, data: { ...story, questions_on: true } });
+    t.TR.menu();
     t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
     expectFold(t.html(), { next: 'wqc-qa' });
+    expect(t.html()).not.toContain('Back');
+    expect(t.html()).not.toContain('id="wqc-practice"');
+  });
+  test('Story Time: the read\'s own result (handed to the card as data.story_r) brings the ranked tile', () => {
+    const t = trail({ href: STORY_HREF + '&ex=listen', menu: { ...FOLD, v2: { story: true } }, data: { story_room: true, practice_round: true, ex: 'listen', story_r: { next_offer: NEXT } } });
+    t.TR.menu();
+    t.TR.tapEnd('listen-result', {});
+    expectFold(t.html());
+    expect(t.html()).toContain('href="/s/b1/1"');
   });
   test('a read with the questions after it: the questions lead, Share soft, one Home', () => {
     const t = trail({ menu: FOLD, data: { next_offer: NEXT } });
@@ -177,10 +192,17 @@ describe('home on, without the finish card (card_v3 off) or where the card is ne
     t.TR.tapEnd('bigger-result', {});
     expectFold(t.html(), { next: 'wqc-fnext', share: false });
   });
-  test('a practice round (no card): Next + Home', () => {
+  test('a stop played again (a practice run): the card too, the same row set, no banner on it', () => {
     const t = trail({ menu: FOLD, data: { practice_round: true } });
     t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
-    expectFold(t.html(), { next: 'wqc-fnext', share: false });
+    expectFold(t.html());
+    expect(t.html()).not.toContain('id="wqc-practice"');
+  });
+  test('card_fold absent: a practice run still gets no card (today)', () => {
+    const t = trail({ menu: { card_v3: true, v2: {} }, data: { practice_round: true } });
+    t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
+    expect(t.html()).not.toContain('wqfc');
+    expect(t.html()).toContain('id="wqc-practice"');
   });
   test('a class round turn: today\'s hand-back card, never folded', () => {
     const on = trail({ menu: FOLD, data: { round_turn: true, round_handback: 'Back to the class' } });

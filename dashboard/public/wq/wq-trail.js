@@ -154,8 +154,11 @@
         if (top && top.parentNode) top.parentNode.removeChild(top);
         var mine = document.getElementById('wqfc-next') ? document.getElementById('wqc-fnext') : null;
         if (mine && mine.parentNode) mine.parentNode.removeChild(mine);
-        var sh = qa ? document.getElementById('wqfc-share') : null;
-        if (sh) { sh.className = sh.className.replace(/\bwq-go\b/, 'wq-soft'); sh.removeAttribute('data-primary'); }
+        var card = document.getElementById('wqfc-share');
+        if (card && qa) { card.className = card.className.replace(/\bwq-go\b/, 'wq-soft'); card.removeAttribute('data-primary'); }
+        // the card is the one headline: a practice run's banner (Story Time's "just for fun") stays on the screens before it
+        var banner = card ? document.getElementById('wqc-practice') : null;
+        if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
       } catch (e) { /* the card still works */ }
     }
     function foldEnd(name, top, qa, nx, card) {
@@ -406,7 +409,8 @@
     // the end of a story run: it can be read again, and the sticker line (never a number, never a score)
     function storyEnd(name, qa) {
       if (window.WQJ) window.WQJ.finish({ kind: name });
-      if (fold()) { foldEnd(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>', !!qa, (h.S.data || {}).next_offer, { name: name, story: true, t: t }); return; }
+      // the story's own result, when the page handed it over (data.story_r), carries the ranked Next
+      if (fold()) { var sd = h.S.data || {}; foldEnd(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>', !!qa, (sd.story_r && sd.story_r.next_offer) || sd.next_offer, { name: name, story: true, t: t, r: sd.story_r }); return; }
       h.show(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
         + '<div class="wq-stack">' + wordsBtn() + (qa ? h.qaButtons() : btn('wqc-menu', t.endHome)) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
