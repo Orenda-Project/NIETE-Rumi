@@ -483,7 +483,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
       shareCodeId, rows: noSelfTests.length, children: all.length,
     });
   }
-  const done = all.filter((s) => s.status === 'completed');
+  let done = all.filter((s) => s.status === 'completed');
 
   // The follow-up rule needs both halves of the class: who the first report
   // covered, and who finished after it.
@@ -586,6 +586,14 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
       logToFile('⚠️ story report: could not count as the web report does — one attempt per child instead', { shareCodeId, error: e.message });
     }
     return require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: children, quizRow, reason, stamp, send: (to, text) => WhatsAppService.sendMessage(to, text), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel });
+  }
+
+  // quiz_report_fold_by_child (off by default): a child not on the class list counts once per CHILD, as the quiz's web
+  // report counts them (teacher-report.data foldFinishers); off, or on any failure, one per record as before.
+  try {
+    done = await require('./teacher-report.data').foldFinishers(sc.teacher_user_id, sc.quiz_id, shareCodeId, done);
+  } catch (e) {
+    logToFile('⚠️ video-quiz report: could not fold by child — one per record instead', { shareCodeId, error: e.message });
   }
 
   if (!all.length) {

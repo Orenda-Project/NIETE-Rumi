@@ -13,7 +13,7 @@ import {
   certificateSummary, continueCard, courseTiles, teachingLevels, TRAINING_V2_BASE,
   type Bands, type CertLike, type CourseTile,
 } from './model';
-import { LoadState, ProviderMark, TrainingPageV2 } from './TrainingFrame';
+import { EmptyNote, LoadState, ProviderMark, ProviderTile, TrainingPageV2 } from './TrainingFrame';
 
 /**
  * bd-fmf24g.5 — the teacher v2 Training page (v28 canvas Training.dc.html).
@@ -75,7 +75,7 @@ export function TrainingHub() {
     <TrainingPageV2 crumb={C.home} title={C.title} backTo={teacherPath('home')} context={context}>
       <LoadState loading={loading} failed={failed} onRetry={retry} />
 
-      {nothing ? <p className="rounded-2xl border border-[#e5e7eb] bg-white p-5 text-center text-[15px] text-[#6b7280]">{C.nothingYet}</p> : null}
+      {nothing ? <EmptyNote>{C.nothingYet}</EmptyNote> : null}
 
       {card ? (
         <section aria-label={C.continue} data-testid="training-continue-card" className="overflow-hidden rounded-[18px] border-2 border-[#33374a] bg-white shadow-[0_4px_14px_rgba(51,55,74,.14)]">
@@ -146,29 +146,18 @@ function CourseTileCard({ tile: t }: { tile: CourseTile }) {
   const C = useCopy(TRAINING);
   const sub = t.sub?.kind === 'level' ? C.levelOf(t.sub.n, t.sub.of) : t.sub?.kind === 'courses' ? C.coursesOf(t.sub.done, t.sub.total) : null;
   return (
-    <Link
+    <ProviderTile
       to={t.to}
-      data-testid={`training-provider-${t.key}`}
-      className={cn(CARD, 'flex min-h-[150px] flex-col items-start justify-between gap-3 rounded-[18px] p-4', FOCUS)}
+      testId={`training-provider-${t.key}`}
+      label={t.label}
+      logo={t.logo}
+      initials={t.initials}
+      ring={{ pct: t.pct, done: t.done, label: t.done ? C.done : C.pct(t.pct) }}
     >
-      <span
-        role="img"
-        aria-label={t.done ? C.done : C.pct(t.pct)}
-        className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full"
-        style={{ background: t.done ? '#2f7a52' : `conic-gradient(#2f7a52 0 ${t.pct}%, #e5e7eb ${t.pct}% 100%)` }}
-      >
-        <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white">
-          <ProviderMark logo={t.logo} initials={t.initials} size={28} />
-        </span>
-      </span>
-      <span className="flex flex-col items-start gap-1">
-        {/* The renamed programmes run to 80 characters (bd-2gia5l): a long name steps down a size. */}
-        <b className={cn('font-semibold leading-tight', Array.from(t.label).length > 32 ? 'text-[15px]' : 'text-[18px]')}>{t.label}</b>
-        {t.done ? <StatusChip text={C.done} tone="done" /> : (
-          <span className="text-[13px] text-[#6b7280]">{[C.pct(t.pct), sub].filter(Boolean).join(' · ')}</span>
-        )}
-      </span>
-    </Link>
+      {t.done ? <StatusChip text={C.done} tone="done" /> : (
+        <span className="text-[13px] text-[#6b7280]">{[C.pct(t.pct), sub].filter(Boolean).join(' · ')}</span>
+      )}
+    </ProviderTile>
   );
 }
 
