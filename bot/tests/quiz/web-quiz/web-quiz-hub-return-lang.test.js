@@ -46,10 +46,10 @@ const NOW = Date.now();
 const ago = (h) => new Date(NOW - h * 3600000).toISOString();
 const ahead = (h) => new Date(NOW + h * 3600000).toISOString();
 const A = { device: 'AAAAAAAAAAAAAAAAAAAAAA' };
-const HUB = [{ key: 'web_quiz_hub', value: 'true' }];
+const HUB = [{ key: 'web_quiz_hub', value: true }];
 const RET = (value) => ({ key: 'web_quiz_return_lang', value });
 const ON = [...HUB, RET(true)];
-const V2 = [...ON, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }];
+const V2 = [...ON, { key: 'web_quiz_challenge', value: true }, { key: 'web_quiz_challenge_v2', value: true }];
 
 let db;
 // A child who just joined on their own: a name and a grade, no class, no quiz yet.
