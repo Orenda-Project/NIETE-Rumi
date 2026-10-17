@@ -117,12 +117,15 @@ describe('the ranked list — the scores file per ctx', () => {
     const r = NO.rank('home', [story('old', daysAgo(9)), story('seenNew', daysAgo(1), true), story('new', daysAgo(2))], base({ seed: 'x' }), { v: 't', contexts: { home: [{ kind: 'story', score: null, ci: null, n: 0, evidence: 'prior' }] } });
     expect(r.meta.order).toEqual(['new', 'old', 'seenNew']);
   });
-  test('a pos-0 shown twice in a row and not tapped drops one place', () => {
+  test('a pos-0 shown twice in a row and not tapped drops one place (the day\'s drops, replayed in order)', () => {
     const W = { v: 't', contexts: { home: [{ kind: 'video', score: 9, ci: null, n: 1, evidence: 'prior' }, { kind: 'game', score: 3, ci: null, n: 1, evidence: 'prior' }] } };
-    expect(NO.rank('home', [video, game], base({ streak: { id: 'vid-1', n: 1 } }), W).next.id).toBe('vid-1');
-    const r = NO.rank('home', [video, game], base({ streak: { id: 'vid-1', n: 2 } }), W);
+    expect(NO.rank('home', [video, game], base({ drops: [] }), W).next.id).toBe('vid-1');
+    // a streak alone (the beacon's count) moves nothing: only a drop it wrote does
+    expect(NO.rank('home', [video, game], base({ streak: { id: 'vid-1', n: 2 } }), W).next.id).toBe('vid-1');
+    const r = NO.rank('home', [video, game], base({ drops: ['vid-1'] }), W);
     expect(r.next.id).toBe('numbers');
     expect(r.next.alts[0].id).toBe('vid-1');
+    expect(NO.rank('home', [video, game], base({ drops: ['vid-1', 'numbers'] }), W).next.id).toBe('vid-1');
   });
   test('overlapping CIs rotate the top two, stable within a day (seeded by child key + day)', () => {
     const W = { v: 't', contexts: { home: [{ kind: 'video', score: 10, ci: [5, 15], n: 9, evidence: 'significant' }, { kind: 'game', score: 8, ci: [4, 12], n: 9, evidence: 'significant' }] } };

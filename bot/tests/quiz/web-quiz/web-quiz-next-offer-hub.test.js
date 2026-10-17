@@ -212,16 +212,29 @@ describe('switch on: rule 1 — the teacher\'s quiz from the last 7 days', () =>
 describe('switch on: rule 2 — the month\'s stop in the first two home opens', () => {
   const fresh = (over = {}) => { seed([...NEXT_ON, ...STORY_ON], { web_quiz_challenge_runs: [], ...over }); Challenge.__reset(); };
 
-  test('opens 1 and 2 -> the stop (rank_src rule, an href to that stop); open 3 -> it competes', async () => {
+  // A home open is a PKT day with a home view (a reload the same day is the same open): the next day is simulated by
+  // moving the state's day of the last open back one.
+  const nextDay = () => {
+    const k = `wq:next:${NO.childKey(KID)}`;
+    const st = redis._store.get(k);
+    redis._store.set(k, { ...st, od: st.od - 1 });
+  };
+  test('opens 1 and 2 -> the stop (rank_src rule, an href to that stop); open 3 -> it competes; a reload is no open', async () => {
     withArm('rank');
     fresh();
     const one = await Hub.hub(T.signHub([KID]), A);
     expect(one.next).toMatchObject({ rank_src: 'rule' });
     expect(one.next.id).toMatch(/^stop\./);
     expect(one.next.href).toMatch(/^\/c\/[^?]+\?kid=[^&]+&lang=en#(read|bigger)$/);
+    for (let i = 0; i < 3; i += 1) {
+      fresh();
+      expect((await Hub.hub(T.signHub([KID]), A)).next.id).toBe(one.next.id);
+    }
+    nextDay();
     fresh();
     const two = await Hub.hub(T.signHub([KID]), A);
     expect(two.next.rank_src).toBe('rule');
+    nextDay();
     fresh();
     const three = await Hub.hub(T.signHub([KID]), A);
     expect(three.next.rank_src).not.toBe('rule');

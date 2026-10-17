@@ -48,7 +48,8 @@ const COPY = {
   invite: ['Invite a friend', 'دوست کو بلائیں'],
   resume: ['Finish your story', 'اپنی کہانی پوری کریں'],
 };
-const words = (k) => ({ title: COPY[k][0], title_ur: COPY[k][1] });
+// `w`: the key the words were made from, kept on the candidate so the carry-on words follow it (never the href)
+const words = (k) => ({ w: k, title: COPY[k][0], title_ur: COPY[k][1] });
 // A teacher's new item: "New" (Urdu agrees with the tile's noun: کوئز is masculine, a book's کہانی feminine).
 const TAG = { quiz: { tag: 'New', tag_ur: 'نیا' }, storybook: { tag: 'New', tag_ur: 'نئی' } };
 // Jugnu's own picture for a kind with no picture of its own (the app's shipped files: one-year cache, a few KB each).
@@ -112,7 +113,7 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
     const story = storyCodes.has(t.code);
     const kind = story ? 'storybook' : 'quiz';
     push({ kind, variant: story ? 'teacher' : 'new', id: story ? `sb.${qkOf(quizIds.get(t.code), t.code)}` : qkOf(quizIds.get(t.code), t.code), href: L.quiz(t.code, t.k),
-      ...words('quiz'), ...subOf(t.topic || t.subject), minutes: 3, ...artOr(story ? covers.get(t.code) : (t.art || subjectArt(t.subject)), kind), ...TAG[kind],
+      ...words('quiz'), ...(story ? { w: 'story' } : {}), ...subOf(t.topic || t.subject), minutes: 3, ...artOr(story ? covers.get(t.code) : (t.art || subjectArt(t.subject)), kind), ...TAG[kind],
       rule: 'teacher_quiz', sent_at: t.sent_at || null });
   }
   if (out.last && out.last.code && out.last.state === 'open') {
