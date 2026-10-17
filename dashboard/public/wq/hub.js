@@ -375,11 +375,51 @@
       '</div>';
   }
   // The v3 child home (B.home_v3, web_quiz_home_v3): wq-home.js draws the whole page; a failed load draws today's hub.
-  var homeFail = false;
+  // With B.home_fb (web_quiz_home_fallback_v3) a failed load is asked for once more, at the same address, 1.5 s later,
+  // and a second failure draws the plain home (homeFb), never today's hub; each failure is counted (home_load_failed).
+  // An ask that neither loads nor fails within 5 s is a failure; a script that still arrives later draws the v3 home.
+  var homeFail = false, homeTries = 0;
+  function homeAsk(css) {
+    var done = false;
+    function fail() { if (done) return; done = true; homeErr(); }
+    loadOnce('wq-home', css, function () { done = true; hub(); }, null, fail);
+    if (B.home_fb) setTimeout(fail, 5000);
+  }
+  function homeErr() {
+    homeTries += 1;
+    if (B.home_fb) ev('home_load_failed', { file: 'wq-home.js', i: homeTries });
+    if (B.home_fb && homeTries < 2) { setTimeout(function () { asked['wq-home'] = false; homeAsk(false); }, 1500); return; }
+    homeFail = true; hub();
+  }
+  // The plain home: the greeting as the v3 home says it, the three doors as plain links in the bar's words and order, and
+  // one line that reloads the page. A door opens what the payload names (Games: its first row; Videos: the library), else
+  // this home at that door (#stories: the shelf lives in the home's own scripts), by a reload.
+  var FB = {
+    en: { hi: function (n) { return n ? 'Hi ' + n + '!' : 'Hi!'; }, cls: function (n) { return 'Class ' + n; }, doors: ['Stories', 'Games', 'Videos'], retry: 'The page is still opening… tap here to try again.' },
+    ur: { hi: function (n) { return n ? '\u2068' + n + '\u2069، السلام علیکم!' : 'السلام علیکم!'; }, cls: function (n) { return 'کلاس ' + String(n).replace(/[0-9]/g, function (d) { return String.fromCharCode(0x06F0 + Number(d)); }); },
+      doors: ['کہانیاں', 'کھیل', 'ویڈیوز'], retry: 'صفحہ ابھی کھل رہا ہے… دوبارہ کوشش کے لیے یہاں ٹیپ کریں۔' },
+  };
+  function fbHref(d) {
+    var D = B.doors || {}, g = (D.games || [])[0], v = D.videos;
+    if (!B.practice && d === 'games' && g) return g.kind === 'numbers' ? withHome(withLang('/c/' + encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid || ''))) : quizHref(g.code, { again: g.done ? '1' : '', k: g.k });
+    if (!B.practice && d === 'videos' && v && v.href) return withHome(v.href);
+    return '#' + d;
+  }
+  function homeFb() {
+    var t = FB[LANG], me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
+    render(jug('hello', B.practice ? t.cls(Number(B.grade) || '') : t.hi(me.first || '')) + '<nav class="wq-fbdoors" style="display:grid;gap:12px;margin:8px 0 20px">' + ['stories', 'games', 'videos'].map(function (d, i) {
+      return '<a class="wq-btn wq-soft wq-fbdoor" data-door="' + d + '" href="' + esc(fbHref(d)) + '">' + esc(t.doors[i]) + '</a>';
+    }).join('') + '</nav><button class="wq-btn wq-go" type="button" id="wq-fb-retry" data-primary>' + esc(t.retry) + '</button>', 'H3-fb');
+    on('#wq-fb-retry', function () { location.reload(); });
+    Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-fbdoor'), function (a) {
+      a.addEventListener('click', function (e) { var h = a.getAttribute('href') || ''; if (h.charAt(0) !== '#') return; e.preventDefault(); location.hash = h; location.reload(); });
+    });
+  }
   function hub() {
     batchIds(B.kid);
     storyIn();
-    if (B.home_v3 && !homeFail) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return loadOnce('wq-home', true, hub, null, function () { homeFail = true; hub(); }); }
+    if (B.home_v3 && (!homeFail || (B.home_fb && window.WQHOME))) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return homeAsk(true); }
+    if (B.home_v3 && B.home_fb) return homeFb();
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
     // With no teacher quiz the empty card already holds the library button: no second library tile.

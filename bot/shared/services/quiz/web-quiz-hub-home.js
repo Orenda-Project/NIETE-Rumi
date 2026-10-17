@@ -24,6 +24,9 @@
  * storybook shelf is a stub the stories reader fills (web_quiz_stories). Never a tile the server would answer "on its
  * way": the Trail's "more stories" list and an empty shelf are left out; a child with no class quiz gets the Videos
  * door too (`watch: true`: videos/start answers a watch-only start under this switch, not 409 no_class).
+ *
+ * `home_fb: 1` beside the home (web_quiz_home_fallback_v3, web-quiz-home-fallback-flag.js; homeField and practiceHub as
+ * exported): when wq-home.js never arrives, hub.js draws a plain home from this payload instead of the old hub. Off: absent.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -262,4 +265,5 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
   }
 }
 
-module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, prefetch, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => HomeFlags._resetCache(), _useModules: (m) => { modules = m; } };
+const Fallback = require('./web-quiz-home-fallback-flag');
+module.exports = { homeField: (a) => homeField(a).then(Fallback.withFallback), doorsOf, headOf, flags, practiceHub: (t, o) => practiceHub(t, o).then(Fallback.withFallback), practiceOf, prefetch, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => { HomeFlags._resetCache(); Fallback._resetCache(); }, _useModules: (m) => { modules = m; } };
