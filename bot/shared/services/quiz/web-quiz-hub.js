@@ -465,6 +465,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const challengeP = f.challenge && chosen ? challengeForm(chosen.id) : Promise.resolve(null);
   // The child home's reads (web_quiz_home_v3), started here too: keyed on the child alone, so they add no wait.
   const homeP = chosen ? require('./web-quiz-hub-home').prefetch(chosen.id) : null;
+  // Stories too (hubBits never rejects; {} while web_quiz_stories is off): its reads run beside the hub's own.
+  const storiesP = chosen ? require('./web-quiz-stories').hubBits({ studentId: chosen.id }) : null;
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
   const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null) : null;
   const history = ctx ? ctx.history : [];
@@ -530,10 +532,10 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await require('./web-quiz-book').hubBits({ studentId: chosen.id })); // Jugnu's Book: {} while web_quiz_challenge_book is off
-  // Stories, the v3 home's doors + header and the ranked next thing are independent fields (none reads another): read
-  // side by side, so neither Stories nor the slot adds a serial wave. Each is {} while its switch is off.
+  // Stories (started with the challenge's reads), the v3 home's doors + header and the ranked next thing are independent
+  // fields (none reads another): read side by side, so neither Stories nor the slot adds a serial wave. Each is {} while off.
   const [storyBits, homeBits, nextField] = await Promise.all([
-    require('./web-quiz-stories').hubBits({ studentId: chosen.id }),
+    storiesP,
     require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP }),
     require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
   ]);
