@@ -64,7 +64,7 @@ function kidFor(canonicalId) {
 }
 const IdFlags = require('./web-quiz-identity-flags');
 const { inChunks } = require('./web-quiz-in-chunks');   // every `.in()` on a data-sized list: <= 200 ids a request
-const { watchRootId, notUnderWatchRoot } = require('./teacher-report.data');   // the watch root: one parse, one rule
+const { watchRootId, notUnderWatchRoot } = require('./watch-root');   // the watch root: one parse, one rule (a leaf: not the report's stack)
 
 const TIERS = Object.freeze(['roster_unique_with_loose', 'probable']);
 // Bounded labelling mode (IDENTITY §12 gate, ruled 15 Oct 2026): the queue serves roster_unique_with_loose only (0 wrong
