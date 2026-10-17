@@ -55,6 +55,31 @@ describe('the hub\'s one switch read carries the child\'s language switch', () =
     expect(await Ret.on()).toBe(false);
   });
 
+  test.each([
+    ['absent', [], false],
+    ['false', [{ key: 'web_quiz_return_lang', value: false }], false],
+    ['JSON true', [{ key: 'web_quiz_return_lang', value: true }], true],
+  ])('the hub\'s switches warm, only this switch\'s cache cold (row %s): it answers from the hub\'s read, no read of its own', async (_l, rows, want) => {
+    seed(rows);
+    await Flags.flags();
+    await Flags.flags();
+    expect(settingsReads()).toBe(1);
+    Ret._resetCache();
+    expect(await Ret.on()).toBe(want);
+    expect(settingsReads()).toBe(1);
+  });
+
+  test('the hub\'s switches warm from a read without this row (the combined read failed): this switch still reads its own row', async () => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed([{ key: 'web_quiz_return_lang', value: true }]);
+    const from = supabase.from;
+    supabase.from = throwOn(from, 'web_quiz_return_lang');
+    expect((await Flags.flags()).hub).toBe(true);
+    supabase.from = from;
+    Ret._resetCache();
+    expect(await Ret.on()).toBe(true);
+  });
+
   test('a stale hub cache re-read refreshes the switch too', async () => {
     seed([{ key: 'web_quiz_return_lang', value: false }]);
     const t0 = Date.now();

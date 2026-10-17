@@ -34,6 +34,8 @@ const READALONG_KEY = 'web_quiz_readalong';
 const RETURN_LANG_KEY = 'web_quiz_return_lang';
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong }
+// The child's language row from the read that filled `cache` ({ at, value }), or null when that read did not carry it.
+let langSeen = null;
 
 function isTrue(value) {
   let v = value;
@@ -57,12 +59,23 @@ async function readRows(keys) {
 async function readWithChildLang(now) {
   try {
     const rows = await readRows([...KEYS, RETURN_LANG_KEY]);
-    require('./web-quiz-return-lang').prime((rows.find((r) => r.key === RETURN_LANG_KEY) || {}).value, now);
+    langSeen = { at: now, value: (rows.find((r) => r.key === RETURN_LANG_KEY) || {}).value };
+    require('./web-quiz-return-lang').prime(langSeen.value, now, langFromHub);
     return rows;
   } catch (err) {
     logToFile('⚠️ web quiz hub: settings lookup with the child language switch failed — hub switches alone', { error: err.message });
+    langSeen = null;
     return readRows(KEYS);
   }
+}
+
+/**
+ * The child's language row as the hub's live cache read it ({ at, value }), else undefined: the language switch's own
+ * cache, when cold, answers from here before it reads its row.
+ */
+function langFromHub(now = Date.now()) {
+  if (!cache || !langSeen || langSeen.at !== cache.at || now - cache.at >= TTL_MS) return undefined;
+  return langSeen;
 }
 
 async function flags(now = Date.now()) {
@@ -142,4 +155,4 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, hubLink, pageNav, eventsV2On, eventsV2Now, rungsOn, EVENTS_V2_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; } };
+module.exports = { flags, hubLink, pageNav, eventsV2On, eventsV2Now, rungsOn, EVENTS_V2_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; langSeen = null; } };
