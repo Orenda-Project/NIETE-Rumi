@@ -55,9 +55,12 @@ function fromRows(data, now) {
 
 /**
  * Another module's one app_settings read that asked for KEYS too (the join's, quiz_join_fast) fills an empty or
- * expired cache from its rows, so no second read follows; a live cache is left as it is.
+ * expired cache from its rows, so no second read follows; a live cache is left as it is. `asked` is the key list that
+ * read asked for: a list missing one of KEYS throws; a key asked for with no row is the normal off.
  */
-function prime(rows, now = Date.now()) {
+function prime(rows, now = Date.now(), asked = KEYS) {
+  const missing = KEYS.filter((k) => !asked.includes(k));
+  if (missing.length) throw new Error(`hub flags primed by a read that did not ask for ${missing.join(', ')}`);
   if (cache && now - cache.at < TTL_MS) return;
   cache = fromRows(rows, now);
 }
