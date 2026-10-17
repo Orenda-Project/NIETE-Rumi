@@ -133,22 +133,26 @@
     post('/api/wq/join', body, answer);
   }
 
+  function tapGrade(el) {
+    grade = Number(el.getAttribute('data-grade'));
+    var all = document.querySelectorAll('.chip');
+    for (var i = 0; i < all.length; i++) all[i].setAttribute('aria-pressed', all[i] === el ? 'true' : 'false');
+    warm();
+    post('/api/wq/join/grade', { t: boot.t, grade: grade }, function (s, b) {
+      if (b && b.prefetch) warm(b.prefetch);
+      if (b && b.stale) answer(s, b);
+      if (b && b.off) answer(s, b);
+    });
+    sync();
+    if (nameEl && !name()) try { nameEl.focus(); } catch (er) {}
+  }
+
   document.addEventListener('click', function (e) {
     var el = e.target && e.target.closest ? e.target.closest('[data-tap]') : null;
     if (!el) return;
     var tap = el.getAttribute('data-tap');
     if (tap === 'grade') {
-      grade = Number(el.getAttribute('data-grade'));
-      var all = document.querySelectorAll('.chip');
-      for (var i = 0; i < all.length; i++) all[i].setAttribute('aria-pressed', all[i] === el ? 'true' : 'false');
-      warm();
-      post('/api/wq/join/grade', { t: boot.t, grade: grade }, function (s, b) {
-        if (b && b.prefetch) warm(b.prefetch);
-        if (b && b.stale) answer(s, b);
-        if (b && b.off) answer(s, b);
-      });
-      sync();
-      if (nameEl && !name()) try { nameEl.focus(); } catch (er) {}
+      tapGrade(el);
     } else if (tap === 'go') {
       if (!goEl.disabled) send(null);
     } else if (tap === 'same') {
@@ -162,4 +166,14 @@
     nameEl.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !goEl.disabled) send(null); });
   }
   sync();
+  // A grade tapped before this script bound (quiz_join_early_tap: the page's inline keeper put it on <html data-early>):
+  // replayed once, as the tap it was. Without the keeper there is no data-early and nothing happens.
+  window.__jnBound = true;
+  var root = document.documentElement;
+  var early = root && root.getAttribute ? root.getAttribute('data-early') : null;
+  if (early && /^[1-5]$/.test(early)) {
+    root.removeAttribute('data-early');
+    var chip = document.querySelector('.chip[data-grade="' + early + '"]');
+    if (chip) tapGrade(chip);
+  }
 })();

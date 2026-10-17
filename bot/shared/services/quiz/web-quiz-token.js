@@ -15,7 +15,7 @@
  *   ct  challenge token {k:'c', sid, ex, r, exp}  2 h: one run of one Challenge
  *                                                  exercise (sid = the student, r = the
  *                                                  run id; web-quiz-challenge.js)
- *   h   hub token      {k:'h', ids, exp}           7 days; the WhatsApp /quiz link to a
+ *   h   hub token      {k:'h', ids, l?, exp}       7 days; the WhatsApp /quiz link to a
  *                                                  phone's own children (≤4 student ids,
  *                                                  never a name, never the phone)
  *   x   handset link   {k:'x', n, sc, exp}         1 hour: rides the FRAGMENT of a web link the
@@ -137,13 +137,15 @@ function signChallenge({ studentId, ex, runId, round = null, mode = null }) {
 /**
  * The kid hub's link token: this phone's children (≤4 ids). Null with none or no secret.
  * More than 4 ids: the first 4 are kept, and the drop is logged (web_quiz.token_ids_dropped; `caller` names the builder).
+ * `lang` (en|ur; web_quiz_return_lang, decided by the caller): the language the /quiz reply spoke, as `l`. Else none.
  */
-function signHub(studentIds, caller = 'hub_link') {
+function signHub(studentIds, caller = 'hub_link', { lang = null } = {}) {
   const given = [...new Set((Array.isArray(studentIds) ? studentIds : []).map(String).filter(Boolean))];
   const ids = given.slice(0, HUB_MAX_KIDS);
   if (given.length > HUB_MAX_KIDS) logIdsDropped(given.length - HUB_MAX_KIDS, caller);
   if (!ids.length) return null;
-  return sign({ k: 'h', ids, exp: nowS() + HUB_TTL_S });
+  const l = lang === 'en' || lang === 'ur' ? lang : null;
+  return sign({ k: 'h', ids, ...(l ? { l } : {}), exp: nowS() + HUB_TTL_S });
 }
 
 /** The guest link token: the phone's tombstone only (32 hex), one hour. Null for anything else or no secret. */

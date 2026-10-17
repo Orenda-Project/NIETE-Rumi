@@ -216,7 +216,7 @@ onDescribe('switch ON — ONE cta_url for every handset that is not a child', ()
     expect(mockSent).toHaveLength(1);
     expect(mockSent[0].kind).toBe('cta');
     expect(mockSent[0].p.url).toMatch(/\/quiz\/go\//);
-    expect(mockSent[0].p.body).toBe('Your stories, videos and quizzes are here.');
+    expect(mockSent[0].p.body).toBe('Your stories, games and videos are here.');
     expect(mockSent[0].p.body).not.toContain('Ali');
   });
 

@@ -142,6 +142,8 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/hubdoor', limiter: 'session' },
   // an old, finished class link opened again: the child's hub, for one remembered child on this phone
   { method: 'post', path: '/api/wq/linkhome', limiter: 'session' },
+  // a class link on a phone that holds a child: which children this browser holds ("Is it <name>?")
+  { method: 'post', path: '/api/wq/known', limiter: 'session' },
   // the finish card (web_quiz_card_v3): a card token for this child's finish (the bot answers 404 while it is off)
   { method: 'post', path: '/api/wq/card', limiter: 'session' },
   // a child joins on their own (quiz_student_join; the bot answers {off:true} with it off): the grade tap, the one write
@@ -786,6 +788,8 @@ function createWebQuizRouter(opts = {}) {
     return next();
   }
 
+  // With app_settings web_quiz_brotli on: br scripts/styles, a day for unversioned files, versioned Jugnu pictures (web-quiz-static.js).
+  router.use(require('./web-quiz-static').createWqStatic({ publicDir: PUBLIC_DIR, on: opts.brotliOn }));
   for (const r of API_ROUTES) {
     const chain = [noStore, configured];
     if (r.unknownCode) chain.push(unknownCode);
