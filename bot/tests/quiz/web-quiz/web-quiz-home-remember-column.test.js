@@ -90,8 +90,6 @@ function seed({ column = true, home = true } = {}) {
   HomeFlags._resetCache();
   if (typeof OneDoorFlags._resetCache === 'function') OneDoorFlags._resetCache();
   Join._resetCache();
-  const ColFlag = (() => { try { return require('../../../shared/services/quiz/web-quiz-remember-column-flag'); } catch (_) { return null; } })();
-  if (ColFlag && typeof ColFlag._resetCache === 'function') ColFlag._resetCache();
 }
 const sends = () => WhatsApp.sendMessage.mock.calls.length + WhatsApp.sendCtaUrl.mock.calls.length;
 const Remember = () => require('../../../shared/services/quiz/web-quiz-home-remember');
@@ -236,6 +234,46 @@ describe('switch OFF (absent, false, the string "true"): today\'s cache path, th
     expect(rowOf(kidId)).not.toHaveProperty('device_hash');
     expect(await Remember().owns({ device: DEVICE, chosenId: kidId })).toBe(false);
     expect(touched.join('|')).not.toMatch(/device_hash/);
+  });
+});
+
+describe('web_quiz_home_v3 flipped OFF after a join (the line, the corner and the tap all close)', () => {
+  test.each([['the column on', true], ['the column absent', 'absent']])('%s', async (_l, column) => {
+    seed({ column });
+    const { kidId } = await joinNew();
+    fake.db.app_settings.find((r) => r.key === 'web_quiz_home_v3').value = false;
+    HomeFlags._resetCache();
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({});
+    expect(await Remember().owns({ device: DEVICE, chosenId: kidId })).toBe(false);
+    expect(await Remember().forget({ device: DEVICE, kid: chip(kidId) })).toEqual({ ok: false, error: 'not_bound' });
+    expect(await Remember().undo({ device: DEVICE })).toEqual({ ok: false, error: 'not_bound' });
+    expect(rowOf(kidId).revoked_at || null).toBeNull();
+    // flipped back on: the line was never spent, so it still shows once
+    fake.db.app_settings.find((r) => r.key === 'web_quiz_home_v3').value = true;
+    HomeFlags._resetCache();
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+  });
+});
+
+describe('the home render reads the binding rows once, and no setting twice', () => {
+  const settingsReads = async (column, src) => {
+    seed({ column });
+    const { kidId } = await joinNew();
+    flushCache();
+    HomeFlags._resetCache();
+    fake.calls.length = 0;
+    const f = await HubHome().homeField({ out: OUT, chosenId: kidId, history: [], device: DEVICE, src });
+    return { f, n: fake.calls.filter((c) => c.table === 'app_settings').length };
+  };
+  test('column on: one device read for the line and the corner together; the column key rides the home switches\' read', async () => {
+    const spy = jest.spyOn(Bindings, 'activeForDevice');
+    const on = await settingsReads(true, 'join');
+    expect(on.f.remember).toEqual({ s: 20 });
+    expect(on.f.forget_phone).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const off = await settingsReads('absent', 'join');
+    expect(off.f).not.toHaveProperty('remember');
+    expect(on.n).toBe(off.n);
   });
 });
 

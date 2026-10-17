@@ -53,10 +53,15 @@ function store() {
   }
 }
 
-const colOn = () => require('./web-quiz-remember-column-flag').on();
+const colOn = async () => Boolean((await require('./web-quiz-home-flags').flags()).column);
 const Bindings = () => require('./child-phone-bindings.repo');
 /** The live links this phone made, from the binding rows (web_quiz_remember_column on) → [{id, canonical_id, bound_at}]. */
 const rowsOf = async (d) => ((await colOn()) ? Bindings().activeForDevice(hashOf(d)) : []);
+/** rowsOf for a raw device, once per home render (field and owns share it); [] when off or unreadable. Never throws. */
+function rowsFor(device) {
+  const d = T.cleanDeviceRef(device);
+  return d ? rowsOf(d).catch(() => []) : Promise.resolve([]);
+}
 
 async function homeOn() {
   try { return Boolean((await require('./web-quiz-home-flags').flags()).home); } catch (_) { return false; }
@@ -122,17 +127,17 @@ async function note({ device, bindingId, canonicalId, userId = null } = {}) {
   }
 }
 
-async function field({ device, chosenId, src } = {}) {
+async function field({ device, chosenId, src, rows: shared = null } = {}) {
   try {
     if (!SRCS.includes(src) || !chosenId) return {};
     const d = T.cleanDeviceRef(device);
     const redis = store();
     if (!d || !redis || !(await homeOn())) return {};
     const key = keyOf(d);
-    const rows = await rowsOf(d);
+    const [rows, kept] = await Promise.all([shared || rowsOf(d), read(redis, key)]);
     const fresh = rows.find((r) => String(r.canonical_id) === String(chosenId) && Date.now() - new Date(r.bound_at).getTime() <= KEEP_S * 1000);
     // the cache lost the join's note: the row says which link this phone made in the last 30 min
-    const o = (await read(redis, key)) || (fresh ? { b: String(fresh.id), c: String(fresh.canonical_id), u: null, s: 0 } : null);
+    const o = kept || (fresh ? { b: String(fresh.id), c: String(fresh.canonical_id), u: null, s: 0 } : null);
     if (!o || o.s || o.c !== String(chosenId)) return {};
     // shown now: never again on this phone (a reload, Back, the next /quiz); Undo stays possible a while
     // (with the row read on, kept as long as the row stays "fresh", so the row never draws it a second time)
@@ -174,11 +179,11 @@ async function undo({ device, lang = 'en' } = {}) {
   }
 }
 
-async function owns({ device, chosenId, binds = null } = {}) {
+async function owns({ device, chosenId, binds = null, rows = null } = {}) {
   try {
     const d = T.cleanDeviceRef(device);
     if (!d || !chosenId || !(await homeOn())) return false;
-    if ((await rowsOf(d)).some((r) => String(r.canonical_id) === String(chosenId))) return true;
+    if ((await (rows || rowsOf(d))).some((r) => String(r.canonical_id) === String(chosenId))) return true;
     const redis = store();
     if (!redis) return false;
     const mine = (await ownList(redis, d)).find((e) => e.c === String(chosenId));
@@ -219,4 +224,4 @@ async function forget({ device, kid } = {}) {
   }
 }
 
-module.exports = { note, field, undo, owns, forget, SHOW_S, SRCS, _keyOf: keyOf };
+module.exports = { note, field, undo, owns, forget, rowsFor, SHOW_S, SRCS, _keyOf: keyOf };
