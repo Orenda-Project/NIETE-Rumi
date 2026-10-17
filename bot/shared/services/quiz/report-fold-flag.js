@@ -2,8 +2,8 @@
 /**
  * The report's fold-by-child switch: app_settings `quiz_report_fold_by_child`. On, a child NOT on the class list is
  * one row per child (merged_into ?? student_id; the same typed name folds only on a shared phone or with no binding).
- * Only a real `true` (JSON true or the string "true") is on; an absent row, `false`, any other value ("yes", 1, {})
- * and a failed read are all OFF. 30 s cache.
+ * Only a real `true` (JSON true or the string "true", exactly) is on; an absent row, `false`, any other value ("yes",
+ * 1, {}, "TRUE", " true ") and a failed read are all OFF. 30 s cache.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -12,10 +12,9 @@ const KEY = 'quiz_report_fold_by_child';
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, on }
 
+// exactly JSON true, the string "true", or the JSON string "\"true\"" — never "TRUE" or " true "
 function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+  return value === true || value === 'true' || value === '"true"';
 }
 
 /** → true only when the switch reads a real true. Never throws. */

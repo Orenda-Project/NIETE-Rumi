@@ -387,9 +387,11 @@ async function fromIdentity(code, quizId, { foldOn = false } = {}) {
 }
 
 /** The provisional list by child (quiz_report_fold_by_child on, facts read), else by typed name (today). */
-function provisionalRows(rows, facts) {
+function provisionalRows(rows, facts, listedIds = new Set()) {
   if (!facts) return groupProvisional(rows);
-  const sorted = rows.slice().sort((a, b) => String(a.finishedAt || '').localeCompare(String(b.finishedAt || '')));
+  // a typed record merged into a child on the list who played is that child, not a provisional one
+  const isListed = (r) => { const f = r.studentId && facts.get(String(r.studentId)); return Boolean(f && listedIds.has(f.who)); };
+  const sorted = rows.filter((r) => !isListed(r)).sort((a, b) => String(a.finishedAt || '').localeCompare(String(b.finishedAt || '')));
   return foldByChild(sorted, { idOf: (r) => r.studentId, nameOf: (r) => r.typed, facts })
     .map((c) => ({ ...c.first, repeats: c.n }));
 }
@@ -456,7 +458,10 @@ async function onePerChildOffList(counted, who, quizId, foldOn) {
   const offList = foldOn ? byFinish.filter((s) => !who.listed(s)) : [];
   const provisionalRaw = foldOn ? who.provisionalRaw || [] : [];
   const facts = foldOn ? await childFacts([...offList.map((s) => s.student_id), ...provisionalRaw.map((r) => r.studentId)], quizId) : null;
-  const kept = facts ? new Set(foldByChild(offList, { idOf: (s) => s.student_id, nameOf: (s) => s.student_name, facts }).map((c) => c.first)) : null;
+  // an off-list record merged into a listed child who played this quiz is that child: it never counts a second time
+  const listedIds = new Set(byFinish.filter((s) => who.listed(s) && s.student_id).map((s) => String(s.student_id)));
+  const sameAsListed = (s) => { const f = facts && s.student_id && facts.get(String(s.student_id)); return Boolean(f && listedIds.has(f.who)); };
+  const kept = facts ? new Set(foldByChild(offList.filter((s) => !sameAsListed(s)), { idOf: (s) => s.student_id, nameOf: (s) => s.student_name, facts }).map((c) => c.first)) : null;
   const sameTyped = new Map();
   const counting = byFinish
     .filter((s) => {
@@ -468,7 +473,7 @@ async function onePerChildOffList(counted, who, quizId, foldOn) {
       sameTyped.set(k, s.id);
       return true;
     });
-  return { counting, provisionalRaw, facts };
+  return { counting, provisionalRaw, facts, listedIds };
 }
 
 /**
@@ -539,7 +544,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     : codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
   const foldOn = await FoldFlag.on();
   const who = await whoFor(teacherId, quiz, primary, listId, counted, lang, { foldOn });
-  const { counting, provisionalRaw, facts } = await onePerChildOffList(counted, who, quiz.id, foldOn);
+  const { counting, provisionalRaw, facts, listedIds } = await onePerChildOffList(counted, who, quiz.id, foldOn);
   const played = counting.map((s) => {
     const listed = who.listed(s);
     const correct = s.correct_answers || 0;
@@ -553,7 +558,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     };
   }).sort((a, b) => (b.pct - a.pct) || ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first));
   const { roster: rosterView, notPlayed } = who;
-  const provisional = who.provisional !== null && who.provisional !== undefined ? who.provisional : provisionalRows(provisionalRaw, facts);
+  const provisional = who.provisional !== null && who.provisional !== undefined ? who.provisional : provisionalRows(provisionalRaw, facts, listedIds);
 
   const questions = await questionStats(quiz.id, counting, v21 ? { codeOf: (ext) => SloCode.codeOf(meta, ext) } : {});
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
@@ -666,8 +671,10 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     const { roster: view, one } = classOf(roster, q, null);
     const ids = one ? new Set(one.kids.map((k) => k.id)) : null;
     const byFinish = (list) => list.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')));
+    const playedIds = new Set(once.filter((x) => ids && x.student_id && ids.has(x.student_id)).map((x) => String(x.student_id)));
+    const sameAsListed = (x) => { const f = facts && x.student_id && facts.get(String(x.student_id)); return Boolean(f && playedIds.has(f.who)); };
     const kept = facts
-      ? new Set(foldByChild(byFinish(offListOf(q, once, ids)), { idOf: (x) => x.student_id, nameOf: (x) => x.student_name, facts }).map((c) => c.first))
+      ? new Set(foldByChild(byFinish(offListOf(q, once, ids).filter((x) => !sameAsListed(x))), { idOf: (x) => x.student_id, nameOf: (x) => x.student_name, facts }).map((c) => c.first))
       : null;
     const mine = kept ? once.filter((x) => (ids && x.student_id && ids.has(x.student_id)) || kept.has(x)) : once;
     // the same children for the average as for "N of M"

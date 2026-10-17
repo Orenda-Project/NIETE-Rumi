@@ -17,16 +17,24 @@ const { inChunks } = require('./web-quiz-in-chunks');
  * `merged_into` is followed ONE step (A → B); a chain A → B → C is not resolved further (the merge path writes the
  * surviving record directly, so a chain is not expected).
  */
+// the facts reads never hold a report up: past this, today's fold answers
+const FACTS_MS = 2000;
+function inTime(p) {
+  let t;
+  const late = new Promise((_, reject) => { t = setTimeout(() => reject(new Error(`no answer in ${FACTS_MS} ms`)), FACTS_MS); if (t.unref) t.unref(); });
+  return Promise.race([p, late]).finally(() => clearTimeout(t));
+}
+
 async function childFacts(ids, quizId) {
   const uniq = [...new Set(ids.filter(Boolean).map(String))];
   const out = new Map();
   if (!uniq.length) return out;
   try {
-    const kids = await inChunks(() => supabase.from('students').select('id, merged_into'), 'id', uniq);
+    const kids = await inTime(inChunks(() => supabase.from('students').select('id, merged_into'), 'id', uniq));
     const whoOf = new Map(uniq.map((id) => [id, id]));
     kids.forEach((k) => { if (whoOf.has(String(k.id)) && k.merged_into) whoOf.set(String(k.id), String(k.merged_into)); });
     const lookup = [...new Set([...uniq, ...whoOf.values()])];
-    const binds = await inChunks(() => supabase.from('child_phone_bindings').select('canonical_id, phone_tomb'), 'canonical_id', lookup);
+    const binds = await inTime(inChunks(() => supabase.from('child_phone_bindings').select('canonical_id, phone_tomb'), 'canonical_id', lookup));
     const phonesOf = new Map();
     binds.forEach((b) => {
       if (!b.phone_tomb) return;
@@ -74,4 +82,4 @@ function typedKey(name) {
   try { return require('./web-quiz-identity').canon(name || '') || ''; } catch { return String(name || '').trim().toLowerCase(); }
 }
 
-module.exports = { childFacts, foldByChild, typedKey };
+module.exports = { childFacts, foldByChild, typedKey, FACTS_MS };
