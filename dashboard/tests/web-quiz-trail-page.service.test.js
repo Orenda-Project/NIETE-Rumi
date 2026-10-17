@@ -315,6 +315,12 @@ describe('the notice copy (deck v2.2: jg.keep.notice, jg.keep.notice_ok)', () =>
     }
     expect(trailT().ur.noticeT).toContain('\u2066STOP\u2069');
   });
+  test('the notice carries no assessment word and no "just for fun", and says the recordings stay after STOP', () => {
+    for (const l of ['en', 'ur']) expect(trailT()[l].noticeT).not.toMatch(/checker|examiner|assess|\btests?\b|\bexams?\b|fun|checked|جانچ|امتحان|ٹیسٹ|مزے/i);
+    expect(trailT().en.noticeT).toMatch(/Only the people who make Jugnu can listen/);
+    expect(trailT().en.noticeT).toMatch(/the recordings stay\.$/);
+    expect(trailT().ur.noticeT).toContain('صرف جگنو بنانے والے سن سکتے');
+  });
 });
 
 describe('"Whose turn?" from the serve; the page never picks', () => {

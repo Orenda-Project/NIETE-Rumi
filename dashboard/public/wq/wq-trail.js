@@ -31,7 +31,7 @@
     en: {
       helpQ: 'Is someone helping you today?', helpAlone: 'No, on my own', helpWith: 'Yes, someone is helping', helpNote: 'You get the sticker both ways.',
       // jg.keep.notice / jg.keep.notice_ok (deck v2.3, bot/shared/config/copy.v2.json): the mic notice, {name} = the child's first name
-      noticeT: 'Jugnu keeps this reading to see how {name} is learning. One checker may listen. A grown-up can remove the phone number any time by sending STOP on WhatsApp; the reading stays.',
+      noticeT: 'Jugnu keeps {name}\'s reading recordings, with no end date yet. Only the people who make Jugnu can listen. Sending STOP on WhatsApp removes this phone number; the recordings stay.',
       noticeOk: 'Got it',
       whoTurn: 'Whose turn?', whoTapName: 'Tap your name.', whoPlayedHere: 'Played on this phone before', whoSomeoneElse: "My name isn't here",
       nextOnItsWay: 'A new story is on its way.',
@@ -53,7 +53,7 @@
       helpQ: 'کیا آج آپ کو کسی کی مدد مل رہی ہے؟', helpAlone: 'نہیں، اپنے آپ', helpWith: 'جی ہاں، کسی کی مدد سے', helpNote: 'اسٹیکر دونوں طرح ملے گا۔',
       // jg.keep.notice / jg.keep.notice_ok (deck v2.3 bytes, bot/shared/config/copy.v2.json: {name} inside U+2068…U+2069,
       // STOP inside U+2066…U+2069)
-      noticeT: 'جگنو یہ ریکارڈنگ رکھتا ہے تاکہ ⁨{name}⁩ کی پڑھائی دیکھی جا سکے۔ اسے صرف ایک جانچنے والا سن سکتا ہے۔ گھر کے بڑے کسی بھی وقت ⁦STOP⁩ بھیج کر فون نمبر ہٹا سکتے ہیں، ریکارڈنگ پھر بھی رہے گی۔',
+      noticeT: 'جگنو ⁨{name}⁩ کے پڑھنے کی ریکارڈنگ رکھتا ہے۔ ابھی رکھنے کی مدت طے نہیں۔ اسے صرف جگنو بنانے والے سن سکتے ہیں۔ واٹس ایپ پر ⁦STOP⁩ بھیجنے سے فون نمبر ہٹا دیا جاتا ہے، لیکن ریکارڈنگ رہتی ہے۔',
       noticeOk: 'ٹھیک ہے',
       whoTurn: 'کس کی باری ہے؟', whoTapName: 'اپنا نام دبائیں۔', whoPlayedHere: 'پہلے بھی اسی فون پر کھیلا گیا', whoSomeoneElse: 'میرا نام یہاں نہیں',
       nextOnItsWay: 'ایک نئی کہانی آنے والی ہے۔',
