@@ -160,7 +160,7 @@
   }
   function waHref(text) { return 'https://wa.me/?text=' + encodeURIComponent(text); }
 
-  // The Next tile (the ranked next_offer), only with a same-origin path to open.
+  // The Next tile (the ranked next_offer), only with a same-origin path to open; its art: /wq/ art or a storybook cover.
   function nextHtml(lang, nx, lead) {
     if (!nx || typeof nx.href !== 'string' || !/^\/[^/]/.test(nx.href)) return '';
     var l = L(lang);
@@ -168,7 +168,7 @@
     var sub = (l === 'ur' && nx.sub_ur) || nx.sub || '';
     if (!title) return '';
     var mins = nx.minutes >= 1 && nx.minutes <= 9 ? '<small class="wqfc-min">' + esc(W[l].mins(Math.round(nx.minutes))) + '</small>' : '';
-    var art = typeof nx.art === 'string' && /^\/wq\/[A-Za-z0-9/_.-]+$/.test(nx.art) ? '<img class="wqfc-art" src="' + esc(nx.art) + '" alt="" width="64" height="64" loading="lazy">' : '<span class="wqfc-art" aria-hidden="true">' + PLAY + '</span>';
+    var art = typeof nx.art === 'string' && /^\/(wq\/[A-Za-z0-9/_.-]+|s\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+)$/.test(nx.art) ? '<img class="wqfc-art" src="' + esc(nx.art) + '" alt="" width="64" height="64" loading="lazy">' : '<span class="wqfc-art" aria-hidden="true">' + PLAY + '</span>';
     return '<a class="wqfc-next' + (lead ? ' wqfc-lead" id="wqfc-next" data-primary' : '" id="wqfc-next"') + ' data-tap="next" href="' + esc(nx.href) + '">' + art +
       '<span class="wqfc-nt"><small>' + esc(W[l].next) + '</small><b dir="auto">' + esc(title) + '</b>' + (sub ? '<span dir="auto">' + esc(sub) + '</span>' : '') + mins + '</span></a>';
   }

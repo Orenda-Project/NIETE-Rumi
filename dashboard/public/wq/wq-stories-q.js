@@ -286,6 +286,9 @@
         // with the finish card (card_v3) "More stories" is the card's Next tile and it leads (ONE primary, the share
         // soft under it), so ours is not drawn beside it; a card that refuses leaves today's screen with our primary
         var lo = W.location, nx = /^\/[^/]/.test(lo.pathname || '') ? { kind: 'stories', href: lo.pathname + (lo.search || '') + '#stories', title: t.more } : null;
+        // its picture: the next unread book on the shelf this page already drew (its data, its cached cover; no request)
+        var sl = nx && W.document && W.document.querySelector('[data-stories-shelf], .wq-shelf[data-shelf]'), sb = ((sl && sl._d) || {}).books || [], x;
+        for (x = 0; x < sb.length; x++) if (!sb[x].done && sb[x].id !== id && sb[x].cover) { nx.art = sb[x].cover; break; }
         var draw = function (fc) {
           paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own><h2>' + esc(head) + '</h2>' +
             (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + '</div>' +

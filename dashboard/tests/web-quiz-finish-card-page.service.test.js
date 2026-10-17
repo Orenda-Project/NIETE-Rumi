@@ -584,6 +584,15 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
       expect(m.out).not.toMatch(/<img/);
     }
   });
+  test('the Next tile\'s art may be a storybook cover (/s/<book>/<file>) beside /wq/ art; anything else draws the play mark', () => {
+    expect(FC.nextHtml('en', { ...MORE, art: '/s/b-9/cover.webp' }, true)).toContain('<img class="wqfc-art" src="/s/b-9/cover.webp" alt="" width="64" height="64" loading="lazy">');
+    expect(FC.nextHtml('en', { ...MORE, art: '/wq/art/story-1.webp' }, true)).toContain('<img class="wqfc-art" src="/wq/art/story-1.webp"');
+    for (const art of ['https://evil.example/c.webp', '//evil.example/c.webp', '/s/b-9/c.webp" onerror="x', '/api/x', '/s/../x']) {
+      const h = FC.nextHtml('en', { ...MORE, art }, true);
+      expect(h).not.toContain('<img');
+      expect(h).toContain('<span class="wqfc-art" aria-hidden="true"><svg');
+    }
+  });
   test('the cover has its own style in the card\'s CSS', () => {
     expect(FC.CSS).toMatch(/\.wqfc-cov\{[^}]*object-fit:cover/);
   });

@@ -1437,6 +1437,7 @@ describe('the done screen with the real finish card (card_v3): ONE primary = Mor
       w.WQFC = { mount(el, o) { sink.o = o; return c.WQFC.mount({ insertAdjacentHTML: (pos, h) => { sink.card = (sink.card || '') + h; } }, o); } };
     };
   }
+  const d0 = (sink) => sink.card || '';
   async function done(over, lang) {
     const sink = {};
     const e = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true, lang: lang || 'en', ...over }) } }, onLoad: realCard(sink) });
@@ -1470,6 +1471,29 @@ describe('the done screen with the real finish card (card_v3): ONE primary = Mor
     const d2 = await done({ cover: null });
     expect(d2.screen()).not.toContain('wqfc-cov');
     expect(d2.screen()).not.toMatch(/<img/);
+  });
+  test('the More stories tile shows the next unread shelf book\'s cover (the shelf\'s own data; no extra request)', async () => {
+    const sink = {};
+    const slot = fakeEl('shelf'); slot._d = SHELF;
+    const e = env({ slot, replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(sink) });
+    e.win.document = e.doc;
+    const root = await openReader(e); runBook(e, root); await flush(); await flush();
+    // b-9 (the teacher's, unread) is first; b-1 is this book; b-4 is done
+    expect(sink.o.next.art).toBe('/s/b-9/cover.webp');
+    expect(/<a [^>]*id="wqfc-next"[^>]*>[^]*?<\/a>/.exec(d0(sink))[0]).toContain('<img class="wqfc-art" src="/s/b-9/cover.webp"');
+    const gets = e.calls.gets.filter((u) => /shelf/.test(u));
+    expect(gets).toHaveLength(0);
+    // every other shelf book read, or no shelf on the page: the plain tile
+    const s2 = fakeEl('shelf'); s2._d = { books: [{ id: 'b-1', cover: '/s/b-1/cover.webp' }, { id: 'b-4', cover: '/s/b-4/cover.webp', done: true }] };
+    const k2 = {};
+    const e2 = env({ slot: s2, replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(k2) });
+    e2.win.document = e2.doc;
+    const r2 = await openReader(e2); runBook(e2, r2); await flush(); await flush();
+    expect(k2.o.next.art).toBeUndefined();
+    const k3 = {};
+    const e3 = env({ replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: realCard(k3) });
+    const r3 = await openReader(e3); runBook(e3, r3); await flush(); await flush();
+    expect(k3.o.next.art).toBeUndefined();
   });
   test('tapping More stories on the card goes to the shelf (never turns a page)', async () => {
     const d = await done({});
