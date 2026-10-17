@@ -353,7 +353,13 @@ quiz_funnel.<stage>  { quiz_id, source, channel, teacher_id?, nudge_id?, session
 | `scorecard_sent` | `video-quiz` `finish` | `session_id`, `ok` (`false` = the text fallback went), `kind: 'self_test'` as above | none — per child, Axiom only | `video_quiz.scorecard_sent` |
 | `class_cards` | `video-quiz-report` `sendClassCards` (with the report, or late) | `n` sent, `failed`, `skipped` (no number / outside the 23 h window) | `quizzes.meta.class_cards[share_code_id]` = the children sent | `video_quiz.class_card_sent` / `_skipped` |
 | `report_sent` | `video-quiz-report` `generate` | `kind`: `report` \| `no_one` (nobody but the teacher took it), `n` children who finished, `reason` (`scheduled`/`requested`/`follow_up`) | `quiz_share_codes.report_sent_at`, `quizzes.status='report_sent'`, `meta.report_followups` (`quizzes.report_sent_at` is never written) | `video_quiz.report_sent` (**not** logged for `no_one` — 17.5% of reports) |
-| `report_failed` | `video-quiz-report` `generate` | `reason`: `no_teacher_phone` | — | log line only |
+| `report_failed` | `video-quiz-report` `generate` | `reason`: `no_teacher_phone`; with `quiz_report_send_checked` on also `send_failed` \| `gave_up` (WhatsApp did not accept the report; `kind`: `story` \| `quiz`, `n` = tries so far) | send refusals: `quizzes.meta.report_send_failures[share_code_id]` (tries) | log line only; with the switch on also `story_report_send_failed` / `quiz_report_send_failed` (`code_h`, `tk`, `tries`) and, on the third, `report_gave_up` |
+
+**`quiz_report_send_checked`** (app_settings, off by default; only JSON `true` is on — the string `"true"` or `{enabled: true}` is off):
+a teacher's class report (quiz or storybook) is stamped sent (`report_sent_at`, `report_sent`) only when WhatsApp accepted it.
+A refusal (or a throw) is not stamped, is counted on `quizzes.meta.report_send_failures`, and the report is queued again in
+15 min; the third refusal logs `report_gave_up` and automatic runs stop (the web report stays; the teacher's /quiz ask still tries).
+Off: today's sends, stamps and their order exactly.
 
 **The funnel per stream, for any window:**
 
