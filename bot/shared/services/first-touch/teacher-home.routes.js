@@ -341,8 +341,16 @@ function createRouter(deps = null) {
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');
     const gate = (ids) => (ids.length ? Data.within(Data.dep(deps, 'Gate').teacherReportOn(p.uid), Data.SIDE_BUDGET_MS, false, 'report gate') : false);
-    // "Send again" only where the send would answer; a read that fails or runs late → offered as before (null)
-    const sendable = (ids, pl) => Data.within(Data.sendableOwn(p.uid, [...ids, ...pl.keys()], deps), Data.SIDE_BUDGET_MS, null, 'send-again check');
+    // "Send again" only where the send would answer, asked in two halves: the lessons' own sent quizzes as soon as the
+    // lessons are in, the class report's quizzes as soon as it is in (less those the lessons' half already asks); the
+    // answers joined. Either half failing or running late → offered as before (null), as the one check would.
+    const sendableOf = (ids) => (ids.length ? Data.within(Data.sendableOwn(p.uid, ids, deps), Data.SIDE_BUDGET_MS, null, 'send-again check') : new Set());
+    const sendable = (idsP, playedP) => {
+      let asking = null;
+      const mine = Promise.resolve(idsP).then((ids) => { asking = new Set(ids); return sendableOf(ids); });
+      const theirs = Promise.resolve(playedP).then((pl) => sendableOf([...pl.keys()].filter((id) => !(asking && asking.has(id)))));
+      return Promise.all([mine, theirs]).then(([a, b]) => (a && b ? new Set([...a, ...b]) : null));
+    };
     const lessonsP = Data.within(Data.lessons(p.uid, deps), Data.REPORT_BUDGET_MS, [], 'lessons');
     const playedP = Data.within(playedOwn(p.uid), Data.REPORT_BUDGET_MS, new Map(), 'class report');
     // the gate and the send-again check start as soon as their own inputs are in, alongside the other reads
@@ -356,7 +364,7 @@ function createRouter(deps = null) {
       Data.within(Data.confirmRows(p.uid, deps), Data.SIDE_BUDGET_MS, [], 'confirm queue'),
       makerOn().then((on) => (on ? Data.within(Data.makerLink(p.uid, lang, null, deps), Data.SIDE_BUDGET_MS, null, 'maker link') : null)),
       lessonsP.then((l) => gate(ownSentOf(l))),
-      Promise.all([lessonsP, playedP]).then(([l, pl]) => sendable(ownSentOf(l), pl)),
+      sendable(lessonsP.then(ownSentOf), playedP),
     ]);
     // a listed test phone walking as "a teacher with no lessons yet" (sandbox walk-through only): the lists hidden, never touched
     const { lessons, played, shares } = await walkLists(user, { lessons: lessons0, played: played0, shares: shares0 });

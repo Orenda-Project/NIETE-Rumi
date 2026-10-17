@@ -240,6 +240,20 @@ describe('the send-again check: the lessons\' half does not wait for the class r
     } finally { Object.assign(MS, was); }
   });
 
+  test('the class report held near 4 s and the check near 2.5 s (both inside their budgets), the rest fast: the home answers in at most 4.5 s', async () => {
+    const was = { ...MS };
+    Object.assign(MS, { report: 3900, sendable: 2400, gate: 0, side: 0 });
+    try {
+      const deps = setup();
+      await boot(deps);
+      const out = await home();
+      expect(out.status).toBe(200);
+      // today's chain asks the check only after the report: ≈ 3.9 + 2.4 = 6.3 s
+      expect(log.total).toBeLessThanOrEqual(4500);
+      expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
+    } finally { Object.assign(MS, was); }
+  }, 20000);
+
   test('the two halves\' answers are joined: the lessons\' quiz and the report\'s quiz both offer "Send again"; an expired code does not', async () => {
     const deps = setup({ report: reportOnly() });
     seedReportOnly();
