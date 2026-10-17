@@ -13,8 +13,11 @@
  *   buildPickPage({ t, lang, kids, bot? })  the children the server already knows for this phone (first names only):
  *                                 one → "Is it <First>?"; several → "Who is playing?" chips; then the notice sentences
  *                                 BEFORE "Yes, it's me" (POST /api/go/bind), and "None of these" → the one question.
- *   buildMessagePage({ id, lang, bot? })  one line: go.stale (send "quiz" again), go.error, go.family; the first two
- *                                   carry ONE "Open WhatsApp" tap (wa.me/<bot>?text=quiz) when `bot` is a dialable number
+ *   buildMessagePage({ id, lang, bot?, door? })  one line: go.stale (send "quiz" again), go.error, go.family; the first two
+ *                                   carry ONE "Open WhatsApp" tap (wa.me/<bot>?text=quiz) when `bot` is a dialable number;
+ *                                   with `door: true` (web_quiz_closed_way_back ON, read by the caller) they ALWAYS carry ONE tap
+ *                                   instead, its words the signed go.back sentence, its href wa.me/<bot>?text=quiz or,
+ *                                   with no number, whatsapp://send?text=quiz (chat-tap.js)
  *
  * Inline CSS and the one script are allowed by their sha256 in the page's Content-Security-Policy (sent as a header
  * and repeated in a <meta>). The token rides in a <script type="application/json"> block, never in a log. The page
@@ -198,11 +201,18 @@ function buildPickPage({ t, lang = 'bi', kids = [], bot = null } = {}) {
   });
 }
 
-/** One line, nothing to tap: go.stale | go.error | go.family (the student tap while the join screen is not on). */
-function buildMessagePage({ id = 'go.error', lang = 'bi', bot = null } = {}) {
+/** ONE tap back to WhatsApp whatever the deployment knows (the switch is on): the signed sentence, both languages as the page. */
+function backTap(lang, bot) {
+  return `<a class="wa" href="${esc(require('./chat-tap').chatHref(bot))}" data-tap="open_whatsapp">${two('go.back', lang)}</a>`;
+}
+
+/** One line: go.stale | go.error | go.family (the student tap while the join screen is not on). */
+function buildMessagePage({ id = 'go.error', lang = 'bi', bot = null, door = false } = {}) {
   const ids = id === 'go.family' ? ['go.family.h', 'go.family.none'] : [id];
-  // a dead end carries ONE tap back to the bot's chat with "quiz" typed (no dialable number → the words alone)
-  const wa = id === 'go.stale' || id === 'go.error' ? waTap(lang, bot) : '';
+  // a dead end carries ONE tap back to the bot's chat with "quiz" typed: with the switch on, always (the app's own link
+  // when there is no number); with it off, only with a dialable number (else the words alone, as before)
+  const dead = id === 'go.stale' || id === 'go.error';
+  const wa = dead ? (door === true ? backTap(lang, bot) : waTap(lang, bot)) : '';
   const body = `<main class="go" data-screen="${esc(id)}">${ids.map((x) => `<p class="msg">${two(x, lang)}</p>`).join('')}${wa}</main>`;
   return shell({ title: str(ids[0], clampLanguage(lang)), body });
 }
