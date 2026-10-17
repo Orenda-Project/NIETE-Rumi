@@ -620,6 +620,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (ui) out.ui = ui;
   // The sound + motion kit (web-quiz-juice.js): named only when on, so a switched-off payload is today's.
   if (await require('./web-quiz-juice').field()) out.juice = true;
+  // The class's name in Urdu digits on an Urdu page (web-quiz-ur-class-digits.js): named only when on, so a switched-off payload is today's.
+  if (await require('./web-quiz-ur-class-digits').field()) out.ur_class_digits = true;
   // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
   const ask = await got('ask', () => require('./web-quiz-invite-ask').mode());
   if (ask !== 'off') out.invite_ask = ask;

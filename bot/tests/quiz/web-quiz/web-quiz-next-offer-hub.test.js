@@ -1036,7 +1036,9 @@ describe('a child WITH a class: a "Watch a video" tile plays the lesson it names
     const on = await readsOf(true);
     expect(off.data).toEqual(SNAP_OFF_DATA);
     expect(off.sw).toBeLessThanOrEqual(SNAP_SWITCH_MAX);
-    expect(sum(SNAP_OFF_DATA) + SNAP_SWITCH_MAX).toBe(16);
+    // measured, not the constants: the off snapshot's own reads are 12 data tables and, with its switch reads, at most 16
+    expect(sum(off.data)).toBe(12);
+    expect(sum(off.data) + off.sw).toBeLessThanOrEqual(16);
     // per table: never a table OFF does not read, except the named ones, and never more than OFF + its named row
     const over = Object.keys(on.data).filter((t) => on.data[t] > (SNAP_OFF_DATA[t] || 0) + (SNAP_ON_ROWS[t] || 0));
     expect(over).toEqual([]);
