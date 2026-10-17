@@ -118,6 +118,23 @@ describe('the switch', () => {
     expect(OneFace.on()).toBe(false);
   });
 
+  test('rollback lag is exactly one page: on cached, quiet 10 minutes, row now false: the first page still says true and starts a refresh, the next says false', async () => {
+    rows = [{ key: KEY, value: true }];
+    const t0 = Date.now();
+    await OneFace.flag(t0);
+    expect(OneFace.on(t0 + 1000)).toBe(true);
+    rows = [{ key: KEY, value: false }];
+    const reads = settingsReads;
+    // the one stale page per process is the price of never waiting
+    expect(OneFace.on(t0 + 10 * 60 * 1000)).toBe(true);
+    expect(settingsReads).toBe(reads + 1); // the stale call started the refresh
+    await new Promise((r) => setImmediate(r));
+    // the refresh resolved: the very next page is off, not "after the next cache time"
+    expect(OneFace.on()).toBe(false);
+    expect(OneFace.on()).toBe(false);
+    expect(settingsReads).toBe(reads + 1);
+  });
+
   test('a refresh that never comes back cannot keep it on: off once a read has hung for twice the cache time', async () => {
     rows = [{ key: KEY, value: true }];
     const t0 = Date.now();

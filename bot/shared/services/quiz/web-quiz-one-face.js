@@ -55,7 +55,7 @@ function refresh(now = Date.now()) {
   return reading;
 }
 
-/** The switch, never waited for: the cached value, refreshed in the background when stale. Never throws. */
+/** The switch, never waited for: the cached value, refreshed in the background when stale. Never throws. Rollback lag: after a flip off, the first call of a quiet process still answers on and starts the refresh; the next call is off (one page, not a cache time). */
 function on(now = Date.now()) {
   if (!cache || now - cache.at >= TTL_MS) refresh(now).catch(() => {});
   return Boolean(cache && cache.on && !(reading && now - readingAt >= 2 * TTL_MS));
