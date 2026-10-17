@@ -12,6 +12,7 @@ const supabase = require('../../shared/config/supabase');
 const IdFlags = require('../../shared/services/quiz/web-quiz-identity-flags');
 const HubFlags = require('../../shared/services/quiz/web-quiz-hub-flags');
 const { seedDb, GUEST_ON } = require('./door-fixture');
+const { OFF_VALUES } = require('../helpers/switch-off-matrix');
 
 const SAVED = { ...process.env };
 let fake;
@@ -74,6 +75,19 @@ describe('the two keys, by name', () => {
   test('ours ON with the sister\'s OFF → their three stay false (no parent of theirs is ours)', async () => {
     seed({ quiz_maker_page: true, quiz_first_door: true });
     expect(await IdFlags.flags()).toEqual({ at: expect.any(Number), canon: false, phoneBind: false, guestHome: false, makerPage: true, firstDoor: true });
+  });
+
+  // every off state of the shared matrix (absent = no row): the parent off holds the child off; the sister's untouched
+  test.each(OFF_VALUES)('quiz_maker_page %s → makerPage:false and firstDoor:false even with quiz_first_door on', async (_, v) => {
+    seed({ ...GUEST_ON, ...(v === null ? {} : { quiz_maker_page: v }), quiz_first_door: true });
+    const f = await IdFlags.flags();
+    expect(f).toMatchObject({ makerPage: false, firstDoor: false });
+    expect(sisterFields(f)).toEqual({ canon: true, phoneBind: true, guestHome: true });
+  });
+
+  test.each(OFF_VALUES)('quiz_first_door %s with quiz_maker_page on → firstDoor:false, makerPage:true', async (_, v) => {
+    seed({ quiz_maker_page: true, ...(v === null ? {} : { quiz_first_door: v }) });
+    expect(await IdFlags.flags()).toMatchObject({ makerPage: true, firstDoor: false });
   });
 
   test('a failed read → all five false (the OFF constant gains the two fields by name)', async () => {

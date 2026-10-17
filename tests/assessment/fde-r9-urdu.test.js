@@ -115,9 +115,10 @@ describe('urdu words slots: the model\'s restated instruction is not a quote', (
     const err = await Gen.generatePatternExam(ARGS).catch((e) => e);
     expect(err.code).toBe('PATTERN_SHORT_SLOT');
     expect(err.shortfall).toEqual([{ slot: 'urdu.C.Q5', missing: 1 }]);
-    expect(logged('[assessment] held item dropped')).toEqual([
+    // The place is asked again once, and the re-ask's quote is held exactly as strictly.
+    expect(logged('[assessment] held item dropped')).toEqual(Array(2).fill(
       { slot: 'urdu.C.Q5', reason: 'lesson_1_3', kind: 'Word Sentences', match: expect.any(String) },
-    ]);
+    ));
   });
 
   test('Q7 (a frame whose topic is the question) keeps its question', async () => {

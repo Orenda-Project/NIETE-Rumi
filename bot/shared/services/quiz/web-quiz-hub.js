@@ -15,7 +15,7 @@
  *   hub(token, {kid})      the page's boot JSON (contract: W37 M4 SPEC §1.3)
  *   hubLink(studentIds)    `<portal>/h/<token>` when the hub is on, else null
  *   kidOf(token, kid)      the student id a hub chip names
- *   kidFromHub(token, kid, device) {studentId, grade, rootId} for the library route (null on an untrusted phone)
+ *   kidFromHub(token, kid, device) {studentId, grade, rootId, lang} for the library route (null on an untrusted phone)
  *   deviceTrusted(token, device)  which of the children may this phone (device_ref) see? {ok, why, ids}
  *
  * A FORWARDED LINK NAMES NOBODY. The hub token is bound to the first phone (device_ref)
@@ -171,7 +171,7 @@ async function recentCodes(teachers) {
 
 const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
 
-async function teacherCard(kidRow, list, history, grade) {
+async function teacherCard(kidRow, list, history, grade, homeP = null) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
@@ -182,10 +182,18 @@ async function teacherCard(kidRow, list, history, grade) {
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
   const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history)]);
-  const open = codes.filter((c) => isOpen(c) && !seen.has(c.id));
+  const listed = codes.filter((c) => isOpen(c) && !seen.has(c.id));
+  if (!listed.length) return null;
+  // The child home (web_quiz_home_v3): a storybook the teacher only previewed is not "from your teacher" — told apart
+  // by three more columns on this same quizzes read (the home's switch is read beside the hub's own reads).
+  const Home = require('./web-quiz-hub-home');
+  const home = homeP ? (await homeP.flags).home === true : false;
+  const quizIds = [...new Set([...listed.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
+  const cols = `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id${home ? `, ${Home.PREVIEW_COLS}` : ''}`;
+  const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select(cols).in('id', quizIds));
+  const previews = home ? Home.storyPreviews(quizzes) : null;
+  const open = previews && previews.size ? listed.filter((c) => !previews.has(c.quiz_id)) : listed;
   if (!open.length) return null;
-  const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
-  const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
   // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
   const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
@@ -342,14 +350,16 @@ async function kidFromHub(token, chip, device) {
   const ctx = await kidContext(studentId);
   if (!ctx) return null;
   const root = ctx.history.find((e) => e.teacherSent) || null;
-  return { studentId, grade: ctx.grade, rootId: root ? root.shareCodeId : null };
+  // lang: the child's language from their own quizzes (null with none), for the video library's language list.
+  return { studentId, grade: ctx.grade, rootId: root ? root.shareCodeId : null, lang: require('./student-quiz.service').childLanguage(ctx.history) };
 }
 
-async function kidContext(studentId) {
-  const { data: row } = await dbRead('kidContext:students:1', (db) => db.from('students')
+// `known`: the child's row and class list the caller has just read (fast first page), so they are not read again.
+async function kidContext(studentId, known = null) {
+  const { data: row } = known ? { data: known.row } : await dbRead('kidContext:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle());
   if (!row || row.is_active === false) return null;
-  const { data: list } = row.list_id
+  const { data: list } = known ? { data: known.list } : row.list_id
     ? await dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle())
     : { data: null };
   const StudentQuiz = require('./student-quiz.service');
@@ -373,19 +383,38 @@ async function brandKey() {
 /**
  * The language the child chose on the page that sent them here (?lang=en|ur), when it may win over the guess from
  * their history: only under web_quiz_challenge_v2 (with its parents; web-quiz-hub-play.js switches, 30 s cache,
- * fail closed). Anything else, or the switch off: null, and the hub is today's. Asked only when a lang came.
+ * fail closed) or web_quiz_return_lang (the join's first home; web-quiz-return-lang.js, the same). Anything else, or
+ * both off: null, and the hub is today's. Asked only when a lang came.
  */
 async function askedLang(lang) {
   if (lang !== 'en' && lang !== 'ur') return null;
   try {
-    return (await require('./web-quiz-hub-play').switches()).v2 ? lang : null;
+    if ((await require('./web-quiz-hub-play').switches()).v2) return lang;
+  } catch (_) { /* v2 closed; the return switch may still say yes */ }
+  try {
+    return (await require('./web-quiz-return-lang').on()) ? lang : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * The language the /quiz reply spoke, carried by the hub link (`l`, en|ur), for a child with no class quiz yet: only under
+ * web_quiz_return_lang (web-quiz-return-lang.js, 30 s cache, fails closed). No `l`, or the switch off: null (today's).
+ */
+async function linkedLang(token) {
+  const tok = T.verify(token, 'h');
+  const R = require('./web-quiz-return-lang');
+  if (!tok || !R.linkLang(tok.l)) return null;
+  try {
+    return (await R.on()) ? tok.l : null;
   } catch (_) {
     return null;
   }
 }
 
 /** A phone that may not see the children: their language only, never a name, a chip or a quiz. */
-async function lockedHub(ids, why, asked = null) {
+async function lockedHub(ids, why, asked = null, linked = null) {
   let lang = 'en';
   try {
     const { data: rows } = await dbRead('lockedHub:students:1', (db) => db.from('students').select('id, is_active').in('id', ids));
@@ -393,8 +422,8 @@ async function lockedHub(ids, why, asked = null) {
     if (live.length) {
       const StudentQuiz = require('./student-quiz.service');
       const history = await StudentQuiz.quizzesForStudents(live);
-      lang = clampLanguage(StudentQuiz.childLanguage(history));
-    }
+      lang = clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
+    } else if (linked) lang = linked;
   } catch (_) { /* English */ }
   if (asked) lang = asked;
   logEvent('web_quiz.hub_locked', { kids: ids.length, why });
@@ -405,12 +434,15 @@ async function lockedHub(ids, why, asked = null) {
 
 async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
+  const practice = await require('./web-quiz-hub-home').practiceHub(token, { lang: wanted, brandKey }); // a coach's class preview by grade: null unless web_quiz_home_v3
+  if (practice) return practice;
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
   const asked = await askedLang(wanted);
+  const linked = await linkedLang(token);
   const trust = await deviceTrusted(token, device);
-  if (!trust.ok) return lockedHub(ids, trust.why, asked);
+  if (!trust.ok) return lockedHub(ids, trust.why, asked, linked);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   let mine = ids.filter((id) => trust.ids.includes(id));
   // child identity store (web_quiz_identity_canon): each child once, by the id they are known by (the token keeps raw ids).
@@ -431,9 +463,15 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
   // Started now, beside the rest of the hub's reads (challengeForm never rejects): it is a few reads of its own.
   const challengeP = f.challenge && chosen ? challengeForm(chosen.id) : Promise.resolve(null);
-  const ctx = chosen ? await kidContext(chosen.id) : null;
+  // The child home's reads (web_quiz_home_v3), started here too: keyed on the child alone, so they add no wait.
+  const homeP = chosen ? require('./web-quiz-hub-home').prefetch(chosen.id) : null;
+  // Stories too (hubBits never rejects; {} while web_quiz_stories is off): its reads run beside the hub's own.
+  const storiesP = chosen ? require('./web-quiz-stories').hubBits({ studentId: chosen.id }) : null;
+  // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
+  const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null) : null;
   const history = ctx ? ctx.history : [];
-  const lang = asked || clampLanguage(require('./student-quiz.service').childLanguage(history));
+  const StudentQuiz = require('./student-quiz.service');
+  const lang = asked || clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     lang,
@@ -450,12 +488,15 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   if (f.hub && f.eventsV2) out.ev2 = true;
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
   await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src });
+  // a child whose place is saved on a family phone with no code (joined on their own, or confirmed on the /quiz landing):
+  // never the "keep my place" card again, on any link (quiz_student_join; off: untouched)
+  if (chosen && out.bind && out.bind.offer) await require('./web-quiz-student-join').hideCardIfBound(out, chosen.id);
   if (!chosen) {
     logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;
   }
   const grade = ctx.grade;
-  out.teacher = await teacherCard(chosen, ctx.list, history, grade);
+  out.teacher = await teacherCard(chosen, ctx.list, history, grade, homeP);
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
   // The Home button is on: the library and challenge links from here say so (hub.js adds home=1).
   if (f.homeButton) out.nav_home = true;
@@ -482,19 +523,36 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
   // The Library tile wears the child's grade picture (the library opens on that grade).
   if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
-  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade, stopsOf: () => trailStops(form) })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
+  const collect = {};
+  // the ranked next thing's own reads start now, beside Jugnu's corner and the Book (null at once while it is off)
+  const nextPrep = require('./web-quiz-next-offer-sources').hubPrep({ out, token, history, lang: out.lang, chosenId: chosen.id, grade, stopsOf: () => trailStops(form) });
+  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade, stopsOf: () => trailStops(form), collect })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
   logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await require('./web-quiz-book').hubBits({ studentId: chosen.id })); // Jugnu's Book: {} while web_quiz_challenge_book is off
+  // Stories (started with the challenge's reads), the v3 home's doors + header and the ranked next thing are independent
+  // fields (none reads another): read side by side, so neither Stories nor the slot adds a serial wave. Each is {} while off.
+  const [storyBits, homeBits, nextField] = await Promise.all([
+    storiesP,
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src }),
+    require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
+  ]);
+  Object.assign(out, storyBits, homeBits, nextField);
   return out;
 }
 
 /** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
 async function hub(token, opts = {}) {
   const ui = await require('./web-quiz-ur-polish').ui();
-  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}) };
+  // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
+  const fast = require('./web-quiz-fast').on();
+  const out = await hubPayload(token, opts);
+  // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
+  // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
+  const listen = !out.locked && (await Flags.flags()).readalong;
+  return { ...out, rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
 }
 
 module.exports = {
@@ -502,4 +560,6 @@ module.exports = {
   // the switches live in web-quiz-hub-flags.js (student-quiz reads them without loading this module)
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,
+  // the per-child reads, for a result card's next thing (web-quiz-next-offer-sources.js snapshot)
+  _parts: { kidContext, kidChip, teacherCard, againOf, lastOf, challengeForm, trailStops, recsFor, subjectArtOf },
 };

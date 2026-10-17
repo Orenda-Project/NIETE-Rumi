@@ -1,0 +1,15 @@
+{
+  "bot/shared/config/ux-strings.js": 5,
+  "bot/shared/services/observe/observe-strings.js": 2,
+  "bot/shared/services/observe/observe2/strings.js": 3,
+  "bot/shared/services/quiz/quiz-intent-router.service.js": 2,
+  "bot/shared/services/vision.service.js": 1,
+  "bot/shared/templates/teacher-jugnu.page.js": 1,
+  "dashboard/public/wq/hub.js": 3,
+  "dashboard/public/wq/wq-challenge.js": 2,
+  "dashboard/public/wq/wq-tel.js": 2,
+  "dashboard/public/wq/wq.js": 5,
+  "dashboard/routes/app-login.routes.js": 1,
+  "dashboard/routes/portal-link.routes.js": 1,
+  "dashboard/routes/web-quiz.routes.js": 2
+}

@@ -255,6 +255,15 @@ describe('/quiz: the lesson provider lists, opens and makes Maths, never Islamiy
     expect(db.tables.quizzes).toHaveLength(1);
     expect(db.tables.quizzes[0]).toEqual(expect.objectContaining({ quiz_source: 'lp_v8', subject: 'math' }));
   });
+
+  test('a start from the teacher home ("Quiz this", via home) writes meta.source home; the list keeps list', async () => {
+    install();
+    await Provider.start(teacher(T1), D_MATH, { phone: PHONE[T1], via: 'home' });
+    expect(db.tables.quizzes[0].meta.source).toBe('home');
+    install();
+    await Provider.start(teacher(T1), D_MATH, { phone: PHONE[T1], via: 'list' });
+    expect(db.tables.quizzes[0].meta.source).toBe('list');
+  });
 });
 
 describe('"make it again" on a failed lesson-plan quiz', () => {

@@ -66,6 +66,59 @@ async function bank() {
   return refresh();
 }
 
+// ─── each video's language (app_settings web_quiz_videos_v3 only) ────────────
+// Its own read and its own 10-minute cache, so the bank's read above is the same with the switch off.
+// A failed read (no language column yet) is no language for any video: nothing is filtered out.
+
+let langs = null;     // { at, of: Map(video_id -> 'en'|'ur') | null }
+let langsLoading = null;
+async function loadLanguages() {
+  try {
+    const rows = await pages(() => supabase.from('student_videos').select('id, language')
+      .eq('migration_status', 'done').is('superseded_by', null));
+    const of = new Map();
+    for (const r of rows) if (r.language === 'en' || r.language === 'ur') of.set(r.id, r.language);
+    return { at: Date.now(), of };
+  } catch (e) {
+    logToFile('⚠️ web-quiz library: video languages unavailable — none filtered', { error: e.message });
+    return { at: Date.now(), of: null };
+  }
+}
+
+/** Map(video_id -> 'en'|'ur') for the videos that have a language, or null when it could not be read. */
+async function languages() {
+  if (langs && Date.now() - langs.at < INDEX_TTL_MS) return langs.of;
+  if (!langsLoading) langsLoading = loadLanguages().then((x) => { langs = x; return x; }).finally(() => { langsLoading = null; });
+  return (await langsLoading).of;
+}
+
+// ─── each lesson's Urdu-script name (app_settings web_quiz_videos_ur_titles only) ───────────────
+// Its own read and its own 10-minute cache, like the languages above, so the bank's read is the same with the switch off.
+// A failed read (no column yet) is no Urdu name for any video: the door keeps today's titles.
+
+let urNames = null;     // { at, of: Map(video_id -> {t, c}) | null }
+let urLoading = null;
+async function loadUrNames() {
+  try {
+    const rows = await pages(() => supabase.from('student_videos').select('id, title_ur, chapter_ur')
+      .eq('migration_status', 'done').is('superseded_by', null));
+    const of = new Map();
+    const str = (x) => (typeof x === 'string' && x.trim() ? x.trim() : null);
+    for (const r of rows) if (str(r.title_ur) || str(r.chapter_ur)) of.set(r.id, { t: str(r.title_ur), c: str(r.chapter_ur) });
+    return { at: Date.now(), of };
+  } catch (e) {
+    logToFile('⚠️ web-quiz library: Urdu video names unavailable — none shown', { error: e.message });
+    return { at: Date.now(), of: null };
+  }
+}
+
+/** Map(video_id -> {t: title_ur|null, c: chapter_ur|null}) for the lessons that have one, or null when unreadable. */
+async function urTitles() {
+  if (urNames && Date.now() - urNames.at < INDEX_TTL_MS) return urNames.of;
+  if (!urLoading) urLoading = loadUrNames().then((x) => { urNames = x; return x; }).finally(() => { urLoading = null; });
+  return (await urLoading).of;
+}
+
 // ─── the child ───────────────────────────────────────────────────────────────
 
 const studentOfSession = new Map();
@@ -147,7 +200,7 @@ async function nextInChapter({ quizId, studentId, shareCodeId }) {
 }
 
 module.exports = {
-  bank, refresh, track, studentFromSt, doneQuizzes, classCodes, nextInChapter,
-  _reset: () => { index = null; loading = null; studentOfSession.clear(); },
+  bank, refresh, track, studentFromSt, doneQuizzes, classCodes, nextInChapter, languages, urTitles,
+  _reset: () => { index = null; loading = null; langs = null; langsLoading = null; urNames = null; urLoading = null; studentOfSession.clear(); },
   _idle: async () => { while (background.size) await Promise.all([...background]); },
 };

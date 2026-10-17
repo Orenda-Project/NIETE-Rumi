@@ -199,12 +199,12 @@ function startFailureCopyKey(reason, meta, channel) {
 
 /**
  * Was this quiz asked for from /quiz — a tap in the list message or the Flow, or
- * a remake from either — rather than the 15:00 offer? Read from the row's
- * `meta.source` (the providers write 'list' / 'flow'; the offer writes 'lp_offer').
+ * a remake from either — or from the teacher home's "Quiz this", rather than the 15:00 offer? Read from the row's
+ * `meta.source` (the providers write 'list' / 'flow' / 'home'; the offer writes 'lp_offer').
  */
 function askedFromMenu(meta) {
   const m = meta || {};
-  return Boolean(m.remake_source) || m.source === 'list' || m.source === 'flow';
+  return Boolean(m.remake_source) || m.source === 'list' || m.source === 'flow' || m.source === 'home';
 }
 
 /**

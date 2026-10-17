@@ -534,22 +534,27 @@ const STEM_LABEL = /(^|\s)\(?([a-d])\)\s*/gi;
 const STEM_MAX = 600;
 const optionText = (t) => String(t == null ? '' : t).replace(/^\s*\(?[a-d]\)\s*/i, '').replace(/[\s.,;]+$/, '').trim().toLowerCase();
 
-function stripStemOptions(q) {
+// Urdu: the same list lettered الف) ب) ج) د) («… استانی صاحبہ»۔ الف) اسکول ب) بازار ج) باغ د) ہسپتال»).
+const STEM_LABEL_UR = /(^|\s)\(?(الف|ب|ج|د)\)\s*/gu;
+const optionTextUr = (t) => String(t == null ? '' : t).replace(/^\s*\(?(?:الف|ب|ج|د)\)\s*/u, '').replace(/[\s.,;،۔]+$/u, '').trim();
+
+function stripStemOptions(q, urdu = false) {
   if (!q || typeof q.question !== 'string' || q.question.length > STEM_MAX) return;
   if (!Array.isArray(q.options) || q.options.length !== 4) return;
   const text = q.question;
-  const labels = [...text.matchAll(STEM_LABEL)];
+  const [labelRe, order, textOf] = urdu ? [STEM_LABEL_UR, 'الفبجد', optionTextUr] : [STEM_LABEL, 'abcd', optionText];
+  const labels = [...text.matchAll(labelRe)];
   // The list must be the last four labels, a to d in order, and end the stem.
   if (labels.length < 4) return;
   const four = labels.slice(-4);
-  if (four.map((m) => m[2].toLowerCase()).join('') !== 'abcd') return;
+  if (four.map((m) => m[2].toLowerCase()).join('') !== order) return;
   const segments = four.map((m, i) => {
     const from = m.index + m[0].length;
     const to = i < 3 ? four[i + 1].index + four[i + 1][1].length : text.length;
-    return optionText(text.slice(from, to));
+    return textOf(text.slice(from, to));
   });
   // Each segment is one of the options, each option once: then it is the options again.
-  const options = q.options.map(optionText);
+  const options = q.options.map(textOf);
   if (new Set(segments).size !== 4 || !segments.every((seg) => seg && options.includes(seg))) return;
   q.question = text.slice(0, four[0].index + four[0][1].length).trim();
 }
@@ -954,13 +959,38 @@ function verseTwin(q6s) {
 // or more that holds, or sits inside, a listed word of two words or more. A one-word key («پانی»)
 // inside a listed idiom stays.
 const MEANING_ASK = /مطلب|معنی|معانی|مراد|مفہوم/;
+// An idiom read without the form of its verb: a trailing «جانا/ہونا/کرنا/دینا» is dropped and a
+// «…انا» verb left last is cut to its root («مچانا» → «مچ»), so «دھوم مچ جانا» and «دھوم مچانا» are one
+// idiom («دھوم مچ»), and «شور مچ جانا» another. A plain «…نا» verb is not cut: «دل لگنا» is not «دل
+// لگانا». Two words at least, and a verb form actually set aside: a phrase with no verb («دھوم دھام»)
+// is matched as written.
+const LIGHT_VERBS = new Set(['جانا', 'ہونا', 'کرنا', 'دینا']);
+function idiomOf(text) {
+  const w = plain(text).split(' ').filter(Boolean);
+  let cut = false;
+  while (w.length > 2 && LIGHT_VERBS.has(w[w.length - 1])) { w.pop(); cut = true; }
+  if (w.length < 2) return '';
+  const root = w[w.length - 1].replace(/انا$/, '');
+  if (root.length >= 2 && root !== w[w.length - 1]) { w[w.length - 1] = root; cut = true; }
+  return cut ? w.join(' ') : '';
+}
+// Every idiom a stem prints, read as above: each run of two to six of its words.
+function idiomsIn(text) {
+  const w = plain(text).split(' ').filter(Boolean);
+  const out = new Set();
+  for (let i = 0; i < w.length; i += 1) {
+    for (let n = 2; n <= 6 && i + n <= w.length; n += 1) { const id = idiomOf(w.slice(i, i + n).join(' ')); if (id) out.add(id); }
+  }
+  return out;
+}
 function meaningTwin(lists) {
   const words = [...new Set(lists.flatMap((q) => (Array.isArray(q.words) ? q.words : [])).map(plain).filter(Boolean))];
   if (!words.length) return null;
   const phrases = words.filter((w) => w.split(' ').length >= 2);
   const keyedOn = (q) => {
     const k = plain(keyText(q));
-    return k.split(' ').length >= 2 && phrases.some((w) => ` ${k} `.includes(` ${w} `) || ` ${w} `.includes(` ${k} `));
+    return k.split(' ').length >= 2 && phrases.some((w) => ` ${k} `.includes(` ${w} `) || ` ${w} `.includes(` ${k} `)
+      || (Boolean(idiomOf(k)) && idiomOf(k) === idiomOf(w)));
   };
   const meanings = new Map();
   for (const q of lists.filter((x) => x.slot === 'urdu.C.Q3' && typeof x.answer === 'string')) {
@@ -972,7 +1002,8 @@ function meaningTwin(lists) {
   return (q) => {
     if (keyedOn(q)) return true;
     const stem = ` ${plain(q.question)} `;
-    const named = words.filter((w) => stem.includes(` ${w} `));
+    const printed = idiomsIn(q.question);
+    const named = words.filter((w) => stem.includes(` ${w} `) || (Boolean(idiomOf(w)) && printed.has(idiomOf(w))));
     if (!named.length) return false;
     if (MEANING_ASK.test(String(q.question))) return true;
     const key = tokensOf(keyText(q));
@@ -1134,8 +1165,19 @@ function stemGivesKey(a, b) {
   };
   const given = (q, by) => listed(q, by) || (!QUOTES_EXAMPLE.test(String(q.question || ''))
     && (key(q).size >= GIVEN_WORDS || (key(q).size === 1 && topic(q, by))));
+  // Another item's OPTION that prints a key of two words or more, in order, inside something it says
+  // about it, states that key as a fact, even as a wrong option («سدرہ نے … کیا بنایا؟ → تھیڑ کمپنی»
+  // beside «ب) سدرہ کی تھیڑ کمپنی بند کرنے کی»). An option that is only the key, or a one-word key
+  // («کراچی», «امینہ» among four names), tells nothing. Nor does a sample sentence that uses a grammar
+  // item's key when that item quotes its own example («'___ ہم سب کو کامیابی ملے۔' → اللہ کرے» beside
+  // the option «ج) اللہ کرے امتحان آسان ہو۔»): its question is the example.
+  const optionStates = (q, by) => {
+    const k = plain(keyText(q));
+    if (key(q).size < GIVEN_WORDS || !Array.isArray(by.options) || QUOTES_EXAMPLE.test(String(q.question || ''))) return false;
+    return by.options.some((o) => { const t = plain(String(o).replace(OPTION_HEAD, '')); return t !== k && ` ${t} `.includes(` ${k} `); });
+  };
   const [ab, ba] = [prints(a, b), prints(b, a)];
-  return (ab && ba) || (ab && given(b, a)) || (ba && given(a, b));
+  return (ab && ba) || (ab && given(b, a)) || (ba && given(a, b)) || optionStates(a, b) || optionStates(b, a);
 }
 // Urdu Q4: an item with four options (in `options`, or on the stem's lines below it) keyed on one
 // option and accepting another («ج) بارش», accepting «د) فلکیات») has two answers. It is held and
@@ -1444,7 +1486,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   let putBack = [];
 
   const all = walk(src);
-  all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
+  all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); if (P.key === 'urdu') stripStemOptions(entry.q, true); });
   const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.

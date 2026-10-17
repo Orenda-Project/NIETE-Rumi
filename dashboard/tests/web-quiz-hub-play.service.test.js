@@ -28,7 +28,7 @@ class FixedDate extends Date {
   static now() { return NOW; }
 }
 
-function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = false } = {}) {
+function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = false, homeFails = false } = {}) {
   const assigned = [];
   const beacons = [];
   const els = {};
@@ -55,7 +55,7 @@ function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = fals
   };
   const docEl = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, classList: { toggle() {}, contains: () => false } };
   const ctx = {
-    document: { documentElement: docEl, head: { appendChild() {} }, getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, textContent: '' }), cookie: '' },
+    document: { documentElement: docEl, head: { appendChild(s) { if (homeFails && /wq-home\.js/.test(s.src || '')) (s.ls.error || []).forEach((fn) => fn()); } }, getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => (homeFails ? { ls: {}, setAttribute() {}, addEventListener(n, fn) { (this.ls[n] = this.ls[n] || []).push(fn); }, textContent: '' } : { setAttribute() {}, textContent: '' }), querySelector: homeFails ? () => null : undefined, cookie: '' },
     window: { scrollTo() {}, addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); }, matchMedia: (q) => ({ matches: standalone && /standalone/.test(q) }) },
     navigator: { userAgent: ua, sendBeacon: (u, b) => { beacons.push(...JSON.parse(b.parts[0]).events); return true; } },
     history: { replaceState() {} },
@@ -160,6 +160,30 @@ describe('lantern + shelf', () => {
     expect(p.doors()).toContainEqual(expect.objectContaining({ n: 'door_shown', door: 'next', nx: 'trail' }));
   });
 
+  test('the v3 home switch on (web_quiz_home_v3) and its page failed to load: the hub it falls back to never says "Trail"', () => {
+    const many = page({ ...BOOTS.done, home_v3: 1, play: play({ kind: 'trail', stops: 2 }, null) }, { homeFails: true });
+    expect(many.html()).toContain('Games are waiting for you.');
+    expect(many.html()).not.toMatch(/Trail/);
+    const one = page({ ...BOOTS.done, home_v3: 1, play: play({ kind: 'trail', stops: 1 }, null) }, { homeFails: true });
+    expect(one.html()).toContain('A game is waiting for you.');
+    const ur = page({ ...BOOTS.done, lang: 'ur', home_v3: 1, play: play({ kind: 'trail', stops: 2 }, null) }, { homeFails: true });
+    expect(ur.html()).toContain('کچھ کھیل آپ کا انتظار کر رہے\u00a0ہیں۔');
+    expect(ur.html()).not.toMatch(/راستے/);
+    // the Jugnu tile on that hub is "Jugnu's games" (the games list's own name), never "Challenge"
+    expect(many.html()).toContain("<b>Jugnu&#39;s games</b>");
+    expect(many.html()).not.toMatch(/Challenge/);
+    expect(ur.html()).toContain('<b>جگنو کے کھیل</b>');
+    expect(ur.html()).not.toMatch(/چیلنج/);
+    const bare = page({ ...BOOTS.done, home_v3: 1 }, { play: false, homeFails: true });
+    expect(bare.html()).toContain("<b>Jugnu&#39;s games</b>");
+    expect(bare.html()).not.toMatch(/Challenge/);
+    // GOLDEN: the switch off -> today's line, byte for byte
+    const off = page({ ...BOOTS.done, play: play({ kind: 'trail', stops: 2 }, null) });
+    expect(off.html()).toContain('Games are waiting for you on the Trail.');
+    expect(off.html()).toContain("<b>Jugnu&#39;s Challenge</b>");
+    expect(page({ ...BOOTS.done }, { play: false }).html()).toContain("<b>Jugnu&#39;s Challenge</b>");
+  });
+
   test('new story: its title, a link into Story Time; tomorrow: shown only; all seen (Monday)', () => {
     const s = page({ ...BOOTS.done, play: play({ kind: 'story', title: 'The Kite', pid: 'p-1' }, null) });
     expect(s.html()).toContain('A new story is here: The Kite');
@@ -230,7 +254,8 @@ describe('lantern + shelf', () => {
   });
 
   const INST = { first: true, lantern: null, shelf: [{ id: 'numbers', nx: 'seen' }], install: true, doors: ['hub_first', 'install'] };
-  const SEEN_TODAY = () => ({ wqp_hv_day: String(Math.floor((Date.now() + 5 * 3600000) / 86400000)) });
+  // The page's day comes from the fixed NOW (pktDay() in hub-play.js), so the seeded day must too, never the real clock.
+  const SEEN_TODAY = () => ({ wqp_hv_day: String(Math.floor((NOW + 5 * 3600000) / 86400000)) });
   const offer = (p, outcome = 'accepted') => {
     const e = { prevented: 0, prompted: 0, preventDefault() { this.prevented += 1; }, prompt() { this.prompted += 1; }, userChoice: Promise.resolve({ outcome }) };
     p.win.beforeinstallprompt.forEach((fn) => fn(e));
@@ -277,7 +302,7 @@ describe('lantern + shelf', () => {
     const again = page({ ...BOOTS.done, play: INST }, { store: { ...SEEN_TODAY(), wqp_inst_later: p.store.wqp_inst_later } });
     offer(again);
     expect(card(again)).toBe('');
-    const later = page({ ...BOOTS.done, play: INST }, { store: { ...SEEN_TODAY(), wqp_inst_later: String(Date.now() - 8 * 86400000) } });
+    const later = page({ ...BOOTS.done, play: INST }, { store: { ...SEEN_TODAY(), wqp_inst_later: String(NOW - 8 * 86400000) } });
     offer(later);
     expect(card(later)).toContain('Add Jugnu');
   });

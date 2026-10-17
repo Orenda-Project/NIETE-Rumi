@@ -62,7 +62,7 @@ const NEW = [['دریا', 'پانی کا بڑا بہاؤ'], ['کتاب خانہ'
  * Serves the recorded section replies, and the reader's replies from `reader` (a function of the
  * reader prompt and its call number, returning the reply content or throwing).
  */
-function serve({ reader = null, topUp = NEW } = {}) {
+function serve({ reader = null, topUp = NEW, topUp2 = null } = {}) {
   const asked = [];
   mockCreate.mockImplementation(async (req) => {
     const prompt = textOf(req);
@@ -78,6 +78,7 @@ function serve({ reader = null, topUp = NEW } = {}) {
     let content = rec.replies[sec === 'A' ? 'A1' : sec];
     if (sec === 'A' && nA === 2) content = rec.replies.A2;
     if (sec === 'A' && nA === 3) content = JSON.stringify({ unseen: { objective: { MCQs: clone(topUp) } } });
+    if (sec === 'A' && nA === 4 && topUp2) content = JSON.stringify({ unseen: { objective: { MCQs: clone(topUp2) } } });
     return { choices: [{ message: { content }, finish_reason: 'stop' }], usage: { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 } };
   });
   return asked;
@@ -168,7 +169,7 @@ describe('reader pass ON: a flagged item does not print', () => {
     expect(out.ok.examJson._layout.reader.items).toEqual([{ label: flagged, by: 'Q1.13', reason: 'states the rule that answers which sentence is شکیہ', outcome: 'replaced' }]);
   });
 
-  test('a replacement the re-check still flags is taken off, and an in-Q1 hold is put back in its place', async () => {
+  test('a replacement the re-check still flags is taken off; a place still empty after one more top-up fails the paper closed, never putting the caught item back', async () => {
     let flagged = null;
     const asked = serve({
       topUp: NEW.slice(0, 1),
@@ -182,17 +183,18 @@ describe('reader pass ON: a flagged item does not print', () => {
       },
     });
     const out = await run({ readerPass: true });
-    expect(out.err).toBeUndefined();
-    const stems = q1Stems(out.ok.examJson);
-    expect(stems).toHaveLength(20);
+    expect(out.err && out.err.code).toBe('PATTERN_SHORT_SLOT');
+    expect(out.err.shortfall).toEqual([{ slot: 'urdu.A.Q1', missing: 1 }]);
+    const stems = q1Stems(out.err.examJson);
     expect(stems).not.toContain(NEW[0].question);
-    // The only put-back that fills the place is the in-Q1 hold.
-    expect(stems.some((s) => RULE_STEM.test(s))).toBe(true);
-    expect(asked.filter((x) => x.sec === 'reader')).toHaveLength(2);
+    // The in-Q1 hold is never put back: a caught item does not print.
+    expect(stems.some((s) => RULE_STEM.test(s))).toBe(false);
+    // One more top-up ran (the 4th Section A call) before the paper failed.
+    expect(asked.filter((x) => x.sec === 'A')).toHaveLength(4);
     const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
-    expect(line[1]).toMatchObject({ flagged: 1, replaced: 0, still_flagged: 1, put_back: 1 });
-    // An item printed over the reader's own flag says so on the paper.
-    expect(out.ok.examJson._layout.reader.items.map((x) => x.outcome)).toEqual(['put_back', 'taken_off']);
+    expect(line[1]).toMatchObject({ flagged: 1, replaced: 0, still_flagged: 1, put_back: 0, top_ups: 2, error: 'the paper would be short' });
+    // The failed paper's record names every flag.
+    expect(out.err.examJson._layout.reader.items.map((x) => x.outcome)).toEqual(['replaced', 'taken_off']);
   });
 
   test('nothing flagged: no top-up, and the paper is the one it would be with the pass off', async () => {
@@ -235,8 +237,7 @@ describe('a reader failure never fails a paper', () => {
     expect(line[1]).toMatchObject({ subject: 'urdu', flagged: 0, replaced: 0 });
   });
 
-  test('a failed top-up keeps the paper as it was', async () => {
-    const off = await offPaper();
+  test('a failed top-up fails the paper closed: the caught item never prints, and the record keeps it', async () => {
     const asked = [];
     mockCreate.mockImplementation(async (req) => {
       const prompt = textOf(req);
@@ -249,8 +250,10 @@ describe('a reader failure never fails a paper', () => {
       return { choices: [{ message: { content }, finish_reason: 'stop' }], usage: {} };
     });
     const on = await run({ readerPass: true });
-    expect(on.err).toBeUndefined();
-    expect(stable(on.ok.examJson)).toEqual(stable(off.ok.examJson));
+    expect(on.err && on.err.code).toBe('PATTERN_SHORT_SLOT');
+    expect(q1Stems(on.err.examJson).some((s) => RULE_STEM.test(s))).toBe(false);
+    expect(on.err.examJson._layout.reader).toMatchObject({ flagged: 1, error: expect.stringMatching(/^top-up: /) });
+    expect(on.err.examJson._layout.reader.items).toHaveLength(1);
   });
 });
 
@@ -258,13 +261,12 @@ describe('review findings', () => {
   const offPaper = async () => { serve(); const off = await run(); mockCreate.mockReset(); mockLog.mockReset(); return off; };
   const ruleFlag = (prompt) => ({ item: labelOf(prompt, RULE_STEM), by: 'Q1.13', evidence: 'شاید کل بارش ہو جائے', reason: 'rule twin', given_away: true });
 
-  test('a top-up whose items carry text the paper refuses to print keeps the paper as it was', async () => {
-    const off = await offPaper();
+  test('a top-up whose items carry text the paper refuses to print fails the paper closed', async () => {
     const marked = clone(NEW).map((q, i) => (i === 0 ? { ...q, question: `${q.question} ${String.fromCodePoint(0x26A0)}` } : q));
     serve({ topUp: marked, reader: async (prompt, n) => JSON.stringify({ candidates: n === 1 ? [ruleFlag(prompt)] : [] }) });
     const on = await run({ readerPass: true });
-    expect(on.err).toBeUndefined();
-    expect(stable(on.ok.examJson)).toEqual(stable(off.ok.examJson));
+    expect(on.err && on.err.code).toBe('PATTERN_SHORT_SLOT');
+    expect(q1Stems(on.err.examJson).some((s) => RULE_STEM.test(s))).toBe(false);
     const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
     expect(line[1].error).toMatch(/refused text/);
   });
@@ -287,8 +289,10 @@ describe('review findings', () => {
   });
 
   test('on the re-check, a replacement whose text gives away a kept item is taken off', async () => {
-    // The reader names the KEPT item as given away, by the replacement: the replacement comes off.
+    // The reader names the KEPT item as given away, by the replacement: the replacement comes off,
+    // and one more top-up fills its place.
     const asked = serve({
+      topUp2: NEW.slice(3, 4),
       reader: async (prompt, n) => {
         if (n === 1) return JSON.stringify({ candidates: [ruleFlag(prompt)] });
         const kept = labelOf(prompt, /پیدائش کس شہر/);
@@ -301,8 +305,9 @@ describe('review findings', () => {
     const stems = q1Stems(out.ok.examJson);
     expect(stems).toHaveLength(20);
     expect(stems).not.toContain(NEW[0].question);
+    expect(stems).toContain(NEW[3].question);
     expect(stems.some((s) => /پیدائش کس شہر/.test(s))).toBe(true);
-    expect(asked.filter((a) => a.sec === 'reader')).toHaveLength(2);
+    expect(asked.filter((a) => a.sec === 'reader')).toHaveLength(3);
     const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
     expect(line[1]).toMatchObject({ flagged: 1, still_flagged: 1, rechecked: true });
   });

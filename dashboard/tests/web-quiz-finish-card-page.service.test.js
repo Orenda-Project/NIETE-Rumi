@@ -1,0 +1,909 @@
+/**
+ * The finish card on the child's pages (wq-finish-card.js, window.WQFC; app_settings web_quiz_card_v3 via the
+ * finish's / the menu's card_v3). One card after every finish: the deed first, ONE sticker (never a star count), a
+ * share that never navigates the page (an <a target=_blank> to wa.me, or the picture as a file), the link on its own
+ * line and the /quiz return line last, the Next tile, Home. Switch off: the quiz card, its share text and the Trail's
+ * end cards are today's, byte for byte (goldens hashed from origin/sandbox before this change).
+ * wq.js runs whole in the harness's vm; wq-trail.js runs with a small host of the page's helpers.
+ */
+// The server's copy is read from its module; its database and loggers are never reached here.
+jest.mock('../../bot/shared/config/supabase', () => ({}));
+jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const { page, flush } = require('./wq-page-harness');
+
+const WQ = path.join(__dirname, '..', 'public', 'wq');
+const FC_SRC = fs.readFileSync(path.join(WQ, 'wq-finish-card.js'), 'utf8');
+const TRAIL_SRC = fs.readFileSync(path.join(WQ, 'wq-trail.js'), 'utf8');
+const SERVER = require('../../bot/shared/services/quiz/web-quiz-card-image');
+const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
+const TOK = 'Qm9va2Nhc2VfdG9rZW5fZm9yX3Rlc3RzX29ubHlfMDEyMzQ1Njc4OWFiY2RlZg';
+const RET = { en: { text: 'Play with Jugnu any day. Tap, then send:', words: 'quiz please', href: 'https://wa.me/15550001111?text=quiz%20please' },
+  ur: { text: 'جب دل چاہے جگنو کے ساتھ کھیلیں! یہاں دبائیں، پھر بھیجیں:', words: 'کوئز دکھائیں', href: 'https://wa.me/15550001111?text=%DA%A9%D9%88%D8%A6%D8%B2%20%D8%AF%DA%A9%DA%BE%D8%A7%D8%A6%DB%8C%DA%BA' } };
+// A child's screen never says these.
+const BANNED = /\b(test|exam|assessment|practice|counted|challenge|trail|wpm)\b|امتحان|ٹیسٹ/i;
+
+// WQFC alone, in a vm (its pure functions need no page).
+function fcAlone(extra = {}) {
+  const ctx = { window: {}, document: {}, location: { origin: 'https://portal.example' }, navigator: {}, ...extra };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(FC_SRC, ctx);
+  return ctx.WQFC;
+}
+const FC = fcAlone();
+
+describe('the words: the server and the page say the same deed', () => {
+  test('every deed, both languages, word for word', () => {
+    expect(JSON.parse(JSON.stringify(FC.DEEDS.en))).toEqual(Object.fromEntries(Object.values(SERVER.DEEDS).flat().map((d) => [d, SERVER.COPY.en[d]])));
+    expect(JSON.parse(JSON.stringify(FC.DEEDS.ur))).toEqual(Object.fromEntries(Object.values(SERVER.DEEDS).flat().map((d) => [d, SERVER.COPY.ur[d]])));
+    expect(FC.W.en.words).toBe(SERVER.CARD_RETURN_WORDS.en);
+    expect(FC.W.ur.words).toBe(SERVER.CARD_RETURN_WORDS.ur);
+    expect(FC.W.ur.ret).toBe(SERVER.COPY.ur.ret);
+  });
+  test('no deed carries a digit or a test word; Urdu has no Latin middot', () => {
+    for (const l of ['en', 'ur']) {
+      for (const t of Object.values(FC.DEEDS[l])) {
+        expect(t).not.toMatch(/[0-9۰-۹]/);
+        expect(t).not.toMatch(BANNED);
+        if (l === 'ur') expect(t).not.toContain('·');
+      }
+    }
+  });
+});
+
+describe('the share text', () => {
+  test.each(['en', 'ur'])('%s: deed first, the title, the link ALONE on its line, the return line last', (lang) => {
+    const url = `https://portal.example/k/${TOK}`;
+    const txt = FC.shareText({ lang, deed: 'read_all', title: 'The lost kite', url, ret: RET[lang] });
+    const lines = txt.split('\n');
+    expect(lines[0]).toBe(`⭐ ${FC.DEEDS[lang].read_all}`);
+    expect(lines[1]).toContain('The lost kite');
+    expect(lines[2]).toBe(url);
+    expect(lines[3]).toBe(RET[lang].text);
+    expect(lines[4]).toBe(RET[lang].href);
+    expect(txt).not.toMatch(/\d+\s*\/\s*\d+/);
+  });
+  test('before the token is in (or with no bot number): the words and the return words, never a broken link', () => {
+    const txt = FC.shareText({ lang: 'en', deed: 'game_done' });
+    expect(txt.split('\n')).toEqual([`⭐ ${FC.DEEDS.en.game_done}`, RET.en.text, '“quiz please”']);
+  });
+});
+
+describe('the card block, for every kind of finish', () => {
+  const NEXT = { kind: 'storybook', id: 'b1', href: '/s/b1/1', title: 'Read a storybook', title_ur: 'کہانی کی کتاب پڑھیں', sub: 'Sunny Day', minutes: 2, art: '/wq/art/story-1.webp' };
+  test.each([['quiz', 'quiz_done'], ['read', 'read_all'], ['game', 'game_done'], ['story', 'story_read'], ['listen', 'listen_done'], ['book', 'book_read'], ['video', 'video_watched']])('%s', (kind, deed) => {
+    for (const lang of ['en', 'ur']) {
+      const h = FC.html({ kind, deed, lang, next: NEXT, home: '/h/tok' });
+      expect(h).toContain('data-screen="card"');
+      // share = an anchor to wa.me in a new window, the primary
+      expect(h).toMatch(/<a class="wq-btn wq-go wqfc-share" id="wqfc-share" data-primary data-tap="card_share" target="_blank" rel="noopener" href="https:\/\/wa\.me\/\?text=/);
+      expect((h.match(/data-primary/g) || []).length).toBe(1);
+      // the child's share: one wording on every card (the quiz card's own button says the same), never the teacher's "Send to class"
+      expect(h).toContain(lang === 'ur' ? 'کلاس گروپ میں بھیجیں' : '>Share to class group<');
+      expect(h).not.toMatch(/Send to class|کلاس کو بھیجیں/);
+      expect(h).toContain('id="wqfc-next" data-tap="next" href="/s/b1/1"');
+      expect(h).toContain(lang === 'ur' ? '۲ منٹ' : '2 min');
+      expect(h).toContain('data-home');
+      // never a star count on a card
+      expect(h).not.toMatch(/⭐\s*[⭐x×\d]/);
+      expect(decodeURIComponent(h.replace(/&amp;/g, '&'))).not.toMatch(BANNED);
+    }
+  });
+  test('a sound switch on the card; the tile in the brand colour (green is Share only); no emoji', () => {
+    const h = FC.html({ kind: 'read', deed: 'read_all', lang: 'en', next: { href: '/s/b1/1', title: 'Read a storybook' } });
+    expect(h).toMatch(/<button class="wqfc-snd" id="wqfc-snd" type="button" data-tap="sound" aria-label="Sound" aria-pressed="false"><svg/);
+    const css = /CSS = ([\s\S]*?);\n/.exec(FC_SRC)[1];
+    expect(css).toMatch(/\.wqfc-next\{[^}]*border:2px solid var\(--brand-ink/);
+    expect(/\.wqfc-next\{[^}]*\}/.exec(css)[0]).not.toMatch(/#15803D|#14532D/);
+    // no emoji or pictograph code point in anything the card draws on the child's screen
+    expect(h).not.toMatch(/[\u2190-\u2BFF\u{1F000}-\u{1FAFF}]/u);
+  });
+  test('the sound switch writes both keys the pages read (without the sound kit)', () => {
+    const store = {};
+    const ls = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+    const listeners = {};
+    const btn = { setAttribute() {}, set innerHTML(v) { this.h = v; }, addEventListener: (n, fn) => { listeners.snd = fn; } };
+    const fc = fcAlone({ localStorage: ls, document: { getElementById: (id) => (id === 'wqfc-snd' ? btn : null), createElement: () => ({}), head: { appendChild() {} } } });
+    fc.mount({ insertAdjacentHTML() {} }, { kind: 'game', deed: 'game_done', lang: 'en', auth: { ct: 'c' } });
+    listeners.snd();
+    expect(store).toEqual({ wq_snd: '0', wq_sound: 'false' });
+    listeners.snd();
+    expect(store).toEqual({ wq_snd: '1', wq_sound: 'true' });
+  });
+  test('a Next object with no same-origin href draws no tile (today\'s next video has none)', () => {
+    expect(FC.nextHtml('en', { vid: 'v', title: 'Water' })).toBe('');
+    expect(FC.nextHtml('en', { href: 'https://evil.example', title: 'x' })).toBe('');
+  });
+});
+
+/* ---------------- the teacher's quiz card (wq.js M10) ---------------- */
+const CHILD = { first: 'Zara', chip: 'c1', animal: 'owl' };
+const CARD = 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl';
+const RESULT = { card: { first: 'Zara', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5 }, art: { card: CARD } };
+const store = (result) => ({ wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [], result } });
+const waText = (p) => { const m = /id="wq-wa"(?: target="_blank" rel="noopener")? href="([^"]+)"/.exec(p.html()); return m ? decodeURIComponent(m[1].replace(/&amp;/g, '&').replace(/^https:\/\/wa\.me\/\?text=/, '')) : null; };
+const MINT = { '/api/wq/card': { token: TOK, url: `/q/TEST?k=${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET.en } };
+
+describe('golden: switch off, the quiz card and its class share are today\'s', () => {
+  // Hashed from origin/sandbox ad10e50fc (this harness, these fixtures) before this change.
+  // ur_html re-hashed: the Urdu card's big score now prints in Urdu digits (۳/۵); with those mapped back it is the old hash.
+  const GOLD = { en_html: '8a0a7b8e07da9f31', en_share: 'b731a541ab256d6d', ur_html: '3654f22cb008e952', ur_share: '0ad7fddbddad9a42' };
+  test('EN and UR: the card\'s HTML and the shared text', () => {
+    const got = {};
+    for (const lang of ['en', 'ur']) {
+      const p = page({ lang, store: store(RESULT) });
+      got[`${lang}_html`] = sha(p.html());
+      expect(p.fetches.some((f) => /wq-finish-card|\/api\/wq\/card/.test(f.url))).toBe(false);
+      p.els['#wq-share'].fire('click');
+      got[`${lang}_share`] = sha(waText(p));
+    }
+    expect(got).toEqual(GOLD);
+  });
+});
+
+describe('switch on: the quiz card gains the deed and its class share becomes the card', () => {
+  function onPage(lang, extra = {}) {
+    const p = page({ lang, store: store({ ...RESULT, card_v3: true, ...extra }), api: MINT });
+    vm.runInContext(FC_SRC, p.ctx);
+    p.wq.card();
+    return p;
+  }
+  test('without the file yet, the page asks for it (and draws the card again once it is in)', () => {
+    const p = page({ lang: 'en', store: store({ ...RESULT, card_v3: true }) });
+    expect(p.html()).not.toContain('wqfc-deed');
+    expect(p.fetches.some((f) => /\/api\/wq\/card/.test(f.url))).toBe(false);
+  });
+  test('EN: the deed above the score (the score stays on the child\'s own screen)', () => {
+    const h = onPage('en').html();
+    expect(h).toContain('<p class="wqfc-deed" id="wqfc-deed">You finished the whole quiz!</p><div class="wq-big">3/5</div>');
+  });
+  test('UR: in Urdu', () => {
+    expect(onPage('ur').html()).toContain('<p class="wqfc-deed" id="wqfc-deed">شاباش! آپ نے پورا کوئز کر لیا!</p>');
+  });
+  test('the token is asked for as the card opens, with the session token only', async () => {
+    const p = onPage('en');
+    await flush();
+    const mint = p.fetches.find((f) => f.url === '/api/wq/card');
+    expect(mint).toBeTruthy();
+    expect(JSON.parse(mint.init.body)).toEqual({ kind: 'quiz', deed: 'quiz_done', lang: 'en', st: 's1' });
+  });
+  test('"Share to class group": deed + topic, the class link with the card, the return line — no score', async () => {
+    const p = onPage('en');
+    await flush(); await flush();
+    p.els['#wq-share'].fire('click');
+    const t = waText(p);
+    expect(t.split('\n')).toEqual([`⭐ ${FC.DEEDS.en.quiz_done}`, '“⁨Plants⁩”', `https://example.test/q/TEST?k=${TOK}`, RET.en.text, RET.en.href]);
+    expect(t).not.toMatch(/3\/5|stars|beat/);
+  });
+  test('in WhatsApp\'s own browser (no file share) the "send" screen opens WhatsApp in a new window, never in this page', async () => {
+    const p = onPage('en');
+    await flush(); await flush();
+    p.els['#wq-share'].fire('click');
+    const a = /<a class="wq-btn wq-go" id="wq-wa"[^>]*>/.exec(p.html())[0];
+    expect(a).toContain('target="_blank"');
+    expect(a).toContain('rel="noopener"');
+    expect(a).toContain('href="https://wa.me/?text=');
+  });
+  test('switch off: today\'s "send" screen is unchanged (its link has no target)', () => {
+    for (const lang of ['en', 'ur']) {
+      const p = page({ lang, store: store(RESULT) });
+      p.els['#wq-share'].fire('click');
+      const a = /<a class="wq-btn wq-go" id="wq-wa"[^>]*>/.exec(p.html())[0];
+      expect(a).toMatch(/^<a class="wq-btn wq-go" id="wq-wa" href="https:\/\/wa\.me\/\?text=[^"]*">$/);
+    }
+  });
+  test('the Next tile comes from the ranked next_offer, never from the chapter video under next', () => {
+    const offer = { kind: 'storybook', href: '/s/b1/1', title: 'Read a storybook', minutes: 2, offer: 'o1', arm: 'rank' };
+    const h = onPage('en', { next: { vid: 'v1', title: 'Water' }, next_offer: offer }).html();
+    expect(h).toContain('id="wqfc-next" data-tap="next" href="/s/b1/1"');
+    expect(onPage('en', { next: { vid: 'v1', title: 'Water', href: '/q/X' } }).html()).not.toContain('wqfc-next');
+  });
+  test('a friend\'s challenge run: no card (the challenge share is today\'s)', () => {
+    const p = page({ lang: 'en', store: store({ ...RESULT, card_v3: true }), challenge: { code: 'CHAL12', first: 'Omar' } });
+    vm.runInContext(FC_SRC, p.ctx);
+    p.wq.card();
+    expect(p.html()).not.toContain('wqfc-deed');
+  });
+  test('card_shown once per finish, however often the card is drawn', async () => {
+    const p = onPage('en');
+    p.wq.card(); p.wq.card();
+    p.fireWin('pagehide');
+    const evs = p.fetches.filter((f) => f.url === '/api/wq/e').flatMap((f) => JSON.parse(f.init.body).events);
+    expect(evs.filter((e) => e.n === 'card_shown')).toEqual([expect.objectContaining({ n: 'card_shown', src: 'quiz', ok: true })]);
+  });
+});
+
+describe('switch on: the class share never goes without a link (the card link once it is in)', () => {
+  // the card link's request answers when the test says (a slow phone on a weak connection: ~15 s measured)
+  function slowPage(lang = 'en') {
+    let answer;
+    const pending = new Promise((res) => { answer = res; });
+    const p = page({ lang, store: store({ ...RESULT, card_v3: true }), api: { '/api/wq/card': () => pending } });
+    vm.runInContext(FC_SRC, p.ctx);
+    // a real page draws the card again (new buttons); the harness keeps one fake button, so drop the first draw's listener
+    p.els['#wq-share'].listeners = {};
+    p.wq.card();
+    return { p, answer };
+  }
+  const lines = (p) => (waText(p) || '').split('\n');
+  test.each(['en', 'ur'])('%s: a tap before the card link is in waits, then sends the class link after at most 2 s (no digits)', async (lang) => {
+    const { p } = slowPage(lang);
+    await flush();
+    p.els['#wq-share'].fire('click');
+    await flush();
+    expect(p.html()).not.toContain('id="wq-wa"');
+    expect(p.timers.some((t) => t.fn && t.ms === 2000)).toBe(true);
+    p.runTimers(2000);
+    await flush();
+    const l = lines(p);
+    expect(l[0]).toBe(`⭐ ${FC.DEEDS[lang].quiz_done}`);
+    expect(l.filter((x) => !/^https?:/.test(x)).join(' ')).not.toMatch(/[0-9\u06F0-\u06F9]/);
+    // the class link (today's, with its class picture key) — never a card token
+    expect(l.filter((x) => /^https:\/\/example\.test\/q\/TEST(\?a=[\w.-]+)?$/.test(x)).length).toBe(1);
+    expect(waText(p)).not.toMatch(/[?&]k=/);
+  });
+  test('the card link arrives during the wait: the tap sends the card link at once', async () => {
+    const { p, answer } = slowPage('en');
+    await flush();
+    p.els['#wq-share'].fire('click');
+    answer({ token: TOK, url: `/q/TEST?k=${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET.en });
+    await flush(); await flush(); await flush();
+    expect(lines(p)).toContain(`https://example.test/q/TEST?k=${TOK}`);
+  });
+  test('the card link was refused (another phone, a cold store): the class link at once, no wait', async () => {
+    const p = page({ lang: 'ur', store: store({ ...RESULT, card_v3: true }), api: { '/api/wq/card': { __status: 403, error: 'other_device' } } });
+    vm.runInContext(FC_SRC, p.ctx);
+    p.els['#wq-share'].listeners = {};
+    p.wq.card();
+    await flush(); await flush();
+    p.els['#wq-share'].fire('click');
+    await flush();
+    expect(lines(p).filter((x) => /^https:\/\/example\.test\/q\/TEST(\?a=[\w.-]+)?$/.test(x)).length).toBe(1);
+    expect(p.timers.some((t) => t.fn && t.ms === 2000)).toBe(false);
+  });
+});
+
+describe('switch on: Share to class group (the card\'s own link) tapped before its link is in', () => {
+  test('the tap is held (soft) at most 2 s; when the link lands the same link opens with it, once', async () => {
+    let answer;
+    const pending = new Promise((res) => { answer = res; });
+    const timers = [];
+    const listeners = [];
+    const a = { tagName: 'A', className: 'wq-btn wq-go wqfc-share', href: null, clicks: 0,
+      setAttribute(k, v) { if (k === 'href') this.href = v; }, addEventListener(n, fn) { listeners.push(fn); },
+      click() { this.clicks += 1; listeners.forEach((fn) => fn({ currentTarget: a, preventDefault() { a.held = (a.held || 0) + 1; } })); } };
+    const fc = fcAlone({ fetch: () => pending.then((j) => ({ ok: true, text: () => Promise.resolve(JSON.stringify(j)) })),
+      setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout() {},
+      document: { getElementById: (id) => (id === 'wqfc-share' ? a : null), createElement: () => ({}), head: { appendChild() {} } } });
+    fc.mount({ insertAdjacentHTML() {} }, { kind: 'read', deed: 'read_some', lang: 'en', auth: { ct: 'CT1' } });
+    let prevented = 0;
+    listeners.forEach((fn) => fn({ currentTarget: a, preventDefault() { prevented += 1; } }));
+    expect(prevented).toBe(1);
+    expect(a.className).toContain('wq-soft');
+    expect(timers.map((t) => t.ms)).toContain(2000);
+    answer({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET.en });
+    await flush(); await flush(); await flush();
+    expect(a.clicks).toBe(1);
+    expect(a.held || 0).toBe(0);
+    expect(a.className).toBe('wq-btn wq-go wqfc-share');
+    expect(decodeURIComponent(a.href)).toContain(`https://portal.example/k/${TOK}`);
+  });
+});
+
+/* ---------------- the Jugnu end cards (wq-trail.js) ---------------- */
+// A small host: the page's helpers as wq-challenge.js hands them over, the screen as one HTML string.
+function trail({ lang = 'en', data = {}, menu = {}, withFc = false, href = 'https://portal.example/c/tok' } = {}) {
+  let screen = '';
+  const listeners = {};
+  const fetches = [];
+  const events = [];
+  // a button's class as the screen string carries it (the card restyles the host's Home)
+  const classOf = (id) => { const m = new RegExp(`class="([^"]*)" id="${id}"`).exec(screen); return m ? m[1] : ''; };
+  const el = (id) => ({ id, tagName: id === 'wqfc-share' || id === 'wqfc-next' ? 'A' : 'DIV', parentNode: { removeChild() { screen = screen.replace(/<p class="wq-sub" id="wqc-next">[^<]*<\/p>/, ''); } },
+    get className() { return classOf(id); }, set className(v) { screen = screen.replace(`class="${classOf(id)}" id="${id}"`, `class="${v}" id="${id}"`); },
+    addEventListener(n, fn) { (listeners[id] = listeners[id] || []).push(fn); }, setAttribute() {} });
+  const ctx = {
+    location: { origin: 'https://portal.example', hash: '', href }, navigator: {}, URL,
+    sessionStorage: { getItem: () => null, setItem() {} }, localStorage: { getItem: () => null, setItem() {} },
+    // painted: the card was already on the screen when the request went out (the card never waits for the network)
+    fetch: (url, init) => { fetches.push({ url, init, painted: screen.indexOf('id="wqfc-share"') >= 0 }); return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[lang] })) }); },
+    document: {
+      getElementById: (id) => (screen.indexOf(`id="${id}"`) >= 0 ? el(id) : null),
+      querySelector: (sel) => (sel === '#wq .wq-stack' && screen.indexOf('<div class="wq-stack">') >= 0
+        ? { insertAdjacentHTML: (pos, h) => { screen = screen.replace('<div class="wq-stack">', `${h}<div class="wq-stack">`); } } : null),
+      createElement: () => ({ setAttribute() {} }), head: { appendChild() {} },
+    },
+  };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  if (withFc) vm.runInContext(FC_SRC, ctx);
+  vm.runInContext(TRAIL_SRC, ctx);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const S = { data: { ct: 'CT1', ex: 'read', story: { tokens: ['a', 'b', 'c', 'd'] }, title: { en: 'The lost kite', ur: 'کھوئی ہوئی پتنگ' }, ...data } };
+  const h = {
+    L: lang, t: { again: 'Again', later: 'Later', listening: 'Listening' }, tc: (k) => k, boot: { kid: 'k1', token: 'tok' }, S, esc,
+    on: () => {}, q: () => null, show: (name, html) => { S.screen = name; screen = html; }, jug: (pose, line) => `<p class="wq-say">${esc(line)}</p>`,
+    ev: (n, p) => events.push({ n, ...p }), open() {}, refreshMenu() {}, md: () => menu, read() {}, backLabel: () => '', qa: () => ({ open() {} }), qaButtons: () => '<button id="wqc-qa">Q</button>',
+  };
+  const TR = ctx.WQTRAIL.init(h);
+  return { TR, html: () => screen, fetches, events, tap: (id) => (listeners[id] || []).forEach((fn) => fn({ preventDefault() {} })) };
+}
+
+describe('golden: switch off, the Trail end cards are today\'s', () => {
+  const GOLD = { read_all: 'c247689a7b897e57', read_zero: 'cd1049d1491e4362', listen: '9c71f1b63448d47e' };
+  test('read all / read none / listen, with the card script even present', () => {
+    for (const withFc of [false, true]) {
+      const got = {};
+      let t = trail({ withFc });
+      t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
+      got.read_all = sha(t.html());
+      t = trail({ withFc });
+      t.TR.readEnd({ score: { attempted: 0 } }, null, 0);
+      got.read_zero = sha(t.html());
+      t = trail({ withFc, data: { ex: 'listen' } });
+      t.TR.tapEnd('listen-result', {});
+      got.listen = sha(t.html());
+      t = trail({ withFc, data: { ex: 'listen' } });
+      t.TR.tapEnd('listen-result', {});
+      expect(t.fetches.length).toBe(0);
+      expect(got).toEqual(GOLD);
+    }
+  });
+});
+
+describe('switch on: every Trail finish gets the card', () => {
+  const on = (o = {}) => trail({ withFc: true, menu: { card_v3: true }, ...o });
+  test('a read: Share to class group sits above the card\'s own buttons; the deed matches the line', async () => {
+    const t = on();
+    t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
+    const h = t.html();
+    expect(h.indexOf('id="wqfc-share"')).toBeGreaterThan(h.indexOf('You read the whole story!'));
+    expect(h.indexOf('id="wqfc-share"')).toBeLessThan(h.indexOf('<div class="wq-stack">'));
+    await flush();
+    expect(JSON.parse(t.fetches[0].init.body)).toEqual({ kind: 'read', deed: 'read_all', lang: 'en', ct: 'CT1' });
+    // EVENTS_V3 §4's names (source, share_ok) beside today's (src, ok)
+    expect(t.events).toContainEqual({ n: 'card_shown', src: 'read', ok: true, source: 'read', share_ok: true });
+  });
+  test.each([
+    [{ score: { attempted: 1 } }, 1, 'read_some'],
+    [{ score: { attempted: 0 } }, 0, 'read_tried'],
+  ])('read %#: deed %s', async (r, heard, deed) => {
+    const t = on();
+    t.TR.readEnd(r, null, heard);
+    await flush();
+    expect(JSON.parse(t.fetches[0].init.body).deed).toBe(deed);
+  });
+  test('a listening story and a numbers game', async () => {
+    let t = on({ data: { ex: 'listen' } });
+    t.TR.tapEnd('listen-result', {});
+    await flush();
+    expect(JSON.parse(t.fetches[0].init.body)).toMatchObject({ kind: 'listen', deed: 'listen_done' });
+    t = on({ data: { ex: 'bigger' } });
+    t.TR.tapEnd('bigger-result', {});
+    await flush();
+    expect(JSON.parse(t.fetches[0].init.body)).toMatchObject({ kind: 'game', deed: 'game_done' });
+  });
+  test('the share opens wa.me with the link and the return line; the Next tile replaces the plain Next line', async () => {
+    const NEXT = { kind: 'story', href: '/c/tok?kid=k1#read', title: 'Read a story with Jugnu', minutes: 2 };
+    const t = on({ data: { next_offer: NEXT } });
+    t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
+    expect(t.html()).toContain('id="wqfc-next"');
+    expect(t.html()).not.toContain('id="wqc-next"');
+    await flush(); await flush();
+    t.tap('wqfc-share');
+    expect(t.events).toContainEqual({ n: 'card_share', src: 'read', step: 'card_image', how: 'wa', source: 'read', kind: 'card_image', path: 'wa' });
+    // the picture is asked for on the tap, so the sender's preview finds it drawn
+    expect(t.fetches.map((f) => f.url)).toContain(`/wq/card/${TOK}.png`);
+  });
+  test('Urdu', () => {
+    const t = on({ lang: 'ur' });
+    t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
+    expect(t.html()).toContain('کلاس گروپ میں بھیجیں');
+    expect(t.html()).toContain('dir="rtl"');
+  });
+  test('never on a practice round or a class round turn', () => {
+    for (const data of [{ practice_round: true }, { round_turn: true, round_handback: 'Back' }]) {
+      const t = on({ data });
+      t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
+      expect(t.html()).not.toContain('wqfc');
+    }
+  });
+});
+
+/* ---------------- a card never certifies a read nobody heard (the zero-input chain) ---------------- */
+describe('switch on: the zero-input chain — the outcome decides the card, not the line', () => {
+  const TWELVE = { tokens: 'a b c d e f g h i j k l'.split(' ') };
+  const on = (o = {}) => trail({ withFc: true, menu: { card_v3: true }, ...o, data: { story: TWELVE, ...(o.data || {}) } });
+  const mintOf = (t) => JSON.parse(t.fetches.find((f) => f.url === '/api/wq/card').init.body);
+  test.each([
+    ['Done at 0 of 12', { score: { attempted: 0 } }, 0],
+    ['Done at 1 of 12 (under a tenth)', { score: { attempted: 1 } }, 1],
+    ['the live read heard nothing though the server counted words', { score: { attempted: 3 } }, 0],
+    ['the read ended silent', { score: { attempted: 3 }, ended: 'silent' }, 3],
+    ['the recording failed', { failed: true, score: { attempted: 5 } }, null],
+  ])('%s: "Let\'s read it together", no sticker line, the try card', async (_, r, heard) => {
+    const t = on();
+    t.TR.readEnd(r, null, heard);
+    const h = t.html();
+    expect(h).toContain('Let&#39;s read it together');
+    expect(h).not.toContain('wqc-sticker');
+    expect(h).not.toMatch(/sticker went into/i);
+    await flush();
+    expect(mintOf(t)).toMatchObject({ kind: 'read', deed: 'read_tried' });
+    // a card that certified nothing says so, so return-by-source can leave it out
+    expect(t.events).toContainEqual(expect.objectContaining({ n: 'card_shown', source: 'read', tried: true }));
+  });
+  test('Urdu: «آئیں مل کر پڑھیں»', () => {
+    const t = on({ lang: 'ur' });
+    t.TR.readEnd({ score: { attempted: 0 } }, null, 0);
+    expect(t.html()).toContain('آئیں مل کر پڑھیں');
+    expect(t.html()).not.toContain('wqc-sticker');
+  });
+  test('2 of 12 (a tenth or more) still earns the sticker and "read some"', async () => {
+    const t = on();
+    t.TR.readEnd({ score: { attempted: 2 } }, null, 2);
+    expect(t.html()).toContain('wqc-sticker');
+    await flush();
+    expect(mintOf(t).deed).toBe('read_some');
+  });
+  test('not scored yet (later): "Just wait a little" (never «نتیجہ»), no sticker, no Again, the try card', async () => {
+    const t = on();
+    t.TR.readEnd({ later: true });
+    const h = t.html();
+    expect(h).toContain('Just wait a little.');
+    const u = on({ lang: 'ur' });
+    u.TR.readEnd({ later: true });
+    expect(u.html()).toContain('بس تھوڑا سا انتظار کریں۔');
+    expect(u.html()).not.toContain('نتیجہ');
+    expect(h).not.toContain('wqc-sticker');
+    expect(h).not.toContain('wqc-again');
+    await flush();
+    expect(mintOf(t).deed).toBe('read_tried');
+  });
+  test('Story Time, nothing heard: the together card, no sticker, the try card', async () => {
+    const t = on({ href: 'https://portal.example/c/tok?room=story&pid=p1', menu: { card_v3: true, v2: { story: true } }, data: { story_room: true } });
+    // the room opens its story (h.open), then the story's read ends with no words heard
+    t.TR.menu();
+    t.TR.readEnd({ score: { attempted: 0 } }, null, 0);
+    expect(t.html()).toContain('Let&#39;s read it together');
+    expect(t.html()).not.toContain('wqc-sticker');
+  });
+  test('switch on: the host\'s Home is soft, so green is Share only', () => {
+    const t = on();
+    t.TR.readEnd({ score: { attempted: 12 } }, null, 12);
+    expect(t.html()).toMatch(/class="wq-btn wq-soft" id="wqc-menu"/);
+  });
+});
+
+/* ---------------- one card, three sources (the story reader's call) ---------------- */
+describe('WQFC.mount({source}) — the result object the reader hands over', () => {
+  function mountWith(o) {
+    let out = '';
+    const fetches = [];
+    const fc = fcAlone({ fetch: (url, init) => { fetches.push({ url, init, painted: out.indexOf('id="wqfc-share"') >= 0 }); return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[o.lang || 'en'] })) }); },
+      document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
+    const events = [];
+    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { auth: { hub: 'H', kid: 'K' }, ev: (n, p) => events.push({ n, ...p }), ...o });
+    return { ok, out, fetches, fc, events };
+  }
+  test('a story read: the deed counts pages in Urdu digits, the headline by `ended`, ONE sticker, the share', async () => {
+    const m = mountWith({ source: 'story', ended: 'read', pages_read: 3, stars: 3, title: 'دھوپ', lang: 'ur', sticker: true });
+    expect(m.ok).toBe(true);
+    expect(m.out).toContain('۳ صفحے پڑھے');
+    expect(m.out).toContain('آپ نے جگنو کے ساتھ پڑھا!');
+    expect((m.out.match(/data-sticker/g) || []).length).toBe(1);
+    expect(m.out).toContain('id="wqfc-share"');
+    expect(/data-n>([^<]*)</.exec(m.out)[1]).not.toMatch(/[0-9]/);
+    await flush();
+    expect(JSON.parse(m.fetches[0].init.body)).toEqual({ kind: 'book', deed: 'book_read', lang: 'ur', hub: 'H', kid: 'K' });
+    expect(m.events).toContainEqual({ n: 'card_shown', src: 'book', ok: true, source: 'story', share_ok: true });
+  });
+  test('EN: one page reads "1 page read"; effort stars are never drawn as a count', () => {
+    const m = mountWith({ source: 'story', ended: 'read', pages_read: 1, stars: 2, lang: 'en' });
+    expect(m.out).toContain('1 page read');
+    expect(m.out).not.toMatch(/⭐|★|stars?\b/);
+  });
+  test('listened only: "pages heard", the listening deed', async () => {
+    const m = mountWith({ source: 'story', ended: 'listened', pages_read: 0, pages_listened: 2, lang: 'en' });
+    expect(m.out).toContain('2 pages heard');
+    expect(m.out).toContain('You listened with Jugnu!');
+    await flush();
+    expect(JSON.parse(m.fetches[0].init.body)).toMatchObject({ kind: 'book', deed: 'listen_done' });
+  });
+  test('zero input: "Let\'s read it together", no sticker, no count, the try card', async () => {
+    const m = mountWith({ source: 'story', ended: 'read', pages_read: 0, lang: 'en' });
+    expect(m.out).toContain('Let&#39;s read it together');
+    expect(m.out).not.toContain('data-sticker');
+    expect(m.out).not.toMatch(/pages? (read|heard)/);
+    await flush();
+    expect(JSON.parse(m.fetches[0].init.body).deed).toBe('read_tried');
+  });
+  test('the share text never carries the page count', () => {
+    const m = mountWith({ source: 'story', ended: 'read', pages_read: 7, lang: 'en' });
+    const href = /id="wqfc-share"[^>]*href="([^"]+)"/.exec(m.out)[1];
+    expect(decodeURIComponent(href.replace(/&amp;/g, '&'))).not.toMatch(/7|page/);
+  });
+  test('numbers is WQFC\'s, from the source: the quiz keeps its own score, a read none, a story the count-up deed', () => {
+    expect(FC.numbersFor('quiz')).toBe('score');
+    expect(FC.numbersFor('read')).toBe('none');
+    expect(FC.numbersFor('story')).toBe('deed');
+    expect(FC.numbersFor('anything')).toBe('none');
+  });
+  test('the old {kind, deed} call still mounts', () => {
+    expect(mountWith({ kind: 'game', deed: 'game_done', lang: 'en' }).ok).toBe(true);
+  });
+});
+
+/* ---------------- a storybook's card: the child's next thing leads, the book's cover on the card ---------------- */
+describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s cover is drawn', () => {
+  const MORE = { kind: 'stories', href: '/h/tok?x=1#stories', title: 'More stories' };
+  const MORE_UR = { kind: 'stories', href: '/h/tok?x=1#stories', title: 'اور کہانیاں' };
+  const NEXT = { kind: 'storybook', id: 'b1', href: '/s/b1/1', title: 'Read a storybook', title_ur: 'کہانی کی کتاب پڑھیں', sub: 'Sunny Day', minutes: 2, art: '/wq/art/story-1.webp' };
+  // The share's label is the card's own word and is pinned elsewhere; these goldens hash everything else.
+  const shaS = (h) => sha(String(h).replace(/(id="wqfc-share"[^>]*>)[^<]*(<\/a>)/g, '$1$2'));
+  function fcPage() {
+    return fcAlone({ fetch: () => Promise.resolve({ ok: false }), document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
+  }
+  function mountStory(o) {
+    let out = '';
+    const ok = fcPage().mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', ended: 'read', pages_read: 3, auth: { hub: 'H', kid: 'K' }, home: '#', sticker: true, ...o });
+    return { ok, out };
+  }
+  const prim = (h) => (h.match(/data-primary/g) || []).length;
+  test.each([['en', MORE, 'More stories'], ['ur', MORE_UR, 'اور کہانیاں']])('%s: lead + next -> the Next tile is the ONE primary, first; the share is soft, after it', (lang, more, label) => {
+    const m = mountStory({ lang, title: 'Mina Testwala', next: more, lead: true });
+    expect(m.ok).toBe(true);
+    expect(prim(m.out)).toBe(1);
+    expect(m.out).toMatch(new RegExp('<a class="wqfc-next wqfc-lead" id="wqfc-next" data-primary data-tap="next" href="/h/tok\\?x=1#stories">[^]*<b dir="auto">' + label + '</b>'));
+    expect(m.out).toMatch(/<a class="wq-btn wq-soft wqfc-share" id="wqfc-share" data-tap="card_share"/);
+    expect(m.out.indexOf('id="wqfc-next"')).toBeLessThan(m.out.indexOf('id="wqfc-share"'));
+    // the sticker and the deed are the card's as before
+    expect((m.out.match(/data-sticker/g) || []).length).toBe(1);
+  });
+  test('lead given but no usable Next (none, or not same-origin): the share stays the one primary', () => {
+    for (const next of [null, { href: 'https://evil.example/x', title: 'x' }]) {
+      const m = mountStory({ lang: 'en', next, lead: true });
+      expect(prim(m.out)).toBe(1);
+      expect(m.out).toMatch(/wq-go wqfc-share" id="wqfc-share" data-primary/);
+    }
+    expect(FC.html({ kind: 'book', deed: 'book_read', lang: 'en', next: null, lead: true })).toMatch(/wq-go wqfc-share" id="wqfc-share" data-primary/);
+  });
+  test.each([['en', 'Mina Testwala'], ['ur', 'دھوپ']])('%s: the book\'s cover is drawn at the top, alt = the book\'s title', (lang, title) => {
+    const m = mountStory({ lang, title, cover: '/s/b-1/cover.webp', next: MORE, lead: true });
+    expect(m.out).toMatch(new RegExp('<img class="wqfc-cov" src="/s/b-1/cover\\.webp" alt="' + title + '" width="96" height="144"'));
+    expect((m.out.match(/<img/g) || []).length).toBe(1);
+    // the cover comes before the headline (the book first, then the deed)
+    expect(m.out.indexOf('wqfc-cov')).toBeLessThan(m.out.indexOf('wqfc-head'));
+    // a cover that fails to load leaves no empty box
+    expect(m.out).toMatch(/<img class="wqfc-cov"[^>]*onerror="this\.hidden=true"/);
+  });
+  test('no cover, or a cover that is not a same-origin path: no cover box at all', () => {
+    for (const cover of [undefined, null, '', 'https://evil.example/c.webp', '//evil.example/c.webp', '/\\evil.example/c.webp', '/s\\..\\x', 'javascript:alert(1)', '/s/b-1/c.webp" onload="x']) {
+      const m = mountStory({ lang: 'en', title: 'Mina Testwala', cover, next: MORE, lead: true });
+      expect(m.out).not.toContain('wqfc-cov');
+      expect(m.out).not.toMatch(/<img/);
+    }
+  });
+  test('the Next tile\'s art may be a storybook cover (/s/<book>/<file>) beside /wq/ art; anything else draws the play mark', () => {
+    expect(FC.nextHtml('en', { ...MORE, art: '/s/b-9/cover.webp' }, true)).toContain('<img class="wqfc-art" src="/s/b-9/cover.webp" alt="" width="64" height="64" loading="lazy">');
+    expect(FC.nextHtml('en', { ...MORE, art: '/wq/art/story-1.webp' }, true)).toContain('<img class="wqfc-art" src="/wq/art/story-1.webp"');
+    for (const art of ['https://evil.example/c.webp', '//evil.example/c.webp', '/s/b-9/c.webp" onerror="x', '/api/x', '/s/../x']) {
+      const h = FC.nextHtml('en', { ...MORE, art }, true);
+      expect(h).not.toContain('<img');
+      expect(h).toContain('<span class="wqfc-art" aria-hidden="true"><svg');
+    }
+  });
+  // A ranked next offer that is a storybook already carries its cover (/s/<book>/<file>): on ANY finish card (a quiz,
+  // a read, a game) its tile now shows that cover instead of the play mark. Pinned here, EN and UR.
+  test('golden: a quiz / read / game card whose Next is a storybook shows the book\'s cover in the tile; the rest of the card unchanged', () => {
+    const STORY = { kind: 'storybook', id: '6f165633-0000-4000-8000-000000000001', href: '/h/tok#story/6f165633-0000-4000-8000-000000000001', title: 'Read a storybook', title_ur: 'کہانی کی کتاب پڑھیں', sub: 'Sunny Day', minutes: 2, art: '/s/6f165633-0000-4000-8000-000000000001/cover.webp' };
+    const PLAY_MARK = { ...STORY, art: null };
+    const GOLD = { en_quiz: '50281ee68c71aaee', en_read_all: 'b9d6b4835c3333f8', en_game: '74df2a5101c7aff5', ur_quiz: '2b62795af1df837a', ur_read_all: '5249b5183ef69480', ur_game: '2d52167017f9e574' };
+    const out = {};
+    for (const l of ['en', 'ur']) {
+      for (const [k, d] of [['quiz', 'quiz_done'], ['read', 'read_all'], ['game', 'game_done']]) {
+        const h = fcPage().html({ kind: k, deed: d, lang: l, next: STORY, home: '/h/tok' });
+        expect(h).toContain('<img class="wqfc-art" src="/s/6f165633-0000-4000-8000-000000000001/cover.webp" alt="" width="64" height="64" loading="lazy">');
+        // the only difference from a tile without art: the play mark gives way to the cover
+        const h0 = fcPage().html({ kind: k, deed: d, lang: l, next: PLAY_MARK, home: '/h/tok' });
+        expect(h.replace(/<img class="wqfc-art"[^>]*>/, 'ART')).toBe(h0.replace(/<span class="wqfc-art" aria-hidden="true"><svg[^]*?<\/svg><\/span>/, 'ART'));
+        out[`${l}_${k === 'read' ? 'read_all' : k}`] = shaS(h);
+      }
+    }
+    expect(out).toEqual(GOLD);
+  });
+  test('the cover has its own style in the card\'s CSS', () => {
+    expect(FC.CSS).toMatch(/\.wqfc-cov\{[^}]*object-fit:cover/);
+  });
+  // Hashed from the card file before this change (this harness, these fixtures; the share's label masked): without lead/cover every card is today's.
+  test('golden: without lead and cover, the quiz, read and story cards are today\'s, byte for byte', () => {
+    const GOLD = { html_en_quiz_quiz_done: '01e1a0f735903633', html_en_read_read_all: 'b043be6aa264e61d', html_en_read_read_tried: 'b2842bdc5339f484', html_en_book_book_read: '0ece46b785ebfbbd', html_en_book_read_tried: 'b2842bdc5339f484',
+      mount_en_read_3: '3510ec0aa9772488', mount_en_listened_0: '9d857b57ddae0921', mount_en_read_0: 'c2fce765ca3fe8f5', html_ur_quiz_quiz_done: '9cfaf40c1eb8cc71', html_ur_read_read_all: '98ce274286322afc', html_ur_read_read_tried: 'f1bf08ba8287d328',
+      html_ur_book_book_read: 'd6591dbc87955742', html_ur_book_read_tried: 'f1bf08ba8287d328', mount_ur_read_3: 'f7b33b8fbb2ad4de', mount_ur_listened_0: '75b94e63734cbf11', mount_ur_read_0: '8ed89c79f28c9edc' };
+    const out = {};
+    for (const l of ['en', 'ur']) {
+      for (const [k, d] of [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_tried'], ['book', 'book_read'], ['book', 'read_tried']]) out[`html_${l}_${k}_${d}`] = shaS(fcPage().html({ kind: k, deed: d, lang: l, next: NEXT, home: '/h/tok' }));
+      for (const [e, pr] of [['read', 3], ['listened', 0], ['read', 0]]) {
+        let h = '';
+        fcPage().mount({ insertAdjacentHTML: (p, x) => { h += x; } }, { source: 'story', ended: e, pages_read: pr, pages_listened: 2, title: 'Mina Testwala', lang: l, auth: { hub: 'H', kid: 'K' }, next: NEXT, home: '#', sticker: true });
+        out[`mount_${l}_${e}_${pr}`] = shaS(h);
+      }
+    }
+    expect(out).toEqual(GOLD);
+  });
+});
+
+/* ---------------- a storybook finished: the biggest true thing first, then each true deed ---------------- */
+describe('a storybook reached its end (whole: true): "You finished the story!" and the deed lines, each only when > 0', () => {
+  function mountFin(o) {
+    let out = '';
+    const fetches = [];
+    const fc = fcAlone({ fetch: (url, init) => { fetches.push(JSON.parse(init.body)); return Promise.resolve({ ok: false }); }, document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
+    // sticker: the server's answer to story_done (true on a first finish with pages; the reader passes it as it came)
+    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', auth: { hub: 'H', kid: 'K' }, home: '#', sticker: true, ...o });
+    return { ok, out, fetches };
+  }
+  const lines = (h) => [...h.matchAll(/<p class="wqfc-count"[^>]*>([^<]*)</g)].map((m) => m[1]);
+  test('EN: 1 page heard + 4 questions answered -> the finish headline, two deed lines, one sticker; the deed is the listening one', async () => {
+    const m = mountFin({ ended: 'listened', pages_read: 0, pages_listened: 1, whole: true, answered: 4, lang: 'en' });
+    expect(m.ok).toBe(true);
+    expect(/<h2 class="wqfc-head"[^>]*>([^<]*)</.exec(m.out)[1]).toBe('You finished the story!');
+    expect(lines(m.out)).toEqual(['1 page heard', '4 questions answered']);
+    expect((m.out.match(/data-sticker/g) || []).length).toBe(1);
+    await flush();
+    expect(m.fetches[0]).toMatchObject({ kind: 'book', deed: 'listen_done' });
+  });
+  test('UR: Urdu digits, the native lines; one question in the singular', () => {
+    const m = mountFin({ ended: 'read', pages_read: 3, whole: true, answered: 1, lang: 'ur' });
+    expect(m.out).toContain('<h2 class="wqfc-head" dir="auto">آپ نے کہانی پوری کر لی!</h2>');
+    expect(lines(m.out)).toEqual(['۳ صفحے پڑھے', '۱ سوال کا جواب دیا']);
+    const m4 = mountFin({ ended: 'read', pages_read: 2, whole: true, answered: 4, lang: 'ur' });
+    expect(lines(m4.out)).toEqual(['۲ صفحے پڑھے', '۴ سوالوں کے جواب دیے']);
+    expect(lines(m4.out).join(' ')).not.toMatch(/[0-9]/);
+  });
+  test('EN: one question reads "1 question answered"; no questions answered -> no questions line', () => {
+    expect(lines(mountFin({ ended: 'read', pages_read: 2, whole: true, answered: 1, lang: 'en' }).out)).toEqual(['2 pages read', '1 question answered']);
+    const m = mountFin({ ended: 'read', pages_read: 2, whole: true, answered: 0, lang: 'en' });
+    expect(m.out).toContain('>You finished the story!<');
+    expect(lines(m.out)).toEqual(['2 pages read']);
+  });
+  // the server keeps no finish for a book only looked through (sticker: false, no ✓ on the shelf): the card says so
+  test.each(['en', 'ur'])('%s: nothing heard or read but the questions answered -> "You looked through the whole book", the questions line only, NO sticker; the deed is "answered"', async (lang) => {
+    const m = mountFin({ ended: 'read', pages_read: 0, pages_listened: 0, whole: true, answered: 2, lang, sticker: false });
+    expect(m.out).toContain(lang === 'ur' ? '>آپ نے پوری کتاب دیکھ لی۔<' : '>You looked through the whole book.<');
+    expect(m.out).not.toMatch(/You finished the story|آپ نے کہانی پوری کر لی/);
+    expect(lines(m.out)).toEqual([lang === 'ur' ? '۲ سوالوں کے جواب دیے' : '2 questions answered']);
+    expect(m.out).not.toContain('data-sticker');
+    expect(m.out).not.toMatch(/together|مل کر پڑھیں/);
+    await flush();
+    expect(m.fetches[0]).toMatchObject({ kind: 'story', deed: 'answered' });
+  });
+  test.each(['en', 'ur'])('%s: a book read again (the server gave no sticker): the finish and the deeds, NO sticker line', (lang) => {
+    const m = mountFin({ ended: 'read', pages_read: 3, whole: true, answered: 2, lang, sticker: false });
+    expect(m.out).toContain(lang === 'ur' ? '>آپ نے کہانی پوری کر لی!<' : '>You finished the story!<');
+    expect(lines(m.out)).toEqual(lang === 'ur' ? ['۳ صفحے پڑھے', '۲ سوالوں کے جواب دیے'] : ['3 pages read', '2 questions answered']);
+    expect(m.out).not.toContain('data-sticker');
+    expect(m.out).not.toMatch(/A new sticker|ایک نیا اسٹیکر/);
+  });
+  test('the sticker line needs the server\'s exact true: absent, "true" or 1 -> none', () => {
+    for (const st of [undefined, 'true', 1]) expect(mountFin({ ended: 'listened', pages_listened: 2, whole: true, answered: 1, lang: 'en', sticker: st }).out).not.toContain('data-sticker');
+    expect(mountFin({ ended: 'listened', pages_listened: 2, whole: true, answered: 1, lang: 'en', sticker: true }).out).toContain('data-sticker');
+  });
+  test('the end not reached (no whole): today\'s headline, the questions never counted', () => {
+    const m = mountFin({ ended: 'listened', pages_read: 0, pages_listened: 1, answered: 4, lang: 'en' });
+    expect(m.out).toContain('>You listened with Jugnu!<');
+    expect(lines(m.out)).toEqual(['1 page heard']);
+  });
+  test('the share never carries the counts; never a score word', () => {
+    const m = mountFin({ ended: 'read', pages_read: 3, whole: true, answered: 4, lang: 'en' });
+    const href = /id="wqfc-share"[^>]*href="([^"]+)"/.exec(m.out)[1];
+    expect(decodeURIComponent(href.replace(/&amp;/g, '&'))).not.toMatch(/[0-9]|question|page/);
+    expect(m.out).not.toMatch(/score|correct|right|wrong|نتیجہ|درست|غلط/i);
+  });
+});
+
+/* ---------------- the shared files keep guard lines only ---------------- */
+describe('wq.js / wq-trail.js carry guard lines, the card lives in wq-finish-card.js', () => {
+  const WQ_SRC = fs.readFileSync(path.join(WQ, 'wq.js'), 'utf8');
+  test('today\'s "Share to class group" handler is untouched; the card\'s tap is its own guarded line', () => {
+    expect(WQ_SRC).toContain("    on('#wq-share', function () { share(line, classUrl, 'card', art.card); });\n");
+  });
+  test('wq-trail.js: every card line is one guarded call into WQFC, no card function of its own', () => {
+    expect(TRAIL_SRC).not.toMatch(/function finishCard/);
+    const lines = TRAIL_SRC.split('\n').filter((l) => /WQFC/.test(l));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const l of lines) expect(l.trim()).toMatch(/^if \(window\.WQFC/);
+  });
+  test('the stylesheet the story reader asks for is the card\'s own CSS', () => {
+    expect(fs.readFileSync(path.join(WQ, 'wq-finish-card.css'), 'utf8')).toBe(FC.CSS);
+  });
+});
+
+describe('golden: switch off, the Urdu Trail cards, Story Time\'s end and a held card are today\'s', () => {
+  // Hashed from origin/sandbox ad10e50fc's wq-trail.js (this harness, these fixtures) before this change.
+  const GOLD = { ur_read_all: '5fd11c96d988ff65', ur_read_zero: '4234b39a29b107b6', ur_listen: '60c9b1d21df7cb88', en_story_end: '343db7dd3b03ef46', ur_story_end: '5140be996c852a58', en_hold: 'a81be8ad568eaaeb', en_later: '85395ff3222f9033' };
+  test('with the card script present and the switch off', () => {
+    for (const withFc of [false, true]) {
+      const got = {};
+      let t = trail({ withFc, lang: 'ur' });
+      t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
+      got.ur_read_all = sha(t.html());
+      t = trail({ withFc, lang: 'ur' });
+      t.TR.readEnd({ score: { attempted: 0 } }, null, 0);
+      got.ur_read_zero = sha(t.html());
+      t = trail({ withFc, lang: 'ur', data: { ex: 'listen' } });
+      t.TR.tapEnd('listen-result', {});
+      got.ur_listen = sha(t.html());
+      for (const lang of ['en', 'ur']) {
+        t = trail({ withFc, lang, href: 'https://portal.example/c/tok?room=story&pid=p1', menu: { v2: { story: true } }, data: { story_room: true } });
+        t.TR.menu();
+        t.TR.readEnd({ score: { attempted: 3 } }, null, 3);
+        expect(t.html()).toContain('id="wqc-sticker"');
+        got[`${lang}_story_end`] = sha(t.html());
+      }
+      t = trail({ withFc });
+      t.TR.readHold({ score: { attempted: 2 } }, null, 2);
+      got.en_hold = sha(t.html());
+      t = trail({ withFc });
+      t.TR.readEnd({ later: true });
+      got.en_later = sha(t.html());
+      expect(t.fetches.length).toBe(0);
+      expect(got).toEqual(GOLD);
+    }
+  });
+});
+
+describe('a card that certified nothing: the Next tile is the one primary, Share a soft secondary', () => {
+  const NEXT = { kind: 'readalong', href: '/c/tok?kid=k1#along', title: 'Read along with Jugnu', minutes: 2, offer: 'o9' };
+  test('the try card leads with the tile; the sticker card keeps Share first', () => {
+    const tried = FC.html({ kind: 'read', deed: 'read_tried', lang: 'en', next: NEXT });
+    expect((tried.match(/data-primary/g) || []).length).toBe(1);
+    expect(tried).toMatch(/<a class="wqfc-next wqfc-lead" id="wqfc-next" data-primary data-tap="next"/);
+    expect(tried).toMatch(/<a class="wq-btn wq-soft wqfc-share" id="wqfc-share" data-tap="card_share" target="_blank"/);
+    expect(tried.indexOf('id="wqfc-next"')).toBeLessThan(tried.indexOf('id="wqfc-share"'));
+    const won = FC.html({ kind: 'read', deed: 'read_all', lang: 'en', next: NEXT });
+    expect(won.indexOf('id="wqfc-share"')).toBeLessThan(won.indexOf('id="wqfc-next"'));
+    expect(won).toMatch(/class="wq-btn wq-go wqfc-share" id="wqfc-share" data-primary/);
+  });
+  test('no tile to lead with: Share stays the primary', () => {
+    const h = FC.html({ kind: 'read', deed: 'read_tried', lang: 'en' });
+    expect(h).toMatch(/class="wq-btn wq-go wqfc-share" id="wqfc-share" data-primary/);
+  });
+  test('the tile\'s slot events say it came after a try', () => {
+    const events = [];
+    const fc = fcAlone({ document: { getElementById: (id) => (id === 'wqfc-next' ? { addEventListener() {} } : null), createElement: () => ({}), head: { appendChild() {} } } });
+    fc.mount({ insertAdjacentHTML() {} }, { kind: 'read', deed: 'read_tried', lang: 'en', next: NEXT, auth: { ct: 'c' }, ev: (n, p) => events.push({ n, ...p }) });
+    expect(events).toContainEqual(expect.objectContaining({ n: 'next_shown', ctx: 'after_read_tried', offer: 'o9' }));
+  });
+});
+
+/* ---------------- a live read's card paints from the hand-off, never after the server's check ---------------- */
+describe('switch on: a live read\'s held card is the card at once (the hand-off payload, not the server\'s check)', () => {
+  const TWELVE = { tokens: 'a b c d e f g h i j k l'.split(' ') };
+  const on = (o = {}) => trail({ withFc: true, menu: { card_v3: true }, ...o, data: { story: TWELVE, ...(o.data || {}) } });
+  const mintOf = (t) => JSON.parse(t.fetches.find((f) => f.url === '/api/wq/card').init.body);
+  // the page's hand-off under live reading v3: readHold({score: {attempted}, noSticker: true}, null, heardOk)
+  test.each([
+    ['all 12 heard', 12, 'read_all'],
+    ['5 of 12 heard', 5, 'read_some'],
+  ])('%s: Share to class group + the Next tile under the listening line, no sticker yet', async (_, heard, deed) => {
+    const NEXT = { kind: 'story', href: '/c/tok?kid=k1#read', title: 'Read a story with Jugnu', minutes: 2 };
+    const t = on({ data: { next_offer: NEXT } });
+    expect(t.TR.readHold({ score: { attempted: heard }, noSticker: true }, null, heard)).toBe(true);
+    const h = t.html();
+    expect(h).toContain('id="wqc-listening"');
+    expect(h).toContain('id="wqfc-share"');
+    expect(h).toContain('id="wqfc-next"');
+    expect(h).not.toContain('wqc-sticker');
+    expect(h).not.toContain('data-sticker');
+    // still no button the server's result could change
+    expect(h).not.toContain('wqc-again');
+    expect(h).not.toContain('wqc-qa');
+    await flush();
+    expect(mintOf(t)).toMatchObject({ kind: 'read', deed });
+    expect(t.events).toContainEqual(expect.objectContaining({ n: 'card_shown', source: 'read' }));
+  });
+  test('the card is on the screen before its one request goes out', async () => {
+    const t = on();
+    t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    const mint = t.fetches.filter((f) => f.url === '/api/wq/card');
+    expect(mint.length).toBe(1);
+    expect(mint[0].painted).toBe(true);
+  });
+  test('the settled card after the hold: the sticker arrives, the card stays, one card_shown, one request', async () => {
+    const t = on();
+    t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    t.TR.readEnd({ score: { attempted: 12 } }, null, 12);
+    await flush();
+    expect(t.html()).toContain('wqc-sticker');
+    expect(t.html()).toContain('id="wqfc-share"');
+    expect(t.events.filter((e) => e.n === 'card_shown').length).toBe(1);
+    expect(t.fetches.filter((f) => f.url === '/api/wq/card').length).toBe(1);
+  });
+  test('the settled card keeps the held card\'s deed (one finish, one link) unless the check finds nothing read', async () => {
+    // held from the live words (12 of 12: the whole story); the server's check counts 11 of 12 (#2649 settles with readEnd(r))
+    const t = on();
+    t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    t.TR.readEnd({ score: { attempted: 11 } });
+    await flush();
+    const mints = t.fetches.filter((f) => f.url === '/api/wq/card').map((f) => JSON.parse(f.init.body).deed);
+    expect(mints).toEqual(['read_all']);
+    expect(t.events.filter((e) => e.n === 'card_shown').length).toBe(1);
+    // the check found nothing read: the settled card is the try card (its own deed, said so)
+    const u = on();
+    u.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    u.TR.readEnd({ failed: true, reason: 'unheard' });
+    await flush();
+    expect(u.fetches.filter((f) => f.url === '/api/wq/card').map((f) => JSON.parse(f.init.body).deed)).toEqual(['read_all', 'read_tried']);
+    // and the next read of the same session judges its own deed afresh
+    const v = on();
+    v.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    v.TR.readEnd({ score: { attempted: 12 } });
+    await flush();
+    v.TR.readEnd({ score: { attempted: 5 } }, null, 5);
+    await flush();
+    expect(v.fetches.filter((f) => f.url === '/api/wq/card').map((f) => JSON.parse(f.init.body).deed)).toEqual(['read_all', 'read_some']);
+  });
+  test('a held read that heard nothing is the try card at once, like its settled card', async () => {
+    const t = on();
+    t.TR.readHold({ score: { attempted: 0 }, noSticker: true }, null, 0);
+    expect(t.html()).toContain('Let&#39;s read it together');
+    expect(t.html()).toContain('id="wqfc-share"');
+    await flush();
+    expect(mintOf(t).deed).toBe('read_tried');
+  });
+  test('a class round turn or a practice round still gets no card while held', () => {
+    for (const data of [{ round_turn: true, round_handback: 'Back' }, { practice_round: true }]) {
+      const t = on({ data });
+      t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+      expect(t.html()).not.toContain('wqfc-share');
+    }
+  });
+});
+
+describe('WQFC.mount({source: \'read\'}) — the live read\'s own result (wq:liveread:result)', () => {
+  function mountWith(o) {
+    let out = '';
+    const fetches = [];
+    const fc = fcAlone({ fetch: (url, init) => { fetches.push({ url, init, painted: out.indexOf('id="wqfc-share"') >= 0 }); return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[o.lang || 'en'] })) }); },
+      document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
+    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { auth: { ct: 'CT1' }, ...o });
+    return { ok, out, fetches };
+  }
+  // WQLiveRead.result(): {v, source, lang, words_total, words_read, correct, skipped, wpm: null, ended, marks, counted, live}
+  const R = (words_read, words_total, ended) => ({ v: 1, source: 'passage', lang: 'en', words_total, words_read, correct: words_read, skipped: 0, wpm: null, ended, marks: [], counted: true, live: true });
+  test.each([
+    ['the last word read (24 of 26)', R(24, 26, 'last_word'), 'read_all'],
+    ['a quiet finish at 21 of 26', R(21, 26, 'quiet'), 'read_some'],
+    ['Done at 3 of 26', R(3, 26, 'done_tap'), 'read_some'],
+    ['Done at 2 of 26 (under a tenth)', R(2, 26, 'done_tap'), 'read_tried'],
+    ['nothing heard', R(0, 26, 'done_tap'), 'read_tried'],
+  ])('%s', async (_, r, deed) => {
+    for (const o of [{ source: 'read', result: r, lang: 'en' }, { ...r, source: 'read' }]) {
+      const m = mountWith(o);
+      expect(m.ok).toBe(true);
+      await flush();
+      expect(JSON.parse(m.fetches[0].init.body)).toMatchObject({ kind: 'read', deed });
+    }
+  });
+  test('the card is drawn before the request for its link goes out', async () => {
+    const m = mountWith({ source: 'read', result: R(24, 26, 'last_word'), lang: 'en' });
+    await flush();
+    expect(m.fetches[0].painted).toBe(true);
+  });
+  test('Urdu: the deed and the share in Urdu, no digit on the card', async () => {
+    const m = mountWith({ source: 'read', result: { ...R(50, 61, 'quiet'), lang: 'ur' }, lang: 'ur' });
+    expect(m.out).toContain('dir="rtl"');
+    expect(m.out.replace(/<[^>]*>/g, '')).not.toMatch(/[0-9۰-۹]/);
+    await flush();
+    expect(JSON.parse(m.fetches[0].init.body)).toMatchObject({ kind: 'read', deed: 'read_some', lang: 'ur' });
+  });
+});

@@ -16,6 +16,10 @@
  * same numbers. One page costs a fixed five reads — quizzes, class codes,
  * sessions, class lists, children — whatever the number of rows; never one
  * per quiz.
+ *
+ * With `quiz_teacher_home` on, the library quizzes the teacher SENT (another
+ * teacher's or the bank's, on the teacher's own class code) are rows too, by
+ * their send date, counted on the teacher's own codes only (teacher-report.data).
  */
 
 const supabase = require('../../config/supabase');
@@ -38,6 +42,8 @@ const SEP = ' · ';
 const cpLen = (s) => [...String(s)].length;
 const mean = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 const pct = (correct, total) => (total > 0 ? Math.round((100 * correct) / total) : 0);
+// A log line names the teacher by the events' keyed reference, never by id (null without the key).
+const { tk: tkOf } = require('./web-quiz-kid');
 
 /** The teacher's sent quizzes, newest first — enough for page `p` and one more. */
 async function loadSentQuizzes(teacherId, needed) {
@@ -46,7 +52,13 @@ async function loadSentQuizzes(teacherId, needed) {
     .order('created_at', { ascending: false })
     .limit(Math.max(1, needed));
   if (error) throw new Error(error.message);
-  return data || [];
+  let sent = [];
+  try { sent = await Data.sentQuizzes(teacherId); } catch (err) {
+    logToFile('⚠️ quiz reports: sent-quiz read failed — own quizzes only', { tk: tkOf(teacherId), error: err.message });
+  }
+  if (!sent.length) return data || [];
+  const at = (q) => String(q.sent_at || q.created_at || '');
+  return [...(data || []), ...sent].sort((a, b) => at(b).localeCompare(at(a))).slice(0, Math.max(1, needed));
 }
 
 /** { [quizId]: { played, of, avg } } for these quizzes, in five reads. */
@@ -55,7 +67,10 @@ async function statsFor(teacherId, quizzes) {
   if (!quizzes.length) return out;
   const codes = await Data.classCodes(teacherId, quizzes.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
-  const counted = Data.countedSessions(await Data.sessionsFor(codes.map((c) => c.id)), teacherId);
+  const sessions = await Data.sessionsFor(codes.map((c) => c.id));
+  const counted = Data.countedSessions(sessions, teacherId);
+  // A storybook send's children count once they joined (story-teacher-report.js); a no-op when there is none.
+  require('./story-teacher-report').countStoryJoins(counted, { quizzes, sessions, quizOfCode, count: (rows) => Data.countedSessions(rows, teacherId, { opened: true }) });
   const byQuiz = new Map();
   counted.forEach((s) => {
     const q = quizOfCode.get(s.share_code_id);
@@ -65,7 +80,7 @@ async function statsFor(teacherId, quizzes) {
   let roster = null;
   try { roster = await Data.readRoster(teacherId); } catch (err) {
     // The counts still stand without the class size: "N played".
-    logToFile('⚠️ quiz reports: class list read failed — rows without "of"', { userId: teacherId, error: err.message });
+    logToFile('⚠️ quiz reports: class list read failed — rows without "of"', { tk: tkOf(teacherId), error: err.message });
   }
   quizzes.forEach((q) => {
     // One child per quiz across its codes (as the report page), and with the class known
@@ -78,7 +93,7 @@ async function statsFor(teacherId, quizzes) {
     // The count and the average are over the SAME children: the class list's when known.
     const counted = ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)) : mine;
     const scores = counted.map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
-    out.set(q.id, { played: counted.length, of: known ? r.of : null, avg: mean(scores) });
+    out.set(q.id, { played: counted.length, of: known ? r.of : null, avg: q.quiz_source === 'story' ? null : mean(scores) });
   });
   return out;
 }
@@ -112,7 +127,7 @@ function buildReportRows(quizzes, stats, language, { page = 1 } = {}) {
   const rows = slice.map((q) => ({
     id: `${ROW_PREFIX}${q.id}`,
     title: composeTitle({
-      date: formatLessonDate((q.meta && q.meta.lesson_date) || q.created_at, language),
+      date: formatLessonDate(q.sent_at || (q.meta && q.meta.lesson_date) || q.created_at, language),
       subject: subjectLabel(q.subject, language),
     }, TITLE_MAX),
     description: describe(q.topic || resolveUx('tqLessonWord', { language }), statusOf(stats.get(q.id), language), language),
@@ -136,7 +151,7 @@ async function showReports(user, phone, language, page = 1) {
   const visible = quizzes.slice((p - 1) * PER_PAGE, p * PER_PAGE);
   if (!visible.length) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqrListEmpty', { language: lang }));
-    logEvent('quiz_menu.reports_empty', { userId: user.id });
+    logEvent('quiz_menu.reports_empty', { tk: tkOf(user.id) });
     return true;
   }
   const stats = await statsFor(user.id, visible);
@@ -149,7 +164,7 @@ async function showReports(user, phone, language, page = 1) {
       sections: [{ title: resolveUx('tqrListSection', { language: lang }), rows }],
     },
   });
-  logEvent('quiz_menu.reports_shown', { userId: user.id, rows: rows.length, page: p });
+  logEvent('quiz_menu.reports_shown', { tk: tkOf(user.id), rows: rows.length, page: p });
   return true;
 }
 
@@ -164,8 +179,15 @@ async function handleReportsPick(listId, phone, user) {
   }
   const quizId = listId.slice(ROW_PREFIX.length);
   // Only the teacher's own quiz; anything else is "not found" (never whose it is).
-  const { data: quiz } = await supabase.from('quizzes').select(QUIZ_COLS)
+  const { data: own } = await supabase.from('quizzes').select(QUIZ_COLS)
     .eq('id', quizId).eq('teacher_id', user.id).maybeSingle();
+  // …or a library quiz they sent on their own class code (quiz_teacher_home; off → null).
+  let quiz = own;
+  if (!quiz) {
+    try { quiz = await Data.sentQuiz(user.id, quizId); } catch (err) {
+      logToFile('⚠️ quiz reports: sent-quiz read failed — not found', { tk: tkOf(user.id), quizId, error: err.message });
+    }
+  }
   if (!quiz) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
     return true;
