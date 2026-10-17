@@ -40,7 +40,7 @@ const ONE_OF = (...vals) => (v) => vals.includes(v);
 // The query keys each GET may carry to the bot; anything else is dropped.
 const QUERY = { t: (v) => TOKEN_RX.test(v), g: (v) => /^[1-5]$/.test(v), lang: LANG };
 // The timeline's next rows: the cursor the last answer gave (`<ms>.<row key>`) and how many.
-const TIMELINE_QUERY = { t: QUERY.t, after: (v) => /^\d{1,15}\.[A-Za-z0-9_:.-]{1,200}$/.test(v), n: (v) => /^\d{1,2}$/.test(v), lang: LANG };
+const TIMELINE_QUERY = { t: QUERY.t, after: (v) => /^\d{1,15}\.[A-Za-z0-9_:.-]{1,200}$/.test(v), n: (v) => /^([1-9]|1[0-9]|20)$/.test(v), lang: LANG };
 // The query keys a page may carry: the shell reads lang; the stories page also the tile's book and the grade; the send
 // the library code and where the send started.
 const PAGE_QUERY = { book: (v) => UUID_RX.test(v), grade: (v) => /^[1-5]$/.test(v), lang: LANG };
