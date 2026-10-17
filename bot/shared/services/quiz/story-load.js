@@ -24,9 +24,12 @@
  *      only when the voice build waived it for a listen (listen_asked, and 'wer …' in waived). A page whose voice fails any of these is stored with no voice. The voice's drift
  *      numbers are stored, not gated: the drift gate is the reader's highlight against the audio, measured on the page
  *      (a voice its build marks quality 'low' keeps its voice with that mark: the reader then follows it line by line)
- *      With app_settings `story_voice_natural_gate` ON (voiceGate 'natural'), the two pace gates give way to the voice's
- *      build record: ONE provider take (splices 0), no time-stretch (atempo 1), no silence added, provider speed ≥ 0.9,
- *      and a sanity band of 60–220 wpm over the whole clip, so a natural-speed voice loads and a stretched one does not
+ *      With app_settings web_quiz_story_voice_gate ON (JSON true), the two pace numbers give way to a METHOD gate read
+ *      from the voice build's record (qa.json): one take (splices 0), atempo 1, no inserted silence, provider speed ≥ 0.9,
+ *      ≥ 48 kb/s, no mid-word silence (midword_hits 0), and a 60–220 wpm whole-clip band so a broken take cannot pass;
+ *      words the timing sources could not settle (timing_unresolved or unresolved_words > 0) make the page line-timed. Under the gate a new
+ *      take that fails is never stored and never silences a page: the page keeps the voice it has (applyPlan), and only a
+ *      page with no voice at all keeps the book a draft.
  *   2. questions: 3–5 reviewed
  *   +  a cover ≤ 15 KB
  * Gate 3 (a lead opens the book on sandbox) is a person's: the lead sets status 'off' on a book that fails it.
@@ -45,11 +48,12 @@ const SHORT_PAGE_WORDS = 10;
 const tolerant = (gate) => Math.round(gate * 102) / 100;
 const maxWpm = (grade, nWords) => tolerant(grade <= 2 && nWords >= SHORT_PAGE_WORDS ? 100 : 115);
 const maxSpanWpm = (grade) => tolerant(grade <= 2 ? 130 : 145);
-// The natural-voice gate (story_voice_natural_gate): a page's pace comes from the text and the voice, never from editing
-// the audio, so the build record is checked instead of the words per minute.
-const NATURAL_GATE_KEY = 'story_voice_natural_gate';
-const NATURAL_WPM = { lo: 60, hi: 220 };
-const NATURAL_MIN_SPEED = 0.9;
+// The voice method gate (a natural-speed take, as delivered): the record's numbers and the whole-clip band.
+const VOICE_GATE_KEY = 'web_quiz_story_voice_gate';
+const MIN_SPEED = 0.9;
+const MIN_KBPS = 48;
+const WPM_BAND = [60, 220];
+const voiceGateOn = (value) => value === true || value === 'true';
 const TYPES = { webp: 'image/webp', ogg: 'audio/ogg', mp3: 'audio/mpeg', png: 'image/png' };
 const pad = (n) => String(n).padStart(2, '0');
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -90,18 +94,7 @@ function cleanLines(lines) {
 }
 
 /** The voice for page n: READALONG JSON (+ qa.json beside it, + the clip) → {row fields, file, why[]}. */
-/** The build record's reasons a voice is not one natural take ([] when it is), or null when the record is absent. */
-function notNatural(qa) {
-  if (num(qa.splices) == null || num(qa.atempo) == null) return null;
-  const why = [];
-  if (qa.atempo !== 1) why.push(`atempo ${qa.atempo}`);
-  if (qa.splices !== 0) why.push(`${qa.splices} splices`);
-  if (num(qa.inserted_silence_ms) && qa.inserted_silence_ms > 0) why.push(`${qa.inserted_silence_ms} ms silence added`);
-  if (num(qa.speed) != null && qa.speed < NATURAL_MIN_SPEED) why.push(`speed ${qa.speed}`);
-  return why;
-}
-
-function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = 'pace' }) {
+function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = false }) {
   const stem = path.join(voiceDir, `p${pad(n)}`);
   const j = readJson(`${stem}.json`);
   if (!j) return { why: ['no voice'] };
@@ -118,16 +111,22 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = 'pace' }) {
   // A wer miss ships only when the voice build waived it for a person's listen (a short word every recogniser mishears).
   const listenWaived = qa.listen_asked === true && Array.isArray(qa.waived) && qa.waived.some((w) => /^wer\b/.test(String(w)));
   if (wer == null || (wer > MAX_WER[lang] && !listenWaived)) why.push(`voice wer ${wer == null ? 'unknown' : wer}`);
-  // Two pace gates: words over the whole clip (what the child sits through), and over the spoken span (what the eye follows).
   const clipWpm = num(j.wpm) != null ? j.wpm : (num(qa.wpm_clip) != null ? qa.wpm_clip : num(qa.wpm));
-  const spanWpm = num(j.pace_wpm) != null ? j.pace_wpm : num(qa.pace_wpm);
-  if (voiceGate === 'natural') {
-    const nn = notNatural(qa);
-    if (nn == null) why.push('voice not one natural take (no build record)');
-    else if (nn.length) why.push(`voice not one natural take (${nn.join(', ')})`);
-    if (clipWpm == null || clipWpm < NATURAL_WPM.lo || clipWpm > NATURAL_WPM.hi) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm outside ${NATURAL_WPM.lo}–${NATURAL_WPM.hi}`);
+  if (voiceGate) {
+    // How the take was made, not how fast it reads: one provider call, its bytes as delivered.
+    const m = (k, ok, say) => { const x = num(qa[k]); if (x == null || !ok(x)) why.push(`voice method: ${say(x == null ? 'unknown' : x)}`); };
+    m('splices', (x) => x === 0, (x) => `splices ${x}`);
+    m('atempo', (x) => x === 1, (x) => `atempo ${x}`);
+    m('inserted_silence_ms', (x) => x === 0, (x) => (x === 'unknown' ? 'inserted silence unknown' : `inserted silence ${x} ms`));
+    m('speed', (x) => x >= MIN_SPEED, (x) => `speed ${x}`);
+    m('kbps', (x) => x >= MIN_KBPS, (x) => (x === 'unknown' ? 'kb/s unknown' : `${x} kb/s`));
+    const mid = num(qa.midword_hits);
+    if (mid !== 0) why.push(`voice midword silence ${mid == null ? 'unknown' : mid}`);
+    if (clipWpm == null || clipWpm < WPM_BAND[0] || clipWpm > WPM_BAND[1]) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm outside ${WPM_BAND[0]}–${WPM_BAND[1]}`);
   } else {
+    // Two pace gates: words over the whole clip (what the child sits through), and over the spoken span (what the eye follows).
     if (clipWpm == null || clipWpm > maxWpm(grade, words.length)) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm`);
+    const spanWpm = num(j.pace_wpm) != null ? j.pace_wpm : num(qa.pace_wpm);
     if (spanWpm == null || spanWpm > maxSpanWpm(grade)) why.push(`voice span pace ${spanWpm == null ? 'unknown' : spanWpm} wpm`);
   }
   if (j.ok === false || qa.ok === false) why.push(`voice failed its own checks${Array.isArray(j.fails) && j.fails.length ? ` (${j.fails.slice(0, 2).join(', ')})` : ''}`);
@@ -149,7 +148,8 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = 'pace' }) {
       wpm: num(j.pace_wpm) != null ? j.pace_wpm : pick('wpm'), drift_ms_mean: pick('drift_ms_mean'), drift_ms_max: drift, wer,
       // Line-timed unless the voice's own timing checks have run and passed: its 'low' mark (or the mirror field),
       // or no p90 drift yet (a page re-made since the last check) all count as 'low'.
-      cost_usd: pick('cost_usd'), quality: (j.quality === 'low' || j.timing_quality === 'low' || qa.timing_quality === 'low' || pick('drift_ms_p90') == null) ? 'low' : null,
+      cost_usd: pick('cost_usd'), quality: (j.quality === 'low' || j.timing_quality === 'low' || qa.timing_quality === 'low' || pick('drift_ms_p90') == null
+        || (voiceGate && (num(qa.timing_unresolved) > 0 || num(qa.unresolved_words) > 0))) ? 'low' : null,
     },
   };
 }
@@ -157,10 +157,10 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = 'pace' }) {
 /**
  * One book's plan. book = the pages manifest entry; serveDir = its files' folder; voiceDir = the book's voice
  * folder (<source_id>/); questionsFile = its questions file (<source_id>.json); cleared = whether the book's
- * watermark sweep is done; extra = {pdf_r2_key, slo} from the catalogue; voiceGate = 'pace' (today) or 'natural'
- * (the story_voice_natural_gate switch, read once per run by voiceGateOf()).
+ * watermark sweep is done; extra = {pdf_r2_key, slo} from the catalogue; voiceGate = the method gate is on (then a page's
+ * failed voice goes to plan.misses, not plan.why: applyPlan decides whether the page keeps the voice it has).
  */
-function planBook({ book, serveDir, voiceDir = null, questionsFile = null, cleared = false, cleanPages = null, cleanDir = null, extra = {}, convert = null, voiceGate = 'pace' }) {
+function planBook({ book, serveDir, voiceDir = null, questionsFile = null, cleared = false, cleanPages = null, cleanDir = null, extra = {}, convert = null, voiceGate = false }) {
   const why = [];
   const bookId = Store.bookIdFor(book.source_id);
   const lang = book.lang;
@@ -183,6 +183,7 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
 
   const pages = [];
   const voices = [];
+  const misses = [];
   for (let p of (Array.isArray(book.pages) ? book.pages : []).filter((x) => x && x.n >= 1).sort((a, b) => a.n - b.n)) {
     const tag = `p${pad(p.n)}`;
     const pid = Store.uuidV5(bookId, tag);
@@ -216,7 +217,8 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
       if (!band) why.push(`${tag}: no word band`);
       if (p.note && /disagree/i.test(String(p.note))) why.push(`${tag}: reads disagree`);
       const v = voiceDir ? voiceFor({ voiceDir, n: p.n, words, lang, grade: book.grade, voiceGate }) : { why: ['no voice'] };
-      v.why.forEach((w) => why.push(`${tag}: ${w}`));
+      if (voiceGate && v.why.length) misses.push({ pageId: pid, n: p.n, why: v.why });
+      else v.why.forEach((w) => why.push(`${tag}: ${w}`));
       // A voice that fails any check is not stored: the page is served with no voice (Your turn) until it passes.
       if (v.row && v.file && !v.why.length) {
         // The clip is stored beside the pictures, so the row's audio_key always names a file /s/ can serve.
@@ -279,7 +281,8 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
     minutes: voiced === textPages && voiced ? Math.round(ms / 6000) / 10 : null,
   };
   const uniq = new Map(files.map((f) => [f.name, f]));
-  return { bookId, bookRow, pages, voices, questions, files: [...uniq.values()], ready: why.length === 0, why, counts: { pages: pages.length, textPages, voiced, questions: questions.length, reviewed } };
+  const plan = { bookId, bookRow, pages, voices, questions, files: [...uniq.values()], ready: why.length === 0, why, counts: { pages: pages.length, textPages, voiced, questions: questions.length, reviewed } };
+  return voiceGate ? { ...plan, misses } : plan;
 }
 
 /**
@@ -302,6 +305,13 @@ async function applyPlan(plan, { store, upload, env, dryRun = false, has = null,
   await store.upsertPages(plan.pages);
   await store.deletePagesAbove(plan.bookId, plan.pages.length ? Math.max(...plan.pages.map((p) => p.n)) : 0);
   const current = await store.currentVoices(plan.pages.map((p) => p.id));
+  // Under the method gate a page whose new take failed keeps the voice it has; one with none keeps the book a draft.
+  const kept = [];
+  for (const m of plan.misses || []) {
+    if (current.some((c) => c.page_id === m.pageId)) kept.push(m.n);
+    else m.why.forEach((w) => plan.why.push(`p${pad(m.n)}: ${w}`));
+  }
+  if (plan.misses) { out.kept = kept; plan.ready = plan.ready && plan.why.length === 0; }
   for (const v of plan.voices) {
     const audioKey = keyOf(v.file.name);
     const row = { ...v.row, page_id: v.pageId, audio_key: audioKey, is_current: true, id: Store.uuidV5(v.pageId, audioKey) };
@@ -310,7 +320,7 @@ async function applyPlan(plan, { store, upload, env, dryRun = false, has = null,
     await store.upsertVoice(row);
   }
   // A page with no passing voice this run keeps no current voice: the reader then offers the child's turn.
-  for (const c of current) if (!plan.voices.some((v) => v.pageId === c.page_id)) await store.retireVoice(c.id);
+  for (const c of current) if (!plan.voices.some((v) => v.pageId === c.page_id) && !(plan.misses || []).some((m) => m.pageId === c.page_id)) await store.retireVoice(c.id);
   // A book is ready only when every voice it names is in storage under story/ (what the picture and voice route serves).
   const missing = [];
   for (const v of plan.voices) {
@@ -378,21 +388,11 @@ async function missedPages(db, { since = null, now = () => new Date() } = {}) {
   return { since, until, pages: [...seen.values()].map((p) => ({ ...p, source_id: src.get(p.book_id) || null })) };
 }
 
-/**
- * The voice gate for this run from app_settings `story_voice_natural_gate`: 'natural' only for a real true (JSON true
- * or the string "true"); an absent row, any other value, no database and a failed read are all 'pace' (today's gates).
- */
-async function voiceGateOf(db) {
-  if (!db) return 'pace';
-  try {
-    const { data, error } = await db.from('app_settings').select('key, value').eq('key', NATURAL_GATE_KEY).maybeSingle();
-    if (error || !data) return 'pace';
-    let v = data.value;
-    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
-    return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true') ? 'natural' : 'pace';
-  } catch (_) {
-    return 'pace';
-  }
+/** The method gate's switch, read once per pass: true only when app_settings holds JSON true. A read error throws. */
+async function readVoiceGate(db) {
+  const { data, error } = await db.from('app_settings').select('key, value').eq('key', VOICE_GATE_KEY).maybeSingle();
+  if (error) throw new Error(`${error.code || ''} ${error.message}`);
+  return voiceGateOn(data ? data.value : null);
 }
 
-module.exports = { missedPages, planBook, voiceGateOf, NATURAL_GATE_KEY, NATURAL_WPM, applyPlan, supabaseStore, voiceFor, cleanWords, webpSize, MAX_PAGE_BYTES, MAX_COVER_BYTES, MAX_WER, MAX_DRIFT_MS };
+module.exports = { readVoiceGate, voiceGateOn, VOICE_GATE_KEY, missedPages, planBook, applyPlan, supabaseStore, voiceFor, cleanWords, webpSize, MAX_PAGE_BYTES, MAX_COVER_BYTES, MAX_WER, MAX_DRIFT_MS };

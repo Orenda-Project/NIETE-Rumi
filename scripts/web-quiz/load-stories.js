@@ -23,6 +23,10 @@
  *                                  file's last `until` ({since, until, pages:[{book_id, source_id, n}]}) and stop;
  *                                  the voice build voices those books' missing pages, then a normal run loads them
  *
+ * The voice gate: app_settings web_quiz_story_voice_gate is read once per run (JSON true = the method gate, story-load.js);
+ * a dry run without a database plans with today's gates. With it on, each book's line also lists the pages that kept the
+ * voice they had (kept) and why their new take was not stored (misses), and the total line says voice_gate: true.
+ *
  * Idempotent: ids are uuid v5 of the catalogue id and files are named by their content hash, so a re-run updates the
  * same rows and stores only new files. A book is 'ready' only when every gate passes (story-load.js), else 'draft'.
  * stdout: one line per book, counts and reasons only — never a key, a token or a URL with a signature.
@@ -100,12 +104,13 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
   let store = null;
   let upload = null;
   let stored = null;
-  // The natural-voice switch, read once per run (a dry run reads it only from a database it is handed).
-  let voiceGate = dryRun ? await Load.voiceGateOf(db) : 'pace';
-  if (!dryRun) {
-    const client = connect();
+  let client = null;
+  if (db || !dryRun) {
+    client = connect();
     if (!client) return 2;
-    voiceGate = await Load.voiceGateOf(client);
+  }
+  const voiceGate = client ? await Load.readVoiceGate(client) : false;
+  if (!dryRun) {
     store = Load.supabaseStore(client);
     const r2 = require('../../bot/shared/storage/r2');
     const bucket = Store.storyBucket(env) || undefined;
@@ -144,8 +149,10 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
       if (statePath && !dryRun) fs.writeFileSync(statePath, JSON.stringify(state));
     }
     const c = plan.counts;
-    const why = plan.why.length > 4 ? [...plan.why.slice(0, 4), `+${plan.why.length - 4} more`] : plan.why;
-    io.stdout.write(`${JSON.stringify({ source_id: book.source_id, book_id: plan.bookId, g: book.grade, lang: book.lang, pages: c.pages, voiced: `${c.voiced}/${c.textPages}`, questions: c.reviewed, files: plan.files.length, stored: out.uploaded, kept: out.skipped, status: out.status, why })}\n`);
+    const cap = (list) => (list.length > 4 ? [...list.slice(0, 4), `+${list.length - 4} more`] : list);
+    const why = cap(plan.why);
+    const gate = voiceGate ? { kept_voice: out.kept || [], misses: cap(plan.misses.map((m) => `p${String(m.n).padStart(2, '0')}: ${m.why.join(', ')}`)) } : {};
+    io.stdout.write(`${JSON.stringify({ source_id: book.source_id, book_id: plan.bookId, g: book.grade, lang: book.lang, pages: c.pages, voiced: `${c.voiced}/${c.textPages}`, questions: c.reviewed, files: plan.files.length, stored: out.uploaded, kept: out.skipped, status: out.status, why, ...gate })}\n`);
     rows.push({ source_id: book.source_id, book_id: plan.bookId, grade: book.grade, lang: book.lang, pages: c.pages, voiced: `${c.voiced}/${c.textPages}`, questions: c.reviewed, status: dryRun ? `dry:${out.status}` : out.status, why: plan.why.join('; '), at: now().toISOString() });
   }
   if (outPath && rows.length) {
@@ -156,7 +163,7 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
     fs.writeFileSync(outPath, `${head.join(',')}\n${[...merged.values()].map((r) => head.map((h) => csvCell(r[h])).join(',')).join('\n')}\n`);
   }
   const ready = rows.filter((r) => r.status === 'ready' || r.status === 'dry:ready').length;
-  io.stdout.write(`${JSON.stringify({ books: rows.length, ready, draft: rows.length - ready, failed, dry_run: dryRun })}\n`);
+  io.stdout.write(`${JSON.stringify({ books: rows.length, ready, draft: rows.length - ready, failed, dry_run: dryRun, ...(voiceGate ? { voice_gate: true } : {}) })}\n`);
   return failed ? 1 : 0;
 }
 

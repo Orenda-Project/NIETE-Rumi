@@ -430,38 +430,116 @@ describe('missedPages: the pages children opened before they had a voice', () =>
   });
 });
 
-describe('natural-voice gate (app_settings story_voice_natural_gate): one natural take passes on its build record, not on pace', () => {
-  // The build record of a page voiced in ONE provider call at natural speed (no stretch, no splice, no added silence).
-  const natural = { splices: 0, atempo: 1, inserted_silence_ms: 0, speed: 1, encodes: 1, kbps: 64 };
-  const withQa = (f, qa, json = {}) => {
-    for (const n of [1, 2]) {
-      const qj = path.join(f.voiceDir, `p0${n}.qa.json`); fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), ...qa }));
-      const vj = path.join(f.voiceDir, `p0${n}.json`); fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), ...json }));
+describe('the voice method gate (app_settings web_quiz_story_voice_gate; absent or not true = today)', () => {
+  // A natural-speed take as the voice build records it: one provider call, its bytes as delivered.
+  const METHOD = { splices: 0, atempo: 1, inserted_silence_ms: 0, speed: 1, kbps: 64, midword_hits: 0 };
+  const naturalize = (f, { pages = [1, 2], qa = {}, wpm = 153, pace = 170 } = {}) => {
+    for (const n of pages) {
+      const vj = path.join(f.voiceDir, `p0${n}.json`); const qj = path.join(f.voiceDir, `p0${n}.qa.json`);
+      fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), wpm, pace_wpm: pace, voice: { provider: 'elevenlabs', voice: 'Bella', model: 'eleven_v4' }, timing_src: 'forced_align' }));
+      fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), ...METHOD, wpm_clip: wpm, ...qa }));
+      fs.writeFileSync(path.join(f.voiceDir, `p0${n}.ogg`), Buffer.from(`OggS-natural-${n}`));
     }
     return f;
   };
-  test('ON: a natural take at 160 wpm (span 190) passes; the same voice is refused by today\'s pace gates', () => {
-    expect(L.planBook({ ...withQa(fixture({ wpm: 160, pace: 190, long: true }), natural), voiceGate: 'natural' }).why).toEqual([]);
-    expect(L.planBook(withQa(fixture({ wpm: 160, pace: 190, long: true }), natural)).why).toEqual(['p01: voice pace 160 wpm', 'p01: voice span pace 190 wpm', 'p02: voice pace 160 wpm', 'p02: voice span pace 190 wpm']);
+  const strip = (p) => JSON.parse(JSON.stringify({ ...p, files: p.files.map((x) => x.name) }));
+
+  test('voiceGateOn: only JSON true turns it on', () => {
+    [undefined, null, false, 'false', 1, 'yes', {}, [], { on: true }].forEach((v) => expect(L.voiceGateOn(v)).toBe(false));
+    [true, 'true'].forEach((v) => expect(L.voiceGateOn(v)).toBe(true));
   });
-  test('ON: a stretched, spliced or slowed voice is refused and named; a voice with no build record is refused', () => {
-    const p = L.planBook({ ...withQa(fixture({ wpm: 96 }), { atempo: 0.85, splices: 3, inserted_silence_ms: 0, speed: 0.7 }), voiceGate: 'natural' });
-    expect(p.why).toEqual(['p01: voice not one natural take (atempo 0.85, 3 splices, speed 0.7)', 'p02: voice not one natural take (atempo 0.85, 3 splices, speed 0.7)']);
-    expect(p.voices).toEqual([]);
-    expect(L.planBook({ ...withQa(fixture({ wpm: 150 }), { inserted_silence_ms: 1404, splices: 0, atempo: 1 }), voiceGate: 'natural' }).why[0]).toBe('p01: voice not one natural take (1404 ms silence added)');
-    expect(L.planBook({ ...fixture({ wpm: 150 }), voiceGate: 'natural' }).why[0]).toBe('p01: voice not one natural take (no build record)');
-  });
-  test('ON: a broken take outside 60–220 wpm over the whole clip is refused; wer and word checks still apply', () => {
-    expect(L.planBook({ ...withQa(fixture({ wpm: 240, long: true }), natural), voiceGate: 'natural' }).why[0]).toBe('p01: voice pace 240 wpm outside 60–220');
-    expect(L.planBook({ ...withQa(fixture({ wpm: 50, long: true }), natural), voiceGate: 'natural' }).why[0]).toBe('p01: voice pace 50 wpm outside 60–220');
-    expect(L.planBook({ ...withQa(fixture({ wpm: 150, wer: 0.2 }), natural), voiceGate: 'natural' }).why[0]).toBe('p01: voice wer 0.2');
-  });
-  test('OFF (absent or "pace"): the plan is byte-identical to today', () => {
-    const strip = (pl) => JSON.stringify(pl, (k, v) => (v && v.type === 'Buffer' ? `buf:${h8(Buffer.from(v.data))}` : v));
-    for (const opts of [{}, { wpm: 104, long: true }, { wpm: 95, pace: 133 }, { wer: 0.2 }]) {
-      const a = strip(L.planBook(fixture(opts)));
-      const b = strip(L.planBook({ ...fixture(opts), voiceGate: 'pace' }));
-      expect(b).toBe(a);
+
+  test('off: the plan is byte-identical to today, and a natural-speed take is refused by the pace gates as today', () => {
+    for (const make of [() => fixture(), () => fixture({ wpm: 104, long: true }), () => naturalize(fixture({ long: true })), () => fixture({ voices: [1] })]) {
+      const today = strip(L.planBook(make()));
+      for (const voiceGate of [false, undefined, null]) expect(strip(L.planBook({ ...make(), voiceGate }))).toEqual(today);
     }
+    expect(L.planBook({ ...naturalize(fixture({ long: true })), voiceGate: false }).why)
+      .toEqual(['p01: voice pace 153 wpm', 'p01: voice span pace 170 wpm', 'p02: voice pace 153 wpm', 'p02: voice span pace 170 wpm']);
+  });
+
+  test('on: a one-take natural voice at 153 wpm is stored; no pace ceiling, the other checks unchanged', () => {
+    const p = L.planBook({ ...naturalize(fixture({ long: true })), voiceGate: true });
+    expect(p.why).toEqual([]);
+    expect(p.ready).toBe(true);
+    expect(p.misses).toEqual([]);
+    expect(p.voices.map((v) => [v.n, v.row.provider, v.row.voice, v.row.timing_source, v.row.wpm])).toEqual([[1, 'elevenlabs', 'Bella', 'forced_align', 170], [2, 'elevenlabs', 'Bella', 'forced_align', 170]]);
+    const wer = L.planBook({ ...naturalize(fixture({ long: true, wer: 0.2 })), voiceGate: true });
+    expect(wer.misses.map((m) => [m.n, m.why])).toEqual([[1, ['voice wer 0.2']], [2, ['voice wer 0.2']]]);
+    expect(L.planBook({ ...naturalize(fixture({ long: true, mismatch: true })), voiceGate: true }).misses.map((m) => m.why)).toEqual([['voice words differ from the page words']]);
+  });
+
+  test('on: the method gate refuses a stretched, cut, padded, slowed, thin or broken take, and a missing method record', () => {
+    const miss = (o) => L.planBook({ ...naturalize(naturalize(fixture({ long: true })), { pages: [2], ...o }), voiceGate: true }).misses.map((m) => [m.n, m.why]);
+    expect(miss({ qa: { splices: 3 } })).toEqual([[2, ['voice method: splices 3']]]);
+    expect(miss({ qa: { atempo: 0.85 } })).toEqual([[2, ['voice method: atempo 0.85']]]);
+    expect(miss({ qa: { inserted_silence_ms: 400 } })).toEqual([[2, ['voice method: inserted silence 400 ms']]]);
+    expect(miss({ qa: { speed: 0.7 } })).toEqual([[2, ['voice method: speed 0.7']]]);
+    expect(miss({ qa: { speed: 0.9 } })).toEqual([]);
+    expect(miss({ qa: { kbps: 24 } })).toEqual([[2, ['voice method: 24 kb/s']]]);
+    expect(miss({ qa: { kbps: 48 } })).toEqual([]);
+    expect(miss({ qa: { midword_hits: 1 } })).toEqual([[2, ['voice midword silence 1']]]);
+    expect(miss({ wpm: 59.9 })).toEqual([[2, ['voice pace 59.9 wpm outside 60–220']]]);
+    expect(miss({ wpm: 220.1 })).toEqual([[2, ['voice pace 220.1 wpm outside 60–220']]]);
+    expect(miss({ wpm: 220, pace: 260 })).toEqual([]);
+    // The old library's records carry no method fields: under the gate they are not a natural take.
+    const old = L.planBook({ ...fixture({ long: true }), voiceGate: true }).misses;
+    expect(old.map((m) => m.n)).toEqual([1, 2]);
+    expect(old[0].why).toEqual(['voice method: splices unknown', 'voice method: atempo unknown', 'voice method: inserted silence unknown', 'voice method: speed unknown', 'voice method: kb/s unknown', 'voice midword silence unknown']);
+  });
+
+  test('on: words the timing sources could not settle make the page line-timed, never a guessed box', () => {
+    const f = naturalize(fixture({ long: true }), { pages: [2], qa: { timing_unresolved: 2 } });
+    const p = L.planBook({ ...f, voiceGate: true });
+    expect(p.why).toEqual([]);
+    expect(p.voices.map((v) => [v.n, v.row.quality])).toEqual([[2, 'low']]);
+    expect(L.planBook({ ...naturalize(fixture({ long: true })), voiceGate: true }).voices.map((v) => v.row.quality)).toEqual([null, null]);
+    // the library builder records the same count as unresolved_words
+    const g = naturalize(fixture({ long: true }), { pages: [2], qa: { unresolved_words: 1 } });
+    expect(L.planBook({ ...g, voiceGate: true }).voices.map((v) => [v.n, v.row.quality])).toEqual([[2, 'low']]);
+  });
+
+  test('on: a failed new take never silences a page; the page keeps the voice it has and the book stays ready', async () => {
+    const store = memoryStore(); const r = recorder();
+    const f = fixture({ long: true, wpm: 92 });
+    await L.applyPlan(L.planBook(f), { store, upload: r.upload, env: 'sandbox' });
+    const before = [...store.t.voices.values()].filter((v) => v.is_current).map((v) => v.audio_key).sort();
+    expect(before).toHaveLength(2);
+    naturalize(f, { pages: [1] });
+    naturalize(f, { pages: [2], qa: { splices: 4 } });
+    const plan = L.planBook({ ...f, voiceGate: true });
+    const out = await L.applyPlan(plan, { store, upload: r.upload, env: 'sandbox' });
+    expect(out.status).toBe('ready');
+    expect(out.kept).toEqual([2]);
+    const cur = [...store.t.voices.values()].filter((v) => v.is_current);
+    expect(cur).toHaveLength(2);
+    expect(cur.find((v) => v.page_id === Store.uuidV5(BOOK_ID, 'p02')).audio_key).toBe(before.find((k) => /\/a02-/.test(k)));
+    expect(cur.find((v) => v.page_id === Store.uuidV5(BOOK_ID, 'p01')).provider).toBe('elevenlabs');
+    expect(store.t.books.get(BOOK_ID).status).toBe('ready');
+    expect(plan.why).toEqual([]);
+  });
+
+  test('on: a failed take on a page with no voice yet still leaves the book a draft, with the reason', async () => {
+    const store = memoryStore(); const r = recorder();
+    const f = naturalize(fixture({ long: true }), { pages: [2], qa: { atempo: 0.85 } });
+    naturalize(f, { pages: [1] });
+    const out = await L.applyPlan(L.planBook({ ...f, voiceGate: true }), { store, upload: r.upload, env: 'sandbox' });
+    expect(out.status).toBe('draft');
+    expect(out.kept).toEqual([]);
+    expect(store.t.books.get(BOOK_ID).status).toBe('draft');
+    expect([...store.t.voices.values()].map((v) => v.page_id)).toEqual([Store.uuidV5(BOOK_ID, 'p01')]);
+    const fresh = L.planBook({ ...f, voiceGate: true });
+    await L.applyPlan(fresh, { store: memoryStore(), upload: r.upload, env: 'sandbox' });
+    expect(fresh.why).toEqual(['p02: voice method: atempo 0.85']);
+  });
+
+  test('readVoiceGate reads the one key; no row or not true → false; a read error throws (a pass never guesses)', async () => {
+    const db = (row, error = null) => { const calls = []; return { calls, from: (t) => { const b = {}; ['select', 'eq', 'maybeSingle'].forEach((m) => { b[m] = (...a) => { calls.push([t, m, ...a]); return b; }; }); b.then = (res) => res({ data: row, error }); return b; } }; };
+    const d = db({ key: 'web_quiz_story_voice_gate', value: true });
+    expect(await L.readVoiceGate(d)).toBe(true);
+    expect(d.calls).toContainEqual(['app_settings', 'eq', 'key', 'web_quiz_story_voice_gate']);
+    expect(await L.readVoiceGate(db(null))).toBe(false);
+    expect(await L.readVoiceGate(db({ key: 'web_quiz_story_voice_gate', value: { on: true } }))).toBe(false);
+    await expect(L.readVoiceGate(db(null, { message: 'boom' }))).rejects.toThrow('boom');
   });
 });
