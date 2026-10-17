@@ -85,3 +85,17 @@ test('--misses: the pages opened without a voice since the last run, distinct, w
   expect(calls).toContainEqual(['story_events', 'gt', 'at', '2026-10-16T17:59:00Z']);
   expect(calls.some((c) => ['upsert', 'update', 'delete', 'insert'].includes(c[1]))).toBe(false);
 });
+
+test('the natural-voice switch: read once from app_settings; ON lets a natural take load, OFF keeps the pace gates', async () => {
+  const v = path.join(dir, 'voices', SRC);
+  fs.writeFileSync(path.join(v, 'p01.json'), JSON.stringify({ audio: { ms: 900 }, words: [{ i: 0, t: 'Sara', s_ms: 100, e_ms: 400 }, { i: 1, t: 'reads.', s_ms: 420, e_ms: 800 }], wpm: 133, pace_wpm: 171, voice: { provider: 'elevenlabs', voice: 'Bella' } }));
+  fs.writeFileSync(path.join(v, 'p01.qa.json'), JSON.stringify({ wer: 0, splices: 0, atempo: 1, inserted_silence_ms: 0, speed: 1 }));
+  const reads = [];
+  const db = (value) => ({ from: (t) => ({ select: () => ({ eq: (k, key) => ({ maybeSingle: async () => { reads.push([t, key]); return { data: value === undefined ? null : { key, value }, error: null }; } }) }) }) });
+  const run = async (client) => { const o = io(); await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv'), '--dry-run'], env: {}, io: o, db: client }); return JSON.parse(o.o.out.split('\n')[0]); };
+  expect(await run(db(true))).toMatchObject({ status: 'ready', why: [] });
+  expect(reads).toEqual([['app_settings', 'story_voice_natural_gate']]);
+  expect((await run(db('true'))).status).toBe('ready');
+  for (const off of [false, 'yes', undefined]) expect((await run(db(off))).why).toEqual(['p01: voice pace 133 wpm', 'p01: voice span pace 171 wpm']);
+  expect((await run(null)).why).toEqual(['p01: voice pace 133 wpm', 'p01: voice span pace 171 wpm']);
+});

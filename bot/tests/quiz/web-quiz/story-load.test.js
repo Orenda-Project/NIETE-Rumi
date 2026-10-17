@@ -429,3 +429,39 @@ describe('missedPages: the pages children opened before they had a voice', () =>
     expect(out.pages.map((p) => `${p.source_id}/${p.n}`)).toEqual(['src-1/5', 'src-2/1']);
   });
 });
+
+describe('natural-voice gate (app_settings story_voice_natural_gate): one natural take passes on its build record, not on pace', () => {
+  // The build record of a page voiced in ONE provider call at natural speed (no stretch, no splice, no added silence).
+  const natural = { splices: 0, atempo: 1, inserted_silence_ms: 0, speed: 1, encodes: 1, kbps: 64 };
+  const withQa = (f, qa, json = {}) => {
+    for (const n of [1, 2]) {
+      const qj = path.join(f.voiceDir, `p0${n}.qa.json`); fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), ...qa }));
+      const vj = path.join(f.voiceDir, `p0${n}.json`); fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), ...json }));
+    }
+    return f;
+  };
+  test('ON: a natural take at 160 wpm (span 190) passes; the same voice is refused by today\'s pace gates', () => {
+    expect(L.planBook({ ...withQa(fixture({ wpm: 160, pace: 190, long: true }), natural), voiceGate: 'natural' }).why).toEqual([]);
+    expect(L.planBook(withQa(fixture({ wpm: 160, pace: 190, long: true }), natural)).why).toEqual(['p01: voice pace 160 wpm', 'p01: voice span pace 190 wpm', 'p02: voice pace 160 wpm', 'p02: voice span pace 190 wpm']);
+  });
+  test('ON: a stretched, spliced or slowed voice is refused and named; a voice with no build record is refused', () => {
+    const p = L.planBook({ ...withQa(fixture({ wpm: 96 }), { atempo: 0.85, splices: 3, inserted_silence_ms: 0, speed: 0.7 }), voiceGate: 'natural' });
+    expect(p.why).toEqual(['p01: voice not one natural take (atempo 0.85, 3 splices, speed 0.7)', 'p02: voice not one natural take (atempo 0.85, 3 splices, speed 0.7)']);
+    expect(p.voices).toEqual([]);
+    expect(L.planBook({ ...withQa(fixture({ wpm: 150 }), { inserted_silence_ms: 1404, splices: 0, atempo: 1 }), voiceGate: 'natural' }).why[0]).toBe('p01: voice not one natural take (1404 ms silence added)');
+    expect(L.planBook({ ...fixture({ wpm: 150 }), voiceGate: 'natural' }).why[0]).toBe('p01: voice not one natural take (no build record)');
+  });
+  test('ON: a broken take outside 60–220 wpm over the whole clip is refused; wer and word checks still apply', () => {
+    expect(L.planBook({ ...withQa(fixture({ wpm: 240, long: true }), natural), voiceGate: 'natural' }).why[0]).toBe('p01: voice pace 240 wpm outside 60–220');
+    expect(L.planBook({ ...withQa(fixture({ wpm: 50, long: true }), natural), voiceGate: 'natural' }).why[0]).toBe('p01: voice pace 50 wpm outside 60–220');
+    expect(L.planBook({ ...withQa(fixture({ wpm: 150, wer: 0.2 }), natural), voiceGate: 'natural' }).why[0]).toBe('p01: voice wer 0.2');
+  });
+  test('OFF (absent or "pace"): the plan is byte-identical to today', () => {
+    const strip = (pl) => JSON.stringify(pl, (k, v) => (v && v.type === 'Buffer' ? `buf:${h8(Buffer.from(v.data))}` : v));
+    for (const opts of [{}, { wpm: 104, long: true }, { wpm: 95, pace: 133 }, { wer: 0.2 }]) {
+      const a = strip(L.planBook(fixture(opts)));
+      const b = strip(L.planBook({ ...fixture(opts), voiceGate: 'pace' }));
+      expect(b).toBe(a);
+    }
+  });
+});

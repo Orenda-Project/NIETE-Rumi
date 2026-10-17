@@ -100,9 +100,12 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
   let store = null;
   let upload = null;
   let stored = null;
+  // The natural-voice switch, read once per run (a dry run reads it only from a database it is handed).
+  let voiceGate = dryRun ? await Load.voiceGateOf(db) : 'pace';
   if (!dryRun) {
     const client = connect();
     if (!client) return 2;
+    voiceGate = await Load.voiceGateOf(client);
     store = Load.supabaseStore(client);
     const r2 = require('../../bot/shared/storage/r2');
     const bucket = Store.storyBucket(env) || undefined;
@@ -128,6 +131,7 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
       cleanPages: pagesOfClean(book.source_id),
       cleanDir: cleanRoot ? path.join((cleanOf.get(book.source_id) || {}).serve_root || cleanRoot, (cleanOf.get(book.source_id) || {}).serve_root ? '' : book.source_id) : null,
       extra: { pdf_r2_key: (catalogue.get(book.source_id) || {}).r2_pdf_key || null },
+      voiceGate,
     });
     let out;
     try {
