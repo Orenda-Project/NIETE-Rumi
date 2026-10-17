@@ -33,8 +33,8 @@ jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logErro
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
 const mockEmit3 = jest.fn();
 const mockEvSw = jest.fn();
-jest.mock('../../../shared/services/quiz/web-quiz-events-v3', () => ({ emit3: (...a) => mockEmit3(...a) }), { virtual: true });
-jest.mock('../../../shared/services/quiz/web-quiz-next-offer', () => ({ switches: (...a) => mockEvSw(...a) }), { virtual: true });
+jest.mock('../../../shared/services/quiz/web-quiz-events-v3', () => ({ emit3: (...a) => mockEmit3(...a) }));
+jest.mock('../../../shared/services/quiz/web-quiz-next-offer', () => ({ switches: (...a) => mockEvSw(...a) }));
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 const mockS3Send = jest.fn();
 jest.mock('@aws-sdk/client-s3', () => {
