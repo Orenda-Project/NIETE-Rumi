@@ -491,7 +491,7 @@ describe('WQFC.mount({source}) — the result object the reader hands over', () 
     return { ok, out, fetches, fc, events };
   }
   test('a story read: the deed counts pages in Urdu digits, the headline by `ended`, ONE sticker, the share', async () => {
-    const m = mountWith({ source: 'story', ended: 'read', pages_read: 3, stars: 3, title: 'دھوپ', lang: 'ur' });
+    const m = mountWith({ source: 'story', ended: 'read', pages_read: 3, stars: 3, title: 'دھوپ', lang: 'ur', sticker: true });
     expect(m.ok).toBe(true);
     expect(m.out).toContain('۳ صفحے پڑھے');
     expect(m.out).toContain('آپ نے جگنو کے ساتھ پڑھا!');
@@ -550,7 +550,7 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
   }
   function mountStory(o) {
     let out = '';
-    const ok = fcPage().mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', ended: 'read', pages_read: 3, auth: { hub: 'H', kid: 'K' }, home: '#', ...o });
+    const ok = fcPage().mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', ended: 'read', pages_read: 3, auth: { hub: 'H', kid: 'K' }, home: '#', sticker: true, ...o });
     return { ok, out };
   }
   const prim = (h) => (h.match(/data-primary/g) || []).length;
@@ -629,7 +629,7 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
       for (const [k, d] of [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_tried'], ['book', 'book_read'], ['book', 'read_tried']]) out[`html_${l}_${k}_${d}`] = shaS(fcPage().html({ kind: k, deed: d, lang: l, next: NEXT, home: '/h/tok' }));
       for (const [e, pr] of [['read', 3], ['listened', 0], ['read', 0]]) {
         let h = '';
-        fcPage().mount({ insertAdjacentHTML: (p, x) => { h += x; } }, { source: 'story', ended: e, pages_read: pr, pages_listened: 2, title: 'Mina Testwala', lang: l, auth: { hub: 'H', kid: 'K' }, next: NEXT, home: '#' });
+        fcPage().mount({ insertAdjacentHTML: (p, x) => { h += x; } }, { source: 'story', ended: e, pages_read: pr, pages_listened: 2, title: 'Mina Testwala', lang: l, auth: { hub: 'H', kid: 'K' }, next: NEXT, home: '#', sticker: true });
         out[`mount_${l}_${e}_${pr}`] = shaS(h);
       }
     }
@@ -643,7 +643,8 @@ describe('a storybook reached its end (whole: true): "You finished the story!" a
     let out = '';
     const fetches = [];
     const fc = fcAlone({ fetch: (url, init) => { fetches.push(JSON.parse(init.body)); return Promise.resolve({ ok: false }); }, document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
-    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', auth: { hub: 'H', kid: 'K' }, home: '#', ...o });
+    // sticker: the server's answer to story_done (true on a first finish with pages; the reader passes it as it came)
+    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', auth: { hub: 'H', kid: 'K' }, home: '#', sticker: true, ...o });
     return { ok, out, fetches };
   }
   const lines = (h) => [...h.matchAll(/<p class="wqfc-count"[^>]*>([^<]*)</g)].map((m) => m[1]);
@@ -670,14 +671,27 @@ describe('a storybook reached its end (whole: true): "You finished the story!" a
     expect(m.out).toContain('>You finished the story!<');
     expect(lines(m.out)).toEqual(['2 pages read']);
   });
-  test.each(['en', 'ur'])('%s: nothing heard or read but the questions answered -> the finish headline, the questions line only, the sticker; the deed is "answered"', async (lang) => {
-    const m = mountFin({ ended: 'read', pages_read: 0, pages_listened: 0, whole: true, answered: 2, lang });
-    expect(m.out).toContain(lang === 'ur' ? '>آپ نے کہانی پوری کر لی!<' : '>You finished the story!<');
+  // the server keeps no finish for a book only looked through (sticker: false, no ✓ on the shelf): the card says so
+  test.each(['en', 'ur'])('%s: nothing heard or read but the questions answered -> "You looked through the whole book", the questions line only, NO sticker; the deed is "answered"', async (lang) => {
+    const m = mountFin({ ended: 'read', pages_read: 0, pages_listened: 0, whole: true, answered: 2, lang, sticker: false });
+    expect(m.out).toContain(lang === 'ur' ? '>آپ نے پوری کتاب دیکھ لی۔<' : '>You looked through the whole book.<');
+    expect(m.out).not.toMatch(/You finished the story|آپ نے کہانی پوری کر لی/);
     expect(lines(m.out)).toEqual([lang === 'ur' ? '۲ سوالوں کے جواب دیے' : '2 questions answered']);
-    expect((m.out.match(/data-sticker/g) || []).length).toBe(1);
+    expect(m.out).not.toContain('data-sticker');
     expect(m.out).not.toMatch(/together|مل کر پڑھیں/);
     await flush();
     expect(m.fetches[0]).toMatchObject({ kind: 'story', deed: 'answered' });
+  });
+  test.each(['en', 'ur'])('%s: a book read again (the server gave no sticker): the finish and the deeds, NO sticker line', (lang) => {
+    const m = mountFin({ ended: 'read', pages_read: 3, whole: true, answered: 2, lang, sticker: false });
+    expect(m.out).toContain(lang === 'ur' ? '>آپ نے کہانی پوری کر لی!<' : '>You finished the story!<');
+    expect(lines(m.out)).toEqual(lang === 'ur' ? ['۳ صفحے پڑھے', '۲ سوالوں کے جواب دیے'] : ['3 pages read', '2 questions answered']);
+    expect(m.out).not.toContain('data-sticker');
+    expect(m.out).not.toMatch(/A new sticker|ایک نیا اسٹیکر/);
+  });
+  test('the sticker line needs the server\'s exact true: absent, "true" or 1 -> none', () => {
+    for (const st of [undefined, 'true', 1]) expect(mountFin({ ended: 'listened', pages_listened: 2, whole: true, answered: 1, lang: 'en', sticker: st }).out).not.toContain('data-sticker');
+    expect(mountFin({ ended: 'listened', pages_listened: 2, whole: true, answered: 1, lang: 'en', sticker: true }).out).toContain('data-sticker');
   });
   test('the end not reached (no whole): today\'s headline, the questions never counted', () => {
     const m = mountFin({ ended: 'listened', pages_read: 0, pages_listened: 1, answered: 4, lang: 'en' });

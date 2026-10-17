@@ -226,7 +226,8 @@
       settled = true;
       ev('mic_declined', { src: src, how: why });
       var android = /Android/i.test((navigator && navigator.userAgent) || '');
-      var href = 'intent://' + location.host + location.pathname + (location.search || '') + '#Intent;scheme=https;package=com.android.chrome;end';
+      // o.hash: the page's place (#story/<id>/p<N>) too; Android takes the data URI up to the last '#'
+      var href = 'intent://' + location.host + location.pathname + (location.search || '') + (o.hash ? location.hash || '' : '') + '#Intent;scheme=https;package=com.android.chrome;end';
       el.innerHTML = '<div class="lr-ask"' + dl + '><p class="lr-say">' + esc(t.okListen) + '</p>'
         + '<button class="wq-btn wq-go lr-listen" type="button">' + esc(t.listen) + '</button>'
         + (android && why !== 'notallowederror' ? '<a class="wq-btn wq-soft" href="' + esc(href) + '">' + esc(t.chrome) + '</a>' : '') + '</div>';
