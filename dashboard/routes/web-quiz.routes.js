@@ -647,6 +647,20 @@ function timingOf(res) {
   return t.render != null || t.queue != null ? t : null;
 }
 
+// The bot's step timings on its hub answer (Server-Timing): only `name;dur=<ms>` items, at most 200 characters, else null.
+const ST_ITEM_RX = /^[a-z]+;dur=\d+(?:\.\d+)?$/;
+function stOf(res) {
+  const v = res.headers && res.headers.get ? res.headers.get('server-timing') : null;
+  if (typeof v !== 'string') return null;
+  let out = '';
+  for (const raw of v.split(',')) {
+    const item = raw.trim();
+    if (!ST_ITEM_RX.test(item) || out.length + item.length + (out ? 2 : 0) > 200) continue;
+    out += (out ? ', ' : '') + item;
+  }
+  return out || null;
+}
+
 const defaultLogEvent = (e, p) => { try { require('../services/telemetry.service').logEvent(e, p); } catch (_) { /* never decides a response */ } };
 
 function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent, now = Date.now, timeoutMs = BOT_TIMEOUT_MS }) {
@@ -674,8 +688,9 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
         init.body = JSON.stringify(body || {});
       }
       const res = await fetchImpl(`${botUrl}${pathname}`, init);
-      if (res.status >= 500 && res.status !== 503) record(method, where, t0, { outcome: 'upstream_5xx', status: res.status });
-      else if (now() - t0 >= BOT_SLOW_MS) record(method, where, t0, { outcome: 'slow', status: res.status });
+      const st = stOf(res);
+      if (res.status >= 500 && res.status !== 503) record(method, where, t0, { outcome: 'upstream_5xx', status: res.status, ...(st ? { st } : {}) });
+      else if (now() - t0 >= BOT_SLOW_MS) record(method, where, t0, { outcome: 'slow', status: res.status, ...(st ? { st } : {}) });
       const location = res.headers && res.headers.get ? res.headers.get('location') : null;
       // A picture the bot answers as bytes (a cropped option, an inline option picture) is passed
       // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
@@ -688,7 +703,9 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       const text = await res.text();
       let json = null;
       try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
-      return { status: res.status, body: json, location };
+      // The bot's step timings (hub answer): `st`; and `stOn` when the page-beacon switch (web_quiz_server_timing) is on.
+      const stOn = st && res.headers.get('x-wq-st') === '1';
+      return { status: res.status, body: json, location, ...(st ? { st } : {}), ...(stOn ? { stOn: true } : {}) };
     } catch (err) {
       const timedOut = Boolean(controller && controller.signal.aborted);
       record(method, where, t0, timedOut ? { outcome: 'timeout' }
@@ -1001,7 +1018,10 @@ function createWebQuizRouter(opts = {}) {
       lastFast = out.body.fast === true;
       learnMedia(out.body);
       const payload = hubBootPayload(out.body, req);
-      if (flush) return wire.page(withBotMark(renderHubFlushTail({ guess: flush.guess, payload, token, origin, assetV: version() }), res.locals.wqBotMs));
+      // web_quiz_server_timing on (the bot says so): the bot's step timings ride the tail's boot JSON for the page's beacon.
+      if (flush) return wire.page(withBotMark(renderHubFlushTail({ guess: flush.guess, payload: out.stOn ? { ...payload, st: out.st } : payload, token, origin, assetV: version() }), res.locals.wqBotMs));
+      // Headers not sent yet: the bot's step timings go to the browser beside our own.
+      if (out.st && !res.headersSent) res.set('Server-Timing', [res.get('Server-Timing'), out.st].filter(Boolean).join(', '));
       return res.status(200).type('html').send(renderHubPage({ payload, token, origin, assetV: version(), media: mediaIfFast() }));
     }
     if (out.status === 401) return closed(401, 'hub');

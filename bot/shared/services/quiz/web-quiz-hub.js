@@ -538,7 +538,8 @@ function lazyHubBranches(s, branches = HUB_BRANCHES) {
 
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
+async function hubPayload(token, { kid, device, src, lang: wanted, st = null } = {}) {
+  const mark = st ? (n) => st.mark(n) : () => {}; // the step timings (web-quiz-server-timing.js); nothing without a stopwatch
   if (!T.secret()) fail(503, 'web_quiz_off');
   const practice = await require('./web-quiz-hub-home').practiceHub(token, { lang: wanted, brandKey }); // a coach's class preview by grade: null unless web_quiz_home_v3
   if (practice) return practice;
@@ -553,6 +554,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const linkedP = linkedLang(token);
   if (!langsEarly) await linkedP;
   const trust = await deviceTrusted(token, device);
+  mark('gate');
   if (!trust.ok) return lockedHub(ids, trust.why, await askedP, await linkedP);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   let mine = ids.filter((id) => trust.ids.includes(id));
@@ -562,6 +564,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     canon = await require('./web-quiz-identity-roster').canonicalStudentIds(mine);
     mine = [...new Set(mine.map((id) => canon.get(id) || id))];
   }
+  mark('gate');
   // Fast first page (web_quiz_fast): the child the hub will open (the chip asked for, or the only child) is known
   // here, so their quiz history is read now, beside their row; used only when that child is the one chosen below.
   const guess = require('./web-quiz-fast').on() ? (mine.find((id) => kidChip(id) === String(kid || '')) || (mine.length === 1 ? mine[0] : null)) : null;
@@ -575,6 +578,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const { data: lists } = kidsRows.some((r) => r.list_id)
     ? await dbRead('hubPayload:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', kidsRows.map((r) => r.list_id).filter(Boolean)))
     : { data: [] };
+  mark('kids');
   const listOf = (r) => (lists || []).find((l) => l.id === r.list_id) || null;
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;
 
@@ -590,6 +594,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen), reads: guessReads && String(chosen.id) === guess ? guessReads : null } : null) : null;
   const history = ctx ? ctx.history : [];
   const StudentQuiz = require('./student-quiz.service');
+  mark('ctx');
   const [asked, linked] = await Promise.all([askedP, linkedP]);
   const lang = asked || clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
@@ -622,6 +627,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const take = par ? await collectHubBranches(branchCtx) : lazyHubBranches(branchCtx);
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
   await take('extras');
+  mark('take');
   if (shadow !== out) Object.keys(shadow).forEach((k) => { if (k === 'kids' || !(k in out)) out[k] = shadow[k]; });
   // a child whose place is saved on a family phone with no code (joined on their own, or confirmed on the /quiz landing):
   // never the "keep my place" card again, on any link (quiz_student_join; off: untouched)
@@ -634,6 +640,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   }
   const grade = ctx.grade;
   out.teacher = await take('teacher');
+  mark('teacher');
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
   // The Home button is on: the library and challenge links from here say so (hub.js adds home=1).
   if (f.homeButton) out.nav_home = true;
@@ -650,6 +657,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   } catch (err) {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
   }
+  mark('recs');
   // The tile asks the challenge's own grade rule (a band of grades is no grade there), so it never opens onto a refusal.
   const form = await challengeP;
   if (form) out.challenge = { on: true };
@@ -669,6 +677,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await take('bits')); // Jugnu's Book: {} while web_quiz_challenge_book is off
+  mark('play');
   // Stories (started with the challenge's reads), the v3 home's doors + header and the ranked next thing are independent
   // fields (none reads another): read side by side, so neither Stories nor the slot adds a serial wave. Each is {} while off.
   const [storyBits, homeBits, nextField] = await Promise.all([
@@ -677,6 +686,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
   ]);
   Object.assign(out, storyBits, homeBits, nextField);
+  mark('home');
   return out;
 }
 
@@ -688,15 +698,19 @@ async function hub(token, opts = {}) {
   // Fast first page (web_quiz_fast): the page-events switch is read beside the payload, not after it.
   const rt = require('./web-quiz-fast').on() ? require('./web-quiz-fast').early(Tel.flag()) : null;
   const ui = await require('./web-quiz-ur-polish').ui();
+  if (opts.st) opts.st.mark('ui');
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
   // Fast first page: the hub switches (the read-along preview's among them) are read beside the payload, like `rt`.
   const flagsP = fast ? require('./web-quiz-fast').early(Flags.flags()) : null;
   const out = await hubPayload(token, opts);
+  if (opts.st) opts.st.mark('rest');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
   const listen = !out.locked && (await (flagsP || Flags.flags())).readalong;
-  return { ...out, rt: await (rt || Tel.flag()), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
+  const rtOn = await (rt || Tel.flag());
+  if (opts.st) opts.st.mark('tail');
+  return { ...out, rt: rtOn, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
 }
 
 module.exports = {
