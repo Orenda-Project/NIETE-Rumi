@@ -30,6 +30,10 @@ const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlM
 const KID = '0123456789abcdef';
 const GOLDEN = path.join(__dirname, 'web-quiz-pack-off.golden.json');
 const HEX = assetVersion();
+// the read-along preview's own version (the edge hashes the preview and the player it loads)
+const LISTEN_V = require('crypto').createHash('sha256')
+  .update(fs.readFileSync(path.join(WQ, 'wq-readalong-listen.js'))).update(fs.readFileSync(path.join(WQ, 'wq-readalong.js'))).digest('hex').slice(0, 10);
+const LISTEN_GOLDEN = path.join(__dirname, 'web-quiz-pack-listen.golden.json');
 
 function jsonRes(status, body) {
   return {
@@ -76,8 +80,10 @@ const raw = (f) => fs.readFileSync(path.join(WQ, f));
 const joinJs = (bufs) => Buffer.concat(bufs.flatMap((b, i) => (i ? [Buffer.from(';\n'), b] : [b])));
 const joinCss = (bufs) => Buffer.concat(bufs.flatMap((b, i) => (i ? [Buffer.from('\n'), b] : [b])));
 // The page's stylesheets and scripts by URL, in page order (what the phone asks for from the html itself).
-const tagsOf = (html) => [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"(?: onerror="[^"]*")?>|<script src="([^"]+)"[^>]*><\/script>/g)].map((m) => m[1] || m[2]);
-const preloadsOf = (html) => [...html.matchAll(/<link rel="preload" href="([^"]+)" as="(script|style)">/g)].map((m) => m[1]);
+// (the attribute's value as the browser reads it: &amp; is &)
+const attr = (v) => v.replace(/&amp;/g, '&');
+const tagsOf = (html) => [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"(?: onerror="[^"]*")?>|<script src="([^"]+)"[^>]*><\/script>/g)].map((m) => attr(m[1] || m[2]));
+const preloadsOf = (html) => [...html.matchAll(/<link rel="preload" href="([^"]+)" as="(script|style)">/g)].map((m) => attr(m[1]));
 // the version and the bot's wait (the streamed page's mark) are not the page's shape
 const noV = (html) => html.split(HEX).join('<V>').replace(/"wq-bot",\{detail:\d+\}/, '"wq-bot",{detail:<ms>}');
 
@@ -138,12 +144,22 @@ describe('switch on: the hub page links one stylesheet and one script for the ho
       expect(css.buf.includes(raw('wq-bind.css'))).toBe(false);
     } finally { await new Promise((r) => srv.close(r)); }
   });
-  test('the read-along preview keeps its own tag, after the pack and before hub.js', () => {
+  test('the read-along preview (its switch on): the last file in the pack, no tag of its own; one request fewer', () => {
+    const before = tagsOf(renderHubPage({ payload: HUB({ listen: true }), token: TOKEN, origin: ORIGIN, assetV: HEX }));
+    expect(before).toContain(`/wq/wq-readalong-listen.js?v=${LISTEN_V}`);
     const html = renderHubPage({ payload: HUB({ pack: true, listen: true }), token: TOKEN, origin: ORIGIN, assetV: HEX });
-    const t = tagsOf(html);
-    expect(t[2]).toMatch(/^\/wq\/pack\/tel\.bind\.home\.doors\.play\.js/);
-    expect(t[3]).toMatch(/^\/wq\/wq-readalong-listen\.js\?v=/);
-    expect(t[4]).toBe(`/wq/hub.js?v=${HEX}`);
+    expect(tagsOf(html)).toEqual([
+      `/wq/wq.css?v=${HEX}`,
+      `/wq/pack/bind.home.doors.css?v=${HEX}`,
+      `/wq/pack/tel.bind.home.doors.play.listen.js?v=${HEX}l${LISTEN_V}&in=/wq/wq-readalong-listen.js`,
+      `/wq/hub.js?v=${HEX}`,
+    ]);
+    expect(html).not.toContain('<script src="/wq/wq-readalong-listen.js');
+    expect(html).toContain('&amp;in=/wq/wq-readalong-listen.js" defer>');   // the html escapes its own &
+    // the cold home's own requests from the html: one fewer than with the pack and the preview as its own tag
+    const packNoListen = tagsOf(renderHubPage({ payload: HUB({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX })).length + 1;
+    expect(tagsOf(html).length).toBe(packNoListen - 1);
+    expect(tagsOf(html).length).toBe(4);
   });
   test('through the edge: the bot\'s `pack: true` gives the pack page; the next payload without it, today\'s page again', async () => {
     const srv = await start(build([jsonRes(200, HUB({ pack: true })), jsonRes(200, HUB())]));
@@ -340,8 +356,9 @@ describe('the page\'s scripts with the pack on (a vm, the shipped files as the e
 // hub.js, as shipped, in a vm whose document holds the page's own tags (from the rendered html): what it asks for when
 // the pack's script or stylesheet fails to load. hub.js finds no window.WQHOME and asks for wq-home by its own name
 // (loadOnce), once; from there the home's existing failure path takes over (today: a failed wq-home.js draws the hub).
-function hubVm(html, { before = [] } = {}) {
+function hubVm(html, { before = [], hash = '' } = {}) {
   const asked = [];
+  const fetches = [];
   const tags = tagsOf(html).map((u) => ({ getAttribute: (k) => (k === 'src' || k === 'href' ? u : null) }));
   const root = { _h: '', set innerHTML(h) { this._h = h; }, get innerHTML() { return this._h; }, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; },
     getAttribute(k) { return k === 'data-m' ? (this.attrs[k] || 'H2') : null; }, querySelector: () => null, querySelectorAll: () => [], appendChild() {} };
@@ -359,13 +376,13 @@ function hubVm(html, { before = [] } = {}) {
   };
   win.document = document;
   const sandbox = {
-    window: win, document, navigator: { sendBeacon: () => true }, history: { replaceState() {} }, location: { search: '', hash: '', protocol: 'https:', pathname: `/h/${TOKEN}` }, Blob: function Blob() {},
-    localStorage: { getItem: () => null, setItem() {} }, fetch: () => new Promise(() => {}), MutationObserver: function MO() { this.observe = () => {}; },
+    window: win, document, navigator: { sendBeacon: () => true }, history: { replaceState() {} }, location: { search: '', hash, protocol: 'https:', pathname: `/h/${TOKEN}` }, Blob: function Blob() {},
+    localStorage: { getItem: () => null, setItem() {} }, fetch: (u) => { fetches.push(String(u)); return new Promise(() => {}); }, MutationObserver: function MO() { this.observe = () => {}; },
     setTimeout: () => 0, clearTimeout() {}, Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent, Uint8Array, RegExp,
   };
   vm.createContext(sandbox);
   for (const src of before) vm.runInContext(src, sandbox);
-  return { sandbox, asked, root, urls: () => asked.map((x) => x.src || x.href), run: () => vm.runInContext(fs.readFileSync(path.join(WQ, 'hub.js'), 'utf8'), sandbox) };
+  return { sandbox, asked, fetches, root, urls: () => asked.map((x) => x.src || x.href), run: () => vm.runInContext(fs.readFileSync(path.join(WQ, 'hub.js'), 'utf8'), sandbox) };
 }
 // The pack stylesheet's tag as the browser builds it: its inline onerror (when the edge writes one) becomes the
 // element's handler, fired with the element as `this`.
@@ -424,5 +441,81 @@ describe('the pack fails to load: the home\'s own loader asks for its files by n
     H.sandbox.window.WQHOME = { mount() {}, loadOnce() {} };
     H.run();
     expect(H.urls()).toEqual([]);
+  });
+});
+
+// ── the read-along preview inside the pack ───────────────────────────────────────────────────────────────────────────
+describe('the read-along preview in the pack (web_quiz_pack and the read-along switch both on)', () => {
+  let srv;
+  beforeAll(async () => { srv = await start(build([])); });
+  afterAll(() => new Promise((r) => srv.close(r)));
+  const LISTEN_PACK = `/wq/pack/tel.bind.home.doors.play.listen.js?v=${HEX}l${LISTEN_V}&in=/wq/wq-readalong-listen.js`;
+
+  test('either switch off: today\'s page, byte for byte (golden recorded before the preview joined the pack)', () => {
+    const pages = {
+      pack_off_listen_on: noV(renderHubPage({ payload: HUB({ listen: true }), token: TOKEN, origin: ORIGIN, assetV: HEX })),
+      pack_on_listen_off: noV(renderHubPage({ payload: HUB({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX })),
+    };
+    if (process.env.WQ_PACK_RECORD === '1') fs.writeFileSync(LISTEN_GOLDEN, `${JSON.stringify(pages, null, 1)}\n`);
+    const golden = JSON.parse(fs.readFileSync(LISTEN_GOLDEN, 'utf8'));
+    expect(pages.pack_off_listen_on).toBe(golden.pack_off_listen_on);
+    expect(pages.pack_on_listen_off).toBe(golden.pack_on_listen_off);
+  });
+
+  test('the pack holds the preview last, in page order; immutable only at the version that covers the preview', async () => {
+    const r = await get(srv, LISTEN_PACK);
+    expect([r.status, r.headers['cache-control']]).toEqual([200, 'public, max-age=31536000, immutable']);
+    expect(r.buf.equals(joinJs(['wq-tel.js', 'wq-bind.js', 'wq-home.js', 'wq-doors.js', 'hub-play.js', 'wq-readalong-listen.js'].map(raw)))).toBe(true);
+    // the hub's version alone does not cover the preview's file: same bytes, not kept
+    const plain = await get(srv, `/wq/pack/tel.bind.home.doors.play.listen.js?v=${HEX}`);
+    expect([plain.status, plain.headers['cache-control']]).toEqual([200, 'no-cache']);
+    // and a set without the preview is not kept at the preview's version
+    const other = await get(srv, `/wq/pack/tel.home.doors.js?v=${HEX}l${LISTEN_V}`);
+    expect(other.headers['cache-control']).toBe('no-cache');
+  });
+
+  test('the streamed head preloads the same URL the tail links', async () => {
+    const p = HUB({ fast: true, pack: true, listen: true });
+    const s2 = await start(build([jsonRes(200, p), jsonRes(200, p)]));
+    try {
+      await get(s2, `/h/${TOKEN}`);
+      const r = await get(s2, `/h/${TOKEN}`);
+      expect(preloadsOf(r.body)).toContain(LISTEN_PACK);
+      expect(tagsOf(r.body)).toContain(LISTEN_PACK);
+      expect(r.body).not.toContain('<script src="/wq/wq-readalong-listen.js');
+    } finally { await new Promise((r) => s2.close(r)); }
+  });
+
+  // The page's scripts in order, then hub.js, on /h/<t>#listen/<pid>: the preview's boot hook, its address and the
+  // player it asks for.
+  async function listenBoot(html) {
+    const H = hubVm(html, { hash: '#listen/p-sun-12' });
+    const tags = tagsOf(html).filter((u) => /\.js(\?|$|&)/.test(u));
+    for (const u of tags.slice(0, tags.indexOf(`/wq/hub.js?v=${HEX}`))) vm.runInContext((await get(srv, u)).body, H.sandbox);
+    const W = H.sandbox.window;
+    expect(W.WQLISTEN).toBeTruthy();
+    const calls = [];
+    const take = W.WQLISTEN.take;
+    W.WQLISTEN.take = function (...a) { calls.push(a.map((x) => typeof x)); return take.apply(this, a); };
+    H.sandbox.WQLISTEN = W.WQLISTEN;   // hub.js names it bare (a page global on the phone)
+    H.run();
+    const player = H.asked.filter((x) => /\/wq\/wq-readalong\.js/.test(x.src || ''));
+    expect(player).toHaveLength(1);
+    player[0].l.load();
+    return { calls, fetches: H.fetches.filter((u) => u.startsWith('/api/wq/listen/')), player: player[0].src, data: H.root.attrs['data-m'] };
+  }
+
+  test('the preview\'s boot hook runs once with the same address as today; its player still loads at a version that covers it', async () => {
+    const today = await listenBoot(renderHubPage({ payload: HUB({ listen: true }), token: TOKEN, origin: ORIGIN, assetV: HEX }));
+    const packed = await listenBoot(renderHubPage({ payload: HUB({ pack: true, listen: true }), token: TOKEN, origin: ORIGIN, assetV: HEX }));
+    expect(today.calls).toEqual([['function', 'function', 'function']]);
+    expect(packed.calls).toEqual(today.calls);
+    expect(today.fetches).toHaveLength(1);
+    expect(today.fetches[0]).toMatch(/^\/api\/wq\/listen\/h\/[^/]+\/p-sun-12\?lang=en$/);
+    expect(packed.fetches).toEqual(today.fetches);
+    expect(packed.data).toBe(today.data);
+    expect(today.player).toBe(`/wq/wq-readalong.js?v=${LISTEN_V}`);
+    // the pack's version holds the preview's own (the player and the preview change together)
+    expect(packed.player).toBe(`/wq/wq-readalong.js?v=${HEX}l${LISTEN_V}`);
   });
 });

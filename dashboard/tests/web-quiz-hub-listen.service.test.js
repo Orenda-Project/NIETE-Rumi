@@ -275,7 +275,8 @@ describe('the edge: the preview\'s script on the hub page only when the hub JSON
   test('the hub\'s own version is unchanged by the preview\'s files (they carry their own)', () => {
     expect(assetVersion()).toMatch(/^[0-9a-f]{10}$/);
     const src = fs.readFileSync(path.join(__dirname, '..', 'routes', 'web-quiz.routes.js'), 'utf8');
-    const av = src.slice(src.indexOf('function assetVersion()'), src.indexOf('function originOf('));
+    const at = src.indexOf('function assetVersion()');
+    const av = src.slice(at, src.indexOf('\n}\n', at));   // the function's own body (the home's pack below names the preview)
     expect(av).not.toMatch(/readalong/);
   });
 });

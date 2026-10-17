@@ -246,8 +246,13 @@ function minifiedFiles(dir, logEvent, esbuildOpt) {
 // door screens (wq-doors) come before hub.js runs, so the home's first mount draws a door at once. hub.js stays its own
 // tag (the home's and the doors' loaders read their ?v= from it); wq.css (other pages share it) and the stories reader
 // (it fills the shelf and routes #story/ the moment it loads) stay their own files too.
+// The read-along preview (wq-readalong-listen.js, only when the payload says `listen: true`) is the last file: today its
+// own tag sits right after these and before hub.js, so the page's order is unchanged. Its own version (listenVersion:
+// the preview and the player it loads) is not in the hub's, so a set holding it is kept only at a version that carries
+// both (packVersion), and its URL names the preview's path, where the preview finds its version for the player.
 const PACK = {
-  js: [['tel', 'wq-tel.js'], ['bind', 'wq-bind.js'], ['home', 'wq-home.js'], ['doors', 'wq-doors.js'], ['play', 'hub-play.js']],
+  js: [['tel', 'wq-tel.js'], ['bind', 'wq-bind.js'], ['home', 'wq-home.js'], ['doors', 'wq-doors.js'], ['play', 'hub-play.js'],
+    ['listen', 'wq-readalong-listen.js']],
   css: [['bind', 'wq-bind.css'], ['home', 'wq-home.css'], ['doors', 'wq-doors.css']],
 };
 const PACK_NAME_RX = /^([a-z]+(?:\.[a-z]+)*)\.(js|css)$/;
@@ -257,7 +262,7 @@ const PACK_JOIN = { js: Buffer.from(';\n'), css: Buffer.from('\n') };
 function packParts(payload) {
   const B = payload || {};
   const on = { tel: true, bind: Boolean(B.bind), home: Boolean(B.home_v3), doors: Boolean(B.home_v3),
-    play: Boolean(B.play && typeof B.play === 'object') };
+    play: Boolean(B.play && typeof B.play === 'object'), listen: B.listen === true };
   return { js: PACK.js.map(([k]) => k).filter((k) => on[k]), css: PACK.css.map(([k]) => k).filter((k) => on[k]) };
 }
 
@@ -279,6 +284,18 @@ function packFiles(name) {
   return { ext, files };
 }
 
+/** The version a pack is kept at: the hub's, plus the preview's own when the set holds the preview. */
+function packVersion(files, assetV) {
+  return files.includes('wq-readalong-listen.js') ? `${assetV}l${listenVersion()}` : assetV;
+}
+
+/** The pack script's URL as the page writes it (html-escaped). With the preview inside, the URL also names the preview's
+ * path: wq-readalong-listen.js finds its version for the player by `script[src*="/wq/wq-readalong-listen.js"]`. */
+function packJsHref(js, assetV) {
+  const listen = js.includes('listen');
+  return `/wq/pack/${js.join('.')}.js?v=${packVersion(listen ? ['wq-readalong-listen.js'] : [], assetV)}${listen ? '&amp;in=/wq/wq-readalong-listen.js' : ''}`;
+}
+
 /** The pack's bytes: the files from `read` (name -> Buffer), joined. */
 function packBody({ ext, files }, read) {
   return Buffer.concat(files.flatMap((f, i) => (i ? [PACK_JOIN[ext], read(f)] : [read(f)])));
@@ -293,7 +310,7 @@ function packTags(payload, assetV) {
   const { js, css } = packParts(payload);
   const files = css.map((k) => `'${PACK.css.find(([n]) => n === k)[1]}'`).join(',');
   const fallback = `this.onerror=null;[${files}].forEach(function(f){var l=document.createElement('link');l.rel='stylesheet';l.href='/wq/'+f+'?v=${assetV}';document.head.appendChild(l)})`;
-  return `${css.length ? `<link rel="stylesheet" href="/wq/pack/${css.join('.')}.css?v=${assetV}" onerror="${fallback}">\n` : ''}<script src="/wq/pack/${js.join('.')}.js?v=${assetV}" defer></script>\n`;
+  return `${css.length ? `<link rel="stylesheet" href="/wq/pack/${css.join('.')}.css?v=${assetV}" onerror="${fallback}">\n` : ''}<script src="${packJsHref(js, assetV)}" defer></script>\n`;
 }
 
 function originOf(req) {
@@ -631,7 +648,7 @@ function hubPageParts({ payload, token, origin, assetV, media = null }) {
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 ${payload && payload.pack === true ? packTags(payload, assetV) : `<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}`}${listenTag(payload)}<script src="/wq/hub.js?v=${assetV}" defer></script>
+${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}`}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };
@@ -654,7 +671,7 @@ function renderHubFlushTop(args) {
   const top = hubFlushTop(args);
   if (!args.pack) return top;
   const { js, css } = args.pack;
-  const pre = `${css.length ? `<link rel="preload" href="/wq/pack/${css.join('.')}.css?v=${args.assetV}" as="style">\n` : ''}<link rel="preload" href="/wq/pack/${js.join('.')}.js?v=${args.assetV}" as="script">`;
+  const pre = `${css.length ? `<link rel="preload" href="/wq/pack/${css.join('.')}.css?v=${args.assetV}" as="style">\n` : ''}<link rel="preload" href="${packJsHref(js, args.assetV)}" as="script">`;
   return { ...top, html: top.html.replace(`<link rel="preload" href="/wq/wq-tel.js?v=${args.assetV}" as="script">`, pre) };
 }
 
@@ -1309,7 +1326,7 @@ function createWebQuizRouter(opts = {}) {
   router.get('/wq/pack/:name', (req, res) => {
     const set = packFiles(req.params.name);
     if (!set) return res.status(404).set('Cache-Control', 'no-store').type('text').send('not found');
-    const current = typeof req.query.v === 'string' && req.query.v === version();
+    const current = typeof req.query.v === 'string' && req.query.v === packVersion(set.files, version());
     const min = current && sfx() === 'm';
     const key = `${min ? 'm' : 'r'}:${req.params.name}`;
     let buf = packKept.get(key);
