@@ -58,10 +58,8 @@ const ENDED = new Set(['last_word', 'quiet', 'done_tap', 'timer', 'line1', 'stuc
 const fail = (status, error) => { throw new WqError(status, { error }); };
 let cache = null;
 
-/** Only a literal true turns it on (app_settings.value is jsonb: the flip writes the boolean); a read error is off. */
-function isTrue(value) {
-  return value === true;
-}
+// Only a literal true turns it on (app_settings.value is jsonb: the flip writes the boolean); a read error is off.
+const { isTrue } = require('./is-true');
 
 // A finish counts (the shelf's tick, the Book's sticker, "the first time") only if the child listened to or read a page.
 function counted(row) {

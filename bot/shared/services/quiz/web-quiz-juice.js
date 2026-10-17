@@ -16,9 +16,7 @@ let cache = null; // { at, on }
 let reading = null;
 
 // JSON true only: a string 'true' row is off, like every child-page switch
-function isTrue(value) {
-  return value === true;
-}
+const { isTrue } = require('./is-true');
 
 // keep (the background re-read of a stale value, web_quiz_fast on): a failed read keeps the value it was refreshing.
 function refresh({ keep = false } = {}) {

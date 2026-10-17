@@ -100,9 +100,7 @@ const fail = (status, error) => { throw new CardError(status, error); };
 
 let cache = null;
 // On only as JSON true: a string "true" row is off, as every child-page switch reads it (one truth across the pages).
-function isTrue(value) {
-  return value === true;
-}
+const { isTrue } = require('./is-true');
 /** true only with app_settings web_quiz_card_v3 literally true; 30 s cache; fails closed. Never throws. */
 async function on(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;

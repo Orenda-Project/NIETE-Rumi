@@ -13,10 +13,8 @@ const STORIES_KEY = 'web_quiz_stories';
 const TTL_MS = 30 * 1000;
 let cache = null;
 
-/** Only the JSON boolean the flip writes turns a switch on (app_settings.value is jsonb); the string 'true' is off. */
-function isTrue(value) {
-  return value === true;
-}
+// Only the JSON boolean the flip writes turns a switch on (app_settings.value is jsonb); the string 'true' is off.
+const { isTrue } = require('./is-true');
 
 // web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
 async function flags(now = Date.now()) {

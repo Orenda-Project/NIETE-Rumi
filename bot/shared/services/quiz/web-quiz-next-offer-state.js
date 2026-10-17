@@ -20,7 +20,7 @@ const KEYS = Object.freeze({ on: 'web_quiz_next_offer', weights: 'web_quiz_next_
 const TTL_MS = 30 * 1000;
 const STATE_TTL_S = 40 * 24 * 60 * 60;
 // A switch is on only with the JSON value true: a string 'true' (or anything else) is off.
-const isTrue = (value) => value === true;
+const { isTrue } = require('./is-true');
 const RAW_OFF = Object.freeze({ on: false, events: false, weights: null });
 let cache = null;
 
