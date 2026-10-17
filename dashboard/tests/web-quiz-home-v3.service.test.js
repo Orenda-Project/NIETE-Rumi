@@ -385,6 +385,47 @@ describe('one word for the teacher on a child screen, and the pending teacher qu
   });
 });
 
+describe('a #story/<id> hash set in the page after the home is drawn (the Next tile, a resume tile) opens the book', () => {
+  function live2(B, { stories = null } = {}) {
+    const head = []; const l = {};
+    const loc = { hash: '', pathname: '/h/x', search: '' };
+    const root = { innerHTML: '', setAttribute() {}, querySelector: () => null, querySelectorAll: () => [], appendChild() {} };
+    const win = { addEventListener(n, fn) { (l[n] = l[n] || []).push(fn); }, scrollTo() {} };
+    if (stories) win.WQSTORIES = stories;
+    const document = {
+      querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null),
+      createElement: (tag) => ({ tag, addEventListener() {} }), head: { appendChild: (x) => head.push(x) },
+    };
+    vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, document, location: loc, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, JSON, Math, String, Number, Array, Object, encodeURIComponent, RegExp });
+    win.WQHOME.mount(root, B, { token: TOKEN, lang: 'en', ev() {} });
+    const html0 = root.innerHTML;
+    const go = (h) => { loc.hash = h; (l.hashchange || []).forEach((fn) => fn({})); };
+    const storyFiles = () => head.map((e) => e.src || e.href).filter((u) => /\/wq\/wq-stories\./.test(u));
+    return { root, html0, go, storyFiles };
+  }
+  test('stories on, the reader not yet fetched: the hash fetches wq-stories once (it routes the hash on load); the home is not redrawn', () => {
+    const p = live2({ ...HOME, stories: { on: 1 } });
+    expect(p.storyFiles()).toEqual([]);
+    p.go('#story/abc');
+    expect(p.storyFiles()).toEqual(['/wq/wq-stories.css?v=abc123', '/wq/wq-stories.js?v=abc123']);
+    expect(p.root.innerHTML).toBe(p.html0);
+    p.go('#story/abc/p2');
+    expect(p.storyFiles()).toHaveLength(2);
+  });
+  test('the reader already here: it owns the hash (its own listener), the home fetches nothing and draws nothing', () => {
+    const p = live2({ ...HOME, stories: { on: 1 } }, { stories: { route: jest.fn() } });
+    p.go('#story/abc');
+    expect(p.storyFiles()).toEqual([]);
+    expect(p.root.innerHTML).toBe(p.html0);
+  });
+  test('stories off: the hash does nothing (today)', () => {
+    const p = live2(HOME);
+    p.go('#story/abc');
+    expect(p.storyFiles()).toEqual([]);
+    expect(p.root.innerHTML).toBe(p.html0);
+  });
+});
+
 describe('hash routes: an empty hash is home again, #book opens the Book on load', () => {
   test('the Book opens on mount when the page lands on #book', () => {
     const p = page({ hash: '#book' }); p.mount({ ...HOME, book_on: true });
