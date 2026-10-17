@@ -1389,7 +1389,7 @@
     // the Trail: a settled "not a reading" (not heard, or no word) redraws its card as the zero line, only while
     // that card is still open; a child who has gone on is never pulled back to it
     if (TR) {
-      if (live && live.zero) return;
+      if (live && live.zero) { if (TR.readChecked) TR.readChecked(); return; }
       if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) { if (live) live.held = false; readResult(r); return; }
       if (TR.storySettled) TR.storySettled(r);
       liveSettle();

@@ -239,6 +239,73 @@ describe('on the fold: a 0-word read\'s ONE Next is "Hear it again" when the pas
     await p.flush();
     expect(asks(p)).toHaveLength(1);
   });
+  // a slow check: the words call says pending (409) until the server's check of the recording has settled; the page
+  // asks once more when that check comes back, while the card is still open
+  const slowCheck = () => {
+    const box = {};
+    const words = () => (box.p && box.p.server.now.body && !box.p.server.now.body.pending ? { status: 200, body: { readalong: RA } } : { status: 409, body: { error: 'pending' } });
+    return { box, words };
+  };
+  const polls = async (p, n) => { for (let i = 0; i < n; i += 1) { await p.runTimers((x) => x.ms === 3000); await p.flush(); } };
+  test.each(['en', 'ur'])('%s: the check settles late (about 15 s, after the 1, 2 and 4 s asks): one more ask then, the Next becomes «Hear it again»', async (lang) => {
+    const { box, words } = slowCheck();
+    const p = trail(lang, { fold: true, read: ZL, words });
+    box.p = p;
+    player(p);
+    await stopAtZero(p);
+    await p.flush();
+    for (const ms of [1000, 2000, 4000]) { await p.runTimers((x) => x.ms === ms); await p.flush(); }
+    expect(asks(p)).toHaveLength(4);
+    // the check is still running at 3, 6, 9 and 12 s: nothing more is asked
+    await polls(p, 4);
+    expect(asks(p)).toHaveLength(4);
+    expect(p.html()).not.toContain(REPLAY[lang]);
+    // it settles (nothing read) on the poll at 15 s
+    p.server.now = { status: 200, body: SETTLED.implausible };
+    await polls(p, 1);
+    await p.flush();
+    expect(asks(p)).toHaveLength(5);
+    const h = kindCard(p, lang);
+    expect(nexts(h)).toEqual(['id="wqc-fnext"']);
+    expect(h).toContain(`>${REPLAY[lang]}</button>`);
+    expect(primaries(h)).toBe(1);
+    expect(homes(h)).toBe(1);
+  });
+  test('the check settles late, still pending when asked once more: asked again after 1, 2 and 4 s from then, then never again', async () => {
+    const p = trail('en', { fold: true, read: ZL, words: pendingThen(99) });
+    player(p);
+    await stopAtZero(p);
+    await p.flush();
+    for (const ms of [1000, 2000, 4000]) { await p.runTimers((x) => x.ms === ms); await p.flush(); }
+    await polls(p, 4);
+    expect(asks(p)).toHaveLength(4);
+    p.server.now = { status: 200, body: SETTLED.implausible };
+    await polls(p, 1);
+    expect(asks(p)).toHaveLength(5);
+    for (const ms of [1000, 2000, 4000]) { await p.runTimers((x) => x.ms === ms); await p.flush(); }
+    expect(asks(p)).toHaveLength(8);
+    await p.runTimers(() => true); await p.flush();
+    expect(asks(p)).toHaveLength(8);
+    const h = kindCard(p, 'en');
+    expect(h).toContain('<a class="wq-btn wq-go" id="wqc-fnext" data-primary href="/s/b1/1">Read a storybook</a>');
+    expect(primaries(h)).toBe(1);
+  });
+  test('the check settles late after the child has left the card: nothing more is asked', async () => {
+    const { box, words } = slowCheck();
+    const p = trail('en', { fold: true, read: ZL, words });
+    box.p = p;
+    player(p);
+    await stopAtZero(p);
+    await p.flush();
+    for (const ms of [1000, 2000, 4000]) { await p.runTimers((x) => x.ms === ms); await p.flush(); }
+    await polls(p, 4);
+    expect(asks(p)).toHaveLength(4);
+    p.w.open('read'); await p.flush();
+    p.server.now = { status: 200, body: SETTLED.implausible };
+    await polls(p, 1);
+    await p.runTimers((x) => x.ms === 1000 || x.ms === 2000 || x.ms === 4000); await p.flush();
+    expect(asks(p)).toHaveLength(4);
+  });
   test('no timings anywhere (the words call says 404): the slot\'s tile stays the ONE Next', async () => {
     const p = trail('en', { fold: true, read: ZL });
     player(p);
@@ -279,6 +346,9 @@ describe('"Hear it again" switch off: no words call and no tile on the kind card
         await p.flush();
         for (const ms of [1000, 2000, 4000]) await p.runTimers((x) => x.ms === ms);
         await p.flush();
+        // the check settles late: still no words call
+        p.server.now = { status: 200, body: SETTLED.implausible };
+        for (let i = 0; i < 5; i += 1) { await p.runTimers((x) => x.ms === 3000); await p.flush(); }
         const h = kindCard(p, lang);
         expect(p.fetches.some((f) => /ch\/words/.test(f.url))).toBe(false);
         expect(h).not.toContain(REPLAY[lang]);

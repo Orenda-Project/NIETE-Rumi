@@ -183,9 +183,15 @@
       foldAfter(qa);
       // no timings on the serve (a counted read): asked for now (once the recording is up); drawn again with "Hear it again"
       var redraw = function () { if (h.S.data === d && h.S.screen === name) foldEnd(name, top, qa, nx, card); };
-      if (want === false && d.ct) askWords(d, redraw);
+      // and asked once more when the server's check of the recording settles (a slow check), while this card is open
+      if (want === false && d.ct) {
+        d.words_again = function () { if (!d.words_ra && h.S.data === d && h.S.screen === name) { d.words_asked = false; askWords(d, redraw); } };
+        askWords(d, redraw);
+      }
       if (want === 'wait') { raLoad(); if (!raLoad.failed) raWaits.push(function (ok) { if (ok) redraw(); }); }
     }
+    // the read's check has settled (the kind card of a read that heard nothing): its card asks for the words again
+    function readChecked() { var d = h.S.data; if (d && typeof d.words_again === 'function') d.words_again(); }
     function outcome(d) { return (d && (d.outcome || (d.draw && d.draw.outcome))) || null; }
     function isWarmup(d) { return !!(d && d.anchor_block); }
 
@@ -504,8 +510,10 @@
       raLoad();
       var shown = h.S.screen;
       var waits = [1000, 2000, 4000];
-      var here = function () { return h.S.data === d && h.S.screen === shown; };
+      var gen = d.words_gen = (d.words_gen || 0) + 1;   // a newer ask (the check settled) ends this one
+      var here = function () { return h.S.data === d && h.S.screen === shown && d.words_gen === gen; };
       var ask = function () {
+        if (d.words_gen !== gen) return;
         fetch('/api/wq/ch/words/' + encodeURIComponent(d.ct) + '?lang=' + L, { credentials: 'same-origin' })
           .then(function (r) {
             if (r.status === 409 && waits.length && here()) { setTimeout(function () { if (here()) ask(); }, waits.shift()); return null; }
@@ -689,7 +697,7 @@
     }
 
     return { games: function () { return games; }, opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
-      readEnd: readEnd, readHold: readHold, storySettled: storySettled, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, introTitle: introTitle, introLine: introLine, T: T };
+      readEnd: readEnd, readHold: readHold, storySettled: storySettled, readChecked: readChecked, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, introTitle: introTitle, introLine: introLine, T: T };
   }
 
   window.WQTRAIL = { init: init, T: T };
