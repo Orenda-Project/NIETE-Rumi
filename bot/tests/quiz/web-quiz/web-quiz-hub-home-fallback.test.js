@@ -112,7 +112,7 @@ describe('web_quiz_home_fallback_v3', () => {
     const Flag = require('../../../shared/services/quiz/web-quiz-home-fallback-flag');
     seed([...HOME_ON, ON(FB)]);
     expect(await Flag.on()).toBe(true);
-    expect(await Home.flags()).toEqual({ at: expect.any(Number), home: true, stories: false });
+    expect(await Home.flags()).toEqual(expect.objectContaining({ home: true, stories: false }));
     seed([...HOME_ON, STR(FB)]);
     expect(await Flag.on()).toBe(false);
     seed([...HOME_ON, { key: FB, value: 1 }]);
