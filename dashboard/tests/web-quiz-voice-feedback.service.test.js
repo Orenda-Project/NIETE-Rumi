@@ -30,7 +30,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'en', store = {}, noVoice = false, stallClips = false } = {}) {
+function page({ lang = 'en', store = {}, noVoice = false, stallClips = false, oneVoice = false } = {}) {
   const timers = []; // { fn, ms }: recorded, run only by a test that asks (runTimers)
   const voiced = []; // in order: { url } for a clip, { text } for the phone's voice
   const clips = [];
@@ -56,6 +56,7 @@ function page({ lang = 'en', store = {}, noVoice = false, stallClips = false } =
     textContent: JSON.stringify({
       code: 'TEST', cls: { label: 'Class 3', teacher: 'Teacher Testwala', chips: [] }, live: {}, video: null,
       quiz: { code: 'TEST', lang, topic: 'Plants', grade: 3, questions: [{ qid: 'q1', text: lang === 'ur' ? 'کیا؟' : 'a?', options: [{ slot: 'A', text: lang === 'ur' ? 'ہاں' : 'x' }], correct_slot: 'A' }] },
+      ...(oneVoice ? { one_voice: true, voice_sets: oneVoice } : {}),
     }),
   };
   const actx = { state: 'running', suspended: 0, suspend() { this.suspended += 1; this.state = 'suspended'; return Promise.resolve(); }, resume() { this.state = 'running'; return Promise.resolve(); } };
@@ -412,5 +413,45 @@ describe('a figure pointer line plays its recorded clip from the shared voice se
     const p = page({ lang: 'en' });
     const parts = p.wq.readParts(figQ('en', 'Look at the red bar.'));
     expect(parts[0]).toEqual({ text: 'Look at the red bar.', url: null, p: 'fig' });
+  });
+});
+
+/*
+ * One voice per quiz (boot one_voice + voice_sets, app_settings web_quiz_one_voice): the shared lines come from the set
+ * recorded in the plan's voice (public/wq/voice/one/<tag>/, a manifest naming that voice), so Jugnu's "Not yet…" is the
+ * same voice as the question and the options. Off, the page asks for exactly today's files.
+ */
+describe('one voice per quiz: the shared lines are the plan voice\'s', () => {
+  const ONE_DIR = path.join(VOICE_DIR, 'one');
+  const Voice = require('../../bot/shared/services/quiz/web-quiz-voice');
+  const LANG_OF = { 'el-bella': 'en', 'el-sana': 'ur', 'el-sara': 'ur' }; // by the set's voice tag
+  test('every set says exactly today\'s words, every line recorded, in the voice its folder names; the bot knows each set by its files\' hash', () => {
+    const sets = fs.readdirSync(ONE_DIR).filter((d) => fs.statSync(path.join(ONE_DIR, d)).isDirectory()).sort();
+    expect(sets).toEqual(Object.keys(Voice.SHARED_SETS).sort());
+    for (const tag of sets) {
+      const m = JSON.parse(fs.readFileSync(path.join(ONE_DIR, tag, 'manifest.json'), 'utf8'));
+      expect(Voice.setIdOf(m.voice)).toBe(tag);                // the folder names the voice AND its rendering (setIdOf)
+      expect(m.lines).toEqual(MANIFEST[m.lang || LANG_OF[tag.split('-').slice(0, 2).join('-')]]);   // a new set names its language
+      Object.entries(m.lines).forEach(([set, lines]) => lines.forEach((_, i) => expect(fs.existsSync(path.join(ONE_DIR, tag, `${set}-${i}.mp3`))).toBe(true)));
+      const crypto = require('crypto');
+      const h = crypto.createHash('sha1');
+      fs.readdirSync(path.join(ONE_DIR, tag)).filter((f) => f.endsWith('.mp3')).sort()
+        .forEach((f) => { h.update(`${f}\n`); h.update(fs.readFileSync(path.join(ONE_DIR, tag, f))); });
+      expect(Voice.SHARED_SETS[tag]).toBe(h.digest('hex').slice(0, 8));
+    }
+  });
+  const say = () => require('../../bot/shared/config/ux-strings').resolveUx('wqFigBarsSay', { language: 'en' });
+  const figQ = () => ({ qid: 'q9', text: 'How much is coloured?', figure: { kind: 'svg', svg: '<svg></svg>', say: say() }, options: [{ slot: 'A', text: 'half' }], correct_slot: 'A', audio: { q: 'https://r2.example/q.ogg', opts: ['https://r2.example/a.ogg'] } });
+  test('on: a shared line plays from the plan voice\'s set; off: today\'s file', () => {
+    const sets = Voice.sharedSets(true);
+    expect(page({ lang: 'en', oneVoice: sets }).wq.readParts(figQ())[0].url).toBe(`/wq/voice/one/el-bella/fig-0.mp3?v=${Voice.SHARED_SETS['el-bella']}`);
+    expect(page({ lang: 'en' }).wq.readParts(figQ())[0].url).toMatch(/^\/wq\/voice\/en\/fig-0\.mp3\?v=[0-9a-f]{8}$/);
+  });
+  test('on, with no set for the plan voice: no shared-line audio, and never the phone\'s voice', () => {
+    const p = page({ lang: 'en', oneVoice: {} });
+    const parts = p.wq.readParts(figQ());
+    expect(parts[0].url).toBe(null);
+    p.wq.speakSeq(parts, null, 'q9');
+    expect(p.utterances.length).toBe(0);
   });
 });
