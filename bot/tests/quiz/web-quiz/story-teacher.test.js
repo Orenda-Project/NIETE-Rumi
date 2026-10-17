@@ -323,6 +323,15 @@ describe('the Stories page (the bot renders it)', () => {
     expect((r.body.match(/data-tap="grade"/g) || []).length).toBe(5);
     expect(r.body).not.toContain('Book 6 Testwala');
   });
+  test('a two-language teacher (bi token): the page follows the language asked, as the teacher home does; a one-language token keeps its own', async () => {
+    const page = async (lang, query) => { const r = res(); await Routes.servePage({ params: { th: th(TEACHER, lang) }, query }, r); return r.body; };
+    expect(await page('bi', { grade: '2', lang: 'en' })).toContain('<html lang="en" dir="ltr">');
+    expect(await page('bi', { grade: '2', lang: 'en', book: B(2) })).toContain('<html lang="en" dir="ltr">');
+    expect(await page('bi', { grade: '2', lang: 'ur' })).toContain('<html lang="ur" dir="rtl">');
+    expect(await page('bi', { grade: '2' })).toContain('<html lang="ur" dir="rtl">');
+    expect(await page('ur', { grade: '2', lang: 'en' })).toContain('<html lang="ur" dir="rtl">');
+    expect(await page('en', { grade: '2', lang: 'ur' })).toContain('<html lang="en" dir="ltr">');
+  });
   test('a book: the preview with ONE primary "Send to class", the exact message, and the report line', async () => {
     const r = res();
     await Routes.servePage({ params: { th: th(TEACHER, 'ur') }, query: { grade: '2', lang: 'en', book: B(2) } }, r);
