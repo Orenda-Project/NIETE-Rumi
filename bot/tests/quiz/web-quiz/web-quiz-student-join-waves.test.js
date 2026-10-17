@@ -64,9 +64,9 @@ async function roundTrip(what) {
   doneMax = Math.max(doneMax, rec.wave);
 }
 
-function seed(fastValue, { failFast = false } = {}) {
+function seed(fastValue, { failFast = false, extra = {} } = {}) {
   const settings = { web_quiz_hub: true, web_quiz_identity_canon: true, web_quiz_phone_bind: true, web_quiz_events_v2: true,
-    quiz_student_join: true, quiz_join_early_tap: true, web_quiz_home_v3: true };
+    quiz_student_join: true, quiz_join_early_tap: true, web_quiz_home_v3: true, ...extra };
   if (fastValue !== undefined) settings[FAST_KEY] = fastValue;
   fake = makeFake({
     app_settings: Object.entries(settings).map(([key, value]) => ({ key, value })),
@@ -273,5 +273,34 @@ describe('the teacher check side by side (activityAll) answers as the serial one
     if (hit) fake.db[hit].push(hit === 'quizzes' ? { teacher_id: 'u-x' } : hit === 'class_teachers' ? { teacher_user_id: 'u-x', is_active: true } : { user_id: 'u-x', gamma_url: 'g' });
     const I = require('../../../shared/services/student-ingress-identity');
     expect(await I.activityAll('u-x')).toBe(await I.activity('u-x'));
+  });
+});
+
+describe('quiz_join_wait_word: the page\'s shell answer names it, read in the join\'s own switch read', () => {
+  const WAIT_KEY = 'quiz_join_wait_word';
+  const pageOf = async (fastValue, extra) => {
+    boot(fastValue, { extra });
+    const t = await landing(user(5));
+    return measure(() => Join.pageInfo({ t }));
+  };
+  test.each([[undefined], [true]])('ON (JSON true; quiz_join_fast %s) → waitWord: true and nothing else changes; no read of its own', async (fastValue) => {
+    const off = await pageOf(fastValue, {});
+    const on = await pageOf(fastValue, { [WAIT_KEY]: true });
+    expect(JSON.parse(on.out)).toEqual({ ...JSON.parse(off.out), waitWord: true });
+    expect(on.seq).toEqual(off.seq);
+  });
+  test.each([['false', false], ['the string "true"', 'true'], ['the JSON string \'"true"\'', '"true"'], ['1', 1], ['{}', {}]])('%s → today\'s bytes', async (_l, value) => {
+    const r = await pageOf(undefined, { [WAIT_KEY]: value });
+    expect(r.out).toEqual(BASE.page.out.page);
+    expect(r.seq).toEqual(BASE.page.seq.page);
+  });
+  test('the join switch off → off, whatever the waiting-line switch says', async () => {
+    const r = await pageOf(undefined, { [WAIT_KEY]: true, quiz_student_join: false });
+    expect(JSON.parse(r.out)).toEqual({ off: true });
+  });
+  test('ON: the join itself answers the same bytes (the switch changes only the page)', async () => {
+    boot(undefined, { extra: { [WAIT_KEY]: true } });
+    const on = await oneJoin(1);
+    expect(on.out).toEqual(BASE.join.out.cold);
   });
 });
