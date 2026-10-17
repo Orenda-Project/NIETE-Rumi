@@ -105,7 +105,8 @@ describe("the library", () => {
     expect(await screen.findByTestId("provider-TALEEMABAD")).toBeTruthy();
     expect(screen.getByTestId("provider-ISAPS")).toBeTruthy();
     expect(screen.getByTestId("provider-TALEEMABAD_LEGACY")).toHaveTextContent("Taleemabad");
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Training Library");
+    // bd-s42dye.6: the page opens with the coach Home's band (the greeting is the h1); the library is the section heading under it
+    expect(screen.getByRole("heading", { level: 2, name: /Training Library/ })).toBeTruthy();
     noLearnerUi(container);
   });
 
@@ -212,7 +213,7 @@ describe("Urdu", () => {
   it("the library's title in Urdu", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     app("/portal/coach/training");
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("ٹریننگ لائبریری");
+    expect(screen.getByRole("heading", { level: 2, name: /ٹریننگ لائبریری/ })).toBeTruthy();
   });
 });
 

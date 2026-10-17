@@ -280,12 +280,17 @@ describe('4. Section A\'s keys never run in a strict period', () => {
 
   test('another subject\'s periodic keys are not touched here', () => {
     const CH1 = paper('chapters_1');
-    // The same twenty MCQs laid as an Urdu paper's Q1 keep their order.
+    // The same twenty MCQs laid as an Urdu paper's Q1 keep their order and their own keys. The Urdu
+    // layout's own holds may leave some out; the ones it prints are never re-lettered or re-ordered.
     const U = ALL.urdu;
     const q1 = U.sections.flatMap((s) => s.slots).find((s) => s.shape === 'mcq');
-    const exam = { unseen: { [q1.category]: { [q1.type]: items(CH1, A1).map((q) => ({ ...q, slot: q1.slot })) } } };
+    const input = items(CH1, A1).map((q) => ({ ...q, slot: q1.slot }));
+    const exam = { unseen: { [q1.category]: { [q1.type]: input.map((q) => ({ ...q })) } } };
     const laid = applyLayout(exam, U, { kind: 'chapters', chapters: [4, 5], pages: null }, { reasked: true }).examJson;
-    const got = items(laid, q1.slot).map((q) => String(q.answer).trim().split(/[)\s]/)[0]);
-    expect(periodic(got)).toBe(true);
+    const got = items(laid, q1.slot);
+    expect(got.length).toBeGreaterThan(0);
+    const at = got.map((q) => input.findIndex((x) => x.question === q.question));
+    expect(at.every((i, n) => i >= 0 && (n === 0 || i > at[n - 1]))).toBe(true);
+    expect(got.map((q) => [q.answer, q.options])).toEqual(at.map((i) => [input[i].answer, input[i].options]));
   });
 });

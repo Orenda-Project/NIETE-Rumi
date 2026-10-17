@@ -6,7 +6,7 @@ import { quickCheckNext, useQuickCheck } from '../../newui/training/TrainingQuiz
 import { ListRow, StatusChip } from '../ui';
 import { CARD } from '../ui/styles';
 import { answerStates } from './inner';
-import { Choices, DockButton, DockRow, Dots, HeroCard } from './parts';
+import { Choices, DockButton, DockRow, Dots, HeroCard, QuestionPrompt } from './parts';
 import { LoadState, TrainingPageV2 } from './TrainingFrame';
 
 /**
@@ -94,7 +94,7 @@ export function QuickCheckPage() {
               {notSent ? <StatusChip text={T.notSent} tone="error" /> : null}
             </div>
           ) : null}
-          <p dir="auto" className="whitespace-pre-line px-1 text-[20px] font-bold leading-[1.4] rtl:leading-[2]">{question.question_text}</p>
+          <QuestionPrompt>{question.question_text}</QuestionPrompt>
           <Choices
             key={question.id}
             label={T.answers}

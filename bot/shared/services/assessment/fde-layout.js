@@ -1329,6 +1329,47 @@ function keyAcceptSplit(q) {
   const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept.filter((a) => typeof a === 'string') : [];
   return accept.some((a) => { const at = which(a); return at >= 0 && at !== keyAt; });
 }
+// Urdu Q4: the group word names what the listed words belong to («تھرمامیٹر، نبض، دوا، ڈاکٹر» →
+// اسپتال). A stem whose list prints the key as the only one of its options in the list («… جس سے یہ
+// سب الفاظ متعلق ہیں: سورج، کرنیں، دھوپ، روشنی» with options سورج، برف، سایہ، رات → سورج) is
+// answered by matching, and is held. A stem whose list is its own four options (choose the group
+// word among them: «بھیڑ، بکری، گائے، ریوڑ» → ریوڑ) is not: there every option is listed by design.
+// The list is the stem's first line after its last colon, up to its first «۔» or «؟», cut at «،».
+const GROUP_ASK = /گروہی/;
+function groupWordListed(q) {
+  const stem = String(q.question || '').split('\n')[0];
+  if (!GROUP_ASK.test(stem) || !/[:：]/.test(stem)) return false;
+  const key = plain(keyText(q));
+  if (!key) return false;
+  const listed = stem.slice(stem.search(/[:：][^:：]*$/) + 1).split(/[۔؟?]/)[0].split(/[،,]/).map(plain).filter(Boolean);
+  const options = (Array.isArray(q.options) ? q.options : []).map((o) => plain(String(o).replace(OPTION_HEAD, ''))).filter(Boolean);
+  const inList = options.filter((o) => listed.includes(o));
+  return listed.length > 1 && inList.length === 1 && inList[0] === key;
+}
+// Urdu: the page text's numeral dates are not reliable (a year loses a digit, «۱۹۱۳ء» reads
+// «۱۹۳ ء»), so an item keyed on a year, a date or a day of the month is held: its key, or any entry
+// of its scheme's accept list, carries digits with «ء», «سن» and a year, a four-digit year alone, or
+// a month beside a number. The written pieces (picture, essay or dialogue, story, letter) are
+// models, not keys: a letter is dated by its form, so they are not read.
+const DATE_KEY_SLOTS = new Set(['urdu.A.Q1', 'urdu.B.Q2', 'urdu.C.Q3', 'urdu.C.Q4', 'urdu.C.Q5', 'urdu.C.Q6']);
+// Month names are matched as `plain` writes them (one letter form, no hamza seat).
+const DATE_MONTHS = `(?:${['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر',
+  'محرم', 'صفر', 'ربیع الاول', 'ربیع الثانی', 'ربیع الآخر', 'جمادی الاول', 'جمادی الاولیٰ', 'جمادی الثانی', 'جمادی الآخر', 'رجب',
+  'شعبان', 'رمضان', 'شوال', 'ذوالقعدہ', 'ذی قعدہ', 'ذوالحجہ', 'ذی الحجہ', 'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december'].map(plain).join('|')})`;
+const DATE_TEXT = [
+  /(?:^| )\d{3,4} ?ء(?: |$)/,
+  /(?:^| )سنہ? \d{3,4}(?: |$)/,
+  /^[12]\d{3}$/,
+  new RegExp(`(?:^| )\\d{1,2} ${DATE_MONTHS}(?: |$)`),
+  new RegExp(`(?:^| )${DATE_MONTHS} \\d{1,4}(?: |$)`),
+  /(?:^| )\d{1,2} تاریخ(?: |$)/,
+];
+function keyedOnDate(q) {
+  const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept.filter((a) => typeof a === 'string') : [];
+  return [keyText(q), ...accept.map((a) => a.replace(OPTION_HEAD, ''))]
+    .map(plain).some((t) => t && DATE_TEXT.some((re) => re.test(t)));
+}
 // Urdu Q1: an MCQ whose stem prints its own key gives itself away («لفظ «سانپ» کی درست املا کون سی
 // ہے؟» → سانپ; «سَحَر» … درست اعراب والا لفظ → سَحَر), the key being one of its options: a quote that is the key as written, marks and
 // all, or the key's words in order outside the stem's quotes. A quote that holds the key among other
@@ -1366,6 +1407,24 @@ function printsOwnKey(q) {
   const printed = (o) => quotes.includes(o) || (tokensOf(o).length > 0 && outside.some((part) => part.includes(` ${plain(o)} `)));
   const others = options.filter((o) => o !== key && plain(o));
   return printed(key) && !others.some(printed);
+}
+// Urdu Q1: a grammar-term item whose stem prints a word of its own key, outside the example it
+// quotes and in no other option («… «گاڑی» کی صفت بیان کرنے والے لفظ کو کیا کہتے ہیں؟» → اسم صفت,
+// beside موصوف / اسم آلہ / اسم صوت), is answered by matching words. The key is a grammar term: a
+// class word first (اسم، حرف…، فعل، جملہ) or a bare term (صفت، مذکر …). The class word itself is
+// the stem's own frame («… لفظ کو کیا کہتے ہیں؟») and is not read; a key that is a name or a fact
+// the stem names is another shape, and stays.
+const TERM_CLASS = new Set(['اسم', 'حرف', 'فعل', 'لفظ', 'جملہ', 'الفاظ']);
+const BARE_TERMS = new Set(['موصوف', 'صفت', 'مذکر', 'مونث', 'واحد', 'جمع', 'متضاد', 'مترادف']);
+const termClass = (w) => TERM_CLASS.has(w) || w.startsWith('حرف');
+function namesOwnTerm(q) {
+  if (!Array.isArray(q.options) || !q.options.length) return false;
+  const key = plain(keyText(q));
+  const words = key.split(' ').filter(Boolean);
+  if (!words.length || !(termClass(words[0]) || BARE_TERMS.has(key))) return false;
+  const stem = ` ${plain(String(q.question || '').replace(QUOTE_SPAN, ' '))} `;
+  const others = q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).filter((o) => o && o !== key).map((o) => o.split(' '));
+  return words.some((w) => [...w].length >= 3 && !termClass(w) && stem.includes(` ${w} `) && !others.some((o) => o.includes(w)));
 }
 function asksTwo(q) {
   if (!Array.isArray(q.options) || !q.options.length) return false;
@@ -1654,8 +1713,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
       if (P.key === 'social_studies' && tierSlip(q)) return false;
-      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return false;
-      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && printsOwnKey(q)) return false;
+      if (P.key === 'urdu' && DATE_KEY_SLOTS.has(slot.slot) && keyedOnDate(q)) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && (keyAcceptSplit(q) || groupWordListed(q))) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && (printsOwnKey(q) || namesOwnTerm(q))) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
       if (!holds(slot)) {
         if (P.key === 'social_studies' && slot.slot === Q6_SLOT && asksRecall(q)) return hold(slot, q, 'recall');
