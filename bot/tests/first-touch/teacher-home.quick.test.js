@@ -82,6 +82,16 @@ function getJson(p) {
   });
 }
 const home = (t = tokenAt()) => getJson(`/api/th/home?t=${t}`);
+/**
+ * The paged answer against today's: everything but the timeline equal, its rows today's first five (the rest come
+ * from /api/th/timeline, teacher-home.paged.test.js).
+ */
+function expectToday(on, off) {
+  expect(on.status).toBe(off.status);
+  const strip = (h) => { const x = { ...h }; delete x.timeline; delete x.more; delete x.after; return x; };
+  expect(strip(on.body)).toEqual(strip(off.body));
+  expect(on.body.timeline).toEqual(off.body.timeline.slice(0, 5));
+}
 /** The same request with the switch off (today's answer). */
 async function offHome(opts = {}) {
   await boot({ ...opts, paged: null });
@@ -97,7 +107,7 @@ afterEach(async () => {
   await stop();
 });
 
-describe('switch ON: the same answer, in a few round trips', () => {
+describe('switch ON: today\'s answer (the timeline paged), in a few round trips', () => {
   test('a long history (52 recorded lessons + 128 quizzes): 4 round trips (the line: at most 6), against 15 today', async () => {
     // a cold process: the switches' 30 s caches and the class report's 60 s memo empty (a first open, or one a minute later)
     await boot({ paged: null });
@@ -128,13 +138,13 @@ describe('switch ON: the same answer, in a few round trips', () => {
     ['180 rows', { sessions: 100, quizzes: 120, quizzed: 40 }],
     ['a short history', { sessions: 3, quizzes: 2, quizzed: 1 }],
     ['no lessons at all', { sessions: 0, quizzes: 0, quizzed: 0 }],
-  ])('%s: the JSON is today\'s, byte for byte', async (_, opts) => {
+  ])('%s: the JSON is today\'s (the timeline\'s first five rows)', async (_, opts) => {
     await boot(opts);
     const on = await home();
     await boot({ ...opts, paged: null });
     const off = await home();
     expect(on.status).toBe(200);
-    expect(on.text).toBe(off.text);
+    expectToday(on, off);
   });
 
   test('the walk-through persona\'s view of the lists: the same answer as today\'s', async () => {
@@ -144,7 +154,7 @@ describe('switch ON: the same answer, in a few round trips', () => {
     await boot({ paged: null });
     const off = await home();
     expect(on.body.timeline.filter((r) => r.kind === 'coach')).toEqual([]);
-    expect(on.text).toBe(off.text);
+    expectToday(on, off);
   });
 
   test('reads: never more requests than today (a short history), fewer for a long one', async () => {
@@ -179,7 +189,7 @@ describe('switch ON: the same answer, in a few round trips', () => {
       await boot({ paged: null, now: Fx.NOW + later });
       const off = await home(tokenAt());
       expect(on.status).toBe(200);
-      expect(on.text).toBe(off.text);
+      expectToday(on, off);
     }
   });
 

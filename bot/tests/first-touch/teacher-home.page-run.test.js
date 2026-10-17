@@ -225,3 +225,34 @@ describe('"My lessons" rows', () => {
     expect(row(p, 1).querySelector('[data-tap="report"]')).toBeNull();
   });
 });
+
+describe('«More» on the timeline', () => {
+  const row = (i) => ({ kind: 'lp', key: `lp_${i}`, title: `Lesson ${i}`, date: new Date(Date.UTC(2026, 9, 14) - i * 3600000).toISOString(), verb: null, id: null, sendKind: null });
+  const rowsOf = (from, to) => Array.from({ length: to - from }, (_, k) => row(from + k));
+  const drawn = (p) => p.q('#th-rows').children.length;
+
+  test('today\'s answer (every row, no `more`): «More» shows ten more from the answer, never asks the server', async () => {
+    const p = await open({ primary: { kind: 'none' }, library: LIB, timeline: rowsOf(0, 30) });
+    expect(drawn(p)).toBe(5);
+    await p.tap(p.q('#th-more'));
+    expect(drawn(p)).toBe(15);
+    expect(p.fetches.filter((f) => f.path.indexOf('/api/th/timeline') === 0)).toEqual([]);
+  });
+
+  test('the paged answer (five rows, `more`, `after`): «More» asks for the next ten after the cursor, then hides at the end', async () => {
+    const pages = { 'lp_4': { timeline: rowsOf(5, 15), more: 3, after: 'c15' }, c15: { timeline: rowsOf(15, 18), more: 0, after: null } };
+    const p = await open({ primary: { kind: 'none' }, library: LIB, timeline: rowsOf(0, 5), more: 13, after: 'lp_4' }, {
+      answer: (path) => pages[decodeURIComponent((/[?&]after=([^&]+)/.exec(path) || [])[1] || '')] || {},
+    });
+    expect(drawn(p)).toBe(5);
+    expect(p.q('#th-more').hidden).toBe(false);
+    await p.tap(p.q('#th-more'));
+    expect(p.fetches.filter((f) => f.path.indexOf('/api/th/timeline') === 0).map((f) => f.path)).toEqual(['/api/th/timeline?t=a.b&after=lp_4&n=10']);
+    expect(drawn(p)).toBe(15);
+    expect(p.q('#th-rows').children.map((li) => li.getAttribute('data-row'))).toHaveLength(15);
+    await p.tap(p.q('#th-more'));
+    expect(drawn(p)).toBe(18);
+    expect(p.q('#th-more').hidden).toBe(true);
+    expect(p.fetches.filter((f) => f.path.indexOf('/api/th/timeline') === 0)).toHaveLength(2);
+  });
+});
