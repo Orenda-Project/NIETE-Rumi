@@ -561,5 +561,5 @@ module.exports = {
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,
   // the per-child reads, for a result card's next thing (web-quiz-next-offer-sources.js snapshot)
-  _parts: { kidContext, kidChip, teacherCard, againOf, lastOf, challengeForm, trailStops, recsFor, subjectArtOf },
+  _parts: { kidContext, kidChip, teacherCard, againOf, lastOf, challengeForm, trailStops, recsFor, subjectArtOf, lessonRefs },
 };

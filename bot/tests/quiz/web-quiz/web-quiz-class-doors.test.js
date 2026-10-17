@@ -90,9 +90,18 @@ describe('web_quiz_class_doors on the hub', () => {
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.home_v3).toBe(1);
     const k = T.chipId('sc-1', KID);
-    // the hub's own language travels on both links, so the table and the league open in it
-    expect(out.class_doors).toEqual({ class: `/q/MATH01/class?k=${encodeURIComponent(k)}&lang=${out.lang}`, schools: `/q/MATH01/schools?k=${encodeURIComponent(k)}&lang=${out.lang}` });
-    expect(out.lang).toMatch(/^(en|ur)$/);
+    // the hub's language is the quiz's own here, so the links leave it out (the page opens in it anyway)
+    expect(out.lang).toBe('en');
+    expect(out.class_doors).toEqual({ class: `/q/MATH01/class?k=${encodeURIComponent(k)}`, schools: `/q/MATH01/schools?k=${encodeURIComponent(k)}` });
+  });
+
+  test('linksOf: the hub\'s language rides both links only when it is not the quiz\'s own', () => {
+    const h = [{ teacherSent: true, code: 'MATH01', shareCodeId: 'sc-1', language: 'en' }];
+    const k = encodeURIComponent(T.chipId('sc-1', KID));
+    expect(ClassDoors.linksOf(h, KID, null, 'ur')).toEqual({ class: `/q/MATH01/class?k=${k}&lang=ur`, schools: `/q/MATH01/schools?k=${k}&lang=ur` });
+    expect(ClassDoors.linksOf(h, KID, null, 'en')).toEqual({ class: `/q/MATH01/class?k=${k}`, schools: `/q/MATH01/schools?k=${k}` });
+    expect(ClassDoors.linksOf(h, KID, null, 'fr').class).toBe(`/q/MATH01/class?k=${k}`);
+    expect(ClassDoors.linksOf([{ ...h[0], language: 'ur' }], KID, null, 'en').class).toBe(`/q/MATH01/class?k=${k}&lang=en`);
   });
 
   test('the newest class quiz wins; a friend\'s challenge code or a library lesson code is never the class', async () => {
