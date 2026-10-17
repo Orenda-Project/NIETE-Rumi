@@ -223,8 +223,8 @@ describe('switch OFF (absent): today\'s reads and round trips, pinned', () => {
   // gate starts with the lesson reads (base wave 13). The shell +1 wave: it must know the switch before it serves.
   // An extra serial or unconditional read on today's path turns this red (wave list in the failure message).
   // + the named-item switch's own read on the home (+1), and the named-item + early-pick reads on the shell (+2), each
-  // beside a read already in flight (no new round trip)
-  const PINS = { long: { reads: 47, waves: 15 }, small: { reads: 46, waves: 15 }, big: { reads: 47, waves: 15 }, shell: { reads: 4, waves: 2 } };
+  // beside a read already in flight (no new round trip); + the story-counts switch's read on the home and the shell (+1 each)
+  const PINS = { long: { reads: 48, waves: 15 }, small: { reads: 47, waves: 15 }, big: { reads: 48, waves: 15 }, shell: { reads: 5, waves: 2 } };
   test.each([
     ['long', {}],
     ['small', { sessions: 3, quizzes: 2, quizzed: 1 }],

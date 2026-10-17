@@ -191,12 +191,11 @@ else if(r.status==='making'&&r.quizId){poll(r,tx,null)}
 ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown}
 function lib(L){Array.prototype.forEach.call(q('#th-grades').querySelectorAll('[data-grade]'),function(x){x.setAttribute('aria-pressed',String(x.getAttribute('data-grade')===String(L.grade)))});
 q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});
-var k=L.counts,kc=q('#th-counts'),kn=k&&k.sent>=1;kc.textContent=kn?fill(k.sent===1?'th.stories.counts.one':'th.stories.counts',{sent:dg(k.sent),read:dg(k.read||0)}):'';kc.hidden=!kn;
 var ul=q('#th-stories');clear(ul);(L.stories||[]).forEach(function(s){var li=el('li','th-row');li.setAttribute('data-row','story');var tx=el('div','th-row-t');var n=el('span','th-row-n');n.appendChild(topic(s.title));if(s.sent)n.appendChild(el('span','th-sent',fill('th.sent.on',{day:day(s.sent)})));tx.appendChild(n);li.appendChild(tx);li.appendChild(link('th-row-v',S['th.send'],s.href,'story_tile'));ul.appendChild(li)});
 ul.hidden=!(L.stories&&L.stories.length);var a=q('#th-all');a.hidden=!L.all;if(L.all)a.setAttribute('href',L.all);
 var v=q('#th-videos');v.hidden=!d.maker;if(d.maker)v.setAttribute('href',d.maker)}
 function pickGrade(n){if(String(n)===String(grade))return;grade=n;store('th.grade',String(n));step('grade');
-getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){if(d.library&&d.library.counts&&!L.counts)L.counts=d.library.counts;d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}).catch(function(e){if(e!==1)err(true)})}
+getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}).catch(function(e){if(e!==1)err(true)})}
 function foot(){var m=q('#th-make');m.hidden=!d.maker;if(d.maker)m.setAttribute('href',d.maker);
 var cs=q('#th-cards');clear(cs);(d.cards||[]).forEach(function(c){var a=link('th-go2',c.title,c.href,'card');a.setAttribute('data-card',c.card);cs.appendChild(a)});cs.hidden=!(d.cards&&d.cards.length);
 var s=q('#th-try');s.hidden=!d.tryStudent;if(d.tryStudent)s.setAttribute('href',d.tryStudent);var cl=q('#th-change-go');cl.hidden=typeof d.change!=='string';if(typeof d.change==='string')cl.setAttribute('href',d.change);walk()}
@@ -262,14 +261,24 @@ const EARLY_SWAPS = Object.freeze([
   ["function render(){hello();top();under();rows();lib(d.library||{grade:2});foot();q('#th-main').setAttribute('data-ready','1')}",
     "function render(){err(false);hello();top();under();rows();lib(d.library||{grade:2});foot();q('#th-main').setAttribute('data-ready','1');var n=pend;pend=null;if(n!=null)pickGrade(n)}"],
 ]);
-// Every page the switches can ask for: paged × named × early, each under its own hash.
+/**
+ * counts (quiz_teacher_story_counts): the library card's one counts line from the home's `library.counts` ("3 stories
+ * sent · children who read: 7"), kept across a grade change (a grade's library answer carries no counts). Swapped
+ * first, so the early pick's guard still comes before the carry.
+ */
+const COUNTS_SWAPS = Object.freeze([
+  ["q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});\n", "q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});\nvar k=L.counts,kc=q('#th-counts'),kn=k&&k.sent>=1;kc.textContent=kn?fill(k.sent===1?'th.stories.counts.one':'th.stories.counts',{sent:dg(k.sent),read:dg(k.read||0)}):'';kc.hidden=!kn;\n"],
+  ["(b.ask?'&lang='+b.ask:'')).then(function(L){", "(b.ask?'&lang='+b.ask:'')).then(function(L){if(d.library&&d.library.counts&&!L.counts)L.counts=d.library.counts;"],
+]);
+// Every page the switches can ask for: paged × named × early × counts, each under its own hash.
 const SCRIPTS = new Map();
-[false, true].forEach((paged) => [false, true].forEach((named) => [false, true].forEach((early) => {
+[false, true].forEach((paged) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => {
   let text = paged ? SCRIPT_PAGED : SCRIPT;
+  if (counts) text = swapped(text, COUNTS_SWAPS, 'a story-counts part');
   if (named) text = swapped(text, NAMED_SWAPS, 'a named-item part');
   if (early) text = swapped(text, EARLY_SWAPS, 'an early-pick part');
-  SCRIPTS.set(`${paged}|${named}|${early}`, { text, hash: paged && !named && !early ? SCRIPT_PAGED_HASH : sha(text) });
-})));
+  SCRIPTS.set(`${paged}|${named}|${early}|${counts}`, { text, hash: paged && !named && !early && !counts ? SCRIPT_PAGED_HASH : sha(text) });
+}))));
 
 function csp(styleHash, scriptHash, { meta = false } = {}) {
   return `default-src 'none'; style-src 'sha256-${styleHash}'; ${scriptHash ? `script-src 'sha256-${scriptHash}'; connect-src 'self'; ` : ''}`
@@ -300,15 +309,16 @@ function pageLang(tokenLang, asked) {
 
 // The strings the script fills with (textContent only), by id. The page's own static words are not repeated.
 const NAMED_IDS = Object.freeze(['th.kind.story', 'th.kind.quiz', 'th.again.story', 'th.again.quiz']);
-const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', ...NAMED_IDS].includes(id)));
+const COUNTS_IDS = Object.freeze(['th.stories.counts', 'th.stories.counts.one']);
+const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', ...NAMED_IDS, ...COUNTS_IDS].includes(id)));
 
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
  * caller) rides only in the boot block; every teacher-specific word arrives from /api/th/home after paint. `asked` is
  * the ?lang the page was opened with (bi tokens only). → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false }) {
-  const { text: script, hash: scriptHash } = SCRIPTS.get(`${Boolean(paged)}|${named === true}|${early === true}`);
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false }) {
+  const { text: script, hash: scriptHash } = SCRIPTS.get(`${Boolean(paged)}|${named === true}|${early === true}|${counts === true}`);
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}`;
   const styleHash = sha(style);
@@ -317,6 +327,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
   const s = {};
   SCRIPT_IDS.forEach((id) => { s[id] = str(id, l); });
   if (named === true) NAMED_IDS.forEach((id) => { s[id] = str(id, l); });
+  if (counts === true) COUNTS_IDS.forEach((id) => { s[id] = str(id, l); });
   const sw = switchTo
     ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
     : '';
@@ -337,8 +348,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 </section>
 <section class="th-card" id="th-lib">
 <h2>${esc(str('th.sec.library', l))}</h2>
-<p class="th-note" id="th-chosen"></p>
-<p class="th-note" id="th-counts" hidden></p>
+<p class="th-note" id="th-chosen"></p>${counts === true ? '\n<p class="th-note" id="th-counts" hidden></p>' : ''}
 <div class="th-chips" id="th-grades">${chips}</div>
 <ul class="th-rows" id="th-stories" hidden></ul>
 <a class="th-link" id="th-all" data-tap="all_stories" hidden>${esc(str('th.all.stories', l))}</a>

@@ -1,8 +1,8 @@
 'use strict';
 /**
- * Every page the teacher home's switches can ask for (paged × named × early) is built from today's script by text
- * swaps, at require time. The page module must load with the story counts line in the script, each of the eight pages
- * must build, and the early-pick page must keep both the counts carry on a grade change and its "no home yet" guard.
+ * Every page the teacher home's switches can ask for (paged × named × early × counts) is built from today's script by
+ * text swaps, at require time. The page module must load, each of the sixteen pages must build, the counts page must
+ * keep the home's counts on a grade change, and the early-pick page must keep its "no home yet" guard ahead of it.
  * (A swap that no longer matches throws at require, and the routes that require the page are then never mounted.)
  */
 process.env.WHATSAPP_BOT_NUMBER = '15550001111';
@@ -10,7 +10,7 @@ jest.mock('../../shared/config/supabase', () => ({}));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 
 const COMBOS = [];
-[false, true].forEach((paged) => [false, true].forEach((named) => [false, true].forEach((early) => COMBOS.push({ paged, named, early }))));
+[false, true].forEach((paged) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => COMBOS.push({ paged, named, early, counts })))));
 const scriptOf = (html) => html.slice(html.lastIndexOf('<script'), html.lastIndexOf('</script>'));
 
 describe('the page for every switch combination', () => {
@@ -29,17 +29,21 @@ describe('the page for every switch combination', () => {
     });
   });
 
-  test('the eight pages are eight different scripts', () => {
+  test('the sixteen pages are sixteen different scripts', () => {
     expect(Page).not.toBeNull();
     const all = new Set(COMBOS.map((sw) => scriptOf(Page.buildShell({ token: 't', lang: 'en', switchTo: null, asked: null, ...sw }).html)));
-    expect(all.size).toBe(8);
+    expect(all.size).toBe(16);
   });
 
-  test.each(COMBOS)('%j: a grade change keeps the home\'s counts; early waits for the home first', (sw) => {
+  test.each(COMBOS)('%j: counts → the line and the carry on a grade change; early → its guard first', (sw) => {
     expect(Page).not.toBeNull();
-    const s = scriptOf(Page.buildShell({ token: 't', lang: 'en', switchTo: null, asked: null, ...sw }).html);
-    expect(s).toContain('if(d.library&&d.library.counts&&!L.counts)L.counts=d.library.counts;d.library=L;');
-    const guarded = s.includes('.then(function(L){if(!d)return;if(d.library&&d.library.counts');
-    expect(guarded).toBe(sw.early);
+    const built = Page.buildShell({ token: 't', lang: 'en', switchTo: null, asked: null, ...sw });
+    const s = scriptOf(built.html);
+    const carry = 'if(d.library&&d.library.counts&&!L.counts)L.counts=d.library.counts;d.library=L;';
+    expect(s.includes(carry)).toBe(sw.counts);
+    expect(s.includes("kc=q('#th-counts')")).toBe(sw.counts);
+    expect(built.html.includes('id="th-counts"')).toBe(sw.counts);
+    const ask = ".then(function(L){" + (sw.early ? 'if(!d)return;' : '') + (sw.counts ? carry : 'd.library=L;');
+    expect(s).toContain(ask);
   });
 });

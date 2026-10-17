@@ -262,8 +262,8 @@ function createRouter(deps = null) {
     if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur');
     const { lang, switchTo } = Page.pageLang(v.ok.lang, asked(req.query.lang));
     // the script's switched parts (each OFF unless JSON true; off, today's shell byte for byte)
-    const [named, early] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn()]);
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early });
+    const [named, early, counts] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn(), Data.dep(deps, 'CountsFlag').on()]);
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
@@ -323,12 +323,15 @@ function createRouter(deps = null) {
     const user = await userP;
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
     const namedP = MoreFlags.namedOn(); // once the teacher is known (a gone teacher costs no more reads); awaited with the lists
+    const countsP = Data.within(storyCountsOf(p.uid), Data.SIDE_BUDGET_MS, null, 'story counts'); // the same, as on the full answer
     const [lists, { grade, lib }, confirm, maker, [children, { change, walk }]] = await Promise.all([quickLists(p, user, soon), libP, confirmP, makerP, sideP]);
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons: lists.lessons, played: lists.played, shares: lists.shares, reports: lists.reports,
       stories: lib.stories, video: lib.video, maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
       againable: lists.againable, named: await namedP,
     });
+    const counts = await countsP;
+    if (counts && home.library) home.library.counts = counts;
     if (walk) home.walk = walk;
     // the class card's "Send again" from the rows already read; anything else (a library pick) as on the full answer
     const top = home.primary;

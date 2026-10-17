@@ -1025,6 +1025,61 @@ describe('the library card\'s story counts', () => {
     expect('counts' in JSON.parse(withCounts).library).toBe(false);
   });
 
+  test('the shell with the counts switch on is the counts page; absent, false or the string "true" → today\'s page, byte for byte', async () => {
+    const shellOf = async () => { const r = await get(`/quiz/teacher/${tokenFor()}`); expect(r.status).toBe(200); return r.text(); };
+    seed({ settings: COUNTS_ON });
+    await boot(deps);
+    expect(await shellOf()).toBe(Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null, counts: true }).html);
+    for (const settings of [[], [{ key: 'quiz_teacher_story_counts', value: false }], [{ key: 'quiz_teacher_story_counts', value: 'true' }]]) {
+      srv.close();
+      CountsFlag._resetCache();
+      seed({ settings });
+      await boot(deps);
+      expect(await shellOf()).toBe(Page.buildShell({ token: tokenFor(), lang: 'en', switchTo: null, asked: null }).html);
+    }
+  });
+
+  // the quick answer (quiz_teacher_home_paged ON) carries the same counts line as the full answer
+  const PAGED = { key: 'quiz_teacher_home_paged', value: true };
+  test('the quick answer (paged ON) → the same library.counts as the full answer, read once for the whole teacher', async () => {
+    seed({ settings: [...COUNTS_ON, PAGED] });
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+    await boot(deps);
+    const home = JSON.parse(await homeText());
+    expect(home.library.counts).toEqual({ sent: 3, read: 7 });
+    expect(deps.Stories.storyCounts).toHaveBeenCalledTimes(1);
+    expect(deps.Stories.storyCounts.mock.calls[0][0]).toBe(TEACHER.id);
+  });
+
+  test('the quick answer and the full answer give the same JSON with the counts line (paged ON == OFF, counts ON)', async () => {
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now()); // both homes sign their maker link in the same second
+    try {
+      seed({ settings: COUNTS_ON });
+      deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+      await boot(deps);
+      const full = JSON.parse(await homeText());
+      srv.close();
+      seed({ settings: [...COUNTS_ON, PAGED] });
+      deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(async () => ({ sent: 3, read: 7 })) };
+      await boot(deps);
+      const quick = JSON.parse(await homeText());
+      expect(quick.library).toEqual(full.library);
+    } finally { clock.mockRestore(); }
+  });
+
+  test.each([
+    ['the counts switch absent', [], async () => ({ sent: 3, read: 7 })],
+    ['nothing sent', COUNTS_ON, async () => ({ sent: 0, read: 0 })],
+    ['a read that throws', COUNTS_ON, async () => { throw new Error('down'); }],
+  ])('the quick answer, %s → no counts key', async (_name, settings, fn) => {
+    seed({ settings: [...settings, PAGED] });
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(fn) };
+    await boot(deps);
+    const home = JSON.parse(await homeText());
+    expect('counts' in home.library).toBe(false);
+    if (!settings.length) expect(deps.Stories.storyCounts).not.toHaveBeenCalled();
+  });
+
 });
 
 
