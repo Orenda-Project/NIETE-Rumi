@@ -263,7 +263,7 @@ function ogTextOf(payload, view, brand) {
   // A storybook the teacher sent (boot `story`, web_quiz_stories_teacher): a story to listen to and read, never "0 questions".
   if (payload && payload.story) {
     return {
-      title: ur ? `${q.topic || ''} · ${label} کے لیے کہانی` : `${q.topic || ''} · a story for ${label}`,
+      title: ur ? `${q.topic || ''} · ${label} کے لیے کہانی` : `${q.topic || ''} · a story for ${cls.label || 'your class'}`,
       desc: ur ? `${brand.mascot.ur} کے ساتھ سنیں اور پڑھیں` : `Listen and read along with ${brand.mascot.en}`,
     };
   }
@@ -357,8 +357,9 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
   const teachId = view === 'quiz' ? artId(art.teach, 'teach') : null;
   const teach = teachId && typeof art.teach_v === 'string' && TEACH_V_RX.test(art.teach_v)
     ? `${origin}/q/${code}/art/teach.png?a=${encodeURIComponent(teachId)}&v=${art.teach_v}` : null;
-  // The teacher's reminder link (?v=<played>) keeps its live class picture ahead of the class link picture.
-  const live = ver && view === 'quiz' ? pic('class', artId(art.class, 'class')) : null;
+  // The teacher's reminder link (?v=<played>) keeps its live class picture ahead of the class link picture. A story's
+  // reminder keeps the story's own picture: the live class picture is a quiz scoreboard (played, average, top score).
+  const live = ver && view === 'quiz' && !(payload && payload.story) ? pic('class', artId(art.class, 'class')) : null;
   return pic('card', artId(a, 'card'))
     || pic('invite', artId(art.invite, 'invite'))
     || live
