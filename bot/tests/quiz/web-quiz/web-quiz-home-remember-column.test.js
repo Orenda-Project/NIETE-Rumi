@@ -345,7 +345,7 @@ describe('web_quiz_remember_shown_row: "shown" is kept on the row too, so a cach
     expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({});
   });
 
-  test.each([['absent', 'absent'], ['false', false], ['"true"', 'true']])('OFF (%s): today\'s path — the row is never marked, and a flush draws it again as before', async (_l, value) => {
+  test.each([['absent', 'absent'], ['false', false], ['"true"', 'true'], ['\'"true"\'', '"true"'], ['\' TRUE \'', ' TRUE '], ['"yes"', 'yes'], ['1', 1], ['{enabled:true}', { enabled: true }]])('OFF (%s): today\'s path — the row is never marked, and a flush draws it again as before', async (_l, value) => {
     seed({ shown: value });
     const { kidId } = await joinNew();
     touched.length = 0;
@@ -354,6 +354,85 @@ describe('web_quiz_remember_shown_row: "shown" is kept on the row too, so a cach
     expect('remember_shown_at' in rowOf(kidId)).toBe(false);
     flushCache();
     expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+  });
+
+  test.each([['absent', 'absent'], ['false', false]])('column %s, shown ON: it acts only with the column on — no query names the column, and a flush draws the line again', async (_l, column) => {
+    seed({ column, shown: true });
+    const { kidId } = await joinNew();
+    touched.length = 0;
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+    // the cache lost: the same join URL reopened writes the cache note again, and today's rule draws the line again
+    flushCache();
+    expect(await Remember().note({ device: DEVICE, bindingId: rowOf(kidId).id, canonicalId: kidId, userId: USER.id })).toBe(true);
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+    expect(touched.join(',')).not.toContain('remember_shown_at');
+    expect('remember_shown_at' in rowOf(kidId)).toBe(false);
+  });
+
+  test('a failed read on the shown key\'s own row: the home, the shelf and the column stay as they are, shown is off, the line comes from the cache', async () => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed({ shown: true });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: true });
+    let reads = 0;
+    const faulty = throwOn(supabase.from, 'web_quiz_remember_shown_row');
+    supabase.from = (t) => { if (t === 'app_settings') reads += 1; return faulty(t); };
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags();
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: true, stories: true, column: true, shown: false });
+    // one extra settings read, on the failure only (the home's own keys, read again alone); then the 30 s cache holds
+    expect(reads).toBe(2);
+    await HomeFlags.flags();
+    expect(reads).toBe(2);
+    const { kidId } = await joinNew();
+    touched.length = 0;
+    const home = await HubHome().homeField({ out: OUT, chosenId: kidId, history: [], device: DEVICE, src: 'join' });
+    expect(home.home_v3).toBe(1);
+    expect(home.remember).toEqual({ s: 20 });
+    expect(touched.join(',')).not.toContain('remember_shown_at');
+    // the cache's rule, as with the key off: a reload draws nothing, a flush draws it again
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({});
+    flushCache();
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+    expect('remember_shown_at' in rowOf(kidId)).toBe(false);
+  });
+
+  test('a failed read on the home switch itself still turns every switch off (fails closed, as today)', async () => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed({ shown: true });
+    supabase.from = throwOn(supabase.from, 'web_quiz_home_v3');
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags();
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: false, stories: false, column: false, shown: false });
+  });
+
+  test('settings reads on the first home (#C72): OFF is the recorded count; ON adds no read; ON stays under the ceiling', async () => {
+    const OFF_READS = 3; // recorded on this head (home, hub and identity switches, each one read, cache cold)
+    const NAMED_ROWS = 0; // the shown key rides that same read
+    const count = async (shown) => {
+      seed({ shown });
+      const { kidId } = await joinNew();
+      flushCache();
+      await Remember().note({ device: DEVICE, bindingId: rowOf(kidId).id, canonicalId: kidId, userId: USER.id });
+      IdFlags._resetCache(); HubFlags._resetCache(); HomeFlags._resetCache();
+      if (typeof OneDoorFlags._resetCache === 'function') OneDoorFlags._resetCache();
+      fake.calls.length = 0;
+      const f = await HubHome().homeField({ out: OUT, chosenId: kidId, history: [], device: DEVICE, src: 'join' });
+      expect(f.remember).toEqual({ s: 20 });
+      return fake.calls.filter((c) => c.table === 'app_settings').length;
+    };
+    const off = await count('absent');
+    const on = await count(true);
+    expect(off).toBe(OFF_READS);
+    expect(on).toBeLessThanOrEqual(off + NAMED_ROWS);
+    expect(on).toBeLessThanOrEqual(OFF_READS);
+  });
+
+  test('ON: a binding whose link is gone is never claimed (no write, the claim says no)', async () => {
+    seed({ shown: true });
+    const { kidId } = await joinNew();
+    rowOf(kidId).revoked_at = new Date(Date.now() - 1000).toISOString();
+    expect(await Bindings.markShown(rowOf(kidId).id)).toBe(false);
+    expect('remember_shown_at' in rowOf(kidId)).toBe(false);
   });
 
   test('the key rides the home switches\' one settings read (no extra read)', async () => {
