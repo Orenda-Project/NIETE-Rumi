@@ -31,7 +31,7 @@ const OLD_HUB = /trail|challenge|today|keep (my|your) place|what shall we do|ر�
 const BANNED = /\b(test|tests|exam|assess\w*|wrong|practice|counted|story time)\b|امتحان|ٹیسٹ|غلط/i;
 const visible = (html) => html.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]*>/g, ' ').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 
-function runHub(boot, { home = null, hash = '' } = {}) {
+function runHub(boot, { home = null, hash = '', pageCss = false } = {}) {
   const clicks = {};
   const root = {
     _h: '', _m: null, set innerHTML(h) { this._h = h; }, get innerHTML() { return this._h; },
@@ -48,7 +48,7 @@ function runHub(boot, { home = null, hash = '' } = {}) {
   const document = {
     documentElement: { setAttribute() {}, classList: { toggle() {} } }, cookie: '',
     getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? { textContent: JSON.stringify(boot) } : null),
-    querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null),
+    querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : pageCss && /wq-home\.css/.test(sel) ? {} : null),
     createElement: (tag) => ({ tag, l: {}, addEventListener(n, fn) { this.l[n] = fn; } }),
     head: { appendChild: (el) => { head.push(el); } },
   };
@@ -203,6 +203,38 @@ describe('on (home_v3 + home_fb): wq-home.js fails', () => {
     const r = runHub({ ...FB, doors: { stories: [], games: [], videos: null } });
     failTwice(r);
     ['stories', 'games', 'videos'].forEach((d) => expect(r.root.innerHTML).toContain('href="#' + d + '"'));
+  });
+});
+
+// The page: with the switch on, the server's own wq-home.js tag becomes a preload of the same address, so a hung
+// request no longer holds hub.js back (deferred scripts run in order) and hub.js's ask reuses the preloaded bytes.
+describe('the page (the server)', () => {
+  const { renderHubPage } = require('../routes/web-quiz.routes');
+  const PAGE_GOLDEN = path.join(__dirname, 'fixtures', 'home-fallback-page-off-golden.json');
+  const page = (p) => renderHubPage({ payload: p, token: TOKEN, origin: 'https://portal.example.test', assetV: 'abcdef0123' });
+  const homeRefs = (html) => html.match(/<[^>]*wq-home\.js[^>]*>/g) || [];
+  test.each(['en', 'ur'])('%s: on -> no wq-home.js script before hub.js, one preload of the very address hub.js asks for', (lang) => {
+    const html = page({ ...FB, lang });
+    expect(html).not.toMatch(/<script[^>]*wq-home\.js/);
+    expect(homeRefs(html)).toEqual(['<link rel="preload" href="/wq/wq-home.js?v=abcdef0123" as="script">']);
+    homeRefs(html).forEach((t) => expect(t).not.toMatch(/crossorigin/));
+    const v = /<script src="\/wq\/hub\.js\?v=([^"]+)" defer>/.exec(html)[1];
+    expect(homeRefs(html)[0]).toContain('href="/wq/wq-home.js?v=' + v + '"');
+    expect(html.indexOf('wq-home.js')).toBeLessThan(html.indexOf('/wq/hub.js'));
+    expect(html).toContain('<link rel="stylesheet" href="/wq/wq-home.css?v=abcdef0123">');
+  });
+  test('on, the stylesheet already on the page: hub.js asks for the script only, never a second stylesheet', () => {
+    const r = runHub(FB, { pageCss: true });
+    expect(r.scripts().map((e) => e.src)).toEqual(['/wq/wq-home.js?v=abc123']);
+    expect(r.head.filter((e) => /wq-home\.css/.test(e.href || ''))).toHaveLength(0);
+  });
+  test.each(['en', 'ur'])('GOLDEN: %s off (home_v3 without home_fb) -> the page string-equal to the base', (lang) => {
+    expect(page({ ...HOME, lang })).toBe(JSON.parse(fs.readFileSync(PAGE_GOLDEN, 'utf8'))[lang]);
+  });
+  test('GOLDEN: home_fb without home_v3 -> the page string-equal to the base, no wq-home at all', () => {
+    const html = page({ ...HUB, home_fb: 1 });
+    expect(html).toBe(JSON.parse(fs.readFileSync(PAGE_GOLDEN, 'utf8')).nohome);
+    expect(html).not.toContain('wq-home');
   });
 });
 

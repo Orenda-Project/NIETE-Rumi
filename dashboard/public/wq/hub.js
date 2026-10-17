@@ -421,7 +421,7 @@
   function hub() {
     batchIds(B.kid);
     storyIn();
-    if (B.home_v3 && (!homeFail || (B.home_fb && window.WQHOME))) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return homeAsk(true); }
+    if (B.home_v3 && (!homeFail || (B.home_fb && window.WQHOME))) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return homeAsk(!(B.home_fb && document.querySelector('link[href*="/wq/wq-home.css"]'))); }
     if (B.home_v3 && B.home_fb) return homeFb();
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
