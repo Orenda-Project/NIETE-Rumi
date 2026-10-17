@@ -40,7 +40,7 @@
       endB3Next: 'Next time Jugnu can read a story with you first.', endNext: function (title) { return 'Next: ' + title; }, endHome: 'Home',
       trailPractice: 'Playing again: just for fun', trailMicWait: 'This game needs the mic. Play it when the mic is on.', trailOther: 'Try another game', trailStopDone: 'Game done!',
       lanternTrailOne: 'A game is waiting for you on the Trail.', lanternTrailMany: 'Games are waiting for you on the Trail.',
-      gamesTitle: "{name}'s games", gamesPick: 'Pick a game',
+      gamesTitle: "{name}'s games", gamesPick: 'Pick a game', gamesBack: "Back to {name}'s games",
       storyBanner: 'Story Time: just for fun',
       storyAsk: 'Hear it from me first, or read it yourself.', storyReadAlong: 'Read along with Jugnu', storyAgain: 'Read this story again any time.',
       ra: { play: 'Play', pause: 'Pause', replay: 'Hear it again' }, showWords: 'Show me the words',
@@ -63,7 +63,7 @@
       endB3Next: 'اگلی بار جگنو پہلے آپ کے ساتھ کہانی پڑھ سکتا ہے۔', endNext: function (title) { return 'آگے: ⁨' + title + '⁩'; }, endHome: 'واپس جائیں',
       trailPractice: 'یہ کھیل دوبارہ: بس مزے کے لیے', trailMicWait: 'اس کھیل کے لیے مائیک چاہیے۔ مائیک چلنے پر کھیلیں۔', trailOther: 'کوئی اور کھیل کھیلیں', trailStopDone: 'کھیل مکمل!',
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
-      gamesTitle: '{name} کے کھیل', gamesPick: 'ایک کھیل چنیں',
+      gamesTitle: '{name} کے کھیل', gamesPick: 'ایک کھیل چنیں', gamesBack: '{name} کے کھیلوں پر واپس',
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
       storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
       ra: { play: 'سنیں', pause: 'روکیں', replay: 'دوبارہ سنیں' }, showWords: 'الفاظ دکھائیں',
@@ -210,7 +210,7 @@
       if (hash === 'next' || hash === 'numbers') {
         games = true;
         var xs = m.exercises || [];
-        var x = hash === 'numbers' ? xs.filter(isWarmup)[0] : xs.filter(function (s) { return !s.badge; })[0];
+        var x = hash === 'numbers' ? xs.filter(isWarmup)[0] || xs.filter(function (s) { return s.id === 'missing'; })[0] : xs.filter(function (s) { return !s.badge; })[0];
         if (x) { h.open(x.id); return true; }
         return false;
       }
@@ -410,6 +410,7 @@
       if (k === 'practice' && h.S.data && h.S.data.teacher_preview) return t.teacherPractice;
       if (k === 'practice' && isStory()) return t.storyBanner;
       if (k === 'title' && games) return t.gamesTitle;
+      if (k === 'back' && games) return t.gamesBack.split('{name}').join((h.boot && h.boot.mascot) || (L === 'ur' ? 'جگنو' : 'Jugnu'));
       return TRAIL_OVER[k] ? t[TRAIL_OVER[k]] : null;
     }
     function trailSub(xs) {
@@ -541,7 +542,7 @@
       endCard(name, 'celebrate', line, {});
     }
 
-    return { opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
+    return { games: function () { return games; }, opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
       readEnd: readEnd, readHold: readHold, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, introTitle: introTitle, introLine: introLine, T: T };
   }
 
