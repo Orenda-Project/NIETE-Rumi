@@ -58,7 +58,10 @@ function wire(body) {
   jest.spyOn(Ch, 'submit').mockImplementation(async () => copy(body));
   jest.spyOn(NR, 'challengeField').mockResolvedValue({});
   jest.spyOn(Device, 'deviceMayName').mockImplementation(async (ids, d) => d === own && ids.includes('kid-1'));
+  jest.spyOn(Ch, 'readLength').mockResolvedValue(len.n);
 }
+// the story's words as the reading page counts them (another phone gets the words attempted only as a coarse count)
+const len = { n: 100 };
 const get = async (h) => (await fetch(`${base}/ch/result/${encodeURIComponent(ct)}`, { headers: { ...KEY, ...h } })).json();
 const post = async (h) => (await fetch(`${base}/ch/result`, { method: 'POST', headers: { ...KEY, ...h }, body: JSON.stringify({ ct, key: 'k' }) })).json();
 // every builder of a scored body this switch touches, as the owner and as another phone
@@ -71,7 +74,7 @@ describe('the switch reads strictly: only the JSON true is on', () => {
     wire(scored);
     for (const [name, call] of Object.entries(BUILDERS)) {
       expect([name, await call({ 'x-wq-device': own })]).toEqual([name, scored]);
-      for (const h of OTHER) expect([name, await call(h)]).toEqual([name, { score: { attempted: 44, stopped: false }, ended: 'self' }]);
+      for (const h of OTHER) expect([name, await call(h)]).toEqual([name, { score: { attempted: 10, stopped: false }, ended: 'self' }]);
     }
     expect(await RF.menuField()).toEqual({});
   });
@@ -91,7 +94,7 @@ describe('the switch reads strictly: only the JSON true is on', () => {
 
 describe('key on: the feedback band on every scored body; the speed only on the own phone', () => {
   beforeEach(() => { settings = [{ key: RF.KEY, value: true }]; });
-  test('owner: today\'s body plus feedback; another phone: the score, the feedback, and none of the owner-only keys at any depth', async () => {
+  test('owner: today\'s body plus feedback; another phone: the coarse score, a band with no word count, and none of the owner-only keys at any depth', async () => {
     wire(scored);
     // 40 of 44 right = 91 %; faster than the last read, but "faster" names the speed's band: the owner's page draws it
     const fb = { stars: 3, badge: 'star', words_heard: 44 };
@@ -99,11 +102,22 @@ describe('key on: the feedback band on every scored body; the speed only on the 
       expect([name, await call({ 'x-wq-device': own })]).toEqual([name, { ...scored, feedback: fb }]);
       for (const h of OTHER) {
         const body = await call(h);
-        expect([name, body.feedback]).toEqual([name, fb]);
-        expect([name, keysDeep(body).filter((k) => RF.OWNER_ONLY.includes(k))]).toEqual([name, []]);
+        // a timer-ended minute's words attempted is the speed itself: another phone hears only "read some" / "read all"
+        expect([name, body.feedback]).toEqual([name, { stars: 3, badge: 'star', read: 'some' }]);
+        expect([name, body.score]).toEqual([name, { attempted: 10, stopped: false }]);
+        expect([name, keysDeep(body).filter((k) => RF.OWNER_ONLY.includes(k) || k === 'words_heard')]).toEqual([name, []]);
       }
     }
     expect(await RF.menuField()).toEqual({ read_feedback: true });
+  });
+  test('another phone: the whole story read is "all"; a 0-word read is "none"; an unknown length is only "some"', async () => {
+    const all = { score: { correct: 40, attempted: 44, stopped: false, time_left: 0 }, wcpm: 40, ended: 'timer' };
+    for (const [n, attempted, read] of [[44, 44, 'all'], [44, 50, 'all'], [0, 44, 'some'], [100, 0, 'none']]) {
+      len.n = n;
+      wire({ ...all, score: { ...all.score, attempted, correct: Math.min(40, attempted) } });
+      expect([n, attempted, (await get({})).feedback.read]).toEqual([n, attempted, read]);
+    }
+    len.n = 100;
   });
   test('a 0-word read and a stopped read get the kind band; a pending read and a tap game get none', async () => {
     expect(RF.band({ score: { correct: 0, attempted: 0, stopped: false, time_left: 0 }, wcpm: 0 })).toEqual({ stars: 0, badge: 'try', words_heard: 0 });

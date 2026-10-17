@@ -34,6 +34,13 @@ function moment() {
 }
 
 describe('WQMoment, pure', () => {
+  test('the moment\'s root names itself for the effort probe: data-moment="read-result", or the host\'s own', () => {
+    const M = moment();
+    const fb = M.feedback({ words_read: 5, words_total: 5, ms: 3000 });
+    expect(M.html(fb, 'en', {})).toMatch(/^<section class="wq-moment[^>]* data-moment="read-result"/);
+    expect(M.html(fb, 'ur', { moment: 'story-done' })).toMatch(/^<section class="wq-moment[^>]* data-moment="story-done"/);
+    expect(M.html(M.feedback({ score: { correct: 0, attempted: 0 } }), 'en', {})).toContain('data-stamp');   // the zero card's score is its stamp
+  });
   test('a checked read: words, speed, accuracy and the last read come through; the number is honest to show', () => {
     const M = moment();
     const fb = M.feedback({ score: { correct: 50, attempted: 54 }, wcpm: 50, previous: { wcpm: 44 } });
@@ -451,12 +458,24 @@ describe('Read aloud without the Trail', () => {
     expect(settled.match(/data-rf/g)).toHaveLength(1);   // one moment, redrawn, never two
     expect(text(settled)).not.toMatch(BANNED);
   });
-  test('key on, another phone\'s body (no speed, no words-right; only the band): stars and a badge, never a blank', async () => {
-    const { settled } = await live(plain('en', RF), { score: { attempted: 10, stopped: false }, feedback: { stars: 2, badge: 'reader', words_heard: 10 } });
-    expect(settled).toContain('You read 10 words!');
-    expect(settled).toContain('data-stars="2"');
-    expect(settled).toContain('Brave reader');
-    expect(/<div id="wqc-rf">[\s\S]*?<\/section><\/div>/.exec(settled)[0]).not.toContain('a minute');   // no speed in the band
+  test.each([
+    ['en', 'some', 'You read it out loud!'], ['en', 'all', 'You read the whole story!'],
+    ['ur', 'some', 'آپ نے اونچی آواز میں پڑھا!'], ['ur', 'all', 'آپ نے پوری کہانی پڑھی!'],
+  ])('%s, key on, another phone\'s body (a coarse count and only the band, read %s): stars and a badge, never the coarse count as words', async (lang, read, line) => {
+    const { settled } = await live(plain(lang, RF), { score: { attempted: 10, stopped: false }, feedback: { stars: 2, badge: 'reader', read } });
+    const m = /<div id="wqc-rf">[\s\S]*?<\/section><\/div>/.exec(settled)[0];
+    expect(m).toContain(line);
+    expect(m).not.toMatch(/10 words|۱۰ لفظ/);   // 10 is the coarse count, not the words the child read
+    expect(m).toContain('data-stars="2"');
+    expect(m).toContain('data-badge="reader"');
+    expect(m).not.toContain('a minute');   // no speed in the band
+  });
+  test('key on, another phone\'s 0-word read (read none): the kind card, no stars row', async () => {
+    const { settled } = await live(plain('en', RF), { score: { attempted: 0, stopped: false }, feedback: { stars: 0, badge: 'try', read: 'none' } });
+    const m = /<div id="wqc-rf">[\s\S]*?<\/section><\/div>/.exec(settled)[0];
+    expect(m.replace(/&#39;/g, "'")).toContain("Let's read it together!");
+    expect(m).not.toContain('data-stars');
+    expect(m).toContain('data-badge="try"');
   });
   test.each(['en', 'ur'])('%s, key on, a checked read with no live words (the recording path): the moment on the checked card', async (lang) => {
     const p = plain(lang, RF);
