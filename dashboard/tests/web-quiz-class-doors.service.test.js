@@ -1,18 +1,22 @@
 /**
  * The class table and the school league with the child home on (app_settings web_quiz_class_doors, default OFF; the bot
- * sends finish's `class_doors: true` beside `card_fold`).
+ * sends finish's `class_doors: true` beside `card_fold`, and the hub's `class_doors: {class, schools}`).
  *  - the folded card keeps the ranked Next tile as the one primary, and gets "See my class" + "School league" back
  *    under Share; each opens its screen (the board, the league);
  *  - the results screen keeps "See my class";
- *  - switch off (no `class_doors`): the card and the results are today's.
- * wq.js runs whole in the harness's vm. Invented children only.
+ *  - the home draws "My class" + "My school" under the Next tile, links to the quiz page's own class and league views;
+ *  - switch off (no `class_doors`): the card, the results and the home are today's (the home hashed on the base).
+ * wq.js runs whole in the harness's vm; wq-home.js in its own vm. Invented children only.
  */
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const { page, flush } = require('./wq-page-harness');
 
 const FC_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-finish-card.js'), 'utf8');
+const HOME_SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-home.js');
+const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
 
 const CHILD = { first: 'Zara', chip: 'c1', animal: 'owl' };
 const NEXT = { kind: 'game', id: 'stop.missing', href: '/h/tok.abc#missing', title: 'Find the missing word', title_ur: 'گم شدہ لفظ ڈھونڈیں', minutes: 2, source: 'ranked' };
@@ -145,5 +149,42 @@ describe('the league and the class table (class_doors on their answers)', () => 
       expect(primaries(h)).toBe(n);
       if (n) expect(h).toMatch(/<button[^>]*id="wq-share-t"[^>]*\sdata-primary[\s>]/);
     }
+  });
+});
+
+describe('the home: "My class" and "My school" (wq-home.js)', () => {
+  const win = {};
+  vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, localStorage: { getItem: () => null, setItem() {} }, JSON, Math, String, Number, Array, Object, encodeURIComponent });
+  const H = win.WQHOME;
+  const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
+  const KID = '0123456789abcdef';
+  const HUB = { lang: 'en', kids: [{ chip: KID, first: 'Zara', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [], challenge: { on: true, exercises: [] }, lib: null, brand: 'niete', rt: false };
+  const DOORS = { stories: [{ kind: 'passage', id: 'en.read.1.k07', fresh: true, title: 'The red kite' }], games: [{ kind: 'quiz', code: 'MATH01', k: 'kk', topic: 'Fractions', subject: 'Maths', done: false, from: 'teacher' }, { kind: 'numbers' }], videos: { href: '/lib/x' } };
+  const HOME = { ...HUB, home_v3: 1, doors: DOORS, head: { dots: 2, today: false, jar: { fresh: true } } };
+  const CD = { class: '/q/MATH01/class?k=kk', schools: '/q/MATH01/schools?k=kk' };
+  const BANNED = /\b(test|exam|assess\w*|rank|position|prize|level|challenge)\b|امتحان|ٹیسٹ|چیلنج/i;
+  const visible = (html) => html.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]*>/g, ' ');
+
+  test.each(['en', 'ur'])('%s: two links under the Next tile, to the class table and the league; Next stays the one primary', (lang) => {
+    const h = H.html({ ...HOME, class_doors: CD }, { token: TOKEN, lang });
+    expect((h.match(/\sdata-primary[\s>=]/g) || []).length).toBe(1);
+    expect(h).toContain('href="/q/MATH01/class?k=kk"');
+    expect(h).toContain('href="/q/MATH01/schools?k=kk"');
+    expect(h).toContain(lang === 'ur' ? 'میری کلاس' : 'My class');
+    expect(h).toContain(lang === 'ur' ? 'میرا اسکول' : 'My school');
+    expect(h.indexOf('class="wq-next')).toBeLessThan(h.indexOf('class="wq-social'));
+    expect(h.indexOf('class="wq-social')).toBeLessThan(h.indexOf('class="wq-grown'));
+    expect(visible(h)).not.toMatch(BANNED);
+  });
+  test('only a same-site class or league path is drawn (anything else: no link)', () => {
+    const h = H.html({ ...HOME, class_doors: { class: 'https://evil.example/x', schools: '/q/MATH01/schools?k=kk' } }, { token: TOKEN, lang: 'en' });
+    expect(h).not.toContain('evil.example');
+    expect(h).toContain('href="/q/MATH01/schools?k=kk"');
+    const none = H.html({ ...HOME, class_doors: { class: 'javascript:x', schools: '//evil' } }, { token: TOKEN, lang: 'en' });
+    expect(none).not.toContain('wq-social');
+  });
+  test('golden: no class_doors -> the home is today\'s, byte for byte (hashed on the base)', () => {
+    expect(sha(H.html(HOME, { token: TOKEN, lang: 'en' }))).toBe('d8ed8374bf08a858');
+    expect(sha(H.html(HOME, { token: TOKEN, lang: 'ur' }))).toBe('c99ec2ab45081c89');
   });
 });
