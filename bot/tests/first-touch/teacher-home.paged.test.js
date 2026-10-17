@@ -251,7 +251,7 @@ describe('switch OFF (absent, false, anything but true)', () => {
     await boot({ paged });
     const out = await home();
     expect(out.status).toBe(200);
-    if (process.env.RECORD_GOLDEN === '1' && paged === null) fs.writeFileSync(GOLDEN, out.text);
+    if (process.env.TEACHER_HOME_RECORD === '1' && paged === null) fs.writeFileSync(GOLDEN, out.text);
     expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
     const p = await page(null, 10);
     expect([p.status, p.body]).toEqual([404, { off: true }]);
