@@ -4,7 +4,7 @@
  * (web_quiz_events_v3 on):
  *   - an activity opened and left unfinished counts as ONE shown-without-a-tap, not as done: the same tile comes back
  *     on the next home view; a second unfinished open, or one more untapped show, rotates it (the two of #C3); a read
- *     or a storybook comes back as "Carry on reading" / «پڑھنا جاری رکھیں», a game keeps its words; finished (its
+ *     or a storybook comes back as "Carry on reading" / «پڑھنا جاری رکھیں», a game or a listen keeps its words; finished (its
  *     finish card shown) it rotates as today;
  *   - a render never uses up the once-a-day tile ("Finish your story"): only a tap on it, or a tap on another tile or
  *     door from the home that showed it; with the taps not heard (events v3 off) today's rule stands.
@@ -120,6 +120,27 @@ describe('#C49a: an opened, unfinished activity counts as one shown-without-a-ta
     await tap(v1, story.id);
     const v2 = await view([video, invite], { open: new Set([story.id]) });
     expect(v2).toMatchObject({ kind: 'story', id: story.id, href: story.href, title: 'Carry on reading', title_ur: 'پڑھنا جاری رکھیں', sub: 'The Testwala Kite' });
+  });
+
+  test('a listening story opened and left comes back with its own words, never "Carry on reading"', async () => {
+    const listen = { kind: 'story', id: 'en.listen.2.k03', href: '/c/t?kid=c&room=story&pid=en.listen.2.k03&ex=listen', title: 'Listen to a story', title_ur: 'کہانی سنیں', sub: 'The Testwala Drum', read_aloud: false };
+    await seed(true);
+    const v1 = await view([video, listen, invite]);
+    await tap(v1, listen.id);
+    // built again (still in the pool), then from the tap's own copy (no longer built)
+    expect(await view([video, listen, invite])).toMatchObject({ id: listen.id, title: 'Listen to a story', title_ur: 'کہانی سنیں' });
+    redis._store.clear();
+    const w1 = await view([video, listen, invite]);
+    await tap(w1, listen.id);
+    expect(await view([video, invite], { open: new Set([listen.id]) })).toMatchObject({ id: listen.id, href: listen.href, title: 'Listen to a story', title_ur: 'کہانی سنیں' });
+  });
+
+  test('a listening stop of the month opened and left keeps its own words', async () => {
+    const stop = { kind: 'story', id: 'stop.listen', href: '/c/t?kid=c#listen', title: 'Listen to a story', title_ur: 'کہانی سنیں', read_aloud: false };
+    await seed(true);
+    const v1 = await view([video, stop, invite]);
+    await tap(v1, stop.id);
+    expect(await view([video, stop, invite])).toMatchObject({ id: stop.id, title: 'Listen to a story', title_ur: 'کہانی سنیں' });
   });
 
   test('a read finished (no unfinished run on it): not brought back', async () => {
