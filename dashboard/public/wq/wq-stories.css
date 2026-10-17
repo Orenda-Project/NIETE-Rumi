@@ -61,6 +61,7 @@
 .wqs-main{flex:1;min-height:60px;border-radius:30px;background:#ffcf33;box-shadow:0 5px 0 #d29d00;font-size:22px;font-weight:800;padding:0 16px}
 .wqs-ctl .wqs-main{white-space:nowrap;min-width:0;padding:0 10px}
 .wqs[lang=ur] .wqs-ctl .wqs-main{font-size:18px}
+@media (max-width:374px){.wqs[lang=ur] .wqs-ctl .wqs-main{font-size:16px;padding:0 6px}}
 .wqs-yourTurn,.wqs-done{background:#ff7a59;color:#fff;box-shadow:0 5px 0 #c8502f}
 .wqs-next{background:var(--hl);color:#fff;box-shadow:0 5px 0 #46a302}
 .wqs-main:active,.wqs-arr:active,.wqs-chip:active,.wqs-opt:active{transform:translateY(3px);box-shadow:none}
