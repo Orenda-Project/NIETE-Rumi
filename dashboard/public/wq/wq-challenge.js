@@ -1472,7 +1472,7 @@
     if (lr3() && r && r.ended == null && rec.ended) r = Object.assign({}, r, { ended: rec.ended });
     if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(r); return; }
     var d = S.data;
-    var line; var pose = 'celebrate'; var score = ''; var growth = '';
+    var line; var pose = 'celebrate'; var score = ''; var growth = ''; var heard = false;
     if (r.later) { line = t.later; pose = 'hello'; }
     // Nothing heard (attempted 0) is "try again", whatever the server called it; heard but nothing right is
     // encouragement. Only a reading with words per minute above 0 is praised.
@@ -1484,14 +1484,15 @@
     }
     else if (guardOn() && r.ended === 'silent') { line = t.readStopped; pose = 'notyet'; r = { score: r.score, wcpm: 0 }; }
     else if (r.failed || (r.score && !r.score.stopped && r.score.attempted === 0)) { r = { failed: true }; line = t.unheard; pose = 'notyet'; }
-    else if ((r.score && r.score.stopped) || !(r.wcpm > 0)) { line = t.readStopped; pose = 'notyet'; }
+    // a scored body without the speed (the server sends it only to the child's own phone) reads as done when words were heard
+    else if ((r.score && r.score.stopped) || !(r.wcpm > 0 || (!('wcpm' in r) && r.score && r.score.attempted > 0))) { line = t.readStopped; pose = 'notyet'; }
     else {
-      line = guardOn() && r.ended === 'timer' ? cp('wholeMinute') : d.clips.done.text; score = t.wcpm(r.wcpm);
+      line = guardOn() && r.ended === 'timer' ? cp('wholeMinute') : d.clips.done.text; score = r.wcpm > 0 ? t.wcpm(r.wcpm) : ''; heard = true;
       var prev = r.previous && r.previous.wcpm;
       if (prev != null && r.wcpm > prev) growth = t.more_words(r.wcpm - prev);
       else if (prev != null && r.wcpm === prev) growth = t.same_words;
     }
-    var heardWell = !!score;
+    var heardWell = heard;
     if (lr3()) { score = ''; growth = ''; }   // live reading v3: no rate and no rate change on a child's screen
     show('read-result', jug(pose, line, true) + (score ? '<p class="wqc-score" id="wqc-score">' + esc(score) + '</p>' : '')
       + (growth ? '<p class="wq-sub" id="wqc-growth">' + esc(growth) + '</p>' : '')
