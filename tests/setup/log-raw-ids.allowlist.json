@@ -559,9 +559,9 @@
    "75 teacherId (shorthand)",
    "149 teacherId: v.teacherId",
    "224 teacherId: v.teacherId",
-   "239 teacherId: v.teacherId",
-   "353 teacherId: v.teacherId",
-   "369 teacherId: v.teacherId"
+   "241 teacherId: v.teacherId",
+   "355 teacherId: v.teacherId",
+   "371 teacherId: v.teacherId"
   ]
  },
  "bot/shared/routes/teacher-training-endpoint.js": {
@@ -718,6 +718,14 @@
   "area": "services",
   "at": [
    "518 from: path.extname(audioPath)"
+  ]
+ },
+ "bot/shared/services/child-test/app/app-api.service.js": {
+  "n": 2,
+  "area": "child-test",
+  "at": [
+   "114 userId: args.userId",
+   "122 userId: args.userId"
   ]
  },
  "bot/shared/services/child-test/check-flow/check-store.js": {
@@ -1448,6 +1456,13 @@
    "545 userId (shorthand)"
   ]
  },
+ "bot/shared/services/outbound-echo.js": {
+  "n": 1,
+  "area": "services",
+  "at": [
+   "53 phone: digitsOf(payload.to)"
+  ]
+ },
  "bot/shared/services/oxbridge-lp.service.js": {
   "n": 6,
   "area": "services",
@@ -1774,10 +1789,10 @@
   "n": 4,
   "area": "quiz",
   "at": [
-   "994 studentId: key",
-   "998 studentId: key",
-   "1012 studentId: key",
-   "1019 studentId: key"
+   "1003 studentId: key",
+   "1007 studentId: key",
+   "1021 studentId: key",
+   "1028 studentId: key"
   ]
  },
  "bot/shared/services/quiz/video-quiz-share.service.js": {
@@ -1801,7 +1816,7 @@
   "n": 1,
   "area": "quiz",
   "at": [
-   "235 from (shorthand)"
+   "237 from (shorthand)"
   ]
  },
  "bot/shared/services/quiz/web-quiz-handset.js": {
@@ -1826,8 +1841,8 @@
   "area": "quiz",
   "at": [
    "504 from: ctx.lang",
-   "1428 studentId: typedId",
-   "1433 studentId: typedId"
+   "1434 studentId: typedId",
+   "1439 studentId: typedId"
   ]
  },
  "bot/shared/services/reading-assessment.service.js": {
@@ -2396,18 +2411,22 @@
   ]
  },
  "dashboard/routes/portal.routes.js": {
-  "n": 1,
+  "n": 5,
   "area": "dashboard/routes",
   "at": [
-   "286 userId: req.session.portalUserId"
+   "286 userId: req.session.portalUserId",
+   "411 userId: found ? found.id : undefined",
+   "680 userId: user.id",
+   "853 userId: user.id",
+   "7131 userId (shorthand)"
   ]
  },
  "dashboard/routes/web-quiz.routes.js": {
   "n": 2,
   "area": "dashboard/routes",
   "at": [
-   "1000 from (shorthand)",
-   "1033 from (shorthand)"
+   "1028 from (shorthand)",
+   "1065 from (shorthand)"
   ]
  },
  "dashboard/services/password-reset.service.js": {
