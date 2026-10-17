@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   var W = window;
-  // Copy rules (both files' copy): the header of wq-stories-q.js; the banned words are a test.
+  // Copy rules: the header of wq-stories-q.js (a test checks the banned words).
   var T = {
     en: {
       shelf: 'Storybooks', gl: function (g, l) { return 'Grade ' + g + ', ' + (l === 'ur' ? 'Urdu' : 'English'); },
@@ -94,7 +94,7 @@
     var l = lg(d.lang), t = T[l], bk = d.books || [], tk = -1, k, cards = '', first;
     for (k = 0; k < bk.length && tk < 0; k++) if (bk[k].from_teacher) tk = k;
     first = tk < 0;
-    var cov = function (b) { return img(b.cover, 160, 240, '', ' loading="lazy"'); };
+    var cov = function (b) { return img(b.cover, 160, 240, '', W.WQLZ || ' loading="lazy"'); };
     bk.forEach(function (b, k) {
       if (k === tk) return;
       var bl = lg(b.lang);

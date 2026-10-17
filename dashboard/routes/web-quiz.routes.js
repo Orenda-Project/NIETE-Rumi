@@ -31,6 +31,7 @@ const Preview = require('./web-quiz-preview');
 const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
+const Hop = require('./web-quiz-fast-hop');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
@@ -511,14 +512,15 @@ ${p.tail}`;
 function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui }) {
   const p = hubPageParts({ payload: { lang, brand: brandKey, ui }, token, origin, assetV });
   const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
-  return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
+  // The home's next files and first reads, started from here (web-quiz-fast-hop.js): the head reads the hash on the phone.
+  return { guess: p, html: `${p.head}\n${preload}\n${Hop.head(assetV)}</head>\n<body>\n${p.frame}\n` };
 }
 
 function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
   const p = hubPageParts({ payload, token, origin, assetV });
   const fix = flushFixes(guess, p);
   if (p.manifest) fix.push(`var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
-  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
+  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${Hop.tail(p.tail, payload, token)}`;
 }
 
 // M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
