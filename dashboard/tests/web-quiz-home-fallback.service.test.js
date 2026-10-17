@@ -189,6 +189,16 @@ describe('on (home_v3 + home_fb): wq-home.js fails', () => {
     expect(r.win.WQHOME).toBe(mods[0]);
     expect(r.root.innerHTML).not.toContain('H3-fb');
   });
+  test.each([['errors', (r) => r.scripts()[1].l.error()], ['stalls 5 s', (r, fire) => fire(5000)]])('the retry already sent, the first script arrives, then the retry %s: one home, no plain home, no failure counted', (_how, end) => {
+    const { r, fire, arrive, seen } = slow();
+    expect(fire(5000)).toBe(1);
+    expect(fire(1500)).toBe(1);
+    arrive(0);
+    end(r, fire);
+    expect(seen()).toEqual({ tags: 2, mounts: 1, home_view: 1 });
+    expect(r.beacons.filter((e) => e.n === 'home_load_failed').map((e) => e.i)).toEqual([1]);
+    expect(r.root.innerHTML).not.toContain('H3-fb');
+  });
   test('an empty boot (no doors at all): three links still, each back to this home at its door', () => {
     const r = runHub({ ...FB, doors: { stories: [], games: [], videos: null } });
     failTwice(r);
