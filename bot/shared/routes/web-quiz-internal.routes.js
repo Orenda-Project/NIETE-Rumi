@@ -123,7 +123,15 @@ router.get('/book/h/:token', handle((req) => require('../services/quiz/web-quiz-
 const BindPage = () => require('../services/quiz/web-quiz-bind-page');
 router.post('/bind/mint', handle((req) => BindPage().mint({ hub: (req.body || {}).hub, kid: (req.body || {}).kid, lang: (req.body || {}).lang, device: req.get('x-wq-device') || undefined })));
 router.get('/bind/status', handle((req) => BindPage().status({ code: typeof req.query.code === 'string' ? req.query.code.slice(0, 20) : '' })));
-router.post('/bind/undo', handle((req) => BindPage().undo({ code: (req.body || {}).code, device: req.get('x-wq-device') || undefined })));
+// {from:'join'}: the first home's "Jugnu will remember you on this phone" Undo (a self-join has no code; the phone that joined)
+// {from:'home', kid}: the grown-ups corner's "Forget this phone" (the same erase, for the link's whole life)
+router.post('/bind/undo', handle((req) => {
+  const b = req.body || {};
+  const device = req.get('x-wq-device') || undefined;
+  if (b.from === 'join') return require('../services/quiz/web-quiz-home-remember').undo({ device, lang: b.lang });
+  if (b.from === 'home') return require('../services/quiz/web-quiz-home-remember').forget({ device, kid: b.kid });
+  return BindPage().undo({ code: b.code, device });
+}));
 // ── end keep my place ──
 // ── a child joins on their own ── (web-quiz-student-join.js; quiz_student_join, off -> {off:true}). The device is x-wq-device.
 const StudentJoin = () => require('../services/quiz/web-quiz-student-join');
