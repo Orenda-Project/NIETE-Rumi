@@ -505,7 +505,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const collect = {};
   // the ranked next thing's own reads start now, beside Jugnu's corner and the Book (null at once while it is off)
   const nextPrep = require('./web-quiz-next-offer-sources').hubPrep({ out, token, history, lang: out.lang, chosenId: chosen.id, grade, stopsOf: () => trailStops(form) });
-  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade, stopsOf: () => trailStops(form), collect })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
+  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade, stopsOf: () => trailStops(form), steps: () => require('./web-quiz-challenge'), collect })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
   logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),

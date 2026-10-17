@@ -93,8 +93,9 @@ async function gamesDoor(who, lang, now) {
 }
 
 // Jugnu's passages beside the games (the Stories door shows storybooks only): this week's read passage (read along, in
-// the story room) and the newest listening story, each only when it would open (a read with its text in the bank, a
-// listen with its recorded clip — the capped ask), and the games page's counted read aloud when the day's cap allows.
+// the story room) and the newest listening story, each only when its text is in the bank (no clip is asked here: the
+// listen's clip is asked when the child opens it, as the story room does), and the games page's counted read aloud
+// when the day's cap allows.
 async function readRows(Challenge, who, lang, now) {
   const found = { read: null, listen: null };
   const Play = require('./web-quiz-hub-play');
@@ -106,7 +107,7 @@ async function readRows(Challenge, who, lang, now) {
       const rows = live.filter((r) => r.kind === kind).sort((x, y) => Date.parse(y.released_at) - Date.parse(x.released_at));
       for (const r of rows) {
         const title = titleFor(r.passage_id, lang);
-        if (title && (await opens(r, lang))) { found[kind] = { kind: kind === 'listen' ? 'listen' : 'passage', id: r.passage_id, title }; break; }
+        if (title && opens(r)) { found[kind] = { kind: kind === 'listen' ? 'listen' : 'passage', id: r.passage_id, title }; break; }
       }
     }
   }
@@ -123,20 +124,11 @@ function bank() {
   try { return require('../child-test/item-bank'); } catch (_) { return null; }
 }
 
-/** A read opens when its text is in the item bank; a listen when its clip is recorded (a missing one starts recording). */
-async function opens(row, lang) {
+/** A read or a listen opens when its text is in the item bank (a door open asks for no clip). */
+function opens(row) {
   const B = bank();
   const p = B && typeof B.getPassage === 'function' ? B.getPassage(row.passage_id) : null;
-  if (!p || !p.text) return false;
-  if (row.kind !== 'listen') return true;
-  try {
-    const Challenge = require('./web-quiz-challenge');
-    // the capped ask: a door open never takes the last half of the day's paid recordings
-    const clip = typeof Challenge.storyClipCapped === 'function' ? Challenge.storyClipCapped : Challenge.storyClip;
-    return typeof clip === 'function' && Boolean(await clip(lang, p.text));
-  } catch (_) {
-    return false;
-  }
+  return Boolean(p && p.text);
 }
 
 function safeName(Challenge, id, lang) {
