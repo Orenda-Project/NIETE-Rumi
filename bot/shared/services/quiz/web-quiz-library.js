@@ -97,12 +97,18 @@ function subjectsView(ix, grade) {
   return { grade, grades, subjects };
 }
 
-async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, hubKid, v3 }) {
-  const Videos = require('./web-quiz-videos');
-  const Media = require('./web-quiz-media');
+/** A grade's subject's lessons in the order the child's subject screen lists them (one order for the screen and the next lesson). Pure. */
+function lessonOrder(ix, grade, subject, v3) {
   const rows = ix.rows.filter((r) => String(r.grade) === grade && r.subject === subject).sort(v3 ? Order.compareVideosNatural : Order.compareVideos);
   // web_quiz_videos_v3: in a thin subject the child's language comes first, each part in the usual order.
   if (ix.ownFirst && ix.ownFirst.size) rows.sort((a, b) => (ix.ownFirst.has(b.id) ? 1 : 0) - (ix.ownFirst.has(a.id) ? 1 : 0));
+  return rows;
+}
+
+async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, hubKid, v3 }) {
+  const Videos = require('./web-quiz-videos');
+  const Media = require('./web-quiz-media');
+  const rows = lessonOrder(ix, grade, subject, v3);
   const quizIds = rows.map((r) => ix.quizOf.get(r.id));
   const [done, codes, posters] = await Promise.all([
     doneQuizzes(studentId, quizIds),
@@ -215,6 +221,31 @@ async function libHub(token, { kid, g, s, l, device, fetchImpl } = {}) {
   return out;
 }
 
+/**
+ * The lesson to watch after a watched one: the next in its grade and subject, in the subject screen's order (the
+ * child's language as the library shows it), that this child has not finished — the rest of the list, then wrapping.
+ * -> {vid, title, poster?} | null. Never throws (a suggestion never fails a video).
+ */
+async function nextLesson({ vid, studentId = null, lang = null } = {}) {
+  try {
+    const v3 = await videosV3On();
+    const ix = v3 ? await inLanguage(await bank(), langOf(lang)) : await bank();
+    const row = ix && ix.rows.find((r) => r.id === vid);
+    if (!row) return null;
+    const list = lessonOrder(ix, String(row.grade), row.subject, v3);
+    const at = list.findIndex((r) => r.id === vid);
+    const after = list.slice(at + 1).concat(list.slice(0, at));
+    if (!after.length) return null;
+    const done = await doneQuizzes(studentId, after.map((r) => ix.quizOf.get(r.id)));
+    const next = after.find((r) => !done.has(ix.quizOf.get(r.id)));
+    if (!next) return null;
+    const poster = await require('./web-quiz-media').signPoster(next.r2_url);
+    return { vid: next.id, title: next.clean_title || '', ...(poster ? { poster } : {}) };
+  } catch (_) {
+    return null;
+  }
+}
+
 // ─── download ────────────────────────────────────────────────────────────────
 
 const slug = (t) => String(t || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
@@ -244,7 +275,7 @@ async function download(code, { st, vid } = {}) {
 }
 
 module.exports = {
-  lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY,
+  lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY, nextLesson, lessonOrder,
   inLanguage,
   _reset: () => { require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
   _idle: () => require('./web-quiz-bank')._idle(),
