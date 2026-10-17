@@ -1274,7 +1274,7 @@ describe('the finish card and Home', () => {
     expect(got.el).toBe(root.querySelector('[data-col]'));
     // the card's Next tile is "More stories" (this page's own shelf) and it leads; the share steps back
     expect(got.o).toEqual({ source: 'story', ended: 'read', pages_read: 2, pages_listened: expect.any(Number), stars: null, title: 'Mina Testwala', cover: undefined, lang: 'en', auth: { hub: TOKEN, kid: KID }, ev: expect.any(Function), home: '#',
-      next: { kind: 'stories', href: '/h/tok?x=1#stories', title: 'More stories' }, lead: true, sticker: true });
+      next: { kind: 'stories', href: '/h/tok?x=1#stories', title: 'More stories' }, lead: true, whole: true, answered: 0, sticker: true });
     expect(root.querySelector('[data-own]').hidden).toBe(true);
     // one "More stories": the card's tile, so our own button is not drawn beside it; Home stays ours
     expect(primaries(root.innerHTML)).toBe(0);
@@ -1499,6 +1499,49 @@ describe('the done screen with the real finish card (card_v3): ONE primary = Mor
     expect(primaries(root.innerHTML)).toBe(1);
     expect(root.innerHTML).toMatch(/<button class="wqs-main" data-primary data-tap="more">More stories</);
     expect(root.innerHTML).not.toMatch(/wqfc|<img/);
+  });
+});
+
+// ---- the end of the book names the biggest true thing; the mic sheet's grown-ups fold says nothing is kept ----------
+describe('the end of the book (card_v3): the card hears the finish and the questions answered', () => {
+  function cap(sink) { return (w) => { w.WQFC = { mount(el, o) { sink.o = o; return true; } }; }; }
+  test('1 page heard + both questions answered -> whole: true, answered: 2 (the card draws the finish)', async () => {
+    const bk = book({ card_v3: true }); bk.pages = bk.pages.slice(0, 2);
+    const sink = {};
+    const e = env({ lr: false, replies: { book: { status: 200, body: bk } }, onLoad: cap(sink) });
+    const root = await openReader(e);
+    fire(root, 'main'); e.calls.ra[0].o.onEnd(); fire(root, 'main'); fire(root, 'next');
+    fire(root, 'ans', 0); await flush(); e.advance(900); fire(root, 'ans', 1); await flush(); e.advance(900); await flush(); await flush();
+    expect(sink.o).toMatchObject({ source: 'story', ended: 'listened', pages_read: 0, whole: true, answered: 2 });
+  });
+  test('nothing heard or read, the questions answered -> the card still mounts (the finish + the questions line)', async () => {
+    const bk = book({ card_v3: true }); bk.pages = bk.pages.slice(0, 2);
+    const sink = {};
+    const e = env({ lr: false, replies: { book: { status: 200, body: bk } }, onLoad: cap(sink) });
+    const root = await openReader(e);
+    fire(root, 'next'); fire(root, 'next');
+    fire(root, 'ans', 0); await flush(); e.advance(900); fire(root, 'ans', 1); await flush(); e.advance(900); await flush(); await flush();
+    expect(sink.o).toMatchObject({ pages_read: 0, pages_listened: 0, whole: true, answered: 2 });
+    expect(root.querySelector('[data-own]').hidden).toBe(true);
+  });
+  test('paged through with nothing heard, read or answered -> no card, "You looked through the whole book."', async () => {
+    const bk = book({ card_v3: true, questions: [] }); bk.pages = bk.pages.slice(0, 2);
+    const sink = {};
+    const e = env({ lr: false, replies: { book: { status: 200, body: bk } }, onLoad: cap(sink) });
+    const root = await openReader(e);
+    fire(root, 'next'); fire(root, 'next'); await flush(); await flush();
+    expect(sink.o).toBeUndefined();
+    expect(root.innerHTML).toContain('You looked through the whole book.');
+  });
+});
+describe('the mic sheet\'s grown-ups fold on a story page: Jugnu listens only while the page is read, nothing kept', () => {
+  test.each([['en', 'Jugnu listens only while your child reads this page. Nothing is recorded or kept. “Not now, just listen” works at any time.'],
+    ['ur', 'جگنو صرف اسی وقت سنتا ہے جب یہ صفحہ پڑھا جا رہا ہو۔ کچھ بھی ریکارڈ یا محفوظ نہیں کیا جاتا۔ «ابھی نہیں، صرف سنیں» کسی بھی وقت دبا سکتے ہیں۔']])('%s', async (lang, facts) => {
+    const e = env({ replies: { book: { status: 200, body: book({ lang }) } } });
+    const root = await openReader(e, { lang });
+    toMic(e, root);
+    expect(e.calls.ask[0].facts).toBe(facts);
+    expect(facts).not.toMatch(BANNED);
   });
 });
 

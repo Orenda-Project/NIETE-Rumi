@@ -66,9 +66,11 @@
   // headline by how it ended, and the count-up deed (on this screen only: never on the picture or in the share).
   var S = {
     en: { together: "Let's read it together", later: 'Just wait a little.', readSome: 'You read with Jugnu!', heardSome: 'You listened with Jugnu!', sticker: 'A new sticker!',
+      finished: 'You finished the story!', qsDone: function (s, n) { return s + (n === 1 ? ' question answered' : ' questions answered'); },
       pagesRead: function (s, n) { return s + (n === 1 ? ' page read' : ' pages read'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' page heard' : ' pages heard'); } },
     ur: { together: 'آئیں مل کر پڑھیں', later: 'بس تھوڑا سا انتظار کریں۔', readSome: 'آپ نے جگنو کے ساتھ پڑھا!', heardSome: 'آپ نے جگنو کے ساتھ سنا!', sticker: 'ایک نیا اسٹیکر!',
+      finished: 'آپ نے کہانی پوری کر لی!', qsDone: function (s, n) { return s + (n === 1 ? ' سوال کا جواب دیا' : ' سوالوں کے جواب دیے'); },
       pagesRead: function (s, n) { return s + (n === 1 ? ' صفحہ پڑھا' : ' صفحے پڑھے'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' صفحہ سنا' : ' صفحے سنے'); } }
   };
@@ -118,8 +120,13 @@
       var heard = o.ended === 'listened';
       var tried = heard ? hd <= 0 && rd <= 0 : rd <= 0;
       var n = heard ? (hd || rd) : rd;
-      return { kind: 'book', deed: tried ? 'read_tried' : heard ? 'listen_done' : 'book_read', tried: tried,
-        head: tried ? S[l].together : heard ? S[l].heardSome : S[l].readSome,
+      // the end of the book reached (o.whole): the finish is the headline, and the questions answered are a deed too
+      // (a count, never a score); only answered: the story's own "answered" deed
+      var qa = o.whole === true ? Math.max(0, Math.floor(Number(o.answered) || 0)) : 0;
+      var qs = qa ? { n: qa, text: S[l].qsDone(l === 'ur' ? urDigits(qa) : String(qa), qa) } : null;
+      if (tried && qa) return { kind: 'story', deed: 'answered', tried: false, head: S[l].finished, count: null, qs: qs };
+      return { kind: 'book', deed: tried ? 'read_tried' : heard ? 'listen_done' : 'book_read', tried: tried, qs: tried ? null : qs,
+        head: tried ? S[l].together : o.whole === true ? S[l].finished : heard ? S[l].heardSome : S[l].readSome,
         count: tried || !n ? null : { n: n, text: function (k) { return S[l][heard ? 'pagesHeard' : 'pagesRead'](l === 'ur' ? urDigits(k) : String(k), k); } } };
     }
     if (o.source === 'quiz') return { kind: 'quiz', deed: 'quiz_done' };
@@ -327,6 +334,7 @@
       var l = L(o.lang);
       var top = f.head ? coverHtml(o.cover, o.title) + '<h2 class="wqfc-head" dir="auto">' + esc(f.head) + '</h2>' +
         (f.count ? '<p class="wqfc-count" data-n>' + esc(f.count.text(f.count.n)) + '</p>' : '') +
+        (f.qs ? '<p class="wqfc-count" data-qs>' + esc(f.qs.text) + '</p>' : '') +
         (f.tried ? '' : '<p class="wqfc-st" data-sticker>' + STICKER + '<span>' + esc(S[l].sticker) + '</span></p>') : '';
       o = { kind: f.kind, deed: f.deed, lang: l, title: o.title, next: o.next, lead: o.lead, home: o.home, auth: o.auth, ev: o.ev, top: top, count: f.count };
     }

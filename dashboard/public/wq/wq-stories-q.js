@@ -38,6 +38,7 @@
       pagesRead: function (s, n) { return s + (n === 1 ? ' page read' : ' pages read'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' page heard' : ' pages heard'); },
       more: 'More stories', looked: 'You looked through the whole book.',
+      micFacts: 'Jugnu listens only while your child reads this page. Nothing is recorded or kept. “Not now, just listen” works at any time.',
     },
     ur: {
       done: 'میں نے پڑھ لیا', readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', checking: 'آپ کی آواز سنی جا رہی ہے…',
@@ -46,6 +47,7 @@
       pagesRead: function (s, n) { return s + (n === 1 ? ' صفحہ پڑھا' : ' صفحے پڑھے'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' صفحہ سنا' : ' صفحے سنے'); },
       more: 'اور کہانیاں', looked: 'آپ نے پوری کتاب دیکھ لی۔',
+      micFacts: 'جگنو صرف اسی وقت سنتا ہے جب یہ صفحہ پڑھا جا رہا ہو۔ کچھ بھی ریکارڈ یا محفوظ نہیں کیا جاتا۔ «ابھی نہیں، صرف سنیں» کسی بھی وقت دبا سکتے ہیں۔',
     },
   };
   ['en', 'ur'].forEach(function (l) { for (var k in T2[l]) K.T[l][k] = T2[l][k]; });
@@ -55,7 +57,7 @@
     var qi = 0, ans = [], dim = -1, rv = -1, chosen = -1, qlock = 0, la = 0, eo = null, qs = null, fcw = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, spr = null, end = 0;
     function live() { return R.live(); }
     var micO = {
-      lang: L, src: 'story', ev: ctx.ev,
+      lang: L, src: 'story', ev: ctx.ev, facts: t.micFacts,
       onStream: function (s) { if (m.st === 'mic') { stream = s; m.granted(); } },
       onDenied: function (why) { if (m.st !== 'mic') return; if (why === 'not_now') return micO.onNotNow(); m.denied(); },
       onNotNow: function () { if (m.st === 'mic') m.notNow(); },
@@ -290,10 +292,12 @@
             '<div class="wqs-col" data-col>' + (fc && nx ? '' : '<button class="' + (fc ? 'wqs-sec"' : 'wqs-main" data-primary') + ' data-tap="more">' + esc(t.more) + '</button>') +
             '<button class="wqs-sec" data-home data-tap="home">' + esc(t.home) + '</button></div>', 'wqs-sheet'));
         };
-        var ok = false, fc = n && b.card_v3 && W.WQFC && W.WQFC.mount;
+        // the done screen is the book's end: the questions answered count as a deed on the card
+        var qa = ans.filter(function (x) { return x && x.length; }).length;
+        var ok = false, fc = (n || qa) && b.card_v3 && W.WQFC && W.WQFC.mount;
         draw(fc);
         if (fc) {
-          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: nx, lead: true, sticker: !!(r && r.sticker) }) !== false; } catch (e) {}
+          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: nx, lead: true, whole: true, answered: qa, sticker: !!(r && r.sticker) }) !== false; } catch (e) {}
           if (!ok) draw(false);
           else fin = nx ? 1 : 0;
         }

@@ -605,6 +605,61 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
   });
 });
 
+/* ---------------- a storybook finished: the biggest true thing first, then each true deed ---------------- */
+describe('a storybook reached its end (whole: true): "You finished the story!" and the deed lines, each only when > 0', () => {
+  function mountFin(o) {
+    let out = '';
+    const fetches = [];
+    const fc = fcAlone({ fetch: (url, init) => { fetches.push(JSON.parse(init.body)); return Promise.resolve({ ok: false }); }, document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
+    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', auth: { hub: 'H', kid: 'K' }, home: '#', ...o });
+    return { ok, out, fetches };
+  }
+  const lines = (h) => [...h.matchAll(/<p class="wqfc-count"[^>]*>([^<]*)</g)].map((m) => m[1]);
+  test('EN: 1 page heard + 4 questions answered -> the finish headline, two deed lines, one sticker; the deed is the listening one', async () => {
+    const m = mountFin({ ended: 'listened', pages_read: 0, pages_listened: 1, whole: true, answered: 4, lang: 'en' });
+    expect(m.ok).toBe(true);
+    expect(/<h2 class="wqfc-head"[^>]*>([^<]*)</.exec(m.out)[1]).toBe('You finished the story!');
+    expect(lines(m.out)).toEqual(['1 page heard', '4 questions answered']);
+    expect((m.out.match(/data-sticker/g) || []).length).toBe(1);
+    await flush();
+    expect(m.fetches[0]).toMatchObject({ kind: 'book', deed: 'listen_done' });
+  });
+  test('UR: Urdu digits, the native lines; one question in the singular', () => {
+    const m = mountFin({ ended: 'read', pages_read: 3, whole: true, answered: 1, lang: 'ur' });
+    expect(m.out).toContain('<h2 class="wqfc-head" dir="auto">آپ نے کہانی پوری کر لی!</h2>');
+    expect(lines(m.out)).toEqual(['۳ صفحے پڑھے', '۱ سوال کا جواب دیا']);
+    const m4 = mountFin({ ended: 'read', pages_read: 2, whole: true, answered: 4, lang: 'ur' });
+    expect(lines(m4.out)).toEqual(['۲ صفحے پڑھے', '۴ سوالوں کے جواب دیے']);
+    expect(lines(m4.out).join(' ')).not.toMatch(/[0-9]/);
+  });
+  test('EN: one question reads "1 question answered"; no questions answered -> no questions line', () => {
+    expect(lines(mountFin({ ended: 'read', pages_read: 2, whole: true, answered: 1, lang: 'en' }).out)).toEqual(['2 pages read', '1 question answered']);
+    const m = mountFin({ ended: 'read', pages_read: 2, whole: true, answered: 0, lang: 'en' });
+    expect(m.out).toContain('>You finished the story!<');
+    expect(lines(m.out)).toEqual(['2 pages read']);
+  });
+  test.each(['en', 'ur'])('%s: nothing heard or read but the questions answered -> the finish headline, the questions line only, the sticker; the deed is "answered"', async (lang) => {
+    const m = mountFin({ ended: 'read', pages_read: 0, pages_listened: 0, whole: true, answered: 2, lang });
+    expect(m.out).toContain(lang === 'ur' ? '>آپ نے کہانی پوری کر لی!<' : '>You finished the story!<');
+    expect(lines(m.out)).toEqual([lang === 'ur' ? '۲ سوالوں کے جواب دیے' : '2 questions answered']);
+    expect((m.out.match(/data-sticker/g) || []).length).toBe(1);
+    expect(m.out).not.toMatch(/together|مل کر پڑھیں/);
+    await flush();
+    expect(m.fetches[0]).toMatchObject({ kind: 'story', deed: 'answered' });
+  });
+  test('the end not reached (no whole): today\'s headline, the questions never counted', () => {
+    const m = mountFin({ ended: 'listened', pages_read: 0, pages_listened: 1, answered: 4, lang: 'en' });
+    expect(m.out).toContain('>You listened with Jugnu!<');
+    expect(lines(m.out)).toEqual(['1 page heard']);
+  });
+  test('the share never carries the counts; never a score word', () => {
+    const m = mountFin({ ended: 'read', pages_read: 3, whole: true, answered: 4, lang: 'en' });
+    const href = /id="wqfc-share"[^>]*href="([^"]+)"/.exec(m.out)[1];
+    expect(decodeURIComponent(href.replace(/&amp;/g, '&'))).not.toMatch(/[0-9]|question|page/);
+    expect(m.out).not.toMatch(/score|correct|right|wrong|نتیجہ|درست|غلط/i);
+  });
+});
+
 /* ---------------- the shared files keep guard lines only ---------------- */
 describe('wq.js / wq-trail.js carry guard lines, the card lives in wq-finish-card.js', () => {
   const WQ_SRC = fs.readFileSync(path.join(WQ, 'wq.js'), 'utf8');
