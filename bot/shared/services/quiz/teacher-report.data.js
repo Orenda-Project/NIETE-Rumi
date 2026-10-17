@@ -47,6 +47,7 @@ const { v21On } = require('./quiz-v21-flag');
 const V21 = require('./teacher-report-v21');
 const SloCode = require('./quiz-slo-code');
 const FoldFlag = require('./report-fold-flag');
+const LivePreviewFlag = require('./reminder-live-preview-flag');
 // the fold-by-child rule and its facts read: one home, shared with the WhatsApp report's count
 const { childFacts, foldByChild, typedKey } = require('./report-fold');
 
@@ -291,6 +292,25 @@ function reminderText({ topic, link, language, played = null, of = null, classNa
   return resolveUx(t ? 'trReminder' : 'trReminderNoTopic', { language: lang, params: { topic: t, link } });
 }
 
+// The web quiz page's own link: /q/<CODE> (the page's CODE_RX), an optional trailing slash, an optional query, no fragment.
+const QUIZ_PAGE_LINK_RX = /^(https?:\/\/[^/?#\s]+\/q\/[A-Za-z0-9]{4,12}\/?)(\?[^#\s]*)?$/;
+
+/**
+ * quiz_reminder_live_preview: the reminder's quiz page link with ?v=<played>, the form the page's preview (dashboard
+ * ogImageFor) answers with the live class picture. `played` is a count only (1–10 digits). Any other link (a wa.me
+ * link, a fragment, a link that already names a v, not a /q/<CODE> page) is returned as it is. An existing query
+ * gets &v= (the page reads req.query.v whatever else the link carries).
+ */
+function withLivePlayed(link, played) {
+  if (!Number.isInteger(played) || played <= 0 || played > 9999999999) return link;
+  const m = QUIZ_PAGE_LINK_RX.exec(String(link || ''));
+  if (!m) return link;
+  const q = m[2] || '';
+  if (/[?&]v=/.test(q)) return link;
+  const sep = q.length <= 1 ? '?' : (q.endsWith('&') ? q : `${q}&`);
+  return `${m[1]}${sep}v=${played}`;
+}
+
 /** Every question with how many counted children got it right, and the most-chosen wrong answer. */
 async function questionStats(quizId, counted, { codeOf = null } = {}) {
   const { data: qs, error } = await supabase.from('quiz_questions').select(QUESTION_COLS)
@@ -521,7 +541,9 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const lang = clampLanguage(quiz.language);
   const primary = sent ? codes.slice().sort(newestFirst)[0] || null
     : codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
-  const foldOn = await FoldFlag.on();
+  // the fold switch and the reminder's live-preview switch: one shared settings read
+  const switches = await LivePreviewFlag.withFold();
+  const foldOn = switches.fold;
   const who = await whoFor(teacherId, quiz, primary, listId, counted, lang, { foldOn });
   const { counting, provisionalRaw, facts, listedIds } = await onePerChildOffList(counted, who, quiz.id, foldOn);
   const played = counting.map((s) => {
@@ -557,6 +579,11 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     }
   }
 
+  // quiz_reminder_live_preview (off by default): the reminder's link previews as the live class picture. A quiz only
+  // (a story's preview stays the story's), once a child has played.
+  const reminderLink = link && quiz.quiz_source !== 'story' && played.length > 0 && switches.live
+    ? withLivePlayed(link, played.length) : link;
+
   const report = {
     quiz: {
       id: quiz.id, topic: quiz.topic || '', subject: quiz.subject || null, grade: quiz.grade || null,
@@ -584,7 +611,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     reminder: link ? {
       language: lang,
       text: reminderText({
-        topic: quiz.topic, link, language: lang,
+        topic: quiz.topic, link: reminderLink, language: lang,
         ...(rosterView.state === 'known' ? { played: played.filter((p) => p.onList).length, of: rosterView.of, className: rosterView.className } : {}),
       }),
     } : null,
@@ -693,7 +720,7 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
 }
 
 module.exports = {
-  quizReport, classReport, foldFinishers, reminderText, weekStart, gradesOf, listLabel,
+  quizReport, classReport, foldFinishers, reminderText, withLivePlayed, weekStart, gradesOf, listLabel,
   // The counting pieces, for /quiz "My quiz reports" (teacher-report-list): its rows must
   // show the numbers the report page shows, so they count with this module, not a copy.
   readRoster, classOf, countedSessions, classCodes, sessionsFor, onePerChildAcrossCodes,
