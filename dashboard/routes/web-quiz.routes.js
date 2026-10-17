@@ -672,7 +672,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       if ((raw || (res.status >= 200 && res.status < 300 && /^image\//i.test(type))) && res.arrayBuffer) {
         const timing = timingOf(res);
         const disposition = raw && res.headers && res.headers.get ? res.headers.get('content-disposition') : null; // a report PDF's name
-        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location, ...(timing ? { timing } : {}), ...(disposition ? { disposition } : {}) };
+        const serverTiming = raw && res.headers && res.headers.get ? res.headers.get('server-timing') : null; // the teacher home's, as sent
+        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location, ...(timing ? { timing } : {}), ...(disposition ? { disposition } : {}), ...(serverTiming ? { serverTiming } : {}) };
       }
       const text = await res.text();
       let json = null;

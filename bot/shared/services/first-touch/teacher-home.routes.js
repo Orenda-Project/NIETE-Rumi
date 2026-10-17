@@ -25,6 +25,9 @@
  * same JSON as OFF in a few round trips. OFF: today's reads, one after another.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
+ * Switch quiz_teacher_server_timing ON (JSON true; read with quiz_teacher_home, never on its own): every 200 answer of
+ * /api/th/home and /api/th/library carries `Server-Timing: settings;dur=…, db;dur=…, total;dur=…` (ms): the switch
+ * reads waited on, the data phase that builds the JSON, the whole handler. Refusals and errors carry none. OFF: nothing.
  * Never a 500: a thrown read → the mk.error page (200) on the page route, 503 {error:'mk.error'} on the JSON routes.
  *
  * Events (ids only, never a phone, a name or a code): teacher_home_open { tk, first, has_lp, has_coaching,
@@ -81,9 +84,14 @@ function createRouter(deps = null) {
 
   // The switch, first: off → 404 {off:true} for every path of this router, whatever the token.
   router.use(async (req, res, next) => {
+    const start = process.hrtime.bigint();
     let on = false;
     try { on = (await Flags.on()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
+    // Server-Timing's clock (its switch rides the home's read): from here; the switch reads so far count as settings
+    let timed = false;
+    try { timed = (await Flags.timing()) === true; } catch (_) { timed = false; }
+    req.thTime = timed ? { start, settings: process.hrtime.bigint() - start, db: null } : null;
     // the quick answer's switch, asked only once the home is on (its own 30 s cache), by the home and its shell
     req.thPaged = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.paged().then((v) => v === true, () => false) : null;
     return next();
@@ -143,6 +151,17 @@ function createRouter(deps = null) {
   const dropPlayed = (uid) => { drops += 1; memo.delete(uid); };
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
   const fail = (res, status) => { headers(res); res.status(status).json({ error: 'mk.error' }); };
+  /** Server-Timing (req.thTime, switch on): a switch wait since `from` counts as settings; the data phase starts. */
+  const waited = (req, from) => { if (req.thTime) req.thTime.settings += process.hrtime.bigint() - from; };
+  const dataStart = (req) => { if (req.thTime) req.thTime.db = process.hrtime.bigint(); };
+  /** Sets Server-Timing just before a 200 body: settings, db (the data phase so far), total (from the router's entry). */
+  function serverTiming(req, res) {
+    const t = req.thTime;
+    if (!t) return;
+    const now = process.hrtime.bigint();
+    const ms = (ns) => (Number(ns) / 1e6).toFixed(1);
+    res.set('Server-Timing', `settings;dur=${ms(t.settings)}, db;dur=${ms(t.db == null ? 0n : now - t.db)}, total;dur=${ms(now - t.start)}`);
+  }
 
   /** The teacher's event key, from the shared helper: null without a key of 32+ bytes. It also names the first-open mark,
    *  so a WEB_QUIZ_KID_KEY rotation re-arms every teacher's first open. */
@@ -283,6 +302,7 @@ function createRouter(deps = null) {
     const lang = langFor(p, req);
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');
+    dataStart(req);
     const userP = Data.teacherOf(p.uid, deps);
     const soon = quickReads(p.uid);
     const pfP = Data.within(Cta.prefillOf(p.uid), Data.SIDE_BUDGET_MS, null, 'prefill');
@@ -324,6 +344,7 @@ function createRouter(deps = null) {
     const { facts } = home;
     delete home.facts;
     event('teacher_home_open', p.uid, { first: await firstP, ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
+    serverTiming(req, res);
     headers(res);
     res.status(200).json(home);
   }
@@ -332,9 +353,13 @@ function createRouter(deps = null) {
   router.get('/api/th/home', handleJson(async (req, res) => {
     const p = authorise(req.query.t, res);
     if (!p) return;
-    if (await req.thPaged) { await quickHome(req, res, p); return; }
+    const asked0 = process.hrtime.bigint();
+    const quick = await req.thPaged;
+    waited(req, asked0);
+    if (quick) { await quickHome(req, res, p); return; }
     const token = String(req.query.t);
     const lang = langFor(p, req);
+    dataStart(req);
     const user = await Data.teacherOf(p.uid, deps);
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
     const Bank = Data.dep(deps, 'Bank');
@@ -392,6 +417,7 @@ function createRouter(deps = null) {
     const { facts } = home;
     delete home.facts;
     event('teacher_home_open', p.uid, { first: await firstOpen(p.uid), ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
+    serverTiming(req, res);
     headers(res);
     res.status(200).json(home);
   }));
@@ -403,6 +429,7 @@ function createRouter(deps = null) {
     const grade = Data.gradeOf(req.query.g, null);
     // the teacher's own sends (which books went out this month), read alongside the bank and the shelf; late or failed → no skip, no date
     // (a listed walk-through phone sees the same lists here as on its home)
+    dataStart(req);
     const played = Promise.all([
       Data.within(Data.playedOwn(p.uid, deps), Data.SIDE_BUDGET_MS, new Map(), 'class report'),
       Data.within(Data.teacherOf(p.uid, deps), Data.SIDE_BUDGET_MS, null, 'teacher'),
@@ -411,6 +438,7 @@ function createRouter(deps = null) {
     const lib = await libraryFor({ p, token: String(req.query.t), lang, grade, tree, pfSubject: null });
     const shaped = Model.buildHome({ grade, played: await played, stories: lib.stories, video: lib.video, storiesBase: lib.storiesBase });
     const pick = shaped.primary.kind === 'story' || shaped.primary.kind === 'video' ? await withSend(shaped.primary, p, lang) : null;
+    serverTiming(req, res);
     headers(res);
     res.status(200).json({ ...shaped.library, pick: pick || null });
   }));
