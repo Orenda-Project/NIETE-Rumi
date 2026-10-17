@@ -164,15 +164,26 @@ function shelfOrder(books, { childId, day, done, teacher }) {
 }
 
 /** The printed words with the voice's timings joined by `i` (never by position). */
-function mergeWords(words, timings) {
+function mergeWords(words, timings, endMs) {
   const at = new Map((Array.isArray(timings) ? timings : []).map((w) => [Number(w.i), w]));
-  return (Array.isArray(words) ? words : []).map((w) => {
+  const ws = (Array.isArray(words) ? words : []).map((w) => {
     const out = { i: Number(w.i), t: String(w.t || '') };
     const tm = at.get(Number(w.i));
-    if (tm && Number.isFinite(Number(tm.s_ms)) && Number.isFinite(Number(tm.e_ms))) { out.s_ms = Number(tm.s_ms); out.e_ms = Number(tm.e_ms); }
+    // A silent word (a stage direction the voice does not read) keeps its place and box but never its voice's time.
+    if (w.silent === true) out.silent = true;
+    else if (tm && Number.isFinite(Number(tm.s_ms)) && Number.isFinite(Number(tm.e_ms))) { out.s_ms = Number(tm.s_ms); out.e_ms = Number(tm.e_ms); }
     if (Array.isArray(w.box) && w.box.length === 4) out.box = w.box.map(Number);
     return out;
   });
+  // The player needs every word timed and in order: a silent word gets zero length at the next spoken word's start
+  // (that later word is the lit one), or at the end of the voice when it is last. A page with no timings stays as is.
+  if (!ws.some((w) => w.s_ms != null)) return ws;
+  for (let k = ws.length - 1, next = Number(endMs) || null; k >= 0; k -= 1) {
+    const w = ws[k];
+    if (w.silent) { const t = next != null ? next : (ws.slice(0, k).reverse().find((x) => x.e_ms != null) || {}).e_ms; if (t != null) { w.s_ms = t; w.e_ms = t; } }
+    else if (w.s_ms != null) next = w.s_ms;
+  }
+  return ws;
 }
 
 /** Effort stars: listened to the story, read a page aloud, answered the questions. Never how many were right. */
@@ -373,7 +384,7 @@ async function bookData(id) {
       const v = voiceOf.get(p.id);
       return {
         n: p.n, image: { url: fileUrl(b.id, p.image_file), w: p.image_w, h: p.image_h }, text_band: f.band ? bandOf(b.id, p) : null,
-        text: p.text || '', words: mergeWords(p.words, v && urls[i] ? v.timings : []),
+        text: p.text || '', words: mergeWords(p.words, v && urls[i] ? v.timings : [], v && Number(v.ms)),
         audio: v && urls[i] ? { url: urls[i], ms: Number(v.ms) || 0 } : null, boxes_ok: Boolean(p.boxes_ok), is_picture: Boolean(p.is_picture),
         ...linesOf(p.lines),
         // the voice's word times are not trusted on this page: the player sweeps the line instead of a word box

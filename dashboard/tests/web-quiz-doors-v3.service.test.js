@@ -511,7 +511,9 @@ describe('after a watched video: a ranked Next from the server (watch.next) when
     const join = { offer: 'abcdefghij', source: 'pinned', rank_src: 'ctrl', arm: 'b', score_v: 'v1', id: 'en.read.1.k02' };
     expect(evs.find(([n]) => n === 'next_shown')[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join });
     tap.fire('click', { preventDefault() {}, stopPropagation() {}, target: tap });
-    expect(evs.find(([n]) => n === 'next_tap')[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join });
+    const tapE = evs.find(([n]) => n === 'next_tap')[1];
+    expect(tapE).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join, ms_to_tap: tapE.ms_to_tap });
+    expect(Number.isInteger(tapE.ms_to_tap) && tapE.ms_to_tap >= 0).toBe(true);
   });
   test('the control arm\'s tile (the server marks it source fallback) logs source fallback beside rank_src ctrl, never ranked', async () => {
     const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: true,
@@ -529,7 +531,9 @@ describe('after a watched video: a ranked Next from the server (watch.next) when
     const join = { offer: 'abcdefghij', source: 'fallback', rank_src: 'ctrl', arm: 'ctrl' };
     expect(evs.find(([n]) => n === 'next_shown')[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join });
     tap.fire('click', { preventDefault() {}, stopPropagation() {}, target: tap });
-    expect(evs.find(([n]) => n === 'next_tap')[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join });
+    const tapE = evs.find(([n]) => n === 'next_tap')[1];
+    expect(tapE).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join, ms_to_tap: tapE.ms_to_tap });
+    expect(Number.isInteger(tapE.ms_to_tap) && tapE.ms_to_tap >= 0).toBe(true);
   });
   test('a malformed next (no title, an outside href, javascript:) is ignored: today\'s rule', async () => {
     for (const bad of [{ href: '#stories' }, { title: 'x', href: 'https://evil.example/' }, { title: 'x', href: 'javascript:alert(1)' }, { title: 'x', href: '//evil.example/p' }, 'nope']) {

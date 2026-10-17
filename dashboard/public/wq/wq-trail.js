@@ -40,6 +40,8 @@
       endB3Next: 'Next time Jugnu can read a story with you first.', endNext: function (title) { return 'Next: ' + title; }, endHome: 'Home',
       trailPractice: 'Playing again: just for fun', trailMicWait: 'This game needs the mic. Play it when the mic is on.', trailOther: 'Try another game', trailStopDone: 'Game done!',
       lanternTrailOne: 'A game is waiting for you on the Trail.', lanternTrailMany: 'Games are waiting for you on the Trail.',
+      gamesTitle: "{name}'s games", gamesPick: 'Pick a game', gamesBack: "Back to {name}'s games",
+      gamesWaitOne: 'A game is waiting for you.', gamesWaitMany: 'Games are waiting for you.',
       storyBanner: 'Story Time: just for fun',
       storyAsk: 'Hear it from me first, or read it yourself.', storyReadAlong: 'Read along with Jugnu', storyAgain: 'Read this story again any time.',
       ra: { play: 'Play', pause: 'Pause', replay: 'Hear it again' }, showWords: 'Show me the words',
@@ -62,6 +64,8 @@
       endB3Next: 'اگلی بار جگنو پہلے آپ کے ساتھ کہانی پڑھ سکتا ہے۔', endNext: function (title) { return 'آگے: ⁨' + title + '⁩'; }, endHome: 'واپس جائیں',
       trailPractice: 'یہ کھیل دوبارہ: بس مزے کے لیے', trailMicWait: 'اس کھیل کے لیے مائیک چاہیے۔ مائیک چلنے پر کھیلیں۔', trailOther: 'کوئی اور کھیل کھیلیں', trailStopDone: 'کھیل مکمل!',
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
+      gamesTitle: '{name} کے کھیل', gamesPick: 'ایک کھیل چنیں', gamesBack: '{name} کے کھیلوں پر واپس',
+      gamesWaitOne: 'ایک کھیل آپ کا انتظار کر رہا ہے۔', gamesWaitMany: 'کچھ کھیل آپ کا انتظار کر رہے ہیں۔',
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
       storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
       ra: { play: 'سنیں', pause: 'روکیں', replay: 'دوبارہ سنیں' }, showWords: 'الفاظ دکھائیں',
@@ -77,7 +81,7 @@
   var ALONG_CAP_MS = 180000;   // a WebView that never reports the clip's end still reaches the read
   // the word-by-word player (wq-readalong.js), fetched only when a story serve carries `readalong`
   // (web_quiz_readalong); its version is the file's sha256, first 10 hex (a test keeps the two in step)
-  var RA_V = '3fdfdd875a';
+  var RA_V = 'be7fe1dc23';
 
   // own styles (only under v2): the chip's second line under the name; Urdu lines at Nastaliq-readable size
   function css() {
@@ -103,6 +107,7 @@
     var noticeRun = null;   // the run (ct) the mic notice was shown on: its upload and result say notice_shown
     var tries = 0;
     var deep = null;
+    var games = false;   // came from the new home's Next tile: the game starts at once, and the list draws no Next of its own
     try { deep = String((location && location.hash) || '').replace(/^#/, '') || null; } catch (e) { deep = null; }
 
     // ── the sitting's help answer (sessionStorage: one tab, one child) ──
@@ -202,6 +207,15 @@
       // a stop opened by URL (#read): the serve decides what it is (whose turn / practice / on its way), never the hash
       var hash = deep;
       deep = null;
+      // the new home's Next tile (#next: the first game not done; #numbers: the warm-up) starts that one game; the list
+      // it comes back to is "Jugnu's games", never the Trail
+      if (hash === 'next' || hash === 'numbers') {
+        games = true;
+        var xs = m.exercises || [];
+        var x = hash === 'numbers' ? xs.filter(isWarmup)[0] || xs.filter(function (s) { return s.id === 'missing'; })[0] : xs.filter(function (s) { return !s.badge; })[0];
+        if (x) { h.open(x.id); return true; }
+        return false;
+      }
       if (hash && (m.exercises || []).some(function (x) { return x.id === hash; })) { h.open(hash); return true; }
       return false;
     }
@@ -244,16 +258,16 @@
     function hearAsk(intro) {
       h.show('hear-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
         + btn('wqc-hear-along', t.storyReadAlong) + btn('wqc-hear-read', h.t.ready) + '</div>');
-      h.on('wqc-hear-along', function () { if (window.WQReadAlong) timedAlong(h.S.data.hear_first, intro); else intro(); });
-      h.on('wqc-hear-read', intro);
+      h.on('wqc-hear-along', function () { if (window.WQReadAlong) timedAlong(h.S.data.hear_first, intro); else intro(); unwarm(); });
+      h.on('wqc-hear-read', function () { unwarm(); intro(); });
       warm();
     }
     // two equal answers, neither pressed until a tap
     function storyAsk() {
       h.show('story-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
         + (window.WQJ ? btn('wqc-story-along', t.storyReadAlong).replace('type="button"', 'type="button" data-primary') + btn('wqc-story-read', h.t.ready, 'wq-soft') : btn('wqc-story-along', t.storyReadAlong) + btn('wqc-story-read', h.t.ready)) + '</div>'); // the kit (web_quiz_juice): one primary
-      h.on('wqc-story-along', readAlong);
-      h.on('wqc-story-read', h.read);
+      h.on('wqc-story-along', function () { readAlong(); unwarm(); });
+      h.on('wqc-story-read', function () { unwarm(); h.read(); });
       warm();
     }
     // the words as printed when they line up with the tokens; the lines as the serve gives them
@@ -284,6 +298,12 @@
       if (!ra || warm.d === ra || !window.WQReadAlong || !window.WQReadAlong.preload || !/^(story|hear)-ask$/.test(h.S.screen)) return;
       warm.d = ra;
       try { warm.a = window.WQReadAlong.preload(ra); } catch (e) { /* the tap still plays */ }   // held: a dropped element may stop its request
+    }
+    // the ask answered: the warmed element is let go (after the player's own play() has asked for the clip)
+    function unwarm() {
+      var a = warm.a;
+      warm.a = null;
+      try { if (a) { a.removeAttribute('src'); a.load(); } } catch (e) { /* gone */ }
     }
     // Read along, word by word (the serve's `readalong` and the player loaded): Jugnu reads at a child's pace, the
     // green pill on each word as it is spoken; play/pause, replay, tap a word to hear it from there. Nothing moves on
@@ -397,11 +417,15 @@
     function trailCopy(k) {
       if (k === 'practice' && h.S.data && h.S.data.teacher_preview) return t.teacherPractice;
       if (k === 'practice' && isStory()) return t.storyBanner;
+      // the newer games page is "Jugnu's games" on every entry, never the Trail (the server's copy stays the old page's)
+      if (k === 'title') return t.gamesTitle;
+      if (k === 'back') return t.gamesBack.split('{name}').join((h.boot && h.boot.mascot) || (L === 'ur' ? 'جگنو' : 'Jugnu'));
       return TRAIL_OVER[k] ? t[TRAIL_OVER[k]] : null;
     }
     function trailSub(xs) {
+      if (games) return t.gamesPick;
       var waiting = xs.filter(function (x) { return !x.badge; }).length;
-      return waiting === 0 ? '' : (waiting === 1 ? t.lanternTrailOne : t.lanternTrailMany);
+      return waiting === 0 ? '' : (waiting === 1 ? t.gamesWaitOne : t.gamesWaitMany);
     }
     // ── the stop's intro ──
     // the passage's title on a read or listen stop, one line; no title object ⇒ no line (today's intro)
@@ -527,7 +551,7 @@
       endCard(name, 'celebrate', line, {});
     }
 
-    return { opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
+    return { games: function () { return games; }, opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
       readEnd: readEnd, readHold: readHold, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, introTitle: introTitle, introLine: introLine, T: T };
   }
 

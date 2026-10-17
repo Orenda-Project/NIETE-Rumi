@@ -424,6 +424,7 @@
     var allDone = playable.length > 0 && playable.every(function (x) { return x.badge; });
     var next = null;
     playable.forEach(function (x) { if (!next && !x.badge) next = x.id; });
+    if (TR && TR.games && TR.games()) next = null; // from the home's Next tile: the home owns "Next", the list draws none
     var stops = xs.map(function (x) {
       var wait = x.mic && micAbsent();
       var cls = x.badge ? ' wqc-gold' : (wait ? ' wqc-wait' : (x.id === next ? ' wqc-nextup' : ''));
