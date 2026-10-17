@@ -1388,6 +1388,25 @@ Feature: NIETE (ICT) Teacher Training
     And the teacher's own run and friends who came through a challenge code are not in the table
     # web-quiz.service board -> video-quiz-report loadClassRows (self-tests and invited friends out). @wip.
 
+  # The class table and the school league with the child home on (app_settings web_quiz_class_doors, off by default).
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T1171 @no-mock-driver
+  Scenario: With the child home on, a class child's card still leads to the class table and the school league
+    Given app_settings "web_quiz_home_v3" and "web_quiz_class_doors" are true
+    And a child of my class finishes my class quiz on the web page
+    Then the folded score card shows "See my class" and "School league" under Share, and the ranked Next tile stays the one primary
+    And the results screen keeps "See my class"
+    When the child taps "See my class" or "School league"
+    Then the class table or the school league opens, with the same rows as the quiz page's own class and league views
+    But a friend who came through a challenge code, the teacher's own test run and a child no teacher's quiz has reached get neither button
+    And a run on the shared watch quiz, or on a video code under it, gets neither button: its table is not the child's class
+    And on the league, "Play and add points for <school>" reads as one line and is the one primary, and a sector code like "ict" reads "ICT"
+    And on the class table, "Share the class table" is the one primary
+    And with web_quiz_class_doors off the card, the results, the class table and the league are exactly as they are today
+    # web-quiz-hub-door foldField -> {class_doors: true} (web-quiz-class-doors-flag on + ownClass, never the watch root);
+    # web-quiz.service board + web-quiz-schools board -> class_doors; wq.js classDoors on foldCard + results, board, drawSchools.
+    # unit: bot/tests/quiz/web-quiz/web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver
   Scenario: The teacher's preview never counts as a child
     Given the teacher's signed preview link
