@@ -93,7 +93,8 @@ const CLIP_FORMAT = `opus${CLIP_KBPS}m`;
 // The one voice's clips (web-quiz-one-voice-flag.js) are the provider's own bytes (Ogg Opus 48 kHz at the plan's
 // rate, 64 or 32 kb/s), never re-encoded: a second encode at 24 kb/s is the loss the storybook voice-overs dropped
 // (Oct 2026). Their format tag names the rate and the voice's rendering, so a change of either gets new clips.
-const oneFormat = (plan, voice) => `opus${plan.kbps || 64}.${OneVoice.renderOf(voice)}`;
+const oneFormat = (plan, voice) => `opus${plan.kbps || 64}.${OneVoice.renderOf(voice)}`
+  + (plan.loudness_lufs === undefined ? '' : `.lufs${plan.loudness_lufs}`);
 // ElevenLabs v4 at its published per-character rate, for the one voice's clips (the estimate the backfill stops on).
 const ONE_USD_PER_CHAR = 0.30 / 1000;
 
@@ -293,6 +294,37 @@ function compactClip(audio) {
   });
 }
 
+/**
+ * The clip levelled to `lufs` (ffmpeg loudnorm, two passes, linear: one gain for the clip, true peak at most -1.5 dB),
+ * as mono Ogg Opus at `kbps`: a plan's `loudness_lufs`, so the AI lines sit at the loudness of the bank's recordings.
+ * Throws when ffmpeg fails: the clip is then counted failed and recorded again on the next publish.
+ */
+function levelClip(audio, lufs, kbps) {
+  const base = path.join(os.tmpdir(), `wq-level-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const src = `${base}.in`;
+  const out = `${base}.ogg`;
+  const cleanup = () => { [src, out].forEach((f) => { try { fs.unlinkSync(f); } catch (_) { /* gone */ } }); };
+  const target = `I=${lufs}:TP=-1.5:LRA=11`;
+  const ff = (args) => new Promise((resolve, reject) => {
+    execFile(ffmpegPath(), args, { timeout: 20000, maxBuffer: 4 * 1024 * 1024 }, (err, _out, stderr) => (err ? reject(err) : resolve(String(stderr || ''))));
+  });
+  return (async () => {
+    try {
+      fs.writeFileSync(src, audio);
+      const said = await ff(['-hide_banner', '-nostats', '-i', src, '-af', `loudnorm=${target}:print_format=json`, '-f', 'null', '-']);
+      const m = JSON.parse((said.match(/\{[^{}]*\}/g) || []).pop());
+      await ff(['-y', '-loglevel', 'error', '-i', src, '-af', `loudnorm=${target}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:`
+        + `measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`,
+      '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', `${kbps}k`, '-f', 'ogg', out]);
+      const levelled = fs.readFileSync(out);
+      if (levelled.slice(0, 4).toString() !== 'OggS') throw new Error('levelled clip is not Ogg');
+      return levelled;
+    } finally {
+      cleanup();
+    }
+  })();
+}
+
 async function exists(key, bucket) {
   try {
     return (await r2.headObject(key, { bucket })).exists;
@@ -397,7 +429,8 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
             text, language, useCase: 'reading', site: 'web_quiz_read_aloud', ...(voice ? { provider: voice.provider, voice: voice.voice } : {}),
             ...(one ? { model: voice.model, voiceSettings: voice.settings, outputFormat: `opus_48000_${one.kbps || 64}` } : {}),
           });
-          const clip = one ? res.audio : await compactClip(res.audio);
+          const clip = !one ? await compactClip(res.audio)
+            : one.loudness_lufs === undefined ? res.audio : await levelClip(res.audio, one.loudness_lufs, one.kbps || 64);
           await r2.uploadBuffer(clip, key, 'audio/ogg', { bucket });
           stats.synthesized += 1;
           stats.chars += text.length;

@@ -10,8 +10,10 @@
  *     "bank": ["q", "opts"],              the parts still served from the bank's own recordings of people (a subset
  *                                         of q, opts, why; default ["q", "opts"]). Only an explicit [] voices the
  *                                         recorded question and options again in the plan's voice
- *     "kbps": 32 }                        the clip's rate, asked of the provider in the same generation (32 or 64,
- *                                         default 64): never a second encode
+ *     "kbps": 32,                         the clip's rate, asked of the provider in the same generation (32 or 64,
+ *                                         default 64): no second encode unless the plan names a loudness
+ *     "loudness_lufs": -21 }              optional: every clip the plan records is levelled to this loudness (LUFS,
+ *                                         -31 to -10), one Opus encode at the plan's rate; part of the stamp and keys
  *
  * A plan is live only when every language's voice (as the plan renders it, web-quiz-voice.js setIdOf) has a
  * recorded set of Jugnu's shared lines (web-quiz-voice.js SHARED_SETS): the page would show those lines silent
@@ -82,7 +84,10 @@ function normalize(value) {
   const voices = hasVoices ? v.voices : {};
   const bank = hasBank ? BANK_PARTS.filter((p) => v.bank.includes(p)) : [...DEFAULT_BANK];
   const kbps = hasKbps ? Number(v.kbps) : DEFAULT_KBPS;
-  return withSig({ voices: { en: voiceOf(voices.en, 'en'), ur: voiceOf(voices.ur, 'ur') }, bank, kbps });
+  // The loudness every clip of the plan is levelled to (a number, LUFS, -31 to -10); absent, the provider's own level.
+  const lufs = typeof v.loudness_lufs === 'number' && v.loudness_lufs >= -31 && v.loudness_lufs <= -10 ? v.loudness_lufs : null;
+  return withSig({ voices: { en: voiceOf(voices.en, 'en'), ur: voiceOf(voices.ur, 'ur') }, bank, kbps,
+    ...(lufs === null ? {} : { loudness_lufs: lufs }) });
 }
 
 // How a voice is rendered (web-quiz-voice.js): part of the stamp and of a clip's key.
@@ -93,7 +98,8 @@ const { renderOf } = Voice;
 function withSig(plan) {
   const voice = (lang) => [Voice.tagOf(plan.voices[lang]), renderOf(plan.voices[lang])];
   const sig = crypto.createHash('sha1')
-    .update(JSON.stringify({ en: voice('en'), ur: voice('ur'), bank: plan.bank, kbps: plan.kbps }))
+    .update(JSON.stringify({ en: voice('en'), ur: voice('ur'), bank: plan.bank, kbps: plan.kbps,
+      ...(plan.loudness_lufs === undefined ? {} : { lufs: plan.loudness_lufs }) }))
     .digest('hex').slice(0, 10);
   return Object.freeze({ ...plan, sig });
 }

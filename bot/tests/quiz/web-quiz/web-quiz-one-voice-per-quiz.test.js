@@ -631,3 +631,64 @@ describe('the signed-media cache follows the slot the page is served from', () =
     expect(out.quiz.questions[0].audio.q).toBe(second[QID2].q);
   });
 });
+
+/*
+ * A plan's `loudness_lufs` (option A): every clip the plan records is levelled to that loudness, so the AI lines sit at
+ * the loudness of the bank's recordings of people. Only a plan that names it is levelled; every other plan (and off)
+ * stores the provider's own bytes under the same keys and stamp as before.
+ */
+describe('a plan\'s loudness: the AI lines are levelled to the plan\'s LUFS', () => {
+  const { execFileSync, spawnSync } = require('child_process');
+  const os = require('os');
+  const ffmpeg = (() => { try { return require('@ffmpeg-installer/ffmpeg').path; } catch (_) { return 'ffmpeg'; } })();
+  const SETTINGS = { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 };
+  const MATCHED = { voices: { en: { provider: 'elevenlabs', voice: 'aQLnnbQ6J7JYyvxnNgjx', name: 'Eman', model: 'eleven_v4', settings: SETTINGS },
+    ur: { provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4', settings: SETTINGS } }, bank: ['q', 'opts'] };
+  const tmp = (ext) => path.join(os.tmpdir(), `wq-loud-test-${process.pid}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
+  // A quiet Ogg Opus clip, as a provider might return it (about -33 LUFS).
+  const quietClip = () => {
+    const f = tmp('ogg');
+    execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=frequency=330:duration=4', '-af', 'volume=-30dB',
+      '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '64k', '-f', 'ogg', f]);
+    const b = fs.readFileSync(f); fs.unlinkSync(f); return b;
+  };
+  // The clip's integrated loudness, as ffmpeg's loudnorm measures it (on stderr).
+  const lufsOf = (buf) => {
+    const f = tmp('ogg'); fs.writeFileSync(f, buf);
+    const r = spawnSync(ffmpeg, ['-hide_banner', '-nostats', '-i', f, '-af', 'loudnorm=print_format=json', '-f', 'null', '-'], { encoding: 'utf8' });
+    fs.unlinkSync(f);
+    return Number(JSON.parse(r.stderr.match(/\{[^{}]*\}/g).pop()).input_i);
+  };
+
+  test('normalize: `loudness_lufs` is kept and is part of the stamp; a plan without it keeps its stamp; an odd value is ignored', () => {
+    expect(OneVoice.normalize(MATCHED).sig).toBe('c7150102c2');                  // the stamp before the field existed
+    expect(OneVoice.normalize(true).sig).toBe('c4abc76e5f');
+    expect('loudness_lufs' in OneVoice.normalize(MATCHED)).toBe(false);
+    const loud = OneVoice.normalize({ ...MATCHED, loudness_lufs: -21 });
+    expect(loud.loudness_lufs).toBe(-21);
+    expect(loud.sig).not.toBe('c7150102c2');
+    ['-21', null, -5, -60, 'loud'].forEach((v) => expect('loudness_lufs' in OneVoice.normalize({ ...MATCHED, loudness_lufs: v })).toBe(false));
+  });
+
+  test('published under a plan with loudness_lufs -21: every clip is Ogg Opus at about -21 LUFS, under keys of its own', async () => {
+    const r2 = require('../../../shared/storage/r2');
+    const quiet = quietClip();
+    expect(lufsOf(quiet)).toBeLessThan(-28);
+    tts.synthesize.mockImplementation(async ({ provider, voice }) => ({ audio: quiet, provider, voice, durationSec: 4 }));
+    const plain = seed(ROWS(), {});
+    await Publish.publishQuizAudio(QUIZ, { db: { from: plain.from }, oneVoice: OneVoice.normalize(MATCHED) });
+    const plainKeys = r2.uploadBuffer.mock.calls.map((c) => c[1]);
+    r2.uploadBuffer.mock.calls.forEach((c) => expect(c[0]).toBe(quiet));    // without it: the provider's own bytes
+    r2.uploadBuffer.mockClear();
+    const fake = seed(ROWS(), {});
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from }, oneVoice: OneVoice.normalize({ ...MATCHED, loudness_lufs: -21 }) });
+    const calls = r2.uploadBuffer.mock.calls;
+    expect(calls.length).toBe(plainKeys.length);
+    expect(calls.length).toBeGreaterThan(0);
+    calls.forEach((c) => {
+      expect(c[0].slice(0, 4).toString()).toBe('OggS');
+      expect(Math.abs(lufsOf(c[0]) + 21)).toBeLessThan(1.5);
+      expect(plainKeys).not.toContain(c[1]);
+    });
+  }, 60000);
+});
