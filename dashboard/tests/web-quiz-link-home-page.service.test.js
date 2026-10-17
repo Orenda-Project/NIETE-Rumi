@@ -72,6 +72,22 @@ describe('never asked', () => {
   }
 });
 
+describe('"Play again" (?again=1) on a finished class link: the child plays it again, never sent home', () => {
+  test('the home\'s or the next thing\'s "Play again" opens a fresh attempt: no link-home ask, no move', async () => {
+    const p = page({ lang: 'en', search: '?again=1&k=c1', store: finished(), bootExtra: { link_home: true }, api: { '/api/wq/linkhome': { home: HOME } } });
+    await flush(); await flush();
+    expect(asks(p)).toHaveLength(0);
+    expect(p.hist.assigned).toEqual([]);
+    expect(p.moment()).not.toBe('M10');   // not the old card: a new attempt starts
+  });
+
+  test('the same finished link opened WITHOUT again: still the child\'s hub (today\'s link-home)', async () => {
+    const p = page({ lang: 'en', search: '?k=c1', store: finished(), bootExtra: { link_home: true }, api: { '/api/wq/linkhome': { home: HOME } } });
+    await flush(); await flush();
+    expect(p.hist.assigned).toEqual([`${HOME}&lang=en`]);
+  });
+});
+
 describe('golden: switch off (no link_home in the boot JSON)', () => {
   test('no request, and the same screen as today: the card for a finished run, the landing otherwise', async () => {
     const card = page({ lang: 'en', store: finished(), api: { '/api/wq/linkhome': { home: HOME } } });

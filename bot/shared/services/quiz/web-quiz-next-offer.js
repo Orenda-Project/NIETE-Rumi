@@ -61,11 +61,15 @@ function armOf(key, day) {
   return b <= 6 ? 'rank' : b <= 8 ? 'rand' : 'ctrl';
 }
 
-const offerable = (c) => c && KINDS.includes(c.kind) && c.id && typeof c.href === 'string' && c.href && c.title;
+// a tile opens the thing it names: no href, or one that ends in a bare '#' (no step), is never offered
+const reachable = (h) => typeof h === 'string' && h.length > 0 && !/#$/.test(h);
+const offerable = (c) => c && KINDS.includes(c.kind) && c.id && reachable(c.href) && c.title;
 
 // The table's names for the same thing in another context (the home's rows name the hub's picks: a teacher quiz is
 // `teacher`, play again is `last`, a library video `library`/`recommended`).
-const VARIANT_ALIAS = Object.freeze({ new: ['new', 'teacher'], again: ['again', 'last'], teacher: ['teacher', 'new'], recommended: ['recommended', 'library'], library: ['library', 'recommended'], chapter: ['chapter', 'recommended', 'library'] });
+const VARIANT_ALIAS = Object.freeze({ new: ['new', 'teacher'], again: ['again', 'last'], teacher: ['teacher', 'new'], recommended: ['recommended', 'library'], library: ['library', 'recommended'], chapter: ['chapter', 'recommended', 'library'],
+  // the quiz after a watched video (the door's quiz-after) is a new quiz, never "play again"
+  after_video: ['after_video', 'new'] });
 
 /** The scores row for a candidate: kind + variant (or its alias), else the kind's variant-less row, else its first. */
 function rowFor(rows, c) {

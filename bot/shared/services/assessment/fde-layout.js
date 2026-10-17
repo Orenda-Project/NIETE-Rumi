@@ -495,22 +495,27 @@ const STEM_LABEL = /(^|\s)\(?([a-d])\)\s*/gi;
 const STEM_MAX = 600;
 const optionText = (t) => String(t == null ? '' : t).replace(/^\s*\(?[a-d]\)\s*/i, '').replace(/[\s.,;]+$/, '').trim().toLowerCase();
 
-function stripStemOptions(q) {
+// Urdu: the same list lettered الف) ب) ج) د) («… استانی صاحبہ»۔ الف) اسکول ب) بازار ج) باغ د) ہسپتال»).
+const STEM_LABEL_UR = /(^|\s)\(?(الف|ب|ج|د)\)\s*/gu;
+const optionTextUr = (t) => String(t == null ? '' : t).replace(/^\s*\(?(?:الف|ب|ج|د)\)\s*/u, '').replace(/[\s.,;،۔]+$/u, '').trim();
+
+function stripStemOptions(q, urdu = false) {
   if (!q || typeof q.question !== 'string' || q.question.length > STEM_MAX) return;
   if (!Array.isArray(q.options) || q.options.length !== 4) return;
   const text = q.question;
-  const labels = [...text.matchAll(STEM_LABEL)];
+  const [labelRe, order, textOf] = urdu ? [STEM_LABEL_UR, 'الفبجد', optionTextUr] : [STEM_LABEL, 'abcd', optionText];
+  const labels = [...text.matchAll(labelRe)];
   // The list must be the last four labels, a to d in order, and end the stem.
   if (labels.length < 4) return;
   const four = labels.slice(-4);
-  if (four.map((m) => m[2].toLowerCase()).join('') !== 'abcd') return;
+  if (four.map((m) => m[2].toLowerCase()).join('') !== order) return;
   const segments = four.map((m, i) => {
     const from = m.index + m[0].length;
     const to = i < 3 ? four[i + 1].index + four[i + 1][1].length : text.length;
-    return optionText(text.slice(from, to));
+    return textOf(text.slice(from, to));
   });
   // Each segment is one of the options, each option once: then it is the options again.
-  const options = q.options.map(optionText);
+  const options = q.options.map(textOf);
   if (new Set(segments).size !== 4 || !segments.every((seg) => seg && options.includes(seg))) return;
   q.question = text.slice(0, four[0].index + four[0][1].length).trim();
 }
@@ -710,9 +715,22 @@ function inOrder(a, b) {
   }
   return row[b.length];
 }
+// Urdu writes a compound split or joined («کام یاب» / «کامیاب», «کم زور» / «کمزور»): two words side
+// by side that make one word of the other text are read as that word.
+function joinSplits(words, other) {
+  const one = new Set(other);
+  const out = [];
+  for (let i = 0; i < words.length; i += 1) {
+    if (i + 1 < words.length && one.has(words[i] + words[i + 1])) { out.push(words[i] + words[i + 1]); i += 1; } else out.push(words[i]);
+  }
+  return out;
+}
 // A sentence is printed in a stem when the stem carries at least four in five of its words, in order.
 const SENTENCE_SHARE = 0.8;
-const printedIn = (sentence, stem) => inOrder(sentence, stem) >= Math.ceil(sentence.length * SENTENCE_SHARE);
+const printedIn = (sentence, stem) => {
+  const said = joinSplits(sentence, stem);
+  return inOrder(said, joinSplits(stem, said)) >= Math.ceil(said.length * SENTENCE_SHARE);
+};
 
 // Urdu: the word list a Q4 item asks about, quoted («کتاب، قلم، کاپی، بستہ») or after its colon up
 // to the sentence's end («گروہی الفاظ …: بادل، بجلی، بارش، گھٹائیں۔»), as each entry's words. A
@@ -733,7 +751,8 @@ function listOf(q) {
 }
 
 // Urdu: a Q1 MCQ is a Q4 twin when it is keyed on a Q4 answer (sameKey), when it prints a Q4
-// sentence (Q4's sentence is in the MCQ's stem, or the MCQ's quoted sentence is in Q4's stem), or
+// sentence (Q4's sentence is in the MCQ's stem, or the MCQ's quoted sentence, blanks empty or
+// filled with its key, is in Q4's stem), or
 // when its stem carries three of a Q4 list's entries, in any order.
 function q4Twin(q4s) {
   const byKey = sameKey(q4s);
@@ -746,7 +765,8 @@ function q4Twin(q4s) {
     const words = new Set(tokensOf(q.question));
     if (lists.some((l) => l.filter((e) => e.every((w) => words.has(w))).length >= LIST_ENTRIES)) return true;
     const stem = plain(q.question).split(' ');
-    const own = sentencesOf(q, false);
+    // The MCQ's own sentence, its blanks empty and filled with its key («___ تم محنت کرو گے ___ …» → اگر، تو).
+    const own = sentencesOf(q, false).concat(sentencesOf(q, true));
     return q4.some((s) => s.said.some((t) => printedIn(t, stem)) || own.some((t) => printedIn(t, s.stem) || s.said.some((f) => printedIn(t, f))));
   };
 }
@@ -850,11 +870,45 @@ function verseTwin(q6s) {
 // Urdu: a Q1 MCQ about a word Q3 (meanings) or Q5 (sentences) lists: its stem names the word and
 // asks its meaning, or it is keyed on the meaning Q3's own answer gives it («اقتصادی» → «معاشی
 // حالت سے» beside Q3's «اقتصادی: معاشی، …»). A Q1 item asking a listed word's opposite or its kind
-// of noun, keyed on something else, stays.
+// of noun, keyed on something else, stays. Read the other way, an item that gives the meaning in its
+// stem and is keyed on a listed idiom («بہت زیادہ غصے میں آ جانا» → آگ بگولا ہونا, beside Q5's «آگ
+// بگولا ہونا»; → شرم سے پانی پانی ہونا beside «پانی پانی ہونا») is the same twin: a key of two words
+// or more that holds, or sits inside, a listed word of two words or more. A one-word key («پانی»)
+// inside a listed idiom stays.
 const MEANING_ASK = /مطلب|معنی|معانی|مراد|مفہوم/;
+// An idiom read without the form of its verb: a trailing «جانا/ہونا/کرنا/دینا» is dropped and a
+// «…انا» verb left last is cut to its root («مچانا» → «مچ»), so «دھوم مچ جانا» and «دھوم مچانا» are one
+// idiom («دھوم مچ»), and «شور مچ جانا» another. A plain «…نا» verb is not cut: «دل لگنا» is not «دل
+// لگانا». Two words at least, and a verb form actually set aside: a phrase with no verb («دھوم دھام»)
+// is matched as written.
+const LIGHT_VERBS = new Set(['جانا', 'ہونا', 'کرنا', 'دینا']);
+function idiomOf(text) {
+  const w = plain(text).split(' ').filter(Boolean);
+  let cut = false;
+  while (w.length > 2 && LIGHT_VERBS.has(w[w.length - 1])) { w.pop(); cut = true; }
+  if (w.length < 2) return '';
+  const root = w[w.length - 1].replace(/انا$/, '');
+  if (root.length >= 2 && root !== w[w.length - 1]) { w[w.length - 1] = root; cut = true; }
+  return cut ? w.join(' ') : '';
+}
+// Every idiom a stem prints, read as above: each run of two to six of its words.
+function idiomsIn(text) {
+  const w = plain(text).split(' ').filter(Boolean);
+  const out = new Set();
+  for (let i = 0; i < w.length; i += 1) {
+    for (let n = 2; n <= 6 && i + n <= w.length; n += 1) { const id = idiomOf(w.slice(i, i + n).join(' ')); if (id) out.add(id); }
+  }
+  return out;
+}
 function meaningTwin(lists) {
   const words = [...new Set(lists.flatMap((q) => (Array.isArray(q.words) ? q.words : [])).map(plain).filter(Boolean))];
   if (!words.length) return null;
+  const phrases = words.filter((w) => w.split(' ').length >= 2);
+  const keyedOn = (q) => {
+    const k = plain(keyText(q));
+    return k.split(' ').length >= 2 && phrases.some((w) => ` ${k} `.includes(` ${w} `) || ` ${w} `.includes(` ${k} `)
+      || (Boolean(idiomOf(k)) && idiomOf(k) === idiomOf(w)));
+  };
   const meanings = new Map();
   for (const q of lists.filter((x) => x.slot === 'urdu.C.Q3' && typeof x.answer === 'string')) {
     for (const line of q.answer.split('\n')) {
@@ -863,8 +917,10 @@ function meaningTwin(lists) {
     }
   }
   return (q) => {
+    if (keyedOn(q)) return true;
     const stem = ` ${plain(q.question)} `;
-    const named = words.filter((w) => stem.includes(` ${w} `));
+    const printed = idiomsIn(q.question);
+    const named = words.filter((w) => stem.includes(` ${w} `) || (Boolean(idiomOf(w)) && printed.has(idiomOf(w))));
     if (!named.length) return false;
     if (MEANING_ASK.test(String(q.question))) return true;
     const key = tokensOf(keyText(q));
@@ -910,10 +966,137 @@ const writtenKey = (text) => plain(text).split(' ')
   .map((w) => COPULA[w] || (/^\p{Script=Arabic}{4,}$/u.test(w) ? w.replace(/(?:وں|یں|ے|ہ|ی|ا)$/, '') : w))
   .join(' ');
 // Urdu: the same stem keyed the same is one question, whatever distractor a rewrite changed (a
-// top-up told to write nothing it kept rewrote one with a single option swapped).
+// top-up told to write nothing it kept rewrote one with a single option swapped). So is a kept
+// fact asked again under a new stem: the same key (one key's words all in the other's, the shorter
+// more than half the longer: «مینا بازار» / «مینا بازاروں» / «مینا بازار لگانے», never «کاش» beside
+// «کاش میں پرندہ ہوتا») and stems that, keys aside, share two words or one's words all in the other's
+// («… کس شعبے کی ڈگری حاصل کی؟» / «… کس پیشے کی ڈگری حاصل کی تھی؟» → دندان سازی). One shared word
+// («شہر»: where she was born / the biggest city, both «کراچی») is two questions.
+const TWIN_WORDS = 2;
 function sameStemKey(a, b) {
   const s = plain(a.question);
-  return Boolean(s) && s === plain(b.question) && Boolean(plain(keyText(a))) && plain(keyText(a)) === plain(keyText(b));
+  if (Boolean(s) && s === plain(b.question) && Boolean(plain(keyText(a))) && plain(keyText(a)) === plain(keyText(b))) return true;
+  const [ka, kb] = [new Set(tokensOf(keyText(a))), new Set(tokensOf(keyText(b)))];
+  if (!ka.size || !kb.size) return false;
+  const [small, big] = ka.size <= kb.size ? [ka, kb] : [kb, ka];
+  if (small.size * 2 <= big.size || ![...small].every((w) => big.has(w))) return false;
+  const sa = new Set(tokensOf(a.question).filter((w) => !ka.has(w)));
+  const sb = new Set(tokensOf(b.question).filter((w) => !kb.has(w)));
+  if (!sa.size || !sb.size) return false;
+  const shared = [...sa].filter((w) => sb.has(w)).length;
+  return shared >= TWIN_WORDS || shared === sa.size || shared === sb.size;
+}
+// Urdu: a Q1 stem that prints another Q1 item's key gives that item away («سدرہ نے اپنی تھیڑ کمپنی
+// کس مقصد کے لیے بنائی؟» beside «… کیا بنایا؟ → تھیڑ کمپنی»): a key of two words or more, all in the
+// stem. A one-word key a stem merely names («… کس چیز کی علامت ہیں؟ → امن» beside ««امن» کا متضاد …»)
+// stays, unless each item's stem prints the other's key («ہیروشیما کس ملک کا شہر ہے؟ → جاپان» beside
+// «جاپان کا کون سا شہر …؟ → ہیروشیما»). An item that names the kind of a quoted example («'میری دعا
+// ہے کہ …' یہ کس قسم کا جملہ ہے؟ → تمنائی جملہ») is not given away by a stem that names the kind
+// («کون سا لفظ تمنائی جملے میں استعمال ہوتا ہے؟»): its question is the example.
+const GIVEN_WORDS = 2;
+const QUOTES_EXAMPLE = /«[^»]+»|[’‘]{2}[^’‘]+[’‘]{2}|“[^”]+”|"[^"]+"|'[^']+'/u;
+function stemGivesKey(a, b) {
+  const key = (q) => new Set(tokensOf(keyText(q)));
+  const prints = (stemOf, keyOf) => {
+    const k = key(keyOf);
+    const stem = new Set(tokensOf(stemOf.question));
+    return k.size > 0 && [...k].every((w) => stem.has(w));
+  };
+  // A one-word key is given away too when the stem that prints it is on the same topic: the two
+  // stems share a content word besides the key («… کانفرنس کس شہر میں ہوئی؟ → ٹوکیو» beside «…
+  // ٹوکیو کی کانفرنس میں آنے کا بلاوا …»).
+  const topic = (q, by) => {
+    const k = key(q);
+    const other = new Set(tokensOf(by.question).filter((w) => w.length >= 3 && !k.has(w)));
+    return tokensOf(q.question).some((w) => w.length >= 3 && !k.has(w) && other.has(w));
+  };
+  // A quoted word list is no example: a stem that lists another item's key among its words
+  // («کمبل، آتش دان، مونگ پھلی، ریوڑیاں» … → سردی beside «… کون سا لفظ شامل نہیں ہو سکتا؟ → آتش
+  // دان») prints that key, whatever the item asking it quotes.
+  const listed = (q, by) => {
+    const k = plain(keyText(q));
+    return Boolean(k) && (String(by.question || '').match(QUOTE_SPAN) || [])
+      .some((quote) => { const words = quote.split(/[،,]/).map(plain).filter(Boolean); return words.length >= 2 && words.includes(k); });
+  };
+  const given = (q, by) => listed(q, by) || (!QUOTES_EXAMPLE.test(String(q.question || ''))
+    && (key(q).size >= GIVEN_WORDS || (key(q).size === 1 && topic(q, by))));
+  // Another item's OPTION that prints a key of two words or more, in order, inside something it says
+  // about it, states that key as a fact, even as a wrong option («سدرہ نے … کیا بنایا؟ → تھیڑ کمپنی»
+  // beside «ب) سدرہ کی تھیڑ کمپنی بند کرنے کی»). An option that is only the key, or a one-word key
+  // («کراچی», «امینہ» among four names), tells nothing. Nor does a sample sentence that uses a grammar
+  // item's key when that item quotes its own example («'___ ہم سب کو کامیابی ملے۔' → اللہ کرے» beside
+  // the option «ج) اللہ کرے امتحان آسان ہو۔»): its question is the example.
+  const optionStates = (q, by) => {
+    const k = plain(keyText(q));
+    if (key(q).size < GIVEN_WORDS || !Array.isArray(by.options) || QUOTES_EXAMPLE.test(String(q.question || ''))) return false;
+    return by.options.some((o) => { const t = plain(String(o).replace(OPTION_HEAD, '')); return t !== k && ` ${t} `.includes(` ${k} `); });
+  };
+  const [ab, ba] = [prints(a, b), prints(b, a)];
+  return (ab && ba) || (ab && given(b, a)) || (ba && given(a, b)) || optionStates(a, b) || optionStates(b, a);
+}
+// Urdu Q4: an item with four options (in `options`, or on the stem's lines below it) keyed on one
+// option and accepting another («ج) بارش», accepting «د) فلکیات») has two answers. It is held and
+// never comes back: the key a teacher marks from would be a guess. An accepted answer that is no
+// option («جب، تو» beside «اگر، تو») is another way of writing the key, and stays.
+const OPTION_LETTER = /^\s*\(?([a-dA-D]|الف|ب|ج|د)\s*[).:۔-]/;
+function keyAcceptSplit(q) {
+  const options = Array.isArray(q.options) && q.options.length
+    ? q.options.map(String)
+    : String(q.question || '').split('\n').slice(1).filter((l) => OPTION_HEAD.test(l));
+  if (options.length !== 4) return false;
+  const letterOf = (t) => { const m = String(t).match(OPTION_LETTER); return m ? m[1].toLowerCase() : null; };
+  const texts = options.map((o) => plain(String(o).replace(OPTION_HEAD, '')));
+  const which = (t) => {
+    const letter = letterOf(t);
+    const byLetter = letter ? options.findIndex((o) => letterOf(o) === letter) : -1;
+    return byLetter >= 0 ? byLetter : texts.indexOf(plain(String(t).replace(OPTION_HEAD, '')));
+  };
+  const keyAt = typeof q.answer === 'string' ? which(q.answer) : -1;
+  if (keyAt < 0) return false;
+  const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept.filter((a) => typeof a === 'string') : [];
+  return accept.some((a) => { const at = which(a); return at >= 0 && at !== keyAt; });
+}
+// Urdu Q1: an MCQ whose stem prints its own key gives itself away («لفظ «سانپ» کی درست املا کون سی
+// ہے؟» → سانپ; «سَحَر» … درست اعراب والا لفظ → سَحَر), the key being one of its options: a quote that is the key as written, marks and
+// all, or the key's words in order outside the stem's quotes. A quote that holds the key among other
+// words («"اگر بارش ہوئی تو …" میں حرفِ شرط …؟» → اگر) is the example the item asks about, and stays;
+// so does a stem that prints another option beside the key («عمارت» اور «اِمارت» میں سے …): the
+// child still chooses. A stem that asks two questions («… پیش آیا؟ سدرہ کی بہن کا نام کیا تھا؟»)
+// is two items in one place; a «؟» inside a quoted example does not count.
+const QUOTE_SPAN = /«[^»]+»|[’‘]{2}[^’‘]+[’‘]{2}|“[^”]+”|"[^"]+"|[’‘][^’‘]+[’‘]|'[^']+'/gu;
+// As written, marks kept (they are what an اعراب item tests), with only the Arabic letter forms of
+// ی / ک / ہ read as Urdu («ہندي» is «ہندی»).
+const SAME_LETTER = [[/[يى]/g, 'ی'], [/ك/g, 'ک'], [/ه/g, 'ہ']];
+const asWritten = (t) => SAME_LETTER.reduce((x, [re, to]) => x.replace(re, to), String(t).normalize('NFC')).replace(OPTION_HEAD, '').replace(/^[\s«»’‘“”"'(]+|[\s«»’‘“”"').,،۔؟?!]+$/gu, '');
+// A spelling item prints its key wherever its stem holds it, inside a longer quote too («جس چیز سے
+// … یعنی گرم مصالحہ» کا درست املا → مصالحہ): the word it tests, as written, among the stem's words.
+// Beside another option too («عمارت» اور «اِمارت» میں سے درست املا …): the right spelling is printed,
+// and the other-option exemption below is for items that ask something else (a meaning). A key of
+// function words only («میں») is the stem's own frame, and stays.
+const SPELLING_ASK = /املا|ہجے/;
+const wordsAsWritten = (t) => asWritten(t).split(/[^\p{L}\p{M}\p{N}]+/u).filter(Boolean);
+function spellingPrints(stem, key) {
+  const [s, k] = [wordsAsWritten(stem), wordsAsWritten(key)];
+  return k.length > 0 && s.some((_, i) => k.every((w, j) => s[i + j] === w));
+}
+function printsOwnKey(q) {
+  if (!Array.isArray(q.options) || !q.options.length) return false;
+  const key = asWritten(keyText(q));
+  const options = q.options.map(asWritten);
+  if (!plain(key) || !options.includes(key)) return false;
+  const stem = String(q.question || '');
+  if (SPELLING_ASK.test(stem) && tokensOf(key).length > 0 && spellingPrints(stem, key)) return true;
+  const quotes = (stem.match(QUOTE_SPAN) || []).map(asWritten);
+  const outside = stem.split(QUOTE_SPAN).map((part) => ` ${plain(part)} `);
+  // Outside the quotes only a key with a content word counts: a function word («میں») is in most
+  // stems' own frame («درج ذیل میں سے …»).
+  const printed = (o) => quotes.includes(o) || (tokensOf(o).length > 0 && outside.some((part) => part.includes(` ${plain(o)} `)));
+  const others = options.filter((o) => o !== key && plain(o));
+  return printed(key) && !others.some(printed);
+}
+function asksTwo(q) {
+  if (!Array.isArray(q.options) || !q.options.length) return false;
+  return (String(q.question || '').replace(QUOTE_SPAN, ' ').match(/[؟?]/g) || []).length >= 2;
 }
 function sameQuestion(a, b) {
   const [sa, sb] = [plain(a.question), plain(b.question)];
@@ -934,7 +1117,7 @@ function sameQuestion(a, b) {
  * What the engine's one re-ask of `section` is told, from the first layout (`examJson`): the
  * facts the slot its items are held against already tests. Social Studies C/D: Section A's
  * questions and answers. English A: Q4's words. Urdu A: Q4's questions and answers, Q3/Q5's
- * words and Q6's verse. Null for any
+ * words and Q6's verse, and on a top-up the Q1 items it keeps with their keys. Null for any
  * other section or subject, so no
  * other prompt changes.
  */
@@ -982,6 +1165,10 @@ function takenNote(P, section, examJson, opts = {}) {
       notes.push(`Q6 of this paper prints these verses:\n${verses.join('\n')}\n`
         + 'No MCQ you write in this section may ask about these verses or be answered from them.');
     }
+    // A top-up keeps the first reply's Q1 items: name them and their keys, or the re-ask writes a
+    // whole Section A again and its first items ask kept facts under new stems, keyed the same.
+    // Its count is the section's own, so a held twin's place goes to the next new item.
+    if (opts.topUp) notes.push(...urduKeptNotes(section, examJson, opts.shortfall));
     return notes.length ? notes.join('\n\n') : null;
   }
   const facts = against.filter((q) => typeof q.question === 'string' && q.question.trim())
@@ -1028,6 +1215,27 @@ function keptNotes(P, section, examJson, cross, shortfall) {
   }
   return out;
 }
+// Urdu Section A on a top-up: each short held slot's kept items and their keys. The re-ask writes
+// the section's full count (no spare count asked), so the paper has a new item for every twin it holds.
+// A top-up asks for spares beyond what it needs, at least two and half the gap rounded up (a top-up
+// for seven wrote three twins of kept facts): an item the layout holds inside the re-ask then takes a
+// spare's place.
+const urduSpares = (missing) => Math.max(2, Math.ceil(missing / 2));
+function urduKeptNotes(section, examJson, shortfall) {
+  const out = [];
+  for (const slot of section.slots) {
+    const gap = (Array.isArray(shortfall) ? shortfall : []).find((f) => f && f.slot === slot.slot);
+    if (!gap || !(gap.missing > 0)) continue;
+    const label = slot.label_en || slot.slot.split('.').pop();
+    const kept = itemsOf(examJson, slot.slot).filter((q) => keyText(q).trim());
+    if (!kept.length) continue;
+    const keys = [...new Set(kept.map((q) => keyText(q).trim().replace(/\s*\n\s*/g, '; ')))];
+    out.push(`${label} already keeps these items (question → answer):\n${kept.map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`).join('\n')}\n`
+      + `Never write any of these again, in any wording, and never key a new item on any of these answers: ${keys.join('، ')}\n`
+      + `${label} needs ${gap.missing} more. Write ${gap.missing + urduSpares(gap.missing)} new items: the paper takes the first ${gap.missing} of your items that test a fact none of these tests.`);
+  }
+  return out;
+}
 
 /**
  * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
@@ -1043,20 +1251,28 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const bySlot = new Map(slots.map((slot) => [slot.slot, []]));
   const room = (slot) => bySlot.get(slot.slot).length < slot.generate;
   let unplaced = 0;
+  let putBack = [];
 
   const all = walk(src);
-  all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
-  const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q)) || (P.key === 'urdu' && sameStemKey(p, q));
+  all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); if (P.key === 'urdu') stripStemOptions(entry.q, true); });
+  const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q))
+    || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
   const place = (cross) => {
     bySlot.forEach((list) => { list.length = 0; });
     unplaced = 0;
+    putBack = [];
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
     const fallback = new Map(); // slot → held items, in reply order
+    const inSlot = new Map(); // Urdu Q1: slot → items held inside Q1 that give nothing away, in reply order
+    const keep = (id, q) => inSlot.set(id, [...(inSlot.get(id) || []), q]);
     const repeats = new Map(); // Social Studies: slot → items a placed item already asks, in reply order
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
       if (P.key === 'social_studies' && tierSlip(q)) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && printsOwnKey(q)) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
       if (!holds(slot)) {
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
@@ -1096,6 +1312,23 @@ function applyLayout(examJson, P, scope, opts = {}) {
     // repeat beats no paper. Before it, the held item stays out, so the slot is short and the
     // section is asked again.
     if (!opts.reasked) return;
+    // Urdu: an item held against Section C (Q4's sentence, Q6's verse, a Q3/Q5 word) never comes
+    // back: it is the give-away a reader sees. The engine tops Section A up once more instead, and
+    // only an item held inside Q1 that gives nothing away fills a place left after that: a stem that
+    // asks two questions. A twin of a kept item, or a stem that prints a key, never comes back.
+    if (P.key === 'urdu') {
+      inSlot.forEach((list, id) => {
+        const slot = slots.find((s) => s.slot === id);
+        for (const q of list) {
+          if (!room(slot)) return;
+          if (bySlot.get(id).some((p) => twin(p, q)) || (holds(slot) && cross.rule(q))) continue;
+          bySlot.get(id).push(q);
+          putBack.push({ slot: id, rule: 'asks_two' });
+          unplaced -= 1;
+        }
+      });
+      return;
+    }
     fallback.forEach((list, id) => {
       const slot = slots.find((s) => s.slot === id);
       for (const q of list) {
@@ -1176,7 +1409,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
     frame_pages: null,
     notes: [],
   };
-  return { examJson: out, placed, unplaced, shortfall };
+  // `putBack` (Urdu: the held items that came back, with their rule) only when there are some.
+  return { examJson: out, placed, unplaced, shortfall, ...(putBack.length ? { putBack } : {}) };
 }
 
 module.exports = { applyLayout, takenNote, verseLines, typeKey, slotKey, unitWord };

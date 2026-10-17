@@ -6,6 +6,8 @@
  *   GET  /q/:code/schools  the same page opened on the school league (own URL, own link preview)
  *   GET  /q/:code/art/:kind.jpg?a=<id>  a share picture (card, class, schools, invite), drawn by the bot;
  *                          every shared link names one as its og:image, so the picture arrives with the link
+ *   GET  /q/:code/art/teach.png?a=<id>&v=<ver>  the teacher's class link's own picture (the bot names it in the
+ *                          payload only while its switches are on), asked of the bot under this code; immutable
  *   GET  /s/:book/:file    a storybook's picture or voice, immutable, from storage (web-quiz-story-assets.js)
  *   GET  /wq/card/:t.png   the finish card's picture (web_quiz_card_v3), kept at the edge; HEAD answered from memory
  *   GET  /k/:t             a shared finish card: its og head (the picture) and one way in, the bot's chat
@@ -52,14 +54,24 @@ const BOT_TIMEOUT_MS = 10000;
 const BOT_SLOW_MS = 3000;
 const YEAR_S = 31536000;
 // A share picture's signed id (the bot's web-quiz-art.js): kind letter, ref, mac. The edge only checks its shape.
-const ART_ID_RX = /^([cils])\.[A-Za-z0-9_-]{4,24}\.[A-Za-z0-9_-]{12}$/;
-const ART_KIND = { card: 'c', invite: 'i', class: 'l', schools: 's' };
-// A card or an invite never changes once drawn; a class or school picture moves as children play.
-const ART_MAX_AGE = { card: 86400, invite: 86400, class: 600, schools: 600 };
+const ART_ID_RX = /^([cilst])\.[A-Za-z0-9_-]{4,24}\.[A-Za-z0-9_-]{12}$/;
+// teach: the teacher's class link (the class + its topic, or its book): a PNG whose link carries its version.
+const ART_KIND = { card: 'c', invite: 'i', class: 'l', schools: 's', teach: 't' };
+const ART_EXT = { teach: 'png' };
+// A card or an invite never changes once drawn; a class or school picture moves as children play; the class link's
+// picture never changes under its link (?v= moves with its label, topic or book).
+const ART_MAX_AGE = { card: 86400, invite: 86400, class: 600, schools: 600, teach: YEAR_S };
 // How long the edge itself keeps a drawn picture (ms): the preview fetch finds the one the card opening warmed.
-const ART_KEEP_MS = { card: 86400000, invite: 86400000, class: 120000, schools: 120000 };
+// The class link's picture is kept no longer than the live class picture: its switch turned off, the edge stops
+// handing it out within 120 s (its link's ?v= still moves with every new label, topic or book).
+const ART_KEEP_MS = { card: 86400000, invite: 86400000, class: 120000, schools: 120000, teach: 120000 };
+// The class link picture's version (the bot's web-quiz-class-pic.js): 8 hex.
+const TEACH_V_RX = /^[0-9a-f]{8}$/;
 // How long the edge remembers a code's og facts for a link-preview fetch (ms).
 const OG_KEEP_MS = 3600000;
+// Facts that name the class link's picture are remembered no longer than that picture is kept: its switch turned
+// off, a preview head stops naming it within the same 120 s. Facts naming none keep the hour.
+const ogKeepMs = (facts) => (facts && facts.art && facts.art.teach ? Math.min(OG_KEEP_MS, ART_KEEP_MS.teach) : OG_KEEP_MS);
 // A finish card's sealed token (the bot's web-quiz-card-image.js): base64url only. The edge checks its shape; the bot opens it.
 const CARD_TOKEN_RX = /^[A-Za-z0-9_-]{40,400}$/;
 const cardToken = (v) => (typeof v === 'string' && CARD_TOKEN_RX.test(v) ? v : null);
@@ -133,6 +145,8 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/hubdoor', limiter: 'session' },
   // an old, finished class link opened again: the child's hub, for one remembered child on this phone
   { method: 'post', path: '/api/wq/linkhome', limiter: 'session' },
+  // a class link on a phone that holds a child: which children this browser holds ("Is it <name>?")
+  { method: 'post', path: '/api/wq/known', limiter: 'session' },
   // the finish card (web_quiz_card_v3): a card token for this child's finish (the bot answers 404 while it is off)
   { method: 'post', path: '/api/wq/card', limiter: 'session' },
   // a child joins on their own (quiz_student_join; the bot answers {off:true} with it off): the grade tap, the one write
@@ -176,9 +190,9 @@ function assetVersion() {
   for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
-  // The stories reader (loaded by the home and the hub at this ?v=) and its lazy questions file (at the reader's ?v=, this
+  // The stories reader (loaded by the home and the hub at this ?v=) and its lazy files (Your turn; the questions and done, at the reader's ?v=, this
   // one): a reader-only change busts a phone's year-long cache too. The player it brings carries its own content version.
-  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js']) {
+  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js', 'wq-stories-d.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -253,7 +267,7 @@ function ogTextOf(payload, view, brand) {
   // A storybook the teacher sent (boot `story`, web_quiz_stories_teacher): a story to listen to and read, never "0 questions".
   if (payload && payload.story) {
     return {
-      title: ur ? `${q.topic || ''} · ${label} کے لیے کہانی` : `${q.topic || ''} · a story for ${label}`,
+      title: ur ? `${q.topic || ''} · ${label} کے لیے کہانی` : `${q.topic || ''} · a story for ${cls.label || 'your class'}`,
       desc: ur ? `${brand.mascot.ur} کے ساتھ سنیں اور پڑھیں` : `Listen and read along with ${brand.mascot.en}`,
     };
   }
@@ -274,9 +288,10 @@ const ur2On = (ui, lang) => Boolean(ui && ui.ur2 === true && lang === 'ur');
 // Every share picture and brand picture is a 1200x630 JPEG: the head says so, so the phone knows what it fetches.
 function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, imageType = 'image/jpeg' }) {
   const img = image || `${origin}${brand.og.image}`;
-  const ur2 = ur2On(ui, lang);
+  // web_quiz_one_face on: ONE face for both looks, so the preload below names the polished one either way (urduLook).
+  const { ur2, cls, URDU_FONT } = urduLook(ui, lang);
   return `<!doctype html>
-<html lang="${lang}" dir="${dir}"${ur2 ? ' class="wq-ur2"' : ''}>
+<html lang="${lang}" dir="${dir}"${cls}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -298,6 +313,24 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
 <style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>`;
 }
 
+// One Urdu face per page (app_settings web_quiz_one_face, decided by the bot: its quiz, hub and challenge menu answers
+// say `one_face: true`, carried to head() as `ui.uf`): the plain and the polished look both draw with the polished face
+// (wq.css html.wq-uf), so a page whose head guessed the look wrong still fetches one face, and the plain face is never
+// fetched as well. Off (the key absent, or anything but JSON true): today's class and preload, byte for byte.
+function urduLook(ui, lang) {
+  const ur2 = ur2On(ui, lang);
+  if (!(ui && ui.uf === true)) return { ur2, cls: ur2 ? ' class="wq-ur2"' : '', URDU_FONT };
+  return { ur2, cls: ` class="${ur2 ? 'wq-ur2 ' : ''}wq-uf"`, URDU_FONT: URDU_FONT_2 };
+}
+const oneFaceOn = (payload) => Boolean(payload && payload.one_face === true);
+// The head reads the switch from `ui` (off: the payload itself, untouched).
+const withOneFace = (payload) => (oneFaceOn(payload) ? { ...payload, ui: { ...(payload.ui || {}), uf: true } } : payload);
+// What the shells that call no bot (library, closed, flush heads) keep of the last payload: the look and the one face.
+function shellUi(body) {
+  const ui = body.ui && body.ui.ur2 === true ? { ur2: true } : null;
+  return oneFaceOn(body) ? { ...(ui || {}), uf: true } : ui;
+}
+
 // The sound + motion kit (app_settings web_quiz_juice, decided by the bot): its stylesheet and script, before the page's
 // own script so window.WQJ is there when the page boots, only when the payload carries `juice: true`.
 function juiceTags(payload) {
@@ -312,8 +345,9 @@ function identityV2(payload) {
 }
 
 /**
- * The picture a link previews as: the shared card, the invite on a challenge code, the class view's table,
- * the plain class link with ?v=<played> (the teacher's reminder: the live class picture), else the brand's.
+ * The picture a link previews as: the shared card, the teacher's class link picture (when the bot names one), the
+ * invite on a challenge code, the class view's table, the plain class link with ?v=<played> (the teacher's reminder:
+ * the live class picture), else the brand's.
  * WhatsApp caches a preview per URL, so ?v rides into the picture URL too.
  */
 function ogImageFor({ payload, code, view, origin, a, v, k }) {
@@ -322,9 +356,19 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
   const art = (payload && payload.art) || {};
   const ver = typeof v === 'string' && /^[0-9]{1,10}$/.test(v) ? v : null;
   const pic = (kind, id) => (id ? `${origin}/q/${code}/art/${kind}.jpg?a=${encodeURIComponent(id)}${ver ? `&v=${ver}` : ''}` : null);
+  // The teacher's class link (art.teach, only while the bot's switches are on): after a child's own card and the
+  // teacher's reminder link, before today's.
+  const teachId = view === 'quiz' ? artId(art.teach, 'teach') : null;
+  const teach = teachId && typeof art.teach_v === 'string' && TEACH_V_RX.test(art.teach_v)
+    ? `${origin}/q/${code}/art/teach.png?a=${encodeURIComponent(teachId)}&v=${art.teach_v}` : null;
+  // The teacher's reminder link (?v=<played>) keeps its live class picture ahead of the class link picture. A story's
+  // reminder keeps the story's own picture: the live class picture is a quiz scoreboard (played, average, top score).
+  const live = ver && view === 'quiz' && !(payload && payload.story) ? pic('class', artId(art.class, 'class')) : null;
   return pic('card', artId(a, 'card'))
     || pic('invite', artId(art.invite, 'invite'))
-    || (view === 'class' || (ver && view === 'quiz') ? pic('class', artId(art.class, 'class')) : null)
+    || live
+    || teach
+    || (view === 'class' ? pic('class', artId(art.class, 'class')) : null)
     || (view === 'schools' ? pic('schools', artId(art.schools, 'schools')) : null);
 }
 
@@ -337,6 +381,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
   const brand = brandOf(payload && payload.brand);
   const og = ogText(payload, view, brand);
   const boot = { ...payload, code, view, brand };
+  payload = withOneFace(payload);
   const image = ogImageFor({ payload, code, view, origin, a, v, k });
   return {
     lang, dir, ur2: ur2On(payload && payload.ui, lang), title: og.title, bootsay: BOOT_COPY[lang],
@@ -397,13 +442,13 @@ const FLUSH_AGAIN = `<script>location.replace(location.pathname+(location.search
 </html>`;
 
 // The finish card's picture is a PNG; every other share picture is a JPEG (head's default).
-const cardType = (image) => (image && /\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(image) ? { imageType: 'image/png' } : {});
+const cardType = (image) => (image && (/\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(image) || /\/art\/teach\.png\?/.test(image)) ? { imageType: 'image/png' } : {});
 
 /**
  * A shared finish card (/k/<t>): the og head names the card's picture; the page shows it with ONE way in, this
  * bot's chat with the return words typed (the bot's /quiz then opens the child's own home). No script, no boot.
  */
-function renderCardPage({ facts, token, origin, url, brandKey }) {
+function renderCardPage({ facts, token, origin, url, brandKey, oneFace = false }) {
   const lang = facts.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
   const brand = brandOf(brandKey);
@@ -412,7 +457,7 @@ function renderCardPage({ facts, token, origin, url, brandKey }) {
   const ret = facts.ret || {};
   const go = ret.href && /^https:\/\/wa\.me\/\d{10,15}\?text=[^"<>\s]+$/.test(ret.href)
     ? `<a class="wq-btn wq-go" data-primary data-tap="card_return" href="${esc(ret.href)}">${esc(ret.cta || '')}</a>` : '';
-  return `${head({ lang, dir, title, desc: ret.text || '', origin, url, assetV: '', brand, image: img, imageType: 'image/png' }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
+  return `${head({ lang, dir, title, desc: ret.text || '', origin, url, assetV: '', brand, image: img, imageType: 'image/png', ui: oneFace ? { uf: true } : null }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
 <style>body{margin:0;background:#FFF8E7;font-family:system-ui,sans-serif;color:#1F2937}.k{max-width:560px;margin:0 auto;padding:16px;display:grid;gap:16px}
 .k img{width:100%;height:auto;border-radius:16px}.k p{margin:0;font-size:20px;line-height:${lang === 'ur' ? 2 : 1.4}}
 .wq-btn{display:block;text-align:center;padding:16px;border-radius:14px;background:#15803D;color:#fff;font-weight:700;font-size:20px;text-decoration:none;min-height:56px}</style>
@@ -485,6 +530,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const boot = { ...payload, token, view: 'hub', brand };
+  payload = withOneFace(payload);
   // The Jugnu corner (bot web-quiz-hub-play.js): its script, and the install manifest, only when the bot sent `play`.
   const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
   return {
@@ -577,7 +623,7 @@ function clientIp(req) {
  * timeout, redirects never followed. Shared by the child quiz and the teacher report.
  * Returns { status, body, location } (JSON parsed), or { status, bytes, contentType,
  * location } for a 2xx picture — or for ANY answer when `raw` is set (an HTML page, a
- * PDF; with `timing` when the bot sent its timing headers). Throws { unreachable: true } when the bot cannot be reached.
+ * PDF; with `timing` when the bot sent its timing headers, and `disposition` when it named a download). Throws { unreachable: true } when the bot cannot be reached.
  */
 const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/;
 function deviceCookie(req) {
@@ -636,7 +682,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       const type = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
       if ((raw || (res.status >= 200 && res.status < 300 && /^image\//i.test(type))) && res.arrayBuffer) {
         const timing = timingOf(res);
-        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location, ...(timing ? { timing } : {}) };
+        const disposition = raw && res.headers && res.headers.get ? res.headers.get('content-disposition') : null; // a report PDF's name
+        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location, ...(timing ? { timing } : {}), ...(disposition ? { disposition } : {}) };
       }
       const text = await res.text();
       let json = null;
@@ -790,6 +837,8 @@ function createWebQuizRouter(opts = {}) {
     return next();
   }
 
+  // With app_settings web_quiz_brotli on: br scripts/styles, a day for unversioned files, versioned Jugnu pictures (web-quiz-static.js).
+  router.use(require('./web-quiz-static').createWqStatic({ publicDir: PUBLIC_DIR, on: opts.brotliOn }));
   for (const r of API_ROUTES) {
     const chain = [noStore, configured];
     if (r.unknownCode) chain.push(unknownCode);
@@ -853,7 +902,7 @@ function createWebQuizRouter(opts = {}) {
     if (preview && !known) {
       try {
         const f = await callBot('GET', `/api/internal/wq/og/${upper}`, req);
-        if (f.status === 200 && f.body && f.body.quiz) { known = f.body; ogKnown.set(upper, known, OG_KEEP_MS); }
+        if (f.status === 200 && f.body && f.body.quiz) { known = f.body; ogKnown.set(upper, known, ogKeepMs(known)); }
       } catch (_) { /* the full path below */ }
     }
     if (known && !(view === 'class' && known.invited)) {
@@ -880,9 +929,9 @@ function createWebQuizRouter(opts = {}) {
     if (out.status === 200 && out.body && out.body.quiz) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
-      lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
+      lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
-      if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
+      if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
       if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
@@ -943,7 +992,7 @@ function createWebQuizRouter(opts = {}) {
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
-      lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
+      lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
       if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
       return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
@@ -991,6 +1040,8 @@ function createWebQuizRouter(opts = {}) {
     } catch (_) {
       return res.status(502).type('html').send(closedHtml(req, { lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey, ui: lastUi }));
     }
+    // One Urdu face: the menu's own `one_face` (the bot's word) reaches the head as `ui.uf`; off, the menu untouched.
+    if (out.body && typeof out.body === 'object') out.body = withOneFace(out.body);
     if (out.status === 200 && out.body && Array.isArray(out.body.exercises)) {
       return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey }));
     }
@@ -1015,29 +1066,36 @@ function createWebQuizRouter(opts = {}) {
 
   // The share pictures. The id is the permission (the bot checks its mac); the edge checks its shape and that it
   // is the kind the path names, so a link can never ask for one picture under another's name or cache life.
-  router.get('/q/:code/art/:kind.jpg', limiters.read, async (req, res) => {
+  // The file's extension is the kind's own (the class link's picture is a PNG): a kind under another extension is 404.
+  // A .png path no kind owns is not this route's: it goes on exactly as before the class link's picture.
+  const artRoute = (ext) => async (req, res, next) => {
     const kind = String(req.params.kind || '');
-    const id = Object.prototype.hasOwnProperty.call(ART_KIND, kind) ? artId(req.query.a, kind) : null;
+    if (ext !== 'jpg' && ART_EXT[kind] !== ext) return next();
+    const id = Object.prototype.hasOwnProperty.call(ART_KIND, kind) && (ART_EXT[kind] || 'jpg') === ext ? artId(req.query.a, kind) : null;
     if (!id || !CODE_RX.test(String(req.params.code || ''))) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
+    const teach = kind === 'teach';
+    const tv = teach && typeof req.query.v === 'string' && TEACH_V_RX.test(req.query.v) ? req.query.v : '';
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
-    const sq = req.query.f === 'sq';
+    const sq = !teach && req.query.f === 'sq';
     // One event per picture handed out: which kind, kept here or asked of the bot, how long, and who fetched it
     // (WhatsApp Android/iOS, a browser…). A phone's preview fetch left no trace when the edge already held the picture.
     const t0 = Date.now();
     const seen = (from, extra = {}) => logEvent('web_quiz.art_edge', {
       kind, size: sq ? 'sq' : 'og', from, ms: Date.now() - t0, ua: Preview.fetcherOf(req), head: req.method === 'HEAD', ...extra,
     });
-    const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
+    const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}${teach ? ', immutable' : ''}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
     // Kept at the edge: the card opening fetched it, so the sender's preview fetch never waits for a draw.
-    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}`;
+    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}${teach ? `|${String(req.params.code).toUpperCase()}|${tv}` : ''}`;
     const kept = artKept.get(keyArt);
     if (kept) { seen('edge'); return send(kept); }
     try {
-      const out = await callBot('GET', `/api/internal/wq/art/${id}${sq ? '?f=sq' : ''}`, req);
+      // the class link's picture is drawn only under its own code: the bot is told which one was asked
+      const q = teach ? `?c=${String(req.params.code).toUpperCase()}` : (sq ? '?f=sq' : '');
+      const out = await callBot('GET', `/api/internal/wq/art/${id}${q}`, req);
       if (out.bytes) {
         artKept.set(keyArt, { bytes: out.bytes, contentType: out.contentType }, ART_KEEP_MS[kind]);
         seen('bot');
-        return res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(out.contentType).send(out.bytes);
+        return send({ bytes: out.bytes, contentType: out.contentType });
       }
       seen('none', { status: out.status });
       return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
@@ -1045,7 +1103,9 @@ function createWebQuizRouter(opts = {}) {
       seen('none', { status: 0 });
       return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });
     }
-  });
+  };
+  router.get('/q/:code/art/:kind.jpg', limiters.read, artRoute('jpg'));
+  router.get('/q/:code/art/:kind.png', limiters.read, artRoute('png'));
 
   // ── the finish card (web_quiz_card_v3; the bot answers 404 while it is off) ──
   // The picture: a link preview fetches it twice (HEAD, then GET) with no session, so the sealed token is the permission;
@@ -1095,7 +1155,7 @@ function createWebQuizRouter(opts = {}) {
     }
     // A shared card opened (a classmate's tap, or the preview crawler): kind and who fetched it, never the token.
     logEvent('web_quiz.card_open', { kind: String(facts.kind || '').slice(0, 12), lang: facts.lang === 'ur' ? 'ur' : 'en', ua: Preview.fetcherOf(req), head: req.method === 'HEAD' });
-    return res.status(200).type('html').send(renderCardPage({ facts, token, origin, url: `${origin}/k/${token}`, brandKey: lastBrand }));
+    return res.status(200).type('html').send(renderCardPage({ facts, token, origin, url: `${origin}/k/${token}`, brandKey: lastBrand, oneFace: Boolean(lastUi && lastUi.uf === true) }));
   });
 
   // M4b library

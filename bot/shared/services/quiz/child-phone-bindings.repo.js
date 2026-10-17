@@ -104,6 +104,16 @@ async function activeForChild(canonicalId, now = new Date()) {
     .order('bound_at', { ascending: true }));
 }
 
+/**
+ * The live bindings this device made (child_phone_bindings.device_hash, web_quiz_remember_column) → [{id, canonical_id,
+ * bound_at}]. Read only while that switch is on: the column exists only once its migration is applied.
+ */
+async function activeForDevice(deviceHash, now = new Date()) {
+  if (!deviceHash) return [];
+  return rows('activeForDevice', () => supabase.from(TABLE).select('id, canonical_id, bound_at')
+    .eq('device_hash', String(deviceHash)).not('phone_norm', 'is', null).is('revoked_at', null).gt('expires_at', iso(now)));
+}
+
 /** The newest erased row with this tombstone (a re-bind's `rebind_of`), or null. */
 async function findByTomb(tomb) {
   if (!tomb) return null;
@@ -142,6 +152,14 @@ async function renew(id, expiresAt, lastPlayedAt = new Date(), codeId = null) {
   const done = await rows('renew', () => supabase.from(TABLE).update({ expires_at: iso(expiresAt), last_played_at: iso(lastPlayedAt), ...(codeId ? { code_id: codeId } : {}) })
     .eq('id', String(id)).is('revoked_at', null).select(COLS));
   return done[0] || null;
+}
+
+/** Keep the device that made a live binding on its row (web_quiz_remember_column only) → true, or false. */
+async function markDevice(id, deviceHash) {
+  if (!id || !deviceHash) return false;
+  const done = await rows('markDevice', () => supabase.from(TABLE).update({ device_hash: String(deviceHash) })
+    .eq('id', String(id)).is('revoked_at', null).select('id'));
+  return done.length > 0;
 }
 
 async function erase(label, filter, revokedBy, now) {
@@ -208,8 +226,8 @@ async function childrenForPhone(phone) {
 
 module.exports = { ukeyOf,
   normalisePhone, tombOf,
-  activeForPhone, activeForChild, findByTomb,
-  insert, renew, eraseOne, eraseAllForPhone,
+  activeForPhone, activeForChild, activeForDevice, findByTomb,
+  insert, renew, markDevice, eraseOne, eraseAllForPhone,
   expiresAtFor, yearCode, childrenForPhone,
   VIA, REVOKED_BY, TABLE,
 };
