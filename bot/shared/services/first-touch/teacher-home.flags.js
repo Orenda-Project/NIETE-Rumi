@@ -33,4 +33,13 @@ async function on(now = Date.now()) {
 /** Tests only: forget the cached reading. */
 function reset() { cache = null; }
 
-module.exports = { on, reset, KEY, TTL_MS };
+/** Is the cached reading still fresh (no read needed)? */
+function fresh(now = Date.now()) { return Boolean(cache && now - cache.at < TTL_MS); }
+
+/** A caller that read this key along with its own (`{ found, value }`) hands the row over: same rule, same cache. */
+function prime(row, now = Date.now()) {
+  cache = { at: now, on: Boolean(row && row.found) && isTrue(row.value) };
+  return cache.on;
+}
+
+module.exports = { on, reset, fresh, prime, KEY, TTL_MS };

@@ -458,13 +458,12 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
  */
 async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp, force = false }) {
   // quiz_report_send_checked (off by default): every send below that stamps the report counts only when WhatsApp
-  // accepted it; a refusal is reportNotAccepted (not stamped, counted, retried). Three refusals and the automatic
-  // runs stop here (the web report stays); the teacher's own ask from /quiz still tries. Off: today's sends and stamps.
-  const checked = await SendCheck.on();
-  if (checked && !force && await SendCheck.gaveUp({ ...sc, id: shareCodeId })) {
-    logEvent('video_quiz.report_suppressed', { shareCodeId, reason, why: 'gave_up' });
-    return false;
-  }
+  // accepted it (SendCheck.send); a refusal is reportNotAccepted (not stamped, counted, retried). Off: today's sends
+  // and stamps, and no settings read of its own: the switch is asked only on a refusal, after the path's own settings
+  // read (which carries it). The quiz row the stamp may write is read once, early on a refusal (stampIdFirst), because
+  // its teacher home read is the one that carries the switch on a report with no finisher.
+  let stampId;
+  const stampIdFirst = async () => { if (stampId === undefined) stampId = await stampableQuizId(sc); };
 
   const { data: sessions } = await supabase
     .from('quiz_sessions')
@@ -586,6 +585,14 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     logToFile('⚠️ video-quiz report: could not read quiz digest (non-fatal)', { error: e.message });
   }
 
+  // quiz_report_send_checked: three refused sends and the automatic runs stop here (the web report stays); the
+  // teacher's own ask from /quiz still tries. The count is on the quiz row just read, so off (nothing counted) asks
+  // nothing, and no model call or send is made for a report given up on.
+  if (!force && SendCheck.triesIn(quizRow && quizRow.meta, shareCodeId) >= SendCheck.MAX_TRIES && await SendCheck.on()) {
+    logEvent('video_quiz.report_suppressed', { shareCodeId, reason, why: 'gave_up' });
+    return false;
+  }
+
   // A storybook the teacher sent: its own report (story-teacher-report.js), same trigger, same teacher, same stamp.
   // Its children are the ones the send's web report counts (teacher-report.data storySendChildren), never a second count.
   if (quizRow && quizRow.quiz_source === 'story') {
@@ -596,7 +603,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
       logToFile('⚠️ story report: could not count as the web report does — one attempt per child instead', { shareCodeId, error: e.message });
     }
     return require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: children, quizRow, reason, stamp, send: (to, text) => WhatsAppService.sendMessage(to, text), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel,
-      checked, notAccepted: () => reportNotAccepted(shareCodeId, sc, 'story', reason) });
+      sendChecked: (fn) => SendCheck.send(fn), notAccepted: () => reportNotAccepted(shareCodeId, sc, 'story', reason) });
   }
 
   // quiz_report_fold_by_child (off by default): a child not on the class list counts once per CHILD, as the quiz's web
@@ -608,16 +615,12 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   }
 
   if (!all.length) {
-    if (checked) {
-      const noOne = resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } });
-      if (!(await SendCheck.accepted(() => WhatsAppService.sendMessage(teacher.phone_number, noOne)))) {
-        return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
-      }
-    } else {
-      await WhatsAppService.sendMessage(teacher.phone_number,
-        resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } }));
+    const noOne = resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } });
+    if (!(await SendCheck.send(() => WhatsAppService.sendMessage(teacher.phone_number, noOne), { before: stampIdFirst }))) {
+      return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
     }
-    stamp.stamped = await markReportSent(shareCodeId, await stampableQuizId(sc));
+    await stampIdFirst();
+    stamp.stamped = await markReportSent(shareCodeId, stampId);
     // Stamped as a report, so counted as one — of its own kind. Unlogged, this
     // branch was 17.5% of production's report stamps (189 of 1,082) and every
     // one of them a class that never joined.
@@ -847,12 +850,8 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     // The PDF is the nicer artefact, not the report itself. If rendering fails
     // the teacher still gets every number — losing the results because a font did not
     // load would be the wrong trade.
-    if (checked) {
-      if (!(await SendCheck.accepted(() => WhatsAppService.sendMessage(teacher.phone_number, summary)))) {
-        return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
-      }
-    } else {
-      await WhatsAppService.sendMessage(teacher.phone_number, summary);
+    if (!(await SendCheck.send(() => WhatsAppService.sendMessage(teacher.phone_number, summary), { before: stampIdFirst }))) {
+      return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
     }
     if (guidance) {
       await WhatsAppService.sendMessage(teacher.phone_number,
@@ -879,7 +878,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // (the model failed) leaves an older stored one where it is.
   // A library quiz's sender (quiz_teacher_home) stamps only their code: the author's row keeps its own guidance,
   // here and in the class-card write below (which spreads quizRow.meta).
-  const stampId = await stampableQuizId(sc);
+  await stampIdFirst();
   const metaAfter = guidance && quizRow && stampId
     ? { ...(quizRow.meta || {}), report_guidance: guidance, report_guidance_at: new Date().toISOString() }
     : null;
@@ -1484,6 +1483,8 @@ function formatGuidanceText(guidance, labels) {
  */
 async function stampableQuizId(sc) {
   const Data = require('./teacher-report.data');
+  // the teacher home read carries the report's send check (one query; report-send-check primeAlong)
+  await SendCheck.primeAlong(require('../first-touch/teacher-home.flags'));
   if (!(await Data.sentQuizzesOn())) return sc.quiz_id;
   const { data, error } = await supabase.from('quizzes').select('teacher_id').eq('id', sc.quiz_id).maybeSingle();
   if (error) logToFile('⚠️ video-quiz report: quiz owner unreadable — the quiz row is left alone', { shareCodeId: sc.id, error: error.message });

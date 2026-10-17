@@ -359,7 +359,8 @@ quiz_funnel.<stage>  { quiz_id, source, channel, teacher_id?, nudge_id?, session
 a teacher's class report (quiz or storybook) is stamped sent (`report_sent_at`, `report_sent`) only when WhatsApp accepted it.
 A refusal (or a throw) is not stamped, is counted on `quizzes.meta.report_send_failures`, and the report is queued again in
 15 min; the third refusal logs `report_gave_up` and automatic runs stop (the web report stays; the teacher's /quiz ask still tries).
-Off: today's sends, stamps and their order exactly.
+Off: today's sends, stamps and their order exactly, and no app_settings read of its own: the switch is asked only when WhatsApp
+refused a report, and it rides the report's existing reads (`quiz_report_fold_by_child`, `quiz_teacher_home`) in the same query.
 
 **The funnel per stream, for any window:**
 

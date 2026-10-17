@@ -58,12 +58,15 @@ const { logEvent } = require('../../shared/utils/structured-logger');
 const report = require('../../shared/services/quiz/video-quiz-report.service');
 // absent before the change: the red run still executes every row
 const Flag = (() => { try { return require('../../shared/services/quiz/report-send-check'); } catch (_) { return null; } })();
+const FoldFlag = require('../../shared/services/quiz/report-fold-flag');
+const HomeFlag = require('../../shared/services/first-touch/teacher-home.flags');
+const { throwOn } = require('../helpers/switch-off-matrix');
 
 const KEY = 'quiz_report_send_checked';
 const SC = '6b1c0f0e-0000-4000-8000-0000000005c2';
 const QUIZ = '7c2d1f1f-0000-4000-8000-0000000000a1';
 const TEACHER = '8d3e2a2a-0000-4000-8000-0000000000b1';
-const TEACHER_PHONE = '920000000077';
+const TEACHER_PHONE = '+92300FIXTURE1';
 const iso = (msAgo) => new Date(Date.now() - msAgo).toISOString();
 const MIN = 60 * 1000;
 
@@ -132,6 +135,24 @@ function whatsappAnswers(answer) {
   });
 }
 
+/** Count supabase.from(table) calls from here on, per table. */
+function countReads() {
+  const inner = supabase.from.getMockImplementation();
+  const n = {};
+  supabase.from.mockImplementation((table) => { n[table] = (n[table] || 0) + 1; return inner(table); });
+  return n;
+}
+
+// The reads one generate() makes with the switch off, recorded on the code before the switch existed: `cold` with
+// every settings cache empty, `warm` for the next report within the 30 s caches. Off must read exactly these.
+const BASE_READS = {
+  story: { cold: { app_settings: 1, quizzes: 4 }, warm: { app_settings: 0, quizzes: 4 } },
+  noOne: { cold: { app_settings: 1, quizzes: 2 }, warm: { app_settings: 0, quizzes: 2 } },
+  finished: { cold: { app_settings: 2, quizzes: 2 }, warm: { app_settings: 0, quizzes: 2 } },
+};
+const baseReadsOf = (kind) => BASE_READS[kind.source === 'story' ? 'story' : (kind.sessions ? 'finished' : 'noOne')];
+const reads = (n) => ({ app_settings: n.app_settings || 0, quizzes: n.quizzes || 0 });
+
 const stamped = () => db.quiz_share_codes[0].report_sent_at;
 const events = (name) => logEvent.mock.calls.filter((c) => c[0] === name);
 const retries = () => Queue.queueJob.mock.calls.filter((c) => /retry/.test(String((c[3] || {}).deduplicationId)));
@@ -142,6 +163,8 @@ beforeEach(() => {
   redis._store.clear();
   order = [];
   if (Flag && Flag.reset) Flag.reset();
+  FoldFlag.reset();
+  HomeFlag.reset();
   logEvent.mockImplementation((name) => { if (name === 'quiz_funnel.report_sent') order.push('event'); });
   delete process.env.VIDEO_REPORT_SEND_CLAIM;
   delete process.env.CLASS_CARD_ENABLED;
@@ -158,11 +181,41 @@ describe.each(KINDS)('%s', (_, kind) => {
       expect(events(kind.failed)).toHaveLength(0);
     });
 
+    test('a send that throws still throws, as today: nothing stamped, no report_sent', async () => {
+      stubDb(kind);
+      whatsappAnswers('throw');
+      await expect(report.generate(SC, { reason: 'scheduled' })).rejects.toThrow('WhatsApp 500');
+      expect(order).toEqual(['send']);
+      expect(stamped()).toBeNull();
+      expect(events(kind.failed)).toHaveLength(0);
+    });
+
     test('switch JSON false: today exactly', async () => {
       stubDb({ ...kind, setting: false });
       whatsappAnswers(false);
       expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
       expect(order).toEqual(['send', 'markSent', 'event']);
+    });
+  });
+
+  describe('switch off: the settings and quiz reads are today\'s, exactly', () => {
+    test.each([
+      ['absent', true, undefined], ['absent', false, undefined], ['JSON false', true, false], ['JSON false', false, false],
+      ['the string "true"', false, 'true'],
+    ])('%s, send answers %s: reads per report == the recorded base, cold then warm', async (_n, answer, setting) => {
+      stubDb({ ...kind, setting });
+      whatsappAnswers(answer);
+      const base = baseReadsOf(kind);
+      const cold = countReads();
+      expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+      expect(reads(cold)).toEqual(base.cold);
+      // the next report (a fresh code row), the 30 s caches still warm
+      stubDb({ ...kind, setting });
+      whatsappAnswers(answer);
+      const warm = countReads();
+      expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+      expect(reads(warm)).toEqual(base.warm);
+      expect(order).toEqual(['send', 'markSent', 'event', 'send', 'markSent', 'event']);
     });
   });
 
@@ -198,12 +251,26 @@ describe.each(KINDS)('%s', (_, kind) => {
       const failed = events(kind.failed);
       expect(failed).toHaveLength(1);
       expect(failed[0][1]).toMatchObject({ code_h: expect.stringMatching(/^[0-9a-f]{12}$/), tk: expect.stringMatching(/^[0-9a-f]{16}$/), tries: 1 });
-      expect(JSON.stringify(failed)).not.toMatch(/92000|TST7AB|Testwala/);
+      expect(JSON.stringify(failed)).not.toMatch(/FIXTURE|TST7AB|Testwala/);
       expect(retries()).toHaveLength(1);
       expect(retries()[0][1]).toBe('quiz_video_report');
+      // tried again in 15 minutes, once per try
+      expect(retries()[0][3].delaySeconds).toBe(900);
+      expect(retries()[0][3].deduplicationId).toBe(`${SC}-quiz_video_report-retry-1`);
       expect(db.quizzes[0].meta.report_send_failures).toEqual({ [SC]: 1 });
       // the send claim is given back, so the retry can take it
       expect(redis._store.has(`vq:report:sending:${SC}`)).toBe(false);
+    });
+
+    test('the switch unreadable (a failed read) is OFF: a refused send is still stamped, as today', async () => {
+      stubDb({ ...kind, setting: true });
+      supabase.from.mockImplementation(throwOn(supabase.from.getMockImplementation(), KEY));
+      whatsappAnswers(false);
+      expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+      expect(order).toEqual(['send', 'markSent', 'event']);
+      expect(stamped()).not.toBeNull();
+      expect(events(kind.failed)).toHaveLength(0);
+      expect(retries()).toHaveLength(0);
     });
 
     test('send throws: treated as refused, not as a crash', async () => {
@@ -223,7 +290,7 @@ describe.each(KINDS)('%s', (_, kind) => {
       const gaveUp = events('report_gave_up');
       expect(gaveUp).toHaveLength(1);
       expect(gaveUp[0][1]).toMatchObject({ code_h: expect.stringMatching(/^[0-9a-f]{12}$/), tries: 3 });
-      expect(JSON.stringify(gaveUp)).not.toMatch(/92000/);
+      expect(JSON.stringify(gaveUp)).not.toMatch(/FIXTURE/);
       expect(retries()).toHaveLength(2);
       const before = teacherSends();
       // the next scheduled run (an old chain, a redelivery) sends nothing
