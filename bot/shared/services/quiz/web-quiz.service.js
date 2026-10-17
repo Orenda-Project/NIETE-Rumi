@@ -892,12 +892,13 @@ async function countJoin(shareCodeId) {
 }
 
 /** E3, timed: one web_quiz.session_timing line per call (path, steps, total). */
-function startSession(body = {}) {
+// opts.device: the phone's own wq_dv (x-wq-device), for the reads that name a child this phone holds — never the body.
+function startSession(body = {}, opts = {}) {
   const path = body.p ? 'preview' : body.roll != null ? 'roll' : body.chip ? 'chip' : body.from_st ? 'from_st' : body.new ? 'new' : 'other';
-  return Steps.run('session', { path, ...(body.resume_st ? { resume: 1 } : {}) }, (mark) => startSessionTimed(body, mark));
+  return Steps.run('session', { path, ...(body.resume_st ? { resume: 1 } : {}) }, (mark) => startSessionTimed(body, mark, opts));
 }
 
-async function startSessionTimed(body = {}, mark = () => {}) {
+async function startSessionTimed(body = {}, mark = () => {}, { device = null } = {}) {
   requireOn();
   const fast = Fast.on();
   const ctx = await resolveCode(body.code);
@@ -969,7 +970,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     // (the teacher's recent-player chips below only reach the 40 newest players).
     student = found;
     found = null;
-  } else if (body.chip && body.via === 'known' && (found = await require('./web-quiz-link-known').kidFor(ctx, String(body.chip), body.device_ref))) {
+  } else if (body.chip && body.via === 'known' && (found = await require('./web-quiz-link-known').kidFor(ctx, String(body.chip), device))) {
     // "Is it <First>?" on a class link (web_quiz_link_known_child): a child this browser holds, as the one id they
     // are known by, so the finish reaches the home `/quiz` opens and no second child is made.
     student = found;
@@ -1006,7 +1007,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
     const listed = roster ? roster.kids.find((k) => k.id === st.id) : null;
     if (listed) student = { ...student, self_reported_class: Roster.classOf(roster, listed) };
-  } else if (body.new && typeof body.new === 'object' && !body.new.force && (found = await handsetCard(ctx, body))) {
+  } else if (body.new && typeof body.new === 'object' && !body.new.force && (found = await handsetCard(ctx, body, device))) {
     // A name typed on a phone the handset link (or the hub) trusted that is one of THAT phone's children: the one
     // card to confirm, never a second row for the same child. "Yes, that's my name" (force) still makes a new child.
     logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'handset_confirm', hits: 1 });
@@ -1232,7 +1233,7 @@ async function identityBoot(ctx, idn) {
  * A typed name on a phone the handset link / hub trusted that is exactly ONE of that phone's children
  * (Identity.canon equal): that child's card for THIS code, or null (no trust, no match, two matches).
  */
-async function handsetCard(ctx, body) {
+async function handsetCard(ctx, body, device = null) {
   try {
     const d = T.cleanDeviceRef(body.device_ref);
     const name = cleanName(body.new && body.new.name);
@@ -1246,7 +1247,7 @@ async function handsetCard(ctx, body) {
     let hits = live.filter((r) => Identity.canon(r.student_name) === want);
     // web_quiz_link_known_child: a child types the name they are called by — their FIRST name — so on THIS phone's own
     // children (never a classmate) a first-name match is the same child too.
-    if (!hits.length && await require('./web-quiz-link-known').isOn()) hits = live.filter((r) => Identity.canon(firstName(r.student_name)) === want);
+    if (!hits.length && T.cleanDeviceRef(device) === d && await require('./web-quiz-link-known').isOn()) hits = live.filter((r) => Identity.canon(firstName(r.student_name)) === want);
     if (hits.length !== 1) return null;
     const k = hits[0];
     const shown = ctx.lang === 'ur' && k.student_name_urdu && String(k.student_name_urdu).trim() ? k.student_name_urdu : k.student_name;
@@ -2264,7 +2265,7 @@ async function media(code, qid, { k, z } = {}) {
 module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media, _resetQuizCache: () => quizMediaCache.clear(),
   // the children this browser holds, for a class link's "Is it <First>?" (web-quiz-link-known.js)
-  knownKids: (body = {}) => require('./web-quiz-link-known').known(body, resolveCode),
+  knownKids: (body = {}, { device = null } = {}) => require('./web-quiz-link-known').known(body, resolveCode, { device }),
   // exported for tests and the router
   WqError, rankRows, cleanEvent, NAME_PROPS, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it

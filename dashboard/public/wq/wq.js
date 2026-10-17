@@ -3072,7 +3072,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var done = false;
     function fall() { if (!done) { done = true; landing(); } }
     setTimeout(fall, 3000);
-    api('POST', 'known', { code: CODE, device_ref: sget('wq_d', null) }).then(function (r) {
+    // The server reads this phone's own wq_dv cookie (the edge forwards it), never a device the page sends.
+    api('POST', 'known', { code: CODE }).then(function (r) {
       if (done) return;
       // A child already a card on this phone's landing is offered there; only the others are asked about here.
       var have = {};

@@ -17,12 +17,12 @@ const SESSION = { st: 's1', device_ref: DEV, child: ZAR, resume: { answered: [] 
 const on = (o = {}) => page({ lang: 'en', store: { wq_d: DEV }, bootExtra: { link_known: true }, api: { '/api/wq/known': { kids: [ZAR] }, '/api/wq/session': SESSION }, ...o });
 
 describe('switch on: a phone that holds ONE child', () => {
-  test('asks once with the code and this phone, then "Is it Sadia?" with Yes / Someone else', async () => {
+  test('asks once with the code (the phone is its own cookie, never the body), then "Is it Sadia?" with Yes / Someone else', async () => {
     const p = on();
     expect(p.html()).toBe('');                       // nothing drawn while it asks (the shell's "Opening the quiz…")
     await flush(); await flush();
     expect(asks(p)).toHaveLength(1);
-    expect(JSON.parse(asks(p)[0].init.body)).toEqual({ code: 'TEST', device_ref: DEV });
+    expect(JSON.parse(asks(p)[0].init.body)).toEqual({ code: 'TEST' });
     expect(p.moment()).toBe('M4-known');
     expect(p.html()).toContain('Is it <bdi>Sadia</bdi>?');
     expect(p.html()).toContain('Yes, that&#39;s me');

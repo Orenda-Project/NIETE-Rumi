@@ -56,6 +56,8 @@ function seed({ flag = 'v2', known = true, canon = false } = {}) {
   db = F.db({ flag, classes: 'one' });
   if (known !== undefined) db.app_settings.push({ key: KEY, value: known });
   if (canon) db.app_settings.push({ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_identity_canon', value: true });
+  // A self-joined child's grade lives on the identity row (the grade tap); the quiz is grade 4.
+  db.child_identity = [{ canonical_id: SELF, fixed_grade: 4 }, { canonical_id: SIB, fixed_grade: 4 }];
   db.students.push(
     { id: SELF, student_name: 'Sadia Testwala', student_name_urdu: 'سعدیہ', list_id: null, enrolled_by_user_id: null, phone: null, is_active: true, status: 'active', created_at: '2026-10-16T00:00:00Z' },
     { id: SIB, student_name: 'Iqra Testwala', list_id: null, enrolled_by_user_id: null, phone: null, is_active: true, status: 'active', created_at: '2026-10-16T00:00:00Z' },
@@ -68,7 +70,9 @@ function seed({ flag = 'v2', known = true, canon = false } = {}) {
 }
 // The child's home opened on this browser (`/quiz` → the hub): the hub trusts the browser for the token's children.
 const homeOpened = (ids = [SELF], device = DEV) => HubDevice.deviceTrusted(T.signHub(ids), device);
-const known = (device = DEV, code = 'AB12CD') => WQ.knownKids({ code, device_ref: device });
+// The device is the phone's wq_dv cookie, forwarded by the edge as x-wq-device — never what the page sends in the body.
+const known = (device = DEV, code = 'AB12CD') => WQ.knownKids({ code }, { device });
+const play = (body, device = body.device_ref) => WQ.startSession(body, { device });
 
 const SAVED = { ...process.env };
 beforeEach(() => {
@@ -99,7 +103,7 @@ for (const [label, flag] of [['identity v2', 'v2'], ['legacy path', null]]) {
     test('"Yes" starts the session as the held child: the finish is on that child\'s id, and no student row is made', async () => {
       await homeOpened();
       const before = db.students.length;
-      const s = await WQ.startSession({ code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: DEV });
+      const s = await play({ code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: DEV });
       expect(s.child.chip).toBe(chip(SELF));
       expect(db.students.length).toBe(before);
       const row = db.quiz_sessions.find((x) => x.student_id === SELF);
@@ -124,7 +128,7 @@ for (const [label, flag] of [['identity v2', 'v2'], ['legacy path', null]]) {
       expect(await known(FRESH)).toEqual({ kids: [] });
       expect(await known(null)).toEqual({ kids: [] });
       const before = db.quiz_sessions.length;
-      await expect(WQ.startSession({ code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: FRESH })).rejects.toMatchObject({ status: 404 });
+      await expect(play({ code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: FRESH })).rejects.toMatchObject({ status: 404 });
       expect(db.quiz_sessions.length).toBe(before);
     });
 
@@ -149,13 +153,13 @@ for (const [label, flag] of [['identity v2', 'v2'], ['legacy path', null]]) {
     test('after "Someone else", the held child typing only their FIRST name gets their one card, never a second child', async () => {
       await homeOpened();
       const before = db.students.length;
-      await expect(WQ.startSession({ code: 'AB12CD', new: { name: 'sadia' }, device_ref: DEV }))
+      await expect(play({ code: 'AB12CD', new: { name: 'sadia' }, device_ref: DEV }))
         .rejects.toMatchObject({ status: 409, body: { error: 'is_this_you', candidates: [expect.objectContaining({ chip: chip(SELF), first: 'Sadia' })] } });
       expect(db.students.length).toBe(before);
       // two held children with that first name: no card (today's path asks the name step's own questions)
-      db.students.push({ id: '55555555-5555-4555-8555-000000000009', student_name: 'Sadia Khan Testwala', list_id: null, is_active: true, status: 'active' });
+      db.students.push({ id: '55555555-5555-4555-8555-000000000009', student_name: 'Sadia Khan Testwala', self_reported_class: 'Grade 4', list_id: null, is_active: true, status: 'active' });
       await homeOpened(['55555555-5555-4555-8555-000000000009']);
-      const r = await WQ.startSession({ code: 'AB12CD', new: { name: 'sadia' }, device_ref: DEV }).catch((e) => e);
+      const r = await play({ code: 'AB12CD', new: { name: 'sadia' }, device_ref: DEV }).catch((e) => e);
       expect(Boolean(r && r.body && r.body.error === 'is_this_you' && JSON.stringify(r.body).includes(chip(SELF)))).toBe(false);
     });
 
@@ -176,13 +180,96 @@ for (const [label, flag] of [['identity v2', 'v2'], ['legacy path', null]]) {
   });
 }
 
+describe('the device is the phone\'s own (x-wq-device), never what the page sends', () => {
+  test('a body device_ref with no header names nobody and cannot start as the held child', async () => {
+    seed();
+    await homeOpened();
+    expect(await WQ.knownKids({ code: 'AB12CD', device_ref: DEV })).toEqual({ kids: [] });
+    await expect(WQ.startSession({ code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: DEV })).rejects.toMatchObject({ status: 404 });
+    // the trusted ref in the body and a fresh phone in the header: the header decides
+    expect(await WQ.knownKids({ code: 'AB12CD', device_ref: DEV }, { device: FRESH })).toEqual({ kids: [] });
+  });
+
+  test('the typed first name is matched against the header phone\'s children only', async () => {
+    seed();
+    await homeOpened();
+    const r = await WQ.startSession({ code: 'AB12CD', new: { name: 'sadia' }, device_ref: DEV }, { device: FRESH }).catch((e) => e);
+    expect(Boolean(r && r.body && r.body.error === 'is_this_you' && JSON.stringify(r.body).includes(chip(SELF)))).toBe(false);
+  });
+
+  describe('the routes pass the header, never the body', () => {
+    const express = require('express');
+    let server; let base;
+    beforeAll(async () => {
+      const app = express();
+      app.use(express.json());   // as the bot's server mounts it before the internal routes
+      app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
+      await new Promise((r) => { server = app.listen(0, r); });
+      base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
+    });
+    afterAll(() => new Promise((r) => server.close(r)));
+    const post = (path, body, device) => fetch(`${base}${path}`, { method: 'POST', headers: { 'x-api-key': 'test-key', 'content-type': 'application/json', ...(device ? { 'x-wq-device': device } : {}) }, body: JSON.stringify(body) });
+
+    test('POST /known: the header names the held child; the body alone names nobody', async () => {
+      seed();
+      await homeOpened();
+      expect(await (await post('/known', { code: 'AB12CD' }, DEV)).json()).toEqual({ kids: [expect.objectContaining({ chip: chip(SELF), first: 'Sadia' })] });
+      expect(await (await post('/known', { code: 'AB12CD', device_ref: DEV })).json()).toEqual({ kids: [] });
+    });
+
+    test('POST /session via known: starts with the header; with the body alone it does not', async () => {
+      seed();
+      await homeOpened();
+      expect((await post('/session', { code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: DEV })).status).toBe(404);
+      const ok = await post('/session', { code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: DEV }, DEV);
+      expect(ok.status).toBe(200);
+      expect((await ok.json()).child.chip).toBe(chip(SELF));
+    });
+  });
+});
+
+describe('a class link names only a held child of THAT class (the sibling and other-teacher cases)', () => {
+  test('a held sibling enrolled in another class is never named; the held child of this class is', async () => {
+    seed();
+    await homeOpened([F.kid(10)]);   // enrolled in 4-B, another class
+    await homeOpened([F.kid(1)]);    // enrolled in 4-A, this link's class
+    const r = await known();
+    expect(r.kids.map((k) => k.chip)).toEqual([chip(F.kid(1))]);
+    expect(JSON.stringify(r)).not.toContain('Zara');
+    await expect(play({ code: 'AB12CD', chip: chip(F.kid(10)), via: 'known', device_ref: DEV })).rejects.toMatchObject({ status: 404 });
+  });
+
+  test('a phone that holds only children of other classes: nobody — today\'s name box', async () => {
+    seed();
+    await homeOpened([F.kid(10)]);
+    expect(await known()).toEqual({ kids: [] });
+  });
+
+  test('a self-joined child of no class is named on a link of their grade, never on another grade\'s', async () => {
+    seed();
+    db.child_identity = [{ canonical_id: SELF, fixed_grade: 2 }];
+    await homeOpened();
+    expect(await known()).toEqual({ kids: [] });
+    db.child_identity = [{ canonical_id: SELF, fixed_grade: 4 }];
+    expect((await known()).kids.map((k) => k.chip)).toEqual([chip(SELF)]);
+  });
+
+  test('a held child of another grade who already played THIS code is named (their own link)', async () => {
+    seed();
+    db.child_identity = [{ canonical_id: SELF, fixed_grade: 2 }];
+    db.quiz_sessions.push(F.done('s-own', SELF, 'Sadia', 3, 2, { device_ref: DEV }));
+    await homeOpened();
+    expect((await known()).kids.map((k) => k.chip)).toEqual([chip(SELF)]);
+  });
+});
+
 describe('the one id the child is known by', () => {
   test('a phone trusted with an older, merged record offers the child it was merged into, and the session is on that child', async () => {
     seed({ canon: true });
     await homeOpened([OLD]);
     const r = await known();
     expect(r.kids).toEqual([{ chip: chip(SELF), first: 'Sadia', animal: T.animalFor(SELF) }]);
-    await WQ.startSession({ code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: DEV });
+    await play({ code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: DEV });
     expect(db.quiz_sessions.filter((x) => x.student_id === SELF)).toHaveLength(1);
     expect(db.quiz_sessions.filter((x) => x.student_id === OLD)).toHaveLength(0);
   });
@@ -197,7 +284,7 @@ describe('the one id the child is known by', () => {
   test('at most four cards, the newest the phone was trusted with first', async () => {
     seed();
     const ids = Array.from({ length: 6 }, (_, i) => `55555555-5555-4555-8555-0000000001${i}0`);
-    ids.forEach((id, i) => db.students.push({ id, student_name: `Kid${i} Testwala`, list_id: null, is_active: true, status: 'active' }));
+    ids.forEach((id, i) => db.students.push({ id, student_name: `Kid${i} Testwala`, self_reported_class: 'Grade 4', list_id: null, is_active: true, status: 'active' }));
     for (const id of ids) await homeOpened([id]);
     const r = await known();
     expect(r.kids.map((k) => k.first)).toEqual(['Kid5', 'Kid4', 'Kid3', 'Kid2']);
@@ -214,7 +301,7 @@ describe('golden: switch off', () => {
       expect(Object.prototype.hasOwnProperty.call(q, 'link_known')).toBe(false);
       expect(await known()).toEqual({ kids: [] });
       const before = db.quiz_sessions.length;
-      await expect(WQ.startSession({ code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: DEV })).rejects.toMatchObject({ status: 404, body: { error: 'chip_unknown' } });
+      await expect(play({ code: 'AB12CD', chip: chip(SELF), via: 'known', device_ref: DEV })).rejects.toMatchObject({ status: 404, body: { error: 'chip_unknown' } });
       expect(db.quiz_sessions.length).toBe(before);
     });
   }
@@ -222,7 +309,7 @@ describe('golden: switch off', () => {
   test('off: a typed first name on the holding phone takes today\'s path (no card from the first name)', async () => {
     seed({ known: false });
     await homeOpened();
-    const r = await WQ.startSession({ code: 'AB12CD', new: { name: 'sadia' }, device_ref: DEV }).catch((e) => e);
+    const r = await play({ code: 'AB12CD', new: { name: 'sadia' }, device_ref: DEV }).catch((e) => e);
     expect(Boolean(r && r.body && r.body.error === 'is_this_you' && JSON.stringify(r.body).includes(chip(SELF)))).toBe(false);
   });
 
