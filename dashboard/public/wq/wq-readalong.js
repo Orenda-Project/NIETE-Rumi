@@ -16,7 +16,7 @@
  * pill only when the word changes (≤ 1 frame late, no layout work per frame). The pill leads the sound by `leadMs`.
  * tap 'sentence': a tapped word replays its sentence (a "low" page: the lines it spans; `lines`: the page's own), lit as it plays.
  * gaps {sentence, comma} ms (true: 700/400), opt-in: the clip waits after a sentence end, a comma or a line end, the pill on
- * its word; play, pause, a seek or destroy drops the wait.
+ * its word, for what its own pause leaves of that; play, pause, a seek or destroy drops the wait.
  * Never autoplays: the first play() must run inside the child's tap (the in-app browser's audio unlock).
  * Fires window event 'wq:readalong' {type: started|word|finished|paused|resumed|tap_word, i, id}.
  */
@@ -274,7 +274,8 @@
       gapAt = {}; gf = audio.currentTime * 1000 || 0;
       if (g === true) g = { sentence: 700, comma: 400 };
       if (g) (opts.lines || (boxed ? boxLines(words) : [])).forEach(function (l) { ends[l[1]] = 1; });
-      if (g) words.forEach(function (w, k) { if (k < last && !w.sil) gapAt[k] = END_RX.test(w.t) ? g.sentence : COMMA_RX.test(w.t) || ends[k] ? g.comma : 0; });
+      // the wait is what the clip's own pause leaves: max(0, target − (next start − this end)); none where the timings overlap
+      if (g) words.forEach(function (w, k) { var n = k < last && !w.sil ? words[k + 1].s - w.e : -1; if (n >= 0) gapAt[k] = Math.max(0, (END_RX.test(w.t) ? g.sentence : COMMA_RX.test(w.t) || ends[k] ? g.comma : 0) - n); });
     }
     function unhold() { clearTimeout(hold); hold = null; }
     function resume() { hold = null; if (!dead && api.state === 'playing') play(1); }

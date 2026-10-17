@@ -1,7 +1,9 @@
 /**
  * The storybook's "Slower" (switch `web_quiz_stories_slow_gaps`, the book says `slow_gaps: true`): the voice always plays
  * at its own speed and the reader waits BETWEEN phrases instead — ~700 ms after a sentence's last word, ~400 ms after a
- * comma or a printed line's end, nothing elsewhere — with the highlight resting on the last word. A tap, Pause, a page
+ * comma or a printed line's end, nothing elsewhere — with the highlight resting on the last word. The wait is what is
+ * left after the clip's own pause: max(0, target − (next word's start − this word's end)), for every clip alike (an old
+ * take with no pause gets the full wait, a take that already pauses gets ~0; timings that overlap get none). A tap, Pause, a page
  * turn, Back, Home or another book drops a waiting gap. Off, Slower is exactly what it was (the 0.85 stretch).
  *
  * The real player (wq-readalong.js) runs in a vm with a fake audio element whose clock moves only while it plays, a
@@ -79,7 +81,8 @@ function world() {
     }
   }
   const live = () => timers.filter((t) => !t.dead && !t.done).length;
-  return { RA: window.WQReadAlong, document, audio, audios, rates, run, live, get wall() { return wall; } };
+  // made: every timer the player ever asked for (a wait scheduled where none is due shows here, even if it already ran)
+  return { RA: window.WQReadAlong, document, audio, audios, rates, run, live, made: () => timers.length, get wall() { return wall; } };
 }
 
 const W = (i, t, s, e) => ({ i, t, s_ms: s, e_ms: e });
@@ -115,11 +118,11 @@ function gapsOf(w, p) {
 }
 
 describe('the player: gaps between phrases (opts.gaps, opt-in)', () => {
-  test('EN: 700 ms after a sentence end (one that ends inside a line), 400 ms after a comma and after a printed line end, nothing elsewhere, none after the last word; the highlight rests on the last word', () => {
+  test('EN: 700 ms after a sentence end (one that ends inside a line), 400 ms after a comma and after a printed line end, nothing elsewhere, none after the last word, each less the clip\'s own pause; the highlight rests on the last word', () => {
     const w = world();
     const p = w.RA.mount(w.document.createElement('div'), EN, { lines: EN_LINES, leadMs: 50, gaps: { sentence: 700, comma: 400 } });
-    // kite. (ends 1100, mid-line; stops mid-silence at 1110) → 700; goes (line 1's end) → 400; up, → 400; away. is the last word → none
-    expect(gapsOf(w, p)).toEqual([[1110, 700, [3]], [1610, 400, [5]], [1910, 400, [6]]]);
+    // kite. (ends 1100, mid-line; stops mid-silence at 1110) → 700 − its own 20; goes (line 1's end) → 400 − 20; up, → 400 − 20; away. is the last word → none
+    expect(gapsOf(w, p)).toEqual([[1110, 680, [3]], [1610, 380, [5]], [1910, 380, [6]]]);
     expect(w.audio()._r).toBe(1);
     expect(p.state).toBe('ended');
   });
@@ -127,24 +130,24 @@ describe('the player: gaps between phrases (opts.gaps, opt-in)', () => {
     const w = world();
     const p = w.RA.mount(w.document.createElement('div'), UR, { lines: UR_LINES, leadMs: 50, gaps: { sentence: 700, comma: 400 } });
     // (2.01 s × 1000 is 2009.999… in floating point, so that stop lands on the next 10 ms frame, as in a browser)
-    expect(gapsOf(w, p)).toEqual([[1510, 700, [4]], [2020, 400, [6]], [2310, 400, [7]]]);
+    expect(gapsOf(w, p)).toEqual([[1510, 680, [4]], [2020, 380, [6]], [2310, 380, [7]]]);
   });
   test('gaps: true is the storybook spec (700 / 400)', () => {
     const w = world();
     const p = w.RA.mount(w.document.createElement('div'), EN, { lines: EN_LINES, gaps: true });
-    expect(gapsOf(w, p).map((g) => g[1])).toEqual([700, 400, 400]);
+    expect(gapsOf(w, p).map((g) => g[1])).toEqual([680, 380, 380]);
   });
   test('a sentence end that is also a line end is one sentence gap, not two', () => {
     const w = world();
     const p = w.RA.mount(w.document.createElement('div'), EN, { lines: [[0, 3], [4, 9]], gaps: true });
-    expect(gapsOf(w, p).slice(0, 1)).toEqual([[1110, 700, [3]]]);
+    expect(gapsOf(w, p).slice(0, 1)).toEqual([[1110, 680, [3]]]);
   });
   test('the clip stops in the middle of the natural pause, never at the word\'s end time (an early end time cannot clip the word)', () => {
     const w = world();
     const words = EN.words.map((x) => ({ ...x }));
     words[3] = { ...words[3], e_ms: 800 };    // "kite." ends (by its timings) at 800; the next word starts at 1120
     const p = w.RA.mount(w.document.createElement('div'), { ...EN, words }, { lines: EN_LINES, gaps: true });
-    expect(gapsOf(w, p)[0]).toEqual([960, 700, [3]]);
+    expect(gapsOf(w, p)[0]).toEqual([960, 380, [3]]);   // its own pause is 320 ms: 700 − 320
   });
   test('the highlight never runs ahead of the voice: the next word starts 20 ms after the gap word ends (inside the 50 ms lead), and the pill still waits on the gap word', () => {
     const w = world();
@@ -156,7 +159,7 @@ describe('the player: gaps between phrases (opts.gaps, opt-in)', () => {
     w.run(20);     // the clip passes 1100: it stops on "kite."
     expect(w.audio().paused).toBe(true);
     expect(p.current).toBe(3);
-    w.run(680);
+    w.run(660);
     expect(p.current).toBe(3);
     expect(lit.filter(([, i]) => i === 4)).toEqual([]);
     w.run(20);     // resumed: "It" lights only now, with its lead
@@ -180,6 +183,52 @@ describe('the player: gaps between phrases (opts.gaps, opt-in)', () => {
     const w = world();
     const p = w.RA.mount(w.document.createElement('div'), EN, { lines: EN_LINES });
     expect(gapsOf(w, p)).toEqual([]);
+    expect(w.made()).toBe(0);
+  });
+
+  // The wait is the remainder: max(0, target − (next.s_ms − prev.e_ms)), the same sum for every clip (no take is named).
+  describe('the wait is what is left after the clip\'s own pause (every clip, one formula)', () => {
+    const take = (gaps, over = {}) => ({ ...EN, ...over, words: EN.words.map((x, k) => ({ ...x, ...(gaps[k] || {}) })) });
+    test('an old take (no pause of its own: each word starts where the last one ends) gets the full wait, at rate 1', () => {
+      const w = world();
+      // every word ends exactly where the next one starts
+      const words = EN.words.map((x, k) => ({ ...x, e_ms: k < 9 ? EN.words[k + 1].s_ms : x.e_ms }));
+      const p = w.RA.mount(w.document.createElement('div'), { ...EN, words }, { lines: EN_LINES, gaps: true });
+      expect(gapsOf(w, p).map((g) => g[1])).toEqual([700, 400, 400]);
+      expect(w.audio()._r).toBe(1);
+      expect(w.rates.every((r) => r === 1)).toBe(true);
+    });
+    test('a take that already pauses (a storyteller take) gets ~0: nothing where its own pause is as long as the wait, only the rest where it is shorter', () => {
+      // kite. → It: 900 ms of its own (≥ 700: nothing); goes → up,: 500 (≥ 400: nothing); up, → up: 250 (400 − 250 = 150)
+      const words = [W(0, 'Mina', 100, 400), W(1, 'has', 420, 600), W(2, 'a', 620, 700), W(3, 'kite.', 720, 1100), W(4, 'It', 2000, 2200), W(5, 'goes', 2220, 2500),
+        W(6, 'up,', 3000, 3300), W(7, 'up', 3550, 3800), W(8, 'and', 3820, 4000), W(9, 'away.', 4020, 4600)];
+      const w2 = world();
+      const p2 = w2.RA.mount(w2.document.createElement('div'), { ...EN, audio: { url: '/a/p1.ogg', ms: 5000 }, words }, { lines: EN_LINES, gaps: true });
+      const got = gapsOf(w2, p2);
+      expect(got.map((g) => g[1])).toEqual([150]);
+      expect(got[0][2]).toEqual([6]);
+      expect(w2.made()).toBe(1);   // one wait asked for, none where the take pauses enough on its own
+      expect(w2.rates.every((r) => r === 1)).toBe(true);
+    });
+    test('timings that overlap (the next word starts before this one ends): no wait there, the clip never stops inside a word', () => {
+      const w = world();
+      // "It" starts at 1050, before "kite." ends at 1100; the others keep their 20 ms
+      const p = w.RA.mount(w.document.createElement('div'), take({ 4: { s_ms: 1050 } }), { lines: EN_LINES, gaps: true });
+      const got = gapsOf(w, p);
+      expect(got.map((g) => g[2][0])).toEqual([5, 6]);
+      expect(got.map((g) => g[1])).toEqual([380, 380]);
+      expect(w.rates.every((r) => r === 1)).toBe(true);
+    });
+    test('no take is named: a page marked as a storyteller take and the same page unmarked wait the same', () => {
+      const runs = [{}, { pipeline: 'vr2-storyteller' }, { pipeline: 'v1' }].map((over) => {
+        const w = world();
+        const p = w.RA.mount(w.document.createElement('div'), { ...EN, ...over }, { lines: EN_LINES, gaps: true });
+        return gapsOf(w, p);
+      });
+      expect(runs[1]).toEqual(runs[0]);
+      expect(runs[2]).toEqual(runs[0]);
+      expect(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js'), 'utf8')).not.toMatch(/pipeline|storyteller/);
+    });
   });
 
   describe('a waiting gap is dropped (no timer outlives it)', () => {
@@ -247,10 +296,11 @@ describe('the player: gaps between phrases (opts.gaps, opt-in)', () => {
       p.slow(true, true);
       expect(w.audio()._r).toBe(1);
       expect(w.audio().preservesPitch).toBe(true);
-      expect(gapsOf(w, p).map((g) => g[1])).toEqual([700, 400, 400]);
+      expect(gapsOf(w, p).map((g) => g[1])).toEqual([680, 380, 380]);
       p.slow(false, true);
+      expect(w.audio()._r).toBe(1);
       expect(gapsOf(w, p)).toEqual([]);
-      expect(w.rates.every((r) => r >= 1)).toBe(true);
+      expect(w.rates.every((r) => r === 1)).toBe(true);
     });
     test('turned on mid-page: gaps start from where the clip is (never a jump back to a passed word)', () => {
       const w = world();
@@ -339,7 +389,7 @@ function reader({ lang = 'en', gapsKey, slowStored } = {}) {
 const pl = (r) => r.w.audios.filter((a) => (a.l.ended || []).length).pop();
 
 describe('the reader\'s Slower with the switch ON (the book says slow_gaps)', () => {
-  test.each(['en', 'ur'])('%s: a remembered Slower means gaps: rate 1, the clip stops 700 ms after the sentence end with the highlight on its last word, then reads on', async (lang) => {
+  test.each(['en', 'ur'])('%s: a remembered Slower means gaps: rate 1, the clip stops after the sentence end for 700 ms less the page\'s own pause with the highlight on its last word, then reads on', async (lang) => {
     const r = reader({ lang, gapsKey: true, slowStored: '1' });
     const root = await r.open();
     expect(root.innerHTML).toContain('data-tap="slow" aria-pressed="true"');
@@ -349,12 +399,12 @@ describe('the reader\'s Slower with the switch ON (the book says slow_gaps)', ()
     expect(pl(r).paused).toBe(true);
     expect(pl(r)._r).toBe(1);
     expect(root.querySelector('[data-main]').textContent).toBe(lang === 'ur' ? 'رکیں' : 'Pause');
-    r.w.run(670);
+    r.w.run(650);
     expect(pl(r).paused).toBe(true);
     expect(pl(r).t).toBe(end + 10);
-    r.w.run(40);
+    r.w.run(30);   // 700 less the page's own 20 ms: back on air 680 ms after the stop
     expect(pl(r).paused).toBe(false);
-    expect(r.w.rates.every((x) => x >= 1)).toBe(true);
+    expect(r.w.rates.every((x) => x === 1)).toBe(true);
   });
   test('the Slower button toggles gaps, never the speed: rate stays 1 through every tap and page', async () => {
     const r = reader({ gapsKey: true });
