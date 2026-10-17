@@ -1232,17 +1232,18 @@ const storyCue = (a, b) => namesKeyOf(a, b) || namesKeyOf(b, a);
 // اسم معرفہ کون سا ہے؟), or when its stem or key says what the term is («… خاص نام کے بجائے … عام
 // چیز …» → اسکول; «… ایک ہی املا …»). The named noun and the common noun are one rule (خاص / عام).
 // A word meaning, an antonym or a story fact asks no grammar concept.
+// Written as plain() writes the text it reads: آ as ا, ئ as ی.
 const CONCEPTS = [
   ['naming', /(?:^| )(?:اسم )?(?:معرفہ|نکرہ)(?: |$)|اسم (?:خاص|عام)|خاص (?:شخص|نام)|مخصوص نام|عام (?:چیز|نام)/],
-  ['sound', /اسم صوت|آواز (?:کو )?ظاہر/],
-  ['tool', /اسم آلہ|ہتھیار یا اوزار|اوزار کا نام/],
+  ['sound', /اسم صوت|اواز (?:کو )?ظاہر/],
+  ['tool', /اسم الہ|ہتھیار یا اوزار|اوزار کا نام/],
   ['place', /اسم ظرف/],
   ['adjective', /اسم صفت|(?:^| )صفت(?: |$)/],
   ['qualified', /موصوف/],
   ['conjunction', /حرف عطف|(?:^| )عطف(?: |$)|جوڑت[ےا]|جوڑنے/],
   ['condition', /حرف (?:شرط|جزا)|شرط و جزا/],
   ['doubt', /شکیہ|شک (?:و شبہ|ظاہر|کا اظہار)/],
-  ['wish', /تمنائی|(?:^| )آرزو(?: |$)/],
+  ['wish', /تمنایی|ارزو (?:کا اظہار|ظاہر)/],
   ['homograph', HOMOGRAPH],
 ];
 function conceptOf(q) {
