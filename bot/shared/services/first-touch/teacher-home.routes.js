@@ -19,6 +19,9 @@
  *   POST /api/th/step {t, step, kind?, id?, origin?}   page events → 204 (share_tap logs teacher_send)
  *   GET  /quiz/teacher/:token/send?c&o&lang   a library code's send: marked sent here, teacher_send, 302 → wa.me
  *
+ * Switch quiz_teacher_home_paged ON: /api/th/home starts every read at once (the light list reads, the class report's
+ * own-quiz rows, the send-again rows by teacher, the gate, the user, the prefill, the stories shelf) and answers the
+ * same JSON as OFF in a few round trips. OFF: today's reads, one after another.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
  * Never a 500: a thrown read → the mk.error page (200) on the page route, 503 {error:'mk.error'} on the JSON routes.
@@ -75,9 +78,12 @@ function createRouter(deps = null) {
 
   // The switch, first: off → 404 {off:true} for every path of this router, whatever the token.
   router.use(async (req, res, next) => {
+    // the quick home's switch is asked alongside the home's own (never after it), by the home only
+    const pagedSoon = req.path === '/api/th/home' ? Flags.paged().catch(() => false) : null;
     let on = false;
     try { on = (await Flags.on()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
+    req.thPaged = pagedSoon;
     return next();
   });
   router.use(express.json({ limit: '4kb' }));
@@ -122,11 +128,12 @@ function createRouter(deps = null) {
    */
   const memo = new Map();
   let drops = 0;
-  function playedOwn(uid) {
+  function playedOwn(uid, light = false) {
     const hit = memo.get(uid);
     if (hit && Date.now() - hit.at < PLAYED_MS) return Promise.resolve(hit.v);
     const gen = drops;
-    return Data.playedOwn(uid, deps).then((v) => {
+    // light (the paged home): the report's own-quiz rows, the same Map (an own quiz's row counts its own codes only)
+    return (light ? Data.playedOwn(uid, deps, { light: true }) : Data.playedOwn(uid, deps)).then((v) => {
       if (gen === drops) { memo.delete(uid); memo.set(uid, { at: Date.now(), v }); if (memo.size > PLAYED_MAX) memo.delete(memo.keys().next().value); }
       return v;
     });
@@ -244,9 +251,86 @@ function createRouter(deps = null) {
     return res.status(200).type('html').send(built.html);
   }));
 
+  /**
+   * The quick home's lists, every read started at once: the light /quiz list (Data.lessons light), the class report's
+   * own-quiz rows (held 60 s), the library shares, the send-again rows by teacher, the report gate. The walk-through's
+   * view applied as on the full answer. → { lessons, played, shares, reports, againable, sendRows }.
+   * `soon` = the reads already started by the home.
+   */
+  async function quickLists(p, user, soon) {
+    const [lessons0, played0, shares0, gateOn, sendRows] = await Promise.all([soon.lessons, soon.played, soon.shares, soon.gate, soon.sendRows]);
+    const { lessons, played, shares } = await walkLists(user, { lessons: lessons0, played: played0, shares: shares0 });
+    const ownSent = ownSentOf(lessons);
+    const reports = new Map();
+    if (ownSent.length && gateOn) ownSent.forEach((id) => { const u = Data.dep(deps, 'Gate').reportUrls({ teacherId: p.uid, quizId: id }); if (u) reports.set(id, { live: u.live, remind: u.remind }); });
+    // "Send again" only where the send would answer (the same rule as sendableOwn); rows unread or late → offered as before
+    const againable = sendRows ? new Set([...ownSent, ...played.keys()].filter((id) => sendRows.has(id))) : null;
+    return { lessons, played, shares, reports, againable, sendRows };
+  }
+  function quickReads(uid) {
+    return {
+      lessons: Data.within(Data.lessons(uid, deps, { light: true }), Data.REPORT_BUDGET_MS, [], 'lessons'),
+      played: Data.within(playedOwn(uid, true), Data.REPORT_BUDGET_MS, new Map(), 'class report'),
+      shares: Data.within(Data.libraryShares(uid, deps, Date.now(), { light: true }), Data.SIDE_BUDGET_MS, [], 'library shares'),
+      gate: Data.within(Data.dep(deps, 'Gate').teacherReportOn(uid), Data.SIDE_BUDGET_MS, false, 'report gate'),
+      sendRows: Data.within(Data.sendableRows(uid, deps), Data.SIDE_BUDGET_MS, null, 'send-again check'),
+    };
+  }
+
+  /** The quick home: the same JSON as today's, its reads started together. */
+  async function quickHome(req, res, p) {
+    const token = String(req.query.t);
+    const lang = langFor(p, req);
+    const Bank = Data.dep(deps, 'Bank');
+    const Cta = Data.dep(deps, 'Cta');
+    const userP = Data.teacherOf(p.uid, deps);
+    const soon = quickReads(p.uid);
+    const pfP = Data.within(Cta.prefillOf(p.uid), Data.SIDE_BUDGET_MS, null, 'prefill');
+    const treeP = Data.within(Bank.chipTree(), Data.SIDE_BUDGET_MS, {}, 'video bank');
+    // the grade the page asked for is known now: the stories shelf need not wait for the prefill
+    const gradeP = /^[1-5]$/.test(String(req.query.g || '')) ? Promise.resolve(Data.gradeOf(req.query.g, null)) : pfP.then((pf) => Data.gradeOf(req.query.g, pf));
+    // the shelf as soon as the grade is known (never after the video bank); the video pick once the bank is in
+    const storiesP = gradeP.then((grade) => Data.within(Data.storyShelf(p.uid, grade, lang, deps), Data.SIDE_BUDGET_MS, null, 'stories'));
+    const libP = Promise.all([gradeP, pfP, treeP, storiesP]).then(([grade, pf, tree, stories]) => {
+      const pfSubject = (/^grade_[1-5]\|([a-z_]+)$/.exec(String(pf || '')) || [])[1] || null;
+      return { grade, lib: { stories, video: Data.videoPick(tree, grade, pfSubject), storiesBase: stories && stories.length ? storiesBaseFor(token) : null } };
+    });
+    const confirmP = Data.within(Data.confirmRows(p.uid, deps), Data.SIDE_BUDGET_MS, [], 'confirm queue');
+    const makerP = makerOn().then((on) => (on ? Data.within(Data.makerLink(p.uid, lang, null, deps), Data.SIDE_BUDGET_MS, null, 'maker link') : null));
+    const sideP = userP.then((user) => (user ? Promise.all([
+      Data.within(Data.childrenLink(user, deps), Data.SIDE_BUDGET_MS, null, 'children'),
+      changeLanding(user, lang).then(async (change) => ({ change, walk: await walkRow(change, lang) })),
+    ]) : null));
+    const firstP = firstOpen(p.uid);
+    const user = await userP;
+    if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
+    const [lists, { grade, lib }, confirm, maker, [children, { change, walk }]] = await Promise.all([quickLists(p, user, soon), libP, confirmP, makerP, sideP]);
+    const home = Model.buildHome({
+      first: Data.firstNameOf(user), grade, lessons: lists.lessons, played: lists.played, shares: lists.shares, reports: lists.reports,
+      stories: lib.stories, video: lib.video, maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
+      againable: lists.againable,
+    });
+    if (walk) home.walk = walk;
+    // the class card's "Send again" from the rows already read; anything else (a library pick) as on the full answer
+    const top = home.primary;
+    const own = top && top.kind === 'class' && top.again && top.again.sendKind === 'again' && lists.sendRows ? lists.sendRows.get(top.again.id) : null;
+    const sent = own ? { ...top, send: { ...pick(Send.againOf(own, top.again.id, lang)), origin: 'again', sendKind: 'again' } } : await withSend(top, p, lang);
+    home.primary = sent || (maker ? { kind: 'make', href: maker } : { kind: 'none' });
+    home.cards = maker ? cardsFor(lang) : [];
+    home.lang = lang;
+    home.bot = botDigits();
+    const { facts } = home;
+    delete home.facts;
+    event('teacher_home_open', p.uid, { first: await firstP, ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
+    headers(res);
+    res.status(200).json(home);
+  }
+  const pick = (out) => ({ message: out.message, wa: out.wa, c: out.shareCodeId || null });
+
   router.get('/api/th/home', handleJson(async (req, res) => {
     const p = authorise(req.query.t, res);
     if (!p) return;
+    if (await req.thPaged) { await quickHome(req, res, p); return; }
     const token = String(req.query.t);
     const lang = langFor(p, req);
     const user = await Data.teacherOf(p.uid, deps);

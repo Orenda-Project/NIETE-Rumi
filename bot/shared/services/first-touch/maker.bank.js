@@ -66,9 +66,12 @@ async function pages(build, size = PAGE) {
 }
 
 async function loadTree() {
-  const quizzes = await pages(() => supabase.from('quizzes').select('id, video_id, grade, subject, topic, language')
-    .eq('quiz_source', 'video').eq('status', 'ready').in('grade', GRADES));
-  const videos = await pages(() => supabase.from('student_videos').select('id, created_at').is('superseded_by', null));
+  // the two independent reads together (one round trip, not two)
+  const [quizzes, videos] = await Promise.all([
+    pages(() => supabase.from('quizzes').select('id, video_id, grade, subject, topic, language')
+      .eq('quiz_source', 'video').eq('status', 'ready').in('grade', GRADES)),
+    pages(() => supabase.from('student_videos').select('id, created_at').is('superseded_by', null)),
+  ]);
   const liveAt = new Map(videos.map((v) => [v.id, String(v.created_at || '')]));
   const best = new Map();   // grade|subject|topic → { quiz, at }
   for (const q of quizzes) {
@@ -84,11 +87,11 @@ async function loadTree() {
   // The questions of the listed quizzes with no language: one paged read (in id lists under the header cap).
   const unmarked = [...best.values()].map((b) => b.quiz).filter((q) => !QLANGS.includes(q.language)).map((q) => q.id);
   const questionsOf = new Map(unmarked.map((id) => [id, []]));
-  for (let i = 0; i < unmarked.length; i += IN_CHUNK) {
-    const ids = unmarked.slice(i, i + IN_CHUNK);
-    const rows = await pages(() => supabase.from('quiz_questions').select('id, quiz_id, question_text, option_a').in('quiz_id', ids));
-    for (const r of rows) if (questionsOf.has(r.quiz_id)) questionsOf.get(r.quiz_id).push(r);
-  }
+  const chunks = [];
+  for (let i = 0; i < unmarked.length; i += IN_CHUNK) chunks.push(unmarked.slice(i, i + IN_CHUNK));
+  // the chunks together, their rows taken in chunk order (as one after another would)
+  const parts = await Promise.all(chunks.map((ids) => pages(() => supabase.from('quiz_questions').select('id, quiz_id, question_text, option_a').in('quiz_id', ids))));
+  for (const rows of parts) for (const r of rows) if (questionsOf.has(r.quiz_id)) questionsOf.get(r.quiz_id).push(r);
   const tree = {};
   for (const { quiz, grade, subject, topic } of best.values()) {
     tree[grade] = tree[grade] || {};
@@ -101,9 +104,11 @@ async function loadTree() {
 
 let cache = null;   // { at, tree }
 
+let loading = null; // the load in flight: callers that arrive while it runs share it (one load, not one each)
 async function chipTree(now = Date.now()) {
   if (cache && now - cache.at < TREE_TTL_MS) return cache.tree;
-  const tree = await loadTree();
+  if (!loading) loading = loadTree().finally(() => { loading = null; });
+  const tree = await loading;
   cache = { at: now, tree };
   return tree;
 }
@@ -218,4 +223,4 @@ async function shareMessage({ uid, lang, shareCodeId, now = Date.now() } = {}) {
   return { message, quizId: quiz.id, grade: gradeOf(quiz.grade), subject: subjectCode(quiz.subject), qlang };
 }
 
-module.exports = { chipTree, chipOf, make, shareMessage, subjectCode, GRADES, TREE_TTL_MS, _resetCache: () => { cache = null; } };
+module.exports = { chipTree, chipOf, make, shareMessage, subjectCode, GRADES, TREE_TTL_MS, _resetCache: () => { cache = null; loading = null; } };
