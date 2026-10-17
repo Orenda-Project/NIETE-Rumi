@@ -1773,12 +1773,10 @@
   ]
  },
  "bot/shared/services/quiz/video-quiz-share.service.js": {
-  "n": 3,
+  "n": 1,
   "area": "quiz",
   "at": [
-   "280 userId: ctx.userId",
-   "421 userId: selfTest.userId",
-   "564 studentId: student?.id || null"
+   "565 studentId: student?.id || null"
   ]
  },
  "bot/shared/services/quiz/video-quiz.service.js": {

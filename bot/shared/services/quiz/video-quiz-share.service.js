@@ -26,6 +26,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const StudentIdentity = require('./student-identity.service');
 const TeacherSelfTest = require('./teacher-self-test');
+const { tk: tkOf } = require('./web-quiz-kid');
 
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { isolateIfMixed } = require('./transcript-quiz-rows');
@@ -278,7 +279,7 @@ async function sendClassLink(ctx, phone, { classId = null } = {}) {
   }));
 
   logEvent('video_quiz.share_code_minted', {
-    userId: ctx.userId, quizId: ctx.quizId, code: minted.code, classBound: Boolean(minted.classId),
+    tk: tkOf(ctx.userId), quizId: ctx.quizId, code: minted.code, classBound: Boolean(minted.classId),
   });
   return { id: minted.id, code: minted.code };
 }
@@ -419,7 +420,7 @@ async function beginFromCode(phone, code) {
       { selfTestUserId: selfTest.userId, lead: ux('vqSelfTestStart', lang) });
     // The event carries ids only — never the phone and never the name.
     logEvent('video_quiz.teacher_self_test', {
-      shareCodeId: ctx.shareCodeId, quizId: ctx.quizId, userId: selfTest.userId,
+      shareCodeId: ctx.shareCodeId, quizId: ctx.quizId, tk: tkOf(selfTest.userId),
     });
     return true;
   }
