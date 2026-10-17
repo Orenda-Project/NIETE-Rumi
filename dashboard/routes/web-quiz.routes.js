@@ -28,6 +28,8 @@ const express = require('express');
 // loads where the dashboard's dependencies are not installed (the root CI run).
 // Dependency-free: the brand table both services read (the bot names the key, the edge dresses the page).
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
+// The one list of Server-Timing items a child answer may carry (shared with the bot's writers; requires nothing).
+const TimingNames = require('../../bot/shared/services/quiz/web-quiz-server-timing-names');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
 const { urDigits } = require('../public/wq/wq-digits');
@@ -672,8 +674,10 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
         init.body = JSON.stringify(body || {});
       }
       const res = await fetchImpl(`${botUrl}${pathname}`, init);
-      if (res.status >= 500 && res.status !== 503) record(method, where, t0, { outcome: 'upstream_5xx', status: res.status });
-      else if (now() - t0 >= BOT_SLOW_MS) record(method, where, t0, { outcome: 'slow', status: res.status });
+      // The bot's Server-Timing items (only sent with a timing switch on), only those on the shared list; else none.
+      const steps = TimingNames.clean(res.headers && res.headers.get ? res.headers.get('server-timing') : null);
+      if (res.status >= 500 && res.status !== 503) record(method, where, t0, { outcome: 'upstream_5xx', status: res.status, ...(steps ? { steps } : {}) });
+      else if (now() - t0 >= BOT_SLOW_MS) record(method, where, t0, { outcome: 'slow', status: res.status, ...(steps ? { steps } : {}) });
       const location = res.headers && res.headers.get ? res.headers.get('location') : null;
       // A picture the bot answers as bytes (a cropped option, an inline option picture) is passed
       // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
@@ -686,7 +690,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       const text = await res.text();
       let json = null;
       try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
-      return { status: res.status, body: json, location };
+      // `steps`: the bot's timing items (web_quiz_server_timing on its hub answer). Off: today's result.
+      return { status: res.status, body: json, location, ...(steps ? { steps } : {}) };
     } catch (err) {
       const timedOut = Boolean(controller && controller.signal.aborted);
       record(method, where, t0, timedOut ? { outcome: 'timeout' }
@@ -965,6 +970,7 @@ function createWebQuizRouter(opts = {}) {
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
+    const b0 = Date.now();
     try {
       out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
@@ -978,8 +984,19 @@ function createWebQuizRouter(opts = {}) {
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
       lastWaitUx = WaitUx.on(out.body);
-      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
-      return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
+      // Step timings (the bot's answer carried them: a timing switch is on). The flushed page's headers went before the
+      // bot answered, so they ride its boot JSON (`st`); a page whose headers have not gone yet says them as one
+      // Server-Timing: any items already on it, this edge's wait for the bot, the bot's items, this page's render.
+      // Off: no `st`, and the page and its headers are today's.
+      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, token, origin, assetV: version() }));
+      if (!out.steps) return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
+      const edgeMs = Date.now() - b0;
+      const r0 = process.hrtime.bigint();
+      const html = renderHubPage({ payload: out.body, token, origin, assetV: version() });
+      const renderMs = Math.round(Number(process.hrtime.bigint() - r0) / 1e6);
+      const items = TimingNames.clean([`edge;dur=${edgeMs}`, out.steps, `render;dur=${renderMs}`].join(', '));
+      if (!res.headersSent) res.set('Server-Timing', [res.get('Server-Timing'), items].filter(Boolean).join(', '));
+      return res.status(200).type('html').send(html);
     }
     if (out.status === 401) return closed(401, 'hub');
     return closed(out.status === 503 ? 503 : 502, 'off');
