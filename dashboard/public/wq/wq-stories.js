@@ -3,9 +3,7 @@
 (function () {
   'use strict';
   var W = window;
-  /* Copy rules: no test words (test, exam, assessment, امتحان, ٹیسٹ); gender-neutral آپ; ergative past
-   agreeing with the story («آپ نے … پڑھ لی»); teacher is «ٹیچر», never the formal word; «دبائیں» not «ٹیپ کریں»; «کھویا ہوا» not «گم شدہ»;
-   Urdu digits in Urdu prose; no U+00B7; every Urdu run in dir="rtl"; short lines. */
+  // Copy rules (both files' copy): the header of wq-stories-q.js; the banned words are a test.
   var T = {
     en: {
       shelf: 'Storybooks', gl: function (g, l) { return 'Grade ' + g + ', ' + (l === 'ur' ? 'Urdu' : 'English'); },
@@ -281,7 +279,7 @@
       var s = document.querySelector('script[src*="wq-stories.js"]'), v = s && /[?&]v=([\w-]+)/.exec(s.getAttribute('src') || ''), q = v ? '?v=' + v[1] : '';
       var h = document.head, sc = document.createElement('script'), c;
       if (css) { c = document.createElement('link'); c.rel = 'stylesheet'; c.href = '/wq/' + css + q; h.appendChild(c); }
-      sc.src = '/wq/' + path + q; sc.onload = sc.onerror = fin; h.appendChild(sc);
+      sc.src = '/wq/' + path + (/\?/.test(path) ? '' : q); sc.onload = sc.onerror = fin; h.appendChild(sc);
       W.setTimeout(fin, 8000);
     } catch (e) { fin(); }
   }
@@ -291,6 +289,14 @@
     if (qw) return qw.push(cb);
     qw = [cb];
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
+  }
+  // the voice player and (lr3) live reading come with the book: nothing else loads them; 8 s each, else without
+  var got = {}, RA_V = '3fdfdd875a';   // the player's own content version (sha256, 10 hex; a test keeps the two in step)
+  function need(f, g, css, cb) {
+    if (W[g] || got[f] === 1) return cb();
+    if (got[f]) return got[f].push(cb);
+    got[f] = [cb];
+    load(f, css, function () { var w = got[f]; got[f] = 1; w.forEach(function (x) { x(); }); });
   }
 
   function reader(id, ctx, root) {
@@ -312,11 +318,13 @@
     function oops() { paint(retryHtml(L, ic(t, 'back', t.back, '‹'))); }
     function load(q) {
       wait();
+      need('wq-readalong.js?v=' + RA_V, 'WQReadAlong', 0, function () {});
       (cache[id] && !tch ? Promise.resolve({ ok: true, body: cache[id] }) : req('GET', bookUrl())).then(function (r) {
         if (cur !== R) return;
         if (r.status === 404) return paint(kind('stories-off', L, t.off, '<button class="wqs-main" data-primary data-home data-tap="home">' + esc(t.home) + '</button>'));
         if (!r.ok) return oops();
-        start(r.body, q);
+        var go = function () { if (cur === R) start(r.body, q); };
+        need('wq-readalong.js?v=' + RA_V, 'WQReadAlong', 0, r.body.lr3 && !tch && !W.WQLiveRead ? function () { need('wq-read-live.js', 'WQLive', 0, function () { need('wq-liveread.js', 'WQLiveRead', 'wq-liveread.css', go); }); } : go);
       }, function () { if (cur === R) oops(); });
     }
     function start(bk, q) {
