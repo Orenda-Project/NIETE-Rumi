@@ -497,6 +497,27 @@ describe('the stories shelf and the other seams', () => {
     expect(down.stories.every((b) => !('sent' in b))).toBe(true);
   });
 
+  test('a listed test phone walking as "a teacher with no lessons": another grade\'s library shows no pill either, as its home', async () => {
+    seed();
+    fake.db.users[0].phone_number = 'fixture-phone';
+    const at = new Date(Date.now() - 5 * 86400000).toISOString();
+    fake.db.quizzes.push({ id: OWN_QUIZ, teacher_id: TEACHER.id, quiz_source: 'story', status: 'sent', topic: 'The Thirsty Crow', created_at: at,
+      meta: { story: { book_id: 'b1', lang: 'en' }, student_message: 'Read with Jugnu: https://portal.example/q/STORY1', share_code_id: OWN_CODE } });
+    fake.db.quiz_sessions = [];
+    deps.supabase = jsonPathSelect(supabase);
+    deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'The Thirsty Crow' }, { id: 'b2', title: 'Rain' }] })) };
+    mockWalk.forHome = jest.fn(async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists));
+    try {
+      await boot(deps);
+      const t = tokenFor();
+      const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
+      const lib = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+      expect(home.library.stories.every((b) => !('sent' in b))).toBe(true);
+      expect(lib.stories.every((b) => !('sent' in b))).toBe(true);
+      expect(lib.pick).toMatchObject({ kind: 'story', id: 'b1' });
+    } finally { mockWalk.forHome = undefined; }
+  });
+
   test('a stories module whose switch is off → no tiles, the video card is the library pick', async () => {
     seed();
     deps.Stories = { flagOn: async () => false, shelf: jest.fn() };
