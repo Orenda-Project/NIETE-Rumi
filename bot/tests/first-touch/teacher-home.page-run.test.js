@@ -359,7 +359,7 @@ describe('the library card\'s story counts line', () => {
     const p = await open(home({ sent: 3, read: 7 }));
     const c = line(p);
     expect(c.hidden).toBe(false);
-    expect(c.textContent).toBe('3 stories sent · 7 children read');
+    expect(c.textContent).toBe('3 stories sent · children who read: 7');
     const kids = p.q('#th-lib').children.map((x) => x.getAttribute('id'));
     expect(kids.indexOf('th-counts')).toBeGreaterThan(kids.indexOf('th-chosen'));
     expect(kids.indexOf('th-counts')).toBeLessThan(kids.indexOf('th-stories'));
@@ -367,7 +367,7 @@ describe('the library card\'s story counts line', () => {
 
   test('EN: one story sent → the singular line', async () => {
     const p = await open(home({ sent: 1, read: 2 }));
-    expect(line(p).textContent).toBe('1 story sent · 2 children read');
+    expect(line(p).textContent).toBe('1 story sent · children who read: 2');
   });
 
   test('no counts on the home → the line stays hidden and empty', async () => {
@@ -387,12 +387,12 @@ describe('the library card\'s story counts line', () => {
     await p.tap(p.q('#th-grades').querySelector('[data-grade="4"]'));
     expect(p.q('#th-chosen').textContent).toBe('Chosen for Grade 4');
     expect(line(p).hidden).toBe(false);
-    expect(line(p).textContent).toBe('3 stories sent · 7 children read');
+    expect(line(p).textContent).toBe('3 stories sent · children who read: 7');
   });
 
   test.each([
-    [{ sent: 3, read: 7 }, '۳ کہانیاں بھیجی گئیں · ۷ بچوں نے پڑھیں'],
-    [{ sent: 1, read: 12 }, '۱ کہانی بھیجی گئی · ۱۲ بچوں نے پڑھی'],
+    [{ sent: 3, read: 7 }, '۳ کہانیاں بھیجی گئیں · پڑھنے والے بچے: ۷'],
+    [{ sent: 1, read: 12 }, '۱ کہانی بھیجی گئی · پڑھنے والے بچے: ۱۲'],
   ])('UR: %j → the Urdu line in Urdu digits', async (counts, want) => {
     const p = await open(home(counts), { lang: 'ur' });
     expect(line(p).hidden).toBe(false);
