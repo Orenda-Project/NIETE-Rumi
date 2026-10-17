@@ -283,7 +283,7 @@
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
   // the player (and lr3's live reader) come with the book
-  var got = {}, RA_V = 'be7fe1dc23';   // the player's content hash (a test pins it)
+  var got = {}, RA_V = '6496f5ad19';   // the player's content hash (a test pins it)
   function need(f, g, css, cb) {
     if (W[g] || got[f] === 1) return cb();
     if (got[f]) return got[f].push(cb);
@@ -474,7 +474,7 @@
     }
     R.mount = mount;
     function slow() { return ls('wq_st_slow:' + (ctx.kid || '')) === '1'; }
-    function rate() { var a = R.pl && R.pl.audio; if (a) { a.playbackRate = slow() ? 0.85 : 1; a.preservesPitch = true; } }
+    function rate() { var p = R.pl; if (p && p.slow) p.slow(slow(), b.slow_gaps); }
     function extra() {
       var s = m.st, p = P[m.i], w = p.words && p.words[m.skip], a = m.alt(), h = '';
       var echo = b.lr3 && b.grade < 3 && p.audio && !R.keyNo && (s === 'together' || /^(read|practise)$/.test(s) && m.ratio <= 0.5);

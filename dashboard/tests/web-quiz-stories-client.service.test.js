@@ -113,7 +113,7 @@ function env(opt = {}) {
     win.WQReadAlong = {
       mount(el, data, o) {
         if (o.band) el.innerHTML = '<div class="wqra-pic wqra-band"></div>';
-        const p = { el, data, o, log: [], audio: {}, play() { p.log.push('play'); }, pause() { p.log.push('pause'); }, replay() { p.log.push('replay'); }, playWord(i) { p.log.push('word:' + i); }, seekToWord(i) { p.log.push('seek:' + i); }, destroy() { p.log.push('destroy'); } };
+        const p = { el, data, o, log: [], slows: [], audio: {}, slow(on, g) { p.slows.push([on, g]); }, play() { p.log.push('play'); }, pause() { p.log.push('pause'); }, replay() { p.log.push('replay'); }, playWord(i) { p.log.push('word:' + i); }, seekToWord(i) { p.log.push('seek:' + i); }, destroy() { p.log.push('destroy'); } };
         calls.ra.push(p); return p;
       },
       preload(d) { calls.preload = (calls.preload || []).concat([d.id]); },
@@ -1723,22 +1723,24 @@ describe('question audio and the slower voice', () => {
     a.currentTime = 2.41; e.advance(40); expect(a.paused).toBe(true);
     expect(e.calls.audios).toHaveLength(1);
   });
-  test('Slower: playbackRate 0.85 with pitch kept, remembered per child, applied after a page change; no number shown; not the primary', async () => {
+  // what the player does with it (the 0.85 stretch, or gaps with the book's slow_gaps): web-quiz-stories-slow-gaps
+  test('Slower: handed to the player (slow(on, the book\'s slow_gaps)), remembered per child, applied after a page change; no number shown; not the primary', async () => {
     const e = env(); const root = await openReader(e);
     const h = root.innerHTML;
     expect(h).toMatch(/<button class="wqs-slow" data-tap="slow" aria-pressed="false"><svg class="wqs-g"[^>]*><path[^>]*><\/svg> Slower<\/button>/);
     expect(text(h.split('wqs-slow')[1].split('</button>')[0])).not.toMatch(/[0-9]/);
-    fire(root, 'slow');
     const p = e.calls.ra[0];
-    expect(p.audio.playbackRate).toBe(0.85); expect(p.audio.preservesPitch).toBe(true);
+    expect(p.slows).toEqual([[false, undefined]]);
+    fire(root, 'slow');
+    expect(p.slows.pop()).toEqual([true, undefined]);
     expect(e.store.getItem('wq_st_slow:' + KID)).toBe('1');
     fire(root, 'next'); fire(root, 'prev');
     const p2 = e.calls.ra[e.calls.ra.length - 1];
     expect(p2).not.toBe(p);
-    expect(p2.audio.playbackRate).toBe(0.85);
+    expect(p2.slows).toEqual([[true, undefined]]);
     expect(root.innerHTML).toMatch(/data-tap="slow" aria-pressed="true"/);
     fire(root, 'slow');
-    expect(p2.audio.playbackRate).toBe(1);
+    expect(p2.slows.pop()).toEqual([false, undefined]);
     const ur = env({ replies: { book: { status: 200, body: book({ lang: 'ur', dir: 'rtl' }) } } });
     const r2 = await openReader(ur, { lang: 'ur' });
     expect(r2.innerHTML).toContain('</svg> آہستہ');
