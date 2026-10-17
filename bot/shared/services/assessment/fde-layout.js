@@ -1018,8 +1018,17 @@ function stemGivesKey(a, b) {
     return Boolean(k) && (String(by.question || '').match(QUOTE_SPAN) || [])
       .some((quote) => { const words = quote.split(/[،,]/).map(plain).filter(Boolean); return words.length >= 2 && words.includes(k); });
   };
+  // A stem that names a one-word key gives it away only when it names no other option of that item
+  // («ببلو نے اسلم اور کیک کے بارے میں …» names two of «کھیر / حلوہ / کیک / اسلم»: no cue).
+  const namesOnlyKey = (q, by) => {
+    const stem = new Set(tokensOf(by.question));
+    return Array.isArray(q.options) && q.options.filter((o) => {
+      const words = tokensOf(String(o).replace(OPTION_HEAD, ''));
+      return words.length > 0 && words.every((w) => stem.has(w));
+    }).length === 1;
+  };
   const given = (q, by) => listed(q, by) || (!QUOTES_EXAMPLE.test(String(q.question || ''))
-    && (key(q).size >= GIVEN_WORDS || (key(q).size === 1 && topic(q, by))));
+    && (key(q).size >= GIVEN_WORDS || (key(q).size === 1 && topic(q, by) && namesOnlyKey(q, by))));
   // Another item's OPTION that prints a key of two words or more, in order, inside something it says
   // about it, states that key as a fact, even as a wrong option («سدرہ نے … کیا بنایا؟ → تھیڑ کمپنی»
   // beside «ب) سدرہ کی تھیڑ کمپنی بند کرنے کی»). An option that is only the key, or a one-word key
@@ -1135,27 +1144,144 @@ function printsOwnKey(q) {
   const others = options.filter((o) => o !== key && plain(o));
   return printed(key) && !others.some(printed);
 }
-// Urdu Q1: a grammar-term item whose stem prints a word of its own key, outside the example it
-// quotes and in no other option («… «گاڑی» کی صفت بیان کرنے والے لفظ کو کیا کہتے ہیں؟» → اسم صفت,
-// beside موصوف / اسم آلہ / اسم صوت), is answered by matching words. The key is a grammar term: a
-// class word first (اسم، حرف…، فعل، جملہ) or a bare term (صفت، مذکر …). The class word itself is
-// the stem's own frame («… لفظ کو کیا کہتے ہیں؟») and is not read; a key that is a name or a fact
-// the stem names is another shape, and stays.
+// The grammar labels a key carries before its term (اسم، حرف…، فعل، جملہ): a stem's own frame says
+// them («… لفظ کو کیا کہتے ہیں؟»), so they are never the key's letters.
 const TERM_CLASS = new Set(['اسم', 'حرف', 'فعل', 'لفظ', 'جملہ', 'الفاظ']);
-const BARE_TERMS = new Set(['موصوف', 'صفت', 'مذکر', 'مونث', 'واحد', 'جمع', 'متضاد', 'مترادف']);
 const termClass = (w) => TERM_CLASS.has(w) || w.startsWith('حرف');
-function namesOwnTerm(q) {
-  if (!Array.isArray(q.options) || !q.options.length) return false;
-  const key = plain(keyText(q));
-  const words = key.split(' ').filter(Boolean);
-  if (!words.length || !(termClass(words[0]) || BARE_TERMS.has(key))) return false;
-  const stem = ` ${plain(String(q.question || '').replace(QUOTE_SPAN, ' '))} `;
-  const others = q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).filter((o) => o && o !== key).map((o) => o.split(' '));
-  return words.some((w) => [...w].length >= 3 && !termClass(w) && stem.includes(` ${w} `) && !others.some((o) => o.includes(w)));
-}
 function asksTwo(q) {
   if (!Array.isArray(q.options) || !q.options.length) return false;
   return (String(q.question || '').replace(QUOTE_SPAN, ' ').match(/[؟?]/g) || []).length >= 2;
+}
+// Urdu Q1: an MCQ whose key's letters are printed in its own stem, and no other option's are, is
+// answered by matching letters, whatever the shape: a homograph sense given as the key's own
+// infinitive («… «جنگل» اور دوسرا «بننا»» → بن; «… «شاخ» اور … «ڈالنا»» → ڈالی), a quoted word the
+// key is cut from («ان پڑھ» … → ان), a grammar term's own word («… «گاڑی» کی صفت بیان کرنے والے
+// لفظ …» → اسم صفت). The key is one content word once its grammar label (اسم، حرف…، فعل، لفظ) is
+// set aside, and has a letter; a key of more words is a meaning or a fact (a meaning that repeats
+// the asked word is the book's own gloss). A true/false pair (درست / غلط) is the item's frame. A stem word carries the key when it is the key, or begins with the key's
+// stem (its last ی / ا / ے / ہ off) and runs at most three letters on; a word of two letters is
+// read that way only inside a quote («ان» begins half of all words). A spelling item quotes a gloss
+// and is read by its own rule (a homograph item says «ایک ہی املا» and is no spelling item); a stem that prints another option too («سبز پتا» → پتا beside
+// سبز) leaves the child a choice, and stays.
+const INFLECTION = 3;
+// The key as its option prints it: a reply keyed by letter alone («الف») names the option at that letter.
+const keyOption = (q) => {
+  const at = Array.isArray(q.options) ? keyAt(q) : -1;
+  return at >= 0 && at < q.options.length ? String(q.options[at]).replace(OPTION_HEAD, '') : keyText(q);
+};
+const HOMOGRAPH = /متشابہ|ایک ہی املا|املا ایک/;
+// A homograph pair is keyed as the word twice («ان اور ان»): one word.
+const PAIR_WORDS = new Set(['اور', 'و']);
+const keyWord = (text) => {
+  const words = plain(text).split(' ').filter(Boolean);
+  const content = [...new Set(words.filter((w) => !termClass(w) && !PAIR_WORDS.has(w)))];
+  return content.length === 1 && [...content[0]].length >= 2 && /\p{L}/u.test(content[0]) ? content[0] : null;
+};
+// A sentence the item quotes as its example («"اگر بارش ہوئی تو …" میں حرفِ شرط …؟» → اگر) is what
+// the item asks a part of, and is not read; a homograph item's quoted word is (its pair is cut from
+// it: «ان پڑھ» → «ان اور ان»).
+function carries(stem, word, homograph) {
+  const root = [...word].length >= 3 ? word.replace(/[یاےہ]$/, '') : word;
+  const quotes = (stem.match(QUOTE_SPAN) || []).map((x) => plain(x).split(' ').filter(Boolean));
+  const quoted = new Set(quotes.filter((q) => q.length === 1 || homograph).flat());
+  // A function word («میں», «ان») is in most stems' own frame: only a quote prints it.
+  const outside = STOP.has(word) ? [] : plain(stem.replace(QUOTE_SPAN, ' ')).split(' ');
+  const read = outside.concat([...quoted]).filter(Boolean);
+  return read.some((w) => w === word || ((quoted.has(w) || [...root].length >= 3)
+    && [...root].length >= 2 && w.startsWith(root) && [...w].length - [...root].length <= INFLECTION));
+}
+function lettersOfKey(q) {
+  if (!Array.isArray(q.options) || !q.options.length) return false;
+  const stem = String(q.question || '');
+  const homograph = HOMOGRAPH.test(plain(stem));
+  if ((SPELLING_ASK.test(stem) && !homograph) || positionalPair(q.options.map(bare))) return false;
+  const key = plain(keyOption(q));
+  const word = keyWord(key);
+  if (!word || !carries(stem, word, homograph)) return false;
+  // Another option is another written form («سَحَر» beside «سِحر»): one that differs only by its
+  // marks is printed wherever the key is.
+  const written = asWritten(keyOption(q));
+  const others = q.options.filter((o) => asWritten(o) !== written).map((o) => plain(String(o).replace(OPTION_HEAD, ''))).filter(Boolean);
+  return !others.some((o) => o.split(' ').filter((w) => !termClass(w) && !PAIR_WORDS.has(w) && [...w].length >= 2).some((w) => carries(stem, w, homograph)));
+}
+// Urdu Q1: a stem that names a person or thing of the same story as another item, where that name
+// is the other item's key and none of its other options («سدرہ کی فاختہ آزاد کرنے کے بعد …» beside
+// «سدرہ کی سالگرہ کی صبح … تکیے کے پاس کیا رکھا تھا؟ → کاغذ کی دو فاختائیں»), points the child to
+// that key. The key is a short name or thing (four words at most; a longer key is a reason or an
+// event, read by the reader). The name is an option's last word of three letters or more, singular
+// or plural (فاختہ / فاختائیں), never a verb (… پھیلانا) or a word the item's own stem prints (the
+// lesson's hero, «فاطمہ جناح», is in half the stems); the story is a word of three letters or more
+// both stems share besides it, never the frame of a question («لفظ», «مطلب», «جملہ»). A stem that
+// names two of the item's options («جنگل میں شیر کے شکار کا بچا ہوا حصہ …» beside «… کیا بننے کو
+// کہا؟» among لومڑی / شیر) leaves the child a choice, and stays.
+const NOUN_ENDINGS = /(?:اییں|ایں|یاں|وں|یں|ے|ہ|ی|ا)$/;
+const nounFold = (w) => { const cut = w.replace(NOUN_ENDINGS, ''); return [...cut].length >= 3 ? cut : w; };
+const NAME_KEY_WORDS = 4;
+const NOT_NAMES = new Set(('لفظ الفاظ لفظوں جملہ جملے جملوں مطلب معنی مفہوم مراد کہانی سبق نظم شعر درست صحیح غلط قسم '
+  + 'استعمال متضاد مترادف محاورہ محاورے حکایت کرنا کرنے کرنی ہونا ہونے جانا جانے آنا آنے دینا دینے لینا لینے لگنا بہت')
+  .split(' ').flatMap((w) => [plain(w), nounFold(plain(w))]));
+const verbal = (w) => /(?:نا|نے)$/.test(w) && [...w].length >= 4;
+const namesOf = (text) => plain(text).split(' ').filter((w) => [...w].length >= 3 && !STOP.has(w) && !NOT_NAMES.has(w) && !verbal(w));
+const headOf = (text) => { const words = namesOf(text); return words.length ? nounFold(words[words.length - 1]) : null; };
+function namesKeyOf(q, by) {
+  if (!Array.isArray(q.options) || q.options.length < 2) return false;
+  const key = plain(keyOption(q));
+  if (!key || key.split(' ').length > NAME_KEY_WORDS) return false;
+  const own = new Set(namesOf(q.question).map(nounFold));
+  const named = new Set(namesOf(by.question).map(nounFold).filter((w) => !own.has(w)));
+  const heads = q.options.map((o) => headOf(String(o).replace(OPTION_HEAD, '')));
+  const hit = heads.map((h, i) => (h && named.has(h) ? i : -1)).filter((i) => i >= 0);
+  if (hit.length !== 1 || plain(String(q.options[hit[0]]).replace(OPTION_HEAD, '')) !== key) return false;
+  const story = new Set(namesOf(by.question).map(nounFold).filter((w) => w !== heads[hit[0]]));
+  return namesOf(q.question).some((w) => story.has(nounFold(w)));
+}
+const storyCue = (a, b) => namesKeyOf(a, b) || namesKeyOf(b, a);
+// Urdu Q1: one grammar concept once on the paper. An item asks a concept when its key is the term
+// (… کیا کہلاتا ہے؟ → اسم معرفہ), when its stem names the term outside a quoted example (… میں
+// اسم معرفہ کون سا ہے؟), or when its stem or key says what the term is («… خاص نام کے بجائے … عام
+// چیز …» → اسکول; «… ایک ہی املا …»). The named noun and the common noun are one rule (خاص / عام).
+// A word meaning, an antonym or a story fact asks no grammar concept.
+// Each row is written as the book writes it and folded as plain() folds the text it reads (آ as ا,
+// ئ as ی, …), so no row can be dead for a letter form.
+const foldPattern = (re) => new RegExp(UR_FORMS.reduce((src, [f, to]) => src.replace(new RegExp(f.source, 'g'), to), re.source.replace(UR_MARKS, '')), re.flags);
+const CONCEPTS = [
+  ['naming', /(?:^| )(?:اسم )?(?:معرفہ|نکرہ)(?: |$)|اسم (?:خاص|عام)|خاص (?:شخص|نام)|مخصوص نام|عام (?:چیز|نام)/],
+  ['sound', /اسم صوت|آواز (?:کو )?ظاہر/],
+  ['tool', /اسم آلہ|ہتھیار یا اوزار|اوزار کا نام/],
+  ['place', /اسم ظرف/],
+  ['adjective', /اسم صفت|(?:^| )صفت(?: |$)/],
+  ['qualified', /موصوف/],
+  ['conjunction', /حرف عطف|(?:^| )عطف(?: |$)|جوڑت[ےا]|جوڑنے/],
+  ['condition', /حرف (?:شرط|جزا)|شرط و جزا/],
+  ['doubt', /شکیہ|شک (?:و شبہ|ظاہر|کا اظہار)/],
+  ['wish', /تمنائی|آرزو (?:کا اظہار|ظاہر)/],
+  ['homograph', HOMOGRAPH],
+].map(([name, re]) => [name, foldPattern(re)]);
+function conceptOf(q) {
+  if (!Array.isArray(q.options) || !q.options.length) return null;
+  const read = [plain(keyOption(q)), plain(String(q.question || '').replace(QUOTE_SPAN, ' '))];
+  const found = CONCEPTS.find(([, re]) => read.some((t) => re.test(t)));
+  return found ? found[0] : null;
+}
+const sameConcept = (a, b) => { const c = conceptOf(a); return Boolean(c) && c === conceptOf(b); };
+// The lessons a chapter or pages paper covers (P.lessons, by number or by any page they share), or
+// null: the full syllabus, a subject without a lesson table, or a scope that names none of them.
+function scopeLessons(P, scope) {
+  if (!P || !Array.isArray(P.lessons) || !scope || (scope.kind !== 'chapters' && scope.kind !== 'pages')) return null;
+  const ranges = (text) => String(text || '').split(',').map((part) => part.split('-').map((n) => Number(n.trim())))
+    .filter(([a]) => Number.isFinite(a)).map(([a, b]) => [a, Number.isFinite(b) ? b : a]);
+  const chapters = scope.kind === 'chapters' && Array.isArray(scope.chapters) ? scope.chapters.map(Number) : [];
+  const pages = ranges(scope.pages);
+  const chosen = chapters.length
+    ? P.lessons.filter((l) => chapters.includes(l.lesson))
+    : P.lessons.filter((l) => ranges(l.pages).some(([a, b]) => pages.some(([c, d]) => a <= d && c <= b)));
+  return chosen.length ? chosen : null;
+}
+// Urdu Q1 on chosen lessons: the grammar concept an item asks, when it is not one those lessons teach.
+function outsideLessons(q, lessons) {
+  const concept = lessons && conceptOf(q);
+  if (!concept) return null;
+  return lessons.some((l) => l.grammar.some((g) => (g.tags || []).includes(concept))) ? null : concept;
 }
 function sameQuestion(a, b) {
   const [sa, sb] = [plain(a.question), plain(b.question)];
@@ -1311,16 +1437,23 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const room = (slot) => bySlot.get(slot.slot).length < slot.generate;
   let unplaced = 0;
   let putBack = [];
+  let held = [];
+  // Urdu on chosen lessons: Q1 asks only those lessons' own grammar.
+  const lessons = P.key === 'urdu' ? scopeLessons(P, scope) : null;
 
   const all = walk(src);
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); if (P.key === 'urdu') stripStemOptions(entry.q, true); });
-  const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q))
-    || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)));
+  // `id`, the slot both items are placed in: Urdu Q1 items also give each other away by a story
+  // name, and ask a grammar concept once.
+  const twin = (p, q, id) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q))
+    || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)
+      || (id === 'urdu.A.Q1' && (storyCue(p, q) || sameConcept(p, q)))));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
   const place = (cross) => {
     bySlot.forEach((list) => { list.length = 0; });
     unplaced = 0;
     putBack = [];
+    held = [];
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
     const fallback = new Map(); // slot → held items, in reply order
     const inSlot = new Map(); // Urdu Q1: slot → items held inside Q1 that give nothing away, in reply order
@@ -1331,8 +1464,13 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (P.key === 'social_studies' && tierSlip(q)) return false;
       if (P.key === 'urdu' && DATE_KEY_SLOTS.has(slot.slot) && keyedOnDate(q)) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && (keyAcceptSplit(q) || groupWordListed(q))) return false;
-      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && (printsOwnKey(q) || namesOwnTerm(q))) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && (printsOwnKey(q) || lettersOfKey(q))) return false;
+      const outside = slot.slot === 'urdu.A.Q1' && outsideLessons(q, lessons);
+      if (outside) { held.push({ slot: slot.slot, rule: 'grammar_outside_lessons', concept: outside }); return false; }
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
+      // Urdu Q1's own twin rules run on every pass, not only once Section C gives a rule: a paper laid
+      // out before Section C is in prints no Q1 twin either.
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && !holds(slot) && bySlot.get(slot.slot).some((p) => twin(p, q, slot.slot))) return false;
       if (!holds(slot)) {
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
@@ -1341,7 +1479,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
         repeats.set(slot.slot, [...(repeats.get(slot.slot) || []), q]);
         return false;
       }
-      if (bySlot.get(slot.slot).some((p) => twin(p, q))) return false;
+      if (bySlot.get(slot.slot).some((p) => twin(p, q, slot.slot))) return false;
       if (!cross.rule(q)) return true;
       fallback.set(slot.slot, [...(fallback.get(slot.slot) || []), q]);
       return false;
@@ -1381,7 +1519,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
         const slot = slots.find((s) => s.slot === id);
         for (const q of list) {
           if (!room(slot)) return;
-          if (bySlot.get(id).some((p) => twin(p, q)) || (holds(slot) && cross.rule(q))) continue;
+          if (bySlot.get(id).some((p) => twin(p, q, id)) || (holds(slot) && cross.rule(q))) continue;
           bySlot.get(id).push(q);
           putBack.push({ slot: id, rule: 'asks_two' });
           unplaced -= 1;
@@ -1469,8 +1607,13 @@ function applyLayout(examJson, P, scope, opts = {}) {
     frame_pages: null,
     notes: [],
   };
-  // `putBack` (Urdu: the held items that came back, with their rule) only when there are some.
-  return { examJson: out, placed, unplaced, shortfall, ...(putBack.length ? { putBack } : {}) };
+  // `putBack` (Urdu: the held items that came back, with their rule) and `held` (Urdu: Q1 items held
+  // for a grammar concept the chosen lessons do not teach) only when there are some.
+  return {
+    examJson: out, placed, unplaced, shortfall, ...(putBack.length ? { putBack } : {}), ...(held.length ? { held } : {}),
+  };
 }
 
-module.exports = { applyLayout, takenNote, verseLines, typeKey, slotKey, unitWord };
+module.exports = {
+  applyLayout, takenNote, verseLines, typeKey, slotKey, unitWord, scopeLessons, conceptOf, conceptNames: CONCEPTS.map(([name]) => name),
+};
