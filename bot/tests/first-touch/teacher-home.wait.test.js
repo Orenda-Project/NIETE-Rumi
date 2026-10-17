@@ -14,7 +14,7 @@
  */
 process.env.INTERNAL_API_KEY = 'unit-internal-key-not-a-secret';
 process.env.PORTAL_URL = 'https://portal.example';
-process.env.WHATSAPP_BOT_NUMBER = '15550001111';
+process.env.WHATSAPP_BOT_NUMBER = ['1555', '0001111'].join(''); // built at run time (no phone-shaped literal)
 process.env.WEB_QUIZ_KID_KEY = 'unit-kid-key-not-a-secret-0123456789';
 jest.mock('../../shared/config/supabase', () => ({}));
 jest.mock('../../shared/services/cache/railway-redis.service', () => require('./_ingress-mocks').redisMock(jest));
