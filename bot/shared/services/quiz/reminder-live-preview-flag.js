@@ -8,6 +8,7 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const FoldFlag = require('./report-fold-flag');
 
 const KEY = 'quiz_reminder_live_preview';
 const TTL_MS = 30 * 1000;
@@ -32,7 +33,27 @@ async function on(now = Date.now()) {
   }
 }
 
+/**
+ * The quiz report's two switches in ONE app_settings read: `.in('key', [quiz_report_fold_by_child, this key])`, which
+ * fills both caches, so the report reads app_settings as often as it did before this switch. A failed shared read
+ * falls back to each switch's own read, so one key's failure never turns the other off; each failed read is OFF.
+ * → { fold, live } (both booleans). Never throws.
+ */
+async function withFold(now = Date.now()) {
+  if (cache && now - cache.at < TTL_MS) return { fold: await FoldFlag.on(now), live: cache.on };
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FoldFlag.KEY, KEY]);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    const by = new Map((data || []).map((r) => [r.key, r.value]));
+    const fold = FoldFlag.prime(by.get(FoldFlag.KEY), now);
+    cache = { at: now, on: isTrue(by.get(KEY)) };
+    return { fold, live: cache.on };
+  } catch (_) {
+    return { fold: await FoldFlag.on(now), live: await on(now) };
+  }
+}
+
 /** Tests only: forget the cached reading. */
 function reset() { cache = null; }
 
-module.exports = { on, reset, isTrue, KEY, TTL_MS };
+module.exports = { on, withFold, reset, isTrue, KEY, TTL_MS };

@@ -541,7 +541,9 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const lang = clampLanguage(quiz.language);
   const primary = sent ? codes.slice().sort(newestFirst)[0] || null
     : codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
-  const foldOn = await FoldFlag.on();
+  // the fold switch and the reminder's live-preview switch: one shared settings read
+  const switches = await LivePreviewFlag.withFold();
+  const foldOn = switches.fold;
   const who = await whoFor(teacherId, quiz, primary, listId, counted, lang, { foldOn });
   const { counting, provisionalRaw, facts, listedIds } = await onePerChildOffList(counted, who, quiz.id, foldOn);
   const played = counting.map((s) => {
@@ -579,7 +581,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
 
   // quiz_reminder_live_preview (off by default): the reminder's link previews as the live class picture. A quiz only
   // (a story's preview stays the story's), once a child has played.
-  const reminderLink = link && quiz.quiz_source !== 'story' && played.length > 0 && await LivePreviewFlag.on()
+  const reminderLink = link && quiz.quiz_source !== 'story' && played.length > 0 && switches.live
     ? withLivePlayed(link, played.length) : link;
 
   const report = {

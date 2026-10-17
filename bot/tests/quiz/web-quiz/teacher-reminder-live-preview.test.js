@@ -18,6 +18,7 @@ jest.mock('express', () => jest.requireActual('express'), { virtual: true });
 
 const crypto = require('crypto');
 const { makeFake } = require('./fake-supabase');
+const { throwOn } = require('../../helpers/switch-off-matrix');
 
 const KEY = 'quiz_reminder_live_preview';
 const TEACHER = '11111111-1111-4111-8111-111111111111';
@@ -61,6 +62,15 @@ function seed({ played = 12, setting, source = 'transcript', link = LINK, messag
   return fake;
 }
 
+/** Count the report's reads: every from() call, and the app_settings ones. */
+function countReads() {
+  const sb = require('../../../shared/config/supabase');
+  const inner = sb.from;
+  const n = { all: 0, settings: 0 };
+  sb.from = (table) => { n.all += 1; if (table === 'app_settings') n.settings += 1; return inner(table); };
+  return n;
+}
+
 const linkIn = (text) => (String(text).match(/https?:\/\/\S+/) || [null])[0];
 
 let Data;
@@ -89,7 +99,7 @@ describe('switch on: the quiz reminder link carries ?v=<played>', () => {
   });
 
   test('a link that already names a v, a fragment, or is not a /q/<CODE> page is left as it is', async () => {
-    for (const link of [`${LINK}?v=7`, `${LINK}#top`, 'https://wa.me/923000000000?text=QUIZ-AB12CD', 'https://portal.example.test/r/AB12CD']) {
+    for (const link of [`${LINK}?v=7`, `${LINK}#top`, 'https://wa.me/+92300FIXTURE1?text=QUIZ-AB12CD', 'https://portal.example.test/r/AB12CD']) {
       jest.resetModules();
       Data = require('../../../shared/services/quiz/teacher-report.data');
       seed({ played: 4, setting: true, link });
@@ -163,7 +173,7 @@ describe('switch off (key absent): byte-identical to today', () => {
     [{ topic: 'Plants', link: LINK, language: 'en', played: 12, of: 20, className: '5-A' }, 'aae999bb126391c81611b4359c6a38a1b136dc7858007b6c70b06c60e3b24753'],
     [{ topic: 'کسر', link: LINK, language: 'ur', played: 12, of: 31, className: '5-A' }, 'b49673d6f23e1d7fcfc8138102934d2c57f5f7f7718c481fc1acf5ece295369b'],
     [{ topic: 'Plants', link: LINK, language: 'en', played: 0, of: 6, className: '4-A' }, '64ee83fd93cd689b1995c6abfdb93c075ca27ba6d2e2dbd3672e82f5056c438b'],
-    [{ topic: 'Plants', link: 'https://wa.me/923000000000?text=QUIZ-AB12CD', language: 'en' }, 'bd93f2e8828113bf89cef0a8d9859e05a3a85606f48008e29779c385fb1b2524'],
+    [{ topic: 'Plants', link: 'https://wa.me/+92300FIXTURE1?text=QUIZ-AB12CD', language: 'en' }, 'e8363e854b82d67bc012b7ef35b39a8136349d987719781be495593f73d80e55'],
   ];
   test.each(FIXTURES.map((f, i) => [i + 1, ...f]))('reminderText fixture %i', (_, args, gold) => {
     expect(sha(Data.reminderText(args))).toBe(gold);
@@ -172,6 +182,44 @@ describe('switch off (key absent): byte-identical to today', () => {
   test('quizReport\'s reminder, key absent: today\'s text', async () => {
     seed({ played: 12 });
     const r = await Data.quizReport(TEACHER, QUIZ);
+    expect(r.reminder.text).toBe('📣 12 of 20 in 5-A have played *Plants* — your turn! Tap the link and play today: https://portal.example.test/q/AB12CD');
+  });
+});
+
+describe('switch off: the report reads what it read before this switch', () => {
+  // Recorded on the code before this switch, a cold quizReport (fresh caches): 2 app_settings reads
+  // (quiz_slo_retest_enabled, quiz_report_fold_by_child) and these from() calls in all.
+  const BASE = { settings: 2, all: { 12: 14, 0: 13 } };
+  test.each([
+    ['absent', undefined, 12], ['false', false, 12], ['the string "true"', 'true', 12],
+    ['absent', undefined, 0], ['false', false, 0], ['the string "true"', 'true', 0],
+  ])('key %s, %i played, cold: the same settings reads and from() calls as before', async (_, value, played) => {
+    seed({ played, setting: value });
+    const n = countReads();
+    const r = await Data.quizReport(TEACHER, QUIZ);
+    expect(linkIn(r.reminder.text)).toBe(LINK);
+    expect(n.settings).toBe(BASE.settings);
+    expect(n.all).toBe(BASE.all[played]);
+  });
+
+  test('switch on, 12 played, cold: still 2 settings reads (the switch rides the report\'s settings read)', async () => {
+    seed({ played: 12, setting: true });
+    const n = countReads();
+    const r = await Data.quizReport(TEACHER, QUIZ);
+    expect(linkIn(r.reminder.text)).toBe(`${LINK}?v=12`);
+    expect(n.settings).toBe(BASE.settings);
+    expect(n.all).toBe(BASE.all[12]);
+  });
+});
+
+describe('a failed read of the switch is off', () => {
+  test('the switch row is true but its read fails: no v, the report still comes back', async () => {
+    seed({ played: 12, setting: true });
+    const sb = require('../../../shared/config/supabase');
+    sb.from = throwOn(sb.from, KEY);
+    const r = await Data.quizReport(TEACHER, QUIZ);
+    expect(r.summary.played).toBe(12);
+    expect(linkIn(r.reminder.text)).toBe(LINK);
     expect(r.reminder.text).toBe('📣 12 of 20 in 5-A have played *Plants* — your turn! Tap the link and play today: https://portal.example.test/q/AB12CD');
   });
 });

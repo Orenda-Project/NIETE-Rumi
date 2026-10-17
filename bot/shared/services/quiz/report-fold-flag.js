@@ -31,7 +31,13 @@ async function on(now = Date.now()) {
   }
 }
 
+/** Fill the cache from a shared app_settings read that carried this key (`value` = that row's value, undefined if absent). */
+function prime(value, now = Date.now()) {
+  cache = { at: now, on: isTrue(value) };
+  return cache.on;
+}
+
 /** Tests only: forget the cached reading. */
 function reset() { cache = null; }
 
-module.exports = { on, reset, isTrue, KEY, TTL_MS };
+module.exports = { on, prime, reset, isTrue, KEY, TTL_MS };
