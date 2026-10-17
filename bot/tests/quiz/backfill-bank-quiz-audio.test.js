@@ -189,6 +189,16 @@ describe('--one-voice: the parts the bank recorded are recorded in the quiz voic
     expect(tts.synthesize).not.toHaveBeenCalled();
     expect(again.r).toMatchObject({ done: 0, skipped: 1 });
   });
+  test('--plan \'<json>\': records under exactly the switch value it names (voice, rate) and stamps that plan; not JSON is refused', async () => {
+    const value = { voices: { en: { provider: 'elevenlabs', voice: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica', model: 'eleven_v4' } }, kbps: 32 };
+    const db = fakeDb(world());
+    await run(['--expect-ref', REF, '--limit', '1', '--apply', '--plan', JSON.stringify(value)], { db });
+    tts.synthesize.mock.calls.forEach((c) => expect(c[0]).toMatchObject({ voice: 'cgSgspJ2msm6clMCkdW9', outputFormat: 'opus_48000_32' }));
+    expect(tts.synthesize).toHaveBeenCalled();
+    const stamped = db.writes.filter((x) => x.id === 'q-g3sci-2').pop().v.meta.web_one;
+    expect(stamped.audio_one).toBe(require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(value).sig);
+    await expect(run(['--expect-ref', REF, '--plan', 'true-ish'], { db })).rejects.toThrow(/no voice plan/);
+  });
   test('without it, the same quiz is current and nothing is recorded (today)', async () => {
     const w = world();
     w.quizzes.find((q) => q.id === 'q-g3sci-2').meta = { web: { audio_v: Publish.AUDIO_VERSION, audio_voice: 'sx-grace', audio: {} } };

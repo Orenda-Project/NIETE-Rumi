@@ -5,8 +5,14 @@
  *   true                                  every spoken line in the one voice of web-quiz-voice.js ONE_VOICE
  *   { "voices": { "en": { "provider": "elevenlabs", "voice": "<id>", "name": "Bella", "model": "eleven_v4" },
  *                 "ur": { ... } },        the voice per language (a language left out, or invalid, takes ONE_VOICE's)
- *     "bank": ["q", "opts", "why"] }      the parts still served from the bank's own recordings of people
+ *     "bank": ["q", "opts", "why"],       the parts still served from the bank's own recordings of people
  *                                         (a subset; default none): every other line is the plan's voice
+ *     "kbps": 32 }                        the clip's rate, asked of the provider in the same generation (32 or 64,
+ *                                         default 64): never a second encode
+ *
+ * A voice's `settings` are the provider's own (ElevenLabs: stability, …, `speed` for a slower delivery). The stamp
+ * (`sig`) names every voice's tag, model and settings, the bank parts and the rate, so a change to any of them
+ * records the quiz again.
  *
  * A library (video-bank) quiz carries the bank's own recordings of people for its questions and, for some, its
  * options and explanation; every other line of the quiz is the quiz voice (web-quiz-voice.js). Served together, a
@@ -17,7 +23,8 @@
  * boot `one_voice`, `voice_sets`). A listen item's sound to identify (`stim`) is the question's material and is
  * always the recording.
  *
- * Off: an absent row, `false`, `{ "enabled": false }`, any other value and a failed read. 30 s cache.
+ * Off: an absent row, `false`, `{ "enabled": false }`, a string (the JSON string "true" too), any other value and a
+ * failed read. 30 s cache.
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
@@ -27,14 +34,10 @@ const KEY = 'web_quiz_one_voice';
 const TTL_MS = 30 * 1000;
 const BANK_PARTS = Object.freeze(['q', 'opts', 'why']);
 const PROVIDERS = Object.freeze(['elevenlabs', 'soniox']);
+const KBPS = Object.freeze([32, 64]);
+const DEFAULT_KBPS = 64;
 let cache = null; // { at, plan }
 
-function parse(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
-  if (typeof v === 'string' && v.trim().toLowerCase() === 'true') return true;
-  return v;
-}
 
 function voiceOf(raw, lang) {
   const base = Voice.ONE_VOICE[lang];
@@ -47,21 +50,31 @@ function voiceOf(raw, lang) {
   return Object.freeze(v);
 }
 
-/** The plan a switch value names, or null (off). Pure. */
+/** The plan a switch value names, or null (off). A string (the JSON string "true" too) is off, as for every switch. Pure. */
 function normalize(value) {
-  const v = parse(value);
-  if (v === true) return withSig({ voices: { en: Voice.ONE_VOICE.en, ur: Voice.ONE_VOICE.ur }, bank: [] });
+  const v = value;
+  if (v === true) return withSig({ voices: { en: Voice.ONE_VOICE.en, ur: Voice.ONE_VOICE.ur }, bank: [], kbps: DEFAULT_KBPS });
   if (!v || typeof v !== 'object' || Array.isArray(v) || v.enabled === false) return null;
   const voices = v.voices && typeof v.voices === 'object' ? v.voices : {};
   const bank = Array.isArray(v.bank) ? BANK_PARTS.filter((p) => v.bank.includes(p)) : [];
-  return withSig({ voices: { en: voiceOf(voices.en, 'en'), ur: voiceOf(voices.ur, 'ur') }, bank });
+  const kbps = KBPS.includes(Number(v.kbps)) ? Number(v.kbps) : DEFAULT_KBPS;
+  return withSig({ voices: { en: voiceOf(voices.en, 'en'), ur: voiceOf(voices.ur, 'ur') }, bank, kbps });
 }
 
-// The plan's stamp: its voice per language (by tag) and its bank parts. A quiz recorded under another plan is
-// recorded again; clips of an unchanged voice keep their keys, so only what changed is paid for.
+// How a voice is rendered (its model and settings, keys sorted), short: part of the stamp and of a clip's key.
+function renderOf(voice) {
+  const v = voice || {};
+  const settings = v.settings && typeof v.settings === 'object'
+    ? Object.keys(v.settings).sort().reduce((o, k) => ({ ...o, [k]: v.settings[k] }), {}) : null;
+  return crypto.createHash('sha1').update(JSON.stringify([v.model || null, settings])).digest('hex').slice(0, 6);
+}
+
+// The plan's stamp: its voice per language (by tag, model and settings), its bank parts and its rate. A quiz recorded
+// under another plan is recorded again; clips of an unchanged voice keep their keys, so only what changed is paid for.
 function withSig(plan) {
+  const voice = (lang) => [Voice.tagOf(plan.voices[lang]), renderOf(plan.voices[lang])];
   const sig = crypto.createHash('sha1')
-    .update(JSON.stringify({ en: Voice.tagOf(plan.voices.en), ur: Voice.tagOf(plan.voices.ur), bank: plan.bank }))
+    .update(JSON.stringify({ en: voice('en'), ur: voice('ur'), bank: plan.bank, kbps: plan.kbps }))
     .digest('hex').slice(0, 10);
   return Object.freeze({ ...plan, sig });
 }
@@ -99,7 +112,28 @@ function keepFresh() {
   if (fresh.unref) fresh.unref();
 }
 
+// A generated clip's voice is in its key: `<part>-<tag>-<hash8>.ogg` (web-quiz-audio-store.js clipKey).
+const TAG_RX = /\/[a-z0-9]+-((?:sx|el|oa)-[a-z0-9]+)-[0-9a-f]{8}\.ogg(?:[?#]|$)/;
+
+/**
+ * The voices a served page carries, for the voice-mix alarm (web_quiz.voice_mix): the tags of its clips (every spoken
+ * line, never the sound to identify) and of the shared-line set it plays, sorted. A clip that names no quiz voice is a
+ * kept bank recording, which the plan expects, so it is not a voice of the mix. → { tags, mixed }. Pure.
+ */
+function mixOf(audio, { sharedTag = null } = {}) {
+  const tags = new Set(sharedTag ? [sharedTag] : []);
+  Object.values(audio || {}).forEach((a) => {
+    if (!a || typeof a !== 'object') return;
+    [a.q, ...(a.opts || []), a.why, ...(a.fbs || []), a.hint].forEach((u) => {
+      const m = typeof u === 'string' ? TAG_RX.exec(u) : null;
+      if (m) tags.add(m[1]);
+    });
+  });
+  const sorted = [...tags].sort();
+  return { tags: sorted, mixed: sorted.length > 1 };
+}
+
 /** Tests only: forget the cached reading. */
 function reset() { cache = null; }
 
-module.exports = { on, plan, normalize, current, currentPlan, keepFresh, reset, KEY, TTL_MS, BANK_PARTS };
+module.exports = { on, plan, normalize, renderOf, mixOf, current, currentPlan, keepFresh, reset, KEY, TTL_MS, BANK_PARTS, KBPS };

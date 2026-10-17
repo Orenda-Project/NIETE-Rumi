@@ -44,3 +44,15 @@ test('a caller that pins nothing sends exactly what it sent before (no model, la
   expect(body().model_id).toBe('eleven_v3');
   expect(url()).not.toContain('hpp4J3VqNfWAUOO0d1Us');
 });
+
+test('a pinned voice may ask the provider for its own smaller format (one generation, no second encode); anything else is 64 kb/s', async () => {
+  const v = Voice.quizVoice('en', { oneVoice: true });
+  const call = (outputFormat) => tts.synthesize({
+    text: 'Which month comes after January?', language: 'en', useCase: 'reading', site: 'web_quiz_read_aloud',
+    provider: v.provider, voice: v.voice, model: v.model, voiceSettings: v.settings, outputFormat,
+  });
+  await call('opus_48000_32');
+  await call('wav_99');
+  expect(url(0)).toBe(`https://api.elevenlabs.io/v1/text-to-speech/${v.voice}?output_format=opus_48000_32`);
+  expect(url(1)).toBe(`https://api.elevenlabs.io/v1/text-to-speech/${v.voice}?output_format=opus_48000_64`);
+});

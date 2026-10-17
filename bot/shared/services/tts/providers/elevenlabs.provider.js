@@ -30,7 +30,7 @@ function createElevenLabsProvider({ env = process.env, service } = {}) {
     isConfigured: () => Boolean(env.ELEVENLABS_API_KEY),
     supports: (language) => Boolean(voiceModel(language)),
     voiceFor: (language) => (voiceModel(language) || {}).voiceId || null,
-    async synthesize({ text, language, useCase, voice, model: modelId, voiceSettings }) {
+    async synthesize({ text, language, useCase, voice, model: modelId, voiceSettings, outputFormat }) {
       const model = voiceModel(language);
       // The Urdu voice renders bare digits as gibberish and reads Markdown
       // markers aloud; the clean-up has run on this path since it was chosen.
@@ -38,7 +38,7 @@ function createElevenLabsProvider({ env = process.env, service } = {}) {
       // A caller that pins a voice (the web quiz's one voice, web-quiz-voice.js) gets that voice, model and
       // settings, with the language named to the model; every other call is exactly as before.
       if (voice && modelId) {
-        const audio = await elevenLabs().generateSpeechWithVoice(textSent, voice, language, voiceSettings, { modelId, languageCode: language });
+        const audio = await elevenLabs().generateSpeechWithVoice(textSent, voice, language, voiceSettings, { modelId, languageCode: language, outputFormat });
         return { audio, voice, model: modelId, parts: 1, attempts: 1, textSent, dropped: [] };
       }
       const settings = useCase === 'video' ? { ...VIDEO_VOICE_SETTINGS } : undefined;

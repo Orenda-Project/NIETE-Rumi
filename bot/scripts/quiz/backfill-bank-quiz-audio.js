@@ -49,7 +49,9 @@ function parseArgs(argv) {
     else if (a === '--one-voice') args.oneVoice = args.oneVoice || true;
     else if (a === '--plan') {
       // the switch's value to record under (web-quiz-one-voice-flag.js), as JSON; implies --one-voice
-      const plan = require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(next());
+      let value = null;
+      try { value = JSON.parse(next()); } catch (_) { value = null; }
+      const plan = require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(value);
       if (!plan) throw new Error('--plan names no voice plan');
       args.oneVoice = plan;
     }

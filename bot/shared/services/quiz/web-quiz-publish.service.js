@@ -90,9 +90,10 @@ function clipCostUsd(res, text) {
 // in another format gets new clips on its next publish.
 const CLIP_KBPS = 24;
 const CLIP_FORMAT = `opus${CLIP_KBPS}m`;
-// The one voice's clips (web-quiz-one-voice-flag.js) are the provider's own bytes (Ogg Opus 48 kHz 64 kb/s), never
-// re-encoded: a second encode at 24 kb/s is the loss the storybook voice-overs dropped (Oct 2026). Its own format tag.
-const ONE_FORMAT = 'opus64';
+// The one voice's clips (web-quiz-one-voice-flag.js) are the provider's own bytes (Ogg Opus 48 kHz at the plan's
+// rate, 64 or 32 kb/s), never re-encoded: a second encode at 24 kb/s is the loss the storybook voice-overs dropped
+// (Oct 2026). Their format tag names the rate and the voice's rendering, so a change of either gets new clips.
+const oneFormat = (plan, voice) => `opus${plan.kbps || 64}.${OneVoice.renderOf(voice)}`;
 // ElevenLabs v4 as the team's spend log counts it, for the one voice's clips (the estimate the backfill stops on).
 const ONE_USD_PER_CHAR = 0.30 / 1000;
 
@@ -337,7 +338,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     // Never a clip in no quiz voice: it would be a second voice beside the shared lines.
     if (!voice) return done({ ok: false, reason: 'no_voice', language: language || null });
     const voiceTag = Voice.voiceTag(language, { oneVoice: one });
-    const format = one ? ONE_FORMAT : CLIP_FORMAT;
+    const format = one ? oneFormat(one, voice) : CLIP_FORMAT;
     const slot = one ? 'web_one' : 'web';
     const bucket = Store.quizAudioBucket();
     const env = Store.deployEnv();
@@ -392,7 +393,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
         try {
           const res = await tts.synthesize({
             text, language, useCase: 'reading', site: 'web_quiz_read_aloud', ...(voice ? { provider: voice.provider, voice: voice.voice } : {}),
-            ...(one ? { model: voice.model, voiceSettings: voice.settings } : {}),
+            ...(one ? { model: voice.model, voiceSettings: voice.settings, outputFormat: `opus_48000_${one.kbps || 64}` } : {}),
           });
           const clip = one ? res.audio : await compactClip(res.audio);
           await r2.uploadBuffer(clip, key, 'audio/ogg', { bucket });

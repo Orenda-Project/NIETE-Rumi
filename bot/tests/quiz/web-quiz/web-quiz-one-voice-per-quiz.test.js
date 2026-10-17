@@ -314,7 +314,10 @@ describe('the switch value is the voice plan', () => {
   const PLAN = { voices: { en: JESSICA }, bank: ['q', 'opts'] };
   test('normalize: true is the default plan; an object names voices and bank parts; anything else is off', () => {
     expect(OneVoice.normalize(true)).toMatchObject({ voices: { en: Voice.ONE_VOICE.en, ur: Voice.ONE_VOICE.ur }, bank: [] });
-    expect(OneVoice.normalize(JSON.stringify(PLAN))).toMatchObject({ voices: { en: { voice: JESSICA.voice, model: 'eleven_v4' }, ur: Voice.ONE_VOICE.ur }, bank: ['q', 'opts'] });
+    // A string row is OFF, as under every switch reader of the app (the JSON string "true" too); the CLI parses first.
+    expect(OneVoice.normalize('true')).toBe(null);
+    expect(OneVoice.normalize(JSON.stringify(PLAN))).toBe(null);
+    expect(OneVoice.normalize(JSON.parse(JSON.stringify(PLAN)))).toMatchObject({ voices: { en: { voice: JESSICA.voice, model: 'eleven_v4' }, ur: Voice.ONE_VOICE.ur }, bank: ['q', 'opts'] });
     expect(OneVoice.normalize({ voices: { en: { provider: 'nope', voice: 'x' } }, bank: ['q', 'stim', 'x'] })).toMatchObject({ voices: { en: Voice.ONE_VOICE.en }, bank: ['q'] });
     [false, null, 'yes', 1, [], { enabled: false }].forEach((v) => expect(OneVoice.normalize(v)).toBe(null));
   });
@@ -342,5 +345,72 @@ describe('the switch value is the voice plan', () => {
     expect(web.audio[QID2].q).toMatch(/q-el-jessica-/);
     expect(web.audio_one).toBe(plan.sig);
     expect(Publish.isCurrent(web, { oneVoice: plan })).toBe(true);
+  });
+});
+
+describe('the voice-mix alarm: web_quiz.voice_mix when a served page carries more than one voice', () => {
+  const { logEvent } = require('../../../shared/utils/structured-logger');
+  const mixLines = () => logEvent.mock.calls.filter(([name]) => name === 'web_quiz.voice_mix').map(([, f]) => f);
+  const PLAN = { voices: { en: JESSICA }, bank: ['q', 'opts'] };
+  beforeEach(() => { logEvent.mockClear(); process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(32); });
+
+  test('a page whose clips are in two voices logs once: the quiz key (never its id), the tags, the kept bank parts', async () => {
+    const mixed = { [CHECKED.id]: gen(CHECKED.id, TAG), [QID2]: gen(QID2, 'el-jessica') };
+    await page(ROWS(), mixed, { flag: true });
+    const lines = mixLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toEqual({ qk: expect.any(String), tags: ['el-bella', 'el-jessica'], bank: [] });
+    expect(JSON.stringify(lines[0])).not.toContain(QUIZ);
+  });
+
+  test('the plan\'s own mix (the people\'s recordings it keeps + its voice) logs nothing', async () => {
+    await page(ROWS(), GENERATED('el-jessica'), { flag: PLAN });
+    expect(mixLines()).toEqual([]);
+  });
+
+  test('one voice everywhere (clips + shared lines) logs nothing', async () => {
+    await page(ROWS(), GENERATED(), { flag: true });
+    expect(mixLines()).toEqual([]);
+  });
+
+  test('switch off: nothing, whatever the clips', async () => {
+    await page(ROWS(), { [CHECKED.id]: gen(CHECKED.id, TODAY), [QID2]: gen(QID2, 'el-jessica') }, { flag: false });
+    expect(mixLines()).toEqual([]);
+  });
+});
+
+describe('the plan names the clip\'s rate and the voice\'s delivery; a change of either records the quiz again', () => {
+  test('normalize: kbps 32 or 64 (default 64); each rate and each delivery is its own stamp', () => {
+    const p64 = OneVoice.normalize(true);
+    const p32 = OneVoice.normalize({ kbps: 32 });
+    const slow = OneVoice.normalize({ voices: { en: { ...Voice.ONE_VOICE.en, settings: { ...Voice.ONE_VOICE.en.settings, speed: 0.88 } } } });
+    expect(p64.kbps).toBe(64);
+    expect(p32.kbps).toBe(32);
+    expect(OneVoice.normalize({ kbps: 17 }).kbps).toBe(64);
+    expect(new Set([p64.sig, p32.sig, slow.sig]).size).toBe(3);
+  });
+
+  test('published at 32 kb/s: the provider is asked for it, the bytes are kept, and the keys are not the 64 kb/s clips\' keys', async () => {
+    const fake = seed(ROWS(), { flag: { kbps: 32 } });
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
+    expect([...new Set(tts.synthesize.mock.calls.map(([a]) => a.outputFormat))]).toEqual(['opus_48000_32']);
+    const k32 = fake.db.quizzes[0].meta.web_one.audio[QID2].q;
+    tts.synthesize.mockClear(); OneVoice.reset();
+    const fake64 = seed(ROWS(), { flag: true });
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake64.from } });
+    expect([...new Set(tts.synthesize.mock.calls.map(([a]) => a.outputFormat))]).toEqual(['opus_48000_64']);
+    expect(fake64.db.quizzes[0].meta.web_one.audio[QID2].q).not.toBe(k32);
+  });
+
+  test('a slower delivery (the voice\'s own speed) is sent to the voice and gets its own keys', async () => {
+    const slowEn = { ...Voice.ONE_VOICE.en, settings: { ...Voice.ONE_VOICE.en.settings, speed: 0.88 } };
+    const fake = seed(ROWS(), { flag: { voices: { en: slowEn } } });
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
+    expect(tts.synthesize.mock.calls[0][0].voiceSettings).toMatchObject({ speed: 0.88 });
+    const kSlow = fake.db.quizzes[0].meta.web_one.audio[QID2].q;
+    tts.synthesize.mockClear(); OneVoice.reset();
+    const fake2 = seed(ROWS(), { flag: true });
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake2.from } });
+    expect(fake2.db.quizzes[0].meta.web_one.audio[QID2].q).not.toBe(kSlow);
   });
 });

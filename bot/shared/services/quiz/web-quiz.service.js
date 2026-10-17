@@ -551,6 +551,13 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   if (!hit) {
     try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S, oneVoice }); } catch { /* the page reads aloud */ }
+    // The voice-mix alarm: a one-voice page that still carries two voices (clips of an older plan, a shared-line set
+    // in another voice). The plan's kept bank recordings are expected and do not count. A quiz key, never its id.
+    if (oneVoice) try {
+      const set = require('./web-quiz-voice').sharedSets(oneVoice)[voiceLang];
+      const mix = require('./web-quiz-one-voice-flag').mixOf(audio, { sharedTag: set ? set.path : null });
+      if (mix.mixed) logEvent('web_quiz.voice_mix', { qk: require('./web-quiz-kid').qk(ctx.quizId), tags: mix.tags, bank: [...oneVoice.bank] });
+    } catch { /* an alarm never breaks the page */ }
     if (helpers) {
       if (quizMediaCache.size >= QUIZ_MEDIA_CACHE_MAX) quizMediaCache.clear();
       quizMediaCache.set(mediaKey, { at: Date.now(), audio, video });
