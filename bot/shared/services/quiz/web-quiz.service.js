@@ -382,9 +382,10 @@ async function classChips(ctx) {
   const since = new Date(Date.now() - CHIP_WINDOW_DAYS * 86400000).toISOString();
   // A watch code's teacher is the watch root's: its other codes are strangers, so only this code's own players; the
   // root code itself is no class at all. Every other code of that teacher leaves the watch children's codes out.
-  const root = await IdRoster.watchRoot();
+  // One settings read for the whole call: a failed read is no class (a later good read must not open the pool).
+  const { root, unreadable } = await IdRoster.watchRootState();
   if (root && ctx.shareCodeId === root) return [];
-  const watch = await isWatchCode(ctx);
+  const watch = unreadable || await isWatchCode(ctx);
   const { data: codes } = watch ? { data: [] } : await dbRead('classChips:quiz_share_codes:1', (db) => {
     const q = db.from('quiz_share_codes').select(root ? 'id, parent_share_code_id' : 'id')
       .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since);
