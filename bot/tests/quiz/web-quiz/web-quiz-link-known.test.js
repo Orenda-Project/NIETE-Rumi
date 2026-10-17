@@ -325,6 +325,28 @@ describe('the one id the child is known by', () => {
     expect(db.quiz_sessions.filter((x) => x.student_id === OLD)).toHaveLength(0);
   });
 
+  test('a phone trusted with two records of the same child (the old one merged into the new) names that child ONCE', async () => {
+    seed({ canon: true });
+    await homeOpened([OLD]);
+    await homeOpened([SELF]);
+    const r = await known();
+    expect(r.kids).toEqual([{ chip: chip(SELF), first: 'Sadia', animal: T.animalFor(SELF) }]);
+  });
+
+  test('a "may this phone name them" check that fails drops only that child; the others are still named', async () => {
+    seed();
+    await homeOpened([SELF]);
+    await homeOpened([SIB]);
+    const real = HubDevice.deviceMayName;
+    const spy = jest.spyOn(HubDevice, 'deviceMayName').mockImplementation(async (ids, d) => {
+      if (ids.includes(SIB)) throw new Error('down');
+      return real(ids, d);
+    });
+    let r;
+    try { r = await known(); } finally { spy.mockRestore(); }
+    expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF)]);
+  });
+
   test('an Urdu class link shows the name as written in Urdu', async () => {
     seed();
     db.quiz_share_codes.find((c) => c.id === F.SC).language = 'ur';
