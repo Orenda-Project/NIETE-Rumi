@@ -256,9 +256,11 @@ function createRouter(deps = null) {
       if (on) ownSent.forEach((id) => { const u = Data.dep(deps, 'Gate').reportUrls({ teacherId: p.uid, quizId: id }); if (u) reports.set(id, { live: u.live, remind: u.remind }); });
     }
     const change = await changeLanding(user, lang);
+    // "Send again" only where the send would answer; a read that fails or runs late → offered as before (null)
+    const againable = await Data.within(Data.sendableOwn(p.uid, [...ownSent, ...played.keys()], deps), Data.SIDE_BUDGET_MS, null, 'send-again check');
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
-      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
+      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change, againable,
     });
     const walk = await walkRow(change, lang);
     if (walk) home.walk = walk;

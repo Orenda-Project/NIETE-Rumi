@@ -255,6 +255,25 @@ describe('the home after a send nobody played', () => {
     expect(home.timeline[0]).toMatchObject({ kind: 'coach', verb: 'again', id: OWN_QUIZ, sendKind: 'again', played: 0 });
   });
 
+  test('a row offers "Send again" only when the send would work: a quiz whose code has ended or has no stored message keeps its report, not the button', async () => {
+    seedSent();
+    fake.db.quiz_share_codes.find((c) => c.id === OWN_CODE).expires_at = new Date(Date.now() - 60000).toISOString();
+    await boot(deps);
+    const t = tokenFor();
+    const ended = await (await get(`/api/th/home?t=${t}`)).json();
+    expect(ended.timeline[0]).toMatchObject({ id: null, verb: null, sendKind: null });
+    expect(ended.primary.kind).not.toBe('class'); // no "No one has played — Send again" for a send that cannot be sent again
+    fake.db.quiz_share_codes.find((c) => c.id === OWN_CODE).expires_at = new Date(Date.now() + 86400000).toISOString();
+    delete fake.db.quizzes.find((q) => q.id === OWN_QUIZ).meta.student_message;
+    const nomessage = await (await get(`/api/th/home?t=${t}`)).json();
+    expect(nomessage.timeline[0]).toMatchObject({ verb: null, sendKind: null });
+    // every "Send again" the home offers is one the send answers
+    fake.db.quizzes.find((q) => q.id === OWN_QUIZ).meta.student_message = 'Class, play this quiz: https://portal.example/q/ABCDEF';
+    const live = await (await get(`/api/th/home?t=${t}`)).json();
+    expect(live.timeline[0]).toMatchObject({ verb: 'again', id: OWN_QUIZ, sendKind: 'again' });
+    expect((await post('/api/th/send', { t, kind: 'again', id: OWN_QUIZ })).status).toBe(200);
+  });
+
   test('"Send again" is refused for a quiz that is not this teacher\'s', async () => {
     seedSent({ owner: OTHER });
     await boot(deps);
