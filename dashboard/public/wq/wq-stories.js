@@ -431,11 +431,11 @@
         d = dims();
         sm = (p.lines || p.boxes_ok) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok; }) ? 'z' : tb && tb.box ? 'l' : 's';
       }
-      var bx = sm === 'l' && tb.box;
-      return '<div class="wqs-stage" data-stage><div class="wqs-cam" data-cam style="width:' + im.w + 'px;height:' + im.h + 'px">' + inner +
+      var bx = sm === 'l' && tb.box, wh = sm === 'z' || sm === 'l';
+      return '<div class="wqs-stage' + (wh ? ' wqs-st2' : '') + '" data-stage><div class="wqs-cam" data-cam style="width:' + im.w + 'px;height:' + im.h + 'px">' + inner +
         (bx ? img(tb.url, tb.w, tb.h, 'wqs-lens', ' style="left:' + bx[0] + 'px;top:' + bx[1] + 'px;width:' + bx[2] + 'px;height:' + bx[3] + 'px"') : '') +
-        (own() ? '<i class="wqs-mk" data-mk></i>' : '') + '</div>' +
-        (sm === 'z' || sm === 'l' ? '<button class="wqs-whole" data-whole data-tap="cam" aria-pressed="false">' + esc(t.whole) + '</button>' : '') + '</div>';
+        (own() ? '<i class="wqs-mk" data-mk></i>' : '') + '</div></div>' +
+        (wh ? '<button class="wqs-whole" data-whole data-tap="cam" aria-pressed="false">' + esc(t.whole) + '</button>' : '');
     }
     function own() { return sm && (sm !== 'z' || !sp.boxes_ok); }
     R.stage = stage;

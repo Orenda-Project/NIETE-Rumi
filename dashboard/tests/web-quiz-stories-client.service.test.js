@@ -556,6 +556,23 @@ describe('the reader', () => {
     expect(primaries(root.innerHTML)).toBe(0);
     expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
   });
+  test('the "Whole page" pill sits OUTSIDE the page (under the stage, at the end of the row), never over a word or a heading, in every state', async () => {
+    const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
+    // inside the stage the pill is the stage's last child (its </div> follows); outside, the next thing is the screen's own
+    const outside = (h) => { const m = /<button class="wqs-whole"[^>]*>[^<]*<\/button>(<\/div>)?/.exec(h); return !!m && !m[1]; };
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' } } } }); const root = await openReader(e, { lang });
+      expect(root.innerHTML).toContain('data-whole');
+      expect(outside(root.innerHTML)).toBe(true);                          // page view
+      fire(root, 'main');
+      expect(outside(root.innerHTML)).toBe(true);                          // listening
+      e.calls.ra[0].o.onEnd(); toMic(e, root); e.calls.ask[0] && e.calls.ask[e.calls.ask.length - 1].onStream({ id: 's' });
+      if (screenOf(root.innerHTML) === 'story-read') expect(outside(root.innerHTML)).toBe(true);   // reading
+      expect(root.innerHTML).toMatch(/class="wqs-stage wqs-st2" data-stage/);   // the stage gives up the pill's row
+    }
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect((/\.wqs-whole\{([^}]*)\}/.exec(css) || [])[1]).not.toMatch(/position:absolute/);
+  });
   test('the page-turn arrows are drawn chevrons (no text glyph a Nastaliq font turns into a bracket), the same in English and Urdu', async () => {
     for (const lang of ['en', 'ur']) {
       const e = env({ replies: { book: { status: 200, body: book({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } } }); const root = await openReader(e, { lang });

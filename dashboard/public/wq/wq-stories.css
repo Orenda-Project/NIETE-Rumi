@@ -46,7 +46,8 @@
 .wqs-cam .lr-box.lr-skipped{background:none;box-shadow:none;border-bottom:5px dashed #E65100;border-radius:0}
 .wqs-cam .lr-box.lr-cur,.wqs-cam .lr-box.lr-current{background:rgba(187,247,208,.3);outline:3px solid #15803D;border-radius:8px}
 .wqs-cam .lr,.wqs-cam .lr-ov{margin:0;padding:0}
-.wqs-whole{position:absolute;top:8px;right:8px;z-index:3;min-height:48px;border-radius:22px;padding:0 12px;background:rgba(255,255,255,.92);font-weight:700;box-shadow:0 2px 0 var(--line)}
+.wqs-whole{align-self:flex-end;min-height:44px;margin-top:-4px;border-radius:22px;padding:0 14px;background:#fff;font-weight:700;box-shadow:0 2px 0 var(--line)}
+.wqs-st2{height:calc(62vh - 52px)}
 .wqs-whole[aria-pressed=true]{background:#ffe26b}
 .wqs-slow{flex:none;min-height:48px;border-radius:24px;padding:0 10px;background:#f4f0e2;font-weight:700;font-size:15px}
 .wqs-slow[aria-pressed=true]{background:#d6f5e3;outline:3px solid var(--hl);outline-offset:-3px}
