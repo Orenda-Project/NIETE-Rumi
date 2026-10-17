@@ -564,6 +564,32 @@ describe('the reader', () => {
     toMic(e2, r2);
     expect(e2.calls.ask[0].notice).toEqual({ kid: KID, keep: true });
   });
+  test('the kept notice, told once: the page read after a sheet that showed it carries notice:2 (the server\'s record), the next read does not; never for "nothing kept" or with no notice shown', async () => {
+    const R5 = { words_total: 5, words_read: 5, skipped: 0, ms: 5000, ended: 'quiet', marks: ['read', 'read', 'read', 'read', 'read'] };
+    const reads = (e) => e.calls.posts.filter((x) => x.body.event === 'story_page_read').map((x) => x.body.data);
+    const e = env({ replies: { book: { status: 200, body: book({ lr3_keep: true }) } } }); const root = await openReader(e);
+    toMic(e, root);
+    e.calls.ask[0].notice.shown = 1;                               // the live reader showed it and the child tapped Start
+    e.calls.ask[0].onStream({});
+    e.calls.lr[0].o.onResult(R5);
+    expect(reads(e)[0].notice).toBe(2);
+    expect(e.calls.ask[0].notice.shown).toBe(0);
+    fire(root, 'main'); toMic(e, root);
+    e.calls.ask[1].onStream({});
+    e.calls.lr[e.calls.lr.length - 1].o.onResult(R5);
+    expect(reads(e)).toHaveLength(2);
+    expect(reads(e)[1]).not.toHaveProperty('notice');
+    const e2 = env(); const r2 = await openReader(e2);           // lr3_keep absent: the "nothing kept" words
+    toMic(e2, r2); e2.calls.ask[0].notice.shown = 1; e2.calls.ask[0].onStream({}); e2.calls.lr[0].o.onResult(R5);
+    expect(reads(e2)[0]).not.toHaveProperty('notice');
+    const e3 = env({ replies: { book: { status: 200, body: book({ lr3_keep: true }) } } }); const r3 = await openReader(e3);
+    toMic(e3, r3); e3.calls.ask[0].onStream({}); e3.calls.lr[0].o.onResult(R5);   // already seen on this phone: nothing shown
+    expect(reads(e3)[0]).not.toHaveProperty('notice');
+  });
+  test('the notice version the reader sends is the Trail\'s (TrailPage.NOTICE_V): a new notice wording moves both or the server ignores the field', () => {
+    const tp = fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'services', 'quiz', 'web-quiz-trail-page.js'), 'utf8');
+    expect(fs.readFileSync(QSRC, 'utf8').match(/d\.notice = (\d+);/)[1]).toBe(tp.match(/const NOTICE_V = (\d+);/)[1]);
+  });
   // the phone's microphone light: a stream whose tracks count their stops
   const micStream = (id) => { const tr = { stops: 0, stop() { tr.stops += 1; } }; return { id, tr, getTracks: () => [tr] }; };
   test('the microphone is given back the moment a page read ends (every track stopped); the next Your turn asks again', async () => {

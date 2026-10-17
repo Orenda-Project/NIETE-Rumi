@@ -264,7 +264,7 @@
       if (b) b.addEventListener('click', function () { if (o.onDenied) o.onDenied(why); });
     }
     el.querySelector('.lr-go').addEventListener('click', function () {
-      if (nt) noticeMark(nt.kid, !!nt.keep);
+      if (nt) { noticeMark(nt.kid, !!nt.keep); nt.shown = 1; }   // the host may tell its server once (the storybook's page read)
       var md = navigator.mediaDevices;
       if (!md || typeof md.getUserMedia !== 'function') { off('unsupported'); return; }
       setTimeout(function () { off('timeout'); }, MIC_WAIT_MS);
