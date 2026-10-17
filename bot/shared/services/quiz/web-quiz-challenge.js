@@ -2051,6 +2051,11 @@ async function readingOf(c, lang) {
   if (c.ex !== 'read' && c.ex !== 'listen') fail(400, 'bad_request');
   if (c.ex === 'read' && !(await questionsOn())) fail(503, 'questions_off');
   if (c.ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
+  return readingSpecOf(c, lang);
+}
+
+// The run, its row and its story (a v2 run's own passage), with no switch asked.
+async function readingSpecOf(c, lang) {
   const mem = RUNS.get(c.r) || {};
   const row = await storedRun(c.r);
   const run = await runFor(c, mem.task ? mem : {}, (row && row.lang) || mem.lang || lang);
@@ -2060,6 +2065,19 @@ async function readingOf(c, lang) {
   const sv = mem.v2 || (row && (isServedRow(row) || (await rulesOf()).v2) ? await servedInfo(c.r) : null);
   if (sv && sv.passage_id) return { run, row, mem, spec: { ...withPassage(spec, passageFor(sv.passage_id, Bank)), by_line: true } };
   return { run, row, mem, spec };
+}
+
+/**
+ * A reading's story length in words as the reading page counts them (its story.tokens; the same count the reached
+ * questions use), by the run's token: 0 for any other game or when it cannot be known. Never throws.
+ */
+async function readLength(ct) {
+  try {
+    const c = runOf(ct);
+    if (c.ex !== 'read') return 0;
+    const t = ((await readingSpecOf(c, null)).spec.story || {}).tokens;
+    return Array.isArray(t) ? t.length : 0;
+  } catch (_) { return 0; }
 }
 
 /**
@@ -2307,7 +2325,7 @@ const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsR
 Budget.countAlso(async (sinceIso) => ((await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0));
 
 module.exports = {
-  menu, exercise, entryOf, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
+  menu, exercise, entryOf, presignUpload, submit, poll, readLength, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, TRAIL_ORDER, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
