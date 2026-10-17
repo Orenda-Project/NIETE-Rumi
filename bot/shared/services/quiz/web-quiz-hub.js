@@ -176,7 +176,9 @@ async function recentCodes(teachers) {
 
 const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
 
-async function teacherCard(kidRow, list, history, grade, homeP = null, fast = false) {
+// reads (fast, the hub's parallel branches): filled with the codes and the quiz rows read here (with the home's
+// three columns, which the ranked next thing reads too: web-quiz-next-offer-sources.js).
+async function teacherCard(kidRow, list, history, grade, homeP = null, fast = false, reads = null) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
@@ -194,8 +196,10 @@ async function teacherCard(kidRow, list, history, grade, homeP = null, fast = fa
   const Home = require('./web-quiz-hub-home');
   const home = homeP ? (await homeP.flags).home === true : false;
   const quizIds = [...new Set([...listed.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
-  const cols = `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id${home ? `, ${Home.PREVIEW_COLS}` : ''}`;
+  // (fast: always, for the ranked next thing's `reads`; the payload reads them only with the home on)
+  const cols = `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id${home || reads ? `, ${Home.PREVIEW_COLS}` : ''}`;
   const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select(cols).in('id', quizIds));
+  if (reads && Array.isArray(quizzes)) Object.assign(reads, { codes: listed, ids: new Set(quizIds), rows: quizzes });
   const previews = home ? Home.storyPreviews(quizzes) : null;
   const open = previews && previews.size ? listed.filter((c) => !previews.has(c.quiz_id)) : listed;
   if (!open.length) return null;
@@ -444,23 +448,42 @@ async function lockedHub(ids, why, asked = null) {
 //   s.history, s.last0 (the last quiz, child home on), s.challengeP (the challenge grade, started above), s.runs (the
 //   child's Jugnu runs, read once; also the place for the reading rung, the passages seen and the child's classes when a
 //   branch needs them: read them ONCE into `s` beside runs, and pass them down), s.shadow (a copy of the payload that
-//   only keep-my-place writes). A branch must not write `out`; it returns its fields.
+//   only keep-my-place writes), s.collect (what Jugnu's corner learned, filled by the play branch), s.teacherReads (the
+//   teacher card's codes and quiz rows, filled by the teacher branch). A branch must not write `out`; it returns its
+//   fields; run(s, after) may wait for another branch's result with after(name).
 // With the switch off (or no child picked) each branch runs, one after another, at the place its result is read:
 // today's order of reads, byte for byte.
 const HUB_BRANCHES = [
   { name: 'extras', run: (s) => require('./web-quiz-bind-page').hubExtras(s.shadow, { token: s.token, chosen: s.chosen, rows: s.kidsRows, trust: s.trust, lang: s.lang, device: s.device, src: s.src, ...(s.par ? { canon: s.canon } : {}) }) },
-  { name: 'teacher', run: (s) => teacherCard(s.chosen, s.ctx.list, s.history, s.ctx.grade, s.homeP, s.par) },
+  { name: 'teacher', run: (s) => teacherCard(s.chosen, s.ctx.list, s.history, s.ctx.grade, s.homeP, s.par, s.par ? s.teacherReads : null) },
   { name: 'answered', run: (s) => (s.last0 && s.last0.state === 'open' ? answeredSoFar(s.history.find((e) => e.code === s.last0.code), s.last0.answered) : Promise.resolve(null)) },
   { name: 'recs', run: (s) => recsFor(s.chosen.id, s.history, s.ctx.grade, s.par) },
-  { name: 'play', run: (s) => s.challengeP.then((form) => require('./web-quiz-hub-play').playField({ chosenId: s.chosen.id, last: s.last0, lang: s.lang, challenge: form ? { on: true } : null, grade: s.ctx.grade, stopsOf: () => trailStops(form), ...(s.runs ? { runs: s.runs } : {}) })) },
+  { name: 'play', run: (s) => s.challengeP.then((form) => require('./web-quiz-hub-play').playField({ chosenId: s.chosen.id, last: s.last0, lang: s.lang, challenge: form ? { on: true } : null, grade: s.ctx.grade, stopsOf: () => trailStops(form), collect: s.collect, ...(s.runs ? { runs: s.runs } : {}) })) },
   { name: 'bits', run: (s) => require('./web-quiz-book').hubBits({ studentId: s.chosen.id, ...(s.runs ? { runs: s.runs } : {}) }) },
   // a place saved on a phone with no code hides the "keep my place" card (quiz_student_join); applied after keep my place
   { name: 'bound', run: (s) => require('./web-quiz-student-join').guestBound(s.chosen.id, { canon: s.canon }) },
   // Stories (web_quiz_stories): keyed on the child
   { name: 'stories', run: (s) => require('./web-quiz-stories').hubBits({ studentId: s.chosen.id }) },
+  // the ranked next thing's own reads (web_quiz_next_offer; null while it is off): the teacher card, the last quiz and
+  // Play again as hubPayload computes them, from the teacher branch; the rest needs only the child
+  { name: 'next', run: (s, after) => require('./web-quiz-next-offer-sources').hubPrep({ out: after('teacher').then((teacher) => cardsOf(s, teacher)),
+    token: s.token, history: s.history, lang: s.lang, chosenId: s.chosen.id, grade: s.ctx.grade, chip: kidChip(s.chosen.id),
+    stopsOf: () => s.challengeP.then(trailStops), seen: s.teacherReads }) },
 ];
 
-/** Adds one parallel branch to the hub ({ name, run(s) }; a name is used once). */
+/** The payload's teacher card, last quiz and Play again, exactly as hubPayload sets them (for the next branch). */
+function cardsOf(s, teacher) {
+  let again = againOf(s.history, s.chosen.id, teacher && teacher.code);
+  let last;
+  if (s.f.childHome) {
+    last = lastOf(s.history, s.chosen.id);
+    if (last && teacher && teacher.code === last.code) teacher = null;
+    if (last) again = again.filter((a) => a.code !== last.code);
+  }
+  return { teacher, last, again };
+}
+
+/** Adds one parallel branch to the hub ({ name, run(s, after) }; a name is used once; after(name) is another branch's result). */
 function addHubBranch(branch) {
   if (!branch || typeof branch.name !== 'string' || typeof branch.run !== 'function') throw new Error('hub branch: { name, run }');
   if (HUB_BRANCHES.some((b) => b.name === branch.name)) throw new Error(`hub branch: ${branch.name} is already there`);
@@ -472,7 +495,10 @@ function addHubBranch(branch) {
  * is kept and thrown where its result is read, as before. Resolves to take(name) -> a promise of that branch's result.
  */
 async function collectHubBranches(s, branches = HUB_BRANCHES) {
-  const settled = await Promise.all(branches.map((b) => Promise.resolve().then(() => b.run(s)).then((v) => ({ v }), (e) => ({ e }))));
+  const started = new Map();
+  const after = (name) => started.get(name);
+  branches.forEach((b) => started.set(b.name, Promise.resolve().then(() => b.run(s, after))));
+  const settled = await Promise.all(branches.map((b) => started.get(b.name).then((v) => ({ v }), (e) => ({ e }))));
   const got = new Map(branches.map((b, i) => [b.name, settled[i]]));
   return (name) => { const r = got.get(name); return 'e' in r ? Promise.reject(r.e) : Promise.resolve(r.v); };
 }
@@ -481,7 +507,8 @@ async function collectHubBranches(s, branches = HUB_BRANCHES) {
 function lazyHubBranches(s, branches = HUB_BRANCHES) {
   const byName = new Map(branches.map((b) => [b.name, b]));
   const once = new Map();
-  return (name) => { if (!once.has(name)) once.set(name, byName.get(name).run(s)); return once.get(name); };
+  const take = (name) => { if (!once.has(name)) once.set(name, byName.get(name).run(s, take)); return once.get(name); };
+  return take;
 }
 
 // ─── the hub ────────────────────────────────────────────────────────────────
@@ -554,7 +581,9 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const runs = par ? require('./web-quiz-book').runsOnce(chosen.id) : null;
   const last0 = chosen && f.childHome ? lastOf(history, chosen.id) : undefined;
   // The hub's branches (see HUB_BRANCHES above): all at once when par, else each where it is read.
-  const branchCtx = { par, f, token, chosen, kidsRows, trust, lang, device, src, canon, ctx, history, last0, challengeP, homeP, runs, shadow };
+  // what Jugnu's corner learned (the Trail, the shelf), filled by the play branch for the ranked next thing below
+  const collect = {};
+  const branchCtx = { par, f, token, chosen, kidsRows, trust, lang, device, src, canon, ctx, history, last0, challengeP, homeP, runs, shadow, collect, teacherReads: {} };
   const take = par ? await collectHubBranches(branchCtx) : lazyHubBranches(branchCtx);
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
   await take('extras');
@@ -596,20 +625,24 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
   // The Library tile wears the child's grade picture (the library opens on that grade).
   if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
+  // the ranked next thing's own reads start now, beside Jugnu's corner and the Book (null at once while it is off;
+  // fast: they ran with the branches above)
+  const nextPrep = par ? take('next') : require('./web-quiz-next-offer-sources').hubPrep({ out, token, history, lang: out.lang, chosenId: chosen.id, grade, stopsOf: () => trailStops(form) });
   Object.assign(out, await take('play')); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
   logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await take('bits')); // Jugnu's Book: {} while web_quiz_challenge_book is off
-  // Stories and the v3 home are independent fields: read side by side, so Stories adds no serial wave.
-  // Stories and the v3 home are independent fields: read side by side, so Stories adds no serial wave (the home's reads
-  // were started with challengeP; fast: Stories ran with the branches above).
-  const [storyBits, homeBits] = await Promise.all([
-    par ? take('stories') : require('./web-quiz-stories').hubBits({ studentId: chosen.id }), // Stories: {} while web_quiz_stories is off
-    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP }), // the v3 home's doors + header: {} while web_quiz_home_v3 is off
+  // Stories, the v3 home's doors + header and the ranked next thing are independent fields (none reads another): read
+  // side by side, so neither Stories nor the slot adds a serial wave. Each is {} while its switch is off (the home's
+  // reads were started with challengeP; fast: Stories ran with the branches above).
+  const [storyBits, homeBits, nextField] = await Promise.all([
+    par ? take('stories') : require('./web-quiz-stories').hubBits({ studentId: chosen.id }),
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP }),
+    require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
   ]);
-  Object.assign(out, storyBits, homeBits);
+  Object.assign(out, storyBits, homeBits, nextField);
   return out;
 }
 
@@ -637,4 +670,6 @@ module.exports = {
   // the switches live in web-quiz-hub-flags.js (student-quiz reads them without loading this module)
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,
+  // the per-child reads, for a result card's next thing (web-quiz-next-offer-sources.js snapshot)
+  _parts: { kidContext, kidChip, teacherCard, againOf, lastOf, challengeForm, trailStops, recsFor, subjectArtOf },
 };

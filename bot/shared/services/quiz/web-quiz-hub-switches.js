@@ -53,6 +53,7 @@ const MODULES = [
   () => require('./web-quiz-db-deadline'),
   () => require('../../config/web-quiz-brand'),
   () => require('./web-quiz-stories'),
+  () => require('./web-quiz-next-offer-state'),
 ];
 
 let list = null;

@@ -40,6 +40,7 @@ const ROWS = [
   [['web_quiz_readalong']],
   [['web_quiz_live_read_v3', 'web_quiz_challenge_realtime']],
   [['web_quiz_card_v3']],
+  [['web_quiz_next_offer', 'web_quiz_events_v3']],
 ];
 
 const SAVED = { ...process.env };
@@ -57,5 +58,25 @@ describe('a hub switch ON adds no wave over OFF (fast page on, every other switc
     console.log(`${keys.join(' + ')}: warm OFF ${off.warm.waves} ON ${on.warm.waves}; stale OFF ${off.stale.waves} ON ${on.stale.waves}`);
     if (on.warm.waves !== off.warm.waves + extra) throw new Error(show('warm', off.warm.waves, on.warm.waves, off.list, on.list, extra));
     if (on.stale.waves !== off.stale.waves + staleExtra) throw new Error(show('stale', off.stale.waves, on.stale.waves, off.staleList, on.staleList, staleExtra));
+  });
+});
+
+// Every child switch on at once (the v3 home, Stories, events v3, the ranked next thing, the fast page and the rest of
+// the ceiling set): the home carries the next thing and still costs no more than the fast hub's own line.
+describe('the hub with every child switch on', () => {
+  test('the payload carries `next`, in at most 6 waves warm and 8 stale', async () => {
+    const all = await Fx.hubWaves({ switches: [] });
+    const p = JSON.parse(all.out);
+    console.log(`every switch on: warm ${all.warm.waves}, stale ${all.stale.waves}\nwarm (table, caller):\n${all.list}\nstale (table, caller):\n${all.staleList}`);
+    expect(p.fast).toBe(true);
+    expect(p.home_v).toBe(1);
+    expect(p.next).toEqual(expect.objectContaining({ ctx: 'home', offer: expect.any(String) }));
+    expect(all.warm.waves).toBeLessThanOrEqual(6);
+    expect(all.stale.waves).toBeLessThanOrEqual(8);
+    // the fast page's payload is the one the hub builds with it off, `next` included (each offer id is a fresh random one)
+    const slow = await Fx.hubWaves({ switches: [], fast: false, stale: false });
+    const noOffer = (json) => json.replace(/"offer":"[A-Za-z0-9_-]{10}"/g, '"offer":"-"');
+    delete p.fast;
+    expect(noOffer(JSON.stringify(p))).toBe(noOffer(slow.out));
   });
 });

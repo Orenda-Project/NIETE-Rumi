@@ -149,7 +149,7 @@ describe('a switch reads the same through the seam as through its own read', () 
     expect(S.reads.filter((r) => r.t === 'app_settings').length).toBe(1);
     const primed = {};
     for (const e of Seam().entries()) primed[e.name] = noAt(e.peek());
-    expect(Object.keys(primed).length).toBe(13);  // every module the hub reads a switch through, but the fast switch itself (challenge: 3 switches; stories: 4 keys)
+    expect(Object.keys(primed).length).toBe(14);  // every module the hub reads a switch through, but the fast switch itself (challenge: 3 switches; stories: 4 keys; the next thing: 3 keys)
     // The same cache, but where the module's own read reads nothing (keep my place's way back with its parent off:
     // it answers false before its cache; primed, its cache holds what its read would hold).
     const skipped = Object.keys(own).filter((n) => own[n] === null);
@@ -187,11 +187,13 @@ describe('the hub payload with the switches as strings or JSON: fast on is fast 
     await coldWithFastWarm({ fast: true, every: true, json });
     const cold = await measure(tokenOne(), { device: DEVICE });
     const warm = await measure(tokenOne(), { device: DEVICE });
+    // the next thing's offer ids are fresh random ones on every answer
+    const noOffer = (json) => json.replace(/"offer":"[A-Za-z0-9_-]{10}"/g, '"offer":"-"');
     for (const on of [cold, warm]) {
       const p = JSON.parse(on.out);
       expect(p.fast).toBe(true);
       delete p.fast;
-      expect(JSON.stringify(p)).toBe(off.out);
+      expect(noOffer(JSON.stringify(p))).toBe(noOffer(off.out));
       expect(on.open).toBe(off.open);
     }
   });

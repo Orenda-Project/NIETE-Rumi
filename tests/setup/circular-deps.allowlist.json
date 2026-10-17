@@ -26,9 +26,11 @@
       "bot/shared/services/quiz/web-quiz-book.js",
       "bot/shared/services/quiz/web-quiz-hub-switches.js",
       "bot/shared/services/quiz/web-quiz-hub.js",
-      "bot/shared/services/quiz/web-quiz-stories.js"
+      "bot/shared/services/quiz/web-quiz-stories.js",
+      "bot/shared/services/quiz/web-quiz-storybook-next.js",
+      "bot/shared/services/quiz/web-quiz-next-offer-sources.js"
     ],
-    "reason": "Every edge is lazy, inside a function: web-quiz-hub.js hubPayload() requires web-quiz-book.js and web-quiz-stories.js only to add their hub bits, and hub() requires web-quiz-hub-switches.js only to start the one switch read; web-quiz-hub-switches.js requires its modules (web-quiz-book.js, web-quiz-stories.js and the other switch modules) only on first use, inside entries(); web-quiz-book.js bookFor() requires web-quiz-hub.js only to resolve the hub chip (kidFromHub) and web-quiz-stories.js only for the storybook stickers; web-quiz-stories.js guard() requires web-quiz-hub.js only for kidFromHub and bookOn() requires web-quiz-book.js only for its switch. None of the four touches another at load time."
+    "reason": "Every edge is lazy, inside a function: web-quiz-hub.js hubPayload() requires web-quiz-book.js and web-quiz-stories.js only to add their hub bits, hub() requires web-quiz-hub-switches.js only to start the one switch read, and hubPayload() and its parallel branch `next` require web-quiz-next-offer-sources.js only to add the ranked next thing (hubPrep, hubField); web-quiz-hub-switches.js requires its modules (web-quiz-book.js, web-quiz-stories.js and the other switch modules) only on first use, inside entries(); web-quiz-book.js bookFor() requires web-quiz-hub.js only to resolve the hub chip (kidFromHub) and web-quiz-stories.js only for the storybook stickers; web-quiz-stories.js guard() requires web-quiz-hub.js only for kidFromHub and bookOn() requires web-quiz-book.js only for its switch; web-quiz-next-offer-sources.js storybooks() requires web-quiz-storybook-next.js inside a try only for the storybook candidates; web-quiz-storybook-next.js candidates() requires web-quiz-stories.js only for the shelf's own readers (resumeOf, orderedBooks). None of the six touches another at load time."
   },
   {
     "cycle": [

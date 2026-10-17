@@ -34,7 +34,7 @@
   "open": "[{\"w\":\"s\",\"ev_v\":2,\"kid_v\":null,\"kid\":null,\"kids\":1,\"has_teacher\":true,\"teacher_src\":\"class\",\"again_n\":1,\"recs_n\":3,\"challenge\":true,\"dk\":null}]",
   "waves": 40,
   "perTable": {
-   "app_settings": 14,
+   "app_settings": 15,
    "class_enrollments": 6,
    "students": 7,
    "student_lists": 5,

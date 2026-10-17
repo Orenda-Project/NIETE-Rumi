@@ -267,7 +267,7 @@ describe('the hub\'s parallel branches (HUB_BRANCHES)', () => {
     expect(after.perTable.students).toBe(before.perTable.students + 1);
     expect(after.waves).toBe(before.waves);
     expect(() => S.Hub.addHubBranch({ name: 'probe', run: () => null })).toThrow(/already/);
-    expect(S.Hub.HUB_BRANCHES.map((b) => b.name)).toEqual(['extras', 'teacher', 'answered', 'recs', 'play', 'bits', 'bound', 'stories', 'probe']);
+    expect(S.Hub.HUB_BRANCHES.map((b) => b.name)).toEqual(['extras', 'teacher', 'answered', 'recs', 'play', 'bits', 'bound', 'stories', 'next', 'probe']);
   });
 });
 
@@ -283,6 +283,7 @@ describe('a stale switch (30 s cache)', () => {
     ['student join flags', () => require('../../../shared/services/quiz/web-quiz-student-join').flags(), (v) => v.on],
     ['stories flags', () => require('../../../shared/services/quiz/web-quiz-stories').storiesOn(), (v) => v],
     ['Urdu polish', () => require('../../../shared/services/quiz/web-quiz-ur-polish').ui(), (v) => Boolean(v && v.ur2)],
+    ['next thing switches', () => require('../../../shared/services/quiz/web-quiz-next-offer-state').raw(), (v) => v.on],
   ];
   const timed = async (fn) => { S.reads = []; S.doneMax = 0; const v = await fn(); return { v, waves: S.doneMax }; };
 
