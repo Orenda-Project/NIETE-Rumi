@@ -9,6 +9,7 @@
 .wqs-ic{border-radius:24px;background:#fff;box-shadow:0 2px 0 var(--line);display:grid;place-items:center;font-size:24px;text-decoration:none;color:inherit}
 .wqs-say{color:var(--soft);font-size:18px;margin:0}
 .wqs-sheet{align-items:center;text-align:center}
+.wqs [hidden]{display:none!important}
 .wqs-sheet .wqs-top,.wqs-sheet .wqs-stage{align-self:stretch}
 .wqs-sheet>.wqs-main,.wqs-sheet>.wqs-sec,.wqs-col{width:100%;flex:none}
 .wqs-col{display:flex;flex-direction:column;gap:12px}

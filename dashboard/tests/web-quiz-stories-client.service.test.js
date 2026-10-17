@@ -1096,6 +1096,9 @@ describe('the finish card and Home', () => {
     expect(got.el).toBe(root.querySelector('[data-col]'));
     expect(got.o).toEqual({ source: 'story', ended: 'read', pages_read: 2, pages_listened: expect.any(Number), stars: null, title: 'Mina Testwala', cover: undefined, lang: 'en', auth: { hub: TOKEN, kid: KID }, ev: expect.any(Function), home: '#', next: null, sticker: true });
     expect(root.querySelector('[data-own]').hidden).toBe(true);
+    // the card leads with its own one primary: ours ("More stories") steps back to a secondary
+    expect(primaries(root.innerHTML)).toBe(0);
+    expect(root.innerHTML).toMatch(/<button class="wqs-sec" data-tap="more">More stories</);
     let g2 = null;
     const e2 = env({ noSticker: true, replies: { book: { status: 200, body: book({ questions: [], card_v3: true }) } }, onLoad: (w) => { w.WQFC = { mount(el, o) { g2 = o; return true; } }; } });
     await toDone(e2);
@@ -1106,6 +1109,9 @@ describe('the finish card and Home', () => {
     const root = await toDone(e);
     expect(root.querySelector('[data-own]').hidden).toBe(false);
     expect(root.innerHTML).toContain('You read the whole story!');
+    // no card: today's screen, "More stories" our one primary again
+    expect(primaries(root.innerHTML)).toBe(1);
+    expect(root.innerHTML).toMatch(/<button class="wqs-main" data-primary data-tap="more">More stories</);
     expect(root.innerHTML).not.toMatch(/sticker|jugnu_celebrate|wa\.me/);
     const e2 = env({ replies: { book: { status: 200, body: book({ questions: [] }) } } });
     await toDone(e2);
@@ -1202,6 +1208,10 @@ describe('hooks, hush, back controls, the own done screen', () => {
     const el2 = fakeEl('shelf2');
     e.S.shelf(el2, e.ctx({ primary: false }));
     expect(primaries(el2.innerHTML)).toBe(0);
+  });
+  test('a block the reader hides with [hidden] is gone even when its class sets a display (the done screen\'s own block under the card)', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs \[hidden\]\{display:none!important\}/);
   });
   test('the look-back screen (a centred sheet) stretches the page stage: the stage\'s only child is absolute, so a centred stage would be 0 px wide', () => {
     const css = fs.readFileSync(CSS, 'utf8');

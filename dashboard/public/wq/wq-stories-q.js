@@ -264,14 +264,21 @@
       post(ctx, id, 'story_done', { pages_listened: c.pages_listened, pages_read: c.pages_read, stars: qs }).then(function (r) { need(function () {
         if (!live()) return;
         var deed = function (k) { return t[rd ? 'pagesRead' : 'pagesHeard'](K.dg(k, L), k); };
-        paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own><h2>' + esc(head) + '</h2>' +
-          (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + '</div>' +
-          '<div class="wqs-col" data-col><button class="wqs-main" data-primary data-tap="more">' + esc(t.more) + '</button>' +
-          '<button class="wqs-sec" data-home data-tap="home">' + esc(t.home) + '</button></div>', 'wqs-sheet'));
-        var ok = false, own = root.querySelector('[data-own]');
-        if (n && b.card_v3 && W.WQFC && W.WQFC.mount) {
+        // with the finish card (card_v3) the card leads with its own one primary, so "More stories" is a secondary;
+        // a card that refuses leaves today's screen, drawn again with our primary
+        var draw = function (fc) {
+          paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own><h2>' + esc(head) + '</h2>' +
+            (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + '</div>' +
+            '<div class="wqs-col" data-col><button class="' + (fc ? 'wqs-sec"' : 'wqs-main" data-primary') + ' data-tap="more">' + esc(t.more) + '</button>' +
+            '<button class="wqs-sec" data-home data-tap="home">' + esc(t.home) + '</button></div>', 'wqs-sheet'));
+        };
+        var ok = false, fc = n && b.card_v3 && W.WQFC && W.WQFC.mount;
+        draw(fc);
+        if (fc) {
           try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: null, sticker: !!(r && r.sticker) }) !== false; } catch (e) {}
+          if (!ok) draw(false);
         }
+        var own = root.querySelector('[data-own]');
         if (own) own.hidden = ok;
         if (ok || !n) return;
         juice('finish', { stars: 3, kind: 'story' });
