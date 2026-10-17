@@ -124,6 +124,14 @@ describe('on: the class picture is the preview, after a child\'s card', () => {
     expect(meta((await req(srv, '/q/AB12CD/class', { ua: WA })).body, 'image')).toMatch(/\/art\/class\.jpg\?a=l\./);
   });
 
+  test('the teacher\'s reminder link (?v=<played>) keeps the live class picture, before the class link picture', async () => {
+    await boot(withTeach(base()));
+    const remind = await req(srv, '/q/AB12CD?v=3', { ua: WA });
+    expect(meta(remind.body, 'image')).toBe('https://portal.example/q/AB12CD/art/class.jpg?a=l.AB12CD.v1bw_tRX32tq&v=3');
+    // without ?v= the class link picture is still the preview
+    expect(meta((await req(srv, '/q/AB12CD', { ua: WA })).body, 'image')).toMatch(/\/art\/teach\.png\?a=t\./);
+  });
+
   test('a malformed class picture id or version names no class picture', async () => {
     await boot({ ...base(), art: { ...base().art, teach: 'l.AB12CD.v1bw_tRX32tq', teach_v: '0a1b2c3d' } });
     expect(meta((await req(srv, '/q/AB12CD', { ua: WA })).body, 'image')).not.toMatch(/teach/);

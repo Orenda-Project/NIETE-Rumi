@@ -327,14 +327,18 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
   const art = (payload && payload.art) || {};
   const ver = typeof v === 'string' && /^[0-9]{1,10}$/.test(v) ? v : null;
   const pic = (kind, id) => (id ? `${origin}/q/${code}/art/${kind}.jpg?a=${encodeURIComponent(id)}${ver ? `&v=${ver}` : ''}` : null);
-  // The teacher's class link (art.teach, only while the bot's switches are on): after a child's own card, before today's.
+  // The teacher's class link (art.teach, only while the bot's switches are on): after a child's own card and the
+  // teacher's reminder link, before today's.
   const teachId = view === 'quiz' ? artId(art.teach, 'teach') : null;
   const teach = teachId && typeof art.teach_v === 'string' && TEACH_V_RX.test(art.teach_v)
     ? `${origin}/q/${code}/art/teach.png?a=${encodeURIComponent(teachId)}&v=${art.teach_v}` : null;
+  // The teacher's reminder link (?v=<played>) keeps its live class picture ahead of the class link picture.
+  const live = ver && view === 'quiz' ? pic('class', artId(art.class, 'class')) : null;
   return pic('card', artId(a, 'card'))
-    || teach
     || pic('invite', artId(art.invite, 'invite'))
-    || (view === 'class' || (ver && view === 'quiz') ? pic('class', artId(art.class, 'class')) : null)
+    || live
+    || teach
+    || (view === 'class' ? pic('class', artId(art.class, 'class')) : null)
     || (view === 'schools' ? pic('schools', artId(art.schools, 'schools')) : null);
 }
 
