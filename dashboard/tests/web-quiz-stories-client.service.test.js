@@ -426,6 +426,10 @@ describe('the voice player comes with the book (the hub page never loads it)', (
     expect(screenOf(root.innerHTML)).toBe('story-page');
     expect(root.querySelector('[data-main]').textContent).not.toBe('Listen');
     e.doc.head.appendChild = realAppend;
+    // the next book asks again (a failed load is not remembered as done), and this time the player comes
+    e.S.open('b-2', e.ctx({ root })); await flush();
+    expect(scripts(e, /wq-readalong\.js/)).toHaveLength(2);
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
   });
 });
 describe('the reader', () => {

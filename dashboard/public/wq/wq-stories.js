@@ -290,13 +290,13 @@
     qw = [cb];
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
-  // the voice player and (lr3) live reading come with the book: nothing else loads them; 8 s each, else without
-  var got = {}, RA_V = '3fdfdd875a';   // the player's own content version (sha256, 10 hex; a test keeps the two in step)
+  // the player (and, lr3, live reading) come with the book; 8 s each, else without, asked again by the next book
+  var got = {}, RA_V = 'be7fe1dc23';   // the player's content hash (a test pins it)
   function need(f, g, css, cb) {
     if (W[g] || got[f] === 1) return cb();
     if (got[f]) return got[f].push(cb);
     got[f] = [cb];
-    load(f, css, function () { var w = got[f]; got[f] = 1; w.forEach(function (x) { x(); }); });
+    load(f, css, function () { var w = got[f]; got[f] = W[g] ? 1 : 0; w.forEach(function (x) { x(); }); });
   }
 
   function reader(id, ctx, root) {
