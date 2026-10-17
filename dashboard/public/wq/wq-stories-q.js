@@ -292,27 +292,30 @@
       R.lk = C.now(); mb.className = 'wqs-main wqs-' + o + ' wqs-lk';
       C.set(function () { if (R.ml === lab && / wqs-lk/.test(mb.className)) mb.className = 'wqs-main wqs-' + lab; }, 600);
     };
-    // window events while this book is open (each handler goes the first time it fires after the book is left)
-    function onW(n, f) { var g = function () { if (!live()) return W.removeEventListener(n, g); f(); }; W.addEventListener(n, g); }
+    // window events while this book is open: all of them go when the book is left (R.kill), or at the latest the first time one fires after
+    var wl = [];
+    function onW(n, f) { var g = function () { if (!live()) return R.un(); f(); }; wl.push([n, g]); W.addEventListener(n, g); }
+    R.un = function () { wl.forEach(function (x) { W.removeEventListener(x[0], x[1]); }); wl = []; };
     // a clip already buffered to its end plays on offline
     function full(a) { try { return a.buffered.end(a.buffered.length - 1) >= a.duration - 0.2; } catch (e) { return false; } }
     if (on && W.addEventListener) {
       if (root.setAttribute) root.setAttribute('data-steady', '');
       onW('offline', function () { if ((m.st === 'listening' || eo) && !full(aud())) down(); });
       onW('online', function () { if ((R.nw || root.querySelector('.wqs-bad')) && /^(idle|paused|listened|together|denied|read|practise|picture)$/.test(m.st)) { R.nw = 0; R.re(); } });
-      onW('pagehide', function () { R.fl(); });
+      onW('pagehide', function () { R.fl(1); });   // keepalive: the send outlives the closing in-app browser
     }
     if (m.st === 'listening') watch();
     R.ml = m.label(); R.mb = root.querySelector('[data-main]'); here(); ph(); late(m.i);
 
-    return {
+    var A = {
       mic: micScreen, read: function () { sum = null; readScreen(); }, q: dv('q'), d: dv('d'), e: eScreen,
       act: function (tap, arg) {
         if (tap === 'main' && C.now() - R.lk < 600) return true;
         if (R.nw && (tap === 'main' || tap === 'again') && !eo && !/^(mic|reading)$/.test(m.st)) { R.nw = 0; R.re(); return false; }
         if (tap === 'late') { lrl(''); late(m.i); }
         else if (tap === 'main' && m.st === 'reading') { stopAll = 1; if (R.lr) R.lr.stop('done_tap'); }
-        else if (tap === 'close' && m.st === 'mic') micO.onNotNow();
+        else if (tap === 'close') { if (m.st === 'mic') micO.onNotNow(); else m.notNow(); }
+        else if (tap === 'word') { if (R.pl && P[m.i].quality !== 'low') R.pl.playWord(+arg); }   // the word to practise (drawn by R.ex)
         else if (tap === 'echo') eGo();
         else if (eo && (tap === 'main' || tap === 'hush' && !eo.pz)) eTog();
         else if (tap === 'eend' && eo) eEnd();
@@ -321,5 +324,13 @@
         return true;
       },
     };
+    // the page hidden (the phone locked, the in-app browser left) in the echo or while the child reads
+    var hu = R.hush;
+    R.hush = function () {
+      if (m.st !== 'echo') { hu(); if (R.lr && m.st === 'reading') R.lr.stop('hidden'); return; }
+      if (R.au) R.au.pause();
+      A.act('hush');
+    };
+    return A;
   };
 }());

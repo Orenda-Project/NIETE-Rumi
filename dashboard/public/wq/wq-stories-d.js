@@ -105,7 +105,7 @@
         R.stage(p, (p.audio && p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + (p.audio ? '<div data-ra></div>' : '')) +
         (p.audio ? '<button class="wqs-again" data-tap="lplay" data-sound data-trigger="tap">' + IC.spk + ' ' + esc(t.listen) + '</button>' : '') +
         '<button class="wqs-main" data-primary data-tap="lret">' + esc(t.backQ) + '</button>', 'wqs-sheet'));
-      R.camTo(null);
+      R.camTo(null); if (R.ph) R.ph();   // the words frame goes once the picture has loaded
       if (p.audio) R.mount(p, { onEnd: function () { R.camTo(null); R.word(-1); } });
     }
     function preview() {
