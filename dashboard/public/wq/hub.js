@@ -17,6 +17,8 @@
   // The language the page that sent the child here was in (?lang=en|ur, the door / the old class link): the bot
   // honours it over its guess (under web_quiz_challenge_v2), so the hub's own calls and address keep it. Else null.
   var URL_LANG = (/[?&]lang=(en|ur)(&|$)/.exec(String((typeof location !== 'undefined' && location.search) || '')) || [])[1] || null;
+  // the grown-ups corner's language tap (keep=1): the server keeps it as the child's language (web_quiz_return_lang; off: ignored)
+  var URL_KEEP = Boolean(URL_LANG) && /[?&]keep=1(&|$)/.test(String((typeof location !== 'undefined' && location.search) || ''));
   var TOKEN = String(B.token || '');
   var BR = B.brand || null;
   var MASC = (BR && BR.mascot) || { en: 'Jugnu', ur: 'جگنو' };
@@ -182,6 +184,12 @@
     if (kid) body.kid = kid;
     body.device_ref = deviceRef();
     if (URL_LANG) body.lang = URL_LANG;
+    // keep=1 is asked once: the address loses it (lang stays), so Back or a bookmark never re-keeps an old choice
+    if (URL_KEEP) {
+      body.keep = 1;
+      URL_KEEP = false;
+      try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + (kid ? '?kid=' + encodeURIComponent(kid) : ''))); } catch (e) {}
+    }
     return api('POST', 'hub/' + encodeURIComponent(TOKEN), body);
   }
   // Events: ids and counts only (the server allow-lists every prop); hub_pick's "what" rides in `src`.

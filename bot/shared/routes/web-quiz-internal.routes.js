@@ -285,7 +285,7 @@ router.get('/stories/book/:id/h/:token', handle((req) => Stories().book(req.para
 router.post('/stories/event/h/:token', handle((req) => Stories().event(req.params.token, req.body || {}, { device: req.get('x-wq-device') })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
-router.post('/hub/:token', handle((req) => OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang }))));
+router.post('/hub/:token', handle((req) => OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang, ...((req.body || {}).keep === 1 ? { keep: true } : {}) }))));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
 // The Jugnu card's Play (body.jugnu; web-quiz-card.js) rides the same route: no new route.
 router.post('/hubdoor', handle((req) => ((req.body || {}).jugnu ? require('../services/quiz/web-quiz-card').go(req.body, WebQuiz.WqError) : require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError))));

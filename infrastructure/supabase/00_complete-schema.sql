@@ -7421,6 +7421,15 @@ ALTER TABLE child_phone_bindings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE child_bind_codes     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE merge_log            ENABLE ROW LEVEL SECURITY;
 
+-- The language a child's links open in, one row per child (mirror of bot/database/migrations/child_language.sql)
+CREATE TABLE IF NOT EXISTS child_language (
+  canonical_id   uuid        PRIMARY KEY,           -- the child (as child_identity.canonical_id)
+  language       text        NOT NULL CHECK (language IN ('en','ur')),
+  source         text        NOT NULL CHECK (source IN ('join','chosen')),   -- 'join': the join link's; 'chosen': a grown-up's tap
+  set_at         timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE child_language ENABLE ROW LEVEL SECURITY;
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Web quiz standing class link (mirror of bot/database/migrations/web_quiz_class_link.sql)
 -- ─────────────────────────────────────────────────────────────────────────────

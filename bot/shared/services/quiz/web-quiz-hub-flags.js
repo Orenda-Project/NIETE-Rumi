@@ -28,8 +28,14 @@ const CHALLENGE_V2_KEY = 'web_quiz_challenge_v2';
 const RUNGS_KEY = 'web_quiz_challenge_rungs';
 // The read-along preview on the hub (#listen/<pid>): the hub JSON names it so the edge adds its script (web-quiz-hub.js).
 const READALONG_KEY = 'web_quiz_readalong';
+// The child's language (web-quiz-return-lang.js): read here with the rest and handed to its own cache, so the hub's
+// kept-language read costs no settings read of its own. A literal (equal to that module's KEY), so loading this module
+// pulls no other module in; the require stays inside flags().
+const RETURN_LANG_KEY = 'web_quiz_return_lang';
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong }
+// The child's language row from the read that filled `cache` ({ at, value }), or null when that read did not carry it.
+let langSeen = null;
 
 function isTrue(value) {
   let v = value;
@@ -37,12 +43,46 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
+const KEYS = [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY];
+
+async function readRows(keys) {
+  const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+  if (error) throw new Error(error.message || 'app_settings read failed');
+  return data || [];
+}
+
+/**
+ * The hub's switches and the child's language switch in one read. If that read fails, the hub's switches are read
+ * again on their own (the child's language switch then reads its own row and fails closed), so a fault on the child's
+ * language row never turns the hub off.
+ */
+async function readWithChildLang(now) {
+  try {
+    const rows = await readRows([...KEYS, RETURN_LANG_KEY]);
+    langSeen = { at: now, value: (rows.find((r) => r.key === RETURN_LANG_KEY) || {}).value };
+    require('./web-quiz-return-lang').prime(langSeen.value, now, langFromHub);
+    return rows;
+  } catch (err) {
+    logToFile('⚠️ web quiz hub: settings lookup with the child language switch failed — hub switches alone', { error: err.message });
+    langSeen = null;
+    return readRows(KEYS);
+  }
+}
+
+/**
+ * The child's language row as the hub's live cache read it ({ at, value }), else undefined: the language switch's own
+ * cache, when cold, answers from here before it reads its row.
+ */
+function langFromHub(now = Date.now()) {
+  if (!cache || !langSeen || langSeen.at !== cache.at || now - cache.at >= TTL_MS) return undefined;
+  return langSeen;
+}
+
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+    const data = await readWithChildLang(now);
+    const by = Object.fromEntries(data.map((r) => [r.key, r.value]));
     cache = { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]), door: isTrue(by[DOOR_KEY]), childHome: isTrue(by[CHILD_HOME_KEY]),
       homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]),
       challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]) };
@@ -115,4 +155,4 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, hubLink, pageNav, eventsV2On, eventsV2Now, rungsOn, EVENTS_V2_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; } };
+module.exports = { flags, hubLink, pageNav, eventsV2On, eventsV2Now, rungsOn, EVENTS_V2_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; langSeen = null; } };
