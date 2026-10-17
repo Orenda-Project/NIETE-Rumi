@@ -167,20 +167,17 @@
   /* ---------------- Videos as picture shelves (app_settings web_quiz_video_shelf: the boot's `doors.videos.shelf`) ----
    * Every subject is a row of picture cards (the lesson's own small thumbnail, lazy and sized; placeholder cards while
    * its lessons load), "See all" opens the subject as a grid. A card whose quiz can be played (its class code, or the
-   * library's `quiz`: a class, or the watch root set) has a Quiz button that opens straight at the questions. */
+   * library's `quiz`: a class, or the watch root set) has a Quiz button that opens straight at the questions. Its rules
+   * are in wq-doors.css (new class names only, so the switch-off screens look as today); the buttons are the one button
+   * system's (wq-btn + one kind). */
   function shelfOn(B) { return Boolean(B && B.doors && B.doors.videos && B.doors.videos.shelf === true); }
-  function shelfCss() {
-    var q = '';
-    try { var me = document.querySelector('script[src*="/wq/hub.js"]'); var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || ''); if (v) q = '?v=' + v[1]; } catch (e) {}
-    return '<link rel="stylesheet" href="/wq/wq-vshelf.css' + q + '">';
-  }
   var EAGER = 3; // the first shelf's cards a 360-390 px screen shows before any scroll
   var SKEL = '<span class="wq-vcard wq-vskel" aria-hidden="true"><span class="wq-vthumb"></span><b></b></span>';
   function shelvesBody(ctx, lib) {
     var t = C(ctx);
-    return shelfCss() + (lib.subjects || []).map(function (s, i) {
+    return (lib.subjects || []).map(function (s, i) {
       return '<section class="wq-vsec"><div class="wq-vshead"><h3 class="wq-dsec"><bdi' + lat(t.subj(s.key)) + '>' + esc(t.subj(s.key)) + '</bdi></h3>' +
-        '<button class="wq-vsall" type="button"' + (i === 0 ? ' data-primary' : '') + ' data-tap="subj" data-kind="subject" data-item="' + esc(s.key) + '" data-pos="' + i + '">' + esc(t.seeAll) + '</button></div>' +
+        '<button class="wq-btn wq-btn--secondary wq-vsall" type="button"' + (i === 0 ? ' data-primary' : '') + ' data-tap="subj" data-kind="subject" data-item="' + esc(s.key) + '" data-pos="' + i + '">' + esc(t.seeAll) + '</button></div>' +
         '<div class="wq-vrow" data-vshelf="' + esc(s.key) + '">' + SKEL + SKEL + SKEL + '</div></section>';
     }).join('');
   }
@@ -188,7 +185,7 @@
   function card(v, ctx, quiz, pos, eager) {
     var t = C(ctx); var m = minsOf(v.secs); var src = v.thumb || v.poster;
     var pic = src ? '<img class="wq-vtimg" src="' + esc(src) + '" alt="" width="320" height="180"' + (eager ? '' : ' loading="lazy"') + ' decoding="async"' + (v.thumb && v.poster ? ' data-f="' + esc(v.poster) + '"' : '') + '>' : '<span class="wq-vnone" aria-hidden="true">' + PLAY + '</span>';
-    var q = quiz || v.code ? '<button class="wq-btn wq-vq" type="button" data-tap="vquiz" data-kind="quiz" data-item="' + esc(v.vid) + '" data-pos="' + pos + '">' + esc(t.quizBtn) + '</button>' : '';
+    var q = quiz || v.code ? '<button class="wq-btn wq-btn--secondary wq-vq" type="button" data-tap="vquiz" data-kind="quiz" data-item="' + esc(v.vid) + '" data-pos="' + pos + '">' + esc(t.quizBtn) + '</button>' : '';
     return '<div class="wq-vcard"><button class="wq-vtap" type="button" data-tap="vid" data-item="' + esc(v.vid) + '" data-pos="' + pos + '">' +
       '<span class="wq-vthumb">' + pic + (m ? '<span class="wq-vmin">' + esc(t.mins(m)) + '</span>' : '') + (v.done ? '<i class="wq-vdone" role="img" aria-label="' + esc(t.doneTag) + '">' + TICK + '</i>' : '') + '</span>' +
       '<b class="wq-vct"><bdi' + lat(vTitle(v, ctx)) + '>' + esc(vTitle(v, ctx)) + '</bdi></b></button>' + q + '</div>';
@@ -197,7 +194,7 @@
   function shelfHtml(lib, ctx, eager) { return lessonsOf(lib).map(function (v, i) { return card(v, ctx, lib.quiz === true, i, i < (eager || 0)); }).join(''); }
   function gridBody(ctx, lib) {
     var i = 0;
-    var h = shelfCss() + (lib.chapters || []).map(function (ch) {
+    var h = (lib.chapters || []).map(function (ch) {
       var cards = (ch.videos || []).map(function (v) { return card(v, ctx, lib.quiz === true, i++); }).join('');
       return cards ? '<h3 class="wq-dsec"><bdi' + lat((langOf(ctx) === 'ur' && ch.name_ur) || ch.name) + '>' + esc((langOf(ctx) === 'ur' && ch.name_ur) || ch.name) + '</bdi></h3><div class="wq-vgrid">' + cards + '</div>' : '';
     }).join('');
@@ -211,12 +208,12 @@
   function watchHtml(w, ctx, next, shelf) {
     var t = C(ctx);
     // web_quiz_video_shelf: the quiz is a choice from the first second (the 90 % mark stays Jugnu's invite)
-    var q = shelf && w.after ? '<button class="wq-btn wq-vquiz" type="button" data-tap="vquiz" data-item="' + esc(w.vid) + '">' + esc(t.vquiz) + '</button>' : '';
+    var q = shelf && w.after ? '<button class="wq-btn wq-btn--secondary wq-vquiz" type="button" data-tap="vquiz" data-item="' + esc(w.vid) + '">' + esc(t.vquiz) + '</button>' : '';
     var nx = next ? '<a class="wq-next wq-vnext" data-tap="after" data-kind="' + esc(next.kind) + '" href="' + esc(next.href || '#videos') + '">' +
       '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi' + lat(next.sub) + '>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">' + PLAY + '</span></a>' : '';
     return '<div class="wq-vbox"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
       '<button class="wq-vplay" type="button" data-primary data-tap="play" data-sound data-trigger="tap" aria-label="' + esc(t.play) + '">' + PLAY + '</button></div>' +
-      '<p class="wq-vtitle"><bdi' + lat(vTitle(w, ctx)) + '>' + esc(vTitle(w, ctx) || '') + '</bdi></p>' + (q ? shelfCss() + q : '') +
+      '<p class="wq-vtitle"><bdi' + lat(vTitle(w, ctx)) + '>' + esc(vTitle(w, ctx) || '') + '</bdi></p>' + q +
       '<div class="wq-after" hidden>' + nx + '</div>';
   }
 
