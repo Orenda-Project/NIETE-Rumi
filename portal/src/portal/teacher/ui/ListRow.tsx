@@ -43,6 +43,8 @@ export interface ListRowProps {
   onPress?: () => void;
   copy?: Partial<Pick<TeacherUiCopy, 'used' | 'selected' | 'locked'>>;
   className?: string;
+  /** bd-s42dye.6 — a handle for the screen's tests (the coach library's rows). */
+  testId?: string;
 }
 
 const ICON: Record<ListRowIcon, ReactElement> = {
@@ -73,7 +75,7 @@ const URDU_NUMBER_LINE = { lineHeight: 1.4 } as const;
 
 export function ListRow({
   prefix = '', number = '', icon, label, subtitle, chip, state = 'default', variant = 'card', first = true, to, onPress,
-  copy, className,
+  copy, className, testId,
 }: ListRowProps) {
   const bidi = useBidi();
   const ur = useLang() === 'ur';
@@ -129,7 +131,7 @@ export function ListRow({
 
   if (locked) {
     return (
-      <div aria-disabled="true" className={box}>
+      <div aria-disabled="true" data-testid={testId} className={box}>
         {lead}
         {middle}
         {chip?.text ? <StatusChip text={chip.text} tone={chip.tone} /> : null}
@@ -155,7 +157,7 @@ export function ListRow({
 
   if (to) {
     return (
-      <Link to={to} aria-current={selected ? 'true' : undefined} className={cn(box, FOCUS)}>
+      <Link to={to} data-testid={testId} aria-current={selected ? 'true' : undefined} className={cn(box, FOCUS)}>
         {lead}
         {middle}
         {end}
@@ -163,7 +165,7 @@ export function ListRow({
     );
   }
   return (
-    <button type="button" aria-pressed={selected} onClick={() => onPress?.()} className={cn(box, 'cursor-pointer', FOCUS)}>
+    <button type="button" data-testid={testId} aria-pressed={selected} onClick={() => onPress?.()} className={cn(box, 'cursor-pointer', FOCUS)}>
       {lead}
       {middle}
       {end}
