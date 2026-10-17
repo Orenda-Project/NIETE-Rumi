@@ -917,6 +917,25 @@ describe('the library card\'s story counts', () => {
     expect('counts' in JSON.parse(withCounts).library).toBe(false);
   });
 
+  test('the counts read runs alongside the other reads: a slow lessons read and a slow counts read cost the slower one, not their sum', async () => {
+    seed({ settings: COUNTS_ON });
+    const LESSONS_MS = 900;
+    const COUNTS_MS = 700;
+    const slowList = listWith();
+    const load = slowList.loadLessonPage;
+    slowList.loadLessonPage = jest.fn((...a) => new Promise((r) => setTimeout(() => r(load(...a)), LESSONS_MS)));
+    deps.List = slowList;
+    deps.Stories = { flagOn: async () => true, shelf: shelf(), storyCounts: jest.fn(() => new Promise((r) => setTimeout(() => r({ sent: 3, read: 7 }), COUNTS_MS))) };
+    await boot(deps);
+    const t0 = Date.now();
+    const home = JSON.parse(await homeText());
+    const took = Date.now() - t0;
+    expect(home.library.counts).toEqual({ sent: 3, read: 7 });
+    expect(slowList.loadLessonPage).toHaveBeenCalled();
+    expect(took).toBeGreaterThanOrEqual(LESSONS_MS);
+    expect(took).toBeLessThan(LESSONS_MS + COUNTS_MS - 200); // in series it would be ≥ 1600 ms
+  });
+
   test('a counts read past the side budget → no key, and the home still answers', async () => {
     seed({ settings: COUNTS_ON });
     let timer;
