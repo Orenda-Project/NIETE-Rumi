@@ -23,9 +23,10 @@ function rootOf(value) {
   return typeof v === 'string' && ID_RX.test(v) ? v : null;
 }
 
-// → the root's id, or null (absent, not an id, or unreadable: nothing is left out). 30 s cache.
+// → the root's id, or null (absent, not an id, or unreadable: nothing is left out). 30 s cache. strict: an unreadable
+// VALUE throws instead (the join queue fails closed).
 let watchRootCache = null; // { at, id }
-async function watchRootId(now = Date.now()) {
+async function watchRootId(now = Date.now(), { strict = false } = {}) {
   if (watchRootCache && now - watchRootCache.at < 30 * 1000) return watchRootCache.id;
   try {
     const { data, error } = await supabase.from('app_settings').select('value').eq('key', WATCH_ROOT_KEY).maybeSingle();
@@ -33,6 +34,7 @@ async function watchRootId(now = Date.now()) {
     watchRootCache = { at: now, id: rootOf(data && data.value) };
     return watchRootCache.id;
   } catch (err) {
+    if (strict) throw err;
     logToFile('⚠️ teacher report: watch root unreadable — no code left out', { error: err.message });
     return null;
   }
