@@ -4,7 +4,7 @@
  * general internal router) registers the same ordered routes as the golden: every app.use/get/post/… call in order,
  * with its path, its handler names and, for a mounted router, that router's own layers (route paths, methods, handler
  * names). Only that block is run, against a bare express app, so a route added anywhere else never touches it.
- * Only the edges are doubled (no database, no Redis). Record once with UPDATE_GOLDEN=1.
+ * Only the edges are doubled (no database, no Redis). Record once with TEACHER_HOME_RECORD=1.
  */
 process.env.INTERNAL_API_KEY = 'unit-internal-key-not-a-secret';
 jest.mock('../../shared/config/supabase', () => ({}));
@@ -54,6 +54,6 @@ test('the first-touch mount block registers the golden routes, in the golden ord
   new Function('app', 'require', mountBlock())(app, req);
   expect(calls.length).toBeGreaterThan(0);
   const got = JSON.stringify(calls, null, 2) + '\n';
-  if (process.env.UPDATE_GOLDEN === '1') fs.writeFileSync(GOLDEN, got);
+  if (process.env.TEACHER_HOME_RECORD === '1') fs.writeFileSync(GOLDEN, got);
   expect(got).toBe(fs.readFileSync(GOLDEN, 'utf8'));
 });

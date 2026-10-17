@@ -16,6 +16,10 @@
         "re": "/^\\/?(?=\\/|$)/i"
       },
       {
+        "name": "wqStatic",
+        "re": "/^\\/?(?=\\/|$)/i"
+      },
+      {
         "name": "bound dispatch",
         "re": "/^\\/api\\/wq\\/quiz(?:\\/([^/]+?))\\/?$/i",
         "path": "/api/wq/quiz/:code",
@@ -650,6 +654,21 @@
       },
       {
         "name": "bound dispatch",
+        "re": "/^\\/api\\/wq\\/known\\/?$/i",
+        "path": "/api/wq/known",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "noStore",
+          "configured",
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
         "re": "/^\\/api\\/wq\\/card\\/?$/i",
         "path": "/api/wq/card",
         "methods": [
@@ -883,6 +902,18 @@
         "name": "bound dispatch",
         "re": "/^\\/q(?:\\/([^/]+?))\\/art(?:\\/([^/]+?))\\.jpg\\/?$/i",
         "path": "/q/:code/art/:kind.jpg",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/q(?:\\/([^/]+?))\\/art(?:\\/([^/]+?))\\.png\\/?$/i",
+        "path": "/q/:code/art/:kind.png",
         "methods": [
           "get"
         ],

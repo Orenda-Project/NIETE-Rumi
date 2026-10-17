@@ -3,7 +3,7 @@
  * The edge block of dashboard/index.js (the child quiz router through the phone test page, before the body parsers)
  * builds the same ordered express stack as the golden: every layer's path pattern, route methods and handler names,
  * nested routers included. index.js itself is not loadable in a suite (Redis, listen), so the test runs that block's
- * own source text against a bare express app. Record once with UPDATE_GOLDEN=1.
+ * own source text against a bare express app. Record once with TEACHER_HOME_RECORD=1.
  */
 const fs = require('fs');
 const path = require('path');
@@ -44,6 +44,6 @@ test('the edge block builds the golden stack (same layers, same order)', () => {
   new Function('app', 'require', 'express', 'path', '__dirname', edgeBlock())(
     app, Module.createRequire(INDEX), express, path, path.dirname(INDEX));
   const got = JSON.stringify(dump(app._router.stack), null, 2) + '\n';
-  if (process.env.UPDATE_GOLDEN === '1') fs.writeFileSync(GOLDEN, got);
+  if (process.env.TEACHER_HOME_RECORD === '1') fs.writeFileSync(GOLDEN, got);
   expect(got).toBe(fs.readFileSync(GOLDEN, 'utf8'));
 });
