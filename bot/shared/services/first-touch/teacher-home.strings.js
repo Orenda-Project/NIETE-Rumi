@@ -45,6 +45,8 @@ const STRINGS = Object.freeze({
   'th.sec.library': Object.freeze({ en: 'Library: stories & videos', ur: 'لائبریری: کہانیاں اور ویڈیوز' }),
   'th.chosen.for': Object.freeze({ en: 'Chosen for Grade {n}', ur: 'جماعت {n} کے لیے منتخب' }),
   'th.all.stories': Object.freeze({ en: 'All stories', ur: 'سب کہانیاں' }),
+  // a story the teacher sent this month, by its row; {day} = the send's day/month in the page's digits
+  'th.sent.on': Object.freeze({ en: 'Sent ✓ {day}', ur: 'بھیجی گئی ✓ {day}' }),
   'th.videos.card': Object.freeze({ en: 'Ready video quizzes', ur: 'تیار ویڈیو کوئز' }),
   // the foot
   'th.make': Object.freeze({ en: 'Make a new quiz', ur: 'نیا کوئز بنائیں' }),

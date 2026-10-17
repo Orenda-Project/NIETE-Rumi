@@ -147,6 +147,31 @@ describe('"Send to my class" on the sheet', () => {
     expect(p.beacons).toEqual([{ path: '/api/th/step', body: { t: 'a.b', step: 'share_tap', kind: 'again', id: 'own1', origin: 'again', c: 'own-code' } }]);
   });});
 
+describe('a story the teacher sent this month', () => {
+  const SENT = '2026-10-12T12:00:00.000Z';
+  const lib = (stories) => ({ primary: { kind: 'none' }, library: { grade: 3, stories, all: '/all' } });
+  const STORIES = [{ id: 'b1', title: 'The Thirsty Crow', href: '/s?book=b1', sent: SENT }, { id: 'b2', title: 'Rain', href: '/s?book=b2' }];
+
+  test.each([['en', 'Sent \u2713 12/10'], ['ur', 'بھیجی گئی \u2713 ۱۲/۱۰']])('%s: only the sent book\'s row shows when it was sent, next to its title (not a button)', async (lang, chip) => {
+    const p = await open(lib(STORIES), { lang });
+    const [a, b] = p.q('#th-stories').querySelectorAll('[data-row="story"]');
+    const c = a.querySelector('.th-sent');
+    expect(c.textContent).toBe(chip);
+    expect(c.tagName).toBe('SPAN');
+    expect(c.getAttribute('data-tap')).toBeNull();
+    expect(c.parentNode.getAttribute('class')).toBe('th-row-n');
+    expect(b.querySelectorAll('.th-sent')).toHaveLength(0);
+    expect(b.querySelector('.th-row-n').textContent).toBe('Rain');
+  });
+
+  test('another grade: the rows follow the library the server answers', async () => {
+    const p = await open(lib(STORIES), { answer: (path) => (path.indexOf('/api/th/library?') === 0 ? { grade: 4, stories: [{ id: 'b5', title: 'Kites', href: '/s?book=b5', sent: SENT }, { id: 'b1', title: 'The Thirsty Crow', href: '/s?book=b1' }] } : {}) });
+    await p.tap(p.q('#th-grades').querySelector('[data-grade="4"]'));
+    const rows = p.q('#th-stories').querySelectorAll('[data-row="story"]');
+    expect(rows.map((r) => r.querySelectorAll('.th-sent').length)).toEqual([1, 0]);
+  });
+});
+
 describe('the message box', () => {
   const LONG = {
     en: 'Assalam o Alaikum class! Your teacher sent you a quiz: Fractions.\nOpen it here: https://portal.example/q/ABCDEF\nPlay it at home and see your score.\n\nWhen you have played, tap here to tell your teacher you are done and to see more quizzes from the class.',
