@@ -86,7 +86,8 @@
     if (!hub) return;
     if (pidOf()) take();
     else if (shown) {          // the phone's Back from a preview: the hub, drawn once (the v3 home's own listener, added
-      leave();                 // after this one, would draw it again)
+      leave();                 // after this one, would draw it again). This relies on script ORDER: the edge puts this file
+                               // before hub.js, so this listener is added first; a listener added before it is not stopped.
       if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
     }
   });
