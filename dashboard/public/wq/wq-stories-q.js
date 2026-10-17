@@ -58,12 +58,8 @@
     // the reading moment (the book's read_fb: web_quiz_read_feedback): its file comes with this one, once
     if (b.read_fb && !W.WQMoment && !S._rfAsked) { S._rfAsked = 1; K.load('wq-moment.js', 'wq-moment.css', function () {}); }
     // this page's read answered after Your turn (wq-moment.js page(): small, and "Hear Jugnu say it" on a skipped word)
-    function rfHtml(st) {
-      if (!b.read_fb || !W.WQMoment || !rd || rd.i !== m.i) return '';
-      var x = W.WQMoment.page(rd.s, P[m.i], L, { grade: b.grade, hear: st === 'practise', sents: sents });
-      rd.fb = x.fb;
-      return x.html;
-    }
+    function Mq(k, x) { return b.read_fb && W.WQMoment ? W.WQMoment.q(k, R, m, x) : ''; }
+    function rfHtml(st) { return rd && rd.i === m.i ? Mq('page', { rd: rd, st: st, sents: sents }) : ''; }
     // the questions and the done screen come in their own file, the first time a child gets there
     function dv(v) {
       return function () {
@@ -90,7 +86,7 @@
       else if (s === 'read' || s === 'practise') h = rf || '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
       else if (s === 'together' && rf) h = rf + (rd.fb.zero ? '' : '<p>' + esc(t.together) + '</p>');
       else if (s === 'denied' || s === 'together') h = '<p>' + esc(t[s]) + '</p>';
-      if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(t.echoB) + '</button>';
+      if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(rf ? Mq('withJ') : t.echoB) + '</button>';
       return h;
     };
     var micO = {
@@ -133,7 +129,7 @@
       c = ck[ci];
       st = R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + lh);   // the live reader draws the picture itself on a boxed page
       paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg') +
-        (R.mode() === 'z' || R.mode() === 'l' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
+        (R.mode() === 'z' || R.mode() === 'l' ? st : lh) + Mq('line') + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
       var z = R.mode() === 'z';
       // the camera frames every line of the part being read, whole (both edges, any writing direction), once, and holds
       // still while the child reads (a line's own zoom, or the larger-print floor, would push lines off the edge)
@@ -144,9 +140,11 @@
       var back = function (r) { var k = 0, mk = (r = r || {}).marks || []; r.marks = ws.map(function (w) { return w.silent ? 'silent' : mk[k++]; }); result(r); };
       if (!sw.length) return back({ words_total: 0 });
       try { lrOn(sw, back); } catch (e) { m.denied(); return; }
+      var r0 = C.now();
       R.poll = C.set(function tick() {
         var v = R.lr && R.lr.view && R.lr.view(), g = root.querySelector('[data-jg]');
         if (v && g && LR.glowLevel) g.className = 'wqs-jg wqs-g' + LR.glowLevel(v);
+        Mq('tick', { g: g, v: v, ms: C.now() - r0 });
         if (R.lr) R.poll = C.set(tick, 500);
       }, 500);
     }
@@ -165,6 +163,7 @@
       m.result(s);
       // Jugnu's sound for it (the badge jingle; the soft chime after a 0-word try)
       if (rd.fb && W.WQMoment) W.WQMoment.sound(root.querySelector('[data-rf]'), rd.fb);
+      Mq('after');
     }
 
     function eGo() { eo = { s: sents(P[m.i].words), k: 0, f: m.st }; m.set('echo'); }
@@ -332,7 +331,8 @@
         else if (tap === 'word') { if (R.pl && P[m.i].quality !== 'low') R.pl.playWord(+arg); }   // the word to practise (drawn by R.ex)
         else if (tap === 'echo') eGo();
         else if (tap === 'rfagain') m.set('mic');
-        else if (tap === 'rfhear') { if (W.WQMoment && R.pl && rd) W.WQMoment.hear(R.pl, P[m.i], rd.s, { sents: sents, set: C.set, clear: C.clear }); }
+        else if (tap === 'rfwith' && m.st === 'reading') { stopAll = 1; Mq('with'); }
+        else if (tap === 'rfhear' && rd) Mq('hear', { rd: rd, sents: sents });
         else if (eo && (tap === 'main' || tap === 'hush' && !eo.pz)) eTog();
         else if (tap === 'eend' && eo) eEnd();
         else if (D) return D.act(tap, arg);

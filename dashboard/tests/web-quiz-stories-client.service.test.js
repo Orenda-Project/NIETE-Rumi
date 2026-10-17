@@ -3094,6 +3094,67 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     const e2 = withMoment(env({ replies: { book: RFB() } })); const r2 = await openReader(e2);
     expect(readPage1(e2, r2, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped'])).not.toContain('rfagain');
   });
+  test.each([['read', 'read', 'read', 'read', 'read'], ['read', 'read', 'read', 'skipped', 'read'], ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']])('read_fb: Jugnu stays on the page\'s result and reacts (%s…): cheering 3 stars, happy for fewer, hello after a 0-word try', async (...marks) => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    const h = readPage1(e, root, marks);
+    const mo = /<section class="wq-moment[\s\S]*?<\/section>/.exec(h)[0];
+    const n = marks.filter((x) => x === 'read').length;
+    expect(mo).toContain(`/wq/jugnu/${n === 5 ? 'celebrate' : n ? 'correct' : 'hello'}.webp`);
+    expect(mo).toContain('wq-moment-jg');
+    const e0 = withMoment(env()); const r0 = await openReader(e0);
+    expect(readPage1(e0, r0, marks)).not.toContain('wq-moment-jg');   // key off: today's page
+  });
+  test.each(['en', 'ur'])('%s, read_fb, nothing read: one "read it together" line, and the chip says the action', async (lang) => {
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } })); const root = await openReader(e, { lang });
+    const h = readPage1(e, root, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
+    expect(text(h).match(lang === 'ur' ? /مل کر پڑھیں/g : /read it together/gi)).toHaveLength(1);
+    expect(h).toMatch(new RegExp(`data-tap="echo"[^>]*>${lang === 'ur' ? 'جگنو کے ساتھ پڑھیں' : 'Read with Jugnu'}<`));
+  });
+  test('key off, nothing read: today\'s line and chip, as they are', async () => {
+    const e = withMoment(env()); const root = await openReader(e);
+    const h = readPage1(e, root, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
+    expect(h).toMatch(/data-tap="echo"[^>]*>Read it together</);
+  });
+  test.each(['en', 'ur'])('%s, read_fb, silence while reading: at 6 s Jugnu leans in ("come a little closer"), at 15 s the offer to read with Jugnu; a word heard takes it away', async (lang) => {
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } })); const root = await openReader(e, { lang });
+    toMic(e, root); e.calls.ask[0].onStream({});
+    expect(screenOf(root.innerHTML)).toBe('story-read');
+    const lr = e.calls.lr[0]; let heard = 0;
+    lr.view = () => ({ heard, total: 5 });
+    const near = () => root.querySelector('[data-near]');
+    expect(near()).not.toBeNull();
+    e.advance(5000);
+    expect(near().hidden).toBe(true);
+    e.advance(1500);
+    expect(near().hidden).toBe(false);
+    expect(near().innerHTML.replace(/&#39;/g, "'")).toContain(lang === 'ur' ? 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!' : "I can't hear you yet. Come a little closer!");
+    expect(near().innerHTML).not.toContain('rfwith');
+    expect(root.querySelector('[data-jg]').className).toContain('wq-moment-lean');
+    e.advance(9000);
+    expect(near().innerHTML).toMatch(new RegExp(`data-tap="rfwith"[^>]*>${lang === 'ur' ? 'جگنو کے ساتھ پڑھیں' : 'Read with Jugnu'}<`));
+    heard = 1; e.advance(500);
+    expect(near().hidden).toBe(true);
+    expect(root.querySelector('[data-jg]').className).not.toContain('wq-moment-lean');
+  });
+  test('read_fb: "Read with Jugnu" ends the quiet read and Jugnu reads the page at once (one tap, never a dead end)', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    const lr = e.calls.lr[0]; lr.view = () => ({ heard: 0, total: 5 });
+    e.advance(16000);
+    fire(root, 'rfwith');
+    expect(lr.log).toContain('stop:done_tap');
+    lr.o.onResult(READ(['ahead', 'ahead', 'ahead', 'ahead', 'ahead']));
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+    expect(e.calls.ra[e.calls.ra.length - 1].log).toContain('play');
+  });
+  test('key off: the read screen has no nudge line and Jugnu never leans', async () => {
+    const e = withMoment(env()); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    e.calls.lr[0].view = () => ({ heard: 0, total: 5 });
+    e.advance(16000);
+    expect(root.innerHTML).not.toContain('data-near');
+    expect(root.querySelector('[data-jg]').className).not.toContain('wq-moment-lean');
+  });
   test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
     const done = { status: 200, body: { ok: true, sticker: true } };
     const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done } })); const root = await openReader(e);
