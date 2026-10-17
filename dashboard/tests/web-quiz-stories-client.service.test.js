@@ -374,7 +374,9 @@ describe('the voice player comes with the book (the hub page never loads it)', (
   const scripts = (e, rx) => e.calls.loaded.filter((x) => x.tag === 'script' && rx.test(x.src)).map((x) => x.src);
   test('no player on the page: the reader fetches wq-readalong.js once, at its own ?v=, and the page has its voice (Listen, one player)', async () => {
     const e = without(); const root = await openReader(e);
-    expect(scripts(e, /wq-readalong\.js/)).toEqual(['/wq/wq-readalong.js?v=abc123']);
+    // at the player's own content version (as the Trail fetches it): a player change alone busts its cached copy
+    const v = require('crypto').createHash('sha256').update(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js'))).digest('hex').slice(0, 10);
+    expect(scripts(e, /wq-readalong\.js/)).toEqual([`/wq/wq-readalong.js?v=${v}`]);
     expect(root.querySelector('[data-main]').textContent).toBe('Listen');
     expect(e.calls.ra).toHaveLength(1);
     e.S.open('b-1', e.ctx({ root })); await flush();
