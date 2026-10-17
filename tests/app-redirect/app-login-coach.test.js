@@ -41,8 +41,10 @@ function forge(f, u = USER) {
 }
 
 describe('the token', () => {
-  test('the coach pages: coach_menu → /portal/coach, coach_observe → /portal/coach/observe', () => {
-    expect(load().COACH_LANDINGS).toEqual({ coach_menu: '/portal/coach', coach_observe: '/portal/coach/observe' });
+  test('the coach pages: coach_menu → /portal/coach, coach_observe → /portal/coach/observe, coach_training → /portal/coach/training (bd-s42dye.3)', () => {
+    expect(load().COACH_LANDINGS).toEqual({
+      coach_menu: '/portal/coach', coach_observe: '/portal/coach/observe', coach_training: '/portal/coach/training',
+    });
   });
 
   test.each(['coach_menu', 'coach_observe'])('%s signs and verifies', (f) => {

@@ -70,6 +70,13 @@ describe('candidates', () => {
     expect(ids).toEqual(order.slice(0, Next.MAX_UNREAD));
     expect(ids).toHaveLength(3);
   });
+  test('with the reader\'s stall setting on, the half-read book opens on the page after the last one heard', async () => {
+    seed({ events: [{ child_id: KID, book_id: F.BOOK(1), page_n: 1, event: 'story_page_listened', data: {}, at: at(2) }] });
+    fake.db.app_settings.push({ key: 'web_quiz_stories_steady', value: true });
+    const rows = await Next.candidates(ARGS);
+    expect(rows[0].href).toBe(`/h/${TOKEN}?kid=a&lang=en#story/${F.BOOK(1)}/p2`);
+    expect(rows.slice(1).every((r) => r.href.endsWith(`#story/${r.id}`))).toBe(true);
+  });
   test('Urdu grade 2: the Urdu book only; no words of a test anywhere', async () => {
     seed();
     const rows = await Next.candidates({ ...ARGS, lang: 'ur' });

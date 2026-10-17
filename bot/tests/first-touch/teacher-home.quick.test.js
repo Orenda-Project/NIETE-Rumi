@@ -36,7 +36,7 @@ const PHONE = ['92300', '0000931'].join(''); // built at run time (no phone-shap
 const DAY = 86400000;
 // a gone teacher's refusal: today's reads vs the quick answer's (its reads start before the user is known)
 const OFF_GONE_READS = 3;
-const ON_GONE_READS = 32;
+const ON_GONE_READS = 33; // +1: the class report's fold-by-child switch read (in parallel with its sessions, no new wave)
 
 let srv;
 let R; // the router module of the last boot

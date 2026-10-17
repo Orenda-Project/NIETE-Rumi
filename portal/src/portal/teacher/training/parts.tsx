@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useCopy } from '../i18n';
 import type { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Check, ChevronRight, Download, Lock, X } from 'lucide-react';
+import { BookOpen, Check, ChevronRight, Download, FileText, Lock, PlayCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TRAINING_INNER } from './copy';
 import { shortDate } from '../../newui/range';
@@ -10,6 +10,7 @@ import { certificateUrl, downloadCertificate } from '../../newui/training/certif
 import { StatusChip, type ChipData } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
 import type { AnswerState } from './inner';
+import type { ReadingItem } from '../../newui/training/trainingApi';
 
 /**
  * bd-fmf24g.12 — the v2 pieces the Training inner screens share (v28 canvas Training row): a row with any
@@ -23,7 +24,7 @@ type Icon = LucideIcon;
 /* ── a row ────────────────────────────────────────────────────────────────── */
 
 export function V2Row({
-  icon: I, title, sub, chip, end = 'chevron', to, onPress, off, testId, ariaLabel,
+  icon: I, title, sub, chip, end = 'chevron', to, href, onPress, off, testId, ariaLabel,
 }: {
   icon: Icon;
   title: ReactNode;
@@ -31,6 +32,8 @@ export function V2Row({
   chip?: ChipData | null;
   end?: 'chevron' | 'download' | 'external' | 'none';
   to?: string;
+  /** bd-s42dye.6 — an outside page (a handout, a reading): a real link that opens a new tab. */
+  href?: string;
   onPress?: () => void;
   off?: boolean;
   testId?: string;
@@ -55,9 +58,13 @@ export function V2Row({
   const box = cn(CARD, 'flex min-h-[76px] w-full items-center gap-3.5 py-2.5 pe-3.5 ps-3 text-start text-[#1d2025]', off && 'opacity-[.55]');
   if (off) return <div aria-disabled="true" data-testid={testId} className={box}>{inner}</div>;
   if (to) return <Link to={to} data-testid={testId} aria-label={ariaLabel} className={cn(box, FOCUS)}>{inner}</Link>;
+  if (href) return <a href={href} target="_blank" rel="noopener noreferrer" data-testid={testId} aria-label={ariaLabel} className={cn(box, FOCUS)}>{inner}</a>;
   if (onPress) return <button type="button" onClick={onPress} data-testid={testId} aria-label={ariaLabel} className={cn(box, FOCUS)}>{inner}</button>;
   return <div data-testid={testId} className={box}>{inner}</div>;
 }
+
+/** The icon a reading wears: a talk is a play, a book is a book, anything else a page. */
+export const readingIcon = (r: ReadingItem): Icon => (/video|ted|talk|lecture/i.test(r.type) ? PlayCircle : /book|novel|textbook/i.test(r.type) ? BookOpen : FileText);
 
 /* ── a status card ────────────────────────────────────────────────────────── */
 
@@ -151,12 +158,48 @@ const CHOICE = {
   correct: 'border-[#2f7a52] bg-[#eaf6ef]',
   wrong: 'border-[#c8331f] bg-[#fee4e2]',
 } as const;
+/** One answer row's box: the quick check's, live (a button) or read only (a list item). */
+const CHOICE_ROW = 'flex min-h-16 w-full items-center gap-3.5 rounded-2xl border-2 py-2.5 pe-3.5 ps-2.5 text-start text-[16px] font-semibold leading-snug';
 const KEY = {
   idle: 'bg-[#f3f4f6] text-[#33374a]',
   picked: 'bg-[#33374a] text-white',
   correct: 'bg-[#2f7a52] text-white',
   wrong: 'bg-[#c8331f] text-white',
 } as const;
+
+/** What is inside an answer row: its key (A, B, C… or the ✓ / ✗ once marked), a picture if it has one, the words. */
+function ChoiceFace({ index, state, text, image }: { index: number; state: AnswerState; text: string; image?: string | null }) {
+  return (
+    <>
+      <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[15px] font-extrabold', KEY[state])}>
+        {state === 'correct' ? <Check className="h-5 w-5" strokeWidth={3} aria-hidden="true" /> : state === 'wrong' ? <X className="h-5 w-5" strokeWidth={3} aria-hidden="true" /> : LETTER[index]}
+      </span>
+      {image ? <img src={image} alt="" className="max-h-24 rounded-[8px] object-contain" /> : null}
+      <span dir="auto" className="min-w-0 flex-1">{text}</span>
+    </>
+  );
+}
+
+/**
+ * bd-s42dye.6 — a question's answers drawn as the quick check draws them, but READ ONLY: a list, nothing to press,
+ * no state (the coach's question preview). The same rows as Choices, never a button, radio or checkbox.
+ */
+export function ChoiceList({ label, options, images }: { label: string; options: string[]; images?: Array<string | null> | null }) {
+  return (
+    <ol aria-label={label} className="flex flex-col gap-2.5">
+      {options.map((text, i) => (
+        <li key={i} className={cn(CHOICE_ROW, CHOICE.idle)}>
+          <ChoiceFace index={i} state="idle" text={text} image={images?.[i] || null} />
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** The question itself, as the quick check sets it: 20px bold, her language's line height. */
+export function QuestionPrompt({ children }: { children: ReactNode }) {
+  return <p dir="auto" className="whitespace-pre-line px-1 text-[20px] font-bold leading-[1.4] rtl:leading-[2]">{children}</p>;
+}
 
 /**
  * One question's answers as big rows (A, B, C…). `multi` lets her pick several (a pick-all question); a
@@ -193,13 +236,9 @@ export function Choices({
             disabled={disabled}
             onClick={() => pick(i)}
             data-testid={`choice-${i}`}
-            className={cn('flex min-h-16 w-full items-center gap-3.5 rounded-2xl border-2 py-2.5 pe-3.5 ps-2.5 text-start text-[16px] font-semibold leading-snug', CHOICE[s], FOCUS)}
+            className={cn(CHOICE_ROW, CHOICE[s], FOCUS)}
           >
-            <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[15px] font-extrabold', KEY[s])}>
-              {s === 'correct' ? <Check className="h-5 w-5" strokeWidth={3} aria-hidden="true" /> : s === 'wrong' ? <X className="h-5 w-5" strokeWidth={3} aria-hidden="true" /> : LETTER[i]}
-            </span>
-            {img ? <img src={img} alt="" className="max-h-24 rounded-[8px] object-contain" /> : null}
-            <span dir="auto" className="min-w-0 flex-1">{text}</span>
+            <ChoiceFace index={i} state={s} text={text} image={img} />
           </button>
         );
       })}

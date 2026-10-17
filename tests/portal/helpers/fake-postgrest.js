@@ -57,6 +57,7 @@ function createFakePostgrest({ tables = {}, relations = {}, onQuery = null } = {
     builder.not = (col, op, val) => { state.filters.push({ kind: 'not', col, op, val }); return builder; };
     builder.order = (col, opts = {}) => { state.order = { col, asc: opts.ascending !== false }; return builder; };
     builder.limit = (n) => { state.limit = n; return builder; };
+    builder.range = (from, to) => { state.range = [from, to]; return builder; };
     builder.maybeSingle = () => { state.single = 'maybe'; return builder; };
     builder.single = () => { state.single = 'one'; return builder; };
 
@@ -111,6 +112,7 @@ function createFakePostgrest({ tables = {}, relations = {}, onQuery = null } = {
         const { col, asc } = state.order;
         rows.sort((a, b) => (String(a[col]) < String(b[col]) ? -1 : String(a[col]) > String(b[col]) ? 1 : 0) * (asc ? 1 : -1));
       }
+      if (state.range) rows = rows.slice(state.range[0], state.range[1] + 1);
       if (state.limit != null) rows = rows.slice(0, state.limit);
       if (state.single) return { data: rows[0] || null, error: null };
       return { data: rows, error: null };
