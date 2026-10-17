@@ -145,9 +145,10 @@ test('a stale token → 410 {error:"mk.stale"}, nothing minted', async () => {
 test('a child\'s own code under the watch root for this quiz is never handed out as the teacher\'s class code', async () => {
   // a class-less child's video code hangs under the watch root and copies the root's teacher (web-quiz-videos.js);
   // when that teacher opens the maker on the same video quiz, the make mints the class its own code
+  const at = (h) => new Date(Date.UTC(2026, 9, 16, h, 0, 0)).toISOString();
   const CHILD_CODE = { id: '33333333-3333-4333-8333-3333333333e1', code: 'KIDKID', quiz_id: qid(2), teacher_user_id: TEACHER.id,
     teacher_name: TEACHER.name, topic: 'Fractions', language: 'en', invited_by_student_id: null,
-    parent_share_code_id: '33333333-3333-4333-8333-3333333333e0', active: true, expires_at: null, created_at: new Date().toISOString() };
+    parent_share_code_id: '33333333-3333-4333-8333-3333333333e0', active: true, expires_at: null, created_at: at(12) };
   fake.db.quiz_share_codes.push({ ...CHILD_CODE });
   const out = await (await make({ t: tokenFor(), ...MATHS })).json();
   expect(out.shareCodeId).not.toBe(CHILD_CODE.id);
