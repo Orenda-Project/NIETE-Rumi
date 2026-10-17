@@ -10,12 +10,12 @@
  *   eventsV3Now(now)         the events switch from the cache, synchronously (a stale cache refreshes behind)
  *   loadState(key) / saveState(key, st)   the slot's per-child state ({} on any failure; a lost write is no state)
  *   noteTap(kid, offer)      a tap on an offer resets its "shown, not tapped" streak, is remembered as opened and not
- *                            yet finished (#C49a's carry-on: `t`), and spends the once-a-day tile its view showed (#C50)
- *   noteDoor(kid)            a door tapped from the home spends the once-a-day tile that home showed (#C50)
+ *                            yet finished (the carry-on: `t`), and spends the once-a-day tile its view showed
+ *   noteDoor(kid)            a door tapped from the home spends the once-a-day tile that home showed
  *   noteShown(kid, offer)    the page's next_shown (pos 0, in view) on an offer: one "shown, not tapped" step for its
  *                            tile (two within 60 s count once); the second in a row drops it one place for the PKT day
  *   dropsToday(st, day)      the day's drops, in order (the ranker replays them on every render)
- *   noteDone(kid, card)      a finish card of the carried-on tile's kind: it was finished, so it is carried no more (#C49a)
+ *   noteDone(kid, card)      a finish card of the carried-on tile's kind: it was finished, so it is carried no more
  *   copyOf(tile)             the fields of a shown tile the state keeps (what the page drew, nothing else)
  */
 const supabase = require('../../config/supabase');
@@ -118,7 +118,7 @@ async function tapStep(kid, offer, now) {
     const v = c ? c.variant || null : st.t && st.t.id === id ? st.t.v || null : null;
     const same = st.t && st.t.id === id && (st.t.v || null) === v;
     const u = (same ? Number(st.t.u) || 0 : 0) + 1;
-    // a second unfinished open uses the tile up (#C49a): it drops one place for the day, once
+    // a second unfinished open uses the tile up: it drops one place for the day, once
     const used = u >= DROP_AFTER && !(same && st.t.x);
     await saveState(kid, {
       ...st,
@@ -136,7 +136,7 @@ async function tapStep(kid, offer, now) {
 /**
  * The page's next_shown for the ONE tile (pos 0, drawn in view), by the child's kid: one "shown, not tapped" step for
  * the tile its offer named. The same tile again inside 60 s is the same show. The second step in a row (an unfinished
- * open counts as one, #C49a) drops the tile one place for the PKT day and starts its count again.
+ * open counts as one) drops the tile one place for the PKT day and starts its count again.
  */
 async function noteShown(kid, offer, now = Date.now()) {
   if (!kid || typeof offer !== 'string') return false;

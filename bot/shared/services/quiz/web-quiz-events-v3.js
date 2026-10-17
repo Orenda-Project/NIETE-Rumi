@@ -184,7 +184,7 @@ async function relay(e, body = {}, device = null, { onTap = null, onShown = null
     if (e.n === 'next_tap' && kid && fields.offer && typeof onTap === 'function') await onTap(kid, fields.offer);
     // the ONE tile drawn in view (pos 0): one "shown, not tapped" step for it (the slot's drop rule; never a coach's)
     if (e.n === 'next_shown' && kid && fields.offer && fields.pos === 0 && !fields.practice && typeof onShown === 'function') await onShown(kid, fields.offer);
-    // a door tapped from the home (the once-a-day tile it showed is spent, #C50)
+    // a door tapped from the home (the once-a-day tile it showed is spent)
     if (e.n === 'door_tap' && kid && !fields.practice && typeof onDoor === 'function') await onDoor(kid);
     // a finish card shown (the page's card kind: the activity was finished, so its tile is no longer carried on)
     if (e.n === 'card_shown' && kid && !fields.practice && typeof onDone === 'function' && typeof e.src === 'string') await onDone(kid, e.src);

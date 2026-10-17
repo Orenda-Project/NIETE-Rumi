@@ -3,7 +3,7 @@
  * The home's ONE Next tile across views (web-quiz-next-offer.js nextFor + the state's taps), with the taps heard
  * (web_quiz_events_v3 on):
  *   - an activity opened and left unfinished counts as ONE shown-without-a-tap, not as done: the same tile comes back
- *     on the next home view; a second unfinished open, or one more untapped show, rotates it (the two of #C3); its words
+ *     on the next home view; a second unfinished open, or one more untapped show, rotates it (two shows without a tap move a tile); its words
  *     follow what the child was doing, by the tile's word key `w` (never the href): a passage read aloud comes back as
  *     "Carry on reading" / «پڑھنا جاری رکھیں», a story listened to, read along or a storybook as "Carry on with your
  *     story" / «کہانی جاری رکھیں», a game keeps its words; finished (its finish card shown) it rotates as today;
