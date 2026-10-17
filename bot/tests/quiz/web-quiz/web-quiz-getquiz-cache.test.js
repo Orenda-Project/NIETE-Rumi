@@ -149,6 +149,14 @@ describe('library events and the video id on the lesson page', () => {
     const on = await WQ.getQuiz('VID001');
     expect(on.videos_v3).toBe(true);
     expect(on.video.url).toMatch(/X-Amz-Signature/);
+    // a quiz with no video (a lesson-transcript quiz): never told, the switch on or not
+    const TQ = '88888888-8888-4888-8888-888888888881';
+    fake.db.quizzes.push({ id: TQ, video_id: null, quiz_source: 'transcript', status: 'ready', topic: 'Plants', grade: '3', subject: 'Science', language: 'en', meta: {} });
+    fake.db.quiz_share_codes.push({ ...fake.db.quiz_share_codes[0], id: 'sc-3', code: 'TRN001', quiz_id: TQ, video_id: null });
+    [1, 2, 3].forEach((n) => fake.db.quiz_questions.push({ ...fake.db.quiz_questions[0], id: `8888888${n}-8888-4888-8888-888888888888`, quiz_id: TQ, external_id: `t${n}`, sort_order: n }));
+    const plain = await WQ.getQuiz('TRN001');
+    expect(plain.video == null).toBe(true);
+    expect('videos_v3' in plain).toBe(false);
   });
 });
 
