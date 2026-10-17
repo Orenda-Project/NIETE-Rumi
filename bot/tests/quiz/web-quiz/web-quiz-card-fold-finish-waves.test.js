@@ -43,11 +43,12 @@ const ago = (h) => new Date(NOW - h * 3600000).toISOString();
 const BASE = { class: { warm: 6, stale: 6 }, lesson: { warm: 6, stale: 6 } };
 
 // lesson: the quiz's code is a library lesson's (under a teacher's), so no teacher sent this child a quiz
-function tables({ home, lesson }) {
+function tables({ home, lesson, storyBoard }) {
   return {
     app_settings: [{ key: 'web_quiz_teachers', value: '"all"' }, { key: 'web_quiz_hub', value: true }, { key: 'web_quiz_fast', value: true },
-      ...(home ? [{ key: 'web_quiz_home_v3', value: true }] : [])],
-    quizzes: [{ id: QUIZ, topic: 'Fractions', grade: '3', subject: 'maths', quiz_source: 'transcript', video_id: null }],
+      ...(home ? [{ key: 'web_quiz_home_v3', value: true }] : []),
+      ...(storyBoard ? [{ key: 'web_quiz_story_board_refuse', value: true }] : [])],
+    quizzes: [{ id: QUIZ, topic: 'Fractions', grade: '3', subject: 'maths', quiz_source: storyBoard ? 'story' : 'transcript', video_id: null }],
     quiz_share_codes: [{ id: SC, code: 'AB12CD', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER, language: 'en', active: true,
       expires_at: future, invited_by_student_id: null, parent_share_code_id: lesson ? 'sc-parent' : null, created_at: ago(30) }],
     quiz_questions: [1, 2].map((n) => ({ id: Q(n), quiz_id: QUIZ, external_id: `q${n}`, sort_order: n, question_text: `Q${n}`,
@@ -130,4 +131,14 @@ describe.each([['a class child', 'class', false], ['a child with no class', 'les
     expect(off.warm.waves).toBeLessThanOrEqual(BASE[key].warm);
     expect(off.stale.waves).toBeLessThanOrEqual(BASE[key].stale);
   });
+});
+
+// A storybook finish under web_quiz_story_board_refuse (no class picture): the switch and the quiz's source are read
+// beside the finish's other early lookups, so the page waits no longer than the base, warm or stale.
+test('a storybook finish with web_quiz_story_board_refuse on: no class picture, never above the base\'s waves', async () => {
+  const on = await warmAndStale({ storyBoard: true });
+  expect(on.warm.out.art.class).toBeNull();
+  expect(on.warm.out.art.table).toBeNull();
+  expect(on.warm.waves).toBeLessThanOrEqual(BASE.class.warm);
+  expect(on.stale.waves).toBeLessThanOrEqual(BASE.class.stale);
 });
