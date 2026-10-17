@@ -182,7 +182,7 @@ if(r.report)li.appendChild(link('th-link',S['th.report'],r.report,'report'));
 if(r.verb==='quiz_this'&&made[r.id])tx.appendChild(el('p','th-note',S['th.quiz.making']));
 else if(r.verb==='quiz_this'){var v=btn('th-row-v',S['th.quiz.this'],'quiz_this',function(){make(r,tx,v)});li.appendChild(v)}
 else if(r.status==='making'&&r.quizId){poll(r,tx,null)}
-ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown&&!(d.more>0)}
+ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown}
 function lib(L){Array.prototype.forEach.call(q('#th-grades').querySelectorAll('[data-grade]'),function(x){x.setAttribute('aria-pressed',String(x.getAttribute('data-grade')===String(L.grade)))});
 q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});
 var ul=q('#th-stories');clear(ul);(L.stories||[]).forEach(function(s){var li=el('li','th-row');li.setAttribute('data-row','story');var tx=el('div','th-row-t');var n=el('span','th-row-n');n.appendChild(topic(s.title));if(s.sent)n.appendChild(el('span','th-sent',fill('th.sent.on',{day:day(s.sent)})));tx.appendChild(n);li.appendChild(tx);li.appendChild(link('th-row-v',S['th.send'],s.href,'story_tile'));ul.appendChild(li)});
@@ -198,8 +198,7 @@ Array.prototype.forEach.call(w.querySelectorAll('[data-persona]'),function(x){x.
 post('/api/go/persona',{t:k.t,as:x.getAttribute('data-persona')}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(o){if(!o||typeof o.next!=='string'||o.next.indexOf('/quiz/go/')!==0)throw 0;location.href=o.next})
 .catch(function(){busy=false;err(true)})})})}
 function render(){hello();top();under();rows();lib(d.library||{grade:2});foot();q('#th-main').setAttribute('data-ready','1')}
-q('#th-more').addEventListener('click',function(){step('more');var all=d.timeline||[];if(!(d.more>0&&d.after&&shown+10>all.length)){shown+=10;rows();return}
-if(busy)return;busy=true;getj('/api/th/timeline?t='+T+'&after='+encodeURIComponent(d.after)+'&n=10'+(b.ask?'&lang='+b.ask:'')).then(function(x){d.timeline=all.concat(x.timeline||[]);d.more=x.more;d.after=x.after;shown+=10;rows()}).catch(function(e){if(e!==1)err(true)}).then(function(){busy=false})});
+q('#th-more').addEventListener('click',function(){shown+=10;rows();step('more')});
 q('#th-back').addEventListener('click',function(){try{history.back()}catch(e){unsheet()}});
 q('#th-copy').addEventListener('click',copy);
 q('#th-cards').addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('[data-card]'):null;if(a)step('card_'+a.getAttribute('data-card'))});
@@ -213,10 +212,15 @@ const SCRIPT_HASH = sha(SCRIPT);
 
 /**
  * The page with the quick answer (switch quiz_teacher_home_paged ON): today's script with these parts swapped, so the
- * page with the switch OFF is today's byte for byte. The home's answer is waited for 15 s at most: after that (or on a
- * refusal) the error line and «Try again», which asks again; a late answer is still drawn, a stale timer stays quiet.
+ * page with the switch OFF is today's byte for byte. «More» asks the server for the next rows when the first answer
+ * carries `more`; the home's answer is waited for 15 s at most: after that (or on a refusal) the error line and «Try
+ * again», which asks again; a late answer is still drawn, a stale timer stays quiet.
  */
 const PAGED_SWAPS = Object.freeze([
+  // «More»: when the first answer carries `more`, the next rows come from /api/th/timeline after the cursor
+  [`ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown}`, `ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown&&!(d.more>0)}`],
+  [`q('#th-more').addEventListener('click',function(){shown+=10;rows();step('more')});`, `q('#th-more').addEventListener('click',function(){step('more');var all=d.timeline||[];if(!(d.more>0&&d.after&&shown+10>all.length)){shown+=10;rows();return}
+if(busy)return;busy=true;getj('/api/th/timeline?t='+T+'&after='+encodeURIComponent(d.after)+'&n=10'+(b.ask?'&lang='+b.ask:'')).then(function(x){d.timeline=all.concat(x.timeline||[]);d.more=x.more;d.after=x.after;shown+=10;rows()}).catch(function(e){if(e!==1)err(true)}).then(function(){busy=false})});`],
   [`var g0=store('th.grade');
 getj('/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''))
 .then(function(x){d=x;grade=x.library&&x.library.grade;render()}).catch(function(e){if(e!==1){err(true);q('#th-main').setAttribute('data-ready','err')}});`, `var g0=store('th.grade'),hq='/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''),ask=0;
@@ -335,4 +339,4 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
   return { html, csp: csp(styleHash, scriptHash) };
 }
 
-module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH, digits };
+module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH, PAGED_SWAPS, digits };
