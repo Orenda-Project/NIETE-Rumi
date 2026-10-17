@@ -229,6 +229,9 @@ const SHAPES = [
   ['a keep tap (?lang=ur + keep, no row yet)', {}, { lang: 'ur', keep: true }, 'ur'],
 ];
 
+// The hub's waves with the switch off before this change (measured on its base with this fixture): off may not grow.
+const BASE_OFF = { false: { warm: 24, stale: 38 }, true: { warm: 20, stale: 32 } };
+
 describe.each([['a child on a class list', false], ['a loose child', true]])('the child\'s language on the kid hub: %s', (_name, loose) => {
   test.each(SHAPES)('switch on, %s: the same waves as switch off, warm and stale (+0)', async (_shape, row, ask, want) => {
     const off = await warmAndStale({ fast: true, loose, home: true });
@@ -240,5 +243,7 @@ describe.each([['a child on a class list', false], ['a loose child', true]])('th
     expect(off.warm.perTable.child_language).toBeUndefined();
     console.log(`hub waves, child language${loose ? ' (loose)' : ''}: off ${off.warm.waves} warm / ${off.stale.waves} stale; on ${on.warm.waves} / ${on.stale.waves}`);
     expect({ warm: on.warm.waves, stale: on.stale.waves }).toEqual({ warm: off.warm.waves, stale: off.stale.waves });
+    expect(off.warm.waves).toBeLessThanOrEqual(BASE_OFF[loose].warm);
+    expect(off.stale.waves).toBeLessThanOrEqual(BASE_OFF[loose].stale);
   });
 });
