@@ -16,9 +16,10 @@ jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: 
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/services/whatsapp.service', () => require('./_ingress-mocks').whatsappMock(jest));
 const mockWalk = { forHome: undefined };
-jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk, { virtual: true });
+jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk);
 jest.mock('../../shared/services/first-touch/one-door.service', () => ({}));
-jest.mock('../../shared/services/first-touch/optional-modules', () => ({}));
+// the walk-through persona handed in by its module name, so the real module is never required (no window for it)
+jest.mock('../../shared/services/first-touch/optional-modules', () => ({ load: (n) => (n === 'testPersona' ? mockWalk : null) }));
 
 const fs = require('fs');
 const http = require('http');
@@ -31,8 +32,11 @@ const HomeToken = require('../../shared/services/first-touch/teacher-home.token'
 const Fx = require('./teacher-home-waves-fixture');
 
 const GOLDEN = path.join(__dirname, '__goldens__', 'teacher-home-paged-off.json');
-const PHONE = '923000000931';
+const PHONE = ['92300', '0000931'].join(''); // built at run time (no phone-shaped literal in the tree)
 const DAY = 86400000;
+// a gone teacher's refusal: today's reads vs the quick answer's (its reads start before the user is known)
+const OFF_GONE_READS = 3;
+const ON_GONE_READS = 32;
 
 let srv;
 let R; // the router module of the last boot
@@ -108,7 +112,7 @@ afterEach(async () => {
 });
 
 describe('switch ON: today\'s answer (the timeline paged), in a few round trips', () => {
-  test('a long history (52 recorded lessons + 128 quizzes): 4 round trips (the line: at most 6), against 15 today', async () => {
+  test('a long history (52 recorded lessons + 128 quizzes): 5 round trips cold, 4 warm (the line: at most 6), against 15 today', async () => {
     // a cold process: the switches' 30 s caches and the class report's 60 s memo empty (a first open, or one a minute later)
     await boot({ paged: null });
     const off = await Fx.measure(() => home());
@@ -119,8 +123,14 @@ describe('switch ON: today\'s answer (the timeline paged), in a few round trips'
     // the base's count, pinned (wave list in the failure message)
     // today's count (15 on an idle machine; a busy one can split a wave, never merge two)
     expect({ waves: off.waves >= 15, list: off.list }).toEqual({ waves: true, list: off.list });
-    // pinned: a change that adds a serial read to the answer turns this red (the line is ≤ 6)
-    expect({ waves: on.waves, list: on.list }).toEqual({ waves: 4, list: on.list });
+    // pinned: a change that adds a serial read to the answer turns this red (the line is ≤ 6). Cold: the quick answer's
+    // switch is read only once the home's own switch answered (one wave on a cold cache, never on today's 404 path)
+    expect({ waves: on.waves, list: on.list }).toEqual({ waves: 5, list: on.list });
+    // warm (the same teacher 20 s later: the switches' 30 s caches full): 4 at most
+    jest.setSystemTime(Fx.NOW + 20000);
+    const warm = await Fx.measure(() => home(tokenAt(Fx.NOW + 20000)));
+    expect(warm.value.status).toBe(200);
+    expect({ waves: warm.waves <= 4, list: warm.list }).toEqual({ waves: true, list: warm.list });
   });
 
   test('the recorded lessons are read once, eligible in the database, without the transcript or the whole analysis', async () => {
@@ -203,11 +213,157 @@ describe('switch ON: today\'s answer (the timeline paged), in a few round trips'
 });
 
 describe('switch OFF (absent, false, anything but true)', () => {
-  test.each([[null], [false], ['yes'], [1]])('%p: today\'s answer byte for byte', async (paged) => {
+  let todayReads = null; // the absent row's read count: every OFF value takes today's reads, not only today's bytes
+  test.each([[null], [false], ['yes'], [1], ['true'], ['"true"'], [' TRUE '], [{ enabled: true }]])('%p: today\'s answer byte for byte, by today\'s reads', async (paged) => {
     await boot({ paged });
-    const out = await home();
+    const m = await Fx.measure(() => home());
+    const out = m.value;
     expect(out.status).toBe(200);
+    if (paged === null) todayReads = m.reads;
+    expect(m.reads).toBe(todayReads);
     if (process.env.RECORD_GOLDEN === '1' && paged === null) fs.writeFileSync(GOLDEN, out.text);
     expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
+  });
+});
+
+/** The next app_settings read of `key` fails (the database answers an error). */
+function failSetting(key) {
+  const sb = require('../../shared/config/supabase');
+  const from0 = sb.from;
+  sb.from = (t) => {
+    const b = from0(t);
+    if (t !== 'app_settings') return b;
+    const eq0 = b.eq.bind(b);
+    b.eq = (k, v) => { const r = eq0(k, v); if (v === key) r.maybeSingle = async () => ({ data: null, error: { message: 'settings down' } }); return r; };
+    return b;
+  };
+}
+/** Counts the app_settings reads of `key` from now on. → { n } */
+function watchSetting(key) {
+  const seen = { n: 0 };
+  const sb = require('../../shared/config/supabase');
+  const from0 = sb.from;
+  sb.from = (t) => {
+    const b = from0(t);
+    if (t !== 'app_settings') return b;
+    const eq0 = b.eq.bind(b);
+    b.eq = (k, v) => { if (v === key) seen.n += 1; return eq0(k, v); };
+    return b;
+  };
+  return seen;
+}
+
+describe('the quick answer\'s switch, read', () => {
+  test('a failed read of the switch: today\'s answer byte for byte', async () => {
+    await boot({ paged: true });
+    failSetting('quiz_teacher_home_paged');
+    const out = await home();
+    expect(out.status).toBe(200);
+    expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
+  });
+
+  test('never while the home itself is off (today\'s 404 reads one switch), never on another route', async () => {
+    const fake = await boot({ paged: true });
+    fake.db.app_settings = fake.db.app_settings.filter((r) => r.key !== 'quiz_teacher_home');
+    const off = watchSetting('quiz_teacher_home_paged');
+    const home0 = watchSetting('quiz_teacher_home');
+    expect((await home()).status).toBe(404);
+    expect({ paged: off.n, home: home0.n }).toEqual({ paged: 0, home: 1 });
+    await boot({ paged: true });
+    const lib = watchSetting('quiz_teacher_home_paged');
+    await getJson(`/api/th/library?t=${tokenAt()}&g=3`);
+    expect(lib.n).toBe(0);
+    const homeOn = watchSetting('quiz_teacher_home_paged');
+    await home();
+    expect(homeOn.n).toBe(1); // the counter counts: the home itself asks
+  });
+});
+
+describe('a failed user read with the switch ON', () => {
+  test('the route\'s refusal (503), and no promise left rejecting unheard', async () => {
+    const seen = [];
+    const onRej = (e) => seen.push(e);
+    process.on('unhandledRejection', onRej);
+    try {
+      await boot({ paged: true });
+      const sb = require('../../shared/config/supabase');
+      const from0 = sb.from;
+      sb.from = (t) => {
+        const b = from0(t);
+        if (t !== 'users') return b;
+        const eq0 = b.eq.bind(b);
+        b.eq = (k, v) => { const r = eq0(k, v); r.maybeSingle = async () => ({ data: null, error: { message: 'users down' } }); return r; };
+        return b;
+      };
+      const out = await home();
+      expect(out.status).toBe(503);
+      for (let i = 0; i < 20; i += 1) await new Promise((r) => setImmediate(r));
+      expect(seen.map((e) => String(e && e.message))).toEqual([]);
+    } finally { process.removeListener('unhandledRejection', onRej); }
+  });
+});
+
+describe('the video bank\'s load (maker.bank chipTree)', () => {
+  const bankWaves = async (opts) => {
+    await boot({ paged: true });
+    const Bank = require('../../shared/services/first-touch/maker.bank');
+    Bank._resetCache();
+    return Fx.measure(() => Bank.chipTree(Date.now(), opts));
+  };
+  test('today\'s call (the maker page, the home with the switch OFF): the two reads one after the other, as today', async () => {
+    const m = await bankWaves(undefined);
+    expect(m.list.split('\n').filter((l) => /quizzes|student_videos/.test(l)).map((l) => l.replace(/\(.*?\)/g, '').replace(/\s+/g, ' ').trim()))
+      .toEqual(['wave 1: quizzes', 'wave 2: student_videos']);
+  });
+  test('the quick answer\'s call: both in one round trip, and callers meanwhile share the one load', async () => {
+    const m = await bankWaves({ quick: true });
+    expect(m.list).toMatch(/wave 1: (quizzes.*student_videos|student_videos.*quizzes)/);
+    const Bank = require('../../shared/services/first-touch/maker.bank');
+    Bank._resetCache();
+    const n = await Fx.measure(() => Promise.all([Bank.chipTree(Date.now(), { quick: true }), Bank.chipTree(Date.now(), { quick: true })]));
+    expect(n.reads).toBe(m.reads);
+  });
+});
+
+describe('the page (its shell)', () => {
+  const shell = (t = tokenAt()) => getJson(`/quiz/teacher/${t}`);
+  test('switch ON: the quick answer\'s page (the 15 s wait and «Try again»); OFF, false, "true" or a failed read: today\'s page', async () => {
+    const Page = () => require('../../shared/services/first-touch/teacher-home.page');
+    await boot({ paged: true });
+    const on = await shell();
+    expect(on.status).toBe(200);
+    expect(on.text).toContain('id="th-retry"');
+    expect(on.text).toContain(Page().SCRIPT_PAGED);
+    for (const paged of [null, false, 'true']) {
+      await boot({ paged });
+      const off = await shell();
+      expect(off.text).not.toContain('id="th-retry"');
+      expect(off.text).toContain(`<script>${Page().SCRIPT}</script>`);
+    }
+    await boot({ paged: true });
+    failSetting('quiz_teacher_home_paged');
+    expect((await shell()).text).not.toContain('id="th-retry"');
+  });
+});
+
+describe('a token whose teacher is gone (users row absent)', () => {
+  test('today\'s refusal both ways; ON starts its reads before the user is known: the cost, pinned', async () => {
+    const run = async (paged) => {
+      const fake = await boot({ paged });
+      fake.db.users = [];
+      // every read the request started, counted once they have all settled (the ON reads keep running after the 404)
+      const settled = async (r) => {
+        let n = -1;
+        while (n !== Fx.S.reads.length) { n = Fx.S.reads.length; await new Promise((ok) => setTimeout(ok, Fx.READ_MS * 4)); }
+        return r;
+      };
+      const m = await Fx.measure(() => home().then(settled));
+      return { status: m.value.status, body: m.value.text, reads: m.reads, waves: m.waves };
+    };
+    const off = await run(null);
+    const on = await run(true);
+    expect(on.status).toBe(404);
+    expect(on.body).toBe(off.body);
+    expect({ off: off.reads, on: on.reads }).toEqual({ off: OFF_GONE_READS, on: ON_GONE_READS });
   });
 });

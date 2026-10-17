@@ -36,11 +36,12 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
 /**
  * Opens the page in `lang` with the home answering `home` (or refusing with `status`, or failing with `status: 'offline'`,
  * or never answering with `status: 'hang'` until the test calls `release(json)` on the oldest home fetch still open);
+ * `paged` builds the page with the quick answer's switch ON;
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location, release }.
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [] } = {}) {
-  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null });
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], paged = false } = {}) {
+  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}) });
   const doc = adopt(parse(html));
   const fetches = [];
   const beacons = [];
@@ -331,14 +332,14 @@ describe('"Quiz this" starts one quiz, wherever it is tapped', () => {
   });
 });
 
-describe('the home\'s answer does not come', () => {
+describe('the home\'s answer does not come (switch quiz_teacher_home_paged ON)', () => {
   const HOME = { primary: { kind: 'none' }, library: LIB };
   const homeFetches = (p) => p.fetches.filter((f) => f.path.indexOf('/api/th/home?') === 0);
   const fire15 = async (timers) => { timers.splice(0).filter((fn) => fn.ms === 15000).forEach((fn) => fn()); await new Promise((r) => setImmediate(r)); };
 
   test('nothing after 15 s: the error line and «Try again» show (never a skeleton with no word); a tap asks again and draws the home', async () => {
     const timers = [];
-    const p = await open(HOME, { status: 'hang', timers });
+    const p = await open(HOME, { status: 'hang', timers, paged: true });
     expect(p.q('#th-retry').hidden).toBe(true);
     expect(p.q('#th-err').hidden).toBe(true);
     expect(timers.map((fn) => fn.ms)).toContain(15000);
@@ -362,7 +363,7 @@ describe('the home\'s answer does not come', () => {
 
   test('a stale 15 s timer from the first ask never shows the error over a second ask still on its way', async () => {
     const timers = [];
-    const p = await open(HOME, { status: 'hang', timers });
+    const p = await open(HOME, { status: 'hang', timers, paged: true });
     const first = timers.splice(0).filter((fn) => fn.ms === 15000);
     first.forEach((fn) => fn());
     await new Promise((r) => setImmediate(r));
@@ -374,7 +375,7 @@ describe('the home\'s answer does not come', () => {
 
   test('an answer inside 15 s: the timer finds the home drawn and does nothing', async () => {
     const timers = [];
-    const p = await open(HOME, { timers });
+    const p = await open(HOME, { timers, paged: true });
     await fire15(timers);
     expect(p.q('#th-err').hidden).toBe(true);
     expect(p.q('#th-retry').hidden).toBe(true);
@@ -383,7 +384,7 @@ describe('the home\'s answer does not come', () => {
   });
 
   test.each([500, 'offline'])('a refusal (%s): the error line, its tap back to the chat, and «Try again» that asks again', async (status) => {
-    const p = await open({}, { status });
+    const p = await open({}, { status, paged: true });
     expect(p.q('#th-err').hidden).toBe(false);
     expect(p.q('#th-retry').hidden).toBe(false);
     await p.tap(p.q('#th-retry'));
@@ -391,7 +392,34 @@ describe('the home\'s answer does not come', () => {
   });
 
   test('Urdu: the button reads the signed words of the error line', () => {
-    const { html } = Page.buildShell({ token: 'a.b', lang: 'ur', switchTo: null });
+    const { html } = Page.buildShell({ token: 'a.b', lang: 'ur', switchTo: null, paged: true });
     expect(html).toContain('id="th-retry" type="button" hidden>دوبارہ کوشش کریں</button>');
+  });
+});
+
+describe('switch OFF: today\'s page', () => {
+  const crypto = require('crypto');
+  const GOLD = require('./__goldens__/teacher-home-shell-off.json');
+  test('the shell, byte for byte as today\'s (18 shapes: language × switch link × asked; recorded on the base)', () => {
+    const now = GOLD.map(({ lang, switchTo, asked }) => {
+      const b = Page.buildShell({ token: 'a.b-c_D', lang, switchTo, asked });
+      return { lang, switchTo, asked, sha256: crypto.createHash('sha256').update(`${b.html}\n${b.csp}`).digest('hex') };
+    });
+    if (process.env.RECORD_GOLDEN === '1') require('fs').writeFileSync(require('path').join(__dirname, '__goldens__', 'teacher-home-shell-off.json'), `${JSON.stringify(now, null, 1)}\n`);
+    expect(now).toEqual(GOLD);
+  });
+  test('an answer that never comes: no timer of 15 s, no «Try again» (today\'s page)', async () => {
+    const timers = [];
+    const p = await open({ primary: { kind: 'none' }, library: LIB }, { status: 'hang', timers });
+    expect(timers.filter((fn) => fn.ms === 15000)).toEqual([]);
+    expect(p.q('#th-retry')).toBeNull();
+    expect(p.beacons).toEqual([]);
+  });
+  test('the quick answer\'s page is today\'s script with only the home\'s ask swapped, under its own hash', () => {
+    expect(Page.SCRIPT_PAGED).not.toBe(Page.SCRIPT);
+    expect(Page.SCRIPT_PAGED.replace(/var g0=store[\s\S]*?home\(\);/, 'X')).toBe(Page.SCRIPT.replace(/var g0=store[\s\S]*?\}\}\);/, 'X'));
+    const on = Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, paged: true });
+    expect(on.csp).toContain(`'sha256-${Page.SCRIPT_PAGED_HASH}'`);
+    expect(on.html).toContain(`<script>${Page.SCRIPT_PAGED}</script>`);
   });
 });
