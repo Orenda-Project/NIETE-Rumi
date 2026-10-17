@@ -500,8 +500,12 @@ function bindTags(payload, assetV) {
 }
 
 // The v3 child home: its stylesheet and script, only when the bot's hub JSON carries `home_v3` (web_quiz_home_v3 on).
+// With `home_fb` (web_quiz_home_fallback_v3) the script is a preload of the same address instead: a hung request then
+// cannot hold hub.js back (deferred scripts run in order), and hub.js's own ask, with its 5 s wait, retry and plain
+// home, reuses the preloaded bytes. Same href, same `as`, no crossorigin: any other preload of it shares the download.
 function homeTags(payload, assetV) {
   if (!payload || !payload.home_v3) return '';
+  if (payload.home_fb) return `<link rel="stylesheet" href="/wq/wq-home.css?v=${assetV}">\n<link rel="preload" href="/wq/wq-home.js?v=${assetV}" as="script">\n`;
   return `<link rel="stylesheet" href="/wq/wq-home.css?v=${assetV}">\n<script src="/wq/wq-home.js?v=${assetV}" defer></script>\n`;
 }
 
