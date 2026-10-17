@@ -487,7 +487,7 @@ describe('E6 GET board (the class league table)', () => {
   });
 
   test('"you" is the child\'s own row when the session token is given', async () => {
-    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Iqra Example', force: true } });
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Iqra Testwala', force: true } });
     await WQ.recordAnswers({ st: s.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
     await WQ.finishSession({ st: s.st });
     const out = await WQ.board('AB12CD', { st: s.st });
@@ -507,6 +507,51 @@ describe('E6 GET board (the class league table)', () => {
     CD._resetCache();
     fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
     expect(await WQ.board('AB12CD')).toEqual({ ...before, class_doors: true });
+    CD._resetCache();
+  });
+
+  // web_quiz_class_doors on: the table names the child's own class (as the teacher's report reads what children typed),
+  // and says whether every row is of it. Off, or a viewer the table does not know: neither key.
+  test('app_settings web_quiz_class_doors on: my_class + one_class for the child the token names; off: neither', async () => {
+    const CD = require('../../../shared/services/quiz/web-quiz-class-doors-flag');
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Iqra Testwala', force: true } });
+    await WQ.recordAnswers({ st: s.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
+    await WQ.finishSession({ st: s.st });
+    fake.db.quiz_sessions.forEach((r) => { r.student_class = 'Class 3'; });
+    CD._resetCache();
+    const off = await WQ.board('AB12CD', { st: s.st });
+    expect(off).not.toHaveProperty('my_class');
+    expect(off).not.toHaveProperty('one_class');
+    fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
+    CD._resetCache();
+    expect(await WQ.board('AB12CD', { st: s.st })).toEqual({ ...off, class_doors: true, my_class: '3', one_class: true });
+    // another class in the table: one_class false; the child's own row keeps the child's class
+    const sid = T.verify(s.st, 's').sid;
+    fake.db.quiz_sessions.filter((r) => r.id !== sid).forEach((r) => { r.student_class = '4'; });
+    const mixed = await WQ.board('AB12CD', { st: s.st });
+    expect(mixed).toMatchObject({ my_class: '3', one_class: false });
+    // no token: the viewer is not known, so no class of theirs
+    const cold = await WQ.board('AB12CD');
+    expect(cold.class_doors).toBe(true);
+    expect(cold).not.toHaveProperty('my_class');
+    // the rows never carry a child's class
+    expect(Object.keys(mixed.rows[0]).sort()).toEqual(['animal', 'correct', 'first', 'place', 'total']);
+    CD._resetCache();
+  });
+
+  test('app_settings web_quiz_class_doors on: the quiz page\'s answer carries class_doors; off, absent or the string "true": today\'s', async () => {
+    const CD = require('../../../shared/services/quiz/web-quiz-class-doors-flag');
+    CD._resetCache();
+    const before = await WQ.getQuiz('AB12CD');
+    expect(before).not.toHaveProperty('class_doors');
+    for (const value of [false, 'true']) {
+      CD._resetCache();
+      fake.db.app_settings = [{ key: 'web_quiz_class_doors', value }];
+      expect(await WQ.getQuiz('AB12CD')).not.toHaveProperty('class_doors');
+    }
+    CD._resetCache();
+    fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
+    expect((await WQ.getQuiz('AB12CD')).class_doors).toBe(true);
     CD._resetCache();
   });
 

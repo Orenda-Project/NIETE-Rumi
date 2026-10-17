@@ -177,9 +177,9 @@ function prefetch(chosenId, now = Date.now()) {
 // Never throws. onP: the switch's read, started by prefetchFb beside the home's own reads (no added wave); rootP: the
 // watch root's id, read only once the switch is on.
 const ClassDoors = require('./web-quiz-class-doors-flag');
-async function classDoorsOf(history, chosenId, onP, rootP) {
+async function classDoorsOf(history, chosenId, onP, rootP, lang) {
   try {
-    const links = (await (onP || ClassDoors.on())) ? ClassDoors.linksOf(history, chosenId, await (rootP || ClassDoors.root())) : null;
+    const links = (await (onP || ClassDoors.on())) ? ClassDoors.linksOf(history, chosenId, await (rootP || ClassDoors.root()), lang) : null;
     return links ? { class_doors: links } : {};
   } catch (_) {
     return {};
@@ -204,7 +204,7 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre, device
     const R = require('./web-quiz-home-remember');
     // (one read of the binding rows for both, beside the phone rows: no added wave)
     const rows = R.rowsFor(device);
-    const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd, p.cdRoot)]);
+    const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd, p.cdRoot, out.lang)]);
     if (own) remember.forget_phone = true;
     return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...phones, ...remember, ...cd };
   } catch (err) {
