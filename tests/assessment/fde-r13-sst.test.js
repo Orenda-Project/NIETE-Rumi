@@ -82,9 +82,13 @@ describe('1. a Q6 item that contains a Q5 item\'s points is held', () => {
     expect(placed).not.toContain(WALLET.question);
   });
 
-  test('after the re-ask, with nothing else to take its place, the held Q6 comes back: no short paper', () => {
+  // Since round 17 a held Q6 never comes back: with nothing else to take its place, Q6 is short of
+  // what the child answers and the paper fails as a short paper.
+  test('after the re-ask, with nothing else to take its place, the held Q6 does not come back', () => {
     const laid = lay(CH1, { reasked: true });
-    expect(laid.shortfall).toEqual([]);
+    expect(items(laid.examJson, D6).map((q) => q.question)).not.toContain(WALLET.question);
+    expect(laid.held.filter((h) => h.printed)).toEqual([]);
+    expect(laid.shortfall).toEqual([{ slot: D6, missing: 2 }]);
   });
 
   test('a Q6 item with no marking points is never held by this rule', () => {

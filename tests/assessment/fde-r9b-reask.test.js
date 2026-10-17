@@ -62,10 +62,11 @@ test('Social Studies, chapters 4 + 6: the re-asked Section D is told Section A\'
     asked.push({ sec, prompt });
     return reply((replies[sec] || []).length > 1 ? replies[sec].shift() : replies[sec][0]);
   });
+  // This recorded paper's held Q6s never print since round 17, so it ends short; the re-ask notes are what this test reads.
   await Gen.generatePatternExam({
     grade: 5, subject: 'social_studies', pattern: 'fde_g5_2027',
     scope: { kind: 'chapters', chapters: [4, 6], pages: '26-33,40-48' }, pageRanges: '26-33,40-48', requestId: 'req-9b',
-  });
+  }).catch((e) => { if (e.code !== 'PATTERN_SHORT_SLOT') throw e; });
   const d = asked.filter((a) => a.sec === 'D');
   // Round 15: a D item still held after D's re-ask gets one more D-only re-ask before the put-back.
   expect(d).toHaveLength(3);

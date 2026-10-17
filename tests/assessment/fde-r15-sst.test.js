@@ -123,9 +123,10 @@ describe('1. the point-set hold is a list: Q6 ← Q5, Q7 ← Q5 / Q6, Q6 ← Q6'
       expect(typeof h.rule).toBe('string');
       expect(h.printed).toBe(false);
     }
-    // After the re-ask, a held item that fills a place is put back and says so.
+    // Since round 17 nothing held is put back after the re-ask either.
     const after = lay(CH1, { reasked: true }).held;
-    expect(after.some((h) => h.printed)).toBe(true);
+    expect(after.length).toBeGreaterThan(0);
+    expect(after.some((h) => h.printed)).toBe(false);
   });
 
   test('a one-word Q7 key that a Q5 answer only names, on another fact, is not held', () => {

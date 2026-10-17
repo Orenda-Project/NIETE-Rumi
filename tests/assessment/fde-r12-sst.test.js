@@ -72,10 +72,16 @@ describe('1. a Q5/Q7 answer that prints a Q1 MCQ whole is held', () => {
     expect(items(lay(REC.full_2, { reasked: false }).examJson, C5).map((x) => x.question)).not.toContain(q.question);
   });
 
-  test('after the one re-ask the held items fill the slot again: no paper comes back short', () => {
+  // Since round 17 a held item never prints, after the re-ask too: a choice slot prints fewer items,
+  // at least what the child answers, or the slot is short and the paper fails.
+  test('after the one re-ask a held item never prints: a slot prints fewer, or it is short', () => {
     for (const p of PAPERS) {
       const laid = lay(REC[p], { reasked: true });
-      expect(laid.shortfall).toEqual([]);
+      expect(laid.held.filter((h) => h.printed)).toEqual([]);
+      for (const f of laid.shortfall) {
+        const slot = SST.sections.flatMap((s) => s.slots).find((s) => s.slot === f.slot);
+        expect(items(laid.examJson, f.slot).length).toBeLessThan(slot.attempt);
+      }
     }
   });
 
@@ -122,7 +128,7 @@ describe('2. one question once in every slot', () => {
     expect(short(laid, A1)).toBe(1);
   });
 
-  test('after the re-ask a new item takes the place; the repeat only when nothing else can', () => {
+  test('after the re-ask a new item takes the place; the repeat never (Q1 is compulsory: short)', () => {
     const exam = JSON.parse(JSON.stringify(REC.chapters_2));
     const slot = SST.sections.flatMap((s) => s.slots).find((s) => s.slot === A1);
     const fresh = { slot: A1, question: 'عدلیہ کا بنیادی کام کیا ہے؟', options: ['الف) قانون بنانا', 'ب) انصاف فراہم کرنا', 'ج) ٹیکس جمع کرنا', 'د) سڑکیں بنانا'], answer: 'ب) انصاف فراہم کرنا' };
@@ -131,8 +137,8 @@ describe('2. one question once in every slot', () => {
     expect(withFresh).toContain(fresh.question);
     expect(withFresh.filter((s) => s === items(REC.chapters_2, A1)[0].question)).toHaveLength(1);
     const alone = lay(REC.chapters_2, { reasked: true });
-    expect(items(alone.examJson, A1)).toHaveLength(20);
-    expect(short(alone, A1)).toBe(0);
+    expect(items(alone.examJson, A1)).toHaveLength(19);
+    expect(short(alone, A1)).toBe(1);
   });
 
   test('a top-up of Section A names every Q1 item it keeps and asks for spares; a whole re-ask is told nothing', () => {
@@ -197,10 +203,12 @@ describe('2. one question once in every slot', () => {
       const content = (replies[sec] || []).length > 1 ? replies[sec].shift() : replies[sec][0];
       return { choices: [{ message: { content }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
     });
+    // This recorded paper's Q6s are held and never print since round 17, so it ends short; the
+    // re-ask notes are what this test reads.
     await Gen.generatePatternExam({
       grade: 5, subject: 'social_studies', pattern: 'fde_g5_2027',
       scope: { kind: 'chapters', chapters: [4, 6], pages: '26-33,40-48' }, pageRanges: '26-33,40-48', requestId: 'req-r12',
-    });
+    }).catch((e) => { if (e.code !== 'PATTERN_SHORT_SLOT') throw e; });
     const a = asked.filter((x) => x.sec === 'A');
     expect(a).toHaveLength(2);
     expect(a[0].text).not.toContain('already keeps');

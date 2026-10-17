@@ -1389,6 +1389,13 @@ function keptNotes(P, section, examJson, cross, shortfall) {
     if (!gap || !(gap.missing > 0)) continue;
     const label = slot.label_en || slot.slot.split('.').pop();
     const lines = itemsOf(examJson, slot.slot).map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
+    // A slot the reply left empty is named where the reply carries it: «Q4 needs 1 more» alone came
+    // back with no "Mind Map" twice. A one-item composition is asked for once, never with spares.
+    if (!lines.length && slot.generate === 1) {
+      out.push(`Your reply had no ${label} at all. Write exactly one ${label} item, under "unseen" → "${slot.category}" → "${slot.type}", `
+        + `with "slot": "${slot.slot}"; keep every other item of this section as it was.`);
+      continue;
+    }
     const tests = cross.held.includes(slot.slot) ? `neither Section A nor ${label}'s kept items test` : `${label}'s kept items do not test`;
     out.push(`${lines.length ? `${label} already keeps these items (question → answer):\n${lines.join('\n')}\nNever write any of these again, in any wording. ` : ''}`
       + `${label} needs ${gap.missing} more: write ${gap.missing + SPARE_ITEMS} new ${label} items, each testing a fact that ${tests}; the paper takes the first ${gap.missing} that are new.`);
@@ -1526,6 +1533,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
       });
       return;
     }
+    // Social Studies: a caught item never prints, a repeat neither. A choice slot prints fewer
+    // items (its count to answer and its marks stay), a compulsory one is short (below).
+    if (P.key === 'social_studies') return;
     fallback.forEach((list, id) => {
       const slot = slots.find((s) => s.slot === id);
       for (const q of list) {
@@ -1576,6 +1586,10 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const unseen = {};
   const usedKeys = new Set();
   const shortfall = [];
+  // Social Studies after the re-ask: a choice slot that prints fewer than it offers but at least
+  // what the child answers is not short; it is recorded.
+  const shortChoice = [];
+  const choiceFloor = (slot) => (P.key === 'social_studies' && opts.reasked && slot.compulsory === false ? slot.attempt : slot.generate);
   let placed = 0;
   for (const slot of slots) {
     const list = bySlot.get(slot.slot);
@@ -1593,7 +1607,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
       }
     });
     placed += list.length;
-    if (list.length < slot.generate) shortfall.push({ slot: slot.slot, missing: slot.generate - list.length });
+    if (list.length < choiceFloor(slot)) shortfall.push({ slot: slot.slot, missing: choiceFloor(slot) - list.length });
+    else if (list.length < slot.generate) shortChoice.push({ slot: slot.slot, printed: list.length, generate: slot.generate });
     let key = slot.type;
     for (let n = 2; usedKeys.has(key); n += 1) key = `${slot.type} (${n})`;
     usedKeys.add(key);
@@ -1626,8 +1641,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
   };
   // `held` is Social Studies' only (the engine reads it for Section D); `putBack` (Urdu: the held
   // items that came back, with their rule) only when there are some; every other result is as before.
+  if (shortChoice.length) out._layout.short_choice = shortChoice;
   const base = { examJson: out, placed, unplaced, shortfall, ...(putBack.length ? { putBack } : {}) };
-  return P.key === 'social_studies' ? { ...base, held } : base;
+  return P.key === 'social_studies' ? { ...base, held, shortChoice } : base;
 }
 
 module.exports = { applyLayout, takenNote, firstAskNote, verseLines, typeKey, slotKey, unitWord };

@@ -1966,6 +1966,104 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
   }
 }
 
+// ── The reader pass (Social Studies) ───────────────────────────────────
+//
+// The same read for T6-A: the reader judges the Q5, Q6 and Q7 items (a duplicate, a whole answer
+// Section A prints, a point set another C/D item's answer contains). Every flagged item is taken off.
+// A flagged D item leaves a place that Section D fills in ONE top-up (told what was taken off, asked
+// twice what is missing plus spares), the paper is laid out again and the reader checks the
+// replacements only; one still flagged is taken off too. A flagged Q5 is taken off with no re-ask:
+// Q5 offers more than the child answers. Nothing taken off comes back: a choice slot prints fewer
+// items (applyLayout), and a paper the pass would leave short prints as it was before the pass.
+const SST_D_SLOTS = ['social_studies.D.Q6', 'social_studies.D.Q7'];
+const _labelSlot = (label) => ({ Q5: 'social_studies.C.Q5', Q6: 'social_studies.D.Q6', Q7: 'social_studies.D.Q7' })[String(label).split('.')[0]];
+
+async function _readerPassSst({ examJson, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId }) {
+  const began = Date.now();
+  const readUsages = [];
+  const sectionUsages = [];
+  const stats = { flagged: 0, replaced: 0, still_flagged: 0, taken_off: 0 };
+  const items = [];
+  const record = (f, outcome) => items.push({ label: f.item, by: f.by, reason: f.reason, outcome });
+  const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
+  const done = (exam, laid, error = null) => {
+    logToFile('[assessment] reader pass', {
+      requestId, subject: key, ...stats, ms: Date.now() - began, tokens: _sumUsage(readUsages).total_tokens || 0, ...(error ? { error } : {}),
+    });
+    if (exam && exam._layout) exam._layout.reader = { ...stats, items: error ? [] : items, ...(error ? { error } : {}) };
+    return { examJson: exam, laid, usages: readUsages.concat(sectionUsages) };
+  };
+  const ask = (exam, only = null) => _askReader({ examJson: exam, P, only, model, ownModel, job, usages: readUsages });
+  const without = (exam, list) => list.reduce((e, h) => _dropItems(e, h.slot, new Set([_readerId(h.q)])), exam);
+  const count = (exam, slot) => Reader.itemsOf(exam, slot).length;
+
+  let first;
+  try {
+    first = await ask(examJson);
+  } catch (err) {
+    return done(examJson, null, `read: ${err.message}`);
+  }
+  if (!first.flags.length) return done(examJson, null);
+  stats.flagged = first.flags.length;
+  const held = first.flags.map((f) => ({ ...f, q: first.labels.get(f.item), slot: _labelSlot(f.item) }));
+
+  try {
+    let laid = lay(without(examJson, held));
+    let exam = laid.examJson;
+    const dHeld = held.filter((h) => SST_D_SLOTS.includes(h.slot));
+    let still = [];
+    let replacements = [];
+    if (dHeld.length) {
+      const b = built.find((x) => x.section.slots.some((s) => s.slot === SST_D_SLOTS[0]));
+      const missing = b.section.slots.map((s) => ({ slot: s.slot, missing: s.generate - count(exam, s.slot) })).filter((f) => f.missing > 0);
+      // Asked twice what is missing (and the note's spares): the layout holds some of a top-up's items too.
+      const ask2 = missing.map((f) => ({ ...f, missing: f.missing * 2 }));
+      const note = [takenNote(P, b.section, exam, { topUp: true, shortfall: ask2, held: laid.held }), Reader.readerNote(dHeld, first.labels, P)]
+        .filter(Boolean).join('\n\n');
+      logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall: missing, reader: dHeld.map(({ q, ...f }) => f) });
+      const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+      sectionUsages.push(...second.usages);
+      if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return done(examJson, null, 'top-up: refused text');
+      stripImageKeys(second.tree);
+      normaliseAnswers(second.tree);
+      // Only new items: an item taken off and written again is not a replacement.
+      const fresh = without(second.tree, dHeld);
+      const keptIds = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
+      laid = lay(_topUp(exam, fresh, new Set(SST_D_SLOTS)));
+      exam = laid.examJson;
+      _blankWordsStems(exam, P, key);
+      if ((await religiousFilter(exam, P, { grade, subject, allowedText: loaded.content, requestId })).length) {
+        laid = lay(exam);
+        exam = laid.examJson;
+      }
+      replacements = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot)).filter((q) => !keptIds.has(_readerId(q)));
+      if (replacements.length) {
+        try {
+          const again = await ask(exam, replacements);
+          still = again.flags.map((f) => ({ ...f, q: again.labels.get(f.item), slot: _labelSlot(f.item) }));
+          stats.rechecked = true;
+        } catch (err) {
+          stats.rechecked = false;
+          logToFile('[assessment] reader re-check failed, replacements kept', { requestId, error: err.message });
+        }
+      }
+      if (still.length) {
+        laid = lay(without(exam, still));
+        exam = laid.examJson;
+      }
+    }
+    stats.still_flagged = still.length;
+    stats.replaced = replacements.length - still.length;
+    stats.taken_off = held.length + still.length;
+    held.forEach((h) => record(h, SST_D_SLOTS.includes(h.slot) ? 'replaced' : 'taken_off'));
+    still.forEach((h) => record(h, 'taken_off'));
+    if (laid.shortfall.length) return done(examJson, null, 'the paper would be short');
+    return done(exam, laid);
+  } catch (err) {
+    return done(examJson, null, `top-up: ${err.message}`);
+  }
+}
+
 /**
  * A board-pattern paper: one call per section, in parallel, merged and laid out
  * in the pattern's shape. A slot left short after the checks fails the paper
@@ -2119,9 +2217,9 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
           || reviewHits.has(b.section.id) || religiousHits.has(b.section.id)));
       await Promise.all(later.map((b) => reask(b, midLaid, otherShort.concat(midLaid.shortfall), midShort)));
     }
-    // Social Studies: a D item the layout still sets aside is put back below (the paper is laid out
-    // with `reasked`), so before that D is asked once more, a top-up told what was held. An item
-    // still held after it prints: a short choice slot breaks FDE's printed format.
+    // Social Studies: a D item the layout still sets aside never prints, so before the paper is laid
+    // out D is asked once more, a top-up told what was held. A slot still short of a held item after it
+    // prints fewer items when it is a choice (applyLayout).
     if (key === 'social_studies' && iD >= 0) {
       const preLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
       const dShort = preLaid.shortfall.filter((f) => f.slot.startsWith('social_studies.D.') && preLaid.held.some((h) => h.slot === f.slot));
@@ -2178,11 +2276,11 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       if (h.printed) row.printed += 1;
       rows.set(`${h.slot}|${h.rule}`, row);
     }
-    logToFile('[assessment] held items', { requestId, pattern, held: [...rows.values()] });
+    logToFile('[assessment] held items', { requestId, pattern, held: [...rows.values()], ...(laid.shortChoice && laid.shortChoice.length ? { shortChoice: laid.shortChoice } : {}) });
   }
   // The reader pass reads a whole paper only: a short one fails below as it always has.
   if (readerPass && Reader.READER_SUBJECTS.includes(key) && !laid.shortfall.length && !_emptyQuestionParts(examJson).length) {
-    const read = await _readerPass({
+    const read = await (key === 'social_studies' ? _readerPassSst : _readerPass)({
       examJson, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId,
     });
     examJson = read.examJson;

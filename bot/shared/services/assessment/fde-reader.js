@@ -15,12 +15,19 @@
  */
 
 // Only these subjects are ever read, whatever the setting lists.
-const READER_SUBJECTS = Object.freeze(['urdu']);
+const READER_SUBJECTS = Object.freeze(['urdu', 'social_studies']);
+// The slots whose items the reader judges, per subject. Social Studies: T6-A, the Section C/D items
+// a child could answer from Section A, or from another C/D item's answer.
+const JUDGED = Object.freeze({
+  urdu: Object.freeze(['urdu.A.Q1']),
+  social_studies: Object.freeze(['social_studies.C.Q5', 'social_studies.D.Q6', 'social_studies.D.Q7']),
+});
 
 const READER_MARK = 'READER PASS: board-pattern question paper check';
 const PAPER_HEAD = '=== THE QUESTION PAPER, AS PRINTED (no answers) ===';
 const KEYS_HEAD = '=== Q1 ANSWER KEY (for you only; the paper does not print it) ===';
 const ONLY_HEAD = 'Judge ONLY these items:';
+const ANSWERS_HEAD = '=== ANSWERS (for you only; the paper does not print them) ===';
 
 const OPTION_HEAD = /^\s*\(?(?:[a-dA-D]|الف|ب|ج|د)\s*[).]\s*/u;
 const strip = (t) => String(t == null ? '' : t).replace(/\s+/g, ' ').trim();
@@ -83,6 +90,7 @@ function printedLines(q) {
  * asks the reader to judge those alone (the re-check of replacements).
  */
 function buildReaderPrompt(examJson, P, opts = {}) {
+  if (P && P.key === 'social_studies') return buildSstReaderPrompt(examJson, P, opts);
   const labels = new Map();
   const blocks = new Map(); // label → the text printed under it, folded (for the evidence check)
   const paper = [];
@@ -161,6 +169,92 @@ function buildReaderPrompt(examJson, P, opts = {}) {
   return { prompt, labels, only, blocks };
 }
 
+// What a Social Studies item answers, for the reader's eyes only: a key or model answer, and its
+// marking points.
+function answerOf(q) {
+  const points = (q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
+    .map((p) => (typeof p === 'string' ? p : p && p.text)).filter((t) => typeof t === 'string' && t.trim()).map(strip);
+  return { key: keyOf(q), points };
+}
+
+/**
+ * Social Studies: the reader judges the Q5, Q6 and Q7 items (T6-A, "a child who answers one has
+ * answered the other"): a duplicate, an item whose whole answer Section A prints (a Q1 key, or a fact a
+ * Q1 stem states), and an item whose marking points another C/D item's answer already contains.
+ * `blocks` hold each label's printed text and its answer, so a quote copied from an answer is found.
+ */
+function buildSstReaderPrompt(examJson, P, opts = {}) {
+  const judged = new Set(JUDGED.social_studies);
+  const labels = new Map();
+  const blocks = new Map();
+  const paper = [];
+  const answers = [];
+  for (const section of P.sections) {
+    for (const slot of section.slots) {
+      const list = itemsOf(examJson, slot.slot);
+      if (!list.length) continue;
+      const name = slot.slot.split('.').pop();
+      const heading = strip(list[0].main_question || slot.label_ur || slot.label_en || '');
+      paper.push(`${name}${heading ? `: ${heading}` : ''}`);
+      list.forEach((q, i) => {
+        const label = list.length > 1 || name === 'Q1' ? `${name}.${i + 1}` : name;
+        if (judged.has(slot.slot)) labels.set(label, q);
+        const lines = printedLines(q);
+        const [first, ...rest] = lines;
+        const { key, points } = answerOf(q);
+        blocks.set(label, fold([...lines, key, ...points].join(' ')));
+        paper.push(`${label} ${first || ''}`.trim());
+        rest.forEach((l) => paper.push(`    ${l}`));
+        if (name === 'Q1' || judged.has(slot.slot)) {
+          answers.push(`${label} → ${key}${points.length && name !== 'Q1' ? ` | points: ${points.join('; ')}` : ''}`);
+        }
+      });
+      paper.push('');
+    }
+  }
+  const only = Array.isArray(opts.only) && opts.only.length
+    ? [...labels.entries()].filter(([, q]) => opts.only.includes(q)).map(([label]) => label)
+    : null;
+
+  const prompt = [
+    READER_MARK,
+    '',
+    'You check a Grade 5 Social Studies board exam paper before it prints. A child must not be able to answer a',
+    'Section C or D item (Q5, Q6, Q7) from text printed ELSEWHERE on the question paper, and no two of those items',
+    'may be answered by the same answer.',
+    '',
+    'The test: a child who answers one has answered the other. Flag a Q5, Q6 or Q7 item when:',
+    '- another item on the paper asks the same question, in any wording (a duplicate);',
+    '- a Q1 key, or a fact a Q1 stem states, is its whole answer: Q1 «پاکستان 1947ء میں کس رہنما کی قیادت میں …»',
+    '  answers «پاکستان کس سال ابھرا؟ → 1947ء»; two Q1 items that together print its whole answer count too;',
+    '- its key is the same answer as a Q1 key in another form (plural, oblique, a longer sentence of the same fact);',
+    '- its marking points are contained in another Q5, Q6 or Q7 item\'s answer or marking points: a child who answers',
+    '  that item has already written this one\'s answer.',
+    'Do NOT flag:',
+    '- an item whose fact appears in Q1 only as a wrong option (a distractor);',
+    '- the same name, place or tier with a DIFFERENT fact asked about it;',
+    '- two items on the same chapter that need different facts.',
+    'Which one to flag: when a Q5 and a Q6 or Q7 item answer each other, flag the Q6 or Q7; when a Q6 and a Q7 do,',
+    'flag the Q7; two items in one question, the higher-numbered one. A Q5 is flagged only when Section A gives it away.',
+    '',
+    'Reply with ONE JSON object and nothing after it. List every item you considered as a candidate and decide',
+    'each one in its own entry: "given_away": true only when a child really can answer it from that text, false',
+    'when, on a closer look, it cannot. Never write a correction or a second object after the first; change the',
+    'verdict inside the entry instead.',
+    '{"candidates":[{"item":"Q7.<n>","by":"<the label of the text that gives it away: Q1.5, Q5.3, Q6.2 …>","evidence":"<the words, copied exactly from that label\'s printed text, answer or points, that answer the item>","reason":"<one short line>","given_away":true}]}',
+    'Inside a JSON string never use the character "; quote Urdu with « ». Use the labels exactly as printed below.',
+    '{"candidates":[]} is the right answer when nothing is given away.',
+    ...(only ? ['', `${ONLY_HEAD} ${only.join(', ')}. The other items were already checked: flag one of these when it is`,
+      'given away, or when its own text gives away another item (then item is the item given away and by is this one).'] : []),
+    '',
+    PAPER_HEAD,
+    ...paper,
+    ANSWERS_HEAD,
+    ...answers,
+  ].join('\n');
+  return { prompt, labels, only, blocks };
+}
+
 /**
  * The reply's flags that name a Q1 label of this prompt (and, on a re-check, one it asked about),
  * once each. Throws when the reply carries no flags list: that is a failed read, not a clean one.
@@ -214,8 +308,17 @@ function parseFlags(reply, labels, only = null, blocks = null) {
 // A flag whose giver is another Q1 item: the give-away stays inside Section A.
 const inQ1 = (flag) => /^Q1(\.|$)/.test(flag.by || '');
 
-/** The note the Section A top-up carries: what was taken off and why. */
-function readerNote(flags, labels) {
+/** The note the top-up carries: what was taken off and why (Section A for Urdu, Section D for Social Studies). */
+function readerNote(flags, labels, P = null) {
+  if (P && P.key === 'social_studies') {
+    const lines = flags.map((f) => {
+      const q = labels.get(f.item);
+      return `- ${strip(q && q.question)} → ${q ? keyOf(q) : ''}${f.reason ? `: ${f.reason}` : ''}`;
+    });
+    return 'A reader of this paper found that these items can be answered from Section A or from another item\'s answer, '
+      + `so they are taken off it; never write these again, in any wording:\n${lines.join('\n')}\n`
+      + 'Every new item must need an answer that no Section A item prints and no other item on this paper asks for.';
+  }
   const lines = flags.map((f) => {
     const q = labels.get(f.item);
     return `- ${strip(q && q.question)} → ${q ? keyOf(q) : ''}${f.reason ? `: ${f.reason}` : ''}`;
@@ -226,6 +329,6 @@ function readerNote(flags, labels) {
 }
 
 module.exports = {
-  READER_SUBJECTS, READER_MARK, PAPER_HEAD, KEYS_HEAD, ONLY_HEAD,
+  READER_SUBJECTS, JUDGED, READER_MARK, PAPER_HEAD, KEYS_HEAD, ONLY_HEAD, ANSWERS_HEAD,
   buildReaderPrompt, parseFlags, readerNote, inQ1, itemsOf, keyOf, fold, giversOf,
 };
