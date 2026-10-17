@@ -8,8 +8,9 @@
  *   the next lesson     the next in the subject screen's order this child has not finished; href '#watch/<vid>'
  *   more videos         href '#videos'
  *
- * Their words are the door's own (EN/UR, native-read). The slot's answer races its own deadline (offerFor), and the
- * caller asks it beside the video's signing, so a slow slot never adds to a fast video.
+ * Their words are the door's own (EN/UR, native-read). The slot's answer, the next-lesson read included, races the
+ * slot's own deadline (offerFor), and the caller asks it beside the video's signing, so a slow slot never adds to a fast
+ * video beyond that deadline.
  *   watchNext({ studentId, vid, title, lang, kidLang, after, device })  -> { next } | {}  (never throws)
  */
 const { subOf, artOr } = require('./web-quiz-next-offer-sources');
@@ -36,8 +37,8 @@ async function watchNext({ studentId, vid, title = '', lang = null, kidLang = nu
     if (!studentId || !device) return {};
     const R = require('./web-quiz-next-offer-result');
     if (!(await require('./web-quiz-next-offer').switches()).on) return {};
-    const extra = await doorChoices({ studentId, vid, title, kidLang: kidLang || lang, after });
-    const field = await R.offerFor({ studentId, device, lang, ctx: 'after_video', extra });
+    // the door's choices (the next lesson is a read) are read inside the slot's deadline, beside the child's own reads
+    const field = await R.offerFor({ studentId, device, lang, ctx: 'after_video', extra: () => doorChoices({ studentId, vid, title, kidLang: kidLang || lang, after }) });
     const next = field && field.next_offer;
     return next && typeof next === 'object' && typeof next.href === 'string' ? { next } : {};
   } catch (_) {

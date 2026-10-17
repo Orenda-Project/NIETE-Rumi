@@ -71,19 +71,24 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false, 
 }
 
 
-/** One result's `{ next_offer }`: the snapshot's candidates + the result's own, ranked for `ctx`. */
+/**
+ * One result's `{ next_offer }`: the snapshot's candidates + the result's own, ranked for `ctx`. `extra` is a list, or a
+ * function returning one (a read of the caller's own): started at once, beside the child's reads, inside the deadline.
+ */
 async function resultField({ studentId, device, lang: asked = null, ctx, extra = [], drop = () => false, live = null }) {
   const sw = await NO.switches();
   if (!studentId || !sw.on) return {};
+  const ownP = typeof extra === 'function' ? Promise.resolve().then(extra).catch(() => []) : Promise.resolve(extra);
   const snap = await snapshot({ studentId, device, lang: asked, watch: sw.watch, live });
   if (!snap) return {};
   const { canonical, token, out, history, collect, grade, lang } = snap;
-  const [{ quizIds, storyCodes, unsentCodes, known, covers }, books, onItsWay] = await Promise.all([
+  const [{ quizIds, storyCodes, unsentCodes, known, covers }, books, onItsWay, own] = await Promise.all([
     quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)], { history }),
     storybooks({ studentId: canonical, lang, grade, token, chip: out.kid }),
     onItsWayOf(canonical, studentId, collect.trail, lang, grade),
+    ownP,
   ]);
-  const candidates = [...extra, ...candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers,
+  const candidates = [...(Array.isArray(own) ? own : []), ...candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers,
     subjectArt: require('./web-quiz-hub')._parts.subjectArtOf, extra: books, watch: sw.watch })]
     .filter((c, i, a) => !drop(c) && a.findIndex((x) => x.id === c.id) === i);
   const next = await NO.nextFor({ ctx, studentId: canonical, candidates, hasRoot: hasRootOf(history), lang, live });
@@ -186,7 +191,8 @@ async function challengeInner(result, ct, { device = null, lang = null } = {}, l
 
 /**
  * Any other activity's `{ next_offer }` (e.g. a watched video, ctx after_video): the child's candidates plus the
- * caller's own (`extra`, the same shape), ranked for `ctx`. `{}` when off, past the deadline or on any failure.
+ * caller's own (`extra`: the same shape, as a list or a function that reads them — run inside the deadline), ranked for
+ * `ctx`. `{}` when off, past the deadline or on any failure.
  */
 async function offerFor({ studentId, device, lang = null, ctx, extra = [] } = {}) {
   try {

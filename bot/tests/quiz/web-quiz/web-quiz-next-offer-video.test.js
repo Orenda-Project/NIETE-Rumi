@@ -213,8 +213,10 @@ describe('the slot on: watch.next is the ranked Next for after_video', () => {
     expect(mockOfferFor).toHaveBeenCalledTimes(1);
     const arg = mockOfferFor.mock.calls[0][0];
     expect(arg).toMatchObject({ studentId: KID_B, device: DEVICE, lang: 'en', ctx: 'after_video' });
+    // the door's choices are a read the slot runs inside its deadline (a function), not done before it
+    expect(typeof arg.extra).toBe('function');
     // no watch root: no quiz after it; the next lesson this child has not finished (Science G3 after the hen); more videos
-    expect(arg.extra).toEqual([
+    expect(await arg.extra()).toEqual([
       { kind: 'video', variant: 'next_lesson', id: V(2), href: `#watch/${V(2)}`, title: 'Watch next', title_ur: 'اگلی ویڈیو دیکھیں',
         sub: 'Parts of a Flower', sub_ur: 'Parts of a Flower', minutes: 3, art: expect.any(String) },
       { kind: 'video', variant: 'more', id: 'videos', href: '#videos', title: 'More videos', title_ur: 'اور ویڈیوز دیکھیں', minutes: 3, art: expect.any(String) },
@@ -226,7 +228,7 @@ describe('the slot on: watch.next is the ranked Next for after_video', () => {
     fake.db.quiz_share_codes.push({ ...ROOT_ROW });
     const n = fake.db.quiz_share_codes.length;
     await start({ hub: 'x', kid: 'y', vid: V(1), device: DEVICE });
-    expect(mockOfferFor.mock.calls[0][0].extra[0]).toEqual({ kind: 'quiz', variant: 'after_video', id: `after.${V(1)}`, href: `#after/${V(1)}`,
+    expect((await mockOfferFor.mock.calls[0][0].extra())[0]).toEqual({ kind: 'quiz', variant: 'after_video', id: `after.${V(1)}`, href: `#after/${V(1)}`,
       title: 'Play the quiz', title_ur: 'کوئز کھیلیں', sub: 'Life Cycle of a Hen', sub_ur: 'Life Cycle of a Hen', minutes: 3, art: expect.any(String) });
     expect(fake.db.quiz_share_codes.length).toBe(n);
   });
@@ -234,14 +236,14 @@ describe('the slot on: watch.next is the ranked Next for after_video', () => {
   test('a lesson this child already finished is not "Watch next" (Zara finished the flower\'s quiz: no next lesson left)', async () => {
     as(KID_A);
     await start({ hub: 'x', kid: 'y', vid: V(1), device: DEVICE });
-    expect(mockOfferFor.mock.calls[0][0].extra.map((c) => c.variant)).toEqual(['more']);
+    expect((await mockOfferFor.mock.calls[0][0].extra()).map((c) => c.variant)).toEqual(['more']);
   });
 
   test('every id and href passes the page relay and the door\'s own href rule', async () => {
     seed([HOME_ON, WATCH_ROOT]); Home()._resetCache(); as(KID_B);
     fake.db.quiz_share_codes.push({ ...ROOT_ROW });
     await start({ hub: 'x', kid: 'y', vid: V(1), device: DEVICE });
-    for (const c of mockOfferFor.mock.calls[0][0].extra) {
+    for (const c of await mockOfferFor.mock.calls[0][0].extra()) {
       expect(c.id).toMatch(/^[a-z0-9._:-]{1,64}$/i);
       expect(c.href).toMatch(/^(#[A-Za-z0-9/_-]*|\/[A-Za-z0-9][^\s]*)$/);
       expect(c.href).not.toMatch(/[A-Z0-9]{6}/);   // never a share code in a ranked list

@@ -548,6 +548,34 @@ describe('offerFor: any other activity (a watched video)', () => {
     expect(n.rank_src).toBe('pinned');   // the teacher's pending quiz still comes first
     expect([n, ...n.alts].length).toBeGreaterThan(1);
   });
+
+  test('after_video joins: exactly one next_set {ctx:after_video} whose offer is the answer\'s; source in the allowed set', async () => {
+    const more = { kind: 'video', variant: 'more', id: 'videos', href: '#videos', title: 'More videos', minutes: 3 };
+    seed([...NEXT_ON, ON('web_quiz_events_v3')], pending());
+    const { next_offer: n } = await Sources.offerFor({ studentId: KID, device: A.device, ctx: 'after_video', extra: [more] });
+    const sets = logEvent.mock.calls.filter(([nm]) => nm === 'web_quiz.next_set');
+    expect(sets).toHaveLength(1);
+    expect(sets[0][1]).toMatchObject({ ctx: 'after_video', offer: n.offer, ev_v: 3 });
+    expect(n.offer).toMatch(/^[A-Za-z0-9_-]{10}$/);
+    expect(['pinned', 'ranked', 'fallback']).toContain(n.source);
+  });
+
+  test('the caller\'s own candidates may be a read of their own (a function): it runs inside the deadline, beside the child\'s reads', async () => {
+    const more = { kind: 'video', variant: 'more', id: 'videos', href: '#videos', title: 'More videos', minutes: 3 };
+    seed(NEXT_ON, pending());
+    // a fast read: its candidates are ranked with the child's
+    const { next_offer: n } = await Sources.offerFor({ studentId: KID, device: A.device, ctx: 'after_video', extra: async () => [more] });
+    expect([n, ...n.alts].map((x) => x.id).concat(n.id)).toBeDefined();
+    let seen = null;
+    jest.spyOn(NO, 'nextFor').mockImplementation(async (a) => { seen = a.candidates.map((c) => c.id); return null; });
+    await Sources.offerFor({ studentId: KID, device: A.device, ctx: 'after_video', extra: async () => [more] });
+    expect(seen).toContain('videos');
+    jest.restoreAllMocks();
+    // a read that never answers: the answer still comes within the deadline (with no slot), never held by it
+    const t0 = Date.now();
+    expect(await Sources.offerFor({ studentId: KID, device: A.device, ctx: 'after_video', extra: () => new Promise(() => {}) })).toEqual({});
+    expect(Date.now() - t0).toBeLessThan(Sources.DEADLINE_MS + 600);
+  });
 });
 
 describe('nextFor with another surface\'s key', () => {
