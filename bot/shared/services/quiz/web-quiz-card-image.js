@@ -18,7 +18,8 @@
  * finished (`item: {type: 'book'|'video'|'quiz', id}`); the server checks it exists and seals it into the token, so the
  * shared link lands a new child, through the join, on that item (a Jugnu read, story or game: on the Games door, where
  * those live). The picture gets the kind's ribbon and colour (one
- * theme, one mark per activity); the landing shows the mark and the card.
+ * theme, one mark per activity); the landing's button carries a short ref of the item in the words the child sends.
+ *   ref(item) / byRef(ref)  pure / one read: the ref the join words carry (`jb1a2b3c4d` a book, `jv…` a video) and back
  *
  * The token is the card's facts sealed with AES-256-GCM under a key derived from the web-quiz token secret: a
  * forwarded link carries no readable name or id, and nobody can make the server draw a card it never issued.
@@ -203,6 +204,15 @@ const DOOR_OF = Object.freeze({ read: 'games', listen: 'games', story: 'games', 
 // Which items a finish of each kind may name: a storybook's card its book (also a storybook finished on its questions,
 // kind story), a video's its video; a quiz's is its class code, the server's own.
 const ITEM_TYPES = Object.freeze({ book: ['book', 'story'], video: ['video'] });
+// The ref the child's join words carry: `j`, b (book) or v (video), and the first 8 hex of the id (never the whole id);
+// `jg00000000` the Games door. A quiz needs none: its card's link is the class link, the class's own way in.
+const REF_RX = /^j([bvg])([0-9a-f]{8})$/;
+const GAMES_REF = 'jg00000000';
+function ref(item) {
+  if (item && item.type === 'door' && item.id === 'games') return GAMES_REF;
+  if (!item || (item.type !== 'book' && item.type !== 'video') || !UUID_RX.test(String(item.id || ''))) return null;
+  return `j${item.type === 'book' ? 'b' : 'v'}${String(item.id).slice(0, 8).toLowerCase()}`;
+}
 async function readyBook(id) {
   const { data } = await supabase.from('story_books').select('id, status').eq('id', id).maybeSingle();
   return Boolean(data && data.status === 'ready');
@@ -226,6 +236,26 @@ async function checkItem(raw, kind, w) {
     return null;
   }
 }
+/** A ref from the join words, back to its item: a ready book, a live video, the Games door; null else (two books on one ref: none). */
+async function byRef(r) {
+  const m = REF_RX.exec(String(r || '').toLowerCase());
+  if (!m) return null;
+  if (m[1] === 'g') return m[0] === GAMES_REF ? { type: 'door', id: 'games' } : null;
+  try {
+    if (m[1] === 'b') {
+      // a uuid has no LIKE: the ids that start with these 8 hex are one range
+      const { data } = await supabase.from('story_books').select('id').eq('status', 'ready')
+        .gte('id', `${m[2]}-0000-0000-0000-000000000000`).lte('id', `${m[2]}-ffff-ffff-ffff-ffffffffffff`).limit(2);
+      return data && data.length === 1 ? { type: 'book', id: data[0].id } : null;
+    }
+    const ix = await require('./web-quiz-bank').bank();
+    const hits = ((ix && ix.rows) || []).filter((x) => String(x.id).toLowerCase().startsWith(m[2]));
+    return hits.length === 1 ? { type: 'video', id: hits[0].id } : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 // ─── who finished (the server says; the page never names the child) ─────────
 
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
@@ -463,13 +493,22 @@ async function landing(token) {
   if (!f) fail(404, 'not_found');
   const out = { kind: f.kind, lang: f.lang, first: f.first, deed_text: COPY[f.lang][f.deed], ret: returnLine(f.lang) };
   if (f.v4) {
-    // the one share's landing: the finish's mark in its colour, and the name of what it lands on
+    // the one share's landing: the finish's mark in its colour, the name of what it lands on, and the item's ref in
+    // the join words
     const m = markOf(f);
     out.v4 = true;
     out.mark = m ? m[f.lang] : '';
     out.accent = m ? m.c : '#15803D';
     const title = await itemTitle(f.item);
     if (title) out.item_title = title;
+    // the join words carry the item's short ref, so the bot lands the new child on it
+    const r = ref(f.item);
+    if (r) {
+      out.ref = r;
+      const n = botNumber();
+      const words = `${CARD_RETURN_WORDS[f.lang]} ${r}`;
+      out.ret = { ...out.ret, words, href: n ? `https://wa.me/${n}?text=${encodeURIComponent(words)}` : null };
+    }
   }
   return out;
 }
@@ -477,6 +516,6 @@ async function landing(token) {
 function _reset() { cache = null; mem.clear(); inflight.clear(); }
 
 module.exports = {
-  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MARK,
-  on, shareOn, field, mint, image, facts, landing, returnLine, renderCard, _reset, _seal: seal,
+  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MARK, REF_RX,
+  on, shareOn, field, mint, image, facts, landing, returnLine, renderCard, ref, byRef, _reset, _seal: seal,
 };

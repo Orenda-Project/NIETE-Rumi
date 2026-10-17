@@ -155,9 +155,11 @@ describe('the item a share lands on', () => {
   });
   test('the landing: the mark in its colour, the name of what it lands on, today\'s return words (en and ur)', async () => {
     const { body } = await mint({ kind: 'book', deed: 'book_read', item: { type: 'book', id: BOOK } });
-    expect(await landing(body.token)).toEqual({ kind: 'book', lang: 'en', first: 'Noor', deed_text: Card.COPY.en.book_read, ret: Card.returnLine('en'), v4: true, mark: 'Storybook', accent: Card.MARK.book.c, item_title: 'The lost kite' });
+    // the join words carry the item's short ref (the bot lands the new child on it)
+    const words = `${Card.CARD_RETURN_WORDS.en} jb3b9c1e2a`;
+    expect(await landing(body.token)).toEqual({ kind: 'book', lang: 'en', first: 'Noor', deed_text: Card.COPY.en.book_read, ret: { ...Card.returnLine('en'), words, href: `https://wa.me/15550001111?text=${encodeURIComponent(words)}` }, v4: true, mark: 'Storybook', accent: Card.MARK.book.c, item_title: 'The lost kite', ref: 'jb3b9c1e2a' });
     const ur = await mint({ kind: 'video', deed: 'video_watched', lang: 'ur', item: { type: 'video', id: VID } });
-    expect(await landing(ur.body.token)).toMatchObject({ v4: true, mark: 'ویڈیو', ret: Card.returnLine('ur'), item_title: 'Parts of a plant' });
+    expect(await landing(ur.body.token)).toMatchObject({ v4: true, mark: 'ویڈیو', ret: { text: Card.returnLine('ur').text, cta: Card.returnLine('ur').cta }, item_title: 'Parts of a plant', ref: 'jva1b2c3d4' });
     // a door finish (a Jugnu read) names no item
     const rd = await mint({ kind: 'read', deed: 'read_all' });
     expect(await landing(rd.body.token)).not.toHaveProperty('item_title');

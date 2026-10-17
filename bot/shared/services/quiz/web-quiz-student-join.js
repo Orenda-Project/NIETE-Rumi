@@ -580,9 +580,29 @@ async function noteRecognised({ phoneNorm } = {}) {
   }
 }
 
+// A shared card's item kept for this phone (web_quiz_share_v4, web-quiz-share-open.js): the home link a join, a
+// landing or a pick answers with opens on it. The nonce names the phone; nothing kept, or the switch off: today's link.
+function opening(fn, nonceOf) {
+  return async (args = {}) => {
+    const out = await fn(args);
+    if (!out || typeof out.next !== 'string') return out;
+    try {
+      const n = nonceOf(args);
+      const who = n ? await GoNonce.peek(n) : null;
+      if (who && who.phoneNorm) out.next = await require('./web-quiz-share-open').withOpen(who.phoneNorm, out.next);
+    } catch (err) {
+      logToFile('⚠️ student join: the shared item was not added (the home opens as today)', { error: err.message });
+    }
+    return out;
+  };
+}
+const joinOpen = opening(join, (a) => { const r = readToken(a.t); return r && r.tok ? r.tok.n : null; });
+const autoBindOpen = opening(autoBind, (a) => a.n);
+const bindPickOpen = opening(bindPick, (a) => a.n);
+
 module.exports = {
   SWITCH_KEY, EARLY_TAP_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
-  flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound,
+  flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join: joinOpen, autoBind: autoBindOpen, bindPick: bindPickOpen, noteRecognised, hideCardIfBound,
   cleanFirstName, cleanGrade, pickChips, rosterForPhone, schoolYearStart,
   _resetCache: () => { cache = null; },
 };
