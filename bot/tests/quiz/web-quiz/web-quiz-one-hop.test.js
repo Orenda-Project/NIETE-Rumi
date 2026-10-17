@@ -199,16 +199,55 @@ describe('the hub\'s answer', () => {
     expect(odd.out).not.toHaveProperty('one_hop');
     expect(bytes(odd.out)).toBe(bytes(off.out));
   });
-  test('a failed switch read: today\'s answer (fail closed)', async () => {
+  test('a failed read of the hub\'s one settings read: today\'s answer (fail closed); and a value never primed or older than 60 s is off', async () => {
     const off = await warmed(HOME);
     seed([...HOME, TRUE('web_quiz_one_hop')]);
+    const H = Hop();
     Fast.on(); await tick();
-    failOneHop = true; // the one-hop switch's own read fails: off
+    const hub = await Hub.hub(T.signHub([KID]), A);
+    expect(hub.fast).toBe(true);
+    expect(H.mark(hub)).toHaveProperty('one_hop', true); // the hub's own settings read filled the switch
+    H._reset();
+    expect(H.mark(hub)).not.toHaveProperty('one_hop'); // nothing primed: off, with no read of its own
+    H.hubSwitches.prime([TRUE('web_quiz_one_hop')], Date.now());
+    expect(H.mark(hub)).toHaveProperty('one_hop', true);
+    expect(H.mark(hub, Date.now() + 61 * 1000)).not.toHaveProperty('one_hop');
+    H.hubSwitches.fail(Date.now()); // the hub's settings read failed
+    expect(H.mark(hub)).not.toHaveProperty('one_hop');
+    expect(bytes(H.mark(hub))).toBe(bytes(hub));
+    expect(bytes(off.out)).toBe(bytes(await Hub.hub(T.signHub([KID]), A)));
+  });
+  test('the hub\'s one settings read carries the key: a warm and a stale hub make the same settings reads on and off', async () => {
+    const off = await warmed(HOME);
+    const on = await warmed([...HOME, TRUE('web_quiz_one_hop')]);
+    expect(on.out).toHaveProperty('one_hop', true);
+    expect(off.out).not.toHaveProperty('one_hop');
+    expect(on.settingsReads).toBe(off.settingsReads);
+    const stale = async (settings) => {
+      seed(settings); Fast.on(); await tick();
+      await answer(T.signHub([KID])); await tick();
+      Hub._resetCache(); // the hub's own switch cache goes stale: its one read runs again, once
+      settingsReads = 0;
+      const out = await answer(T.signHub([KID]));
+      return { out, reads: settingsReads };
+    };
+    const sOff = await stale(HOME);
+    const sOn = await stale([...HOME, TRUE('web_quiz_one_hop')]);
+    expect(sOn.reads).toBe(sOff.reads);
+    expect(sOn.out).toHaveProperty('one_hop', true);
+  });
+  test('the one_hop row throws (in any read that names it), fast on: the hub stays on, only one_hop is off (the shared switch-off matrix\'s throwOn)', async () => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    const off = await warmed(HOME);
+    seed([...HOME, TRUE('web_quiz_one_hop')]);
+    supabase.from = throwOn(supabase.from, 'web_quiz_one_hop');
+    Fast.on(); await tick();
     await answer(T.signHub([KID])); await tick();
     const out = await answer(T.signHub([KID]));
     expect(out).not.toHaveProperty('one_hop');
-    failOneHop = false;
+    expect(out.fast).toBe(true); // the hub is on and the fast page too: nothing else went off
     expect(bytes(out)).toBe(bytes(off.out));
+    expect(Hop().own()).toBe(false);
   });
   test('the fast first page off: no `one_hop`, even with the row on', async () => {
     const plain = HOME.filter((r) => r.key !== 'web_quiz_fast');

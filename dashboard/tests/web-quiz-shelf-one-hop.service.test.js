@@ -241,8 +241,8 @@ function scriptsPhone(hash, lang) {
   return p;
 }
 
-describe.each(['en', 'ur'])('switch on (%s): the door and the shelf take the early answer — one read each per open', (lang) => {
-  test('two shelves on one open (the home\'s slot, then the door\'s) and the door\'s rows: one network read each', async () => {
+describe.each(['en', 'ur'])('switch on (%s): the door and the shelf take the early answer — the first ask of each, once', (lang) => {
+  test('two shelves on one open (the home\'s slot, then the door\'s): the first takes the early answer, the second is a fresh read; the door\'s rows: the early answer only', async () => {
     const { early, body } = await fastOpen(HUB({ fast: true, one_hop: true, lang }));
     const p = scriptsPhone('#stories', lang);
     const tail = body.slice(early.length);
@@ -259,7 +259,7 @@ describe.each(['en', 'ur'])('switch on (%s): the door and the shelf take the ear
     p.win.WQDOORS.mount(root, B, { token: TOKEN, lang, ev() {} }, 'stories');
     await flush(); await flush();
     const n = (rx) => p.fetches.filter((f) => rx.test(f.url)).length;
-    expect(n(/\/stories\/shelf\//)).toBe(1);
+    expect(n(/\/stories\/shelf\//)).toBe(2); // the early read (taken by the first ask) + a fresh read for the second
     expect(n(/\/doors\//)).toBe(1);
   });
   test('a failed early read is asked again by the script (never a dead shelf)', async () => {
@@ -360,6 +360,30 @@ describe('switch off: today\'s page and today\'s scripts', () => {
   });
 });
 
+// The cover watcher (the head's MutationObserver) finds the shelf's covers by the selector below. It depends on the cover
+// markup wq-stories.js draws today: if that file changes how a cover is drawn, this goes red (and the watcher must follow).
+describe('the cover watcher\'s selector still matches every cover the shipped wq-stories.js draws', () => {
+  const SELECTOR = { tag: 'img', attrs: { loading: 'lazy', width: '160', height: '240' } }; // img[loading='lazy'][width='160'][height='240']
+  test('the head\'s selector text is the one pinned here', async () => {
+    const { early } = await fastOpen(HUB({ fast: true, one_hop: true }));
+    expect(early).toContain("img[loading='lazy'][width='160'][height='240']");
+  });
+  test('each cover of the shelf is an img with loading=lazy, width=160 and height=240 and its own src', async () => {
+    const p = phone({ answers: { '/stories/shelf/': { lang: 'en', grade: 3, books: [1, 2, 3].map((n) => ({ id: `b${n}`, title: `B${n}`, cover: `/s/b${n}/c.webp`, lang: 'en', grade: 3 })) } } });
+    p.run(fs.readFileSync(path.join(WQ, 'wq-stories.js'), 'utf8'));
+    const sh = { attrs: {}, innerHTML: '', setAttribute(k, v) { this.attrs[k] = v; }, getAttribute() { return null; }, addEventListener() {} };
+    p.win.WQSTORIES.shelf(sh, { token: TOKEN, kid: KID, lang: 'en' });
+    await flush(); await flush();
+    const imgs = sh.innerHTML.match(/<img\b[^>]*>/g) || [];
+    const covers = imgs.filter((h) => /\ssrc="\/s\/b\d\/c\.webp"/.test(h));
+    expect(covers.length).toBe(3);
+    covers.forEach((h) => {
+      const attrs = Object.fromEntries([...h.matchAll(/\s([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+      Object.entries(SELECTOR.attrs).forEach(([k, v]) => expect(attrs[k]).toBe(v));
+    });
+  });
+});
+
 // ── The switch: web_quiz_one_hop (the bot's hub answer says `one_hop: true` only with it and web_quiz_fast on) ──
 const sha = (s) => ({ bytes: Buffer.byteLength(s), sha256: crypto.createHash('sha256').update(s).digest('base64') });
 const hashed = (pages) => Object.fromEntries(Object.entries(pages).map(([k, v]) => [k, typeof v === 'string' ? sha(v) : { early: sha(v.early), body: sha(v.body) }]));
@@ -387,6 +411,16 @@ describe('one hop off: the hub page is today\'s byte for byte (the golden captur
 });
 
 describe('one hop on (both switches): the head follows the last hub answer the edge saw', () => {
+  test('what the head preloads comes from the phone (its hash and its last home), never from another child\'s answer: two children, two different answers, one process, one head', () => {
+    const boot = '<script id="boot">{}</script>\n';
+    Hop.tail(boot, HUB({ one_hop: true, home_v3: 0, stories: { on: 0 }, lang: 'ur', kid: null, locked: true }), 'tok-a');
+    const afterA = Hop.head('abc');
+    Hop.tail(boot, HUB({ one_hop: true, home_v3: 1, stories: { on: 1 }, lang: 'en', practice: 1 }), 'tok-b');
+    const afterB = Hop.head('abc');
+    expect(afterA).toMatch(/WQPRE/);
+    expect(afterB).toBe(afterA); // only the one global switch is carried between opens, nothing about a child
+    expect(afterA).not.toMatch(/tok-a|tok-b/);
+  });
   test('after a start: the first streamed open is today\'s (its head was sent before the answer); from the next one the early reads ride along', async () => {
     const on = HUB({ fast: true, one_hop: true });
     // first open: not streamed (the edge has not seen `fast` yet); second: streamed, today's head, learns one_hop
@@ -530,5 +564,49 @@ describe('the switch rows assert what only "on" can do: the early read', () => {
     expect(r.early.preloads).toBe(6);
     expect(r.shelfReads).toBe(1); // the early one: the script added none
     expect(r.drawn).toBe(true);
+  });
+});
+
+// An early answer is for ONE read: the first request of that URL takes it; any later one (the reader's "look again" for
+// a voice that was not ready, the shelf after a finished book) is a fresh network read, never the first copy.
+describe('one hop on: an early answer is single-use (a later request of the same URL is a fresh network read)', () => {
+  const okJson = (body) => { const r = { status: 200, ok: true, json: () => Promise.resolve(JSON.parse(JSON.stringify(body))) }; r.clone = () => ({ ...r }); return r; };
+  async function open(hash, search, answerFor) {
+    const on = HUB({ fast: true, one_hop: true });
+    const s = await fastOpen(on, [on, on]);
+    const p = phone({ hash, search });
+    const seen = [];
+    p.win.fetch = (url, init) => { seen.push(url); return Promise.resolve(okJson(answerFor(url, seen.filter((u) => u === url).length))); };
+    const tail = s.body.slice(s.early.length);
+    inline(s.early).concat(inline(tail.slice(0, tail.indexOf('<script src=')))).forEach(p.run);
+    await flush(); await flush();
+    return { p, seen };
+  }
+  const read = async (p, url) => (await p.win.fetch(url, { method: 'GET' })).json();
+  test('a story\'s page whose voice was not ready: the reader\'s look-again gets the network\'s answer, not the voiceless copy', async () => {
+    const url = `/api/wq/stories/book/b-lost-deer/h/${encodeURIComponent(TOKEN)}?kid=${KID}`;
+    const { p, seen } = await open('#story/b-lost-deer', `?kid=${KID}`, (u, n) => ({ n, pages: [{ image: { url: '/s/b/p1.webp' }, audio: n > 1 ? { url: 'voice.mp3' } : null }] }));
+    expect(seen.filter((u) => u === url).length).toBe(1); // the early read
+    const first = await read(p, url);
+    expect(first.pages[0].audio).toBe(null); // the script's first ask takes the early copy
+    const again = await read(p, url);
+    expect(again.pages[0].audio).toEqual({ url: 'voice.mp3' });
+    expect(seen.filter((u) => u === url).length).toBe(2);
+  });
+  test('the shelf after a finished book: the second ask is a fresh network read (done tick, next book)', async () => {
+    const url = `/api/wq/stories/shelf/h/${encodeURIComponent(TOKEN)}?kid=${KID}&l=en`;
+    const { p, seen } = await open('#stories', '', (u, n) => ({ lang: 'en', grade: 3, books: [{ id: 'b1', cover: '/s/b1/c.webp', done: n > 1 }] }));
+    expect(seen.filter((u) => u === url).length).toBe(1);
+    expect((await read(p, url)).books[0].done).toBe(false);
+    expect((await read(p, url)).books[0].done).toBe(true);
+    expect(seen.filter((u) => u === url).length).toBe(2);
+  });
+  test('an early answer nobody asked for within a minute is not handed out later (the network is asked)', async () => {
+    const url = `/api/wq/stories/shelf/h/${encodeURIComponent(TOKEN)}?kid=${KID}&l=en`;
+    const { p, seen } = await open('#stories', '', (u, n) => ({ lang: 'en', grade: 3, books: [{ id: 'b1', cover: '/s/b1/c.webp', n }] }));
+    const real = Date.now();
+    const spy = jest.spyOn(Date, 'now').mockReturnValue(real + 61000);
+    try { expect((await read(p, url)).books[0].n).toBe(2); } finally { spy.mockRestore(); }
+    expect(seen.filter((u) => u === url).length).toBe(2);
   });
 });

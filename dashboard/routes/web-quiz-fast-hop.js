@@ -12,8 +12,8 @@
  *                    the server has answered. It also sets window.WQPRE, the early answers' store.
  *   tail(t, B, tok)  the page's tail with one call after the boot JSON — WQPRE.go({…}) — that starts the door's rows, the
  *                    shelf, the library or the book at once (the child and the language are only known here), before
- *                    any script runs. A script's own GET of one of those URLs (wq-doors.js, wq-stories.js) is answered
- *                    from that early read (window.fetch is wrapped for those URLs only, for one minute); a failed or
+ *                    any script runs. The first script GET of one of those URLs (wq-doors.js, wq-stories.js) is answered
+ *                    from that early read (window.fetch is wrapped for those URLs only; the answer is single-use and lasts a minute: every later GET of the URL goes to the network); a failed or
  *                    non-OK early read is asked again from the network.
  * The shelf's covers (the shelf draws them with native lazy loading; a watcher here turns each one blank-first as the page
  * adds it): each starts as a blank and gets its picture when it scrolls into view; the first four are fetched the moment the shelf's JSON lands, so the ones on screen are already there.
@@ -27,12 +27,13 @@
  */
 let last = false; // the last hub answer's `one_hop` (app_settings web_quiz_one_hop, with web_quiz_fast)
 
-// The early answers: a URL's response, shared (each GET of it gets a clone) for a minute; a failed or non-OK one is never
-// handed out (the network is asked). A story's first picture is fetched the moment the book's JSON lands.
+// The early answers: a URL's response, handed to ONE request only (the first GET of it, within a minute; any later GET of
+// the same URL, such as the reader's look-again or the shelf after a finished book, is a fresh network read); a failed or
+// non-OK one is never handed out (the network is asked). A story's first picture is fetched the moment the book's JSON lands.
 const HEAD = `(function(w,d){try{
 var F=w.fetch,G="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",io=null;
 var P=w.WQPRE={on:1,p:{},
-take:function(u){var e=P.p[u];if(!e||e.bad||Date.now()-e.t>60000)return null;return e.r.then(function(r){if(!r.ok){e.bad=1;throw 0}return r.clone()})},
+take:function(u){var e=P.p[u];if(!e||e.bad||e.used||Date.now()-e.t>60000)return null;e.used=1;return e.r.then(function(r){if(!r.ok){e.bad=1;throw 0}return r.clone()})},
 get:function(u,f){if(P.p[u])return;var e=P.p[u]={t:Date.now()};e.r=F.call(w,u,{credentials:"same-origin",headers:{accept:"application/json"}});
 e.r.then(function(r){if(!r.ok){e.bad=1;return}if(f)r.clone().json().then(f,function(){})},function(){e.bad=1})},
 pic:function(s){try{if(s)new w.Image().src=s}catch(x){}},

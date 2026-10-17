@@ -17,7 +17,7 @@
  * at all (the fast switch is asked first), so a fast-off hub makes no read for it. The first read after a start is off.
  *
  * The hub's one switch read (web-quiz-hub-switches.js, where present) can carry this switch too through `hubSwitches`
- * ({ name, keys, age, prime, read, peek }): its raw row fills this cache, parsed here as this module's own read parses
+ * ({ name, keys, age, prime, fail, read, peek }): its raw row fills this cache, parsed here as this module's own read parses
  * it, so a primed cache is fresh and on() reads nothing of its own.
  */
 const supabase = require('../../config/supabase');
@@ -74,9 +74,16 @@ function on(now = Date.now()) {
   return require('./web-quiz-fast').on(now) === true && own(now);
 }
 
-/** The hub's answer (the internal GET /hub/:token) with `one_hop: true` when on; off, the very same object (today's). */
-function mark(out) {
-  if (!out || typeof out !== 'object' || !on()) return out;
+/**
+ * The hub's answer (the internal GET /hub/:token) with `one_hop: true` when on; off, the very same object (today's).
+ * On is read from facts the open already has and never from a read of its own: the answer's own `fast: true` (the fast
+ * first page's switch, as this open saw it) and this switch's cache, which the hub's one settings read fills
+ * (hubSwitches.prime, web-quiz-hub-flags.js). So a hub open makes exactly the settings reads it made without this switch.
+ * Cold (nothing primed yet), older than twice the cache time, or a failed read: off.
+ */
+function mark(out, now = Date.now()) {
+  if (!out || typeof out !== 'object' || out.fast !== true) return out;
+  if (!(cache && cache.on && now - cache.at < 2 * TTL_MS)) return out;
   return { ...out, one_hop: true };
 }
 
@@ -96,6 +103,7 @@ const hubSwitches = {
   name: SEAM_NAME, keys: [KEY],
   age: (now = Date.now()) => (!cache ? 'cold' : (now - cache.at < TTL_MS ? 'fresh' : 'stale')),
   prime: (rows, now = Date.now()) => fromRow((rows || []).find((r) => r && r.key === KEY) || null, now),
+  fail: (now = Date.now()) => { cache = { at: now, on: false }; },
   read: () => flag(), peek: () => cache,
 };
 

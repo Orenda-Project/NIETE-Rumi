@@ -9,6 +9,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
+const OneHop = require('./web-quiz-one-hop');
 
 const HUB_KEY = 'web_quiz_hub';
 const CHALLENGE_KEY = 'web_quiz_challenge';
@@ -40,8 +41,22 @@ function isTrue(value) {
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
+    const HOST_KEYS = [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY];
+    const readRows = async (keys) => {
+      const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+      if (error) throw new Error(error.message || 'app_settings read failed');
+      return data || [];
+    };
+    // web_quiz_one_hop rides this one read (its own cache is filled from these rows: a hub open makes no read for it).
+    // If the read that carries it fails, the hub's own keys are read again alone: one_hop fails closed, nothing else goes off.
+    let data;
+    try {
+      data = await readRows([...HOST_KEYS, ...OneHop.hubSwitches.keys]);
+      OneHop.hubSwitches.prime(data, now);
+    } catch (firstErr) {
+      OneHop.hubSwitches.fail(now);
+      data = await readRows(HOST_KEYS);
+    }
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     cache = { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]), door: isTrue(by[DOOR_KEY]), childHome: isTrue(by[CHILD_HOME_KEY]),
       homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]),
