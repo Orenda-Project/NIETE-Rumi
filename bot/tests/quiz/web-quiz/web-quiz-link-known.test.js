@@ -474,3 +474,55 @@ describe('the switch\'s own read on a quiz open', () => {
     });
   }
 });
+
+describe('a CLOSED class link on a phone that holds a child: the way home (closedHome)', () => {
+  const LinkKnown = () => require('../../../shared/services/quiz/web-quiz-link-known');
+  test('one held child: a home link for that child, bound to THIS phone (the hub opens it there, nowhere else)', async () => {
+    seed();
+    await homeOpened();
+    const r = await LinkKnown().closedHome({ device: DEV });
+    expect(r.on).toBe(true);
+    expect(r.home).toMatch(/^\/h\/[A-Za-z0-9._-]+\?from=link$/);
+    const token = r.home.slice(3, r.home.indexOf('?'));
+    expect(T.verify(token, 'h').ids).toEqual([SELF]);
+    expect((await HubDevice.deviceTrusted(token, DEV)).ok).toBe(true);
+    expect((await HubDevice.deviceTrusted(token, FRESH)).ok).toBe(false);
+  });
+
+  test('two held children: one home for both (the home asks who is playing)', async () => {
+    seed();
+    await homeOpened([SELF]);
+    await homeOpened([SIB]);
+    const r = await LinkKnown().closedHome({ device: DEV });
+    expect(T.verify(r.home.slice(3, r.home.indexOf('?')), 'h').ids.sort()).toEqual([SELF, SIB].sort());
+  });
+
+  test('a phone that holds more than four: the home is for the newest four, as before', async () => {
+    seed();
+    const ids = Array.from({ length: 6 }, (_, i) => `55555555-5555-4555-8555-0000000003${i}0`);
+    ids.forEach((id, i) => db.students.push({ id, student_name: `Kid${i} Testwala`, list_id: null, is_active: true, status: 'active' }));
+    for (const id of ids) await homeOpened([id]);
+    const r = await LinkKnown().closedHome({ device: DEV });
+    expect(T.verify(r.home.slice(3, r.home.indexOf('?')), 'h').ids.sort()).toEqual(ids.slice(2).sort());
+  });
+
+  test('a fresh phone, no device, or Redis down: on, but no home', async () => {
+    seed();
+    await homeOpened();
+    expect(await LinkKnown().closedHome({ device: FRESH })).toEqual({ on: true, home: null });
+    expect(await LinkKnown().closedHome({})).toEqual({ on: true, home: null });
+    redis._up = false;
+    expect(await LinkKnown().closedHome({ device: DEV })).toEqual({ on: true, home: null });
+  });
+
+  for (const value of [false, 'true', undefined]) {
+    test(`switch off (${String(value)}): {on: false}, nothing minted`, async () => {
+      seed({ known: value });
+      if (value === undefined) db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
+      await homeOpened();
+      redis.set.mockClear();
+      expect(await LinkKnown().closedHome({ device: DEV })).toEqual({ on: false });
+      expect(redis.set).not.toHaveBeenCalled();
+    });
+  }
+});
