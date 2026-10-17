@@ -1,5 +1,6 @@
 /**
- * The child home's next files and first reads, started early (app_settings web_quiz_fast on: the fast first page only).
+ * The child home's next files and first reads, started early (app_settings web_quiz_one_hop, which builds on the fast
+ * first page: it runs only inside that page's head and tail, so only with web_quiz_fast on as well).
  *
  * A direct /h/<t>#stories used to ask, one after another, hub.js → wq-home.js → wq-doors.js / wq-stories.js → the
  * door's rows and the shelf: every hop after the bot's answer. The hash never reaches the edge, so:
@@ -16,8 +17,15 @@
  *                    non-OK early read is asked again from the network.
  * The shelf's covers (wq-stories.js reads window.WQLZ): each starts as a blank and gets its picture when it scrolls into
  * view; the first four are fetched the moment the shelf's JSON lands, so the ones on screen are already there.
- * Switch off: neither is called, the page is today's byte for byte, and with no WQPRE the scripts are today's.
+ * The switch (the hub's answer says `one_hop: true`, only with both switches on): the head is sent before the hub's
+ * answer is known, so it follows the LAST hub answer this edge saw (as the fast page itself follows the last `fast`):
+ * after a start the edge has seen none, so the first fast hub opens are today's; the tail then learns the switch from
+ * its own answer, and from the next open on the head carries the early reads. A flip (either way) lands one open later
+ * on each edge process. The tail follows its own answer at once: no `one_hop`, the tail is today's.
+ * Switch off: head() is empty and tail() is today's tail, so the page is today's byte for byte, and with no WQPRE (and no
+ * WQLZ, no chip in the door's answer) the scripts behave as today.
  */
+let last = false; // the last hub answer's `one_hop` (app_settings web_quiz_one_hop, with web_quiz_fast)
 
 // The early answers: a URL's response, shared (each GET of it gets a clone) for a minute; a failed or non-OK one is never
 // handed out (the network is asked). A story's first picture is fetched the moment the book's JSON lands.
@@ -38,8 +46,8 @@ var h=String(w.location.hash||""),door=/^#(stories|games|videos|watch\\/)/.test(
 try{if(w.localStorage.getItem("wq_h3")==="1")home=1}catch(x){}
 function book(t,k){var m=/^#story\\/([A-Za-z0-9_-]+)(?:\\/(q|p(\\d+)))?$/.exec(h);if(m)P.get("/api/wq/stories/book/"+encodeURIComponent(m[1])+"/h/"+t+"?kid="+encodeURIComponent(k),function(b){var p=(b.pages||[])[m[3]?m[3]-1:0];if(p&&p.image)P.pic(p.image.url)})}
 var pre=function(f,as){var l=d.createElement("link");l.rel="preload";l.as=as;l.href="/wq/"+f+"?v=__V__";d.head.appendChild(l)};
-if(home){pre("wq-home.js","script");pre("wq-home.css","style");pre("wq-doors.js","script");pre("wq-doors.css","style")}
-if(st){pre("wq-stories.js","script");pre("wq-stories.css","style")}
+var PL=__PL__,each=function(a){(a||[]).forEach(function(x){pre(x[0],x[1])})};
+if(home)each(PL.home);if(st)each(PL.stories);
 var c=/[?&]kid=([0-9a-f]{16})(&|$)/.exec(w.location.search||""),tk=/^\\/h\\/([A-Za-z0-9._-]+)$/.exec(w.location.pathname||"");
 if(c&&tk)book(encodeURIComponent(tk[1]),c[1]);
 P.go=function(o){
@@ -53,17 +61,28 @@ P.get("/api/wq/stories/shelf/h/"+t+"?kid="+k+(g[0]?"&g="+e(g[0]):"")+"&l="+(g[1]
 if(o.s)book(t,o.k)};
 }catch(x){}})(window,document);`;
 
+// What the head preloads, at the hub's own ?v= ([file under /wq/, as]): the home and its doors on a door, a story or a
+// phone whose last home was the v3 home; the reader too on #stories / #story/. The one list to extend.
+const PRELOADS = {
+  home: [['wq-home.js', 'script'], ['wq-home.css', 'style'], ['wq-doors.js', 'script'], ['wq-doors.css', 'style']],
+  stories: [['wq-stories.js', 'script'], ['wq-stories.css', 'style']],
+};
+
 // JSON for an inline script: nothing may close the tag.
 const js = (o) => JSON.stringify(o).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
 function head(assetV) {
-  return `<script>${HEAD.replace(/\n/g, '').replace('__V__', String(assetV).replace(/[^0-9A-Za-z]/g, ''))}</script>\n`;
+  if (!last) return '';
+  const files = Object.fromEntries(Object.entries(PRELOADS).map(([k, l]) => [k, l.filter(([f, as]) => /^[\w.-]+$/.test(f) && /^(script|style)$/.test(as))]));
+  return `<script>${HEAD.replace(/\n/g, '').replace('__V__', String(assetV).replace(/[^0-9A-Za-z]/g, '')).replace('__PL__', () => js(files))}</script>\n`;
 }
 
 // The call, right after the boot JSON (before wq-tel.js and every page script): token, child, language, the v3 home,
 // stories on, a coach's preview. No child (a locked or shared phone's first render): only the home's flag is kept.
 function tail(t, payload, token) {
   const B = payload || {};
+  last = B.one_hop === true;
+  if (!last) return t;
   const o = {
     t: String(token || ''), k: typeof B.kid === 'string' && !B.locked ? B.kid : null, l: B.lang === 'ur' ? 'ur' : 'en',
     h: B.home_v3 ? 1 : 0, s: B.stories && B.stories.on ? 1 : 0, x: B.practice ? 1 : 0,
@@ -73,4 +92,4 @@ function tail(t, payload, token) {
   return at < 0 || !/^<script id="boot"/.test(t) ? t : `${t.slice(0, at + 10)}${call}${t.slice(at + 10)}`;
 }
 
-module.exports = { head, tail };
+module.exports = { head, tail, PRELOADS, _reset: () => { last = false; } };

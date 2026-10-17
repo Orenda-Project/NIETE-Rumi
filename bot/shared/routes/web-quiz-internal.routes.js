@@ -54,6 +54,9 @@ const CardImage = require('../services/quiz/web-quiz-card-image');
 
 const router = express.Router();
 router.use(requireInternalKey);
+// The hub's boot JSON (GET /hub/:token below) says `one_hop: true` only with web_quiz_one_hop and web_quiz_fast on
+// (web-quiz-one-hop.js); off, it is web-quiz-hub.js's answer as it is.
+router.get('/hub/:token', require('../services/quiz/web-quiz-one-hop').markHubAnswer);
 // Every route logs its time and database round trips (web_quiz.timing; slow always, fast sampled).
 Timing.patch(require('../config/supabase'));
 

@@ -523,21 +523,57 @@ describe('the hub door for a story session', () => {
     Stories._reset();
     await expect(Door.door({ st, story: 1 }, Err)).rejects.toMatchObject({ status: 404 });
   });
-  test('fast first page on (web_quiz_fast): the story door also names the child\'s hub chip, so the hub can start the book at once; off: {href} only (golden)', async () => {
+  test('one-hop open on (web_quiz_one_hop with web_quiz_fast): the story door also names the child\'s hub chip, so the hub can start the book at once; off: {href} only (golden)', async () => {
     const Fast = require('../../../shared/services/quiz/web-quiz-fast');
+    const Hop = require('../../../shared/services/quiz/web-quiz-one-hop');
+    const tick = async () => { await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r)); };
+    // both switches read afresh from app_settings (never waited for: read once, then answered from the cache)
+    const warm = async () => { Fast._reset(); Hop._reset(); Fast.on(); Hop.own(); await tick(); };
+    const set = (key, value) => { db.app_settings = db.app_settings.filter((r) => r.key !== key); if (value !== undefined) db.app_settings.push({ key, value }); };
     const { st } = await storySession();
-    Fast._reset();
+    await warm();
     const off = await Door.door({ st, story: 1 }, Err);
     expect(Object.keys(off)).toEqual(['href']);
-    db.app_settings.push({ key: 'web_quiz_fast', value: true });
-    Fast._reset(); Fast.on(); await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    // the fast page alone (on today): today's answer, byte for byte
+    set('web_quiz_fast', true);
+    await warm();
     expect(Fast.on()).toBe(true);
+    expect(JSON.stringify(await Door.door({ st, story: 1 }, Err))).toBe(JSON.stringify(off));
+    // only the JSON boolean true is on: every other stored value is today's answer
+    for (const v of ['true', '"true"', 'yes', 1, { enabled: true }, false, null]) {
+      set('web_quiz_one_hop', v);
+      await warm();
+      expect([v, JSON.stringify(await Door.door({ st, story: 1 }, Err))]).toEqual([v, JSON.stringify(off)]);
+    }
+    // a failed read of the one-hop switch: off (fail closed), today's answer
+    set('web_quiz_one_hop', true);
+    const real = supabase.from;
+    supabase.from = (t) => {
+      const q = real(t);
+      if (t !== 'app_settings') return q;
+      const eq = q.eq.bind(q);
+      q.eq = (c, v) => (v === 'web_quiz_one_hop' ? { maybeSingle: () => Promise.resolve({ data: null, error: { message: 'down' } }) } : eq(c, v));
+      return q;
+    };
+    await warm();
+    expect(Hop.own()).toBe(false);
+    expect(JSON.stringify(await Door.door({ st, story: 1 }, Err))).toBe(JSON.stringify(off));
+    supabase.from = real;
+    // one hop on without the fast page: today's answer (there is no early head to start the book)
+    set('web_quiz_fast', undefined);
+    set('web_quiz_one_hop', true);
+    await warm();
+    expect(JSON.stringify(await Door.door({ st, story: 1 }, Err))).toBe(JSON.stringify(off));
+    // both on: the chip too
+    set('web_quiz_fast', true);
+    await warm();
+    expect(Hop.on()).toBe(true);
     const on = await Door.door({ st, story: 1 }, Err);
     expect(on.href).toBe(off.href);
     expect(on.kid).toBe(T.chipId('h', KID_A));
-    // a results-card door (not a story) stays {href} with the switch on
-    db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_fast');
-    Fast._reset();
+    set('web_quiz_fast', undefined);
+    set('web_quiz_one_hop', undefined);
+    Fast._reset(); Hop._reset();
   });
   test('a quiz that is not a story never opens early', async () => {
     db.quizzes.push({ id: 'q-video', quiz_source: 'video', meta: {}, topic: 'A video' });

@@ -58,7 +58,7 @@ test('a story send: the join opens the hub door with story:1, then the book on i
   expect(p.out.shown).not.toContain('question');
 });
 
-test('fast first page (the door names the child\'s chip): the hub link carries it, so the hub starts the book at once', async () => {
+test('one-hop open on (the door names the child\'s chip, only with web_quiz_one_hop and web_quiz_fast): the hub link carries it, so the hub starts the book at once', async () => {
   const KID = '0123456789abcdef';
   const p = page({ B: { story: { id: BOOK, from_teacher: true, code: 'AB12CD' } }, replies: [joined, { status: 200, ok: true, body: { href: '/h/abc.def', kid: KID } }] });
   await join(p);
