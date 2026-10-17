@@ -1586,10 +1586,11 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const unseen = {};
   const usedKeys = new Set();
   const shortfall = [];
-  // Social Studies after the re-ask: a choice slot that prints fewer than it offers but at least
-  // what the child answers is not short; it is recorded.
+  // Social Studies after the re-ask: a choice slot that prints fewer than it offers but still
+  // leaves the child a choice (at least what the child answers, plus one) is not short; it is
+  // recorded. Below that it is short, as a compulsory slot is.
   const shortChoice = [];
-  const choiceFloor = (slot) => (P.key === 'social_studies' && opts.reasked && slot.compulsory === false ? slot.attempt : slot.generate);
+  const choiceFloor = (slot) => (P.key === 'social_studies' && opts.reasked && slot.compulsory === false ? Math.min(slot.generate, slot.attempt + 1) : slot.generate);
   let placed = 0;
   for (const slot of slots) {
     const list = bySlot.get(slot.slot);

@@ -73,14 +73,15 @@ describe('1. a Q5/Q7 answer that prints a Q1 MCQ whole is held', () => {
   });
 
   // Since round 17 a held item never prints, after the re-ask too: a choice slot prints fewer items,
-  // at least what the child answers, or the slot is short and the paper fails.
+  // while it still offers a choice (what the child answers plus one), or the slot is short and the
+  // paper fails.
   test('after the one re-ask a held item never prints: a slot prints fewer, or it is short', () => {
     for (const p of PAPERS) {
       const laid = lay(REC[p], { reasked: true });
       expect(laid.held.filter((h) => h.printed)).toEqual([]);
       for (const f of laid.shortfall) {
         const slot = SST.sections.flatMap((s) => s.slots).find((s) => s.slot === f.slot);
-        expect(items(laid.examJson, f.slot).length).toBeLessThan(slot.attempt);
+        expect(items(laid.examJson, f.slot).length).toBeLessThan(Math.min(slot.generate, slot.attempt + 1));
       }
     }
   });

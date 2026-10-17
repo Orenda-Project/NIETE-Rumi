@@ -8,8 +8,9 @@
  *      whose points another C/D item's answer contains. A flagged D item is taken off, Section D is
  *      topped up once, and the reader checks the replacements only; a flagged Q5 is taken off.
  *   2. A caught question never prints. After the extra D ask, a held item does not go back: a choice
- *      slot (Q5, Q6, Q7) prints fewer items, its count to answer and its marks unchanged; a
- *      compulsory slot is short and the paper fails as a short paper always has.
+ *      slot (Q5, Q6, Q7) prints fewer items while it still offers a choice (at least its count to
+ *      answer plus one), its count to answer and its marks unchanged; below that, and in a
+ *      compulsory slot, the slot is short and the paper fails as a short paper always has.
  *      (chapters_6 printed Q7 ۷ «پاکستان کے پہلے وزیر اعظم کون تھے؟» = Q1 ۳ through the put-back.)
  *   3. B's re-ask for an empty mind map names it where the reply carries it ("Mind Map", its slot):
  *      chapters_5's two B replies both had no mind map, the second told only «Q4 needs 1 more».
@@ -113,15 +114,35 @@ describe('2. a caught question never prints', () => {
     expect(stems(FULL2, D7)).toContain('پاکستان کا سب سے بڑا صحرا کون سا ہے؟');
   });
 
-  test('chapters_6: the two Q7s held against Section A do not print; Q7 prints 6 of 8 and is not short', () => {
+  // COS ruling 0846 (2): a choice slot prints what it has while it still offers a choice
+  // (printed >= attempt + 1). At its count to answer the child has no choice left: that is the
+  // compulsory rule, a re-ask and then a short paper.
+  // chapters_6 with its second held Q7 swapped for a fresh one (a fictional item, not in Section A).
+  const oneHeldQ7 = () => {
+    const ex = clone(CH6);
+    const q = items(ex, D7).find((x) => /اسلامیہ کالج پشاور کا سنگ بنیاد/.test(x.question));
+    q.question = 'پاکستان کا قومی پرندہ کون سا ہے؟';
+    q.answer = 'چکور';
+    if (q.scheme) q.scheme = { ...q.scheme, points: ['چکور'], accept: [] };
+    return ex;
+  };
+
+  test('chapters_6: the two Q7s held against Section A do not print; with no choice left (6 of 8, answer 6) Q7 is short', () => {
     const r = lay(CH6, { reasked: true });
     const printed = stems(r.examJson, D7);
     expect(printed).not.toContain('پاکستان کے پہلے وزیر اعظم کون تھے؟');
     expect(printed.some((s) => /اسلامیہ کالج پشاور کا سنگ بنیاد/.test(s))).toBe(false);
     expect(printed).toHaveLength(6);
-    expect(r.shortfall).toEqual([]);
+    expect(r.shortfall).toEqual([{ slot: D7, missing: 1 }]);
     expect(r.held.filter((h) => h.printed)).toEqual([]);
-    expect(r.examJson._layout.short_choice).toEqual([{ slot: D7, printed: 6, generate: 8 }]);
+  });
+
+  test('one Q7 held: Q7 prints 7 of 8, still a choice, and is not short', () => {
+    const r = lay(oneHeldQ7(), { reasked: true });
+    expect(stems(r.examJson, D7)).not.toContain('پاکستان کے پہلے وزیر اعظم کون تھے؟');
+    expect(stems(r.examJson, D7)).toHaveLength(7);
+    expect(r.shortfall).toEqual([]);
+    expect(r.examJson._layout.short_choice).toEqual([{ slot: D7, printed: 7, generate: 8 }]);
   });
 
   test('full_2 Q7 ۸ (= Q1 ۱۶) and full_1 Q6 ۶ (held on points) do not print', () => {
@@ -132,15 +153,15 @@ describe('2. a caught question never prints', () => {
     expect(f1.shortfall).toEqual([]);
   });
 
-  test('a choice slot below its count to answer is short', () => {
+  test('a choice slot below its count to answer plus one is short', () => {
     const cut = clone(CH6);
     const kept = items(lay(CH6, { reasked: true }).examJson, D7).slice(0, 5).map((q) => q.question);
     for (const types of Object.values(cut.unseen)) for (const [t, l] of Object.entries(types)) types[t] = l.filter((q) => q.slot !== D7 || kept.includes(q.question));
-    expect(lay(cut, { reasked: true }).shortfall).toEqual([{ slot: D7, missing: 1 }]);
+    expect(lay(cut, { reasked: true }).shortfall).toEqual([{ slot: D7, missing: 2 }]);
   });
 
   test('a compulsory slot never prints a repeat to fill its place: A.Q1 is short', () => {
-    const dup = clone(CH6);
+    const dup = oneHeldQ7();
     const mcqs = dup.unseen.objective.MCQs;
     mcqs[19] = clone(mcqs[0]);
     const r = lay(dup, { reasked: true });
@@ -152,14 +173,20 @@ describe('2. a caught question never prints', () => {
     expect(lay(CH6, { reasked: false }).shortfall.find((f) => f.slot === D7)).toEqual({ slot: D7, missing: 2 });
   });
 
-  test('through the engine: chapters_6 builds, its held Q7s do not print, and the log names the short choice', async () => {
-    const { out } = await run(CH6);
+  test('through the engine: chapters_6 with one Q7 held builds, the held Q7 does not print, and the log names the short choice', async () => {
+    const { out } = await run(oneHeldQ7());
     expect(out.error).toBeUndefined();
     expect(stems(out.examJson, D7)).not.toContain('پاکستان کے پہلے وزیر اعظم کون تھے؟');
-    expect(stems(out.examJson, D7).length).toBeGreaterThanOrEqual(section('D').slots.find((s) => s.slot === D7).attempt);
+    expect(stems(out.examJson, D7)).toHaveLength(7);
     const row = logged('[assessment] held items')[0];
     expect(row.held.every((h) => h.printed === 0)).toBe(true);
-    expect(row.shortChoice).toEqual(expect.arrayContaining([expect.objectContaining({ slot: D7 })]));
+    expect(row.shortChoice).toEqual(expect.arrayContaining([expect.objectContaining({ slot: D7, printed: 7 })]));
+  });
+
+  test('through the engine: chapters_6 with both Q7s held and nothing new from the re-ask fails closed on Q7', async () => {
+    const { out } = await run(CH6);
+    expect(out.error && out.error.code).toBe('PATTERN_SHORT_SLOT');
+    expect(out.error.shortfall).toEqual([{ slot: D7, missing: 1 }]);
   });
 });
 

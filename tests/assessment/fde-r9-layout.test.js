@@ -206,9 +206,9 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(out.shortfall).toEqual(expect.arrayContaining([{ slot: 'social_studies.D.Q7', missing: 2 }]));
   });
 
-  test('after a re-ask that brought nothing new, the held items stay out: Q7 prints five, short of six to answer', () => {
+  test('after a re-ask that brought nothing new, the held items stay out: Q7 prints five, short of the six to answer plus one', () => {
     const out = layAfter(fixture('r7-sst-item-text'), 'social_studies');
-    expect(out.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toEqual({ slot: 'social_studies.D.Q7', missing: 1 });
+    expect(out.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toEqual({ slot: 'social_studies.D.Q7', missing: 2 });
     expect(slotItems(out.examJson, 'social_studies.D.Q7')).toHaveLength(5);
   });
 
