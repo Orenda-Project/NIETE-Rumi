@@ -166,8 +166,8 @@ describe('--apply records through publishQuizAudio, idempotent on isCurrent', ()
   });
 });
 
-describe('--one-voice: the parts the bank recorded are recorded in the quiz voice too', () => {
-  test('a quiz current before (its recorded question skipped) is recorded again in the one voice, its question included, then stamped and skipped', async () => {
+describe('--one-voice: the lines the quiz makes are recorded in the one voice; the recorded question is kept', () => {
+  test('a quiz current before (its recorded question skipped) is recorded again in the one voice, its recorded question still kept, then stamped and skipped', async () => {
     const w = world();
     w.quizzes.find((q) => q.id === 'q-g3sci-2').meta = { web: { audio_v: Publish.AUDIO_VERSION, audio_voice: 'sx-grace', audio: {} } };
     w.quiz_questions.filter((q) => q.quiz_id === 'q-g3sci-2').forEach((q) => { q.media = { question_audio: ['https://clips.example/bank/q.ogg'] }; });
@@ -175,7 +175,8 @@ describe('--one-voice: the parts the bank recorded are recorded in the quiz voic
     const { r, lines } = await run(['--expect-ref', REF, '--limit', '1', '--apply', '--one-voice'], { db });
     expect(lines[0]).toMatch(/ one_voice=[0-9a-f]{10}$/);
     const parts = r2.uploadBuffer.mock.calls.map((c) => c[1].split('/').pop().split('-')[0]);
-    expect(parts.filter((x) => x === 'q')).toHaveLength(2); // both questions' recorded question, now in the one voice
+    expect(parts.filter((x) => x === 'q')).toHaveLength(0); // both questions' recorded question is kept (the person's voice)
+    expect(parts.length).toBeGreaterThan(0);
     tts.synthesize.mock.calls.forEach((c) => expect(c[0]).toMatchObject({ provider: 'elevenlabs', voice: 'hpp4J3VqNfWAUOO0d1Us', model: 'eleven_v4' }));
     expect(r).toMatchObject({ done: 1, skipped: 0, failed: 0 });
     const meta = db.writes.filter((x) => x.id === 'q-g3sci-2').pop().v.meta;

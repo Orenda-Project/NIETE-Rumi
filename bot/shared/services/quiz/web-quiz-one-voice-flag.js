@@ -2,13 +2,21 @@
 /**
  * One voice per quiz: app_settings `web_quiz_one_voice` (default off). Its value is the voice PLAN, data:
  *
- *   true                                  every spoken line in the one voice of web-quiz-voice.js ONE_VOICE
- *   { "voices": { "en": { "provider": "elevenlabs", "voice": "<id>", "name": "Bella", "model": "eleven_v4" },
+ *   true                                  the bank's recordings of people keep the question and the options; every
+ *                                         other spoken line is the one voice of web-quiz-voice.js ONE_VOICE
+ *   { "voices": { "en": { "provider": "elevenlabs", "voice": "<id>", "name": "Bella", "model": "eleven_v4",
+ *                         "settings": { "stability": 0.5, ... } },
  *                 "ur": { ... } },        the voice per language (a language left out, or invalid, takes ONE_VOICE's)
- *     "bank": ["q", "opts", "why"],       the parts still served from the bank's own recordings of people
- *                                         (a subset; default none): every other line is the plan's voice
+ *     "bank": ["q", "opts"],              the parts still served from the bank's own recordings of people (a subset
+ *                                         of q, opts, why; default ["q", "opts"]). Only an explicit [] voices the
+ *                                         recorded question and options again in the plan's voice
  *     "kbps": 32 }                        the clip's rate, asked of the provider in the same generation (32 or 64,
  *                                         default 64): never a second encode
+ *
+ * A plan is live only when every language's voice (as the plan renders it, web-quiz-voice.js setIdOf) has a
+ * recorded set of Jugnu's shared lines (web-quiz-voice.js SHARED_SETS): the page would show those lines silent
+ * otherwise. A plan without one reads as off, and the refusal is logged. The tools given a plan directly (the
+ * backfill's --plan, the missing-keys check) are not refused: they record before the flip.
  *
  * A voice's `settings` are the provider's own (ElevenLabs: stability, …, `speed` for a slower delivery). The stamp
  * (`sig`) names every voice's tag, model and settings, the bank parts and the rate, so a change to any of them
@@ -38,6 +46,8 @@ const BANK_PARTS = Object.freeze(['q', 'opts', 'why']);
 const PROVIDERS = Object.freeze(['elevenlabs', 'soniox']);
 const KBPS = Object.freeze([32, 64]);
 const DEFAULT_KBPS = 64;
+// The parts a plan keeps from the bank's recordings of people when it names none: the question and the options.
+const DEFAULT_BANK = Object.freeze(['q', 'opts']);
 let cache = null; // { at, plan }
 let pinned; // a read-only tool's plan (pin): every reader in the process sees it, the switch is never read
 
@@ -58,7 +68,7 @@ function voiceOf(raw, lang) {
 /** The plan a switch value names, or null (off). A string (the JSON string "true" too) is off, as for every switch. Pure. */
 function normalize(value) {
   const v = value;
-  if (v === true) return withSig({ voices: { en: Voice.ONE_VOICE.en, ur: Voice.ONE_VOICE.ur }, bank: [], kbps: DEFAULT_KBPS });
+  if (v === true) return withSig({ voices: { en: Voice.ONE_VOICE.en, ur: Voice.ONE_VOICE.ur }, bank: [...DEFAULT_BANK], kbps: DEFAULT_KBPS });
   if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
   // `enabled`, when there, is read as the JSON `true` only (`"false"`, `0`, `null` are off).
   if ('enabled' in v && v.enabled !== true) return null;
@@ -70,7 +80,7 @@ function normalize(value) {
   const hasKbps = KBPS.includes(Number(v.kbps));
   if (!hasVoices && !hasBank && !hasKbps) return null;
   const voices = hasVoices ? v.voices : {};
-  const bank = hasBank ? BANK_PARTS.filter((p) => v.bank.includes(p)) : [];
+  const bank = hasBank ? BANK_PARTS.filter((p) => v.bank.includes(p)) : [...DEFAULT_BANK];
   const kbps = hasKbps ? Number(v.kbps) : DEFAULT_KBPS;
   return withSig({ voices: { en: voiceOf(voices.en, 'en'), ur: voiceOf(voices.ur, 'ur') }, bank, kbps });
 }
@@ -88,6 +98,20 @@ function withSig(plan) {
   return Object.freeze({ ...plan, sig });
 }
 
+// A plan the page can play: every language's voice has a recorded set of Jugnu's shared lines. Else null (off),
+// logged once per plan.
+const refused = new Set();
+function live(p) {
+  if (!p) return null;
+  const missing = ['en', 'ur'].map((lang) => Voice.setIdOf(Voice.quizVoice(lang, { oneVoice: p }))).filter((id) => !Voice.SHARED_SETS[id]);
+  if (!missing.length) return p;
+  if (!refused.has(p.sig)) {
+    refused.add(p.sig);
+    logToFile('⚠️ web-quiz: one-voice plan has no recorded set of Jugnu\'s shared lines for its voice — the switch reads off', { sig: p.sig, missing });
+  }
+  return null;
+}
+
 /** → the plan when the switch is on, else null. `db`: a Supabase client (defaults to the bot's). Never throws. */
 async function plan({ db, now = Date.now() } = {}) {
   if (pinned !== undefined) return pinned;
@@ -97,7 +121,7 @@ async function plan({ db, now = Date.now() } = {}) {
     const { data, error } = await client.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
     if (error) throw new Error(error.message || 'app_settings read failed');
     if (pinned !== undefined) return pinned;   // pinned while this read was in flight
-    cache = { at: now, plan: data ? normalize(data.value) : null };
+    cache = { at: now, plan: data ? live(normalize(data.value)) : null };
     return cache.plan;
   } catch (err) {
     logToFile('⚠️ web-quiz: one-voice setting unreadable — the recorded clips play as before', { error: err && err.message });
@@ -111,7 +135,7 @@ async function plan({ db, now = Date.now() } = {}) {
  */
 function take(value, now = Date.now()) {
   if (pinned !== undefined) return pinned;
-  cache = { at: now, plan: normalize(value) };
+  cache = { at: now, plan: live(normalize(value)) };
   return cache.plan;
 }
 
@@ -163,6 +187,6 @@ function mixOf(audio, { sharedTag = null } = {}) {
 function pin(p) { pinned = p || null; }
 
 /** Tests only: forget the cached reading (and a pin). */
-function reset() { cache = null; pinned = undefined; }
+function reset() { cache = null; pinned = undefined; refused.clear(); }
 
-module.exports = { on, plan, take, normalize, renderOf, mixOf, current, currentPlan, keepFresh, pin, reset, KEY, TTL_MS, BANK_PARTS, KBPS };
+module.exports = { on, plan, take, normalize, renderOf, mixOf, current, currentPlan, keepFresh, pin, reset, KEY, TTL_MS, BANK_PARTS, DEFAULT_BANK, KBPS };
