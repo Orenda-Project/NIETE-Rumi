@@ -193,7 +193,8 @@ async function open(phone, { language = 'en' } = {}) {
  * `home`: the Home body and button; a refused emoji label is retried once with the plain one.
  */
 async function sendHub(phone, known, lang, { home = false, trueCount = false } = {}) {
-  const url = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id));
+  // web_quiz_return_lang: the link carries the language this reply speaks (off: today's link)
+  const url = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id), { lang });
   if (!url) return false;
   // family phone binding on: the Home reply is counted on the ledger with the phone BEFORE it is sent (the per-phone
   // daily reply cap); over the cap nothing is sent and the /quiz is still handled. Off: today's path, uncounted.
