@@ -192,6 +192,24 @@ function fillPoints(holder, marks, answer) {
   holder.scheme.points = [{ kind: 'A', marks, text: capCodePoints(answer, POINT_TEXT_MAX) }];
 }
 
+// A meaning written over several lines of verse marks one idea per sentence: one A point of the
+// row's whole marks would let a teacher give all or nothing. The answer is cut at each sentence
+// end, sentences past one per mark are joined to the last point, and the marks are shared out in
+// halves (the first points take the odd half). One sentence is one point, as before. Urdu Q6 (ب)
+// only: the live subjects' rows keep their one point.
+const SENTENCE_FILL = new Set(['urdu.C.Q6']);
+function fillSentences(holder, marks, answer) {
+  const sentences = answer.split(/(?<=[۔؟!?])\s+/u).map((s) => s.trim()).filter(Boolean);
+  const n = Math.min(sentences.length, Math.floor(marks), Math.floor(marks * 2));
+  if (n < 2) return fillPoints(holder, marks, answer);
+  const texts = sentences.slice(0, n - 1).concat(sentences.slice(n - 1).join(' '));
+  // The halves left over are fewer than the points (base is marks / n rounded down to a half).
+  const base = Math.floor((marks / n) * 2) / 2;
+  const odd = Math.round((marks - base * n) * 2);
+  if (!isObject(holder.scheme)) holder.scheme = { checked: null };
+  holder.scheme.points = texts.map((text, i) => ({ kind: 'A', marks: base + (i < odd ? 0.5 : 0), text: capCodePoints(text, POINT_TEXT_MAX) }));
+}
+
 // Rows marked by criteria, or by their own sub-rows, never print the bare chip.
 function fillsWhole(slot) {
   return !['comprehension', 'situation', 'composition'].includes(slot.shape)
@@ -437,9 +455,10 @@ function normaliseQuestion(q, slots, where, log, shortfall, ctx) {
   const marks = Number(q.marks) || toNumber(slot.marks_each);
   const answer = answerOf(q.answer);
   if (fillsWhole(slot) && !hasPoints(q) && answer && Number.isFinite(marks) && marks > 0) {
-    fillPoints(q, marks, answer);
+    (SENTENCE_FILL.has(slot.slot) ? fillSentences : fillPoints)(q, marks, answer);
     ctx.filled.push({ slot: slot.slot, item: ctx.item, part: null, filled_by: 'code' });
-    log.push(`${label}: no points; one A point of ${show(marks)} written on the answer`);
+    const n = q.scheme.points.length;
+    log.push(`${label}: no points; ${n > 1 ? `${n} A points of ${show(marks)} written on its sentences` : `one A point of ${show(marks)} written on the answer`}`);
   }
 }
 
