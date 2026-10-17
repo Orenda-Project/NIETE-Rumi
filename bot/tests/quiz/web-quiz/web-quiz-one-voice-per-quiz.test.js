@@ -161,6 +161,16 @@ describe('switch off (absent, false, or not a real true): today\'s page, unchang
     expect('one_voice' in out).toBe(false);
   });
 
+  test.each([[{ enabled: true }], [{}], [{ foo: 1 }]])('flag %p names no plan: off, the payload byte-identical to no switch row', async (flag) => {
+    const strip = (o) => JSON.stringify(o, (k, v) => (/token|expires|_at$|^t$|nonce|sig/i.test(k) ? undefined : v));
+    const none = strip(await page(ROWS(), GENERATED(TODAY), {}));
+    WQ._resetQuizCache(); OneVoice.reset();
+    const out = await page(ROWS(), GENERATED(TODAY), { flag });
+    expect('one_voice' in out).toBe(false);
+    expect(out.quiz.questions.find((q) => q.audio && q.audio.q === rec('q1'))).toBeTruthy();   // the recording is served
+    expect(strip(out)).toBe(none);
+  });
+
   test('golden: the whole payload with the switch off is byte-identical to the payload with no switch row', async () => {
     const strip = (o) => JSON.stringify(o, (k, v) => (/token|expires|_at$|^t$|nonce|sig/i.test(k) ? undefined : v));
     const none = strip(await page(ROWS(), GENERATED(TODAY), {}));
@@ -346,6 +356,10 @@ describe('the switch value is the voice plan', () => {
     expect(OneVoice.normalize(JSON.parse(JSON.stringify(PLAN)))).toMatchObject({ voices: { en: { voice: JESSICA.voice, model: 'eleven_v4' }, ur: Voice.ONE_VOICE.ur }, bank: ['q', 'opts'] });
     expect(OneVoice.normalize({ voices: { en: { provider: 'nope', voice: 'x' } }, bank: ['q', 'stim', 'x'] })).toMatchObject({ voices: { en: Voice.ONE_VOICE.en }, bank: ['q'] });
     [false, null, 'yes', 1, [], { enabled: false }].forEach((v) => expect(OneVoice.normalize(v)).toBe(null));
+    // An object is a plan only when it names a valid voices, bank or kbps: a stray or malformed row is off.
+    [{ enabled: true }, {}, { foo: 1 }, { voices: 'x' }, { voices: [] }, { voices: {} }, { voices: { en: { provider: 'nope', voice: 'x' } } }, { bank: 'q' }, { kbps: 17 }, { kbps: '128' }]
+      .forEach((v) => expect(OneVoice.normalize(v)).toBe(null));
+    expect(OneVoice.normalize({ enabled: true, bank: [] })).toMatchObject({ bank: [], kbps: 64 });
   });
 
   test('served: the kept bank parts are the people\'s recordings, every other line is the plan voice; no shared set for a voice without one', async () => {
@@ -412,7 +426,7 @@ describe('the plan names the clip\'s rate and the voice\'s delivery; a change of
     const slow = OneVoice.normalize({ voices: { en: { ...Voice.ONE_VOICE.en, settings: { ...Voice.ONE_VOICE.en.settings, speed: 0.88 } } } });
     expect(p64.kbps).toBe(64);
     expect(p32.kbps).toBe(32);
-    expect(OneVoice.normalize({ kbps: 17 }).kbps).toBe(64);
+    expect(OneVoice.normalize({ bank: [], kbps: 17 }).kbps).toBe(64);
     expect(new Set([p64.sig, p32.sig, slow.sig]).size).toBe(3);
   });
 

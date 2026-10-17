@@ -169,6 +169,12 @@ describe('--record-short', () => {
   });
 
   test('a question heard wrong is recorded once more, then deleted and listed (never kept, never dropped)', async () => {
+    // The long clips are already in the store, and so is one short line: only the failed takes can be missing.
+    let kept = null;
+    r2.headObject.mockImplementation(async (k) => {
+      if (!kept && /\/q\d+(-opt)?-(?:sx|el|oa)-/.test(k)) kept = k;
+      return { exists: isLong(k) || k === kept };
+    });
     tts.synthesize.mockImplementation(async ({ text }) => ok(text));
     const { r, lines } = await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5'],
       { stt: async (_a, _l, text) => (String(text).split(/\s+/).length >= 4 ? 'something else entirely here today' : text) });
@@ -177,6 +183,13 @@ describe('--record-short', () => {
     expect(failed.length).toBe(r.gateFailed);
     expect(failed[0]).toMatch(/\twer=/);
     expect(r2.deleteKey.mock.calls.length).toBe(r.gateFailed * 2);   // each failed take removed, both times
+    // a deleted take is missing at the end, whatever this process remembers: never ok
+    expect(r).toMatchObject({ ok: false, missing: r.gateFailed });
+    const missing = new Set(lines.filter((l) => l.startsWith('missing\t')).map((l) => l.split('\t').slice(1, 4).join('\t')));
+    failed.forEach((l) => expect(missing.has(l.split('\t').slice(1, 4).join('\t'))).toBe(true));
+    // a short line already in the store is never recorded again
+    expect(kept).toBeTruthy();
+    expect(r2.uploadBuffer.mock.calls.filter(([, k]) => k === kept)).toEqual([]);
   });
 
   test('a clip far too long or short for its words fails the length gate the same way', async () => {
