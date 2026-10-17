@@ -16,10 +16,13 @@ function canMark() {
   try { return redis().isAvailable() === true; } catch (_) { return false; }
 }
 
-/** → true when the code is marked prepared; false when the store refused (the client answers false, or throws). */
+/** → true when the code is marked prepared (one retry); false when the store refused twice (it answers false, or throws). */
 async function markPrepared(shareCodeId) {
   if (!shareCodeId) return false;
-  try { return (await redis().set(`${PREFIX}${shareCodeId}`, '1', TTL_S)) === true; } catch (_) { return false; }
+  for (let i = 0; i < 2; i += 1) {
+    try { if ((await redis().set(`${PREFIX}${shareCodeId}`, '1', TTL_S)) === true) return true; } catch (_) { /* once more */ }
+  }
+  return false;
 }
 
 /** Clears "prepared" (one retry) → true when cleared or nothing to clear; false when the clear failed twice. */
