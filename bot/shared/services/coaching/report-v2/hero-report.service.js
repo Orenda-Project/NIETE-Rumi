@@ -240,8 +240,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
   if (opts.slim) {
     try {
       const n = narrative || {};
-      const well = wells(analysis, lang);
-      const own = n.strength_note || n.strength_name;
+      const well = wells(analysis, lang, narrative);
+      const own = lang === 'en' ? n.strength_note || n.strength_name : null;
       const card = {
         language: lang,
         header: cardHeader(session, analysis, teacherName, lang),

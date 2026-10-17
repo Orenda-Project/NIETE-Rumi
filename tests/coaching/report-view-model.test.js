@@ -49,7 +49,7 @@ test('header: first name, grade · subject · topic, PKT date, score and marks',
 
 test('did well: a better swap comes first as a strength, then the grader\'s strengths, three at most', () => {
   expect(view().wells).toEqual(['You did “Count in tens with sticks” your own way, and it worked better.', 'Clear board work', 'Called children by name']);
-  expect(view({ language: 'ur' }).wells[0]).toContain('Count in tens with sticks');
+  expect(view({ language: 'ur' }).wells.join(' ')).not.toContain('Count in tens with sticks'); // bd-v0toag.85
 });
 
 test('thing to try: the move, why it matters, and the step its move sits in', () => {
