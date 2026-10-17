@@ -100,7 +100,7 @@ test('the voice method gate is read once from app_settings web_quiz_story_voice_
   expect(await run(db(false))).toEqual(today);
   reads.length = 0;
   const on = await run(db(true));
-  expect(on[0]).toMatchObject({ status: 'ready', why: [], voiced: '1/1' });
+  expect(on[0]).toMatchObject({ status: 'ready', why: [], voiced: '1/1', kept_voice: [], misses: [], question_kept: [] });
   expect(on[1]).toEqual({ books: 1, ready: 1, draft: 0, failed: 0, dry_run: true, voice_gate: true });
   expect(reads).toEqual(['app_settings']);
 });
@@ -137,12 +137,12 @@ test('the switch is on only for JSON true: a string or another shape plans with 
   }
 });
 
-test('a switch read error writes nothing: the run logs it and plans as a dry run with today\'s gates', async () => {
+test('a switch read error writes nothing: the run logs it, plans as a dry run with today\'s gates and exits 3', async () => {
   const calls = [];
   const db = { from: (t) => { const b = {}; ['select', 'eq', 'in', 'maybeSingle', 'upsert', 'update', 'delete', 'insert'].forEach((m) => { b[m] = (...a) => { calls.push([t, m]); return b; }; }); b.then = (res) => res(t === 'app_settings' ? { data: null, error: { code: '57014', message: 'timeout' } } : { data: [], error: null }); return b; } };
   const o = io();
   const rc = await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv')], env: {}, io: o, db });
-  expect(rc).toBe(0);
+  expect(rc).toBe(3);
   const lines = o.o.out.trim().split('\n').map((l) => JSON.parse(l));
   expect(lines[0].status).toMatch(/^(ready|draft)$/);
   expect(lines[1]).toMatchObject({ dry_run: true, voice_gate_read_failed: true });

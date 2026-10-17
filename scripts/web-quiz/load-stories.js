@@ -27,7 +27,7 @@
  *
  * The voice gate: app_settings web_quiz_story_voice_gate is read once per run (JSON true = the method gate, story-load.js);
  * a dry run without a database plans with today's gates. A read error never writes: the run logs
- * web_quiz.story_voice_gate_read_failed on stderr and finishes as a dry run with today's gates. With it on, each book's line also lists the pages that kept the
+ * web_quiz.story_voice_gate_read_failed on stderr, finishes as a dry run with today's gates and exits 3. With it on, each book's line also lists the pages that kept the
  * voice they had (kept) and why their new take was not stored (misses), and the total line says voice_gate: true.
  *
  * Idempotent: ids are uuid v5 of the catalogue id and files are named by their content hash, so a re-run updates the
@@ -179,6 +179,7 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
   }
   const ready = rows.filter((r) => r.status === 'ready' || r.status === 'dry:ready').length;
   io.stdout.write(`${JSON.stringify({ books: rows.length, ready, draft: rows.length - ready, failed, dry_run: dryRun, ...(voiceGate ? { voice_gate: true } : {}), ...(gateReadFailed ? { voice_gate_read_failed: true } : {}) })}\n`);
+  if (gateReadFailed) return 3;
   return failed ? 1 : 0;
 }
 

@@ -653,6 +653,7 @@ describe('the voice method gate (app_settings web_quiz_story_voice_gate; absent 
     fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), voice: { provider: 'elevenlabs', voice: 'Sara', model: 'eleven_v4' } }));
     const two = L.planBook({ ...f, voiceGate: true });
     expect(two.voices).toEqual([]);
+    expect(two.files.filter((x) => /^a\d\d-/.test(x.name))).toEqual([]); // the held takes are not in the plan's files either
     expect(two.misses.map((m) => [m.n, m.why])).toEqual([[1, ['one voice per book: 2 voices in this run']], [2, ['one voice per book: 2 voices in this run']]]);
     // a new take on page 1 beside page 2's kept old voice: page 1 keeps its old voice too, never a mixed book
     const store = memoryStore(); const r = recorder();

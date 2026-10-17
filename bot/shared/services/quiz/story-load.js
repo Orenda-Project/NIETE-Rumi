@@ -417,7 +417,7 @@ function supabaseStore(db) {
       const sets = new Map();
       rows.forEach((r) => { const k = Object.keys(r).sort().join(','); sets.set(k, [...(sets.get(k) || []), { ...r }]); });
       let last = null;
-      for (const group of sets.values()) last = await ok(db.from('story_questions').upsert(group, BY_ID));
+      for (const group of sets.values()) last = await ok(db.from('story_questions').upsert(group.map((r) => ({ ...r })), BY_ID));
       return last;
     },
     deleteQuestionsAbove: (bookId, n) => ok(db.from('story_questions').delete().eq('book_id', bookId).gt('n', n)),
