@@ -7369,6 +7369,7 @@ CREATE TABLE IF NOT EXISTS child_phone_bindings (
   revoked_by     text        CHECK (revoked_by IN ('page_undo','stop','expiry','teacher','teacher_claim')),
   rebind_of      uuid        REFERENCES child_phone_bindings(id),
   code_id        text        REFERENCES child_bind_codes(code),   -- the JUGNU- code that made / last renewed it (child_phone_bindings_code.sql)
+  device_hash    text,                              -- hex(sha256(device_ref))[:32] of the browser a child joined on; NULL once revoked (child_phone_bindings_device.sql)
   CHECK (phone_norm IS NULL OR revoked_at IS NULL)  -- a revoked row never keeps the phone
 );
 CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
@@ -7376,6 +7377,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
 CREATE INDEX IF NOT EXISTS cpb_phone_active ON child_phone_bindings (phone_norm) WHERE phone_norm IS NOT NULL;
 CREATE INDEX IF NOT EXISTS cpb_expiry ON child_phone_bindings (expires_at) WHERE phone_norm IS NOT NULL;
 CREATE INDEX IF NOT EXISTS cpb_tomb ON child_phone_bindings (phone_tomb);
+CREATE INDEX IF NOT EXISTS cpb_device ON child_phone_bindings (device_hash) WHERE device_hash IS NOT NULL;
+CREATE OR REPLACE FUNCTION cpb_clear_device_on_revoke() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.revoked_at IS NOT NULL THEN
+    NEW.device_hash := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS cpb_clear_device ON child_phone_bindings;
+CREATE TRIGGER cpb_clear_device BEFORE INSERT OR UPDATE ON child_phone_bindings
+  FOR EACH ROW EXECUTE FUNCTION cpb_clear_device_on_revoke();
 
 CREATE TABLE IF NOT EXISTS child_bind_codes (
   code           text        PRIMARY KEY,           -- 'JUGNU-' + 5 of [A-Z2-9], single use
@@ -7766,6 +7780,22 @@ ALTER TABLE public.story_pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.story_page_voices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.story_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.story_events ENABLE ROW LEVEL SECURITY;
+-- story_page_unvoiced (mirror of web_quiz_story_unvoiced.sql): a page a child opened before it had a voice
+DO $$
+DECLARE c record;
+BEGIN
+  -- Every check on the event names that lacks the new one goes, whatever name the database gave it (an inline CHECK is
+  -- auto-named), so no six-name check is left beside the new one to refuse it.
+  FOR c IN SELECT conname FROM pg_constraint WHERE conrelid = 'public.story_events'::regclass AND contype = 'c'
+             AND pg_get_constraintdef(oid) LIKE '%story_opened%' AND pg_get_constraintdef(oid) NOT LIKE '%story_page_unvoiced%' LOOP
+    EXECUTE format('ALTER TABLE public.story_events DROP CONSTRAINT %I', c.conname);
+  END LOOP;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.story_events'::regclass AND contype = 'c'
+                 AND pg_get_constraintdef(oid) LIKE '%story_page_unvoiced%') THEN
+    ALTER TABLE public.story_events ADD CONSTRAINT story_events_event_check
+      CHECK (event IN ('story_opened', 'story_page_listened', 'story_page_read', 'story_questions_done', 'story_done', 'story_shared', 'story_page_unvoiced'));
+  END IF;
+END $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- student_videos.language (mirror of web_quiz_student_videos_language.sql): the lesson's language, NULL = unknown
@@ -7777,5 +7807,11 @@ BEGIN
     ALTER TABLE student_videos ADD CONSTRAINT student_videos_language_chk CHECK (language IN ('en', 'ur'));
   END IF;
 END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- student_videos.title_ur / chapter_ur (mirror of web_quiz_student_videos_title_ur.sql): Urdu-script names, NULL = none
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS title_ur text;
+ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS chapter_ur text;
 
 NOTIFY pgrst, 'reload schema';

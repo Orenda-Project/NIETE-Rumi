@@ -48,6 +48,9 @@ const GoNonce = require('../first-touch/go-nonce');
 const { clampLanguage } = require('../../config/ux-strings');
 
 const SWITCH_KEY = 'quiz_student_join';
+// The join page keeps a grade tap made before its script has loaded (the page draws it; join.js replays it). Read only
+// while the join switch is on; OFF (or a failed read) → the page is today's, byte for byte.
+const EARLY_TAP_KEY = 'quiz_join_early_tap';
 const TTL_MS = 30 * 1000;
 const JOIN_TTL_S = 60 * 60;
 const GRADES = Object.freeze([1, 2, 3, 4, 5]);
@@ -72,7 +75,19 @@ let cache = null;
 
 function isTrue(v) { return IdFlags.isTrue(v); }
 
-/** → { on, bind }; all false on a failed read. Never throws. */
+async function earlyTapOn() {
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', EARLY_TAP_KEY);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    // JSON true only (a new key): the string 'true', 1, 'yes' or an object are all off
+    return ((data || [])[0] || {}).value === true;
+  } catch (err) {
+    logToFile('⚠️ student join: early-tap setting lookup failed — off', { error: err.message });
+    return false;
+  }
+}
+
+/** → { on, bind, earlyTap }; all false on a failed read. Never throws. */
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
@@ -80,11 +95,12 @@ async function flags(now = Date.now()) {
     if (error) throw new Error(error.message || 'app_settings read failed');
     const on = isTrue(((data || [])[0] || {}).value);
     const bind = on && Boolean((await IdFlags.flags()).phoneBind);
-    cache = { at: now, on, bind };
+    const earlyTap = on && (await earlyTapOn());
+    cache = { at: now, on, bind, earlyTap };
     return cache;
   } catch (err) {
     logToFile('⚠️ student join: settings lookup failed — switch off', { error: err.message });
-    return { on: false, bind: false };
+    return { on: false, bind: false, earlyTap: false };
   }
 }
 
@@ -243,13 +259,14 @@ const emit = (name, fields, canonicalId = null, device = null) => K.emit(`web_qu
  * and the bot's number for the page's one tap back to WhatsApp when a link has expired.
  */
 async function pageInfo({ t } = {}) {
-  if (!(await flags()).on) return { off: true };
+  const f = await flags();
+  if (!f.on) return { off: true };
   const r = readToken(t);
   if (!r) {
     const old = T.verify(t, 'j', { allowExpired: true });
     return { stale: true, lang: old ? langOf(old.l) : null, ...botField() };
   }
-  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField() };
+  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField(), ...(f.earlyTap ? { earlyTap: true } : {}) };
 }
 
 /** The grade chip: the join_grade line and the home's warm list (fired before the name is typed). */
@@ -366,6 +383,8 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
     }
     const kids = [{ id }, ...set];
     await emit('join_done', { grade: g, kids_n: kids.length }, id, device);
+    // the home this opens says once "Jugnu will remember you on this phone", with Undo (web_quiz_home_v3; off: nothing)
+    await require('./web-quiz-home-remember').note({ device, bindingId: b.bindingId, canonicalId: id, userId: who.userId });
     // "Someone new?" (a brother or sister on the same phone) is the home's to draw: it mints their own link at render
     // (siblingJoinToken), so no join token ever rides this URL
     return { next: homeUrl(kids, id, 'join', lang) };
@@ -519,6 +538,7 @@ async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = nul
     const b = await bindChild(who.phoneNorm, String(kid.id));
     if (!b || !b.ok) return { refused: (b && b.reason) || 'unavailable', next: set.length ? homeUrl(set, set[0].id, 'quiz', lang) : null };
     await emit('bind_confirm', { src }, String(kid.id));
+    if (!b.renewed) await require('./web-quiz-home-remember').note({ device, bindingId: b.bindingId, canonicalId: String(kid.id), userId: who.userId });
     return { next: homeUrl(home, kid.id, 'bind', lang) };
   } catch (err) {
     logToFile('⚠️ student join: bind pick threw', { error: err.message });
@@ -564,7 +584,7 @@ async function noteRecognised({ phoneNorm } = {}) {
 }
 
 module.exports = {
-  SWITCH_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
+  SWITCH_KEY, EARLY_TAP_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
   flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound,
   cleanFirstName, cleanGrade, pickChips, rosterForPhone, schoolYearStart,
   _resetCache: () => { cache = null; },

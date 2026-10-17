@@ -90,6 +90,8 @@ const RULES = Object.freeze({
   score_v: /^[A-Za-z0-9._-]{1,32}$/,
   source: /^(ranked|pinned|fallback)$/,
   door: /^(stories|games|videos)$/,
+  // where a Next tap took the child: the thing it named, or (a dead end) back home
+  landed: /^(home|target)$/,
   src: /^(door|home|link|quiz|who)$/,
   lang: /^(en|ur)$/,
 });

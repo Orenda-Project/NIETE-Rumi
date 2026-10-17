@@ -30,8 +30,18 @@ function pathOf(url) {
   try { const u = new URL(url); return `${u.pathname}${u.search}`; } catch (_) { return null; }
 }
 
+/** A link that said bi: the teacher's stored language (en → en, ur → ur); absent or unreadable → bi. */
+async function storedLang(uid) {
+  try {
+    const { data } = await require('../../config/supabase').from('users').select('preferred_language').eq('id', String(uid)).maybeSingle();
+    const l = data && data.preferred_language;
+    return l === 'en' || l === 'ur' ? l : 'bi';
+  } catch (_) { return 'bi'; }
+}
+
 async function teacher({ uid, lang = 'bi' }) {
   if ((await require('./one-door.flags').flags()).teacherHome) {
+    if (lang !== 'en' && lang !== 'ur') lang = await storedLang(uid);
     const M = Optional.load('teacherHomeToken');
     let t = null;
     if (M && typeof M.signTeacherHome === 'function') t = M.signTeacherHome({ uid: String(uid), lang, via: 'go' });
