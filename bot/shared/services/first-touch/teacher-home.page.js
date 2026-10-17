@@ -170,10 +170,11 @@ post('/api/th/quiz/make',{t:b.t,kind:row.make,id:row.id,lang:b.lang}).then(funct
 .catch(function(){err(true);v.disabled=false}).then(function(){busy=false})}
 function rows(){var ul=q('#th-rows');clear(ul);var all=d.timeline||[];
 all.slice(0,shown).forEach(function(r){var li=el('li','th-row');li.setAttribute('data-row',r.kind);var tx=el('div','th-row-t');
-var k=el('span','th-row-k',S[TAG[r.kind]]||'');if(r.verb==='again'&&r.played!=null){k.textContent+=' \\u00b7 '+(r.played>0?fill('th.played.n',{n:dg(r.played)}):S['th.zero'])}
+var k=el('span','th-row-k',S[TAG[r.kind]]||'');if(r.played!=null){k.textContent+=' \\u00b7 '+(r.played>0?fill('th.played.n',{n:dg(r.played)}):S['th.zero'])}
 tx.appendChild(k);var n=el('span','th-row-n');n.appendChild(topic(r.title));tx.appendChild(n);li.appendChild(tx);
-if(r.verb==='again'){li.appendChild(btn('th-row-v',S['th.again'],'again',function(){fetchSend(r.sendKind,r.id,r.title,'again')}));if(r.report)li.appendChild(link('th-link',S['th.report'],r.report,'report'))}
-else if(r.verb==='quiz_this'){var v=btn('th-row-v',S['th.quiz.this'],'quiz_this',function(){make(r,tx,v)});li.appendChild(v)}
+if(r.verb==='again')li.appendChild(btn('th-row-v',S['th.again'],'again',function(){fetchSend(r.sendKind,r.id,r.title,'again')}));
+if(r.report)li.appendChild(link('th-link',S['th.report'],r.report,'report'));
+if(r.verb==='quiz_this'){var v=btn('th-row-v',S['th.quiz.this'],'quiz_this',function(){make(r,tx,v)});li.appendChild(v)}
 else if(r.status==='making'&&r.quizId){poll(r,tx,null)}
 ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown}
 function lib(L){Array.prototype.forEach.call(q('#th-grades').querySelectorAll('[data-grade]'),function(x){x.setAttribute('aria-pressed',String(x.getAttribute('data-grade')===String(L.grade)))});

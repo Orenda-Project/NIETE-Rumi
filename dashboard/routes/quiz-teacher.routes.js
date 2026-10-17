@@ -15,8 +15,8 @@
  * Switch quiz_teacher_home OFF: the bot answers 404 {off:true} and this edge calls next(), so the request falls
  * through to exactly today's handling (nothing is set on the response before that). A malformed token also falls
  * through, with no bot call. A bot that cannot be reached or answers 5xx: the page routes get the small static
- * mk.error page in the request's language, with ONE tap back to the chat (wa.me/<bot>?text=quiz, the number the bot
- * gave in its last home answer, digits only; the words alone until it has given one), the JSON routes 503
+ * mk.error page in the request's language, with ONE tap back to the chat (wa.me/<bot>?text=quiz: the portal's own
+ * bot-number setting, then the number the bot gave in its last home answer, digits only; the words alone with neither), the JSON routes 503
  * {error:'mk.error'}. A caller over the rate limit also falls through, with no bot call (never a 429: with the switch
  * off this edge must not be seen at all). A POST body is read by the same parser dashboard/index.js uses after this
  * edge (express.json() with its defaults), and a body it cannot read goes on to the app's own error handling exactly
@@ -109,7 +109,8 @@ function createQuizTeacherRouter(opts = {}) {
     configured = Boolean(botUrl && apiKey);
   }
   const router = express.Router();
-  let lastBot = null;   // the number the bot gave last (its home answer), for the edge's own error page
+  // the number for the edge's own error page: the portal's own setting (digits only), then what the bot's home answers say
+  let lastBot = cleanBot(String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, ''));
   const fail = (req, res, status) => errorPage(req, res, status, lastBot);
 
   // Per caller address. Over the limit → this route is skipped (next('route')) and the request falls through to
