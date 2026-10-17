@@ -1225,7 +1225,7 @@ describe('the stories page on an expired or forged link', () => {
   test('off on a failed read of the switch: today\'s answer', async () => {
     await withStories([{ key: KEY, value: true }], async () => {
       const from = supabase.from;
-      supabase.from = (t) => { if (t === 'app_settings') return { select: () => ({ eq: (k, v) => (v === KEY ? { maybeSingle: async () => ({ data: null, error: { message: 'down' } }) } : from(t).select('key, value').eq(k, v)) }) }; return from(t); };
+      supabase.from = (t) => { if (t === 'app_settings') return { select: () => ({ eq: (k, v) => (v === KEY ? { maybeSingle: async () => ({ data: null, error: { message: 'down' } }) } : from(t).select('key, value').eq(k, v)), in: (k, vs) => from(t).select('key, value').in(k, vs) }) }; return from(t); };
       try {
         require('../../shared/services/first-touch/teacher-stories-stale.flag').reset();
         const res = await page(`/quiz/teacher/${expired()}/stories`);
