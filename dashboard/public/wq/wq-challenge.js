@@ -1267,6 +1267,7 @@
       }
       var w = r.secs > 0 ? Math.round(live.v.correct / r.secs * 60) : 0;
       live.wpm = w;
+      live.secs = r.secs;
       liveResult(w);
       uploadQuiet(lc);
     });
@@ -1277,7 +1278,7 @@
     // the Trail's line follows the words heard (heardOk): the live cursor can run to the end on words never heard
     // the first card waits for the server's result before it draws a button the result could change (liveSettle)
     // live reading v3: a held card never shows a sticker before the reading is judged
-    if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold(lr3() ? { score: { attempted: live.v.attempted }, noSticker: true } : { score: { attempted: live.v.attempted } }, null, live.v.heardOk); return; }
+    if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold(rfWith(lr3() ? { score: { attempted: live.v.attempted }, noSticker: true } : { score: { attempted: live.v.attempted } }), null, live.v.heardOk); return; }
     var d = S.data;
     var good = w > 0;
     show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true)
@@ -1382,7 +1383,14 @@
   function liveSettle() {
     if (!(live && live.held)) return;
     live.held = false;
-    if (S.screen === 'read-result') TR.readEnd({ score: { attempted: live.v.attempted } }, null, live.v.heardOk);
+    if (S.screen === 'read-result') TR.readEnd(rfWith({ score: { attempted: live.v.attempted } }), null, live.v.heardOk);
+  }
+  // The reading moment (web_quiz_read_feedback; the Trail draws it): the read as this page knows it rides with the card
+  // as r.rf — the live count first, the checked result (its speed, its last read, the words read right) once it is back
+  function rfOn() { return menuData.read_feedback === true; }
+  function rfWith(o) {
+    if (rfOn() && live && live.v) o.rf = live.checked || { score: { correct: live.v.correct, attempted: live.v.attempted }, secs: live.secs };
+    return o;
   }
   function liveChecked(r) {
     if (!r || r.pending || r.later) { liveSettle(); return; }
@@ -1391,6 +1399,7 @@
     if (TR) {
       if (live && live.zero) return;
       if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) { if (live) live.held = false; readResult(r); return; }
+      if (rfOn() && live && r.score) live.checked = r;
       if (TR.storySettled) TR.storySettled(r);
       liveSettle();
       return;
@@ -1487,7 +1496,7 @@
     if (rec.gaveUp && !(TR && lr3() && S.screen === 'read-result' && r && !r.pending && !r.later && window.WQFC && window.WQFC.unheard(r, null, null, 0))) return;
     // live reading v3: the card judges how the reading ended (a silent start is never a reading), so it always has it
     if (lr3() && r && r.ended == null && rec.ended) r = Object.assign({}, r, { ended: rec.ended });
-    if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(r); return; }
+    if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(rfOn() && r && !r.later && !r.pending && (r.score || r.failed) ? Object.assign({}, r, { rf: r }) : r); return; }
     var d = S.data;
     var line; var pose = 'celebrate'; var score = ''; var growth = ''; var heard = false;
     if (r.later) { line = t.later; pose = 'hello'; }

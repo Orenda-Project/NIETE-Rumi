@@ -1,0 +1,40 @@
+/* The reading moment (wq-moment.js; web_quiz_read_feedback). Values come from the page's tokens when they are there
+   (the adventure layer overrides them); the fallbacks are today's look. No buttons here: the host keeps its own. */
+.wq-moment{position:relative;box-sizing:border-box;margin:12px auto 16px;padding:16px;max-width:420px;width:100%;
+  border-radius:var(--r-card,20px);background:var(--card,#fff);box-shadow:var(--sh-card,0 2px 0 rgba(0,0,0,.06));
+  border:2px solid var(--line,#E5E7EB);text-align:center;overflow:hidden}
+.wq-moment-sky{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 20% 15%,var(--glow,#FEF3C7) 0 6px,transparent 7px),radial-gradient(circle at 82% 25%,var(--glow,#FEF3C7) 0 4px,transparent 5px),
+  radial-gradient(circle at 70% 85%,var(--glow,#FEF3C7) 0 5px,transparent 6px);opacity:.9}
+.wq-moment>*{position:relative}
+.wq-moment-deed{margin:0 0 10px;font-size:var(--fs-4,24px);font-weight:800;line-height:1.3;color:var(--ink,#1F2937)}
+.wq-moment[lang="ur"] .wq-moment-deed,.wq-moment[lang="ur"] p,.wq-moment[lang="ur"] span{line-height:2}
+.wq-moment-meter{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 12px;margin:0 0 8px}
+.wq-moment-jar{display:inline-flex;gap:4px;padding:6px 10px;border-radius:999px;background:var(--ink,#1F2937)}
+.wq-moment-light .wq-moment-halo{fill:transparent}
+.wq-moment-light .wq-moment-core{fill:#4B5563}
+.wq-moment-light[data-on="1"] .wq-moment-halo{fill:var(--glow,#FDE68A);opacity:.55}
+.wq-moment-light[data-on="1"] .wq-moment-core{fill:var(--gold,#F59E0B)}
+.wq-moment-num{font-size:var(--fs-2,16px);font-weight:700;color:var(--muted,#4B5563)}
+.wq-moment-stars{display:flex;justify-content:center;gap:6px;margin:4px 0 8px}
+.wq-moment-star path{fill:var(--star-off,#E5E7EB)}
+.wq-moment-star[data-on="1"] path{fill:var(--star,#F59E0B)}
+.wq-moment-growth{margin:0 0 8px;font-size:var(--fs-3,18px);font-weight:700;color:var(--right,#15803D)}
+.wq-moment-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px 6px 8px;border-radius:999px;background:var(--tint,#FEF3C7);
+  font-weight:800;color:var(--ink,#1F2937)}
+.wq-moment[dir="rtl"] .wq-moment-badge{padding:6px 8px 6px 14px}
+.wq-moment-disc{fill:#FDE68A;stroke:#F59E0B;stroke-width:6}
+.wq-moment-mark{fill:#F59E0B}
+.wq-moment--s{margin:8px auto;padding:10px 12px}
+.wq-moment--s .wq-moment-deed{font-size:var(--fs-3,18px);margin-bottom:6px}
+.wq-moment--s .wq-moment-star{width:28px;height:28px}
+.wq-moment--s .wq-moment-light{width:22px;height:22px}
+/* motion: the lights fill one by one, the stars pop, the badge springs in */
+@keyframes wq-moment-on{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.2);opacity:1}100%{transform:scale(1)}}
+.wq-moment-light[data-on="1"],.wq-moment-star[data-on="1"],.wq-moment-badge{animation:wq-moment-on var(--dur-pop,420ms) var(--ease-pop,cubic-bezier(.34,1.56,.64,1)) both}
+.wq-moment-light:nth-child(2){animation-delay:.15s}.wq-moment-light:nth-child(3){animation-delay:.3s}
+.wq-moment-light:nth-child(4){animation-delay:.45s}.wq-moment-light:nth-child(5){animation-delay:.6s}
+.wq-moment-star:nth-child(1){animation-delay:.75s}.wq-moment-star:nth-child(2){animation-delay:.9s}.wq-moment-star:nth-child(3){animation-delay:1.05s}
+.wq-moment-badge{animation-delay:1.2s}
+@media (prefers-reduced-motion:reduce){.wq-moment *{animation:wq-moment-fade .15s both!important}}
+@keyframes wq-moment-fade{from{opacity:0}to{opacity:1}}

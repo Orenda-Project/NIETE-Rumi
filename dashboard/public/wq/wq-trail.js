@@ -480,10 +480,12 @@
       if (window.WQJ) window.WQJ.finish({ kind: name });
       // the story's own result, when the page handed it over (data.story_r), carries the ranked Next
       // folded, a practice run (Story Time is one) puts no sticker in the Book, so it says none
-      if (fold()) { var sd = h.S.data || {}; foldEnd(name, h.jug('celebrate', t.storyAgain, true) + (sd.practice_round ? '' : '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'), !!qa, (sd.story_r && sd.story_r.next_offer) || sd.next_offer, { name: name, story: true, t: t, r: sd.story_r }); return; }
-      h.show(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
+      var rf = rfHtml(d.story_r);
+      if (fold()) { var sd = h.S.data || {}; foldEnd(name, h.jug('celebrate', t.storyAgain, true) + rf + (sd.practice_round ? '' : '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'), !!qa, (sd.story_r && sd.story_r.next_offer) || sd.next_offer, { name: name, story: true, t: t, r: sd.story_r }); rfSound(rf); return; }
+      h.show(name, h.jug('celebrate', t.storyAgain, true) + rf + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
         + '<div class="wq-stack">' + wordsBtn() + (qa ? h.qaButtons() : btn('wqc-menu', toGames())) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
+      rfSound(rf);
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
       wordsAfter(function () { storyEnd(name, qa, r); });
       if (window.WQFC) window.WQFC.trailEnd(h, { name: name, story: true, t: t, r: d.story_r });
@@ -642,13 +644,32 @@
         h.on('wqc-handback', function () { if (d.round_back) location.href = d.round_back; else { try { history.back(); } catch (e) { /* stays */ } } });
         return;
       }
-      if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); return; }
-      h.show(name, h.jug(pose, line, true) + wait + sticker + next + b3 + '<div class="wq-stack">' + wordsBtn() + (qa || home) + again + '</div>');
+      var rf = rfHtml(r);
+      if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + rf + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); rfSound(rf); return; }
+      h.show(name, h.jug(pose, line, true) + wait + rf + sticker + next + b3 + '<div class="wq-stack">' + wordsBtn() + (qa || home) + again + '</div>');
+      rfSound(rf);
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });
       if (r.qa) h.on('wqc-qa', function () { h.qa().open(); });
       wordsAfter(function () { endCard(name, pose, line, extra); });
       if (window.WQFC) window.WQFC.trailEnd(h, { name: name, line: line, r: r, t: t });
+    }
+    // the reading moment (web_quiz_read_feedback, wq-moment.js): the read answered on its card — the words, Jugnu's jar
+    // of lights with the speed beside it, stars, the child's own last read, a badge. r.rf: the read as the page knows it
+    // (the live count, then the checked result). Key off, file not here or a class round: nothing (today's card)
+    var rfFb = null;
+    function rfHtml(r) {
+      rfFb = null;
+      var md = h.md() || {};
+      if (md.read_feedback !== true || !window.WQMoment || !r || !r.rf || (h.S.data || {}).round_turn) return '';
+      rfFb = window.WQMoment.feedback(r.rf);
+      return window.WQMoment.html(rfFb, L, { grade: md.form });
+    }
+    // Jugnu's sound for it: the badge jingle after a read (after the finish fanfare), the soft chime after a 0-word try
+    function rfSound(rf) {
+      if (!rf || !rfFb || !window.WQMoment) return;
+      var fb = rfFb, J = window.WQJ, go = function () { window.WQMoment.sound(document.querySelector ? document.querySelector('[data-rf]') : null, fb); };
+      if (J && J.after && !fb.zero) J.after(1200, go); else go();
     }
     function storyLen(d) { return (d && d.story && d.story.tokens && d.story.tokens.length) || 0; }
     // heard: a live reading's words heard; when given, it chooses the line (all = 90% of the story's words heard)
