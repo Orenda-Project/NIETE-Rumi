@@ -47,6 +47,14 @@ async function on() {
   try { return Boolean((await IdFlags.flags()).phoneBind); } catch (_) { return false; }
 }
 
+/** A listed test phone walking as a new phone (walk-persona.js, sandbox only) is not a teacher's here. Never throws. */
+async function walksAsNewPhone(norm) {
+  try {
+    const P = require('../first-touch/walk-persona');
+    return typeof P.get === 'function' && ((await P.get(norm)) || {}).as === 'fresh';
+  } catch (_) { return false; }
+}
+
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
 
 async function forgetPhone(raw, norm, why) {
@@ -153,7 +161,7 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
     let asked = null;
     try { asked = require('./web-quiz-bind-page').prefillLanguage(body); } catch (_) { asked = null; }
 
-    if (mode === 'teacher') {
+    if (mode === 'teacher' && !(await walksAsNewPhone(norm))) {
       await Codes.markUsed(code, 'teacher_phone', now);
       const out = await refused('teacher_phone');
       const lang = clampLanguage((user && user.preferred_language) || 'en');
