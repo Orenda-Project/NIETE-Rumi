@@ -7654,6 +7654,22 @@ ALTER TABLE public.story_pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.story_page_voices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.story_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.story_events ENABLE ROW LEVEL SECURITY;
+-- story_page_unvoiced (mirror of web_quiz_story_unvoiced.sql): a page a child opened before it had a voice
+DO $$
+DECLARE c record;
+BEGIN
+  -- Every check on the event names that lacks the new one goes, whatever name the database gave it (an inline CHECK is
+  -- auto-named), so no six-name check is left beside the new one to refuse it.
+  FOR c IN SELECT conname FROM pg_constraint WHERE conrelid = 'public.story_events'::regclass AND contype = 'c'
+             AND pg_get_constraintdef(oid) LIKE '%story_opened%' AND pg_get_constraintdef(oid) NOT LIKE '%story_page_unvoiced%' LOOP
+    EXECUTE format('ALTER TABLE public.story_events DROP CONSTRAINT %I', c.conname);
+  END LOOP;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.story_events'::regclass AND contype = 'c'
+                 AND pg_get_constraintdef(oid) LIKE '%story_page_unvoiced%') THEN
+    ALTER TABLE public.story_events ADD CONSTRAINT story_events_event_check
+      CHECK (event IN ('story_opened', 'story_page_listened', 'story_page_read', 'story_questions_done', 'story_done', 'story_shared', 'story_page_unvoiced'));
+  END IF;
+END $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- student_videos.language (mirror of web_quiz_student_videos_language.sql): the lesson's language, NULL = unknown
