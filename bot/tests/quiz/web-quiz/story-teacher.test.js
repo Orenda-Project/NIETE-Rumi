@@ -44,6 +44,10 @@ const KID_A = '44444444-4444-4444-8444-444444444444';
 const KID_B = '44444444-4444-4444-8444-555555555555';
 const B = (n) => `bbbbbbb${n}-bbbb-4bbb-8bbb-bbbbbbbbbbbb`;
 const DEVICE = 'AbCdEfGhIjKlMnOpQrStUv';   // a phone's device ref (22 url-safe characters)
+// A video quiz's WhatsApp class report, captured before the story count changed: it must not move a byte.
+const GOLDEN_VIDEO_REPORT = JSON.stringify([
+  ["teacher-phone", "\u200e📊 *Quiz results — Plants Testwala*\n\n\n\u200e2 of 3 students finished.\n\u200eClass average: *88%*\n\n\u200e*How each student did*\n\u200e• Zoya Testwala — 4/4 (100%)\n\u200e• Zoya Testwala — 3/4 (75%)\n\n\u200e*Not finished yet:* Zara Testwala"],
+]);
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 
 const book = (n, grade, lang, extra = {}) => ({
@@ -727,6 +731,53 @@ describe('the class report of a story send', () => {
     expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('teacher-phone', '📖 *Book 1 Testwala* — no one in your class has opened the story yet. The link is still open: forward the class message again.');
     expect(db.quiz_share_codes[0].report_sent_at).toBeTruthy();
+  });
+
+  // One send, two reports: the WhatsApp class report and the web report count the same children.
+  const ZOYA_1 = '44444444-4444-4444-8444-666666666661';
+  const ZOYA_2 = '44444444-4444-4444-8444-666666666662';
+  const FRIEND = '44444444-4444-4444-8444-777777777777';
+  function sameChildTwoPhones(q, sc) {
+    db.quiz_sessions.push(
+      { id: 's-a', quiz_id: q.id, share_code_id: sc.id, student_id: KID_A, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(20), device_ref: 'd1', correct_answers: 0, total_questions_answered: 0 },
+      // the same child on two phones: two student rows, one typed name, the same class link, both mid-story
+      { id: 's-z1', quiz_id: q.id, share_code_id: sc.id, student_id: ZOYA_1, student_name: 'Zoya Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(18), device_ref: 'd3', correct_answers: 0, total_questions_answered: 0 },
+      { id: 's-z2', quiz_id: q.id, share_code_id: sc.id, student_id: ZOYA_2, student_name: 'Zoya Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(17), device_ref: 'd4', correct_answers: 0, total_questions_answered: 0 },
+      // the teacher's own try and a friend a child invited: neither is the class
+      { id: 's-t', quiz_id: q.id, share_code_id: sc.id, student_id: null, student_name: 'Ms Example', user_id: TEACHER, status: 'in_progress', invited_by_student_id: null, created_at: ago(16), device_ref: 'd5', correct_answers: 0, total_questions_answered: 0 },
+      { id: 's-f', quiz_id: q.id, share_code_id: sc.id, student_id: FRIEND, student_name: 'Friend Testwala', user_id: null, status: 'in_progress', invited_by_student_id: KID_A, created_at: ago(15), device_ref: 'd6', correct_answers: 0, total_questions_answered: 0 },
+    );
+  }
+  test('the same child on two phones, the teacher\'s own try and an invited friend: the WhatsApp report counts the children the web report counts', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    const q = db.quizzes[0];
+    q.meta.first_sent_at = ago(30);
+    sameChildTwoPhones(q, sc);
+    db.story_events.push({ child_id: ZOYA_1, book_id: B(1), page_n: 1, event: 'story_page_listened', data: {}, at: ago(10) });
+    const web = (await require('../../../shared/services/quiz/teacher-report.data').quizReport(TEACHER, q.id)).story;
+    expect(web.counts.opened).toBe(2);
+    await Report.generate(sc.id, { reason: 'scheduled' });
+    const [, text] = WhatsAppService.sendMessage.mock.calls[0];
+    expect(text).toContain(`${web.counts.opened} opened it`);
+    expect(text).toContain(`${web.counts.listened} listened`);
+    const lines = text.split('\n').filter((l) => / 🎧 /.test(l)).map((l) => l.replace(/^[•\s]+/, '').split(/\s+/)[0]);
+    expect(lines.sort()).toEqual(web.children.map((c) => c.first).sort());
+    expect(text.match(/Zoya Testwala/g)).toHaveLength(1);
+    expect(text).not.toContain('Ms Example');
+    expect(text).not.toContain('Friend Testwala');
+  });
+  test('a video quiz\'s class report from the same rows is unchanged (golden)', async () => {
+    db.quizzes.push({ id: 'q-v', teacher_id: TEACHER, quiz_source: 'video', topic: 'Plants Testwala', status: 'sent', meta: {}, created_at: ago(40), language: 'en' });
+    db.quiz_share_codes.push({ id: 'sc-v', code: 'VV11VV', quiz_id: 'q-v', teacher_user_id: TEACHER, teacher_name: 'Ms Example Testwala', topic: 'Plants Testwala', language: 'en', active: true, created_at: ago(40) });
+    const q = db.quizzes.find((x) => x.id === 'q-v');
+    const sc = db.quiz_share_codes.find((x) => x.id === 'sc-v');
+    sameChildTwoPhones(q, sc);
+    Object.assign(db.quiz_sessions.find((s) => s.id === 's-z1'), { status: 'completed', completed_at: ago(14), correct_answers: 3, total_questions_answered: 4, mastery_percentage: 75 });
+    Object.assign(db.quiz_sessions.find((s) => s.id === 's-z2'), { status: 'completed', completed_at: ago(13), correct_answers: 4, total_questions_answered: 4, mastery_percentage: 100 });
+    await Report.generate(sc.id, { reason: 'scheduled' });
+    const sent = [...WhatsAppService.sendMessage.mock.calls, ...WhatsAppService.sendDocument.mock.calls];
+    expect(JSON.stringify(sent)).toBe(GOLDEN_VIDEO_REPORT);
   });
 });
 

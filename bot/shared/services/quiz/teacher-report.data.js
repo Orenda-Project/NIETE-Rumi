@@ -423,6 +423,51 @@ async function fromLists(teacherId, quiz, listId, counted, lang) {
 }
 
 /**
+ * WHO is in this quiz's class. Identity v2 answers first. A legacy class list the teacher picked on the page,
+ * or the quiz's own list_id, still decides when v2 does not KNOW the class (a list with no class behind it:
+ * legacy-only teachers).
+ */
+async function whoFor(teacherId, quiz, primary, listId, counted, lang) {
+  const who = await fromIdentity(primary, quiz.id);
+  if (!who || (who.roster.state !== 'known' && (listId || quiz.list_id))) {
+    return fromLists(teacherId, quiz, listId, counted, lang);
+  }
+  return who;
+}
+
+/**
+ * A child not on the list who typed the same name on this quiz more than once (a fresh
+ * phone, "I don't know" twice) is ONE child: the first finish counts, like any child.
+ */
+function oneTypedNamePerChild(counted, listed) {
+  const sameTyped = new Map();
+  return counted.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')))
+    .filter((s) => {
+      if (listed(s)) return true;
+      const k = typedKey(s.student_name);
+      if (!k) return true;
+      if (sameTyped.has(k)) return false;
+      sameTyped.set(k, s.id);
+      return true;
+    });
+}
+
+/**
+ * The children of ONE storybook class code, counted as the web report's story section counts them (quizReport):
+ * joined children, no teacher's own try, no invited friend, one attempt per child, one typed name per child off
+ * the class list. For the 12 h WhatsApp report of that code, so both reports of one send name the same children.
+ * `rawSessions` = the code's session rows, before any counting.
+ */
+async function storySendChildren(teacherId, quizId, shareCodeId, rawSessions) {
+  const counted = onePerChildAcrossCodes(countedSessions(rawSessions, teacherId, { opened: true }));
+  const { data: quiz, error } = await supabase.from('quizzes').select(QUIZ_COLS).eq('id', quizId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!quiz) return counted;
+  const who = await whoFor(teacherId, quiz, { id: shareCodeId }, null, counted, clampLanguage(quiz.language));
+  return oneTypedNamePerChild(counted, who.listed);
+}
+
+/**
  * @param {string} teacherId  from the verified token, never from the request
  * @param {string} quizId
  * @param {{listId?: string|null}} [opts] the class the teacher picked on the page
@@ -454,26 +499,8 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const lang = clampLanguage(quiz.language);
   const primary = sent ? codes.slice().sort(newestFirst)[0] || null
     : codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
-  // Identity v2 answers first. A legacy class list the teacher picked on the page,
-  // or the quiz's own list_id, still decides when v2 does not KNOW the class
-  // (a list with no class behind it: legacy-only teachers).
-  let who = await fromIdentity(primary, quizId);
-  if (!who || (who.roster.state !== 'known' && (listId || quiz.list_id))) {
-    who = await fromLists(teacherId, quiz, listId, counted, lang);
-  }
-
-  // A child not on the list who typed the same name on this quiz more than once (a fresh
-  // phone, "I don't know" twice) is ONE child: the first finish counts, like any child.
-  const sameTyped = new Map();
-  const counting = counted.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')))
-    .filter((s) => {
-      if (who.listed(s)) return true;
-      const k = typedKey(s.student_name);
-      if (!k) return true;
-      if (sameTyped.has(k)) return false;
-      sameTyped.set(k, s.id);
-      return true;
-    });
+  const who = await whoFor(teacherId, quiz, primary, listId, counted, lang);
+  const counting = oneTypedNamePerChild(counted, who.listed);
   const played = counting.map((s) => {
     const listed = who.listed(s);
     const correct = s.correct_answers || 0;
@@ -633,4 +660,6 @@ module.exports = {
   readRoster, classOf, countedSessions, classCodes, sessionsFor, onePerChildAcrossCodes,
   // A library quiz's sender (quiz_teacher_home): the report list and the 12 h report's quiz-row guard read these.
   sentQuiz, sentQuizzes, sentQuizzesOn,
+  // A storybook send's 12 h WhatsApp report counts the children its web report counts.
+  storySendChildren,
 };
