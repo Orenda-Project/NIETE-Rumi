@@ -495,22 +495,27 @@ const STEM_LABEL = /(^|\s)\(?([a-d])\)\s*/gi;
 const STEM_MAX = 600;
 const optionText = (t) => String(t == null ? '' : t).replace(/^\s*\(?[a-d]\)\s*/i, '').replace(/[\s.,;]+$/, '').trim().toLowerCase();
 
-function stripStemOptions(q) {
+// Urdu: the same list lettered الف) ب) ج) د) («… استانی صاحبہ»۔ الف) اسکول ب) بازار ج) باغ د) ہسپتال»).
+const STEM_LABEL_UR = /(^|\s)\(?(الف|ب|ج|د)\)\s*/gu;
+const optionTextUr = (t) => String(t == null ? '' : t).replace(/^\s*\(?(?:الف|ب|ج|د)\)\s*/u, '').replace(/[\s.,;،۔]+$/u, '').trim();
+
+function stripStemOptions(q, urdu = false) {
   if (!q || typeof q.question !== 'string' || q.question.length > STEM_MAX) return;
   if (!Array.isArray(q.options) || q.options.length !== 4) return;
   const text = q.question;
-  const labels = [...text.matchAll(STEM_LABEL)];
+  const [labelRe, order, textOf] = urdu ? [STEM_LABEL_UR, 'الفبجد', optionTextUr] : [STEM_LABEL, 'abcd', optionText];
+  const labels = [...text.matchAll(labelRe)];
   // The list must be the last four labels, a to d in order, and end the stem.
   if (labels.length < 4) return;
   const four = labels.slice(-4);
-  if (four.map((m) => m[2].toLowerCase()).join('') !== 'abcd') return;
+  if (four.map((m) => m[2].toLowerCase()).join('') !== order) return;
   const segments = four.map((m, i) => {
     const from = m.index + m[0].length;
     const to = i < 3 ? four[i + 1].index + four[i + 1][1].length : text.length;
-    return optionText(text.slice(from, to));
+    return textOf(text.slice(from, to));
   });
   // Each segment is one of the options, each option once: then it is the options again.
-  const options = q.options.map(optionText);
+  const options = q.options.map(textOf);
   if (new Set(segments).size !== 4 || !segments.every((seg) => seg && options.includes(seg))) return;
   q.question = text.slice(0, four[0].index + four[0][1].length).trim();
 }
@@ -1249,7 +1254,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   let putBack = [];
 
   const all = walk(src);
-  all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); });
+  all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); if (P.key === 'urdu') stripStemOptions(entry.q, true); });
   const twin = (p, q) => sameQuestion(p, q) || (P.key === 'social_studies' && sameKeyFact(p, q))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
