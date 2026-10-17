@@ -152,7 +152,10 @@ describe('wq-home.js: the Next tile', () => {
     expect(nx).toMatchObject({ kind: 'story', title: 'Read a story with Jugnu', sub: 'The red kite', src: 'lantern' });
     expect(nx.href).toBe(`/c/${encodeURIComponent(TOKEN)}?kid=${KID}&room=story&pid=en.read.1.k07`);
     const trail = H.nextOf({ ...HOME, play: { lantern: { kind: 'trail', stops: 2 } } }, ctxOf('en'));
-    expect(trail).toMatchObject({ kind: 'game', href: `/c/${encodeURIComponent(TOKEN)}?kid=${KID}`, src: 'lantern' });
+    expect(trail).toMatchObject({ kind: 'game', href: `/c/${encodeURIComponent(TOKEN)}?kid=${KID}#next`, src: 'lantern' });
+    // the tile opens the one game it names (wq-trail.js starts it): the first not done, or the number warm-up
+    expect(H.nextOf({ ...HOME, play: { lantern: { kind: 'numbers' } } }, ctxOf('en')).href).toBe(`/c/${encodeURIComponent(TOKEN)}?kid=${KID}#numbers`);
+    expect(H.nextOf({ ...HOME, doors: { stories: [], games: [{ kind: 'numbers' }], videos: null } }, ctxOf('en')).href).toBe(`/c/${encodeURIComponent(TOKEN)}?kid=${KID}#numbers`);
     expect(trail.title).not.toMatch(BANNED);
   });
   test('nothing at all: one Next element still, and it opens the Stories door', () => {

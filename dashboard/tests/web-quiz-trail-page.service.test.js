@@ -353,6 +353,51 @@ describe('"Whose turn?" from the serve; the page never picks', () => {
   });
 });
 
+describe('from the new home\'s Next tile (#next / #numbers): the one game it names starts, never the list first', () => {
+  const at = (hash, badges = [false, false, false], routes = {}) => v2page({ href: 'https://portal.test/c/HUB.TOKEN?kid=K1&home=1#' + hash, menu: { ...TRAIL(), exercises: EXS.map((e, i) => ({ ...e, badge: badges[i] })) }, routes });
+  const stopAsks = (p) => p.fetches.filter((f) => /\/api\/wq\/ch\/HUB\.TOKEN\/[a-z]+/.test(f.url)).map((f) => /HUB\.TOKEN\/([a-z]+)/.exec(f.url)[1]);
+  test('#next: the first game not yet done is asked for at once, and the list is never drawn', () => {
+    const p = at('next');
+    expect(p.html()).not.toContain('wqc-trail');
+    expect(stopAsks(p)).toEqual(['missing']);
+    const q = at('next', [true, false, false]);
+    expect(q.html()).not.toContain('wqc-trail');
+    expect(stopAsks(q)).toEqual(['read']);
+  });
+  test('#numbers: the number warm-up, done or not', () => {
+    const p = at('numbers', [true, false, false]);
+    expect(p.html()).not.toContain('wqc-trail');
+    expect(stopAsks(p)).toEqual(['missing']);
+  });
+  test('#next with every game done: the list, named as Jugnu\'s games', () => {
+    const p = at('next', [true, true, true]);
+    expect(stopAsks(p)).toEqual([]);
+    expect(p.screen()).toBe('trail');
+    expect(text(p.html())).toContain("Jugnu's games");
+    expect(text(p.html())).not.toMatch(/Trail/);
+  });
+  test.each([['en', "Jugnu's games", 'Pick a game'], ['ur', 'جگنو کے کھیل', 'ایک کھیل چنیں']])('%s: back from that game, the list is «%s» / «%s», never the Trail', async (lang, title, line) => {
+    const UR = { ...TC, title: '{name} کا راستہ', allDone: 'آپ نے {name} کا راستہ مکمل کر لیا!' };
+    const menu = { ...TRAIL(), lang, trail_copy: lang === 'ur' ? UR : TC };
+    const p = v2page({ lang, href: 'https://portal.test/c/HUB.TOKEN?kid=K1&home=1#next', menu, routes: { 'ch/HUB.TOKEN/missing': ok({ ex: 'missing', draw: { outcome: 'on_its_way' } }), 'ch/HUB.TOKEN\\?': ok(menu) } });
+    await p.flush();
+    expect(p.screen()).toBe('on-its-way');
+    await p.click('wqc-menu');
+    expect(p.screen()).toBe('trail');
+    const h = text(p.html());
+    expect(h).toContain(title);
+    expect(h).toContain(line);
+    expect(h).not.toMatch(/Trail|راستہ/);
+  });
+  test('no mark (today\'s link, the old hub, the home switch off): the list as today', () => {
+    const p = v2page({ href: 'https://portal.test/c/HUB.TOKEN?kid=K1&home=1' });
+    expect(p.screen()).toBe('trail');
+    expect(p.html()).toContain("Jugnu's Trail");
+    expect(p.html()).toContain('Games are waiting for you on the Trail.');
+    expect(stopAsks(p)).toEqual([]);
+  });
+});
+
 describe('serve outcomes', () => {
   test('on_its_way → a card, the stop closed: no mic, no upload', async () => {
     const p = v2page({ href: 'https://portal.test/c/HUB.TOKEN#read', routes: { 'ch/HUB.TOKEN/read': ok({ ex: 'read', draw: { outcome: 'on_its_way' } }) } });
