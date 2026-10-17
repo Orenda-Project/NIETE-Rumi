@@ -23,6 +23,7 @@ import BackButtonHandler from "./portal/components/BackButtonHandler";
 import AppFunnelTracker from "./portal/components/AppFunnelTracker";
 // bd-s6qbts.3 — analytics-only accounts see one page; everyone else never sees it (portal/lib/homeRoute).
 import AnalyticsOnlyGuard from "./portal/analytics/AnalyticsOnlyGuard";
+import CoachAppGuard from "./portal/coach/training/CoachAppGuard";
 // bd-5rz1v.10 — a lesson recording that outlives the page it started on.
 import { RecordingSessionProvider } from "./portal/lib/recordingSession";
 // bd-fxk3t8 — the signed-in user, read once per visit above every route.
@@ -100,6 +101,11 @@ const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeache
 // bd-4404s7.2 — the coach's More and her own profile.
 const CoachMore = page(() => import("./portal/coach/profile/CoachMore"));
 const CoachProfile = page(() => import("./portal/coach/profile/CoachProfile"));
+// bd-s42dye.2 — the coach's Training Library (every provider, level, course and part; questions are a read-only preview).
+const CoachLibraryHome = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryHome })));
+const CoachLibraryProvider = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryProvider })));
+const CoachLibraryModule = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryModulePage })));
+const CoachLibraryPreview = page(() => import("./portal/coach/training/LibraryPages").then((m) => ({ default: m.LibraryPreview })));
 // bd-60117 — a principal's school-level Analytics tab.
 const SchoolAnalytics = page(() => import("./portal/pages/SchoolAnalytics"));
 // bd-60121 — every observed lesson, its own page.
@@ -171,6 +177,8 @@ const App = () => {
           <Suspense fallback={<RouteFallback />}>
           {/* bd-s6qbts.3 — one guard over every route: an analytics-only account is sent to its page from any
               other portal page (before that page mounts), and anyone else who opens it goes to their own home. */}
+          {/* bd-s42dye.2 — a coach on the coach app v2 reaches the Training Library and her account only. */}
+          <CoachAppGuard>
           <AnalyticsOnlyGuard>
           <Routes>
             {/* bd-2394: for the portal audience "/" resolves against the
@@ -290,6 +298,11 @@ const App = () => {
             {/* bd-4404s7.2 — the coach menu and her own profile. */}
             <Route path="/portal/coach/more" element={<CoachMore />} />
             <Route path="/portal/coach/profile" element={<CoachProfile />} />
+            {/* bd-s42dye.2 — the Training Library, behind the same CoachGate (each page gates itself). */}
+            <Route path="/portal/coach/training" element={<CoachLibraryHome />} />
+            <Route path="/portal/coach/training/module/:id" element={<CoachLibraryModule />} />
+            <Route path="/portal/coach/training/preview" element={<CoachLibraryPreview />} />
+            <Route path="/portal/coach/training/:vendorKey" element={<CoachLibraryProvider />} />
             {/* bd-fmf24g.1 — the teacher app v2: teachers with portal_teacher_v2 only; anyone else
                 is sent to today's Home by the gate. Pages register themselves (teacher/routes.tsx). */}
             {TEACHER_ROUTES.map((r) => (
@@ -311,6 +324,7 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
           </AnalyticsOnlyGuard>
+          </CoachAppGuard>
           </Suspense>
           </RecordingSessionProvider>
           </AuthProvider>

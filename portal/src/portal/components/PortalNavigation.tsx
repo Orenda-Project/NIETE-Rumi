@@ -8,6 +8,7 @@ import { useLogoutGuard } from '../lib/recordingSession';
 import { useNewUi } from '../lib/useNewUi';
 import NewUiNavigation from '../newui/NewUiNavigation';
 import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
+import { COACH_APP_READY } from '../coach/training/appReady';
 import { useTeacherV2, isTeacherV2For } from '../teacher/useTeacherV2';
 import TeacherNavigation from '../teacher/TeacherNavigation';
 import { cn } from '@/lib/utils';
@@ -115,7 +116,7 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   const isActive = (path: string) => currentPath === path;
 
   // bd-4404s7.2 — a coach on v2 gets the kit's role-aware bar (Home · Schedule · Observe · Schools · More).
-  if (coachV2) return <TeacherNavigation role="coach" />;
+  if (coachV2) return <TeacherNavigation role="coach" ready={COACH_APP_READY} />;
   if (teacherV2) return <TeacherNavigation />;
 
   if (newUiOn && !coachV2) {
