@@ -49,6 +49,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
+const { OFF_VALUES, throwOn } = require('../../helpers/switch-off-matrix');
 // jest.resetModules() gives every test (and every switch state inside one) a fresh registry and fresh switch caches:
 // the boundary fakes are read from the registry the code under test will require.
 const WA = () => require('../../../shared/services/whatsapp.service');
@@ -233,6 +234,49 @@ describe('the sender\'s report (quiz_teacher_home on)', () => {
   });
 });
 
+describe('the watch root\'s codes are not the sender\'s class; a class child\'s lesson code is', () => {
+  // a class-less child's video codes hang under the watch root and copy its teacher (web-quiz-videos.js); a class
+  // child's own lesson code from the Videos library hangs under the class's code — the same shape, the teacher's class
+  const ROOT = '33333333-3333-4333-8333-3333333333d0';
+  const WQ = '22222222-2222-4222-8222-2222222222b2'; // under the watch root
+  const LQ2 = '22222222-2222-4222-8222-2222222222b3'; // a class child's lesson code under the sender's class code
+  const seedBoth = (rootValue) => {
+    const fake = seed();
+    if (rootValue !== undefined) fake.db.app_settings.push({ key: 'web_quiz_watch_root', value: rootValue });
+    const vq = (id, topic, v) => ({ id, teacher_id: null, topic, subject: 'science', grade: '3', language: 'en', quiz_source: 'video',
+      status: 'ready', video_id: v, list_id: null, created_at: at(900), meta: {} });
+    fake.db.quizzes.push(vq(WQ, 'Leaves', 'v2'), vq(LQ2, 'Roots', 'v3'));
+    const code = (id, c, quizId, parent, h) => ({ id, code: c, quiz_id: quizId, teacher_user_id: SENDER, teacher_name: 'B', topic: 't',
+      language: 'en', report_sent_at: null, invited_by_student_id: null, parent_share_code_id: parent, active: true, expires_at: null,
+      created_at: at(h) });
+    fake.db.quiz_share_codes.push(code(ROOT, 'RRRRRR', VQ, null, 40), code('33333333-3333-4333-8333-3333333333d1', 'WWWWWW', WQ, ROOT, 5),
+      code('33333333-3333-4333-8333-3333333333d2', 'LLLLLL', LQ2, SC_BV, 6));
+    return fake;
+  };
+  const listed = async () => (await Data.sentQuizzes(SENDER)).map((q) => q.id);
+
+  test.each([['a plain id', ROOT], ['a JSON string', JSON.stringify(ROOT)]])('the root set (%s): its child is left out everywhere; the lesson code stays', async (_, v) => {
+    seedBoth(v);
+    expect(await listed()).not.toContain(WQ);
+    expect(await listed()).toContain(LQ2);
+    expect(await Data.sentQuiz(SENDER, WQ)).toBeNull();
+    expect(await Data.sentQuiz(SENDER, LQ2)).toMatchObject({ id: LQ2 });
+    expect(await Data.quizReport(SENDER, WQ)).toBeNull();
+    const tab = (await Data.classReport(SENDER, { now: NOW })).quizzes.map((q) => q.id);
+    expect(tab).not.toContain(WQ);
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    await List.showReports({ id: SENDER, preferred_language: 'en' }, '000b', 'en');
+    const rows = WA().sendInteractiveMessage.mock.calls[0][1].action.sections[0].rows.map((r) => r.id);
+    expect(rows).toContain(`tqr_${LQ2}`);
+    expect(rows).not.toContain(`tqr_${WQ}`);
+  });
+
+  test.each([['absent', undefined], ['not an id', 'nope'], ['an object', { id: ROOT }]])('the root %s: nothing is left out (today\'s lists)', async (_, v) => {
+    seedBoth(v);
+    expect(await listed()).toEqual(expect.arrayContaining([WQ, LQ2]));
+  });
+});
+
 describe('a library code the home only PREPARED (minted to show its message, never sent)', () => {
   test('is not a send: no class-tab row, no chat row — until the send tap clears it', async () => {
     seed();
@@ -303,7 +347,7 @@ describe('switch off: today\'s, byte for byte', () => {
     expect(JSON.stringify(await Data.quizReport(AUTHOR, LQ))).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
   };
 
-  test.each([['false', false], ['absent', null], ['"yes"', 'yes'], ['1', 1], ['{}', {}]])('quiz_teacher_home %s: the sender is refused, the class tab has no library sends', async (_, home) => {
+  test.each(OFF_VALUES)('quiz_teacher_home %s: the sender is refused, the class tab has no library sends', async (_, home) => {
     seed({ home });
     await offAsToday();
   });
@@ -312,13 +356,7 @@ describe('switch off: today\'s, byte for byte', () => {
     const fake = seed();
     // the switch row is there and true, but reading it throws: off
     const sb = require('../../../shared/config/supabase');
-    sb.from = (t) => {
-      const b = fake.from(t);
-      if (t !== 'app_settings') return b;
-      const { eq } = b;
-      b.eq = (c, v) => { if (c === 'key' && v === 'quiz_teacher_home') throw new Error('settings down'); return eq.call(b, c, v); };
-      return b;
-    };
+    sb.from = throwOn(fake.from, 'quiz_teacher_home');
     await offAsToday();
     const { logToFile } = require('../../../shared/utils/logger');
     expect(logToFile.mock.calls.some(([m]) => String(m).includes('teacher home: settings lookup failed'))).toBe(true);
@@ -363,6 +401,35 @@ describe('the sender-side log lines', () => {
     const [list, pick] = await failBoth();
     expect(list).toEqual({ tk: null, error: 'boom-list' });
     expect(pick).toEqual({ tk: null, quizId: LQ, error: 'boom-pick' });
+  });
+
+  test('a failed class-list read logs the keyed reference, never the teacher\'s id', async () => {
+    process.env.WEB_QUIZ_KID_KEY = KID_KEY;
+    const tk = crypto.createHmac('sha256', KID_KEY).update(`t|${SENDER}`).digest('hex').slice(0, 16);
+    seed();
+    jest.spyOn(Data, 'readRoster').mockRejectedValue(new Error('boom-roster'));
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    await List.showReports({ id: SENDER, preferred_language: 'en' }, '000b', 'en');
+    const roster = calls('class list read failed');
+    expect(roster).toHaveLength(1);
+    expect(roster[0][1]).toEqual({ tk, error: 'boom-roster' });
+    expect(JSON.stringify(roster[0][1])).not.toContain(SENDER);
+  });
+
+  // the one agreed value: every copy of the teacher reference (and tk() when it is shared) gives this for this id
+  test('the reference is the agreed value: a 32-byte key and the pinned id give e815e81977411f12; 31 bytes give null', async () => {
+    const PIN_ID = 'a0000000-0000-4000-8000-000000000001';
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    const emitted = async (key) => {
+      process.env.WEB_QUIZ_KID_KEY = key;
+      seed();
+      Log().logToFile.mockClear();
+      jest.spyOn(Data, 'sentQuizzes').mockRejectedValue(new Error('boom-list'));
+      await List.showReports({ id: PIN_ID, preferred_language: 'en' }, '000b', 'en');
+      return calls('sent-quiz read failed — own quizzes only')[0][1].tk;
+    };
+    expect(await emitted('k'.repeat(32))).toBe('e815e81977411f12');
+    expect(await emitted('k'.repeat(31))).toBeNull();
   });
 });
 
@@ -483,5 +550,23 @@ describe('the 12 h report on the sender\'s code', () => {
       }));
     };
     expect(await run(true)).toBe(await run(false));
+  });
+});
+
+describe('the class tab marks a sent row, so a reader can tell sent from made without a second read', () => {
+  test('on: the sender\'s library rows carry sent: true; the author\'s rows carry no such key', async () => {
+    seed();
+    const sender = (await Data.classReport(SENDER, { now: NOW })).quizzes;
+    expect(sender.map((q) => [q.id, q.sent])).toEqual([[VQ, true], [LQ, true]]);
+    const author = (await Data.classReport(AUTHOR, { now: NOW })).quizzes;
+    expect(author.length).toBeGreaterThan(0);
+    author.forEach((q) => expect(q).not.toHaveProperty('sent'));
+  });
+
+  test('off: no row carries the key (today\'s rows)', async () => {
+    seed({ home: false });
+    for (const t of [SENDER, AUTHOR]) {
+      (await Data.classReport(t, { now: NOW })).quizzes.forEach((q) => expect(q).not.toHaveProperty('sent'));
+    }
   });
 });
