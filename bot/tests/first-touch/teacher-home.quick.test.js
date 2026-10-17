@@ -21,6 +21,7 @@ jest.mock('../../shared/services/first-touch/one-door.service', () => ({}));
 jest.mock('../../shared/services/first-touch/optional-modules', () => ({}));
 
 const fs = require('fs');
+const http = require('http');
 const path = require('path');
 const express = require('express');
 const supabase = require('../../shared/config/supabase');
@@ -49,16 +50,36 @@ async function boot({ paged = true, now = Fx.NOW, ...opts } = {}) {
   const app = express();
   R = require('../../shared/services/first-touch/teacher-home.routes');
   app.use('/api/internal/th', R.createRouter());
-  if (srv) await new Promise((r) => srv.close(r));
+  await stop();
   await new Promise((r) => { srv = app.listen(0, r); });
   return fake;
 }
-async function getJson(p) {
-  const res = await fetch(url(p), { headers: H() });
-  const text = await res.text();
-  let body = null;
-  try { body = JSON.parse(text); } catch (_) { /* not JSON */ }
-  return { status: res.status, text, body };
+/** The server closed with its keep-alive sockets: a later file's server on the same port never gets this one's requests. */
+async function stop() {
+  if (!srv) return;
+  const s = srv;
+  srv = null;
+  s.closeAllConnections();
+  await new Promise((r) => s.close(r));
+}
+/**
+ * One GET on its own socket (no pooled keep-alive connection: a socket another file's server left open on a reused
+ * port would answer for that server).
+ */
+function getJson(p) {
+  return new Promise((resolve, reject) => {
+    const req = http.get(url(p), { headers: H(), agent: false }, (res) => {
+      let text = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => { text += c; });
+      res.on('end', () => {
+        let body = null;
+        try { body = JSON.parse(text); } catch (_) { /* not JSON */ }
+        resolve({ status: res.statusCode, text, body });
+      });
+    });
+    req.on('error', reject);
+  });
 }
 const home = (t = tokenAt()) => getJson(`/api/th/home?t=${t}`);
 /** The same request with the switch off (today's answer). */
@@ -73,8 +94,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   jest.useRealTimers();
-  if (srv) await new Promise((r) => srv.close(r));
-  srv = null;
+  await stop();
 });
 
 describe('switch ON: the same answer, in a few round trips', () => {
