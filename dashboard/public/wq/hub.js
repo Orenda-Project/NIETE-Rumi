@@ -378,6 +378,7 @@
   var homeFail = false;
   function hub() {
     batchIds(B.kid);
+    storyIn();
     if (B.home_v3 && !homeFail) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return loadOnce('wq-home', true, hub, null, function () { homeFail = true; hub(); }); }
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
@@ -439,6 +440,21 @@
     starting = false;
     if (B.locked) locked(); else if (B.kid) hub(); else if ((B.kids || []).length) picker();
   });
+
+  // A story link (#story/<id>, a teacher's class link) without the v3 home, stories on (`stories.on`): the reader
+  // (wq-stories.js) is fetched once and opens the book; leaving it draws the hub again. Switch off: nothing runs.
+  var inStory = false, storyWired = false;
+  // The reader takes its child from WQSTORIES_CTX before the page's boot JSON, which a first open rendered locked (no child).
+  function storyIn() {
+    if (!(B.stories && B.stories.on && B.kid)) return;
+    window.WQSTORIES_CTX = { token: TOKEN, kid: B.kid, lang: LANG };
+    if (B.home_v3 && !homeFail) return;
+    if (!storyWired) { storyWired = true; window.addEventListener('hashchange', storyIn); }
+    var was = inStory;
+    inStory = /^#story\//.test(location.hash || '');
+    if (inStory) { if (!window.WQSTORIES) loadOnce('wq-stories', true); }
+    else if (was) hub();
+  }
 
   /* ---------------- boot ---------------- */
   function boot() {

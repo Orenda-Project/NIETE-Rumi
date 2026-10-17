@@ -223,7 +223,10 @@ describe('the switch off: the edge sends no preview script, and hub.js is today\
   test('hub.js holds one guard expression for the preview: no hash test, no listener, no loader of its own', () => {
     expect(HUB_SRC.match(/WQLISTEN/g)).toHaveLength(2);
     expect(HUB_SRC).toContain('else if (!(window.WQLISTEN && WQLISTEN.take(boot, render, bar))) boot();');
-    expect(HUB_SRC).not.toMatch(/hashchange|#listen|readalong/);
+    expect(HUB_SRC).not.toMatch(/#listen|readalong/);
+    // hub.js's one hash listener is the storybook link's (web_quiz_stories, the v3 home off), never the preview's
+    expect(HUB_SRC.match(/hashchange/g)).toHaveLength(1);
+    expect(HUB_SRC).toContain("window.addEventListener('hashchange', storyIn)");
   });
 });
 

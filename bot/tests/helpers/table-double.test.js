@@ -156,6 +156,24 @@ describe('table double: writes', () => {
   });
 });
 
+describe('table double: a write keeps its payload as the product passed it', () => {
+  test('raw: insert(obj) and insert([obj]) record the same rows but a different raw; upsert too; update/delete have none', async () => {
+    const db = tableDouble(kids());
+    await db.from('quizzes').insert({ topic: 'Decimals' });
+    await db.from('quizzes').insert([{ topic: 'Fractions' }]);
+    await db.from('quizzes').upsert({ id: 'u1', topic: 'Shapes' });
+    await db.from('students').update({ status: 'x' }).eq('id', 's1');
+    await db.from('students').delete().eq('id', 's2');
+    expect(db.writes.map((w) => [w.op, w.rows, w.raw])).toEqual([
+      ['insert', [{ topic: 'Decimals' }], { topic: 'Decimals' }],
+      ['insert', [{ topic: 'Fractions' }], [{ topic: 'Fractions' }]],
+      ['upsert', [{ id: 'u1', topic: 'Shapes' }], { id: 'u1', topic: 'Shapes' }],
+      ['update', undefined, undefined],
+      ['delete', null, undefined],
+    ]);
+  });
+});
+
 describe('table double: records, failures, rpc', () => {
   test('reads and writes are recorded with their table, op and filters', async () => {
     const db = tableDouble(kids());

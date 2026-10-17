@@ -140,6 +140,8 @@ function env(opt = {}) {
       if (x.tag !== 'script') return;
       if (/wq-stories-q\.js\?v=abc123$/.test(x.src)) { if (opt.qFail) return x.onerror(); vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); return x.onload(); }
       if (opt.onLoad) { opt.onLoad(win); x.onload(); }
+      // a file the reader brings that this test does not serve answers as a 404 does (not on this server)
+      else if (/wq-readalong\.js|wq-read-live\.js|wq-liveread\.js/.test(x.src)) x.onerror();
     } },
   };
   win.history = { replaceState(a, b, u) { calls.hist.push(u); } };
@@ -363,6 +365,69 @@ async function openReader(e, over = {}) {
   return root;
 }
 function toMic(e, root) { fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onEnd(); fire(root, 'main'); }
+describe('the voice player comes with the book (the hub page never loads it)', () => {
+  // env() puts a WQReadAlong stub on the page; these tests take it off and hand it back only when the reader fetches it
+  const without = (opt = {}) => {
+    let RA = null;
+    const e = env({ ...opt, onLoad: (w) => { if (RA && !w.WQReadAlong) w.WQReadAlong = RA; } });
+    RA = e.win.WQReadAlong; delete e.win.WQReadAlong;
+    return e;
+  };
+  const scripts = (e, rx) => e.calls.loaded.filter((x) => x.tag === 'script' && rx.test(x.src)).map((x) => x.src);
+  test('no player on the page: the reader fetches wq-readalong.js once, at its own ?v=, and the page has its voice (Listen, one player)', async () => {
+    const e = without(); const root = await openReader(e);
+    // at the player's own content version (as the Trail fetches it): a player change alone busts its cached copy
+    const v = require('crypto').createHash('sha256').update(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js'))).digest('hex').slice(0, 10);
+    expect(scripts(e, /wq-readalong\.js/)).toEqual([`/wq/wq-readalong.js?v=${v}`]);
+    expect(root.querySelector('[data-main]').textContent).toBe('Listen');
+    expect(e.calls.ra).toHaveLength(1);
+    e.S.open('b-1', e.ctx({ root })); await flush();
+    expect(scripts(e, /wq-readalong\.js/)).toHaveLength(1);
+  });
+  test('live reading on (the book\'s lr3) and not on the page: wq-read-live.js, THEN wq-liveread.js + its css (it reads WQLive as it loads), then Your turn', async () => {
+    let RA = null; let LR = null; const order = [];
+    const e = env({ replies: { book: { status: 200, body: { ...book(), lr3: true } } }, onLoad: (w) => {
+      const src = e.calls.loaded[e.calls.loaded.length - 1].src; order.push(src.replace(/\?.*/, ''));
+      if (/wq-readalong\.js/.test(src)) w.WQReadAlong = RA;
+      if (/wq-read-live\.js/.test(src)) w.WQLive = {};
+      if (/wq-liveread\.js/.test(src)) { expect(w.WQLive).toBeTruthy(); w.WQLiveRead = LR; }
+    } });
+    RA = e.win.WQReadAlong; LR = e.win.WQLiveRead; delete e.win.WQReadAlong; delete e.win.WQLiveRead;
+    const root = await openReader(e);
+    expect(order).toEqual(['/wq/wq-readalong.js', '/wq/wq-read-live.js', '/wq/wq-liveread.js']);
+    expect(e.calls.loaded.filter((x) => x.rel === 'stylesheet').map((x) => x.href)).toEqual(['/wq/wq-liveread.css?v=abc123']);
+    fire(root, 'main'); e.calls.ra[0].o.onEnd();
+    expect(root.querySelector('[data-main]').textContent).toBe('Your turn');
+  });
+  test('live reading off (lr3 false), or a teacher\'s preview: no live-reading file is fetched', async () => {
+    const e = without({ replies: { book: { status: 200, body: { ...book(), lr3: false } } } }); delete e.win.WQLiveRead; await openReader(e);
+    expect(scripts(e, /wq-read-live|wq-liveread/)).toHaveLength(0);
+    const t = without(); delete t.win.WQLiveRead;
+    t.S.open('b-1', { role: 'teacher', bookUrl: '/api/teacher/story/b-1', root: fakeEl('root'), lang: 'en', clock: t.clock }); await flush();
+    expect(scripts(t, /wq-read-live|wq-liveread/)).toHaveLength(0);
+  });
+  test('the live reader already on the page: no live-reading file is fetched', async () => {
+    const e = without(); await openReader(e);
+    expect(scripts(e, /wq-read-live|wq-liveread/)).toHaveLength(0);
+  });
+  test('the player already on the page: nothing more is fetched', async () => {
+    const e = env(); await openReader(e);
+    expect(scripts(e, /wq-readalong\.js/)).toHaveLength(0);
+  });
+  test('the player cannot load (offline): the book still opens, without a voice, never stuck on the wait screen', async () => {
+    const e = without(); e.win.__noRA = true;
+    const root = fakeEl('root');
+    // the script tag is added but never answers; the reader gives up after its 8 s wait
+    e.calls.loaded.length = 0;
+    const realAppend = e.doc.head.appendChild; e.doc.head.appendChild = (x) => { e.calls.loaded.push(x); };
+    e.S.open('b-1', e.ctx({ root })); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-wait');
+    e.advance(8000); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+    expect(root.querySelector('[data-main]').textContent).not.toBe('Listen');
+    e.doc.head.appendChild = realAppend;
+  });
+});
 describe('the reader', () => {
   test('page 1: the picture, one big button, ONE player (overlay) on the print; a zoomable page shows no band', async () => {
     const e = env(); const root = await openReader(e);

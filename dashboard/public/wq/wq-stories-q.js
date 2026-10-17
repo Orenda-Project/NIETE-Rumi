@@ -1,5 +1,8 @@
 /* Stories, second part (loaded by wq-stories.js at the same ?v=): Your turn, reading together sentence by sentence,
- * the questions, the done screen, the teacher's read-only questions. Copy follows the rules above T in wq-stories.js. */
+ * the questions, the done screen, the teacher's read-only questions. Copy follows the rules just below. */
+/* Copy rules (this file's and wq-stories.js's): no test words (test, exam, assessment, امتحان, ٹیسٹ); gender-neutral آپ;
+ ergative past agreeing with the story («آپ نے … پڑھ لی»); teacher is «ٹیچر», never the formal word; «دبائیں» not «ٹیپ کریں»;
+ «کھویا ہوا» not «گم شدہ»; Urdu digits in Urdu prose; no U+00B7; every Urdu run in dir="rtl"; short lines. */
 (function () {
   'use strict';
   var W = window, S = W.WQSTORIES, K = S && S._k;
