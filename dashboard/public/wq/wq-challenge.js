@@ -1281,7 +1281,7 @@
     if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold(rfWith(lr3() ? { score: { attempted: live.v.attempted }, noSticker: true } : { score: { attempted: live.v.attempted } }), null, live.v.heardOk); return; }
     var d = S.data;
     var good = w > 0;
-    show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true)
+    show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true) + rfBlock(rfWith({}).rf)
       // live reading v3: no rate on a child's screen (the number goes to the teacher)
       + (good && !lr3() ? '<p class="wqc-score" id="wqc-score">' + esc(t.wcpm(w)) + '</p>' : '<p class="wqc-score" id="wqc-score"></p>')
       + '<p class="wq-sub" id="wqc-growth"></p>'
@@ -1289,6 +1289,7 @@
       + '<p class="wqc-key"><span><i style="background:' + (lr3() ? '#BBF7D0' : 'var(--right-bg)') + '"></i>' + esc(t.readGreen) + '</span><span><i style="' + (lr3() ? 'box-shadow:inset 0 -3px 0 #E65100' : 'background:#FFF1D6') + '"></i>' + esc(t.notCaught(MASCOT)) + '</span></p>'
       + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + '</div>' : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>') + '</div>');
     if (good) say(d.clips.done);
+    rfSound();
     qa.attempted = live.v.attempted;
     on('wqc-menu', refreshMenu);
     on('wqc-qa', qa.open);
@@ -1392,6 +1393,17 @@
     if (rfOn() && live && live.v) o.rf = live.checked || { score: { correct: live.v.correct, attempted: live.v.attempted }, secs: live.secs };
     return o;
   }
+  // the page's own card (no Trail): the moment just under Jugnu, in one box the checked result redraws; inner: the
+  // moment alone (the redraw). Key off or the file not here: '' (today's card)
+  var rfLast = null;
+  function rfBlock(o, inner) {
+    rfLast = null;
+    if (!rfOn() || !window.WQMoment || !o) return '';
+    rfLast = window.WQMoment.feedback(o);
+    var h = window.WQMoment.html(rfLast, L, { grade: menuData.form });
+    return inner ? h : '<div id="wqc-rf">' + h + '</div>';
+  }
+  function rfSound() { if (rfLast && window.WQMoment) window.WQMoment.sound(q('wqc-rf'), rfLast); }
   function liveChecked(r) {
     if (!r || r.pending || r.later) { liveSettle(); return; }
     // the Trail: a settled "not a reading" (not heard, or no word) redraws its card as the zero line, only while
@@ -1406,6 +1418,7 @@
     }
     if ((r.failed && r.reason === 'unheard') || (r.score && r.score.stopped)) { readResult(r); return; }
     if (TR) return;
+    if (rfOn() && r.score && q('wqc-rf') && window.WQMoment) { live.checked = r; q('wqc-rf').innerHTML = rfBlock(r, true); }
     if (r.failed || !(r.wcpm >= 0)) return;
     if (!(r.wcpm > 0)) { readResult(r); return; }
     var sc = q('wqc-score');
@@ -1499,6 +1512,7 @@
     if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(rfOn() && r && !r.later && !r.pending && (r.score || r.failed) ? Object.assign({}, r, { rf: r }) : r); return; }
     var d = S.data;
     var line; var pose = 'celebrate'; var score = ''; var growth = ''; var heard = false;
+    var rf = r.later ? '' : rfBlock(r);
     if (r.later) { line = t.later; pose = 'hello'; }
     // Nothing heard (attempted 0) is "try again", whatever the server called it; heard but nothing right is
     // encouragement. Only a reading with words per minute above 0 is praised.
@@ -1520,13 +1534,14 @@
     }
     var heardWell = heard;
     if (lr3()) { score = ''; growth = ''; }   // live reading v3: no rate and no rate change on a child's screen
-    show('read-result', jug(pose, line, true) + (score ? '<p class="wqc-score" id="wqc-score">' + esc(score) + '</p>' : '')
+    show('read-result', jug(pose, line, true) + rf + (score ? '<p class="wqc-score" id="wqc-score">' + esc(score) + '</p>' : '')
       + (growth ? '<p class="wq-sub" id="wqc-growth">' + esc(growth) + '</p>' : '')
       // Not heard: steer the child to read again — "Try again" is the primary button, "More challenges" the second.
       + '<div class="wq-stack">' + (r.failed
         ? '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>'
         : (heardWell && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>')) + '</div>');
     if (score) say(d.clips.done);
+    if (rf) rfSound();
     if (score) qa.attempted = r.score && r.score.attempted;
     on('wqc-menu', refreshMenu);
     on('wqc-again', function () { open('read'); });
