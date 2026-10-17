@@ -377,18 +377,19 @@
   // The v3 child home (B.home_v3, web_quiz_home_v3): wq-home.js draws the whole page; a failed load draws today's hub.
   // With B.home_fb (web_quiz_home_fallback_v3) a failed load is asked for once more, at the same address, 1.5 s later,
   // and a second failure draws the plain home (homeFb), never today's hub; each failure is counted (home_load_failed).
-  // An ask that neither loads nor fails within 5 s is a failure; a script that still arrives later draws the v3 home.
-  var homeFail = false, homeTries = 0;
+  // An ask that neither loads nor fails within 5 s is a failure; a script that still arrives later draws the v3 home,
+  // once: the first arrival mounts it, a later one (both asks out) does nothing, and no retry is asked once it is here.
+  var homeFail = false, homeTries = 0, homeIn = false;
   function homeAsk(css) {
     var done = false;
     function fail() { if (done) return; done = true; homeErr(); }
-    loadOnce('wq-home', css, function () { done = true; hub(); }, null, fail);
+    loadOnce('wq-home', css, function () { done = true; if (homeIn) return; homeIn = true; hub(); }, null, fail);
     if (B.home_fb) setTimeout(fail, 5000);
   }
   function homeErr() {
     homeTries += 1;
     if (B.home_fb) ev('home_load_failed', { file: 'wq-home.js', i: homeTries });
-    if (B.home_fb && homeTries < 2) { setTimeout(function () { asked['wq-home'] = false; homeAsk(false); }, 1500); return; }
+    if (B.home_fb && homeTries < 2) { setTimeout(function () { if (window.WQHOME) return; asked['wq-home'] = false; homeAsk(false); }, 1500); return; }
     homeFail = true; hub();
   }
   // The plain home: the greeting as the v3 home says it, the three doors as plain links in the bar's words and order, and
