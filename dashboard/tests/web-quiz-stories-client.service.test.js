@@ -530,6 +530,16 @@ describe('the reader', () => {
     expect(primaries(root.innerHTML)).toBe(0);
     expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
   });
+  test('Your turn on a zoomed page keeps the page picture under the lines being read (never a white stage)', async () => {
+    const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' } } } }); const root = await openReader(e, { lang });
+      toMic(e, root); e.calls.ask[0].onStream({ id: 'stream' });
+      const h = root.innerHTML;
+      expect(screenOf(h)).toBe('story-read');
+      expect(h).toMatch(/data-cam[^>]*><img src="\/s\/b-1\/p01\.webp"[^>]*><div class="wqs-lr" data-lr><\/div>/);
+    }
+  });
   test('Your turn on a zoomed page: the camera frames ALL the lines being read and holds still (a short line never zooms the long ones off the edge)', async () => {
     const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 500, 60] }, { i0: 3, i1: 4, box: [100, 870, 120, 60] }];
     const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
@@ -1072,7 +1082,7 @@ describe('the reader zooms to the printed line', () => {
     expect(cam.style.transform).toBe(T0);
     fire(root, 'main'); fire(root, 'mic'); e.calls.ask[0].onStream({});
     const r = root.innerHTML;
-    expect(r).toMatch(/data-cam[^>]*><div class="wqs-lr" data-lr><\/div>/);
+    expect(r).toMatch(/data-cam[^>]*><img src="[^"]+"[^>]*><div class="wqs-lr" data-lr><\/div>/);   // the page picture under the read
     // Your turn frames both lines of the page at once (not line 1 at the zoom cap), so no line runs off the stage
     expect(root.querySelector('[data-cam]').style.transform).toBe('translate(-97.1px,-580.7px) scale(1.108)');
     checkScreen(r, 'en');
