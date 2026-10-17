@@ -13,7 +13,7 @@
  * web_quiz_closed_way_back varies. Way back OFF in every state (absent, false, the string "true", "\"true\"", "yes", a
  * read of that key that throws): every page is byte-identical to today's page with the door ON —
  * sha256(html + "\n" + csp) pinned in __goldens__/way-back-off.json, recorded by running this file on the code before
- * the change (WAY_BACK_RECORD=1). Door OFF: the landing is still 404 {off:true}. Only the network boundary is faked.
+ * the change (delete the file and run this once: that run records it and fails, the next run checks it). Door OFF: the landing is still 404 {off:true}. Only the network boundary is faked.
  */
 process.env.INTERNAL_API_KEY = 'unit-internal-key-not-a-secret';
 process.env.PORTAL_URL = 'https://portal.example';
@@ -48,7 +48,8 @@ const EN = "Open WhatsApp and send 'quiz' to Jugnu.";
 const UR = 'واٹس ایپ کھولیں اور جگنو کو "کوئز" لکھ کر بھیجیں۔';
 
 const GOLDEN_FILE = path.join(__dirname, '__goldens__', 'way-back-off.json');
-const RECORD = process.env.WAY_BACK_RECORD === '1';
+// no golden file → this run records one and fails (never a silent pass); no env knob
+const RECORD = !fs.existsSync(GOLDEN_FILE);
 const recorded = {};
 const golden = RECORD ? {} : JSON.parse(fs.readFileSync(GOLDEN_FILE, 'utf8'));
 // hex in groups of 8 (no long digit run in the pinned file)
@@ -339,4 +340,8 @@ describe('the dead-end page speaks the LINK\'s language (switch ON): ?lang=, the
       expect(withQ.html).toBe(without.html);
     }
   });
+});
+
+test('the switch-off goldens are pinned (a missing file is recorded by this run, which then fails)', () => {
+  expect({ goldenFile: path.basename(GOLDEN_FILE), recorded: RECORD }).toEqual({ goldenFile: path.basename(GOLDEN_FILE), recorded: false });
 });

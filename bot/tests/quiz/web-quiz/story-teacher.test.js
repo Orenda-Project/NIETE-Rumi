@@ -44,6 +44,10 @@ const KID_A = '44444444-4444-4444-8444-444444444444';
 const KID_B = '44444444-4444-4444-8444-555555555555';
 const B = (n) => `bbbbbbb${n}-bbbb-4bbb-8bbb-bbbbbbbbbbbb`;
 const DEVICE = 'AbCdEfGhIjKlMnOpQrStUv';   // a phone's device ref (22 url-safe characters)
+// A video quiz's WhatsApp class report, captured before the story count changed: it must not move a byte.
+const GOLDEN_VIDEO_REPORT = JSON.stringify([
+  ["teacher-phone", "\u200e📊 *Quiz results — Plants Testwala*\n\n\n\u200e2 of 3 students finished.\n\u200eClass average: *88%*\n\n\u200e*How each student did*\n\u200e• Zoya Testwala — 4/4 (100%)\n\u200e• Zoya Testwala — 3/4 (75%)\n\n\u200e*Not finished yet:* Zara Testwala"],
+]);
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 
 const book = (n, grade, lang, extra = {}) => ({
@@ -122,10 +126,20 @@ describe('the story shelf', () => {
     const out = await Stories.shelf({ uid: TEACHER, grade: 2, lang: 'ur' });
     expect(out.books).toEqual([expect.objectContaining({ id: B(8), dir: 'rtl' })]);
   });
+  test('the shelf says whether this teacher\'s class can get a web link (send)', async () => {
+    expect((await Stories.shelf({ uid: TEACHER, grade: 2, lang: 'en' })).send).toBe(true);
+    Stories._reset();
+    require('../../../shared/services/quiz/web-quiz-link')._resetCache();
+    db.app_settings.find((r) => r.key === 'web_quiz_teachers').value = [OTHER];
+    const off = await Stories.shelf({ uid: TEACHER, grade: 2, lang: 'en' });
+    expect(off.send).toBe(false);
+    expect(off.books).toHaveLength(4);
+    expect((await Stories.shelf({ uid: OTHER, grade: 2, lang: 'en' })).send).toBe(true);
+  });
   test('switch off: 404 stories_off and no book is read', async () => {
     seed({ on: false });
     await expect(Stories.shelf({ uid: TEACHER, grade: 2, lang: 'en' })).rejects.toMatchObject({ status: 404, body: { error: 'stories_off' } });
-    expect(fake.calls.some((c) => c.t === 'story_books')).toBe(false);
+    expect(fake.calls.some((c) => c.table === 'story_books')).toBe(false);
   });
   test('a teacher-home token names the teacher; anything else is no one', () => {
     expect(Stories.teacherOf(th())).toBe(TEACHER);
@@ -213,6 +227,25 @@ describe('the send', () => {
     seed({ web: false });
     await expect(Stories.share({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 409, body: { error: 'web_quiz_off' } });
   });
+  test('a teacher whose class cannot get a web link is refused before anything is written (no row, no code)', async () => {
+    db.app_settings.find((r) => r.key === 'web_quiz_teachers').value = [OTHER];
+    const Share = require('../../../shared/services/quiz/video-quiz-share.service');
+    const mint = jest.spyOn(Share, 'mintCode');
+    try {
+      for (const fn of ['prepare', 'preview', 'share', 'send']) {
+        await expect(Stories[fn]({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 409, body: { error: 'web_quiz_off' } });
+      }
+      expect(fake.calls.filter((c) => c.table === 'quizzes' && c.op === 'insert')).toHaveLength(0);
+      expect(fake.calls.filter((c) => c.table === 'quiz_share_codes' && c.op !== 'select')).toHaveLength(0);
+      expect(mint).not.toHaveBeenCalled();
+      expect(db.quizzes).toHaveLength(0);
+      expect(db.quiz_share_codes).toHaveLength(0);
+      // a teacher on the list sends as before
+      const out = await Stories.share({ uid: OTHER, storyId: B(1) });
+      expect(out.link).toBe(`https://quiz.example.com/q/${out.code}`);
+      expect(mint).toHaveBeenCalledTimes(1);
+    } finally { mint.mockRestore(); }
+  });
   test('switch off: 404 and nothing is written', async () => {
     seed({ on: false });
     await expect(Stories.share({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 404, body: { error: 'stories_off' } });
@@ -222,7 +255,7 @@ describe('the send', () => {
   test('a send never writes a challenge passage (the Challenge draw, the Book and the week story never see a storybook)', async () => {
     await Stories.share({ uid: TEACHER, storyId: B(1) });
     expect(db.challenge_passages).toHaveLength(0);
-    expect(fake.calls.some((c) => c.t === 'challenge_passages')).toBe(false);
+    expect(fake.calls.some((c) => c.table === 'challenge_passages')).toBe(false);
   });
 });
 
@@ -290,6 +323,15 @@ describe('the Stories page (the bot renders it)', () => {
     expect((r.body.match(/data-tap="grade"/g) || []).length).toBe(5);
     expect(r.body).not.toContain('Book 6 Testwala');
   });
+  test('a two-language teacher (bi token): the page follows the language asked, as the teacher home does; a one-language token keeps its own', async () => {
+    const page = async (lang, query) => { const r = res(); await Routes.servePage({ params: { th: th(TEACHER, lang) }, query }, r); return r.body; };
+    expect(await page('bi', { grade: '2', lang: 'en' })).toContain('<html lang="en" dir="ltr">');
+    expect(await page('bi', { grade: '2', lang: 'en', book: B(2) })).toContain('<html lang="en" dir="ltr">');
+    expect(await page('bi', { grade: '2', lang: 'ur' })).toContain('<html lang="ur" dir="rtl">');
+    expect(await page('bi', { grade: '2' })).toContain('<html lang="ur" dir="rtl">');
+    expect(await page('ur', { grade: '2', lang: 'en' })).toContain('<html lang="ur" dir="rtl">');
+    expect(await page('en', { grade: '2', lang: 'ur' })).toContain('<html lang="en" dir="ltr">');
+  });
   test('a book: the preview with ONE primary "Send to class", the exact message, and the report line', async () => {
     const r = res();
     await Routes.servePage({ params: { th: th(TEACHER, 'ur') }, query: { grade: '2', lang: 'en', book: B(2) } }, r);
@@ -312,6 +354,44 @@ describe('the Stories page (the bot renders it)', () => {
     expect(none.body).toContain('data-screen="teacher-story-preview"');
     expect(none.body).not.toContain('<audio');
   });
+  test('a teacher whose class cannot get a web link: the books with one kind line, no preview and no send form', async () => {
+    db.app_settings.find((r) => r.key === 'web_quiz_teachers').value = [OTHER];
+    const LINE = { en: 'Sending stories to your class is not open for your school yet.', ur: 'آپ کے اسکول میں اپنی کلاس کو کہانیاں بھیجنے کی سہولت ابھی شروع نہیں ہوئی۔' };
+    for (const ui of ['en', 'ur']) {
+      for (const query of [{ grade: '2', lang: 'en' }, { grade: '2', lang: 'en', book: B(2) }]) {
+        const r = res();
+        await Routes.servePage({ params: { th: th(TEACHER, ui) }, query }, r);
+        expect(r.code).toBe(200);
+        expect(r.body).toContain('data-screen="teacher-stories"');
+        expect(r.body).not.toContain('data-screen="teacher-story-preview"');
+        expect(r.body).toContain('Book 2 Testwala');
+        expect(r.body).toContain(LINE[ui]);
+        expect(r.body.split(LINE[ui])).toHaveLength(2);
+        expect(r.body).not.toContain('<form');
+        expect(r.body).not.toContain('data-tap="book"');
+        expect(r.body).not.toContain('&amp;book=');
+      }
+    }
+    expect(db.quizzes).toHaveLength(0);
+    expect(db.quiz_share_codes).toHaveLength(0);
+    // the API says the same
+    const Router = Routes;
+    const layer = Router.stack.find((l) => l.route && l.route.path === '/stories');
+    const r = res();
+    await layer.route.stack[0].handle({ query: { th: th(TEACHER, 'en'), grade: '2', lang: 'en' } }, r);
+    expect(r.body.send).toBe(false);
+  });
+  test('a teacher whose class can get a web link: no such line, the shelf JSON only gains send: true', async () => {
+    const r = res();
+    await Routes.servePage({ params: { th: th(TEACHER, 'en') }, query: { grade: '2', lang: 'en' } }, r);
+    expect(r.body).not.toContain('Sending stories to your class is not open');
+    expect(r.body).toContain('data-tap="book"');
+    const layer = Routes.stack.find((l) => l.route && l.route.path === '/stories');
+    const j = res();
+    await layer.route.stack[0].handle({ query: { th: th(TEACHER, 'en'), grade: '2', lang: 'en' } }, j);
+    expect(Object.keys(j.body).sort()).toEqual(['books', 'grade', 'lang', 'send', 'ui']);
+    expect(j.body.send).toBe(true);
+  });
   test('switch off: 404 stories_off, no page (the portal falls through to today)', async () => {
     seed({ on: false });
     const r = res();
@@ -320,6 +400,7 @@ describe('the Stories page (the bot renders it)', () => {
     expect(r.body).toEqual({ error: 'stories_off' });
   });
   test('a fresh profile (no cookie, no stored language, a teacher with no sends, no class and no books on the shelf): today\'s shape', async () => {
+    // teacher-stories.page, rendered by the bot for a phone that has never opened it
     db.story_books = [];
     db.story_pages = [];
     db.story_page_voices = [];
@@ -449,6 +530,108 @@ describe('story sends in the teacher\'s other quiz lists', () => {
     const stats = await List.statsFor(TEACHER, [db.quizzes[0]]);
     expect(stats.get(db.quizzes[0].id)).toMatchObject({ played: 1, avg: null });
   });
+  test('the teacher home\'s Stories tile counts: stories sent and the children of those sends who read since the send (a preview is neither; off = null)', async () => {
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 0, read: 0 });
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    await Stories.share({ uid: TEACHER, storyId: B(3) });
+    await Stories.preview({ uid: TEACHER, storyId: B(4) });
+    await Stories.share({ uid: OTHER, storyId: B(1) });
+    const [a, b] = db.quiz_share_codes.filter((c) => c.teacher_user_id === TEACHER && c.active !== false);
+    const other = db.quiz_share_codes.find((c) => c.teacher_user_id === OTHER);
+    const KID_C = '44444444-4444-4444-8444-666666666666';
+    const KID_D = '44444444-4444-4444-8444-777777777777';
+    db.quizzes.forEach((q) => { if (q.meta && q.meta.first_sent_at) q.meta.first_sent_at = ago(3); });
+    const s = (id, sc, kid) => ({ id, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: id });
+    db.quiz_sessions.push(s('s1', a, KID_A), s('s2', b, KID_A), s('s3', b, KID_B), s('s4', other, KID_C));
+    const ev = (child, bookId, h, event = 'story_page_listened') => ({ child_id: child, book_id: bookId, page_n: 1, event, data: {}, at: ago(h) });
+    db.story_events.push(
+      ev(KID_A, B(1), 1), ev(KID_A, B(3), 1, 'story_opened'),   // KID_A read both of TEACHER's sends: one child
+      ev(KID_B, B(3), 5),                                        // before the send: not this send's reading
+      ev(KID_B, B(1), 1),                                        // B(1) is TEACHER's, but KID_B joined only the B(3) send
+      ev(KID_D, B(1), 1),                                        // a child of no send of TEACHER's, reading the same book from the shelf
+      ev(KID_C, B(1), 1));                                       // OTHER's class
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 2, read: 1 });
+    expect(await Stories.storyCounts(TEACHER, { bookIds: [B(3)] })).toEqual({ sent: 1, read: 1 });
+    expect(await Stories.storyCounts(TEACHER, { bookIds: [B(4)] })).toEqual({ sent: 0, read: 0 });
+    expect(await Stories.storyCounts(OTHER)).toEqual({ sent: 1, read: 1 });
+    expect(await Stories.storyCounts(null)).toBeNull();
+    db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_stories_teacher');
+    Stories._reset();
+    expect(await Stories.storyCounts(TEACHER)).toBeNull();
+  });
+  test('the Stories tile counts never throw: a read error is null', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quiz_sessions.push({ id: 's1', quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: KID_A, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(1), device_ref: 's1' });
+    const from = supabase.from;
+    supabase.from = (t) => { if (t === 'story_events') throw new Error('boom'); return from(t); };
+    try {
+      expect(await Stories.storyCounts(TEACHER)).toBeNull();
+    } finally { supabase.from = from; }
+  });
+  test('the Stories tile counts page past the server\'s 1000-row cap: a reader beyond the first 1000 events is counted', async () => {
+    fake = makeFake(db, { maxRows: { story_events: 1000 } });
+    Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quizzes[0].meta.first_sent_at = ago(3);
+    const s = (id, kid) => ({ id, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: id });
+    db.quiz_sessions.push(s('s1', KID_A), s('s2', KID_B));
+    // 1200 rows of KID_B's reading from before the send (not this send's), then KID_A's one row after it.
+    // ids from 10000 so the fake's text order is the numeric order: KID_A's row really is past the first 1000
+    for (let i = 0; i < 1200; i += 1) db.story_events.push({ id: 10000 + i, child_id: KID_B, book_id: B(1), page_n: 1, event: 'story_page_listened', data: {}, at: ago(5) });
+    db.story_events.push({ id: 11200, child_id: KID_A, book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) });
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 1 });
+  });
+  test('the Stories tile counts page past the 1000-row cap on the sends\' sessions: a child who joined after the first 1000 is counted', async () => {
+    fake = makeFake(db, { maxRows: { quiz_sessions: 1000 } });
+    Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quizzes[0].meta.first_sent_at = ago(3);
+    const kid = (i) => `44444444-4444-4444-8444-${String(i).padStart(12, '0')}`;
+    for (let i = 0; i < 1100; i += 1) {
+      db.quiz_sessions.push({ id: `s-${10000 + i}`, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid(i), student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: `d-${i}` });
+    }
+    db.story_events.push({ id: 1, child_id: kid(1099), book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) });
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 1 });
+  });
+  test('the Stories tile counts read a big class in chunks: 450 joined children still give a number, not none', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quizzes[0].meta.first_sent_at = ago(3);
+    const kid = (i) => `44444444-4444-4444-8444-${String(i).padStart(12, '0')}`;
+    for (let i = 0; i < 450; i += 1) {
+      db.quiz_sessions.push({ id: `s-${10000 + i}`, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid(i), student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: `d-${i}` });
+    }
+    db.story_events.push(
+      { id: 1, child_id: kid(0), book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) },
+      { id: 2, child_id: kid(449), book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) });
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 2 });
+    expect(fake.calls.filter((c) => c.overflow)).toHaveLength(0);
+  });
+  test('the Stories tile counts the children both reports count: an invited friend and the teacher\'s own try are not readers of the send', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quizzes[0].meta.first_sent_at = ago(3);
+    const KID_C = '44444444-4444-4444-8444-666666666666';
+    const s = (id, kid, extra = {}) => ({ id, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: id, ...extra });
+    db.quiz_sessions.push(s('s1', KID_A), s('s2', KID_B, { invited_by_student_id: KID_A }), s('s3', KID_C, { user_id: TEACHER, device_ref: null }));
+    const ev = (child) => ({ child_id: child, book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: ago(1) });
+    db.story_events.push(ev(KID_A), ev(KID_B), ev(KID_C));
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 1 });
+  });
+  test('the Stories tile counts compare times as times: "+00:00" and "Z" at the same second is since the send; a second before is not', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    db.quizzes[0].meta.first_sent_at = '2026-10-17T10:00:00.000Z';
+    const s = (id, kid) => ({ id, quiz_id: sc.quiz_id, share_code_id: sc.id, student_id: kid, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(2), device_ref: id });
+    db.quiz_sessions.push(s('s1', KID_A), s('s2', KID_B));
+    db.story_events.push(
+      { id: 1, child_id: KID_A, book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: '2026-10-17T10:00:00+00:00' },
+      { id: 2, child_id: KID_B, book_id: B(1), page_n: 1, event: 'story_opened', data: {}, at: '2026-10-17T09:59:59+00:00' });
+    expect(await Stories.storyCounts(TEACHER)).toEqual({ sent: 1, read: 1 });
+  });
   test('the quiz menu never lists a story send as a quiz to cancel', async () => {
     await Stories.preview({ uid: TEACHER, storyId: B(1) });
     const Flow = require('../../../shared/routes/quiz-flow-endpoint');
@@ -572,7 +755,7 @@ describe('the class report of a story send', () => {
     expect(text).toContain('Ali Testwala: 🎧 1 page · 🗣️ 1 page · ⭐ 1/4');
     expect(db.quiz_share_codes[0].report_sent_at).toBeTruthy();
     // a story has no question rows and no guidance writer
-    expect(fake.calls.some((c) => c.t === 'quiz_answers')).toBe(false);
+    expect(fake.calls.some((c) => c.table === 'quiz_answers')).toBe(false);
   });
   test('with the teacher\'s web report on, the story report carries its link (as every report does)', async () => {
     await Stories.share({ uid: TEACHER, storyId: B(1) });
@@ -584,7 +767,10 @@ describe('the class report of a story send', () => {
     const [, text] = WhatsAppService.sendMessage.mock.calls[0];
     expect(text).toMatch(/https:\/\/quiz\.example\.com\/r\/[A-Za-z0-9._%-]+/);
   });
-  test('a page with no voice yet (the reader\'s miss row) is never a page listened: not in the counts, not on a child\'s line, not on the web report', async () => {
+  test.each([
+    ['story_page_listened {miss:true}', (ev, child, n) => ev(child, 'story_page_listened', n, { miss: true })],
+    ['story_page_unvoiced', (ev, child, n) => ev(child, 'story_page_unvoiced', n)],
+  ])('a page with no voice yet (the reader\'s %s row) is never a page listened: not in the counts, not on a child\'s line, not on the web report', async (_, unvoiced) => {
     await Stories.share({ uid: TEACHER, storyId: B(1) });
     const sc = db.quiz_share_codes[0];
     const q = db.quizzes[0];
@@ -596,9 +782,8 @@ describe('the class report of a story send', () => {
     const ev = (child, event, page_n, data = {}) => ({ child_id: child, book_id: B(1), page_n, event, data, at: ago(10) });
     db.story_events.push(
       ev(KID_A, 'story_opened', null), ev(KID_A, 'story_page_listened', 1),
-      ev(KID_A, 'story_page_listened', 2, { miss: true }), ev(KID_A, 'story_page_listened', 3, { miss: true }),
-      ev(KID_B, 'story_opened', null), ev(KID_B, 'story_page_listened', 1, { miss: true }), ev(KID_B, 'story_page_listened', 2, { miss: true }),
-      ev(KID_B, 'story_page_listened', 3, { miss: true }),
+      unvoiced(ev, KID_A, 2), unvoiced(ev, KID_A, 3),
+      ev(KID_B, 'story_opened', null), unvoiced(ev, KID_B, 1), unvoiced(ev, KID_B, 2), unvoiced(ev, KID_B, 3),
     );
     const Data = require('../../../shared/services/quiz/teacher-report.data');
     const r = await Data.quizReport(TEACHER, q.id);
@@ -619,6 +804,53 @@ describe('the class report of a story send', () => {
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('teacher-phone', '📖 *Book 1 Testwala* — no one in your class has opened the story yet. The link is still open: forward the class message again.');
     expect(db.quiz_share_codes[0].report_sent_at).toBeTruthy();
   });
+
+  // One send, two reports: the WhatsApp class report and the web report count the same children.
+  const ZOYA_1 = '44444444-4444-4444-8444-666666666661';
+  const ZOYA_2 = '44444444-4444-4444-8444-666666666662';
+  const FRIEND = '44444444-4444-4444-8444-777777777777';
+  function sameChildTwoPhones(q, sc) {
+    db.quiz_sessions.push(
+      { id: 's-a', quiz_id: q.id, share_code_id: sc.id, student_id: KID_A, student_name: 'Zara Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(20), device_ref: 'd1', correct_answers: 0, total_questions_answered: 0 },
+      // the same child on two phones: two student rows, one typed name, the same class link, both mid-story
+      { id: 's-z1', quiz_id: q.id, share_code_id: sc.id, student_id: ZOYA_1, student_name: 'Zoya Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(18), device_ref: 'd3', correct_answers: 0, total_questions_answered: 0 },
+      { id: 's-z2', quiz_id: q.id, share_code_id: sc.id, student_id: ZOYA_2, student_name: 'Zoya Testwala', user_id: null, status: 'in_progress', invited_by_student_id: null, created_at: ago(17), device_ref: 'd4', correct_answers: 0, total_questions_answered: 0 },
+      // the teacher's own try and a friend a child invited: neither is the class
+      { id: 's-t', quiz_id: q.id, share_code_id: sc.id, student_id: null, student_name: 'Ms Example', user_id: TEACHER, status: 'in_progress', invited_by_student_id: null, created_at: ago(16), device_ref: 'd5', correct_answers: 0, total_questions_answered: 0 },
+      { id: 's-f', quiz_id: q.id, share_code_id: sc.id, student_id: FRIEND, student_name: 'Friend Testwala', user_id: null, status: 'in_progress', invited_by_student_id: KID_A, created_at: ago(15), device_ref: 'd6', correct_answers: 0, total_questions_answered: 0 },
+    );
+  }
+  test('the same child on two phones, the teacher\'s own try and an invited friend: the WhatsApp report counts the children the web report counts', async () => {
+    await Stories.share({ uid: TEACHER, storyId: B(1) });
+    const sc = db.quiz_share_codes[0];
+    const q = db.quizzes[0];
+    q.meta.first_sent_at = ago(30);
+    sameChildTwoPhones(q, sc);
+    db.story_events.push({ child_id: ZOYA_1, book_id: B(1), page_n: 1, event: 'story_page_listened', data: {}, at: ago(10) });
+    const web = (await require('../../../shared/services/quiz/teacher-report.data').quizReport(TEACHER, q.id)).story;
+    expect(web.counts.opened).toBe(2);
+    await Report.generate(sc.id, { reason: 'scheduled' });
+    const [, text] = WhatsAppService.sendMessage.mock.calls[0];
+    expect(text).toContain(`${web.counts.opened} opened it`);
+    expect(text).toContain(`${web.counts.listened} listened`);
+    const lines = text.split('\n').filter((l) => / 🎧 /.test(l)).map((l) => l.replace(/^[•\s]+/, '').split(/\s+/)[0]);
+    expect(lines.sort()).toEqual(web.children.map((c) => c.first).sort());
+    expect(text.match(/Zoya Testwala/g)).toHaveLength(1);
+    expect(text).not.toContain('Ms Example');
+    expect(text).not.toContain('Friend Testwala');
+  });
+  test('a video quiz\'s class report from the same rows is unchanged (golden)', async () => {
+    db.quizzes.push({ id: 'q-v', teacher_id: TEACHER, quiz_source: 'video', topic: 'Plants Testwala', status: 'sent', meta: {}, created_at: ago(40), language: 'en' });
+    db.quiz_share_codes.push({ id: 'sc-v', code: 'VV11VV', quiz_id: 'q-v', teacher_user_id: TEACHER, teacher_name: 'Ms Example Testwala', topic: 'Plants Testwala', language: 'en', active: true, created_at: ago(40) });
+    const q = db.quizzes.find((x) => x.id === 'q-v');
+    const sc = db.quiz_share_codes.find((x) => x.id === 'sc-v');
+    sameChildTwoPhones(q, sc);
+    Object.assign(db.quiz_sessions.find((s) => s.id === 's-z1'), { status: 'completed', completed_at: ago(14), correct_answers: 3, total_questions_answered: 4, mastery_percentage: 75 });
+    Object.assign(db.quiz_sessions.find((s) => s.id === 's-z2'), { status: 'completed', completed_at: ago(13), correct_answers: 4, total_questions_answered: 4, mastery_percentage: 100 });
+    await Report.generate(sc.id, { reason: 'scheduled' });
+    const sent = [...WhatsAppService.sendMessage.mock.calls, ...WhatsAppService.sendDocument.mock.calls];
+    expect(JSON.stringify(sent)).toBe(GOLDEN_VIDEO_REPORT);
+  });
 });
 
 describe('a preview never reaches a child, even when the database fails', () => {
@@ -636,7 +868,7 @@ describe('a preview never reaches a child, even when the database fails', () => 
       const q = real(t);
       if (t !== 'quiz_share_codes') return q;
       const update = q.update.bind(q);
-      q.update = (p) => (p && p.active === active ? { eq: async () => ({ data: null, error: { message: 'down' } }) } : update(p));
+      q.update = (p) => (p && p.active === active ? { eq: () => ({ select: async () => ({ data: null, error: { message: 'down' } }) }) } : update(p));
       return q;
     };
     return () => { supabase.from = real; };
@@ -679,7 +911,7 @@ describe('a preview never reaches a child, even when the database fails', () => 
       const q = real(t);
       if (t !== 'quizzes') return q;
       const update = q.update.bind(q);
-      q.update = (p) => (p && p.status === 'sent' ? { eq: async () => ({ data: null, error: { message: 'down' } }) } : update(p));
+      q.update = (p) => (p && p.status === 'sent' ? { eq: () => ({ select: async () => ({ data: null, error: { message: 'down' } }) }) } : update(p));
       return q;
     };
     try {
@@ -688,6 +920,45 @@ describe('a preview never reaches a child, even when the database fails', () => 
     expect(db.quizzes[0].status).toBe('ready');
     expect(logEvent).not.toHaveBeenCalledWith('teacher_story_sent', expect.anything());
     expect(require('../../../shared/utils/logger').logToFile).toHaveBeenCalledWith(expect.stringContaining('could not mark the send'), expect.anything(), 'error');
+  });
+  test.each([
+    ['the code row', 'quiz_share_codes', 'could not open the code'],
+    ['the quiz row', 'quizzes', 'could not mark the send'],
+  ])('Send whose update matches no row (%s gone at mark time) is refused (503), and the row is not marked sent', async (_, gone, what) => {
+    await Stories.preview({ uid: TEACHER, storyId: B(1) });
+    const real = supabase.from;
+    // The row this update targets is gone (another id) the moment the update runs: the write matches nothing.
+    supabase.from = (t) => {
+      const q = real(t);
+      if (t !== gone) return q;
+      const update = q.update.bind(q);
+      q.update = (p) => { db[gone][0].id = 'gone-elsewhere'; return update(p); };
+      return q;
+    };
+    try {
+      await expect(Stories.share({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 503 });
+    } finally { supabase.from = real; }
+    expect(db.quizzes[0].status).toBe('ready');
+    expect(db.quizzes[0].meta.sent_at).toBeUndefined();
+    expect(logEvent).not.toHaveBeenCalledWith('teacher_story_sent', expect.anything());
+    expect(require('../../../shared/utils/logger').logToFile).toHaveBeenCalledWith(expect.stringContaining(what), expect.anything(), 'error');
+  });
+  test.each([
+    ['answers an error', { data: null, error: { message: 'down' } }],
+    ['lands no row', { data: null, error: null }],
+  ])('a send whose row cannot be written (the insert %s) is refused (503) before any code is minted', async (_, answer) => {
+    const real = supabase.from;
+    supabase.from = (t) => {
+      const q = real(t);
+      if (t !== 'quizzes') return q;
+      q.insert = () => ({ select: () => ({ single: async () => answer }) });
+      return q;
+    };
+    try {
+      await expect(Stories.preview({ uid: TEACHER, storyId: B(1) })).rejects.toMatchObject({ status: 503, body: { error: 'unavailable' } });
+    } finally { supabase.from = real; }
+    expect(db.quiz_share_codes).toHaveLength(0);
+    expect(require('../../../shared/utils/logger').logToFile).toHaveBeenCalledWith(expect.stringContaining('could not write the send'), expect.anything(), 'error');
   });
   test('the sent event says "reused" only when the code was already open before this tap', async () => {
     await Stories.preview({ uid: TEACHER, storyId: B(1) });

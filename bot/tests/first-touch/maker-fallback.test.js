@@ -204,6 +204,16 @@ describe('the fallback\'s log lines name the teacher by the keyed reference, nev
   }
   afterEach(() => { jest.dontMock('../../shared/utils/logger'); });
 
+  test.each([['ft_fb_quiz'], ['ft_fb_lp']])('%s opened nothing: the reference comes from the shared helper (no copy of its own)', async (id) => {
+    jest.resetModules();
+    const Kid = require('../../shared/services/quiz/web-quiz-kid');
+    const spy = jest.spyOn(Kid, 'tk').mockReturnValue('5e1ec7ed5e1ec7ed');
+    jest.doMock('../../shared/services/quiz/web-quiz-kid', () => Kid);
+    expect(await logged(id, 'k'.repeat(32))).toEqual({ tk: '5e1ec7ed5e1ec7ed' });
+    expect(spy).toHaveBeenCalledWith(PIN_ID);
+    jest.dontMock('../../shared/services/quiz/web-quiz-kid');
+  });
+
   test.each([['ft_fb_quiz'], ['ft_fb_lp']])('%s opened nothing: { tk } with the agreed value for a 32-byte key; null under 32 bytes', async (id) => {
     expect(await logged(id, 'k'.repeat(32))).toEqual({ tk: 'e815e81977411f12' });
     expect(await logged(id, 'k'.repeat(31))).toEqual({ tk: null });

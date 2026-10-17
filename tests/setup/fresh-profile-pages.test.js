@@ -9,9 +9,10 @@
  *     round), id `<name>.page`;
  *   - each top-level `function render<Name>Page(` in `dashboard/routes/web-quiz*.js` (the child pages the portal edge
  *     serves at /q/, /h/, /c/, /j/ and their closed, preview and library faces), id `render<Name>Page`.
- * A page is covered when some test file under bot/tests or dashboard/tests names it — its id, or a /wq/ script that
- * only that renderer loads (e.g. `hub.js` for renderHubPage) — AND carries `fresh profile` (any case; a comment
- * marker or a describe/test title) in the same file.
+ * A page is covered when ONE describe/test/it block (a describe with everything nested in it) of some test file under
+ * bot/tests or dashboard/tests names it — its id, or a /wq/ script that only that renderer loads (e.g. `hub.js` for
+ * renderHubPage) — AND carries `fresh profile` (any case; its title, or a comment or string inside it). A fresh-profile
+ * test elsewhere in the same file does not cover a page it never touches.
  *
  * fresh-profile-pages.allowlist.json `pages`: the pages with no such test when this gate landed. The gate fails on
  * a navigable page that is neither listed nor tested, and on a listed page that no longer exists. A listed page that
@@ -52,13 +53,41 @@ describe('the rule, on in-memory sources', () => {
     ]);
   });
 
-  test('covered: the page named (or its own script) AND the fresh-profile marker in the same file', () => {
+  test('covered: the page named (or its own script) AND the fresh-profile marker in the same file (a snippet with no test block is one block)', () => {
     const hub = { id: 'renderHubPage', scripts: ['hub.js'] };
     expect(coversFreshProfile("// fresh profile: no device yet\nrequire('../public/wq/hub.js')", hub)).toBe(true);
     expect(coversFreshProfile("describe('a Fresh-Profile phone', () => renderHubPage({}))", hub)).toBe(true);
     expect(coversFreshProfile("require('../public/wq/hub.js')", hub)).toBe(false);
     expect(coversFreshProfile("// fresh profile\nrequire('../public/wq/web-quiz-hub.js')", hub)).toBe(false);
     expect(coversFreshProfile("// fresh profile\nrequire('../public/wq/wq-tel.js')", hub)).toBe(false);
+  });
+
+  test('block scope: the page and the marker in ONE test block', () => {
+    const hub = { id: 'renderHubPage', scripts: ['hub.js'] };
+    // (a) one fresh-profile test that renders the page
+    expect(coversFreshProfile("test('fresh profile: a new phone', () => { renderHubPage({}); });", hub)).toBe(true);
+    // (b) the marker in one test, the page in another: not covered
+    expect(coversFreshProfile([
+      "test('fresh profile: a new phone', () => renderQuizPage({}));",
+      "test('the hub', () => renderHubPage({}));",
+    ].join('\n'), hub)).toBe(false);
+    // (c) a describe carries the marker for every block nested in it
+    expect(coversFreshProfile("describe('fresh profile', () => {\n  test('x', () => renderHubPage({}));\n});", hub)).toBe(true);
+    // (d) the marker as a comment inside the block
+    expect(coversFreshProfile("test('a new phone', () => {\n  // fresh profile: no device id\n  renderHubPage({});\n});", hub)).toBe(true);
+    // (e) a ')' in a string, or a template with ${…}, does not end the block early
+    expect(coversFreshProfile([
+      "test('fresh profile: odd strings', () => {",
+      "  const a = 'a ) b';",
+      '  const b = `x ${ (1) } ) y`;',
+      '  renderHubPage({ a, b });',
+      '});',
+      "test('other', () => renderQuizPage({}));",
+    ].join('\n'), hub)).toBe(true);
+    expect(coversFreshProfile("test('fresh profile', () => { const s = ')'; });\nrenderHubPage({});", hub)).toBe(false);
+    // .each(…) with calls in its table, and .only/.skip, are blocks too
+    expect(coversFreshProfile("test.each([['a', () => null]])('fresh profile %s', () => renderHubPage({}));\ntest('other', () => renderQuizPage({}));", hub)).toBe(true);
+    expect(coversFreshProfile("describe.only('fresh profile', () => { it.skip('x', () => renderHubPage({})); });", hub)).toBe(true);
   });
 
   test('the pages without one', () => {

@@ -78,7 +78,9 @@ async function sendState(shareCodeId, state) {
   try {
     if (!(await require('./teacher-home.flags').on())) return;
     const Sent = require('./teacher-home.sent');
-    await (state === 'sent' ? Sent.markSent(shareCodeId) : Sent.markPrepared(shareCodeId));
+    const ok = await (state === 'sent' ? Sent.markSent(shareCodeId) : Sent.markPrepared(shareCodeId));
+    // the make still answers (the teacher asked for it); the home may then read this code as sent until it is
+    if (!ok) logToFile(`⚠️ maker: a made code could not be marked ${state === 'sent' ? 'sent' : 'prepared'}`, {});
   } catch (_) { /* the home reads it as sent */ }
 }
 // ── end teacher home ──

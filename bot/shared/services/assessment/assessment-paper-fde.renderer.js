@@ -224,8 +224,10 @@ function refuseIn(node, where, list, name) {
 
 function refuseReviewText(examJson, where = 'paper') {
   if (!examJson || typeof examJson !== 'object') return refuseIn(examJson, where, REFUSED_CHROME, 'chrome');
-  const { _layout: chrome, ...items } = examJson;
-  refuseIn(chrome, where, REFUSED_CHROME, 'chrome');
+  const { _layout: layout, ...items } = examJson;
+  // `_layout.reader` is the reader's record (model text quoting the paper); it never prints.
+  const { reader, ...chrome } = layout || {};
+  refuseIn(layout ? chrome : layout, where, REFUSED_CHROME, 'chrome');
   refuseIn(items, where, REFUSED_ITEM, 'item');
 }
 

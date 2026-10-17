@@ -318,18 +318,29 @@ function supabaseStore(db) {
 }
 
 /**
- * The pages children opened while they had no voice yet: the book API logs story_page_listened with {miss:true}
- * for a page it served with audio:null. → {until, pages:[{book_id, source_id, n}]} (distinct, oldest first), so the
- * voice build can voice exactly those pages and the next load picks them up. Reads only.
+ * The pages children opened while they had no voice yet: the book API logs one row for a page it served with
+ * audio:null — story_page_unvoiced, or (before that name existed) story_page_listened with {miss:true}; both are read,
+ * so the reader may switch names at any time. → {until, pages:[{book_id, source_id, n}]} (distinct, oldest first), so
+ * the voice build can voice exactly those pages and the next load picks them up. Reads only.
  */
 async function missedPages(db, { since = null, now = () => new Date() } = {}) {
   const until = now().toISOString();
-  let q = db.from('story_events').select('book_id, page_n, at').eq('event', 'story_page_listened').eq('data->>miss', 'true').lte('at', until);
-  if (since) q = q.gt('at', since);
-  const { data, error } = await q.order('at', { ascending: true }).limit(5000);
-  if (error) throw new Error(`${error.code || ''} ${error.message}`);
+  const rowsOf = async (shape) => {
+    let q = shape(db.from('story_events').select('book_id, page_n, at')).lte('at', until);
+    if (since) q = q.gt('at', since);
+    const { data, error } = await q.order('at', { ascending: true }).limit(5000);
+    if (error) throw new Error(`${error.code || ''} ${error.message}`);
+    return data || [];
+  };
+  const rows = [
+    ...(await rowsOf((q) => q.eq('event', 'story_page_unvoiced'))),
+    ...(await rowsOf((q) => q.eq('event', 'story_page_listened').eq('data->>miss', 'true'))),
+  ].sort((x, y) => (String(x.at) < String(y.at) ? -1 : String(x.at) > String(y.at) ? 1 : 0));
   const seen = new Map();
-  for (const r of data || []) if (r.book_id && Number.isInteger(r.page_n)) seen.set(`${r.book_id}/${r.page_n}`, { book_id: r.book_id, n: r.page_n });
+  for (const r of rows) {
+    const k = `${r.book_id}/${r.page_n}`;
+    if (r.book_id && Number.isInteger(r.page_n) && !seen.has(k)) seen.set(k, { book_id: r.book_id, n: r.page_n });
+  }
   const ids = [...new Set([...seen.values()].map((p) => p.book_id))];
   const src = new Map();
   if (ids.length) {

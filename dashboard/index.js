@@ -2850,6 +2850,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-notices.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a teacher-app screen (template only; the bot answers the real result).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-share.routes'));
+// bd-s42dye.1 — the coach app's Training Library: the whole catalogue, read-only, coach role only.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/training-library.routes'));
 
 // HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
 // endpoints without curl. Served under /observability/* so it's excluded from the

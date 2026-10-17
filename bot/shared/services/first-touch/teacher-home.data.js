@@ -98,8 +98,9 @@ async function lessons(uid, deps) {
 
 /**
  * The report's own played counts for the quizzes this teacher MADE and sent: Map quizId → { played, of, date, topic,
- * source }. The class report also lists the library quizzes the teacher sent (their sender's report); those are this
- * page's library shares (by their code), so they are left out here — one row per send, never two.
+ * source } (+ `book` on a story send: its meta.story.book_id or null, brought by the same quizzes read). The class
+ * report also lists the library quizzes the teacher sent (their sender's report); those are this page's library shares
+ * (by their code), so they are left out here — one row per send, never two.
  */
 async function playedOwn(uid, deps) {
   const Report = dep(deps, 'Report');
@@ -107,14 +108,16 @@ async function playedOwn(uid, deps) {
   const rows = (r && r.quizzes) || [];
   const out = new Map();
   if (!rows.length) return out;
-  const mine = new Set();
+  const mine = new Map(); // quizId → the story's book id or null
   const ids = rows.map((q) => q.id);
   for (let i = 0; i < ids.length; i += 300) { // under PostgREST's .in() header cap
-    const { data: made, error } = await dep(deps, 'supabase').from('quizzes').select('id').in('id', ids.slice(i, i + 300)).eq('teacher_id', uid);
+    const { data: made, error } = await dep(deps, 'supabase').from('quizzes').select('id, story_book:meta->story->>book_id').in('id', ids.slice(i, i + 300)).eq('teacher_id', uid);
     if (error) throw new Error(error.message);
-    (made || []).forEach((q) => mine.add(q.id));
+    (made || []).forEach((q) => mine.set(q.id, q.story_book ? String(q.story_book) : null));
   }
-  rows.filter((q) => mine.has(q.id)).forEach((q) => out.set(q.id, { played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null }));
+  rows.filter((q) => mine.has(q.id)).forEach((q) => out.set(q.id, {
+    played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null, ...(q.source === 'story' ? { book: mine.get(q.id) } : {}),
+  }));
   return out;
 }
 
@@ -144,6 +147,35 @@ async function libraryShares(uid, deps, now = Date.now()) {
   const per = new Map();
   counted.forEach((s) => per.set(s.share_code_id, (per.get(s.share_code_id) || 0) + 1));
   return lib.map((c) => ({ shareCodeId: c.id, quizId: c.quiz_id, topic: c.topic || null, at: c.created_at, played: per.get(c.id) || 0 }));
+}
+
+/**
+ * Of the teacher's own sent quizzes, the ones "Send again" would answer: the quiz is theirs and sent, its stored class
+ * message and code are there, and the code is theirs, open and unexpired (the send's own checks, teacher-home.send
+ * ownMessage), read in two batches. → Set of quiz ids.
+ */
+async function sendableOwn(uid, quizIds, deps, now = Date.now()) {
+  const supabase = dep(deps, 'supabase');
+  const ids = [...new Set((quizIds || []).filter(Boolean))];
+  const codeOf = new Map();
+  for (let i = 0; i < ids.length; i += 300) { // under PostgREST's .in() header cap
+    const { data, error } = await supabase.from('quizzes').select('id, status, meta').in('id', ids.slice(i, i + 300)).eq('teacher_id', uid);
+    if (error) throw new Error(error.message);
+    (data || []).forEach((q) => {
+      const m = q.meta || {};
+      if ((q.status === 'sent' || q.status === 'report_sent') && typeof m.student_message === 'string' && m.student_message && m.share_code_id) codeOf.set(q.id, m.share_code_id);
+    });
+  }
+  const live = new Set();
+  const codeIds = [...new Set(codeOf.values())];
+  for (let i = 0; i < codeIds.length; i += 300) {
+    const { data, error } = await supabase.from('quiz_share_codes').select('id, active, expires_at, teacher_user_id').in('id', codeIds.slice(i, i + 300));
+    if (error) throw new Error(error.message);
+    (data || []).forEach((c) => {
+      if (c.teacher_user_id === uid && c.active !== false && !(c.expires_at && new Date(c.expires_at).getTime() <= now)) live.add(c.id);
+    });
+  }
+  return new Set([...codeOf.entries()].filter(([, c]) => live.has(c)).map(([q]) => q));
 }
 
 /** Report links for one of the teacher's own quizzes, or null when the report page is not on for them. */
@@ -213,6 +245,6 @@ async function makerLink(uid, lang, pf, deps) {
 }
 
 module.exports = {
-  teacherOf, firstNameOf, lessons, playedOwn, libraryShares, reportLinks, videoPick, gradeOf, storyShelf,
+  teacherOf, firstNameOf, lessons, playedOwn, libraryShares, sendableOwn, reportLinks, videoPick, gradeOf, storyShelf,
   childrenLink, confirmRows, makerLink, within, dep, REPORT_BUDGET_MS, SIDE_BUDGET_MS,
 };
