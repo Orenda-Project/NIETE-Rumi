@@ -144,13 +144,17 @@ describe('wq-home.js: the Next tile', () => {
     const nx = H.nextOf({ ...HOME, teacher: { code: 'T1', k: 'a', topic: 'Plants' } }, ctxOf('en'));
     expect(nx).toMatchObject({ kind: 'quiz', sub: 'Plants', href: '/q/T1?k=a', src: 'teacher' });
   });
-  test('next absent, the lantern is "the games list": the tile names no kind it cannot know ("Play with Jugnu"), never "a game"', () => {
+  test('next absent, the lantern is "the games list": the tile names its first open step when the server names it, else neutral words, never "a game"', () => {
     const B = { ...HOME, play: { lantern: { kind: 'trail', stops: 2 } } };
     const en = H.nextOf(B, ctxOf('en'));
-    expect(en.title).toBe('Play with Jugnu');
+    expect(en.title).toBe('Come along with Jugnu');
     expect(en.href).toMatch(/#next$/);
-    expect(H.nextOf(B, ctxOf('ur')).title).toBe('جگنو کے ساتھ کھیلیں');
-    expect(visible(H.html(B, ctxOf('en')))).not.toMatch(/a game/i);
+    expect(H.nextOf(B, ctxOf('ur')).title).toBe('جگنو کے ساتھ چلیں');
+    expect(visible(H.html(B, ctxOf('en')))).not.toMatch(/a game|Play with Jugnu/i);
+    const named = { ...HOME, play: { lantern: { kind: 'trail', stops: 2, first: { id: 'read', label: 'Read aloud', lang: 'en' } } } };
+    expect(H.nextOf(named, ctxOf('en'))).toMatchObject({ title: 'Read aloud', href: expect.stringMatching(/#next$/) });
+    // a label in another language than the page's: the neutral words, never a mixed screen
+    expect(H.nextOf(named, ctxOf('ur')).title).toBe('جگنو کے ساتھ چلیں');
   });
   test('next absent: today\'s lantern decides — the same story and the same destination as the lantern line', () => {
     const B = { ...HOME, play: { lantern: { kind: 'story', title: 'The red kite', pid: 'en.read.1.k07' } } };

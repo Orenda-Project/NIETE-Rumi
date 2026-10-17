@@ -255,6 +255,10 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, c
   if (nx.kind === 'trail' || s.story) {
     out.lantern = nx.kind === 'story' ? { ...nx, pid: (ownTile.find((u) => u.title === nx.title) || {}).pid || null } : nx;
   }
+  if (out.lantern && out.lantern.kind === 'trail' && trail[0]) {
+    const first = await firstStep(trail[0], lang);
+    if (first) out.lantern = { ...out.lantern, first };
+  }
   if (seenIds) out.shelf = shelfOf(p.live, new Set(unseen.map((u) => u.pid)), lang);
   // The next-thing ranker (web-quiz-next-offer-sources.js) reads what this corner read; the payload is untouched. Its
   // lantern is the one the child is shown (the control arm's primary), never a same-titled twin.
@@ -262,6 +266,24 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, c
     Object.assign(collect, { trail, unseen, live: p.live, story: s.story, lantern: out.lantern || null });
   }
   return out;
+}
+
+/**
+ * The trail lantern's first open step, named for the v3 home's tile (`#next` opens it): {id, label, lang}, only with
+ * web_quiz_home_v3 on (the older hub never reads it: off, the lantern is today's). The number warm-up and an unnamed
+ * step give null (the tile then says the neutral words). Never throws.
+ */
+async function firstStep(id, lang) {
+  try {
+    if (!(await require('./web-quiz-home-flags').flags()).home) return null;
+    const Challenge = require('./web-quiz-challenge');
+    if (id === 'missing' && typeof Challenge.poolOn === 'function' && (await Challenge.poolOn())) return null;
+    const l = require('../../config/ux-strings').clampLanguage(lang);
+    const label = typeof Challenge.nameOf === 'function' ? Challenge.nameOf(id, l) : null;
+    return label ? { id, label, lang: l } : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 /** `{play}` for the hub payload, or `{}` (every switch off, or any failure: the hub is today's). Never throws. */
