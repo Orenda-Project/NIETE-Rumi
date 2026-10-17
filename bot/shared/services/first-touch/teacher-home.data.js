@@ -102,8 +102,9 @@ async function lessons(uid, deps, { light = false } = {}) {
 
 /**
  * The report's own played counts for the quizzes this teacher MADE and sent: Map quizId → { played, of, date, topic,
- * source }. The class report also lists the library quizzes the teacher sent (their sender's report); those are this
- * page's library shares (by their code), so they are left out here — one row per send, never two.
+ * source } (+ `book` on a story send: its meta.story.book_id or null, brought by the same quizzes read). The class
+ * report also lists the library quizzes the teacher sent (their sender's report); those are this page's library shares
+ * (by their code), so they are left out here — one row per send, never two.
  */
 async function playedOwn(uid, deps, { light = false } = {}) {
   const Report = dep(deps, 'Report');
@@ -118,14 +119,16 @@ async function playedOwn(uid, deps, { light = false } = {}) {
   const r = await Report.classReport(uid, { days: 60 });
   const rows = (r && r.quizzes) || [];
   if (!rows.length) return out;
-  const mine = new Set();
+  const mine = new Map(); // quizId → the story's book id or null
   const ids = rows.map((q) => q.id);
   for (let i = 0; i < ids.length; i += 300) { // under PostgREST's .in() header cap
-    const { data: made, error } = await dep(deps, 'supabase').from('quizzes').select('id').in('id', ids.slice(i, i + 300)).eq('teacher_id', uid);
+    const { data: made, error } = await dep(deps, 'supabase').from('quizzes').select('id, story_book:meta->story->>book_id').in('id', ids.slice(i, i + 300)).eq('teacher_id', uid);
     if (error) throw new Error(error.message);
-    (made || []).forEach((q) => mine.add(q.id));
+    (made || []).forEach((q) => mine.set(q.id, q.story_book ? String(q.story_book) : null));
   }
-  rows.filter((q) => mine.has(q.id)).forEach((q) => out.set(q.id, { played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null }));
+  rows.filter((q) => mine.has(q.id)).forEach((q) => out.set(q.id, {
+    played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null, ...(q.source === 'story' ? { book: mine.get(q.id) } : {}),
+  }));
   return out;
 }
 
