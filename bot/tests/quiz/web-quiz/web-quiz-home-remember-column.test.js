@@ -193,6 +193,21 @@ describe('switch ON: the row is read first, the cache second', () => {
     expect(await Remember().owns({ device: DEVICE, chosenId: kidId })).toBe(false);
   });
 
+  test.each([
+    // each filter held on its own: the other two left as a live row would have them
+    ['revoked (its phone still set)', { revoked_at: new Date(Date.now() - 60000).toISOString(), revoked_by: 'stop' }],
+    ['its phone gone (not revoked)', { phone_norm: null }],
+    ['expired', { expires_at: new Date(Date.now() - 60000).toISOString() }],
+  ])('the device read never returns a row that is %s, even with the hash still on it', async (_l, patch) => {
+    const { kidId } = await joinNew();
+    expect((await Bindings.activeForDevice(HASH)).map((b) => b.canonical_id)).toEqual([kidId]);
+    Object.assign(rowOf(kidId), patch);
+    expect(rowOf(kidId).device_hash).toBe(HASH);
+    expect(await Bindings.activeForDevice(HASH)).toEqual([]);
+    flushCache();
+    expect(await Remember().owns({ device: DEVICE, chosenId: kidId })).toBe(false);
+  });
+
   test('the first home after a cache flush still draws the line ONCE (from the row), and never on a later open', async () => {
     const { kidId } = await joinNew();
     flushCache();

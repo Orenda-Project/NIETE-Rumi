@@ -36,6 +36,9 @@ const FLAG_KEY = 'web_quiz_stories';
 const BAND_KEY = 'web_quiz_stories_band';
 // "Read it together" needs the live reader's story keys: offered only when both of its switches are on.
 const LR3_KEYS = ['web_quiz_live_read_v3', 'web_quiz_challenge_realtime'];
+// The reader's kind screen on every stall (a dropped voice, a missing book, the page kept in the address, the mic per
+// page, the never-blank stage, no voice before Listen, the 600 ms button hold): the book says `steady: 1`. Off ⇒ no key.
+const STEADY_KEY = 'web_quiz_stories_steady';
 // "Slower" waits between phrases instead of slowing the voice: on, the book says slow_gaps (off: the payload is unchanged).
 const GAPS_KEY = 'web_quiz_stories_slow_gaps';
 const TTL_MS = 30 * 1000;
@@ -74,14 +77,14 @@ function counted(row) {
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, BAND_KEY, GAPS_KEY, ...LR3_KEYS]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, BAND_KEY, STEADY_KEY, GAPS_KEY, ...LR3_KEYS]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = new Map((data || []).map((r) => [r.key, r.value]));
     const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
-    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3: on && LR3_KEYS.every((k) => isTrue(by.get(k))), gaps: on && isTrue(by.get(GAPS_KEY)) };
+    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3: on && LR3_KEYS.every((k) => isTrue(by.get(k))), steady: on && isTrue(by.get(STEADY_KEY)), gaps: on && isTrue(by.get(GAPS_KEY)) };
   } catch (err) {
     logToFile('⚠️ web quiz stories: settings lookup failed — stories off', { error: err.message });
-    cache = { at: now, on: false, band: false, lr3: false, gaps: false };
+    cache = { at: now, on: false, band: false, lr3: false, steady: false, gaps: false };
   }
   return cache;
 }
@@ -367,7 +370,7 @@ async function bookData(id) {
   const f = await flags();
   if (!f.on) fail(404, 'stories_off');
   const b = await readyBook(id);
-  if (!b) fail(404, 'not_found');
+  if (!b) fail(404, f.steady ? 'gone' : 'not_found');
   const { data: pageRows } = await supabase.from('story_pages')
     .select('*').eq('book_id', b.id);
   const pages = (pageRows || []).slice().sort((x, y) => x.n - y.n);
@@ -381,7 +384,7 @@ async function bookData(id) {
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
-    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.gaps ? { slow_gaps: true } : {}),
+    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.steady ? { steady: 1 } : {}), ...(f.gaps ? { slow_gaps: true } : {}),
     pages: pages.map((p, i) => {
       const v = voiceOf.get(p.id);
       return {
@@ -512,7 +515,7 @@ async function stickersFor(studentId) {
 
 module.exports = {
   shelf, shelfPublic, book, bookData, event, hubBits, stickersFor, storiesOn, pageReadable,
-  pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY, resumeOf, orderedBooks, gradeOf, fileUrl,
+  pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY, STEADY_KEY, flags, resumeOf, orderedBooks, gradeOf, fileUrl,
   _reset: () => { cache = null; },
   _cardField: (fn) => { cardField = fn; },
 };

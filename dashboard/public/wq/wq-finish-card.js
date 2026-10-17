@@ -78,11 +78,11 @@
   // headline by how it ended, and the count-up deed (on this screen only: never on the picture or in the share).
   var S = {
     en: { together: "Let's read it together", later: 'Just wait a little.', readSome: 'You read with Jugnu!', heardSome: 'You listened with Jugnu!', sticker: 'A new sticker!',
-      finished: 'You finished the story!', qsDone: function (s, n) { return s + (n === 1 ? ' question answered' : ' questions answered'); },
+      finished: 'You finished the story!', looked: 'You looked through the whole book.', qsDone: function (s, n) { return s + (n === 1 ? ' question answered' : ' questions answered'); },
       pagesRead: function (s, n) { return s + (n === 1 ? ' page read' : ' pages read'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' page heard' : ' pages heard'); } },
     ur: { together: 'آئیں مل کر پڑھیں', later: 'بس تھوڑا سا انتظار کریں۔', readSome: 'آپ نے جگنو کے ساتھ پڑھا!', heardSome: 'آپ نے جگنو کے ساتھ سنا!', sticker: 'ایک نیا اسٹیکر!',
-      finished: 'آپ نے کہانی پوری کر لی!', qsDone: function (s, n) { return s + (n === 1 ? ' سوال کا جواب دیا' : ' سوالوں کے جواب دیے'); },
+      finished: 'آپ نے کہانی پوری کر لی!', looked: 'آپ نے پوری کتاب دیکھ لی۔', qsDone: function (s, n) { return s + (n === 1 ? ' سوال کا جواب دیا' : ' سوالوں کے جواب دیے'); },
       pagesRead: function (s, n) { return s + (n === 1 ? ' صفحہ پڑھا' : ' صفحے پڑھے'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' صفحہ سنا' : ' صفحے سنے'); } }
   };
@@ -136,7 +136,8 @@
       // (a count, never a score); only answered: the story's own "answered" deed
       var qa = o.whole === true ? Math.max(0, Math.floor(Number(o.answered) || 0)) : 0;
       var qs = qa ? { n: qa, text: S[l].qsDone(l === 'ur' ? urDigits(qa) : String(qa), qa) } : null;
-      if (tried && qa) return { kind: 'story', deed: 'answered', tried: false, head: S[l].finished, count: null, qs: qs };
+      // nothing heard or read: the server keeps no finish (no ✓, no sticker), so the card says what the shelf will show
+      if (tried && qa) return { kind: 'story', deed: 'answered', tried: false, head: o.sticker === true ? S[l].finished : S[l].looked, count: null, qs: qs };
       return { kind: 'book', deed: tried ? 'read_tried' : heard ? 'listen_done' : 'book_read', tried: tried, qs: tried ? null : qs,
         head: tried ? S[l].together : o.whole === true ? S[l].finished : heard ? S[l].heardSome : S[l].readSome,
         count: tried || !n ? null : { n: n, text: function (k) { return S[l][heard ? 'pagesHeard' : 'pagesRead'](l === 'ur' ? urDigits(k) : String(k), k); } } };
@@ -200,7 +201,8 @@
     return '<div class="wqfc" data-screen="card" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '">' + (o.top || '') +
       (o.sound === false ? '' : '<button class="wqfc-snd" id="wqfc-snd" type="button" data-tap="sound" aria-label="' + esc(W[l].sound) + '" aria-pressed="' + (muted() ? 'true' : 'false') + '">' + (muted() ? SND_OFF : SND_ON) + '</button>') +
       (lead ? tile : '') +
-      '<a class="wq-btn ' + (lead ? 'wq-soft' : 'wq-go') + ' wqfc-share" id="wqfc-share"' + (lead ? '' : ' data-primary') + ' data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(text)) + '">' + esc(o.plain === true ? W[l].sendPlain : W[l].send) + '</a>' +
+      // a read that certified nothing (read_tried) is not shared: no Share on the try card
+      (o.deed === 'read_tried' ? '' : '<a class="wq-btn ' + (lead ? 'wq-soft' : 'wq-go') + ' wqfc-share" id="wqfc-share"' + (lead ? '' : ' data-primary') + ' data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(text)) + '">' + esc(o.plain === true ? W[l].sendPlain : W[l].send) + '</a>') +
       (lead ? '' : tile) +
       (o.home && /^\/[^/]/.test(o.home) ? '<a class="wq-btn wq-soft wqfc-home" id="wqfc-home" data-home data-tap="home" href="' + esc(o.home) + '">' + esc(W[l].home) + '</a>' : '') +
       '</div>';
@@ -348,7 +350,8 @@
       var top = f.head ? coverHtml(o.cover, o.title) + '<h2 class="wqfc-head" dir="auto">' + esc(f.head) + '</h2>' +
         (f.count ? '<p class="wqfc-count" data-n>' + esc(f.count.text(f.count.n)) + '</p>' : '') +
         (f.qs ? '<p class="wqfc-count" data-qs>' + esc(f.qs.text) + '</p>' : '') +
-        (f.tried ? '' : '<p class="wqfc-st" data-sticker>' + STICKER + '<span>' + esc(S[l].sticker) + '</span></p>') : '';
+        // a storybook's sticker only when the server gave one (a book read again, or only looked through, gets none)
+        (f.tried || o.source === 'story' && o.sticker !== true ? '' : '<p class="wqfc-st" data-sticker>' + STICKER + '<span>' + esc(S[l].sticker) + '</span></p>') : '';
       o = { kind: f.kind, deed: f.deed, lang: l, title: o.title, next: o.next, lead: o.lead, home: o.home, auth: o.auth, ev: o.ev, top: top, count: f.count };
     }
     if (!stack || typeof stack.insertAdjacentHTML !== 'function' || !o || !KIND_DEEDS[o.kind] || KIND_DEEDS[o.kind].indexOf(o.deed) < 0) return false;
@@ -419,7 +422,11 @@
       var old = document.getElementById('wqfc-next') ? document.getElementById('wqc-next') : null;
       if (old && old.parentNode) old.parentNode.removeChild(old);
       var home = document.getElementById('wqc-menu');
-      if (home && /\bwq-go\b/.test(home.className)) home.className = home.className.replace(/\bwq-go\b/, 'wq-soft');
+      // the try card with no tile to lead with draws no primary of its own (no Share): the host's Home stays the one
+      if (home && /\bwq-go\b/.test(home.className)) {
+        if (deed === 'read_tried' && !document.getElementById('wqfc-next')) home.setAttribute('data-primary', '');
+        else home.className = home.className.replace(/\bwq-go\b/, 'wq-soft');
+      }
     } catch (e) { /* the card still works */ }
     return true;
   }
