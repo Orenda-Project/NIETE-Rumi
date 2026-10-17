@@ -435,6 +435,45 @@ describe('web_quiz_remember_shown_row: "shown" is kept on the row too, so a cach
     }
   });
 
+  test('the answer is kept 30 s only: the column flipped off after a read is off on the next read past the 30 s', async () => {
+    seed({ shown: true });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: true });
+    const t0 = 1800000000000;
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags(t0);
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: true, stories: true, column: true, shown: true });
+    fake.db.app_settings.find((r) => r.key === 'web_quiz_remember_column').value = false;
+    const g = await HomeFlags.flags(t0 + 31000);
+    expect({ home: g.home, stories: g.stories, column: g.column, shown: g.shown }).toEqual({ home: true, stories: true, column: false, shown: true });
+  });
+
+  test.each([['web_quiz_remember_column'], ['web_quiz_remember_shown_row']])('a failed read on %s after a good one: the column and shown are off, never the earlier answer kept', async (failingKey) => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed({ shown: true });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: true });
+    const t0 = 1800000000000;
+    const good = supabase.from;
+    const faulty = throwOn(good, failingKey);
+    let failing = false;
+    supabase.from = (t) => (failing ? faulty : good)(t);
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags(t0);
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: true, stories: true, column: true, shown: true });
+    failing = true;
+    const g = await HomeFlags.flags(t0 + 31000);
+    expect({ home: g.home, stories: g.stories, column: g.column, shown: g.shown }).toEqual({ home: true, stories: true, column: false, shown: false });
+  });
+
+  test.each([['web_quiz_remember_column'], ['web_quiz_remember_shown_row']])('a failed read on %s with the home and the shelf stored as the string "true": the read made again keeps them off', async (failingKey) => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed({ home: 'true', shown: true });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: 'true' });
+    supabase.from = throwOn(supabase.from, failingKey);
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags();
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: false, stories: false, column: false, shown: false });
+  });
+
   test('a failed read on the home switch itself still turns every switch off (fails closed, as today)', async () => {
     const { throwOn } = require('../../helpers/switch-off-matrix');
     seed({ shown: true });
