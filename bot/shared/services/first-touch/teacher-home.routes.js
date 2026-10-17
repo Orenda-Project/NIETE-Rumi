@@ -79,12 +79,11 @@ function createRouter(deps = null) {
 
   // The switch, first: off → 404 {off:true} for every path of this router, whatever the token.
   router.use(async (req, res, next) => {
-    // the quick home's switch is asked alongside the home's own (never after it), by the home only
-    const pagedSoon = req.path === '/api/th/home' ? Flags.paged().catch(() => false) : null;
     let on = false;
     try { on = (await Flags.on()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
-    req.thPaged = pagedSoon;
+    // the quick answer's switch, asked only once the home is on (its own 30 s cache), by the home and its shell
+    req.thPaged = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.paged().then((v) => v === true, () => false) : null;
     return next();
   });
   router.use(express.json({ limit: '4kb' }));
@@ -248,7 +247,7 @@ function createRouter(deps = null) {
     if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
     if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur');
     const { lang, switchTo } = Page.pageLang(v.ok.lang, asked(req.query.lang));
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang) });
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
@@ -288,7 +287,7 @@ function createRouter(deps = null) {
     const userP = Data.teacherOf(p.uid, deps);
     const soon = quickReads(p.uid);
     const pfP = Data.within(Cta.prefillOf(p.uid), Data.SIDE_BUDGET_MS, null, 'prefill');
-    const treeP = Data.within(Bank.chipTree(), Data.SIDE_BUDGET_MS, {}, 'video bank');
+    const treeP = Data.within(Bank.chipTree(Date.now(), { quick: true }), Data.SIDE_BUDGET_MS, {}, 'video bank');
     // the grade the page asked for is known now: the stories shelf need not wait for the prefill
     const gradeP = /^[1-5]$/.test(String(req.query.g || '')) ? Promise.resolve(Data.gradeOf(req.query.g, null)) : pfP.then((pf) => Data.gradeOf(req.query.g, pf));
     // the shelf as soon as the grade is known (never after the video bank); the video pick once the bank is in
@@ -303,6 +302,8 @@ function createRouter(deps = null) {
       Data.within(Data.childrenLink(user, deps), Data.SIDE_BUDGET_MS, null, 'children'),
       changeLanding(user, lang).then(async (change) => ({ change, walk: await walkRow(change, lang) })),
     ]) : null));
+    // a failed user read is answered below (the route's 503); the reads chained on it must not reject unheard
+    sideP.catch(() => {});
     const firstP = firstOpen(p.uid);
     const user = await userP;
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }

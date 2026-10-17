@@ -1,9 +1,10 @@
 'use strict';
 /**
- * The teacher home's switches: app_settings `quiz_teacher_home` (the home itself) and `quiz_teacher_home_paged` (the
- * home's first answer carries five timeline rows + `more`, «More» asks /api/th/timeline). Only a real `true` (JSON true
- * or the string "true") is on; an absent row, `false`, any other value ("yes", 1, {}) and a failed read are all OFF.
- * 30 s cache each; the router starts both reads together.
+ * The teacher home's switches: app_settings `quiz_teacher_home` (the home itself: JSON true or the string "true") and
+ * `quiz_teacher_home_paged` (the home's quick answer: every read started at once, the lessons read light, the page's
+ * 15 s wait for its answer; JSON `true` ONLY). An absent row, `false`, any other value ("yes", 1, {}) and a failed read
+ * are all OFF; the string "true" is OFF for the quick answer. 30 s cache each; the quick answer's is read only once the
+ * home is on.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -34,13 +35,13 @@ async function on(now = Date.now()) {
   }
 }
 
-/** → true only when `quiz_teacher_home_paged` reads a real true. Never throws. Its own 30 s cache. */
+/** → true only when `quiz_teacher_home_paged` is JSON `true` (never a string form). Never throws. Its own 30 s cache. */
 async function paged(now = Date.now()) {
   if (pagedCache && now - pagedCache.at < TTL_MS) return pagedCache.on;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', PAGED_KEY).maybeSingle();
     if (error) throw new Error(error.message || 'app_settings read failed');
-    pagedCache = { at: now, on: Boolean(data) && isTrue(data.value) };
+    pagedCache = { at: now, on: Boolean(data) && data.value === true };
     return pagedCache.on;
   } catch (err) {
     logToFile('⚠️ teacher home: paged switch lookup failed — the full answer', { error: err && err.message });

@@ -204,14 +204,35 @@ q('#th-copy').addEventListener('click',copy);
 q('#th-cards').addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('[data-card]'):null;if(a)step('card_'+a.getAttribute('data-card'))});
 q('#th-sheet-go').addEventListener('click',function(){if(cur&&!srv(cur))step('share_tap',{kind:cur.sendKind,id:cur.id,origin:cur.origin,c:cur.c})});
 q('#th-grades').addEventListener('click',function(e){var c=e.target&&e.target.closest?e.target.closest('[data-grade]'):null;if(c)pickGrade(c.getAttribute('data-grade'))});
-var g0=store('th.grade'),hq='/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''),ask=0;
+var g0=store('th.grade');
+getj('/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''))
+.then(function(x){d=x;grade=x.library&&x.library.grade;render()}).catch(function(e){if(e!==1){err(true);q('#th-main').setAttribute('data-ready','err')}});
+})();`;
+const SCRIPT_HASH = sha(SCRIPT);
+
+/**
+ * The page with the quick answer (switch quiz_teacher_home_paged ON): today's script with these parts swapped, so the
+ * page with the switch OFF is today's byte for byte. The home's answer is waited for 15 s at most: after that (or on a
+ * refusal) the error line and «Try again», which asks again; a late answer is still drawn, a stale timer stays quiet.
+ */
+const PAGED_SWAPS = Object.freeze([
+  [`var g0=store('th.grade');
+getj('/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''))
+.then(function(x){d=x;grade=x.library&&x.library.grade;render()}).catch(function(e){if(e!==1){err(true);q('#th-main').setAttribute('data-ready','err')}});`, `var g0=store('th.grade'),hq='/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''),ask=0;
 function stuck(){err(true);q('#th-retry').hidden=false;q('#th-main').setAttribute('data-ready','err')}
 function home(){var n=++ask;setTimeout(function(){if(!d&&n===ask){step('home_slow');stuck()}},15000);
 getj(hq).then(function(x){if(d)return;d=x;grade=x.library&&x.library.grade;err(false);q('#th-retry').hidden=true;render()}).catch(function(e){if(e!==1&&!d&&n===ask)stuck()})}
 q('#th-retry').addEventListener('click',function(){q('#th-retry').hidden=true;err(false);q('#th-main').removeAttribute('data-ready');step('home_retry');home()});
-home();
-})();`;
-const SCRIPT_HASH = sha(SCRIPT);
+home();`],
+]);
+function swapped(base, swaps) {
+  return swaps.reduce((out, [from, to]) => {
+    if (out.split(from).length !== 2) throw new Error('teacher home page: a paged part no longer matches the script');
+    return out.replace(from, () => to);
+  }, base);
+}
+const SCRIPT_PAGED = swapped(SCRIPT, PAGED_SWAPS);
+const SCRIPT_PAGED_HASH = sha(SCRIPT_PAGED);
 
 function csp(styleHash, scriptHash, { meta = false } = {}) {
   return `default-src 'none'; style-src 'sha256-${styleHash}'; ${scriptHash ? `script-src 'sha256-${scriptHash}'; connect-src 'self'; ` : ''}`
@@ -248,7 +269,9 @@ const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.s
  * caller) rides only in the boot block; every teacher-specific word arrives from /api/th/home after paint. `asked` is
  * the ?lang the page was opened with (bi tokens only). → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false }) {
+  const script = paged ? SCRIPT_PAGED : SCRIPT;
+  const scriptHash = paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH;
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}`;
   const styleHash = sha(style);
@@ -261,12 +284,11 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
     : '';
   const chips = [1, 2, 3, 4, 5].map((g) => `<button type="button" class="th-chip" data-grade="${g}" data-tap="grade" aria-pressed="false" aria-label="${esc(str('th.grade.n', l).replace('{n}', digits(g, l)))}">${esc(digits(g, l))}</button>`).join('');
   const boot = { t: token, lang: l, ask: switchTo && asked === 'en' ? 'en' : null, dg: l === 'ur' ? UR_DIGITS : null, s };
-  const html = `${head(l, str('th.title', l), style, styleHash, SCRIPT_HASH)}
+  const html = `${head(l, str('th.title', l), style, styleHash, scriptHash)}
 <body>
 <main class="th" id="th-main" data-screen="teacher_home" data-home>
 <header class="th-top"><h1 id="th-h">${esc(str('th.hello.noname', l))}</h1>${sw}</header>
-<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>
-<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
+<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${paged ? `\n<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>` : ''}${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
 <section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>
 <ul class="th-rows" id="th-confirm" hidden></ul>
 <a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>
@@ -306,10 +328,10 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
 </div>
 </section>
 <script type="application/json" id="th-boot">${bootJson(boot)}</script>
-<script>${SCRIPT}</script>
+<script>${script}</script>
 </body>
 </html>`;
-  return { html, csp: csp(styleHash, SCRIPT_HASH) };
+  return { html, csp: csp(styleHash, scriptHash) };
 }
 
-module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, digits };
+module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH, digits };
