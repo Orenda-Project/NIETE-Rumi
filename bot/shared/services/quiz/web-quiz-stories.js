@@ -36,6 +36,9 @@ const FLAG_KEY = 'web_quiz_stories';
 const BAND_KEY = 'web_quiz_stories_band';
 // "Read it together" needs the live reader's story keys: offered only when both of its switches are on.
 const LR3_KEYS = ['web_quiz_live_read_v3', 'web_quiz_challenge_realtime'];
+// Your turn's word rules (a word said again absorbed, words run together, the longest skipped word to practise, the page
+// event's absorbed count): the book's lrr, only with live reading on and this switch the boolean true; off ⇒ today's reader.
+const REPEAT_KEY = 'web_quiz_lr_repeat';
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
@@ -48,7 +51,7 @@ const EVENTS = new Set(['story_opened', 'story_page_listened', 'story_page_read'
 const KEEP = {
   story_opened: { shelf_position: 'int', from_teacher: 'bool', grade: 'int', lang: 'lang', code: 'code' },
   story_page_listened: { ms: 'int', completed: 'bool', miss: 'bool' },
-  story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended', first: 'first', skipped_words: 'ints' },
+  story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended', first: 'first', skipped_words: 'ints', absorbed: 'count' },
   story_questions_done: {},
   story_done: { pages_listened: 'int', pages_read: 'int', stars: 'int' },
   story_shared: {},
@@ -72,14 +75,15 @@ function counted(row) {
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, BAND_KEY, ...LR3_KEYS]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, BAND_KEY, ...LR3_KEYS, REPEAT_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = new Map((data || []).map((r) => [r.key, r.value]));
     const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
-    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3: on && LR3_KEYS.every((k) => isTrue(by.get(k))) };
+    const lr3 = on && LR3_KEYS.every((k) => isTrue(by.get(k)));
+    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3, lrr: lr3 && isTrue(by.get(REPEAT_KEY)) };
   } catch (err) {
     logToFile('⚠️ web quiz stories: settings lookup failed — stories off', { error: err.message });
-    cache = { at: now, on: false, band: false, lr3: false };
+    cache = { at: now, on: false, band: false, lr3: false, lrr: false };
   }
   return cache;
 }
@@ -207,6 +211,7 @@ function keep(event, data) {
     else if (spec[k] === 'ended' && ENDED.has(v)) out[k] = v;
     else if (spec[k] === 'code' && typeof v === 'string' && /^[A-Za-z0-9]{4,12}$/.test(v)) out[k] = v;
     else if (spec[k] === 'first' && (v === 'listen' || v === 'read')) out[k] = v;
+    else if (spec[k] === 'count' && Number.isInteger(v) && v >= 0) out[k] = Math.min(v, 2000);   // words said again, absorbed
     else if (spec[k] === 'ints' && Array.isArray(v)) out[k] = v.filter((n) => Number.isInteger(n) && n >= 0 && n < 2000).slice(0, 10);
   });
   return out;
@@ -382,7 +387,7 @@ async function bookData(id) {
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
-    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3,
+    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.lrr ? { lrr: true } : {}),
     pages: pages.map((p, i) => {
       const v = voiceOf.get(p.id);
       return {

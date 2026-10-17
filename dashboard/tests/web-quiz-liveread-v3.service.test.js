@@ -55,6 +55,143 @@ describe('the matcher: transcript tokens → passage words', () => {
     const two = [{ t: 'mum', alt: ['ma'] }, { t: 'and' }, { t: 'mam', alt: ['ma'] }];
     expect([...lib().matcher(two.map((x) => x.t), 'en', two).push(toks(['ma', 'and', 'ma'])).states]).toEqual(['read', 'read', 'read']);
   });
+  describe('web_quiz_lr_repeat ON (the book\'s lrr → opt.repeat === true): a word said again is absorbed, words run together count', () => {
+    const PAGE = 'My cat plays with me in the sun every single day'.split(' ');
+    const said = (page, heard, lang = 'en') => lib().matcher(page, lang, undefined, { repeat: true }).push(toks(heard.split(' ')));
+    const skippedOf = (v) => v.states.map((x, i) => (x === 'skipped' ? i : -1)).filter((i) => i >= 0);
+    test('«plays plays»: 11/11 read, nothing to practise, one word absorbed', () => {
+      const v = said(PAGE, 'my cat plays plays with me in the sun every single day');
+      expect([v.read, v.skipped, v.total, v.absorbed]).toEqual([11, 0, 11, 1]);
+      expect(lib().result(v, {}).marks.indexOf('skipped')).toBe(-1);
+    });
+    test('a repeat never counts as a miss on the next word: «plays plays» then «me» skipped → only «me» is skipped', () => {
+      const v = said(PAGE, 'my cat plays plays with in the sun every single day');
+      expect(skippedOf(v)).toEqual([4]);
+      expect(v.read).toBe(10);
+    });
+    test('a re-read after a stumble: «my ca cat cat» is 0 misses; «in the th the» never makes «in» a miss', () => {
+      const w = said(PAGE, 'my cat plays with in the th the sun every single day');
+      expect(skippedOf(w)).toEqual([4]);
+      expect(w.absorbed).toBe(1);
+      const v = said(PAGE, 'my ca cat cat plays with me in the sun every single day');
+      expect([v.read, v.skipped, v.absorbed]).toEqual([11, 0, 1]);
+    });
+    test('a word TWO back is not absorbed (a real skip-and-return): the alignment stays as it is today', () => {
+      const v = said(PAGE, 'my cat plays cat with in the sun every single day');
+      expect([...v.states]).toEqual(['read', 'read', 'read', 'skipped', 'skipped', 'read', 'read', 'read', 'read', 'read', 'read']);
+      expect(v.absorbed).toBe(0);
+    });
+    test('«Mama plays with me» heard «plays plays»: all read, nothing to practise', () => {
+      const v = said('Mama plays with me'.split(' '), 'mama plays plays with me');
+      expect([...v.states]).toEqual(['read', 'read', 'read', 'read']);
+      expect(v.absorbed).toBe(1);
+    });
+    test('a word the page prints twice is never absorbed: «I am very very happy» read right is 5/5; one «very» heard stays as today', () => {
+      const page = 'I am very very happy'.split(' ');
+      const v = said(page, 'i am very very happy');
+      expect([v.read, v.skipped, v.absorbed]).toEqual([5, 0, 0]);
+      expect([...said(page, 'i am very happy').states]).toEqual(['read', 'read', 'read', 'current', 'ahead']);   // today's alignment
+    });
+    test('Urdu, through the real fold: a printed repeat is read; a spoken repeat is absorbed; a repeat never costs the next word', () => {
+      const w = said('وہ جلدی سے اپنے گھر گیا'.split(' '), 'وہ جلدی جلدی سے گھر گیا', 'ur');
+      expect([...w.states]).toEqual(['read', 'read', 'read', 'skipped', 'read', 'read']);
+      const pr = 'وہ جلدی جلدی گھر گیا'.split(' ');
+      expect([...said(pr, 'وہ جلدی جلدی گھر گیا', 'ur').states]).toEqual(['read', 'read', 'read', 'read', 'read']);
+      expect([...said(pr, 'وہ جلدی گھر گیا', 'ur').states]).toEqual(['read', 'skipped', 'read', 'read', 'read']);   // today's alignment
+      const v = said('وہ گھر گیا'.split(' '), 'وہ گھر گھر گیا', 'ur');
+      expect([v.read, v.skipped, v.absorbed]).toEqual([3, 0, 1]);
+    });
+    test('a word printed three in a row («ٹپ ٹپ ٹپ») read right: 3/3, nothing absorbed; «Drip! Drip!» at the very start of a page', () => {
+      const v = said('ٹپ ٹپ ٹپ'.split(' '), 'ٹپ ٹپ ٹپ', 'ur');
+      expect([v.read, v.skipped, v.absorbed]).toEqual([3, 0, 0]);
+      const page = 'Drip! Drip! It rains'.split(' ');
+      expect([...said(page, 'Drip! Drip! It rains').states]).toEqual(['read', 'read', 'read', 'read']);
+      const w = said(page, 'Drip! Drip! Drip! It rains');
+      expect([w.read, w.skipped, w.absorbed]).toEqual([4, 0, 1]);
+    });
+    test('one word heard = two printed words run together: both read at their own places (UR «دیاسلائی», EN «sunflower», «into»)', () => {
+      const ur = said('ٹوٹ بٹوٹ نے دِیا سَلائی جلائی'.split(' '), 'ٹوٹ بٹوٹ نے دیاسلائی جلائی', 'ur');
+      expect([...ur.states]).toEqual(['read', 'read', 'read', 'read', 'read', 'read']);
+      expect(lib().result(ur, {}).marks.indexOf('skipped')).toBe(-1);   // no word to practise
+      expect([...said('I saw a sun flower today'.split(' '), 'i saw a sunflower today').states]).toEqual(Array(6).fill('read'));
+      expect([...said('He went in to the house'.split(' '), 'he went into the house').states]).toEqual(Array(6).fill('read'));
+    });
+    test('two words heard = one printed word: it is read (UR «ہر» + «روز» → «ہرروز», EN «in» + «to» → «into»)', () => {
+      expect([...said('وہ ہرروز آتا ہے'.split(' '), 'وہ ہر روز آتا ہے', 'ur').states]).toEqual(['read', 'read', 'read', 'read']);
+      expect([...said('He went into the house'.split(' '), 'he went in to the house').states]).toEqual(Array(5).fill('read'));
+    });
+    test('a printed word that folds to nothing (a dash, a lone «۔"») is never a skip nor the word to practise; total and indices kept', () => {
+      const lib1 = lib();
+      const v = lib1.matcher(['He', 'said', '—', 'go', 'home'], 'en', undefined, { repeat: true }).push(toks(['He', 'said', 'go', 'home']));
+      expect([v.read, v.skipped, v.total, v.states.length]).toEqual([5, 0, 5, 5]);
+      expect(lib1.result(v, {}).marks.indexOf('skipped')).toBe(-1);
+      const ur = lib().matcher(['کہا', '۔"', 'پھر', 'وہ'], 'ur', undefined, { repeat: true }).push(toks(['کہا', 'پھر', 'وہ']));
+      expect([...ur.states]).toEqual(['read', 'read', 'read', 'read']);
+      const mid = lib().matcher(['He', 'said', '—', 'go', 'home'], 'en', undefined, { repeat: true }).push(toks(['He', 'said']));
+      expect([...mid.states]).toEqual(['read', 'read', 'read', 'current', 'ahead']);
+      expect(mid.current).toBe(3);
+    });
+    test('no word said again → nothing absorbed and the result carries no absorbed key; with one, the count only', () => {
+      const v = said(PAGE, 'my cat plays with me the sun every single day');
+      expect(v.absorbed).toBe(0);
+      expect(Object.keys(lib().result(v, {}))).not.toContain('absorbed');
+      expect(lib().result(said(PAGE, 'my cat plays plays with me'), {}).absorbed).toBe(1);
+    });
+    test('practice(r, words, true): the longest skipped word is the one left skipped (a tie keeps the earlier); not exactly true → r unchanged', () => {
+      const words = ['The', 'game', 'is', 'so', 'fun.'].map((t) => ({ t }));
+      const r = { marks: ['skipped', 'skipped', 'read', 'read', 'read'], words_read: 3 };
+      expect(lib().practice(r, words, true).marks).toEqual(['passed', 'skipped', 'read', 'read', 'read']);
+      expect(lib().practice({ marks: ['read', 'read', 'skipped', 'skipped', 'read'] }, words, true).marks).toEqual(['read', 'read', 'skipped', 'passed', 'read']);
+      expect(lib().practice({ marks: ['skipped', 'read', 'read', 'read', 'read'] }, words, true).marks).toEqual(['skipped', 'read', 'read', 'read', 'read']);
+      for (const off of [undefined, false, 'true', 1]) expect(lib().practice(r, words, off)).toBe(r);
+    });
+  });
+  test('web_quiz_lr_repeat OFF (absent, or the string "true"): the matcher is today\'s byte for byte on every pin\'s input (golden from ca8714f1c)', () => {
+    const P = 'My cat plays with me in the sun every single day';
+    const R = (n) => Array(n).fill('read');
+    // [printed, heard, the head's states] — the head's own output, recorded on ca8714f1c
+    const GOLD = [
+      [P, 'my cat plays plays with me in the sun every single day', R(11)],
+      [P, 'my cat plays plays with in the sun every single day', ['read', 'read', 'read', 'skipped', 'skipped', 'read', 'read', 'read', 'read', 'read', 'read']],
+      [P, 'my ca cat cat plays with me in the sun every single day', R(11)],
+      [P, 'my cat plays with in the th the sun every single day', ['read', 'read', 'read', 'read', 'skipped', 'skipped', 'read', 'read', 'read', 'read', 'read']],
+      [P, 'my cat plays cat with in the sun every single day', ['read', 'read', 'read', 'skipped', 'skipped', 'read', 'read', 'read', 'read', 'read', 'read']],
+      [P, 'my cat plays with me the sun every single day', ['read', 'read', 'read', 'read', 'read', 'skipped', 'read', 'read', 'read', 'read', 'read']],
+      ['Mama plays with me', 'mama plays plays with me', R(4)],
+      ['I am very very happy', 'i am very very happy', R(5)],
+      ['I am very very happy', 'i am very happy', ['read', 'read', 'read', 'current', 'ahead']],
+      ['وہ جلدی جلدی گھر گیا', 'وہ جلدی جلدی گھر گیا', R(5)],
+      ['وہ جلدی جلدی گھر گیا', 'وہ جلدی گھر گیا', ['read', 'skipped', 'read', 'read', 'read']],
+      ['وہ گھر گیا', 'وہ گھر گھر گیا', R(3)],
+      ['وہ جلدی سے اپنے گھر گیا', 'وہ جلدی جلدی سے گھر گیا', ['read', 'read', 'skipped', 'skipped', 'read', 'read']],
+      ['ٹپ ٹپ ٹپ', 'ٹپ ٹپ ٹپ', R(3)],
+      ['Drip! Drip! It rains', 'Drip! Drip! Drip! It rains', R(4)],
+      ['ٹوٹ بٹوٹ نے دِیا سَلائی جلائی', 'ٹوٹ بٹوٹ نے دیاسلائی جلائی', ['read', 'read', 'read', 'skipped', 'read', 'current']],
+      ['I saw a sun flower today', 'i saw a sunflower today', ['read', 'read', 'read', 'current', 'ahead', 'ahead']],
+      ['He went in to the house', 'he went into the house', ['read', 'read', 'skipped', 'skipped', 'read', 'read']],
+      ['وہ ہرروز آتا ہے', 'وہ ہر روز آتا ہے', ['read', 'skipped', 'read', 'read']],
+      ['He went into the house', 'he went in to the house', ['read', 'read', 'skipped', 'read', 'read']],
+    ];
+    const GOLD_RAW = [   // printed as given (a punctuation-only word kept): today it is skipped
+      [['He', 'said', '—', 'go', 'home'], 'He said go home', ['read', 'read', 'skipped', 'read', 'read']],
+      [['کہا', '۔"', 'پھر', 'وہ'], 'کہا پھر وہ', ['read', 'skipped', 'read', 'read']],
+    ];
+    for (const [printed, heard, want] of GOLD_RAW) GOLD.push([printed, heard, want]);
+    for (const [printed, heard, want] of GOLD) {
+      for (const opt of [undefined, {}, { repeat: 'true' }, { repeat: 1 }]) {
+        const v = lib().matcher(Array.isArray(printed) ? printed : printed.split(' '), 'en', undefined, opt).push(toks(heard.split(' ')));
+        expect([...v.states]).toEqual(want);
+        expect(Object.keys(v)).not.toContain('absorbed');
+        expect(Object.keys(lib().result(v, {}))).not.toContain('absorbed');
+      }
+    }
+    // the aligner itself: without o.join every caller's alignment is unchanged
+    const L = (() => { const window = {}; const ctx = { window, console, Math, String, Number, Object, Array, RegExp }; vm.createContext(ctx); vm.runInContext(LIVE_SRC, ctx); return window.WQLive; })();
+    const ref = ['he', 'went', 'in', 'to', 'the', 'house']; const hyp = ['he', 'went', 'into', 'the', 'house'];
+    expect([...L.alignPrefix(ref, hyp).status].slice(2, 4)).not.toContain('correct');
+    expect([...L.alignPrefix(ref, hyp, undefined, {}).status]).toEqual([...L.alignPrefix(ref, hyp).status]);
+    expect([...L.alignPrefix(ref, hyp, undefined, { join: true }).status]).toEqual(Array(6).fill('correct'));
+  });
   test('case and punctuation fold; a read word is "read", the next one "current", the rest "ahead"', () => {
     const m = lib().matcher(['Imran', 'woke', 'up', 'early', 'for', 'school.'], 'en');
     const v = m.push(toks(['imran', 'WOKE,', 'up']));
