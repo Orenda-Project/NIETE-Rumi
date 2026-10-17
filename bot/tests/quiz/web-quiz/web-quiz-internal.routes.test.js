@@ -115,6 +115,32 @@ test('the library from the hub and a hub video start take the device from x-wq-d
   } finally { lib.mockRestore(); start.mockRestore(); }
 });
 
+test('a quiz start and a Jugnu run start warm the next thing AFTER answering: the answer is the service\'s, untouched', async () => {
+  const WQ = require('../../../shared/services/quiz/web-quiz.service');
+  const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
+  const R = require('../../../shared/services/quiz/web-quiz-next-offer-result');
+  const startOut = { st: 's.t', quiz: { n: 3 } };
+  const exOut = { ex: 'bigger', ct: 'c.t' };
+  const start = jest.spyOn(WQ, 'startSession').mockResolvedValue(startOut);
+  const exercise = jest.spyOn(Ch, 'exercise').mockResolvedValue(exOut);
+  let release; const gate = new Promise((r) => { release = r; });
+  const ws = jest.spyOn(R, 'warmFromSession').mockImplementation(() => gate.then(() => true));
+  const wc = jest.spyOn(R, 'warmFromChallenge').mockImplementation(() => gate.then(() => true));
+  try {
+    const H = { ...KEY, 'x-wq-device': 'DevRefDevRefDevRef_-01' };
+    const a = await fetch(`${base}/session`, { method: 'POST', headers: H, body: JSON.stringify({ code: 'AB12CD' }) });
+    expect(a.status).toBe(200);
+    expect(await a.json()).toEqual(startOut);   // answered while the warm-up still waits
+    const b = await fetch(`${base}/ch/abc.def/bigger?kid=0123456789abcdef`, { headers: H });
+    expect(b.status).toBe(200);
+    expect(await b.json()).toEqual(exOut);
+    await new Promise((r) => setImmediate(r));
+    expect(ws).toHaveBeenCalledWith(startOut, { device: 'DevRefDevRefDevRef_-01' });
+    expect(wc).toHaveBeenCalledWith(exOut, { device: 'DevRefDevRefDevRef_-01' });
+    release();
+  } finally { start.mockRestore(); exercise.mockRestore(); ws.mockRestore(); wc.mockRestore(); }
+});
+
 test('a video start hands the video module the next-thing slot\'s after-video hook (the route composes; the video module loads none of the slot)', async () => {
   const Videos = require('../../../shared/services/quiz/web-quiz-videos');
   const After = require('../../../shared/services/quiz/web-quiz-next-offer-video');

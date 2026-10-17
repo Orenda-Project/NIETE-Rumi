@@ -72,26 +72,108 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false, 
 
 
 /**
- * One result's `{ next_offer }`: the snapshot's candidates + the result's own, ranked for `ctx`. `extra` is a list, or a
- * function returning one (a read of the caller's own): started at once, beside the child's reads, inside the deadline.
+ * The child's own candidates on this phone — the expensive part (the hub's per-child reads): { canonical, candidates,
+ * hasRoot, lang } or null (switch off, not the child's phone, past the deadline, any failure).
+ */
+async function childCandidates({ studentId, device, lang: asked = null, watch = false, live = null }) {
+  const snap = await snapshot({ studentId, device, lang: asked, watch, live });
+  if (!snap) return null;
+  const { canonical, token, out, history, collect, grade, lang } = snap;
+  const [{ quizIds, storyCodes, unsentCodes, known, covers }, books, onItsWay] = await Promise.all([
+    quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)], { history }),
+    storybooks({ studentId: canonical, lang, grade, token, chip: out.kid }),
+    onItsWayOf(canonical, studentId, collect.trail, lang, grade),
+  ]);
+  const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers,
+    subjectArt: require('./web-quiz-hub')._parts.subjectArtOf, extra: books, watch });
+  return { canonical, candidates, hasRoot: hasRootOf(history), lang };
+}
+
+// ── warm before the result: the candidates are read when a quiz or a Jugnu run starts (off the answer's path), kept
+// 15 minutes per child per phone, so the result card only ranks inside its deadline. The tokens in the hrefs are the
+// ones minted for (and bound to) that phone; no name is kept. A card that comes while its warm-up is still reading
+// waits for it (one read, not two). ──
+const WARM_TTL_S = 15 * 60;
+const warmKey = (studentId, device) => `wq:nxs:${crypto.createHash('sha256').update(`${studentId}|${T.cleanDeviceRef(device) || ''}`).digest('hex').slice(0, 24)}`;
+const inflight = new Map();   // warmKey -> the warm-up's promise (this process)
+const redisOf = () => require('../cache/railway-redis.service');
+
+function warmOk(v) {
+  return v && typeof v === 'object' && typeof v.canonical === 'string' && Array.isArray(v.candidates) && (v.lang === 'en' || v.lang === 'ur');
+}
+
+/** The warm list for this child on this phone (in the asked language), else null. Never throws. */
+async function warmFor(studentId, device, asked) {
+  try {
+    const key = warmKey(studentId, device);
+    const pending = inflight.get(key);
+    const v = pending ? await pending : await redisOf().get(key);
+    return warmOk(v) && (!asked || asked === v.lang) ? v : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Reads and keeps the child's candidates for this phone (switch on only). true when kept. Never throws. */
+async function warm({ studentId, device, lang = null } = {}) {
+  try {
+    const sw = await NO.switches();
+    if (!sw.on || !studentId || !T.cleanDeviceRef(device)) return false;
+    const key = warmKey(studentId, device);
+    if (inflight.has(key)) return Boolean(await inflight.get(key));
+    const p = childCandidates({ studentId, device, lang, watch: sw.watch }).then(async (v) => {
+      if (warmOk(v)) await redisOf().set(key, v, WARM_TTL_S);
+      return warmOk(v) ? v : null;
+    }).catch(() => null);
+    inflight.set(key, p);
+    try { return Boolean(await p); } finally { inflight.delete(key); }
+  } catch (_) {
+    return false;
+  }
+}
+
+/** A quiz start's answer ({st}): warm for its child on its phone — a child's own run only (as the finish's field). */
+async function warmFromSession(out = {}, { device = null } = {}) {
+  try {
+    if (!out || typeof out.st !== 'string' || !(await NO.switches()).on) return false;
+    const tok = T.verify(out.st, 's');
+    if (!tok || !tok.sid || !tok.d) return false;
+    const { read: dbRead } = require('./web-quiz-db-deadline');
+    const { data: s } = await dbRead('nextOffer:quiz_sessions:warm', (db) => db.from('quiz_sessions')
+      .select('id, student_id, user_id, invited_by_student_id, share_code_id').eq('id', tok.sid).maybeSingle());
+    if (!s || s.share_code_id !== tok.sc || !s.student_id || s.user_id || (s.invited_by_student_id && s.invited_by_student_id !== s.student_id)) return false;
+    return await warm({ studentId: s.student_id, device: tok.d || device });
+  } catch (_) {
+    return false;
+  }
+}
+
+/** A Jugnu run's start ({ct}): warm for its child on this phone; never for a class round's turn. */
+async function warmFromChallenge(out = {}, { device = null } = {}) {
+  try {
+    const c = out && typeof out.ct === 'string' ? T.verify(out.ct, 'c') : null;
+    if (!c || !c.sid || c.cr || !device) return false;
+    return await warm({ studentId: c.sid, device });
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * One result's `{ next_offer }`: the child's candidates (the warm list for this phone when there is one, else read
+ * now) + the result's own, ranked for `ctx`. `extra` is a list, or a function returning one (a read of the caller's
+ * own): started at once, beside the child's reads, inside the deadline.
  */
 async function resultField({ studentId, device, lang: asked = null, ctx, extra = [], drop = () => false, live = null }) {
   const sw = await NO.switches();
   if (!studentId || !sw.on) return {};
   const ownP = typeof extra === 'function' ? Promise.resolve().then(extra).catch(() => []) : Promise.resolve(extra);
-  const snap = await snapshot({ studentId, device, lang: asked, watch: sw.watch, live });
-  if (!snap) return {};
-  const { canonical, token, out, history, collect, grade, lang } = snap;
-  const [{ quizIds, storyCodes, unsentCodes, known, covers }, books, onItsWay, own] = await Promise.all([
-    quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)], { history }),
-    storybooks({ studentId: canonical, lang, grade, token, chip: out.kid }),
-    onItsWayOf(canonical, studentId, collect.trail, lang, grade),
-    ownP,
-  ]);
-  const candidates = [...(Array.isArray(own) ? own : []), ...candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers,
-    subjectArt: require('./web-quiz-hub')._parts.subjectArtOf, extra: books, watch: sw.watch })]
-    .filter((c, i, a) => !drop(c) && a.findIndex((x) => x.id === c.id) === i);
-  const next = await NO.nextFor({ ctx, studentId: canonical, candidates, hasRoot: hasRootOf(history), lang, live });
+  const base = (await warmFor(studentId, device, asked)) || (await childCandidates({ studentId, device, lang: asked, watch: sw.watch, live }));
+  if (!base) return {};
+  const own = await ownP;
+  const candidates = [...(Array.isArray(own) ? own : []), ...base.candidates]
+    .filter((c, i, a) => c && !drop(c) && a.findIndex((x) => x && x.id === c.id) === i);
+  const next = await NO.nextFor({ ctx, studentId: base.canonical, candidates, hasRoot: base.hasRoot, lang: base.lang, live });
   return next ? { next_offer: next } : {};
 }
 
@@ -213,4 +295,4 @@ async function challengeField(result, ct, opts) {
   return (await withDeadline((live) => challengeInner(result, ct, opts, live), DEADLINE_MS)) || {};
 }
 
-module.exports = { finishField, challengeField, offerFor, challengeCtx, passageWords, DEADLINE_MS, WEAK_SHARE, _snapshot: snapshot };
+module.exports = { finishField, challengeField, offerFor, warm, warmFromSession, warmFromChallenge, challengeCtx, passageWords, DEADLINE_MS, WEAK_SHARE, WARM_TTL_S, _snapshot: snapshot };

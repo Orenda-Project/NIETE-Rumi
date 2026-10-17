@@ -48,6 +48,8 @@ const ShareWarm = require('../services/quiz/web-quiz-share-warm');
 // The ranked next thing on a result (web_quiz_next_offer), required on use.
 const NextOffer = () => require('../services/quiz/web-quiz-next-offer-result');
 const AfterVideo = () => require('../services/quiz/web-quiz-next-offer-video');
+// Warm the next thing for the result while the child plays (web_quiz_next_offer; off -> nothing): after the answer, never in it.
+const warmNext = (run) => { setImmediate(() => { Promise.resolve().then(run).catch(() => {}); }); };
 const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
@@ -90,7 +92,11 @@ router.get('/quiz/:code', handle(async (req) => {
 router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => withCard(WebQuiz.getQuiz(c)))));
 // Whether the sound + motion kit is on (web_quiz_juice): the edge serves the kit's demo page only then.
 router.get('/juice', handle(async () => ({ on: await require('../services/quiz/web-quiz-juice').flag() })));
-router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
+router.post('/session', handle(async (req) => {
+  const out = await WebQuiz.startSession(req.body || {});
+  warmNext(() => NextOffer().warmFromSession(out, { device: req.get('x-wq-device') || null }));
+  return out;
+}));
 // An old, finished class link opened again on the phone that finished it: that child's hub, or {home: null}.
 router.post('/linkhome', handle((req) => require('../services/quiz/web-quiz-link-home').home(req.body || {}, WebQuiz.resolveCode)));
 // The handset key: the page redeems a bot-sent link's ?x= token once with its device (web-quiz-handset.js).
@@ -182,7 +188,11 @@ router.get('/ch/:token/back', handle(async (req) => {
   try { to = await require('../services/quiz/web-quiz-class-round').backTo(req.params.token, { lang: req.query.lang, device: req.get('x-wq-device') || undefined }); } catch (_) { to = null; }
   return { to };
 }));
-router.get('/ch/:token/:exercise', challenge(async (C, req) => C.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device'), ...(await storyAsk(C, req)) })));
+router.get('/ch/:token/:exercise', challenge(async (C, req) => {
+  const out = await C.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device'), ...(await storyAsk(C, req)) });
+  warmNext(() => NextOffer().warmFromChallenge(out, { device: req.get('x-wq-device') || null }));
+  return out;
+}));
 router.get('/challenge/results', challenge((C, req) => C.listResults({ cls: req.query.class, list: req.query.list })));
 // A link preview fetches this with no session: the signed id is the permission, so anyone may cache it.
 router.get('/art/:id', async (req, res) => {
