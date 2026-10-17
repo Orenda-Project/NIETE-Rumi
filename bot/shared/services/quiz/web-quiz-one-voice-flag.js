@@ -23,8 +23,8 @@
  * boot `one_voice`, `voice_sets`). A listen item's sound to identify (`stim`) is the question's material and is
  * always the recording.
  *
- * Off: an absent row, `false`, `{ "enabled": false }`, a string (the JSON string "true" too), any other value and a
- * failed read. 30 s cache.
+ * Off: an absent row, `false`, `{ "enabled": false }`, an object that names no valid `voices`, `bank` or `kbps` (`{}`,
+ * `{ "enabled": true }`), a string (the JSON string "true" too), any other value and a failed read. 30 s cache.
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
@@ -40,9 +40,11 @@ let cache = null; // { at, plan }
 let pinned; // a read-only tool's plan (pin): every reader in the process sees it, the switch is never read
 
 
+const validVoice = (raw) => Boolean(raw) && typeof raw === 'object' && PROVIDERS.includes(raw.provider) && typeof raw.voice === 'string' && Boolean(raw.voice.trim());
+
 function voiceOf(raw, lang) {
   const base = Voice.ONE_VOICE[lang];
-  if (!raw || typeof raw !== 'object' || !PROVIDERS.includes(raw.provider) || typeof raw.voice !== 'string' || !raw.voice.trim()) return base;
+  if (!validVoice(raw)) return base;
   const v = { provider: raw.provider, voice: raw.voice.trim(), name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : raw.voice.trim() };
   if (raw.provider === 'elevenlabs') {
     v.model = typeof raw.model === 'string' && raw.model.trim() ? raw.model.trim() : base.model;
@@ -56,9 +58,16 @@ function normalize(value) {
   const v = value;
   if (v === true) return withSig({ voices: { en: Voice.ONE_VOICE.en, ur: Voice.ONE_VOICE.ur }, bank: [], kbps: DEFAULT_KBPS });
   if (!v || typeof v !== 'object' || Array.isArray(v) || v.enabled === false) return null;
-  const voices = v.voices && typeof v.voices === 'object' ? v.voices : {};
-  const bank = Array.isArray(v.bank) ? BANK_PARTS.filter((p) => v.bank.includes(p)) : [];
-  const kbps = KBPS.includes(Number(v.kbps)) ? Number(v.kbps) : DEFAULT_KBPS;
+  // An object is a plan only when it names a valid `voices` (a language with a provider and a voice), `bank` (a list)
+  // or `kbps` (32 or 64): `{}`, `{ enabled: true }` or a stray row is off, never the default plan.
+  const hasVoices = Boolean(v.voices) && typeof v.voices === 'object' && !Array.isArray(v.voices)
+    && (validVoice(v.voices.en) || validVoice(v.voices.ur));
+  const hasBank = Array.isArray(v.bank);
+  const hasKbps = KBPS.includes(Number(v.kbps));
+  if (!hasVoices && !hasBank && !hasKbps) return null;
+  const voices = hasVoices ? v.voices : {};
+  const bank = hasBank ? BANK_PARTS.filter((p) => v.bank.includes(p)) : [];
+  const kbps = hasKbps ? Number(v.kbps) : DEFAULT_KBPS;
   return withSig({ voices: { en: voiceOf(voices.en, 'en'), ur: voiceOf(voices.ur, 'ur') }, bank, kbps });
 }
 
@@ -103,7 +112,7 @@ function current() { return Boolean(currentPlan()); }
 // (the challenge's clip keys). Never in tests: a test reads the switch itself.
 let fresh = null;
 function keepFresh() {
-  if (fresh || process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) return;
+  if (fresh || process.env.NODE_ENV === 'test') return;
   const tick = () => plan({ now: Date.now() }).catch(() => null);
   tick();
   fresh = setInterval(tick, TTL_MS);
@@ -133,8 +142,9 @@ function mixOf(audio, { sharedTag = null } = {}) {
 }
 
 /**
- * A read-only tool only (scripts/quiz/one-voice-missing-keys.js): every reader in this process sees `p` (a plan, or
- * null = off) and the switch is never read again, so the keys it computes are those of the plan it was given.
+ * A tool only (scripts/quiz/one-voice-missing-keys.js, its check and --record-short): every reader in this process
+ * sees `p` (a plan, or null = off) and the switch is never read again, so the keys it computes and the clips it
+ * records are those of the plan it was given.
  */
 function pin(p) { pinned = p || null; }
 
