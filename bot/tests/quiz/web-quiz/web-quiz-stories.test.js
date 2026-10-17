@@ -126,6 +126,16 @@ describe('the switch: off is closed everywhere', () => {
     fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(2), page_n: 2, event: 'story_page_listened', data: { miss: true }, at: at(1) });
     expect(await Stories.hubBits({ studentId: KID, now: NOON_PKT })).toEqual({ stories: { on: 1 } });
   });
+  test('hubBits: five half-read books whose newest three went back to draft cost ONE story_books read; the newest ready one wins', async () => {
+    seed();
+    const at = (h) => new Date(NOON_PKT - h * 3600000).toISOString();
+    [1, 2, 3, 4, 5].forEach((n) => fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(n), page_n: 1, event: 'story_page_read', data: {}, at: at(n) }));
+    fake.db.story_books.filter((b) => [F.BOOK(1), F.BOOK(2), F.BOOK(3)].includes(b.id)).forEach((b) => { b.status = 'draft'; });
+    const before = fake.calls.filter((c) => c.table === 'story_books').length;
+    const out = await Stories.hubBits({ studentId: KID, now: NOON_PKT });
+    expect(out.stories.resume).toEqual(expect.objectContaining({ book_id: F.BOOK(4), page_n: 2 }));
+    expect(fake.calls.filter((c) => c.table === 'story_books').length - before).toBe(1);
+  });
   test('hubBits: nothing half-read in 7 days → no resume key', async () => {
     seed();
     fake.db.story_events.push({ child_id: KID, book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: {}, at: new Date(NOON_PKT - 8 * DAY).toISOString() });
