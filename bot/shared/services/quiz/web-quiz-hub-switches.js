@@ -55,6 +55,7 @@ const MODULES = [
   () => require('./web-quiz-stories'),
   () => require('./web-quiz-next-offer-state'),
   () => require('./web-quiz-minify'),
+  () => require('./web-quiz-pack'),
 ];
 
 let list = null;

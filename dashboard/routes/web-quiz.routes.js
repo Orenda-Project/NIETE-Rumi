@@ -13,6 +13,7 @@
  *   GET  /wq-probe         a capability probe for real phones; posts its result as one event
  *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>);
  *                          ?v=<hash>m is the same JS/CSS minified at start-up (web_quiz_minify, minifiedFiles below)
+ *   GET  /wq/pack/<set>.js|.css  the child home's scripts / styles as one file each (web_quiz_pack, PACK below)
  *
  * The edge never touches the database. It checks shape and size, applies the rate
  * limits and adds x-forwarded-for; the bot owns every rule about the quiz itself.
@@ -236,6 +237,57 @@ function minifiedFiles(dir, logEvent, esbuildOpt) {
     }
   }).catch(() => {}).then(() => { state.ready = true; });
   return state;
+}
+
+// ── The child home's scripts and styles as one file each (app_settings web_quiz_pack, read by the bot; `pack: true`) ──
+// The set is named in the URL (/wq/pack/tel.bind.home.doors.play.js), one short name per file from a fixed list, in the
+// page's own order: a file the payload does not name is never in it, and any other name is a 404. The scripts are
+// joined with ";\n" (a file without a trailing semicolon never runs into the next), the styles with a new line. The
+// door screens (wq-doors) come before hub.js runs, so the home's first mount draws a door at once. hub.js stays its own
+// tag (the home's and the doors' loaders read their ?v= from it); wq.css (other pages share it) and the stories reader
+// (it fills the shelf and routes #story/ the moment it loads) stay their own files too.
+const PACK = {
+  js: [['tel', 'wq-tel.js'], ['bind', 'wq-bind.js'], ['home', 'wq-home.js'], ['doors', 'wq-doors.js'], ['play', 'hub-play.js']],
+  css: [['bind', 'wq-bind.css'], ['home', 'wq-home.css'], ['doors', 'wq-doors.css']],
+};
+const PACK_NAME_RX = /^([a-z]+(?:\.[a-z]+)*)\.(js|css)$/;
+const PACK_JOIN = { js: Buffer.from(';\n'), css: Buffer.from('\n') };
+
+/** The short names the hub payload calls for, in page order: { js: [...], css: [...] }. */
+function packParts(payload) {
+  const B = payload || {};
+  const on = { tel: true, bind: Boolean(B.bind), home: Boolean(B.home_v3), doors: Boolean(B.home_v3),
+    play: Boolean(B.play && typeof B.play === 'object') };
+  return { js: PACK.js.map(([k]) => k).filter((k) => on[k]), css: PACK.css.map(([k]) => k).filter((k) => on[k]) };
+}
+
+/** A pack's URL name -> { ext, files } (each from the fixed list, in its order, once), else null. */
+function packFiles(name) {
+  const m = PACK_NAME_RX.exec(String(name || ''));
+  if (!m) return null;
+  const ext = m[2];
+  const list = PACK[ext];
+  const want = m[1].split('.');
+  const files = [];
+  let at = 0;
+  for (const k of want) {
+    const i = list.findIndex(([n], j) => j >= at && n === k);
+    if (i < 0) return null;
+    files.push(list[i][1]);
+    at = i + 1;
+  }
+  return { ext, files };
+}
+
+/** The pack's bytes: the files from `read` (name -> Buffer), joined. */
+function packBody({ ext, files }, read) {
+  return Buffer.concat(files.flatMap((f, i) => (i ? [PACK_JOIN[ext], read(f)] : [read(f)])));
+}
+
+// The hub tail's own tags for the pack: one stylesheet (when the payload names a style) and one script.
+function packTags(payload, assetV) {
+  const { js, css } = packParts(payload);
+  return `${css.length ? `<link rel="stylesheet" href="/wq/pack/${css.join('.')}.css?v=${assetV}">\n` : ''}<script src="/wq/pack/${js.join('.')}.js?v=${assetV}" defer></script>\n`;
 }
 
 function originOf(req) {
@@ -572,8 +624,8 @@ function hubPageParts({ payload, token, origin, assetV, media = null }) {
     manifest: play && play.install ? `/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}` : null,
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
-<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}<script src="/wq/hub.js?v=${assetV}" defer></script>
+${payload && payload.pack === true ? packTags(payload, assetV) : `<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
+${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}`}${listenTag(payload)}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };
@@ -590,7 +642,17 @@ ${p.tail}`;
 
 // Fast first page for the hub: the head guessed from the phone's language and the last brand/look, the scripts
 // preloaded, the Jugnu frame; then the corrections (and the install manifest) and today's tail when the bot answers.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, media = null }) {
+// With the pack on (`pack`: the set the edge last linked, web_quiz_pack), the head preloads the pack's stylesheet and
+// script in wq-tel.js's place (wq-tel is inside the pack); hub.js's preload stays. Off: today's head.
+function renderHubFlushTop(args) {
+  const top = hubFlushTop(args);
+  if (!args.pack) return top;
+  const { js, css } = args.pack;
+  const pre = `${css.length ? `<link rel="preload" href="/wq/pack/${css.join('.')}.css?v=${args.assetV}" as="style">\n` : ''}<link rel="preload" href="/wq/pack/${js.join('.')}.js?v=${args.assetV}" as="script">`;
+  return { ...top, html: top.html.replace(`<link rel="preload" href="/wq/wq-tel.js?v=${args.assetV}" as="script">`, pre) };
+}
+
+function hubFlushTop({ lang, token, origin, assetV, brandKey, ui, media = null }) {
   const p = hubPageParts({ payload: { lang, brand: brandKey, ui }, token, origin, assetV, media });
   const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
@@ -798,6 +860,9 @@ function createWebQuizRouter(opts = {}) {
   const sfx = () => (lastMin && minified.ready && minified.files.size > 0 ? 'm' : '');
   let assetV = null;
   const version = () => (assetV || (assetV = assetVersion())) + sfx();
+  // The last hub payload's `pack` (app_settings web_quiz_pack, read by the bot): the set it linked, else null. The
+  // streamed hub's head preloads that set (the child is not known before the bot answers).
+  let lastPack = null;
   // The brand the bot last named: a closed or unreachable quiz still wears this deployment's brand.
   let lastBrand = null;
   // Whether the pages send their page-session events (wq-tel.js): the bot's last word, for the library page,
@@ -1021,7 +1086,7 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, media: lastMedia })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, media: lastMedia, pack: lastPack })
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
@@ -1039,6 +1104,7 @@ function createWebQuizRouter(opts = {}) {
       lastFast = out.body.fast === true;
       learnMedia(out.body);
       lastMin = out.body.min === true;
+      lastPack = out.body.pack === true ? packParts(out.body) : null;
       const payload = hubBootPayload(out.body, req);
       if (flush) return wire.page(withBotMark(renderHubFlushTail({ guess: flush.guess, payload, token, origin, assetV: version() }), res.locals.wqBotMs));
       return res.status(200).type('html').send(renderHubPage({ payload, token, origin, assetV: version(), media: mediaIfFast() }));
@@ -1226,6 +1292,31 @@ function createWebQuizRouter(opts = {}) {
     let html;
     try { html = fs.readFileSync(JUICE_DEMO_FILE, 'utf8'); } catch (_) { return res.status(404).type('text').send('not found'); }
     return res.status(200).type('html').send(html.replace(/__JV__/g, challengeVersion('wq-juice.js')).replace(/__CV__/g, challengeVersion('wq-juice.css')));
+  });
+
+  // The child home's pack (web_quiz_pack, PACK above): the named files joined, built once per set and input and kept in
+  // memory. At the page's own ?v= (the hub's version, with the minified suffix when that switch is on): from the
+  // minified copies when the version says so, immutable for a year. Any other ?v=, or none (a page from before a
+  // deploy or a flip): the raw files joined, not kept (no-cache). A name outside the fixed list: 404.
+  const packKept = new Map();
+  const rawFile = (f) => fs.readFileSync(path.join(publicDir, f));
+  router.get('/wq/pack/:name', (req, res) => {
+    const set = packFiles(req.params.name);
+    if (!set) return res.status(404).set('Cache-Control', 'no-store').type('text').send('not found');
+    const current = typeof req.query.v === 'string' && req.query.v === version();
+    const min = current && sfx() === 'm';
+    const key = `${min ? 'm' : 'r'}:${req.params.name}`;
+    let buf = packKept.get(key);
+    if (!buf) {
+      try {
+        buf = packBody(set, min ? (f) => minified.files.get(f) || rawFile(f) : rawFile);
+      } catch (_) {
+        return res.status(404).set('Cache-Control', 'no-store').type('text').send('not found');
+      }
+      packKept.set(key, buf);
+    }
+    res.set('Cache-Control', current ? `public, max-age=${YEAR_S}, immutable` : 'no-cache');
+    return res.type(set.ext).send(buf);
   });
 
   // A file's minified copy (?v=<hex>m, minifiedFiles) while this edge knows the switch is on (lastMin): the static

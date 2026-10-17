@@ -42,6 +42,7 @@ const ROWS = [
   [['web_quiz_card_v3']],
   [['web_quiz_next_offer', 'web_quiz_events_v3']],
   [['web_quiz_minify']],
+  [['web_quiz_pack']],
 ];
 
 const SAVED = { ...process.env };

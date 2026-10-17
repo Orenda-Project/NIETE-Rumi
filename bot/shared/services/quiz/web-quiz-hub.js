@@ -671,7 +671,10 @@ async function hub(token, opts = {}) {
   const listen = !out.locked && (await (flagsP || Flags.flags())).readalong;
   // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
   const min = require('./web-quiz-minify').on();
-  return { ...out, rt: await (rt || Tel.flag()), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...(min ? { min: true } : {}) };
+  // The home's scripts and styles as one file each (web-quiz-pack.js): named only when on, so a switched-off payload is today's.
+  const pack = require('./web-quiz-pack').on();
+  return { ...out, rt: await (rt || Tel.flag()), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...(min ? { min: true } : {}),
+    ...(pack ? { pack: true } : {}) };
 }
 
 module.exports = {
