@@ -5,7 +5,7 @@
  * Additive only: with the switch off (or any failure) `homeField` returns {} and the hub payload is today's, byte for byte.
  *
  *   homeField({ out, chosenId, history, pre, device, src })    {} | { home_v3: 1, doors, head, remember? }
- *   doorsOf({ out, stories, hasRoot })            the three doors (pure); every door is always present, an empty
+ *   doorsOf({ out, stories, hasRoot, videoShelf }) the three doors (pure); every door is always present, an empty
  *                                                 one is [] / null and the page shows its "coming soon" line
  *   headOf(stamps, now)                           { dots, today } (pure): days with a finish this PKT week, as a count
  *   prefetch(chosenId)                            the home's reads, started beside the hub's own: { flags, data }
@@ -76,7 +76,7 @@ function subjectArt(subject) {
 const withArt = (row) => { const art = row.art || subjectArt(row.subject); return art ? { ...row, art } : row; };
 
 /** The three doors (pure). `out` = the hub payload built so far; `stories` = web_quiz_stories on; `hasRoot` = a class quiz played. */
-function doorsOf({ out = {}, stories = false, hasRoot = false } = {}) {
+function doorsOf({ out = {}, stories = false, hasRoot = false, videoShelf = false } = {}) {
   const shelf = (out.play && Array.isArray(out.play.shelf)) ? out.play.shelf : [];
   const story = shelf
     .filter((t) => t && t.pid && (t.id === 'week_story' || t.id === 'listen'))
@@ -89,7 +89,7 @@ function doorsOf({ out = {}, stories = false, hasRoot = false } = {}) {
   const again = out.last && out.last.state === 'done' && out.last.again ? [{ code: out.last.code, k: out.last.k, topic: out.last.topic, subject: out.last.subject }] : [];
   again.concat(out.again || []).forEach((a) => { if (a && a.code) games.push(withArt({ kind: 'quiz', code: a.code, k: a.k, topic: a.topic || '', subject: a.subject || '', done: true, ...(a.art ? { art: a.art } : {}) })); });
   // Every child with a library: one with no class quiz yet WATCHES (videos/start's watch-only answer, same switch).
-  const videos = out.lib && out.lib.href ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}), ...(hasRoot ? {} : { watch: true }) } : null;
+  const videos = out.lib && out.lib.href ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}), ...(hasRoot ? {} : { watch: true }), ...(videoShelf ? { shelf: true } : {}) } : null;
   return { stories: story, games, videos };
 }
 
@@ -206,7 +206,7 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre, device
     const rows = R.rowsFor(device);
     const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd, p.cdRoot)]);
     if (own) remember.forget_phone = true;
-    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...phones, ...remember, ...cd };
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot, videoShelf: f.shelf === true }), head, ...d.card, ...phones, ...remember, ...cd };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
     return {};

@@ -11,6 +11,7 @@
  *   GET  /s/:book/:file    a storybook's picture or voice, immutable, from storage (web-quiz-story-assets.js)
  *   GET  /wq/card/:t.png   the finish card's picture (web_quiz_card_v3), kept at the edge; HEAD answered from memory
  *   GET  /k/:t             a shared finish card: its og head (the picture) and one way in, the bot's chat
+ *   GET  /wq/vt/:vid.webp  a lesson's small thumbnail for the Videos door's shelves (web_quiz_video_shelf), kept at the edge
  *   *    /api/wq/*         forwarded to the bot's /api/internal/wq/* with the internal key
  *   GET  /wq-probe         a capability probe for real phones; posts its result as one event
  *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>)
@@ -39,6 +40,8 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
+// A lesson's id (student_videos.id), for its thumbnail.
+const VID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 // A page session id (wq-tel.js): 8-16 lower-case letters and digits.
 const PS_RX = /^[a-z0-9]{8,16}$/;
 // hub_open.src's route values (EVENTS row 3). Mirrors SRC_VALUES in bot/shared/services/quiz/web-quiz-hub-play.js:
@@ -185,7 +188,7 @@ function assetVersion() {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   // The child home (wq-home.*, the home tags) and its door screens (wq-doors.*, loaded by wq-home.js) ride this ?v= too.
-  for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css']) {
+  for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css', 'wq-vshelf.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   // The stories reader (loaded by the home and the hub at this ?v=) and its lazy files (Your turn; the questions and done, at the reader's ?v=, this
@@ -1117,6 +1120,28 @@ function createWebQuizRouter(opts = {}) {
       return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
     } catch (_) {
       seen('none', { status: 0 });
+      return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });
+    }
+  });
+  // A lesson's small thumbnail (the bot draws it from the poster once; off, unknown or not drawn: 404). Kept here a day,
+  // so a class opening the same shelf asks the bot once; the phone keeps it for good (the shelf's URL carries ?v=).
+  const thumbKept = Preview.ttlCache({ max: 600, now });
+  router.get('/wq/vt/:vid.webp', limiters.read, async (req, res) => {
+    const vid = String(req.params.vid || '').toLowerCase();
+    if (!VID_RX.test(vid)) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
+    if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
+    const send = (pic) => res.status(200).set({ 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
+    const kept = thumbKept.get(vid);
+    if (kept) return send(kept);
+    try {
+      const out = await callBot('GET', `/api/internal/wq/vt/${vid}.webp`, req, null, { route: '/api/internal/wq/vt/:vid.webp' });
+      if (out.bytes) {
+        const pic = { bytes: out.bytes, contentType: out.contentType || 'image/webp' };
+        thumbKept.set(vid, pic, CARD_KEEP_MS);
+        return send(pic);
+      }
+      return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
+    } catch (_) {
       return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });
     }
   });
