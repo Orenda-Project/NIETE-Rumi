@@ -51,7 +51,10 @@ describe('switch on: loading is a skeleton, empty only from rows that came back 
   });
   test.each(['en', 'ur'])('%s: Stories while the shelf loads: the slot holds a skeleton, the "on the way" note is hidden', (lang) => {
     const s = screensFor(lang, ON);
-    expect(s.storiesBoot).toMatch(/data-stories-shelf="1" data-host="doors"><div class="wq-dskel[^"]*" aria-busy="true"/);
+    // the skeleton holds the screen's one primary while it waits (the hidden note's button is not a second one)
+    expect(s.storiesBoot).toMatch(/data-stories-shelf="1" data-host="doors"><div class="wq-dskel wq-dskel-bk" data-primary aria-busy="true"/);
+    expect(count(s.storiesBoot, /<i class="wq-skrow"><\/i>/g)).toBe(4); // book-shaped: the shelf's two-by-two covers
+    expect(s.storiesBoot.split('data-shelf-fallback')[1]).not.toMatch(/data-primary/);
     expect(s.storiesBoot).toMatch(/<div data-shelf-fallback="1" hidden>/);
     expect(count(s.storiesBoot, /data-primary/g)).toBe(1);
     // with no shelf at all (the boot says so) the note is the true empty, shown

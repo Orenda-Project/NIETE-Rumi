@@ -99,9 +99,10 @@
       body + '</section>' + bar;
   }
   // A list still on its way (`list_states`): row-shaped blocks, never an empty note; `primary` when it is the screen's one.
-  function skel(n, primary) {
+  // `bk`: the Stories shelf's shape (covers two by two), so the shelf replaces it without a jump.
+  function skel(n, primary, bk) {
     var r = ''; for (var i = 0; i < n; i++) r += '<i class="wq-skrow"></i>';
-    return '<div class="wq-dskel"' + (primary ? ' data-primary' : '') + ' aria-busy="true">' + r + '</div>';
+    return '<div class="wq-dskel' + (bk ? ' wq-dskel-bk' : '') + '"' + (primary ? ' data-primary' : '') + ' aria-busy="true">' + r + '</div>';
   }
   function errNote(t) { return '<div class="wq-dempty"><p class="wq-soon">' + esc(t.oops) + '</p><button class="wq-btn wq-go" type="button" data-primary data-tap="retry">' + esc(t.retry) + '</button></div>'; }
   // `mark` (list_states): a true empty says so (data-empty), so a walker can tell it from a list still on its way
@@ -119,8 +120,10 @@
     // the screen still has its one primary until the shelf draws its own (then this one steps aside); with `list_states`
     // the slot shows a skeleton and the note waits, hidden, until the shelf has answered (the reader fills the slot)
     var wait = Boolean(B.list_states && B.stories && B.stories.on);
-    return '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors">' + (wait ? skel(3) : '') + '</div></div>' +
-      '<div data-shelf-fallback="1"' + (wait ? ' hidden' : '') + '>' + emptyNote(t.storiesNone, 'games', t.toGames, B.list_states) + '</div>';
+    // (the skeleton is the screen's one primary while it waits; the note's button takes it back only if it shows)
+    var note = emptyNote(t.storiesNone, 'games', t.toGames, B.list_states);
+    return '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors">' + (wait ? skel(4, true, true) : '') + '</div></div>' +
+      '<div data-shelf-fallback="1"' + (wait ? ' hidden' : '') + '>' + (wait ? note.replace(' data-primary', '') : note) + '</div>';
   }
 
   /* ---------------- Games ---------------- */
