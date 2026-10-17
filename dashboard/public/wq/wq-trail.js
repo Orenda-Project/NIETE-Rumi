@@ -40,6 +40,8 @@
       endB3Next: 'Next time Jugnu can read a story with you first.', endNext: function (title) { return 'Next: ' + title; }, endHome: 'Home',
       trailPractice: 'Playing again: just for fun', trailMicWait: 'This game needs the mic. Play it when the mic is on.', trailOther: 'Try another game', trailStopDone: 'Game done!',
       lanternTrailOne: 'A game is waiting for you on the Trail.', lanternTrailMany: 'Games are waiting for you on the Trail.',
+      gamesTitle: "{name}'s games", gamesPick: 'Pick a game', gamesBack: "Back to {name}'s games",
+      gamesWaitOne: 'A game is waiting for you.', gamesWaitMany: 'Games are waiting for you.',
       storyBanner: 'Story Time: just for fun',
       storyAsk: 'Hear it from me first, or read it yourself.', storyReadAlong: 'Read along with Jugnu', storyAgain: 'Read this story again any time.',
       ra: { play: 'Play', pause: 'Pause', replay: 'Hear it again' }, showWords: 'Show me the words',
@@ -62,6 +64,8 @@
       endB3Next: 'اگلی بار جگنو پہلے آپ کے ساتھ کہانی پڑھ سکتا ہے۔', endNext: function (title) { return 'آگے: ⁨' + title + '⁩'; }, endHome: 'واپس جائیں',
       trailPractice: 'یہ کھیل دوبارہ: بس مزے کے لیے', trailMicWait: 'اس کھیل کے لیے مائیک چاہیے۔ مائیک چلنے پر کھیلیں۔', trailOther: 'کوئی اور کھیل کھیلیں', trailStopDone: 'کھیل مکمل!',
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
+      gamesTitle: '{name} کے کھیل', gamesPick: 'ایک کھیل چنیں', gamesBack: '{name} کے کھیلوں پر واپس',
+      gamesWaitOne: 'ایک کھیل آپ کا انتظار کر رہا ہے۔', gamesWaitMany: 'کچھ کھیل آپ کا انتظار کر رہے ہیں۔',
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
       storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
       ra: { play: 'سنیں', pause: 'روکیں', replay: 'دوبارہ سنیں' }, showWords: 'الفاظ دکھائیں',
@@ -103,6 +107,7 @@
     var noticeRun = null;   // the run (ct) the mic notice was shown on: its upload and result say notice_shown
     var tries = 0;
     var deep = null;
+    var games = false;   // came from the new home's Next tile: the game starts at once, and the list draws no Next of its own
     try { deep = String((location && location.hash) || '').replace(/^#/, '') || null; } catch (e) { deep = null; }
 
     // ── the sitting's help answer (sessionStorage: one tab, one child) ──
@@ -202,6 +207,15 @@
       // a stop opened by URL (#read): the serve decides what it is (whose turn / practice / on its way), never the hash
       var hash = deep;
       deep = null;
+      // the new home's Next tile (#next: the first game not done; #numbers: the warm-up) starts that one game; the list
+      // it comes back to is "Jugnu's games", never the Trail
+      if (hash === 'next' || hash === 'numbers') {
+        games = true;
+        var xs = m.exercises || [];
+        var x = hash === 'numbers' ? xs.filter(isWarmup)[0] || xs.filter(function (s) { return s.id === 'missing'; })[0] : xs.filter(function (s) { return !s.badge; })[0];
+        if (x) { h.open(x.id); return true; }
+        return false;
+      }
       if (hash && (m.exercises || []).some(function (x) { return x.id === hash; })) { h.open(hash); return true; }
       return false;
     }
@@ -403,11 +417,15 @@
     function trailCopy(k) {
       if (k === 'practice' && h.S.data && h.S.data.teacher_preview) return t.teacherPractice;
       if (k === 'practice' && isStory()) return t.storyBanner;
+      // the newer games page is "Jugnu's games" on every entry, never the Trail (the server's copy stays the old page's)
+      if (k === 'title') return t.gamesTitle;
+      if (k === 'back') return t.gamesBack.split('{name}').join((h.boot && h.boot.mascot) || (L === 'ur' ? 'جگنو' : 'Jugnu'));
       return TRAIL_OVER[k] ? t[TRAIL_OVER[k]] : null;
     }
     function trailSub(xs) {
+      if (games) return t.gamesPick;
       var waiting = xs.filter(function (x) { return !x.badge; }).length;
-      return waiting === 0 ? '' : (waiting === 1 ? t.lanternTrailOne : t.lanternTrailMany);
+      return waiting === 0 ? '' : (waiting === 1 ? t.gamesWaitOne : t.gamesWaitMany);
     }
     // ── the stop's intro ──
     // the passage's title on a read or listen stop, one line; no title object ⇒ no line (today's intro)
@@ -533,7 +551,7 @@
       endCard(name, 'celebrate', line, {});
     }
 
-    return { opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
+    return { games: function () { return games; }, opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
       readEnd: readEnd, readHold: readHold, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, introTitle: introTitle, introLine: introLine, T: T };
   }
 

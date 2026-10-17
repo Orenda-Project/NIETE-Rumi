@@ -340,7 +340,7 @@
         var after = nextInList(v.vid);
         var next = rankedNext(j.watch.next, ctx) || (j.watch.after ? { kind: 'quiz', title: t.quizAfter, sub: j.watch.title, href: '#', quiz: true }
           : after ? { kind: 'video', title: t.watchNext, sub: after.title, href: '#', vid: after.vid } : { kind: 'video', title: t.moreVideos, sub: '', href: '#videos' });
-        view.watch = j.watch; view.next = next;
+        view.watch = j.watch; view.next = next; view.shownAt = null;
         return draw(root, B, ctx, 'watch/' + v.vid, { watch: j.watch, next: next });
       }
       draw(root, B, ctx, 'videos', { lib: { err: true } });
@@ -375,7 +375,9 @@
         }
         if (tap === 'after') {
           e.preventDefault();
-          ev('next_tap', nextLine(view.next));
+          var tl = nextLine(view.next);
+          if (view.shownAt != null) tl.ms_to_tap = Math.max(0, Math.round(Date.now() - view.shownAt));
+          ev('next_tap', tl);
           return afterGo(root, B, ctx);
         }
       });
@@ -436,6 +438,7 @@
       if (endCard(root, B, ctx, ev)) return;
       a.hidden = false;
       var nx = a.querySelector('.wq-vnext'); if (nx) nx.setAttribute('data-primary', '');
+      view.shownAt = Date.now();
       ev('next_shown', nextLine(view.next));
     };
     if (playBtn) playBtn.addEventListener('click', function () { try { var p = vEl.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} });
