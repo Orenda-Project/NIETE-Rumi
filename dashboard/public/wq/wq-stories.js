@@ -98,7 +98,7 @@
     bk.forEach(function (b, k) {
       if (k === tk) return;
       var bl = lg(b.lang);
-      cards += '<li><button class="wqs-book" data-tap="book" data-arg="' + k + '"' + (first ? ' data-primary' : '') + (b.done ? ' data-done' : '') + '><span class="wqs-cov">' + cov(b) +
+      cards += '<li><button class="wqs-book" data-tap="book" data-arg="' + k + '" data-id="' + esc(b.id) + '"' + (first ? ' data-primary' : '') + (b.done ? ' data-done' : '') + '><span class="wqs-cov">' + cov(b) +
         (b.from_teacher ? '<i class="wqs-rib">' + esc(t.teacher) + '</i>' : '') + (b.done ? '<i class="wqs-tick" aria-label="' + esc(t.read) + '">' + IC.tick + '</i>' : '') +
         '</span><b lang="' + bl + '" dir="' + dirOf(bl) + '">' + esc(b.title) + '</b>' + (b.by ? '<small>' + esc(t.by(b.by)) + '</small>' : '') + '</button></li>';
       first = false;
@@ -113,7 +113,7 @@
     return scr('stories-shelf', l,
       '<div class="wqs-top">' + hm(l) + '<h2>' + esc(t.shelf) + '</h2></div>' +
       '<button class="wqs-gl" data-tap="gl"' + (bk.length ? '' : ' data-primary') + ' aria-expanded="' + !!open + '">' + esc(t.gl(dg(d.grade, l), l)) + ' ▾</button>' + (open ? '<div class="wqs-pick">' + chips + '</div>' : '') +
-      (tb ? '<button class="wqs-tcard" data-tap="book" data-arg="' + tk + '" data-primary>' + cov(tb) + '<span><i class="wqs-rib">' + esc(t.teacher) + '</i><b>' + IC.play + ' ' + t.readWith('<bdi lang="' + lg(tb.lang) + '" dir="' + dirOf(lg(tb.lang)) + '">' + esc(tb.title) + '</bdi>') + '</b>' + (tb.by ? '<small>' + esc(t.by(tb.by)) + '</small>' : '') + '</span></button>' : '') +
+      (tb ? '<button class="wqs-tcard" data-tap="book" data-arg="' + tk + '" data-id="' + esc(tb.id) + '" data-primary>' + cov(tb) + '<span><i class="wqs-rib">' + esc(t.teacher) + '</i><b>' + IC.play + ' ' + t.readWith('<bdi lang="' + lg(tb.lang) + '" dir="' + dirOf(lg(tb.lang)) + '">' + esc(tb.title) + '</bdi>') + '</b>' + (tb.by ? '<small>' + esc(t.by(tb.by)) + '</small>' : '') + '</span></button>' : '') +
       (bk.length ? '<ul class="wqs-grid">' + cards + '</ul>' : '<p class="wqs-say">' + esc(t.empty) + '</p>'), 'wqs-shelf');
   }
   function shelf(el, ctx, q) {
@@ -194,20 +194,6 @@
     if (x) return [a[0], x[1], a[2], x[3], 1];
     var f = (i + 1) / ws.length;
     return [a[0] + (rtl ? a[2] * (1 - f) : 0), a[1], a[2] * f, a[3], 1];
-  }
-
-  function chunks(p, ln) {
-    var n = (p.words || []).length, out = [], a = -1, z = -1, g = [], i;
-    if (n <= 40) return [[0, n - 1]];
-    ln.l.forEach(function (x) { g.push([x.i[0], x.i[x.i.length - 1]]); });
-    if (ln.of.filter(function (x) { return x != null; }).length !== n) for (g = [], i = 0; i < n; i += 25) g.push([i, Math.min(n, i + 25) - 1]);
-    g.forEach(function (x) {
-      if (a >= 0 && x[1] - a + 1 > 25) { out.push([a, z]); a = -1; }
-      if (a < 0) a = x[0];
-      z = x[1];
-    });
-    out.push([a, z]);
-    return out;
   }
 
   function machine(b, o) {
@@ -556,7 +542,7 @@
   function boot() { try { return JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return {}; } }
   function found() { var B = W.WQSTORIES_CTX ? null : boot(); return W.WQSTORIES_CTX || (B.token ? { token: B.token, kid: B.kid, lang: B.lang } : null); }
 
-  W.WQSTORIES = { shelf: shelf, open: open, route: route, _machine: machine, _bad: bad, _cam: cam, _lines: lines, _mark: mark, _chunks: chunks,
+  W.WQSTORIES = { shelf: shelf, open: open, route: route, _machine: machine, _bad: bad, _cam: cam, _lines: lines, _mark: mark,
     _k: { T: T, JG: JG, IC: IC, esc: esc, enc: enc, dg: dg, scr: scr, img: img, ic: ic, top: top, post: post, req: req, juice: juice, muted: muted, evt: evt, load: load } };
 
   try {

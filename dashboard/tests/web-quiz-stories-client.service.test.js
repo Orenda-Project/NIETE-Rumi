@@ -243,6 +243,12 @@ describe('the reader state machine (pure, fake clock)', () => {
 
 // ---- the shelf ----------------------------------------------------------------------------------------------------
 describe('the shelf', () => {
+  test('every book card (the teacher card too) carries its book id, so a tap can name the book and not its position', async () => {
+    const e = env(); const el = fakeEl('shelf');
+    e.S.shelf(el, e.ctx()); await flush();
+    const h = el.innerHTML;
+    SHELF.books.forEach((b) => expect(h).toMatch(new RegExp('data-tap="book" data-arg="\\d+" data-id="' + b.id + '"')));
+  });
   test('one primary: none at all when the host screen already has its own (ctx.primary === false)', async () => {
     const e = env(); const el = fakeEl('shelf');
     e.S.shelf(el, e.ctx({ primary: false }));
@@ -294,7 +300,7 @@ describe('the shelf', () => {
     e.S.shelf(el, e.ctx()); await flush();
     checkScreen(el.innerHTML, 'en');
     expect(el.innerHTML).not.toContain('wqs-tcard');
-    expect(el.innerHTML).toMatch(/class="wqs-book" data-tap="book" data-arg="0" data-primary/);
+    expect(el.innerHTML).toMatch(/class="wqs-book" data-tap="book" data-arg="0" data-id="[^"]+" data-primary/);
   });
   test('tap a book: story_opened carries shelf_position/from_teacher/grade/lang, then #story/<id>', async () => {
     const e = env(); const el = fakeEl('shelf');
@@ -1282,8 +1288,8 @@ describe('server lines[] and chunked Your turn', () => {
     expect(ln.of[0]).toBe(0); expect(ln.of[9]).toBe(0); expect(ln.of[10]).toBe(1); expect(ln.of[29]).toBe(2);
     expect(ln.l[1].bs).toEqual([[40, 160, 640, 40]]);
   });
-  test('the chunk split: <= 40 words is one chunk; longer pages go by consecutive lines, <= 25 words a chunk; no lines -> 25-word slices', () => {
-    const e = env();
+  test('the chunk split: <= 40 words is one chunk; longer pages go by consecutive lines, <= 25 words a chunk; no lines -> 25-word slices', async () => {
+    const e = env(); toMic(e, await openReader(e));   // the split lives in the lazy part (wq-stories-q.js), loaded by Your turn
     expect(e.S._chunks(longPage(30, 10, true), e.S._lines(longPage(30, 10, true)))).toEqual([[0, 29]]);
     const p = longPage(60, 10, true);
     expect(e.S._chunks(p, e.S._lines(p))).toEqual([[0, 19], [20, 39], [40, 59]]);

@@ -15,6 +15,21 @@
     return out;
   }
   S._sents = sents;
+  // a long page's Your turn in parts: <= 40 words is one part; longer pages go by consecutive lines, <= 25 words a part
+  function chunks(p, ln) {
+    var n = (p.words || []).length, out = [], a = -1, z = -1, g = [], i;
+    if (n <= 40) return [[0, n - 1]];
+    ln.l.forEach(function (x) { g.push([x.i[0], x.i[x.i.length - 1]]); });
+    if (ln.of.filter(function (x) { return x != null; }).length !== n) for (g = [], i = 0; i < n; i += 25) g.push([i, Math.min(n, i + 25) - 1]);
+    g.forEach(function (x) {
+      if (a >= 0 && x[1] - a + 1 > 25) { out.push([a, z]); a = -1; }
+      if (a < 0) a = x[0];
+      z = x[1];
+    });
+    out.push([a, z]);
+    return out;
+  }
+  S._chunks = chunks;
   var T2 = {
     en: {
       done: 'I\'m done', readNow: 'Read it aloud!', keepGoing: 'Keep going!', checking: 'Listening…',
