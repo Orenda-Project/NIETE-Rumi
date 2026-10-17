@@ -49,19 +49,10 @@ function teacherValue(row) {
   return require('../lib/feature-flags').isFlagEnabled(one, FLAG_KEY);
 }
 
-/** quiz_teacher_stories_bot_gate on its own read: JSON true only; anything else or a failure = off. */
-async function gateOwnRead(supabase) {
-  try {
-    const { data, error } = await supabase.from('app_settings').select('value').eq('key', GATE_KEY).maybeSingle();
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    return Boolean(data) && data.value === true;
-  } catch (_) { return false; }
-}
-
 /**
  * Both switches in ONE app_settings read (`.in('key', [...])`) through the portal's own client, remembered 30 s:
  * { teacher, gate }. teacher = web_quiz_stories_teacher by the portal's flag rule (as today); gate = JSON true only.
- * A failed shared read falls back to each key's own read (the teacher key exactly as today); no client = both off.
+ * A failed shared read re-reads the teacher key alone, exactly as today, and the switch is off; no client = both off.
  */
 function storiesFlagsReader({ now = Date.now, db = () => require('../config/supabase') } = {}) {
   let at = -Infinity;
@@ -83,7 +74,7 @@ function storiesFlagsReader({ now = Date.now, db = () => require('../config/supa
       } catch (_) {
         let teacher = false;
         try { teacher = (await require('../lib/feature-flags').isFlagEnabled(supabase, FLAG_KEY)) === true; } catch (e) { teacher = false; }
-        val = { teacher, gate: await gateOwnRead(supabase) };
+        val = { teacher, gate: false };
       }
     }
     at = now();

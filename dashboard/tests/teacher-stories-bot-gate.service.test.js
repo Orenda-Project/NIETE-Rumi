@@ -157,9 +157,9 @@ describe('switch off: every route and the read count are exactly as before the s
     for (const name of Object.keys(want)) {
       expect([name, got[name].responses]).toEqual([name, want[name].responses]);
       expect([name, got[name].botCalls]).toEqual([name, want[name].botCalls]);
-      // A failed shared read falls back to each key's own read: two more reads, once per 30 s; otherwise the same count.
+      // A failed shared read re-reads the teacher key alone (no switch in the re-read): one more read, once per 30 s.
       const failed = /\|(fail-all|fail-shared)\|/.test(name);
-      expect([name, got[name].reads]).toEqual([name, want[name].reads + (failed ? 4 : 0)]);
+      expect([name, got[name].reads]).toEqual([name, want[name].reads + (failed ? 2 : 0)]);
     }
   });
 
@@ -258,14 +258,14 @@ describe('switch on: the bot is the gate', () => {
     } finally { await stop(srv); }
   });
 
-  test('the shared read failing: the switch is read on its own, and only JSON true is on', async () => {
+  test('the shared read failing: only the teacher key is read again, as today, and the switch is off', async () => {
     const { storiesFlagsReader } = require('../routes/teacher-stories.routes');
     const reads = [];
     const db = { from: () => ({ select: () => ({
       in: async () => ({ data: null, error: { message: 'down' } }),
       eq: (c, k) => { reads.push(k); return { maybeSingle: async () => ({ data: { value: k === GATE_KEY ? true : 'true' }, error: null }) }; },
     }) }) };
-    expect(await storiesFlagsReader({ now: () => 0, db: () => db })()).toEqual({ teacher: true, gate: true });
-    expect(reads).toEqual([TEACHER_KEY, GATE_KEY]);
+    expect(await storiesFlagsReader({ now: () => 0, db: () => db })()).toEqual({ teacher: true, gate: false });
+    expect(reads).toEqual([TEACHER_KEY]);
   });
 });
