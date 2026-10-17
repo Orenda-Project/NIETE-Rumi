@@ -7,7 +7,11 @@
  *   1.  a teacher quiz sent in the last 7 days that this child has not finished       rank_src 'pinned'
  *   2.  in the first 2 home opens of a PKT month, a Trail stop not played this month   rank_src 'rule'
  *       (never one the server would answer "on its way")
+ *   1a. on the home, the tile the child tapped last and has not finished (still offered) rank_src 'rule'
+ *       (an unfinished open counts as one shown-without-a-tap; it moves after one more, so a second
+ *       unfinished open or an untapped show rotates it; a read or story says "Carry on reading")
  *   1b. a half-finished storybook / a video watched < 90 %, at most once a PKT day     rank_src 'rule'
+ *       (spent by a tap from the view that showed it, never by a render, while the tap is heard: events v3)
  *   3.  the rest, by the scores table for this context (next-offer-weights.json; the VALUE key
  *       `web_quiz_next_offer_weights` overrides it without a deploy): scored kinds first, ties -> newest unseen,
  *       the top two rotate when their CIs overlap (seeded by child + day), a primary shown twice and not tapped
@@ -44,6 +48,8 @@ const MONTH_OPENS = 2;
 const DROP_AFTER = 2;
 const ALTS_MAX = 2;
 const KINDS = ['story', 'game', 'quiz', 'video', 'storybook', 'invite', 'sticker'];
+// an opened, unfinished read or storybook comes back with these words (a game, a quiz, a video keep their own)
+const CARRY_ON = Object.freeze({ title: 'Carry on reading', title_ur: 'پڑھنا جاری رکھیں' });
 // The fields of a candidate the page sees (the next object); everything else is the ranker's.
 const PUBLIC = ['kind', 'variant', 'id', 'href', 'title', 'title_ur', 'sub', 'sub_ur', 'minutes', 'art', 'tag', 'tag_ur'];
 const EVIDENCE = new Set(['significant', 'prior']);
@@ -113,10 +119,17 @@ function ranked(ctx, list, state, weights) {
     && h32(`rot|${state.seed}`) % 2 === 1) {
     [scored[0], scored[1]] = [scored[1], scored[0]];
   }
-  // A primary shown twice in a row and never tapped drops one place, so the tile moves.
-  const s = state.streak;
-  if (scored.length > 1 && s && s.id === scored[0].c.id && Number(s.n) >= DROP_AFTER) [scored[0], scored[1]] = [scored[1], scored[0]];
+  // A primary shown twice in a row and never tapped drops one place, so the tile moves; an unfinished open counts as
+  // one of the two.
+  if (scored.length > 1 && usedOf(state, scored[0].c) >= DROP_AFTER) [scored[0], scored[1]] = [scored[1], scored[0]];
   return scored;
+}
+
+/** Shown-without-a-tap for a candidate: the untapped streak + the unfinished opens (the last tap). */
+function usedOf(state, c) {
+  const s = state.streak;
+  const t = state.carry;
+  return (s && s.id === c.id ? Number(s.n) || 0 : 0) + (t && t.id === c.id ? Number(t.u) || 0 : 0);
 }
 
 const srcOfRow = (row) => (row && row.evidence === 'significant' ? 'significant' : 'prior');
@@ -150,19 +163,25 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
   const pinned = eligible.filter((c) => c.rule === 'teacher_quiz' && Number.isFinite(Date.parse(c.sent_at))
     && nowMs - Date.parse(c.sent_at) <= PIN_DAYS * DAY_MS)
     .sort((a, b) => Date.parse(b.sent_at) - Date.parse(a.sent_at));
+  // The tile tapped last and not finished (still offered as it was: the same id and variant), on the home only; the
+  // once-a-day resume keeps its own rule. Used up (an unfinished open + one more) it neither leads nor holds a rule.
+  const t = state.carry;
+  const spent = (c) => Boolean(t && t.id === c.id && usedOf(state, c) >= DROP_AFTER);
+  const carry = ctx === 'home' && t ? eligible.find((c) => c.id === t.id && (c.variant || null) === (t.v || null) && c.rule !== 'resume' && !spent(c)) : null;
   // Opens counted this month (the home's own open included); 0 on a result card before any home open this month.
-  const stop = (Number(state.monthOpens) || 0) <= MONTH_OPENS ? eligible.find((c) => c.rule === 'month_stop') : null;
+  const stop = (Number(state.monthOpens) || 0) <= MONTH_OPENS ? eligible.find((c) => c.rule === 'month_stop' && !spent(c)) : null;
   const resume = state.resumeToday ? null : eligible.find((c) => c.rule === 'resume');
 
   let primary = null;
   let rule = 'none';
   let src = null;
   if (pinned.length) { primary = pinned[0]; rule = 'teacher_quiz'; src = 'pinned'; }
+  else if (carry) { primary = carry.kind === 'story' || carry.kind === 'storybook' ? { ...carry, ...CARRY_ON } : carry; rule = 'carry_on'; src = 'rule'; }
   else if (stop) { primary = stop; rule = 'month_stop'; src = 'rule'; }
   else if (resume) { primary = resume; rule = 'resume'; src = 'rule'; }
 
   // An old teacher quiz (past the pin window) competes as a new quiz; a fixed-rule item already chosen does not repeat.
-  const rest = eligible.filter((c) => c !== primary);
+  const rest = eligible.filter((c) => c !== primary && !(rule === 'carry_on' && c.id === primary.id));
   const order = ranked(ctx, rest, { ...state, seed: state.seed || '' }, weights);
   const rows = tableFor(weights, ctx);
   let head = null;
@@ -275,7 +294,7 @@ function offerId() { return crypto.randomBytes(8).toString('base64url').slice(0,
  * The `next` object for a child in a context, or null (switch off, no child, nothing offerable, any failure: the
  * caller adds no key). `candidates` from the builders below; `hasRoot` = the child has a class quiz (videos need one).
  */
-async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en', now = Date.now(), key: ownKey = null, live = null } = {}) {
+async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en', now = Date.now(), key: ownKey = null, live = null, open = null } = {}) {
   // live: the caller's deadline token; once it is false (the field has been given up) nothing is written or logged —
   // a tile no child was shown never spends a month open, a streak step or a next_set line
   const alive = () => !live || live.on !== false;
@@ -292,9 +311,14 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
     const month = pktMonth(now);
     const st = await loadState(sk);
     const opens = (st.m === month ? Number(st.o) || 0 : 0) + (ctx === 'home' ? 1 : 0);
-    const r = rank(ctx, candidates, {
+    // the tile tapped last; a story opened and left (it is no longer "unseen", so no longer built) comes back
+    // from the tap's own copy while the child's runs on it are all unfinished (`open`: the hub's read)
+    const t = st.t && typeof st.t === 'object' && st.t.id ? st.t : null;
+    const list = t && t.c && t.c.kind === 'story' && open && typeof open.has === 'function' && open.has(t.id)
+      && !candidates.some((c) => c && c.id === t.id) ? [...candidates, t.c] : candidates;
+    const r = rank(ctx, list, {
       arm: module.exports.armOf(key, day), seed: `${key}|${day}`, now: new Date(now).toISOString(), monthOpens: opens,
-      resumeToday: st.rd === day, streak: st.s || null, has_root: Boolean(hasRoot),
+      resumeToday: st.rd === day, streak: st.s || null, has_root: Boolean(hasRoot), carry: t,
     }, s.weights);
     if (!r) return null;
     const next = { ...r.next, offer: offerId(), alts: r.next.alts.map((a) => ({ ...a, offer: offerId() })) };
@@ -305,8 +329,14 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
     await saveState(sk, {
       m: month, o: opens,
       s: st.s && st.s.id === next.id ? { id: next.id, n: (Number(st.s.n) || 0) + 1 } : { id: next.id, n: 1 },
-      rd: r.meta.rule === 'resume' ? day : st.rd || null,
+      // with the taps heard (events v3) a render never spends the once-a-day tile: `rs` marks the view that
+      // showed it, and a tap from that view spends it (Leaf.noteTap / noteDoor). Without them, today's rule.
+      rd: s.events ? st.rd || null : r.meta.rule === 'resume' ? day : st.rd || null,
+      ...(s.events && r.meta.rule === 'resume' ? { rs: { id: next.id, day } } : {}),
+      ...(t ? { t } : {}),
       of: Object.fromEntries(keep.map((k) => [k, offers[k]])),
+      // this view's tiles as shown (a tap keeps its own copy for the carry-on)
+      vw: Object.fromEntries([next, ...next.alts].map((x) => [x.offer, Leaf.copyOf(x)])),
     });
     if (s.events && alive()) {
       const pinnedK = candidates.filter((c) => c && c.rule === 'teacher_quiz').length;
@@ -326,6 +356,6 @@ const { eventsV3Now } = Leaf;
 
 module.exports = {
   eventsV3Now,
-  rank, armOf, pktDay, pktMonth, switches, weightsOf, rowOf, nextFor, noteTap, childKey, KEYS, FILE_WEIGHTS, KINDS,
+  rank, armOf, pktDay, pktMonth, switches, weightsOf, rowOf, nextFor, noteTap, childKey, KEYS, FILE_WEIGHTS, KINDS, CARRY_ON,
   _resetCache: () => { derived = null; Leaf._resetCache(); },
 };

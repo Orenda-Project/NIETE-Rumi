@@ -19,7 +19,7 @@ function page({ hash = '', stored = {}, session = {}, reply = null } = {}) {
   const ss = { ...session };
   const ctx = {
     CODE: 'AB12CD', Q: { topic: 'Plants' }, CLS: { teacher: 'Ms T', label: '3-A' }, TW: { opening: 'Opening your quiz…' },
-    T: { from: (t, l) => `${t} · ${l}` }, esc: (s) => String(s == null ? '' : s), bar: () => '', jug: (m, say) => `<p>${say}</p>`, wireBar: () => {},
+    T: { from: (t, l) => `${t} · ${l}` }, esc: (s) => String(s == null ? '' : s), clsName: (s) => s, bar: () => '', jug: (m, say) => `<p>${say}</p>`, wireBar: () => {},
     location: { hash, pathname: '/q/AB12CD', search: '' },
     window: { history: { state: null, replaceState: (st, t, url) => history.push(url) } },
     sessionStorage: { getItem: (k) => (k in ss ? ss[k] : null), setItem: (k, v) => { ss[k] = v; }, removeItem: (k) => { delete ss[k]; } },

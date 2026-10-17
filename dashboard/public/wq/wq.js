@@ -781,6 +781,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   // Urdu digits (U+06F0–06F9) for a number inside Urdu prose.
   function urDigits(n) { return String(n).replace(/[0-9]/g, function (d) { return String.fromCharCode(0x06F0 + Number(d)); }); }
+  // The class's name as the page draws it: an Urdu label («جماعتیں 1، 3، 5») takes Urdu digits on an Urdu page, like the
+  // score beside it (the server's label is shared with the teacher's report, so it stays Latin there); a Latin label
+  // («3-B», drawn as a Latin isolate) is kept as sent.
+  function clsName(s) { return LANG === 'ur' && s && !/[A-Za-z]/.test(s) ? urDigits(s) : s; }
 
   /* ---------------- storage that survives being blocked ---------------- */
   var mem = {};
@@ -1428,7 +1432,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, clsName(CLS.label))) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       chPic(chLine) +
       (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
@@ -1454,7 +1458,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function teacherLanding() {
     var h = bar('', true) +
       '<div class="wq-card wq-stack wq-teach"><p class="wq-small">' + esc(TW.tFor) + '</p><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, clsName(CLS.label))) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       '<p class="wq-sub">' + esc(TW.tLead) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' +
@@ -1560,7 +1564,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var CLS_PICK = null;
   // Identity v2 (name first; dashboard/public/wq/wq-identity.js) when the server turns it on for this quiz.
   var ID = CLS.identity && CLS.identity.mode === 'v2' && typeof WQID === 'function' ? WQID({
-    T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
+    T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar, cls: clsName,
     on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
     pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null
   }) : null;
@@ -1573,7 +1577,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var chips = (CLS.chips || []).filter(function (c) { return !here.some(function (k) { return k.chip === c.chip; }); });
     var h = bar() + jug('idle', T.whoSay) + '<h2>' + esc(T.whoT) + '</h2>' +
       (here.length ? '<p class="wq-sub">' + esc(T.onPhone) + '</p><div class="wq-chips">' + here.map(function (k) { return kidBtn(k, 'phone'); }).join('') + '</div>' : '') +
-      (chips.length ? '<p class="wq-sub">' + esc(T.inClass(CLASS_LABEL)) + '</p><div class="wq-chips">' + chips.map(function (k) { return kidBtn(k, 'class'); }).join('') + '</div>' : '') +
+      (chips.length ? '<p class="wq-sub">' + esc(T.inClass(clsName(CLASS_LABEL))) + '</p><div class="wq-chips">' + chips.map(function (k) { return kidBtn(k, 'class'); }).join('') + '</div>' : '') +
       '<button class="wq-btn wq-navy" id="wq-new">' + esc(T.newKid) + '</button>' +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
     render(h, 'M4');
@@ -1586,7 +1590,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function whichClass(classes) {
     var h = bar() + jug('idle', TW.classSay) + '<h2>' + esc(TW.classT) + '</h2>' +
       '<div class="wq-chips">' + classes.map(function (c) {
-        return '<button class="wq-kid wq-cls" data-cls="' + esc(c.key) + '"><bdi dir="ltr">' + esc(c.label) + '</bdi></button>';
+        return '<button class="wq-kid wq-cls" data-cls="' + esc(c.key) + '"><bdi dir="ltr">' + esc(clsName(c.label)) + '</bdi></button>';
       }).join('') + '</div>' +
       '<button class="wq-btn wq-soft" id="wq-notmine">' + esc(TW.notHere) + '</button>' +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
@@ -2511,7 +2515,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // The name notice is for the share it sits on: always directly above "Share to class group".
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>';
     var h = bar() +
-      '<div class="wq-scorecard' + (panel ? ' wq-askon' : '') + '"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard' + (panel ? ' wq-askon' : '') + '"><header>' + markHtml() + dotJoin(BR ? BR.name : '', clsName(CLS.label)) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
       (isVideo ? '<span class="wq-vchip">' + esc(T.vchip) + '</span>' : '') +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
@@ -2604,7 +2608,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
     var tile = foldNext(nx, fc);
     var h = bar(FOLD_BAR) +
-      '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', clsName(CLS.label)) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
@@ -2862,7 +2866,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + rowScore(you.correct, you.total) + '</td></tr>';
       }
       var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
-      var h = bar() + '<h2>' + esc(T.leagueT(CLASS_LABEL)) + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(b.finishers_n || 0)) + '</p>' +
+      var h = bar() + '<h2>' + esc(T.leagueT(clsName(CLASS_LABEL))) + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(b.finishers_n || 0)) + '</p>' +
         (rows ? '<table class="wq-table"><tbody>' + rows + '</tbody></table>' : '<div class="wq-card">' + esc(T.noRows) + '</div>') +
         (b.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(b.more_n)) + '</p>' : '') +
         '<div class="wq-card wq-cmp">' +
@@ -3122,7 +3126,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function handsetBind(x) {
     var done = function () { try { sessionStorage.removeItem('wq_x'); } catch (e) {} };
     // While the server answers: the quiz and Jugnu, no question and nothing to tap (as a hub link's start).
-    render(bar() + jug('thinking', TW.opening) + '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1><p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p></div>', 'M4-opening');
+    render(bar() + jug('thinking', TW.opening) + '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1><p class="wq-sub">' + esc(T.from(CLS.teacher, clsName(CLS.label))) + '</p></div>', 'M4-opening');
     wireBar();
     var body = { code: CODE, x: x };
     var dref = sget('wq_d', null);
@@ -3185,7 +3189,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() +
       jug('hello', one ? T.hello : T.whoSay, true, true) +
       '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p></div>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, clsName(CLS.label))) + '</p></div>' +
       (one
         ? '<h2>' + TW.knIs(nm(one)) + '</h2><button class="wq-btn wq-go" id="wq-kn-yes">' + ani(one.animal) + esc(TW.knYes) + '</button>'
         : '<h2>' + esc(T.whoT) + '</h2><div class="wq-kids-big">' + list.map(function (k, i) {

@@ -133,16 +133,27 @@ function tables({ fast, loose = false, extra = [] }) {
 // ── the boundary: every read takes READ_MS and gets its wave ─────────────────────────────────────────
 let reads = [];
 let doneMax = 0;
+let DB = null;   // the faked tables of the last boot (a row added here is what the next read sees)
 function seed(opts) {
-  const fake = makeFake(tables(opts));
+  DB = tables(opts);
+  const fake = makeFake(DB);
   const from = (t) => {
     const b = fake.from(t);
     const then = b.then;
+    // the runs answer with the columns asked for, as PostgREST does (a read that forgets `status` gets no status)
+    let cols = null;
+    const select = b.select;
+    b.select = (c, o) => { cols = c; return select.call(b, c, o); };
+    const pick = (x) => {
+      if (t !== 'web_quiz_challenge_runs' || typeof cols !== 'string' || cols.trim() === '*' || !x || !Array.isArray(x.data)) return x;
+      const keys = cols.split(',').map((k) => k.trim()).filter(Boolean);
+      return { ...x, data: x.data.map((r) => Object.fromEntries(keys.filter((k) => k in r).map((k) => [k, r[k]]))) };
+    };
     b.then = (res, rej) => {
       const rec = { t, wave: doneMax + 1, at: new Error().stack.split('\n').slice(2).filter((l) => l.includes('/shared/') && !l.includes('node_modules')).slice(0, 4).map((l) => l.trim().replace(/.*\/(\S+:\d+):\d+\)?$/, '$1')).join(' < ') };
       reads.push(rec);
       return new Promise((r) => setTimeout(r, READ_MS))
-        .then(() => { doneMax = Math.max(doneMax, rec.wave); return then.call(b, (x) => x); })
+        .then(() => { doneMax = Math.max(doneMax, rec.wave); return then.call(b, (x) => x); }).then(pick)
         .then(res, rej);
     };
     return b;
@@ -203,12 +214,72 @@ async function wavesOf(extra, loose) {
   return { warm: warm.waves, stale: stale.waves, next: JSON.parse(warm.out).next || null };
 }
 
-test.each([['a child on a class list', false], ['the usual loose child', true]])('waves ON <= OFF, warm and stale (the slot never adds one): %s', async (_, loose) => {
+// The hub's own waves on this fixture with the slot OFF (measured on the base and on this branch, the same): an
+// unconditional new wave would raise OFF and ON together, so OFF is held to these numbers exactly.
+const OFF_WAVES = { class: { warm: 24, stale: 37 }, loose: { warm: 20, stale: 31 } };
+
+test.each([['a child on a class list', false], ['the usual loose child', true]])('waves OFF = the recorded count and ON <= OFF, warm and stale (the slot never adds one): %s', async (_, loose) => {
   const off = await wavesOf(OFF, loose);
   const on = await wavesOf(ON, loose);
+  expect({ warm: off.warm, stale: off.stale }).toEqual(OFF_WAVES[loose ? 'loose' : 'class']);
   expect(off.next).toBeNull();
   expect(on.next).toEqual(expect.objectContaining({ ctx: 'home', offer: expect.any(String) }));   // the slot really ran
   // never a wave more; with the child home's early reads on the base the slot's own switch read can save one stale wave
   expect(on.warm).toBeLessThanOrEqual(off.warm);
   expect(on.stale).toBeLessThanOrEqual(off.stale);
 }, 60000);
+
+// a class child's "Watch a video" tile plays the lesson it names (the hub already reads the lesson for every
+// child: the tile's choice is a pure step), so the home costs no wave more. The base's own counts on this fixture
+// (sandbox d0f451e45, measured with the switches ON) are the ceiling.
+const BASE_ON = { warm: 24, stale: 37 };
+test('the class child\'s video tile is the lesson in the home\'s player; waves OFF = the recorded 24 / 37, ON <= OFF and ON <= the base, warm and stale', async () => {
+  const off = await wavesOf(OFF, false);
+  const on = await wavesOf(ON, false);
+  expect(off.warm).toBe(OFF_WAVES.class.warm);
+  expect(off.stale).toBe(OFF_WAVES.class.stale);
+  const vids = [on.next, ...on.next.alts].filter((x) => x.kind === 'video');
+  expect(vids).toEqual([expect.objectContaining({ variant: 'recommended', href: expect.stringMatching(/^\/h\/[^?]+\?kid=[^&]+(&lang=[a-z]{2})?#watch\//) })]);
+  expect(on.warm).toBeLessThanOrEqual(off.warm);
+  expect(on.stale).toBeLessThanOrEqual(off.stale);
+  expect(on.warm).toBeLessThanOrEqual(BASE_ON.warm);
+  expect(on.stale).toBeLessThanOrEqual(BASE_ON.stale);
+}, 60000);
+
+
+// The carry-on through the hub itself (Hub.hub -> Jugnu's corner reads the child's runs -> the slot's sources -> the ranker),
+// never `nextFor` by hand: a story the child tapped and left (its only run row served or listening) is no longer
+// "unseen", so no builder offers it; the hub's own `open` set brings it back as "Carry on reading". A story with a
+// finished row (scored, done) is not carried.
+describe('the carry-on through the hub: a story opened and left comes back as «Carry on reading»; a finished one does not', () => {
+  const PIDS = { en: 'en.read.2.story01', ur: 'ur.read.2.story01' };
+  async function opened(status, lang) {
+    const PID = PIDS[lang];
+    boot({ fast: true, loose: false, extra: ON });
+    // no pending teacher quiz: it is pinned above every other rule
+    DB.quiz_share_codes.find((c) => c.id === 'sc-new').active = false;
+    const NO = require('../../../shared/services/quiz/web-quiz-next-offer');
+    jest.spyOn(NO, 'armOf').mockReturnValue('rank');
+    const Leaf = require('../../../shared/services/quiz/web-quiz-next-offer-state');
+    const tok = T.signHub([KID]);
+    // what a tap on the story's tile left in the slot's state (Leaf.noteTap: opened once, not finished, its copy)
+    const href = `/c/${tok}?kid=x&lang=${lang}&home=1&room=story&pid=${PID}`;
+    const copy = Leaf.copyOf({ kind: 'story', id: PID, href, title: 'Read to Jugnu', title_ur: 'جگنو کو پڑھ کر سناؤ', sub: 'The Testwala Kite' });
+    await Leaf.saveState(NO.childKey(KID), { t: { id: PID, v: null, u: 1, c: copy } });
+    // the run row the story room wrote when it opened
+    DB.web_quiz_challenge_runs.push(run({ exercise: 'read', mode: 'practice', status, passage_id: PID, created_at: ago(1), scored_at: null }));
+    return { PID, href, next: JSON.parse((await measure(tok, { device: DEVICE, lang })).out).next };
+  }
+
+  test.each([['served', 'en'], ['listening', 'en'], ['served', 'ur'], ['listening', 'ur']])('its only run row %s (%s hub): back as the Next tile, «Carry on reading»', async (status, lang) => {
+    const { PID, href, next } = await opened(status, lang);
+    expect(next).toEqual(expect.objectContaining({ kind: 'story', id: PID, href, rank_src: 'rule', title: 'Carry on reading', title_ur: 'پڑھنا جاری رکھیں', sub: 'The Testwala Kite' }));
+  }, 60000);
+
+  test.each([['scored', 'en'], ['done', 'en'], ['scored', 'ur']])('a %s run row (%s hub): finished, not carried', async (status, lang) => {
+    const { PID, next } = await opened(status, lang);
+    expect(next).toEqual(expect.objectContaining({ ctx: 'home' }));   // the slot ran
+    expect(next.title).not.toBe('Carry on reading');
+    expect([next, ...next.alts].map((x) => x.id)).not.toContain(PID);
+  }, 60000);
+});

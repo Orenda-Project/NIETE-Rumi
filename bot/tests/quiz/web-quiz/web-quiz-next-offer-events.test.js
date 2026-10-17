@@ -182,6 +182,20 @@ describe('events v3 on: the relay keeps the amended names (EVENTS v3 §2 and §4
     expect(x).not.toHaveProperty('landed');
   });
 
+  test('next_shown and next_tap carry the slot\'s variant (a video: recommended | library); an unknown one dropped', async () => {
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
+    Svc.events({ ...hub(), events: [
+      { n: 'next_shown', ctx: 'home', kind: 'video', id: 'library', pos: 0, offer: 'AbCdEfGhIj', variant: 'library' },
+      { n: 'next_tap', ctx: 'home', kind: 'video', pos: 0, offer: 'AbCdEfGhIj', variant: 'recommended' },
+      { n: 'next_tap', ctx: 'home', kind: 'video', pos: 0, offer: 'AbCdEfGhIj', variant: 'Bad Variant!' },
+    ] }, { device: DEV });
+    await flush();
+    expect(by('web_quiz.next_shown')[0]).toMatchObject({ kind: 'video', variant: 'library' });
+    const [tap, bad] = by('web_quiz.next_tap');
+    expect(tap).toMatchObject({ kind: 'video', variant: 'recommended', kid: K.kid(KID) });
+    expect(bad).not.toHaveProperty('variant');
+  });
+
   test('next_shown kind door; rank_src ctrl', async () => {
     await seed([{ key: 'web_quiz_events_v3', value: true }]);
     Svc.events({ ...hub(), events: [

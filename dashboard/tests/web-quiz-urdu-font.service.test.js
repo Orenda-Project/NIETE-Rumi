@@ -166,10 +166,10 @@ describe('Urdu copy on the after-quiz screens', () => {
     expect(four.html()).toMatch(/۴ درست کیے</);
   });
 
-  test('the class label on the landing never breaks across lines («جماعت 3 (ب)» keeps its «(ب)»)', () => {
+  test('the class label on the landing never breaks across lines («جماعت ۳ (ب)» keeps its «(ب)»; Urdu digits on an Urdu page)', () => {
     const p = page({ lang: 'ur', cls: { label: 'جماعت 3 (ب)', teacher: 'استاد Testwala', chips: [] } });
     p.ctx.__wq.landing();
-    expect(p.html()).toContain('جماعت\u00A03\u00A0(ب)');
+    expect(p.html()).toContain('جماعت\u00A0۳\u00A0(ب)');
   });
 
   // The landing bubble sits beside the big mascot, about 170 px wide on a 360 px phone. «…مل کر کوئز

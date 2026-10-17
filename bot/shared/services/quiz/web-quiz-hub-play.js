@@ -130,10 +130,20 @@ async function trailWaiting(childId, periodId, exercises) {
   return list.map((e) => e.id).filter((id) => !runs.some((r) => done(r, id)));
 }
 
-/** The passages this child has met: any run row of any mode or status (a story sticker is a story run row); null if unknown. */
+// A run row that finished its passage (read, scored or scoring); any other row (served, listening, abandoned) was opened.
+const FINISHED = ['done', 'scored', 'failed', 'scoring'];
+
+/**
+ * The passages this child has met: any run row of any mode or status (a story sticker is a story run row); null if
+ * unknown. Its `open` (a Set) = the ones opened and never finished (the next-thing slot's carry-on).
+ */
 async function seenPassages(childId) {
-  const runs = await runsOf(childId, 'passage_id');
-  return runs ? new Set(runs.map((r) => r.passage_id).filter(Boolean)) : null;
+  const runs = await runsOf(childId, 'passage_id, status');
+  if (!runs) return null;
+  const seen = new Set(runs.map((r) => r.passage_id).filter(Boolean));
+  const done = new Set(runs.filter((r) => FINISHED.includes(r.status)).map((r) => r.passage_id));
+  seen.open = new Set([...seen].filter((pid) => !done.has(pid)));
+  return seen;
 }
 
 /** The practice passages for this language: live (released) ones and the earliest buffered release. Never throws. */
@@ -267,7 +277,7 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, s
   // The next-thing ranker (web-quiz-next-offer-sources.js) reads what this corner read; the payload is untouched. Its
   // lantern is the one the child is shown (the control arm's primary), never a same-titled twin.
   if (collect && typeof collect === 'object') {
-    Object.assign(collect, { trail, unseen, live: p.live, story: s.story, lantern: out.lantern || null });
+    Object.assign(collect, { trail, unseen, live: p.live, story: s.story, lantern: out.lantern || null, open: (seenIds && seenIds.open) || null });
   }
   return out;
 }
