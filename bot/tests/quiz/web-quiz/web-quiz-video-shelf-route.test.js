@@ -7,7 +7,8 @@ jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 const mockThumb = jest.fn();
-jest.mock('../../../shared/services/quiz/web-quiz-video-thumb', () => ({ thumb: (...a) => mockThumb(...a) }));
+const mockNoPicture = jest.fn(() => false);
+jest.mock('../../../shared/services/quiz/web-quiz-video-thumb', () => ({ thumb: (...a) => mockThumb(...a), noPicture: (...a) => mockNoPicture(...a), NONE_MS: 600000 }));
 
 const express = require('express');
 
@@ -22,7 +23,7 @@ beforeAll(async () => {
   base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
 });
 afterAll(() => new Promise((r) => server.close(r)));
-beforeEach(() => mockThumb.mockReset());
+beforeEach(() => { mockThumb.mockReset(); mockNoPicture.mockReset(); mockNoPicture.mockReturnValue(false); });
 const KEY = { 'x-api-key': 'route-key' };
 
 test('a drawn thumbnail: WebP bytes, a year\'s immutable cache (the URL carries its version)', async () => {
@@ -43,6 +44,15 @@ test('none (switch off, unknown lesson, no poster): 404 no-store; a failure: 500
   const f = await fetch(`${base}/vt/${VID}.webp`, { headers: KEY });
   expect(f.status).toBe(500);
   expect(f.headers.get('cache-control')).toBe('no-store');
+});
+test('a lesson found with no picture (switch on): 404 no_picture, which the edge and the phone may keep 10 minutes', async () => {
+  mockThumb.mockResolvedValue(null);
+  mockNoPicture.mockReturnValue(true);
+  const r = await fetch(`${base}/vt/${VID}.webp`, { headers: KEY });
+  expect(r.status).toBe(404);
+  expect(await r.json()).toEqual({ error: 'no_picture' });
+  expect(r.headers.get('cache-control')).toBe('public, max-age=600');
+  expect(mockNoPicture).toHaveBeenCalledWith(VID);
 });
 test('no key: 401, nothing drawn', async () => {
   expect((await fetch(`${base}/vt/${VID}.webp`)).status).toBe(401);

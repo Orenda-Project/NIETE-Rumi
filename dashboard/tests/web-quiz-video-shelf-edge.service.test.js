@@ -59,6 +59,15 @@ describe('the thumbnail: /wq/vt/<lesson id>.webp', () => {
     await req(srv, `/wq/vt/${VID}.webp`);
     expect(calls).toHaveLength(2);
   });
+  test('the bot says the lesson has no picture: a 404 kept 10 minutes at the edge (the bot is asked once) and by the phone', async () => {
+    answer = () => jsonRes(404, { error: 'no_picture' });
+    const a = await req(srv, `/wq/vt/${VID}.webp`);
+    expect(a.status).toBe(404);
+    expect(a.headers['cache-control']).toBe('public, max-age=600');
+    const b = await req(srv, `/wq/vt/${VID}.webp`);
+    expect(b.status).toBe(404);
+    expect(calls).toHaveLength(1);
+  });
   test.each(['not-a-lesson', '../../etc', 'AAAAAAA1-aaaa-4aaa-8aaa-aaaaaaaaaaaa%2F..'])('a bad id (%s) never reaches the bot', async (bad) => {
     const a = await req(srv, `/wq/vt/${bad}.webp`);
     expect([403, 404]).toContain(a.status);
