@@ -14,6 +14,12 @@
  *                    with web_quiz_share_v4 on too, {card_v3: true, share_v4: true} (the quiz card's share is the page's own)
  *   facts(token)     {kind, deed, lang, first, code} for a genuine token, else null (the og head of /k/<t>).
  *
+ * One share for every finish (app_settings web_quiz_share_v4, on top of the card): the page may name the item it
+ * finished (`item: {type: 'book'|'video'|'quiz', id}`); the server checks it exists and seals it into the token, so the
+ * shared link lands a new child, through the join, on that item (a Jugnu read, story or game: on the Games door, where
+ * those live). The picture gets the kind's ribbon and colour (one
+ * theme, one mark per activity); the landing shows the mark and the card.
+ *
  * The token is the card's facts sealed with AES-256-GCM under a key derived from the web-quiz token secret: a
  * forwarded link carries no readable name or id, and nobody can make the server draw a card it never issued.
  * The picture never carries a number, a score, a class position, a phone or anyone else's name.
@@ -164,6 +170,7 @@ function open(token) {
     d.setAuthTag(raw.subarray(12, 28));
     const f = JSON.parse(Buffer.concat([d.update(raw.subarray(28)), d.final()]).toString('utf8'));
     if (!f || f.v !== 1 || !DEEDS[f.k] || !DEEDS[f.k].includes(f.d)) return null;
+    if (f.i && !(ITEM_RX[f.i.t] && ITEM_RX[f.i.t].test(String(f.i.id || '')))) delete f.i;
     return f;
   } catch (_) {
     return null;
@@ -173,9 +180,48 @@ function open(token) {
 function facts(token) {
   const f = open(token);
   if (!f) return null;
-  return { kind: f.k, deed: f.d, lang: LANG(f.l), first: f.n || '', code: f.c || null };
+  const out = { kind: f.k, deed: f.d, lang: LANG(f.l), first: f.n || '', code: f.c || null };
+  // a one-share token (web_quiz_share_v4 when minted): its mark, and the item it lands on
+  if (f.s === 4) { out.v4 = true; out.item = f.i ? { type: f.i.t, id: f.i.id } : null; }
+  return out;
 }
 
+// ─── the item a share lands on (web_quiz_share_v4) ──────────────────────────
+
+const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ITEM_RX = Object.freeze({ book: UUID_RX, video: UUID_RX, quiz: CODE_RX, door: /^games$/ });
+// The finishes that have no item of their own: the friend lands on the door they live behind.
+const DOOR_OF = Object.freeze({ read: 'games', listen: 'games', story: 'games', game: 'games' });
+// Which items a finish of each kind may name: a storybook's card its book, a video's its video, a quiz's its class code.
+const ITEM_TYPES = Object.freeze({ book: ['book'], video: ['video'], quiz: ['quiz'] });
+async function readyBook(id) {
+  const { data } = await supabase.from('story_books').select('id, status').eq('id', id).maybeSingle();
+  return Boolean(data && data.status === 'ready');
+}
+async function liveVideo(id) {
+  const ix = await require('./web-quiz-bank').bank();
+  return Boolean(ix && Array.isArray(ix.rows) && ix.rows.some((r) => r.id === id));
+}
+async function liveCode(code) {
+  const { data } = await supabase.from('quiz_share_codes').select('code, active').eq('code', code).maybeSingle();
+  return Boolean(data && data.active !== false);
+}
+/** The item a finish names, checked: {t, id} when it is real and of the finish's kind, else null. Never throws. */
+async function checkItem(raw, kind, w) {
+  try {
+    // a class quiz's own code: the server's, never the page's
+    if (kind === 'quiz') return w && w.code ? { t: 'quiz', id: w.code } : null;
+    if (DOOR_OF[kind]) return { t: 'door', id: DOOR_OF[kind] };
+    if (!raw || typeof raw !== 'object') return null;
+    const t = raw.type;
+    const id = String(raw.id == null ? '' : raw.id);
+    if (!ITEM_TYPES[t] || !ITEM_TYPES[t].includes(kind) || !ITEM_RX[t].test(id)) return null;
+    const ok = t === 'book' ? await readyBook(id) : t === 'video' ? await liveVideo(id) : await liveCode(id);
+    return ok ? { t, id } : null;
+  } catch (_) {
+    return null;
+  }
+}
 // ─── who finished (the server says; the page never names the child) ─────────
 
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
@@ -239,11 +285,24 @@ async function mint(body = {}, { device = null } = {}) {
   const deed = typeof body.deed === 'string' ? body.deed : '';
   if (!DEEDS[kind] || !DEEDS[kind].includes(deed)) fail(400, 'bad_request');
   const lang = LANG(body.lang);
-  const w = await who(body, lang, device);
-  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), t: Math.floor(Date.now() / 1000) });
+  // the one share: the item checked and sealed, and the token marked (its picture and landing are the new ones)
+  const v4 = await shareOn();
+  let w;
+  try {
+    w = await who(body, lang, device);
+  } catch (err) {
+    // the one share on a phone the hub does not know (a forwarded or opened-elsewhere link): a card that names nobody,
+    // so the child still sends a picture and a link, never bare words
+    if (!(v4 && err instanceof CardError && err.status === 403)) throw err;
+    w = { first: '', code: null };
+  }
+  const item = v4 ? await checkItem(body.item, kind, w) : null;
+  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
   if (!token) fail(503, 'web_quiz_off');
   const url = kind === 'quiz' && w.code ? `/q/${w.code}?k=${token}` : `/k/${token}`;
-  return { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
+  const out = { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
+  if (v4) { out.v4 = true; out.item = item ? item.t : null; }
+  return out;
 }
 
 // ─── the picture ────────────────────────────────────────────────────────────
@@ -274,6 +333,28 @@ const URDU_RX = /[؀-ۿ]/;
 const STICKER = '<svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="56" fill="#FDE68A" stroke="#F59E0B" stroke-width="6"/>'
   + '<path d="M60 22l11 23 25 3-18 17 5 25-23-12-23 12 5-25-18-17 25-3z" fill="#F59E0B"/></svg>';
 
+// One theme, one mark per activity (web_quiz_share_v4 tokens only): the ribbon's word and the card's accent colour.
+const MARK = Object.freeze({
+  quiz: { c: '#1D4ED8', en: 'Quiz', ur: 'کوئز' },
+  read: { c: '#C2410C', en: 'Reading', ur: 'پڑھنا' },
+  listen: { c: '#7C3AED', en: 'Story', ur: 'کہانی' },
+  story: { c: '#7C3AED', en: 'Story', ur: 'کہانی' },
+  book: { c: '#7C3AED', en: 'Storybook', ur: 'کہانی کی کتاب' },
+  game: { c: '#0F766E', en: 'Game', ur: 'کھیل' },
+  video: { c: '#DC2626', en: 'Video', ur: 'ویڈیو' },
+});
+function markCss(f, rtl) {
+  const m = f.v4 && MARK[f.kind];
+  if (!m) return '';
+  return `.card{border-bottom-color:${m.c}}.name{color:${m.c}}.brand{color:${m.c}}
+.rib{position:absolute;top:0;${rtl ? 'right' : 'left'}:72px;padding:${rtl ? '6px 28px 14px' : '10px 28px 14px'};background:${m.c};color:#fff;font-weight:800;font-size:${rtl ? 30 : 32}px;line-height:${rtl ? 1.6 : 1};border-radius:0 0 18px 18px}
+`;
+}
+function markHtml(f, lang) {
+  const m = f.v4 && MARK[f.kind];
+  return m ? `<div class="rib">${esc(m[lang])}</div>` : '';
+}
+
 /** The card's HTML (pure): what the headless browser photographs. opt.fonts false only for a layout snapshot. */
 function renderCard(f, opt = {}) {
   const lang = LANG(f.lang);
@@ -297,7 +378,7 @@ body{width:${W}px;height:${H}px;overflow:hidden;background:#FFF8E7}
 .deed{font-weight:${rtl ? 700 : 800};font-size:${rtl ? 44 : 50}px;line-height:${rtl ? 1.9 : 1.2};word-break:keep-all;overflow-wrap:normal;text-wrap:balance}
 .st{display:flex;align-items:center;gap:20px;font-weight:700;font-size:${rtl ? 34 : 36}px;line-height:${rtl ? 1.9 : 1.2};color:#92400E}
 .brand{position:absolute;${rtl ? 'left' : 'right'}:72px;bottom:34px;font:800 28px/1 'Lexend',sans-serif;color:#15803D;letter-spacing:.04em}
-</style></head><body><div class="card">${jug}<div class="txt">
+${markCss(f, rtl)}</style></head><body><div class="card">${markHtml(f, lang)}${jug}<div class="txt">
 <div class="name" dir="${nameDir}">${esc(f.first || '')}</div>
 <div class="deed">${esc(t[f.deed] || '')}</div>
 ${f.deed === 'read_tried' || /_practice$/.test(f.deed) ? '' : `<div class="st">${STICKER}<span>${esc(t.sticker)}</span></div>`}
@@ -351,12 +432,19 @@ async function image(token) {
 function landing(token) {
   const f = facts(token);
   if (!f) fail(404, 'not_found');
-  return { kind: f.kind, lang: f.lang, first: f.first, deed_text: COPY[f.lang][f.deed], ret: returnLine(f.lang) };
+  const out = { kind: f.kind, lang: f.lang, first: f.first, deed_text: COPY[f.lang][f.deed], ret: returnLine(f.lang) };
+  if (f.v4) {
+    // the one share's landing: the kind's mark in its colour
+    out.v4 = true;
+    out.mark = MARK[f.kind] ? MARK[f.kind][f.lang] : '';
+    out.accent = MARK[f.kind] ? MARK[f.kind].c : '#15803D';
+  }
+  return out;
 }
 
 function _reset() { cache = null; mem.clear(); inflight.clear(); }
 
 module.exports = {
-  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES,
+  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MARK,
   on, shareOn, field, mint, image, facts, landing, returnLine, renderCard, _reset, _seal: seal,
 };
