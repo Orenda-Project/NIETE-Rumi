@@ -89,7 +89,7 @@ function serial(kid, fn) {
   tail.then(() => { if (chains.get(kid) === tail) chains.delete(kid); });
   return run;
 }
-const COPY_KEYS = ['kind', 'variant', 'id', 'href', 'title', 'title_ur', 'sub', 'sub_ur', 'minutes', 'art', 'tag', 'tag_ur'];
+const COPY_KEYS = ['kind', 'variant', 'id', 'href', 'title', 'title_ur', 'sub', 'sub_ur', 'minutes', 'art', 'tag', 'tag_ur', 'w'];
 function copyOf(x) {
   const out = {};
   COPY_KEYS.forEach((k) => { if (x && x[k] != null) out[k] = x[k]; });

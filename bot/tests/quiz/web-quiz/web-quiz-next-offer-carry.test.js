@@ -3,9 +3,10 @@
  * The home's ONE Next tile across views (web-quiz-next-offer.js nextFor + the state's taps), with the taps heard
  * (web_quiz_events_v3 on):
  *   - an activity opened and left unfinished counts as ONE shown-without-a-tap, not as done: the same tile comes back
- *     on the next home view; a second unfinished open, or one more untapped show, rotates it (the two of #C3); a read
- *     or a storybook comes back as "Carry on reading" / «پڑھنا جاری رکھیں», a game or a listen keeps its words; finished (its
- *     finish card shown) it rotates as today;
+ *     on the next home view; a second unfinished open, or one more untapped show, rotates it (the two of #C3); its words
+ *     follow what the child was doing, by the tile's word key `w` (never the href): a passage read aloud comes back as
+ *     "Carry on reading" / «پڑھنا جاری رکھیں», a story listened to, read along or a storybook as "Carry on with your
+ *     story" / «کہانی جاری رکھیں», a game keeps its words; finished (its finish card shown) it rotates as today;
  *   - a render never uses up the once-a-day tile ("Finish your story"): only a tap on it, or a tap on another tile or
  *     door from the home that showed it; with the taps not heard (events v3 off) today's rule stands.
  * Faked boundaries only: Supabase (the switches), Redis (the state), the logger transport. Invented ids only.
@@ -41,7 +42,7 @@ const flush = () => new Promise((r) => setTimeout(r, 30));
 const video = { kind: 'video', variant: 'recommended', id: 'vid-1', href: '/h/t?kid=c#watch/vid-1', title: 'Watch a video' };
 const game = { kind: 'game', id: 'numbers', href: '/c/t?kid=c#numbers', title: 'Play with Jugnu' };
 const invite = { kind: 'invite', id: 'invite', href: '/h/t#invite', title: 'Invite a friend' };
-const story = { kind: 'story', id: 'en.read.2.k07', href: '/c/t?kid=c&room=story&pid=en.read.2.k07', title: 'Read with Jugnu', sub: 'The Testwala Kite' };
+const story = { kind: 'story', id: 'en.read.2.k07', href: '/c/t?kid=c&room=story&pid=en.read.2.k07', w: 'read', title: 'Read with Jugnu', sub: 'The Testwala Kite' };
 const book = { kind: 'storybook', id: 'sb-7', href: '/h/t?kid=c#story/sb-7', title: 'Finish your story', title_ur: 'اپنی کہانی پوری کریں', rule: 'resume' };
 
 async function seed(events) {
@@ -128,25 +129,91 @@ describe('#C49a: an opened, unfinished activity counts as one shown-without-a-ta
     expect(v2).toMatchObject({ kind: 'story', id: story.id, href: story.href, title: 'Carry on reading', title_ur: 'پڑھنا جاری رکھیں', sub: 'The Testwala Kite' });
   });
 
-  test('a listening story opened and left comes back with its own words, never "Carry on reading"', async () => {
-    const listen = { kind: 'story', id: 'en.listen.2.k03', href: '/c/t?kid=c&room=story&pid=en.listen.2.k03&ex=listen', title: 'Listen to a story', title_ur: 'کہانی سنیں', sub: 'The Testwala Drum', read_aloud: false };
+  // the carry-on words follow the tile's word key `w` (what the child was doing) and its progress, never the href
+  const STORY_ON = { title: 'Carry on with your story', title_ur: 'کہانی جاری رکھیں' };
+  const READ_ON = { title: 'Carry on reading', title_ur: 'پڑھنا جاری رکھیں' };
+  const LISTEN = { title: 'Listen to a story', title_ur: 'کہانی سنیں' };
+  const listen = { kind: 'story', id: 'en.listen.2.k03', href: '/c/t?kid=c&room=story&pid=en.listen.2.k03&ex=listen', w: 'listen', ...LISTEN, sub: 'The Testwala Drum', read_aloud: false };
+
+  test('a listening story opened and left (progress): "Carry on with your story" / «کہانی جاری رکھیں», built again or from the tap\'s copy', async () => {
     await seed(true);
     const v1 = await view([video, listen, invite]);
     await tap(v1, listen.id);
-    // built again (still in the pool), then from the tap's own copy (no longer built)
-    expect(await view([video, listen, invite])).toMatchObject({ id: listen.id, title: 'Listen to a story', title_ur: 'کہانی سنیں' });
+    // built again (still in the pool)
+    expect(await view([video, listen, invite])).toMatchObject({ id: listen.id, href: listen.href, w: 'listen', ...STORY_ON, sub: 'The Testwala Drum' });
     redis._store.clear();
     const w1 = await view([video, listen, invite]);
     await tap(w1, listen.id);
-    expect(await view([video, invite], { open: new Set([listen.id]) })).toMatchObject({ id: listen.id, href: listen.href, title: 'Listen to a story', title_ur: 'کہانی سنیں' });
+    // no longer built: the tap's own copy keeps the word key
+    expect(await view([video, invite], { open: new Set([listen.id]) })).toMatchObject({ id: listen.id, href: listen.href, w: 'listen', ...STORY_ON });
   });
 
-  test('a listening stop of the month opened and left keeps its own words', async () => {
-    const stop = { kind: 'story', id: 'stop.listen', href: '/c/t?kid=c#listen', title: 'Listen to a story', title_ur: 'کہانی سنیں', read_aloud: false };
+  test('a read with progress: "Carry on reading" / «پڑھنا جاری رکھیں», and the next object carries its word key', async () => {
+    await seed(true);
+    const v1 = await view([video, story, invite]);
+    await tap(v1, story.id);
+    expect(await view([video, story, invite])).toMatchObject({ id: story.id, w: 'read', ...READ_ON });
+    expect(await view([video, invite], { open: new Set([story.id]) })).toMatchObject({ id: story.id, w: 'read', ...READ_ON });
+  });
+
+  test('a listen with no progress (never opened): "Listen to a story" / «کہانی سنیں», its word key on the next object', async () => {
+    await seed(true);
+    const v1 = await view([listen, video, invite]);
+    const tile = [v1, ...v1.alts].find((x) => x.id === listen.id);
+    expect(tile).toMatchObject({ w: 'listen', ...LISTEN });
+    expect(v1.rank_src).not.toBe('rule');
+  });
+
+  test('an href that says ex=listen while the word key is read follows the key: "Carry on reading"', async () => {
+    const odd = { ...story, id: 'en.read.2.k09', href: '/c/t?kid=c&room=story&pid=en.read.2.k09&ex=listen#listen', w: 'read' };
+    await seed(true);
+    const v1 = await view([video, odd, invite]);
+    await tap(v1, odd.id);
+    expect(await view([video, odd, invite])).toMatchObject({ id: odd.id, href: odd.href, w: 'read', ...READ_ON });
+    // and the other way round: a plain href with the listen key carries on with the story
+    redis._store.clear();
+    const plain = { ...listen, id: 'en.listen.2.k05', href: '/c/t?kid=c&room=story&pid=en.listen.2.k05' };
+    const w1 = await view([video, plain, invite]);
+    await tap(w1, plain.id);
+    expect(await view([video, plain, invite])).toMatchObject({ id: plain.id, w: 'listen', ...STORY_ON });
+  });
+
+  test('a listening stop of the month and a storybook, opened and left: "Carry on with your story"', async () => {
+    const stop = { kind: 'story', id: 'stop.listen', href: '/c/t?kid=c#listen', w: 'listen', ...LISTEN, read_aloud: false };
+    const sb = { kind: 'storybook', id: 'sb-9', href: '/h/t?kid=c#story/sb-9', w: 'listen', ...LISTEN, sub: 'Lost Deer' };
     await seed(true);
     const v1 = await view([video, stop, invite]);
     await tap(v1, stop.id);
-    expect(await view([video, stop, invite])).toMatchObject({ id: stop.id, title: 'Listen to a story', title_ur: 'کہانی سنیں' });
+    expect(await view([video, stop, invite])).toMatchObject({ id: stop.id, ...STORY_ON });
+    redis._store.clear();
+    const w1 = await view([video, sb, invite]);
+    await tap(w1, sb.id);
+    expect(await view([video, sb, invite])).toMatchObject({ kind: 'storybook', id: sb.id, ...STORY_ON, sub: 'Lost Deer' });
+  });
+
+  test('a tile with no word key keeps its own words when carried (a new kind is safe by default)', async () => {
+    const bare = { kind: 'story', id: 'en.read.2.k11', href: '/c/t?kid=c&room=story&pid=en.read.2.k11', title: 'Read with Jugnu' };
+    await seed(true);
+    const v1 = await view([video, bare, invite]);
+    await tap(v1, bare.id);
+    const v2 = await view([video, bare, invite]);
+    expect(v2).toMatchObject({ id: bare.id, rank_src: 'rule', title: 'Read with Jugnu' });
+    expect(v2.w).toBeUndefined();
+  });
+
+  test('the builders give every tile its word key: a read, a listen, a listening stop, a teacher\'s storybook, a shelf book', () => {
+    const S = require('../../../shared/services/quiz/web-quiz-next-offer-sources');
+    const list = S.candidatesOf({
+      out: { kid: 'c1', teacher: { code: 'SB0001', k: 'k', topic: 'Lost Deer', sent_at: new Date(NOW).toISOString() } }, token: 'tok', storyCodes: new Set(['SB0001']),
+      collect: { trail: ['listen', 'read'], unseen: [{ pid: 'en.read.2.k07', title: 'The Testwala Kite' }, { pid: 'en.listen.2.k03', title: 'The Testwala Drum' }],
+        live: [{ passage_id: 'en.listen.2.k03', kind: 'listen' }] },
+      nowMs: NOW,
+    });
+    const w = Object.fromEntries(list.map((c) => [c.id, c.w]));
+    expect(w).toMatchObject({ 'en.read.2.k07': 'read', 'en.listen.2.k03': 'listen', 'stop.listen': 'listen', 'stop.read': 'read' });
+    expect(list.find((c) => c.kind === 'storybook')).toMatchObject({ w: 'story', title: 'From your teacher' });
+    expect(S.titled({ kind: 'storybook', id: 'b2', href: '/h/t?kid=k#story/b2', title: 'Lost Deer' })).toMatchObject({ w: 'listen', ...LISTEN });
+    expect(Leaf.copyOf({ ...listen, extra: 1 })).toEqual({ kind: 'story', id: listen.id, href: listen.href, w: 'listen', ...LISTEN, sub: 'The Testwala Drum' });
   });
 
   test('a read finished (no unfinished run on it): not brought back', async () => {

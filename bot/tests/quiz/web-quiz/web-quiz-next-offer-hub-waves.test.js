@@ -264,7 +264,7 @@ describe('#C49a through the hub: a story opened and left comes back as «Carry o
     const tok = T.signHub([KID]);
     // what a tap on the story's tile left in the slot's state (Leaf.noteTap: opened once, not finished, its copy)
     const href = `/c/${tok}?kid=x&lang=${lang}&home=1&room=story&pid=${PID}`;
-    const copy = Leaf.copyOf({ kind: 'story', id: PID, href, title: 'Read to Jugnu', title_ur: 'جگنو کو پڑھ کر سناؤ', sub: 'The Testwala Kite' });
+    const copy = Leaf.copyOf({ kind: 'story', id: PID, href, w: 'read', title: 'Read to Jugnu', title_ur: 'جگنو کو پڑھ کر سناؤ', sub: 'The Testwala Kite' });
     await Leaf.saveState(NO.childKey(KID), { t: { id: PID, v: null, u: 1, c: copy } });
     // the run row the story room wrote when it opened
     DB.web_quiz_challenge_runs.push(run({ exercise: 'read', mode: 'practice', status, passage_id: PID, created_at: ago(1), scored_at: null }));
