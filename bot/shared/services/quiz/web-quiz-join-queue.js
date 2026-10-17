@@ -120,15 +120,16 @@ async function rows(query) {
 const uniq = (xs) => [...new Set(xs.filter(Boolean))];
 
 // The watch root and every code whose parent chain reaches it copy its teacher but are not that teacher's class (a
-// class-less child's code, a friend's code under it, ...): never pooled or linked. No root: every code, as today.
+// class-less child's code, a friend's code under it, ...): never pooled or linked. No root: every code, as today. It
+// fails closed: an unreadable VALUE throws (an empty queue, nothing linked), a chain past the cap or a loop is out.
 async function codesOffWatchRoot(query) {
-  const root = await watchRootId();
+  const root = await watchRootId(Date.now(), { strict: true });
   const codes = await rows(notUnderWatchRoot(query, root));   // the root's own children leave in the query
   if (!root) return codes;
   const byId = new Map(codes.map((x) => [x.id, x]));
   const up = uniq(codes.map((x) => x.parent_share_code_id)).filter((p) => !byId.has(p));
   const watch = new Set((up.length ? await inChunks(() => supabase.from('quiz_share_codes').select('id').eq('parent_share_code_id', root), 'id', up) : []).map((x) => x.id));
-  const off = (x, n = 0) => x.id === root || watch.has(x.parent_share_code_id) || (n < 50 && byId.has(x.parent_share_code_id) && off(byId.get(x.parent_share_code_id), n + 1));
+  const off = (x, n = 0) => x.id === root || watch.has(x.parent_share_code_id) || (byId.has(x.parent_share_code_id) && (n >= 50 || off(byId.get(x.parent_share_code_id), n + 1)));
   return codes.filter((x) => !off(x));
 }
 

@@ -154,11 +154,12 @@ function onePerChildAcrossCodes(sessions) {
 
 // The watch root (app_settings VALUE web_quiz_watch_root): the code a class-less child's video codes hang under. Those
 // codes copy the root's teacher but are not that teacher's class; a class child's own lesson code (parent = the class's
-// code) is. → the root's id, or null (absent, not an id, or unreadable: nothing is left out). 30 s cache.
+// code) is. → the root's id, or null (absent, not an id, or unreadable: nothing is left out). 30 s cache. strict: an
+// unreadable VALUE throws instead (the join queue fails closed).
 const WATCH_ROOT_KEY = 'web_quiz_watch_root';
 const ID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 let watchRootCache = null; // { at, id }
-async function watchRootId(now = Date.now()) {
+async function watchRootId(now = Date.now(), { strict = false } = {}) {
   if (watchRootCache && now - watchRootCache.at < 30 * 1000) return watchRootCache.id;
   try {
     const { data, error } = await supabase.from('app_settings').select('value').eq('key', WATCH_ROOT_KEY).maybeSingle();
@@ -169,6 +170,7 @@ async function watchRootId(now = Date.now()) {
     watchRootCache = { at: now, id: typeof v === 'string' && ID_RX.test(v) ? v : null };
     return watchRootCache.id;
   } catch (err) {
+    if (strict) throw err;
     logToFile('⚠️ teacher report: watch root unreadable — no code left out', { error: err.message });
     return null;
   }
