@@ -49,12 +49,13 @@ const LEGACY_LANDING = '/portal/dashboard';
 
 /**
  * bd-fmf24g.52 — the COACH app's pages, for a pilot coach (app-redirect.service.js COACH_LINKS): /menu → coach Home,
- * /observe → the coach app's Observe page. Their own names, so a coach token can never be read as a teacher feature
+ * /observe → the coach app's Observe page, /training → the Training Library (bd-s42dye.3). Their own names, so a coach token can never be read as a teacher feature
  * and /go asks the coach-app question for them only. A coach no longer on the coach app lands on LEGACY_LANDING.
  */
 const COACH_LANDINGS = Object.freeze({
   coach_menu: '/portal/coach',
   coach_observe: '/portal/coach/observe',
+  coach_training: '/portal/coach/training', // bd-s42dye.3 — the coach app's Training Library
 });
 
 /** A feature a token may carry: a teacher page or a coach page. Anything else cannot be signed or verified. */

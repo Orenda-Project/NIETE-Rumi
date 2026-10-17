@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import i18n from "i18next";
 import TeacherNavigation from "./TeacherNavigation";
 import TeacherPage from "./TeacherPage";
-import { currentCoachMenuItem, COACH_MENU_PATHS } from "./menu";
+import { currentCoachMenuItem, COACH_MENU_PATHS, COACH_NAV_KEYS } from "./menu";
 import { TEACHER_COPY_UR } from "./copy";
 import { vi } from "vitest";
 
@@ -26,7 +26,7 @@ describe("role-aware bottom menu (bd-4404s7.1)", () => {
     at("/portal/coach", "coach");
     const links = Array.from(screen.getByTestId("teacher-nav").querySelectorAll("a"));
     expect(links.map((a) => a.textContent)).toEqual(["Home", "Schedule", "Observe", "Schools", "More"]);
-    expect(links.map((a) => a.getAttribute("href"))).toEqual(Object.values(COACH_MENU_PATHS));
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(COACH_NAV_KEYS.map((k) => COACH_MENU_PATHS[k]));
   });
   it("icons stay STILL (Schedule and Schools glyphs included)", () => {
     at("/portal/coach", "coach");
@@ -51,7 +51,7 @@ describe("role-aware bottom menu (bd-4404s7.1)", () => {
   it("Urdu words", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     at("/portal/coach", "coach");
-    for (const w of Object.values(TEACHER_COPY_UR.coachNav)) expect(screen.getAllByText(w).length).toBeGreaterThan(0);
+    for (const k of COACH_NAV_KEYS) expect(screen.getAllByText(TEACHER_COPY_UR.coachNav[k]).length).toBeGreaterThan(0);
   });
 });
 
