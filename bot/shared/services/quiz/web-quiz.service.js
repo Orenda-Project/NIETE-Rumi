@@ -348,14 +348,32 @@ function mediaHelpers() {
 // ─── the class's name chips ────────────────────────────────────────────────
 
 /**
+ * A child's own code under the watch root (a class-less child's quiz after a video), or the root code itself: no class,
+ * so no classmates. The root (app_settings VALUE web_quiz_watch_root, the key the videos module mints under) comes in
+ * the page's own identity-mode settings read, so no code pays a read for it; no root (or a failed read) = today's page.
+ */
+async function isWatchCode(ctx) {
+  const root = await IdRoster.watchRoot();
+  return Boolean(root) && (ctx.moreVideosOf === root || ctx.shareCodeId === root);
+}
+
+/**
  * Children who played THIS teacher's links in the last 90 days (not invited
  * friends, not the teacher's own runs), most recent first, capped at 40.
  * Internal rows carry studentId; the public chip never does.
  */
 async function classChips(ctx) {
   const since = new Date(Date.now() - CHIP_WINDOW_DAYS * 86400000).toISOString();
-  const { data: codes } = await dbRead('classChips:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id')
-    .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since).limit(200));
+  // A watch code's teacher is the watch root's: its other codes are strangers, so only this code's own players; the
+  // root code itself is no class at all. Every other code of that teacher leaves the watch children's codes out.
+  const root = await IdRoster.watchRoot();
+  if (root && ctx.shareCodeId === root) return [];
+  const watch = await isWatchCode(ctx);
+  const { data: codes } = watch ? { data: [] } : await dbRead('classChips:quiz_share_codes:1', (db) => {
+    const q = db.from('quiz_share_codes').select('id')
+      .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since);
+    return (root ? q.or(`parent_share_code_id.is.null,parent_share_code_id.neq.${root}`) : q).limit(200);
+  });
   const ids = (codes || []).map((c) => c.id);
   if (!ids.includes(ctx.shareCodeId)) ids.push(ctx.shareCodeId);
   const { data: sessions } = await dbRead('classChips:quiz_sessions:1', (db) => db.from('quiz_sessions')
@@ -439,9 +457,11 @@ function getQuiz(code, opts = {}) {
 }
 
 // The class heading for a code (null until a child has finished): the report's, so the page names the class as the
-// teacher's own texts do. A "watch another video" code is named after the class code it came from.
+// teacher's own texts do. A "watch another video" code is named after the class code it came from; a class-less
+// child's watch code has no class to name.
 async function classLabel(ctx) {
   try {
+    if (await isWatchCode(ctx)) return null;
     const cls = await require('./video-quiz-report.service').loadClassRows(ctx.moreVideosOf || ctx.shareCodeId);
     return (cls && cls.className) || null;
   } catch { return null; }
@@ -534,7 +554,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // Identity v2: the child types their name and the server matches inside the hand-out's class.
   const idn = await got('idn', () => identityV2(ctx));
   // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
-  const roster = idn ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
+  // A watch code's teacher is the watch root's: the class-less child is on none of that teacher's lists.
+  const roster = idn || (await isWatchCode(ctx)) ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
   // v2 ships no classmates' names at all: only this phone's remembered children (page storage).
   // An invited friend is not in the class: no classmates' names, ever (a pick would score as a classmate).
   const invited = Boolean(ctx.invitedByStudentId);
@@ -623,7 +644,7 @@ const classKey = (ctx, listId) => T.chipId(ctx.shareCodeId, `list:${listId}`);
  */
 async function oneClass(ctx, chosen) {
   const q = await quizInfo(ctx.quizId);
-  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: q.grade });
+  const roster = (await isWatchCode(ctx)) ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: q.grade });
   if (!roster) return { roster: null, grade: q.grade };
   const pick = Roster.pickList(roster, { listId: q.listId, grade: q.grade, chosen: chosen == null ? null : String(chosen) }, (id) => classKey(ctx, id));
   return { roster, grade: q.grade, ask: pick.ask || null, one: pick.ask ? null : Roster.onlyList(roster, pick.list) };
@@ -1168,6 +1189,8 @@ const ARABIC_SCRIPT = /[؀-ۿݐ-ݿ]/;
 async function identityV2(ctx) {
   if ((await IdRoster.identityMode()) !== 'v2') return null;
   if (ctx.invitedByStudentId) return { invited: true, resolved: NONE_CLASS };
+  // A class-less child's own code under the watch root (or the root): nobody's class, so no class to match a name in.
+  if (await isWatchCode(ctx)) return { invited: false, resolved: NONE_CLASS };
   try {
     const resolved = await Identity.resolveQuizClass({
       teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId,

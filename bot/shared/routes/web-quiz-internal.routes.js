@@ -221,6 +221,8 @@ const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
 // `l`: the page's language (en|ur, anything else dropped); read only under app_settings web_quiz_videos_v3.
 const ql = (v) => (v === 'en' || v === 'ur' ? v : undefined);
 router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l), device: req.get('x-wq-device') })));
+// the v3 home's door screens (web-quiz-hub-doors.js; web_quiz_home_v3, off -> 404 home_off): what is behind Stories / Games
+router.get('/doors/h/:token', handle((req) => require('../services/quiz/web-quiz-hub-doors').door(req.params.token, { kid: q1(req.query.kid), d: q1(req.query.d), lang: q1(req.query.l), device: req.get('x-wq-device') })));
 router.get('/lib/:code', handle((req) => WebQuizLibrary.lib(req.params.code, { st: q1(req.query.st), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l) })));
 router.get('/videos/dl/:code', handle((req) => WebQuizLibrary.download(req.params.code, { st: q1(req.query.st), vid: q1(req.query.vid) })));
 // Storybooks (web-quiz-stories.js; web_quiz_stories, fails closed). x-wq-device: this phone's device_ref, as for the library.
