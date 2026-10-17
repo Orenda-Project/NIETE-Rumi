@@ -189,8 +189,16 @@ const withNext = async (out, ct, req) => {
   if (ok) return { ...out, ...next };
   // nor what it is worked out from: wcpm = correct / (60 - time_left) * 60 (a whole minute's `correct` is the speed itself)
   const { wcpm, previous, ...rest } = out;
-  if (rest.score && typeof rest.score === 'object') { const { correct, time_left, finished_early, ...heard } = rest.score; rest.score = heard; }
+  if (rest.score && typeof rest.score === 'object') { const { correct, time_left, finished_early, ...heard } = rest.score; rest.score = await coarseScore(heard, ct); }
   return { ...rest, ...next };
+};
+// and the words attempted (a timer-ended minute's count is the speed itself) only as a coarse count by the story's
+// length as the page counts it (web-quiz-read-coarse.js); the length unknown: only none / some (0 / 1)
+const coarseScore = async (score, ct) => {
+  if (typeof score.attempted !== 'number') return score;
+  let len = 0;
+  try { len = await require('../services/quiz/web-quiz-challenge').readLength(ct); } catch (_) { len = 0; }
+  return { ...score, attempted: require('../services/quiz/web-quiz-read-coarse').coarseAttempted(score.attempted, len) };
 };
 router.get('/ch/result/:ct', challenge(async (C, req) => withNext(await C.poll(req.params.ct), req.params.ct, req)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {}, { device: req.get('x-wq-device') })));

@@ -114,3 +114,38 @@ describe('events v3 on', () => {
     expect(today).toHaveLength(1);
   });
 });
+
+describe('the page\'s /known timing lines (link_known_answer, link_known_late) under events v3', () => {
+  test('both are v3 lines: ms (a whole number 0-600000), kids (0-4) on the answer; never the code or a name', async () => {
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
+    Svc.events({ events: [
+      { n: 'link_known_answer', ms: 3480, kids: 1, code: 'TSTQ42', first: 'Zara' },
+      { n: 'link_known_late', ms: 5120, code: 'TSTQ42' },
+    ] }, { device: DEV });
+    await flush();
+    const [ans] = by('web_quiz.link_known_answer');
+    const [late] = by('web_quiz.link_known_late');
+    expect(ans).toMatchObject({ ev_v: 3, v3: 1, w: 'p', ms: 3480, kids: 1, kid: null, dk: K.dk(DEV) });
+    expect(late).toMatchObject({ ev_v: 3, v3: 1, w: 'p', ms: 5120, kid: null, dk: K.dk(DEV) });
+    expect(late).not.toHaveProperty('kids');
+    expect(JSON.stringify([ans, late])).not.toMatch(/TSTQ42|Zara/);
+  });
+
+  test('out of range or not a whole number: the field is dropped, the line kept', async () => {
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
+    Svc.events({ events: [
+      { n: 'link_known_answer', ms: -1, kids: 5 }, { n: 'link_known_answer', ms: '300', kids: 1.5 },
+      { n: 'link_known_late', ms: 600001 }, { n: 'link_known_late', ms: 600000 },
+    ] }, { device: DEV });
+    await flush();
+    expect(by('web_quiz.link_known_answer').map((f) => [f.ms, f.kids])).toEqual([[undefined, undefined], [undefined, undefined]]);
+    expect(by('web_quiz.link_known_late').map((f) => f.ms)).toEqual([undefined, 600000]);
+  });
+
+  test('events v3 off: today\'s path (no v3 envelope)', async () => {
+    await seed([]);
+    Svc.events({ events: [{ n: 'link_known_answer', ms: 3480, kids: 1 }, { n: 'link_known_late', ms: 5120 }] }, { device: DEV });
+    await flush();
+    expect(logEvent.mock.calls.some(([, f]) => f && f.ev_v === 3)).toBe(false);
+  });
+});

@@ -25,6 +25,10 @@
  * way": the Trail's "more stories" list and an empty shelf are left out; a child with no class quiz gets the Videos
  * door too (`watch: true`: videos/start answers a watch-only start under this switch, not 409 no_class).
  *
+ * `class_doors: {class, schools}` beside the home (web_quiz_class_doors, web-quiz-class-doors-flag.js): "My class" and
+ * "My school" on the home, the quiz page's class table and school league for the child's newest class quiz. Off or no
+ * class quiz: absent.
+ *
  * `home_fb: 1` beside the home (web_quiz_home_fallback_v3, web-quiz-home-fallback-flag.js; homeField and practiceHub as
  * exported): when wq-home.js never arrives, hub.js draws a plain home from this payload instead of the old hub. Off: absent.
  */
@@ -169,6 +173,18 @@ function prefetch(chosenId, now = Date.now()) {
   return { flags: f, data };
 }
 
+// `{class_doors}` with web_quiz_class_doors on and a class quiz in the hub's own history, else {}. Never throws.
+// onP: the switch's read, started by prefetchFb beside the home's own reads (no added wave).
+const ClassDoors = require('./web-quiz-class-doors-flag');
+async function classDoorsOf(history, chosenId, onP) {
+  try {
+    const links = (await (onP || ClassDoors.on())) ? ClassDoors.linksOf(history, chosenId) : null;
+    return links ? { class_doors: links } : {};
+  } catch (_) {
+    return {};
+  }
+}
+
 /** `{home_v3, doors, head}` for the hub payload of a chosen child, or `{}` (switch off, no child, any failure). Never throws. */
 async function homeField({ out, chosenId, history, now = Date.now(), pre, device = null, src = null } = {}) {
   try {
@@ -187,9 +203,9 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre, device
     const R = require('./web-quiz-home-remember');
     // (one read of the binding rows for both, beside the phone rows: no added wave)
     const rows = R.rowsFor(device);
-    const [remember, own, phones] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang)]);
+    const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd)]);
     if (own) remember.forget_phone = true;
-    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot, videoShelf: f.shelf === true }), head, ...d.card, ...phones, ...remember };
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot, videoShelf: f.shelf === true }), head, ...d.card, ...phones, ...remember, ...cd };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
     return {};
@@ -275,9 +291,12 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
 // The fallback switch is read beside the home's own reads (once its flags say the home is on), never after them: no wave.
 const Fallback = require('./web-quiz-home-fallback-flag');
 const fbOf = (f) => f.then((on) => (on.home ? Fallback.on() : false)).catch(() => false);
+// ...and so is web_quiz_class_doors (classDoorsOf).
+const cdOf = (f) => f.then((on) => (on.home ? ClassDoors.on() : false)).catch(() => false);
 function prefetchFb(chosenId, now) {
   const p = prefetch(chosenId, now);
   p.fb = fbOf(p.flags);
+  p.cd = cdOf(p.flags);
   return p;
 }
 function homeFieldFb(a = {}) {
@@ -288,4 +307,4 @@ function practiceHubFb(token, o) {
   const fb = practiceOf(token) ? fbOf(flags()) : false;
   return Promise.all([practiceHub(token, o), fb]).then(([out, on]) => (on && out && out.home_v3 ? { ...out, home_fb: 1 } : out));
 }
-module.exports = { homeField: homeFieldFb, doorsOf, headOf, flags, practiceHub: practiceHubFb, practiceOf, prefetch: prefetchFb, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => { HomeFlags._resetCache(); Fallback._resetCache(); }, _useModules: (m) => { modules = m; } };
+module.exports = { homeField: homeFieldFb, doorsOf, headOf, flags, practiceHub: practiceHubFb, practiceOf, prefetch: prefetchFb, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => { HomeFlags._resetCache(); Fallback._resetCache(); ClassDoors._resetCache(); }, _useModules: (m) => { modules = m; } };

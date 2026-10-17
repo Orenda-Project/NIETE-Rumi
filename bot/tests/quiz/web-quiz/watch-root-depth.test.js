@@ -62,7 +62,7 @@ const sess = (sid, sc, k, name, h, extra = {}) => ({
 });
 
 let fake;
-function seed({ root = true } = {}) {
+function seed({ root = true, resetLeague = true } = {}) {
   fake = makeFake({
     app_settings: root ? [{ key: 'web_quiz_watch_root', value: JSON.stringify(ROOT) }] : [],
     schools: [
@@ -105,7 +105,7 @@ function seed({ root = true } = {}) {
   });
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
   require('../../../shared/services/quiz/web-quiz-identity-roster')._resetCache();
-  Schools._reset();
+  if (resetLeague) Schools._reset();
 }
 
 const SAVED = { ...process.env };
@@ -172,6 +172,14 @@ describe('the school league: a finish under the watch root credits no school, at
     const b = await Schools.board('ALPHA1', { now: Date.now() });
     expect(b.rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ kids: 3 }));
   });
+  test('the VALUE written while the league holds its codes: the next board (a minute on) already leaves the watch side out', async () => {
+    seed({ root: false });
+    const t0 = Date.now();
+    expect((await Schools.board('ALPHA1', { now: t0 })).rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ kids: 7 }));
+    seed({ root: true, resetLeague: false });   // the settings read sees the VALUE; the league's code map is still warm
+    const b = await Schools.board('ALPHA1', { now: t0 + 2 * 60 * 1000 });
+    expect(b.rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ kids: 3 }));
+  });
 });
 
 describe('the walk itself (watch-root.js underWatchRoot): fail closed', () => {
@@ -225,6 +233,54 @@ describe('a failed settings read may hide a root: the page\'s readers fail close
     failSettings();
     await expect(Schools.board('ALPHA1', { now: Date.now() })).rejects.toMatchObject({ status: 502 });
   });
+  test('the league answers no board on a failed settings read even while its code map is warm', async () => {
+    seed({ root: false });
+    const t0 = Date.now();
+    await Schools.board('ALPHA1', { now: t0 });   // the map is built (no VALUE yet)
+    seed({ root: true, resetLeague: false });
+    failSettings();
+    await expect(Schools.board('ALPHA1', { now: t0 + 2 * 60 * 1000 })).rejects.toMatchObject({ status: 502 });
+  });
+  // One failed settings read, then a good one, inside ONE chips call: the pool never takes a code of the other side.
+  test.each([['AB12CD', WATCH_NAMES], ['CLESS4', WATCH_NAMES], ['WFRND1', CLASS_NAMES], ['WLESS1', CLASS_NAMES]])('%s: a blip then a good read pools nothing of the other side', async (c, other) => {
+    const ctx = await WQ.resolveCode(c);
+    require('../../../shared/services/quiz/web-quiz-identity-roster')._resetCache();
+    let n = 0;
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t === 'app_settings' && n++ === 0) b.then = (res, rej) => Promise.resolve({ data: null, error: { message: 'db down' } }).then(res, rej);
+      return b;
+    };
+    const names = (await WQ.classChips(ctx)).map((x) => x.first);
+    expect(names.join(' ')).not.toMatch(other);
+  });
+});
+
+describe('a code read that answers {error} (not a throw) fails closed', () => {
+  function failCodeReads() {
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t !== 'quiz_share_codes') return b;
+      const inn = b.in;
+      b.in = (col, vs) => {
+        const q = inn(col, vs);
+        if (col === 'id') q.then = (res, rej) => Promise.resolve({ data: null, error: { message: 'db down' } }).then(res, rej);
+        return q;
+      };
+      return b;
+    };
+  }
+  test('the page: a class code keeps the watch side out when the parent read answers {error}', async () => {
+    const ctx = await WQ.resolveCode('AB12CD');
+    failCodeReads();
+    expect((await WQ.classChips(ctx)).map((x) => x.first).join(' ')).not.toMatch(WATCH_NAMES);
+  });
+  test('the league: no board, never a count that credits the watch side', async () => {
+    failCodeReads();
+    await expect(Schools.board('ALPHA1', { now: Date.now() })).rejects.toMatchObject({ status: 502 });
+  });
 });
 
 describe('GOLDEN: no watch root set, every reader answers as today', () => {
@@ -239,5 +295,49 @@ describe('GOLDEN: no watch root set, every reader answers as today', () => {
   test('School Bravo counts every finish on its teacher\'s codes, as today', async () => {
     const b = await Schools.board('ALPHA1', { now: Date.now() });
     expect(b.rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ kids: 7 }));
+  });
+});
+
+/**
+ * Settings reads with NO watch root set (OFF reads exactly what the page read before the switch existed). The chips read exactly as before this change. The league
+ * now reads the root setting on a load whose code map is warm (before, only when the load met a new code): that read
+ * is what lets it fail closed and rebuild its map after the root changes. It rides the page's 30 s settings cache,
+ * so it is one named `watchRootState` read when that cache is cold and none when it is warm.
+ * `named` counts the reads made inside `watchRootState`; total − named is the base's own count on the same load.
+ */
+describe('READS: no watch root set, settings reads as before plus the league\'s one named read', () => {
+  const IdR = require('../../../shared/services/quiz/web-quiz-identity-roster');
+  const reads = () => fake.calls.filter((c) => c.table === 'app_settings').length;
+  let real; let named;
+  beforeEach(() => {
+    seed({ root: false });
+    real = IdR.watchRootState; named = 0;
+    IdR.watchRootState = async (...a) => { const n = reads(); try { return await real(...a); } finally { named += reads() - n; } };
+  });
+  afterEach(() => { IdR.watchRootState = real; });
+
+  test('the class chips read as before: 1 read cold, 0 warm', async () => {
+    const ctx = await WQ.resolveCode('AB12CD');
+    let n = reads(); await WQ.classChips(ctx); const cold = reads() - n;
+    n = reads(); await WQ.classChips(ctx); const warm = reads() - n;
+    expect(cold).toBe(1);
+    expect(warm).toBe(0);
+  });
+  test('the league, code map warm, settings cache cold: the base\'s 0 + 1 named watchRootState read', async () => {
+    const t0 = Date.now();
+    await Schools.board('ALPHA1', { now: t0 });   // the code map is warm, no new code finishes after this
+    IdR._resetCache();                              // the 30 s settings cache has run out; no page read in between
+    named = 0;
+    const n = reads(); await Schools.board('ALPHA1', { now: t0 + 61 * 1000 }); const total = reads() - n;
+    expect(total - named).toBe(0);   // the base: a warm map with no new code read no settings
+    expect(named).toBe(1);
+    expect(total).toBe(1);
+  });
+  test('the league, code map warm, settings cache warm (a page read within 30 s): 0 reads', async () => {
+    const t0 = Date.now();
+    await Schools.board('ALPHA1', { now: t0 });
+    IdR._resetCache(); await IdR.identityMode();   // another page in the process read settings just now
+    const n = reads(); await Schools.board('ALPHA1', { now: t0 + 61 * 1000 });
+    expect(reads() - n).toBe(0);
   });
 });
