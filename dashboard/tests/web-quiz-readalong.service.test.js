@@ -581,6 +581,28 @@ describe('read-along player: tap a word to hear its sentence again (tap: \'sente
     at(3500); expect(p.state).toBe('paused');
   });
 
+  test('a closing » stays with its sentence (the questions\' splitter agrees)', () => {
+    const { RA, document, audio } = load();
+    const el = document.createElement('div');
+    const d = { ...DATA, lang: 'ur', dir: 'rtl', words: [
+      { i: 0, t: '«چلو', s_ms: 200, e_ms: 600 }, { i: 1, t: 'چلیں۔»', s_ms: 700, e_ms: 1100 },
+      { i: 2, t: 'وہ', s_ms: 1500, e_ms: 1900 }, { i: 3, t: 'گیا۔', s_ms: 2300, e_ms: 2700 },
+    ] };
+    RA.mount(el, d, { tap: 'sentence' });
+    byClass(el, 'wqra-w')[2].click();            // "وہ" starts the second sentence: «…۔» ended the first
+    expect(audio().currentTime).toBeCloseTo(1.45, 5);
+  });
+
+  test('a "low" text page: the page\'s own lines (opts.lines) win over where the browser wrapped the words', () => {
+    const { RA, document, audio, at } = load();
+    const el = document.createElement('div');
+    const p = RA.mount(el, { ...DATA, quality: 'low' }, { tap: 'sentence', lines: [[0, 1], [2, 4]] });
+    byClass(el, 'wqra-w')[4].click();            // "won." → sentence 3–4 → the page's line 1 = words 2–4
+    expect(audio().currentTime).toBeCloseTo(1.15, 5);
+    at(3400); expect(p.state).toBe('playing');
+    at(3500); expect(p.state).toBe('paused');
+  });
+
   test('one splitter: sayLine (no line, no boxes) splits as the tap does, and a silent word never ends its sentence', () => {
     const { RA } = load();
     const d = { ...DATA, words: [

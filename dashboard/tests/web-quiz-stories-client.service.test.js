@@ -1481,6 +1481,15 @@ describe('echo reading on G1-2', () => {
     const ws = ['Mina', 'runs.', '"Up!"', 'Is', 'it', 'red?', 'یہ', 'پتنگ', 'ہے۔', 'کیا', 'اڑی؟', 'Then'].map((t, i) => ({ i, t }));
     expect(e.S._sents(ws)).toEqual([[0, 1], [2, 2], [3, 5], [6, 8], [9, 10], [11, 11]]);
   });
+  test('one sentence rule with the player: a closing » stays with its sentence, a silent word never ends one; the end test is the player\'s, letter for letter', async () => {
+    const e = env(); await openReader(e);
+    const ws = [{ i: 0, t: '«چلو' }, { i: 1, t: 'چلیں۔»' }, { i: 2, t: '(آہستہ۔)', silent: true }, { i: 3, t: 'وہ' }, { i: 4, t: 'گیا۔' }];
+    expect(e.S._sents(ws)).toEqual([[0, 1], [2, 4]]);
+    const fs = require('fs'); const path = require('path');
+    const rx = (f) => (fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', f), 'utf8').match(/\/\[\.!\?[^/]*\/\.test/) || [])[0];
+    expect(rx('wq-stories-q.js')).toBeTruthy();
+    expect(rx('wq-stories-q.js')).toBe(rx('wq-readalong.js'));
+  });
   test('Read it together: Jugnu plays ONE sentence (seek its first word, pause at its last e_ms), its boxes outlined, then the mic on that sentence only, then the next; ends back on the page', async () => {
     const e = env({ replies: { book: { status: 200, body: two() } } });
     const root = await afterRead(e, ['read', 'ahead', 'ahead', 'ahead', 'ahead']);
@@ -1926,6 +1935,12 @@ describe('hear a sentence again (a tapped word replays its sentence)', () => {
   test('the reader asks the player for the sentence tap', async () => {
     const e = env(); await openReader(e);
     expect(e.calls.ra[0].o.tap).toBe('sentence');
+    expect(e.calls.ra[0].o.lines).toBeUndefined();   // a page without its own lines: the player finds them
+  });
+  test('a page with its own lines hands them to the player as [first, last] pairs (a low page replays those, not the browser\'s wrap)', async () => {
+    const bk = book(); bk.pages[0].quality = 'low'; bk.pages[0].lines = [{ i0: 0, i1: 2, box: [100, 800, 300, 60] }, { i0: 3, i1: 4, box: [220, 860, 200, 60] }];
+    const e = env({ replies: { book: { status: 200, body: bk } } }); await openReader(e);
+    expect(e.calls.ra[0].o.lines).toEqual([[0, 2], [3, 4]]);
   });
   test('while listening: the replayed sentence ends by itself -> the button says Listen, not Pause; the time heard counts', async () => {
     const e = env(); real(e); const root = await openReader(e);

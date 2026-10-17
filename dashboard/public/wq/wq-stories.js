@@ -468,7 +468,7 @@
     R.word = word;
     function mount(p, op) {
       var ra = root.querySelector('[data-ra]');
-      op.mode = p.boxes_ok ? 'overlay' : 'strip'; op.leadMs = 50; op.tap = 'sentence'; op.labels = { play: t.listen, pause: t.pause, replay: t.again }; op.onWord = word;
+      op.mode = p.boxes_ok ? 'overlay' : 'strip'; op.leadMs = 50; op.tap = 'sentence'; if (p.lines && p.lines.length) op.lines = p.lines.map(function (x) { return [x.i0, x.i1]; }); op.labels = { play: t.listen, pause: t.pause, replay: t.again }; op.onWord = word;
       try { R.pl = W.WQReadAlong.mount(ra, { v: 1, id: b.id + '/p' + p.n, lang: b.lang, dir: b.dir, audio: p.audio, words: p.words, image: p.image, quality: p.quality }, op); } catch (x) { R.pl = null; }
       if (R.pl && R.pl.audio) R.pl.audio.muted = muted();
       rate();

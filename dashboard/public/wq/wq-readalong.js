@@ -1,7 +1,7 @@
 /**
  * Read-along: Jugnu reads, and a green pill moves from word to word as each word is spoken.
  *
- *   var p = WQReadAlong.mount(el, data, { mode, leadMs, labels, onWord, onEnd, onState, onWordTap, tap });
+ *   var p = WQReadAlong.mount(el, data, { mode, leadMs, labels, onWord, onEnd, onState, onWordTap, tap, lines });
  *   p.play(); p.pause(); p.toggle(); p.replay(); p.seekToWord(i); p.playWord(i); p.destroy();
  *
  * `data` is a timing object {v, id, lang, dir, audio:{url, ms, mime}, words:[{i, t, s_ms, e_ms, box?}], image?:{url, w, h},
@@ -14,7 +14,7 @@
  * quality "low" (word times not trusted): the pill lights the whole printed LINE of the word being read, not the word.
  * The clock is the audio element: while playing, one requestAnimationFrame loop reads audio.currentTime and moves the
  * pill only when the word changes (≤ 1 frame late, no layout work per frame). The pill leads the sound by `leadMs`.
- * tap 'sentence': a tapped word replays its sentence (a "low" page: the lines it spans), lit as it plays.
+ * tap 'sentence': a tapped word replays its sentence (a "low" page: the lines it spans; `lines`: the page's own), lit as it plays.
  * Never autoplays: the first play() must run inside the child's tap (the in-app browser's audio unlock).
  * Fires window event 'wq:readalong' {type: started|word|finished|paused|resumed|tap_word, i, id}.
  */
@@ -226,6 +226,12 @@
       });
       return out;
     }
+    // a sentence tap's line: the page's own (opts.lines), else as printed
+    function tapLine(i) {
+      var L = opts.lines || [];
+      for (var k = 0; k < L.length; k += 1) if (i >= L[k][0] && i <= L[k][1]) return L[k];
+      return lineOf(i) || [i, i];
+    }
     function lineOf(i) {
       if (!lines) lines = useImage ? lineBoxes() : lineSpans();
       for (var j = 0; j < lines.length; j += 1) if (i >= lines[j][0] && i <= lines[j][1]) return lines[j];
@@ -351,7 +357,7 @@
           // the sentence; a "low" page: its whole lines (their ends are the pauses we trust)
           if (opts.tap === 'sentence' && !dead) {
             var r = sentenceOf(words, i);
-            if (quality === 'low') r = [lineOf(r[0])[0], lineOf(r[1])[1]];
+            if (quality === 'low') r = [tapLine(r[0])[0], tapLine(r[1])[1]];
             playFrom(words[r[0]].s - lead, r[0]);
             stopAt = words[r[1]].e;
           } else seekToWord(i);
@@ -428,9 +434,9 @@
   }
   // a whole-number index on the page (never null, 1.5 or '1')
   function okI(i, n) { return i === (i | 0) && i >= 0 && i < n; }
-  // [first, last] word of i's sentence (. ! ? ۔ ؟); a silent word never starts or ends one
+  // [first, last] word of i's sentence (. ! ? ۔ ؟); a silent word never starts or ends one (= wq-stories-q.js sents)
   function sentenceOf(ws, i) {
-    var end = function (k) { return !ws[k].sil && /[.!?\u06D4\u061F]["'\u201D\u2019)]*$/.test(ws[k].t); };
+    var end = function (k) { return !ws[k].sil && /[.!?\u06D4\u061F]["'\u201D\u2019)\u00BB]*$/.test(ws[k].t); };
     var a = i;
     var b = i;
     while (a > 0 && !end(a - 1)) a -= 1;

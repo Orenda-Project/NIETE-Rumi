@@ -7,7 +7,8 @@
   var IC = K.IC, esc = K.esc, scr = K.scr, img = K.img, ic = K.ic, top = K.top, post = K.post, req = K.req, juice = K.juice, JG = K.JG;
   function sents(ws) {
     var out = [], a = 0;
-    ws.forEach(function (w, i) { if (/[.!?\u06D4\u061F]["'\u201D\u2019)\u00BB]*$/.test(w.t) || i === ws.length - 1) { out.push([a, i]); a = i + 1; } });
+    // the player's end test (wq-readalong.js sentenceOf), letter for letter; a silent word never ends a sentence
+    ws.forEach(function (w, i) { if ((!w.silent && /[.!?\u06D4\u061F]["'\u201D\u2019)\u00BB]*$/.test(w.t)) || i === ws.length - 1) { out.push([a, i]); a = i + 1; } });
     return out;
   }
   S._sents = sents;
