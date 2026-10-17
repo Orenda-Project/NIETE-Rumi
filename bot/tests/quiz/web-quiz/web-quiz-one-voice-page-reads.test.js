@@ -195,7 +195,7 @@ describe.each(Object.keys(KINDS))('%s page, identity read warm and the switch\'s
   });
 });
 
-// The question read-along rides the same identity read as one voice (#C81 AMENDED): with one voice ON, the read-along
+// The question read-along rides the same identity read as one voice: with one voice ON, the read-along
 // ON or OFF reads exactly the same-run base (13 cold, 0 warm), and the read-along module never reads alone on the page.
 const RA = [['on', true], ['off (false)', false], ['absent', undefined]];
 const raRow = (ra) => (ra === undefined ? [] : [{ key: RA_KEY, value: ra }]);
@@ -220,7 +220,7 @@ describe.each(Object.keys(KINDS))('%s page, one voice on, the question read-alon
     expect(p.reads() - before).toBe(0);
   });
 
-  test.each(RA)('read-along %s, identity read warm and the read-along\'s own reading cold (#C81): exactly the base', async (_, ra) => {
+  test.each(RA)('read-along %s, identity read warm and the read-along\'s own reading cold (it rides the identity read): exactly the base', async (_, ra) => {
     const b = boot(kind, true);
     await require('../../../shared/services/quiz/web-quiz-identity-roster').identityMode();
     const base = await b.page();
