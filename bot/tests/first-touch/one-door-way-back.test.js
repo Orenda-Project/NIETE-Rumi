@@ -315,6 +315,8 @@ describe('the dead-end page speaks the LINK\'s language (switch ON): ?lang=, the
     ['maker stale (token ur) + ?lang=en → English', () => `/api/internal/ft/m/${staleMaker('ur')}?lang=en`, EN, UR],
     ['home stale (token ur) + ?lang=en → English', () => `/api/internal/th/quiz/teacher/${staleHome('ur')}?lang=en`, EN, UR],
     ['home stale (token en) + ?lang=ur → Urdu', () => `/api/internal/th/quiz/teacher/${staleHome('en')}?lang=ur`, UR, EN],
+    ['maker stale (token ur) + ?lang=fr → the token\'s Urdu (fr is not a language here)', () => `/api/internal/ft/m/${staleMaker('ur')}?lang=fr`, UR, EN],
+    ['home stale (token ur) + ?lang=fr → the token\'s Urdu (fr is not a language here)', () => `/api/internal/th/quiz/teacher/${staleHome('ur')}?lang=fr`, UR, EN],
   ];
   test.each(ROWS)('ON: %s', async (name, p, say, never) => {
     number(false);
@@ -335,7 +337,7 @@ describe('the dead-end page speaks the LINK\'s language (switch ON): ?lang=, the
       seed(state);
       const withQ = await get(p());
       seed(state);
-      const without = await get(p().replace(/[?&]lang=(ur|en)$/, ''));
+      const without = await get(p().replace(/[?&]lang=(ur|en|fr)$/, ''));
       // today the stale pages follow the token, not the query; the forged go page is bilingual either way
       expect(withQ.html).toBe(without.html);
     }

@@ -336,6 +336,9 @@ describe('the /h/ closed page speaks the link\'s language (switch ON): ?lang=, t
     ['?lang= beats the token: join token (lang ur) + ?lang=en → English', `/h/${JOIN_UR}?lang=en`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), EN],
     ['neither (no query, no lang in the token) → the phone, as today: Urdu phone', `/h/${TOKEN}`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), UR],
     ['?lang=fr is not a language here → the phone: English', '/h/not-a-token?lang=fr', { 'accept-language': 'en' }, null, EN],
+    ['?lang=fr is not a language here → the phone: an Urdu phone keeps today\'s Urdu page (forged)', '/h/not-a-token?lang=fr', { 'accept-language': 'ur-PK' }, null, UR],
+    ['?lang=fr is not a language here → the phone: an Urdu phone keeps today\'s Urdu page (expired)', `/h/${TOKEN}?lang=fr`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), UR],
+    ['?lang=fr is skipped, the token\'s own lang is next: join token (lang en) + ?lang=fr, an Urdu phone → English', `/h/${JOIN_EN}?lang=fr`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), EN],
   ];
   test.each(ROWS)('%s', async (name, p, headers, answer, sentence) => {
     number('whatsapp');
