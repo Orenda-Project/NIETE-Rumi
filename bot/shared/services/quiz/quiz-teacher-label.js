@@ -10,7 +10,7 @@ const { resolveUx } = require('../../config/ux-strings');
 // A stored name that already carries a title ("Mr Kamran", "Teacher Rifat", «استانی رفعت», «رفعت صاحبہ»)
 // loses it: the label adds its own "Teacher" / «استاد», so the title would print twice. Whole words only
 // ("Mrinal", "Sirajuddin" stay as they are).
-const LEAD_TITLE = /^(?:(?:teacher|sir|miss|madam|mrs|mr|ms)\.?(?=\s|$)|(?:استاد|استانی|سر|مس|میڈم)(?=\s|$))\s*/i;
+const LEAD_TITLE = /^(?:(?:teacher|sir|miss|madam|mrs|mr|ms)\.?(?=\s|$)|(?:استاد|استانی|ٹیچر|سر|مس|میڈم)(?=\s|$))\s*/i;
 const TAIL_TITLE = /\s+(?:صاحبہ|صاحب)$/;
 function withoutTitle(name) {
   let out = name;
@@ -26,4 +26,14 @@ function teacherLabel(teacherName, language) {
   return resolveUx('tqTeacherNamed', { language, params: { name } });
 }
 
-module.exports = { teacherLabel };
+// A child's screen names the teacher with «ٹیچر» (the word children use; «استاد» reads masculine) — the story
+// landing's strings; English is the same label as above.
+function childTeacherLabel(teacherName, language) {
+  const stored = String(teacherName || '').trim();
+  const generic = /^(your teacher|آپ کے استاد|آپ کے ٹیچر)$/i.test(stored);
+  const name = generic ? '' : withoutTitle(stored);
+  if (!name) return resolveUx('storyYourTeacher', { language });
+  return resolveUx('storyTeacherNamed', { language, params: { name } });
+}
+
+module.exports = { teacherLabel, childTeacherLabel };

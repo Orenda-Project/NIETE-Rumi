@@ -255,7 +255,8 @@ describe('the watch root\'s codes are not the sender\'s class; a class child\'s 
   };
   const listed = async () => (await Data.sentQuizzes(SENDER)).map((q) => q.id);
 
-  test.each([['a plain id', ROOT], ['a JSON string', JSON.stringify(ROOT)]])('the root set (%s): its child is left out everywhere; the lesson code stays', async (_, v) => {
+  test.each([['a plain id', ROOT], ['a JSON string', JSON.stringify(ROOT)],
+    ['an upper-case id padded with spaces', `  ${ROOT.toUpperCase()}\n`], ['an upper-case JSON string padded inside', JSON.stringify(` ${ROOT.toUpperCase()} `)]])('the root set (%s): its child is left out everywhere; the lesson code stays', async (_, v) => {
     seedBoth(v);
     expect(await listed()).not.toContain(WQ);
     expect(await listed()).toContain(LQ2);

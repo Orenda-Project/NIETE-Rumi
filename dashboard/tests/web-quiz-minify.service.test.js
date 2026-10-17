@@ -209,6 +209,18 @@ describe('switch on (`min: true` in the payload): minified files at their own UR
     expect(off).not.toMatch(/\?v=[0-9a-f]+m"/);
   });
 
+  it('the challenge page with the live reader on too: its style and script carry the m with the switch on; without it, today\'s URLs', () => {
+    const menu = { ...MENU, v2: true, lr3: true };
+    const args = { menu, token: TOKEN, kid: null, origin: ORIGIN, assetV: HEX, chV: fileV('wq-challenge.js'), brandKey: 'niete' };
+    const on = renderChallengePage({ ...args, sfx: 'm' });
+    expect(on).toContain(`/wq/wq-liveread.js?v=${fileV('wq-liveread.js')}m"`);
+    expect(on).toContain(`/wq/wq-liveread.css?v=${fileV('wq-liveread.css')}m"`);
+    expect(on).toContain(`/wq/wq-trail.js?v=${fileV('wq-trail.js')}m"`);
+    const off = renderChallengePage(args);
+    expect(off).toContain(`/wq/wq-liveread.js?v=${fileV('wq-liveread.js')}"`);
+    expect(off).not.toMatch(/\?v=[0-9a-f]+m"/);
+  });
+
   it('the challenge page with the sound kit on too: the kit\'s tags (raw, its own version) and the minified page scripts, both', () => {
     const menu = { ...MENU, v2: true, juice: true };
     const args = { menu, token: TOKEN, kid: null, origin: ORIGIN, assetV: HEX, chV: fileV('wq-challenge.js'), brandKey: 'niete' };

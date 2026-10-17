@@ -210,22 +210,8 @@
       var r = [b[0] - surf.x, b[1] - surf.y, b[2], b[3]];
       return r[0] < -0.5 || r[1] < -0.5 || r[0] + r[2] > surf.w + 0.5 || r[1] + r[3] > surf.h + 0.5 ? null : r;
     }
-    // printed lines (quality low): a word whose box's middle falls outside the line so far starts the next line
-    function lineBoxes() {
-      var out = [];
-      words.forEach(function (w, k) {
-        var b = w.box;
-        var cur = out[out.length - 1];
-        var mid = b[1] + b[3] / 2;
-        if (cur && mid >= cur[2][1] && mid <= cur[2][1] + cur[2][3]) {
-          var x0 = Math.min(cur[2][0], b[0]);
-          var y0 = Math.min(cur[2][1], b[1]);
-          cur[2] = [x0, y0, Math.max(cur[2][0] + cur[2][2], b[0] + b[2]) - x0, Math.max(cur[2][1] + cur[2][3], b[1] + b[3]) - y0];
-          cur[1] = k;
-        } else out.push([k, k, b.slice()]);
-      });
-      return out;
-    }
+    // printed lines (quality low), from the boxes
+    function lineBoxes() { return boxLines(words); }
     // the same in text mode, from where the browser wrapped the words
     function lineSpans() {
       var out = [];
@@ -416,17 +402,58 @@
     var d;
     try { d = parse(data); } catch (e) { return null; }
     if (!d.audio || (d.quality || (data && data.quality)) === 'low' || !(i >= 0 && i < d.words.length)) return null;
-    var w = d.words[i];
+    return clip(d.audio.url, d.words[i].s, d.words[i].e);
+  }
+  // one Audio on the signed URL, inside the caller's tap: play, seek to s, pause past e, then dropped
+  function clip(url, s, e) {
     var a = new Audio();
     var raf = window.requestAnimationFrame ? function (f) { return window.requestAnimationFrame(f); } : function (f) { return setTimeout(f, 16); };
     var done = false;
-    function stop() { if (done) return; done = true; try { a.pause(); a.removeAttribute('src'); a.load(); } catch (e) { /* gone */ } }
-    (function watch() { if (done) return; if ((a.currentTime || 0) * 1000 >= w.e + 10) { stop(); return; } raf(watch); }());
-    a.src = d.audio.url;
-    try { var pr = a.play(); if (pr && pr.catch) pr.catch(stop); } catch (e) { stop(); return null; }
-    try { a.currentTime = w.s / 1000; } catch (e) { /* not seekable yet */ }
+    function stop() { if (done) return; done = true; try { a.pause(); a.removeAttribute('src'); a.load(); } catch (x) { /* gone */ } }
+    (function watch() { if (done) return; if ((a.currentTime || 0) * 1000 >= e + 10) { stop(); return; } raf(watch); }());
+    a.src = url;
+    try { var pr = a.play(); if (pr && pr.catch) pr.catch(stop); } catch (x) { stop(); return null; }
+    try { a.currentTime = s / 1000; } catch (x) { /* not seekable yet */ }
     return { stop: stop };
   }
+  // printed lines from the words' boxes: a word whose box's middle falls outside the line so far starts the next line
+  function boxLines(words) {
+    var out = [];
+    words.forEach(function (w, k) {
+      var b = w.box;
+      var cur = out[out.length - 1];
+      var mid = b[1] + b[3] / 2;
+      if (cur && mid >= cur[2][1] && mid <= cur[2][1] + cur[2][3]) {
+        var x0 = Math.min(cur[2][0], b[0]);
+        var y0 = Math.min(cur[2][1], b[1]);
+        cur[2] = [x0, y0, Math.max(cur[2][0] + cur[2][2], b[0] + b[2]) - x0, Math.max(cur[2][1] + cur[2][3], b[1] + b[3]) - y0];
+        cur[1] = k;
+      } else out.push([k, k, b.slice()]);
+    });
+    return out;
+  }
+  /**
+   * Say the printed line holding word i, with nothing drawn (a tapped word on a page whose word times are not trusted:
+   * a line's ends sit on pauses both aligners agree on). The line: the page's own [first, last] when it holds i; else
+   * from the words' boxes (a picture page); else the sentence. Back: {stop, from, to} for the page to light, or null.
+   */
+  function sayLine(data, i, line) {
+    var d;
+    try { d = parse(data); } catch (e) { return null; }
+    var ws = d.words;
+    if (!d.audio || !(i >= 0 && i < ws.length)) return null;
+    var r = null;
+    if (line && line[0] >= 0 && line[0] <= i && i <= line[1] && line[1] < ws.length) r = [line[0], line[1]];
+    else if (ws.every(function (w) { return w.box; })) boxLines(ws).forEach(function (l) { if (i >= l[0] && i <= l[1]) r = l; });
+    else {
+      var end = /[.!?\u06D4\u061F]["'\u201D\u2019)]*$/;
+      r = [i, i];
+      while (r[0] > 0 && !end.test(ws[r[0] - 1].t)) r[0] -= 1;
+      while (r[1] < ws.length - 1 && !end.test(ws[r[1]].t)) r[1] += 1;
+    }
+    var h = clip(d.audio.url, ws[r[0]].s, ws[r[1]].e);
+    return h && { stop: h.stop, from: r[0], to: r[1] };
+  }
 
-  window.WQReadAlong = { mount: mount, parse: parse, indexAt: indexAt, preload: preload, sayWord: sayWord };
+  window.WQReadAlong = { mount: mount, parse: parse, indexAt: indexAt, preload: preload, sayWord: sayWord, sayLine: sayLine };
 }());

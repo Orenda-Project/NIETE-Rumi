@@ -22,10 +22,9 @@
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
 const { clampLanguage } = require('../../config/ux-strings');
-const Strings = require('./maker.fallback.strings');
+// The message and its send live in a leaf (maker.fallback.send.js) so the cta never requires this file.
+const { IDS, ALL_IDS, fallbackMessage, sendFallback } = require('./maker.fallback.send');
 
-const IDS = Object.freeze({ QUIZ: 'ft_fb_quiz', LP: 'ft_fb_lp', COACH: 'ft_fb_coach' });
-const ALL_IDS = Object.freeze([IDS.QUIZ, IDS.LP, IDS.COACH]);
 const REASON = 'ft_fallback';
 // A log line names the teacher by the events' keyed reference, never by id: HMAC(kid key, 't|' + users.id)[:16];
 // null without the key (never an unkeyed hash).
@@ -34,32 +33,6 @@ const tkOf = (userId) => {
   if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
   return crypto.createHmac('sha256', k).update(`t|${userId}`).digest('hex').slice(0, 16);
 };
-
-/** → { body, buttons } for who × lang. Pure. */
-function fallbackMessage({ lang, who = 'unknown' } = {}) {
-  const bi = lang === 'bi' && who !== 'known';
-  const l = bi ? 'bi' : clampLanguage(lang === 'bi' ? 'ur' : lang);
-  let bodyId;
-  if (who === 'known') bodyId = 'maker.fallback.body.known';
-  else if (bi) bodyId = 'maker.fallback.body.unknown.bi';
-  else bodyId = who === 'door' ? 'maker.fallback.body' : 'maker.fallback.body.unknown';
-  const btn = (n) => Strings.str(`maker.fallback.btn${n}${bi ? '.bi' : ''}`, l);
-  return {
-    body: Strings.str(bodyId, l),
-    buttons: [{ id: IDS.QUIZ, title: btn(1) }, { id: IDS.LP, title: btn(2) }, { id: IDS.COACH, title: btn(3) }],
-  };
-}
-
-/** ONE reply-buttons send; no ledger row (the caller's maker_reply is this reply). → the send's boolean. Never throws. */
-async function sendFallback({ phone, lang, who = 'unknown' } = {}) {
-  try {
-    const WhatsAppService = require('../whatsapp.service');
-    return Boolean(await WhatsAppService.sendInteractiveButtons(phone, fallbackMessage({ lang, who })));
-  } catch (err) {
-    logToFile('⚠️ first touch: the maker fallback send threw', { error: err && err.message });
-    return false;
-  }
-}
 
 async function makerPageOn() {
   try {

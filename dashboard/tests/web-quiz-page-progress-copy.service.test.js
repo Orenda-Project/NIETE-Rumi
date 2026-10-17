@@ -26,7 +26,8 @@ describe('the resume button names the question, never a score-shaped "n/5"', () 
     const p = page({ lang: 'ur', store: midQuiz() });
     expect(p.moment()).toBe('M3-continue');
     const t = contText(p);
-    expect(t).toMatch(/سوال 1 از 1/);
+    // an Urdu child screen prints every number in Urdu digits
+    expect(t).toMatch(/سوال ۱ از ۱/);
     expect(t).not.toMatch(/\d+\s*\/\s*\d+/);
   });
 });

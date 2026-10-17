@@ -437,7 +437,7 @@ describe('«واٹس ایپ» held on one line (wq-tel.js WQT.nowrap) on the loc
   test('Urdu: «mine» on the lock screen and «newSay» in the bubble hold it; nothing else changes', async () => {
     const [lock, fresh] = await screens('ur');
     expect(lock).toContain(`<p class="wq-sub">کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے ${HELD} پر دوبارہ ⁦/quiz⁩ بھیجیں۔</p>`);
-    expect(fresh).toContain(`<div class="wq-say">اپنے استاد سے کوئز کا لنک لیں، یا گھر کے فون سے ${HELD} پر ⁦/quiz⁩ بھیجیں۔</div>`);
+    expect(fresh).toContain(`<div class="wq-say">اپنے ٹیچر سے کوئز کا لنک لیں، یا گھر کے فون سے ${HELD} پر ⁦/quiz⁩ بھیجیں۔</div>`);
     const [lockOff, freshOff] = await screens('ur', true);
     expect(lock.split(HELD).join('واٹس ایپ')).toBe(lockOff);
     expect(fresh.split(HELD).join('واٹس ایپ')).toBe(freshOff);

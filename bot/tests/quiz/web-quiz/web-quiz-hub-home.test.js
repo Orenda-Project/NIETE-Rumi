@@ -2,7 +2,7 @@
 /**
  * The v3 child home's keys on the hub boot JSON (web-quiz-hub-home.js through the real web-quiz-hub.js): the golden
  * (web_quiz_home_v3 off or absent -> the payload deep-equal to today's, no new key), the three doors always present
- * (an empty door is [] / null, never missing), the Videos door only with a class quiz, the day-dots as a count, the jar
+ * (an empty door is [] / null, never missing), the Videos door for every child with a library (no class: a watch), the day-dots as a count, the jar
  * only with the Book, and fail-closed reads. Supabase and Redis are the boundaries and are faked. Invented children only.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
@@ -37,7 +37,9 @@ const ONLY_DATE = { now: NOW, doNotFake: ['nextTick', 'setImmediate', 'clearImme
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 const ahead = (h) => new Date(Date.now() + h * 3600000).toISOString();
 const A = { device: 'AAAAAAAAAAAAAAAAAAAAAA' };
-const ON = (k) => ({ key: k, value: 'true' });
+// A switch is on only as the JSON boolean the flip writes; the string 'true' is OFF (see the string test below).
+const ON = (k) => ({ key: k, value: true });
+const STR = (k) => ({ key: k, value: 'true' });
 const BASE_ON = [ON('web_quiz_hub'), ON('web_quiz_challenge'), ON('web_quiz_child_quiz_home'), ON('web_quiz_library')];
 
 let db;
@@ -77,6 +79,18 @@ describe('GOLDEN: web_quiz_home_v3 off -> the hub payload is today\'s', () => {
     expect(off).toEqual(base);
     expect(JSON.stringify(off)).toBe(JSON.stringify(base));
     ['home_v3', 'doors', 'head'].forEach((k) => expect(off).not.toHaveProperty(k));
+  });
+
+  test('the string \'true\' is OFF (only the JSON boolean turns a switch on): no home key; with the home on, no shelf', async () => {
+    const tok = T.signHub([KID]);
+    const base = await Hub.hub(tok, A);
+    seed([...BASE_ON, STR('web_quiz_home_v3'), STR('web_quiz_stories')]);
+    const off = await Hub.hub(tok, A);
+    expect(JSON.stringify(off)).toBe(JSON.stringify(base));
+    seed([...BASE_ON, ON('web_quiz_home_v3'), STR('web_quiz_stories')]);
+    const on = await Hub.hub(tok, A);
+    expect(on.home_v3).toBe(1);
+    expect(on.doors.stories).not.toContainEqual({ kind: 'shelf' });
   });
 
   test('a settings read that fails -> fail closed: no home key', async () => {
@@ -128,14 +142,19 @@ describe('web_quiz_home_v3 on: the doors and the header', () => {
     expect(out.doors.games.find((g) => g.code === 'MATH01')).toMatchObject({ art });
   });
 
-  test('Videos: the library href for a child with a class quiz; null (door shown empty) for a child with none', async () => {
+  test('Videos: the library href for every child — a child with no class quiz watches (videos/start answers a watch, not 409)', async () => {
     seed(HOME_ON);
     const withRoot = await Hub.hub(T.signHub([KID]), A);
     expect(withRoot.doors.videos).toEqual(expect.objectContaining({ href: expect.stringMatching(/^\/lib\//) }));
+    expect(withRoot.doors.videos).not.toHaveProperty('watch');
     seed(HOME_ON, { quiz_share_codes: [], quiz_sessions: [] });
     const none = await Hub.hub(T.signHub([KID]), A);
-    expect(none.doors).toHaveProperty('videos', null);
+    expect(none.doors.videos).toEqual(expect.objectContaining({ href: expect.stringMatching(/^\/lib\//), watch: true }));
     expect(none.doors.stories).toEqual([]);
+  });
+  test('Videos: null (the door says so) only when there is no library to open', async () => {
+    seed(HOME_ON.filter((r) => r.key !== 'web_quiz_library'), { quiz_share_codes: [], quiz_sessions: [] });
+    expect((await Hub.hub(T.signHub([KID]), A)).doors).toHaveProperty('videos', null);
   });
 
   test('Stories: the storybook shelf stub only with web_quiz_stories on', async () => {
@@ -254,6 +273,43 @@ describe('a bound phone: "Someone new?" and the teacher switch are minted by the
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out).not.toHaveProperty('jn');
     expect(calls).toEqual([]);
+  });
+});
+
+describe('the finish card after a watched video: the home says when the card is on (the card\'s own module decides)', () => {
+  const HOME_ON = [...BASE_ON, ON('web_quiz_home_v3')];
+  beforeEach(() => Home._useModules({}));
+  afterAll(() => Home._useModules(null));
+  test('the card module there and its switch on: card_v3 true on the home payload', async () => {
+    Home._useModules({ card: { field: async () => ({ card_v3: true }) } });
+    seed(HOME_ON);
+    expect(await Hub.hub(T.signHub([KID]), A)).toHaveProperty('card_v3', true);
+  });
+  test('its switch off, the module absent, or a field that throws: no key', async () => {
+    for (const card of [{ field: async () => ({}) }, null, { field: async () => { throw new Error('x'); } }]) {
+      Home._useModules(card ? { card } : {});
+      seed(HOME_ON);
+      expect(await Hub.hub(T.signHub([KID]), A)).not.toHaveProperty('card_v3');
+    }
+  });
+  test('one wave: the card\'s switch is asked while this week\'s runs are still being read (never after them)', async () => {
+    let called; const cardCalled = new Promise((r) => { called = r; });
+    Home._useModules({ card: { field: async () => { called(); return { card_v3: true }; } } });
+    seed(HOME_ON);
+    // the runs read answers only once the card's switch has been asked: a serial chain would wait forever
+    const from = supabase.from;
+    const gate = (q) => new Proxy(q, { get(o, k) { if (k === 'then') return (res, rej) => cardCalled.then(() => o.then(res, rej)); const v = o[k]; return typeof v === 'function' ? (...a) => gate(v.apply(o, a)) : v; } });
+    supabase.from = (t) => (t === 'web_quiz_challenge_runs' ? gate(from(t)) : from(t));
+    try {
+      const out = await Promise.race([Hub.hub(T.signHub([KID]), A), new Promise((r) => setTimeout(() => r('serial'), 1500))]);
+      expect(out).not.toBe('serial');
+      expect(out).toHaveProperty('card_v3', true);
+    } finally { supabase.from = from; }
+  });
+  test('GOLDEN: web_quiz_home_v3 off -> no key even with the card on', async () => {
+    Home._useModules({ card: { field: async () => ({ card_v3: true }) } });
+    seed(BASE_ON);
+    expect(await Hub.hub(T.signHub([KID]), A)).not.toHaveProperty('card_v3');
   });
 });
 

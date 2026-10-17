@@ -20,7 +20,8 @@ describe('the landing and identity copy under the class', () => {
     const p = page({ lang: 'ur', cls: { label: 'جماعت 3', teacher: 'استاد Testwala', chips: [] }, bootExtra: ON, questions: Array.from({ length: 5 }, (_, i) => ({ qid: 'q' + i, text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' })) });
     p.ctx.__wq.landing();
     const h = p.html();
-    expect(h).toContain('<p class="wq-small">⁦5⁩ سوال، ⁦3⁩ منٹ</p>');
+    // an Urdu child screen prints every number in Urdu digits (still isolated)
+    expect(h).toContain('<p class="wq-small">⁦۵⁩ سوال، ⁦۳⁩ منٹ</p>');
     expect(h).not.toContain('تقریباً');
     expect(h).toContain('کی طرف سے\nجماعت 3</p>');
     expect(h).toContain('<div class="wq-say">السلام علیکم! کوئز کھیلیں؟</div>');
@@ -41,11 +42,12 @@ describe('the landing and identity copy under the class', () => {
 });
 
 describe('the question screen under the class', () => {
-  test('the counter reads «1 میں سے سوال 1» (Western digits, isolated), and a label over 28 code points gets wq-long', () => {
+  test('the counter reads «۱ میں سے سوال ۱» (Urdu digits, isolated), and a label over 28 code points gets wq-long', () => {
     const p = page({ lang: 'ur', bootExtra: ON, questions: qs() });
     p.ctx.__wq.question(0);
     const h = p.html();
-    expect(h).toContain('⁦1⁩ میں سے سوال ⁦1⁩');
+    // an Urdu child screen prints every number in Urdu digits
+    expect(h).toContain('⁦۱⁩ میں سے سوال ⁦۱⁩');
     expect(h).not.toContain(' از ');
     expect(h).toMatch(/class="wq-opt wq-s1 wq-long"[^>]*data-slot="A"/);
     expect(h).toMatch(/class="wq-opt wq-s2"[^>]*data-slot="B"/);
@@ -54,10 +56,11 @@ describe('the question screen under the class', () => {
     expect([...SHORT26].length).toBeLessThanOrEqual(28);
     expect(h).toMatch(/class="wq-opt wq-s4"[^>]*data-slot="D"/);
   });
-  test('off: «سوال 1 از 1» and no wq-long', () => {
+  test('off: «سوال ۱ از ۱» and no wq-long', () => {
     const p = page({ lang: 'ur', questions: qs() });
     p.ctx.__wq.question(0);
-    expect(p.html()).toContain('سوال 1 از 1');
+    // an Urdu child screen prints every number in Urdu digits
+    expect(p.html()).toContain('سوال ۱ از ۱');
     expect(p.html()).not.toContain('wq-long');
   });
 });

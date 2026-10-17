@@ -7,6 +7,7 @@
  * non-attempter list from it:
  *
  *   identityMode()          app_settings `web_quiz_identity` ('v2' | null), 30 s cache, fails closed
+ *   watchRoot()             the VALUE `web_quiz_watch_root` (a share code id | null), read in the same query
  *   loadClassRoster(id)     class_enrollments(active) ⋈ students(active, not merged), deduped, 30 s cache
  *   canonicalStudentIds(ids)  the one id each child is known by (aliases folded), for the hub
  *   loadLegacyList(id)      a legacy student_lists roster (a teacher with lists and no class), deduped
@@ -26,28 +27,59 @@ const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child'
 const { excludeSelfTests } = require('./teacher-self-test');
 
 const FLAG_KEY = 'web_quiz_identity';
+const WATCH_ROOT_KEY = 'web_quiz_watch_root';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TTL_MS = 30 * 1000;
 const STUDENT_COLS = 'id, student_name, student_name_urdu, father_name, roll_number, is_active, status, created_at';
 
 let flag = null;
+let inflight = null;
 const rosters = new Map();
 
 const firstToken = (s) => String(s || '').trim().split(/\s+/)[0] || '';
 
-/** 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read). */
-async function identityMode(now = Date.now()) {
-  if (flag && now - flag.at < TTL_MS) return flag.mode;
+/**
+ * The quiz page's settings read: `web_quiz_identity` and, in the same query, the VALUE `web_quiz_watch_root` (the share
+ * code the class-less children's own codes hang under; the page must know it to keep their names private). 30 s cache;
+ * a failed read is today's identity path and no root.
+ */
+async function pageSettings(now = Date.now()) {
+  if (flag && now - flag.at < TTL_MS) return flag;
+  // Callers that start together (the fast page's early reads) share the one read in flight.
+  if (!inflight) inflight = readSettings(now).finally(() => { inflight = null; });
+  return inflight;
+}
+
+async function readSettings(now) {
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', FLAG_KEY);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    let v = (data || [])[0] ? data[0].value : null;
+    const by = new Map((data || []).map((r) => [r.key, r.value]));
+    let v = by.has(FLAG_KEY) ? by.get(FLAG_KEY) : null;
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
-    flag = { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null };
-    return flag.mode;
+    flag = { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)) };
+    return flag;
   } catch (err) {
     logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message });
-    return null;
+    return { mode: null, watchRoot: null };
   }
+}
+
+/** The root's id from its VALUE (a JSON string or a plain one), only when it is an id; anything else is no root. */
+function rootOf(value) {
+  let v = value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
+  return typeof v === 'string' && UUID_RE.test(v.trim()) ? v.trim().toLowerCase() : null;
+}
+
+/** 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read). */
+async function identityMode(now = Date.now()) {
+  return (await pageSettings(now)).mode;
+}
+
+/** The watch root's share code id, or null (absent, not an id, or a failed read). */
+async function watchRoot(now = Date.now()) {
+  return (await pageSettings(now)).watchRoot;
 }
 
 /** A students row as the matcher and the teacher's lists use it (number = the list number). */
@@ -278,9 +310,9 @@ async function nonAttempters({ shareCodeId } = {}) {
 
 module.exports = {
   FLAG_KEY,
-  identityMode, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
+  identityMode, watchRoot, WATCH_ROOT_KEY, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
   canonicalStudentIds, canonicalStudentId,
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
-  _resetCache: () => { flag = null; rosters.clear(); },
+  _resetCache: () => { flag = null; inflight = null; rosters.clear(); },
 };
