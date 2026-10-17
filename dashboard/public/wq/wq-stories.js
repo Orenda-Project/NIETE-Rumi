@@ -403,7 +403,7 @@
       if (p.audio) {
         R.mount(p, {
           onEnd: ended,
-          onState: function (s) { if (b.steady && R.os) R.os(s, i); else if (s === 'error' && R.pl) b.steady ? withQ(function (k) { k ? R.os(s, i) : m.i === i && ve(); }) : ve(); if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } else if (s === 'paused' && m.st === 'listening') { ac(); m.set(m.l[m.i] ? 'listened' : 'paused'); } },
+          onState: function (s) { if (b.steady && R.os) R.os(s, i); else if (s === 'error' && R.pl) b.steady ? withQ(function (k) { if (cur === R) k ? R.os(s, i) : m.i === i && ve(); }) : ve(); if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } else if (s === 'paused' && m.st === 'listening') { ac(); m.set(m.l[m.i] ? 'listened' : 'paused'); } },
           onWordTap: function () { if (/^(idle|paused|listened|together|denied)$/.test(m.st)) { ac(1); m.set('listening'); } },
         });
       }

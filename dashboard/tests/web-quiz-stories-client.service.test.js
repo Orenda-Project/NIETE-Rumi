@@ -2843,6 +2843,7 @@ describe('the stall setting OFF: a failed or late second file never changes the 
     expect(pick(bad.T, 'error')[2]).not.toContain('data-ra');            // the page drawn again without its voice
     expect(pick(bad.T, 'late')[5].filter((u) => /\/stories\/book\//.test(u))).toHaveLength(2);   // one quiet look again
     expect(bad.T).toEqual(ok.T);
+    expect(ok.e.calls.ka).toBeUndefined(); expect(bad.e.calls.ka).toBeUndefined();   // keepalive never reaches the setting-off reader
   });
   test('the second file lands after the voice error: the same walk as when it came on time, nothing done twice', async () => {
     const ok = await run({}); const late = await run({ qHold: true });
@@ -2933,6 +2934,28 @@ describe('a kind screen on every stall: the edges', () => {
     f.calls.ra[0].o.onState('error');
     expect(r2.querySelector('[data-main]').textContent).not.toBe('Pause');
     expect(r2.innerHTML).not.toContain('data-ra');
+  });
+  test('a voice error, then the child leaves before the second file lands: its arrival breaks nothing (the next book still gets its kind screens)', async () => {
+    const e = env({ qHold: true }); const root = await openReader(e);
+    fire(root, 'main');
+    e.calls.ra[0].o.onState('error');
+    fire(root, 'back');
+    const r2 = fakeEl('root2'); e.S.open('b-1', e.ctx({ root: r2 })); await flush();   // the next book, its own wait queued behind
+    expect(() => e.calls.qGo()).not.toThrow();
+    expect(['offline', 'online', 'pagehide'].map((k) => (e.winL[k] || []).length)).toEqual([1, 1, 1]);
+    fire(r2, 'main');
+    e.calls.ra[e.calls.ra.length - 1].o.onState('error');
+    expect(r2.querySelector('[data-main]').textContent).toBe('Listen');
+    expect(r2.querySelector('[data-lrl]').innerHTML).toContain(NET);
+  });
+  test('a voice error, then the child leaves, and the second file never lands: the left book is never drawn again over what the child went to', async () => {
+    const e = env({ qHold: true }); const root = await openReader(e);
+    fire(root, 'main');
+    e.calls.ra[0].o.onState('error');
+    fire(root, 'back');
+    root.innerHTML = '<section data-screen="stories-shelf"></section>';
+    e.advance(8000);                                                    // the loader gives up on the file
+    expect(root.innerHTML).toBe('<section data-screen="stories-shelf"></section>');
   });
   test('a text page served before its voice: exactly one quiet look again, never a second', async () => {
     const e = env(); const root = await openReader(e);
