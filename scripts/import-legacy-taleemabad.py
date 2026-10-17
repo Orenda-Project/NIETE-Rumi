@@ -192,8 +192,8 @@ def _insert(cur, table: str, rows_: list[dict], parent_key: tuple[str, dict] | N
         res = psycopg2.extras.execute_values(
             cur, f"INSERT INTO {table} ({', '.join(cols)}) VALUES %s RETURNING id, {src_col}",
             [tuple(_adapt(rec[c]) for c in cols) for rec in recs], page_size=len(recs), fetch=True)
-        for rid, sid in res:
-            out[sid] = rid
+        for r in res:  # RealDictCursor rows
+            out[r[src_col]] = r["id"]
     return out
 
 
@@ -210,7 +210,7 @@ def apply_plan(cur, plan: dict, existing: dict) -> None:
         cols = list(row.keys())
         cur.execute(f"INSERT INTO training_vendors ({', '.join(cols)}) VALUES ({', '.join(['%s'] * len(cols))}) RETURNING id",
                     [_adapt(row[c]) for c in cols])
-        vendor_id = cur.fetchone()[0]
+        vendor_id = cur.fetchone()["id"]
     else:
         vendor_id = existing["vendor"]["id"]
 
