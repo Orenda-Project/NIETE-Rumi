@@ -1,0 +1,54 @@
+{
+  "/wq/wq.js?v=0123456789": {
+    "x-powered-by": "Express",
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-type": "application/javascript; charset=UTF-8"
+  },
+  "/wq/wq.css?v=0123456789": {
+    "x-powered-by": "Express",
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-type": "text/css; charset=UTF-8"
+  },
+  "/wq/jugnu/hello.webp": {
+    "x-powered-by": "Express",
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-type": "image/webp"
+  },
+  "/wq/jugnu_sleep.webp": {
+    "x-powered-by": "Express",
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-type": "image/webp"
+  },
+  "/wq/fonts/wq-nastaliq-6.woff2": {
+    "x-powered-by": "Express",
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-type": "font/woff2"
+  },
+  "/wq/wq.js?v=0123456789m": {
+    "x-powered-by": "Express",
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-type": "application/javascript; charset=UTF-8"
+  },
+  "/wq/wq.js": {
+    "x-powered-by": "Express",
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-type": "application/javascript; charset=UTF-8"
+  },
+  "/wq/nope.js?v=0123456789": {
+    "x-powered-by": "Express",
+    "cache-control": "no-store",
+    "content-type": "text/plain; charset=utf-8"
+  },
+  "/wq/..%2fx.js?v=0123456789": {
+    "x-powered-by": "Express",
+    "cache-control": "no-store",
+    "content-type": "text/plain; charset=utf-8"
+  }
+}
