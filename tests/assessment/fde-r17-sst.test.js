@@ -114,7 +114,7 @@ describe('2. a caught question never prints', () => {
     expect(stems(FULL2, D7)).toContain('پاکستان کا سب سے بڑا صحرا کون سا ہے؟');
   });
 
-  // COS ruling 0846 (2): a choice slot prints what it has while it still offers a choice
+  // The rule: a choice slot prints what it has while it still offers a choice
   // (printed >= attempt + 1). At its count to answer the child has no choice left: that is the
   // compulsory rule, a re-ask and then a short paper.
   // chapters_6 with its second held Q7 swapped for a fresh one (a fictional item, not in Section A).
