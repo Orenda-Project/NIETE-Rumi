@@ -44,6 +44,9 @@ const STRINGS = Object.freeze({
   // the library
   'th.sec.library': Object.freeze({ en: 'Library: stories & videos', ur: 'لائبریری: کہانیاں اور ویڈیوز' }),
   'th.chosen.for': Object.freeze({ en: 'Chosen for Grade {n}', ur: 'جماعت {n} کے لیے منتخب' }),
+  // the teacher's story sends and the children of those sends who read; {sent} ≥ 1 and {read} in the page's digits
+  'th.stories.counts': Object.freeze({ en: '{sent} stories sent · {read} children read', ur: '{sent} کہانیاں بھیجی گئیں · {read} بچوں نے پڑھیں' }),
+  'th.stories.counts.one': Object.freeze({ en: '1 story sent · {read} children read', ur: '۱ کہانی بھیجی گئی · {read} بچوں نے پڑھی' }),
   'th.all.stories': Object.freeze({ en: 'All stories', ur: 'سب کہانیاں' }),
   // a story the teacher sent this month, by its row; {day} = the send's day/month in the page's digits
   'th.sent.on': Object.freeze({ en: 'Sent ✓ {day}', ur: 'بھیجی گئی ✓ {day}' }),

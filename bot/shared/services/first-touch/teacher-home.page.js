@@ -13,7 +13,8 @@
  *   timeline    "My lessons": lesson plans, coaching sessions and sent quizzes, newest first, 5 rows + "More"; each row
  *               one verb: "Quiz this" (the existing job, then the page polls until the class message exists) /
  *               "Send again" / "See report"; topic names verbatim with dir=auto
- *   library     "Chosen for Grade n", grade chips 1–5, up to four stories (links to the stories page; one sent this month
+ *   library     "Chosen for Grade n", one quiet line once a story went out ("3 stories sent · 7 children read"; the
+ *               home's, kept across grade changes), grade chips 1–5, up to four stories (links to the stories page; one sent this month
  *               says "Sent ✓ <day/month>" by its title) + "All stories",
  *               then one card "Ready video quizzes" → the maker page
  *   foot        "Make a new quiz", the maker's three cards (lesson plans / coaching / test paper), "Try it as a student"
@@ -187,11 +188,12 @@ else if(r.status==='making'&&r.quizId){poll(r,tx,null)}
 ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown}
 function lib(L){Array.prototype.forEach.call(q('#th-grades').querySelectorAll('[data-grade]'),function(x){x.setAttribute('aria-pressed',String(x.getAttribute('data-grade')===String(L.grade)))});
 q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});
+var k=L.counts,kc=q('#th-counts'),kn=k&&k.sent>=1;kc.textContent=kn?fill(k.sent===1?'th.stories.counts.one':'th.stories.counts',{sent:dg(k.sent),read:dg(k.read||0)}):'';kc.hidden=!kn;
 var ul=q('#th-stories');clear(ul);(L.stories||[]).forEach(function(s){var li=el('li','th-row');li.setAttribute('data-row','story');var tx=el('div','th-row-t');var n=el('span','th-row-n');n.appendChild(topic(s.title));if(s.sent)n.appendChild(el('span','th-sent',fill('th.sent.on',{day:day(s.sent)})));tx.appendChild(n);li.appendChild(tx);li.appendChild(link('th-row-v',S['th.send'],s.href,'story_tile'));ul.appendChild(li)});
 ul.hidden=!(L.stories&&L.stories.length);var a=q('#th-all');a.hidden=!L.all;if(L.all)a.setAttribute('href',L.all);
 var v=q('#th-videos');v.hidden=!d.maker;if(d.maker)v.setAttribute('href',d.maker)}
 function pickGrade(n){if(String(n)===String(grade))return;grade=n;store('th.grade',String(n));step('grade');
-getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}).catch(function(e){if(e!==1)err(true)})}
+getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){if(d.library&&d.library.counts&&!L.counts)L.counts=d.library.counts;d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}).catch(function(e){if(e!==1)err(true)})}
 function foot(){var m=q('#th-make');m.hidden=!d.maker;if(d.maker)m.setAttribute('href',d.maker);
 var cs=q('#th-cards');clear(cs);(d.cards||[]).forEach(function(c){var a=link('th-go2',c.title,c.href,'card');a.setAttribute('data-card',c.card);cs.appendChild(a)});cs.hidden=!(d.cards&&d.cards.length);
 var s=q('#th-try');s.hidden=!d.tryStudent;if(d.tryStudent)s.setAttribute('href',d.tryStudent);var cl=q('#th-change-go');cl.hidden=typeof d.change!=='string';if(typeof d.change==='string')cl.setAttribute('href',d.change);walk()}
@@ -276,6 +278,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
 <section class="th-card" id="th-lib">
 <h2>${esc(str('th.sec.library', l))}</h2>
 <p class="th-note" id="th-chosen"></p>
+<p class="th-note" id="th-counts" hidden></p>
 <div class="th-chips" id="th-grades">${chips}</div>
 <ul class="th-rows" id="th-stories" hidden></ul>
 <a class="th-link" id="th-all" data-tap="all_stories" hidden>${esc(str('th.all.stories', l))}</a>
