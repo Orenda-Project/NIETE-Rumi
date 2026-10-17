@@ -25,7 +25,7 @@ const FUTURE = new Date(Date.now() + 30 * 86400000).toISOString();
 
 function world(bindings) {
   mockDb = fakeDb({
-    app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_identity_canon', value: 'true' }, { key: 'web_quiz_phone_bind', value: 'true' }],
+    app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_identity_canon', value: true }, { key: 'web_quiz_phone_bind', value: true }],
     child_phone_bindings: bindings,
     students: [{ id: 'k-1', student_name: 'Sara Testwala', phone: null, list_id: null, is_active: true, status: 'active' }],
     student_lists: [], users: [], user_feature_first_use: [],

@@ -42,8 +42,8 @@ const IdFlags = require('../../../shared/services/quiz/web-quiz-identity-flags')
 const Reuse = require('../../../shared/services/quiz/child-identity-reuse');
 const Door = require('../../../shared/services/quiz/web-quiz-hub-door');
 
-const ON = [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_identity_canon', value: 'true' }];
-const OFF = [{ key: 'web_quiz_hub', value: 'true' }];
+const ON = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_identity_canon', value: true }];
+const OFF = [{ key: 'web_quiz_hub', value: true }];
 // Loose children (list_id NULL) merged into others: L1 → roster kid 1; L2 → L3 → roster kid 2 (a chain: one hop only).
 const L1 = 'd0000000-0000-4000-8000-000000000001';
 const L2 = 'd0000000-0000-4000-8000-000000000002';
@@ -110,7 +110,7 @@ describe('canonicalStudentIds: merged_into, one hop', () => {
   });
 
   test('parent off (hub off) with the canon key on: today\'s Map', async () => {
-    seed([{ key: 'web_quiz_identity_canon', value: 'true' }]);
+    seed([{ key: 'web_quiz_identity_canon', value: true }]);
     expect((await IdRoster.canonicalStudentIds([L1])).get(L1)).toBe(L1);
   });
 });
@@ -141,7 +141,7 @@ describe('the hub folds the token\'s children', () => {
 
   test('switch on, three children, one chip picked: again / recs / last / teacher are that child\'s only', async () => {
     const S = (id, sc, student, h) => F.done(id, student, 'x', 4, h, { share_code_id: sc });
-    seed([...ON, { key: 'web_quiz_child_quiz_home', value: 'true' }], {});
+    seed([...ON, { key: 'web_quiz_child_quiz_home', value: true }], {});
     fake.db.quiz_sessions.push(S('s-3a', F.SC, F.kid(3), 5), S('s-6a', SC_OTHER, F.kid(6), 2));
     const out = await Hub.hub(THREE(), { device: DEV, kid: chip(F.kid(3)) });
     expect(out.kid).toBe(chip(F.kid(3)));
@@ -185,7 +185,7 @@ describe('kidFromHub: the library and challenge links name the folded child', ()
 
 describe('the scorecard door mints the hub link for the folded child', () => {
   const DEV = 'AAAAAAAAAAAAAAAAAAAAAA';
-  const DOOR = { key: 'web_quiz_hub_door', value: 'true' };
+  const DOOR = { key: 'web_quiz_hub_door', value: true };
   const st = () => T.signSession({ sessionId: 's-door', deviceRef: DEV, shareCodeId: F.SC });
   const sessionOf = (studentId) => ({ id: 's-door', quiz_id: F.QUIZ, share_code_id: F.SC, student_id: studentId, status: 'completed',
     user_id: null, invited_by_student_id: null, device_ref: DEV, created_at: F.ago(1) });

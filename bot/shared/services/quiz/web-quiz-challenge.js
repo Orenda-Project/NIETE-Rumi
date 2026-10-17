@@ -170,7 +170,7 @@ function __reset() { flagCache = null; liveCache = null; qaCache = null; listenC
 
 /**
  * An app_settings switch, true only when its value reads true (fails closed), cached for 30 s.
- * strict: true only for the JSON value true (a string 'true' is off), as the child-page switches read.
+ * Every switch here is on only for the JSON value true (isTrue); `strict` is the same reading, kept for its callers.
  */
 async function settingOn(key, { strict = false } = {}) {
   const ck = strict ? `${key}\u0000strict` : key;
@@ -261,10 +261,10 @@ const trailCopy = (lang) => Object.fromEntries(Object.entries(TRAIL_KEYS).map(([
 // A test child ("<Name> Testwala"): the row says so, so no filter has to guess.
 const { isTestName } = require('./web-quiz-fixture');
 
-function isTrue(v) {
-  let x = v;
-  if (typeof x === 'string') { try { x = JSON.parse(x); } catch (_) { /* plain string */ } }
-  return x === true || (typeof x === 'string' && x.trim().toLowerCase() === 'true');
+// A switch is on only for the JSON boolean true (app_settings.value is jsonb; the flip writes the boolean): a string
+// such as "true", 1, "yes", an object or an absent row is off, the same answer every reader of the key gives.
+function isTrue(value) {
+  return value === true;
 }
 
 async function challengeOn(now = Date.now()) {

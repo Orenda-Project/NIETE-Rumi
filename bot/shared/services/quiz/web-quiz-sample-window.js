@@ -24,10 +24,10 @@ const PKT_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ARMS = [['class_round', 'window_start', 'window_end'], ['class_week', 'week_start', 'week_end']];
 
-function isTrue(v) {
-  let x = v;
-  if (typeof x === 'string') { try { x = JSON.parse(x); } catch (_) { /* plain string */ } }
-  return x === true || (typeof x === 'string' && x.trim().toLowerCase() === 'true');
+// A switch is on only for the JSON boolean true (app_settings.value is jsonb; the flip writes the boolean): a string
+// such as "true", 1, "yes", an object or an absent row is off, the same answer every reader of the key gives.
+function isTrue(value) {
+  return value === true;
 }
 
 const errText = (e) => String(e && e.message || e).slice(0, 120);

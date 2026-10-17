@@ -26,10 +26,10 @@ const EVENTS_V2_KEY = 'web_quiz_events_v2';
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, card, ev }
 
+// A switch is on only for the JSON boolean true (app_settings.value is jsonb; the flip writes the boolean): a string
+// such as "true", 1, "yes", an object or an absent row is off, the same answer every reader of the key gives.
 function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+  return value === true;
 }
 
 /** {card, ev}: the card with both parents on; its door events with web_quiz_events_v2 on too. Never throws. */

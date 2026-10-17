@@ -67,7 +67,7 @@ beforeEach(() => {
   Codes.mint.mockResolvedValue({ code: 'JUGNU-7KQ2X', expires_at: '2026-10-15T18:00:00Z' });
   Bindings.activeForChild.mockResolvedValue([]);
   fake = makeFake({
-    app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_challenge', value: true }],
+    app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: true }],
     students: [
       { id: KID, student_name: 'Zara Khan', student_name_urdu: null, father_name: null, self_reported_class: '3', list_id: LIST, is_active: true },
       { id: SIB, student_name: 'Zara Malik', student_name_urdu: null, father_name: null, self_reported_class: '3', list_id: LIST, is_active: true },

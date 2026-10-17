@@ -60,8 +60,8 @@ let slowBase = 0; // ms: the class report's base read (quizzes with its topic) a
 function seed() {
   fake = makeFake({
     app_settings: [
-      { key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' },
-      { key: 'web_quiz_identity_canon', value: 'true' }, { key: 'web_quiz_hub', value: 'true' },
+      { key: 'web_quiz_teacher_jugnu', value: true }, { key: 'web_quiz_challenge_v2', value: true }, { key: 'web_quiz_challenge', value: true },
+      { key: 'web_quiz_identity_canon', value: true }, { key: 'web_quiz_hub', value: true },
     ],
     users: [{ id: T1, preferred_language: 'en' }, { id: T2, preferred_language: 'en' }],
     classes: [{ id: C1, grade_code: '3', is_active: true }],
@@ -225,7 +225,7 @@ describe('a refused decision keeps ?e=1', () => {
 
 describe('teacher_report.opened: render_ms and queue_age_s under events v2', () => {
   const opened = () => require('../../../shared/utils/structured-logger').logEvent.mock.calls.filter(([n]) => n === 'teacher_report.opened').map(([, d]) => d);
-  const v2On = () => fake.db.app_settings.push({ key: 'web_quiz_events_v2', value: 'true' });
+  const v2On = () => fake.db.app_settings.push({ key: 'web_quiz_events_v2', value: true });
   beforeEach(() => { delete process.env.WEB_QUIZ_KID_KEY_V; });
 
   test('with web_quiz_events_v2 off, the event equals today\'s object byte for byte, and no timing headers', async () => {

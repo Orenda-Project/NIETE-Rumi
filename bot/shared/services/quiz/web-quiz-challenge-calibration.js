@@ -476,10 +476,10 @@ function raschFloors(responses, items = []) {
 
 // ---------------------------------------------------------------- the thin DB layer
 const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|schema cache/i.test(String(e.message || '')));
-function isTrue(v) {
-  let x = v;
-  if (typeof x === 'string') { try { x = JSON.parse(x); } catch (_) { /* plain string */ } }
-  return x === true || (typeof x === 'string' && x.trim().toLowerCase() === 'true');
+// A switch is on only for the JSON boolean true (app_settings.value is jsonb; the flip writes the boolean): a string
+// such as "true", 1, "yes", an object or an absent row is off, the same answer every reader of the key gives.
+function isTrue(value) {
+  return value === true;
 }
 
 /** One app_settings switch, true only when it reads true; any error reads off. */

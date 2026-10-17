@@ -97,7 +97,7 @@ function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1
   if (on) settings.push({ key: 'quiz_one_door', value: 'true' });
   if (teacherHome) settings.push({ key: 'quiz_teacher_home', value: 'true' });
   if (makerPage) settings.push({ key: 'quiz_maker_page', value: 'true' });
-  settings.push({ key: 'web_quiz_hub', value: 'true' });
+  settings.push({ key: 'web_quiz_hub', value: true });
   mockDb = fakeDb({
     app_settings: settings,
     users: [{ ...UNKNOWN }, { ...TEACHER }, { ...PARENT }, { ...FAMILY },

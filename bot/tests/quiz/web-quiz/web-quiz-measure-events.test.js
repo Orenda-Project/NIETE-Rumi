@@ -72,7 +72,7 @@ let db;
 let stampV2 = false; // simulate the v2 serve: every run row written carries the v2 columns
 function seed() {
   db = {
-    app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_challenge', value: true }],
+    app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: true }],
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, phone: '+92300FIXTURE1' },
       { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, phone: '+92300FIXTURE1' },

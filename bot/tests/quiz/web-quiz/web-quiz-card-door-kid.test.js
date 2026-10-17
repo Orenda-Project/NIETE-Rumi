@@ -45,8 +45,8 @@ let fake;
 function seed({ v2 = true, broken = false } = {}) {
   const db = {
     app_settings: [
-      { key: 'web_quiz_hub', value: 'true' },
-      { key: 'web_quiz_identity_canon', value: 'true' },
+      { key: 'web_quiz_hub', value: true },
+      { key: 'web_quiz_identity_canon', value: true },
       ...(v2 ? [{ key: 'web_quiz_events_v2', value: true }] : []),
     ],
     quiz_sessions: [

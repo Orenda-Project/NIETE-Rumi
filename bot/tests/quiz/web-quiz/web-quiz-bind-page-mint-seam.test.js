@@ -59,7 +59,7 @@ beforeEach(() => {
   Hub._resetCache();
   IdFlags.flags.mockResolvedValue(ON);
   fake = makeFake({
-    app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_challenge', value: true }],
+    app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: true }],
     students: [{ id: KID, student_name: 'Zara Testwala', student_name_urdu: null, father_name: null, self_reported_class: '3', list_id: LIST, is_active: true }],
     student_lists: [{ id: LIST, user_id: 't1', class_name: '3', section: 'A', is_active: true }],
     child_bind_codes: [], child_phone_bindings: [],

@@ -18,10 +18,10 @@ const KEYS = [WEEK_KEY, 'web_quiz_class_round', 'web_quiz_class_link', 'web_quiz
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, on }
 
+// A switch is on only for the JSON boolean true (app_settings.value is jsonb; the flip writes the boolean): a string
+// such as "true", 1, "yes", an object or an absent row is off, the same answer every reader of the key gives.
 function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+  return value === true;
 }
 
 /** True only when the class week's switch AND every parent are on. Never throws. */

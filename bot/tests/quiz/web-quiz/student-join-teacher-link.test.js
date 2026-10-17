@@ -47,7 +47,7 @@ const guest = (kid, phone = FAMILY) => ({ id: `g-${kid.slice(-2)}`, canonical_id
 
 let fake;
 function seed({ join = true, students, bindings, identity, sessions = [] } = {}) {
-  const settings = [{ key: 'web_quiz_identity_canon', value: 'true' }, { key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_phone_bind', value: 'true' }];
+  const settings = [{ key: 'web_quiz_identity_canon', value: true }, { key: 'web_quiz_hub', value: true }, { key: 'web_quiz_phone_bind', value: true }];
   if (join) settings.push({ key: 'quiz_student_join', value: 'true' });
   fake = makeFake({
     app_settings: settings,

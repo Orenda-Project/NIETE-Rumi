@@ -65,7 +65,7 @@ function video(n, subject, chapter, title) {
 
 function seed(over = {}) {
   db = {
-    app_settings: [{ key: 'web_quiz_hub', value: 'true' }],
+    app_settings: [{ key: 'web_quiz_hub', value: true }],
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, phone: PHONE, created_at: ago(500) },
       { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, phone: PHONE, created_at: ago(400) },
@@ -442,7 +442,7 @@ describe('kidFromHub (the library and challenge routes)', () => {
 
 describe('the library and the recommendations from a forwarded hub link (real kidFromHub)', () => {
   test('device B: the library from the hub and a recommended video start are 401; device A is not refused for who it is', async () => {
-    db.app_settings.push({ key: 'web_quiz_library', value: 'true' }, { key: 'web_quiz_enabled', value: 'true' });
+    db.app_settings.push({ key: 'web_quiz_library', value: true }, { key: 'web_quiz_enabled', value: 'true' });
     Hub._resetCache();
     const Lib = require('../../../shared/services/quiz/web-quiz-library');
     const Videos = require('../../../shared/services/quiz/web-quiz-videos');
@@ -459,7 +459,7 @@ describe('the library and the recommendations from a forwarded hub link (real ki
 
 describe('hub(): subject and grade art (the library\'s pictures, WebQuizLibrary.subjectArt / gradeArt)', () => {
   test('play-again rows and recommendations carry their subject\'s picture; the library tile the child\'s grade picture', async () => {
-    db.app_settings.push({ key: 'web_quiz_library', value: 'true' });
+    db.app_settings.push({ key: 'web_quiz_library', value: true });
     Hub._resetCache();
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.again.find((a) => a.code === 'MATH01').art).toBe('/wq/art/subject-maths-1.webp');
@@ -480,7 +480,7 @@ describe('hub(): subject and grade art (the library\'s pictures, WebQuizLibrary.
 describe('hub(): challenge and library', () => {
   test('challenge only with web_quiz_challenge on and grade 2-5; library to M4b\'s page when it is on', async () => {
     expect((await Hub.hub(T.signHub([KID]), A)).challenge).toBeNull();
-    seed({ app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_quiz_library', value: 'true' }] });
+    seed({ app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: true }, { key: 'web_quiz_library', value: true }] });
     Hub._resetCache();
     const token = T.signHub([KID]);
     const out = await Hub.hub(token, A);
@@ -489,7 +489,7 @@ describe('hub(): challenge and library', () => {
   });
 
   // The tile and the challenge page decide eligibility with ONE grade rule (the challenge's), so a tile is never a dead end.
-  const CH_ON = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: 'true' }];
+  const CH_ON = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: true }];
 
   test('a grade-1 child gets the challenge tile only with the grade-1 form on (v2 + g1), as the serve decides', async () => {
     const grade1 = (extra) => {
@@ -538,7 +538,7 @@ describe('hub(): challenge and library', () => {
   });
 
   test('the library link carries the child\'s language, so an Urdu child gets the Urdu library', async () => {
-    seed({ app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_library', value: 'true' }] });
+    seed({ app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_library', value: true }] });
     db.quiz_share_codes.forEach((c) => { c.language = 'ur'; });
     db.quizzes.forEach((q) => { q.language = 'ur'; });
     Hub._resetCache();
@@ -662,7 +662,7 @@ describe('hub(): the Urdu polish switch rides the boot (ui)', () => {
 });
 
 describe('child /quiz → Home (app_settings web_quiz_child_quiz_home)', () => {
-  const HOME_ON = [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_child_quiz_home', value: 'true' }];
+  const HOME_ON = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_child_quiz_home', value: true }];
   const onSettings = () => { Hub._resetCache(); seed({ app_settings: HOME_ON }); };
 
   test('flag on: ONE cta_url, the Home button and body, the same hub link; logged how=home', async () => {
@@ -717,7 +717,7 @@ describe('child /quiz → Home (app_settings web_quiz_child_quiz_home)', () => {
 
   test('the hub OFF wins: Home on alone sends no link (today\'s buttons)', async () => {
     Hub._resetCache();
-    seed({ app_settings: [{ key: 'web_quiz_child_quiz_home', value: 'true' }] });
+    seed({ app_settings: [{ key: 'web_quiz_child_quiz_home', value: true }] });
     await SQ.open(PHONE);
     expect(WhatsAppService.sendCtaUrl).not.toHaveBeenCalled();
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
@@ -725,7 +725,7 @@ describe('child /quiz → Home (app_settings web_quiz_child_quiz_home)', () => {
 });
 
 describe('hub(): the LAST quiz on top (web_quiz_child_quiz_home)', () => {
-  const HOME_ON = [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_child_quiz_home', value: 'true' }];
+  const HOME_ON = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_child_quiz_home', value: true }];
 
   test('flag off: no last card and no home_v (today\'s payload)', async () => {
     const out = await Hub.hub(T.signHub([KID]), A);
@@ -779,7 +779,7 @@ describe('hub(): the LAST quiz on top (web_quiz_child_quiz_home)', () => {
 describe('hub(): the last quiz — a retry in progress is continued, not shown as done', () => {
   test('finished once, then a newer attempt left unfinished on the open link: Continue, with that attempt\'s answers', async () => {
     Hub._resetCache();
-    seed({ app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_child_quiz_home', value: 'true' }] });
+    seed({ app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_child_quiz_home', value: true }] });
     db.quiz_sessions.push(sess('s9', 'sc-maths', 'q-maths', 'in_progress', 1, 3, ago(1)));
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.last).toMatchObject({ code: 'MATH01', state: 'open', answered: 3 });
@@ -789,7 +789,7 @@ describe('hub(): the last quiz — a retry in progress is continued, not shown a
 describe('hub(): the last quiz counts the answers a web sitting has saved', () => {
   test('a web sitting keeps total_questions_answered at 0 until it finishes: the card counts its answer rows instead', async () => {
     Hub._resetCache();
-    seed({ app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_child_quiz_home', value: 'true' }] });
+    seed({ app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_child_quiz_home', value: true }] });
     db.quiz_sessions.push(sess('s9', 'sc-new', 'q-new', 'in_progress', 0, 0, ago(1)));
     db.quiz_answers = [{ id: 'a1', session_id: 's9' }, { id: 'a2', session_id: 's9' }, { id: 'a3', session_id: 's9' }, { id: 'x1', session_id: 's1' }];
     const out = await Hub.hub(T.signHub([KID]), A);

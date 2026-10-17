@@ -36,6 +36,13 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
+// The child identity switches (canon, phone bind, guest home) are on only for the JSON boolean true (app_settings.value
+// is jsonb; the flip writes the boolean): a string such as "true", 1, "yes", an object or an absent row is off, the same
+// answer every reader of the child switches gives. The first-touch door's switches keep isTrue above.
+function isChildOn(value) {
+  return value === true;
+}
+
 /** → { canon, phoneBind, guestHome, makerPage, firstDoor }; all false on a failed read. Never throws. */
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
@@ -44,10 +51,10 @@ async function flags(now = Date.now()) {
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     const hub = Boolean((await HubFlags.flags(now)).hub);
-    const canon = hub && isTrue(by[CANON_KEY]);
+    const canon = hub && isChildOn(by[CANON_KEY]);
     // WQ_TOMB_SALT is a hard parent: without it the store writes nothing and a family's JUGNU- message would meet silence.
-    const phoneBind = canon && isTrue(by[PHONE_BIND_KEY]) && Boolean(process.env.WQ_TOMB_SALT);
-    const guestHome = phoneBind && isTrue(by[GUEST_HOME_KEY]);
+    const phoneBind = canon && isChildOn(by[PHONE_BIND_KEY]) && Boolean(process.env.WQ_TOMB_SALT);
+    const guestHome = phoneBind && isChildOn(by[GUEST_HOME_KEY]);
     // ── first touch: the door's hard parent is the maker page; neither reads any switch above ──
     const makerPage = isTrue(by[MAKER_PAGE_KEY]);
     const firstDoor = makerPage && isTrue(by[FIRST_DOOR_KEY]);

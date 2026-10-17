@@ -66,7 +66,7 @@ function video(n, subject, chapter, title) {
 
 function seed(over = {}) {
   db = {
-    app_settings: [{ key: 'web_quiz_hub', value: 'true' }],
+    app_settings: [{ key: 'web_quiz_hub', value: true }],
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, phone: PHONE, created_at: ago(500) },
       { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, phone: PHONE, created_at: ago(400) },
@@ -153,7 +153,7 @@ describe('the read-along preview flag on the hub JSON', () => {
   test('switch off (absent, false, "false", garbage): no `listen` key at all', async () => {
     for (const value of [undefined, false, 'false', 'yes', null]) {
       again();
-      db.app_settings = [{ key: 'web_quiz_hub', value: 'true' }, ...(value === undefined ? [] : [{ key: 'web_quiz_readalong', value }])];
+      db.app_settings = [{ key: 'web_quiz_hub', value: true }, ...(value === undefined ? [] : [{ key: 'web_quiz_readalong', value }])];
       seed({ app_settings: db.app_settings });
       expect(stable(await Hub.hub(T.signHub([KID]), A))).not.toHaveProperty('listen');
     }

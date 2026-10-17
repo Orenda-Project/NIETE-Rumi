@@ -59,7 +59,7 @@ let DB;
 let fake;
 function seed({ off = [] } = {}) {
   DB = {
-    app_settings: SWITCHES.filter((k) => !off.includes(k)).map((key) => ({ key, value: 'true' })),
+    app_settings: SWITCHES.filter((k) => !off.includes(k)).map((key) => ({ key, value: true })),
     users: [{ id: TEACHER, preferred_language: 'en' }],
     quizzes: [{ id: QUIZ, teacher_id: TEACHER, topic: 'Plants', subject: 'science', grade: '3', language: 'en', quiz_source: 'transcript',
       status: 'report_sent', list_id: null, created_at: at('2026-10-14T03:00:00Z'), meta: { share_code_id: SC } }],

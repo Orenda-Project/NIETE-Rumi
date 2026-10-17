@@ -1,6 +1,6 @@
 'use strict';
 /**
- * app_settings `web_quiz_library`: the video library on the web quiz (web-quiz-library.js) and the
+ * app_settings `web_quiz_library` (on only for the JSON true, as the hub reads it): the video library on the web quiz (web-quiz-library.js) and the
  * lesson page's Download button. Read at most once a minute; fails closed. Its own module so
  * web-quiz.service can ask without requiring the library (which requires it back).
  *
@@ -29,7 +29,7 @@ async function read() {
     const v = row && row.value;
     const v3 = (data || []).find((r) => r.key === VIDEOS_V3_KEY);
     const ur = (data || []).find((r) => r.key === UR_TITLES_KEY);
-    flag = { at: Date.now(), on: v === true || v === 'true' || Boolean(v && v.enabled === true), v3: Boolean(v3 && v3.value === true), ur: Boolean(ur && ur.value === true) };
+    flag = { at: Date.now(), on: v === true, v3: Boolean(v3 && v3.value === true), ur: Boolean(ur && ur.value === true) };
   } catch (e) {
     logToFile('⚠️ web-quiz library: settings lookup failed — library off', { error: e.message });
     flag = { at: Date.now(), on: false, v3: false, ur: false };

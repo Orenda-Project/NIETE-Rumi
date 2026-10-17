@@ -54,7 +54,7 @@ const BANNED = /picked|sampled|selected|chosen|test|exam|assessment|چنا|چن�
 const ANY_DIGIT = /[0-9٠-٩۰-۹]/;
 
 const ON = ['web_quiz_teacher_jugnu', 'web_quiz_challenge_v2', 'web_quiz_challenge', 'web_quiz_class_round', 'web_quiz_class_link', 'web_quiz_class_week'];
-const settingsWith = (off = []) => ON.filter((k) => !off.includes(k)).map((key) => ({ key, value: 'true' }));
+const settingsWith = (off = []) => ON.filter((k) => !off.includes(k)).map((key) => ({ key, value: true }));
 const DRAW = { term_code: '2026-27b', class_id: CLASS, round: '0123456789abcdef', week_start: at('2026-10-12T00:00:00Z'), week_end: at('2026-10-19T00:00:00Z') };
 
 let DB;

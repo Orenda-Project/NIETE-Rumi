@@ -41,7 +41,7 @@ const GOLDEN = path.join(__dirname, 'web-quiz-book-hub-golden.json');
 
 let db;
 const ON = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_challenge_book'];
-const settings = (keys) => keys.map((key) => ({ key, value: 'true' }));
+const settings = (keys) => keys.map((key) => ({ key, value: true }));
 
 function seed(over = {}) {
   db = {

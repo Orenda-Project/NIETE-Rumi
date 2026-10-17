@@ -71,10 +71,10 @@ const FAIL_REASONS = new Set(['stt_timeout', 'llm_timeout', 'page_gone', 'store_
 // The columns the m_lost builder reads (a v2 row's), beside the ones the sweep needs.
 const STUCK_COLS = 'id, student_id, exercise, grade, lang, status, created_at, meta, mode, form, band, record, canonical_id';
 
-function isTrue(v) {
-  let x = v;
-  if (typeof x === 'string') { try { x = JSON.parse(x); } catch (_) { /* plain string */ } }
-  return x === true || (typeof x === 'string' && x.trim().toLowerCase() === 'true');
+// A switch is on only for the JSON boolean true (app_settings.value is jsonb; the flip writes the boolean): a string
+// such as "true", 1, "yes", an object or an absent row is off, the same answer every reader of the key gives.
+function isTrue(value) {
+  return value === true;
 }
 
 /** The switches, read fresh (the tick is hourly); a failed read is every switch off. */

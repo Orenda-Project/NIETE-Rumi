@@ -78,9 +78,9 @@ const allTok = () => Token.signTeacherReport({ teacherId: TEACHER });
 
 const STATES = {
   'no switch rows': [],
-  'jugnu on, challenge_v2 off': [{ key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'false' }],
-  'jugnu on, challenge off': [{ key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }],
-  'jugnu off, both parents on': [{ key: 'web_quiz_teacher_jugnu', value: 'false' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' }],
+  'jugnu on, challenge_v2 off': [{ key: 'web_quiz_teacher_jugnu', value: true }, { key: 'web_quiz_challenge', value: true }, { key: 'web_quiz_challenge_v2', value: 'false' }],
+  'jugnu on, challenge off': [{ key: 'web_quiz_teacher_jugnu', value: true }, { key: 'web_quiz_challenge_v2', value: true }],
+  'jugnu off, both parents on': [{ key: 'web_quiz_teacher_jugnu', value: 'false' }, { key: 'web_quiz_challenge_v2', value: true }, { key: 'web_quiz_challenge', value: true }],
 };
 
 const PAGES = [

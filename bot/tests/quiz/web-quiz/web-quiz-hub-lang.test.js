@@ -35,7 +35,7 @@ const NOW = Date.now();
 const ago = (h) => new Date(NOW - h * 3600000).toISOString();
 const ahead = (h) => new Date(NOW + h * 3600000).toISOString();
 const A = { device: 'AAAAAAAAAAAAAAAAAAAAAA' };
-const ON = (k) => ({ key: k, value: 'true' });
+const ON = (k) => ({ key: k, value: true });
 const BASE = [ON('web_quiz_hub'), ON('web_quiz_challenge'), ON('web_quiz_library')];
 const V2 = [...BASE, ON('web_quiz_challenge_v2')];
 

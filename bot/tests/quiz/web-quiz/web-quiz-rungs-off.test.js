@@ -69,7 +69,7 @@ let fake;
 let stampV2 = false;
 function seed(extra = []) {
   db = {
-    app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_challenge', value: true }, ...extra],
+    app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: true }, ...extra],
     students: [{ id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, phone: '+92300FIXTURE1' }],
     student_lists: [{ id: LIST, user_id: TEACHER, class_name: '3', section: 'A', is_active: true }],
     quizzes: [], quiz_share_codes: [], quiz_sessions: [], student_videos: [], web_quiz_challenge_runs: [], child_rungs: [],

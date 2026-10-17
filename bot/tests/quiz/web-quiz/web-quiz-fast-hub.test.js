@@ -65,7 +65,7 @@ function video(n, subject, chapter, title) {
 
 function seed(over = {}) {
   db = {
-    app_settings: [{ key: 'web_quiz_hub', value: 'true' }],
+    app_settings: [{ key: 'web_quiz_hub', value: true }],
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, phone: PHONE, created_at: ago(500) },
       { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, phone: PHONE, created_at: ago(400) },

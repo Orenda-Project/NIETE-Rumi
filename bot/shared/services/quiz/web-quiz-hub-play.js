@@ -33,10 +33,10 @@ const FINAL = ['scored', 'failed'];
 const SRC_VALUES = ['card', 'home', 'door', 'wa', 'link', 'hs', 'class_link', 'guest', 'friend', 'quiz', 'bind', 'join'];
 let cache = null;
 
+// A switch is on only for the JSON boolean true (app_settings.value is jsonb; the flip writes the boolean): a string
+// such as "true", 1, "yes", an object or an absent row is off, the same answer every reader of the key gives.
 function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+  return value === true;
 }
 
 const OFF = Object.freeze({ first: false, v2: false, story: false, book: false, install: false, events: false });

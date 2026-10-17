@@ -30,8 +30,8 @@ const PHONE = fixturePhone(937);
 
 function seed({ eventsV2 }) {
   const db = {
-    app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_events_v2', value: eventsV2 ? 'true' : 'false' },
-      { key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' }],
+    app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_events_v2', value: eventsV2 ? true : false },
+      { key: 'web_quiz_teacher_jugnu', value: true }, { key: 'web_quiz_challenge_v2', value: true }, { key: 'web_quiz_challenge', value: true }],
     users: [{ id: TEACHER, preferred_language: 'en' }],
     quizzes: [{ id: QUIZ, teacher_id: TEACHER, topic: 'Plants', subject: 'science', grade: '3', language: 'en', status: 'report_sent', list_id: null, created_at: '2026-10-14T03:00:00.000Z', meta: {} }],
     student_lists: [{ id: LIST, class_name: 'Grade 3', section: 'B', user_id: TEACHER, is_active: true, class_id: CLASS }],

@@ -33,7 +33,7 @@ const LIST = '55555555-5555-4555-8555-000000000001';
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 const ahead = (h) => new Date(Date.now() + h * 3600000).toISOString();
 const A = { device: 'AAAAAAAAAAAAAAAAAAAAAA' };
-const ON = (k) => ({ key: k, value: 'true' });
+const ON = (k) => ({ key: k, value: true });
 const BASE_ON = [ON('web_quiz_hub'), ON('web_quiz_challenge'), ON('web_quiz_child_quiz_home')];
 
 // The registry's columns, read from the migration that creates challenge_passages (never a hand-kept list).

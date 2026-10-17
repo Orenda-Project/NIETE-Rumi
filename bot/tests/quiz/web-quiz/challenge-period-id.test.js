@@ -82,7 +82,7 @@ describe("the teacher's Jugnu tab: periodOf", () => {
 });
 
 describe("the hub's lantern: the period its Trail reads", () => {
-  const ON = (key) => ({ key, value: 'true' });
+  const ON = (key) => ({ key, value: true });
   function seed(periodId) {
     global.__periodFake = makeFake({
       app_settings: [ON(Play.KEYS.hub), ON(Play.KEYS.challenge), ON(Play.KEYS.v2)],

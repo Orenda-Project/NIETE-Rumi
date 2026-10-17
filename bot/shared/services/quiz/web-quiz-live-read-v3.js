@@ -37,12 +37,12 @@ const UI_V = 3;
 const ENDED = new Set(['last_word', 'quiet', 'done_tap', 'timer', 'line1', 'stuck', 'hidden', 'home', 'silent']);
 const SETTING_TTL_MS = 30 * 1000;
 
-// a switch is on only for a literal true (or "true"); absent, anything else or a failed read is off
+// a failed read is off, cached like any answer
 const cache = new Map();
-function isTrue(v) {
-  let x = v;
-  if (typeof x === 'string') { try { x = JSON.parse(x); } catch (_) { /* plain string */ } }
-  return x === true || (typeof x === 'string' && x.trim().toLowerCase() === 'true');
+// A switch is on only for the JSON boolean true (app_settings.value is jsonb; the flip writes the boolean): a string
+// such as "true", 1, "yes", an object or an absent row is off, the same answer every reader of the key gives.
+function isTrue(value) {
+  return value === true;
 }
 async function settingOn(key) {
   const c = cache.get(key);

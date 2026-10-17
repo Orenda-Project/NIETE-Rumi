@@ -60,7 +60,7 @@ let db;
 beforeAll(() => { process.env.INTERNAL_API_KEY = 'test-internal-key'; process.env.CHILD_TEST_R2_ENV = 'sandbox'; });
 beforeEach(() => {
   db = {
-    app_settings: [{ key: 'web_quiz_challenge', value: true }, { key: 'web_quiz_hub', value: 'true' }],
+    app_settings: [{ key: 'web_quiz_challenge', value: true }, { key: 'web_quiz_hub', value: true }],
     student_lists: [{ id: LIST, class_name: '3', section: 'B', user_id: 't1', is_active: true }],
     students: [{ id: KID, list_id: LIST, student_name: 'Zara Khan', is_active: true }],
     quiz_share_codes: [],

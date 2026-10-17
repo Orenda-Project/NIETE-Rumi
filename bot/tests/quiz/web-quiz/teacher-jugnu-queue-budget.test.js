@@ -46,8 +46,8 @@ let throwOn = null; // a table whose read throws (the queue's own reads failing 
 function seed() {
   DB = {
     app_settings: [
-      { key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' },
-      { key: 'web_quiz_identity_canon', value: 'true' }, { key: 'web_quiz_hub', value: 'true' },
+      { key: 'web_quiz_teacher_jugnu', value: true }, { key: 'web_quiz_challenge_v2', value: true }, { key: 'web_quiz_challenge', value: true },
+      { key: 'web_quiz_identity_canon', value: true }, { key: 'web_quiz_hub', value: true },
     ],
     users: [{ id: TEACHER, preferred_language: 'en' }],
     quizzes: [{ id: QUIZ, teacher_id: TEACHER, topic: 'Plants', subject: 'science', grade: '3', language: 'en', quiz_source: 'transcript',

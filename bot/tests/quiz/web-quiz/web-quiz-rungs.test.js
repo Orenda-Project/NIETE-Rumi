@@ -251,7 +251,7 @@ describe('eligible', () => {
 // ── onRecordFinal against the faked Supabase ─────────────────────────────────────────────────────────
 const ALL_ON = [
   { key: 'web_quiz_challenge', value: true }, { key: 'web_quiz_challenge_v2', value: true }, { key: 'web_quiz_challenge_rungs', value: true },
-  { key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_events_v2', value: true },
+  { key: 'web_quiz_hub', value: true }, { key: 'web_quiz_events_v2', value: true },
 ];
 let db;
 let fake;

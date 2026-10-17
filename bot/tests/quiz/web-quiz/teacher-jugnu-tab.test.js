@@ -20,7 +20,7 @@ jest.mock('../../../shared/services/quiz/web-quiz-join-queue', () => ({
 jest.mock('../../../shared/services/quiz/web-quiz-class-link-flags', () => ({
   classLinkOn: jest.fn(async () => {
     const { data } = await require('../../../shared/config/supabase').from('app_settings').select('key, value').in('key', ['web_quiz_class_link']);
-    return (data || []).some((r) => r.key === 'web_quiz_class_link' && r.value === 'true');
+    return (data || []).some((r) => r.key === 'web_quiz_class_link' && r.value === true);
   }),
 }));
 
@@ -54,7 +54,7 @@ const run = (kid, o) => ({ id: `r-${kid}-${Math.random().toString(36).slice(2, 8
 
 let DB;
 function seed({ settings = 'on', classLinks = true, passages = true } = {}) {
-  const on = [{ key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_quiz_class_link', value: 'true' }, { key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_identity_canon', value: 'true' }];
+  const on = [{ key: 'web_quiz_teacher_jugnu', value: true }, { key: 'web_quiz_challenge_v2', value: true }, { key: 'web_quiz_challenge', value: true }, { key: 'web_quiz_class_link', value: true }, { key: 'web_quiz_hub', value: true }, { key: 'web_quiz_identity_canon', value: true }];
   DB = {
     app_settings: settings === 'on' ? on : settings,
     users: [{ id: TEACHER, preferred_language: 'en' }],

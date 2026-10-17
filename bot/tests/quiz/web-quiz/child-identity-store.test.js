@@ -50,7 +50,7 @@ afterAll(() => { process.env = SAVED; });
 
 describe('switches: each only with its parent on; a failed read is all off', () => {
   test('all keys on → all on', async () => {
-    seed({ app_settings: settings({ web_quiz_hub: true, web_quiz_identity_canon: 'true', web_quiz_phone_bind: true, web_quiz_guest_home: true }) });
+    seed({ app_settings: settings({ web_quiz_hub: true, web_quiz_identity_canon: true, web_quiz_phone_bind: true, web_quiz_guest_home: true }) });
     expect(await IdFlags.flags()).toMatchObject({ canon: true, phoneBind: true, guestHome: true });
   });
   test('hub off → canon off even with every child key true', async () => {

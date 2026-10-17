@@ -43,7 +43,7 @@ function createByteLru(maxBytes = LRU_BYTES) {
   };
 }
 
-/** app_settings web_quiz_stories, read through the portal's own client, remembered for 30 s; any failure = off. */
+/** app_settings web_quiz_stories (on only for the JSON true, as the bot reads it), through the portal's own client, remembered for 30 s; any failure = off. */
 function flagReader({ now = Date.now } = {}) {
   let at = -Infinity;
   let val = false;
@@ -51,7 +51,7 @@ function flagReader({ now = Date.now } = {}) {
     if (now() - at < FLAG_TTL_MS) return val;
     try {
       const supabase = require('../config/supabase');
-      val = supabase ? await require('../lib/feature-flags').isFlagEnabled(supabase, FLAG_KEY) : false;
+      val = supabase ? await require('../lib/feature-flags').isFlagTrue(supabase, FLAG_KEY) : false;
     } catch (_) { val = false; }
     at = now();
     return val;

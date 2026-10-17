@@ -69,6 +69,32 @@ async function isFlagEnabled(supabase, key) {
 }
 
 /**
+ * Read a child-page or stories switch from app_settings (web_quiz_stories, web_quiz_stories_teacher, ...).
+ *
+ * On only for the JSON boolean `true`, the value the flip writes (app_settings.value is jsonb). A string such as
+ * "true", 1, "yes", an object, no row or a failed read is off: the same answer the bot's readers of these keys
+ * give, so the portal never serves behind a child page the bot keeps off. The portal's own switches keep
+ * isFlagEnabled.
+ *
+ * @param {object} supabase client for whichever service is asking
+ * @param {string} key app_settings.key
+ * @returns {Promise<boolean>}
+ */
+async function isFlagTrue(supabase, key) {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+    if (error || !data) return false;
+    return data.value === true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
  * @param {object} supabase
  * @returns {Promise<boolean>} whether the Assessment Generator is live
  */
@@ -317,6 +343,7 @@ module.exports = {
   ASSESSMENT_EDITING_KEY,
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
   isFlagEnabled,
+  isFlagTrue,
   isAssessmentGeneratorEnabled,
   isAssessmentEditingEnabled,
 };

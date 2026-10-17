@@ -42,7 +42,7 @@ const GOLDEN = path.join(__dirname, 'web-quiz-book-hub-golden.json');
 
 let db;
 const ON = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_challenge_book'];
-const settings = (keys) => keys.map((key) => ({ key, value: 'true' }));
+const settings = (keys) => keys.map((key) => ({ key, value: true }));
 
 function seed(over = {}) {
   db = {
@@ -126,7 +126,7 @@ describe('class lights (shown only with >= 5 children in the term)', () => {
     rows.push(run({ class_id: CLASS, passage_id: 'p-mine', created_at: OCT, scored_at: OCT }));
     return rows;
   }
-  beforeEach(() => { db.app_settings.push({ key: 'web_quiz_class_wall', value: 'true' }); });
+  beforeEach(() => { db.app_settings.push({ key: 'web_quiz_class_wall', value: true }); });
 
   test('3 children in the term: hidden, no number', async () => {
     db.web_quiz_challenge_runs.push(...classRows(2, 8, 0, 1));
@@ -188,7 +188,7 @@ describe('class lights ignore the teacher\'s class round', () => {
     expect(lightsOf(rows, NOW, KID)).toEqual({ shown: false });
   });
   test('through the Book: another child\'s round row alone is not "your class is playing too"', async () => {
-    db.app_settings.push({ key: 'web_quiz_class_wall', value: 'true' });
+    db.app_settings.push({ key: 'web_quiz_class_wall', value: true });
     db.web_quiz_challenge_runs.push(round({ student_id: id(1), passage_id: 'p-round', created_at: MON, scored_at: MON }), run({ class_id: CLASS, passage_id: 'p-mine' }));
     const out = await book();
     expect(out.class_lights).toEqual({ shown: false, none: true });
@@ -262,13 +262,13 @@ describe('the new lamp: only when the server has one this period', () => {
   const story = (id, over = {}) => ({ passage_id: id, lang: 'en', kind: 'read', pool: 'practice', band: 2, status: 'reviewed', released_at: OCT, withdrawn_at: null, title_en: 'T', title_ur: null, ...over });
   const r3 = () => { db.child_rungs = [{ canonical_id: KID, ladder: 'reading', rung: 3, period_id: '2026-11', set_at: WED }, { canonical_id: KID, ladder: 'reading', rung: 2, period_id: '2026-10', set_at: OCT }]; };
   test('a rung set this period, Story Time on, a released band-2 story in English -> levelup {ladder, rung, opens}', async () => {
-    db.app_settings.push({ key: 'web_quiz_challenge_story', value: 'true' });
+    db.app_settings.push({ key: 'web_quiz_challenge_story', value: true });
     r3(); db.challenge_passages = [story('p-b2')];
     const out = await book();
     expect(out.levelup).toEqual({ ladder: 'reading', rung: 3, opens: 'longer' });
   });
   test('Story Time on but the band-2 shelf is empty for this language -> no opens (head + task line only)', async () => {
-    db.app_settings.push({ key: 'web_quiz_challenge_story', value: 'true' });
+    db.app_settings.push({ key: 'web_quiz_challenge_story', value: true });
     r3();
     for (const stock of [[], [story('p-ur', { lang: 'ur' })], [story('p-b1', { band: 1 })], [story('p-draft', { status: 'draft' })],
       [story('p-later', { released_at: '2099-01-01T00:00:00Z' })], [story('p-gone', { withdrawn_at: OCT })], [story('p-chk', { pool: 'check' })],
@@ -278,13 +278,13 @@ describe('the new lamp: only when the server has one this period', () => {
     }
   });
   test('a numbers lamp never promises a room: Story Time serves no number games yet', async () => {
-    db.app_settings.push({ key: 'web_quiz_challenge_story', value: 'true' });
+    db.app_settings.push({ key: 'web_quiz_challenge_story', value: true });
     db.child_rungs = [{ canonical_id: KID, ladder: 'numbers', rung: 2, period_id: '2026-11', set_at: WED }];
     db.challenge_passages = [story('p-b2')];
     expect((await book()).levelup).toEqual({ ladder: 'numbers', rung: 2 });
   });
   test('the story count cannot be read -> no opens (fail closed), the Book still opens', async () => {
-    db.app_settings.push({ key: 'web_quiz_challenge_story', value: 'true' });
+    db.app_settings.push({ key: 'web_quiz_challenge_story', value: true });
     r3(); delete db.challenge_passages;
     expect((await book()).levelup).toEqual({ ladder: 'reading', rung: 3 });
   });
@@ -326,7 +326,7 @@ describe('stickers', () => {
 
 describe('served and abandoned rows light nothing', () => {
   test('a served row alone (and an abandoned one): no sticker, no day dot, no light', async () => {
-    db.app_settings.push({ key: 'web_quiz_class_wall', value: 'true' });
+    db.app_settings.push({ key: 'web_quiz_class_wall', value: true });
     const id = (i) => `77777777-7777-4777-8777-${String(i).padStart(12, '0')}`;
     db.web_quiz_challenge_runs.push(
       run({ status: 'served', class_id: CLASS, passage_id: 'p-s' }),
@@ -354,7 +354,7 @@ describe('the door', () => {
 
 describe('the hub payload', () => {
   test('Book on: book_on is set; with the wall on, the class lights too', async () => {
-    db.app_settings.push({ key: 'web_quiz_class_wall', value: 'true' });
+    db.app_settings.push({ key: 'web_quiz_class_wall', value: true });
     const out = await Hub.hub(T.signHub([KID]), { kid: T.chipId('h', KID), device: DEV });
     expect(out.book_on).toBe(true);
     expect(out).toHaveProperty('class_lights');

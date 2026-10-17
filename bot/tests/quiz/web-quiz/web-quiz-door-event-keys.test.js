@@ -36,7 +36,7 @@ const CODE = 'TSTQ42';
 
 let db;
 function seed(v2) {
-  db = { app_settings: [{ key: 'web_quiz_hub', value: 'true' }, ...(v2 ? [{ key: 'web_quiz_events_v2', value: true }] : [])] };
+  db = { app_settings: [{ key: 'web_quiz_hub', value: true }, ...(v2 ? [{ key: 'web_quiz_events_v2', value: true }] : [])] };
   const fake = makeFake(db);
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
 }

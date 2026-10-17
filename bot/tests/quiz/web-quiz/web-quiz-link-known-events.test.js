@@ -64,7 +64,7 @@ beforeEach(() => {
 
 describe('GOLDEN: web_quiz_events_v3 off -> the sheet\'s lines are today\'s', () => {
   test.each([[false], [true]])('events v2 %s: the v3 key false / "true" / absent give exactly the same calls', async (v2) => {
-    const v2s = v2 ? [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_events_v2', value: true }] : [];
+    const v2s = v2 ? [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_events_v2', value: true }] : [];
     await seed(v2s);
     Svc.events(BATCH(), { device: DEV });
     await flush();

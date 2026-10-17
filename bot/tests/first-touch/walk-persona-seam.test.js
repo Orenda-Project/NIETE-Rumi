@@ -96,8 +96,8 @@ afterAll(() => new Promise((r) => server.close(r)));
  * The coach phone holds one old binding and an old teacher key (from before any walk).
  */
 function world({ sw = 'true', listed = true, bindings = null, keys = null } = {}) {
-  const settings = [{ key: 'quiz_one_door', value: 'true' }, { key: 'web_quiz_hub', value: 'true' }, { key: 'quiz_teacher_home', value: 'true' },
-    { key: 'web_quiz_identity_canon', value: 'true' }, { key: 'web_quiz_phone_bind', value: 'true' }];
+  const settings = [{ key: 'quiz_one_door', value: 'true' }, { key: 'web_quiz_hub', value: true }, { key: 'quiz_teacher_home', value: 'true' },
+    { key: 'web_quiz_identity_canon', value: true }, { key: 'web_quiz_phone_bind', value: true }];
   if (sw !== 'ABSENT') settings.push({ key: 'quiz_test_personas', value: sw });
   settings.push({ key: 'web_quiz_fixture_rule', value: JSON.stringify({ student_lists: [], teachers: listed ? ['u-coach'] : ['u-someone-else'] }) });
   mockDb = fakeDb({
