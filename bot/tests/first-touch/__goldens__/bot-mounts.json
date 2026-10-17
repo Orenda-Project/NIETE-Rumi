@@ -1,0 +1,245 @@
+[
+  {
+    "m": "use",
+    "path": "/api/internal/go",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "<anonymous>"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "path": "/land/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/who",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/role",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/bind",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/persona",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/internal/ft",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "<anonymous>"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "name": "urlencodedParser"
+          },
+          {
+            "path": "/m/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/m/:token/send",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/ft/make",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/ft/step",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/ft/tour",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/internal/th",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "<anonymous>"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "path": "/quiz/teacher/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/home",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/library",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/send",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/quiz/make",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/quiz/:id",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/confirm",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/api/th/step",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/quiz/teacher/:token/send",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/quiz/teacher/:token/stories",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
