@@ -195,9 +195,12 @@ router.get('/challenge/results', challenge((C, req) => C.listResults({ cls: req.
 // A link preview fetches this with no session: the signed id is the permission, so anyone may cache it.
 router.get('/art/:id', async (req, res) => {
   try {
-    const out = await WebQuizArt.artImage(req.params.id, { size: req.query.f === 'sq' ? 'sq' : 'og' });
+    // c: the /q/<CODE> the edge was asked under (the class link's picture is drawn only for its own code)
+    const code = typeof req.query.c === 'string' ? req.query.c.slice(0, 12) : null;
+    const out = await WebQuizArt.artImage(req.params.id, { size: req.query.f === 'sq' ? 'sq' : 'og', code });
     res.set('Content-Type', out.contentType);
-    res.set('Cache-Control', 'public, max-age=600');
+    // a picture whose link carries its own version (the class link's ?v=) never changes under that link
+    res.set('Cache-Control', out.immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=600');
     return res.send(out.bytes);
   } catch (err) {
     if (err instanceof WebQuizArt.ArtError) return res.status(err.status).json(err.body);
