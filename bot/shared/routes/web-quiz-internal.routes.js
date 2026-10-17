@@ -173,7 +173,25 @@ const challenge = (fn) => handle((req) => {
   return fn(C, req);
 });
 // A final result (a score or a failure, never {pending}) gains the ranked next thing (web_quiz_next_offer; off -> today's).
-const withNext = async (out, ct, req) => (out && typeof out === 'object' ? { ...out, ...(await NextOffer().challengeField(out, ct, { device: req.get('x-wq-device') || null })) } : out);
+// A reading's speed (`wcpm`, and the last run's in `previous`) goes only to a phone that may name the run's child
+// (web-quiz-hub-device deviceMayName: the phone the run was started on passes); a forwarded result link gets the score.
+const speedOk = async (out, ct, device) => {
+  if (!('wcpm' in out) && !(out.previous && typeof out.previous === 'object' && 'wcpm' in out.previous)) return true;
+  try {
+    const c = require('../services/quiz/web-quiz-token').verify(ct, 'c');
+    return Boolean(c && c.sid && device && await require('../services/quiz/web-quiz-hub-device').deviceMayName([String(c.sid)], device));
+  } catch (_) { return false; }
+};
+const withNext = async (out, ct, req) => {
+  if (!out || typeof out !== 'object') return out;
+  const device = req.get('x-wq-device') || null;
+  const [ok, next] = await Promise.all([speedOk(out, ct, device), NextOffer().challengeField(out, ct, { device })]);
+  if (ok) return { ...out, ...next };
+  // nor what it is worked out from: wcpm = correct / (60 - time_left) * 60 (a whole minute's `correct` is the speed itself)
+  const { wcpm, previous, ...rest } = out;
+  if (rest.score && typeof rest.score === 'object') { const { correct, time_left, finished_early, ...heard } = rest.score; rest.score = heard; }
+  return { ...rest, ...next };
+};
 router.get('/ch/result/:ct', challenge(async (C, req) => withNext(await C.poll(req.params.ct), req.params.ct, req)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {}, { device: req.get('x-wq-device') })));
 // Read aloud, live: a temporary Soniox key for one run (web-quiz-soniox-live.js); the server key never leaves the bot.
