@@ -629,6 +629,22 @@ describe('the deadline stops the work: a slot nobody was shown is never counted'
     expect(out).not.toHaveProperty('next');
     await sleep(1500);
   });
+
+  test('with the fast page on (the slot reads run as a hub branch): the deadline still bounds them, the hub never waits', async () => {
+    seed([...NEXT_ON, ON('web_quiz_fast')], pending());
+    require('../../../shared/services/quiz/web-quiz-fast')._reset();   // its 30 s cache holds an earlier test's off
+    await Hub.hub(T.signHub([KID]), A);   // the fast switch's first read after a start is off: warm it
+    await sleep(20);
+    expect((await Hub.hub(T.signHub([KID]), A)).fast).toBe(true);
+    const real = NO.switches;
+    jest.spyOn(NO, 'switches').mockImplementation(async () => { await sleep(2500); return real(); });
+    const t0 = Date.now();
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.fast).toBe(true);
+    expect(Date.now() - t0).toBeLessThan(2200);
+    expect(out).not.toHaveProperty('next');
+    await sleep(1500);
+  });
 });
 
 describe('the teacher card fails closed', () => {

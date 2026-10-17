@@ -463,8 +463,9 @@ const HUB_BRANCHES = [
   // a place saved on a phone with no code hides the "keep my place" card (quiz_student_join); applied after keep my place
   { name: 'bound', run: (s) => require('./web-quiz-student-join').guestBound(s.chosen.id, { canon: s.canon }) },
   // the ranked next thing's own reads (web_quiz_next_offer; null while it is off): the teacher card, the last quiz and
-  // Play again as hubPayload computes them, from the teacher branch; the rest needs only the child
-  { name: 'next', run: (s, after) => require('./web-quiz-next-offer-sources').hubPrep({ out: after('teacher').then((teacher) => cardsOf(s, teacher)),
+  // Play again as hubPayload computes them, from the teacher branch; the rest needs only the child. A tail branch: the
+  // hub never waits for it here; the slot's own deadline (hubField) bounds it where its result is read
+  { name: 'next', tail: true, run: (s, after) => require('./web-quiz-next-offer-sources').hubPrep({ out: after('teacher').then((teacher) => cardsOf(s, teacher)),
     token: s.token, history: s.history, lang: s.lang, chosenId: s.chosen.id, grade: s.ctx.grade, chip: kidChip(s.chosen.id),
     stopsOf: () => s.challengeP.then(trailStops), seen: s.teacherReads }) },
 ];
@@ -491,14 +492,21 @@ function addHubBranch(branch) {
 /**
  * Runs the hub's branches against the shared context `s`, all started now, together (Promise.all); a branch's failure
  * is kept and thrown where its result is read, as before. Resolves to take(name) -> a promise of that branch's result.
+ * A `tail` branch is started with the others but not waited for here: take(name) hands back its running promise, so
+ * whoever reads it bounds it (its own deadline).
  */
 async function collectHubBranches(s, branches = HUB_BRANCHES) {
   const started = new Map();
   const after = (name) => started.get(name);
   branches.forEach((b) => started.set(b.name, Promise.resolve().then(() => b.run(s, after))));
-  const settled = await Promise.all(branches.map((b) => started.get(b.name).then((v) => ({ v }), (e) => ({ e }))));
-  const got = new Map(branches.map((b, i) => [b.name, settled[i]]));
-  return (name) => { const r = got.get(name); return 'e' in r ? Promise.reject(r.e) : Promise.resolve(r.v); };
+  const waited = branches.filter((b) => !b.tail);
+  const settled = await Promise.all(waited.map((b) => started.get(b.name).then((v) => ({ v }), (e) => ({ e }))));
+  const got = new Map(waited.map((b, i) => [b.name, settled[i]]));
+  return (name) => {
+    if (!got.has(name)) return started.get(name);
+    const r = got.get(name);
+    return 'e' in r ? Promise.reject(r.e) : Promise.resolve(r.v);
+  };
 }
 
 /** The switch off (or no child picked): take(name) runs that branch when it is read, once (today's order of reads). */
