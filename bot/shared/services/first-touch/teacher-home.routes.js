@@ -12,7 +12,8 @@
  *   GET  /api/th/timeline?t&after&n&lang  (switch quiz_teacher_home_paged) the timeline rows after the cursor `after`
  *                                        (`<ms>.<row key>`, from the last answer), n of them (1–20, default 10):
  *                                        { timeline, more, after }; the paged home's first answer carries the first five
- *   GET  /api/th/library?t&g&lang        the library card for another grade (the grade chips)
+ *   GET  /api/th/library?t&g&lang        the library card for another grade (the grade chips); a story sent this
+ *                                        month is skipped by the pick and dated, as on the home
  *   POST /api/th/send {t, kind, id}      a row's class message: kind video (a library quiz id) | share (a library
  *                                        share code id) | again (the teacher's own quiz id) → { message, wa }
  *   POST /api/th/quiz/make {t, kind, id} "Quiz this": kind lesson (the /quiz list key) | coaching (the session id)
@@ -188,9 +189,10 @@ function createRouter(deps = null) {
   async function makerOn() {
     try { return (await require('../quiz/web-quiz-identity-flags').flags()).makerPage === true; } catch (_) { return false; }
   }
-  function storiesBaseFor(token) {
+  /** The stories page for this token, in the page's own language (the stories page follows `lang`, not the token's bi). */
+  function storiesBaseFor(token, lang) {
     const S = Data.dep(deps, 'Stories');
-    return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories` : null;
+    return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories?lang=${lang === 'en' ? 'en' : 'ur'}` : null;
   }
   function cardsFor(lang) {
     const Cards = byName('cardsPage', './cards.page');
@@ -246,7 +248,7 @@ function createRouter(deps = null) {
   async function libraryFor({ p, token, lang, grade, tree, pfSubject }) {
     const [stories] = await Promise.all([Data.within(Data.storyShelf(p.uid, grade, lang, deps), Data.SIDE_BUDGET_MS, null, 'stories')]);
     const video = Data.videoPick(tree, grade, pfSubject);
-    return { stories, video, storiesBase: stories && stories.length ? storiesBaseFor(token) : null };
+    return { stories, video, storiesBase: stories && stories.length ? storiesBaseFor(token, lang) : null };
   }
   /** Adds the class message + wa.me link to a card that sends from the page; a card that cannot is dropped to null. */
   async function withSend(card, p, lang) {
@@ -333,7 +335,7 @@ function createRouter(deps = null) {
     const storiesP = gradeP.then((grade) => Data.within(Data.storyShelf(p.uid, grade, lang, deps), Data.SIDE_BUDGET_MS, null, 'stories'));
     const libP = Promise.all([gradeP, pfP, treeP, storiesP]).then(([grade, pf, tree, stories]) => {
       const pfSubject = (/^grade_[1-5]\|([a-z_]+)$/.exec(String(pf || '')) || [])[1] || null;
-      return { grade, lib: { stories, video: Data.videoPick(tree, grade, pfSubject), storiesBase: stories && stories.length ? storiesBaseFor(token) : null } };
+      return { grade, lib: { stories, video: Data.videoPick(tree, grade, pfSubject), storiesBase: stories && stories.length ? storiesBaseFor(token, lang) : null } };
     });
     const confirmP = Data.within(Data.confirmRows(p.uid, deps), Data.SIDE_BUDGET_MS, [], 'confirm queue');
     const makerP = makerOn().then((on) => (on ? Data.within(Data.makerLink(p.uid, lang, null, deps), Data.SIDE_BUDGET_MS, null, 'maker link') : null));
@@ -456,9 +458,15 @@ function createRouter(deps = null) {
     if (!p) return;
     const lang = langFor(p, req);
     const grade = Data.gradeOf(req.query.g, null);
+    // the teacher's own sends (which books went out this month), read alongside the bank and the shelf; late or failed → no skip, no date
+    // (a listed walk-through phone sees the same lists here as on its home)
+    const played = Promise.all([
+      Data.within(Data.playedOwn(p.uid, deps), Data.SIDE_BUDGET_MS, new Map(), 'class report'),
+      Data.within(Data.teacherOf(p.uid, deps), Data.SIDE_BUDGET_MS, null, 'teacher'),
+    ]).then(([pl, user]) => walkLists(user, { lessons: [], played: pl, shares: [] })).then((l) => l.played);
     const tree = await Data.within(Data.dep(deps, 'Bank').chipTree(), Data.SIDE_BUDGET_MS, {}, 'video bank');
     const lib = await libraryFor({ p, token: String(req.query.t), lang, grade, tree, pfSubject: null });
-    const shaped = Model.buildHome({ grade, stories: lib.stories, video: lib.video, storiesBase: lib.storiesBase });
+    const shaped = Model.buildHome({ grade, played: await played, stories: lib.stories, video: lib.video, storiesBase: lib.storiesBase });
     const pick = shaped.primary.kind === 'story' || shaped.primary.kind === 'video' ? await withSend(shaped.primary, p, lang) : null;
     headers(res);
     res.status(200).json({ ...shaped.library, pick: pick || null });
@@ -532,7 +540,7 @@ function createRouter(deps = null) {
     res.status(204).end();
   }));
 
-  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam']);
+  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam', 'home_slow', 'home_retry']);
   const SEND_KIND = { video: 'video', share: 'video', again: 'quiz', story: 'story' };
   const ORIGINS = new Set(['library', 'again', 'lesson_plan', 'coaching']);
   const PROMPTED_VIAS = new Set(['report']);

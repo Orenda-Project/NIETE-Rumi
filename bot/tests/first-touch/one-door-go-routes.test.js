@@ -179,6 +179,22 @@ describe('land', () => {
     expect(WebQuizToken.verify(th, 'th')).toMatchObject({ k: 'th', uid: 'u-teach', lang: 'bi', via: 'go' });
   });
 
+  test.each([['en', 'en'], ['ur', 'ur'], [null, 'bi']])('a teacher whose stored language is %s gets a teacher home in %s (the link itself said bi)', async (stored, want) => {
+    world();
+    mockDb.tables.users.find((u) => u.id === 'u-teach').preferred_language = stored;
+    const t = await mint(TEACHER, PH.teach, 'unknown');
+    const w = await (await post('who', { t })).json();
+    expect(WebQuizToken.verify(w.next.split('/quiz/teacher/')[1], 'th')).toMatchObject({ uid: 'u-teach', lang: want, via: 'go' });
+  });
+
+  test('a link that already names en or ur keeps it, whatever the stored language', async () => {
+    world();
+    mockDb.tables.users.find((u) => u.id === 'u-teach').preferred_language = 'en';
+    const t = await mint(TEACHER, PH.teach, 'unknown', 'ur');
+    const w = await (await post('who', { t })).json();
+    expect(WebQuizToken.verify(w.next.split('/quiz/teacher/')[1], 'th')).toMatchObject({ lang: 'ur' });
+  });
+
   test('"Not a teacher? Change" (src change): the question stays on screen for a registered teacher and a known child', async () => {
     world({ family: [roster('r-1', 'Ali Testwala')] });
     for (const [user, phone] of [[TEACHER, PH.teach], [PARENT, PH.parent], [FAMILY, PH.family]]) {

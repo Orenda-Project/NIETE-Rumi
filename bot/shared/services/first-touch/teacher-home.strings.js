@@ -45,6 +45,8 @@ const STRINGS = Object.freeze({
   'th.sec.library': Object.freeze({ en: 'Library: stories & videos', ur: 'لائبریری: کہانیاں اور ویڈیوز' }),
   'th.chosen.for': Object.freeze({ en: 'Chosen for Grade {n}', ur: 'جماعت {n} کے لیے منتخب' }),
   'th.all.stories': Object.freeze({ en: 'All stories', ur: 'سب کہانیاں' }),
+  // a story the teacher sent this month, by its row; {day} = the send's day/month in the page's digits
+  'th.sent.on': Object.freeze({ en: 'Sent ✓ {day}', ur: 'بھیجی گئی ✓ {day}' }),
   'th.videos.card': Object.freeze({ en: 'Ready video quizzes', ur: 'تیار ویڈیو کوئز' }),
   // the foot
   'th.make': Object.freeze({ en: 'Make a new quiz', ur: 'نیا کوئز بنائیں' }),
@@ -53,6 +55,8 @@ const STRINGS = Object.freeze({
   'th.try.student': Object.freeze({ en: 'Try it as a student', ur: 'بچوں والا حصہ آزمائیں' }),
   // the one tap back to the chat on every stale / error page and the error line (the link is wa.me/<bot>?text=quiz)
   'th.open.wa': Object.freeze({ en: 'Open WhatsApp', ur: 'واٹس ایپ کھولیں' }), // a no-break space inside the brand name (the signed form)
+  // the home's answer did not come (an error, or nothing after 15 s): ask for it again (the Urdu is mk.error's own words)
+  'th.retry': Object.freeze({ en: 'Try again', ur: 'دوبارہ کوشش کریں' }),
   // the class message's last line; {link} = https://wa.me/<the bot's number>?text=quiz
   'cm.return': Object.freeze({ en: 'Any day: send “quiz” to this number → {link}', ur: 'کسی بھی دن اس نمبر پر ”کوئز“ لکھ کر بھیجیں ← {link}' }),
 });

@@ -13,7 +13,8 @@
  *   timeline    "My lessons": lesson plans, coaching sessions and sent quizzes, newest first, 5 rows + "More"; each row
  *               one verb: "Quiz this" (the existing job, then the page polls until the class message exists) /
  *               "Send again" / "See report"; topic names verbatim with dir=auto
- *   library     "Chosen for Grade n", grade chips 1–5, up to four stories (links to the stories page) + "All stories",
+ *   library     "Chosen for Grade n", grade chips 1–5, up to four stories (links to the stories page; one sent this month
+ *               says "Sent ✓ <day/month>" by its title) + "All stories",
  *               then one card "Ready video quizzes" → the maker page
  *   foot        "Make a new quiz", the maker's three cards (lesson plans / coaching / test paper), "Try it as a student"
  *               (coaches), "Not a teacher? Change"
@@ -69,6 +70,7 @@ const CSS = [
   '.th-row-t{flex:1 1 160px;min-width:0;display:flex;flex-direction:column}',
   '.th-row-k{font-size:14px;color:var(--muted);font-weight:800}html[lang=ur] .th-row-k{font-weight:400;font-size:18px;line-height:1.8}',
   '.th-row-n{font-size:16px;font-weight:800;line-height:1.4;overflow-wrap:anywhere}html[lang=ur] .th-row-n{font-weight:400;font-size:18px;line-height:1.9}',
+  '.th-sent{display:inline-block;unicode-bidi:isolate;margin-inline-start:8px;padding:0 8px;border-radius:999px;background:#E8F6EE;color:var(--brand-d);font-size:14px;font-weight:800;white-space:nowrap}html[lang=ur] .th-sent{font-weight:400;font-size:16px}',
   '.th-row-v{flex:none;min-height:48px;min-width:48px;padding:4px 12px;border-radius:12px;border:2px solid var(--brand);background:var(--card);color:var(--brand-d);font:800 15px/1.2 var(--f);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}',
   'html[lang=ur] .th-row-v{font-family:var(--fu);font-weight:400;font-size:18px;line-height:1.8}',
   '.th-row-v:disabled{opacity:.5}',
@@ -112,10 +114,11 @@ function msgRows(t, ur) {
 const SCRIPT = `(function(){
 ${msgRows.toString()}
 var b={};try{b=JSON.parse(document.getElementById('th-boot').textContent)}catch(e){}
-var S=b.s||{},d=null,grade=null,busy=false,T=encodeURIComponent(b.t),shown=5,polls={};
+var S=b.s||{},d=null,grade=null,busy=false,T=encodeURIComponent(b.t),shown=5,polls={},made={};
 function q(s){return document.querySelector(s)}
 function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
 function dg(n){var s=String(n);return b.dg?s.replace(/[0-9]/g,function(x){return b.dg.charAt(+x)}):s}
+function day(v){var t=new Date(v);return isNaN(t.getTime())?'':dg(t.getDate()+'/'+(t.getMonth()+1))}
 function fill(k,o){return String(S[k]||'').replace(/\\{(\\w+)\\}/g,function(m,n){return o&&o[n]!=null?String(o[n]):m})}
 function post(p,o){return fetch(p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(o),credentials:'same-origin'})}
 function getj(p){return fetch(p,{credentials:'same-origin'}).then(function(r){if(r.status===410){location.reload();throw 1}if(!r.ok)throw 0;return r.json()})}
@@ -147,6 +150,7 @@ if(p.again&&p.again.href)c.appendChild(link('th-go',S['th.again'],p.again.href,'
 else if(p.send)c.appendChild(btn('th-go',S['th.again'],'again',function(){var s=p.send;sheet({message:s.message,wa:s.wa,c:s.c,sendKind:s.sendKind,id:p.again&&p.again.id,origin:'again'},p.title)},true));
 if(p.report)c.appendChild(link('th-link',S['th.report'],p.report,'report'));return}
 if(p.kind==='lesson'){var pl=String(S['th.lastlesson']||'').split('{topic}');var hl=el('p','th-say');hl.appendChild(document.createTextNode(pl[0]||''));hl.appendChild(topic(p.title));hl.appendChild(document.createTextNode(pl[1]||''));c.appendChild(hl);
+if(made[p.id]){c.appendChild(el('p','th-note',S['th.quiz.making']));return}
 var lv=btn('th-go',S['th.quiz.this'],'quiz_this',function(){make({kind:p.from,make:p.make,id:p.id,title:p.title},c,lv)},true);c.appendChild(lv);return}
 if(p.kind==='made'){var u0=el('p','th-say');u0.appendChild(topic(p.title));c.appendChild(u0);
 c.appendChild(btn('th-go',S['th.send'],'send',function(){sheet({message:p.send.message,wa:p.send.wa,sendKind:'again',id:p.id,origin:p.origin},p.title)},true));return}
@@ -162,11 +166,12 @@ post('/api/th/confirm',{t:b.t,looseId:r.looseId,candidateId:r.candidateId,decisi
 ul.hidden=!(d.confirm&&d.confirm.length);var c=q('#th-children');c.hidden=!d.children;if(d.children)c.setAttribute('href',d.children)}
 var TAG={lp:'th.tag.lp',coach:'th.tag.coach',quiz:'th.tag.quiz',story:'th.tag.story'};
 function poll(row,box,v){var id=row.quizId,t0=Date.now();if(polls[id])return;polls[id]=1;var note=el('p','th-note',S['th.quiz.making']);note.setAttribute('role','status');box.appendChild(note);if(v)v.hidden=true;
-function tick(){getj('/api/th/quiz/'+encodeURIComponent(id)+'?t='+T+(b.ask?'&lang='+b.ask:'')).then(function(x){if(x&&x.state==='ready'&&x.message){note.textContent='';d.primary={kind:'made',id:id,title:x.title||row.title,send:{message:x.message,wa:x.wa},origin:row.kind==='coach'?'coaching':'lesson_plan'};top();window.scrollTo(0,0);return}
+function tick(){getj('/api/th/quiz/'+encodeURIComponent(id)+'?t='+T+(b.ask?'&lang='+b.ask:'')).then(function(x){if(x&&x.state==='ready'&&x.message){note.textContent='';d.primary={kind:'made',id:id,title:x.title||row.title,send:{message:x.message,wa:x.wa},origin:row.kind==='coach'?'coaching':'lesson_plan'};top();
+(d.timeline||[]).forEach(function(t){if(t.verb==='quiz_this'&&t.id===row.id&&row.make)Object.assign(t,{verb:'again',id:id,sendKind:'again'})});rows();window.scrollTo(0,0);return}
 if(x&&x.state==='failed'){note.textContent=S['th.error'];return}if(Date.now()-t0>180000){note.textContent=S['th.quiz.late'];return}setTimeout(tick,5000)}).catch(function(){if(Date.now()-t0>180000)note.textContent=S['th.quiz.late'];else setTimeout(tick,5000)})}
 setTimeout(tick,5000)}
 function make(row,box,v){if(busy)return;busy=true;err(false);v.disabled=true;
-post('/api/th/quiz/make',{t:b.t,kind:row.make,id:row.id,lang:b.lang}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(x){if(!x||!x.quizId)throw 0;box.appendChild(el('p','th-note',S['th.job']));row.quizId=x.quizId;poll(row,box,v)})
+post('/api/th/quiz/make',{t:b.t,kind:row.make,id:row.id,lang:b.lang}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(x){if(!x||!x.quizId)throw 0;box.appendChild(el('p','th-note',S['th.job']));row.quizId=x.quizId;poll(row,box,v);made[row.id]=1;if(box===q('#th-top'))rows();else if(d.primary&&d.primary.kind==='lesson'&&d.primary.id===row.id)top()})
 .catch(function(){err(true);v.disabled=false}).then(function(){busy=false})}
 function rows(){var ul=q('#th-rows');clear(ul);var all=d.timeline||[];
 all.slice(0,shown).forEach(function(r){var li=el('li','th-row');li.setAttribute('data-row',r.kind);var tx=el('div','th-row-t');
@@ -174,12 +179,13 @@ var k=el('span','th-row-k',S[TAG[r.kind]]||'');if(r.played!=null){k.textContent+
 tx.appendChild(k);var n=el('span','th-row-n');n.appendChild(topic(r.title));tx.appendChild(n);li.appendChild(tx);
 if(r.verb==='again')li.appendChild(btn('th-row-v',S['th.again'],'again',function(){fetchSend(r.sendKind,r.id,r.title,'again')}));
 if(r.report)li.appendChild(link('th-link',S['th.report'],r.report,'report'));
-if(r.verb==='quiz_this'){var v=btn('th-row-v',S['th.quiz.this'],'quiz_this',function(){make(r,tx,v)});li.appendChild(v)}
+if(r.verb==='quiz_this'&&made[r.id])tx.appendChild(el('p','th-note',S['th.quiz.making']));
+else if(r.verb==='quiz_this'){var v=btn('th-row-v',S['th.quiz.this'],'quiz_this',function(){make(r,tx,v)});li.appendChild(v)}
 else if(r.status==='making'&&r.quizId){poll(r,tx,null)}
 ul.appendChild(li)});q('#th-tl').hidden=!all.length;q('#th-more').hidden=all.length<=shown&&!(d.more>0)}
 function lib(L){Array.prototype.forEach.call(q('#th-grades').querySelectorAll('[data-grade]'),function(x){x.setAttribute('aria-pressed',String(x.getAttribute('data-grade')===String(L.grade)))});
 q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});
-var ul=q('#th-stories');clear(ul);(L.stories||[]).forEach(function(s){var li=el('li','th-row');li.setAttribute('data-row','story');var tx=el('div','th-row-t');var n=el('span','th-row-n');n.appendChild(topic(s.title));tx.appendChild(n);li.appendChild(tx);li.appendChild(link('th-row-v',S['th.send'],s.href,'story_tile'));ul.appendChild(li)});
+var ul=q('#th-stories');clear(ul);(L.stories||[]).forEach(function(s){var li=el('li','th-row');li.setAttribute('data-row','story');var tx=el('div','th-row-t');var n=el('span','th-row-n');n.appendChild(topic(s.title));if(s.sent)n.appendChild(el('span','th-sent',fill('th.sent.on',{day:day(s.sent)})));tx.appendChild(n);li.appendChild(tx);li.appendChild(link('th-row-v',S['th.send'],s.href,'story_tile'));ul.appendChild(li)});
 ul.hidden=!(L.stories&&L.stories.length);var a=q('#th-all');a.hidden=!L.all;if(L.all)a.setAttribute('href',L.all);
 var v=q('#th-videos');v.hidden=!d.maker;if(d.maker)v.setAttribute('href',d.maker)}
 function pickGrade(n){if(String(n)===String(grade))return;grade=n;store('th.grade',String(n));step('grade');
@@ -199,9 +205,12 @@ q('#th-copy').addEventListener('click',copy);
 q('#th-cards').addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('[data-card]'):null;if(a)step('card_'+a.getAttribute('data-card'))});
 q('#th-sheet-go').addEventListener('click',function(){if(cur&&!srv(cur))step('share_tap',{kind:cur.sendKind,id:cur.id,origin:cur.origin,c:cur.c})});
 q('#th-grades').addEventListener('click',function(e){var c=e.target&&e.target.closest?e.target.closest('[data-grade]'):null;if(c)pickGrade(c.getAttribute('data-grade'))});
-var g0=store('th.grade');
-getj('/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''))
-.then(function(x){d=x;grade=x.library&&x.library.grade;render()}).catch(function(e){if(e!==1){err(true);q('#th-main').setAttribute('data-ready','err')}});
+var g0=store('th.grade'),hq='/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''),ask=0;
+function stuck(){err(true);q('#th-retry').hidden=false;q('#th-main').setAttribute('data-ready','err')}
+function home(){var n=++ask;setTimeout(function(){if(!d&&n===ask){step('home_slow');stuck()}},15000);
+getj(hq).then(function(x){if(d)return;d=x;grade=x.library&&x.library.grade;err(false);q('#th-retry').hidden=true;render()}).catch(function(e){if(e!==1&&!d&&n===ask)stuck()})}
+q('#th-retry').addEventListener('click',function(){q('#th-retry').hidden=true;err(false);q('#th-main').removeAttribute('data-ready');step('home_retry');home()});
+home();
 })();`;
 const SCRIPT_HASH = sha(SCRIPT);
 
@@ -233,7 +242,7 @@ function pageLang(tokenLang, asked) {
 }
 
 // The strings the script fills with (textContent only), by id. The page's own static words are not repeated.
-const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa'].includes(id)));
+const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry'].includes(id)));
 
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
@@ -257,7 +266,8 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
 <body>
 <main class="th" id="th-main" data-screen="teacher_home" data-home>
 <header class="th-top"><h1 id="th-h">${esc(str('th.hello.noname', l))}</h1>${sw}</header>
-<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
+<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>
+<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
 <section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>
 <ul class="th-rows" id="th-confirm" hidden></ul>
 <a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>

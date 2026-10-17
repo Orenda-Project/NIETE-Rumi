@@ -34,15 +34,18 @@ function adopt(n) { Object.setPrototypeOf(n, PageEl.prototype); n.on = []; n.sty
 const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); };
 
 /**
- * Opens the page in `lang` with the home answering `home` (or refusing with `status`, or failing with `status: 'offline'`);
+ * Opens the page in `lang` with the home answering `home` (or refusing with `status`, or failing with `status: 'offline'`,
+ * or never answering with `status: 'hang'` until the test calls `release(json)` on the oldest home fetch still open);
  * `answer(path, body)` answers every other fetch.
- * → { q, tap(el), fetches, beacons, location }.
+ * → { q, tap(el), fetches, beacons, location, release }.
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200 } = {}) {
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [] } = {}) {
   const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null });
   const doc = adopt(parse(html));
   const fetches = [];
   const beacons = [];
+  const held = [];
+  const release = async (json) => { held.shift()({ ok: true, status: 200, json: () => Promise.resolve(json) }); await flush(); };
   const location = { assigned: [], reloads: 0, reload() { this.reloads += 1; }, set href(v) { this.assigned.push(v); }, get href() { return this.assigned[this.assigned.length - 1] || ''; } };
   class Blob { constructor(parts) { this.text = parts.join(''); } }
   const window = {
@@ -60,12 +63,13 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200 } = {
     location,
     navigator: { sendBeacon: (p, blob) => { beacons.push({ path: p, body: JSON.parse(blob.text) }); return true; } },
     Blob,
-    setTimeout() {},
+    setTimeout(fn, ms) { fn.ms = ms; timers.push(fn); },
     fetch: (p, opts = {}) => {
       const body = opts.body ? JSON.parse(opts.body) : undefined;
       fetches.push({ path: p, body });
       const isHome = p.indexOf('/api/th/home?') === 0;
       if (isHome && status === 'offline') return Promise.reject(new TypeError('Failed to fetch'));
+      if (isHome && status === 'hang') return new Promise((r) => held.push(r));
       const code = isHome ? status : 200;
       const out = isHome ? home : answer(p, body);
       return Promise.resolve({ ok: code >= 200 && code < 300, status: code, json: () => Promise.resolve(out) });
@@ -82,7 +86,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200 } = {
     for (let e = el; e; e = e.parentNode) (e.on || []).filter((h) => h.type === 'click').forEach((h) => h.fn({ target: el, preventDefault() {} }));
     await flush();
   };
-  return { q, tap, fetches, beacons, location };
+  return { q, tap, fetches, beacons, location, release };
 }
 
 const LIB = { grade: 4, stories: [] };
@@ -146,6 +150,31 @@ describe('"Send to my class" on the sheet', () => {
     await p.tap(p.q('#th-sheet-go'));
     expect(p.beacons).toEqual([{ path: '/api/th/step', body: { t: 'a.b', step: 'share_tap', kind: 'again', id: 'own1', origin: 'again', c: 'own-code' } }]);
   });});
+
+describe('a story the teacher sent this month', () => {
+  const SENT = '2026-10-12T12:00:00.000Z';
+  const lib = (stories) => ({ primary: { kind: 'none' }, library: { grade: 3, stories, all: '/all' } });
+  const STORIES = [{ id: 'b1', title: 'The Thirsty Crow', href: '/s?book=b1', sent: SENT }, { id: 'b2', title: 'Rain', href: '/s?book=b2' }];
+
+  test.each([['en', 'Sent \u2713 12/10'], ['ur', 'بھیجی گئی \u2713 ۱۲/۱۰']])('%s: only the sent book\'s row shows when it was sent, next to its title (not a button)', async (lang, chip) => {
+    const p = await open(lib(STORIES), { lang });
+    const [a, b] = p.q('#th-stories').querySelectorAll('[data-row="story"]');
+    const c = a.querySelector('.th-sent');
+    expect(c.textContent).toBe(chip);
+    expect(c.tagName).toBe('SPAN');
+    expect(c.getAttribute('data-tap')).toBeNull();
+    expect(c.parentNode.getAttribute('class')).toBe('th-row-n');
+    expect(b.querySelectorAll('.th-sent')).toHaveLength(0);
+    expect(b.querySelector('.th-row-n').textContent).toBe('Rain');
+  });
+
+  test('another grade: the rows follow the library the server answers', async () => {
+    const p = await open(lib(STORIES), { answer: (path) => (path.indexOf('/api/th/library?') === 0 ? { grade: 4, stories: [{ id: 'b5', title: 'Kites', href: '/s?book=b5', sent: SENT }, { id: 'b1', title: 'The Thirsty Crow', href: '/s?book=b1' }] } : {}) });
+    await p.tap(p.q('#th-grades').querySelector('[data-grade="4"]'));
+    const rows = p.q('#th-stories').querySelectorAll('[data-row="story"]');
+    expect(rows.map((r) => r.querySelectorAll('.th-sent').length)).toEqual([1, 0]);
+  });
+});
 
 describe('the message box', () => {
   const LONG = {
@@ -254,5 +283,115 @@ describe('«More» on the timeline', () => {
     expect(drawn(p)).toBe(18);
     expect(p.q('#th-more').hidden).toBe(true);
     expect(p.fetches.filter((f) => f.path.indexOf('/api/th/timeline') === 0)).toHaveLength(2);
+  });
+});
+
+describe('"Quiz this" starts one quiz, wherever it is tapped', () => {
+  const LESSON = { kind: 'lp', verb: 'quiz_this', id: 'lp_9', make: 'lesson', sendKind: null, title: 'Water' };
+  const home = () => ({ primary: { kind: 'lesson', id: 'lp_9', make: 'lesson', from: 'lp', title: 'Water' }, library: LIB, timeline: [{ ...LESSON }] });
+  const answer = (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' } : {});
+  const makes = (p) => p.fetches.filter((f) => f.path === '/api/th/quiz/make');
+  const rowOf = (p) => p.q('#th-rows').querySelectorAll('li')[0];
+
+  test('from the top card: the same lesson\'s row no longer offers "Quiz this" and says the quiz is being made', async () => {
+    const p = await open(home(), { answer });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    expect(makes(p)).toHaveLength(1);
+    expect(rowOf(p).querySelector('[data-tap="quiz_this"]')).toBeNull();
+    expect(rowOf(p).textContent).toContain('Making your quiz…');
+  });
+
+  test('from the row: the top card no longer offers "Quiz this" for that lesson and says the quiz is being made', async () => {
+    const p = await open(home(), { answer });
+    await p.tap(rowOf(p).querySelector('[data-tap="quiz_this"]'));
+    expect(makes(p)).toHaveLength(1);
+    expect(p.q('#th-top').querySelector('[data-tap="quiz_this"]')).toBeNull();
+    expect(p.q('#th-top').textContent).toContain('Making your quiz…');
+  });
+
+  test('once the quiz is ready: the top card sends it and the row offers "Send again" for that quiz', async () => {
+    const timers = [];
+    const p = await open(home(), { timers, answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' }
+      : path.indexOf('/api/th/quiz/qz1?') === 0 ? { state: 'ready', title: 'Water', message: 'M', wa: 'https://wa.me/?text=M' }
+        : path === '/api/th/send' ? { message: 'M', wa: 'https://wa.me/?text=M' } : {}) });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    timers.splice(0).forEach((fn) => fn());
+    await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(p.q('#th-top').querySelector('[data-tap="send"]')).not.toBeNull();
+    expect(rowOf(p).querySelector('[data-tap="quiz_this"]')).toBeNull();
+    await p.tap(rowOf(p).querySelector('[data-tap="again"]'));
+    expect(p.fetches.filter((f) => f.path === '/api/th/send').map((f) => [f.body.kind, f.body.id])).toEqual([['again', 'qz1']]);
+  });
+
+  test('a refused make leaves both buttons as they were', async () => {
+    const p = await open(home(), { answer: (path) => (path === '/api/th/quiz/make' ? {} : {}) });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    expect(rowOf(p).querySelector('[data-tap="quiz_this"]')).not.toBeNull();
+    expect(p.q('#th-top').querySelector('[data-tap="quiz_this"]')).not.toBeNull();
+  });
+});
+
+describe('the home\'s answer does not come', () => {
+  const HOME = { primary: { kind: 'none' }, library: LIB };
+  const homeFetches = (p) => p.fetches.filter((f) => f.path.indexOf('/api/th/home?') === 0);
+  const fire15 = async (timers) => { timers.splice(0).filter((fn) => fn.ms === 15000).forEach((fn) => fn()); await new Promise((r) => setImmediate(r)); };
+
+  test('nothing after 15 s: the error line and «Try again» show (never a skeleton with no word); a tap asks again and draws the home', async () => {
+    const timers = [];
+    const p = await open(HOME, { status: 'hang', timers });
+    expect(p.q('#th-retry').hidden).toBe(true);
+    expect(p.q('#th-err').hidden).toBe(true);
+    expect(timers.map((fn) => fn.ms)).toContain(15000);
+    await fire15(timers);
+    expect(p.q('#th-err').hidden).toBe(false);
+    expect(p.q('#th-retry').hidden).toBe(false);
+    expect(p.q('#th-retry').textContent).toBe('Try again');
+    expect(p.q('#th-main').getAttribute('data-ready')).toBe('err');
+    expect(p.beacons.map((x) => x.body.step)).toEqual(['home_slow']);
+    await p.tap(p.q('#th-retry'));
+    expect(homeFetches(p)).toHaveLength(2);
+    expect(homeFetches(p)[1].path).toBe(homeFetches(p)[0].path);
+    expect(p.q('#th-retry').hidden).toBe(true);
+    expect(p.q('#th-err').hidden).toBe(true);
+    expect(p.beacons.map((x) => x.body.step)).toEqual(['home_slow', 'home_retry']);
+    await p.release(HOME); // the first ask answers late: the home is drawn once, and the second answer changes nothing
+    expect(p.q('#th-main').getAttribute('data-ready')).toBe('1');
+    await p.release({ primary: { kind: 'none' }, library: { grade: 2, stories: [] } });
+    expect(p.q('#th-chosen').textContent).toMatch(/4/);
+  });
+
+  test('a stale 15 s timer from the first ask never shows the error over a second ask still on its way', async () => {
+    const timers = [];
+    const p = await open(HOME, { status: 'hang', timers });
+    const first = timers.splice(0).filter((fn) => fn.ms === 15000);
+    first.forEach((fn) => fn());
+    await new Promise((r) => setImmediate(r));
+    await p.tap(p.q('#th-retry'));
+    first.forEach((fn) => fn()); // the first ask's timer again (already fired): nothing
+    expect(p.q('#th-err').hidden).toBe(true);
+    expect(p.q('#th-retry').hidden).toBe(true);
+  });
+
+  test('an answer inside 15 s: the timer finds the home drawn and does nothing', async () => {
+    const timers = [];
+    const p = await open(HOME, { timers });
+    await fire15(timers);
+    expect(p.q('#th-err').hidden).toBe(true);
+    expect(p.q('#th-retry').hidden).toBe(true);
+    expect(p.q('#th-main').getAttribute('data-ready')).toBe('1');
+    expect(p.beacons).toEqual([]);
+  });
+
+  test.each([500, 'offline'])('a refusal (%s): the error line, its tap back to the chat, and «Try again» that asks again', async (status) => {
+    const p = await open({}, { status });
+    expect(p.q('#th-err').hidden).toBe(false);
+    expect(p.q('#th-retry').hidden).toBe(false);
+    await p.tap(p.q('#th-retry'));
+    expect(homeFetches(p)).toHaveLength(2);
+  });
+
+  test('Urdu: the button reads the signed words of the error line', () => {
+    const { html } = Page.buildShell({ token: 'a.b', lang: 'ur', switchTo: null });
+    expect(html).toContain('id="th-retry" type="button" hidden>دوبارہ کوشش کریں</button>');
   });
 });
