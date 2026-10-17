@@ -177,7 +177,7 @@ describe('a switch reads the same through the seam as through its own read', () 
     expect(S.reads.filter((r) => r.t === 'app_settings').length).toBe(1);
     const primed = {};
     for (const e of Seam().entries()) primed[e.name] = noAt(e.peek());
-    expect(Object.keys(primed).length).toBe(16);  // every module the hub reads a switch through, but the fast switch itself (challenge: 5 switches; stories: 4 keys; the next thing: 3 keys; the finish card: 1; the returning child's language: 1)
+    expect(Object.keys(primed).length).toBe(17);  // every module the hub reads a switch through, but the fast switch itself (challenge: 5 switches; stories: 4 keys; the next thing: 3 keys; the finish card: 1; the returning child's language: 1; the home's plain fallback: 1)
     // The same cache, but where the module's own read reads nothing (keep my place's way back with its parent off:
     // it answers false before its cache; primed, its cache holds what its read would hold).
     const skipped = Object.keys(own).filter((n) => own[n] === null);
@@ -352,5 +352,48 @@ describe('the returning child\'s language (web_quiz_return_lang): a link that ca
     expect(await require('../../../shared/services/quiz/web-quiz-return-lang').on()).toBe(true);
     const warm = await measure(tokenLang(), { device: DEVICE });
     expect(settingsReads(warm)).toBe(0);
+  });
+});
+
+describe('the home\'s plain fallback (web_quiz_home_fallback_v3) rides the one read', () => {
+  const FB = { key: 'web_quiz_home_fallback_v3', value: true };
+  const withFb = () => { S.db.app_settings = [...S.db.app_settings.filter((r) => r.key !== FB.key), FB]; };
+
+  test('control, fast off: the hub asks for its key (its own read), and the seam reads it too', async () => {
+    boot({ fast: false, every: true });
+    withFb();
+    Fx.askedKeys.clear();
+    await measure(tokenOne(), { device: DEVICE });
+    expect([...Fx.askedKeys]).toContain(FB.key);
+    expect(Seam().ALL_KEYS()).toContain(FB.key);
+  });
+
+  test('fast on + the fallback key present, cold: still exactly ONE app_settings read, and the switch answers through it', async () => {
+    // RULING #C72: OFF (the key absent) measured in this run == the recorded one read; ON <= OFF + the module's own
+    // named key rows (0: its key rides the one read); ON <= the every-switch ceiling (7 warm).
+    await coldWithFastWarm({ fast: true, every: true });
+    S.db.app_settings = S.db.app_settings.filter((r) => r.key !== FB.key);
+    const off = await measure(tokenOne(), { device: DEVICE });
+    expect(settingsReads(off)).toBe(1);
+    await coldWithFastWarm({ fast: true, every: true });
+    withFb();
+    const cold = await measure(tokenOne(), { device: DEVICE });
+    expect(settingsReads(cold)).toBe(1);
+    expect(settingsReads(cold)).toBeLessThanOrEqual(settingsReads(off) + 0);
+    expect(cold.waves).toBeLessThanOrEqual(off.waves);
+    const Fb = require('../../../shared/services/quiz/web-quiz-home-fallback-flag');
+    expect(Fb.hubSwitches.peek()).toEqual(expect.objectContaining({ on: true }));
+    expect(await Fb.on()).toBe(true);
+    const warm = await measure(tokenOne(), { device: DEVICE });
+    expect(settingsReads(warm)).toBe(0);
+    expect(warm.waves).toBeLessThanOrEqual(7);
+  });
+
+  test('the primed value is strict: a string "true" through the one read is off (fails closed)', async () => {
+    await coldWithFastWarm({ fast: true, every: true });
+    S.db.app_settings = [...S.db.app_settings.filter((r) => r.key !== FB.key), { key: FB.key, value: 'true' }];
+    const cold = await measure(tokenOne(), { device: DEVICE });
+    expect(settingsReads(cold)).toBe(1);
+    expect(require('../../../shared/services/quiz/web-quiz-home-fallback-flag').hubSwitches.peek()).toEqual(expect.objectContaining({ on: false }));
   });
 });

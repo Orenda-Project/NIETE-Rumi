@@ -46,7 +46,8 @@ const CEILING_KEYS = [...ON_KEYS, 'web_quiz_back_nav', 'web_quiz_hub_door', 'web
   'web_quiz_rich_telemetry', 'web_quiz_bind_way_back', 'web_quiz_guest_home', 'quiz_first_door', 'quiz_maker_page',
   'web_quiz_home_v3', 'web_quiz_stories', 'quiz_student_join', 'web_quiz_readalong', 'web_quiz_stories_band', 'web_quiz_live_read_v3',
   'web_quiz_challenge_realtime', 'web_quiz_card_v3', 'web_quiz_next_offer', 'web_quiz_events_v3', 'web_quiz_challenge_pool',
-  'web_quiz_return_lang', 'web_quiz_remember_column', 'quiz_join_early_tap', 'web_quiz_stories_steady'];
+  'web_quiz_return_lang', 'web_quiz_remember_column', 'quiz_join_early_tap', 'web_quiz_stories_steady',
+  'web_quiz_home_fallback_v3'];
 // The hub's serial round trips on sandbox's own code (no fast page; measured on 14de0aaac with this fixture's JSON true
 // seeds, fast off): the most the hub may cost with the fast page off, and what the fast page is measured against.
 //   classList / loose / picker / locked: the usual switches (ON_KEYS); every: CEILING_KEYS (hubWaves());

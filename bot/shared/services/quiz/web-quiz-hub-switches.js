@@ -46,6 +46,7 @@ const MODULES = [
   () => require('./web-quiz-bind-way-back'),
   () => require('./web-quiz-book'),
   () => require('./web-quiz-home-flags'),
+  () => require('./web-quiz-home-fallback-flag'),
   () => require('./web-quiz-hub-play'),
   () => require('./web-quiz-challenge'),
   () => require('./web-quiz-telemetry'),
