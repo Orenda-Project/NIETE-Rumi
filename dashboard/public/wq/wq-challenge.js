@@ -1400,7 +1400,7 @@
     rfLast = null;
     if (!rfOn() || !window.WQMoment || !o) return '';
     rfLast = window.WQMoment.feedback(o);
-    var h = window.WQMoment.html(rfLast, L, { grade: menuData.form }) + (window.WQMoment.again ? window.WQMoment.again(rfLast, L, { grade: menuData.form }) : '');
+    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form });
     return inner ? h : '<div id="wqc-rf">' + h + '</div>';
   }
   // Jugnu's sound for it, and "read it again to light one more!" (in the box) opening the read again

@@ -30,6 +30,9 @@
 .wq-moment--s .wq-moment-deed{font-size:var(--fs-3,18px);margin-bottom:6px}
 .wq-moment--s .wq-moment-star{width:28px;height:28px}
 .wq-moment--s .wq-moment-light{width:22px;height:22px}
+/* "read it again": the jar's own offer, inside the card under it */
+.wq-moment-again{margin:12px 0 0}
+.wq-moment-again .wq-btn{width:100%;margin:0}
 /* motion: the lights fill one by one, the stars pop, the badge springs in */
 @keyframes wq-moment-on{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.2);opacity:1}100%{transform:scale(1)}}
 .wq-moment-light[data-on="1"],.wq-moment-star[data-on="1"],.wq-moment-badge{animation:wq-moment-on var(--dur-pop,420ms) var(--ease-pop,cubic-bezier(.34,1.56,.64,1)) both}

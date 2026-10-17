@@ -16,6 +16,7 @@
  *                               on a skipped word, + "read it again for 3 stars") and that sentence played as a slice of
  *                               the page's own take
  *   WQMoment.again(fb, lang, o) the minute's "read it again to light one more!" soft button (#wqc-rfagain), or ''
+ *   WQMoment.card(fb, lang, o)  html() with that offer inside the card, under the jar it fills (never loose on the screen)
  *
  * The jar, its number and the growth line show only on the reading child's own screen (the server sends the speed only
  * to that phone) and only when the read is long enough to be honest (15 words and 6 seconds); otherwise the words, the
@@ -34,7 +35,7 @@
       words: function (n) { return n === 1 ? 'You read 1 word!' : 'You read ' + n + ' words!'; },
       some: 'You read it out loud!', all: 'You read the whole story!',
       zero: "Let's read it together!",
-      num: function (n) { return n + ' words a minute'; },
+      num: function (n) { return n === 1 ? '1 word a minute' : n + ' words a minute'; },
       lights: function (n) { return n + ' of 5 lights'; },
       stars: function (n) { return n + ' of 3 stars'; },
       up: 'Faster than last time!', same: 'Steady, just like last time!', hear: 'Hear Jugnu say it',
@@ -203,6 +204,11 @@
     return n > 0 && n < 5 ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)].again) + '</button>' : '';
   }
 
+  function card(fb, lang, o) {
+    var a = again(fb, lang, o), h = html(fb, lang, o);
+    return a ? h.replace(/<\/section>$/, '<div class="wq-moment-again">' + a + '</div></section>') : h;
+  }
+
   // a read with no voice yet (the storybook's Your turn, every tick): at 6 s Jugnu leans in with "come a little
   // closer", at 15 s the offer to read with Jugnu (data-tap="rfwith"); a word heard takes it away. el: the read screen's
   // [data-near] line; g: Jugnu ([data-jg]); v: the live reader's view; ms since the read began
@@ -230,5 +236,5 @@
     if (R.rfw) { R.rfw = 0; if (m.label() === 'listen') m.primary(); }
   }
 
-  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, near: near, say: say, q: q, BANDS: BANDS };
+  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, card: card, near: near, say: say, q: q, BANDS: BANDS };
 })();

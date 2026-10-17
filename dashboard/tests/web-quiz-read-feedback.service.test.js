@@ -51,6 +51,12 @@ describe('WQMoment, pure', () => {
     expect(M.level(fb, 1).lights).toBe(5);
     expect(M.level(fb, 5).lights).toBe(3);
   });
+  test('one word a minute is "1 word a minute" (a very slow long read), never "1 words"', () => {
+    const M = moment();
+    const h = M.html(M.feedback({ words_read: 16, words_total: 40, ms: 16 * 60000 }), 'en', { grade: 3 });
+    expect(h).toContain('1 word a minute');
+    expect(h).not.toContain('1 words');
+  });
   test('stars are words read right: 3 from 90 %, 2 from 70 %, 1 below', () => {
     const M = moment();
     const st = (c, a) => M.level(M.feedback({ score: { correct: c, attempted: a }, wcpm: 40 }), 3).stars;
@@ -309,6 +315,9 @@ describe('read it again', () => {
     expect(h).toMatch(/<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">/);
     expect(h).toContain(lang === 'ur' ? 'ایک اور روشنی کے لیے پھر سے پڑھیں!' : 'Read it again to light one more!');
     expect(primaries(h)).toBeLessThanOrEqual(1);
+    // it belongs to the jar: inside the reading card, never a loose button between the card and the next step
+    expect(/<section class="wq-moment[^>]*data-rf[\s\S]*id="wqc-rfagain"[\s\S]*<\/section>/.test(h)).toBe(true);
+    expect(h.indexOf('</section>')).toBeGreaterThan(h.indexOf('id="wqc-rfagain"'));
     t.tap('wqc-rfagain');
     expect(t.opened).toEqual(['read']);
   });
@@ -514,6 +523,7 @@ describe('Read aloud without the Trail', () => {
     p.w.readResult({ score: { correct: 46, attempted: 50, stopped: false }, wcpm: 48, previous: { wcpm: 40 } });
     await p.flush();
     expect(p.html()).toContain('id="wqc-rfagain"');
+    expect(p.html().indexOf('</section>', p.html().indexOf('data-rf'))).toBeGreaterThan(p.html().indexOf('id="wqc-rfagain"'));
     const n = p.fetches.length;
     await p.click('wqc-rfagain');
     expect(p.fetches.slice(n).some((f) => /ch\/HUB\.TOKEN\/read/.test(f.url))).toBe(true);

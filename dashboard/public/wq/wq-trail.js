@@ -663,7 +663,7 @@
       var md = h.md() || {};
       if (md.read_feedback !== true || !window.WQMoment || !r || !r.rf || (h.S.data || {}).round_turn) return '';
       rfFb = window.WQMoment.feedback(r.rf);
-      return window.WQMoment.html(rfFb, L, { grade: md.form }) + (window.WQMoment.again ? window.WQMoment.again(rfFb, L, { grade: md.form }) : '');
+      return window.WQMoment.card(rfFb, L, { grade: md.form });
     }
     function rfAgain(rf, d) { if (rf) h.on('wqc-rfagain', function () { h.open(d.ex); }); }
     // Jugnu's sound for it: the badge jingle after a read (after the finish fanfare), the soft chime after a 0-word try
