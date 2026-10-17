@@ -17,7 +17,7 @@
       storiesSay: 'Stories you read with Jugnu', gamesSay: 'Games with numbers and sounds', videosSay: 'Videos your teacher chose',
       soon: 'Coming soon', home: 'Home',
       nextQuiz: 'Your teacher\'s quiz', nextCont: 'Finish your quiz', nextStory: 'Read a story with Jugnu', nextListen: 'Listen to a story',
-      nextGame: 'Play a game with Jugnu', nextNumbers: 'Play the numbers game', nextVideo: 'Watch a video', nextAgain: 'Play again',
+      nextGame: 'Play with Jugnu', nextNumbers: 'Play the numbers game', nextVideo: 'Watch a video', nextAgain: 'Play again',
       nextNone: 'Ask your teacher for a quiz link', nextPick: 'Pick a story', playQuiz: 'Play a quiz',
       weekStory: 'This week\'s story', listen: 'Listen to a story', shelf: 'Storybooks', numbers: 'Numbers with Jugnu',
       fromTeacher: 'From your teacher', again: 'Play again', newTag: 'New', newQuiz: 'New', openVideos: 'Open the videos',
@@ -81,6 +81,7 @@
     // A game tile opens the one game it names (#next: the first not done; #numbers: the warm-up; wq-trail.js), never the list.
     var x = B.play && B.play.lantern;
     if (x && B.challenge && B.challenge.on) {
+      // the games list's first open step may be a game, a read or a listen: the words name none of them ("Play with Jugnu")
       if (x.kind === 'trail') return { kind: 'game', title: t.nextGame, sub: '', href: chHref(B, ctx) + '#next', src: 'lantern', minutes: 2 };
       if (x.kind === 'story' && x.title) return { kind: 'story', title: t.nextStory, sub: x.title, href: chHref(B, ctx) + (x.pid ? '&room=story&pid=' + encodeURIComponent(x.pid) : ''), src: 'lantern', minutes: 2 };
       if (x.kind === 'numbers') return { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx) + '#numbers', src: 'lantern', minutes: 1 };

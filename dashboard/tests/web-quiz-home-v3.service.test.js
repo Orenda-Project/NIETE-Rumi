@@ -144,6 +144,14 @@ describe('wq-home.js: the Next tile', () => {
     const nx = H.nextOf({ ...HOME, teacher: { code: 'T1', k: 'a', topic: 'Plants' } }, ctxOf('en'));
     expect(nx).toMatchObject({ kind: 'quiz', sub: 'Plants', href: '/q/T1?k=a', src: 'teacher' });
   });
+  test('next absent, the lantern is "the games list": the tile names no kind it cannot know ("Play with Jugnu"), never "a game"', () => {
+    const B = { ...HOME, play: { lantern: { kind: 'trail', stops: 2 } } };
+    const en = H.nextOf(B, ctxOf('en'));
+    expect(en.title).toBe('Play with Jugnu');
+    expect(en.href).toMatch(/#next$/);
+    expect(H.nextOf(B, ctxOf('ur')).title).toBe('جگنو کے ساتھ کھیلیں');
+    expect(visible(H.html(B, ctxOf('en')))).not.toMatch(/a game/i);
+  });
   test('next absent: today\'s lantern decides — the same story and the same destination as the lantern line', () => {
     const B = { ...HOME, play: { lantern: { kind: 'story', title: 'The red kite', pid: 'en.read.1.k07' } } };
     const nx = H.nextOf(B, ctxOf('en'));
