@@ -19,39 +19,20 @@
  *   ft_fb_coach → the record-a-lesson prompt       (what a typed "coaching" sends)
  * With `quiz_maker_page` off, or an id that is not ours, → false and the caller's chain runs as today.
  */
+const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
 const { clampLanguage } = require('../../config/ux-strings');
-const Strings = require('./maker.fallback.strings');
+// The message and its send live in a leaf (maker.fallback.send.js) so the cta never requires this file.
+const { IDS, ALL_IDS, fallbackMessage, sendFallback } = require('./maker.fallback.send');
 
-const IDS = Object.freeze({ QUIZ: 'ft_fb_quiz', LP: 'ft_fb_lp', COACH: 'ft_fb_coach' });
-const ALL_IDS = Object.freeze([IDS.QUIZ, IDS.LP, IDS.COACH]);
 const REASON = 'ft_fallback';
-
-/** → { body, buttons } for who × lang. Pure. */
-function fallbackMessage({ lang, who = 'unknown' } = {}) {
-  const bi = lang === 'bi' && who !== 'known';
-  const l = bi ? 'bi' : clampLanguage(lang === 'bi' ? 'ur' : lang);
-  let bodyId;
-  if (who === 'known') bodyId = 'maker.fallback.body.known';
-  else if (bi) bodyId = 'maker.fallback.body.unknown.bi';
-  else bodyId = who === 'door' ? 'maker.fallback.body' : 'maker.fallback.body.unknown';
-  const btn = (n) => Strings.str(`maker.fallback.btn${n}${bi ? '.bi' : ''}`, l);
-  return {
-    body: Strings.str(bodyId, l),
-    buttons: [{ id: IDS.QUIZ, title: btn(1) }, { id: IDS.LP, title: btn(2) }, { id: IDS.COACH, title: btn(3) }],
-  };
-}
-
-/** ONE reply-buttons send; no ledger row (the caller's maker_reply is this reply). → the send's boolean. Never throws. */
-async function sendFallback({ phone, lang, who = 'unknown' } = {}) {
-  try {
-    const WhatsAppService = require('../whatsapp.service');
-    return Boolean(await WhatsAppService.sendInteractiveButtons(phone, fallbackMessage({ lang, who })));
-  } catch (err) {
-    logToFile('⚠️ first touch: the maker fallback send threw', { error: err && err.message });
-    return false;
-  }
-}
+// A log line names the teacher by the events' keyed reference, never by id: HMAC(kid key, 't|' + users.id)[:16];
+// null without the key (never an unkeyed hash).
+const tkOf = (userId) => {
+  const k = process.env.WEB_QUIZ_KID_KEY;
+  if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
+  return crypto.createHmac('sha256', k).update(`t|${userId}`).digest('hex').slice(0, 16);
+};
 
 async function makerPageOn() {
   try {
@@ -78,14 +59,14 @@ async function handleFallbackButton({ user, phone, id, lang } = {}) {
     if (await AppRedirect.redirectIfFlagged('video', { userId, from: phone, language, reason: REASON })) return true;
     const Videos = require('../student-videos-entry.service');
     const opened = await Videos.openStudentVideosFlow({ from: phone, userId, language, reason: REASON });
-    if (!opened) logToFile('ℹ️ first touch: no student video library on this deployment — the tap is answered by nothing', { userId });
+    if (!opened) logToFile('ℹ️ first touch: no student video library on this deployment — the tap is answered by nothing', { tk: tkOf(userId) });
     return true;
   }
   if (id === IDS.LP) {
     // text-message.handler's bare "lesson plan" door (the redirect is inside the entry).
     const Lp = require('../lp-browse-entry.service');
     const opened = await Lp.openLpBrowseFlow({ from: phone, userId, language, reason: REASON });
-    if (!opened) logToFile('ℹ️ first touch: the lesson-plan catalogue was not sent', { userId });
+    if (!opened) logToFile('ℹ️ first touch: the lesson-plan catalogue was not sent', { tk: tkOf(userId) });
     return true;
   }
   // IDS.COACH — text-message.handler's typed "coaching": the redirect, the first-use intro, the coaching prompt.

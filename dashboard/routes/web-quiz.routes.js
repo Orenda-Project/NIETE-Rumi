@@ -28,10 +28,12 @@ const express = require('express');
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
+const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
+const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 // A page session id (wq-tel.js): 8-16 lower-case letters and digits.
@@ -99,6 +101,8 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/ch/result', limiter: ['challenge', 'challengeIp'] },
   // read aloud, live: a one-run speech-to-text key (the bot mints it; counted by the same per-run limiter)
   { method: 'post', path: '/api/wq/ch/live', limiter: ['challenge', 'challengeIp'] },
+  // live reading v3: a story page's one-read speech key (the bot answers 404 while web_quiz_live_read_v3 is off)
+  { method: 'post', path: '/api/wq/lr/key', limiter: ['lrKey', 'challengeIp'] },
   // questions after Read aloud: the reached questions (no key), then one answer per tap (counted per run)
   { method: 'post', path: '/api/wq/ch/qs', limiter: ['challenge', 'challengeIp'] },
   { method: 'post', path: '/api/wq/ch/qa', limiter: ['challenge', 'challengeIp'] },
@@ -108,9 +112,18 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/hub/:token', limiter: 'read' },
   // M4b library
   { method: 'get', path: '/api/wq/lib/h/:token', limiter: 'read', token: true },
+  // the v3 home's door screens (Stories / Games rows; the bot answers 404 while web_quiz_home_v3 is off)
+  { method: 'get', path: '/api/wq/doors/h/:token', limiter: 'read', token: true },
   // Jugnu's Book from the kid's hub (the bot answers 503 while web_quiz_challenge_book is off)
   { method: 'get', path: '/api/wq/book/h/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
+  // storybooks from the kid's hub (the bot answers 404 stories_off while web_quiz_stories is off)
+  { method: 'get', path: '/api/wq/stories/shelf/h/:token', limiter: 'read', token: true },
+  // the covers of one grade × language for anyone (no child data): a join's grade tap warms the thumbnails
+  { method: 'get', path: '/api/wq/stories/shelf', limiter: 'read', cache: 'public, max-age=300' },
+  { method: 'get', path: '/api/wq/stories/book/:id/h/:token', limiter: 'read', token: true },
+  // per child link (a whole class reads behind one school address), with a loose ceiling per address
+  { method: 'post', path: '/api/wq/stories/event/h/:token', limiter: ['stories', 'challengeIp'], token: true },
   { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
   // the results card's door to the child's hub (a session token in the body)
@@ -130,7 +143,7 @@ const BOOT_COPY = { en: 'Opening the quiz…', ur: 'کوئز کھل رہا ہے�
 const CLOSED_COPY = {
   en: { title: 'This quiz has closed', say: 'Ask your teacher for a new link.', off: 'The quiz is not open right now', offSay: 'Please try again in a little while.',
     hub: 'This link has expired', hubSay: 'Send /quiz on WhatsApp to get a new one.' },
-  ur: { title: 'یہ کوئز بند ہو چکا ہے', say: 'اپنے استاد سے نیا لنک لیں۔', off: 'کوئز ابھی کھلا نہیں ہے', offSay: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  ur: { title: 'یہ کوئز بند ہو چکا ہے', say: 'اپنے ٹیچر سے نیا لنک لیں۔', off: 'کوئز ابھی کھلا نہیں ہے', offSay: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔',
     hub: 'یہ لنک پرانا ہو چکا ہے', hubSay: 'نیا لنک لینے کے لیے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔' },
 };
 
@@ -156,6 +169,10 @@ function assetVersion() {
   for (const f of ['wq-book.js', 'wq-book.css', 'wq-tel.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
+  // The child home (wq-home.*, the home tags) and its door screens (wq-doors.*, loaded by wq-home.js) ride this ?v= too.
+  for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
   return h.digest('hex').slice(0, 10);
 }
 
@@ -177,7 +194,26 @@ function lockupHtml(brand, lang) {
   return `<span class="wq-brand">${markHtml(brand)}<span class="wq-lock"><b>${esc(brand.label[lang])}</b><small>${esc(brand.sub[lang])}</small></span></span>`;
 }
 
+// An Urdu preview counts in Urdu digits while the finish card's switch is on (the bot carries `card_v3: true`): the
+// teacher's link and a child's card link sit side by side in one class group, one digit system. Off: today's text.
+// A score (۳/۵) keeps its left-to-right order inside the Urdu line (U+2066…U+2069).
+const urCount = (t) => urDigits(t).replace(/[\u06F0-\u06F9]+\/[\u06F0-\u06F9]+/g, (m) => `\u2066${m}\u2069`);
+// Three Urdu descriptions as a native reader phrases them, with the same switch: the schools league ("up to 10 more
+// for the score"), the class table (no masculine form addressed to the child), a challenge (see YOUR score).
+const UR_DESC_ON = {
+  schools: 'کھیلنے کے 10 پوائنٹس، اسکور کے مطابق مزید 10 تک۔ کھیلیں اور اپنے اسکول کو اوپر لے جائیں!',
+  class: 'کھیلنا باقی ہے؟ وہی لنک ابھی کھلا ہے۔',
+  challenge: 'وہی کوئز کھیلیں اور اپنا اسکور دیکھیں!',
+};
 function ogText(payload, view, brand) {
+  const og = ogTextOf(payload, view, brand);
+  const ur = ((payload && payload.quiz) || {}).lang === 'ur';
+  if (!ur || payload.card_v3 !== true) return og;
+  const which = payload.challenge && payload.art && payload.art.invite ? 'challenge' : view;
+  return { ...og, title: urCount(og.title), desc: urCount(UR_DESC_ON[which] || og.desc) };
+}
+
+function ogTextOf(payload, view, brand) {
   const q = (payload && payload.quiz) || {};
   const cls = (payload && payload.cls) || {};
   const ur = q.lang === 'ur';
@@ -254,6 +290,13 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
 <style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>`;
 }
 
+// The sound + motion kit (app_settings web_quiz_juice, decided by the bot): its stylesheet and script, before the page's
+// own script so window.WQJ is there when the page boots, only when the payload carries `juice: true`.
+function juiceTags(payload) {
+  if (!payload || payload.juice !== true) return '';
+  return `<link rel="stylesheet" href="/wq/wq-juice.css?v=${challengeVersion('wq-juice.css')}">\n<script src="/wq/wq-juice.js?v=${challengeVersion('wq-juice.js')}" defer></script>\n`;
+}
+
 // Identity v2 (name first) lives in its own script, sent only to quizzes the server switched to it.
 function identityV2(payload) {
   const id = payload && payload.cls && payload.cls.identity;
@@ -292,7 +335,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
     head: head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui, ...cardType(image) }),
     frame: `<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
-${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
+${juiceTags(payload)}${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-lib.js?v=${assetV}" defer></script>
 ${payload && payload.story ? `<script src="/wq/wq-story-link.js?v=${challengeVersion('wq-story-link.js')}" defer></script>\n` : ''}<script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
@@ -617,9 +660,9 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <body>
 <main id="wq" class="wq-app wqc" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(CH_COPY[lang].boot)}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
-<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
+${juiceTags(menu)}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
-${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
+${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
 }
@@ -698,6 +741,10 @@ function createWebQuizRouter(opts = {}) {
       skip: (req) => !(req.body && typeof req.body.ps === 'string' && PS_RX.test(req.body.ps)) }),
     challenge: rateLimit({ ...common, max: 20, keyGenerator: (req) => `ct:${(req.body && typeof req.body.ct === 'string' && req.body.ct.slice(0, 200)) || clientIp(req)}` }),
     challengeIp: rateLimit({ ...common, max: 600, keyGenerator: (req) => `chip:${clientIp(req)}` }),
+    // a storybook's page and question events: ~30 a book, per child link
+    stories: rateLimit({ ...common, max: 200, keyGenerator: (req) => `sh:${String((req.params && req.params.token) || clientIp(req)).slice(0, 200)}` }),
+    // a story page's one-read speech key, per hub link (a class shares one school IP): 20 a minute is a sentence every 3 s
+    lrKey: rateLimit({ ...common, max: 20, keyGenerator: (req) => `lr:${(req.body && typeof req.body.st === 'string' && req.body.st.slice(0, 200)) || clientIp(req)}` }),
   };
   // Code enumeration: only answers that came back 404 count toward this one.
   const unknownCode = rateLimit({ ...common, max: 20, keyGenerator: (req) => `u:${clientIp(req)}`,
@@ -727,6 +774,7 @@ function createWebQuizRouter(opts = {}) {
         if (out.status >= 300 && out.status < 400 && out.location) return res.redirect(out.status, out.location);
         if (out.status === 204) return res.status(204).end();
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
+        if (r.cache && out.status === 200) res.set('Cache-Control', r.cache);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
         return res.status(out.status).json(out.body == null ? {} : out.body);
       } catch (err) {
@@ -1032,6 +1080,24 @@ function createWebQuizRouter(opts = {}) {
   router.get('/wq-probe', (req, res) => {
     pageHeaders(res);
     res.type('html').sendFile(PROBE_FILE);
+  });
+
+  // The sound + motion kit's demo page (ten answers to tap through): only while web_quiz_juice is on, never cached;
+  // no child page links to it. Off, or the bot not answering, it is not there (404). The file lives in views/, outside
+  // the /wq static handler, so no other spelling of the path reaches it.
+  router.get('/wq/juice-demo.html', limiters.read, async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
+    let on = false;
+    if (botUrl && apiKey) {
+      try {
+        const out = await callBot('GET', '/api/internal/wq/juice', req);
+        on = out.status === 200 && Boolean(out.body) && out.body.on === true;
+      } catch (_) { on = false; }
+    }
+    if (!on) return res.status(404).type('text').send('not found');
+    let html;
+    try { html = fs.readFileSync(JUICE_DEMO_FILE, 'utf8'); } catch (_) { return res.status(404).type('text').send('not found'); }
+    return res.status(200).type('html').send(html.replace(/__JV__/g, challengeVersion('wq-juice.js')).replace(/__CV__/g, challengeVersion('wq-juice.css')));
   });
 
   router.use('/wq', express.static(PUBLIC_DIR, { maxAge: YEAR_S * 1000, immutable: true, index: false, fallthrough: false }));

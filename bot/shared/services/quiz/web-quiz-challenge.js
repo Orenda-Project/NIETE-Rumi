@@ -49,6 +49,8 @@ const Measure = require('./web-quiz-measure-events');
 const TrailPage = require('./web-quiz-trail-page');
 // Fast pages (app_settings web_quiz_fast, default off; read without waiting): independent lookups run together.
 const Fast = require('./web-quiz-fast');
+// Live reading v3 (web_quiz_live_read_v3): {} with the switch off, so today's payloads are untouched.
+const LiveReadV3 = () => require('./web-quiz-live-read-v3');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
@@ -164,7 +166,7 @@ function clipsRecordedOn(now = Date.now()) {
 const settingCache = new Map();  // key → { v, at } for the record switches
 const SETTING_TTL_MS = 30 * 1000;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
 
 /** An app_settings switch, true only when its value reads true (fails closed), cached for 30 s. */
 async function settingOn(key) {
@@ -716,7 +718,9 @@ async function menu(token, { kid, lang, device } = {}) {
     trail: rules.period ? Fast.early(periodTrail(w)) : null,
     rt: Fast.early(Tel.flag()),
     ui: Fast.early(require('./web-quiz-ur-polish').ui()),
+    juice: Fast.early(require('./web-quiz-juice').field()),
     bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    lr3: Fast.early(LiveReadV3().forMenu()),
   } : null;
   const got = (key, start) => (pre ? pre[key] : start());
   const runs = await got('runs', async () => (rules.record ? countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored')));
@@ -748,7 +752,10 @@ async function menu(token, { kid, lang, device } = {}) {
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await got('rt', () => Tel.flag()),
     ...((await got('ui', () => require('./web-quiz-ur-polish').ui())) ? { ui: { ur2: true } } : {}),
+    // the sound + motion kit (web-quiz-juice.js): named only when on
+    ...((await got('juice', () => require('./web-quiz-juice').field())) ? { juice: true } : {}),
     ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
+    ...(await got('lr3', () => LiveReadV3().forMenu())),   // live reading v3: the page loads its component (off ⇒ nothing)
   };
 }
 
@@ -863,7 +870,9 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
   const previousWcpm = live ? (rules.record ? null : ((await got('previous', () => previousRun(w.studentId, 'read', w.lang))) || {}).wcpm) : undefined;
   return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await got('questions', () => questionsOn()), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
-    ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}) };
+    ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}),
+    // live reading v3 (web_quiz_live_read_v3, read only when real-time is on; off ⇒ nothing): how the reading finishes itself
+    ...(live && await LiveReadV3().forRead({ lang: w.lang, counted: async () => (v2 ? v2.mem.record === true : !!rules.record && !w.round && (await attemptInfo(w.studentId, 'read', w.lang)).attempt_no === 1) })) };
 }
 
 // ── challenge v2: the draw, the record decided at serve, the period (web_quiz_challenge_v2 / _period / _pool) ──────
@@ -1911,7 +1920,9 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   // The key decides, never the switch at this moment: a kept key stays whatever the switch now says; a plain key with
   // the switch now on is still deleted, and the row says so (calibration then knows why there is no audio).
   const audio = isKeptKey(key) ? { audio_key: key } : ((await keepAudioOn()) ? { audio_kept: false } : {});
-  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio };
+  // live reading v3 (off ⇒ {}): the UI version and how the page says it ended, kept through the scorer's final write too
+  const lr3Meta = await LiveReadV3().metaFor(body, { record: !!rules.record });
+  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio, ...lr3Meta };
   // the mic notice (web_quiz_challenge_audio_consent; null with it off): on the row, one event per run; a run that
   // showed it marks this child's notice seen on this phone (x-wq-device), so it is not shown again
   const consent = await TrailPage.consentFor(body);
@@ -1940,11 +1951,11 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     await updateRunMeta(c.r, (cur) => {
       const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
       return r.failed
-        ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp, reason: r.reason }, scored_at: nowIso() }
+        ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...lr3Meta, ...comp, reason: r.reason }, scored_at: nowIso() }
         : { status: 'scored', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), score: r.score, wcpm: r.wcpm,
           // an implausible row never became a reading: record cleared (the sweeper's `abandoned` shape), record_lost says why, the month stays open
           ...(r.implausible && isV2Meta(cur.meta) ? { record: false } : {}),
-          meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...(r.implausible && isV2Meta(cur.meta) ? { record_lost: 'implausible', counted: false } : {}), ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
+          meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...(r.implausible && isV2Meta(cur.meta) ? { record_lost: 'implausible', counted: false } : {}), ...audio, ...(live ? { live } : {}), ...lr3Meta, ...comp }, scored_at: nowIso() };
     }, { force: true });
     await measureOutcome(c.r);
     await renewBindings(c.sid);
@@ -2283,8 +2294,12 @@ async function warmClip(key, text, lang, { record = true, now = Date.now() } = {
 }
 const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecordedOn(now));
 
+// Live reading v3: a story page's speech keys spend the same daily read budget (read from the cached switches: with
+// real-time or v3 off nothing is counted and nothing more is read)
+Budget.countAlso(async (sinceIso) => ((await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0));
+
 module.exports = {
-  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
+  menu, exercise, entryOf, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, TRAIL_ORDER, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
@@ -2305,3 +2320,24 @@ module.exports.rapidPerfect = rapidPerfect;
 module.exports.scoreRead = scoreRead;
 module.exports.passageFor = passageFor;
 module.exports.childTest = childTest;
+// the v3 home's door screens (web-quiz-hub-doors.js): a listening story opens only once its clip is recorded, and a
+// row's words in the quiz voice (the clips' own scheme and recorder; a missing one is recorded in the background, so
+// the row has it on a later open, under the same daily cap as every clip)
+module.exports.storyClip = storyClip;
+module.exports.sayClip = async (text, lang) => {
+  if (!text) return null;
+  const key = clipKey('door', 'say', lang, String(text));
+  // a door label never takes the last half of the day's recordings from the challenge's own clips: past it, known clips only
+  if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
+  return clipUrl(key, String(text), lang);
+};
+// a listen row on the door's Stories list: the listening story's own key, but like the labels it records only while more
+// than half the day's recordings are left (past it, known clips only), so opening Stories never spends the challenge's half
+module.exports.storyClipCapped = (lang, text) => {
+  if (!text) return null;
+  const key = clipKey('listen', 'story', lang, text);
+  if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
+  return clipUrl(key, text, lang);
+};
+// tests only: the day's recordings already made (to stand at a point of the daily cap without recording)
+module.exports.__useClips = (n, now = Date.now()) => { clipsRecordedOn(now); clipsRecorded = n; };

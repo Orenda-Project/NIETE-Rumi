@@ -323,16 +323,20 @@ ${addonScripts.map((x) => `<script>${x}</script>\n`).join('')}<script>${SCRIPT}<
   return { html, csp: csp(styleHash, scriptHashes) };
 }
 
-/** A one-line page: `mk.stale` or `mk.error` (no form, no script). → { html, csp }. */
-function buildMessagePage({ lang = 'en', id = 'mk.error' } = {}) {
+/**
+ * A one-line page: `mk.stale` or `mk.error` (no form, no script). `tap` ({ href, text }, a caller's one link back, e.g.
+ * the chat) adds that one link under the line; without it the page is exactly as before. → { html, csp }.
+ */
+function buildMessagePage({ lang = 'en', id = 'mk.error', tap = null } = {}) {
   const l = clampLanguage(lang === 'bi' ? 'ur' : lang);
   const line = str(id === 'mk.stale' ? 'mk.stale' : 'mk.error', l);
-  const style = `${fontFace(l)}${CSS}`;
+  const withTap = Boolean(tap && tap.href && tap.text);
+  const style = `${fontFace(l)}${CSS}${withTap ? '\na.mk-go{display:flex;align-items:center;justify-content:center;text-decoration:none}' : ''}`;
   const styleHash = sha(style);
   const html = `${head(l, line, style, styleHash, null)}
 <body>
 <main class="mk">
-<p class="mk-say">${esc(line)}</p>
+<p class="mk-say">${esc(line)}</p>${withTap ? `\n<a class="mk-go" href="${esc(tap.href)}">${esc(tap.text)}</a>` : ''}
 </main>
 </body>
 </html>`;

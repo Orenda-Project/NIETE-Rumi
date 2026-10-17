@@ -123,12 +123,13 @@ const CHILD = { first: 'Zara', chip: 'c1', animal: 'owl' };
 const CARD = 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl';
 const RESULT = { card: { first: 'Zara', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5 }, art: { card: CARD } };
 const store = (result) => ({ wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [], result } });
-const waText = (p) => { const m = /id="wq-wa" href="([^"]+)"/.exec(p.html()); return m ? decodeURIComponent(m[1].replace(/&amp;/g, '&').replace(/^https:\/\/wa\.me\/\?text=/, '')) : null; };
+const waText = (p) => { const m = /id="wq-wa"(?: target="_blank" rel="noopener")? href="([^"]+)"/.exec(p.html()); return m ? decodeURIComponent(m[1].replace(/&amp;/g, '&').replace(/^https:\/\/wa\.me\/\?text=/, '')) : null; };
 const MINT = { '/api/wq/card': { token: TOK, url: `/q/TEST?k=${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET.en } };
 
 describe('golden: switch off, the quiz card and its class share are today\'s', () => {
   // Hashed from origin/sandbox ad10e50fc (this harness, these fixtures) before this change.
-  const GOLD = { en_html: '8a0a7b8e07da9f31', en_share: 'b731a541ab256d6d', ur_html: '58789e47df634ec6', ur_share: '0ad7fddbddad9a42' };
+  // ur_html re-hashed: the Urdu card's big score now prints in Urdu digits (۳/۵); with those mapped back it is the old hash.
+  const GOLD = { en_html: '8a0a7b8e07da9f31', en_share: 'b731a541ab256d6d', ur_html: '3654f22cb008e952', ur_share: '0ad7fddbddad9a42' };
   test('EN and UR: the card\'s HTML and the shared text', () => {
     const got = {};
     for (const lang of ['en', 'ur']) {
@@ -176,6 +177,23 @@ describe('switch on: the quiz card gains the deed and its class share becomes th
     expect(t.split('\n')).toEqual([`⭐ ${FC.DEEDS.en.quiz_done}`, '“⁨Plants⁩”', `https://example.test/q/TEST?k=${TOK}`, RET.en.text, RET.en.href]);
     expect(t).not.toMatch(/3\/5|stars|beat/);
   });
+  test('in WhatsApp\'s own browser (no file share) the "send" screen opens WhatsApp in a new window, never in this page', async () => {
+    const p = onPage('en');
+    await flush(); await flush();
+    p.els['#wq-share'].fire('click');
+    const a = /<a class="wq-btn wq-go" id="wq-wa"[^>]*>/.exec(p.html())[0];
+    expect(a).toContain('target="_blank"');
+    expect(a).toContain('rel="noopener"');
+    expect(a).toContain('href="https://wa.me/?text=');
+  });
+  test('switch off: today\'s "send" screen is unchanged (its link has no target)', () => {
+    for (const lang of ['en', 'ur']) {
+      const p = page({ lang, store: store(RESULT) });
+      p.els['#wq-share'].fire('click');
+      const a = /<a class="wq-btn wq-go" id="wq-wa"[^>]*>/.exec(p.html())[0];
+      expect(a).toMatch(/^<a class="wq-btn wq-go" id="wq-wa" href="https:\/\/wa\.me\/\?text=[^"]*">$/);
+    }
+  });
   test('the Next tile comes from the ranked next_offer, never from the chapter video under next', () => {
     const offer = { kind: 'storybook', href: '/s/b1/1', title: 'Read a storybook', minutes: 2, offer: 'o1', arm: 'rank' };
     const h = onPage('en', { next: { vid: 'v1', title: 'Water' }, next_offer: offer }).html();
@@ -197,6 +215,83 @@ describe('switch on: the quiz card gains the deed and its class share becomes th
   });
 });
 
+describe('switch on: the class share never goes without a link (the card link once it is in)', () => {
+  // the card link's request answers when the test says (a slow phone on a weak connection: ~15 s measured)
+  function slowPage(lang = 'en') {
+    let answer;
+    const pending = new Promise((res) => { answer = res; });
+    const p = page({ lang, store: store({ ...RESULT, card_v3: true }), api: { '/api/wq/card': () => pending } });
+    vm.runInContext(FC_SRC, p.ctx);
+    // a real page draws the card again (new buttons); the harness keeps one fake button, so drop the first draw's listener
+    p.els['#wq-share'].listeners = {};
+    p.wq.card();
+    return { p, answer };
+  }
+  const lines = (p) => (waText(p) || '').split('\n');
+  test.each(['en', 'ur'])('%s: a tap before the card link is in waits, then sends the class link after at most 2 s (no digits)', async (lang) => {
+    const { p } = slowPage(lang);
+    await flush();
+    p.els['#wq-share'].fire('click');
+    await flush();
+    expect(p.html()).not.toContain('id="wq-wa"');
+    expect(p.timers.some((t) => t.fn && t.ms === 2000)).toBe(true);
+    p.runTimers(2000);
+    await flush();
+    const l = lines(p);
+    expect(l[0]).toBe(`⭐ ${FC.DEEDS[lang].quiz_done}`);
+    expect(l.filter((x) => !/^https?:/.test(x)).join(' ')).not.toMatch(/[0-9\u06F0-\u06F9]/);
+    // the class link (today's, with its class picture key) — never a card token
+    expect(l.filter((x) => /^https:\/\/example\.test\/q\/TEST(\?a=[\w.-]+)?$/.test(x)).length).toBe(1);
+    expect(waText(p)).not.toMatch(/[?&]k=/);
+  });
+  test('the card link arrives during the wait: the tap sends the card link at once', async () => {
+    const { p, answer } = slowPage('en');
+    await flush();
+    p.els['#wq-share'].fire('click');
+    answer({ token: TOK, url: `/q/TEST?k=${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET.en });
+    await flush(); await flush(); await flush();
+    expect(lines(p)).toContain(`https://example.test/q/TEST?k=${TOK}`);
+  });
+  test('the card link was refused (another phone, a cold store): the class link at once, no wait', async () => {
+    const p = page({ lang: 'ur', store: store({ ...RESULT, card_v3: true }), api: { '/api/wq/card': { __status: 403, error: 'other_device' } } });
+    vm.runInContext(FC_SRC, p.ctx);
+    p.els['#wq-share'].listeners = {};
+    p.wq.card();
+    await flush(); await flush();
+    p.els['#wq-share'].fire('click');
+    await flush();
+    expect(lines(p).filter((x) => /^https:\/\/example\.test\/q\/TEST(\?a=[\w.-]+)?$/.test(x)).length).toBe(1);
+    expect(p.timers.some((t) => t.fn && t.ms === 2000)).toBe(false);
+  });
+});
+
+describe('switch on: Send to class (the card\'s own link) tapped before its link is in', () => {
+  test('the tap is held (soft) at most 2 s; when the link lands the same link opens with it, once', async () => {
+    let answer;
+    const pending = new Promise((res) => { answer = res; });
+    const timers = [];
+    const listeners = [];
+    const a = { tagName: 'A', className: 'wq-btn wq-go wqfc-share', href: null, clicks: 0,
+      setAttribute(k, v) { if (k === 'href') this.href = v; }, addEventListener(n, fn) { listeners.push(fn); },
+      click() { this.clicks += 1; listeners.forEach((fn) => fn({ currentTarget: a, preventDefault() { a.held = (a.held || 0) + 1; } })); } };
+    const fc = fcAlone({ fetch: () => pending.then((j) => ({ ok: true, text: () => Promise.resolve(JSON.stringify(j)) })),
+      setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout() {},
+      document: { getElementById: (id) => (id === 'wqfc-share' ? a : null), createElement: () => ({}), head: { appendChild() {} } } });
+    fc.mount({ insertAdjacentHTML() {} }, { kind: 'read', deed: 'read_some', lang: 'en', auth: { ct: 'CT1' } });
+    let prevented = 0;
+    listeners.forEach((fn) => fn({ currentTarget: a, preventDefault() { prevented += 1; } }));
+    expect(prevented).toBe(1);
+    expect(a.className).toContain('wq-soft');
+    expect(timers.map((t) => t.ms)).toContain(2000);
+    answer({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET.en });
+    await flush(); await flush(); await flush();
+    expect(a.clicks).toBe(1);
+    expect(a.held || 0).toBe(0);
+    expect(a.className).toBe('wq-btn wq-go wqfc-share');
+    expect(decodeURIComponent(a.href)).toContain(`https://portal.example/k/${TOK}`);
+  });
+});
+
 /* ---------------- the Jugnu end cards (wq-trail.js) ---------------- */
 // A small host: the page's helpers as wq-challenge.js hands them over, the screen as one HTML string.
 function trail({ lang = 'en', data = {}, menu = {}, withFc = false, href = 'https://portal.example/c/tok' } = {}) {
@@ -212,7 +307,8 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = false, href = 'http
   const ctx = {
     location: { origin: 'https://portal.example', hash: '', href }, navigator: {}, URL,
     sessionStorage: { getItem: () => null, setItem() {} }, localStorage: { getItem: () => null, setItem() {} },
-    fetch: (url, init) => { fetches.push({ url, init }); return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[lang] })) }); },
+    // painted: the card was already on the screen when the request went out (the card never waits for the network)
+    fetch: (url, init) => { fetches.push({ url, init, painted: screen.indexOf('id="wqfc-share"') >= 0 }); return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[lang] })) }); },
     document: {
       getElementById: (id) => (screen.indexOf(`id="${id}"`) >= 0 ? el(id) : null),
       querySelector: (sel) => (sel === '#wq .wq-stack' && screen.indexOf('<div class="wq-stack">') >= 0
@@ -386,7 +482,7 @@ describe('WQFC.mount({source}) — the result object the reader hands over', () 
   function mountWith(o) {
     let out = '';
     const fetches = [];
-    const fc = fcAlone({ fetch: (url, init) => { fetches.push({ url, init }); return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[o.lang || 'en'] })) }); },
+    const fc = fcAlone({ fetch: (url, init) => { fetches.push({ url, init, painted: out.indexOf('id="wqfc-share"') >= 0 }); return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[o.lang || 'en'] })) }); },
       document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
     const events = [];
     const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { auth: { hub: 'H', kid: 'K' }, ev: (n, p) => events.push({ n, ...p }), ...o });
@@ -512,5 +608,132 @@ describe('a card that certified nothing: the Next tile is the one primary, Share
     const fc = fcAlone({ document: { getElementById: (id) => (id === 'wqfc-next' ? { addEventListener() {} } : null), createElement: () => ({}), head: { appendChild() {} } } });
     fc.mount({ insertAdjacentHTML() {} }, { kind: 'read', deed: 'read_tried', lang: 'en', next: NEXT, auth: { ct: 'c' }, ev: (n, p) => events.push({ n, ...p }) });
     expect(events).toContainEqual(expect.objectContaining({ n: 'next_shown', ctx: 'after_read_tried', offer: 'o9' }));
+  });
+});
+
+/* ---------------- a live read's card paints from the hand-off, never after the server's check ---------------- */
+describe('switch on: a live read\'s held card is the card at once (the hand-off payload, not the server\'s check)', () => {
+  const TWELVE = { tokens: 'a b c d e f g h i j k l'.split(' ') };
+  const on = (o = {}) => trail({ withFc: true, menu: { card_v3: true }, ...o, data: { story: TWELVE, ...(o.data || {}) } });
+  const mintOf = (t) => JSON.parse(t.fetches.find((f) => f.url === '/api/wq/card').init.body);
+  // the page's hand-off under live reading v3: readHold({score: {attempted}, noSticker: true}, null, heardOk)
+  test.each([
+    ['all 12 heard', 12, 'read_all'],
+    ['5 of 12 heard', 5, 'read_some'],
+  ])('%s: Send to class + the Next tile under the listening line, no sticker yet', async (_, heard, deed) => {
+    const NEXT = { kind: 'story', href: '/c/tok?kid=k1#read', title: 'Read a story with Jugnu', minutes: 2 };
+    const t = on({ data: { next_offer: NEXT } });
+    expect(t.TR.readHold({ score: { attempted: heard }, noSticker: true }, null, heard)).toBe(true);
+    const h = t.html();
+    expect(h).toContain('id="wqc-listening"');
+    expect(h).toContain('id="wqfc-share"');
+    expect(h).toContain('id="wqfc-next"');
+    expect(h).not.toContain('wqc-sticker');
+    expect(h).not.toContain('data-sticker');
+    // still no button the server's result could change
+    expect(h).not.toContain('wqc-again');
+    expect(h).not.toContain('wqc-qa');
+    await flush();
+    expect(mintOf(t)).toMatchObject({ kind: 'read', deed });
+    expect(t.events).toContainEqual(expect.objectContaining({ n: 'card_shown', source: 'read' }));
+  });
+  test('the card is on the screen before its one request goes out', async () => {
+    const t = on();
+    t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    const mint = t.fetches.filter((f) => f.url === '/api/wq/card');
+    expect(mint.length).toBe(1);
+    expect(mint[0].painted).toBe(true);
+  });
+  test('the settled card after the hold: the sticker arrives, the card stays, one card_shown, one request', async () => {
+    const t = on();
+    t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    t.TR.readEnd({ score: { attempted: 12 } }, null, 12);
+    await flush();
+    expect(t.html()).toContain('wqc-sticker');
+    expect(t.html()).toContain('id="wqfc-share"');
+    expect(t.events.filter((e) => e.n === 'card_shown').length).toBe(1);
+    expect(t.fetches.filter((f) => f.url === '/api/wq/card').length).toBe(1);
+  });
+  test('the settled card keeps the held card\'s deed (one finish, one link) unless the check finds nothing read', async () => {
+    // held from the live words (12 of 12: the whole story); the server's check counts 11 of 12 (#2649 settles with readEnd(r))
+    const t = on();
+    t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    t.TR.readEnd({ score: { attempted: 11 } });
+    await flush();
+    const mints = t.fetches.filter((f) => f.url === '/api/wq/card').map((f) => JSON.parse(f.init.body).deed);
+    expect(mints).toEqual(['read_all']);
+    expect(t.events.filter((e) => e.n === 'card_shown').length).toBe(1);
+    // the check found nothing read: the settled card is the try card (its own deed, said so)
+    const u = on();
+    u.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    await flush();
+    u.TR.readEnd({ failed: true, reason: 'unheard' });
+    await flush();
+    expect(u.fetches.filter((f) => f.url === '/api/wq/card').map((f) => JSON.parse(f.init.body).deed)).toEqual(['read_all', 'read_tried']);
+    // and the next read of the same session judges its own deed afresh
+    const v = on();
+    v.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+    v.TR.readEnd({ score: { attempted: 12 } });
+    await flush();
+    v.TR.readEnd({ score: { attempted: 5 } }, null, 5);
+    await flush();
+    expect(v.fetches.filter((f) => f.url === '/api/wq/card').map((f) => JSON.parse(f.init.body).deed)).toEqual(['read_all', 'read_some']);
+  });
+  test('a held read that heard nothing is the try card at once, like its settled card', async () => {
+    const t = on();
+    t.TR.readHold({ score: { attempted: 0 }, noSticker: true }, null, 0);
+    expect(t.html()).toContain('Let&#39;s read it together');
+    expect(t.html()).toContain('id="wqfc-share"');
+    await flush();
+    expect(mintOf(t).deed).toBe('read_tried');
+  });
+  test('a class round turn or a practice round still gets no card while held', () => {
+    for (const data of [{ round_turn: true, round_handback: 'Back' }, { practice_round: true }]) {
+      const t = on({ data });
+      t.TR.readHold({ score: { attempted: 12 }, noSticker: true }, null, 12);
+      expect(t.html()).not.toContain('wqfc-share');
+    }
+  });
+});
+
+describe('WQFC.mount({source: \'read\'}) — the live read\'s own result (wq:liveread:result)', () => {
+  function mountWith(o) {
+    let out = '';
+    const fetches = [];
+    const fc = fcAlone({ fetch: (url, init) => { fetches.push({ url, init, painted: out.indexOf('id="wqfc-share"') >= 0 }); return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ token: TOK, url: `/k/${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET[o.lang || 'en'] })) }); },
+      document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
+    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { auth: { ct: 'CT1' }, ...o });
+    return { ok, out, fetches };
+  }
+  // WQLiveRead.result(): {v, source, lang, words_total, words_read, correct, skipped, wpm: null, ended, marks, counted, live}
+  const R = (words_read, words_total, ended) => ({ v: 1, source: 'passage', lang: 'en', words_total, words_read, correct: words_read, skipped: 0, wpm: null, ended, marks: [], counted: true, live: true });
+  test.each([
+    ['the last word read (24 of 26)', R(24, 26, 'last_word'), 'read_all'],
+    ['a quiet finish at 21 of 26', R(21, 26, 'quiet'), 'read_some'],
+    ['Done at 3 of 26', R(3, 26, 'done_tap'), 'read_some'],
+    ['Done at 2 of 26 (under a tenth)', R(2, 26, 'done_tap'), 'read_tried'],
+    ['nothing heard', R(0, 26, 'done_tap'), 'read_tried'],
+  ])('%s', async (_, r, deed) => {
+    for (const o of [{ source: 'read', result: r, lang: 'en' }, { ...r, source: 'read' }]) {
+      const m = mountWith(o);
+      expect(m.ok).toBe(true);
+      await flush();
+      expect(JSON.parse(m.fetches[0].init.body)).toMatchObject({ kind: 'read', deed });
+    }
+  });
+  test('the card is drawn before the request for its link goes out', async () => {
+    const m = mountWith({ source: 'read', result: R(24, 26, 'last_word'), lang: 'en' });
+    await flush();
+    expect(m.fetches[0].painted).toBe(true);
+  });
+  test('Urdu: the deed and the share in Urdu, no digit on the card', async () => {
+    const m = mountWith({ source: 'read', result: { ...R(50, 61, 'quiet'), lang: 'ur' }, lang: 'ur' });
+    expect(m.out).toContain('dir="rtl"');
+    expect(m.out.replace(/<[^>]*>/g, '')).not.toMatch(/[0-9۰-۹]/);
+    await flush();
+    expect(JSON.parse(m.fetches[0].init.body)).toMatchObject({ kind: 'read', deed: 'read_some', lang: 'ur' });
   });
 });

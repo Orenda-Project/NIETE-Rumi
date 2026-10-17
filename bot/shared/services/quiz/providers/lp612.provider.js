@@ -201,7 +201,7 @@ async function insertQuiz(teacherId, item, { askLanguage, quizLanguage, via }) {
         step: askLanguage ? 'awaiting_language' : 'digest',
         ...(askLanguage ? { awaiting_language: true } : {}),
         ...(quizLanguage ? { language_choice: quizLanguage } : {}),
-        source: via === 'flow' ? 'flow' : 'list',
+        source: Funnel.metaSourceOf(via),
         lessons: [item.lesson],
         class: { grade: item.grade, subject: item.subject },
         lesson_date: lessonDate(item.deliveredAt),
@@ -286,7 +286,7 @@ async function start(teacher, lessonRef, { phone, quizLanguage = null, via = 'li
   if (queued) {
     // No language left to ask: the tap IS the commitment (as the K-5 lesson provider records it).
     Funnel.emit('accepted', {
-      quiz_id: won.quizId, teacher_id: userId, source: SOURCE, channel: Funnel.channelOf(via === 'flow' ? 'flow' : 'list'),
+      quiz_id: won.quizId, teacher_id: userId, source: SOURCE, channel: Funnel.channelOf(Funnel.metaSourceOf(via)),
     });
   }
   return done(queued ? 'queued' : 'queue_failed', won.quizId);
