@@ -21,6 +21,11 @@ const STRINGS = Object.freeze({
   // {n} ≥ 1, in the page's digits
   'th.played.n': Object.freeze({ en: '{n} in your class played', ur: 'کلاس میں سے {n} نے کھیلا' }),
   'th.again': Object.freeze({ en: 'Send again', ur: 'دوبارہ بھیجیں' }),
+  // the top card names what it sends again (only while quiz_teacher_home_named_item is on)
+  'th.kind.story': Object.freeze({ en: 'Story:', ur: 'کہانی:' }),
+  'th.kind.quiz': Object.freeze({ en: 'Quiz:', ur: 'کوئز:' }),
+  'th.again.story': Object.freeze({ en: 'Send this story again', ur: 'یہ کہانی دوبارہ بھیجیں' }),
+  'th.again.quiz': Object.freeze({ en: 'Send this quiz again', ur: 'یہ کوئز دوبارہ بھیجیں' }),
   'th.report': Object.freeze({ en: 'See report', ur: 'رپورٹ دیکھیں' }),
   'th.send': Object.freeze({ en: 'Send to my class', ur: 'اپنی کلاس کو بھیجیں' }),
   // the send sheet
@@ -55,6 +60,8 @@ const STRINGS = Object.freeze({
   'th.try.student': Object.freeze({ en: 'Try it as a student', ur: 'بچوں والا حصہ آزمائیں' }),
   // the one tap back to the chat on every stale / error page and the error line (the link is wa.me/<bot>?text=quiz)
   'th.open.wa': Object.freeze({ en: 'Open WhatsApp', ur: 'واٹس ایپ کھولیں' }), // a no-break space inside the brand name (the signed form)
+  // the home's answer did not come (an error, or nothing after 15 s): ask for it again (the Urdu is mk.error's own words)
+  'th.retry': Object.freeze({ en: 'Try again', ur: 'دوبارہ کوشش کریں' }),
   // the class message's last line; {link} = https://wa.me/<the bot's number>?text=quiz
   'cm.return': Object.freeze({ en: 'Any day: send “quiz” to this number → {link}', ur: 'کسی بھی دن اس نمبر پر ”کوئز“ لکھ کر بھیجیں ← {link}' }),
 });
