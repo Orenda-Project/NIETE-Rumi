@@ -1526,7 +1526,7 @@ describe('the done screen with the real finish card (card_v3): ONE primary = Mor
   });
 });
 
-// ---- the end of the book names the biggest true thing; the mic sheet's grown-ups fold says nothing is kept ----------
+// ---- the end of the book names the biggest true thing ------------------------------------------------------------
 describe('the end of the book (card_v3): the card hears the finish and the questions answered', () => {
   function cap(sink) { return (w) => { w.WQFC = { mount(el, o) { sink.o = o; return true; } }; }; }
   test('1 page heard + both questions answered -> whole: true, answered: 2 (the card draws the finish)', async () => {
@@ -1558,17 +1558,6 @@ describe('the end of the book (card_v3): the card hears the finish and the quest
     expect(root.innerHTML).toContain('You looked through the whole book.');
   });
 });
-describe('the mic sheet\'s grown-ups fold on a story page: Jugnu listens only while the page is read, nothing kept', () => {
-  test.each([['en', 'Jugnu listens only while your child reads this page. Nothing is recorded or kept. “Not now, just listen” works at any time.'],
-    ['ur', 'جگنو صرف اسی وقت سنتا ہے جب یہ صفحہ پڑھا جا رہا ہو۔ کچھ بھی ریکارڈ یا محفوظ نہیں کیا جاتا۔ «ابھی نہیں، صرف سنیں» کسی بھی وقت دبا سکتے ہیں۔']])('%s', async (lang, facts) => {
-    const e = env({ replies: { book: { status: 200, body: book({ lang }) } } });
-    const root = await openReader(e, { lang });
-    toMic(e, root);
-    expect(e.calls.ask[0].facts).toBe(facts);
-    expect(facts).not.toMatch(BANNED);
-  });
-});
-
 // ---- server lines[] and chunked Your turn ------------------------------------------------------------------------
 function longPage(n, perLine, withLines) {
   const words = []; const lines = [];

@@ -174,7 +174,7 @@
   }
   // The book's cover (a same-origin path only), its title as the words; one that fails to load leaves no box.
   function coverHtml(src, title) {
-    if (typeof src !== 'string' || !/^\/[^/"'<>\s][^"'<>\s]*$/.test(src)) return '';
+    if (typeof src !== 'string' || !/^\/[^/\\"'<>\s][^\\"'<>\s]*$/.test(src)) return '';
     return '<img class="wqfc-cov" src="' + esc(src) + '" alt="' + esc(String(title == null ? '' : title).trim()) + '" width="96" height="144" onerror="this.hidden=true">';
   }
   function html(o) {

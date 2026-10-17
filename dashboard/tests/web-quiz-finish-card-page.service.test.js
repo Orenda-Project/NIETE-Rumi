@@ -578,7 +578,7 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
     expect(m.out).toMatch(/<img class="wqfc-cov"[^>]*onerror="this\.hidden=true"/);
   });
   test('no cover, or a cover that is not a same-origin path: no cover box at all', () => {
-    for (const cover of [undefined, null, '', 'https://evil.example/c.webp', '//evil.example/c.webp', 'javascript:alert(1)', '/s/b-1/c.webp" onload="x']) {
+    for (const cover of [undefined, null, '', 'https://evil.example/c.webp', '//evil.example/c.webp', '/\\evil.example/c.webp', '/s\\..\\x', 'javascript:alert(1)', '/s/b-1/c.webp" onload="x']) {
       const m = mountStory({ lang: 'en', title: 'Mina Testwala', cover, next: MORE, lead: true });
       expect(m.out).not.toContain('wqfc-cov');
       expect(m.out).not.toMatch(/<img/);
@@ -592,6 +592,25 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
       expect(h).not.toContain('<img');
       expect(h).toContain('<span class="wqfc-art" aria-hidden="true"><svg');
     }
+  });
+  // A ranked next offer that is a storybook already carries its cover (/s/<book>/<file>): on ANY finish card (a quiz,
+  // a read, a game) its tile now shows that cover instead of the play mark. Pinned here, EN and UR.
+  test('golden: a quiz / read / game card whose Next is a storybook shows the book\'s cover in the tile; the rest of the card unchanged', () => {
+    const STORY = { kind: 'storybook', id: '6f165633-0000-4000-8000-000000000001', href: '/h/tok#story/6f165633-0000-4000-8000-000000000001', title: 'Read a storybook', title_ur: 'کہانی کی کتاب پڑھیں', sub: 'Sunny Day', minutes: 2, art: '/s/6f165633-0000-4000-8000-000000000001/cover.webp' };
+    const PLAY_MARK = { ...STORY, art: null };
+    const GOLD = { en_quiz: 'aa736915cbe30a0a', en_read_all: 'dfff707dd6244214', en_game: '63c7ec300a399ff5', ur_quiz: '6f76a8574fa05ba6', ur_read_all: 'cc86272e8fc092b1', ur_game: 'c92d14f9b31e505a' };
+    const out = {};
+    for (const l of ['en', 'ur']) {
+      for (const [k, d] of [['quiz', 'quiz_done'], ['read', 'read_all'], ['game', 'game_done']]) {
+        const h = fcPage().html({ kind: k, deed: d, lang: l, next: STORY, home: '/h/tok' });
+        expect(h).toContain('<img class="wqfc-art" src="/s/6f165633-0000-4000-8000-000000000001/cover.webp" alt="" width="64" height="64" loading="lazy">');
+        // the only difference from a tile without art: the play mark gives way to the cover
+        const h0 = fcPage().html({ kind: k, deed: d, lang: l, next: PLAY_MARK, home: '/h/tok' });
+        expect(h.replace(/<img class="wqfc-art"[^>]*>/, 'ART')).toBe(h0.replace(/<span class="wqfc-art" aria-hidden="true"><svg[^]*?<\/svg><\/span>/, 'ART'));
+        out[`${l}_${k === 'read' ? 'read_all' : k}`] = sha(h);
+      }
+    }
+    expect(out).toEqual(GOLD);
   });
   test('the cover has its own style in the card\'s CSS', () => {
     expect(FC.CSS).toMatch(/\.wqfc-cov\{[^}]*object-fit:cover/);
