@@ -134,6 +134,7 @@ const PARTS = ['intro', 'start', 'stop', 'done'];
 // The quiz's one voice per language (web-quiz-voice.js QUIZ_VOICE), pinned per call: never a fallback provider.
 const { quizVoice, voiceTag, voiceOfTag } = require('./web-quiz-voice');
 const OneVoice = require('./web-quiz-one-voice-flag');
+OneVoice.keepFresh();   // clipKey names its voice at once: the switch is read in the background, never on a child's request
 const AudioStore = require('./web-quiz-audio-store');
 
 const nowIso = () => new Date().toISOString();
@@ -567,13 +568,13 @@ async function updateRunMeta(id, build, { force = false } = {}) {
 // quiz-audio/<env>/challenge/<lang>/<exercise>/<part>-<voiceTag>-<hash8>.ogg — the quiz clips' own scheme and bucket.
 // With one voice per quiz (web-quiz-one-voice-flag.js, as last read) the tag is the one voice's.
 function clipKey(ex, part, lang, text) {
-  return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: voiceTag(lang, { oneVoice: OneVoice.current() }), text });
+  return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: voiceTag(lang, { oneVoice: OneVoice.currentPlan() }), text });
 }
 
 // The voice a clip's key names (its tag), so a clip is always recorded in the voice its key says; else the quiz voice.
 function voiceOfKey(key, lang) {
   const m = /-([a-z]{2}-[a-z0-9]+)-[0-9a-f]{8}\.ogg$/.exec(String(key || ''));
-  return (m && voiceOfTag(m[1])) || quizVoice(lang);
+  return (m && voiceOfTag(m[1], OneVoice.currentPlan())) || quizVoice(lang);
 }
 
 async function recordClip(key, text, lang, now = Date.now()) {
@@ -605,7 +606,6 @@ function clipCostUsd(out) {
 }
 
 async function clipUrl(key, text, lang) {
-  OneVoice.on().catch(() => {});   // keeps the switch's reading fresh for the next key (never throws, 30 s cache)
   const known = clipKnown.get(key);
   let exists = known === true;
   if (!exists && !(typeof known === 'number' && Date.now() - known < 10 * 60 * 1000)) {

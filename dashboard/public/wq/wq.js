@@ -1014,9 +1014,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
      answer, never the same one twice in a row. Urdu addresses the child only with imperatives or
      noun phrases; a not-yet line never praises. */
   var VOICE_V = 'b39e82a9';
-  // The same lines in the one voice (boot one_voice): public/wq/voice/one/<lang>/, its manifest naming that voice;
-  // VOICE1_V is the hash of those files (a test holds it).
-  var VOICE1_V = '1d8cad2e';
   var VOICE = {"en": {"right": ["Yes! That's right!", "You got it!", "Correct! Well spotted.", "Yes! That's the one.", "Right answer! Good thinking.", "Yes! You checked carefully.", "That's it! Well done.", "Spot on!", "Yes! Keep it up.", "Brilliant, that's right!"], "notyet": ["Not yet. The answer is", "Not quite. The right answer is", "Not this one. The answer is", "Let's learn it together. The answer is", "That one was tricky. The answer is", "Not this time. The right answer is", "Hmm, not yet. The answer is", "No problem, let's see. The answer is"], "fixed": ["Fixed it!", "Now you've got it!", "Yes! That's it now.", "You worked it out!", "Second try, and it's right!", "That's the one!", "Now it's right. Well done!", "Yes! Fixed it."], "done": ["Quiz complete! Every question done.", "All done! Thank you for playing.", "You finished the whole quiz!", "The end! Let's see your stars.", "That was the last one. All done!", "Finished! Well played.", "Quiz complete! Let's look at your stars.", "Every question answered. Well done!"], "cheer": ["Halfway there! Keep going.", "Keep going!", "Take your time and listen carefully.", "On to the next one!", "Half the quiz done!", "Every question teaches something new.", "Let's keep going!", "Half the questions done!"], "notyetpic": ["Not yet. Look, this one is right."], "tftrue": ["Not yet. This sentence is true."], "tffalse": ["Not yet. This sentence is false."], "fig": ["Look at the bars.", "Look at the number line.", "Look at the clock.", "Look at the money.", "Look at the shape.", "Look at the graph.", "Look at the steps.", "Look at the timeline.", "Look at the picture and the word.", "Look at the picture."]}, "ur": {"right": ["شاباش! بالکل صحیح!", "جی ہاں! یہی صحیح جواب ہے۔", "واہ! بالکل ٹھیک۔", "زبردست! صحیح جواب۔", "بہت خوب! یہی تو ہے۔", "صحیح! غور سے دیکھنا کام آیا۔", "جی ہاں! بہت عمدہ جواب۔", "کمال! بالکل درست۔", "ہاں! یہی ہے صحیح جواب۔", "شاباش! ایسے ہی آگے چلیں۔"], "notyet": ["ابھی نہیں۔ صحیح جواب ہے:", "یہ والا نہیں۔ صحیح جواب ہے:", "کوئی بات نہیں۔ صحیح جواب ہے:", "آئیں مل کر سیکھیں۔ صحیح جواب ہے:", "یہ سوال مشکل تھا۔ صحیح جواب ہے:", "اس بار نہیں۔ صحیح جواب ہے:", "ابھی نہیں۔ آئیں دیکھیں، صحیح جواب ہے:", "کوشش سے ہی سیکھتے ہیں۔ صحیح جواب ہے:"], "fixed": ["ٹھیک ہو گیا!", "اب بالکل صحیح!", "جی ہاں! اب ٹھیک ہے۔", "شاباش! دوسری کوشش میں صحیح۔", "زبردست! اب بات سمجھ میں آ گئی۔", "واہ! یہی ہے صحیح جواب۔", "کمال! اب درست ہے۔", "بہت خوب! اب جواب ٹھیک ہے۔"], "done": ["کوئز مکمل! سارے سوال ہو گئے۔", "شاباش! پورا کوئز مکمل۔", "کوئز ختم! چلیں، ستارے دیکھیں۔", "واہ! آخری سوال بھی ہو گیا۔", "مکمل! کھیلنے کا شکریہ۔", "زبردست! پورا کوئز حل ہو گیا۔", "کوئز پورا ہو گیا! بہت خوب۔", "سارے سوال مکمل! شاباش۔"], "cheer": ["آدھا کوئز ہو گیا! چلتے رہیں۔", "آدھا راستہ طے، آگے چلیں!", "ہمت نہ ہاریں، اگلا سوال!", "آرام سے، غور سے سنیں۔", "چلیں، اگلا سوال دیکھیں!", "ہر سوال سے کچھ نیا سیکھیں۔", "ایسے ہی چلتے رہیں!", "آدھے سوال ہو گئے!"], "notyetpic": ["ابھی نہیں۔ دیکھیں، یہ والا صحیح ہے۔"], "tftrue": ["ابھی نہیں۔ یہ بات درست ہے۔"], "tffalse": ["ابھی نہیں۔ یہ بات غلط ہے۔"], "fig": ["پٹیوں کو دیکھیں۔", "عددی لکیر کو دیکھیں۔", "گھڑی کو دیکھیں۔", "پیسوں کو دیکھیں۔", "شکل کو دیکھیں۔", "گراف کو دیکھیں۔", "مراحل کو دیکھیں۔", "وقت کی لکیر کو دیکھیں۔", "تصویر اور لفظ کو دیکھیں۔", "تصویر کو دیکھیں۔"]}};
   var lastPick = {};
   // The shared lines speak the language of the QUESTIONS, not the page: a library quiz is one set of
@@ -1034,9 +1031,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   })();
   // One voice per quiz (boot one_voice, app_settings web_quiz_one_voice): a line with no clip is shown, never
   // read in the phone's own voice (a second voice beside the quiz's).
+  // The shared lines then come from the set recorded in the plan's voice (boot voice_sets: { <lang>: { path, v } },
+  // public/wq/voice/one/<path>/); a language with no set has no shared-line audio (the line is shown).
   var ONE_VOICE = Boolean(B.one_voice);
+  var VOICE_SETS = (ONE_VOICE && B.voice_sets) || {};
   function voiceUrl(lang, file) {
-    return ONE_VOICE ? '/wq/voice/one/' + lang + '/' + file + '.mp3?v=' + VOICE1_V : '/wq/voice/' + lang + '/' + file + '.mp3?v=' + VOICE_V;
+    if (!ONE_VOICE) return '/wq/voice/' + lang + '/' + file + '.mp3?v=' + VOICE_V;
+    var set = VOICE_SETS[lang];
+    return set && set.path && set.v ? '/wq/voice/one/' + set.path + '/' + file + '.mp3?v=' + set.v : null;
   }
   function vline(set) {
     var lang = VOICE[VLANG] ? VLANG : 'en';

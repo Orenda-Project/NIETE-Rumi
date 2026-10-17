@@ -30,7 +30,7 @@ const QUIZ_VOICE = Object.freeze({
 const ONE_SETTINGS = Object.freeze({ stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true });
 const ONE_VOICE = Object.freeze({
   en: Object.freeze({ provider: 'elevenlabs', voice: 'hpp4J3VqNfWAUOO0d1Us', name: 'Bella', model: 'eleven_v4', settings: ONE_SETTINGS }),
-  ur: Object.freeze({ provider: 'elevenlabs', voice: 'XKV307Y3BonMEUh5pCNM', name: 'Sana', model: 'eleven_v4', settings: ONE_SETTINGS }),
+  ur: Object.freeze({ provider: 'elevenlabs', voice: '9cI5mhBtM4WtQ9Fo6jWQ', name: 'Sara', model: 'eleven_v4', settings: ONE_SETTINGS }),
 });
 
 const PROVIDER_TAG = Object.freeze({ soniox: 'sx', elevenlabs: 'el', openai: 'oa' });
@@ -39,9 +39,19 @@ function baseLang(language) {
   return String(language || '').trim().toLowerCase().split(/[-_]/)[0];
 }
 
-/** { provider, voice } for a quiz language (`oneVoice`: the one voice's, with its name, model and settings), or null. */
+// Jugnu's shared lines recorded in a one voice (dashboard/public/wq/voice/one/<tag>/, a manifest beside them): the
+// tag → the hash of its files (a test holds it), so a page can ask for the set of the plan's voice. A plan voice
+// with no set here has no shared-line audio: the page shows those lines.
+const SHARED_SETS = Object.freeze({ 'el-bella': '365969a7', 'el-sana': '76bc9453', 'el-sara': 'f2d8d2ef' });
+
+/**
+ * { provider, voice } for a quiz language, or null. `oneVoice`: true (ONE_VOICE) or a plan (web-quiz-one-voice-flag.js:
+ * its voice for the language), with the voice's name, model and settings.
+ */
 function quizVoice(language, { oneVoice = false } = {}) {
-  return (oneVoice ? ONE_VOICE : QUIZ_VOICE)[baseLang(language)] || null;
+  const lang = baseLang(language);
+  if (!oneVoice) return QUIZ_VOICE[lang] || null;
+  return (typeof oneVoice === 'object' && oneVoice.voices && oneVoice.voices[lang]) || ONE_VOICE[lang] || null;
 }
 
 /** Short, key-safe name of a voice: "sx-ishita", "el-bella". */
@@ -56,9 +66,20 @@ function voiceTag(language, opts) {
   return v ? tagOf(v) : 'default';
 }
 
-/** The voice a tag names, in either table ({ provider, voice, … }), or null. */
-function voiceOfTag(tag) {
-  return [...Object.values(ONE_VOICE), ...Object.values(QUIZ_VOICE)].find((v) => tagOf(v) === tag) || null;
+/** The voice a tag names ({ provider, voice, … }): in `plan`'s voices, else either table; or null. */
+function voiceOfTag(tag, plan) {
+  const planVoices = plan && typeof plan === 'object' && plan.voices ? Object.values(plan.voices) : [];
+  return [...planVoices, ...Object.values(ONE_VOICE), ...Object.values(QUIZ_VOICE)].find((v) => v && tagOf(v) === tag) || null;
 }
 
-module.exports = { QUIZ_VOICE, ONE_VOICE, quizVoice, voiceTag, tagOf, voiceOfTag };
+/** The shared-line sets for a plan, per language: { en: { path, v }, ur: { path, v } } (a language with no set left out). */
+function sharedSets(plan) {
+  const out = {};
+  ['en', 'ur'].forEach((lang) => {
+    const tag = voiceTag(lang, { oneVoice: plan || true });
+    if (SHARED_SETS[tag]) out[lang] = { path: tag, v: SHARED_SETS[tag] };
+  });
+  return out;
+}
+
+module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, quizVoice, voiceTag, tagOf, voiceOfTag, sharedSets };

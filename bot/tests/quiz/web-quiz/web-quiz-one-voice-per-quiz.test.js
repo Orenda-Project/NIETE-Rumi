@@ -78,6 +78,7 @@ const gen = (qid, tag = TAG) => ({
   why: `quiz-audio/sandbox/${QUIZ}/en/${qid}/why-${tag}-00000003.ogg`,
   fbs: [null, `quiz-audio/sandbox/${QUIZ}/en/${qid}/xb-${tag}-00000004.ogg`, null, null],
 });
+const JESSICA = { provider: 'elevenlabs', voice: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica', model: 'eleven_v4' };
 const GENERATED = (tag = TAG) => ({ [CHECKED.id]: gen(CHECKED.id, tag), [QID2]: gen(QID2, tag) });
 
 function seed(rows, { flag, meta = {} } = {}) {
@@ -121,15 +122,19 @@ describe('switch on: every spoken line of a library quiz carries ONE provider + 
     // and that voice is the picked one (ElevenLabs), the one the shared lines are recorded in for this switch
     expect(TAG).not.toBe(TODAY);
     expect(Voice.quizVoice('en', { oneVoice: true })).toMatchObject({ provider: 'elevenlabs', voice: 'hpp4J3VqNfWAUOO0d1Us', model: 'eleven_v4' });
-    expect(Voice.quizVoice('ur', { oneVoice: true })).toMatchObject({ provider: 'elevenlabs', voice: 'XKV307Y3BonMEUh5pCNM', model: 'eleven_v4' });
-    const manifest = require('../../../../dashboard/public/wq/voice/one/manifest.json');
-    expect(Voice.tagOf(manifest.voices.en)).toBe(TAG);
-    expect(Voice.tagOf(manifest.voices.ur)).toBe(Voice.voiceTag('ur', { oneVoice: true }));
+    expect(Voice.quizVoice('ur', { oneVoice: true })).toMatchObject({ provider: 'elevenlabs', voice: '9cI5mhBtM4WtQ9Fo6jWQ', model: 'eleven_v4' });
+    for (const lang of ['en', 'ur']) {
+      const tag = Voice.voiceTag(lang, { oneVoice: true });
+      const manifest = require(`../../../../dashboard/public/wq/voice/one/${tag}/manifest.json`);
+      expect(Voice.tagOf(manifest.voice)).toBe(tag);
+    }
   });
 
   test('the page is told (one_voice), so it never reads a missing line with the phone\'s voice', async () => {
     const out = await page(ROWS(), GENERATED(), { flag: true });
     expect(out.one_voice).toBe(true);
+    // and plays Jugnu's shared lines from the set recorded in that voice, for both languages
+    expect(out.voice_sets).toEqual({ en: { path: TAG, v: Voice.SHARED_SETS[TAG] }, ur: { path: 'el-sara', v: Voice.SHARED_SETS['el-sara'] } });
   });
 
   test('a listen item still plays its SOUND to identify (the question\'s material), and nothing else of the recording', async () => {
@@ -192,7 +197,7 @@ describe('the publish step', () => {
     expect(keys.length).toBeGreaterThanOrEqual(14);
     expect([...new Set(keys.map(voiceOf))]).toEqual([TAG]);
     expect(web.audio[CHECKED.id].q).toMatch(new RegExp(`/q-${TAG}-[0-9a-f]{8}\\.ogg$`));
-    expect(web.audio_one).toBe(TAG);
+    expect(web.audio_one).toBe(OneVoice.normalize(true).sig);
     expect(Publish.isCurrent(Publish.webOf(fake.db.quizzes[0].meta, { oneVoice: true }), { oneVoice: true })).toBe(true);
   });
 
@@ -211,16 +216,17 @@ describe('a quiz recorded before the switch is recorded again (once)', () => {
   test('isCurrent: off as today; on, current only when stamped with a voice of today\'s quiz-voice table', () => {
     expect(Publish.isCurrent(recorded)).toBe(true);
     expect(Publish.isCurrent(recorded, { oneVoice: true })).toBe(false);
-    expect(Publish.isCurrent({ ...recorded, audio_one: TAG }, { oneVoice: true })).toBe(true);
-    expect(Publish.isCurrent({ ...recorded, audio_one: TODAY }, { oneVoice: true })).toBe(false);   // one voice, but the old one
-    expect(Publish.isCurrent({ ...recorded, audio_one: 'sx-someoneelse' }, { oneVoice: true })).toBe(false);
+    const sig = OneVoice.normalize(true).sig;
+    expect(Publish.isCurrent({ ...recorded, audio_one: sig }, { oneVoice: true })).toBe(true);
+    expect(Publish.isCurrent({ ...recorded, audio_one: OneVoice.normalize({ voices: { en: JESSICA } }).sig }, { oneVoice: true })).toBe(false);   // another plan
+    expect(Publish.isCurrent({ ...recorded, audio_one: sig }, { oneVoice: OneVoice.normalize({ bank: ['q'] }) })).toBe(false);
   });
 
   test('the page open asks for it in one voice', async () => {
     const spy = jest.spyOn(Publish, 'requestQuizAudio').mockResolvedValue({ queued: true });
     try {
       const out = await page(ROWS(), GENERATED(), { flag: true, meta: { web: recorded } });
-      expect(spy).toHaveBeenCalledWith(QUIZ, expect.objectContaining({ oneVoice: true }));
+      expect(spy).toHaveBeenCalledWith(QUIZ, expect.objectContaining({ oneVoice: expect.objectContaining({ sig: OneVoice.normalize(true).sig }) }));
       expect(out.quiz.audio_pending).toBe(true);
     } finally { spy.mockRestore(); }
   });
@@ -231,7 +237,7 @@ describe('a quiz recorded before the switch is recorded again (once)', () => {
     await Publish.requestQuizAudio('quiz-one-1', { meta: { web: recorded }, queue: q, oneVoice: true });
     await Publish.requestQuizAudio('quiz-one-1', { meta: { web: recorded }, queue: q, oneVoice: true });
     expect(q.queueJob.mock.calls.map((c) => c[3].deduplicationId)).toEqual([
-      `quiz-one-1-quiz_web_audio-v${Publish.AUDIO_VERSION}`, `quiz-one-1-quiz_web_audio-v${Publish.AUDIO_VERSION}-one`,
+      `quiz-one-1-quiz_web_audio-v${Publish.AUDIO_VERSION}`, `quiz-one-1-quiz_web_audio-v${Publish.AUDIO_VERSION}-one-${OneVoice.normalize(true).sig}`,
     ]);
   });
 
@@ -240,7 +246,7 @@ describe('a quiz recorded before the switch is recorded again (once)', () => {
     const publish = jest.fn(async () => ({ ok: true, failed: 0 }));
     await Publish.runQuizAudioJob({ quizId: QUIZ }, { db: { from: fake.from }, publish, queue });
     expect(publish).toHaveBeenCalledTimes(1);
-    expect(publish.mock.calls[0][1].oneVoice).toBe(true);
+    expect(publish.mock.calls[0][1].oneVoice.sig).toBe(OneVoice.normalize(true).sig);
   });
 });
 
@@ -289,7 +295,7 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
     const key = Ch.clipKey('listen', 'story', 'ur', 'ایک دن بارش ہوئی۔');
     expect(key).toContain(`-${Voice.voiceTag('ur', { oneVoice: true })}-`);
     expect(await Ch.warmClip(key, 'ایک دن بارش ہوئی۔', 'ur')).toBe('recorded');
-    expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: 'XKV307Y3BonMEUh5pCNM', model: 'eleven_v4' });
+    expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: '9cI5mhBtM4WtQ9Fo6jWQ', model: 'eleven_v4' });
 
     OneVoice.reset(); seed([], { flag: false }); await OneVoice.on(); tts.synthesize.mockClear();
     const today = Ch.clipKey('listen', 'story', 'ur', 'ایک دن بارش ہوئی۔');
@@ -297,5 +303,44 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
     await Ch.warmClip(today, 'ایک دن بارش ہوئی۔', 'ur');
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'soniox', voice: 'Ishita' });
     expect(tts.synthesize.mock.calls[0][0].model).toBeUndefined();
+  });
+});
+
+/*
+ * The voice choice is DATA: the switch's value names the voice per language and the parts kept from the bank's
+ * recordings of people (the operator may keep the human question and options and choose the voice beside them).
+ */
+describe('the switch value is the voice plan', () => {
+  const PLAN = { voices: { en: JESSICA }, bank: ['q', 'opts'] };
+  test('normalize: true is the default plan; an object names voices and bank parts; anything else is off', () => {
+    expect(OneVoice.normalize(true)).toMatchObject({ voices: { en: Voice.ONE_VOICE.en, ur: Voice.ONE_VOICE.ur }, bank: [] });
+    expect(OneVoice.normalize(JSON.stringify(PLAN))).toMatchObject({ voices: { en: { voice: JESSICA.voice, model: 'eleven_v4' }, ur: Voice.ONE_VOICE.ur }, bank: ['q', 'opts'] });
+    expect(OneVoice.normalize({ voices: { en: { provider: 'nope', voice: 'x' } }, bank: ['q', 'stim', 'x'] })).toMatchObject({ voices: { en: Voice.ONE_VOICE.en }, bank: ['q'] });
+    [false, null, 'yes', 1, [], { enabled: false }].forEach((v) => expect(OneVoice.normalize(v)).toBe(null));
+  });
+
+  test('served: the kept bank parts are the people\'s recordings, every other line is the plan voice; no shared set for a voice without one', async () => {
+    const out = await page(ROWS(), GENERATED('el-jessica'), { flag: PLAN });
+    const q1 = out.quiz.questions.find((q) => q.audio && q.audio.q === rec('q1'));
+    expect(q1.audio.opts).toEqual([rec('february'), rec('may'), rec('march'), rec('june')]);
+    expect(q1.audio.why).toMatch(/why-el-jessica-/);                       // the why is not kept: plan voice
+    expect(q1.audio.fbs[1]).toMatch(/xb-el-jessica-/);
+    const q2 = out.quiz.questions.find((q) => q !== q1);
+    expect([...new Set(spokenClips(q2).map(voiceOf))]).toEqual(['el-jessica']);
+    expect(out.voice_sets).toEqual({ ur: { path: 'el-sara', v: Voice.SHARED_SETS['el-sara'] } });
+  });
+
+  test('published: the kept parts are not recorded, the rest in the plan voice, stamped with the plan', async () => {
+    const fake = seed(ROWS(), { flag: PLAN });
+    const plan = OneVoice.normalize(PLAN);
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
+    expect([...new Set(tts.synthesize.mock.calls.map(([a]) => a.voice))]).toEqual([JESSICA.voice]);
+    const web = fake.db.quizzes[0].meta.web_one;
+    expect(web.audio[CHECKED.id].q).toBe(null);
+    expect(web.audio[CHECKED.id].opts).toEqual([null, null, null, null]);
+    expect(web.audio[CHECKED.id].why).toMatch(/why-el-jessica-/);
+    expect(web.audio[QID2].q).toMatch(/q-el-jessica-/);
+    expect(web.audio_one).toBe(plan.sig);
+    expect(Publish.isCurrent(web, { oneVoice: plan })).toBe(true);
   });
 });

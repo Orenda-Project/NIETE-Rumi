@@ -173,7 +173,7 @@ describe('--one-voice: the parts the bank recorded are recorded in the quiz voic
     w.quiz_questions.filter((q) => q.quiz_id === 'q-g3sci-2').forEach((q) => { q.media = { question_audio: ['https://clips.example/bank/q.ogg'] }; });
     const db = fakeDb(w);
     const { r, lines } = await run(['--expect-ref', REF, '--limit', '1', '--apply', '--one-voice'], { db });
-    expect(lines[0]).toMatch(/ one_voice=1$/);
+    expect(lines[0]).toMatch(/ one_voice=[0-9a-f]{10}$/);
     const parts = r2.uploadBuffer.mock.calls.map((c) => c[1].split('/').pop().split('-')[0]);
     expect(parts.filter((x) => x === 'q')).toHaveLength(2); // both questions' recorded question, now in the one voice
     tts.synthesize.mock.calls.forEach((c) => expect(c[0]).toMatchObject({ provider: 'elevenlabs', voice: 'hpp4J3VqNfWAUOO0d1Us', model: 'eleven_v4' }));
@@ -181,7 +181,7 @@ describe('--one-voice: the parts the bank recorded are recorded in the quiz voic
     const meta = db.writes.filter((x) => x.id === 'q-g3sci-2').pop().v.meta;
     expect(meta.web).toEqual({ audio_v: Publish.AUDIO_VERSION, audio_voice: 'sx-grace', audio: {} }); // today's map untouched
     const stamped = meta.web_one;
-    expect(stamped.audio_one).toBe('el-bella');
+    expect(stamped.audio_one).toBe(require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(true).sig);
     expect(Publish.isCurrent(stamped, { oneVoice: true })).toBe(true);
 
     jest.clearAllMocks();

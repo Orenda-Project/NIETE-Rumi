@@ -23,8 +23,9 @@
  *   cap in app_settings still apply: "disabled" or "capped" stops the run).
  * - Stops before starting another quiz once the run's spend reaches --max-usd (default 15).
  * - Refuses to run unless SUPABASE_URL's project ref equals --expect-ref. Neither ref is printed.
- * - --one-voice: records every spoken part in the quiz voice, the parts the bank recorded too, and counts a
- *   quiz current only once it is stamped so (web-quiz-one-voice-flag.js). Run it before app_settings
+ * - --one-voice: records every spoken part in the one voice, the parts the bank recorded too, and counts a
+ *   quiz current only once it is stamped so (web-quiz-one-voice-flag.js). --plan '<json>': the same under the
+ *   plan that value names (its voices, and the bank parts it keeps), i.e. exactly what the switch will serve. Run it before app_settings
  *   web_quiz_one_voice goes on and the first child after the flip hears one voice at once. With the switch
  *   still off the page plays exactly what it played before (the recorded clips win), so it is safe early.
  * - Prints ids, grades and subjects only — never a child's or a teacher's name.
@@ -45,7 +46,13 @@ function parseArgs(argv) {
     const next = () => argv[++i];
     if (a === '--apply') args.apply = true;
     else if (a === '--dry-run') args.apply = false;
-    else if (a === '--one-voice') args.oneVoice = true;
+    else if (a === '--one-voice') args.oneVoice = args.oneVoice || true;
+    else if (a === '--plan') {
+      // the switch's value to record under (web-quiz-one-voice-flag.js), as JSON; implies --one-voice
+      const plan = require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(next());
+      if (!plan) throw new Error('--plan names no voice plan');
+      args.oneVoice = plan;
+    }
     else if (a === '--limit') args.limit = Math.max(0, parseInt(next(), 10) || 0);
     else if (a === '--expect-ref') args.expectRef = String(next() || '').trim() || null;
     else if (a === '--concurrency') args.concurrency = Math.max(1, Math.min(4, parseInt(next(), 10) || QUIZ_CONCURRENCY));
@@ -157,7 +164,8 @@ async function main(argv, deps = {}) {
   const bank = await loadBank(db, { oneVoice: args.oneVoice });
   const opens = await loadOpens(db, args.days, now);
   const chosen = rank(bank, opens).slice(0, args.limit);
-  print(`backfill-bank-quiz-audio: mode=${mode} bank=${bank.length} opened_in_${args.days}d=${bank.filter((b) => opens.has(b.id)).length} limit=${args.limit} max_usd=${args.maxUsd}${args.oneVoice ? ' one_voice=1' : ''}`);
+  const plan = args.oneVoice ? (args.oneVoice === true ? require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(true) : args.oneVoice) : null;
+  print(`backfill-bank-quiz-audio: mode=${mode} bank=${bank.length} opened_in_${args.days}d=${bank.filter((b) => opens.has(b.id)).length} limit=${args.limit} max_usd=${args.maxUsd}${plan ? ` one_voice=${plan.sig}` : ''}`);
   print('rank\tquiz_id\tlang\tgrade\tsubject\topens\tclips\tchars\test_usd\tstatus');
 
   const sum = { done: 0, skipped: 0, failed: 0, chars: 0, usd: 0, estChars: 0, estUsd: 0, stopped: null };
@@ -181,7 +189,7 @@ async function main(argv, deps = {}) {
       while (next < todo.length && !sum.stopped) {
         if (sum.usd >= args.maxUsd) { sum.stopped = 'max_usd'; return; }
         const b = todo[next++];
-        const out = (await Publish.publishQuizAudio(b.id, args.oneVoice ? { db, oneVoice: true } : { db })) || {};
+        const out = (await Publish.publishQuizAudio(b.id, args.oneVoice ? { db, oneVoice: args.oneVoice } : { db })) || {};
         sum.chars += out.chars || 0;
         sum.usd += out.estimatedCostUsd || 0;
         const ok = out.ok && !out.failed && !out.capped;

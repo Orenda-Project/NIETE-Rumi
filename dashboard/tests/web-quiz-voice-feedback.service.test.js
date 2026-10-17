@@ -56,7 +56,7 @@ function page({ lang = 'en', store = {}, noVoice = false, stallClips = false, on
     textContent: JSON.stringify({
       code: 'TEST', cls: { label: 'Class 3', teacher: 'Teacher Testwala', chips: [] }, live: {}, video: null,
       quiz: { code: 'TEST', lang, topic: 'Plants', grade: 3, questions: [{ qid: 'q1', text: lang === 'ur' ? 'کیا؟' : 'a?', options: [{ slot: 'A', text: lang === 'ur' ? 'ہاں' : 'x' }], correct_slot: 'A' }] },
-      ...(oneVoice ? { one_voice: true } : {}),
+      ...(oneVoice ? { one_voice: true, voice_sets: oneVoice } : {}),
     }),
   };
   const actx = { state: 'running', suspended: 0, suspend() { this.suspended += 1; this.state = 'suspended'; return Promise.resolve(); }, resume() { this.state = 'running'; return Promise.resolve(); } };
@@ -417,36 +417,41 @@ describe('a figure pointer line plays its recorded clip from the shared voice se
 });
 
 /*
- * One voice per quiz (boot one_voice, app_settings web_quiz_one_voice): the shared lines come from their own set,
- * recorded in the one voice (public/wq/voice/one/<lang>/, its manifest naming that voice), so Jugnu's "Not yet…" is
- * the same voice as the question and the options. Off, the page asks for exactly today's files.
+ * One voice per quiz (boot one_voice + voice_sets, app_settings web_quiz_one_voice): the shared lines come from the set
+ * recorded in the plan's voice (public/wq/voice/one/<tag>/, a manifest naming that voice), so Jugnu's "Not yet…" is the
+ * same voice as the question and the options. Off, the page asks for exactly today's files.
  */
-describe('one voice per quiz: the shared lines are the one voice\'s', () => {
+describe('one voice per quiz: the shared lines are the plan voice\'s', () => {
   const ONE_DIR = path.join(VOICE_DIR, 'one');
-  const ONE = JSON.parse(fs.readFileSync(path.join(ONE_DIR, 'manifest.json'), 'utf8'));
-  const VOICE1_V = (/var VOICE1_V = '([0-9a-f]{8})'/.exec(SRC) || [])[1];
-  test('the set says exactly today\'s words, every line recorded, in the one voice of the voice table', () => {
-    const Voice = require('../../bot/shared/services/quiz/web-quiz-voice');
-    expect(ONE.voices).toEqual({ en: { ...Voice.ONE_VOICE.en }, ur: { ...Voice.ONE_VOICE.ur } });
-    for (const lang of ['en', 'ur']) {
-      expect(ONE[lang]).toEqual(MANIFEST[lang]);
-      Object.entries(ONE[lang]).forEach(([set, lines]) => lines.forEach((_, i) => expect(fs.existsSync(path.join(ONE_DIR, lang, `${set}-${i}.mp3`))).toBe(true)));
+  const Voice = require('../../bot/shared/services/quiz/web-quiz-voice');
+  const LANG_OF = { 'el-bella': 'en', 'el-sana': 'ur', 'el-sara': 'ur' };
+  test('every set says exactly today\'s words, every line recorded, in the voice its folder names; the bot knows each set by its files\' hash', () => {
+    const sets = fs.readdirSync(ONE_DIR).filter((d) => fs.statSync(path.join(ONE_DIR, d)).isDirectory()).sort();
+    expect(sets).toEqual(Object.keys(Voice.SHARED_SETS).sort());
+    for (const tag of sets) {
+      const m = JSON.parse(fs.readFileSync(path.join(ONE_DIR, tag, 'manifest.json'), 'utf8'));
+      expect(Voice.tagOf(m.voice)).toBe(tag);
+      expect(m.lines).toEqual(MANIFEST[LANG_OF[tag]]);
+      Object.entries(m.lines).forEach(([set, lines]) => lines.forEach((_, i) => expect(fs.existsSync(path.join(ONE_DIR, tag, `${set}-${i}.mp3`))).toBe(true)));
+      const crypto = require('crypto');
+      const h = crypto.createHash('sha1');
+      fs.readdirSync(path.join(ONE_DIR, tag)).filter((f) => f.endsWith('.mp3')).sort()
+        .forEach((f) => { h.update(`${f}\n`); h.update(fs.readFileSync(path.join(ONE_DIR, tag, f))); });
+      expect(Voice.SHARED_SETS[tag]).toBe(h.digest('hex').slice(0, 8));
     }
   });
-  test('VOICE1_V is the hash of the one voice\'s files', () => {
-    const crypto = require('crypto');
-    const h = crypto.createHash('sha1');
-    for (const lang of ['en', 'ur']) {
-      fs.readdirSync(path.join(ONE_DIR, lang)).filter((f) => f.endsWith('.mp3')).sort()
-        .forEach((f) => { h.update(`${lang}/${f}\n`); h.update(fs.readFileSync(path.join(ONE_DIR, lang, f))); });
-    }
-    expect(VOICE1_V).toBe(h.digest('hex').slice(0, 8));
+  const say = () => require('../../bot/shared/config/ux-strings').resolveUx('wqFigBarsSay', { language: 'en' });
+  const figQ = () => ({ qid: 'q9', text: 'How much is coloured?', figure: { kind: 'svg', svg: '<svg></svg>', say: say() }, options: [{ slot: 'A', text: 'half' }], correct_slot: 'A', audio: { q: 'https://r2.example/q.ogg', opts: ['https://r2.example/a.ogg'] } });
+  test('on: a shared line plays from the plan voice\'s set; off: today\'s file', () => {
+    const sets = Voice.sharedSets(true);
+    expect(page({ lang: 'en', oneVoice: sets }).wq.readParts(figQ())[0].url).toBe(`/wq/voice/one/el-bella/fig-0.mp3?v=${Voice.SHARED_SETS['el-bella']}`);
+    expect(page({ lang: 'en' }).wq.readParts(figQ())[0].url).toMatch(/^\/wq\/voice\/en\/fig-0\.mp3\?v=[0-9a-f]{8}$/);
   });
-  test('on: a figure pointer plays from the one voice\'s set; off: today\'s file', () => {
-    const { resolveUx } = require('../../bot/shared/config/ux-strings');
-    const say = resolveUx('wqFigBarsSay', { language: 'en' });
-    const q = { qid: 'q9', text: 'How much is coloured?', figure: { kind: 'svg', svg: '<svg></svg>', say }, options: [{ slot: 'A', text: 'half' }], correct_slot: 'A', audio: { q: 'https://r2.example/q.ogg', opts: ['https://r2.example/a.ogg'] } };
-    expect(page({ lang: 'en', oneVoice: true }).wq.readParts(q)[0].url).toBe(`/wq/voice/one/en/fig-0.mp3?v=${VOICE1_V}`);
-    expect(page({ lang: 'en' }).wq.readParts(q)[0].url).toMatch(/^\/wq\/voice\/en\/fig-0\.mp3\?v=[0-9a-f]{8}$/);
+  test('on, with no set for the plan voice: no shared-line audio, and never the phone\'s voice', () => {
+    const p = page({ lang: 'en', oneVoice: {} });
+    const parts = p.wq.readParts(figQ());
+    expect(parts[0].url).toBe(null);
+    p.wq.speakSeq(parts, null, 'q9');
+    expect(p.utterances.length).toBe(0);
   });
 });
