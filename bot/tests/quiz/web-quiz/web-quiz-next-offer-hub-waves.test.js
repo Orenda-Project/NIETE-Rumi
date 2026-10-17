@@ -212,3 +212,19 @@ test.each([['a child on a class list', false], ['the usual loose child', true]])
   expect(on.warm).toBeLessThanOrEqual(off.warm);
   expect(on.stale).toBeLessThanOrEqual(off.stale);
 }, 60000);
+
+// #C46: a class child's "Watch a video" tile plays the lesson it names (the hub already reads the lesson for every
+// child: the tile's choice is a pure step), so the home costs no wave more. The base's own counts on this fixture
+// (sandbox d0f451e45, measured with the switches ON) are the ceiling.
+const BASE_ON = { warm: 24, stale: 37 };
+test('#C46: the class child\'s video tile is the lesson in the home\'s player; waves ON = OFF and ON <= the base, warm and stale', async () => {
+  const off = await wavesOf(OFF, false);
+  const on = await wavesOf(ON, false);
+  if (process.env.NV_PRINT) console.log('NV_WAVES', JSON.stringify({ off: [off.warm, off.stale], on: [on.warm, on.stale], vids: [on.next, ...on.next.alts].filter((x) => x.kind === 'video') }));
+  const vids = [on.next, ...on.next.alts].filter((x) => x.kind === 'video');
+  expect(vids).toEqual([expect.objectContaining({ variant: 'recommended', href: expect.stringMatching(/^\/h\/[^?]+\?kid=[^&]+(&lang=[a-z]{2})?#watch\//) })]);
+  expect(on.warm).toBeLessThanOrEqual(off.warm);
+  expect(on.stale).toBeLessThanOrEqual(off.stale);
+  expect(on.warm).toBeLessThanOrEqual(BASE_ON.warm);
+  expect(on.stale).toBeLessThanOrEqual(BASE_ON.stale);
+}, 60000);

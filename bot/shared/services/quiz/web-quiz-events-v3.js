@@ -92,6 +92,8 @@ const RULES = Object.freeze({
   door: /^(stories|games|videos)$/,
   // where a Next tap took the child: the thing it named, or (a dead end) back home
   landed: /^(home|target)$/,
+  // the slot's variant (a video tile: recommended = plays the lesson, library = the picker), so the two are told apart
+  variant: /^[a-z_]{1,24}$/,
   src: /^(door|home|link|quiz|who)$/,
   lang: /^(en|ur)$/,
 });

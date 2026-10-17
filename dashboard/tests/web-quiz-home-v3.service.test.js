@@ -411,6 +411,12 @@ describe('the home\'s next_tap says where it was tapped (ctx home) and how long 
     expect(e).toMatchObject({ ctx: 'home', pos: 0, offer: 'o-1', arm: 'rank', rank_src: 'prior' });
     expect(Number.isInteger(e.ms_to_tap) && e.ms_to_tap >= 0).toBe(true);
   });
+  test('a video tile: next_tap (and next_shown) carry the server\'s variant, so "plays it" and "pick one" are told apart', () => {
+    const e = tapNext({ ...HOME, next: { kind: 'video', variant: 'recommended', href: '#stories', title: 'Watch a video', arm: 'rank', offer: 'o-1', rank_src: 'prior' } });
+    expect(e).toMatchObject({ ctx: 'home', pos: 0, offer: 'o-1', variant: 'recommended' });
+    // a tile with no variant sends none (never invented)
+    expect(tapNext({ ...HOME, next: { kind: 'story', href: '#stories', title: 'Read', offer: 'o-1' } })).not.toHaveProperty('variant');
+  });
 });
 
 describe('a #story/<id> hash set in the page after the home is drawn (the Next tile, a resume tile) opens the book', () => {
