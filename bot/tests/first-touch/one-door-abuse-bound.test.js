@@ -174,7 +174,7 @@ describe('web_quiz_door_dedupe ON: the same text inside 10 s gets ONE door reply
     expect(events('web_quiz.door_dedup')).toHaveLength(0);
   });
 
-  test('S02\'s pace: 22 /quiz 12 s apart with the dedupe ON and the ceiling at 100 → 22/22 answered', async () => {
+  test('a steady pace: 22 /quiz 12 s apart with the dedupe ON and the ceiling at 100 → 22/22 answered', async () => {
     world({ dedupe: true, ceiling: 100 });
     expect(await burst('unknown', 22, 12000)).toBe(22);
     expect(events('web_quiz.door_dedup')).toHaveLength(0);
