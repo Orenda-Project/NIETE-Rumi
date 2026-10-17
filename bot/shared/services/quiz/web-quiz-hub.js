@@ -171,7 +171,7 @@ async function recentCodes(teachers) {
 
 const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
 
-async function teacherCard(kidRow, list, history, grade) {
+async function teacherCard(kidRow, list, history, grade, homeP = null) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
@@ -182,10 +182,18 @@ async function teacherCard(kidRow, list, history, grade) {
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
   const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history)]);
-  const open = await require('./web-quiz-hub-home').sentOnly(codes.filter((c) => isOpen(c) && !seen.has(c.id))); // a previewed storybook is not "from your teacher": unchanged while web_quiz_home_v3 is off
+  const listed = codes.filter((c) => isOpen(c) && !seen.has(c.id));
+  if (!listed.length) return null;
+  // The child home (web_quiz_home_v3): a storybook the teacher only previewed is not "from your teacher" — told apart
+  // by three more columns on this same quizzes read (the home's switch is read beside the hub's own reads).
+  const Home = require('./web-quiz-hub-home');
+  const home = homeP ? (await homeP.flags).home === true : false;
+  const quizIds = [...new Set([...listed.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
+  const cols = `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id${home ? `, ${Home.PREVIEW_COLS}` : ''}`;
+  const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select(cols).in('id', quizIds));
+  const previews = home ? Home.storyPreviews(quizzes) : null;
+  const open = previews && previews.size ? listed.filter((c) => !previews.has(c.quiz_id)) : listed;
   if (!open.length) return null;
-  const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
-  const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
   // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
   const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
@@ -435,6 +443,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
   // Started now, beside the rest of the hub's reads (challengeForm never rejects): it is a few reads of its own.
   const challengeP = f.challenge && chosen ? challengeForm(chosen.id) : Promise.resolve(null);
+  // The child home's reads (web_quiz_home_v3), started here too: keyed on the child alone, so they add no wait.
+  const homeP = chosen ? require('./web-quiz-hub-home').prefetch(chosen.id) : null;
   // Stories too (hubBits never rejects; {} while web_quiz_stories is off): its reads run beside the hub's own.
   const storiesP = chosen ? require('./web-quiz-stories').hubBits({ studentId: chosen.id }) : null;
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
@@ -465,7 +475,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     return out;
   }
   const grade = ctx.grade;
-  out.teacher = await teacherCard(chosen, ctx.list, history, grade);
+  out.teacher = await teacherCard(chosen, ctx.list, history, grade, homeP);
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
   // The Home button is on: the library and challenge links from here say so (hub.js adds home=1).
   if (f.homeButton) out.nav_home = true;
@@ -501,7 +511,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   // Stories (started with the challenge's reads) and the v3 home are independent fields.
   const [storyBits, homeBits] = await Promise.all([
     storiesP, // Stories: {} while web_quiz_stories is off
-    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history }), // the v3 home's doors + header: {} while web_quiz_home_v3 is off
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP }), // the v3 home's doors + header: {} while web_quiz_home_v3 is off
   ]);
   Object.assign(out, storyBits, homeBits);
   return out;
