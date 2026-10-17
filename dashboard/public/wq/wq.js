@@ -3156,28 +3156,35 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // A class link on a phone that already holds a child (boot link_known, app_settings web_quiz_link_known_child): the
   // server answers the children THIS phone holds (never a classmate; nobody on a forwarded link) and the page asks
   // "Is it <First>?" (two or more: "Whose turn is it?") before the name box, so a child who joined on their own plays
-  // as themselves. Asked once per quiz on this phone; "Someone else", nobody, an error or no answer in 3 s: today's screen.
+  // as themselves. Asked once per quiz on this phone. Today's landing is drawn at once while it asks (never a blank
+  // wait); the answer swaps it for the question only while the child has not touched the page (no tap, key, touch or
+  // scroll) and the landing is still the screen. After a touch a late answer is dropped (link_known_late {ms}); every
+  // answer is timed (link_known_answer {ms, kids}). "Someone else", nobody, an error or no answer: today's screen.
   var KN_KEY = 'wq_kn_' + CODE;
   function knownOk() {
     return Boolean(B.link_known) && !B.preview && !B.invited && !B.challenge && !params.k && !S.st && !S.queue.length && !S.pending
       && Boolean(sget('wq_d', null)) && !sget(KN_KEY, null);
   }
   function knownAsk() {
-    var done = false;
-    function fall() { if (!done) { done = true; landing(); } }
-    setTimeout(fall, 3000);
+    var t0 = Date.now(), touched = false;
+    function touch() { touched = true; }
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function (n) { document.addEventListener(n, touch, true); });
+    window.addEventListener('scroll', touch, { passive: true });
+    landing();
+    var painted = ROOT.getAttribute('data-m');
     // The server reads this phone's own wq_dv cookie (the edge forwards it), never a device the page sends.
     api('POST', 'known', { code: CODE }).then(function (r) {
-      if (done) return;
       // A child already a card on this phone's landing is offered there; only the others are asked about here.
       var have = {};
       kids().forEach(function (k) { have[k.chip] = 1; });
       var got = r && r.ok && r.body && Array.isArray(r.body.kids) ? r.body.kids : [];
       var list = got.filter(function (k) { return k && typeof k.chip === 'string' && k.chip && typeof k.first === 'string' && k.first && !have[k.chip]; }).slice(0, 4);
-      if (!list.length) return fall();
-      done = true;
+      var ms = Math.max(0, Date.now() - t0);
+      ev('link_known_answer', { ms: ms, kids: list.length });
+      if (!list.length) return;
+      if (touched || ROOT.getAttribute('data-m') !== painted) return ev('link_known_late', { ms: ms });
       knownCards(list);
-    }, fall);
+    }, function () {});
   }
   function knownCards(list) {
     var one = list.length === 1 ? list[0] : null;
