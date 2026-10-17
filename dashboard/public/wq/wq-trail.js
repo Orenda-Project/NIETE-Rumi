@@ -589,8 +589,7 @@
     function storySettled(r) {
       var d = h.S.data || {};
       if (!isStory() || !r || !r.next_offer || h.S.screen !== 'read-result' || (d.story_r && d.story_r.next_offer)) return;
-      if (!(window.WQFC && (h.md() || {}).card_v3)) return;
-      storyEnd('read-result', !!d.story_qa, r);
+      if (window.WQFC && (h.md() || {}).card_v3) storyEnd('read-result', !!d.story_qa, r);
     }
     // s: the server's score for bigger / missing; a run stopped early did not answer every question, so the card
     // never says it did: the sticker line alone (a first counted run), or today's "Stop done!" on a practice round
