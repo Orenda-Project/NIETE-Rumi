@@ -2032,11 +2032,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!o.p || o.p.state === 'error') { try { el.innerHTML = html; el.classList.remove('wq-raq'); } catch (e) {} return; }
     qra = o;
   }
+  // As speak(): a clip with no sound after CLIP_SLOW_MS shows the words big; after CLIP_GIVEUP_MS it is let go quietly
+  // (logged as stalled) and the reading goes on, so a stalled question never halts the options or the help.
   function qraPlay(part, done, meta) {
     stopVoice();
-    var o = qra, gen = voiceGen;
+    var o = qra, gen = voiceGen, started = false, end;
     o.part = { text: part.text, url: part.url, meta: meta };
-    o.end = function () { if (gen === voiceGen) done(); };
+    o.end = end = function () { if (gen === voiceGen) done(); };
+    var live = function () { return !started && o.end === end && qra === o && gen === voiceGen; };
+    try { o.p.audio.addEventListener('playing', function () { started = true; }); } catch (e) {}
+    setTimeout(function () { if (live()) try { ROOT.classList.add('wq-novoice'); } catch (e) {} }, CLIP_SLOW_MS);
+    setTimeout(function () {
+      if (!live()) return;
+      o.end = null;
+      try { o.p.pause(); } catch (e) {}
+      ev('audio_fallback', { reason: 'stalled' });
+      end();
+    }, CLIP_GIVEUP_MS);
     try { if (o.p.state === 'paused') o.p.replay(); else o.p.play(); } catch (e) { o.end = null; o.bad = true; speak(part.text, part.url, done, meta); }
   }
 

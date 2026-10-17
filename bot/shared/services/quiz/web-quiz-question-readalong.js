@@ -2,10 +2,11 @@
 /**
  * Jugnu's read-along on a quiz QUESTION, for a quiz with one voice (web-quiz-one-voice-flag.js).
  *
- * Recorded: under a one-voice plan the question's clip is asked of the voice WITH the time of every character, in the
- * same generation (ElevenLabs /with-timestamps: no second call, no extra characters). When the words spoken are the
- * words printed (punctuation and case aside), the question has word times (timings()), kept on its clip map entry
- * (meta.web_one.audio[qid].q_ra = { ms, w: [[s_ms, e_ms], ...] }, one pair per printed word) and as a READALONG v1
+ * Recorded: under a one-voice plan with this switch on, the question's clip is asked of the voice WITH the time of
+ * every character, in the same generation (ElevenLabs /with-timestamps: no second call, no extra characters). When the
+ * words spoken are the words printed (punctuation and case aside), the question has word times (timings()), kept on its
+ * clip map entry (meta.web_one.audio[qid].q_ra = { ms, w: [[s_ms, e_ms], ...], timing_src, voice: { provider, voice,
+ * model } }, one pair per printed word) and as a READALONG v1
  * file beside the clip (<clip>.json, timingFile(); the shape wq-readalong.js reads). Otherwise the question has none
  * and the page reads it as before.
  *

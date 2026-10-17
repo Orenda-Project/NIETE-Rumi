@@ -42,8 +42,9 @@ function questions({ ra = true, text = 'Which month?' } = {}) {
   }));
 }
 
-function page({ flag = false, player = true, ra = true, sound = true, text } = {}) {
+function page({ flag = false, player = true, ra = true, sound = true, text, stall = false } = {}) {
   const voiced = [];
+  const timers = [];   // every timer the page sets, in order (never run on their own: a test runs them)
   const clips = [];
   const utterances = [];
   const mounts = [];
@@ -82,16 +83,18 @@ function page({ flag = false, player = true, ra = true, sound = true, text } = {
     AudioContext: function AudioContext() { return { state: 'running', resume() {}, suspend() {} }; },
     SpeechSynthesisUtterance: function SpeechSynthesisUtterance(text) { this.text = text; },
     speechSynthesis: { speak: (u) => { utterances.push(u); voiced.push({ text: u.text }); }, cancel() {} },
-    setInterval: () => 0, setTimeout: () => 0, clearTimeout() {}, clearInterval() {},
+    setInterval: () => 0, setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout() {}, clearInterval() {},
     scrollTo() {}, Image: function Image() {},
     addEventListener() {},
   };
   if (player) {
     ctx.WQReadAlong = {
       mount(el, data, opts) {
+        // its audio element: 'playing' when the clip really sounds (never, for a clip that stalls)
+        const audio = { listeners: {}, addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); } };
         const p = {
-          el, data, opts, state: 'ready', plays: 0, pauses: 0, destroyed: false,
-          play() { this.plays += 1; this.state = 'playing'; voiced.push({ ra: data.audio.url }); },
+          el, data, opts, audio, state: 'ready', plays: 0, pauses: 0, destroyed: false,
+          play() { this.plays += 1; this.state = 'playing'; voiced.push({ ra: data.audio.url }); if (!stall) (audio.listeners.playing || []).forEach((f) => f()); },
           replay() { this.play(); },
           pause() { this.pauses += 1; if (this.state === 'playing') this.state = 'paused'; },
           destroy() { this.destroyed = true; },
@@ -111,7 +114,7 @@ function page({ flag = false, player = true, ra = true, sound = true, text } = {
   ctx.window = ctx;
   vm.createContext(ctx);
   vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { question: question, speakSeq: speakSeq, stopVoice: stopVoice, stopAll: stopAll };\n})();'), ctx);
-  return { ctx, wq: ctx.__wq, voiced, clips, utterances, mounts, els };
+  return { ctx, wq: ctx.__wq, voiced, clips, utterances, mounts, els, timers };
 }
 const flush = () => new Promise((r) => setImmediate(r));
 const endClip = (p) => { const c = p.clips[p.clips.length - 1]; if (c && c.onended) c.onended(); };
@@ -174,6 +177,41 @@ describe('on (question_readalong + timings + the shared player)', () => {
     p.ctx.WQReadAlong.mount = () => { throw new Error('boom'); };
     p.wq.question(0);
     expect(p.voiced[0]).toEqual({ url: Q_URL(1) });
+  });
+});
+
+describe('a question clip that stalls (never sounds): the reading goes on, as the page\'s own clip does', () => {
+  // runs the timers set so far, in the order they were set, once each
+  const runTimers = (p) => { const t = p.timers.splice(0); t.forEach((x) => x.fn()); return t.map((x) => x.ms); };
+
+  test('after 2 s the words are shown big; after 8 s the question is let go and the options are read; then help is armed', async () => {
+    const p = page({ flag: true, stall: true });
+    p.wq.question(0);
+    const m = p.mounts[0];
+    expect(m.plays).toBe(1);
+    const set = runTimers(p);
+    expect(set).toEqual(expect.arrayContaining([2000, 8000]));
+    expect(p.ctx.document.getElementById('wq').classes).toContain('wq-novoice');
+    expect(m.pauses).toBeGreaterThan(0);              // the stalled clip is stopped, never heard over the options
+    await flush();
+    expect(p.clips.map((c) => c.url)).toEqual(['https://r2.example/a1.ogg']);
+    endClip(p);
+    expect(p.clips.map((c) => c.url)).toEqual(['https://r2.example/a1.ogg', 'https://r2.example/b1.ogg']);
+    expect(p.voiced.filter((v) => v.ra || v.url).map((v) => v.ra || v.url)).toEqual([Q_URL(1), 'https://r2.example/a1.ogg', 'https://r2.example/b1.ogg']);
+    endClip(p);
+    expect(p.timers.map((x) => x.ms)).toContain(20000);   // the help waits for the child, as after any reading
+  });
+
+  test('a clip that sounds: its give-up timer does nothing (control)', async () => {
+    const p = page({ flag: true });
+    p.wq.question(0);
+    runTimers(p);
+    await flush();
+    expect(p.clips).toEqual([]);                       // still the question's turn: the options wait for its end
+    expect(p.ctx.document.getElementById('wq').classes).not.toContain('wq-novoice');
+    p.mounts[0].end();
+    await flush();
+    expect(p.clips.map((c) => c.url)).toEqual(['https://r2.example/a1.ogg']);
   });
 });
 

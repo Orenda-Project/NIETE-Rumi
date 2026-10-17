@@ -348,9 +348,10 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     // itself), so a 5-question quiz is recorded in a fraction of the one-after-another time.
     const entries = new Map();
     const tasks = [];
-    // One voice, ElevenLabs: the question's clip is asked with its characters' times (the question's read-along,
-    // web-quiz-question-readalong.js), against the words the page prints for it.
-    const timed = Boolean(one) && voice.provider === 'elevenlabs';
+    // One voice, ElevenLabs and the question read-along switch on: the question's clip is asked with its characters'
+    // times (web-quiz-question-readalong.js), against the words the page prints for it. Switch off: today's call and
+    // files (no times asked, no .json written).
+    const timed = Boolean(one) && voice.provider === 'elevenlabs' && await QuestionRA.on({ db: client });
     for (const q of questions || []) {
       entries.set(q.id, { q: null, opts: [null, null, null, null], why: null, fbs: [null, null, null, null], hint: null });
       for (const { part, text } of partsFor(q, { oneVoice: one })) {
@@ -443,7 +444,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
       try {
         const file = QuestionRA.timingFile({ qid: q.id, lang: language, printed, clipKey: key, ra, voice });
         await r2.uploadBuffer(Buffer.from(JSON.stringify(file)), QuestionRA.fileKey(key), 'application/json', { bucket });
-        return ra;
+        return { ...ra, timing_src: file.timing_src, voice: file.voice };   // the record says where its times came from
       } catch (error) {
         logError('web_quiz.publish_audio.timings_failed', {
           event: 'web_quiz.publish_audio.timings_failed', quizId, questionId: q.id, error: String(error.message || error).slice(0, 200),

@@ -92,8 +92,8 @@ afterAll(() => { process.env = SAVED; });
 const jsonUploads = () => r2.uploadBuffer.mock.calls.filter((c) => c[2] === 'application/json');
 
 describe('A · the question\'s clip is recorded with its word times', () => {
-  test('one voice: only the question part asks for times; the times are kept inline and as a v1 file beside the clip', async () => {
-    const fake = seed(ROWS(), { one: true });
+  test('one voice + this switch: only the question part asks for times; the times are kept inline and as a v1 file beside the clip', async () => {
+    const fake = seed(ROWS(), { one: true, ra: true });
     const out = await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
     expect(out.ok).toBe(true);
     const asked = tts.synthesize.mock.calls.map(([a]) => a);
@@ -103,7 +103,11 @@ describe('A · the question\'s clip is recorded with its word times', () => {
 
     const entry = fake.db.quizzes[0].meta.web_one.audio[QID];
     // 'Which' = chars 0..4 → 0..200 ms; 'month' = chars 6..10 → 240..440 ms …
-    expect(entry.q_ra).toEqual({ ms: 2000, w: [[0, 200], [240, 440], [480, 680], [720, 920], [960, 1280]] });
+    // the record says where its times came from: the voice's own character times, and which voice made them
+    expect(entry.q_ra).toEqual({
+      ms: 2000, w: [[0, 200], [240, 440], [480, 680], [720, 920], [960, 1280]],
+      timing_src: 'tts_align', voice: { provider: 'elevenlabs', voice: 'hpp4J3VqNfWAUOO0d1Us', model: 'eleven_v4' },
+    });
     const files = jsonUploads();
     expect(files).toHaveLength(1);
     expect(files[0][1]).toBe(entry.q.replace(/\.ogg$/, '.json'));
@@ -127,7 +131,7 @@ describe('A · the question\'s clip is recorded with its word times', () => {
   });
 
   test('words spoken are not the words printed: no timings for that question (the page reads it as today)', async () => {
-    const fake = seed(ROWS(), { one: true });
+    const fake = seed(ROWS(), { one: true, ra: true });
     await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
     const entry = fake.db.quizzes[0].meta.web_one.audio[QID2];
     expect(entry.q).toBeTruthy();
@@ -153,7 +157,7 @@ describe('A · the question\'s clip is recorded with its word times', () => {
     const MATHS = 'What is $5$ more than 7?';
     expect(QRA.timings({ printed: MATHS, alignment: align('What is 5 more than 7?'), ms: 2000 })).toBe(null);
     expect(QRA.timings({ printed: 'What is 5 more than 7?', alignment: align('What is 5 more than 7?'), ms: 2000 }).w).toHaveLength(6);
-    const fake = seed([row(QID, { question_text: MATHS }), row(QID2)], { one: true });
+    const fake = seed([row(QID, { question_text: MATHS }), row(QID2)], { one: true, ra: true });
     await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
     const audio = fake.db.quizzes[0].meta.web_one.audio;
     expect(audio[QID].q).toBeTruthy();
@@ -164,7 +168,7 @@ describe('A · the question\'s clip is recorded with its word times', () => {
 
   test('a clip already recorded is not recorded again just for its times', async () => {
     r2.headObject.mockImplementation(async () => ({ exists: true }));
-    const fake = seed(ROWS(), { one: true });
+    const fake = seed(ROWS(), { one: true, ra: true });
     await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
     expect(tts.synthesize).not.toHaveBeenCalled();
     expect(jsonUploads()).toEqual([]);
@@ -172,7 +176,7 @@ describe('A · the question\'s clip is recorded with its word times', () => {
   });
 
   test('a clip kept from an earlier run keeps the word times it was recorded with', async () => {
-    const fake = seed(ROWS(), { one: true });
+    const fake = seed(ROWS(), { one: true, ra: true });
     await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
     const first = fake.db.quizzes[0].meta.web_one.audio[QID].q_ra;
     expect(first).toBeTruthy();
@@ -183,8 +187,34 @@ describe('A · the question\'s clip is recorded with its word times', () => {
     expect(fake.db.quizzes[0].meta.web_one.audio[QID].q_ra).toEqual(first);
   });
 
-  test.each([[undefined], [false]])('one voice off (%p): no times asked, no file, no q_ra (today)', async (one) => {
-    const fake = seed(ROWS(), { one });
+  test('a question whose clip changed keeps no times from the old clip (the new clip is in the store, not recorded now)', async () => {
+    const fake = seed(ROWS(), { one: true, ra: true });
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
+    const old = fake.db.quizzes[0].meta.web_one.audio[QID];
+    expect(old.q_ra).toBeTruthy();
+    // the same number of words, other words: another clip key; that clip is already stored, so nothing is recorded
+    fake.db.quiz_questions.find((r) => r.id === QID).question_text = 'Which month comes after March?';
+    r2.headObject.mockImplementation(async () => ({ exists: true }));
+    tts.synthesize.mockClear();
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    const now = fake.db.quizzes[0].meta.web_one.audio[QID];
+    expect(now.q).toBeTruthy();
+    expect(now.q).not.toBe(old.q);
+    expect('q_ra' in now).toBe(false);   // the old clip's times would drift from this clip's voice
+  });
+
+  test.each([[undefined], [false], ['true']])('one voice on, this switch %p: the question clip is asked as today (no times, no file, no q_ra)', async (ra) => {
+    const fake = seed(ROWS(), { one: true, ra });
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
+    expect(tts.synthesize).toHaveBeenCalled();
+    expect(tts.synthesize.mock.calls.some(([a]) => 'timestamps' in a)).toBe(false);
+    expect(jsonUploads()).toEqual([]);
+    Object.values(fake.db.quizzes[0].meta.web_one.audio).forEach((e) => expect('q_ra' in e).toBe(false));
+  });
+
+  test.each([[undefined], [false]])('one voice off (%p), this switch on: no times asked, no file, no q_ra (today)', async (one) => {
+    const fake = seed(ROWS(), { one, ra: true });
     await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from } });
     expect(tts.synthesize.mock.calls.some(([a]) => 'timestamps' in a)).toBe(false);
     expect(jsonUploads()).toEqual([]);
@@ -232,6 +262,13 @@ describe('B · the page is told, behind web_quiz_question_readalong', () => {
     const url = `https://r2.example/${qKey(QID)}?X-Amz-Signature=x`;
     expect(QRA.raFor({ entry, url, printed: 'What is $5$ more than 7?', lang: 'en' })).toBe(null);
     expect(QRA.raFor({ entry, url, printed: 'What is 5 more than 7?', lang: 'en' }).words).toHaveLength(6);
+  });
+
+  test('times are served only with the clip they were made for: a served link to another clip gets none', () => {
+    const entry = { q: qKey(QID), q_ra: Q_RA };
+    expect(QRA.raFor({ entry, url: `https://r2.example/${qKey(QID)}?X-Amz-Signature=x`, printed: TEXT, lang: 'en' })).toBeTruthy();
+    expect(QRA.raFor({ entry, url: `https://r2.example/${qKey(QID2)}?X-Amz-Signature=x`, printed: TEXT, lang: 'en' })).toBe(null);
+    expect(QRA.raFor({ entry, url: null, printed: TEXT, lang: 'en' })).toBe(null);
   });
 
   test('a question edited after its times were made (another word count) gets none', async () => {
