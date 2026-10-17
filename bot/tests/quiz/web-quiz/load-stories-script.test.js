@@ -88,7 +88,7 @@ test('--misses: the pages opened without a voice since the last run, distinct, w
 
 test('the voice method gate is read once from app_settings web_quiz_story_voice_gate; absent = today\'s pace gates', async () => {
   const vj = path.join(dir, 'voices', SRC, 'p01.json');
-  fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), wpm: 150, pace_wpm: 160 }));
+  fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), wpm: 150, pace_wpm: 160, timing_src: 'forced_align' }));
   fs.writeFileSync(path.join(dir, 'voices', SRC, 'p01.qa.json'), JSON.stringify({ wer: 0, splices: 0, atempo: 1, inserted_silence_ms: 0, speed: 1, kbps: 64, midword_hits: 0 }));
   const reads = [];
   const db = (value) => ({ from: (t) => { reads.push(t); const b = {}; ['select', 'eq', 'maybeSingle'].forEach((m) => { b[m] = () => b; }); b.then = (res) => res({ data: t === 'app_settings' && value !== undefined ? { key: 'web_quiz_story_voice_gate', value } : null, error: null }); return b; } });
@@ -103,4 +103,58 @@ test('the voice method gate is read once from app_settings web_quiz_story_voice_
   expect(on[0]).toMatchObject({ status: 'ready', why: [], voiced: '1/1' });
   expect(on[1]).toEqual({ books: 1, ready: 1, draft: 0, failed: 0, dry_run: true, voice_gate: true });
   expect(reads).toEqual(['app_settings']);
+});
+
+test('gate on, dry run with a database: the current voices are read (read only), so a kept page reads as the write would', async () => {
+  const vj = path.join(dir, 'voices', SRC, 'p01.json');
+  fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), timing_src: 'forced_align' }));
+  fs.writeFileSync(path.join(dir, 'voices', SRC, 'p01.qa.json'), JSON.stringify({ wer: 0, splices: 0, atempo: 0.85, inserted_silence_ms: 0, speed: 1, kbps: 64, midword_hits: 0 }));
+  const calls = [];
+  const db = (voices) => ({ from: (t) => { const b = {}; ['select', 'eq', 'in', 'maybeSingle', 'upsert', 'update', 'delete', 'insert'].forEach((m) => { b[m] = (...a) => { calls.push([t, m, ...a]); return b; }; });
+    b.then = (res) => res({ data: t === 'app_settings' ? { key: 'web_quiz_story_voice_gate', value: true } : voices, error: null }); return b; } });
+  const run = async (d) => { const o = io(); await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv'), '--dry-run'], env: {}, io: o, db: d }); return o.o.out.trim().split('\n').map((l) => JSON.parse(l)); };
+  const none = await run(db([]));
+  expect(none[0]).toMatchObject({ status: 'draft', kept_voice: [], misses: ['p01: voice method: atempo 0.85'], why: ['p01: voice method: atempo 0.85'] });
+  const pid = none[0].book_id && require('../../../shared/services/quiz/story-store').uuidV5(none[0].book_id, 'p01');
+  calls.length = 0;
+  const kept = await run(db([{ id: 'v1', page_id: pid, lang: 'en', audio_key: 'story/x/a01.ogg', ms: 2100 }]));
+  expect(kept[0]).toMatchObject({ status: 'ready', kept_voice: [1], why: [] });
+  expect(kept[1]).toMatchObject({ ready: 1, dry_run: true, voice_gate: true });
+  expect(calls).toContainEqual(['story_page_voices', 'select', 'id, page_id, lang, audio_key, ms, provider, voice, model']);
+  expect(calls.some((c) => ['upsert', 'update', 'delete', 'insert'].includes(c[1]))).toBe(false);
+});
+
+test('the switch is on only for JSON true: a string or another shape plans with today\'s pace gates', async () => {
+  const vj = path.join(dir, 'voices', SRC, 'p01.json');
+  fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), wpm: 150, pace_wpm: 160 }));
+  const db = (value) => ({ from: (t) => { const b = {}; ['select', 'eq', 'in', 'maybeSingle'].forEach((m) => { b[m] = () => b; }); b.then = (res) => res({ data: t === 'app_settings' ? { key: 'web_quiz_story_voice_gate', value } : [], error: null }); return b; } });
+  const run = async (d) => { const o = io(); await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv'), '--dry-run'], env: {}, io: o, db: d }); return o.o.out.trim().split('\n').map((l) => JSON.parse(l)); };
+  for (const v of ['true', '"true"', ' TRUE ', 1, { enabled: true }]) {
+    const out = await run(db(v));
+    expect(out[0]).toMatchObject({ status: 'draft', why: ['p01: voice pace 150 wpm', 'p01: voice span pace 160 wpm'] });
+    expect(out[0].kept_voice).toBeUndefined();
+    expect(out[1].voice_gate).toBeUndefined();
+  }
+});
+
+test('a switch read error writes nothing: the run logs it and plans as a dry run with today\'s gates', async () => {
+  const calls = [];
+  const db = { from: (t) => { const b = {}; ['select', 'eq', 'in', 'maybeSingle', 'upsert', 'update', 'delete', 'insert'].forEach((m) => { b[m] = (...a) => { calls.push([t, m]); return b; }; }); b.then = (res) => res(t === 'app_settings' ? { data: null, error: { code: '57014', message: 'timeout' } } : { data: [], error: null }); return b; } };
+  const o = io();
+  const rc = await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv')], env: {}, io: o, db });
+  expect(rc).toBe(0);
+  const lines = o.o.out.trim().split('\n').map((l) => JSON.parse(l));
+  expect(lines[0].status).toMatch(/^(ready|draft)$/);
+  expect(lines[1]).toMatchObject({ dry_run: true, voice_gate_read_failed: true });
+  expect(o.o.err).toMatch(/web_quiz\.story_voice_gate_read_failed/);
+  expect(fs.existsSync(path.join(dir, 'loaded.csv'))).toBe(false);
+  expect(calls.filter((c) => ['upsert', 'update', 'delete', 'insert'].includes(c[1]))).toEqual([]);
+});
+
+test('--read-db: a dry run that reads the switch and the current voices from the database (read only); it needs the database', async () => {
+  const o = io();
+  expect(await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv'), '--dry-run', '--read-db'], env: {}, io: o })).toBe(2);
+  expect(o.o.err).toMatch(/--expect-ref, SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required/);
+  const o2 = io();
+  expect(await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv'), '--dry-run'], env: {}, io: o2 })).toBe(0);
 });

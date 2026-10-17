@@ -53,7 +53,7 @@ const VOICE_GATE_KEY = 'web_quiz_story_voice_gate';
 const MIN_SPEED = 0.9;
 const MIN_KBPS = 48;
 const WPM_BAND = [60, 220];
-const voiceGateOn = (value) => value === true || value === 'true';
+const voiceGateOn = (value) => value === true;
 const TYPES = { webp: 'image/webp', ogg: 'audio/ogg', mp3: 'audio/mpeg', png: 'image/png' };
 const pad = (n) => String(n).padStart(2, '0');
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -94,6 +94,21 @@ function cleanLines(lines) {
 }
 
 /** The voice for page n: READALONG JSON (+ qa.json beside it, + the clip) → {row fields, file, why[]}. */
+const voiceId = (r) => [r.provider, r.voice, r.model].join('|');
+
+/** Why a question clip's build record (questions.voice.json clips[key]) is not one natural take; [] = it is. */
+function clipMethodWhy(key, rec) {
+  if (!rec || typeof rec !== 'object') return [`${key}: no build record`];
+  const why = [];
+  const m = (k, ok, say) => { const x = num(rec[k]); if (x == null || !ok(x)) why.push(`${key}: ${say(x == null ? 'unknown' : x)}`); };
+  m('splices', (x) => x === 0, (x) => `splices ${x}`);
+  m('atempo', (x) => x === 1, (x) => `atempo ${x}`);
+  m('inserted_silence_ms', (x) => x === 0, (x) => `inserted silence ${x}${x === 'unknown' ? '' : ' ms'}`);
+  m('speed', (x) => x >= MIN_SPEED, (x) => `speed ${x}`);
+  m('kbps', (x) => x >= MIN_KBPS, (x) => (x === 'unknown' ? 'kb/s unknown' : `${x} kb/s`));
+  return why;
+}
+
 function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = false }) {
   const stem = path.join(voiceDir, `p${pad(n)}`);
   const j = readJson(`${stem}.json`);
@@ -120,6 +135,9 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = false }) {
     m('inserted_silence_ms', (x) => x === 0, (x) => (x === 'unknown' ? 'inserted silence unknown' : `inserted silence ${x} ms`));
     m('speed', (x) => x >= MIN_SPEED, (x) => `speed ${x}`);
     m('kbps', (x) => x >= MIN_KBPS, (x) => (x === 'unknown' ? 'kb/s unknown' : `${x} kb/s`));
+    // the word times come from the provider or a forced alignment of the stored audio, never a recogniser's alignment
+    const tsrc = j.timing_source || j.timing_src || qa.timing_source || qa.timing_src || null;
+    if (!['provider', 'forced_align'].includes(tsrc)) why.push(`voice timing source ${tsrc || 'unknown'}`);
     const mid = num(qa.midword_hits);
     if (mid !== 0) why.push(`voice midword silence ${mid == null ? 'unknown' : mid}`);
     if (clipWpm == null || clipWpm < WPM_BAND[0] || clipWpm > WPM_BAND[1]) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm outside ${WPM_BAND[0]}–${WPM_BAND[1]}`);
@@ -237,13 +255,20 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
   if (!pages.length) why.push('no pages');
 
   const questions = [];
+  const questionMisses = [];
+  const qv = voiceDir ? readJson(path.join(voiceDir, 'questions.voice.json')) : null;
   const qj = questionsFile ? readJson(questionsFile) : null;
   for (const q of (qj && Array.isArray(qj.questions) ? qj.questions : []).filter((x) => x && x.n >= 1 && x.n <= 5)) {
     let audio = null;
     if (voiceDir) {
       const qa = readBytes(path.join(voiceDir, `q${q.n}.ogg`));
       const os = (q.options || []).map((_, m) => readBytes(path.join(voiceDir, `q${q.n}o${m + 1}.ogg`)));
-      if (qa || os.some(Boolean)) {
+      // Under the method gate a question's clips are stored only when each one's build record says one natural take;
+      // otherwise the question keeps the audio it has (the row is written without its audio column).
+      const keys = [qa ? `q${q.n}` : null, ...os.map((b, m) => (b ? `q${q.n}o${m + 1}` : null))].filter(Boolean);
+      const qwhy = voiceGate ? keys.flatMap((k) => clipMethodWhy(k, qv && qv.clips ? qv.clips[k] : null)) : [];
+      if (qwhy.length) questionMisses.push({ n: q.n, why: qwhy });
+      else if (qa || os.some(Boolean)) {
         const qf = qa ? fileOf(qa, `q${q.n}`, 'ogg') : null;
         const ofs = os.map((b, m) => (b ? fileOf(b, `q${q.n}o${m + 1}`, 'ogg') : null));
         [qf, ...ofs].filter(Boolean).forEach((f) => files.push(f));
@@ -258,11 +283,12 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
       review_status: ['draft', 'reviewed', 'rejected'].includes(q.review_status) ? q.review_status : 'draft',
       reviewer_note: q.reviewer_note || null, audio,
     });
+    if (questionMisses.some((m) => m.n === q.n)) delete questions[questions.length - 1].audio;
   }
   // One file holding every question and option clip, played by time range (one request on a slow line).
   let sprite = null;
-  const qv = voiceDir ? readJson(path.join(voiceDir, 'questions.voice.json')) : null;
-  if (qv && qv.sprite && qv.sprite.ogg && qv.sprite.clips) {
+  // the sprite joins every clip: one clip that is not a natural take keeps the stored sprite too
+  if (!questionMisses.length && qv && qv.sprite && qv.sprite.ogg && qv.sprite.clips) {
     const b = readBytes(path.join(voiceDir, path.basename(qv.sprite.ogg)));
     if (b) { const f = fileOf(b, 'qs', 'ogg'); files.push(f); sprite = { file: f.name, clips: qv.sprite.clips }; }
   }
@@ -280,9 +306,20 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
     pdf_r2_key: extra.pdf_r2_key || book.pdf_r2_key || null, questions_sprite: sprite,
     minutes: voiced === textPages && voiced ? Math.round(ms / 6000) / 10 : null,
   };
+  if (questionMisses.length) delete bookRow.questions_sprite;
   const uniq = new Map(files.map((f) => [f.name, f]));
   const plan = { bookId, bookRow, pages, voices, questions, files: [...uniq.values()], ready: why.length === 0, why, counts: { pages: pages.length, textPages, voiced, questions: questions.length, reviewed } };
-  return voiceGate ? { ...plan, misses } : plan;
+  if (voiceGate) {
+    // one voice per book: takes by two voices (or models) in one run are all held back; the pages keep what they have
+    const ids = new Set(voices.map((v) => voiceId(v.row)));
+    if (ids.size > 1) {
+      voices.splice(0).forEach((v) => misses.push({ pageId: v.pageId, n: v.n, why: [`one voice per book: ${ids.size} voices in this run`] }));
+      misses.sort((a, b) => a.n - b.n);
+      plan.files = plan.files.filter((f) => !/^a\d\d-/.test(f.name) || voices.some((v) => v.file.name === f.name));
+      plan.counts.voiced = 0; plan.bookRow.minutes = null;
+    }
+  }
+  return voiceGate ? { ...plan, misses, questionMisses } : plan;
 }
 
 /**
@@ -292,7 +329,34 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
 async function applyPlan(plan, { store, upload, env, dryRun = false, has = null, stored = null }) {
   const out = { bookId: plan.bookId, uploaded: 0, skipped: 0, status: null };
   const keyOf = (name) => Store.storyKey({ env, bookId: plan.bookId, file: name });
-  if (dryRun) { out.status = plan.ready ? 'ready' : 'draft'; out.uploaded = plan.files.length; return out; }
+  // Under the method gate a page whose new take failed keeps the voice it has; one with none keeps the book a draft.
+  // The dry run reads the current voices too (read only), so it gives the write's answer; no store = none kept.
+  const seen = plan.misses && plan.misses.length && dryRun ? (store && store.currentVoices ? await store.currentVoices(plan.pages.map((p) => p.id)) : []) : null;
+  const split = (cur0) => {
+    const lang = plan.bookRow.lang;
+    const cur = cur0.filter((c) => !c.lang || !lang || c.lang === lang);
+    // a new voice beside a kept page's other voice would make a mixed book: every page keeps the voice it has
+    const keptIds = new Set((plan.misses || []).map((m) => cur.find((c) => c.page_id === m.pageId)).filter(Boolean).map(voiceId));
+    if (plan.misses && plan.voices.length && keptIds.size && [...keptIds].some((k) => plan.voices.some((v) => voiceId(v.row) !== k))) {
+      plan.voices.splice(0).forEach((v) => plan.misses.push({ pageId: v.pageId, n: v.n, why: ['one voice per book: differs from the voice a kept page has'] }));
+      plan.misses.sort((a, b) => a.n - b.n);
+    }
+    const kept = [];
+    for (const m of plan.misses || []) {
+      if (cur.some((c) => c.page_id === m.pageId)) kept.push(m.n);
+      else m.why.forEach((w) => plan.why.push(`p${pad(m.n)}: ${w}`));
+    }
+    if (plan.misses) { out.kept = kept; plan.ready = plan.ready && plan.why.length === 0; }
+    return kept;
+  };
+  if (dryRun) { if (plan.misses) split(seen || []); out.status = plan.ready ? 'ready' : 'draft'; out.uploaded = plan.files.length; return out; }
+  const current = await store.currentVoices(plan.pages.map((p) => p.id));
+  const kept = split(current);
+  if (plan.misses) {
+    // a take held back for one voice per book is never stored either
+    const held = new Set(plan.misses.map((m) => m.n));
+    plan.files = plan.files.filter((f) => !/^a\d\d-/.test(f.name) || plan.voices.some((v) => v.file.name === f.name && !held.has(v.n)));
+  }
   for (const f of plan.files) {
     const key = keyOf(f.name);
     if (has && has(key)) { out.skipped += 1; continue; }
@@ -300,18 +364,18 @@ async function applyPlan(plan, { store, upload, env, dryRun = false, has = null,
     out.uploaded += 1;
   }
   const prior = await store.bookStatus(plan.bookId);
+  const bookRow = { ...plan.bookRow };
+  if (kept.length) {
+    // A kept page still plays: minutes count its stored length; when a length is not known the stored minutes stay.
+    const keptMs = kept.map((n) => { const c = current.find((x) => x.page_id === (plan.misses.find((m) => m.n === n) || {}).pageId); return c ? num(c.ms) : null; });
+    if (keptMs.every((x) => x) && plan.voices.length + kept.length === plan.counts.textPages) {
+      bookRow.minutes = Math.round((plan.voices.reduce((a, v) => a + (v.row.ms || 0), 0) + keptMs.reduce((a, b) => a + b, 0)) / 6000) / 10;
+    } else delete bookRow.minutes;
+  }
   // A new book is written as a draft first; its status moves only after every row it needs is in.
-  await store.upsertBook({ ...plan.bookRow, status: prior || 'draft', updated_at: new Date().toISOString() });
+  await store.upsertBook({ ...bookRow, status: prior || 'draft', updated_at: new Date().toISOString() });
   await store.upsertPages(plan.pages);
   await store.deletePagesAbove(plan.bookId, plan.pages.length ? Math.max(...plan.pages.map((p) => p.n)) : 0);
-  const current = await store.currentVoices(plan.pages.map((p) => p.id));
-  // Under the method gate a page whose new take failed keeps the voice it has; one with none keeps the book a draft.
-  const kept = [];
-  for (const m of plan.misses || []) {
-    if (current.some((c) => c.page_id === m.pageId)) kept.push(m.n);
-    else m.why.forEach((w) => plan.why.push(`p${pad(m.n)}: ${w}`));
-  }
-  if (plan.misses) { out.kept = kept; plan.ready = plan.ready && plan.why.length === 0; }
   for (const v of plan.voices) {
     const audioKey = keyOf(v.file.name);
     const row = { ...v.row, page_id: v.pageId, audio_key: audioKey, is_current: true, id: Store.uuidV5(v.pageId, audioKey) };
@@ -345,10 +409,17 @@ function supabaseStore(db) {
     upsertBook: (row) => ok(db.from('story_books').upsert({ ...row }, BY_ID)),
     upsertPages: (rows) => (rows.length ? ok(db.from('story_pages').upsert(rows.map((r) => ({ ...r })), BY_ID)) : null),
     deletePagesAbove: (bookId, n) => ok(db.from('story_pages').delete().eq('book_id', bookId).gt('n', n)),
-    currentVoices: async (pageIds) => (pageIds.length ? ok(db.from('story_page_voices').select('id, page_id, lang, audio_key').in('page_id', pageIds).eq('is_current', true)) : []),
+    currentVoices: async (pageIds) => (pageIds.length ? ok(db.from('story_page_voices').select('id, page_id, lang, audio_key, ms, provider, voice, model').in('page_id', pageIds).eq('is_current', true)) : []),
     retireVoice: (id) => ok(db.from('story_page_voices').update({ is_current: false }).eq('id', id)),
     upsertVoice: (row) => ok(db.from('story_page_voices').upsert({ ...row }, BY_ID)),
-    upsertQuestions: (rows) => (rows.length ? ok(db.from('story_questions').upsert(rows.map((r) => ({ ...r })), BY_ID)) : null),
+    // one upsert per column set: a bulk upsert writes null into a column a row leaves out (a kept question's audio)
+    upsertQuestions: async (rows) => {
+      const sets = new Map();
+      rows.forEach((r) => { const k = Object.keys(r).sort().join(','); sets.set(k, [...(sets.get(k) || []), { ...r }]); });
+      let last = null;
+      for (const group of sets.values()) last = await ok(db.from('story_questions').upsert(group, BY_ID));
+      return last;
+    },
     deleteQuestionsAbove: (bookId, n) => ok(db.from('story_questions').delete().eq('book_id', bookId).gt('n', n)),
     setStatus: (id, status) => ok(db.from('story_books').update({ status, updated_at: new Date().toISOString() }).eq('id', id)),
   };
