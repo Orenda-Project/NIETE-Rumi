@@ -94,6 +94,8 @@ router.post('/session', handle((req) => WebQuiz.startSession(req.body || {}, { d
 router.post('/linkhome', handle((req) => require('../services/quiz/web-quiz-link-home').home(req.body || {}, WebQuiz.resolveCode)));
 // A class link on a phone that holds a child: the children this browser holds, for "Is it <First>?" ({kids: []} when off).
 router.post('/known', handle((req) => WebQuiz.knownKids(req.body || {}, { device: req.get('x-wq-device') || null })));
+// A CLOSED class link on that phone: its way home ({on:false} when off). The device is x-wq-device, never the body.
+router.post('/known/home', handle((req) => require('../services/quiz/web-quiz-link-known').closedHome({ device: req.get('x-wq-device') || undefined })));
 // The handset key: the page redeems a bot-sent link's ?x= token once with its device (web-quiz-handset.js).
 router.post('/bind', handle((req) => require('../services/quiz/web-quiz-handset').bind(req.body || {}, WebQuiz.WqError)));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));

@@ -15,6 +15,9 @@
  *                                to this link, as cards for this code (first names only, ≤ KIDS_MAX, newest first);
  *                                {kids: []} otherwise
  *   kidFor(ctx, chip, device)    the session's child for a `via: 'known'` start: one of those children, or null
+ *   closedHome({device})         a CLOSED class link's way home: {on: false} when off; else {on: true, home} where home is
+ *                                '/h/<token>?from=link' for the children this browser holds (a hub token bound to THIS
+ *                                browser, as the old-link home does), or null when it holds nobody
  *
  * The device is always the phone's own `wq_dv` cookie, forwarded by the edge as `x-wq-device` (the routes pass it) —
  * never a ref the page sends in a body: a page never names a child by what it sends.
@@ -177,4 +180,25 @@ async function kidFor(ctx, chip, device) {
   }
 }
 
-module.exports = { field, known, kidFor, isOn, KEY, KIDS_MAX, _resetCache: () => { cache = null; } };
+/** A closed class link's way home (the edge's closed page asks once, with the phone's device). Never throws. */
+async function closedHome({ device } = {}) {
+  if (!(await isOn())) return { on: false };
+  const none = (reason) => { logEvent('web_quiz.link_known', { ok: false, reason, w: 'closed' }); return { on: true, home: null }; };
+  try {
+    const d = T.cleanDeviceRef(device);
+    if (!d) return none('no_device');
+    const kids = await heldBy(d);
+    if (!kids.length) return none('nobody');
+    const token = T.signHub(kids.map((k) => String(k.id)));
+    if (!token) return none('no_secret');
+    const bound = await Device.deviceTrusted(token, d);
+    if (!bound.ok) return none(bound.why);
+    logEvent('web_quiz.door_shown', { door: 'link_home', surface: 'closed', w: 's' });
+    return { on: true, home: `/h/${token}?from=link` };
+  } catch (err) {
+    logToFile('⚠️ web quiz link known child: no way home on a closed link', { error: err.message });
+    return { on: true, home: null };
+  }
+}
+
+module.exports = { field, known, kidFor, closedHome, isOn, KEY, KIDS_MAX, _resetCache: () => { cache = null; } };
