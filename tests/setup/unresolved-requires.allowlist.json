@@ -25,15 +25,5 @@
     "spec": "../first-touch/walk-persona",
     "reason": "The sandbox walk-through module ships in a later merge; the require is inside a try/catch and its absence means today's behaviour (a teacher's phone is refused as a family phone).",
     "provider": "the sandbox walk-through module (bot/shared/services/first-touch/walk-persona.js)"
-  },
-  {
-    "from": "bot/shared/services/quiz/story-teacher.service.js",
-    "spec": "../first-touch/teacher-home.token",
-    "reason": "The teacher home's own token verifier (verifyTeacherHome), shipped by the teacher-home PR. Required inside a try/catch in teacherToken(); absent, the same signed 'th' shape is checked locally. Remove this entry when the teacher-home PR lands."
-  },
-  {
-    "from": "bot/shared/services/quiz/story-teacher.service.js",
-    "spec": "../first-touch/teacher-home.copy",
-    "reason": "The teacher home's copy object (returnLine: the way-back line on every forwarded class message), shipped by the teacher-home PR. Required inside a try/catch in returnLine(); absent, the class message has no way-back line. Remove this entry when the teacher-home PR lands."
   }
 ]
