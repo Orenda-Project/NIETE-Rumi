@@ -26,6 +26,7 @@ const RedisService = require('../cache/railway-redis.service');
 const WhatsAppService = require('../whatsapp.service');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { tk: tkOf } = require('./web-quiz-kid');
 
 const PENDING_INTENT_KEY = (userId) => `quiz_intent_pending:${userId}`;
 const PENDING_RESUME_KEY = (userId) => `pending_quiz_resume:${userId}`;
@@ -123,7 +124,7 @@ async function _openQuizManagerFlow(user, from, topic) {
     footer: 'Powered by NIETE',
     buttonText: 'Open quiz menu'
   });
-  logToFile('✅ Quiz Manager Flow opened (post-confirmation)', { userId: user.id, topic });
+  logToFile('✅ Quiz Manager Flow opened (post-confirmation)', { tk: tkOf(user.id), topic });
 }
 
 // Class setup + roster editing were served by the attendance Flow endpoints,
@@ -214,7 +215,7 @@ async function _handleShowInChat(user, from, intent) {
       language: lang
     });
   } catch (err) {
-    logToFile('❌ in_chat_preview quiz generation failed', { userId: user.id, topic, error: err.message });
+    logToFile('❌ in_chat_preview quiz generation failed', { tk: tkOf(user.id), topic, error: err.message });
     await WhatsAppService.sendMessage(from,
       ({ ur: 'معذرت، کوئز بنانے میں مسئلہ ہوا۔ دوبارہ کوشش کریں یا \u2066/quiz\u2069 لکھیں۔', en: "Sorry, the preview quiz failed to generate. Try again or type /quiz." })[lang] || "Sorry, the preview quiz failed to generate. Try again or type /quiz.");
     return;
@@ -255,7 +256,7 @@ async function _handleShowInChat(user, from, intent) {
   });
 
   await _redisDel(PENDING_INTENT_KEY(user.id));
-  logToFile('✅ Show-in-chat preview rendered', { userId: user.id, quizId, count: questions.length });
+  logToFile('✅ Show-in-chat preview rendered', { tk: tkOf(user.id), quizId, count: questions.length });
 }
 
 /**
@@ -267,7 +268,7 @@ async function _handleShowInChat(user, from, intent) {
  */
 async function handleConfirmationButton(buttonId, user, from) {
   if (!user || !user.id) {
-    logToFile('⚠️ quiz intent button tapped without user — ignoring', { buttonId, from });
+    logToFile('⚠️ quiz intent button tapped without user — ignoring', { buttonId, from: String(from || '').slice(-4) });
     return;
   }
 
@@ -307,7 +308,7 @@ async function tryResumeAfterClassFlow(user, from) {
   if (readiness.gate !== 'ready') {
     // Don't resume yet — leave the pending key in place; teacher can
     // re-tap "Send to class" or finish the setup flow.
-    logToFile('ℹ️ Quiz resume deferred — readiness still not ready', { userId: user.id, gate: readiness.gate });
+    logToFile('ℹ️ Quiz resume deferred — readiness still not ready', { tk: tkOf(user.id), gate: readiness.gate });
     return false;
   }
 
@@ -315,7 +316,7 @@ async function tryResumeAfterClassFlow(user, from) {
   await WhatsAppService.sendMessage(from, _copy('resumed', lang)(parsed.topic));
   await _openQuizManagerFlow(user, from, parsed.topic);
   await _redisDel(PENDING_RESUME_KEY(user.id));
-  logToFile('✅ Quiz resumed after class setup', { userId: user.id, topic: parsed.topic });
+  logToFile('✅ Quiz resumed after class setup', { tk: tkOf(user.id), topic: parsed.topic });
   return true;
 }
 

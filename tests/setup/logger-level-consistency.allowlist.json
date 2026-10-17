@@ -937,14 +937,14 @@
   },
   {
     "file": "bot/shared/services/quiz/quiz-intent-router.service.js",
-    "line": 217,
-    "snippet": "logToFile('❌ in_chat_preview quiz generation failed', { userId: user.id, topic, error: err.message }",
+    "line": 218,
+    "snippet": "logToFile('❌ in_chat_preview quiz generation failed', { tk: tkOf(user.id), topic, error: err.message",
     "occurrence": 0
   },
   {
     "file": "bot/shared/services/quiz/quiz-orchestrator.service.js",
-    "line": 90,
-    "snippet": "logToFile('❌ QuizOrchestrator.initiateQuizRequest error', { error: err.message, userId: user?.id });",
+    "line": 91,
+    "snippet": "logToFile('❌ QuizOrchestrator.initiateQuizRequest error', { error: err.message, tk: tkOf(user?.id) }",
     "occurrence": 0
   },
   {
