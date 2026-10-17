@@ -42,6 +42,7 @@ const HomeToken = require('../../shared/services/first-touch/teacher-home.token'
 const { createRouter } = require('../../shared/services/first-touch/teacher-home.routes');
 const { str, fill } = require('../../shared/services/first-touch/teacher-home.strings');
 const { seedMaker, TEACHER, qid } = require('./maker-fixture');
+const { jsonPathSelect } = require('./_json-path-select');
 
 const OTHER = 'a0000000-0000-4000-8000-0000000000f2';
 const OWN_QUIZ = 'c0000000-0000-4000-8000-0000000000a1';
@@ -468,6 +469,32 @@ describe('the stories shelf and the other seams', () => {
     expect(home.library.all).toBe(base);
     const lib = await (await get(`/api/th/library?t=${t}&g=3${q}`)).json();
     expect(lib.stories.map((b) => b.href)).toEqual([`${base}&book=b1`]);
+  });
+
+  test('a book the teacher sent this month: the home and another grade\'s library both pick the next book and date the sent one', async () => {
+    seed();
+    const at = new Date(Date.now() - 5 * 86400000).toISOString();
+    fake.db.quizzes.push({ id: OWN_QUIZ, teacher_id: TEACHER.id, quiz_source: 'story', status: 'sent', topic: 'The Thirsty Crow', created_at: at,
+      meta: { story: { book_id: 'b1', lang: 'en' }, student_message: 'Read with Jugnu: https://portal.example/q/STORY1', share_code_id: OWN_CODE } });
+    fake.db.quiz_sessions = [];
+    deps.supabase = jsonPathSelect(supabase);
+    deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'The Thirsty Crow' }, { id: 'b2', title: 'Rain' }] })) };
+    await boot(deps);
+    const t = tokenFor();
+    const base = `/quiz/teacher/${encodeURIComponent(t)}/stories?lang=en`;
+    const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
+    expect(home.primary).toMatchObject({ kind: 'story', id: 'b2' });
+    expect(home.library.stories).toEqual([{ id: 'b1', title: 'The Thirsty Crow', href: `${base}&book=b1`, sent: at }, { id: 'b2', title: 'Rain', href: `${base}&book=b2` }]);
+    const lib = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+    expect(lib.pick).toMatchObject({ kind: 'story', id: 'b2', href: `${base}&book=b2` });
+    expect(lib.stories).toEqual(home.library.stories);
+    expect(deps.supabase.selects.filter((x) => x.table === 'quizzes' && /story_book/.test(x.cols))).toHaveLength(2); // one per request, in playedOwn's own read
+    // the class report failing → today's library: no skip, no date
+    deps.Report = { ...require('../../shared/services/quiz/teacher-report.data'), classReport: async () => { throw new Error('report down'); } };
+    srv.close(); await boot(deps);
+    const down = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+    expect(down.pick).toMatchObject({ kind: 'story', id: 'b1' });
+    expect(down.stories.every((b) => !('sent' in b))).toBe(true);
   });
 
   test('a stories module whose switch is off → no tiles, the video card is the library pick', async () => {
