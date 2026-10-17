@@ -21,7 +21,7 @@ const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () =
 function get(srv, path, headers = {}) {
   return new Promise((resolve, reject) => {
     const r = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'GET', path, headers }, (res) => {
-      let out = ''; res.on('data', (c) => { out += c; }); res.on('end', () => resolve({ status: res.statusCode, body: out }));
+      let out = ''; res.on('data', (c) => { out += c; }); res.on('end', () => resolve({ status: res.statusCode, body: out, headers: res.headers }));
     });
     r.on('error', reject); r.end();
   });
@@ -57,6 +57,7 @@ describe('switch on', () => {
     expect(res.body).toContain('This quiz has closed');
     expect(res.body).toContain('Ask your teacher for a new link.');
     expect(res.body).toContain(`<a class="wq-btn wq-go" href="${HOME.replace('&', '&amp;')}">Go to my home page</a>`);
+    expect(res.headers['cache-control']).toBe('private, no-store');   // it carries a hub token
   });
 
   test('Urdu: «اپنے ہوم پیج پر جائیں»', async () => {
@@ -95,12 +96,16 @@ describe('switch on', () => {
 
 describe('golden: today\'s page, byte-identical', () => {
   for (const [name, known] of [['switch off: no `known` in the closed answer', undefined], ['`known` that is not true', 'true']]) {
-    test(`${name}: the bot is never asked`, async () => {
-      quiz = jsonRes(410, known === undefined ? { error: 'expired', lang: 'en' } : { error: 'expired', lang: 'en', known });
+    test(`${name}: the bot is never asked, and the headers are today's`, async () => {
+      quiz = jsonRes(410, { error: 'expired', lang: 'en' });
+      const before = await get(srv, '/q/AB12CD', { cookie: `wq_dv=${DEV}` });
+      if (known !== undefined) quiz = jsonRes(410, { error: 'expired', lang: 'en', known });
       const res = await get(srv, '/q/AB12CD', { cookie: `wq_dv=${DEV}` });
       expect(res.status).toBe(410);
       expect(homeCalls()).toHaveLength(0);
       expect(res.body).toBe(today());
+      expect(res.headers['cache-control']).toBe(before.headers['cache-control']);
+      expect(res.headers['cache-control']).not.toBe('private, no-store');
     });
   }
 
