@@ -1594,17 +1594,6 @@
    "74 userId (shorthand)"
   ]
  },
- "bot/shared/services/quiz/quiz-orchestrator.service.js": {
-  "n": 5,
-  "area": "quiz",
-  "at": [
-   "39 userId: user.id",
-   "90 userId: user?.id",
-   "116 userId: user.id",
-   "220 userId: user.id",
-   "507 userId: teacher.id"
-  ]
- },
  "bot/shared/services/quiz/quiz-readiness.service.js": {
   "n": 3,
   "area": "quiz",

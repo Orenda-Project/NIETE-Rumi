@@ -943,8 +943,8 @@
   },
   {
     "file": "bot/shared/services/quiz/quiz-orchestrator.service.js",
-    "line": 90,
-    "snippet": "logToFile('❌ QuizOrchestrator.initiateQuizRequest error', { error: err.message, userId: user?.id });",
+    "line": 91,
+    "snippet": "logToFile('❌ QuizOrchestrator.initiateQuizRequest error', { error: err.message, tk: tkOf(user?.id) }",
     "occurrence": 0
   },
   {
