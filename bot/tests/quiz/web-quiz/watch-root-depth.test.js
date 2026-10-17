@@ -299,7 +299,7 @@ describe('GOLDEN: no watch root set, every reader answers as today', () => {
 });
 
 /**
- * Settings reads with NO watch root set (#C72 / #C81). The chips read exactly as before this change. The league
+ * Settings reads with NO watch root set (OFF reads exactly what the page read before the switch existed). The chips read exactly as before this change. The league
  * now reads the root setting on a load whose code map is warm (before, only when the load met a new code): that read
  * is what lets it fail closed and rebuild its map after the root changes. It rides the page's 30 s settings cache,
  * so it is one named `watchRootState` read when that cache is cold and none when it is warm.
