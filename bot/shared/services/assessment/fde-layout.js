@@ -1056,6 +1056,23 @@ function keyAcceptSplit(q) {
   const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept.filter((a) => typeof a === 'string') : [];
   return accept.some((a) => { const at = which(a); return at >= 0 && at !== keyAt; });
 }
+// Urdu Q4: the group word names what the listed words belong to («تھرمامیٹر، نبض، دوا، ڈاکٹر» →
+// اسپتال). A stem whose list prints the key as the only one of its options in the list («… جس سے یہ
+// سب الفاظ متعلق ہیں: سورج، کرنیں، دھوپ، روشنی» with options سورج، برف، سایہ، رات → سورج) is
+// answered by matching, and is held. A stem whose list is its own four options (choose the group
+// word among them: «بھیڑ، بکری، گائے، ریوڑ» → ریوڑ) is not: there every option is listed by design.
+// The list is the stem's first line after its last colon, up to its first «۔» or «؟», cut at «،».
+const GROUP_ASK = /گروہی/;
+function groupWordListed(q) {
+  const stem = String(q.question || '').split('\n')[0];
+  if (!GROUP_ASK.test(stem) || !/[:：]/.test(stem)) return false;
+  const key = plain(keyText(q));
+  if (!key) return false;
+  const listed = stem.slice(stem.search(/[:：][^:：]*$/) + 1).split(/[۔؟?]/)[0].split(/[،,]/).map(plain).filter(Boolean);
+  const options = (Array.isArray(q.options) ? q.options : []).map((o) => plain(String(o).replace(OPTION_HEAD, ''))).filter(Boolean);
+  const inList = options.filter((o) => listed.includes(o));
+  return listed.length > 1 && inList.length === 1 && inList[0] === key;
+}
 // Urdu Q1: an MCQ whose stem prints its own key gives itself away («لفظ «سانپ» کی درست املا کون سی
 // ہے؟» → سانپ; «سَحَر» … درست اعراب والا لفظ → سَحَر), the key being one of its options: a quote that is the key as written, marks and
 // all, or the key's words in order outside the stem's quotes. A quote that holds the key among other
@@ -1288,7 +1305,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
       if (P.key === 'social_studies' && tierSlip(q)) return false;
-      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && (keyAcceptSplit(q) || groupWordListed(q))) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && (printsOwnKey(q) || namesOwnTerm(q))) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
       if (!holds(slot)) {
