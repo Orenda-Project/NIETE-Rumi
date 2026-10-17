@@ -2547,6 +2547,11 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     logToFile('[assessment] maths key replaced', { slot: note.slot, n: note.n ?? note.index ?? null, computed: note.computed, model: note.model });
   });
 
+  // Urdu Q6's verses given from a lesson outside the chosen ones: the paper says where they come from.
+  const versesPrinted = Object.values(examJson.unseen || {}).flatMap((t) => Object.values(t || {})).flat()
+    .some((q) => q && q.slot === 'urdu.C.Q6' && typeof q.passage === 'string' && q.passage.trim());
+  if (key === 'urdu' && poem && versesPrinted) examJson._layout.verse_source = { lesson: poem.unit, pages: poem.pages };
+
   // The warm call is billed like any other, so it is in the paper's totals.
   const all = _sumUsage(warmUsages.concat(extraUsages, results.flatMap((r) => r.usages)));
   return {
