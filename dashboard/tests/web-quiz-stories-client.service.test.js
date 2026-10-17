@@ -587,6 +587,15 @@ describe('the reader', () => {
     const css = fs.readFileSync(CSS, 'utf8');
     expect((/\.wqs-whole\{([^}]*)\}/.exec(css) || [])[1]).not.toMatch(/position:absolute/);
   });
+  test('every Back is a drawn chevron (a Nastaliq font draws the ‹ glyph like the letter ر), mirrored on right-to-left screens', async () => {
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: book({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } } }); const root = await openReader(e, { lang });
+      const back = (/<button class="wqs-ic" data-back[^>]*>([\s\S]*?)<\/button>/.exec(root.innerHTML) || [])[1];
+      expect(back).toMatch(/^<svg class="wqs-g"/);
+      expect(root.innerHTML).not.toMatch(/>‹</);
+    }
+    expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\[dir=rtl\] \.wqs-ic\[data-back\] svg\{transform:scaleX\(-1\)\}/);
+  });
   test('the page-turn arrows are drawn chevrons (no text glyph a Nastaliq font turns into a bracket), the same in English and Urdu', async () => {
     for (const lang of ['en', 'ur']) {
       const e = env({ replies: { book: { status: 200, body: book({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } } }); const root = await openReader(e, { lang });

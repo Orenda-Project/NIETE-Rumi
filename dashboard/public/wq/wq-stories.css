@@ -57,6 +57,7 @@
 .wqs-arr{width:64px;height:64px;border-radius:32px;background:#fff;box-shadow:0 4px 0 var(--line);font-size:40px;line-height:1;flex:none;display:flex;align-items:center;justify-content:center}
 .wqs-arr:disabled{opacity:.3}
 [dir=rtl] .wqs-arr{transform:scaleX(-1)}
+[dir=rtl] .wqs-ic[data-back] svg{transform:scaleX(-1)}
 .wqs-main{flex:1;min-height:60px;border-radius:30px;background:#ffcf33;box-shadow:0 5px 0 #d29d00;font-size:22px;font-weight:800;padding:0 16px}
 .wqs-yourTurn,.wqs-done{background:#ff7a59;color:#fff;box-shadow:0 5px 0 #c8502f}
 .wqs-next{background:var(--hl);color:#fff;box-shadow:0 5px 0 #46a302}
